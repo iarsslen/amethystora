@@ -14,19 +14,20 @@ FROM ${BREW_IMAGE}@${BREW_IMAGE_SHA} AS brew
 FROM scratch AS ctx
 COPY /build_files /build_files
 COPY --from=common /system_files/shared /system_files/shared
+# "bluefin" is the upstream directory name inside the common image
 COPY --from=common /system_files/bluefin /system_files/shared
 COPY --from=brew /system_files /system_files/shared
-# bluefin-owned files overlay last so they take precedence over common
+# amethyst-owned files overlay last so they take precedence over common
 COPY /system_files /system_files
 
-## bluefin image section
+## amethyst image section
 FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION}@${BASE_IMAGE_SHA} AS base
 
 ARG AKMODS_FLAVOR="coreos-stable"
 ARG BASE_IMAGE_NAME="silverblue"
 ARG FEDORA_MAJOR_VERSION="40"
-ARG IMAGE_NAME="bluefin"
-ARG IMAGE_VENDOR="ublue-os"
+ARG IMAGE_NAME="amethyst"
+ARG IMAGE_VENDOR="iarsslen"
 ARG KERNEL="6.10.10-200.fc40.x86_64"
 ARG SHA_HEAD_SHORT="dedbeef"
 ARG UBLUE_IMAGE_TAG="stable"

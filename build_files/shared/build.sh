@@ -36,6 +36,9 @@ echo "::endgroup::"
 # Install Overrides and Fetch Install
 /ctx/build_files/base/05-override-install.sh
 
+# Amethyst Branding
+/ctx/build_files/base/06-branding.sh
+
 # Build GNOME Extensions from Git Submodules
 /ctx/build_files/shared/build-gnome-extensions.sh
 

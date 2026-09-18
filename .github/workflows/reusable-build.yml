@@ -7,9 +7,9 @@ on:
         default: "['main', 'nvidia-open']"
         type: string
       brand_name:
-        description: "The Brand Name: bluefin"
+        description: "The Brand Name: amethyst"
         required: true
-        default: bluefin
+        default: amethyst
         type: string
       stream_name:
         description: "The Fedora Version: stable, latest, or beta"

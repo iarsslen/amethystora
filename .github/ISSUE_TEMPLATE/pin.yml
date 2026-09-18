@@ -4,7 +4,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you for taking the time to fill out this bug report! (She bites sometimes). We can pin packages to older, known working versions if there's an issue with an update in Fedora.
+        Thank you for taking the time to fill out this request! We can pin packages to older, known working versions if there's an issue with an update in Fedora.
   - type: textarea
     id: package
     attributes:

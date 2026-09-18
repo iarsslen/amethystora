@@ -1,10 +1,10 @@
-repo_organization := "ublue-os"
+repo_organization := "iarsslen"
 rechunker_image := "ghcr.io/ublue-os/legacy-rechunk:v1.0.1-x86_64@sha256:2627cbf92ca60ab7372070dcf93b40f457926f301509ffba47a04d6a9e1ddaf7"
 common_image := "ghcr.io/projectbluefin/common:latest"
 brew_image := "ghcr.io/ublue-os/brew:latest"
 images := '(
-    [bluefin]=bluefin
-    [bluefin-dx]=bluefin-dx
+    [amethyst]=amethyst
+    [amethyst-dx]=amethyst-dx
 )'
 flavors := '(
     [main]=main
@@ -99,7 +99,7 @@ validate $image $tag $flavor:
 
 # Build Image
 [group('Image')]
-build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipeline="0" $kernel_pin="":
+build $image="amethyst" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipeline="0" $kernel_pin="":
     #!/usr/bin/bash
 
     echo "::group:: Build Prep"
@@ -173,7 +173,8 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
     else
         ver="${tag}-${fedora_version}.$(date +%Y%m%d)"
     fi
-    skopeo list-tags docker://ghcr.io/{{ repo_organization }}/${image_name} > /tmp/repotags.json
+    # The package does not exist on GHCR until the first push, so treat a failed lookup as "no tags yet"
+    skopeo list-tags docker://ghcr.io/{{ repo_organization }}/${image_name} > /tmp/repotags.json || echo '{"Tags":[]}' > /tmp/repotags.json
     if [[ $(jq "any(.Tags[]; contains(\"$ver\"))" < /tmp/repotags.json) == "true" ]]; then
         POINT="1"
         while $(jq -e "any(.Tags[]; contains(\"$ver.$POINT\"))" < /tmp/repotags.json)
@@ -217,17 +218,17 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
     LABELS+=("--label" "org.opencontainers.image.title=${image_name}")
     LABELS+=("--label" "org.opencontainers.image.version=${ver}")
     LABELS+=("--label" "ostree.linux=${kernel_release}")
-    LABELS+=("--label" "io.artifacthub.package.readme-url=https://raw.githubusercontent.com/ublue-os/bluefin/refs/heads/main/README.md")
-    LABELS+=("--label" "io.artifacthub.package.logo-url=https://avatars.githubusercontent.com/u/120078124?s=200&v=4")
+    LABELS+=("--label" "io.artifacthub.package.readme-url=https://raw.githubusercontent.com/{{ repo_organization }}/amethyst/refs/heads/main/README.md")
+    LABELS+=("--label" "io.artifacthub.package.logo-url=https://github.com/{{ repo_organization }}.png")
     LABELS+=("--label" "org.opencontainers.image.description=The next generation Linux workstation, designed for reliability, performance, and sustainability.")
     LABELS+=("--label" "containers.bootc=1")
     LABELS+=("--label" "org.opencontainers.image.created=$(date -u +%Y\-%m\-%d\T%H\:%M\:%S\Z)")
-    LABELS+=("--label" "org.opencontainers.image.source=https://raw.githubusercontent.com/ublue-os/bluefin/refs/heads/main/Containerfile")
-    LABELS+=("--label" "org.opencontainers.image.url=https://projectbluefin.io")
+    LABELS+=("--label" "org.opencontainers.image.source=https://raw.githubusercontent.com/{{ repo_organization }}/amethyst/refs/heads/main/Containerfile")
+    LABELS+=("--label" "org.opencontainers.image.url=https://github.com/{{ repo_organization }}/amethyst")
     LABELS+=("--label" "org.opencontainers.image.vendor={{ repo_organization }}")
     LABELS+=("--label" "io.artifacthub.package.deprecated=false")
-    LABELS+=("--label" "io.artifacthub.package.keywords=bootc,bluefin,ublue,universal-blue")
-    LABELS+=("--label" "io.artifacthub.package.maintainers=[{\"name\": \"castrojo\", \"email\": \"jorge.castro@gmail.com\"}]")
+    LABELS+=("--label" "io.artifacthub.package.keywords=bootc,amethyst,ublue,universal-blue")
+    LABELS+=("--label" "io.artifacthub.package.maintainers=[{\"name\": \"Arsslen Idadi\", \"email\": \"arsslens021@gmail.com\"}]")
 
     echo "::endgroup::"
     echo "::group:: Build Container"
@@ -257,12 +258,12 @@ build $image="bluefin" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipelin
 
 # Build Image and Rechunk
 [group('Image')]
-build-rechunk image="bluefin" tag="latest" flavor="main" kernel_pin="":
+build-rechunk image="amethyst" tag="latest" flavor="main" kernel_pin="":
     @{{ just }} build {{ image }} {{ tag }} {{ flavor }} 1 0 0 {{ kernel_pin }}
 
 # Build Image with GHCR Flag
 [group('Image')]
-build-ghcr image="bluefin" tag="latest" flavor="main" kernel_pin="":
+build-ghcr image="amethyst" tag="latest" flavor="main" kernel_pin="":
     #!/usr/bin/bash
     if [[ "${UID}" -gt "0" ]]; then
         echo "Must Run with sudo or as root..."
@@ -272,14 +273,14 @@ build-ghcr image="bluefin" tag="latest" flavor="main" kernel_pin="":
 
 # Build Image for Pipeline:
 [group('Image')]
-build-pipeline image="bluefin" tag="latest" flavor="main" kernel_pin="":
+build-pipeline image="amethyst" tag="latest" flavor="main" kernel_pin="":
     #!/usr/bin/bash
     ${SUDOIF} {{ just }} build {{ image }} {{ tag }} {{ flavor }} 1 1 1 {{ kernel_pin }}
 
 # Rechunk Image
 [group('Image')]
 [private]
-rechunk $image="bluefin" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
+rechunk $image="amethyst" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
     #!/usr/bin/bash
 
     echo "::group:: Rechunk Prep"
@@ -326,15 +327,15 @@ rechunk $image="bluefin" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
     # Rest of Labels
     LABELS="
         io.artifacthub.package.deprecated=false
-        io.artifacthub.package.keywords=bootc,fedora,bluefin,ublue,universal-blue
-        io.artifacthub.package.logo-url=https://avatars.githubusercontent.com/u/120078124?s=200&v=4
-        io.artifacthub.package.maintainers=[{\"name\": \"castrojo\", \"email\": \"jorge.castro@gmail.com\"}]
-        io.artifacthub.package.readme-url=https://raw.githubusercontent.com/ublue-os/bluefin/refs/heads/main/README.md
+        io.artifacthub.package.keywords=bootc,fedora,amethyst,ublue,universal-blue
+        io.artifacthub.package.logo-url=https://github.com/{{ repo_organization }}.png
+        io.artifacthub.package.maintainers=[{\"name\": \"Arsslen Idadi\", \"email\": \"arsslens021@gmail.com\"}]
+        io.artifacthub.package.readme-url=https://raw.githubusercontent.com/{{ repo_organization }}/amethyst/refs/heads/main/README.md
         org.opencontainers.image.created=$(date -u +%Y\-%m\-%d\T%H\:%M\:%S\Z)
         org.opencontainers.image.license=Apache-2.0
-        org.opencontainers.image.source=https://raw.githubusercontent.com/ublue-os/bluefin/refs/heads/main/Containerfile
+        org.opencontainers.image.source=https://raw.githubusercontent.com/{{ repo_organization }}/amethyst/refs/heads/main/Containerfile
         org.opencontainers.image.title=${image_name}
-        org.opencontainers.image.url=https://projectbluefin.io
+        org.opencontainers.image.url=https://github.com/{{ repo_organization }}/amethyst
         org.opencontainers.image.vendor={{ repo_organization }}
         ostree.linux=$(${SUDOIF} ${PODMAN} inspect $CREF | jq -r '.[].Config.Labels["ostree.linux"]')
         containers.bootc=1
@@ -346,7 +347,7 @@ rechunk $image="bluefin" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
         if [[ "${tag}" =~ stable ]]; then
             tag="stable-daily"
         fi
-        ID=$(${SUDOIF} ${PODMAN} images --filter reference=ghcr.io/{{ repo_organization }}/"${base_image_name}":${fedora_version} --format "{{ '{{.ID}}' }}")
+        ID=$(${SUDOIF} ${PODMAN} images --filter reference=ghcr.io/ublue-os/"${base_image_name}":${fedora_version} --format "{{ '{{.ID}}' }}")
         if [[ -n "$ID" ]]; then
             ${PODMAN} rmi "$ID"
         fi
@@ -399,10 +400,10 @@ rechunk $image="bluefin" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
         --volume "$PWD:/var/git" \
         --volume cache_ostree:/var/ostree \
         --env REPO=/var/ostree/repo \
-        --env PREV_REF=ghcr.io/ublue-os/"${image_name}":"${tag}" \
+        --env PREV_REF=ghcr.io/{{ repo_organization }}/"${image_name}":"${tag}" \
         --env OUT_NAME="$OUT_NAME" \
         --env LABELS="${LABELS}" \
-        --env "DESCRIPTION='An interpretation of the Ubuntu spirit built on Fedora technology'" \
+        --env "DESCRIPTION='Amethyst, a cloud-native Fedora desktop based on Bluefin'" \
         --env "VERSION=${VERSION}" \
         --env VERSION_FN=/workspace/version.txt \
         --env OUT_REF="oci:$OUT_NAME" \
@@ -435,7 +436,7 @@ rechunk $image="bluefin" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
 
 # Load OCI into Podman Store
 [group('Image')]
-load-rechunk image="bluefin" tag="latest" flavor="main":
+load-rechunk image="amethyst" tag="latest" flavor="main":
     #!/usr/bin/bash
     set -eou pipefail
 
@@ -456,7 +457,7 @@ load-rechunk image="bluefin" tag="latest" flavor="main":
 
 # Run Container
 [group('Image')]
-run $image="bluefin" $tag="latest" $flavor="main":
+run $image="amethyst" $tag="latest" $flavor="main":
     #!/usr/bin/bash
     set -eoux pipefail
 
@@ -517,7 +518,7 @@ verify-container container="" registry="ghcr.io/ublue-os" key="":
 
 # Secureboot Check
 [group('Utility')]
-secureboot $image="bluefin" $tag="latest" $flavor="main":
+secureboot $image="amethyst" $tag="latest" $flavor="main":
     #!/usr/bin/bash
     set -eou pipefail
 
@@ -569,7 +570,7 @@ secureboot $image="bluefin" $tag="latest" $flavor="main":
 # Get Fedora Version of an image
 [group('Utility')]
 [private]
-fedora_version image="bluefin" tag="latest" flavor="main" $kernel_pin="":
+fedora_version image="amethyst" tag="latest" flavor="main" $kernel_pin="":
     #!/usr/bin/bash
     set -eou pipefail
     {{ just }} validate {{ image }} {{ tag }} {{ flavor }}
@@ -590,7 +591,7 @@ fedora_version image="bluefin" tag="latest" flavor="main" $kernel_pin="":
 # Image Name
 [group('Utility')]
 [private]
-image_name image="bluefin" tag="latest" flavor="main":
+image_name image="amethyst" tag="latest" flavor="main":
     #!/usr/bin/bash
     set -eou pipefail
     {{ just }} validate {{ image }} {{ tag }} {{ flavor }}
@@ -603,7 +604,7 @@ image_name image="bluefin" tag="latest" flavor="main":
 
 # Generate Tags
 [group('Utility')]
-generate-build-tags image="bluefin" tag="latest" flavor="main" kernel_pin="" ghcr="0" $version="" github_event="" github_number="":
+generate-build-tags image="amethyst" tag="latest" flavor="main" kernel_pin="" ghcr="0" $version="" github_event="" github_number="":
     #!/usr/bin/bash
     set -eou pipefail
 
@@ -698,7 +699,7 @@ tag-images image_name="" default_tag="" tags="":
 
 # Extract Container and generate SBOM
 [group('Utility')]
-gen-sbom $image="bluefin" $tag="latest" $flavor="main" $syft_cmd="syft":
+gen-sbom $image="amethyst" $tag="latest" $flavor="main" $syft_cmd="syft":
     #!/usr/bin/bash
     set -eoux pipefail
 
@@ -726,7 +727,7 @@ gen-sbom $image="bluefin" $tag="latest" $flavor="main" $syft_cmd="syft":
 
 # DNF CI package cache
 [group('Utility')]
-setup-cache $image="bluefin" $tag="latest" $ghcr="0" $github_event="0":
+setup-cache $image="amethyst" $tag="latest" $ghcr="0" $github_event="0":
     #!/usr/bin/bash
     set -eou pipefail
 
@@ -735,7 +736,7 @@ setup-cache $image="bluefin" $tag="latest" $ghcr="0" $github_event="0":
 
     ALLOW_CACHE_WRITE="false"
 
-    BLESSED_IMAGE=bluefin-dx
+    BLESSED_IMAGE=amethyst-dx
 
     if [[ "${image_name}" == "${BLESSED_IMAGE}" ]] && \
        [[ "{{ ghcr }}" == "1" ]] && \
@@ -768,6 +769,6 @@ retag-nvidia-on-ghcr working_tag="" stream="" dry_run="1":
         echo "$GITHUB_PAT" | podman login -u $GITHUB_USERNAME --password-stdin ghcr.io
         skopeo="skopeo"
     fi
-    for image in bluefin-nvidia-open bluefin-dx-nvidia-open; do
-      $skopeo copy docker://ghcr.io/ublue-os/${image}:{{ working_tag }} docker://ghcr.io/ublue-os/${image}:{{ stream }}
+    for image in amethyst-nvidia-open amethyst-dx-nvidia-open; do
+      $skopeo copy docker://ghcr.io/{{ repo_organization }}/${image}:{{ working_tag }} docker://ghcr.io/{{ repo_organization }}/${image}:{{ stream }}
     done

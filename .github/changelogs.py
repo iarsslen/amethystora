@@ -8,7 +8,7 @@ from typing import Any
 import re
 from collections import defaultdict
 
-REGISTRY = "ghcr.io/ublue-os/"
+REGISTRY = "ghcr.io/iarsslen/"
 
 IMAGE_MATRIX_LATEST = {
     "experience": ["base", "dx"],
@@ -35,13 +35,13 @@ PATTERN_PKGREL = "{version}"
 COMMON_PAT = "### All Images\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n"
 OTHER_NAMES = {
     "base": "### Base Images\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
-    "dx": "### [Dev Experience Images](https://docs.projectbluefin.io/bluefin-dx)\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
-    "gnome": "### [Bluefin Images](https://projectbluefin.io/)\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
+    "dx": "### Dev Experience Images\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
+    "gnome": "### [Amethyst Images](https://github.com/iarsslen/amethyst)\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
     "nvidia-open": "### Nvidia Images\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
 }
 
 COMMITS_FORMAT = "### Commits\n| Hash | Subject | Author |\n| --- | --- | --- |{commits}\n\n"
-COMMIT_FORMAT = "\n| **[{short}](https://github.com/ublue-os/bluefin/commit/{githash})** | {subject} | {author} |"
+COMMIT_FORMAT = "\n| **[{short}](https://github.com/iarsslen/amethyst/commit/{githash})** | {subject} | {author} |"
 
 CHANGELOG_TITLE = "{tag}: {pretty}"
 CHANGELOG_FORMAT = """\
@@ -73,14 +73,14 @@ For current users, type the following to rebase to this version:
 IMAGE_NAME=$(jq -r '.["image-name"]' < /usr/share/ublue-os/image-info.json)
 
 # For this Stream
-sudo bootc switch --enforce-container-sigpolicy ghcr.io/ublue-os/$IMAGE_NAME:{target}
+sudo bootc switch --enforce-container-sigpolicy ghcr.io/iarsslen/$IMAGE_NAME:{target}
 
 # For this Specific Image:
-sudo bootc switch --enforce-container-sigpolicy ghcr.io/ublue-os/$IMAGE_NAME:{curr}
+sudo bootc switch --enforce-container-sigpolicy ghcr.io/iarsslen/$IMAGE_NAME:{curr}
 ```
 
 ### Documentation
-Be sure to read the [documentation](https://docs.projectbluefin.io/) for more information
+Be sure to read the [README](https://github.com/iarsslen/amethyst#readme) for more information
 on how to use your cloud native system.
 """
 HANDWRITTEN_PLACEHOLDER = """\
@@ -107,7 +107,7 @@ def get_images(target: str):
     for experience, de, image_flavor in product(*matrix.values()):
         img = ""
         if de == "gnome":
-            img += "bluefin"
+            img += "amethyst"
 
         if experience == "dx":
             img += "-dx"

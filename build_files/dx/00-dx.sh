@@ -122,7 +122,7 @@ fi
 systemctl enable docker.socket
 systemctl enable podman.socket
 systemctl enable libvirt-workaround.service
-systemctl enable bluefin-dx-groups.service
+systemctl enable amethyst-dx-groups.service
 
 sed -i 's@enabled=1@enabled=0@g' /etc/yum.repos.d/fedora-cisco-openh264.repo
 

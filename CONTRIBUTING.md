@@ -2,6 +2,8 @@
 
 Thanks for helping out!
 
-Check the [Contributing Guide](https://docs.projectbluefin.io/contributing) for contribution information.
+This repository builds the Amethyst images. Open an issue or pull request on [iarsslen/amethyst](https://github.com/iarsslen/amethyst).
 
-This repository is for building the images, you are probably looking for [@projectbluefin/common](https://github.com/projectbluefin/common) to change something in Bluefin. Make sure you check [the architecture diagram](https://docs.projectbluefin.io/contributing#understanding-bluefins-architecture).
+Amethyst is based on [Bluefin](https://github.com/ublue-os/bluefin), and much of the desktop layer comes from the upstream [@projectbluefin/common](https://github.com/projectbluefin/common) image. Changes to that shared layer belong upstream.
+
+Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/).

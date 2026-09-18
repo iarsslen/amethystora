@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 3840 2160">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f2fd"/>
+      <stop offset="0.55" stop-color="#e6d8f8"/>
+      <stop offset="1" stop-color="#cdb3ef"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="2900" cy="900" r="1700" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="600" cy="2000" r="1500" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#b98ae8" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#b98ae8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0.55" stop-color="#cdb3ef" stop-opacity="0"/>
+      <stop offset="1" stop-color="#cdb3ef" stop-opacity="0.85"/>
+    </linearGradient>
+  </defs>
+  <rect width="3840" height="2160" fill="url(#bg)"/>
+  <rect width="3840" height="2160" fill="url(#glowA)"/>
+  <rect width="3840" height="2160" fill="url(#glowB)"/>
+  <g transform="rotate(-38 2180 2500)"><polygon points="2080,2500 2080,1860 2130,1860 2130,2500" fill="#c7a3f0"/><polygon points="2080,1860 2130,1860 2180,1690" fill="#ebdcff"/><polygon points="2130,2500 2130,1860 2230,1860 2230,2500" fill="#a77ae3"/><polygon points="2130,1860 2230,1860 2180,1690" fill="#d2b6f7"/><polygon points="2230,2500 2230,1860 2280,1860 2280,2500" fill="#8454c8"/><polygon points="2230,1860 2280,1860 2180,1690" fill="#b08ae6"/></g>
+  <g transform="rotate(30 3740 2500)"><polygon points="3630,2500 3630,1800 3685,1800 3685,2500" fill="#c7a3f0"/><polygon points="3630,1800 3685,1800 3740,1620" fill="#ebdcff"/><polygon points="3685,2500 3685,1800 3795,1800 3795,2500" fill="#a77ae3"/><polygon points="3685,1800 3795,1800 3740,1620" fill="#d2b6f7"/><polygon points="3795,2500 3795,1800 3850,1800 3850,2500" fill="#8454c8"/><polygon points="3795,1800 3850,1800 3740,1620" fill="#b08ae6"/></g>
+  <g transform="rotate(-21 2520 2450)"><polygon points="2370,2450 2370,1470 2445,1470 2445,2450" fill="#c7a3f0"/><polygon points="2370,1470 2445,1470 2520,1220" fill="#ebdcff"/><polygon points="2445,2450 2445,1470 2595,1470 2595,2450" fill="#a77ae3"/><polygon points="2445,1470 2595,1470 2520,1220" fill="#d2b6f7"/><polygon points="2595,2450 2595,1470 2670,1470 2670,2450" fill="#8454c8"/><polygon points="2595,1470 2670,1470 2520,1220" fill="#b08ae6"/></g>
+  <g transform="rotate(15 3360 2450)"><polygon points="3190,2450 3190,1390 3275,1390 3275,2450" fill="#c7a3f0"/><polygon points="3190,1390 3275,1390 3360,1120" fill="#ebdcff"/><polygon points="3275,2450 3275,1390 3445,1390 3445,2450" fill="#a77ae3"/><polygon points="3275,1390 3445,1390 3360,1120" fill="#d2b6f7"/><polygon points="3445,2450 3445,1390 3530,1390 3530,2450" fill="#8454c8"/><polygon points="3445,1390 3530,1390 3360,1120" fill="#b08ae6"/></g>
+  <g transform="rotate(-5 2920 2450)"><polygon points="2710,2450 2710,1070 2815,1070 2815,2450" fill="#c7a3f0"/><polygon points="2710,1070 2815,1070 2920,740" fill="#ebdcff"/><polygon points="2815,2450 2815,1070 3025,1070 3025,2450" fill="#a77ae3"/><polygon points="2815,1070 3025,1070 2920,740" fill="#d2b6f7"/><polygon points="3025,2450 3025,1070 3130,1070 3130,2450" fill="#8454c8"/><polygon points="3025,1070 3130,1070 2920,740" fill="#b08ae6"/></g>
+  <rect width="3840" height="2160" fill="url(#fade)"/>
+</svg>

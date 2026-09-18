@@ -4,13 +4,13 @@ echo "::group:: ===$(basename "$0")==="
 
 set -xeuo pipefail
 
-IMAGE_PRETTY_NAME="Bluefin"
+IMAGE_PRETTY_NAME="Amethyst"
 IMAGE_LIKE="fedora"
-HOME_URL="https://projectbluefin.io"
-DOCUMENTATION_URL="https://docs.projectbluefin.io"
-SUPPORT_URL="https://github.com/ublue-os/bluefin/issues/"
-BUG_SUPPORT_URL="https://github.com/ublue-os/bluefin/issues/"
-CODE_NAME="Deinonychus"
+HOME_URL="https://github.com/iarsslen/amethyst"
+DOCUMENTATION_URL="https://github.com/iarsslen/amethyst#readme"
+SUPPORT_URL="https://github.com/iarsslen/amethyst/issues/"
+BUG_SUPPORT_URL="https://github.com/iarsslen/amethyst/issues/"
+CODE_NAME="Amethyst"
 VERSION="${VERSION:-00.00000000}"
 
 IMAGE_INFO="/usr/share/ublue-os/image-info.json"
@@ -42,10 +42,15 @@ sed -i "s|^HOME_URL=.*|HOME_URL=\"$HOME_URL\"|" /usr/lib/os-release
 sed -i "s|^DOCUMENTATION_URL=.*|DOCUMENTATION_URL=\"$DOCUMENTATION_URL\"|" /usr/lib/os-release
 sed -i "s|^SUPPORT_URL=.*|SUPPORT_URL=\"$SUPPORT_URL\"|" /usr/lib/os-release
 sed -i "s|^BUG_REPORT_URL=.*|BUG_REPORT_URL=\"$BUG_SUPPORT_URL\"|" /usr/lib/os-release
-sed -i "s|^CPE_NAME=\"cpe:/o:fedoraproject:fedora|CPE_NAME=\"cpe:/o:universal-blue:${IMAGE_PRETTY_NAME,}|" /usr/lib/os-release
+sed -i "s|^CPE_NAME=\"cpe:/o:fedoraproject:fedora|CPE_NAME=\"cpe:/o:${IMAGE_VENDOR}:${IMAGE_PRETTY_NAME,}|" /usr/lib/os-release
 sed -i "s|^DEFAULT_HOSTNAME=.*|DEFAULT_HOSTNAME=\"${IMAGE_PRETTY_NAME,}\"|" /usr/lib/os-release
 sed -i "s|^ID=fedora|ID=${IMAGE_PRETTY_NAME,}\nID_LIKE=\"${IMAGE_LIKE}\"|" /usr/lib/os-release
 sed -i "/^REDHAT_BUGZILLA_PRODUCT=/d; /^REDHAT_BUGZILLA_PRODUCT_VERSION=/d; /^REDHAT_SUPPORT_PRODUCT=/d; /^REDHAT_SUPPORT_PRODUCT_VERSION=/d" /usr/lib/os-release
+if grep -q "^LOGO=" /usr/lib/os-release; then
+  sed -i "s|^LOGO=.*|LOGO=amethyst-logo|" /usr/lib/os-release
+else
+  echo "LOGO=amethyst-logo" >> /usr/lib/os-release
+fi
 sed -i "s|^VERSION_CODENAME=.*|VERSION_CODENAME=\"$CODE_NAME\"|" /usr/lib/os-release
 sed -i "s|^VERSION=.*|VERSION=\"${VERSION} (${BASE_IMAGE_NAME^})\"|" /usr/lib/os-release
 sed -i "s|^OSTREE_VERSION=.*|OSTREE_VERSION=\'${VERSION}\'|" /usr/lib/os-release
@@ -62,8 +67,6 @@ echo "IMAGE_VERSION=\"${VERSION}\"" >> /usr/lib/os-release
 # Fix issues caused by ID no longer being fedora
 sed -i "s|^EFIDIR=.*|EFIDIR=\"fedora\"|" /usr/sbin/grub2-switch-to-blscfg
 
-# Weekly user count for fastfetch
-ghcurl https://raw.githubusercontent.com/ublue-os/countme/main/badge-endpoints/bluefin.json | jq -r ".message" > /usr/share/ublue-os/fastfetch-user-count
 
 # bazaar weekly downloads used for fastfetch
 curl -X 'GET' \

@@ -1,0 +1,17 @@
+# Amethyst overrides, applied on top of zz0-bluefin-modifications from projectbluefin/common
+
+[org.gnome.desktop.background]
+picture-uri='file:///usr/share/backgrounds/amethyst/amethyst-l.svg'
+picture-uri-dark='file:///usr/share/backgrounds/amethyst/amethyst-d.svg'
+picture-options='zoom'
+primary-color='2a0f4a'
+secondary-color='2a0f4a'
+
+[org.gnome.desktop.screensaver]
+picture-uri='file:///usr/share/backgrounds/amethyst/amethyst-d.svg'
+
+[org.gnome.desktop.interface]
+accent-color='purple'
+
+[org.gnome.shell.extensions.blur-my-shell.popup]
+blur=false
