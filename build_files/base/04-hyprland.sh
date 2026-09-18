@@ -61,7 +61,7 @@ for copr in avengemedia/dms avengemedia/danklinux; do
     dnf5 -y copr enable "${copr}"
     dnf5 -y copr disable "${copr}"
 done
-dnf5 -y install \
+dnf_install_retry \
     --enablerepo="copr:copr.fedorainfracloud.org:avengemedia:dms" \
     --enablerepo="copr:copr.fedorainfracloud.org:avengemedia:danklinux" \
     cliphist \
