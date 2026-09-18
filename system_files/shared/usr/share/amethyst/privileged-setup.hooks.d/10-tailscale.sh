@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 
-source /usr/lib/ublue/setup-services/libsetup.sh
+source /usr/lib/amethyst/setup-services/libsetup.sh
 
 version-script tailscale privileged 1 || exit 0
 

@@ -4,29 +4,28 @@ echo "::group:: ===$(basename "$0")==="
 
 set -eoux pipefail
 
-# We need to have the ublue-os signing keys on the image!
-# Published images without these keys won't be able to pull ghcr.io/ublue-os/*
-# and can therefore not update!
-# https://github.com/ublue-os/main/blob/963609eaf01f7c2bb1a76821fe6d0ec269d2df25/build_files/install.sh#L56
-# https://github.com/ublue-os/packages/tree/1f77c7e7faa9ebad120609a10d79e0412376c3b7/packages/ublue-os-signing/src
+# No Bluefin / Universal Blue names left in paths or text (07-debrand.sh)
+python3 /ctx/build_files/shared/debrand.py --check
 
-KEY1=$(jq -r '.transports.docker."ghcr.io/ublue-os"[0].keyPaths[0]' /etc/containers/policy.json)
-BACKUP_KEY=$(jq -r '.transports.docker."ghcr.io/ublue-os"[0].keyPaths[1]' /etc/containers/policy.json)
-KEY1_SHA256="af78ecfda6eb21c35195af3739341715e9cfc3f2f5911dd9c10b0670547bf6e8"
-BACKUP_KEY_SHA256="b723467015ba562d40b4645c98c51c65d8254bb59444f6e9962debcfe2315da0"
-
-echo "${KEY1_SHA256}  ${KEY1}" | sha256sum -c -
-echo "${BACKUP_KEY_SHA256}  ${BACKUP_KEY}" | sha256sum -c -
-
-for i in bin/ujust share/ublue-os/just/{00-entry.just,apps.just,default.just,system.just,update.just,} ; do
+for i in bin/ujust share/amethyst/just/{00-entry.just,apps.just,default.just,system.just,update.just,60-custom.just} ; do
    stat /usr/$i
 done
 
-test -f /usr/share/ublue-os/homebrew/fonts.Brewfile
+test -f /usr/share/amethyst/homebrew/fonts.Brewfile
+test -x /usr/bin/amethyst-fastfetch
+test -x /usr/libexec/amethyst-greeting
+test -f /usr/lib/amethyst/setup-services/libsetup.sh
 
 # If this file is not on the image bazaar will automatically be removed from users systems :(
 # See: https://docs.flatpak.org/en/latest/flatpak-command-reference.html#flatpak-preinstall
 test -f /usr/share/flatpak/preinstall.d/bazaar.preinstall
+test -f /usr/share/flatpak/preinstall.d/clamui.preinstall
+
+# Brave replaces Firefox; it lives under /usr/lib and is linked into /var/opt at boot
+test -x /usr/lib/brave.com/brave/brave
+test -f /usr/lib/tmpfiles.d/brave-browser.conf
+grep -q "^x-scheme-handler/https=brave-browser.desktop" /etc/xdg/mimeapps.list
+grep -q "org.mozilla.firefox" /usr/share/amethyst/homebrew/system-flatpaks.Brewfile && false
 
 # Hyprland + DankMaterialShell session
 test -x /usr/libexec/amethyst-hyprland-session
@@ -38,7 +37,11 @@ test -L /etc/systemd/user/graphical-session.target.wants/dms.service
 test -f /usr/lib/systemd/system/flatpak-add-fedora-repos.service && false
 
 IMPORTANT_PACKAGES=(
+    brave-browser
+    clamav
+    clamav-freshclam
     distrobox
+    dotnet-sdk-10.0
     fish
     flatpak
     hyprland
@@ -87,10 +90,11 @@ if [[ "${IMAGE_NAME}" =~ nvidia ]]; then
 fi
 
 IMPORTANT_UNITS=(
+    clamav-freshclam.service
     greetd.service
     rpm-ostree-countme.timer
     tailscaled.service
-    ublue-system-setup.service
+    amethyst-system-setup.service
     uupd.timer
   )
 

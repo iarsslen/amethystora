@@ -11,21 +11,22 @@ from collections import defaultdict
 REGISTRY = "ghcr.io/iarsslen/"
 
 IMAGE_MATRIX_LATEST = {
-    "experience": ["base", "dx"],
+    "experience": ["base"],  # "dx" paused for now
     "de": ["hyprland"],
-    "image_flavor": ["main", "nvidia-open"],
+    "image_flavor": ["main"],  # "nvidia-open" paused for now
 }
 IMAGE_MATRIX = {
-    "experience": ["base", "dx"],
+    "experience": ["base"],  # "dx" paused for now
     "de": ["hyprland"],
-    "image_flavor": ["main", "nvidia-open"],
+    "image_flavor": ["main"],  # "nvidia-open" paused for now
 }
 
 RETRIES = 3
 RETRY_WAIT = 5
 FEDORA_PATTERN = re.compile(r"\.fc\d\d")
 EPOCH_PATTERN = re.compile(r"^\d+:")
-START_PATTERN = lambda target: re.compile(rf"{target}-\d\d\d+")
+# Dated build tags: stable-20260918, then stable-20260918.1, .2, ... for later builds that day
+START_PATTERN = lambda target: re.compile(rf"{re.escape(target)}-\d{{8}}(?:\.\d+)?$")
 
 PATTERN_ADD = "\n| ✨ | {name} | | {version} |"
 PATTERN_CHANGE = "\n| 🔄 | {name} | {prev} | {new} |"
@@ -163,7 +164,8 @@ def get_tags(target: str, manifests: dict[str, Any]):
             if tag not in manifest["RepoTags"]:
                 tags.remove(tag)
 
-    tags = list(sorted(tags))
+    # By date, then by build number: stable-20260918.10 comes after stable-20260918.2
+    tags = sorted(tags, key=lambda tag: [int(n) for n in tag[len(target) + 1:].split(".")])
     if not len(tags) >= 2:
         print("No current and previous tags found")
         exit(1)

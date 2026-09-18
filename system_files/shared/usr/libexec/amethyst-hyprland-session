@@ -20,4 +20,12 @@ if [[ ! -e "${config_home}/hypr/hyprland.lua" && ! -e "${config_home}/hypr/hyprl
         echo "amethyst: dms setup failed, Hyprland starts with its default config" >&2
 fi
 
+# New DMS users: show the Amethyst logo (os-release LOGO=amethyst-logo) on the bar's launcher button.
+# DMS fills every other setting with its defaults.
+dms_settings="${config_home}/DankMaterialShell/settings.json"
+if [[ ! -e "${dms_settings}" ]]; then
+    mkdir -p "$(dirname "${dms_settings}")"
+    printf '{\n  "launcherLogoMode": "os"\n}\n' >"${dms_settings}"
+fi
+
 exec start-hyprland "$@"

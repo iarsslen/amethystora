@@ -19,6 +19,8 @@ COPY --from=common /system_files/bluefin /system_files/shared
 COPY --from=brew /system_files /system_files/shared
 # amethyst-owned files overlay last so they take precedence over common
 COPY /system_files /system_files
+# Licence and upstream attribution ship in the image (Apache-2.0)
+COPY LICENSE NOTICE /system_files/shared/usr/share/licenses/amethyst/
 
 ## amethyst image section
 FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION}@${BASE_IMAGE_SHA} AS base

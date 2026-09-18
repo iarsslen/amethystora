@@ -65,7 +65,7 @@ just build amethyst-dx latest main
 
 Secure Boot is supported. Amethyst uses the kernel modules from Universal Blue's akmods, which are signed with the Universal Blue key. After the first installation, you will be prompted to enroll the Secure Boot key in the BIOS.
 
-Enter the password `universalblue` when prompted to enroll the key.
+Enter the password `amethyst` when prompted to enroll the key.
 
 If this step is not completed during the initial setup, you can manually enroll the key by running the following command in the terminal:
 

@@ -173,17 +173,17 @@ build $image="amethyst" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipeli
     else
         ver="${tag}-${fedora_version}.$(date +%Y%m%d)"
     fi
+    # Every build gets its own version tag: the first build of the day is 42.20260918, later ones
+    # 42.20260918.1, 42.20260918.2, ... (one more than the highest published today).
     # The package does not exist on GHCR until the first push, so treat a failed lookup as "no tags yet"
     skopeo list-tags docker://ghcr.io/{{ repo_organization }}/${image_name} > /tmp/repotags.json || echo '{"Tags":[]}' > /tmp/repotags.json
-    if [[ $(jq "any(.Tags[]; contains(\"$ver\"))" < /tmp/repotags.json) == "true" ]]; then
-        POINT="1"
-        while $(jq -e "any(.Tags[]; contains(\"$ver.$POINT\"))" < /tmp/repotags.json)
-        do
-            (( POINT++ ))
-        done
-    fi
-    if [[ -n "${POINT:-}" ]]; then
-        ver="${ver}.$POINT"
+    POINT=$(jq -r --arg ver "${ver}" '
+        [.Tags[] | select(startswith($ver)) | ltrimstr($ver) | select(. == "" or test("^[.][0-9]+$"))
+            | ltrimstr(".") | if . == "" then 0 else tonumber end]
+        | if length == 0 then "" else max + 1 end
+    ' < /tmp/repotags.json)
+    if [[ -n "${POINT}" ]]; then
+        ver="${ver}.${POINT}"
     fi
 
     # Build Arguments
@@ -227,7 +227,7 @@ build $image="amethyst" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipeli
     LABELS+=("--label" "org.opencontainers.image.url=https://github.com/{{ repo_organization }}/amethyst")
     LABELS+=("--label" "org.opencontainers.image.vendor={{ repo_organization }}")
     LABELS+=("--label" "io.artifacthub.package.deprecated=false")
-    LABELS+=("--label" "io.artifacthub.package.keywords=bootc,amethyst,ublue,universal-blue")
+    LABELS+=("--label" "io.artifacthub.package.keywords=bootc,amethyst,hyprland")
     LABELS+=("--label" "io.artifacthub.package.maintainers=[{\"name\": \"Arsslen Idadi\", \"email\": \"arsslens021@gmail.com\"}]")
 
     echo "::endgroup::"
@@ -327,7 +327,7 @@ rechunk $image="amethyst" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
     # Rest of Labels
     LABELS="
         io.artifacthub.package.deprecated=false
-        io.artifacthub.package.keywords=bootc,fedora,amethyst,ublue,universal-blue
+        io.artifacthub.package.keywords=bootc,fedora,amethyst,hyprland
         io.artifacthub.package.logo-url=https://github.com/{{ repo_organization }}.png
         io.artifacthub.package.maintainers=[{\"name\": \"Arsslen Idadi\", \"email\": \"arsslens021@gmail.com\"}]
         io.artifacthub.package.readme-url=https://raw.githubusercontent.com/{{ repo_organization }}/amethyst/refs/heads/main/README.md
@@ -403,7 +403,7 @@ rechunk $image="amethyst" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
         --env PREV_REF=ghcr.io/{{ repo_organization }}/"${image_name}":"${tag}" \
         --env OUT_NAME="$OUT_NAME" \
         --env LABELS="${LABELS}" \
-        --env "DESCRIPTION='Amethyst, a cloud-native Fedora desktop based on Bluefin'" \
+        --env "DESCRIPTION='Amethyst, a cloud-native Fedora desktop with Hyprland'" \
         --env "VERSION=${VERSION}" \
         --env VERSION_FN=/workspace/version.txt \
         --env OUT_REF="oci:$OUT_NAME" \

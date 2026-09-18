@@ -4,3 +4,14 @@ Copyright 2026 Arsslen Idadi
 This product is a derivative of Bluefin (https://github.com/ublue-os/bluefin),
 developed by the Universal Blue project and its contributors, and licensed
 under the Apache License, Version 2.0.
+
+It includes software from the following projects, each licensed under the
+Apache License, Version 2.0:
+
+  - projectbluefin/common  https://github.com/projectbluefin/common
+  - ublue-os/main          https://github.com/ublue-os/main
+  - ublue-os/brew          https://github.com/ublue-os/brew
+  - ublue-os/uupd          https://github.com/ublue-os/uupd
+
+Amethyst modifies these files and renames them at build time; the changes
+are made by the scripts in build_files/ of https://github.com/iarsslen/amethyst.

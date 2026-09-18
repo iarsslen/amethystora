@@ -1,0 +1,4 @@
+# ClamUI, the graphical front end for ClamAV. It scans with the ClamAV installed in the image.
+[Flatpak Preinstall io.github.linx_systems.ClamUI]
+Branch=stable
+IsRuntime=false

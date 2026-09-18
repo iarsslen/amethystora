@@ -4,7 +4,8 @@ on:
     inputs:
       image_flavors:
         description: "JSON string of flavors to build, '[main, nvidia]'"
-        default: "['main', 'nvidia-open']"
+        # nvidia-open is paused for now; add it back to build it again
+        default: "['main']"
         type: string
       brand_name:
         description: "The Brand Name: amethyst"
@@ -43,7 +44,8 @@ jobs:
       fail-fast: false
       matrix:
         image_flavor: ${{ fromJson(inputs.image_flavors) }}
-        base_name: ["${{ inputs.brand_name }}", "${{ inputs.brand_name }}-dx"]
+        # The -dx images are paused for now: add the "-dx" name back to build them again
+        base_name: ["${{ inputs.brand_name }}"]
         stream_name: ["${{ inputs.stream_name }}"]
 
     steps:

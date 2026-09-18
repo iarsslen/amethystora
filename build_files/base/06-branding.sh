@@ -17,7 +17,7 @@ rm -f /usr/lib/systemd/user/bluefin-dynamic-wallpaper.{service,timer} \
     /usr/libexec/bluefin-dynamic-wallpaper \
     /usr/share/ublue-os/user-setup.hooks.d/20-dynamic-wallpaper.sh
 
-# Only the Amethyst logo is used by fastfetch (see /etc/ublue-os/fastfetch.json)
+# Only the Amethyst logo is used by fastfetch (see /etc/amethyst/fastfetch.json)
 rm -rf /usr/share/ublue-os/bluefin-logos
 
 # The files below come from the pinned projectbluefin/common image and change between its releases.
@@ -55,15 +55,16 @@ for desktop in system-update bluefin-help; do
     fi
 done
 
-# Terminal welcome banner and ChairLift help page
-if upstream_has /etc/uwelcome/config.json; then
-    jq --arg url "${REPO_URL}" '.links = [
-        {"name": "issues", "url": ($url + "/issues")},
-        {"name": "Discussions", "url": ($url + "/discussions")},
-        {"name": "docs", "url": ($url + "#readme")}
-    ]' /etc/uwelcome/config.json >/tmp/uwelcome.json
-    mv /tmp/uwelcome.json /etc/uwelcome/config.json
-fi
+# Universal Blue icons: switch the launchers to the Amethyst icons and drop the originals
+sed -i \
+    -e 's/^Icon=ublue-docs$/Icon=amethyst-docs/' \
+    -e 's/^Icon=ublue-discourse$/Icon=amethyst-community/' \
+    -e 's/^Icon=ublue-update$/Icon=amethyst-update/' \
+    /usr/share/applications/*.desktop
+rm -f /usr/share/icons/hicolor/scalable/actions/ublue-logo-symbolic.svg \
+    /usr/share/icons/hicolor/scalable/places/ublue-{docs,discourse,update}.svg
+
+# ChairLift help page
 if upstream_has /usr/share/chairlift/config.yml; then
     sed -i \
         -e "s|^\(\s*website:\).*|\1 ${REPO_URL}#readme|" \
@@ -92,19 +93,5 @@ fi
 if upstream_has /usr/share/ublue-os/just/changelog.just; then
     sed -i "s|--default \"projectbluefin/bluefin\"|--default \"${REPO}\"|" /usr/share/ublue-os/just/changelog.just
 fi
-
-# Pick up the Amethyst logo icon (os-release LOGO=amethyst-logo)
-if command -v gtk-update-icon-cache >/dev/null; then
-    gtk-update-icon-cache -f /usr/share/icons/hicolor
-fi
-
-# Upstream files change over time: surface anything these edits no longer catch
-for file in /usr/share/applications/{documentation,discourse,system-update,bluefin-help}.desktop \
-    /etc/uwelcome/config.json /usr/share/chairlift/config.yml "${FASTFETCH_CONFIG}" \
-    /usr/share/ublue-os/just/60-bonedigger.just; do
-    if [[ -f "${file}" ]] && grep -q -i "bluefin" "${file}"; then
-        echo "::warning::Bluefin branding left in ${file}, update build_files/base/06-branding.sh"
-    fi
-done
 
 echo "::endgroup::"

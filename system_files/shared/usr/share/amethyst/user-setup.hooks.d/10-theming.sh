@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source /usr/lib/ublue/setup-services/libsetup.sh
+source /usr/lib/amethyst/setup-services/libsetup.sh
 
 version-script theming user 1 || exit 0
 

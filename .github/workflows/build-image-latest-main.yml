@@ -30,7 +30,8 @@ jobs:
       matrix:
         brand_name: ["amethyst"]
     with:
-      image_flavors: '["main", "nvidia-open"]'
+      # nvidia-open is paused for now
+      image_flavors: '["main"]'
       brand_name: ${{ matrix.brand_name }}
       stream_name: latest
 

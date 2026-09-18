@@ -50,6 +50,61 @@ const gemSvg = (white = false, viewBox = "0 0 256 256") => `<svg xmlns="http://w
 </svg>
 `;
 
+// ---------------------------------------------------------------- icons --
+
+// Amethyst versions of the Universal Blue icons shipped by projectbluefin/common; 06-branding.sh points
+// the launchers at these names and deletes the originals.
+
+// Symbolic (single colour, recoloured by GTK): crown and three pavilion facets with gaps between them.
+const symbolicSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <g fill="#2e3436">
+    <path d="M4 2h8l3 4H1z"/>
+    <path d="M1 7h3.9l2.65 6.6z"/>
+    <path d="M5.9 7h4.2L8 13.2z"/>
+    <path d="M11.1 7H15l-6.55 6.6z"/>
+  </g>
+</svg>
+`;
+
+// Full-colour app icon: white glyph on a rounded amethyst tile.
+const tileSvg = (glyph) => `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#b98ae8"/>
+      <stop offset="1" stop-color="#5e2a9c"/>
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="224" height="224" rx="52" fill="url(#tile)"/>
+  ${glyph}
+</svg>
+`;
+
+// The gem centred on the tile, in white facets
+const docsGlyph = `<g transform="translate(48.6 42.4) scale(0.62)">
+    ${gemPolygons(true)}
+  </g>`;
+
+const communityGlyph = `<g fill="#ffffff">
+    <rect x="108" y="118" width="88" height="64" rx="16" fill-opacity="0.7"/>
+    <path d="M172 182l10 22 6-22z" fill-opacity="0.7"/>
+    <rect x="60" y="68" width="108" height="76" rx="18"/>
+    <path d="M80 144l-6 24 28-24z"/>
+  </g>
+  <g fill="#7d43c4">
+    <circle cx="92" cy="106" r="8"/>
+    <circle cx="114" cy="106" r="8"/>
+    <circle cx="136" cy="106" r="8"/>
+  </g>`;
+
+const updateGlyph = `<g fill="none" stroke="#ffffff" stroke-width="20">
+    <path d="M79.1 110.2A52 52 0 0 1 172 100"/>
+    <path d="M176.9 145.8A52 52 0 0 1 84 156"/>
+  </g>
+  <g fill="#ffffff">
+    <path d="M154 94h40l-20 28z"/>
+    <path d="M62 162h40l-20-28z"/>
+  </g>`;
+
 // ----------------------------------------------------------- wallpapers --
 
 // A hexagonal crystal point: three visible column faces capped by three pyramid faces.
@@ -243,5 +298,9 @@ function write(rel, content) {
 }
 
 write("usr/share/icons/hicolor/scalable/apps/amethyst-logo.svg", gemSvg());
-write("usr/share/ublue-os/amethyst-logos/symbols/amethyst", ansiLogo());
+write("usr/share/icons/hicolor/scalable/actions/amethyst-logo-symbolic.svg", symbolicSvg);
+write("usr/share/icons/hicolor/scalable/places/amethyst-docs.svg", tileSvg(docsGlyph));
+write("usr/share/icons/hicolor/scalable/places/amethyst-community.svg", tileSvg(communityGlyph));
+write("usr/share/icons/hicolor/scalable/places/amethyst-update.svg", tileSvg(updateGlyph));
+write("usr/share/amethyst/logos/symbols/amethyst", ansiLogo());
 renderPngs();

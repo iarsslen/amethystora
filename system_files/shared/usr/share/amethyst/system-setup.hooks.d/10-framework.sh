@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-source /usr/lib/ublue/setup-services/libsetup.sh
+source /usr/lib/amethyst/setup-services/libsetup.sh
 
 version-script framework system 2 || exit 0
 

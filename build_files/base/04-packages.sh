@@ -25,10 +25,13 @@ FEDORA_PACKAGES=(
     bcache-tools
     bootc
     borgbackup
+    clamav
+    clamav-freshclam
     containerd
     cryfs
     davfs2
     ddcutil
+    dotnet-sdk-10.0
     evtest
     fastfetch
     firewall-config
@@ -118,6 +121,30 @@ dnf -y install "${FEDORA_PACKAGES[@]}"
 dnf config-manager addrepo --from-repofile=https://pkgs.tailscale.com/stable/fedora/tailscale.repo
 dnf config-manager setopt tailscale-stable.enabled=0
 dnf -y install --enablerepo='tailscale-stable' tailscale
+
+# Brave is the browser, in place of Firefox.
+# Its RPM installs to /opt, which is /var/opt on a booted system: outside the image, so never updated.
+# Move it under /usr/lib; /usr/lib/tmpfiles.d/brave-browser.conf links it back into /var/opt at boot.
+dnf config-manager addrepo --from-repofile=https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
+dnf config-manager setopt brave-browser.enabled=0
+mkdir -p /var/opt
+dnf -y install --enablerepo='brave-browser' brave-browser
+mv /opt/brave.com /usr/lib/brave.com
+# Its daily cron job re-adds and re-enables the repo, which the image does not use
+rm -f /etc/cron.daily/brave-browser
+
+# Firefox: drop the Flatpak from the default app list and its now unused settings
+sed -i '/^flatpak "org\.mozilla\.firefox"/d' /usr/share/ublue-os/homebrew/system-flatpaks.Brewfile
+rm -rf /usr/share/ublue-os/firefox-config
+sed -i '$a\' /etc/xdg/mimeapps.list
+cat >>/etc/xdg/mimeapps.list <<'EOF'
+application/xhtml+xml=brave-browser.desktop;com.brave.Browser.desktop;
+text/html=brave-browser.desktop;com.brave.Browser.desktop;
+x-scheme-handler/about=brave-browser.desktop;com.brave.Browser.desktop;
+x-scheme-handler/http=brave-browser.desktop;com.brave.Browser.desktop;
+x-scheme-handler/https=brave-browser.desktop;com.brave.Browser.desktop;
+x-scheme-handler/unknown=brave-browser.desktop;com.brave.Browser.desktop;
+EOF
 
 # From che/nerd-fonts
 copr_install_isolated "che/nerd-fonts" "nerd-fonts"
