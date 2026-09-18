@@ -30,7 +30,11 @@ rm -f /tmp/fastfetch.jsonc /usr/share/ublue-os/fastfetch-user-count
 # Help and community shortcuts
 sed -i -e "s|^Exec=.*|Exec=xdg-open ${REPO_URL}#readme|" -e 's/Bluefin/Amethyst/g' /usr/share/applications/documentation.desktop
 sed -i -e "s|^Exec=.*|Exec=xdg-open ${REPO_URL}/discussions|" -e 's/Bluefin/Amethyst/g' /usr/share/applications/discourse.desktop
-sed -i 's/Bluefin/Amethyst/g' /usr/share/applications/bluefin-help.desktop /usr/share/applications/system-update.desktop
+sed -i 's/Bluefin/Amethyst/g' /usr/share/applications/system-update.desktop
+# Not shipped by every projectbluefin/common release
+if [[ -f /usr/share/applications/bluefin-help.desktop ]]; then
+    sed -i 's/Bluefin/Amethyst/g' /usr/share/applications/bluefin-help.desktop
+fi
 sed -i \
     -e "s|^command10=.*|command10=('Documentation', 'xdg-open ${REPO_URL}#readme', '', true)|" \
     -e "s|^command11=.*|command11=('Amethyst Discussions', 'xdg-open ${REPO_URL}/discussions', '', true)|" \
