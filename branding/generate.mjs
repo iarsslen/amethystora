@@ -50,17 +50,6 @@ const gemSvg = (white = false, viewBox = "0 0 256 256") => `<svg xmlns="http://w
 </svg>
 `;
 
-// Symbolic (single colour) variant for GNOME: crown and three pavilion facets with gaps between them.
-const symbolicSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <g fill="#2e3436">
-    <path d="M4 2h8l3 4H1z"/>
-    <path d="M1 7h3.9l2.65 6.6z"/>
-    <path d="M5.9 7h4.2L8 13.2z"/>
-    <path d="M11.1 7H15l-6.55 6.6z"/>
-  </g>
-</svg>
-`;
-
 // ----------------------------------------------------------- wallpapers --
 
 // A hexagonal crystal point: three visible column faces capped by three pyramid faces.
@@ -189,17 +178,22 @@ function logoHtml({ width, height, text, white = false }) {
   </script></body></html>`;
 }
 
+// Wallpapers are PNG: DankMaterialShell derives its colour theme from them with matugen, which cannot read SVG.
+const wallpaperHtml = (theme) => `<!doctype html><html><body style="margin:0">${wallpaperSvg(theme)}</body></html>`;
+
+const logo = (spec) => ({ ...spec, html: () => logoHtml(spec) });
 const PNGS = [
-  { out: "usr/share/pixmaps/fedora-logo.png", width: 500, height: 204, text: "dark" },
-  { out: "usr/share/pixmaps/fedora_logo_med.png", width: 250, height: 102, text: "dark" },
-  { out: "usr/share/pixmaps/fedora-logo-small.png", width: 150, height: 61, text: "dark" },
-  { out: "usr/share/pixmaps/fedora_whitelogo_med.png", width: 250, height: 102, text: "white" },
-  { out: "usr/share/pixmaps/fedora-gdm-logo.png", width: 150, height: 61, text: "white" },
-  { out: "usr/share/pixmaps/fedora-logo-icon.png", width: 512, height: 512 },
-  { out: "usr/share/pixmaps/fedora-logo-sprite.png", width: 400, height: 400 },
-  { out: "usr/share/pixmaps/system-logo-white.png", width: 252, height: 252, white: true },
-  { out: "usr/share/plymouth/themes/spinner/watermark.png", width: 240, height: 64, text: "white" },
-  { out: "usr/share/plymouth/themes/spinner/silverblue-watermark.png", width: 240, height: 64, text: "white" },
+  logo({ out: "usr/share/pixmaps/fedora-logo.png", width: 500, height: 204, text: "dark" }),
+  logo({ out: "usr/share/pixmaps/fedora_logo_med.png", width: 250, height: 102, text: "dark" }),
+  logo({ out: "usr/share/pixmaps/fedora-logo-small.png", width: 150, height: 61, text: "dark" }),
+  logo({ out: "usr/share/pixmaps/fedora_whitelogo_med.png", width: 250, height: 102, text: "white" }),
+  logo({ out: "usr/share/pixmaps/fedora-logo-icon.png", width: 512, height: 512 }),
+  logo({ out: "usr/share/pixmaps/fedora-logo-sprite.png", width: 400, height: 400 }),
+  logo({ out: "usr/share/pixmaps/system-logo-white.png", width: 252, height: 252, white: true }),
+  logo({ out: "usr/share/plymouth/themes/spinner/watermark.png", width: 240, height: 64, text: "white" }),
+  logo({ out: "usr/share/plymouth/themes/spinner/silverblue-watermark.png", width: 240, height: 64, text: "white" }),
+  { out: "usr/share/backgrounds/amethyst/amethyst-l.png", width: 3840, height: 2160, html: () => wallpaperHtml("light") },
+  { out: "usr/share/backgrounds/amethyst/amethyst-d.png", width: 3840, height: 2160, html: () => wallpaperHtml("dark") },
 ];
 
 function findBrowser() {
@@ -224,8 +218,8 @@ function renderPngs() {
   rmSync(work, { recursive: true, force: true });
   mkdirSync(work, { recursive: true });
   for (const png of PNGS) {
-    const html = join(work, "logo.html");
-    writeFileSync(html, logoHtml(png));
+    const html = join(work, "page.html");
+    writeFileSync(html, png.html());
     const out = join(SHARED, png.out);
     mkdirSync(dirname(out), { recursive: true });
     execFileSync(browser, [
@@ -249,8 +243,5 @@ function write(rel, content) {
 }
 
 write("usr/share/icons/hicolor/scalable/apps/amethyst-logo.svg", gemSvg());
-write("usr/share/icons/hicolor/scalable/actions/ublue-logo-symbolic.svg", symbolicSvg);
-write("usr/share/backgrounds/amethyst/amethyst-l.svg", wallpaperSvg("light"));
-write("usr/share/backgrounds/amethyst/amethyst-d.svg", wallpaperSvg("dark"));
 write("usr/share/ublue-os/amethyst-logos/symbols/amethyst", ansiLogo());
 renderPngs();

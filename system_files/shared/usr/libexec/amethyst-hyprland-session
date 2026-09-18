@@ -1,0 +1,23 @@
+#!/usr/bin/bash
+# Starts Amethyst's Hyprland session (launched by greetd through hyprland.desktop).
+# On a user's first login, deploy the DankMaterialShell Hyprland config (keybinds, colours, layout,
+# kitty) before Hyprland reads it; Hyprland would otherwise generate its own bare default config.
+
+config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+
+# Prefer native Wayland for Qt and Electron applications
+export QT_QPA_PLATFORM="${QT_QPA_PLATFORM:-wayland;xcb}"
+export ELECTRON_OZONE_PLATFORM_HINT="${ELECTRON_OZONE_PLATFORM_HINT:-auto}"
+
+# NVIDIA images: https://wiki.hypr.land/Nvidia/
+if [[ -d /sys/module/nvidia_drm ]]; then
+    export LIBVA_DRIVER_NAME="${LIBVA_DRIVER_NAME:-nvidia}"
+    export __GLX_VENDOR_LIBRARY_NAME="${__GLX_VENDOR_LIBRARY_NAME:-nvidia}"
+fi
+
+if [[ ! -e "${config_home}/hypr/hyprland.lua" && ! -e "${config_home}/hypr/hyprland.conf" ]]; then
+    dms setup headless --compositor hyprland --terminal kitty --skip-existing ||
+        echo "amethyst: dms setup failed, Hyprland starts with its default config" >&2
+fi
+
+exec start-hyprland "$@"

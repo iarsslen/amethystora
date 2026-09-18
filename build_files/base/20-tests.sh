@@ -28,6 +28,12 @@ test -f /usr/share/ublue-os/homebrew/fonts.Brewfile
 # See: https://docs.flatpak.org/en/latest/flatpak-command-reference.html#flatpak-preinstall
 test -f /usr/share/flatpak/preinstall.d/bazaar.preinstall
 
+# Hyprland + DankMaterialShell session
+test -x /usr/libexec/amethyst-hyprland-session
+grep -q "^Exec=/usr/libexec/amethyst-hyprland-session$" /usr/share/wayland-sessions/hyprland.desktop
+grep -q "dms-greeter --command hyprland" /etc/greetd/config.toml
+test -L /etc/systemd/user/graphical-session.target.wants/dms.service
+
 # Make sure this garbage never makes it to an image
 test -f /usr/lib/systemd/system/flatpak-add-fedora-repos.service && false
 
@@ -35,11 +41,11 @@ IMPORTANT_PACKAGES=(
     distrobox
     fish
     flatpak
-    mutter
+    hyprland
     pipewire
-    gnome-shell
-    ptyxis
-    gdm
+    dms
+    dms-greeter
+    greetd
     systemd
     tailscale
     uupd
@@ -56,6 +62,8 @@ done
 UNWANTED_PACKAGES=(
     fedora-logos
     firefox
+    gdm
+    gnome-shell
     gnome-software
     gnome-software-rpm-ostree
     podman-docker
@@ -79,6 +87,7 @@ if [[ "${IMAGE_NAME}" =~ nvidia ]]; then
 fi
 
 IMPORTANT_UNITS=(
+    greetd.service
     rpm-ostree-countme.timer
     tailscaled.service
     ublue-system-setup.service

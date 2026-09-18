@@ -1,0 +1,9 @@
+{
+  "policy_version": 1,
+  "blocked_commands": [
+    "greeter install",
+    "greeter enable",
+    "greeter uninstall"
+  ],
+  "message": "The greeter is configured by the Amethyst image. Use `ujust` or rebuild the image for system-level changes."
+}

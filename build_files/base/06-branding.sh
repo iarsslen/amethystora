@@ -54,12 +54,6 @@ for desktop in system-update bluefin-help; do
         sed -i 's/Bluefin/Amethyst/g' "/usr/share/applications/${desktop}.desktop"
     fi
 done
-if upstream_has /etc/dconf/db/distro.d/04-bluefin-custom-command-menu; then
-    sed -i \
-        -e "s|^command10=.*|command10=('Documentation', 'xdg-open ${REPO_URL}#readme', '', true)|" \
-        -e "s|^command11=.*|command11=('Amethyst Discussions', 'xdg-open ${REPO_URL}/discussions', '', true)|" \
-        /etc/dconf/db/distro.d/04-bluefin-custom-command-menu
-fi
 
 # Terminal welcome banner and ChairLift help page
 if upstream_has /etc/uwelcome/config.json; then

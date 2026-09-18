@@ -12,12 +12,12 @@ REGISTRY = "ghcr.io/iarsslen/"
 
 IMAGE_MATRIX_LATEST = {
     "experience": ["base", "dx"],
-    "de": ["gnome"],
+    "de": ["hyprland"],
     "image_flavor": ["main", "nvidia-open"],
 }
 IMAGE_MATRIX = {
     "experience": ["base", "dx"],
-    "de": ["gnome"],
+    "de": ["hyprland"],
     "image_flavor": ["main", "nvidia-open"],
 }
 
@@ -36,7 +36,7 @@ COMMON_PAT = "### All Images\n| | Name | Previous | New |\n| --- | --- | --- | -
 OTHER_NAMES = {
     "base": "### Base Images\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
     "dx": "### Dev Experience Images\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
-    "gnome": "### [Amethyst Images](https://github.com/iarsslen/amethyst)\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
+    "hyprland": "### [Amethyst Images](https://github.com/iarsslen/amethyst)\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
     "nvidia-open": "### Nvidia Images\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
 }
 
@@ -53,7 +53,8 @@ From previous `{target}` version `{prev}` there have been the following changes.
 | Name | Version |
 | --- | --- |
 | **Kernel** | {pkgrel:kernel} |
-| **Gnome** | {pkgrel:gnome-shell} |
+| **Hyprland** | {pkgrel:hyprland} |
+| **DankMaterialShell** | {pkgrel:dms} |
 | **Mesa** | {pkgrel:mesa-filesystem} |
 | **Podman** | {pkgrel:podman} |
 | **Nvidia** | {pkgrel:nvidia-driver} |
@@ -88,7 +89,8 @@ This is an automatically generated changelog for release `{curr}`."""
 
 BLACKLIST_VERSIONS = [
     "kernel",
-    "gnome-shell",
+    "hyprland",
+    "dms",
     "mesa-filesystem",
     "podman",
     "docker-ce",
@@ -106,7 +108,7 @@ def get_images(target: str):
 
     for experience, de, image_flavor in product(*matrix.values()):
         img = ""
-        if de == "gnome":
+        if de == "hyprland":
             img += "amethyst"
 
         if experience == "dx":
@@ -297,7 +299,7 @@ def get_package_groups(target: str, prev_tag: str, curr_tag: str):
 
             if t == "nvidia-open" and "nvidia-open" not in image_flavor:
                 continue
-            if t == "gnome" and de != "gnome":
+            if t == "hyprland" and de != "hyprland":
                 continue
             if t == "base" and experience != "base":
                 continue

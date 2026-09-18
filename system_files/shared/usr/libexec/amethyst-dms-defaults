@@ -1,0 +1,16 @@
+#!/usr/bin/bash
+# Sets the Amethyst wallpaper once per user; DMS derives its colour theme from the wallpaper.
+set -euo pipefail
+
+marker="${XDG_STATE_HOME:-$HOME/.local/state}/amethyst/dms-defaults-applied"
+
+# dms.service is ready once it owns its D-Bus name, but give the IPC socket a moment
+for _ in {1..30}; do
+    dms ipc call wallpaper get >/dev/null 2>&1 && break
+    sleep 1
+done
+
+dms ipc call wallpaper set /usr/share/backgrounds/amethyst/amethyst-d.png
+
+mkdir -p "$(dirname "${marker}")"
+touch "${marker}"

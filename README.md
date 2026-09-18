@@ -2,7 +2,7 @@
 
 [![Stable Images](https://github.com/iarsslen/amethyst/actions/workflows/build-image-stable.yml/badge.svg)](https://github.com/iarsslen/amethyst/actions/workflows/build-image-stable.yml)[![Latest Images](https://github.com/iarsslen/amethyst/actions/workflows/build-image-latest-main.yml/badge.svg)](https://github.com/iarsslen/amethyst/actions/workflows/build-image-latest-main.yml)
 
-**Amethyst** is a cloud-native desktop operating system built on Fedora, using container technology and atomic updates.
+**Amethyst** is a cloud-native desktop operating system built on Fedora, using container technology and atomic updates. Its desktop is the [Hyprland](https://hypr.land) tiling compositor with [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) (DMS) as the shell: panel, launcher, notifications, control center, lock screen and login screen.
 
 For end users, it aims to be as reliable as a Chromebook with near-zero maintenance. For developers, it offers a cloud-native workflow with integrated container tools, declarative system management and CI/CD-built images.
 
@@ -36,6 +36,23 @@ sudo bootc switch ghcr.io/iarsslen/amethyst:stable
 ```
 
 Then reboot. Replace `amethyst` with any image name from the table above, and `stable` with the stream you want.
+
+### Using the desktop
+
+You log in on the DankMaterialShell greeter, which starts a Hyprland session. On each user's first login, Amethyst runs `dms setup` to write the DMS Hyprland config to `~/.config/hypr/` (Lua, Hyprland 0.55+) and a kitty config, then sets the Amethyst wallpaper. DMS derives its colours from the wallpaper. Edit `~/.config/hypr/dms/binds-user.lua` to add your own keybinds.
+
+| Keys | Action |
+| --- | --- |
+| `Super` + `Space` | App launcher |
+| `Super` + `T` | Terminal (kitty) |
+| `Super` + `Q` | Close window |
+| `Super` + `Tab` | Workspace overview |
+| `Super` + `V` | Clipboard history |
+| `Super` + `,` | DMS settings |
+| `Super` + `Alt` + `L` | Lock screen |
+| `Super` + `Shift` + `/` | Show every keybind |
+
+To make the login screen use your wallpaper and theme, run `dms-greeter sync` once.
 
 ### Building locally
 
@@ -91,7 +108,9 @@ This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE
 Amethyst incorporates and builds upon several open source projects:
 - **Bluefin / Universal Blue**: Base images, the shared desktop layer (`projectbluefin/common`), kernel modules and build tooling
 - **Fedora Linux**: Base operating system
-- **GNOME Desktop Environment**: Desktop interface
+- **Hyprland**: Wayland compositor
+- **DankMaterialShell**: Desktop shell and login greeter
+- **GNOME applications and libraries**: Files, portals and keyring
 - **Various CNCF Projects**: Cloud-native tooling and containers
 
 All incorporated components keep their respective licenses and attributions.
