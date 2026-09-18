@@ -73,6 +73,15 @@ dnf_install_retry \
     matugen \
     quickshell-git
 
+# SELinux: greetd runs the greeter as xdm_t, which can only write to the greeter's home and cache (where it
+# unpacks its UI and Hyprland config) once they are labelled as home directories. Without this the greeter
+# dies at boot and the screen stays black. dms-greeter's %post sets these rules but ignores failures, so set
+# them here where a failure stops the build. greetd.service relabels existing installs on start.
+for fcontext in "cache_home_t /var/cache/dms-greeter(/.*)?" "user_home_dir_t /var/lib/greeter(/.*)?"; do
+    read -r setype pattern <<<"${fcontext}"
+    semanage fcontext -a -t "${setype}" "${pattern}" || semanage fcontext -m -t "${setype}" "${pattern}"
+done
+
 # Hyprland session: start through Amethyst's wrapper, which deploys the DMS config on first login
 sed -i 's|^Exec=.*|Exec=/usr/libexec/amethyst-hyprland-session|' /usr/share/wayland-sessions/hyprland.desktop
 rm -f /usr/share/wayland-sessions/hyprland-uwsm.desktop

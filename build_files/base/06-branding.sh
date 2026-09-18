@@ -42,6 +42,15 @@ if upstream_has "${FASTFETCH_CONFIG}"; then
 fi
 rm -f /usr/share/ublue-os/fastfetch-user-count
 
+# Boot splash: the animated Amethyst theme borrows the password prompt images from Fedora's spinner theme.
+# 19-initramfs.sh bakes the selected theme into the initramfs.
+for image in bullet capslock entry keyboard keymap-render lock; do
+    if upstream_has "/usr/share/plymouth/themes/spinner/${image}.png"; then
+        cp "/usr/share/plymouth/themes/spinner/${image}.png" /usr/share/plymouth/themes/amethyst/
+    fi
+done
+plymouth-set-default-theme amethyst
+
 # Help and community shortcuts
 if upstream_has /usr/share/applications/documentation.desktop; then
     sed -i -e "s|^Exec=.*|Exec=xdg-open ${REPO_URL}#readme|" -e 's/Bluefin/Amethyst/g' /usr/share/applications/documentation.desktop

@@ -32,6 +32,15 @@ test -x /usr/libexec/amethyst-hyprland-session
 grep -q "^Exec=/usr/libexec/amethyst-hyprland-session$" /usr/share/wayland-sessions/hyprland.desktop
 grep -q "dms-greeter --command hyprland" /etc/greetd/config.toml
 test -L /etc/systemd/user/graphical-session.target.wants/dms.service
+# Without these SELinux labels the greeter cannot start and boot ends on a black screen
+grep -qF '/var/cache/dms-greeter(/.*)?' /etc/selinux/targeted/contexts/files/file_contexts.local
+grep -qF '/var/lib/greeter(/.*)?' /etc/selinux/targeted/contexts/files/file_contexts.local
+test -f /usr/lib/systemd/system/greetd.service.d/10-amethyst-selinux.conf
+
+# Animated boot splash
+[[ "$(plymouth-set-default-theme)" == "amethyst" ]]
+test -f /usr/share/plymouth/themes/amethyst/throbber-0001.png
+test -f /usr/share/plymouth/themes/amethyst/entry.png
 
 # Make sure this garbage never makes it to an image
 test -f /usr/lib/systemd/system/flatpak-add-fedora-repos.service && false

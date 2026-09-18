@@ -171,6 +171,52 @@ function wallpaperSvg(theme) {
 `;
 }
 
+// ------------------------------------------------------- boot splash --
+
+// Plymouth's two-step plugin loops throbber-NNNN.png at 30 frames per second: a band of light sweeps
+// across the gem and a sparkle flashes on its crown, while a glow behind it breathes over the whole loop.
+const BOOT_FRAMES = 60;
+const BOOT_VIEWBOX = [-8, 24, 272, 232];
+const GEM_OUTLINE = pointList(["L", "A", "C", "R", "K"]);
+
+const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+const bump = (x) => (x <= 0 || x >= 1 ? 0 : Math.sin(Math.PI * x));
+
+function bootFrameSvg(frame) {
+  const t = frame / BOOT_FRAMES;
+  const glow = 0.22 + 0.16 * (0.5 - 0.5 * Math.cos(2 * Math.PI * t));
+  const sweep = -90 + 380 * smooth(t / 0.5);
+  const sparkle = bump((t - 0.3) / 0.25);
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${BOOT_VIEWBOX.join(" ")}">
+  <defs>
+    <radialGradient id="glow" cx="128" cy="140" r="132" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9b5ce0" stop-opacity="${glow.toFixed(3)}"/>
+      <stop offset="1" stop-color="#9b5ce0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="band" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="gem"><polygon points="${GEM_OUTLINE}"/></clipPath>
+  </defs>
+  <rect x="-8" y="24" width="272" height="232" fill="url(#glow)"/>
+  ${gemPolygons()}
+  <g clip-path="url(#gem)">
+    <rect x="${sweep.toFixed(1)}" y="-100" width="70" height="460" fill="url(#band)" transform="rotate(20 128 138)"/>
+  </g>
+  <path d="M0-26L5-5 26 0 5 5 0 26-5 5-26 0-5-5z" fill="#ffffff"
+    transform="translate(192 56) scale(${sparkle.toFixed(3)})" opacity="${sparkle.toFixed(3)}"/>
+</svg>
+`;
+}
+
+const BOOT_SIZE = [188, 160];
+const bootFrameHtml = (frame) => `<!doctype html><html><head><style>
+    html,body{margin:0;background:transparent;overflow:hidden}
+    svg{display:block;width:${BOOT_SIZE[0]}px;height:${BOOT_SIZE[1]}px}
+  </style></head><body>${bootFrameSvg(frame)}</body></html>`;
+
 // ------------------------------------------------------ fastfetch logo --
 
 function inPolygon([x, y], poly) {
@@ -216,9 +262,9 @@ const gemImg = (white) =>
   `<img src="data:image/svg+xml;base64,${Buffer.from(gemSvg(white, "24 56 208 164")).toString("base64")}">`;
 
 // Gem (plus optional wordmark) centred on a transparent canvas, scaled down to fit with a margin.
-function logoHtml({ width, height, text, white = false }) {
+function logoHtml({ width, height, text, white = false, gem = true }) {
   const textColor = text === "white" ? "#ffffff" : "#241f31";
-  const body = `<div id="row">${gemImg(white)}${text ? "<span>amethyst</span>" : ""}</div>`;
+  const body = `<div id="row">${gem ? gemImg(white) : ""}${text ? "<span>amethyst</span>" : ""}</div>`;
   return `<!doctype html><html><head><style>
     html,body{margin:0;width:${width}px;height:${height}px;background:transparent;overflow:hidden}
     body{display:flex;align-items:center;justify-content:center}
@@ -247,6 +293,11 @@ const PNGS = [
   logo({ out: "usr/share/pixmaps/system-logo-white.png", width: 252, height: 252, white: true }),
   logo({ out: "usr/share/plymouth/themes/spinner/watermark.png", width: 240, height: 64, text: "white" }),
   logo({ out: "usr/share/plymouth/themes/spinner/silverblue-watermark.png", width: 240, height: 64, text: "white" }),
+  logo({ out: "usr/share/plymouth/themes/amethyst/watermark.png", width: 200, height: 56, text: "white", gem: false }),
+  ...Array.from({ length: BOOT_FRAMES }, (_, i) => ({
+    out: `usr/share/plymouth/themes/amethyst/throbber-${String(i + 1).padStart(4, "0")}.png`,
+    width: BOOT_SIZE[0], height: BOOT_SIZE[1], html: () => bootFrameHtml(i),
+  })),
   { out: "usr/share/backgrounds/amethyst/amethyst-l.png", width: 3840, height: 2160, html: () => wallpaperHtml("light") },
   { out: "usr/share/backgrounds/amethyst/amethyst-d.png", width: 3840, height: 2160, html: () => wallpaperHtml("dark") },
 ];
