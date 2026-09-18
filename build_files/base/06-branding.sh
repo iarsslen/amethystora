@@ -20,52 +20,84 @@ rm -f /usr/lib/systemd/user/bluefin-dynamic-wallpaper.{service,timer} \
 # Only the Amethyst logo is used by fastfetch (see /etc/ublue-os/fastfetch.json)
 rm -rf /usr/share/ublue-os/bluefin-logos
 
+# The files below come from the pinned projectbluefin/common image and change between its releases.
+# Skip, with a warning, any that the pinned version does not ship instead of failing the build.
+upstream_has() {
+    local file
+    for file in "$@"; do
+        if [[ ! -f "${file}" ]]; then
+            echo "::warning::${file} not found, skipping its Amethyst branding"
+            return 1
+        fi
+    done
+}
+
 # fastfetch: drop the Bluefin user count and use the Amethyst palette
 FASTFETCH_CONFIG=/usr/share/ublue-os/fastfetch.jsonc
-jq 'del(.modules[] | select(type == "object" and ((.format // "") | contains("Murder Chickens"))))' \
-    "${FASTFETCH_CONFIG}" >/tmp/fastfetch.jsonc
-sed -e 's/38;2;87;160;198/38;2;155;92;224/g' -e 's/#57a0c6/#9b5ce0/g' /tmp/fastfetch.jsonc >"${FASTFETCH_CONFIG}"
-rm -f /tmp/fastfetch.jsonc /usr/share/ublue-os/fastfetch-user-count
+if upstream_has "${FASTFETCH_CONFIG}"; then
+    jq 'del(.modules[] | select(type == "object" and ((.format // "") | contains("Murder Chickens"))))' \
+        "${FASTFETCH_CONFIG}" >/tmp/fastfetch.jsonc
+    sed -e 's/38;2;87;160;198/38;2;155;92;224/g' -e 's/#57a0c6/#9b5ce0/g' /tmp/fastfetch.jsonc >"${FASTFETCH_CONFIG}"
+    rm -f /tmp/fastfetch.jsonc
+fi
+rm -f /usr/share/ublue-os/fastfetch-user-count
 
 # Help and community shortcuts
-sed -i -e "s|^Exec=.*|Exec=xdg-open ${REPO_URL}#readme|" -e 's/Bluefin/Amethyst/g' /usr/share/applications/documentation.desktop
-sed -i -e "s|^Exec=.*|Exec=xdg-open ${REPO_URL}/discussions|" -e 's/Bluefin/Amethyst/g' /usr/share/applications/discourse.desktop
-sed -i 's/Bluefin/Amethyst/g' /usr/share/applications/system-update.desktop
-# Not shipped by every projectbluefin/common release
-if [[ -f /usr/share/applications/bluefin-help.desktop ]]; then
-    sed -i 's/Bluefin/Amethyst/g' /usr/share/applications/bluefin-help.desktop
+if upstream_has /usr/share/applications/documentation.desktop; then
+    sed -i -e "s|^Exec=.*|Exec=xdg-open ${REPO_URL}#readme|" -e 's/Bluefin/Amethyst/g' /usr/share/applications/documentation.desktop
 fi
-sed -i \
-    -e "s|^command10=.*|command10=('Documentation', 'xdg-open ${REPO_URL}#readme', '', true)|" \
-    -e "s|^command11=.*|command11=('Amethyst Discussions', 'xdg-open ${REPO_URL}/discussions', '', true)|" \
-    /etc/dconf/db/distro.d/04-bluefin-custom-command-menu
+if upstream_has /usr/share/applications/discourse.desktop; then
+    sed -i -e "s|^Exec=.*|Exec=xdg-open ${REPO_URL}/discussions|" -e 's/Bluefin/Amethyst/g' /usr/share/applications/discourse.desktop
+fi
+for desktop in system-update bluefin-help; do
+    if upstream_has "/usr/share/applications/${desktop}.desktop"; then
+        sed -i 's/Bluefin/Amethyst/g' "/usr/share/applications/${desktop}.desktop"
+    fi
+done
+if upstream_has /etc/dconf/db/distro.d/04-bluefin-custom-command-menu; then
+    sed -i \
+        -e "s|^command10=.*|command10=('Documentation', 'xdg-open ${REPO_URL}#readme', '', true)|" \
+        -e "s|^command11=.*|command11=('Amethyst Discussions', 'xdg-open ${REPO_URL}/discussions', '', true)|" \
+        /etc/dconf/db/distro.d/04-bluefin-custom-command-menu
+fi
 
 # Terminal welcome banner and ChairLift help page
-jq --arg url "${REPO_URL}" '.links = [
-    {"name": "issues", "url": ($url + "/issues")},
-    {"name": "Discussions", "url": ($url + "/discussions")},
-    {"name": "docs", "url": ($url + "#readme")}
-]' /etc/uwelcome/config.json >/tmp/uwelcome.json
-mv /tmp/uwelcome.json /etc/uwelcome/config.json
-sed -i \
-    -e "s|^\(\s*website:\).*|\1 ${REPO_URL}#readme|" \
-    -e "s|^\(\s*issues:\).*|\1 ${REPO_URL}/issues|" \
-    -e "s|^\(\s*chat:\).*|\1 ${REPO_URL}/discussions|" \
-    /usr/share/chairlift/config.yml
+if upstream_has /etc/uwelcome/config.json; then
+    jq --arg url "${REPO_URL}" '.links = [
+        {"name": "issues", "url": ($url + "/issues")},
+        {"name": "Discussions", "url": ($url + "/discussions")},
+        {"name": "docs", "url": ($url + "#readme")}
+    ]' /etc/uwelcome/config.json >/tmp/uwelcome.json
+    mv /tmp/uwelcome.json /etc/uwelcome/config.json
+fi
+if upstream_has /usr/share/chairlift/config.yml; then
+    sed -i \
+        -e "s|^\(\s*website:\).*|\1 ${REPO_URL}#readme|" \
+        -e "s|^\(\s*issues:\).*|\1 ${REPO_URL}/issues|" \
+        -e "s|^\(\s*chat:\).*|\1 ${REPO_URL}/discussions|" \
+        /usr/share/chairlift/config.yml
+fi
 
 # `ujust report` and `ujust changelogs` resolve the GitHub repo from the image name;
 # amethyst matches no upstream name, so they use these defaults.
 # The report title swaps the blueberry emoji for a purple heart, matched as UTF-8 bytes.
 EMOJI_SWAP='s/\xf0\x9f\xab\x90 Bluefin/\xf0\x9f\x92\x9c Amethyst/g'
-LC_ALL=C sed -i "${EMOJI_SWAP}" /usr/libexec/bonedigger-report /usr/share/ublue-os/just/60-bonedigger.just
-sed -i \
-    -e "s|--default \"projectbluefin/common\"|--default \"${REPO}\"|" \
-    -e "s|create_draft \"projectbluefin/common\"|create_draft \"${REPO}\"|" \
-    -e "s|https://github.com/projectbluefin/common/issues/new|${REPO_URL}/issues/new|" \
-    -e "s|https://github.com/ublue-os/bluefin/discussions|${REPO_URL}/discussions|" \
-    -e 's/Bluefin Discussions/Amethyst Discussions/' \
-    /usr/libexec/bonedigger-report
-sed -i "s|--default \"projectbluefin/bluefin\"|--default \"${REPO}\"|" /usr/share/ublue-os/just/changelog.just
+if upstream_has /usr/share/ublue-os/just/60-bonedigger.just; then
+    LC_ALL=C sed -i "${EMOJI_SWAP}" /usr/share/ublue-os/just/60-bonedigger.just
+fi
+if upstream_has /usr/libexec/bonedigger-report; then
+    LC_ALL=C sed -i "${EMOJI_SWAP}" /usr/libexec/bonedigger-report
+    sed -i \
+        -e "s|--default \"projectbluefin/common\"|--default \"${REPO}\"|" \
+        -e "s|create_draft \"projectbluefin/common\"|create_draft \"${REPO}\"|" \
+        -e "s|https://github.com/projectbluefin/common/issues/new|${REPO_URL}/issues/new|" \
+        -e "s|https://github.com/ublue-os/bluefin/discussions|${REPO_URL}/discussions|" \
+        -e 's/Bluefin Discussions/Amethyst Discussions/' \
+        /usr/libexec/bonedigger-report
+fi
+if upstream_has /usr/share/ublue-os/just/changelog.just; then
+    sed -i "s|--default \"projectbluefin/bluefin\"|--default \"${REPO}\"|" /usr/share/ublue-os/just/changelog.just
+fi
 
 # Pick up the Amethyst logo icon (os-release LOGO=amethyst-logo)
 if command -v gtk-update-icon-cache >/dev/null; then
@@ -73,10 +105,12 @@ if command -v gtk-update-icon-cache >/dev/null; then
 fi
 
 # Upstream files change over time: surface anything these edits no longer catch
-if grep -l -i "bluefin" /usr/share/applications/{documentation,discourse,system-update}.desktop \
-    /etc/uwelcome/config.json /usr/share/chairlift/config.yml /usr/share/ublue-os/fastfetch.jsonc \
-    /usr/share/ublue-os/just/60-bonedigger.just; then
-    echo "::warning::Bluefin branding left in the files above, update build_files/base/06-branding.sh"
-fi
+for file in /usr/share/applications/{documentation,discourse,system-update,bluefin-help}.desktop \
+    /etc/uwelcome/config.json /usr/share/chairlift/config.yml "${FASTFETCH_CONFIG}" \
+    /usr/share/ublue-os/just/60-bonedigger.just; do
+    if [[ -f "${file}" ]] && grep -q -i "bluefin" "${file}"; then
+        echo "::warning::Bluefin branding left in ${file}, update build_files/base/06-branding.sh"
+    fi
+done
 
 echo "::endgroup::"
