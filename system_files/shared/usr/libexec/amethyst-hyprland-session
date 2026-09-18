@@ -20,6 +20,16 @@ if [[ ! -e "${config_home}/hypr/hyprland.lua" && ! -e "${config_home}/hypr/hyprl
         echo "amethyst: dms setup failed, Hyprland starts with its default config" >&2
 fi
 
+# Window title bars (hyprbars): add them to each user's config once, so removing the line opts out
+hyprbars_marker="${XDG_STATE_HOME:-$HOME/.local/state}/amethyst/hyprbars-added"
+hypr_config="${config_home}/hypr/hyprland.lua"
+if [[ ! -e "${hyprbars_marker}" && -e "${hypr_config}" ]]; then
+    grep -qF /usr/share/amethyst/hypr/hyprbars.lua "${hypr_config}" ||
+        printf '\n-- Amethyst window title bars\npcall(dofile, "/usr/share/amethyst/hypr/hyprbars.lua")\n' >>"${hypr_config}"
+    mkdir -p "$(dirname "${hyprbars_marker}")"
+    touch "${hyprbars_marker}"
+fi
+
 # New DMS users: show the Amethyst logo (os-release LOGO=amethyst-logo) on the bar's launcher button.
 # DMS fills every other setting with its defaults.
 dms_settings="${config_home}/DankMaterialShell/settings.json"

@@ -36,6 +36,10 @@ test -L /etc/systemd/user/graphical-session.target.wants/dms.service
 grep -qF '/var/cache/dms-greeter(/.*)?' /etc/selinux/targeted/contexts/files/file_contexts.local
 grep -qF '/var/lib/greeter(/.*)?' /etc/selinux/targeted/contexts/files/file_contexts.local
 test -f /usr/lib/systemd/system/greetd.service.d/10-amethyst-selinux.conf
+# Window title bars
+test -f /usr/lib64/hyprland/libhyprbars.so
+test -f /usr/share/amethyst/hypr/hyprbars.lua
+rpm -q hyprland-devel >/dev/null && false
 
 # Animated boot splash
 [[ "$(plymouth-set-default-theme)" == "amethyst" ]]

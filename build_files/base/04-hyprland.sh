@@ -56,6 +56,22 @@ copr_install_isolated "sdegler/hyprland" \
     hyprland \
     xdg-desktop-portal-hyprland
 
+# hyprbars window title bars. The COPR's hyprland-plugin-hyprbars lags behind its hyprland and requires an
+# older release, so build the plugin against the installed Hyprland headers. The commit must be the one
+# hyprpm pins for the installed Hyprland: https://github.com/hyprwm/hyprland-plugins/blob/main/hyprpm.toml
+HYPRLAND_PLUGINS_COMMIT=7644cecdb947060682891a0db2a0cdc5c0b9e704 # v0.56.0
+rpm -qa --queryformat='%{NAME}\n' | sort -u >/tmp/packages-before-hyprbars
+dnf_install_retry --enablerepo="copr:copr.fedorainfracloud.org:sdegler:hyprland" hyprland-devel meson
+mkdir -p /tmp/hyprland-plugins
+ghcurl "https://github.com/hyprwm/hyprland-plugins/archive/${HYPRLAND_PLUGINS_COMMIT}.tar.gz" --retry 3 |
+    tar -xz --strip-components=1 -C /tmp/hyprland-plugins
+meson setup /tmp/hyprland-plugins/hyprbars/build /tmp/hyprland-plugins/hyprbars --buildtype=release
+meson compile -C /tmp/hyprland-plugins/hyprbars/build
+install -Dm0755 /tmp/hyprland-plugins/hyprbars/build/libhyprbars.so /usr/lib64/hyprland/libhyprbars.so
+# Drop the build dependencies again
+comm -13 /tmp/packages-before-hyprbars <(rpm -qa --queryformat='%{NAME}\n' | sort -u) | xargs -r dnf -y remove
+rm -rf /tmp/hyprland-plugins /tmp/packages-before-hyprbars
+
 # DMS and its companions: dms needs dgop and quickshell from danklinux, so both COPRs are enabled together
 for copr in avengemedia/dms avengemedia/danklinux; do
     dnf5 -y copr enable "${copr}"
