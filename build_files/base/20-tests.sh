@@ -30,7 +30,9 @@ grep -q "org.mozilla.firefox" /usr/share/amethyst/homebrew/system-flatpaks.Brewf
 # Hyprland + DankMaterialShell session
 test -x /usr/libexec/amethyst-hyprland-session
 grep -q "^Exec=/usr/libexec/amethyst-hyprland-session$" /usr/share/wayland-sessions/hyprland.desktop
-grep -q "dms-greeter --command hyprland" /etc/greetd/config.toml
+grep -q "^command = \"/usr/libexec/amethyst-greeter --command hyprland\"$" /etc/greetd/config.toml
+test -x /usr/libexec/amethyst-greeter
+test -f /usr/lib/amethyst/graphics.sh
 test -L /etc/systemd/user/graphical-session.target.wants/dms.service
 # Without these SELinux labels the greeter cannot start and boot ends on a black screen
 grep -qF '/var/cache/dms-greeter(/.*)?' /etc/selinux/targeted/contexts/files/file_contexts.local

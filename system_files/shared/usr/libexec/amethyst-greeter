@@ -1,0 +1,7 @@
+#!/usr/bin/bash
+# Starts the DMS login screen on Hyprland (greetd's default session, see /etc/greetd/config.toml).
+
+# shellcheck source=system_files/shared/usr/lib/amethyst/graphics.sh
+source /usr/lib/amethyst/graphics.sh
+
+exec dms-greeter "$@"

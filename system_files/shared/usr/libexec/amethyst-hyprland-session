@@ -15,6 +15,14 @@ if [[ -d /sys/module/nvidia_drm ]]; then
     export __GLX_VENDOR_LIBRARY_NAME="${__GLX_VENDOR_LIBRARY_NAME:-nvidia}"
 fi
 
+# Software rendering in VMs without a usable GPU. DMS runs as a systemd user service (dms.service),
+# which does not inherit this environment, so hand it to the user's service manager too.
+# shellcheck source=system_files/shared/usr/lib/amethyst/graphics.sh
+source /usr/lib/amethyst/graphics.sh
+if [[ -n "${LIBGL_ALWAYS_SOFTWARE:-}" ]]; then
+    systemctl --user import-environment LIBGL_ALWAYS_SOFTWARE QT_QUICK_BACKEND
+fi
+
 if [[ ! -e "${config_home}/hypr/hyprland.lua" && ! -e "${config_home}/hypr/hyprland.conf" ]]; then
     dms setup headless --compositor hyprland --terminal kitty --skip-existing ||
         echo "amethyst: dms setup failed, Hyprland starts with its default config" >&2

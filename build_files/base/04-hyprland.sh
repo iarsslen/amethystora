@@ -112,7 +112,7 @@ vt = 1
 
 [default_session]
 user = "greeter"
-command = "dms-greeter --command hyprland"
+command = "/usr/libexec/amethyst-greeter --command hyprland"
 EOF
 systemctl enable greetd.service
 systemctl set-default graphical.target
