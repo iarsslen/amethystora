@@ -63,6 +63,16 @@ amethystora-theme list
 
 Amethystora ships Amethystora (light and dark), Tokyo Night, Catppuccin Mocha and Latte, Gruvbox, Nord, Rosé Pine Dawn, Everforest and Matte Black. To add your own, drop a directory into `~/.config/amethystora/themes/` with a `colors.toml` in it; a directory that matches a shipped theme's name is layered over it, so you can change one colour without copying the rest. `/usr/lib/amethystora/theme/lib.sh` documents the other files a theme can hold.
 
+#### Boot menu
+
+The GRUB menu can carry the Amethystora artwork too — the same crystal field as the wallpaper, the wordmark above the entries, and the boot splash following on the same dark ground. It is off by default and turned on with:
+
+```bash
+ujust setup-grub-theme
+```
+
+It is a separate step because GRUB reads the boot filesystem and `/boot` is not part of the image: the theme ships read-only in `/usr/share/grub/themes/amethystora` and is copied onto `/boot` on the machine. Settings go in `/boot/grub2/user.cfg` inside a marked block, leaving `grub.cfg` alone — `grub2-mkconfig` cannot regenerate it on Fedora Atomic, and bootupd rewrites it anyway. Once the theme is on, image updates refresh the artwork by themselves. `ujust setup-grub-theme` turns it off again, and the machine falls back to the plain menu.
+
 #### Security keys
 
 A FIDO2 security key (YubiKey, Thetis, or a fingerprint model such as the YubiKey Bio or Thetis Bio) can sign you in, unlock the screen and approve `sudo` and administrator prompts in place of your password. Register one with `ujust setup-security-key`. Choose "Add a fingerprint key" for a fingerprint model so that the key checks your fingerprint and not just a touch. The key needs a PIN and an enrolled fingerprint first; set these in Brave at `brave://settings/securityKeys`, or with `ykman fido fingerprints add` on a YubiKey Bio. Register a second key as a spare. Your password keeps working, and it is used whenever no registered key is plugged in.
@@ -122,7 +132,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Issues and pull requests are welcome at 
 
 Amethystora is based on [Bluefin](https://github.com/ublue-os/bluefin) by the [Universal Blue](https://universal-blue.org/) project, and it keeps building on their shared infrastructure. Thanks to the Bluefin and Universal Blue contributors for the work this project stands on.
 
-The theme switcher follows the design of [Omakub](https://omakub.org) and its fork [Omabuntu](https://omabuntu.omakasui.org/), and most of the colour palettes are ported from them (MIT). Tiling is [Tactile](https://gitlab.com/lundal/tactile) by Per Thomas Lundal (GPL-2.0-or-later).
+The theme switcher follows the design of [Omakub](https://omakub.org) and its fork [Omabuntu](https://omabuntu.omakasui.org/), and most of the colour palettes are ported from them (MIT). Tiling is [Tactile](https://gitlab.com/lundal/tactile) by Per Thomas Lundal (GPL-2.0-or-later). The boot menu follows the theme layout of [grub2-themes](https://github.com/vinceliuice/grub2-themes) by Vince Liuice (GPL-3.0).
 
 ## License
 

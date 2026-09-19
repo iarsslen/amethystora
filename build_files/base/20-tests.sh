@@ -44,6 +44,21 @@ grep -q "themes/amethystora/amethystora.script" <<<"${INITRAMFS_FILES}"
 [[ "$(fc-match -f '%{family[0]}' 'Inter')" == "Inter" ]]
 grep -q "^Font=Inter " /usr/share/plymouth/themes/amethystora/amethystora.plymouth
 
+# Boot menu: the theme ships read-only in the image and is copied to /boot by amethystora-grub-theme,
+# because /boot is not part of a bootc image
+test -x /usr/bin/amethystora-grub-theme
+test -x /usr/share/amethystora/system-setup.hooks.d/30-grub-theme.sh
+for file in theme.txt background.png logo.png select_c.png select_e.png select_w.png icons/fedora.png; do
+    test -s "/usr/share/grub/themes/amethystora/${file}"
+done
+# The font theme.txt asks for, built from Inter by 06-branding.sh: without it the menu falls back
+# to GRUB's own and the layout no longer lines up
+test -s /usr/share/grub/themes/amethystora/font16.pf2
+grep -q '^item_font = "Inter Regular 16"$' /usr/share/grub/themes/amethystora/theme.txt
+grep -q '^desktop-image: "background.png"$' /usr/share/grub/themes/amethystora/theme.txt
+# The theme is off until someone asks for it, so nothing here may write to /boot at build time
+test -e /boot/grub2/themes/amethystora && false
+
 # Amethystora wallpapers are the GNOME default
 test -f /usr/share/backgrounds/amethystora/amethystora-l.png
 test -f /usr/share/backgrounds/amethystora/amethystora-d.png

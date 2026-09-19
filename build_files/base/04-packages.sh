@@ -44,6 +44,8 @@ FEDORA_PACKAGES=(
     git-credential-libsecret
     glow
     gnome-tweaks
+    # grub2-mkfont, which 06-branding.sh uses to build the boot menu font
+    grub2-tools-extra
     gum
     hplip
     ibus-mozc
