@@ -114,6 +114,7 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AKMODS_PRIVKEY: ${{ secrets.AKMODS_PRIVKEY }}
         run: |
           sudo -E $(command -v just) repo_organization="${{ github.repository_owner }}" \
                     build-ghcr "${{ matrix.base_name }}" \

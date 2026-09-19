@@ -246,8 +246,9 @@ def drop_tap_installers(text):
 
 
 # Upstream recipes replaced by Amethystora's own (60-custom.just) or that only work for Bluefin:
-# bluespeed duplicates install-ai-tools, bazaar-preview needs a checkout of projectbluefin/common
-DROP_RECIPES = {"bazaar-preview", "bluespeed", "toggle-user-motd"}
+# bluespeed duplicates install-ai-tools, bazaar-preview needs a checkout of projectbluefin/common,
+# enroll-secure-boot-key only enrolls the Universal Blue key and not the one evdi is signed with
+DROP_RECIPES = {"bazaar-preview", "bluespeed", "enroll-secure-boot-key", "toggle-user-motd"}
 OWN_JUST = "usr/share/amethystora/just"
 
 

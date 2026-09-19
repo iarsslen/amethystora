@@ -69,16 +69,34 @@ dnf5 -y install --enablerepo=fedora-multimedia --setopt=tsflags=noscripts \
     akmod-evdi \
     displaylink \
     libevdi
+# Secure Boot only loads evdi when it is signed with a key enrolled in MOK (ujust enroll-secure-boot-key).
+# akmods signs with the key found at these paths; without one it makes a throwaway key, and evdi is then
+# rejected by any machine with Secure Boot on.
+AKMODS_CERT=/etc/pki/akmods/certs/amethystora-modules.der
+if [[ -s /run/secrets/AKMODS_PRIVKEY ]]; then
+    install -Dm644 /run/secrets/AKMODS_PRIVKEY /etc/pki/akmods/private/private_key.priv
+    install -Dm644 "${AKMODS_CERT}" /etc/pki/akmods/certs/public_key.der
+else
+    echo "WARNING: no AKMODS_PRIVKEY secret, evdi will not load with Secure Boot on"
+fi
 CFLAGS="-fno-pie -no-pie" akmods --force --kernels "${KERNEL_VERSION}" --kmod evdi
-modinfo "/usr/lib/modules/${KERNEL_VERSION}/extra/evdi/evdi.ko.xz" >/dev/null ||
+EVDI_KO="/usr/lib/modules/${KERNEL_VERSION}/extra/evdi/evdi.ko.xz"
+modinfo "${EVDI_KO}" >/dev/null ||
     { find /var/cache/akmods/evdi/ -name '*.log' -print -exec cat {} \; && exit 1; }
+if [[ -s /run/secrets/AKMODS_PRIVKEY ]]; then
+    # The kernel matches the module signature to a MOK certificate by its subject key identifier
+    [[ "$(modinfo -F sig_key "${EVDI_KO}")" == \
+        "$(openssl x509 -inform DER -in "${AKMODS_CERT}" -noout -ext subjectKeyIdentifier | tail -n1 | tr -d ' ')" ]]
+fi
 dnf5 -y remove akmod-evdi
-# akmods generated a module signing key for the build: never ship it
-find /etc/pki/akmods -type f 2>/dev/null | while read -r file; do
-    rpm -qf "${file}" >/dev/null 2>&1 || rm -f "${file}"
+# The signing key used for the build (and any akmods generated): never ship it
+find /etc/pki/akmods -type f -o -type l 2>/dev/null | while read -r file; do
+    [[ "${file}" == "${AKMODS_CERT}" ]] || rpm -qf "${file}" >/dev/null 2>&1 || rm -f "${file}"
 done
-# The package enables DisplayLinkManager at every boot; its udev rule starts it when a DisplayLink device is plugged in
-systemctl disable displaylink.service
+# DisplayLinkManager runs from boot, as the package preset (skipped above with the scriptlets) and Bazzite have it:
+# the udev rule that would start it on plug only matches docks whose USB manufacturer string is "DisplayLink",
+# and most rebranded docks report their own.
+systemctl enable displaylink.service
 
 # Nvidia AKMODS
 if [[ "${IMAGE_NAME}" =~ nvidia ]]; then

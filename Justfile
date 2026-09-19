@@ -244,6 +244,14 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
         echo "No GitHub token found - build may hit rate limit"
     fi
 
+    # Kernel module signing key (for CI/CD): without it, modules built here do not load with Secure Boot
+    if [[ -n "${AKMODS_PRIVKEY:-}" ]]; then
+        echo "Adding kernel module signing key as build secret"
+        PODMAN_BUILD_ARGS+=(--secret "id=AKMODS_PRIVKEY,env=AKMODS_PRIVKEY")
+    else
+        echo "No kernel module signing key found - evdi will not load with Secure Boot"
+    fi
+
     ${PODMAN} build "${PODMAN_BUILD_ARGS[@]}" .
     echo "::endgroup::"
 

@@ -84,7 +84,12 @@ grep -q "^origin = pam://amethystora$" /etc/security/pam_u2f.conf
 KERNEL_VERSION="$(rpm -q kernel-core --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')"
 modinfo "/usr/lib/modules/${KERNEL_VERSION}/extra/evdi/evdi.ko.xz" >/dev/null
 test -f /usr/lib/udev/rules.d/99-displaylink.rules
+systemctl is-enabled displaylink.service
+grep -q "^d /var/log/displaylink " /usr/lib/tmpfiles.d/displaylink.conf
 find /etc/pki/akmods/private -type f 2>/dev/null | grep -q . && false
+# ujust enroll-secure-boot-key enrolls both: the one evdi is signed with and the kernel's
+test -f /etc/pki/akmods/certs/amethystora-modules.der
+test -f /etc/pki/akmods/certs/akmods-amethystora.der
 
 # Make sure this garbage never makes it to an image
 test -f /usr/lib/systemd/system/flatpak-add-fedora-repos.service && false

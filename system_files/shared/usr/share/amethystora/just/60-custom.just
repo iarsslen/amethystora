@@ -67,3 +67,25 @@ setup-security-key ACTION="":
     fi
     echo "Security key added. Touch it to sign in, to unlock the screen (key button) and to approve sudo."
     echo "Your password keeps working."
+
+# Let Secure Boot load the kernel modules shipped in the image (DisplayLink, v4l2loopback, ...)
+enroll-secure-boot-key:
+    #!/usr/bin/bash
+    set -euo pipefail
+    ENROLLMENT_PASSWORD="amethystora"
+    # amethystora-modules.der signs the modules built with the image (evdi),
+    # akmods-amethystora.der the kernel and the prebuilt modules
+    certs=()
+    for cert in /etc/pki/akmods/certs/amethystora-modules.der /etc/pki/akmods/certs/akmods-amethystora.der; do
+        if [[ -f "${cert}" ]] && ! mokutil --test-key "${cert}" | grep -q "is already enrolled"; then
+            certs+=("${cert}")
+        fi
+    done
+    if [[ ${#certs[@]} -eq 0 ]]; then
+        echo "The Secure Boot keys are already enrolled."
+        exit 0
+    fi
+    sudo mokutil --timeout -1
+    printf '%s\n%s\n' "${ENROLLMENT_PASSWORD}" "${ENROLLMENT_PASSWORD}" | sudo mokutil --import "${certs[@]}"
+    echo "At next reboot, the blue MOK manager screen appears (QWERTY keyboard layout)."
+    echo "Select \"Enroll MOK\", then \"Continue\", \"Yes\", and type \"${ENROLLMENT_PASSWORD}\" as the password."
