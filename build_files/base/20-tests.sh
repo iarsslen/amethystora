@@ -29,22 +29,6 @@ test -f /usr/lib/tmpfiles.d/brave-browser.conf
 grep -q "^x-scheme-handler/https=brave-browser.desktop" /etc/xdg/mimeapps.list
 grep -q "org.mozilla.firefox" /usr/share/amethystora/homebrew/system-flatpaks.Brewfile && false
 
-# Hyprland + DankMaterialShell session
-test -x /usr/libexec/amethystora-hyprland-session
-grep -q "^Exec=/usr/libexec/amethystora-hyprland-session$" /usr/share/wayland-sessions/hyprland.desktop
-grep -q "^command = \"/usr/libexec/amethystora-greeter --command hyprland\"$" /etc/greetd/config.toml
-test -x /usr/libexec/amethystora-greeter
-test -f /usr/lib/amethystora/graphics.sh
-test -L /etc/systemd/user/graphical-session.target.wants/dms.service
-# Without these SELinux labels the greeter cannot start and boot ends on a black screen
-grep -qF '/var/cache/dms-greeter(/.*)?' /etc/selinux/targeted/contexts/files/file_contexts.local
-grep -qF '/var/lib/greeter(/.*)?' /etc/selinux/targeted/contexts/files/file_contexts.local
-test -f /usr/lib/systemd/system/greetd.service.d/10-amethystora-selinux.conf
-# Window title bars
-test -f /usr/lib64/hyprland/libhyprbars.so
-test -f /usr/share/amethystora/hypr/hyprbars.lua
-rpm -q hyprland-devel >/dev/null && false
-
 # Animated boot splash: the script theme, the images it loads, and both in the initramfs, which shows the
 # splash up to and including the LUKS password prompt
 [[ "$(plymouth-set-default-theme)" == "amethystora" ]]
@@ -60,22 +44,25 @@ grep -q "themes/amethystora/amethystora.script" <<<"${INITRAMFS_FILES}"
 [[ "$(fc-match -f '%{family[0]}' 'Inter')" == "Inter" ]]
 grep -q "^Font=Inter " /usr/share/plymouth/themes/amethystora/amethystora.plymouth
 
-# Login screen: Amethystora wallpaper and font until a user syncs their own
+# Amethystora wallpapers are the GNOME default
+test -f /usr/share/backgrounds/amethystora/amethystora-l.png
 test -f /usr/share/backgrounds/amethystora/amethystora-d.png
-jq -e '.wallpaperPath == "/usr/share/backgrounds/amethystora/amethystora-d.png"' /usr/share/amethystora/greeter/session.json
-jq -e '.fontFamily == "Inter"' /usr/share/amethystora/greeter/settings.json
-grep -q "^C /var/cache/dms-greeter/session.json " /usr/lib/tmpfiles.d/amethystora-greeter.conf
-grep -q "^Z /var/cache/dms-greeter - greeter greeter -$" /usr/lib/tmpfiles.d/amethystora-greeter.conf
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.background picture-uri-dark)" == "'file:///usr/share/backgrounds/amethystora/amethystora-d.png'" ]]
+
+# GNOME Shell extensions built from the git submodules (build-gnome-extensions.sh)
+for extension in appindicatorsupport@rgcjonas.gmail.com blur-my-shell@aunetx caffeine@patapon.info \
+    dash-to-dock@micxgx.gmail.com logomenu@aryan_k search-light@icedman.github.com; do
+    test -f "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
+done
+test -d /usr/share/gnome-shell/extensions/tmp && false
 
 # ClamAV daemon listens on its socket and keeps retrying until freshclam has fetched the signatures
 grep -q "^LocalSocket /run/clamd.scan/clamd.sock$" /etc/clamd.d/scan.conf
 test -f /usr/lib/systemd/system/clamd@.service.d/10-amethystora.conf
 
-# Security keys: pam_u2f ahead of the password for login (greetd), sudo and polkit. The DMS greeter only
-# offers the key when it finds pam_u2f through /etc/pam.d/greetd. pam_u2f ignores its config file (and so
+# Security keys: pam_u2f ahead of the password for sudo and polkit. pam_u2f ignores its config file (and so
 # the fixed origin keys are registered with) before 1.4.0, or when it is not root-owned or is writable.
 grep -qE "^auth\s+sufficient\s+pam_u2f\.so" /etc/pam.d/system-auth
-grep -qE "^auth\s+substack\s+system-auth" /etc/pam.d/greetd
 grep -q "^origin = pam://amethystora$" /etc/security/pam_u2f.conf
 [[ "$(stat -c '%U %a' /etc/security/pam_u2f.conf)" == "root 644" ]]
 [[ "$(printf '%s\n' 1.4.0 "$(rpm -q --queryformat '%{VERSION}' pam-u2f)" | sort -V | head -n1)" == 1.4.0 ]]
@@ -104,13 +91,13 @@ IMPORTANT_PACKAGES=(
     dotnet-sdk-10.0
     fish
     flatpak
-    hyprland
+    gdm
+    gnome-shell
+    mutter
     pam-u2f
     pamu2fcfg
     pipewire
-    dms
-    dms-greeter
-    greetd
+    ptyxis
     systemd
     tailscale
     uupd
@@ -128,8 +115,6 @@ UNWANTED_PACKAGES=(
     akmod-evdi
     fedora-logos
     firefox
-    gdm
-    gnome-shell
     gnome-software
     gnome-software-rpm-ostree
     podman-docker
@@ -155,7 +140,7 @@ fi
 IMPORTANT_UNITS=(
     clamav-freshclam.service
     clamd@scan.service
-    greetd.service
+    gdm.service
     rpm-ostree-countme.timer
     tailscaled.service
     amethystora-system-setup.service

@@ -227,7 +227,7 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
     LABELS+=("--label" "org.opencontainers.image.url=https://github.com/{{ repo_organization }}/amethystora")
     LABELS+=("--label" "org.opencontainers.image.vendor={{ repo_organization }}")
     LABELS+=("--label" "io.artifacthub.package.deprecated=false")
-    LABELS+=("--label" "io.artifacthub.package.keywords=bootc,amethystora,hyprland")
+    LABELS+=("--label" "io.artifacthub.package.keywords=bootc,amethystora,gnome")
     LABELS+=("--label" "io.artifacthub.package.maintainers=[{\"name\": \"Arsslen Idadi\", \"email\": \"arsslens021@gmail.com\"}]")
 
     echo "::endgroup::"
@@ -338,7 +338,7 @@ rechunk $image="amethystora" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
     # Rest of Labels
     LABELS="
         io.artifacthub.package.deprecated=false
-        io.artifacthub.package.keywords=bootc,fedora,amethystora,hyprland
+        io.artifacthub.package.keywords=bootc,fedora,amethystora,gnome
         io.artifacthub.package.logo-url=https://github.com/{{ repo_organization }}.png
         io.artifacthub.package.maintainers=[{\"name\": \"Arsslen Idadi\", \"email\": \"arsslens021@gmail.com\"}]
         io.artifacthub.package.readme-url=https://raw.githubusercontent.com/{{ repo_organization }}/amethystora/refs/heads/main/README.md
@@ -414,7 +414,7 @@ rechunk $image="amethystora" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
         --env PREV_REF=ghcr.io/{{ repo_organization }}/"${image_name}":"${tag}" \
         --env OUT_NAME="$OUT_NAME" \
         --env LABELS="${LABELS}" \
-        --env "DESCRIPTION='Amethystora, a cloud-native Fedora desktop with Hyprland'" \
+        --env "DESCRIPTION='Amethystora, a cloud-native Fedora desktop with GNOME'" \
         --env "VERSION=${VERSION}" \
         --env VERSION_FN=/workspace/version.txt \
         --env OUT_REF="oci:$OUT_NAME" \

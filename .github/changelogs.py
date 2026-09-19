@@ -12,12 +12,12 @@ REGISTRY = "ghcr.io/iarsslen/"
 
 IMAGE_MATRIX_LATEST = {
     "experience": ["base"],  # "dx" paused for now
-    "de": ["hyprland"],
+    "de": ["gnome"],
     "image_flavor": ["main"],  # "nvidia-open" paused for now
 }
 IMAGE_MATRIX = {
     "experience": ["base"],  # "dx" paused for now
-    "de": ["hyprland"],
+    "de": ["gnome"],
     "image_flavor": ["main"],  # "nvidia-open" paused for now
 }
 
@@ -37,7 +37,7 @@ COMMON_PAT = "### All Images\n| | Name | Previous | New |\n| --- | --- | --- | -
 OTHER_NAMES = {
     "base": "### Base Images\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
     "dx": "### Dev Experience Images\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
-    "hyprland": "### [Amethystora Images](https://github.com/iarsslen/amethystora)\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
+    "gnome": "### [Amethystora Images](https://github.com/iarsslen/amethystora)\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
     "nvidia-open": "### Nvidia Images\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
 }
 
@@ -54,8 +54,7 @@ From previous `{target}` version `{prev}` there have been the following changes.
 | Name | Version |
 | --- | --- |
 | **Kernel** | {pkgrel:kernel} |
-| **Hyprland** | {pkgrel:hyprland} |
-| **DankMaterialShell** | {pkgrel:dms} |
+| **Gnome** | {pkgrel:gnome-shell} |
 | **Mesa** | {pkgrel:mesa-filesystem} |
 | **Podman** | {pkgrel:podman} |
 | **Nvidia** | {pkgrel:nvidia-driver} |
@@ -90,8 +89,7 @@ This is an automatically generated changelog for release `{curr}`."""
 
 BLACKLIST_VERSIONS = [
     "kernel",
-    "hyprland",
-    "dms",
+    "gnome-shell",
     "mesa-filesystem",
     "podman",
     "docker-ce",
@@ -109,7 +107,7 @@ def get_images(target: str):
 
     for experience, de, image_flavor in product(*matrix.values()):
         img = ""
-        if de == "hyprland":
+        if de == "gnome":
             img += "amethystora"
 
         if experience == "dx":
@@ -301,7 +299,7 @@ def get_package_groups(target: str, prev_tag: str, curr_tag: str):
 
             if t == "nvidia-open" and "nvidia-open" not in image_flavor:
                 continue
-            if t == "hyprland" and de != "hyprland":
+            if t == "gnome" and de != "gnome":
                 continue
             if t == "base" and experience != "base":
                 continue

@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!DOCTYPE wallpapers SYSTEM "gnome-wp-list.dtd">
+<wallpapers>
+  <wallpaper deleted="false">
+    <name>Amethystora</name>
+    <filename>/usr/share/backgrounds/amethystora/amethystora-l.png</filename>
+    <filename-dark>/usr/share/backgrounds/amethystora/amethystora-d.png</filename-dark>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#2a0f4a</pcolor>
+    <scolor>#2a0f4a</scolor>
+  </wallpaper>
+</wallpapers>

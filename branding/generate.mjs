@@ -20,8 +20,8 @@ const SHARED = join(ROOT, "system_files/shared");
 // Sampled from a deep amethyst, from the shadow in its pavilion to the glint on its crown
 const SHADES = ["#16042c", "#260850", "#380d78", "#4a13a0", "#5d1ac4", "#7429e0", "#9148f0", "#b37df9", "#dcbcff"];
 
-// The desktop accent (DankMaterialShell theme, boot splash, fastfetch, title bars): a dark amethyst that still
-// reads on dark surfaces. 06-branding.sh and the DMS theme carry the same value.
+// The desktop accent (boot splash, fastfetch): a dark amethyst that still reads on dark surfaces.
+// 06-branding.sh carries the same value.
 const ACCENT = "#7c3aed";
 
 // ---------------------------------------------------------------- the gem --
@@ -1084,7 +1084,7 @@ Plymouth.SetSystemUpdateFunction(system_update_callback);
 `;
 }
 
-// Wallpapers are PNG: DankMaterialShell derives its colour theme from them with matugen, which cannot read SVG.
+// Wallpapers are rendered to PNG
 const wallpaperHtml = (theme) => `<!doctype html><html><body style="margin:0">${wallpaperSvg(theme)}</body></html>`;
 
 const logo = (spec) => ({ ...spec, html: () => logoHtml(spec) });
@@ -1151,30 +1151,6 @@ function write(rel, content) {
   console.log(`wrote ${rel}`);
 }
 
-// DankMaterialShell custom theme: amethyst accent on violet-tinted surfaces, in dark and light variants
-const dmsTheme = {
-  dark: {
-    name: "Amethystora",
-    primary: ACCENT, primaryText: "#ffffff", primaryContainer: SHADES[3],
-    secondary: "#b89ae6", surfaceTint: ACCENT,
-    surface: "#150f1d", surfaceText: "#e8e0f2", surfaceVariant: "#3a3148", surfaceVariantText: "#cdc2dc",
-    background: "#110c18", backgroundText: "#e8e0f2", outline: "#8f839f",
-    surfaceContainerLowest: "#0d0913", surfaceContainerLow: "#1a1323", surfaceContainer: "#1f1729",
-    surfaceContainerHigh: "#2a2136", surfaceContainerHighest: "#352b42",
-    error: "#f2b8b5", warning: "#ffb74d", info: "#b37df9",
-  },
-  light: {
-    name: "Amethystora",
-    primary: SHADES[4], primaryText: "#ffffff", primaryContainer: "#eaddff",
-    secondary: "#65558f", surfaceTint: SHADES[4],
-    surface: "#fdf8ff", surfaceText: "#1d1a22", surfaceVariant: "#e8e0f0", surfaceVariantText: "#4a4454",
-    background: "#fdf8ff", backgroundText: "#1d1a22", outline: "#7b7485",
-    surfaceContainerLowest: "#ffffff", surfaceContainerLow: "#f8f1fd", surfaceContainer: "#f2ebf8",
-    surfaceContainerHigh: "#ece5f2", surfaceContainerHighest: "#e6dfec",
-    error: "#b3261e", warning: "#b26a00", info: SHADES[4],
-  },
-};
-
 // --preview only writes the animated preview of the boot splash, and prints where
 if (process.argv.includes("--preview")) {
   const out = join(tmpdir(), "amethystora-boot-preview.html");
@@ -1191,5 +1167,4 @@ write("usr/share/icons/hicolor/scalable/places/amethystora-update.svg", tileSvg(
 write("usr/share/amethystora/logos/symbols/amethystora", ansiLogo());
 write("usr/share/amethystora/logos/console/amethystora", consoleLogo());
 write(`${THEME}/amethystora.script`, bootScript());
-write("usr/share/amethystora/dms/amethystora-theme.json", JSON.stringify(dmsTheme, null, 2) + "\n");
 renderPngs();
