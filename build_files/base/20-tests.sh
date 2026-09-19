@@ -67,6 +67,37 @@ grep -q "^origin = pam://amethystora$" /etc/security/pam_u2f.conf
 [[ "$(stat -c '%U %a' /etc/security/pam_u2f.conf)" == "root 644" ]]
 [[ "$(printf '%s\n' 1.4.0 "$(rpm -q --queryformat '%{VERSION}' pam-u2f)" | sort -V | head -n1)" == 1.4.0 ]]
 
+# Hardening (08-hardening.sh and its files in system_files)
+# Updates must carry a valid signature from the key CI signs with
+test -s /etc/pki/containers/amethystora.pub
+jq -e '.transports.docker["ghcr.io/iarsslen"][0] == {"type": "sigstoreSigned",
+    "keyPath": "/etc/pki/containers/amethystora.pub", "signedIdentity": {"type": "matchRepository"}}' \
+    /etc/containers/policy.json
+grep -q "use-sigstore-attachments: true" /etc/containers/registries.d/amethystora.yaml
+test -x /usr/share/amethystora/system-setup.hooks.d/20-signed-updates.sh
+# Kernel settings, arguments and blocked modules
+grep -q "^kernel.kptr_restrict = 2$" /usr/lib/sysctl.d/60-amethystora-hardening.conf
+grep -q '"slab_nomerge"' /usr/lib/bootc/kargs.d/10-amethystora-hardening.toml
+modprobe --showconfig | grep -q "^install dccp /usr/bin/false$"
+modprobe --showconfig | grep -q "^install firewire-core /usr/bin/false$"
+# No passwordless root for users who are not at the machine, and no user-writable directory in root's
+# sudo PATH, and no world-writable USB devices
+grep -q "<allow_any>no</allow_any>" /usr/share/polkit-1/actions/*privileged.user.setup.policy
+grep -E "^Defaults[[:space:]]+secure_path" /etc/sudoers | grep -q linuxbrew && false
+if [[ -f /usr/lib/udev/rules.d/50-zsa.rules ]]; then
+    grep -q 'MODE:="0666"' /usr/lib/udev/rules.d/50-zsa.rules && false
+    grep -q 'TAG+="uaccess"' /usr/lib/udev/rules.d/50-zsa.rules
+fi
+# Firewall: the Amethystora zone, without Fedora Workstation's open port range
+[[ "$(firewall-offline-cmd --get-default-zone)" == "amethystora" ]]
+[[ -z "$(firewall-offline-cmd --zone=amethystora --list-ports)" ]]
+firewall-offline-cmd --zone=trusted --query-interface=tailscale0
+# Account lockout, and the SSH server's settings for when it is turned on
+grep -qE "^auth\s+required\s+pam_faillock\.so\s+preauth" /etc/pam.d/system-auth
+grep -q "^deny = 10$" /etc/security/faillock.conf
+grep -q "^PermitRootLogin no$" /etc/ssh/sshd_config.d/40-amethystora-hardening.conf
+grep -q "^Include /etc/ssh/sshd_config.d/\*.conf$" /etc/ssh/sshd_config
+
 # DisplayLink: evdi built for the image kernel, and no module signing key left behind by the build
 KERNEL_VERSION="$(rpm -q kernel-core --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')"
 modinfo "/usr/lib/modules/${KERNEL_VERSION}/extra/evdi/evdi.ko.xz" >/dev/null

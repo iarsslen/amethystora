@@ -45,6 +45,9 @@ echo "::endgroup::"
 # Rename the remaining Bluefin / Universal Blue files, commands and services to Amethystora
 /ctx/build_files/base/07-debrand.sh
 
+# Signed updates, account lockout, firewall
+/ctx/build_files/base/08-hardening.sh
+
 
 ## late stage changes
 

@@ -1,0 +1,4 @@
+# Amethystora images carry their cosign signatures as sigstore attachments in the registry
+docker:
+  ghcr.io/iarsslen:
+    use-sigstore-attachments: true

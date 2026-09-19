@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<zone>
+  <short>Amethystora</short>
+  <description>The default zone. Incoming connections are rejected, except those a desktop needs: IPv6 address setup, finding printers and devices (mDNS), browsing Windows shares, and pairing a phone with GSConnect. Open more with Firewall (firewall-config) or firewall-cmd.</description>
+  <service name="dhcpv6-client"/>
+  <service name="mdns"/>
+  <service name="samba-client"/>
+  <service name="kdeconnect"/>
+</zone>

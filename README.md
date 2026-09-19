@@ -52,6 +52,16 @@ just build amethystora latest main
 just build amethystora-dx latest main
 ```
 
+### Security
+
+Amethystora hardens the Fedora defaults:
+
+- **Updates must be signed.** Only images signed with Amethystora's key are accepted, so a tampered or substituted image is refused instead of installed. The first boot after this change switches an existing installation over automatically.
+- **The firewall rejects incoming connections.** Fedora Workstation leaves every port above 1024 open to the local network; Amethystora only allows printer and device discovery (mDNS), Windows file sharing, IPv6 setup and GSConnect. Tailscale is trusted, where your tailnet's access rules apply. To let something else in, for example a development server you want to open on your phone, use the Firewall app or `sudo firewall-cmd --add-port=8080/tcp` (add `--permanent` to keep it after a reboot).
+- **Ten wrong passwords in a row** lock an account for ten minutes. Unlock it early from another administrator account with `sudo faillock --user <name> --reset`.
+- **Kernel hardening**: memory is wiped as it is handed out, kernel addresses are hidden, programs cannot read each other's memory, and rarely used modules (old network protocols and filesystems, FireWire) cannot load. `gdb -p` on a process you did not start now needs `sudo`.
+- **The SSH server stays off** and refuses root logins when you turn it on.
+
 ### Secure Boot
 
 Secure Boot is supported. Amethystora uses the kernel modules from Universal Blue's akmods, which are signed with the Universal Blue key. After the first installation, you will be prompted to enroll the Secure Boot key in the BIOS.
