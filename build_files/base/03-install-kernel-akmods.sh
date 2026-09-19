@@ -61,9 +61,14 @@ fi
 # akmod, the same way akmods-extra does, then drop the build tooling.
 KERNEL_VERSION="$(rpm -q kernel-core --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')"
 dnf5 -y install --enablerepo=fedora-multimedia \
-    akmod-evdi \
+    akmods \
     displaylink \
     libevdi
+dnf5 mark dependency akmods
+# Without scriptlets: akmod-evdi's %post (akmods-ostree-post, run because os-release has OSTREE_VERSION) builds
+# as root, which akmodsbuild refuses when /var is writable as it is here, and fails the transaction.
+# akmods below builds as its own user instead.
+dnf5 -y install --enablerepo=fedora-multimedia --setopt=tsflags=noscripts akmod-evdi
 CFLAGS="-fno-pie -no-pie" akmods --force --kernels "${KERNEL_VERSION}" --kmod evdi
 modinfo "/usr/lib/modules/${KERNEL_VERSION}/extra/evdi/evdi.ko.xz" >/dev/null ||
     { find /var/cache/akmods/evdi/ -name '*.log' -print -exec cat {} \; && exit 1; }
