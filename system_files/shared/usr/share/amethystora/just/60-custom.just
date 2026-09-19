@@ -54,18 +54,7 @@ setup-security-key ACTION="":
     mv "${keys}.new" "${keys}"
     # The login screen and sudo may only read it with its SELinux label (auth_home_t)
     restorecon -R "$(dirname "${keys}")"
-    # Offer the key on the DMS lock screen and login screen. The login screen keeps its own copy of the
-    # settings (dms-greeter sync overwrites it with the user's, which is why both are set).
-    dms_settings="${XDG_CONFIG_HOME:-$HOME/.config}/DankMaterialShell/settings.json"
-    if [[ -f "${dms_settings}" ]]; then
-        jq '.enableU2f = true | .greeterEnableU2f = true' "${dms_settings}" >"${dms_settings}.new"
-        mv "${dms_settings}.new" "${dms_settings}"
-    fi
-    greeter_settings=/var/cache/dms-greeter/settings.json
-    if settings="$(sudo jq '.greeterEnableU2f = true' "${greeter_settings}")"; then
-        sudo tee "${greeter_settings}" <<<"${settings}" >/dev/null
-    fi
-    echo "Security key added. Touch it to sign in, to unlock the screen (key button) and to approve sudo."
+    echo "Security key added. Touch it to sign in, to unlock the screen and to approve sudo."
     echo "Your password keeps working."
 
 # Let Secure Boot load the kernel modules shipped in the image (DisplayLink, v4l2loopback, ...)

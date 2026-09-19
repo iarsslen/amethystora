@@ -8,7 +8,7 @@ else
     printf '\nWelcome to Amethystora\n\n'
 fi
 
-# Label colour: fastfetch takes GNOME's accent colour, which is never set here, so it would fall back to blue
+# Label colour: purple also where fastfetch cannot read GNOME's accent colour (text console, SSH)
 export FASTFETCH_FORCE_THEME="${FASTFETCH_FORCE_THEME:-purple}"
 
 # The text console (Ctrl+Alt+F3) turns the truecolour logo's dark facets blue: draw it in the console's magentas

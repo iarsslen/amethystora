@@ -1,5 +1,17 @@
 # Amethystora overrides, applied on top of the base defaults in zz0-amethystora-modifications.
-# GNOME Shell is not installed; these keys still style GTK/libadwaita applications.
+
+[org.gnome.desktop.background]
+picture-uri='file:///usr/share/backgrounds/amethystora/amethystora-l.png'
+picture-uri-dark='file:///usr/share/backgrounds/amethystora/amethystora-d.png'
+picture-options='zoom'
+primary-color='2a0f4a'
+secondary-color='2a0f4a'
+
+[org.gnome.desktop.screensaver]
+picture-uri='file:///usr/share/backgrounds/amethystora/amethystora-d.png'
 
 [org.gnome.desktop.interface]
 accent-color='purple'
+
+[org.gnome.shell.extensions.blur-my-shell.popup]
+blur=false
