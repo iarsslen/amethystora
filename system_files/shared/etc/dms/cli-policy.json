@@ -5,5 +5,5 @@
     "greeter enable",
     "greeter uninstall"
   ],
-  "message": "The greeter is configured by the Amethyst image. Use `ujust` or rebuild the image for system-level changes."
+  "message": "The greeter is configured by the Amethystora image. Use `ujust` or rebuild the image for system-level changes."
 }

@@ -1,4 +1,4 @@
-// Generates the Amethyst artwork under system_files/ from the geometry and palette below.
+// Generates the Amethystora artwork under system_files/ from the geometry and palette below.
 //
 //   node branding/generate.mjs
 //
@@ -7,7 +7,7 @@
 // not found automatically.
 
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
@@ -15,33 +15,143 @@ import { tmpdir } from "node:os";
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SHARED = join(ROOT, "system_files/shared");
 
+// -------------------------------------------------------------- palette --
+
+// Sampled from a deep amethyst, from the shadow in its pavilion to the glint on its crown
+const SHADES = ["#16042c", "#260850", "#380d78", "#4a13a0", "#5d1ac4", "#7429e0", "#9148f0", "#b37df9", "#dcbcff"];
+
+// The desktop accent (DankMaterialShell theme, boot splash, fastfetch, title bars): a dark amethyst that still
+// reads on dark surfaces. 06-branding.sh and the DMS theme carry the same value.
+const ACCENT = "#7c3aed";
+
 // ---------------------------------------------------------------- the gem --
 
-// Brilliant-cut gem in a 256x256 box: a crown of five facets over a pavilion of three.
-const P = {
-  L: [24, 104], A: [64, 56], B: [128, 56], C: [192, 56], R: [232, 104],
-  M: [96, 104], N: [160, 104], K: [128, 220],
-};
-const FACETS = [
-  { pts: ["L", "A", "M"], color: "#b98ae8" },
-  { pts: ["A", "B", "M"], color: "#dcc1fa" },
-  { pts: ["M", "B", "N"], color: "#c49cf0" },
-  { pts: ["B", "C", "N"], color: "#a874e0" },
-  { pts: ["N", "C", "R"], color: "#8a55cc" },
-  { pts: ["L", "M", "K"], color: "#7d43c4" },
-  { pts: ["M", "N", "K"], color: "#9b62dc" },
-  { pts: ["N", "R", "K"], color: "#5e2a9c" },
-];
-const WHITE_FACETS = [0.78, 1, 0.9, 0.82, 0.68, 0.62, 0.8, 0.5];
+// Pear-cut gem in a 256x256 box, point up. The outline is a teardrop sampled at 64 points evenly spaced
+// along it, starting at the tip; every fourth point is one of the 16 girdle vertices the crown facets meet.
+const OUTLINE_POINTS = 64;
+const OUTLINE = (() => {
+  const [top, bottom, halfWidth] = [14, 242, 86];
+  const fine = Array.from({ length: 4096 }, (_, k) => {
+    const a = (2 * Math.PI * k) / 4096;
+    return [Math.sin(a) * Math.pow(Math.sin(a / 2), 0.9), -Math.cos(a)];
+  });
+  const maxX = Math.max(...fine.map(([x]) => x));
+  const curve = fine.map(([x, y]) => [128 + (x / maxX) * halfWidth, top + ((y + 1) / 2) * (bottom - top)]);
+  const along = [0];
+  curve.forEach(([x, y], i) => {
+    const [nx, ny] = curve[(i + 1) % curve.length];
+    along.push(along[i] + Math.hypot(nx - x, ny - y));
+  });
+  const length = along[curve.length];
+  let i = 0;
+  return Array.from({ length: OUTLINE_POINTS }, (_, k) => {
+    while (along[i + 1] < (k * length) / OUTLINE_POINTS) i++;
+    return curve[i];
+  });
+})();
 
-const pointList = (names) => names.map((n) => P[n].join(",")).join(" ");
+// Tight bounds of the gem, for the bitmaps: [x, y, width, height]
+const BOUNDS = (() => {
+  const xs = OUTLINE.map(([x]) => x);
+  const ys = OUTLINE.map(([, y]) => y);
+  const [x0, y0] = [Math.min(...xs), Math.min(...ys)];
+  return [x0, y0, Math.max(...xs) - x0, Math.max(...ys) - y0].map((v) => Math.round(v));
+})();
 
+// The table and star facets are laid out around the centroid of the outline, which sits below the middle
+const CENTER = (() => {
+  let [area, cx, cy] = [0, 0, 0];
+  OUTLINE.forEach(([x0, y0], i) => {
+    const [x1, y1] = OUTLINE[(i + 1) % OUTLINE.length];
+    const cross = x0 * y1 - x1 * y0;
+    area += cross / 2;
+    cx += ((x0 + x1) * cross) / 6;
+    cy += ((y0 + y1) * cross) / 6;
+  });
+  return [cx / area, cy / area];
+})();
+
+const mod = (n, m) => ((n % m) + m) % m;
+const toward = ([x0, y0], [x1, y1], s) => [x0 + (x1 - x0) * s, y0 + (y1 - y0) * s];
+
+// Points of the crown with their height above the girdle: girdle vertices, the tips of the star facets
+// and the corners of the table.
+const girdle = (k) => [...OUTLINE[mod(k, 16) * 4], 0];
+const star = (i) => [...toward(CENTER, OUTLINE[mod(2 * i + 1, 16) * 4], 0.78), 20];
+const table = (i) => [...toward(CENTER, OUTLINE[mod(2 * i, 16) * 4], 0.5), 30];
+// The outline between two girdle vertices, so the upper girdle facets follow the curve
+const arc = (k0, k1) =>
+  Array.from({ length: (k1 - k0) * 4 + 1 }, (_, j) => [...OUTLINE[mod(k0 * 4 + j, OUTLINE_POINTS)], 0]);
+
+// Light comes from the upper left, in front of the gem
+const LIGHT = (() => {
+  const l = [-0.45, -0.7, 0.55];
+  const n = Math.hypot(...l);
+  return l.map((c) => c / n);
+})();
+const HALF = (() => {
+  const h = [LIGHT[0], LIGHT[1], LIGHT[2] + 1];
+  const n = Math.hypot(...h);
+  return h.map((c) => c / n);
+})();
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+// Brightness of a crown facet from about -1 (shadow) to 1 (glint), from the plane through its first three points
+function crownLevel([a, b, c]) {
+  const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+  const v = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+  const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+  const len = Math.hypot(...n) * Math.sign(n[2]);
+  const normal = n.map((x) => x / len);
+  const diffuse = Math.max(0, dot(normal, LIGHT));
+  const glint = Math.pow(Math.max(0, dot(normal, HALF)), 60);
+  return (diffuse - 0.55) * 1.6 + glint * 0.9;
+}
+
+// 8 star, 8 bezel and 16 upper girdle facets on the crown, shaded by the way they face; neighbouring girdle
+// facets alternate lighter and darker, as a cut stone sparkles. The table shows the pavilion below it as
+// 8 wedges, brightest opposite the light and alternately catching and missing it.
+const FACETS = (() => {
+  const facets = [];
+  const add = (pts, level) => facets.push({ pts: pts.map(([x, y]) => [x, y]), level });
+  const crown = (pts, bias = 0) => add(pts, crownLevel(pts) + bias);
+  for (let i = 0; i < 8; i++) {
+    crown([table(i), star(i - 1), girdle(2 * i), star(i)]);
+    crown([table(i), star(i), table(i + 1)], -0.1);
+    const sparkle = i % 2 ? 0.22 : -0.08;
+    crown([star(i), ...arc(2 * i, 2 * i + 1)], sparkle);
+    crown([star(i), ...arc(2 * i + 1, 2 * i + 2)], 0.14 - sparkle);
+  }
+  const away = Math.atan2(-LIGHT[1], -LIGHT[0]);
+  for (let i = 0; i < 8; i++) {
+    const [mx, my] = toward(table(i), table(i + 1), 0.5);
+    const facing = Math.cos(Math.atan2(my - CENTER[1], mx - CENTER[0]) - away);
+    add([[...CENTER], table(i), table(i + 1)], 0.1 + 0.35 * facing + (i % 2 ? 0.2 : -0.2));
+  }
+  return facets;
+})();
+
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
+// Facets use every shade but the darkest, which would read as a hole in the gem
+const shadeOf = (level) => SHADES[1 + Math.round(clamp01((level + 1) / 2) * (SHADES.length - 2))];
+const opacityOf = (level) => (0.45 + 0.55 * clamp01((level + 1) / 2)).toFixed(2);
+
+const pointList = (pts) => pts.map(([x, y]) => `${+x.toFixed(1)},${+y.toFixed(1)}`).join(" ");
+
+// A silhouette under the coloured facets, and each facet stroked in its own colour, hide the hairline seams
+// antialiasing leaves between them
 function gemPolygons(white = false) {
-  return FACETS.map((f, i) =>
-    white
-      ? `<polygon points="${pointList(f.pts)}" fill="#ffffff" fill-opacity="${WHITE_FACETS[i]}"/>`
-      : `<polygon points="${pointList(f.pts)}" fill="${f.color}"/>`,
-  ).join("\n  ");
+  if (white) {
+    return FACETS.map(
+      (f) => `<polygon points="${pointList(f.pts)}" fill="#ffffff" fill-opacity="${opacityOf(f.level)}"/>`,
+    ).join("\n  ");
+  }
+  const base = `<polygon points="${pointList(OUTLINE)}" fill="${SHADES[3]}"/>`;
+  const facets = FACETS.map((f) => {
+    const color = shadeOf(f.level);
+    return `<polygon points="${pointList(f.pts)}" fill="${color}" stroke="${color}" stroke-width="0.6" stroke-linejoin="round"/>`;
+  });
+  return [base, ...facets].join("\n  ");
 }
 
 // The icon keeps the padded 256x256 box; bitmaps use the tight bounds of the gem.
@@ -52,26 +162,41 @@ const gemSvg = (white = false, viewBox = "0 0 256 256") => `<svg xmlns="http://w
 
 // ---------------------------------------------------------------- icons --
 
-// Amethyst versions of the Universal Blue icons shipped by projectbluefin/common; 06-branding.sh points
+// Amethystora versions of the Universal Blue icons shipped by projectbluefin/common; 06-branding.sh points
 // the launchers at these names and deletes the originals.
 
-// Symbolic (single colour, recoloured by GTK): crown and three pavilion facets with gaps between them.
-const symbolicSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <g fill="#2e3436">
-    <path d="M4 2h8l3 4H1z"/>
-    <path d="M1 7h3.9l2.65 6.6z"/>
-    <path d="M5.9 7h4.2L8 13.2z"/>
-    <path d="M11.1 7H15l-6.55 6.6z"/>
-  </g>
+// Symbolic (single colour, recoloured by GTK): the straight-sided table, and the crown around it as four facets
+// split at the table's diagonal corners, with gaps between them.
+const symbolicSvg = (() => {
+  const s = 14 / BOUNDS[3];
+  const px = (p, scale) => {
+    const [x, y] = toward(CENTER, p, scale);
+    return [8 + (x - 128) * s, 1 + (y - BOUNDS[1]) * s].map((v) => +v.toFixed(2)).join(",");
+  };
+  // A point on the octagon through every eighth outline point, the straight-sided counterpart of the outline
+  const octagon = (k) => {
+    const j = Math.floor(k / 8);
+    return toward(OUTLINE[mod(8 * j, OUTLINE_POINTS)], OUTLINE[mod(8 * j + 8, OUTLINE_POINTS)], (k - 8 * j) / 8);
+  };
+  const path = (pts) => "M" + pts.join("L") + "z";
+  const table = path([0, 8, 16, 24, 32, 40, 48, 56].map((k) => px(octagon(k), 0.46)));
+  const crown = [-8, 8, 24, 40].map((from) => {
+    const ks = Array.from({ length: 13 }, (_, j) => from + 2 + j);
+    const inner = [from + 2, ...ks.filter((k) => k % 8 === 0), from + 14].reverse();
+    return path([...ks.map((k) => px(OUTLINE[mod(k, OUTLINE_POINTS)], 1)), ...inner.map((k) => px(octagon(k), 0.64))]);
+  });
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <path fill="#2e3436" d="${[table, ...crown].join("")}"/>
 </svg>
 `;
+})();
 
 // Full-colour app icon: white glyph on a rounded amethyst tile.
 const tileSvg = (glyph) => `<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
   <defs>
     <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#b98ae8"/>
-      <stop offset="1" stop-color="#5e2a9c"/>
+      <stop offset="0" stop-color="${SHADES[6]}"/>
+      <stop offset="1" stop-color="${SHADES[2]}"/>
     </linearGradient>
   </defs>
   <rect x="16" y="16" width="224" height="224" rx="52" fill="url(#tile)"/>
@@ -80,9 +205,13 @@ const tileSvg = (glyph) => `<svg xmlns="http://www.w3.org/2000/svg" width="256" 
 `;
 
 // The gem centred on the tile, in white facets
-const docsGlyph = `<g transform="translate(48.6 42.4) scale(0.62)">
+const docsGlyph = (() => {
+  const s = 156 / BOUNDS[3];
+  const [tx, ty] = [128 - s * (BOUNDS[0] + BOUNDS[2] / 2), 128 - s * (BOUNDS[1] + BOUNDS[3] / 2)];
+  return `<g transform="translate(${tx.toFixed(1)} ${ty.toFixed(1)}) scale(${s.toFixed(3)})">
     ${gemPolygons(true)}
   </g>`;
+})();
 
 const communityGlyph = `<g fill="#ffffff">
     <rect x="108" y="118" width="88" height="64" rx="16" fill-opacity="0.7"/>
@@ -90,7 +219,7 @@ const communityGlyph = `<g fill="#ffffff">
     <rect x="60" y="68" width="108" height="76" rx="18"/>
     <path d="M80 144l-6 24 28-24z"/>
   </g>
-  <g fill="#7d43c4">
+  <g fill="${SHADES[4]}">
     <circle cx="92" cy="106" r="8"/>
     <circle cx="114" cy="106" r="8"/>
     <circle cx="136" cy="106" r="8"/>
@@ -131,16 +260,16 @@ const CLUSTER = [
 function wallpaperSvg(theme) {
   const t = theme === "dark"
     ? {
-        bg: ["#12081f", "#2a0f4a", "#4a1d7a"],
-        glowA: ["#9b5ce0", 0.45], glowB: ["#5e2a9c", 0.5],
-        faces: { column: ["#8f5ad6", "#6f3bb8", "#4b2186"], tip: ["#c9a2f5", "#a574e6", "#7342b5"] },
-        shade: "#12081f",
+        bg: ["#0e0419", "#1f0840", "#35106a"],
+        glowA: ["#7429e0", 0.45], glowB: ["#4a13a0", 0.5],
+        faces: { column: ["#5d1ac4", "#4a13a0", "#2c0a5c"], tip: ["#9148f0", "#7429e0", "#4a13a0"] },
+        shade: "#0e0419",
       }
     : {
-        bg: ["#f7f2fd", "#e6d8f8", "#cdb3ef"],
-        glowA: ["#ffffff", 0.7], glowB: ["#b98ae8", 0.35],
-        faces: { column: ["#c7a3f0", "#a77ae3", "#8454c8"], tip: ["#ebdcff", "#d2b6f7", "#b08ae6"] },
-        shade: "#cdb3ef",
+        bg: ["#f6f0fd", "#e2d2f8", "#c6a8f0"],
+        glowA: ["#ffffff", 0.7], glowB: ["#9148f0", 0.3],
+        faces: { column: ["#9148f0", "#7429e0", "#5d1ac4"], tip: ["#dcbcff", "#b37df9", "#9148f0"] },
+        shade: "#c6a8f0",
       };
   return `<svg xmlns="http://www.w3.org/2000/svg" width="3840" height="2160" viewBox="0 0 3840 2160">
   <defs>
@@ -173,49 +302,276 @@ function wallpaperSvg(theme) {
 
 // ------------------------------------------------------- boot splash --
 
-// Plymouth's two-step plugin loops throbber-NNNN.png at 30 frames per second: a band of light sweeps
-// across the gem and a sparkle flashes on its crown, while a glow behind it breathes over the whole loop.
-const BOOT_FRAMES = 60;
-const BOOT_VIEWBOX = [-8, 24, 272, 232];
-const GEM_OUTLINE = pointList(["L", "A", "C", "R", "K"]);
+// The splash starts with the gem shattered, its pieces scattered around the screen. They converge and lock
+// together with a flash, then the gem glows in a cloud of violet dust: the glow rises to a peak and falls
+// back to where it started, over and over. BOOT_TIMELINE drives both the Plymouth script and the browser
+// preview (node branding/generate.mjs --preview), so they play the same animation.
+//
+// The artwork is drawn in the gem's 256-unit box; BOOT.unit converts that to pixels on a 1080p screen.
+const BOOT = {
+  unit: 280 / BOUNDS[3], // the gem stands 280px tall at 1080p
+  centerY: 0.46, // of the screen height
+  fadeIn: 0.4, // s for the scattered pieces to appear
+  converge: 0.6, // s before the first piece starts moving in
+  travel: 1.1, // s each piece takes to reach its place
+  settle: 0.6, // s from the flash to the first glow cycle
+  cycle: 3.2, // s per glow cycle
+  halo: 760, // px across at 1080p
+  dust: 40,
+};
 
-const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
-const bump = (x) => (x <= 0 || x >= 1 ? 0 : Math.sin(Math.PI * x));
-
-function bootFrameSvg(frame) {
-  const t = frame / BOOT_FRAMES;
-  const glow = 0.22 + 0.16 * (0.5 - 0.5 * Math.cos(2 * Math.PI * t));
-  const sweep = -90 + 380 * smooth(t / 0.5);
-  const sparkle = bump((t - 0.3) / 0.25);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${BOOT_VIEWBOX.join(" ")}">
-  <defs>
-    <radialGradient id="glow" cx="128" cy="140" r="132" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#9b5ce0" stop-opacity="${glow.toFixed(3)}"/>
-      <stop offset="1" stop-color="#9b5ce0" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="band" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
-      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.6"/>
-      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
-    <clipPath id="gem"><polygon points="${GEM_OUTLINE}"/></clipPath>
-  </defs>
-  <rect x="-8" y="24" width="272" height="232" fill="url(#glow)"/>
-  ${gemPolygons()}
-  <g clip-path="url(#gem)">
-    <rect x="${sweep.toFixed(1)}" y="-100" width="70" height="460" fill="url(#band)" transform="rotate(20 128 138)"/>
-  </g>
-  <path d="M0-26L5-5 26 0 5 5 0 26-5 5-26 0-5-5z" fill="#ffffff"
-    transform="translate(192 56) scale(${sparkle.toFixed(3)})" opacity="${sparkle.toFixed(3)}"/>
-</svg>
-`;
+// A seeded generator, so every run of this script draws the same scatter and dust
+function random(seed) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
-const BOOT_SIZE = [188, 160];
-const bootFrameHtml = (frame) => `<!doctype html><html><head><style>
-    html,body{margin:0;background:transparent;overflow:hidden}
-    svg{display:block;width:${BOOT_SIZE[0]}px;height:${BOOT_SIZE[1]}px}
-  </style></head><body>${bootFrameSvg(frame)}</body></html>`;
+const centroid = (pts) => [0, 1].map((c) => pts.reduce((sum, p) => sum + p[c], 0) / pts.length);
+
+// The gem breaks along its facet lines into nine pieces: eight slices of the crown, each a bezel facet with
+// the star facet and the two girdle facets beside it, and the table, which lands last.
+const PIECES = [
+  ...Array.from({ length: 8 }, (_, i) => [
+    table(i), star(i - 1), girdle(2 * i), ...arc(2 * i, 2 * i + 2).slice(1), star(i), table(i + 1),
+  ]),
+  Array.from({ length: 8 }, (_, i) => table(i)),
+].map((pts) => pts.map(([x, y]) => [x, y]));
+
+// Each piece flies in from a point out beyond it, turning as it comes. dx/dy/spin are where it hangs at the
+// start, in gem units and radians, drift how far it keeps moving out while it hangs.
+const SHARDS = (() => {
+  const rnd = random(7);
+  return PIECES.map((pts, i) => {
+    const xs = pts.map(([x]) => x);
+    const ys = pts.map(([, y]) => y);
+    const c = [(Math.min(...xs) + Math.max(...xs)) / 2, (Math.min(...ys) + Math.max(...ys)) / 2];
+    const side = Math.ceil(Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))) + 8;
+    const [mx, my] = centroid(pts);
+    const away = Math.atan2(my - CENTER[1], mx - CENTER[0]) + (rnd() - 0.5) * 1.2;
+    const dist = 170 + rnd() * 130;
+    const turn = (Math.PI / 180) * (50 + rnd() * 110) * (rnd() < 0.5 ? -1 : 1);
+    return {
+      pts, c, side,
+      dx: Math.cos(away) * dist, dy: Math.sin(away) * dist, dirx: Math.cos(away), diry: Math.sin(away),
+      drift: 10 + rnd() * 14, spin: turn, spinRate: (rnd() - 0.5) * 0.5,
+      delay: (i / (PIECES.length - 1)) * 0.3 + rnd() * 0.08,
+    };
+  });
+})();
+
+// Dust hangs in an oval around the gem and rises slowly through it, swaying and twinkling. Positions are
+// in gem units from the centre of the table.
+const DUST = (() => {
+  const rnd = random(23);
+  return Array.from({ length: BOOT.dust }, () => {
+    const a = rnd() * 2 * Math.PI;
+    const r = 80 + rnd() * 190;
+    return {
+      x: Math.cos(a) * r, y: Math.sin(a) * r * 1.2, size: 2 + rnd() * 4, rise: 5 + rnd() * 12,
+      sway: 3 + rnd() * 10, swayRate: 0.3 + rnd() * 0.6, twinkle: 0.8 + rnd() * 2, phase: rnd() * 2 * Math.PI,
+    };
+  });
+})();
+
+// One piece of the gem, drawn exactly as the logo, in a square around it with room to turn
+const shardSvg = (s) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${[s.c[0] - s.side / 2, s.c[1] - s.side / 2, s.side, s.side].join(" ")}">
+  <defs><clipPath id="piece"><polygon points="${pointList(s.pts)}"/></clipPath></defs>
+  <g clip-path="url(#piece)">
+  ${gemPolygons()}
+  </g>
+</svg>
+`;
+
+// The light that wells up from the table as the gem glows
+const lightSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <radialGradient id="light" cx="${CENTER[0].toFixed(1)}" cy="${CENTER[1].toFixed(1)}" r="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.9"/>
+      <stop offset="0.25" stop-color="#e3a2ff" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="${SHADES[7]}" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="gem"><polygon points="${pointList(OUTLINE)}"/></clipPath>
+  </defs>
+  <rect x="0" y="0" width="256" height="256" fill="url(#light)" clip-path="url(#gem)"/>
+</svg>
+`;
+
+const mix = (a, b, s) =>
+  "#" + [1, 3, 5].map((i) => {
+    const [x, y] = [a, b].map((hex) => parseInt(hex.slice(i, i + 2), 16));
+    return Math.round(x + (y - x) * s).toString(16).padStart(2, "0");
+  }).join("");
+
+// 41 gradient stops of a(o), o running from the centre (0) to the rim (1), the colour blending from inner to
+// outer. Enough stops that the steps between them never show as rings.
+const stops = (inner, outer, a) =>
+  Array.from({ length: 41 }, (_, i) => {
+    const o = i / 40;
+    return `<stop offset="${o}" stop-color="${mix(inner, outer, o)}" stop-opacity="${a(o).toFixed(3)}"/>`;
+  }).join("");
+
+// Where the heart of the gem sits on the 1080p screen
+const HEART_PX = [960 + (CENTER[0] - 128) * BOOT.unit, 1080 * BOOT.centerY + (CENTER[1] - 128) * BOOT.unit];
+
+// Violet smoke over the whole screen, in a 480x270 box stretched to it: two layers of fractal noise thin and
+// thicken a glow that is densest around the gem and thins out towards the corners without ever ending.
+const nebulaSvg = (() => {
+  const [cx, cy] = HEART_PX.map((v) => v / 4);
+  const layer = (seed, frequency, color, peak, floor) => {
+    const falloff = (o) => peak * (floor + (1 - floor) * Math.exp(-3.5 * o * o));
+    return `<filter id="smoke${seed}" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="${frequency}" numOctaves="4" seed="${seed}"/>
+      <feColorMatrix values="2 0 0 0 -0.5  2 0 0 0 -0.5  2 0 0 0 -0.5  0 0 0 0 1"/>
+      <feGaussianBlur stdDeviation="2.5"/>
+    </filter>
+    <mask id="clouds${seed}"><rect width="480" height="270" filter="url(#smoke${seed})"/></mask>
+    <radialGradient id="fall${seed}" cx="${cx}" cy="${cy}" r="300" gradientUnits="userSpaceOnUse">${stops(color, SHADES[3], falloff)}</radialGradient>`;
+  };
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 270" preserveAspectRatio="none">
+  <defs>
+    ${layer(3, 0.014, SHADES[6], 0.8, 0.12)}
+    ${layer(11, 0.024, SHADES[5], 0.45, 0.1)}
+  </defs>
+  <rect width="480" height="270" fill="url(#fall3)" mask="url(#clouds3)"/>
+  <rect width="480" height="270" fill="url(#fall11)" mask="url(#clouds11)"/>
+</svg>
+`;
+})();
+
+// The soft glow right around the gem that brightens and dims with it: a bell curve that flattens out to
+// nothing before its rim, so it has no edge.
+const haloSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs><radialGradient id="halo">${stops(SHADES[7], SHADES[6], (o) => 0.8 * Math.exp(-4 * o * o) * (1 - o * o) ** 2)}</radialGradient></defs>
+  <ellipse cx="100" cy="100" rx="86" ry="100" fill="url(#halo)"/>
+</svg>
+`;
+
+const dustSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20">
+  <defs><radialGradient id="d"><stop offset="0" stop-color="#ffffff"/><stop offset="0.35" stop-color="#f0d4ff" stop-opacity="0.8"/>
+    <stop offset="1" stop-color="#c79bff" stop-opacity="0"/></radialGradient></defs>
+  <circle r="10" fill="url(#d)"/>
+</svg>
+`;
+
+// ----------------------------------------------------- boot animation --
+
+// The pose of every piece t seconds into the splash, in 1080p pixels relative to the heart. The Plymouth
+// script is a line-for-line port of this function.
+const BOOT_TIMELINE = String.raw`
+function ease(u) {
+  u = Math.min(1, Math.max(0, u));
+  return u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+}
+function frame(t, B, SHARDS, DUST) {
+  const k = B.unit;
+  const assembled = B.converge + B.travel + Math.max(...SHARDS.map((s) => s.delay));
+  const shards = SHARDS.map((s) => {
+    const start = B.converge + s.delay;
+    const hang = Math.min(t, start);
+    const e = ease((t - start) / B.travel);
+    const out = 1 - e;
+    return {
+      x: ((s.c[0] - 128) + (s.dx + s.dirx * s.drift * hang) * out) * k,
+      y: ((s.c[1] - 128) + (s.dy + s.diry * s.drift * hang) * out) * k,
+      angle: (s.spin + s.spinRate * hang) * out,
+      opacity: t < assembled ? Math.min(1, t / B.fadeIn) : 0,
+    };
+  });
+  const whole = t >= assembled ? 1 : 0;
+  const rise = Math.min(1, Math.max(0, (t - B.converge) / (assembled + 0.3 - B.converge)));
+  const flash = t >= assembled ? Math.exp(-(t - assembled) / 0.25) : 0;
+  const loopStart = assembled + B.settle;
+  const g = t >= loopStart ? 0.5 - 0.5 * Math.cos((2 * Math.PI * (t - loopStart)) / B.cycle) : 0;
+  const dustLevel = rise * (0.55 + 0.45 * g);
+  const dust = DUST.map((d) => {
+    let y = d.y - d.rise * t;
+    y = y - Math.floor((y + 300) / 600) * 600;
+    const edge = Math.min(1, (300 - Math.abs(y)) / 60);
+    const twinkle = 0.35 + 0.65 * Math.abs(Math.sin(d.phase + d.twinkle * t));
+    return {
+      x: (d.x + d.sway * Math.sin(d.phase + d.swayRate * t)) * k, y: y * k,
+      opacity: dustLevel * edge * twinkle,
+    };
+  });
+  return {
+    shards, dust, gem: whole,
+    nebula: Math.min(1, 0.85 * rise + 0.15 * flash),
+    halo: Math.min(1, rise * (0.3 + 0.7 * g) + 0.5 * flash),
+    light: Math.min(1, whole * 0.45 * g + 0.9 * flash),
+  };
+}
+`;
+
+const svgData = (svg) => `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+
+// An animated preview of the splash on a 1920x1080 stage, scaled to the window
+function bootPreviewHtml() {
+  const k = BOOT.unit;
+  const img = (id, svg, w, h, extra = "") =>
+    `<img id="${id}" src="${svgData(svg)}" style="width:${w}px;height:${h}px;margin:${-h / 2}px 0 0 ${-w / 2}px${extra}">`;
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Amethystora boot splash</title><style>
+    ${wordmarkFace}
+    html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:"${WORDMARK_FONT}",sans-serif}
+    #stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;
+      background:linear-gradient(#0d0714,#1a0a2e)}
+    #nebula{position:absolute;left:0;top:0;width:1920px;height:1080px}
+    #heart{position:absolute;left:960px;top:${1080 * BOOT.centerY}px}
+    #heart img{position:absolute;left:0;top:0;will-change:transform,opacity}
+    #mark{position:absolute;left:0;right:0;top:${Math.round(1080 * 0.94) - 18}px;text-align:center;color:#fff;
+      font-weight:${WORDMARK_WEIGHT};letter-spacing:-0.015em;font-size:34px;line-height:36px}
+    /* The author credit under the name, in a violet close to the cloud behind it so it only shows when looked for */
+    #credit{position:absolute;left:0;right:0;top:${Math.round(1080 * 0.94) + 26}px;text-align:center;color:${SHADES[7]};
+      opacity:0.22;font-weight:500;letter-spacing:0.04em;font-size:13px;line-height:16px}
+    #bar{position:fixed;left:12px;bottom:12px;display:flex;gap:8px;align-items:center;color:#cdb8ec;font:13px system-ui}
+    button{background:#2a1740;color:#eadcff;border:1px solid #4a2d70;border-radius:6px;padding:6px 12px;font:inherit;cursor:pointer}
+  </style></head><body>
+  <div id="stage"><img id="nebula" src="${svgData(nebulaSvg)}"><div id="heart">
+    ${img("halo", haloSvg, BOOT.halo, BOOT.halo)}
+    ${DUST.map((d, i) => img(`dust${i}`, dustSvg, d.size * k * 2, d.size * k * 2)).join("")}
+    ${SHARDS.map((s, i) => img(`shard${i}`, shardSvg(s), s.side * k, s.side * k)).join("")}
+    ${img("gem", gemSvg(), 256 * k, 256 * k)}
+    ${img("light", lightSvg, 256 * k, 256 * k)}
+  </div><div id="mark">amethystora</div><div id="credit">by iarsslen</div></div>
+  <div id="bar"><button id="replay">Replay</button><button id="slow">Slow motion: off</button><span id="clock"></span></div>
+  <script>
+    ${BOOT_TIMELINE}
+    const B = ${JSON.stringify(BOOT)}, SHARDS = ${JSON.stringify(SHARDS)}, DUST = ${JSON.stringify(DUST)};
+    const hx = ${CENTER[0] - 128} * B.unit, hy = ${CENTER[1] - 128} * B.unit;
+    const $ = (id) => document.getElementById(id);
+    const stage = $("stage");
+    const fit = () => {
+      const s = Math.min(innerWidth / 1920, innerHeight / 1080);
+      stage.style.transform = "scale(" + s + ") translate(-960px,-540px)";
+    };
+    addEventListener("resize", fit); fit();
+    let t0 = performance.now(), t = 0, last = t0, speed = 1;
+    $("replay").onclick = () => { t = 0; };
+    $("slow").onclick = () => { speed = speed === 1 ? 0.25 : 1; $("slow").textContent = "Slow motion: " + (speed === 1 ? "off" : "on"); };
+    const put = (el, x, y, opacity, angle = 0, scale = 1) => {
+      el.style.transform = "translate(" + x + "px," + y + "px) rotate(" + angle + "rad) scale(" + scale + ")";
+      el.style.opacity = opacity;
+    };
+    function tick(now) {
+      t += ((now - last) / 1000) * speed; last = now;
+      // #t=1.5 in the address holds the animation at that moment
+      const hold = /t=([\\d.]+)/.exec(location.hash);
+      if (hold) t = +hold[1];
+      const f = frame(t, B, SHARDS, DUST);
+      f.shards.forEach((s, i) => put($("shard" + i), s.x, s.y, s.opacity, s.angle));
+      f.dust.forEach((d, i) => put($("dust" + i), d.x + hx, d.y + hy, d.opacity));
+      put($("gem"), 0, 0, f.gem); put($("light"), 0, 0, f.light);
+      $("nebula").style.opacity = f.nebula;
+      put($("halo"), hx, hy, f.halo);
+      $("clock").textContent = t.toFixed(2) + " s";
+      requestAnimationFrame(tick);
+    }
+    document.fonts.load('${WORDMARK_WEIGHT} 16px "${WORDMARK_FONT}"').finally(() => requestAnimationFrame(tick));
+  </script></body></html>`;
+}
 
 // ------------------------------------------------------ fastfetch logo --
 
@@ -230,16 +586,18 @@ function inPolygon([x, y], poly) {
 }
 
 function colorAt(x, y) {
-  const facet = FACETS.find((f) => inPolygon([x, y], f.pts.map((n) => P[n])));
-  return facet?.color ?? null;
+  if (!inPolygon([x, y], OUTLINE)) return null;
+  const facet = FACETS.find((f) => inPolygon([x, y], f.pts));
+  return facet ? shadeOf(facet.level) : SHADES[3];
 }
 
 const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(";");
 
 // Truecolour half-block art: every character cell shows two vertically stacked pixels.
-function ansiLogo(cols = 34, rows = 28) {
-  const [x0, x1, y0, y1] = [24, 232, 56, 220];
-  const px = (i, j) => colorAt(x0 + ((i + 0.5) * (x1 - x0)) / cols, y0 + ((j + 0.5) * (y1 - y0)) / rows);
+function ansiLogo(rows = 34) {
+  const cols = Math.round((rows * BOUNDS[2]) / BOUNDS[3]);
+  const [x0, y0, w, h] = BOUNDS;
+  const px = (i, j) => colorAt(x0 + ((i + 0.5) * w) / cols, y0 + ((j + 0.5) * h) / rows);
   const lines = [];
   for (let j = 0; j < rows; j += 2) {
     let line = "";
@@ -258,24 +616,46 @@ function ansiLogo(cols = 34, rows = 28) {
 
 // ------------------------------------------------------------ PNG logos --
 
-const gemImg = (white) =>
-  `<img src="data:image/svg+xml;base64,${Buffer.from(gemSvg(white, "24 56 208 164")).toString("base64")}">`;
+// The wordmark is set in Quicksand Bold (branding/fonts, SIL Open Font License): its round bowls and rounded
+// stroke ends follow the curve of the teardrop gem, so the gem reads as the "a" of the name. The font is
+// embedded so the rendering does not depend on the fonts of this machine.
+const WORDMARK_FONT = "Quicksand";
+const WORDMARK_WEIGHT = 700;
+const wordmarkFace = `@font-face{font-family:"${WORDMARK_FONT}";font-weight:300 700;src:url(data:font/ttf;base64,${readFileSync(
+  join(ROOT, "branding/fonts/QuicksandVariable.ttf"),
+).toString("base64")}) format("truetype")}`;
 
-// Gem (plus optional wordmark) centred on a transparent canvas, scaled down to fit with a margin.
+const gemImg = (white, cls = "") =>
+  `<img${cls ? ` class="${cls}"` : ""} src="data:image/svg+xml;base64,${Buffer.from(
+    gemSvg(white, BOUNDS.join(" ")),
+  ).toString("base64")}">`;
+
+// The wordmark: the gem stands in for the "a" of amethystora, set tight against "methystora". It is as tall as the
+// ascender of the "h" and rests on the baseline. Without the gem the name is set in full.
+const GEM_EM = 0.76;
+const wordmark = (gem) => (gem ? `<span>${gemImg(false, "a")}methystora</span>` : "<span>amethystora</span>");
+
+// Gem or wordmark centred on a transparent canvas, scaled down to fit with a margin.
 function logoHtml({ width, height, text, white = false, gem = true }) {
   const textColor = text === "white" ? "#ffffff" : "#241f31";
-  const body = `<div id="row">${gem ? gemImg(white) : ""}${text ? "<span>amethyst</span>" : ""}</div>`;
+  const body = `<div id="row">${text ? wordmark(gem) : gemImg(white)}</div>`;
   return `<!doctype html><html><head><style>
+    ${wordmarkFace}
     html,body{margin:0;width:${width}px;height:${height}px;background:transparent;overflow:hidden}
     body{display:flex;align-items:center;justify-content:center}
-    #row{display:flex;align-items:center;gap:${Math.round(height * 0.1)}px;white-space:nowrap}
-    img{height:${Math.round(height * (text ? 0.72 : 0.84))}px}
-    span{font-family:"Segoe UI","Cantarell",sans-serif;font-weight:600;font-size:${Math.round(height * 0.46)}px;
-      color:${textColor};line-height:1;padding-bottom:${Math.round(height * 0.05)}px}
+    #row{display:flex;align-items:center;white-space:nowrap}
+    #row>img{height:${Math.round(height * 0.84)}px}
+    span{font-family:"${WORDMARK_FONT}";font-weight:${WORDMARK_WEIGHT};letter-spacing:-0.015em;font-size:${Math.round(height * 0.62)}px;
+      color:${textColor};line-height:1}
+    img.a{height:${GEM_EM}em;width:${((GEM_EM * BOUNDS[2]) / BOUNDS[3]).toFixed(3)}em;margin-right:0.035em;
+      vertical-align:-0.012em}
   </style></head><body>${body}<script>
-    const row = document.getElementById("row");
-    const scale = Math.min(1, (${width} * 0.92) / row.offsetWidth, (${height} * 0.92) / row.offsetHeight);
-    row.style.transform = "scale(" + scale + ")";
+    // Measure once the wordmark font is in use, not the fallback font
+    document.fonts.load('${WORDMARK_WEIGHT} 16px "${WORDMARK_FONT}"').then(() => {
+      const row = document.getElementById("row");
+      const scale = Math.min(1, (${width} * 0.92) / row.offsetWidth, (${height} * 0.92) / row.offsetHeight);
+      row.style.transform = "scale(" + scale + ")";
+    });
   </script></body></html>`;
 }
 
@@ -284,22 +664,19 @@ const wallpaperHtml = (theme) => `<!doctype html><html><body style="margin:0">${
 
 const logo = (spec) => ({ ...spec, html: () => logoHtml(spec) });
 const PNGS = [
-  logo({ out: "usr/share/pixmaps/fedora-logo.png", width: 500, height: 204, text: "dark" }),
-  logo({ out: "usr/share/pixmaps/fedora_logo_med.png", width: 250, height: 102, text: "dark" }),
-  logo({ out: "usr/share/pixmaps/fedora-logo-small.png", width: 150, height: 61, text: "dark" }),
-  logo({ out: "usr/share/pixmaps/fedora_whitelogo_med.png", width: 250, height: 102, text: "white" }),
-  logo({ out: "usr/share/pixmaps/fedora-logo-icon.png", width: 512, height: 512 }),
-  logo({ out: "usr/share/pixmaps/fedora-logo-sprite.png", width: 400, height: 400 }),
-  logo({ out: "usr/share/pixmaps/system-logo-white.png", width: 252, height: 252, white: true }),
-  logo({ out: "usr/share/plymouth/themes/spinner/watermark.png", width: 240, height: 64, text: "white" }),
-  logo({ out: "usr/share/plymouth/themes/spinner/silverblue-watermark.png", width: 240, height: 64, text: "white" }),
-  logo({ out: "usr/share/plymouth/themes/amethyst/watermark.png", width: 200, height: 56, text: "white", gem: false }),
-  ...Array.from({ length: BOOT_FRAMES }, (_, i) => ({
-    out: `usr/share/plymouth/themes/amethyst/throbber-${String(i + 1).padStart(4, "0")}.png`,
-    width: BOOT_SIZE[0], height: BOOT_SIZE[1], html: () => bootFrameHtml(i),
-  })),
-  { out: "usr/share/backgrounds/amethyst/amethyst-l.png", width: 3840, height: 2160, html: () => wallpaperHtml("light") },
-  { out: "usr/share/backgrounds/amethyst/amethyst-d.png", width: 3840, height: 2160, html: () => wallpaperHtml("dark") },
+  logo({ out: "usr/share/pixmaps/amethystora-wordmark.png", width: 690, height: 204, text: "dark" }),
+  logo({ out: "usr/share/pixmaps/amethystora-wordmark-medium.png", width: 345, height: 102, text: "dark" }),
+  logo({ out: "usr/share/pixmaps/amethystora-wordmark-small.png", width: 205, height: 61, text: "dark" }),
+  logo({ out: "usr/share/pixmaps/amethystora-wordmark-white.png", width: 345, height: 102, text: "white" }),
+  logo({ out: "usr/share/pixmaps/amethystora-logo-512.png", width: 512, height: 512 }),
+  logo({ out: "usr/share/pixmaps/amethystora-logo-400.png", width: 400, height: 400 }),
+  logo({ out: "usr/share/pixmaps/amethystora-logo-white.png", width: 252, height: 252, white: true }),
+  // Fedora's spinner theme, the fallback splash, looks its watermark up by this name
+  logo({ out: "usr/share/plymouth/themes/spinner/watermark.png", width: 330, height: 64, text: "white" }),
+  // The Amethystora splash already shows the gem above it
+  logo({ out: "usr/share/plymouth/themes/amethystora/watermark.png", width: 275, height: 56, text: "white", gem: false }),
+  { out: "usr/share/backgrounds/amethystora/amethystora-l.png", width: 3840, height: 2160, html: () => wallpaperHtml("light") },
+  { out: "usr/share/backgrounds/amethystora/amethystora-d.png", width: 3840, height: 2160, html: () => wallpaperHtml("dark") },
 ];
 
 function findBrowser() {
@@ -318,16 +695,18 @@ function findBrowser() {
   return found;
 }
 
+// ONLY=substring renders just the PNGs whose path contains it, for quick previews
 function renderPngs() {
   const browser = findBrowser();
-  const work = join(tmpdir(), "amethyst-branding");
+  const work = join(tmpdir(), "amethystora-branding");
   rmSync(work, { recursive: true, force: true });
   mkdirSync(work, { recursive: true });
-  for (const png of PNGS) {
+  for (const png of PNGS.filter((p) => !process.env.ONLY || p.out.includes(process.env.ONLY))) {
     const html = join(work, "page.html");
     writeFileSync(html, png.html());
     const out = join(SHARED, png.out);
     mkdirSync(dirname(out), { recursive: true });
+    rmSync(out, { force: true });
     execFileSync(browser, [
       "--headless", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1",
       "--default-background-color=00000000", `--user-data-dir=${join(work, "profile")}`,
@@ -348,10 +727,43 @@ function write(rel, content) {
   console.log(`wrote ${rel}`);
 }
 
-write("usr/share/icons/hicolor/scalable/apps/amethyst-logo.svg", gemSvg());
-write("usr/share/icons/hicolor/scalable/actions/amethyst-logo-symbolic.svg", symbolicSvg);
-write("usr/share/icons/hicolor/scalable/places/amethyst-docs.svg", tileSvg(docsGlyph));
-write("usr/share/icons/hicolor/scalable/places/amethyst-community.svg", tileSvg(communityGlyph));
-write("usr/share/icons/hicolor/scalable/places/amethyst-update.svg", tileSvg(updateGlyph));
-write("usr/share/amethyst/logos/symbols/amethyst", ansiLogo());
+// DankMaterialShell custom theme: amethyst accent on violet-tinted surfaces, in dark and light variants
+const dmsTheme = {
+  dark: {
+    name: "Amethystora",
+    primary: ACCENT, primaryText: "#ffffff", primaryContainer: SHADES[3],
+    secondary: "#b89ae6", surfaceTint: ACCENT,
+    surface: "#150f1d", surfaceText: "#e8e0f2", surfaceVariant: "#3a3148", surfaceVariantText: "#cdc2dc",
+    background: "#110c18", backgroundText: "#e8e0f2", outline: "#8f839f",
+    surfaceContainerLowest: "#0d0913", surfaceContainerLow: "#1a1323", surfaceContainer: "#1f1729",
+    surfaceContainerHigh: "#2a2136", surfaceContainerHighest: "#352b42",
+    error: "#f2b8b5", warning: "#ffb74d", info: "#b37df9",
+  },
+  light: {
+    name: "Amethystora",
+    primary: SHADES[4], primaryText: "#ffffff", primaryContainer: "#eaddff",
+    secondary: "#65558f", surfaceTint: SHADES[4],
+    surface: "#fdf8ff", surfaceText: "#1d1a22", surfaceVariant: "#e8e0f0", surfaceVariantText: "#4a4454",
+    background: "#fdf8ff", backgroundText: "#1d1a22", outline: "#7b7485",
+    surfaceContainerLowest: "#ffffff", surfaceContainerLow: "#f8f1fd", surfaceContainer: "#f2ebf8",
+    surfaceContainerHigh: "#ece5f2", surfaceContainerHighest: "#e6dfec",
+    error: "#b3261e", warning: "#b26a00", info: SHADES[4],
+  },
+};
+
+// --preview only writes the animated preview of the boot splash, and prints where
+if (process.argv.includes("--preview")) {
+  const out = join(tmpdir(), "amethystora-boot-preview.html");
+  writeFileSync(out, bootPreviewHtml());
+  console.log(out);
+  process.exit(0);
+}
+
+write("usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg", gemSvg());
+write("usr/share/icons/hicolor/scalable/actions/amethystora-logo-symbolic.svg", symbolicSvg);
+write("usr/share/icons/hicolor/scalable/places/amethystora-docs.svg", tileSvg(docsGlyph));
+write("usr/share/icons/hicolor/scalable/places/amethystora-community.svg", tileSvg(communityGlyph));
+write("usr/share/icons/hicolor/scalable/places/amethystora-update.svg", tileSvg(updateGlyph));
+write("usr/share/amethystora/logos/symbols/amethystora", ansiLogo());
+write("usr/share/amethystora/dms/amethystora-theme.json", JSON.stringify(dmsTheme, null, 2) + "\n");
 renderPngs();

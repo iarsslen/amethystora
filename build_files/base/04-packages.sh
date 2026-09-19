@@ -67,6 +67,8 @@ FEDORA_PACKAGES=(
     oddjob-mkhomedir
     opendyslexic-fonts
     openssh-askpass
+    pam-u2f
+    pamu2fcfg
     powerstat
     powertop
     printer-driver-brlaser
@@ -75,6 +77,7 @@ FEDORA_PACKAGES=(
     python3-pygit2
     rclone
     restic
+    rsms-inter-fonts
     samba
     samba-dcerpc
     samba-ldb-ldap-modules
@@ -124,6 +127,10 @@ dnf -y install "${FEDORA_PACKAGES[@]}"
 sed -i 's|^#LocalSocket |LocalSocket |' /etc/clamd.d/scan.conf
 grep -q "^LocalSocket /run/clamd.scan/clamd.sock$" /etc/clamd.d/scan.conf
 semanage boolean -m --on antivirus_can_scan_system
+
+# FIDO2 security keys (YubiKey, Thetis, and their fingerprint models) log in, unlock and approve sudo/polkit in
+# place of the password, once registered with `ujust setup-security-key`. Users without a key are not affected.
+authselect enable-feature with-pam-u2f
 
 dnf config-manager addrepo --from-repofile=https://pkgs.tailscale.com/stable/fedora/tailscale.repo
 dnf config-manager setopt tailscale-stable.enabled=0

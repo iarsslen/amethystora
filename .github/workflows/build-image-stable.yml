@@ -29,7 +29,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        brand_name: ["amethyst"]
+        brand_name: ["amethystora"]
     with:
       # Pin stable to a kernel if needed, like for ZFS compatibility
       # kernel_pin: 7.0.12-201.fc44.x86_64

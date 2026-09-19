@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report an issue about using Amethyst
+description: Report an issue about using Amethystora
 body:
   - type: markdown
     attributes:

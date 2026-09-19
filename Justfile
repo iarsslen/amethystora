@@ -3,8 +3,8 @@ rechunker_image := "ghcr.io/ublue-os/legacy-rechunk:v1.0.1-x86_64@sha256:2627cbf
 common_image := "ghcr.io/projectbluefin/common:latest"
 brew_image := "ghcr.io/ublue-os/brew:latest"
 images := '(
-    [amethyst]=amethyst
-    [amethyst-dx]=amethyst-dx
+    [amethystora]=amethystora
+    [amethystora-dx]=amethystora-dx
 )'
 flavors := '(
     [main]=main
@@ -99,7 +99,7 @@ validate $image $tag $flavor:
 
 # Build Image
 [group('Image')]
-build $image="amethyst" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipeline="0" $kernel_pin="":
+build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipeline="0" $kernel_pin="":
     #!/usr/bin/bash
 
     echo "::group:: Build Prep"
@@ -218,16 +218,16 @@ build $image="amethyst" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipeli
     LABELS+=("--label" "org.opencontainers.image.title=${image_name}")
     LABELS+=("--label" "org.opencontainers.image.version=${ver}")
     LABELS+=("--label" "ostree.linux=${kernel_release}")
-    LABELS+=("--label" "io.artifacthub.package.readme-url=https://raw.githubusercontent.com/{{ repo_organization }}/amethyst/refs/heads/main/README.md")
+    LABELS+=("--label" "io.artifacthub.package.readme-url=https://raw.githubusercontent.com/{{ repo_organization }}/amethystora/refs/heads/main/README.md")
     LABELS+=("--label" "io.artifacthub.package.logo-url=https://github.com/{{ repo_organization }}.png")
     LABELS+=("--label" "org.opencontainers.image.description=The next generation Linux workstation, designed for reliability, performance, and sustainability.")
     LABELS+=("--label" "containers.bootc=1")
     LABELS+=("--label" "org.opencontainers.image.created=$(date -u +%Y\-%m\-%d\T%H\:%M\:%S\Z)")
-    LABELS+=("--label" "org.opencontainers.image.source=https://raw.githubusercontent.com/{{ repo_organization }}/amethyst/refs/heads/main/Containerfile")
-    LABELS+=("--label" "org.opencontainers.image.url=https://github.com/{{ repo_organization }}/amethyst")
+    LABELS+=("--label" "org.opencontainers.image.source=https://raw.githubusercontent.com/{{ repo_organization }}/amethystora/refs/heads/main/Containerfile")
+    LABELS+=("--label" "org.opencontainers.image.url=https://github.com/{{ repo_organization }}/amethystora")
     LABELS+=("--label" "org.opencontainers.image.vendor={{ repo_organization }}")
     LABELS+=("--label" "io.artifacthub.package.deprecated=false")
-    LABELS+=("--label" "io.artifacthub.package.keywords=bootc,amethyst,hyprland")
+    LABELS+=("--label" "io.artifacthub.package.keywords=bootc,amethystora,hyprland")
     LABELS+=("--label" "io.artifacthub.package.maintainers=[{\"name\": \"Arsslen Idadi\", \"email\": \"arsslens021@gmail.com\"}]")
 
     echo "::endgroup::"
@@ -258,12 +258,12 @@ build $image="amethyst" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pipeli
 
 # Build Image and Rechunk
 [group('Image')]
-build-rechunk image="amethyst" tag="latest" flavor="main" kernel_pin="":
+build-rechunk image="amethystora" tag="latest" flavor="main" kernel_pin="":
     @{{ just }} build {{ image }} {{ tag }} {{ flavor }} 1 0 0 {{ kernel_pin }}
 
 # Build Image with GHCR Flag
 [group('Image')]
-build-ghcr image="amethyst" tag="latest" flavor="main" kernel_pin="":
+build-ghcr image="amethystora" tag="latest" flavor="main" kernel_pin="":
     #!/usr/bin/bash
     if [[ "${UID}" -gt "0" ]]; then
         echo "Must Run with sudo or as root..."
@@ -273,14 +273,14 @@ build-ghcr image="amethyst" tag="latest" flavor="main" kernel_pin="":
 
 # Build Image for Pipeline:
 [group('Image')]
-build-pipeline image="amethyst" tag="latest" flavor="main" kernel_pin="":
+build-pipeline image="amethystora" tag="latest" flavor="main" kernel_pin="":
     #!/usr/bin/bash
     ${SUDOIF} {{ just }} build {{ image }} {{ tag }} {{ flavor }} 1 1 1 {{ kernel_pin }}
 
 # Rechunk Image
 [group('Image')]
 [private]
-rechunk $image="amethyst" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
+rechunk $image="amethystora" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
     #!/usr/bin/bash
 
     echo "::group:: Rechunk Prep"
@@ -327,15 +327,15 @@ rechunk $image="amethyst" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
     # Rest of Labels
     LABELS="
         io.artifacthub.package.deprecated=false
-        io.artifacthub.package.keywords=bootc,fedora,amethyst,hyprland
+        io.artifacthub.package.keywords=bootc,fedora,amethystora,hyprland
         io.artifacthub.package.logo-url=https://github.com/{{ repo_organization }}.png
         io.artifacthub.package.maintainers=[{\"name\": \"Arsslen Idadi\", \"email\": \"arsslens021@gmail.com\"}]
-        io.artifacthub.package.readme-url=https://raw.githubusercontent.com/{{ repo_organization }}/amethyst/refs/heads/main/README.md
+        io.artifacthub.package.readme-url=https://raw.githubusercontent.com/{{ repo_organization }}/amethystora/refs/heads/main/README.md
         org.opencontainers.image.created=$(date -u +%Y\-%m\-%d\T%H\:%M\:%S\Z)
         org.opencontainers.image.license=Apache-2.0
-        org.opencontainers.image.source=https://raw.githubusercontent.com/{{ repo_organization }}/amethyst/refs/heads/main/Containerfile
+        org.opencontainers.image.source=https://raw.githubusercontent.com/{{ repo_organization }}/amethystora/refs/heads/main/Containerfile
         org.opencontainers.image.title=${image_name}
-        org.opencontainers.image.url=https://github.com/{{ repo_organization }}/amethyst
+        org.opencontainers.image.url=https://github.com/{{ repo_organization }}/amethystora
         org.opencontainers.image.vendor={{ repo_organization }}
         ostree.linux=$(${SUDOIF} ${PODMAN} inspect $CREF | jq -r '.[].Config.Labels["ostree.linux"]')
         containers.bootc=1
@@ -403,7 +403,7 @@ rechunk $image="amethyst" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
         --env PREV_REF=ghcr.io/{{ repo_organization }}/"${image_name}":"${tag}" \
         --env OUT_NAME="$OUT_NAME" \
         --env LABELS="${LABELS}" \
-        --env "DESCRIPTION='Amethyst, a cloud-native Fedora desktop with Hyprland'" \
+        --env "DESCRIPTION='Amethystora, a cloud-native Fedora desktop with Hyprland'" \
         --env "VERSION=${VERSION}" \
         --env VERSION_FN=/workspace/version.txt \
         --env OUT_REF="oci:$OUT_NAME" \
@@ -436,7 +436,7 @@ rechunk $image="amethyst" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
 
 # Load OCI into Podman Store
 [group('Image')]
-load-rechunk image="amethyst" tag="latest" flavor="main":
+load-rechunk image="amethystora" tag="latest" flavor="main":
     #!/usr/bin/bash
     set -eou pipefail
 
@@ -457,7 +457,7 @@ load-rechunk image="amethyst" tag="latest" flavor="main":
 
 # Run Container
 [group('Image')]
-run $image="amethyst" $tag="latest" $flavor="main":
+run $image="amethystora" $tag="latest" $flavor="main":
     #!/usr/bin/bash
     set -eoux pipefail
 
@@ -518,7 +518,7 @@ verify-container container="" registry="ghcr.io/ublue-os" key="":
 
 # Secureboot Check
 [group('Utility')]
-secureboot $image="amethyst" $tag="latest" $flavor="main":
+secureboot $image="amethystora" $tag="latest" $flavor="main":
     #!/usr/bin/bash
     set -eou pipefail
 
@@ -570,7 +570,7 @@ secureboot $image="amethyst" $tag="latest" $flavor="main":
 # Get Fedora Version of an image
 [group('Utility')]
 [private]
-fedora_version image="amethyst" tag="latest" flavor="main" $kernel_pin="":
+fedora_version image="amethystora" tag="latest" flavor="main" $kernel_pin="":
     #!/usr/bin/bash
     set -eou pipefail
     {{ just }} validate {{ image }} {{ tag }} {{ flavor }}
@@ -591,7 +591,7 @@ fedora_version image="amethyst" tag="latest" flavor="main" $kernel_pin="":
 # Image Name
 [group('Utility')]
 [private]
-image_name image="amethyst" tag="latest" flavor="main":
+image_name image="amethystora" tag="latest" flavor="main":
     #!/usr/bin/bash
     set -eou pipefail
     {{ just }} validate {{ image }} {{ tag }} {{ flavor }}
@@ -604,7 +604,7 @@ image_name image="amethyst" tag="latest" flavor="main":
 
 # Generate Tags
 [group('Utility')]
-generate-build-tags image="amethyst" tag="latest" flavor="main" kernel_pin="" ghcr="0" $version="" github_event="" github_number="":
+generate-build-tags image="amethystora" tag="latest" flavor="main" kernel_pin="" ghcr="0" $version="" github_event="" github_number="":
     #!/usr/bin/bash
     set -eou pipefail
 
@@ -699,7 +699,7 @@ tag-images image_name="" default_tag="" tags="":
 
 # Extract Container and generate SBOM
 [group('Utility')]
-gen-sbom $image="amethyst" $tag="latest" $flavor="main" $syft_cmd="syft":
+gen-sbom $image="amethystora" $tag="latest" $flavor="main" $syft_cmd="syft":
     #!/usr/bin/bash
     set -eoux pipefail
 
@@ -727,7 +727,7 @@ gen-sbom $image="amethyst" $tag="latest" $flavor="main" $syft_cmd="syft":
 
 # DNF CI package cache
 [group('Utility')]
-setup-cache $image="amethyst" $tag="latest" $ghcr="0" $github_event="0":
+setup-cache $image="amethystora" $tag="latest" $ghcr="0" $github_event="0":
     #!/usr/bin/bash
     set -eou pipefail
 
@@ -736,7 +736,7 @@ setup-cache $image="amethyst" $tag="latest" $ghcr="0" $github_event="0":
 
     ALLOW_CACHE_WRITE="false"
 
-    BLESSED_IMAGE=amethyst-dx
+    BLESSED_IMAGE=amethystora-dx
 
     if [[ "${image_name}" == "${BLESSED_IMAGE}" ]] && \
        [[ "{{ ghcr }}" == "1" ]] && \
@@ -769,6 +769,6 @@ retag-nvidia-on-ghcr working_tag="" stream="" dry_run="1":
         echo "$GITHUB_PAT" | podman login -u $GITHUB_USERNAME --password-stdin ghcr.io
         skopeo="skopeo"
     fi
-    for image in amethyst-nvidia-open amethyst-dx-nvidia-open; do
+    for image in amethystora-nvidia-open amethystora-dx-nvidia-open; do
       $skopeo copy docker://ghcr.io/{{ repo_organization }}/${image}:{{ working_tag }} docker://ghcr.io/{{ repo_organization }}/${image}:{{ stream }}
     done

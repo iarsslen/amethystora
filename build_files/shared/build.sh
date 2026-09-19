@@ -39,10 +39,10 @@ echo "::endgroup::"
 # Install Overrides and Fetch Install
 /ctx/build_files/base/05-override-install.sh
 
-# Amethyst Branding
+# Amethystora Branding
 /ctx/build_files/base/06-branding.sh
 
-# Rename the remaining Bluefin / Universal Blue files, commands and services to Amethyst
+# Rename the remaining Bluefin / Universal Blue files, commands and services to Amethystora
 /ctx/build_files/base/07-debrand.sh
 
 

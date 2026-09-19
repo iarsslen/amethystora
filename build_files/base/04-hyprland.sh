@@ -98,12 +98,12 @@ for fcontext in "cache_home_t /var/cache/dms-greeter(/.*)?" "user_home_dir_t /va
     semanage fcontext -a -t "${setype}" "${pattern}" || semanage fcontext -m -t "${setype}" "${pattern}"
 done
 
-# Hyprland session: start through Amethyst's wrapper, which deploys the DMS config on first login
-sed -i 's|^Exec=.*|Exec=/usr/libexec/amethyst-hyprland-session|' /usr/share/wayland-sessions/hyprland.desktop
+# Hyprland session: start through Amethystora's wrapper, which deploys the DMS config on first login
+sed -i 's|^Exec=.*|Exec=/usr/libexec/amethystora-hyprland-session|' /usr/share/wayland-sessions/hyprland.desktop
 rm -f /usr/share/wayland-sessions/hyprland-uwsm.desktop
 
 # DMS shell starts with every graphical session (it only runs under graphical-session.target)
-systemctl --global enable dms.service amethyst-dms-defaults.service
+systemctl --global enable dms.service
 
 # Log in through the DMS greeter running on Hyprland
 cat >/etc/greetd/config.toml <<'EOF'
@@ -112,7 +112,7 @@ vt = 1
 
 [default_session]
 user = "greeter"
-command = "/usr/libexec/amethyst-greeter --command hyprland"
+command = "/usr/libexec/amethystora-greeter --command hyprland"
 EOF
 systemctl enable greetd.service
 systemctl set-default graphical.target

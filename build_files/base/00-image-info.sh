@@ -4,13 +4,13 @@ echo "::group:: ===$(basename "$0")==="
 
 set -xeuo pipefail
 
-IMAGE_PRETTY_NAME="Amethyst"
+IMAGE_PRETTY_NAME="Amethystora"
 IMAGE_LIKE="fedora"
-HOME_URL="https://github.com/iarsslen/amethyst"
-DOCUMENTATION_URL="https://github.com/iarsslen/amethyst#readme"
-SUPPORT_URL="https://github.com/iarsslen/amethyst/issues/"
-BUG_SUPPORT_URL="https://github.com/iarsslen/amethyst/issues/"
-CODE_NAME="Amethyst"
+HOME_URL="https://github.com/iarsslen/amethystora"
+DOCUMENTATION_URL="https://github.com/iarsslen/amethystora#readme"
+SUPPORT_URL="https://github.com/iarsslen/amethystora/issues/"
+BUG_SUPPORT_URL="https://github.com/iarsslen/amethystora/issues/"
+CODE_NAME="Amethystora"
 VERSION="${VERSION:-00.00000000}"
 
 IMAGE_INFO="/usr/share/ublue-os/image-info.json"
@@ -47,9 +47,9 @@ sed -i "s|^DEFAULT_HOSTNAME=.*|DEFAULT_HOSTNAME=\"${IMAGE_PRETTY_NAME,}\"|" /usr
 sed -i "s|^ID=fedora|ID=${IMAGE_PRETTY_NAME,}\nID_LIKE=\"${IMAGE_LIKE}\"|" /usr/lib/os-release
 sed -i "/^REDHAT_BUGZILLA_PRODUCT=/d; /^REDHAT_BUGZILLA_PRODUCT_VERSION=/d; /^REDHAT_SUPPORT_PRODUCT=/d; /^REDHAT_SUPPORT_PRODUCT_VERSION=/d" /usr/lib/os-release
 if grep -q "^LOGO=" /usr/lib/os-release; then
-  sed -i "s|^LOGO=.*|LOGO=amethyst-logo|" /usr/lib/os-release
+  sed -i "s|^LOGO=.*|LOGO=amethystora-logo|" /usr/lib/os-release
 else
-  echo "LOGO=amethyst-logo" >> /usr/lib/os-release
+  echo "LOGO=amethystora-logo" >> /usr/lib/os-release
 fi
 sed -i "s|^VERSION_CODENAME=.*|VERSION_CODENAME=\"$CODE_NAME\"|" /usr/lib/os-release
 sed -i "s|^VERSION=.*|VERSION=\"${VERSION} (${BASE_IMAGE_NAME^})\"|" /usr/lib/os-release

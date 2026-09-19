@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Rename what the upstream layers ship as Bluefin / Universal Blue (ublue) to Amethyst.
+"""Rename what the upstream layers ship as Bluefin / Universal Blue (ublue) to Amethystora.
 
 The ublue-os base image, projectbluefin/common, ublue-os/brew and the ublue COPR packages
 install files, commands, services and settings under their own names. This renames all of
-them to Amethyst and rewrites every reference, so the image carries no upstream names.
+them to Amethystora and rewrites every reference, so the image carries no upstream names.
 
     debrand.py          apply the changes (07-debrand.sh)
     debrand.py --check  report what is left and fail on anything renameable (20-tests.sh)
@@ -25,7 +25,7 @@ import subprocess
 import sys
 
 ROOT = os.environ.get("DEBRAND_ROOT", "/")
-REPO = "iarsslen/amethyst"
+REPO = "iarsslen/amethystora"
 REPO_URL = f"https://github.com/{REPO}"
 VENDOR = REPO.split("/")[0]
 
@@ -66,13 +66,13 @@ def keep_case(word):
 
 # Names, applied to both file names and file contents
 WORDS = [
-    (re.compile(r"universal[\s_-]?blue", re.I), keep_case("amethyst")),
-    (re.compile(r"projectbluefin", re.I), keep_case("amethyst")),
-    (re.compile(r"ublue[-_]os", re.I), keep_case("amethyst")),
-    (re.compile(r"ublue", re.I), keep_case("amethyst")),
-    (re.compile(r"bluefin", re.I), keep_case("amethyst")),
+    (re.compile(r"universal[\s_-]?blue", re.I), keep_case("amethystora")),
+    (re.compile(r"projectbluefin", re.I), keep_case("amethystora")),
+    (re.compile(r"ublue[-_]os", re.I), keep_case("amethystora")),
+    (re.compile(r"ublue", re.I), keep_case("amethystora")),
+    (re.compile(r"bluefin", re.I), keep_case("amethystora")),
     # "ublue-os/bluefin" style names collapse into one
-    (re.compile(r"(amethyst)[-_ ]amethyst", re.I), r"\1"),
+    (re.compile(r"(amethystora)[-_ ]amethystora", re.I), r"\1"),
 ]
 
 URL_TAIL = r"[^\s\"'<>)\]}`]*"
@@ -98,7 +98,7 @@ LINKS = [
     (re.compile(rf"https?://github\.com/(?:ublue-os|projectbluefin)\b{URL_TAIL}"), github_url),
     (re.compile(rf"https?://raw\.githubusercontent\.com/(?:ublue-os|projectbluefin)/{URL_TAIL}"), REPO_URL),
     (re.compile(r"ghcr\.io/(?:ublue-os|projectbluefin)\b"), f"ghcr.io/{VENDOR}"),
-    # Upstream issue numbers ("ublue-os/bluefin#1328") mean nothing on Amethyst's tracker
+    # Upstream issue numbers ("ublue-os/bluefin#1328") mean nothing on Amethystora's tracker
     (re.compile(r"(?<![\w./-])(?:projectbluefin|ublue-os)/[\w.-]+#\d+"), REPO),
     (re.compile(
         r"(?<![\w./-])(?:projectbluefin|ublue-os)/(?:bluefin(?:-lts|-dx)?|aurora|bazzite|common|dakota|main"
@@ -245,10 +245,10 @@ def drop_tap_installers(text):
     return text
 
 
-# Upstream recipes replaced by Amethyst's own (60-custom.just) or that only work for Bluefin:
+# Upstream recipes replaced by Amethystora's own (60-custom.just) or that only work for Bluefin:
 # bluespeed duplicates install-ai-tools, bazaar-preview needs a checkout of projectbluefin/common
 DROP_RECIPES = {"bazaar-preview", "bluespeed", "toggle-user-motd"}
-OWN_JUST = "usr/share/amethyst/just"
+OWN_JUST = "usr/share/amethystora/just"
 
 
 def patch_justfiles():
@@ -325,7 +325,7 @@ def drop_upstream_trust():
 # --- Rename --------------------------------------------------------------------------------------
 
 def merge(source, target):
-    """Move source to target. Where both exist, what is already at target (Amethyst's file) wins."""
+    """Move source to target. Where both exist, what is already at target (Amethystora's file) wins."""
     if os.path.lexists(target) and not (os.path.isdir(source) and not os.path.islink(source)
                                          and os.path.isdir(target) and not os.path.islink(target)):
         log(f"kept {rel(target)} over {rel(source)}")

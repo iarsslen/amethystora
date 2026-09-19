@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: Questions and Feedback
-    url: https://github.com/iarsslen/amethyst/discussions
-    about: Ask questions and share tips with other Amethyst users
+    url: https://github.com/iarsslen/amethystora/discussions
+    about: Ask questions and share tips with other Amethystora users
   - name: Upstream issues (Bluefin common)
     url: https://github.com/projectbluefin/common/issues/new/choose
-    about: Problems in the shared desktop layer Amethyst inherits from Bluefin
+    about: Problems in the shared desktop layer Amethystora inherits from Bluefin

@@ -1,0 +1,69 @@
+# vim: set ft=make :
+
+# Toggle the logo and system summary shown in new terminals
+toggle-user-motd:
+    #!/usr/bin/bash
+    FLAG="${XDG_CONFIG_HOME:-$HOME/.config}/amethystora/no-greeting"
+    if [ -e "${FLAG}" ]; then
+        rm -f "${FLAG}"
+        echo "Terminal greeting enabled"
+    else
+        mkdir -p "$(dirname "${FLAG}")"
+        touch "${FLAG}"
+        echo "Terminal greeting disabled"
+    fi
+
+# Log in, unlock the screen and approve sudo with a FIDO2 security key (YubiKey, Thetis, and their fingerprint models)
+setup-security-key ACTION="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # Keys are bound to the origin set in /etc/security/pam_u2f.conf, not to the hostname
+    origin="pam://amethystora"
+    keys="${HOME}/.config/Yubico/u2f_keys"
+    action="{{ ACTION }}"
+    if [[ -z "${action}" ]]; then
+        registered="$(awk -F: -v user="${USER}" '$1 == user { print NF - 1 }' "${keys}" 2>/dev/null || true)"
+        echo "Security keys registered for ${USER}: ${registered:-0}"
+        action="$(gum choose --header "Security key login" "Add a key" "Add a fingerprint key" "Remove all keys" "Cancel")"
+    fi
+    case "${action}" in
+        "Add a key" | add)
+            flags=()
+            ;;
+        "Add a fingerprint key" | add-fingerprint)
+            # The key checks the fingerprint itself (FIDO2 user verification), a touch alone is not enough
+            flags=(--user-verification)
+            echo "The key needs a PIN and an enrolled fingerprint. Enroll one in Brave at brave://settings/securityKeys,"
+            echo "or on a YubiKey Bio with: ykman fido fingerprints add <name>"
+            ;;
+        "Remove all keys" | remove)
+            rm -f "${keys}"
+            echo "Security keys removed, sign in with your password"
+            exit 0
+            ;;
+        *)
+            exit 0
+            ;;
+    esac
+    echo "Insert the key, then touch it when it blinks (fingerprint keys: with an enrolled finger)"
+    credential="$(pamu2fcfg --nouser --origin="${origin}" --appid="${origin}" "${flags[@]}")"
+    # One line per user: user:credential1:credential2...
+    mkdir -p "$(dirname "${keys}")"
+    line="$(grep "^${USER}:" "${keys}" 2>/dev/null || echo "${USER}")"
+    (umask 077 && printf '%s%s\n' "${line}" "${credential}" >"${keys}.new")
+    mv "${keys}.new" "${keys}"
+    # The login screen and sudo may only read it with its SELinux label (auth_home_t)
+    restorecon -R "$(dirname "${keys}")"
+    # Offer the key on the DMS lock screen and login screen. The login screen keeps its own copy of the
+    # settings (dms-greeter sync overwrites it with the user's, which is why both are set).
+    dms_settings="${XDG_CONFIG_HOME:-$HOME/.config}/DankMaterialShell/settings.json"
+    if [[ -f "${dms_settings}" ]]; then
+        jq '.enableU2f = true | .greeterEnableU2f = true' "${dms_settings}" >"${dms_settings}.new"
+        mv "${dms_settings}.new" "${dms_settings}"
+    fi
+    greeter_settings=/var/cache/dms-greeter/settings.json
+    if settings="$(sudo jq '.greeterEnableU2f = true' "${greeter_settings}")"; then
+        sudo tee "${greeter_settings}" <<<"${settings}" >/dev/null
+    fi
+    echo "Security key added. Touch it to sign in, to unlock the screen (key button) and to approve sudo."
+    echo "Your password keeps working."

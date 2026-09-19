@@ -7,16 +7,16 @@ set -eoux pipefail
 # Setup Systemd
 # systemctl --global enable bazaar.service
 systemctl --global enable podman-auto-update.timer
-systemctl --global enable amethyst-user-setup.service
+systemctl --global enable amethystora-user-setup.service
 systemctl enable brew-setup.service
 systemctl enable clamav-freshclam.service
 systemctl enable clamd@scan.service
 systemctl enable dconf-update.service
-systemctl enable flatpak-nuke-fedora.service
+systemctl enable amethystora-flatpak-remotes.service
 systemctl enable input-remapper.service
 systemctl enable rpm-ostree-countme.service
 systemctl enable tailscaled.service
-systemctl enable amethyst-system-setup.service
+systemctl enable amethystora-system-setup.service
 
 systemctl enable flatpak-preinstall.service
 

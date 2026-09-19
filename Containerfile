@@ -17,18 +17,18 @@ COPY --from=common /system_files/shared /system_files/shared
 # "bluefin" is the upstream directory name inside the common image
 COPY --from=common /system_files/bluefin /system_files/shared
 COPY --from=brew /system_files /system_files/shared
-# amethyst-owned files overlay last so they take precedence over common
+# amethystora-owned files overlay last so they take precedence over common
 COPY /system_files /system_files
 # Licence and upstream attribution ship in the image (Apache-2.0)
-COPY LICENSE NOTICE /system_files/shared/usr/share/licenses/amethyst/
+COPY LICENSE NOTICE /system_files/shared/usr/share/licenses/amethystora/
 
-## amethyst image section
+## amethystora image section
 FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION}@${BASE_IMAGE_SHA} AS base
 
 ARG AKMODS_FLAVOR="coreos-stable"
 ARG BASE_IMAGE_NAME="silverblue"
 ARG FEDORA_MAJOR_VERSION="40"
-ARG IMAGE_NAME="amethyst"
+ARG IMAGE_NAME="amethystora"
 ARG IMAGE_VENDOR="iarsslen"
 ARG KERNEL="6.10.10-200.fc40.x86_64"
 ARG SHA_HEAD_SHORT="dedbeef"

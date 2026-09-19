@@ -1,5 +1,5 @@
 // For format details, see https://aka.ms/devcontainer.json.
 {
-	"name": "amethyst-devcontainer",
+	"name": "amethystora-devcontainer",
 	"image": "ghcr.io/ublue-os/devcontainer:latest"
 }

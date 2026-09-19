@@ -1,16 +1,16 @@
-# Amethyst
+# Amethystora
 
-[![Stable Images](https://github.com/iarsslen/amethyst/actions/workflows/build-image-stable.yml/badge.svg)](https://github.com/iarsslen/amethyst/actions/workflows/build-image-stable.yml)[![Latest Images](https://github.com/iarsslen/amethyst/actions/workflows/build-image-latest-main.yml/badge.svg)](https://github.com/iarsslen/amethyst/actions/workflows/build-image-latest-main.yml)
+[![Stable Images](https://github.com/iarsslen/amethystora/actions/workflows/build-image-stable.yml/badge.svg)](https://github.com/iarsslen/amethystora/actions/workflows/build-image-stable.yml)[![Latest Images](https://github.com/iarsslen/amethystora/actions/workflows/build-image-latest-main.yml/badge.svg)](https://github.com/iarsslen/amethystora/actions/workflows/build-image-latest-main.yml)
 
-**Amethyst** is a cloud-native desktop operating system built on Fedora, using container technology and atomic updates. Its desktop is the [Hyprland](https://hypr.land) tiling compositor with [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) (DMS) as the shell: panel, launcher, notifications, control center, lock screen and login screen.
+**Amethystora** is a cloud-native desktop operating system built on Fedora, using container technology and atomic updates. Its desktop is the [Hyprland](https://hypr.land) tiling compositor with [DankMaterialShell](https://github.com/AvengeMedia/DankMaterialShell) (DMS) as the shell: panel, launcher, notifications, control center, lock screen and login screen.
 
 For end users, it aims to be as reliable as a Chromebook with near-zero maintenance. For developers, it offers a cloud-native workflow with integrated container tools, declarative system management and CI/CD-built images.
 
-Amethyst is created and maintained by **Arsslen Idadi** ([@iarsslen](https://github.com/iarsslen)).
+Amethystora is created and maintained by **Arsslen Idadi** ([@iarsslen](https://github.com/iarsslen)).
 
 ## Mission
 
-Amethyst aims to be a robust, cloud-native desktop that brings enterprise-grade infrastructure practices to everyday computing:
+Amethystora aims to be a robust, cloud-native desktop that brings enterprise-grade infrastructure practices to everyday computing:
 
 - **Reliability**: Atomic updates keep the system stable
 - **Developer Experience**: Integrated cloud-native tooling and workflows, including Kubernetes and container support
@@ -20,26 +20,26 @@ Amethyst aims to be a robust, cloud-native desktop that brings enterprise-grade 
 
 | Image | Description |
 | --- | --- |
-| `ghcr.io/iarsslen/amethyst` | The standard desktop |
-| `ghcr.io/iarsslen/amethyst-dx` | Developer Experience: adds Docker, Incus, libvirt and developer tools |
-| `ghcr.io/iarsslen/amethyst-nvidia-open` | Standard desktop with the open NVIDIA kernel modules |
-| `ghcr.io/iarsslen/amethyst-dx-nvidia-open` | Developer Experience with the open NVIDIA kernel modules |
+| `ghcr.io/iarsslen/amethystora` | The standard desktop |
+| `ghcr.io/iarsslen/amethystora-dx` | Developer Experience: adds Docker, Incus, libvirt and developer tools |
+| `ghcr.io/iarsslen/amethystora-nvidia-open` | Standard desktop with the open NVIDIA kernel modules |
+| `ghcr.io/iarsslen/amethystora-dx-nvidia-open` | Developer Experience with the open NVIDIA kernel modules |
 
 Each image is published in the `stable`, `latest` and `beta` streams.
 
 ## Getting Started
 
-From an existing Fedora Atomic or Universal Blue system, switch to Amethyst with:
+From an existing Fedora Atomic or Universal Blue system, switch to Amethystora with:
 
 ```bash
-sudo bootc switch ghcr.io/iarsslen/amethyst:stable
+sudo bootc switch ghcr.io/iarsslen/amethystora:stable
 ```
 
-Then reboot. Replace `amethyst` with any image name from the table above, and `stable` with the stream you want.
+Then reboot. Replace `amethystora` with any image name from the table above, and `stable` with the stream you want.
 
 ### Using the desktop
 
-You log in on the DankMaterialShell greeter, which starts a Hyprland session. On each user's first login, Amethyst runs `dms setup` to write the DMS Hyprland config to `~/.config/hypr/` (Lua, Hyprland 0.55+) and a kitty config, then sets the Amethyst wallpaper. DMS derives its colours from the wallpaper. Edit `~/.config/hypr/dms/binds-user.lua` to add your own keybinds.
+You log in on the DankMaterialShell greeter, which starts a Hyprland session. On each user's first login, Amethystora runs `dms setup` to write the DMS Hyprland config to `~/.config/hypr/` (Lua, Hyprland 0.55+) and a kitty config, then sets the Amethystora wallpaper. DMS derives its colours from the wallpaper. Edit `~/.config/hypr/dms/binds-user.lua` to add your own keybinds.
 
 | Keys | Action |
 | --- | --- |
@@ -54,18 +54,22 @@ You log in on the DankMaterialShell greeter, which starts a Hyprland session. On
 
 To make the login screen use your wallpaper and theme, run `dms-greeter sync` once.
 
+#### Security keys
+
+A FIDO2 security key (YubiKey, Thetis, or a fingerprint model such as the YubiKey Bio or Thetis Bio) can sign you in, unlock the screen and approve `sudo` and administrator prompts in place of your password. Register one with `ujust setup-security-key`. Choose "Add a fingerprint key" for a fingerprint model so that the key checks your fingerprint and not just a touch. The key needs a PIN and an enrolled fingerprint first; set these in Brave at `brave://settings/securityKeys`, or with `ykman fido fingerprints add` on a YubiKey Bio. Register a second key as a spare. Your password keeps working, and it is used whenever no registered key is plugged in.
+
 ### Building locally
 
 ```bash
-just build amethyst latest main
-just build amethyst-dx latest main
+just build amethystora latest main
+just build amethystora-dx latest main
 ```
 
 ### Secure Boot
 
-Secure Boot is supported. Amethyst uses the kernel modules from Universal Blue's akmods, which are signed with the Universal Blue key. After the first installation, you will be prompted to enroll the Secure Boot key in the BIOS.
+Secure Boot is supported. Amethystora uses the kernel modules from Universal Blue's akmods, which are signed with the Universal Blue key. After the first installation, you will be prompted to enroll the Secure Boot key in the BIOS.
 
-Enter the password `amethyst` when prompted to enroll the key.
+Enter the password `amethystora` when prompted to enroll the key.
 
 If this step is not completed during the initial setup, you can manually enroll the key by running the following command in the terminal:
 
@@ -93,11 +97,11 @@ node branding/generate.mjs
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Issues and pull requests are welcome at [iarsslen/amethyst](https://github.com/iarsslen/amethyst).
+See [CONTRIBUTING.md](CONTRIBUTING.md). Issues and pull requests are welcome at [iarsslen/amethystora](https://github.com/iarsslen/amethystora).
 
 ## Acknowledgements
 
-Amethyst is based on [Bluefin](https://github.com/ublue-os/bluefin) by the [Universal Blue](https://universal-blue.org/) project, and it keeps building on their shared infrastructure. Thanks to the Bluefin and Universal Blue contributors for the work this project stands on.
+Amethystora is based on [Bluefin](https://github.com/ublue-os/bluefin) by the [Universal Blue](https://universal-blue.org/) project, and it keeps building on their shared infrastructure. Thanks to the Bluefin and Universal Blue contributors for the work this project stands on.
 
 ## License
 
@@ -105,7 +109,7 @@ This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE
 
 ### Third-Party Components
 
-Amethyst incorporates and builds upon several open source projects:
+Amethystora incorporates and builds upon several open source projects:
 - **Bluefin / Universal Blue**: Base images, the shared desktop layer (`projectbluefin/common`), kernel modules and build tooling
 - **Fedora Linux**: Base operating system
 - **Hyprland**: Wayland compositor

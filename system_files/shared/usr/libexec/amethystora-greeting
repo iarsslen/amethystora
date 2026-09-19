@@ -1,0 +1,11 @@
+#!/usr/bin/bash
+# Greeting shown in new terminals (/etc/profile.d/amethystora-greeting.sh, fish_greeting.fish):
+# a welcome line in the Amethystora purple, then the logo and system summary.
+
+if [ -t 1 ] && [ -z "${NO_COLOR-}" ]; then
+    printf '\n\e[1;38;2;155;92;224mWelcome to Amethystora\e[0m\n\n'
+else
+    printf '\nWelcome to Amethystora\n\n'
+fi
+
+exec amethystora-fastfetch

@@ -35,7 +35,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        brand_name: ["amethyst"]
+        brand_name: ["amethystora"]
     with:
       brand_name: ${{ matrix.brand_name }}
       stream_name: beta

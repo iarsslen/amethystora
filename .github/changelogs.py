@@ -37,12 +37,12 @@ COMMON_PAT = "### All Images\n| | Name | Previous | New |\n| --- | --- | --- | -
 OTHER_NAMES = {
     "base": "### Base Images\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
     "dx": "### Dev Experience Images\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
-    "hyprland": "### [Amethyst Images](https://github.com/iarsslen/amethyst)\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
+    "hyprland": "### [Amethystora Images](https://github.com/iarsslen/amethystora)\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
     "nvidia-open": "### Nvidia Images\n| | Name | Previous | New |\n| --- | --- | --- | --- |{changes}\n\n",
 }
 
 COMMITS_FORMAT = "### Commits\n| Hash | Subject | Author |\n| --- | --- | --- |{commits}\n\n"
-COMMIT_FORMAT = "\n| **[{short}](https://github.com/iarsslen/amethyst/commit/{githash})** | {subject} | {author} |"
+COMMIT_FORMAT = "\n| **[{short}](https://github.com/iarsslen/amethystora/commit/{githash})** | {subject} | {author} |"
 
 CHANGELOG_TITLE = "{tag}: {pretty}"
 CHANGELOG_FORMAT = """\
@@ -82,7 +82,7 @@ sudo bootc switch --enforce-container-sigpolicy ghcr.io/iarsslen/$IMAGE_NAME:{cu
 ```
 
 ### Documentation
-Be sure to read the [README](https://github.com/iarsslen/amethyst#readme) for more information
+Be sure to read the [README](https://github.com/iarsslen/amethystora#readme) for more information
 on how to use your cloud native system.
 """
 HANDWRITTEN_PLACEHOLDER = """\
@@ -110,7 +110,7 @@ def get_images(target: str):
     for experience, de, image_flavor in product(*matrix.values()):
         img = ""
         if de == "hyprland":
-            img += "amethyst"
+            img += "amethystora"
 
         if experience == "dx":
             img += "-dx"

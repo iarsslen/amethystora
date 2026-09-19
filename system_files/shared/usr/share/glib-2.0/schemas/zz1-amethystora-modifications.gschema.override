@@ -1,0 +1,5 @@
+# Amethystora overrides, applied on top of the base defaults in zz0-amethystora-modifications.
+# GNOME Shell is not installed; these keys still style GTK/libadwaita applications.
+
+[org.gnome.desktop.interface]
+accent-color='purple'

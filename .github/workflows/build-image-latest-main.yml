@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        brand_name: ["amethyst"]
+        brand_name: ["amethystora"]
     with:
       # nvidia-open is paused for now
       image_flavors: '["main"]'
