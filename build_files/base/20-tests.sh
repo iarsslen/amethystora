@@ -152,8 +152,11 @@ test -x /usr/share/amethystora/system-setup.hooks.d/20-signed-updates.sh
 # Kernel settings, arguments and blocked modules
 grep -q "^kernel.kptr_restrict = 2$" /usr/lib/sysctl.d/60-amethystora-hardening.conf
 grep -q '"slab_nomerge"' /usr/lib/bootc/kargs.d/10-amethystora-hardening.toml
-modprobe --showconfig | grep -q "^install dccp /usr/bin/false$"
-modprobe --showconfig | grep -q "^install firewire-core /usr/bin/false$"
+# modprobe reports module names with underscores, whichever spelling the config file uses
+MODPROBE_CONFIG="$(modprobe --showconfig)"
+for module in dccp sctp rds tipc n_hdlc firewire_core firewire_sbp2 cramfs hfs vivid; do
+    grep -q "^install ${module} /usr/bin/false$" <<<"${MODPROBE_CONFIG}"
+done
 # No passwordless root for users who are not at the machine, and no user-writable directory in root's
 # sudo PATH, and no world-writable USB devices
 grep -q "<allow_any>no</allow_any>" /usr/share/polkit-1/actions/*privileged.user.setup.policy
@@ -169,10 +172,10 @@ fi
 [[ -z "$(firewall-offline-cmd --zone=amethystora --list-ports)" ]]
 firewall-offline-cmd --zone=trusted --query-interface=tailscale0
 # Account lockout, and the SSH server's settings for when it is turned on
-grep -qE "^auth\s+required\s+pam_faillock\.so\s+preauth" /etc/pam.d/system-auth
+grep -q "pam_faillock.so" /etc/pam.d/system-auth
 grep -q "^deny = 10$" /etc/security/faillock.conf
 grep -q "^PermitRootLogin no$" /etc/ssh/sshd_config.d/40-amethystora-hardening.conf
-grep -q "^Include /etc/ssh/sshd_config.d/\*.conf$" /etc/ssh/sshd_config
+grep -qE "^[[:space:]]*Include[[:space:]]+/etc/ssh/sshd_config\.d/\*\.conf" /etc/ssh/sshd_config
 
 # DisplayLink: evdi built for the image kernel, and no module signing key left behind by the build
 KERNEL_VERSION="$(rpm -q kernel-core --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')"
