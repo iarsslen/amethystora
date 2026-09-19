@@ -312,6 +312,9 @@ function wallpaperSvg(theme) {
 const BOOT = {
   unit: 280 / BOUNDS[3], // the gem stands 280px tall at 1080p
   centerY: 0.46, // of the screen height
+  // s of plain sky before anything appears: when the graphics driver takes over, a monitor can take a second or
+  // two to show a picture again, and the assembly would play before anyone could see it
+  hold: 2,
   fadeIn: 0.4, // s for the scattered pieces to appear
   converge: 0.6, // s before the first piece starts moving in
   travel: 1.1, // s each piece takes to reach its place
@@ -471,6 +474,7 @@ function ease(u) {
   return u < 0.5 ? 4 * u * u * u : 1 - (v * v * v) / 2;
 }
 function frame(t, B, SHARDS, DUST) {
+  t = Math.max(0, t - B.hold);
   const k = B.unit;
   const assembled = B.assembled;
   const shards = SHARDS.map((s) => {
@@ -724,7 +728,22 @@ const textPage = ({ text, size, weight, spacing, color, box }) => `<!doctype htm
       letter-spacing:${spacing};font-size:${size * 2}px;line-height:1;color:${color};white-space:nowrap}
   </style></head><body>${text}<script>document.fonts.load('${weight} 16px "${WORDMARK_FONT}"');</script></body></html>`;
 
+// The password field: a pill in the colours of the splash with the lock inside it, on the left; the typed
+// characters show as dots after the lock. In 1080p pixels.
+const FIELD = { width: 360, height: 44, textX: 48, dot: 10, gap: 5 };
+const fieldSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${FIELD.width} ${FIELD.height}">
+  <rect x="0.75" y="0.75" width="${FIELD.width - 1.5}" height="${FIELD.height - 1.5}" rx="${(FIELD.height - 1.5) / 2}"
+    fill="#140824" fill-opacity="0.6" stroke="${SHADES[7]}" stroke-opacity="0.55" stroke-width="1.5"/>
+  <path d="M21.5 20v-3.5a4.5 4.5 0 0 1 9 0V20" fill="none" stroke="#e9dcff" stroke-width="2" stroke-linecap="round"/>
+  <rect x="18" y="20" width="16" height="12" rx="2.5" fill="#e9dcff"/>
+</svg>
+`;
+const dotSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4" fill="#efe3ff"/></svg>
+`;
+
 const BOOT_PNGS = [
+  { out: `${THEME}/field.png`, width: FIELD.width * 2, height: FIELD.height * 2, html: () => svgPage(fieldSvg, FIELD.width * 2, FIELD.height * 2) },
+  { out: `${THEME}/dot.png`, width: FIELD.dot * 2, height: FIELD.dot * 2, html: () => svgPage(dotSvg, FIELD.dot * 2, FIELD.dot * 2) },
   { out: `${THEME}/nebula.png`, width: 960, height: 540, html: () => svgPage(nebulaSvg, 960, 540) },
   { out: `${THEME}/halo.png`, width: BOOT.halo / 2, height: BOOT.halo / 2, html: () => svgPage(haloSvg, BOOT.halo / 2, BOOT.halo / 2) },
   { out: `${THEME}/dust.png`, width: 32, height: 32, html: () => svgPage(dustSvg, 32, 32) },
@@ -880,13 +899,14 @@ credit.sprite.SetOpacity(${TEXT.credit.opacity});
 tick = 0;
 mode = Plymouth.GetMode();
 if (mode == "shutdown" || mode == "reboot") {
-  tick = Math.Int(${num(B.assembled + B.settle)} * 50);
+  tick = Math.Int(${num(B.hold + B.assembled + B.settle)} * 50);
 }
 assembled_done = 0;
 
 # Called 50 times a second
 fun refresh_callback() {
-  t = global.tick / 50;
+  t = global.tick / 50 - ${num(B.hold)};
+  if (t < 0) { t = 0; }
   global.tick = global.tick + 1;
 
   if (t < ${num(B.assembled)}) {
@@ -949,62 +969,66 @@ Plymouth.SetRefreshFunction(refresh_callback);
 
 # ------------------------------------------------ password and questions --
 
-# The entry box under the gem, with the lock beside it and the prompt above; the images come from Fedora's
-# spinner theme (06-branding.sh)
-fun scaled(image) {
-  return sized(image, image.GetWidth() * global.scale, image.GetHeight() * global.scale);
+# Text scales with the screen like everything else; size is in points at 1080p
+fun font(size) {
+  points = Math.Int(size * global.scale + 0.5);
+  if (points < 9) { points = 9; }
+  return "Inter " + points;
 }
-entry_image = scaled(Image("entry.png"));
-lock_image = scaled(Image("lock.png"));
-bullet_image = scaled(Image("bullet.png"));
-entry_x = origin_x - entry_image.GetWidth() / 2;
-entry_y = origin_y + 210 * scale - entry_image.GetHeight() / 2;
 
-dialog.entry = Sprite(entry_image);
-dialog.entry.SetPosition(entry_x, entry_y, 10);
-dialog.lock = Sprite(lock_image);
-dialog.lock.SetPosition(entry_x - lock_image.GetWidth() - 10 * scale, entry_y + entry_image.GetHeight() / 2 - lock_image.GetHeight() / 2, 10);
+# The field under the gem, the lock drawn inside it, and the prompt above
+field_image = sized(Image("field.png"), ${FIELD.width} * scale, ${FIELD.height} * scale);
+dot_image = sized(Image("dot.png"), ${FIELD.dot} * scale, ${FIELD.dot} * scale);
+field_x = origin_x - field_image.GetWidth() / 2;
+field_y = origin_y + 210 * scale - field_image.GetHeight() / 2;
+text_x = field_x + ${FIELD.textX} * scale;
+dot_step = (${FIELD.dot} + ${FIELD.gap}) * scale;
+dot_room = Math.Int((field_image.GetWidth() - ${FIELD.textX + FIELD.height / 2} * scale) / dot_step);
+
+dialog.field = Sprite(field_image);
+dialog.field.SetPosition(field_x, field_y, 10);
 dialog.prompt = Sprite();
 dialog.prompt.SetZ(10);
 dialog.text = Sprite();
 dialog.text.SetZ(11);
-bullet_room = Math.Int((entry_image.GetWidth() - 24 * scale) / (bullet_image.GetWidth() + 2 * scale));
+
+fun hide_dots() {
+  for (i = 0; global.dialog.dot[i]; i++) {
+    global.dialog.dot[i].SetOpacity(0);
+  }
+}
 
 fun hide_dialog() {
-  global.dialog.entry.SetOpacity(0);
-  global.dialog.lock.SetOpacity(0);
+  global.dialog.field.SetOpacity(0);
   global.dialog.prompt.SetOpacity(0);
   global.dialog.text.SetOpacity(0);
-  for (i = 0; global.dialog.bullet[i]; i++) {
-    global.dialog.bullet[i].SetOpacity(0);
-  }
+  hide_dots();
 }
 hide_dialog();
 
 fun show_dialog(prompt) {
-  global.dialog.entry.SetOpacity(1);
-  global.dialog.lock.SetOpacity(1);
-  image = Image.Text(prompt, 0.93, 0.89, 1, 1, "Inter 12");
+  global.dialog.field.SetOpacity(1);
+  image = Image.Text(prompt, 0.93, 0.89, 1, 1, font(12));
   global.dialog.prompt.SetImage(image);
   global.dialog.prompt.SetX(global.origin_x - image.GetWidth() / 2);
-  global.dialog.prompt.SetY(global.entry_y - image.GetHeight() - 12 * global.scale);
+  global.dialog.prompt.SetY(global.field_y - image.GetHeight() - 14 * global.scale);
   global.dialog.prompt.SetOpacity(1);
 }
 
 fun display_password_callback(prompt, bullets) {
   show_dialog(prompt);
   global.dialog.text.SetOpacity(0);
-  for (i = 0; global.dialog.bullet[i] || i < bullets; i++) {
-    if (!global.dialog.bullet[i]) {
-      global.dialog.bullet[i] = Sprite(global.bullet_image);
-      global.dialog.bullet[i].SetX(global.entry_x + 12 * global.scale + i * (global.bullet_image.GetWidth() + 2 * global.scale));
-      global.dialog.bullet[i].SetY(global.entry_y + global.entry_image.GetHeight() / 2 - global.bullet_image.GetHeight() / 2);
-      global.dialog.bullet[i].SetZ(11);
+  for (i = 0; global.dialog.dot[i] || i < bullets; i++) {
+    if (!global.dialog.dot[i]) {
+      global.dialog.dot[i] = Sprite(global.dot_image);
+      global.dialog.dot[i].SetX(global.text_x + i * global.dot_step);
+      global.dialog.dot[i].SetY(global.field_y + global.field_image.GetHeight() / 2 - global.dot_image.GetHeight() / 2);
+      global.dialog.dot[i].SetZ(11);
     }
-    if (i < bullets && i < global.bullet_room) {
-      global.dialog.bullet[i].SetOpacity(1);
+    if (i < bullets && i < global.dot_room) {
+      global.dialog.dot[i].SetOpacity(1);
     } else {
-      global.dialog.bullet[i].SetOpacity(0);
+      global.dialog.dot[i].SetOpacity(0);
     }
   }
 }
@@ -1012,13 +1036,11 @@ Plymouth.SetDisplayPasswordFunction(display_password_callback);
 
 fun display_question_callback(prompt, entry) {
   show_dialog(prompt);
-  for (i = 0; global.dialog.bullet[i]; i++) {
-    global.dialog.bullet[i].SetOpacity(0);
-  }
-  image = Image.Text(entry, 1, 1, 1, 1, "Inter 12");
+  hide_dots();
+  image = Image.Text(entry, 1, 1, 1, 1, font(12));
   global.dialog.text.SetImage(image);
-  global.dialog.text.SetX(global.entry_x + 12 * global.scale);
-  global.dialog.text.SetY(global.entry_y + global.entry_image.GetHeight() / 2 - image.GetHeight() / 2);
+  global.dialog.text.SetX(global.text_x);
+  global.dialog.text.SetY(global.field_y + global.field_image.GetHeight() / 2 - image.GetHeight() / 2);
   global.dialog.text.SetOpacity(1);
 }
 Plymouth.SetDisplayQuestionFunction(display_question_callback);
@@ -1033,7 +1055,7 @@ Plymouth.SetDisplayNormalFunction(display_normal_callback);
 message = Sprite();
 message.SetZ(10);
 fun message_callback(text) {
-  image = Image.Text(text, 0.86, 0.8, 0.96, 1, "Inter 11");
+  image = Image.Text(text, 0.86, 0.8, 0.96, 1, font(11));
   global.message.SetImage(image);
   global.message.SetX(global.origin_x - image.GetWidth() / 2);
   global.message.SetY(global.screen_y + global.screen_h * 0.84);
@@ -1045,7 +1067,7 @@ if (mode == "updates" || mode == "system-upgrade" || mode == "firmware-upgrade")
   title = "Installing updates";
   if (mode == "system-upgrade") { title = "Upgrading the system"; }
   if (mode == "firmware-upgrade") { title = "Upgrading firmware"; }
-  title_image = Image.Text(title + " - do not turn off your computer", 0.93, 0.89, 1, 1, "Inter 14");
+  title_image = Image.Text(title + " - do not turn off your computer", 0.93, 0.89, 1, 1, font(14));
   status.title = Sprite(title_image);
   status.title.SetPosition(origin_x - title_image.GetWidth() / 2, origin_y + 190 * scale, 10);
   status.progress = Sprite();
@@ -1053,7 +1075,7 @@ if (mode == "updates" || mode == "system-upgrade" || mode == "firmware-upgrade")
 }
 
 fun system_update_callback(progress) {
-  image = Image.Text(Math.Int(progress) + "%", 0.86, 0.8, 0.96, 1, "Inter 12");
+  image = Image.Text(Math.Int(progress) + "%", 0.86, 0.8, 0.96, 1, font(12));
   global.status.progress.SetImage(image);
   global.status.progress.SetX(global.origin_x - image.GetWidth() / 2);
   global.status.progress.SetY(global.origin_y + 230 * global.scale);

@@ -712,13 +712,14 @@ credit.sprite.SetOpacity(0.22);
 tick = 0;
 mode = Plymouth.GetMode();
 if (mode == "shutdown" || mode == "reboot") {
-  tick = Math.Int(2.6438 * 50);
+  tick = Math.Int(4.6438 * 50);
 }
 assembled_done = 0;
 
 # Called 50 times a second
 fun refresh_callback() {
-  t = global.tick / 50;
+  t = global.tick / 50 - 2;
+  if (t < 0) { t = 0; }
   global.tick = global.tick + 1;
 
   if (t < 2.0438) {
@@ -793,62 +794,66 @@ Plymouth.SetRefreshFunction(refresh_callback);
 
 # ------------------------------------------------ password and questions --
 
-# The entry box under the gem, with the lock beside it and the prompt above; the images come from Fedora's
-# spinner theme (06-branding.sh)
-fun scaled(image) {
-  return sized(image, image.GetWidth() * global.scale, image.GetHeight() * global.scale);
+# Text scales with the screen like everything else; size is in points at 1080p
+fun font(size) {
+  points = Math.Int(size * global.scale + 0.5);
+  if (points < 9) { points = 9; }
+  return "Inter " + points;
 }
-entry_image = scaled(Image("entry.png"));
-lock_image = scaled(Image("lock.png"));
-bullet_image = scaled(Image("bullet.png"));
-entry_x = origin_x - entry_image.GetWidth() / 2;
-entry_y = origin_y + 210 * scale - entry_image.GetHeight() / 2;
 
-dialog.entry = Sprite(entry_image);
-dialog.entry.SetPosition(entry_x, entry_y, 10);
-dialog.lock = Sprite(lock_image);
-dialog.lock.SetPosition(entry_x - lock_image.GetWidth() - 10 * scale, entry_y + entry_image.GetHeight() / 2 - lock_image.GetHeight() / 2, 10);
+# The field under the gem, the lock drawn inside it, and the prompt above
+field_image = sized(Image("field.png"), 360 * scale, 44 * scale);
+dot_image = sized(Image("dot.png"), 10 * scale, 10 * scale);
+field_x = origin_x - field_image.GetWidth() / 2;
+field_y = origin_y + 210 * scale - field_image.GetHeight() / 2;
+text_x = field_x + 48 * scale;
+dot_step = (10 + 5) * scale;
+dot_room = Math.Int((field_image.GetWidth() - 70 * scale) / dot_step);
+
+dialog.field = Sprite(field_image);
+dialog.field.SetPosition(field_x, field_y, 10);
 dialog.prompt = Sprite();
 dialog.prompt.SetZ(10);
 dialog.text = Sprite();
 dialog.text.SetZ(11);
-bullet_room = Math.Int((entry_image.GetWidth() - 24 * scale) / (bullet_image.GetWidth() + 2 * scale));
+
+fun hide_dots() {
+  for (i = 0; global.dialog.dot[i]; i++) {
+    global.dialog.dot[i].SetOpacity(0);
+  }
+}
 
 fun hide_dialog() {
-  global.dialog.entry.SetOpacity(0);
-  global.dialog.lock.SetOpacity(0);
+  global.dialog.field.SetOpacity(0);
   global.dialog.prompt.SetOpacity(0);
   global.dialog.text.SetOpacity(0);
-  for (i = 0; global.dialog.bullet[i]; i++) {
-    global.dialog.bullet[i].SetOpacity(0);
-  }
+  hide_dots();
 }
 hide_dialog();
 
 fun show_dialog(prompt) {
-  global.dialog.entry.SetOpacity(1);
-  global.dialog.lock.SetOpacity(1);
-  image = Image.Text(prompt, 0.93, 0.89, 1, 1, "Inter 12");
+  global.dialog.field.SetOpacity(1);
+  image = Image.Text(prompt, 0.93, 0.89, 1, 1, font(12));
   global.dialog.prompt.SetImage(image);
   global.dialog.prompt.SetX(global.origin_x - image.GetWidth() / 2);
-  global.dialog.prompt.SetY(global.entry_y - image.GetHeight() - 12 * global.scale);
+  global.dialog.prompt.SetY(global.field_y - image.GetHeight() - 14 * global.scale);
   global.dialog.prompt.SetOpacity(1);
 }
 
 fun display_password_callback(prompt, bullets) {
   show_dialog(prompt);
   global.dialog.text.SetOpacity(0);
-  for (i = 0; global.dialog.bullet[i] || i < bullets; i++) {
-    if (!global.dialog.bullet[i]) {
-      global.dialog.bullet[i] = Sprite(global.bullet_image);
-      global.dialog.bullet[i].SetX(global.entry_x + 12 * global.scale + i * (global.bullet_image.GetWidth() + 2 * global.scale));
-      global.dialog.bullet[i].SetY(global.entry_y + global.entry_image.GetHeight() / 2 - global.bullet_image.GetHeight() / 2);
-      global.dialog.bullet[i].SetZ(11);
+  for (i = 0; global.dialog.dot[i] || i < bullets; i++) {
+    if (!global.dialog.dot[i]) {
+      global.dialog.dot[i] = Sprite(global.dot_image);
+      global.dialog.dot[i].SetX(global.text_x + i * global.dot_step);
+      global.dialog.dot[i].SetY(global.field_y + global.field_image.GetHeight() / 2 - global.dot_image.GetHeight() / 2);
+      global.dialog.dot[i].SetZ(11);
     }
-    if (i < bullets && i < global.bullet_room) {
-      global.dialog.bullet[i].SetOpacity(1);
+    if (i < bullets && i < global.dot_room) {
+      global.dialog.dot[i].SetOpacity(1);
     } else {
-      global.dialog.bullet[i].SetOpacity(0);
+      global.dialog.dot[i].SetOpacity(0);
     }
   }
 }
@@ -856,13 +861,11 @@ Plymouth.SetDisplayPasswordFunction(display_password_callback);
 
 fun display_question_callback(prompt, entry) {
   show_dialog(prompt);
-  for (i = 0; global.dialog.bullet[i]; i++) {
-    global.dialog.bullet[i].SetOpacity(0);
-  }
-  image = Image.Text(entry, 1, 1, 1, 1, "Inter 12");
+  hide_dots();
+  image = Image.Text(entry, 1, 1, 1, 1, font(12));
   global.dialog.text.SetImage(image);
-  global.dialog.text.SetX(global.entry_x + 12 * global.scale);
-  global.dialog.text.SetY(global.entry_y + global.entry_image.GetHeight() / 2 - image.GetHeight() / 2);
+  global.dialog.text.SetX(global.text_x);
+  global.dialog.text.SetY(global.field_y + global.field_image.GetHeight() / 2 - image.GetHeight() / 2);
   global.dialog.text.SetOpacity(1);
 }
 Plymouth.SetDisplayQuestionFunction(display_question_callback);
@@ -877,7 +880,7 @@ Plymouth.SetDisplayNormalFunction(display_normal_callback);
 message = Sprite();
 message.SetZ(10);
 fun message_callback(text) {
-  image = Image.Text(text, 0.86, 0.8, 0.96, 1, "Inter 11");
+  image = Image.Text(text, 0.86, 0.8, 0.96, 1, font(11));
   global.message.SetImage(image);
   global.message.SetX(global.origin_x - image.GetWidth() / 2);
   global.message.SetY(global.screen_y + global.screen_h * 0.84);
@@ -889,7 +892,7 @@ if (mode == "updates" || mode == "system-upgrade" || mode == "firmware-upgrade")
   title = "Installing updates";
   if (mode == "system-upgrade") { title = "Upgrading the system"; }
   if (mode == "firmware-upgrade") { title = "Upgrading firmware"; }
-  title_image = Image.Text(title + " - do not turn off your computer", 0.93, 0.89, 1, 1, "Inter 14");
+  title_image = Image.Text(title + " - do not turn off your computer", 0.93, 0.89, 1, 1, font(14));
   status.title = Sprite(title_image);
   status.title.SetPosition(origin_x - title_image.GetWidth() / 2, origin_y + 190 * scale, 10);
   status.progress = Sprite();
@@ -897,7 +900,7 @@ if (mode == "updates" || mode == "system-upgrade" || mode == "firmware-upgrade")
 }
 
 fun system_update_callback(progress) {
-  image = Image.Text(Math.Int(progress) + "%", 0.86, 0.8, 0.96, 1, "Inter 12");
+  image = Image.Text(Math.Int(progress) + "%", 0.86, 0.8, 0.96, 1, font(12));
   global.status.progress.SetImage(image);
   global.status.progress.SetX(global.origin_x - image.GetWidth() / 2);
   global.status.progress.SetY(global.origin_y + 230 * global.scale);
