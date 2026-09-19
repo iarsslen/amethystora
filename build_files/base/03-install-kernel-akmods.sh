@@ -84,9 +84,10 @@ EVDI_KO="/usr/lib/modules/${KERNEL_VERSION}/extra/evdi/evdi.ko.xz"
 modinfo "${EVDI_KO}" >/dev/null ||
     { find /var/cache/akmods/evdi/ -name '*.log' -print -exec cat {} \; && exit 1; }
 if [[ -s /run/secrets/AKMODS_PRIVKEY ]]; then
-    # The kernel matches the module signature to a MOK certificate by its subject key identifier
-    [[ "$(modinfo -F sig_key "${EVDI_KO}")" == \
-        "$(openssl x509 -inform DER -in "${AKMODS_CERT}" -noout -ext subjectKeyIdentifier | tail -n1 | tr -d ' ')" ]]
+    # sign-file names the signing certificate by its serial number, which modinfo reports as sig_key
+    # (colon separated, where openssl prints plain hex; both may differ by leading zeros)
+    [[ "$(modinfo -F sig_key "${EVDI_KO}" | tr -d ':' | sed 's/^0*//')" == \
+        "$(openssl x509 -inform DER -in "${AKMODS_CERT}" -noout -serial | cut -d= -f2 | sed 's/^0*//')" ]]
 fi
 dnf5 -y remove akmod-evdi
 # The signing key used for the build (and any akmods generated): never ship it
