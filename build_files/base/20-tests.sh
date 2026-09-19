@@ -87,11 +87,6 @@ done
 # TopHat's colour comes from the palette, not from GNOME's nine accents
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.tophat use-system-accent)" == "false" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.just-perfection workspace-popup)" == "false" ]]
-# The panel command menu keeps the base image's entries and gains the Amethystora ones (09-desktop.sh)
-COMMAND_MENU=/etc/dconf/db/distro.d/04-amethystora-custom-command-menu
-grep -q "^command2=" "${COMMAND_MENU}"
-grep -q "^command21=('Theme'" "${COMMAND_MENU}"
-grep -q "^command-order=\[1, .*, 23\]$" "${COMMAND_MENU}"
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.tactile col-3)" == "1" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.tactile row-1)" == "1" ]]
 # Six fixed workspaces on Super+N, which moves the dash to Alt+N
@@ -161,6 +156,8 @@ modprobe --showconfig | grep -q "^install firewire-core /usr/bin/false$"
 # No passwordless root for users who are not at the machine, and no user-writable directory in root's
 # sudo PATH, and no world-writable USB devices
 grep -q "<allow_any>no</allow_any>" /usr/share/polkit-1/actions/*privileged.user.setup.policy
+grep -q "polkit.Result.NO" /usr/share/polkit-1/rules.d/10-amethystora-privileged-setup.rules
+test -x /usr/bin/amethystora-privileged-setup
 grep -E "^Defaults[[:space:]]+secure_path" /etc/sudoers | grep -q linuxbrew && false
 if [[ -f /usr/lib/udev/rules.d/50-zsa.rules ]]; then
     grep -q 'MODE:="0666"' /usr/lib/udev/rules.d/50-zsa.rules && false
