@@ -42,6 +42,13 @@ if upstream_has "${FASTFETCH_CONFIG}"; then
 fi
 rm -f /usr/share/ublue-os/fastfetch-user-count
 
+# Boot menu: GRUB reads its own bitmap font format, so the Inter that theme.txt asks for is built
+# here from the TTF the image already ships for the boot splash. The name grub2-mkfont gives the
+# font is "<family> <style> <size>", which is the "Inter Regular 16" theme.txt refers to.
+GRUB_THEME_DIR=/usr/share/grub/themes/amethystora
+grub2-mkfont --size=16 --output="${GRUB_THEME_DIR}/font16.pf2" /usr/share/fonts/rsms-inter-fonts/Inter-Regular.ttf
+test -s "${GRUB_THEME_DIR}/font16.pf2"
+
 # Boot splash: the Amethystora theme runs on the script plugin (amethystora.script and its images, from
 # branding/generate.mjs). Its Font= lines are not read by the plugin but make dracut put Inter in the initramfs.
 # 19-initramfs.sh bakes the selected theme into the initramfs.

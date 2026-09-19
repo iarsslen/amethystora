@@ -1,0 +1,155 @@
+#!/usr/bin/bash
+#
+# Put the Amethystora boot menu on, or take it off again.
+#
+#   amethystora-grub-theme install   theme the GRUB menu
+#   amethystora-grub-theme remove    put the plain menu back
+#   amethystora-grub-theme status    say whether it is on, and where
+#   amethystora-grub-theme refresh   re-copy the artwork if it is already on
+#
+# This cannot be done in the image. GRUB reads the boot filesystem, and /boot is not part of a
+# bootc image: it belongs to the installed system. So the theme ships read-only in
+# /usr/share/grub/themes/amethystora and is copied to /boot/grub2/themes here, on the machine.
+#
+# grub.cfg is left alone. On Fedora Atomic grub2-mkconfig cannot regenerate it (it fails on
+# composefs), and it is rewritten by bootupd anyway. Instead the settings go in /boot/grub2/user.cfg,
+# which grub.cfg sources, inside a marked block so that anything else in that file survives.
+
+set -euo pipefail
+
+THEME=amethystora
+SOURCE="/usr/share/grub/themes/${THEME}"
+BOOT_GRUB=/boot/grub2
+TARGET="${BOOT_GRUB}/themes/${THEME}"
+GRUB_CFG="${BOOT_GRUB}/grub.cfg"
+USER_CFG="${BOOT_GRUB}/user.cfg"
+STAMP="${TARGET}/.image-fingerprint"
+BEGIN_MARK="### BEGIN amethystora boot menu"
+END_MARK="### END amethystora boot menu"
+
+die() {
+    echo "${0##*/}: $*" >&2
+    exit 1
+}
+
+usage() {
+    sed -n '3,8p' "$0" | sed 's/^# \?//'
+}
+
+# What is in the image right now. OSTree normalises every file's timestamp, so "is the image newer"
+# cannot be asked of the clock; the artwork is small enough to just hash it.
+theme_fingerprint() {
+    find "${SOURCE}" -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1
+}
+
+need_root() {
+    [[ ${EUID} -eq 0 ]] || die "this needs root: try sudo ${0##*/} $*"
+}
+
+# GRUB has to be the bootloader, and it has to be one that reads user.cfg. If it is not, say so
+# rather than copying files somewhere nothing will read them.
+check_supported() {
+    [[ -d ${SOURCE} ]] || die "the theme is missing from ${SOURCE}"
+    [[ -d ${BOOT_GRUB} ]] || die "no ${BOOT_GRUB}: this machine does not boot with GRUB"
+    [[ -f ${GRUB_CFG} ]] || die "no ${GRUB_CFG}: this machine does not boot with GRUB"
+    grep -q 'user\.cfg' "${GRUB_CFG}" ||
+        die "${GRUB_CFG} does not read user.cfg, so the theme would never be loaded"
+}
+
+copy_theme() {
+    local fingerprint
+    fingerprint="$(theme_fingerprint)"
+    rm -rf "${TARGET}"
+    mkdir -p "$(dirname "${TARGET}")"
+    cp -r "${SOURCE}" "${TARGET}"
+    echo "${fingerprint}" >"${STAMP}"
+    # /boot has its own SELinux labels, and a file copied from /usr keeps the wrong one
+    command -v restorecon >/dev/null 2>&1 && restorecon -R "${TARGET}" || true
+}
+
+# $prefix is whatever directory GRUB loaded its config from, on the device it booted from, so the
+# theme is found without having to look up the boot filesystem's UUID.
+write_user_cfg() {
+    local staged
+    staged="$(mktemp)"
+
+    if [[ -f ${USER_CFG} ]]; then
+        [[ -f "${USER_CFG}.amethystora.bak" ]] || cp -a "${USER_CFG}" "${USER_CFG}.amethystora.bak"
+        sed "/^${BEGIN_MARK}$/,/^${END_MARK}$/d" "${USER_CFG}" >"${staged}"
+    fi
+
+    cat >>"${staged}" <<EOF
+${BEGIN_MARK}
+# Written by amethystora-grub-theme. Undo with: sudo amethystora-grub-theme remove
+insmod all_video
+insmod gfxterm
+insmod gfxmenu
+insmod png
+terminal_output gfxterm
+loadfont \$prefix/themes/${THEME}/font16.pf2
+set theme=\$prefix/themes/${THEME}/theme.txt
+export theme
+${END_MARK}
+EOF
+
+    # A syntax error here would print over the boot menu, so check before it is in place
+    grub2-script-check "${staged}" || {
+        rm -f "${staged}"
+        die "the generated user.cfg is not valid GRUB script, nothing was changed"
+    }
+
+    install -Dm0644 "${staged}" "${USER_CFG}"
+    rm -f "${staged}"
+    command -v restorecon >/dev/null 2>&1 && restorecon "${USER_CFG}" || true
+}
+
+do_install() {
+    need_root install
+    check_supported
+    copy_theme
+    write_user_cfg
+    echo "The Amethystora boot menu is on. It appears at the next restart."
+}
+
+do_remove() {
+    need_root remove
+    rm -rf "${TARGET}"
+    if [[ -f ${USER_CFG} ]]; then
+        sed -i "/^${BEGIN_MARK}$/,/^${END_MARK}$/d" "${USER_CFG}"
+        # Leave nothing behind if the block was all there ever was in it
+        [[ -s ${USER_CFG} ]] || rm -f "${USER_CFG}"
+    fi
+    echo "The plain boot menu is back. It returns at the next restart."
+}
+
+# Called by the setup hook after an image update: the artwork lives on /boot, which an image
+# update does not touch, so a theme already in place is re-copied to match the new image.
+do_refresh() {
+    need_root refresh
+    [[ -d ${TARGET} ]] || exit 0
+    if [[ -f ${STAMP} ]] && [[ "$(cat "${STAMP}")" == "$(theme_fingerprint)" ]]; then
+        exit 0
+    fi
+    check_supported
+    copy_theme
+    write_user_cfg
+    echo "Refreshed the Amethystora boot menu from the image."
+}
+
+do_status() {
+    if [[ -d ${TARGET} ]] && [[ -f ${USER_CFG} ]] && grep -q "^${BEGIN_MARK}$" "${USER_CFG}"; then
+        echo "on: ${TARGET}"
+    else
+        echo "off: run 'sudo amethystora-grub-theme install' to turn it on"
+    fi
+    [[ -f ${GRUB_CFG} ]] || echo "note: this machine does not boot with GRUB, so the theme cannot be used"
+}
+
+case "${1:-status}" in
+    install) do_install ;;
+    remove | uninstall) do_remove ;;
+    refresh) do_refresh ;;
+    status) do_status ;;
+    -h | --help | help) usage ;;
+    *) die "unknown command: ${1}. Run ${0##*/} --help" ;;
+esac

@@ -21,6 +21,21 @@ background:
 keybindings:
     @glow --pager /usr/share/amethystora/keybindings.md
 
+# Put the Amethystora artwork on the GRUB boot menu, or take it off again
+setup-grub-theme ACTION="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    action="{{ ACTION }}"
+    amethystora-grub-theme status
+    if [[ -z "${action}" ]]; then
+        action="$(gum choose --header "Boot menu" "Turn on" "Turn off" "Cancel")"
+    fi
+    case "${action}" in
+        "Turn on" | install | on) sudo amethystora-grub-theme install ;;
+        "Turn off" | remove | off) sudo amethystora-grub-theme remove ;;
+        *) exit 0 ;;
+    esac
+
 # Toggle the logo and system summary shown in new terminals
 toggle-user-motd:
     #!/usr/bin/bash
