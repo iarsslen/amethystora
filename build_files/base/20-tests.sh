@@ -50,7 +50,7 @@ rpm -q hyprland-devel >/dev/null && false
 [[ "$(plymouth-set-default-theme)" == "amethystora" ]]
 rpm -q plymouth-plugin-script >/dev/null
 test -f /usr/share/plymouth/themes/amethystora/amethystora.script
-for image in nebula halo dust gem light shard-0 wordmark credit bullet entry lock; do
+for image in nebula halo dust gem light shard-0 wordmark credit field dot; do
     test -f "/usr/share/plymouth/themes/amethystora/${image}.png"
 done
 INITRAMFS_FILES="$(lsinitrd /lib/modules/*/initramfs.img)"
