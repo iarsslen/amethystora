@@ -26,23 +26,11 @@ done
 sed -i "/^custom-keybindings=/ s|\]|${paths}&|" "${OVERRIDE}"
 grep -q "custom${AMETHYSTORA_KEYBINDINGS[0]}/'" "${OVERRIDE}"
 
-# The panel's command menu is the mouse way to the same things the keys reach. Its entries are
-# appended to the base image's, for the same reason as above; the numbers start at 20 to leave
-# room for it to add its own.
-COMMAND_MENU=/etc/dconf/db/distro.d/04-bluefin-custom-command-menu
-if [[ -f ${COMMAND_MENU} ]]; then
-    cat >>"${COMMAND_MENU}" <<'EOF'
-
-command20=('---Amethystora', '', '', true)
-command21=('Theme', 'amethystora-menu theme', '', true)
-command22=('Next background', 'amethystora-theme bg next', '', true)
-command23=('Keybindings', 'amethystora-menu keys', '', true)
-EOF
-    sed -i "/^command-order=/ s|\]|, 20, 21, 22, 23]|" "${COMMAND_MENU}"
-    grep -q "^command-order=.*, 23\]$" "${COMMAND_MENU}"
-else
-    echo "::warning::${COMMAND_MENU} not found, skipping the Amethystora panel menu entries"
-fi
+# No panel command menu here: the entries the base image fills belong to the Custom Command List
+# extension (dconf path org/gnome/shell/extensions/custom-command-list), which this image does not
+# install. The pinned projectbluefin/common ships 04-bluefin-logomenu-extension, which only sets the
+# Logo Menu's own fixed entries. Adding the menu back means installing that extension and writing the
+# whole dconf file here, not appending to the base image's.
 
 rm -f /usr/share/glib-2.0/schemas/gschemas.compiled
 glib-compile-schemas /usr/share/glib-2.0/schemas

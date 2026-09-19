@@ -41,7 +41,7 @@ Then reboot. Replace `amethystora` with any image name from the table above, and
 
 You log in on GDM to a GNOME session with the Amethystora wallpaper and a purple accent. These GNOME Shell extensions are preinstalled: Dash to Dock, Blur my Shell, AppIndicator, Caffeine, GSConnect, Logo Menu, Search Light, Tactile, Space Bar, TopHat, Just Perfection, Gradia and Bazaar integration. Turn them on or off in the Extensions app.
 
-The top bar carries the six workspaces on the left, where Activities used to be, and CPU, memory and network meters on the right. Both follow the current theme. The panel's command menu has Amethystora entries for the theme picker, the next wallpaper and the keybindings, for when you would rather click than type.
+The top bar carries the six workspaces on the left, where Activities used to be, and CPU, memory and network meters on the right. Both follow the current theme.
 
 #### Tiling and keyboard navigation
 

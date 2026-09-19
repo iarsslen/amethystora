@@ -1,0 +1,12 @@
+// The privileged setup helper runs as root without asking for a password, so that the first-login hooks
+// in /usr/share/amethystora/privileged-setup.hooks.d can do their work. Allow that only for the user
+// sitting at the machine: projectbluefin/common's 20-privileged-user-setup.rules otherwise grants it to
+// every member of wheel, including over SSH, and rules are read in name order, so this one decides first.
+polkit.addRule(function (action, subject) {
+    if (action.id == "org.freedesktop.policykit.exec" &&
+        action.lookup("program") == "/usr/bin/amethystora-privileged-setup" &&
+        !(subject.local && subject.active)) {
+        return polkit.Result.NO;
+    }
+    return polkit.Result.NOT_HANDLED;
+});
