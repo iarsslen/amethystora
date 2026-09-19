@@ -56,6 +56,69 @@ for extension in appindicatorsupport@rgcjonas.gmail.com blur-my-shell@aunetx caf
 done
 test -d /usr/share/gnome-shell/extensions/tmp && false
 
+# Tiling and top bar: each extension from extensions.gnome.org is installed, enabled, supports this
+# GNOME, and has its schema readable system-wide so the defaults in zz1-amethystora-modifications apply
+GNOME_MAJOR="$(gnome-shell --version | grep -oE '[0-9]+' | head -n1)"
+for extension in tactile@lundal.io tophat@fflewddur.github.io \
+    just-perfection-desktop@just-perfection space-bar@luchrioh; do
+    test -f "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
+    jq -e --arg shell "${GNOME_MAJOR}" '.["shell-version"] | index($shell)' \
+        "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
+    grep -q "'${extension}'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
+done
+# Space Bar's own menu shortcut defaults to Super+W, which closes a window here, so it has to be cleared
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.space-bar.shortcuts open-menu)" == "@as []" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.space-bar.shortcuts enable-activate-workspace-shortcuts)" == "false" ]]
+# TopHat's colour comes from the palette, not from GNOME's nine accents
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.tophat use-system-accent)" == "false" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.just-perfection workspace-popup)" == "false" ]]
+# The panel command menu keeps the base image's entries and gains the Amethystora ones (09-desktop.sh)
+COMMAND_MENU=/etc/dconf/db/distro.d/04-amethystora-custom-command-menu
+grep -q "^command2=" "${COMMAND_MENU}"
+grep -q "^command21=('Theme'" "${COMMAND_MENU}"
+grep -q "^command-order=\[1, .*, 23\]$" "${COMMAND_MENU}"
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.tactile col-3)" == "1" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.tactile row-1)" == "1" ]]
+# Six fixed workspaces on Super+N, which moves the dash to Alt+N
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.preferences num-workspaces)" == "6" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.mutter dynamic-workspaces)" == "false" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.keybindings switch-to-workspace-6)" == "['<Super>6']" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.keybindings switch-to-application-1)" == "['<Alt>1']" ]]
+# The Amethystora keybindings are appended to the base image's list, not substituted for it (09-desktop.sh)
+CUSTOM_KEYBINDINGS="$(GSETTINGS_BACKEND=memory gsettings get org.gnome.settings-daemon.plugins.media-keys custom-keybindings)"
+grep -q "custom0/'" <<<"${CUSTOM_KEYBINDINGS}"
+for index in 20 21 22 23 24 25 26; do
+    grep -q "custom${index}/'" <<<"${CUSTOM_KEYBINDINGS}"
+    grep -q "^\[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom${index}\]$" \
+        /etc/dconf/db/distro.d/06-amethystora-keybindings
+done
+
+# Theme switching: the CLI, its library, the templates every theme renders, and the themes themselves
+test -x /usr/bin/amethystora-theme
+test -x /usr/bin/amethystora-menu
+test -f /usr/lib/amethystora/theme/lib.sh
+test -f /usr/share/amethystora/keybindings.md
+test -x /usr/share/amethystora/theme-set.hooks.d/10-vscode.sh
+test -x /usr/share/amethystora/user-setup.hooks.d/11-theme.sh
+for template in btop.theme ptyxis.palette starship.toml wallpaper.svg; do
+    test -f "/usr/share/amethystora/themed/${template}.tpl"
+done
+# Every theme needs a palette; the default one is what 11-theme.sh applies at first login
+test -f /usr/share/amethystora/themes/amethystora/colors.toml
+for theme in /usr/share/amethystora/themes/*/; do
+    test -f "${theme}colors.toml"
+    grep -q "^background = \"#" "${theme}colors.toml"
+    grep -q "^color15 = \"#" "${theme}colors.toml"
+    # accent.theme has to name an accent GNOME knows, or setting it silently does nothing
+    if [[ -f "${theme}accent.theme" ]]; then
+        grep -qE "^(blue|teal|green|yellow|orange|red|pink|purple|slate)$" "${theme}accent.theme"
+    fi
+    # pair.theme has to name a theme that exists, or Super+Ctrl+D dead-ends
+    if [[ -f "${theme}pair.theme" ]]; then
+        test -d "/usr/share/amethystora/themes/$(cat "${theme}pair.theme")"
+    fi
+done
+
 # ClamAV daemon listens on its socket and keeps retrying until freshclam has fetched the signatures
 grep -q "^LocalSocket /run/clamd.scan/clamd.sock$" /etc/clamd.d/scan.conf
 test -f /usr/lib/systemd/system/clamd@.service.d/10-amethystora.conf

@@ -39,7 +39,29 @@ Then reboot. Replace `amethystora` with any image name from the table above, and
 
 ### Using the desktop
 
-You log in on GDM to a GNOME session with the Amethystora wallpaper and a purple accent. These GNOME Shell extensions are preinstalled: Dash to Dock, Blur my Shell, AppIndicator, Caffeine, GSConnect, Logo Menu, Search Light, Gradia and Bazaar integration. Turn them on or off in the Extensions app.
+You log in on GDM to a GNOME session with the Amethystora wallpaper and a purple accent. These GNOME Shell extensions are preinstalled: Dash to Dock, Blur my Shell, AppIndicator, Caffeine, GSConnect, Logo Menu, Search Light, Tactile, Space Bar, TopHat, Just Perfection, Gradia and Bazaar integration. Turn them on or off in the Extensions app.
+
+The top bar carries the six workspaces on the left, where Activities used to be, and CPU, memory and network meters on the right. Both follow the current theme. The panel's command menu has Amethystora entries for the theme picker, the next wallpaper and the keybindings, for when you would rather click than type.
+
+#### Tiling and keyboard navigation
+
+Windows tile on a grid instead of being dragged into place. `Super+T` draws a 4×2 grid over the focused monitor; type the letter of a zone (`Q W E R` on the top row, `A S D F` on the bottom) to send the window there, or two letters to span from one to the other. `Super+Ctrl+T` changes the grid itself.
+
+There are six fixed workspaces on `Super+1` to `Super+6`, `Super+Shift+N` takes the window with you, and `Alt+1` to `Alt+9` reach the pinned apps in the dock. `Super+Return` opens a terminal, `Super+W` closes a window, `Super+Space` searches.
+
+`Super+Alt+Space` opens the Amethystora menu, which reaches all of this from the keyboard. The full list is in `ujust keybindings`.
+
+#### Themes
+
+`Super+Ctrl+Shift+Space` picks a theme, `Super+Ctrl+D` flips between light and dark, and `Super+Ctrl+Space` cycles the wallpaper. One switch repaints GNOME's colour scheme and accent, the Ptyxis palette, the shell prompt, btop and the wallpaper, because each theme is a single palette file everything else is rendered from. The same from a terminal:
+
+```bash
+ujust theme                      # pick one
+amethystora-theme set nord       # or name it
+amethystora-theme list
+```
+
+Amethystora ships Amethystora (light and dark), Tokyo Night, Catppuccin Mocha and Latte, Gruvbox, Nord, Rosé Pine Dawn, Everforest and Matte Black. To add your own, drop a directory into `~/.config/amethystora/themes/` with a `colors.toml` in it; a directory that matches a shipped theme's name is layered over it, so you can change one colour without copying the rest. `/usr/lib/amethystora/theme/lib.sh` documents the other files a theme can hold.
 
 #### Security keys
 
@@ -99,6 +121,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Issues and pull requests are welcome at 
 ## Acknowledgements
 
 Amethystora is based on [Bluefin](https://github.com/ublue-os/bluefin) by the [Universal Blue](https://universal-blue.org/) project, and it keeps building on their shared infrastructure. Thanks to the Bluefin and Universal Blue contributors for the work this project stands on.
+
+The theme switcher follows the design of [Omakub](https://omakub.org) and its fork [Omabuntu](https://omabuntu.omakasui.org/), and most of the colour palettes are ported from them (MIT). Tiling is [Tactile](https://gitlab.com/lundal/tactile) by Per Thomas Lundal (GPL-2.0-or-later).
 
 ## License
 

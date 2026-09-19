@@ -1,0 +1,295 @@
+#!/usr/bin/bash
+#
+# Switch the Amethystora desktop theme: GNOME's colour scheme, accent and wallpaper, the terminal
+# palette, and the configs of the tools that ship with the image, all from one palette file.
+#
+#   amethystora-theme list                 the themes available, with the current one marked
+#   amethystora-theme set "Tokyo Night"    apply a theme
+#   amethystora-theme toggle               flip between a theme and its light or dark counterpart
+#   amethystora-theme current              print the current theme
+#   amethystora-theme reload               apply the current theme again, after an image update
+#   amethystora-theme bg next|list|set     cycle, list or choose the theme's wallpaper
+#
+# See /usr/lib/amethystora/theme/lib.sh for what a theme directory holds.
+
+set -euo pipefail
+
+# shellcheck source=../lib/amethystora/theme/lib.sh
+source /usr/lib/amethystora/theme/lib.sh
+
+usage() {
+    sed -n '3,13p' "$0" | sed 's/^# \?//'
+}
+
+# --- Applying a theme -------------------------------------------------------------------------
+
+# Copy the theme into current/, rendering the templates, and only then swap it in, so a failure
+# half way through leaves the previous theme in place rather than a half-written one.
+stage_theme() {
+    local slug="$1" staging="${CURRENT_DIR}/next-theme"
+
+    mkdir -p "${CURRENT_DIR}"
+    rm -rf "${staging}"
+    mkdir -p "${staging}"
+
+    if [[ -d "${SYSTEM_THEMES_DIR}/${slug}" ]]; then
+        cp -r "${SYSTEM_THEMES_DIR}/${slug}/." "${staging}/"
+    fi
+    if [[ -d "${USER_THEMES_DIR}/${slug}" ]]; then
+        cp -r "${USER_THEMES_DIR}/${slug}/." "${staging}/"
+    fi
+    chmod -R u+w "${staging}"
+
+    [[ -f "${staging}/colors.toml" ]] || die "theme '${slug}' has no colors.toml"
+
+    render_templates "${staging}" \
+        "theme_name=${slug}" \
+        "ptyxis_palette_name=Amethystora ${slug}"
+
+    rm -rf "${CURRENT_THEME_DIR}"
+    mv "${staging}" "${CURRENT_THEME_DIR}"
+    echo "${slug}" >"${CURRENT_THEME_NAME}"
+}
+
+apply_gnome() {
+    local gtk_theme accent setting value
+
+    gtk_theme="$(theme_file gtk.theme)"
+    if theme_is_light; then
+        dconf_write_string /org/gnome/desktop/interface/color-scheme "prefer-light"
+        gtk_theme="${gtk_theme:-adw-gtk3}"
+    else
+        dconf_write_string /org/gnome/desktop/interface/color-scheme "prefer-dark"
+        gtk_theme="${gtk_theme:-adw-gtk3-dark}"
+    fi
+    dconf_write_string /org/gnome/desktop/interface/gtk-theme "${gtk_theme}"
+
+    accent="$(theme_file accent.theme)"
+    [[ -n ${accent} ]] || accent="$(closest_gnome_accent "$(colors_get "${CURRENT_THEME_DIR}" accent)")"
+    dconf_write_string /org/gnome/desktop/interface/accent-color "${accent}"
+
+    for setting in icon-theme:icons.theme cursor-theme:cursor.theme; do
+        value="$(theme_file "${setting#*:}")"
+        if [[ -n ${value} ]]; then
+            dconf_write_string "/org/gnome/desktop/interface/${setting%%:*}" "${value}"
+        fi
+    done
+    return 0
+}
+
+# Ptyxis reads palettes from the user's data directory only, so the palette rendered for the theme
+# is installed there and selected on every profile the user has.
+apply_ptyxis() {
+    local palettes_dir="${XDG_DATA_HOME:-${HOME}/.local/share}/org.gnome.Ptyxis/palettes"
+    local slug id uuid uuids
+
+    slug="$(theme_current)"
+    id="amethystora-${slug}"
+    [[ -f "${CURRENT_THEME_DIR}/ptyxis.palette" ]] || return 0
+
+    mkdir -p "${palettes_dir}"
+    install -Dm0644 "${CURRENT_THEME_DIR}/ptyxis.palette" "${palettes_dir}/${id}.palette"
+
+    uuids="$(gsettings get org.gnome.Ptyxis profile-uuids 2>/dev/null || true)"
+    for uuid in $(grep -oE "[0-9a-f]{32}" <<<"${uuids}"); do
+        dconf_write_string "/org/gnome/Ptyxis/Profiles/${uuid}/palette" "${id}"
+    done
+}
+
+# The extensions that draw in the top bar keep their colours in their own settings rather than in
+# a stylesheet, so the panel only follows the theme if they are written on every switch. These are
+# the theme's exact colours, not GNOME's nine accents, which is why TopHat's use-system-accent is
+# off in zz1-amethystora-modifications.
+apply_topbar() {
+    local accent background foreground meter
+
+    accent="$(colors_get "${CURRENT_THEME_DIR}" accent)"
+    background="$(colors_get "${CURRENT_THEME_DIR}" background)"
+    foreground="$(colors_get "${CURRENT_THEME_DIR}" foreground)"
+    [[ -n ${accent} && -n ${background} && -n ${foreground} ]] || return 0
+
+    # A theme can override the meter colour when its accent reads badly as a thin bar
+    meter="$(theme_file tophat.theme)"
+    dconf_write_string /org/gnome/shell/extensions/tophat/meter-fg-color "${meter:-${accent}}"
+
+    local appearance=/org/gnome/shell/extensions/space-bar/appearance
+    dconf_write_string "${appearance}/active-workspace-background-color" "rgba($(hex_to_rgb "${accent}"),1)"
+    dconf_write_string "${appearance}/active-workspace-text-color" "rgba($(hex_to_rgb "${background}"),1)"
+    dconf_write_string "${appearance}/inactive-workspace-text-color" "rgba($(hex_to_rgb "${foreground}"),0.7)"
+    dconf_write_string "${appearance}/inactive-workspace-background-color" "rgba(0,0,0,0)"
+}
+
+# btop reads its theme from a file next to its config, so the rendered one is linked in and
+# selected. The link is rewritten on every switch; the rest of btop.conf is left as the user has it.
+apply_btop() {
+    local config_dir="${XDG_CONFIG_HOME:-${HOME}/.config}/btop"
+    local config="${config_dir}/btop.conf"
+
+    have btop || return 0
+    [[ -f "${CURRENT_THEME_DIR}/btop.theme" ]] || return 0
+
+    mkdir -p "${config_dir}/themes"
+    ln -snf "${CURRENT_THEME_DIR}/btop.theme" "${config_dir}/themes/amethystora.theme"
+
+    if [[ ! -f ${config} ]]; then
+        echo 'color_theme = "amethystora"' >"${config}"
+    elif grep -q '^color_theme' "${config}"; then
+        sed -i 's|^color_theme.*|color_theme = "amethystora"|' "${config}"
+    else
+        echo 'color_theme = "amethystora"' >>"${config}"
+    fi
+}
+
+# Only claim ~/.config/starship.toml when nobody else has: a prompt someone has written themselves
+# is theirs, and silently overwriting it would be the one change they would not forgive.
+apply_starship() {
+    local config="${XDG_CONFIG_HOME:-${HOME}/.config}/starship.toml"
+
+    [[ -f "${CURRENT_THEME_DIR}/starship.toml" ]] || return 0
+    if [[ -e ${config} && ! -L ${config} ]]; then
+        return 0
+    fi
+    if [[ -L ${config} && "$(readlink "${config}")" != "${CURRENT_THEME_DIR}"/* ]]; then
+        return 0
+    fi
+    mkdir -p "$(dirname "${config}")"
+    ln -snf "${CURRENT_THEME_DIR}/starship.toml" "${config}"
+}
+
+run_hooks() {
+    local hook
+    shopt -s nullglob
+    for hook in "${SYSTEM_HOOKS_DIR}"/*.sh "${USER_HOOKS_DIR}"/*; do
+        [[ -x ${hook} ]] || continue
+        AMETHYSTORA_THEME="$(theme_current)" AMETHYSTORA_THEME_DIR="${CURRENT_THEME_DIR}" \
+            "${hook}" || echo "amethystora-theme: hook ${hook} failed" >&2
+    done
+    shopt -u nullglob
+}
+
+theme_set() {
+    local slug
+    slug="$(theme_slug "${1:?usage: amethystora-theme set <theme>}")"
+    theme_exists "${slug}" || die "no theme '${slug}'. Try: amethystora-theme list"
+
+    stage_theme "${slug}"
+    apply_gnome
+    apply_topbar
+    apply_ptyxis
+    apply_btop
+    apply_starship
+    # A wallpaper that cannot be set is worth a warning, not a half-applied theme
+    if [[ ${AMETHYSTORA_THEME_SKIP_BACKGROUND:-0} != 1 ]]; then
+        background_next --first || echo "amethystora-theme: could not set the background" >&2
+    fi
+    run_hooks
+
+    notify "Theme" "${slug}"
+    echo "Theme set to ${slug}"
+}
+
+# Themes that come as a light and a dark pair name each other in pair.theme. A theme with no
+# counterpart of its own flips to the Amethystora theme in the other mode, so the key always does
+# the obvious thing: go light, or come back.
+theme_toggle() {
+    local current pair
+    current="$(theme_current)" || die "no theme is set yet"
+    pair="$(theme_file pair.theme)"
+    if [[ -z ${pair} ]]; then
+        if theme_is_light; then
+            pair="${DEFAULT_THEME}"
+        else
+            pair="${DEFAULT_THEME}-light"
+        fi
+    fi
+    theme_set "${pair}"
+}
+
+# --- Backgrounds ------------------------------------------------------------------------------
+
+# A theme's own backgrounds/, the images its backgrounds.list points at elsewhere on the system,
+# and any the user has dropped in for it. A theme with none of these falls back to the wallpaper
+# rendered from its palette.
+background_list() {
+    local slug
+    slug="$(theme_current)" || return 0
+    {
+        # A backgrounds.list entry can point anywhere on the system, so it may name a wallpaper that
+        # a later image no longer ships; entries that are not there are skipped, not an error.
+        if [[ -f "${CURRENT_THEME_DIR}/backgrounds.list" ]]; then
+            grep -v '^[[:space:]]*\(#\|$\)' "${CURRENT_THEME_DIR}/backgrounds.list" || true
+        fi
+        find -L "${USER_BACKGROUNDS_DIR}/${slug}" "${CURRENT_THEME_DIR}/backgrounds" -maxdepth 1 -type f \
+            \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' -o -iname '*.svg' \) \
+            2>/dev/null | sort || true
+    } | while read -r image; do
+        [[ -f ${image} ]] && printf '%s\n' "${image}"
+    done
+}
+
+background_set() {
+    local image="$1" uri
+    [[ -f ${image} ]] || die "no such background: ${image}"
+    uri="file://${image}"
+    dconf_write_string /org/gnome/desktop/background/picture-uri "${uri}"
+    dconf_write_string /org/gnome/desktop/background/picture-uri-dark "${uri}"
+    dconf_write_string /org/gnome/desktop/background/picture-options "zoom"
+    dconf_write_string /org/gnome/desktop/screensaver/picture-uri "${uri}"
+    mkdir -p "${CURRENT_DIR}"
+    ln -snf "${image}" "${CURRENT_BACKGROUND}"
+}
+
+# --first picks the first background of a newly applied theme; without it the next one along
+background_next() {
+    local -a backgrounds
+    local current index=-1 i
+
+    mapfile -t backgrounds < <(background_list)
+    if [[ ${#backgrounds[@]} -eq 0 ]]; then
+        if [[ -f "${CURRENT_THEME_DIR}/wallpaper.svg" ]]; then
+            background_set "${CURRENT_THEME_DIR}/wallpaper.svg"
+        fi
+        return 0
+    fi
+
+    if [[ ${1:-} != --first && -L ${CURRENT_BACKGROUND} ]]; then
+        current="$(readlink "${CURRENT_BACKGROUND}")"
+        for i in "${!backgrounds[@]}"; do
+            if [[ ${backgrounds[i]} == "${current}" ]]; then
+                index=${i}
+                break
+            fi
+        done
+        background_set "${backgrounds[$(((index + 1) % ${#backgrounds[@]}))]}"
+    else
+        background_set "${backgrounds[0]}"
+    fi
+}
+
+# --- Entry point ------------------------------------------------------------------------------
+
+case "${1:-list}" in
+    list)
+        current="$(theme_current || true)"
+        while read -r name; do
+            [[ ${name} == "${current}" ]] && printf '* %s\n' "${name}" || printf '  %s\n' "${name}"
+        done < <(theme_list)
+        ;;
+    current) theme_current || die "no theme is set yet" ;;
+    set) shift; theme_set "$@" ;;
+    toggle) theme_toggle ;;
+    reload)
+        current="$(theme_current)" || die "no theme is set yet"
+        AMETHYSTORA_THEME_SKIP_BACKGROUND=1 theme_set "${current}"
+        ;;
+    bg | background)
+        case "${2:-next}" in
+            next) background_next ;;
+            list) background_list ;;
+            set) background_set "${3:?usage: amethystora-theme bg set <image>}" ;;
+            *) die "unknown background command: ${2}" ;;
+        esac
+        ;;
+    -h | --help | help) usage ;;
+    *) die "unknown command: ${1}. Run amethystora-theme --help" ;;
+esac
