@@ -1,0 +1,38 @@
+# Custom keybindings are a relocatable schema, so they cannot go in a gschema override: only the list
+# of paths can (it is appended to the base image's list in 09-desktop.sh). The entries live here.
+# Numbering starts at 20 to stay clear of the ones the base image ships (custom0..custom6).
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom20]
+binding='<Super>Return'
+command='xdg-terminal-exec'
+name='Terminal'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom21]
+binding='<Super><Alt>space'
+command='amethystora-menu'
+name='Amethystora menu'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom22]
+binding='<Super><Control><Shift>space'
+command='amethystora-menu theme'
+name='Theme picker'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom23]
+binding='<Super><Control>space'
+command='amethystora-theme bg next'
+name='Next background'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom24]
+binding='<Super><Control>d'
+command='amethystora-theme toggle'
+name='Switch between the light and dark theme'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom25]
+binding='<Super><Shift>f'
+command='nautilus --new-window'
+name='Files'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom26]
+binding='<Super><Shift>b'
+command='brave-browser --new-window'
+name='Browser'

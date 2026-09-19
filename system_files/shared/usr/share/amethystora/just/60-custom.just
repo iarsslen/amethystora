@@ -1,5 +1,26 @@
 # vim: set ft=make :
 
+# Pick the desktop theme: colours, terminal palette, prompt and wallpaper (Super+Ctrl+Shift+Space)
+theme THEME="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    if [[ -n "{{ THEME }}" ]]; then
+        amethystora-theme set "{{ THEME }}"
+        exit 0
+    fi
+    current="$(amethystora-theme current 2>/dev/null || true)"
+    choice="$(amethystora-theme list | sed 's/^[*] /  /' | awk '{ print $1 }' |
+        gum choose --header "Theme (current: ${current:-none})" --height 14 --selected "${current}")"
+    amethystora-theme set "${choice}"
+
+# Cycle the wallpaper of the current theme (Super+Ctrl+Space)
+background:
+    @amethystora-theme bg next
+
+# Show the tiling, workspace and launcher keybindings (Super+Alt+Space, then Keybindings)
+keybindings:
+    @glow --pager /usr/share/amethystora/keybindings.md
+
 # Toggle the logo and system summary shown in new terminals
 toggle-user-motd:
     #!/usr/bin/bash

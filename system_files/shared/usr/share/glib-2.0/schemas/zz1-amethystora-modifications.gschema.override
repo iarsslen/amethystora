@@ -1,4 +1,8 @@
 # Amethystora overrides, applied on top of the base defaults in zz0-amethystora-modifications.
+#
+# Only schemas installed in /usr/share/glib-2.0/schemas can be overridden here. Relocatable schemas
+# (custom keybindings, Ptyxis profiles) and extensions that keep their schema in their own directory
+# are set in /etc/dconf/db/distro.d instead.
 
 [org.gnome.desktop.background]
 picture-uri='file:///usr/share/backgrounds/amethystora/amethystora-l.png'
@@ -15,3 +19,107 @@ accent-color='purple'
 
 [org.gnome.shell.extensions.blur-my-shell.popup]
 blur=false
+
+#-------------- TILING --------------#
+# Tactile draws a grid over the focused monitor on Super+T; typing two zone letters moves the window
+# to the box they span. The default letters are Q W E R / A S D F, so a uniform 4x2 grid is the whole
+# keymap with one hand. Weights are relative: four columns and two rows of 1 each.
+
+[org.gnome.shell.extensions.tactile]
+col-0=1
+col-1=1
+col-2=1
+col-3=1
+col-4=0
+col-5=0
+col-6=0
+row-0=1
+row-1=1
+row-2=0
+row-3=0
+row-4=0
+gap-size=8
+show-settings=['<Super><Control>t']
+
+#-------------- WORKSPACES AND WINDOWS --------------#
+# Six fixed workspaces on Super+1..6, so the number keys always mean the same workspace. That takes
+# Super+N away from the dash, so switching to a pinned app moves to Alt+N.
+
+[org.gnome.mutter]
+dynamic-workspaces=false
+
+[org.gnome.desktop.wm.preferences]
+num-workspaces=6
+
+[org.gnome.desktop.wm.keybindings]
+close=['<Super>w']
+maximize=['<Super>Up']
+unmaximize=['<Super>Down']
+begin-resize=['<Super>BackSpace']
+toggle-fullscreen=['<Shift>F11']
+switch-to-workspace-1=['<Super>1']
+switch-to-workspace-2=['<Super>2']
+switch-to-workspace-3=['<Super>3']
+switch-to-workspace-4=['<Super>4']
+switch-to-workspace-5=['<Super>5']
+switch-to-workspace-6=['<Super>6']
+move-to-workspace-1=['<Super><Shift>1']
+move-to-workspace-2=['<Super><Shift>2']
+move-to-workspace-3=['<Super><Shift>3']
+move-to-workspace-4=['<Super><Shift>4']
+move-to-workspace-5=['<Super><Shift>5']
+move-to-workspace-6=['<Super><Shift>6']
+move-to-monitor-left=['<Super><Shift>Left']
+move-to-monitor-right=['<Super><Shift>Right']
+
+#-------------- TOP BAR --------------#
+# Space Bar puts the six workspaces in the panel, where Activities used to be, so the workspace
+# you are on is visible without opening the overview.
+#
+# Its own shortcuts are turned off: the workspace keys are set above, in GNOME's own keybindings,
+# so there is one place they come from. Its menu keybinding has to go too, because it defaults to
+# Super+W, which closes a window here.
+
+[org.gnome.shell.extensions.space-bar.appearance]
+position='left'
+position-index=0
+system-workspace-indicator=false
+
+[org.gnome.shell.extensions.space-bar.behavior]
+smart-workspace-names=false
+show-empty-workspaces=true
+
+[org.gnome.shell.extensions.space-bar.shortcuts]
+enable-activate-workspace-shortcuts=false
+enable-move-to-workspace-shortcuts=false
+open-menu=@as []
+
+# TopHat's meters. The colour is not set here: amethystora-theme writes it from the palette on
+# every theme switch, which is why use-system-accent is off (that would round it to one of GNOME's
+# nine accents instead of the theme's own).
+[org.gnome.shell.extensions.tophat]
+show-icons=false
+show-cpu=true
+show-mem=true
+show-net=true
+show-disk=false
+show-fs=false
+use-system-accent=false
+
+# Just Perfection: quicker animations, and no workspace popup, because Space Bar already shows
+# which workspace you moved to
+[org.gnome.shell.extensions.just-perfection]
+animation=2
+workspace-popup=false
+dash-app-running=true
+
+[org.gnome.shell.keybindings]
+switch-to-application-1=['<Alt>1']
+switch-to-application-2=['<Alt>2']
+switch-to-application-3=['<Alt>3']
+switch-to-application-4=['<Alt>4']
+switch-to-application-5=['<Alt>5']
+switch-to-application-6=['<Alt>6']
+switch-to-application-7=['<Alt>7']
+switch-to-application-8=['<Alt>8']
+switch-to-application-9=['<Alt>9']

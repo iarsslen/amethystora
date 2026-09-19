@@ -1,0 +1,128 @@
+#!/usr/bin/bash
+#
+# The Amethystora menu: one keyboard-driven place for the things that are otherwise scattered over
+# Settings, the terminal and ujust. Super+Alt+Space opens it; the submenus have keys of their own
+# (Super+Ctrl+Shift+Space for themes, Super+Ctrl+Space for the next wallpaper).
+#
+#   amethystora-menu            the main menu
+#   amethystora-menu theme      jump straight to the theme picker
+#   amethystora-menu background the wallpapers of the current theme
+#   amethystora-menu keys       the keybinding cheatsheet
+#   amethystora-menu system     lock, log out, restart, shut down
+#
+# Opened from a keybinding there is no terminal attached, so it reopens itself in one.
+
+set -euo pipefail
+
+# shellcheck source=../lib/amethystora/theme/lib.sh
+source /usr/lib/amethystora/theme/lib.sh
+
+KEYBINDINGS=/usr/share/amethystora/keybindings.md
+
+if [[ ! -t 0 ]]; then
+    exec xdg-terminal-exec "$0" "$@"
+fi
+
+have gum || die "gum is missing, the menu needs it"
+
+# Entering a submenu by name is a one-shot: it exits instead of dropping into the main menu,
+# because the key that opened it asked for that one thing.
+DIRECT=false
+
+heading() {
+    gum style --foreground 141 --bold --margin "1 0 0 0" "$1"
+}
+
+choose() {
+    gum choose --header "$1" --height 14 "${@:2}"
+}
+
+back() {
+    if [[ ${DIRECT} == true ]]; then
+        exit 0
+    fi
+    main_menu
+}
+
+# --- Menus ------------------------------------------------------------------------------------
+
+theme_menu() {
+    local current choice
+    current="$(theme_current || true)"
+    heading "Theme"
+    choice="$(theme_list | choose "Current: ${current:-none}" --selected "${current}" || true)"
+    [[ -n ${choice} ]] || back
+    amethystora-theme set "${choice}"
+    back
+}
+
+background_menu() {
+    local -a backgrounds
+    local choice
+    mapfile -t backgrounds < <(amethystora-theme bg list)
+    heading "Background"
+    if [[ ${#backgrounds[@]} -le 1 ]]; then
+        amethystora-theme bg next
+        echo "This theme has one background."
+        back
+    fi
+    choice="$(printf '%s\n' "${backgrounds[@]}" | choose "Background for $(theme_current)" || true)"
+    [[ -n ${choice} ]] || back
+    amethystora-theme bg set "${choice}"
+    back
+}
+
+keys_menu() {
+    if have glow; then
+        glow --pager "${KEYBINDINGS}"
+    else
+        less "${KEYBINDINGS}"
+    fi
+    back
+}
+
+system_menu() {
+    local choice
+    heading "System"
+    choice="$(choose "System" "Lock screen" "Log out" "Restart" "Shut down" "Check for updates" || true)"
+    case "${choice}" in
+        "Lock screen") loginctl lock-session ;;
+        "Log out") gnome-session-quit --logout ;;
+        "Restart") systemctl reboot ;;
+        "Shut down") systemctl poweroff ;;
+        "Check for updates")
+            ujust update
+            gum input --placeholder "Press enter to close" >/dev/null || true
+            ;;
+        *) back ;;
+    esac
+}
+
+main_menu() {
+    local choice
+    heading "Amethystora"
+    choice="$(choose "" "Theme" "Background" "Keybindings" "Apps and system commands" "System" "Quit" || true)"
+    case "${choice}" in
+        Theme) theme_menu ;;
+        Background) background_menu ;;
+        Keybindings) keys_menu ;;
+        "Apps and system commands")
+            # ujust with no recipe opens its own chooser, which is the full list and stays right
+            # as recipes come and go with the image
+            ujust
+            back
+            ;;
+        System) system_menu ;;
+        *) exit 0 ;;
+    esac
+}
+
+case "${1:-}" in
+    "") main_menu ;;
+    theme) DIRECT=true theme_menu ;;
+    background | bg) DIRECT=true background_menu ;;
+    keys | keybindings) DIRECT=true keys_menu ;;
+    system) DIRECT=true system_menu ;;
+    -h | --help | help) sed -n '3,14p' "$0" | sed 's/^# \?//' ;;
+    *) die "unknown menu: $1" ;;
+esac
