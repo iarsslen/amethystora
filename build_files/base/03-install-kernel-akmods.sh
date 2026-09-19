@@ -61,7 +61,7 @@ fi
 # akmod, the same way akmods-extra does, then drop the build tooling.
 KERNEL_VERSION="$(rpm -q kernel-core --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')"
 dnf5 -y install akmods
-dnf5 mark dependency akmods
+dnf5 -y mark dependency akmods
 # Without scriptlets: akmod-evdi's %post (akmods-ostree-post, run because os-release has OSTREE_VERSION) builds
 # as root, which akmodsbuild refuses when /var is writable as it is here, and fails the transaction.
 # akmods below builds as its own user instead. displaylink requires the kmod, so it goes in the same transaction.
