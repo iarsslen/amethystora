@@ -48,6 +48,16 @@ rpm -q hyprland-devel >/dev/null && false
 test -f /usr/share/plymouth/themes/amethyst/throbber-0001.png
 test -f /usr/share/plymouth/themes/amethyst/entry.png
 
+# ClamAV daemon listens on its socket and keeps retrying until freshclam has fetched the signatures
+grep -q "^LocalSocket /run/clamd.scan/clamd.sock$" /etc/clamd.d/scan.conf
+test -f /usr/lib/systemd/system/clamd@.service.d/10-amethyst.conf
+
+# DisplayLink: evdi built for the image kernel, and no module signing key left behind by the build
+KERNEL_VERSION="$(rpm -q kernel-core --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')"
+modinfo "/usr/lib/modules/${KERNEL_VERSION}/extra/evdi/evdi.ko.xz" >/dev/null
+test -f /usr/lib/udev/rules.d/99-displaylink.rules
+find /etc/pki/akmods/private -type f 2>/dev/null | grep -q . && false
+
 # Make sure this garbage never makes it to an image
 test -f /usr/lib/systemd/system/flatpak-add-fedora-repos.service && false
 
@@ -55,6 +65,8 @@ IMPORTANT_PACKAGES=(
     brave-browser
     clamav
     clamav-freshclam
+    clamd
+    displaylink
     distrobox
     dotnet-sdk-10.0
     fish
@@ -78,6 +90,7 @@ done
 # these packages are supposed to be removed
 # and are considered footguns
 UNWANTED_PACKAGES=(
+    akmod-evdi
     fedora-logos
     firefox
     gdm
@@ -106,6 +119,7 @@ fi
 
 IMPORTANT_UNITS=(
     clamav-freshclam.service
+    clamd@scan.service
     greetd.service
     rpm-ostree-countme.timer
     tailscaled.service

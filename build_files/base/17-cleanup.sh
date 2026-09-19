@@ -10,6 +10,7 @@ systemctl --global enable podman-auto-update.timer
 systemctl --global enable amethyst-user-setup.service
 systemctl enable brew-setup.service
 systemctl enable clamav-freshclam.service
+systemctl enable clamd@scan.service
 systemctl enable dconf-update.service
 systemctl enable flatpak-nuke-fedora.service
 systemctl enable input-remapper.service

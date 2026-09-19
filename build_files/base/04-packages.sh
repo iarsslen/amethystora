@@ -27,6 +27,7 @@ FEDORA_PACKAGES=(
     borgbackup
     clamav
     clamav-freshclam
+    clamd
     containerd
     cryfs
     davfs2
@@ -117,6 +118,12 @@ esac
 # Install all Fedora packages (bulk - safe from COPR injection)
 echo "Installing ${#FEDORA_PACKAGES[@]} packages from Fedora repos..."
 dnf -y install "${FEDORA_PACKAGES[@]}"
+
+# ClamAV daemon (clamd@scan.service): listen on its local socket so clamdscan and ClamUI can use it,
+# and let SELinux allow it to read files anywhere on the system
+sed -i 's|^#LocalSocket |LocalSocket |' /etc/clamd.d/scan.conf
+grep -q "^LocalSocket /run/clamd.scan/clamd.sock$" /etc/clamd.d/scan.conf
+semanage boolean -m --on antivirus_can_scan_system
 
 dnf config-manager addrepo --from-repofile=https://pkgs.tailscale.com/stable/fedora/tailscale.repo
 dnf config-manager setopt tailscale-stable.enabled=0

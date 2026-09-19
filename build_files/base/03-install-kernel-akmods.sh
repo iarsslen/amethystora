@@ -56,6 +56,25 @@ else
     dnf5 -y remove rpmfusion-free-release rpmfusion-nonfree-release
 fi
 
+# DisplayLink (USB docks and adapters): the prebuilt evdi kmod is only published in akmods-extra, which is
+# not built for the main or coreos-stable kernels. Build it here against the image kernel from negativo17's
+# akmod, the same way akmods-extra does, then drop the build tooling.
+KERNEL_VERSION="$(rpm -q kernel-core --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')"
+dnf5 -y install --enablerepo=fedora-multimedia \
+    akmod-evdi \
+    displaylink \
+    libevdi
+CFLAGS="-fno-pie -no-pie" akmods --force --kernels "${KERNEL_VERSION}" --kmod evdi
+modinfo "/usr/lib/modules/${KERNEL_VERSION}/extra/evdi/evdi.ko.xz" >/dev/null ||
+    { find /var/cache/akmods/evdi/ -name '*.log' -print -exec cat {} \; && exit 1; }
+dnf5 -y remove akmod-evdi
+# akmods generated a module signing key for the build: never ship it
+find /etc/pki/akmods -type f 2>/dev/null | while read -r file; do
+    rpm -qf "${file}" >/dev/null 2>&1 || rm -f "${file}"
+done
+# The package enables DisplayLinkManager at every boot; its udev rule starts it when a DisplayLink device is plugged in
+systemctl disable displaylink.service
+
 # Nvidia AKMODS
 if [[ "${IMAGE_NAME}" =~ nvidia ]]; then
     # Fetch Nvidia RPMs
