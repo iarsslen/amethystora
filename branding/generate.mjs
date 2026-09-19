@@ -619,6 +619,38 @@ function ansiLogo(rows = 34) {
   return lines.join("\n") + "\n";
 }
 
+// The Linux text console has 16 colours and maps truecolour to the nearest, which turns the dark facets blue.
+// Its variant uses the console's own colours: magenta, bright magenta, and white for the glint. Bright colours
+// only exist in the foreground, so the brighter pixel of each cell is drawn with the glyph.
+const CONSOLE_TONES = { [SHADES[8]]: 2, [SHADES[7]]: 1, [SHADES[6]]: 1 };
+const CONSOLE_FG = ["35", "95", "97"];
+const CONSOLE_BG = ["45", "45", "47"];
+
+function consoleLogo(rows = 34) {
+  const cols = Math.round((rows * BOUNDS[2]) / BOUNDS[3]);
+  const [x0, y0, w, h] = BOUNDS;
+  const tone = (i, j) => {
+    const color = colorAt(x0 + ((i + 0.5) * w) / cols, y0 + ((j + 0.5) * h) / rows);
+    return color && (CONSOLE_TONES[color] ?? 0);
+  };
+  const lines = [];
+  for (let j = 0; j < rows; j += 2) {
+    let line = "";
+    for (let i = 0; i < cols; i++) {
+      const top = tone(i, j);
+      const bottom = tone(i, j + 1);
+      if (top === null && bottom === null) line += "\x1b[0m ";
+      else if (bottom === null) line += `\x1b[0;${CONSOLE_FG[top]}m▀`;
+      else if (top === null) line += `\x1b[0;${CONSOLE_FG[bottom]}m▄`;
+      else if (top === bottom) line += `\x1b[0;${CONSOLE_FG[top]}m█`;
+      else if (top > bottom) line += `\x1b[0;${CONSOLE_FG[top]};${CONSOLE_BG[bottom]}m▀`;
+      else line += `\x1b[0;${CONSOLE_FG[bottom]};${CONSOLE_BG[top]}m▄`;
+    }
+    lines.push(line.replace(/(\x1b\[0m )+$/, "") + "\x1b[0m");
+  }
+  return lines.join("\n") + "\n";
+}
+
 // ------------------------------------------------------------ PNG logos --
 
 // The wordmark is set in Quicksand Bold (branding/fonts, SIL Open Font License): its round bowls and rounded
@@ -1135,6 +1167,7 @@ write("usr/share/icons/hicolor/scalable/places/amethystora-docs.svg", tileSvg(do
 write("usr/share/icons/hicolor/scalable/places/amethystora-community.svg", tileSvg(communityGlyph));
 write("usr/share/icons/hicolor/scalable/places/amethystora-update.svg", tileSvg(updateGlyph));
 write("usr/share/amethystora/logos/symbols/amethystora", ansiLogo());
+write("usr/share/amethystora/logos/console/amethystora", consoleLogo());
 write(`${THEME}/amethystora.script`, bootScript());
 write("usr/share/amethystora/dms/amethystora-theme.json", JSON.stringify(dmsTheme, null, 2) + "\n");
 renderPngs();

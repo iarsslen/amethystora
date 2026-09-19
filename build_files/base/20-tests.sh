@@ -13,6 +13,8 @@ done
 
 test -f /usr/share/amethystora/homebrew/fonts.Brewfile
 test -x /usr/bin/amethystora-fastfetch
+# Logo in the text console colours (amethystora-greeting)
+test -f /usr/share/amethystora/logos/console/amethystora
 test -x /usr/libexec/amethystora-greeting
 test -f /usr/lib/amethystora/setup-services/libsetup.sh
 
