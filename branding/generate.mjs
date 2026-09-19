@@ -304,8 +304,9 @@ function wallpaperSvg(theme) {
 
 // The splash starts with the gem shattered, its pieces scattered around the screen. They converge and lock
 // together with a flash, then the gem glows in a cloud of violet dust: the glow rises to a peak and falls
-// back to where it started, over and over. BOOT_TIMELINE drives both the Plymouth script and the browser
-// preview (node branding/generate.mjs --preview), so they play the same animation.
+// back to where it started, over and over. BOOT_TIMELINE drives the browser preview (node branding/generate.mjs
+// --preview) and bootScript() ports it to Plymouth's script language, so both play the same animation. It
+// sticks to the maths that language has: no exp, pow or floor.
 //
 // The artwork is drawn in the gem's 256-unit box; BOOT.unit converts that to pixels on a 1080p screen.
 const BOOT = {
@@ -318,6 +319,7 @@ const BOOT = {
   cycle: 3.2, // s per glow cycle
   halo: 760, // px across at 1080p
   dust: 40,
+  sky: ["#0d0714", "#1a0a2e"], // background, top to bottom
 };
 
 // A seeded generator, so every run of this script draws the same scatter and dust
@@ -362,6 +364,7 @@ const SHARDS = (() => {
     };
   });
 })();
+BOOT.assembled = BOOT.converge + BOOT.travel + Math.max(...SHARDS.map((sh) => sh.delay));
 
 // Dust hangs in an oval around the gem and rises slowly through it, swaying and twinkling. Positions are
 // in gem units from the centre of the table.
@@ -464,11 +467,12 @@ const dustSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 20 20"
 const BOOT_TIMELINE = String.raw`
 function ease(u) {
   u = Math.min(1, Math.max(0, u));
-  return u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+  const v = 2 - 2 * u;
+  return u < 0.5 ? 4 * u * u * u : 1 - (v * v * v) / 2;
 }
 function frame(t, B, SHARDS, DUST) {
   const k = B.unit;
-  const assembled = B.converge + B.travel + Math.max(...SHARDS.map((s) => s.delay));
+  const assembled = B.assembled;
   const shards = SHARDS.map((s) => {
     const start = B.converge + s.delay;
     const hang = Math.min(t, start);
@@ -483,7 +487,8 @@ function frame(t, B, SHARDS, DUST) {
   });
   const whole = t >= assembled ? 1 : 0;
   const rise = Math.min(1, Math.max(0, (t - B.converge) / (assembled + 0.3 - B.converge)));
-  const flash = t >= assembled ? Math.exp(-(t - assembled) / 0.25) : 0;
+  const since = (t - assembled) / 0.75;
+  const flash = since >= 0 && since < 1 ? (1 - since) * (1 - since) * (1 - since) : 0;
   const loopStart = assembled + B.settle;
   const g = t >= loopStart ? 0.5 - 0.5 * Math.cos((2 * Math.PI * (t - loopStart)) / B.cycle) : 0;
   const dustLevel = rise * (0.55 + 0.45 * g);
@@ -517,7 +522,7 @@ function bootPreviewHtml() {
     ${wordmarkFace}
     html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:"${WORDMARK_FONT}",sans-serif}
     #stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:0 0;overflow:hidden;
-      background:linear-gradient(#0d0714,#1a0a2e)}
+      background:linear-gradient(${BOOT.sky[0]},${BOOT.sky[1]})}
     #nebula{position:absolute;left:0;top:0;width:1920px;height:1080px}
     #heart{position:absolute;left:960px;top:${1080 * BOOT.centerY}px}
     #heart img{position:absolute;left:0;top:0;will-change:transform,opacity}
@@ -659,6 +664,372 @@ function logoHtml({ width, height, text, white = false, gem = true }) {
   </script></body></html>`;
 }
 
+// ------------------------------------------------------ Plymouth theme --
+
+// The splash runs in Plymouth's script plugin. Its images are drawn at twice their 1080p size so they stay
+// sharp up to 4K, and the script scales each one once at start-up to fit the screen. The nebula and halo are
+// soft enough to be drawn smaller and stretched.
+const THEME = "usr/share/plymouth/themes/amethystora";
+const GEM_PX = 256 * BOOT.unit; // the gem's 256-unit box, in 1080p pixels
+const TEXT = {
+  wordmark: { text: "amethystora", size: 34, weight: WORDMARK_WEIGHT, spacing: "-0.015em", color: "#ffffff", box: [260, 45] },
+  credit: { text: "by iarsslen", size: 13, weight: 500, spacing: "0.04em", color: SHADES[7], box: [110, 18], opacity: 0.22 },
+};
+// Centre of the name, as a share of the screen height, and of the credit below it, in 1080p pixels
+const WORDMARK_Y = 0.94;
+const CREDIT_BELOW = 34;
+
+const svgPage = (svg, width, height) => `<!doctype html><html><head><style>
+    html,body{margin:0;background:transparent;overflow:hidden}
+    svg{display:block;width:${width}px;height:${height}px}
+  </style></head><body>${svg}</body></html>`;
+
+// A line of text in the wordmark font, centred in its box, at twice its 1080p size
+const textPage = ({ text, size, weight, spacing, color, box }) => `<!doctype html><html><head><style>
+    ${wordmarkFace}
+    html,body{margin:0;width:${box[0] * 2}px;height:${box[1] * 2}px;background:transparent;overflow:hidden}
+    body{display:flex;align-items:center;justify-content:center;font-family:"${WORDMARK_FONT}";font-weight:${weight};
+      letter-spacing:${spacing};font-size:${size * 2}px;line-height:1;color:${color};white-space:nowrap}
+  </style></head><body>${text}<script>document.fonts.load('${weight} 16px "${WORDMARK_FONT}"');</script></body></html>`;
+
+const BOOT_PNGS = [
+  { out: `${THEME}/nebula.png`, width: 960, height: 540, html: () => svgPage(nebulaSvg, 960, 540) },
+  { out: `${THEME}/halo.png`, width: BOOT.halo / 2, height: BOOT.halo / 2, html: () => svgPage(haloSvg, BOOT.halo / 2, BOOT.halo / 2) },
+  { out: `${THEME}/dust.png`, width: 32, height: 32, html: () => svgPage(dustSvg, 32, 32) },
+  ...[["gem", gemSvg()], ["light", lightSvg]].map(([name, svg]) => {
+    const px = Math.round(GEM_PX * 2);
+    return { out: `${THEME}/${name}.png`, width: px, height: px, html: () => svgPage(svg, px, px) };
+  }),
+  ...SHARDS.map((s, i) => {
+    const px = Math.round(s.side * BOOT.unit * 2);
+    return { out: `${THEME}/shard-${i}.png`, width: px, height: px, html: () => svgPage(shardSvg(s), px, px) };
+  }),
+  ...Object.entries(TEXT).map(([name, t]) => ({
+    out: `${THEME}/${name}.png`, width: t.box[0] * 2, height: t.box[1] * 2, html: () => textPage(t),
+  })),
+];
+
+// Numbers for the script: plain decimals, never exponents
+const num = (v) => {
+  const s = v.toFixed(4).replace(/\.?0+$/, "");
+  return s === "-0" || s === "" ? "0" : s;
+};
+const rgb01 = (hex) => [1, 3, 5].map((i) => num(parseInt(hex.slice(i, i + 2), 16) / 255)).join(", ");
+
+// The splash as a Plymouth script: the same timeline as BOOT_TIMELINE, plus the password prompt, messages and
+// update progress, which the script plugin leaves to the theme.
+function bootScript() {
+  const B = BOOT;
+  const K = num(B.unit);
+  // Set a sprite's opacity only when it changes, so sprites that hold still are not redrawn
+  const fade = (name, expr) => `  o = ${expr};
+  if (Math.Abs(o - global.${name}.opacity) > 0.004) {
+    global.${name}.sprite.SetOpacity(o);
+    global.${name}.opacity = o;
+  }`;
+  const shards = SHARDS.map((s, i) => `shard[${i}].image = sized(Image("shard-${i}.png"), ${num(s.side * B.unit)} * scale, ${num(s.side * B.unit)} * scale);
+shard[${i}].turned = shard[${i}].image;
+shard[${i}].sprite = Sprite(shard[${i}].image);
+shard[${i}].sprite.SetZ(3);
+shard[${i}].sprite.SetOpacity(0);
+shard[${i}].angle = 99;
+shard[${i}].x = ${num(s.c[0] - 128)};
+shard[${i}].y = ${num(s.c[1] - 128)};
+shard[${i}].dx = ${num(s.dx)};
+shard[${i}].dy = ${num(s.dy)};
+shard[${i}].dirx = ${num(s.dirx)};
+shard[${i}].diry = ${num(s.diry)};
+shard[${i}].drift = ${num(s.drift)};
+shard[${i}].spin = ${num(s.spin)};
+shard[${i}].spin_rate = ${num(s.spinRate)};
+shard[${i}].delay = ${num(s.delay)};`).join("\n");
+  const dust = DUST.map((d, i) => `dust[${i}].image = sized(dust_image, ${num(d.size * B.unit * 2)} * scale, ${num(d.size * B.unit * 2)} * scale);
+dust[${i}].half = dust[${i}].image.GetWidth() / 2;
+dust[${i}].sprite = Sprite(dust[${i}].image);
+dust[${i}].sprite.SetZ(2);
+dust[${i}].sprite.SetOpacity(0);
+dust[${i}].x = ${num(d.x)};
+dust[${i}].y = ${num(d.y)};
+dust[${i}].rise = ${num(d.rise)};
+dust[${i}].sway = ${num(d.sway)};
+dust[${i}].sway_rate = ${num(d.swayRate)};
+dust[${i}].twinkle = ${num(d.twinkle)};
+dust[${i}].phase = ${num(d.phase)};`).join("\n");
+
+  return `# The Amethystora boot splash, for Plymouth's script plugin.
+# Generated by branding/generate.mjs from the same timeline as its browser preview
+# (node branding/generate.mjs --preview): change it there, not here.
+
+Window.SetBackgroundTopColor(${rgb01(B.sky[0])});
+Window.SetBackgroundBottomColor(${rgb01(B.sky[1])});
+
+# Everything is laid out for a 1920x1080 screen and scaled to fit this one
+screen_x = Window.GetX();
+screen_y = Window.GetY();
+screen_w = Window.GetWidth();
+screen_h = Window.GetHeight();
+scale = Math.Min(screen_w / 1920, screen_h / 1080);
+origin_x = screen_x + screen_w / 2;
+origin_y = screen_y + screen_h * ${num(B.centerY)};
+heart_x = origin_x + ${num((CENTER[0] - 128) * B.unit)} * scale;
+heart_y = origin_y + ${num((CENTER[1] - 128) * B.unit)} * scale;
+
+fun sized(image, width, height) {
+  if (width < 1) { width = 1; }
+  if (height < 1) { height = 1; }
+  return image.Scale(Math.Int(width + 0.5), Math.Int(height + 0.5));
+}
+
+fun clamp01(v) {
+  if (v < 0) { return 0; }
+  if (v > 1) { return 1; }
+  return v;
+}
+
+# Math.Int rounds towards zero; this rounds down
+fun floor_of(v) {
+  q = Math.Int(v);
+  if (q > v) { q = q - 1; }
+  return q;
+}
+
+fun ease(u) {
+  u = clamp01(u);
+  if (u < 0.5) { return 4 * u * u * u; }
+  v = 2 - 2 * u;
+  return 1 - v * v * v / 2;
+}
+
+# ------------------------------------------------------------------- scene --
+
+nebula.image = sized(Image("nebula.png"), screen_w, screen_h);
+nebula.sprite = Sprite(nebula.image);
+nebula.sprite.SetPosition(screen_x, screen_y, 0);
+nebula.sprite.SetOpacity(0);
+nebula.opacity = 0;
+
+halo.image = sized(Image("halo.png"), ${B.halo} * scale, ${B.halo} * scale);
+halo.sprite = Sprite(halo.image);
+halo.sprite.SetPosition(heart_x - halo.image.GetWidth() / 2, heart_y - halo.image.GetHeight() / 2, 1);
+halo.sprite.SetOpacity(0);
+halo.opacity = 0;
+
+dust_image = Image("dust.png");
+dust_count = ${DUST.length};
+${dust}
+
+shard_count = ${SHARDS.length};
+${shards}
+
+gem.image = sized(Image("gem.png"), ${num(GEM_PX)} * scale, ${num(GEM_PX)} * scale);
+gem.sprite = Sprite(gem.image);
+gem.sprite.SetPosition(origin_x - gem.image.GetWidth() / 2, origin_y - gem.image.GetHeight() / 2, 4);
+gem.sprite.SetOpacity(0);
+
+light.image = sized(Image("light.png"), ${num(GEM_PX)} * scale, ${num(GEM_PX)} * scale);
+light.sprite = Sprite(light.image);
+light.sprite.SetPosition(origin_x - light.image.GetWidth() / 2, origin_y - light.image.GetHeight() / 2, 5);
+light.sprite.SetOpacity(0);
+light.opacity = 0;
+
+wordmark.image = sized(Image("wordmark.png"), ${TEXT.wordmark.box[0]} * scale, ${TEXT.wordmark.box[1]} * scale);
+wordmark.sprite = Sprite(wordmark.image);
+wordmark_y = screen_y + screen_h * ${WORDMARK_Y};
+wordmark.sprite.SetPosition(origin_x - wordmark.image.GetWidth() / 2, wordmark_y - wordmark.image.GetHeight() / 2, 6);
+
+credit.image = sized(Image("credit.png"), ${TEXT.credit.box[0]} * scale, ${TEXT.credit.box[1]} * scale);
+credit.sprite = Sprite(credit.image);
+credit.sprite.SetPosition(origin_x - credit.image.GetWidth() / 2, wordmark_y + ${CREDIT_BELOW} * scale - credit.image.GetHeight() / 2, 6);
+credit.sprite.SetOpacity(${TEXT.credit.opacity});
+
+# ---------------------------------------------------------------- timeline --
+
+# Shutdown and reboot skip the assembly and start with the gem whole
+tick = 0;
+mode = Plymouth.GetMode();
+if (mode == "shutdown" || mode == "reboot") {
+  tick = Math.Int(${num(B.assembled + B.settle)} * 50);
+}
+assembled_done = 0;
+
+# Called 50 times a second
+fun refresh_callback() {
+  t = global.tick / 50;
+  global.tick = global.tick + 1;
+
+  if (t < ${num(B.assembled)}) {
+    shown = clamp01(t / ${num(B.fadeIn)});
+    for (i = 0; i < global.shard_count; i++) {
+      start = ${num(B.converge)} + global.shard[i].delay;
+      hang = t;
+      if (hang > start) { hang = start; }
+      out = 1 - ease((t - start) / ${num(B.travel)});
+      angle = (global.shard[i].spin + global.shard[i].spin_rate * hang) * out;
+      if (angle != global.shard[i].angle) {
+        global.shard[i].turned = global.shard[i].image.Rotate(angle);
+        global.shard[i].sprite.SetImage(global.shard[i].turned);
+        global.shard[i].angle = angle;
+      }
+      x = global.origin_x + (global.shard[i].x + (global.shard[i].dx + global.shard[i].dirx * global.shard[i].drift * hang) * out) * ${K} * global.scale;
+      y = global.origin_y + (global.shard[i].y + (global.shard[i].dy + global.shard[i].diry * global.shard[i].drift * hang) * out) * ${K} * global.scale;
+      global.shard[i].sprite.SetX(x - global.shard[i].turned.GetWidth() / 2);
+      global.shard[i].sprite.SetY(y - global.shard[i].turned.GetHeight() / 2);
+      global.shard[i].sprite.SetOpacity(shown);
+    }
+  } else if (!global.assembled_done) {
+    # The pieces have landed: the whole gem takes their place
+    for (i = 0; i < global.shard_count; i++) {
+      global.shard[i].sprite.SetOpacity(0);
+    }
+    global.gem.sprite.SetOpacity(1);
+    global.assembled_done = 1;
+  }
+
+  rise = clamp01((t - ${num(B.converge)}) / ${num(B.assembled + 0.3 - B.converge)});
+  flash = 0;
+  since = (t - ${num(B.assembled)}) / 0.75;
+  if (since >= 0 && since < 1) { flash = (1 - since) * (1 - since) * (1 - since); }
+  glow = 0;
+  if (t >= ${num(B.assembled + B.settle)}) {
+    glow = 0.5 - 0.5 * Math.Cos(6.2831853 * (t - ${num(B.assembled + B.settle)}) / ${num(B.cycle)});
+  }
+  whole = 0;
+  if (t >= ${num(B.assembled)}) { whole = 1; }
+
+${fade("nebula", "Math.Min(1, 0.85 * rise + 0.15 * flash)")}
+${fade("halo", "Math.Min(1, rise * (0.3 + 0.7 * glow) + 0.5 * flash)")}
+${fade("light", "Math.Min(1, whole * 0.45 * glow + 0.9 * flash)")}
+
+  dust_level = rise * (0.55 + 0.45 * glow);
+  for (i = 0; i < global.dust_count; i++) {
+    y = global.dust[i].y - global.dust[i].rise * t;
+    y = y - floor_of((y + 300) / 600) * 600;
+    edge = (300 - Math.Abs(y)) / 60;
+    if (edge > 1) { edge = 1; }
+    twinkle = 0.35 + 0.65 * Math.Abs(Math.Sin(global.dust[i].phase + global.dust[i].twinkle * t));
+    x = global.dust[i].x + global.dust[i].sway * Math.Sin(global.dust[i].phase + global.dust[i].sway_rate * t);
+    global.dust[i].sprite.SetX(global.heart_x + x * ${K} * global.scale - global.dust[i].half);
+    global.dust[i].sprite.SetY(global.heart_y + y * ${K} * global.scale - global.dust[i].half);
+    global.dust[i].sprite.SetOpacity(dust_level * edge * twinkle);
+  }
+}
+Plymouth.SetRefreshFunction(refresh_callback);
+
+# ------------------------------------------------ password and questions --
+
+# The entry box under the gem, with the lock beside it and the prompt above; the images come from Fedora's
+# spinner theme (06-branding.sh)
+fun scaled(image) {
+  return sized(image, image.GetWidth() * global.scale, image.GetHeight() * global.scale);
+}
+entry_image = scaled(Image("entry.png"));
+lock_image = scaled(Image("lock.png"));
+bullet_image = scaled(Image("bullet.png"));
+entry_x = origin_x - entry_image.GetWidth() / 2;
+entry_y = origin_y + 210 * scale - entry_image.GetHeight() / 2;
+
+dialog.entry = Sprite(entry_image);
+dialog.entry.SetPosition(entry_x, entry_y, 10);
+dialog.lock = Sprite(lock_image);
+dialog.lock.SetPosition(entry_x - lock_image.GetWidth() - 10 * scale, entry_y + entry_image.GetHeight() / 2 - lock_image.GetHeight() / 2, 10);
+dialog.prompt = Sprite();
+dialog.prompt.SetZ(10);
+dialog.text = Sprite();
+dialog.text.SetZ(11);
+bullet_room = Math.Int((entry_image.GetWidth() - 24 * scale) / (bullet_image.GetWidth() + 2 * scale));
+
+fun hide_dialog() {
+  global.dialog.entry.SetOpacity(0);
+  global.dialog.lock.SetOpacity(0);
+  global.dialog.prompt.SetOpacity(0);
+  global.dialog.text.SetOpacity(0);
+  for (i = 0; global.dialog.bullet[i]; i++) {
+    global.dialog.bullet[i].SetOpacity(0);
+  }
+}
+hide_dialog();
+
+fun show_dialog(prompt) {
+  global.dialog.entry.SetOpacity(1);
+  global.dialog.lock.SetOpacity(1);
+  image = Image.Text(prompt, 0.93, 0.89, 1, 1, "Inter 12");
+  global.dialog.prompt.SetImage(image);
+  global.dialog.prompt.SetX(global.origin_x - image.GetWidth() / 2);
+  global.dialog.prompt.SetY(global.entry_y - image.GetHeight() - 12 * global.scale);
+  global.dialog.prompt.SetOpacity(1);
+}
+
+fun display_password_callback(prompt, bullets) {
+  show_dialog(prompt);
+  global.dialog.text.SetOpacity(0);
+  for (i = 0; global.dialog.bullet[i] || i < bullets; i++) {
+    if (!global.dialog.bullet[i]) {
+      global.dialog.bullet[i] = Sprite(global.bullet_image);
+      global.dialog.bullet[i].SetX(global.entry_x + 12 * global.scale + i * (global.bullet_image.GetWidth() + 2 * global.scale));
+      global.dialog.bullet[i].SetY(global.entry_y + global.entry_image.GetHeight() / 2 - global.bullet_image.GetHeight() / 2);
+      global.dialog.bullet[i].SetZ(11);
+    }
+    if (i < bullets && i < global.bullet_room) {
+      global.dialog.bullet[i].SetOpacity(1);
+    } else {
+      global.dialog.bullet[i].SetOpacity(0);
+    }
+  }
+}
+Plymouth.SetDisplayPasswordFunction(display_password_callback);
+
+fun display_question_callback(prompt, entry) {
+  show_dialog(prompt);
+  for (i = 0; global.dialog.bullet[i]; i++) {
+    global.dialog.bullet[i].SetOpacity(0);
+  }
+  image = Image.Text(entry, 1, 1, 1, 1, "Inter 12");
+  global.dialog.text.SetImage(image);
+  global.dialog.text.SetX(global.entry_x + 12 * global.scale);
+  global.dialog.text.SetY(global.entry_y + global.entry_image.GetHeight() / 2 - image.GetHeight() / 2);
+  global.dialog.text.SetOpacity(1);
+}
+Plymouth.SetDisplayQuestionFunction(display_question_callback);
+
+fun display_normal_callback() {
+  hide_dialog();
+}
+Plymouth.SetDisplayNormalFunction(display_normal_callback);
+
+# ------------------------------------------------------ messages, updates --
+
+message = Sprite();
+message.SetZ(10);
+fun message_callback(text) {
+  image = Image.Text(text, 0.86, 0.8, 0.96, 1, "Inter 11");
+  global.message.SetImage(image);
+  global.message.SetX(global.origin_x - image.GetWidth() / 2);
+  global.message.SetY(global.screen_y + global.screen_h * 0.84);
+}
+Plymouth.SetMessageFunction(message_callback);
+
+# Offline updates and upgrades: what is happening and how far along, under the gem
+if (mode == "updates" || mode == "system-upgrade" || mode == "firmware-upgrade") {
+  title = "Installing updates";
+  if (mode == "system-upgrade") { title = "Upgrading the system"; }
+  if (mode == "firmware-upgrade") { title = "Upgrading firmware"; }
+  title_image = Image.Text(title + " - do not turn off your computer", 0.93, 0.89, 1, 1, "Inter 14");
+  status.title = Sprite(title_image);
+  status.title.SetPosition(origin_x - title_image.GetWidth() / 2, origin_y + 190 * scale, 10);
+  status.progress = Sprite();
+  status.progress.SetZ(10);
+}
+
+fun system_update_callback(progress) {
+  image = Image.Text(Math.Int(progress) + "%", 0.86, 0.8, 0.96, 1, "Inter 12");
+  global.status.progress.SetImage(image);
+  global.status.progress.SetX(global.origin_x - image.GetWidth() / 2);
+  global.status.progress.SetY(global.origin_y + 230 * global.scale);
+}
+Plymouth.SetSystemUpdateFunction(system_update_callback);
+`;
+}
+
 // Wallpapers are PNG: DankMaterialShell derives its colour theme from them with matugen, which cannot read SVG.
 const wallpaperHtml = (theme) => `<!doctype html><html><body style="margin:0">${wallpaperSvg(theme)}</body></html>`;
 
@@ -673,8 +1044,7 @@ const PNGS = [
   logo({ out: "usr/share/pixmaps/amethystora-logo-white.png", width: 252, height: 252, white: true }),
   // Fedora's spinner theme, the fallback splash, looks its watermark up by this name
   logo({ out: "usr/share/plymouth/themes/spinner/watermark.png", width: 330, height: 64, text: "white" }),
-  // The Amethystora splash already shows the gem above it
-  logo({ out: "usr/share/plymouth/themes/amethystora/watermark.png", width: 275, height: 56, text: "white", gem: false }),
+  ...BOOT_PNGS,
   { out: "usr/share/backgrounds/amethystora/amethystora-l.png", width: 3840, height: 2160, html: () => wallpaperHtml("light") },
   { out: "usr/share/backgrounds/amethystora/amethystora-d.png", width: 3840, height: 2160, html: () => wallpaperHtml("dark") },
 ];
@@ -765,5 +1135,6 @@ write("usr/share/icons/hicolor/scalable/places/amethystora-docs.svg", tileSvg(do
 write("usr/share/icons/hicolor/scalable/places/amethystora-community.svg", tileSvg(communityGlyph));
 write("usr/share/icons/hicolor/scalable/places/amethystora-update.svg", tileSvg(updateGlyph));
 write("usr/share/amethystora/logos/symbols/amethystora", ansiLogo());
+write(`${THEME}/amethystora.script`, bootScript());
 write("usr/share/amethystora/dms/amethystora-theme.json", JSON.stringify(dmsTheme, null, 2) + "\n");
 renderPngs();

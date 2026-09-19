@@ -43,10 +43,17 @@ test -f /usr/lib64/hyprland/libhyprbars.so
 test -f /usr/share/amethystora/hypr/hyprbars.lua
 rpm -q hyprland-devel >/dev/null && false
 
-# Animated boot splash
+# Animated boot splash: the script theme, the images it loads, and both in the initramfs, which shows the
+# splash up to and including the LUKS password prompt
 [[ "$(plymouth-set-default-theme)" == "amethystora" ]]
-test -f /usr/share/plymouth/themes/amethystora/throbber-0001.png
-test -f /usr/share/plymouth/themes/amethystora/entry.png
+rpm -q plymouth-plugin-script >/dev/null
+test -f /usr/share/plymouth/themes/amethystora/amethystora.script
+for image in nebula halo dust gem light shard-0 wordmark credit bullet entry lock; do
+    test -f "/usr/share/plymouth/themes/amethystora/${image}.png"
+done
+INITRAMFS_FILES="$(lsinitrd /lib/modules/*/initramfs.img)"
+grep -q "plymouth/script.so" <<<"${INITRAMFS_FILES}"
+grep -q "themes/amethystora/amethystora.script" <<<"${INITRAMFS_FILES}"
 # Boot and login text in Inter: fc-match falls back to another family when it is missing
 [[ "$(fc-match -f '%{family[0]}' 'Inter')" == "Inter" ]]
 grep -q "^Font=Inter " /usr/share/plymouth/themes/amethystora/amethystora.plymouth
@@ -56,6 +63,7 @@ test -f /usr/share/backgrounds/amethystora/amethystora-d.png
 jq -e '.wallpaperPath == "/usr/share/backgrounds/amethystora/amethystora-d.png"' /usr/share/amethystora/greeter/session.json
 jq -e '.fontFamily == "Inter"' /usr/share/amethystora/greeter/settings.json
 grep -q "^C /var/cache/dms-greeter/session.json " /usr/lib/tmpfiles.d/amethystora-greeter.conf
+grep -q "^Z /var/cache/dms-greeter - greeter greeter -$" /usr/lib/tmpfiles.d/amethystora-greeter.conf
 
 # ClamAV daemon listens on its socket and keeps retrying until freshclam has fetched the signatures
 grep -q "^LocalSocket /run/clamd.scan/clamd.sock$" /etc/clamd.d/scan.conf

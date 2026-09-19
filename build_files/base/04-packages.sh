@@ -69,6 +69,8 @@ FEDORA_PACKAGES=(
     openssh-askpass
     pam-u2f
     pamu2fcfg
+    plymouth-plugin-label
+    plymouth-plugin-script
     powerstat
     powertop
     printer-driver-brlaser

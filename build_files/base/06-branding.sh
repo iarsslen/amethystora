@@ -42,9 +42,10 @@ if upstream_has "${FASTFETCH_CONFIG}"; then
 fi
 rm -f /usr/share/ublue-os/fastfetch-user-count
 
-# Boot splash: the animated Amethystora theme borrows the password prompt images from Fedora's spinner theme.
-# 19-initramfs.sh bakes the selected theme into the initramfs.
-for image in bullet capslock entry keyboard keymap-render lock; do
+# Boot splash: the Amethystora theme runs on the script plugin (amethystora.script, from branding/generate.mjs)
+# and borrows the password prompt images from Fedora's spinner theme. Its Font= lines are not read by the
+# plugin but make dracut put Inter in the initramfs. 19-initramfs.sh bakes the selected theme into the initramfs.
+for image in bullet entry lock; do
     if upstream_has "/usr/share/plymouth/themes/spinner/${image}.png"; then
         cp "/usr/share/plymouth/themes/spinner/${image}.png" /usr/share/plymouth/themes/amethystora/
     fi
