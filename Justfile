@@ -248,6 +248,9 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
     if [[ -n "${AKMODS_PRIVKEY:-}" ]]; then
         echo "Adding kernel module signing key as build secret"
         PODMAN_BUILD_ARGS+=(--secret "id=AKMODS_PRIVKEY,env=AKMODS_PRIVKEY")
+    elif [[ "{{ ghcr }}" == "1" ]]; then
+        echo "::error::AKMODS_PRIVKEY secret missing: published images need it, or evdi (DisplayLink) will not load with Secure Boot"
+        exit 1
     else
         echo "No kernel module signing key found - evdi will not load with Secure Boot"
     fi
