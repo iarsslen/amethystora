@@ -116,7 +116,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AKMODS_PRIVKEY: ${{ secrets.AKMODS_PRIVKEY }}
         run: |
-          sudo -E $(command -v just) repo_organization="${{ github.repository_owner }}" \
+          # The runner's sudo ignores -E: hand the build its secrets explicitly
+          sudo env GITHUB_TOKEN="${GITHUB_TOKEN}" AKMODS_PRIVKEY="${AKMODS_PRIVKEY}" \
+               $(command -v just) repo_organization="${{ github.repository_owner }}" \
                     build-ghcr "${{ matrix.base_name }}" \
                                "${{ matrix.stream_name }}" \
                                "${{ matrix.image_flavor }}" \
