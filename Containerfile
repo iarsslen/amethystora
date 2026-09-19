@@ -21,6 +21,8 @@ COPY --from=brew /system_files /system_files/shared
 COPY /system_files /system_files
 # Licence and upstream attribution ship in the image (Apache-2.0)
 COPY LICENSE NOTICE /system_files/shared/usr/share/licenses/amethystora/
+# Public half of the key CI signs the images with: updates are only accepted with a valid signature
+COPY cosign.pub /system_files/shared/etc/pki/containers/amethystora.pub
 
 ## amethystora image section
 FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION}@${BASE_IMAGE_SHA} AS base

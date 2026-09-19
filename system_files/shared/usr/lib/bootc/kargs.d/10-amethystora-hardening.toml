@@ -1,0 +1,7 @@
+# Kernel self-protection, applied with the next image update (bootc reads kargs.d on deploy):
+#   slab_nomerge                keep slab caches apart, so a heap overflow cannot reach objects of other types
+#   init_on_alloc=1             zero memory as it is allocated: no leaks of old data through uninitialised memory
+#   page_alloc.shuffle=1        randomise the page allocator's free lists
+#   randomize_kstack_offset=on  a new kernel stack offset on every system call
+#   vsyscall=none               drop the legacy vsyscall page at a fixed address (only pre-2011 glibc binaries use it)
+kargs = ["slab_nomerge", "init_on_alloc=1", "page_alloc.shuffle=1", "randomize_kstack_offset=on", "vsyscall=none"]
