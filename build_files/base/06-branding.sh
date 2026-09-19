@@ -43,11 +43,19 @@ fi
 rm -f /usr/share/ublue-os/fastfetch-user-count
 
 # Boot menu: GRUB reads its own bitmap font format, so the Inter that theme.txt asks for is built
-# here from the TTF the image already ships for the boot splash. The name grub2-mkfont gives the
-# font is "<family> <style> <size>", which is the "Inter Regular 16" theme.txt refers to.
+# here from the TTF the image already ships for the boot splash. GRUB looks the font up by the name
+# stored in the file, which grub2-mkfont always writes as "<family> <style> <size>" — for a regular
+# face, "<family> Regular 16". The family is given here instead of being taken from the TTF, whose
+# own family name is "Inter 18pt" in some Inter releases and would stop matching theme.txt.
 GRUB_THEME_DIR=/usr/share/grub/themes/amethystora
-grub2-mkfont --size=16 --output="${GRUB_THEME_DIR}/font16.pf2" /usr/share/fonts/rsms-inter-fonts/Inter-Regular.ttf
+GRUB_FONT_NAME="Inter Regular 16"
+grub2-mkfont --size=16 --name="Inter" \
+    --output="${GRUB_THEME_DIR}/font16.pf2" /usr/share/fonts/rsms-inter-fonts/Inter-Regular.ttf
 test -s "${GRUB_THEME_DIR}/font16.pf2"
+# The name in the font file and the name theme.txt asks for have to be the same string, or the menu
+# silently falls back to GRUB's own font
+grep -aq "${GRUB_FONT_NAME}" "${GRUB_THEME_DIR}/font16.pf2"
+grep -qE "^[[:space:]]*item_font = \"${GRUB_FONT_NAME}\"$" "${GRUB_THEME_DIR}/theme.txt"
 
 # Boot splash: the Amethystora theme runs on the script plugin (amethystora.script and its images, from
 # branding/generate.mjs). Its Font= lines are not read by the plugin but make dracut put Inter in the initramfs.

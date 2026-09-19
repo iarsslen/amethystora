@@ -54,7 +54,8 @@ done
 # The font theme.txt asks for, built from Inter by 06-branding.sh: without it the menu falls back
 # to GRUB's own and the layout no longer lines up
 test -s /usr/share/grub/themes/amethystora/font16.pf2
-grep -q '^item_font = "Inter Regular 16"$' /usr/share/grub/themes/amethystora/theme.txt
+grep -aq "Inter Regular 16" /usr/share/grub/themes/amethystora/font16.pf2
+grep -qE '^[[:space:]]*item_font = "Inter Regular 16"$' /usr/share/grub/themes/amethystora/theme.txt
 grep -q '^desktop-image: "background.png"$' /usr/share/grub/themes/amethystora/theme.txt
 # The theme is off until someone asks for it, so nothing here may write to /boot at build time
 test -e /boot/grub2/themes/amethystora && false
