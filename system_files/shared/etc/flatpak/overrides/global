@@ -18,6 +18,16 @@ sockets=!x11;!fallback-x11;
 # is every key pressed on the machine, sandbox or not. Applications asking for --device=dri keep
 # their GPU access, which is what the ones that need hardware actually ask for.
 devices=!all;!input;
+# Granted rather than taken away: the desktop theme. A Flatpak is told the theme's name by the
+# settings portal but cannot see the theme itself - /usr inside the sandbox belongs to the runtime,
+# and Flatpak refuses to bind anything under the host's /usr over it - so without these every
+# application falls back to the runtime's stock Adwaita and wears GNOME's window buttons next to the
+# ones the theme draws in Files. ~/.themes holds the mirror of the active theme written by
+# /usr/share/amethystora/theme-set.hooks.d/20-gtk-apps.sh, and is the one directory GTK searches by
+# name on both sides of the sandbox; ~/.config/gtk-4.0 holds the user stylesheet the same hook
+# writes, which is the only way into the libadwaita applications. Read-only, so nothing in a sandbox
+# can rewrite the theme every other application then loads.
+filesystems=~/.themes:ro;xdg-config/gtk-4.0:ro;
 
 [Session Bus Policy]
 # Talking to the Flatpak service from inside the sandbox is a full escape: `flatpak-spawn --host`

@@ -197,6 +197,13 @@ done < <(sed -n "s/^pipeline='\([^']*\)'$/\1/p" "${BMS_DCONF}" | sort -u)
 test -f "${BMS}/effects/refraction.glsl"
 grep -q "'refraction'" "${BMS_DCONF}"
 grep -q "^static-blur=true$" "${BMS_DCONF}"
+# The whole look is off if the extension is not enabled, and nothing else in the image would say so:
+# every key above would be a perfectly valid default for an extension nobody is running
+grep -q "'blur-my-shell@aunetx'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
+# Application windows are on the glass too, every one of them rather than a named few
+grep -q "^enable-all=true$" "${BMS_DCONF}"
+[[ "$(sed -n '/^\[org\/gnome\/shell\/extensions\/blur-my-shell\/applications\]$/,/^$/p' "${BMS_DCONF}" |
+    grep -c '^blur=true$')" == 1 ]]
 
 # Six fixed workspaces on Super+N, which moves the dash to Alt+N
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.preferences num-workspaces)" == "6" ]]
@@ -267,10 +274,15 @@ for theme in amethystora amethystora-light; do
     grep -qx "Amethystora" "/usr/share/amethystora/themes/${theme}/gtk.theme"
 done
 [[ -z "$(find /usr/share/amethystora/themes -name gtk.theme ! -path '*/amethystora/*' ! -path '*/amethystora-light/*')" ]]
-# libadwaita ignores gtk-theme, so Files and the rest are reached through the user stylesheet the
-# theme-set hook writes; without the hook the theme stops at the GTK3 applications
-test -x /usr/share/amethystora/theme-set.hooks.d/20-libadwaita.sh
-grep -q "gtk-4.0" /usr/share/amethystora/theme-set.hooks.d/20-libadwaita.sh
+# libadwaita ignores gtk-theme, and a Flatpak cannot see /usr/share/themes at all, so both are
+# reached by the theme-set hook: it mirrors the theme into ~/.themes and writes the user stylesheet
+# that imports from the mirror. Without it the theme stops at the native GTK3 applications.
+THEME_HOOK=/usr/share/amethystora/theme-set.hooks.d/20-gtk-apps.sh
+test -x "${THEME_HOOK}"
+grep -q 'MIRROR_ROOT="${HOME}/.themes"' "${THEME_HOOK}"
+grep -q "gtk-4.0" "${THEME_HOOK}"
+# The mirror and the stylesheet are only any use to a Flatpak if the sandbox is let at them
+grep -q "^filesystems=~/\.themes:ro;xdg-config/gtk-4\.0:ro;$" /etc/flatpak/overrides/global
 # Window buttons on the right, where the theme draws its three lights
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.preferences button-layout)" == "':minimize,maximize,close'" ]]
 

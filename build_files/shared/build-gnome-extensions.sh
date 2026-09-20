@@ -7,6 +7,19 @@ echo "::group:: ===$(basename "$0")==="
 # Install tooling
 dnf5 -y install glib2-devel meson sassc cmake dbus-devel
 
+# Extensions are enabled on top of whatever the base image already enables, rather than by restating
+# that list here, which would go stale the next time the base image changes it. Adding one that is
+# already in the list would enable it twice, so this only appends when it is absent - and fails if
+# there is no list to append to, rather than leaving an extension built into the image but off.
+BASE_OVERRIDE=/usr/share/glib-2.0/schemas/zz0-bluefin-modifications.gschema.override
+
+enable_extension() {
+    local uuid="$1"
+    grep -q "'${uuid}'" "${BASE_OVERRIDE}" ||
+        sed -i "/^enabled-extensions/ s/\]/, '${uuid}'&/" "${BASE_OVERRIDE}"
+    grep -q "'${uuid}'" "${BASE_OVERRIDE}"
+}
+
 # Build Extensions
 
 # AppIndicator Support
@@ -20,6 +33,11 @@ make -C /usr/share/gnome-shell/extensions/blur-my-shell@aunetx
 unzip -o /usr/share/gnome-shell/extensions/blur-my-shell@aunetx/build/blur-my-shell@aunetx.shell-extension.zip -d /usr/share/gnome-shell/extensions/blur-my-shell@aunetx
 glib-compile-schemas --strict /usr/share/gnome-shell/extensions/blur-my-shell@aunetx/schemas
 rm -rf /usr/share/gnome-shell/extensions/blur-my-shell@aunetx/build
+
+# Blur my Shell carries the whole Tahoe glass look (the defaults are in
+# /etc/dconf/db/distro.d/05-blur-my-shell-extension), so it is on out of the box rather than
+# something to go and find in Extension Manager
+enable_extension "blur-my-shell@aunetx"
 
 # Caffeine
 # The Caffeine extension is built/packaged into a temporary subdirectory (tmp/caffeine/caffeine@patapon.info).
@@ -61,8 +79,6 @@ glib-compile-schemas --strict /usr/share/gnome-shell/extensions/search-light@ice
 # To update one: read the new upload id for this GNOME out of
 # https://extensions.gnome.org/extension-info/?uuid=<uuid> and change its version and tag below.
 
-BASE_OVERRIDE=/usr/share/glib-2.0/schemas/zz0-bluefin-modifications.gschema.override
-
 install_ego_extension() {
     local uuid="$1" version="$2" version_tag="$3"
     local directory="/usr/share/gnome-shell/extensions/${uuid}"
@@ -92,10 +108,7 @@ install_ego_extension() {
     install -Dpm0644 -t /usr/share/glib-2.0/schemas "${directory}"/schemas/*.gschema.xml
     glib-compile-schemas --strict "${directory}/schemas"
 
-    # Enable it on top of whatever the base image enables, instead of restating that list and
-    # going stale the next time the base image changes it
-    sed -i "/^enabled-extensions/ s/\]/, '${uuid}'&/" "${BASE_OVERRIDE}"
-    grep -q "'${uuid}'" "${BASE_OVERRIDE}"
+    enable_extension "${uuid}"
 }
 
 GNOME_MAJOR="$(gnome-shell --version | grep -oE '[0-9]+' | head -n1)"
