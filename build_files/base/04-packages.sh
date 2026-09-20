@@ -34,6 +34,9 @@ FEDORA_PACKAGES=(
     ddcutil
     dotnet-sdk-10.0
     evtest
+    fail2ban-firewalld
+    fail2ban-selinux
+    fail2ban-server
     fastfetch
     firewall-config
     fish
@@ -64,6 +67,7 @@ FEDORA_PACKAGES=(
     libratbag-ratbagd
     libxcrypt-compat
     lm_sensors
+    lynis
     make
     mesa-libGLU
     mozc

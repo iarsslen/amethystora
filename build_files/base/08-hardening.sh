@@ -58,6 +58,15 @@ fi
 firewall-offline-cmd --set-default-zone=amethystora
 firewall-offline-cmd --zone=trusted --add-interface=tailscale0
 
+# Repeated failed logins from one address: fail2ban watches the journal and has firewalld reject that
+# address for a while (/etc/fail2ban/jail.d/10-amethystora.conf, enabled in 17-cleanup.sh).
+# Its firewalld action bans in the zone named in that file, and that has to be the zone set above:
+# a rich rule in a zone no interface uses never matches anything, so the ban would do nothing at all.
+test -f /etc/fail2ban/action.d/firewallcmd-rich-rules.conf
+F2B_ZONE="$(sed -n 's/^banaction[a-z_]* = firewallcmd-rich-rules\[.*zone=\([^]]*\)\]$/\1/p' \
+    /etc/fail2ban/jail.d/10-amethystora.conf | sort -u)"
+[[ "${F2B_ZONE}" == "$(firewall-offline-cmd --get-default-zone)" ]]
+
 # Lock an account for 10 minutes after 10 wrong passwords in a row, against guessing at the login and lock
 # screens, sudo and polkit prompts. Settings in /etc/security/faillock.conf.
 authselect enable-feature with-faillock

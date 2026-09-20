@@ -1,0 +1,23 @@
+# Lynis profile for Amethystora. Lynis reads /etc/lynis/default.prf, which belongs to the package and
+# should not be edited, and then this file, so only the differences from the default belong here.
+#
+# Audit the machine with: ujust security-audit    (or: sudo lynis audit system)
+
+# A desktop, not a server: Lynis then expects a graphical session and a user sitting at the machine,
+# and stops suggesting server hardening that does not apply here.
+machine-role=workstation
+
+# Say what to do about each finding, not only that there is one.
+show-report-solution=yes
+
+# Run the whole audit instead of waiting for a keypress between sections.
+quick=yes
+
+# The image is replaced as a whole by uupd, and its repositories are disabled on the installed system
+# (build_files/base/17-cleanup.sh), so there is no package list to refresh and no per-package upgrade
+# to test for. Both tests would only wait on a package manager that cannot do anything here.
+refresh-repositories=no
+skip-upgrade-test=yes
+
+# Leave a test out of every audit by naming its control here, one per line, for example:
+#skip-test=SSH-7408

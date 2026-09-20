@@ -12,6 +12,8 @@ systemctl enable brew-setup.service
 systemctl enable clamav-freshclam.service
 systemctl enable clamd@scan.service
 systemctl enable dconf-update.service
+# Blocks addresses that fail to log in too often (08-hardening.sh, /etc/fail2ban/jail.d/10-amethystora.conf)
+systemctl enable fail2ban.service
 systemctl enable amethystora-flatpak-remotes.service
 systemctl enable input-remapper.service
 systemctl enable rpm-ostree-countme.service

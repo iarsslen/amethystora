@@ -26,8 +26,14 @@ test -f /usr/share/flatpak/preinstall.d/clamui.preinstall
 # Brave replaces Firefox; it lives under /usr/lib and is linked into /var/opt at boot
 test -x /usr/lib/brave.com/brave/brave
 test -f /usr/lib/tmpfiles.d/brave-browser.conf
+test -f /usr/share/applications/brave-browser.desktop
 grep -q "^x-scheme-handler/https=brave-browser.desktop" /etc/xdg/mimeapps.list
 grep -q "org.mozilla.firefox" /usr/share/amethystora/homebrew/system-flatpaks.Brewfile && false
+rpm -q firefox >/dev/null && false
+# Brave is pinned in the dash, where Firefox was
+FAVORITES="$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell favorite-apps)"
+grep -q "'brave-browser.desktop'" <<<"${FAVORITES}"
+grep -qi "firefox" <<<"${FAVORITES}" && false
 
 # Animated boot splash: the script theme, the images it loads, and both in the initramfs, which shows the
 # splash up to and including the LUKS password prompt
@@ -64,6 +70,41 @@ test -e /boot/grub2/themes/amethystora && false
 test -f /usr/share/backgrounds/amethystora/amethystora-l.png
 test -f /usr/share/backgrounds/amethystora/amethystora-d.png
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.background picture-uri-dark)" == "'file:///usr/share/backgrounds/amethystora/amethystora-d.png'" ]]
+
+# Logos (06-branding.sh). The upstream layers overwrite Fedora's logo files with their own pictures,
+# under names that say nothing about Bluefin or Universal Blue for 07-debrand.sh to catch, so each
+# one is checked here against the Amethystora artwork it has to be. These are what the login screen,
+# the Settings About page and Fedora's fallback splash draw.
+FEDORA_NAMED_LOGOS=(
+    "/usr/share/pixmaps/fedora-gdm-logo.png:/usr/share/pixmaps/amethystora-wordmark-small.png"
+    "/usr/share/pixmaps/fedora-logo-small.png:/usr/share/pixmaps/amethystora-wordmark-small.png"
+    "/usr/share/pixmaps/fedora-logo.png:/usr/share/pixmaps/amethystora-wordmark.png"
+    "/usr/share/pixmaps/fedora_logo_med.png:/usr/share/pixmaps/amethystora-wordmark-medium.png"
+    "/usr/share/pixmaps/fedora_whitelogo_med.png:/usr/share/pixmaps/amethystora-wordmark-white.png"
+    "/usr/share/pixmaps/fedora-logo-icon.png:/usr/share/pixmaps/amethystora-logo-512.png"
+    "/usr/share/pixmaps/fedora-logo-sprite.png:/usr/share/pixmaps/amethystora-logo-400.png"
+    "/usr/share/pixmaps/system-logo-white.png:/usr/share/pixmaps/amethystora-logo-white.png"
+    "/usr/share/icons/hicolor/scalable/places/fedora-logo-sprite.svg:/usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg"
+    "/usr/share/icons/hicolor/scalable/places/fedora_white_logo.svg:/usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg"
+    "/usr/share/icons/hicolor/scalable/places/fedora_whitelogo.svg:/usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg"
+    "/usr/share/plymouth/themes/spinner/silverblue-watermark.png:/usr/share/plymouth/themes/spinner/watermark.png"
+)
+for entry in "${FEDORA_NAMED_LOGOS[@]}"; do
+    cmp -s "${entry%%:*}" "${entry#*:}"
+done
+# GDM's own setting names the Amethystora file, for the case where it is read instead of the path above
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.login-screen logo)" == "'/usr/share/pixmaps/amethystora-wordmark-small.png'" ]]
+
+# Top bar: the Logo Menu button draws entry 30 of its symbolic list, whose artwork 06-branding.sh
+# replaces with the Amethystora logo. The file keeps the upstream name until 07-debrand.sh renames it.
+LOGOMENU=/usr/share/gnome-shell/extensions/logomenu@aryan_k
+cmp -s "${LOGOMENU}/Resources/amethystora-logo-symbolic.svg" \
+    /usr/share/icons/hicolor/scalable/actions/amethystora-logo-symbolic.svg
+cmp -s "${LOGOMENU}/Resources/amethystora-logo.svg" \
+    /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg
+grep -q "^menu-button-icon-image=30$" /etc/dconf/db/distro.d/04-amethystora-logomenu-extension
+[[ "$(sed -n '/SymbolicDistroIcons/,/^\];/p' "${LOGOMENU}/constants.js" |
+    grep -oE "/Resources/[^']+" | sed -n '30p')" == "/Resources/amethystora-logo-symbolic.svg" ]]
 
 # GNOME Shell extensions built from the git submodules (build-gnome-extensions.sh)
 for extension in appindicatorsupport@rgcjonas.gmail.com blur-my-shell@aunetx caffeine@patapon.info \
@@ -199,6 +240,20 @@ grep -q "^deny = 10$" /etc/security/faillock.conf
 grep -q "^PermitRootLogin no$" /etc/ssh/sshd_config.d/40-amethystora-hardening.conf
 grep -qE "^[[:space:]]*Include[[:space:]]+/etc/ssh/sshd_config\.d/\*\.conf" /etc/ssh/sshd_config
 
+# fail2ban: only the sshd jail is on, it reads the journal, and it bans through firewalld.
+# `fail2ban-client -d` is the dump Lynis (TOOL-5104) reads the jails from, so what it shows here is
+# what Lynis sees on the installed system. 08-hardening.sh checks the ban zone is the default zone.
+test -f /etc/fail2ban/jail.d/10-amethystora.conf
+F2B_DUMP="$(fail2ban-client -d)"
+grep -q "'sshd'" <<<"${F2B_DUMP}"
+grep -q "'systemd'" <<<"${F2B_DUMP}"
+grep -q "firewallcmd-rich-rules" <<<"${F2B_DUMP}"
+# Lynis audits the machine against the image's profile (ujust security-audit); it reads every
+# .prf in /etc/lynis, so the image's settings only apply while Lynis finds this one
+test -f /etc/lynis/default.prf
+grep -q "^machine-role=workstation$" /etc/lynis/custom.prf
+lynis show profiles | grep -q "/etc/lynis/custom.prf"
+
 # DisplayLink: evdi built for the image kernel, and no module signing key left behind by the build
 KERNEL_VERSION="$(rpm -q kernel-core --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')"
 modinfo "/usr/lib/modules/${KERNEL_VERSION}/extra/evdi/evdi.ko.xz" >/dev/null
@@ -221,10 +276,13 @@ IMPORTANT_PACKAGES=(
     displaylink
     distrobox
     dotnet-sdk-10.0
+    fail2ban-firewalld
+    fail2ban-server
     fish
     flatpak
     gdm
     gnome-shell
+    lynis
     mutter
     pam-u2f
     pamu2fcfg
@@ -272,6 +330,7 @@ fi
 IMPORTANT_UNITS=(
     clamav-freshclam.service
     clamd@scan.service
+    fail2ban.service
     gdm.service
     rpm-ostree-countme.timer
     tailscaled.service

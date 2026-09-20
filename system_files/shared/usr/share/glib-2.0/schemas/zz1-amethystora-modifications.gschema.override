@@ -14,6 +14,12 @@ secondary-color='2a0f4a'
 [org.gnome.desktop.screensaver]
 picture-uri='file:///usr/share/backgrounds/amethystora/amethystora-d.png'
 
+# The logo above the user list on the login screen. GDM reads it from a fixed path, which Fedora
+# fills with fedora-gdm-logo.png and the base image overwrites with Bluefin's; 06-branding.sh puts
+# the Amethystora artwork at that path too, so the greeter is right whichever of the two GDM reads.
+[org.gnome.login-screen]
+logo='/usr/share/pixmaps/amethystora-wordmark-small.png'
+
 [org.gnome.desktop.interface]
 accent-color='purple'
 # candy-icons, installed by build_files/base/10-icons.sh. amethystora-theme writes the same value
