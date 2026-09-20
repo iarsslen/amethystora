@@ -9,7 +9,7 @@ set -eoux pipefail
 # Fedora's candy-icon-theme package is not used: it hard-requires breeze-icon-theme, which nothing
 # else on a GNOME image wants, and it installs the theme as "Candy" rather than under its own name.
 #
-# Three changes are made to the upstream tree, all of them because the pack is written for Plasma:
+# Four changes are made to the upstream tree, the first three because the pack is written for Plasma:
 #
 #   - Inherits drops breeze-dark. Upstream looks there first for everything it does not draw
 #     itself, which on this image would mean a KDE glyph wherever candy-icons has a gap, instead
@@ -23,6 +23,9 @@ set -eoux pipefail
 #
 #   - the apps this image ships that upstream has no icon for are aliased to the nearest one it
 #     does have, so the dash does not mix two icon styles.
+#
+#   - where there is no near enough neighbour to alias to, the icon is drawn for this image in the
+#     pack's own style and installed from build_files/shared/candy-icons.
 
 CANDY_REPO="https://github.com/EliverLara/candy-icons"
 # master as of 2026-03-06; bump together with the alias targets below
@@ -50,8 +53,16 @@ find "${CANDY_DIR}"/{apps,devices,mimetypes,preferences,status} \
     -type l -name '*-symbolic.svg' -delete
 [[ -z "$(find "${CANDY_DIR}"/{apps,devices,mimetypes,preferences,status} -type l -name '*-symbolic.svg')" ]]
 
-# alias:icon that upstream ships. An alias whose icon upstream has since added is left alone, and a
-# target that has gone away fails the build rather than silently leaving the app without an icon.
+# Icons drawn for this image, for applications the pack has no artwork for and nothing near enough to
+# alias to. They go in before the aliases below, so the loop's check that a target exists covers these
+# too, and so an icon upstream adds later simply replaces the file of the same name.
+for icon in /ctx/build_files/shared/candy-icons/*.svg; do
+    install -Dpm0644 "${icon}" "${CANDY_DIR}/apps/scalable/$(basename "${icon}")"
+done
+
+# alias:icon, where the icon is one upstream ships or one installed just above. An alias whose icon
+# upstream has since added is left alone, and a target that has gone away fails the build rather
+# than silently leaving the app without an icon.
 CANDY_ALIASES=(
     # Ptyxis is the terminal here
     "org.gnome.Ptyxis:org.gnome.Terminal.svg"
@@ -84,6 +95,10 @@ CANDY_ALIASES=(
     "io.github.flattool.Ignition:preferences-system.svg"
     # Impression writes disk images to USB sticks
     "io.gitlab.adhami3310.Impression:usb-creator-gtk.svg"
+    # NordVPN's own artwork is a flat blue tile; nordvpn.svg above is the candy version of its mark.
+    # Which name a machine asks for depends on how NordVPN was installed, so both are answered:
+    # grep Icon= /usr/share/applications/nordvpn*.desktop
+    "nordvpn-gui:nordvpn.svg"
     # Input Remapper remaps keys and buttons
     "input-remapper:preferences-desktop-keyboard.svg"
     # The three launchers 06-branding.sh points at the Amethystora artwork. The branded icons stay

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+  NordVPN in the candy-icons style, installed into the theme by build_files/base/10-icons.sh.
+
+  candy-icons has no NordVPN icon of its own, and NordVPN's own artwork is a flat blue tile that
+  would sit among the gradients in the dash looking like nothing else there. The VPN icons the pack
+  does draw (mullvad-vpn, ivpn, protonvpn-gui) are all the same thing: the brand's silhouette, no
+  backplate, filled with one horizontal two-stop gradient in the brand's own hue pushed up in
+  saturation. This is that, for NordVPN.
+
+  The outline is NordVPN's mark taken unchanged from simple-icons (CC0-1.0), scaled from their
+  24-unit box to the 48-unit one the pack uses. The gradient runs across the bounding box, so it
+  does not depend on the scale above it. NordVPN is a trademark of Nord Security; this is only a
+  themed icon for an application installed separately, and the image does not ship NordVPN itself.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" style="isolation:isolate" viewBox="0 0 48 48" width="48pt" height="48pt">
+  <linearGradient id="_lgradient_nordvpn" x1="0" y1="0.5" x2="1" y2="0.5">
+    <stop offset="0%" stop-opacity="1" style="stop-color:rgb(77,213,255)"/>
+    <stop offset="100%" stop-opacity="1" style="stop-color:rgb(70,86,255)"/>
+  </linearGradient>
+  <g transform="scale(2)">
+    <path d="M2.2838 21.5414A11.9866 11.9866 0 010 14.4832C0 7.8418 5.3727 2.4586 12 2.4586c6.6279 0 12 5.3832 12 12.0246a11.9853 11.9853 0 01-2.2838 7.0582l-5.7636-9.3783-.5565.9419.5645 2.6186L12 8.9338l-2.45 4.1447.5707 2.6451-2.0764-3.5555-5.7605 9.3733z" fill="url(#_lgradient_nordvpn)"/>
+  </g>
+</svg>

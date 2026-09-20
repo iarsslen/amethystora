@@ -1,0 +1,36 @@
+# Left out of `ujust setup-backup` runs: things that are rebuilt on demand, are already backed up
+# somewhere else, or are large enough to make a daily backup stop finishing. restic reads this as a
+# list of patterns, one per line.
+#
+# To change it for your account, copy this file to ~/.config/amethystora/backup-excludes and edit
+# that; the backup prefers yours when it exists.
+
+# Caches, thumbnails and trash
+**/.cache
+**/Cache
+**/CachedData
+**/.thumbnails
+**/.local/share/Trash
+
+# Flatpak: the per-application caches, but not the application data next to them
+**/.var/app/*/cache
+
+# Container and virtual machine images, which are rebuilt from their definitions
+**/.local/share/containers
+**/.local/share/libvirt
+**/.vagrant.d/boxes
+
+# Dependency directories, restored by the tool that wrote them
+**/node_modules
+**/.venv
+**/venv
+**/target/debug
+**/.gradle/caches
+**/.cargo/registry
+**/.rustup/toolchains
+**/.npm/_cacache
+
+# Build output and mounted remote filesystems
+**/.steam
+**/.local/share/Steam
+**/.gvfs

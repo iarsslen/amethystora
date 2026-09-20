@@ -1,0 +1,50 @@
+#!/usr/bin/bash
+# The weekly ClamAV scan (amethystora-clamav-scan.timer). Scans the writable, user-controlled parts of
+# the system: home directories and the temporary directories. The image itself is not scanned, because
+# /usr is read only, is replaced whole by every update, and is only accepted with a valid signature.
+#
+# Nothing is ever deleted, quarantined or moved. A false positive that removes a user's file is worse
+# than the malware most of the time, so a finding is written to the journal and to the log file below,
+# where `ujust virus-scan` shows it.
+
+set -uo pipefail
+
+FINDINGS=/var/log/amethystora-clamav-findings.log
+
+# clamdscan hands the work to the running clamd, which already has the signatures in memory; scanning
+# with clamscan instead would load them again on every run. --fdpass opens each file here, as root, and
+# passes the descriptor, because clamd runs as its own user and cannot read into home directories.
+# Directories left out of the scan are set as ExcludePath in /etc/clamd.d/scan.conf.
+TARGETS=()
+for target in /var/home /var/roothome /tmp /var/tmp; do
+    [[ -d "${target}" ]] && TARGETS+=("${target}")
+done
+[[ ${#TARGETS[@]} -gt 0 ]] || exit 0
+
+OUTPUT="$(clamdscan --fdpass --multiscan --infected "${TARGETS[@]}" 2>&1)"
+STATUS=$?
+
+case "${STATUS}" in
+    0)
+        echo "Scan clean: ${TARGETS[*]}"
+        # Keep the last findings file from claiming the machine is still infected after a cleanup
+        rm -f "${FINDINGS}"
+        ;;
+    1)
+        # Findings. The journal entry is what shows up in `systemctl status`, the file is what
+        # `ujust virus-scan` reads, and both name the files rather than doing anything to them.
+        echo "Infected files found. Nothing was deleted or moved."
+        printf '%s\n' "${OUTPUT}"
+        {
+            echo "# ClamAV findings, $(date -Is). Nothing was deleted or moved."
+            printf '%s\n' "${OUTPUT}"
+        } >"${FINDINGS}"
+        chmod 0600 "${FINDINGS}"
+        exit 1
+        ;;
+    *)
+        echo "Scan could not run (clamdscan exit ${STATUS}):"
+        printf '%s\n' "${OUTPUT}"
+        exit "${STATUS}"
+        ;;
+esac

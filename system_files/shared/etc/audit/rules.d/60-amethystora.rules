@@ -1,0 +1,41 @@
+## Amethystora audit rules: what an attacker has to touch to survive a reboot or to gain root.
+##
+## The image itself needs no watching. /usr is read only and every update replaces it, so nothing
+## written there lasts. What does last is /etc, each user's home directory, and the running kernel,
+## and that is what these rules cover. Watches on the per-user paths are generated separately, into
+## 61-amethystora-home.rules by /usr/libexec/amethystora-audit-home-rules, because an audit watch
+## needs a path that already exists when the rules are loaded.
+##
+## Read what they caught with: sudo ausearch -k <key> -i
+## Keys used below: identity, privilege, persistence, hardening, modules, input-capture
+
+## Accounts, and who is allowed to become root
+-w /etc/passwd -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/group -p wa -k identity
+-w /etc/gshadow -p wa -k identity
+-w /etc/sudoers -p wa -k privilege
+-w /etc/sudoers.d/ -p wa -k privilege
+-w /etc/polkit-1/rules.d/ -p wa -k privilege
+-w /usr/share/polkit-1/rules.d/ -p wa -k privilege
+
+## Anything that starts itself, in the writable parts of the system
+-w /etc/systemd/system/ -p wa -k persistence
+-w /etc/xdg/autostart/ -p wa -k persistence
+-w /etc/profile.d/ -p wa -k persistence
+
+## The hardening itself. Whatever turns these off does it before doing anything else worth seeing.
+-w /etc/flatpak/overrides/ -p wa -k hardening
+-w /etc/brave/policies/ -p wa -k hardening
+-w /etc/containers/policy.json -p wa -k hardening
+-w /etc/security/faillock.conf -p wa -k hardening
+-w /etc/audit/ -p wa -k hardening
+
+## Loading a kernel module, by anyone who logged in. Modules the system loads for itself during boot
+## are not attributable to a login (auid is unset) and would otherwise fill the log.
+-a always,exit -F arch=b64 -S init_module,finit_module,delete_module -F auid>=1000 -F auid!=unset -k modules
+
+## Opening an input device: the one system call a software keylogger cannot avoid making. GNOME does
+## not appear here, because logind opens input devices on the session's behalf and passes the file
+## descriptors in, as root and without a login id. A program the user runs does appear.
+-a always,exit -F arch=b64 -S openat -F dir=/dev/input -F success=1 -F auid>=1000 -F auid!=unset -k input-capture
