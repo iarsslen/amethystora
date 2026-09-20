@@ -31,12 +31,13 @@ settings-version=2
 # user who switches a component back to them gets what the extension ships. The four amethystora
 # ones are the material:
 #
-#  - glass      the lens, for popup surfaces and the screenshot UI. The blur is the backdrop; the
-#               refraction effect ("Liquid Glass" in the preferences) adds the edge bend, the
-#               fresnel rim glare, the milky tint and the inner shadow. Its corner_radius is 16,
-#               the smallest radius any popup surface uses, and the trailing corner effect does the
-#               final cut -- the popup component overrides *that* radius per surface, so a menu is
-#               cut at 16 and the quick settings at 28 while the lens stays inside either shape.
+#  - glass      the lens, for the popup surfaces, the screenshot UI and the application windows. The
+#               blur is the backdrop; the refraction effect ("Liquid Glass" in the preferences) adds
+#               the edge bend, the fresnel rim glare, the milky tint and the inner shadow. Its
+#               corner_radius is 16, the smallest radius any popup surface uses, and the trailing
+#               corner effect does the final cut -- the popup and applications components override
+#               *that* radius per surface, so a menu is cut at 16 and the quick settings at 28 while
+#               the lens stays inside either shape.
 #  - dock       the same material at a pill radius, because the dash is not overridden per surface.
 #  - menu-bar   blur only, no lens and no rounding: Tahoe's menu bar is a flat sheet spanning the
 #               screen, and a bezel on a 32px-tall bar is clamped to half its height and turns the
@@ -111,6 +112,46 @@ notification-corner-radius=20
 dialog-corner-radius=20
 osd-corner-radius=26
 osk-corner-radius=20
+
+#-------------- APPLICATION WINDOWS --------------#
+# The windows themselves on the glass, which is what Tahoe does to the whole desktop rather than
+# only to the shell's own surfaces.
+#
+# enable-all turns the component's list from a whitelist into a blacklist, so this is every
+# application rather than a named few; the blacklist the extension ships (Plank, the desktop icons
+# window, Conky) still applies, and a window that misbehaves is taken out there.
+#
+# static-blur is the same choice the rest of this file makes, and here it also decides what is
+# *behind* a window: static blurs the wallpaper, so a window shows the desktop through it and
+# nothing else, where dynamic would blur whatever actually lies underneath - every window below it,
+# live, every frame. The desktop is what macOS shows through a window, and it is the cheap one.
+#
+# opacity is the window's own content drawn over that blur, and dynamic-opacity takes it back to
+# fully opaque for whichever window has focus. So the window being read is crisp and the stack
+# behind it is glass; without it, translucent text over a wallpaper is the whole complaint about
+# this effect.
+#
+# unblur-when-fullscreen because a fullscreen window covers the wallpaper anyway: the blur under it
+# is a shader pass for a picture nobody can see, in video and games, where it costs the most.
+#
+# The corner radius is the glass pipeline's own, and corner-when-maximized leaves a maximized or
+# tiled window square, where rounding it would cut a notch out of the screen edge and the panel.
+#
+# sigma and brightness are the fallback for static blur being turned off, as in the popup section.
+
+[org/gnome/shell/extensions/blur-my-shell/applications]
+blur=true
+enable-all=true
+static-blur=true
+pipeline='pipeline_amethystora_glass'
+opacity=215
+dynamic-opacity=true
+unblur-when-fullscreen=true
+blur-on-overview=false
+corner-radius=16
+corner-when-maximized=false
+sigma=24
+brightness=1.0
 
 #-------------- OVERVIEW, LOCK SCREEN, SCREENSHOT --------------#
 # The overview and the lock screen are the two places macOS pushes the wallpaper far back rather
