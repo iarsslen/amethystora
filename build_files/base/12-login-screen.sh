@@ -25,10 +25,11 @@ WORK=/tmp/shell-theme
 test -s "${BACKGROUND}"
 test -s "${GRESOURCE}"
 
-# glib-compile-resources comes from glib2-devel, which build-gnome-extensions.sh takes back out
-# when it has finished with it. gresource itself is in glib2 and is always here.
+# glib-compile-resources and gresource both come from glib2-devel, which build-gnome-extensions.sh
+# takes back out when it has finished with it. Neither is in glib2 itself, so both have to be
+# brought back before the bundle can be read or written.
 GLIB_DEVEL_ADDED=false
-if ! command -v glib-compile-resources >/dev/null; then
+if ! command -v glib-compile-resources >/dev/null || ! command -v gresource >/dev/null; then
     dnf5 -y install glib2-devel
     GLIB_DEVEL_ADDED=true
 fi
@@ -88,8 +89,10 @@ gresource list "${GRESOURCE}" | grep -qx "${PREFIX}/amethystora-login.png"
 for resource in "${RESOURCES[@]}"; do
     gresource list "${GRESOURCE}" | grep -qx "${resource}"
 done
-gresource extract "${GRESOURCE}" "${PREFIX}/gnome-shell-dark.css" | grep -q "amethystora-login.png"
-gresource extract "${GRESOURCE}" "${PREFIX}/gnome-shell-light.css" | grep -q "amethystora-login.png"
+for variant in dark light; do
+    gresource extract "${GRESOURCE}" "${PREFIX}/gnome-shell-${variant}.css" |
+        grep -q 'background-image: url("amethystora-login.png")'
+done
 
 rm -rf "${WORK}"
 if [[ "${GLIB_DEVEL_ADDED}" == true ]]; then

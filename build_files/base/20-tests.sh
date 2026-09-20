@@ -74,18 +74,12 @@ test -f /usr/share/backgrounds/amethystora/amethystora-d.png
 # Login screen background (12-login-screen.sh): the sky the boot splash ends on, blurred and with
 # no gem in it. GNOME reads the login background from the shell's own stylesheet and nowhere else,
 # so both the picture and the rule naming it live inside the theme's gresource.
+#
+# The bundle itself is checked in 12-login-screen.sh, at the point it is rebuilt, and not here:
+# gresource comes from glib2-devel, which that script takes back out of the image when it is done,
+# so reading the bundle at this point would mean installing a toolchain again to re-check something
+# nothing since has touched.
 test -s /usr/share/backgrounds/amethystora/amethystora-login.png
-SHELL_THEME=/usr/share/gnome-shell/gnome-shell-theme.gresource
-SHELL_THEME_PREFIX=/org/gnome/shell/theme
-gresource list "${SHELL_THEME}" | grep -qx "${SHELL_THEME_PREFIX}/amethystora-login.png"
-for variant in dark light; do
-    gresource extract "${SHELL_THEME}" "${SHELL_THEME_PREFIX}/gnome-shell-${variant}.css" |
-        grep -q 'background-image: url("amethystora-login.png")'
-done
-# Rebuilding the bundle must not have dropped what it already held
-for resource in gnome-shell-high-contrast.css gnome-shell-start.svg; do
-    gresource list "${SHELL_THEME}" | grep -qx "${SHELL_THEME_PREFIX}/${resource}"
-done
 
 # Logos (06-branding.sh). The upstream layers overwrite Fedora's logo files with their own pictures,
 # under names that say nothing about Bluefin or Universal Blue for 07-debrand.sh to catch, so each
