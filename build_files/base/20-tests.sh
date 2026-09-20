@@ -130,6 +130,28 @@ for theme in /usr/share/amethystora/themes/*/; do
     fi
 done
 
+# Icon theme (10-icons.sh): candy-icons, installed from upstream rather than from Fedora's
+# candy-icon-theme, which would pull breeze-icon-theme onto a GNOME image
+CANDY_DIR=/usr/share/icons/candy-icons
+test -f "${CANDY_DIR}/index.theme"
+test -f /usr/share/licenses/candy-icons/LICENSE
+rpm -q breeze-icon-theme >/dev/null && false
+# Gaps fall through to Adwaita, not to Plasma's Breeze
+grep -qx "Inherits=Adwaita,hicolor" "${CANDY_DIR}/index.theme"
+# No symbolic name outside places/ may point at the full-colour art: GTK cannot recolour it, so the
+# panel would carry gradient glyphs that ignore the colour amethystora-theme sets on the top bar
+[[ -z "$(find "${CANDY_DIR}"/{apps,devices,mimetypes,preferences,status} -type l -name '*-symbolic.svg')" ]]
+test -e "${CANDY_DIR}/places/16/folder-symbolic.svg"
+# The apps this image ships that upstream has no icon of its own for
+for icon in org.gnome.Ptyxis io.github.kolunmi.Bazaar io.github.linx_systems.ClamUI \
+    org.gnome.Papers com.mattjakeman.ExtensionManager; do
+    test -e "${CANDY_DIR}/apps/scalable/${icon}.svg"
+done
+# The theme is the default before an account applies a theme of its own, and the value
+# amethystora-theme falls back to afterwards; the two have to name the same theme
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface icon-theme)" == "'candy-icons'" ]]
+grep -q "^DEFAULT_ICON_THEME=candy-icons$" /usr/lib/amethystora/theme/lib.sh
+
 # ClamAV daemon listens on its socket and keeps retrying until freshclam has fetched the signatures
 grep -q "^LocalSocket /run/clamd.scan/clamd.sock$" /etc/clamd.d/scan.conf
 test -f /usr/lib/systemd/system/clamd@.service.d/10-amethystora.conf

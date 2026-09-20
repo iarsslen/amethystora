@@ -52,7 +52,7 @@ stage_theme() {
 }
 
 apply_gnome() {
-    local gtk_theme accent setting value
+    local gtk_theme accent icons cursor
 
     gtk_theme="$(theme_file gtk.theme)"
     if theme_is_light; then
@@ -68,12 +68,17 @@ apply_gnome() {
     [[ -n ${accent} ]] || accent="$(closest_gnome_accent "$(colors_get "${CURRENT_THEME_DIR}" accent)")"
     dconf_write_string /org/gnome/desktop/interface/accent-color "${accent}"
 
-    for setting in icon-theme:icons.theme cursor-theme:cursor.theme; do
-        value="$(theme_file "${setting#*:}")"
-        if [[ -n ${value} ]]; then
-            dconf_write_string "/org/gnome/desktop/interface/${setting%%:*}" "${value}"
-        fi
-    done
+    # The icon theme is written on every switch, like the GTK theme above: were it only written by
+    # the themes that name one, switching from such a theme to one that does not would leave its
+    # icons behind, with nothing in the CLI to get back.
+    icons="$(theme_file icons.theme)"
+    dconf_write_string /org/gnome/desktop/interface/icon-theme "${icons:-${DEFAULT_ICON_THEME}}"
+
+    # The cursor is the desktop's own unless a theme names one, so there is no default to restore
+    cursor="$(theme_file cursor.theme)"
+    if [[ -n ${cursor} ]]; then
+        dconf_write_string /org/gnome/desktop/interface/cursor-theme "${cursor}"
+    fi
     return 0
 }
 

@@ -16,6 +16,10 @@ picture-uri='file:///usr/share/backgrounds/amethystora/amethystora-d.png'
 
 [org.gnome.desktop.interface]
 accent-color='purple'
+# candy-icons, installed by build_files/base/10-icons.sh. amethystora-theme writes the same value
+# on every theme switch, from DEFAULT_ICON_THEME in /usr/lib/amethystora/theme/lib.sh; this is what
+# an account sees before it has applied a theme.
+icon-theme='candy-icons'
 
 [org.gnome.shell.extensions.blur-my-shell.popup]
 blur=false
