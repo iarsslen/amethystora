@@ -48,6 +48,9 @@ echo "::endgroup::"
 # The candy-icons icon theme
 /ctx/build_files/base/10-icons.sh
 
+# The Amethystora GTK theme, recoloured from Sweet by the same author as candy-icons
+/ctx/build_files/base/11-gtk-theme.sh
+
 # Rename the remaining Bluefin / Universal Blue files, commands and services to Amethystora
 /ctx/build_files/base/07-debrand.sh
 

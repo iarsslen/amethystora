@@ -1,3 +1,138 @@
-# Disable Blur my Shell popup blur by default system-wide
+# Blur my Shell, set up to read like the Liquid Glass material of macOS 26 "Tahoe": a strongly
+# blurred backdrop, a lens that bends and brightens the picture along each edge, and a clear menu
+# bar that only picks up a material when a window is underneath it.
+#
+# This is a dconf file and not a gschema override because Blur my Shell keeps its schema inside its
+# own extension directory (build-gnome-extensions.sh compiles it there), and an override only
+# applies to a schema installed in /usr/share/glib-2.0/schemas. A dconf system default applies
+# whatever the schema's path, and also wins over a gschema override, so every Blur my Shell default
+# belongs here and nowhere else.
+#
+# Two things about the extension decide the shape of this file:
+#
+#  - Effects only run through a *pipeline*, and a pipeline only runs under static blur. With
+#    "static-blur" off a component falls back to DummyPipeline, which can do a plain gaussian blur
+#    from the "sigma" and "brightness" keys and nothing else. So every component that should look
+#    like glass is set to static blur.
+#  - The panel and the dash pass no per-component overrides into their pipeline, so their corner
+#    rounding comes from the pipeline, not from their own "corner-radius" key. That is why the dock
+#    gets a pipeline of its own rather than sharing the popup one: a dock is a pill and a menu is
+#    not.
+
+[org/gnome/shell/extensions/blur-my-shell]
+# The migration in settings_updater.js runs for anything below version 2, and it writes the
+# dash-to-dock keys and the per-component sigma/brightness into the *user's* dconf, where they would
+# shadow the defaults below for good. Declaring the settings already current keeps it from running.
+settings-version=2
+
+# The pipelines. GKeyFile has no line continuations, so this is one line however long it gets.
+#
+# pipeline_default and pipeline_default_rounded are upstream's own two, restated verbatim so that a
+# user who switches a component back to them gets what the extension ships. The four amethystora
+# ones are the material:
+#
+#  - glass      the lens, for popup surfaces and the screenshot UI. The blur is the backdrop; the
+#               refraction effect ("Liquid Glass" in the preferences) adds the edge bend, the
+#               fresnel rim glare, the milky tint and the inner shadow. Its corner_radius is 16,
+#               the smallest radius any popup surface uses, and the trailing corner effect does the
+#               final cut -- the popup component overrides *that* radius per surface, so a menu is
+#               cut at 16 and the quick settings at 28 while the lens stays inside either shape.
+#  - dock       the same material at a pill radius, because the dash is not overridden per surface.
+#  - menu-bar   blur only, no lens and no rounding: Tahoe's menu bar is a flat sheet spanning the
+#               screen, and a bezel on a 32px-tall bar is clamped to half its height and turns the
+#               whole thing into distortion. Brightness is the one knob here -- the panel is set
+#               transparent below, so this is all that keeps white top bar text off a pale
+#               wallpaper. Raise it towards 1.0 for more glass, lower it for more contrast.
+#  - frost      the heavy, dimmed blur the overview and the lock screen want.
+pipelines={'pipeline_default': {'name': <'Default'>, 'effects': <[<{'type': <'native_static_gaussian_blur'>, 'id': <'effect_000000000000'>, 'params': <{'radius': <30>, 'brightness': <0.6>}>}>]>}, 'pipeline_default_rounded': {'name': <'Default rounded'>, 'effects': <[<{'type': <'native_static_gaussian_blur'>, 'id': <'effect_000000000001'>, 'params': <{'radius': <30>, 'brightness': <0.6>}>}>, <{'type': <'corner'>, 'id': <'effect_000000000002'>, 'params': <{'radius': <24>}>}>]>}, 'pipeline_amethystora_glass': {'name': <'Liquid glass'>, 'effects': <[<{'type': <'native_static_gaussian_blur'>, 'id': <'effect_amethystora_glass_0'>, 'params': <{'unscaled_radius': <48>, 'brightness': <1.0>}>}>, <{'type': <'refraction'>, 'id': <'effect_amethystora_glass_1'>, 'params': <{'strength': <0.38>, 'blur_radius': <10.0>, 'edge_size': <24.0>, 'rim_width': <4.0>, 'falloff': <2.4>, 'corner_radius': <16.0>, 'gloss': <0.45>, 'tint': <0.16>, 'tint_color': <(1.0, 1.0, 1.0, 1.0)>, 'backdrop_zoom': <1.0>, 'shadow': <0.22>, 'rgb_fringing': <0.06>, 'texture_repeat': <0>}>}>, <{'type': <'corner'>, 'id': <'effect_amethystora_glass_2'>, 'params': <{'radius': <16>}>}>]>}, 'pipeline_amethystora_dock': {'name': <'Liquid glass dock'>, 'effects': <[<{'type': <'native_static_gaussian_blur'>, 'id': <'effect_amethystora_dock_0'>, 'params': <{'unscaled_radius': <48>, 'brightness': <1.0>}>}>, <{'type': <'refraction'>, 'id': <'effect_amethystora_dock_1'>, 'params': <{'strength': <0.42>, 'blur_radius': <10.0>, 'edge_size': <26.0>, 'rim_width': <4.4>, 'falloff': <2.4>, 'corner_radius': <32.0>, 'gloss': <0.5>, 'tint': <0.16>, 'tint_color': <(1.0, 1.0, 1.0, 1.0)>, 'backdrop_zoom': <1.0>, 'shadow': <0.24>, 'rgb_fringing': <0.07>, 'texture_repeat': <0>}>}>, <{'type': <'corner'>, 'id': <'effect_amethystora_dock_2'>, 'params': <{'radius': <32>}>}>]>}, 'pipeline_amethystora_menu_bar': {'name': <'Menu bar'>, 'effects': <[<{'type': <'native_static_gaussian_blur'>, 'id': <'effect_amethystora_menu_bar_0'>, 'params': <{'unscaled_radius': <48>, 'brightness': <0.85>}>}>]>}, 'pipeline_amethystora_frost': {'name': <'Frosted'>, 'effects': <[<{'type': <'native_static_gaussian_blur'>, 'id': <'effect_amethystora_frost_0'>, 'params': <{'unscaled_radius': <64>, 'brightness': <0.55>}>}>]>}}
+
+#-------------- MENU BAR --------------#
+# Tahoe's menu bar carries no material of its own: the wallpaper runs straight through it, and it
+# only takes on a background once a window is pushed up against it. override-background-dynamically
+# in mode 1 is exactly that behaviour, so the bar is left transparent and the mode does the work.
+#
+# unblur-in-overview is on because the overview brings its own frosted backdrop, the way Mission
+# Control does.
+
+[org/gnome/shell/extensions/blur-my-shell/panel]
+blur=true
+pipeline='pipeline_amethystora_menu_bar'
+static-blur=true
+override-background=true
+style-panel=0
+override-background-dynamically=true
+override-background-dynamically-mode=1
+unblur-in-overview=true
+gradient-panel=false
+corner-radius=0
+
+#-------------- DOCK --------------#
+# The dash as a glass pill. The radius is set in pipeline_amethystora_dock, since the dash passes no
+# overrides into its pipeline; corner-radius here is only read on the fallback path, and is kept in
+# step so the two look the same if static blur is ever turned off.
+
+[org/gnome/shell/extensions/blur-my-shell/dash-to-dock]
+blur=true
+pipeline='pipeline_amethystora_dock'
+static-blur=true
+override-background=true
+style-dash-to-dock=0
+unblur-in-overview=false
+corner-radius=32
+
+#-------------- MENUS, QUICK SETTINGS, NOTIFICATIONS --------------#
+# The surfaces Tahoe puts the most glass on. Upstream ships popup blur off, and the image inherited
+# that from Bluefin at a time when the popup code drew artifacts; the popup component has since been
+# rewritten around per-surface actors and radii, which is what makes this worth turning on.
+#
+# static-blur is what puts these on the pipeline rather than on the plain sigma/brightness blur, so
+# it is the one key the whole glass look depends on.
+#
+# style-popup 3 is "automatic": the translucent surface Blur my Shell draws over the blur follows
+# the light or dark theme, the way the Tahoe material does. The radii are Tahoe's, which are larger
+# than GNOME's, and the quick settings and OSD are the roundest, as they are on macOS.
+#
+# sigma and brightness are the fallback for static-blur being turned off: DummyPipeline blurs at
+# 2 x sigma, so 24 here is the same 48 the pipeline uses.
+
 [org/gnome/shell/extensions/blur-my-shell/popup]
-blur=false
+blur=true
+static-blur=true
+pipeline='pipeline_amethystora_glass'
+override-background=true
+preserve-shell-theme=false
+style-popup=3
+sigma=24
+brightness=1.0
+corner-radius=16
+menu-corner-radius=16
+quick-settings-corner-radius=28
+notification-corner-radius=20
+dialog-corner-radius=20
+osd-corner-radius=26
+osk-corner-radius=20
+
+#-------------- OVERVIEW, LOCK SCREEN, SCREENSHOT --------------#
+# The overview and the lock screen are the two places macOS pushes the wallpaper far back rather
+# than floating something over it, so both get the frosted pipeline. The screenshot UI is a panel
+# on top of the screen, so it gets the glass.
+
+[org/gnome/shell/extensions/blur-my-shell/overview]
+blur=true
+pipeline='pipeline_amethystora_frost'
+
+[org/gnome/shell/extensions/blur-my-shell/lockscreen]
+blur=true
+pipeline='pipeline_amethystora_frost'
+
+[org/gnome/shell/extensions/blur-my-shell/screenshot]
+blur=true
+pipeline='pipeline_amethystora_glass'
+
+# The app folder dialog predates pipelines and still blurs from its own sigma and brightness, so it
+# is matched to the glass by hand. Style 1 is the transparent one.
+[org/gnome/shell/extensions/blur-my-shell/appfolder]
+blur=true
+sigma=24
+brightness=1.0
+style-dialogs=1

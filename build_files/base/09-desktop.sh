@@ -33,6 +33,20 @@ sed -i "/^favorite-apps *=/ s|'org\.mozilla\.firefox\.desktop'|'brave-browser.de
 grep -q "^favorite-apps *=.*'brave-browser\.desktop'" "${OVERRIDE}"
 grep -qi "firefox" "${OVERRIDE}" && false
 
+# The Logo Menu's panel icon, second half of the change 06-branding.sh makes to the extension's
+# dconf defaults: the coloured gem instead of the symbolic silhouette GNOME repaints panel-white.
+# The dconf file is what the extension actually reads, since its schema lives in its own directory
+# rather than here, but the base image states the same two keys in this override as well; they are
+# kept in step so the two never contradict each other. Section-scoped, the keys are not unique.
+LOGOMENU_SECTION='/^\[org\.gnome\.shell\.extensions\.Logo-menu\]$/,/^\[/'
+sed -i \
+    -e "${LOGOMENU_SECTION} s|^symbolic-icon=.*|symbolic-icon=false|" \
+    -e "${LOGOMENU_SECTION} s|^menu-button-icon-image=.*|menu-button-icon-image=29|" \
+    "${OVERRIDE}"
+logomenu_override="$(sed -n "${LOGOMENU_SECTION}p" "${OVERRIDE}")"
+grep -q "^symbolic-icon=false$" <<<"${logomenu_override}"
+grep -q "^menu-button-icon-image=29$" <<<"${logomenu_override}"
+
 # No panel command menu here: the entries the base image fills belong to the Custom Command List
 # extension (dconf path org/gnome/shell/extensions/custom-command-list), which this image does not
 # install. The pinned projectbluefin/common ships 04-bluefin-logomenu-extension, which only sets the
