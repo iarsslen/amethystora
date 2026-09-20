@@ -6,10 +6,34 @@
 # Nothing is ever deleted, quarantined or moved. A false positive that removes a user's file is worse
 # than the malware most of the time, so a finding is written to the journal and to the log file below,
 # where `ujust virus-scan` shows it.
+#
+# Every way this can end badly fails the unit, which runs amethystora-scan-alert through OnFailure and
+# tells whoever is logged in. Exit 1: infected files. 2: no signatures to scan with. 3: clean, but
+# against signatures too old for that to mean anything.
 
 set -uo pipefail
 
 FINDINGS=/var/log/amethystora-clamav-findings.log
+
+# A scan is only worth as much as the signatures behind it, and nothing else checks them: freshclam is a
+# daemon that stays active whether or not its downloads ever reach the network, so a machine can scan
+# with year-old signatures every Sunday and look exactly like a machine that is clean.
+SIGNATURE_AGE="$(/usr/libexec/amethystora-clamav-signature-age)"
+case $? in
+    0)
+        STALE_SIGNATURES=0
+        ;;
+    2)
+        STALE_SIGNATURES=1
+        echo "Virus signatures are ${SIGNATURE_AGE} days old. Scanning with them anyway, but a clean result"
+        echo "proves nothing: check whether this machine can reach the network."
+        ;;
+    *)
+        echo "No virus signatures in /var/lib/clamav: clamav-freshclam.service has never finished a"
+        echo "download, so there is nothing to scan with."
+        exit 2
+        ;;
+esac
 
 # clamdscan hands the work to the running clamd, which already has the signatures in memory; scanning
 # with clamscan instead would load them again on every run. --fdpass opens each file here, as root, and
@@ -29,6 +53,8 @@ case "${STATUS}" in
         echo "Scan clean: ${TARGETS[*]}"
         # Keep the last findings file from claiming the machine is still infected after a cleanup
         rm -f "${FINDINGS}"
+        # Clean, but measured against signatures too old to mean it: say so rather than reassure
+        [[ "${STALE_SIGNATURES}" -eq 0 ]] || exit 3
         ;;
     1)
         # Findings. The journal entry is what shows up in `systemctl status`, the file is what

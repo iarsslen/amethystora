@@ -8,6 +8,9 @@ set -eoux pipefail
 # systemctl --global enable bazaar.service
 systemctl --global enable podman-auto-update.timer
 systemctl --global enable amethystora-user-setup.service
+# Says at login what the scheduled scans found while nobody was logged in, which would otherwise sit
+# in a log file until somebody thought to look
+systemctl --global enable amethystora-security-alert.service
 systemctl enable brew-setup.service
 systemctl enable clamav-freshclam.service
 systemctl enable clamd@scan.service

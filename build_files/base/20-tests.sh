@@ -446,6 +446,35 @@ grep -q "^ExcludePath \^/var/lib/flatpak/$" /etc/clamd.d/scan.conf
 # The caches left out of the scan are under /var/home, where this system keeps home directories
 grep -qF 'ExcludePath ^/var/home/[^/]+/\.cache/' /etc/clamd.d/scan.conf
 
+# A finding nobody is told about is not a finding. Every way either scan can end badly fails its unit,
+# and the failure reaches the person at the machine: OnFailure while they are logged in, and the login
+# check for what happened while they were not.
+test -x /usr/libexec/amethystora-notify-users
+test -x /usr/libexec/amethystora-scan-alert
+test -x /usr/libexec/amethystora-security-alert
+test -x /usr/libexec/amethystora-lynis-audit
+test -f /usr/lib/systemd/system/amethystora-scan-alert@.service
+for unit in amethystora-clamav-scan amethystora-lynis-audit; do
+    grep -q "^OnFailure=amethystora-scan-alert@%n.service$" "/usr/lib/systemd/system/${unit}.service"
+done
+grep -q "^ExecStart=/usr/libexec/amethystora-lynis-audit$" \
+    /usr/lib/systemd/system/amethystora-lynis-audit.service
+test -L /etc/systemd/user/graphical-session.target.wants/amethystora-security-alert.service
+# clamd not starting is the likeliest reason a machine is not being scanned, and a Requires= on it would
+# cancel this job rather than fail it, which runs no OnFailure at all. The scan has to reach the script.
+grep -q "^Wants=clamd@scan.service$" /usr/lib/systemd/system/amethystora-clamav-scan.service
+grep -qE "^Requires=" /usr/lib/systemd/system/amethystora-clamav-scan.service && false
+
+# Signature age is what says whether a clean scan means anything; `systemctl is-active` of the freshclam
+# daemon does not, because it stays active whether or not a download ever succeeded. The image ships no
+# signatures, so the helper reports exactly that here rather than a number.
+test -x /usr/libexec/amethystora-clamav-signature-age
+SIGNATURE_AGE_RC=0
+/usr/libexec/amethystora-clamav-signature-age || SIGNATURE_AGE_RC=$?
+[[ "${SIGNATURE_AGE_RC}" -eq 1 ]]
+grep -q "amethystora-clamav-signature-age" /usr/libexec/amethystora-clamav-scan
+grep -q "amethystora-clamav-signature-age" /usr/share/amethystora/just/60-custom.just
+
 # Backups. The helper never removes anything from the repository: an append-only repository is the
 # whole of the defence against ransomware, and a client able to delete from one gives that away.
 test -x /usr/libexec/amethystora-backup
