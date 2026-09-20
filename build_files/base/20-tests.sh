@@ -71,12 +71,28 @@ test -f /usr/share/backgrounds/amethystora/amethystora-l.png
 test -f /usr/share/backgrounds/amethystora/amethystora-d.png
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.background picture-uri-dark)" == "'file:///usr/share/backgrounds/amethystora/amethystora-d.png'" ]]
 
+# Login screen background (12-login-screen.sh): the sky the boot splash ends on, blurred and with
+# no gem in it. GNOME reads the login background from the shell's own stylesheet and nowhere else,
+# so both the picture and the rule naming it live inside the theme's gresource.
+test -s /usr/share/backgrounds/amethystora/amethystora-login.png
+SHELL_THEME=/usr/share/gnome-shell/gnome-shell-theme.gresource
+SHELL_THEME_PREFIX=/org/gnome/shell/theme
+gresource list "${SHELL_THEME}" | grep -qx "${SHELL_THEME_PREFIX}/amethystora-login.png"
+for variant in dark light; do
+    gresource extract "${SHELL_THEME}" "${SHELL_THEME_PREFIX}/gnome-shell-${variant}.css" |
+        grep -q 'background-image: url("amethystora-login.png")'
+done
+# Rebuilding the bundle must not have dropped what it already held
+for resource in gnome-shell-high-contrast.css gnome-shell-start.svg; do
+    gresource list "${SHELL_THEME}" | grep -qx "${SHELL_THEME_PREFIX}/${resource}"
+done
+
 # Logos (06-branding.sh). The upstream layers overwrite Fedora's logo files with their own pictures,
 # under names that say nothing about Bluefin or Universal Blue for 07-debrand.sh to catch, so each
 # one is checked here against the Amethystora artwork it has to be. These are what the login screen,
 # the Settings About page and Fedora's fallback splash draw.
 FEDORA_NAMED_LOGOS=(
-    "/usr/share/pixmaps/fedora-gdm-logo.png:/usr/share/pixmaps/amethystora-wordmark-white.png"
+    "/usr/share/pixmaps/fedora-gdm-logo.png:/usr/share/pixmaps/amethystora-wordmark-glow.png"
     "/usr/share/pixmaps/fedora-logo-small.png:/usr/share/pixmaps/amethystora-wordmark-small.png"
     "/usr/share/pixmaps/fedora-logo.png:/usr/share/pixmaps/amethystora-wordmark.png"
     "/usr/share/pixmaps/fedora_logo_med.png:/usr/share/pixmaps/amethystora-wordmark-medium.png"
@@ -93,8 +109,9 @@ for entry in "${FEDORA_NAMED_LOGOS[@]}"; do
     cmp -s "${entry%%:*}" "${entry#*:}"
 done
 # GDM's own setting names the Amethystora file, for the case where it is read instead of the path
-# above. The white wordmark, because the greeter's background is dark.
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.login-screen logo)" == "'/usr/share/pixmaps/amethystora-wordmark-white.png'" ]]
+# above. The wordmark in white, because the greeter's background is dark, and the variant whose
+# stone is lit, so the logo carries on from the splash rather than restating it cold.
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.login-screen logo)" == "'/usr/share/pixmaps/amethystora-wordmark-glow.png'" ]]
 
 # Top bar: the Logo Menu button draws the coloured Amethystora gem, entry 30 of the extension's
 # coloured list (index 29), whose artwork 06-branding.sh replaces. Symbolic icons are off, so the

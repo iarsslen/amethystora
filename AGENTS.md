@@ -332,11 +332,12 @@ Scripts in `build_files/base/` execute in numerical order:
 7. `09-desktop.sh` - Tiling keybindings, the panel command menu and the rest of the desktop defaults
 8. `10-icons.sh` - Installs the candy-icons icon theme from a pinned upstream commit (the pin is bumped by Renovate; see `.github/renovate.json5`)
 9. `11-gtk-theme.sh` - Installs the Amethystora GTK theme: EliverLara's Sweet, by the author of candy-icons, with every cool colour in it rotated onto the amethyst palette by `build_files/shared/recolor.py`. It ships under Amethystora's own name because the palette is no longer Sweet's. Only the `amethystora` and `amethystora-light` themes name it in their `gtk.theme`; the rest stay on adw-gtk3, which follows the GNOME accent colour. libadwaita ignores `gtk-theme`, so Files and the other GNOME apps are reached through the user stylesheet written by `theme-set.hooks.d/20-libadwaita.sh`
-10. `07-debrand.sh` - Renames every remaining Bluefin / Universal Blue file, command, service and reference to Amethystora (logic in `build_files/shared/debrand.py`; `20-tests.sh` fails the build if any is left)
-11. `08-hardening.sh` - Signature-verified updates, firewall default zone, account lockout, and the fixes to what the upstream layers leave open (polkit, sudoers, udev). The settings that are plain files live in `system_files/shared` (`usr/lib/sysctl.d`, `usr/lib/modprobe.d`, `usr/lib/bootc/kargs.d`, `etc/ssh/sshd_config.d`, `etc/security/faillock.conf`)
-12. `17-cleanup.sh` - Cleanup operations
-13. `18-workarounds.sh` - Temporary fixes/workarounds
-14. `19-initramfs.sh` - Regenerates initramfs
+10. `12-login-screen.sh` - Patches the login screen background into GNOME Shell's own stylesheet. GNOME reads it from the `#lockDialogGroup` rule inside `gnome-shell-theme.gresource` and from nowhere else, so the bundle is unpacked, the rule appended and the bundle rebuilt. The picture is the sky the boot splash ends on, blurred and without the gem, drawn by `branding/generate.mjs`
+11. `07-debrand.sh` - Renames every remaining Bluefin / Universal Blue file, command, service and reference to Amethystora (logic in `build_files/shared/debrand.py`; `20-tests.sh` fails the build if any is left)
+12. `08-hardening.sh` - Signature-verified updates, firewall default zone, account lockout, and the fixes to what the upstream layers leave open (polkit, sudoers, udev). The settings that are plain files live in `system_files/shared` (`usr/lib/sysctl.d`, `usr/lib/modprobe.d`, `usr/lib/bootc/kargs.d`, `etc/ssh/sshd_config.d`, `etc/security/faillock.conf`)
+13. `17-cleanup.sh` - Cleanup operations
+14. `18-workarounds.sh` - Temporary fixes/workarounds
+15. `19-initramfs.sh` - Regenerates initramfs
 
 ### Additional Recipe Collections
 - `just/bluefin-apps.just` - User-facing app management recipes

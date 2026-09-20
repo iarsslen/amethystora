@@ -676,25 +676,42 @@ const gemImg = (white, cls = "") =>
 const GEM_EM = 0.76;
 const wordmark = (gem) => (gem ? `<span>${gemImg(false, "a")}methystora</span>` : "<span>amethystora</span>");
 
+// A palette colour at an opacity, for the glow below
+const alpha = (hex, a) => `rgba(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(",")},${a})`;
+
 // Gem or wordmark centred on a transparent canvas, scaled down to fit with a margin.
-function logoHtml({ width, height, text, white = false, gem = true }) {
+//
+// glow lights the stone the way the boot splash does, in the same three shades working outwards, so
+// the logo under the login dialog is the gem still glowing after the splash has faded. It is a stack
+// of drop-shadows rather than a halo image because a shadow follows the stone's own silhouette, and
+// because it costs no layout: the row measures the same with it as without.
+//
+// fit is how much of the canvas the wordmark is allowed to fill. A glow reaches well past the stone
+// and the canvas clips, so a glowing logo is given a wider margin to spread into rather than being
+// drawn smaller.
+function logoHtml({ width, height, text, white = false, gem = true, glow = 0, fit = 0.92 }) {
   const textColor = text === "white" ? "#ffffff" : "#241f31";
   const body = `<div id="row">${text ? wordmark(gem) : gemImg(white)}</div>`;
+  const glowFilter = glow
+    ? `filter:drop-shadow(0 0 ${glow}px ${alpha(SHADES[8], 0.9)})
+       drop-shadow(0 0 ${(glow * 2.4).toFixed(1)}px ${alpha(SHADES[7], 0.65)})
+       drop-shadow(0 0 ${(glow * 4.6).toFixed(1)}px ${alpha(SHADES[6], 0.5)});`
+    : "";
   return `<!doctype html><html><head><style>
     ${wordmarkFace}
     html,body{margin:0;width:${width}px;height:${height}px;background:transparent;overflow:hidden}
     body{display:flex;align-items:center;justify-content:center}
     #row{display:flex;align-items:center;white-space:nowrap}
-    #row>img{height:${Math.round(height * 0.84)}px}
+    #row>img{height:${Math.round(height * 0.84)}px;${glowFilter}}
     span{font-family:"${WORDMARK_FONT}";font-weight:${WORDMARK_WEIGHT};letter-spacing:-0.015em;font-size:${Math.round(height * 0.62)}px;
       color:${textColor};line-height:1}
     img.a{height:${GEM_EM}em;width:${((GEM_EM * BOUNDS[2]) / BOUNDS[3]).toFixed(3)}em;margin-right:0.035em;
-      vertical-align:-0.012em}
+      vertical-align:-0.012em;${glowFilter}}
   </style></head><body>${body}<script>
     // Measure once the wordmark font is in use, not the fallback font
     document.fonts.load('${WORDMARK_WEIGHT} 16px "${WORDMARK_FONT}"').then(() => {
       const row = document.getElementById("row");
-      const scale = Math.min(1, (${width} * 0.92) / row.offsetWidth, (${height} * 0.92) / row.offsetHeight);
+      const scale = Math.min(1, (${width} * ${fit}) / row.offsetWidth, (${height} * ${fit}) / row.offsetHeight);
       row.style.transform = "scale(" + scale + ")";
     });
   </script></body></html>`;
@@ -1087,6 +1104,39 @@ Plymouth.SetSystemUpdateFunction(system_update_callback);
 // Wallpapers are rendered to PNG
 const wallpaperHtml = (theme) => `<!doctype html><html><body style="margin:0">${wallpaperSvg(theme)}</body></html>`;
 
+// ---------------------------------------------------------- login screen --
+
+// The login screen stands on the sky the boot splash ends on, so the handover from Plymouth to GDM
+// is one picture carried across: the same gradient, the same nebula over it, and no gem, which by
+// then has done its part and would sit behind the dialog anyway.
+//
+// It is blurred because the entry field and the user list are read over the middle of it, which is
+// where the nebula's cloud is busiest. The blur is baked in here rather than asked of the shell:
+// GNOME blurs nothing on the login screen, and this way the cost is paid once, at build time.
+//
+// 12-login-screen.sh puts it inside GNOME Shell's theme, which is the only place the login screen
+// takes a background from.
+const LOGIN = { width: 2560, height: 1440, blur: 44, overscan: 1.12 };
+
+const loginBackgroundHtml = () => `<!doctype html><html><head><style>
+    html,body{margin:0;background:${BOOT.sky[0]}}
+    #frame{position:relative;width:${LOGIN.width}px;height:${LOGIN.height}px;overflow:hidden}
+    /* A blur this wide pulls in whatever is past the edge, which is nothing, and would leave the
+       picture fading out around its border. The layer is drawn oversized and the frame clips it,
+       so the fade happens outside the screen instead of inside it. */
+    #sky{position:absolute;inset:0;transform:scale(${LOGIN.overscan});
+      background:linear-gradient(180deg,${BOOT.sky[0]},${BOOT.sky[1]});
+      filter:blur(${LOGIN.blur}px)}
+    #nebula{display:block;width:100%;height:100%}
+    /* The nebula is at its brightest here, the way the splash only is at the top of a glow cycle,
+       and the user list and the clock are read straight over the middle of it. This takes it back
+       to the violet the splash sits at for most of its run, which is also where white text on it
+       has the contrast to be read. The same thing is done to the boot menu, for the same reason. */
+    #scrim{position:absolute;inset:0;background:radial-gradient(60% 60% at 50% 46%,
+      rgba(11,4,20,0.42) 0%, rgba(11,4,20,0.60) 60%, rgba(11,4,20,0.74) 100%)}
+  </style></head><body><div id="frame"><div id="sky">
+    <img id="nebula" src="${svgData(nebulaSvg)}"></div><div id="scrim"></div></div></body></html>`;
+
 const logo = (spec) => ({ ...spec, html: () => logoHtml(spec) });
 
 // ------------------------------------------------------------- GRUB menu --
@@ -1227,6 +1277,9 @@ const PNGS = [
   logo({ out: "usr/share/pixmaps/amethystora-wordmark-medium.png", width: 345, height: 102, text: "dark" }),
   logo({ out: "usr/share/pixmaps/amethystora-wordmark-small.png", width: 205, height: 61, text: "dark" }),
   logo({ out: "usr/share/pixmaps/amethystora-wordmark-white.png", width: 345, height: 102, text: "white" }),
+  // The login screen's logo, with the stone still glowing. GDM draws it at its own size and gives it
+  // no box to fit, so the canvas can be as large as the glow needs without the wordmark shrinking.
+  logo({ out: "usr/share/pixmaps/amethystora-wordmark-glow.png", width: 460, height: 150, text: "white", glow: 10, fit: 0.66 }),
   logo({ out: "usr/share/pixmaps/amethystora-logo-512.png", width: 512, height: 512 }),
   logo({ out: "usr/share/pixmaps/amethystora-logo-400.png", width: 400, height: 400 }),
   logo({ out: "usr/share/pixmaps/amethystora-logo-white.png", width: 252, height: 252, white: true }),
@@ -1235,6 +1288,9 @@ const PNGS = [
   ...BOOT_PNGS,
   { out: "usr/share/backgrounds/amethystora/amethystora-l.png", width: 3840, height: 2160, html: () => wallpaperHtml("light") },
   { out: "usr/share/backgrounds/amethystora/amethystora-d.png", width: 3840, height: 2160, html: () => wallpaperHtml("dark") },
+  // Smaller than the wallpapers on purpose: it is blurred, so there is no detail in it for the
+  // extra pixels to carry, and GNOME scales it to the screen either way
+  { out: "usr/share/backgrounds/amethystora/amethystora-login.png", width: LOGIN.width, height: LOGIN.height, html: loginBackgroundHtml },
   ...GRUB_PNGS,
 ];
 
