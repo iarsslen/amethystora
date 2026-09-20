@@ -45,6 +45,9 @@ echo "::endgroup::"
 # Tiling keybindings and the rest of the desktop defaults
 /ctx/build_files/base/09-desktop.sh
 
+# The candy-icons icon theme
+/ctx/build_files/base/10-icons.sh
+
 # Rename the remaining Bluefin / Universal Blue files, commands and services to Amethystora
 /ctx/build_files/base/07-debrand.sh
 

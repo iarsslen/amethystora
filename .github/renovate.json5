@@ -42,6 +42,23 @@
       versioningTemplate: 'loose',
       depTypeTemplate: 'gnome-extension',
     },
+    // The candy-icons commit 10-icons.sh installs the icon theme from. Upstream
+    // publishes no tags or releases, so the pin is a commit on master and
+    // git-refs advances it. Not automerged: the script asserts that the icons
+    // its aliases point at still exist, and that check runs in the PR build.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^build_files/base/10-icons\\.sh$/',
+      ],
+      matchStrings: [
+        'CANDY_COMMIT="(?<currentDigest>[a-f0-9]{40})"',
+      ],
+      depNameTemplate: 'EliverLara/candy-icons',
+      packageNameTemplate: 'https://github.com/EliverLara/candy-icons',
+      currentValueTemplate: 'master',
+      datasourceTemplate: 'git-refs',
+    },
     ],
 
   "packageRules": [

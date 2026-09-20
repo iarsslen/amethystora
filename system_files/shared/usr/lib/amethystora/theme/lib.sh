@@ -9,7 +9,8 @@
 #   light.mode    present when the theme is light
 #   pair.theme    the name of the light or dark theme this one flips to on Super+Ctrl+D
 #   gtk.theme     a GTK theme name, when adw-gtk3 is not wanted
-#   icons.theme, cursor.theme  likewise for icons and the cursor
+#   icons.theme   an icon theme name, when candy-icons is not wanted
+#   cursor.theme  a cursor theme name, when the desktop's own is not wanted
 #   vscode.theme  the VS Code colour theme to select
 #   backgrounds/  wallpapers to cycle with Super+Ctrl+Space
 #
@@ -36,6 +37,10 @@ CURRENT_THEME_NAME="${CURRENT_DIR}/theme.name"
 CURRENT_BACKGROUND="${CURRENT_DIR}/background"
 
 DEFAULT_THEME=amethystora
+# The image's icon theme, installed by build_files/base/10-icons.sh. It is also the default in
+# zz1-amethystora-modifications, for accounts that have not applied a theme yet; the two are
+# checked against each other in 20-tests.sh.
+DEFAULT_ICON_THEME=candy-icons
 
 # GNOME's accent colours, with a representative sRGB value for each, used to pick the closest one
 # for a theme that does not name its own
