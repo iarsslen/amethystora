@@ -299,6 +299,7 @@ for icon in org.gnome.Ptyxis io.github.kolunmi.Bazaar io.github.linx_systems.Cla
     be.alexandervanhee.gradia org.freedesktop.MalcontentControl it.mijorus.smile \
     org.gnome.Decibels org.gnome.Tour io.github.flattool.Warehouse page.tesk.Refine \
     io.github.flattool.Ignition io.gitlab.adhami3310.Impression input-remapper nordvpn-gui \
+    org.gnome.Sysprof \
     amethystora-docs amethystora-community amethystora-update; do
     test -e "${CANDY_DIR}/apps/scalable/${icon}.svg"
 done
@@ -310,6 +311,9 @@ for icon in /ctx/build_files/shared/candy-icons/*.svg; do
 done
 # NordVPN's mark is filled with one gradient, the way the pack draws every other VPN client
 grep -q 'fill="url(#_lgradient_nordvpn)"' "${CANDY_DIR}/apps/scalable/nordvpn.svg"
+# Claude's mark the same way. Nothing in the image looks it up yet - the claude-code rpm ships no
+# desktop entry - so this line is all that stands between a drawing mistake and nobody noticing.
+grep -q 'fill="url(#_lgradient_claude)"' "${CANDY_DIR}/apps/scalable/claude.svg"
 # The theme is the default before an account applies a theme of its own, and the value
 # amethystora-theme falls back to afterwards; the two have to name the same theme
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface icon-theme)" == "'candy-icons'" ]]

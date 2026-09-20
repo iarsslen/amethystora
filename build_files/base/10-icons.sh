@@ -101,6 +101,12 @@ CANDY_ALIASES=(
     "nordvpn-gui:nordvpn.svg"
     # Input Remapper remaps keys and buttons
     "input-remapper:preferences-desktop-keyboard.svg"
+    # Sysprof is the one application the dx image adds that the pack has no icon for. VS Code,
+    # virt-manager and Remote Viewer (Icon=virt-viewer) are all drawn upstream, and the rest of dx
+    # is command line tools and daemons with no launcher to put an icon on. A profiler is a system
+    # monitor that keeps the recording, so it takes the generic monitor rather than GNOME's own,
+    # which System Monitor is already using.
+    "org.gnome.Sysprof:utilities-system-monitor.svg"
     # The three launchers 06-branding.sh points at the Amethystora artwork. The branded icons stay
     # in hicolor and come back with any other icon theme, but under candy-icons the dash would
     # otherwise carry three flat tiles among the gradients.

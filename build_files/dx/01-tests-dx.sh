@@ -5,6 +5,7 @@ echo "::group:: ===$(basename "$0")==="
 set -eoux pipefail
 
 IMPORTANT_PACKAGES_DX=(
+    claude-code
     code
     containerd.io
     docker-ce
