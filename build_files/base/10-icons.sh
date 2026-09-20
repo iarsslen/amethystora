@@ -63,6 +63,35 @@ CANDY_ALIASES=(
     "org.gnome.Papers:org.gnome.Evince.svg"
     # Extension Manager does the job of GNOME's own Extensions app
     "com.mattjakeman.ExtensionManager:org.gnome.Extensions.svg"
+    # Thunderbird ships as a Flatpak whose id is lower case, while upstream only draws the
+    # capitalised org.mozilla.Thunderbird; both are the same artwork
+    "org.mozilla.thunderbird:thunderbird.svg"
+    # Gradia annotates screenshots
+    "be.alexandervanhee.gradia:org.gnome.Screenshot.svg"
+    # Parental Controls (malcontent) restricts what an account may run
+    "org.freedesktop.MalcontentControl:preferences-desktop-user-password.svg"
+    # Smile picks emoji, as the character map does
+    "it.mijorus.smile:org.gnome.Characters.svg"
+    # Decibels is the audio player
+    "org.gnome.Decibels:audio-player.svg"
+    # Tour is the welcome walkthrough
+    "org.gnome.Tour:applications-education.svg"
+    # Warehouse manages the installed Flatpaks
+    "io.github.flattool.Warehouse:software-manager.svg"
+    # Refine tweaks GNOME's settings, as GNOME Tweaks does
+    "page.tesk.Refine:utilities-tweak-tool.svg"
+    # Ignition edits what starts at login
+    "io.github.flattool.Ignition:preferences-system.svg"
+    # Impression writes disk images to USB sticks
+    "io.gitlab.adhami3310.Impression:usb-creator-gtk.svg"
+    # Input Remapper remaps keys and buttons
+    "input-remapper:preferences-desktop-keyboard.svg"
+    # The three launchers 06-branding.sh points at the Amethystora artwork. The branded icons stay
+    # in hicolor and come back with any other icon theme, but under candy-icons the dash would
+    # otherwise carry three flat tiles among the gradients.
+    "amethystora-docs:accessories-ebook-reader.svg"
+    "amethystora-community:irc-chat.svg"
+    "amethystora-update:system-software-update.svg"
 )
 
 for entry in "${CANDY_ALIASES[@]}"; do

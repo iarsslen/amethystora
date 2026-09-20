@@ -90,9 +90,10 @@ rm -f /usr/share/icons/hicolor/scalable/actions/ublue-logo-symbolic.svg \
 # either: they are where GDM, the Settings About page (gnome-control-center is built with the path
 # baked in) and Fedora's fallback boot splash look. The pictures are replaced here instead.
 declare -A UPSTREAM_ARTWORK=(
-    # The login screen. zz1-amethystora-modifications names the Amethystora file directly as well,
-    # so the greeter is right whichever of the two GDM reads.
-    [/usr/share/pixmaps/fedora-gdm-logo.png]=/usr/share/pixmaps/amethystora-wordmark-small.png
+    # The login screen, which draws on a dark background: the wordmark with the dark lettering
+    # disappears into it and leaves the gem on its own. zz1-amethystora-modifications names the same
+    # file directly as well, so the greeter is right whichever of the two GDM reads.
+    [/usr/share/pixmaps/fedora-gdm-logo.png]=/usr/share/pixmaps/amethystora-wordmark-white.png
     [/usr/share/pixmaps/fedora-logo-small.png]=/usr/share/pixmaps/amethystora-wordmark-small.png
     [/usr/share/pixmaps/fedora-logo.png]=/usr/share/pixmaps/amethystora-wordmark.png
     [/usr/share/pixmaps/fedora_logo_med.png]=/usr/share/pixmaps/amethystora-wordmark-medium.png
