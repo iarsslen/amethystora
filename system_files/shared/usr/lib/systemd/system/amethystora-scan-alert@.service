@@ -1,0 +1,9 @@
+[Unit]
+Description=Say what went wrong with %i to whoever is logged in
+Documentation=man:systemd.unit(5)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/amethystora-scan-alert %i
+# No sandboxing here on purpose: this has to read the failed scan's log files and reach each logged-in
+# user's session bus, which is the whole of what it does.

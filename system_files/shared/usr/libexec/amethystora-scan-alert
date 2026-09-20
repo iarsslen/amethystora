@@ -1,0 +1,46 @@
+#!/usr/bin/bash
+# OnFailure handler for the scheduled security scans (amethystora-scan-alert@.service).
+#
+# A scan whose result sits in a log file nobody opens is not a scan. Every way one of these units can
+# fail says something the person at the machine needs to act on, so each gets its own wording and the
+# action to take, rather than a unit name and a status code.
+
+set -uo pipefail
+
+UNIT="${1:?usage: $0 UNIT}"
+
+case "${UNIT}" in
+    amethystora-clamav-scan.service)
+        if [[ -s /var/log/amethystora-clamav-findings.log ]]; then
+            # The one case worth interrupting someone for. Critical notifications stay on screen in
+            # GNOME until they are dismissed, which is right for this and wrong for the others.
+            SUMMARY="Virus scan found something"
+            BODY="Nothing was deleted, quarantined or moved. See it with: ujust virus-scan"
+            URGENCY=critical
+        elif AGE="$(/usr/libexec/amethystora-clamav-signature-age)"; then
+            SUMMARY="Virus scan could not run"
+            BODY="This machine has not been scanned. Try it with: ujust virus-scan"
+            URGENCY=normal
+        elif [[ -n "${AGE}" ]]; then
+            SUMMARY="Virus signatures are ${AGE} days old"
+            BODY="A clean scan proves nothing with signatures this old. Check this machine's network connection."
+            URGENCY=normal
+        else
+            SUMMARY="No virus signatures on this machine"
+            BODY="clamav-freshclam.service has never finished a download, so nothing has been scanned yet."
+            URGENCY=normal
+        fi
+        ;;
+    amethystora-lynis-audit.service)
+        SUMMARY="Security audit could not run"
+        BODY="Run it by hand with: ujust security-audit"
+        URGENCY=normal
+        ;;
+    *)
+        SUMMARY="${UNIT} failed"
+        BODY="See: systemctl status ${UNIT}"
+        URGENCY=normal
+        ;;
+esac
+
+exec /usr/libexec/amethystora-notify-users "${SUMMARY}" "${BODY}" "${URGENCY}"

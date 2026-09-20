@@ -126,7 +126,10 @@ security-audit:
     sudo lynis audit system
     echo
     echo "Full output: /var/log/lynis.log"
-    echo "Findings, one per line, for comparing two runs: /var/log/lynis-report.dat"
+    echo "Findings, one per line: /var/log/lynis-report.dat"
+    echo
+    echo "The monthly audit compares each run with the one before and reports only what is new."
+    echo "What it said last time: journalctl -u amethystora-lynis-audit.service"
 
 # Addresses fail2ban has blocked for too many failed logins, and how to let one back in
 blocked-addresses ADDRESS="":
@@ -386,7 +389,12 @@ virus-scan ACTION="":
         echo "The last scan found nothing."
     fi
     echo "Last run:    $(systemctl show -p InactiveEnterTimestamp --value amethystora-clamav-scan.service)"
-    echo "Signatures:  clamav-freshclam.service is $(systemctl is-active clamav-freshclam.service)"
+    AGE="$(/usr/libexec/amethystora-clamav-signature-age)" && SIG=0 || SIG=$?
+    case "${SIG}" in
+        0) echo "Signatures:  updated ${AGE} days ago" ;;
+        2) echo "Signatures:  ${AGE} days old. Too old for a clean scan to mean much; check the network." ;;
+        *) echo "Signatures:  none yet. clamav-freshclam.service has not finished its first download." ;;
+    esac
     if [[ -z "${action}" ]]; then
         action="$(gum choose --header "Virus scan (ClamAV)" "Scan now" "Show the full log" "Cancel")"
     fi

@@ -1,0 +1,24 @@
+#!/usr/bin/bash
+# Days since ClamAV's virus signatures were last updated, on stdout.
+#
+# Exit 0: current.  1: no signatures at all.  2: old enough that a clean scan proves nothing.
+#
+# `systemctl is-active clamav-freshclam.service` cannot answer this. freshclam is a daemon that checks
+# several times a day and stays active whether or not any of those checks reached the network, so a
+# machine can sit for months with active-and-useless signatures and look healthy.
+#
+# freshclam keeps the daily signatures as daily.cvd, or as daily.cld once it has applied an incremental
+# update to one, so whichever of the two is newer is the answer.
+
+set -uo pipefail
+
+# Two weeks without a refresh means freshclam has not reached the network in all that time
+STALE_AFTER_DAYS=14
+
+NEWEST="$(find /var/lib/clamav -maxdepth 1 -name 'daily.c[lv]d' -printf '%T@\n' 2>/dev/null |
+    sort -rn | head -n1)"
+[[ -n "${NEWEST}" ]] || exit 1
+
+AGE=$(((  $(date +%s) - ${NEWEST%.*} ) / 86400 ))
+echo "${AGE}"
+[[ "${AGE}" -le "${STALE_AFTER_DAYS}" ]] || exit 2

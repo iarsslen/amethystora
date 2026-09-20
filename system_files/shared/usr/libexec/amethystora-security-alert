@@ -1,0 +1,42 @@
+#!/usr/bin/bash
+# Runs as the user, when a graphical session starts (amethystora-security-alert.service).
+#
+# The scheduled scans notify the sessions that happen to be open when they run. This is for the finding
+# that arrived while nobody was logged in, which would otherwise sit in a log file until someone thought
+# to look. It repeats at every login for as long as the thing it is about is still true, which is the
+# intended behaviour: the alternative is a machine that mentioned its malware once, weeks ago.
+#
+# Deliberately quiet about a machine with no signatures at all: that is true of every machine for the
+# first few minutes after it is installed, and by the time it means something the weekly scan has
+# already failed and said so.
+#
+# Reads only what a normal user can read: /var/log is traversable, so the size of a root-owned 0600 file
+# is visible even though its contents are not, and /var/lib/clamav is world-readable.
+
+set -uo pipefail
+
+command -v notify-send >/dev/null || exit 0
+
+# graphical-session.target is reached before GNOME Shell has taken the notification name on the
+# session bus, and a notify-send that arrives first is simply lost. Wait for the name rather than
+# for a guessed number of seconds; the timeout is there so a session without one still ends.
+command -v gdbus >/dev/null &&
+    gdbus wait --session --timeout 60 org.freedesktop.Notifications >/dev/null 2>&1
+
+SIGNATURE_AGE="$(/usr/libexec/amethystora-clamav-signature-age)"
+SIGNATURE_STATUS=$?
+
+if [[ -s /var/log/amethystora-clamav-findings.log ]]; then
+    SUMMARY="The last virus scan found something"
+    BODY="Nothing was deleted, quarantined or moved. See it with: ujust virus-scan"
+    # Critical notifications stay on screen in GNOME until they are dismissed
+    URGENCY=critical
+elif [[ "${SIGNATURE_STATUS}" -eq 2 ]]; then
+    SUMMARY="Virus signatures are ${SIGNATURE_AGE} days old"
+    BODY="This machine is being scanned with signatures that old. Check its network connection."
+    URGENCY=normal
+else
+    exit 0
+fi
+
+notify-send --app-name=Amethystora --urgency="${URGENCY}" --icon=dialog-warning "${SUMMARY}" "${BODY}"
