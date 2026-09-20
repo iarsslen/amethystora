@@ -17,10 +17,11 @@ picture-uri='file:///usr/share/backgrounds/amethystora/amethystora-d.png'
 # The logo under the user list on the login screen. GDM reads it from a fixed path, which Fedora
 # fills with fedora-gdm-logo.png and the base image overwrites with Bluefin's; 06-branding.sh puts
 # this same file at that path too, so the greeter is right whichever of the two GDM reads.
-# The white wordmark, not the dark one: the greeter's background is dark, and the dark lettering
-# vanishes into it, leaving the gem on its own.
+# The wordmark in white, not the dark one: the greeter's background is dark, and the dark lettering
+# vanishes into it, leaving the gem on its own. This is the variant whose stone is lit, the way the
+# boot splash leaves it, which the ordinary white wordmark is not.
 [org.gnome.login-screen]
-logo='/usr/share/pixmaps/amethystora-wordmark-white.png'
+logo='/usr/share/pixmaps/amethystora-wordmark-glow.png'
 
 [org.gnome.desktop.interface]
 accent-color='purple'
