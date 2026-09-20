@@ -96,14 +96,22 @@ done
 # above. The white wordmark, because the greeter's background is dark.
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.login-screen logo)" == "'/usr/share/pixmaps/amethystora-wordmark-white.png'" ]]
 
-# Top bar: the Logo Menu button draws entry 30 of its symbolic list, whose artwork 06-branding.sh
-# replaces with the Amethystora logo. The file keeps the upstream name until 07-debrand.sh renames it.
+# Top bar: the Logo Menu button draws the coloured Amethystora gem, entry 30 of the extension's
+# coloured list (index 29), whose artwork 06-branding.sh replaces. Symbolic icons are off, so the
+# panel shows the gem's own purple instead of a white silhouette. The files keep their upstream
+# names until 07-debrand.sh renames them.
 LOGOMENU=/usr/share/gnome-shell/extensions/logomenu@aryan_k
+LOGOMENU_DCONF=/etc/dconf/db/distro.d/04-amethystora-logomenu-extension
 cmp -s "${LOGOMENU}/Resources/amethystora-logo-symbolic.svg" \
     /usr/share/icons/hicolor/scalable/actions/amethystora-logo-symbolic.svg
 cmp -s "${LOGOMENU}/Resources/amethystora-logo.svg" \
     /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg
-grep -q "^menu-button-icon-image=30$" /etc/dconf/db/distro.d/04-amethystora-logomenu-extension
+grep -q "^symbolic-icon=false$" "${LOGOMENU_DCONF}"
+grep -q "^menu-button-icon-image=29$" "${LOGOMENU_DCONF}"
+[[ "$(sed -n '/ColouredDistroIcons/,/^\];/p' "${LOGOMENU}/constants.js" |
+    grep -oE "/Resources/[^']+" | sed -n '30p')" == "/Resources/amethystora-logo.svg" ]]
+# The symbolic entry stays branded too: the Framework and Thelio Astra hooks and anyone switching
+# symbolic icons back on in Extension Manager land on entry 31 of the symbolic list.
 [[ "$(sed -n '/SymbolicDistroIcons/,/^\];/p' "${LOGOMENU}/constants.js" |
     grep -oE "/Resources/[^']+" | sed -n '30p')" == "/Resources/amethystora-logo-symbolic.svg" ]]
 
@@ -142,6 +150,37 @@ done
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.just-perfection workspace-popup)" == "false" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.tactile col-3)" == "1" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.tactile row-1)" == "1" ]]
+
+# Blur my Shell: the Tahoe-style glass in 05-blur-my-shell-extension. Its schema lives in the
+# extension's own directory rather than system-wide, so these are dconf defaults and not a gschema
+# override -- and a dconf default for a key the extension does not have is dropped without a word,
+# which is how a submodule bump would quietly undo the whole file. So every key in it is looked up
+# in the schema it belongs to.
+BMS=/usr/share/gnome-shell/extensions/blur-my-shell@aunetx
+BMS_DCONF=/etc/dconf/db/distro.d/05-blur-my-shell-extension
+bms_schema=""
+while read -r line; do
+    case "${line}" in
+    '#'* | '') continue ;;
+    '['*)
+        bms_schema="${line//\//.}"
+        bms_schema="${bms_schema:1:-1}"
+        continue
+        ;;
+    esac
+    gsettings --schemadir "${BMS}/schemas" list-keys "${bms_schema}" | grep -qx "${line%%=*}"
+done <"${BMS_DCONF}"
+# A component that names a pipeline the pipelines dict does not define falls back to the stock blur
+# without a word, so every pipeline the file selects has to be one the file also defines
+while read -r bms_pipeline; do
+    grep -q "'${bms_pipeline}': {" "${BMS_DCONF}"
+done < <(sed -n "s/^pipeline='\([^']*\)'$/\1/p" "${BMS_DCONF}" | sort -u)
+# The glass is the refraction effect ("Liquid Glass" in the preferences) and it only runs on the
+# static blur path, so the effect has to be packed into the extension and the popups set to static
+test -f "${BMS}/effects/refraction.glsl"
+grep -q "'refraction'" "${BMS_DCONF}"
+grep -q "^static-blur=true$" "${BMS_DCONF}"
+
 # Six fixed workspaces on Super+N, which moves the dash to Alt+N
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.preferences num-workspaces)" == "6" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.mutter dynamic-workspaces)" == "false" ]]
@@ -181,6 +220,42 @@ for theme in /usr/share/amethystora/themes/*/; do
         test -d "/usr/share/amethystora/themes/$(cat "${theme}pair.theme")"
     fi
 done
+
+# GTK theme (11-gtk-theme.sh): Sweet, rotated onto the amethyst palette and installed under
+# Amethystora's own name, because a theme whose colours have been replaced is no longer Sweet
+GTK_THEME_DIR=/usr/share/themes/Amethystora
+test -f /usr/share/licenses/amethystora-gtk-theme/LICENSE
+grep -qx "Name=Amethystora" "${GTK_THEME_DIR}/index.theme"
+for stylesheet in gtk-3.0/gtk.css gtk-3.0/gtk-dark.css gtk-4.0/gtk.css gtk-4.0/gtk-dark.css; do
+    test -s "${GTK_THEME_DIR}/${stylesheet}"
+done
+# The stylesheets reach their bitmaps through ../assets, so the two have to stay siblings
+test -s "${GTK_THEME_DIR}/assets/checkbox-checked-dark.png"
+grep -q '\.\./assets/' "${GTK_THEME_DIR}/gtk-4.0/gtk-dark.css"
+# Nothing Sweet coloured may be left: its teal accent by name, and anything else the rotation
+# should have moved and did not
+grep -qi "00d3a7" "${GTK_THEME_DIR}/gtk-4.0/gtk-dark.css" && false
+python3 /ctx/build_files/shared/recolor.py --check "${GTK_THEME_DIR}"/gtk-[34].0/*.css
+# The filled half of a switch is the one accent Sweet draws in the warm colours the default band
+# spares, and it gets a pass of its own. Amber left here would be the only thing in the theme still
+# wearing Sweet's colours, next to a purple everything else.
+for switch in switch-on switch-on-insensitive; do
+    grep -qiE "ff9200|fadd00" "${GTK_THEME_DIR}/assets/${switch}.svg" && false
+done
+python3 /ctx/build_files/shared/recolor.py --band 30:56 --check \
+    "${GTK_THEME_DIR}"/assets/switch-on.svg "${GTK_THEME_DIR}"/assets/switch-on-insensitive.svg
+# Only the two Amethystora palettes ask for it. The rest stay on adw-gtk3, which follows the GNOME
+# accent colour, where this one would hold its purple against whatever palette they set.
+for theme in amethystora amethystora-light; do
+    grep -qx "Amethystora" "/usr/share/amethystora/themes/${theme}/gtk.theme"
+done
+[[ -z "$(find /usr/share/amethystora/themes -name gtk.theme ! -path '*/amethystora/*' ! -path '*/amethystora-light/*')" ]]
+# libadwaita ignores gtk-theme, so Files and the rest are reached through the user stylesheet the
+# theme-set hook writes; without the hook the theme stops at the GTK3 applications
+test -x /usr/share/amethystora/theme-set.hooks.d/20-libadwaita.sh
+grep -q "gtk-4.0" /usr/share/amethystora/theme-set.hooks.d/20-libadwaita.sh
+# Window buttons on the right, where the theme draws its three lights
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.preferences button-layout)" == "':minimize,maximize,close'" ]]
 
 # Icon theme (10-icons.sh): candy-icons, installed from upstream rather than from Fedora's
 # candy-icon-theme, which would pull breeze-icon-theme onto a GNOME image

@@ -42,9 +42,6 @@ default-folder-viewer='icon-view'
 [org.gnome.nautilus.icon-view]
 default-zoom-level='large'
 
-[org.gnome.shell.extensions.blur-my-shell.popup]
-blur=false
-
 #-------------- TILING --------------#
 # Tactile draws a grid over the focused monitor on Super+T; typing two zone letters moves the window
 # to the box they span. The default letters are Q W E R / A S D F, so a uniform 4x2 grid is the whole
@@ -75,6 +72,10 @@ dynamic-workspaces=false
 
 [org.gnome.desktop.wm.preferences]
 num-workspaces=6
+# Minimise, maximise and close, on the right, which is where the Amethystora GTK theme draws its
+# three coloured lights. Stated here rather than left to the base image, so that the theme's own
+# index.theme is not the only thing asking for it.
+button-layout=':minimize,maximize,close'
 
 [org.gnome.desktop.wm.keybindings]
 close=['<Super>w']

@@ -59,6 +59,23 @@
       currentValueTemplate: 'master',
       datasourceTemplate: 'git-refs',
     },
+    // The Sweet commit 11-gtk-theme.sh builds the GTK theme from, pinned the same
+    // way and for the same reason as candy-icons above. Not automerged either:
+    // recolor.py rewrites the stylesheets, and the --check in 20-tests.sh only
+    // proves the new ones were recoloured in the PR build.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^build_files/base/11-gtk-theme\\.sh$/',
+      ],
+      matchStrings: [
+        'SWEET_COMMIT="(?<currentDigest>[a-f0-9]{40})"',
+      ],
+      depNameTemplate: 'EliverLara/Sweet',
+      packageNameTemplate: 'https://github.com/EliverLara/Sweet',
+      currentValueTemplate: 'master',
+      datasourceTemplate: 'git-refs',
+    },
     ],
 
   "packageRules": [

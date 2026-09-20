@@ -136,21 +136,37 @@ for file in /ctx/system_files/shared/usr/share/pixmaps/* \
     fi
 done
 
-# Top bar: the base image points the Logo Menu at entry 30 of the extension's symbolic list
-# (04-amethystora-logomenu-extension and zz0-amethystora-modifications, once 07-debrand.sh has
-# renamed them), and upstream fills that entry with the Universal Blue logo. Its artwork is replaced
-# with Amethystora's, under the upstream file name that 07-debrand.sh then renames. Selecting the
-# entry by number is what makes the check below necessary: a reordered list would silently put
-# somebody else's logo in the panel.
+# Top bar: the Logo Menu draws the Amethystora gem in its own colours, not a symbolic silhouette
+# that GNOME would repaint in the panel's foreground white. Upstream sets symbolic-icon=true and
+# menu-button-icon-image=30, which is entry 31 of the symbolic list; Amethystora turns the symbolic
+# icon off and moves the index to 29, entry 30 of the coloured list. Both entries are upstream's
+# Universal Blue logo, and both are replaced with Amethystora artwork below, under the upstream file
+# names that 07-debrand.sh then renames. Selecting the entries by number is what makes the checks
+# necessary: a reordered list would silently put somebody else's logo in the panel.
 LOGOMENU=/usr/share/gnome-shell/extensions/logomenu@aryan_k
-SYMBOLIC_ENTRY_30="$(sed -n '/SymbolicDistroIcons/,/^\];/p' "${LOGOMENU}/constants.js" |
-    grep -oE "/Resources/[^']+" | sed -n '30p')"
-[[ "${SYMBOLIC_ENTRY_30}" == "/Resources/ublue-logo-symbolic.svg" ]]
+logomenu_entries() {
+    sed -n "/$1/,/^\];/p" "${LOGOMENU}/constants.js" | grep -oE "/Resources/[^']+"
+}
+# menu-button-icon-image indexes the arrays from 0, and the symbolic array opens with a plain icon
+# name carrying no /Resources/ path: index 30 is the 30th path listed there, index 29 the 30th here.
+[[ "$(logomenu_entries SymbolicDistroIcons | sed -n '30p')" == "/Resources/ublue-logo-symbolic.svg" ]]
 install -Dpm0644 /usr/share/icons/hicolor/scalable/actions/amethystora-logo-symbolic.svg \
     "${LOGOMENU}/Resources/ublue-logo-symbolic.svg"
-# The coloured list, for when the Logo Menu is switched off symbolic icons
+[[ "$(logomenu_entries ColouredDistroIcons | sed -n '30p')" == "/Resources/ublue-logo.svg" ]]
 install -Dpm0644 /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg \
     "${LOGOMENU}/Resources/ublue-logo.svg"
+
+# The extension keeps its settings in dconf, not in a gschema override, so the base image's defaults
+# are edited in place rather than restated; anything else it sets there keeps coming through.
+LOGOMENU_DCONF=/etc/dconf/db/distro.d/04-bluefin-logomenu-extension
+if upstream_has "${LOGOMENU_DCONF}"; then
+    sed -i \
+        -e "s|^symbolic-icon=.*|symbolic-icon=false|" \
+        -e "s|^menu-button-icon-image=.*|menu-button-icon-image=29|" \
+        "${LOGOMENU_DCONF}"
+    grep -q "^symbolic-icon=false$" "${LOGOMENU_DCONF}"
+    grep -q "^menu-button-icon-image=29$" "${LOGOMENU_DCONF}"
+fi
 
 # ChairLift help page
 if upstream_has /usr/share/chairlift/config.yml; then
