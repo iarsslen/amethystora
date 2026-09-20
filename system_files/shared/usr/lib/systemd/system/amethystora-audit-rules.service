@@ -1,0 +1,16 @@
+[Unit]
+Description=Audit watches for each user's home directory
+Documentation=man:auditctl(8)
+# The rules name paths inside home directories, so they can only be written once those exist, and they
+# are loaded into a running auditd rather than shipped with the image.
+After=auditd.service
+Wants=auditd.service
+ConditionPathExists=/usr/sbin/augenrules
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/amethystora-audit-home-rules
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+[Unit]
+Description=Back up this account with restic
+Documentation=man:restic(1)
+# Nothing to do until `ujust setup-backup` has written the settings
+ConditionPathExists=%h/.config/amethystora/backup.env
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/amethystora-backup
+# A backup that makes the desktop stutter is a backup the user turns off
+Nice=19
+IOSchedulingClass=idle

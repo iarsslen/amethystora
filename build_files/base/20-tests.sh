@@ -292,10 +292,18 @@ for icon in org.gnome.Ptyxis io.github.kolunmi.Bazaar io.github.linx_systems.Cla
     org.gnome.Papers com.mattjakeman.ExtensionManager org.mozilla.thunderbird \
     be.alexandervanhee.gradia org.freedesktop.MalcontentControl it.mijorus.smile \
     org.gnome.Decibels org.gnome.Tour io.github.flattool.Warehouse page.tesk.Refine \
-    io.github.flattool.Ignition io.gitlab.adhami3310.Impression input-remapper \
+    io.github.flattool.Ignition io.gitlab.adhami3310.Impression input-remapper nordvpn-gui \
     amethystora-docs amethystora-community amethystora-update; do
     test -e "${CANDY_DIR}/apps/scalable/${icon}.svg"
 done
+# Icons drawn for this image, in the pack's style, for what upstream has no artwork for and nothing
+# near enough to alias to. A real file, not the dangling symlink a missing source would leave.
+for icon in /ctx/build_files/shared/candy-icons/*.svg; do
+    test -s "${CANDY_DIR}/apps/scalable/$(basename "${icon}")"
+    cmp -s "${icon}" "${CANDY_DIR}/apps/scalable/$(basename "${icon}")"
+done
+# NordVPN's mark is filled with one gradient, the way the pack draws every other VPN client
+grep -q 'fill="url(#_lgradient_nordvpn)"' "${CANDY_DIR}/apps/scalable/nordvpn.svg"
 # The theme is the default before an account applies a theme of its own, and the value
 # amethystora-theme falls back to afterwards; the two have to name the same theme
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface icon-theme)" == "'candy-icons'" ]]
@@ -369,6 +377,76 @@ test -f /etc/lynis/default.prf
 grep -q "^machine-role=workstation$" /etc/lynis/custom.prf
 lynis show profiles | grep -q "/etc/lynis/custom.prf"
 
+# Flatpak: X11, the whole of /dev and the Flatpak service are taken away from every application,
+# whatever its own manifest asks for. Flatseal is how they are granted back, one application at a time.
+FLATPAK_OVERRIDES=/etc/flatpak/overrides/global
+grep -q "^sockets=!x11;!fallback-x11;$" "${FLATPAK_OVERRIDES}"
+grep -q "^devices=!all;!input;$" "${FLATPAK_OVERRIDES}"
+grep -q "^org.freedesktop.Flatpak=none$" "${FLATPAK_OVERRIDES}"
+test -f /usr/share/flatpak/preinstall.d/flatseal.preinstall
+
+# Browser policy. 08-hardening.sh puts it in whichever directory the Brave binary actually reads, so
+# this looks for where it ended up rather than assuming: a policy nothing reads is the failure here.
+BRAVE_POLICY="$(find /etc -path '*/policies/managed/10-amethystora.json' -print -quit)"
+test -s "${BRAVE_POLICY}"
+jq -e '.ExtensionInstallBlocklist == ["*"]' "${BRAVE_POLICY}" >/dev/null
+jq -e '.ExtensionInstallAllowlist | length > 0' "${BRAVE_POLICY}" >/dev/null
+# A web page may not reach a keyboard through WebHID, or the hardware behind WebUSB and WebSerial
+for guard in DefaultWebHidGuardSetting DefaultWebUsbGuardSetting DefaultSerialGuardSetting; do
+    jq -e ".${guard} == 2" "${BRAVE_POLICY}" >/dev/null
+done
+
+# Kernel lockdown: on everywhere except the NVIDIA images, whose driver is a machine-owner-key module
+# that a machine with Secure Boot turned off would no longer be able to load
+LOCKDOWN_KARGS=/usr/lib/bootc/kargs.d/11-amethystora-lockdown.toml
+if [[ "${IMAGE_NAME}" =~ nvidia ]]; then
+    test -e "${LOCKDOWN_KARGS}" && false
+else
+    grep -q '"lockdown=integrity"' "${LOCKDOWN_KARGS}"
+fi
+
+# Key remapping runs as root and reads every input device, so it ships installed and switched off.
+# `ujust setup-input-remapper` is how someone who remaps keys turns it on.
+rpm -q input-remapper >/dev/null
+[[ "$(systemctl is-enabled input-remapper.service 2>/dev/null)" == "enabled" ]] && false
+# Same for USB protection, which blocks every device that was not present when it was set up: useless
+# as a default, because the first boot would block the keyboard nobody had allowed yet
+[[ "$(systemctl is-enabled usbguard.service 2>/dev/null)" == "enabled" ]] && false
+
+# Audit rules: the watches that ship with the image, and the generator for the per-user ones, which
+# can only be written on a machine that already has home directories
+AUDIT_RULES=/etc/audit/rules.d/60-amethystora.rules
+grep -q "^-w /etc/flatpak/overrides/ -p wa -k hardening$" "${AUDIT_RULES}"
+grep -q "^-w /etc/containers/policy.json -p wa -k hardening$" "${AUDIT_RULES}"
+grep -q "dir=/dev/input" "${AUDIT_RULES}"
+test -x /usr/libexec/amethystora-audit-home-rules
+# One line augenrules cannot parse stops every rule in the directory from loading, which would leave
+# the machine silently unaudited. auditctl cannot be asked about it during a container build, where
+# there is no audit netlink socket to talk to, so the shape of each rule is what gets checked.
+grep -vE '^[[:space:]]*(#|$)' "${AUDIT_RULES}" | grep -qvE '^-(w|a) ' && false
+
+# Weekly virus scan and monthly Lynis audit. Neither may delete, quarantine or move anything: a false
+# positive that takes away a file the user wanted is worse than most of what it would be removing.
+test -x /usr/libexec/amethystora-clamav-scan
+grep -vE "^[[:space:]]*#" /usr/libexec/amethystora-clamav-scan | grep -qE "(--remove|--move=)" && false
+grep -q "^ExcludePath \^/proc/$" /etc/clamd.d/scan.conf
+grep -q "^ExcludePath \^/var/lib/flatpak/$" /etc/clamd.d/scan.conf
+# The caches left out of the scan are under /var/home, where this system keeps home directories
+grep -qF 'ExcludePath ^/var/home/[^/]+/\.cache/' /etc/clamd.d/scan.conf
+
+# Backups. The helper never removes anything from the repository: an append-only repository is the
+# whole of the defence against ransomware, and a client able to delete from one gives that away.
+test -x /usr/libexec/amethystora-backup
+test -s /usr/share/amethystora/backup-excludes
+test -f /usr/lib/systemd/user/amethystora-backup.service
+test -f /usr/lib/systemd/user/amethystora-backup.timer
+grep -vE "^[[:space:]]*#" /usr/libexec/amethystora-backup | grep -qE "restic +(forget|prune)" && false
+
+# TPM disk unlock (ujust setup-disk-unlock) only works if the initramfs can talk to the TPM at all.
+# 19-initramfs.sh adds dracut's tpm2-tss module where dracut has it, and warns where it does not.
+grep -q "tss2" <<<"${INITRAMFS_FILES}" ||
+    echo "::warning::no TPM2 libraries in the initramfs, ujust setup-disk-unlock will not work"
+
 # DisplayLink: evdi built for the image kernel, and no module signing key left behind by the build
 KERNEL_VERSION="$(rpm -q kernel-core --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')"
 modinfo "/usr/lib/modules/${KERNEL_VERSION}/extra/evdi/evdi.ko.xz" >/dev/null
@@ -384,6 +462,7 @@ test -f /etc/pki/akmods/certs/akmods-amethystora.der
 test -f /usr/lib/systemd/system/flatpak-add-fedora-repos.service && false
 
 IMPORTANT_PACKAGES=(
+    audit
     brave-browser
     clamav
     clamav-freshclam
@@ -403,8 +482,11 @@ IMPORTANT_PACKAGES=(
     pamu2fcfg
     pipewire
     ptyxis
+    restic
     systemd
     tailscale
+    tpm2-tools
+    usbguard
     uupd
     wireplumber
     zsh
@@ -449,8 +531,12 @@ IMPORTANT_UNITS=(
     gdm.service
     rpm-ostree-countme.timer
     tailscaled.service
-    amethystora-system-setup.service
     uupd.timer
+    auditd.service
+    amethystora-audit-rules.service
+    amethystora-clamav-scan.timer
+    amethystora-lynis-audit.timer
+    amethystora-system-setup.service
   )
 
 for unit in "${IMPORTANT_UNITS[@]}"; do

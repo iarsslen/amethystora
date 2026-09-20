@@ -1,0 +1,13 @@
+[Unit]
+Description=Monthly Lynis security audit
+Documentation=man:lynis(8)
+
+[Service]
+Type=oneshot
+# --cronjob is Lynis's unattended mode: no colours, no prompts, no pager. Findings land in
+# /var/log/lynis.log and, one per line, in /var/log/lynis-report.dat, which is what
+# `ujust security-audit` compares between runs.
+ExecStart=/usr/bin/lynis audit system --cronjob
+Nice=19
+IOSchedulingClass=idle
+# The timer is what runs this, so the service itself is never enabled and needs no [Install] section

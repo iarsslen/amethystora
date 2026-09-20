@@ -1,0 +1,25 @@
+[Unit]
+Description=Weekly ClamAV scan of home and temporary directories
+Documentation=man:clamdscan(1)
+# Needs both the signatures and the daemon that holds them in memory
+Requires=clamd@scan.service
+After=clamd@scan.service clamav-freshclam.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/amethystora-clamav-scan
+# A background scan that makes the desktop stutter is a scan the user turns off
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
+# Reads every file in every home directory, so it gets nothing else it does not need
+NoNewPrivileges=yes
+PrivateNetwork=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native

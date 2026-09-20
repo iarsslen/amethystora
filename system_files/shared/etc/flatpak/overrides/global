@@ -1,0 +1,26 @@
+# Permissions taken away from every Flatpak, whatever its own manifest asks for. Flatpak applies this
+# file on top of each application's manifest, so a `--socket=x11` an application ships for itself is
+# still denied here. Per-application exceptions go the other way and win: grant them in Flatseal
+# (preinstalled) or with `flatpak override --user --socket=x11 <application>`.
+#
+# What is deliberately left alone: --filesystem=home, which most editors, file managers and
+# development tools genuinely need and which Flatseal is the right place to narrow per application,
+# and --share=network, because an outbound filter that breaks applications gets switched off.
+
+[Context]
+# X11 gives an application every keystroke and the screen contents of every other X11 application on
+# the same display, which is the one keylogging path GNOME's Wayland session still leaves open. This
+# session is Wayland, so applications that speak Wayland are unaffected: fallback-x11 only ever
+# resolves to X11 when no Wayland display exists. X11-only applications (Wine, some Electron builds,
+# older games) do need x11 granted back per application.
+sockets=!x11;!fallback-x11;
+# --device=all hands over the whole of /dev, and --device=input hands over /dev/input/event*, which
+# is every key pressed on the machine, sandbox or not. Applications asking for --device=dri keep
+# their GPU access, which is what the ones that need hardware actually ask for.
+devices=!all;!input;
+
+[Session Bus Policy]
+# Talking to the Flatpak service from inside the sandbox is a full escape: `flatpak-spawn --host`
+# runs any command outside it, as the user, with no sandbox at all. Applications that legitimately
+# need it (terminals, IDEs shipping their own toolchain) are the ones to grant it back to by name.
+org.freedesktop.Flatpak=none

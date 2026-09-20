@@ -15,10 +15,23 @@ systemctl enable dconf-update.service
 # Blocks addresses that fail to log in too often (08-hardening.sh, /etc/fail2ban/jail.d/10-amethystora.conf)
 systemctl enable fail2ban.service
 systemctl enable amethystora-flatpak-remotes.service
-systemctl enable input-remapper.service
+# input-remapper is installed but not enabled: it runs as root and reads every key pressed on every
+# input device, which is a keylogger by any other name and is wanted only by people who remap keys.
+# `ujust setup-input-remapper` turns it on for them.
+systemctl disable input-remapper.service
 systemctl enable rpm-ostree-countme.service
 systemctl enable tailscaled.service
 systemctl enable amethystora-system-setup.service
+
+# Audit watches on the paths that would have to change for something to survive a reboot
+# (/etc/audit/rules.d/60-amethystora.rules, plus the per-home ones this service generates)
+systemctl enable auditd.service
+systemctl enable amethystora-audit-rules.service
+
+# Weekly ClamAV scan of the home and temporary directories, monthly Lynis audit of the settings.
+# Both only report; neither deletes, quarantines or changes anything.
+systemctl enable amethystora-clamav-scan.timer
+systemctl enable amethystora-lynis-audit.timer
 
 systemctl enable flatpak-preinstall.service
 

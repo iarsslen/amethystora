@@ -1,0 +1,19 @@
+{
+    "ExtensionInstallBlocklist": ["*"],
+    "ExtensionInstallAllowlist": [
+        "nngceckbapebfimnlniiiahkandclblb",
+        "aeblfdkhhhdcdjpifhhbdiojplfjncoa",
+        "ghmbeldphafepmbegfdlkpapadhbakde",
+        "oboonakemofpalcgghocfoadofidjkkk"
+    ],
+    "DefaultWebUsbGuardSetting": 2,
+    "DefaultSerialGuardSetting": 2,
+    "DefaultWebHidGuardSetting": 2,
+    "DefaultWebBluetoothGuardSetting": 2,
+    "RemoteAccessHostFirewallTraversal": false,
+    "AlwaysOpenPdfExternally": false,
+    "BlockThirdPartyCookies": true,
+    "SafeBrowsingProtectionLevel": 1,
+    "DownloadRestrictions": 1,
+    "URLBlocklist": ["javascript://*"]
+}

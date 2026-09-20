@@ -20,6 +20,7 @@ FEDORA_PACKAGES=(
     adcli
     adw-gtk3-theme
     adwaita-fonts-all
+    audit
     autofs
     bash-color-prompt
     bcache-tools
@@ -97,6 +98,8 @@ FEDORA_PACKAGES=(
     sssd-nfs-idmap
     switcheroo-control
     tmux
+    tpm2-tools
+    usbguard
     usbip
     usbmuxd
     waypipe
@@ -137,6 +140,26 @@ dnf -y install "${FEDORA_PACKAGES[@]}"
 sed -i 's|^#LocalSocket |LocalSocket |' /etc/clamd.d/scan.conf
 grep -q "^LocalSocket /run/clamd.scan/clamd.sock$" /etc/clamd.d/scan.conf
 semanage boolean -m --on antivirus_can_scan_system
+
+# Kept out of the weekly scan (amethystora-clamav-scan.timer). clamdscan takes its exclusions from the
+# daemon's own configuration rather than from the command line, so they have to be set here. These are
+# the kernel's virtual filesystems, the two content-addressed stores whose files are verified by their
+# checksums and replaced whole, and the caches, which are large, rewritten constantly and rebuilt on
+# demand. Everything a user writes stays in the scan, Flatpak application data included.
+tee -a /etc/clamd.d/scan.conf >/dev/null <<'CLAMD'
+
+# Amethystora: directories left out of the weekly scan (/usr/libexec/amethystora-clamav-scan)
+ExcludePath ^/proc/
+ExcludePath ^/sys/
+ExcludePath ^/dev/
+ExcludePath ^/run/
+ExcludePath ^/var/lib/flatpak/
+ExcludePath ^/var/lib/containers/
+ExcludePath ^/var/home/[^/]+/\.cache/
+ExcludePath ^/var/home/[^/]+/\.var/app/[^/]+/cache/
+ExcludePath ^/var/home/[^/]+/\.local/share/containers/
+CLAMD
+grep -q "^ExcludePath \^/proc/$" /etc/clamd.d/scan.conf
 
 # FIDO2 security keys (YubiKey, Thetis, and their fingerprint models) log in, unlock and approve sudo/polkit in
 # place of the password, once registered with `ujust setup-security-key`. Users without a key are not affected.
