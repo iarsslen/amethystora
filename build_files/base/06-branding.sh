@@ -84,6 +84,73 @@ sed -i \
 rm -f /usr/share/icons/hicolor/scalable/actions/ublue-logo-symbolic.svg \
     /usr/share/icons/hicolor/scalable/places/ublue-{docs,discourse,update}.svg
 
+# Upstream artwork under Fedora's own file names. projectbluefin/common overwrites Fedora's logo
+# files with Bluefin's and Universal Blue's pictures, so the names hold no Bluefin or Universal Blue
+# text for 07-debrand.sh to rename while the images are still theirs. The names cannot be renamed
+# either: they are where GDM, the Settings About page (gnome-control-center is built with the path
+# baked in) and Fedora's fallback boot splash look. The pictures are replaced here instead.
+declare -A UPSTREAM_ARTWORK=(
+    # The login screen. zz1-amethystora-modifications names the Amethystora file directly as well,
+    # so the greeter is right whichever of the two GDM reads.
+    [/usr/share/pixmaps/fedora-gdm-logo.png]=/usr/share/pixmaps/amethystora-wordmark-small.png
+    [/usr/share/pixmaps/fedora-logo-small.png]=/usr/share/pixmaps/amethystora-wordmark-small.png
+    [/usr/share/pixmaps/fedora-logo.png]=/usr/share/pixmaps/amethystora-wordmark.png
+    [/usr/share/pixmaps/fedora_logo_med.png]=/usr/share/pixmaps/amethystora-wordmark-medium.png
+    [/usr/share/pixmaps/fedora_whitelogo_med.png]=/usr/share/pixmaps/amethystora-wordmark-white.png
+    # Settings -> About draws fedora-logo-icon.png, the path Fedora compiles into gnome-control-center
+    [/usr/share/pixmaps/fedora-logo-icon.png]=/usr/share/pixmaps/amethystora-logo-512.png
+    [/usr/share/pixmaps/fedora-logo-sprite.png]=/usr/share/pixmaps/amethystora-logo-400.png
+    [/usr/share/pixmaps/system-logo-white.png]=/usr/share/pixmaps/amethystora-logo-white.png
+    [/usr/share/icons/hicolor/scalable/places/fedora-logo-sprite.svg]=/usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg
+    [/usr/share/icons/hicolor/scalable/places/fedora_white_logo.svg]=/usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg
+    [/usr/share/icons/hicolor/scalable/places/fedora_whitelogo.svg]=/usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg
+    # Fedora's spinner theme is the fallback splash; its watermark.png is an Amethystora file already
+    [/usr/share/plymouth/themes/spinner/silverblue-watermark.png]=/usr/share/plymouth/themes/spinner/watermark.png
+)
+
+for target in "${!UPSTREAM_ARTWORK[@]}"; do
+    artwork="${UPSTREAM_ARTWORK[${target}]}"
+    test -s "${artwork}"
+    install -Dpm0644 "${artwork}" "${target}"
+done
+
+# A logo arriving under a name nothing recognises would ship as it is, so the build stops until it
+# is given an Amethystora picture above. Names that still say Bluefin or Universal Blue are left to
+# 07-debrand.sh, which renames them, and to 20-tests.sh, which fails on the ones it cannot.
+# Skipped: Amethystora's own files, which overlay the upstream ones in /ctx under their own names
+# (amethystora-*) and, for the spinner theme, under Fedora's name for the watermark.
+for file in /ctx/system_files/shared/usr/share/pixmaps/* \
+    /ctx/system_files/shared/usr/share/icons/hicolor/scalable/places/* \
+    /ctx/system_files/shared/usr/share/plymouth/themes/spinner/*; do
+    name="$(basename "${file}")"
+    target="${file#/ctx/system_files/shared}"
+    if [[ ! -f "${file}" ]] || [[ "${name}" == amethystora-* ]] ||
+        [[ "${name}" == watermark.png ]] ||
+        grep -qiE "ublue|bluefin|universal.?blue" <<<"${name}"; then
+        continue
+    fi
+    if [[ -z "${UPSTREAM_ARTWORK[${target}]:-}" ]]; then
+        echo "::error::${target} is upstream artwork with no Amethystora replacement"
+        exit 1
+    fi
+done
+
+# Top bar: the base image points the Logo Menu at entry 30 of the extension's symbolic list
+# (04-amethystora-logomenu-extension and zz0-amethystora-modifications, once 07-debrand.sh has
+# renamed them), and upstream fills that entry with the Universal Blue logo. Its artwork is replaced
+# with Amethystora's, under the upstream file name that 07-debrand.sh then renames. Selecting the
+# entry by number is what makes the check below necessary: a reordered list would silently put
+# somebody else's logo in the panel.
+LOGOMENU=/usr/share/gnome-shell/extensions/logomenu@aryan_k
+SYMBOLIC_ENTRY_30="$(sed -n '/SymbolicDistroIcons/,/^\];/p' "${LOGOMENU}/constants.js" |
+    grep -oE "/Resources/[^']+" | sed -n '30p')"
+[[ "${SYMBOLIC_ENTRY_30}" == "/Resources/ublue-logo-symbolic.svg" ]]
+install -Dpm0644 /usr/share/icons/hicolor/scalable/actions/amethystora-logo-symbolic.svg \
+    "${LOGOMENU}/Resources/ublue-logo-symbolic.svg"
+# The coloured list, for when the Logo Menu is switched off symbolic icons
+install -Dpm0644 /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg \
+    "${LOGOMENU}/Resources/ublue-logo.svg"
+
 # ChairLift help page
 if upstream_has /usr/share/chairlift/config.yml; then
     sed -i \

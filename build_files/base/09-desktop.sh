@@ -26,6 +26,13 @@ done
 sed -i "/^custom-keybindings=/ s|\]|${paths}&|" "${OVERRIDE}"
 grep -q "custom${AMETHYSTORA_KEYBINDINGS[0]}/'" "${OVERRIDE}"
 
+# The dash: Brave takes Firefox's slot, since 04-packages.sh drops Firefox from the image. The rest of
+# the base image's pinned apps are left alone, so its future changes to them still come through.
+test -f /usr/share/applications/brave-browser.desktop
+sed -i "/^favorite-apps *=/ s|'org\.mozilla\.firefox\.desktop'|'brave-browser.desktop'|" "${OVERRIDE}"
+grep -q "^favorite-apps *=.*'brave-browser\.desktop'" "${OVERRIDE}"
+grep -qi "firefox" "${OVERRIDE}" && false
+
 # No panel command menu here: the entries the base image fills belong to the Custom Command List
 # extension (dconf path org/gnome/shell/extensions/custom-command-list), which this image does not
 # install. The pinned projectbluefin/common ships 04-bluefin-logomenu-extension, which only sets the

@@ -114,3 +114,29 @@ enroll-secure-boot-key:
     printf '%s\n%s\n' "${ENROLLMENT_PASSWORD}" "${ENROLLMENT_PASSWORD}" | sudo mokutil --import "${certs[@]}"
     echo "At next reboot, the blue MOK manager screen appears (QWERTY keyboard layout)."
     echo "Select \"Enroll MOK\", then \"Continue\", \"Yes\", and type \"${ENROLLMENT_PASSWORD}\" as the password."
+
+# Audit this machine's security settings with Lynis and say what to do about each finding
+security-audit:
+    #!/usr/bin/bash
+    set -euo pipefail
+    echo "Auditing this machine. It takes a few minutes and changes nothing."
+    echo "Settings for the audit are in /etc/lynis/custom.prf."
+    echo
+    # Lynis reads files only root can read; without sudo it silently skips those tests
+    sudo lynis audit system
+    echo
+    echo "Full output: /var/log/lynis.log"
+    echo "Findings, one per line, for comparing two runs: /var/log/lynis-report.dat"
+
+# Addresses fail2ban has blocked for too many failed logins, and how to let one back in
+blocked-addresses ADDRESS="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    if [[ -n "{{ ADDRESS }}" ]]; then
+        sudo fail2ban-client set sshd unbanip "{{ ADDRESS }}"
+        exit 0
+    fi
+    sudo fail2ban-client status sshd
+    echo
+    echo "Let one back in with: ujust blocked-addresses <address>"
+    echo "Blocking is set up in /etc/fail2ban/jail.d/10-amethystora.conf."
