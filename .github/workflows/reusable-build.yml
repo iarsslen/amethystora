@@ -44,8 +44,7 @@ jobs:
       fail-fast: false
       matrix:
         image_flavor: ${{ fromJson(inputs.image_flavors) }}
-        # The -dx images are paused for now: add the "-dx" name back to build them again
-        base_name: ["${{ inputs.brand_name }}"]
+        base_name: ["${{ inputs.brand_name }}", "${{ inputs.brand_name }}-dx"]
         stream_name: ["${{ inputs.stream_name }}"]
 
     steps:

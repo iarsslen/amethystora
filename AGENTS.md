@@ -15,7 +15,7 @@ This document provides essential information for coding agents working with the 
 ## Repository Structure
 
 ### Root Directory Files
-- `Containerfile` - Main container build definition (multi-stage: base → dx)
+- `Containerfile` - Main container build definition (stages: `ctx`, `common`, `brew`, `base`)
 - `Justfile` - Build automation recipes (33KB - like Makefile but more readable)
 - `.pre-commit-config.yaml` - Pre-commit hooks for basic validation
 - `image-versions.yml` - Image version configurations
@@ -273,7 +273,8 @@ The `Containerfile` uses a multi-stage build process:
 2. **Stage `base`** (FROM silverblue-main): Base Amethystora image
    - Mounts build context from `ctx` stage
    - Runs `/ctx/build_files/shared/build.sh` which executes all scripts in order
-3. **Stage `dx`** (optional, in full Containerfile): Developer experience layer
+3. **dx**: not a stage of its own. `just build amethystora-dx` passes `IMAGE_FLAVOR=dx`, and
+   `build.sh` runs `build-dx.sh` inside the `base` stage once the rest has finished
 
 **Build Arguments:**
 - `BASE_IMAGE_NAME` - Upstream base (silverblue/kinoite)

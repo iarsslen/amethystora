@@ -188,10 +188,10 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
 
     # Build Arguments
     BUILD_ARGS=()
-    # Target
+    # dx is built by build.sh inside the one stage, from this argument -- there is no separate
+    # Containerfile target for it
     if [[ "${image}" =~ dx ]]; then
         BUILD_ARGS+=("--build-arg" "IMAGE_FLAVOR=dx")
-        target="dx"
     fi
     BUILD_ARGS+=("--build-arg" "AKMODS_FLAVOR=${akmods_flavor}")
     BUILD_ARGS+=("--build-arg" "BASE_IMAGE_NAME=${base_image_name}")

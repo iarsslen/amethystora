@@ -99,6 +99,30 @@ dnf -y install --enablerepo=code \
     code
 
 
+# Claude Code. Anthropic publishes a signed dnf repository for Fedora, and that is the install method
+# that suits an image: the native installer and the npm package both leave a binary in the user's home
+# that updates itself in the background, which on a machine where the whole system is replaced at once
+# means one tool quietly drifting away from the image it came with. From the rpm it moves when the
+# image does, like everything else here, and a package install does not auto-update itself.
+#
+# The stable channel is a release about a week old with the ones that turned out badly skipped. That
+# is the right trade here, where a regression reaches every machine at the next reboot rather than
+# only the person who chose to run an update.
+#
+# Signed with the Claude Code release key, fingerprint
+# 31DD DE24 DDFA B679 F42D 7BD2 BAA9 29FF 1A7E CACE, which is what gpgcheck below verifies against.
+tee /etc/yum.repos.d/claude-code.repo <<'EOF'
+[claude-code]
+name=Claude Code
+baseurl=https://downloads.claude.ai/claude-code/rpm/stable
+enabled=1
+gpgcheck=1
+gpgkey=https://downloads.claude.ai/keys/claude-code.asc
+EOF
+sed -i "s/enabled=.*/enabled=0/g" /etc/yum.repos.d/claude-code.repo
+dnf -y install --enablerepo=claude-code \
+    claude-code
+
 # DX packages to exclude - common to all versions
 EXCLUDED_PACKAGES=()
 
