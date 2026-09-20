@@ -76,7 +76,7 @@ test -f /usr/share/backgrounds/amethystora/amethystora-d.png
 # one is checked here against the Amethystora artwork it has to be. These are what the login screen,
 # the Settings About page and Fedora's fallback splash draw.
 FEDORA_NAMED_LOGOS=(
-    "/usr/share/pixmaps/fedora-gdm-logo.png:/usr/share/pixmaps/amethystora-wordmark-small.png"
+    "/usr/share/pixmaps/fedora-gdm-logo.png:/usr/share/pixmaps/amethystora-wordmark-white.png"
     "/usr/share/pixmaps/fedora-logo-small.png:/usr/share/pixmaps/amethystora-wordmark-small.png"
     "/usr/share/pixmaps/fedora-logo.png:/usr/share/pixmaps/amethystora-wordmark.png"
     "/usr/share/pixmaps/fedora_logo_med.png:/usr/share/pixmaps/amethystora-wordmark-medium.png"
@@ -92,8 +92,9 @@ FEDORA_NAMED_LOGOS=(
 for entry in "${FEDORA_NAMED_LOGOS[@]}"; do
     cmp -s "${entry%%:*}" "${entry#*:}"
 done
-# GDM's own setting names the Amethystora file, for the case where it is read instead of the path above
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.login-screen logo)" == "'/usr/share/pixmaps/amethystora-wordmark-small.png'" ]]
+# GDM's own setting names the Amethystora file, for the case where it is read instead of the path
+# above. The white wordmark, because the greeter's background is dark.
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.login-screen logo)" == "'/usr/share/pixmaps/amethystora-wordmark-white.png'" ]]
 
 # Top bar: the Logo Menu button draws entry 30 of its symbolic list, whose artwork 06-branding.sh
 # replaces with the Amethystora logo. The file keeps the upstream name until 07-debrand.sh renames it.
@@ -112,6 +113,16 @@ for extension in appindicatorsupport@rgcjonas.gmail.com blur-my-shell@aunetx caf
     test -f "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
 done
 test -d /usr/share/gnome-shell/extensions/tmp && false
+
+# Every extension has to be readable by the account that logs in, not just by the root this build
+# runs as. GNOME Shell reads metadata.json as the user; one it cannot open is not a broken
+# extension, it is no extension at all, missing from the shell and from Extension Manager. The
+# extensions.gnome.org downloads carry metadata.json as 0600, which build-gnome-extensions.sh
+# undoes right after unpacking them.
+for extension in /usr/share/gnome-shell/extensions/*/; do
+    [[ -z "$(find "${extension}" -type f ! -perm -o=r)" ]]
+    [[ -z "$(find "${extension}" -type d ! -perm -o=rx)" ]]
+done
 
 # Tiling and top bar: each extension from extensions.gnome.org is installed, enabled, supports this
 # GNOME, and has its schema readable system-wide so the defaults in zz1-amethystora-modifications apply
@@ -183,15 +194,27 @@ grep -qx "Inherits=Adwaita,hicolor" "${CANDY_DIR}/index.theme"
 # panel would carry gradient glyphs that ignore the colour amethystora-theme sets on the top bar
 [[ -z "$(find "${CANDY_DIR}"/{apps,devices,mimetypes,preferences,status} -type l -name '*-symbolic.svg')" ]]
 test -e "${CANDY_DIR}/places/16/folder-symbolic.svg"
-# The apps this image ships that upstream has no icon of its own for
+# The apps this image ships that upstream has no icon of its own for, and Thunderbird, whose
+# artwork upstream only files under the capitalised app id
 for icon in org.gnome.Ptyxis io.github.kolunmi.Bazaar io.github.linx_systems.ClamUI \
-    org.gnome.Papers com.mattjakeman.ExtensionManager; do
+    org.gnome.Papers com.mattjakeman.ExtensionManager org.mozilla.thunderbird \
+    be.alexandervanhee.gradia org.freedesktop.MalcontentControl it.mijorus.smile \
+    org.gnome.Decibels org.gnome.Tour io.github.flattool.Warehouse page.tesk.Refine \
+    io.github.flattool.Ignition io.gitlab.adhami3310.Impression input-remapper \
+    amethystora-docs amethystora-community amethystora-update; do
     test -e "${CANDY_DIR}/apps/scalable/${icon}.svg"
 done
 # The theme is the default before an account applies a theme of its own, and the value
 # amethystora-theme falls back to afterwards; the two have to name the same theme
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface icon-theme)" == "'candy-icons'" ]]
 grep -q "^DEFAULT_ICON_THEME=candy-icons$" /usr/lib/amethystora/theme/lib.sh
+# An account set up before candy-icons holds an explicit icon-theme that beats the default above,
+# so the theme hook has to be past the version that only wrote the desktop's own icons
+[[ "$(sed -n 's/^version-script theme user \([0-9]\+\).*/\1/p' \
+    /usr/share/amethystora/user-setup.hooks.d/11-theme.sh)" -ge 2 ]]
+# Files opens on the grid, where candy-icons' folders are drawn as artwork rather than as a 16px row
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.nautilus.preferences default-folder-viewer)" == "'icon-view'" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.nautilus.icon-view default-zoom-level)" == "'large'" ]]
 
 # ClamAV daemon listens on its socket and keeps retrying until freshclam has fetched the signatures
 grep -q "^LocalSocket /run/clamd.scan/clamd.sock$" /etc/clamd.d/scan.conf

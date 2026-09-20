@@ -14,18 +14,33 @@ secondary-color='2a0f4a'
 [org.gnome.desktop.screensaver]
 picture-uri='file:///usr/share/backgrounds/amethystora/amethystora-d.png'
 
-# The logo above the user list on the login screen. GDM reads it from a fixed path, which Fedora
+# The logo under the user list on the login screen. GDM reads it from a fixed path, which Fedora
 # fills with fedora-gdm-logo.png and the base image overwrites with Bluefin's; 06-branding.sh puts
-# the Amethystora artwork at that path too, so the greeter is right whichever of the two GDM reads.
+# this same file at that path too, so the greeter is right whichever of the two GDM reads.
+# The white wordmark, not the dark one: the greeter's background is dark, and the dark lettering
+# vanishes into it, leaving the gem on its own.
 [org.gnome.login-screen]
-logo='/usr/share/pixmaps/amethystora-wordmark-small.png'
+logo='/usr/share/pixmaps/amethystora-wordmark-white.png'
 
 [org.gnome.desktop.interface]
 accent-color='purple'
 # candy-icons, installed by build_files/base/10-icons.sh. amethystora-theme writes the same value
 # on every theme switch, from DEFAULT_ICON_THEME in /usr/lib/amethystora/theme/lib.sh; this is what
-# an account sees before it has applied a theme.
+# an account sees before it has applied a theme. An account that applied one before candy-icons
+# existed holds an explicit value that wins over this default, which is what version 2 of the
+# 11-theme.sh setup hook is for.
 icon-theme='candy-icons'
+
+#-------------- FILES --------------#
+# The grid, at a size that shows what candy-icons draws: its folders are full-colour artwork, and
+# the list view reduces them to a 16px row. The sidebar stays monochrome whatever is set here,
+# because GTK asks for the -symbolic names there.
+
+[org.gnome.nautilus.preferences]
+default-folder-viewer='icon-view'
+
+[org.gnome.nautilus.icon-view]
+default-zoom-level='large'
 
 [org.gnome.shell.extensions.blur-my-shell.popup]
 blur=false

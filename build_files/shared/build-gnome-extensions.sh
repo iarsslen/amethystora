@@ -74,6 +74,13 @@ install_ego_extension() {
     unzip -o "${archive}" -d "${directory}"
     rm -f "${archive}"
 
+    # extensions.gnome.org rewrites metadata.json when it builds a download, and stores it in the
+    # zip as 0600. unzip honours that, so it lands on the image readable by root only. Everything
+    # here runs as root and sees a perfectly good extension, while the session does not: GNOME
+    # Shell reads metadata.json as the logged-in user, finds nothing it may open, and the extension
+    # is absent from the shell and from Extension Manager rather than listed as broken.
+    chmod -R u=rwX,go=rX "${directory}"
+
     # The pin is an upload id, so check the upload really is this extension at this version, and
     # that it supports the GNOME in this image rather than failing silently at login
     jq -e --arg uuid "${uuid}" --argjson version "${version}" \
