@@ -10,7 +10,7 @@
   gradient is placed in user space so it runs unbroken across both elements.
 
   Like claude.svg, nothing in the image looks this up yet: the opencode binary installed by
-  build_files/dx/00-dx.sh ships no desktop entry. This is here so that a launcher written by hand
+  build_files/base/04-packages.sh ships no desktop entry. This is here so that a launcher written by hand
   finds the icon already drawn.
 
   The outline is opencode's square logo (packages/console/app/src/asset/brand in

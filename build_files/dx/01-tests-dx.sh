@@ -5,7 +5,6 @@ echo "::group:: ===$(basename "$0")==="
 set -eoux pipefail
 
 IMPORTANT_PACKAGES_DX=(
-    claude-code
     code
     containerd.io
     docker-ce
@@ -19,9 +18,6 @@ IMPORTANT_PACKAGES_DX=(
 for package in "${IMPORTANT_PACKAGES_DX[@]}"; do
     rpm -q "${package}" >/dev/null || { echo "Missing package: ${package}... Exiting"; exit 1 ; }
 done
-
-# opencode is a release binary, not an rpm (00-dx.sh)
-test -x /usr/bin/opencode
 
 IMPORTANT_UNITS=(
     docker.socket

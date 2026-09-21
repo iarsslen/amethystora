@@ -227,7 +227,7 @@ test -f /usr/lib/amethystora/theme/lib.sh
 test -f /usr/share/amethystora/keybindings.md
 test -x /usr/share/amethystora/theme-set.hooks.d/10-vscode.sh
 test -x /usr/share/amethystora/user-setup.hooks.d/11-theme.sh
-for template in btop.theme kitty.conf ptyxis.palettestarship.toml wallpaper.svg; do
+for template in btop.theme kitty.conf ptyxis.palette starship.toml wallpaper.svg; do
     test -f "/usr/share/amethystora/themed/${template}.tpl"
 done
 # Every theme needs a palette; the default one is what 11-theme.sh applies at first login
@@ -599,6 +599,7 @@ test -f /usr/lib/systemd/system/flatpak-add-fedora-repos.service && false
 IMPORTANT_PACKAGES=(
     audit
     brave-browser
+    claude-code
     clamav
     clamav-freshclam
     clamd
@@ -631,6 +632,14 @@ IMPORTANT_PACKAGES=(
 for package in "${IMPORTANT_PACKAGES[@]}"; do
     rpm -q "${package}" >/dev/null || { echo "Missing package: ${package}... Exiting"; exit 1 ; }
 done
+
+# The agentic features: opencode is a release binary, not an rpm (04-packages.sh). The skill's name
+# has to match its directory, or Claude Code and opencode skip it.
+test -x /usr/bin/opencode
+test -x /usr/bin/amethystora-agent
+test -x /usr/share/amethystora/user-setup.hooks.d/13-agentic.sh
+grep -qx "name: amethystora" /usr/share/amethystora/agents/skills/amethystora/SKILL.md
+grep -q "^toggle-agentic:" /usr/share/amethystora/just/60-custom.just
 
 # these packages are supposed to be removed
 # and are considered footguns

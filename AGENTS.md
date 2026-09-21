@@ -191,6 +191,18 @@ Packages are defined directly in build scripts rather than in a central configur
   - Fedora version-specific package sections using case statements (e.g., `42)`, `43)`)
 - `build_files/dx/00-dx.sh` - Developer experience package additions
 
+### Agentic features
+
+Every image, base and dx, installs Claude Code and opencode (`04-packages.sh`) and ships
+`amethystora-agent`, the launcher behind `Super+Ctrl+Shift+A` and the menu's "Ask an agent". The
+skill in `system_files/shared/usr/share/amethystora/agents/skills/amethystora/SKILL.md` tells
+agents how to change *a user's machine* safely: this repository is where it is written, not a place
+it applies to. `user-setup.hooks.d/13-agentic.sh` links it into `~/.claude/skills`, the one
+directory both agents read (opencode requires skill names to be unique across its skill directories). The features are on by
+default. `ujust toggle-agentic` turns them off per user by writing
+`~/.config/amethystora/no-agentic`. Keep the skill accurate when you change a command, path or
+recipe that it names.
+
 ### COPR Package Installation
 
 COPR packages use the `copr_install_isolated()` helper function from `build_files/shared/copr-helpers.sh`:

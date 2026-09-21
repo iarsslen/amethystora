@@ -8,7 +8,7 @@
   the brand's silhouette, no backplate, filled with one horizontal two-stop gradient in the brand's
   own hue pushed up in saturation. This is that, for Claude.
 
-  Nothing in the image looks this up yet. The claude-code rpm installed by build_files/dx/00-dx.sh
+  Nothing in the image looks this up yet. The claude-code rpm installed by build_files/base/04-packages.sh
   ships /usr/bin/claude and nothing else - no desktop entry, so no icon lookup - and this is here so
   that a launcher written by hand, or one a later release of the rpm ships, finds the icon already
   drawn rather than falling back to a flat tile among the gradients. nordvpn.svg is here on the same
