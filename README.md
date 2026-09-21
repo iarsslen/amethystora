@@ -47,13 +47,13 @@ The top bar carries the six workspaces on the left, where Activities used to be,
 
 Windows tile on a grid instead of being dragged into place. `Super+T` draws a 4×2 grid over the focused monitor; type the letter of a zone (`Q W E R` on the top row, `A S D F` on the bottom) to send the window there, or two letters to span from one to the other. `Super+Ctrl+T` changes the grid itself.
 
-There are six fixed workspaces on `Super+1` to `Super+6`, `Super+Shift+N` takes the window with you, and `Alt+1` to `Alt+9` reach the pinned apps in the dock. `Super+Return` opens a terminal, `Super+W` closes a window, `Super+Space` searches.
+There are six fixed workspaces on `Super+1` to `Super+6`, `Super+Shift+N` takes the window with you, and `Alt+1` to `Alt+9` reach the pinned apps in the dock. `Super+Return` opens a terminal (kitty), `Super+W` closes a window, `Super+Space` searches.
 
 `Super+Alt+Space` opens the Amethystora menu, which reaches all of this from the keyboard. The full list is in `ujust keybindings`.
 
 #### Themes
 
-`Super+Ctrl+Shift+Space` picks a theme, `Super+Ctrl+D` flips between light and dark, and `Super+Ctrl+Space` cycles the wallpaper. One switch repaints GNOME's colour scheme and accent, the Ptyxis palette, the shell prompt, btop and the wallpaper, because each theme is a single palette file everything else is rendered from. The same from a terminal:
+`Super+Ctrl+Shift+Space` picks a theme, `Super+Ctrl+D` flips between light and dark, and `Super+Ctrl+Space` cycles the wallpaper. One switch repaints GNOME's colour scheme and accent, the kitty and Ptyxis palettes, the shell prompt, btop and the wallpaper, because each theme is a single palette file everything else is rendered from. The same from a terminal:
 
 ```bash
 ujust theme                      # pick one

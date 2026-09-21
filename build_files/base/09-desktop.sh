@@ -33,6 +33,15 @@ sed -i "/^favorite-apps *=/ s|'org\.mozilla\.firefox\.desktop'|'brave-browser.de
 grep -q "^favorite-apps *=.*'brave-browser\.desktop'" "${OVERRIDE}"
 grep -qi "firefox" "${OVERRIDE}" && false
 
+# Kitty is the terminal, in Ptyxis' slot when the base image pins it, at the end otherwise
+test -f /usr/share/applications/kitty.desktop
+if grep -q "^favorite-apps *=.*'org\.gnome\.Ptyxis\.desktop'" "${OVERRIDE}"; then
+    sed -i "/^favorite-apps *=/ s|'org\.gnome\.Ptyxis\.desktop'|'kitty.desktop'|" "${OVERRIDE}"
+else
+    sed -i "/^favorite-apps *=/ s|\]|, 'kitty.desktop'&|" "${OVERRIDE}"
+fi
+grep -q "^favorite-apps *=.*'kitty\.desktop'" "${OVERRIDE}"
+
 # The Logo Menu's panel icon, second half of the change 06-branding.sh makes to the extension's
 # dconf defaults: the coloured gem instead of the symbolic silhouette GNOME repaints panel-white.
 # The dconf file is what the extension actually reads, since its schema lives in its own directory

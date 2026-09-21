@@ -101,6 +101,12 @@ apply_ptyxis() {
     done
 }
 
+# kitty includes the rendered palette from /etc/xdg/kitty/kitty.conf, so only the windows already
+# open need telling: SIGUSR1 makes kitty reload its config.
+apply_kitty() {
+    pkill -USR1 -x -u "${UID}" kitty 2>/dev/null || true
+}
+
 # The extensions that draw in the top bar keep their colours in their own settings rather than in
 # a stylesheet, so the panel only follows the theme if they are written on every switch. These are
 # the theme's exact colours, not GNOME's nine accents, which is why TopHat's use-system-accent is
@@ -181,6 +187,7 @@ theme_set() {
     apply_gnome
     apply_topbar
     apply_ptyxis
+    apply_kitty
     apply_btop
     apply_starship
     # A wallpaper that cannot be set is worth a warning, not a half-applied theme

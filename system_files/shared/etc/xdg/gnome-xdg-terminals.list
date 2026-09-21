@@ -1,0 +1,4 @@
+# xdg-terminal-exec reads the desktop's own list before xdg-terminals.list, so GNOME gets the same
+# order stated here too, in case an upstream layer ships one of its own.
+kitty.desktop
+org.gnome.Ptyxis.desktop

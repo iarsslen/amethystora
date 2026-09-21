@@ -123,6 +123,18 @@ sed -i "s/enabled=.*/enabled=0/g" /etc/yum.repos.d/claude-code.repo
 dnf -y install --enablerepo=claude-code \
     claude-code
 
+# opencode. There is no rpm of the CLI, so the release binary goes into /usr/bin, pinned by version
+# and checksum for the same reason as Claude Code above: it moves when the image does. Renovate bumps
+# both (.github/renovate.json5). Its self-update has nowhere to write under a read-only /usr.
+OPENCODE_VERSION="v1.18.31"
+OPENCODE_SHA256="e9312be75ed803b7415fc2aeabda1f4fe938912a39673762dc0c38c0e11ebde4"
+ghcurl "https://github.com/anomalyco/opencode/releases/download/${OPENCODE_VERSION}/opencode-linux-x64.tar.gz" \
+    --fail --retry 3 -o /tmp/opencode.tar.gz
+echo "${OPENCODE_SHA256}  /tmp/opencode.tar.gz" | sha256sum -c -
+tar -xzf /tmp/opencode.tar.gz -C /tmp opencode
+install -Dm0755 /tmp/opencode /usr/bin/opencode
+rm -f /tmp/opencode /tmp/opencode.tar.gz
+
 # DX packages to exclude - common to all versions
 EXCLUDED_PACKAGES=()
 

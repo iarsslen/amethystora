@@ -59,6 +59,7 @@ FEDORA_PACKAGES=(
     iwd
     jetbrains-mono-fonts-all
     just
+    kitty
     krb5-workstation
     libappindicator-gtk3
     libayatana-appindicator-gtk3
