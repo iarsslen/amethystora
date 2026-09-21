@@ -49,6 +49,15 @@ toggle-user-motd:
         echo "Terminal greeting disabled"
     fi
 
+# Toggle the AI agent: its menu entry, Super+Ctrl+Shift+A, and the skill that tells it about this system
+toggle-agentic:
+    #!/usr/bin/bash
+    if amethystora-agent status >/dev/null; then
+        amethystora-agent off
+    else
+        amethystora-agent on
+    fi
+
 # Log in, unlock the screen and approve sudo with a FIDO2 security key (YubiKey, Thetis, and their fingerprint models)
 setup-security-key ACTION="":
     #!/usr/bin/bash

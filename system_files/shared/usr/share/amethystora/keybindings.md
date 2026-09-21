@@ -47,6 +47,7 @@ the top bar on the left.
 | `Super+Shift+B` | Browser |
 | `Super+Shift+F` | Files |
 | `Super+E` | Home folder |
+| `Super+Ctrl+Shift+A` | An AI agent that knows this system (`ujust toggle-agentic` turns it off) |
 
 ## Appearance
 

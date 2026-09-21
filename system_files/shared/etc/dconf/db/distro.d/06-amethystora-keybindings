@@ -36,3 +36,8 @@ name='Files'
 binding='<Super><Shift>b'
 command='brave-browser --new-window'
 name='Browser'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom27]
+binding='<Super><Control><Shift>a'
+command='amethystora-agent'
+name='AI agent'

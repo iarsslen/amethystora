@@ -1,0 +1,119 @@
+#!/usr/bin/bash
+#
+# Open an AI coding agent that knows this system, and turn that on or off. On by default; off, the
+# agent is not offered in the menu, its keybinding does nothing and the agents are not told about
+# Amethystora. The agent CLIs themselves stay installed either way.
+#
+#   amethystora-agent                  open the agent in a terminal (Super+Ctrl+Shift+A)
+#   amethystora-agent ask "<prompt>"   open it with a first prompt
+#   amethystora-agent use claude|opencode   choose the agent (default: the first one installed)
+#   amethystora-agent on|off           turn the agentic features on or off (ujust toggle-agentic)
+#   amethystora-agent status           print whether they are on; exits 1 when off
+#   amethystora-agent sync             link or unlink the skill to match, run at every login
+#
+# The skill in /usr/share/amethystora/agents/skills tells the agent what may be edited here and how.
+# It is linked into ~/.claude/skills, which Claude Code and opencode both read, so it follows the
+# image on every update. The agent starts in its normal permission mode: it asks before it acts.
+
+set -euo pipefail
+
+# shellcheck source=../lib/amethystora/theme/lib.sh
+source /usr/lib/amethystora/theme/lib.sh
+
+AGENTS=(claude opencode)
+SKILL=/usr/share/amethystora/agents/skills/amethystora
+SKILL_LINK="${HOME}/.claude/skills/amethystora"
+DISABLED="${CONFIG_DIR}/no-agentic"
+CHOICE="${CONFIG_DIR}/agent"
+
+usage() {
+    sed -n '3,16p' "$0" | sed 's/^# \?//'
+}
+
+enabled() {
+    [[ ! -e ${DISABLED} ]]
+}
+
+# Link the skill when on, and when off remove the link, but only one that is ours. A directory of
+# the same name that the user made is theirs, and left alone either way.
+sync_skill() {
+    if [[ -e ${SKILL_LINK} && ! -L ${SKILL_LINK} ]]; then
+        return
+    fi
+    if enabled; then
+        mkdir -p "${SKILL_LINK%/*}"
+        ln -sfn "${SKILL}" "${SKILL_LINK}"
+    elif [[ -L ${SKILL_LINK} && "$(readlink "${SKILL_LINK}")" == "${SKILL}" ]]; then
+        rm -f "${SKILL_LINK}"
+    fi
+}
+
+agent() {
+    local name
+    if [[ -s ${CHOICE} ]]; then
+        name="$(<"${CHOICE}")"
+        have "${name}" || die "${name} is not installed. Choose another with: amethystora-agent use ${AGENTS[*]}"
+        echo "${name}"
+        return
+    fi
+    for name in "${AGENTS[@]}"; do
+        have "${name}" && { echo "${name}"; return; }
+    done
+    die "no agent installed (${AGENTS[*]})"
+}
+
+launch() {
+    local name
+    if ! enabled; then
+        notify "Agentic features are off" "Turn them on with: ujust toggle-agentic"
+        die "agentic features are off. Turn them on with: ujust toggle-agentic"
+    fi
+    # Opened from a keybinding there is no terminal attached, so it reopens itself in one
+    if [[ ! -t 0 ]]; then
+        exec xdg-terminal-exec "$0" ask "$@"
+    fi
+    sync_skill
+    name="$(agent)"
+    cd "${HOME}"
+    if [[ $# -eq 0 ]]; then
+        exec "${name}"
+    fi
+    case "${name}" in
+        opencode) exec opencode --prompt "$*" ;;
+        *) exec "${name}" "$*" ;;
+    esac
+}
+
+case "${1:-}" in
+    "") launch ;;
+    ask) shift; launch "$@" ;;
+    use)
+        [[ -n ${2:-} && " ${AGENTS[*]} " == *" $2 "* ]] || die "usage: amethystora-agent use $(IFS='|'; echo "${AGENTS[*]}")"
+        mkdir -p "${CONFIG_DIR}"
+        echo "$2" >"${CHOICE}"
+        echo "Agent: $2"
+        ;;
+    on)
+        rm -f "${DISABLED}"
+        sync_skill
+        echo "Agentic features on"
+        ;;
+    off)
+        mkdir -p "${CONFIG_DIR}"
+        touch "${DISABLED}"
+        sync_skill
+        echo "Agentic features off"
+        ;;
+    status)
+        if enabled; then
+            # agent() exits when there is none, so it runs in a subshell of its own for the fallback
+            echo "Agentic features: on ($( (agent) 2>/dev/null || echo "no agent installed"))"
+        else
+            echo "Agentic features: off"
+            exit 1
+        fi
+        ;;
+    sync) sync_skill ;;
+    -h | --help | help) usage ;;
+    *) die "unknown command: $1. Run amethystora-agent --help" ;;
+esac

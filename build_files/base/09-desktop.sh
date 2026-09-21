@@ -15,7 +15,7 @@ OVERRIDE=/usr/share/glib-2.0/schemas/zz0-bluefin-modifications.gschema.override
 CUSTOM_PATH=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings
 
 # Keep in step with 06-amethystora-keybindings
-AMETHYSTORA_KEYBINDINGS=(20 21 22 23 24 25 26)
+AMETHYSTORA_KEYBINDINGS=(20 21 22 23 24 25 26 27)
 
 paths=""
 for index in "${AMETHYSTORA_KEYBINDINGS[@]}"; do

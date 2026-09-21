@@ -65,6 +65,18 @@ Amethystora ships Amethystora (light and dark), Tokyo Night, Catppuccin Mocha an
 
 The icons are [candy-icons](https://github.com/EliverLara/candy-icons), the same set under every theme; the panel keeps GNOME's own monochrome icons so the meters and indicators stay legible. A theme that wants a different set names it in an `icons.theme` file.
 
+#### AI agent
+
+Every image ships [Claude Code](https://claude.com/claude-code) and [opencode](https://opencode.ai), together with a skill that explains this system to them: which paths belong to the image and which are yours to change, how themes and keybindings work, how to install software on an atomic system, and what to ask you before touching. `Super+Ctrl+Shift+A`, or "Ask an agent" in the Amethystora menu, opens one in a terminal in its normal mode, so it asks before it acts.
+
+```bash
+amethystora-agent ask "make the dock icons smaller"
+amethystora-agent use opencode   # the default is Claude Code
+ujust toggle-agentic             # turn the agent features off, or on again
+```
+
+Turning it off removes the menu entry, disables the keybinding and unlinks the skill from `~/.claude/skills`. The agent programs stay installed either way, and neither does anything until you sign in to it.
+
 #### Boot menu
 
 The GRUB menu can carry the Amethystora artwork too — the same crystal field as the wallpaper, the wordmark above the entries, and the boot splash following on the same dark ground. It is off by default and turned on with:
