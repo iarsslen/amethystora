@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+  opencode in the candy-icons style, installed into the theme by build_files/base/10-icons.sh.
+
+  candy-icons has no opencode icon, and nothing near enough to alias to: the mark is a tall frame
+  with its lower inner half filled, not a terminal prompt. Drawn the way the pack draws a brand
+  (see claude.svg beside this one): the brand's silhouette, no backplate, one gradient. opencode's
+  brand has no hue of its own, only two greys, so the gradient is the one the pack fills its own
+  utilities-terminal with. The mark's two tones are kept as one gradient at two opacities; the
+  gradient is placed in user space so it runs unbroken across both elements.
+
+  Like claude.svg, nothing in the image looks this up yet: the opencode binary installed by
+  build_files/dx/00-dx.sh ships no desktop entry. This is here so that a launcher written by hand
+  finds the icon already drawn.
+
+  The outline is opencode's square logo (packages/console/app/src/asset/brand in
+  anomalyco/opencode, MIT), 240 by 300 units scaled by 2/15 into the pack's 48-unit box and centred.
+  This is only a themed icon for the tool the image installs, not a mark of opencode's making.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" style="isolation:isolate" viewBox="0 0 48 48" width="48pt" height="48pt">
+  <linearGradient id="_lgradient_opencode" x1="8" y1="44" x2="40" y2="4" gradientUnits="userSpaceOnUse">
+    <stop offset="0%" stop-opacity="1" style="stop-color:rgb(135,154,242)"/>
+    <stop offset="47.91666666666667%" stop-opacity="1" style="stop-color:rgb(211,32,139)"/>
+    <stop offset="97.91666666666666%" stop-opacity="1" style="stop-color:rgb(253,160,0)"/>
+  </linearGradient>
+  <path d="M 32 36 L 16 36 L 16 20 L 32 20 Z" fill="url(#_lgradient_opencode)" fill-opacity="0.45"/>
+  <path d="M 32 12 L 16 12 L 16 36 L 32 36 Z M 40 44 L 8 44 L 8 4 L 40 4 Z" fill-rule="evenodd" fill="url(#_lgradient_opencode)"/>
+</svg>

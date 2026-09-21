@@ -72,7 +72,7 @@ install -Dpm0644 /ctx/build_files/shared/candy-icons/amethystora-security-status
 # upstream has since added is left alone, and a target that has gone away fails the build rather
 # than silently leaving the app without an icon.
 CANDY_ALIASES=(
-    # Ptyxis is the terminal here
+    # Ptyxis, kept as the fallback terminal
     "org.gnome.Ptyxis:org.gnome.Terminal.svg"
     # Bazaar is the software centre
     "io.github.kolunmi.Bazaar:software-center.svg"

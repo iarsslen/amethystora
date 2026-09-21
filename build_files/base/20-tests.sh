@@ -35,6 +35,13 @@ FAVORITES="$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell favorite-app
 grep -q "'brave-browser.desktop'" <<<"${FAVORITES}"
 grep -qi "firefox" <<<"${FAVORITES}" && false
 
+# Kitty is the terminal: pinned in the dash, first for xdg-terminal-exec (Super+Return), themed
+grep -q "'kitty.desktop'" <<<"${FAVORITES}"
+grep -qi "ptyxis" <<<"${FAVORITES}" && false
+[[ "$(grep -v '^#' /etc/xdg/xdg-terminals.list | head -1)" == "kitty.desktop" ]]
+[[ "$(grep -v '^#' /etc/xdg/gnome-xdg-terminals.list | head -1)" == "kitty.desktop" ]]
+grep -q "^include ~/.config/amethystora/current/theme/kitty.conf$" /etc/xdg/kitty/kitty.conf
+
 # Animated boot splash: the script theme, the images it loads, and both in the initramfs, which shows the
 # splash up to and including the LUKS password prompt
 [[ "$(plymouth-set-default-theme)" == "amethystora" ]]
@@ -220,7 +227,7 @@ test -f /usr/lib/amethystora/theme/lib.sh
 test -f /usr/share/amethystora/keybindings.md
 test -x /usr/share/amethystora/theme-set.hooks.d/10-vscode.sh
 test -x /usr/share/amethystora/user-setup.hooks.d/11-theme.sh
-for template in btop.theme ptyxis.palette starship.toml wallpaper.svg; do
+for template in btop.theme kitty.conf ptyxis.palettestarship.toml wallpaper.svg; do
     test -f "/usr/share/amethystora/themed/${template}.tpl"
 done
 # Every theme needs a palette; the default one is what 11-theme.sh applies at first login
@@ -314,6 +321,11 @@ grep -q 'fill="url(#_lgradient_nordvpn)"' "${CANDY_DIR}/apps/scalable/nordvpn.sv
 # Claude's mark the same way. Nothing in the image looks it up yet - the claude-code rpm ships no
 # desktop entry - so this line is all that stands between a drawing mistake and nobody noticing.
 grep -q 'fill="url(#_lgradient_claude)"' "${CANDY_DIR}/apps/scalable/claude.svg"
+# opencode's frame and its inner fill draw from the one gradient, on the same terms
+[[ "$(grep -c 'fill="url(#_lgradient_opencode)"' "${CANDY_DIR}/apps/scalable/opencode.svg")" == 2 ]]
+# Kitty, the terminal, is drawn by upstream itself under the name its desktop entry asks for
+grep -qx "Icon=kitty" /usr/share/applications/kitty.desktop
+test -s "${CANDY_DIR}/apps/scalable/kitty.svg"
 # The Security Report shield: the pack's own shield, from preferences-system-privacy, with report bars
 # instead of that icon's keyhole. Both elements draw from one gradient placed in user space, because a
 # second gradient, or either element left on its own bounding box, would break the diagonal across them.
@@ -598,6 +610,7 @@ IMPORTANT_PACKAGES=(
     fish
     flatpak
     gdm
+    kitty
     gnome-shell
     lynis
     mutter

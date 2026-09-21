@@ -12,10 +12,12 @@
 #   3  the theme mirror in ~/.themes and the libadwaita user stylesheet that imports from it
 #      (theme-set.hooks.d/20-gtk-apps.sh). Accounts set up before it existed have neither, so every
 #      Flatpak application on them keeps the runtime's stock Adwaita until the theme is applied again.
+#   4  the kitty palette (themed/kitty.conf.tpl), which /etc/xdg/kitty/kitty.conf includes. Accounts
+#      set up before kitty became the terminal have no rendered copy, so kitty would open unthemed.
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
-version-script theme user 3 || exit 0
+version-script theme user 4 || exit 0
 
 set -xeuo pipefail
 
