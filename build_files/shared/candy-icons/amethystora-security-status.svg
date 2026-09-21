@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+  Security Report in the candy-icons style, installed into the theme by build_files/base/10-icons.sh
+  and drawn on by /usr/share/applications/amethystora-security-status.desktop.
+
+  The pack has no icon for this. What it does have is a shield, drawn once and used twice: the same
+  outline carries a keyhole in preferences-system-privacy and a pair of arcs in gufw. So the shield
+  is that shield, taken unchanged from preferences-system-privacy.svg (candy-icons, GPL-3.0, the same
+  pack this file is installed into), down to the rounded break in the ring at the upper left, which
+  is the pack's own drawing and not damage.
+
+  Inside it, three bars rather than a tick. `ujust security-status` reports what the machine's
+  settings are doing, and that report is often not a clean one; a shield with a tick in it would be
+  the icon promising an all-clear before anything had been looked at.
+
+  The gradient is two shades from the amethyst ladder in branding/generate.mjs, the glint on the
+  crown running down into the stone, on the diagonal the pack's shields use.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" style="isolation:isolate" viewBox="0 0 48 48" width="48pt" height="48pt">
+  <linearGradient id="_lgradient_security_status" x1="0.0619" y1="0.1472" x2="0.9904" y2="0.9866" gradientTransform="matrix(36,0,0,46.469,6,0.7)" gradientUnits="userSpaceOnUse">
+    <stop offset="0%" stop-opacity="1" style="stop-color:rgb(179,125,249)"/>
+    <stop offset="100%" stop-opacity="1" style="stop-color:rgb(93,26,196)"/>
+  </linearGradient>
+  <path d="M 10.9 25.37 L 10.9 25.37 C 10.552 24.321 9.419 23.752 8.37 24.1 L 8.37 24.1 C 7.321 24.448 6.752 25.581 7.1 26.63 L 7.1 26.63 L 7.72 28.5 C 7.72 28.5 7.72 28.51 7.72 28.51 C 8.41 30.55 9.3 32.51 10.38 34.36 C 11.46 36.25 12.71 38.05 14.1 39.72 C 15.42 41.32 16.89 42.8 18.5 44.11 C 19.24 44.72 20.02 45.28 20.84 45.79 C 21.6 46.27 22.41 46.68 23.25 47.02 C 23.71 47.21 24.23 47.22 24.7 47.04 L 25.72 46.66 C 25.73 46.66 25.73 46.66 25.74 46.66 C 28.06 45.76 30.22 44.48 32.13 42.88 C 34.09 41.25 35.81 39.36 37.25 37.27 C 38.71 35.18 39.87 32.9 40.71 30.5 C 41.54 28.15 41.98 25.68 42 23.19 C 42 23.18 42 23.18 42 23.17 L 42 11.11 C 42 8.902 40.602 7.15 38.88 7.2 L 38.88 7.2 C 36.59 7.18 34.33 6.72 32.21 5.85 C 31.02 5.36 29.87 4.78 28.77 4.11 C 27.14 3.12 25.61 1.97 24.19 0.7 C 22.36 1.87 20.46 2.94 18.52 3.91 C 17.21 4.57 15.88 5.16 14.51 5.68 C 13.35 6.12 12.17 6.48 10.96 6.75 C 9.96 6.99 8.94 7.13 7.91 7.17 C 7.4 7.2 6.91 7.42 6.55 7.79 C 6.2 8.16 6 8.66 6 9.17 L 6 16.17 L 6 16.17 C 6 17.274 6.896 18.17 8 18.17 L 8 18.17 C 9.104 18.17 10 17.274 10 16.17 L 10 16.17 L 10 11 C 10.63 10.91 11.25 10.79 11.86 10.65 C 13.25 10.33 14.6 9.92 15.93 9.42 C 17.42 8.85 18.89 8.21 20.31 7.49 C 21.51 6.89 22.68 6.26 23.84 5.59 C 24.76 6.28 25.7 6.92 26.68 7.52 C 27.96 8.31 29.3 8.99 30.7 9.55 C 33.02 10.51 35.49 11.06 38 11.18 L 38 23.16 C 37.98 25.21 37.62 27.24 36.94 29.17 C 36.22 31.24 35.22 33.2 33.97 34.99 C 32.73 36.79 31.25 38.41 29.56 39.81 C 28 41.13 26.22 42.18 24.31 42.92 L 24.06 43.01 C 23.68 42.83 23.31 42.62 22.96 42.4 C 22.29 41.98 21.64 41.52 21.03 41.02 C 19.63 39.87 18.34 38.58 17.19 37.17 C 15.94 35.67 14.82 34.06 13.84 32.36 C 12.89 30.74 12.11 29.02 11.52 27.24 L 10.9 25.37 L 10.9 25.37 L 10.9 25.37 Z" fill-rule="evenodd" fill="url(#_lgradient_security_status)"/>
+  <path d="M 18 19.5 L 30 19.5 M 18 25 L 30 25 M 18 30.5 L 25 30.5" fill="none" stroke="url(#_lgradient_security_status)" stroke-width="3" stroke-linecap="round"/>
+</svg>

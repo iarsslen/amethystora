@@ -64,7 +64,10 @@ mv "${RULES}.new" "${RULES}"
 chmod 0600 "${RULES}"
 restorecon "${RULES}" 2>/dev/null || true
 
-# Load every rules.d file, this one included. Without auditd running there is nothing to load into.
+# Nothing to load here in the normal case: this runs before auditd, which loads every file in
+# /etc/audit/rules.d itself as it starts. The load below is for the other case, someone running
+# this by hand on a machine where auditd is already up, and it is refused once the rule set has
+# been made immutable, which is correct: those rules are already loaded.
 if systemctl is-active --quiet auditd.service; then
     augenrules --load
 fi

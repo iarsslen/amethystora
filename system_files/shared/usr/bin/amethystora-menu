@@ -84,7 +84,8 @@ keys_menu() {
 system_menu() {
     local choice
     heading "System"
-    choice="$(choose "System" "Lock screen" "Log out" "Restart" "Shut down" "Check for updates" || true)"
+    choice="$(choose "System" "Lock screen" "Log out" "Restart" "Shut down" \
+        "Check for updates" "Security report" || true)"
     case "${choice}" in
         "Lock screen") loginctl lock-session ;;
         "Log out") gnome-session-quit --logout ;;
@@ -92,6 +93,10 @@ system_menu() {
         "Shut down") systemctl poweroff ;;
         "Check for updates")
             ujust update
+            gum input --placeholder "Press enter to close" >/dev/null || true
+            ;;
+        "Security report")
+            ujust security-status
             gum input --placeholder "Press enter to close" >/dev/null || true
             ;;
         *) back ;;

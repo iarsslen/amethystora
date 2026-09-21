@@ -1,0 +1,25 @@
+#!/usr/bin/bash
+# The app menu entry for `ujust security-status` (amethystora-security-status.desktop).
+#
+# The recipe is the real thing; this exists only because a launcher's terminal closes the instant the
+# command ends, which would put the report on screen for about as long as it took to draw. The report
+# is the whole point of opening it, so wait until it has been read.
+#
+# Terminal=true in the desktop entry is what provides the terminal. xdg-terminal-exec is there for a
+# launcher that ignores it, and is the same way amethystora-menu reopens itself from a keybinding.
+
+set -uo pipefail
+
+if [[ ! -t 1 ]]; then
+    command -v xdg-terminal-exec >/dev/null || exit 0
+    exec xdg-terminal-exec "$0" "$@"
+fi
+
+ujust security-status
+
+# gum is what the rest of this image prompts with; read is what is there if it ever is not
+if command -v gum >/dev/null; then
+    gum input --placeholder "Press enter to close" >/dev/null || true
+else
+    read -rsp "Press enter to close" _ || true
+fi

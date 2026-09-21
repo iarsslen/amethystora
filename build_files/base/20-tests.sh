@@ -300,7 +300,7 @@ for icon in org.gnome.Ptyxis io.github.kolunmi.Bazaar io.github.linx_systems.Cla
     org.gnome.Decibels org.gnome.Tour io.github.flattool.Warehouse page.tesk.Refine \
     io.github.flattool.Ignition io.gitlab.adhami3310.Impression input-remapper nordvpn-gui \
     org.gnome.Sysprof \
-    amethystora-docs amethystora-community amethystora-update; do
+    amethystora-docs amethystora-community amethystora-update amethystora-security-status; do
     test -e "${CANDY_DIR}/apps/scalable/${icon}.svg"
 done
 # Icons drawn for this image, in the pack's style, for what upstream has no artwork for and nothing
@@ -314,6 +314,14 @@ grep -q 'fill="url(#_lgradient_nordvpn)"' "${CANDY_DIR}/apps/scalable/nordvpn.sv
 # Claude's mark the same way. Nothing in the image looks it up yet - the claude-code rpm ships no
 # desktop entry - so this line is all that stands between a drawing mistake and nobody noticing.
 grep -q 'fill="url(#_lgradient_claude)"' "${CANDY_DIR}/apps/scalable/claude.svg"
+# The Security Report shield: the pack's own shield, from preferences-system-privacy, with report bars
+# instead of that icon's keyhole. Both elements draw from one gradient placed in user space, because a
+# second gradient, or either element left on its own bounding box, would break the diagonal across them.
+SECURITY_ICON="${CANDY_DIR}/apps/scalable/amethystora-security-status.svg"
+grep -q 'fill="url(#_lgradient_security_status)"' "${SECURITY_ICON}"
+grep -q 'stroke="url(#_lgradient_security_status)"' "${SECURITY_ICON}"
+[[ "$(grep -c "<linearGradient" "${SECURITY_ICON}")" == 1 ]]
+grep -q 'gradientUnits="userSpaceOnUse"' "${SECURITY_ICON}"
 # The theme is the default before an account applies a theme of its own, and the value
 # amethystora-theme falls back to afterwards; the two have to name the same theme
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface icon-theme)" == "'candy-icons'" ]]
@@ -345,6 +353,23 @@ jq -e '.transports.docker["ghcr.io/iarsslen"][0] == {"type": "sigstoreSigned",
     /etc/containers/policy.json
 grep -q "use-sigstore-attachments: true" /etc/containers/registries.d/amethystora.yaml
 test -x /usr/share/amethystora/system-setup.hooks.d/20-signed-updates.sh
+# Verification is re-checked at every boot rather than pinned once: a later `bootc switch` turns it off
+# again, and a machine in that state looks no different from one that is still checking.
+grep -q "version-script" /usr/share/amethystora/system-setup.hooks.d/20-signed-updates.sh && false
+grep -q "enforce-container-sigpolicy" /usr/share/amethystora/system-setup.hooks.d/20-signed-updates.sh
+# Everything the image claims to do, in one place, without a password, with nothing to dismiss. This is
+# what makes Secure Boot and the rest surfaceable without interrupting anybody more than once.
+grep -q "^security-status:$" /usr/share/amethystora/just/60-custom.just
+grep -q "secure-boot-notified" /usr/libexec/amethystora-security-alert
+# ...and in the app grid too, so it is not only behind a recipe name somebody has to already know.
+SECURITY_DESKTOP=/usr/share/applications/amethystora-security-status.desktop
+test -s "${SECURITY_DESKTOP}"
+command -v desktop-file-validate >/dev/null && desktop-file-validate "${SECURITY_DESKTOP}"
+# Terminal=true is what gives the launcher something to draw the report in
+grep -q "^Terminal=true$" "${SECURITY_DESKTOP}"
+# An Exec or an Icon that resolves to nothing is a tile in the grid that does nothing, or a blank one
+test -x "$(sed -n 's/^Exec=\([^ ]*\).*/\1/p' "${SECURITY_DESKTOP}")"
+test -e "/usr/share/icons/candy-icons/apps/scalable/$(sed -n 's/^Icon=//p' "${SECURITY_DESKTOP}").svg"
 # Kernel settings, arguments and blocked modules
 grep -q "^kernel.kptr_restrict = 2$" /usr/lib/sysctl.d/60-amethystora-hardening.conf
 grep -q '"slab_nomerge"' /usr/lib/bootc/kargs.d/10-amethystora-hardening.toml
@@ -401,6 +426,13 @@ BRAVE_POLICY="$(find /etc -path '*/policies/managed/10-amethystora.json' -print 
 test -s "${BRAVE_POLICY}"
 jq -e '.ExtensionInstallBlocklist == ["*"]' "${BRAVE_POLICY}" >/dev/null
 jq -e '.ExtensionInstallAllowlist | length > 0' "${BRAVE_POLICY}" >/dev/null
+# Osprey ships installed but removable. A "*" entry in ExtensionSettings would replace the blanket
+# blocklist above rather than sit beside it, so there must not be one.
+OSPREY=jmnpibhfpmpfjhhkmpadlbgjnbhpjgnd
+jq -e --arg id "${OSPREY}" '.ExtensionSettings[$id].installation_mode == "normal_installed"' "${BRAVE_POLICY}" >/dev/null
+jq -e --arg id "${OSPREY}" '.ExtensionSettings[$id].update_url | startswith("https://")' "${BRAVE_POLICY}" >/dev/null
+jq -e '.ExtensionSettings | has("*")' "${BRAVE_POLICY}" >/dev/null && false
+jq -e --arg id "${OSPREY}" '.["3rdparty"].extensions[$id].DisableUninstallSurvey == true' "${BRAVE_POLICY}" >/dev/null
 # A web page may not reach a keyboard through WebHID, or the hardware behind WebUSB and WebSerial
 for guard in DefaultWebHidGuardSetting DefaultWebUsbGuardSetting DefaultSerialGuardSetting; do
     jq -e ".${guard} == 2" "${BRAVE_POLICY}" >/dev/null
@@ -434,6 +466,39 @@ test -x /usr/libexec/amethystora-audit-home-rules
 # the machine silently unaudited. auditctl cannot be asked about it during a container build, where
 # there is no audit netlink socket to talk to, so the shape of each rule is what gets checked.
 grep -vE '^[[:space:]]*(#|$)' "${AUDIT_RULES}" | grep -qvE '^-(w|a) ' && false
+
+# The key the update policy names, not only the policy file that names it: a watch on policy.json
+# alone watches the lock and not the key.
+for path in /etc/pki/containers/ /etc/containers/registries.d/ /etc/pki/akmods/certs/; do
+    grep -q "^-w ${path} -p wa -k hardening$" "${AUDIT_RULES}"
+done
+
+# How the rule set ends. augenrules concatenates every .rules file in this directory in name order and
+# loads the result, so this reproduces that concatenation and checks it, rather than checking the files
+# one at a time: a -D ("delete every rule loaded so far") in a file that sorts after ours would erase
+# the whole lot, which is why 08-hardening.sh renames the file the audit package ships.
+AUDIT_CONCAT="$(find /etc/audit/rules.d -name '*.rules' -printf '%p\n' | LC_ALL=C sort |
+    while read -r rules; do cat "${rules}"; done)"
+AUDIT_DIRECTIVES="$(grep -vE '^[[:space:]]*(#|$)' <<<"${AUDIT_CONCAT}" || true)"
+# Immutable, and it is the last word
+[[ "$(tail -n1 <<<"${AUDIT_DIRECTIVES}")" == "-e 2" ]]
+# The audit backlog may never make a process wait: a watch on /dev/input would stop the session
+grep -q -- "--backlog_wait_time 0" <<<"${AUDIT_DIRECTIVES}"
+LAST_DELETE="$(grep -n '^-D$' <<<"${AUDIT_DIRECTIVES}" | tail -n1 | cut -d: -f1 || true)"
+FIRST_WATCH="$(grep -n '^-w ' <<<"${AUDIT_DIRECTIVES}" | head -n1 | cut -d: -f1 || true)"
+[[ -n "${FIRST_WATCH}" ]]
+[[ -z "${LAST_DELETE}" || "${LAST_DELETE}" -lt "${FIRST_WATCH}" ]]
+
+# A full disk may never halt or suspend somebody's laptop. A gap in the audit log is the lesser loss,
+# so the actions that stop the machine are the ones this asserts are absent.
+grep -q "^max_log_file = 32$" /etc/audit/auditd.conf
+grep -qiE "^(space_left_action|admin_space_left_action|disk_full_action|disk_error_action) = (halt|single|suspend)$" \
+    /etc/audit/auditd.conf && false
+
+# The per-home watches reach the kernel through the load auditd does as it starts, because once -e 2 is
+# in the rule set a second `augenrules --load` is refused.
+grep -q "^Before=auditd.service$" /usr/lib/systemd/system/amethystora-audit-rules.service
+grep -qE "^After=auditd.service" /usr/lib/systemd/system/amethystora-audit-rules.service && false
 
 # Weekly virus scan and monthly Lynis audit. Neither may delete, quarantine or move anything: a false
 # positive that takes away a file the user wanted is worse than most of what it would be removing.

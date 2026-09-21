@@ -28,6 +28,13 @@
 -w /etc/flatpak/overrides/ -p wa -k hardening
 -w /etc/brave/policies/ -p wa -k hardening
 -w /etc/containers/policy.json -p wa -k hardening
+## The key that policy.json names, and where the signatures it demands are looked up. Swapping the key
+## for one of the attacker's own defeats update verification with policy.json left untouched, so a
+## watch on that file alone watches the lock and not the key. The akmods certificate is the same
+## question one layer down: it is what says a kernel module was built by this image.
+-w /etc/pki/containers/ -p wa -k hardening
+-w /etc/containers/registries.d/ -p wa -k hardening
+-w /etc/pki/akmods/certs/ -p wa -k hardening
 -w /etc/security/faillock.conf -p wa -k hardening
 -w /etc/audit/ -p wa -k hardening
 

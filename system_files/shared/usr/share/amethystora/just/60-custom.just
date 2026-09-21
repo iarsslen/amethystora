@@ -115,6 +115,132 @@ enroll-secure-boot-key:
     echo "At next reboot, the blue MOK manager screen appears (QWERTY keyboard layout)."
     echo "Select \"Enroll MOK\", then \"Continue\", \"Yes\", and type \"${ENROLLMENT_PASSWORD}\" as the password."
 
+# Everything this machine's security settings are actually doing, in one screen, and what to do about
+# anything that is off. Nothing here changes anything, and it asks for no password.
+security-status:
+    #!/usr/bin/bash
+    set -uo pipefail
+
+    ok()   { printf '   \033[1;32mok\033[0m     %s\n' "$1"; }
+    note() { printf '   \033[1;33mcheck\033[0m  %s\n' "$1"; shift; for l in "$@"; do printf '          %s\n' "$l"; done; }
+    bad()  { printf '   \033[1;31moff\033[0m    %s\n' "$1"; shift; for l in "$@"; do printf '          %s\n' "$l"; done; }
+    info() { echo "   ---    $1"; }
+
+    STATUS="$(bootc status --format=json 2>/dev/null || true)"
+    IMAGE="$(jq -r '.status.booted.image.image.image // "unknown"' <<<"${STATUS:-null}" 2>/dev/null || echo unknown)"
+    SIGNED="$(jq -r '.status.booted.image.image.signature // "none" | tostring' <<<"${STATUS:-null}" 2>/dev/null || echo none)"
+
+    echo
+    echo "  This machine is running ${IMAGE}"
+    echo
+    echo "  Updates and boot"
+    if [[ "${SIGNED}" == "containerPolicy" ]]; then
+        ok "Updates are refused unless they carry this image's signature"
+    else
+        bad "Updates are not signature-checked" \
+            "Anything that can answer for the registry could replace this machine's whole system." \
+            "Fix it with: sudo systemctl start amethystora-system-setup.service"
+    fi
+
+
+    # What the signature buys is a trusted image at the moment it is pulled. Whether /usr is still
+    # checked afterwards is composefs's job, and that comes from the base image rather than from
+    # anything set here, so this reports what is actually mounted rather than what was intended.
+    if grep -q composefs /proc/mounts 2>/dev/null; then
+        ok "The running system is on composefs: /usr is verified as it is read, not only when pulled"
+    else
+        info "/usr is read-only and replaced whole by each update, but is not re-verified as it is read"
+    fi
+
+    SB="$(mokutil --sb-state 2>/dev/null || true)"
+    if grep -qi "enabled" <<<"${SB}"; then
+        ok "Secure Boot is on: this machine boots only a kernel it has checked"
+    elif grep -qi "disabled" <<<"${SB}"; then
+        note "Secure Boot is off" \
+             "The kernel protections below rest on it. Without it, anything that reaches root can" \
+             "boot a different kernel and step around them." \
+             "Turn Secure Boot on in this machine's firmware, then run: ujust enroll-secure-boot-key"
+    else
+        note "Secure Boot state unknown (no EFI on this machine, or its firmware will not say)"
+    fi
+
+    if [[ -f /etc/pki/akmods/certs/amethystora-modules.der ]] &&
+        mokutil --test-key /etc/pki/akmods/certs/amethystora-modules.der 2>/dev/null | grep -q "already enrolled"; then
+        ok "This image's module signing key is enrolled"
+    elif grep -qi "enabled" <<<"${SB}"; then
+        note "This image's module signing key is not enrolled" \
+             "Modules built with the image, such as evdi for DisplayLink docks, will not load." \
+             "Enroll it with: ujust enroll-secure-boot-key"
+    fi
+
+    LOCKDOWN=""
+    [[ -r /sys/kernel/security/lockdown ]] &&
+        LOCKDOWN="$(sed -n 's/.*\[\([a-z]*\)\].*/\1/p' /sys/kernel/security/lockdown 2>/dev/null)"
+    [[ -n "${LOCKDOWN}" ]] || { grep -qw "lockdown=integrity" /proc/cmdline && LOCKDOWN=integrity; }
+    case "${LOCKDOWN}" in
+        integrity | confidentiality)
+            ok "Kernel lockdown is on (${LOCKDOWN}): root cannot rewrite the running kernel" ;;
+        *)
+            if [[ "${IMAGE}" == *nvidia* ]]; then
+                note "Kernel lockdown is off, as it is on every NVIDIA image" \
+                     "The NVIDIA driver is a module signed with this machine's own key, and lockdown" \
+                     "would leave a machine without Secure Boot with no graphics driver at all."
+            else
+                note "Kernel lockdown is off" \
+                     "Turn it back on with: sudo rpm-ostree kargs --append=lockdown=integrity"
+            fi ;;
+    esac
+
+    echo
+    echo "  Watching"
+    [[ "$(systemctl is-active auditd.service)" == "active" ]] &&
+        ok "The audit log is recording" ||
+        bad "The audit log is not recording" "Start it with: sudo systemctl start auditd.service"
+    [[ -f /etc/audit/rules.d/99-amethystora-finalize.rules ]] &&
+        ok "Audit rules are immutable until the next reboot"
+    [[ "$(systemctl is-active fail2ban.service)" == "active" ]] &&
+        ok "Repeated failed logins get the address blocked (ujust blocked-addresses)" ||
+        note "fail2ban is not running" "Start it with: sudo systemctl start fail2ban.service"
+    ZONE="$(firewall-cmd --get-default-zone 2>/dev/null || echo unknown)"
+    [[ "${ZONE}" == "amethystora" ]] &&
+        ok "Firewall is on the amethystora zone: nothing incoming that a desktop does not need" ||
+        note "Firewall default zone is ${ZONE}, not amethystora" \
+             "Put it back with: sudo firewall-cmd --set-default-zone=amethystora"
+
+    echo
+    echo "  Scans"
+    LAST_SCAN="$(systemctl show -p InactiveEnterTimestamp --value amethystora-clamav-scan.service)"
+    # /var/log is traversable, so the size of the root-owned 0600 findings file is visible here
+    # even though its contents are not, and this recipe never asks for a password
+    if [[ -s /var/log/amethystora-clamav-findings.log ]]; then
+        bad "The last virus scan found something" "See it with: ujust virus-scan"
+    else
+        ok "Weekly virus scan, Sundays. Last run: ${LAST_SCAN:-not yet}"
+    fi
+    AGE="$(/usr/libexec/amethystora-clamav-signature-age)" && SIG=0 || SIG=$?
+    case "${SIG}" in
+        0) ok "Virus signatures updated ${AGE} days ago" ;;
+        2) note "Virus signatures are ${AGE} days old" \
+                "A clean scan proves little with signatures this old. Check this machine's network." ;;
+        *) note "No virus signatures yet" \
+                "clamav-freshclam.service has not finished its first download." ;;
+    esac
+    LAST_AUDIT="$(systemctl show -p InactiveEnterTimestamp --value amethystora-lynis-audit.service)"
+    ok "Monthly settings audit. Last run: ${LAST_AUDIT:-not yet}, or run it now with: ujust security-audit"
+
+    echo
+    echo "  Off unless you turned it on"
+    systemctl is-enabled --quiet usbguard.service 2>/dev/null &&
+        echo "   USB protection is on (ujust setup-usb-protection)" ||
+        echo "   USB protection: ujust setup-usb-protection"
+    systemctl is-enabled --quiet input-remapper.service 2>/dev/null &&
+        echo "   Key remapping is on, and it reads every input device (ujust setup-input-remapper)" ||
+        echo "   Key remapping, which reads every input device: ujust setup-input-remapper"
+    echo "   Security key for login and sudo: ujust setup-security-key"
+    echo "   Unlock the disk with the TPM: ujust setup-disk-unlock"
+    echo "   Backups: ujust setup-backup"
+    echo
+
 # Audit this machine's security settings with Lynis and say what to do about each finding
 security-audit:
     #!/usr/bin/bash

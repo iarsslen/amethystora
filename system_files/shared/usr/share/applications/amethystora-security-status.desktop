@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Security Report
+Comment=What this machine's security settings are doing, and what to do about anything that is off
+Exec=/usr/libexec/amethystora-security-status
+Icon=amethystora-security-status
+Terminal=true
+Categories=System;Security;Settings;
+Keywords=security;status;report;antivirus;virus;clamav;firewall;audit;lynis;secure boot;updates;signature;
+StartupNotify=false
