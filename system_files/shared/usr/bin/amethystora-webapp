@@ -1,0 +1,266 @@
+#!/usr/bin/bash
+#
+# Web apps: a site in a window of its own, without tabs or toolbar, with a launcher in the app grid.
+# They open in the default browser when it is Chromium-based (it has to understand --app) and in
+# Brave otherwise.
+#
+#   amethystora-webapp <url> [flags]         open the URL as a web app
+#   amethystora-webapp install [name url [icon]]
+#                                            add a launcher; without arguments it asks. The icon is
+#                                            a URL, a file or an icon name, and without one the
+#                                            site's own is fetched
+#   amethystora-webapp remove [name]         remove a launcher; without a name it asks
+#
+# Adapted from omarchy-launch-webapp, omarchy-webapp-install and omarchy-webapp-remove
+# (https://github.com/basecamp/omarchy), MIT licensed; the licence is at the end of this file.
+
+set -euo pipefail
+
+DATA_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}"
+DESKTOP_DIR="${DATA_HOME}/applications"
+ICON_DIR="${DATA_HOME}/icons/hicolor/256x256/apps"
+# Launchers and icons are named after this, which is how remove tells them from other apps
+PREFIX=amethystora-webapp
+FALLBACK_BROWSER=brave-browser.desktop
+
+die() {
+    echo "${0##*/}: $*" >&2
+    exit 1
+}
+
+# --- Browser ----------------------------------------------------------------------------------
+
+browser_desktop() {
+    local desktop
+    desktop="$(env -u BROWSER xdg-settings get default-web-browser 2>/dev/null || true)"
+    case "${desktop}" in
+        brave* | com.brave.* | google-chrome* | com.google.Chrome* | chromium* | org.chromium.* | \
+            microsoft-edge* | com.microsoft.Edge* | vivaldi* | com.vivaldi.* | opera*) ;;
+        *) desktop="${FALLBACK_BROWSER}" ;;
+    esac
+    printf '%s\n' "${desktop}"
+}
+
+desktop_file() {
+    local dir
+    for dir in "${DESKTOP_DIR}" "${DATA_HOME}/flatpak/exports/share/applications" \
+        /var/lib/flatpak/exports/share/applications /usr/share/applications; do
+        if [[ -f "${dir}/$1" ]]; then
+            printf '%s\n' "${dir}/$1"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# The whole Exec line rather than its first word, which for a Flatpak is /usr/bin/flatpak. Field
+# codes and Flatpak's @@ file-forwarding markers are dropped, since the URL goes in --app instead.
+browser_command() {
+    local file word
+    local -a words
+    file="$(desktop_file "$(browser_desktop)" || desktop_file "${FALLBACK_BROWSER}")" ||
+        die "no browser found to open web apps in"
+    read -ra words <<<"$(sed -n 's/^Exec=//p' "${file}" | head -1)"
+    for word in "${words[@]}"; do
+        [[ ${word} =~ ^(%[a-zA-Z]|@@[uf]?)$ ]] || printf '%s\n' "${word}"
+    done
+}
+
+# The window class Chromium gives an --app window: <browser>-<host>_<path>-<profile>, with the path's
+# slashes turned into underscores, so https://app.hey.com/ is brave-app.hey.com__-Default. GNOME
+# matches it against StartupWMClass to show the launcher's name and icon instead of the browser's.
+wm_class() {
+    local program host path
+    case "$(browser_desktop)" in
+        google-chrome* | com.google.Chrome*) program=chrome ;;
+        chromium* | org.chromium.*) program=chromium ;;
+        microsoft-edge* | com.microsoft.Edge*) program=msedge ;;
+        vivaldi* | com.vivaldi.*) program=vivaldi ;;
+        opera*) program=opera ;;
+        *) program=brave ;;
+    esac
+    host="$(sed -E 's|^[a-zA-Z]+://([^/?#:]+).*|\1|' <<<"$1")"
+    path="$(sed -E 's|^[a-zA-Z]+://[^/?#]+([^?#]*).*|\1|' <<<"$1")"
+    printf '%s-%s_%s-Default\n' "${program}" "${host,,}" "${path:-/}" | tr '/' '_'
+}
+
+# --- URLs -------------------------------------------------------------------------------------
+
+# --app= runs javascript:, file: and data: as a document, so anything but http(s) is refused.
+# Input without a scheme gets https.
+normalize_url() {
+    local url="$1"
+    [[ ${url} =~ ^[a-zA-Z][a-zA-Z0-9+.-]*: ]] || url="https://${url}"
+    [[ ! ${url} =~ [[:space:]] ]] || die "a web app URL cannot contain whitespace"
+    [[ ${url,,} =~ ^https?:// ]] || die "a web app URL has to be http or https: ${url}"
+    printf '%s\n' "${url}"
+}
+
+# --- Desktop entries --------------------------------------------------------------------------
+
+slug() {
+    tr '[:upper:]\n' '[:lower:] ' <<<"$1" | sed 's/[^[:alnum:]]\+/-/g; s/^-//; s/-$//'
+}
+
+# A Desktop Entry string value: a raw newline would start a new key and let a name inject an Exec=
+desktop_string() {
+    local value="$1"
+    value=${value//\\/\\\\}
+    value=${value//$'\t'/\\t}
+    value=${value//$'\r'/\\r}
+    value=${value//$'\n'/\\n}
+    [[ ${value} == " "* ]] && value="\\s${value# }"
+    printf '%s' "${value}"
+}
+
+# One quoted Exec argument, where " ` $ \ take a backslash and % is doubled
+desktop_exec_arg() {
+    printf '"%s"' "$(sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e 's/`/\\`/g' -e 's/\$/\\$/g' \
+        -e 's/%/%%/g' <<<"$1")"
+}
+
+# The launchers this script made, as "name<TAB>file"
+webapps() {
+    local file
+    for file in "${DESKTOP_DIR}/${PREFIX}"-*.desktop; do
+        [[ -f ${file} ]] || continue
+        printf '%s\t%s\n' "$(sed -n 's/^Name=//p' "${file}" | head -1)" "${file}"
+    done
+}
+
+# --- Icons ------------------------------------------------------------------------------------
+
+download_icon() {
+    curl -fsSL --max-time 10 -o "$2" "$1" 2>/dev/null &&
+        [[ -s $2 && $(file -b --mime-type "$2") == image/* ]]
+}
+
+# The site's own apple-touch-icon (180px or more), then the well-known path
+fetch_site_icon() {
+    local origin page icon
+    origin="$(sed -E 's|^(https?://[^/]+).*|\1|' <<<"$1")"
+    page="$(curl -fsSL --max-time 5 "$1" 2>/dev/null | head -c 100000 | tr '\n' ' ' || true)"
+    icon="$(grep -oiE "<link[^>]*rel=[\"'][^\"']*apple-touch-icon[^\"']*[\"'][^>]*>" <<<"${page}" |
+        grep -oiE "href=[\"'][^\"']+" | head -1 | sed -E "s/^href=[\"']//" || true)"
+    case "${icon}" in
+        http://* | https://*) ;;
+        //*) icon="https:${icon}" ;;
+        /*) icon="${origin}${icon}" ;;
+        ?*) icon="${origin}/${icon}" ;;
+    esac
+    { [[ -n ${icon} ]] && download_icon "${icon}" "$2"; } ||
+        download_icon "${origin}/apple-touch-icon.png" "$2"
+}
+
+# Prints the Icon= value for the reference given: a downloaded or copied file, or an icon name
+install_icon() {
+    local ref="$1" url="$2" name="$3"
+    local dest="${ICON_DIR}/${name}.png"
+    mkdir -p "${ICON_DIR}"
+    if [[ -z ${ref} ]]; then
+        if ! fetch_site_icon "${url}" "${dest}"; then
+            echo "Could not fetch the site's icon, using a generic one." >&2
+            printf 'web-browser\n'
+            return 0
+        fi
+    elif [[ ${ref} =~ ^https?:// ]]; then
+        download_icon "${ref}" "${dest}" || die "could not download the icon: ${ref}"
+    elif [[ -f ${ref} ]]; then
+        cp "${ref}" "${dest}"
+    else
+        printf '%s\n' "${ref}"
+        return 0
+    fi
+    gtk-update-icon-cache "${DATA_HOME}/icons/hicolor" &>/dev/null || true
+    printf '%s\n' "${name}"
+}
+
+# --- Commands ---------------------------------------------------------------------------------
+
+launch_webapp() {
+    local url
+    local -a command
+    url="$(normalize_url "$1")"
+    mapfile -t command < <(browser_command)
+    ((${#command[@]})) || exit 1
+    exec setsid "${command[@]}" --app="${url}" "${@:2}"
+}
+
+install_webapp() {
+    local name url icon_ref id file icon
+    if (($# == 0)); then
+        name="$(gum input --prompt "Name> " --placeholder "My favourite web app")"
+        url="$(gum input --prompt "URL> " --placeholder "https://example.com")"
+        icon_ref="$(gum input --prompt "Icon> " \
+            --placeholder "Icon URL, file or name; empty uses the site's own")"
+    elif (($# >= 2)); then
+        name="$1" url="$2" icon_ref="${3:-}"
+    else
+        die "usage: ${0##*/} install [name url [icon]]"
+    fi
+    [[ -n ${name} && -n ${url} ]] || die "a web app needs a name and a URL"
+    url="$(normalize_url "${url}")"
+    id="$(slug "${name}")"
+    [[ -n ${id} ]] || die "the name needs at least one letter or digit: ${name}"
+    file="${DESKTOP_DIR}/${PREFIX}-${id}.desktop"
+    icon="$(install_icon "${icon_ref}" "${url}" "${PREFIX}-${id}")"
+
+    mkdir -p "${DESKTOP_DIR}"
+    cat >"${file}" <<EOF
+[Desktop Entry]
+Type=Application
+Name=$(desktop_string "${name}")
+Comment=$(desktop_string "${url}")
+Exec=$(desktop_string "${PREFIX} $(desktop_exec_arg "${url}")")
+Icon=$(desktop_string "${icon}")
+StartupWMClass=$(desktop_string "$(wm_class "${url}")")
+StartupNotify=true
+Terminal=false
+EOF
+    echo "${name} is in the app grid."
+}
+
+remove_webapp() {
+    local name file entry entry_name entry_file
+    local -a entries
+    mapfile -t entries < <(webapps | sort)
+    ((${#entries[@]})) || die "there are no web apps to remove"
+    if (($# == 0)); then
+        name="$(printf '%s\n' "${entries[@]}" | cut -f1 | gum choose --header "Remove a web app")" ||
+            exit 0
+    else
+        name="$*"
+    fi
+    for entry in "${entries[@]}"; do
+        IFS=$'\t' read -r entry_name entry_file <<<"${entry}"
+        [[ ${entry_name} == "${name}" ]] && file="${entry_file}"
+    done
+    [[ -n ${file:-} ]] || die "no web app called ${name}"
+    rm -f "${file}" "${ICON_DIR}/$(basename "${file%.desktop}").png"
+    notify-send --app-name="Web apps" "Web app removed" "${name}" 2>/dev/null || true
+    echo "${name} removed."
+}
+
+case "${1:-}" in
+    install) install_webapp "${@:2}" ;;
+    remove) remove_webapp "${@:2}" ;;
+    "" | -h | --help | help) sed -n '3,13p' "$0" | sed 's/^# \?//' ;;
+    *) launch_webapp "$@" ;;
+esac
+
+# Copyright (c) David Heinemeier Hansson
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+# associated documentation files (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge, publish, distribute,
+# sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all copies or
+# substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+# NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+# DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT
+# OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

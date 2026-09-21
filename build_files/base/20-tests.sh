@@ -223,6 +223,19 @@ done
 # Theme switching: the CLI, its library, the templates every theme renders, and the themes themselves
 test -x /usr/bin/amethystora-theme
 test -x /usr/bin/amethystora-menu
+
+# Web apps: a launcher that reopens the site through amethystora-webapp, in Brave by default, with the
+# window class GNOME needs to show it under its own name; anything but http(s) is refused
+test -x /usr/bin/amethystora-webapp
+WEBAPP_HOME="$(mktemp -d)"
+HOME="${WEBAPP_HOME}" amethystora-webapp install "Test App" example.com/app web-browser
+WEBAPP_DESKTOP="${WEBAPP_HOME}/.local/share/applications/amethystora-webapp-test-app.desktop"
+grep -qx 'Exec=amethystora-webapp "https://example.com/app"' "${WEBAPP_DESKTOP}"
+grep -qx 'StartupWMClass=brave-example.com__app-Default' "${WEBAPP_DESKTOP}"
+HOME="${WEBAPP_HOME}" amethystora-webapp install Bad "javascript:alert(1)" web-browser 2>/dev/null && false
+HOME="${WEBAPP_HOME}" amethystora-webapp remove "Test App" >/dev/null
+test ! -e "${WEBAPP_DESKTOP}"
+rm -rf "${WEBAPP_HOME}"
 test -f /usr/lib/amethystora/theme/lib.sh
 test -f /usr/share/amethystora/keybindings.md
 test -x /usr/share/amethystora/theme-set.hooks.d/10-vscode.sh
