@@ -2,15 +2,20 @@
 Description=Audit watches for each user's home directory
 Documentation=man:auditctl(8)
 # The rules name paths inside home directories, so they can only be written once those exist, and they
-# are loaded into a running auditd rather than shipped with the image.
-After=auditd.service
+# are written into /etc/audit/rules.d rather than shipped with the image.
+#
+# Before auditd, not after it: 99-amethystora-finalize.rules closes the rule set with -e 2, so the load
+# auditd does for itself as it starts is the only chance these have to reach the kernel. An
+# `augenrules --load` afterwards would be refused, and the home directories would go unwatched.
+Before=auditd.service
 Wants=auditd.service
-ConditionPathExists=/usr/sbin/augenrules
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 ExecStart=/usr/libexec/amethystora-audit-home-rules
+# auditd waits on this, so it may not sit there: writing a handful of lines per account takes moments
+TimeoutStartSec=30
 
 [Install]
 WantedBy=multi-user.target

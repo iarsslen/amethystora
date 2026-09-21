@@ -1,14 +1,15 @@
 #!/usr/bin/bash
 # Runs as the user, when a graphical session starts (amethystora-security-alert.service).
 #
-# The scheduled scans notify the sessions that happen to be open when they run. This is for the finding
-# that arrived while nobody was logged in, which would otherwise sit in a log file until someone thought
-# to look. It repeats at every login for as long as the thing it is about is still true, which is the
-# intended behaviour: the alternative is a machine that mentioned its malware once, weeks ago.
+# The scheduled scans notify the sessions that happen to be open when they run. This is for what
+# arrived while nobody was logged in, which would otherwise sit in a log file until someone thought to
+# look. Two rules keep it from becoming noise, because a notification that appears every day is a
+# notification people learn to dismiss without reading:
 #
-# Deliberately quiet about a machine with no signatures at all: that is true of every machine for the
-# first few minutes after it is installed, and by the time it means something the weekly scan has
-# already failed and said so.
+#   - Only things that are true right now and can be acted on are said here.
+#   - Anything that needs a trip into the machine's firmware is said once, ever.
+#
+# `ujust security-status` is the place where all of it is visible at any time, with nothing to dismiss.
 #
 # Reads only what a normal user can read: /var/log is traversable, so the size of a root-owned 0600 file
 # is visible even though its contents are not, and /var/lib/clamav is world-readable.
@@ -17,26 +18,49 @@ set -uo pipefail
 
 command -v notify-send >/dev/null || exit 0
 
-# graphical-session.target is reached before GNOME Shell has taken the notification name on the
-# session bus, and a notify-send that arrives first is simply lost. Wait for the name rather than
-# for a guessed number of seconds; the timeout is there so a session without one still ends.
+STATE="${XDG_STATE_HOME:-${HOME}/.local/state}/amethystora"
+
+say() {
+    notify-send --app-name=Amethystora --urgency="${1}" --icon=dialog-warning "${2}" "${3}"
+}
+
+# graphical-session.target is reached before GNOME Shell has taken the notification name on the session
+# bus, and a notify-send that arrives first is simply lost. Wait for the name rather than for a guessed
+# number of seconds; the timeout is there so a session without one still ends.
 command -v gdbus >/dev/null &&
     gdbus wait --session --timeout 60 org.freedesktop.Notifications >/dev/null 2>&1
 
+# What the weekly scan found, or could not find out. Repeats at every login for as long as it is still
+# true, which is the intended behaviour: the alternative is a machine that mentioned its malware once.
+#
+# Deliberately quiet about a machine with no signatures at all: that is true of every machine for the
+# first few minutes after it is installed, and by the time it means something the weekly scan has
+# already failed and said so.
 SIGNATURE_AGE="$(/usr/libexec/amethystora-clamav-signature-age)"
 SIGNATURE_STATUS=$?
 
 if [[ -s /var/log/amethystora-clamav-findings.log ]]; then
-    SUMMARY="The last virus scan found something"
-    BODY="Nothing was deleted, quarantined or moved. See it with: ujust virus-scan"
     # Critical notifications stay on screen in GNOME until they are dismissed
-    URGENCY=critical
+    say critical "The last virus scan found something" \
+        "Nothing was deleted, quarantined or moved. See it with: ujust virus-scan"
 elif [[ "${SIGNATURE_STATUS}" -eq 2 ]]; then
-    SUMMARY="Virus signatures are ${SIGNATURE_AGE} days old"
-    BODY="This machine is being scanned with signatures that old. Check its network connection."
-    URGENCY=normal
-else
-    exit 0
+    say normal "Virus signatures are ${SIGNATURE_AGE} days old" \
+        "This machine is being scanned with signatures that old. Check its network connection."
 fi
 
-notify-send --app-name=Amethystora --urgency="${URGENCY}" --icon=dialog-warning "${SUMMARY}" "${BODY}"
+# Secure Boot, said once and never again. Everything the kernel does to protect itself from a
+# compromised root account rests on the machine having booted a kernel it checked, and without Secure
+# Boot an attacker who reaches root simply boots a different one. Turning it on is a trip into the
+# firmware and an enrollment screen at the next boot, though, and on some machines it cannot be done at
+# all, so this is worth saying clearly once and never worth interrupting anybody with twice.
+#
+# Only ever said when Secure Boot is there and switched off. A machine with no EFI at all, or one where
+# mokutil cannot read the firmware variables, says nothing: a notification that might be wrong is worse
+# than none, and `ujust security-status` reports the real state whenever it is asked.
+STAMP="${STATE}/secure-boot-notified"
+if [[ ! -e "${STAMP}" ]] && command -v mokutil >/dev/null &&
+    mokutil --sb-state 2>/dev/null | grep -qi "disabled"; then
+    mkdir -p "${STATE}" && : >"${STAMP}"
+    say normal "Secure Boot is off on this machine" \
+        "Without it, the kernel's own protections can be bypassed by booting another kernel. Turning it on: ujust security-status"
+fi

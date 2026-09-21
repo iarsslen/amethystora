@@ -71,12 +71,57 @@ F2B_ZONE="$(sed -n 's/^banaction[a-z_]* = firewallcmd-rich-rules\[.*zone=\([^]]*
 # screens, sudo and polkit prompts. Settings in /etc/security/faillock.conf.
 authselect enable-feature with-faillock
 
+# Audit: the rule set has to be the last word, and it has to survive a full disk.
+#
+# augenrules concatenates /etc/audit/rules.d/*.rules in name order and loads the result. The file the
+# audit package ships is called audit.rules, and a letter sorts after a digit, so it lands after every
+# numbered file in the directory. Its first rule is -D, "delete every rule loaded so far", which would
+# quietly erase the watches in 60-amethystora.rules and everything the boot-time generator adds after
+# them. Give it a name that sorts first, which is where its buffer settings belong anyway.
+if [[ -f /etc/audit/rules.d/audit.rules ]]; then
+    mv /etc/audit/rules.d/audit.rules /etc/audit/rules.d/10-base.rules
+fi
+# Nothing may sort after the file that closes the rule set with -e 2. C collation, because that is what
+# augenrules sorts with in a service that has no locale of its own.
+LAST_RULES="$(find /etc/audit/rules.d -name '*.rules' -printf '%f\n' | LC_ALL=C sort | tail -n1)"
+[[ "${LAST_RULES}" == "99-amethystora-finalize.rules" ]]
+
+# How much log is kept and what happens when the disk fills. Deliberately not the answer the hardening
+# guides give: space_left_action = halt, and the rest of that family, turn a full disk into a laptop
+# that stops in the middle of what somebody was doing, or will not boot at all. A gap in the audit log
+# is the lesser loss by a wide margin. So: rotate, keep about 250MB of history, and say so in the
+# journal rather than stopping the machine.
+sed -i -E \
+    -e 's|^max_log_file[[:space:]]*=.*|max_log_file = 32|' \
+    -e 's|^num_logs[[:space:]]*=.*|num_logs = 8|' \
+    -e 's|^max_log_file_action[[:space:]]*=.*|max_log_file_action = ROTATE|' \
+    -e 's|^space_left_action[[:space:]]*=.*|space_left_action = SYSLOG|' \
+    -e 's|^admin_space_left_action[[:space:]]*=.*|admin_space_left_action = SYSLOG|' \
+    -e 's|^disk_full_action[[:space:]]*=.*|disk_full_action = ROTATE|' \
+    -e 's|^disk_error_action[[:space:]]*=.*|disk_error_action = SYSLOG|' \
+    /etc/audit/auditd.conf
+grep -q "^max_log_file = 32$" /etc/audit/auditd.conf
+grep -qiE "^(space_left_action|admin_space_left_action|disk_full_action|disk_error_action) = (halt|single|suspend)$" \
+    /etc/audit/auditd.conf && false
+
 # Browser policy: Brave applies every .json file in a policy directory compiled into the binary, before
 # any profile exists, and a user cannot turn the settings off. /etc/brave/policies/managed/10-amethystora.json
 # blocks extensions that are not on its allowlist (the way most credential stealers arrive), and shuts
 # the doors from a web page to the hardware behind it: WebUSB, WebSerial, WebHID (which can read a
 # keyboard) and Web Bluetooth. Add your own file next to it to allow an extension; the last file in
 # name order wins for any setting it names.
+#
+# The one extension the image installs itself is Osprey (jmnpibhfpmpfjhhkmpadlbgjnbhpjgnd), which
+# checks each site against a set of threat-intelligence feeds and blocks the phishing and malware
+# domains Safe Browsing has not caught yet. It is `normal_installed`, not `force_installed`: it is
+# there and pinned on the first launch, and someone who would rather not send the sites they visit
+# to api.osprey.ac can disable or remove it like any other extension. `ExtensionSettings` is what
+# makes that possible alongside the blanket blocklist above; Chromium parses its per-ID entries
+# after the legacy allow/blocklists and only overrides the ids it names, so the `*` block still
+# applies to everything else. The `3rdparty` block is the extension's own managed configuration
+# (its policies.json schema); the uninstall survey is off because the image, not the user, chose
+# to install this, so removing it should not open a feedback page.
+#
 # Deliberately not set here: DNS-over-HTTPS. Forcing it past the system resolver breaks Tailscale's
 # MagicDNS names and every captive portal, and Brave already prefers secure DNS on its own.
 BRAVE_POLICY_PATHS="$(grep -aoE '/etc/[a-z0-9/._-]+/policies' /usr/lib/brave.com/brave/brave | sort -u || true)"
