@@ -8,6 +8,7 @@
 #   amethystora-menu theme      jump straight to the theme picker
 #   amethystora-menu background the wallpapers of the current theme
 #   amethystora-menu keys       the keybinding cheatsheet
+#   amethystora-menu webapps    install or remove a web app
 #   amethystora-menu system     lock, log out, restart, shut down
 #
 # Opened from a keybinding there is no terminal attached, so it reopens itself in one.
@@ -81,6 +82,18 @@ keys_menu() {
     back
 }
 
+webapps_menu() {
+    local choice
+    heading "Web apps"
+    choice="$(choose "Sites in a window of their own, launched from the app grid" \
+        "Install a web app" "Remove a web app" || true)"
+    case "${choice}" in
+        "Install a web app") amethystora-webapp install || true ;;
+        "Remove a web app") amethystora-webapp remove || true ;;
+    esac
+    back
+}
+
 system_menu() {
     local choice
     heading "System"
@@ -105,7 +118,7 @@ system_menu() {
 
 main_menu() {
     local choice problem
-    local -a entries=("Theme" "Background" "Keybindings" "Apps and system commands" "System")
+    local -a entries=("Theme" "Background" "Keybindings" "Web apps" "Apps and system commands" "System")
     # Only while the agentic features are on (ujust toggle-agentic)
     if amethystora-agent status >/dev/null 2>&1; then
         entries=("Ask an agent" "Diagnose a problem" "${entries[@]}")
@@ -124,6 +137,7 @@ main_menu() {
         Theme) theme_menu ;;
         Background) background_menu ;;
         Keybindings) keys_menu ;;
+        "Web apps") webapps_menu ;;
         "Apps and system commands")
             # ujust with no recipe opens its own chooser, which is the full list and stays right
             # as recipes come and go with the image
@@ -140,7 +154,8 @@ case "${1:-}" in
     theme) DIRECT=true theme_menu ;;
     background | bg) DIRECT=true background_menu ;;
     keys | keybindings) DIRECT=true keys_menu ;;
+    webapps | webapp) DIRECT=true webapps_menu ;;
     system) DIRECT=true system_menu ;;
-    -h | --help | help) sed -n '3,14p' "$0" | sed 's/^# \?//' ;;
+    -h | --help | help) sed -n '3,15p' "$0" | sed 's/^# \?//' ;;
     *) die "unknown menu: $1" ;;
 esac
