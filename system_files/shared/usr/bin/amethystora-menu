@@ -104,16 +104,23 @@ system_menu() {
 }
 
 main_menu() {
-    local choice
+    local choice problem
     local -a entries=("Theme" "Background" "Keybindings" "Apps and system commands" "System")
     # Only while the agentic features are on (ujust toggle-agentic)
     if amethystora-agent status >/dev/null 2>&1; then
-        entries=("Ask an agent" "${entries[@]}")
+        entries=("Ask an agent" "Diagnose a problem" "${entries[@]}")
     fi
     heading "Amethystora"
     choice="$(choose "" "${entries[@]}" "Quit" || true)"
     case "${choice}" in
         "Ask an agent") exec amethystora-agent ;;
+        "Diagnose a problem")
+            heading "Diagnose a problem"
+            # Escape goes back; Enter on an empty line looks for recent failures
+            problem="$(gum input --width 80 \
+                --placeholder "What went wrong? A PID or service name works too; empty looks for recent failures")" || back
+            exec amethystora-agent diagnose "${problem}"
+            ;;
         Theme) theme_menu ;;
         Background) background_menu ;;
         Keybindings) keys_menu ;;

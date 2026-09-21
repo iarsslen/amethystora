@@ -197,7 +197,9 @@ Every image, base and dx, installs Claude Code and opencode (`04-packages.sh`) a
 `amethystora-agent`, the launcher behind `Super+Ctrl+Shift+A` and the menu's "Ask an agent". The
 skill in `system_files/shared/usr/share/amethystora/agents/skills/amethystora/SKILL.md` tells
 agents how to change *a user's machine* safely: this repository is where it is written, not a place
-it applies to. `user-setup.hooks.d/13-agentic.sh` links it into `~/.claude/skills`, the one
+it applies to. `amethystora-diagnose/SKILL.md` beside it is the read-only method behind
+`amethystora-agent diagnose`. `user-setup.hooks.d/13-agentic.sh` links every skill there into
+`~/.claude/skills`, the one
 directory both agents read (opencode requires skill names to be unique across its skill directories). The features are on by
 default. `ujust toggle-agentic` turns them off per user by writing
 `~/.config/amethystora/no-agentic`. Keep the skill accurate when you change a command, path or

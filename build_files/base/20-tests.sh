@@ -633,12 +633,14 @@ for package in "${IMPORTANT_PACKAGES[@]}"; do
     rpm -q "${package}" >/dev/null || { echo "Missing package: ${package}... Exiting"; exit 1 ; }
 done
 
-# The agentic features: opencode is a release binary, not an rpm (04-packages.sh). The skill's name
+# The agentic features: opencode is a release binary, not an rpm (04-packages.sh). A skill's name
 # has to match its directory, or Claude Code and opencode skip it.
 test -x /usr/bin/opencode
 test -x /usr/bin/amethystora-agent
 test -x /usr/share/amethystora/user-setup.hooks.d/13-agentic.sh
-grep -qx "name: amethystora" /usr/share/amethystora/agents/skills/amethystora/SKILL.md
+for skill in amethystora amethystora-diagnose; do
+    grep -qx "name: ${skill}" "/usr/share/amethystora/agents/skills/${skill}/SKILL.md"
+done
 grep -q "^toggle-agentic:" /usr/share/amethystora/just/60-custom.just
 
 # these packages are supposed to be removed

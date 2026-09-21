@@ -75,6 +75,7 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
   pending deployment; `rpm-ostree rollback` returns to the previous one after a reboot.
 - Logs: `journalctl -b -p warning`, `journalctl --user -b`, `coredumpctl list`.
 - `ujust security-status` summarises the security settings.
+- To find out why something crashed or stopped working, follow the `amethystora-diagnose` skill.
 
 ## Ask the user first
 

@@ -67,10 +67,11 @@ The icons are [candy-icons](https://github.com/EliverLara/candy-icons), the same
 
 #### AI agent
 
-Every image ships [Claude Code](https://claude.com/claude-code) and [opencode](https://opencode.ai), together with a skill that explains this system to them: which paths belong to the image and which are yours to change, how themes and keybindings work, how to install software on an atomic system, and what to ask you before touching. `Super+Ctrl+Shift+A`, or "Ask an agent" in the Amethystora menu, opens one in a terminal in its normal mode, so it asks before it acts.
+Every image ships [Claude Code](https://claude.com/claude-code) and [opencode](https://opencode.ai), together with a skill that explains this system to them: which paths belong to the image and which are yours to change, how themes and keybindings work, how to install software on an atomic system, and what to ask you before touching. `Super+Ctrl+Shift+A`, or "Ask an agent" in the Amethystora menu, opens one in a terminal in its normal mode, so it asks before it acts. "Diagnose a problem" in the same menu hands it a crash, a failed service or your own description, with a second skill that has it investigate from the logs and core dumps, change nothing, and come back with the cause and a proposed fix.
 
 ```bash
 amethystora-agent ask "make the dock icons smaller"
+amethystora-agent diagnose       # why did something break? Also: a PID, a service, or "wifi drops after suspend"
 amethystora-agent use opencode   # the default is Claude Code
 ujust toggle-agentic             # turn the agent features off, or on again
 ```
