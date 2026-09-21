@@ -25,6 +25,8 @@ systemctl disable input-remapper.service
 systemctl enable rpm-ostree-countme.service
 systemctl enable tailscaled.service
 systemctl enable amethystora-system-setup.service
+# Keeps updates signature-checked (/usr/libexec/amethystora-signed-updates)
+systemctl enable amethystora-signed-updates.service
 
 # Audit watches on the paths that would have to change for something to survive a reboot
 # (/etc/audit/rules.d/60-amethystora.rules, plus the per-home ones this service generates)

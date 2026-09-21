@@ -1,0 +1,16 @@
+[Unit]
+Description=Keep this machine's updates signature-checked
+Documentation=man:bootc-switch(8)
+# Only a booted bootc system has an image whose updates can be checked
+ConditionPathExists=/run/ostree-booted
+# Staging the switch fetches the image's signature from the registry. Nothing waits on this unit, so
+# waiting for the network here delays nothing else.
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/amethystora-signed-updates
+
+[Install]
+WantedBy=multi-user.target

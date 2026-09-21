@@ -1,0 +1,39 @@
+#!/usr/bin/bash
+# Whether the keys this image's kernel and modules are signed with are enrolled for Secure Boot, one
+# line per key: "<state> <certificate>", where the state is one of
+#
+#   enrolled       in the MOK list, or in the firmware's own db
+#   pending        imported, waiting for the blue MOK manager screen at the next boot
+#   not-enrolled   not trusted yet: `ujust enroll-secure-boot-key` imports it
+#   missing        the certificate is not on this machine, so nothing can be said about it
+#   unknown        anything else, followed by what mokutil said
+#
+# The one check both `ujust enroll-secure-boot-key` and `ujust security-status` use. They used to
+# check on their own and disagreed: the first skipped a certificate it could not find and, having
+# nothing left to test, called the keys enrolled.
+#
+# This reads what mokutil says rather than its exit code, which is 0 for every "already ..." answer,
+# "already in the enrollment request" and "blocked in dbx" included.
+
+set -uo pipefail
+
+CERTS=(
+    # Signs the modules built with the image (evdi, for DisplayLink docks)
+    /etc/pki/akmods/certs/amethystora-modules.der
+    # Signs the kernel and the prebuilt akmods modules
+    /etc/pki/akmods/certs/akmods-amethystora.der
+)
+
+for cert in "${CERTS[@]}"; do
+    if [[ ! -f "${cert}" ]]; then
+        echo "missing ${cert}"
+        continue
+    fi
+    answer="$(mokutil --test-key "${cert}" 2>&1)"
+    case "${answer}" in
+        *"is already enrolled"* | *"is already in db"*) echo "enrolled ${cert}" ;;
+        *"is already in the enrollment request"*) echo "pending ${cert}" ;;
+        *"is not enrolled"*) echo "not-enrolled ${cert}" ;;
+        *) echo "unknown ${cert} ${answer//$'\n'/ }" ;;
+    esac
+done
