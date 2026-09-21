@@ -322,6 +322,9 @@ grep -q 'fill="url(#_lgradient_security_status)"' "${SECURITY_ICON}"
 grep -q 'stroke="url(#_lgradient_security_status)"' "${SECURITY_ICON}"
 [[ "$(grep -c "<linearGradient" "${SECURITY_ICON}")" == 1 ]]
 grep -q 'gradientUnits="userSpaceOnUse"' "${SECURITY_ICON}"
+# The same drawing in hicolor, so the launcher keeps its icon under any icon theme, not only candy-icons
+cmp -s /ctx/build_files/shared/candy-icons/amethystora-security-status.svg \
+    /usr/share/icons/hicolor/scalable/apps/amethystora-security-status.svg
 # The theme is the default before an account applies a theme of its own, and the value
 # amethystora-theme falls back to afterwards; the two have to name the same theme
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface icon-theme)" == "'candy-icons'" ]]
@@ -352,16 +355,25 @@ jq -e '.transports.docker["ghcr.io/iarsslen"][0] == {"type": "sigstoreSigned",
     "keyPath": "/etc/pki/containers/amethystora.pub", "signedIdentity": {"type": "matchRepository"}}' \
     /etc/containers/policy.json
 grep -q "use-sigstore-attachments: true" /etc/containers/registries.d/amethystora.yaml
-test -x /usr/share/amethystora/system-setup.hooks.d/20-signed-updates.sh
-# Verification is re-checked at every boot rather than pinned once: a later `bootc switch` turns it off
-# again, and a machine in that state looks no different from one that is still checking. The hook says
-# so in a comment of its own, the way 30-grub-theme.sh does, so this has to look for the directive at
-# the start of a line and not for the word.
-grep -qE "^[[:space:]]*version-script" /usr/share/amethystora/system-setup.hooks.d/20-signed-updates.sh && false
+# Signature checking is kept on by a unit of its own, at every boot, once the network is up. It used to
+# be a first-boot setup hook, whose runner reports success whatever a hook does, and the in-place switch
+# that hook ran cannot work on a booted system, where /sysroot is read-only: it failed on every ISO
+# install, once, without a word. The script explains all of that in comments that name the flag, so
+# the check for the flag itself has to skip them.
+test -x /usr/libexec/amethystora-signed-updates
+grep -q "enforce-container-sigpolicy" /usr/libexec/amethystora-signed-updates
+grep -vE "^[[:space:]]*#" /usr/libexec/amethystora-signed-updates | grep -q -- "--mutate-in-place" && false
+grep -q "^After=network-online.target$" /usr/lib/systemd/system/amethystora-signed-updates.service
+test -e /usr/share/amethystora/system-setup.hooks.d/20-signed-updates.sh && false
 # Everything the image claims to do, in one place, without a password, with nothing to dismiss. This is
 # what makes Secure Boot and the rest surfaceable without interrupting anybody more than once.
 grep -q "^security-status:$" /usr/share/amethystora/just/60-custom.just
 grep -q "secure-boot-notified" /usr/libexec/amethystora-security-alert
+# Both recipes that ask whether the signing keys are enrolled ask the one helper. They used to check on
+# their own and disagreed, because one of them counted a certificate it could not find as enrolled.
+test -x /usr/libexec/amethystora-mok-status
+[[ "$(grep -c "/usr/libexec/amethystora-mok-status" /usr/share/amethystora/just/60-custom.just)" -ge 2 ]]
+grep -q "mokutil --test-key" /usr/share/amethystora/just/60-custom.just && false
 # ...and in the app grid too, so it is not only behind a recipe name somebody has to already know.
 SECURITY_DESKTOP=/usr/share/applications/amethystora-security-status.desktop
 test -s "${SECURITY_DESKTOP}"
@@ -407,6 +419,12 @@ F2B_DUMP="$(fail2ban-client -d)"
 grep -q "'sshd'" <<<"${F2B_DUMP}"
 grep -q "'systemd'" <<<"${F2B_DUMP}"
 grep -q "firewallcmd-rich-rules" <<<"${F2B_DUMP}"
+# The ban database's directory is created at every boot, not only shipped in the image: /var reaches a
+# machine once, when it is installed, so on a machine installed before fail2ban was in the image it
+# never existed, and fail2ban exited with 255 straight after "Server ready". The path created has to
+# be the one fail2ban.conf actually names.
+grep -q "^d /var/lib/fail2ban " /usr/lib/tmpfiles.d/fail2ban-var.conf
+grep -qE "^dbfile = /var/lib/fail2ban/" /etc/fail2ban/fail2ban.conf
 # Lynis audits the machine against the image's profile (ujust security-audit); it reads every
 # .prf in /etc/lynis, so the image's settings only apply while Lynis finds this one
 test -f /etc/lynis/default.prf
@@ -642,6 +660,7 @@ IMPORTANT_UNITS=(
     amethystora-clamav-scan.timer
     amethystora-lynis-audit.timer
     amethystora-system-setup.service
+    amethystora-signed-updates.service
   )
 
 for unit in "${IMPORTANT_UNITS[@]}"; do

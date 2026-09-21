@@ -98,16 +98,20 @@ enroll-secure-boot-key:
     #!/usr/bin/bash
     set -euo pipefail
     ENROLLMENT_PASSWORD="amethystora"
-    # amethystora-modules.der signs the modules built with the image (evdi),
-    # akmods-amethystora.der the kernel and the prebuilt modules
+    # One check, shared with `ujust security-status` (/usr/libexec/amethystora-mok-status). A missing
+    # certificate is reported as missing, never counted as enrolled.
+    MOK="$(/usr/libexec/amethystora-mok-status)"
     certs=()
-    for cert in /etc/pki/akmods/certs/amethystora-modules.der /etc/pki/akmods/certs/akmods-amethystora.der; do
-        if [[ -f "${cert}" ]] && ! mokutil --test-key "${cert}" | grep -q "is already enrolled"; then
-            certs+=("${cert}")
-        fi
-    done
+    while read -r state cert rest; do
+        case "${state}" in
+            not-enrolled) certs+=("${cert}") ;;
+            pending) echo "${cert} is waiting for the next boot: finish it in the blue MOK manager screen." ;;
+            missing) echo "${cert} is not on this machine, so it can be neither checked nor enrolled." ;;
+            unknown) echo "Could not tell whether ${cert} is enrolled. mokutil said: ${rest}" ;;
+        esac
+    done <<<"${MOK}"
     if [[ ${#certs[@]} -eq 0 ]]; then
-        echo "The Secure Boot keys are already enrolled."
+        grep -qv "^enrolled " <<<"${MOK}" || echo "The Secure Boot keys are already enrolled."
         exit 0
     fi
     sudo mokutil --timeout -1
@@ -129,6 +133,7 @@ security-status:
     STATUS="$(bootc status --format=json 2>/dev/null || true)"
     IMAGE="$(jq -r '.status.booted.image.image.image // "unknown"' <<<"${STATUS:-null}" 2>/dev/null || echo unknown)"
     SIGNED="$(jq -r '.status.booted.image.image.signature // "none" | tostring' <<<"${STATUS:-null}" 2>/dev/null || echo none)"
+    STAGED="$(jq -r '.status.staged.image.image.signature // "none" | tostring' <<<"${STATUS:-null}" 2>/dev/null || echo none)"
 
     echo
     echo "  This machine is running ${IMAGE}"
@@ -136,12 +141,20 @@ security-status:
     echo "  Updates and boot"
     if [[ "${SIGNED}" == "containerPolicy" ]]; then
         ok "Updates are refused unless they carry this image's signature"
+    elif [[ "${STAGED}" == "containerPolicy" ]]; then
+        note "Signature checking is staged, and turns on at the next restart"
     else
         bad "Updates are not signature-checked" \
             "Anything that can answer for the registry could replace this machine's whole system." \
-            "Fix it with: sudo systemctl start amethystora-system-setup.service"
+            "Fix it with: sudo systemctl start amethystora-signed-updates.service, then restart"
     fi
-
+    # A dated tag names one build, not a stream: every update re-pulls that same build, forever
+    TAG="${IMAGE##*:}"
+    if [[ "${TAG}" =~ ^([a-z]+)-[0-9]+\.[0-9]{8} ]]; then
+        note "This machine follows a single build (${TAG}) and will not receive updates" \
+             "Follow the ${BASH_REMATCH[1]} stream again with:" \
+             "sudo bootc switch --enforce-container-sigpolicy ${IMAGE%:*}:${BASH_REMATCH[1]}"
+    fi
 
     # What the signature buys is a trusted image at the moment it is pulled. Whether /usr is still
     # checked afterwards is composefs's job, and that comes from the base image rather than from
@@ -164,13 +177,27 @@ security-status:
         note "Secure Boot state unknown (no EFI on this machine, or its firmware will not say)"
     fi
 
-    if [[ -f /etc/pki/akmods/certs/amethystora-modules.der ]] &&
-        mokutil --test-key /etc/pki/akmods/certs/amethystora-modules.der 2>/dev/null | grep -q "already enrolled"; then
-        ok "This image's module signing key is enrolled"
+    # The same check `ujust enroll-secure-boot-key` uses, so the two can no longer disagree
+    MOK="$(/usr/libexec/amethystora-mok-status)"
+    if ! grep -qv "^enrolled " <<<"${MOK}"; then
+        ok "This image's signing keys are enrolled"
     elif grep -qi "enabled" <<<"${SB}"; then
-        note "This image's module signing key is not enrolled" \
-             "Modules built with the image, such as evdi for DisplayLink docks, will not load." \
-             "Enroll it with: ujust enroll-secure-boot-key"
+        while read -r state cert rest; do
+            case "${state}" in
+                not-enrolled)
+                    note "Not enrolled: ${cert##*/}" \
+                         "What it signs, such as evdi for DisplayLink docks, will not load." \
+                         "Enroll it with: ujust enroll-secure-boot-key" ;;
+                pending)
+                    note "Enrollment of ${cert##*/} is waiting for the next restart" \
+                         "Finish it in the blue MOK manager screen that appears during boot." ;;
+                missing)
+                    note "${cert} is not on this machine" \
+                         "Whether its key is enrolled cannot be checked without it." ;;
+                unknown)
+                    note "Could not tell whether ${cert##*/} is enrolled" "mokutil said: ${rest}" ;;
+            esac
+        done <<<"${MOK}"
     fi
 
     LOCKDOWN=""

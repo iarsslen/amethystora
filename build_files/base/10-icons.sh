@@ -60,6 +60,14 @@ for icon in /ctx/build_files/shared/candy-icons/*.svg; do
     install -Dpm0644 "${icon}" "${CANDY_DIR}/apps/scalable/$(basename "${icon}")"
 done
 
+# The Security Report launcher is the one drawn icon that a launcher of this image names. Unlike the
+# three that 06-branding.sh points at, it has no Amethystora artwork in hicolor to fall back to, so
+# without this it would exist only under candy-icons and the launcher would go blank under any other
+# icon theme, an account set up before candy-icons that still holds its old theme included.
+# hicolor's cache is rebuilt by 07-debrand.sh, which runs after this.
+install -Dpm0644 /ctx/build_files/shared/candy-icons/amethystora-security-status.svg \
+    /usr/share/icons/hicolor/scalable/apps/amethystora-security-status.svg
+
 # alias:icon, where the icon is one upstream ships or one installed just above. An alias whose icon
 # upstream has since added is left alone, and a target that has gone away fails the build rather
 # than silently leaving the app without an icon.
