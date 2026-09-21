@@ -6,14 +6,17 @@
 #
 #   amethystora-agent                  open the agent in a terminal (Super+Ctrl+Shift+A)
 #   amethystora-agent ask "<prompt>"   open it with a first prompt
+#   amethystora-agent diagnose [<pid>|<unit>|"<what went wrong>"]
+#                                      find out why something broke, without changing anything
 #   amethystora-agent use claude|opencode   choose the agent (default: the first one installed)
 #   amethystora-agent on|off           turn the agentic features on or off (ujust toggle-agentic)
 #   amethystora-agent status           print whether they are on; exits 1 when off
-#   amethystora-agent sync             link or unlink the skill to match, run at every login
+#   amethystora-agent sync             link or unlink the skills to match, run at every login
 #
-# The skill in /usr/share/amethystora/agents/skills tells the agent what may be edited here and how.
-# It is linked into ~/.claude/skills, which Claude Code and opencode both read, so it follows the
-# image on every update. The agent starts in its normal permission mode: it asks before it acts.
+# The skills in /usr/share/amethystora/agents/skills tell the agent what may be edited here and how
+# to diagnose a problem. They are linked into ~/.claude/skills, which Claude Code and opencode both
+# read, so they follow the image on every update. The agent starts in its normal permission mode:
+# it asks before it acts.
 
 set -euo pipefail
 
@@ -21,31 +24,38 @@ set -euo pipefail
 source /usr/lib/amethystora/theme/lib.sh
 
 AGENTS=(claude opencode)
-SKILL=/usr/share/amethystora/agents/skills/amethystora
-SKILL_LINK="${HOME}/.claude/skills/amethystora"
+SKILLS_DIR=/usr/share/amethystora/agents/skills
+SKILLS_LINK_DIR="${HOME}/.claude/skills"
 DISABLED="${CONFIG_DIR}/no-agentic"
 CHOICE="${CONFIG_DIR}/agent"
 
 usage() {
-    sed -n '3,16p' "$0" | sed 's/^# \?//'
+    sed -n '3,19p' "$0" | sed 's/^# \?//'
 }
 
 enabled() {
     [[ ! -e ${DISABLED} ]]
 }
 
-# Link the skill when on, and when off remove the link, but only one that is ours. A directory of
-# the same name that the user made is theirs, and left alone either way.
-sync_skill() {
-    if [[ -e ${SKILL_LINK} && ! -L ${SKILL_LINK} ]]; then
-        return
-    fi
+# Link each skill when on. Remove the links when off, and any link to a skill the image no longer
+# ships, but only links that are ours: a directory of the same name the user made is left alone.
+sync_skills() {
+    local skill link
     if enabled; then
-        mkdir -p "${SKILL_LINK%/*}"
-        ln -sfn "${SKILL}" "${SKILL_LINK}"
-    elif [[ -L ${SKILL_LINK} && "$(readlink "${SKILL_LINK}")" == "${SKILL}" ]]; then
-        rm -f "${SKILL_LINK}"
+        mkdir -p "${SKILLS_LINK_DIR}"
+        for skill in "${SKILLS_DIR}"/*/; do
+            skill="${skill%/}"
+            [[ -d ${skill} ]] || continue
+            link="${SKILLS_LINK_DIR}/${skill##*/}"
+            [[ -e ${link} && ! -L ${link} ]] || ln -sfn "${skill}" "${link}"
+        done
     fi
+    for link in "${SKILLS_LINK_DIR}"/*; do
+        [[ -L ${link} && "$(readlink "${link}")" == "${SKILLS_DIR}"/* ]] || continue
+        if ! enabled || [[ ! -e ${link} ]]; then
+            rm -f "${link}"
+        fi
+    done
 }
 
 agent() {
@@ -72,7 +82,7 @@ launch() {
     if [[ ! -t 0 ]]; then
         exec xdg-terminal-exec "$0" ask "$@"
     fi
-    sync_skill
+    sync_skills
     name="$(agent)"
     cd "${HOME}"
     if [[ $# -eq 0 ]]; then
@@ -84,9 +94,38 @@ launch() {
     esac
 }
 
+# Gather the facts about what broke and hand them to the agent with the diagnose skill. The method
+# lives in the skill, so it is written once for whichever agent is chosen; this only says where to
+# start. A number is a PID from coredumpctl, a name systemd knows is a unit, anything else is the
+# user's own description.
+diagnose() {
+    local target="$*" facts
+    local -a systemctl=(systemctl)
+    if [[ -z ${target} ]]; then
+        facts="Nothing specific was named. Look for what failed recently: crashes, failed services and errors in this boot and the previous one."
+    elif [[ ${target} =~ ^[0-9]+$ ]]; then
+        facts="$(coredumpctl info "${target}" --no-pager 2>/dev/null |
+            grep -E '^ *(PID|Executable|Command Line|Signal|Timestamp|Unit|Package):' || true)"
+        facts="The process with PID ${target} crashed. What systemd-coredump recorded:
+${facts:-  nothing: the core dump may have been rotated away, see coredumpctl list}"
+    elif systemctl cat -- "${target}" >/dev/null 2>&1 ||
+        { systemctl+=(--user) && systemctl --user cat -- "${target}" >/dev/null 2>&1; }; then
+        facts="The unit ${target} (${systemctl[*]}) failed or misbehaves. It is $("${systemctl[@]}" is-active -- "${target}" 2>/dev/null || true) now."
+    else
+        facts="The user describes the problem as: ${target}"
+    fi
+
+    launch "Something went wrong on this Amethystora machine and I want to know why, before anything is changed.
+
+${facts}
+
+Use the amethystora-diagnose skill: it says how to investigate here and what to report. If you have no skill mechanism, read ${SKILLS_DIR}/amethystora-diagnose/SKILL.md and follow it."
+}
+
 case "${1:-}" in
     "") launch ;;
     ask) shift; launch "$@" ;;
+    diagnose) shift; diagnose "$@" ;;
     use)
         [[ -n ${2:-} && " ${AGENTS[*]} " == *" $2 "* ]] || die "usage: amethystora-agent use $(IFS='|'; echo "${AGENTS[*]}")"
         mkdir -p "${CONFIG_DIR}"
@@ -95,13 +134,13 @@ case "${1:-}" in
         ;;
     on)
         rm -f "${DISABLED}"
-        sync_skill
+        sync_skills
         echo "Agentic features on"
         ;;
     off)
         mkdir -p "${CONFIG_DIR}"
         touch "${DISABLED}"
-        sync_skill
+        sync_skills
         echo "Agentic features off"
         ;;
     status)
@@ -113,7 +152,7 @@ case "${1:-}" in
             exit 1
         fi
         ;;
-    sync) sync_skill ;;
+    sync) sync_skills ;;
     -h | --help | help) usage ;;
     *) die "unknown command: $1. Run amethystora-agent --help" ;;
 esac
