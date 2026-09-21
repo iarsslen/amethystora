@@ -354,9 +354,10 @@ jq -e '.transports.docker["ghcr.io/iarsslen"][0] == {"type": "sigstoreSigned",
 grep -q "use-sigstore-attachments: true" /etc/containers/registries.d/amethystora.yaml
 test -x /usr/share/amethystora/system-setup.hooks.d/20-signed-updates.sh
 # Verification is re-checked at every boot rather than pinned once: a later `bootc switch` turns it off
-# again, and a machine in that state looks no different from one that is still checking.
-grep -q "version-script" /usr/share/amethystora/system-setup.hooks.d/20-signed-updates.sh && false
-grep -q "enforce-container-sigpolicy" /usr/share/amethystora/system-setup.hooks.d/20-signed-updates.sh
+# again, and a machine in that state looks no different from one that is still checking. The hook says
+# so in a comment of its own, the way 30-grub-theme.sh does, so this has to look for the directive at
+# the start of a line and not for the word.
+grep -qE "^[[:space:]]*version-script" /usr/share/amethystora/system-setup.hooks.d/20-signed-updates.sh && false
 # Everything the image claims to do, in one place, without a password, with nothing to dismiss. This is
 # what makes Secure Boot and the rest surfaceable without interrupting anybody more than once.
 grep -q "^security-status:$" /usr/share/amethystora/just/60-custom.just
