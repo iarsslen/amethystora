@@ -84,14 +84,15 @@ glib-compile-resources --sourcedir="${WORK}" --target="${GRESOURCE}" \
     "${WORK}/gnome-shell-theme.gresource.xml"
 
 # The bundle has to still hold everything it held before, plus the background, and the stylesheets
-# have to have come through with the rule in them
-gresource list "${GRESOURCE}" | grep -qx "${PREFIX}/amethystora-login.png"
+# have to have come through with the rule in them. Not grep -q: it quits at the first match, and
+# under pipefail the SIGPIPE that gresource then gets fails the build with exit 141
+gresource list "${GRESOURCE}" | grep -x "${PREFIX}/amethystora-login.png" >/dev/null
 for resource in "${RESOURCES[@]}"; do
-    gresource list "${GRESOURCE}" | grep -qx "${resource}"
+    gresource list "${GRESOURCE}" | grep -x "${resource}" >/dev/null
 done
 for variant in dark light; do
     gresource extract "${GRESOURCE}" "${PREFIX}/gnome-shell-${variant}.css" |
-        grep -q 'background-image: url("amethystora-login.png")'
+        grep 'background-image: url("amethystora-login.png")' >/dev/null
 done
 
 rm -rf "${WORK}"
