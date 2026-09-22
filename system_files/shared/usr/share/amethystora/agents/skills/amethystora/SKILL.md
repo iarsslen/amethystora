@@ -65,9 +65,7 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
 - Custom keybindings live under `/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/`;
   the image uses `custom20` and up. Check `keybindings.md` for a conflict before binding a key.
 - Extensions: `gnome-extensions list --enabled`, and `gnome-extensions prefs <uuid>`.
-- The terminal is kitty. The image default is `/etc/xdg/kitty/kitty.conf`, read only while
-  `~/.config/kitty/kitty.conf` does not exist. A user config replaces it whole, so keep its
-  `include ~/.config/amethystora/current/theme/kitty.conf` line to follow the theme.
+- The terminal is Ptyxis. `amethystora-theme` sets its palette on every theme switch.
 
 ## Updates and diagnosis
 

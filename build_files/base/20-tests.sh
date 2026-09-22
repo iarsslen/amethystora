@@ -35,12 +35,10 @@ FAVORITES="$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell favorite-app
 grep -q "'brave-browser.desktop'" <<<"${FAVORITES}"
 grep -qi "firefox" <<<"${FAVORITES}" && false
 
-# Kitty is the terminal: pinned in the dash, first for xdg-terminal-exec (Super+Return), themed
-grep -q "'kitty.desktop'" <<<"${FAVORITES}"
-grep -qi "ptyxis" <<<"${FAVORITES}" && false
-[[ "$(grep -v '^#' /etc/xdg/xdg-terminals.list | head -1)" == "kitty.desktop" ]]
-[[ "$(grep -v '^#' /etc/xdg/gnome-xdg-terminals.list | head -1)" == "kitty.desktop" ]]
-grep -q "^include ~/.config/amethystora/current/theme/kitty.conf$" /etc/xdg/kitty/kitty.conf
+# Ptyxis is the terminal: first for xdg-terminal-exec (Super+Return), and kitty is gone
+[[ "$(grep -v '^#' /etc/xdg/xdg-terminals.list | head -1)" == "org.gnome.Ptyxis.desktop" ]]
+[[ "$(grep -v '^#' /etc/xdg/gnome-xdg-terminals.list | head -1)" == "org.gnome.Ptyxis.desktop" ]]
+rpm -q kitty >/dev/null && false
 
 # Animated boot splash: the script theme, the images it loads, and both in the initramfs, which shows the
 # splash up to and including the LUKS password prompt
@@ -240,7 +238,7 @@ test -f /usr/lib/amethystora/theme/lib.sh
 test -f /usr/share/amethystora/keybindings.md
 test -x /usr/share/amethystora/theme-set.hooks.d/10-vscode.sh
 test -x /usr/share/amethystora/user-setup.hooks.d/11-theme.sh
-for template in btop.theme kitty.conf ptyxis.palette starship.toml wallpaper.svg; do
+for template in btop.theme ptyxis.palette starship.toml wallpaper.svg; do
     test -f "/usr/share/amethystora/themed/${template}.tpl"
 done
 # Every theme needs a palette; the default one is what 11-theme.sh applies at first login
@@ -339,9 +337,6 @@ grep -q 'fill="url(#_lgradient_nordvpn)"' "${CANDY_DIR}/apps/scalable/nordvpn.sv
 grep -q 'fill="url(#_lgradient_claude)"' "${CANDY_DIR}/apps/scalable/claude.svg"
 # opencode's frame and its inner fill draw from the one gradient, on the same terms
 [[ "$(grep -c 'fill="url(#_lgradient_opencode)"' "${CANDY_DIR}/apps/scalable/opencode.svg")" == 2 ]]
-# Kitty, the terminal, is drawn by upstream itself under the name its desktop entry asks for
-grep -qx "Icon=kitty" /usr/share/applications/kitty.desktop
-test -s "${CANDY_DIR}/apps/scalable/kitty.svg"
 # The Security Report shield: the pack's own shield, from preferences-system-privacy, with report bars
 # instead of that icon's keyhole. Both elements draw from one gradient placed in user space, because a
 # second gradient, or either element left on its own bounding box, would break the diagonal across them.
@@ -385,9 +380,6 @@ grep -q "== /var/lib/greeter" "${SYSTEM_RETIRE}"
 for package in greetd dms dms-greeter quickshell hyprland; do
     rpm -q "${package}" >/dev/null 2>&1 && false
 done
-# GNOME draws no decorations for kitty, so kitty's own title bar is the only place its window buttons
-# can be: the image's config must never hide it
-grep -qE "^[[:space:]]*hide_window_decorations[[:space:]]+(yes|titlebar)" /etc/xdg/kitty/kitty.conf && false
 # Files opens on the grid, where candy-icons' folders are drawn as artwork rather than as a 16px row
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.nautilus.preferences default-folder-viewer)" == "'icon-view'" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.nautilus.icon-view default-zoom-level)" == "'large'" ]]
@@ -516,6 +508,12 @@ jq -e --arg id "${OSPREY}" '.["3rdparty"].extensions[$id].DisableUninstallSurvey
 for guard in DefaultWebHidGuardSetting DefaultWebUsbGuardSetting DefaultSerialGuardSetting; do
     jq -e ".${guard} == 2" "${BRAVE_POLICY}" >/dev/null
 done
+# Brave's title bar comes from GTK, so its window buttons are the theme's lights like everything else's:
+# seeded for new profiles next to the binary, where Chromium reads initial preferences, and set once
+# in existing ones by the user-setup hook. 1 is GTK in extensions.theme.system_theme.
+jq -e '.extensions.theme.system_theme == 1' /usr/lib/brave.com/brave/initial_preferences >/dev/null
+test -x /usr/share/amethystora/user-setup.hooks.d/14-brave-gtk.sh
+grep -q "system_theme = 1" /usr/share/amethystora/user-setup.hooks.d/14-brave-gtk.sh
 
 # Kernel lockdown: on everywhere except the NVIDIA images, whose driver is a machine-owner-key module
 # that a machine with Secure Boot turned off would no longer be able to load
@@ -659,7 +657,6 @@ IMPORTANT_PACKAGES=(
     fish
     flatpak
     gdm
-    kitty
     gnome-shell
     lynis
     mutter
