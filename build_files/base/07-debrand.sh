@@ -12,6 +12,10 @@ set -eoux pipefail
 # New terminals show the Amethystora fastfetch instead (/etc/profile.d/amethystora-greeting.sh).
 rm -f /usr/bin/uwelcome /usr/bin/umotd /etc/profile.d/uwelcome.sh /etc/ublue-os/tags.json
 rm -rf /etc/uwelcome
+# The older glow banner (ublue-os-just's user-motd.sh running ublue-motd). Its image, commands, tip
+# and links are in the greeting now, drawn in a style that reads on a dark terminal, which this one's
+# glow fell back from; its tips stay, and the greeting picks one of them.
+rm -f /etc/profile.d/user-motd.sh /usr/libexec/ublue-motd /etc/user-motd
 
 # Bazaar: the curated page with the Bluefin banners and the hooks that redirect IDE installs to the
 # Universal Blue Homebrew tap. Amethystora's bazaar.yaml uses neither.
