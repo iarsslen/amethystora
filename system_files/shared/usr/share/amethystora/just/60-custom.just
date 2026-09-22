@@ -139,10 +139,17 @@ security-status:
     bad()  { printf '   \033[1;31moff\033[0m    %s\n' "$1"; shift; for l in "$@"; do printf '          %s\n' "$l"; done; }
     info() { echo "   ---    $1"; }
 
-    STATUS="$(bootc status --format=json 2>/dev/null || true)"
-    IMAGE="$(jq -r '.status.booted.image.image.image // "unknown"' <<<"${STATUS:-null}" 2>/dev/null || echo unknown)"
-    SIGNED="$(jq -r '.status.booted.image.image.signature // "none" | tostring' <<<"${STATUS:-null}" 2>/dev/null || echo none)"
-    STAGED="$(jq -r '.status.staged.image.image.signature // "none" | tostring' <<<"${STATUS:-null}" 2>/dev/null || echo none)"
+    # rpm-ostree, not bootc: `bootc status` needs root, and without it this reported every machine as
+    # running "unknown" with unchecked updates. The image reference is prefixed ostree-image-signed:
+    # exactly when bootc would report the containerPolicy signature.
+    STATUS="$(rpm-ostree status --json 2>/dev/null || true)"
+    ref() { jq -r "[.deployments[] | select(.$1)][0][\"container-image-reference\"] // \"\"" <<<"${STATUS:-null}" 2>/dev/null; }
+    sig() { [[ "$1" == ostree-image-signed:* ]] && echo containerPolicy || echo none; }
+    BOOTED_REF="$(ref booted)"
+    IMAGE="$(sed -E 's|^[^:]+:(docker://)?||' <<<"${BOOTED_REF}")"
+    IMAGE="${IMAGE:-unknown}"
+    SIGNED="$(sig "${BOOTED_REF}")"
+    STAGED="$(sig "$(ref staged)")"
 
     echo
     echo "  This machine is running ${IMAGE}"

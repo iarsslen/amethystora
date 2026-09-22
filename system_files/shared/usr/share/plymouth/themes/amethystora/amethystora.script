@@ -696,7 +696,7 @@ light.sprite.SetPosition(origin_x - light.image.GetWidth() / 2, origin_y - light
 light.sprite.SetOpacity(0);
 light.opacity = 0;
 
-wordmark.image = sized(Image("wordmark.png"), 260 * scale, 45 * scale);
+wordmark.image = sized(Image("wordmark.png"), 276 * scale, 90 * scale);
 wordmark.sprite = Sprite(wordmark.image);
 wordmark_y = screen_y + screen_h * 0.94;
 wordmark.sprite.SetPosition(origin_x - wordmark.image.GetWidth() / 2, wordmark_y - wordmark.image.GetHeight() / 2, 6);

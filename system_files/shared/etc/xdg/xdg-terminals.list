@@ -1,4 +1,3 @@
 # The terminal xdg-terminal-exec opens (Super+Return, Terminal=true launchers, amethystora-menu),
-# first one installed wins. Kitty is the terminal here; Ptyxis stays as the fallback.
-kitty.desktop
+# first one installed wins.
 org.gnome.Ptyxis.desktop

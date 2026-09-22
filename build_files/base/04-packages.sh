@@ -59,7 +59,6 @@ FEDORA_PACKAGES=(
     iwd
     jetbrains-mono-fonts-all
     just
-    kitty
     krb5-workstation
     libappindicator-gtk3
     libayatana-appindicator-gtk3
@@ -180,6 +179,26 @@ dnf -y install --enablerepo='brave-browser' brave-browser
 mv /opt/brave.com /usr/lib/brave.com
 # Its daily cron job re-adds and re-enables the repo, which the image does not use
 rm -f /etc/cron.daily/brave-browser
+
+# Brave draws its own title bar unless its theme is set to GTK, and only a title bar GTK draws wears
+# the theme's window buttons (the three lights of 11-gtk-theme.sh). There is no policy for it, so it
+# goes in the initial preferences Chromium reads from beside the browser binary, which seed every
+# profile created from now on. extensions.theme.system_theme is 1 for GTK, 0 for Brave's own, 2 for
+# Qt. Merged into whatever the package ships rather than written over it; a package that still uses
+# the older master_preferences name would otherwise lose its settings to a new initial_preferences.
+# Profiles that already exist are switched by user-setup.hooks.d/14-brave-gtk.sh.
+BRAVE_DIR=/usr/lib/brave.com/brave
+test -x "${BRAVE_DIR}/brave"
+BRAVE_PREFS='{}'
+for shipped in "${BRAVE_DIR}/initial_preferences" "${BRAVE_DIR}/master_preferences"; do
+    if [[ -f ${shipped} ]]; then
+        BRAVE_PREFS="$(cat "${shipped}")"
+        break
+    fi
+done
+jq '.extensions.theme.system_theme = 1' <<<"${BRAVE_PREFS}" >/tmp/initial_preferences
+install -m0644 /tmp/initial_preferences "${BRAVE_DIR}/initial_preferences"
+jq -e '.extensions.theme.system_theme == 1' "${BRAVE_DIR}/initial_preferences" >/dev/null
 
 # Firefox: drop the Flatpak from the default app list and its now unused settings
 sed -i '/^flatpak "org\.mozilla\.firefox"/d' /usr/share/ublue-os/homebrew/system-flatpaks.Brewfile

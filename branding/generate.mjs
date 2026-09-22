@@ -532,6 +532,8 @@ function bootPreviewHtml() {
     #heart img{position:absolute;left:0;top:0;will-change:transform,opacity}
     #mark{position:absolute;left:0;right:0;top:${Math.round(1080 * 0.94) - 18}px;text-align:center;color:#fff;
       font-weight:${WORDMARK_WEIGHT};letter-spacing:-0.015em;font-size:34px;line-height:36px}
+    #mark img.a{height:${GEM_EM}em;width:${((GEM_EM * BOUNDS[2]) / BOUNDS[3]).toFixed(3)}em;margin-right:0.035em;
+      vertical-align:-0.012em;${glowCss(WORDMARK.glow)}}
     /* The author credit under the name, in a violet close to the cloud behind it so it only shows when looked for */
     #credit{position:absolute;left:0;right:0;top:${Math.round(1080 * 0.94) + 26}px;text-align:center;color:${SHADES[7]};
       opacity:0.22;font-weight:500;letter-spacing:0.04em;font-size:13px;line-height:16px}
@@ -544,7 +546,7 @@ function bootPreviewHtml() {
     ${SHARDS.map((s, i) => img(`shard${i}`, shardSvg(s), s.side * k, s.side * k)).join("")}
     ${img("gem", gemSvg(), 256 * k, 256 * k)}
     ${img("light", lightSvg, 256 * k, 256 * k)}
-  </div><div id="mark">amethystora</div><div id="credit">by iarsslen</div></div>
+  </div><div id="mark">${wordmark(true)}</div><div id="credit">by iarsslen</div></div>
   <div id="bar"><button id="replay">Replay</button><button id="slow">Slow motion: off</button><span id="clock"></span></div>
   <script>
     ${BOOT_TIMELINE}
@@ -679,6 +681,13 @@ const wordmark = (gem) => (gem ? `<span>${gemImg(false, "a")}methystora</span>` 
 // A palette colour at an opacity, for the glow below
 const alpha = (hex, a) => `rgba(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(",")},${a})`;
 
+const glowCss = (glow) =>
+  glow
+    ? `filter:drop-shadow(0 0 ${glow}px ${alpha(SHADES[8], 0.9)})
+       drop-shadow(0 0 ${(glow * 2.4).toFixed(1)}px ${alpha(SHADES[7], 0.65)})
+       drop-shadow(0 0 ${(glow * 4.6).toFixed(1)}px ${alpha(SHADES[6], 0.5)});`
+    : "";
+
 // Gem or wordmark centred on a transparent canvas, scaled down to fit with a margin.
 //
 // glow lights the stone the way the boot splash does, in the same three shades working outwards, so
@@ -692,11 +701,7 @@ const alpha = (hex, a) => `rgba(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i +
 function logoHtml({ width, height, text, white = false, gem = true, glow = 0, fit = 0.92 }) {
   const textColor = text === "white" ? "#ffffff" : "#241f31";
   const body = `<div id="row">${text ? wordmark(gem) : gemImg(white)}</div>`;
-  const glowFilter = glow
-    ? `filter:drop-shadow(0 0 ${glow}px ${alpha(SHADES[8], 0.9)})
-       drop-shadow(0 0 ${(glow * 2.4).toFixed(1)}px ${alpha(SHADES[7], 0.65)})
-       drop-shadow(0 0 ${(glow * 4.6).toFixed(1)}px ${alpha(SHADES[6], 0.5)});`
-    : "";
+  const glowFilter = glowCss(glow);
   return `<!doctype html><html><head><style>
     ${wordmarkFace}
     html,body{margin:0;width:${width}px;height:${height}px;background:transparent;overflow:hidden}
@@ -724,8 +729,11 @@ function logoHtml({ width, height, text, white = false, gem = true, glow = 0, fi
 // soft enough to be drawn smaller and stretched.
 const THEME = "usr/share/plymouth/themes/amethystora";
 const GEM_PX = 256 * BOOT.unit; // the gem's 256-unit box, in 1080p pixels
+// The name at the foot of the splash is the login screen's logo, the gem glowing as the "a", so the splash hands
+// over to GDM with the same mark in both. Its box has the proportions of amethystora-wordmark-glow.png and the
+// glow is scaled with it, so the lettering comes out at the 34px the credit below is spaced for.
+const WORDMARK = { box: [276, 90], glow: 6, fit: 0.66 };
 const TEXT = {
-  wordmark: { text: "amethystora", size: 34, weight: WORDMARK_WEIGHT, spacing: "-0.015em", color: "#ffffff", box: [260, 45] },
   credit: { text: "by iarsslen", size: 13, weight: 500, spacing: "0.04em", color: SHADES[7], box: [110, 18], opacity: 0.22 },
 };
 // Centre of the name, as a share of the screen height, and of the credit below it, in 1080p pixels
@@ -772,6 +780,10 @@ const BOOT_PNGS = [
     const px = Math.round(s.side * BOOT.unit * 2);
     return { out: `${THEME}/shard-${i}.png`, width: px, height: px, html: () => svgPage(shardSvg(s), px, px) };
   }),
+  {
+    out: `${THEME}/wordmark.png`, width: WORDMARK.box[0] * 2, height: WORDMARK.box[1] * 2,
+    html: () => logoHtml({ width: WORDMARK.box[0] * 2, height: WORDMARK.box[1] * 2, text: "white", glow: WORDMARK.glow * 2, fit: WORDMARK.fit }),
+  },
   ...Object.entries(TEXT).map(([name, t]) => ({
     out: `${THEME}/${name}.png`, width: t.box[0] * 2, height: t.box[1] * 2, html: () => textPage(t),
   })),
@@ -900,7 +912,7 @@ light.sprite.SetPosition(origin_x - light.image.GetWidth() / 2, origin_y - light
 light.sprite.SetOpacity(0);
 light.opacity = 0;
 
-wordmark.image = sized(Image("wordmark.png"), ${TEXT.wordmark.box[0]} * scale, ${TEXT.wordmark.box[1]} * scale);
+wordmark.image = sized(Image("wordmark.png"), ${WORDMARK.box[0]} * scale, ${WORDMARK.box[1]} * scale);
 wordmark.sprite = Sprite(wordmark.image);
 wordmark_y = screen_y + screen_h * ${WORDMARK_Y};
 wordmark.sprite.SetPosition(origin_x - wordmark.image.GetWidth() / 2, wordmark_y - wordmark.image.GetHeight() / 2, 6);
