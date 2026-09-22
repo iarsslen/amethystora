@@ -319,7 +319,7 @@ for icon in org.gnome.Ptyxis io.github.kolunmi.Bazaar io.github.linx_systems.Cla
     be.alexandervanhee.gradia org.freedesktop.MalcontentControl it.mijorus.smile \
     org.gnome.Decibels org.gnome.Tour io.github.flattool.Warehouse page.tesk.Refine \
     io.github.flattool.Ignition io.gitlab.adhami3310.Impression input-remapper nordvpn-gui \
-    org.gnome.Sysprof \
+    com.ranfdev.DistroShelf org.gnome.Sysprof \
     amethystora-docs amethystora-community amethystora-update amethystora-security-status; do
     test -e "${CANDY_DIR}/apps/scalable/${icon}.svg"
 done
@@ -328,6 +328,9 @@ done
 for icon in /ctx/build_files/shared/candy-icons/*.svg; do
     test -s "${CANDY_DIR}/apps/scalable/$(basename "${icon}")"
     cmp -s "${icon}" "${CANDY_DIR}/apps/scalable/$(basename "${icon}")"
+    # glycin decides an icon is SVG from its first 256 bytes alone; a comment ahead of <svg> that
+    # pushes the tag past them leaves the launcher with a blank icon
+    head -c 256 "${icon}" | grep -q "<svg"
 done
 # NordVPN's mark is filled with one gradient, the way the pack draws every other VPN client
 grep -q 'fill="url(#_lgradient_nordvpn)"' "${CANDY_DIR}/apps/scalable/nordvpn.svg"
@@ -399,6 +402,11 @@ grep -q "secure-boot-notified" /usr/libexec/amethystora-security-alert
 test -x /usr/libexec/amethystora-mok-status
 [[ "$(grep -c "/usr/libexec/amethystora-mok-status" /usr/share/amethystora/just/60-custom.just)" -ge 2 ]]
 grep -q "mokutil --test-key" /usr/share/amethystora/just/60-custom.just && false
+# ...and what it checks has to be readable by the user asking. /etc/pki/akmods/certs is 0750
+# root:akmods, so run without sudo every check there concluded the certificates did not exist.
+SB_CERT=/usr/share/amethystora/secure-boot/amethystora-modules.der
+[[ "$(stat -c '%a' "${SB_CERT}")" == 644 ]]
+cmp -s /etc/pki/akmods/certs/amethystora-modules.der "${SB_CERT}"
 # ...and in the app grid too, so it is not only behind a recipe name somebody has to already know.
 SECURITY_DESKTOP=/usr/share/applications/amethystora-security-status.desktop
 test -s "${SECURITY_DESKTOP}"
