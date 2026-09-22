@@ -1,6 +1,7 @@
 #!/usr/bin/bash
 # Greeting shown in new terminals (/etc/profile.d/amethystora-greeting.sh, fish_greeting.fish):
-# a welcome line in the Amethystora purple, then the logo and system summary.
+# a welcome line in the Amethystora purple, the logo and system summary, then the image, the
+# commands to know about, a tip and where to ask for help.
 
 if [ -t 1 ] && [ -z "${NO_COLOR-}" ]; then
     printf '\n\e[1;38;2;155;92;224mWelcome to Amethystora\e[0m\n\n'
@@ -13,6 +14,29 @@ export FASTFETCH_FORCE_THEME="${FASTFETCH_FORCE_THEME:-purple}"
 
 # The text console (Ctrl+Alt+F3) turns the truecolour logo's dark facets blue: draw it in the console's magentas
 if [ "${TERM-}" = "linux" ]; then
-    exec amethystora-fastfetch --logo /usr/share/amethystora/logos/console/amethystora
+    amethystora-fastfetch --logo /usr/share/amethystora/logos/console/amethystora
+else
+    amethystora-fastfetch
 fi
-exec amethystora-fastfetch
+
+# The banner is drawn with a style of its own rather than glow's, which guesses the terminal's
+# background and, when it guesses light, prints its text in near-black on a dark terminal. This one
+# leaves body text in the terminal's own foreground colour, so it reads on light and dark themes.
+BANNER_DIR=/usr/share/amethystora/greeting
+command -v glow >/dev/null || exit 0
+
+escape() {
+    sed 's/[&|\]/\\&/g' <<<"$1"
+}
+
+IMAGE="$(jq -r '."image-ref"' /usr/share/amethystora/image-info.json 2>/dev/null)"
+IMAGE="${IMAGE##*://}"
+TAG="$(jq -r '."image-tag"' /usr/share/amethystora/image-info.json 2>/dev/null)"
+[ -n "${TAG}" ] && [ "${TAG}" != null ] && IMAGE="${IMAGE}:${TAG}"
+
+TIP=""
+TIP_FILE="$(find /usr/share/amethystora/motd/tips -name '*.md' 2>/dev/null | shuf -n 1)"
+[ -n "${TIP_FILE}" ] && TIP="$(grep -v '^[[:space:]]*$' "${TIP_FILE}" | shuf -n 1)"
+
+sed -e "s|%IMAGE%|$(escape "${IMAGE}")|" -e "s|%TIP%|$(escape "${TIP}")|" "${BANNER_DIR}/banner.md" |
+    glow -s "${BANNER_DIR}/style.json" -w 78 -

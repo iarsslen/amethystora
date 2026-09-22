@@ -16,6 +16,12 @@ test -x /usr/bin/amethystora-fastfetch
 # Logo in the text console colours (amethystora-greeting)
 test -f /usr/share/amethystora/logos/console/amethystora
 test -x /usr/libexec/amethystora-greeting
+# ...which also draws the banner, so the upstream one that followed it is gone (07-debrand.sh)
+command -v glow jq >/dev/null
+jq -e . /usr/share/amethystora/greeting/style.json >/dev/null
+test -f /usr/share/amethystora/image-info.json
+test ! -e /etc/profile.d/user-motd.sh
+test ! -e /usr/libexec/amethystora-motd
 test -f /usr/lib/amethystora/setup-services/libsetup.sh
 
 # If this file is not on the image bazaar will automatically be removed from users systems :(
