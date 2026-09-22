@@ -17,12 +17,12 @@
 
 set -uo pipefail
 
-CERTS=(
-    # Signs the modules built with the image (evdi, for DisplayLink docks)
-    /etc/pki/akmods/certs/amethystora-modules.der
-    # Signs the kernel and the prebuilt akmods modules
-    /etc/pki/akmods/certs/akmods-amethystora.der
-)
+# Public copies, readable without sudo: /etc/pki/akmods/certs is closed to everyone but root and
+# akmods (08-hardening.sh). Which ones there are depends on the image; each is reported.
+SB_CERTS=/usr/share/amethystora/secure-boot
+shopt -s nullglob
+CERTS=("${SB_CERTS}"/*.der)
+[[ ${#CERTS[@]} -gt 0 ]] || { echo "missing ${SB_CERTS}"; exit 0; }
 
 for cert in "${CERTS[@]}"; do
     if [[ ! -f "${cert}" ]]; then

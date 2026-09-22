@@ -137,6 +137,20 @@ elif [[ -z "${BRAVE_POLICY_DIR}" ]]; then
 fi
 test -s "${BRAVE_POLICY_DIR:-/etc/brave/policies}/managed/10-amethystora.json"
 
+# Secure Boot certificates, readable by everyone. akmods keeps /etc/pki/akmods/certs at 0750
+# root:akmods because the private keys go beside them, and that leaves a normal user unable to see the
+# public certificates are there at all: every "is this key enrolled" check run without sudo concluded
+# the files did not exist. They are public by definition, so a copy goes where anyone can read it,
+# and /usr/libexec/amethystora-mok-status and `ujust enroll-secure-boot-key` work from the copy.
+# After 07-debrand.sh, which gives the kernel's certificate its Amethystora name.
+SB_CERTS=/usr/share/amethystora/secure-boot
+install -Dpm0644 /etc/pki/akmods/certs/amethystora-modules.der "${SB_CERTS}/amethystora-modules.der"
+if [[ -f /etc/pki/akmods/certs/akmods-amethystora.der ]]; then
+    install -Dpm0644 /etc/pki/akmods/certs/akmods-amethystora.der "${SB_CERTS}/akmods-amethystora.der"
+else
+    echo "::warning::no akmods-amethystora.der, the kernel's certificate is left out of ${SB_CERTS}"
+fi
+
 # Kernel lockdown. In integrity mode the kernel refuses the operations that let root rewrite the kernel
 # it is running: loading a module without a signature it trusts, writing /dev/mem and /dev/kmem, kexec
 # of an unsigned image, and BPF that reads or writes kernel memory. A root compromise then ends at the

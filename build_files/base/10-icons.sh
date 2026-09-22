@@ -109,6 +109,8 @@ CANDY_ALIASES=(
     "nordvpn-gui:nordvpn.svg"
     # Input Remapper remaps keys and buttons
     "input-remapper:preferences-desktop-keyboard.svg"
+    # DistroShelf manages Distrobox containers, which run on podman
+    "com.ranfdev.DistroShelf:io.podman_desktop.PodmanDesktop.svg"
     # Sysprof is the one application the dx image adds that the pack has no icon for. VS Code,
     # virt-manager and Remote Viewer (Icon=virt-viewer) are all drawn upstream, and the rest of dx
     # is command line tools and daemons with no launcher to put an icon on. A profiler is a system
