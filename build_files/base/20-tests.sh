@@ -361,6 +361,33 @@ grep -q "^DEFAULT_ICON_THEME=candy-icons$" /usr/lib/amethystora/theme/lib.sh
 # so the theme hook has to be past the version that only wrote the desktop's own icons
 [[ "$(sed -n 's/^version-script theme user \([0-9]\+\).*/\1/p' \
     /usr/share/amethystora/user-setup.hooks.d/11-theme.sh)" -ge 2 ]]
+# ...and past the one that re-applies it after 09-retire-dms.sh, which runs first
+[[ "$(sed -n 's/^version-script theme user \([0-9]\+\).*/\1/p' \
+    /usr/share/amethystora/user-setup.hooks.d/11-theme.sh)" -ge 5 ]]
+
+# What the Hyprland era left behind is removed: per account by 09-retire-dms.sh, before 11-theme.sh
+# re-applies the theme, and per machine by 20-retire-dms.sh. The account side keys on the names and
+# signatures in DankMaterialShell's own source: its kitty.conf hides kitty's title bar (no close
+# button on GNOME), its gtk.css kept the theme out of libadwaita, and its environment.d file still
+# set variables for the whole session.
+USER_RETIRE=/usr/share/amethystora/user-setup.hooks.d/09-retire-dms.sh
+SYSTEM_RETIRE=/usr/share/amethystora/system-setup.hooks.d/20-retire-dms.sh
+test -x "${USER_RETIRE}"
+test -x "${SYSTEM_RETIRE}"
+[[ "$(printf '%s\n' "${USER_RETIRE##*/}" 11-theme.sh | LC_ALL=C sort | head -n1)" == "${USER_RETIRE##*/}" ]]
+grep -q "dank-colors" "${USER_RETIRE}"
+grep -q "90-dms.conf" "${USER_RETIRE}"
+# The machine side never touches a machine that has layered any of it back on, and removes the greeter
+# account only by the home dms-greeter gave it
+grep -q 'rpm -q "${package}"' "${SYSTEM_RETIRE}"
+grep -q "== /var/lib/greeter" "${SYSTEM_RETIRE}"
+# ...and nothing of that stack is in the image any more
+for package in greetd dms dms-greeter quickshell hyprland; do
+    rpm -q "${package}" >/dev/null 2>&1 && false
+done
+# GNOME draws no decorations for kitty, so kitty's own title bar is the only place its window buttons
+# can be: the image's config must never hide it
+grep -qE "^[[:space:]]*hide_window_decorations[[:space:]]+(yes|titlebar)" /etc/xdg/kitty/kitty.conf && false
 # Files opens on the grid, where candy-icons' folders are drawn as artwork rather than as a 16px row
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.nautilus.preferences default-folder-viewer)" == "'icon-view'" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.nautilus.icon-view default-zoom-level)" == "'large'" ]]
