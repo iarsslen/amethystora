@@ -205,6 +205,10 @@ grep -q "^static-blur=true$" "${BMS_DCONF}"
 # The whole look is off if the extension is not enabled, and nothing else in the image would say so:
 # every key above would be a perfectly valid default for an extension nobody is running
 grep -q "'blur-my-shell@aunetx'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
+# An account that holds a list of its own never sees that default, so the user-setup hook puts it
+# back after every update; the default it reads has to be the one the image compiled
+test -x /usr/share/amethystora/user-setup.hooks.d/15-extensions.sh
+GSETTINGS_BACKEND=memory gsettings get org.gnome.shell enabled-extensions | grep -q "'blur-my-shell@aunetx'"
 # Application windows are on the glass too, every one of them rather than a named few
 grep -q "^enable-all=true$" "${BMS_DCONF}"
 [[ "$(sed -n '/^\[org\/gnome\/shell\/extensions\/blur-my-shell\/applications\]$/,/^$/p' "${BMS_DCONF}" |
@@ -580,8 +584,13 @@ grep -qiE "^(space_left_action|admin_space_left_action|disk_full_action|disk_err
 
 # The per-home watches reach the kernel through the load auditd does as it starts, because once -e 2 is
 # in the rule set a second `augenrules --load` is refused.
-grep -q "^Before=auditd.service$" /usr/lib/systemd/system/amethystora-audit-rules.service
+grep -qE "^Before=auditd.service( |$)" /usr/lib/systemd/system/amethystora-audit-rules.service
 grep -qE "^After=auditd.service" /usr/lib/systemd/system/amethystora-audit-rules.service && false
+# auditd starts before sysinit.target, so a unit ordered before it has to as well: with the default
+# dependencies it sits after sysinit.target, and systemd breaks the cycle by not starting auditd
+grep -q "^DefaultDependencies=no$" /usr/lib/systemd/system/amethystora-audit-rules.service
+grep -q "^Before=.*sysinit.target" /usr/lib/systemd/system/amethystora-audit-rules.service
+grep -q "^Before=.*sysinit.target" /usr/lib/systemd/system/auditd.service
 
 # Weekly virus scan and monthly Lynis audit. Neither may delete, quarantine or move anything: a false
 # positive that takes away a file the user wanted is worse than most of what it would be removing.

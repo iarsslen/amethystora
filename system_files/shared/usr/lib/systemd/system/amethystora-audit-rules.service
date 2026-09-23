@@ -7,7 +7,14 @@ Documentation=man:auditctl(8)
 # Before auditd, not after it: 99-amethystora-finalize.rules closes the rule set with -e 2, so the load
 # auditd does for itself as it starts is the only chance these have to reach the kernel. An
 # `augenrules --load` afterwards would be refused, and the home directories would go unwatched.
-Before=auditd.service
+#
+# auditd runs in early boot, before sysinit.target. With the default dependencies this would come after
+# sysinit.target and so after auditd as well, and systemd breaks that cycle by dropping auditd's start
+# job: auditd stayed off at every boot. local-fs.target is all this needs, for /etc and /var/home.
+DefaultDependencies=no
+After=local-fs.target
+Before=auditd.service sysinit.target shutdown.target
+Conflicts=shutdown.target
 Wants=auditd.service
 
 [Service]
