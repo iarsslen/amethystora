@@ -422,6 +422,13 @@ grep -q "enforce-container-sigpolicy" /usr/libexec/amethystora-signed-updates
 grep -vE "^[[:space:]]*#" /usr/libexec/amethystora-signed-updates | grep -q -- "--mutate-in-place" && false
 grep -q "^After=network-online.target$" /usr/lib/systemd/system/amethystora-signed-updates.service
 test -e /usr/share/amethystora/system-setup.hooks.d/20-signed-updates.sh && false
+# bootc builds the next deployment from the image alone, so switching with it on a machine that has
+# layered packages drops them at the next boot without a word. This unit runs at every boot, so it
+# has to read the flag bootc sets for such a deployment and rebase with rpm-ostree instead.
+grep -q '\.status\.booted\.incompatible' /usr/libexec/amethystora-signed-updates
+grep -q "rpm-ostree rebase" /usr/libexec/amethystora-signed-updates
+# The same command is offered to anyone following a dated tag back onto a stream
+grep -q "rpm-ostree rebase ostree-image-signed" /usr/share/amethystora/just/60-custom.just
 # Everything the image claims to do, in one place, without a password, with nothing to dismiss. This is
 # what makes Secure Boot and the rest surfaceable without interrupting anybody more than once.
 grep -q "^security-status:$" /usr/share/amethystora/just/60-custom.just

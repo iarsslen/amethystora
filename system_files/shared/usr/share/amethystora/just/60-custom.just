@@ -150,6 +150,10 @@ security-status:
     IMAGE="${IMAGE:-unknown}"
     SIGNED="$(sig "${BOOTED_REF}")"
     STAGED="$(sig "$(ref staged)")"
+    # Packages layered on with rpm-ostree. They decide which command follows a stream below: bootc
+    # builds the next deployment from the image alone and would drop them, rpm-ostree carries them over.
+    LAYERED="$(jq -r '[.deployments[] | select(.booted)][0] | ((.packages // []) + (."requested-local-packages" // [])) | length' <<<"${STATUS:-null}" 2>/dev/null)"
+    LAYERED="${LAYERED:-0}"
 
     echo
     echo "  This machine is running ${IMAGE}"
@@ -167,9 +171,19 @@ security-status:
     # A dated tag names one build, not a stream: every update re-pulls that same build, forever
     TAG="${IMAGE##*:}"
     if [[ "${TAG}" =~ ^([a-z]+)-[0-9]+\.[0-9]{8} ]]; then
+        STREAM="${BASH_REMATCH[1]}"
+        if [[ "${LAYERED}" != "0" ]]; then
+            FOLLOW="sudo rpm-ostree rebase ostree-image-signed:docker://${IMAGE%:*}:${STREAM}"
+        else
+            FOLLOW="sudo bootc switch --enforce-container-sigpolicy ${IMAGE%:*}:${STREAM}"
+        fi
         note "This machine follows a single build (${TAG}) and will not receive updates" \
-             "Follow the ${BASH_REMATCH[1]} stream again with:" \
-             "sudo bootc switch --enforce-container-sigpolicy ${IMAGE%:*}:${BASH_REMATCH[1]}"
+             "Follow the ${STREAM} stream again with:" \
+             "${FOLLOW}"
+    fi
+    if [[ "${LAYERED}" != "0" ]]; then
+        info "${LAYERED} package(s) are layered on this image with rpm-ostree"
+        info "Updates keep them, but each one slows every update; the image is the better place"
     fi
 
     # What the signature buys is a trusted image at the moment it is pulled. Whether /usr is still

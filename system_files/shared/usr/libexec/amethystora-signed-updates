@@ -17,6 +17,15 @@
 #
 # An image that is not one of ours is left alone. Somebody tracking their own build is not asking for
 # this image's signing key, and forcing it on them would stop their updates altogether.
+#
+# A machine with packages layered on by `rpm-ostree install` is switched through rpm-ostree instead.
+# bootc has no notion of client-side layering: it builds the next deployment from the image alone, so
+# switching with bootc here would drop every package the user had layered on, at the next boot, with
+# nothing said. `rpm-ostree rebase` sets the identical signed origin and carries the packages over.
+#
+# Layering is read from both sides. bootc marks such a deployment incompatible, which is the flag uupd
+# reads to choose its own update path, and rpm-ostree owns the layering and names the packages. Either
+# saying yes is enough: this has to fail towards keeping a user's packages, never towards dropping them.
 
 set -euo pipefail
 
@@ -24,6 +33,15 @@ STATUS="$(bootc status --format=json)"
 booted="$(jq -r '.status.booted.image.image.image // empty' <<<"${STATUS}")"
 signature="$(jq -r '.status.booted.image.image.signature // "none" | tostring' <<<"${STATUS}")"
 staged="$(jq -r '.status.staged.image.image.signature // "none" | tostring' <<<"${STATUS}")"
+
+layered="$(jq -r '.status.booted.incompatible // false | tostring' <<<"${STATUS}")"
+if [[ "${layered}" != "true" ]]; then
+    count="$(rpm-ostree status --json 2>/dev/null |
+        jq -r '[.deployments[] | select(.booted)][0] | ((.packages // []) + (."requested-local-packages" // [])) | length' 2>/dev/null || echo 0)"
+    if [[ "${count:-0}" != "0" ]]; then
+        layered=true
+    fi
+fi
 
 if [[ "${booted}" != ghcr.io/iarsslen/* ]]; then
     echo "Not an Amethystora image (${booted:-unknown}), leaving update verification alone"
@@ -39,4 +57,9 @@ if [[ "${staged}" == "containerPolicy" ]]; then
 fi
 
 echo "Updates of ${booted} are not signature-checked. Staging the switch to checked updates."
-bootc switch --enforce-container-sigpolicy --transport registry "${booted}"
+if [[ "${layered}" == "true" ]]; then
+    echo "This machine has layered packages, so the switch goes through rpm-ostree to keep them."
+    rpm-ostree rebase "ostree-image-signed:docker://${booted}"
+else
+    bootc switch --enforce-container-sigpolicy --transport registry "${booted}"
+fi
