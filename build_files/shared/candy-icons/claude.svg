@@ -12,8 +12,7 @@
   Nothing in the image looks this up yet. Claude Code, which amethystora-agent installs into the
   user's home, is a single binary and nothing else - no desktop entry, so no icon lookup - and this
   is here so that a launcher written by hand, or one a later release ships, finds the icon already
-  drawn rather than falling back to a flat tile among the gradients. nordvpn.svg is here on the same
-  terms.
+  drawn rather than falling back to a flat tile among the gradients.
 
   The outline is Anthropic's Claude mark taken unchanged from simple-icons (CC0-1.0), scaled from
   their 24-unit box to the 48-unit one the pack uses. The gradient runs across the bounding box, so

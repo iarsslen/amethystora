@@ -68,6 +68,7 @@ OTHER_REPOS=(
     "negativo17-fedora-multimedia.repo"
     "tailscale.repo"
     "brave-browser.repo"
+    "nordvpn.repo"
     "vscode.repo"
     "docker-ce.repo"
     "fedora-cisco-openh264.repo"

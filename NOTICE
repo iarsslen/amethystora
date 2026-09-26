@@ -62,6 +62,21 @@ theme's inheritance, drops the symbolic names outside places/ and adds aliases
 for the applications this image ships; the licence ships with it in
 usr/share/licenses/candy-icons.
 
+The Amethystora Manual in usr/share/amethystora/manual adapts parts of the
+Bluefin documentation, licensed under the Apache License, Version 2.0; the
+pages are rewritten for Amethystora:
+
+  - bluefin-docs  https://github.com/ublue-os/bluefin-docs
+
+The manual's window is an Electron app. Electron and marked, which renders the
+pages, are installed from their upstream releases by
+build_files/base/13-manual.sh, each licensed under the MIT License. Their
+licences, and those of the Chromium components Electron includes, ship in
+usr/share/licenses/amethystora-manual.
+
+  - Electron  https://github.com/electron/electron
+  - marked    https://github.com/markedjs/marked
+
 These GNOME Shell extensions are installed from extensions.gnome.org, each
 licensed under the GNU General Public License, version 2 or later:
 

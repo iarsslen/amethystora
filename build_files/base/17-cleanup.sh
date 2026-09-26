@@ -24,6 +24,10 @@ systemctl enable amethystora-flatpak-remotes.service
 systemctl disable input-remapper.service
 systemctl enable rpm-ostree-countme.service
 systemctl enable tailscaled.service
+# NordVPN starts at boot, as its installer sets it up, so that auto-connect and the kill switch hold
+# before anyone logs in. nordvpnd.service pulls in nordvpnd-killswitch.service itself.
+systemctl enable nordvpnd.socket
+systemctl enable nordvpnd.service
 systemctl enable amethystora-system-setup.service
 # Keeps updates signature-checked (/usr/libexec/amethystora-signed-updates)
 systemctl enable amethystora-signed-updates.service
@@ -61,7 +65,7 @@ systemctl disable flatpak-add-fedora-repos.service
 # We only need to clean up repos that were enabled during the build process.
 
 # Disable third-party repos
-for repo in negativo17-fedora-multimedia tailscale brave-browser fedora-cisco-openh264; do
+for repo in negativo17-fedora-multimedia tailscale brave-browser nordvpn fedora-cisco-openh264; do
     if [[ -f "/etc/yum.repos.d/${repo}.repo" ]]; then
         sed -i 's@enabled=1@enabled=0@g' "/etc/yum.repos.d/${repo}.repo"
     fi

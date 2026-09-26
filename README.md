@@ -39,9 +39,13 @@ Then reboot. Replace `amethystora` with any image name from the table above, and
 
 ### Using the desktop
 
-You log in on GDM to a GNOME session with the Amethystora wallpaper and a purple accent. These GNOME Shell extensions are preinstalled: Dash to Dock, Blur my Shell, AppIndicator, Caffeine, GSConnect, Logo Menu, Search Light, Tactile, Space Bar, TopHat, Just Perfection, Gradia and Bazaar integration. Turn them on or off in the Extensions app.
+You log in on GDM to a GNOME session with the Amethystora wallpaper and a purple accent. These GNOME Shell extensions are preinstalled: Dash to Dock, Blur my Shell, AppIndicator, Caffeine, GSConnect, Logo Menu, Search Light, Tactile, Space Bar, TopHat, Just Perfection, Gradia and Bazaar integration. Turn them on or off in Extension Manager.
 
 The top bar carries the six workspaces on the left, where Activities used to be, and CPU, memory and network meters on the right. Both follow the current theme.
+
+#### The manual
+
+Everything about using Amethystora is in the Amethystora Manual, which ships with the image and works offline: getting around, the hotkeys, themes, installing software, developer mode, updates and rollbacks, security, hardware and troubleshooting. Open it with `Super+F1`, from the app grid or the Amethystora menu, or with `amethystora-manual`; `amethystora-manual <page>` opens a page directly. The pages are Markdown in [system_files/shared/usr/share/amethystora/manual](system_files/shared/usr/share/amethystora/manual), and the hotkeys page is the same `keybindings.md` that `ujust keybindings` shows.
 
 #### Tiling and keyboard navigation
 
@@ -53,7 +57,7 @@ There are six fixed workspaces on `Super+1` to `Super+6`, `Super+Shift+N` takes 
 
 #### Themes
 
-`Super+Ctrl+Shift+Space` picks a theme, `Super+Ctrl+D` flips between light and dark, and `Super+Ctrl+Space` cycles the wallpaper. One switch repaints GNOME's colour scheme and accent, the Ptyxis palette, the shell prompt, btop and the wallpaper, because each theme is a single palette file everything else is rendered from. The same from a terminal:
+`Super+Ctrl+Shift+Space` picks a theme, `Super+Ctrl+D` flips between light and dark, and `Super+Ctrl+Space` cycles the wallpaper (each theme ships one, so add your own to `~/.config/amethystora/backgrounds/<theme>/` to have something to cycle through). One switch repaints GNOME's colour scheme and accent, the Ptyxis palette, the shell prompt, btop and the wallpaper, because each theme is a single palette file everything else is rendered from. The same from a terminal:
 
 ```bash
 ujust theme                      # pick one
@@ -94,6 +98,10 @@ It is a separate step because GRUB reads the boot filesystem and `/boot` is not 
 #### Security keys
 
 A FIDO2 security key (YubiKey, Thetis, or a fingerprint model such as the YubiKey Bio or Thetis Bio) can sign you in, unlock the screen and approve `sudo` and administrator prompts in place of your password. Register one with `ujust setup-security-key`. Choose "Add a fingerprint key" for a fingerprint model so that the key checks your fingerprint and not just a touch. The key needs a PIN and an enrolled fingerprint first; set these in Brave at `brave://settings/securityKeys`, or with `ykman fido fingerprints add` on a YubiKey Bio. Register a second key as a spare. Your password keeps working, and it is used whenever no registered key is plugged in.
+
+#### VPN
+
+NordVPN is installed: open NordVPN from the app grid, or run `nordvpn login` and then `nordvpn connect` in a terminal. Administrator accounts can use it; an account made since the machine last started gets access at the next start. To let a standard account use it, run `sudo usermod -aG nordvpn <name>` and have that person log out and back in.
 
 ### Building locally
 
@@ -162,6 +170,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Issues and pull requests are welcome at 
 Amethystora is based on [Bluefin](https://github.com/ublue-os/bluefin) by the [Universal Blue](https://universal-blue.org/) project, and it keeps building on their shared infrastructure. Thanks to the Bluefin and Universal Blue contributors for the work this project stands on.
 
 The theme switcher follows the design of [Omakub](https://omakub.org) and its fork [Omabuntu](https://omabuntu.omakasui.org/), and most of the colour palettes are ported from them (MIT). Tiling is [Tactile](https://gitlab.com/lundal/tactile) by Per Thomas Lundal (GPL-2.0-or-later). The boot menu follows the theme layout of [grub2-themes](https://github.com/vinceliuice/grub2-themes) by Vince Liuice (GPL-3.0). The icons are [candy-icons](https://github.com/EliverLara/candy-icons) by Eliver Lara (GPL-3.0).
+
+The manual adapts parts of the [Bluefin documentation](https://github.com/ublue-os/bluefin-docs) (Apache-2.0), takes its shape from the [Omarchy manual](https://learn.omacom.io/2/the-omarchy-manual), and runs on [Electron](https://www.electronjs.org) with [marked](https://marked.js.org) (both MIT).
 
 ## License
 

@@ -103,10 +103,23 @@ CANDY_ALIASES=(
     "io.github.flattool.Ignition:preferences-system.svg"
     # Impression writes disk images to USB sticks
     "io.gitlab.adhami3310.Impression:usb-creator-gtk.svg"
-    # NordVPN's own artwork is a flat blue tile; nordvpn.svg above is the candy version of its mark.
-    # Which name a machine asks for depends on how NordVPN was installed, so both are answered:
-    # grep Icon= /usr/share/applications/nordvpn*.desktop
+    # NordVPN (04-packages.sh). Its own artwork is a flat blue tile; nordvpn.svg above is the candy
+    # version of its mark, which the client's link handler asks for as nordvpn and the app as
+    # nordvpn-gui. Its panel icons (nordvpn-tray-*) stay NordVPN's own: they are one flat colour
+    # like the rest of the panel, and the colour is what says whether the VPN is connected.
     "nordvpn-gui:nordvpn.svg"
+    # JetBrains IDEs. Upstream draws them under their Flatpak ids and most of their window classes,
+    # the names user-setup.hooks.d/16-jetbrains-icons.sh answers Toolbox's per-install icon names
+    # with. These are the window classes it misses: IntelliJ IDEA's, the two Community editions',
+    # RubyMine's, Android Studio's, and Rider's, whose upstream link has lost its .svg.
+    "jetbrains-idea:intellij.svg"
+    "jetbrains-idea-ce:intellij.svg"
+    "jetbrains-pycharm-ce:pycharm.svg"
+    "jetbrains-rider:rider.svg"
+    "jetbrains-rubymine:rubymine.svg"
+    "jetbrains-studio:androidstudio.svg"
+    # RubyMine's Flatpak, the one JetBrains app id upstream has no link for
+    "com.jetbrains.RubyMine:rubymine.svg"
     # Input Remapper remaps keys and buttons
     "input-remapper:preferences-desktop-keyboard.svg"
     # DistroShelf manages Distrobox containers, which run on podman

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; font-src 'self' file:">
+    <title>Amethystora Manual</title>
+    <link rel="stylesheet" href="manual.css">
+    <script src="marked.umd.js" defer></script>
+    <script src="manual.js" defer></script>
+</head>
+<body>
+    <aside class="sidebar">
+        <a class="brand" href="#">
+            <img src="file:///usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg" alt="">
+            <span><strong>Amethystora</strong> Manual</span>
+        </a>
+        <label class="search">
+            <input id="search" type="search" placeholder="Search the manual" autocomplete="off" spellcheck="false">
+            <span class="hint"><kbd>Ctrl</kbd><kbd>K</kbd></span>
+        </label>
+        <nav id="toc" aria-label="Pages"></nav>
+        <ol id="results" aria-label="Search results" hidden></ol>
+    </aside>
+    <main id="main">
+        <article id="page" class="page"></article>
+        <nav id="pager" class="pager" aria-label="Previous and next page"></nav>
+    </main>
+</body>
+</html>

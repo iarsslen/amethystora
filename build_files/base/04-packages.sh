@@ -213,6 +213,26 @@ x-scheme-handler/https=brave-browser.desktop;com.brave.Browser.desktop;
 x-scheme-handler/unknown=brave-browser.desktop;com.brave.Browser.desktop;
 EOF
 
+# NordVPN: the daemon and command line client, and the app. NordVPN's own installer turns signature
+# checking off, but its packages and its repository metadata are both signed with the key below, so
+# both are checked here. What it installs in /var/lib/nordvpn/data is a cache the daemon downloads
+# again, so clean-stage.sh emptying /var costs nothing. The app installs to /opt, which is /var/opt on
+# a booted system: outside the image, so never updated. It moves under /usr/lib and its link in
+# /usr/bin follows it. The daemon only answers the nordvpn group: /usr/lib/sysusers.d/nordvpn.conf
+# keeps the group on every machine and system-setup.hooks.d/40-nordvpn.sh adds the administrators.
+tee /etc/yum.repos.d/nordvpn.repo >/dev/null <<'EOF'
+[nordvpn]
+name=NordVPN
+baseurl=https://repo.nordvpn.com/yum/nordvpn/centos/$basearch
+enabled=0
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://repo.nordvpn.com/gpg/nordvpn_public.asc
+EOF
+dnf -y install --enablerepo='nordvpn' nordvpn nordvpn-gui
+mv /opt/nordvpn-gui /usr/lib/nordvpn-gui
+ln -sf /usr/lib/nordvpn-gui/nordvpn-gui /usr/bin/nordvpn-gui
+
 # Claude Code and opencode are deliberately not installed here. They release far more often than the
 # image, so amethystora-agent installs them into each user's home with their makers' own installers,
 # where they update on a schedule the user controls.

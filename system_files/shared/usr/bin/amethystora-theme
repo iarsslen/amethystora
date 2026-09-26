@@ -250,6 +250,10 @@ background_next() {
     local current index=-1 i
 
     mapfile -t backgrounds < <(background_list)
+    # Every shipped theme has a single wallpaper, so the key puts the same one back and looks broken
+    if [[ ${1:-} != --first && ${#backgrounds[@]} -le 1 ]]; then
+        notify "Wallpaper" "This theme has one wallpaper. Add more to ${USER_BACKGROUNDS_DIR}/$(theme_current)/"
+    fi
     if [[ ${#backgrounds[@]} -eq 0 ]]; then
         if [[ -f "${CURRENT_THEME_DIR}/wallpaper.svg" ]]; then
             background_set "${CURRENT_THEME_DIR}/wallpaper.svg"

@@ -23,6 +23,9 @@ and how to undo it.
 
 ## Finding commands
 
+- The user manual is Markdown in `/usr/share/amethystora/manual` (start at `pages.json`): how the
+  desktop, themes, software, updates and security work, written for the user. Read the page on a
+  topic before answering about it, and point the user to it with `amethystora-manual <page>`.
 - `ujust --list` lists every system recipe with a one-line description; `ujust <recipe>` runs one.
   Prefer a recipe over doing the same by hand: it knows the image.
 - `amethystora-theme --help`, `amethystora-menu --help` and `amethystora-agent --help` print usage.
@@ -53,7 +56,7 @@ A theme is a directory of small files (see `/usr/lib/amethystora/theme/lib.sh` f
 - Change how a config is rendered: copy the template from `/usr/share/amethystora/themed/` to
   `~/.config/amethystora/themed/` and edit the copy.
 - Run something on every theme switch: an executable in `~/.config/amethystora/hooks/theme-set.d/`.
-- Extra wallpapers: `~/.config/amethystora/backgrounds/`.
+- Extra wallpapers: `~/.config/amethystora/backgrounds/<theme>/`, cycled with `Super+Ctrl+Space`.
 - After a change, run `amethystora-theme set "$(amethystora-theme current)"` and check for errors.
 
 Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.

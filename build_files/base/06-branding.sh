@@ -62,10 +62,9 @@ grep -qE "^[[:space:]]*item_font = \"${GRUB_FONT_NAME}\"$" "${GRUB_THEME_DIR}/th
 # 19-initramfs.sh bakes the selected theme into the initramfs.
 plymouth-set-default-theme amethystora
 
-# Help and community shortcuts
-if upstream_has /usr/share/applications/documentation.desktop; then
-    sed -i -e "s|^Exec=.*|Exec=xdg-open ${REPO_URL}#readme|" -e 's/Bluefin/Amethystora/g' /usr/share/applications/documentation.desktop
-fi
+# Help and community shortcuts. Upstream's Documentation launcher opened a PDF of its own docs, which
+# 07-debrand.sh removes; the Amethystora Manual (amethystora-manual.desktop) takes its place.
+rm -f /usr/share/applications/documentation.desktop
 if upstream_has /usr/share/applications/discourse.desktop; then
     sed -i -e "s|^Exec=.*|Exec=xdg-open ${REPO_URL}/discussions|" -e 's/Bluefin/Amethystora/g' /usr/share/applications/discourse.desktop
 fi

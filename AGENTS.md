@@ -208,6 +208,23 @@ default. `ujust toggle-agentic` turns them off per user by writing
 `~/.config/amethystora/no-agentic`. Keep the skill accurate when you change a command, path or
 recipe that it names.
 
+### The manual
+
+The Amethystora Manual (`amethystora-manual`, `Super+F1`, "Manual" in the Amethystora menu) is the
+user documentation, shipped in the image so that it always describes the image it is on. Its pages
+are the Markdown files in `system_files/shared/usr/share/amethystora/manual`, listed and grouped in
+`pages.json`; the hotkeys page is `keybindings.md` one level up, which `ujust keybindings` also
+shows. **Keep the manual accurate** when you change a command, recipe, hotkey, path or default that
+it describes, and add to it when you add something a user would look for there.
+
+- Link between pages as files (`updates.md#rolling-back`). `build_files/shared/check-manual.js`
+  runs in `20-tests.sh` and fails the build on a page that is missing or a link that lands nowhere.
+- `07-debrand.sh` rewrites every Bluefin or Universal Blue name in the image except on a line that
+  also carries a copyright or licence phrase, so upstream is credited only that way (`about.md`).
+- The window is an Electron app in `system_files/shared/usr/lib/amethystora-manual/resources/app`.
+  It only loads its own pages, opens web links in the browser, and follows the theme's palette.
+  `13-manual.sh` adds the pinned Electron and `marked` it runs on.
+
 ### COPR Package Installation
 
 COPR packages use the `copr_install_isolated()` helper function from `build_files/shared/copr-helpers.sh`:
@@ -351,11 +368,12 @@ Scripts in `build_files/base/` execute in numerical order:
 8. `10-icons.sh` - Installs the candy-icons icon theme from a pinned upstream commit (the pin is bumped by Renovate; see `.github/renovate.json5`). Apps the pack has no artwork for are aliased to its nearest icon; where nothing is near enough, the icon is drawn for this image in the pack's style and kept in `build_files/shared/candy-icons`, from where the script installs it into the theme
 9. `11-gtk-theme.sh` - Installs the Amethystora GTK theme: EliverLara's Sweet, by the author of candy-icons, with every cool colour in it rotated onto the amethyst palette by `build_files/shared/recolor.py`. It ships under Amethystora's own name because the palette is no longer Sweet's. Only the `amethystora` and `amethystora-light` themes name it in their `gtk.theme`; the rest stay on adw-gtk3, which follows the GNOME accent colour. libadwaita ignores `gtk-theme` and a Flatpak cannot see `/usr/share/themes` at all, so both are reached by `theme-set.hooks.d/20-gtk-apps.sh`: it mirrors the active theme into `~/.themes`, which `/etc/flatpak/overrides/global` grants every sandbox read-only, and writes the `~/.config/gtk-4.0/gtk.css` that imports from the mirror
 10. `12-login-screen.sh` - Patches the login screen background into GNOME Shell's own stylesheet. GNOME reads it from the `#lockDialogGroup` rule inside `gnome-shell-theme.gresource` and from nowhere else, so the bundle is unpacked, the rule appended and the bundle rebuilt. The picture is the sky the boot splash ends on, blurred and without the gem, drawn by `branding/generate.mjs`
-11. `07-debrand.sh` - Renames every remaining Bluefin / Universal Blue file, command, service and reference to Amethystora (logic in `build_files/shared/debrand.py`; `20-tests.sh` fails the build if any is left)
-12. `08-hardening.sh` - Signature-verified updates, firewall default zone, account lockout, the Brave enterprise policy, kernel lockdown, and the fixes to what the upstream layers leave open (polkit, sudoers, udev). Lockdown is skipped on the NVIDIA images, whose driver is an akmods build signed with the machine owner key: forcing lockdown on a machine with Secure Boot off would leave it without a graphics driver. The settings that are plain files live in `system_files/shared` (`usr/lib/sysctl.d`, `usr/lib/modprobe.d`, `usr/lib/bootc/kargs.d`, `etc/ssh/sshd_config.d`, `etc/security/faillock.conf`, `etc/flatpak/overrides/global`, `etc/audit/rules.d`, `etc/brave/policies/managed`)
-13. `17-cleanup.sh` - Cleanup operations, and the systemd units the image enables. Two things here are deliberately *disabled*: `input-remapper.service`, which runs as root and reads every input device, and `usbguard.service`, which would block the keyboard on a machine where nobody had allowed it yet. Both are turned on per machine by a `ujust` recipe
-14. `18-workarounds.sh` - Temporary fixes/workarounds
-15. `19-initramfs.sh` - Regenerates initramfs, adding dracut's `tpm2-tss` module where dracut has it so that `ujust setup-disk-unlock` can hand the disk key to the TPM
+11. `13-manual.sh` - Installs the runtime of the Amethystora Manual (`amethystora-manual`, `Super+F1`): a pinned Electron release, checked against the checksum Electron publishes, and a pinned `marked` from the npm registry, checked against its integrity. Both are bumped by Renovate. The app itself is `system_files/shared/usr/lib/amethystora-manual/resources/app` and its pages are `system_files/shared/usr/share/amethystora/manual`
+12. `07-debrand.sh` - Renames every remaining Bluefin / Universal Blue file, command, service and reference to Amethystora (logic in `build_files/shared/debrand.py`; `20-tests.sh` fails the build if any is left)
+13. `08-hardening.sh` - Signature-verified updates, firewall default zone, account lockout, the Brave enterprise policy, kernel lockdown, and the fixes to what the upstream layers leave open (polkit, sudoers, udev). Lockdown is skipped on the NVIDIA images, whose driver is an akmods build signed with the machine owner key: forcing lockdown on a machine with Secure Boot off would leave it without a graphics driver. The settings that are plain files live in `system_files/shared` (`usr/lib/sysctl.d`, `usr/lib/modprobe.d`, `usr/lib/bootc/kargs.d`, `etc/ssh/sshd_config.d`, `etc/security/faillock.conf`, `etc/flatpak/overrides/global`, `etc/audit/rules.d`, `etc/brave/policies/managed`)
+14. `17-cleanup.sh` - Cleanup operations, and the systemd units the image enables. Two things here are deliberately *disabled*: `input-remapper.service`, which runs as root and reads every input device, and `usbguard.service`, which would block the keyboard on a machine where nobody had allowed it yet. Both are turned on per machine by a `ujust` recipe
+15. `18-workarounds.sh` - Temporary fixes/workarounds
+16. `19-initramfs.sh` - Regenerates initramfs, adding dracut's `tpm2-tss` module where dracut has it so that `ujust setup-disk-unlock` can hand the disk key to the TPM
 
 ### Additional Recipe Collections
 - `just/bluefin-apps.just` - User-facing app management recipes

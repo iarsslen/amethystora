@@ -71,13 +71,18 @@ From previous `{target}` version `{prev}` there have been the following changes.
 For current users, type the following to rebase to this version:
 ```bash
 # Get Image Name
-IMAGE_NAME=$(jq -r '.["image-name"]' < /usr/share/ublue-os/image-info.json)
+IMAGE_NAME=$(jq -r '.["image-name"]' < /usr/share/amethystora/image-info.json)
 
 # For this Stream
 sudo bootc switch --enforce-container-sigpolicy ghcr.io/iarsslen/$IMAGE_NAME:{target}
 
 # For this Specific Image:
 sudo bootc switch --enforce-container-sigpolicy ghcr.io/iarsslen/$IMAGE_NAME:{curr}
+```
+
+If you layered packages with `rpm-ostree install`, `bootc switch` drops them. Use this instead:
+```bash
+sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/iarsslen/$IMAGE_NAME:{target}
 ```
 
 ### Documentation

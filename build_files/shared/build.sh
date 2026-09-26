@@ -54,6 +54,9 @@ echo "::endgroup::"
 # The login screen background, patched into GNOME Shell's own theme
 /ctx/build_files/base/12-login-screen.sh
 
+# The Amethystora Manual: the runtime its window needs
+/ctx/build_files/base/13-manual.sh
+
 # Rename the remaining Bluefin / Universal Blue files, commands and services to Amethystora
 /ctx/build_files/base/07-debrand.sh
 

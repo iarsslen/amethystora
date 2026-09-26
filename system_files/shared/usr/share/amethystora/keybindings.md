@@ -1,4 +1,8 @@
-# Amethystora keybindings
+# Hotkeys
+
+Amethystora is built to be driven from the keyboard. `Super` is the key with the Windows or Command
+logo on it. This list is also what `ujust keybindings` shows, and the Amethystora menu
+(`Super+Alt+Space`) reaches most of what these keys do.
 
 ## Tiling
 
@@ -43,11 +47,17 @@ the top bar on the left.
 | Key | Action |
 | --- | --- |
 | `Super+Space` | Search and launch |
+| `Super` | The overview: every open window, and search |
+| `Super+A` | Every installed app |
 | `Super+Return` | Terminal |
+| `Ctrl+Alt+T` | Terminal, the way most Linux desktops open it |
 | `Super+Shift+B` | Browser |
 | `Super+Shift+F` | Files |
 | `Super+E` | Home folder |
+| `Ctrl+Shift+Esc` | Mission Center, to see and stop what is running |
+| `Ctrl+Alt+Space` or `Super+.` | Emoji picker |
 | `Super+Ctrl+Shift+A` | An AI agent that knows this system (`ujust toggle-agentic` turns it off) |
+| `Super+F1` | This manual |
 
 ## Appearance
 
@@ -60,3 +70,14 @@ the top bar on the left.
 
 The same from a terminal: `amethystora-theme list`, `amethystora-theme set <name>`,
 `amethystora-theme bg next`, or `ujust theme`.
+
+## The desktop
+
+| Key | Action |
+| --- | --- |
+| `Super+V` | Notifications and the calendar |
+| `Super+L` | Lock the screen |
+| `Super+D` | Show the desktop |
+| `Print` | Take a screenshot or record the screen |
+| `Ctrl+Shift+Alt+R` | Start or stop a screen recording |
+| `Super+Shift+Space` | Next keyboard layout, when you have more than one |

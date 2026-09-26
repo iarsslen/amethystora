@@ -1,0 +1,22 @@
+[
+  {
+    "section": "Start here",
+    "pages": ["welcome.md", "getting-started.md", "installing.md"]
+  },
+  {
+    "section": "The desktop",
+    "pages": ["desktop.md", "../keybindings.md", "themes.md", "terminal.md", "web-apps.md", "ai-agent.md"]
+  },
+  {
+    "section": "Software",
+    "pages": ["software.md", "developer.md"]
+  },
+  {
+    "section": "The system",
+    "pages": ["updates.md", "security.md", "hardware.md"]
+  },
+  {
+    "section": "Help",
+    "pages": ["troubleshooting.md", "faq.md", "about.md"]
+  }
+]

@@ -12,7 +12,7 @@
   The outline is NordVPN's mark taken unchanged from simple-icons (CC0-1.0), scaled from their
   24-unit box to the 48-unit one the pack uses. The gradient runs across the bounding box, so it
   does not depend on the scale above it. NordVPN is a trademark of Nord Security; this is only a
-  themed icon for an application installed separately, and the image does not ship NordVPN itself.
+  themed icon for the NordVPN client, which the image installs from NordVPN's own repository.
 -->
   <linearGradient id="_lgradient_nordvpn" x1="0" y1="0.5" x2="1" y2="0.5">
     <stop offset="0%" stop-opacity="1" style="stop-color:rgb(77,213,255)"/>

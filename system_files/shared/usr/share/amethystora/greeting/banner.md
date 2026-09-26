@@ -11,4 +11,4 @@
 
 - **Issues** https://github.com/iarsslen/amethystora/issues
 - **Ask Amethystora** https://github.com/iarsslen/amethystora/discussions
-- **Documentation** https://github.com/iarsslen/amethystora#readme
+- **Manual** `amethystora-manual`, or `Super+F1`

@@ -118,7 +118,7 @@ system_menu() {
 
 main_menu() {
     local choice problem
-    local -a entries=("Theme" "Background" "Keybindings" "Web apps" "Apps and system commands" "System")
+    local -a entries=("Theme" "Background" "Keybindings" "Manual" "Web apps" "Apps and system commands" "System")
     # Only while the agentic features are on (ujust toggle-agentic)
     if amethystora-agent status >/dev/null 2>&1; then
         entries=("Ask an agent" "Diagnose a problem" "${entries[@]}")
@@ -137,6 +137,8 @@ main_menu() {
         Theme) theme_menu ;;
         Background) background_menu ;;
         Keybindings) keys_menu ;;
+        # A window of its own, which outlives the terminal the menu runs in
+        Manual) setsid -f amethystora-manual >/dev/null 2>&1 ;;
         "Web apps") webapps_menu ;;
         "Apps and system commands")
             # ujust with no recipe opens its own chooser, which is the full list and stays right

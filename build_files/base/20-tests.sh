@@ -41,6 +41,14 @@ FAVORITES="$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell favorite-app
 grep -q "'brave-browser.desktop'" <<<"${FAVORITES}"
 grep -qi "firefox" <<<"${FAVORITES}" && false
 
+# NordVPN (04-packages.sh): the app under /usr/lib, not /opt, with the link its launcher runs pointing
+# there; the group the daemon answers; and its libraries where its installer told the linker to look
+test -x /usr/lib/nordvpn-gui/nordvpn-gui
+[[ "$(readlink -f /usr/bin/nordvpn-gui)" == /usr/lib/nordvpn-gui/nordvpn-gui ]]
+getent group nordvpn >/dev/null
+grep -qx "g nordvpn -" /usr/lib/sysusers.d/nordvpn.conf
+ldconfig -p | grep -q " => /usr/lib/nordvpn/"
+
 # Ptyxis is the terminal: first for xdg-terminal-exec (Super+Return), and kitty is gone
 [[ "$(grep -v '^#' /etc/xdg/xdg-terminals.list | head -1)" == "org.gnome.Ptyxis.desktop" ]]
 [[ "$(grep -v '^#' /etc/xdg/gnome-xdg-terminals.list | head -1)" == "org.gnome.Ptyxis.desktop" ]]
@@ -222,7 +230,7 @@ grep -q "^enable-all=true$" "${BMS_DCONF}"
 # The Amethystora keybindings are appended to the base image's list, not substituted for it (09-desktop.sh)
 CUSTOM_KEYBINDINGS="$(GSETTINGS_BACKEND=memory gsettings get org.gnome.settings-daemon.plugins.media-keys custom-keybindings)"
 grep -q "custom0/'" <<<"${CUSTOM_KEYBINDINGS}"
-for index in 20 21 22 23 24 25 26; do
+for index in 20 21 22 23 24 25 26 27 28; do
     grep -q "custom${index}/'" <<<"${CUSTOM_KEYBINDINGS}"
     grep -q "^\[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom${index}\]$" \
         /etc/dconf/db/distro.d/06-amethystora-keybindings
@@ -244,6 +252,27 @@ HOME="${WEBAPP_HOME}" amethystora-webapp install Bad "javascript:alert(1)" web-b
 HOME="${WEBAPP_HOME}" amethystora-webapp remove "Test App" >/dev/null
 test ! -e "${WEBAPP_DESKTOP}"
 rm -rf "${WEBAPP_HOME}"
+
+# The manual (13-manual.sh): Electron starts, which also proves every library it links against is on
+# the image, the app and its renderer are in place, and every page in pages.json exists and every link
+# between pages lands on a page and a heading that exist
+MANUAL_ELECTRON=/usr/lib/amethystora-manual/amethystora-manual
+test -x /usr/bin/amethystora-manual
+test -x "${MANUAL_ELECTRON}"
+test ! -e /usr/lib/amethystora-manual/chrome-sandbox
+for file in main.js preload.js manual.js index.html manual.css marked.umd.js; do
+    test -s "/usr/lib/amethystora-manual/resources/app/${file}"
+done
+ELECTRON_RUN_AS_NODE=1 "${MANUAL_ELECTRON}" -e 'process.exit(0)'
+ELECTRON_RUN_AS_NODE=1 "${MANUAL_ELECTRON}" /ctx/build_files/shared/check-manual.js
+test -f /usr/share/licenses/amethystora-manual/LICENSES.chromium.html
+test -f /usr/share/licenses/amethystora-manual/marked/LICENSE
+# It replaces upstream's Documentation launcher, and Super+F1 opens it
+MANUAL_DESKTOP=/usr/share/applications/amethystora-manual.desktop
+test ! -e /usr/share/applications/documentation.desktop
+command -v desktop-file-validate >/dev/null && desktop-file-validate "${MANUAL_DESKTOP}"
+grep -q "^command='amethystora-manual'$" /etc/dconf/db/distro.d/06-amethystora-keybindings
+
 test -f /usr/lib/amethystora/theme/lib.sh
 test -f /usr/share/amethystora/keybindings.md
 test -x /usr/share/amethystora/theme-set.hooks.d/10-vscode.sh
@@ -340,6 +369,13 @@ for icon in /ctx/build_files/shared/candy-icons/*.svg; do
     # pushes the tag past them leaves the launcher with a blank icon
     head -c 256 "${icon}" | grep -q "<svg"
 done
+# JetBrains IDEs under every window class user-setup.hooks.d/16-jetbrains-icons.sh can link a
+# Toolbox icon name to, upstream's or aliased, and the Flatpak id upstream does not draw
+for icon in jetbrains-{idea,idea-ce,pycharm,pycharm-ce,clion,goland,webstorm,phpstorm,rider} \
+    jetbrains-{rubymine,datagrip,rustrover,dataspell,studio,toolbox} com.jetbrains.RubyMine; do
+    test -e "${CANDY_DIR}/apps/scalable/${icon}.svg"
+done
+test -f /usr/share/amethystora/user-setup.hooks.d/16-jetbrains-icons.sh
 # NordVPN's mark is filled with one gradient, the way the pack draws every other VPN client
 grep -q 'fill="url(#_lgradient_nordvpn)"' "${CANDY_DIR}/apps/scalable/nordvpn.svg"
 # Claude's mark the same way. Nothing in the image looks it up yet - Claude Code ships no desktop
@@ -681,6 +717,8 @@ IMPORTANT_PACKAGES=(
     gnome-shell
     lynis
     mutter
+    nordvpn
+    nordvpn-gui
     pam-u2f
     pamu2fcfg
     pipewire
@@ -747,6 +785,8 @@ IMPORTANT_UNITS=(
     gdm.service
     rpm-ostree-countme.timer
     tailscaled.service
+    nordvpnd.socket
+    nordvpnd.service
     uupd.timer
     auditd.service
     amethystora-audit-rules.service

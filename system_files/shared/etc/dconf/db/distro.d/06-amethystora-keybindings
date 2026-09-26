@@ -41,3 +41,8 @@ name='Browser'
 binding='<Super><Control><Shift>a'
 command='amethystora-agent'
 name='AI agent'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom28]
+binding='<Super>F1'
+command='amethystora-manual'
+name='Amethystora Manual'

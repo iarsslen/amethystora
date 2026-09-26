@@ -76,6 +76,32 @@
       currentValueTemplate: 'master',
       datasourceTemplate: 'git-refs',
     },
+    // The Electron release and the marked version 13-manual.sh builds the
+    // Amethystora Manual from. Not automerged: 20-tests.sh starts the new
+    // Electron and checks every page, and that runs in the PR build.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^build_files/base/13-manual\\.sh$/',
+      ],
+      matchStrings: [
+        'ELECTRON_VERSION="(?<currentValue>[^"]+)"',
+      ],
+      depNameTemplate: 'electron/electron',
+      datasourceTemplate: 'github-releases',
+      extractVersionTemplate: '^v(?<version>.+)$',
+    },
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^build_files/base/13-manual\\.sh$/',
+      ],
+      matchStrings: [
+        'MARKED_VERSION="(?<currentValue>[^"]+)"',
+      ],
+      depNameTemplate: 'marked',
+      datasourceTemplate: 'npm',
+    },
     ],
 
   "packageRules": [
