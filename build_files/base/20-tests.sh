@@ -342,8 +342,8 @@ for icon in /ctx/build_files/shared/candy-icons/*.svg; do
 done
 # NordVPN's mark is filled with one gradient, the way the pack draws every other VPN client
 grep -q 'fill="url(#_lgradient_nordvpn)"' "${CANDY_DIR}/apps/scalable/nordvpn.svg"
-# Claude's mark the same way. Nothing in the image looks it up yet - the claude-code rpm ships no
-# desktop entry - so this line is all that stands between a drawing mistake and nobody noticing.
+# Claude's mark the same way. Nothing in the image looks it up yet - Claude Code ships no desktop
+# entry - so this line is all that stands between a drawing mistake and nobody noticing.
 grep -q 'fill="url(#_lgradient_claude)"' "${CANDY_DIR}/apps/scalable/claude.svg"
 # opencode's frame and its inner fill draw from the one gradient, on the same terms
 [[ "$(grep -c 'fill="url(#_lgradient_opencode)"' "${CANDY_DIR}/apps/scalable/opencode.svg")" == 2 ]]
@@ -667,7 +667,6 @@ test -f /usr/lib/systemd/system/flatpak-add-fedora-repos.service && false
 IMPORTANT_PACKAGES=(
     audit
     brave-browser
-    claude-code
     clamav
     clamav-freshclam
     clamd
@@ -700,15 +699,18 @@ for package in "${IMPORTANT_PACKAGES[@]}"; do
     rpm -q "${package}" >/dev/null || { echo "Missing package: ${package}... Exiting"; exit 1 ; }
 done
 
-# The agentic features: opencode is a release binary, not an rpm (04-packages.sh). A skill's name
-# has to match its directory, or Claude Code and opencode skip it.
-test -x /usr/bin/opencode
+# The agentic features. The agents themselves install into each user's home (amethystora-agent
+# install); a copy in /usr/bin would be one the user cannot update. A skill's name has to match its
+# directory, or Claude Code and opencode skip it.
+test -e /usr/bin/claude && false
+test -e /usr/bin/opencode && false
 test -x /usr/bin/amethystora-agent
 test -x /usr/share/amethystora/user-setup.hooks.d/13-agentic.sh
 for skill in amethystora amethystora-diagnose; do
     grep -qx "name: ${skill}" "/usr/share/amethystora/agents/skills/${skill}/SKILL.md"
 done
 grep -q "^toggle-agentic:" /usr/share/amethystora/just/60-custom.just
+grep -q "^install-agent " /usr/share/amethystora/just/60-custom.just
 
 # these packages are supposed to be removed
 # and are considered footguns

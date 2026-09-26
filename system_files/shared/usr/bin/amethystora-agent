@@ -2,16 +2,21 @@
 #
 # Open an AI coding agent that knows this system, and turn that on or off. On by default; off, the
 # agent is not offered in the menu, its keybinding does nothing and the agents are not told about
-# Amethystora. The agent CLIs themselves stay installed either way.
+# Amethystora. An agent already installed stays installed either way.
 #
 #   amethystora-agent                  open the agent in a terminal (Super+Ctrl+Shift+A)
 #   amethystora-agent ask "<prompt>"   open it with a first prompt
 #   amethystora-agent diagnose [<pid>|<unit>|"<what went wrong>"]
 #                                      find out why something broke, without changing anything
 #   amethystora-agent use claude|opencode   choose the agent (default: the first one installed)
+#   amethystora-agent install [claude|opencode]   install it, or the chosen one, into your home
 #   amethystora-agent on|off           turn the agentic features on or off (ujust toggle-agentic)
 #   amethystora-agent status           print whether they are on; exits 1 when off
 #   amethystora-agent sync             link or unlink the skills to match, run at every login
+#
+# The agents are not part of the image: they release far more often than it does. The first launch
+# offers to install the chosen one into your home with its maker's installer, and from there it
+# updates itself (`claude update`, `opencode upgrade`), which each one's settings can turn off.
 #
 # The skills in /usr/share/amethystora/agents/skills tell the agent what may be edited here and how
 # to diagnose a problem. They are linked into ~/.claude/skills, which Claude Code and opencode both
@@ -24,13 +29,16 @@ set -euo pipefail
 source /usr/lib/amethystora/theme/lib.sh
 
 AGENTS=(claude opencode)
+# Where their installers put them. Opened from a keybinding there is no login shell to have added
+# these to PATH.
+PATH="${HOME}/.local/bin:${HOME}/.opencode/bin:${PATH}"
 SKILLS_DIR=/usr/share/amethystora/agents/skills
 SKILLS_LINK_DIR="${HOME}/.claude/skills"
 DISABLED="${CONFIG_DIR}/no-agentic"
 CHOICE="${CONFIG_DIR}/agent"
 
 usage() {
-    sed -n '3,19p' "$0" | sed 's/^# \?//'
+    sed -n '3,24p' "$0" | sed 's/^# \?//'
 }
 
 enabled() {
@@ -58,22 +66,41 @@ sync_skills() {
     done
 }
 
+# The chosen agent, else the first one installed, else the first one there is to install
 agent() {
     local name
     if [[ -s ${CHOICE} ]]; then
-        name="$(<"${CHOICE}")"
-        have "${name}" || die "${name} is not installed. Choose another with: amethystora-agent use ${AGENTS[*]}"
-        echo "${name}"
+        cat "${CHOICE}"
         return
     fi
     for name in "${AGENTS[@]}"; do
         have "${name}" && { echo "${name}"; return; }
     done
-    die "no agent installed (${AGENTS[*]})"
+    echo "${AGENTS[0]}"
+}
+
+# Each maker's own installer, into the account's home. The script is downloaded whole before it
+# runs, so a dropped connection cannot run half of it. Claude Code follows its stable channel, a
+# release about a week old with the ones that turned out badly skipped; its updates keep to the
+# channel it was installed with. opencode's installer adds ~/.opencode/bin to the shell's PATH, and
+# updates itself to patch releases only, offering the rest.
+install_agent() {
+    local script
+    case "$1" in
+        claude)
+            script="$(curl -fsSL https://claude.ai/install.sh)" || die "could not download the Claude Code installer"
+            bash -c "${script}" install.sh stable
+            ;;
+        opencode)
+            script="$(curl -fsSL https://opencode.ai/install)" || die "could not download the opencode installer"
+            bash -c "${script}" install.sh
+            ;;
+        *) die "usage: amethystora-agent install [$(IFS='|'; echo "${AGENTS[*]}")]" ;;
+    esac
 }
 
 launch() {
-    local name
+    local name answer
     if ! enabled; then
         notify "Agentic features are off" "Turn them on with: ujust toggle-agentic"
         die "agentic features are off. Turn them on with: ujust toggle-agentic"
@@ -84,6 +111,12 @@ launch() {
     fi
     sync_skills
     name="$(agent)"
+    if ! have "${name}"; then
+        read -rp "${name} is not installed. Install it into your home, where it keeps itself up to date? [Y/n] " answer
+        [[ ${answer,,} != n* ]] || exit 0
+        install_agent "${name}"
+        have "${name}" || die "${name} did not install"
+    fi
     cd "${HOME}"
     if [[ $# -eq 0 ]]; then
         exec "${name}"
@@ -143,10 +176,12 @@ case "${1:-}" in
         sync_skills
         echo "Agentic features off"
         ;;
+    install) install_agent "${2:-$(agent)}" ;;
     status)
         if enabled; then
-            # agent() exits when there is none, so it runs in a subshell of its own for the fallback
-            echo "Agentic features: on ($( (agent) 2>/dev/null || echo "no agent installed"))"
+            name="$(agent)"
+            have "${name}" || name+=", not installed yet"
+            echo "Agentic features: on (${name})"
         else
             echo "Agentic features: off"
             exit 1

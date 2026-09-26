@@ -58,6 +58,10 @@ toggle-agentic:
         amethystora-agent on
     fi
 
+# Install the AI agent into your home, where it keeps itself up to date: claude or opencode (default: the chosen one)
+install-agent AGENT="":
+    @amethystora-agent install {{ AGENT }}
+
 # Log in, unlock the screen and approve sudo with a FIDO2 security key (YubiKey, Thetis, and their fingerprint models)
 setup-security-key ACTION="":
     #!/usr/bin/bash

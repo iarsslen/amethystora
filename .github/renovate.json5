@@ -76,19 +76,6 @@
       currentValueTemplate: 'master',
       datasourceTemplate: 'git-refs',
     },
-    // The opencode release 04-packages.sh installs, and the checksum of its tarball,
-    // which github-release-attachments recomputes for the new version.
-    {
-      customType: 'regex',
-      managerFilePatterns: [
-        '/^build_files/base/04-packages\\.sh$/',
-      ],
-      matchStrings: [
-        'OPENCODE_VERSION="(?<currentValue>v[^"]+)"\\nOPENCODE_SHA256="(?<currentDigest>[a-f0-9]{64})"',
-      ],
-      depNameTemplate: 'anomalyco/opencode',
-      datasourceTemplate: 'github-release-attachments',
-    },
     ],
 
   "packageRules": [

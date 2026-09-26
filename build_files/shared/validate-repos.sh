@@ -69,7 +69,6 @@ OTHER_REPOS=(
     "tailscale.repo"
     "brave-browser.repo"
     "vscode.repo"
-    "claude-code.repo"
     "docker-ce.repo"
     "fedora-cisco-openh264.repo"
     "fedora-coreos-pool.repo"

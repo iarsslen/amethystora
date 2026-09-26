@@ -71,6 +71,9 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
 
 - `ujust update` updates the image, Flatpaks and Homebrew. `rpm-ostree status` shows the booted and
   pending deployment; `rpm-ostree rollback` returns to the previous one after a reboot.
+- The agents are not part of the image and `ujust update` leaves them alone. They live in the
+  user's home (`~/.local/bin/claude`, `~/.opencode/bin/opencode`) and update themselves:
+  `claude update`, `opencode upgrade`.
 - Logs: `journalctl -b -p warning`, `journalctl --user -b`, `coredumpctl list`.
 - `ujust security-status` summarises the security settings.
 - To find out why something crashed or stopped working, follow the `amethystora-diagnose` skill.

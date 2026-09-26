@@ -10,9 +10,9 @@
   utilities-terminal with. The mark's two tones are kept as one gradient at two opacities; the
   gradient is placed in user space so it runs unbroken across both elements.
 
-  Like claude.svg, nothing in the image looks this up yet: the opencode binary installed by
-  build_files/base/04-packages.sh ships no desktop entry. This is here so that a launcher written by hand
-  finds the icon already drawn.
+  Like claude.svg, nothing in the image looks this up yet: the opencode binary amethystora-agent
+  installs into the user's home ships no desktop entry. This is here so that a launcher written by
+  hand finds the icon already drawn.
 
   The outline is opencode's square logo (packages/console/app/src/asset/brand in
   anomalyco/opencode, MIT), 240 by 300 units scaled by 2/15 into the pack's 48-unit box and centred.

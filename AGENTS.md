@@ -193,8 +193,11 @@ Packages are defined directly in build scripts rather than in a central configur
 
 ### Agentic features
 
-Every image, base and dx, installs Claude Code and opencode (`04-packages.sh`) and ships
-`amethystora-agent`, the launcher behind `Super+Ctrl+Shift+A` and the menu's "Ask an agent". The
+Every image, base and dx, ships `amethystora-agent`, the launcher behind `Super+Ctrl+Shift+A` and
+the menu's "Ask an agent". Claude Code and opencode are deliberately not in the image: they release
+far more often than it does, so the launcher installs the chosen one into the user's home with its
+maker's installer on first launch (or `ujust install-agent`), where it updates on the user's terms.
+Do not add them back to `04-packages.sh`; `20-tests.sh` fails if either appears in `/usr/bin`. The
 skill in `system_files/shared/usr/share/amethystora/agents/skills/amethystora/SKILL.md` tells
 agents how to change *a user's machine* safely: this repository is where it is written, not a place
 it applies to. `amethystora-diagnose/SKILL.md` beside it is the read-only method behind
