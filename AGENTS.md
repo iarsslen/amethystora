@@ -30,7 +30,7 @@ This document provides essential information for coding agents working with the 
   - `dx/` - Developer experience build scripts
   - `shared/` - Common build utilities and helper scripts
 - `branding/` - Source of the artwork; `node branding/generate.mjs` draws it
-- `iso/` - `iso.toml`, the bootc-image-builder configuration of the installer ISO
+- `iso/` - `iso.toml`, the bootc-image-builder configuration of the installer ISO, and `product/`, the installer's Amethystora look (a stylesheet and artwork drawn by `branding/generate.mjs`) and crash reporting (libreport files that send crash reports to Amethystora's issue tracker instead of Fedora's Bugzilla), which `build-iso.yml` adds to the ISO as `images/product.img`
 - `.github/workflows/` - Comprehensive CI/CD pipelines
 
 The desktop layer Amethystora took from Bluefin's `projectbluefin/common` (the `ujust` recipes,
@@ -175,7 +175,7 @@ The repository uses mandatory pre-commit validation:
 - `build-images.yml` - Runs the stable, latest and beta builds together (manual dispatch only)
 - `reusable-build.yml` - Core build logic for all image variants
 - `generate-release.yml` - Generates release artifacts and changelogs
-- `build-iso.yml` - Builds the installer ISO of a stable image with bootc-image-builder and uploads it, with its checksum signed by cosign, to Cloudflare R2 (a Release asset is limited to 2 GiB). `Stable Images` runs it after scheduled and dispatched builds, each upload replacing the last under the same name; a pull request that changes it only builds it
+- `build-iso.yml` - Builds the installer ISO of a stable image with bootc-image-builder and uploads it, with its checksum signed by cosign, to Cloudflare R2 (a Release asset is limited to 2 GiB). `Stable Images` runs it after scheduled and dispatched builds, each upload replacing the last under the same name; a pull request that changes it only builds it. bootc-image-builder picks the installer's packages by os-release `ID` and has no definition for `amethystora`, so the workflow runs its container by hand and links Fedora's definitions in under that name; do not switch back to its GitHub action, which cannot
 - `validate-renovate.yml` - Validates the Renovate configuration on pull requests
 - `scorecard.yml` - OpenSSF Scorecard supply-chain checks (weekly)
 - `clean.yml` - Cleanup old images and artifacts

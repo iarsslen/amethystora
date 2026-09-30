@@ -53,26 +53,53 @@ jobs:
       - name: Prepare the installer configuration
         run: |
           sed -i "s|@IMAGE@|${IMAGE}|" iso/iso.toml
-          echo "OWNER=$(id -u):$(id -g)" >> "${GITHUB_ENV}"
 
+      # bootc-image-builder chooses the installer's packages by the image's os-release ID and has no
+      # definition for amethystora, so Fedora's are linked in under that name before it starts. That
+      # needs its container run by hand: its GitHub action cannot add to it. The storage
+      # configuration is the action's own fix, https://github.com/osbuild/bootc-image-builder/issues/446
       - name: Build ISO
-        id: build
-        uses: osbuild/bootc-image-builder-action@8661cd3832544ad68c12dcde8681b13ab0f56a8d # main
-        with:
-          builder-image: quay.io/centos-bootc/bootc-image-builder:latest
-          config-file: ./iso/iso.toml
-          image: ghcr.io/iarsslen/${{ env.IMAGE }}:stable
-          chown: ${{ env.OWNER }}
-          types: anaconda-iso
-          additional-args: --use-librepo=True
+        env:
+          BUILDER: quay.io/centos-bootc/bootc-image-builder:latest
+          IMAGE_REF: ghcr.io/iarsslen/${{ env.IMAGE }}:stable
+        run: |
+          sudo rm -rf /var/lib/containers/storage
+          sudo mkdir -p /etc/containers
+          printf '[storage]\ndriver = "overlay"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n' |
+            sudo tee /etc/containers/storage.conf > /dev/null
+          sudo podman pull "${BUILDER}"
+          sudo podman pull "${IMAGE_REF}"
+          mkdir output
+          sudo podman run --rm --privileged --security-opt label=type:unconfined_t \
+            --volume /var/lib/containers/storage:/var/lib/containers/storage \
+            --volume ./output:/output \
+            --volume ./iso/iso.toml:/config.toml:ro \
+            --entrypoint /bin/bash "${BUILDER}" -c '
+              cd /usr/share/bootc-image-builder/defs
+              for def in fedora-*.yaml; do ln -s "${def}" "amethystora-${def#fedora-}"; done
+              exec bootc-image-builder "$@"' bash \
+            build --output /output --type anaconda-iso --use-librepo=True \
+              --chown "$(id -u):$(id -g)" "${IMAGE_REF}"
+
+      # Anaconda is installed from Fedora's packages and looks like Fedora's until it finds a
+      # product.img in the images/ directory of the install media, which it lays over its own root
+      # before it starts. iso/product is the Amethystora one, drawn by branding/generate.mjs.
+      - name: Brand the installer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cpio isomd5sum xorriso
+          (cd iso/product && find . -mindepth 1 | LC_ALL=C sort | cpio --quiet -o -H newc -R 0:0 | gzip -9) > product.img
+          mkdir upload
+          # replay keeps the boot records bootc-image-builder wrote: BIOS, UEFI and the hybrid MBR/GPT
+          xorriso -indev output/bootiso/install.iso -outdev "upload/${ISO}" -boot_image any replay \
+            -map product.img /images/product.img
+          # "Test this media" checks the image against the checksum implanted in it, which adding the
+          # file has invalidated
+          implantisomd5 --force "upload/${ISO}"
 
       - name: Checksum
-        env:
-          ISO_PATH: ${{ steps.build.outputs.anaconda-iso-output-path }}
+        working-directory: upload
         run: |
-          mkdir upload
-          mv "${ISO_PATH}" "upload/${ISO}"
-          cd upload
           sha256sum "${ISO}" | tee "${ISO}.sha256"
 
       - name: Install Cosign
