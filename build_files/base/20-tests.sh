@@ -201,14 +201,19 @@ for extension in /usr/share/gnome-shell/extensions/*/; do
 done
 
 # Every extension ships its licence, in its own folder or in /usr/share/licenses/<uuid>: the GPL asks
-# for the text to travel with the program. Space Bar is the exception, because its author has published
+# for the text to travel with the program. One installed from a Fedora package carries it in the package's
+# licence folder, or, like those of gnome-shell-extensions, in that of a sibling from the same source
+# package (gnome-shell-extension-common). Space Bar is the exception, because its author has published
 # no licence to ship (NOTICE)
 for extension in /usr/share/gnome-shell/extensions/*/; do
     uuid="$(basename "${extension}")"
     [[ ${uuid} == space-bar@luchrioh ]] && continue
+    srpm="$(rpm -qf --qf '%{SOURCERPM}' "${extension%/}" 2>/dev/null)" || srpm=""
     compgen -G "${extension}[Ll][Ii][Cc][Ee][Nn][Ss][Ee]*" >/dev/null ||
         compgen -G "${extension}COPYING*" >/dev/null ||
         compgen -G "/usr/share/licenses/${uuid}/*" >/dev/null ||
+        { [[ -n ${srpm} ]] && [[ -n "$(rpm -qa --qf '%{SOURCERPM} %{NAME}\n' |
+            awk -v s="${srpm}" '$1 == s { print $2 }' | xargs -r rpm -qL | grep '^/')" ]]; } ||
         { echo "No licence shipped for the extension ${uuid}"; exit 1; }
 done
 
