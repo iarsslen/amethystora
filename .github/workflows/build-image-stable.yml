@@ -36,6 +36,15 @@ jobs:
       brand_name: ${{ matrix.brand_name }}
       stream_name: stable
 
+  build-iso:
+    name: Build ISO
+    needs: [build-image-stable]
+    if: contains(fromJson('["schedule", "workflow_dispatch"]'), github.event_name)
+    permissions:
+      contents: read
+    secrets: inherit
+    uses: ./.github/workflows/build-iso.yml
+
   generate-release:
     name: Generate Release
     needs: [build-image-stable]

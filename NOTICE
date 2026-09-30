@@ -124,8 +124,8 @@ Source code
 Amethystora images contain software under licences that require its source
 code to be made available to those who receive it: the GNU General Public
 License and the GNU Lesser General Public License, the Mozilla Public License,
-the Common Development and Distribution License, and the Fraunhofer FDK
-licences of the AAC and MPEG-H codecs, among others. The file SOURCES,
+the Common Development and Distribution License, and the licence of the
+Fraunhofer FDK AAC codec, among others. The file SOURCES,
 beside this one in usr/share/licenses/amethystora of every image, lists each
 package in that image with its licence, the source package it was built from,
 and where that source package is published: Fedora's builds in Fedora's build

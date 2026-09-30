@@ -52,6 +52,18 @@ FAVORITES="$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell favorite-app
 grep -q "'brave-browser.desktop'" <<<"${FAVORITES}"
 grep -qi "firefox" <<<"${FAVORITES}" && false
 
+# Multimedia (05-override-install.sh): FFmpeg is Fedora's with RPM Fusion's libavcodec-freeworld, and no
+# FFmpeg library in the image is a build FFmpeg itself calls unredistributable. negativo17's LC3plus,
+# which has no licence to redistribute it, is gone, and aptX comes from RPM Fusion
+for package in ffmpeg-free libavcodec-free fdk-aac-free libavcodec-freeworld pipewire-codec-aptx; do
+    rpm -q "${package}" >/dev/null
+done
+for package in libavcodec libfdk-aac liblc3plus pipewire-libs-extra mpeghdec; do
+    rpm -q "${package}" >/dev/null && false
+done
+find /usr/lib64 -name 'libav*.so.*' -type f -exec grep -laF 'nonfree and unredistributable' {} + | grep -q . && false
+[[ "$(rpm -q --queryformat '%{VENDOR}' libavcodec-freeworld)" == "RPM Fusion" ]]
+
 # No Fedora logo package is left (build.sh swaps each for its generic one)
 [[ -z "$(rpm -qa 'fedora-logos*')" ]]
 

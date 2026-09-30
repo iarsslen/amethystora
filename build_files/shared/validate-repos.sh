@@ -65,6 +65,7 @@ echo ""
 echo "Checking other third-party repositories..."
 # List of known third-party repos that should be disabled
 OTHER_REPOS=(
+    "fedora-multimedia.repo"
     "negativo17-fedora-multimedia.repo"
     "tailscale.repo"
     "brave-browser.repo"

@@ -49,6 +49,6 @@ dnf download --srpm <package>    # the source of the version Fedora has now
 Everything else is built from [the Amethystora repository](https://github.com/iarsslen/amethystora)
 at the commit named as `BUILD_ID` in `/usr/lib/os-release`. For at least three years after an image
 was last published, the complete source of anything in it whose licence asks for its source to be
-available (the GNU GPL and LGPL, the MPL, the CDDL, the Fraunhofer codec licences) is also given to
-anyone who asks through the [issue tracker](https://github.com/iarsslen/amethystora/issues); the
-written offer is in `/usr/share/licenses/amethystora/NOTICE`.
+available (the GNU GPL and LGPL, the MPL, the CDDL, the Fraunhofer AAC codec's licence) is also
+given to anyone who asks through the [issue tracker](https://github.com/iarsslen/amethystora/issues);
+the written offer is in `/usr/share/licenses/amethystora/NOTICE`.
