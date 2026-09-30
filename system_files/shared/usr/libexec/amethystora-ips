@@ -1,0 +1,112 @@
+#!/usr/bin/bash
+# Network protection: Suricata inline on this machine's own traffic (amethystora-ips.service), while
+# NETWORK in /etc/amethystora/security.conf is watch or block. Its rules are built here and nowhere else,
+# so that the daily update, `ujust security-settings network`, `ujust blocked-connections` and the
+# Security app's Allow button cannot build them differently.
+#
+#   amethystora-ips enabled            exit 0 while NETWORK is watch or block (ExecCondition= in the units)
+#   amethystora-ips rules [--offline]  build the rules for the current setting, then reload Suricata (root)
+#   amethystora-ips blocked            what it blocked and noticed lately, newest first (root or wheel)
+#   amethystora-ips allow RULE         leave that one rule out on this machine (root)
+#   amethystora-ips block RULE         put it back (root)
+#
+# The rules are Emerging Threats Open, which suricata-update downloads for this Suricata's version, less
+# the families in /usr/share/amethystora/ips/disable.conf and the rules allowed on this machine
+# (/etc/amethystora/ips-allowed, one rule number a line). Only with NETWORK=block do the families in
+# drop.conf drop; otherwise every rule alerts, and nothing is blocked. --offline builds from the last
+# download, which is what allow and block do, so that neither needs the network.
+
+set -uo pipefail
+
+SHARE=/usr/share/amethystora/ips
+ALLOWED=/etc/amethystora/ips-allowed
+WORK=/var/lib/amethystora/ips
+# What the security watcher keeps of Suricata's alerts (amethystora-security-watch)
+EVENTS=/var/lib/amethystora/security/network.json
+UNIT=amethystora-ips.service
+
+usage() {
+    echo "usage: ${0##*/} enabled | rules [--offline] | blocked | allow RULE | block RULE" >&2
+    exit 64
+}
+
+need_root() {
+    [[ "${EUID}" -eq 0 ]] || { echo "${0##*/} $1 needs root." >&2; exit 77; }
+}
+
+mode() {
+    /usr/libexec/amethystora-security-config NETWORK
+}
+
+rules() {
+    local -a args=(--quiet --no-reload --suricata-conf "${SHARE}/suricata.yaml"
+        --disable-conf "${WORK}/disable.conf" --modify-conf "${SHARE}/modify.conf")
+    need_root rules
+    install -d -m 0700 "${WORK}"
+    # The image's families, then the rules allowed on this machine
+    { cat "${SHARE}/disable.conf"; grep -xE '[0-9]+' "${ALLOWED}" 2>/dev/null; } >"${WORK}/disable.conf"
+    [[ "$(mode)" == block ]] && args+=(--drop-conf "${SHARE}/drop.conf")
+    [[ "${1:-}" == --offline ]] && args+=(--offline)
+    # It tests the result with Suricata itself, and keeps the rules it had if that fails
+    suricata-update "${args[@]}" || return
+    # A running Suricata swaps the new rules in while it goes on inspecting with the old ones
+    systemctl try-reload-or-restart "${UNIT}"
+}
+
+rule_number() {
+    [[ "${1:-}" =~ ^[0-9]{1,10}$ ]] || usage
+}
+
+# Rebuilt at once while network protection is on, from the last download; while it is off, the next
+# build picks it up
+apply() {
+    [[ "$(mode)" == off ]] && return 0
+    rules --offline && return 0
+    echo "The rules could not be rebuilt now. The change applies at the next download of the rules." >&2
+    return 1
+}
+
+allow() {
+    rule_number "$1"
+    need_root allow
+    if ! grep -qx -- "$1" "${ALLOWED}" 2>/dev/null; then
+        echo "$1" >>"${ALLOWED}"
+        chmod 0644 "${ALLOWED}"
+    fi
+    apply || return
+    echo "Rule $1 is left out on this machine. Put it back with: ujust blocked-connections block $1"
+}
+
+block() {
+    rule_number "$1"
+    need_root block
+    [[ -f "${ALLOWED}" ]] && sed -i "/^$1\$/d" "${ALLOWED}"
+    apply || return
+    echo "Rule $1 is back."
+}
+
+blocked() {
+    local allowed
+    if [[ ! -s "${EVENTS}" ]]; then
+        echo "Nothing blocked or noticed yet."
+        return 0
+    fi
+    [[ -r "${EVENTS}" ]] || { echo "Only root and members of wheel can read ${EVENTS}." >&2; exit 77; }
+    allowed="$(grep -xE '[0-9]+' "${ALLOWED}" 2>/dev/null | jq -s -c . )"
+    jq -r --argjson allowed "${allowed:-[]}" '
+        if length == 0 then "Nothing blocked or noticed yet." else .[] |
+            "\(.time | strflocaltime("%a %-d %b %H:%M"))  \(if .action == "blocked" then "Blocked" else "Noticed" end)  \(.signature)",
+            "    \(.host // "\(.src) and \(.dest)")\(if .port then ", port \(.port)" else "" end)"
+                + "\(if .count > 1 then ", \(.count) times" else "" end), rule \(.sid)"
+                + "\(if .sid | IN($allowed[]) then " (allowed on this machine)" else "" end)"
+        end' "${EVENTS}"
+}
+
+case "${1:-}" in
+    enabled) [[ "$(mode)" != off ]] ;;
+    rules) rules "${2:-}" ;;
+    blocked) blocked ;;
+    allow) allow "${2:-}" ;;
+    block) block "${2:-}" ;;
+    *) usage ;;
+esac

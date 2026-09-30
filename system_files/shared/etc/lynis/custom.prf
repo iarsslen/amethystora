@@ -1,0 +1,98 @@
+# Lynis profile for Amethystora. Lynis reads /etc/lynis/default.prf, which belongs to the package and
+# should not be edited, and then this file, so only the differences from the default belong here.
+#
+# Audit the machine with: ujust security-audit    (or: sudo lynis audit system)
+
+# A desktop, not a server: Lynis then expects a graphical session and a user sitting at the machine,
+# and stops suggesting server hardening that does not apply here.
+machine-role=workstation
+
+# Say what to do about each finding, not only that there is one.
+show-report-solution=yes
+
+# Run the whole audit instead of waiting for a keypress between sections.
+quick=yes
+
+# The image is replaced as a whole by uupd, and its repositories are disabled on the installed system
+# (build_files/base/17-cleanup.sh), so there is no package list to refresh and no per-package upgrade
+# to test for. Both tests would only wait on a package manager that cannot do anything here.
+refresh-repositories=no
+skip-upgrade-test=yes
+
+# Tests left out of every audit, one per line. `skip-test=KRNL-6000:<sysctl key>` leaves out one key.
+# Each one either looks for a setting where this image does not keep it, or asks for something that
+# would cost a desktop more than it protects. What is left is worth reading.
+
+# Done already, where the test does not look.
+# dccp, sctp, rds, tipc and FireWire are disabled in /usr/lib/modprobe.d/60-amethystora-hardening.conf.
+# These two read only /etc/modprobe.d, and only an `install` line ending in /bin/true or /bin/false.
+skip-test=NETW-3200
+skip-test=STRG-1846
+# firewalld keeps its rules in nftables, which FIRE-4540 counts. This test counts the iptables view of
+# them, which is empty whenever something has loaded the ip_tables module, and warns: the monthly
+# audit would report that as something new on the machine.
+skip-test=FIRE-4512
+# The image updates itself with uupd, which this test does not know.
+skip-test=PKGS-7420
+# /usr is the signed image, read-only and replaced as a whole, and the security watcher compares /etc
+# with the image's copy of it in /usr/etc.
+skip-test=FINT-4350
+# /home is a link to /var/home on every image-based Fedora.
+skip-test=FILE-6310
+# Whether a restart is due. The kernels are in /boot/ostree, never in /boot itself, so this test finds
+# none and stops with an exception. A restart is due when an update is staged: System Updates says so.
+skip-test=KRNL-5830
+# This one counts only commercial scanners' daemons. ClamAV, which clamd and the on-access scanner run,
+# is counted by MALW-3282 to MALW-3286 and HRDN-7230.
+skip-test=MALW-3280
+# Looks for TMOUT, which ends a shell left idle. On a desktop GNOME locks the idle session instead.
+skip-test=SHLL-6220
+# The system's users and groups are part of the image, in /usr/lib/passwd and /usr/lib/group, and their
+# shadow lines are in /etc/shadow and /etc/gshadow. grpck and pwck read only /etc/passwd and /etc/group,
+# so every one of those lines looks orphaned to them, on every image-based Fedora. Never let either
+# delete them: pwck and grpck without -r offer to.
+skip-test=AUTH-9216
+skip-test=AUTH-9228
+# Fedora hashes passwords with yescrypt (AUTH-9229 checks the method). These rounds are SHA-512's.
+skip-test=AUTH-9230
+
+# Server hardening that does not fit a desktop.
+# Forced password changes: NIST SP 800-63B advises against them, people then pick weaker passwords.
+skip-test=AUTH-9286
+# Fedora already makes home folders private to their owner (HOME_MODE 0700 in /etc/login.defs).
+skip-test=AUTH-9328
+# Core dumps are how a crash gets diagnosed (coredumpctl, `amethystora-agent diagnose <pid>`), and
+# fs.suid_dumpable = 0 keeps setuid programs from leaving one.
+skip-test=KRNL-5820
+# Compilers, installed at all or only root may run: Homebrew builds with them, and so does anyone
+# developing here.
+skip-test=HRDN-7220
+skip-test=HRDN-7222
+# httpd is in the image, but nothing starts it.
+skip-test=HTTP-6640
+skip-test=HTTP-6643
+# A laptop has no fixed domain or address for /etc/hosts; systemd-resolved answers for its own name.
+skip-test=NAME-4028
+skip-test=NAME-4404
+# Legal banners, a remote log host, process accounting, sysstat and Ansible or Puppet are for servers
+# other people log in to and for managed fleets.
+skip-test=BANN-7126
+skip-test=BANN-7130
+skip-test=LOGG-2154
+skip-test=ACCT-9622
+skip-test=ACCT-9626
+skip-test=TOOL-5002
+# Browsers and the desktop always hold deleted shared-memory files open.
+skip-test=LOGG-2190
+# Rates every unit on the machine by its sandboxing, running or not, and most of them are Fedora's.
+skip-test=BOOT-5264
+
+# Kernel settings that stay as they are.
+# No module loading after boot: a USB device plugged in later would find no driver.
+skip-test=KRNL-6000:kernel.modules_disabled
+# 16 is Fedora's: the keyboard can only have the disks synced, which is what a frozen machine needs.
+skip-test=KRNL-6000:kernel.sysrq
+# Containers and virtual machines reach the network through this machine.
+skip-test=KRNL-6000:net.ipv4.conf.all.forwarding
+# Fedora's loose mode, which Tailscale and VPNs need (/usr/lib/sysctl.d/60-amethystora-hardening.conf).
+skip-test=KRNL-6000:net.ipv4.conf.all.rp_filter

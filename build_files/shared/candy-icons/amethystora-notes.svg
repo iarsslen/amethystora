@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" style="isolation:isolate" viewBox="0 0 48 48" width="48pt" height="48pt">
+<!--
+  The Notes app in the candy-icons style, installed into the theme by build_files/base/10-icons.sh
+  and drawn on by /usr/share/applications/amethystora-notes.desktop.
+
+  One app for notes and for tasks, so one page for both: a ticked item at the top, for the tasks,
+  and lines of writing under it, for the notes. It is drawn in strokes of the one gradient, the way
+  the pack draws its outlined apps, with the rounded caps and corners it uses throughout.
+
+  The gradient is the Security app's: two shades from the amethyst ladder in branding/generate.mjs,
+  the glint on the crown running down into the stone, on the diagonal.
+-->
+  <linearGradient id="_lgradient_notes" x1="8" y1="4" x2="40" y2="44" gradientUnits="userSpaceOnUse">
+    <stop offset="0%" stop-opacity="1" style="stop-color:rgb(179,125,249)"/>
+    <stop offset="100%" stop-opacity="1" style="stop-color:rgb(93,26,196)"/>
+  </linearGradient>
+  <rect x="8" y="4.5" width="32" height="39" rx="7" fill="none" stroke="url(#_lgradient_notes)" stroke-width="3.5"/>
+  <path d="M 15 17 L 18.2 20.2 L 24.5 13.5 M 28.5 18 L 33 18 M 15 27.5 L 33 27.5 M 15 35 L 27 35" fill="none" stroke="url(#_lgradient_notes)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

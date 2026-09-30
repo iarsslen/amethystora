@@ -1,0 +1,10 @@
+[Plymouth Theme]
+Name=Amethystora
+Description=The Amethystora gem, reassembling from its shards and glowing in violet dust while the system starts
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/amethystora
+ScriptFile=/usr/share/plymouth/themes/amethystora/amethystora.script
+Font=Inter 12
+TitleFont=Inter Light 30

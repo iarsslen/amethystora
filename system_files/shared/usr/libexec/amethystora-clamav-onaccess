@@ -1,0 +1,77 @@
+#!/usr/bin/bash
+# Real-time virus scanning (amethystora-clamav-onaccess.service), which runs only while REALTIME=on in
+# /etc/amethystora/security.conf. clamonacc has the kernel (fanotify) report each file closed in a home
+# directory and hands it to clamd. This reads what clamonacc logs and does with each find what the weekly
+# scan does: ON_DETECTION through amethystora-quarantine, a line in the findings log `ujust virus-scan`
+# shows, and a notification to whoever is logged in.
+#
+# What clamonacc watches is set with the OnAccess settings in /etc/clamd.d/scan.conf (04-packages.sh).
+# The caches the weekly scan leaves out are left out here too, as a list of directories written at every
+# start: clamonacc takes exact directories, where clamd's ExcludePath takes patterns.
+
+set -uo pipefail
+
+LOG=/run/amethystora-clamav-onaccess.log
+EXCLUDES=/run/amethystora-clamav-onaccess.exclude
+FINDINGS=/var/log/amethystora-clamav-findings.log
+
+{
+    for home in /var/home/*/; do
+        for dir in "${home}.cache" "${home}.local/share/containers" "${home}".var/app/*/cache; do
+            [[ -d "${dir}" ]] && echo "${dir}"
+        done
+    done
+    # Ransomware protection's snapshots: read-only, and a copy of every home folder each
+    [[ -d /var/home/.snapshots ]] && echo /var/home/.snapshots
+} >"${EXCLUDES}"
+
+: >"${LOG}"
+chmod 0600 "${LOG}"
+
+found() {
+    local file="$1" signature="$2" mode outcome summary body
+    mode="$(/usr/libexec/amethystora-security-config ON_DETECTION)"
+    outcome=reported
+    [[ "${mode}" == report ]] || outcome="$(/usr/libexec/amethystora-quarantine act "${file}" | cut -f1)"
+    # The file changed before it could be scanned again, and is clean now
+    [[ "${outcome}" == clean ]] && return
+
+    echo "${signature} in ${file}: ${outcome}"
+    {
+        echo "# Real-time scan, $(date -Is). On detection: ${mode}."
+        echo "${file}: ${signature} FOUND"
+        [[ "${mode}" == report ]] || printf '# What was done:\n  %s: %s\n' "${outcome}" "${file}"
+    } >>"${FINDINGS}"
+    chmod 0600 "${FINDINGS}"
+
+    case "${outcome}" in
+        quarantined)
+            summary="${file##*/} was quarantined"
+            body="It matches ${signature}. Put it back with: ujust virus-scan restore" ;;
+        deleted)
+            summary="${file##*/} was deleted"
+            body="It matched ${signature}. See it with: ujust virus-scan" ;;
+        failed)
+            summary="A virus scan found ${file##*/}, and could not ${mode} it"
+            body="It matches ${signature}. See it with: ujust virus-scan" ;;
+        *)
+            summary="A virus scan found ${file##*/}"
+            body="It matches ${signature}, and was left where it is. See it with: ujust virus-scan" ;;
+    esac
+    /usr/libexec/amethystora-notify-users "${summary}" "${body}" critical >/dev/null
+}
+
+# Reading before clamonacc starts, so that nothing it logs is missed
+tail -F -n +1 "${LOG}" 2>/dev/null | while IFS= read -r line; do
+    # "<path>: <signature> FOUND", after a timestamp and " -> " when clamd.conf sets LogTime
+    [[ "${line}" =~ ^(.*\ -\>\ )?(/.*):\ ([^\ ]+)\ FOUND$ ]] &&
+        found "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
+done &
+
+# --wait gives clamd time to come up; without signatures it never does, and the service tries again
+clamonacc --foreground --fdpass --wait --config-file=/etc/clamd.d/scan.conf \
+    --log="${LOG}" --exclude-list="${EXCLUDES}" &
+
+# Either one stopping stops the service, and systemd starts both again
+wait -n
+exit 1

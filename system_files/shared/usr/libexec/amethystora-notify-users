@@ -1,0 +1,34 @@
+#!/usr/bin/bash
+# Show a desktop notification to whoever is logged in at the machine, from a service running as root.
+#
+# Usage: amethystora-notify-users SUMMARY BODY [URGENCY]
+#
+# Best effort by nature: nobody may be logged in when a scheduled scan finds something. What is said
+# here is therefore never the only record of it. The journal line below always happens, the finding
+# itself stays in the log file `ujust virus-scan` reads, and amethystora-security-alert.service says it
+# again at the next graphical login.
+
+set -uo pipefail
+
+SUMMARY="${1:?usage: $0 SUMMARY BODY [URGENCY]}"
+BODY="${2:?usage: $0 SUMMARY BODY [URGENCY]}"
+URGENCY="${3:-normal}"
+
+# The part that cannot be missed: this is what `systemctl status` of the failed unit shows
+printf '%s\n%s\n' "${SUMMARY}" "${BODY}"
+
+command -v notify-send >/dev/null || exit 0
+
+# A session bus socket is what someone logged in has and a system user does not, so the sockets are the
+# list of people who can be told. notify-send has to reach the user's own bus, not the system one.
+for bus in /run/user/*/bus; do
+    [[ -S "${bus}" ]] || continue
+    uid="${bus#/run/user/}"
+    uid="${uid%/bus}"
+    [[ "${uid}" =~ ^[0-9]+$ ]] || continue
+    [[ "${uid}" -ge 1000 && "${uid}" -lt 65534 ]] || continue
+    user="$(id -nu "${uid}" 2>/dev/null)" || continue
+    runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=${bus}" \
+        notify-send --app-name=Amethystora --urgency="${URGENCY}" --icon=dialog-warning \
+        "${SUMMARY}" "${BODY}" || true
+done

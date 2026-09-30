@@ -1,0 +1,27 @@
+#!/usr/bin/bash
+# Runs a command in a terminal window of its own and keeps the window open once it has finished, so
+# that what it printed can be read: a launched terminal otherwise closes the instant its command ends.
+# The Security app (amethystora-security) opens the recipes it offers this way.
+#
+#   amethystora-in-terminal <command> [<argument>...]
+#
+# xdg-terminal-exec is how amethystora-menu reopens itself from a keybinding, too.
+
+set -uo pipefail
+
+[[ $# -gt 0 ]] || exit 2
+
+if [[ ! -t 1 ]]; then
+    command -v xdg-terminal-exec >/dev/null || exit 1
+    exec xdg-terminal-exec "$0" "$@"
+fi
+
+"$@"
+
+echo
+# gum is what the rest of this image prompts with; read is what is there if it ever is not
+if command -v gum >/dev/null; then
+    gum input --placeholder "Press enter to close" >/dev/null || true
+else
+    read -rsp "Press enter to close" _ || true
+fi

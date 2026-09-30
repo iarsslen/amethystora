@@ -1,0 +1,534 @@
+/* The Amethystora colours until a theme is applied. amethystora-theme's palette replaces the first
+   seven on every switch (applyPalette in manual.js); everything else is mixed from them, so any
+   theme reads well here without a stylesheet of its own. */
+:root {
+    --bg: #110c18;
+    --fg: #e8e0f2;
+    --accent: #9148f0;
+    --surface: #2a2136;
+    --muted: #6b5f7d;
+    --selection: #4a13a0;
+    --selection-fg: #f3ecfb;
+    color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-mode="dark"]) {
+        --bg: #fdf8ff;
+        --fg: #1d1a22;
+        --accent: #5d1ac4;
+        --surface: #e6dfec;
+        --muted: #b8b0c4;
+        --selection: #eaddff;
+        --selection-fg: #1d1a22;
+        color-scheme: light;
+    }
+}
+
+:root[data-mode="light"] {
+    color-scheme: light;
+}
+
+:root {
+    --sidebar: color-mix(in oklab, var(--bg) 94%, var(--fg));
+    --line: color-mix(in oklab, var(--fg) 12%, transparent);
+    --soft: color-mix(in oklab, var(--fg) 64%, var(--bg));
+    --link: color-mix(in oklab, var(--accent) 72%, var(--fg));
+    --tint: color-mix(in oklab, var(--accent) 14%, transparent);
+    --code-bg: color-mix(in oklab, var(--surface) 55%, var(--bg));
+    --radius: 10px;
+    --sans: "Inter", "Adwaita Sans", "Cantarell", system-ui, sans-serif;
+    --mono: "JetBrains Mono", "Adwaita Mono", ui-monospace, monospace;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    display: grid;
+    grid-template-columns: clamp(220px, 24vw, 290px) 1fr;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.65 var(--sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+}
+
+::selection {
+    background: var(--selection);
+    color: var(--selection-fg);
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+a {
+    color: var(--link);
+    text-decoration-color: color-mix(in oklab, var(--link) 40%, transparent);
+    text-underline-offset: 3px;
+}
+
+a:hover {
+    text-decoration-color: currentColor;
+}
+
+/* --- Sidebar ------------------------------------------------------------------------------------ */
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--sidebar);
+    border-right: 1px solid var(--line);
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 22px 20px 14px;
+    color: var(--fg);
+    text-decoration: none;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+}
+
+.brand img {
+    width: 34px;
+    height: 34px;
+}
+
+.brand span {
+    color: var(--soft);
+}
+
+.brand strong {
+    color: var(--fg);
+    font-weight: 700;
+}
+
+.search {
+    position: relative;
+    display: block;
+    margin: 4px 14px 10px;
+}
+
+.search input {
+    width: 100%;
+    padding: 9px 74px 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+    font-size: 14px;
+}
+
+.search input::placeholder {
+    color: var(--soft);
+}
+
+.search input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--tint);
+}
+
+.search input::-webkit-search-cancel-button {
+    display: none;
+}
+
+.search .hint {
+    position: absolute;
+    top: 50%;
+    right: 9px;
+    display: flex;
+    gap: 3px;
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.search .hint kbd {
+    font-size: 11px;
+    padding: 1px 5px;
+}
+
+#toc,
+#results {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 0;
+    padding: 4px 10px 24px;
+}
+
+#toc h2 {
+    margin: 18px 10px 6px;
+    color: var(--soft);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+#toc a {
+    display: block;
+    padding: 5px 10px;
+    border-radius: 8px;
+    color: var(--fg);
+    font-size: 14.5px;
+    text-decoration: none;
+}
+
+#toc a:hover {
+    background: color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+#toc a[aria-current] {
+    background: var(--tint);
+    color: var(--link);
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+
+#results {
+    list-style: none;
+}
+
+#results a {
+    display: block;
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--fg);
+    text-decoration: none;
+}
+
+#results a:hover,
+#results a.selected {
+    background: var(--tint);
+}
+
+#results strong {
+    display: block;
+    font-size: 14px;
+}
+
+#results span {
+    display: block;
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 1.45;
+}
+
+#results .none {
+    padding: 8px 10px;
+    color: var(--soft);
+    font-size: 14px;
+}
+
+/* --- The page ------------------------------------------------------------------------------------ */
+
+main {
+    min-height: 0;
+    overflow-y: auto;
+    scroll-padding-top: 24px;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 10px;
+    background: color-mix(in oklab, var(--fg) 22%, transparent) padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--fg) 38%, transparent);
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+.page,
+.pager {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 48px;
+}
+
+.page {
+    padding-top: 44px;
+}
+
+.eyebrow {
+    margin: 0 0 6px;
+    color: var(--link);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.page h1 {
+    margin: 0 0 18px;
+    font-size: 40px;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+}
+
+.page h1 + p {
+    color: var(--soft);
+    font-size: 18.5px;
+    line-height: 1.6;
+}
+
+.page h2 {
+    margin: 46px 0 12px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    font-size: 25px;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+}
+
+.page h3 {
+    margin: 30px 0 8px;
+    font-size: 19px;
+    letter-spacing: -0.01em;
+}
+
+.page h2,
+.page h3 {
+    position: relative;
+}
+
+.anchor {
+    position: absolute;
+    left: -24px;
+    color: var(--muted);
+    text-decoration: none;
+    opacity: 0;
+}
+
+h2:hover .anchor,
+h3:hover .anchor {
+    opacity: 1;
+}
+
+.page p,
+.page ul,
+.page ol {
+    margin: 0 0 16px;
+}
+
+.page ul,
+.page ol {
+    padding-left: 24px;
+}
+
+.page li {
+    margin: 4px 0;
+}
+
+.page li::marker {
+    color: var(--accent);
+}
+
+.page strong {
+    font-weight: 650;
+}
+
+.page hr {
+    margin: 36px 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+}
+
+.page img {
+    max-width: 100%;
+    border-radius: var(--radius);
+}
+
+.page code {
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: var(--code-bg);
+    font: 0.86em/1.5 var(--mono);
+}
+
+.code {
+    position: relative;
+    margin: 0 0 18px;
+}
+
+.code pre {
+    margin: 0;
+    padding: 16px 18px;
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--code-bg);
+}
+
+.code pre code {
+    padding: 0;
+    background: none;
+    font-size: 13.5px;
+    line-height: 1.6;
+}
+
+.copy {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 3px 10px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--bg);
+    color: var(--soft);
+    font: 600 12px/1.5 var(--sans);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.code:hover .copy,
+.copy:focus-visible {
+    opacity: 1;
+}
+
+.copy:hover {
+    color: var(--fg);
+}
+
+.keys {
+    white-space: nowrap;
+}
+
+.keys > span {
+    margin: 0 2px;
+    color: var(--soft);
+    font-size: 0.8em;
+}
+
+kbd {
+    display: inline-block;
+    min-width: 1.9em;
+    padding: 1px 7px;
+    border: 1px solid color-mix(in oklab, var(--accent) 35%, var(--line));
+    border-bottom-width: 2px;
+    border-radius: 6px;
+    background: color-mix(in oklab, var(--accent) 9%, var(--bg));
+    color: var(--fg);
+    font: 600 0.8em/1.6 var(--sans);
+    text-align: center;
+}
+
+.page table {
+    width: 100%;
+    margin: 0 0 20px;
+    border-collapse: collapse;
+    font-size: 15px;
+}
+
+.page th {
+    padding: 8px 12px;
+    border-bottom: 2px solid var(--line);
+    color: var(--soft);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.page td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+}
+
+.page tr:hover td {
+    background: color-mix(in oklab, var(--fg) 3%, transparent);
+}
+
+.page td code {
+    white-space: nowrap;
+}
+
+/* > **Tip** ... reads as a callout */
+.page blockquote {
+    margin: 0 0 18px;
+    padding: 14px 18px;
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    background: var(--tint);
+}
+
+.page blockquote > :last-child {
+    margin-bottom: 0;
+}
+
+/* --- Previous and next -------------------------------------------------------------------------- */
+
+.pager {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding-top: 36px;
+    padding-bottom: 64px;
+}
+
+.pager a {
+    display: block;
+    padding: 14px 18px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--fg);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.pager a:hover {
+    border-color: var(--accent);
+    background: var(--tint);
+}
+
+.pager a span {
+    display: block;
+    color: var(--soft);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.pager .next {
+    text-align: right;
+}
+
+@media (max-width: 860px) {
+    .page,
+    .pager {
+        padding-left: 28px;
+        padding-right: 28px;
+    }
+
+    .page h1 {
+        font-size: 32px;
+    }
+}

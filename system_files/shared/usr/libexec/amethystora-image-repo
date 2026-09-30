@@ -1,0 +1,10 @@
+#!/usr/bin/bash
+# Prints the GitHub repository this image is built from, for `ujust report` and `ujust changelogs`.
+#
+# Usage:
+#   amethystora-image-repo [--default REPO] [IMAGE_NAME] [IMAGE_TAG]
+#
+# The arguments are accepted for compatibility with the callers and ignored: every Amethystora image
+# comes from the same repository.
+
+printf '%s\n' "iarsslen/amethystora"

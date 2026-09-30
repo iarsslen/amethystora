@@ -1,0 +1,4 @@
+# Keychron keyboard hardware enablement
+# Created on https://github.com/iarsslen/amethystora
+# Written by https://github.com/atimeofday
+KERNEL=="hidraw*", SUBSYSTEM=="hidraw", MODE="0666", TAG+="uaccess", TAG+="udev-acl"

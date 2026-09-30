@@ -1,0 +1,9 @@
+{
+  "name": "amethystora-security",
+  "productName": "Amethystora Security",
+  "description": "What this machine's security settings are doing, and a virus scanner, in a window of its own",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "main": "main.js",
+  "desktopName": "amethystora-security.desktop"
+}

@@ -1,0 +1,10 @@
+[Unit]
+Description=Hourly read-only snapshot of the home folders, for ransomware protection
+
+[Timer]
+OnCalendar=hourly
+# A laptop that was closed on the hour takes its snapshot when it is opened again
+Persistent=true
+
+[Install]
+WantedBy=timers.target

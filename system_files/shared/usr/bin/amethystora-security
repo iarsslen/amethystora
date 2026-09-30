@@ -1,0 +1,16 @@
+#!/usr/bin/bash
+#
+# Amethystora Security: the security report and a virus scanner, in a window of their own.
+#
+#   amethystora-security          open it on the report
+#   amethystora-security scan     open it on the virus scanner
+#
+# The report is /usr/libexec/amethystora-security-status, which `ujust security-status` prints in a
+# terminal. The window is an Electron app in /usr/lib/amethystora-security (build_files/base/14-security.sh).
+
+set -euo pipefail
+
+case "${1:-}" in
+    -h | --help | help) sed -n '3,10p' "$0" | sed 's/^# \?//' ;;
+    *) exec /usr/lib/amethystora-security/amethystora-security "$@" ;;
+esac

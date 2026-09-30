@@ -1,0 +1,17 @@
+#!/usr/bin/bash
+#
+# Amethystora Logs: what the system, the desktop and the apps have logged, searched, followed live and
+# read one app or service at a time, in a window of its own.
+#
+#   amethystora-logs            open it on what is important
+#   amethystora-logs <view>     open it on all, session, system, kernel, security, crashes or sources
+#
+# It reads the journal with journalctl, as you: administrators see everything, anyone else their own
+# session and apps. The window is an Electron app in /usr/lib/amethystora-logs (build_files/base/16-logs.sh).
+
+set -euo pipefail
+
+case "${1:-}" in
+    -h | --help | help) sed -n '3,10p' "$0" | sed 's/^# \?//' ;;
+    *) exec /usr/lib/amethystora-logs/amethystora-logs "$@" ;;
+esac

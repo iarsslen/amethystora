@@ -1,0 +1,794 @@
+/* The Amethystora colours until a theme is applied. amethystora-theme's palette replaces the first ten
+   on every switch (applyPalette in update.js), the status colours among them from the theme's own red,
+   green and yellow; everything else is mixed from those, as in the Manual and Security, so any theme
+   reads well here without a stylesheet of its own. */
+:root {
+    --bg: #110c18;
+    --fg: #e8e0f2;
+    --accent: #9148f0;
+    --surface: #2a2136;
+    --muted: #6b5f7d;
+    --selection: #4a13a0;
+    --selection-fg: #f3ecfb;
+    --bad: #ef6b7d;
+    --ok: #8ddba4;
+    --warn: #e8c06a;
+    --on-accent: #ffffff;
+    color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-mode="dark"]) {
+        --bg: #fdf8ff;
+        --fg: #1d1a22;
+        --accent: #5d1ac4;
+        --surface: #e6dfec;
+        --muted: #b8b0c4;
+        --selection: #eaddff;
+        --selection-fg: #1d1a22;
+        --bad: #b3261e;
+        --ok: #2f7d4f;
+        --warn: #8a6100;
+        color-scheme: light;
+    }
+}
+
+:root[data-mode="light"] {
+    color-scheme: light;
+}
+
+:root {
+    --top: color-mix(in oklab, var(--bg) 94%, var(--fg));
+    --card: color-mix(in oklab, var(--surface) 40%, var(--bg));
+    --control: color-mix(in oklab, var(--fg) 5%, transparent);
+    --line: color-mix(in oklab, var(--fg) 10%, transparent);
+    --line-strong: color-mix(in oklab, var(--fg) 15%, transparent);
+    --hairline: color-mix(in oklab, var(--fg) 7%, transparent);
+    --soft: color-mix(in oklab, var(--fg) 64%, var(--bg));
+    --faint: color-mix(in oklab, var(--fg) 56%, var(--bg));
+    --link: color-mix(in oklab, var(--accent) 72%, var(--fg));
+    --tint: color-mix(in oklab, var(--accent) 16%, transparent);
+    --code-bg: color-mix(in oklab, var(--surface) 55%, var(--bg));
+    --shadow: none;
+    --radius: 16px;
+    --sans: "Inter", "Adwaita Sans", "Cantarell", system-ui, sans-serif;
+    --display: "Quicksand", var(--sans);
+    --mono: "JetBrains Mono", "Adwaita Mono", ui-monospace, monospace;
+}
+
+/* On a light theme a card stands out by being lighter than the window, not darker */
+:root[data-mode="light"] {
+    --card: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --control: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --faint: color-mix(in oklab, var(--fg) 72%, var(--bg));
+    --shadow: 0 1px 2px color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-mode]) {
+        --card: color-mix(in oklab, var(--bg) 20%, #ffffff);
+        --control: color-mix(in oklab, var(--bg) 20%, #ffffff);
+        --faint: color-mix(in oklab, var(--fg) 72%, var(--bg));
+        --shadow: 0 1px 2px color-mix(in oklab, var(--fg) 6%, transparent);
+    }
+}
+
+/* The face of the Amethystora wordmark, for headings (15-update.sh puts it here from branding/fonts) */
+@font-face {
+    font-family: "Quicksand";
+    src: url("fonts/QuicksandVariable.ttf") format("truetype");
+    font-weight: 300 700;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    background: var(--bg);
+    color: var(--fg);
+    font: 14px/1.5 var(--sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+}
+
+button {
+    font: inherit;
+    color: inherit;
+}
+
+::selection {
+    background: var(--selection);
+    color: var(--selection-fg);
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+h1,
+h2,
+p {
+    margin: 0;
+}
+
+code {
+    font-family: var(--mono);
+}
+
+.sprite {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+.icon {
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.grow {
+    flex: 1;
+    min-width: 0;
+}
+
+.soft {
+    color: var(--soft);
+}
+
+.faint {
+    color: var(--faint);
+}
+
+.small {
+    font-size: 12.5px;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 10px;
+    background: color-mix(in oklab, var(--fg) 22%, transparent) padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--fg) 38%, transparent);
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* --- Top bar ------------------------------------------------------------------------------------ */
+
+.top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 24px;
+    background: var(--top);
+    border-bottom: 1px solid var(--line);
+}
+
+/* The wordmark of the boot splash and the login screen, as logoHtml in branding/generate.mjs sets it: the
+   stone as the "a" of "methystora" in Quicksand Bold, glowing in the three shades the splash lights it
+   with, and white. Every size is the generator's, in em, so it is the same mark at any size; the glow
+   is the login screen's, 10px on its 93px lettering. A light theme gets the generator's dark ink. */
+.brand {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3em;
+    font: 700 22px/1 var(--display);
+    letter-spacing: -0.015em;
+    white-space: nowrap;
+}
+
+.wordmark {
+    color: #ffffff;
+}
+
+:root[data-mode="light"] .wordmark {
+    color: #241f31;
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-mode]) .wordmark {
+        color: #241f31;
+    }
+}
+
+.wordmark .a {
+    width: 0.573em;
+    height: 0.76em;
+    margin-right: 0.035em;
+    vertical-align: -0.012em;
+    filter:
+        drop-shadow(0 0 0.1075em rgb(220 188 255 / 0.9))
+        drop-shadow(0 0 0.258em rgb(179 125 249 / 0.65))
+        drop-shadow(0 0 0.4946em rgb(145 72 240 / 0.5));
+}
+
+.brand .product {
+    color: var(--soft);
+    font-weight: 600;
+}
+
+.top-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px 20px;
+}
+
+/* --- Common pieces ------------------------------------------------------------------------------ */
+
+main {
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.page {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 12px 40px 40px;
+}
+
+.loading {
+    display: grid;
+    place-items: center;
+    min-height: 70vh;
+    color: var(--soft);
+}
+
+.card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.section h2 {
+    color: var(--soft);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.lead {
+    max-width: 580px;
+    color: var(--soft);
+    font-size: 15px;
+    text-wrap: pretty;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--control);
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: filter 0.15s;
+}
+
+.btn:hover {
+    filter: brightness(1.15);
+}
+
+:root[data-mode="light"] .btn:hover {
+    filter: brightness(0.96);
+}
+
+.btn.primary {
+    border-color: transparent;
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+.btn.small {
+    height: 32px;
+    padding: 0 12px;
+    border-radius: 9px;
+    font-size: 13px;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    filter: none;
+    cursor: not-allowed;
+}
+
+.link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--link);
+    font-size: 13.5px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+
+.link:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.link.quiet {
+    color: var(--soft);
+    font-weight: 500;
+}
+
+.link.small {
+    font-size: 12.5px;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px 12px;
+}
+
+.tone.ok {
+    background: color-mix(in oklab, var(--ok) 14%, transparent);
+    color: var(--ok);
+}
+
+.tone.off {
+    background: color-mix(in oklab, var(--bad) 15%, transparent);
+    color: var(--bad);
+}
+
+.tone.info {
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+    color: var(--soft);
+}
+
+.tone.accent {
+    background: var(--tint);
+    color: var(--link);
+}
+
+.callout {
+    display: flex;
+    gap: 14px;
+    padding: 16px 18px;
+    border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+    border-radius: 14px;
+    background: color-mix(in oklab, var(--accent) 9%, transparent);
+}
+
+.callout > .icon {
+    margin-top: 1px;
+    color: var(--link);
+}
+
+.callout.check {
+    border-color: color-mix(in oklab, var(--warn) 30%, transparent);
+    background: color-mix(in oklab, var(--warn) 6%, transparent);
+}
+
+.callout.check > .icon {
+    color: var(--warn);
+}
+
+.callout .grow {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.callout strong {
+    font-size: 14.5px;
+    font-weight: 600;
+}
+
+.callout p {
+    max-width: 640px;
+    color: var(--soft);
+    font-size: 13.5px;
+    text-wrap: pretty;
+    overflow-wrap: anywhere;
+}
+
+.command-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.command {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 560px;
+    padding: 8px 8px 8px 16px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--code-bg);
+}
+
+.command code {
+    flex: 1;
+    min-width: 0;
+    font-size: 13.5px;
+    overflow-wrap: anywhere;
+}
+
+.command .btn {
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 8px;
+    background: var(--top);
+    color: var(--soft);
+    font-size: 12.5px;
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+/* --- The hero: the stone of the boot splash, and what is happening ------------------------------- */
+
+.hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 36px 0 6px;
+    text-align: center;
+}
+
+.hero h1 {
+    margin-top: 26px;
+    font: 700 32px/1.2 var(--display);
+    letter-spacing: -0.01em;
+}
+
+.hero .lead {
+    margin-top: 8px;
+}
+
+.hero .actions {
+    margin-top: 24px;
+}
+
+.note {
+    margin-top: 16px;
+    color: var(--faint);
+    font-size: 13px;
+}
+
+.gem {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 132px;
+    height: 132px;
+}
+
+/* The glow the stone has on the login screen, breathing while an update runs */
+.gem::before {
+    content: "";
+    position: absolute;
+    inset: -30px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side,
+        color-mix(in oklab, var(--accent) 34%, transparent),
+        color-mix(in oklab, var(--accent) 10%, transparent) 55%,
+        transparent);
+    opacity: 0.75;
+}
+
+.gem.active::before {
+    animation: glow 3.2s ease-in-out infinite;
+}
+
+.gem > * {
+    position: relative;
+    grid-area: 1 / 1;
+    width: 116px;
+    height: 116px;
+    object-fit: contain;
+}
+
+/* A band of light passing down the stone, as the glint does in the boot splash */
+.gem .sweep {
+    background: linear-gradient(180deg, transparent, rgb(246 239 255 / 0.62) 50%, transparent) 0 -60px / 100% 60px no-repeat;
+    mask: url("gem.svg") center / contain no-repeat;
+    animation: sweep 2.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.progress {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: min(460px, 100%);
+    margin-top: 26px;
+}
+
+.percent {
+    min-width: 3ch;
+    color: var(--soft);
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
+
+.percent:empty {
+    display: none;
+}
+
+.bar {
+    flex: 1;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+}
+
+.bar > div {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--link));
+    transition: width 0.4s ease;
+}
+
+.bar.indeterminate > div {
+    width: 34%;
+    background: linear-gradient(90deg, transparent, var(--accent) 30%, var(--link) 70%, transparent);
+    transition: none;
+    animation: slide 1.7s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+/* --- Rows --------------------------------------------------------------------------------------- */
+
+.list {
+    overflow: hidden;
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    border-top: 1px solid var(--hairline);
+}
+
+.row:first-child {
+    border-top: 0;
+}
+
+.row-icon {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+}
+
+.row-text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.row-label {
+    color: var(--soft);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.row-title {
+    font-size: 14.5px;
+    font-weight: 600;
+}
+
+.row-detail {
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.row .link {
+    margin-top: 6px;
+}
+
+.row-side {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+/* A step's state: waiting, what it is doing, or how it went */
+.state {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 7px;
+    color: var(--faint);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.state[hidden] {
+    display: none;
+}
+
+.state.accent {
+    color: var(--link);
+}
+
+.state.ok {
+    color: var(--ok);
+}
+
+.state.off {
+    color: var(--bad);
+}
+
+/* --- What the updater said ---------------------------------------------------------------------- */
+
+.details summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    color: var(--soft);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+}
+
+.details summary::-webkit-details-marker {
+    display: none;
+}
+
+.details summary .chevron {
+    transition: transform 0.15s;
+}
+
+.details[open] summary .chevron {
+    transform: rotate(90deg);
+}
+
+.log {
+    max-height: 320px;
+    margin: 0;
+    padding: 14px 18px;
+    overflow: auto;
+    border-top: 1px solid var(--hairline);
+    background: var(--code-bg);
+    color: var(--soft);
+    font: 12px/1.6 var(--mono);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.details-foot {
+    padding: 14px 18px 16px;
+    border-top: 1px solid var(--hairline);
+}
+
+.terminal {
+    color: var(--faint);
+    font-size: 12.5px;
+    text-align: center;
+}
+
+.terminal code {
+    color: var(--soft);
+    font-size: 12px;
+}
+
+@keyframes sweep {
+    to {
+        background-position: 0 176px;
+    }
+}
+
+@keyframes glow {
+    0%,
+    100% {
+        opacity: 0.55;
+        transform: scale(0.94);
+    }
+
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+}
+
+@keyframes slide {
+    from {
+        transform: translateX(-100%);
+    }
+
+    to {
+        transform: translateX(300%);
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    ::before {
+        animation: none !important;
+    }
+}
+
+@media (max-width: 720px) {
+    .page {
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+
+    .top {
+        flex-wrap: wrap;
+    }
+
+    .row {
+        flex-wrap: wrap;
+    }
+}

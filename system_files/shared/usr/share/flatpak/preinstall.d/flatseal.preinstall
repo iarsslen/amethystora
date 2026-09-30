@@ -1,0 +1,5 @@
+# Flatseal, for granting back per application what /etc/flatpak/overrides/global takes away from all
+# of them (X11, /dev, the Flatpak service) and for narrowing what an application is given by default.
+[Flatpak Preinstall com.github.tchx84.Flatseal]
+Branch=stable
+IsRuntime=false

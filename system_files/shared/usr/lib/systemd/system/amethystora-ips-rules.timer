@@ -1,0 +1,11 @@
+[Unit]
+Description=Network protection: download the rules, daily
+
+[Timer]
+OnCalendar=daily
+# A machine that was off at midnight still gets them when it comes back
+Persistent=true
+RandomizedDelaySec=2h
+
+[Install]
+WantedBy=timers.target

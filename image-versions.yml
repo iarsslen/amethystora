@@ -1,0 +1,17 @@
+images:
+  # The base image is pinned per Fedora major version because `just build`
+  # resolves the version dynamically and the stable/latest streams do not always
+  # sit on different releases. The entry name must be
+  # `silverblue-main-${fedora_version}`; add a new one at each Fedora rollover.
+  - name: silverblue-main-43
+    image: ghcr.io/ublue-os/silverblue-main
+    tag: "43"
+    digest: sha256:5111c949b19454da98cf4f0afb1f241331e0bf0373b590c82653c83d8464e510
+  - name: silverblue-main-44
+    image: ghcr.io/ublue-os/silverblue-main
+    tag: "44"
+    digest: sha256:839272b44524f0816d6bbf826e540bfc94c0036ebd469f968bda058b8a739f3b
+  - name: brew
+    image: ghcr.io/ublue-os/brew
+    tag: latest
+    digest: sha256:d52b3f578f01623636aff534291b0bd8ff0a0244ef225bf51aecb5fa05a137af

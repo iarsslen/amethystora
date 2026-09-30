@@ -1,0 +1,11 @@
+[Unit]
+Description=Weekly ClamAV scan of home and temporary directories
+
+[Timer]
+OnCalendar=Sun 03:00
+# A machine that was asleep at 03:00 on Sunday still gets scanned when it comes back
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

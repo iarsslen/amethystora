@@ -1,0 +1,671 @@
+#!/usr/bin/bash
+# What this machine's security settings are actually doing, and what to do about anything that is off.
+# Nothing here changes anything, and it asks for no password.
+#
+#   amethystora-security-status          the report, for a terminal (`ujust security-status`)
+#   amethystora-security-status --json   the same report, for the Security app (amethystora-security)
+#
+# One set of checks for both, so that the terminal and the window cannot disagree. Each check ends in
+#
+#   report <group> <id> <state> <title> <text> [<detail>...]
+#
+# where the state is ok, check, off or info, and for the protections that stay off until someone turns
+# them on: on, off or unavailable. COMMAND, set just before the call, is what fixes it or turns it on,
+# and a detail ending in a colon is the one that introduces it. The app offers to run that command in a
+# terminal, so it has to be one command and nothing more: no pipes, no quotes, no "then restart".
+
+set -uo pipefail
+
+JSON=false
+[[ "${1:-}" == "--json" ]] && JSON=true
+
+RECORDS=()
+COMMAND=""
+PRINTED_GROUP=""
+
+declare -A HEADINGS=(
+    [updates]="Updates and boot"
+    [watching]="Watching"
+    [scans]="Scans"
+    [optional]="Off unless you turned it on"
+)
+
+# A check as the terminal shows it: its state, what it says, and what explains it, with the command
+# following the detail that introduces it
+print_record() {
+    local group="$1" state="$2" title="$3" text="$4" line
+    shift 4
+    local -a lines=("$@")
+    if [[ "${group}" != "${PRINTED_GROUP}" ]]; then
+        PRINTED_GROUP="${group}"
+        printf '\n  %s\n' "${HEADINGS[${group}]}"
+    fi
+    if [[ "${group}" == optional ]]; then
+        case "${state}" in
+            on) printf '   %s is on (%s)\n' "${title}" "${COMMAND}" ;;
+            unavailable) printf '   %s: %s (%s)\n' "${title}" "${COMMAND}" "${lines[0],}" ;;
+            *) printf '   %s: %s\n' "${title}" "${COMMAND}" ;;
+        esac
+        return
+    fi
+    case "${state}" in
+        ok) printf '   \033[1;32mok\033[0m     %s\n' "${text}" ;;
+        check) printf '   \033[1;33mcheck\033[0m  %s\n' "${text}" ;;
+        off) printf '   \033[1;31moff\033[0m    %s\n' "${text}" ;;
+        *) printf '   ---    %s\n' "${text}" ;;
+    esac
+    if [[ -n "${COMMAND}" ]]; then
+        if [[ ${#lines[@]} -gt 0 && "${lines[-1]}" == *: ]]; then
+            lines[-1]+=" ${COMMAND}"
+        else
+            lines+=("${COMMAND}")
+        fi
+    fi
+    for line in "${lines[@]}"; do
+        fold -s -w 88 <<<"${line}" | sed 's/ *$//; s/^/          /'
+    done
+}
+
+report() {
+    local group="$1" id="$2" state="$3" title="$4" text="$5"
+    shift 5
+    if [[ "${JSON}" == true ]]; then
+        RECORDS+=("$(jq -nc --arg group "${group}" --arg id "${id}" --arg state "${state}" \
+            --arg title "${title}" --arg text "${text}" --arg command "${COMMAND}" \
+            '{$group, $id, $state, $title, $text, details: $ARGS.positional,
+              command: (if $command == "" then null else $command end)}' --args "$@")")
+    else
+        print_record "${group}" "${state}" "${title}" "${text}" "$@"
+    fi
+    COMMAND=""
+}
+
+NOW="$(date +%s)"
+# The machine's own choices (/etc/amethystora/security.conf), through the one reader of that file
+ON_DETECTION="$(/usr/libexec/amethystora-security-config ON_DETECTION)"
+REALTIME="$(/usr/libexec/amethystora-security-config REALTIME)"
+NETWORK="$(/usr/libexec/amethystora-security-config NETWORK)"
+# What the security watcher saw that only root can see, written for this report at each of its runs
+WATCH_STATUS=/var/lib/amethystora/security/status.json
+
+# When a scan last ran, in seconds: the later of its service finishing, which systemd forgets at every
+# boot, and its timer firing, which it keeps
+last_run_time() {
+    {
+        systemctl show --timestamp=unix -p InactiveEnterTimestamp --value "$1.service"
+        systemctl show --timestamp=unix -p LastTriggerUSec --value "$1.timer"
+    } 2>/dev/null | sed -n 's/^@\([0-9][0-9]*\)$/\1/p' | sort -n | tail -n1
+}
+
+# ...and as "Sun 20 Sep, 03:12"
+last_run() {
+    local latest
+    latest="$(last_run_time "$1")"
+    [[ -n "${latest}" ]] && date -d "@${latest}" '+%a %-d %b, %H:%M'
+}
+
+days_since() {
+    echo $(((NOW - $1) / 86400))
+}
+
+# "1 thing", "3 things"
+plural() {
+    if [[ "$1" -eq 1 ]]; then echo "1 $2"; else echo "$1 $3"; fi
+}
+
+days_ago() {
+    case "$1" in
+        0) echo "today" ;;
+        1) echo "yesterday" ;;
+        *) echo "$1 days ago" ;;
+    esac
+}
+
+# rpm-ostree, not bootc: `bootc status` needs root, and without it this reported every machine as
+# running "unknown" with unchecked updates. The image reference is prefixed ostree-image-signed:
+# exactly when bootc would report the containerPolicy signature.
+STATUS="$(rpm-ostree status --json 2>/dev/null || true)"
+ref() { jq -r "[.deployments[] | select(.$1)][0][\"container-image-reference\"] // \"\"" <<<"${STATUS:-null}" 2>/dev/null; }
+sig() { [[ "$1" == ostree-image-signed:* ]] && echo containerPolicy || echo none; }
+BOOTED_REF="$(ref booted)"
+IMAGE="$(sed -E 's|^[^:]+:(docker://)?||' <<<"${BOOTED_REF}")"
+IMAGE="${IMAGE:-unknown}"
+SIGNED="$(sig "${BOOTED_REF}")"
+STAGED="$(sig "$(ref staged)")"
+# Packages layered on with rpm-ostree. They decide which command follows a stream below: bootc
+# builds the next deployment from the image alone and would drop them, rpm-ostree carries them over.
+LAYERED="$(jq -r '[.deployments[] | select(.booted)][0] | ((.packages // []) + (."requested-local-packages" // [])) | length' <<<"${STATUS:-null}" 2>/dev/null)"
+LAYERED="${LAYERED:-0}"
+
+if [[ "${JSON}" != true ]]; then
+    echo
+    echo "  This machine is running ${IMAGE}"
+fi
+
+# --- Updates and boot ---------------------------------------------------------------------------------
+
+if [[ "${SIGNED}" == "containerPolicy" ]]; then
+    report updates signed-updates ok "Signed updates" \
+        "Updates are refused unless they carry this image's signature"
+elif [[ "${STAGED}" == "containerPolicy" ]]; then
+    report updates signed-updates check "Signed updates" \
+        "Signature checking is staged, and turns on at the next restart"
+else
+    COMMAND="sudo systemctl start amethystora-signed-updates.service"
+    report updates signed-updates off "Signed updates" "Updates are not signature-checked" \
+        "Anything that can answer for the registry could replace this machine's whole system." \
+        "Fix it with this, then restart:"
+fi
+# A dated tag names one build, not a stream: every update re-pulls that same build, forever
+TAG="${IMAGE##*:}"
+if [[ "${TAG}" =~ ^([a-z]+)-[0-9]+\.[0-9]{8} ]]; then
+    STREAM="${BASH_REMATCH[1]}"
+    if [[ "${LAYERED}" != "0" ]]; then
+        COMMAND="sudo rpm-ostree rebase ostree-image-signed:docker://${IMAGE%:*}:${STREAM}"
+    else
+        COMMAND="sudo bootc switch --enforce-container-sigpolicy ${IMAGE%:*}:${STREAM}"
+    fi
+    report updates single-build check "Updates" \
+        "This machine follows a single build (${TAG}) and will not receive updates" \
+        "Follow the ${STREAM} stream again with:"
+fi
+if [[ "${LAYERED}" != "0" ]]; then
+    report updates layered info "Layered packages" \
+        "${LAYERED} package(s) are layered on this image with rpm-ostree" \
+        "Updates keep them, but each one slows every update; the image is the better place"
+fi
+
+# How old the running system is. A fix to anything in the image reaches this machine only as a newer
+# image, so this is, in days, how long it has gone without the fixes made since. The deployment listed
+# first is the one the next boot starts, which is an update waiting for a restart when it is newer.
+BUILT="$(jq -r '[.deployments[] | select(.booted)][0].timestamp // empty' <<<"${STATUS:-null}" 2>/dev/null)"
+NEXT_BUILT="$(jq -r 'if (.deployments[0].booted | not) then .deployments[0].timestamp // empty else empty end' \
+    <<<"${STATUS:-null}" 2>/dev/null)"
+if [[ "${BUILT}" =~ ^[0-9]+$ ]]; then
+    AGE="$(days_since "${BUILT}")"
+    if [[ "${AGE}" -le 14 ]]; then
+        report updates image-age ok "System image" "This system image was built $(days_ago "${AGE}")"
+    elif [[ "${NEXT_BUILT}" =~ ^[0-9]+$ && "${NEXT_BUILT}" -gt "${BUILT}" ]]; then
+        report updates image-age info "System image" "A newer system image is waiting for a restart" \
+            "The one running was built ${AGE} days ago. Restart to use the new one."
+    else
+        COMMAND="ujust update"
+        report updates image-age check "System image" "This system image is ${AGE} days old" \
+            "Security fixes reach this machine as new images, and none has arrived since $(date -d "@${BUILT}" '+%-d %B')." \
+            "Update now with:"
+    fi
+fi
+
+if [[ "$(systemctl is-enabled uupd.timer 2>/dev/null)" != "enabled" ]]; then
+    COMMAND="sudo systemctl enable --now uupd.timer"
+    report updates automatic-updates check "Automatic updates" "Automatic updates are off" \
+        "Turn them back on with:"
+else
+    # uupd's own last word on a run, from the journal, which Fedora opens to the members of wheel
+    FINISHED="$(journalctl -q -r -n1 -o short-unix -u uupd.service -u uupd-manual.service \
+        -g 'Updates Completed Successfully' 2>/dev/null | grep -o '^[0-9]*' | head -n1)"
+    if [[ ! "${FINISHED}" =~ ^[0-9]+$ ]]; then
+        report updates automatic-updates ok "Automatic updates" "Updates install by themselves"
+    elif [[ "$(days_since "${FINISHED}")" -gt 14 ]]; then
+        COMMAND="ujust update"
+        report updates automatic-updates check "Automatic updates" \
+            "The last update that finished was $(days_since "${FINISHED}") days ago" \
+            "Updates start, but do not get to the end. System Updates shows why, or run one here:"
+    else
+        report updates automatic-updates ok "Automatic updates" \
+            "Updates install by themselves. The last one finished $(days_ago "$(days_since "${FINISHED}")")"
+    fi
+fi
+
+# What the signature buys is a trusted image at the moment it is pulled. Whether /usr is still
+# checked afterwards is composefs's job, and that comes from the base image rather than from
+# anything set here, so this reports what is actually mounted rather than what was intended.
+if grep -q composefs /proc/mounts 2>/dev/null; then
+    report updates composefs ok "Verified system files" \
+        "The running system is on composefs: /usr is verified as it is read, not only when pulled"
+else
+    report updates composefs info "Verified system files" \
+        "/usr is read-only and replaced whole by each update, but is not re-verified as it is read"
+fi
+
+SB="$(mokutil --sb-state 2>/dev/null || true)"
+if grep -qi "enabled" <<<"${SB}"; then
+    report updates secure-boot ok "Secure Boot" \
+        "Secure Boot is on: this machine boots only a kernel it has checked"
+elif grep -qi "disabled" <<<"${SB}"; then
+    COMMAND="ujust enroll-secure-boot-key"
+    report updates secure-boot check "Secure Boot" "Secure Boot is off" \
+        "The kernel protections below rest on it. Without it, anything that reaches root can boot a different kernel and step around them." \
+        "Turn Secure Boot on in this machine's firmware, then run:"
+else
+    report updates secure-boot check "Secure Boot" \
+        "Secure Boot state unknown (no EFI on this machine, or its firmware will not say)"
+fi
+
+# The same check `ujust enroll-secure-boot-key` uses, so the two can no longer disagree
+MOK="$(/usr/libexec/amethystora-mok-status)"
+if ! grep -qv "^enrolled " <<<"${MOK}"; then
+    report updates signing-keys ok "Signing keys" "This image's signing keys are enrolled"
+elif grep -qi "enabled" <<<"${SB}"; then
+    while read -r state cert rest; do
+        case "${state}" in
+            not-enrolled)
+                COMMAND="ujust enroll-secure-boot-key"
+                report updates "key-${cert##*/}" check "Signing keys" "Not enrolled: ${cert##*/}" \
+                    "What it signs, such as evdi for DisplayLink docks, will not load." \
+                    "Enroll it with:" ;;
+            pending)
+                report updates "key-${cert##*/}" check "Signing keys" \
+                    "Enrollment of ${cert##*/} is waiting for the next restart" \
+                    "Finish it in the blue MOK manager screen that appears during boot." ;;
+            missing)
+                report updates "key-${cert##*/}" check "Signing keys" "${cert} is not on this machine" \
+                    "Whether its key is enrolled cannot be checked without it." ;;
+            unknown)
+                report updates "key-${cert##*/}" check "Signing keys" \
+                    "Could not tell whether ${cert##*/} is enrolled" "mokutil said: ${rest}" ;;
+        esac
+    done <<<"${MOK}"
+fi
+
+LOCKDOWN=""
+[[ -r /sys/kernel/security/lockdown ]] &&
+    LOCKDOWN="$(sed -n 's/.*\[\([a-z]*\)\].*/\1/p' /sys/kernel/security/lockdown 2>/dev/null)"
+[[ -n "${LOCKDOWN}" ]] || { grep -qw "lockdown=integrity" /proc/cmdline && LOCKDOWN=integrity; }
+case "${LOCKDOWN}" in
+    integrity | confidentiality)
+        report updates lockdown ok "Kernel lockdown" \
+            "Kernel lockdown is on (${LOCKDOWN}): root cannot rewrite the running kernel" ;;
+    *)
+        # Nothing to do about this one, so it is information rather than something to check
+        if [[ "${IMAGE}" == *nvidia* ]]; then
+            report updates lockdown info "Kernel lockdown" \
+                "Kernel lockdown is off, as it is on every NVIDIA image" \
+                "The NVIDIA driver is a module signed with this machine's own key, and lockdown would leave a machine without Secure Boot with no graphics driver at all."
+        else
+            COMMAND="sudo rpm-ostree kargs --append=lockdown=integrity"
+            report updates lockdown check "Kernel lockdown" "Kernel lockdown is off" \
+                "Turn it back on with:"
+        fi ;;
+esac
+
+# --- Watching -----------------------------------------------------------------------------------------
+
+if [[ "$(systemctl is-active auditd.service 2>/dev/null)" == "active" ]]; then
+    report watching audit-log ok "Audit log" "The audit log is recording"
+else
+    COMMAND="sudo systemctl start auditd.service"
+    report watching audit-log off "Audit log" "The audit log is not recording" "Start it with:"
+fi
+if [[ -f /etc/audit/rules.d/99-amethystora-finalize.rules ]]; then
+    report watching audit-rules ok "Audit rules" "Audit rules are immutable until the next reboot"
+fi
+if [[ "$(systemctl is-active fail2ban.service 2>/dev/null)" == "active" ]]; then
+    report watching fail2ban ok "Failed logins" \
+        "Repeated failed logins get the address blocked (ujust blocked-addresses)"
+else
+    COMMAND="sudo systemctl start fail2ban.service"
+    report watching fail2ban check "Failed logins" "fail2ban is not running" "Start it with:"
+fi
+ZONE="$(firewall-cmd --get-default-zone 2>/dev/null || echo unknown)"
+if [[ "${ZONE}" == "amethystora" ]]; then
+    report watching firewall ok "Firewall" \
+        "Firewall is on the amethystora zone: nothing incoming that a desktop does not need"
+else
+    COMMAND="sudo firewall-cmd --set-default-zone=amethystora"
+    report watching firewall check "Firewall" "Firewall default zone is ${ZONE}, not amethystora" \
+        "Put it back with:"
+fi
+
+# Network protection is a setting, so when it is on, Suricata is expected to be running, to have the
+# kernel's queue to read from, and to have rules to read it with. Whether the table is there and how old
+# the rules are only root can see, so the watcher writes them into status.json at each of its runs.
+if [[ "${NETWORK}" != off ]]; then
+    RULES_TIME="$(jq -r '.network.rules // empty' "${WATCH_STATUS}" 2>/dev/null)"
+    TABLE="$(jq -r '.network.table // empty' "${WATCH_STATUS}" 2>/dev/null)"
+    BLOCKED="$(jq -r '.network.blocked // 0' "${WATCH_STATUS}" 2>/dev/null)"
+    [[ "${NETWORK}" == block ]] &&
+        NETWORK_TEXT="Suricata blocks connections to known malware, command servers and exploits" ||
+        NETWORK_TEXT="Suricata inspects every connection and says what it recognises, without blocking"
+    if ! systemctl is-active --quiet amethystora-ips.service 2>/dev/null; then
+        COMMAND="sudo systemctl restart amethystora-ips.service"
+        report watching network check "Network protection" "Network protection is on, but not running" \
+            "Connections pass without being inspected until it runs again. Start it with:"
+    elif [[ "${TABLE}" == false ]]; then
+        COMMAND="sudo systemctl restart amethystora-ips.service"
+        report watching network check "Network protection" "Network protection is running, but no traffic reaches it" \
+            "Its nftables table (inet amethystora-ips) is gone, so connections pass without being inspected. Put it back with:"
+    elif [[ ! "${RULES_TIME}" =~ ^[0-9]+$ ]]; then
+        COMMAND="sudo systemctl start amethystora-ips-rules.service"
+        report watching network check "Network protection" "Network protection has no rules yet" \
+            "Nothing is recognised until the rules have downloaded once. Download them now with:"
+    elif [[ "$(days_since "${RULES_TIME}")" -gt 7 ]]; then
+        COMMAND="sudo systemctl start amethystora-ips-rules.service"
+        report watching network check "Network protection" \
+            "The network protection rules are $(days_since "${RULES_TIME}") days old" \
+            "They download every day, and newer attacks are not recognised until they do. Check this machine's network, or try now with:"
+    elif [[ "${BLOCKED}" =~ ^[1-9][0-9]*$ ]]; then
+        COMMAND="ujust blocked-connections"
+        report watching network ok "Network protection" "${NETWORK_TEXT}" \
+            "It blocked $(plural "${BLOCKED}" connection connections) in the last 7 days. See them with:"
+    else
+        report watching network ok "Network protection" "${NETWORK_TEXT}"
+    fi
+fi
+
+# The security watcher (/usr/libexec/amethystora-security-watch). What it noticed and nobody has looked
+# at yet is in a root-only file, whose size shows through /var/log, as the virus scan's findings do.
+if [[ -s /var/log/amethystora-security-events.new ]]; then
+    COMMAND="ujust security-events"
+    report watching security-watcher off "Security watcher" "The security watcher noticed something" \
+        "A change to accounts, to what starts by itself or to a security setting, or a program reading the keyboard directly. See it with:"
+elif [[ "$(systemctl is-enabled amethystora-security-watch.timer 2>/dev/null)" != "enabled" ]]; then
+    COMMAND="sudo systemctl enable --now amethystora-security-watch.timer"
+    report watching security-watcher check "Security watcher" "The security watcher is off" \
+        "Turn it back on with:"
+elif [[ "$(systemctl show -p Result --value amethystora-security-watch.service 2>/dev/null)" =~ ^(exit-code|signal|core-dump|timeout)$ ]]; then
+    COMMAND="journalctl -u amethystora-security-watch.service -n 40"
+    report watching security-watcher check "Security watcher" "The security watcher's last run failed" \
+        "See why with:"
+else
+    [[ "${REALTIME}" == on ]] && WHEN="as they happen" || WHEN="every 15 minutes"
+    report watching security-watcher ok "Security watcher" \
+        "The security watcher reads the audit log and checks the settings ${WHEN}"
+fi
+
+# Real-time watching is a setting, so when it is on, what does it is expected to be running
+if [[ "${REALTIME}" == on ]]; then
+    STOPPED=()
+    for unit in amethystora-security-realtime amethystora-clamav-onaccess; do
+        systemctl is-active --quiet "${unit}.service" 2>/dev/null || STOPPED+=("${unit}.service")
+    done
+    # Not "realtime": that is the setting's tile below, and the app finds a check's command by its id
+    if [[ ${#STOPPED[@]} -eq 0 ]]; then
+        report watching realtime-running ok "Real-time watching" \
+            "Real-time watching is on: changes are read as they happen, and files scanned as they are written"
+    else
+        COMMAND="sudo systemctl restart ${STOPPED[*]}"
+        report watching realtime-running check "Real-time watching" "Real-time watching is on, but not running" \
+            "Not running: ${STOPPED[*]}. Real-time scanning waits for the first virus signatures." \
+            "Start it with:"
+    fi
+fi
+
+# Ransomware protection is a timer, so when it is on, the latest snapshot is expected to be at most an
+# hour or two old. Each is named for when it was taken, and /var/home/.snapshots is readable by anyone.
+SNAPSHOT_TIMER=false
+systemctl is-enabled --quiet amethystora-home-snapshot.timer 2>/dev/null && SNAPSHOT_TIMER=true
+if [[ "${SNAPSHOT_TIMER}" == true ]]; then
+    LATEST=""
+    for dir in /var/home/.snapshots/*; do
+        [[ "${dir##*/}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}$ ]] && LATEST="${dir##*/}"
+    done
+    TAKEN=""
+    [[ -n "${LATEST}" ]] && TAKEN="$(date -d "${LATEST:0:10} ${LATEST:11:2}:${LATEST:13:2}" +%s 2>/dev/null)"
+    # Not "ransomware-protection": that is the tile below, and the app finds a check's command by its id
+    if [[ ! "${TAKEN}" =~ ^[0-9]+$ ]]; then
+        COMMAND="journalctl -u amethystora-home-snapshot.service -n 40"
+        report watching home-snapshots check "Ransomware protection" \
+            "Ransomware protection is on, but no snapshot has been taken" "See why with:"
+    elif [[ $((NOW - TAKEN)) -gt 10800 ]]; then
+        COMMAND="journalctl -u amethystora-home-snapshot.service -n 40"
+        report watching home-snapshots check "Ransomware protection" \
+            "The latest snapshot of the home folders is $(((NOW - TAKEN) / 3600)) hours old" \
+            "They are taken every hour. See why the last ones were not with:"
+    else
+        report watching home-snapshots ok "Ransomware protection" \
+            "The home folders are snapshotted every hour. The latest is from $(date -d "@${TAKEN}" '+%H:%M')"
+    fi
+fi
+
+# The image's security settings as this machine actually has them. The kernel settings and arguments and
+# the blocked modules are read live: a file in /etc/sysctl.d or /etc/modprobe.d undoes them without
+# touching /usr. What only root can compare, /etc against the image's own copy in /usr/etc, comes from
+# the watcher.
+DIFFERS=()
+ADDED=()
+while IFS='=' read -r key value; do
+    key="${key//[[:space:]]/}"
+    value="${value//[[:space:]]/}"
+    [[ -n "${key}" && "${key}" != \#* ]] || continue
+    live="$(cat "/proc/sys/${key//.//}" 2>/dev/null)" || continue
+    [[ "${live//[[:space:]]/}" == "${value}" ]] || DIFFERS+=("The kernel setting ${key} is ${live}, not ${value}")
+done </usr/lib/sysctl.d/60-amethystora-hardening.conf
+CMDLINE=" $(cat /proc/cmdline 2>/dev/null) "
+for karg in $(sed -n 's/^kargs *= *\[\(.*\)\]/\1/p' /usr/lib/bootc/kargs.d/10-amethystora-hardening.toml | tr -d '",'); do
+    [[ "${CMDLINE}" == *" ${karg} "* ]] || DIFFERS+=("The kernel argument ${karg} is missing")
+done
+SHOWCONFIG="$(modprobe --showconfig 2>/dev/null)"
+if [[ -n "${SHOWCONFIG}" ]]; then
+    while read -r _ module _; do
+        grep -qxF "install ${module//-/_} /usr/bin/false" <<<"${SHOWCONFIG}" ||
+            DIFFERS+=("The kernel module ${module} is no longer blocked")
+    done < <(grep '^install ' /usr/lib/modprobe.d/60-amethystora-hardening.conf)
+fi
+while IFS=$'\t' read -r change path detail; do
+    case "${change}" in
+        changed) DIFFERS+=("${path} is changed on this machine") ;;
+        removed) DIFFERS+=("${path}, which the image ships, is gone") ;;
+        replaces) DIFFERS+=("${path} replaces the image's ${detail}") ;;
+        overrides) DIFFERS+=("${path} changes how ${detail} runs") ;;
+        masks) DIFFERS+=("${path} stops ${detail} from ever starting") ;;
+        added) ADDED+=("${path}") ;;
+    esac
+done < <(jq -r '.drift // [] | .[] | [.change, .path, .detail] | @tsv' "${WATCH_STATUS}" 2>/dev/null)
+if [[ ${#DIFFERS[@]} -gt 0 ]]; then
+    report watching image-settings check "Image settings" \
+        "$(plural "${#DIFFERS[@]}" "security setting differs" "security settings differ") from the image" \
+        "${DIFFERS[@]}" \
+        "If you did not change these, find out what did. The image's own copy of anything in /etc is in /usr/etc, to compare or copy back."
+elif [[ ${#ADDED[@]} -gt 0 ]]; then
+    report watching image-settings ok "Image settings" "The image's security settings are as it ships them" \
+        "Added on this machine: ${ADDED[*]}"
+else
+    report watching image-settings ok "Image settings" "The image's security settings are as it ships them"
+fi
+
+# What a rootkit leaves behind, reduced to what cannot happen on an image-based system by accident:
+# every setuid program and kernel module the image has is under /usr, and nothing there changes.
+SIGNS=()
+[[ -e /etc/ld.so.preload ]] &&
+    SIGNS+=("/etc/ld.so.preload exists: it loads a library into every program that starts")
+while IFS= read -r file; do
+    [[ -n "${file}" ]] && SIGNS+=("A setuid program outside the image: ${file}")
+done < <(jq -r '.setuid // [] | .[]' "${WATCH_STATUS}" 2>/dev/null)
+while IFS= read -r file; do
+    SIGNS+=("A plain file in /dev, where only devices belong: ${file}")
+done < <(find /dev -xdev -type f 2>/dev/null)
+MODULES_DIR="/usr/lib/modules/$(uname -r)"
+if [[ -r "${MODULES_DIR}/modules.dep" && -r /proc/modules ]]; then
+    # "extra" for the modules built with the image (akmods, evdi), "tree" for the kernel's own
+    declare -A IMAGE_MODULES=()
+    while read -r kind name; do
+        IMAGE_MODULES["${name}"]="${kind}"
+    done < <(awk -F: '{
+        kind = ($1 ~ /^(extra|updates)\//) ? "extra" : "tree"
+        name = $1; sub(/.*\//, "", name); sub(/\.ko(\.[a-z0-9]+)?$/, "", name); gsub(/-/, "_", name)
+        print kind, name
+    }' "${MODULES_DIR}/modules.dep")
+    while read -r name _; do
+        if [[ -z "${IMAGE_MODULES[${name}]+set}" ]]; then
+            SIGNS+=("The kernel module ${name} did not come with this image")
+        elif [[ "$(cat "/sys/module/${name}/taint" 2>/dev/null)" == *E* && "${IMAGE_MODULES[${name}]}" != extra ]]; then
+            SIGNS+=("The kernel module ${name} is not signed")
+        fi
+    done </proc/modules
+fi
+for interface in /sys/class/net/*; do
+    name="${interface##*/}"
+    # Bridges' ports see every packet by design: that is how containers and virtual machines connect
+    [[ "${name}" =~ ^(lo|veth|virbr|vnet|docker|br-|podman|cni|tap) ]] && continue
+    flags="$(cat "${interface}/flags" 2>/dev/null)" || continue
+    [[ "${flags}" =~ ^0x[0-9a-fA-F]+$ ]] && ((flags & 0x100)) &&
+        SIGNS+=("The network interface ${name} reads every packet on its network (promiscuous mode)")
+done
+if [[ ${#SIGNS[@]} -gt 0 ]]; then
+    report watching rootkit off "Rootkit checks" \
+        "$(plural "${#SIGNS[@]}" "thing" "things") where nothing should be" "${SIGNS[@]}" \
+        "Each is either something you set up yourself, or something to look into now."
+else
+    report watching rootkit ok "Rootkit checks" \
+        "Nothing where it should not be: no preloaded library, no setuid programs outside the image, no unknown kernel modules"
+fi
+
+# What accepts connections from other machines, with the program's name, which only root can see. The
+# firewall lets in only what a desktop needs from the local network, but the tailnet is trusted.
+if [[ -r "${WATCH_STATUS}" ]]; then
+    mapfile -t LISTENING < <(jq -r '.listeners // [] | .[] | "\(.program), on port \(.port)"' "${WATCH_STATUS}" 2>/dev/null)
+    if [[ ${#LISTENING[@]} -gt 0 ]]; then
+        report watching listeners info "Open to the network" \
+            "$(plural "${#LISTENING[@]}" "program accepts" "programs accept") connections from other machines" \
+            "${LISTENING[@]}" \
+            "The firewall lets in only what a desktop needs from the local network, but every device on your tailnet can reach these."
+    else
+        report watching listeners ok "Open to the network" "No program accepts connections from other machines"
+    fi
+fi
+
+# --- Scans --------------------------------------------------------------------------------------------
+
+# /var/log is traversable, so the size of the root-owned 0600 findings file is visible here even
+# though its contents are not, and this never asks for a password
+case "${ON_DETECTION}" in
+    quarantine) DETECTED="Files it finds are moved to quarantine." ;;
+    delete) DETECTED="Files it finds are deleted." ;;
+    *) DETECTED="Files it finds are left where they are." ;;
+esac
+if [[ -s /var/log/amethystora-clamav-findings.log ]]; then
+    COMMAND="ujust virus-scan"
+    report scans virus-scan off "Weekly virus scan" "The last virus scan found something" \
+        "${DETECTED} See what it found with:"
+else
+    report scans virus-scan ok "Weekly virus scan" \
+        "Weekly virus scan, Sundays. Last run: $(last_run amethystora-clamav-scan || echo "not yet")"
+fi
+# A scan that stopped running looks exactly like a machine with nothing to find, unless it is asked
+if [[ "$(systemctl is-enabled amethystora-clamav-scan.timer 2>/dev/null)" != "enabled" ]]; then
+    COMMAND="sudo systemctl enable --now amethystora-clamav-scan.timer"
+    report scans virus-scan-schedule check "Weekly virus scan" "The weekly virus scan is off" \
+        "Turn it back on with:"
+else
+    RAN="$(last_run_time amethystora-clamav-scan)"
+    if [[ -n "${RAN}" && "$(days_since "${RAN}")" -gt 8 ]]; then
+        COMMAND="ujust virus-scan now"
+        report scans virus-scan-schedule check "Weekly virus scan" \
+            "The weekly virus scan last ran $(days_since "${RAN}") days ago" \
+            "It runs on Sundays, or at the next start after a Sunday the machine was off. Run it now with:"
+    fi
+fi
+AGE="$(/usr/libexec/amethystora-clamav-signature-age)" && SIG=0 || SIG=$?
+case "${SIG}" in
+    0) report scans signatures ok "Virus signatures" "Virus signatures updated $(days_ago "${AGE}")" ;;
+    2) report scans signatures check "Virus signatures" "Virus signatures are ${AGE} days old" \
+           "A clean scan proves little with signatures this old. Check this machine's network." ;;
+    *) report scans signatures check "Virus signatures" "No virus signatures yet" \
+           "clamav-freshclam.service has not finished its first download." ;;
+esac
+RAN="$(last_run_time amethystora-lynis-audit)"
+if [[ "$(systemctl is-enabled amethystora-lynis-audit.timer 2>/dev/null)" != "enabled" ]]; then
+    COMMAND="sudo systemctl enable --now amethystora-lynis-audit.timer"
+    report scans settings-audit check "Settings audit" "The monthly settings audit is off" \
+        "Turn it back on with:"
+elif [[ -n "${RAN}" && "$(days_since "${RAN}")" -gt 35 ]]; then
+    COMMAND="ujust security-audit"
+    report scans settings-audit check "Settings audit" \
+        "The settings audit last ran $(days_since "${RAN}") days ago" "Run it now with:"
+else
+    COMMAND="ujust security-audit"
+    report scans settings-audit ok "Settings audit" \
+        "Monthly settings audit. Last run: $(last_run amethystora-lynis-audit || echo "not yet")" \
+        "Run it now with:"
+fi
+
+# --- Off unless you turned it on ----------------------------------------------------------------------
+
+# setup-security-key keeps one line per account in this file: the name, then each key
+if awk -F: -v user="${USER:-$(id -un)}" '$1 == user && NF > 1 { found = 1 } END { exit !found }' \
+    "${HOME:-/nonexistent}/.config/Yubico/u2f_keys" 2>/dev/null; then
+    KEY=on
+else
+    KEY=off
+fi
+COMMAND="ujust setup-security-key"
+report optional security-key "${KEY}" "Security key" \
+    "Sign in, unlock the screen and approve sudo with a FIDO2 key instead of your password"
+
+if systemctl --user is-enabled --quiet amethystora-backup.timer 2>/dev/null; then BACKUP=on; else BACKUP=off; fi
+COMMAND="ujust setup-backup"
+report optional backups "${BACKUP}" "Backups" \
+    "A daily restic backup to a repository that ransomware on this machine cannot delete from"
+
+# Snapshots need the home folders on a btrfs subvolume of their own, whose root is always inode 256
+COMMAND="ujust setup-ransomware-protection"
+RANSOMWARE_TEXT="Hourly read-only snapshots of the home folders, which ransomware running as you cannot change or delete"
+if [[ "${SNAPSHOT_TIMER}" == true ]]; then
+    report optional ransomware-protection on "Ransomware protection" "${RANSOMWARE_TEXT}"
+elif [[ "$(stat -f -c %T /var/home 2>/dev/null)" != btrfs || "$(stat -c %i /var/home 2>/dev/null)" != 256 ]]; then
+    report optional ransomware-protection unavailable "Ransomware protection" "${RANSOMWARE_TEXT}" \
+        "Needs the home folders on a btrfs subvolume"
+else
+    report optional ransomware-protection off "Ransomware protection" "${RANSOMWARE_TEXT}"
+fi
+
+# Whether the TPM holds a key takes root to read off the disk. The kernel argument setup-disk-unlock
+# adds with it does not, and without that argument the key is never used anyway.
+COMMAND="ujust setup-disk-unlock"
+DISK_UNLOCK_TEXT="The TPM hands over the disk key at boot, so you stop typing the passphrase"
+if grep -q "tpm2-device=auto" /proc/cmdline 2>/dev/null; then
+    report optional disk-unlock on "Unlock the disk with the TPM" "${DISK_UNLOCK_TEXT}"
+elif ! lsblk -rno FSTYPE 2>/dev/null | grep -qx crypto_LUKS; then
+    report optional disk-unlock unavailable "Unlock the disk with the TPM" "${DISK_UNLOCK_TEXT}" \
+        "This machine has no encrypted disk"
+elif [[ ! -e /dev/tpmrm0 ]]; then
+    report optional disk-unlock unavailable "Unlock the disk with the TPM" "${DISK_UNLOCK_TEXT}" \
+        "This machine has no usable TPM"
+elif ! grep -qi "enabled" <<<"${SB}"; then
+    # Binding to Secure Boot is the whole of what it protects
+    report optional disk-unlock unavailable "Unlock the disk with the TPM" "${DISK_UNLOCK_TEXT}" \
+        "Needs Secure Boot on"
+else
+    report optional disk-unlock off "Unlock the disk with the TPM" "${DISK_UNLOCK_TEXT}"
+fi
+
+if systemctl is-enabled --quiet usbguard.service 2>/dev/null; then USB=on; else USB=off; fi
+COMMAND="ujust setup-usb-protection"
+report optional usb-protection "${USB}" "USB protection" \
+    "Allows what is plugged in now, and blocks any new USB device until you allow it"
+
+if systemctl is-enabled --quiet input-remapper.service 2>/dev/null; then REMAP=on; else REMAP=off; fi
+COMMAND="ujust setup-input-remapper"
+report optional key-remapping "${REMAP}" "Key remapping" \
+    "Input Remapper reads every key typed, so it stays off until you need it"
+
+# The two settings in /etc/amethystora/security.conf
+case "${ON_DETECTION}" in
+    quarantine) DETECTION=on DETECTION_TEXT="Files a virus scan finds are moved to quarantine, where nothing can open them" ;;
+    delete) DETECTION=on DETECTION_TEXT="Files a virus scan finds are deleted" ;;
+    *) DETECTION=off DETECTION_TEXT="Move what a virus scan finds to quarantine, or delete it, instead of only saying so" ;;
+esac
+COMMAND="ujust security-settings on-detection"
+report optional on-detection "${DETECTION}" "Act on what scans find" "${DETECTION_TEXT}"
+
+COMMAND="ujust security-settings realtime"
+report optional realtime "${REALTIME}" "Real-time watching" \
+    "Read each change as it happens and scan every file as it is written, instead of every 15 minutes and every week"
+
+# ...and network protection, which /usr/libexec/amethystora-ips runs
+case "${NETWORK}" in
+    block) NETWORK_STATE=on NETWORK_TILE="Suricata blocks connections to known malware, command servers and exploits" ;;
+    watch) NETWORK_STATE=on NETWORK_TILE="Suricata inspects every connection and says what it recognises, without blocking yet" ;;
+    *) NETWORK_STATE=off NETWORK_TILE="Inspect every connection with Suricata, and block the ones to known malware, command servers and exploits" ;;
+esac
+COMMAND="ujust security-settings network"
+report optional network-protection "${NETWORK_STATE}" "Network protection" "${NETWORK_TILE}"
+
+if [[ "${JSON}" == true ]]; then
+    printf '%s\n' "${RECORDS[@]}" | jq -s --arg image "${IMAGE}" --arg detection "${ON_DETECTION}" \
+        --arg realtime "${REALTIME}" --arg network "${NETWORK}" \
+        '{$image, settings: {on_detection: $detection, $realtime, $network}, checks: .}'
+else
+    echo
+fi

@@ -1,0 +1,15 @@
+// The Security app (amethystora-security) scans the whole machine by starting the weekly scan's own unit.
+// Let the person sitting at the machine do that without a password. The scan reads every home directory
+// as root: what it finds goes to a root-only log and the journal, never to whoever started it, and what
+// is done with the files is ON_DETECTION in /etc/amethystora/security.conf, which only an administrator
+// can change. Starting it is all this allows. Stopping or changing the unit still takes an
+// administrator, as does starting it from anywhere but the machine.
+polkit.addRule(function (action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        action.lookup("unit") == "amethystora-clamav-scan.service" &&
+        action.lookup("verb") == "start" &&
+        subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

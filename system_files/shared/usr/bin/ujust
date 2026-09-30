@@ -1,0 +1,3 @@
+#!/usr/bin/bash
+
+just --justfile /usr/share/amethystora/just/00-entry.just "${@}"

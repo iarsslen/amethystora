@@ -1,0 +1,9 @@
+{
+  "name": "amethystora-notes",
+  "productName": "Amethystora Notes",
+  "description": "Notes and tasks, kept on this computer only and encrypted with a passphrase",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "main": "main.js",
+  "desktopName": "amethystora-notes.desktop"
+}

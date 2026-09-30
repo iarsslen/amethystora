@@ -1,0 +1,484 @@
+#!/usr/bin/bash
+# The security watcher (amethystora-security-watch.timer: every 15 minutes, and at once while real-time
+# watching is on). What Wazuh's agent does for a server, cut down to what one desktop with a read-only
+# /usr needs, and with nothing sent anywhere:
+#
+#   - The audit log. The rules in /etc/audit/rules.d record writes to what would let something survive a
+#     reboot or reach root, kernel modules loaded from a login, and programs opening input devices.
+#     Each run reads what is new since the last, one checkpoint per key.
+#   - The journal: accounts locked by faillock, wrong sudo and administrator passwords, and USB devices
+#     USBGuard blocked. A few of those are someone typing badly; more is someone guessing.
+#   - Network protection's alerts (amethystora-ips.service): each connection Suricata blocked, and what
+#     it recognised without blocking. Kept for `ujust blocked-connections` and the Security app.
+#   - What only root can see, written to status.json for the report: /etc compared with the image's own
+#     copy of it in /usr/etc, setuid programs outside /usr (once a day), and which programs accept
+#     connections from other machines.
+#   - The report. Its checks live in /usr/libexec/amethystora-security-status and nowhere else. This runs
+#     it and speaks up when a check it watches goes from fine to not, or changes while it is not fine,
+#     the way Wazuh's configuration checks report a result only when it changes.
+#
+# The first run only records where things stand. After it, anything new is written to the history and,
+# unless it is routine, to the unread list `ujust security-events` shows, with one notification a run.
+#
+#   amethystora-security-watch           one run (amethystora-security-watch.service)
+#   amethystora-security-watch --show    what is unread, then the end of the history
+#   amethystora-security-watch --seen    mark everything read
+
+set -uo pipefail
+
+STATE=/var/lib/amethystora/security
+STATUS="${STATE}/status.json"
+UNREAD=/var/log/amethystora-security-events.new
+HISTORY=/var/log/amethystora-security-events.log
+HISTORY_KEPT=5000
+# The setuid sweep reads every file under /etc and /var, home directories included
+SWEEP_EVERY=$((24 * 3600))
+
+[[ "${EUID}" -eq 0 ]] || { echo "${0##*/} needs root." >&2; exit 77; }
+
+case "${1:-}" in
+    --show)
+        if [[ -s "${UNREAD}" ]]; then
+            echo "New since you last looked:"
+            sed 's/^/  /' "${UNREAD}"
+        else
+            echo "Nothing new since you last looked."
+        fi
+        if [[ -s "${HISTORY}" ]]; then
+            echo
+            echo "The last 20 in the history (${HISTORY}):"
+            tail -n 20 "${HISTORY}" | sed 's/^/  /'
+        fi
+        exit 0
+        ;;
+    --seen)
+        [[ -e "${UNREAD}" ]] && : >"${UNREAD}"
+        exit 0
+        ;;
+    "") ;;
+    *)
+        echo "usage: ${0##*/} [--show | --seen]" >&2
+        exit 64
+        ;;
+esac
+
+# Everything written here is root's alone, apart from status.json, which says so where it is written
+umask 077
+mkdir -p -m 0755 "${STATE}"
+NOW="$(date +%s)"
+LAST_RUN="$(cat "${STATE}/last-run" 2>/dev/null || true)"
+[[ "${LAST_RUN}" =~ ^[0-9]+$ ]] || LAST_RUN=""
+
+# What this run found, one "level<TAB>text" each. critical and normal are said out loud; quiet only goes
+# to the history, for what is worth a record and not an interruption.
+FINDINGS=()
+add() { FINDINGS+=("$1"$'\t'"$2"); }
+
+# --- The audit log ------------------------------------------------------------------------------------
+
+AUDIT_KEYS=(identity privilege persistence hardening modules input-capture)
+declare -A AUDIT_WHAT=(
+    [identity]="Accounts changed"
+    [privilege]="Who may become root changed"
+    [persistence]="What starts by itself changed"
+    [hardening]="A security setting changed"
+    [modules]="A kernel module was loaded or removed"
+    [input-capture]="A program read the keyboard or another input device directly"
+)
+# Changing accounts is these programs' job: a new password is not news
+ACCOUNT_TOOLS=" /usr/bin/passwd /usr/sbin/useradd /usr/sbin/usermod /usr/sbin/userdel /usr/sbin/groupadd \
+/usr/sbin/groupmod /usr/sbin/groupdel /usr/bin/gpasswd /usr/sbin/chpasswd /usr/bin/chage \
+/usr/libexec/accounts-daemon /usr/bin/systemd-sysusers "
+# Programs already seen opening input devices: the first time is news, the hundredth is a game
+INPUT_SEEN="${STATE}/input-programs"
+
+# ausearch --format text writes one sentence an event: "At 10:02:03 09/26/2026 alice, acting as root,
+# successfully opened-file /etc/sudoers using /usr/bin/vim". Its dates are in the locale's %x, so every
+# call runs in the C locale and every date passed to it is written in that locale too.
+#
+# Only SYSCALL events, which is what every rule here records. The kernel also notes each rule it loads
+# as a CONFIG_CHANGE carrying that rule's key, and those would read as "add_rule identity using
+# auditctl", once per rule at every boot. The rules cannot change after that: -e 2 locks them.
+audit_events() {
+    local key="$1" checkpoint="${STATE}/audit-$1.checkpoint" output status day time
+    if [[ -s "${checkpoint}" ]]; then
+        output="$(LC_ALL=C ausearch --checkpoint "${checkpoint}" -m SYSCALL -k "${key}" --format text \
+            2>/dev/null)"
+        status=$?
+        # The event the checkpoint names has rotated out of the log: carry on from its time instead
+        if [[ ${status} -ge 10 && ${status} -le 12 ]]; then
+            output="$(LC_ALL=C ausearch --checkpoint "${checkpoint}" --start checkpoint -m SYSCALL -k "${key}" \
+                --format text 2>/dev/null)"
+        fi
+    else
+        # No event under this key yet: everything since the last run, which also makes the checkpoint
+        read -r day time <<<"$(LC_ALL=C date -d "@${LAST_RUN:-${NOW}}" '+%x %T')"
+        output="$(LC_ALL=C ausearch --checkpoint "${checkpoint}" --start "${day}" "${time}" -m SYSCALL \
+            -k "${key}" --format text 2>/dev/null)"
+    fi
+    chmod 0600 "${checkpoint}" 2>/dev/null
+    # One line for each different thing that happened, however many times it did
+    sed -nE 's/^At [^ ]+ [^ ]+ //p' <<<"${output}" | sort | uniq -c
+}
+
+read_audit() {
+    local key count event exe level text
+    for key in "${AUDIT_KEYS[@]}"; do
+        while read -r count event; do
+            [[ -n "${event}" ]] || continue
+            exe=""
+            [[ "${event}" == *" using "* ]] && exe="${event##* using }"
+            case "${key}" in
+                identity) [[ -n "${exe}" && "${ACCOUNT_TOOLS}" == *" ${exe} "* ]] && level=quiet || level=normal ;;
+                privilege | modules) level=critical ;;
+                input-capture)
+                    level=quiet
+                    if [[ -n "${exe}" ]] && ! grep -qxF -- "${exe}" "${INPUT_SEEN}" 2>/dev/null; then
+                        echo "${exe}" >>"${INPUT_SEEN}"
+                        level=normal
+                    fi
+                    ;;
+                *) level=normal ;;
+            esac
+            text="${AUDIT_WHAT[${key}]}: ${event}"
+            [[ "${count}" -gt 1 ]] && text+=" (${count} times)"
+            # The first run has no "since": it only makes the checkpoints
+            [[ -n "${LAST_RUN}" ]] && add "${level}" "${text}"
+        done < <(audit_events "${key}")
+    done
+}
+
+# --- The journal --------------------------------------------------------------------------------------
+
+read_journal() {
+    local cursor="${STATE}/journal.cursor" line user
+    local -A locked=() wrong=()
+    local polkit=0 usb=0
+    if [[ ! -s "${cursor}" ]]; then
+        journalctl -q -n1 --cursor-file="${cursor}" >/dev/null 2>&1
+        chmod 0600 "${cursor}" 2>/dev/null
+        return
+    fi
+    # auth and authpriv (sudo, and pam_faillock in whichever program asked for the password), polkitd,
+    # and the kernel (USB devices refused)
+    while IFS= read -r line; do
+        if [[ "${line}" =~ pam_faillock\(([^:\)]+)[^\)]*\):\ Consecutive\ login\ failures\ for\ user\ ([^ ]+) ]]; then
+            locked["${BASH_REMATCH[2]}"]="${BASH_REMATCH[1]}"
+        elif [[ "${line}" =~ sudo\[[0-9]+\]:\ +([^ ]+)\ :\ ([0-9]+)\ incorrect\ password\ attempt ]]; then
+            user="${BASH_REMATCH[1]}"
+            wrong["${user}"]=$((${wrong[${user}]:-0} + BASH_REMATCH[2]))
+        elif [[ "${line}" == *"FAILED to authenticate to gain authorization"* ]]; then
+            polkit=$((polkit + 1))
+        elif [[ "${line}" == *"Device is not authorized for usage"* ]]; then
+            usb=$((usb + 1))
+        fi
+    done < <(journalctl -q --no-pager -o short-iso --cursor-file="${cursor}" \
+        SYSLOG_FACILITY=4 SYSLOG_FACILITY=10 + SYSLOG_IDENTIFIER=polkitd + _TRANSPORT=kernel 2>/dev/null)
+
+    for user in "${!locked[@]}"; do
+        add critical "The account ${user} was locked after too many wrong passwords in a row (${locked[${user}]}). Unlock it early with: sudo faillock --user ${user} --reset"
+    done
+    for user in "${!wrong[@]}"; do
+        [[ "${wrong[${user}]}" -ge 3 ]] && level=normal || level=quiet
+        add "${level}" "${wrong[${user}]} wrong password(s) for sudo, as ${user}"
+    done
+    [[ "${polkit}" -ge 3 ]] && add normal "${polkit} administrator password prompts were answered wrongly"
+    [[ "${usb}" -gt 0 ]] && add normal "USB protection blocked ${usb} USB device(s). Allow one with: ujust setup-usb-protection allow"
+}
+
+# --- /etc against the image ---------------------------------------------------------------------------
+
+# Where the settings that decide this machine's security live. ostree keeps /etc as the image shipped it
+# in /usr/etc, so what differs is exactly what changed on this machine.
+DRIFT_PATHS=(amethystora audit authselect brave clamd.d containers/policy.json containers/registries.d
+    containers/systemd environment fail2ban firewalld flatpak/overrides ld.so.conf ld.so.conf.d
+    ld.so.preload modprobe.d modules-load.d pam.d pki/akmods/certs pki/ca-trust/source pki/containers
+    polkit-1/rules.d profile profile.d rc.d/rc.local security ssh/sshd_config ssh/sshd_config.d sudoers
+    sudoers.d sysctl.conf sysctl.d tmpfiles.d udev/rules.d usbguard xdg/autostart)
+# ...less what the image's own recipes and services write there as a matter of course
+EXPECTED_DRIFT=" amethystora/security.conf amethystora/ips-allowed audit/audit.rules audit/audit.rules.prev \
+audit/rules.d/61-amethystora-home.rules modprobe.d/tuned.conf security/opasswd usbguard/rules.conf \
+usbguard/usbguard-daemon.conf "
+# A file in /etc takes the place of the one of the same name in /usr/lib entirely
+SHADOWED=(sysctl.d:/usr/lib/sysctl.d modprobe.d:/usr/lib/modprobe.d modules-load.d:/usr/lib/modules-load.d
+    tmpfiles.d:/usr/lib/tmpfiles.d udev/rules.d:/usr/lib/udev/rules.d firewalld/zones:/usr/lib/firewalld/zones
+    polkit-1/rules.d:/usr/share/polkit-1/rules.d systemd/system:/usr/lib/systemd/system)
+# ...and for systemd, only the units the security of the machine rests on
+SECURITY_UNITS='^(auditd|fail2ban|firewalld|clamd@.*|clamav-.*|amethystora-.*|uupd.*|usbguard|rpm-ostreed.*|bootc-.*|polkit|systemd-journald)\.(service|timer|socket)$'
+
+# One "change<TAB>path<TAB>detail" a line: added, changed, removed, replaces, overrides or masks
+drift() {
+    local pair dir lib etc name rel usr unit
+    local -A shadows=()
+    for pair in "${SHADOWED[@]}"; do
+        dir="/etc/${pair%%:*}"
+        lib="${pair#*:}"
+        for etc in "${dir}"/*; do
+            name="${etc##*/}"
+            [[ -e "${lib}/${name}" && ! ( -d "${etc}" && ! -L "${etc}" ) ]] || continue
+            [[ "${pair}" == systemd/system:* && ! "${name}" =~ ${SECURITY_UNITS} ]] && continue
+            # What the image itself ships there is its own choice
+            [[ -e "/usr/etc/${etc#/etc/}" ]] && cmp -s "${etc}" "/usr/etc/${etc#/etc/}" && continue
+            if [[ "$(readlink "${etc}")" == /dev/null ]]; then
+                printf 'masks\t%s\t%s\n' "${etc}" "${name}"
+            else
+                printf 'replaces\t%s\t%s\n' "${etc}" "${lib}/${name}"
+            fi
+            shadows["${etc}"]=1
+        done
+    done
+    # Drop-ins change a unit without replacing it: `systemctl edit auditd` is one
+    for etc in /etc/systemd/system/*.d/*.conf; do
+        [[ -e "${etc}" ]] || continue
+        unit="$(basename "$(dirname "${etc}")")"
+        unit="${unit%.d}"
+        [[ "${unit}" =~ ${SECURITY_UNITS} ]] || continue
+        [[ -e "/usr/etc/${etc#/etc/}" ]] && cmp -s "${etc}" "/usr/etc/${etc#/etc/}" && continue
+        printf 'overrides\t%s\t%s\n' "${etc}" "${unit}"
+    done
+
+    for rel in "${DRIFT_PATHS[@]}"; do
+        find "/etc/${rel}" "/usr/etc/${rel}" \( -type f -o -type l \) 2>/dev/null
+    done | sed 's#^/usr/etc/#/etc/#' | sort -u | while IFS= read -r etc; do
+        rel="${etc#/etc/}"
+        usr="/usr/etc/${rel}"
+        [[ "${EXPECTED_DRIFT}" == *" ${rel} "* || -n "${shadows[${etc}]+set}" ]] && continue
+        if [[ ! -e "${usr}" && ! -L "${usr}" ]]; then
+            printf 'added\t%s\t\n' "${etc}"
+        elif [[ ! -e "${etc}" && ! -L "${etc}" ]]; then
+            printf 'removed\t%s\t\n' "${etc}"
+        elif [[ -L "${etc}" || -L "${usr}" ]]; then
+            [[ "$(readlink "${etc}")" == "$(readlink "${usr}")" ]] || printf 'changed\t%s\t\n' "${etc}"
+        elif ! cmp -s "${etc}" "${usr}"; then
+            printf 'changed\t%s\t\n' "${etc}"
+        fi
+    done
+}
+
+# --- setuid programs outside the image ----------------------------------------------------------------
+
+# /usr is the image's, and every setuid program the image has is there. One anywhere else was put there
+# on this machine. Container storage is left out: it holds other distributions' sudo and su, which only
+# ever run inside their containers.
+sweep_setuid() {
+    find /etc /var -xdev \
+        \( -path /var/lib/containers -o -path /var/lib/docker -o -path /var/lib/flatpak \
+        -o -path '/var/home/*/.local/share/containers' -o -path '/var/home/*/.local/share/flatpak' \
+        -o -path '/var/home/*/.cache' \) -prune -o \
+        -type f \( -perm -4000 -o -perm -2000 \) -print 2>/dev/null | sort
+}
+
+# --- Programs that accept connections -----------------------------------------------------------------
+
+# TCP listeners on anything but the loopback address, one "port<TAB>address<TAB>program" a line. The
+# tailnet is trusted by the firewall, so every one of these can be reached from every device on it.
+# UDP is left out: most of what shows there is programs' own outgoing sockets, on new ports each time.
+listeners() {
+    ss -Htlnp 2>/dev/null | awk '
+        {
+            port = $4; sub(/.*:/, "", port)
+            address = $4; sub(/:[^:]*$/, "", address)
+            if (address ~ /^(127\.|\[::1\]|\[::ffff:127\.)/ || address ~ /%lo$/) next
+            program = "?"
+            if (match($0, /users:\(\("[^"]+"/)) program = substr($0, RSTART + 9, RLENGTH - 10)
+            print port "\t" address "\t" program
+        }' | sort -u -t$'\t' -k1,1n -k3,3
+}
+
+# A program listening on a port for the first time is news. Ports from the ephemeral range are chosen
+# anew at every start, so for those the program is what is remembered, not the number.
+read_listeners() {
+    local seen="${STATE}/listeners-seen" low high port address program key
+    read -r low high </proc/sys/net/ipv4/ip_local_port_range 2>/dev/null || { low=32768; high=60999; }
+    while IFS=$'\t' read -r port address program; do
+        [[ "${port}" =~ ^[0-9]+$ ]] || continue
+        key="${program} ${port}"
+        [[ "${port}" -ge "${low}" && "${port}" -le "${high}" ]] && key="${program} ephemeral"
+        grep -qxF -- "${key}" "${seen}" 2>/dev/null && continue
+        echo "${key}" >>"${seen}"
+        [[ -n "${LAST_RUN}" ]] &&
+            add normal "${program} accepts connections on port ${port} (${address}), which every device on your tailnet can reach"
+    done <<<"${LISTENERS}"
+}
+
+# --- Network protection -------------------------------------------------------------------------------
+
+# Suricata writes its alerts to eve.json and nowhere else (amethystora-ips.service): what it blocked, and
+# what it recognised on a rule that only alerts. Each run reads what is new since the last. The newest
+# are kept in network.json, one entry for each rule and pair of addresses, for `ujust blocked-connections`
+# and the Security app. They name the sites this machine talked to, so wheel can read them, as it can the
+# journal, and nobody else. A log rotated between two runs loses what the first did not read of it,
+# which real-time watching, following eve.json while network protection is on, keeps to seconds.
+EVE=/var/log/suricata/eve.json
+NETWORK_EVENTS="${STATE}/network.json"
+NETWORK_KEPT=200
+# One alert, as network.json keeps it. Suricata writes local times: 2026-09-27T10:02:03.123456+0200.
+ALERT_FILTER='
+def seconds: capture("^(?<t>[0-9-]+T[0-9:]+)(\\.[0-9]+)?(?<s>[+-])(?<h>[0-9]{2}):?(?<m>[0-9]{2})$")
+    | (.t + "Z" | fromdateiso8601) - (if .s == "+" then 1 else -1 end) * ((.h | tonumber) * 3600 + (.m | tonumber) * 60);
+fromjson? | select(.event_type == "alert") | {
+    time: ((.timestamp | try seconds catch null) // now | floor),
+    action: (.alert.action // "allowed"),
+    sid: .alert.signature_id,
+    signature: (.alert.signature // "an unnamed rule"),
+    category: (.alert.category // ""),
+    severity: (.alert.severity // 3),
+    proto: (.proto // ""),
+    src: .src_ip,
+    dest: .dest_ip,
+    port: .dest_port,
+    host: ([(.tls.sni), (.http.hostname), ((.dns.query? // .dns.queries?) | arrays | .[0].rrname?)]
+        | map(select(type == "string" and . != "")) | first)
+}'
+
+read_network() {
+    local position="${STATE}/eve.position" chunk="${STATE}/eve.chunk" inode size last="" offset=0
+    [[ -f "${EVE}" ]] || return 0
+    inode="$(stat -c %i "${EVE}")"
+    size="$(stat -c %s "${EVE}")"
+    { read -r last offset <"${position}"; } 2>/dev/null
+    # A log rotated away, or cut short, is read from its beginning
+    [[ "${last}" == "${inode}" && "${offset}" =~ ^[0-9]+$ && "${offset}" -le "${size}" ]] || offset=0
+    tail -c "+$((offset + 1))" "${EVE}" | head -c "$((size - offset))" >"${chunk}"
+    # Whole lines only: the last one may still be being written, and is read next time
+    if [[ -s "${chunk}" && "$(tail -c 1 "${chunk}" | od -An -tx1 | tr -d ' ')" != 0a ]]; then
+        sed -i '$d' "${chunk}"
+    fi
+    echo "${inode} $((offset + $(stat -c %s "${chunk}")))" >"${position}"
+    jq -cR "${ALERT_FILTER}" "${chunk}" >"${chunk}.alerts" 2>/dev/null
+    rm -f "${chunk}"
+
+    # One line for each rule, however many times and between however many addresses it went off. A
+    # block is said out loud with the way to undo it; an alert that let something through only when
+    # the rule rates it serious.
+    [[ -n "${LAST_RUN}" ]] && while IFS=$'\t' read -r level text; do
+        add "${level}" "${text}"
+    done < <(jq -rs '
+        group_by([.action, .sid]) | .[]
+        | (map(.host // "\(.src) and \(.dest)") | unique) as $peers | .[0] as $a | length as $times
+        | [(if $a.action == "blocked" then (if $a.severity == 1 then "critical" else "normal" end)
+            elif $a.severity == 1 then "normal" else "quiet" end),
+           ((if $a.action == "blocked" then "Network protection blocked " else "Network protection noticed " end)
+            + $a.signature + " (" + $peers[0]
+            + (if ($peers | length) > 1 then " and \(($peers | length) - 1) more" else "" end)
+            + (if $times > 1 then ", \($times) times" else "" end) + ")"
+            + (if $a.action == "blocked"
+               then ". If that was yours and wanted, allow it again with: ujust blocked-connections allow \($a.sid)"
+               else ", and let it through" end))]
+        | @tsv' "${chunk}.alerts")
+
+    if jq -s --slurpfile kept <(cat "${NETWORK_EVENTS}" 2>/dev/null || echo '[]') --argjson most "${NETWORK_KEPT}" '
+        (($kept[0] // []) + map(. + {count: 1, first: .time}))
+        | group_by([.action, .sid, .src, .dest, .port])
+        | map(reduce .[1:][] as $e (.[0];
+            .count += $e.count | .first = ([.first, $e.first] | min) | .time = ([.time, $e.time] | max)
+            | .host //= $e.host))
+        | sort_by(-.time) | .[:$most]' "${chunk}.alerts" >"${NETWORK_EVENTS}.new"; then
+        chgrp wheel "${NETWORK_EVENTS}.new" && chmod 0640 "${NETWORK_EVENTS}.new" &&
+            mv "${NETWORK_EVENTS}.new" "${NETWORK_EVENTS}"
+    fi
+    rm -f "${chunk}.alerts" "${NETWORK_EVENTS}.new"
+}
+
+# What the report says about network protection and cannot see for itself: whether the table that sends
+# Suricata the traffic is there, when the rules were last built, and how much it blocked in a week
+network_status() {
+    local blocked=0 rules table=false
+    [[ -s "${NETWORK_EVENTS}" ]] && blocked="$(jq --argjson since "$((NOW - 7 * 86400))" \
+        '[.[] | select(.action == "blocked" and .time >= $since) | .count] | add // 0' "${NETWORK_EVENTS}" 2>/dev/null)"
+    rules="$(stat -c %Y /var/lib/suricata/rules/suricata.rules 2>/dev/null)"
+    nft list table inet amethystora-ips >/dev/null 2>&1 && table=true
+    jq -n --argjson blocked "${blocked:-0}" --argjson rules "${rules:-null}" --argjson table "${table}" \
+        '{$blocked, $rules, $table}'
+}
+
+# --- The report ---------------------------------------------------------------------------------------
+
+# The checks this speaks up about: the ones that say something was turned off or tampered with. Those
+# that only age (signatures, the image), and those that already raise their own alarm, are left out.
+WATCHED_CHECKS='["signed-updates","lockdown","automatic-updates","audit-log","audit-rules","fail2ban",
+"firewall","network","image-settings","rootkit","virus-scan-schedule","settings-audit"]'
+
+read_report() {
+    local now before
+    now="$(/usr/libexec/amethystora-security-status --json 2>/dev/null |
+        jq -c '[.checks[] | select(.group != "optional") | {id, state, text, details}]' 2>/dev/null)" || return
+    [[ -n "${now}" ]] || return
+    before="$(cat "${STATE}/report.json" 2>/dev/null)"
+    printf '%s\n' "${now}" >"${STATE}/report.json"
+    [[ -n "${before}" ]] || return
+    while IFS=$'\t' read -r state text details; do
+        [[ "${state}" == off ]] && level=critical || level=normal
+        add "${level}" "${text}${details:+. ${details}}"
+    # A list that grows (another setuid program, another changed file) is news while the check is
+    # already failing. A count of days going up is not, so the others count only when their state does.
+    done < <(jq -r --argjson before "${before}" --argjson watched "${WATCHED_CHECKS}" '
+        (reduce $before[] as $check ({}; .[$check.id] = $check)) as $was
+        | .[]
+        | select(.id | IN($watched[]))
+        | select(.state == "check" or .state == "off")
+        | select($was[.id] == null or $was[.id].state != .state
+            or ((.id | IN("image-settings", "rootkit")) and $was[.id].details != .details))
+        | [.state, .text, (.details | join(" "))] | @tsv' <<<"${now}")
+}
+
+# --- A run --------------------------------------------------------------------------------------------
+
+read_audit
+read_journal
+read_network
+
+SWEPT="$(cat "${STATE}/swept" 2>/dev/null || true)"
+if [[ ! "${SWEPT}" =~ ^[0-9]+$ || $((NOW - SWEPT)) -ge ${SWEEP_EVERY} ]]; then
+    sweep_setuid >"${STATE}/setuid.list"
+    SWEPT="${NOW}"
+    echo "${SWEPT}" >"${STATE}/swept"
+fi
+LISTENERS="$(listeners)"
+read_listeners
+
+# What the report reads, world-readable: it names files and ports, not what is in them, and of network
+# protection only how much it blocked
+if [[ -d /usr/etc ]]; then
+    DRIFT="$(drift | jq -R 'split("\t") | {change: .[0], path: .[1], detail: .[2]}' | jq -s .)"
+else
+    DRIFT=null
+fi
+jq -n --argjson checked "${NOW}" --argjson swept "${SWEPT}" --argjson drift "${DRIFT:-null}" \
+    --argjson setuid "$(jq -R . "${STATE}/setuid.list" | jq -s .)" \
+    --argjson listeners "$(jq -R 'split("\t") | select(length == 3) |
+        {port: (.[0] | tonumber), address: .[1], program: .[2]}' <<<"${LISTENERS}" | jq -s .)" \
+    --argjson network "$(network_status)" \
+    '{$checked, $swept, $drift, $setuid, $listeners, $network}' >"${STATUS}.new" &&
+    chmod 0644 "${STATUS}.new" && mv "${STATUS}.new" "${STATUS}"
+
+read_report
+echo "${NOW}" >"${STATE}/last-run"
+
+[[ ${#FINDINGS[@]} -gt 0 ]] || exit 0
+
+STAMP="$(date '+%F %T')"
+TOLD=()
+URGENCY=normal
+for finding in "${FINDINGS[@]}"; do
+    level="${finding%%$'\t'*}"
+    text="${finding#*$'\t'}"
+    echo "${STAMP}  ${text}" >>"${HISTORY}"
+    [[ "${level}" == quiet ]] && continue
+    echo "${STAMP}  ${text}" >>"${UNREAD}"
+    TOLD+=("${text}")
+    [[ "${level}" == critical ]] && URGENCY=critical
+done
+chmod 0600 "${HISTORY}" "${UNREAD}" 2>/dev/null
+tail -n "${HISTORY_KEPT}" "${HISTORY}" >"${HISTORY}.new" && mv "${HISTORY}.new" "${HISTORY}"
+printf '%s\n' "${FINDINGS[@]}"
+
+[[ ${#TOLD[@]} -gt 0 ]] || exit 0
+if [[ ${#TOLD[@]} -eq 1 ]]; then
+    SUMMARY="${TOLD[0]}"
+    BODY="See it with: ujust security-events"
+else
+    SUMMARY="${#TOLD[@]} security changes on this machine"
+    BODY="$(printf '%s\n' "${TOLD[@]:0:2}")"$'\n'"See them all with: ujust security-events"
+fi
+/usr/libexec/amethystora-notify-users "${SUMMARY}" "${BODY}" "${URGENCY}" >/dev/null

@@ -1,0 +1,50 @@
+#!/usr/bin/bash
+# The monthly Lynis audit (amethystora-lynis-audit.timer), and the comparison that makes it worth
+# running unattended.
+#
+# An audit that writes a report nobody opens tells nobody anything. What matters on a machine whose
+# settings ship with the image is not the list of findings, which the image's author already weighed,
+# but a finding that was not there last month: something on this machine has changed since.
+#
+# The first run therefore only records the baseline. Afterwards, anything new is said out loud.
+
+set -uo pipefail
+
+REPORT=/var/log/lynis-report.dat
+BASELINE=/var/log/amethystora-lynis-baseline.dat
+
+# --cronjob is Lynis's unattended mode: no colours, no prompts, no pager. Findings land in
+# /var/log/lynis.log and, one per line, in the report file above.
+lynis audit system --cronjob
+STATUS=$?
+
+if [[ ! -s "${REPORT}" ]]; then
+    echo "Lynis wrote no report (exit ${STATUS}), nothing to compare."
+    exit "${STATUS}"
+fi
+
+# Lynis appends to the report within a run, so the same warning can appear more than once
+warnings() { grep -a '^warning\[\]=' "${1}" 2>/dev/null | sort -u; }
+
+if [[ ! -f "${BASELINE}" ]]; then
+    echo "First audit on this machine: recording $(warnings "${REPORT}" | grep -c .) warnings as the"
+    echo "baseline. From the next run on, only what is new is reported."
+else
+    NEW="$(comm -13 <(warnings "${BASELINE}") <(warnings "${REPORT}"))"
+    COUNT="$(grep -c . <<<"${NEW}")"
+    if [[ "${COUNT}" -gt 0 ]]; then
+        echo "${COUNT} warning(s) that were not there at the last audit:"
+        printf '%s\n' "${NEW}"
+        /usr/libexec/amethystora-notify-users \
+            "Security audit: ${COUNT} new warning(s)" \
+            "Something on this machine has changed since the last audit. See it with: ujust security-audit" \
+            normal
+    else
+        echo "Nothing new since the last audit."
+    fi
+fi
+
+cp -f "${REPORT}" "${BASELINE}"
+chmod 0600 "${BASELINE}"
+
+exit "${STATUS}"

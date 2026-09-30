@@ -1,0 +1,21 @@
+[Desktop Entry]
+Type=Application
+Name=Logs
+GenericName=Log Viewer
+Comment=Search and follow what the system, the desktop and your apps have logged
+Exec=amethystora-logs
+Icon=amethystora-logs
+Terminal=false
+Categories=System;Monitor;
+Keywords=logs;log;journal;journalctl;syslog;errors;warnings;crash;crashes;coredump;kernel;dmesg;boot;debug;
+StartupNotify=true
+StartupWMClass=amethystora-logs
+Actions=crashes;apps;
+
+[Desktop Action crashes]
+Name=Crashes
+Exec=amethystora-logs crashes
+
+[Desktop Action apps]
+Name=Apps and Services
+Exec=amethystora-logs sources

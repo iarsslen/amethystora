@@ -1,0 +1,18 @@
+[Unit]
+Description=Real-time security watching
+Documentation=man:ausearch(8)
+After=auditd.service
+Wants=auditd.service
+
+[Service]
+# Only with REALTIME=on or network protection on in /etc/amethystora/security.conf. Otherwise the unit is
+# skipped, not failed, and nothing watches anything. `ujust security-settings realtime` and
+# `ujust security-settings network` restart it as either changes.
+ExecCondition=/usr/libexec/amethystora-security-realtime --check
+ExecStart=/usr/libexec/amethystora-security-realtime
+Restart=on-failure
+RestartSec=30
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,21 @@
+[Unit]
+Description=Real-time virus scanning of home directories
+Documentation=man:clamonacc(8)
+# Wants, as the weekly scan has it: clamd waits for its first signatures, and until then this keeps
+# failing and trying again rather than being cancelled
+Wants=clamd@scan.service
+After=clamd@scan.service
+
+[Service]
+# Only with REALTIME=on in /etc/amethystora/security.conf. Otherwise the unit is skipped, not failed, and
+# nothing watches anything. `ujust security-settings realtime` starts or stops it as the setting changes.
+ExecCondition=/usr/libexec/amethystora-security-config --is REALTIME on
+ExecStart=/usr/libexec/amethystora-clamav-onaccess
+Restart=on-failure
+RestartSec=60
+# A scan on every file closed must not be what makes the desktop stutter
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

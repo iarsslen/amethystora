@@ -1,0 +1,11 @@
+[Unit]
+Description=Back up this account with restic
+
+[Timer]
+OnCalendar=daily
+# A laptop that was closed at the scheduled time is backed up when it is opened again
+Persistent=true
+RandomizedDelaySec=2h
+
+[Install]
+WantedBy=timers.target

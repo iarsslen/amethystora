@@ -1,0 +1,22 @@
+## Amethystora: the last word in /etc/audit/rules.d.
+##
+## augenrules concatenates every .rules file in this directory in name order and loads the result, so
+## this file sorts after all the others on purpose: what it does is close the rule set. 08-hardening.sh
+## makes sure nothing the audit package ships sorts after it, and 20-tests.sh fails the build if
+## anything does.
+
+## Never make the desktop wait for the audit subsystem. If the kernel's audit backlog fills up, the
+## default is to block the process that caused the event for up to a minute, which on a machine with a
+## watch on /dev/input means the whole session stops while somebody types. Zero drops the event
+## instead. An audit record lost under load is a smaller price than a machine that appears to hang,
+## and the events this image watches for are rare enough that it should not come up at all.
+--backlog_wait_time 0
+
+## Immutable rules. Anything that reaches root can still turn auditing off, but only by rebooting the
+## machine to do it, and a reboot is itself an event. Without this, `auditctl -D` erases every watch
+## above in one command and leaves nothing behind to say that it happened.
+##
+## The cost, and it is the only one: changing a rule now needs a reboot rather than `augenrules --load`.
+## The rules on this machine ship with the image and are regenerated before auditd starts at every
+## boot, so nothing does that except somebody debugging the rules themselves.
+-e 2
