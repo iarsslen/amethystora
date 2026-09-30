@@ -757,7 +757,7 @@ grep -qE "^dbfile = /var/lib/fail2ban/" /etc/fail2ban/fail2ban.conf
 # .prf in /etc/lynis, so the image's settings only apply while Lynis finds this one
 test -f /etc/lynis/default.prf
 grep -q "^machine-role=workstation$" /etc/lynis/custom.prf
-lynis show profiles | grep -q "/etc/lynis/custom.prf"
+lynis show profiles | grep -F "/etc/lynis/custom.prf" >/dev/null
 
 # Flatpak: X11, the whole of /dev and the Flatpak service are taken away from every application,
 # whatever its own manifest asks for. Flatseal is how they are granted back, one application at a time.

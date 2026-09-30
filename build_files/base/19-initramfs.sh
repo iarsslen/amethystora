@@ -12,7 +12,7 @@ QUALIFIED_KERNEL="$(rpm -qa | grep -P 'kernel-(|'"$KERNEL_SUFFIX"'-)(\d+\.\d+\.\
 # the machine would fall back to the passphrase every time. Added only when dracut has the module, so
 # a dracut that drops or renames it fails the disk unlock rather than the whole build.
 DRACUT_MODULES=(ostree)
-if dracut --list-modules 2>/dev/null | grep -qx tpm2-tss; then
+if dracut --list-modules 2>/dev/null | grep -x tpm2-tss >/dev/null; then
     DRACUT_MODULES+=(tpm2-tss)
 else
     echo "::warning::dracut has no tpm2-tss module, TPM disk unlock will not work"
