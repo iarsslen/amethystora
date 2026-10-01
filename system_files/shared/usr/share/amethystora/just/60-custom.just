@@ -82,7 +82,7 @@ setup-security-key ACTION="":
         "Add a fingerprint key" | add-fingerprint)
             # The key checks the fingerprint itself (FIDO2 user verification), a touch alone is not enough
             flags=(--user-verification)
-            echo "The key needs a PIN and an enrolled fingerprint. Enroll one in Brave at brave://settings/securityKeys,"
+            echo "The key needs a PIN and an enrolled fingerprint. Enroll one in Firefox at about:webauthn,"
             echo "or on a YubiKey Bio with: ykman fido fingerprints add <name>"
             ;;
         "Remove all keys" | remove)

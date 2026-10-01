@@ -131,11 +131,13 @@ usr/share/licenses/game-devices-udev.
 
   - game-devices-udev  https://codeberg.org/fabiscafe/game-devices-udev
 
-Brave, the web browser, is Brave Software's own build, installed as published
-from its package repository. Its source code is licensed under the Mozilla
-Public License, version 2.0:
+Firefox, the web browser, is Fedora's package, included as Fedora builds it:
+Amethystora adds no settings, policies or extensions to it. Firefox is a
+trademark of the Mozilla Foundation, which does not sponsor or endorse
+Amethystora. Its source code is licensed under the Mozilla Public License,
+version 2.0:
 
-  - Brave  https://github.com/brave/brave-browser
+  - Firefox  https://github.com/mozilla-firefox/firefox
 
 Software that is not free software
 

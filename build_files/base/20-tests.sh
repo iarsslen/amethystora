@@ -40,17 +40,20 @@ test -f /usr/share/flatpak/preinstall.d/bazaar.preinstall
 # ...which is also how ClamUI leaves the machines that have it: the Security app scans in its place
 test ! -e /usr/share/flatpak/preinstall.d/clamui.preinstall
 
-# Brave replaces Firefox; it lives under /usr/lib and is linked into /var/opt at boot
-test -x /usr/lib/brave.com/brave/brave
-test -f /usr/lib/tmpfiles.d/brave-browser.conf
-test -f /usr/share/applications/brave-browser.desktop
-grep -q "^x-scheme-handler/https=brave-browser.desktop" /etc/xdg/mimeapps.list
+# Firefox is the browser: Fedora's package, in the image, and so not on the Flatpak list as well
+test -f /usr/share/applications/org.mozilla.firefox.desktop
+grep -q "^x-scheme-handler/https=org.mozilla.firefox.desktop" /etc/xdg/mimeapps.list
 grep -q "org.mozilla.firefox" /usr/share/amethystora/homebrew/system-flatpaks.Brewfile && false
-rpm -q firefox >/dev/null && false
-# Brave is pinned in the dash, where Firefox was
+# Mozilla lets Firefox be redistributed only unaltered, so the image adds no policy to it, and with
+# no policy no extension
+test ! -e /etc/firefox/policies/policies.json
+# Brave, which used to be the browser, is gone with the policy written for it
+rpm -q brave-browser >/dev/null && false
+test ! -e /etc/brave
+# Firefox is pinned in the dash
 FAVORITES="$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell favorite-apps)"
-grep -q "'brave-browser.desktop'" <<<"${FAVORITES}"
-grep -qi "firefox" <<<"${FAVORITES}" && false
+grep -q "'org.mozilla.firefox.desktop'" <<<"${FAVORITES}"
+grep -qi "brave" <<<"${FAVORITES}" && false
 
 # Multimedia (05-override-install.sh): FFmpeg is Fedora's with RPM Fusion's libavcodec-freeworld, and no
 # FFmpeg library in the image is a build FFmpeg itself calls unredistributable. negativo17's LC3plus,
@@ -329,28 +332,34 @@ done
 test -x /usr/bin/amethystora-theme
 test -x /usr/bin/amethystora-menu
 
-# Web apps: a launcher that reopens the site through amethystora-webapp, in Brave by default, with the
-# window class GNOME needs to show it under its own name; anything but http(s) is refused. When the
-# default browser is Firefox-based, the launcher opens the site in a profile of its own instead and
-# takes that window's class, and removing the web app removes the profile
+# Web apps: a launcher that reopens the site through amethystora-webapp, in Firefox by default, with
+# the window class GNOME needs to show it under its own name; anything but http(s) is refused. Firefox
+# has no app window, so the launcher opens the site in a profile of its own and takes that window's
+# class, and removing the web app removes the profile. With a Chromium-based default browser the
+# launcher opens the browser's app window instead and takes that one's class
 test -x /usr/bin/amethystora-webapp
 WEBAPP_HOME="$(mktemp -d)"
+WEBAPP_CLASS=amethystora-webapp-example.com_app
 HOME="${WEBAPP_HOME}" amethystora-webapp install "Test App" example.com/app web-browser
 WEBAPP_DESKTOP="${WEBAPP_HOME}/.local/share/applications/amethystora-webapp-test-app.desktop"
 grep -qx 'Exec=amethystora-webapp "https://example.com/app"' "${WEBAPP_DESKTOP}"
-grep -qx 'StartupWMClass=brave-example.com__app-Default' "${WEBAPP_DESKTOP}"
+grep -qx "StartupWMClass=${WEBAPP_CLASS}" "${WEBAPP_DESKTOP}"
 HOME="${WEBAPP_HOME}" amethystora-webapp install Bad "javascript:alert(1)" web-browser 2>/dev/null && false
 mkdir "${WEBAPP_HOME}/bin"
-printf '#!/usr/bin/bash\necho firefox.desktop\n' >"${WEBAPP_HOME}/bin/xdg-settings"
-chmod +x "${WEBAPP_HOME}/bin/xdg-settings"
-printf '[Desktop Entry]\nExec=echo %%u\n' >"${WEBAPP_HOME}/.local/share/applications/firefox.desktop"
-WEBAPP_CLASS=amethystora-webapp-example.com_app
+# Opens the web app from its launcher with the browser named as the default one, a stand-in that
+# prints what it was started with. GLib names the launcher and the process it started; exec keeps the
+# shell's PID for the script
+webapp_open() {
+    printf '#!/usr/bin/bash\necho %s.desktop\n' "$1" >"${WEBAPP_HOME}/bin/xdg-settings"
+    chmod +x "${WEBAPP_HOME}/bin/xdg-settings"
+    printf '[Desktop Entry]\nExec=echo %%u\n' >"${WEBAPP_HOME}/.local/share/applications/$1.desktop"
+    HOME="${WEBAPP_HOME}" PATH="${WEBAPP_HOME}/bin:${PATH}" GIO_LAUNCHED_DESKTOP_FILE="${WEBAPP_DESKTOP}" \
+        bash -c 'export GIO_LAUNCHED_DESKTOP_FILE_PID=$$; exec amethystora-webapp example.com/app'
+}
+test "$(webapp_open chromium-browser)" = "--app=https://example.com/app"
+grep -qx 'StartupWMClass=chrome-example.com__app-Default' "${WEBAPP_DESKTOP}"
 WEBAPP_PROFILE="${WEBAPP_HOME}/.local/share/amethystora-webapp/${WEBAPP_CLASS}"
-# GLib names the launcher and the process it started; exec keeps the shell's PID for the script
-WEBAPP_COMMAND="$(HOME="${WEBAPP_HOME}" PATH="${WEBAPP_HOME}/bin:${PATH}" \
-    GIO_LAUNCHED_DESKTOP_FILE="${WEBAPP_DESKTOP}" \
-    bash -c 'export GIO_LAUNCHED_DESKTOP_FILE_PID=$$; exec amethystora-webapp example.com/app')"
-test "${WEBAPP_COMMAND}" = \
+test "$(webapp_open firefox)" = \
     "--name ${WEBAPP_CLASS} --class ${WEBAPP_CLASS} --profile ${WEBAPP_PROFILE} https://example.com/app"
 grep -qx "StartupWMClass=${WEBAPP_CLASS}" "${WEBAPP_DESKTOP}"
 grep -q legacyUserProfileCustomizations "${WEBAPP_PROFILE}/user.js"
@@ -791,30 +800,6 @@ grep -q "^devices=!all;!input;$" "${FLATPAK_OVERRIDES}"
 grep -q "^org.freedesktop.Flatpak=none$" "${FLATPAK_OVERRIDES}"
 test -f /usr/share/flatpak/preinstall.d/flatseal.preinstall
 
-# Browser policy. 08-hardening.sh puts it in whichever directory the Brave binary actually reads, so
-# this looks for where it ended up rather than assuming: a policy nothing reads is the failure here.
-BRAVE_POLICY="$(find /etc -path '*/policies/managed/10-amethystora.json' -print -quit)"
-test -s "${BRAVE_POLICY}"
-jq -e '.ExtensionInstallBlocklist == ["*"]' "${BRAVE_POLICY}" >/dev/null
-jq -e '.ExtensionInstallAllowlist | length > 0' "${BRAVE_POLICY}" >/dev/null
-# Osprey ships installed but removable. A "*" entry in ExtensionSettings would replace the blanket
-# blocklist above rather than sit beside it, so there must not be one.
-OSPREY=jmnpibhfpmpfjhhkmpadlbgjnbhpjgnd
-jq -e --arg id "${OSPREY}" '.ExtensionSettings[$id].installation_mode == "normal_installed"' "${BRAVE_POLICY}" >/dev/null
-jq -e --arg id "${OSPREY}" '.ExtensionSettings[$id].update_url | startswith("https://")' "${BRAVE_POLICY}" >/dev/null
-jq -e '.ExtensionSettings | has("*")' "${BRAVE_POLICY}" >/dev/null && false
-jq -e --arg id "${OSPREY}" '.["3rdparty"].extensions[$id].DisableUninstallSurvey == true' "${BRAVE_POLICY}" >/dev/null
-# A web page may not reach a keyboard through WebHID, or the hardware behind WebUSB and WebSerial
-for guard in DefaultWebHidGuardSetting DefaultWebUsbGuardSetting DefaultSerialGuardSetting; do
-    jq -e ".${guard} == 2" "${BRAVE_POLICY}" >/dev/null
-done
-# Brave's title bar comes from GTK, so its window buttons are the theme's lights like everything else's:
-# seeded for new profiles next to the binary, where Chromium reads initial preferences, and set once
-# in existing ones by the user-setup hook. 1 is GTK in extensions.theme.system_theme.
-jq -e '.extensions.theme.system_theme == 1' /usr/lib/brave.com/brave/initial_preferences >/dev/null
-test -x /usr/share/amethystora/user-setup.hooks.d/14-brave-gtk.sh
-grep -q "system_theme = 1" /usr/share/amethystora/user-setup.hooks.d/14-brave-gtk.sh
-
 # Kernel lockdown: on everywhere except the NVIDIA images, whose driver is a machine-owner-key module
 # that a machine with Secure Boot turned off would no longer be able to load
 LOCKDOWN_KARGS=/usr/lib/bootc/kargs.d/11-amethystora-lockdown.toml
@@ -1053,7 +1038,6 @@ test -f /usr/lib/systemd/system/flatpak-add-fedora-repos.service && false
 
 IMPORTANT_PACKAGES=(
     audit
-    brave-browser
     clamav
     clamav-freshclam
     clamd
@@ -1062,6 +1046,7 @@ IMPORTANT_PACKAGES=(
     dotnet-sdk-10.0
     fail2ban-firewalld
     fail2ban-server
+    firefox
     fish
     flatpak
     gdm
@@ -1105,7 +1090,6 @@ grep -q "^install-agent " /usr/share/amethystora/just/60-custom.just
 UNWANTED_PACKAGES=(
     akmod-evdi
     fedora-logos
-    firefox
     gnome-software
     gnome-software-rpm-ostree
     podman-docker

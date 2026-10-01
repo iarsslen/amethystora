@@ -190,7 +190,7 @@ read_journal() {
 
 # Where the settings that decide this machine's security live. ostree keeps /etc as the image shipped it
 # in /usr/etc, so what differs is exactly what changed on this machine.
-DRIFT_PATHS=(amethystora audit authselect brave clamd.d containers/policy.json containers/registries.d
+DRIFT_PATHS=(amethystora audit authselect clamd.d containers/policy.json containers/registries.d
     containers/systemd environment fail2ban firewalld flatpak/overrides ld.so.conf ld.so.conf.d
     ld.so.preload modprobe.d modules-load.d pam.d pki/akmods/certs pki/ca-trust/source pki/containers
     polkit-1/rules.d profile profile.d rc.d/rc.local security ssh/sshd_config ssh/sshd_config.d sudoers

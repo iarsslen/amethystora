@@ -1,8 +1,8 @@
 #!/usr/bin/bash
 #
 # Web apps: a site in a window of its own, without tabs or toolbar, with a launcher in the app grid.
-# They open in the default browser when it is Chromium-based or Firefox-based, and otherwise in a
-# browser on the machine that is, which on an unchanged Amethystora is Brave.
+# They open in the default browser when it is Chromium-based or Firefox-based, which on an unchanged
+# Amethystora is Firefox, and otherwise in a browser on the machine that is.
 #
 #   amethystora-webapp <url> [flags]         open the URL as a web app
 #   amethystora-webapp install [name url [icon]]

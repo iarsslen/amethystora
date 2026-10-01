@@ -18,9 +18,9 @@ is published. Flatpak apps update themselves along with the system, and removing
 behind. From a terminal:
 
 ```bash
-flatpak install flathub org.mozilla.firefox
+flatpak install flathub org.gimp.GIMP
 flatpak list --app
-flatpak uninstall --delete-data org.mozilla.firefox
+flatpak uninstall --delete-data org.gimp.GIMP
 ```
 
 Two more tools are there for Flatpaks:

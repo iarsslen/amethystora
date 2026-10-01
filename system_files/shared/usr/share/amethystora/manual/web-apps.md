@@ -30,14 +30,14 @@ To open a site as a web app just once, without installing it: `amethystora-webap
 
 ## Which browser runs them
 
-Web apps open in your default browser, and follow you when you change it. Only `http` and `https`
-addresses can become web apps.
+Web apps open in your default browser, which is Firefox until you choose another, and follow you
+when you change it. Only `http` and `https` addresses can become web apps.
 
 | Default browser | How a web app opens |
 | --- | --- |
 | Brave, Chrome, Chromium, Edge, Vivaldi or Opera | In the browser's own app window. It shares the browser's sign-ins, passwords and extensions. |
 | Firefox, LibreWolf, Zen, Floorp or Waterfox | In a window without tabs or toolbar, on a profile of its own. Firefox has no app window, so each web app keeps its own sign-ins and does not see the browser's. |
-| Any other | In the first browser of the two rows above that is installed, which is Brave unless you removed it. With none, the site opens as a link does. |
+| Any other | In a browser of the two rows above: a Chromium-based one if you have installed one, and otherwise Firefox. |
 
 A Firefox web app's profile is in `~/.local/share/amethystora-webapp`, or in the browser's folder
 under `~/.var/app` when the browser is a Flatpak. Removing the web app deletes it, sign-ins included.

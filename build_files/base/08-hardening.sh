@@ -92,39 +92,6 @@ grep -q "^max_log_file = 32$" /etc/audit/auditd.conf
 grep -qiE "^(space_left_action|admin_space_left_action|disk_full_action|disk_error_action) = (halt|single|suspend)$" \
     /etc/audit/auditd.conf && false
 
-# Browser policy: Brave applies every .json file in a policy directory compiled into the binary, before
-# any profile exists, and a user cannot turn the settings off. /etc/brave/policies/managed/10-amethystora.json
-# blocks extensions that are not on its allowlist (the way most credential stealers arrive), and shuts
-# the doors from a web page to the hardware behind it: WebUSB, WebSerial, WebHID (which can read a
-# keyboard) and Web Bluetooth. Add your own file next to it to allow an extension; the last file in
-# name order wins for any setting it names.
-#
-# The one extension the image installs itself is Osprey (jmnpibhfpmpfjhhkmpadlbgjnbhpjgnd), which
-# checks each site against a set of threat-intelligence feeds and blocks the phishing and malware
-# domains Safe Browsing has not caught yet. It is `normal_installed`, not `force_installed`: it is
-# there and pinned on the first launch, and someone who would rather not send the sites they visit
-# to api.osprey.ac can disable or remove it like any other extension. `ExtensionSettings` is what
-# makes that possible alongside the blanket blocklist above; Chromium parses its per-ID entries
-# after the legacy allow/blocklists and only overrides the ids it names, so the `*` block still
-# applies to everything else. The `3rdparty` block is the extension's own managed configuration
-# (its policies.json schema); the uninstall survey is off because the image, not the user, chose
-# to install this, so removing it should not open a feedback page.
-#
-# Deliberately not set here: DNS-over-HTTPS. Forcing it past the system resolver breaks Tailscale's
-# MagicDNS names and every captive portal, and Brave already prefers secure DNS on its own.
-BRAVE_POLICY_PATHS="$(grep -aoE '/etc/[a-z0-9/._-]+/policies' /usr/lib/brave.com/brave/brave | sort -u || true)"
-BRAVE_POLICY_DIR="$(grep -m1 brave <<<"${BRAVE_POLICY_PATHS}" || true)"
-if [[ -n "${BRAVE_POLICY_DIR}" && "${BRAVE_POLICY_DIR}" != "/etc/brave/policies" ]]; then
-    # A Brave that reads somewhere else would leave the policy sitting where nothing looks at it
-    echo "::warning::Brave reads policy from ${BRAVE_POLICY_DIR}, moving the Amethystora policy there"
-    mkdir -p "${BRAVE_POLICY_DIR}/managed"
-    mv /etc/brave/policies/managed/10-amethystora.json "${BRAVE_POLICY_DIR}/managed/"
-    rm -rf /etc/brave/policies
-elif [[ -z "${BRAVE_POLICY_DIR}" ]]; then
-    echo "::warning::no policy directory found in the Brave binary, check build_files/base/08-hardening.sh"
-fi
-test -s "${BRAVE_POLICY_DIR:-/etc/brave/policies}/managed/10-amethystora.json"
-
 # Secure Boot certificates, readable by everyone. akmods keeps /etc/pki/akmods/certs at 0750
 # root:akmods because the private keys go beside them, and that leaves a normal user unable to see the
 # public certificates are there at all: every "is this key enrolled" check run without sudo concluded

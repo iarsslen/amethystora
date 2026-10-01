@@ -29,8 +29,8 @@ grid as **Security**, which scans for viruses too ([Security](security.md#scanni
 
 ## 3. Install your apps
 
-Open **Bazaar**, the software centre, and install what you use from Flathub. The browser is Brave;
-if you would rather have Firefox or Chrome, they are in Bazaar too. [Installing
+Open **Bazaar**, the software centre, and install what you use from Flathub. The browser is Firefox;
+if you would rather have Chrome or Brave, they are in Bazaar too. [Installing
 software](software.md) covers command line tools and everything else.
 
 ## 4. Make it yours

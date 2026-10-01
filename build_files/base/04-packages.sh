@@ -41,6 +41,11 @@ FEDORA_PACKAGES=(
     fail2ban-selinux
     fail2ban-server
     fastfetch
+    # The browser, in the image so that a machine has one before it is online. It ships as Fedora
+    # builds it: Mozilla lets Firefox be redistributed only unaltered, so nothing here or in
+    # system_files adds a policy, an extension, a preference or a home page to it
+    firefox
+    firefox-langpacks
     firewall-config
     fish
     foo2zjs
@@ -191,37 +196,6 @@ dnf config-manager addrepo --from-repofile=https://pkgs.tailscale.com/stable/fed
 dnf config-manager setopt tailscale-stable.enabled=0
 dnf -y install --enablerepo='tailscale-stable' tailscale
 
-# Brave is the browser, in place of Firefox.
-# Its RPM installs to /opt, which is /var/opt on a booted system: outside the image, so never updated.
-# Move it under /usr/lib; /usr/lib/tmpfiles.d/brave-browser.conf links it back into /var/opt at boot.
-dnf config-manager addrepo --from-repofile=https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
-dnf config-manager setopt brave-browser.enabled=0
-mkdir -p /var/opt
-dnf -y install --enablerepo='brave-browser' brave-browser
-mv /opt/brave.com /usr/lib/brave.com
-# Its daily cron job re-adds and re-enables the repo, which the image does not use
-rm -f /etc/cron.daily/brave-browser
-
-# Brave draws its own title bar unless its theme is set to GTK, and only a title bar GTK draws wears
-# the theme's window buttons (the three lights of 11-gtk-theme.sh). There is no policy for it, so it
-# goes in the initial preferences Chromium reads from beside the browser binary, which seed every
-# profile created from now on. extensions.theme.system_theme is 1 for GTK, 0 for Brave's own, 2 for
-# Qt. Merged into whatever the package ships rather than written over it; a package that still uses
-# the older master_preferences name would otherwise lose its settings to a new initial_preferences.
-# Profiles that already exist are switched by user-setup.hooks.d/14-brave-gtk.sh.
-BRAVE_DIR=/usr/lib/brave.com/brave
-test -x "${BRAVE_DIR}/brave"
-BRAVE_PREFS='{}'
-for shipped in "${BRAVE_DIR}/initial_preferences" "${BRAVE_DIR}/master_preferences"; do
-    if [[ -f ${shipped} ]]; then
-        BRAVE_PREFS="$(cat "${shipped}")"
-        break
-    fi
-done
-jq '.extensions.theme.system_theme = 1' <<<"${BRAVE_PREFS}" >/tmp/initial_preferences
-install -m0644 /tmp/initial_preferences "${BRAVE_DIR}/initial_preferences"
-jq -e '.extensions.theme.system_theme == 1' "${BRAVE_DIR}/initial_preferences" >/dev/null
-
 # Claude Code and opencode are deliberately not installed here. They release far more often than the
 # image, so amethystora-agent installs them into each user's home with their makers' own installers,
 # where they update on a schedule the user controls.
@@ -251,8 +225,6 @@ EXCLUDED_PACKAGES=(
     fedora-bookmarks
     fedora-chromium-config
     fedora-chromium-config-gnome
-    firefox
-    firefox-langpacks
     gnome-extensions-app
     gnome-shell-extension-background-logo
     gnome-software

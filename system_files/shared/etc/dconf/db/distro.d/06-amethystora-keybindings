@@ -34,7 +34,7 @@ name='Files'
 
 [org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom26]
 binding='<Super><Shift>b'
-command='brave-browser --new-window'
+command='firefox --new-window'
 name='Browser'
 
 [org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom27]

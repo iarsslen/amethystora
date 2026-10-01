@@ -36,11 +36,6 @@ the protections below that are off until you want them are each one button away.
 - **Applications cannot watch each other's keyboards.** Flatpak apps are refused X11 and input
   devices ([Installing software](software.md#what-flatpak-apps-may-not-do)), and the key remapper,
   which reads every key, is off until you ask for it.
-- **The browser only accepts approved extensions.** An extension sees every page you open, and that
-  is how most password stealers arrive. Brave installs only the password managers named in
-  `/etc/brave/policies/managed/10-amethystora.json`; to allow another, add its extension ID in a
-  file of your own next to that one. Web pages are also cut off from WebUSB, WebSerial, WebHID
-  (which can read a keyboard) and Web Bluetooth.
 - **The kernel is hardened:** memory is wiped as it is handed out, kernel addresses are hidden,
   programs cannot read each other's memory, and rarely used modules (old network protocols and
   filesystems, FireWire) cannot load. `gdb -p` on a process you did not start needs `sudo`.
@@ -145,7 +140,7 @@ ujust setup-security-key
 
 Choose **Add a fingerprint key** for a fingerprint model, so the key checks your fingerprint and not
 only a touch. The key needs a PIN, and a fingerprint model an enrolled finger, first: set them in
-Brave at `brave://settings/securityKeys`, or with `ykman fido fingerprints add` on a YubiKey Bio.
+Firefox at `about:webauthn`, or with `ykman fido fingerprints add` on a YubiKey Bio.
 Register a second key as a spare. Your password keeps working whenever no registered key is plugged
 in.
 

@@ -7,11 +7,18 @@ updates safe and rollbacks instant. Apps come from Flathub, tools from Homebrew,
 from a container; [Installing software](software.md) shows which is which. In a Fedora container,
 `dnf install` works exactly as you know it.
 
-## Where is Firefox?
+## Can I use another browser?
 
-The browser is Brave. Firefox, Chrome and every other browser are in Bazaar. To make one the
-default, open **Settings → Apps → Default Apps**; [web apps](web-apps.md#which-browser-runs-them)
-then open in it too.
+The browser is Firefox, exactly as Fedora builds it: Amethystora adds no settings or extensions to
+it. Chrome, Brave and every other browser are in Bazaar. To make one the default, open
+**Settings → Apps → Default Apps**; [web apps](web-apps.md#which-browser-runs-them) then open in it
+too.
+
+## Where is Brave?
+
+Amethystora used to come with Brave. It is in Bazaar now, like the other browsers. What you had in
+it is still in `~/.config/BraveSoftware`, and Firefox can bring it over: **Settings → General →
+Import Browser Data**.
 
 ## Is this Fedora?
 

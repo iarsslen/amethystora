@@ -73,7 +73,7 @@ systemctl disable flatpak-add-fedora-repos.service
 
 # Disable third-party repos. fedora-multimedia is negativo17's, under the name the base image gives it;
 # left on, it outranks Fedora's repositories for anything installed after this, here or by the user
-for repo in fedora-multimedianegativo17-fedora-multimedia tailscale brave-browser fedora-cisco-openh264; do
+for repo in fedora-multimedia negativo17-fedora-multimedia tailscale fedora-cisco-openh264; do
     if [[ -f "/etc/yum.repos.d/${repo}.repo" ]]; then
         sed -i 's@enabled=1@enabled=0@g' "/etc/yum.repos.d/${repo}.repo"
     fi

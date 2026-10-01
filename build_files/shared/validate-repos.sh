@@ -68,7 +68,6 @@ OTHER_REPOS=(
     "fedora-multimedia.repo"
     "negativo17-fedora-multimedia.repo"
     "tailscale.repo"
-    "brave-browser.repo"
     "vscodium.repo"
     "docker-ce.repo"
     "fedora-cisco-openh264.repo"

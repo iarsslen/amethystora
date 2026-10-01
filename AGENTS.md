@@ -38,7 +38,7 @@ the Homebrew Brewfiles, the setup services and hooks, the GNOME defaults, udev r
 `system_files/shared`, already renamed; Bluefin is not a build input. Only `ublue-os/brew`, for
 Homebrew's own setup, is still copied in by the `ctx` stage of the `Containerfile`. Where to edit:
 - `system_files/shared/usr/share/amethystora/just/` - the `ujust` recipes; `60-custom.just` holds the ones written for Amethystora
-- `system_files/shared/usr/share/amethystora/homebrew/system-flatpaks.Brewfile` - the default Flatpak list (Brave in place of Firefox, Amethystora Logs in place of GNOME Logs)
+- `system_files/shared/usr/share/amethystora/homebrew/system-flatpaks.Brewfile` - the default Flatpak list (no browser, Firefox is in the image; Amethystora Logs in place of GNOME Logs)
 - `system_files/shared/usr/share/flatpak/preinstall.d/` - Flatpaks installed on every machine
 - `system_files/shared/usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override` - the base GNOME defaults (the dash, the custom keybinding list); `build-gnome-extensions.sh` adds each extension it installs to its `enabled-extensions`, and `zz1-amethystora-modifications` overrides it
 
@@ -203,6 +203,16 @@ Packages are defined directly in build scripts rather than in a central configur
   - `COPR_PACKAGES` array - Packages from COPR repos (installed individually with isolated enablement)
   - Fedora version-specific package sections using case statements (e.g., `42)`, `43)`)
 - `build_files/dx/00-dx.sh` - Developer experience package additions. The editor is VSCodium, from its repository with the key pinned in `system_files/dx/etc/pki/rpm-gpg`: Microsoft's VS Code licence does not allow it to be shared inside a published image, so do not bring it back
+
+### The browser
+
+The browser is Firefox, Fedora's package, installed by `04-packages.sh` so that a machine has one
+before it is online. Mozilla lets Firefox be redistributed only unaltered, so it ships exactly as
+Fedora builds it: do not add a `policies.json`, an extension, a preference file or a home page for
+it, in the image or from a setup hook (`20-tests.sh` fails on a policy file). That is why the image
+has no browser policy and installs no extension. Brave, the browser before it, is not in the image
+and not on the Flatpak lists: its terms license its package for personal use, not for
+redistribution. Like every other browser, it is the user's to install from Bazaar.
 
 ### Agentic features
 
@@ -453,7 +463,7 @@ the numerical one:
 13. `16-notes.sh` - Installs the runtime of Amethystora Notes (`amethystora-notes`), the encrypted notes and tasks app that replaces Joplin and Planify: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`, and a hard link to the Manual's `marked`. The app itself is `system_files/shared/usr/lib/amethystora-notes/resources/app`
 14. `16-logs.sh` - Installs the runtime of Amethystora Logs (`amethystora-logs`), the journal viewer that replaces GNOME Logs: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`. The app itself is `system_files/shared/usr/lib/amethystora-logs/resources/app`; GNOME Logs is left off the Flatpak list
 15. `07-debrand.sh` - Renames every remaining Bluefin / Universal Blue file, command, service and reference to Amethystora (logic in `build_files/shared/debrand.py`; `20-tests.sh` fails the build if any is left)
-16. `08-hardening.sh` - Signature-verified updates, firewall default zone, account lockout, the Brave enterprise policy, kernel lockdown, and the sudo PATH that `ublue-os/main` leaves open. The polkit and udev fixes are made in the files themselves (`org.amethystora.privileged.user.setup.policy`, `50-zsa.rules`). Lockdown is skipped on the NVIDIA images, whose driver is an akmods build signed with the machine owner key: forcing lockdown on a machine with Secure Boot off would leave it without a graphics driver. The settings that are plain files live in `system_files/shared` (`usr/lib/sysctl.d`, `usr/lib/modprobe.d`, `usr/lib/bootc/kargs.d`, `etc/ssh/sshd_config.d`, `etc/security/faillock.conf`, `etc/flatpak/overrides/global`, `etc/audit/rules.d`, `etc/brave/policies/managed`)
+16. `08-hardening.sh` - Signature-verified updates, firewall default zone, account lockout, kernel lockdown, and the sudo PATH that `ublue-os/main` leaves open. The polkit and udev fixes are made in the files themselves (`org.amethystora.privileged.user.setup.policy`, `50-zsa.rules`). Lockdown is skipped on the NVIDIA images, whose driver is an akmods build signed with the machine owner key: forcing lockdown on a machine with Secure Boot off would leave it without a graphics driver. The settings that are plain files live in `system_files/shared` (`usr/lib/sysctl.d`, `usr/lib/modprobe.d`, `usr/lib/bootc/kargs.d`, `etc/ssh/sshd_config.d`, `etc/security/faillock.conf`, `etc/flatpak/overrides/global`, `etc/audit/rules.d`)
 17. `17-cleanup.sh` - Cleanup operations, and the systemd units the image enables. Two things here are deliberately *disabled*: `input-remapper.service`, which runs as root and reads every input device, and `usbguard.service`, which would block the keyboard on a machine where nobody had allowed it yet. Both are turned on per machine by a `ujust` recipe
 18. `18-workarounds.sh` - Temporary fixes/workarounds
 19. `19-initramfs.sh` - Regenerates initramfs, adding dracut's `tpm2-tss` module where dracut has it so that `ujust setup-disk-unlock` can hand the disk key to the TPM
