@@ -9,8 +9,9 @@ from a container; [Installing software](software.md) shows which is which. In a 
 
 ## Where is Firefox?
 
-The browser is Brave, which is also what runs [web apps](web-apps.md). Firefox, Chrome and every
-other browser are in Bazaar. To make one the default, open **Settings → Apps → Default Apps**.
+The browser is Brave. Firefox, Chrome and every other browser are in Bazaar. To make one the
+default, open **Settings → Apps → Default Apps**; [web apps](web-apps.md#which-browser-runs-them)
+then open in it too.
 
 ## Is this Fedora?
 

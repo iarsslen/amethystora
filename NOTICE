@@ -95,7 +95,7 @@ each licence ships in the extension's folder, Caffeine's in
 usr/share/licenses/caffeine@patapon.info:
 
   - AppIndicator Support  GPL-2.0-or-later  https://github.com/ubuntu/gnome-shell-extension-appindicator
-  - Bazaar Integration    GPL-2.0-or-later  https://github.com/bazaar-org/bazaar-companion
+  - Bazaar Integration    GPL-3.0           https://github.com/bazaar-org/bazaar-companion
   - Blur my Shell         GPL-3.0           https://github.com/aunetx/blur-my-shell
   - Caffeine              GPL-2.0           https://github.com/eonpatapon/gnome-shell-extension-caffeine
   - Dash to Dock          GPL-2.0-or-later  https://github.com/micheleg/dash-to-dock
@@ -118,6 +118,40 @@ Space Bar (https://github.com/christopher-l/space-bar) is installed from the
 same place. Its author has published no licence for it; it is distributed on
 the terms extensions.gnome.org requires of every extension, which must be
 compatible with GPL-2.0-or-later.
+
+Starship, the shell prompt in usr/bin/starship, is installed from its upstream
+release by build_files/base/05-override-install.sh, under the ISC License; the
+licence ships in usr/share/licenses/starship.
+
+  - Starship  https://github.com/starship/starship
+
+The udev rules named *-gdu.rules in usr/lib/udev/rules.d are game-devices-udev
+by Fabian Bornschein, licensed under the MIT License; the licence ships in
+usr/share/licenses/game-devices-udev.
+
+  - game-devices-udev  https://codeberg.org/fabiscafe/game-devices-udev
+
+Brave, the web browser, is Brave Software's own build, installed as published
+from its package repository. Its source code is licensed under the Mozilla
+Public License, version 2.0:
+
+  - Brave  https://github.com/brave/brave-browser
+
+Software that is not free software
+
+Not everything in an Amethystora image is free software. The parts below are
+redistributed as their makers' licences allow, each under its own terms and not
+under the Apache License; each licence ships with its package in
+usr/share/licenses:
+
+  - DisplayLink Manager (package displaylink), which drives DisplayLink docks
+    and adapters, under the DisplayLink Software License Agreement in
+    usr/share/licenses/displaylink. It is licensed for use only with products
+    that incorporate DisplayLink technology.
+  - Device firmware and processor microcode (linux-firmware, the *-firmware
+    packages and microcode_ctl), redistributable but not modifiable.
+  - On the nvidia-open images, the user-space part of the NVIDIA driver, under
+    NVIDIA's software licence.
 
 Source code
 

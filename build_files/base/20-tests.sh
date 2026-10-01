@@ -330,7 +330,9 @@ test -x /usr/bin/amethystora-theme
 test -x /usr/bin/amethystora-menu
 
 # Web apps: a launcher that reopens the site through amethystora-webapp, in Brave by default, with the
-# window class GNOME needs to show it under its own name; anything but http(s) is refused
+# window class GNOME needs to show it under its own name; anything but http(s) is refused. When the
+# default browser is Firefox-based, the launcher opens the site in a profile of its own instead and
+# takes that window's class, and removing the web app removes the profile
 test -x /usr/bin/amethystora-webapp
 WEBAPP_HOME="$(mktemp -d)"
 HOME="${WEBAPP_HOME}" amethystora-webapp install "Test App" example.com/app web-browser
@@ -338,8 +340,24 @@ WEBAPP_DESKTOP="${WEBAPP_HOME}/.local/share/applications/amethystora-webapp-test
 grep -qx 'Exec=amethystora-webapp "https://example.com/app"' "${WEBAPP_DESKTOP}"
 grep -qx 'StartupWMClass=brave-example.com__app-Default' "${WEBAPP_DESKTOP}"
 HOME="${WEBAPP_HOME}" amethystora-webapp install Bad "javascript:alert(1)" web-browser 2>/dev/null && false
+mkdir "${WEBAPP_HOME}/bin"
+printf '#!/usr/bin/bash\necho firefox.desktop\n' >"${WEBAPP_HOME}/bin/xdg-settings"
+chmod +x "${WEBAPP_HOME}/bin/xdg-settings"
+printf '[Desktop Entry]\nExec=echo %%u\n' >"${WEBAPP_HOME}/.local/share/applications/firefox.desktop"
+WEBAPP_CLASS=amethystora-webapp-example.com_app
+WEBAPP_PROFILE="${WEBAPP_HOME}/.local/share/amethystora-webapp/${WEBAPP_CLASS}"
+# GLib names the launcher and the process it started; exec keeps the shell's PID for the script
+WEBAPP_COMMAND="$(HOME="${WEBAPP_HOME}" PATH="${WEBAPP_HOME}/bin:${PATH}" \
+    GIO_LAUNCHED_DESKTOP_FILE="${WEBAPP_DESKTOP}" \
+    bash -c 'export GIO_LAUNCHED_DESKTOP_FILE_PID=$$; exec amethystora-webapp example.com/app')"
+test "${WEBAPP_COMMAND}" = \
+    "--name ${WEBAPP_CLASS} --class ${WEBAPP_CLASS} --profile ${WEBAPP_PROFILE} https://example.com/app"
+grep -qx "StartupWMClass=${WEBAPP_CLASS}" "${WEBAPP_DESKTOP}"
+grep -q legacyUserProfileCustomizations "${WEBAPP_PROFILE}/user.js"
+test -s "${WEBAPP_PROFILE}/chrome/userChrome.css"
 HOME="${WEBAPP_HOME}" amethystora-webapp remove "Test App" >/dev/null
 test ! -e "${WEBAPP_DESKTOP}"
+test ! -e "${WEBAPP_PROFILE}"
 rm -rf "${WEBAPP_HOME}"
 
 # The manual (13-manual.sh): Electron starts, which also proves every library it links against is on
@@ -548,6 +566,12 @@ test -f /usr/share/licenses/candy-icons/LICENSE
 diff <(rpm -qa --queryformat '%{NAME}\n' | grep -vx gpg-pubkey | sort) \
     <(awk -F'\t' 'NF == 4 && $1 != "PACKAGE" { print $1 }' /usr/share/licenses/amethystora/SOURCES | sort)
 grep -q "^Written offer" /usr/share/licenses/amethystora/NOTICE
+# What is not installed from a package has no package to carry its licence: Starship is one binary
+# from its release (05-override-install.sh), and the *-gdu.rules are game-devices-udev's
+test -x /usr/bin/starship
+test -s /usr/share/licenses/starship/LICENSE
+compgen -G "/usr/lib/udev/rules.d/71-*-gdu.rules" >/dev/null
+test -s /usr/share/licenses/game-devices-udev/LICENSE
 rpm -q breeze-icon-theme >/dev/null && false
 # Gaps fall through to Adwaita, not to Plasma's Breeze
 grep -qx "Inherits=Adwaita,hicolor" "${CANDY_DIR}/index.theme"
@@ -1016,6 +1040,9 @@ modinfo "/usr/lib/modules/${KERNEL_VERSION}/extra/evdi/evdi.ko.xz" >/dev/null
 test -f /usr/lib/udev/rules.d/99-displaylink.rules
 systemctl is-enabled displaylink.service
 grep -q "^d /var/log/displaylink " /usr/lib/tmpfiles.d/displaylink.conf
+# DisplayLinkManager is proprietary. Its licence lets it be redistributed unmodified, and only with
+# the licence itself beside it
+test -s /usr/share/licenses/displaylink/LICENSE
 find /etc/pki/akmods/private -type f 2>/dev/null | grep -q . && false
 # ujust enroll-secure-boot-key enrolls both: the one evdi is signed with and the kernel's
 test -f /etc/pki/akmods/certs/amethystora-modules.der

@@ -34,7 +34,9 @@ theme is recoloured from his Sweet. The themes' wallpapers are drawn for Amethys
 
 Parts of this manual are adapted from the Bluefin documentation, copyright the Bluefin contributors and licensed under the Apache License 2.0.
 
-The licences of everything in the image are in `/usr/share/licenses`.
+The licences of everything in the image are in `/usr/share/licenses`. A few parts are not free
+software and come under their makers' own terms: device firmware, the DisplayLink driver for docks,
+and the NVIDIA driver on the NVIDIA images. `/usr/share/licenses/amethystora/NOTICE` lists them.
 
 ## Source code
 
