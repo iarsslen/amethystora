@@ -28,6 +28,9 @@ COPR=https://download.copr.fedorainfracloud.org/results
 # A package built in Copr names only the owner as its vendor, so the projects this image and its base
 # install from are listed here. One that is missing fails the build below, to be added.
 COPR_PROJECTS=(ublue-os/packages ublue-os/staging)
+# NVIDIA's repository for its container toolkit, on the NVIDIA images, carries no source packages at
+# all: the source of each release is the tag of its version in the repository the package names.
+NO_SOURCE_PACKAGES="NVIDIA CORPORATION"
 
 fetch() {
     curl --fail --silent --location --retry 3 --output "${SOURCES_DIR}/$1" "$2/$1" ||
@@ -77,7 +80,7 @@ while IFS=$'\t' read -r vendor srpm family; do
     if fetch_source "${vendor}" "${srpm}"; then
         continue
     fi
-    if [[ ${vendor} != "(none)" && ${family} == gpl ]]; then
+    if [[ ${vendor} != "(none)" && ${vendor} != "${NO_SOURCE_PACKAGES}" && ${family} == gpl ]]; then
         echo "::error::${srpm} is under the GPL, and ${vendor} no longer publishes it"
         exit 1
     fi

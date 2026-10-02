@@ -28,8 +28,8 @@ then run the recipe above.
 
 - **Intel and AMD** work out of the box. The developer image adds ROCm for GPU compute on AMD.
 - **NVIDIA** needs the `-nvidia-open` images, which carry NVIDIA's open kernel driver ([Installing](installing.md#pick-an-image)).
-  Builds of those images are paused at the moment. The NVIDIA driver is built for the machine and
-  signed with its own key, so the NVIDIA images do not use kernel lockdown.
+  The NVIDIA driver is built for the machine and signed with its own key, so the NVIDIA images do
+  not use kernel lockdown.
 
 ## Docks and displays
 

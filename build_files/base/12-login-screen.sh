@@ -14,8 +14,8 @@ set -eoux pipefail
 # objection to doing it on a running system: here the image is rebuilt from scratch, so an update to
 # gnome-shell means this script runs again on the new stylesheet rather than being undone by it.
 #
-# The picture itself is the crown the boot splash ends on, blurred and without the gem, so the
-# handover from Plymouth to GDM is one picture carried across. branding/generate.mjs draws it.
+# The picture itself is the crown the boot splash ends on, without the gem, so the handover from
+# Plymouth to GDM is one picture carried across. branding/generate.mjs draws it.
 
 GRESOURCE=/usr/share/gnome-shell/gnome-shell-theme.gresource
 BACKGROUND=/usr/share/backgrounds/amethystora/amethystora-login.png

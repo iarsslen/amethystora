@@ -57,7 +57,7 @@ There are six fixed workspaces on `Super+1` to `Super+6`, `Super+Shift+N` takes 
 
 #### Themes
 
-`Super+Ctrl+Shift+Space` picks a theme, `Super+Ctrl+D` flips between light and dark, and `Super+Ctrl+Space` cycles the wallpaper (every theme has three wallpapers of made-up places drawn in its palette and opens on the first, the Amethystora themes add the crystal field and their own artwork, and pictures added to `~/.config/amethystora/backgrounds/<theme>/` join them). One switch repaints GNOME's colour scheme and accent, the Ptyxis palette, the shell prompt, btop, the dock and the wallpaper, because each theme is a single palette file everything else is rendered from. The same from a terminal:
+`Super+Ctrl+Shift+Space` picks a theme, `Super+Ctrl+D` flips between light and dark, and `Super+Ctrl+Space` cycles the wallpaper (every theme has three wallpapers of made-up places drawn in its palette and opens on the first, the Amethystora themes open on a cut stone's facets instead and add the crystal field and a night sky, and pictures added to `~/.config/amethystora/backgrounds/<theme>/` join them). One switch repaints GNOME's colour scheme and accent, the Ptyxis palette, the shell prompt, btop, the dock and the wallpaper, because each theme is a single palette file everything else is rendered from. The same from a terminal:
 
 ```bash
 ujust theme                      # pick one
@@ -87,7 +87,7 @@ Turning the features off removes the menu entry, disables the keybinding and unl
 
 #### Boot menu
 
-The GRUB menu can carry the Amethystora artwork too — the same crystal field as the wallpaper, the wordmark above the entries, and the boot splash following on the same dark ground. It is off by default and turned on with:
+The GRUB menu can carry the Amethystora artwork too — the crystal field from the wallpapers, the wordmark above the entries, and the boot splash following on the same dark ground. It is off by default and turned on with:
 
 ```bash
 ujust setup-grub-theme

@@ -49,8 +49,8 @@ Every theme comes with three wallpapers of made-up places drawn in its own colou
 a theme puts its first one on the desktop: a neon city in the rain for Tokyo Night, an aurora over a
 mountain lake for Nord, misty pines for Everforest, a desert sunset for Gruvbox, peaks under a
 pastel moon for Catppuccin, an eclipse for Matte Black, and so on. `Super+Ctrl+Space` cycles
-through them. The two Amethystora themes open on the crystal field, and also have a cut stone's
-facets and a night sky of violet smoke; GNOME's Settings offers those under Appearance.
+through them. The two Amethystora themes open on a cut stone's facets, and also have the crystal
+field and a night sky of violet smoke; GNOME's Settings offers those under Appearance.
 
 To add your own, put pictures (JPG, PNG, WebP or SVG) in a folder named after the theme. They come
 after the theme's own pictures:

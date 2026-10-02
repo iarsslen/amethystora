@@ -120,9 +120,9 @@ grep -q '^desktop-image: "background.png"$' /usr/share/grub/themes/amethystora/t
 test -e /boot/grub2/themes/amethystora && false
 
 # Amethystora wallpapers are the GNOME default
-test -f /usr/share/backgrounds/amethystora/amethystora-l.png
-test -f /usr/share/backgrounds/amethystora/amethystora-d.png
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.background picture-uri-dark)" == "'file:///usr/share/backgrounds/amethystora/amethystora-d.png'" ]]
+test -f /usr/share/backgrounds/amethystora/amethystora-facets-l.png
+test -f /usr/share/backgrounds/amethystora/amethystora-facets-d.png
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.background picture-uri-dark)" == "'file:///usr/share/backgrounds/amethystora/amethystora-facets-d.png'" ]]
 # ...and every one a theme cycles through or GNOME's picker offers is on the image. The PNGs are
 # drawn by branding/generate.mjs, so one named here and never rendered stops the build. Every
 # shipped theme lists pictures of its own, or it would open on the palette glow drawn from
@@ -140,8 +140,8 @@ done
 sed -n 's:.*<filename\(-dark\)\?>\(.*\)</filename\(-dark\)\?>.*:\2:p' /usr/share/gnome-background-properties/amethystora.xml |
     xargs -r -n1 test -f
 
-# Login screen background (12-login-screen.sh): the crown the boot splash ends on, blurred and with
-# no gem in it. GNOME reads the login background from the shell's own stylesheet and nowhere else,
+# Login screen background (12-login-screen.sh): the crown the boot splash ends on, with no gem in
+# it. GNOME reads the login background from the shell's own stylesheet and nowhere else,
 # so both the picture and the rule naming it live inside the theme's gresource.
 #
 # The bundle itself is checked in 12-login-screen.sh, at the point it is rebuilt, and not here:

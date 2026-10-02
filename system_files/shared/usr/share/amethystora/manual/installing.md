@@ -30,9 +30,6 @@ and from the restart after that, an update is only accepted if it carries Amethy
 | `ghcr.io/iarsslen/amethystora-nvidia-open` | The standard desktop with NVIDIA's open kernel driver |
 | `ghcr.io/iarsslen/amethystora-dx-nvidia-open` | Developer mode with NVIDIA's open kernel driver |
 
-The NVIDIA images are paused at the moment. Check that the tag you want exists before switching to
-one.
-
 ## Pick a stream
 
 Every image comes in three streams, set by the tag after the colon:

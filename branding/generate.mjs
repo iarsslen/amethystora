@@ -1544,7 +1544,7 @@ function wavesTemplate() {
 // Every theme has three pictures of places that do not exist, drawn here as flat shapes and glows, every
 // colour taken from the theme's own colors.toml, so a changed palette only needs this script run again.
 // They are rendered to PNG, like the crystal field, and each theme's backgrounds.list names them; the
-// Amethystora themes open on the crystal field instead.
+// Amethystora themes open on the cut stone's facets instead.
 
 const palette = (theme) => Object.fromEntries(
   [...readFileSync(join(SHARED, "usr/share/amethystora/themes", theme, "colors.toml"), "utf8").matchAll(/^(\w+) = "(#[0-9a-fA-F]{6})"/gm)]
@@ -2133,42 +2133,39 @@ const THEME_WALLPAPERS = {
 // ---------------------------------------------------------- login screen --
 
 // The login screen stands on the crown the boot splash ends on, so the handover from Plymouth to GDM
-// is one picture carried across: the same gradient, the same cut over it, and no mark, which by
-// then has done its part and would sit behind the dialog anyway.
-//
-// It is blurred because the entry field and the user list are read over the middle of it, where the
-// cut's lines meet round the table. The blur is baked in here rather than asked of the shell:
-// GNOME blurs nothing on the login screen, and this way the cost is paid once, at build time.
+// is one picture carried across: the same gradient, the same cut over it, as sharp as the splash
+// draws it, and no mark, which by then has done its part and would sit behind the dialog anyway.
+// The crown's shades are all dark, so the clock and the user list read over it as the mark does.
 //
 // 12-login-screen.sh puts it inside GNOME Shell's theme, which is the only place the login screen
 // takes a background from.
-const LOGIN = { width: 2560, height: 1440, blur: 44, overscan: 1.12 };
+const LOGIN = { width: 2560, height: 1440 };
+const SOFT = { blur: 44, overscan: 1.12 };
 
-// The installer draws the same picture in a square, so the crown covers it instead of being stretched
-const loginBackgroundHtml = ({ width, height } = LOGIN) => `<!doctype html><html><head><style>
+// The installer draws the same picture in a square, so the crown covers it instead of being
+// stretched, and soft: its sidebar and top bar are narrow strips of it with labels all over them
+const loginBackgroundHtml = ({ width, height, soft = false } = LOGIN) => `<!doctype html><html><head><style>
     html,body{margin:0;background:${BOOT.sky[0]}}
     #frame{position:relative;width:${width}px;height:${height}px;overflow:hidden}
+    #sky{position:absolute;inset:0;background:linear-gradient(180deg,${BOOT.sky[0]},${BOOT.sky[1]})}
     /* A blur this wide pulls in whatever is past the edge, which is nothing, and would leave the
        picture fading out around its border. The layer is drawn oversized and the frame clips it,
-       so the fade happens outside the screen instead of inside it. */
-    #sky{position:absolute;inset:0;transform:scale(${LOGIN.overscan});
-      background:linear-gradient(180deg,${BOOT.sky[0]},${BOOT.sky[1]});
-      filter:blur(${LOGIN.blur}px)}
+       so the fade happens outside the picture instead of inside it. */
+    #sky.soft{transform:scale(${SOFT.overscan});filter:blur(${SOFT.blur}px)}
     #crown{display:block;width:100%;height:100%;object-fit:cover}
-    /* The user list and the clock are read straight over the middle of the picture, where the
-       crown's lighter facets and its table meet. This takes it down to a violet that white text
-       has the contrast to be read on. The same thing is done to the boot menu, for the same reason. */
+    /* This takes the soft picture down to a violet that white text has the contrast to be read
+       on. The same thing is done to the boot menu, for the same reason. */
     #scrim{position:absolute;inset:0;background:radial-gradient(60% 60% at 50% 46%,
       rgba(11,4,20,0.42) 0%, rgba(11,4,20,0.60) 60%, rgba(11,4,20,0.74) 100%)}
-  </style></head><body><div id="frame"><div id="sky">
-    <img id="crown" src="${svgData(crownSvg)}"></div><div id="scrim"></div></div></body></html>`;
+  </style></head><body><div id="frame"><div id="sky"${soft ? ' class="soft"' : ""}>
+    <img id="crown" src="${svgData(crownSvg)}"></div>${soft ? '<div id="scrim"></div>' : ""}</div></body></html>`;
 
 const logo = (spec) => ({ ...spec, html: () => logoHtml(spec) });
 
 // ------------------------------------------------------------- GRUB menu --
 
-// The boot menu is the first Amethystora screen anyone sees, so it stands on the same crystal field
-// as the desktop wallpaper, dimmed until the entries read over it, and hands over to the Plymouth
+// The boot menu is the first Amethystora screen anyone sees, so it stands on the crystal field of
+// the desktop's wallpapers, dimmed until the entries read over it, and hands over to the Plymouth
 // splash on the same dark ground. The gfxmenu layout follows the theme format of
 // vinceliuice/grub2-themes (GPL-3.0); the artwork is Amethystora's own.
 //
@@ -2305,7 +2302,7 @@ const GRUB_PNGS = [
 // finds in the images/ directory of the install media and lays over its own root before it starts:
 // .github/workflows/build-iso.yml packs iso/product into one and adds it to the ISO. It holds this
 // stylesheet, which 99-amethystora.conf names in place of Fedora's, and the pictures it draws: the
-// login screen's picture behind the sidebar and the top bar, at the head of the sidebar the gem,
+// login screen's picture, blurred, behind the sidebar and the top bar, at the head of the sidebar the gem,
 // glowing as it does on the login screen, and the desktop's accent on the buttons, bars and
 // selections GTK would draw in blue. The product name beside them is the image's os-release NAME.
 const PRODUCT = join(ROOT, "iso/product");
@@ -2393,7 +2390,7 @@ switch:checked:not(:disabled) {
 
 const INSTALLER_PNGS = [
   { root: PRODUCT, out: `${ANACONDA}/sky.png`, width: INSTALLER_SKY, height: INSTALLER_SKY,
-    html: () => loginBackgroundHtml({ width: INSTALLER_SKY, height: INSTALLER_SKY }) },
+    html: () => loginBackgroundHtml({ width: INSTALLER_SKY, height: INSTALLER_SKY, soft: true }) },
   // The glow of the login screen's logo, with room around the gem for it to fade out in
   logo({ root: PRODUCT, out: `${ANACONDA}/sidebar-logo.png`, width: 180, height: 180, glow: 10, fit: 0.55 }),
 ];
@@ -2421,8 +2418,8 @@ const PNGS = [
     [["l", "light"], ["d", "dark"]].map(([suffix, theme]) => ({
       out: `usr/share/backgrounds/amethystora/amethystora-${name}-${suffix}.png`, width: WALL_W, height: WALL_H, html: () => html(theme),
     }))),
-  // Smaller than the wallpapers on purpose: it is blurred, so there is no detail in it for the
-  // extra pixels to carry, and GNOME scales it to the screen either way
+  // Smaller than the wallpapers on purpose: it is flat facets and faint cuts, with little detail
+  // for the extra pixels to carry, and GNOME scales it to the screen either way
   { out: "usr/share/backgrounds/amethystora/amethystora-login.png", width: LOGIN.width, height: LOGIN.height, html: loginBackgroundHtml },
   ...Object.entries(THEME_WALLPAPERS).flatMap(([theme, pictures]) => {
     const drawn = pictures(palette(theme));

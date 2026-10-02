@@ -5,14 +5,14 @@
 # are set in /etc/dconf/db/distro.d instead.
 
 [org.gnome.desktop.background]
-picture-uri='file:///usr/share/backgrounds/amethystora/amethystora-l.png'
-picture-uri-dark='file:///usr/share/backgrounds/amethystora/amethystora-d.png'
+picture-uri='file:///usr/share/backgrounds/amethystora/amethystora-facets-l.png'
+picture-uri-dark='file:///usr/share/backgrounds/amethystora/amethystora-facets-d.png'
 picture-options='zoom'
 primary-color='2a0f4a'
 secondary-color='2a0f4a'
 
 [org.gnome.desktop.screensaver]
-picture-uri='file:///usr/share/backgrounds/amethystora/amethystora-d.png'
+picture-uri='file:///usr/share/backgrounds/amethystora/amethystora-facets-d.png'
 
 # The logo under the user list on the login screen. GDM reads it from a fixed path, which Fedora
 # fills with fedora-gdm-logo.png; 06-branding.sh puts this same file at that path too, so the
