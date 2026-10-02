@@ -64,6 +64,13 @@ fi
 echo "IMAGE_ID=\"${IMAGE_NAME}\"" >> /usr/lib/os-release
 echo "IMAGE_VERSION=\"${VERSION}\"" >> /usr/lib/os-release
 
+# The rest of what Fedora's release packages wrote under Fedora's name (build.sh hands their place in
+# the package database to generic-release): the line /etc/system-release and /etc/redhat-release show,
+# the CPE beside it, and the software identification tags that call this system Fedora
+echo "${IMAGE_PRETTY_NAME} release ${FEDORA_MAJOR_VERSION} (${CODE_NAME})" >/usr/lib/fedora-release
+echo "cpe:/o:${IMAGE_VENDOR}:${IMAGE_PRETTY_NAME,}:${FEDORA_MAJOR_VERSION}" >/usr/lib/system-release-cpe
+rm -rf /usr/lib/swidtag/fedoraproject.org /etc/swid/swidtags.d/fedoraproject.org
+
 # Fix issues caused by ID no longer being fedora
 sed -i "s|^EFIDIR=.*|EFIDIR=\"fedora\"|" /usr/sbin/grub2-switch-to-blscfg
 

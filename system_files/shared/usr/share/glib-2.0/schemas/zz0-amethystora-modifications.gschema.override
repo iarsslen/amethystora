@@ -85,7 +85,7 @@ flatpak='off'
 
 [org.gnome.shell.extensions.Logo-menu]
 symbolic-icon=false
-menu-button-icon-image=29
+menu-button-icon-image=0
 menu-button-terminal='xdg-terminal-exec'
 menu-button-system-monitor='/usr/bin/missioncenter-helper'
 menu-button-extensions-app='com.mattjakeman.ExtensionManager.desktop'

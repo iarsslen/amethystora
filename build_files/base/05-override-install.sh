@@ -6,6 +6,18 @@ set -eoux pipefail
 
 # We do not need anything here at all
 rm -rf /usr/src
+# Except the licences. Some 120 of Fedora's packages keep their licence, copyright or NOTICE file among
+# their documentation and nowhere else (libX11, pixman, zsh, the Apache NOTICE of httpd and apr), and
+# the MIT, BSD and Apache licences ask for that text to travel with the program. So those files move
+# beside the other licences, under the same folder name, before the documentation goes.
+(
+    cd /usr/share/doc
+    find . -xtype f \( -iname '*licen[cs]e*' -o -iname '*copying*' -o -iname '*copyright*' -o -iname 'notice*' \
+        -o -iname 'patents*' -o -iname 'authors*' -o -iname 'legal*' -o -iname 'third[-_]party*' \) \
+        -exec sh -ec 'for file; do
+            [ -e "/usr/share/licenses/${file}" ] || install -Dpm0644 "${file}" "/usr/share/licenses/${file}"
+        done' sh {} +
+)
 rm -rf /usr/share/doc
 # Remove kernel-devel from rpmdb because all package files are removed from /usr/src
 rpm --erase --nodeps kernel-devel
@@ -46,8 +58,12 @@ if ((${#MULTIMEDIA_DEPENDENTS[@]})); then
     rpm --verify --nofiles --noscripts "${MULTIMEDIA_DEPENDENTS[@]}"
 fi
 
-# Starship Shell Prompt
-ghcurl "https://github.com/starship/starship/releases/latest/download/starship-x86_64-unknown-linux-gnu.tar.gz" --retry 3 -o /tmp/starship.tar.gz
+# Starship Shell Prompt, from a pinned release that Renovate bumps (.github/renovate.json5), checked
+# against the checksum published beside it
+STARSHIP_VERSION="1.26.0"
+STARSHIP_URL="https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/starship-x86_64-unknown-linux-gnu.tar.gz"
+ghcurl "${STARSHIP_URL}" --fail --retry 3 -o /tmp/starship.tar.gz
+echo "$(ghcurl "${STARSHIP_URL}.sha256" --fail --retry 3)  /tmp/starship.tar.gz" | sha256sum -c -
 tar -xzf /tmp/starship.tar.gz -C /tmp
 install -c -m 0755 /tmp/starship /usr/bin
 

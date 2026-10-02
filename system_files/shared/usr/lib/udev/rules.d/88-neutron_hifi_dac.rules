@@ -1,4 +1,4 @@
-# Source: https://github.com/iarsslen/amethystora
+# Source: https://github.com/ublue-os/config/pull/285
 # Written by https://github.com/fiftydinar
 # Udev rule written for unprivileged access of Neutron HiFi DAC V1 functionality
 # https://neutronhifi.com/devices/dac/v1

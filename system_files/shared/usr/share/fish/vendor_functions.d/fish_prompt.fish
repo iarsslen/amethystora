@@ -1,3 +1,8 @@
+# fish's own default prompt (share/functions/fish_prompt.fish in fish, by Lily Ballard), changed to
+# name the container the shell is running in. As part of fish it is copyright Axel Liljencrantz and
+# the fish-shell contributors and licensed under the GNU General Public License, version 2, not
+# under the Apache License the rest of Amethystora is under: /usr/share/licenses/fish/COPYING
+# Modified by the Bluefin contributors in August 2024, https://github.com/ublue-os/bluefin/pull/1569
 function fish_prompt --description 'Default prompt with container detection'
     set -l last_pipestatus $pipestatus
     set -lx __fish_last_status $status # Export for __fish_print_pipestatus.

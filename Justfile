@@ -333,12 +333,11 @@ rechunk $image="amethystora" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
     # Rest of Labels
     LABELS="
         io.artifacthub.package.deprecated=false
-        io.artifacthub.package.keywords=bootc,fedora,amethystora,gnome
+        io.artifacthub.package.keywords=bootc,amethystora,gnome
         io.artifacthub.package.logo-url=https://github.com/{{ repo_organization }}.png
         io.artifacthub.package.maintainers=[{\"name\": \"Arsslen Idadi\", \"email\": \"arsslens021@gmail.com\"}]
         io.artifacthub.package.readme-url=https://raw.githubusercontent.com/{{ repo_organization }}/amethystora/refs/heads/main/README.md
         org.opencontainers.image.created=$(date -u +%Y\-%m\-%d\T%H\:%M\:%S\Z)
-        org.opencontainers.image.license=Apache-2.0
         org.opencontainers.image.source=https://raw.githubusercontent.com/{{ repo_organization }}/amethystora/refs/heads/main/Containerfile
         org.opencontainers.image.title=${image_name}
         org.opencontainers.image.url=https://github.com/{{ repo_organization }}/amethystora
@@ -409,7 +408,7 @@ rechunk $image="amethystora" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
         --env PREV_REF=ghcr.io/{{ repo_organization }}/"${image_name}":"${tag}" \
         --env OUT_NAME="$OUT_NAME" \
         --env LABELS="${LABELS}" \
-        --env "DESCRIPTION='Amethystora, a cloud-native Fedora desktop with GNOME'" \
+        --env "DESCRIPTION='Amethystora, a cloud-native desktop with GNOME'" \
         --env "VERSION=${VERSION}" \
         --env VERSION_FN=/workspace/version.txt \
         --env OUT_REF="oci:$OUT_NAME" \

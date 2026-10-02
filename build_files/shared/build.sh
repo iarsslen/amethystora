@@ -20,6 +20,20 @@ rpm --erase --nodeps --nodb generic-logos
 if rpm -q fedora-logos-httpd >/dev/null; then
     dnf -y swap fedora-logos-httpd generic-logos-httpd
 fi
+# The release packages go the same way: the guidelines name fedora-release beside fedora-logos, and
+# Fedora ships generic-release to stand in for it. Only the package database changes hands. The files
+# stay where they are: os-release is rewritten for this image by 00-image-info.sh, which also takes
+# Fedora's name out of the rest, and the presets, the dist macros and rpm-ostree's polkit rules that
+# came with Fedora's packages are what the system is built on.
+readarray -t FEDORA_RELEASE < <(rpm -qa --queryformat '%{NAME}\n' 'fedora-release*')
+((${#FEDORA_RELEASE[@]}))
+mkdir -p /tmp/generic-release
+dnf -y download --destdir=/tmp/generic-release generic-release generic-release-common
+rpm --erase --justdb --nodeps --noscripts --notriggers "${FEDORA_RELEASE[@]}"
+rpm --install --justdb --nodeps --noscripts --notriggers /tmp/generic-release/generic-release-*.rpm
+rm -rf /tmp/generic-release
+# What needs a release package still finds one, and dnf still knows which Fedora this is built on
+rpm -q --whatprovides system-release "system-release($(rpm -E %fedora))"
 
 # Copy Files to Container
 rsync -rvK /ctx/system_files/shared/ /

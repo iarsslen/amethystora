@@ -32,6 +32,10 @@ Flathub, Homebrew, Distrobox and Podman, and every GNOME extension listed in
 [candy-icons](https://github.com/EliverLara/candy-icons) by Eliver Lara, and the Amethystora GTK
 theme is recoloured from his Sweet. The themes' wallpapers are drawn for Amethystora.
 
+Fedora and the Fedora logo are trademarks of Red Hat, Inc. Amethystora is not provided, supported or
+endorsed by the Fedora Project or by Red Hat. Fedora itself is at
+[fedoraproject.org](https://fedoraproject.org).
+
 Parts of this manual are adapted from the Bluefin documentation, copyright the Bluefin contributors and licensed under the Apache License 2.0.
 
 The licences of everything in the image are in `/usr/share/licenses`. A few parts are not free
@@ -41,12 +45,16 @@ and the NVIDIA driver on the NVIDIA images. `/usr/share/licenses/amethystora/NOT
 ## Source code
 
 Every package in the image is listed in `/usr/share/licenses/amethystora/SOURCES`, with its licence,
-the source package it was built from and where that source is published. The source of a Fedora
-package is in Fedora's build system at the address given there, or one command away:
+the source package it was built from and where that source is. The source of a Fedora package is in
+Fedora's build system at the address given there, or one command away:
 
 ```bash
 dnf download --srpm <package>    # the source of the version Fedora has now
 ```
+
+A few packages are built by others (RPM Fusion, negativo17, Fedora Copr), who publish only their
+current build of each. Where such a package's licence asks for its source, the source package this
+image was built from is in the image itself, in `/usr/src/amethystora`.
 
 Everything else is built from [the Amethystora repository](https://github.com/iarsslen/amethystora)
 at the commit named as `BUILD_ID` in `/usr/lib/os-release`. For at least three years after an image

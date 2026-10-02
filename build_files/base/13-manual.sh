@@ -7,13 +7,15 @@ set -eoux pipefail
 # The Amethystora Manual (amethystora-manual, Super+F1): the Markdown pages in
 # /usr/share/amethystora/manual, shown by an Electron app in /usr/lib/amethystora-manual. The app
 # itself (main.js, its page, script and stylesheet) comes from system_files and is already in place;
-# this adds the two things it runs on. Both are pinned, and Renovate bumps them (.github/renovate.json5):
+# this adds what it runs on. The first two are pinned, and Renovate bumps them (.github/renovate.json5):
 #
 #   - Electron, from its GitHub release. Fedora does not package it, and npm is kept out of the image
 #     build (build-gnome-extensions.sh), so the release archive is used, checked against the
 #     checksum Electron publishes beside it.
 #   - marked, which renders the Markdown, from the npm registry's tarball, checked against the
 #     integrity the registry states for it.
+#   - Quicksand, the face of the Amethystora wordmark, which the window draws its sidebar in. The image
+#     has no system copy of it; the Containerfile brings branding/fonts into the build context.
 #
 # The window only ever loads the manual's own pages (main.js), so the Chromium inside it never renders
 # anything from the web. It still takes every Electron release, security fixes included.
@@ -56,5 +58,8 @@ tar -xzf /tmp/marked.tgz -C /tmp package/lib/marked.umd.js package/LICENSE
 install -Dpm0644 /tmp/package/lib/marked.umd.js "${MANUAL_DIR}/resources/app/marked.umd.js"
 install -Dpm0644 /tmp/package/LICENSE "${LICENSE_DIR}/marked/LICENSE"
 rm -rf /tmp/marked.tgz /tmp/package
+
+install -Dpm0644 /ctx/branding/fonts/QuicksandVariable.ttf "${MANUAL_DIR}/resources/app/fonts/QuicksandVariable.ttf"
+install -Dpm0644 /ctx/branding/fonts/Quicksand-OFL.txt "${LICENSE_DIR}/Quicksand-OFL.txt"
 
 echo "::endgroup::"

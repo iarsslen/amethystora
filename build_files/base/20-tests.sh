@@ -69,6 +69,15 @@ find /usr/lib64 -name 'libav*.so.*' -type f -exec grep -laF 'nonfree and unredis
 
 # No Fedora logo package is left (build.sh swaps each for its generic one)
 [[ -z "$(rpm -qa 'fedora-logos*')" ]]
+# Nor a Fedora release package. generic-release holds their place in the package database, which is
+# what dnf reads the Fedora version from, and the release line no longer calls the system Fedora
+[[ -z "$(rpm -qa 'fedora-release*')" ]]
+rpm -q generic-release generic-release-common >/dev/null
+rpm -q --whatprovides system-release "system-release(${FEDORA_MAJOR_VERSION})" >/dev/null
+[[ "$(rpm -E %fedora)" == "${FEDORA_MAJOR_VERSION}" ]]
+grep -q "^Amethystora release ${FEDORA_MAJOR_VERSION} " /etc/system-release
+grep -qi "fedora" /etc/system-release /etc/system-release-cpe && false
+test ! -e /usr/lib/swidtag/fedoraproject.org
 
 # NordVPN is proprietary, with no right to redistribute it, so the image does not carry it
 rpm -q nordvpn >/dev/null && false
@@ -167,10 +176,10 @@ done
 # stone is lit, so the logo carries on from the splash rather than restating it cold.
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.login-screen logo)" == "'/usr/share/pixmaps/amethystora-wordmark-glow.png'" ]]
 
-# Top bar: the Logo Menu button draws the coloured Amethystora gem, entry 30 of the extension's
-# coloured list (index 29), whose artwork 06-branding.sh replaces. Symbolic icons are off, so the
-# panel shows the gem's own purple instead of a white silhouette. The files keep their upstream
-# names until 07-debrand.sh renames them.
+# Top bar: the Logo Menu button draws the coloured Amethystora gem, the one entry 06-branding.sh
+# leaves in the extension's coloured list (index 0). Symbolic icons are off, so the panel shows the
+# gem's own purple instead of a white silhouette. The files keep their upstream names until
+# 07-debrand.sh renames them.
 LOGOMENU=/usr/share/gnome-shell/extensions/logomenu@aryan_k
 LOGOMENU_DCONF=/etc/dconf/db/distro.d/04-amethystora-logomenu-extension
 cmp -s "${LOGOMENU}/Resources/amethystora-logo-symbolic.svg" \
@@ -178,13 +187,20 @@ cmp -s "${LOGOMENU}/Resources/amethystora-logo-symbolic.svg" \
 cmp -s "${LOGOMENU}/Resources/amethystora-logo.svg" \
     /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg
 grep -q "^symbolic-icon=false$" "${LOGOMENU_DCONF}"
-grep -q "^menu-button-icon-image=29$" "${LOGOMENU_DCONF}"
+grep -q "^menu-button-icon-image=0$" "${LOGOMENU_DCONF}"
 [[ "$(sed -n '/ColouredDistroIcons/,/^\];/p' "${LOGOMENU}/constants.js" |
-    grep -oE "/Resources/[^']+" | sed -n '30p')" == "/Resources/amethystora-logo.svg" ]]
-# The symbolic entry stays branded too: the Framework and Thelio Astra hooks and anyone switching
-# symbolic icons back on in Extension Manager land on entry 31 of the symbolic list.
+    grep -oE "PATH: '[^']+'")" == "PATH: '/Resources/amethystora-logo.svg'" ]]
+# The symbolic list is as short: an account switching symbolic icons back on in Extension Manager, or
+# one whose setting names an entry that has gone, lands on the Amethystora silhouette.
 [[ "$(sed -n '/SymbolicDistroIcons/,/^\];/p' "${LOGOMENU}/constants.js" |
-    grep -oE "/Resources/[^']+" | sed -n '30p')" == "/Resources/amethystora-logo-symbolic.svg" ]]
+    grep -oE "PATH: '[^']+'")" == "PATH: '/Resources/amethystora-logo-symbolic.svg'" ]]
+# Nobody else's logo comes with the extension: a logo is a trademark, and Fedora's guidelines keep
+# Fedora's out of a system built this way. What is left is the two above and the extension's own
+# picture for its About page.
+[[ -z "$(find "${LOGOMENU}/Resources" -type f ! -name 'amethystora-logo.svg' \
+    ! -name 'amethystora-logo-symbolic.svg' ! -name 'settings-logo-menu-logo.svg')" ]]
+test ! -e "${LOGOMENU}/screenshots"
+grep -q "menu-button-icon-image" /usr/share/amethystora/user-setup.hooks.d/10-theming.sh && false
 
 # GNOME Shell extensions built from the git submodules (build-gnome-extensions.sh)
 for extension in appindicatorsupport@rgcjonas.gmail.com blur-my-shell@aunetx caffeine@patapon.info \
@@ -206,11 +222,10 @@ done
 # Every extension ships its licence, in its own folder or in /usr/share/licenses/<uuid>: the GPL asks
 # for the text to travel with the program. One installed from a Fedora package carries it in the package's
 # licence folder, or, like those of gnome-shell-extensions, in that of a sibling from the same source
-# package (gnome-shell-extension-common). Space Bar is the exception, because its author has published
-# no licence to ship (NOTICE)
+# package (gnome-shell-extension-common). Space Bar's upload has none, so build-gnome-extensions.sh adds
+# the GPL its origin puts it under (NOTICE)
 for extension in /usr/share/gnome-shell/extensions/*/; do
     uuid="$(basename "${extension}")"
-    [[ ${uuid} == space-bar@luchrioh ]] && continue
     srpm="$(rpm -qf --qf '%{SOURCERPM}' "${extension%/}" 2>/dev/null)" || srpm=""
     compgen -G "${extension}[Ll][Ii][Cc][Ee][Nn][Ss][Ee]*" >/dev/null ||
         compgen -G "${extension}COPYING*" >/dev/null ||
@@ -370,19 +385,22 @@ test ! -e "${WEBAPP_PROFILE}"
 rm -rf "${WEBAPP_HOME}"
 
 # The manual (13-manual.sh): Electron starts, which also proves every library it links against is on
-# the image, the app and its renderer are in place, and every page in pages.json exists and every link
-# between pages lands on a page and a heading that exist
+# the image, the app, its renderer and its wordmark's font and stone are in place, and every page in
+# pages.json exists and every link between pages lands on a page and a heading that exist
 MANUAL_ELECTRON=/usr/lib/amethystora-manual/amethystora-manual
 test -x /usr/bin/amethystora-manual
 test -x "${MANUAL_ELECTRON}"
 test ! -e /usr/lib/amethystora-manual/chrome-sandbox
-for file in main.js preload.js manual.js index.html manual.css marked.umd.js; do
+for file in main.js preload.js manual.js index.html manual.css marked.umd.js gem.svg fonts/QuicksandVariable.ttf; do
     test -s "/usr/lib/amethystora-manual/resources/app/${file}"
 done
 ELECTRON_RUN_AS_NODE=1 "${MANUAL_ELECTRON}" -e 'process.exit(0)'
 ELECTRON_RUN_AS_NODE=1 "${MANUAL_ELECTRON}" /ctx/build_files/shared/check-manual.js
 test -f /usr/share/licenses/amethystora-manual/LICENSES.chromium.html
 test -f /usr/share/licenses/amethystora-manual/marked/LICENSE
+test -f /usr/share/licenses/amethystora-manual/Quicksand-OFL.txt
+cmp -s <(sed 1d /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg) \
+    <(sed 1d /usr/lib/amethystora-manual/resources/app/gem.svg)
 # It replaces upstream's Documentation launcher, and Super+F1 opens it
 MANUAL_DESKTOP=/usr/share/applications/amethystora-manual.desktop
 test ! -e /usr/share/applications/documentation.desktop
@@ -587,6 +605,24 @@ test -x /usr/bin/starship
 test -s /usr/share/licenses/starship/LICENSE
 compgen -G "/usr/lib/udev/rules.d/71-*-gdu.rules" >/dev/null
 test -s /usr/share/licenses/game-devices-udev/LICENSE
+# The same for what came with the desktop layer and is somebody else's work under another licence
+# (NOTICE names each): Prezto's and zimfw's for the zsh configuration, the GPL of Realtek's driver for
+# its udev rules, fish's own for the prompt taken from it, and the GPL for Space Bar
+for licence in prezto/LICENSE zimfw/LICENSE realtek-r8152/LICENSE fish/COPYING space-bar@luchrioh/LICENSE; do
+    test -s "/usr/share/licenses/${licence}"
+done
+# The licences Fedora's packages keep among their documentation outlive the documentation
+# (05-override-install.sh): zsh and libX11 have theirs nowhere else
+test -s /usr/share/licenses/zsh/LICENCE
+test -s /usr/share/licenses/libX11-common/COPYING
+# The credits in the udev rules taken from Universal Blue still say where the work was done
+# (debrand.py leaves them alone)
+grep -q "https://github.com/ublue-os/config/pull/45$" /usr/lib/udev/rules.d/70-wooting.rules
+# The source packages SOURCES says the image carries are in it. FFmpeg's is one: RPM Fusion's
+# libavcodec-freeworld is built from it, and RPM Fusion keeps only its current build
+awk -F'\t' '$4 ~ "^/usr/src/amethystora/" { print $4 }' /usr/share/licenses/amethystora/SOURCES |
+    sort -u | xargs -r -n1 test -s
+compgen -G "/usr/src/amethystora/ffmpeg-*.src.rpm" >/dev/null
 rpm -q breeze-icon-theme >/dev/null && false
 # Gaps fall through to Adwaita, not to Plasma's Breeze
 grep -qx "Inherits=Adwaita,hicolor" "${CANDY_DIR}/index.theme"

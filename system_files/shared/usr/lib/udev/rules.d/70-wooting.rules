@@ -1,5 +1,5 @@
 # This is a soft fork of the official Wooting keyboard udev rules
-# Modified by https://github.com/Arcitec on https://github.com/iarsslen/amethystora
+# Modified by https://github.com/Arcitec on https://github.com/ublue-os/config/pull/45
 
 # Wooting One Legacy
 SUBSYSTEM=="hidraw", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="ff01", MODE="0660", TAG+="uaccess"

@@ -102,6 +102,20 @@
       depNameTemplate: 'marked',
       datasourceTemplate: 'npm',
     },
+    // The Starship release 05-override-install.sh installs the shell prompt
+    // from, checked there against the checksum Starship publishes beside it.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^build_files/base/05-override-install\\.sh$/',
+      ],
+      matchStrings: [
+        'STARSHIP_VERSION="(?<currentValue>[^"]+)"',
+      ],
+      depNameTemplate: 'starship/starship',
+      datasourceTemplate: 'github-releases',
+      extractVersionTemplate: '^v(?<version>.+)$',
+    },
     ],
 
   "packageRules": [

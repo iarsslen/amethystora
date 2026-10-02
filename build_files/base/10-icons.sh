@@ -102,7 +102,9 @@ find "${CANDY_DIR}" -xtype l -delete
 
 # Icons drawn for this image, for applications the pack has no artwork for and nothing near enough to
 # alias to. They go in before the aliases below, so the loop's check that a target exists covers these
-# too, and so an icon upstream adds later simply replaces the file of the same name.
+# too, and so an icon upstream adds later simply replaces the file of the same name. One of them is a
+# logo, Bazaar's market stall: its maker publishes no trademark terms, which is what `keep` asks of the
+# logos the pack draws, and NOTICE says whose it is.
 for icon in /ctx/build_files/shared/candy-icons/*.svg; do
     install -Dpm0644 "${icon}" "${CANDY_DIR}/apps/scalable/$(basename "${icon}")"
 done

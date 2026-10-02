@@ -38,7 +38,15 @@
     --code-bg: color-mix(in oklab, var(--surface) 55%, var(--bg));
     --radius: 10px;
     --sans: "Inter", "Adwaita Sans", "Cantarell", system-ui, sans-serif;
+    --display: "Quicksand", var(--sans);
     --mono: "JetBrains Mono", "Adwaita Mono", ui-monospace, monospace;
+}
+
+/* The face of the Amethystora wordmark (13-manual.sh puts it here from branding/fonts) */
+@font-face {
+    font-family: "Quicksand";
+    src: url("fonts/QuicksandVariable.ttf") format("truetype");
+    font-weight: 300 700;
 }
 
 * {
@@ -53,7 +61,7 @@ body {
 
 body {
     display: grid;
-    grid-template-columns: clamp(220px, 24vw, 290px) 1fr;
+    grid-template-columns: clamp(248px, 24vw, 290px) 1fr;
     background: var(--bg);
     color: var(--fg);
     font: 16px/1.65 var(--sans);
@@ -93,29 +101,49 @@ a:hover {
     border-right: 1px solid var(--line);
 }
 
+/* The wordmark of the boot splash and the login screen, as logoHtml in branding/generate.mjs sets it: the
+   stone as the "a" of "methystora" in Quicksand Bold, glowing in the three shades the splash lights it
+   with, and white. Every size is the generator's, in em, so it is the same mark at any size; the glow
+   is the login screen's, 10px on its 93px lettering. A light theme gets the generator's dark ink. */
 .brand {
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 22px 20px 14px;
-    color: var(--fg);
+    align-items: baseline;
+    gap: 0.3em;
+    padding: 26px 20px 18px;
+    font: 700 21px/1 var(--display);
+    letter-spacing: -0.015em;
     text-decoration: none;
-    font-size: 17px;
-    letter-spacing: -0.01em;
+    white-space: nowrap;
 }
 
-.brand img {
-    width: 34px;
-    height: 34px;
+.wordmark {
+    color: #ffffff;
 }
 
-.brand span {
+:root[data-mode="light"] .wordmark {
+    color: #241f31;
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-mode]) .wordmark {
+        color: #241f31;
+    }
+}
+
+.wordmark .a {
+    width: 0.677em;
+    height: 0.686em;
+    margin-right: 0.055em;
+    vertical-align: -0.032em;
+    filter:
+        drop-shadow(0 0 0.1075em rgb(220 188 255 / 0.9))
+        drop-shadow(0 0 0.258em rgb(179 125 249 / 0.65))
+        drop-shadow(0 0 0.4946em rgb(145 72 240 / 0.5));
+}
+
+.brand .product {
     color: var(--soft);
-}
-
-.brand strong {
-    color: var(--fg);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .search {

@@ -10,7 +10,7 @@ rewrites every reference, so the image carries no upstream names.
 
 Left alone on purpose:
   - compiled files: the uupd binary, the kernel and akmods packages and their signing certificate
-  - licence files and copyright lines: upstream's attribution must stay (Apache-2.0)
+  - licence files, copyright lines and credit comments: upstream's attribution must stay (Apache-2.0)
   - the RPM database and kernel modules
   - files owned by other RPMs, where words like "bluefin" (the tuna) are not our branding
 
@@ -108,8 +108,16 @@ LINKS = [
 ]
 
 
-# Copyright and licence lines keep upstream's names: the attribution must stay intact
-LEGAL_LINE = re.compile(r"copyright|\(c\)\s|©|spdx-license|licen[cs]ed under|all rights reserved", re.I)
+# Copyright and licence lines keep upstream's names: the attribution must stay intact. So do the
+# comments that credit who wrote something and where, as the udev rules taken from Universal Blue do
+# ("# Written by ...", "# First added on https://github.com/ublue-os/config/..."): renaming the place
+# would credit their work to this repository.
+LEGAL_LINE = re.compile(
+    r"copyright|\(c\)\s|©|spdx-license|licen[cs]ed under|all rights reserved"
+    r"|^\s*(?:#|//|;)\s*(?:this got added on|added (?:by|to config on)|first (?:added|appeared) on|created on"
+    r"|modified by|written by|commit (?:made by|from)|credits?:|source:)\s",
+    re.I,
+)
 
 
 def rename_text(text):

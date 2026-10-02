@@ -2506,6 +2506,8 @@ write("usr/lib/amethystora-update/resources/app/gem.svg", gemSvg(false, BOUNDS.j
 write("usr/lib/amethystora-logs/resources/app/gem.svg", gemSvg(false, BOUNDS.join(" ")));
 // ...and the Notes app's sidebar and lock screen, the same
 write("usr/lib/amethystora-notes/resources/app/gem.svg", gemSvg(false, BOUNDS.join(" ")));
+// ...and the Manual's sidebar, the same
+write("usr/lib/amethystora-manual/resources/app/gem.svg", gemSvg(false, BOUNDS.join(" ")));
 // Notes lifts the stem while it unlocks and Logs blinks it while it reads, so those two also get the bowl
 // and the stem as pictures of their own, in the same box, to lay one over the other
 for (const app of ["notes", "logs"]) {

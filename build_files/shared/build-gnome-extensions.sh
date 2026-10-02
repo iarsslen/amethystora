@@ -144,6 +144,10 @@ if ((GNOME_MAJOR >= 50)); then
 else
     install_ego_extension "space-bar@luchrioh" 34 65181
 fi
+# Its upload carries no licence file. It began as a fork of Workspaces Bar by Francois Thirioux, whose
+# source says "License GPL v3", so that is the licence it comes under, and the text goes with it
+install -Dpm0644 /usr/share/licenses/gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com/LICENSE \
+    /usr/share/licenses/space-bar@luchrioh/LICENSE
 
 rm /usr/share/glib-2.0/schemas/gschemas.compiled
 glib-compile-schemas /usr/share/glib-2.0/schemas

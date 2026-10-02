@@ -58,23 +58,36 @@ for target in "${!UPSTREAM_ARTWORK[@]}"; do
 done
 
 # Top bar: the Logo Menu draws the Amethystora gem in its own colours, not a symbolic silhouette
-# that GNOME would repaint in the panel's foreground white. 04-amethystora-logomenu-extension and
-# zz0-amethystora-modifications turn the symbolic icon off and pick index 29, entry 30 of the
-# coloured list. That entry and entry 31 of the symbolic list are the extension's Universal Blue
-# logo, and both are replaced with Amethystora artwork below, under the extension's file names that
-# 07-debrand.sh then renames. Selecting the entries by number is what makes the checks necessary: a
-# reordered list would silently put somebody else's logo in the panel.
+# that GNOME would repaint in the panel's foreground white.
+#
+# The extension lets its user choose the button's logo, and ships one for every distribution and
+# maker it knows of: Fedora's, Red Hat's, Ubuntu's, Framework's and sixty more. A logo is a trademark
+# and none of those is this image's to hand out, Fedora's least of all, which build.sh takes
+# fedora-logos out for. So both of the extension's lists are cut down to its Universal Blue entry,
+# whose two drawings are replaced with Amethystora's here, under the extension's file names that
+# 07-debrand.sh then renames. That leaves one entry in each list, number 0: the one
+# 04-amethystora-logomenu-extension and zz0-amethystora-modifications select, and the one the
+# extension itself falls back to for an account whose setting names an entry that has gone.
 LOGOMENU=/usr/share/gnome-shell/extensions/logomenu@aryan_k
 logomenu_entries() {
-    sed -n "/$1/,/^\];/p" "${LOGOMENU}/constants.js" | grep -oE "/Resources/[^']+"
+    sed -n "/$1/,/^\];/p" "${LOGOMENU}/constants.js" | grep -oE "PATH: '[^']+'" | cut -d "'" -f 2
 }
-# menu-button-icon-image indexes the arrays from 0, and the symbolic array opens with a plain icon
-# name carrying no /Resources/ path: index 30 is the 30th path listed there, index 29 the 30th here.
-[[ "$(logomenu_entries SymbolicDistroIcons | sed -n '30p')" == "/Resources/ublue-logo-symbolic.svg" ]]
 install -Dpm0644 /usr/share/icons/hicolor/scalable/actions/amethystora-logo-symbolic.svg \
     "${LOGOMENU}/Resources/ublue-logo-symbolic.svg"
-[[ "$(logomenu_entries ColouredDistroIcons | sed -n '30p')" == "/Resources/ublue-logo.svg" ]]
 install -Dpm0644 /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg \
     "${LOGOMENU}/Resources/ublue-logo.svg"
+# The lists, with the note the GPL asks a changed file to carry: that it was changed, and when
+sed -i -e "/{PATH: /{/ublue-logo/!d}" \
+    -e "1i // Changed for Amethystora on $(date -u +%Y-%m-%d): the entries for other makers' logos are removed (build_files/base/06-branding.sh)" \
+    "${LOGOMENU}/constants.js"
+[[ "$(logomenu_entries SymbolicDistroIcons)" == "/Resources/ublue-logo-symbolic.svg" ]]
+[[ "$(logomenu_entries ColouredDistroIcons)" == "/Resources/ublue-logo.svg" ]]
+# The drawings, and the second copy of each that the settings window draws its chooser from. The
+# picture on the extension's own About page is the one file there that is nobody's logo. The
+# screenshots that come with the extension's source show the chooser with every logo in it.
+find "${LOGOMENU}/Resources" -type f ! -name 'ublue-logo.svg' ! -name 'ublue-logo-symbolic.svg' \
+    ! -name 'settings-logo-menu-logo.svg' -delete
+[[ "$(find "${LOGOMENU}/Resources" -type f | wc -l)" == 3 ]]
+rm -rf "${LOGOMENU}/screenshots"
 
 echo "::endgroup::"

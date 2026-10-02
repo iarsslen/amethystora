@@ -18,14 +18,24 @@ Amethystora, in system_files/shared of https://github.com/iarsslen/amethystora.
 Amethystora modifies the others and renames them at build time; the changes are
 made by the scripts in build_files/ of the same repository.
 
-The desktop theme switcher takes its design and its colour palettes from Omakub
-and its fork Omabuntu, both licensed under the MIT License:
+Amethystora is built from the packages of Fedora Linux. Fedora and the Fedora
+logo are trademarks of Red Hat, Inc. Amethystora is not provided, supported or
+endorsed by the Fedora Project or by Red Hat; Fedora itself is at
+https://fedoraproject.org/. An image carries neither Fedora's logos nor its
+release packages, which Fedora's trademark guidelines ask a system built this
+way to replace: the artwork is Amethystora's own, and Fedora's generic-release
+stands in the package database for fedora-release.
 
-  - Omakub    https://github.com/basecamp/omakub
+The desktop theme switcher takes its design and its colour palettes from Omakub
+and its fork Omabuntu. Each says in its README that it is released under the
+MIT License; neither carries a licence file or a copyright line of its own, so
+the notice below names their contributors:
+
+  - Omakub    https://github.com/omacom/omakub
   - Omabuntu  https://github.com/omakasui/omabuntu
 
-    Copyright (c) 2024 37signals LLC
-    Copyright (c) 2025 Luca Pattocchio
+    Copyright (c) the Omakub contributors
+    Copyright (c) the Omabuntu contributors
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -74,16 +84,17 @@ usr/share/licenses/candy-icons. The icons added are:
     3, not under the Apache License. So are its two copies: the one in
     usr/share/icons/hicolor, and the one drawn in the window of Amethystora
     Security (usr/lib/amethystora-security/resources/app/index.html).
-  - io.github.kolunmi.Bazaar.svg and amethystora-notes.svg, which are
-    Amethystora's own drawings.
+  - io.github.kolunmi.Bazaar.svg, drawn for Amethystora in the theme's style
+    after Bazaar's own icon, a market stall under an awning.
+  - amethystora-notes.svg, which is Amethystora's own drawing.
 
-The theme as Amethystora ships it draws no application as its maker's logo:
-of the application icons it keeps the pictograms of a job, such as a
-calculator or an envelope, and the logos of Flatseal, Mission Center and
-VSCodium, whose makers publish no trademark terms for them. An application
-whose logo the theme redrew shows the icon its maker gave it instead. The
-names and logos of the applications in an image are trademarks of their
-owners, who do not sponsor or endorse Amethystora.
+Of the application icons, the theme as Amethystora ships it keeps the
+pictograms of a job, such as a calculator or an envelope, and four logos in
+the theme's style: Bazaar's, drawn here, and Flatseal's, Mission Center's and
+VSCodium's, drawn by the theme. Their makers publish no trademark terms for
+them. An application whose logo the theme redrew shows the icon its maker
+gave it instead. The names and logos of the applications in an image are
+trademarks of their owners, who do not sponsor or endorse Amethystora.
 
 The Amethystora Manual in usr/share/amethystora/manual adapts parts of the
 Bluefin documentation, licensed under the Apache License, Version 2.0; the
@@ -126,6 +137,13 @@ usr/share/licenses/caffeine@patapon.info:
   - Logo Menu             GPL-2.0           https://github.com/ublue-os/Logomenu
   - Search Light          GPL-3.0           https://github.com/icedman/search-light
 
+Logo Menu is not the extension as its authors publish it. It ships a logo for
+every distribution and hardware maker it knows of, for its user to choose the
+panel button from. Since October 2026 Amethystora removes those logos and the
+entries that list them each time an image is built
+(build_files/base/06-branding.sh), which leaves the Amethystora logo as the
+one choice.
+
 These GNOME Shell extensions are installed from extensions.gnome.org, under the
 licence given; each licence ships in the extension's folder, Fuzzy App Search's
 in usr/share/licenses/gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com:
@@ -137,9 +155,11 @@ in usr/share/licenses/gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitl
   - Just Perfection         GPL-3.0           https://gitlab.gnome.org/jrahmatzadeh/just-perfection
 
 Space Bar (https://github.com/christopher-l/space-bar) is installed from the
-same place. Its author has published no licence for it; it is distributed on
-the terms extensions.gnome.org requires of every extension, which must be
-compatible with GPL-2.0-or-later.
+same place. Its author has published no licence file for it. It began as a
+fork of Workspaces Bar by Francois Thirioux
+(https://github.com/fthx/workspaces-bar), whose source is marked "License GPL
+v3", so it comes under the GNU General Public License, version 3; the licence
+ships in usr/share/licenses/space-bar@luchrioh.
 
 Starship, the shell prompt in usr/bin/starship, is installed from its upstream
 release by build_files/base/05-override-install.sh, under the ISC License; the
@@ -152,6 +172,30 @@ by Fabian Bornschein, licensed under the MIT License; the licence ships in
 usr/share/licenses/game-devices-udev.
 
   - game-devices-udev  https://codeberg.org/fabiscafe/game-devices-udev
+
+The zsh configuration in etc/zsh came with the desktop layer taken from
+Bluefin and is not all Bluefin's own: most of zshrc, and parts of zprofile and
+zshenv, are from Prezto by Sorin Ionescu and contributors, and zlogin follows
+the login_init.zsh of zimfw by Eric Nielsen, Matt Hamilton and contributors.
+Both are licensed under the MIT License; the licences ship in
+usr/share/licenses/prezto and usr/share/licenses/zimfw.
+
+  - Prezto  https://github.com/sorin-ionescu/prezto
+  - zimfw   https://github.com/zimfw/zimfw
+
+Two more of the files that came that way are under the GNU General Public
+License, version 2, and not under the Apache License:
+
+  - usr/share/fish/vendor_functions.d/fish_prompt.fish is the default prompt
+    of fish (https://github.com/fish-shell/fish-shell, copyright Axel
+    Liljencrantz and the fish-shell contributors), changed by the Bluefin
+    contributors in August 2024 to name the container a shell is running in.
+    The licence ships in usr/share/licenses/fish.
+  - usr/lib/udev/rules.d/50-usb-realtek-net.rules is the rules file of
+    Realtek's r8152 network driver, copyright Realtek Semiconductor Corp. Its
+    rules are unchanged; the comment above them says who added the file to
+    Universal Blue and whose it is. The licence ships in
+    usr/share/licenses/realtek-r8152.
 
 Firefox, the web browser, is Fedora's package, included as Fedora builds it:
 Amethystora adds no settings, policies or extensions to it. Firefox is a
@@ -182,20 +226,36 @@ Source code
 Amethystora images contain software under licences that require its source
 code to be made available to those who receive it: the GNU General Public
 License and the GNU Lesser General Public License, the Mozilla Public License,
-the Common Development and Distribution License, and the licence of the
-Fraunhofer FDK AAC codec, among others. The file SOURCES,
-beside this one in usr/share/licenses/amethystora of every image, lists each
-package in that image with its licence, the source package it was built from,
-and where that source package is published: Fedora's builds in Fedora's build
-system, Koji, at the address given, and the others by the maker named there.
+the Eclipse Public License, the Common Development and Distribution License,
+and the licence of the Fraunhofer FDK AAC codec, among others. The file
+SOURCES, beside this one in usr/share/licenses/amethystora of every image,
+lists each package in that image with its licence, the source package it was
+built from, and where that source package is:
+
+  - what Fedora built, in Fedora's build system, Koji, at the address given;
+  - what others built (RPM Fusion, negativo17, Fedora Copr) under one of those
+    licences, in the image itself, in usr/src/amethystora. Those makers
+    publish only their current build of each package, so the source package
+    an image was built from is fetched as the image is built and travels
+    with it;
+  - the rest, from the maker and at the address named there.
+
 Everything not installed from a package is built from
 https://github.com/iarsslen/amethystora at the commit the image names as
 BUILD_ID in /usr/lib/os-release; its build_files pin each upstream release
 they fetch.
 
-Written offer: for at least three years after an Amethystora image was last
-published, Arsslen Idadi will give anyone who asks the complete corresponding
-source code of any software in that image whose licence requires its source
-to be made available, such as the licences named above, as a download at no
-charge. Ask through https://github.com/iarsslen/amethystora/issues, naming the
-image and its version.
+An installer ISO carries one image and the installer that puts it on a disk.
+The installer is a small system of its own, made of Fedora's packages as
+Fedora built them, with generic-logos and generic-release in place of Fedora's
+logo and release packages. The file INSTALLER-PACKAGES at the top of the ISO,
+beside a copy of this one, lists them; Fedora publishes the source of each in
+Koji.
+
+Written offer: for at least three years after an Amethystora image or
+installer ISO was last published, Arsslen Idadi will give anyone who asks the
+complete corresponding source code of any software in it whose licence
+requires its source to be made available, such as the licences named above,
+as a download at no charge. Ask through
+https://github.com/iarsslen/amethystora/issues, naming the image or ISO and
+its version.

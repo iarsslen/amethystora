@@ -1,6 +1,9 @@
 # This is used to change the default configuration of Realtek USB ethernet adapters
-# First added on https://github.com/iarsslen/amethystora
+# First added on https://github.com/ublue-os/config/commit/34ee4b21ad34ca80115a95d8a18fd735c4cb29ad
 # Added by https://github.com/bsherman
+# The rules themselves are Realtek's, from its r8152 driver (50-usb-realtek-net.rules), unchanged:
+# copyright Realtek Semiconductor Corp. and licensed under the GNU General Public License,
+# version 2, not under the Apache License: /usr/share/licenses/realtek-r8152/LICENSE
 
 ACTION!="add", GOTO="usb_realtek_net_end"
 SUBSYSTEM!="usb", GOTO="usb_realtek_net_end"

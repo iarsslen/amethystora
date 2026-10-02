@@ -171,7 +171,7 @@ The theme switcher follows the design of [Omakub](https://omakub.org) and its fo
 
 ## License
 
-This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) and [NOTICE](NOTICE) files for details.
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) and [NOTICE](NOTICE) files for details. A few of its files are other people's work under licences of their own (MIT, GPL); NOTICE names each one.
 
 ### Third-Party Components
 
@@ -182,3 +182,5 @@ Amethystora incorporates and builds upon several open source projects:
 - **Various CNCF Projects**: Cloud-native tooling and containers
 
 All incorporated components keep their respective licenses and attributions.
+
+Fedora and the Fedora logo are trademarks of Red Hat, Inc. Amethystora is built from Fedora's packages and is not provided, supported or endorsed by the Fedora Project or by Red Hat. Fedora itself is at [fedoraproject.org](https://fedoraproject.org).
