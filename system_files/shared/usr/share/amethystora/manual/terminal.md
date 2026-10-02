@@ -13,11 +13,11 @@ Its colours follow the [theme](themes.md), and so does the prompt.
 
 ## The greeting
 
-A new terminal says hello with the Amethystora gem, a summary of the machine, the image you are
+A new terminal says hello with the Amethystora logo, a summary of the machine, the image you are
 running, a few useful commands and a tip. `ujust toggle-user-motd` turns it off, and on again.
 
-`fetch` shows the gem and the system summary again whenever you like. A glint crosses the gem's
-facets before the summary appears; you get the still gem instead over SSH, in the text console, in a
+`fetch` shows the logo and the system summary again whenever you like. A glint crosses the logo's
+facets before the summary appears; you get the still logo instead over SSH, in the text console, in a
 terminal without full colour, with `NO_COLOR` set, or when **Reduce Animation** is on in
 **Settings → Accessibility**. Anything you add after `fetch` goes to fastfetch, which it runs.
 

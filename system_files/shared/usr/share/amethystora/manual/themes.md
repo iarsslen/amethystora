@@ -50,7 +50,7 @@ a theme puts its first one on the desktop: a neon city in the rain for Tokyo Nig
 mountain lake for Nord, misty pines for Everforest, a desert sunset for Gruvbox, peaks under a
 pastel moon for Catppuccin, an eclipse for Matte Black, and so on. `Super+Ctrl+Space` cycles
 through them. The two Amethystora themes open on the crystal field, and also have a cut stone's
-facets and the night sky the boot screen ends on; GNOME's Settings offers those under Appearance.
+facets and a night sky of violet smoke; GNOME's Settings offers those under Appearance.
 
 To add your own, put pictures (JPG, PNG, WebP or SVG) in a folder named after the theme. They come
 after the theme's own pictures:

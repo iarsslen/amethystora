@@ -165,7 +165,7 @@ These GNOME Shell extensions come with the image:
 | AppIndicator | Tray icons for apps that use them |
 | Caffeine | A switch in the quick settings that keeps the screen awake |
 | GSConnect | Your Android phone: notifications, files, clipboard, texts |
-| Logo Menu | The gem at the top left: shortcuts to system tools |
+| Logo Menu | The Amethystora logo at the top left: shortcuts to system tools |
 | Gradia | Annotate a screenshot straight after taking it |
 | Bazaar integration | Connects the shell to Bazaar, the software centre |
 

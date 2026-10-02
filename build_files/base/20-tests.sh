@@ -84,7 +84,7 @@ rpm -q kitty >/dev/null && false
 [[ "$(plymouth-set-default-theme)" == "amethystora" ]]
 rpm -q plymouth-plugin-script >/dev/null
 test -f /usr/share/plymouth/themes/amethystora/amethystora.script
-for image in nebula halo dust gem light shard-0 wordmark credit field dot; do
+for image in crown halo dust gem light side-0 stem wordmark credit field dot; do
     test -f "/usr/share/plymouth/themes/amethystora/${image}.png"
 done
 INITRAMFS_FILES="$(lsinitrd /lib/modules/*/initramfs.img)"
@@ -131,7 +131,7 @@ done
 sed -n 's:.*<filename\(-dark\)\?>\(.*\)</filename\(-dark\)\?>.*:\2:p' /usr/share/gnome-background-properties/amethystora.xml |
     xargs -r -n1 test -f
 
-# Login screen background (12-login-screen.sh): the sky the boot splash ends on, blurred and with
+# Login screen background (12-login-screen.sh): the crown the boot splash ends on, blurred and with
 # no gem in it. GNOME reads the login background from the shell's own stylesheet and nowhere else,
 # so both the picture and the rule naming it live inside the theme's gresource.
 #
@@ -446,7 +446,7 @@ test -x "${NOTES_ELECTRON}"
 [[ "$(stat -c '%i' "${NOTES_ELECTRON}")" == "$(stat -c '%i' "${MANUAL_ELECTRON}")" ]]
 [[ "$(stat -c '%i' /usr/lib/amethystora-notes/resources/app/marked.umd.js)" == "$(stat -c '%i' /usr/lib/amethystora-manual/resources/app/marked.umd.js)" ]]
 test ! -e /usr/lib/amethystora-notes/chrome-sandbox
-for file in main.js preload.js notes.js index.html notes.css gem.svg fonts/QuicksandVariable.ttf; do
+for file in main.js preload.js notes.js index.html notes.css gem.svg gem-bowl.svg gem-stem.svg fonts/QuicksandVariable.ttf; do
     test -s "/usr/lib/amethystora-notes/resources/app/${file}"
 done
 for file in main.js preload.js notes.js; do
@@ -478,7 +478,7 @@ test -x /usr/bin/amethystora-logs
 test -x "${LOGS_ELECTRON}"
 [[ "$(stat -c '%i' "${LOGS_ELECTRON}")" == "$(stat -c '%i' "${MANUAL_ELECTRON}")" ]]
 test ! -e /usr/lib/amethystora-logs/chrome-sandbox
-for file in main.js preload.js logs.js index.html logs.css gem.svg fonts/QuicksandVariable.ttf; do
+for file in main.js preload.js logs.js index.html logs.css gem.svg gem-bowl.svg gem-stem.svg fonts/QuicksandVariable.ttf; do
     test -s "/usr/lib/amethystora-logs/resources/app/${file}"
 done
 for file in main.js preload.js logs.js; do

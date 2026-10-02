@@ -144,6 +144,12 @@ function icon(name, size = 20, className = '') {
     return svg;
 }
 
+// The mark as its bowl and its stem, so that the stem can blink by itself while the journal is read
+function reading() {
+    return h('span', { class: 'reading', 'aria-hidden': 'true' },
+        h('img', { src: 'gem-bowl.svg', alt: '' }), h('img', { class: 'stem', src: 'gem-stem.svg', alt: '' }));
+}
+
 function button(label, onclick, { icon: name, small, primary, disabled, pressed, title } = {}) {
     const classes = ['btn', small && 'small', primary && 'primary'].filter(Boolean).join(' ');
     return h('button', {
@@ -569,7 +575,7 @@ function renderList() {
     live.rows = null;
     live.foot = null;
     if (state.loading) {
-        live.list.replaceChildren(h('div', { class: 'loading' }, icon('spinner', 26, 'spin'),
+        live.list.replaceChildren(h('div', { class: 'loading' }, reading(),
             h('span', {}, state.search ? 'Searching the journal…' : 'Reading the journal…')));
         renderCount();
         return;
@@ -933,7 +939,7 @@ function sourcesPage() {
         h('h1', {}, 'Apps and services'),
         h('p', { class: 'lead' }, 'Everything that has written to the journal. Pick one to read only what it said.'));
     if (!found) {
-        return h('div', { class: 'page' }, head, h('div', { class: 'loading' }, icon('spinner', 26, 'spin')));
+        return h('div', { class: 'page' }, head, h('div', { class: 'loading' }, reading()));
     }
     const filter = h('input', {
         type: 'search',

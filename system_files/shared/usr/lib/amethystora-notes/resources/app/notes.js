@@ -484,8 +484,10 @@ function passphraseFields({ current = false } = {}) {
 
 // --- The gate: first run and unlock -----------------------------------------------------------------
 
+// The mark as its bowl and its stem, so that the stem can lift by itself while the notes are opened
 function gem(active = false) {
-    return h('div', { class: `gem${active ? ' active' : ''}` }, h('img', { src: 'gem.svg', alt: '' }));
+    return h('div', { class: `gem${active ? ' active' : ''}` },
+        h('img', { src: 'gem-bowl.svg', alt: '' }), h('img', { class: 'stem', src: 'gem-stem.svg', alt: '' }));
 }
 
 function renderGate() {
@@ -614,12 +616,12 @@ function unlockPage() {
                     return;
                 }
                 submit.disabled = true;
-                gemNode.classList.add('active');
+                gemNode.classList.add('opening');
                 error.textContent = '';
                 const result = await window.notes.unlock(input.value);
                 if (result?.error) {
                     submit.disabled = false;
-                    gemNode.classList.remove('active');
+                    gemNode.classList.remove('opening');
                     error.textContent = result.error;
                     input.select();
                     return;
