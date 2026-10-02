@@ -9,7 +9,7 @@ set -eoux pipefail
 # Fedora's candy-icon-theme package is not used: it hard-requires breeze-icon-theme, which nothing
 # else on a GNOME image wants, and it installs the theme as "Candy" rather than under its own name.
 #
-# Four changes are made to the upstream tree, the first three because the pack is written for Plasma:
+# Five changes are made to the upstream tree, the first three because the pack is written for Plasma:
 #
 #   - Inherits drops breeze-dark. Upstream looks there first for everything it does not draw
 #     itself, which on this image would mean a KDE glyph wherever candy-icons has a gap, instead
@@ -26,6 +26,16 @@ set -eoux pipefail
 #
 #   - where there is no near enough neighbour to alias to, the icon is drawn for this image in the
 #     pack's own style and installed from build_files/shared/candy-icons.
+#
+#   - nobody else's logo is redrawn. The pack draws some 800 applications, most of them as their
+#     maker's logo in its own gradients, and a logo is a trademark whose owner decides how it looks:
+#     Mozilla, JetBrains, Anthropic and the rest allow theirs unaltered or not at all. So of the
+#     application icons only the drawings named in build_files/shared/candy-icons/keep stay, the
+#     pictograms of a job rather than of a product, and an application whose logo the pack redrew
+#     shows the icon it brought with it, from hicolor. A name that links to a pictogram stays: that
+#     is a generic icon, not anybody's mark. The logos the pack puts on folders, file types and
+#     status icons go as well. Do not alias an application to another maker's logo, and do not draw
+#     one for this image.
 
 CANDY_REPO="https://github.com/EliverLara/candy-icons"
 # master as of 2026-03-06; bump together with the alias targets below
@@ -53,6 +63,43 @@ find "${CANDY_DIR}"/{apps,devices,mimetypes,preferences,status} \
     -type l -name '*-symbolic.svg' -delete
 [[ -z "$(find "${CANDY_DIR}"/{apps,devices,mimetypes,preferences,status} -type l -name '*-symbolic.svg')" ]]
 
+# Nobody else's logo: of the application icons, only the drawings on the keep list stay. A name on
+# the list that upstream has dropped leaves the two counts apart, which fails the build here rather
+# than leaving an application without its icon.
+CANDY_KEEP=/ctx/build_files/shared/candy-icons/keep
+(
+    cd "${CANDY_DIR}/apps/scalable"
+    find . -maxdepth 1 -type f -printf '%f\n' |
+        grep -vxFf <(sed -e '/^#/d' -e '/^$/d' -e 's/$/.svg/' "${CANDY_KEEP}") |
+        xargs -d '\n' rm --
+)
+(($(find "${CANDY_DIR}/apps/scalable" -type f | wc -l) == $(grep -cv -e '^#' -e '^$' "${CANDY_KEEP}")))
+
+# The same for the logos the pack puts on folders, file types, settings and status icons: Android,
+# Blender, Debian, Docker, Flatpak, Google Drive, GitHub, Godot, Java, Snap, Windows and KDE on the
+# folders; Adobe's PDF, Anki, Deluge, Debian, Plasma and the languages' own marks on the file types;
+# Bluetooth and Cloudflare on the status icons. A file of one of those types takes the pack's
+# generic icon of its kind instead. One that upstream has dropped fails the build, to be taken off.
+CANDY_LOGOS=(
+    places/48/folder-{android,blender,deb,docker,flatpak,gdrive,git,godot,java,snap,windows}
+    places/48/start-here-kde{,-plasma}
+    places/16/folder-gdrive
+    mimetypes/scalable/application-{pdf,x-anki,x-bittorrent,x-deb,x-plasma,x-ruby}
+    mimetypes/scalable/text-{julia,r,x-csharp,x-css,x-emacs-lisp,x-go,x-java,x-julia,x-python,x-rust,x-sass}
+    preferences/scalable/preferences-desktop-plasma{,-theme}
+    status/scalable/network-bluetooth{,-activated,-activated-locked,-inactive-symbolic}
+    status/scalable/network-wireless-bluetooth-symbolic
+    status/scalable/zero-trust{,-connected,-disconnected,-error}
+)
+for logo in "${CANDY_LOGOS[@]}"; do
+    rm "${CANDY_DIR}/${logo}.svg"
+done
+
+# Every name that linked to a drawing that has gone goes with it, and so do upstream's links into
+# breeze-dark, which this image does not have
+find "${CANDY_DIR}" -xtype l -delete
+[[ -z "$(find "${CANDY_DIR}" -xtype l)" ]]
+
 # Icons drawn for this image, for applications the pack has no artwork for and nothing near enough to
 # alias to. They go in before the aliases below, so the loop's check that a target exists covers these
 # too, and so an icon upstream adds later simply replaces the file of the same name.
@@ -79,11 +126,6 @@ CANDY_ALIASES=(
     "org.gnome.Papers:org.gnome.Evince.svg"
     # Extension Manager does the job of GNOME's own Extensions app
     "com.mattjakeman.ExtensionManager:org.gnome.Extensions.svg"
-    # Thunderbird ships as a Flatpak whose id is lower case, while upstream only draws the
-    # capitalised org.mozilla.Thunderbird; both are the same artwork. That capitalised Flatpak is
-    # end of life, and Flathub rebases the machines that still have it onto the ESR build.
-    "org.mozilla.thunderbird:thunderbird.svg"
-    "org.mozilla.thunderbird_esr:thunderbird.svg"
     # Gradia annotates screenshots
     "be.alexandervanhee.gradia:org.gnome.Screenshot.svg"
     # Parental Controls (malcontent) restricts what an account may run
@@ -96,34 +138,18 @@ CANDY_ALIASES=(
     "org.gnome.Tour:applications-education.svg"
     # Warehouse manages the installed Flatpaks
     "io.github.flattool.Warehouse:software-manager.svg"
-    # Refine tweaks GNOME's settings, as GNOME Tweaks does
-    "page.tesk.Refine:utilities-tweak-tool.svg"
+    # Refine tweaks GNOME's settings, as GNOME Tweaks does. The pack's icon for both is the Nintendo
+    # Switch logo, which is not on the keep list, so they take its sliders from the settings icons.
+    "page.tesk.Refine:../../preferences/scalable/preferences.svg"
+    "org.gnome.tweaks:../../preferences/scalable/preferences.svg"
     # Ignition edits what starts at login
     "io.github.flattool.Ignition:preferences-system.svg"
     # Impression writes disk images to USB sticks
     "io.gitlab.adhami3310.Impression:usb-creator-gtk.svg"
-    # Planify is Planner under a new app id, and upstream still draws it only under the old one.
-    # The image does not install it; this is for when it comes from Flathub.
-    "io.github.alainm23.planify:com.github.alainm23.planner.svg"
-    # ONLYOFFICE, not installed either: org.onlyoffice.desktopeditors.svg above is its Flatpak's
-    # icon, and this is the name the launcher of ONLYOFFICE's own RPM asks for
-    "onlyoffice-desktopeditors:org.onlyoffice.desktopeditors.svg"
-    # JetBrains IDEs. Upstream draws them under their Flatpak ids and most of their window classes,
-    # the names user-setup.hooks.d/16-jetbrains-icons.sh answers Toolbox's per-install icon names
-    # with. These are the window classes it misses: IntelliJ IDEA's, the two Community editions',
-    # RubyMine's, Android Studio's, and Rider's, whose upstream link has lost its .svg.
-    "jetbrains-idea:intellij.svg"
-    "jetbrains-idea-ce:intellij.svg"
-    "jetbrains-pycharm-ce:pycharm.svg"
-    "jetbrains-rider:rider.svg"
-    "jetbrains-rubymine:rubymine.svg"
-    "jetbrains-studio:androidstudio.svg"
-    # RubyMine's Flatpak, the one JetBrains app id upstream has no link for
-    "com.jetbrains.RubyMine:rubymine.svg"
     # Input Remapper remaps keys and buttons
     "input-remapper:preferences-desktop-keyboard.svg"
-    # DistroShelf manages Distrobox containers, which run on podman
-    "com.ranfdev.DistroShelf:io.podman_desktop.PodmanDesktop.svg"
+    # DistroShelf installs a distribution into a Distrobox container
+    "com.ranfdev.DistroShelf:system-software-install.svg"
     # Sysprof is the one application the dx image adds that the pack has no icon for. VSCodium,
     # virt-manager and Remote Viewer (Icon=virt-viewer) are all drawn upstream, and the rest of dx
     # is command line tools and daemons with no launcher to put an icon on. A profiler is a system

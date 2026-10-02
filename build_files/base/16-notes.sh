@@ -13,6 +13,8 @@ set -eoux pipefail
 #     copied, so that the image carries one Electron for every window and Renovate bumps one pin.
 #   - marked, which renders the notes' Markdown: the Manual's copy, hard-linked for the same reason.
 #   - Quicksand, the face of the Amethystora wordmark, which the window draws its sidebar in.
+#
+# The security key behind a passkey is spoken to through fido2-tools, which 04-packages.sh installs.
 
 MANUAL_DIR=/usr/lib/amethystora-manual
 NOTES_DIR=/usr/lib/amethystora-notes

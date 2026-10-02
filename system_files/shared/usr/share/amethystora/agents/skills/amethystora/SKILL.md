@@ -45,8 +45,8 @@ Never add dnf repositories or run `dnf install` on the host; there is no writabl
 
 Notes and to-do lists are the Notes app (`amethystora-notes`), which the image ships in place of Joplin
 and Planify; suggest it before installing either. Its data in `~/.local/share/amethystora-notes` is
-usually encrypted with the user's passphrase: never read, move or delete anything there, and never
-ask for the passphrase.
+usually encrypted with the user's passphrase, which a passkey on a security key can stand in for:
+never read, move or delete anything there, and never ask for the passphrase or the key's PIN.
 
 ## Themes
 

@@ -16,6 +16,11 @@
 
   The gradient is two shades from the amethyst ladder in branding/generate.mjs, the glint on the
   crown running down into the stone, on the diagonal the pack's shields use.
+
+  Licence: the shield makes this file a modified part of candy-icons, by Eliver Lara, so it is under
+  the GNU General Public License, version 3, as the pack is, and not under the Apache License the
+  rest of this repository is under. The licence is usr/share/licenses/candy-icons/LICENSE in the
+  image. The same holds for the copy of this drawing in the Security app's index.html.
 -->
   <linearGradient id="_lgradient_security_status" x1="0.0619" y1="0.1472" x2="0.9904" y2="0.9866" gradientTransform="matrix(36,0,0,46.469,6,0.7)" gradientUnits="userSpaceOnUse">
     <stop offset="0%" stop-opacity="1" style="stop-color:rgb(179,125,249)"/>

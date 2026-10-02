@@ -386,6 +386,60 @@ setup-usb-protection ACTION="":
         *) exit 0 ;;
     esac
 
+# Let browsers install only the extensions on a list, and keep web pages from USB, serial, HID and Bluetooth devices
+setup-browser-protection ACTION="" ID="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    action="{{ ACTION }}"
+    policy=/usr/libexec/amethystora-browser-policy
+    if [[ "$("${policy}" status)" == on ]]; then
+        echo "Browser protection is on: browsers install only the extensions on the list."
+    else
+        echo "Browser protection is off: a browser installs any extension you let it."
+    fi
+    allowed="$("${policy}" allowed)"
+    if [[ -n "${allowed}" ]]; then
+        echo "Allowed on this machine, as well as the password managers:"
+        sed 's/^/  /' <<<"${allowed}"
+    fi
+    if [[ -z "${action}" ]]; then
+        action="$(gum choose --header "Browser protection" \
+            "Turn on" "Allow an extension" "Turn off" "Cancel")"
+    fi
+    case "${action}" in
+        "Turn on" | on)
+            echo
+            echo "An extension sees every page you open, which is how most password stealers arrive."
+            echo "With this on, browsers install only the Bitwarden, 1Password, Proton Pass and KeePassXC"
+            echo "password managers and the extensions you allow here, and web pages are kept from USB,"
+            echo "serial, HID and Bluetooth devices."
+            echo
+            echo "It covers Firefox, Brave, Chrome, Chromium and Edge, for every account on this machine."
+            echo "Extensions that are not on the list go: Firefox removes them, with their settings, the"
+            echo "next time it starts, and the others turn theirs off. Allow the ones you use first."
+            gum confirm "Turn browser protection on?" || exit 0
+            sudo "${policy}" on
+            echo "On. Each browser takes it up the next time it starts."
+            ;;
+        "Allow an extension" | allow)
+            id="{{ ID }}"
+            if [[ -z "${id}" ]]; then
+                echo "Firefox lists each extension's ID in about:support, under Add-ons. The others show"
+                echo "it on their extensions page with developer mode on."
+                id="$(gum input --prompt "Extension ID> " --placeholder "uBlock0@raymondhill.net")"
+            fi
+            [[ -n "${id}" ]] || exit 0
+            sudo "${policy}" allow "${id}"
+            echo "Allowed. To take one back, remove its line from /etc/amethystora/browser-extensions"
+            echo "and run: ujust setup-browser-protection on"
+            ;;
+        "Turn off" | off)
+            sudo "${policy}" off
+            echo "Off. Browsers install any extension again; the ones Firefox removed do not come back."
+            ;;
+        *) exit 0 ;;
+    esac
+
 # Unlock the encrypted disk with this machine's TPM instead of typing the passphrase at every boot
 setup-disk-unlock ACTION="":
     #!/usr/bin/bash

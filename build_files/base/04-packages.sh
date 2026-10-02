@@ -41,6 +41,9 @@ FEDORA_PACKAGES=(
     fail2ban-selinux
     fail2ban-server
     fastfetch
+    # fido2-token, fido2-cred and fido2-assert, through which the Notes app speaks to a security key
+    # for its passkeys; libfido2 itself is already in the base image
+    fido2-tools
     # The browser, in the image so that a machine has one before it is online. It ships as Fedora
     # builds it: Mozilla lets Firefox be redistributed only unaltered, so nothing here or in
     # system_files adds a policy, an extension, a preference or a home page to it

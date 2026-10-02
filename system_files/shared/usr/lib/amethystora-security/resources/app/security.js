@@ -212,6 +212,7 @@ const TILE_ICONS = {
     'ransomware-protection': 'history',
     'disk-unlock': 'chip',
     'usb-protection': 'plug',
+    'browser-protection': 'monitor',
     'key-remapping': 'keyboard',
     'on-detection': 'file-alert',
     realtime: 'activity',

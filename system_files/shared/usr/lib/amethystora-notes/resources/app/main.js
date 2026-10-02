@@ -19,6 +19,9 @@
 // NIST and CNSA 2.0 keep for the post-quantum era. The passphrase is the weak point, so scrypt is set to
 // cost 128 MiB and a good part of a second for every guess.
 //
+// A passkey opens the notes as well, never instead: the same key sealed once more, under a secret that a
+// FIDO2 security key computes with HMAC-SHA256 after its PIN or a fingerprint (see Passkeys below).
+//
 // The window is locked down the way the Manual's is: it loads nothing but its own page, and the page can
 // ask for nothing but what preload.js lists. Attachments reach it through res://, served from here and
 // only while the notes are open.
@@ -164,6 +167,121 @@ async function unwrap(passphrase, sealedVault = vault) {
     } catch {
         return null;
     }
+}
+
+// --- Passkeys ----------------------------------------------------------------------------------------
+
+// A passkey is a credential made on a FIDO2 security key with the hmac-secret extension. Asked with the
+// salt kept beside it in vault.json, and only once its PIN or a fingerprint has been checked, the key
+// answers with 32 bytes that nothing else can compute, and the data key is sealed under those. The key is
+// spoken to through libfido2's own tools (fido2-tools), which take what they need as lines on stdin and,
+// with no terminal to ask on, ask for the PIN on stderr and read it from stdin too.
+const RELYING_PARTY = 'amethystora-notes';
+const FIDO_ERRORS = [
+    [/PIN_INVALID/, 'That is not the PIN of this security key.'],
+    [/PIN_AUTH_BLOCKED/, 'Too many wrong PINs. Unplug the security key, plug it back in and try again.'],
+    [/PIN_BLOCKED/, 'The PIN of this security key is blocked, which only resetting the key undoes.'],
+    [/PIN_REQUIRED|PIN_NOT_SET|invalid PIN length/, 'Enter the PIN of the security key: 4 to 63 characters.'],
+    [/UV_INVALID|UV_BLOCKED/, 'The security key did not recognise the fingerprint.'],
+    [/ACTION_TIMEOUT|KEEPALIVE_CANCEL/, 'The security key was not touched in time.'],
+    [/NO_CREDENTIALS/, 'This security key is not one that opens your notes.'],
+    [/aborted/, 'Cancelled.'],
+];
+// Aborts the tool that is waiting for the key to be touched; set while a passkey is being used or added
+let touching = null;
+
+// The lines one of the tools prints, given these on stdin. Rejects with what the tool said.
+function fido(tool, args, lines = [], pin = '') {
+    const clean = (text) => String(text).replace(/[\r\n]/g, '');
+    return new Promise((resolve, reject) => {
+        // In a session of its own: with a terminal, the tool would ask for the PIN there
+        const child = spawn(tool, args, { detached: true, signal: touching?.signal, timeout: 120000 });
+        let printed = '';
+        let said = '';
+        let asked = false;
+        child.stdout.on('data', (chunk) => {
+            printed += chunk;
+        });
+        child.stderr.on('data', (chunk) => {
+            said += chunk;
+            if (!asked && said.includes('Enter PIN')) {
+                asked = true;
+                if (pin) {
+                    child.stdin.end(`${clean(pin)}\n`);
+                } else {
+                    said = 'PIN_REQUIRED';
+                    child.kill();
+                }
+            }
+        });
+        child.stdin.on('error', () => {});
+        child.on('error', reject);
+        child.on('close', (code) => (code === 0 ? resolve(printed.split('\n')) : reject(new Error(said.trim() || `${tool} failed`))));
+        child.stdin.write(lines.map((line) => `${clean(line)}\n`).join(''));
+    });
+}
+
+// One passkey operation at a time, with what went wrong said in plain words
+async function withKey(run) {
+    if (touching) {
+        return { error: 'The security key is busy. Try again in a moment.' };
+    }
+    touching = new AbortController();
+    try {
+        return await run();
+    } catch (error) {
+        return { error: FIDO_ERRORS.find(([pattern]) => pattern.test(error.message))?.[1] || error.message };
+    } finally {
+        touching = null;
+    }
+}
+
+// The security keys plugged in: where each one is, and what it calls itself
+async function fidoDevices() {
+    return (await fido('fido2-token', ['-L']))
+        .map((line) => /^(.+?): vendor=0x[0-9a-f]+, product=0x[0-9a-f]+ \((.*)\)$/.exec(line))
+        .filter(Boolean)
+        .map(([, device, name]) => ({ device, name: name.trim() || 'Security key' }));
+}
+
+// Whether the key keeps secrets for apps, has a PIN, and has a fingerprint enrolled
+async function fidoInfo(device) {
+    const lines = await fido('fido2-token', ['-I', device]);
+    const list = (label) => (lines.find((line) => line.startsWith(`${label}: `)) || '').slice(label.length + 2).split(', ');
+    const options = list('options');
+    return { secrets: list('extension strings').includes('hmac-secret'), pin: options.includes('clientPin'), uv: options.includes('uv') };
+}
+
+// Whether this passkey was made on this key, which the key says without being touched
+function holds(device, passkey) {
+    return fido('fido2-assert', ['-G', '-t', 'up=false', device],
+        [crypto.randomBytes(32).toString('base64'), RELYING_PARTY, passkey.credential])
+        .then(() => true, (error) => !/NO_CREDENTIALS/.test(error.message));
+}
+
+// The plugged-in key that holds one of the passkeys, and which one
+async function findPasskey() {
+    for (const { device } of await fidoDevices()) {
+        for (const passkey of vault?.passkeys || []) {
+            if (await holds(device, passkey)) {
+                return { device, passkey };
+            }
+        }
+    }
+    return null;
+}
+
+// The secret the key computes for this passkey once it is touched: after its PIN, or, given none, after
+// the fingerprint it reads itself. Either way the key has checked who is asking, and the secret is the
+// same; a touch alone would get a different one.
+async function passkeySecret(device, passkey, pin) {
+    const lines = await fido('fido2-assert', ['-G', '-h', '-t', pin ? 'pin=true' : 'uv=true', device],
+        [crypto.randomBytes(32).toString('base64'), RELYING_PARTY, passkey.credential, passkey.salt], pin);
+    const secret = Buffer.from(lines[4] || '', 'base64');
+    if (secret.length !== 32) {
+        throw new Error('The security key gave no secret.');
+    }
+    return secret;
 }
 
 // --- Files -------------------------------------------------------------------------------------------
@@ -351,7 +469,8 @@ function status() {
 }
 
 function describe() {
-    return { status: status(), encrypted: Boolean(vault?.encrypted), dir: DIR, data: store };
+    const passkeys = (vault?.passkeys || []).map(({ id, name, created }) => ({ id, name, created }));
+    return { status: status(), encrypted: Boolean(vault?.encrypted), passkeys, dir: DIR, data: store };
 }
 
 async function readVault() {
@@ -403,14 +522,8 @@ async function create(passphrase) {
     return describe();
 }
 
-async function unlock(passphrase) {
-    if (store) {
-        return describe();
-    }
-    const secret = await unwrap(passphrase);
-    if (!secret) {
-        return { error: 'That is not the passphrase.' };
-    }
+// Opens the notes with their data key
+async function openWith(secret) {
     key = secret;
     try {
         store = await readData();
@@ -419,6 +532,97 @@ async function unlock(passphrase) {
         return { error: error.message };
     }
     await opened();
+    return describe();
+}
+
+async function unlock(passphrase) {
+    if (store) {
+        return describe();
+    }
+    const secret = await unwrap(passphrase);
+    if (!secret) {
+        return { error: 'That is not the passphrase.' };
+    }
+    return openWith(secret);
+}
+
+// With a passkey: { pin: true } asks the page for the PIN of a key that reads no fingerprint
+async function unlockWithPasskey(pin) {
+    if (store) {
+        return describe();
+    }
+    const found = await findPasskey();
+    if (!found) {
+        return { error: 'Plug in a security key that opens your notes.' };
+    }
+    if (!pin && !(await fidoInfo(found.device)).uv) {
+        return { pin: true };
+    }
+    const secret = await passkeySecret(found.device, found.passkey, pin);
+    let opening;
+    try {
+        opening = unseal(secret, Buffer.from(found.passkey.key, 'base64'), `passkey:${found.passkey.id}`);
+    } catch {
+        return { error: 'This passkey no longer opens your notes. Use your passphrase.' };
+    } finally {
+        secret.fill(0);
+    }
+    return openWith(opening);
+}
+
+// Seals the data key once more, under the secret of the one security key that is plugged in
+async function addPasskey({ current, pin }) {
+    if (!store || !vault.encrypted) {
+        return { error: 'Unlock your notes first.' };
+    }
+    if (!(await unwrap(current))) {
+        return { error: 'That is not the current passphrase.' };
+    }
+    const devices = await fidoDevices();
+    if (devices.length !== 1) {
+        return { error: devices.length ? 'Leave only the security key you are adding plugged in.' : 'Plug in your security key.' };
+    }
+    const [{ device, name }] = devices;
+    const info = await fidoInfo(device);
+    if (!info.secrets) {
+        return { error: 'This security key cannot keep a secret for an app (FIDO2 hmac-secret), so it cannot open your notes.' };
+    }
+    if (!info.pin && !info.uv) {
+        return { error: 'This security key has no PIN yet. Set one in Firefox at about:webauthn, then add it here.' };
+    }
+    if (!pin && !info.uv) {
+        return { error: 'Enter the PIN of the security key.' };
+    }
+    if (await findPasskey()) {
+        return { error: 'This security key already opens your notes.' };
+    }
+    // Nothing is stored on the key: the credential it returns is all there is of it, and it stays here
+    const made = await fido('fido2-cred', ['-M', '-h', ...(pin ? [] : ['-v']), device], [
+        crypto.randomBytes(32).toString('base64'), RELYING_PARTY, os.userInfo().username, crypto.randomBytes(16).toString('base64'),
+    ], pin);
+    const passkey = {
+        id: crypto.randomBytes(16).toString('hex'), name, created: Date.now(),
+        credential: made[4], salt: crypto.randomBytes(32).toString('base64'),
+    };
+    const secret = await passkeySecret(device, passkey, pin);
+    if (!key) {
+        return { error: 'Your notes locked before the passkey was added.' };
+    }
+    passkey.key = seal(secret, key, `passkey:${passkey.id}`).toString('base64');
+    secret.fill(0);
+    const changed = { ...vault, passkeys: [...(vault.passkeys || []), passkey] };
+    await writeAtomic(VAULT, JSON.stringify(changed, null, 2));
+    vault = changed;
+    return describe();
+}
+
+async function removePasskey(id) {
+    if (!store || !vault.passkeys?.some((passkey) => passkey.id === id)) {
+        return { error: 'Nothing to change.' };
+    }
+    const changed = { ...vault, passkeys: vault.passkeys.filter((passkey) => passkey.id !== id) };
+    await writeAtomic(VAULT, JSON.stringify(changed, null, 2));
+    vault = changed;
     return describe();
 }
 
@@ -467,7 +671,8 @@ async function setEncryption({ action, current, next }) {
     await flush();
     await saving;
     if (action === 'change' && vault.encrypted && next) {
-        const changed = await wrap(next, key);
+        // The passkeys seal the same key, so they stay
+        const changed = { ...await wrap(next, key), passkeys: vault.passkeys };
         await writeAtomic(VAULT, JSON.stringify(changed, null, 2));
         vault = changed;
     } else if (action === 'enable' && !vault.encrypted && next) {
@@ -759,7 +964,8 @@ async function exportMarkdown() {
 }
 
 // One file with everything, attachments included, sealed with the notes' own key and carrying it wrapped
-// under the current passphrase: it opens with the passphrase it was made with, on any machine
+// under the current passphrase: it opens with the passphrase it was made with, on any machine. The
+// passkeys are left out of it.
 async function backup() {
     if (!store) {
         return { error: 'Unlock your notes first.' };
@@ -1305,6 +1511,12 @@ if (!app.requestSingleInstanceLock()) {
     handle('state', () => describe());
     handle('create', (_event, passphrase) => create(passphrase ? String(passphrase) : null));
     handle('unlock', (_event, passphrase) => unlock(String(passphrase)));
+    handle('unlock-passkey', (_event, pin) => withKey(() => unlockWithPasskey(String(pin || ''))));
+    handle('passkey-add', (_event, change) => withKey(() => addPasskey({
+        current: String(change?.current || ''), pin: String(change?.pin || ''),
+    })));
+    handle('passkey-remove', (_event, id) => removePasskey(String(id)));
+    ipcMain.on('passkey-cancel', () => touching?.abort());
     handle('lock', () => lock().then(() => describe()));
     handle('encryption', (_event, change) => setEncryption({
         action: String(change?.action), current: change?.current ? String(change.current) : '', next: change?.next ? String(change.next) : '',

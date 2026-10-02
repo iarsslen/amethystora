@@ -27,6 +27,7 @@ const db = {};
 const ui = {
     status: 'loading',
     encrypted: false,
+    passkeys: [],
     dir: '',
     mode: 'notes',
     notesView: { type: 'all' },
@@ -542,6 +543,60 @@ function setupPage() {
         h('p', { class: 'note' }, 'Coming from Joplin or Planify? Import them from Settings once you are in.'));
 }
 
+// What is said about the security key: in red what went wrong, plainly what it is waited for
+function keyStatus(node, text, waiting = false) {
+    node.classList.toggle('hint', waiting);
+    node.textContent = text;
+}
+
+// Opens the notes with a security key. One that reads a fingerprint needs nothing more; for any other,
+// main.js answers { pin: true } and its PIN is asked for here.
+let usingPasskey = false;
+async function passkeyUnlock(error) {
+    if (usingPasskey) {
+        return;
+    }
+    usingPasskey = true;
+    keyStatus(error, 'Looking for your security key. Touch it if it blinks.', true);
+    let result = await window.notes.unlockPasskey('');
+    usingPasskey = false;
+    keyStatus(error, '');
+    if (result?.pin) {
+        const input = h('input', { class: 'field', type: 'password', placeholder: 'Security key PIN', 'aria-label': 'Security key PIN' });
+        const problem = h('p', { class: 'error small', role: 'alert' });
+        result = await modal({
+            title: 'Open with a passkey',
+            text: 'Enter the PIN of your security key, then touch the key when it blinks.',
+            body: [input, problem],
+            actions: [{ label: 'Cancel', value: null }, { label: 'Unlock', primary: true, value: async () => {
+                if (usingPasskey || !input.value) {
+                    return undefined;
+                }
+                usingPasskey = true;
+                keyStatus(problem, 'Touch your security key when it blinks.', true);
+                const answer = await window.notes.unlockPasskey(input.value);
+                usingPasskey = false;
+                if (answer?.error) {
+                    keyStatus(problem, answer.error);
+                    input.select();
+                    return undefined;
+                }
+                return answer;
+            } }],
+        });
+        if (!result) {
+            // Closed while the key was still waiting to be touched
+            window.notes.passkeyCancel();
+            return;
+        }
+    }
+    if (result?.error) {
+        error.textContent = result.error;
+        return;
+    }
+    applyState(result);
+}
+
 function unlockPage() {
     const input = h('input', { class: 'field', type: 'password', placeholder: 'Passphrase', 'aria-label': 'Passphrase', autocomplete: 'current-password' });
     const error = h('p', { class: 'error small', role: 'alert' });
@@ -573,7 +628,8 @@ function unlockPage() {
                 applyState(result);
             },
         }, input, submit),
-        error);
+        error,
+        ui.passkeys.length ? linkButton('Open with a passkey', () => passkeyUnlock(error), { icon: 'key' }) : null);
 }
 
 // --- The sidebar -------------------------------------------------------------------------------------
@@ -2295,9 +2351,69 @@ async function encryptionDialog(action) {
     });
     if (result) {
         ui.encrypted = result.encrypted;
+        ui.passkeys = result.passkeys;
         render();
         toast({ enable: 'Encryption is on.', change: 'The passphrase is changed.', disable: 'Encryption is off.' }[action]);
     }
+}
+
+// Adds the security key that is plugged in as a passkey. It is asked twice, once to make the passkey and
+// once to use it, so it blinks twice.
+async function passkeyDialog() {
+    const current = h('input', { class: 'field', type: 'password', placeholder: 'Current passphrase', 'aria-label': 'Current passphrase', autocomplete: 'current-password' });
+    const pin = h('input', { class: 'field', type: 'password', placeholder: 'Security key PIN', 'aria-label': 'Security key PIN' });
+    const hint = h('p', { class: 'hint small' }, 'Leave the PIN empty for a key that reads your fingerprint.');
+    const error = h('p', { class: 'error small', role: 'alert' });
+    let adding = false;
+    const result = await modal({
+        title: 'Add a passkey',
+        text: 'Plug in your security key. It will open your notes with its PIN or your fingerprint, and your passphrase keeps working.',
+        body: [current, pin, hint, error],
+        actions: [{ label: 'Cancel', value: null }, { label: 'Add', primary: true, value: async () => {
+            if (adding) {
+                return undefined;
+            }
+            if (!current.value) {
+                error.textContent = 'Enter the current passphrase.';
+                return undefined;
+            }
+            adding = true;
+            keyStatus(error, 'Touch your security key each time it blinks: twice.', true);
+            const answer = await window.notes.passkeyAdd({ current: current.value, pin: pin.value });
+            adding = false;
+            if (answer?.error) {
+                keyStatus(error, answer.error);
+                return undefined;
+            }
+            return answer;
+        } }],
+    });
+    if (!result) {
+        // Closed while the key was still waiting to be touched
+        window.notes.passkeyCancel();
+        return;
+    }
+    ui.passkeys = result.passkeys;
+    render();
+    toast('The passkey is added.');
+}
+
+async function removePasskey(passkey) {
+    const sure = await confirmDialog({
+        title: `Remove ${passkey.name}?`,
+        text: 'It will no longer open your notes. Your passphrase keeps working.',
+        confirm: 'Remove',
+    });
+    if (!sure) {
+        return;
+    }
+    const result = await window.notes.passkeyRemove(passkey.id);
+    if (result?.error) {
+        toast(result.error);
+        return;
+    }
+    ui.passkeys = result.passkeys;
+    render();
 }
 
 async function runImport() {
@@ -2357,7 +2473,7 @@ function renderSettings() {
     const background = db.settings.background !== false;
     const encryption = ui.encrypted
         ? settingRow('shield', 'ok', 'Encrypted',
-            'AES-256-GCM, under a key that opens only with your passphrase (scrypt, 128 MiB a guess). There is no public-key cryptography in it for a quantum computer to break, and AES-256 keeps 128-bit strength against one.',
+            `AES-256-GCM, under a key that opens only with your passphrase (scrypt, 128 MiB a guess)${ui.passkeys.length ? ' or a passkey' : ''}. There is no public-key cryptography in it for a quantum computer to break, and AES-256 keeps 128-bit strength against one.`,
             button('Change passphrase', () => encryptionDialog('change'), { small: true, icon: 'key' }))
         : settingRow('unlock', 'off', 'Not encrypted',
             'Your notes are on disk as they are. Anyone who can read your files can read them.',
@@ -2368,6 +2484,11 @@ function renderSettings() {
         h('section', { class: 'section' }, h('h2', {}, 'Encryption'),
             h('div', { class: 'card list' },
                 encryption,
+                ui.encrypted ? settingRow('key', 'info', 'Passkeys',
+                    'A security key opens your notes with its PIN or your fingerprint, so that you need not type the passphrase. The passphrase keeps working.',
+                    button('Add a passkey', passkeyDialog, { small: true, icon: 'plus' })) : null,
+                ui.passkeys.map((passkey) => settingRow('key', 'ok', passkey.name, `Added ${stamp(passkey.created)}`,
+                    button('Remove', () => removePasskey(passkey), { small: true }))),
                 ui.encrypted ? settingRow('lock', 'info', 'Lock when away',
                     'Locks after this long without using Notes, and whenever the screen locks, the computer sleeps or the window closes.',
                     h('select', { class: 'compact', 'aria-label': 'Lock after', onchange: (event) => {
@@ -2463,6 +2584,7 @@ function applyState(state) {
     }
     ui.status = state.status;
     ui.encrypted = state.encrypted;
+    ui.passkeys = state.passkeys || [];
     ui.dir = state.dir;
     resetDb(state.data);
     // Views that point at something no longer there fall back to the defaults

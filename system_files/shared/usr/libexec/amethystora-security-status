@@ -635,6 +635,10 @@ COMMAND="ujust setup-usb-protection"
 report optional usb-protection "${USB}" "USB protection" \
     "Allows what is plugged in now, and blocks any new USB device until you allow it"
 
+COMMAND="ujust setup-browser-protection"
+report optional browser-protection "$(/usr/libexec/amethystora-browser-policy status)" "Browser protection" \
+    "Browsers install only the extensions on a list, and web pages cannot reach USB, serial, HID or Bluetooth devices"
+
 if systemctl is-enabled --quiet input-remapper.service 2>/dev/null; then REMAP=on; else REMAP=off; fi
 COMMAND="ujust setup-input-remapper"
 report optional key-remapping "${REMAP}" "Key remapping" \

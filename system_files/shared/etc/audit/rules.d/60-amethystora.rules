@@ -30,6 +30,8 @@
 
 ## The hardening itself. Whatever turns these off does it before doing anything else worth seeing.
 -w /etc/flatpak/overrides/ -p wa -k hardening
+## Firefox's policy: where browser protection is written, and where an extension can be forced in
+-w /etc/firefox/ -p wa -k hardening
 -w /etc/containers/policy.json -p wa -k hardening
 ## The key that policy.json names, and where the signatures it demands are looked up. Swapping the key
 ## for one of the attacker's own defeats update verification with policy.json left untouched, so a

@@ -459,6 +459,10 @@ ELECTRON_RUN_AS_NODE=1 "${NOTES_ELECTRON}" -e '
     const crypto = require("node:crypto");
     const key = crypto.scryptSync("test", "salt", 32, { N: 2 ** 17, r: 8, p: 1, maxmem: 512 * 1024 * 1024 });
     crypto.createCipheriv("aes-256-gcm", key, crypto.randomBytes(12));'
+# A passkey is asked of the security key through libfido2's tools (fido2-tools)
+for tool in fido2-token fido2-cred fido2-assert; do
+    command -v "${tool}"
+done
 test -f /usr/share/licenses/amethystora-notes/Quicksand-OFL.txt
 test -f /usr/share/licenses/amethystora-notes/marked/LICENSE
 cmp -s <(sed 1d /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg) \
@@ -489,6 +493,8 @@ command -v desktop-file-validate >/dev/null && desktop-file-validate /usr/share/
 # It replaces GNOME Logs, which the upstream Flatpak list installed. The options it hands journalctl
 # have to be ones this journalctl knows.
 grep -q '"org.gnome.Logs"' /usr/share/amethystora/homebrew/system-flatpaks.Brewfile && false
+# ...and a machine that already had it loses it, once, by 21-retire-gnome-logs.sh
+grep -q "flatpak uninstall --system .*org.gnome.Logs" /usr/share/amethystora/system-setup.hooks.d/21-retire-gnome-logs.sh
 JOURNALCTL_HELP="$(journalctl --help --no-pager)"
 for option in --case-sensitive --output-fields --after-cursor --identifier --user-unit; do
     grep -q -- "${option}" <<<"${JOURNALCTL_HELP}"
@@ -588,15 +594,13 @@ grep -qx "Inherits=Adwaita,hicolor" "${CANDY_DIR}/index.theme"
 # panel would carry gradient glyphs that ignore the colour amethystora-theme sets on the top bar
 [[ -z "$(find "${CANDY_DIR}"/{apps,devices,mimetypes,preferences,status} -type l -name '*-symbolic.svg')" ]]
 test -e "${CANDY_DIR}/places/16/folder-symbolic.svg"
-# The apps this image ships that upstream has no icon of its own for, Thunderbird, whose artwork
-# upstream only files under the capitalised app id, and Planify and ONLYOFFICE, which the image
-# leaves to Flathub: upstream files Planify under Planner's id, and ONLYOFFICE is drawn here
+# The apps this image ships that upstream has no icon of its own for, each under the pack's
+# pictogram for the job it does or under an icon drawn here
 for icon in org.gnome.Ptyxis io.github.kolunmi.Bazaar \
-    org.gnome.Papers com.mattjakeman.ExtensionManager org.mozilla.thunderbird{,_esr} \
+    org.gnome.Papers com.mattjakeman.ExtensionManager \
     be.alexandervanhee.gradia org.freedesktop.MalcontentControl it.mijorus.smile \
-    org.gnome.Decibels org.gnome.Tour io.github.flattool.Warehouse page.tesk.Refine \
-    io.github.flattool.Ignition io.gitlab.adhami3310.Impression io.github.alainm23.planify \
-    {org.onlyoffice.,onlyoffice-}desktopeditors input-remapper \
+    org.gnome.Decibels org.gnome.Tour io.github.flattool.Warehouse page.tesk.Refine org.gnome.tweaks \
+    io.github.flattool.Ignition io.gitlab.adhami3310.Impression input-remapper \
     com.ranfdev.DistroShelf org.gnome.Sysprof \
     amethystora-docs amethystora-community amethystora-update amethystora-security-status amethystora-logs; do
     test -e "${CANDY_DIR}/apps/scalable/${icon}.svg"
@@ -609,20 +613,35 @@ for icon in /ctx/build_files/shared/candy-icons/*.svg; do
     # glycin decides an icon is SVG from its first 256 bytes alone; a comment ahead of <svg> that
     # pushes the tag past them leaves the launcher with a blank icon
     head -c 256 "${icon}" | grep -q "<svg"
+    # Each is named in NOTICE, with where its outline comes from and the licence that came with it
+    grep -qF "$(basename "${icon}")" /usr/share/licenses/amethystora/NOTICE
 done
-# JetBrains IDEs under every window class user-setup.hooks.d/16-jetbrains-icons.sh can link a
-# Toolbox icon name to, upstream's or aliased, and the Flatpak id upstream does not draw
-for icon in jetbrains-{idea,idea-ce,pycharm,pycharm-ce,clion,goland,webstorm,phpstorm,rider} \
-    jetbrains-{rubymine,datagrip,rustrover,dataspell,studio,toolbox} com.jetbrains.RubyMine; do
-    test -e "${CANDY_DIR}/apps/scalable/${icon}.svg"
+# Nobody else's logo is redrawn: a logo is a trademark, and its owner decides how it looks. The only
+# application drawings in the theme are the pictograms on the keep list and the icons drawn for this
+# image, so one that upstream adds, or that is added here, fails the build until somebody has looked
+# at it and put it on the list.
+[[ -z "$(find "${CANDY_DIR}/apps/scalable" -type f -printf '%f\n' |
+    grep -vxFf <(sed -e '/^#/d' -e '/^$/d' -e 's/$/.svg/' /ctx/build_files/shared/candy-icons/keep) |
+    grep -vxFf <(find /ctx/build_files/shared/candy-icons -name '*.svg' -printf '%f\n'))" ]]
+# None of the names that answered for a logo is left, as a drawing or as a link to one, so each of
+# these shows its maker's icon: Firefox's is in its package, and a Flatpak exports its own
+for icon in firefox org.mozilla.firefox thunderbird org.mozilla.Thunderbird jetbrains-toolbox \
+    com.jetbrains.IntelliJ-IDEA-Ultimate code com.visualstudio.code google-chrome com.brave.Browser \
+    claude opencode org.onlyoffice.desktopeditors io.podman_desktop.PodmanDesktop fedora-logo-icon; do
+    [[ ! -e "${CANDY_DIR}/apps/scalable/${icon}.svg" && ! -L "${CANDY_DIR}/apps/scalable/${icon}.svg" ]]
 done
-test -f /usr/share/amethystora/user-setup.hooks.d/16-jetbrains-icons.sh
-# Claude's mark is filled with one gradient, the way the pack draws a brand. Nothing in the image
-# looks it up yet - Claude Code ships no desktop entry - so this line is all that stands between a
-# drawing mistake and nobody noticing.
-grep -q 'fill="url(#_lgradient_claude)"' "${CANDY_DIR}/apps/scalable/claude.svg"
-# opencode's frame and its inner fill draw from the one gradient, on the same terms
-[[ "$(grep -c 'fill="url(#_lgradient_opencode)"' "${CANDY_DIR}/apps/scalable/opencode.svg")" == 2 ]]
+[[ -z "$(find "${CANDY_DIR}" -xtype l)" ]]
+compgen -G "/usr/share/icons/hicolor/*/apps/firefox.*" >/dev/null
+# The logos on folders, file types and status icons went the same way, and a file of one of those
+# types falls to the pack's generic icon of its kind
+for logo in places/48/folder-git mimetypes/scalable/{application-pdf,text-x-python} status/scalable/network-bluetooth; do
+    [[ ! -e "${CANDY_DIR}/${logo}.svg" ]]
+done
+test -e "${CANDY_DIR}/mimetypes/scalable/x-office-document.svg"
+test -e "${CANDY_DIR}/mimetypes/scalable/text-x-script.svg"
+# The links an earlier image made in each account to the IDE drawings, which now point at nothing,
+# are taken back at login (user-setup.hooks.d/16-retire-jetbrains-icons.sh)
+grep -q -- "-xtype l -name 'jetbrains-\*.svg' -delete" /usr/share/amethystora/user-setup.hooks.d/16-retire-jetbrains-icons.sh
 # The Security app's shield: the pack's own shield, from preferences-system-privacy, with report bars
 # instead of that icon's keyhole. Both elements draw from one gradient placed in user space, because a
 # second gradient, or either element left on its own bounding box, would break the diagonal across them.
@@ -816,12 +835,34 @@ rpm -q input-remapper >/dev/null
 # Same for USB protection, which blocks every device that was not present when it was set up: useless
 # as a default, because the first boot would block the keyboard nobody had allowed yet
 [[ "$(systemctl is-enabled usbguard.service 2>/dev/null)" == "enabled" ]] && false
+# And for browser protection, the extension list and the block on web pages reaching hardware. The
+# image ships Firefox unaltered, so the policy is only data here, and `ujust setup-browser-protection`
+# writes it on the machine that asks: for Chromium-based browsers and for Firefox, each in its own
+# form. Neither installs an extension, it only allows some
+BROWSER_POLICY=/usr/libexec/amethystora-browser-policy
+test -x "${BROWSER_POLICY}"
+[[ "$("${BROWSER_POLICY}" status)" == off ]]
+grep -q "^setup-browser-protection " /usr/share/amethystora/just/60-custom.just
+/usr/libexec/amethystora-security-status --json |
+    jq -e 'any(.checks[]; .id == "browser-protection" and .state == "off")' >/dev/null
+"${BROWSER_POLICY}" show chromium |
+    jq -e '.ExtensionInstallBlocklist == ["*"] and (.ExtensionInstallAllowlist | length > 0)
+        and (has("ExtensionSettings") or has("ExtensionInstallForcelist") | not)' >/dev/null
+for guard in DefaultWebHidGuardSetting DefaultWebUsbGuardSetting DefaultSerialGuardSetting DefaultWebBluetoothGuardSetting; do
+    "${BROWSER_POLICY}" show chromium | jq -e ".${guard} == 2" >/dev/null
+done
+"${BROWSER_POLICY}" show firefox |
+    jq -e 'has("amethystora") and (.policies.ExtensionSettings["*"].allowed_types | index("extension") | not)
+        and ([.policies.ExtensionSettings[] | .installation_mode // "allowed"] | all(. == "allowed"))' >/dev/null
 
 # Audit rules: the watches that ship with the image, and the generator for the per-user ones, which
 # can only be written on a machine that already has home directories
 AUDIT_RULES=/etc/audit/rules.d/60-amethystora.rules
 grep -q "^-w /etc/flatpak/overrides/ -p wa -k hardening$" "${AUDIT_RULES}"
 grep -q "^-w /etc/containers/policy.json -p wa -k hardening$" "${AUDIT_RULES}"
+# A watch needs its path to be there when the rules load, and this one is the Firefox package's
+grep -q "^-w /etc/firefox/ -p wa -k hardening$" "${AUDIT_RULES}"
+test -d /etc/firefox
 grep -q "dir=/dev/input" "${AUDIT_RULES}"
 test -x /usr/libexec/amethystora-audit-home-rules
 # One line augenrules cannot parse stops every rule in the directory from loading, which would leave

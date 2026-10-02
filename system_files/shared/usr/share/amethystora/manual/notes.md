@@ -64,8 +64,9 @@ locked while it runs like that; only the titles and times of the reminders are k
 ## Encryption
 
 With encryption on, your notes, tasks and attachments are written to disk encrypted with AES-256-GCM,
-under a random key that only your passphrase can open. The passphrase is stretched with scrypt, which
-costs 128 MiB of memory for every guess, so trying passphrases one after another is slow.
+under a random key that only your passphrase, or a [passkey](#passkeys) you add, can open. The
+passphrase is stretched with scrypt, which costs 128 MiB of memory for every guess, so trying
+passphrases one after another is slow.
 
 It stays secure against quantum computers. What a quantum computer breaks is public-key cryptography
 (RSA, elliptic curves), and none is used here. Against a cipher like AES, the best a quantum computer
@@ -82,6 +83,31 @@ Your notes lock:
 - when you press **Ctrl+L** or **Lock** in the sidebar.
 
 **Settings** also changes the passphrase, and turns encryption off or on again.
+
+### Passkeys
+
+A FIDO2 security key (YubiKey, Thetis, or a fingerprint model such as the YubiKey Bio) can open your
+notes, so that you need not type the passphrase each time. The passphrase keeps working, and it is
+what opens your notes if the key is lost: a passkey is a second way in, never the only one.
+
+To add one, plug the key in, open **Settings** and choose **Add a passkey**. Enter your passphrase and
+the PIN of the key, or leave the PIN empty for a key that reads your fingerprint. The key blinks twice;
+touch it each time. From then on the lock screen offers **Open with a passkey**, which asks for the
+key's PIN, or your fingerprint, and a touch.
+
+- **The key needs a PIN**, and a fingerprint model an enrolled finger. Set them in Firefox at
+  `about:webauthn`. A touch alone never opens your notes: someone who finds the key cannot use it
+  without the PIN or your finger, and the key blocks its PIN after eight wrong tries.
+- **Add a second key as a spare**, one at a time. Each is listed in **Settings**, where **Remove**
+  stops it opening your notes.
+- **If a key is lost**, remove it. Someone who holds the key, knows its PIN and has an older copy of
+  your notes folder could still open that copy. Turning encryption off and on again gives your notes
+  a new key, which no removed passkey opens; add the keys you still have again afterwards.
+- A [backup](#backing-up) always asks for the passphrase: passkeys are not part of it.
+
+The key keeps nothing of your notes. It holds a secret that never leaves it, and with the PIN or
+fingerprint checked it computes a value (HMAC-SHA256, FIDO2's `hmac-secret`) under which a second
+copy of your notes' key is encrypted. What is on disk is still encrypted with AES-256 only.
 
 ## Backing up
 

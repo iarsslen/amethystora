@@ -1,0 +1,160 @@
+# The application icons of candy-icons that build_files/base/10-icons.sh leaves in the theme, one
+# name a line, without the .svg. Every other drawing in the pack's apps/scalable is deleted, and the
+# names that linked to it with it, so that application shows the icon its maker gave it.
+#
+# The pack draws most applications as their maker's logo in its own gradients. A logo is a
+# trademark, and its owner decides how it looks: Mozilla, JetBrains, Anthropic and the rest allow
+# theirs unaltered or not at all. So a name belongs here only if its drawing is one of these:
+#
+#   - a pictogram of a job (a calculator, a folder, an envelope), not of a product. Some are filed
+#     under the name of the KDE or GNOME tool the pack drew them for; what matters is the drawing.
+#   - the logo of an application this image ships whose maker claims no trademark in it and
+#     publishes no terms for it. Check the maker's repository and site before adding one.
+#
+# The name does not settle it: utilities-tweak-tool is a specification name, and the pack draws it
+# as the Nintendo Switch logo, so it is not here.
+#
+# A name upstream adds later is left out until somebody has looked at the drawing and put it here.
+# `20-tests.sh` fails if the theme carries an application icon that is neither here nor drawn for
+# this image.
+
+# Pictograms, under the names the icon naming specification gives them
+accessories-calculator
+accessories-camera
+accessories-character-map
+accessories-dictionary
+accessories-ebook-reader
+accessories-notes
+accessories-text-editor
+applets-screenshooter
+applications-accessories
+applications-all
+applications-development
+applications-education
+applications-office
+applications-science
+applications-utilities
+audiobook
+dialer
+disk-burner
+disk-usage-analyzer
+disk-utility
+document-viewer
+font-viewer
+help-browser
+input-tablet
+internet-mail
+irc-chat
+layouts
+maps
+mate-panel-separator
+multimedia-audio-player
+multimedia-photo-manager
+multimedia-photo-viewer
+multimedia-video-player
+nm-device-wired
+office-calendar
+password-manager
+preferences-desktop-gaming
+preferences-desktop-keyboard
+preferences-desktop-peripherals
+preferences-desktop-remote-desktop
+preferences-desktop-screensaver
+preferences-desktop-user-password
+preferences-system
+preferences-system-power
+preferences-system-privacy
+preferences-system-search
+preferences-system-time
+preferences-system-windows-move
+sheets
+smartphoneconnected
+smartphonedisconnected
+smartphonetrusted
+software-store
+stage
+system-error
+system-file-manager
+system-lock-screen
+system-log-out
+system-reboot
+system-shutdown
+system-software-install
+system-software-update
+system-suspend
+system-suspend-hibernate
+system-switch-user
+terminal
+thermal-monitor
+todo
+usb-creator
+utilities-log-viewer
+utilities-system-monitor
+utilities-terminal
+weather-main
+words
+workspace-switcher-top-left
+
+# Pictograms filed under a tool's name: the pack's feed, archive, camera, globe, envelope, gamepad,
+# shield, note, contact, bell, font, list, mine, speaker, network, person, tasks, card, photo,
+# share, ruler, timer, translation, hardware, information, clipboard, scanner, radio, pipette,
+# palette, broom, desktop, search, partition and sound icons
+akregator
+ark
+cheese
+computerjanitor
+cs-desktop
+diodon
+epiphany
+evolution
+fceux
+gpick
+gufw
+hwinfo
+jockey
+juk
+kaddressbook
+kalarm
+kfontview
+kmenuedit
+kmines
+kmix
+knemo
+kontact
+korganizer
+kpatience
+kphotoalbum
+krfb
+kruler
+ktimer
+lokalize
+partitionmanager
+pinta
+plasma-search
+radiotray
+skanlite
+yast-sound
+
+# The same, for GNOME's own tools and the two system tools the image ships: a magnifier, a safe,
+# boxes, a chip, a microphone, a window, a puzzle piece, a picture, a webcam, number tiles, a shield
+# and a screen. The GNOME Foundation claims the name and the foot, not its applications' icons.
+dconf-editor
+deja-dup
+gnome-boxes
+gnome-firmware
+gnome-sound-recorder
+org.gnome.Connections
+org.gnome.Extensions
+org.gnome.Loupe
+org.gnome.Snapshot
+org.gnome.TwentyFortyEight
+rg.gnome.Boxes
+firewall-config
+virt-manager
+
+# Logos of applications the image ships. Flatseal, Mission Center and VSCodium are community
+# projects whose repositories carry a licence and nothing about a trademark (checked 2026-10-01).
+com.github.tchx84.Flatseal
+io.missioncenter.MissionCenter
+vscodium
+vscodium-Wayland

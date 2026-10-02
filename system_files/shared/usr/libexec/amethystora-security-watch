@@ -190,14 +190,18 @@ read_journal() {
 
 # Where the settings that decide this machine's security live. ostree keeps /etc as the image shipped it
 # in /usr/etc, so what differs is exactly what changed on this machine.
-DRIFT_PATHS=(amethystora audit authselect clamd.d containers/policy.json containers/registries.d
-    containers/systemd environment fail2ban firewalld flatpak/overrides ld.so.conf ld.so.conf.d
+DRIFT_PATHS=(amethystora audit authselect brave/policies chromium/policies clamd.d containers/policy.json
+    containers/registries.d containers/systemd environment fail2ban firefox/policies firewalld
+    flatpak/overrides ld.so.conf ld.so.conf.d opt/chrome/policies opt/edge/policies
     ld.so.preload modprobe.d modules-load.d pam.d pki/akmods/certs pki/ca-trust/source pki/containers
     polkit-1/rules.d profile profile.d rc.d/rc.local security ssh/sshd_config ssh/sshd_config.d sudoers
     sudoers.d sysctl.conf sysctl.d tmpfiles.d udev/rules.d usbguard xdg/autostart)
 # ...less what the image's own recipes and services write there as a matter of course
-EXPECTED_DRIFT=" amethystora/security.conf amethystora/ips-allowed audit/audit.rules audit/audit.rules.prev \
-audit/rules.d/61-amethystora-home.rules modprobe.d/tuned.conf security/opasswd usbguard/rules.conf \
+EXPECTED_DRIFT=" amethystora/security.conf amethystora/ips-allowed amethystora/browser-extensions \
+audit/audit.rules audit/audit.rules.prev audit/rules.d/61-amethystora-home.rules \
+brave/policies/managed/10-amethystora.json chromium/policies/managed/10-amethystora.json \
+firefox/policies/policies.json modprobe.d/tuned.conf opt/chrome/policies/managed/10-amethystora.json \
+opt/edge/policies/managed/10-amethystora.json security/opasswd usbguard/rules.conf \
 usbguard/usbguard-daemon.conf "
 # A file in /etc takes the place of the one of the same name in /usr/lib entirely
 SHADOWED=(sysctl.d:/usr/lib/sysctl.d modprobe.d:/usr/lib/modprobe.d modules-load.d:/usr/lib/modules-load.d

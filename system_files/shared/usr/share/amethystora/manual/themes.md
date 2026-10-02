@@ -63,6 +63,14 @@ cp ~/Pictures/mountains.jpg ~/.config/amethystora/backgrounds/amethystora/
 `amethystora-theme bg list` shows what the current theme has to cycle through, and
 `amethystora-theme bg set <picture>` sets one directly.
 
+## Icons
+
+The icons are candy-icons, the same set under every theme: its folders, its file types, and its
+gradient pictograms for the apps that do a plain job, such as Files, Settings or the calculator.
+An app with a logo of its own keeps it. Firefox, Thunderbird, a JetBrains IDE and most of what
+you install show the icon their maker drew, not a redrawn one: a logo is a trademark, and how it
+looks is its owner's to decide. That is why the dock mixes the two styles.
+
 ## Change a theme, or make your own
 
 Themes ship read-only in `/usr/share/amethystora/themes`. A folder of the same name in

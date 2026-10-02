@@ -1,0 +1,156 @@
+#!/usr/bin/bash
+# Browser protection: browsers install only the extensions on a list, and web pages are kept from USB,
+# serial, HID and Bluetooth devices. Off until `ujust setup-browser-protection` turns it on. Firefox may
+# only be redistributed unaltered, so the image ships no policy for any browser: this writes one on the
+# machine whose owner asked for it, where each browser reads its administrator's policy.
+#
+#   amethystora-browser-policy status        on or off
+#   amethystora-browser-policy show ENGINE   the policy as it would be written: chromium or firefox
+#   amethystora-browser-policy allowed       the extensions this machine added to the list
+#   amethystora-browser-policy on            write the policy for every browser below (root)
+#   amethystora-browser-policy off           remove it (root)
+#   amethystora-browser-policy allow ID      add an extension to the list (root)
+
+set -euo pipefail
+
+# The policies as shipped, one for each engine, with the password managers allowed
+SHARE=/usr/share/amethystora/browser-policy
+# This machine's additions, one extension ID a line
+ALLOWED=/etc/amethystora/browser-extensions
+# Chromium's IDs are 32 letters from a to p. Firefox's are a GUID in braces or look like an address
+CHROMIUM_ID='^[a-p]{32}$'
+FIREFOX_ID='^(\{[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\}|[A-Za-z0-9._+-]*@[A-Za-z0-9._-]+)$'
+
+NAME=10-amethystora.json
+EXTENSIONS=/var/lib/flatpak/extension
+ARCH="$(uname -m)"
+
+# Where each browser reads policy, as "engine|directory that is there anyway|file below it". All of
+# them are written, installed or not, so that a browser installed later is covered from its first
+# start. A browser not named here is not covered. The Firefox forks are left out on purpose: a system
+# policy takes the place of the one LibreWolf and the others ship, which is their own hardening.
+TARGETS=(
+    # Brave, Chrome and Edge read every .json in the directory, so this one sits beside an
+    # administrator's own. Their Flatpaks are given the host's /etc and link the same files in
+    "chromium|/etc|brave/policies/managed/${NAME}"
+    "chromium|/etc/opt|chrome/policies/managed/${NAME}"
+    "chromium|/etc/opt|edge/policies/managed/${NAME}"
+    # Chromium as a package...
+    "chromium|/etc|chromium/policies/managed/${NAME}"
+    # ...and as a Flatpak, which takes policy from an extension directory instead. It has to hold the
+    # file itself: Flatpak cannot follow a link out of it
+    "chromium|${EXTENSIONS}|org.chromium.Chromium.Extension.amethystora/${ARCH}/1/policies/managed/${NAME}"
+    "chromium|${EXTENSIONS}|io.github.ungoogled_software.ungoogled_chromium.Extension.amethystora/${ARCH}/1/policies/managed/${NAME}"
+    # Firefox reads one file and no other, so one that is already there and not ours is left alone
+    "firefox|/etc/firefox|policies/policies.json"
+    # The Flatpak's takes the place of any policy the Flatpak carries itself, so it also says what a
+    # Flatpak's has to: Firefox does not update itself there
+    "firefox-flatpak|${EXTENSIONS}|org.mozilla.firefox.systemconfig/${ARCH}/stable/policies/policies.json"
+)
+
+die() {
+    echo "${0##*/}: $*" >&2
+    exit 1
+}
+
+need_root() {
+    [[ ${EUID} -eq 0 ]] || die "this needs root: sudo ${0##*/} $*"
+}
+
+# Whether a policy file is one this script wrote. Chromium's goes by its name, Firefox's by its mark
+ours() {
+    [[ -f "$2" ]] || return 1
+    [[ "$1" == chromium ]] || jq -e 'has("amethystora")' "$2" >/dev/null 2>&1
+}
+
+is_on() {
+    local target engine base rel
+    for target in "${TARGETS[@]}"; do
+        IFS='|' read -r engine base rel <<<"${target}"
+        ours "${engine}" "${base}/${rel}" && return 0
+    done
+    return 1
+}
+
+# The shipped policy with this machine's extensions added, each engine taking the IDs in its own form
+policy() {
+    local -a ids
+    case "$1" in
+        chromium)
+            mapfile -t ids < <(grep -E "${CHROMIUM_ID}" "${ALLOWED}" 2>/dev/null || true)
+            jq '.ExtensionInstallAllowlist += $ARGS.positional' "${SHARE}/chromium.json" --args "${ids[@]}"
+            ;;
+        firefox | firefox-flatpak)
+            mapfile -t ids < <(grep -E "${FIREFOX_ID}" "${ALLOWED}" 2>/dev/null || true)
+            jq --arg engine "$1" '
+                .policies.ExtensionSettings +=
+                    ($ARGS.positional | map({(.): {installation_mode: "allowed"}}) | add // {})
+                | if $engine == "firefox-flatpak" then .policies.DisableAppUpdate = true else . end' \
+                "${SHARE}/firefox.json" --args "${ids[@]}"
+            ;;
+        *) die "show chromium or firefox" ;;
+    esac
+}
+
+turn_on() {
+    local target engine base rel file content
+    for target in "${TARGETS[@]}"; do
+        IFS='|' read -r engine base rel <<<"${target}"
+        file="${base}/${rel}"
+        if [[ -e "${file}" ]] && ! ours "${engine}" "${file}"; then
+            echo "Left alone, because it is not Amethystora's: ${file}" >&2
+            continue
+        fi
+        content="$(policy "${engine}")"
+        install -D -m 0644 /dev/stdin "${file}" <<<"${content}"
+        echo "  ${file}"
+    done
+}
+
+turn_off() {
+    local target engine base rel file
+    for target in "${TARGETS[@]}"; do
+        IFS='|' read -r engine base rel <<<"${target}"
+        file="${base}/${rel}"
+        ours "${engine}" "${file}" || continue
+        rm -f "${file}"
+        # ...and the directories made for it, as far as they are empty
+        (cd "${base}" && rmdir -p --ignore-fail-on-non-empty "$(dirname "${rel}")") 2>/dev/null || true
+    done
+}
+
+case "${1:-}" in
+    status)
+        if is_on; then echo on; else echo off; fi
+        ;;
+    show)
+        policy "${2:-}"
+        ;;
+    allowed)
+        grep -E -e "${CHROMIUM_ID}" -e "${FIREFOX_ID}" "${ALLOWED}" 2>/dev/null || true
+        ;;
+    on)
+        need_root "$@"
+        turn_on
+        ;;
+    off)
+        need_root "$@"
+        turn_off
+        ;;
+    allow)
+        need_root "$@"
+        id="${2:-}"
+        [[ "${id}" =~ ${CHROMIUM_ID} || "${id}" =~ ${FIREFOX_ID} ]] ||
+            die "not an extension ID: '${id}'. Firefox shows it in about:support, the others in their extensions page with developer mode on"
+        if ! grep -qxF -- "${id}" "${ALLOWED}" 2>/dev/null; then
+            mkdir -p "${ALLOWED%/*}"
+            echo "${id}" >>"${ALLOWED}"
+            chmod 0644 "${ALLOWED}"
+        fi
+        if is_on; then turn_on >/dev/null; fi
+        ;;
+    *)
+        sed -n '2,12p' "$0" | sed 's/^# \?//' >&2
+        exit 64
+        ;;
+esac

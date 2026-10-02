@@ -59,10 +59,31 @@ licensed under the GNU General Public License, version 3:
 
   - candy-icons  https://github.com/EliverLara/candy-icons
 
-It is installed from upstream by build_files/base/10-icons.sh, which changes the
-theme's inheritance, drops the symbolic names outside places/ and adds aliases
-for the applications this image ships; the licence ships with it in
-usr/share/licenses/candy-icons.
+It is not the theme as its author publishes it. Amethystora has modified it
+since September 2026, and makes the changes again each time an image is built:
+build_files/base/10-icons.sh installs it from upstream, changes the theme's
+inheritance, drops the symbolic names outside places/, removes the icons that
+redraw another maker's logo, adds aliases for the applications this image
+ships, and adds the icons kept in build_files/shared/candy-icons, drawn for
+Amethystora in the theme's style. The licence ships with it in
+usr/share/licenses/candy-icons. The icons added are:
+
+  - amethystora-security-status.svg, whose shield is the theme's own, from its
+    preferences-system-privacy.svg. It is a modified part of candy-icons and
+    is licensed, like the theme, under the GNU General Public License, version
+    3, not under the Apache License. So are its two copies: the one in
+    usr/share/icons/hicolor, and the one drawn in the window of Amethystora
+    Security (usr/lib/amethystora-security/resources/app/index.html).
+  - io.github.kolunmi.Bazaar.svg and amethystora-notes.svg, which are
+    Amethystora's own drawings.
+
+The theme as Amethystora ships it draws no application as its maker's logo:
+of the application icons it keeps the pictograms of a job, such as a
+calculator or an envelope, and the logos of Flatseal, Mission Center and
+VSCodium, whose makers publish no trademark terms for them. An application
+whose logo the theme redrew shows the icon its maker gave it instead. The
+names and logos of the applications in an image are trademarks of their
+owners, who do not sponsor or endorse Amethystora.
 
 The Amethystora Manual in usr/share/amethystora/manual adapts parts of the
 Bluefin documentation, licensed under the Apache License, Version 2.0; the
@@ -86,8 +107,9 @@ licensed under the GNU General Public License, version 3:
 
 It is installed from upstream by build_files/base/11-gtk-theme.sh, which
 recolours it onto the Amethystora palette with build_files/shared/recolor.py
-and installs it under Amethystora's name; the licence ships with it in
-usr/share/licenses/amethystora-gtk-theme.
+and installs it under Amethystora's name. Amethystora has modified it in this
+way since September 2026, and does so again each time an image is built; the
+licence ships with it in usr/share/licenses/amethystora-gtk-theme.
 
 These GNOME Shell extensions are built from the git submodules in
 system_files/shared/usr/share/gnome-shell/extensions, under the licence given;

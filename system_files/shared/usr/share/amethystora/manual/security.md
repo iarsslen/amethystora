@@ -205,6 +205,28 @@ between a real keyboard and the machine. USB protection allows what is connected
 and blocks anything new until you allow it with `ujust setup-usb-protection allow`. It is off by
 default, because a machine that blocked its own keyboard on first boot would be unusable.
 
+### Browser protection
+
+```bash
+ujust setup-browser-protection
+```
+
+An extension sees every page you open, and that is how most password stealers arrive. With browser
+protection on, browsers install only the extensions on a list: the Bitwarden, 1Password, Proton Pass
+and KeePassXC password managers, and the ones you add with
+`ujust setup-browser-protection allow <id>`. Web pages are also kept from USB, serial, HID and
+Bluetooth devices. It covers Firefox, Brave, Chrome, Chromium and Edge, whether installed now or
+later, for every account on the machine. Other browsers are not covered.
+
+Allow the extensions you use before you turn it on. Firefox removes the ones that are not on the
+list, with their settings, the next time it starts; the other browsers turn theirs off. Firefox
+shows each extension's ID in `about:support`, under Add-ons, and the others on their extensions page
+with developer mode on. Themes, dictionaries and language packs in Firefox are left alone.
+
+What you allowed is in `/etc/amethystora/browser-extensions`, one ID a line. To take one back, remove
+its line and run `ujust setup-browser-protection on` again. It is off by default: Firefox comes
+exactly as Fedora builds it, and what it may install is your decision, not the image's.
+
 ### Network protection
 
 ```bash

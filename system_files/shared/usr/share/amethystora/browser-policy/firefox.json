@@ -1,0 +1,29 @@
+{
+    "amethystora": "Written by `ujust setup-browser-protection`, which rewrites it and removes it. Allow an extension with `ujust setup-browser-protection allow <id>`, not here.",
+    "policies": {
+        "ExtensionSettings": {
+            "*": {
+                "allowed_types": ["theme", "dictionary", "locale"],
+                "blocked_install_message": "Browser protection is on: only the extensions on this machine's list can be installed. Add one with: ujust setup-browser-protection allow <id>"
+            },
+            "{446900e4-71c2-419f-a6a7-df9c091e268b}": {
+                "installation_mode": "allowed"
+            },
+            "{d634138d-c276-4fc8-924b-40a0ea21d284}": {
+                "installation_mode": "allowed"
+            },
+            "78272b6fa58f4a1abaac99321d503a20@proton.me": {
+                "installation_mode": "allowed"
+            },
+            "keepassxc-browser@keepassxc.org": {
+                "installation_mode": "allowed"
+            }
+        },
+        "Preferences": {
+            "dom.webserial.enabled": {
+                "Value": false,
+                "Status": "locked"
+            }
+        }
+    }
+}
