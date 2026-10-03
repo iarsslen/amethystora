@@ -7,6 +7,11 @@ on:
       - "iso/**"
       - ".github/workflows/build-iso.yml"
   workflow_call:
+    inputs:
+      image:
+        description: "The image the ISO installs: amethystora or amethystora-dx"
+        type: string
+        default: amethystora
   workflow_dispatch:
     inputs:
       image:
@@ -17,10 +22,10 @@ on:
           - amethystora
           - amethystora-dx
 
-# The installer ISO of the published stable image, built with bootc-image-builder and uploaded to
+# The installer ISO of a published stable image, built with bootc-image-builder and uploaded to
 # Cloudflare R2, which GitHub cannot host: a Release asset is limited to 2 GiB. Each upload replaces
-# the last one under the same name, so the download link never changes and the bucket stays inside
-# R2's free storage. Pull requests only build it.
+# the last one under the same name, so the download link never changes. Only amethystora and
+# amethystora-dx have an ISO; the NVIDIA images have none. Pull requests only build amethystora's.
 #
 # Secrets: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY (an R2 API token with Object Read
 # & Write on the bucket), R2_BUCKET, and SIGNING_SECRET, which signs the checksum as it signs the image.
@@ -52,6 +57,10 @@ jobs:
 
       - name: Prepare the installer configuration
         run: |
+          case "${IMAGE}" in
+            amethystora|amethystora-dx) ;;
+            *) echo "::error::${IMAGE} has no ISO: only amethystora and amethystora-dx do"; exit 1 ;;
+          esac
           sed -i "s|@IMAGE@|${IMAGE}|" iso/iso.toml
 
       # bootc-image-builder chooses the installer's packages by the image's os-release ID and has no
@@ -66,6 +75,10 @@ jobs:
       # The builder is pinned to its build of June 2026, the last that reads its definitions from that
       # folder. Its successor, which `latest` is due to become, has them compiled in, so moving to it
       # means rewriting this step.
+      #
+      # The builder will not start without the installed system's root filesystem type, which the
+      # image does not declare in /usr/lib/bootc/install. It only writes it into a kickstart of its
+      # own, and iso.toml brings one, so Anaconda still lays out the disk; btrfs is what it chooses.
       - name: Build ISO
         env:
           BUILDER: quay.io/centos-bootc/bootc-image-builder@sha256:2b52843ea2bfda73b0a08d97e76b734393b1d3a804681b9fabb26723bd3a2f0b
@@ -89,7 +102,7 @@ jobs:
                 { cat "${def}"; printf "    - generic-logos\n    - generic-release\n"; } > "amethystora-${def#fedora-}"
               done
               exec bootc-image-builder "$@"' bash \
-            build --output /output --type anaconda-iso --use-librepo=True \
+            build --output /output --type anaconda-iso --rootfs btrfs --use-librepo=True \
               --chown "$(id -u):$(id -g)" "${IMAGE_REF}"
 
       # What the installer is made of, from the manifest the builder leaves beside the ISO, for the ISO

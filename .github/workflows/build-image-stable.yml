@@ -43,7 +43,14 @@ jobs:
     permissions:
       contents: read
     secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        # The NVIDIA images get no ISO
+        image: ["amethystora", "amethystora-dx"]
     uses: ./.github/workflows/build-iso.yml
+    with:
+      image: ${{ matrix.image }}
 
   generate-release:
     name: Generate Release
