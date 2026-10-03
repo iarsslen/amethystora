@@ -71,6 +71,9 @@ echo "::endgroup::"
 # The login screen background, patched into GNOME Shell's own theme
 /ctx/build_files/base/12-login-screen.sh
 
+# GNOME Tour's first page, which Fedora builds with Fedora's logo on it
+/ctx/build_files/base/12-tour.sh
+
 # The Amethystora Manual: the runtime its window needs
 /ctx/build_files/base/13-manual.sh
 

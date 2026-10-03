@@ -2162,6 +2162,40 @@ const loginBackgroundHtml = ({ width, height, soft = false } = LOGIN) => `<!doct
 
 const logo = (spec) => ({ ...spec, html: () => logoHtml(spec) });
 
+// ------------------------------------------------------------ GNOME Tour --
+
+// The picture on the first page of GNOME Tour. Fedora builds the Tour with its own in place of GNOME's,
+// a backpack with Fedora's logo on it, and 12-tour.sh puts this one in its place: the boot splash at the
+// top of its first glow once the dust has found its cuts, cut to the Tour's 600x300 frame around the
+// mark, as a card with the window's rounded corners. Plain shapes and gradients only, and nothing ahead
+// of the <svg> tag: GTK draws it, not a browser.
+const TOUR = { width: 600, height: 300, crop: 1280, radius: 12 };
+const tourSvg = (() => {
+  const f = new Function(`${BOOT_TIMELINE}\nreturn frame;`)()(BOOT.hold + BOOT.whole + BOOT.cycle, BOOT, SIDES, DUST, RUNS, RELEASE);
+  const [x0, y0] = [HEART[0] - TOUR.crop / 2, HEART[1] - TOUR.crop / 4];
+  const inner = (svg) => svg.slice(svg.indexOf(">") + 1, svg.lastIndexOf("</svg>")).trim();
+  // A picture's box of the given units, px across and centred on the heart, as the splash places it
+  const around = (units, px) => `translate(${num(HEART[0] - px / 2)} ${num(HEART[1] - px / 2)}) scale(${num(px / units)})`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${TOUR.width}" height="${TOUR.height}" viewBox="0 0 ${TOUR.width} ${TOUR.height}">
+  <defs>
+    <clipPath id="card"><rect width="${TOUR.width}" height="${TOUR.height}" rx="${TOUR.radius}"/></clipPath>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="${BOOT.sky[0]}"/><stop offset="1" stop-color="${BOOT.sky[1]}"/>
+    </linearGradient>
+    ${inner(dustSvg).match(/<defs>([\s\S]*)<\/defs>/)[1].trim()}
+  </defs>
+  <g clip-path="url(#card)"><g transform="scale(${num(TOUR.width / TOUR.crop)}) translate(${num(-x0)} ${num(-y0)})">
+  <rect x="${num(x0)}" y="${num(y0)}" width="${TOUR.crop}" height="${TOUR.crop / 2}" fill="url(#sky)"/>
+  <g opacity="${num(f.crown)}">${inner(crownSvg)}</g>
+  <g opacity="${num(f.halo)}" transform="${around(200, BOOT.halo)}">${inner(haloSvg)}</g>
+  ${f.dust.map((d, i) => `<circle cx="${num(HEART[0] + d.x)}" cy="${num(HEART[1] + d.y)}" r="${num(DUST[i].size / 2)}" fill="url(#d)" opacity="${num(d.opacity)}"/>`).join("\n  ")}
+  <g transform="${around(256, 256 * BOOT.unit)}">${inner(gemSvg())}</g>
+  <g opacity="${num(f.light)}" transform="${around(256, 256 * BOOT.unit)}">${inner(lightSvg)}</g>
+  </g></g>
+</svg>
+`;
+})();
+
 // ------------------------------------------------------------- GRUB menu --
 
 // The boot menu is the first Amethystora screen anyone sees, so it stands on the crystal field of
@@ -2524,6 +2558,7 @@ glintFrames().forEach((frame, k) => write(`usr/share/amethystora/logos/glint/${S
 write(`${THEME}/amethystora.script`, bootScript());
 write(`${GRUB}/theme.txt`, grubTheme());
 write(`${ANACONDA}/amethystora.css`, anacondaCss(), PRODUCT);
+write("usr/share/amethystora/tour/welcome.svg", tourSvg);
 write("usr/share/amethystora/themed/wallpaper-contours.svg.tpl", contoursTemplate());
 write("usr/share/amethystora/themed/wallpaper-ridges.svg.tpl", ridgesTemplate());
 write("usr/share/amethystora/themed/wallpaper-waves.svg.tpl", wavesTemplate());

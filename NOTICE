@@ -26,6 +26,11 @@ release packages, which Fedora's trademark guidelines ask a system built this
 way to replace: the artwork is Amethystora's own, and Fedora's generic-release
 stands in the package database for fedora-release.
 
+GNOME Tour (GPL-3.0-or-later, https://gitlab.gnome.org/GNOME/gnome-tour) is
+not the app as Fedora builds it. Fedora puts a picture with Fedora's logo on
+its first page; since October 2026 Amethystora replaces that picture with its
+own each time an image is built (build_files/base/12-tour.sh).
+
 The desktop theme switcher takes its design and its colour palettes from Omakub
 and its fork Omabuntu. Each says in its README that it is released under the
 MIT License; neither carries a licence file or a copyright line of its own, so
