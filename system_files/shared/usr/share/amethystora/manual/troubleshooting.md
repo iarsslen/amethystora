@@ -45,13 +45,13 @@ The same in a terminal:
 | `journalctl --user -b` | Your own session: the desktop, your apps |
 | `systemctl --failed` | Services that failed to start |
 | `coredumpctl list` | Programs that crashed |
-| `ujust logs-this-boot` | Everything from this boot |
-| `ujust check-local-overrides` | The files in `/etc` you, or something you ran, have changed |
+| `ame system logs-this-boot` | Everything from this boot |
+| `ame system local-overrides` | The files in `/etc` you, or something you ran, have changed |
 
 ## An update broke something
 
-Pick the previous system at the boot menu to confirm it was the update, then stay on it with
-`sudo rpm-ostree rollback` until a fixed image is out. [Updates](updates.md#rolling-back).
+Pick the previous system at the boot menu to confirm it was the update. System Updates then offers to
+keep it, which `sudo bootc rollback` does too, until a fixed image is out. [Updates](updates.md#rolling-back).
 
 ## Common problems
 
@@ -94,7 +94,7 @@ account with `sudo faillock --user <name> --reset`.
 ### A DisplayLink dock shows nothing
 
 With Secure Boot on, its driver loads only once Amethystora's key is enrolled:
-`ujust enroll-secure-boot-key`, then restart ([Hardware](hardware.md#secure-boot)).
+`ame security secure-boot`, then restart ([Hardware](hardware.md#secure-boot)).
 
 ### Switching keyboard layouts
 
@@ -104,7 +104,7 @@ With Secure Boot on, its driver loads only once Amethystora's key is enrolled:
 ### The disk is filling up
 
 ```bash
-ujust clean-system
+ame system clean
 ```
 
 Removes unused containers, images and Flatpak runtimes. `flatpak uninstall --unused` and

@@ -1,7 +1,7 @@
 # Lynis profile for Amethystora. Lynis reads /etc/lynis/default.prf, which belongs to the package and
 # should not be edited, and then this file, so only the differences from the default belong here.
 #
-# Audit the machine with: ujust security-audit    (or: sudo lynis audit system)
+# Audit the machine with: ame security audit    (or: sudo lynis audit system)
 
 # A desktop, not a server: Lynis then expects a graphical session and a user sitting at the machine,
 # and stops suggesting server hardening that does not apply here.

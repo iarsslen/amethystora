@@ -69,7 +69,7 @@ dnf5 -y install --enablerepo=fedora-multimedia --setopt=tsflags=noscripts \
     akmod-evdi \
     displaylink \
     libevdi
-# Secure Boot only loads evdi when it is signed with a key enrolled in MOK (ujust enroll-secure-boot-key).
+# Secure Boot only loads evdi when it is signed with a key enrolled in MOK (ame security secure-boot).
 # akmods signs with the key found at these paths; without one it makes a throwaway key, and evdi is then
 # rejected by any machine with Secure Boot on.
 AKMODS_CERT=/etc/pki/akmods/certs/amethystora-modules.der

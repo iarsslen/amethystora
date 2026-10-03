@@ -4,8 +4,8 @@
 
 Because the system is an image, and the image is the same on every machine. That is what makes
 updates safe and rollbacks instant. Apps come from Flathub, tools from Homebrew, and anything else
-from a container; [Installing software](software.md) shows which is which. In a Fedora container,
-`dnf install` works exactly as you know it.
+from a container; [Installing software](software.md) shows which is which. In a Fedora container
+(`amepkg containers new --template fedora`), `dnf install` works exactly as you know it.
 
 ## Can I use another browser?
 
@@ -40,6 +40,12 @@ needs X11, so grant it to Bottles in Flatseal. For the rest, a Windows virtual m
 ## How do I run an AppImage?
 
 Install **Gear Lever** from Bazaar. It puts AppImages in the app grid and keeps them updated.
+
+## How do I install a `.deb` or an `.rpm`?
+
+Open it in Files. It goes into a container made for its kind of package, after a virus scan and a
+look at where it comes from; the same app from Flathub, if there is one, is offered first.
+[A package file](software.md#a-package-file).
 
 ## Where do my settings live?
 

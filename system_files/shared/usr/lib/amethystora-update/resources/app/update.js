@@ -17,6 +17,9 @@ const state = {
     notice: '',
     // Automatic updates are being switched, and GNOME is asking for the password
     switching: false,
+    // "Keep this version" is waiting for the password, and then has been done
+    keeping: false,
+    kept: false,
     // The updater's log is open
     details: false,
     // When the status was last read
@@ -144,7 +147,11 @@ const STEPS = {
     },
     Brew: { icon: 'terminal', title: 'Command-line tools', text: 'What you installed with Homebrew.' },
     Flatpak: { icon: 'apps', title: 'Apps', text: 'Flatpak apps, the whole machine’s and those of everyone signed in.' },
-    Distrobox: { icon: 'box', title: 'Containers', text: 'Distrobox containers.' },
+    Distrobox: {
+        icon: 'box',
+        title: 'Containers',
+        text: 'What you installed from other distributions with amepkg. Upgraded by themselves every day, and after Update now.',
+    },
 };
 
 // What bootc is doing, as uupd names it: the step's own words, and the page's sentence for it
@@ -166,6 +173,9 @@ function stepActivity(name, step) {
     if (name === 'Flatpak') {
         const user = /^Apps for User: (.+)$/.exec(step.detail || '');
         return user ? [`Apps of ${user[1]}`, `Updating the apps of ${user[1]}`] : ['The machine’s apps', 'Updating the machine’s apps'];
+    }
+    if (name === 'Distrobox') {
+        return [step.detail || 'Starting', 'Upgrading the containers'];
     }
     return ['Updating', `Updating ${(STEPS[name]?.title || name).toLowerCase()}`];
 }
@@ -192,15 +202,27 @@ function stepState(name, step, update) {
 }
 
 // A step's state, set on the row in place: the spinner keeps turning while the words change. Without
-// the journal there is nothing to say about any one step, and the rows only say what they update.
+// the journal there is nothing to say about any one step, and the rows only say what they update. The
+// containers' own log is the account's, so their step always has something to say once it has begun.
 function setStep(name, step, update) {
     const nodes = live.stepNodes[name];
-    const [label, tone, spinning] = update?.journal ? stepState(name, step, update) : [];
+    const known = update?.journal || (name === 'Distrobox' && update?.containers);
+    const [label, tone, spinning] = known ? stepState(name, step, update) : [];
     nodes.badge.hidden = !label;
     nodes.badge.setAttribute('class', `state ${tone || ''}`.trim());
     nodes.label.textContent = label || '';
     nodes.spinner.style.display = spinning ? '' : 'none';
     nodes.icon.setAttribute('class', `row-icon tone ${tone === 'off' ? 'off' : 'accent'}`);
+}
+
+// What the Containers row adds to what it updates: which did not upgrade, or when they last did
+function containersDetail(update) {
+    const failed = update?.containers?.failed || [];
+    if (failed.length) {
+        return `Did not upgrade: ${failed.join(', ')}. What they said is in the log: journalctl --user -u amethystora-pkg-upgrade`;
+    }
+    const upgraded = state.status?.containers?.upgraded;
+    return upgraded && !update?.containers ? `Last upgraded ${when(upgraded)}` : '';
 }
 
 function stepRow(name, step, update) {
@@ -213,17 +235,23 @@ function stepRow(name, step, update) {
     nodes.badge = h('span', {}, nodes.spinner, nodes.label);
     live.stepNodes[name] = nodes;
     setStep(name, step, update);
+    const extra = name === 'Distrobox' ? containersDetail(update) : '';
     return h('div', { class: 'row' },
         nodes.icon,
         h('div', { class: 'row-text grow' },
             h('span', { class: 'row-title' }, about.title),
-            h('span', { class: 'row-detail' }, about.text)),
+            h('span', { class: 'row-detail' }, about.text),
+            extra ? h('span', { class: 'row-detail' }, extra) : null),
         nodes.badge);
 }
 
 function stepsCard() {
     const update = state.update;
-    const steps = update?.steps || { System: {}, Brew: {}, Flatpak: {} };
+    const idle = { System: {}, Brew: {}, Flatpak: {} };
+    if (state.status?.containers?.count) {
+        idle.Distrobox = {};
+    }
+    const steps = update?.steps || idle;
     live.stepNodes = {};
     return h('div', { class: 'card list' }, Object.entries(steps).map(([name, step]) => stepRow(name, step, update)));
 }
@@ -253,6 +281,9 @@ function heroKind() {
     }
     if (update?.state === 'failed') {
         return 'failed';
+    }
+    if (state.status?.machine?.latest) {
+        return 'previous';
     }
     if (state.status?.machine?.next) {
         return 'ready';
@@ -314,6 +345,16 @@ function hero(kind) {
             if (next) {
                 actions.push(button('Restart now', restart, { icon: 'power' }));
             }
+            break;
+        }
+        case 'previous': {
+            const { running, latest } = status.machine;
+            title = 'You’re on the previous version';
+            lead = `This machine started Amethystora ${running.version || ''}${running.built ? `, built ${day(running.built)}` : ''}, from the boot menu. The newest${latest.built ? `, built ${day(latest.built)},` : ''} is still the one it starts by default. Keep this one while the newest has a problem you are waiting to see fixed.`;
+            notes.push('Keeping it asks for your password');
+            actions.push(button('Keep this version', keep, { icon: 'back', primary: true, disabled: state.keeping }));
+            actions.push(button('Restart into the latest', restart, { icon: 'power' }));
+            actions.push(linkButton('Rolling back in the manual', () => window.updates.manual('updates#rolling-back'), { icon: 'book' }));
             break;
         }
         case 'ready':
@@ -410,10 +451,30 @@ function machineSection() {
             `It runs ${held} and receives no new system until it follows a stream again. Apps and command-line tools still update.`,
             linkButton('Following a stream again', () => window.updates.manual('updates#holding-on-to-one-build'), { icon: 'book' })) : null,
         h('div', { class: 'card list' },
-            versionRow('Running now', info.running),
+            versionRow(info.latest ? 'Running now, from the boot menu' : 'Running now', info.running),
+            info.latest ? versionRow('The newest, started by default', info.latest) : null,
             info.next ? versionRow('After the next restart', info.next) : null,
             info.previous ? versionRow('Kept to go back to', info.previous,
                 linkButton('Going back to it', () => window.updates.manual('updates#rolling-back'), { icon: 'back' })) : null));
+}
+
+// Makes the running version the default, after an administrator's password. What it means for the
+// updates to come is said straight after: the next one brings the newest back.
+async function keep() {
+    state.keeping = true;
+    state.notice = '';
+    render();
+    const result = await window.updates.keep();
+    state.keeping = false;
+    if (result.machine) {
+        state.status.machine = result.machine;
+    }
+    if (result.kept) {
+        state.kept = true;
+    } else if (!result.declined) {
+        state.notice = result.error || '';
+    }
+    render();
 }
 
 async function setAutomatic(on) {
@@ -434,7 +495,7 @@ function automaticSection() {
     }
     const detail = auto.enabled
         ? 'New versions download in the background, and a new system waits for the next restart.'
-        : 'Nothing is updated unless you update it here, or with ujust update in a terminal.';
+        : 'Nothing is updated unless you update it here, or with ame update in a terminal.';
     return section('Automatic updates', h('div', { class: 'card list' },
         h('div', { class: 'row' },
             h('span', { class: `row-icon tone ${auto.enabled ? 'ok' : 'info'}` }, icon('clock', 20)),
@@ -507,11 +568,14 @@ function render() {
     view.replaceChildren(h('div', { class: 'page' },
         top,
         state.notice ? callout('check', 'That did not work', state.notice) : null,
+        state.kept ? callout('info', 'This version is the one the machine starts now',
+            'The next update brings the newest back, automatic or not. To stay on this one until a fix is out, turn automatic updates off below, or hold the machine on this build.',
+            linkButton('Holding on to one build', () => window.updates.manual('updates#holding-on-to-one-build'), { icon: 'book' })) : null,
         section(kind === 'running' || state.update ? 'This update' : 'What gets updated', live.steps),
         detailsSection(),
         machineSection(),
         automaticSection(),
-        h('p', { class: 'terminal' }, 'Also in a terminal: ', h('code', {}, 'ujust update'))));
+        h('p', { class: 'terminal' }, 'Also in a terminal: ', h('code', {}, 'ame update'))));
 }
 
 async function reload() {

@@ -1,4 +1,4 @@
-# Left out of `ujust setup-backup` runs: things that are rebuilt on demand, are already backed up
+# Left out of `ame backup` runs: things that are rebuilt on demand, are already backed up
 # somewhere else, or are large enough to make a daily backup stop finishing. restic reads this as a
 # list of patterns, one per line.
 #

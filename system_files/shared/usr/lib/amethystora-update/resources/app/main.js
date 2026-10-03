@@ -2,10 +2,10 @@
 
 // Amethystora Updates: the system, the apps and the command-line tools brought up to date in a window of
 // its own. It takes the place of upstream's System Update launcher, a terminal running `ujust update`;
-// the recipe itself stays, for the terminal.
+// `ame update` stays, for the terminal.
 //
 // "Update now" starts uupd-manual.service: uupd, the updater the automatic updates run from uupd.timer,
-// without the hardware checks that hold those back on a busy machine. It updates what `ujust update`
+// without the hardware checks that hold those back on a busy machine. It updates what `ame update`
 // does, the system image, the Flatpaks of the machine and of everyone signed in, and Homebrew, and the
 // polkit rule the uupd package ships lets it be started without a password. An update that is already
 // running, the automatic one included, is followed instead of being started a second time.
@@ -13,6 +13,16 @@
 // What the window shows while it runs is uupd's own JSON log, read from the journal, which Fedora opens
 // to the members of wheel. For anyone else the window still knows from systemd whether an update is
 // running and how it ended.
+//
+// The containers amethystora-pkg manages are each account's own, and uupd's own module for containers
+// stays off (/etc/uupd/config.json). Once an update started here has finished, the window starts the
+// account's amethystora-pkg-upgrade.service, which upgrades them, and follows the line of JSON it logs
+// for each one. How that goes shows on the Containers step and nowhere else: a container that did not
+// upgrade never makes the system's update a failed one.
+//
+// A machine started from an older version than the one it starts by default, which is what picking
+// the second entry in the boot menu does, is said so, with the choice of keeping that version, which
+// `bootc rollback` does after an administrator's password, or restarting into the newest.
 //
 // The window is locked down the way the Manual's is: it loads nothing but its own page, and the page
 // can ask for nothing but what preload.js lists.
@@ -35,6 +45,10 @@ const TIMER = 'uupd.timer';
 const RELEASES = 'https://github.com/iarsslen/amethystora/releases';
 // Lines of what the updater said, kept for the page's details
 const LOG_LENGTH = 400;
+// The containers' upgrade, a unit of the account's own, and what it logs each container under
+const PKG = '/usr/bin/amethystora-pkg';
+const CONTAINERS_UNIT = 'amethystora-pkg-upgrade.service';
+const CONTAINERS_LOG = 'amethystora-pkg-upgrade';
 
 app.setPath('userData', path.join(CONFIG_HOME, 'amethystora-update'));
 
@@ -47,6 +61,9 @@ let requested = 0;
 let ending = null;
 let watching = false;
 let timer = null;
+// "Update now" was pressed, so the containers follow the update it started or found running
+let containersWanted = false;
+let containersJournal = null;
 
 // The colours of the current theme, or null before one has been applied. The same as the Manual's.
 function palette() {
@@ -105,7 +122,9 @@ function unixTime(value) {
 // --- This machine ----------------------------------------------------------------------------------
 
 // rpm-ostree rather than bootc, whose status needs root. The deployment listed first is the one the
-// next boot starts; when that is not the running one, it is the update waiting for a restart.
+// next boot starts. When that is not the running one, it is either the update waiting for a restart,
+// which is staged, or the newest version, when the machine was started from an older one at the boot
+// menu: then `latest` is set, and `next` is not.
 async function machine() {
     const { stdout } = await run('rpm-ostree', ['status', '--json']);
     let deployments = [];
@@ -123,11 +142,43 @@ async function machine() {
     if (booted < 0) {
         return null;
     }
+    const first = deployments[0];
+    const older = booted > 0 && !first.staged && (first.timestamp || 0) > (deployments[booted].timestamp || 0);
     return {
         running: summary(deployments[booted]),
-        next: booted > 0 ? summary(deployments[0]) : null,
-        previous: summary(deployments[booted + 1]) || null,
+        next: booted > 0 && !older ? summary(first) : null,
+        latest: older ? summary(first) : null,
+        previous: older ? null : summary(deployments[booted + 1]) || null,
     };
+}
+
+// Makes the running version the one the machine starts by default. bootc reverses the queued rollback a
+// start from the boot menu amounts to, and needs root, so polkit asks for an administrator's password.
+async function keepVersion() {
+    const { code, stderr } = await run('pkexec', ['/usr/bin/bootc', 'rollback']);
+    const result = { machine: await machine() };
+    // pkexec: 126 when the password was not given, 127 when it was refused
+    if (code === 126 || code === 127) {
+        result.declined = true;
+    } else if (code !== 0) {
+        result.error = stderr.trim().split('\n').pop() || 'This version could not be made the one the machine starts.';
+    } else {
+        result.kept = true;
+    }
+    return result;
+}
+
+// The containers amethystora-pkg manages: how many, and when the daily upgrade last ran over them
+async function containers() {
+    const { stdout } = await run(PKG, ['containers', 'list', '--json']);
+    let list = [];
+    try {
+        list = JSON.parse(stdout);
+    } catch {
+        return { count: 0 };
+    }
+    const upgraded = list.map((item) => item.last_upgrade || 0).filter(Boolean);
+    return { count: list.length, upgraded: upgraded.length ? Math.min(...upgraded) * 1000 : null };
 }
 
 async function automatic() {
@@ -163,15 +214,19 @@ function recent(list) {
     return ended[0] || null;
 }
 
+let lastContainers = null;
+
 async function status() {
-    const [info, auto, list] = await Promise.all([machine(), automatic(), units()]);
-    return { machine: info, automatic: auto, recent: recent(list), update };
+    const [info, auto, list, boxes] = await Promise.all([machine(), automatic(), units(), containers()]);
+    lastContainers = boxes;
+    return { machine: info, automatic: auto, recent: recent(list), containers: boxes, update };
 }
 
 // --- The update ------------------------------------------------------------------------------------
 
-// uupd's modules by the title its progress gives them, in the order it runs them. Distrobox is off in
-// /etc/uupd/config.json and only appears if somebody turns it on.
+// uupd's modules by the title its progress gives them, in the order it runs them. uupd's own Distrobox
+// module is off in /etc/uupd/config.json: the Distrobox step, Containers on the page, is the account's
+// amethystora-pkg-upgrade.service, which follows an update started here.
 const MODULES = ['System', 'Brew', 'Flatpak'];
 
 // What a failed command was part of, from the context uupd gives it: "System Update", "Brew Upgrade",
@@ -294,7 +349,12 @@ function follow(unit) {
         log: [],
         ended: '',
         journal: false,
+        // The containers' upgrade that follows an update started here, once it has started
+        containers: null,
     };
+    if (containersWanted && lastContainers?.count) {
+        update.steps.Distrobox = { state: 'waiting' };
+    }
     if (unit.InvocationID) {
         journal = spawn('journalctl', ['--quiet', '--follow', '--no-tail', '--output=cat',
             `_SYSTEMD_UNIT=${unit.Id}`, `_SYSTEMD_INVOCATION_ID=${unit.InvocationID}`]);
@@ -335,8 +395,98 @@ function end(unit) {
             }
             step.percent = null;
         }
+        const startContainersNow = containersWanted && current.steps.Distrobox;
+        containersWanted = false;
         send('status', await status());
+        if (startContainersNow) {
+            startContainers(current);
+        }
     }, 1200);
+}
+
+// --- The containers ----------------------------------------------------------------------------------
+
+function stopContainers() {
+    containersJournal?.kill('SIGTERM');
+    containersJournal = null;
+}
+
+// One line amethystora-pkg logged: {"container":"debian","state":"running","index":1,"count":2}, then
+// the same with "ok" or "failed", and {"done":true,...} at the end, or {"done":true,"skipped":"..."}
+function readContainers(current, line) {
+    let entry;
+    try {
+        entry = JSON.parse(line);
+    } catch {
+        return;
+    }
+    const boxes = current.containers;
+    const step = current.steps.Distrobox;
+    if (!entry || typeof entry !== 'object' || !boxes || !step) {
+        return;
+    }
+    if (entry.done) {
+        boxes.state = entry.failed ? 'failed' : 'done';
+        step.state = boxes.state;
+        step.detail = '';
+        stopContainers();
+    } else if (typeof entry.container === 'string') {
+        boxes.count = Number(entry.count) || boxes.count;
+        if (entry.state === 'running') {
+            boxes.current = entry.container;
+            boxes.index = Number(entry.index) || boxes.done + 1;
+            step.detail = `${entry.container} · ${boxes.index} of ${boxes.count}`;
+        } else if (entry.state === 'failed') {
+            boxes.failed.push(entry.container);
+        }
+        if (current === update) {
+            const said = { running: 'upgrading', ok: 'up to date', failed: 'did not upgrade' }[entry.state] || entry.state;
+            log(`Containers: ${entry.container}, ${said}`);
+        }
+    }
+    sendUpdate();
+}
+
+// The account's own unit, which upgrades every container amethystora-pkg manages, followed through the
+// line it logs for each one
+async function startContainers(current) {
+    const since = Math.floor(Date.now() / 1000) - 1;
+    current.containers = { state: 'running', started: Date.now(), done: 0, count: lastContainers?.count || 0, failed: [] };
+    current.steps.Distrobox = { state: 'running', detail: '' };
+    stopContainers();
+    containersJournal = spawn('journalctl', ['--user', '--quiet', '--follow', '--no-tail', '--output=cat',
+        `--since=@${since}`, `SYSLOG_IDENTIFIER=${CONTAINERS_LOG}`]);
+    containersJournal.on('error', () => {});
+    readline.createInterface({ input: containersJournal.stdout }).on('line', (line) => readContainers(current, line));
+    const { code } = await run('systemctl', ['--user', 'start', '--no-block', CONTAINERS_UNIT]);
+    if (code !== 0) {
+        current.containers.state = 'failed';
+        current.steps.Distrobox.state = 'failed';
+        stopContainers();
+    }
+    sendUpdate();
+}
+
+// A unit that ended without its last line, killed or failed before it could say: how systemd saw it
+async function checkContainers() {
+    const current = update;
+    const boxes = current?.containers;
+    if (boxes?.state !== 'running' || Date.now() - boxes.started < 5000) {
+        return;
+    }
+    const { stdout } = await run('systemctl', ['--user', 'show', CONTAINERS_UNIT, '-p', 'ActiveState', '-p', 'Result']);
+    const unit = properties(stdout);
+    if (unit.ActiveState === 'inactive' || unit.ActiveState === 'failed') {
+        // Its last line may still be on its way from the journal
+        setTimeout(() => {
+            if (boxes.state === 'running') {
+                boxes.state = unit.Result === 'success' ? 'done' : 'failed';
+                current.steps.Distrobox.state = boxes.state;
+                stopContainers();
+                sendUpdate();
+            }
+        }, 1500);
+    }
 }
 
 async function watch() {
@@ -356,6 +506,7 @@ async function watch() {
         } else if (requested && Date.now() - requested > 30000) {
             // Started, and never seen running: systemd dropped the job
             requested = 0;
+            containersWanted = false;
             send('status', await status());
         }
         if (update?.state === 'running') {
@@ -364,12 +515,15 @@ async function watch() {
                 end(unit?.InvocationID === update.invocation ? unit : null);
             }
         }
+        await checkContainers();
     } finally {
         watching = false;
     }
 }
 
 async function start() {
+    // The containers are upgraded once the update this finds or starts has finished
+    containersWanted = true;
     const list = await units();
     const active = list.find(running);
     if (active) {
@@ -379,6 +533,7 @@ async function start() {
     }
     const { code, stderr } = await run('systemctl', ['start', '--no-block', MANUAL_UNIT]);
     if (code !== 0) {
+        containersWanted = false;
         return { error: stderr.trim() || 'The update could not be started.' };
     }
     requested = Date.now();
@@ -460,6 +615,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('palette', () => palette());
     ipcMain.handle('update', () => start());
     ipcMain.handle('automatic', (_event, on) => setAutomatic(Boolean(on)));
+    ipcMain.handle('keep', () => keepVersion());
     // GNOME's own restart dialog, which gives open apps the chance to object
     ipcMain.handle('restart', () => launch('gnome-session-quit', ['--reboot']));
     ipcMain.handle('releases', () => shell.openExternal(RELEASES));
@@ -483,6 +639,7 @@ if (!app.requestSingleInstanceLock()) {
     app.on('will-quit', () => {
         clearInterval(timer);
         stopJournal();
+        stopContainers();
     });
     app.on('window-all-closed', () => app.quit());
 }

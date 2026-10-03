@@ -55,7 +55,7 @@ Read the `amethystora` skill too: it says what may be changed on this system and
    `/usr/libexec/amethystora-security-config NETWORK` saying `block`, network protection may have cut
    it off. `/var/lib/amethystora/security/network.json` (readable by wheel) lists what it blocked, with
    the time, the rule (`sid`) and the host; a block of that host at that time is the likely cause, and
-   `ujust blocked-connections allow <sid>` the fix, which loosens security: propose it, do not run it.
+   `ame security connections allow <sid>` the fix, which loosens security: propose it, do not run it.
 8. **A deeper backtrace**, only when the recorded one is not enough. The dx image has gdb
    (`command -v gdb`); on the base image it is not there, so this installs something: ask first.
    `brew install gdb`, or a toolbox container

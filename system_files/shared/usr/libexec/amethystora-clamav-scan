@@ -3,7 +3,7 @@
 # the system: home directories and the temporary directories. The image itself is not scanned, because
 # /usr is read only, is replaced whole by every update, and is only accepted with a valid signature.
 #
-# A finding is written to the journal and to the log file below, where `ujust virus-scan` shows it.
+# A finding is written to the journal and to the log file below, where `ame security scan` shows it.
 # What happens to the file itself is ON_DETECTION's to say (/etc/amethystora/security.conf), through
 # /usr/libexec/amethystora-quarantine. The default, report, leaves it where it is: a false positive that
 # removes a user's file is worse than the malware most of the time.
@@ -59,7 +59,7 @@ case "${STATUS}" in
         ;;
     1)
         # Findings. The journal entry is what shows up in `systemctl status`, the file is what
-        # `ujust virus-scan` reads, and both say what was done to each file, if anything was.
+        # `ame security scan` reads, and both say what was done to each file, if anything was.
         MODE="$(/usr/libexec/amethystora-security-config ON_DETECTION)"
         FOUND=()
         while IFS= read -r line; do

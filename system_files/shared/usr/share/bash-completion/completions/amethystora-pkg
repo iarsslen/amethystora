@@ -1,0 +1,105 @@
+# Completion for amethystora-pkg and its short name amepkg (/usr/bin/amethystora-pkg). Names are read
+# from the folders the command keeps them in, rather than by running it: listing the containers asks
+# podman, which is too slow to wait for at every Tab.
+
+_amethystora_pkg_names() {
+    local share=/usr/share/amethystora/pkg data="${XDG_DATA_HOME:-${HOME}/.local/share}/amethystora/pkg" dir file
+    local -a dirs=("${share}/$1" "${data}/$1")
+    [[ -e "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/aur" ]] && dirs+=("${share}/aur/$1")
+    for dir in "${dirs[@]}"; do
+        for file in "${dir}"/*.json; do
+            [[ -e "${file}" ]] && basename "${file}" .json
+        done
+    done
+}
+
+_amethystora_pkg_containers() {
+    local file
+    for file in "${XDG_STATE_HOME:-${HOME}/.local/state}/amethystora/pkg/containers"/*.json; do
+        [[ -e "${file}" ]] && basename "${file}" .json
+    done
+}
+
+_amethystora_pkg() {
+    local cur prev words cword
+    if declare -F _init_completion >/dev/null; then
+        _init_completion || return
+    else
+        cur="${COMP_WORDS[COMP_CWORD]}"
+        prev="${COMP_WORDS[COMP_CWORD - 1]}"
+        words=("${COMP_WORDS[@]}")
+        cword=${COMP_CWORD}
+    fi
+    local IFS=$'\n'
+    local -a list
+
+    if [[ ${cword} -eq 1 ]]; then
+        list=(containers templates managers install upgrade-all --help $(_amethystora_pkg_containers))
+        COMPREPLY=($(compgen -W "${list[*]}" -- "${cur}"))
+        return
+    fi
+    case "${words[1]}" in
+        containers)
+            if [[ ${cword} -eq 2 ]]; then
+                COMPREPLY=($(compgen -W $'list\nnew\nrm\nreset' -- "${cur}"))
+                return
+            fi
+            case "${words[2]}:${prev}" in
+                list:*) COMPREPLY=($(compgen -W "--json" -- "${cur}")) ;;
+                new:--template) COMPREPLY=($(compgen -W "$(_amethystora_pkg_names templates)" -- "${cur}")) ;;
+                new:--home) COMPREPLY=($(compgen -d -- "${cur}")) ;;
+                new:--name) ;;
+                new:*) COMPREPLY=($(compgen -W $'--template\n--name\n--home\n--init\n--no-prompt' -- "${cur}")) ;;
+                rm:* | reset:*) COMPREPLY=($(compgen -W "--force"$'\n'"$(_amethystora_pkg_containers)" -- "${cur}")) ;;
+            esac
+            ;;
+        templates | managers)
+            if [[ ${cword} -eq 2 ]]; then
+                COMPREPLY=($(compgen -W $'list\nshow\nnew\nupdate\nrm\nexport\nimport' -- "${cur}"))
+                return
+            fi
+            case "${words[2]}:${prev}" in
+                list:*) COMPREPLY=($(compgen -W "--json" -- "${cur}")) ;;
+                export:--output | import:*) COMPREPLY=($(compgen -f -- "${cur}")) ;;
+                show:* | rm:* | export:*)
+                    COMPREPLY=($(compgen -W "$(_amethystora_pkg_names "${words[1]}")"$'\n--force\n--output' -- "${cur}"))
+                    ;;
+                *:--pkg-manager) COMPREPLY=($(compgen -W "$(_amethystora_pkg_names managers)" -- "${cur}")) ;;
+                *:--name) COMPREPLY=($(compgen -W "$(_amethystora_pkg_names "${words[1]}")" -- "${cur}")) ;;
+                new:* | update:*)
+                    if [[ "${words[1]}" == templates ]]; then
+                        list=(--name --base --packages --pkg-manager --own-home --unshare --description --no-prompt)
+                    else
+                        list=(--name --need-sudo --install --remove --purge --search --show --list --update --upgrade
+                            --autoremove --clean --noconfirm --no-prompt)
+                    fi
+                    COMPREPLY=($(compgen -W "${list[*]}" -- "${cur}"))
+                    ;;
+            esac
+            ;;
+        install)
+            if [[ "${cur}" == -* ]]; then
+                COMPREPLY=($(compgen -W $'--yes\n--no-export' -- "${cur}"))
+            else
+                compopt -o filenames 2>/dev/null
+                COMPREPLY=($(compgen -f -X '!*.@(deb|rpm|pkg.tar.zst|pkg.tar.xz)' -- "${cur}") $(compgen -d -- "${cur}"))
+            fi
+            ;;
+        upgrade-all) ;;
+        *)
+            if [[ ${cword} -eq 2 ]]; then
+                list=(enter run start stop install remove purge search show list update upgrade autoremove clean export unexport)
+                COMPREPLY=($(compgen -W "${list[*]}" -- "${cur}"))
+                return
+            fi
+            case "${words[2]}:${prev}" in
+                *:--bin-output) COMPREPLY=($(compgen -d -- "${cur}")) ;;
+                install:*) [[ "${cur}" == -* ]] && COMPREPLY=($(compgen -W $'--no-export\n--yes' -- "${cur}")) ;;
+                remove:* | purge:* | upgrade:*) [[ "${cur}" == -* ]] && COMPREPLY=($(compgen -W "--yes" -- "${cur}")) ;;
+                export:* | unexport:*) COMPREPLY=($(compgen -W $'--app\n--bin\n--bin-output' -- "${cur}")) ;;
+            esac
+            ;;
+    esac
+}
+
+complete -F _amethystora_pkg amethystora-pkg amepkg

@@ -7,9 +7,24 @@ set -eoux pipefail
 # No Bluefin / Universal Blue names left in paths or text (07-debrand.sh)
 python3 /ctx/build_files/shared/debrand.py --check
 
-for i in bin/ujust share/amethystora/just/{00-entry.just,apps.just,default.just,system.just,update.just,60-custom.just} ; do
+# ame: the commands in /usr/share/amethystora/just, in groups. ujust runs the same ones, and also under
+# the names they had before the groups.
+for i in bin/ame bin/ujust share/amethystora/just/{00-entry,agent,apps,backup,changelog,desktop,security,system,update}.just \
+    share/bash-completion/completions/ame share/fish/vendor_completions.d/ame.fish share/zsh/site-functions/_ame ; do
    stat /usr/$i
 done
+[[ "$(ame --summary)" == "$(ujust --summary)" ]]
+ujust --show setup-backup | grep -qx "alias setup-backup := backup"
+# Every command the image tells somebody to run is one: the report's, the notifications', the apps', the
+# manual's and the agent skill's. A group named alone is one too.
+grep -rhoIE --exclude-dir=node_modules '\bame [a-z][a-z0-9-]*( [a-z][a-z0-9-]*)?' /usr/bin/ame* \
+    /usr/libexec/amethystora-* /usr/lib/amethystora-*/resources/app /usr/lib/systemd/{system,user}/amethystora-* \
+    /usr/share/amethystora /etc/amethystora /etc/profile.d/amethystora-greeting.sh | sort -u |
+    while read -r _ first second; do
+        ame --show "${first}" >/dev/null 2>&1 || ame --show "${first}::${second}" >/dev/null 2>&1 ||
+            { [[ -z "${second}" ]] && ame --list "${first}" >/dev/null 2>&1; } ||
+            { echo "the image names \"ame ${first} ${second}\", which is no command"; false; }
+    done
 
 test -f /usr/share/amethystora/homebrew/fonts.Brewfile
 test -x /usr/bin/amethystora-fastfetch
@@ -384,6 +399,107 @@ test ! -e "${WEBAPP_DESKTOP}"
 test ! -e "${WEBAPP_PROFILE}"
 rm -rf "${WEBAPP_HOME}"
 
+# Packages from other distributions (amethystora-pkg): the command and its short name, which answers to
+# the name it was typed as, and `ame pkg`
+test -x /usr/bin/amethystora-pkg
+[[ "$(readlink /usr/bin/amepkg)" == amethystora-pkg ]]
+amepkg --help | grep -q "^Usage: amepkg "
+ame pkg --help | grep -q "^Usage: amethystora-pkg "
+for completion in bash-completion/completions/amethystora-pkg bash-completion/completions/amepkg \
+    fish/vendor_completions.d/amethystora-pkg.fish fish/vendor_completions.d/amepkg.fish zsh/site-functions/_amethystora-pkg; do
+    test -s "/usr/share/${completion}"
+done
+grep -q "^#compdef amethystora-pkg amepkg$" /usr/share/zsh/site-functions/_amethystora-pkg
+# Every list --json parses, the containers one through a stand-in for podman with one container in it
+PKG_HOME="$(mktemp -d)"
+mkdir -p "${PKG_HOME}/bin" "${PKG_HOME}/.local/state/amethystora/pkg/containers"
+cat >"${PKG_HOME}/bin/podman" <<'EOF'
+#!/usr/bin/bash
+echo '[{"Names": ["pkg-test"], "State": "exited", "Labels": {"manager": "distrobox",
+    "amethystora.pkg.manager": "amethystora-pkg", "amethystora.pkg.name": "test", "amethystora.pkg.template": "debian",
+    "amethystora.pkg.pkgmanager": "apt", "amethystora.pkg.image": "quay.io/x/y:1", "amethystora.pkg.init": "0"}}]'
+EOF
+chmod +x "${PKG_HOME}/bin/podman"
+HOME="${PKG_HOME}" PATH="${PKG_HOME}/bin:${PATH}" amethystora-pkg containers list --json |
+    jq -e 'length == 1 and (.[0] | .name == "test" and .manager == "apt" and .status == "exited"
+        and has("home") and has("init") and has("exported_apps") and has("last_upgrade"))' >/dev/null
+HOME="${PKG_HOME}" amethystora-pkg templates list --json |
+    jq -e 'length >= 7 and all(has("name") and has("base") and has("manager") and has("packages") and .built_in and .verified)' >/dev/null
+HOME="${PKG_HOME}" amethystora-pkg managers list --json |
+    jq -e 'length >= 5 and all(.built_in and (.install | length > 0) and (.clean | length > 0) and has("need_sudo"))' >/dev/null
+# The AUR's manager and template are there only while ame apps aur has turned it on
+HOME="${PKG_HOME}" amethystora-pkg managers show paru >/dev/null 2>&1 && false
+mkdir -p "${PKG_HOME}/.config/amethystora" && touch "${PKG_HOME}/.config/amethystora/aur"
+HOME="${PKG_HOME}" amethystora-pkg templates show arch-aur | jq -e '.manager == "paru" and .own_home' >/dev/null
+rm -rf "${PKG_HOME}"
+grep -q "^aur:" /usr/share/amethystora/just/apps.just
+# Every built-in template's image is pinned by digest, and the pins ship in the signed image, which is
+# what makes a container made from one start from exactly that image. Each names a built-in manager.
+for template in /usr/share/amethystora/pkg/templates/*.json /usr/share/amethystora/pkg/aur/templates/*.json; do
+    jq -e '.base | test("^[a-z0-9.-]+/[^@ ]+@sha256:[0-9a-f]{64}$")' "${template}" >/dev/null
+    manager="$(jq -r .manager "${template}")"
+    test -f "/usr/share/amethystora/pkg/managers/${manager}.json" -o -f "/usr/share/amethystora/pkg/aur/managers/${manager}.json"
+done
+# A .deb or an .rpm opens in it, in a terminal, scanned and explained first
+PKG_DESKTOP=/usr/share/applications/amethystora-pkg-install.desktop
+command -v desktop-file-validate >/dev/null && desktop-file-validate "${PKG_DESKTOP}"
+grep -qx "MimeType=application/vnd.debian.binary-package;application/x-rpm;" "${PKG_DESKTOP}"
+grep -q "^Exec=/usr/libexec/amethystora-in-terminal amethystora-pkg install %f$" "${PKG_DESKTOP}"
+for type in application/vnd.debian.binary-package application/x-rpm; do
+    grep -qx "${type}=amethystora-pkg-install.desktop" /etc/xdg/mimeapps.list
+done
+# DistroShelf, the window onto the containers, comes with every machine, as Bazaar and Flatseal do
+for preinstall in bazaar flatseal distroshelf; do
+    test -f "/usr/share/flatpak/preinstall.d/${preinstall}.preinstall"
+done
+grep -q "^\[Flatpak Preinstall com.ranfdev.DistroShelf\]$" /usr/share/flatpak/preinstall.d/distroshelf.preinstall
+grep -q '"com.ranfdev.DistroShelf"' /usr/share/amethystora/homebrew/system-flatpaks.Brewfile && false
+# Its containers are upgraded by a timer of each account's own. uupd's module for containers stays off:
+# it upgraded every container of everyone, and made manual updates slow.
+test -L /etc/systemd/user/timers.target.wants/amethystora-pkg-upgrade.timer
+grep -q "^ExecStart=/usr/bin/amethystora-pkg upgrade-all$" /usr/lib/systemd/user/amethystora-pkg-upgrade.service
+jq -e '.modules.distrobox.disable == true' /etc/uupd/config.json >/dev/null
+# Nothing this adds is named after the tools it does the work of. The manual alone may say, once, that
+# importing reads their file format.
+PKG_NAMES='\b(vanilla[ -]?os|apx|vso|sideload)\b'
+grep -rliE "${PKG_NAMES}" /usr/bin/amethystora-pkg /usr/share/amethystora/pkg /usr/share/bash-completion/completions/amepkg \
+    /usr/share/bash-completion/completions/amethystora-pkg /usr/share/fish/vendor_completions.d/amepkg.fish \
+    /usr/share/fish/vendor_completions.d/amethystora-pkg.fish /usr/share/zsh/site-functions/_amethystora-pkg "${PKG_DESKTOP}" \
+    /usr/lib/systemd/user/amethystora-pkg-upgrade.service /usr/lib/systemd/user/amethystora-pkg-upgrade.timer \
+    /usr/libexec/amethystora-gpu-check /usr/libexec/amethystora-update-alert /usr/libexec/amethystora-setup-manifest \
+    /usr/libexec/amethystora-restore-setup /usr/share/amethystora/agents /usr/share/amethystora/just \
+    /usr/share/amethystora/user-setup.hooks.d && false
+[[ -z "$(grep -rliE "${PKG_NAMES}" /usr/share/amethystora/manual | grep -vx /usr/share/amethystora/manual/software.md)" ]]
+[[ "$(grep -ciE "${PKG_NAMES}" /usr/share/amethystora/manual/software.md)" -le 1 ]]
+
+# A setup to make again on a new machine: every backup stores one beside the files, and `ame
+# restore-setup` reads it back. Neither may delete anything from the repository.
+test -x /usr/libexec/amethystora-setup-manifest
+test -x /usr/libexec/amethystora-restore-setup
+grep -q "/usr/libexec/amethystora-setup-manifest" /usr/libexec/amethystora-backup
+grep -q "^restore-setup SNAPSHOT=" /usr/share/amethystora/just/backup.just
+grep -vE "^[[:space:]]*#" /usr/libexec/amethystora-restore-setup | grep -qE "restic +(forget|prune)" && false
+# The image switch it makes goes through the rebase helper, which takes signed images only and offers the
+# image without NVIDIA's driver too
+grep -q "^rebase IMAGE=\"\" STREAM=\"\":" /usr/share/amethystora/just/system.just
+grep -q "^  IMAGES=(amethystora amethystora-dx amethystora-nvidia-open amethystora-dx-nvidia-open)$" /usr/bin/amethystora-rollback-helper
+
+# The NVIDIA check, once per machine, through the rebase helper, never switching by itself
+test -x /usr/libexec/amethystora-gpu-check
+grep -q "^ExecCondition=/usr/libexec/amethystora-gpu-check pending$" /usr/lib/systemd/system/amethystora-gpu-check.service
+grep -q "ame system rebase" /usr/libexec/amethystora-gpu-check
+grep -q "kernel lockdown" /usr/libexec/amethystora-gpu-check
+grep -q -- "--action" /usr/libexec/amethystora-notify-users
+# A machine started from an older version than its default one is told so at login, and System Updates
+# offers to keep it or to restart into the newest
+test -x /usr/libexec/amethystora-update-alert
+test -L /etc/systemd/user/graphical-session.target.wants/amethystora-update-alert.service
+grep -q "'/usr/bin/bootc', 'rollback'" /usr/lib/amethystora-update/resources/app/main.js
+# The manual's welcome page, once, at an account's first login
+test -x /usr/share/amethystora/user-setup.hooks.d/17-welcome.sh
+grep -q "^version-script welcome user " /usr/share/amethystora/user-setup.hooks.d/17-welcome.sh
+grep -q "amethystora-manual welcome$" /usr/share/amethystora/user-setup.hooks.d/17-welcome.sh
+
 # The manual (13-manual.sh): Electron starts, which also proves every library it links against is on
 # the image, the app, its renderer and its wordmark's font and stone are in place, and every page in
 # pages.json exists and every link between pages lands on a page and a heading that exist
@@ -446,7 +562,7 @@ done
 test -f /usr/share/licenses/amethystora-update/Quicksand-OFL.txt
 cmp -s <(sed 1d /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg) \
     <(sed 1d /usr/lib/amethystora-update/resources/app/gem.svg)
-# It replaces upstream's System Update launcher, while `ujust update` stays for the terminal
+# It replaces upstream's System Update launcher, while `ame update` stays for the terminal
 UPDATE_DESKTOP=/usr/share/applications/amethystora-update.desktop
 test ! -e /usr/share/applications/system-update.desktop
 command -v desktop-file-validate >/dev/null && desktop-file-validate "${UPDATE_DESKTOP}"
@@ -743,6 +859,21 @@ jq -e '.transports.docker["ghcr.io/iarsslen"][0] == {"type": "sigstoreSigned",
     "keyPath": "/etc/pki/containers/amethystora.pub", "signedIdentity": {"type": "matchRepository"}}' \
     /etc/containers/policy.json
 grep -q "use-sigstore-attachments: true" /etc/containers/registries.d/amethystora.yaml
+# openSUSE Leap's images are checked against openSUSE's container keys, from its openSUSE-build-key
+# package: the one that signs them today and its 2023 successor, so that a rotation keeps them pulling.
+# Leap only: the rest of openSUSE's namespace there holds build projects that sign with keys of their own.
+jq -e '.transports.docker["registry.opensuse.org/opensuse/leap"][0] | .type == "sigstoreSigned"
+    and (.keyPaths | length == 2) and .signedIdentity.type == "matchRepository"' /etc/containers/policy.json >/dev/null
+jq -r '.transports.docker["registry.opensuse.org/opensuse/leap"][0].keyPaths[]' /etc/containers/policy.json |
+    xargs -r -n1 openssl pkey -pubin -noout -in
+jq -e '.transports.docker | has("registry.opensuse.org") or has("registry.opensuse.org/opensuse") | not' \
+    /etc/containers/policy.json >/dev/null
+grep -q "use-sigstore-attachments: true" /etc/containers/registries.d/registry.opensuse.org-opensuse-leap.yaml
+# The policy is the one every update is verified against, so it has to be one this containers/image
+# accepts, unknown keys and all: loading it is the first thing a copy does, before it opens anything
+command -v skopeo >/dev/null
+POLICY_CHECK="$(skopeo copy dir:/nonexistent "dir:$(mktemp -d)" 2>&1 || true)"
+grep -qi "policy" <<<"${POLICY_CHECK}" && { echo "${POLICY_CHECK}"; false; }
 # Signature checking is kept on by a unit of its own, at every boot, once the network is up. It used to
 # be a first-boot setup hook, whose runner reports success whatever a hook does, and the in-place switch
 # that hook ran cannot work on a booted system, where /sysroot is read-only: it failed on every ISO
@@ -763,8 +894,8 @@ grep -q "rpm-ostree rebase ostree-image-signed" /usr/libexec/amethystora-securit
 # Everything the image claims to do, in one place, without a password, with nothing to dismiss. This is
 # what makes Secure Boot and the rest surfaceable without interrupting anybody more than once. The
 # recipe and the Security app read the one script, so the terminal and the window cannot tell two stories.
-grep -q "^security-status:$" /usr/share/amethystora/just/60-custom.just
-grep -qx "    @/usr/libexec/amethystora-security-status" /usr/share/amethystora/just/60-custom.just
+grep -q "^status:$" /usr/share/amethystora/just/security.just
+grep -qx "    @/usr/libexec/amethystora-security-status" /usr/share/amethystora/just/security.just
 /usr/libexec/amethystora-security-status >/dev/null
 /usr/libexec/amethystora-security-status --json |
     jq -e '.checks | length > 0 and all(.group and .id and .state and .title and .text)' >/dev/null
@@ -773,9 +904,9 @@ grep -q "secure-boot-notified" /usr/libexec/amethystora-security-alert
 # helper. They used to check on their own and disagreed, because one of them counted a certificate it
 # could not find as enrolled.
 test -x /usr/libexec/amethystora-mok-status
-grep -q "/usr/libexec/amethystora-mok-status" /usr/share/amethystora/just/60-custom.just
+grep -q "/usr/libexec/amethystora-mok-status" /usr/share/amethystora/just/security.just
 grep -q "/usr/libexec/amethystora-mok-status" /usr/libexec/amethystora-security-status
-grep -q "mokutil --test-key" /usr/share/amethystora/just/60-custom.just && false
+grep -q "mokutil --test-key" /usr/share/amethystora/just/security.just && false
 grep -q "mokutil --test-key" /usr/libexec/amethystora-security-status && false
 # ...and what it checks has to be readable by the user asking. /etc/pki/akmods/certs is 0750
 # root:akmods, so run without sudo every check there concluded the certificates did not exist.
@@ -841,7 +972,7 @@ grep -q "firewallcmd-rich-rules" <<<"${F2B_DUMP}"
 # be the one fail2ban.conf actually names.
 grep -q "^d /var/lib/fail2ban " /usr/lib/tmpfiles.d/fail2ban-var.conf
 grep -qE "^dbfile = /var/lib/fail2ban/" /etc/fail2ban/fail2ban.conf
-# Lynis audits the machine against the image's profile (ujust security-audit); it reads every
+# Lynis audits the machine against the image's profile (ame security audit); it reads every
 # .prf in /etc/lynis, so the image's settings only apply while Lynis finds this one
 test -f /etc/lynis/default.prf
 grep -q "^machine-role=workstation$" /etc/lynis/custom.prf
@@ -865,20 +996,20 @@ else
 fi
 
 # Key remapping runs as root and reads every input device, so it ships installed and switched off.
-# `ujust setup-input-remapper` is how someone who remaps keys turns it on.
+# `ame security input-remapper` is how someone who remaps keys turns it on.
 rpm -q input-remapper >/dev/null
 [[ "$(systemctl is-enabled input-remapper.service 2>/dev/null)" == "enabled" ]] && false
 # Same for USB protection, which blocks every device that was not present when it was set up: useless
 # as a default, because the first boot would block the keyboard nobody had allowed yet
 [[ "$(systemctl is-enabled usbguard.service 2>/dev/null)" == "enabled" ]] && false
 # And for browser protection, the extension list and the block on web pages reaching hardware. The
-# image ships Firefox unaltered, so the policy is only data here, and `ujust setup-browser-protection`
+# image ships Firefox unaltered, so the policy is only data here, and `ame security browser`
 # writes it on the machine that asks: for Chromium-based browsers and for Firefox, each in its own
 # form. Neither installs an extension, it only allows some
 BROWSER_POLICY=/usr/libexec/amethystora-browser-policy
 test -x "${BROWSER_POLICY}"
 [[ "$("${BROWSER_POLICY}" status)" == off ]]
-grep -q "^setup-browser-protection " /usr/share/amethystora/just/60-custom.just
+grep -q "^browser " /usr/share/amethystora/just/security.just
 /usr/libexec/amethystora-security-status --json |
     jq -e 'any(.checks[]; .id == "browser-protection" and .state == "off")' >/dev/null
 "${BROWSER_POLICY}" show chromium |
@@ -960,8 +1091,8 @@ done
 # The helper scans each file again itself before it acts, whoever called it
 grep -q "clamdscan --fdpass" /usr/libexec/amethystora-quarantine
 grep -q "^d /var/lib/amethystora/quarantine 0700 root root" /usr/lib/tmpfiles.d/amethystora-security.conf
-grep -q "^security-settings " /usr/share/amethystora/just/60-custom.just
-grep -q '"Put a file back" | restore)' /usr/share/amethystora/just/60-custom.just
+grep -q "^settings " /usr/share/amethystora/just/security.just
+grep -q '"Put a file back" | restore)' /usr/share/amethystora/just/security.just
 
 # Real-time watching and scanning: enabled, but each unit skips itself unless REALTIME=on, the way the
 # setting is meant to switch it rather than a unit somebody has to know about. The watcher's trigger also
@@ -977,11 +1108,14 @@ grep -q "^OnAccessIncludePath /var/home$" /etc/clamd.d/scan.conf
 grep -q "^OnAccessExcludeRootUID yes$" /etc/clamd.d/scan.conf
 
 # The security watcher reads what the audit rules record: every key the rules write has to be one the
-# watcher reads and the real-time trigger follows, or those events are recorded for nobody
+# watcher reads and the real-time trigger follows, or those events are recorded for nobody. The rules in
+# home folders are written at boot by amethystora-audit-home-rules, and its keys count too.
 test -x /usr/libexec/amethystora-security-watch
 test -x /usr/libexec/amethystora-security-realtime
 grep -q "^OnFailure=amethystora-scan-alert@%n.service$" /usr/lib/systemd/system/amethystora-security-watch.service
-for key in $(grep -ohE -- '-k [a-z-]+$' /etc/audit/rules.d/60-amethystora.rules | cut -d' ' -f2 | sort -u); do
+grep -q -- "-k user-programs" /usr/libexec/amethystora-audit-home-rules
+for key in $( { grep -ohE -- '-k [a-z-]+$' /etc/audit/rules.d/60-amethystora.rules | cut -d' ' -f2
+    grep -ohE -- '(-k |key=)[a-z-]+' /usr/libexec/amethystora-audit-home-rules | sed -E 's/^(-k |key=)//'; } | sort -u); do
     grep -E "^AUDIT_KEYS=\(" /usr/libexec/amethystora-security-watch | grep -qw -- "${key}"
     grep -E "^KEYS=" /usr/libexec/amethystora-security-realtime | grep -qw -- "${key}"
 done
@@ -991,7 +1125,7 @@ for path in $(grep -oE '^-w [^ ]+' /etc/audit/rules.d/60-amethystora.rules | cut
 done
 # Its checks are the report's: the watcher runs the report rather than keeping checks of its own
 grep -q "/usr/libexec/amethystora-security-status --json" /usr/libexec/amethystora-security-watch
-grep -q "^security-events " /usr/share/amethystora/just/60-custom.just
+grep -q "^events " /usr/share/amethystora/just/security.just
 /usr/libexec/amethystora-security-status --json |
     jq -e '.settings.on_detection == "report" and .settings.realtime == "off" and .settings.network == "off"' >/dev/null
 
@@ -1034,7 +1168,7 @@ rm -rf "${IPS_TEST}"
 for dir in "lib/suricata 2770" "log/suricata 0750"; do
     grep -q "^d /var/${dir} suricata suricata " /usr/lib/tmpfiles.d/amethystora-security.conf
 done
-grep -q "^blocked-connections " /usr/share/amethystora/just/60-custom.just
+grep -q "^connections " /usr/share/amethystora/just/security.just
 grep -q "amethystora-ips.service" /usr/libexec/amethystora-scan-alert
 /usr/libexec/amethystora-security-status --json |
     jq -e 'any(.checks[]; .id == "network-protection" and .state == "off")' >/dev/null
@@ -1070,7 +1204,7 @@ SIGNATURE_AGE_RC=0
 /usr/libexec/amethystora-clamav-signature-age || SIGNATURE_AGE_RC=$?
 [[ "${SIGNATURE_AGE_RC}" -eq 1 ]]
 grep -q "amethystora-clamav-signature-age" /usr/libexec/amethystora-clamav-scan
-grep -q "amethystora-clamav-signature-age" /usr/share/amethystora/just/60-custom.just
+grep -q "amethystora-clamav-signature-age" /usr/share/amethystora/just/security.just
 
 # Backups. The helper never removes anything from the repository: an append-only repository is the
 # whole of the defence against ransomware, and a client able to delete from one gives that away.
@@ -1080,8 +1214,8 @@ test -f /usr/lib/systemd/user/amethystora-backup.service
 test -f /usr/lib/systemd/user/amethystora-backup.timer
 grep -vE "^[[:space:]]*#" /usr/libexec/amethystora-backup | grep -qE "restic +(forget|prune)" && false
 
-# Ransomware protection: hourly read-only snapshots of /var/home, off until `ujust
-# setup-ransomware-protection` because they cost disk space. Both virus scans leave the snapshots out,
+# Ransomware protection: hourly read-only snapshots of /var/home, off until `ame
+# security ransomware` because they cost disk space. Both virus scans leave the snapshots out,
 # or they would read every home folder once for each snapshot kept.
 test -x /usr/libexec/amethystora-home-snapshot
 test -f /usr/lib/systemd/system/amethystora-home-snapshot.service
@@ -1091,10 +1225,10 @@ command -v btrfs >/dev/null
 grep -qF 'ExcludePath ^/var/home/\.snapshots/' /etc/clamd.d/scan.conf
 grep -qF 'echo /var/home/.snapshots' /usr/libexec/amethystora-clamav-onaccess
 
-# TPM disk unlock (ujust setup-disk-unlock) only works if the initramfs can talk to the TPM at all.
+# TPM disk unlock (ame security disk-unlock) only works if the initramfs can talk to the TPM at all.
 # 19-initramfs.sh adds dracut's tpm2-tss module where dracut has it, and warns where it does not.
 grep -q "tss2" <<<"${INITRAMFS_FILES}" ||
-    echo "::warning::no TPM2 libraries in the initramfs, ujust setup-disk-unlock will not work"
+    echo "::warning::no TPM2 libraries in the initramfs, ame security disk-unlock will not work"
 
 # DisplayLink: evdi built for the image kernel, and no module signing key left behind by the build
 KERNEL_VERSION="$(rpm -q kernel-core --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')"
@@ -1106,7 +1240,7 @@ grep -q "^d /var/log/displaylink " /usr/lib/tmpfiles.d/displaylink.conf
 # the licence itself beside it
 test -s /usr/share/licenses/displaylink/LICENSE
 find /etc/pki/akmods/private -type f 2>/dev/null | grep -q . && false
-# ujust enroll-secure-boot-key enrolls both: the one evdi is signed with and the kernel's
+# ame security secure-boot enrolls both: the one evdi is signed with and the kernel's
 test -f /etc/pki/akmods/certs/amethystora-modules.der
 test -f /etc/pki/akmods/certs/akmods-amethystora.der
 
@@ -1159,8 +1293,8 @@ test -x /usr/share/amethystora/user-setup.hooks.d/13-agentic.sh
 for skill in amethystora amethystora-diagnose; do
     grep -qx "name: ${skill}" "/usr/share/amethystora/agents/skills/${skill}/SKILL.md"
 done
-grep -q "^toggle-agentic:" /usr/share/amethystora/just/60-custom.just
-grep -q "^install-agent " /usr/share/amethystora/just/60-custom.just
+grep -q "^toggle:" /usr/share/amethystora/just/agent.just
+grep -q "^install " /usr/share/amethystora/just/agent.just
 
 # these packages are supposed to be removed
 # and are considered footguns
@@ -1208,6 +1342,7 @@ IMPORTANT_UNITS=(
     amethystora-ips-rules.timer
     amethystora-system-setup.service
     amethystora-signed-updates.service
+    amethystora-gpu-check.timer
   )
 
 for unit in "${IMPORTANT_UNITS[@]}"; do

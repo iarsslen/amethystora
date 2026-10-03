@@ -2,6 +2,8 @@
 application/pdf=org.gnome.Papers.desktop
 application/vnd.flatpak.ref=io.github.kolunmi.Bazaar.desktop
 application/vnd.appimage=noop.desktop
+application/vnd.debian.binary-package=amethystora-pkg-install.desktop
+application/x-rpm=amethystora-pkg-install.desktop
 application/xhtml+xml=org.mozilla.firefox.desktop;
 text/html=org.mozilla.firefox.desktop;
 x-scheme-handler/about=org.mozilla.firefox.desktop;

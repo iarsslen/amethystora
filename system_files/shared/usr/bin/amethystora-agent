@@ -10,7 +10,7 @@
 #                                      find out why something broke, without changing anything
 #   amethystora-agent use claude|opencode   choose the agent (default: the first one installed)
 #   amethystora-agent install [claude|opencode]   install it, or the chosen one, into your home
-#   amethystora-agent on|off           turn the agentic features on or off (ujust toggle-agentic)
+#   amethystora-agent on|off           turn the agentic features on or off (ame agent toggle)
 #   amethystora-agent status           print whether they are on; exits 1 when off
 #   amethystora-agent sync             link or unlink the skills to match, run at every login
 #
@@ -102,8 +102,8 @@ install_agent() {
 launch() {
     local name answer
     if ! enabled; then
-        notify "Agentic features are off" "Turn them on with: ujust toggle-agentic"
-        die "agentic features are off. Turn them on with: ujust toggle-agentic"
+        notify "Agentic features are off" "Turn them on with: ame agent toggle"
+        die "agentic features are off. Turn them on with: ame agent toggle"
     fi
     # Opened from a keybinding there is no terminal attached, so it reopens itself in one
     if [[ ! -t 0 ]]; then

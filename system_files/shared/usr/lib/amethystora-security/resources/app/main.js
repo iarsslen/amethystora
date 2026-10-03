@@ -3,7 +3,7 @@
 // Amethystora Security: the security report and a virus scanner, in a window of its own. It takes the
 // place of the report's terminal launcher and of ClamUI.
 //
-// The report is /usr/libexec/amethystora-security-status --json, the script `ujust security-status`
+// The report is /usr/libexec/amethystora-security-status --json, the script `ame security status`
 // prints, so the window and the terminal cannot disagree. A scan started here runs as the user and
 // reads only what the user can: through clamd when its socket is open to the user, and with clamscan,
 // which loads the signatures itself, when it is not. The whole machine is scanned by starting the
@@ -15,6 +15,10 @@
 // Network protection is Suricata's (/usr/libexec/amethystora-ips). What it blocked and noticed is read
 // from the security watcher's network.json, which the members of wheel can read, and allowing a rule
 // again goes through the helper, as root, after an administrator's password.
+//
+// What is installed outside Flatpak, the containers amethystora-pkg manages with the apps exported from
+// them and what came from the AUR, is what `amethystora-pkg containers list --json` says, run as the
+// user: the containers are each account's own.
 //
 // The window is locked down the way the Manual's is: it loads nothing but its own page, and the page
 // can ask for nothing but what preload.js lists. A command it offers to run in a terminal is looked up
@@ -54,6 +58,9 @@ const IPS_UNIT = 'amethystora-ips.service';
 const IPS_ALLOWED = '/etc/amethystora/ips-allowed';
 const NETWORK_EVENTS = '/var/lib/amethystora/security/network.json';
 const WATCH_STATUS = '/var/lib/amethystora/security/status.json';
+// The containers of other distributions, and whether the AUR is on for this account (ame apps aur)
+const PKG = '/usr/bin/amethystora-pkg';
+const AUR_FLAG = path.join(CONFIG_HOME, 'amethystora', 'aur');
 
 // /var/home/<name> here, which is also how clamd's ExcludePath rules spell a home directory
 const HOME = (() => {
@@ -72,10 +79,10 @@ let history = [];
 let scan = null;
 
 // The page to open: `amethystora-security scan` opens the virus scanner, `amethystora-security network`
-// network protection
+// network protection, `amethystora-security containers` what is installed outside Flatpak
 function pageArgument(argv) {
     const page = argv.slice(1).find((arg) => !arg.startsWith('-'));
-    return page === 'scan' || page === 'network' ? page : '';
+    return ['scan', 'network', 'containers'].includes(page) ? page : '';
 }
 
 // The colours of the current theme, or null before one has been applied. The same as the Manual's.
@@ -482,6 +489,19 @@ async function allowRule(rule) {
     return { error: (stderr || stdout).trim().split('\n').pop() || `The rule could not be allowed (status ${code}).` };
 }
 
+// --- Installed outside Flatpak ---------------------------------------------------------------------
+
+async function inventory() {
+    const { code, stdout, stderr } = await run(PKG, ['containers', 'list', '--json'], 60000);
+    let containers = [];
+    try {
+        containers = JSON.parse(stdout);
+    } catch {
+        return { containers: [], aur: fs.existsSync(AUR_FLAG), error: (stderr || '').trim() || `amethystora-pkg stopped with status ${code}.` };
+    }
+    return { containers: Array.isArray(containers) ? containers : [], aur: fs.existsSync(AUR_FLAG) };
+}
+
 // --- The window ------------------------------------------------------------------------------------
 
 function createWindow(page) {
@@ -598,6 +618,10 @@ if (!app.requestSingleInstanceLock()) {
 
     ipcMain.handle('network', () => network());
     ipcMain.handle('network-allow', (_event, rule) => allowRule(String(rule)));
+
+    ipcMain.handle('inventory', () => inventory());
+    // Upgrading asks the containers' package managers, whose output is worth reading, so in a terminal
+    ipcMain.handle('containers-upgrade', () => launch(IN_TERMINAL, [PKG, 'upgrade-all']));
 
     ipcMain.handle('dismiss', (_event, id) => {
         const entry = history.find((item) => item.id === id);

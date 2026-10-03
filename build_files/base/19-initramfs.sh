@@ -8,7 +8,7 @@ KERNEL_SUFFIX=""
 QUALIFIED_KERNEL="$(rpm -qa | grep -P 'kernel-(|'"$KERNEL_SUFFIX"'-)(\d+\.\d+\.\d+)' | sed -E 's/kernel-(|'"$KERNEL_SUFFIX"'-)//')"
 
 # Modules built into the initramfs. tpm2-tss is what lets systemd-cryptsetup ask the TPM for the disk
-# key during boot; without it `ujust setup-disk-unlock` would enrol a key the boot never reaches and
+# key during boot; without it `ame security disk-unlock` would enrol a key the boot never reaches and
 # the machine would fall back to the passphrase every time. Added only when dracut has the module, so
 # a dracut that drops or renames it fails the disk unlock rather than the whole build.
 DRACUT_MODULES=(ostree)

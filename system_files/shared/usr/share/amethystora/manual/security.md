@@ -8,14 +8,19 @@ checked, and most of it can be changed if it gets in your way.
 Open **Security** from the app grid, or run:
 
 ```bash
-ujust security-status
+ame security status
 ```
 
 Both show what the security settings are actually doing right now, with what to do about anything
 that is off, and neither changes anything or asks for a password. In the app, what needs your
 attention comes first, with the command that fixes it and a button that runs it in a terminal, and
 the protections below that are off until you want them are each one button away. For a deeper look,
-`ujust security-audit` runs Lynis through a few hundred checks and explains each finding.
+`ame security audit` runs Lynis through a few hundred checks and explains each finding.
+
+The app's **Containers** page lists what is installed outside Flatpak: the containers `amepkg` made,
+the apps in your app grid that come from them, and what was built from the AUR, each with when it
+was last upgraded. The report says so when one has gone two weeks without an upgrade.
+[Containers](software.md#containers).
 
 ## On from the start
 
@@ -30,8 +35,8 @@ the protections below that are off until you want them are each one button away.
 - **Repeated failed logins over the network** get the address blocked: five failures within ten
   minutes cost an hour, and each further ban of the same address lasts longer, up to a day. It
   watches the SSH server, the only thing here that can be logged into over the network, and leaves
-  the tailnet alone. `ujust blocked-addresses` lists what is blocked, and
-  `ujust blocked-addresses <address>` lets one back in.
+  the tailnet alone. `ame security addresses` lists what is blocked, and
+  `ame security addresses <address>` lets one back in.
 - **The SSH server is off,** and refuses root logins when you turn it on.
 - **Applications cannot watch each other's keyboards.** Flatpak apps are refused X11 and input
   devices ([Installing software](software.md#what-flatpak-apps-may-not-do)), and the key remapper,
@@ -51,8 +56,8 @@ the protections below that are off until you want them are each one button away.
   which program changed it. [The security watcher](#the-security-watcher).
 - **A virus scan runs every week** over your home and temporary folders, and **Lynis audits the
   settings every month.** By default neither deletes or moves anything: a false positive that takes
-  away a file you wanted is worse than most of what it would remove. `ujust virus-scan` shows what
-  the last scan found, and `ujust virus-scan now` runs one. [Scanning for viruses](#scanning-for-viruses)
+  away a file you wanted is worse than most of what it would remove. `ame security scan` shows what
+  the last scan found, and `ame security scan now` runs one. [Scanning for viruses](#scanning-for-viruses)
   does the same in a window, and [Settings](#settings) makes scans quarantine or delete what they find.
 
 ## The security watcher
@@ -73,6 +78,11 @@ Every 15 minutes, or as things happen with [real-time watching](#settings) on, t
   network interface reading every packet. These are **Rootkit checks** in the report.
 - **What accepts connections**: each program that listens on the network, which every device on
   your tailnet can reach. A new one is said once.
+- **What your session finds first**: a program in `~/.local/bin`, `~/bin` or Homebrew's folder
+  named like one of the system's commands, which your shell runs in place of the real one. A fake
+  `sudo` or `ssh` there is an old way to catch a password, so those are said loudest; Homebrew's
+  folder only counts for those. And a launcher in your app grid that no container export made. Each is
+  said when it appears, and again if it changes.
 - **Network protection**, while it is on: each connection it blocked, with the way to allow it
   again, and what it recognised without blocking when the rule rates it serious.
   [Network protection](#network-protection).
@@ -82,10 +92,10 @@ Every 15 minutes, or as things happen with [real-time watching](#settings) on, t
 Anything new is a notification, and waits in the report until you read it:
 
 ```bash
-ujust security-events
+ame security events
 ```
 
-`ujust security-events now` looks first. If you made the change, or installed something that did,
+`ame security events now` looks first. If you made the change, or installed something that did,
 there is nothing to do.
 
 ## Scanning for viruses
@@ -108,14 +118,14 @@ the scan is done and says what happened to each file. The scans you ran are list
 ## Settings
 
 ```bash
-ujust security-settings
+ame security settings
 ```
 
 - **What happens to what a virus scan finds**: `report` (the default) leaves it where it is,
   `quarantine` moves it to `/var/lib/amethystora/quarantine`, where nothing can open or run it, and
   `delete` deletes it. This applies to the weekly scan, the scans you start in the app and real-time
-  scanning. Each file is checked again before anything is done to it. `ujust virus-scan quarantine`
-  lists what is in quarantine, and `ujust virus-scan restore` puts a file back and can tell the
+  scanning. Each file is checked again before anything is done to it. `ame security scan quarantine`
+  lists what is in quarantine, and `ame security scan restore` puts a file back and can tell the
   scanner to leave that exact file alone from then on.
 - **Real-time watching**: `off` (the default) or `on`. On, the security watcher reads each change as
   the audit log records it, and every file written in a home folder is scanned as it is closed. It
@@ -124,7 +134,7 @@ ujust security-settings
 - **Network protection**: `off` (the default), `watch` or `block`.
   [Network protection](#network-protection).
 
-All three are kept in `/etc/amethystora/security.conf`. The recipe applies a change at once; an edit to
+All three are kept in `/etc/amethystora/security.conf`. The command applies a change at once; an edit to
 the file by hand applies at the next restart.
 
 ## Worth turning on
@@ -135,7 +145,7 @@ A FIDO2 security key (YubiKey, Thetis, or a fingerprint model such as the YubiKe
 in, unlock the screen and approve `sudo` and administrator prompts instead of your password:
 
 ```bash
-ujust setup-security-key
+ame security key
 ```
 
 Choose **Add a fingerprint key** for a fingerprint model, so the key checks your fingerprint and not
@@ -147,20 +157,35 @@ in.
 ### Backups
 
 ```bash
-ujust setup-backup
+ame backup
 ```
 
 A daily restic backup to a repository that ransomware on this machine cannot delete from. The
 backup only ever adds to the repository and never deletes old snapshots, so an append-only
-repository at the other end keeps everything backed up before an attack. The recipe explains how to
+repository at the other end keeps everything backed up before an attack. The command explains how to
 set one up on rest-server, Borg, an object store with immutability, or a USB drive you unplug
-between backups. `ujust setup-backup now` backs up straight away, and `ujust setup-backup snapshots`
+between backups. `ame backup now` backs up straight away, and `ame backup snapshots`
 lists what is there.
+
+Each backup also keeps your setup beside your files: the image and stream you follow, your Flatpak
+apps and where they came from, your Homebrew packages, the containers `amepkg` made with what you
+installed in them, the GNOME extensions you had on and your theme. No passwords, keys or tokens go
+in it. On a new machine, point `ame backup` at the same repository with the same password,
+then:
+
+```bash
+ame restore-setup
+```
+
+It shows what it would do first, and does only the parts you pick: switch to the same image, through
+`ame system rebase`, which takes signed images only; install the apps and Homebrew packages; make
+the containers again and install what was in them; turn the extensions back on; set the theme.
+`ame restore-setup <snapshot>` picks an older setup. Your files themselves come back with restic.
 
 ### Ransomware protection
 
 ```bash
-ujust setup-ransomware-protection
+ame security ransomware
 ```
 
 Every hour, a read-only snapshot of every home folder on this machine, kept in `/var/home/.snapshots`.
@@ -168,7 +193,7 @@ Ransomware running as you can encrypt everything you can write, and a snapshot i
 can write: changing or deleting one takes an administrator. Every snapshot from the last day is kept,
 and one a day for two weeks. The report says when the latest one is more than a few hours old.
 
-To get files back, run `ujust setup-ransomware-protection restore` and pick the time to go back to.
+To get files back, run `ame security ransomware restore` and pick the time to go back to.
 **Open it in Files** shows your home folder as it was then, to copy from; **Put a folder back**
 copies a whole folder back in place, replacing the files it has and leaving the ones it does not, such
 as what ransomware renamed. Nobody else's files are visible in a snapshot, and yours are not visible to
@@ -186,7 +211,7 @@ Snapshots live on the same disk, and ransomware that gets administrator rights c
 ### Unlock the disk with the TPM
 
 ```bash
-ujust setup-disk-unlock
+ame security disk-unlock
 ```
 
 Instead of typing the disk passphrase at every boot, the machine's TPM hands over the key, but only
@@ -197,24 +222,24 @@ TPM never locks you out. This needs a disk that was encrypted when it was instal
 ### Block USB devices you did not plug in
 
 ```bash
-ujust setup-usb-protection
+ame security usb
 ```
 
 A USB device can claim to be a keyboard and type by itself, and a hardware keylogger can sit
 between a real keyboard and the machine. USB protection allows what is connected when you set it up
-and blocks anything new until you allow it with `ujust setup-usb-protection allow`. It is off by
+and blocks anything new until you allow it with `ame security usb allow`. It is off by
 default, because a machine that blocked its own keyboard on first boot would be unusable.
 
 ### Browser protection
 
 ```bash
-ujust setup-browser-protection
+ame security browser
 ```
 
 An extension sees every page you open, and that is how most password stealers arrive. With browser
 protection on, browsers install only the extensions on a list: the Bitwarden, 1Password, Proton Pass
 and KeePassXC password managers, and the ones you add with
-`ujust setup-browser-protection allow <id>`. Web pages are also kept from USB, serial, HID and
+`ame security browser allow <id>`. Web pages are also kept from USB, serial, HID and
 Bluetooth devices. It covers Firefox, Brave, Chrome, Chromium and Edge, whether installed now or
 later, for every account on the machine. Other browsers are not covered.
 
@@ -224,13 +249,13 @@ shows each extension's ID in `about:support`, under Add-ons, and the others on t
 with developer mode on. Themes, dictionaries and language packs in Firefox are left alone.
 
 What you allowed is in `/etc/amethystora/browser-extensions`, one ID a line. To take one back, remove
-its line and run `ujust setup-browser-protection on` again. It is off by default: Firefox comes
+its line and run `ame security browser on` again. It is off by default: Firefox comes
 exactly as Fedora builds it, and what it may install is your decision, not the image's.
 
 ### Network protection
 
 ```bash
-ujust security-settings network
+ame security settings network
 ```
 
 Suricata inspects every connection this machine makes and receives against the Emerging Threats
@@ -243,9 +268,9 @@ Open rules, which it downloads every day:
   recognise with less certainty is only reported.
 
 Each blocked connection is a notification. **Network** in the **Security** app lists what was
-blocked and noticed, and so does `ujust blocked-connections`. If a connection was yours and wanted,
-**Allow**, or `ujust blocked-connections allow <rule>`, leaves that one rule out on this machine, and
-`ujust blocked-connections block <rule>` puts it back.
+blocked and noticed, and so does `ame security connections`. If a connection was yours and wanted,
+**Allow**, or `ame security connections allow <rule>`, leaves that one rule out on this machine, and
+`ame security connections block <rule>` puts it back.
 
 Whatever goes wrong with it, your connections keep working: while Suricata starts, restarts, falls
 behind or stops, they pass uninspected rather than not at all. An encrypted connection is inspected
@@ -259,4 +284,4 @@ your own traffic, and yours to make.
 
 Input Remapper runs as root and reads every key typed into every application. That is what
 remapping needs, and a keylogger in every other respect, so it ships switched off. If you remap keys
-or mouse buttons, turn it on with `ujust setup-input-remapper`.
+or mouse buttons, turn it on with `ame security input-remapper`.

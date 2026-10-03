@@ -1,0 +1,10 @@
+[Unit]
+Description=Offer the image that fits this machine's graphics card
+
+[Timer]
+# A few minutes after boot, and again while nobody has been logged in to hear it
+OnBootSec=3min
+OnUnitInactiveSec=15min
+
+[Install]
+WantedBy=timers.target

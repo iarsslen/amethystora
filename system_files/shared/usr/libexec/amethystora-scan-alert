@@ -16,14 +16,14 @@ case "${UNIT}" in
             # GNOME until they are dismissed, which is right for this and wrong for the others.
             SUMMARY="Virus scan found something"
             case "$(/usr/libexec/amethystora-security-config ON_DETECTION)" in
-                quarantine) BODY="It was moved to quarantine. See it, or put it back, with: ujust virus-scan" ;;
-                delete) BODY="It was deleted. See what it was with: ujust virus-scan" ;;
-                *) BODY="Nothing was deleted, quarantined or moved. See it with: ujust virus-scan" ;;
+                quarantine) BODY="It was moved to quarantine. See it, or put it back, with: ame security scan" ;;
+                delete) BODY="It was deleted. See what it was with: ame security scan" ;;
+                *) BODY="Nothing was deleted, quarantined or moved. See it with: ame security scan" ;;
             esac
             URGENCY=critical
         elif AGE="$(/usr/libexec/amethystora-clamav-signature-age)"; then
             SUMMARY="Virus scan could not run"
-            BODY="This machine has not been scanned. Try it with: ujust virus-scan"
+            BODY="This machine has not been scanned. Try it with: ame security scan"
             URGENCY=normal
         elif [[ -n "${AGE}" ]]; then
             SUMMARY="Virus signatures are ${AGE} days old"
@@ -37,7 +37,7 @@ case "${UNIT}" in
         ;;
     amethystora-lynis-audit.service)
         SUMMARY="Security audit could not run"
-        BODY="Run it by hand with: ujust security-audit"
+        BODY="Run it by hand with: ame security audit"
         URGENCY=normal
         ;;
     amethystora-security-watch.service)

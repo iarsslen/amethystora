@@ -26,7 +26,7 @@ FEDORA_PACKAGES=(
     bcache-tools
     bootc
     borgbackup
-    # Ransomware protection's snapshots of /var/home (ujust setup-ransomware-protection)
+    # Ransomware protection's snapshots of /var/home (ame security ransomware)
     btrfs-progs
     clamav
     clamav-freshclam
@@ -106,7 +106,7 @@ FEDORA_PACKAGES=(
     samba-winbind-modules
     setools-console
     sssd-nfs-idmap
-    # Network protection (amethystora-ips.service), off until `ujust security-settings network`
+    # Network protection (amethystora-ips.service), off until `ame security settings network`
     suricata
     switcheroo-control
     tmux
@@ -192,7 +192,7 @@ grep -q "^ExcludePath \^/proc/$" /etc/clamd.d/scan.conf
 grep -q "^OnAccessIncludePath /var/home$" /etc/clamd.d/scan.conf
 
 # FIDO2 security keys (YubiKey, Thetis, and their fingerprint models) log in, unlock and approve sudo/polkit in
-# place of the password, once registered with `ujust setup-security-key`. Users without a key are not affected.
+# place of the password, once registered with `ame security key`. Users without a key are not affected.
 authselect enable-feature with-pam-u2f
 
 dnf config-manager addrepo --from-repofile=https://pkgs.tailscale.com/stable/fedora/tailscale.repo

@@ -27,6 +27,8 @@ Amethystora aims to be a robust, cloud-native desktop that brings enterprise-gra
 
 Each image is published in the `stable`, `latest` and `beta` streams.
 
+The installer ISO carries the images without NVIDIA's driver. On a machine with an NVIDIA card, a notification a few minutes after the first boot offers to switch to the matching `-nvidia-open` image through `ame system rebase`, which takes signed images only; it never switches by itself. The NVIDIA images run without kernel lockdown (see [Security](#security)).
+
 ## Getting Started
 
 From an existing Fedora Atomic or Universal Blue system, switch to Amethystora with:
@@ -45,7 +47,11 @@ The top bar carries the six workspaces on the left, where Activities used to be,
 
 #### The manual
 
-Everything about using Amethystora is in the Amethystora Manual, which ships with the image and works offline: getting around, the hotkeys, themes, installing software, developer mode, updates and rollbacks, security, hardware and troubleshooting. Open it with `Super+F1`, from the app grid or the Amethystora menu, or with `amethystora-manual`; `amethystora-manual <page>` opens a page directly. The pages are Markdown in [system_files/shared/usr/share/amethystora/manual](system_files/shared/usr/share/amethystora/manual), and the hotkeys page is the same `keybindings.md` that `ujust keybindings` shows.
+Everything about using Amethystora is in the Amethystora Manual, which ships with the image and works offline: getting around, the hotkeys, themes, installing software, developer mode, updates and rollbacks, security, hardware and troubleshooting. Open it with `Super+F1`, from the app grid or the Amethystora menu, or with `amethystora-manual`; `amethystora-manual <page>` opens a page directly. The pages are Markdown in [system_files/shared/usr/share/amethystora/manual](system_files/shared/usr/share/amethystora/manual), and the hotkeys page is the same `keybindings.md` that `ame desktop keybindings` shows.
+
+#### System commands
+
+`ame` runs the commands that come with the image, in groups: `ame` lists the groups, `ame security` lists the commands in that group, and `ame security scan now` runs one. `ame pkg` is `amethystora-pkg`. `ujust` runs the same commands, and still takes the names they had before they were grouped, such as `ujust setup-backup`.
 
 #### Tiling and keyboard navigation
 
@@ -53,14 +59,14 @@ Windows tile on their own with [PaperWM](https://github.com/paperwm/PaperWM): ea
 
 There are six fixed workspaces on `Super+1` to `Super+6`, `Super+Shift+N` takes the window with you, and `Alt+1` to `Alt+9` reach the pinned apps in the dock. `Super+Return` opens a terminal (Ptyxis), `Super+W` closes a window, `Super+Space` searches.
 
-`Super+Alt+Space` opens the Amethystora menu, which reaches all of this from the keyboard. The full list is in `ujust keybindings`.
+`Super+Alt+Space` opens the Amethystora menu, which reaches all of this from the keyboard. The full list is in `ame desktop keybindings`.
 
 #### Themes
 
 `Super+Ctrl+Shift+Space` picks a theme, `Super+Ctrl+D` flips between light and dark, and `Super+Ctrl+Space` cycles the wallpaper (every theme has three wallpapers of made-up places drawn in its palette and opens on the first, the Amethystora themes open on a cut stone's facets instead and add the crystal field and a night sky, and pictures added to `~/.config/amethystora/backgrounds/<theme>/` join them). One switch repaints GNOME's colour scheme and accent, the Ptyxis palette, the shell prompt, btop, the dock and the wallpaper, because each theme is a single palette file everything else is rendered from. The same from a terminal:
 
 ```bash
-ujust theme                      # pick one
+ame desktop theme                # pick one
 amethystora-theme set nord       # or name it
 amethystora-theme list
 ```
@@ -77,27 +83,31 @@ Every image is set up for [Claude Code](https://claude.com/claude-code) and [ope
 amethystora-agent ask "make the dock icons smaller"
 amethystora-agent diagnose       # why did something break? Also: a PID, a service, or "wifi drops after suspend"
 amethystora-agent use opencode   # the default is Claude Code
-ujust install-agent              # install it ahead of time instead of on first launch
-ujust toggle-agentic             # turn the agent features off, or on again
+ame agent install                # install it ahead of time instead of on first launch
+ame agent toggle                 # turn the agent features off, or on again
 ```
 
 The agents themselves are not in the image, because they release far more often than it does. The first launch offers to install the chosen one into your home with its maker's own installer, and from then on it keeps itself up to date and you decide when: `claude update` or `opencode upgrade`, or turn automatic updates off in their settings. Claude Code is installed on its stable channel, a release about a week old. Since it lives in your home, the same copy also runs inside any toolbox or distrobox.
 
 Turning the features off removes the menu entry, disables the keybinding and unlinks the skill from `~/.claude/skills`. An installed agent stays installed either way, and neither does anything until you sign in to it.
 
+#### Software from other distributions
+
+`amepkg`, short for `amethystora-pkg`, installs software packaged for other distributions into rootless containers made for it, from templates for Debian, Ubuntu, Fedora, Arch, Alpine and openSUSE: `amepkg containers new --template debian`, then `amepkg debian install <package>`, and the package's apps appear in the app grid. A downloaded `.deb` or `.rpm` opens in it from Files, after a virus scan and a look at where it comes from, with the same app from Flathub offered first. Each template's image is pinned by digest in the signed image, the containers are upgraded every day, and the Arch User Repository is off until `ame apps aur`. Containers are not a sandbox: what runs in one runs as you, with your home folder and your session, so Flatpak stays the place for apps with windows.
+
 #### Boot menu
 
 The GRUB menu can carry the Amethystora artwork too — the crystal field from the wallpapers, the wordmark above the entries, and the boot splash following on the same dark ground. It is off by default and turned on with:
 
 ```bash
-ujust setup-grub-theme
+ame desktop boot-menu
 ```
 
-It is a separate step because GRUB reads the boot filesystem and `/boot` is not part of the image: the theme ships read-only in `/usr/share/grub/themes/amethystora` and is copied onto `/boot` on the machine. Settings go in `/boot/grub2/user.cfg` inside a marked block, leaving `grub.cfg` alone — `grub2-mkconfig` cannot regenerate it on Fedora Atomic, and bootupd rewrites it anyway. Once the theme is on, image updates refresh the artwork by themselves. `ujust setup-grub-theme` turns it off again, and the machine falls back to the plain menu.
+It is a separate step because GRUB reads the boot filesystem and `/boot` is not part of the image: the theme ships read-only in `/usr/share/grub/themes/amethystora` and is copied onto `/boot` on the machine. Settings go in `/boot/grub2/user.cfg` inside a marked block, leaving `grub.cfg` alone — `grub2-mkconfig` cannot regenerate it on Fedora Atomic, and bootupd rewrites it anyway. Once the theme is on, image updates refresh the artwork by themselves. `ame desktop boot-menu` turns it off again, and the machine falls back to the plain menu.
 
 #### Security keys
 
-A FIDO2 security key (YubiKey, Thetis, or a fingerprint model such as the YubiKey Bio or Thetis Bio) can sign you in, unlock the screen and approve `sudo` and administrator prompts in place of your password. Register one with `ujust setup-security-key`. Choose "Add a fingerprint key" for a fingerprint model so that the key checks your fingerprint and not just a touch. The key needs a PIN and an enrolled fingerprint first; set these in Firefox at `about:webauthn`, or with `ykman fido fingerprints add` on a YubiKey Bio. Register a second key as a spare. Your password keeps working, and it is used whenever no registered key is plugged in.
+A FIDO2 security key (YubiKey, Thetis, or a fingerprint model such as the YubiKey Bio or Thetis Bio) can sign you in, unlock the screen and approve `sudo` and administrator prompts in place of your password. Register one with `ame security key`. Choose "Add a fingerprint key" for a fingerprint model so that the key checks your fingerprint and not just a touch. The key needs a PIN and an enrolled fingerprint first; set these in Firefox at `about:webauthn`, or with `ykman fido fingerprints add` on a YubiKey Bio. Register a second key as a spare. Your password keeps working, and it is used whenever no registered key is plugged in.
 
 ### Building locally
 
@@ -113,21 +123,21 @@ Amethystora hardens the Fedora defaults:
 - **Updates must be signed.** Only images signed with Amethystora's key are accepted, so a tampered or substituted image is refused instead of installed. The first boot after this change switches an existing installation over automatically.
 - **The firewall rejects incoming connections.** Fedora Workstation leaves every port above 1024 open to the local network; Amethystora only allows printer and device discovery (mDNS), Windows file sharing, IPv6 setup and GSConnect. Tailscale is trusted, where your tailnet's access rules apply. To let something else in, for example a development server you want to open on your phone, use the Firewall app or `sudo firewall-cmd --add-port=8080/tcp` (add `--permanent` to keep it after a reboot).
 - **Ten wrong passwords in a row** lock an account for ten minutes. Unlock it early from another administrator account with `sudo faillock --user <name> --reset`.
-- **Too many failed logins from one address** and fail2ban has the firewall reject that address: five failures within ten minutes cost an hour, and each further ban of the same address lasts longer than the last, up to a day. It watches the SSH server, the only thing here that can be logged into over the network, and it leaves the tailnet alone. See what is blocked with `ujust blocked-addresses`, and let an address back in with `ujust blocked-addresses <address>`.
+- **Too many failed logins from one address** and fail2ban has the firewall reject that address: five failures within ten minutes cost an hour, and each further ban of the same address lasts longer than the last, up to a day. It watches the SSH server, the only thing here that can be logged into over the network, and it leaves the tailnet alone. See what is blocked with `ame security addresses`, and let an address back in with `ame security addresses <address>`.
 - **Kernel hardening**: memory is wiped as it is handed out, kernel addresses are hidden, programs cannot read each other's memory, and rarely used modules (old network protocols and filesystems, FireWire) cannot load. `gdb -p` on a process you did not start now needs `sudo`.
 - **The SSH server stays off** and refuses root logins when you turn it on.
 - **Applications cannot watch each other's keyboards.** Every Flatpak is refused X11, the whole of `/dev` and `/dev/input`, and the Flatpak service itself, whatever its own manifest asks for. X11 is the one way left on a Wayland desktop for one application to read what you type into another, and `/dev/input` is every key on the machine. Applications that speak Wayland are unaffected; X11-only ones (Wine, some Electron builds, older games) need it granted back. Flatseal is preinstalled for exactly that, one application at a time, or use `flatpak override --user --socket=x11 <application>`. The system-wide rules are in `/etc/flatpak/overrides/global`.
-- **Key remapping is off until you ask for it.** Input Remapper runs as root and reads every input device on the machine, which is every key typed into every application. That is what remapping a key needs, and it is a keylogger in every other respect, so it ships switched off. Turn it on with `ujust setup-input-remapper` if you remap keys.
-- **Block USB devices you did not plug in** with `ujust setup-usb-protection`. A USB device can claim to be a keyboard and type by itself, and a hardware keylogger can sit between a real keyboard and the machine. USBGuard allows what is connected when you set it up and blocks anything new until you allow it. It is off by default, because a machine that blocked its own keyboard on first boot would be unusable.
-- **Let browsers install only the extensions on a list** with `ujust setup-browser-protection`. A browser extension sees every page you open, and that is how most credential stealers arrive. Turned on, Firefox, Brave, Chrome, Chromium and Edge install only the password managers on Amethystora's list and the extensions you allow with `ujust setup-browser-protection allow <id>`, and web pages are cut off from USB, serial, HID and Bluetooth devices. Firefox removes extensions that are not on the list, so allow yours first. It is off by default, because the image ships Firefox exactly as Fedora builds it: the policy is written on your machine, when you ask for it.
-- **Back up somewhere ransomware cannot reach** with `ujust setup-backup`. Ransomware encrypts everything it can reach, and that includes a backup this machine can delete from. The daily restic backup only ever adds to its repository: it never runs `forget` or `prune`, so an append-only repository at the other end keeps what was backed up before the machine was taken over. The recipe explains how to set one up on rest-server, Borg, an object store with immutability, or a USB drive you unplug between backups. Thinning out old snapshots is done from somewhere else, with credentials this machine does not hold.
-- **Snapshot the home folders every hour** with `ujust setup-ransomware-protection`, so that files ransomware encrypted can be put back as they were. The snapshots are read-only btrfs snapshots of `/var/home`: nothing running as a user can change or delete them, and each user sees only their own files in them. They are kept for a day, then one a day for two weeks, and never deleted to make room, because ransomware that rewrites every file would then delete the ones from before it. They cost disk space, so this is off by default, and they do not survive ransomware that gets root, which is what the backup above is for.
-- **Unlock the disk with the TPM** instead of typing the passphrase at every boot, with `ujust setup-disk-unlock`. The TPM hands over the key only while Secure Boot is on and the enrolled signing keys are the ones enrolled when you set it up, so turning Secure Boot off stops the disk opening. It does not measure the initramfs, which changes with every kernel update; add a PIN if you want the disk to need something you know as well. Your passphrase keeps working, so a cleared TPM never locks you out.
-- **The kernel refuses to be rewritten while it runs.** Lockdown blocks loading a module the kernel does not trust, writing `/dev/mem`, and tracing kernel memory with BPF, so a root compromise ends at the next reboot instead of moving into the kernel where nothing can find it. This needs Secure Boot on and `ujust enroll-secure-boot-key` run, because the modules built with the image (evdi, for DisplayLink docks) are signed with Amethystora's own key. On a machine where Secure Boot cannot be turned on, drop it with `sudo rpm-ostree kargs --delete=lockdown=integrity`. The NVIDIA images do not use it at all: their driver is signed the same way.
-- **What would have to change to survive a reboot is watched, and you are told.** Audit records changes to accounts, to who may use sudo, to your autostart entries, your own systemd units and the shell startup files, to the security settings, and every attempt to open an input device. The security watcher reads it every 15 minutes, with the journal (accounts locked, wrong sudo passwords, blocked USB devices), `/etc` against the image's own copy in `/usr/etc`, and what should never exist on an image-based system: setuid programs outside `/usr`, a preloaded library, kernel modules the image did not ship, programs newly listening on the network. What is new is a notification; `ujust security-events` shows it.
-- **A virus scan runs weekly** over home and temporary directories, and **Lynis audits the settings monthly**. By default neither deletes, quarantines or moves anything: a false positive that takes away a file you wanted is worse than most of what it would be removing. See what the last scan found, or run one now, with `ujust virus-scan`.
-- **Two settings, off by default,** in `ujust security-settings`: have scans quarantine (restorable with `ujust virus-scan restore`) or delete what they find, and real-time watching, which reads each change as the audit log records it and scans every file written in a home folder as it is closed.
-- **Check the machine over whenever you like** with `ujust security-audit`. Lynis goes through a few hundred checks and prints what it found together with what to do about each one; it reads the system and changes nothing. What it checks is set in `/etc/lynis/custom.prf`.
+- **Key remapping is off until you ask for it.** Input Remapper runs as root and reads every input device on the machine, which is every key typed into every application. That is what remapping a key needs, and it is a keylogger in every other respect, so it ships switched off. Turn it on with `ame security input-remapper` if you remap keys.
+- **Block USB devices you did not plug in** with `ame security usb`. A USB device can claim to be a keyboard and type by itself, and a hardware keylogger can sit between a real keyboard and the machine. USBGuard allows what is connected when you set it up and blocks anything new until you allow it. It is off by default, because a machine that blocked its own keyboard on first boot would be unusable.
+- **Let browsers install only the extensions on a list** with `ame security browser`. A browser extension sees every page you open, and that is how most credential stealers arrive. Turned on, Firefox, Brave, Chrome, Chromium and Edge install only the password managers on Amethystora's list and the extensions you allow with `ame security browser allow <id>`, and web pages are cut off from USB, serial, HID and Bluetooth devices. Firefox removes extensions that are not on the list, so allow yours first. It is off by default, because the image ships Firefox exactly as Fedora builds it: the policy is written on your machine, when you ask for it.
+- **Back up somewhere ransomware cannot reach** with `ame backup`. Ransomware encrypts everything it can reach, and that includes a backup this machine can delete from. The daily restic backup only ever adds to its repository: it never runs `forget` or `prune`, so an append-only repository at the other end keeps what was backed up before the machine was taken over. The recipe explains how to set one up on rest-server, Borg, an object store with immutability, or a USB drive you unplug between backups. Thinning out old snapshots is done from somewhere else, with credentials this machine does not hold.
+- **Snapshot the home folders every hour** with `ame security ransomware`, so that files ransomware encrypted can be put back as they were. The snapshots are read-only btrfs snapshots of `/var/home`: nothing running as a user can change or delete them, and each user sees only their own files in them. They are kept for a day, then one a day for two weeks, and never deleted to make room, because ransomware that rewrites every file would then delete the ones from before it. They cost disk space, so this is off by default, and they do not survive ransomware that gets root, which is what the backup above is for.
+- **Unlock the disk with the TPM** instead of typing the passphrase at every boot, with `ame security disk-unlock`. The TPM hands over the key only while Secure Boot is on and the enrolled signing keys are the ones enrolled when you set it up, so turning Secure Boot off stops the disk opening. It does not measure the initramfs, which changes with every kernel update; add a PIN if you want the disk to need something you know as well. Your passphrase keeps working, so a cleared TPM never locks you out.
+- **The kernel refuses to be rewritten while it runs.** Lockdown blocks loading a module the kernel does not trust, writing `/dev/mem`, and tracing kernel memory with BPF, so a root compromise ends at the next reboot instead of moving into the kernel where nothing can find it. This needs Secure Boot on and `ame security secure-boot` run, because the modules built with the image (evdi, for DisplayLink docks) are signed with Amethystora's own key. On a machine where Secure Boot cannot be turned on, drop it with `sudo rpm-ostree kargs --delete=lockdown=integrity`. The NVIDIA images do not use it at all: their driver is signed the same way.
+- **What would have to change to survive a reboot is watched, and you are told.** Audit records changes to accounts, to who may use sudo, to your autostart entries, your own systemd units and the shell startup files, to the security settings, and every attempt to open an input device. The security watcher reads it every 15 minutes, with the journal (accounts locked, wrong sudo passwords, blocked USB devices), `/etc` against the image's own copy in `/usr/etc`, and what should never exist on an image-based system: setuid programs outside `/usr`, a preloaded library, kernel modules the image did not ship, programs newly listening on the network. What is new is a notification; `ame security events` shows it.
+- **A virus scan runs weekly** over home and temporary directories, and **Lynis audits the settings monthly**. By default neither deletes, quarantines or moves anything: a false positive that takes away a file you wanted is worse than most of what it would be removing. See what the last scan found, or run one now, with `ame security scan`.
+- **Two settings, off by default,** in `ame security settings`: have scans quarantine (restorable with `ame security scan restore`) or delete what they find, and real-time watching, which reads each change as the audit log records it and scans every file written in a home folder as it is closed.
+- **Check the machine over whenever you like** with `ame security audit`. Lynis goes through a few hundred checks and prints what it found together with what to do about each one; it reads the system and changes nothing. What it checks is set in `/etc/lynis/custom.prf`.
 
 ### Secure Boot
 
@@ -138,7 +148,7 @@ Enter the password `amethystora` when prompted to enroll the key.
 If this step is not completed during the initial setup, you can manually enroll the key by running the following command in the terminal:
 
 ```bash
-ujust enroll-secure-boot-key
+ame security secure-boot
 ```
 
 The public key can be found in the akmods repository [here](https://github.com/ublue-os/akmods/raw/main/certs/public_key.der).

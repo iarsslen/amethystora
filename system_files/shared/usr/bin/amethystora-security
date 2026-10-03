@@ -5,7 +5,7 @@
 #   amethystora-security          open it on the report
 #   amethystora-security scan     open it on the virus scanner
 #
-# The report is /usr/libexec/amethystora-security-status, which `ujust security-status` prints in a
+# The report is /usr/libexec/amethystora-security-status, which `ame security status` prints in a
 # terminal. The window is an Electron app in /usr/lib/amethystora-security (build_files/base/14-security.sh).
 
 set -euo pipefail

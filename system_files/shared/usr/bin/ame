@@ -1,0 +1,8 @@
+#!/usr/bin/bash
+#
+# ame: the commands that come with Amethystora, in groups. `ame` lists them, `ame security` lists the
+# ones in that group, `ame security scan now` runs one, and `ame pkg` is amethystora-pkg. They are the
+# recipes in /usr/share/amethystora/just; ujust runs the same ones.
+
+export JUST_LIST_HEADING=$'Available commands:\n'
+exec just --justfile /usr/share/amethystora/just/00-entry.just "$@"

@@ -1,20 +1,15 @@
 # vim: set ft=make :
 
-# alias for install-jetbrains-toolbox
-[group('Apps')]
-jetbrains-toolbox:
-    @ujust install-jetbrains-toolbox
+set default-list
 
 # Install JetBrains Toolbox | https://www.jetbrains.com/toolbox-app/
-[group('Apps')]
-install-jetbrains-toolbox:
+jetbrains-toolbox:
     #!/usr/bin/env bash
     brew tap amethystora/homebrew-tap
     brew install --cask jetbrains-toolbox-linux
 
 # Install OpenTabletDriver, an open source, cross-platform, user-mode tablet driver
-[group('Apps')]
-install-opentabletdriver:
+opentabletdriver:
     #!/usr/bin/bash
     gum confirm --affirmative="Install" --negative="Uninstall" "Installer for OpenTabletDriver"
     EXIT_CODE="$?"
@@ -62,6 +57,7 @@ bbrew:
     echo "Note: Some of these take a while to load, we'll keep working on it."
     bbrew -f "/usr/share/amethystora/homebrew/$(gum choose $(find "/usr/share/amethystora/homebrew"/*.Brewfile -exec basename '{}' '.Brewfile' ';')).Brewfile"
 
+# Install CNCF projects from a curated Brewfile
 cncf:
     #!/usr/bin/env bash
     if ! command -v bbrew &>/dev/null ; then
@@ -72,3 +68,53 @@ cncf:
         fi
     fi
     bbrew -f "/usr/share/amethystora/homebrew/cncf.Brewfile"
+
+# Install system flatpaks for rebasers
+flatpaks $confirm="1" $dx_only="0":
+    #!/usr/bin/env bash
+    if [[ "$(jq '."image-flavor"' /usr/share/amethystora/image-info.json)" =~ dx ]] ; then
+        ADD_DEVMODE="${ADD_DEVMODE:-1}"
+    fi
+    if [ "${ADD_DEVMODE:-0}" == "1" ] ; then
+        if [ "$confirm" != 0 ] ; then
+            gum confirm "Install development flatpaks?" || exit 0
+        fi
+        brew bundle --file="${TARGET_FLATPAK_FILE:-/usr/share/amethystora/homebrew/system-dx-flatpaks.Brewfile}"
+    fi
+    [ "$dx_only" == 1 ] && exit 0
+    if [ "$confirm" != 0 ] ; then
+        gum confirm "Install system flatpaks?" || exit 0
+    fi
+    brew bundle --file="${TARGET_FLATPAK_FILE:-/usr/share/amethystora/homebrew/system-flatpaks.Brewfile}"
+
+# Configure Amethystora-CLI Terminal Experience with Brew
+[no-exit-message]
+cli:
+    @amethystora-bling
+    brew bundle --file=/usr/share/amethystora/homebrew/cli.Brewfile
+
+# Let amethystora-pkg build packages from the Arch User Repository, or stop it again (off by default)
+aur:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # Read by amethystora-pkg, which shows its paru manager and arch-aur template only while it is there
+    FLAG="${XDG_CONFIG_HOME:-$HOME/.config}/amethystora/aur"
+    if [[ -e "${FLAG}" ]]; then
+        rm -f "${FLAG}"
+        echo "The AUR is off. Containers made with it keep what they have, and what came from Arch's"
+        echo "own repositories in them is still upgraded every day. Nothing more is built from the AUR."
+        exit 0
+    fi
+    echo "The Arch User Repository (AUR) is build scripts, PKGBUILDs, that anyone can upload and nobody"
+    echo "reviews, and malware has been found in it more than once. What you build from it runs as you,"
+    echo "with your files, your display and your session, as anything in a container does."
+    echo
+    echo "Turned on, amethystora-pkg offers the arch-aur template, whose containers keep their settings in"
+    echo "a home folder of their own, and the paru manager. Before anything is built it shows what the"
+    echo "AUR knows of it: who maintains it, how many vote for it, how old it is, whether it is flagged"
+    echo "out of date. paru then shows you the PKGBUILD itself: read it. Packages from the AUR are never"
+    echo "upgraded unattended."
+    gum confirm --default=false "Turn the AUR on?" || exit 0
+    mkdir -p "$(dirname "${FLAG}")"
+    touch "${FLAG}"
+    echo "On. Make a container for it with: amepkg containers new --template arch-aur"

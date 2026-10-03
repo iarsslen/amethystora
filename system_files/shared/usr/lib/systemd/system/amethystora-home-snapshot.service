@@ -5,7 +5,7 @@ Documentation=man:btrfs-subvolume(8)
 [Service]
 Type=oneshot
 # Takes this hour's snapshot of /var/home and thins out the old ones. Turned on and off with
-# `ujust setup-ransomware-protection`, which enables the timer; the report says when the latest is old.
+# `ame security ransomware`, which enables the timer; the report says when the latest is old.
 ExecStart=/usr/libexec/amethystora-home-snapshot
 Nice=19
 IOSchedulingClass=idle

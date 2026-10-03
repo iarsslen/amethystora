@@ -1,6 +1,6 @@
 #!/usr/bin/bash
-# Ransomware protection (amethystora-home-snapshot.timer, turned on with `ujust
-# setup-ransomware-protection`): a read-only btrfs snapshot of the home folders, every hour.
+# Ransomware protection (amethystora-home-snapshot.timer, turned on with `ame
+# security ransomware`): a read-only btrfs snapshot of the home folders, every hour.
 #
 # Ransomware running as a user encrypts everything that user can write, and a read-only snapshot is not
 # something any user can write: changing one or deleting one takes root. Each snapshot keeps the
@@ -12,7 +12,7 @@
 # making room would delete exactly the snapshots from before it. A full disk stops the encryption too.
 #
 # What this does not survive is ransomware that has root, which can delete snapshots like anything
-# else. That is what an append-only backup somewhere else is for (ujust setup-backup).
+# else. That is what an append-only backup somewhere else is for (ame backup).
 
 set -euo pipefail
 

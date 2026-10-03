@@ -27,9 +27,9 @@ Read it front to back the first time; each page ends with a link to the next. Af
 - **The system** covers updates, security and hardware.
 - **Help** is where to look when something is wrong.
 
-`Super+F1` opens this manual from anywhere, and so does "Manual" in the Amethystora menu
-(`Super+Alt+Space`). From a terminal, `amethystora-manual` opens it and
-`amethystora-manual keybindings` goes straight to a page.
+This page opens by itself the first time you log in, and only then. `Super+F1` opens this manual from
+anywhere, and so does "Manual" in the Amethystora menu (`Super+Alt+Space`). From a terminal,
+`amethystora-manual` opens it and `amethystora-manual keybindings` goes straight to a page.
 
 ## What is yours and what is the image's
 

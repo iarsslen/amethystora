@@ -1,7 +1,7 @@
 # Hotkeys
 
 Amethystora is built to be driven from the keyboard. `Super` is the key with the Windows or Command
-logo on it. This list is also what `ujust keybindings` shows, and the Amethystora menu
+logo on it. This list is also what `ame desktop keybindings` shows, and the Amethystora menu
 (`Super+Alt+Space`) reaches most of what these keys do.
 
 ## Tiling
@@ -63,7 +63,7 @@ the top bar on the left.
 | `Super+E` | Home folder |
 | `Ctrl+Shift+Esc` | Mission Center, to see and stop what is running |
 | `Ctrl+Alt+Space` or `Super+.` | Emoji picker |
-| `Super+Ctrl+Shift+A` | An AI agent that knows this system (`ujust toggle-agentic` turns it off) |
+| `Super+Ctrl+Shift+A` | An AI agent that knows this system (`ame agent toggle` turns it off) |
 | `Super+F1` | This manual |
 
 ## Appearance
@@ -76,7 +76,7 @@ the top bar on the left.
 | `Super+Ctrl+D` | Switch between the light and dark theme |
 
 The same from a terminal: `amethystora-theme list`, `amethystora-theme set <name>`,
-`amethystora-theme bg next`, or `ujust theme`.
+`amethystora-theme bg next`, or `ame desktop theme`.
 
 ## The desktop
 

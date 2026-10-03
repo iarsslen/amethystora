@@ -4,11 +4,11 @@
 #
 #   enrolled       in the MOK list, or in the firmware's own db
 #   pending        imported, waiting for the blue MOK manager screen at the next boot
-#   not-enrolled   not trusted yet: `ujust enroll-secure-boot-key` imports it
+#   not-enrolled   not trusted yet: `ame security secure-boot` imports it
 #   missing        the certificate is not on this machine, so nothing can be said about it
 #   unknown        anything else, followed by what mokutil said
 #
-# The one check both `ujust enroll-secure-boot-key` and `ujust security-status` use. They used to
+# The one check both `ame security secure-boot` and `ame security status` use. They used to
 # check on their own and disagreed: the first skipped a certificate it could not find and, having
 # nothing left to test, called the keys enrolled.
 #

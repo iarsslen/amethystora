@@ -1,7 +1,7 @@
 'use strict';
 
 // The page of Amethystora Security. The report is /usr/libexec/amethystora-security-status --json, the one
-// `ujust security-status` prints, the scans are the ones main.js runs, and network protection is what the
+// `ame security status` prints, the scans are the ones main.js runs, and network protection is what the
 // security watcher kept of Suricata's alerts. Everything shown is built as elements with text in them
 // and never as markup: a file name is whatever somebody called a file, and a rule's name and a host
 // name are whatever the network sent.
@@ -27,6 +27,8 @@ const state = {
     machineAsked: 0,
     // Network protection, as main.js read it: what it blocked and noticed, and whether it runs
     network: null,
+    // The containers amethystora-pkg manages, as `amethystora-pkg containers list --json` lists them
+    inventory: null,
 };
 
 // The parts of the scanning page that change while it is on screen
@@ -267,7 +269,7 @@ function entryDone(entry) {
 function doneNote(entry) {
     const has = (outcome) => entry.found.some((item) => item.outcome === outcome);
     if (has('quarantined')) {
-        return 'Quarantined files are kept where nothing can open them. ujust virus-scan shows them, and ujust virus-scan restore puts one back.';
+        return 'Quarantined files are kept where nothing can open them. ame security scan shows them, and ame security scan restore puts one back.';
     }
     if (has('deleted')) {
         return 'A deleted file can only come back from a backup.';
@@ -284,6 +286,7 @@ const MANUAL_PAGES = {
     'network-protection': 'security#network-protection',
     'home-snapshots': 'security#ransomware-protection',
     'ransomware-protection': 'security#ransomware-protection',
+    containers: 'software#packages-from-other-distributions',
 };
 
 function manualPage(id) {
@@ -339,8 +342,13 @@ function setBadge(badge, content, tone) {
 }
 
 // The sidebar entry each page is under, and the recipe that does in a terminal what it does
-const NAV = { overview: 'overview', scan: 'scan', scanning: 'scan', result: 'scan', network: 'network' };
-const RECIPES = { overview: 'ujust security-status', scan: 'ujust virus-scan', network: 'ujust blocked-connections' };
+const NAV = { overview: 'overview', scan: 'scan', scanning: 'scan', result: 'scan', network: 'network', containers: 'containers' };
+const RECIPES = {
+    overview: 'ame security status',
+    scan: 'ame security scan',
+    network: 'ame security connections',
+    containers: 'amepkg containers list',
+};
 
 function renderNav() {
     const current = NAV[state.page];
@@ -362,6 +370,9 @@ function renderNav() {
             setBadge(badge, items.length ? String(items.length) : '', items.some((item) => item.tone === 'off') ? 'off' : 'check');
         } else if (page === 'network') {
             setBadge(badge, blocked ? String(blocked) : '', 'off');
+        } else if (page === 'containers') {
+            const behind = (state.inventory?.containers || []).filter(stale).length;
+            setBadge(badge, behind ? String(behind) : '', 'check');
         } else if (busy) {
             setBadge(badge, icon('spinner', 12, 'spin'), 'busy');
         } else {
@@ -376,6 +387,7 @@ const PAGES = {
     scanning: () => scanningPage(),
     result: () => resultPage(),
     network: () => networkPage(),
+    containers: () => containersPage(),
 };
 
 function render() {
@@ -956,7 +968,7 @@ function networkList(network) {
     }
     // network.json names the sites this machine talked to, so it is wheel's to read
     if (!network.readable) {
-        return empty('Only administrators can see what it blocked. ujust blocked-connections shows it after asking for your password.');
+        return empty('Only administrators can see what it blocked. ame security connections shows it after asking for your password.');
     }
     if (!network.events.length) {
         return empty('Nothing blocked or noticed yet.');
@@ -987,6 +999,95 @@ function networkPage() {
         h('div', { class: 'actions' },
             mode === 'off' ? null : button('Change…', () => window.security.run('network-protection'), { icon: 'terminal' }),
             attention ? null : linkButton('Network protection in the manual', () => window.security.manual('security#network-protection'), { icon: 'book' })));
+}
+
+// --- Installed outside Flatpak ---------------------------------------------------------------------------
+
+const DAY = 86400;
+
+// A container left two weeks without an upgrade, as the report counts it (amethystora-security-status)
+function stale(container) {
+    const since = container.last_upgrade || container.created || 0;
+    return Date.now() / 1000 - since >= 14 * DAY;
+}
+
+function upgradedText(container) {
+    const since = container.last_upgrade;
+    if (!since) {
+        return 'never upgraded';
+    }
+    const days = Math.floor((Date.now() / 1000 - since) / DAY);
+    const when = days <= 0 ? 'today' : days === 1 ? 'yesterday' : `${days} days ago`;
+    return container.last_upgrade_result === 'failed' ? `upgraded ${when}, and the last try failed` : `upgraded ${when}`;
+}
+
+// The app grid shows an exported app with the container it runs in after its name
+function appName(app) {
+    return app.name.replace(/ \(on [^)]*\)$/, '');
+}
+
+function containerRow(container) {
+    const tone = stale(container) || container.last_upgrade_result === 'failed' ? 'check' : 'ok';
+    const lines = [];
+    if (container.exported_apps.length) {
+        lines.push(`In the app grid: ${container.exported_apps.map(appName).join(', ')}`);
+    }
+    const fromAur = container.packages.filter((name) => container.aur_packages.includes(name));
+    const byName = container.packages.filter((name) => !fromAur.includes(name));
+    if (byName.length) {
+        lines.push(`Installed by name: ${byName.join(', ')}`);
+    }
+    if (fromAur.length) {
+        const waiting = container.aur_pending ? `, ${plural(container.aur_pending, 'update waits', 'updates wait')} for you to review` : '';
+        lines.push(`From the AUR: ${fromAur.join(', ')}${waiting}`);
+    }
+    if (container.files.length) {
+        lines.push(`Installed from a file: ${container.files.map((file) => file.name).join(', ')}`);
+    }
+    if (container.exported_bins.length) {
+        lines.push(`Commands: ${container.exported_bins.map(basename).join(', ')}`);
+    }
+    return h('div', { class: 'list-row container-row' },
+        status(tone),
+        h('span', { class: 'grow' },
+            h('strong', {}, container.name),
+            h('small', {}, [`From the template ${container.template}`, upgradedText(container),
+                container.home ? 'a home folder of its own' : null].filter(Boolean).join(' · ')),
+            lines.map((line) => h('small', { class: 'container-line' }, line))),
+        pill(container.status === 'running' ? 'Running' : 'Stopped', '', { small: true }));
+}
+
+function containersPage() {
+    const inventory = state.inventory;
+    const containers = inventory?.containers || [];
+    const behind = containers.filter(stale);
+    let list;
+    if (!inventory) {
+        list = h('div', { class: 'list card' }, h('p', { class: 'list-empty' }, 'Reading…'));
+    } else if (!containers.length) {
+        list = h('div', { class: 'list card' }, h('p', { class: 'list-empty' },
+            inventory.error || 'None. Software from another distribution goes into a container with amepkg.'));
+    } else {
+        list = h('div', { class: 'list card' }, containers.map(containerRow));
+    }
+    return h('div', { class: 'page' },
+        h('header', { class: 'page-head' },
+            h('h1', {}, 'Containers'),
+            h('p', { class: 'lead' },
+                'What is installed outside Flatpak: software from other distributions, each in a container amepkg made, upgraded every day. Containers are not a sandbox: what runs in one runs as you, with your home folder, your display, your sound and your session bus.')),
+        behind.length
+            ? callout('check',
+                behind.length === 1 ? `${behind[0].name} has not been upgraded for two weeks` : `${capital(number(behind.length))} containers have not been upgraded for two weeks`,
+                'What runs in a container goes without the fixes its distribution has published since.')
+            : null,
+        inventory?.aur
+            ? callout('info', 'The AUR is on',
+                'Packages from it are built from scripts nobody reviews, and are never upgraded unattended: each waits for you to read what changed. ame apps aur turns it off.')
+            : null,
+        section('Installed outside Flatpak', list),
+        h('div', { class: 'actions' },
+            containers.length ? button('Upgrade them now', () => window.security.upgradeContainers(), { icon: 'terminal', primary: Boolean(behind.length) }) : null,
+            linkButton('Containers in the manual', () => window.security.manual('software#packages-from-other-distributions'), { icon: 'book' })));
 }
 
 // --- Talking to main.js ---------------------------------------------------------------------------------
@@ -1051,9 +1152,9 @@ let reloading = null;
 function reload() {
     if (!reloading) {
         reloading = Promise.all([window.security.report(), window.security.scanner(), window.security.history(),
-            window.security.network()])
-            .then(([report, scanner, history, network]) => {
-                Object.assign(state, { report, scanner, history: history.entries, home: history.home, network });
+            window.security.network(), window.security.inventory()])
+            .then(([report, scanner, history, network, inventory]) => {
+                Object.assign(state, { report, scanner, history: history.entries, home: history.home, network, inventory });
                 if (history.running) {
                     state.running = history.running;
                 }
@@ -1130,7 +1231,7 @@ window.security.onFinished((entry) => {
 });
 window.security.onOpen((page) => {
     state.notice = '';
-    show(page === 'scan' || page === 'network' ? page : 'overview');
+    show(['scan', 'network', 'containers'].includes(page) ? page : 'overview');
 });
 // Back from a terminal where something may have been fixed
 window.security.onFocus(() => {
@@ -1197,7 +1298,7 @@ document.addEventListener('keydown', (event) => {
 
 async function start() {
     applyPalette(await window.security.palette());
-    state.page = location.hash === '#scan' || location.hash === '#network' ? location.hash.slice(1) : 'overview';
+    state.page = ['#scan', '#network', '#containers'].includes(location.hash) ? location.hash.slice(1) : 'overview';
     render();
     await reload();
 }

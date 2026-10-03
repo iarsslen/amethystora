@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 # Network protection: Suricata inline on this machine's own traffic (amethystora-ips.service), while
 # NETWORK in /etc/amethystora/security.conf is watch or block. Its rules are built here and nowhere else,
-# so that the daily update, `ujust security-settings network`, `ujust blocked-connections` and the
+# so that the daily update, `ame security settings network`, `ame security connections` and the
 # Security app's Allow button cannot build them differently.
 #
 #   amethystora-ips enabled            exit 0 while NETWORK is watch or block (ExecCondition= in the units)
@@ -74,7 +74,7 @@ allow() {
         chmod 0644 "${ALLOWED}"
     fi
     apply || return
-    echo "Rule $1 is left out on this machine. Put it back with: ujust blocked-connections block $1"
+    echo "Rule $1 is left out on this machine. Put it back with: ame security connections block $1"
 }
 
 block() {

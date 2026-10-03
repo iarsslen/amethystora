@@ -20,17 +20,22 @@ A new system still takes over at the next restart. Once one is ready, System Upd
 offers the restart. It also shows the version you are running, the one waiting for the restart and
 the one kept for [rolling back](#rolling-back), and turns automatic updates off or on again.
 
+If you have [containers](software.md#keeping-them-up-to-date) from `amepkg`, **Update now** upgrades
+them straight after the rest, under **Containers**. One that does not upgrade says so there, and the
+system's update still counts as done.
+
 In a terminal, the same in one go:
 
 ```bash
-ujust update
+ame update
 ```
 
 | Command | Does |
 | --- | --- |
-| `ujust update` | Update everything now |
-| `ujust toggle-updates` | Turn automatic updates off, or on again |
-| `ujust changelogs` | What changed in the packages since the image you are running |
+| `ame update` | Update everything now |
+| `amepkg upgrade-all` | Upgrade the containers of other distributions now |
+| `ame system auto-updates` | Turn automatic updates off, or on again |
+| `ame changelog` | What changed in the packages since the image you are running |
 | `rpm-ostree status` | The running system, the staged update and the one to roll back to |
 | `fwupdmgr get-updates` | Firmware updates for this machine, from its maker |
 
@@ -42,16 +47,22 @@ The release notes for every stable build are on
 The previous system is always kept. If an update brings a problem:
 
 - **At the boot menu,** pick the second entry, which is the system before the update. Nothing is
-  changed, and the next restart goes back to the newest one.
-- **To stay on the previous system,** make it the default and restart:
+  changed, and the next restart goes back to the newest one. A notification at login says you are on
+  the previous version, and clicking it opens System Updates, which offers to **Keep this version**,
+  which makes it the one the machine starts and asks for your password, or to **Restart into the
+  latest**.
+- **To stay on the previous system** from a terminal, make it the default and restart:
 
 ```bash
-sudo rpm-ostree rollback
+sudo bootc rollback
 systemctl reboot
 ```
 
-Your files and settings are the same in both. Then [report the problem](troubleshooting.md#reporting-a-problem),
-and follow the stream again when a fixed image is out.
+Your files and settings are the same in both. The next update brings the newest version back,
+automatic or not, so to stay where you are until a fix is out, turn automatic updates off in System
+Updates, or [hold on to the build](#holding-on-to-one-build) you are on. Then
+[report the problem](troubleshooting.md#reporting-a-problem), and follow the stream again when a fixed
+image is out.
 
 ## Streams
 
@@ -84,7 +95,7 @@ sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/iarsslen/amethystora
 
 Every build also has a tag of its own, such as `stable-44.20260922`, from the version in the release
 notes. Switching to it holds the machine on that build, which is useful while you wait for a fix.
-A machine on a single build receives no updates; `ujust security-status` reminds you, and prints the
+A machine on a single build receives no updates; `ame security status` reminds you, and prints the
 command that goes back to following the stream.
 
 ## Signed updates

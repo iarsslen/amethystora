@@ -13,16 +13,16 @@ The kernel modules built into the image, for DisplayLink docks and virtual camer
 Amethystora's own key, and the firmware has to be told to trust it once:
 
 ```bash
-ujust enroll-secure-boot-key
+ame security secure-boot
 ```
 
 Restart, and a blue screen appears before the system starts: the MOK manager. Choose
 **Enroll MOK**, then **Continue**, then **Yes**, and type the password `amethystora`. The screen uses
 a US (QWERTY) keyboard layout whatever your own is, which matters if your keyboard puts the letters
-elsewhere. `ujust security-status` tells you whether the keys are enrolled.
+elsewhere. `ame security status` tells you whether the keys are enrolled.
 
 If Secure Boot is off, a notification says so once. Turn it on in the machine's firmware settings,
-then run the recipe above.
+then run the command above.
 
 ## Graphics
 
@@ -30,6 +30,13 @@ then run the recipe above.
 - **NVIDIA** needs the `-nvidia-open` images, which carry NVIDIA's open kernel driver ([Installing](installing.md#pick-an-image)).
   The NVIDIA driver is built for the machine and signed with its own key, so the NVIDIA images do
   not use kernel lockdown.
+- **Installed the image without NVIDIA's driver on a machine with an NVIDIA card?** There is no
+  installer for the NVIDIA images, so this is how most NVIDIA machines start. A few minutes after the
+  first boot a notification offers **Switch images…**, which opens `ame system rebase` on the
+  matching `-nvidia-open` image; it takes signed images only and asks before it switches. An NVIDIA
+  image on a machine without an NVIDIA card offers the image without the driver, which keeps
+  lockdown on. Nothing switches by itself, it is said once for the machine, and **Don't ask again**
+  stops it for good.
 
 ## Docks and displays
 
@@ -41,7 +48,7 @@ then run the recipe above.
 ## Disks
 
 - **Encryption** is chosen when installing and cannot be added afterwards. Once it is on,
-  `ujust setup-disk-unlock` lets the TPM unlock the disk at boot instead of you typing the
+  `ame security disk-unlock` lets the TPM unlock the disk at boot instead of you typing the
   passphrase ([Security](security.md#unlock-the-disk-with-the-tpm)).
 - **ZFS** is available on the `stable` stream.
 
@@ -61,7 +68,7 @@ many Brother and older laser printers are included for the rest. Add a printer i
 
 - **Gaming mice:** the service that configures them is included; install **Piper** from Bazaar to
   change buttons, lighting and resolution.
-- **Remapping keys:** `ujust setup-input-remapper` turns on Input Remapper ([Security](security.md#key-remapping)
+- **Remapping keys:** `ame security input-remapper` turns on Input Remapper ([Security](security.md#key-remapping)
   explains why it starts off).
 - **FIDO2 security keys** can replace your password: [Security](security.md#security-keys).
 

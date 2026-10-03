@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Browser protection: browsers install only the extensions on a list, and web pages are kept from USB,
-# serial, HID and Bluetooth devices. Off until `ujust setup-browser-protection` turns it on. Firefox may
+# serial, HID and Bluetooth devices. Off until `ame security browser` turns it on. Firefox may
 # only be redistributed unaltered, so the image ships no policy for any browser: this writes one on the
 # machine whose owner asked for it, where each browser reads its administrator's policy.
 #

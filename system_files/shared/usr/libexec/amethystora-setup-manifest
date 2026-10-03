@@ -1,0 +1,72 @@
+#!/usr/bin/bash
+# What this account's setup is, as JSON on stdout, for `ame restore-setup` to make again on another
+# machine: the image and stream, the Flatpak apps of the machine and of the user with the remotes they
+# came from, the Homebrew packages, the containers amethystora-pkg manages with the templates and
+# managers they need, the enabled GNOME extensions and the theme.
+#
+# amethystora-backup stores it beside every backup, as a snapshot of its own. Nothing secret goes in
+# it: names, addresses and the public keys the Flatpak remotes are checked with, no tokens, passwords
+# or settings files.
+
+set -uo pipefail
+
+# Lines that look like an application ID, from flatpak's tab-separated columns
+flatpaks() {
+    flatpak list "--$1" --app --columns=application,origin 2>/dev/null |
+        awk -F'\t' '$1 ~ /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)+$/ && NF >= 2 { print $1 "\t" $2 }' |
+        jq -R 'split("\t") | {app: .[0], origin: .[1]}' | jq -s .
+}
+
+# Each remote with its address and the public key flatpak checks it with, so that one this machine
+# did not come with can be added again as it was
+remotes() {
+    local name url keyring key repo
+    if [[ "$1" == system ]]; then repo=/var/lib/flatpak/repo; else repo="${XDG_DATA_HOME:-${HOME}/.local/share}/flatpak/repo"; fi
+    flatpak remotes "--$1" --columns=name,url 2>/dev/null | while IFS=$'\t' read -r name url; do
+        [[ "${name}" =~ ^[A-Za-z0-9._-]+$ && "${url}" == http* ]] || continue
+        keyring="${repo}/${name}.trustedkeys.gpg"
+        key=""
+        [[ -r "${keyring}" ]] && key="$(base64 -w0 "${keyring}")"
+        jq -nc --arg name "${name}" --arg url "${url}" --arg key "${key}" \
+            '{name: $name, url: $url, gpg_key: (if $key == "" then null else $key end)}'
+    done | jq -s .
+}
+
+BREW=/home/linuxbrew/.linuxbrew/bin/brew
+BREWFILE=""
+[[ -x "${BREW}" ]] && BREWFILE="$("${BREW}" bundle dump --file=- 2>/dev/null)"
+
+# The image the machine runs, which is the one it follows, as rpm-ostree has it
+REFERENCE="$(rpm-ostree status --json 2>/dev/null |
+    jq -r '[.deployments[] | select(.booted)][0]["container-image-reference"] // empty' 2>/dev/null |
+    sed -E 's|^[^:]+:(docker://)?||')"
+
+EXTENSIONS="$(gsettings get org.gnome.shell enabled-extensions 2>/dev/null | sed "s/^@as //; s/'/\"/g")"
+jq -e 'type == "array"' <<<"${EXTENSIONS}" >/dev/null 2>&1 || EXTENSIONS='[]'
+
+PKG='[]' TEMPLATES='[]' MANAGERS='[]'
+if command -v amethystora-pkg >/dev/null; then
+    PKG="$(amethystora-pkg containers list --json 2>/dev/null)" || PKG='[]'
+    TEMPLATES="$(amethystora-pkg templates list --json 2>/dev/null | jq -c 'map(select(.built_in | not))')" || TEMPLATES='[]'
+    MANAGERS="$(amethystora-pkg managers list --json 2>/dev/null | jq -c 'map(select(.built_in | not))')" || MANAGERS='[]'
+fi
+AUR=false
+[[ -e "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/aur" ]] && AUR=true
+
+jq -n --arg host "$(hostname)" --arg account "${USER:-$(id -un)}" --arg home "${HOME}" \
+    --argjson image "$(jq -c '{name: ."image-name", flavor: ."image-flavor", stream: ."image-tag"}' \
+        /usr/share/amethystora/image-info.json 2>/dev/null || echo null)" \
+    --arg reference "${REFERENCE}" \
+    --argjson system_apps "$(flatpaks system)" --argjson user_apps "$(flatpaks user)" \
+    --argjson system_remotes "$(remotes system)" --argjson user_remotes "$(remotes user)" \
+    --arg brewfile "${BREWFILE}" --argjson containers "${PKG:-[]}" --argjson templates "${TEMPLATES:-[]}" \
+    --argjson managers "${MANAGERS:-[]}" --argjson aur "${AUR}" --argjson extensions "${EXTENSIONS}" \
+    --arg theme "$(amethystora-theme current 2>/dev/null)" '{
+        version: 1, created: (now | floor), host: $host, user: $account, home: $home,
+        image: (($image // {}) + {reference: $reference}),
+        flatpaks: {system: $system_apps, user: $user_apps},
+        remotes: {system: $system_remotes, user: $user_remotes},
+        brewfile: $brewfile,
+        containers: $containers, templates: $templates, managers: $managers, aur: $aur,
+        extensions: $extensions, theme: $theme
+    }'

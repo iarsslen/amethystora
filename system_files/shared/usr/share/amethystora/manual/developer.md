@@ -62,7 +62,7 @@ turning SELinux off: `restorecon -R -v ~/code/myproject`.
 
 ## Other editors
 
-- **JetBrains:** `ujust jetbrains-toolbox` installs the JetBrains Toolbox into your home, which then
+- **JetBrains:** `ame apps jetbrains-toolbox` installs the JetBrains Toolbox into your home, which then
   installs and updates the IDEs. The IDEs' Flatpaks are not recommended.
 - **Neovim, Helix and friends:** `brew install neovim`, and `brew install devcontainer` for the dev
   container command line.

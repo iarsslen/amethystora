@@ -1,0 +1,27 @@
+#compdef ame
+
+# Completion for ame (/usr/bin/ame): a group or a command first, then the commands in the group.
+# `ame pkg` completes as amethystora-pkg does.
+
+_ame() {
+    local -a names groups
+    if [[ ${words[2]} == pkg ]] && (( CURRENT > 2 )); then
+        # The rest, as if amethystora-pkg had been typed
+        shift words
+        (( CURRENT-- ))
+        words[1]=amethystora-pkg
+        _normal
+        return
+    fi
+    # ame --summary names every command, those in a group as group::command
+    names=(${=$(ame --summary 2>/dev/null)})
+    case ${CURRENT} in
+        2)
+            groups=(${names%%::*})
+            compadd -- ${(u)groups}
+            ;;
+        3) compadd -- ${${(M)names:#${words[2]}::*}#${words[2]}::} ;;
+    esac
+}
+
+_ame "$@"

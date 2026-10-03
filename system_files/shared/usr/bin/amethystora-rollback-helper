@@ -1,4 +1,12 @@
 #!/usr/bin/bash
+#
+#   amethystora-rollback-helper [IMAGE [STREAM]]   (ame system rebase)
+#
+# An IMAGE and STREAM given are the ones the menus open on, which is how the NVIDIA check and
+# `ame restore-setup` point at the image they mean. Nothing is switched before the last question.
+
+PRESET_IMAGE="${1:-}"
+PRESET_STREAM="${2:-}"
 
 IMAGE_INFO="/usr/share/amethystora/image-info.json"
 IMAGE_NAME="$(jq -r '."image-name"' < "$IMAGE_INFO")"
@@ -23,9 +31,9 @@ declare -a IMAGES
 if [ "${LTS_MODE}" == "1" ] ; then
   IMAGES=(amethystora-dx amethystora-gdx)
 else
-  IMAGES=(amethystora-dx amethystora-nvidia-open amethystora-dx-nvidia-open)
+  IMAGES=(amethystora amethystora-dx amethystora-nvidia-open amethystora-dx-nvidia-open)
 fi
-IMAGE_NAME="$(gum choose --header="Select your image:" "${IMAGES[@]}" cancel)"
+IMAGE_NAME="$(gum choose --header="Select your image:" --selected="${PRESET_IMAGE:-${IMAGE_NAME}}" "${IMAGES[@]}" cancel)"
 [[ "$IMAGE_NAME" == "cancel" || "$IMAGE_NAME" == "" ]] && exit 0
 
 base_image="${IMAGE_REGISTRY}/${IMAGE_NAME}"
@@ -40,7 +48,7 @@ else
   echo "The default selection is stable (weekly builds) and stable-daily (daily builds) are for enthusiasts, and latest is for testers"
 fi
 
-channel_choice="$(gum choose "${CHANNELS[@]}" cancel)"
+channel_choice="$(gum choose --selected="${PRESET_STREAM:-${IMAGE_TAG}}" "${CHANNELS[@]}" cancel)"
 [[ "$channel_choice" == "cancel" || "$channel_choice" == "" ]] && exit 0
 channel_selected=${channel_choice%% *}
 

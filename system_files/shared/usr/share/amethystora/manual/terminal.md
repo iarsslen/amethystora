@@ -14,7 +14,7 @@ Its colours follow the [theme](themes.md), and so does the prompt.
 ## The greeting
 
 A new terminal says hello with the Amethystora logo, a summary of the machine, the image you are
-running, a few useful commands and a tip. `ujust toggle-user-motd` turns it off, and on again.
+running, a few useful commands and a tip. `ame desktop greeting` turns it off, and on again.
 
 `fetch` shows the logo and the system summary again whenever you like. A glint crosses the logo's
 facets before the summary appears; you get the still logo instead over SSH, in the text console, in a
@@ -30,19 +30,25 @@ logging in:
 1. Open the terminal's **Preferences** and edit your profile.
 2. Turn on **Use Custom Command** and enter `/usr/bin/fish` or `/usr/bin/zsh`.
 
-## ujust
+## ame
 
-`ujust` runs the recipes that come with the system: small, tested scripts for the jobs that would
-otherwise take a web search. This manual mentions them where they help; to see all of them:
+`ame` runs the commands that come with the system: small, tested scripts for the jobs that would
+otherwise take a web search, in groups such as `desktop`, `security` and `system`. This manual
+mentions them where they help; to see all of them:
 
 ```bash
-ujust              # choose one from a list
-ujust --list       # every recipe with a line about what it does
-ujust -n <recipe>  # print what a recipe would run, without running it
+ame                           # the groups, and the commands outside them
+ame security                  # the commands in one group, with a line about what each does
+ame --list --list-submodules  # every command, in every group
+ame -n security status        # print what a command would run, without running it
 ```
 
-`just` itself is yours for your own projects: a `justfile` in any folder turns its commands into
-recipes the same way.
+`ame pkg` is [amethystora-pkg](software.md#packages-from-other-distributions). `ujust`, the older
+name of `ame`, runs the same commands, and their names from before they were grouped, such as
+`ujust setup-backup`, still work.
+
+The commands are `just` recipes, and `just` itself is yours for your own projects: a `justfile` in any
+folder turns its commands into recipes the same way.
 
 ## Command line tools
 

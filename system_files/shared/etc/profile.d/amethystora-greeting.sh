@@ -1,7 +1,7 @@
 # shellcheck shell=bash
 
 # Show "Welcome to Amethystora", the logo and system summary in new interactive terminals.
-# `ujust toggle-user-motd` turns it off. Skipped for root, and when a parent shell already greeted.
+# `ame desktop greeting` turns it off. Skipped for root, and when a parent shell already greeted.
 case "$-" in
 *i*)
 	if [ "$(id -u)" != "0" ] && [ -z "${AMETHYSTORA_GREETED-}" ] &&

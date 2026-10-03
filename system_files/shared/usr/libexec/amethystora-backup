@@ -1,7 +1,8 @@
 #!/usr/bin/bash
 # One restic backup run, as the user who owns the files (amethystora-backup.timer, set up by
-# `ujust setup-backup`). Settings come from ~/.config/amethystora/backup.env, which names the
-# repository and the file holding its password.
+# `ame backup`). Settings come from ~/.config/amethystora/backup.env, which names the
+# repository and the file holding its password. Each run also stores the account's setup beside the
+# files (amethystora-setup-manifest), for `ame restore-setup` on a new machine.
 #
 # This never removes anything from the repository. `restic forget` and `restic prune` are deletes, and
 # a repository this machine can delete from is a repository ransomware can delete from: the point of
@@ -15,7 +16,7 @@ CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora"
 ENV_FILE="${CONFIG_DIR}/backup.env"
 
 if [[ ! -r "${ENV_FILE}" ]]; then
-    echo "No backup configured. Set one up with: ujust setup-backup" >&2
+    echo "No backup configured. Set one up with: ame backup" >&2
     exit 1
 fi
 
@@ -44,5 +45,13 @@ restic backup \
     --tag amethystora \
     "${PATHS[@]}"
 
+# The setup beside the files, as a snapshot of its own tagged amethystora-setup: the image, the apps,
+# Homebrew, the containers, the extensions and the theme, which `ame restore-setup` makes again on a
+# new machine. A setup that cannot be read takes nothing away from the backup of the files above.
+if MANIFEST="$(/usr/libexec/amethystora-setup-manifest)"; then
+    restic backup --verbose=0 --stdin --stdin-filename amethystora-setup.json --tag amethystora-setup \
+        <<<"${MANIFEST}" || echo "The setup could not be stored beside the backup." >&2
+fi
+
 echo "Snapshots in this repository:"
-restic snapshots --compact --latest 5
+restic snapshots --compact --latest 5 --tag amethystora

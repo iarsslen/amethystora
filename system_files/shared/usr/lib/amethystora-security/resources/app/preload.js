@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld('security', {
     scanMachine: () => ipcRenderer.invoke('scan-machine'),
     network: () => ipcRenderer.invoke('network'),
     allowRule: (rule) => ipcRenderer.invoke('network-allow', String(rule)),
+    inventory: () => ipcRenderer.invoke('inventory'),
+    upgradeContainers: () => ipcRenderer.invoke('containers-upgrade'),
     stop: () => ipcRenderer.invoke('scan-stop'),
     dismiss: (id) => ipcRenderer.invoke('dismiss', String(id)),
     run: (id) => ipcRenderer.invoke('run', String(id)),

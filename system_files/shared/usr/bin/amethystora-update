@@ -6,7 +6,7 @@
 #   amethystora-update     open it
 #
 # "Update now" runs uupd-manual.service, the updater of the automatic updates, which updates what
-# `ujust update` does in a terminal. The window is an Electron app in /usr/lib/amethystora-update
+# `ame update` does in a terminal. The window is an Electron app in /usr/lib/amethystora-update
 # (build_files/base/15-update.sh).
 
 set -euo pipefail

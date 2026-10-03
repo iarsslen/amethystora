@@ -96,7 +96,7 @@ grep -qiE "^(space_left_action|admin_space_left_action|disk_full_action|disk_err
 # root:akmods because the private keys go beside them, and that leaves a normal user unable to see the
 # public certificates are there at all: every "is this key enrolled" check run without sudo concluded
 # the files did not exist. They are public by definition, so a copy goes where anyone can read it,
-# and /usr/libexec/amethystora-mok-status and `ujust enroll-secure-boot-key` work from the copy.
+# and /usr/libexec/amethystora-mok-status and `ame security secure-boot` work from the copy.
 # After 07-debrand.sh, which gives the kernel's certificate its Amethystora name.
 SB_CERTS=/usr/share/amethystora/secure-boot
 install -Dpm0644 /etc/pki/akmods/certs/amethystora-modules.der "${SB_CERTS}/amethystora-modules.der"
@@ -113,7 +113,7 @@ fi
 #
 # The cost, and it is a real one: modules signed with the machine owner key rather than Fedora's are
 # only trusted once Secure Boot is on and the key is enrolled, so a machine with Secure Boot turned off
-# loses the modules built with the image (evdi, for DisplayLink docks). Run `ujust enroll-secure-boot-key`
+# loses the modules built with the image (evdi, for DisplayLink docks). Run `ame security secure-boot`
 # and turn Secure Boot on, or, on a machine where that is not possible:
 #   sudo rpm-ostree kargs --delete=lockdown=integrity
 # Hibernation is also refused under lockdown; this image does not set it up (swap is zram, and no

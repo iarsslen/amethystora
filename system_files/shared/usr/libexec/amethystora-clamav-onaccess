@@ -2,7 +2,7 @@
 # Real-time virus scanning (amethystora-clamav-onaccess.service), which runs only while REALTIME=on in
 # /etc/amethystora/security.conf. clamonacc has the kernel (fanotify) report each file closed in a home
 # directory and hands it to clamd. This reads what clamonacc logs and does with each find what the weekly
-# scan does: ON_DETECTION through amethystora-quarantine, a line in the findings log `ujust virus-scan`
+# scan does: ON_DETECTION through amethystora-quarantine, a line in the findings log `ame security scan`
 # shows, and a notification to whoever is logged in.
 #
 # What clamonacc watches is set with the OnAccess settings in /etc/clamd.d/scan.conf (04-packages.sh).
@@ -47,16 +47,16 @@ found() {
     case "${outcome}" in
         quarantined)
             summary="${file##*/} was quarantined"
-            body="It matches ${signature}. Put it back with: ujust virus-scan restore" ;;
+            body="It matches ${signature}. Put it back with: ame security scan restore" ;;
         deleted)
             summary="${file##*/} was deleted"
-            body="It matched ${signature}. See it with: ujust virus-scan" ;;
+            body="It matched ${signature}. See it with: ame security scan" ;;
         failed)
             summary="A virus scan found ${file##*/}, and could not ${mode} it"
-            body="It matches ${signature}. See it with: ujust virus-scan" ;;
+            body="It matches ${signature}. See it with: ame security scan" ;;
         *)
             summary="A virus scan found ${file##*/}"
-            body="It matches ${signature}, and was left where it is. See it with: ujust virus-scan" ;;
+            body="It matches ${signature}, and was left where it is. See it with: ame security scan" ;;
     esac
     /usr/libexec/amethystora-notify-users "${summary}" "${body}" critical >/dev/null
 }

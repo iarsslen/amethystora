@@ -1,5 +1,5 @@
 function fish_greeting
-    # Same greeting as /etc/profile.d/amethystora-greeting.sh; `ujust toggle-user-motd` turns it off.
+    # Same greeting as /etc/profile.d/amethystora-greeting.sh; `ame desktop greeting` turns it off.
     set -l config_home $HOME/.config
     set -q XDG_CONFIG_HOME; and set config_home $XDG_CONFIG_HOME
 

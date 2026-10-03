@@ -11,6 +11,17 @@ systemctl --global enable amethystora-user-setup.service
 # Says at login what the scheduled scans found while nobody was logged in, which would otherwise sit
 # in a log file until somebody thought to look
 systemctl --global enable amethystora-security-alert.service
+# Upgrades every account's amethystora-pkg containers once a day. It holds back the way uupd's automatic
+# updates do, and does nothing for an account that has never made one.
+systemctl --global enable amethystora-pkg-upgrade.timer
+# Says at login when the machine started an older version than its default one, and opens System Updates
+systemctl --global enable amethystora-update-alert.service
+# Offers the image with NVIDIA's driver on a machine with an NVIDIA card, or the one without it on a
+# machine without one, once, to whoever logs in first
+systemctl enable amethystora-gpu-check.timer
+# amepkg is amethystora-pkg under a shorter name. Made here, because a link in system_files is one the
+# build's rsync would skip.
+ln -sf amethystora-pkg /usr/bin/amepkg
 systemctl enable brew-setup.service
 systemctl enable clamav-freshclam.service
 systemctl enable clamd@scan.service
@@ -20,7 +31,7 @@ systemctl enable fail2ban.service
 systemctl enable amethystora-flatpak-remotes.service
 # input-remapper is installed but not enabled: it runs as root and reads every key pressed on every
 # input device, which is a keylogger by any other name and is wanted only by people who remap keys.
-# `ujust setup-input-remapper` turns it on for them.
+# `ame security input-remapper` turns it on for them.
 systemctl disable input-remapper.service
 systemctl enable rpm-ostree-countme.service
 systemctl enable tailscaled.service

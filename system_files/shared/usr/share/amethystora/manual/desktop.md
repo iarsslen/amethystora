@@ -40,7 +40,7 @@ it.
 ## The Amethystora menu
 
 `Super+Alt+Space` opens one menu for the things that are otherwise scattered over Settings, the
-terminal and `ujust`:
+terminal and [`ame`](terminal.md#ame):
 
 | Entry | Does |
 | --- | --- |
@@ -51,7 +51,7 @@ terminal and `ujust`:
 | Keybindings | The hotkeys, in the terminal |
 | Manual | This manual |
 | Web apps | Install or remove a [web app](web-apps.md) |
-| Apps and system commands | Every `ujust` recipe |
+| Apps and system commands | Every `ame` command, in its group |
 | System | Lock, log out, restart, shut down, check for updates, the security report |
 
 Move with the arrow keys or type to filter, `Enter` to choose, `Esc` to go back.

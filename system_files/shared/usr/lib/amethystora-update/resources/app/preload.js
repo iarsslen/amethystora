@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('updates', {
     palette: () => ipcRenderer.invoke('palette'),
     update: () => ipcRenderer.invoke('update'),
     automatic: (on) => ipcRenderer.invoke('automatic', Boolean(on)),
+    keep: () => ipcRenderer.invoke('keep'),
     restart: () => ipcRenderer.invoke('restart'),
     releases: () => ipcRenderer.invoke('releases'),
     copy: (text) => ipcRenderer.invoke('copy', String(text)),

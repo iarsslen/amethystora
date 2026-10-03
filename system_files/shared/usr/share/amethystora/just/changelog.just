@@ -1,9 +1,7 @@
 # vim: set ft=make :
 
-alias changelog := changelogs
-
 # Show the changelog
-changelogs:
+changelog:
     #!/usr/bin/bash
 
     # Get Image Tag

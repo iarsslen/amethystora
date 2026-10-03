@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# Prints the GitHub repository this image is built from, for `ujust report` and `ujust changelogs`.
+# Prints the GitHub repository this image is built from, for `ujust report` and `ame changelog`.
 #
 # Usage:
 #   amethystora-image-repo [--default REPO] [IMAGE_NAME] [IMAGE_TAG]

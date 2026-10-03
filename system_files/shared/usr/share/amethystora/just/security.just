@@ -1,69 +1,9 @@
 # vim: set ft=make :
 
-# Pick the desktop theme: colours, terminal palette, prompt and wallpaper (Super+Ctrl+Shift+Space)
-theme THEME="":
-    #!/usr/bin/bash
-    set -euo pipefail
-    if [[ -n "{{ THEME }}" ]]; then
-        amethystora-theme set "{{ THEME }}"
-        exit 0
-    fi
-    current="$(amethystora-theme current 2>/dev/null || true)"
-    choice="$(amethystora-theme list | sed 's/^[*] /  /' | awk '{ print $1 }' |
-        gum choose --header "Theme (current: ${current:-none})" --height 14 --selected "${current}")"
-    amethystora-theme set "${choice}"
-
-# Cycle the wallpaper of the current theme (Super+Ctrl+Space)
-background:
-    @amethystora-theme bg next
-
-# Show the tiling, workspace and launcher keybindings (Super+Alt+Space, then Keybindings)
-keybindings:
-    @glow --pager /usr/share/amethystora/keybindings.md
-
-# Put the Amethystora artwork on the GRUB boot menu, or take it off again
-setup-grub-theme ACTION="":
-    #!/usr/bin/bash
-    set -euo pipefail
-    action="{{ ACTION }}"
-    amethystora-grub-theme status
-    if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "Boot menu" "Turn on" "Turn off" "Cancel")"
-    fi
-    case "${action}" in
-        "Turn on" | install | on) sudo amethystora-grub-theme install ;;
-        "Turn off" | remove | off) sudo amethystora-grub-theme remove ;;
-        *) exit 0 ;;
-    esac
-
-# Toggle the logo and system summary shown in new terminals
-toggle-user-motd:
-    #!/usr/bin/bash
-    FLAG="${XDG_CONFIG_HOME:-$HOME/.config}/amethystora/no-greeting"
-    if [ -e "${FLAG}" ]; then
-        rm -f "${FLAG}"
-        echo "Terminal greeting enabled"
-    else
-        mkdir -p "$(dirname "${FLAG}")"
-        touch "${FLAG}"
-        echo "Terminal greeting disabled"
-    fi
-
-# Toggle the AI agent: its menu entry, Super+Ctrl+Shift+A, and the skill that tells it about this system
-toggle-agentic:
-    #!/usr/bin/bash
-    if amethystora-agent status >/dev/null; then
-        amethystora-agent off
-    else
-        amethystora-agent on
-    fi
-
-# Install the AI agent into your home, where it keeps itself up to date: claude or opencode (default: the chosen one)
-install-agent AGENT="":
-    @amethystora-agent install {{ AGENT }}
+set default-list
 
 # Log in, unlock the screen and approve sudo with a FIDO2 security key (YubiKey, Thetis, and their fingerprint models)
-setup-security-key ACTION="":
+key ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     # Keys are bound to the origin set in /etc/security/pam_u2f.conf, not to the hostname
@@ -107,11 +47,11 @@ setup-security-key ACTION="":
     echo "Your password keeps working."
 
 # Let Secure Boot load the kernel modules shipped in the image (DisplayLink, v4l2loopback, ...)
-enroll-secure-boot-key:
+secure-boot:
     #!/usr/bin/bash
     set -euo pipefail
     ENROLLMENT_PASSWORD="amethystora"
-    # One check, shared with `ujust security-status` (/usr/libexec/amethystora-mok-status). A missing
+    # One check, shared with `ame security status` (/usr/libexec/amethystora-mok-status). A missing
     # certificate is reported as missing, never counted as enrolled.
     MOK="$(/usr/libexec/amethystora-mok-status)"
     certs=()
@@ -132,14 +72,12 @@ enroll-secure-boot-key:
     echo "At next reboot, the blue MOK manager screen appears (QWERTY keyboard layout)."
     echo "Select \"Enroll MOK\", then \"Continue\", \"Yes\", and type \"${ENROLLMENT_PASSWORD}\" as the password."
 
-# Everything this machine's security settings are actually doing, in one screen, and what to do about
-# anything that is off. Nothing here changes anything, and it asks for no password. The Security app
-# (amethystora-security) draws the same report from the same script.
-security-status:
+# What the security settings are actually doing, and what to do about anything off. Changes nothing
+status:
     @/usr/libexec/amethystora-security-status
 
 # Audit this machine's security settings with Lynis and say what to do about each finding
-security-audit:
+audit:
     #!/usr/bin/bash
     set -euo pipefail
     echo "Auditing this machine. It takes a few minutes and changes nothing."
@@ -154,9 +92,8 @@ security-audit:
     echo "The monthly audit compares each run with the one before and reports only what is new."
     echo "What it said last time: journalctl -u amethystora-lynis-audit.service"
 
-# What happens to files a virus scan finds, real-time watching and network protection
-# (/etc/amethystora/security.conf)
-security-settings SETTING="" VALUE="":
+# What happens to files a virus scan finds, real-time watching and network protection (security.conf)
+settings SETTING="" VALUE="":
     #!/usr/bin/bash
     set -euo pipefail
     config=/usr/libexec/amethystora-security-config
@@ -176,7 +113,7 @@ security-settings SETTING="" VALUE="":
         on-detection)
             if [[ -z "${value}" ]]; then
                 echo "report      Say so, and leave the file where it is (the default)."
-                echo "quarantine  Move it where nothing can open it. ujust virus-scan restore puts it back."
+                echo "quarantine  Move it where nothing can open it. ame security scan restore puts it back."
                 echo "delete      Delete it. A match can be a false positive, and this cannot be undone."
                 value="$(gum choose --header "Files a virus scan finds" report quarantine delete)"
             fi
@@ -211,7 +148,7 @@ security-settings SETTING="" VALUE="":
                 echo "       what it recognises. Nothing is blocked. Start here: a week of it shows what"
                 echo "       blocking would get in the way of."
                 echo "block  As watch, and connections to known malware, command servers and exploits are"
-                echo "       cut off. Each one is a notification, and ujust blocked-connections allows it again."
+                echo "       cut off. Each one is a notification, and ame security connections allows it again."
                 echo "Whatever goes wrong with it, connections go on uninspected rather than stop."
                 value="$(gum choose --header "Network protection" off watch block)"
             fi
@@ -227,7 +164,7 @@ security-settings SETTING="" VALUE="":
                 fi
                 # Already running, the rules step reloaded it; this starts it when it was off
                 sudo systemctl start amethystora-ips.service
-                echo "On: ${value}. See what it blocks and notices with: ujust blocked-connections"
+                echo "On: ${value}. See what it blocks and notices with: ame security connections"
             fi
             # The real-time watcher follows Suricata's alerts while this is on, and the report's view of
             # it is the security watcher's to write
@@ -237,9 +174,8 @@ security-settings SETTING="" VALUE="":
         *) exit 0 ;;
     esac
 
-# What the security watcher noticed: changes to accounts, to what starts by itself, to the security
-# settings, and programs reading the keyboard directly
-security-events ACTION="":
+# What the security watcher noticed: accounts, what starts by itself, settings, keyboard readers
+events ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     if [[ "{{ ACTION }}" == now ]]; then
@@ -250,44 +186,43 @@ security-events ACTION="":
     echo
     echo "Each line is something that changed, with the program that changed it. If you did it, or"
     echo "installed something that did, there is nothing to do. The full audit record of one kind:"
-    echo "sudo ausearch -i -k <identity|privilege|persistence|hardening|modules|input-capture>"
+    echo "sudo ausearch -i -k <identity|privilege|persistence|hardening|modules|input-capture|user-programs>"
     # Seen is seen: what was just shown stops being new, for the report and the next login
     sudo /usr/libexec/amethystora-security-watch --seen
 
-# Connections network protection blocked or noticed (ujust security-settings network), and how to allow
-# one again
-blocked-connections ACTION="" RULE="":
+# Connections network protection blocked or noticed, and how to allow one again
+connections ACTION="" RULE="":
     #!/usr/bin/bash
     set -euo pipefail
     ips=/usr/libexec/amethystora-ips
     case "{{ ACTION }}" in
         allow | block)
             if [[ -z "{{ RULE }}" ]]; then
-                echo "usage: ujust blocked-connections {{ ACTION }} <rule number>"
+                echo "usage: ame security connections {{ ACTION }} <rule number>"
                 exit 64
             fi
             sudo "${ips}" "{{ ACTION }}" "{{ RULE }}"
             ;;
         "")
-            echo "Network protection: $(/usr/libexec/amethystora-security-config NETWORK) (ujust security-settings network)"
+            echo "Network protection: $(/usr/libexec/amethystora-security-config NETWORK) (ame security settings network)"
             echo
             # The watcher is what reads Suricata's log, so what it saw a moment ago is shown too
             sudo systemctl start --wait amethystora-security-watch.service || true
             sudo "${ips}" blocked
             echo
             echo "If a connection was yours and wanted, allow its rule again with:"
-            echo "  ujust blocked-connections allow <rule number>"
-            echo "That leaves the one rule out on this machine; ujust blocked-connections block <rule number>"
+            echo "  ame security connections allow <rule number>"
+            echo "That leaves the one rule out on this machine; ame security connections block <rule number>"
             echo "puts it back. The rules allowed here are listed in /etc/amethystora/ips-allowed."
             ;;
         *)
-            echo "usage: ujust blocked-connections [allow <rule number> | block <rule number>]"
+            echo "usage: ame security connections [allow <rule number> | block <rule number>]"
             exit 64
             ;;
     esac
 
 # Addresses fail2ban has blocked for too many failed logins, and how to let one back in
-blocked-addresses ADDRESS="":
+addresses ADDRESS="":
     #!/usr/bin/bash
     set -euo pipefail
     if [[ -n "{{ ADDRESS }}" ]]; then
@@ -296,11 +231,11 @@ blocked-addresses ADDRESS="":
     fi
     sudo fail2ban-client status sshd
     echo
-    echo "Let one back in with: ujust blocked-addresses <address>"
+    echo "Let one back in with: ame security addresses <address>"
     echo "Blocking is set up in /etc/fail2ban/jail.d/10-amethystora.conf."
 
 # Turn key remapping on or off. It is off by default: the service reads every key pressed on the machine
-setup-input-remapper ACTION="":
+input-remapper ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     action="{{ ACTION }}"
@@ -330,7 +265,7 @@ setup-input-remapper ACTION="":
     esac
 
 # Refuse USB devices that were not plugged in when this was set up, against keyloggers and keystroke injectors
-setup-usb-protection ACTION="":
+usb ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     action="{{ ACTION }}"
@@ -387,7 +322,7 @@ setup-usb-protection ACTION="":
     esac
 
 # Let browsers install only the extensions on a list, and keep web pages from USB, serial, HID and Bluetooth devices
-setup-browser-protection ACTION="" ID="":
+browser ACTION="" ID="":
     #!/usr/bin/bash
     set -euo pipefail
     action="{{ ACTION }}"
@@ -431,7 +366,7 @@ setup-browser-protection ACTION="" ID="":
             [[ -n "${id}" ]] || exit 0
             sudo "${policy}" allow "${id}"
             echo "Allowed. To take one back, remove its line from /etc/amethystora/browser-extensions"
-            echo "and run: ujust setup-browser-protection on"
+            echo "and run: ame security browser on"
             ;;
         "Turn off" | off)
             sudo "${policy}" off
@@ -441,7 +376,7 @@ setup-browser-protection ACTION="" ID="":
     esac
 
 # Unlock the encrypted disk with this machine's TPM instead of typing the passphrase at every boot
-setup-disk-unlock ACTION="":
+disk-unlock ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     action="{{ ACTION }}"
@@ -486,7 +421,7 @@ setup-disk-unlock ACTION="":
     esac
     if ! mokutil --sb-state 2>/dev/null | grep -qi enabled; then
         echo "Secure Boot is off on this machine, and binding to it is the whole of what this protects."
-        echo "Turn Secure Boot on and run \`ujust enroll-secure-boot-key\` first."
+        echo "Turn Secure Boot on and run \`ame security secure-boot\` first."
         gum confirm "Enrol anyway?" || exit 0
     fi
     echo "Type the disk passphrase when asked. It keeps working afterwards: this adds a second way in,"
@@ -498,95 +433,8 @@ setup-disk-unlock ACTION="":
     echo
     echo "Done. It takes effect at the next boot."
 
-# Back up this account to a repository that ransomware on this machine cannot delete from
-setup-backup ACTION="":
-    #!/usr/bin/bash
-    set -euo pipefail
-    CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/amethystora"
-    ENV_FILE="${CONFIG_DIR}/backup.env"
-    PASSWORD_FILE="${CONFIG_DIR}/backup-password"
-    action="{{ ACTION }}"
-    if [[ -r "${ENV_FILE}" ]]; then
-        echo "Backing up to: $(sed -n 's/^RESTIC_REPOSITORY=//p' "${ENV_FILE}")"
-        if systemctl --user is-enabled --quiet amethystora-backup.timer 2>/dev/null; then
-            systemctl --user list-timers --no-pager amethystora-backup.timer
-        else
-            echo "The daily run is off."
-        fi
-    else
-        echo "No backup is set up for this account."
-    fi
-    if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "Backups (restic)" \
-            "Set up" "Back up now" "Show snapshots" "Turn off the daily run" "Cancel")"
-    fi
-    case "${action}" in
-        "Set up" | setup)
-            echo
-            echo "Ransomware encrypts everything it can reach, and a backup this machine can delete from"
-            echo "is something it can reach. An append-only repository is one this machine may add"
-            echo "snapshots to and read its own back from, and nothing else, so what was backed up before"
-            echo "the machine was taken over is still there afterwards. Set that up at the other end:"
-            echo
-            echo "  rest-server   run it with --append-only, then use  rest:https://user:pass@host:8000/"
-            echo "  Borg or SSH   set  append_only = yes  in the repository's config on the server"
-            echo "  Object store  turn on object lock or immutability, then use  rclone:remote:path"
-            echo "  A USB drive   unplug it between backups; unplugged is the oldest append-only there is"
-            echo
-            current="$(sed -n 's/^RESTIC_REPOSITORY=//p' "${ENV_FILE}" 2>/dev/null || true)"
-            repository="$(gum input --header "Repository" \
-                --placeholder "rest:https://user:pass@host:8000/" --value "${current}")"
-            [[ -n "${repository}" ]] || exit 0
-            password="$(gum input --password \
-                --header "Repository password (keep a copy elsewhere: without it the backup cannot be read)")"
-            [[ -n "${password}" ]] || exit 0
-            paths="$(gum input --header "What to back up, separated by spaces" --value "${HOME}")"
-            [[ -n "${paths}" ]] || exit 0
-            mkdir -p "${CONFIG_DIR}"
-            (umask 077 && printf '%s' "${password}" >"${PASSWORD_FILE}")
-            (umask 077 && printf '%s\n' \
-                "# Written by ujust setup-backup, read by /usr/libexec/amethystora-backup." \
-                "RESTIC_REPOSITORY=${repository}" \
-                "RESTIC_PASSWORD_FILE=${PASSWORD_FILE}" \
-                "AMETHYSTORA_BACKUP_PATHS=${paths}" >"${ENV_FILE}")
-            set -a && source "${ENV_FILE}" && set +a
-            # An append-only repository refuses `restic init`, so finding one already there is normal
-            if restic cat config >/dev/null 2>&1; then
-                echo "Using the repository that is already there."
-            else
-                echo "Nothing there yet, creating the repository."
-                restic init
-            fi
-            systemctl --user enable --now amethystora-backup.timer
-            echo
-            echo "Set up, and running once a day."
-            echo
-            echo "Nothing on this machine ever deletes from the repository, which is the point, so old"
-            echo "snapshots build up. Thin them out from somewhere else, with credentials this machine"
-            echo "does not hold:"
-            echo "  restic -r <repository> forget --keep-daily 14 --keep-weekly 8 --keep-monthly 12 --prune"
-            ;;
-        "Back up now" | now)
-            systemctl --user start --wait amethystora-backup.service || true
-            journalctl --user -u amethystora-backup.service -n 30 --no-pager
-            ;;
-        "Show snapshots" | snapshots)
-            if [[ ! -r "${ENV_FILE}" ]]; then
-                echo "No backup is set up. Set one up with: ujust setup-backup"
-                exit 1
-            fi
-            set -a && source "${ENV_FILE}" && set +a
-            restic snapshots --compact
-            ;;
-        "Turn off the daily run" | off)
-            systemctl --user disable --now amethystora-backup.timer
-            echo "Off. The settings and the repository itself are left alone."
-            ;;
-        *) exit 0 ;;
-    esac
-
 # Hourly read-only snapshots of the home folders, which ransomware running as you cannot change or delete
-setup-ransomware-protection ACTION="":
+ransomware ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     SNAPSHOTS=/var/home/.snapshots
@@ -622,7 +470,7 @@ setup-ransomware-protection ACTION="":
             echo "rewrites every file would then delete the ones from before it."
             echo
             echo "What this does not survive is ransomware that gets root. An append-only backup somewhere"
-            echo "else does: ujust setup-backup"
+            echo "else does: ame backup"
             gum confirm "Turn ransomware protection on?" || exit 0
             sudo systemctl enable --now amethystora-home-snapshot.timer
             sudo systemctl start amethystora-home-snapshot.service
@@ -631,7 +479,7 @@ setup-ransomware-protection ACTION="":
                 sudo systemctl restart amethystora-clamav-onaccess.service
             fi
             echo
-            echo "On. Put files back with: ujust setup-ransomware-protection restore"
+            echo "On. Put files back with: ame security ransomware restore"
             ;;
         "Put files back" | restore)
             if [[ ${#TAKEN[@]} -eq 0 ]]; then
@@ -686,7 +534,7 @@ setup-ransomware-protection ACTION="":
     esac
 
 # Show what the virus scans found, run one now, or put back a file from quarantine
-virus-scan ACTION="":
+scan ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     FINDINGS=/var/log/amethystora-clamav-findings.log
@@ -698,7 +546,7 @@ virus-scan ACTION="":
     else
         echo "The last scan found nothing."
     fi
-    echo "On detection: $(/usr/libexec/amethystora-security-config ON_DETECTION) (ujust security-settings on-detection)"
+    echo "On detection: $(/usr/libexec/amethystora-security-config ON_DETECTION) (ame security settings on-detection)"
     echo "Last run:    $(systemctl show -p InactiveEnterTimestamp --value amethystora-clamav-scan.service)"
     AGE="$(/usr/libexec/amethystora-clamav-signature-age)" && SIG=0 || SIG=$?
     case "${SIG}" in
@@ -723,7 +571,7 @@ virus-scan ACTION="":
             else
                 echo "In quarantine (id, when, what it matched, where it was):"
                 sed 's/^/  /' <<<"${list}"
-                echo "Put one back with: ujust virus-scan restore"
+                echo "Put one back with: ame security scan restore"
             fi
             ;;
         "Put a file back" | restore)

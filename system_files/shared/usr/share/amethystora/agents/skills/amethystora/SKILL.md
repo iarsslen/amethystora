@@ -1,6 +1,6 @@
 ---
 name: amethystora
-description: How to inspect and change an Amethystora desktop (Fedora atomic, GNOME). Use whenever the user asks to change, fix or explain something about this machine - themes, wallpaper, keybindings, GNOME settings, the terminal, installing software, updates, security settings or ujust recipes - and before editing anything under ~/.config/amethystora, dconf or /etc.
+description: How to inspect and change an Amethystora desktop (Fedora atomic, GNOME). Use whenever the user asks to change, fix or explain something about this machine - themes, wallpaper, keybindings, GNOME settings, the terminal, installing software, updates, security settings or ame (ujust) commands - and before editing anything under ~/.config/amethystora, dconf or /etc.
 ---
 
 # Amethystora
@@ -26,8 +26,9 @@ and how to undo it.
 - The user manual is Markdown in `/usr/share/amethystora/manual` (start at `pages.json`): how the
   desktop, themes, software, updates and security work, written for the user. Read the page on a
   topic before answering about it, and point the user to it with `amethystora-manual <page>`.
-- `ujust --list` lists every system recipe with a one-line description; `ujust <recipe>` runs one.
-  Prefer a recipe over doing the same by hand: it knows the image.
+- `ame --list --list-submodules` lists every system command with a one-line description, in groups;
+  `ame <group> <command>` runs one (`ame security status`). Prefer one over doing the same by hand: it
+  knows the image. `ujust` is the same command, and also takes the names commands had before groups.
 - `amethystora-theme --help`, `amethystora-menu --help` and `amethystora-agent --help` print usage.
 - Keybindings: `/usr/share/amethystora/keybindings.md`.
 
@@ -37,11 +38,34 @@ In this order of preference:
 
 1. GUI apps: Flatpak, `flatpak install --user flathub <app-id>`.
 2. CLI tools: Homebrew, `brew install <formula>`.
-3. Anything needing a full Fedora userland: a distrobox or toolbox container.
+3. Anything needing another distribution's packages: `amethystora-pkg` (`amepkg`), which makes
+   distrobox containers from templates and installs with their own package managers.
 4. `rpm-ostree install` layers a package onto the image. Last resort: it slows every update and
    needs a reboot. Ask the user first.
 
 Never add dnf repositories or run `dnf install` on the host; there is no writable package database.
+
+### Containers (amepkg)
+
+- `amepkg containers list --json` is the state: names, templates, managers, `exported_apps`,
+  `packages`, `last_upgrade` (Unix seconds). `amepkg templates list --json` and `managers list --json`
+  list the templates (debian, ubuntu, fedora, arch, alpine, opensuse-tumbleweed, opensuse-leap) and
+  managers (apt, dnf, pacman, zypper, apk). Run it as the user, never with sudo.
+- Make one: `amepkg containers new --template <t> --name <n> --no-prompt`. Install:
+  `amepkg <n> install <pkg>` puts the package's launchers in the app grid; `remove` takes them out.
+  `amepkg <n> run <cmd>` runs one command inside; `enter` is a shell for the user, not for you.
+- A `.deb`, `.rpm` or `.pkg.tar.zst`: `amepkg install <file>`. It scans the file, shows where it comes
+  from and offers Flathub or the container's repositories first; let the user answer those questions.
+- Only containers it made are listed (labels `amethystora.pkg.*`, real names `pkg-<name>`); leave the
+  user's other distrobox containers alone. `containers rm` and `reset` delete what is installed:
+  ask first.
+- The AUR is off unless the user ran `ame apps aur`; never turn it on for them. AUR packages
+  need a terminal to review their PKGBUILD, so leave those installs to the user.
+- Containers are not a sandbox: they share the home folder, display and session bus. Prefer Flatpak
+  for apps with windows. They upgrade daily (`amethystora-pkg-upgrade.timer`, user); `amepkg
+  upgrade-all` does it now.
+- Definitions the user made live in `~/.local/share/amethystora/pkg`, state in
+  `~/.local/state/amethystora/pkg`: change them with `amepkg templates|managers new|update`, not by hand.
 
 Notes and to-do lists are the Notes app (`amethystora-notes`), which the image ships in place of Joplin
 and Planify; suggest it before installing either. Its data in `~/.local/share/amethystora-notes` is
@@ -85,30 +109,39 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
 
 ## Updates and diagnosis
 
-- `ujust update` updates the image, Flatpaks and Homebrew. `rpm-ostree status` shows the booted and
-  pending deployment; `rpm-ostree rollback` returns to the previous one after a reboot.
+- `ame update` updates the image, Flatpaks and Homebrew. `rpm-ostree status` shows the booted and
+  pending deployment; `rpm-ostree rollback` returns to the previous one after a reboot. A machine
+  started from an older deployment than its default (the boot menu's second entry) keeps it with
+  `sudo bootc rollback`; the next update brings the newest back.
 - The System Updates app (`amethystora-update`) does the same by starting `uupd-manual.service`, the
   updater of the automatic updates (`uupd.service`, on `uupd.timer`), and follows its log with
-  `journalctl -u uupd-manual.service`. It needs no password and does not reboot.
-- The agents are not part of the image and `ujust update` leaves them alone. They live in the
+  `journalctl -u uupd-manual.service`. It needs no password and does not reboot. After it, it starts
+  the user's `amethystora-pkg-upgrade.service` for the containers (`journalctl --user -u
+  amethystora-pkg-upgrade`); uupd's own distrobox module stays off in `/etc/uupd/config.json`.
+- Switching images or streams: `ame system rebase [IMAGE] [STREAM]` (signed images only). On a new
+  machine, `ame restore-setup` remakes the user's setup from the manifest their restic backup
+  stores (`/usr/libexec/amethystora-setup-manifest` writes it); it is interactive, so leave it to them.
+- The agents are not part of the image and `ame update` leaves them alone. They live in the
   user's home (`~/.local/bin/claude`, `~/.opencode/bin/opencode`) and update themselves:
   `claude update`, `opencode upgrade`.
 - Logs: `journalctl -b -p warning`, `journalctl --user -b`, `coredumpctl list`. The Logs app
   (`amethystora-logs`, in place of GNOME Logs) reads the same journal for the user, one app or service
   at a time; `amethystora-logs crashes` opens it on the crashes.
-- `ujust security-status` summarises the security settings. The Security app (`amethystora-security`)
+- `ame security status` summarises the security settings. The Security app (`amethystora-security`)
   shows the same report and scans for viruses. What a scan finds is only reported unless
-  `ON_DETECTION` in `/etc/amethystora/security.conf` says quarantine or delete; `ujust security-settings`
+  `ON_DETECTION` in `/etc/amethystora/security.conf` says quarantine or delete; `ame security settings`
   changes it and real-time watching (`REALTIME`). Never edit that file to loosen it without asking.
-- `ujust security-events` shows what the security watcher (`amethystora-security-watch`, every 15
+- `ame security events` shows what the security watcher (`amethystora-security-watch`, every 15
   minutes) noticed in the audit log and journal. Changes you make under `/etc` show up there, and a
-  file in `/etc` that differs from the image's copy in `/usr/etc` shows as **Image settings**.
+  file in `/etc` that differs from the image's copy in `/usr/etc` shows as **Image settings**. So
+  does a program you put in `~/.local/bin` or `~/bin` with a system command's name, and a launcher
+  in `~/.local/share/applications` that no container export made: name yours differently.
 - Network protection is Suricata inline on this machine's own traffic (`amethystora-ips.service`,
   helper `/usr/libexec/amethystora-ips`), set by `NETWORK` in `/etc/amethystora/security.conf`: `off`
-  (default), `watch` or `block`, changed with `ujust security-settings network`. It fails open. With
-  `block`, a site or app that suddenly cannot connect may be one it blocked: `ujust blocked-connections`
+  (default), `watch` or `block`, changed with `ame security settings network`. It fails open. With
+  `block`, a site or app that suddenly cannot connect may be one it blocked: `ame security connections`
   lists them, or read `/var/lib/amethystora/security/network.json` (readable by wheel).
-  `ujust blocked-connections allow <rule>` leaves one rule out; rules allowed are in
+  `ame security connections allow <rule>` leaves one rule out; rules allowed are in
   `/etc/amethystora/ips-allowed`.
 - To find out why something crashed or stopped working, follow the `amethystora-diagnose` skill.
 
@@ -120,4 +153,4 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
   rule). The image hardens these on purpose; explain the trade-off instead of working around it.
 - `gsettings reset-recursively`, deleting user files, or reverting the user's own customisations.
 
-Turning these instructions off is `ujust toggle-agentic`.
+Turning these instructions off is `ame agent toggle`.

@@ -1,0 +1,11 @@
+[Unit]
+Description=Say when the machine started an older version than its default one
+After=graphical-session.target
+
+[Service]
+# Not a oneshot: it waits for the notification to be answered, and opens System Updates when it is
+Type=simple
+ExecStart=/usr/libexec/amethystora-update-alert
+
+[Install]
+WantedBy=graphical-session.target

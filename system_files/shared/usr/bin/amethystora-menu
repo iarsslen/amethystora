@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 #
 # The Amethystora menu: one keyboard-driven place for the things that are otherwise scattered over
-# Settings, the terminal and ujust. Super+Alt+Space opens it; the submenus have keys of their own
+# Settings, the terminal and `ame`. Super+Alt+Space opens it; the submenus have keys of their own
 # (Super+Ctrl+Shift+Space for themes, Super+Ctrl+Space for the next wallpaper).
 #
 #   amethystora-menu            the main menu
@@ -104,7 +104,7 @@ system_menu() {
         "Log out") gnome-session-quit --logout ;;
         "Restart") systemctl reboot ;;
         "Shut down") systemctl poweroff ;;
-        # System Updates, in a window of its own like the Manual; `ujust update` still works here
+        # System Updates, in a window of its own like the Manual; `ame update` still works here
         "Check for updates") setsid -f amethystora-update >/dev/null 2>&1 ;;
         # The Security app, in a window of its own like the Manual
         "Security report") setsid -f amethystora-security >/dev/null 2>&1 ;;
@@ -117,7 +117,7 @@ system_menu() {
 main_menu() {
     local choice problem
     local -a entries=("Theme" "Background" "Keybindings" "Manual" "Web apps" "Apps and system commands" "System")
-    # Only while the agentic features are on (ujust toggle-agentic)
+    # Only while the agentic features are on (ame agent toggle)
     if amethystora-agent status >/dev/null 2>&1; then
         entries=("Ask an agent" "Diagnose a problem" "${entries[@]}")
     fi
@@ -139,9 +139,9 @@ main_menu() {
         Manual) setsid -f amethystora-manual >/dev/null 2>&1 ;;
         "Web apps") webapps_menu ;;
         "Apps and system commands")
-            # ujust with no recipe opens its own chooser, which is the full list and stays right
-            # as recipes come and go with the image
-            ujust
+            # Every `ame` command, in its group: the full list, which stays right as commands come
+            # and go with the image
+            ame --list --list-submodules
             back
             ;;
         System) system_menu ;;

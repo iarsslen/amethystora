@@ -99,7 +99,7 @@ list() {
 # The directory of a quarantined file, from an id `list` printed
 item() {
     [[ "$1" =~ ^[0-9]{8}-[0-9]{6}-[A-Za-z0-9]{4}$ && -f "${STORE}/$1/info.json" ]] || {
-        echo "Nothing in quarantine is called ${1}. See what is with: ujust virus-scan quarantine" >&2
+        echo "Nothing in quarantine is called ${1}. See what is with: ame security scan quarantine" >&2
         return 1
     }
     echo "${STORE}/$1"

@@ -1,0 +1,7 @@
+{
+    "name": "arch",
+    "description": "Arch Linux, rolling",
+    "base": "quay.io/toolbx/arch-toolbox:latest@sha256:b71b4446ac8aa3a334f34a2d24ae1a681f3559e59f20878d0f128681d3254d4f",
+    "manager": "pacman",
+    "packages": []
+}

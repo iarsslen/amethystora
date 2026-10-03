@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Package Installer
+GenericName=Package Installer
+Comment=Install a .deb or .rpm package in a container, after scanning it and saying where it comes from
+Exec=/usr/libexec/amethystora-in-terminal amethystora-pkg install %f
+Icon=package-x-generic
+Terminal=false
+NoDisplay=true
+MimeType=application/vnd.debian.binary-package;application/x-rpm;
+Categories=System;PackageManager;
+Keywords=deb;rpm;package;install;container;distrobox;

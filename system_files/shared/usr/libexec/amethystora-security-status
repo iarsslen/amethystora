@@ -2,7 +2,7 @@
 # What this machine's security settings are actually doing, and what to do about anything that is off.
 # Nothing here changes anything, and it asks for no password.
 #
-#   amethystora-security-status          the report, for a terminal (`ujust security-status`)
+#   amethystora-security-status          the report, for a terminal (`ame security status`)
 #   amethystora-security-status --json   the same report, for the Security app (amethystora-security)
 #
 # One set of checks for both, so that the terminal and the window cannot disagree. Each check ends in
@@ -189,7 +189,7 @@ if [[ "${BUILT}" =~ ^[0-9]+$ ]]; then
         report updates image-age info "System image" "A newer system image is waiting for a restart" \
             "The one running was built ${AGE} days ago. Restart to use the new one."
     else
-        COMMAND="ujust update"
+        COMMAND="ame update"
         report updates image-age check "System image" "This system image is ${AGE} days old" \
             "Security fixes reach this machine as new images, and none has arrived since $(date -d "@${BUILT}" '+%-d %B')." \
             "Update now with:"
@@ -207,13 +207,42 @@ else
     if [[ ! "${FINISHED}" =~ ^[0-9]+$ ]]; then
         report updates automatic-updates ok "Automatic updates" "Updates install by themselves"
     elif [[ "$(days_since "${FINISHED}")" -gt 14 ]]; then
-        COMMAND="ujust update"
+        COMMAND="ame update"
         report updates automatic-updates check "Automatic updates" \
             "The last update that finished was $(days_since "${FINISHED}") days ago" \
             "Updates start, but do not get to the end. System Updates shows why, or run one here:"
     else
         report updates automatic-updates ok "Automatic updates" \
             "Updates install by themselves. The last one finished $(days_ago "$(days_since "${FINISHED}")")"
+    fi
+fi
+
+# The containers amethystora-pkg manages, which a timer of the account's own upgrades every day
+# (amethystora-pkg-upgrade.timer). One left alone for two weeks runs without the fixes its distribution
+# has published since. They are each account's own: run as root by the security watcher, this sees none.
+if [[ -d "${XDG_STATE_HOME:-${HOME:-/nonexistent}/.local/state}/amethystora/pkg/containers" ]] &&
+    command -v amethystora-pkg >/dev/null; then
+    STALE=()
+    COUNT=0
+    while IFS=$'\t' read -r name since; do
+        COUNT=$((COUNT + 1))
+        if [[ "${since}" == 0 ]]; then
+            STALE+=("${name}, never upgraded")
+        elif [[ "$(days_since "${since}")" -ge 14 ]]; then
+            STALE+=("${name}, last upgraded $(days_ago "$(days_since "${since}")")")
+        fi
+    done < <(timeout 60 amethystora-pkg containers list --json 2>/dev/null |
+        jq -r '.[] | [.name, (.last_upgrade // .created // 0 | tostring)] | @tsv' 2>/dev/null)
+    if [[ ${#STALE[@]} -gt 0 ]]; then
+        COMMAND="amethystora-pkg upgrade-all"
+        report updates containers check "Containers" \
+            "$(plural "${#STALE[@]}" "container has" "containers have") not been upgraded for two weeks" \
+            "${STALE[@]}" \
+            "What runs in a container goes without the fixes its distribution has published since. Upgrade them now with:"
+    elif [[ "${COUNT}" -eq 1 ]]; then
+        report updates containers ok "Containers" "The container amethystora-pkg manages is upgraded every day"
+    elif [[ "${COUNT}" -gt 1 ]]; then
+        report updates containers ok "Containers" "The ${COUNT} containers amethystora-pkg manages are upgraded every day"
     fi
 fi
 
@@ -233,7 +262,7 @@ if grep -qi "enabled" <<<"${SB}"; then
     report updates secure-boot ok "Secure Boot" \
         "Secure Boot is on: this machine boots only a kernel it has checked"
 elif grep -qi "disabled" <<<"${SB}"; then
-    COMMAND="ujust enroll-secure-boot-key"
+    COMMAND="ame security secure-boot"
     report updates secure-boot check "Secure Boot" "Secure Boot is off" \
         "The kernel protections below rest on it. Without it, anything that reaches root can boot a different kernel and step around them." \
         "Turn Secure Boot on in this machine's firmware, then run:"
@@ -242,7 +271,7 @@ else
         "Secure Boot state unknown (no EFI on this machine, or its firmware will not say)"
 fi
 
-# The same check `ujust enroll-secure-boot-key` uses, so the two can no longer disagree
+# The same check `ame security secure-boot` uses, so the two can no longer disagree
 MOK="$(/usr/libexec/amethystora-mok-status)"
 if ! grep -qv "^enrolled " <<<"${MOK}"; then
     report updates signing-keys ok "Signing keys" "This image's signing keys are enrolled"
@@ -250,7 +279,7 @@ elif grep -qi "enabled" <<<"${SB}"; then
     while read -r state cert rest; do
         case "${state}" in
             not-enrolled)
-                COMMAND="ujust enroll-secure-boot-key"
+                COMMAND="ame security secure-boot"
                 report updates "key-${cert##*/}" check "Signing keys" "Not enrolled: ${cert##*/}" \
                     "What it signs, such as evdi for DisplayLink docks, will not load." \
                     "Enroll it with:" ;;
@@ -302,7 +331,7 @@ if [[ -f /etc/audit/rules.d/99-amethystora-finalize.rules ]]; then
 fi
 if [[ "$(systemctl is-active fail2ban.service 2>/dev/null)" == "active" ]]; then
     report watching fail2ban ok "Failed logins" \
-        "Repeated failed logins get the address blocked (ujust blocked-addresses)"
+        "Repeated failed logins get the address blocked (ame security addresses)"
 else
     COMMAND="sudo systemctl start fail2ban.service"
     report watching fail2ban check "Failed logins" "fail2ban is not running" "Start it with:"
@@ -345,7 +374,7 @@ if [[ "${NETWORK}" != off ]]; then
             "The network protection rules are $(days_since "${RULES_TIME}") days old" \
             "They download every day, and newer attacks are not recognised until they do. Check this machine's network, or try now with:"
     elif [[ "${BLOCKED}" =~ ^[1-9][0-9]*$ ]]; then
-        COMMAND="ujust blocked-connections"
+        COMMAND="ame security connections"
         report watching network ok "Network protection" "${NETWORK_TEXT}" \
             "It blocked $(plural "${BLOCKED}" connection connections) in the last 7 days. See them with:"
     else
@@ -356,7 +385,7 @@ fi
 # The security watcher (/usr/libexec/amethystora-security-watch). What it noticed and nobody has looked
 # at yet is in a root-only file, whose size shows through /var/log, as the virus scan's findings do.
 if [[ -s /var/log/amethystora-security-events.new ]]; then
-    COMMAND="ujust security-events"
+    COMMAND="ame security events"
     report watching security-watcher off "Security watcher" "The security watcher noticed something" \
         "A change to accounts, to what starts by itself or to a security setting, or a program reading the keyboard directly. See it with:"
 elif [[ "$(systemctl is-enabled amethystora-security-watch.timer 2>/dev/null)" != "enabled" ]]; then
@@ -535,7 +564,7 @@ case "${ON_DETECTION}" in
     *) DETECTED="Files it finds are left where they are." ;;
 esac
 if [[ -s /var/log/amethystora-clamav-findings.log ]]; then
-    COMMAND="ujust virus-scan"
+    COMMAND="ame security scan"
     report scans virus-scan off "Weekly virus scan" "The last virus scan found something" \
         "${DETECTED} See what it found with:"
 else
@@ -550,7 +579,7 @@ if [[ "$(systemctl is-enabled amethystora-clamav-scan.timer 2>/dev/null)" != "en
 else
     RAN="$(last_run_time amethystora-clamav-scan)"
     if [[ -n "${RAN}" && "$(days_since "${RAN}")" -gt 8 ]]; then
-        COMMAND="ujust virus-scan now"
+        COMMAND="ame security scan now"
         report scans virus-scan-schedule check "Weekly virus scan" \
             "The weekly virus scan last ran $(days_since "${RAN}") days ago" \
             "It runs on Sundays, or at the next start after a Sunday the machine was off. Run it now with:"
@@ -570,11 +599,11 @@ if [[ "$(systemctl is-enabled amethystora-lynis-audit.timer 2>/dev/null)" != "en
     report scans settings-audit check "Settings audit" "The monthly settings audit is off" \
         "Turn it back on with:"
 elif [[ -n "${RAN}" && "$(days_since "${RAN}")" -gt 35 ]]; then
-    COMMAND="ujust security-audit"
+    COMMAND="ame security audit"
     report scans settings-audit check "Settings audit" \
         "The settings audit last ran $(days_since "${RAN}") days ago" "Run it now with:"
 else
-    COMMAND="ujust security-audit"
+    COMMAND="ame security audit"
     report scans settings-audit ok "Settings audit" \
         "Monthly settings audit. Last run: $(last_run amethystora-lynis-audit || echo "not yet")" \
         "Run it now with:"
@@ -589,17 +618,17 @@ if awk -F: -v user="${USER:-$(id -un)}" '$1 == user && NF > 1 { found = 1 } END 
 else
     KEY=off
 fi
-COMMAND="ujust setup-security-key"
+COMMAND="ame security key"
 report optional security-key "${KEY}" "Security key" \
     "Sign in, unlock the screen and approve sudo with a FIDO2 key instead of your password"
 
 if systemctl --user is-enabled --quiet amethystora-backup.timer 2>/dev/null; then BACKUP=on; else BACKUP=off; fi
-COMMAND="ujust setup-backup"
+COMMAND="ame backup"
 report optional backups "${BACKUP}" "Backups" \
     "A daily restic backup to a repository that ransomware on this machine cannot delete from"
 
 # Snapshots need the home folders on a btrfs subvolume of their own, whose root is always inode 256
-COMMAND="ujust setup-ransomware-protection"
+COMMAND="ame security ransomware"
 RANSOMWARE_TEXT="Hourly read-only snapshots of the home folders, which ransomware running as you cannot change or delete"
 if [[ "${SNAPSHOT_TIMER}" == true ]]; then
     report optional ransomware-protection on "Ransomware protection" "${RANSOMWARE_TEXT}"
@@ -612,7 +641,7 @@ fi
 
 # Whether the TPM holds a key takes root to read off the disk. The kernel argument setup-disk-unlock
 # adds with it does not, and without that argument the key is never used anyway.
-COMMAND="ujust setup-disk-unlock"
+COMMAND="ame security disk-unlock"
 DISK_UNLOCK_TEXT="The TPM hands over the disk key at boot, so you stop typing the passphrase"
 if grep -q "tpm2-device=auto" /proc/cmdline 2>/dev/null; then
     report optional disk-unlock on "Unlock the disk with the TPM" "${DISK_UNLOCK_TEXT}"
@@ -631,16 +660,16 @@ else
 fi
 
 if systemctl is-enabled --quiet usbguard.service 2>/dev/null; then USB=on; else USB=off; fi
-COMMAND="ujust setup-usb-protection"
+COMMAND="ame security usb"
 report optional usb-protection "${USB}" "USB protection" \
     "Allows what is plugged in now, and blocks any new USB device until you allow it"
 
-COMMAND="ujust setup-browser-protection"
+COMMAND="ame security browser"
 report optional browser-protection "$(/usr/libexec/amethystora-browser-policy status)" "Browser protection" \
     "Browsers install only the extensions on a list, and web pages cannot reach USB, serial, HID or Bluetooth devices"
 
 if systemctl is-enabled --quiet input-remapper.service 2>/dev/null; then REMAP=on; else REMAP=off; fi
-COMMAND="ujust setup-input-remapper"
+COMMAND="ame security input-remapper"
 report optional key-remapping "${REMAP}" "Key remapping" \
     "Input Remapper reads every key typed, so it stays off until you need it"
 
@@ -650,10 +679,10 @@ case "${ON_DETECTION}" in
     delete) DETECTION=on DETECTION_TEXT="Files a virus scan finds are deleted" ;;
     *) DETECTION=off DETECTION_TEXT="Move what a virus scan finds to quarantine, or delete it, instead of only saying so" ;;
 esac
-COMMAND="ujust security-settings on-detection"
+COMMAND="ame security settings on-detection"
 report optional on-detection "${DETECTION}" "Act on what scans find" "${DETECTION_TEXT}"
 
-COMMAND="ujust security-settings realtime"
+COMMAND="ame security settings realtime"
 report optional realtime "${REALTIME}" "Real-time watching" \
     "Read each change as it happens and scan every file as it is written, instead of every 15 minutes and every week"
 
@@ -663,7 +692,7 @@ case "${NETWORK}" in
     watch) NETWORK_STATE=on NETWORK_TILE="Suricata inspects every connection and says what it recognises, without blocking yet" ;;
     *) NETWORK_STATE=off NETWORK_TILE="Inspect every connection with Suricata, and block the ones to known malware, command servers and exploits" ;;
 esac
-COMMAND="ujust security-settings network"
+COMMAND="ame security settings network"
 report optional network-protection "${NETWORK_STATE}" "Network protection" "${NETWORK_TILE}"
 
 if [[ "${JSON}" == true ]]; then

@@ -1,0 +1,15 @@
+{
+    "name": "paru",
+    "need_sudo": false,
+    "noconfirm": "--noconfirm",
+    "install": "paru -S --needed",
+    "remove": "paru -R",
+    "purge": "paru -Rns",
+    "search": "paru -Ss",
+    "show": "paru -Si",
+    "list": "paru -Q",
+    "update": "paru -Sy",
+    "upgrade": "paru -Su",
+    "autoremove": "paru -c",
+    "clean": "paru -Sc"
+}

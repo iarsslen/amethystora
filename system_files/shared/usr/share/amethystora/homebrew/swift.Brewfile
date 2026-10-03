@@ -1,5 +1,5 @@
 # Swift Development Environment
-# Install with: ujust swift
+# Install with: ame apps bbrew, choosing swift
 
 # Swift toolchain management (official Swift installer)
 brew "swiftly"

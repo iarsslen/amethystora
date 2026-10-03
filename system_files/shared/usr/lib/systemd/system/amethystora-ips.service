@@ -7,7 +7,7 @@ OnFailure=amethystora-scan-alert@%n.service
 
 [Service]
 # Only with NETWORK=watch or block in /etc/amethystora/security.conf. Otherwise the unit is skipped, not
-# failed, and nothing is inspected. `ujust security-settings network` starts or stops it as that changes.
+# failed, and nothing is inspected. `ame security settings network` starts or stops it as that changes.
 ExecCondition=/usr/libexec/amethystora-ips enabled
 # The table that queues this machine's traffic to Suricata, and lets it through while nothing reads the
 # queue (/usr/share/amethystora/ips/amethystora-ips.nft)

@@ -1,0 +1,15 @@
+{
+    "name": "apt",
+    "need_sudo": true,
+    "noconfirm": "-y",
+    "install": "apt-get install",
+    "remove": "apt-get remove",
+    "purge": "apt-get purge",
+    "search": "apt-cache search",
+    "show": "apt-cache show",
+    "list": "apt list --installed",
+    "update": "apt-get update",
+    "upgrade": "apt-get dist-upgrade",
+    "autoremove": "apt-get autoremove",
+    "clean": "apt-get clean"
+}

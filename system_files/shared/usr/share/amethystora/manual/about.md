@@ -10,7 +10,7 @@ Amethystora is based on [Bluefin](https://github.com/ublue-os/bluefin), a projec
 ## This manual
 
 The pages are Markdown files in `/usr/share/amethystora/manual`, one per page, and the hotkeys page
-is `/usr/share/amethystora/keybindings.md`, the same file `ujust keybindings` shows. They come with
+is `/usr/share/amethystora/keybindings.md`, the same file `ame desktop keybindings` shows. They come with
 the image, so the manual always describes the system you are running, and it works without a network
 connection.
 

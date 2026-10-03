@@ -9,7 +9,7 @@
 #   - Only things that are true right now and can be acted on are said here.
 #   - Anything that needs a trip into the machine's firmware is said once, ever.
 #
-# `ujust security-status` is the place where all of it is visible at any time, with nothing to dismiss.
+# `ame security status` is the place where all of it is visible at any time, with nothing to dismiss.
 #
 # Reads only what a normal user can read: /var/log is traversable, so the size of a root-owned 0600 file
 # is visible even though its contents are not, and /var/lib/clamav is world-readable.
@@ -42,7 +42,7 @@ SIGNATURE_STATUS=$?
 if [[ -s /var/log/amethystora-clamav-findings.log ]]; then
     # Critical notifications stay on screen in GNOME until they are dismissed
     say critical "The last virus scan found something" \
-        "See it, and what was done about it, with: ujust virus-scan"
+        "See it, and what was done about it, with: ame security scan"
 elif [[ "${SIGNATURE_STATUS}" -eq 2 ]]; then
     say normal "Virus signatures are ${SIGNATURE_AGE} days old" \
         "This machine is being scanned with signatures that old. Check its network connection."
@@ -51,7 +51,7 @@ fi
 # What the security watcher noticed and nobody has read yet, for the same reason and in the same way
 if [[ -s /var/log/amethystora-security-events.new ]]; then
     say normal "The security watcher noticed something" \
-        "A change to accounts, to what starts by itself or to a security setting. See it with: ujust security-events"
+        "A change to accounts, to what starts by itself or to a security setting. See it with: ame security events"
 fi
 
 # Secure Boot, said once and never again. Everything the kernel does to protect itself from a
@@ -62,11 +62,11 @@ fi
 #
 # Only ever said when Secure Boot is there and switched off. A machine with no EFI at all, or one where
 # mokutil cannot read the firmware variables, says nothing: a notification that might be wrong is worse
-# than none, and `ujust security-status` reports the real state whenever it is asked.
+# than none, and `ame security status` reports the real state whenever it is asked.
 STAMP="${STATE}/secure-boot-notified"
 if [[ ! -e "${STAMP}" ]] && command -v mokutil >/dev/null &&
     mokutil --sb-state 2>/dev/null | grep -qi "disabled"; then
     mkdir -p "${STATE}" && : >"${STAMP}"
     say normal "Secure Boot is off on this machine" \
-        "Without it, the kernel's own protections can be bypassed by booting another kernel. Turning it on: ujust security-status"
+        "Without it, the kernel's own protections can be bypassed by booting another kernel. Turning it on: ame security status"
 fi

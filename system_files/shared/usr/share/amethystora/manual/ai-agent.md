@@ -37,8 +37,8 @@ amethystora-agent diagnose 4242                  # a process ID
 | `amethystora-agent ask "<question>"` | Open it with a first question |
 | `amethystora-agent diagnose [...]` | Find out why something broke, changing nothing |
 | `amethystora-agent use claude` or `use opencode` | Choose the agent |
-| `amethystora-agent install` | Install the chosen agent ahead of time; also `ujust install-agent` |
-| `ujust toggle-agentic` | Turn the agent features off, or on again |
+| `amethystora-agent install` | Install the chosen agent ahead of time; also `ame agent install` |
+| `ame agent toggle` | Turn the agent features off, or on again |
 
 ## Installing and updating
 
@@ -51,5 +51,5 @@ copy also works inside any toolbox or distrobox.
 ## Privacy and turning it off
 
 Neither agent does anything until you sign in to it, and what you send it goes to the provider you
-signed in to. `ujust toggle-agentic` removes the menu entries, disables the hotkey and unlinks the
+signed in to. `ame agent toggle` removes the menu entries, disables the hotkey and unlinks the
 skill; an agent you installed stays installed either way.

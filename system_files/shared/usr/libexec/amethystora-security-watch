@@ -9,16 +9,18 @@
 #   - The journal: accounts locked by faillock, wrong sudo and administrator passwords, and USB devices
 #     USBGuard blocked. A few of those are someone typing badly; more is someone guessing.
 #   - Network protection's alerts (amethystora-ips.service): each connection Suricata blocked, and what
-#     it recognised without blocking. Kept for `ujust blocked-connections` and the Security app.
+#     it recognised without blocking. Kept for `ame security connections` and the Security app.
 #   - What only root can see, written to status.json for the report: /etc compared with the image's own
 #     copy of it in /usr/etc, setuid programs outside /usr (once a day), and which programs accept
 #     connections from other machines.
+#   - What each account's session finds first: a command in ~/.local/bin, ~/bin or Homebrew's prefix
+#     named like one of the system's, and a launcher in the app grid that no container export made.
 #   - The report. Its checks live in /usr/libexec/amethystora-security-status and nowhere else. This runs
 #     it and speaks up when a check it watches goes from fine to not, or changes while it is not fine,
 #     the way Wazuh's configuration checks report a result only when it changes.
 #
 # The first run only records where things stand. After it, anything new is written to the history and,
-# unless it is routine, to the unread list `ujust security-events` shows, with one notification a run.
+# unless it is routine, to the unread list `ame security events` shows, with one notification a run.
 #
 #   amethystora-security-watch           one run (amethystora-security-watch.service)
 #   amethystora-security-watch --show    what is unread, then the end of the history
@@ -76,7 +78,7 @@ add() { FINDINGS+=("$1"$'\t'"$2"); }
 
 # --- The audit log ------------------------------------------------------------------------------------
 
-AUDIT_KEYS=(identity privilege persistence hardening modules input-capture)
+AUDIT_KEYS=(identity privilege persistence hardening modules input-capture user-programs)
 declare -A AUDIT_WHAT=(
     [identity]="Accounts changed"
     [privilege]="Who may become root changed"
@@ -84,6 +86,7 @@ declare -A AUDIT_WHAT=(
     [hardening]="A security setting changed"
     [modules]="A kernel module was loaded or removed"
     [input-capture]="A program read the keyboard or another input device directly"
+    [user-programs]="A command or launcher in a home folder changed"
 )
 # Changing accounts is these programs' job: a new password is not news
 ACCOUNT_TOOLS=" /usr/bin/passwd /usr/sbin/useradd /usr/sbin/usermod /usr/sbin/userdel /usr/sbin/groupadd \
@@ -131,6 +134,9 @@ read_audit() {
             case "${key}" in
                 identity) [[ -n "${exe}" && "${ACCOUNT_TOOLS}" == *" ${exe} "* ]] && level=quiet || level=normal ;;
                 privilege | modules) level=critical ;;
+                # Installing anything with pip or a container export writes here. What matters among it,
+                # a name the system's own commands have, read_user_paths below says out loud.
+                user-programs) level=quiet ;;
                 input-capture)
                     level=quiet
                     if [[ -n "${exe}" ]] && ! grep -qxF -- "${exe}" "${INPUT_SEEN}" 2>/dev/null; then
@@ -183,7 +189,7 @@ read_journal() {
         add "${level}" "${wrong[${user}]} wrong password(s) for sudo, as ${user}"
     done
     [[ "${polkit}" -ge 3 ]] && add normal "${polkit} administrator password prompts were answered wrongly"
-    [[ "${usb}" -gt 0 ]] && add normal "USB protection blocked ${usb} USB device(s). Allow one with: ujust setup-usb-protection allow"
+    [[ "${usb}" -gt 0 ]] && add normal "USB protection blocked ${usb} USB device(s). Allow one with: ame security usb allow"
 }
 
 # --- /etc against the image ---------------------------------------------------------------------------
@@ -305,11 +311,70 @@ read_listeners() {
     done <<<"${LISTENERS}"
 }
 
+# --- What a session finds first -----------------------------------------------------------------------
+
+# A shell looks in ~/.local/bin and ~/bin before /usr/bin, so a program called sudo there runs in place
+# of the real one, and asks for the password the real one would: the oldest way to catch it. A command
+# with a system command's name is said when it appears and whenever it changes, out loud when the name
+# is one that asks for a password or a key. Homebrew's prefix comes before /usr/bin too, and whoever set
+# Homebrew up can write to it, but there a name like the system's is mostly what was installed on
+# purpose (git, curl, Python), so only those that ask for a password or a key are said.
+#
+# A launcher in the app grid's folder of an account is said once when no container export made it:
+# distrobox writes those, as amethystora-pkg asks it to, and the image's own web apps are there too.
+PASSWORD_COMMANDS=" sudo su pkexec run0 doas passwd login ssh scp sftp ssh-add ssh-agent ssh-keygen gpg gpg2 \
+gpg-agent pinentry secret-tool "
+
+read_user_paths() {
+    local seen="${STATE}/user-paths-seen" first=false user uid home dir file name level key line where
+    # The first run of this check only records where things stand, on a machine with years of them
+    [[ -e "${seen}" ]] || first=true
+    touch "${seen}"
+    remember() {
+        grep -qxF -- "$1" "${seen}" && return 1
+        echo "$1" >>"${seen}"
+        [[ "${first}" != true ]]
+    }
+    while IFS=: read -r user _ uid _ _ home _; do
+        [[ "${uid}" -ge 1000 && "${uid}" -lt 65534 ]] || continue
+        home="$(realpath -q "${home}" || true)"
+        [[ -n "${home}" && -d "${home}" ]] || continue
+        for dir in "${home}/.local/bin" "${home}/bin"; do
+            for file in "${dir}"/*; do
+                [[ -f "${file}" && -x "${file}" ]] || continue
+                name="${file##*/}"
+                [[ -e "/usr/bin/${name}" || -e "/usr/sbin/${name}" ]] || continue
+                remember "${file} $(sha256sum "${file}" | cut -c1-16)" || continue
+                [[ "${PASSWORD_COMMANDS}" == *" ${name} "* ]] && level=critical || level=normal
+                where=""
+                grep -qx '# distrobox_binary' "${file}" 2>/dev/null && where=", exported from a container"
+                add "${level}" "~${user}${file#"${home}"} is run in place of the system's ${name} by ${user}${where}"
+            done
+        done
+        for file in "${home}/.local/share/applications"/*.desktop; do
+            [[ -f "${file}" ]] || continue
+            line="$(grep -m1 '^Exec=' "${file}" 2>/dev/null)"
+            [[ "${line}" =~ ^Exec=(/usr/bin/)?(distrobox-enter|distrobox\ enter)\  ||
+                "${line}" == "Exec=amethystora-webapp "* ]] && continue
+            remember "${file} $(sha256sum <<<"${line}" | cut -c1-16)" || continue
+            add normal "A launcher no container export made is in ${user}'s app grid: ~${user}${file#"${home}"}, which runs ${line#Exec=}"
+        done
+    done </etc/passwd
+    for dir in /home/linuxbrew/.linuxbrew/bin /home/linuxbrew/.linuxbrew/sbin; do
+        for file in "${dir}"/*; do
+            name="${file##*/}"
+            [[ "${PASSWORD_COMMANDS}" == *" ${name} "* && -x "${file}" ]] || continue
+            remember "${file} $(sha256sum "${file}" | cut -c1-16)" || continue
+            add critical "${file} is run in place of the system's ${name} by everyone whose shell loads Homebrew"
+        done
+    done
+}
+
 # --- Network protection -------------------------------------------------------------------------------
 
 # Suricata writes its alerts to eve.json and nowhere else (amethystora-ips.service): what it blocked, and
 # what it recognised on a rule that only alerts. Each run reads what is new since the last. The newest
-# are kept in network.json, one entry for each rule and pair of addresses, for `ujust blocked-connections`
+# are kept in network.json, one entry for each rule and pair of addresses, for `ame security connections`
 # and the Security app. They name the sites this machine talked to, so wheel can read them, as it can the
 # journal, and nobody else. A log rotated between two runs loses what the first did not read of it,
 # which real-time watching, following eve.json while network protection is on, keeps to seconds.
@@ -367,7 +432,7 @@ read_network() {
             + (if ($peers | length) > 1 then " and \(($peers | length) - 1) more" else "" end)
             + (if $times > 1 then ", \($times) times" else "" end) + ")"
             + (if $a.action == "blocked"
-               then ". If that was yours and wanted, allow it again with: ujust blocked-connections allow \($a.sid)"
+               then ". If that was yours and wanted, allow it again with: ame security connections allow \($a.sid)"
                else ", and let it through" end))]
         | @tsv' "${chunk}.alerts")
 
@@ -440,6 +505,7 @@ if [[ ! "${SWEPT}" =~ ^[0-9]+$ || $((NOW - SWEPT)) -ge ${SWEEP_EVERY} ]]; then
 fi
 LISTENERS="$(listeners)"
 read_listeners
+read_user_paths
 
 # What the report reads, world-readable: it names files and ports, not what is in them, and of network
 # protection only how much it blocked
@@ -480,9 +546,9 @@ printf '%s\n' "${FINDINGS[@]}"
 [[ ${#TOLD[@]} -gt 0 ]] || exit 0
 if [[ ${#TOLD[@]} -eq 1 ]]; then
     SUMMARY="${TOLD[0]}"
-    BODY="See it with: ujust security-events"
+    BODY="See it with: ame security events"
 else
     SUMMARY="${#TOLD[@]} security changes on this machine"
-    BODY="$(printf '%s\n' "${TOLD[@]:0:2}")"$'\n'"See them all with: ujust security-events"
+    BODY="$(printf '%s\n' "${TOLD[@]:0:2}")"$'\n'"See them all with: ame security events"
 fi
 /usr/libexec/amethystora-notify-users "${SUMMARY}" "${BODY}" "${URGENCY}" >/dev/null

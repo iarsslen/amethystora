@@ -1,0 +1,11 @@
+[Unit]
+Description=Upgrade the containers amethystora-pkg manages, daily
+
+[Timer]
+OnCalendar=daily
+# A laptop that was closed at the scheduled time is upgraded when it is opened again
+Persistent=true
+RandomizedDelaySec=2h
+
+[Install]
+WantedBy=timers.target

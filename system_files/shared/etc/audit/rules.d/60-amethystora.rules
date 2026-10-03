@@ -7,7 +7,7 @@
 ## needs a path that already exists when the rules are loaded.
 ##
 ## The security watcher (/usr/libexec/amethystora-security-watch) reads what they caught and says so;
-## `ujust security-events` shows it. By hand: sudo ausearch -k <key> -i
+## `ame security events` shows it. By hand: sudo ausearch -k <key> -i
 ## Keys used below: identity, privilege, persistence, hardening, modules, input-capture. A new key has to
 ## be added to the watcher and to amethystora-security-realtime as well.
 

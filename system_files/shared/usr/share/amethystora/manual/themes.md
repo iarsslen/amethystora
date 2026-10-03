@@ -16,7 +16,7 @@ tint, so its icons still stand out on a pale wallpaper.
 The same from a terminal:
 
 ```bash
-ujust theme                         # pick one from a list
+ame desktop theme                   # pick one from a list
 amethystora-theme list              # the themes, with the current one marked
 amethystora-theme set "Tokyo Night" # apply one by name
 amethystora-theme toggle            # light or dark
@@ -122,7 +122,7 @@ The boot menu can carry the Amethystora artwork too. It is off by default, becau
 lives outside the image:
 
 ```bash
-ujust setup-grub-theme
+ame desktop boot-menu
 ```
 
 Run it again to take the artwork off. Once it is on, image updates keep it up to date.

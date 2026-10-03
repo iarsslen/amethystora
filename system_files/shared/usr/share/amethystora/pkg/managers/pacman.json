@@ -1,0 +1,15 @@
+{
+    "name": "pacman",
+    "need_sudo": true,
+    "noconfirm": "--noconfirm",
+    "install": "pacman -S --needed",
+    "remove": "pacman -R",
+    "purge": "pacman -Rns",
+    "search": "pacman -Ss",
+    "show": "pacman -Si",
+    "list": "pacman -Q",
+    "update": "pacman -Sy",
+    "upgrade": "pacman -Su",
+    "autoremove": "pacman -Qdtq | xargs -r -o pacman -Rns",
+    "clean": "pacman -Sc"
+}

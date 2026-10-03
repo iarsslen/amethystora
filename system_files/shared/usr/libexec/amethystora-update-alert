@@ -1,0 +1,36 @@
+#!/usr/bin/bash
+# Runs as the user when a graphical session starts (amethystora-update-alert.service).
+#
+# Says so when the machine started an older version than the one it starts by default, which is what
+# picking the second entry in the boot menu does, and opens System Updates when the notification is
+# clicked: the window offers to keep that version or to restart into the newest. An update staged for
+# the next restart is not this: rpm-ostree marks that one staged.
+#
+# Said once a boot: the mark is kept in the runtime directory, which a restart empties.
+
+set -uo pipefail
+
+command -v notify-send >/dev/null || exit 0
+
+STAMP="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/amethystora-previous-version"
+[[ -e "${STAMP}" ]] && exit 0
+
+STATUS="$(rpm-ostree status --json 2>/dev/null)" || exit 0
+jq -e '(.deployments | map(.booted) | index(true)) as $b | $b != null and $b > 0
+    and (.deployments[0].staged | not)
+    and ((.deployments[0].timestamp // 0) > (.deployments[$b].timestamp // 0))' <<<"${STATUS}" >/dev/null || exit 0
+: >"${STAMP}"
+
+# GNOME Shell takes the notification name on the bus a little after the session starts
+command -v gdbus >/dev/null &&
+    gdbus wait --session --timeout 60 org.freedesktop.Notifications >/dev/null 2>&1
+
+VERSION="$(jq -r '[.deployments[] | select(.booted)][0].version // ""' <<<"${STATUS}")"
+# "default" is what clicking the notification itself does; --wait keeps this here to hear it
+ACTION="$(notify-send --app-name=Amethystora --icon=amethystora-update --urgency=normal --wait \
+    --action=default="Open System Updates" --action=open="Open System Updates" \
+    "You're on the previous version" \
+    "This machine started Amethystora ${VERSION}, not the newest. System Updates can keep this version, or restart into the latest.")"
+case "${ACTION}" in
+    default | open) exec /usr/bin/amethystora-update ;;
+esac

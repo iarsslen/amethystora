@@ -1052,6 +1052,21 @@ button.list-row:hover {
     flex: none;
 }
 
+/* A container on the Containers page: its name, then a line for each kind of thing installed in it */
+.list-row.container-row {
+    align-items: flex-start;
+}
+
+.list-row.container-row .grow {
+    flex: 1;
+    min-width: 0;
+}
+
+.list-row .container-line {
+    color: var(--fg);
+    opacity: 0.86;
+}
+
 .list-empty {
     padding: 16px 18px;
     color: var(--soft);

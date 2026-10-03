@@ -1,0 +1,234 @@
+#!/usr/bin/bash
+# `ame restore-setup [snapshot]`: this account's setup made again on a new machine, from the
+# manifest amethystora-backup stores beside every backup (amethystora-setup-manifest). It says every
+# step first, and each is one you can leave out:
+#
+#   1. the system image and stream, switched to through `ame system rebase`, which takes signed
+#      images only, and taking over at the next restart
+#   2. the Flatpak apps of the machine and of the user, and any remote they came from that this
+#      machine does not have, checked with the key it was checked with before
+#   3. the Homebrew packages, with `brew bundle`
+#   4. the containers amethystora-pkg managed, from the same templates, with the packages that were
+#      installed in them by name
+#   5. the GNOME extensions that were on, of those this machine has
+#   6. the theme
+#
+# Files themselves come back with restic: `ame backup` tells how. Nothing here deletes
+# anything, and what is already here is left as it is.
+
+set -uo pipefail
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora"
+ENV_FILE="${CONFIG_DIR}/backup.env"
+SNAPSHOT="${1:-}"
+
+die() {
+    printf '%s\n' "$*" >&2
+    exit 1
+}
+
+if [[ ! -r "${ENV_FILE}" ]]; then
+    echo "No backup is set up for this account. Point it at the repository the old machine backed up"
+    echo "to, with the same password, and run this again:"
+    echo "  ame backup"
+    exit 1
+fi
+# shellcheck source=/dev/null
+set -a && source "${ENV_FILE}" && set +a
+
+SETUPS="$(restic snapshots --json --tag amethystora-setup 2>/dev/null)" ||
+    die "The repository could not be read: $(restic snapshots --tag amethystora-setup 2>&1 | tail -n1)"
+[[ "$(jq length <<<"${SETUPS}")" -gt 0 ]] ||
+    die "There is no setup in this repository yet: the old machine's backups started storing it with this version."
+
+# A setup snapshot by its ID, or the one stored with a snapshot of the files: the first setup from the
+# same machine after it. Without one, the newest, or on a terminal the choice of the newest few.
+if [[ -n "${SNAPSHOT}" ]]; then
+    ID="$(jq -r --arg s "${SNAPSHOT}" '[.[] | select(.id | startswith($s))][0].id // empty' <<<"${SETUPS}")"
+    if [[ -z "${ID}" ]]; then
+        FILES="$(restic snapshots --json "${SNAPSHOT}" 2>/dev/null)" || die "There is no snapshot ${SNAPSHOT}."
+        ID="$(jq -r --argjson f "${FILES}" '($f[0].time[:19] + "Z" | fromdateiso8601) as $t | $f[0].hostname as $h
+            | [.[] | select(.hostname == $h and ((.time[:19] + "Z" | fromdateiso8601) >= $t))]
+            | sort_by(.time) | .[0].id // empty' <<<"${SETUPS}")"
+        [[ -n "${ID}" ]] || die "No setup was stored with the snapshot ${SNAPSHOT}."
+    fi
+elif [[ -t 0 && "$(jq length <<<"${SETUPS}")" -gt 1 ]]; then
+    CHOICE="$(jq -r 'sort_by(.time) | reverse | .[:12][] | "\(.short_id)  \(.time[:16] | sub("T"; " "))  \(.hostname)"' \
+        <<<"${SETUPS}" | gum choose --header "Which setup? The newest is first.")" || exit 0
+    ID="$(jq -r --arg s "${CHOICE%% *}" '[.[] | select(.short_id == $s)][0].id' <<<"${SETUPS}")"
+else
+    ID="$(jq -r 'sort_by(.time) | .[-1].id' <<<"${SETUPS}")"
+fi
+MANIFEST="$(restic dump "${ID}" /amethystora-setup.json 2>/dev/null)" && jq -e '.version == 1' <<<"${MANIFEST}" >/dev/null ||
+    die "The setup in snapshot ${ID:0:8} could not be read."
+
+m() { jq -r "$@" <<<"${MANIFEST}"; }
+
+# --- What it would do ---------------------------------------------------------------------------------
+
+CURRENT_IMAGE="$(jq -r '."image-name" + ":" + ."image-tag"' /usr/share/amethystora/image-info.json 2>/dev/null)"
+OLD_IMAGE="$(m '.image.name + ":" + .image.stream')"
+INSTALLED="$( { flatpak list --system --app --columns=application; flatpak list --user --app --columns=application; } 2>/dev/null)"
+MISSING_APPS="$(m '[.flatpaks.system[], .flatpaks.user[]] | .[].app' | grep -vxF -f <(printf '%s\n' "${INSTALLED}") | grep -c .)"
+HERE="$(amethystora-pkg containers list --json 2>/dev/null | jq -r '.[].name')"
+
+echo
+echo "The setup of $(m '.user') on $(m '.host'), $(date -d "@$(m '.created')" '+%-d %B %Y, %H:%M'):"
+echo
+STEPS=()
+if [[ "${OLD_IMAGE}" != "${CURRENT_IMAGE}" && "${OLD_IMAGE}" != ":" ]]; then
+    STEPS+=("The system: ${OLD_IMAGE}, in place of ${CURRENT_IMAGE}")
+fi
+[[ "${MISSING_APPS}" -gt 0 ]] && STEPS+=("Apps: ${MISSING_APPS} from Flathub and the other remotes it used")
+if [[ -n "$(m '.brewfile')" && -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+    STEPS+=("Homebrew: $(m '.brewfile' | grep -cE '^(brew|cask|tap) ') formulae, casks and taps")
+fi
+CONTAINERS="$(m '.containers[].name' | grep -vxF -f <(printf '%s\n' "${HERE}"))"
+[[ -n "${CONTAINERS}" ]] && STEPS+=("Containers: $(paste -sd ' ' <<<"${CONTAINERS}")")
+[[ "$(m '.extensions | length')" -gt 0 ]] && STEPS+=("GNOME extensions: the $(m '.extensions | length') that were on")
+[[ -n "$(m '.theme')" ]] && STEPS+=("The theme: $(m '.theme')")
+if [[ ${#STEPS[@]} -eq 0 ]]; then
+    echo "Everything in it is here already."
+    exit 0
+fi
+printf '  %s\n' "${STEPS[@]}"
+echo
+echo "Nothing is deleted, and what is here already is left as it is."
+CHOSEN="$(printf '%s\n' "${STEPS[@]}" | gum choose --no-limit --selected="*" --header "Which of these? (space picks, enter goes)")" || exit 0
+[[ -n "${CHOSEN}" ]] || exit 0
+chosen() { grep -q "^$1" <<<"${CHOSEN}"; }
+
+FAILED=()
+
+# --- 1. The system --------------------------------------------------------------------------------------
+
+if chosen "The system"; then
+    echo
+    echo "The new system takes over at the next restart; the rest carries on now."
+    ame system rebase "$(m '.image.name')" "$(m '.image.stream')" || FAILED+=("the system")
+fi
+
+# --- 2. Apps --------------------------------------------------------------------------------------------
+
+if chosen "Apps"; then
+    echo
+    for installation in system user; do
+        while IFS=$'\t' read -r name url key; do
+            [[ -n "${name}" ]] || continue
+            flatpak remotes "--${installation}" --columns=name 2>/dev/null | grep -qxF "${name}" && continue
+            if [[ -z "${key}" || "${key}" == null ]]; then
+                echo "The ${installation} remote ${name} (${url}) had no key to check it with, so it is not added."
+                continue
+            fi
+            keyfile="$(mktemp)"
+            base64 -d <<<"${key}" >"${keyfile}"
+            flatpak remote-add "--${installation}" --if-not-exists --gpg-import="${keyfile}" "${name}" "${url}" ||
+                FAILED+=("the remote ${name}")
+            rm -f "${keyfile}"
+        done < <(m --arg i "${installation}" '.remotes[$i][]? | [.name, .url, (.gpg_key // "null")] | @tsv')
+        while IFS=$'\t' read -r origin apps; do
+            [[ -n "${origin}" ]] || continue
+            # shellcheck disable=SC2086
+            flatpak install "--${installation}" --noninteractive "${origin}" ${apps} || FAILED+=("apps from ${origin}")
+        done < <(m --arg i "${installation}" --arg have "${INSTALLED}" '($have | split("\n")) as $have
+            | [.flatpaks[$i][] | select(.app | IN($have[]) | not)] | group_by(.origin)[]
+            | [.[0].origin, (map(.app) | join(" "))] | @tsv')
+    done
+fi
+
+# --- 3. Homebrew ----------------------------------------------------------------------------------------
+
+if chosen "Homebrew"; then
+    echo
+    brewfile="$(mktemp --suffix=.Brewfile)"
+    m '.brewfile' >"${brewfile}"
+    /home/linuxbrew/.linuxbrew/bin/brew bundle install --file="${brewfile}" || FAILED+=("Homebrew")
+    rm -f "${brewfile}"
+fi
+
+# --- 4. Containers --------------------------------------------------------------------------------------
+
+if chosen "Containers"; then
+    echo
+    # Templates and managers of the old account's own come first, since its containers were made from them
+    for kind in managers templates; do
+        while IFS= read -r definition; do
+            [[ -n "${definition}" ]] || continue
+            name="$(jq -r .name <<<"${definition}")"
+            amethystora-pkg "${kind}" show "${name}" >/dev/null 2>&1 && continue
+            file="$(mktemp --suffix=.json)"
+            printf '%s\n' "${definition}" >"${file}"
+            amethystora-pkg "${kind}" import "${file}" || FAILED+=("the ${kind%s} ${name}")
+            rm -f "${file}"
+        done < <(m -c ".${kind}[]?")
+    done
+    AUR_ON=false
+    [[ -e "${CONFIG_DIR}/aur" ]] && AUR_ON=true
+    OLD_HOME="$(m '.home')"
+    while IFS= read -r container; do
+        name="$(jq -r .name <<<"${container}")"
+        grep -qxF "${name}" <<<"${CONTAINERS}" || continue
+        template="$(jq -r .template <<<"${container}")"
+        if [[ "$(jq -r .manager <<<"${container}")" == paru && "${AUR_ON}" != true ]]; then
+            echo "${name} was built from the AUR, which is off here. Turn it on with ame apps aur, then run this again."
+            continue
+        fi
+        echo "Making ${name} from the template ${template}."
+        args=(containers new --template "${template}" --name "${name}" --no-prompt --yes)
+        [[ "$(jq -r .init <<<"${container}")" == true ]] && args+=(--init)
+        # A home folder of its own that was not the one the template gives anyway, moved to this home
+        home="$(jq -r '.home // empty' <<<"${container}")"
+        if [[ -n "${home}" && "${home}" != */amethystora/pkg/homes/"${name}" ]]; then
+            args+=(--home "${home/#"${OLD_HOME}"/${HOME}}")
+        fi
+        amethystora-pkg "${args[@]}" || { FAILED+=("the container ${name}"); continue; }
+        mapfile -t packages < <(jq -r '(.packages - .aur_packages)[]' <<<"${container}")
+        if [[ ${#packages[@]} -gt 0 ]]; then
+            amethystora-pkg "${name}" install --yes "${packages[@]}" || FAILED+=("packages in ${name}")
+        fi
+        # Each package from the AUR is built only after its PKGBUILD has been read, here as anywhere
+        mapfile -t packages < <(jq -r '(.packages - (.packages - .aur_packages))[]' <<<"${container}")
+        if [[ ${#packages[@]} -gt 0 ]]; then
+            amethystora-pkg "${name}" install "${packages[@]}" || FAILED+=("packages from the AUR in ${name}")
+        fi
+        files="$(jq -r '.files[]? | "\(.name) (\(.file))"' <<<"${container}")"
+        [[ -n "${files}" ]] && printf 'Installed from a file, which is not in the backup, in %s: %s\n' "${name}" "$(paste -sd ',' <<<"${files}")"
+    done < <(m -c '.containers[]')
+fi
+
+# --- 5. GNOME extensions --------------------------------------------------------------------------------
+
+if chosen "GNOME extensions"; then
+    echo
+    MISSING=()
+    while IFS= read -r uuid; do
+        if gnome-extensions info "${uuid}" >/dev/null 2>&1; then
+            gnome-extensions enable "${uuid}" || FAILED+=("the extension ${uuid}")
+        else
+            MISSING+=("${uuid}")
+        fi
+    done < <(m '.extensions[]')
+    if [[ ${#MISSING[@]} -gt 0 ]]; then
+        echo "Not on this machine, so not turned on (Extension Manager finds them):"
+        printf '  %s\n' "${MISSING[@]}"
+    fi
+fi
+
+# --- 6. The theme ---------------------------------------------------------------------------------------
+
+if chosen "The theme"; then
+    echo
+    # The list marks the current theme with "* ", as `ame desktop theme` reads it
+    if amethystora-theme list 2>/dev/null | sed 's/^[*] /  /' | awk '{ print $1 }' | grep -qxF "$(m '.theme')"; then
+        amethystora-theme set "$(m '.theme')" || FAILED+=("the theme")
+    else
+        echo "There is no theme called $(m '.theme') here."
+    fi
+fi
+
+echo
+if [[ ${#FAILED[@]} -gt 0 ]]; then
+    echo "Done, except: $(printf '%s, ' "${FAILED[@]}" | sed 's/, $//'). Running this again picks up where it stopped."
+    exit 1
+fi
+echo "Done. Your files come back with restic: ame backup shows the snapshots."

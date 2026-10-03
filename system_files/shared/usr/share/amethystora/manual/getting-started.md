@@ -10,7 +10,7 @@ only load once their signing key is enrolled. The first boot may already have as
 did not, run:
 
 ```bash
-ujust enroll-secure-boot-key
+ame security secure-boot
 ```
 
 At the next restart a blue screen appears, the MOK manager. Choose **Enroll MOK**, then
@@ -20,7 +20,7 @@ keyboard layout. [Hardware](hardware.md#secure-boot) has the details.
 ## 2. Check that everything is on
 
 ```bash
-ujust security-status
+ame security status
 ```
 
 One screen of what the machine's security settings are actually doing, and what to do about
@@ -32,6 +32,9 @@ grid as **Security**, which scans for viruses too ([Security](security.md#scanni
 Open **Bazaar**, the software centre, and install what you use from Flathub. The browser is Firefox;
 if you would rather have Chrome or Brave, they are in Bazaar too. [Installing
 software](software.md) covers command line tools and everything else.
+
+Coming from another Amethystora machine that was backed up? `ame restore-setup` puts back its
+apps, containers, extensions and theme from the backup ([Backups](security.md#backups)).
 
 ## 4. Make it yours
 
@@ -45,10 +48,10 @@ software](software.md) covers command line tools and everything else.
 ## 5. Set up a backup
 
 ```bash
-ujust setup-backup
+ame backup
 ```
 
-A daily backup to somewhere that ransomware on this machine cannot delete from. The recipe walks you
+A daily backup to somewhere that ransomware on this machine cannot delete from. The command walks you
 through choosing where. [Security](security.md#backups).
 
 ## 6. Learn the keys

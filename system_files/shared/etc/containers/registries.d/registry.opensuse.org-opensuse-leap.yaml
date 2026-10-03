@@ -1,0 +1,4 @@
+# openSUSE Leap's images carry openSUSE's cosign signatures as sigstore attachments in the registry
+docker:
+  registry.opensuse.org/opensuse/leap:
+    use-sigstore-attachments: true

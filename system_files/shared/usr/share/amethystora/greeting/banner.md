@@ -2,9 +2,9 @@
 
 | Command | Description |
 | ------- | ----------- |
-| `ujust --choose` | Show available commands |
-| `ujust toggle-user-motd` | Toggle this banner on/off |
-| `ujust amethystora-cli` | Enable terminal bling |
+| `ame` | Show available commands |
+| `ame desktop greeting` | Toggle this banner on/off |
+| `ame apps cli` | Enable terminal bling |
 | `brew help` | Manage command line packages |
 
 %TIP%

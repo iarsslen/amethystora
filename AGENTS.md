@@ -23,7 +23,7 @@ This document provides essential information for coding agents working with the 
 
 ### Key Directories
 - `system_files/` - Files copied into the image, overlaid on those of the upstream layers
-  - `shared/` - Every image: configurations, fonts, themes, the manual, `ujust` recipes
+  - `shared/` - Every image: configurations, fonts, themes, the manual, the `ame` commands
   - `dx/` - `amethystora-dx` only, copied in by `build_files/shared/build-dx.sh`
 - `build_files/` - Build scripts organized as base/, dx/, shared/
   - `base/` - Base image build scripts (00-image-info.sh through 20-tests.sh)
@@ -37,7 +37,7 @@ The desktop layer Amethystora took from Bluefin's `projectbluefin/common` (the `
 the Homebrew Brewfiles, the setup services and hooks, the GNOME defaults, udev rules) is kept in
 `system_files/shared`, already renamed; Bluefin is not a build input. Only `ublue-os/brew`, for
 Homebrew's own setup, is still copied in by the `ctx` stage of the `Containerfile`. Where to edit:
-- `system_files/shared/usr/share/amethystora/just/` - the `ujust` recipes; `60-custom.just` holds the ones written for Amethystora
+- `system_files/shared/usr/share/amethystora/just/` - the commands `/usr/bin/ame` runs, as just recipes in groups (`ame security scan now`). `00-entry.just` declares each group with `mod` (`agent`, `apps`, `desktop`, `security`, `system`, each in the file of its name), imports the top-level commands (`backup.just`, `changelog.just`, `update.just`), and runs `amethystora-pkg` as `ame pkg`. `ujust` is the same command, and the flat names the recipes had under it are private aliases there: when a command is renamed or moved, alias its old name. `20-tests.sh` fails on an `ame` command that the image names and that does not exist, so in prose write `ame` in backticks or with punctuation after it
 - `system_files/shared/usr/share/amethystora/homebrew/system-flatpaks.Brewfile` - the default Flatpak list (no browser, Firefox is in the image; Amethystora Logs in place of GNOME Logs)
 - `system_files/shared/usr/share/flatpak/preinstall.d/` - Flatpaks installed on every machine
 - `system_files/shared/usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override` - the base GNOME defaults (the dash, the custom keybinding list); `build-gnome-extensions.sh` adds each extension it installs to its `enabled-extensions`, and `zz1-amethystora-modifications` overrides it
@@ -216,7 +216,7 @@ redistribution. Like every other browser, it is the user's to install from Bazaa
 
 Browser protection, the extension allowlist and the block on WebUSB, WebSerial, WebHID and Web
 Bluetooth, is opt-in for the same reason: a policy the machine's owner turns on is theirs, not the
-image's. `ujust setup-browser-protection` runs `/usr/libexec/amethystora-browser-policy`, which
+image's. `ame security browser` runs `/usr/libexec/amethystora-browser-policy`, which
 writes `usr/share/amethystora/browser-policy/chromium.json` or `firefox.json`, with the IDs in
 `/etc/amethystora/browser-extensions` added, to every place in its `TARGETS` table: Brave, Chrome,
 Chromium, Edge and Firefox, as packages and as Flatpaks. To cover another browser, add its line
@@ -228,7 +228,7 @@ allow extensions and must never install one. The Security report reads the helpe
 Every image, base and dx, ships `amethystora-agent`, the launcher behind `Super+Ctrl+Shift+A` and
 the menu's "Ask an agent". Claude Code and opencode are deliberately not in the image: they release
 far more often than it does, so the launcher installs the chosen one into the user's home with its
-maker's installer on first launch (or `ujust install-agent`), where it updates on the user's terms.
+maker's installer on first launch (or `ame agent install`), where it updates on the user's terms.
 Do not add them back to `04-packages.sh`; `20-tests.sh` fails if either appears in `/usr/bin`. The
 skill in `system_files/shared/usr/share/amethystora/agents/skills/amethystora/SKILL.md` tells
 agents how to change *a user's machine* safely: this repository is where it is written, not a place
@@ -236,7 +236,7 @@ it applies to. `amethystora-diagnose/SKILL.md` beside it is the read-only method
 `amethystora-agent diagnose`. `user-setup.hooks.d/13-agentic.sh` links every skill there into
 `~/.claude/skills`, the one
 directory both agents read (opencode requires skill names to be unique across its skill directories). The features are on by
-default. `ujust toggle-agentic` turns them off per user by writing
+default. `ame agent toggle` turns them off per user by writing
 `~/.config/amethystora/no-agentic`. Keep the skill accurate when you change a command, path or
 recipe that it names.
 
@@ -245,7 +245,7 @@ recipe that it names.
 The Amethystora Manual (`amethystora-manual`, `Super+F1`, "Manual" in the Amethystora menu) is the
 user documentation, shipped in the image so that it always describes the image it is on. Its pages
 are the Markdown files in `system_files/shared/usr/share/amethystora/manual`, listed and grouped in
-`pages.json`; the hotkeys page is `keybindings.md` one level up, which `ujust keybindings` also
+`pages.json`; the hotkeys page is `keybindings.md` one level up, which `ame desktop keybindings` also
 shows. **Keep the manual accurate** when you change a command, recipe, hotkey, path or default that
 it describes, and add to it when you add something a user would look for there.
 
@@ -263,7 +263,7 @@ it describes, and add to it when you add something a user would look for there.
 
 Amethystora Security (`amethystora-security`, **Security** in the app grid) is the security report and
 the virus scanner, in place of the report's terminal launcher and ClamUI. Its checks live in one
-script, `system_files/shared/usr/libexec/amethystora-security-status`: `ujust security-status` prints
+script, `system_files/shared/usr/libexec/amethystora-security-status`: `ame security status` prints
 it and the app asks it for `--json`, so a check added or changed there reaches both. Never write a
 check into the recipe or the app. The app runs only the commands that script names, in a terminal
 (`amethystora-in-terminal`). What a scan finds is only reported unless `ON_DETECTION` in
@@ -281,23 +281,32 @@ that way: a failure must cost inspection, never the network.
 The security watcher (`amethystora-security-watch`, on a 15-minute timer, or on each audit event when
 `REALTIME=on`) reads the audit log per key, the journal, `/etc` against `/usr/etc`, setuid files outside
 `/usr` and listening ports, writes what only root can see to `/var/lib/amethystora/security/status.json`
-for the report, and runs the report to notify when a watched check turns bad. A new audit key in
-`60-amethystora.rules` has to be added to the watcher and to `amethystora-security-realtime`;
-`20-tests.sh` fails otherwise.
+for the report, and runs the report to notify when a watched check turns bad. It also looks at what
+each account's session finds first: a command in `~/.local/bin`, `~/bin` or Homebrew's prefix named
+like a system one, and a launcher in `~/.local/share/applications` that no container export made. A
+new audit key, in `60-amethystora.rules` or in the per-home rules `amethystora-audit-home-rules` writes
+(`persistence`, `user-programs`), has to be added to the watcher and to `amethystora-security-realtime`;
+`20-tests.sh` fails otherwise. The app's **Containers** page is what `amethystora-pkg containers list
+--json` says, run as the user.
 The sidebar draws the boot splash's wordmark live, from `gem.svg` (written by `branding/generate.mjs`)
 and Quicksand, with the generator's own sizes and glow.
 
 ### The Updates app
 
 System Updates (`amethystora-update`) replaces upstream's System Update launcher, which opened a
-terminal on `ujust update`; the recipe stays for the terminal. **Update now** starts
+terminal on `ujust update`; `ame update` stays for the terminal. **Update now** starts
 `uupd-manual.service`, the same updater the automatic updates run, which the `uupd.rules` the uupd
 package ships lets anyone start without a password (the ublue-os/packages build installs it in
 `/etc/polkit-1/rules.d`, not `/usr/share`). The window never runs `bootc`, `flatpak` or `brew`
-itself. It follows uupd's JSON log in the journal and reads the deployments from `rpm-ostree status`.
-If uupd changes the `Updating`, `module_fail` or `Updates Completed Successfully` messages it logs,
-update `main.js` to match. The top bar draws the same wordmark as Security, from its own copy of
-`gem.svg`.
+itself, with one exception: on a machine started from an older deployment than its default one,
+**Keep this version** runs `pkexec bootc rollback`, after an administrator's password
+(`amethystora-update-alert.service` says so at login and opens the window). It follows uupd's JSON log
+in the journal and reads the deployments from `rpm-ostree status`. If uupd changes the `Updating`,
+`module_fail` or `Updates Completed Successfully` messages it logs, update `main.js` to match. After an
+update started there, it starts the account's `amethystora-pkg-upgrade.service` and shows it as the
+**Containers** step, which reuses the step `update.js` keeps for uupd's own distrobox module; a
+container's failure shows there only, never as a failed system update. The top bar draws the same
+wordmark as Security, from its own copy of `gem.svg`.
 
 ### The Logs app
 
@@ -335,6 +344,64 @@ for the credential and salt kept in `vault.json`. `main.js` asks the security ke
 `fido2-cred` and `fido2-assert` (`fido2-tools`, in `04-packages.sh`), which take their parameters and
 the PIN on stdin, and always with its PIN or a fingerprint (`pin=true` or `uv=true`): a touch alone
 must never open the notes. Nothing is stored on the security key, and a backup carries no passkey.
+
+### Packages from other distributions
+
+`amethystora-pkg` (`/usr/bin/amethystora-pkg`, a bash script; `amepkg` is the link `17-cleanup.sh`
+makes, because the build's rsync skips links in `system_files`) makes distrobox containers from
+templates and drives each with its own package manager. It reimplements Vanilla OS's Apx feature set
+from a written description, clean-room: never read or copy Vanilla OS projects' source, help text or
+artwork, and never ship their definitions or community templates. No command, menu, app or string
+names Vanilla OS, Apx, VSO or Sideload; the manual says once, in `software.md`, that `import` reads
+Apx's YAML files, and `20-tests.sh` fails on any other mention. `ame pkg` runs it too, under `ame`,
+the command over Amethystora's own; `amy` is a Homebrew formula, so nothing may take that name.
+
+- Built-in templates and managers are JSON in `system_files/shared/usr/share/amethystora/pkg` (the AUR's
+  `paru` and `arch-aur` under `aur/`, shown only while `~/.config/amethystora/aur` exists, which `ame
+  apps aur` writes); the user's own are in `~/.local/share/amethystora/pkg`. Every built-in template
+  image is pinned by digest, the pins shipping in the signed image; Renovate follows each tag's digest
+  (custom manager, depType `pkg-template`) and never moves a template to a new release, which is done
+  by hand with its `description`. Images are pulled by digest before `distrobox create`, so neither the
+  pin nor `policy.json` can be skipped. Leave the policy's catch-all as it is, and do not re-sign third-
+  party images under `ghcr.io/iarsslen`.
+- `policy.json` checks `registry.opensuse.org/opensuse/leap` against openSUSE's two container keys
+  (`keyPaths`, containers/image 5.33 and later), both from openSUSE's `openSUSE-build-key` package,
+  whose RPM signature was checked against openSUSE's project key: `opensuse-container-key.pub`, the
+  2048-bit key that signs openSUSE's published images today, converted to PEM from the package's
+  OpenPGP file, and `opensuse-container-key-2023.pub`, its successor, as the package ships it. The rule
+  covers Leap only, by the maintainer's choice: the rest of openSUSE's namespace holds build projects
+  (infrastructure, tools, templates, Factory's staging) that sign with keys of their own. Every update
+  is verified against the same file, so `20-tests.sh` has skopeo load it.
+- Containers carry `amethystora.pkg.*` labels and real names `pkg-<name>`; distrobox's own
+  `manager=distrobox` label stays, since distrobox, DistroShelf and Ptyxis find containers by it. Only
+  labelled containers are listed or touched.
+- `--json` field names are documented in `software.md#in-scripts`: keep them stable.
+- AUR packages are built only after their PKGBUILD has been shown on a terminal, `--yes` or not, and are
+  never upgraded unattended; the AUR's own metadata is shown first.
+- `amethystora-pkg-upgrade.timer` (user, enabled with `--global`) upgrades the containers daily and,
+  when its timer starts it (`$TRIGGER_UNIT`), skips a run when uupd's hardware checks would fail, with
+  the thresholds of `/etc/uupd/config.json`. uupd's own distrobox module stays off there.
+- A `.deb` or `.rpm` opens in `amethystora-pkg-install.desktop`, the default for both types in
+  `/etc/xdg/mimeapps.list`: a ClamAV scan, provenance, and Flathub or the container's repositories
+  offered first. The security report's two-week check on the containers is in
+  `amethystora-security-status`, like every check.
+
+Everything it installs is fetched on the user's machine from its source (DistroShelf from Flathub,
+images from their registries, packages inside containers), so `NOTICE` and `SOURCES` do not change for
+it.
+
+### New machines
+
+- `user-setup.hooks.d/17-welcome.sh` opens `amethystora-manual welcome` once per account, through
+  `systemd-run --user`, because the setup service kills what it leaves behind. The Manual itself
+  spawns nothing.
+- `amethystora-gpu-check.timer` offers the matching `-nvidia-open` image on a machine with an NVIDIA
+  card (PCI class `0x03`, vendor `0x10de`), or the image without the driver on one without, once per
+  machine, through `amethystora-notify-users --action` and `ame system rebase IMAGE STREAM`. It
+  never switches by itself; its state is `/var/lib/amethystora/gpu-check`.
+- `amethystora-backup` stores `amethystora-setup-manifest`'s JSON beside each backup, as a restic
+  snapshot tagged `amethystora-setup` (no secrets in it), and `ame restore-setup`
+  (`/usr/libexec/amethystora-restore-setup`) makes the setup again from it, each step chosen first.
 
 ### COPR Package Installation
 
@@ -503,15 +570,15 @@ packages for `generic-release` in the package database only, their files staying
 9. `12-login-screen.sh` - Patches the login screen background into GNOME Shell's own stylesheet. GNOME reads it from the `#lockDialogGroup` rule inside `gnome-shell-theme.gresource` and from nowhere else, so the bundle is unpacked, the rule appended and the bundle rebuilt. The picture is the crown the boot splash ends on, as sharp as the splash draws it and without the gem, drawn by `branding/generate.mjs`
 10. `12-tour.sh` - Swaps the picture on GNOME Tour's first page, which Fedora builds with Fedora's logo on it, for Amethystora's, in the resource bundle the Tour reads its pictures from (`/usr/share/gnome-tour/resources.gresource`), unpacked and rebuilt as `12-login-screen.sh` does. The picture is the boot splash at the top of its glow, drawn by `branding/generate.mjs` into `/usr/share/amethystora/tour/welcome.svg`
 11. `13-manual.sh` - Installs the runtime of the Amethystora Manual (`amethystora-manual`, `Super+F1`): a pinned Electron release, checked against the checksum Electron publishes, and a pinned `marked` from the npm registry, checked against its integrity. Both are bumped by Renovate. It also adds Quicksand for the wordmark, from `branding/fonts`. The app itself is `system_files/shared/usr/lib/amethystora-manual/resources/app` and its pages are `system_files/shared/usr/share/amethystora/manual`
-12. `14-security.sh` - Installs the runtime of Amethystora Security (`amethystora-security`), the security report and virus scanner that replace the report's terminal launcher and ClamUI: hard links to the Manual's Electron, so that the image carries one Electron for both, and Quicksand for its wordmark from `branding/fonts`, which the `ctx` stage copies in. The app itself is `system_files/shared/usr/lib/amethystora-security/resources/app`; the report it draws is `/usr/libexec/amethystora-security-status`, which `ujust security-status` prints. It also derives network protection's Suricata configuration (`/usr/share/amethystora/ips/suricata.yaml`) from the one the suricata package ships, with `build_files/shared/ips-config.py`, so that it fits Suricata 7 and 8 alike
+12. `14-security.sh` - Installs the runtime of Amethystora Security (`amethystora-security`), the security report and virus scanner that replace the report's terminal launcher and ClamUI: hard links to the Manual's Electron, so that the image carries one Electron for both, and Quicksand for its wordmark from `branding/fonts`, which the `ctx` stage copies in. The app itself is `system_files/shared/usr/lib/amethystora-security/resources/app`; the report it draws is `/usr/libexec/amethystora-security-status`, which `ame security status` prints. It also derives network protection's Suricata configuration (`/usr/share/amethystora/ips/suricata.yaml`) from the one the suricata package ships, with `build_files/shared/ips-config.py`, so that it fits Suricata 7 and 8 alike
 13. `15-update.sh` - Installs the runtime of System Updates (`amethystora-update`), the window that replaces upstream's System Update launcher, a terminal on `ujust update`: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`. The app itself is `system_files/shared/usr/lib/amethystora-update/resources/app`; upstream's launcher is not shipped
 14. `16-notes.sh` - Installs the runtime of Amethystora Notes (`amethystora-notes`), the encrypted notes and tasks app that replaces Joplin and Planify: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`, and a hard link to the Manual's `marked`. The app itself is `system_files/shared/usr/lib/amethystora-notes/resources/app`
 15. `16-logs.sh` - Installs the runtime of Amethystora Logs (`amethystora-logs`), the journal viewer that replaces GNOME Logs: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`. The app itself is `system_files/shared/usr/lib/amethystora-logs/resources/app`; GNOME Logs is left off the Flatpak list
 16. `07-debrand.sh` - Renames every remaining Bluefin / Universal Blue file, command, service and reference to Amethystora (logic in `build_files/shared/debrand.py`; `20-tests.sh` fails the build if any is left). Licence files, copyright lines and the comments that credit an author keep upstream's names
 17. `08-hardening.sh` - Signature-verified updates, firewall default zone, account lockout, kernel lockdown, and the sudo PATH that `ublue-os/main` leaves open. The polkit and udev fixes are made in the files themselves (`org.amethystora.privileged.user.setup.policy`, `50-zsa.rules`). Lockdown is skipped on the NVIDIA images, whose driver is an akmods build signed with the machine owner key: forcing lockdown on a machine with Secure Boot off would leave it without a graphics driver. The settings that are plain files live in `system_files/shared` (`usr/lib/sysctl.d`, `usr/lib/modprobe.d`, `usr/lib/bootc/kargs.d`, `etc/ssh/sshd_config.d`, `etc/security/faillock.conf`, `etc/flatpak/overrides/global`, `etc/audit/rules.d`)
-18. `17-cleanup.sh` - Cleanup operations, and the systemd units the image enables. Two things here are deliberately *disabled*: `input-remapper.service`, which runs as root and reads every input device, and `usbguard.service`, which would block the keyboard on a machine where nobody had allowed it yet. Both are turned on per machine by a `ujust` recipe
+18. `17-cleanup.sh` - Cleanup operations, and the systemd units the image enables, the per-user ones with `systemctl --global` (`amethystora-pkg-upgrade.timer`, `amethystora-update-alert.service`). It also makes the `amepkg` link, since the build's rsync skips links in `system_files`. Two things here are deliberately *disabled*: `input-remapper.service`, which runs as root and reads every input device, and `usbguard.service`, which would block the keyboard on a machine where nobody had allowed it yet. Both are turned on per machine by an `ame security` command (`usb`, `input-remapper`)
 19. `18-workarounds.sh` - Temporary fixes/workarounds
-20. `19-initramfs.sh` - Regenerates initramfs, adding dracut's `tpm2-tss` module where dracut has it so that `ujust setup-disk-unlock` can hand the disk key to the TPM
+20. `19-initramfs.sh` - Regenerates initramfs, adding dracut's `tpm2-tss` module where dracut has it so that `ame security disk-unlock` can hand the disk key to the TPM
 21. `build_files/shared/build-dx.sh` - dx only: copies `system_files/dx`, runs `build_files/dx/00-dx.sh` and then `01-tests-dx.sh`
 22. `build_files/shared/source-manifest.sh` - Writes `/usr/share/licenses/amethystora/SOURCES`: every package with its licence, source package and where that source is, which the GPL asks for and the written offer in `NOTICE` points to. Fedora keeps its own in Koji. RPM Fusion, negativo17 and Copr publish only their current builds, so the script fetches the source packages of theirs that are under a licence asking for the source into `/usr/src/amethystora`, and the build fails when one cannot be fetched; a Copr project the image starts installing from goes in its `COPR_PROJECTS`. NVIDIA's own repository, which the NVIDIA images take the container toolkit from, publishes no source packages at all, so its packages are listed with the address of their source instead (`NO_SOURCE_PACKAGES`); a GPL package from any other maker the script does not know still fails the build. `20-tests.sh` fails if a package is missing from the list or a source package from the image
 23. `20-tests.sh` - Runs last, after the repositories are validated and the build cleaned up; fails the build on anything missing or left behind, including a GNOME Shell extension shipped without its licence

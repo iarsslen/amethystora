@@ -29,6 +29,18 @@
                     }
                 }
             ],
+            "registry.opensuse.org/opensuse/leap": [
+                {
+                    "type": "sigstoreSigned",
+                    "keyPaths": [
+                        "/usr/lib/pki/containers/opensuse-container-key.pub",
+                        "/usr/lib/pki/containers/opensuse-container-key-2023.pub"
+                    ],
+                    "signedIdentity": {
+                        "type": "matchRepository"
+                    }
+                }
+            ],
             "": [
                 {
                     "type": "insecureAcceptAnything"

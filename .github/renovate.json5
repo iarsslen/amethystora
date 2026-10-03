@@ -102,6 +102,21 @@
       depNameTemplate: 'marked',
       datasourceTemplate: 'npm',
     },
+    // The images amethystora-pkg's built-in templates start from, each pinned
+    // by digest. The pins ship in the signed image, which is what makes a
+    // container made from one start from exactly the image they name, so they
+    // follow their tags here rather than on the machine.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^system_files/shared/usr/share/amethystora/pkg/(aur/)?templates/[^/]+\\.json$/',
+      ],
+      matchStrings: [
+        '"base": "(?<depName>[^":@]+):(?<currentValue>[^"@]+)@(?<currentDigest>sha256:[a-f0-9]{64})"',
+      ],
+      datasourceTemplate: 'docker',
+      depTypeTemplate: 'pkg-template',
+    },
     // The Starship release 05-override-install.sh installs the shell prompt
     // from, checked there against the checksum Starship publishes beside it.
     {
@@ -148,6 +163,18 @@
     {
       "matchDepTypes": ["gnome-extension"],
       "groupName": "GNOME extensions"
+    },
+    // A template follows its tag's digest. Moving it to the next release
+    // (Debian 14, Fedora 45) changes what the template is, and its
+    // description with it, so that is done by hand.
+    {
+      "matchDepTypes": ["pkg-template"],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "enabled": false
+    },
+    {
+      "matchDepTypes": ["pkg-template"],
+      "groupName": "amethystora-pkg templates"
     }
   ]
 }

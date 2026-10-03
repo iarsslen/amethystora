@@ -3,7 +3,7 @@
 // The Amethystora Manual: the Markdown pages in /usr/share/amethystora/manual, in a window of its own.
 //
 // The window only ever shows the manual. It reads nothing but those pages, the keybindings they share
-// with `ujust keybindings` and the palette of the current theme; every web link opens in the browser,
+// with `ame desktop keybindings` and the palette of the current theme; every web link opens in the browser,
 // and nothing the page asks for (camera, notifications, new windows) is granted.
 
 const { app, BrowserWindow, clipboard, ipcMain, session, shell } = require('electron');

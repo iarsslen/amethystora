@@ -1,0 +1,81 @@
+#!/usr/bin/bash
+# The NVIDIA check (amethystora-gpu-check.timer, a few minutes after boot and every 15 minutes after,
+# until there is somebody logged in to tell). The NVIDIA images have no installer of their own, so
+# every NVIDIA owner installs the image without the driver first:
+#
+#   - an NVIDIA graphics card on an image without NVIDIA's driver: it offers the image with it
+#   - an image with NVIDIA's driver on a machine with no NVIDIA card: it offers the one without
+#
+# Either way it only offers. Switching is `ame system rebase`, opened in a terminal on the matching
+# image, which takes signed images only and asks before it switches. Each is said once per machine, with
+# a "don't ask again" that stops it for good; the state is /var/lib/amethystora/gpu-check.
+#
+#   amethystora-gpu-check           say it, if there is something to say and someone to say it to
+#   amethystora-gpu-check pending   exit 0 when there is (ExecCondition=)
+
+set -uo pipefail
+
+STATE=/var/lib/amethystora/gpu-check
+INFO=/usr/share/amethystora/image-info.json
+
+# A display controller (PCI class 0x03xxxx) made by NVIDIA (vendor 0x10de)
+NVIDIA=false
+for device in /sys/bus/pci/devices/*; do
+    if [[ "$(cat "${device}/class" 2>/dev/null)" == 0x03* && "$(cat "${device}/vendor" 2>/dev/null)" == 0x10de ]]; then
+        NVIDIA=true
+    fi
+done
+
+FLAVOR="$(jq -r '."image-flavor" // "main"' "${INFO}" 2>/dev/null)"
+IMAGE="$(jq -r '."image-name" // "amethystora"' "${INFO}" 2>/dev/null)"
+STREAM="$(jq -r '."image-tag" // "stable"' "${INFO}" 2>/dev/null)"
+LOCKDOWN="The NVIDIA images run without kernel lockdown: their driver is signed with a key of this machine's own, and lockdown would leave a machine without Secure Boot with no graphics driver at all."
+if [[ "${NVIDIA}" == true && "${FLAVOR}" == main ]]; then
+    KIND=nvidia-card
+    TARGET="${IMAGE}-nvidia-open"
+    SUMMARY="This machine has an NVIDIA graphics card"
+    BODY="${TARGET} is Amethystora with NVIDIA's driver for it, which this image does not have. ${LOCKDOWN} Nothing changes unless you switch."
+elif [[ "${NVIDIA}" == false && "${FLAVOR}" == nvidia-open ]]; then
+    KIND=no-nvidia-card
+    TARGET="${IMAGE%-nvidia-open}"
+    SUMMARY="This machine has no NVIDIA graphics card"
+    BODY="It runs ${IMAGE}, which carries NVIDIA's driver. ${LOCKDOWN} ${TARGET} has no NVIDIA driver and keeps lockdown on. Nothing changes unless you switch."
+else
+    KIND=""
+fi
+
+# Something to say that has not been said, or been asked never to be, and somebody to say it to
+pending() {
+    local said
+    [[ -n "${KIND}" ]] || return 1
+    said="$(cat "${STATE}" 2>/dev/null)"
+    [[ "${said}" != never && "${said}" != "${KIND}" ]] || return 1
+    compgen -G '/run/user/*/bus' >/dev/null
+}
+
+case "${1:-}" in
+    pending) pending; exit ;;
+    "") ;;
+    *) echo "usage: ${0##*/} [pending]" >&2; exit 64 ;;
+esac
+pending || exit 0
+
+mkdir -p "${STATE%/*}"
+ANSWERS="$(/usr/libexec/amethystora-notify-users --action switch="Switch images…" --action never="Don't ask again" \
+    "${SUMMARY}" "${BODY}")" || exit 0
+# Once somebody has seen it, it is not said again for this machine
+echo "${KIND}" >"${STATE}"
+while read -r user answer; do
+    case "${answer}" in
+        never) echo never >"${STATE}" ;;
+        switch)
+            # In a terminal in that person's session, on the image meant, through the systemd user
+            # manager that has the session's display
+            uid="$(id -u "${user}")" || continue
+            runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus" \
+                "XDG_RUNTIME_DIR=/run/user/${uid}" systemd-run --user --collect --quiet \
+                /usr/libexec/amethystora-in-terminal ame system rebase "${TARGET}" "${STREAM}" || true
+            ;;
+    esac
+done <<<"${ANSWERS}"
+exit 0

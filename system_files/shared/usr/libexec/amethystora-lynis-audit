@@ -37,7 +37,7 @@ else
         printf '%s\n' "${NEW}"
         /usr/libexec/amethystora-notify-users \
             "Security audit: ${COUNT} new warning(s)" \
-            "Something on this machine has changed since the last audit. See it with: ujust security-audit" \
+            "Something on this machine has changed since the last audit. See it with: ame security audit" \
             normal
     else
         echo "Nothing new since the last audit."

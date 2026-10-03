@@ -1,0 +1,7 @@
+{
+    "name": "debian",
+    "description": "Debian 13 (trixie), the stable release",
+    "base": "quay.io/toolbx-images/debian-toolbox:13@sha256:20c1806e84f7f2fe0e0c1783d577e0a9405e72ac993f06fc54bce34335378467",
+    "manager": "apt",
+    "packages": []
+}

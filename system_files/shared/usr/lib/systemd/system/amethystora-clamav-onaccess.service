@@ -8,7 +8,7 @@ After=clamd@scan.service
 
 [Service]
 # Only with REALTIME=on in /etc/amethystora/security.conf. Otherwise the unit is skipped, not failed, and
-# nothing watches anything. `ujust security-settings realtime` starts or stops it as the setting changes.
+# nothing watches anything. `ame security settings realtime` starts or stops it as the setting changes.
 ExecCondition=/usr/libexec/amethystora-security-config --is REALTIME on
 ExecStart=/usr/libexec/amethystora-clamav-onaccess
 Restart=on-failure

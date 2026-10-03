@@ -10,7 +10,7 @@
   pack this file is installed into), down to the rounded break in the ring at the upper left, which
   is the pack's own drawing and not damage.
 
-  Inside it, three bars rather than a tick. `ujust security-status` reports what the machine's
+  Inside it, three bars rather than a tick. `ame security status` reports what the machine's
   settings are doing, and that report is often not a clean one; a shield with a tick in it would be
   the icon promising an all-clear before anything had been looked at.
 

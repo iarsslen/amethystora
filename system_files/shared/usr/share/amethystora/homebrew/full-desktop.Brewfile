@@ -3,7 +3,7 @@
 #
 # This Brewfile contains a curated list of high-quality flatpak applications
 # that provide a full desktop experience on Amethystora. Install with:
-#   ujust bbrew
+#   ame apps bbrew
 # and select "full-desktop" from the menu.
 #
 # These applications are all available from Flathub and include GNOME Circle

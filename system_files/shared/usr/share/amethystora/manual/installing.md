@@ -30,6 +30,9 @@ and from the restart after that, an update is only accepted if it carries Amethy
 | `ghcr.io/iarsslen/amethystora-nvidia-open` | The standard desktop with NVIDIA's open kernel driver |
 | `ghcr.io/iarsslen/amethystora-dx-nvidia-open` | Developer mode with NVIDIA's open kernel driver |
 
+The installer puts the images without NVIDIA's driver on a machine. On one with an NVIDIA card, the
+first boot offers to switch to the matching NVIDIA image ([Hardware](hardware.md#graphics)).
+
 ## Pick a stream
 
 Every image comes in three streams, set by the tag after the colon:
