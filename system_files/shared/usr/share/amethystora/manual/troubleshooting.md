@@ -113,8 +113,10 @@ Removes unused containers, images and Flatpak runtimes. `flatpak uninstall --unu
 ## Reporting a problem
 
 Report bugs on [GitHub](https://github.com/iarsslen/amethystora/issues), and ask questions in the
-[discussions](https://github.com/iarsslen/amethystora/discussions). `ujust report` gathers the
-diagnostics for you, shows you everything before anything is sent, and opens a pre-filled issue.
+[discussions](https://github.com/iarsslen/amethystora/discussions). `ame report` gathers what a
+report needs into a file in your home folder (the image, your groups, failed services and the errors
+logged since this boot), shows you all of it, and then, if you say so, opens a new issue with all but
+the errors filled in. Nothing is posted until you submit it; drag the file in if the errors help.
 Otherwise, include:
 
 - the output of `rpm-ostree status`, which names the exact image,

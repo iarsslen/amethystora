@@ -393,7 +393,7 @@ disk-unlock ACTION="":
     fi
     echo "Encrypted partition: ${DEVICE}"
     if sudo cryptsetup luksDump "${DEVICE}" | grep -q "systemd-tpm2"; then
-        echo "The TPM already holds a key for it."
+        echo "The TPM already holds a key for it. Setting it up again replaces that key."
     else
         echo "The TPM holds no key for it: the passphrase is typed at every boot."
     fi
@@ -426,7 +426,9 @@ disk-unlock ACTION="":
     fi
     echo "Type the disk passphrase when asked. It keeps working afterwards: this adds a second way in,"
     echo "not a replacement, so a cleared TPM or a replaced board does not lock you out of your disk."
-    sudo systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=7+14 "${FLAGS[@]}" "${DEVICE}"
+    # Any key the TPM held before goes once this one is in (never the new one): one enrolled with other
+    # PCRs, or none, as an older unlocker did, would otherwise open the disk without these checks
+    sudo systemd-cryptenroll --wipe-slot=tpm2 --tpm2-device=auto --tpm2-pcrs=7+14 "${FLAGS[@]}" "${DEVICE}"
     # The initramfs is built without this machine's own settings in it, so the instruction to ask the
     # TPM has to come from the kernel command line. Without it the enrolled key is never used.
     sudo rpm-ostree kargs --append-if-missing=rd.luks.options=tpm2-device=auto

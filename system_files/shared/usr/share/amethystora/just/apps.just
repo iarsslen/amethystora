@@ -2,11 +2,47 @@
 
 set default-list
 
-# Install JetBrains Toolbox | https://www.jetbrains.com/toolbox-app/
+# Install JetBrains Toolbox into your home, from JetBrains, checked against the checksum JetBrains publishes
 jetbrains-toolbox:
-    #!/usr/bin/env bash
-    brew tap amethystora/homebrew-tap
-    brew install --cask jetbrains-toolbox-linux
+    #!/usr/bin/bash
+    set -euo pipefail
+    DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
+    # A folder of its own, which it updates itself in
+    DEST="${DATA}/jetbrains-toolbox"
+    if [[ -x "${DEST}/bin/jetbrains-toolbox" ]]; then
+        echo "JetBrains Toolbox is installed in ${DEST}, and keeps itself up to date."
+        gum confirm --default=false "Install it again?" || exit 0
+    fi
+    case "$(uname -m)" in
+        x86_64) platform=linux ;;
+        aarch64) platform=linuxARM64 ;;
+        *) echo "JetBrains makes no Toolbox for $(uname -m)."; exit 1 ;;
+    esac
+    # JetBrains' release feed, the one its download page reads
+    release="$(curl -fsSL "https://data.services.jetbrains.com/products/releases?code=TBA&latest=true&type=release")"
+    link="$(jq -er --arg p "${platform}" '.TBA[0].downloads[$p].link' <<<"${release}")"
+    checksum="$(curl -fsSL "$(jq -er --arg p "${platform}" '.TBA[0].downloads[$p].checksumLink' <<<"${release}")")"
+    TMP="$(mktemp -d)"
+    trap 'rm -rf "${TMP}"' EXIT
+    echo "Downloading JetBrains Toolbox $(jq -r '.TBA[0].version' <<<"${release}") from JetBrains"
+    curl -fL --progress-bar -o "${TMP}/toolbox.tar.gz" "${link}"
+    if [[ "$(sha256sum "${TMP}/toolbox.tar.gz" | cut -d" " -f1)" != "${checksum%% *}" ]]; then
+        echo "The download does not match the checksum JetBrains publishes for it. Nothing was installed."
+        exit 1
+    fi
+    mkdir -p "${TMP}/toolbox"
+    tar -xzf "${TMP}/toolbox.tar.gz" --strip-components=1 -C "${TMP}/toolbox"
+    rm -rf "${DEST}"
+    mv "${TMP}/toolbox" "${DEST}"
+    mkdir -p "${HOME}/.local/bin" "${DATA}/applications"
+    ln -sf "${DEST}/bin/jetbrains-toolbox" "${HOME}/.local/bin/jetbrains-toolbox"
+    # Toolbox writes a launcher of its own when it first runs; this one shows it in the app grid until then
+    if [[ -f "${DEST}/bin/jetbrains-toolbox.desktop" ]]; then
+        sed -e "s|^Exec=.*|Exec=${DEST}/bin/jetbrains-toolbox %u|" -e "s|^Icon=.*|Icon=${DEST}/bin/toolbox-tray-color.png|" \
+            "${DEST}/bin/jetbrains-toolbox.desktop" >"${DATA}/applications/jetbrains-toolbox.desktop"
+    fi
+    setsid -f "${DEST}/bin/jetbrains-toolbox" >/dev/null 2>&1
+    echo "Installed in ${DEST}. It opens now, and is in the app grid as JetBrains Toolbox."
 
 # Install OpenTabletDriver, an open source, cross-platform, user-mode tablet driver
 opentabletdriver:
@@ -38,8 +74,13 @@ opentabletdriver:
       systemctl enable --user --now opentabletdriver.service
     elif [ "${EXIT_CODE}" == 1 ] ; then
       echo "Uninstalling OpenTabletDriver..."
-      sudo rm -f /etc/modprobe.d/blacklist-opentabletdriver.rules /etc/udev/rules.d/71-opentabletdriver.rules
-      flatpak --system remove -y flathub net.opentabletdriver.OpenTabletDriver
+      # The files the install wrote: with the blacklist left behind, the kernel's own tablet drivers stay off
+      sudo rm -f /etc/modprobe.d/blacklist-opentabletdriver.conf /etc/udev/rules.d/71-opentabletdriver.rules
+      systemctl --user disable --now opentabletdriver.service || true
+      rm -f "$HOME/.config/systemd/user/opentabletdriver.service"
+      systemctl --user daemon-reload
+      flatpak --system uninstall -y net.opentabletdriver.OpenTabletDriver
+      echo "Uninstalled. Restart to let the kernel's own tablet drivers load again."
     fi
 
 # Install applications from curated Brewfiles (includes full-desktop.Brewfile with GNOME Circle apps)
@@ -72,7 +113,8 @@ cncf:
 # Install system flatpaks for rebasers
 flatpaks $confirm="1" $dx_only="0":
     #!/usr/bin/env bash
-    if [[ "$(jq '."image-flavor"' /usr/share/amethystora/image-info.json)" =~ dx ]] ; then
+    # The flavor is main or nvidia-open on every image; dx is in the name (amethystora-dx, amethystora-dx-nvidia-open)
+    if [[ "$(jq -r '."image-name"' /usr/share/amethystora/image-info.json)" =~ -dx ]] ; then
         ADD_DEVMODE="${ADD_DEVMODE:-1}"
     fi
     if [ "${ADD_DEVMODE:-0}" == "1" ] ; then

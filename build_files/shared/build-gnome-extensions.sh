@@ -71,6 +71,17 @@ glib-compile-schemas --strict /usr/share/gnome-shell/extensions/logomenu@aryan_k
 # Search Light
 glib-compile-schemas --strict /usr/share/gnome-shell/extensions/search-light@icedman.github.com/schemas
 
+# Amethystora Transitions: written for this image, so it is in system_files rather than a submodule,
+# and under the image's own licence. Its schema is installed system-wide from there too, so that
+# gsettings and ame desktop transition reach it; the compile at the end picks it up.
+install -Dpm0644 /usr/share/licenses/amethystora/LICENSE /usr/share/licenses/amethystora-transitions@iarsslen.github.io/LICENSE
+enable_extension "amethystora-transitions@iarsslen.github.io"
+
+# Amethystora Widgets: the top bar's widgets from ~/.config/amethystora/widgets (amethystora-widgets).
+# Written for this image too, in system_files and under the image's licence. It has no settings.
+install -Dpm0644 /usr/share/licenses/amethystora/LICENSE /usr/share/licenses/amethystora-widgets@iarsslen.github.io/LICENSE
+enable_extension "amethystora-widgets@iarsslen.github.io"
+
 # --- Extensions installed from extensions.gnome.org --------------------------------------------
 #
 # These are not submodules. Space Bar is TypeScript, so building it from source would pull npm and

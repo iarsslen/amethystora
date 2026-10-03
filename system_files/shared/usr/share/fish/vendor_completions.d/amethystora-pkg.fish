@@ -19,10 +19,11 @@ function __amethystora_pkg_containers
     end
 end
 
-# The first word after the command
+# Whether the first word after the command is the one given. A predicate rather than `test (...) = x`,
+# which fails with an error before there is a first word.
 function __amethystora_pkg_first
     set -l words (commandline -opc)
-    test (count $words) -ge 2; and echo $words[2]
+    test (count $words) -ge 2; and test "$words[2]" = "$argv[1]"
 end
 
 # Right after the name of one of the containers
@@ -46,47 +47,47 @@ complete -c amethystora-pkg -n __fish_use_subcommand -a install -d 'Install a .d
 complete -c amethystora-pkg -n __fish_use_subcommand -a upgrade-all -d 'Upgrade every container'
 complete -c amethystora-pkg -n __fish_use_subcommand -a '(__amethystora_pkg_containers)' -d Container
 
-complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = containers; and not __fish_seen_subcommand_from list new rm reset' \
+complete -c amethystora-pkg -n '__amethystora_pkg_first containers; and not __fish_seen_subcommand_from list new rm reset' \
     -a 'list new rm reset'
-complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = containers; and __fish_seen_subcommand_from rm reset' \
+complete -c amethystora-pkg -n '__amethystora_pkg_first containers; and __fish_seen_subcommand_from rm reset' \
     -a '(__amethystora_pkg_containers)' -l force
-complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = containers; and __fish_seen_subcommand_from new' \
+complete -c amethystora-pkg -n '__amethystora_pkg_first containers; and __fish_seen_subcommand_from new' \
     -l template -x -a '(__amethystora_pkg_names templates)'
-complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = containers; and __fish_seen_subcommand_from new' -l name -x
-complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = containers; and __fish_seen_subcommand_from new' \
+complete -c amethystora-pkg -n '__amethystora_pkg_first containers; and __fish_seen_subcommand_from new' -l name -x
+complete -c amethystora-pkg -n '__amethystora_pkg_first containers; and __fish_seen_subcommand_from new' \
     -l home -x -a '(__fish_complete_directories)'
-complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = containers; and __fish_seen_subcommand_from new' -l init -l no-prompt
+complete -c amethystora-pkg -n '__amethystora_pkg_first containers; and __fish_seen_subcommand_from new' -l init -l no-prompt
 complete -c amethystora-pkg -n '__fish_seen_subcommand_from list' -l json
 
 for kind in templates managers
-    complete -c amethystora-pkg -n "test (__amethystora_pkg_first) = $kind; and not __fish_seen_subcommand_from list show new update rm export import" \
+    complete -c amethystora-pkg -n "__amethystora_pkg_first $kind; and not __fish_seen_subcommand_from list show new update rm export import" \
         -a 'list show new update rm export import'
-    complete -c amethystora-pkg -n "test (__amethystora_pkg_first) = $kind; and __fish_seen_subcommand_from show rm export update" \
+    complete -c amethystora-pkg -n "__amethystora_pkg_first $kind; and __fish_seen_subcommand_from show rm export update" \
         -a "(__amethystora_pkg_names $kind)"
-    complete -c amethystora-pkg -n "test (__amethystora_pkg_first) = $kind; and __fish_seen_subcommand_from import" -F
-    complete -c amethystora-pkg -n "test (__amethystora_pkg_first) = $kind; and __fish_seen_subcommand_from export" -l output -r -F
-    complete -c amethystora-pkg -n "test (__amethystora_pkg_first) = $kind; and __fish_seen_subcommand_from new update" -l name -x
-    complete -c amethystora-pkg -n "test (__amethystora_pkg_first) = $kind; and __fish_seen_subcommand_from new update" -l no-prompt
+    complete -c amethystora-pkg -n "__amethystora_pkg_first $kind; and __fish_seen_subcommand_from import" -F
+    complete -c amethystora-pkg -n "__amethystora_pkg_first $kind; and __fish_seen_subcommand_from export" -l output -r -F
+    complete -c amethystora-pkg -n "__amethystora_pkg_first $kind; and __fish_seen_subcommand_from new update" -l name -x
+    complete -c amethystora-pkg -n "__amethystora_pkg_first $kind; and __fish_seen_subcommand_from new update" -l no-prompt
 end
-complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = templates; and __fish_seen_subcommand_from new update' \
+complete -c amethystora-pkg -n '__amethystora_pkg_first templates; and __fish_seen_subcommand_from new update' \
     -l base -x
-complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = templates; and __fish_seen_subcommand_from new update' \
+complete -c amethystora-pkg -n '__amethystora_pkg_first templates; and __fish_seen_subcommand_from new update' \
     -l packages -x
-complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = templates; and __fish_seen_subcommand_from new update' \
+complete -c amethystora-pkg -n '__amethystora_pkg_first templates; and __fish_seen_subcommand_from new update' \
     -l pkg-manager -x -a '(__amethystora_pkg_names managers)'
-complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = templates; and __fish_seen_subcommand_from new update' \
+complete -c amethystora-pkg -n '__amethystora_pkg_first templates; and __fish_seen_subcommand_from new update' \
     -l unshare -x -a 'ipc netns process devsys groups all'
-complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = templates; and __fish_seen_subcommand_from new update' \
+complete -c amethystora-pkg -n '__amethystora_pkg_first templates; and __fish_seen_subcommand_from new update' \
     -l description -x
-complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = templates; and __fish_seen_subcommand_from new update' \
+complete -c amethystora-pkg -n '__amethystora_pkg_first templates; and __fish_seen_subcommand_from new update' \
     -l own-home
 for option in need-sudo install remove purge search show list update upgrade autoremove clean noconfirm
-    complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = managers; and __fish_seen_subcommand_from new update' \
+    complete -c amethystora-pkg -n '__amethystora_pkg_first managers; and __fish_seen_subcommand_from new update' \
         -l $option -x
 end
 
-complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = install' -F
-complete -c amethystora-pkg -n 'test (__amethystora_pkg_first) = install' -l yes -l no-export
+complete -c amethystora-pkg -n '__amethystora_pkg_first install' -F
+complete -c amethystora-pkg -n '__amethystora_pkg_first install' -l yes -l no-export
 
 complete -c amethystora-pkg -n __amethystora_pkg_in_container \
     -a 'enter run start stop install remove purge search show list update upgrade autoremove clean export unexport'

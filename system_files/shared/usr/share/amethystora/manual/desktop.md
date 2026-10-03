@@ -11,7 +11,8 @@ the keys are in your fingers you will rarely reach for it.
 - **On the right**, CPU, memory and network meters, then the system menu: Wi-Fi, sound, power and
   the rest of the quick settings.
 
-The meters and the workspaces follow the colours of the current [theme](themes.md).
+The meters and the workspaces follow the colours of the current [theme](themes.md). The bar can
+also show [widgets](widgets.md) of your own, which the AI agent makes for you.
 
 ## Finding things
 
@@ -46,6 +47,7 @@ terminal and [`ame`](terminal.md#ame):
 | --- | --- |
 | Ask an agent | Opens the [AI agent](ai-agent.md) |
 | Diagnose a problem | Has the agent find out why something broke |
+| Make a widget | Has the agent make a [widget](widgets.md) for the top bar |
 | Theme | The theme picker |
 | Background | The wallpapers of the current theme |
 | Keybindings | The hotkeys, in the terminal |

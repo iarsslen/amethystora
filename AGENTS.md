@@ -7,7 +7,7 @@ This document provides essential information for coding agents working with the 
 **Amethystora** is a cloud-native desktop operating system, based on Bluefin and maintained by Arsslen Idadi (@iarsslen). It is an OS built on Fedora Linux using container technologies with atomic updates.
 
 - **Type**: Container-based Linux distribution build system
-- **Base**: `ghcr.io/ublue-os/silverblue-main` (Fedora with the GNOME desktop and GDM) + Universal Blue infrastructure; GNOME Shell extensions are git submodules under `system_files/shared/usr/share/gnome-shell/extensions`, built by `build_files/shared/build-gnome-extensions.sh`
+- **Base**: `ghcr.io/ublue-os/silverblue-main` (Fedora with the GNOME desktop and GDM) + Universal Blue infrastructure; GNOME Shell extensions are git submodules under `system_files/shared/usr/share/gnome-shell/extensions`, built by `build_files/shared/build-gnome-extensions.sh`, except `amethystora-transitions@iarsslen.github.io` (see The transitions) and `amethystora-widgets@iarsslen.github.io` (see Widgets)
 - **Languages**: Bash scripts, JSON configuration, Python utilities
 - **Build System**: Just (command runner), Podman/Docker containers, GitHub Actions
 - **Target**: desktop OS with two variants (base + developer experience)
@@ -37,7 +37,7 @@ The desktop layer Amethystora took from Bluefin's `projectbluefin/common` (the `
 the Homebrew Brewfiles, the setup services and hooks, the GNOME defaults, udev rules) is kept in
 `system_files/shared`, already renamed; Bluefin is not a build input. Only `ublue-os/brew`, for
 Homebrew's own setup, is still copied in by the `ctx` stage of the `Containerfile`. Where to edit:
-- `system_files/shared/usr/share/amethystora/just/` - the commands `/usr/bin/ame` runs, as just recipes in groups (`ame security scan now`). `00-entry.just` declares each group with `mod` (`agent`, `apps`, `desktop`, `security`, `system`, each in the file of its name), imports the top-level commands (`backup.just`, `changelog.just`, `update.just`), and runs `amethystora-pkg` as `ame pkg`. `ujust` is the same command, and the flat names the recipes had under it are private aliases there: when a command is renamed or moved, alias its old name. `20-tests.sh` fails on an `ame` command that the image names and that does not exist, so in prose write `ame` in backticks or with punctuation after it
+- `system_files/shared/usr/share/amethystora/just/` - the commands `/usr/bin/ame` runs, as just recipes in groups (`ame security scan now`). `00-entry.just` declares each group with `mod` (`agent`, `apps`, `desktop`, `security`, `system`, each in the file of its name), imports the top-level commands (`backup.just`, `changelog.just`, `report.just`, `update.just`), and runs `amethystora-pkg` as `ame pkg`. `ujust` is the same command, and the flat names the recipes had under it are private aliases there: when a command is renamed or moved, alias its old name. `20-tests.sh` fails on an `ame` command that the image names and that does not exist, so in prose write `ame` in backticks or with punctuation after it
 - `system_files/shared/usr/share/amethystora/homebrew/system-flatpaks.Brewfile` - the default Flatpak list (no browser, Firefox is in the image; Amethystora Logs in place of GNOME Logs)
 - `system_files/shared/usr/share/flatpak/preinstall.d/` - Flatpaks installed on every machine
 - `system_files/shared/usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override` - the base GNOME defaults (the dash, the custom keybinding list); `build-gnome-extensions.sh` adds each extension it installs to its `enabled-extensions`, and `zz1-amethystora-modifications` overrides it
@@ -344,6 +344,37 @@ for the credential and salt kept in `vault.json`. `main.js` asks the security ke
 `fido2-cred` and `fido2-assert` (`fido2-tools`, in `04-packages.sh`), which take their parameters and
 the PIN on stdin, and always with its PIN or a fingerprint (`pin=true` or `uv=true`): a touch alone
 must never open the notes. Nothing is stored on the security key, and a backup carries no passkey.
+
+### The transitions
+
+Amethystora Transitions (`amethystora-transitions@iarsslen.github.io`, written for this image and
+kept in `system_files/shared/usr/share/gnome-shell/extensions`, not a submodule) reveals a new theme
+or wallpaper with an animation, as swww does on Hyprland. It freezes the screen in GNOME Shell's own
+`screenTransition` actor, which makes the background manager swap the wallpaper at once instead of
+fading it, and once nothing has changed for 300 ms a GLSL shader opens the picture onto the new
+desktop. `amethystora-theme` calls `Hold` and `Release` on `/org/amethystora/Transitions` (on
+`org.gnome.Shell`) around a theme switch so that it is one transition; a change to a watched
+background or interface key starts one by itself, and the Dark Style toggle reaches it through
+`screenTransition.run()`. The screen is never held for more than five seconds, and nothing is held
+while GNOME's animations are off. Its schema is in `/usr/share/glib-2.0/schemas`, for `ame desktop
+transition`. `stage.paint_to_content` took a colour-state argument in GNOME 50: check that call before
+adding a GNOME to its `shell-version`, which `20-tests.sh` requires.
+
+### Widgets
+
+Amethystora Widgets (`amethystora-widgets@iarsslen.github.io`, in `system_files` like the transitions)
+is the top bar's counterpart of Omarchy's bar plugins, made for agents to write. A widget is a folder in
+`~/.config/amethystora/widgets` holding `widget.json` and a command; the extension runs the command and
+shows what it prints as a label, an icon and a menu, and loads a widget again whenever its folder
+changes. Widgets are deliberately not code inside GNOME Shell: on Wayland the shell is the compositor,
+so a mistake in it ends the session, and new code only loads after logging out. `protocol.js` is the one
+definition of the format and `runner.js` the one way a command runs (its own session, a fixed `PATH`,
+`WIDGET_ID`, `WIDGET_DIR`, `WIDGET_STATE`, 30 seconds per run); `check.js`, which `amethystora-widgets
+run` is, imports both, so what the check passes is what the bar shows. Keep it that way. The
+`amethystora-widgets` skill documents the format for agents and `widgets.md` for users: change them with
+`protocol.js`. `amethystora-widgets make` and `fix` hand the work to `amethystora-agent`, and the
+examples in `/usr/share/amethystora/widgets/examples` pass the check in `20-tests.sh`. Nothing here may
+run as root or ship a widget that is on by default.
 
 ### Packages from other distributions
 

@@ -9,7 +9,7 @@ python3 /ctx/build_files/shared/debrand.py --check
 
 # ame: the commands in /usr/share/amethystora/just, in groups. ujust runs the same ones, and also under
 # the names they had before the groups.
-for i in bin/ame bin/ujust share/amethystora/just/{00-entry,agent,apps,backup,changelog,desktop,security,system,update}.just \
+for i in bin/ame bin/ujust share/amethystora/just/{00-entry,agent,apps,backup,changelog,desktop,report,security,system,update}.just \
     share/bash-completion/completions/ame share/fish/vendor_completions.d/ame.fish share/zsh/site-functions/_ame ; do
    stat /usr/$i
 done
@@ -25,6 +25,14 @@ grep -rhoIE --exclude-dir=node_modules '\bame [a-z][a-z0-9-]*( [a-z][a-z0-9-]*)?
             { [[ -z "${second}" ]] && ame --list "${first}" >/dev/null 2>&1; } ||
             { echo "the image names \"ame ${first} ${second}\", which is no command"; false; }
     done
+# The debranding turns upstream's GitHub names into amethystora/..., an organisation that does not exist:
+# the commands reach this image's repository through amethystora-image-repo, and no tap of upstream's
+grep -rqE "github\.com/amethystora/|repos/amethystora/|tap \"?amethystora/" /usr/share/amethystora/just \
+    /usr/share/amethystora/homebrew && false
+grep -q "/usr/libexec/amethystora-image-repo" /usr/share/amethystora/just/changelog.just
+grep -q "/usr/libexec/amethystora-image-repo" /usr/share/amethystora/just/report.just
+# JetBrains Toolbox comes from JetBrains, and only when it matches the checksum JetBrains publishes
+grep -q "checksumLink" /usr/share/amethystora/just/apps.just
 
 test -f /usr/share/amethystora/homebrew/fonts.Brewfile
 test -x /usr/bin/amethystora-fastfetch
@@ -261,6 +269,26 @@ for extension in paperwm@paperwm.github.com tophat@fflewddur.github.io \
         "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
     grep -q "'${extension}'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
 done
+# Amethystora Transitions, written for this image: enabled, its settings where gsettings finds them,
+# and claiming this GNOME. It calls GNOME Shell's paint_to_content, which took a new argument in GNOME
+# 50, so read that call again before adding a version to its shell-version.
+jq -e --arg shell "${GNOME_MAJOR}" '.["shell-version"] | index($shell)' \
+    /usr/share/gnome-shell/extensions/amethystora-transitions@iarsslen.github.io/metadata.json
+grep -q "'amethystora-transitions@iarsslen.github.io'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-transitions style)" == "'grow'" ]]
+# Amethystora Widgets, also written for this image: enabled, claiming this GNOME, and every example
+# amethystora-widgets new copies passing the same check as amethystora-widgets run. The check runs in a
+# home of its own, with settings in memory as there is no session here
+WIDGETS_EXTENSION=/usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io
+jq -e --arg shell "${GNOME_MAJOR}" '.["shell-version"] | index($shell)' "${WIDGETS_EXTENSION}/metadata.json"
+grep -q "'amethystora-widgets@iarsslen.github.io'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
+test -x /usr/bin/amethystora-widgets
+WIDGETS_HOME="$(mktemp -d)"
+for example in /usr/share/amethystora/widgets/examples/*/; do
+    test -x "${example}widget.sh"
+    HOME="${WIDGETS_HOME}" GSETTINGS_BACKEND=memory gjs -m "${WIDGETS_EXTENSION}/check.js" "${example}"
+done
+rm -rf "${WIDGETS_HOME}"
 # Space Bar's own menu shortcut defaults to Super+W, which closes a window here, so it has to be cleared
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.space-bar.shortcuts open-menu)" == "@as []" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.space-bar.shortcuts enable-activate-workspace-shortcuts)" == "false" ]]
@@ -1229,6 +1257,10 @@ grep -qF 'echo /var/home/.snapshots' /usr/libexec/amethystora-clamav-onaccess
 # 19-initramfs.sh adds dracut's tpm2-tss module where dracut has it, and warns where it does not.
 grep -q "tss2" <<<"${INITRAMFS_FILES}" ||
     echo "::warning::no TPM2 libraries in the initramfs, ame security disk-unlock will not work"
+# It is the one TPM unlocker, and it replaces any key the TPM held before, so that one bound to no PCRs
+# (as upstream's luks-tpm2-autounlock enrolled) cannot open the disk without the checks
+test ! -e /usr/bin/luks-tpm2-autounlock
+grep -q -- "--wipe-slot=tpm2 --tpm2-device=auto --tpm2-pcrs=7+14" /usr/share/amethystora/just/security.just
 
 # DisplayLink: evdi built for the image kernel, and no module signing key left behind by the build
 KERNEL_VERSION="$(rpm -q kernel-core --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')"

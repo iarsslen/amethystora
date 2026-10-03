@@ -94,6 +94,11 @@ one is what the theme opens on), `backgrounds/`.
 - A light theme sets Blur my Shell's `dash-to-dock/style-dash-to-dock` to 2 (a dark tint on the
   dock) and a dark theme resets it, on every switch, so a change made to that key by hand only
   lasts until the next switch.
+- The animation that reveals a new theme or wallpaper is the extension
+  `amethystora-transitions@iarsslen.github.io`: `ame desktop transition
+  <grow|outer|wipe|wave|fade|random|none>`, and its length in milliseconds in
+  `org.gnome.shell.extensions.amethystora-transitions duration`. It does nothing while GNOME's
+  animations are off.
 - After a change, run `amethystora-theme set "$(amethystora-theme current)"` and check for errors.
 
 Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
@@ -105,6 +110,9 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
 - Custom keybindings live under `/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/`;
   the image uses `custom20` and up. Check `keybindings.md` for a conflict before binding a key.
 - Extensions: `gnome-extensions list --enabled`, and `gnome-extensions prefs <uuid>`.
+- Something to show in the top bar (a widget, an indicator, a timer, a status, a switch): follow the
+  `amethystora-widgets` skill, which makes it a folder in `~/.config/amethystora/widgets`. Never write
+  a GNOME Shell extension for it.
 - The terminal is Ptyxis. `amethystora-theme` sets its palette on every theme switch.
 
 ## Updates and diagnosis

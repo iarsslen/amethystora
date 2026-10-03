@@ -11,6 +11,7 @@ Ask it things in plain language:
 - "Why is my laptop fan always running?"
 - "Set up a Python project with uv in ~/code/scraper."
 - "Add a hotkey that opens Mission Center."
+- "Make a top bar widget that shows the weather." See [Widgets](widgets.md).
 
 It starts in its normal mode, so it asks before it runs a command or changes a file. Read what it
 proposes before you say yes.

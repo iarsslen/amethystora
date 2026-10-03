@@ -72,8 +72,8 @@ amethystora-pkg upgrade-all                              # beyond Apx, see "Cont
   help and error messages use the name that was typed. Register completions for both names in bash, zsh and
   fish. The manual's examples use `amepkg`; scripts, desktop entries and units use the full name. Checked
   2026-10-03: no Homebrew formula and no file in Debian is named `amepkg`.
-- **`ame` is reserved.** It is kept for a possible future umbrella command over all Amethystora tools
-  (`ame theme`, `ame update`, `ame pkg`). Nothing in this plan may claim it. Avoid `amy` as well: a Homebrew
+- **`ame` is taken.** Since 2026-10-03 it is the umbrella command over the system recipes, in groups
+  (`ame desktop theme`, `ame update`), and `ame pkg` runs `amethystora-pkg`. Avoid `amy`: a Homebrew
   formula of that name exists.
 - **Ownership.** Label every container created (`manager=amethystora-pkg`, its template, its short name)
   and give it a prefixed real name (for example `pkg-<name>`). List and act only on labelled containers;
@@ -243,8 +243,8 @@ registries; its catch-all accepts any other image unchecked.
 
 ## Tests to add to `20-tests.sh`
 
-- `amethystora-pkg` is installed, `amepkg` links to it, nothing in the image is named `ame`, and every
-  `--json` list parses.
+- `amethystora-pkg` is installed, `amepkg` links to it, `ame pkg` runs it, and every `--json` list
+  parses.
 - Every built-in template image is pinned by digest (`@sha256:`).
 - The double-click desktop entry validates (`desktop-file-validate`) and names both MIME types.
 - `preinstall.d` holds DistroShelf beside Bazaar and Flatseal.

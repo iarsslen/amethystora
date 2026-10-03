@@ -63,6 +63,37 @@ cp ~/Pictures/mountains.jpg ~/.config/amethystora/backgrounds/amethystora/
 `amethystora-theme bg list` shows what the current theme has to cycle through, and
 `amethystora-theme bg set <picture>` sets one directly.
 
+## Transitions
+
+A new theme or wallpaper does not simply appear. The screen holds still for a moment while everything
+changes underneath it, then the new desktop opens out in a circle from the pointer, with a glow in the
+theme's accent colour along the edge. It works the same whichever way you make the change: the keys
+above, GNOME's Settings, or the Dark Style button in the quick settings.
+
+```bash
+ame desktop transition         # pick one from a list
+ame desktop transition wave    # or name it
+```
+
+| Transition | Looks like |
+| --- | --- |
+| `grow` | A circle opens from the pointer. The default |
+| `outer` | The new desktop closes in on the pointer from the edges |
+| `wipe` | A soft edge sweeps across at an angle |
+| `wave` | The same, with a wavy edge |
+| `fade` | A plain crossfade |
+| `random` | One of the first four, at any angle |
+| `none` | No animation: the wallpaper fades as GNOME fades it |
+
+A transition takes 1.2 seconds. To change that, give it in milliseconds:
+
+```bash
+gsettings set org.gnome.shell.extensions.amethystora-transitions duration 800
+```
+
+There are no transitions while animations are turned off in Settings, under Accessibility. They come
+from the Amethystora Transitions extension, which Extension Manager can turn off.
+
 ## Icons
 
 The icons are candy-icons, the same set under every theme: its folders, its file types, and its

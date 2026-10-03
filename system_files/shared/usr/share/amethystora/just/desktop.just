@@ -19,6 +19,27 @@ theme THEME="":
 background:
     @amethystora-theme bg next
 
+# Pick how a new theme or wallpaper is revealed: grow, outer, wipe, wave, fade, random or none
+transition STYLE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    schema=org.gnome.shell.extensions.amethystora-transitions
+    style="{{ STYLE }}"
+    if [[ -z "${style}" ]]; then
+        current="$(gsettings get "${schema}" style | tr -d "'")"
+        style="$(gum choose --header "Transition (current: ${current})" --selected "${current}" \
+            grow outer wipe wave fade random none)"
+    fi
+    gsettings set "${schema}" style "${style}"
+    echo "Transition set to ${style}. Super+Ctrl+Space changes the wallpaper to show it."
+
+# The top bar's widgets, which the AI agent can make: list, make, new, run, fix, on, off, remove (amethystora-widgets)
+[no-cd]
+[no-exit-message]
+[positional-arguments]
+widgets *ARGS:
+    @amethystora-widgets "$@"
+
 # Show the tiling, workspace and launcher keybindings (Super+Alt+Space, then Keybindings)
 keybindings:
     @glow --pager /usr/share/amethystora/keybindings.md

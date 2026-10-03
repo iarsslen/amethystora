@@ -6,7 +6,7 @@ set default-list
 rebase IMAGE="" STREAM="":
     @/usr/bin/amethystora-rollback-helper {{ IMAGE }} {{ STREAM }}
 
-# Turn automatic updates on or off
+# Turn automatic updates on or off (ACTION: on or off; without it, you are asked)
 auto-updates ACTION="prompt":
     #!/usr/bin/bash
     CURRENT_STATE="disabled"
@@ -17,7 +17,11 @@ auto-updates ACTION="prompt":
     fi
 
     echo "Automatic updates are currently ${CURRENT_STATE}"
-    SELECTED_OPTION="$(gum choose --header="Toggle automatic updates?" "Enable" "Disable" "Cancel")"
+    case "{{ ACTION }}" in
+        on | enable) SELECTED_OPTION="Enable" ;;
+        off | disable) SELECTED_OPTION="Disable" ;;
+        *) SELECTED_OPTION="$(gum choose --header="Toggle automatic updates?" "Enable" "Disable" "Cancel")" ;;
+    esac
     [[ "${SELECTED_OPTION}" == "Cancel" || "${SELECTED_OPTION}" == "" ]] && exit 0
 
     if systemctl cat -- uupd.timer &> /dev/null; then
@@ -26,10 +30,10 @@ auto-updates ACTION="prompt":
         TIMER="rpm-ostreed-automatic.timer"
     fi
     if [ "${SELECTED_OPTION}" == "Enable" ] ; then
-        sudo systemctl enable "$TIMER"
+        sudo systemctl enable --now "$TIMER"
         echo "Updates have been enabled"
     elif [ "${SELECTED_OPTION}" == "Disable" ] ; then
-        sudo systemctl disable "$TIMER"
+        sudo systemctl disable --now "$TIMER"
         echo "Updates have been disabled"
     fi
 
@@ -83,10 +87,6 @@ dx-group:
     done
 
     echo "Reboot system and log back in to use docker, libvirt, incus, and serial connections."
-
-# Toggle LUKS auto-unlock via TPM2
-tpm2:
-    @/usr/bin/luks-tpm2-autounlock
 
 # Factory reset this device (experimental)
 powerwash:

@@ -173,6 +173,15 @@ apply_starship() {
     ln -snf "${CURRENT_THEME_DIR}/starship.toml" "${config}"
 }
 
+# Amethystora Transitions (the extension amethystora-transitions@iarsslen.github.io) freezes the
+# screen on Hold and, once Release comes, reveals the new desktop with an animation, so a theme switch
+# is one transition rather than the panel, the apps and the wallpaper changing one after another.
+# Without the extension, or outside a session, the call fails and the theme is applied as it always was.
+transition() {
+    gdbus call --session --timeout 2 --dest org.gnome.Shell --object-path /org/amethystora/Transitions \
+        --method "org.amethystora.Transitions.$1" >/dev/null 2>&1 || true
+}
+
 run_hooks() {
     local hook
     shopt -s nullglob
@@ -190,6 +199,8 @@ theme_set() {
     theme_exists "${slug}" || die "no theme '${slug}'. Try: amethystora-theme list"
 
     stage_theme "${slug}"
+    transition Hold
+    trap 'transition Release' EXIT
     apply_gnome
     apply_topbar
     apply_dock
@@ -201,6 +212,8 @@ theme_set() {
         background_next --first || echo "amethystora-theme: could not set the background" >&2
     fi
     run_hooks
+    transition Release
+    trap - EXIT
 
     notify "Theme" "${slug}"
     echo "Theme set to ${slug}"

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The settings of Amethystora Transitions (amethystora-transitions@iarsslen.github.io). Installed
+     system-wide rather than in the extension's own folder, so that gsettings and ame desktop
+     transition can reach them. -->
+<schemalist>
+  <enum id="org.gnome.shell.extensions.amethystora-transitions.Style">
+    <value nick="grow" value="0"/>
+    <value nick="outer" value="1"/>
+    <value nick="wipe" value="2"/>
+    <value nick="wave" value="3"/>
+    <value nick="fade" value="4"/>
+    <value nick="random" value="5"/>
+    <value nick="none" value="6"/>
+  </enum>
+  <schema id="org.gnome.shell.extensions.amethystora-transitions" path="/org/gnome/shell/extensions/amethystora-transitions/">
+    <key name="style" enum="org.gnome.shell.extensions.amethystora-transitions.Style">
+      <default>'grow'</default>
+      <summary>How a new wallpaper or theme is revealed</summary>
+      <description>grow opens a circle from the pointer, outer closes in on it from the edges, wipe sweeps a soft edge across at an angle, wave sweeps a wavy one, fade crossfades, random picks one of the first four at a random angle, and none leaves the change to GNOME.</description>
+    </key>
+    <key name="duration" type="u">
+      <range min="200" max="5000"/>
+      <default>1200</default>
+      <summary>How long the transition takes, in milliseconds</summary>
+    </key>
+  </schema>
+</schemalist>

@@ -12,7 +12,7 @@ mod agent
 # Apps from Flathub and Homebrew, and the Arch User Repository for ame pkg
 mod apps
 
-# The theme, the wallpaper, the keybindings, the boot menu and the terminal greeting
+# The theme, the wallpaper and how it changes, widgets, the keybindings, the boot menu and the terminal greeting
 mod desktop
 
 # What protects this machine and what it found: the report, virus scans, network protection, keys
@@ -23,6 +23,7 @@ mod system
 
 import "backup.just"
 import "changelog.just"
+import "report.just"
 import "update.just"
 
 # Packages from other distributions, in containers: ame pkg is amethystora-pkg (also amepkg)
@@ -131,7 +132,7 @@ alias toggle-aur := apps::aur
 [private]
 alias toggle-devmode := system::devmode
 [private]
-alias toggle-tpm2 := system::tpm2
+alias toggle-tpm2 := security::disk-unlock
 [private]
 alias toggle-updates := system::auto-updates
 [private]
