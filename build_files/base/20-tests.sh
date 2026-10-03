@@ -15,6 +15,14 @@ for i in bin/ame bin/ujust share/amethystora/just/{00-entry,agent,apps,backup,ch
 done
 [[ "$(ame --summary)" == "$(ujust --summary)" ]]
 ujust --show setup-backup | grep -qx "alias setup-backup := backup"
+# The fish completions answer, with no error before a subcommand is typed or after: a condition such as
+# `test (...) = x` fails while there is no word yet. --no-config loads none of them, so they are sourced.
+for line in "ame " "ame security " "ame pkg " "amethystora-pkg " "amethystora-pkg containers "; do
+    FISH_COMPLETE="source /usr/share/fish/vendor_completions.d/amethystora-pkg.fish
+        source /usr/share/fish/vendor_completions.d/ame.fish; complete -C '${line}'"
+    [[ -z "$(fish --no-config -c "${FISH_COMPLETE}" 2>&1 >/dev/null)" ]]
+    [[ -n "$(fish --no-config -c "${FISH_COMPLETE}" 2>/dev/null)" ]]
+done
 # Every command the image tells somebody to run is one: the report's, the notifications', the apps', the
 # manual's and the agent skill's. A group named alone is one too.
 grep -rhoIE --exclude-dir=node_modules '\bame [a-z][a-z0-9-]*( [a-z][a-z0-9-]*)?' /usr/bin/ame* \
@@ -902,6 +910,10 @@ grep -q "use-sigstore-attachments: true" /etc/containers/registries.d/registry.o
 command -v skopeo >/dev/null
 POLICY_CHECK="$(skopeo copy dir:/nonexistent "dir:$(mktemp -d)" 2>&1 || true)"
 grep -qi "policy" <<<"${POLICY_CHECK}" && { echo "${POLICY_CHECK}"; false; }
+# The copy opens root's blob info cache before it fails, in /var/lib/containers/cache, and makes every
+# directory on the way with the cache's own 0700, /var/lib too: see the check on /var/lib at the end
+rm -rf /var/lib/containers
+rmdir /var/lib 2>/dev/null || true
 # Signature checking is kept on by a unit of its own, at every boot, once the network is up. It used to
 # be a first-boot setup hook, whose runner reports success whatever a hook does, and the in-place switch
 # that hook ran cannot work on a booted system, where /sysroot is read-only: it failed on every ISO
