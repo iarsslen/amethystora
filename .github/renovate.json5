@@ -147,6 +147,18 @@
       depNameTemplate: 'OpenTabletDriver/OpenTabletDriver',
       datasourceTemplate: 'github-release-attachments',
     },
+    // The Renovate image validate-renovate.yml checks this file with, pinned
+    // by digest so that the check runs exactly the release named there.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^\\.github/workflows/validate-renovate\\.yml$/',
+      ],
+      matchStrings: [
+        'RENOVATE_IMAGE: (?<depName>[^:\\s]+):(?<currentValue>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})',
+      ],
+      datasourceTemplate: 'docker',
+    },
     ],
 
   "packageRules": [

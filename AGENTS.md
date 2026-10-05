@@ -22,6 +22,7 @@ This document provides essential information for coding agents working with the 
 - `.pre-commit-config.yaml` - Pre-commit hooks for basic validation
 - `image-versions.yml` - Image version configurations
 - `cosign.pub` - Container signing public key
+- `SECURITY.md` - How to report a vulnerability (privately, through the repository's Security tab)
 
 ### Key Directories
 - `system_files/` - Files copied into the image, overlaid on those of the upstream layers
@@ -191,6 +192,7 @@ The repository uses mandatory pre-commit validation:
 - `reusable-build.yml` builds both base and dx variants for all flavors (main, nvidia-open)
 - Fedora version is dynamically detected based on stream tag
 - Images are signed with cosign and pushed to GHCR
+- Every workflow sets `permissions: {}` or read-only access at the top and grants write access on the job that needs it, which OpenSSF Scorecard checks (`build-images.yml` is the exception: each job it runs needs the same write access)
 
 ### Manual Validation Steps
 1. `pre-commit run --all-files` - Runs validation hooks (2-3 minutes, .devcontainer.json failure is expected)
