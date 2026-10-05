@@ -1,0 +1,74 @@
+#!/usr/bin/bash
+# `ame system trust-image REPOSITORY KEY`: images from REPOSITORY are taken only with a cosign signature
+# that KEY, a cosign public key, checks, the way Amethystora's own images are with Amethystora's key.
+# A machine runs it before it switches to an image of your own built FROM Amethystora, and that image's
+# build runs it too (the image template's Containerfile does), so that the image checks its own updates
+# the same way once the machine runs it:
+#
+#   /etc/pki/containers/<REPOSITORY, / as ->.pub            KEY
+#   /etc/containers/registries.d/<REPOSITORY, / as ->.yaml   where cosign puts the signatures
+#   /etc/containers/policy.json                              REPOSITORY needs a signature KEY checks
+#
+# Without it, the policy takes an image from a repository it does not name with no signature at all.
+# The key and registries.d files come out the same on the machine and in the image.
+#
+#   amethystora-trust-image [--root DIR] REPOSITORY KEY      DIR: the tree an image is built in
+
+set -euo pipefail
+
+die() {
+    printf '%s\n' "$*" >&2
+    exit 1
+}
+
+ROOT=""
+if [[ "${1:-}" == --root ]]; then
+    ROOT="${2:?usage: amethystora-trust-image [--root DIR] REPOSITORY KEY}"
+    shift 2
+fi
+[[ $# -eq 2 ]] || die "usage: ame system trust-image REPOSITORY KEY, such as ghcr.io/you/your-image cosign.pub"
+REPOSITORY="$1"
+KEY="$2"
+
+# A repository, not an image: a registry with a dot or a port, a path in lower case, no tag, no digest
+[[ "${REPOSITORY}" =~ ^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(\.[a-z0-9-]+|:[0-9]+)(/[a-z0-9]+(([._]|__|-+)[a-z0-9]+)*)+$ ]] ||
+    die "${REPOSITORY} is not a repository such as ghcr.io/you/your-image: lower case, and no tag."
+# Amethystora's own stay checked against Amethystora's key: a more particular entry would replace it
+OWN="ghcr.io/$(jq -r '."image-vendor"' /usr/share/amethystora/image-info.json)"
+[[ "${REPOSITORY}" != "${OWN}" && "${REPOSITORY}" != "${OWN}/"* ]] ||
+    die "Amethystora's own images are checked against Amethystora's key, and that stays as it is."
+[[ -f "${KEY}" ]] || die "There is no file ${KEY}."
+grep -q "PRIVATE KEY" "${KEY}" && die "${KEY} is a private key. Give its public half, cosign.pub, and keep this one secret."
+openssl pkey -pubin -noout -in "${KEY}" 2>/dev/null ||
+    die "${KEY} is not a public key, such as the cosign.pub that cosign generate-key-pair writes."
+[[ -n "${ROOT}" || "${EUID}" -eq 0 ]] || die "It changes /etc: ame system trust-image runs it with sudo."
+
+NAME="${REPOSITORY//\//-}"
+KEY_PATH="/etc/pki/containers/${NAME}.pub"
+POLICY="${ROOT}/etc/containers/policy.json"
+REGISTRIES="${ROOT}/etc/containers/registries.d/${NAME}.yaml"
+[[ -f "${POLICY}" ]] || die "There is no ${POLICY}."
+
+install -D -m 0644 "${KEY}" "${ROOT}${KEY_PATH}"
+mkdir -p "${REGISTRIES%/*}"
+printf '# The cosign signatures of %s, as sigstore attachments (ame system trust-image)\ndocker:\n  %s:\n    use-sigstore-attachments: true\n' \
+    "${REPOSITORY}" "${REPOSITORY}" >"${REGISTRIES}"
+chmod 0644 "${REGISTRIES}"
+# Written beside the policy and moved over it, so that it is never half written
+NEW="$(mktemp "${POLICY}.XXXXXX")"
+trap 'rm -f "${NEW}"' EXIT
+jq --arg repository "${REPOSITORY}" --arg key "${KEY_PATH}" '.transports.docker[$repository] = [{
+        "type": "sigstoreSigned",
+        "keyPath": $key,
+        "signedIdentity": {"type": "matchRepository"}
+    }]' "${POLICY}" >"${NEW}"
+chmod 0644 "${NEW}"
+mv -f "${NEW}" "${POLICY}"
+if [[ -z "${ROOT}" ]] && command -v restorecon >/dev/null; then
+    restorecon "${POLICY}" "${KEY_PATH}" "${REGISTRIES}" 2>/dev/null || true
+fi
+
+echo "Images from ${REPOSITORY} are now taken only with a signature that ${KEY} checks."
+if [[ -z "${ROOT}" ]]; then
+    echo "Switch to yours with: sudo bootc switch --enforce-container-sigpolicy ${REPOSITORY}:stable"
+fi

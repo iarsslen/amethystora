@@ -1,0 +1,10 @@
+# The live system of the live ISO (.github/workflows/build-iso.yml): Amethystora as it is published,
+# with what booting from a USB stick and installing from it take. Titanoboa squashes this image into the
+# ISO. Built with iso/ as the context, so that the installer's look in iso/product comes along.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+ARG BASE_IMAGE
+ENV BASE_IMAGE=${BASE_IMAGE}
+COPY live/ /src/live/
+COPY product/ /src/product/
+RUN --mount=type=tmpfs,target=/var/tmp bash /src/live/build.sh && rm -rf /src

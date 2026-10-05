@@ -1,0 +1,29 @@
+[Unit]
+Description=Weekly ClamAV scan of home and temporary directories
+Documentation=man:clamdscan(1)
+# Wants, not Requires: a dependency that fails to start cancels this job instead of failing it, and
+# OnFailure never fires for a cancelled job. clamd not starting is the single most likely reason this
+# machine is not being scanned, so it has to reach the scan itself, which reports it and fails properly.
+Wants=clamd@scan.service
+After=clamd@scan.service clamav-freshclam.service
+# Nothing was scanned, or something was found. Either way, say so to whoever is logged in.
+OnFailure=amethystora-scan-alert@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/amethystora-clamav-scan
+# A background scan that makes the desktop stutter is a scan the user turns off
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
+# Reads every file in every home directory, so it gets nothing else it does not need
+NoNewPrivileges=yes
+PrivateNetwork=yes
+ProtectClock=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+SystemCallArchitectures=native

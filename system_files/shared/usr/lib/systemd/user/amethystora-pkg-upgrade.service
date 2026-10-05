@@ -1,0 +1,16 @@
+[Unit]
+Description=Upgrade the containers amethystora-pkg manages
+Documentation=man:distrobox(1)
+# Nothing to do for an account that has never made one, and podman is not asked
+ConditionPathIsDirectory=%S/amethystora/pkg/containers
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Started by the timer, it holds back the way uupd's automatic updates do (on battery, under load);
+# started by hand or by System Updates, it does not
+ExecStart=/usr/bin/amethystora-pkg upgrade-all
+TimeoutStartSec=4h
+# An upgrade that makes the desktop stutter is an upgrade the user turns off
+Nice=19
+IOSchedulingClass=idle

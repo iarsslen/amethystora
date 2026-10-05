@@ -1,0 +1,11 @@
+[Unit]
+Description=Check the pools of disks every hour
+
+[Timer]
+# A disk that died while the machine was off is told soon after it starts, and one that dies while it
+# runs within the hour. A mounted btrfs keeps going without a disk, so this is often the only sign.
+OnBootSec=5min
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target

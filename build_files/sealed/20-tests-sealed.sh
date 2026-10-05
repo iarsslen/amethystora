@@ -1,0 +1,95 @@
+#!/usr/bin/bash
+# What a sealed image has to be before it is published (Containerfile.sealed). /run/target is the tree
+# the digest covers, /run/uki the signed UKI, /run/kernel the kernel and initramfs inside it.
+
+echo "::group:: ===$(basename "$0")==="
+
+set -xeuo pipefail
+
+T=/run/target
+CERT=/tmp/amethystora-uki.pem
+openssl x509 -inform DER -in "${T}/usr/share/amethystora/secure-boot/amethystora-uki.der" -out "${CERT}"
+# rpm will not open a database on a read-only mount
+cp -a "${T}/usr/lib/sysimage/rpm" /tmp/rpmdb
+RPM=(rpm --dbpath /tmp/rpmdb)
+
+# One UKI, named for its kernel and signed with the certificate the image ships, the one the installer
+# and `ame security secure-boot` enrol
+readarray -t UKIS < <(find /run/uki -maxdepth 1 -name '*.efi')
+[[ ${#UKIS[@]} -eq 1 ]]
+UKI="${UKIS[0]}"
+KERNEL="$(basename "${UKI}" .efi)"
+[[ -d "/run/kernel/${KERNEL}" ]]
+sbverify --cert "${CERT}" "${UKI}"
+
+# Its command line carries the digest of exactly this tree, which is what the machine checks at boot, and
+# requires it ("composefs=?" would make fs-verity optional and the image unsealed)
+CMDLINE="$(ukify inspect --json=short "${UKI}" | jq -r '.".cmdline".text')"
+DIGEST="$(bootc container compute-composefs-digest "${T}")"
+[[ " ${CMDLINE} " == *" composefs=${DIGEST} "* ]]
+
+# ...and the kernel arguments of kargs.d: read-write btrfs root, the splash, the hardening, and lockdown
+# on every image but the NVIDIA ones, as 08-hardening.sh sets it. No debug shell: nothing can be added to
+# this command line on the machine, and a shell there would be root's, with the disk already unlocked.
+for karg in rw rootflags=compress=zstd:1,subvol=root quiet rhgb slab_nomerge init_on_alloc=1 \
+    page_alloc.shuffle=1 randomize_kstack_offset=on vsyscall=none; do
+    [[ " ${CMDLINE} " == *" ${karg} "* ]]
+done
+if [[ "$(jq -r '."image-flavor"' "${T}/usr/share/amethystora/image-info.json")" == nvidia-open ]]; then
+    [[ " ${CMDLINE} " != *" lockdown="* ]]
+else
+    [[ " ${CMDLINE} " == *" lockdown=integrity "* ]]
+fi
+[[ "${CMDLINE}" != *debug_shell* ]]
+
+# The kernel and the initramfs are only in the UKI. The initramfs mounts composefs (bootc's module) and
+# can ask the TPM for the disk key (tpm2-tss), as 19-initramfs.sh's does
+if compgen -G "${T}/usr/lib/modules/*/vmlinuz" || compgen -G "${T}/usr/lib/modules/*/initramfs.img"; then
+    exit 1
+fi
+lsinitrd -m "/run/kernel/${KERNEL}/initramfs.img" | grep -x bootc
+if dracut --list-modules 2>/dev/null | grep -x tpm2-tss >/dev/null; then
+    lsinitrd -m "/run/kernel/${KERNEL}/initramfs.img" | grep -x tpm2-tss
+fi
+
+# Nothing of an ostree deployment's boot is left: no rpm-ostree, bootupd or GRUB
+for package in rpm-ostree bootupd grub2-common grub2-efi-x64 grub2-tools; do
+    if "${RPM[@]}" -q "${package}"; then
+        exit 1
+    fi
+done
+# systemd-boot is, signed with the same key, and bootc installs it onto btrfs
+"${RPM[@]}" -q systemd-boot-unsigned
+sbverify --cert "${CERT}" "${T}/usr/lib/systemd/boot/efi/systemd-bootx64.efi.signed"
+grep -rqx 'bootloader = "systemd"' "${T}/usr/lib/bootc/install/"
+grep -rqx 'type = "btrfs"' "${T}/usr/lib/bootc/install/"
+# shim stays, for the installer to put in front of systemd-boot (amethystora-install-sealed). Whose
+# signatures it carries is printed: Microsoft's 2011 UEFI CA expired in June 2026, and machines that
+# only know that one need a shim signed with it as well as with its 2023 successor.
+SHIM="$(compgen -G "${T}/usr/lib/efi/shim/*/EFI/*/shimx64.efi" | head -n 1)"
+[[ -n "${SHIM}" ]]
+sbverify --list "${SHIM}" || true
+# Upgrades are promised only from composefs installs made with bootc 1.16.0 or later
+BOOTC="$("${RPM[@]}" -q --queryformat '%{VERSION}' bootc)"
+[[ "$(printf '%s\n' 1.16.0 "${BOOTC}" | sort -V | head -n 1)" == 1.16.0 ]]
+
+# What tells the scripts they run sealed, the sealed stream, and the one way the apps read the
+# deployments without rpm-ostree
+test -f "${T}/usr/share/amethystora/sealed"
+[[ "$(jq -r '."image-tag"' "${T}/usr/share/amethystora/image-info.json")" == *-sealed ]]
+test -x "${T}/usr/libexec/amethystora-deployments"
+grep -q '/usr/libexec/amethystora-deployments' "${T}/usr/share/polkit-1/rules.d/50-amethystora-deployments.rules"
+test ! -e "${T}/etc/rpm-ostreed.conf"
+
+# Updates are still only accepted with this image's signature. Whether bootc's composefs backend applies
+# policy.json to every pull is not settled in its documentation: check it on a booted machine before
+# publishing (AGENTS.md, Sealed images)
+jq -e '.transports.docker["ghcr.io/iarsslen"] | any(.type == "sigstoreSigned")' "${T}/etc/containers/policy.json"
+
+# The source of every package is listed, after the packages changed (00-sealed.sh)
+diff <("${RPM[@]}" -qa --queryformat '%{NAME}\n' | grep -vx gpg-pubkey | sort) \
+    <(awk -F'\t' 'NF == 4 && $1 != "PACKAGE" { print $1 }' "${T}/usr/share/licenses/amethystora/SOURCES" | sort)
+
+rm -rf /tmp/rpmdb "${CERT}"
+
+echo "::endgroup::"

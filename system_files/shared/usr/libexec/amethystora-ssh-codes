@@ -1,0 +1,75 @@
+#!/usr/bin/bash
+# One-time codes for SSH: a password login over SSH also asks for a code from an app on a phone
+# (pam_google_authenticator), and a login with a key works as before. Off until `ame security ssh-codes`.
+#
+# The switch is two files and nothing else: an sshd drop-in that sends every password through PAM, and the
+# line in sshd's PAM service that asks for the code. It has no key in /etc/amethystora/security.conf, which
+# sshd cannot read: a key there would be a second record of the same state, and the two could disagree.
+#
+#   amethystora-ssh-codes status   on or off
+#   amethystora-ssh-codes on       add the drop-in and the PAM line (root)
+#   amethystora-ssh-codes off      remove both (root)
+#   amethystora-ssh-codes pam      the PAM service on stdin as it is with codes on, for the security watcher
+
+set -euo pipefail
+
+SHIPPED=/usr/share/amethystora/ssh-codes/30-amethystora-ssh-codes.conf
+DROP_IN=/etc/ssh/sshd_config.d/30-amethystora-ssh-codes.conf
+PAM=/etc/pam.d/sshd
+# No nullok: an account without codes of its own cannot log in over SSH with a password at all
+LINE="auth       required     pam_google_authenticator.so"
+
+die() {
+    echo "${0##*/}: $*" >&2
+    exit 1
+}
+
+need_root() {
+    [[ ${EUID} -eq 0 ]] || die "this needs root: sudo ${0##*/} $*"
+}
+
+# Right after the password, which is a substack: a module in it that is enough on its own, as a security
+# key is, then ends the password's stack and not sshd's, and cannot skip the code
+with_codes() {
+    awk -v line="${LINE}" '
+        { print }
+        !done && /^auth[[:space:]]+substack[[:space:]]+password-auth([[:space:]]|$)/ { print line; done = 1 }
+        END { exit !done }'
+}
+
+# Written over rather than moved, so that the file keeps its mode and label
+rewrite() {
+    local new
+    new="$(mktemp)"
+    if ! "$@" <"${PAM}" >"${new}"; then
+        rm -f "${new}"
+        die "${PAM} has no 'auth substack password-auth' line to put the code after"
+    fi
+    cat "${new}" >"${PAM}"
+    rm -f "${new}"
+}
+
+case "${1:-}" in
+    status)
+        # The PAM line, which anyone can read: sshd_config.d is root's alone
+        if grep -qxF "${LINE}" "${PAM}" 2>/dev/null; then echo on; else echo off; fi
+        ;;
+    on)
+        need_root "$@"
+        grep -qxF "${LINE}" "${PAM}" || rewrite with_codes
+        install -m 0600 "${SHIPPED}" "${DROP_IN}"
+        restorecon "${DROP_IN}" 2>/dev/null || true
+        ;;
+    off)
+        need_root "$@"
+        rm -f "${DROP_IN}"
+        if grep -qxF "${LINE}" "${PAM}"; then rewrite grep -vxF "${LINE}"; fi
+        ;;
+    pam)
+        with_codes
+        ;;
+    *)
+        sed -n '2,12p' "$0" | sed 's/^# \?//' >&2
+        exit 64
+        ;;
+esac

@@ -1,0 +1,223 @@
+#!/usr/bin/bash
+# Installs a sealed Amethystora image (Containerfile.sealed, :stable-sealed) from the live session, onto a
+# whole disk. Anaconda cannot install the composefs backend yet (fedora-atomic-desktops-sealed#20,
+# pykickstart#567), so this does what the README of Fedora's sealed test images does by hand
+# (https://github.com/travier/fedora-atomic-desktops-sealed, CC0-1.0):
+#
+#   1. a GPT with a 2 GiB ESP, which holds the UKIs, and a root partition of the discoverable type, which
+#      systemd finds without a root= argument: LUKS2, then btrfs with the `root` subvolume the UKI's
+#      command line mounts (kargs.d/00-amethystora-sealed.toml)
+#   2. the image, pulled from the registry and checked against its signing key by policy.json, into a
+#      store on the new disk, since the live session runs in memory
+#   3. bootc install to-filesystem, with the composefs backend and systemd-boot
+#   4. shim in front of systemd-boot, from the image itself, and a firmware boot entry for it
+#   5. the image's Secure Boot certificates queued for enrolment, which shim's MOK manager asks for at the
+#      next boot, as `ame security secure-boot` queues them
+#
+# Sealed images are new and experimental, can only be installed, never switched to, and need Secure
+# Boot for the chain to mean anything. The manual says so (installing.md, updates.md).
+
+set -euo pipefail
+
+REGISTRY=ghcr.io/iarsslen
+STREAM=stable-sealed
+IMAGES=(amethystora amethystora-dx amethystora-nvidia-open amethystora-dx-nvidia-open)
+# The MOK manager's one-time password, the one `ame security secure-boot` uses
+MOK_PASSWORD=amethystora
+# What bootc and the image need, and room for two versions of it
+MIN_BYTES=$((64 * 1024 * 1024 * 1024))
+
+if [[ "${EUID}" -ne 0 ]]; then
+    echo "The installer runs as root. The live session's account has no password: press Enter if asked."
+    exec sudo "$0" "$@"
+fi
+
+say() { gum style --border rounded --padding "0 1" --width 80 "$@"; }
+fail() {
+    gum style --foreground 1 "$*" >&2
+    exit 1
+}
+
+TOP=/run/amethystora-install/top
+TARGET=/run/amethystora-install/target
+MAPPED=amethystora-install-root
+BOUND=()
+cleanup() {
+    set +e
+    # Recursively: podman's overlay driver mounts its own folder inside the store
+    for path in "${BOUND[@]}"; do umount -R "${path}"; done
+    umount -R "${TARGET}" 2>/dev/null
+    if mountpoint -q "${TOP}"; then
+        [[ -d "${TOP}/install-store" ]] && btrfs subvolume delete "${TOP}/install-store" >/dev/null
+        [[ -d "${TOP}/install-tmp" ]] && btrfs subvolume delete "${TOP}/install-tmp" >/dev/null
+        umount "${TOP}"
+    fi
+    [[ -e "/dev/mapper/${MAPPED}" ]] && cryptsetup close "${MAPPED}"
+}
+trap cleanup EXIT
+
+say "Install a sealed Amethystora" "" \
+    "A sealed system boots only if every file of it is exactly what was signed: its kernel and the digest of all its files are one image that Secure Boot checks. It is new and experimental." \
+    "" \
+    "This erases a whole disk. It needs Secure Boot on, a network connection to download the system (about 5 GB), and a disk of at least 64 GB. A sealed system cannot be switched back to a regular one without installing again."
+gum confirm "Go on?" || exit 0
+
+[[ -d /sys/firmware/efi ]] || fail "This computer did not start in UEFI mode, which a sealed system needs."
+SB="$(mokutil --sb-state 2>/dev/null || true)"
+if ! grep -qi enabled <<<"${SB}"; then
+    say "Secure Boot is off on this computer." "" \
+        "A sealed system still starts without it, and still checks every file, but nothing then checks the kernel that holds the digest. Turn Secure Boot on in the firmware settings after installing."
+    gum confirm "Install anyway?" || exit 0
+fi
+
+# --- The image ---------------------------------------------------------------------------------------
+
+# The NVIDIA images for a machine with an NVIDIA graphics card (PCI class 0x03, vendor 0x10de), as
+# amethystora-gpu-check decides
+DEFAULT=amethystora
+for device in /sys/bus/pci/devices/*; do
+    if [[ "$(cat "${device}/class" 2>/dev/null)" == 0x03* && "$(cat "${device}/vendor" 2>/dev/null)" == 0x10de ]]; then
+        DEFAULT=amethystora-nvidia-open
+    fi
+done
+IMAGE="$(gum choose --header "Which Amethystora? (-dx adds the developer tools, -nvidia-open the NVIDIA driver)" \
+    --selected "${DEFAULT}" "${IMAGES[@]}")"
+[[ -n "${IMAGE}" ]] || exit 0
+REF="${REGISTRY}/${IMAGE}:${STREAM}"
+echo "Checking that ${REF} can be downloaded..."
+skopeo inspect --retry-times 3 --no-tags "docker://${REF}" >/dev/null ||
+    fail "${REF} could not be reached. Check the network connection, then try again."
+
+# --- The disk ----------------------------------------------------------------------------------------
+
+# Every whole disk but the one this live session runs from
+LIVE="$(findmnt -nvo SOURCE /run/initramfs/live 2>/dev/null || true)"
+LIVE_DISK=""
+[[ -n "${LIVE}" ]] && LIVE_DISK="/dev/$(lsblk -no PKNAME "${LIVE}" 2>/dev/null | head -n 1)"
+CHOICES=()
+while read -r name size model; do
+    [[ "${name}" == "${LIVE_DISK}" || "${name}" == "${LIVE}" ]] && continue
+    CHOICES+=("${name}  $(numfmt --to=iec "${size}")  ${model}")
+done < <(lsblk -dbnpo NAME,SIZE,MODEL,TYPE | awk '$NF == "disk" { $NF = ""; print }')
+[[ ${#CHOICES[@]} -gt 0 ]] || fail "No disk to install on was found."
+CHOICE="$(gum choose --header "Which disk? Everything on it is erased." "${CHOICES[@]}")"
+[[ -n "${CHOICE}" ]] || exit 0
+DISK="${CHOICE%% *}"
+[[ "$(lsblk -dbno SIZE "${DISK}")" -ge "${MIN_BYTES}" ]] || fail "${DISK} is smaller than 64 GB."
+lsblk "${DISK}"
+CONFIRM="$(gum input --placeholder "Type ERASE to erase ${DISK}")"
+[[ "${CONFIRM}" == ERASE ]] || exit 0
+
+# --- Encryption --------------------------------------------------------------------------------------
+
+say "The disk is encrypted, and its passphrase is asked for at every start, unless the TPM holds the key (ame security disk-unlock, once installed)." "" \
+    "It is typed before the system has started, on a US (QWERTY) keyboard layout, whatever this computer's layout is: choose one whose letters are where you expect them on that layout."
+PASSPHRASE=""
+while true; do
+    PASSPHRASE="$(gum input --password --placeholder "Disk passphrase (leave empty for no encryption)")"
+    if [[ -z "${PASSPHRASE}" ]]; then
+        gum confirm --default=no "Install without encryption? Anyone holding the disk could read it." && break
+        continue
+    fi
+    [[ "$(gum input --password --placeholder "The same passphrase again")" == "${PASSPHRASE}" ]] && break
+    echo "The two did not match."
+done
+
+# --- Installing --------------------------------------------------------------------------------------
+
+echo "Partitioning ${DISK}..."
+wipefs -a -f "${DISK}" >/dev/null
+sfdisk --quiet --wipe always --wipe-partitions always --label gpt "${DISK}" <<'EOF'
+size=2GiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, name="ESP"
+type=4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709, name="root"
+EOF
+udevadm settle
+readarray -t PARTS < <(lsblk -lnpo NAME,TYPE "${DISK}" | awk '$2 == "part" { print $1 }')
+[[ ${#PARTS[@]} -eq 2 ]] || fail "The new partitions of ${DISK} did not appear."
+ESP="${PARTS[0]}"
+ROOT="${PARTS[1]}"
+mkfs.vfat -F 32 -n ESP "${ESP}" >/dev/null
+DEVICE="${ROOT}"
+if [[ -n "${PASSPHRASE}" ]]; then
+    echo "Encrypting..."
+    printf '%s' "${PASSPHRASE}" | cryptsetup luksFormat --batch-mode --type luks2 --key-file - "${ROOT}"
+    printf '%s' "${PASSPHRASE}" | cryptsetup open --key-file - "${ROOT}" "${MAPPED}"
+    DEVICE="/dev/mapper/${MAPPED}"
+fi
+PASSPHRASE=""
+mkfs.btrfs --quiet --force --label amethystora "${DEVICE}" >/dev/null
+mkdir -p "${TOP}" "${TARGET}"
+mount "${DEVICE}" "${TOP}"
+btrfs subvolume create "${TOP}/root" >/dev/null
+# The download and bootc's large temporary files on the new disk rather than in the live session's memory
+btrfs subvolume create "${TOP}/install-store" >/dev/null
+btrfs subvolume create "${TOP}/install-tmp" >/dev/null
+for pair in "${TOP}/install-store:/var/lib/containers/storage" "${TOP}/install-tmp:/var/tmp"; do
+    mkdir -p "${pair#*:}"
+    mount --bind "${pair%%:*}" "${pair#*:}"
+    BOUND=("${pair#*:}" "${BOUND[@]}")
+done
+mount -o subvol=root,compress=zstd:1 "${DEVICE}" "${TARGET}"
+mkdir -p "${TARGET}/boot"
+mount "${ESP}" "${TARGET}/boot"
+
+echo "Downloading ${REF}. policy.json refuses it unless it carries Amethystora's signature..."
+podman pull --retry 3 "${REF}"
+
+echo "Installing..."
+podman run --rm --privileged --pid=host --ipc=host --security-opt label=type:unconfined_t \
+    --volume /var/lib/containers:/var/lib/containers --volume /dev:/dev --volume /:/run/host \
+    "${REF}" bootc install to-filesystem \
+    --source-imgref "containers-storage:${REF}" --target-imgref "${REF}" \
+    --composefs-backend --bootloader systemd --generic-image --skip-finalize \
+    "/run/host${TARGET}"
+
+# shim, which Microsoft's key in the firmware accepts, in front of systemd-boot, which shim accepts once
+# the image's own certificate is enrolled: shim starts the grubx64.efi beside it, whatever that is. Taken
+# from the image installed, with its fallback copy as the firmware's default boot path.
+echo "Setting up the boot loader..."
+CONTAINER="$(podman create "${REF}")"
+IMAGE_ROOT="$(podman mount "${CONTAINER}")"
+SHIM="$(compgen -G "${IMAGE_ROOT}/usr/lib/efi/shim/*/EFI" | head -n 1)"
+[[ -n "${SHIM}" ]] || fail "The image carries no shim."
+VENDOR="$(basename "$(dirname "$(compgen -G "${SHIM}/*/shimx64.efi" | grep -v /BOOT/ | head -n 1)")")"
+EFI="${TARGET}/boot/EFI"
+mkdir -p "${EFI}/amethystora" "${EFI}/BOOT"
+cp "${SHIM}/${VENDOR}/shimx64.efi" "${SHIM}/${VENDOR}/mmx64.efi" "${EFI}/amethystora/"
+cp "${SHIM}/BOOT/"* "${EFI}/BOOT/"
+cp "${SHIM}/${VENDOR}/mmx64.efi" "${EFI}/BOOT/"
+mv "${EFI}/systemd/systemd-bootx64.efi" "${EFI}/amethystora/grubx64.efi"
+rm -rf "${EFI}/systemd"
+# What shim's fallback makes a boot entry from, if the firmware ever loses the one below: UTF-16, with
+# a byte order mark
+{ printf '\xff\xfe'; printf 'shimx64.efi,Amethystora,,This is the boot entry for Amethystora\n' | iconv -t UTF-16LE; } \
+    >"${EFI}/amethystora/BOOTX64.CSV"
+CERTS=("${IMAGE_ROOT}"/usr/share/amethystora/secure-boot/*.der)
+cp "${CERTS[@]}" /run/amethystora-install/
+podman umount "${CONTAINER}" >/dev/null
+podman rm "${CONTAINER}" >/dev/null
+
+# The firmware's boot entry, replacing any an earlier install left
+for entry in $(efibootmgr | sed -n 's/^Boot\([0-9A-Fa-f]\{4\}\)\*\? Amethystora\b.*/\1/p'); do
+    efibootmgr --quiet --bootnum "${entry}" --delete-bootnum
+done
+efibootmgr --quiet --create --disk "${DISK}" --part 1 --label Amethystora --loader '\EFI\amethystora\shimx64.efi'
+
+# The image's certificates, its own and the one its kernel modules are signed with, for the MOK manager
+MOK=()
+for cert in /run/amethystora-install/*.der; do
+    if mokutil --test-key "${cert}" 2>&1 | grep -q "is not enrolled"; then
+        MOK+=("${cert}")
+    fi
+done
+if [[ ${#MOK[@]} -gt 0 ]]; then
+    mokutil --timeout -1
+    printf '%s\n%s\n' "${MOK_PASSWORD}" "${MOK_PASSWORD}" | mokutil --import "${MOK[@]}"
+fi
+rm -f /run/amethystora-install/*.der
+
+sync
+say "Installed ${IMAGE}, sealed." "" \
+    "Restart and remove the USB stick. A blue screen, the MOK manager, comes first: choose \"Enroll MOK\", then \"Continue\", \"Yes\", type \"${MOK_PASSWORD}\" (on a QWERTY layout) and choose \"Reboot\". Without that, Secure Boot refuses the new system." \
+    "" \
+    "Then the disk passphrase, if you set one, and the first-start setup, which creates your account."

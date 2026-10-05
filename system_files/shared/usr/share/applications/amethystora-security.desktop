@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=Security
+GenericName=Security Report and Virus Scan
+Comment=What this machine's security settings are doing, what to do about anything that is off, and a virus scanner
+Exec=amethystora-security
+Icon=amethystora-security-status
+Terminal=false
+Categories=System;Security;Settings;
+Keywords=security;status;report;antivirus;virus;scan;malware;clamav;firewall;audit;lynis;secure boot;updates;signature;
+StartupNotify=true
+StartupWMClass=amethystora-security
+Actions=scan;
+
+[Desktop Action scan]
+Name=Virus Scan
+Exec=amethystora-security scan

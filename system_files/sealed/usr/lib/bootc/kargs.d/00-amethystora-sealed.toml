@@ -1,0 +1,7 @@
+# The kernel command line of a sealed image's UKI, beside the hardening and lockdown arguments of the
+# other files here and the composefs digest bootc adds after them: the root filesystem read-write, btrfs's
+# compression and the `root` subvolume the sealed installer makes (amethystora-install-sealed), and the
+# boot splash. There is no root= argument: systemd finds the root partition by its GPT type, and unlocks
+# it with the TPM when one holds its key. All of it is inside the signed UKI, so a machine cannot change
+# any of it, at the boot menu or anywhere else.
+kargs = ["rw", "rootflags=compress=zstd:1,subvol=root", "quiet", "rhgb"]

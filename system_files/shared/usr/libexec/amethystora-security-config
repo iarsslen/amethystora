@@ -1,0 +1,62 @@
+#!/usr/bin/bash
+# The one reader of /etc/amethystora/security.conf, for the scripts, the recipes and the Security app.
+#
+#   amethystora-security-config KEY            the value, or the default when it is unset or unknown
+#   amethystora-security-config --is KEY VALUE exit 0 when KEY is VALUE (ExecCondition= in the units)
+#   amethystora-security-config set KEY VALUE  change it (root)
+#
+# A value it does not know is the default and never an error: a typo in the file must not turn
+# real-time scanning on, files found by a scan into files deleted, or connections into blocked ones.
+
+set -uo pipefail
+
+CONFIG=/etc/amethystora/security.conf
+
+declare -A DEFAULTS=([ON_DETECTION]=report [REALTIME]=off [NETWORK]=off)
+declare -A ALLOWED=([ON_DETECTION]="report quarantine delete" [REALTIME]="off on" [NETWORK]="off watch block")
+
+usage() {
+    echo "usage: ${0##*/} KEY | --is KEY VALUE | set KEY VALUE (keys: ${!DEFAULTS[*]})" >&2
+    exit 64
+}
+
+known_key() { [[ -n "${DEFAULTS[$1]+set}" ]]; }
+allowed() { [[ " ${ALLOWED[$1]} " == *" $2 "* ]]; }
+
+value() {
+    local key="$1" found
+    # The last assignment wins, the way a sourced file would have it, without sourcing anything
+    found="$(sed -nE "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*\"?([a-z]*)\"?[[:space:]]*(#.*)?$/\1/p" \
+        "${CONFIG}" 2>/dev/null | tail -n1)"
+    if allowed "${key}" "${found}"; then
+        echo "${found}"
+    else
+        echo "${DEFAULTS[${key}]}"
+    fi
+}
+
+case "${1:-}" in
+    --is)
+        [[ $# -eq 3 ]] && known_key "$2" || usage
+        [[ "$(value "$2")" == "$3" ]]
+        ;;
+    set)
+        [[ $# -eq 3 ]] && known_key "$2" || usage
+        allowed "$2" "$3" || { echo "${2} can be one of: ${ALLOWED[$2]}" >&2; exit 64; }
+        [[ "${EUID}" -eq 0 ]] || { echo "Changing a security setting needs root." >&2; exit 77; }
+        mkdir -p "${CONFIG%/*}"
+        if grep -qE "^[[:space:]]*$2[[:space:]]*=" "${CONFIG}" 2>/dev/null; then
+            sed -i -E "s/^[[:space:]]*$2[[:space:]]*=.*/$2=$3/" "${CONFIG}"
+        else
+            printf '%s=%s\n' "$2" "$3" >>"${CONFIG}"
+        fi
+        chmod 0644 "${CONFIG}"
+        ;;
+    "" | -*)
+        usage
+        ;;
+    *)
+        known_key "$1" || usage
+        value "$1"
+        ;;
+esac

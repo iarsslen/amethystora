@@ -1,0 +1,12 @@
+[Unit]
+Description=Check every copy on the pools of disks once a month
+
+[Timer]
+OnCalendar=monthly
+# A machine that was off or asleep on the first of the month is checked when it comes back; one that was
+# on battery waits for the next month, or for `ame system raid scrub now`
+Persistent=true
+RandomizedDelaySec=1d
+
+[Install]
+WantedBy=timers.target

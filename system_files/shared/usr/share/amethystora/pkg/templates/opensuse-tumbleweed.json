@@ -1,0 +1,7 @@
+{
+    "name": "opensuse-tumbleweed",
+    "description": "openSUSE Tumbleweed, rolling",
+    "base": "quay.io/toolbx-images/opensuse-toolbox:tumbleweed@sha256:2cccab91e84d9dc761a79c104fd7b094787fbf404575ff59345fe37d703a90ea",
+    "manager": "zypper",
+    "packages": []
+}

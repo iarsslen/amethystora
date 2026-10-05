@@ -1,0 +1,71 @@
+#!/usr/bin/bash
+# Domain logins with the image's own authselect features. realmd runs this for its four login commands
+# (/etc/realmd.conf), when Settings' Enterprise Login or `realm join` joins a domain and when `realm leave`
+# leaves the last one. Its stock commands run `authselect select sssd with-mkhomedir --force`, which turns
+# off account lockout, fingerprint login and security keys without a word.
+#
+#   amethystora-domain-logins sssd|winbind   the profile realmd joined with, the image's features and
+#                                            with-mkhomedir; then oddjobd, which makes a domain account's
+#                                            home folder at its first login (root)
+#   amethystora-domain-logins image          the image's own profile and features, for `realm leave` (root)
+#   amethystora-domain-logins check          whether /etc/authselect is a domain setup made here: sssd or
+#                                            winbind, every feature of the image's still on, and no file
+#                                            edited by hand. The security watcher asks this.
+#   amethystora-domain-logins --print MODE   only print the authselect command
+
+set -euo pipefail
+
+# The image's own copy of /etc. In the build, before ostree has moved it there, /etc is the image's.
+IMAGE_CONF=/usr/etc/authselect/authselect.conf
+[[ -e "${IMAGE_CONF}" ]] || IMAGE_CONF=/etc/authselect/authselect.conf
+CONF=/etc/authselect/authselect.conf
+
+die() {
+    echo "${0##*/}: $*" >&2
+    exit 1
+}
+
+# authselect.conf is the profile on its first line and the features after it, in the order they were
+# turned on
+features() {
+    grep -vE '^[[:space:]]*(#|$)' "$1" | tail -n +2
+}
+
+PRINT=false
+if [[ "${1:-}" == --print ]]; then
+    PRINT=true
+    shift
+fi
+
+mapfile -t FEATURES < <(features "${IMAGE_CONF}")
+case "${1:-}" in
+    sssd | winbind)
+        COMMAND=(authselect select "$1" "${FEATURES[@]}")
+        [[ " ${FEATURES[*]} " == *" with-mkhomedir "* ]] || COMMAND+=(with-mkhomedir)
+        ;;
+    image)
+        COMMAND=(authselect select "$(grep -vE '^[[:space:]]*(#|$)' "${IMAGE_CONF}" | head -n1)" "${FEATURES[@]}")
+        ;;
+    check)
+        [[ "$(grep -vE '^[[:space:]]*(#|$)' "${CONF}" | head -n1)" =~ ^(sssd|winbind)$ ]] || exit 1
+        # A feature of the image's that is no longer on
+        grep -vxF -f <(features "${CONF}") <(features "${IMAGE_CONF}") >/dev/null && exit 1
+        authselect check >/dev/null 2>&1
+        exit
+        ;;
+    *)
+        sed -n '2,14p' "$0" | sed 's/^# \?//' >&2
+        exit 64
+        ;;
+esac
+COMMAND+=(--force)
+
+if [[ "${PRINT}" == true ]]; then
+    echo "${COMMAND[*]}"
+    exit 0
+fi
+[[ ${EUID} -eq 0 ]] || die "this needs root"
+"${COMMAND[@]}"
+if [[ "$1" != image ]]; then
+    systemctl enable --now oddjobd.service
+fi

@@ -1,0 +1,863 @@
+#!/usr/bin/bash
+# What this machine's security settings are actually doing, and what to do about anything that is off.
+# Nothing here changes anything, and it asks for no password.
+#
+#   amethystora-security-status          the report, for a terminal (`ame security status`)
+#   amethystora-security-status --json   the same report, for the Security app (amethystora-security)
+#
+# One set of checks for both, so that the terminal and the window cannot disagree. Each check ends in
+#
+#   report <group> <id> <state> <title> <text> [<detail>...]
+#
+# where the state is ok, check, off or info, and for the protections that stay off until someone turns
+# them on: on, off or unavailable. COMMAND, set just before the call, is what fixes it or turns it on,
+# and a detail ending in a colon is the one that introduces it. The app offers to run that command in a
+# terminal, so it has to be one command and nothing more: no pipes, no quotes, no "then restart".
+
+set -uo pipefail
+
+# The report's words, in the session's language where there is a translation of them (po/, compiled into
+# /usr/share/locale by 14-security.sh). A message names its values as shell variables, which eval_gettext
+# fills in, so that a translation can put them where its language needs them; a value that is not a plain
+# variable is put into one first.
+export TEXTDOMAIN=amethystora
+# shellcheck source=/dev/null
+source gettext.sh
+
+JSON=false
+[[ "${1:-}" == "--json" ]] && JSON=true
+
+RECORDS=()
+COMMAND=""
+PRINTED_GROUP=""
+
+declare -A HEADINGS=(
+    [updates]="$(gettext "Updates and boot")"
+    [watching]="$(gettext "Watching")"
+    [apps]="$(gettext "Apps")"
+    [scans]="$(gettext "Scans")"
+    [optional]="$(gettext "Off unless you turned it on")"
+)
+
+# A check as the terminal shows it: its state, what it says, and what explains it, with the command
+# following the detail that introduces it
+print_record() {
+    local group="$1" state="$2" title="$3" text="$4" line reason
+    shift 4
+    local -a lines=("$@")
+    if [[ "${group}" != "${PRINTED_GROUP}" ]]; then
+        PRINTED_GROUP="${group}"
+        printf '\n  %s\n' "${HEADINGS[${group}]}"
+    fi
+    if [[ "${group}" == optional ]]; then
+        reason="${lines[0]:-}"
+        reason="${reason,}"
+        case "${state}" in
+            on) printf '   %s\n' "$(eval_gettext "\${title} is on (\${COMMAND})")" ;;
+            unavailable) printf '   %s\n' "$(eval_gettext "\${title}: \${COMMAND} (\${reason})")" ;;
+            *) printf '   %s: %s\n' "${title}" "${COMMAND}" ;;
+        esac
+        return
+    fi
+    local mark="" colour=""
+    # Translators: the state of a check in the terminal, in a column seven letters wide: keep it short
+    case "${state}" in
+        ok) mark="$(gettext "ok")" colour="1;32" ;;
+        check) mark="$(gettext "check")" colour="1;33" ;;
+        off) mark="$(gettext "off")" colour="1;31" ;;
+    esac
+    if [[ -n "${mark}" ]]; then
+        # Padded by letters, which ${#} counts, rather than by bytes, which printf's own width counts,
+        # so that a translation with an accent or another script still lines its text up
+        printf '   \033[%sm%s\033[0m%*s%s\n' "${colour}" "${mark}" "$((${#mark} < 7 ? 7 - ${#mark} : 1))" '' "${text}"
+    else
+        printf '   ---    %s\n' "${text}"
+    fi
+    if [[ -n "${COMMAND}" ]]; then
+        if [[ ${#lines[@]} -gt 0 && "${lines[-1]}" == *: ]]; then
+            lines[-1]+=" ${COMMAND}"
+        else
+            lines+=("${COMMAND}")
+        fi
+    fi
+    for line in "${lines[@]}"; do
+        fold -s -w 88 <<<"${line}" | sed 's/ *$//; s/^/          /'
+    done
+}
+
+report() {
+    local group="$1" id="$2" state="$3" title="$4" text="$5"
+    shift 5
+    if [[ "${JSON}" == true ]]; then
+        RECORDS+=("$(jq -nc --arg group "${group}" --arg id "${id}" --arg state "${state}" \
+            --arg title "${title}" --arg text "${text}" --arg command "${COMMAND}" \
+            '{$group, $id, $state, $title, $text, details: $ARGS.positional,
+              command: (if $command == "" then null else $command end)}' --args "$@")")
+    else
+        print_record "${group}" "${state}" "${title}" "${text}" "$@"
+    fi
+    COMMAND=""
+}
+
+NOW="$(date +%s)"
+# The machine's own choices (/etc/amethystora/security.conf), through the one reader of that file
+ON_DETECTION="$(/usr/libexec/amethystora-security-config ON_DETECTION)"
+REALTIME="$(/usr/libexec/amethystora-security-config REALTIME)"
+NETWORK="$(/usr/libexec/amethystora-security-config NETWORK)"
+# What the security watcher saw that only root can see, written for this report at each of its runs
+WATCH_STATUS=/var/lib/amethystora/security/status.json
+
+# When a scan last ran, in seconds: the later of its service finishing, which systemd forgets at every
+# boot, and its timer firing, which it keeps
+last_run_time() {
+    {
+        systemctl show --timestamp=unix -p InactiveEnterTimestamp --value "$1.service"
+        systemctl show --timestamp=unix -p LastTriggerUSec --value "$1.timer"
+    } 2>/dev/null | sed -n 's/^@\([0-9][0-9]*\)$/\1/p' | sort -n | tail -n1
+}
+
+# ...and as "Sun 20 Sep, 03:12", in the session's language
+last_run() {
+    local latest
+    latest="$(last_run_time "$1")"
+    [[ -n "${latest}" ]] && date -d "@${latest}" '+%a %-d %b, %H:%M'
+}
+
+days_since() {
+    echo $(((NOW - $1) / 86400))
+}
+
+# How long ago, as a sentence goes on: "today", "yesterday", "3 days ago"
+days_ago() {
+    local DAYS="$1"
+    case "${DAYS}" in
+        0) gettext "today" ;;
+        1) gettext "yesterday" ;;
+        *) eval_ngettext "\${DAYS} day ago" "\${DAYS} days ago" "${DAYS}" ;;
+    esac
+}
+
+# rpm-ostree's list, not bootc's: `bootc status` needs root, and without it this reported every machine
+# as running "unknown" with unchecked updates. The image reference is prefixed ostree-image-signed:
+# exactly when bootc would report the containerPolicy signature. A sealed image has no rpm-ostree, and
+# amethystora-deployments gives its deployments in the same shape.
+SEALED=false
+[[ -e /usr/share/amethystora/sealed ]] && SEALED=true
+STATUS="$(/usr/libexec/amethystora-deployments 2>/dev/null || true)"
+ref() { jq -r "[.deployments[] | select(.$1)][0][\"container-image-reference\"] // \"\"" <<<"${STATUS:-null}" 2>/dev/null; }
+sig() { [[ "$1" == ostree-image-signed:* ]] && echo containerPolicy || echo none; }
+BOOTED_REF="$(ref booted)"
+IMAGE="$(sed -E 's|^[^:]+:(docker://)?||' <<<"${BOOTED_REF}")"
+IMAGE="${IMAGE:-unknown}"
+SIGNED="$(sig "${BOOTED_REF}")"
+STAGED="$(sig "$(ref staged)")"
+# Packages layered on with rpm-ostree. They decide which command follows a stream below: bootc
+# builds the next deployment from the image alone and would drop them, rpm-ostree carries them over.
+LAYERED="$(jq -r '[.deployments[] | select(.booted)][0] | ((.packages // []) + (."requested-local-packages" // [])) | length' <<<"${STATUS:-null}" 2>/dev/null)"
+LAYERED="${LAYERED:-0}"
+
+if [[ "${JSON}" != true ]]; then
+    echo
+    echo "  $(eval_gettext "This machine is running \${IMAGE}")"
+fi
+
+# --- Updates and boot ---------------------------------------------------------------------------------
+
+if [[ "${SIGNED}" == "containerPolicy" ]]; then
+    report updates signed-updates ok "$(gettext "Signed updates")" \
+        "$(gettext "Updates are refused unless they carry this image's signature")"
+elif [[ "${STAGED}" == "containerPolicy" ]]; then
+    report updates signed-updates check "$(gettext "Signed updates")" \
+        "$(gettext "Signature checking is staged, and turns on at the next restart")"
+elif [[ "${SEALED}" == true ]]; then
+    # A sealed machine has no origin to switch: every pull is checked against policy.json itself
+    report updates signed-updates off "$(gettext "Signed updates")" "$(gettext "Updates are not signature-checked")" \
+        "$(gettext "Anything that can answer for the registry could replace this machine's whole system.")" \
+        "$(gettext "/etc/containers/policy.json no longer asks for this image's signature.")"
+else
+    COMMAND="sudo systemctl start amethystora-signed-updates.service"
+    report updates signed-updates off "$(gettext "Signed updates")" "$(gettext "Updates are not signature-checked")" \
+        "$(gettext "Anything that can answer for the registry could replace this machine's whole system.")" \
+        "$(gettext "Fix it with this, then restart:")"
+fi
+# A dated tag names one build, not a stream: every update re-pulls that same build, forever. The stream
+# can have more than one word (stable-sealed-44.20261004).
+TAG="${IMAGE##*:}"
+if [[ "${TAG}" =~ ^([a-z]+(-[a-z]+)*)-[0-9]+\.[0-9]{8} ]]; then
+    STREAM="${BASH_REMATCH[1]}"
+    if [[ "${LAYERED}" != "0" ]]; then
+        COMMAND="sudo rpm-ostree rebase ostree-image-signed:docker://${IMAGE%:*}:${STREAM}"
+    else
+        COMMAND="sudo bootc switch --enforce-container-sigpolicy ${IMAGE%:*}:${STREAM}"
+    fi
+    report updates single-build check "$(gettext "Updates")" \
+        "$(eval_gettext "This machine follows a single build (\${TAG}) and will not receive updates")" \
+        "$(eval_gettext "Follow the \${STREAM} stream again with:")"
+fi
+if [[ "${LAYERED}" != "0" ]]; then
+    report updates layered info "$(gettext "Layered packages")" \
+        "$(eval_ngettext "\${LAYERED} package is layered on this image with rpm-ostree" "\${LAYERED} packages are layered on this image with rpm-ostree" "${LAYERED}")" \
+        "$(gettext "Updates keep them, but each one slows every update; the image is the better place")"
+fi
+
+# How old the running system is. A fix to anything in the image reaches this machine only as a newer
+# image, so this is, in days, how long it has gone without the fixes made since. The deployment listed
+# first is the one the next boot starts, which is an update waiting for a restart when it is newer.
+BUILT="$(jq -r '[.deployments[] | select(.booted)][0].timestamp // empty' <<<"${STATUS:-null}" 2>/dev/null)"
+NEXT_BUILT="$(jq -r 'if (.deployments[0].booted | not) then .deployments[0].timestamp // empty else empty end' \
+    <<<"${STATUS:-null}" 2>/dev/null)"
+if [[ "${BUILT}" =~ ^[0-9]+$ ]]; then
+    AGE="$(days_since "${BUILT}")"
+    if [[ "${AGE}" -le 14 ]]; then
+        WHEN="$(days_ago "${AGE}")"
+        report updates image-age ok "$(gettext "System image")" "$(eval_gettext "This system image was built \${WHEN}")"
+    elif [[ "${NEXT_BUILT}" =~ ^[0-9]+$ && "${NEXT_BUILT}" -gt "${BUILT}" ]]; then
+        report updates image-age info "$(gettext "System image")" "$(gettext "A newer system image is waiting for a restart")" \
+            "$(eval_ngettext "The one running was built \${AGE} day ago. Restart to use the new one." "The one running was built \${AGE} days ago. Restart to use the new one." "${AGE}")"
+    else
+        COMMAND="ame update"
+        SINCE="$(date -d "@${BUILT}" '+%-d %B')"
+        report updates image-age check "$(gettext "System image")" \
+            "$(eval_ngettext "This system image is \${AGE} day old" "This system image is \${AGE} days old" "${AGE}")" \
+            "$(eval_gettext "Security fixes reach this machine as new images, and none has arrived since \${SINCE}.")" \
+            "$(gettext "Update now with:")"
+    fi
+fi
+
+if [[ "$(systemctl is-enabled uupd.timer 2>/dev/null)" != "enabled" ]]; then
+    COMMAND="sudo systemctl enable --now uupd.timer"
+    report updates automatic-updates check "$(gettext "Automatic updates")" "$(gettext "Automatic updates are off")" \
+        "$(gettext "Turn them back on with:")"
+else
+    # uupd's own last word on a run, from the journal, which Fedora opens to the members of wheel
+    FINISHED="$(journalctl -q -r -n1 -o short-unix -u uupd.service -u uupd-manual.service \
+        -g 'Updates Completed Successfully' 2>/dev/null | grep -o '^[0-9]*' | head -n1)"
+    if [[ ! "${FINISHED}" =~ ^[0-9]+$ ]]; then
+        report updates automatic-updates ok "$(gettext "Automatic updates")" "$(gettext "Updates install by themselves")"
+    elif [[ "$(days_since "${FINISHED}")" -gt 14 ]]; then
+        COMMAND="ame update"
+        DAYS="$(days_since "${FINISHED}")"
+        report updates automatic-updates check "$(gettext "Automatic updates")" \
+            "$(eval_ngettext "The last update that finished was \${DAYS} day ago" "The last update that finished was \${DAYS} days ago" "${DAYS}")" \
+            "$(gettext "Updates start, but do not get to the end. System Updates shows why, or run one here:")"
+    else
+        WHEN="$(days_ago "$(days_since "${FINISHED}")")"
+        report updates automatic-updates ok "$(gettext "Automatic updates")" \
+            "$(eval_gettext "Updates install by themselves. The last one finished \${WHEN}")"
+    fi
+fi
+
+# The containers amethystora-pkg manages, which a timer of the account's own upgrades every day
+# (amethystora-pkg-upgrade.timer). One left alone for two weeks runs without the fixes its distribution
+# has published since. They are each account's own: run as root by the security watcher, this sees none.
+if [[ -d "${XDG_STATE_HOME:-${HOME:-/nonexistent}/.local/state}/amethystora/pkg/containers" ]] &&
+    command -v amethystora-pkg >/dev/null; then
+    STALE=()
+    COUNT=0
+    while IFS=$'\t' read -r name since; do
+        COUNT=$((COUNT + 1))
+        if [[ "${since}" == 0 ]]; then
+            STALE+=("$(eval_gettext "\${name}, never upgraded")")
+        elif [[ "$(days_since "${since}")" -ge 14 ]]; then
+            WHEN="$(days_ago "$(days_since "${since}")")"
+            STALE+=("$(eval_gettext "\${name}, last upgraded \${WHEN}")")
+        fi
+    done < <(timeout 60 amethystora-pkg containers list --json 2>/dev/null |
+        jq -r '.[] | [.name, (.last_upgrade // .created // 0 | tostring)] | @tsv' 2>/dev/null)
+    if [[ ${#STALE[@]} -gt 0 ]]; then
+        COMMAND="amethystora-pkg upgrade-all"
+        N="${#STALE[@]}"
+        report updates containers check "$(gettext "Containers")" \
+            "$(eval_ngettext "\${N} container has not been upgraded for two weeks" "\${N} containers have not been upgraded for two weeks" "${N}")" \
+            "${STALE[@]}" \
+            "$(gettext "What runs in a container goes without the fixes its distribution has published since. Upgrade them now with:")"
+    elif [[ "${COUNT}" -eq 1 ]]; then
+        report updates containers ok "$(gettext "Containers")" \
+            "$(gettext "The container amethystora-pkg manages is upgraded every day")"
+    elif [[ "${COUNT}" -gt 1 ]]; then
+        report updates containers ok "$(gettext "Containers")" \
+            "$(eval_ngettext "The \${COUNT} container amethystora-pkg manages is upgraded every day" "The \${COUNT} containers amethystora-pkg manages are upgraded every day" "${COUNT}")"
+    fi
+fi
+
+# What the signature buys is a trusted image at the moment it is pulled. Whether /usr is still
+# checked afterwards is composefs's job, and that comes from the base image rather than from
+# anything set here, so this reports what is actually mounted rather than what was intended. A sealed
+# image boots with the digest of all its files on the signed kernel's command line, and its root is
+# mounted only with fs-verity required.
+if grep -Eq '(^| )composefs=[0-9a-f]+( |$)' /proc/cmdline 2>/dev/null &&
+    findmnt -no OPTIONS / 2>/dev/null | grep -q 'verity=require'; then
+    report updates composefs ok "$(gettext "Verified system files")" \
+        "$(gettext "The system is sealed: every file of it is checked, as it is read, against the digest its signed kernel carries")"
+elif grep -q composefs /proc/mounts 2>/dev/null; then
+    report updates composefs ok "$(gettext "Verified system files")" \
+        "$(gettext "The running system is on composefs: /usr is verified as it is read, not only when pulled")"
+else
+    report updates composefs info "$(gettext "Verified system files")" \
+        "$(gettext "/usr is read-only and replaced whole by each update, but is not re-verified as it is read")"
+fi
+
+SB="$(mokutil --sb-state 2>/dev/null || true)"
+if grep -qi "enabled" <<<"${SB}"; then
+    report updates secure-boot ok "$(gettext "Secure Boot")" \
+        "$(gettext "Secure Boot is on: this machine boots only a kernel it has checked")"
+elif grep -qi "disabled" <<<"${SB}"; then
+    COMMAND="ame security secure-boot"
+    report updates secure-boot check "$(gettext "Secure Boot")" "$(gettext "Secure Boot is off")" \
+        "$(gettext "The kernel protections below rest on it. Without it, anything that reaches root can boot a different kernel and step around them.")" \
+        "$(gettext "Turn Secure Boot on in this machine's firmware, then run:")"
+else
+    report updates secure-boot check "$(gettext "Secure Boot")" \
+        "$(gettext "Secure Boot state unknown (no EFI on this machine, or its firmware will not say)")"
+fi
+
+# The same check `ame security secure-boot` uses, so the two can no longer disagree
+MOK="$(/usr/libexec/amethystora-mok-status)"
+if ! grep -qv "^enrolled " <<<"${MOK}"; then
+    report updates signing-keys ok "$(gettext "Signing keys")" "$(gettext "This image's signing keys are enrolled")"
+elif grep -qi "enabled" <<<"${SB}"; then
+    while read -r state cert rest; do
+        CERT="${cert##*/}"
+        case "${state}" in
+            not-enrolled)
+                COMMAND="ame security secure-boot"
+                report updates "key-${CERT}" check "$(gettext "Signing keys")" "$(eval_gettext "Not enrolled: \${CERT}")" \
+                    "$(gettext "What it signs, such as evdi for DisplayLink docks, will not load.")" \
+                    "$(gettext "Enroll it with:")" ;;
+            pending)
+                report updates "key-${CERT}" check "$(gettext "Signing keys")" \
+                    "$(eval_gettext "Enrollment of \${CERT} is waiting for the next restart")" \
+                    "$(gettext "Finish it in the blue MOK manager screen that appears during boot.")" ;;
+            missing)
+                report updates "key-${CERT}" check "$(gettext "Signing keys")" "$(eval_gettext "\${cert} is not on this machine")" \
+                    "$(gettext "Whether its key is enrolled cannot be checked without it.")" ;;
+            unknown)
+                report updates "key-${CERT}" check "$(gettext "Signing keys")" \
+                    "$(eval_gettext "Could not tell whether \${CERT} is enrolled")" "$(eval_gettext "mokutil said: \${rest}")" ;;
+        esac
+    done <<<"${MOK}"
+fi
+
+LOCKDOWN=""
+[[ -r /sys/kernel/security/lockdown ]] &&
+    LOCKDOWN="$(sed -n 's/.*\[\([a-z]*\)\].*/\1/p' /sys/kernel/security/lockdown 2>/dev/null)"
+[[ -n "${LOCKDOWN}" ]] || { grep -qw "lockdown=integrity" /proc/cmdline && LOCKDOWN=integrity; }
+case "${LOCKDOWN}" in
+    integrity | confidentiality)
+        report updates lockdown ok "$(gettext "Kernel lockdown")" \
+            "$(eval_gettext "Kernel lockdown is on (\${LOCKDOWN}): root cannot rewrite the running kernel")" ;;
+    *)
+        # Nothing to do about this one, so it is information rather than something to check
+        if [[ "${IMAGE}" == *nvidia* ]]; then
+            report updates lockdown info "$(gettext "Kernel lockdown")" \
+                "$(gettext "Kernel lockdown is off, as it is on every NVIDIA image")" \
+                "$(gettext "The NVIDIA driver is a module signed with this machine's own key, and lockdown would leave a machine without Secure Boot with no graphics driver at all.")"
+        elif [[ "${SEALED}" == true ]]; then
+            # Its kernel arguments are inside the signed UKI, which carries lockdown=integrity
+            report updates lockdown check "$(gettext "Kernel lockdown")" "$(gettext "Kernel lockdown is off")" \
+                "$(gettext "This sealed image's kernel asks for it, so something is overriding it: report it as a bug.")"
+        else
+            COMMAND="sudo rpm-ostree kargs --append=lockdown=integrity"
+            report updates lockdown check "$(gettext "Kernel lockdown")" "$(gettext "Kernel lockdown is off")" \
+                "$(gettext "Turn it back on with:")"
+        fi ;;
+esac
+
+# fwupd's rating of what the firmware protects, the Host Security ID: HSI:0 to HSI:5, with a "!" when
+# something running weakens it, such as Secure Boot off or a kernel tainted by a module from outside it.
+# How well a machine's firmware protects it is mostly its maker's doing, so this is said rather than
+# flagged. Asking fwupd needs no password.
+HSI="$(busctl get-property org.freedesktop.fwupd / org.freedesktop.fwupd HostSecurityId 2>/dev/null |
+    sed -n 's/^s "\(HSI:[0-9]!\{0,1\}\).*"$/\1/p')"
+if [[ "${HSI}" =~ ^HSI:([0-9])(!?)$ ]]; then
+    LEVEL="${BASH_REMATCH[1]}"
+    COMMAND="fwupdmgr security"
+    if [[ -n "${BASH_REMATCH[2]}" ]]; then
+        mapfile -t WEAKENED < <(timeout 30 fwupdmgr security --json 2>/dev/null | jq -r '.SecurityAttributes[]? |
+            select(any(.Flags[]?; . == "runtime-issue") and (any(.Flags[]?; . == "success") | not)) | .Name // .AppstreamId')
+        report updates firmware-security info "$(gettext "Firmware security")" \
+            "$(eval_gettext "fwupd rates this machine's firmware protections \${LEVEL} of 5, and something running weakens them")" \
+            "${WEAKENED[@]}" "$(gettext "Every protection fwupd looks at, with what each is:")"
+    else
+        report updates firmware-security info "$(gettext "Firmware security")" \
+            "$(eval_gettext "fwupd rates this machine's firmware protections \${LEVEL} of 5")" \
+            "$(gettext "That is mostly up to the machine's maker. Every protection fwupd looks at, with what each is:")"
+    fi
+fi
+
+# --- Watching -----------------------------------------------------------------------------------------
+
+if [[ "$(systemctl is-active auditd.service 2>/dev/null)" == "active" ]]; then
+    report watching audit-log ok "$(gettext "Audit log")" "$(gettext "The audit log is recording")"
+else
+    COMMAND="sudo systemctl start auditd.service"
+    report watching audit-log off "$(gettext "Audit log")" "$(gettext "The audit log is not recording")" "$(gettext "Start it with:")"
+fi
+if [[ -f /etc/audit/rules.d/99-amethystora-finalize.rules ]]; then
+    report watching audit-rules ok "$(gettext "Audit rules")" "$(gettext "Audit rules are immutable until the next reboot")"
+fi
+if [[ "$(systemctl is-active fail2ban.service 2>/dev/null)" == "active" ]]; then
+    report watching fail2ban ok "$(gettext "Failed logins")" \
+        "$(gettext "Repeated failed logins get the address blocked (ame security addresses)")"
+else
+    COMMAND="sudo systemctl start fail2ban.service"
+    report watching fail2ban check "$(gettext "Failed logins")" "$(gettext "fail2ban is not running")" "$(gettext "Start it with:")"
+fi
+ZONE="$(firewall-cmd --get-default-zone 2>/dev/null || echo unknown)"
+if [[ "${ZONE}" == "amethystora" ]]; then
+    report watching firewall ok "$(gettext "Firewall")" \
+        "$(gettext "Firewall is on the amethystora zone: nothing incoming that a desktop does not need")"
+else
+    COMMAND="sudo firewall-cmd --set-default-zone=amethystora"
+    report watching firewall check "$(gettext "Firewall")" "$(eval_gettext "Firewall default zone is \${ZONE}, not amethystora")" \
+        "$(gettext "Put it back with:")"
+fi
+
+# Network protection is a setting, so when it is on, Suricata is expected to be running, to have the
+# kernel's queue to read from, and to have rules to read it with. Whether the table is there and how old
+# the rules are only root can see, so the watcher writes them into status.json at each of its runs.
+if [[ "${NETWORK}" != off ]]; then
+    RULES_TIME="$(jq -r '.network.rules // empty' "${WATCH_STATUS}" 2>/dev/null)"
+    TABLE="$(jq -r '.network.table // empty' "${WATCH_STATUS}" 2>/dev/null)"
+    BLOCKED="$(jq -r '.network.blocked // 0' "${WATCH_STATUS}" 2>/dev/null)"
+    if [[ "${NETWORK}" == block ]]; then
+        NETWORK_TEXT="$(gettext "Suricata blocks connections to known malware, command servers and exploits")"
+    else
+        NETWORK_TEXT="$(gettext "Suricata inspects every connection and says what it recognises, without blocking")"
+    fi
+    if ! systemctl is-active --quiet amethystora-ips.service 2>/dev/null; then
+        COMMAND="sudo systemctl restart amethystora-ips.service"
+        report watching network check "$(gettext "Network protection")" "$(gettext "Network protection is on, but not running")" \
+            "$(gettext "Connections pass without being inspected until it runs again. Start it with:")"
+    elif [[ "${TABLE}" == false ]]; then
+        COMMAND="sudo systemctl restart amethystora-ips.service"
+        report watching network check "$(gettext "Network protection")" "$(gettext "Network protection is running, but no traffic reaches it")" \
+            "$(gettext "Its nftables table (inet amethystora-ips) is gone, so connections pass without being inspected. Put it back with:")"
+    elif [[ ! "${RULES_TIME}" =~ ^[0-9]+$ ]]; then
+        COMMAND="sudo systemctl start amethystora-ips-rules.service"
+        report watching network check "$(gettext "Network protection")" "$(gettext "Network protection has no rules yet")" \
+            "$(gettext "Nothing is recognised until the rules have downloaded once. Download them now with:")"
+    elif [[ "$(days_since "${RULES_TIME}")" -gt 7 ]]; then
+        COMMAND="sudo systemctl start amethystora-ips-rules.service"
+        DAYS="$(days_since "${RULES_TIME}")"
+        report watching network check "$(gettext "Network protection")" \
+            "$(eval_ngettext "The network protection rules are \${DAYS} day old" "The network protection rules are \${DAYS} days old" "${DAYS}")" \
+            "$(gettext "They download every day, and newer attacks are not recognised until they do. Check this machine's network, or try now with:")"
+    elif [[ "${BLOCKED}" =~ ^[1-9][0-9]*$ ]]; then
+        COMMAND="ame security connections"
+        report watching network ok "$(gettext "Network protection")" "${NETWORK_TEXT}" \
+            "$(eval_ngettext "It blocked \${BLOCKED} connection in the last 7 days. See it with:" "It blocked \${BLOCKED} connections in the last 7 days. See them with:" "${BLOCKED}")"
+    else
+        report watching network ok "$(gettext "Network protection")" "${NETWORK_TEXT}"
+    fi
+fi
+
+# The security watcher (/usr/libexec/amethystora-security-watch). What it noticed and nobody has looked
+# at yet is in a root-only file, whose size shows through /var/log, as the virus scan's findings do.
+if [[ -s /var/log/amethystora-security-events.new ]]; then
+    COMMAND="ame security events"
+    report watching security-watcher off "$(gettext "Security watcher")" "$(gettext "The security watcher noticed something")" \
+        "$(gettext "A change to accounts, to what starts by itself or to a security setting, or a program reading the keyboard directly. See it with:")"
+elif [[ "$(systemctl is-enabled amethystora-security-watch.timer 2>/dev/null)" != "enabled" ]]; then
+    COMMAND="sudo systemctl enable --now amethystora-security-watch.timer"
+    report watching security-watcher check "$(gettext "Security watcher")" "$(gettext "The security watcher is off")" \
+        "$(gettext "Turn it back on with:")"
+elif [[ "$(systemctl show -p Result --value amethystora-security-watch.service 2>/dev/null)" =~ ^(exit-code|signal|core-dump|timeout)$ ]]; then
+    COMMAND="journalctl -u amethystora-security-watch.service -n 40"
+    report watching security-watcher check "$(gettext "Security watcher")" "$(gettext "The security watcher's last run failed")" \
+        "$(gettext "See why with:")"
+elif [[ "${REALTIME}" == on ]]; then
+    report watching security-watcher ok "$(gettext "Security watcher")" \
+        "$(gettext "The security watcher reads the audit log and checks the settings as they happen")"
+else
+    report watching security-watcher ok "$(gettext "Security watcher")" \
+        "$(gettext "The security watcher reads the audit log and checks the settings every 15 minutes")"
+fi
+
+# Real-time watching is a setting, so when it is on, what does it is expected to be running
+if [[ "${REALTIME}" == on ]]; then
+    STOPPED=()
+    for unit in amethystora-security-realtime amethystora-clamav-onaccess; do
+        systemctl is-active --quiet "${unit}.service" 2>/dev/null || STOPPED+=("${unit}.service")
+    done
+    # Not "realtime": that is the setting's tile below, and the app finds a check's command by its id
+    if [[ ${#STOPPED[@]} -eq 0 ]]; then
+        report watching realtime-running ok "$(gettext "Real-time watching")" \
+            "$(gettext "Real-time watching is on: changes are read as they happen, and files scanned as they are written")"
+    else
+        COMMAND="sudo systemctl restart ${STOPPED[*]}"
+        UNITS="${STOPPED[*]}"
+        report watching realtime-running check "$(gettext "Real-time watching")" "$(gettext "Real-time watching is on, but not running")" \
+            "$(eval_gettext "Not running: \${UNITS}. Real-time scanning waits for the first virus signatures.")" \
+            "$(gettext "Start it with:")"
+    fi
+fi
+
+# Ransomware protection is a timer, so when it is on, the latest snapshot is expected to be at most an
+# hour or two old. Each is named for when it was taken, and /var/home/.snapshots is readable by anyone.
+SNAPSHOT_TIMER=false
+systemctl is-enabled --quiet amethystora-home-snapshot.timer 2>/dev/null && SNAPSHOT_TIMER=true
+if [[ "${SNAPSHOT_TIMER}" == true ]]; then
+    LATEST=""
+    for dir in /var/home/.snapshots/*; do
+        [[ "${dir##*/}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}$ ]] && LATEST="${dir##*/}"
+    done
+    TAKEN=""
+    [[ -n "${LATEST}" ]] && TAKEN="$(date -d "${LATEST:0:10} ${LATEST:11:2}:${LATEST:13:2}" +%s 2>/dev/null)"
+    # Not "ransomware-protection": that is the tile below, and the app finds a check's command by its id
+    if [[ ! "${TAKEN}" =~ ^[0-9]+$ ]]; then
+        COMMAND="journalctl -u amethystora-home-snapshot.service -n 40"
+        report watching home-snapshots check "$(gettext "Ransomware protection")" \
+            "$(gettext "Ransomware protection is on, but no snapshot has been taken")" "$(gettext "See why with:")"
+    elif [[ $((NOW - TAKEN)) -gt 10800 ]]; then
+        COMMAND="journalctl -u amethystora-home-snapshot.service -n 40"
+        HOURS="$(((NOW - TAKEN) / 3600))"
+        report watching home-snapshots check "$(gettext "Ransomware protection")" \
+            "$(eval_ngettext "The latest snapshot of the home folders is \${HOURS} hour old" "The latest snapshot of the home folders is \${HOURS} hours old" "${HOURS}")" \
+            "$(gettext "They are taken every hour. See why the last ones were not with:")"
+    else
+        AT="$(date -d "@${TAKEN}" '+%H:%M')"
+        report watching home-snapshots ok "$(gettext "Ransomware protection")" \
+            "$(eval_gettext "The home folders are snapshotted every hour. The latest is from \${AT}")"
+    fi
+fi
+
+# The image's security settings as this machine actually has them. The kernel settings and arguments and
+# the blocked modules are read live: a file in /etc/sysctl.d or /etc/modprobe.d undoes them without
+# touching /usr. What only root can compare, /etc against the image's own copy in /usr/etc, comes from
+# the watcher.
+DIFFERS=()
+ADDED=()
+while IFS='=' read -r key value; do
+    key="${key//[[:space:]]/}"
+    value="${value//[[:space:]]/}"
+    [[ -n "${key}" && "${key}" != \#* ]] || continue
+    live="$(cat "/proc/sys/${key//.//}" 2>/dev/null)" || continue
+    [[ "${live//[[:space:]]/}" == "${value}" ]] ||
+        DIFFERS+=("$(eval_gettext "The kernel setting \${key} is \${live}, not \${value}")")
+done </usr/lib/sysctl.d/60-amethystora-hardening.conf
+CMDLINE=" $(cat /proc/cmdline 2>/dev/null) "
+for karg in $(sed -n 's/^kargs *= *\[\(.*\)\]/\1/p' /usr/lib/bootc/kargs.d/10-amethystora-hardening.toml | tr -d '",'); do
+    [[ "${CMDLINE}" == *" ${karg} "* ]] || DIFFERS+=("$(eval_gettext "The kernel argument \${karg} is missing")")
+done
+SHOWCONFIG="$(modprobe --showconfig 2>/dev/null)"
+if [[ -n "${SHOWCONFIG}" ]]; then
+    while read -r _ module _; do
+        grep -qxF "install ${module//-/_} /usr/bin/false" <<<"${SHOWCONFIG}" ||
+            DIFFERS+=("$(eval_gettext "The kernel module \${module} is no longer blocked")")
+    done < <(grep '^install ' /usr/lib/modprobe.d/60-amethystora-hardening.conf)
+fi
+while IFS=$'\t' read -r change path detail; do
+    case "${change}" in
+        changed) DIFFERS+=("$(eval_gettext "\${path} is changed on this machine")") ;;
+        removed) DIFFERS+=("$(eval_gettext "\${path}, which the image ships, is gone")") ;;
+        replaces) DIFFERS+=("$(eval_gettext "\${path} replaces the image's \${detail}")") ;;
+        overrides) DIFFERS+=("$(eval_gettext "\${path} changes how \${detail} runs")") ;;
+        masks) DIFFERS+=("$(eval_gettext "\${path} stops \${detail} from ever starting")") ;;
+        added) ADDED+=("${path}") ;;
+    esac
+done < <(jq -r '.drift // [] | .[] | [.change, .path, .detail] | @tsv' "${WATCH_STATUS}" 2>/dev/null)
+if [[ ${#DIFFERS[@]} -gt 0 ]]; then
+    N="${#DIFFERS[@]}"
+    report watching image-settings check "$(gettext "Image settings")" \
+        "$(eval_ngettext "\${N} security setting differs from the image" "\${N} security settings differ from the image" "${N}")" \
+        "${DIFFERS[@]}" \
+        "$(gettext "If you did not change these, find out what did. The image's own copy of anything in /etc is in /usr/etc, to compare or copy back.")"
+elif [[ ${#ADDED[@]} -gt 0 ]]; then
+    PATHS="${ADDED[*]}"
+    report watching image-settings ok "$(gettext "Image settings")" "$(gettext "The image's security settings are as it ships them")" \
+        "$(eval_gettext "Added on this machine: \${PATHS}")"
+else
+    report watching image-settings ok "$(gettext "Image settings")" "$(gettext "The image's security settings are as it ships them")"
+fi
+
+# A domain this machine joined (realmd: Settings' Enterprise Login, or `realm join`), whose accounts can
+# then log in here as well as this machine's own. Every join writes the machine's Kerberos keytab, so
+# realmd is not started to ask on a machine without one.
+DOMAINS=""
+[[ -e /etc/krb5.keytab ]] &&
+    DOMAINS="$(timeout 10 realm list --name-only 2>/dev/null | paste -sd, - | sed 's/,/, /g')"
+if [[ -n "${DOMAINS}" ]]; then
+    report watching domain-login info "$(gettext "Domain login")" \
+        "$(eval_gettext "Accounts from \${DOMAINS} can log in to this machine")" \
+        "$(gettext "Anyone the domain's administrators allow can log in here, as well as this machine's own accounts.")"
+fi
+
+# What a rootkit leaves behind, reduced to what cannot happen on an image-based system by accident:
+# every setuid program and kernel module the image has is under /usr, and nothing there changes.
+SIGNS=()
+[[ -e /etc/ld.so.preload ]] &&
+    SIGNS+=("$(gettext "/etc/ld.so.preload exists: it loads a library into every program that starts")")
+while IFS= read -r file; do
+    [[ -n "${file}" ]] && SIGNS+=("$(eval_gettext "A setuid program outside the image: \${file}")")
+done < <(jq -r '.setuid // [] | .[]' "${WATCH_STATUS}" 2>/dev/null)
+while IFS= read -r file; do
+    SIGNS+=("$(eval_gettext "A plain file in /dev, where only devices belong: \${file}")")
+done < <(find /dev -xdev -type f 2>/dev/null)
+MODULES_DIR="/usr/lib/modules/$(uname -r)"
+if [[ -r "${MODULES_DIR}/modules.dep" && -r /proc/modules ]]; then
+    # "extra" for the modules built with the image (akmods, evdi), "tree" for the kernel's own
+    declare -A IMAGE_MODULES=()
+    while read -r kind name; do
+        IMAGE_MODULES["${name}"]="${kind}"
+    done < <(awk -F: '{
+        kind = ($1 ~ /^(extra|updates)\//) ? "extra" : "tree"
+        name = $1; sub(/.*\//, "", name); sub(/\.ko(\.[a-z0-9]+)?$/, "", name); gsub(/-/, "_", name)
+        print kind, name
+    }' "${MODULES_DIR}/modules.dep")
+    while read -r name _; do
+        if [[ -z "${IMAGE_MODULES[${name}]+set}" ]]; then
+            SIGNS+=("$(eval_gettext "The kernel module \${name} did not come with this image")")
+        elif [[ "$(cat "/sys/module/${name}/taint" 2>/dev/null)" == *E* && "${IMAGE_MODULES[${name}]}" != extra ]]; then
+            SIGNS+=("$(eval_gettext "The kernel module \${name} is not signed")")
+        fi
+    done </proc/modules
+fi
+for interface in /sys/class/net/*; do
+    name="${interface##*/}"
+    # Bridges' ports see every packet by design: that is how containers and virtual machines connect
+    [[ "${name}" =~ ^(lo|veth|virbr|vnet|docker|br-|podman|cni|tap) ]] && continue
+    flags="$(cat "${interface}/flags" 2>/dev/null)" || continue
+    [[ "${flags}" =~ ^0x[0-9a-fA-F]+$ ]] && ((flags & 0x100)) &&
+        SIGNS+=("$(eval_gettext "The network interface \${name} reads every packet on its network (promiscuous mode)")")
+done
+if [[ ${#SIGNS[@]} -gt 0 ]]; then
+    N="${#SIGNS[@]}"
+    report watching rootkit off "$(gettext "Rootkit checks")" \
+        "$(eval_ngettext "\${N} thing where nothing should be" "\${N} things where nothing should be" "${N}")" "${SIGNS[@]}" \
+        "$(gettext "Each is either something you set up yourself, or something to look into now.")"
+else
+    report watching rootkit ok "$(gettext "Rootkit checks")" \
+        "$(gettext "Nothing where it should not be: no preloaded library, no setuid programs outside the image, no unknown kernel modules")"
+fi
+
+# What accepts connections from other machines, with the program's name, which only root can see. The
+# firewall lets in only what a desktop needs from the local network, but the tailnet is trusted.
+if [[ -r "${WATCH_STATUS}" ]]; then
+    LISTENING=()
+    while IFS=$'\t' read -r program port; do
+        LISTENING+=("$(eval_gettext "\${program}, on port \${port}")")
+    done < <(jq -r '.listeners // [] | .[] | [.program, (.port | tostring)] | @tsv' "${WATCH_STATUS}" 2>/dev/null)
+    if [[ ${#LISTENING[@]} -gt 0 ]]; then
+        N="${#LISTENING[@]}"
+        report watching listeners info "$(gettext "Open to the network")" \
+            "$(eval_ngettext "\${N} program accepts connections from other machines" "\${N} programs accept connections from other machines" "${N}")" \
+            "${LISTENING[@]}" \
+            "$(gettext "The firewall lets in only what a desktop needs from the local network, but every device on your tailnet can reach these.")"
+    else
+        report watching listeners ok "$(gettext "Open to the network")" "$(gettext "No program accepts connections from other machines")"
+    fi
+fi
+
+# --- Apps ---------------------------------------------------------------------------------------------
+
+# What each Flatpak can reach beyond its sandbox (/usr/libexec/amethystora-app-permissions, whose words
+# are translated as these are). One that can leave it, through a whole bus, the Flatpak service, systemd
+# or a place programs start from at login, is worth a look whoever granted it; X11 and the input devices,
+# which the image takes from every app, only when granted back. Overrides are each account's own, so run
+# as root by the security watcher this says nothing, as it does for the containers.
+if [[ ${EUID} -ne 0 ]] && command -v flatpak >/dev/null; then
+    PERMISSIONS="$(timeout 120 /usr/libexec/amethystora-app-permissions --json 2>/dev/null)"
+    COUNT="$(jq -r 'length' <<<"${PERMISSIONS:-[]}" 2>/dev/null || echo 0)"
+    mapfile -t ESCAPES < <(jq -r '.[] | . as $app | [.reaches[] | select(.id | IN("session-bus", "system-bus", "flatpak", "systemd", "autostart")) | .text] |
+        select(length > 0) | "\($app.name): \(join("; "))"' <<<"${PERMISSIONS:-[]}" 2>/dev/null)
+    mapfile -t TYPING < <(jq -r '.[] | . as $app | [.reaches[] | select(.id | IN("x11", "input")) | .text] |
+        select(length > 0) | "\($app.name): \(join("; "))"' <<<"${PERMISSIONS:-[]}" 2>/dev/null)
+    if [[ ${#ESCAPES[@]} -gt 0 ]]; then
+        COMMAND="ame security apps"
+        N="${#ESCAPES[@]}"
+        report apps app-permissions check "$(gettext "App permissions")" \
+            "$(eval_ngettext "\${N} app can leave its sandbox" "\${N} apps can leave their sandbox" "${N}")" \
+            "${ESCAPES[@]}" \
+            "$(gettext "Whatever runs in it can then do anything you can. If you did not mean it to, take it back in Flatseal, or see every app's permissions with:")"
+    elif [[ ${#TYPING[@]} -gt 0 ]]; then
+        COMMAND="ame security apps"
+        N="${#TYPING[@]}"
+        report apps app-permissions info "$(gettext "App permissions")" \
+            "$(eval_ngettext "\${N} app was given back what the image takes from every app" "\${N} apps were given back what the image takes from every app" "${N}")" \
+            "${TYPING[@]}" \
+            "$(gettext "See every app's permissions with:")"
+    elif [[ "${COUNT}" =~ ^[1-9][0-9]*$ ]]; then
+        report apps app-permissions ok "$(gettext "App permissions")" \
+            "$(eval_ngettext "No app can leave its sandbox or read what you type into another (\${COUNT} app checked)" "No app can leave its sandbox or read what you type into another (\${COUNT} apps checked)" "${COUNT}")"
+    fi
+fi
+
+# --- Scans --------------------------------------------------------------------------------------------
+
+# /var/log is traversable, so the size of the root-owned 0600 findings file is visible here even
+# though its contents are not, and this never asks for a password
+if [[ -s /var/log/amethystora-clamav-findings.log ]]; then
+    COMMAND="ame security scan"
+    case "${ON_DETECTION}" in
+        quarantine) DETECTED="$(gettext "Files it finds are moved to quarantine. See what it found with:")" ;;
+        delete) DETECTED="$(gettext "Files it finds are deleted. See what it found with:")" ;;
+        *) DETECTED="$(gettext "Files it finds are left where they are. See what it found with:")" ;;
+    esac
+    report scans virus-scan off "$(gettext "Weekly virus scan")" "$(gettext "The last virus scan found something")" \
+        "${DETECTED}"
+else
+    LAST="$(last_run amethystora-clamav-scan || gettext "not yet")"
+    report scans virus-scan ok "$(gettext "Weekly virus scan")" \
+        "$(eval_gettext "Weekly virus scan, Sundays. Last run: \${LAST}")"
+fi
+# A scan that stopped running looks exactly like a machine with nothing to find, unless it is asked
+if [[ "$(systemctl is-enabled amethystora-clamav-scan.timer 2>/dev/null)" != "enabled" ]]; then
+    COMMAND="sudo systemctl enable --now amethystora-clamav-scan.timer"
+    report scans virus-scan-schedule check "$(gettext "Weekly virus scan")" "$(gettext "The weekly virus scan is off")" \
+        "$(gettext "Turn it back on with:")"
+else
+    RAN="$(last_run_time amethystora-clamav-scan)"
+    if [[ -n "${RAN}" && "$(days_since "${RAN}")" -gt 8 ]]; then
+        COMMAND="ame security scan now"
+        DAYS="$(days_since "${RAN}")"
+        report scans virus-scan-schedule check "$(gettext "Weekly virus scan")" \
+            "$(eval_ngettext "The weekly virus scan last ran \${DAYS} day ago" "The weekly virus scan last ran \${DAYS} days ago" "${DAYS}")" \
+            "$(gettext "It runs on Sundays, or at the next start after a Sunday the machine was off. Run it now with:")"
+    fi
+fi
+AGE="$(/usr/libexec/amethystora-clamav-signature-age)" && SIG=0 || SIG=$?
+case "${SIG}" in
+    0)
+        WHEN="$(days_ago "${AGE}")"
+        report scans signatures ok "$(gettext "Virus signatures")" "$(eval_gettext "Virus signatures updated \${WHEN}")" ;;
+    2)
+        report scans signatures check "$(gettext "Virus signatures")" \
+            "$(eval_ngettext "Virus signatures are \${AGE} day old" "Virus signatures are \${AGE} days old" "${AGE}")" \
+            "$(gettext "A clean scan proves little with signatures this old. Check this machine's network.")" ;;
+    *)
+        report scans signatures check "$(gettext "Virus signatures")" "$(gettext "No virus signatures yet")" \
+            "$(gettext "clamav-freshclam.service has not finished its first download.")" ;;
+esac
+RAN="$(last_run_time amethystora-lynis-audit)"
+if [[ "$(systemctl is-enabled amethystora-lynis-audit.timer 2>/dev/null)" != "enabled" ]]; then
+    COMMAND="sudo systemctl enable --now amethystora-lynis-audit.timer"
+    report scans settings-audit check "$(gettext "Settings audit")" "$(gettext "The monthly settings audit is off")" \
+        "$(gettext "Turn it back on with:")"
+elif [[ -n "${RAN}" && "$(days_since "${RAN}")" -gt 35 ]]; then
+    COMMAND="ame security audit"
+    DAYS="$(days_since "${RAN}")"
+    report scans settings-audit check "$(gettext "Settings audit")" \
+        "$(eval_ngettext "The settings audit last ran \${DAYS} day ago" "The settings audit last ran \${DAYS} days ago" "${DAYS}")" \
+        "$(gettext "Run it now with:")"
+else
+    COMMAND="ame security audit"
+    LAST="$(last_run amethystora-lynis-audit || gettext "not yet")"
+    report scans settings-audit ok "$(gettext "Settings audit")" \
+        "$(eval_gettext "Monthly settings audit. Last run: \${LAST}")" \
+        "$(gettext "Run it now with:")"
+fi
+
+# --- Off unless you turned it on ----------------------------------------------------------------------
+
+# setup-security-key keeps one line per account in this file: the name, then each key
+if awk -F: -v user="${USER:-$(id -un)}" '$1 == user && NF > 1 { found = 1 } END { exit !found }' \
+    "${HOME:-/nonexistent}/.config/Yubico/u2f_keys" 2>/dev/null; then
+    KEY=on
+else
+    KEY=off
+fi
+COMMAND="ame security key"
+report optional security-key "${KEY}" "$(gettext "Security key")" \
+    "$(gettext "Sign in, unlock the screen and approve sudo with a FIDO2 key instead of your password")"
+
+# The image lets a finger in wherever the password is (authselect's with-fingerprint), so what is left
+# to turn on is a finger enrolled with fprintd, which says "No devices available" without a reader
+FINGERS="$(timeout 10 fprintd-list "${USER:-$(id -un)}" 2>&1)"
+COMMAND="ame security fingerprint"
+FINGERPRINT_TEXT="$(gettext "Sign in, unlock the screen and approve sudo with a finger instead of your password")"
+if [[ -z "${FINGERS}" ]] || grep -qi "no devices" <<<"${FINGERS}"; then
+    report optional fingerprint unavailable "$(gettext "Fingerprint")" "${FINGERPRINT_TEXT}" \
+        "$(gettext "This machine has no fingerprint reader")"
+elif grep -q '^ *- #' <<<"${FINGERS}"; then
+    report optional fingerprint on "$(gettext "Fingerprint")" "${FINGERPRINT_TEXT}"
+else
+    report optional fingerprint off "$(gettext "Fingerprint")" "${FINGERPRINT_TEXT}"
+fi
+
+COMMAND="ame security ssh-codes"
+report optional ssh-codes "$(/usr/libexec/amethystora-ssh-codes status)" "$(gettext "One-time codes for SSH")" \
+    "$(gettext "A password login over SSH also asks for a code from an app on your phone, and a key logs in as before")"
+
+if systemctl --user is-enabled --quiet amethystora-backup.timer 2>/dev/null; then BACKUP=on; else BACKUP=off; fi
+COMMAND="ame backup"
+report optional backups "${BACKUP}" "$(gettext "Backups")" \
+    "$(gettext "A daily restic backup to a repository that ransomware on this machine cannot delete from")"
+
+# Snapshots need the home folders on a btrfs subvolume of their own, whose root is always inode 256
+COMMAND="ame security ransomware"
+RANSOMWARE_TEXT="$(gettext "Hourly read-only snapshots of the home folders, which ransomware running as you cannot change or delete")"
+if [[ "${SNAPSHOT_TIMER}" == true ]]; then
+    report optional ransomware-protection on "$(gettext "Ransomware protection")" "${RANSOMWARE_TEXT}"
+elif [[ "$(stat -f -c %T /var/home 2>/dev/null)" != btrfs || "$(stat -c %i /var/home 2>/dev/null)" != 256 ]]; then
+    report optional ransomware-protection unavailable "$(gettext "Ransomware protection")" "${RANSOMWARE_TEXT}" \
+        "$(gettext "Needs the home folders on a btrfs subvolume")"
+else
+    report optional ransomware-protection off "$(gettext "Ransomware protection")" "${RANSOMWARE_TEXT}"
+fi
+
+# Whether the TPM holds a key takes root to read off the disk. The kernel argument setup-disk-unlock
+# adds with it does not, and without that argument the key is never used anyway.
+COMMAND="ame security disk-unlock"
+DISK_UNLOCK_TITLE="$(gettext "Unlock the disk with the TPM")"
+DISK_UNLOCK_TEXT="$(gettext "The TPM hands over the disk key at boot, so you stop typing the passphrase")"
+if grep -q "tpm2-device=auto" /proc/cmdline 2>/dev/null; then
+    report optional disk-unlock on "${DISK_UNLOCK_TITLE}" "${DISK_UNLOCK_TEXT}"
+elif [[ -z "$(/usr/libexec/amethystora-raid root-luks 2>/dev/null)" ]]; then
+    # The system's own, not a pool's or any other encrypted disk's: those open with key files of their own
+    report optional disk-unlock unavailable "${DISK_UNLOCK_TITLE}" "${DISK_UNLOCK_TEXT}" \
+        "$(gettext "The system's disk is not encrypted")"
+elif [[ ! -e /dev/tpmrm0 ]]; then
+    report optional disk-unlock unavailable "${DISK_UNLOCK_TITLE}" "${DISK_UNLOCK_TEXT}" \
+        "$(gettext "This machine has no usable TPM")"
+elif ! grep -qi "enabled" <<<"${SB}"; then
+    # Binding to Secure Boot is the whole of what it protects
+    report optional disk-unlock unavailable "${DISK_UNLOCK_TITLE}" "${DISK_UNLOCK_TEXT}" \
+        "$(gettext "Needs Secure Boot on")"
+else
+    report optional disk-unlock off "${DISK_UNLOCK_TITLE}" "${DISK_UNLOCK_TEXT}"
+fi
+
+if systemctl is-enabled --quiet usbguard.service 2>/dev/null; then USB=on; else USB=off; fi
+COMMAND="ame security usb"
+report optional usb-protection "${USB}" "$(gettext "USB protection")" \
+    "$(gettext "Allows what is plugged in now, and blocks any new USB device until you allow it")"
+
+COMMAND="ame security browser"
+report optional browser-protection "$(/usr/libexec/amethystora-browser-policy status)" "$(gettext "Browser protection")" \
+    "$(gettext "Browsers install only the extensions on a list, and web pages cannot reach USB, serial, HID or Bluetooth devices")"
+
+if systemctl is-enabled --quiet input-remapper.service 2>/dev/null; then REMAP=on; else REMAP=off; fi
+COMMAND="ame security input-remapper"
+report optional key-remapping "${REMAP}" "$(gettext "Key remapping")" \
+    "$(gettext "Input Remapper reads every key typed, so it stays off until you need it")"
+
+# The two settings in /etc/amethystora/security.conf
+case "${ON_DETECTION}" in
+    quarantine) DETECTION=on DETECTION_TEXT="$(gettext "Files a virus scan finds are moved to quarantine, where nothing can open them")" ;;
+    delete) DETECTION=on DETECTION_TEXT="$(gettext "Files a virus scan finds are deleted")" ;;
+    *) DETECTION=off DETECTION_TEXT="$(gettext "Move what a virus scan finds to quarantine, or delete it, instead of only saying so")" ;;
+esac
+COMMAND="ame security settings on-detection"
+report optional on-detection "${DETECTION}" "$(gettext "Act on what scans find")" "${DETECTION_TEXT}"
+
+COMMAND="ame security settings realtime"
+report optional realtime "${REALTIME}" "$(gettext "Real-time watching")" \
+    "$(gettext "Read each change as it happens and scan every file as it is written, instead of every 15 minutes and every week")"
+
+# ...and network protection, which /usr/libexec/amethystora-ips runs
+case "${NETWORK}" in
+    block) NETWORK_STATE=on NETWORK_TILE="$(gettext "Suricata blocks connections to known malware, command servers and exploits")" ;;
+    watch) NETWORK_STATE=on NETWORK_TILE="$(gettext "Suricata inspects every connection and says what it recognises, without blocking yet")" ;;
+    *) NETWORK_STATE=off NETWORK_TILE="$(gettext "Inspect every connection with Suricata, and block the ones to known malware, command servers and exploits")" ;;
+esac
+COMMAND="ame security settings network"
+report optional network-protection "${NETWORK_STATE}" "$(gettext "Network protection")" "${NETWORK_TILE}"
+
+if [[ "${JSON}" == true ]]; then
+    printf '%s\n' "${RECORDS[@]}" | jq -s --arg image "${IMAGE}" --arg detection "${ON_DETECTION}" \
+        --arg realtime "${REALTIME}" --arg network "${NETWORK}" \
+        '{$image, settings: {on_detection: $detection, $realtime, $network}, checks: .}'
+else
+    echo
+fi

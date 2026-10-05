@@ -1,0 +1,84 @@
+#compdef amethystora-pkg amepkg
+
+# Completion for amethystora-pkg and its short name amepkg (/usr/bin/amethystora-pkg). Names are read
+# from the folders the command keeps them in: listing containers asks podman, which is too slow to wait
+# for at every Tab.
+
+_amethystora_pkg_names() {
+    local share=/usr/share/amethystora/pkg data="${XDG_DATA_HOME:-$HOME/.local/share}/amethystora/pkg"
+    local -a files
+    files=(${share}/$1/*.json(N) ${data}/$1/*.json(N))
+    [[ -e "${XDG_CONFIG_HOME:-$HOME/.config}/amethystora/aur" ]] && files+=(${share}/aur/$1/*.json(N))
+    reply=(${${files:t}%.json})
+}
+
+_amethystora_pkg_containers() {
+    local -a files
+    files=(${XDG_STATE_HOME:-$HOME/.local/state}/amethystora/pkg/containers/*.json(N))
+    reply=(${${files:t}%.json})
+}
+
+_amethystora-pkg() {
+    local -a reply containers commands
+    _amethystora_pkg_containers
+    containers=($reply)
+    if (( CURRENT == 2 )); then
+        commands=(
+            'containers:the containers it manages'
+            'templates:what a new container starts from'
+            'managers:the commands a package manager is driven by'
+            'install:install a .deb, .rpm or .pkg.tar.zst file'
+            'upgrade-all:upgrade every container'
+        )
+        _describe -t commands command commands
+        (( ${#containers} )) && compadd -X container -- $containers
+        return
+    fi
+    case $words[2] in
+        containers)
+            if (( CURRENT == 3 )); then
+                compadd list new rm reset
+                return
+            fi
+            case $words[3] in
+                list) compadd -- --json ;;
+                new)
+                    if [[ $words[CURRENT-1] == --template ]]; then
+                        _amethystora_pkg_names templates
+                        compadd -- $reply
+                    elif [[ $words[CURRENT-1] == --home ]]; then
+                        _files -/
+                    else
+                        compadd -- --template --name --home --init --no-prompt
+                    fi
+                    ;;
+                rm | reset) compadd -- --force $containers ;;
+            esac
+            ;;
+        templates | managers)
+            if (( CURRENT == 3 )); then
+                compadd list show new update rm export import
+                return
+            fi
+            case $words[3] in
+                list) compadd -- --json ;;
+                show | rm | export | update)
+                    _amethystora_pkg_names $words[2]
+                    compadd -- $reply
+                    ;;
+                import) _files ;;
+            esac
+            ;;
+        install) _files -g '*.(deb|rpm|pkg.tar.zst|pkg.tar.xz)(-.)' ;;
+        upgrade-all) ;;
+        *)
+            if (( CURRENT == 3 )); then
+                compadd enter run start stop install remove purge search show list update upgrade autoremove clean export unexport
+            elif [[ $words[3] == (export|unexport) ]]; then
+                compadd -- --app --bin --bin-output
+            fi
+            ;;
+    esac
+}
+
+_amethystora-pkg "$@"

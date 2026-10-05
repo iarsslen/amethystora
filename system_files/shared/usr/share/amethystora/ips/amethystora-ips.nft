@@ -1,0 +1,52 @@
+#!/usr/sbin/nft -f
+# Network protection (amethystora-ips.service) loads this as it starts and deletes it as it stops. It
+# hands this machine's own traffic to Suricata, in both directions: what it sends and what it receives,
+# not what it forwards for virtual machines and rootful containers.
+#
+# It fails open at every step. `bypass` lets a packet through when nothing is reading the queue, which
+# is whenever Suricata is starting, stopped or crashed, and Suricata's own fail-open does the same when
+# the queue is full. A failure of network protection costs inspection, never the network.
+#
+# Its chains run after firewalld's (priority filter + 10), so Suricata only ever sees what the firewall
+# let through, and firewalld, which manages only its own table, never touches this one.
+
+# Whatever an earlier start left behind, so that loading this twice is the same as loading it once
+table inet amethystora-ips
+delete table inet amethystora-ips
+
+table inet amethystora-ips {
+    chain input {
+        type filter hook input priority filter + 20; policy accept;
+        iif "lo" accept
+        # A connection Suricata has finished with: past an encrypted handshake, or past the first
+        # megabyte. Four queues, chosen per pair of addresses, so both directions of one connection
+        # reach the same Suricata thread.
+        ct mark 0x10000000 accept
+        queue flags bypass to 0-3
+    }
+
+    chain output {
+        type filter hook output priority filter + 20; policy accept;
+        oif "lo" accept
+        ct mark 0x10000000 accept
+        queue flags bypass to 0-3
+    }
+
+    # Suricata marks a packet of a connection it has finished with (nfq.bypass-mark in its configuration),
+    # and the mark is moved onto the connection here. Only onto a connection nobody else has marked:
+    # a VPN client may recognise its own tunnel by its connection mark, and must go on doing so. The packet's own
+    # mark is put back as it was, for whatever routes or filters by it after this.
+    chain input-verdict {
+        type filter hook input priority filter + 30; policy accept;
+        meta mark & 0x10000000 == 0 accept
+        ct mark 0 ct mark set 0x10000000
+        meta mark set meta mark & 0xefffffff
+    }
+
+    chain output-verdict {
+        type filter hook output priority filter + 30; policy accept;
+        meta mark & 0x10000000 == 0 accept
+        ct mark 0 ct mark set 0x10000000
+        meta mark set meta mark & 0xefffffff
+    }
+}

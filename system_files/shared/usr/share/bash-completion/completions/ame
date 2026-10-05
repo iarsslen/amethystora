@@ -1,0 +1,25 @@
+# Completion for ame (/usr/bin/ame): a group or a command first, then the commands in the group.
+# `ame pkg` completes as amethystora-pkg does.
+
+_ame() {
+    local cur="${COMP_WORDS[COMP_CWORD]}" names
+    if [[ ${COMP_CWORD} -ge 2 && "${COMP_WORDS[1]}" == pkg ]]; then
+        # The rest, as if amethystora-pkg had been typed
+        declare -F _amethystora_pkg >/dev/null || . /usr/share/bash-completion/completions/amethystora-pkg
+        COMP_WORDS=(amethystora-pkg "${COMP_WORDS[@]:2}")
+        COMP_CWORD=$((COMP_CWORD - 1))
+        COMP_LINE="${COMP_WORDS[*]}"
+        COMP_POINT=${#COMP_LINE}
+        _amethystora_pkg
+        return
+    fi
+    # ame --summary names every command, those in a group as group::command
+    case "${COMP_CWORD}" in
+        1) names="$(ame --summary 2>/dev/null | tr ' ' '\n' | sed 's/::.*//' | sort -u)" ;;
+        2) names="$(ame --summary 2>/dev/null | tr ' ' '\n' | sed -n "s/^${COMP_WORDS[1]}:://p")" ;;
+        *) return ;;
+    esac
+    COMPREPLY=($(compgen -W "${names}" -- "${cur}"))
+}
+
+complete -F _ame ame

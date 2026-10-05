@@ -1,0 +1,234 @@
+#!/usr/bin/bash
+#
+# Open an AI coding agent that knows this system, and turn that on or off. On by default; off, the
+# agent is not offered in the menu, its keybinding does nothing and the agents are not told about
+# Amethystora. An agent already installed stays installed either way.
+#
+#   amethystora-agent                  open the agent in a terminal (Super+Ctrl+Shift+A)
+#   amethystora-agent ask "<prompt>"   open it with a first prompt
+#   amethystora-agent diagnose [<pid>|<unit>|"<what went wrong>"]
+#                                      find out why something broke, without changing anything
+#   amethystora-agent use <agent>      choose the agent (default: the first one installed): claude,
+#                                      opencode, codex, gemini, copilot or cursor-agent
+#   amethystora-agent install [<agent>]   install it, or the chosen one
+#   amethystora-agent list             each agent, whether it is installed, and its name
+#   amethystora-agent on|off           turn the agentic features on or off (ame agent toggle)
+#   amethystora-agent status           print whether they are on; exits 1 when off
+#   amethystora-agent sync             link or unlink the skills to match, run at every login
+#
+# The agents are not part of the image: they release far more often than it does. The first launch
+# offers to install the chosen one into your home with its maker's installer, and from there it
+# updates itself (`claude update`, `opencode upgrade`, `codex update`, `copilot update`,
+# `cursor-agent update`), which each one's settings can turn off. Gemini CLI comes from Homebrew
+# instead, and updates with it.
+#
+# The skills in /usr/share/amethystora/agents/skills tell the agent what may be edited here and how
+# to diagnose a problem. They are linked into ~/.claude/skills, which Claude Code reads, and into
+# ~/.agents/skills, which the others read, so they follow the image on every update. The agent starts
+# in its normal permission mode: it asks before it acts.
+
+set -euo pipefail
+
+# shellcheck source=../lib/amethystora/theme/lib.sh
+source /usr/lib/amethystora/theme/lib.sh
+
+# By the command each one starts with, which is also what `use` takes
+AGENTS=(claude opencode codex gemini copilot cursor-agent)
+# Where their installers put them. Opened from a keybinding there is no login shell to have added
+# these to PATH. Homebrew's goes last, so that nothing in it stands in for a system command.
+PATH="${HOME}/.local/bin:${HOME}/.opencode/bin:${PATH}:/home/linuxbrew/.linuxbrew/bin"
+SKILLS_DIR=/usr/share/amethystora/agents/skills
+SKILLS_LINK_DIRS=("${HOME}/.claude/skills" "${HOME}/.agents/skills")
+DISABLED="${CONFIG_DIR}/no-agentic"
+CHOICE="${CONFIG_DIR}/agent"
+
+usage() {
+    sed -n '3,/^$/p' "$0" | sed 's/^# \?//'
+}
+
+enabled() {
+    [[ ! -e ${DISABLED} ]]
+}
+
+# The agent's name, for people to read
+title() {
+    case "$1" in
+        claude) echo "Claude Code" ;;
+        opencode) echo "Opencode" ;;
+        codex) echo "Codex" ;;
+        gemini) echo "Gemini CLI" ;;
+        copilot) echo "Copilot CLI" ;;
+        cursor-agent) echo "Cursor CLI" ;;
+        *) echo "$1" ;;
+    esac
+}
+
+# Link each skill when on. Remove the links when off, and any link to a skill the image no longer
+# ships, but only links that are ours: a directory of the same name the user made is left alone.
+sync_skills() {
+    local dir skill link
+    for dir in "${SKILLS_LINK_DIRS[@]}"; do
+        if enabled; then
+            mkdir -p "${dir}"
+            for skill in "${SKILLS_DIR}"/*/; do
+                skill="${skill%/}"
+                [[ -d ${skill} ]] || continue
+                link="${dir}/${skill##*/}"
+                [[ -e ${link} && ! -L ${link} ]] || ln -sfn "${skill}" "${link}"
+            done
+        fi
+        for link in "${dir}"/*; do
+            [[ -L ${link} && "$(readlink "${link}")" == "${SKILLS_DIR}"/* ]] || continue
+            if ! enabled || [[ ! -e ${link} ]]; then
+                rm -f "${link}"
+            fi
+        done
+    done
+}
+
+# The chosen agent, else the first one installed, else the first one there is to install
+agent() {
+    local name
+    if [[ -s ${CHOICE} ]]; then
+        cat "${CHOICE}"
+        return
+    fi
+    for name in "${AGENTS[@]}"; do
+        have "${name}" && { echo "${name}"; return; }
+    done
+    echo "${AGENTS[0]}"
+}
+
+# A maker's installer, downloaded whole before it runs, so a dropped connection cannot run half of it
+installer() {
+    local name="$1" url="$2" script
+    shift 2
+    script="$(curl -fsSL "${url}")" || die "could not download the $(title "${name}") installer"
+    bash -c "${script}" install.sh "$@"
+}
+
+# Each into the account's home. Claude Code follows its stable channel, a release about a week old
+# with the ones that turned out badly skipped; its updates keep to the channel it was installed with.
+# Opencode's installer adds ~/.opencode/bin to the shell's PATH, and updates itself to patch releases
+# only, offering the rest. Codex's, Copilot CLI's and Cursor CLI's go to ~/.local/bin; the first two
+# check the checksum of what they download, Cursor's checks nothing. Google publishes no installer
+# for Gemini CLI, so it comes from Homebrew, which `ame update` and the automatic updates upgrade.
+install_agent() {
+    case "$1" in
+        claude) installer claude https://claude.ai/install.sh stable ;;
+        opencode) installer opencode https://opencode.ai/install ;;
+        codex) installer codex https://chatgpt.com/codex/install.sh ;;
+        copilot) installer copilot https://gh.io/copilot-install ;;
+        cursor-agent) installer cursor-agent https://cursor.com/install ;;
+        gemini)
+            have brew || die "Gemini CLI installs with Homebrew, which is not set up for this account"
+            brew install gemini-cli
+            ;;
+        *) die "usage: amethystora-agent install [$(IFS='|'; echo "${AGENTS[*]}")]" ;;
+    esac
+}
+
+launch() {
+    local name answer
+    if ! enabled; then
+        notify "Agentic features are off" "Turn them on with: ame agent toggle"
+        die "agentic features are off. Turn them on with: ame agent toggle"
+    fi
+    # Opened from a keybinding there is no terminal attached, so it reopens itself in one
+    if [[ ! -t 0 ]]; then
+        exec xdg-terminal-exec "$0" ask "$@"
+    fi
+    sync_skills
+    name="$(agent)"
+    if ! have "${name}"; then
+        read -rp "$(title "${name}") is not installed. Install it now? It keeps itself up to date. [Y/n] " answer
+        [[ ${answer,,} != n* ]] || exit 0
+        install_agent "${name}"
+        have "${name}" || die "$(title "${name}") did not install"
+    fi
+    cd "${HOME}"
+    # Opencode reads ~/.claude/skills as well as ~/.agents/skills, and a skill's name must be unique
+    # across the folders it reads
+    [[ ${name} != opencode ]] || export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1
+    if [[ $# -eq 0 ]]; then
+        exec "${name}"
+    fi
+    # Each with the prompt sent and the session left open, never in its one-shot mode
+    case "${name}" in
+        opencode) exec opencode --prompt "$*" ;;
+        gemini | copilot) exec "${name}" -i "$*" ;;
+        *) exec "${name}" "$*" ;;
+    esac
+}
+
+# Gather the facts about what broke and hand them to the agent with the diagnose skill. The method
+# lives in the skill, so it is written once for whichever agent is chosen; this only says where to
+# start. A number is a PID from coredumpctl, a name systemd knows is a unit, anything else is the
+# user's own description.
+diagnose() {
+    local target="$*" facts
+    local -a systemctl=(systemctl)
+    if [[ -z ${target} ]]; then
+        facts="Nothing specific was named. Look for what failed recently: crashes, failed services and errors in this boot and the previous one."
+    elif [[ ${target} =~ ^[0-9]+$ ]]; then
+        facts="$(coredumpctl info "${target}" --no-pager 2>/dev/null |
+            grep -E '^ *(PID|Executable|Command Line|Signal|Timestamp|Unit|Package):' || true)"
+        facts="The process with PID ${target} crashed. What systemd-coredump recorded:
+${facts:-  nothing: the core dump may have been rotated away, see coredumpctl list}"
+    elif systemctl cat -- "${target}" >/dev/null 2>&1 ||
+        { systemctl+=(--user) && systemctl --user cat -- "${target}" >/dev/null 2>&1; }; then
+        facts="The unit ${target} (${systemctl[*]}) failed or misbehaves. It is $("${systemctl[@]}" is-active -- "${target}" 2>/dev/null || true) now."
+    else
+        facts="The user describes the problem as: ${target}"
+    fi
+
+    launch "Something went wrong on this Amethystora machine and I want to know why, before anything is changed.
+
+${facts}
+
+Use the amethystora-diagnose skill: it says how to investigate here and what to report. If you have no skill mechanism, read ${SKILLS_DIR}/amethystora-diagnose/SKILL.md and follow it."
+}
+
+case "${1:-}" in
+    "") launch ;;
+    ask) shift; launch "$@" ;;
+    diagnose) shift; diagnose "$@" ;;
+    use)
+        [[ -n ${2:-} && " ${AGENTS[*]} " == *" $2 "* ]] || die "usage: amethystora-agent use $(IFS='|'; echo "${AGENTS[*]}")"
+        mkdir -p "${CONFIG_DIR}"
+        echo "$2" >"${CHOICE}"
+        echo "Agent: $(title "$2")"
+        ;;
+    on)
+        rm -f "${DISABLED}"
+        sync_skills
+        echo "Agentic features on"
+        ;;
+    off)
+        mkdir -p "${CONFIG_DIR}"
+        touch "${DISABLED}"
+        sync_skills
+        echo "Agentic features off"
+        ;;
+    install) install_agent "${2:-$(agent)}" ;;
+    # One line each, separated by tabs, for Control: "codex<TAB>installed|missing<TAB>Codex"
+    list)
+        for name in "${AGENTS[@]}"; do
+            if have "${name}"; then state=installed; else state=missing; fi
+            printf '%s\t%s\t%s\n' "${name}" "${state}" "$(title "${name}")"
+        done
+        ;;
+    status)
+        if enabled; then
+            name="$(agent)"
+            have "${name}" || name+=", not installed yet"
+            echo "Agentic features: on (${name})"
+        else
+            echo "Agentic features: off"
+            exit 1
+        fi
+        ;;
+    sync) sync_skills ;;
+    -h | --help | help) usage ;;
+    *) die "unknown command: $1. Run amethystora-agent --help" ;;
+esac

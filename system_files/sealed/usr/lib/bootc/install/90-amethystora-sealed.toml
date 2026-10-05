@@ -1,0 +1,7 @@
+# How `bootc install` lays out a sealed image (Containerfile.sealed): systemd-boot, which loads the signed
+# UKI, on btrfs, whose `root` subvolume the UKI's command line mounts (kargs.d/00-amethystora-sealed.toml)
+[install]
+bootloader = "systemd"
+
+[install.filesystem.root]
+type = "btrfs"

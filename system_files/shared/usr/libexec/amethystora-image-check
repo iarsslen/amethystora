@@ -1,0 +1,50 @@
+#!/usr/bin/bash
+# The last step of building an image FROM Amethystora: checks that what Amethystora relies on is still
+# there, which a build step can undo without anyone noticing until a machine runs the image. The image
+# template's Containerfile runs it after its own steps, and Amethystora's own build runs it too.
+#
+#   amethystora-image-check [REPOSITORY]
+#
+# With REPOSITORY, the repository the image is published to, it also checks that the image takes its
+# own updates only with a signature (ame system trust-image, which the template runs).
+
+set -uo pipefail
+
+FAILED=0
+fail() {
+    printf 'amethystora-image-check: %s\n' "$*" >&2
+    FAILED=1
+}
+
+POLICY=/etc/containers/policy.json
+
+# REPOSITORY's images need a signature from a key that is in the image, looked for where cosign puts it
+signed() {
+    local key file
+    key="$(jq -r --arg r "$1" '.transports.docker[$r] // []
+        | if length == 1 and .[0].type == "sigstoreSigned" then .[0].keyPath // empty else empty end' "${POLICY}")"
+    [[ -n "${key}" && -s "${key}" ]] || fail "${POLICY} does not require a signature for $1 from a key in the image."
+    file="$(grep -lsxF "  $1:" /etc/containers/registries.d/*.yaml | head -n1)"
+    [[ -n "${file}" ]] && grep -q "use-sigstore-attachments: true" "${file}" ||
+        fail "/etc/containers/registries.d does not say where the signatures of $1 are."
+}
+
+# Updates are checked: the policy takes nothing it does not name, and Amethystora's images only with
+# Amethystora's signature
+jq -e '.default == [{"type": "reject"}]' "${POLICY}" >/dev/null 2>&1 ||
+    fail "${POLICY} no longer rejects what it does not name."
+signed "ghcr.io/$(jq -r '."image-vendor"' /usr/share/amethystora/image-info.json)"
+[[ -z "${1:-}" ]] || signed "$1"
+
+# Built on Fedora, and not Fedora: Fedora's trademark guidelines ask a remix to carry neither its logos
+# nor its release package, which generic-logos and generic-release stand in for
+FEDORA="$(rpm -qa 'fedora-logos*' 'fedora-release*' 2>/dev/null)"
+[[ -z "${FEDORA}" ]] || fail "it carries $(paste -sd ' ' <<<"${FEDORA}"), which a remix of Fedora may not."
+
+# The commands the manual and the image tell people to run
+ame --summary >/dev/null 2>&1 || fail "\`ame\` does not run."
+for command in update system::rebase setup::apply security::status; do
+    ame --show "${command}" >/dev/null 2>&1 || fail "\`ame\` has lost its command \"${command//::/ }\"."
+done
+
+exit "${FAILED}"

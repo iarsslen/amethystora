@@ -1,0 +1,1911 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: amethystora\n"
+"Report-Msgid-Bugs-To: https://github.com/iarsslen/amethystora/issues\n"
+"Language: ar\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=6; plural=n==0 ? 0 : n==1 ? 1 : n==2 ? 2 : n%100>=3 && n%100<=10 ? 3 : n%100>=11 ? 4 : 5;\n"
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates and boot"
+msgstr "التحديثات والإقلاع"
+
+#: usr/libexec/amethystora-security-status
+msgid "Watching"
+msgstr "المراقبة"
+
+#: usr/libexec/amethystora-security-status
+msgid "Apps"
+msgstr "التطبيقات"
+
+#: usr/libexec/amethystora-security-status
+msgid "Scans"
+msgstr "الفحوص"
+
+#: usr/libexec/amethystora-security-status
+msgid "Off unless you turned it on"
+msgstr "معطّلة ما لم تفعّلها بنفسك"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${title} is on (${COMMAND})"
+msgstr "${title}: مفعّل (${COMMAND})"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${title}: ${COMMAND} (${reason})"
+msgstr "${title}: ${COMMAND} (${reason})"
+
+#. Translators: the state of a check in the terminal, in a column seven letters wide: keep it short
+#: usr/libexec/amethystora-security-status
+msgid "ok"
+msgstr "جيد"
+
+#. Translators: the state of a check in the terminal, in a column seven letters wide: keep it short
+#: usr/libexec/amethystora-security-status
+msgid "check"
+msgstr "حذر"
+
+#. Translators: the state of a check in the terminal, in a column seven letters wide: keep it short
+#: usr/libexec/amethystora-security-status
+msgid "off"
+msgstr "خطر"
+
+#: usr/libexec/amethystora-security-status
+msgid "today"
+msgstr "اليوم"
+
+#: usr/libexec/amethystora-security-status
+msgid "yesterday"
+msgstr "أمس"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${DAYS} day ago"
+msgid_plural "${DAYS} days ago"
+msgstr[0] "اليوم"
+msgstr[1] "منذ يوم واحد"
+msgstr[2] "منذ يومين"
+msgstr[3] "منذ ${DAYS} أيام"
+msgstr[4] "منذ ${DAYS} يومًا"
+msgstr[5] "منذ ${DAYS} يوم"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "This machine is running ${IMAGE}"
+msgstr "يشغّل هذا الجهاز ${IMAGE}"
+
+#: usr/libexec/amethystora-security-status
+msgid "Signed updates"
+msgstr "التحديثات الموقّعة"
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates are refused unless they carry this image's signature"
+msgstr "تُرفض التحديثات ما لم تحمل توقيع هذه الصورة"
+
+#: usr/libexec/amethystora-security-status
+msgid "Signature checking is staged, and turns on at the next restart"
+msgstr "التحقق من التوقيع مُجهَّز، ويُفعَّل عند إعادة التشغيل التالية"
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates are not signature-checked"
+msgstr "لا يُتحقق من توقيع التحديثات"
+
+#: usr/libexec/amethystora-security-status
+msgid "Anything that can answer for the registry could replace this machine's whole system."
+msgstr "أي جهة تستطيع انتحال مستودع الصور قد تستبدل نظام هذا الجهاز بأكمله."
+
+#: usr/libexec/amethystora-security-status
+msgid "Fix it with this, then restart:"
+msgstr "أصلحه بهذا الأمر، ثم أعد التشغيل:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates"
+msgstr "التحديثات"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "This machine follows a single build (${TAG}) and will not receive updates"
+msgstr "يتبع هذا الجهاز بنية واحدة (${TAG}) ولن يتلقى تحديثات"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Follow the ${STREAM} stream again with:"
+msgstr "عُد إلى تتبّع المسار ${STREAM} بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Layered packages"
+msgstr "الحزم المضافة كطبقات"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${LAYERED} package is layered on this image with rpm-ostree"
+msgid_plural "${LAYERED} packages are layered on this image with rpm-ostree"
+msgstr[0] "لا حزم مضافة كطبقات على هذه الصورة باستخدام rpm-ostree"
+msgstr[1] "حزمة واحدة مضافة كطبقة على هذه الصورة باستخدام rpm-ostree"
+msgstr[2] "حزمتان مضافتان كطبقتين على هذه الصورة باستخدام rpm-ostree"
+msgstr[3] "${LAYERED} حزم مضافة كطبقات على هذه الصورة باستخدام rpm-ostree"
+msgstr[4] "${LAYERED} حزمة مضافة كطبقات على هذه الصورة باستخدام rpm-ostree"
+msgstr[5] "${LAYERED} حزمة مضافة كطبقات على هذه الصورة باستخدام rpm-ostree"
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates keep them, but each one slows every update; the image is the better place"
+msgstr "تحتفظ بها التحديثات، لكن كل واحدة منها تُبطئ كل تحديث؛ والصورة هي المكان الأفضل لها"
+
+#: usr/libexec/amethystora-security-status
+msgid "System image"
+msgstr "صورة النظام"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "This system image was built ${WHEN}"
+msgstr "بُنيت صورة النظام هذه ${WHEN}"
+
+#: usr/libexec/amethystora-security-status
+msgid "A newer system image is waiting for a restart"
+msgstr "صورة نظام أحدث تنتظر إعادة التشغيل"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The one running was built ${AGE} day ago. Restart to use the new one."
+msgid_plural "The one running was built ${AGE} days ago. Restart to use the new one."
+msgstr[0] "بُنيت الصورة العاملة اليوم. أعد التشغيل لاستخدام الجديدة."
+msgstr[1] "بُنيت الصورة العاملة منذ يوم واحد. أعد التشغيل لاستخدام الجديدة."
+msgstr[2] "بُنيت الصورة العاملة منذ يومين. أعد التشغيل لاستخدام الجديدة."
+msgstr[3] "بُنيت الصورة العاملة منذ ${AGE} أيام. أعد التشغيل لاستخدام الجديدة."
+msgstr[4] "بُنيت الصورة العاملة منذ ${AGE} يومًا. أعد التشغيل لاستخدام الجديدة."
+msgstr[5] "بُنيت الصورة العاملة منذ ${AGE} يوم. أعد التشغيل لاستخدام الجديدة."
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "This system image is ${AGE} day old"
+msgid_plural "This system image is ${AGE} days old"
+msgstr[0] "عمر صورة النظام هذه أقل من يوم"
+msgstr[1] "عمر صورة النظام هذه يوم واحد"
+msgstr[2] "عمر صورة النظام هذه يومان"
+msgstr[3] "عمر صورة النظام هذه ${AGE} أيام"
+msgstr[4] "عمر صورة النظام هذه ${AGE} يومًا"
+msgstr[5] "عمر صورة النظام هذه ${AGE} يوم"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Security fixes reach this machine as new images, and none has arrived since ${SINCE}."
+msgstr "تصل الإصلاحات الأمنية إلى هذا الجهاز في صور جديدة، ولم تصل أي صورة منذ ${SINCE}."
+
+#: usr/libexec/amethystora-security-status
+msgid "Update now with:"
+msgstr "حدّث الآن بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Automatic updates"
+msgstr "التحديثات التلقائية"
+
+#: usr/libexec/amethystora-security-status
+msgid "Automatic updates are off"
+msgstr "التحديثات التلقائية معطّلة"
+
+#: usr/libexec/amethystora-security-status
+msgid "Turn them back on with:"
+msgstr "أعد تفعيلها بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates install by themselves"
+msgstr "تُثبَّت التحديثات تلقائيًا"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The last update that finished was ${DAYS} day ago"
+msgid_plural "The last update that finished was ${DAYS} days ago"
+msgstr[0] "آخر تحديث اكتمل كان اليوم"
+msgstr[1] "آخر تحديث اكتمل كان منذ يوم واحد"
+msgstr[2] "آخر تحديث اكتمل كان منذ يومين"
+msgstr[3] "آخر تحديث اكتمل كان منذ ${DAYS} أيام"
+msgstr[4] "آخر تحديث اكتمل كان منذ ${DAYS} يومًا"
+msgstr[5] "آخر تحديث اكتمل كان منذ ${DAYS} يوم"
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates start, but do not get to the end. System Updates shows why, or run one here:"
+msgstr "تبدأ التحديثات لكنها لا تبلغ نهايتها. يُظهر تطبيق «تحديثات النظام» السبب، أو شغّل تحديثًا هنا:"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Updates install by themselves. The last one finished ${WHEN}"
+msgstr "تُثبَّت التحديثات تلقائيًا. اكتمل آخرها ${WHEN}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${name}, never upgraded"
+msgstr "${name}، لم تُرقَّ قط"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${name}, last upgraded ${WHEN}"
+msgstr "${name}، آخر ترقية ${WHEN}"
+
+#: usr/libexec/amethystora-security-status
+msgid "Containers"
+msgstr "الحاويات"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} container has not been upgraded for two weeks"
+msgid_plural "${N} containers have not been upgraded for two weeks"
+msgstr[0] "لا حاويات لم تُرقَّ منذ أسبوعين"
+msgstr[1] "حاوية واحدة لم تُرقَّ منذ أسبوعين"
+msgstr[2] "حاويتان لم تُرقَّيا منذ أسبوعين"
+msgstr[3] "${N} حاويات لم تُرقَّ منذ أسبوعين"
+msgstr[4] "${N} حاوية لم تُرقَّ منذ أسبوعين"
+msgstr[5] "${N} حاوية لم تُرقَّ منذ أسبوعين"
+
+#: usr/libexec/amethystora-security-status
+msgid "What runs in a container goes without the fixes its distribution has published since. Upgrade them now with:"
+msgstr "ما يعمل في الحاوية يبقى دون الإصلاحات التي نشرتها توزيعتها منذ ذلك الحين. رقِّها الآن بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "The container amethystora-pkg manages is upgraded every day"
+msgstr "تُرقّى كل يوم الحاوية التي يديرها amethystora-pkg"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The ${COUNT} container amethystora-pkg manages is upgraded every day"
+msgid_plural "The ${COUNT} containers amethystora-pkg manages are upgraded every day"
+msgstr[0] "لا يدير amethystora-pkg أي حاوية"
+msgstr[1] "تُرقّى كل يوم الحاوية التي يديرها amethystora-pkg"
+msgstr[2] "تُرقّى كل يوم الحاويتان اللتان يديرهما amethystora-pkg"
+msgstr[3] "تُرقّى كل يوم الحاويات التي يديرها amethystora-pkg، وعددها ${COUNT}"
+msgstr[4] "تُرقّى كل يوم الحاويات التي يديرها amethystora-pkg، وعددها ${COUNT}"
+msgstr[5] "تُرقّى كل يوم الحاويات التي يديرها amethystora-pkg، وعددها ${COUNT}"
+
+#: usr/libexec/amethystora-security-status
+msgid "Verified system files"
+msgstr "ملفات نظام متحقَّق منها"
+
+#: usr/libexec/amethystora-security-status
+msgid "The running system is on composefs: /usr is verified as it is read, not only when pulled"
+msgstr "النظام العامل على composefs: يُتحقق من ‎/usr أثناء قراءته، لا عند سحبه فقط"
+
+#: usr/libexec/amethystora-security-status
+msgid "/usr is read-only and replaced whole by each update, but is not re-verified as it is read"
+msgstr "المجلد ‎/usr للقراءة فقط ويُستبدل بالكامل مع كل تحديث، لكن لا يُعاد التحقق منه أثناء قراءته"
+
+#: usr/libexec/amethystora-security-status
+msgid "Secure Boot"
+msgstr "Secure Boot"
+
+#: usr/libexec/amethystora-security-status
+msgid "Secure Boot is on: this machine boots only a kernel it has checked"
+msgstr "ميزة Secure Boot مفعّلة: لا يُقلع هذا الجهاز إلا بنواة تحقّق منها"
+
+#: usr/libexec/amethystora-security-status
+msgid "Secure Boot is off"
+msgstr "ميزة Secure Boot معطّلة"
+
+#: usr/libexec/amethystora-security-status
+msgid "The kernel protections below rest on it. Without it, anything that reaches root can boot a different kernel and step around them."
+msgstr "تعتمد عليها حمايات النواة أدناه. ومن دونها، يستطيع أي شيء يبلغ صلاحيات الجذر أن يُقلع بنواة أخرى ويلتفّ عليها."
+
+#: usr/libexec/amethystora-security-status
+msgid "Turn Secure Boot on in this machine's firmware, then run:"
+msgstr "فعّل Secure Boot من البرنامج الثابت لهذا الجهاز، ثم نفّذ:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Secure Boot state unknown (no EFI on this machine, or its firmware will not say)"
+msgstr "حالة Secure Boot مجهولة (لا EFI في هذا الجهاز، أو أن برنامجه الثابت لا يُفصح عنها)"
+
+#: usr/libexec/amethystora-security-status
+msgid "Signing keys"
+msgstr "مفاتيح التوقيع"
+
+#: usr/libexec/amethystora-security-status
+msgid "This image's signing keys are enrolled"
+msgstr "مفاتيح توقيع هذه الصورة مسجّلة"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Not enrolled: ${CERT}"
+msgstr "غير مسجّل: ${CERT}"
+
+#: usr/libexec/amethystora-security-status
+msgid "What it signs, such as evdi for DisplayLink docks, will not load."
+msgstr "لن يُحمَّل ما يوقّعه، مثل evdi لمحطات إرساء DisplayLink."
+
+#: usr/libexec/amethystora-security-status
+msgid "Enroll it with:"
+msgstr "سجّله بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Enrollment of ${CERT} is waiting for the next restart"
+msgstr "تسجيل ${CERT} ينتظر إعادة التشغيل التالية"
+
+#: usr/libexec/amethystora-security-status
+msgid "Finish it in the blue MOK manager screen that appears during boot."
+msgstr "أكمله في شاشة MOK manager الزرقاء التي تظهر أثناء الإقلاع."
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${cert} is not on this machine"
+msgstr "الملف ‎${cert} غير موجود على هذا الجهاز"
+
+#: usr/libexec/amethystora-security-status
+msgid "Whether its key is enrolled cannot be checked without it."
+msgstr "لا يمكن التحقق من تسجيل مفتاحه من دونه."
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Could not tell whether ${CERT} is enrolled"
+msgstr "تعذّرت معرفة ما إذا كان ${CERT} مسجّلًا"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "mokutil said: ${rest}"
+msgstr "قال mokutil: ${rest}"
+
+#: usr/libexec/amethystora-security-status
+msgid "Kernel lockdown"
+msgstr "إقفال النواة"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Kernel lockdown is on (${LOCKDOWN}): root cannot rewrite the running kernel"
+msgstr "إقفال النواة مفعّل (${LOCKDOWN}): لا يستطيع المستخدم الجذر تعديل النواة العاملة"
+
+#: usr/libexec/amethystora-security-status
+msgid "Kernel lockdown is off, as it is on every NVIDIA image"
+msgstr "إقفال النواة معطّل، كما هو الحال في كل صور NVIDIA"
+
+#: usr/libexec/amethystora-security-status
+msgid "The NVIDIA driver is a module signed with this machine's own key, and lockdown would leave a machine without Secure Boot with no graphics driver at all."
+msgstr "مشغّل NVIDIA وحدة موقّعة بمفتاح هذا الجهاز نفسه، والإقفال سيترك الجهاز الذي لا يعمل فيه Secure Boot دون أي مشغّل رسوميات على الإطلاق."
+
+#: usr/libexec/amethystora-security-status
+msgid "Kernel lockdown is off"
+msgstr "إقفال النواة معطّل"
+
+#: usr/libexec/amethystora-security-status
+msgid "Turn it back on with:"
+msgstr "أعد تفعيله بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Firmware security"
+msgstr "أمان البرنامج الثابت"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "fwupd rates this machine's firmware protections ${LEVEL} of 5, and something running weakens them"
+msgstr "يقيّم fwupd حمايات البرنامج الثابت لهذا الجهاز بـ${LEVEL} من 5، وثمة شيء يعمل يُضعفها"
+
+#: usr/libexec/amethystora-security-status
+msgid "Every protection fwupd looks at, with what each is:"
+msgstr "كل حماية يفحصها fwupd، مع شرح كل منها:"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "fwupd rates this machine's firmware protections ${LEVEL} of 5"
+msgstr "يقيّم fwupd حمايات البرنامج الثابت لهذا الجهاز بـ${LEVEL} من 5"
+
+#: usr/libexec/amethystora-security-status
+msgid "That is mostly up to the machine's maker. Every protection fwupd looks at, with what each is:"
+msgstr "يعود ذلك في الغالب إلى صانع الجهاز. كل حماية يفحصها fwupd، مع شرح كل منها:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Audit log"
+msgstr "سجل التدقيق"
+
+#: usr/libexec/amethystora-security-status
+msgid "The audit log is recording"
+msgstr "سجل التدقيق يسجّل"
+
+#: usr/libexec/amethystora-security-status
+msgid "The audit log is not recording"
+msgstr "سجل التدقيق لا يسجّل"
+
+#: usr/libexec/amethystora-security-status
+msgid "Start it with:"
+msgstr "شغّله بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Audit rules"
+msgstr "قواعد التدقيق"
+
+#: usr/libexec/amethystora-security-status
+msgid "Audit rules are immutable until the next reboot"
+msgstr "قواعد التدقيق غير قابلة للتغيير حتى إعادة التشغيل التالية"
+
+#: usr/libexec/amethystora-security-status
+msgid "Failed logins"
+msgstr "محاولات الولوج الفاشلة"
+
+#: usr/libexec/amethystora-security-status
+msgid "Repeated failed logins get the address blocked (ame security addresses)"
+msgstr "تكرار محاولات الولوج الفاشلة يحظر العنوان (ame security addresses)"
+
+#: usr/libexec/amethystora-security-status
+msgid "fail2ban is not running"
+msgstr "الخدمة fail2ban لا تعمل"
+
+#: usr/libexec/amethystora-security-status
+msgid "Firewall"
+msgstr "الجدار الناري"
+
+#: usr/libexec/amethystora-security-status
+msgid "Firewall is on the amethystora zone: nothing incoming that a desktop does not need"
+msgstr "الجدار الناري على المنطقة amethystora: لا يدخل شيء لا يحتاجه سطح المكتب"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Firewall default zone is ${ZONE}, not amethystora"
+msgstr "المنطقة المبدئية للجدار الناري هي ${ZONE}، لا amethystora"
+
+#: usr/libexec/amethystora-security-status
+msgid "Put it back with:"
+msgstr "أعده بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Suricata blocks connections to known malware, command servers and exploits"
+msgstr "يحظر Suricata الاتصالات بالبرمجيات الخبيثة المعروفة وخوادم التحكم وأدوات الاستغلال"
+
+#: usr/libexec/amethystora-security-status
+msgid "Suricata inspects every connection and says what it recognises, without blocking"
+msgstr "يفحص Suricata كل اتصال ويُبلغ بما يتعرّف عليه، دون حظر"
+
+#: usr/libexec/amethystora-security-status
+msgid "Network protection"
+msgstr "حماية الشبكة"
+
+#: usr/libexec/amethystora-security-status
+msgid "Network protection is on, but not running"
+msgstr "حماية الشبكة مفعّلة، لكنها لا تعمل"
+
+#: usr/libexec/amethystora-security-status
+msgid "Connections pass without being inspected until it runs again. Start it with:"
+msgstr "تمر الاتصالات دون فحص حتى تعمل مجددًا. شغّلها بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Network protection is running, but no traffic reaches it"
+msgstr "حماية الشبكة تعمل، لكن لا تصلها أي حركة مرور"
+
+#: usr/libexec/amethystora-security-status
+msgid "Its nftables table (inet amethystora-ips) is gone, so connections pass without being inspected. Put it back with:"
+msgstr "اختفى جدول nftables الخاص بها (inet amethystora-ips)، فصارت الاتصالات تمر دون فحص. أعده بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Network protection has no rules yet"
+msgstr "لا قواعد لحماية الشبكة بعد"
+
+#: usr/libexec/amethystora-security-status
+msgid "Nothing is recognised until the rules have downloaded once. Download them now with:"
+msgstr "لا يُتعرّف على شيء حتى تُنزَّل القواعد مرة واحدة. نزّلها الآن بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The network protection rules are ${DAYS} day old"
+msgid_plural "The network protection rules are ${DAYS} days old"
+msgstr[0] "عمر قواعد حماية الشبكة أقل من يوم"
+msgstr[1] "عمر قواعد حماية الشبكة يوم واحد"
+msgstr[2] "عمر قواعد حماية الشبكة يومان"
+msgstr[3] "عمر قواعد حماية الشبكة ${DAYS} أيام"
+msgstr[4] "عمر قواعد حماية الشبكة ${DAYS} يومًا"
+msgstr[5] "عمر قواعد حماية الشبكة ${DAYS} يوم"
+
+#: usr/libexec/amethystora-security-status
+msgid "They download every day, and newer attacks are not recognised until they do. Check this machine's network, or try now with:"
+msgstr "تُنزَّل كل يوم، ولا يُتعرّف على الهجمات الأحدث حتى يحدث ذلك. تحقق من شبكة هذا الجهاز، أو حاول الآن بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "It blocked ${BLOCKED} connection in the last 7 days. See it with:"
+msgid_plural "It blocked ${BLOCKED} connections in the last 7 days. See them with:"
+msgstr[0] "لم تحظر أي اتصال في آخر 7 أيام. اطّلع على ذلك بالأمر:"
+msgstr[1] "حظرت اتصالًا واحدًا في آخر 7 أيام. اطّلع عليه بالأمر:"
+msgstr[2] "حظرت اتصالين في آخر 7 أيام. اطّلع عليهما بالأمر:"
+msgstr[3] "حظرت ${BLOCKED} اتصالات في آخر 7 أيام. اطّلع عليها بالأمر:"
+msgstr[4] "حظرت ${BLOCKED} اتصالًا في آخر 7 أيام. اطّلع عليها بالأمر:"
+msgstr[5] "حظرت ${BLOCKED} اتصال في آخر 7 أيام. اطّلع عليها بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Security watcher"
+msgstr "مراقب الأمان"
+
+#: usr/libexec/amethystora-security-status
+msgid "The security watcher noticed something"
+msgstr "لاحظ مراقب الأمان شيئًا"
+
+#: usr/libexec/amethystora-security-status
+msgid "A change to accounts, to what starts by itself or to a security setting, or a program reading the keyboard directly. See it with:"
+msgstr "تغيير في الحسابات، أو فيما يبدأ تلقائيًا، أو في أحد إعدادات الأمان، أو برنامج يقرأ لوحة المفاتيح مباشرة. اطّلع عليه بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "The security watcher is off"
+msgstr "مراقب الأمان معطّل"
+
+#: usr/libexec/amethystora-security-status
+msgid "The security watcher's last run failed"
+msgstr "فشل آخر تشغيل لمراقب الأمان"
+
+#: usr/libexec/amethystora-security-status
+msgid "See why with:"
+msgstr "اعرف السبب بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "The security watcher reads the audit log and checks the settings as they happen"
+msgstr "يقرأ مراقب الأمان سجل التدقيق ويفحص الإعدادات لحظة تغيّرها"
+
+#: usr/libexec/amethystora-security-status
+msgid "The security watcher reads the audit log and checks the settings every 15 minutes"
+msgstr "يقرأ مراقب الأمان سجل التدقيق ويفحص الإعدادات كل 15 دقيقة"
+
+#: usr/libexec/amethystora-security-status
+msgid "Real-time watching"
+msgstr "المراقبة الآنية"
+
+#: usr/libexec/amethystora-security-status
+msgid "Real-time watching is on: changes are read as they happen, and files scanned as they are written"
+msgstr "المراقبة الآنية مفعّلة: تُقرأ التغييرات لحظة حدوثها، وتُفحص الملفات لحظة كتابتها"
+
+#: usr/libexec/amethystora-security-status
+msgid "Real-time watching is on, but not running"
+msgstr "المراقبة الآنية مفعّلة، لكنها لا تعمل"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Not running: ${UNITS}. Real-time scanning waits for the first virus signatures."
+msgstr "لا تعمل: ${UNITS}. ينتظر الفحص الآني أولى تواقيع الفيروسات."
+
+#: usr/libexec/amethystora-security-status
+msgid "Ransomware protection"
+msgstr "الحماية من برمجيات الفدية"
+
+#: usr/libexec/amethystora-security-status
+msgid "Ransomware protection is on, but no snapshot has been taken"
+msgstr "الحماية من برمجيات الفدية مفعّلة، لكن لم تُلتقط أي لقطة بعد"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The latest snapshot of the home folders is ${HOURS} hour old"
+msgid_plural "The latest snapshot of the home folders is ${HOURS} hours old"
+msgstr[0] "عمر أحدث لقطة لمجلدات المنزل أقل من ساعة"
+msgstr[1] "عمر أحدث لقطة لمجلدات المنزل ساعة واحدة"
+msgstr[2] "عمر أحدث لقطة لمجلدات المنزل ساعتان"
+msgstr[3] "عمر أحدث لقطة لمجلدات المنزل ${HOURS} ساعات"
+msgstr[4] "عمر أحدث لقطة لمجلدات المنزل ${HOURS} ساعة"
+msgstr[5] "عمر أحدث لقطة لمجلدات المنزل ${HOURS} ساعة"
+
+#: usr/libexec/amethystora-security-status
+msgid "They are taken every hour. See why the last ones were not with:"
+msgstr "تُلتقط كل ساعة. اعرف سبب عدم التقاط آخرها بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The home folders are snapshotted every hour. The latest is from ${AT}"
+msgstr "تُلتقط لقطات لمجلدات المنزل كل ساعة. أحدثها من ${AT}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The kernel setting ${key} is ${live}, not ${value}"
+msgstr "قيمة إعداد النواة ${key} هي ${live}، لا ${value}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The kernel argument ${karg} is missing"
+msgstr "معامل النواة ${karg} مفقود"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The kernel module ${module} is no longer blocked"
+msgstr "وحدة النواة ${module} لم تعد محظورة"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${path} is changed on this machine"
+msgstr "عُدِّل ‎${path} على هذا الجهاز"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${path}, which the image ships, is gone"
+msgstr "اختفى ‎${path}، مع أن الصورة تتضمنه"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${path} replaces the image's ${detail}"
+msgstr "يحلّ ‎${path} محل ${detail} الذي في الصورة"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${path} changes how ${detail} runs"
+msgstr "يغيّر ‎${path} طريقة عمل ${detail}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${path} stops ${detail} from ever starting"
+msgstr "يمنع ‎${path} ${detail} من البدء إطلاقًا"
+
+#: usr/libexec/amethystora-security-status
+msgid "Image settings"
+msgstr "إعدادات الصورة"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} security setting differs from the image"
+msgid_plural "${N} security settings differ from the image"
+msgstr[0] "لا إعدادات أمنية تختلف عن الصورة"
+msgstr[1] "إعداد أمني واحد يختلف عن الصورة"
+msgstr[2] "إعدادان أمنيان يختلفان عن الصورة"
+msgstr[3] "${N} إعدادات أمنية تختلف عن الصورة"
+msgstr[4] "${N} إعدادًا أمنيًا يختلف عن الصورة"
+msgstr[5] "${N} إعداد أمني يختلف عن الصورة"
+
+#: usr/libexec/amethystora-security-status
+msgid "If you did not change these, find out what did. The image's own copy of anything in /etc is in /usr/etc, to compare or copy back."
+msgstr "إن لم تكن أنت من غيّرها، فاعرف ما الذي غيّرها. نسخة الصورة الأصلية من أي شيء في ‎/etc موجودة في ‎/usr/etc، للمقارنة أو للنسخ مجددًا."
+
+#: usr/libexec/amethystora-security-status
+msgid "The image's security settings are as it ships them"
+msgstr "إعدادات أمان الصورة كما أتت بها"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Added on this machine: ${PATHS}"
+msgstr "أُضيف على هذا الجهاز: ‎${PATHS}"
+
+#: usr/libexec/amethystora-security-status
+msgid "/etc/ld.so.preload exists: it loads a library into every program that starts"
+msgstr "الملف ‎/etc/ld.so.preload موجود: إنه يحمّل مكتبة في كل برنامج يبدأ"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "A setuid program outside the image: ${file}"
+msgstr "برنامج setuid خارج الصورة: ‎${file}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "A plain file in /dev, where only devices belong: ${file}"
+msgstr "ملف عادي في ‎/dev، حيث لا مكان إلا للأجهزة: ‎${file}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The kernel module ${name} did not come with this image"
+msgstr "وحدة النواة ${name} لم تأتِ مع هذه الصورة"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The kernel module ${name} is not signed"
+msgstr "وحدة النواة ${name} غير موقّعة"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The network interface ${name} reads every packet on its network (promiscuous mode)"
+msgstr "واجهة الشبكة ${name} تقرأ كل حزمة على شبكتها (الوضع المختلط)"
+
+#: usr/libexec/amethystora-security-status
+msgid "Rootkit checks"
+msgstr "فحوص الجذور الخفية"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} thing where nothing should be"
+msgid_plural "${N} things where nothing should be"
+msgstr[0] "لا شيء حيث لا ينبغي أن يكون شيء"
+msgstr[1] "شيء واحد حيث لا ينبغي أن يكون شيء"
+msgstr[2] "شيئان حيث لا ينبغي أن يكون شيء"
+msgstr[3] "${N} أشياء حيث لا ينبغي أن يكون شيء"
+msgstr[4] "${N} شيئًا حيث لا ينبغي أن يكون شيء"
+msgstr[5] "${N} شيء حيث لا ينبغي أن يكون شيء"
+
+#: usr/libexec/amethystora-security-status
+msgid "Each is either something you set up yourself, or something to look into now."
+msgstr "كل منها إما شيء أعددته بنفسك، وإما شيء ينبغي التحقق منه الآن."
+
+#: usr/libexec/amethystora-security-status
+msgid "Nothing where it should not be: no preloaded library, no setuid programs outside the image, no unknown kernel modules"
+msgstr "لا شيء حيث لا ينبغي: لا مكتبة محمّلة مسبقًا، ولا برامج setuid خارج الصورة، ولا وحدات نواة مجهولة"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${program}, on port ${port}"
+msgstr "${program}، على المنفذ ${port}"
+
+#: usr/libexec/amethystora-security-status
+msgid "Open to the network"
+msgstr "مفتوح على الشبكة"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} program accepts connections from other machines"
+msgid_plural "${N} programs accept connections from other machines"
+msgstr[0] "لا برنامج يقبل اتصالات من أجهزة أخرى"
+msgstr[1] "برنامج واحد يقبل اتصالات من أجهزة أخرى"
+msgstr[2] "برنامجان يقبلان اتصالات من أجهزة أخرى"
+msgstr[3] "${N} برامج تقبل اتصالات من أجهزة أخرى"
+msgstr[4] "${N} برنامجًا يقبل اتصالات من أجهزة أخرى"
+msgstr[5] "${N} برنامج يقبل اتصالات من أجهزة أخرى"
+
+#: usr/libexec/amethystora-security-status
+msgid "The firewall lets in only what a desktop needs from the local network, but every device on your tailnet can reach these."
+msgstr "لا يسمح الجدار الناري إلا بما يحتاجه سطح المكتب من الشبكة المحلية، لكن كل جهاز في شبكة tailnet الخاصة بك يستطيع الوصول إلى هذه البرامج."
+
+#: usr/libexec/amethystora-security-status
+msgid "No program accepts connections from other machines"
+msgstr "لا برنامج يقبل اتصالات من أجهزة أخرى"
+
+#: usr/libexec/amethystora-security-status
+msgid "App permissions"
+msgstr "أذونات التطبيقات"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} app can leave its sandbox"
+msgid_plural "${N} apps can leave their sandbox"
+msgstr[0] "لا تطبيق يستطيع الخروج من بيئة العزل"
+msgstr[1] "تطبيق واحد يستطيع الخروج من بيئة العزل"
+msgstr[2] "تطبيقان يستطيعان الخروج من بيئة العزل"
+msgstr[3] "${N} تطبيقات تستطيع الخروج من بيئة العزل"
+msgstr[4] "${N} تطبيقًا يستطيع الخروج من بيئة العزل"
+msgstr[5] "${N} تطبيق يستطيع الخروج من بيئة العزل"
+
+#: usr/libexec/amethystora-security-status
+msgid "Whatever runs in it can then do anything you can. If you did not mean it to, take it back in Flatseal, or see every app's permissions with:"
+msgstr "عندها يستطيع أي شيء يعمل فيه أن يفعل كل ما تستطيعه أنت. إن لم تقصد ذلك فاسحب الإذن في Flatseal، أو اطّلع على أذونات كل التطبيقات بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} app was given back what the image takes from every app"
+msgid_plural "${N} apps were given back what the image takes from every app"
+msgstr[0] "لا تطبيق أُعيد إليه ما تنزعه الصورة من كل التطبيقات"
+msgstr[1] "تطبيق واحد أُعيد إليه ما تنزعه الصورة من كل التطبيقات"
+msgstr[2] "تطبيقان أُعيد إليهما ما تنزعه الصورة من كل التطبيقات"
+msgstr[3] "${N} تطبيقات أُعيد إليها ما تنزعه الصورة من كل التطبيقات"
+msgstr[4] "${N} تطبيقًا أُعيد إليه ما تنزعه الصورة من كل التطبيقات"
+msgstr[5] "${N} تطبيق أُعيد إليه ما تنزعه الصورة من كل التطبيقات"
+
+#: usr/libexec/amethystora-security-status
+msgid "See every app's permissions with:"
+msgstr "اطّلع على أذونات كل التطبيقات بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "No app can leave its sandbox or read what you type into another (${COUNT} app checked)"
+msgid_plural "No app can leave its sandbox or read what you type into another (${COUNT} apps checked)"
+msgstr[0] "لا تطبيق يستطيع الخروج من بيئة العزل أو قراءة ما تكتبه في تطبيق آخر (لم يُفحص أي تطبيق)"
+msgstr[1] "لا تطبيق يستطيع الخروج من بيئة العزل أو قراءة ما تكتبه في تطبيق آخر (فُحص تطبيق واحد)"
+msgstr[2] "لا تطبيق يستطيع الخروج من بيئة العزل أو قراءة ما تكتبه في تطبيق آخر (فُحص تطبيقان)"
+msgstr[3] "لا تطبيق يستطيع الخروج من بيئة العزل أو قراءة ما تكتبه في تطبيق آخر (فُحصت ${COUNT} تطبيقات)"
+msgstr[4] "لا تطبيق يستطيع الخروج من بيئة العزل أو قراءة ما تكتبه في تطبيق آخر (فُحص ${COUNT} تطبيقًا)"
+msgstr[5] "لا تطبيق يستطيع الخروج من بيئة العزل أو قراءة ما تكتبه في تطبيق آخر (فُحص ${COUNT} تطبيق)"
+
+#: usr/libexec/amethystora-security-status
+msgid "Files it finds are moved to quarantine. See what it found with:"
+msgstr "تُنقل الملفات التي يجدها إلى الحجر. اطّلع على ما وجده بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Files it finds are deleted. See what it found with:"
+msgstr "تُحذف الملفات التي يجدها. اطّلع على ما وجده بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Files it finds are left where they are. See what it found with:"
+msgstr "تُترك الملفات التي يجدها في مكانها. اطّلع على ما وجده بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Weekly virus scan"
+msgstr "الفحص الأسبوعي للفيروسات"
+
+#: usr/libexec/amethystora-security-status
+msgid "The last virus scan found something"
+msgstr "وجد آخر فحص للفيروسات شيئًا"
+
+#: usr/libexec/amethystora-security-status
+msgid "not yet"
+msgstr "لم يحدث بعد"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Weekly virus scan, Sundays. Last run: ${LAST}"
+msgstr "الفحص الأسبوعي للفيروسات، أيام الأحد. آخر تشغيل: ${LAST}"
+
+#: usr/libexec/amethystora-security-status
+msgid "The weekly virus scan is off"
+msgstr "الفحص الأسبوعي للفيروسات معطّل"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The weekly virus scan last ran ${DAYS} day ago"
+msgid_plural "The weekly virus scan last ran ${DAYS} days ago"
+msgstr[0] "آخر تشغيل للفحص الأسبوعي للفيروسات كان اليوم"
+msgstr[1] "آخر تشغيل للفحص الأسبوعي للفيروسات كان منذ يوم واحد"
+msgstr[2] "آخر تشغيل للفحص الأسبوعي للفيروسات كان منذ يومين"
+msgstr[3] "آخر تشغيل للفحص الأسبوعي للفيروسات كان منذ ${DAYS} أيام"
+msgstr[4] "آخر تشغيل للفحص الأسبوعي للفيروسات كان منذ ${DAYS} يومًا"
+msgstr[5] "آخر تشغيل للفحص الأسبوعي للفيروسات كان منذ ${DAYS} يوم"
+
+#: usr/libexec/amethystora-security-status
+msgid "It runs on Sundays, or at the next start after a Sunday the machine was off. Run it now with:"
+msgstr "يعمل أيام الأحد، أو عند أول تشغيل يلي يوم أحد كان الجهاز فيه مطفأً. شغّله الآن بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "Virus signatures"
+msgstr "تواقيع الفيروسات"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Virus signatures updated ${WHEN}"
+msgstr "حُدّثت تواقيع الفيروسات ${WHEN}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Virus signatures are ${AGE} day old"
+msgid_plural "Virus signatures are ${AGE} days old"
+msgstr[0] "عمر تواقيع الفيروسات أقل من يوم"
+msgstr[1] "عمر تواقيع الفيروسات يوم واحد"
+msgstr[2] "عمر تواقيع الفيروسات يومان"
+msgstr[3] "عمر تواقيع الفيروسات ${AGE} أيام"
+msgstr[4] "عمر تواقيع الفيروسات ${AGE} يومًا"
+msgstr[5] "عمر تواقيع الفيروسات ${AGE} يوم"
+
+#: usr/libexec/amethystora-security-status
+msgid "A clean scan proves little with signatures this old. Check this machine's network."
+msgstr "الفحص النظيف لا يُثبت الكثير بتواقيع بهذا القِدم. تحقق من شبكة هذا الجهاز."
+
+#: usr/libexec/amethystora-security-status
+msgid "No virus signatures yet"
+msgstr "لا تواقيع للفيروسات بعد"
+
+#: usr/libexec/amethystora-security-status
+msgid "clamav-freshclam.service has not finished its first download."
+msgstr "لم تُكمل الخدمة clamav-freshclam.service أول تنزيل لها."
+
+#: usr/libexec/amethystora-security-status
+msgid "Settings audit"
+msgstr "تدقيق الإعدادات"
+
+#: usr/libexec/amethystora-security-status
+msgid "The monthly settings audit is off"
+msgstr "التدقيق الشهري للإعدادات معطّل"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The settings audit last ran ${DAYS} day ago"
+msgid_plural "The settings audit last ran ${DAYS} days ago"
+msgstr[0] "آخر تشغيل لتدقيق الإعدادات كان اليوم"
+msgstr[1] "آخر تشغيل لتدقيق الإعدادات كان منذ يوم واحد"
+msgstr[2] "آخر تشغيل لتدقيق الإعدادات كان منذ يومين"
+msgstr[3] "آخر تشغيل لتدقيق الإعدادات كان منذ ${DAYS} أيام"
+msgstr[4] "آخر تشغيل لتدقيق الإعدادات كان منذ ${DAYS} يومًا"
+msgstr[5] "آخر تشغيل لتدقيق الإعدادات كان منذ ${DAYS} يوم"
+
+#: usr/libexec/amethystora-security-status
+msgid "Run it now with:"
+msgstr "شغّله الآن بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Monthly settings audit. Last run: ${LAST}"
+msgstr "تدقيق شهري للإعدادات. آخر تشغيل: ${LAST}"
+
+#: usr/libexec/amethystora-security-status
+msgid "Security key"
+msgstr "مفتاح الأمان"
+
+#: usr/libexec/amethystora-security-status
+msgid "Sign in, unlock the screen and approve sudo with a FIDO2 key instead of your password"
+msgstr "الولوج وفتح قفل الشاشة والموافقة على sudo بمفتاح FIDO2 بدلًا من كلمة السر"
+
+#: usr/libexec/amethystora-security-status
+msgid "Sign in, unlock the screen and approve sudo with a finger instead of your password"
+msgstr "الولوج وفتح قفل الشاشة والموافقة على sudo بإصبعك بدلًا من كلمة السر"
+
+#: usr/libexec/amethystora-security-status
+msgid "Fingerprint"
+msgstr "بصمة الإصبع"
+
+#: usr/libexec/amethystora-security-status
+msgid "This machine has no fingerprint reader"
+msgstr "لا قارئ بصمات في هذا الجهاز"
+
+#: usr/libexec/amethystora-security-status
+msgid "Backups"
+msgstr "النسخ الاحتياطية"
+
+#: usr/libexec/amethystora-security-status
+msgid "A daily restic backup to a repository that ransomware on this machine cannot delete from"
+msgstr "نسخة احتياطية يومية عبر restic إلى مستودع لا تستطيع برمجيات الفدية على هذا الجهاز الحذف منه"
+
+#: usr/libexec/amethystora-security-status
+msgid "Hourly read-only snapshots of the home folders, which ransomware running as you cannot change or delete"
+msgstr "لقطات للقراءة فقط كل ساعة لمجلدات المنزل، لا تستطيع برمجيات الفدية العاملة باسمك تغييرها أو حذفها"
+
+#: usr/libexec/amethystora-security-status
+msgid "Needs the home folders on a btrfs subvolume"
+msgstr "يتطلب وجود مجلدات المنزل على وحدة تخزين فرعية من btrfs"
+
+#: usr/libexec/amethystora-security-status
+msgid "Unlock the disk with the TPM"
+msgstr "فتح قفل القرص بواسطة TPM"
+
+#: usr/libexec/amethystora-security-status
+msgid "The TPM hands over the disk key at boot, so you stop typing the passphrase"
+msgstr "يُسلّم TPM مفتاح القرص عند الإقلاع، فلا تعود بحاجة إلى كتابة عبارة المرور"
+
+#: usr/libexec/amethystora-security-status
+msgid "The system's disk is not encrypted"
+msgstr "قرص النظام غير مشفّر"
+
+#: usr/libexec/amethystora-security-status
+msgid "This machine has no usable TPM"
+msgstr "ليس في هذا الجهاز TPM صالح للاستخدام"
+
+#: usr/libexec/amethystora-security-status
+msgid "Needs Secure Boot on"
+msgstr "يتطلب تفعيل Secure Boot"
+
+#: usr/libexec/amethystora-security-status
+msgid "USB protection"
+msgstr "حماية USB"
+
+#: usr/libexec/amethystora-security-status
+msgid "Allows what is plugged in now, and blocks any new USB device until you allow it"
+msgstr "يسمح بما هو موصول الآن، ويحظر أي جهاز USB جديد حتى تسمح به"
+
+#: usr/libexec/amethystora-security-status
+msgid "Browser protection"
+msgstr "حماية المتصفح"
+
+#: usr/libexec/amethystora-security-status
+msgid "Browsers install only the extensions on a list, and web pages cannot reach USB, serial, HID or Bluetooth devices"
+msgstr "لا تثبّت المتصفحات إلا الامتدادات المدرجة في قائمة، ولا تستطيع صفحات الويب الوصول إلى أجهزة USB أو المنافذ التسلسلية أو HID أو Bluetooth"
+
+#: usr/libexec/amethystora-security-status
+msgid "Key remapping"
+msgstr "إعادة تعيين المفاتيح"
+
+#: usr/libexec/amethystora-security-status
+msgid "Input Remapper reads every key typed, so it stays off until you need it"
+msgstr "يقرأ Input Remapper كل مفتاح يُكتب، لذا يبقى معطّلًا حتى تحتاج إليه"
+
+#: usr/libexec/amethystora-security-status
+msgid "Files a virus scan finds are moved to quarantine, where nothing can open them"
+msgstr "تُنقل الملفات التي يجدها فحص الفيروسات إلى الحجر، حيث لا يستطيع أي شيء فتحها"
+
+#: usr/libexec/amethystora-security-status
+msgid "Files a virus scan finds are deleted"
+msgstr "تُحذف الملفات التي يجدها فحص الفيروسات"
+
+#: usr/libexec/amethystora-security-status
+msgid "Move what a virus scan finds to quarantine, or delete it, instead of only saying so"
+msgstr "نقل ما يجده فحص الفيروسات إلى الحجر، أو حذفه، بدلًا من الاكتفاء بالإبلاغ عنه"
+
+#: usr/libexec/amethystora-security-status
+msgid "Act on what scans find"
+msgstr "التصرّف فيما تجده الفحوص"
+
+#: usr/libexec/amethystora-security-status
+msgid "Read each change as it happens and scan every file as it is written, instead of every 15 minutes and every week"
+msgstr "قراءة كل تغيير لحظة حدوثه وفحص كل ملف لحظة كتابته، بدلًا من كل 15 دقيقة وكل أسبوع"
+
+#: usr/libexec/amethystora-security-status
+msgid "Suricata inspects every connection and says what it recognises, without blocking yet"
+msgstr "يفحص Suricata كل اتصال ويُبلغ بما يتعرّف عليه، دون أن يحظر بعد"
+
+#: usr/libexec/amethystora-security-status
+msgid "Inspect every connection with Suricata, and block the ones to known malware, command servers and exploits"
+msgstr "فحص كل اتصال بواسطة Suricata، وحظر الاتصالات بالبرمجيات الخبيثة المعروفة وخوادم التحكم وأدوات الاستغلال"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Talk to every service of your session, which can run programs outside its sandbox"
+msgstr "التخاطب مع كل خدمات جلستك، وهو ما يتيح تشغيل برامج خارج بيئة العزل"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Talk to every service of the system"
+msgstr "التخاطب مع كل خدمات النظام"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Run programs outside its sandbox, through the Flatpak service"
+msgstr "تشغيل برامج خارج بيئة العزل، عبر خدمة Flatpak"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Start programs outside its sandbox, through your session's systemd"
+msgstr "بدء برامج خارج بيئة العزل، عبر systemd الخاص بجلستك"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Put a program where it starts at your next login, outside any sandbox"
+msgstr "وضع برنامج حيث يبدأ عند ولوجك التالي، خارج أي بيئة عزل"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Use X11, where it can read what you type into other X11 apps"
+msgstr "استخدام X11، حيث يمكنه قراءة ما تكتبه في تطبيقات X11 الأخرى"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Read every key pressed on this machine"
+msgstr "قراءة كل مفتاح يُضغط على هذا الجهاز"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Use every device: cameras, security keys, game controllers"
+msgstr "استخدام كل الأجهزة: الكاميرات، ومفاتيح الأمان، وأذرع الألعاب"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Read and change every file you can"
+msgstr "قراءة كل ملف تستطيع الوصول إليه وتغييره"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Read and change everything in your home folder"
+msgstr "قراءة كل ما في مجلد المنزل وتغييره"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Read every file you can"
+msgstr "قراءة كل ملف تستطيع قراءته"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Read everything in your home folder"
+msgstr "قراءة كل ما في مجلد المنزل"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Sign in with your SSH keys"
+msgstr "الولوج بمفاتيح SSH الخاصة بك"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Sign and decrypt with your GPG keys"
+msgstr "التوقيع وفك التشفير بمفاتيح GPG الخاصة بك"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Read every password in your keyring"
+msgstr "قراءة كل كلمات السر في حلقة مفاتيحك"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "granted on this machine"
+msgstr "مُنح على هذا الجهاز"
+
+#: usr/libexec/amethystora-layout-offer
+msgid "Use classic windows"
+msgstr "استخدم النوافذ الكلاسيكية"
+
+#: usr/libexec/amethystora-layout-offer
+msgid "Keep tiling"
+msgstr "أبقِ الترتيب المتجاور"
+
+#: usr/libexec/amethystora-layout-offer
+msgid "Windows here tile side by side"
+msgstr "النوافذ هنا تترتّب متجاورةً"
+
+#: usr/libexec/amethystora-layout-offer
+msgid "New windows open next to each other, arranged for you, and Super+Left and Super+Right move between them. If you would rather have windows that float and overlap, as on Windows and macOS, use classic windows. ame desktop layout changes it any time."
+msgstr "تُفتح النوافذ الجديدة متجاورةً، مرتَّبةً نيابةً عنك، وينقلك Super+Left وSuper+Right بينها. وإن كنت تفضّل نوافذ عائمة ومتراكبة، كما في Windows وmacOS، فاستخدم النوافذ الكلاسيكية. ويغيّر ame desktop layout ذلك في أي وقت."
+
+#: usr/libexec/amethystora-control-list
+msgid "On"
+msgstr "مفعّل"
+
+#: usr/libexec/amethystora-control-list
+msgid "Off"
+msgstr "معطّل"
+
+#: usr/libexec/amethystora-control-list
+msgid "Theme"
+msgstr "السمة"
+
+#: usr/libexec/amethystora-control-list
+msgid "The colours of the desktop, the terminal and the apps that follow it, with the theme's own wallpapers."
+msgstr "ألوان سطح المكتب والطرفية والتطبيقات التي تتبعها، مع خلفيات السمة الخاصة بها."
+
+#: usr/libexec/amethystora-control-list
+msgid "Pick a theme first: each theme has wallpapers of its own."
+msgstr "اختر سمة أولًا: لكل سمة خلفياتها الخاصة."
+
+#: usr/libexec/amethystora-control-list
+msgid "Wallpaper"
+msgstr "الخلفية"
+
+#: usr/libexec/amethystora-control-list
+msgid "The pictures of the current theme. Super+Ctrl+Space shows the next one."
+msgstr "صور السمة الحالية. يعرض Super+Ctrl+Space الصورة التالية."
+
+#: usr/libexec/amethystora-control-list
+msgid "Nothing is shown while animations are off in Settings, under Accessibility."
+msgstr "لا يظهر شيء ما دامت الحركات معطّلة في الإعدادات، تحت إمكانية الوصول."
+
+#: usr/libexec/amethystora-control-list
+msgid "The transitions extension is not installed."
+msgstr "امتداد الانتقالات غير مثبّت."
+
+#: usr/libexec/amethystora-control-list
+msgid "Grow"
+msgstr "انفتاح"
+
+#: usr/libexec/amethystora-control-list
+msgid "A circle opens from the pointer"
+msgstr "دائرة تنفتح من المؤشر"
+
+#: usr/libexec/amethystora-control-list
+msgid "Close in"
+msgstr "انغلاق"
+
+#: usr/libexec/amethystora-control-list
+msgid "A circle closes in on the pointer from the edges"
+msgstr "دائرة تنغلق على المؤشر من الحواف"
+
+#: usr/libexec/amethystora-control-list
+msgid "Wipe"
+msgstr "مسح"
+
+#: usr/libexec/amethystora-control-list
+msgid "A soft edge sweeps across at an angle"
+msgstr "حافة ناعمة تعبر الشاشة بزاوية"
+
+#: usr/libexec/amethystora-control-list
+msgid "Wave"
+msgstr "موجة"
+
+#: usr/libexec/amethystora-control-list
+msgid "A wavy edge sweeps across"
+msgstr "حافة متموّجة تعبر الشاشة"
+
+#: usr/libexec/amethystora-control-list
+msgid "Fade"
+msgstr "تلاشٍ"
+
+#: usr/libexec/amethystora-control-list
+msgid "The old picture fades into the new one"
+msgstr "تتلاشى الصورة القديمة في الجديدة"
+
+#: usr/libexec/amethystora-control-list
+msgid "Random"
+msgstr "عشوائي"
+
+#: usr/libexec/amethystora-control-list
+msgid "One of the first four, at a random angle"
+msgstr "واحد من الأربعة الأولى، بزاوية عشوائية"
+
+#: usr/libexec/amethystora-control-list
+msgid "None"
+msgstr "بلا انتقال"
+
+#: usr/libexec/amethystora-control-list
+msgid "GNOME changes the picture by itself"
+msgstr "يغيّر GNOME الصورة بنفسه"
+
+#: usr/libexec/amethystora-control-list
+msgid "Transition"
+msgstr "الانتقال"
+
+#: usr/libexec/amethystora-control-list
+msgid "How a new theme or wallpaper is revealed."
+msgstr "كيف تظهر سمة أو خلفية جديدة."
+
+#: usr/libexec/amethystora-control-list
+msgid "Transition length"
+msgstr "مدة الانتقال"
+
+#: usr/libexec/amethystora-control-list
+msgid "How long a transition takes, in milliseconds."
+msgstr "المدة التي يستغرقها الانتقال، بالملّي ثانية."
+
+#: usr/libexec/amethystora-control-list
+msgid "A sealed machine starts with systemd-boot, which shows no artwork."
+msgstr "الجهاز المختوم يقلع بـ systemd-boot، الذي لا يعرض أي رسم."
+
+#: usr/libexec/amethystora-control-list
+msgid "This machine does not start with GRUB."
+msgstr "هذا الجهاز لا يقلع بـ GRUB."
+
+#: usr/libexec/amethystora-control-list
+msgid "Only an administrator can see whether it is on."
+msgstr "وحده المسؤول يستطيع أن يرى إن كان مفعّلًا."
+
+#: usr/libexec/amethystora-control-list
+msgid "Starting up"
+msgstr "الإقلاع"
+
+#: usr/libexec/amethystora-control-list
+msgid "Boot menu artwork"
+msgstr "رسم قائمة الإقلاع"
+
+#: usr/libexec/amethystora-control-list
+msgid "The Amethystora artwork on the menu the machine shows as it starts."
+msgstr "رسم Amethystora على القائمة التي يعرضها الجهاز عند الإقلاع."
+
+#: usr/libexec/amethystora-control-list
+msgid "Tiling"
+msgstr "التجانب"
+
+#: usr/libexec/amethystora-control-list
+msgid "Windows open side by side on a strip that scrolls, arranged for you"
+msgstr "تُفتح النوافذ جنبًا إلى جنب على شريط يتمرّر، مرتّبة لك"
+
+#: usr/libexec/amethystora-control-list
+msgid "Classic"
+msgstr "الكلاسيكي"
+
+#: usr/libexec/amethystora-control-list
+msgid "Windows float and overlap, and you move and size them, as on Windows and macOS"
+msgstr "تطفو النوافذ وتتداخل، وتحرّكها أنت وتغيّر حجمها، كما في Windows وmacOS"
+
+#: usr/libexec/amethystora-control-list
+msgid "Windows"
+msgstr "النوافذ"
+
+#: usr/libexec/amethystora-control-list
+msgid "Window layout"
+msgstr "ترتيب النوافذ"
+
+#: usr/libexec/amethystora-control-list
+msgid "How windows are arranged."
+msgstr "طريقة ترتيب النوافذ."
+
+#: usr/libexec/amethystora-control-list
+msgid "Keybindings"
+msgstr "اختصارات لوحة المفاتيح"
+
+#: usr/libexec/amethystora-control-list
+msgid "Every key the desktop answers to, in the manual."
+msgstr "كل مفتاح يستجيب له سطح المكتب، في الدليل."
+
+#: usr/libexec/amethystora-control-list
+msgid "The bar is not showing widgets: the extension that shows them is off."
+msgstr "الشريط لا يعرض الأدوات المصغّرة: الامتداد الذي يعرضها معطّل."
+
+#: usr/libexec/amethystora-control-list
+msgid "The widgets could not be listed."
+msgstr "تعذّر سرد الأدوات المصغّرة."
+
+#: usr/libexec/amethystora-control-list
+msgid "Top bar"
+msgstr "الشريط العلوي"
+
+#: usr/libexec/amethystora-control-list
+msgid "Top bar widgets"
+msgstr "الأدوات المصغّرة في الشريط العلوي"
+
+#: usr/libexec/amethystora-control-list
+msgid "Small commands whose output the top bar shows. Each runs as you, with everything you have: keep only the ones you have read."
+msgstr "أوامر صغيرة يعرض الشريط العلوي مخرجاتها. يعمل كل منها باسمك، بكل ما تملكه: احتفظ فقط بما قرأته منها."
+
+#: usr/libexec/amethystora-control-list
+msgid "Terminal"
+msgstr "الطرفية"
+
+#: usr/libexec/amethystora-control-list
+msgid "Terminal greeting"
+msgstr "ترحيب الطرفية"
+
+#: usr/libexec/amethystora-control-list
+msgid "The logo, a summary of the machine and a tip, in each new terminal."
+msgstr "الشعار، وملخص عن الجهاز، ونصيحة، في كل طرفية جديدة."
+
+#: usr/libexec/amethystora-control-list
+msgid "This works with bash, zsh and fish, and your shell is none of them."
+msgstr "يعمل هذا مع bash وzsh وfish، وصدفتك ليست أيًّا منها."
+
+#: usr/libexec/amethystora-control-list
+msgid "Terminal tools"
+msgstr "أدوات الطرفية"
+
+#: usr/libexec/amethystora-control-list
+msgid "Your shell uses eza for ls, bat for cat and ugrep for grep, with zoxide, direnv and mise, wherever they are installed."
+msgstr "تستخدم صدفتك eza بدل ls، وbat بدل cat، وugrep بدل grep، مع zoxide وdirenv وmise، حيثما كانت مثبّتة."
+
+#: usr/libexec/amethystora-control-list
+msgid "Games"
+msgstr "الألعاب"
+
+#: usr/libexec/amethystora-control-list
+msgid "Steam from Flathub, with ProtonPlus, the MangoHud overlay and gamescope. X11 is granted back to Steam alone."
+msgstr "Steam من Flathub، مع ProtonPlus وطبقة MangoHud وgamescope. يُعاد X11 إلى Steam وحده."
+
+#: usr/libexec/amethystora-control-list
+msgid "Add a store…"
+msgstr "أضف متجرًا…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Other game stores"
+msgstr "متاجر ألعاب أخرى"
+
+#: usr/libexec/amethystora-control-list
+msgid "Heroic, for Epic, GOG and Amazon, and Lutris, for games from anywhere else."
+msgstr "Heroic لمتاجر Epic وGOG وAmazon، وLutris للألعاب من أي مكان آخر."
+
+#: usr/libexec/amethystora-control-list
+msgid "Its container is running."
+msgstr "حاويته تعمل."
+
+#: usr/libexec/amethystora-control-list
+msgid "Its container is stopped."
+msgstr "حاويته متوقفة."
+
+#: usr/libexec/amethystora-control-list
+msgid "Android apps"
+msgstr "تطبيقات Android"
+
+#: usr/libexec/amethystora-control-list
+msgid "Waydroid runs Android, LineageOS without Google's apps, in a container beside your desktop."
+msgstr "يشغّل Waydroid نظام Android، أي LineageOS من دون تطبيقات Google، في حاوية بجانب سطح مكتبك."
+
+#: usr/libexec/amethystora-control-list
+msgid "Stop…"
+msgstr "أوقف…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Stop Android"
+msgstr "أوقف Android"
+
+#: usr/libexec/amethystora-control-list
+msgid "Stops its container until you start it again."
+msgstr "يوقف حاويته إلى أن تشغّلها مجددًا."
+
+#: usr/libexec/amethystora-control-list
+msgid "Start…"
+msgstr "شغّل…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Start Android"
+msgstr "شغّل Android"
+
+#: usr/libexec/amethystora-control-list
+msgid "Starts its container and opens Android's own screen."
+msgstr "يشغّل حاويته ويفتح شاشة Android."
+
+#: usr/libexec/amethystora-control-list
+msgid "Drawing tablets"
+msgstr "لوحات الرسم"
+
+#: usr/libexec/amethystora-control-list
+msgid "OpenTabletDriver from Flathub, for most drawing tablets: pressure, the pen's buttons, and the part of the screen the tablet covers."
+msgstr "OpenTabletDriver من Flathub، لمعظم لوحات الرسم: الضغط، وأزرار القلم، وجزء الشاشة الذي تغطيه اللوحة."
+
+#: usr/libexec/amethystora-control-list
+msgid "The AUR"
+msgstr "مستودع AUR"
+
+#: usr/libexec/amethystora-control-list
+msgid "Packages built from the Arch User Repository, in containers. Anyone can upload to it, and nobody reviews it."
+msgstr "حزم تُبنى من Arch User Repository، داخل حاويات. يستطيع أي أحد الرفع إليه، ولا أحد يراجعه."
+
+#: usr/libexec/amethystora-control-list
+msgid "The web apps could not be listed."
+msgstr "تعذّر سرد تطبيقات الويب."
+
+#: usr/libexec/amethystora-control-list
+msgid "Web apps"
+msgstr "تطبيقات الويب"
+
+#: usr/libexec/amethystora-control-list
+msgid "Sites in a window of their own, with a launcher in the app grid."
+msgstr "مواقع في نافذة خاصة بها، مع مشغّل في شبكة التطبيقات."
+
+#: usr/libexec/amethystora-control-list
+msgid "Add-ons"
+msgstr "الإضافات"
+
+#: usr/libexec/amethystora-control-list
+msgid "Installed in your home."
+msgstr "مثبّت في مجلد المنزل."
+
+#: usr/libexec/amethystora-control-list
+msgid "Install again…"
+msgstr "ثبّت مجددًا…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Install…"
+msgstr "ثبّت…"
+
+#: usr/libexec/amethystora-control-list
+msgid "JetBrains Toolbox"
+msgstr "JetBrains Toolbox"
+
+#: usr/libexec/amethystora-control-list
+msgid "The app that installs JetBrains' IDEs and keeps them up to date, downloaded from JetBrains and checked against the checksum JetBrains publishes."
+msgstr "التطبيق الذي يثبّت بيئات تطوير JetBrains ويحدّثها، يُنزَّل من JetBrains ويُتحقّق منه بالمجموع الاختباري الذي تنشره JetBrains."
+
+#: usr/libexec/amethystora-control-list
+msgid "Command-line tools"
+msgstr "أدوات سطر الأوامر"
+
+#: usr/libexec/amethystora-control-list
+msgid "eza, bat, ripgrep, zoxide, starship and more from Homebrew, with your shell set up to use them."
+msgstr "eza وbat وripgrep وzoxide وstarship وغيرها من Homebrew، مع ضبط صدفتك لاستخدامها."
+
+#: usr/libexec/amethystora-control-list
+msgid "Choose…"
+msgstr "اختر…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Homebrew collections"
+msgstr "مجموعات Homebrew"
+
+#: usr/libexec/amethystora-control-list
+msgid "Lists of apps and tools to pick from and install with Homebrew, through Bold Brew, a tool from a third-party tap."
+msgstr "قوائم تطبيقات وأدوات تختار منها وتثبّتها بـ Homebrew، عبر Bold Brew، وهي أداة من مستودع tap لطرف ثالث."
+
+#: usr/libexec/amethystora-control-list
+msgid "Cloud native tools"
+msgstr "أدوات السحابة الأصلية"
+
+#: usr/libexec/amethystora-control-list
+msgid "The CNCF's projects, Kubernetes and the tools around it, through Bold Brew."
+msgstr "مشاريع CNCF، أي Kubernetes والأدوات المحيطة به، عبر Bold Brew."
+
+#: usr/libexec/amethystora-control-list
+msgid "The apps this image comes with"
+msgstr "التطبيقات التي تأتي مع هذه الصورة"
+
+#: usr/libexec/amethystora-control-list
+msgid "Installs them now, rather than waiting for the first start with a network."
+msgstr "يثبّتها الآن، بدل انتظار أول إقلاع مع شبكة."
+
+#: usr/libexec/amethystora-control-list
+msgid "Agentic features"
+msgstr "ميزات الوكيل"
+
+#: usr/libexec/amethystora-control-list
+msgid "An AI agent that knows this system: Super+Ctrl+Shift+A, Ask the agent in Updates, Security and Logs, and the skills that tell it how Amethystora works."
+msgstr "وكيل ذكاء اصطناعي يعرف هذا النظام: Super+Ctrl+Shift+A، واسأل الوكيل في التحديثات والأمان والسجلات، والمهارات التي تخبره كيف يعمل Amethystora."
+
+#: usr/libexec/amethystora-control-list
+msgid "Installed"
+msgstr "مثبّت"
+
+#: usr/libexec/amethystora-control-list
+msgid "Not installed yet"
+msgstr "لم يُثبَّت بعد"
+
+#: usr/libexec/amethystora-control-list
+msgid "The agentic features are off."
+msgstr "ميزات الوكيل معطّلة."
+
+#: usr/libexec/amethystora-control-list
+msgid "Which agent"
+msgstr "أي وكيل"
+
+#: usr/libexec/amethystora-control-list
+msgid "The agent that Super+Ctrl+Shift+A and Ask the agent open. Each installs into your home the first time, and keeps itself up to date."
+msgstr "الوكيل الذي يفتحه Super+Ctrl+Shift+A واسأل الوكيل. يثبّت كل منهما نفسه في مجلد المنزل أول مرة، ويحدّث نفسه بنفسه."
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "Install ${name}"
+msgstr "ثبّت ${name}"
+
+#: usr/libexec/amethystora-control-list
+msgid "With its maker's installer, into your home, where it keeps itself up to date."
+msgstr "بمثبّت صانعه، في مجلد المنزل، حيث يحدّث نفسه بنفسه."
+
+#: usr/libexec/amethystora-control-list
+msgid "The desktop"
+msgstr "سطح المكتب"
+
+#: usr/libexec/amethystora-control-list
+msgid "With the developer tools"
+msgstr "مع أدوات التطوير"
+
+#: usr/libexec/amethystora-control-list
+msgid "Amethystora with NVIDIA"
+msgstr "Amethystora مع NVIDIA"
+
+#: usr/libexec/amethystora-control-list
+msgid "With NVIDIA's open driver"
+msgstr "مع برنامج تشغيل NVIDIA المفتوح"
+
+#: usr/libexec/amethystora-control-list
+msgid "Amethystora DX with NVIDIA"
+msgstr "Amethystora DX مع NVIDIA"
+
+#: usr/libexec/amethystora-control-list
+msgid "The developer tools, and NVIDIA's open driver"
+msgstr "أدوات التطوير، وبرنامج تشغيل NVIDIA المفتوح"
+
+#: usr/libexec/amethystora-control-list
+msgid "The system"
+msgstr "النظام"
+
+#: usr/libexec/amethystora-control-list
+msgid "Image"
+msgstr "الصورة"
+
+#: usr/libexec/amethystora-control-list
+msgid "The system this machine runs. Switching downloads it, checks its signature, and takes effect at the next restart."
+msgstr "النظام الذي يشغّله هذا الجهاز. التبديل يُنزّله، ويتحقّق من توقيعه، ويسري عند إعادة التشغيل التالية."
+
+#: usr/libexec/amethystora-control-list
+msgid "Stable"
+msgstr "المستقر"
+
+#: usr/libexec/amethystora-control-list
+msgid "Built every week"
+msgstr "يُبنى كل أسبوع"
+
+#: usr/libexec/amethystora-control-list
+msgid "Stable, daily"
+msgstr "المستقر يوميًّا"
+
+#: usr/libexec/amethystora-control-list
+msgid "The same, built every day"
+msgstr "الشيء نفسه، يُبنى كل يوم"
+
+#: usr/libexec/amethystora-control-list
+msgid "Latest"
+msgstr "الأحدث"
+
+#: usr/libexec/amethystora-control-list
+msgid "The newest Fedora, for testers"
+msgstr "أحدث Fedora، للمختبرين"
+
+#: usr/libexec/amethystora-control-list
+msgid "Sealed"
+msgstr "المختوم"
+
+#: usr/libexec/amethystora-control-list
+msgid "Stable, with every file checked as it is read"
+msgstr "المستقر، مع التحقق من كل ملف عند قراءته"
+
+#: usr/libexec/amethystora-control-list
+msgid "This machine is sealed, so it follows the sealed stream only."
+msgstr "هذا الجهاز مختوم، لذا لا يتبع إلا المسار المختوم."
+
+#: usr/libexec/amethystora-control-list
+msgid "Stream"
+msgstr "المسار"
+
+#: usr/libexec/amethystora-control-list
+msgid "How new the builds this machine follows are."
+msgstr "مدى حداثة البنى التي يتبعها هذا الجهاز."
+
+#: usr/libexec/amethystora-control-list
+msgid "Developer mode"
+msgstr "وضع المطوّر"
+
+#: usr/libexec/amethystora-control-list
+msgid "The developer image: VSCodium, Docker and Podman, Incus and virtual machines, and tools for profiling and debugging. Switching takes effect at the next restart."
+msgstr "صورة المطوّرين: VSCodium وDocker وPodman وIncus والأجهزة الافتراضية، وأدوات التنميط وتصحيح الأخطاء. يسري التبديل عند إعادة التشغيل التالية."
+
+#: usr/libexec/amethystora-control-list
+msgid "Join…"
+msgstr "انضمّ…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Join the developer groups"
+msgstr "انضمّ إلى مجموعات المطوّرين"
+
+#: usr/libexec/amethystora-control-list
+msgid "Lets your account use Docker, Incus, virtual machines and serial devices, from the next time you log in."
+msgstr "يتيح لحسابك استخدام Docker وIncus والأجهزة الافتراضية والأجهزة التسلسلية، من تسجيل دخولك التالي."
+
+#: usr/libexec/amethystora-control-list
+msgid "Trust…"
+msgstr "ثِق…"
+
+#: usr/libexec/amethystora-control-list
+msgid "A sealed machine follows Amethystora's sealed images only."
+msgstr "الجهاز المختوم لا يتبع إلا صور Amethystora المختومة."
+
+#: usr/libexec/amethystora-control-list
+msgid "An image of your own"
+msgstr "صورة خاصة بك"
+
+#: usr/libexec/amethystora-control-list
+msgid "Takes images from your repository only when your key checks their signature. Do this before switching to an image built from the image template."
+msgstr "لا يقبل الصور من مستودعك إلا إذا تحقّق مفتاحك من توقيعها. افعل هذا قبل التبديل إلى صورة مبنية من قالب الصورة."
+
+#: usr/libexec/amethystora-control-list
+msgid "This kernel cannot hand the scheduling to another program."
+msgstr "لا تستطيع هذه النواة أن تسلّم الجدولة إلى برنامج آخر."
+
+#: usr/libexec/amethystora-control-list
+msgid "The kernel's own"
+msgstr "مجدوِل النواة"
+
+#: usr/libexec/amethystora-control-list
+msgid "Suits nearly everything (the default)"
+msgstr "يناسب كل شيء تقريبًا (الافتراضي)"
+
+#: usr/libexec/amethystora-control-list
+msgid "Keeps games smooth while other work runs"
+msgstr "يُبقي الألعاب سلسة بينما يجري عمل آخر"
+
+#: usr/libexec/amethystora-control-list
+msgid "Keeps the desktop responsive while something heavy builds or renders"
+msgstr "يُبقي سطح المكتب سريع الاستجابة بينما يُبنى أو يُصيَّر شيء ثقيل"
+
+#: usr/libexec/amethystora-control-list
+msgid "Steady timing, for audio and music work"
+msgstr "توقيت ثابت، لأعمال الصوت والموسيقى"
+
+#: usr/libexec/amethystora-control-list
+msgid "Hardware"
+msgstr "العتاد"
+
+#: usr/libexec/amethystora-control-list
+msgid "CPU scheduler"
+msgstr "مجدوِل المعالج"
+
+#: usr/libexec/amethystora-control-list
+msgid "What decides which program runs on the CPU next."
+msgstr "ما يقرّر أي برنامج يعمل على المعالج تاليًا."
+
+#: usr/libexec/amethystora-control-list
+msgid "This machine does not start with UEFI."
+msgstr "هذا الجهاز لا يقلع بـ UEFI."
+
+#: usr/libexec/amethystora-control-list
+msgid "Restart…"
+msgstr "أعد التشغيل…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Restart into the firmware settings"
+msgstr "أعد التشغيل إلى إعدادات البرامج الثابتة"
+
+#: usr/libexec/amethystora-control-list
+msgid "Restarts the machine into its UEFI setup, where Secure Boot and the order of the disks are set. It asks first."
+msgstr "يعيد تشغيل الجهاز إلى إعداد UEFI الخاص به، حيث يُضبط الإقلاع الآمن وترتيب الأقراص. يسأل أولًا."
+
+#: usr/libexec/amethystora-control-list
+msgid "Free space…"
+msgstr "حرّر مساحة…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Free disk space"
+msgstr "حرّر مساحة القرص"
+
+#: usr/libexec/amethystora-control-list
+msgid "Removes container images and Flatpak runtimes nothing uses, old deployments, and Homebrew's cache, asking first."
+msgstr "يزيل صور الحاويات وبيئات Flatpak التي لا يستخدمها شيء، والنشرات القديمة، وذاكرة Homebrew المؤقتة، بعد أن يسأل."
+
+#: usr/libexec/amethystora-control-list
+msgid "Two copies"
+msgstr "نسختان"
+
+#: usr/libexec/amethystora-control-list
+msgid "Three copies"
+msgstr "ثلاث نسخ"
+
+#: usr/libexec/amethystora-control-list
+msgid "Four copies"
+msgstr "أربع نسخ"
+
+#: usr/libexec/amethystora-control-list
+msgid "Striped two copies"
+msgstr "نسختان موزّعتان"
+
+#: usr/libexec/amethystora-control-list
+msgid "Parity"
+msgstr "تكافؤ"
+
+#: usr/libexec/amethystora-control-list
+msgid "Double parity"
+msgstr "تكافؤ مزدوج"
+
+#: usr/libexec/amethystora-control-list
+msgid "One copy"
+msgstr "نسخة واحدة"
+
+#: usr/libexec/amethystora-control-list
+msgid "Combined"
+msgstr "مدمجة"
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "${words}, on ${count} disk."
+msgid_plural "${words}, on ${count} disks."
+msgstr[0] "${words}، على ${count} قرص."
+msgstr[1] "${words}، على قرص واحد."
+msgstr[2] "${words}، على قرصين."
+msgstr[3] "${words}، على ${count} أقراص."
+msgstr[4] "${words}، على ${count} قرصًا."
+msgstr[5] "${words}، على ${count} قرص."
+
+#: usr/libexec/amethystora-control-list
+msgid "Encrypted."
+msgstr "مشفّرة."
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "${used_words} used of ${size_words}."
+msgstr "${used_words} مستخدمة من ${size_words}."
+
+#: usr/libexec/amethystora-control-list
+msgid "Replacing a disk now."
+msgstr "يجري استبدال قرص الآن."
+
+#: usr/libexec/amethystora-control-list
+msgid "Putting its copies where they belong now."
+msgstr "يجري الآن وضع نسخها في أماكنها."
+
+#: usr/libexec/amethystora-control-list
+msgid "Not open, perhaps because one of its disks is missing. Its files are still on its disks."
+msgstr "غير مفتوحة، ربما لأن أحد أقراصها مفقود. ما زالت ملفاتها على أقراصها."
+
+#: usr/libexec/amethystora-control-list
+msgid "A disk is missing. Every file is still there, with one copy fewer until the disk is replaced."
+msgstr "قرص مفقود. كل ملف ما زال موجودًا، بنسخة أقل حتى يُستبدل القرص."
+
+#: usr/libexec/amethystora-control-list
+msgid "A disk is missing, and the files that were on it cannot be read until it is back."
+msgstr "قرص مفقود، ولا يمكن قراءة الملفات التي كانت عليه حتى يعود."
+
+#: usr/libexec/amethystora-control-list
+msgid "A disk says it is failing: replace it before it stops."
+msgstr "قرص يُبلغ أنه يتعطّل: استبدله قبل أن يتوقف."
+
+#: usr/libexec/amethystora-control-list
+msgid "The last check found damage it could not repair."
+msgstr "وجد الفحص الأخير تلفًا لم يستطع إصلاحه."
+
+#: usr/libexec/amethystora-control-list
+msgid "A disk has counted read or write errors."
+msgstr "أحصى قرص أخطاء قراءة أو كتابة."
+
+#: usr/libexec/amethystora-control-list
+msgid "Part of it has one copy, written while a disk was missing."
+msgstr "لجزء منها نسخة واحدة، كُتبت بينما كان قرص مفقودًا."
+
+#: usr/libexec/amethystora-control-list
+msgid "Either disk failing loses everything."
+msgstr "تعطّل أيّ قرص منها يُضيّع كل شيء."
+
+#: usr/libexec/amethystora-control-list
+msgid "Fine."
+msgstr "كل شيء على ما يرام."
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "Every copy last checked on ${when}."
+msgstr "فُحصت كل النسخ آخر مرة في ${when}."
+
+#: usr/libexec/amethystora-control-list
+msgid "Every copy not checked yet."
+msgstr "لم تُفحص النسخ بعد."
+
+#: usr/libexec/amethystora-control-list
+msgid "After a power cut, check every copy."
+msgstr "بعد انقطاع الكهرباء، افحص كل النسخ."
+
+#: usr/libexec/amethystora-control-list
+msgid "Replace a disk…"
+msgstr "استبدل قرصًا…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Put the copies back…"
+msgstr "أعد النسخ…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Open it with a disk missing…"
+msgstr "افتحها مع قرص مفقود…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Add a disk…"
+msgstr "أضف قرصًا…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Forget…"
+msgstr "انسَها…"
+
+#: usr/libexec/amethystora-control-list
+msgid "The system's disks"
+msgstr "أقراص النظام"
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "${name}, at ${mountpoint}"
+msgstr "${name}، في ${mountpoint}"
+
+#: usr/libexec/amethystora-control-list
+msgid "Disks"
+msgstr "الأقراص"
+
+#: usr/libexec/amethystora-control-list
+msgid "Pools of disks"
+msgstr "مجموعات الأقراص"
+
+#: usr/libexec/amethystora-control-list
+msgid "Disks that keep copies of each other, so that one can fail without taking a file with it."
+msgstr "أقراص يحفظ بعضها نسخًا من بعض، كي يتعطّل أحدها دون أن يأخذ معه أي ملف."
+
+#: usr/libexec/amethystora-control-list
+msgid "Needs two disks besides the system's."
+msgstr "يحتاج إلى قرصين غير قرص النظام."
+
+#: usr/libexec/amethystora-control-list
+msgid "Make a pool…"
+msgstr "أنشئ مجموعة…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Make a pool from spare disks"
+msgstr "إنشاء مجموعة من أقراص غير مستخدمة"
+
+#: usr/libexec/amethystora-control-list
+msgid "Two or more disks that keep copies of each other, or join into one, in a folder under /var/mnt. It asks which disks, how to lay them out and whether to encrypt them, and erases them only once you type ERASE."
+msgstr "قرصان أو أكثر يحفظ بعضها نسخًا من بعض، أو تُدمج في قرص واحد، في مجلد تحت /var/mnt. يسأل أيّ الأقراص، وكيف تُرتَّب، وهل تُشفَّر، ولا يمحوها إلا بعد أن تكتب ERASE."
+
+#: usr/libexec/amethystora-control-list
+msgid "Protect…"
+msgstr "احمِها…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Protect the system's disks"
+msgstr "حماية أقراص النظام"
+
+#: usr/libexec/amethystora-control-list
+msgid "The system is spread over several disks with one copy of each file, so either one failing loses everything. This keeps a copy on each, erasing nothing. The machine still starts only from its first disk."
+msgstr "النظام موزّع على عدة أقراص بنسخة واحدة من كل ملف، فتعطّل أيّ قرص منها يُضيّع كل شيء. هذا يحفظ نسخة على كل قرص دون محو أي شيء. ويبقى الجهاز يبدأ من قرصه الأول فقط."
+
+#: usr/libexec/amethystora-control-list
+msgid "Monthly check of every copy"
+msgstr "فحص شهري لكل النسخ"
+
+#: usr/libexec/amethystora-control-list
+msgid "Reads everything on the pools once a month, on mains power, and repairs a damaged copy from a good one."
+msgstr "يقرأ كل ما في المجموعات مرة في الشهر، والجهاز موصول بالكهرباء، ويُصلح النسخة التالفة من نسخة سليمة."
+
+#: usr/libexec/amethystora-control-list
+msgid "A check is running now."
+msgstr "يجري فحص الآن."
+
+#: usr/libexec/amethystora-control-list
+msgid "Check now…"
+msgstr "افحص الآن…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Check every copy now"
+msgstr "فحص كل النسخ الآن"
+
+#: usr/libexec/amethystora-control-list
+msgid "The same check, now, in the background. After a power cut, do it for a pool with parity."
+msgstr "الفحص نفسه، الآن، في الخلفية. بعد انقطاع الكهرباء، شغّله لمجموعة فيها تكافؤ."
+
+#: usr/libexec/amethystora-control-list
+msgid "Not on a sealed machine yet: it has not been tried on one."
+msgstr "ليس على جهاز مختوم بعد: لم يُجرَّب على أيٍّ منها."
+
+#: usr/libexec/amethystora-control-list
+msgid "Start over…"
+msgstr "ابدأ من جديد…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Start over"
+msgstr "البدء من جديد"
+
+#: usr/libexec/amethystora-control-list
+msgid "Makes a new installation of this image beside this one, without your accounts, settings or files. Nothing is erased: the old system stays on the disk, and the boot menu can still start it. Experimental. It asks twice."
+msgstr "ينشئ تثبيتًا جديدًا لهذه الصورة بجانب الحالي، من دون حساباتك وإعداداتك وملفاتك. لا يُمحى شيء: يبقى النظام القديم على القرص، وتستطيع قائمة الإقلاع تشغيله. تجريبي. يسأل مرتين."
+
+#: usr/libexec/amethystora-control-list
+msgid "Your setup file"
+msgstr "ملف إعدادك"
+
+#: usr/libexec/amethystora-control-list
+msgid "Your image, apps, containers, extensions, theme and the settings you changed, in one file to keep, compare and apply here or on another machine."
+msgstr "صورتك وتطبيقاتك وحاوياتك وامتداداتك وسمتك والإعدادات التي غيّرتها، في ملف واحد تحتفظ به وتقارنه وتطبّقه هنا أو على جهاز آخر."
+
+#: usr/libexec/amethystora-control-list
+msgid "Restore…"
+msgstr "استعِد…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Make the setup again from a backup"
+msgstr "أعد الإعداد من نسخة احتياطية"
+
+#: usr/libexec/amethystora-control-list
+msgid "On a new machine: the image, apps, containers and theme of your last backup, each step chosen first."
+msgstr "على جهاز جديد: الصورة والتطبيقات والحاويات والسمة من آخر نسخة احتياطية، مع اختيار كل خطوة أولًا."
+
+#: usr/libexec/amethystora-control-list
+msgid "Appearance"
+msgstr "المظهر"
+
+#: usr/libexec/amethystora-control-list
+msgid "Desktop"
+msgstr "سطح المكتب"
+
+#: usr/libexec/amethystora-control-list
+msgid "The AI agent"
+msgstr "وكيل الذكاء الاصطناعي"
+
+#: usr/libexec/amethystora-control-list
+msgid "System"
+msgstr "النظام"
+
+#: usr/libexec/amethystora-control-list
+msgid "Your setup"
+msgstr "إعدادك"
+
+#: usr/libexec/amethystora-control-list
+msgid "Security settings are in Amethystora Security: ame security status"
+msgstr "إعدادات الأمان في تطبيق الأمان في Amethystora: ame security status"

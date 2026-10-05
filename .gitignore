@@ -1,0 +1,22 @@
+flatpaks_with_deps
+flatpak.*
+
+*_build
+*_build.*
+previous.manifest.json
+changelog.md
+output.env
+version.txt
+sbom_out/
+plans/
+
+devcontainer
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+
+cosign.key
+akmods-private.priv

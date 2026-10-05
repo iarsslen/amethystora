@@ -1,0 +1,33 @@
+# The installer ISO, built by .github/workflows/build-iso.yml with bootc-image-builder.
+#
+# The image is carried on the ISO, so installing needs no network. Anaconda asks only for the disk,
+# where it offers encryption; GNOME Initial Setup creates the user on first boot, as on Silverblue.
+# The workflow replaces @IMAGE@ with the image the ISO carries.
+
+[customizations.iso]
+volume_id = "Amethystora"
+application_id = "Amethystora"
+publisher = "Amethystora"
+
+# Track the image in the registry rather than the copy on the ISO. amethystora-signed-updates then
+# switches the machine to signature-checked updates on the first boot.
+[customizations.installer.kickstart]
+contents = """
+%post
+bootc switch --mutate-in-place --transport registry ghcr.io/iarsslen/@IMAGE@:stable
+%end
+"""
+
+[customizations.installer.modules]
+enable = [
+  "org.fedoraproject.Anaconda.Modules.Storage",
+  "org.fedoraproject.Anaconda.Modules.Runtime"
+]
+disable = [
+  "org.fedoraproject.Anaconda.Modules.Network",
+  "org.fedoraproject.Anaconda.Modules.Security",
+  "org.fedoraproject.Anaconda.Modules.Services",
+  "org.fedoraproject.Anaconda.Modules.Users",
+  "org.fedoraproject.Anaconda.Modules.Subscription",
+  "org.fedoraproject.Anaconda.Modules.Timezone"
+]

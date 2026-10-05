@@ -1,0 +1,1392 @@
+#!/usr/bin/bash
+# Pools of disks: btrfs's own RAID on spare disks, made with one command, watched, and repaired.
+# `ame system raid` runs this as the user, and it asks sudo for each step that needs root, as the
+# recipes do; its two services run it as root. Amethystora Control shows what `status --json` says.
+#
+#   amethystora-raid                                 the status, then a menu of what fits
+#   amethystora-raid create [--name NAME] [DISK...]  a new pool from spare disks, at /var/mnt/NAME
+#   amethystora-raid replace [NAME]                  a new disk in place of a missing or failing one
+#   amethystora-raid add NAME [DISK]                 one more disk in a pool
+#   amethystora-raid mount NAME                      open a pool that lost a disk, until it is replaced
+#   amethystora-raid forget NAME                     stop mounting a pool, leaving its files on its disks
+#   amethystora-raid mirror                          a copy of each file on each of the system's disks
+#   amethystora-raid scrub [now|on|off]              read every copy now and repair, or switch the monthly scrub
+#   amethystora-raid status [--json]                 what there is and how it is doing, changing nothing
+#
+# For the image's own use:
+#
+#   amethystora-raid root-luks           the LUKS partitions the system runs from, one a line
+#   amethystora-raid layouts SIZE...     the layouts that fit disks of these sizes in bytes, as JSON
+#   amethystora-raid present             exit 0 when there is a RAID to watch (the units' ExecCondition=)
+#   amethystora-raid check               amethystora-raid-check.service: read SMART, say what changed
+#   amethystora-raid notify SUMMARY BODY the check's notification, whose button opens Control
+#   amethystora-raid scrub-all           amethystora-raid-scrub.service
+#
+# Nothing offers a disk that is in use (mounted, swap, held by LUKS, md or LVM, a member of a mounted
+# btrfs or of a pool that did not mount, zram, read-only), and nothing erases one without a terminal in
+# which the disk was shown and ERASE typed: there is no --yes. A pool is one btrfs over a GPT partition
+# on each disk, with LUKS2 under it unless the user said no, its key in /etc/cryptsetup-keys.d and one
+# recovery key in every disk's second slot. Its lines in /etc/crypttab and /etc/fstab carry nofail, so
+# that a missing disk never holds up the boot, and the fstab line carries x-amethystora-raid, so that a
+# pool that did not mount is still known. A pool that lost a disk is mounted degraded only when asked.
+
+set -uo pipefail
+
+# A stand-in tree for build_files/shared/test-raid.sh; empty, and so the machine's own, everywhere else
+R="${AMETHYSTORA_RAID_ROOT:-}"
+SYS="${R}/sys"
+FSTAB="${R}/etc/fstab"
+CRYPTTAB="${R}/etc/crypttab"
+KEYS="${R}/etc/cryptsetup-keys.d"
+STATE="${R}/var/lib/amethystora/raid"
+MNT=/var/mnt
+NAME_RULE='^[a-z0-9][a-z0-9-]{0,30}$'
+# GPT partition types: Linux LUKS, and Linux filesystem
+LUKS_TYPE=CA7D7CCB-63ED-4C53-861C-1742536059CC
+LINUX_TYPE=0FC63DAF-8483-4772-8E79-3D69D8477DE4
+GIB=1073741824
+# What the partition table, and LUKS2's header, take from a disk at most: what a replacement needs over
+# the size of the device it replaces
+PLAIN_OVERHEAD=$((2 * 1048576))
+LUKS_OVERHEAD=$((18 * 1048576))
+# Both of a pool's keys are random and long, so neither needs a slow key derivation, which would cost a
+# second and a gigabyte of memory per disk at every boot: the minimal PBKDF2 that systemd-cryptenroll
+# gives its own high-entropy keys
+LUKS_PBKDF=(--pbkdf pbkdf2 --pbkdf-force-iterations 1000)
+LSBLK_COLUMNS=NAME,KNAME,PATH,TYPE,SIZE,MODEL,SERIAL,TRAN,RO,FSTYPE,LABEL,UUID,PARTLABEL,MOUNTPOINTS
+# Every btrfs mount, "uuid target options" a line, which status_json() reads once
+TARGETS=""
+
+die() {
+    printf '%s\n' "$*" >&2
+    exit 1
+}
+
+usage() {
+    sed -n 's/^#   amethystora-raid /ame system raid /p' "$0" | head -n 9
+}
+
+interactive() { [[ -t 0 && -t 1 ]]; }
+
+# Whatever asks which disk, or erases one, runs only where somebody can see the disks and answer
+need_terminal() {
+    interactive || die "ame system raid $1 asks which disks to use and erases them, so it runs only in a terminal."
+}
+
+as_root() {
+    if [[ ${EUID} -eq 0 ]]; then "$@"; else sudo "$@"; fi
+}
+
+# The same, never asking for a password, and with no terminal for sudo to take over: for reading how far a
+# long operation is, from the background
+as_root_quietly() {
+    if [[ ${EUID} -eq 0 ]]; then "$@"; else sudo -n "$@"; fi </dev/null 2>/dev/null
+}
+
+box() { gum style --border rounded --padding "0 1" --width 80 "$@"; }
+
+# Sizes as disk makers give them: 1.0 TB is 10^12 bytes
+human() {
+    awk -v b="${1:-0}" 'BEGIN { split("B kB MB GB TB PB", u, " "); i = 1
+        while (b >= 1000 && i < 6) { b /= 1000; i++ }
+        s = sprintf(i == 1 ? "%d" : "%.1f", b); sub(/\.0$/, "", s); print s, u[i] }'
+}
+HUMAN_JQ='def human: if . == null then "?" else . as $b
+    | [["PB", 1e15], ["TB", 1e12], ["GB", 1e9], ["MB", 1e6], ["kB", 1e3]] | map(select($b >= .[1])) | first
+    | if . == null then "\($b) B" else "\(($b / .[1] * 10 | round) / 10) \(.[0])" end end;'
+
+mount_unit() { systemd-escape --path --suffix=mount "${MNT}/$1"; }
+crypt_unit() { printf 'systemd-cryptsetup@%s.service\n' "$(systemd-escape "$1")"; }
+
+# --- Layouts ---------------------------------------------------------------------------------------
+
+# The layouts, in the order offered: btrfs's data profile, what it is called, from how many disks it is
+# offered (where it starts to differ from two copies, not btrfs's own minimum), how many dead disks it
+# survives, and what to know before choosing it. Metadata is raid1 on two disks and raid1c3 from three,
+# never parity, as btrfs(5) asks, and a combined pool stays mountable after a disk dies that way.
+PARITY_WARNING="btrfs says of it: should not be used in production, only for evaluation or testing. A power cut can damage what was being written: check every copy after one (ame system raid scrub now)."
+LAYOUTS="$(jq -nc --arg parity "${PARITY_WARNING}" '[
+    {id: "raid1", title: "Two copies", min: 2, survives: 1, note: null, warning: null},
+    {id: "raid1c3", title: "Three copies", min: 3, survives: 2, note: null, warning: null},
+    {id: "raid10", title: "Striped two copies", min: 4, survives: 1,
+     note: "Faster for large files, and it protects as two copies do.", warning: null},
+    {id: "raid5", title: "Parity", min: 3, survives: 1, note: null, warning: $parity},
+    {id: "raid6", title: "Double parity", min: 4, survives: 2, note: null, warning: $parity},
+    {id: "single", title: "Combined", min: 2, survives: 0, note: null,
+     warning: "No copies. This joins the disks; it does not protect anything: a dead disk takes its files with it."}]')"
+
+# How much each layout holds on disks of these sizes: btrfs's allocator, simulated in 1 GiB steps. Copies
+# go on the disks with the most room left; a stripe spans every disk that still has room, an even number
+# of them for raid10.
+usable() {
+    awk -v gib="${GIB}" '
+        function reset(   i) { for (i = 1; i <= n; i++) free[i] = size[i] }
+        # The k disks with the most room left, in pick[1..k]; 0 when fewer than k have any
+        function most(k,   i, j, best, taken) {
+            split("", taken)
+            for (j = 1; j <= k; j++) {
+                best = 0
+                for (i = 1; i <= n; i++)
+                    if (!(i in taken) && free[i] > 0 && (best == 0 || free[i] > free[best])) best = i
+                if (best == 0) return 0
+                taken[best] = 1
+                pick[j] = best
+            }
+            return 1
+        }
+        function copies(c,   total, j) {
+            reset(); total = 0
+            while (most(c)) { for (j = 1; j <= c; j++) free[pick[j]]--; total++ }
+            return total
+        }
+        function stripes(minimum, parity, pairs,   total, i, j, k) {
+            reset(); total = 0
+            while (1) {
+                k = 0
+                for (i = 1; i <= n; i++) if (free[i] > 0) k++
+                if (pairs) k -= k % 2
+                if (k < minimum || !most(k)) return total
+                for (j = 1; j <= k; j++) free[pick[j]]--
+                total += pairs ? k / 2 : k - parity
+            }
+        }
+        BEGIN {
+            n = ARGC - 1
+            for (i = 1; i <= n; i++) { size[i] = int(ARGV[i] / gib); sum += size[i] }
+            ARGC = 1
+            printf "raid1 %d\nraid1c3 %d\nraid10 %d\nraid5 %d\nraid6 %d\nsingle %d\n", copies(2) * gib, copies(3) * gib,
+                stripes(2, 0, 1) * gib, stripes(2, 1, 0) * gib, stripes(3, 2, 0) * gib, sum * gib
+        }' "$@"
+}
+
+# The layouts that fit this many disks of these sizes, each with what it holds and what it costs
+layouts() {
+    [[ $# -gt 0 ]] || die "usage: amethystora-raid layouts SIZE..."
+    usable "$@" | jq -cRn --argjson layouts "${LAYOUTS}" --argjson count "$#" '
+        ([inputs | split(" ") | {key: .[0], value: (.[1] | tonumber)}] | from_entries) as $usable
+        | [$layouts[] | select($count >= .min)
+           | . + {usable: $usable[.id], metadata: (if $count == 2 then "raid1" else "raid1c3" end)}]'
+}
+
+# --- What there is ---------------------------------------------------------------------------------
+
+read_lsblk() {
+    local out
+    if out="$(lsblk -J -b -o "${LSBLK_COLUMNS}" 2>/dev/null)" && jq -e '.blockdevices' <<<"${out}" >/dev/null 2>&1; then
+        printf '%s\n' "${out}"
+    else
+        echo '{"blockdevices": []}'
+    fi
+}
+
+# Disks and partitions something holds open (a LUKS mapping, an md array, LVM), by kernel name
+held() {
+    local dir
+    for dir in "${SYS}"/block/*/holders "${SYS}"/block/*/*/holders; do
+        [[ -n "$(ls -A "${dir}" 2>/dev/null)" ]] || continue
+        dir="${dir%/holders}"
+        printf '%s\n' "${dir##*/}"
+    done
+}
+
+# The pools this machine expects, from /etc/fstab: "uuid mountpoint" a line
+expected() {
+    awk '!/^[[:space:]]*#/ && $1 ~ /^UUID=/ && $4 ~ /(^|,)x-amethystora-raid(,|$)/ { print substr($1, 6), $2 }' \
+        "${FSTAB}" 2>/dev/null
+}
+
+# A pool's disks' lines in a crypttab read from stdin (root's alone to read), "name uuid" a line: the
+# mapping of each is raid-POOL-N, as its partition is named
+crypt_lines_of() {
+    awk -v pool="$1" '!/^[[:space:]]*#/ && $2 ~ /^UUID=/ && index($1, "raid-" pool "-") == 1 &&
+        substr($1, length(pool) + 7) ~ /^[0-9]+$/ { print $1, substr($2, 6) }'
+}
+
+# The filesystem the system runs from, "fstype source uuid": /sysroot on this image, the physical root
+# under ostree's, and / anywhere else
+root_fs() {
+    local line
+    line="$(findmnt -rn -o FSTYPE,SOURCE,UUID --mountpoint /sysroot 2>/dev/null)" ||
+        line="$(findmnt -rn -o FSTYPE,SOURCE,UUID --mountpoint / 2>/dev/null)"
+    printf '%s\n' "${line%%$'\n'*}"
+}
+
+# Every LUKS partition under a kernel device: what a LUKS mapping stands on, or what the mappings under a
+# mapping stand on (LVM on LUKS)
+luks_under() {
+    local dev="${SYS}/class/block/$1" slave
+    [[ -d "${dev}/dm" ]] || return 0
+    for slave in "${dev}"/slaves/*; do
+        [[ -e "${slave}" ]] || continue
+        if [[ "$(cat "${dev}/dm/uuid" 2>/dev/null)" == CRYPT-LUKS* ]]; then
+            printf '/dev/%s\n' "${slave##*/}"
+        else
+            luks_under "${slave##*/}"
+        fi
+    done
+}
+
+# The LUKS partitions under the system's own filesystem, every one of its devices for a btrfs over
+# several disks, and never a pool's: what TPM unlocking enrols, and what makes the system encrypted
+root_luks() {
+    local fstype source uuid dev
+    read -r fstype source uuid <<<"$(root_fs)"
+    if [[ "${fstype}" == btrfs && -n "${uuid}" && -d "${SYS}/fs/btrfs/${uuid}/devices" ]]; then
+        for dev in "${SYS}/fs/btrfs/${uuid}/devices"/*; do
+            [[ -e "${dev}" || -L "${dev}" ]] && luks_under "${dev##*/}"
+        done
+    elif [[ -n "${source}" ]]; then
+        source="$(readlink -f -- "${source%%\[*}")"
+        luks_under "${source##*/}"
+    fi | sort -u
+}
+
+# Where a btrfs is mounted so that it can be written through, which a balance, a replace and a scrub need:
+# /sysroot is read-only on this image and /var is not. A pool's own folder first.
+pick_target() {
+    awk -v uuid="$1" '$1 == uuid && $3 ~ /^rw(,|$)/ {
+        score = ($2 ~ /^\/var\/mnt\//) ? 3 : ($2 == "/var" ? 2 : 1)
+        if (score > best) { best = score; target = $2 } } END { if (target != "") print target }' <<<"${TARGETS}"
+}
+
+# btrfs filesystem show's devices, "devid size kernel-name", with "-" for one that is missing. Run on a
+# mounted filesystem it needs no root: it asks the kernel, which knows which device has which devid.
+show_lines() {
+    local devid size path
+    awk '$1 == "devid" { print $2, $4, (($0 ~ /MISSING/ || $NF !~ /^\//) ? "-" : $NF) }' |
+        while read -r devid size path; do
+            [[ "${path}" == - ]] || path="$(readlink -f -- "${path}")"
+            printf '%s %s %s\n' "${devid}" "${size}" "${path##*/}"
+        done
+}
+
+# A mounted btrfs, from sysfs, which anyone may read, a fact a line; FS_JQ makes JSON of it
+fs_facts() {
+    local fs="$1" dir kind
+    printf 'uuid %s\n' "${fs##*/}"
+    printf 'label %s\n' "$(cat "${fs}/label" 2>/dev/null)"
+    printf 'operation %s\n' "$(cat "${fs}/exclusive_operation" 2>/dev/null)"
+    for dir in "${fs}"/devices/*; do
+        [[ -e "${dir}" || -L "${dir}" ]] && printf 'device %s\n' "${dir##*/}"
+    done
+    for dir in "${fs}"/devinfo/*; do
+        [[ -d "${dir}" ]] || continue
+        printf 'devid %s %s\n' "${dir##*/}" "$(cat "${dir}/missing" 2>/dev/null || echo 0)"
+        # write_errs, read_errs, flush_errs, corruption_errs and generation_errs
+        awk -v devid="${dir##*/}" 'NF == 2 { print "error", devid, $1, $2 }' "${dir}/error_stats" 2>/dev/null
+    done
+    # The kernel calls the folder allocation, whatever btrfs's documentation says. A profile a convert
+    # emptied keeps its folder until the next unmount, so it is the bytes that count.
+    for kind in data metadata; do
+        printf 'used %s %s\n' "${kind}" "$(cat "${fs}/allocation/${kind}/bytes_used" 2>/dev/null || echo 0)"
+        for dir in "${fs}/allocation/${kind}"/*/; do
+            [[ -f "${dir}total_bytes" ]] || continue
+            dir="${dir%/}"
+            printf 'profile %s %s %s\n' "${kind}" "${dir##*/}" "$(cat "${dir}/total_bytes")"
+        done
+    done
+}
+
+FS_JQ='
+[inputs | capture("^(?<k>[a-z]+) ?(?<v>.*)$")] as $l
+| def facts($k): [$l[] | select(.k == $k) | .v];
+  def fact($k): facts($k) | first // "";
+  def number: if . == "" or . == null then null else tonumber end;
+  {uuid: fact("uuid"), label: fact("label"),
+   operation: (fact("operation") | if . == "" or . == "none" then null else . end),
+   devices: facts("device"),
+   devinfo: ([facts("devid")[] | split(" ") | {devid: (.[0] | tonumber), missing: (.[1] == "1")}] | sort_by(.devid)),
+   errors: (reduce (facts("error")[] | split(" ")) as $e ({}; .[$e[0]][$e[1] | sub("_errs$"; "")] = ($e[2] | tonumber))),
+   profiles: (reduce (facts("profile")[] | split(" ")) as $p ({data: {}, metadata: {}};
+       .[$p[0]][$p[1]] = ($p[2] | tonumber))),
+   data_used: ([facts("used")[] | split(" ") | select(.[0] == "data") | .[1] | number] | first),
+   metadata_used: ([facts("used")[] | split(" ") | select(.[0] == "metadata") | .[1] | number] | first),
+   target: (if $target == "" then null else $target end),
+   size: ($size | number), used: ($used | number),
+   show: [$show | split("\n")[] | select(. != "") | split(" ") | {devid: (.[0] | tonumber), size: (.[1] | tonumber), kname: .[2]}]}'
+
+# The pools, the spare disks and the rest, from what status_json() gathered
+STATUS_JQ='
+def nodes: $lsblk.blockdevices[]? | recurse(.children[]?);
+def trim: (. // "") | gsub("^\\s+|\\s+$"; "");
+def disk: {path, model: (.model | trim), serial: (.serial | trim), size, tran};
+def disk_of($kname): (first($lsblk.blockdevices[]? | select(.type == "disk" and any(recurse(.children[]?); .kname == $kname)) | disk)) // null;
+# The profile holding the most bytes is the one the pool was made with: a pool mounted with a disk missing
+# writes single
+def main(profiles): [(profiles // {}) | to_entries[] | select(.value > 0)] | max_by(.value) | if . == null then null else .key end;
+def survives: {"raid1": 1, "raid1c3": 2, "raid1c4": 3, "raid10": 1, "raid5": 1, "raid6": 2}[. // ""] // 0;
+def smart($d): if $d == null then null else
+    ([$disks.devices[]? | select(if ($d.serial // "") != "" then .serial == $d.serial else .disk == $d.path end) | .smart] | first) end;
+def name_of($mountpoint): $mountpoint | split("/") | last;
+
+($fstab | map(.uuid)) as $expected_uuids
+| ($fstab | map(name_of(.mountpoint))) as $expected_names
+| [$fs[].devices[]] as $members
+| def pool_part: (.partlabel // "") as $label | any($expected_names[]; . as $name | $label | test("^raid-" + $name + "-[0-9]+$"));
+
+[ $fs[] as $f
+  | ([$fstab[] | select(.uuid == $f.uuid)] | first) as $e
+  | select(($f.devinfo | length) >= 2 or $e != null)
+  | ($f.uuid == $root) as $system
+  | (if $e != null then name_of($e.mountpoint) elif $system then "system"
+     elif ($f.label // "") != "" then $f.label else $f.uuid[0:8] end) as $id
+  | main($f.profiles.data) as $data
+  | main($f.profiles.metadata) as $meta
+  | [ $f.devinfo[] as $d
+      | ([$f.show[]? | select(.devid == $d.devid and .kname != "-") | .kname] | first) as $shown
+      | ([$disks.devices[]? | select(.fsid == $f.uuid and .devid == $d.devid)] | first) as $known
+      | (if $d.missing then null
+         elif $shown != null then $shown
+         elif $known != null and ($f.devices | index($known.kname)) != null then $known.kname
+         else null end) as $kname
+      | ((if $kname != null then disk_of($kname) else null end)
+         // (if $known != null then {path: $known.disk, model: $known.model, serial: $known.serial, size: null, tran: null}
+             else null end)) as $disk
+      | ($f.errors[$d.devid | tostring] // {}) as $errors
+      | {devid: $d.devid, missing: $d.missing, kname: $kname,
+         size: ([$f.show[]? | select(.devid == $d.devid) | .size] | first),
+         errors: $errors, error_count: ([$errors[]] | add // 0),
+         disk: $disk, usb: ($disk.tran == "usb"),
+         smart: (if $d.missing then null else smart($disk) end)} ] as $devices
+  | ($devices | map(select(.missing)) | length) as $missing
+  | ($devices | map(.error_count) | add // 0) as $errors
+  | ($scrubs[$f.uuid] // null) as $scrub
+  | ($meta == null or $meta == "single" or $meta == "dup") as $plain_meta
+  | (($data != null and $data != "single" and ($f.profiles.data.single // 0) > 0)
+     or (($plain_meta | not) and (($f.profiles.metadata.single // 0) + ($f.profiles.metadata.dup // 0)) > 0)) as $degraded
+  | (if $system then ($rootluks | length) > 0
+     else any($devices[]; .kname as $k | $k != null and any(nodes; .kname == $k and .type == "crypt")) end) as $encrypted
+  | [ (if $missing > 0 then "missing" else empty end),
+      (if any($devices[]; .smart == "failed") then "failing" else empty end),
+      (if ($scrub.uncorrectable // 0) > 0 then "scrub" else empty end),
+      (if $errors > 0 then "errors" else empty end),
+      (if $degraded then "degraded" else empty end),
+      (if $system and $data == "single" then "unprotected" else empty end) ] as $problems
+  | {id: $id, name: $id, system: $system, managed: ($e != null), uuid: $f.uuid, label: $f.label,
+     mountpoint: (if $e != null then $e.mountpoint elif $system then "/" else $f.target end),
+     target: $f.target, mounted: true, encrypted: $encrypted,
+     layout: $data, metadata: $meta, survives: ($data | survives),
+     size: $f.size, used: $f.used, data_used: $f.data_used, metadata_used: $f.metadata_used,
+     devices: $devices, missing: $missing, errors: $errors, degraded: $degraded, operation: $f.operation,
+     busy: [$units[] | select(. as $unit | any("replace", "balance", "mirror"; $unit == "amethystora-raid-\(.)-\($id).service"))],
+     scrub: $scrub, problems: $problems, state: (if $problems == [] then "ok" else "check" end)} ]
++ [ $fstab[] as $e
+    | select(any($fs[]; .uuid == $e.uuid) | not)
+    | name_of($e.mountpoint) as $id
+    | [nodes | select(.type == "part" and ((.partlabel // "") | test("^raid-" + $id + "-[0-9]+$")))] as $parts
+    | (if $parts != [] then $parts else [nodes | select(.fstype == "btrfs" and .uuid == $e.uuid)] end) as $present
+    | {id: $id, name: $id, system: false, managed: true, uuid: $e.uuid, label: null, mountpoint: $e.mountpoint,
+       target: null, mounted: false, encrypted: any($parts[]; .fstype == "crypto_LUKS"),
+       layout: null, metadata: null, survives: null, size: null, used: null, data_used: null, metadata_used: null,
+       devices: [$present[] | disk_of(.kname) as $disk
+           | {devid: null, missing: false, kname, size, errors: {}, error_count: 0, disk: $disk,
+              usb: ($disk.tran == "usb"), smart: smart($disk)}],
+       missing: null, errors: 0, degraded: false, operation: null, busy: [],
+       scrub: ($scrubs[$e.uuid] // null), problems: ["unmounted"], state: "check"} ]
+| . as $pools
+| [ $lsblk.blockdevices[]? | select(.type == "disk")
+    | select((.name // "" | test("^(zram|loop|ram)")) | not)
+    | select((.ro == true or .ro == "1" or .ro == 1) | not)
+    | select((.size // 0) > 0)
+    | select(all(recurse(.children[]?);
+        ([.mountpoints[]? | select(. != null)] | length) == 0
+        and (.type == "disk" or .type == "part")
+        and .fstype != "linux_raid_member"
+        and (.kname as $k | ($members | index($k)) == null and ($held | index($k)) == null)
+        and ((.uuid // "") as $u | ($expected_uuids | index($u)) == null)
+        and (pool_part | not)))
+    | disk + {kname, usb: (.tran == "usb"), contents: [recurse(.children[]?) | select(.fstype != null) | {fstype, label}]} ]
+| . as $spare
+| {version: 1, pools: $pools, spare: $spare,
+   system_single: any($pools[]; .system and .layout == "single"),
+   raid: ($pools != []),
+   scrub_timer: (if $timer == "" then null else $timer end),
+   scrubbing: any($units[]; . == "amethystora-raid-scrub.service" or . == "amethystora-raid-scrub-now.service")}'
+
+scrubs() {
+    local file uuid
+    for file in "${STATE}"/scrub-*.json; do
+        [[ -f "${file}" ]] || continue
+        uuid="${file##*/scrub-}"
+        jq -c --arg uuid "${uuid%.json}" '{($uuid): .}' "${file}" 2>/dev/null
+    done | jq -cs 'add // {}'
+}
+
+units() {
+    systemctl list-units --plain --no-legend --state=activating,active,deactivating 'amethystora-raid-*' 2>/dev/null |
+        awk '$1 ~ /^amethystora-raid-/ { print $1 }'
+}
+
+# Everything there is to say, as JSON, without root: sysfs, lsblk, findmnt and fstab, which anyone may
+# read, and what the check and the scrub wrote down for everyone (SMART needs root)
+status_json() {
+    local lsblk fs uuid target size used show fstype source root disks filesystems=()
+    lsblk="$(read_lsblk)"
+    TARGETS="$(findmnt -rn -t btrfs -o UUID,TARGET,OPTIONS 2>/dev/null)"
+    for fs in "${SYS}"/fs/btrfs/*-*-*-*-*; do
+        [[ -d "${fs}/devinfo" ]] || continue
+        uuid="${fs##*/}"
+        target="$(pick_target "${uuid}")"
+        size="" used="" show=""
+        if [[ -n "${target}" ]]; then
+            read -r size used < <(df -B1 --output=size,used "${target}" 2>/dev/null | tail -n 1)
+            show="$(btrfs filesystem show --raw "${target}" 2>/dev/null | show_lines)"
+        fi
+        filesystems+=("$(fs_facts "${fs}" | jq -cRn --arg target "${target}" --arg size "${size}" \
+            --arg used "${used}" --arg show "${show}" "${FS_JQ}")")
+    done
+    read -r fstype source root <<<"$(root_fs)"
+    [[ "${fstype}" == btrfs ]] || root=""
+    disks="$(jq -c 'select(type == "object")' "${STATE}/disks.json" 2>/dev/null)"
+    jq -n \
+        --argjson fs "$(printf '%s\n' "${filesystems[@]}" | jq -cs .)" \
+        --argjson fstab "$(expected | jq -cRn '[inputs | split(" ") | {uuid: .[0], mountpoint: .[1]}]')" \
+        --argjson lsblk "${lsblk}" \
+        --argjson held "$(held | jq -cRn '[inputs]')" \
+        --argjson rootluks "$(root_luks | jq -cRn '[inputs]')" \
+        --arg root "${root}" \
+        --argjson disks "${disks:-"{}"}" \
+        --argjson scrubs "$(scrubs)" \
+        --argjson units "$(units | jq -cRn '[inputs]')" \
+        --arg timer "$(systemctl is-enabled amethystora-raid-scrub.timer 2>/dev/null)" \
+        "${STATUS_JQ}"
+}
+
+# The words for a terminal
+TEXT_JQ="${HUMAN_JQ}"'
+def words: if .system and .layout == "single" then "One copy" else
+    ({"raid1": "Two copies", "raid1c3": "Three copies", "raid1c4": "Four copies", "raid10": "Striped two copies",
+      "raid5": "Parity", "raid6": "Double parity", "single": "Combined", "raid0": "Striped, no copies"}[.layout // ""]
+     // .layout) end;
+def disk: [(if .devid != null then "disk \(.devid)" else empty end),
+    (if (.disk.model // "") != "" then .disk.model + (if (.disk.serial // "") != "" then " (\(.disk.serial))" else "" end) else empty end)]
+    | join("  ");
+def errors: if . == 1 then "1 error" else "\(.) errors" end;
+def run($what): if .managed then ": ame system raid \($what) \(.name)" else "" end;
+def how:
+    if .busy != [] or .operation != null then
+        "Busy " + (if any(.busy[]; test("-replace-")) then "replacing a disk." elif .busy != [] then "putting its copies where they belong."
+                   else "(\(.operation))." end)
+    elif .mounted | not then "Not mounted, perhaps because one of its disks is missing. Open it with what is there" + run("mount") + "."
+    elif .missing > 0 then
+        if .missing <= .survives then "A disk is missing. Every file is still there, with one copy fewer until the disk is replaced" + run("replace") + "."
+        else "A disk is missing, and the files that were on it cannot be read until it is back." end
+    elif any(.devices[]; .smart == "failed") then "A disk says it is failing. Replace it" + run("replace") + "."
+    elif (.scrub.uncorrectable // 0) > 0 then "The last check found damage it could not repair: journalctl -k -g btrfs names the files."
+    elif .errors > 0 then "A disk has counted read or write errors."
+    elif .degraded then "Part of it has one copy, written while a disk was missing. Put the copies back" + run("replace") + "."
+    elif .system and .layout == "single" then "Either disk failing loses everything: ame system raid mirror keeps a copy on each."
+    else "Fine." end;
+(if .pools == [] then "No pools of disks." else "Pools of disks" end),
+(.pools[] | "",
+    "  " + (if .system then "The system" else "\(.name), at \(.mountpoint)" end) + (if .managed or .system then "" else " (made by hand)" end),
+    "    " + ([ (if .layout != null then "\(words) on \(.devices | length) disks." else empty end),
+               (if .encrypted then "Encrypted." else empty end),
+               (if .size != null then "\(.used | human) used of \(.size | human)." else empty end) ] | join(" ")),
+    "    " + how,
+    (if .layout != null and .layout != "single" then "    " + (if .scrub.time != null
+        then "Every copy last checked \(.scrub.time | strflocaltime("%Y-%m-%d"))"
+            + (if .scrub.finished == false then ", not to the end." elif (.scrub.corrected // 0) > 0 then ", \(.scrub.corrected) errors repaired."
+               else ", nothing to repair." end)
+        else "Every copy not checked yet." end) else empty end),
+    (.devices[] | "      " + disk + (if .missing then "  missing" elif .smart == "failed" then "  failing"
+        elif .error_count > 0 then "  \(.error_count | errors)" else "" end) + (if .usb then "  USB" else "" end))),
+"",
+(if .spare == [] then "No spare disks." else "Spare disks: " + ([.spare[] | "\(.path) (\(if .model != "" then .model else "disk" end), \(.size | human)\(if .usb then ", USB" else "" end))"] | join(", ")) end),
+(if .raid then "The monthly check of every copy is " + (if .scrub_timer == "enabled" then "on" else "off" end) + "."
+    + (if .scrubbing then " A check is running now." else "" end) else empty end),
+(if .pools == [] and (.spare | length) >= 2 then "ame system raid create makes a pool from them." else empty end)'
+
+cmd_status() {
+    local status
+    status="$(status_json)" || die "The disks could not be read."
+    if [[ "${1:-}" == --json ]]; then
+        printf '%s\n' "${status}"
+    else
+        jq -r "${TEXT_JQ}" <<<"${status}"
+    fi
+}
+
+# Something to watch: a pool this machine expects, or any btrfs mounted over several disks
+present() {
+    local devinfo devices
+    [[ -n "$(expected)" ]] && return 0
+    for devinfo in "${SYS}"/fs/btrfs/*-*-*-*-*/devinfo; do
+        devices=("${devinfo}"/*)
+        [[ ${#devices[@]} -ge 2 && -e "${devices[1]}" ]] && return 0
+    done
+    return 1
+}
+
+# --- Making and changing pools -----------------------------------------------------------------------
+
+name_free() {
+    [[ ! -e "${MNT}/$1" && ! -e "${KEYS}/raid-$1.key" ]] || return 1
+    ! expected | awk -v mountpoint="${MNT}/$1" '$2 == mountpoint { found = 1 } END { exit !found }'
+}
+
+pool_json() {  # STATUS NAME
+    jq -c --arg name "$2" 'first(.pools[] | select(.managed and .name == $name)) // empty' <<<"$1"
+}
+
+# The pool NAME names, or without one the only pool there is, or the one asked for, the ones that need a
+# look first. The system is not a pool these commands change.
+pick_pool() {  # STATUS NAME
+    local names=()
+    if [[ -n "$2" ]]; then
+        [[ "$2" == system ]] && die "The system's disks are not changed this way: only ame system raid mirror does that."
+        [[ -n "$(pool_json "$1" "$2")" ]] || die "There is no pool called $2: ame system raid status lists them."
+        printf '%s\n' "$2"
+        return
+    fi
+    mapfile -t names < <(jq -r '[.pools[] | select(.managed)] | sort_by(.state != "check") | .[].name' <<<"$1")
+    case ${#names[@]} in
+        0) die "There is no pool yet: ame system raid create makes one." ;;
+        1) printf '%s\n' "${names[0]}" ;;
+        *) gum choose --header "Which pool?" "${names[@]}" ;;
+    esac
+}
+
+# The disk to use, from the spare ones that fit: DISK when it is one of them, or the one chosen
+pick_disk() {  # SPARE-JSON HEADER [DISK]
+    local labels=() picked
+    if [[ -n "${3:-}" ]]; then
+        jq -e --arg path "/dev/${3#/dev/}" 'any(.[]; .path == $path)' <<<"$1" >/dev/null ||
+            die "/dev/${3#/dev/} is not a spare disk that fits, or it is in use. ame system raid status lists the spare ones."
+        printf '/dev/%s\n' "${3#/dev/}"
+        return
+    fi
+    mapfile -t labels < <(disk_labels <<<"$1")
+    [[ ${#labels[@]} -gt 0 ]] || return 1
+    picked="$(gum choose --header "$2" "${labels[@]}")" || return 1
+    printf '%s\n' "${picked%% *}"
+}
+
+# A line for each spare disk, its path first: what gum choose shows, without the commas it splits on
+disk_labels() {
+    jq -r "${HUMAN_JQ}"' .[] | "\(.path)  \(.size | human)  \(.model)\(if .serial != "" then "  " + .serial else "" end)\(if .usb then "  USB" else "" end)"
+        | gsub(","; " ")'
+}
+
+# What a disk holds now, so that "ntfs Windows" or BitLocker stands out before it is erased
+disk_plan() {  # SPARE-JSON PATH
+    jq -r --arg path "$2" "${HUMAN_JQ}"' .[] | select(.path == $path)
+        | "\(.path)  \(.model)  \(.serial)  \(.size | human)",
+          "    now: " + (if .contents == [] then "nothing anyone can read"
+                       else [.contents[] | .fstype + (if (.label // "") != "" then " \"\(.label)\"" else "" end)] | join(", ") end),
+          (if .usb then "    on USB: a loose cable takes it out of the pool, so keep it plugged in." else empty end)' <<<"$1"
+}
+
+ask_erase() {
+    local typed
+    typed="$(gum input --placeholder "Type ERASE to erase $1")" || exit 0
+    [[ "${typed}" == ERASE ]] || { echo "Nothing was erased."; exit 0; }
+}
+
+# Asked again once ERASE is typed, which can be long after the disks were listed: none of them may have
+# been mounted or opened since
+still_spare() {
+    local spare disk
+    spare="$(status_json | jq -c .spare)"
+    for disk in "$@"; do
+        jq -e --arg path "${disk}" 'any(.[]; .path == $path)' <<<"${spare}" >/dev/null ||
+            die "${disk} is in use now, so nothing was erased."
+    done
+}
+
+# A recovery key as systemd-cryptenroll makes one: 32 random bytes in modhex, eight groups of eight, which
+# systemd's own password prompt recognises. One for the whole pool, so that one key written down opens
+# every disk, which systemd-cryptenroll --recovery-key, making a new key for each disk, cannot do.
+new_recovery_key() {
+    od -An -vtx1 -N32 /dev/urandom | tr -d ' \n' | tr 0123456789abcdef cbdefghijklnrtuv | sed -E 's/.{8}/&-/g; s/-$//'
+}
+
+normalise_key() {
+    local key
+    key="$(tr -d ' \t' <<<"$1" | tr '[:upper:]' '[:lower:]')"
+    [[ "${key}" =~ ^[a-z]{64}$ ]] && key="$(sed -E 's/.{8}/&-/g; s/-$//' <<<"${key}")"
+    printf '%s\n' "${key}"
+}
+
+# Erases DISK and leaves one GPT partition over all of it, of the type and with the name given (a disk
+# without a partition table is one Windows offers to initialise), and prints the partition's path
+partition_disk() {  # DISK TYPE PARTNAME
+    local nodes=() part
+    mapfile -t nodes < <(lsblk -nrpo PATH "$1" 2>/dev/null | tac)
+    as_root wipefs -a -q "${nodes[@]}" || return 1
+    printf 'label: gpt\ntype=%s, name="%s"\n' "$2" "$3" |
+        as_root sfdisk --quiet --wipe always --wipe-partitions always "$1" >/dev/null || return 1
+    as_root udevadm settle
+    part="$(lsblk -nrpo PATH,TYPE "$1" | awk '$2 == "part" { print $1; exit }')"
+    [[ -n "${part}" ]] || return 1
+    printf '%s\n' "${part}"
+}
+
+luks_format() {  # PART KEY POOL
+    as_root cryptsetup luksFormat --type luks2 --batch-mode "${LUKS_PBKDF[@]}" --label "raid-$3" --key-file "$2" "$1"
+}
+
+# The recovery key in slot 1, as the text a person types: no newline
+add_recovery() {  # PART KEY RECOVERY
+    printf '%s' "$3" | as_root cryptsetup luksAddKey "${LUKS_PBKDF[@]}" --key-file "$2" --new-key-slot 1 "$1" /dev/stdin
+}
+
+# A line added to a file of root's, on a line of its own, the file made with MODE if it is not there
+append_line() {  # FILE LINE MODE
+    as_root test -e "$1" || as_root install -m "$3" /dev/null "$1"
+    [[ -n "$(as_root tail -c 1 "$1")" ]] && printf '\n' | as_root tee -a "$1" >/dev/null
+    printf '%s\n' "$2" | as_root tee -a "$1" >/dev/null
+}
+
+crypttab_line() {  # MAPPING LUKS-UUID POOL
+    printf '%s UUID=%s %s/raid-%s.key luks,discard,nofail,x-systemd.device-timeout=30s' "$1" "$2" "${KEYS#"${R}"}" "$3"
+}
+
+# The number the next disk of a pool gets, after every one its partitions and crypttab lines name
+next_index() {  # POOL
+    local highest
+    highest="$({
+        lsblk -nro PARTLABEL 2>/dev/null
+        as_root cat "${CRYPTTAB}" 2>/dev/null | crypt_lines_of "$1" | awk '{ print $1 }'
+    } | sed -n "s/^raid-$1-\([0-9]\+\)\$/\1/p" | sort -n | tail -n 1)"
+    echo $((${highest:-0} + 1))
+}
+
+# The partitions of a pool's disks that are there, encrypted, and none of the ones given
+pool_luks_parts() {  # POOL EXCEPT...
+    local pool="$1"
+    shift
+    lsblk -J -o PATH,PARTLABEL,FSTYPE 2>/dev/null | jq -r --arg pool "${pool}" '.. | objects
+        | select(.fstype == "crypto_LUKS" and ((.partlabel // "") | test("^raid-" + $pool + "-[0-9]+$"))
+            and (.path as $path | $ARGS.positional | index($path) | not)) | .path' --args "$@"
+}
+
+# A disk made ready to join a pool: partitioned, and for an encrypted pool formatted with the pool's key,
+# given its recovery key, opened and written into /etc/crypttab. Prints the device btrfs is given. The
+# disk on its way out of the pool, if one is, gets no new recovery key.
+prepare_disk() {  # DISK POOL ENCRYPTED [OUTGOING-PARTITION]
+    local disk="$1" name="$2" encrypted="$3" outgoing="${4:-}" index mapping part
+    index="$(next_index "${name}")"
+    mapping="raid-${name}-${index}"
+    echo "Erasing ${disk}…" >&2
+    if [[ "${encrypted}" != true ]]; then
+        partition_disk "${disk}" "${LINUX_TYPE}" "${mapping}" || die "${disk} could not be partitioned."
+        return
+    fi
+    # What this prints is the device, so whatever the steps say goes to stderr
+    part="$(partition_disk "${disk}" "${LUKS_TYPE}" "${mapping}")" || die "${disk} could not be partitioned."
+    luks_format "${part}" "${KEYS}/raid-${name}.key" "${name}" >&2 || die "${part} could not be encrypted."
+    recovery_for "${name}" "${part}" "${outgoing}" || die "The recovery key could not be added to ${part}."
+    as_root cryptsetup open --allow-discards --key-file "${KEYS}/raid-${name}.key" "${part}" "${mapping}" >&2 ||
+        die "${part} could not be opened."
+    append_line "${CRYPTTAB}" "$(crypttab_line "${mapping}" "$(as_root cryptsetup luksUUID "${part}")" "${name}")" 0600
+    printf '/dev/mapper/%s\n' "${mapping}"
+}
+
+# Slot 1 of a new disk gets the pool's recovery key, typed in, which also shows that it is still known.
+# Left empty, every disk of the pool gets a new one, and the old one stops working.
+recovery_for() {  # POOL NEW-PART [OUTGOING-PART]
+    local name="$1" part="$2" key="${KEYS}/raid-$1.key" recovery members=() member
+    mapfile -t members < <(pool_luks_parts "${name}" "${part}" "${3:-}")
+    while [[ ${#members[@]} -gt 0 ]]; do
+        recovery="$(gum input --password --width 80 \
+            --placeholder "The recovery key of ${name}; leave it empty to make a new one")" || return 1
+        recovery="$(normalise_key "${recovery}")"
+        [[ -n "${recovery}" ]] || break
+        if printf '%s' "${recovery}" |
+            as_root cryptsetup open --test-passphrase --key-slot 1 --key-file - "${members[0]}" 2>/dev/null; then
+            add_recovery "${part}" "${key}" "${recovery}" >&2 || return 1
+            echo "The recovery key opens the new disk too." >&2
+            return 0
+        fi
+        echo "That is not the recovery key of ${name}." >&2
+    done
+    recovery="$(new_recovery_key)"
+    for member in "${members[@]}"; do
+        as_root cryptsetup luksKillSlot --batch-mode "${member}" 1 >/dev/null 2>&1
+        add_recovery "${member}" "${key}" "${recovery}" >&2 || return 1
+    done
+    add_recovery "${part}" "${key}" "${recovery}" >&2 || return 1
+    box "The new recovery key of ${name}:" "" "    ${recovery}" "" \
+        "Write it down: the old one no longer opens the disks of the pool that are here. It opens them on any Linux machine, and without it a pool whose system disk is lost is lost too." >&2
+}
+
+# A long operation (a replace, a balance) in a unit of its own, so that closing the terminal does not stop
+# it, with sleep held off: since kernel 6.19 a suspend cancels a replace, which then starts again from the
+# beginning. It shows how far it is while it runs, and ends as the operation did.
+long_run() {  # OP POOL WHY TARGET COMMAND...
+    local op="$1" name="$2" why="$3" target="$4" watcher code
+    shift 4
+    as_root true || return 1
+    echo "${why}. It goes on if this window is closed, and ame system raid status says when it has finished."
+    (while sleep 5; do progress "${op}" "${target}"; done) &
+    watcher=$!
+    as_root systemd-run --unit="amethystora-raid-${op}-${name}" --description="${why}" --wait --quiet --collect \
+        systemd-inhibit --what=sleep:idle --who=Amethystora --why="${why}" "$@"
+    code=$?
+    kill "${watcher}" 2>/dev/null
+    wait "${watcher}" 2>/dev/null
+    printf '\n'
+    return "${code}"
+}
+
+progress() {  # OP TARGET
+    local line=""
+    case "$1" in
+        replace) line="$(as_root_quietly btrfs replace status -1 "$2")" ;;
+        *) line="$(as_root_quietly btrfs balance status "$2" | sed -n 2p)" ;;
+    esac
+    [[ -n "${line}" ]] && printf '\r\033[K%s' "${line}"
+}
+
+# What was written while a disk was missing went to single: back to the pool's own profiles. soft skips
+# every chunk already right, so this is quick unless much was written meanwhile.
+spread_back() {  # POOL TARGET
+    local pool data metadata args=()
+    pool="$(pool_json "$(status_json)" "$1")"
+    data="$(jq -r '.layout // empty' <<<"${pool}")"
+    metadata="$(jq -r '.metadata // empty' <<<"${pool}")"
+    [[ -n "${data}" && "${data}" != single ]] && args+=("-dconvert=${data},soft")
+    [[ -n "${metadata}" ]] && args+=("-mconvert=${metadata},soft")
+    [[ ${#args[@]} -gt 0 ]] || return 0
+    long_run balance "$1" "Putting back the copies of $1" "$2" btrfs balance start "${args[@]}" "$2"
+}
+
+# The crypttab lines of a pool's disks that are no longer in it, the disk replaced, with their mappings.
+# Nothing goes while any disk of the pool is still missing, which may come back, nor without the list of
+# what is in the pool, without which nothing can be told apart.
+retire_lines() {  # POOL TARGET
+    local devices members mapping dm
+    devices="$(as_root btrfs filesystem show --raw "$2" 2>/dev/null | show_lines)"
+    [[ -n "${devices}" ]] || return 0
+    awk '$3 == "-" { found = 1 } END { exit !found }' <<<"${devices}" && return 0
+    members="$(awk '{ print $3 }' <<<"${devices}")"
+    while read -r mapping _; do
+        [[ -n "${mapping}" ]] || continue
+        dm="$(readlink -f "/dev/mapper/${mapping}" 2>/dev/null)"
+        [[ -e "/dev/mapper/${mapping}" ]] && grep -qx "${dm##*/}" <<<"${members}" && continue
+        as_root cryptsetup close "${mapping}" 2>/dev/null
+        as_root sed -i "/^${mapping}[[:space:]]/d" "${CRYPTTAB}"
+        echo "The old disk's line is out of /etc/crypttab."
+    done < <(as_root cat "${CRYPTTAB}" 2>/dev/null | crypt_lines_of "$1")
+    as_root systemctl daemon-reload
+}
+
+cmd_create() {
+    need_terminal create
+    local name="" chosen=() status spare count labels=() preselect=() picked=() sizes=() options layout="" lines=()
+    local data metadata title encrypted=true i disk part mapping recovery="" key uuid devices=() opened=() luks=()
+    local key_made=false owner n choice line
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --name) name="${2:-}"; shift; [[ $# -gt 0 ]] && shift ;;
+            --name=*) name="${1#--name=}"; shift ;;
+            -*) die "$1 is no option of ame system raid create." ;;
+            *) chosen+=("/dev/${1#/dev/}"); shift ;;
+        esac
+    done
+    status="$(status_json)" || die "The disks could not be read."
+    spare="$(jq -c .spare <<<"${status}")"
+    count="$(jq length <<<"${spare}")"
+    if ((count < 2)); then
+        die "A pool needs two disks besides the system's, and this machine has ${count} to spare. A disk is not offered while anything on it is mounted or open (swap, an encrypted, md or LVM device), nor is any of the system's own."
+    fi
+
+    if [[ -n "${name}" ]]; then
+        [[ "${name}" =~ ${NAME_RULE} ]] ||
+            die "A pool's name is up to 31 lower case letters, digits and dashes, starting with a letter or a digit."
+        [[ "${name}" != system ]] || die "system is what the status calls the system's own disks: choose another name."
+        name_free "${name}" || die "There is already a pool, a folder or a key called ${name}: choose another name."
+    else
+        name=data n=2
+        until name_free "${name}"; do name="data${n}" n=$((n + 1)); done
+    fi
+
+    if [[ ${#chosen[@]} -eq 0 ]]; then
+        mapfile -t labels < <(disk_labels <<<"${spare}")
+        # Every disk preselected that is not on USB, unless that leaves fewer than two
+        mapfile -t preselect < <(printf '%s\n' "${labels[@]}" | grep -v '  USB$')
+        [[ ${#preselect[@]} -ge 2 ]] || preselect=("${labels[@]}")
+        mapfile -t picked < <(gum choose --no-limit --header "Which disks? Everything on them is erased." \
+            --selected="$(IFS=,; echo "${preselect[*]}")" "${labels[@]}")
+        for i in "${picked[@]}"; do chosen+=("${i%% *}"); done
+    fi
+    [[ ${#chosen[@]} -ge 2 ]] || die "A pool needs at least two disks. Nothing was erased."
+    [[ "$(printf '%s\n' "${chosen[@]}" | sort -u | wc -l)" -eq ${#chosen[@]} ]] || die "A disk is named twice."
+    for disk in "${chosen[@]}"; do
+        jq -e --arg path "${disk}" 'any(.[]; .path == $path)' <<<"${spare}" >/dev/null ||
+            die "${disk} is not a spare disk: ame system raid status lists them. Nothing was erased."
+        sizes+=("$(jq -r --arg path "${disk}" '.[] | select(.path == $path) | .size' <<<"${spare}")")
+    done
+
+    # The layouts that fit that many disks, each with what it holds and survives, two copies first
+    options="$(layouts "${sizes[@]}")"
+    echo
+    jq -r "${HUMAN_JQ}"' .[] | "  \(.title): \(.usable | human), "
+        + (if .survives == 0 then "no copies" elif .survives == 1 then "survives one dead disk" else "survives two dead disks" end)
+        + (if .note != null then ". \(.note)" else "" end),
+        (if .warning != null then "      \(.warning)" else empty end)' <<<"${options}"
+    echo
+    mapfile -t labels < <(jq -r "${HUMAN_JQ}"' .[] | "\(.title) · \(.usable | human)"' <<<"${options}")
+    choice="$(gum choose --header "Which layout?" "${labels[@]}")" || exit 0
+    for i in "${!labels[@]}"; do
+        [[ "${labels[i]}" == "${choice}" ]] && layout="$(jq -c --argjson i "${i}" '.[$i]' <<<"${options}")"
+    done
+    [[ -n "${layout}" ]] || exit 0
+    data="$(jq -r .id <<<"${layout}")"
+    metadata="$(jq -r .metadata <<<"${layout}")"
+    title="$(jq -r .title <<<"${layout}")"
+
+    echo
+    if [[ -n "$(root_luks)" ]]; then
+        echo "Encrypted, the pool's key is kept on the system disk, which is encrypted too: the pool opens with the"
+        echo "system, and a pool disk taken out of the machine gives nothing away."
+    else
+        echo "Encrypted, the pool's key is kept on the system disk, which is not encrypted: anyone with this machine"
+        echo "can open the pool, but a pool disk sent back under warranty or thrown away gives nothing away."
+    fi
+    echo "Not encrypted, anyone holding one of these disks can read what is on it."
+    choice="$(gum choose --header "Encrypt the pool?" "Encrypt it" "Do not encrypt it")" || exit 0
+    [[ "${choice}" == "Encrypt it" ]] || encrypted=false
+
+    for disk in "${chosen[@]}"; do
+        mapfile -t -O "${#lines[@]}" lines < <(disk_plan "${spare}" "${disk}")
+    done
+    lines+=("" "Layout: ${title} (data ${data}, metadata ${metadata}), about $(human "$(jq -r .usable <<<"${layout}")") to use")
+    [[ "$(jq -r '.warning // empty' <<<"${layout}")" ]] && lines+=("$(jq -r .warning <<<"${layout}")")
+    lines+=("Encrypted: $([[ "${encrypted}" == true ]] && echo yes || echo no)" "Name: ${name}, at ${MNT}/${name}")
+    lines+=("" "Everything on these ${#chosen[@]} disks is erased.")
+    box "${lines[@]}"
+    ask_erase "these ${#chosen[@]} disks"
+    still_spare "${chosen[@]}"
+
+    as_root true || die "Nothing was erased."
+    key="${KEYS}/raid-${name}.key"
+    as_root test -e "${key}" && die "There is already a key for a pool called ${name}. Nothing was erased."
+    as_root cat "${CRYPTTAB}" 2>/dev/null | crypt_lines_of "${name}" | grep -q . &&
+        die "/etc/crypttab already has disks of a pool called ${name}. Nothing was erased."
+
+    # From here on a failure leaves the disks erased, but nothing else behind
+    failed() {
+        local mapping
+        printf '%s\n' "$1" >&2
+        for mapping in "${opened[@]}"; do as_root cryptsetup close "${mapping}" 2>/dev/null; done
+        [[ "${key_made}" == true ]] && as_root rm -f "${key}"
+        die "The disks chosen are erased, but no pool was made: nothing was added to /etc/fstab or /etc/crypttab."
+    }
+    if [[ "${encrypted}" == true ]]; then
+        as_root install -d -m 0700 "${KEYS}" || failed "${KEYS} could not be made."
+        as_root bash -c 'umask 0377 && head -c 64 /dev/urandom >"$1"' _ "${key}" || failed "The key could not be written."
+        key_made=true
+        as_root restorecon "${KEYS}" "${key}" 2>/dev/null
+        recovery="$(new_recovery_key)"
+    fi
+    for i in "${!chosen[@]}"; do
+        disk="${chosen[i]}"
+        mapping="raid-${name}-$((i + 1))"
+        echo "Erasing ${disk}…"
+        if [[ "${encrypted}" == true ]]; then
+            part="$(partition_disk "${disk}" "${LUKS_TYPE}" "${mapping}")" || failed "${disk} could not be partitioned."
+            luks_format "${part}" "${key}" "${name}" || failed "${part} could not be encrypted."
+            add_recovery "${part}" "${key}" "${recovery}" || failed "The recovery key could not be added to ${part}."
+            as_root cryptsetup open --allow-discards --key-file "${key}" "${part}" "${mapping}" ||
+                failed "${part} could not be opened."
+            opened+=("${mapping}")
+            luks+=("$(crypttab_line "${mapping}" "$(as_root cryptsetup luksUUID "${part}")" "${name}")")
+            devices+=("/dev/mapper/${mapping}")
+        else
+            part="$(partition_disk "${disk}" "${LINUX_TYPE}" "${mapping}")" || failed "${disk} could not be partitioned."
+            devices+=("${part}")
+        fi
+    done
+    echo "Making the pool…"
+    as_root mkfs.btrfs -f -q -L "${name}" -d "${data}" -m "${metadata}" "${devices[@]}" || failed "mkfs.btrfs failed."
+    as_root udevadm settle
+    as_root btrfs device scan "${devices[@]}" >/dev/null 2>&1
+    uuid="$(as_root blkid -p -s UUID -o value "${devices[0]}")"
+    [[ -n "${uuid}" ]] || failed "The new filesystem could not be found."
+
+    # Into /etc/crypttab and /etc/fstab, each with nofail, which crypttab(5) says both need for a missing
+    # disk not to hold up the boot. compress=zstd:1 is the installer's own; x-gvfs-show puts the pool in
+    # the Files sidebar; x-amethystora-raid tells the status a pool is expected, which systemd ignores.
+    for line in "${luks[@]}"; do
+        append_line "${CRYPTTAB}" "${line}" 0600
+    done
+    append_line "${FSTAB}" "UUID=${uuid} ${MNT}/${name} btrfs compress=zstd:1,nofail,x-systemd.device-timeout=30s,x-gvfs-show,x-amethystora-raid 0 0" 0644
+
+    as_root install -d -m 0755 "${MNT}/${name}"
+    as_root systemctl daemon-reload
+    as_root systemctl start "$(mount_unit "${name}")" ||
+        die "The pool is made and in /etc/fstab, but it did not mount: journalctl -b -k -g btrfs says why."
+    owner="${SUDO_UID:-$(id -u)}:${SUDO_GID:-$(id -g)}"
+    as_root chown "${owner}" "${MNT}/${name}"
+    as_root restorecon "${MNT}/${name}" 2>/dev/null
+
+    echo
+    box "The pool ${name} is ready at ${MNT}/${name}, in the Files sidebar, with room for about $(human "$(df -B1 --output=avail "${MNT}/${name}" | tail -n 1)")." \
+        "" "A pool is not a backup: a file deleted, or encrypted by ransomware, is gone from every disk at once. ame backup keeps copies elsewhere."
+    if [[ -n "${recovery}" ]]; then
+        box --border-foreground 3 "Its recovery key, shown only this once:" "" "    ${recovery}" "" \
+            "Write it down. It opens these disks on any Linux machine, and without it a pool whose system disk is lost is lost too."
+    fi
+}
+
+# Opens a pool that did not mount: the ordinary way when all its disks are there, and otherwise with one
+# missing, writable while the layout survives what is missing and read-only when it does not, which the
+# kernel decides. Never written into /etc/fstab: the next boot tries the ordinary way again.
+open_pool() {  # STATUS NAME
+    local pool uuid line mapping luks member=""
+    pool="$(pool_json "$1" "$2")"
+    uuid="$(jq -r .uuid <<<"${pool}")"
+    as_root true || return 1
+    # Each disk that is there unlocked as at boot, where it was not
+    while read -r mapping luks; do
+        [[ -n "${mapping}" && ! -e "/dev/mapper/${mapping}" && -e "/dev/disk/by-uuid/${luks}" ]] || continue
+        as_root systemctl start "$(crypt_unit "${mapping}")"
+    done < <(as_root cat "${CRYPTTAB}" 2>/dev/null | crypt_lines_of "$2")
+    as_root btrfs device scan >/dev/null 2>&1
+    if as_root timeout 60 systemctl start "$(mount_unit "$2")" 2>/dev/null; then
+        echo "All the disks of $2 are there: it is mounted at ${MNT}/$2."
+        return 0
+    fi
+    member="$(lsblk -J -o PATH,FSTYPE,UUID 2>/dev/null |
+        jq -r --arg uuid "${uuid}" '[.. | objects | select(.fstype == "btrfs" and .uuid == $uuid) | .path] | first // empty')"
+    [[ -n "${member}" ]] || { echo "None of the disks of $2 is there, or none could be unlocked." >&2; return 1; }
+    as_root install -d -m 0755 "${MNT}/$2"
+    if as_root mount -t btrfs -o degraded,compress=zstd:1 "${member}" "${MNT}/$2"; then
+        echo "$2 is open at ${MNT}/$2 with a disk missing. What is written now has one copy until the disk is"
+        echo "replaced: ame system raid replace $2."
+        return 0
+    fi
+    if as_root mount -t btrfs -o degraded,ro "${member}" "${MNT}/$2"; then
+        echo "$2 is open at ${MNT}/$2, read-only: more disks are missing than its layout survives, so the files"
+        echo "that were on them are gone until they are back. Copy off what you need."
+        return 2
+    fi
+    echo "$2 could not be opened even with a disk missing: journalctl -b -k -g btrfs says why." >&2
+    return 1
+}
+
+cmd_mount() {
+    local status name
+    status="$(status_json)" || die "The disks could not be read."
+    name="$(pick_pool "${status}" "${1:-}")" || exit 1
+    [[ "$(jq -r .mounted <<<"$(pool_json "${status}" "${name}")")" == false ]] ||
+        die "${name} is already mounted, at ${MNT}/${name}."
+    open_pool "${status}" "${name}"
+    [[ $? -ne 1 ]]
+}
+
+cmd_replace() {
+    need_terminal replace
+    local status name pool target devid old encrypted lines=() candidates choice need size old_line source args=()
+    local disk outgoing=""
+    status="$(status_json)" || die "The disks could not be read."
+    name="$(pick_pool "${status}" "${1:-}")" || exit 1
+    pool="$(pool_json "${status}" "${name}")"
+    if [[ "$(jq -r .mounted <<<"${pool}")" == false ]]; then
+        echo "${name} is not mounted, so it is opened with a disk missing first."
+        open_pool "${status}" "${name}"
+        case $? in
+            0) ;;
+            2) die "No disk of ${name} can be replaced: there is nothing left to copy back onto a new one. Copy off what you need from ${MNT}/${name}." ;;
+            *) exit 1 ;;
+        esac
+        status="$(status_json)"
+        pool="$(pool_json "${status}" "${name}")"
+    fi
+    jq -e '.busy == [] and .operation == null' <<<"${pool}" >/dev/null ||
+        die "${name} is busy with a long operation: ame system raid status says when it has finished."
+    target="$(jq -r .target <<<"${pool}")"
+    encrypted="$(jq -r .encrypted <<<"${pool}")"
+
+    # The disk to replace: a missing one, a failing one or one counting errors, or, asked first, any
+    if ! jq -e 'any(.devices[]; .missing or .smart == "failed" or .error_count > 0)' <<<"${pool}" >/dev/null; then
+        if [[ "$(jq -r .degraded <<<"${pool}")" == true ]]; then
+            echo "Every disk of ${name} is there, but part of it has one copy, written while a disk was missing."
+            gum confirm "Put the copies back now?" || exit 0
+            spread_back "${name}" "${target}" || die "That did not finish: journalctl -u amethystora-raid-balance-${name} says why."
+            # A replace whose window was closed before it got this far left the old disk's line behind
+            [[ "${encrypted}" == true ]] && retire_lines "${name}" "${target}"
+            echo "Every file of ${name} has its copies again."
+            exit 0
+        fi
+        echo "Every disk of ${name} is fine."
+        gum confirm --default=no "Replace one anyway?" || exit 0
+    fi
+    mapfile -t lines < <(jq -r '.devices | sort_by((.missing or .smart == "failed" or .error_count > 0) | not)[]
+        | "disk \(.devid)  " + (if (.disk.model // "") != "" then "\(.disk.model) \(.disk.serial // "")" else "" end)
+          + (if .missing then "  missing" elif .smart == "failed" then "  failing" elif .error_count > 0 then "  \(.error_count) errors" else "  fine" end)' <<<"${pool}")
+    choice="$(gum choose --header "Which disk of ${name} goes?" "${lines[@]}")" || exit 0
+    devid="$(awk '{ print $2; exit }' <<<"${choice}")"
+    as_root true || exit 1
+    old_line="$(as_root btrfs filesystem show --raw "${target}" | show_lines | awk -v devid="${devid}" '$1 == devid')"
+    size="$(awk '{ print $2 }' <<<"${old_line}")"
+    old="$(awk '{ print $3 }' <<<"${old_line}")"
+    [[ -n "${size}" ]] || die "btrfs does not know disk ${devid} of ${name}."
+    if [[ "${old}" == - ]] && jq -e '.survives == 0' <<<"${pool}" >/dev/null; then
+        die "${name} keeps no copies, so what was on disk ${devid} cannot be rebuilt: its files are gone until it is back. Copy off the rest from ${MNT}/${name}."
+    fi
+
+    # A replacement at least as large, as btrfs replace requires, with room for its partition table and LUKS
+    if [[ "${encrypted}" == true ]]; then need=$((size + LUKS_OVERHEAD)); else need=$((size + PLAIN_OVERHEAD)); fi
+    candidates="$(jq -c --argjson need "${need}" '.spare | map(select(.size >= $need))' <<<"${status}")"
+    [[ "$(jq length <<<"${candidates}")" -gt 0 ]] ||
+        die "No spare disk is large enough: the new one needs $(human "${need}") or more. Connect one, then run ame system raid replace ${name} again."
+    disk="$(pick_disk "${candidates}" "Which disk takes its place? Everything on it is erased.")" || exit 0
+    mapfile -t lines < <(disk_plan "${candidates}" "${disk}")
+    box "Disk ${devid} of ${name} ($(sed -E 's/^disk [0-9]+ +//' <<<"${choice}")) is replaced by:" "" "${lines[@]}" "" \
+        "Everything on ${disk} is erased."
+    ask_erase "${disk}"
+    still_spare "${disk}"
+
+    # A missing disk by its devid; one that is there but failing by its path, with -r, so that each block
+    # is read from a good copy where there is one. The LUKS partition under that one keeps its old
+    # recovery key: it is leaving.
+    if [[ "${old}" == - ]]; then
+        args=("${devid}")
+    else
+        args=(-r "/dev/${old}")
+        outgoing="$(find "${SYS}/class/block/${old}/slaves" -mindepth 1 -maxdepth 1 -printf '/dev/%f\n' 2>/dev/null | head -n 1)"
+    fi
+    source="$(prepare_disk "${disk}" "${name}" "${encrypted}" "${outgoing}")" || exit 1
+    long_run replace "${name}" "Replacing disk ${devid} of ${name}" "${target}" \
+        btrfs replace start -B -f "${args[@]}" "${source}" "${target}" ||
+        die "The replace did not finish: journalctl -u amethystora-raid-replace-${name} says why."
+    # A larger disk gives what it can; and what was written as single while a disk was missing, which a
+    # replace leaves as it is, gets its copies back
+    as_root btrfs filesystem resize "${devid}:max" "${target}" >/dev/null 2>&1
+    spread_back "${name}" "${target}" || echo "Putting back the copies did not finish: run ame system raid replace ${name} again."
+    [[ "${encrypted}" == true ]] && retire_lines "${name}" "${target}"
+    echo "Disk ${devid} of ${name} is replaced."
+}
+
+cmd_add() {
+    need_terminal add
+    local status name pool target encrypted disk lines=() source used devices metadata
+    status="$(status_json)" || die "The disks could not be read."
+    name="$(pick_pool "${status}" "${1:-}")" || exit 1
+    pool="$(pool_json "${status}" "${name}")"
+    [[ "$(jq -r .mounted <<<"${pool}")" == true ]] || die "${name} is not mounted. Open it first: ame system raid mount ${name}."
+    jq -e '.busy == [] and .operation == null' <<<"${pool}" >/dev/null ||
+        die "${name} is busy with a long operation: ame system raid status says when it has finished."
+    target="$(jq -r .target <<<"${pool}")"
+    encrypted="$(jq -r .encrypted <<<"${pool}")"
+    [[ "$(jq '.spare | length' <<<"${status}")" -gt 0 ]] || die "There is no spare disk to add."
+    disk="$(pick_disk "$(jq -c .spare <<<"${status}")" "Which disk joins ${name}? Everything on it is erased." "${2:-}")" || exit 0
+    mapfile -t lines < <(disk_plan "$(jq -c .spare <<<"${status}")" "${disk}")
+    box "This disk joins ${name}:" "" "${lines[@]}" "" "Everything on ${disk} is erased."
+    ask_erase "${disk}"
+    still_spare "${disk}"
+
+    source="$(prepare_disk "${disk}" "${name}" "${encrypted}")" || exit 1
+    as_root btrfs device add -f "${source}" "${target}" || die "btrfs could not add ${disk} to ${name}."
+    echo "${disk} is in ${name}: new files spread over every disk."
+
+    devices="$(jq '.devices | length + 1' <<<"${pool}")"
+    metadata="$(jq -r '.metadata // empty' <<<"${pool}")"
+    if [[ "${metadata}" == raid1 && "${devices}" -ge 3 ]]; then
+        echo
+        echo "With three disks, the metadata, which says where every file is, can have three copies."
+        if gum confirm "Keep three copies of it? It takes a minute or so."; then
+            long_run balance "${name}" "Keeping three copies of the metadata of ${name}" "${target}" \
+                btrfs balance start -mconvert=raid1c3,soft "${target}" || echo "That did not finish."
+        fi
+    fi
+    used="$(human "$(jq -r '.used // 0' <<<"${pool}")")"
+    echo
+    echo "The ${used} already in ${name} stays where it is unless it is spread over every disk now. On a"
+    echo "large pool that takes hours; without it, only what is written from now on uses the new disk."
+    if gum confirm --default=no "Spread it now?"; then
+        long_run balance "${name}" "Spreading ${name} over every disk" "${target}" \
+            btrfs balance start --full-balance "${target}" || die "That did not finish: journalctl -u amethystora-raid-balance-${name} says why."
+        echo "Done: ${name} is spread over every disk."
+    fi
+}
+
+cmd_forget() {
+    need_terminal forget
+    local status name pool uuid encrypted mapping
+    status="$(status_json)" || die "The disks could not be read."
+    name="$(pick_pool "${status}" "${1:-}")" || exit 1
+    pool="$(pool_json "${status}" "${name}")"
+    uuid="$(jq -r .uuid <<<"${pool}")"
+    encrypted="$(jq -r .encrypted <<<"${pool}")"
+    echo "This stops mounting ${name}. Its files stay on its disks, and nothing is erased: GNOME Disks' Format"
+    echo "erases a disk when you want it back."
+    if [[ "${encrypted}" == true ]]; then
+        echo "Its key file is deleted, so from then on the recovery key is the only way into its disks."
+    fi
+    gum confirm --default=no "Forget ${name}?" || exit 0
+    as_root true || exit 1
+    if [[ "$(jq -r .mounted <<<"${pool}")" == true ]]; then
+        as_root systemctl stop "$(mount_unit "${name}")" 2>/dev/null || as_root umount "${MNT}/${name}" 2>/dev/null
+        if findmnt -rn --mountpoint "${MNT}/${name}" >/dev/null; then
+            die "Something still uses ${MNT}/${name}: close the files and apps open there, then try again."
+        fi
+    fi
+    while read -r mapping _; do
+        [[ -n "${mapping}" ]] || continue
+        as_root systemctl stop "$(crypt_unit "${mapping}")" 2>/dev/null
+        [[ -e "/dev/mapper/${mapping}" ]] && as_root cryptsetup close "${mapping}"
+    done < <(as_root cat "${CRYPTTAB}" 2>/dev/null | crypt_lines_of "${name}")
+    as_root sed -i "\#^UUID=${uuid}[[:space:]]\+${MNT}/${name}[[:space:]].*x-amethystora-raid#d" "${FSTAB}"
+    as_root test -e "${CRYPTTAB}" && as_root sed -i "/^raid-${name}-[0-9]\+[[:space:]]/d" "${CRYPTTAB}"
+    as_root rm -f "${KEYS}/raid-${name}.key"
+    as_root systemctl daemon-reload
+    as_root rmdir "${MNT}/${name}" 2>/dev/null
+    echo "${name} is forgotten. Its disks show as spare: making a pool of them erases them."
+}
+
+cmd_mirror() {
+    need_terminal mirror
+    local status pool target count lines sizes=() room need
+    status="$(status_json)" || die "The disks could not be read."
+    pool="$(jq -c 'first(.pools[] | select(.system)) // empty' <<<"${status}")"
+    jq -e '.layout == "single"' <<<"${pool:-null}" >/dev/null 2>&1 ||
+        die "The system is not spread over several disks with one copy of each file, so there is nothing to protect this way."
+    jq -e '.busy == [] and .operation == null and .missing == 0' <<<"${pool}" >/dev/null ||
+        die "The system's disks are busy, or one is missing: ame system raid status says which."
+    target="$(jq -r .target <<<"${pool}")"
+    count="$(jq '.devices | length' <<<"${pool}")"
+    as_root true || exit 1
+    lines="$(as_root btrfs filesystem show --raw "${target}" | show_lines)"
+    mapfile -t sizes < <(awk '{ print $2 }' <<<"${lines}")
+    room="$(usable "${sizes[@]}" | awk '$1 == "raid1" { print $2 }')"
+    # Every file twice over, with a gigabyte to spare on each disk for btrfs's own use
+    need="$(jq --argjson count "${count}" --argjson gib "${GIB}" '(.data_used // 0) + (.metadata_used // 0) + $count * $gib' <<<"${pool}")"
+    ((room >= need)) ||
+        die "Two copies of everything need $(human "${need}") on these disks, which give $(human "${room}") that way. Free some space first (ame system clean)."
+    box "The system is spread over ${count} disks with one copy of each file: either one failing loses everything." "" \
+        "This keeps a copy of each file on each disk instead, erasing nothing. It takes a while, and runs on its own." "" \
+        "What it cannot do: the boot files, /boot and the EFI partition, stay on the first disk only. The machine still starts only from that disk, and may need help to start at all with a disk dead. But every file stays readable on the disk that is left, from the live USB stick."
+    gum confirm "Keep a copy on each disk?" || exit 0
+    long_run mirror system "Keeping a copy of the system on each of its disks" "${target}" \
+        btrfs balance start -dconvert=raid1 -mconvert=raid1,soft "${target}" ||
+        die "That did not finish: journalctl -u amethystora-raid-mirror-system says why. Running it again carries on."
+    echo "Done: every file of the system is on each of its disks."
+}
+
+cmd_scrub() {
+    local status
+    case "${1:-}" in
+        now)
+            status="$(status_json)" || die "The disks could not be read."
+            jq -e 'any(.pools[]; .mounted and .layout != null and .layout != "single")' <<<"${status}" >/dev/null ||
+                die "There is no pool with copies to check."
+            jq -e '.scrubbing | not' <<<"${status}" >/dev/null || die "Every copy is being checked already."
+            as_root systemd-run --unit=amethystora-raid-scrub-now --description="Check every copy on the pools of disks" \
+                --collect --quiet -p Nice=19 -p IOSchedulingClass=idle /usr/libexec/amethystora-raid scrub-all ||
+                die "The check could not be started."
+            echo "Checking every copy now, in the background. ame system raid status says when it has finished, and"
+            echo "what it found."
+            ;;
+        on)
+            as_root systemctl enable --now amethystora-raid-scrub.timer &&
+                echo "Every copy is checked once a month, on mains power, and a damaged one repaired from a good one."
+            ;;
+        off)
+            as_root systemctl disable --now amethystora-raid-scrub.timer &&
+                echo "The monthly check is off. A damaged copy is then found only when the file is read."
+            ;;
+        "")
+            if systemctl is-enabled --quiet amethystora-raid-scrub.timer 2>/dev/null; then
+                echo "The monthly check of every copy is on."
+                interactive && gum confirm --default=no "Turn it off?" && cmd_scrub off
+            else
+                echo "The monthly check of every copy is off."
+                interactive && gum confirm "Turn it on?" && cmd_scrub on
+            fi
+            ;;
+        *) die "usage: ame system raid scrub [now|on|off]" ;;
+    esac
+}
+
+cmd_menu() {
+    local status options=() actions=() choice i
+    cmd_status
+    interactive || return 0
+    status="$(status_json)"
+    while IFS=$'\t' read -r title action; do
+        options+=("${title}")
+        actions+=("${action}")
+    done < <(jq -r '(.spare | length) as $spare
+        | (.pools[] | select(.managed)
+            | (if (.missing // 0) > 0 or .degraded or any(.devices[]; .smart == "failed" or .error_count > 0)
+               then ["Replace a disk of \(.name)", "replace \(.name)"] else empty end),
+              (if .mounted | not then ["Open \(.name) with a disk missing", "mount \(.name)"] else empty end),
+              (if .mounted and $spare > 0 then ["Add a disk to \(.name)", "add \(.name)"] else empty end)),
+          (if $spare >= 2 then ["Make a pool from spare disks", "create"] else empty end),
+          (if .system_single then ["Keep a copy on each of the system disks", "mirror"] else empty end),
+          (if .raid then ["Check every copy now", "scrub now"],
+              (if .scrub_timer == "enabled" then ["Turn the monthly check off", "scrub off"]
+               else ["Turn the monthly check on", "scrub on"] end) else empty end),
+          (.pools[] | select(.managed) | ["Forget \(.name)", "forget \(.name)"])
+        | @tsv' <<<"${status}")
+    [[ ${#options[@]} -gt 0 ]] || return 0
+    echo
+    choice="$(gum choose --header "What now?" "${options[@]}" "Nothing")" || return 0
+    for i in "${!options[@]}"; do
+        if [[ "${options[i]}" == "${choice}" ]]; then
+            # shellcheck disable=SC2086 # an action is a subcommand and a pool's name, which has no spaces
+            exec "$0" ${actions[i]}
+        fi
+    done
+}
+
+# --- The services ----------------------------------------------------------------------------------
+
+smart_of() {  # DISK: passed, failed, or nothing when it cannot say or the disk is asleep
+    smartctl -H -j -n standby "$1" 2>/dev/null |
+        jq -r 'if .smart_status.passed == true then "passed" elif .smart_status.passed == false then "failed" else empty end' 2>/dev/null
+}
+
+write_state() {  # FILE (the JSON on stdin), readable by everyone
+    install -d -m 0755 "${STATE}"
+    cat >"$1.new" && chmod 0644 "$1.new" && mv -f "$1.new" "$1"
+}
+
+# What the check tells, each a fact with a key, and a count that telling again needs to see rise
+FACTS_JQ='
+def who: if .system then "the system" else "the pool \(.name)" end;
+def disk: if (.disk.model // "") != "" then .disk.model + (if (.disk.serial // "") != "" then " (\(.disk.serial))" else "" end)
+    elif .devid != null then "Disk \(.devid)" else "A disk" end;
+[ .pools[] | . as $p
+  | ((.devices[] | select(.missing) | {key: "\($p.uuid)/missing/\(.devid)", count: 1, rank: 1,
+        summary: "A disk of \($p | who) is missing",
+        body: ("\(disk) stopped answering. " + (if $p.missing <= $p.survives
+            then "Every file is still there, with one copy fewer until the disk is replaced."
+            else "The files that were on it cannot be read until it is back." end))}),
+     (if .mounted | not then {key: "\(.uuid)/unmounted", count: 1, rank: 2,
+        summary: "The pool \(.name) did not open",
+        body: "It is not mounted, perhaps because one of its disks is missing. Its files are still on its disks."} else empty end),
+     (.devices[] | select(.smart == "failed") | {key: "\($p.uuid)/failing/\(.disk.serial // .disk.path)", count: 1, rank: 3,
+        summary: "A disk of \($p | who) is failing",
+        body: ("\(disk) says it is failing. " + (if $p.survives > 0
+            then "Every file is still there: replace the disk before it stops."
+            else "The pool keeps no second copy: copy its files off before it stops." end))}),
+     (if (.scrub.uncorrectable // 0) > 0 then {key: "\(.uuid)/scrub/\(.scrub.time)", count: 1, rank: 4,
+        summary: "The check of \(who) found damage",
+        body: "\(.scrub.uncorrectable) errors could not be repaired from another copy. journalctl -k -g btrfs names the files."} else empty end),
+     (.devices[] | select(.error_count > 0) | {key: "\($p.uuid)/errors/\(.devid)", count: .error_count, rank: 5,
+        summary: "A disk of \($p | who) is counting errors",
+        body: ("\(disk) has counted \(.error_count) read or write error\(if .error_count == 1 then "" else "s" end). " + (if $p.survives > 0
+            then "btrfs reads a good copy from another disk, so every file is still there. Replace the disk if the count keeps rising."
+            else "The pool keeps no second copy, so files on that disk may be damaged." end))}),
+     (if .degraded then {key: "\(.uuid)/degraded", count: 1, rank: 6,
+        summary: "Part of \(who) has one copy",
+        body: "What was written while a disk was missing has a single copy until the copies are put back."} else empty end))
+]'
+
+cmd_check() {
+    [[ ${EUID} -eq 0 ]] || die "This is amethystora-raid-check.service's: ame system raid status says the same without root."
+    local status known smart disk facts current last news
+    present || exit 0
+    status="$(status_json)" || exit 1
+    # SMART, which only root can read, for the status to show everyone. A disk asleep keeps what it said
+    # last, and one that went missing who it was, for as long as its pool is there.
+    known="$(jq -c '.devices // []' "${STATE}/disks.json" 2>/dev/null)"
+    smart="$(jq -r '[.pools[] | select(.mounted) | .devices[] | select((.missing | not) and .disk != null) | .disk.path]
+            | unique[]' <<<"${status}" |
+        while read -r disk; do printf '%s %s\n' "${disk}" "$(smart_of "${disk}")"; done |
+        jq -cRn '[inputs | split(" ") | {key: .[0], value: (.[1] // "")}] | from_entries')"
+    jq -c --argjson smart "${smart}" --argjson known "${known:-[]}" '
+        [.pools[].uuid] as $fsids
+        | [.pools[] | select(.mounted) | .uuid as $fsid | .devices[] | select((.missing | not) and .disk != null)
+           | {fsid: $fsid, devid, kname, disk: .disk.path, model: .disk.model, serial: .disk.serial} as $d
+           | $d + {smart: (if ($smart[$d.disk] // "") != "" then $smart[$d.disk]
+                          else ([$known[] | select((.serial != "" and .serial == $d.serial) or .disk == $d.disk) | .smart] | first)
+                          end)}] as $now
+        | {time: (now | floor), devices: ($now + [$known[] | select(. as $k | ($fsids | index($k.fsid)) != null
+              and (any($now[]; .fsid == $k.fsid and .devid == $k.devid) | not))])}' <<<"${status}" |
+        write_state "${STATE}/disks.json"
+    status="$(status_json)" || exit 1
+
+    facts="$(jq -c "${FACTS_JQ}" <<<"${status}")"
+    current="$(jq -c 'map({(.key): .count}) | add // {}' <<<"${facts}")"
+    last="$(jq -c 'select(type == "object")' "${STATE}/last.json" 2>/dev/null)"
+    news="$(jq -c --argjson last "${last:-"{}"}" 'map(select(.count > ($last[.key] // 0))) | sort_by(.rank)' <<<"${facts}")"
+    if [[ "$(jq length <<<"${news}")" -eq 0 ]]; then
+        write_state "${STATE}/last.json" <<<"${current}"
+        exit 0
+    fi
+    # Nobody to tell: not written down as told, so the first run after somebody logs in tells them
+    compgen -G '/run/user/*/bus' >/dev/null || exit 0
+    write_state "${STATE}/last.json" <<<"${current}"
+    # The notification waits for its answer in a unit of its own, while the hourly check carries on. It
+    # says the worst news in full, and names the rest.
+    systemd-run --collect --quiet -p TimeoutStartSec=infinity --description="Tell about the pools of disks" \
+        /usr/libexec/amethystora-raid notify "$(jq -r '.[0].summary' <<<"${news}")" \
+        "$(jq -r '.[0].body + (if length > 1 then "\nAlso: " + ([.[1:][].summary | (.[0:1] | ascii_downcase) + .[1:]]
+            | reduce .[] as $s ([]; if index([$s]) then . else . + [$s] end) | join("; ")) + "." else "" end)' <<<"${news}")"
+}
+
+cmd_notify() {
+    [[ ${EUID} -eq 0 && $# -eq 2 ]] || die "usage: amethystora-raid notify SUMMARY BODY (as root)"
+    local answers user answer uid
+    answers="$(/usr/libexec/amethystora-notify-users --action open="Open Control" "$1" "$2" critical)" || exit 0
+    while read -r user answer; do
+        [[ "${answer}" == open ]] || continue
+        # Control on its System page, in that person's session, through the systemd user manager that has
+        # the session's display
+        uid="$(id -u "${user}")" || continue
+        runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus" \
+            "XDG_RUNTIME_DIR=/run/user/${uid}" systemd-run --user --collect --quiet /usr/bin/amethystora-control system || true
+    done <<<"${answers}"
+}
+
+# Reads every copy on each mounted pool that has copies, and repairs a bad one from a good one. Since
+# kernel 6.19 a suspend cancels a scrub: one that did not finish is resumed the next time.
+cmd_scrub_all() {
+    [[ ${EUID} -eq 0 ]] || die "This is amethystora-raid-scrub.service's: ame system raid scrub now starts it."
+    local status uuid target file out code finished damage=0
+    status="$(status_json)" || exit 1
+    while read -r uuid target; do
+        [[ -n "${target}" ]] || continue
+        file="${STATE}/scrub-${uuid}.json"
+        echo "Checking every copy of ${target}"
+        if jq -e '.finished == false' "${file}" >/dev/null 2>&1; then
+            out="$(btrfs scrub resume -B -R "${target}" 2>&1)"
+            code=$?
+            # 2: nothing to resume
+            if [[ ${code} -eq 2 ]]; then
+                out="$(btrfs scrub start -B -R "${target}" 2>&1)"
+                code=$?
+            fi
+        else
+            out="$(btrfs scrub start -B -R "${target}" 2>&1)"
+            code=$?
+        fi
+        printf '%s\n' "${out}"
+        # 0: done, 3: done with errors it could not repair
+        if [[ ${code} -eq 0 || ${code} -eq 3 ]]; then finished=true; else finished=false; fi
+        jq -n --argjson finished "${finished}" \
+            --argjson corrected "$(awk '$1 == "corrected_errors:" { n += $2 } END { print n + 0 }' <<<"${out}")" \
+            --argjson uncorrectable "$(awk '$1 == "uncorrectable_errors:" { n += $2 } END { print n + 0 }' <<<"${out}")" \
+            '{time: (now | floor), $finished, $corrected, $uncorrectable}' | write_state "${file}"
+        [[ ${code} -eq 3 ]] && damage=1
+    done < <(jq -r '.pools[] | select(.mounted and .target != null and .layout != null and .layout != "single") | "\(.uuid) \(.target)"' <<<"${status}")
+    # Damage is told now, not at the next hourly check
+    [[ ${damage} -eq 0 ]] || systemctl start --no-block amethystora-raid-check.service
+    exit 0
+}
+
+case "${1:-}" in
+    "") cmd_menu ;;
+    create | replace | add | mount | forget | mirror | scrub | status)
+        command="$1"
+        shift
+        "cmd_${command}" "$@"
+        ;;
+    root-luks) root_luks ;;
+    layouts) shift && layouts "$@" ;;
+    present) present ;;
+    check) cmd_check ;;
+    notify) shift && cmd_notify "$@" ;;
+    scrub-all) cmd_scrub_all ;;
+    -h | --help | help) usage ;;
+    *)
+        usage >&2
+        exit 64
+        ;;
+esac

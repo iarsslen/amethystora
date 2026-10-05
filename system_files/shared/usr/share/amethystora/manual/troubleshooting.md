@@ -1,0 +1,150 @@
+# Troubleshooting
+
+Most problems on an image-based system have the same three answers: find out what happened, roll
+back if an update caused it, and report it so the next image fixes it.
+
+## Let the agent look first
+
+**Diagnose a problem** in the Amethystora menu (`Super+Alt+Space`), or from a terminal:
+
+```bash
+amethystora-agent diagnose "the second monitor stays black after suspend"
+```
+
+It reads the logs and crash reports, changes nothing, and comes back with the cause and a fix to
+consider. [The AI agent](ai-agent.md#diagnose-a-problem) has more.
+
+## The logs
+
+Open **Logs** from the app grid, or run `amethystora-logs`. It opens on **Important**, the errors
+from everything on the machine since it started. The sidebar splits the rest into your session, the
+system, the kernel and hardware, security (sign-ins, `sudo`, what the audit rules caught) and
+**Crashes**, each with a count of what is new since the last boot where it matters.
+
+- **Search** looks through what the messages say, as you type. The `.*` button beside it takes the
+  search as a regular expression instead.
+- **Time** goes back to the previous boot, any boot the journal still keeps, the last hour, day or
+  week, or everything. **Level** hides what is less serious than you pick.
+- **Apps and services** lists everything that has written to the journal. Pick an app to read what it
+  said each time it ran, or a service of the system or of your session.
+- Click an entry to read all of it, with every field the journal keeps. **Only …** narrows the view to
+  where it came from, and **Around this** shows everything logged in the minute before and after it.
+- **Follow** adds new entries as they are written. **Export** saves what is shown to a text or JSON
+  file, and the terminal button opens the same view in `journalctl`. The command for the view is also
+  at the bottom of the sidebar.
+
+Administrators, the accounts in `wheel`, see everything. Any other account sees its own session and
+apps only, and the views of the system say so.
+
+The same in a terminal:
+
+| Command | Shows |
+| --- | --- |
+| `journalctl -b -p warning` | Warnings and errors since this boot |
+| `journalctl -b -1 -p warning` | The same for the previous boot, after a crash or a freeze |
+| `journalctl --user -b` | Your own session: the desktop, your apps |
+| `systemctl --failed` | Services that failed to start |
+| `coredumpctl list` | Programs that crashed |
+| `ame system logs-this-boot` | Everything from this boot |
+| `ame system local-overrides` | The files in `/etc` you, or something you ran, have changed |
+
+## An update broke something
+
+Pick the previous system at the boot menu to confirm it was the update. System Updates then offers to
+keep it, which `sudo bootc rollback` does too, until a fixed image is out. [Updates](updates.md#rolling-back).
+
+## Common problems
+
+### A package I layered is gone
+
+It was layered with `rpm-ostree install`, and the machine was then switched with `bootc switch`,
+which builds the new system from the image alone. Install it again, and switch images or streams with
+`rpm-ostree rebase` from now on ([Installing software](software.md#layering-the-last-resort)).
+
+### An app cannot see a folder, a device, or will not open at all
+
+Flatpak apps only reach what they are allowed to, and on Amethystora that excludes X11 and input
+devices. Open **Flatseal**, pick the app, and grant what it needs: a folder under **Filesystem**, or
+**X11 windowing system** for an app that does not speak Wayland.
+
+### An extension misbehaves, or the desktop looks wrong
+
+Turn the extension off in **Extension Manager**, then log out and back in. If the desktop still
+misbehaves, reset GNOME's settings to the image's defaults and reapply your theme:
+
+```bash
+dconf reset -f /org/gnome/
+amethystora-theme reload
+```
+
+That resets every GNOME setting of this account, including the dock, your custom hotkeys and your
+extension choices, so keep it for when nothing else helped.
+
+### `Super+Ctrl+Space` changes nothing
+
+It moves to the next wallpaper of the current theme. A theme of your own with a single picture has
+nothing to move to, and a notification says so: add more ([Themes](themes.md#wallpapers)). The theme
+picker is `Super+Ctrl+Shift+Space`.
+
+### The account is locked after wrong passwords
+
+Ten wrong passwords lock the account for ten minutes. Wait, or unlock it from another administrator
+account with `sudo faillock --user <name> --reset`.
+
+### A DisplayLink dock shows nothing
+
+With Secure Boot on, its driver loads only once Amethystora's key is enrolled:
+`ame security secure-boot`, then restart ([Hardware](hardware.md#secure-boot)).
+
+### Switching keyboard layouts
+
+`Super+Space` is search here, so the next keyboard layout is on `Super+Shift+Space`. Add layouts in
+**Settings → Keyboard**.
+
+### The disk is filling up
+
+```bash
+ame system clean
+```
+
+Removes unused containers, images and Flatpak runtimes. `flatpak uninstall --unused` and
+`podman system prune` do parts of the same by hand.
+
+### A disk of a pool failed
+
+The notification names the pool and the disk, and says whether every file is still there. **Open
+Control**, or run `ame system raid`, and replace the disk with a spare one at least as large; a pool
+that did not open at all can be opened with a disk missing first. [When a disk fails](hardware.md#when-a-disk-fails)
+explains each step. For the reason, `journalctl -k -g btrfs` shows what the kernel said about the
+disk, and `ame system raid status` what each disk is counting.
+
+### Starting over
+
+When a machine has collected more changes than are worth undoing one by one, it can start again as a
+new installation of the image it runs:
+
+```bash
+ame system powerwash
+```
+
+It asks twice, then makes a new installation beside the current one, which starts at the next
+restart: the image's own settings in `/etc`, an empty `/var`, and no accounts, home folders or settings
+of yours. Nothing is erased. The old system stays on the disk, taking up its space, and the boot menu
+can still start it, so nothing is lost if you change your mind; getting rid of it for good is a job
+for an administrator in a terminal. It is experimental, and not offered on a [sealed](updates.md#sealed-images)
+machine. To give a machine away, install it again from the ISO instead, which erases the disk.
+**Start over** on [Control](control.md)'s **System** page opens the same command.
+
+## Reporting a problem
+
+Report bugs on [GitHub](https://github.com/iarsslen/amethystora/issues), and ask questions in the
+[discussions](https://github.com/iarsslen/amethystora/discussions). `ame report` gathers what a
+report needs into a file in your home folder (the image, your groups, failed services and the errors
+logged since this boot), shows you all of it, and then, if you say so, opens a new issue with all but
+the errors filled in. Nothing is posted until you submit it; drag the file in if the errors help.
+Otherwise, include:
+
+- the output of `rpm-ostree status`, which names the exact image,
+- what you did, what you expected, and what happened instead,
+- the relevant lines from the logs above,
+- whether the previous image had the same problem.

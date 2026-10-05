@@ -1,0 +1,149 @@
+#!/usr/bin/bash
+# What happens to a file a virus scan found, as ON_DETECTION in /etc/amethystora/security.conf says, and
+# the quarantine it can go to. The weekly scan, real-time scanning and the Security app's own scans all
+# come through here, so there is one answer to "what does this machine do with malware".
+#
+#   amethystora-quarantine act PATH...           scan each file again, then report, quarantine or delete
+#   amethystora-quarantine list                  what is in quarantine: id, date, signature, path
+#   amethystora-quarantine restore ID [trust]    put a file back; with trust, ClamAV lets that exact file be
+#   amethystora-quarantine delete ID             delete a quarantined file for good
+#
+# `act` prints one line per file, tab-separated: what happened (reported, quarantined, deleted, clean or
+# failed), the signature and the path. Clean means the second scan found nothing, and nothing was done.
+#
+# Every file is scanned again before anything is done to it, so whoever calls this can only ever have a
+# file acted on that ClamAV itself calls malware, whatever path they pass. Root only.
+
+set -uo pipefail
+
+STORE=/var/lib/amethystora/quarantine
+# ClamAV's allow list for single files (SHA-256, size, name), read from its database directory
+ALLOWED=/var/lib/clamav/amethystora-restored.sfp
+
+[[ "${EUID}" -eq 0 ]] || { echo "${0##*/} needs root." >&2; exit 77; }
+
+usage() {
+    echo "usage: ${0##*/} act PATH... | list | restore ID [trust] | delete ID" >&2
+    exit 64
+}
+
+quarantine() {
+    local path="$1" signature="$2" item
+    mkdir -p -m 0700 "${STORE}"
+    item="$(mktemp -d "${STORE}/$(date +%Y%m%d-%H%M%S)-XXXX")" || return 1
+    jq -n --arg path "${path}" --arg signature "${signature}" \
+        --arg owner "$(stat -c '%u:%g' -- "${path}")" --arg mode "$(stat -c '%a' -- "${path}")" \
+        --arg sha256 "$(sha256sum -- "${path}" | cut -d' ' -f1)" --arg date "$(date -Is)" \
+        '{$path, $signature, $owner, $mode, $sha256, $date}' >"${item}/info.json" &&
+        mv -- "${path}" "${item}/file" || { rm -rf -- "${item}"; return 1; }
+    # Nothing opens or runs it from here by accident, root included, without first changing that
+    chown root:root "${item}/file"
+    chmod 0000 "${item}/file"
+}
+
+act() {
+    local mode path output line file outcome
+    local -a files=() errors=()
+    local -A found=()
+    mode="$(/usr/libexec/amethystora-security-config ON_DETECTION)"
+    for path in "$@"; do
+        # Regular files only, and never through a link: a link swapped in for a found file would
+        # otherwise move or delete whatever it points to
+        if [[ "${path}" != /* || -L "${path}" || ! -f "${path}" ]]; then
+            printf 'failed\t-\t%s\n' "${path}"
+        else
+            files+=("${path}")
+        fi
+    done
+    [[ ${#files[@]} -gt 0 ]] || return 0
+
+    # clamd reads each file through the descriptor passed to it, so it needs no access of its own.
+    # The paths are absolute, so none of them can be taken for an option.
+    output="$(clamdscan --fdpass --no-summary --infected "${files[@]}" 2>&1)"
+    # A signature has no spaces, so a FOUND line splits cleanly. An ERROR line's message can hold ": "
+    # itself (lstat() failed: ...), so those are matched against the paths asked about instead.
+    while IFS= read -r line; do
+        if [[ "${line}" =~ ^(/.*):\ ([^ ]+)\ FOUND$ ]]; then
+            found["${BASH_REMATCH[1]}"]="${BASH_REMATCH[2]}"
+        elif [[ "${line}" == *" ERROR" ]]; then
+            errors+=("${line}")
+        fi
+    done <<<"${output}"
+
+    for file in "${files[@]}"; do
+        if [[ -z "${found[${file}]+set}" ]]; then
+            outcome=clean
+            for line in "${errors[@]}"; do
+                [[ "${line}" == "${file}: "* ]] && outcome=failed
+            done
+            printf '%s\t-\t%s\n' "${outcome}" "${file}"
+            continue
+        fi
+        case "${mode}" in
+            quarantine) quarantine "${file}" "${found[${file}]}" && line=quarantined || line=failed ;;
+            delete) rm -f -- "${file}" && line=deleted || line=failed ;;
+            *) line=reported ;;
+        esac
+        printf '%s\t%s\t%s\n' "${line}" "${found[${file}]}" "${file}"
+    done
+}
+
+list() {
+    local info
+    for info in "${STORE}"/*/info.json; do
+        [[ -f "${info}" ]] || continue
+        jq -r --arg id "$(basename "$(dirname "${info}")")" '[$id, .date, .signature, .path] | @tsv' "${info}"
+    done
+}
+
+# The directory of a quarantined file, from an id `list` printed
+item() {
+    [[ "$1" =~ ^[0-9]{8}-[0-9]{6}-[A-Za-z0-9]{4}$ && -f "${STORE}/$1/info.json" ]] || {
+        echo "Nothing in quarantine is called ${1}. See what is with: ame security scan quarantine" >&2
+        return 1
+    }
+    echo "${STORE}/$1"
+}
+
+restore() {
+    local item path
+    item="$(item "$1")" || return 1
+    path="$(jq -r .path "${item}/info.json")"
+    if [[ -e "${path}" || -L "${path}" ]]; then
+        echo "Something is at ${path} again. Move it away first, so that it is not overwritten." >&2
+        return 1
+    fi
+    if [[ ! -d "$(dirname "${path}")" ]]; then
+        echo "The folder it was in, $(dirname "${path}"), is not there any more." >&2
+        return 1
+    fi
+    # Allowed before it is back, or real-time scanning would find it again on its way in
+    if [[ "${2:-}" == trust ]]; then
+        sigtool --sha256 "${item}/file" >>"${ALLOWED}" || return 1
+        chmod 0644 "${ALLOWED}"
+        restorecon "${ALLOWED}" 2>/dev/null || true
+        clamdscan --reload >/dev/null 2>&1 || true
+    fi
+    mv -- "${item}/file" "${path}" || return 1
+    chown "$(jq -r .owner "${item}/info.json")" "${path}"
+    chmod "$(jq -r .mode "${item}/info.json")" "${path}"
+    restorecon "${path}" 2>/dev/null || true
+    rm -rf -- "${item}"
+    echo "Put back: ${path}"
+}
+
+purge() {
+    local item path
+    item="$(item "$1")" || return 1
+    path="$(jq -r .path "${item}/info.json")"
+    rm -rf -- "${item}"
+    echo "Deleted for good: ${path}"
+}
+
+case "${1:-}" in
+    act) shift; act "$@" ;;
+    list) list ;;
+    restore) [[ $# -ge 2 ]] || usage; restore "$2" "${3:-}" ;;
+    delete) [[ $# -eq 2 ]] || usage; purge "$2" ;;
+    *) usage ;;
+esac

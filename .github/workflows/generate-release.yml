@@ -1,0 +1,68 @@
+on:
+  workflow_call:
+    inputs:
+      stream_name:
+        description: "Release Tag (e.g. stable)"
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      handwritten:
+        description: "Small Changelog about changes in this build"
+      stream_name:
+        description: "Release Tag (e.g. stable)"
+        required: true
+        type: choice
+        options:
+          - '["stable"]'
+
+permissions: {}
+
+name: Generate Release
+jobs:
+  generate-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ${{ fromJson( inputs.stream_name ) }}
+
+    steps:
+      - name: Checkout last 500 commits (for <commits> to work)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 500
+
+      - name: Install Just
+        run: |
+          /home/linuxbrew/.linuxbrew/bin/brew install just
+          echo "/home/linuxbrew/.linuxbrew/bin" >> $GITHUB_PATH
+
+      - name: Check Just Syntax
+        shell: bash
+        run: |
+          just check
+
+      - name: Install ORAS
+        uses: oras-project/setup-oras@005458ad77f1c8facd38a094e4af2e69e5607ff4 # v2.0.2
+
+      - name: Generate Release Text
+        id: generate-release-text
+        shell: bash
+        run: |
+          just changelogs "${{ matrix.version }}" "${{ inputs.handwritten }}"
+          source ./output.env
+          echo "title=${TITLE}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
+        if: contains(fromJson('["stable"]'), matrix.version) && (github.event.schedule == '0 1 * * TUE' || contains(fromJson('["workflow_dispatch", "workflow_call"]'), github.event_name))
+        with:
+          name: ${{ steps.generate-release-text.outputs.title }}
+          tag_name: ${{ steps.generate-release-text.outputs.tag }}
+          body_path: ./changelog.md
+          make_latest: ${{ matrix.version == 'stable' }}
+          prerelease: false

@@ -1,0 +1,13 @@
+// The deployments of a sealed machine (/usr/libexec/amethystora-deployments), for System Updates, the
+// security report, the update alert and the setup manifest. bootc keeps its state readable by root only,
+// where rpm-ostree, which the ostree images ask, tells anyone. So anyone may run that one program as
+// root, without a password: it takes no arguments, changes nothing, and says no more than anyone could
+// read from rpm-ostree before.
+polkit.addRule(function (action, subject) {
+    if (action.id == "org.freedesktop.policykit.exec" &&
+        action.lookup("program") == "/usr/libexec/amethystora-deployments" &&
+        action.lookup("command_line") == "/usr/libexec/amethystora-deployments") {
+        return polkit.Result.YES;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

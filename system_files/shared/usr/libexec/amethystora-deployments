@@ -1,0 +1,55 @@
+#!/usr/bin/bash
+# The deployments this machine can start, as `rpm-ostree status --json` lists them, on an ostree image
+# and on a sealed one alike, so that what reads them (System Updates, the security report, the update
+# alert, the setup manifest, `ame report`) has one shape to read.
+#
+# On an ostree image this is rpm-ostree itself. A sealed image (/usr/share/amethystora/sealed) has no
+# rpm-ostree, and bootc, which knows its deployments, tells root only: this runs itself through pkexec,
+# which 50-amethystora-deployments.rules lets anyone do without a password, and gives `bootc status`
+# in the same shape:
+#
+#   deployments                 in boot order: the one the next boot starts comes first
+#   booted, staged, version, timestamp (in seconds), container-image-reference
+#   packages, requested-local-packages   always empty: nothing can be layered on a sealed image
+#
+# The reference is ostree-image-signed:docker://IMAGE when /etc/containers/policy.json asks a signature
+# of IMAGE, as rpm-ostree writes a signature-checked origin, and ostree-unverified-registry:IMAGE when it
+# does not.
+
+set -euo pipefail
+
+if [[ ! -e /usr/share/amethystora/sealed ]]; then
+    exec rpm-ostree status --json
+fi
+if [[ $# -gt 0 ]]; then
+    echo "usage: ${0##*/}" >&2
+    exit 2
+fi
+if [[ "${EUID}" -ne 0 ]]; then
+    exec pkexec /usr/libexec/amethystora-deployments
+fi
+
+bootc status --format=json | jq -c --slurpfile policy /etc/containers/policy.json '
+    # Whether policy.json asks a signature of an image: the most specific scope naming its repository
+    # decides, and the default when none does (containers-policy.json(5))
+    def signed($image):
+        ($image | sub("@.*$"; "") | sub(":[^/]*$"; "")) as $repo
+        | ($policy[0].transports.docker // {}) as $scopes
+        | [$scopes | keys[] | . as $scope | select($scope == "" or $scope == $repo or ($repo | startswith($scope + "/")))] as $names
+        | (if ($names | length) == 0 then $policy[0].default else $scopes[$names | max_by(length)] end)
+        | any(.type == "sigstoreSigned" or .type == "signedBy");
+    def seconds: (.image.timestamp // "") | sub("\\.[0-9]+"; "") | (try fromdateiso8601 catch null);
+    def deployment($booted; $staged):
+        (.image.image.image // "") as $image
+        | {booted: $booted, staged: $staged, version: (.image.version // ""), timestamp: seconds,
+           "container-image-reference":
+               ((if signed($image) then "ostree-image-signed:docker://" else "ostree-unverified-registry:" end) + $image),
+           packages: [], "requested-local-packages": []};
+    .status as $s
+    | {deployments: (
+        [$s.staged | select(. != null) | deployment(false; true)]
+        + if $s.rollbackQueued then
+            [($s.rollback | select(. != null) | deployment(false; false)), ($s.booted | deployment(true; false))]
+          else
+            [($s.booted | deployment(true; false)), ($s.rollback | select(. != null) | deployment(false; false))]
+          end)}'

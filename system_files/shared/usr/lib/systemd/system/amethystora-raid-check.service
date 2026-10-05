@@ -1,0 +1,17 @@
+[Unit]
+Description=Check the pools of disks
+Documentation=file:///usr/share/amethystora/manual/hardware.md
+
+[Service]
+Type=oneshot
+# Skipped on a machine with no pool and no btrfs over several disks, which is most of them
+ExecCondition=/usr/libexec/amethystora-raid present
+# Reads SMART on every disk of a pool, writes it to /var/lib/amethystora/raid for the status, and tells
+# whoever is logged in what went wrong since the last run. The notification waits for its answer in a
+# unit of its own, so this one ends at once.
+ExecStart=/usr/libexec/amethystora-raid check
+Nice=19
+IOSchedulingClass=idle
+ProtectClock=yes
+RestrictRealtime=yes
+# The timer is what runs this, so the service itself is never enabled

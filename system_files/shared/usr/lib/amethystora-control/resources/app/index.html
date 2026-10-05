@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data: wallpaper:; font-src 'self' file:">
+    <title data-i18n>Amethystora Control</title>
+    <link rel="stylesheet" href="control.css">
+    <script src="i18n.js" defer></script>
+    <script src="control.js" defer></script>
+</head>
+<body>
+    <svg class="sprite" aria-hidden="true">
+        <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 0 0 0 17c1.4 0 2-.9 2-1.9 0-1.4-1.2-1.8-1.2-3 0-1.1.9-1.9 2-1.9h2.1c2.1 0 3.6-1.6 3.6-3.6C20.5 6.6 16.7 3.5 12 3.5z"/><circle cx="7.8" cy="11.5" r="1.1"/><circle cx="10.2" cy="7.6" r="1.1"/><circle cx="15" cy="7.8" r="1.1"/></symbol>
+        <symbol id="i-desktop" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12.5" rx="2"/><path d="M8.5 20.5h7M12 16.5v4"/></symbol>
+        <symbol id="i-apps" viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></symbol>
+        <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="M10 3.5l1.6 4.9 4.9 1.6-4.9 1.6L10 16.5l-1.6-4.9L3.5 10l4.9-1.6zM18 14l.8 2.2 2.2.8-2.2.8L18 20l-.8-2.2L15 17l2.2-.8z"/></symbol>
+        <symbol id="i-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></symbol>
+        <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3.5H7.5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V8z"/><path d="M14 3.5V8h4.5M9 13h6M9 16.5h4"/></symbol>
+        <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/></symbol>
+        <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v5h-5"/></symbol>
+        <symbol id="i-archive" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="4.5" rx="1"/><path d="M5 8.5v10a1.5 1.5 0 0 0 1.5 1.5h11a1.5 1.5 0 0 0 1.5-1.5v-10M10 12.5h4"/></symbol>
+        <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zM5 19.5A1.5 1.5 0 0 0 6.5 21H19"/></symbol>
+        <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L20 20"/></symbol>
+        <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+        <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M12.5 15H17"/></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+        <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+        <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16v.01"/></symbol>
+        <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.01"/></symbol>
+        <symbol id="i-spinner" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 1-9 9"/></symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.5 7h15M10 11v6M14 11v6M6.5 7l1 12.5a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5l1-12.5M9.5 7V4.5h5V7"/></symbol>
+        <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8" cy="15" r="4"/><path d="M11 12l8.5-8.5M16 7l2.5 2.5M14 9l2 2"/></symbol>
+        <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4.5h5.5V10M19.5 4.5L11 13M17.5 14v4a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h4"/></symbol>
+        <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+        <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.5 4.2a5 5 0 0 0-5.6 6.6L3.8 16a1.9 1.9 0 0 0 2.7 2.7l5.1-5.1a5 5 0 0 0 6.6-5.6l-3 3-2.7-.7-.7-2.7z"/></symbol>
+        <symbol id="i-disk" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M3.5 13.5h17M7 16.25h.01M10 16.25h.01"/></symbol>
+        <symbol id="i-gem" viewBox="0 0 24 24"><path d="M7 4h10l3.5 5L12 20.5 3.5 9zM3.5 9h17M9.5 4L8 9l4 11.5L16 9l-1.5-5"/></symbol>
+    </svg>
+
+    <aside class="sidebar">
+        <!-- The wordmark of the boot splash and the login screen, the glowing stone as its "a" -->
+        <div class="brand" role="img" aria-label="Amethystora Control" data-i18n-attr="aria-label">
+            <span class="wordmark" dir="ltr"><img class="a" src="gem.svg" alt="">methystora</span>
+            <span class="product" data-i18n>Control</span>
+        </div>
+        <nav class="nav" aria-label="Settings" data-i18n-attr="aria-label">
+            <button type="button" data-page="appearance">
+                <svg class="icon" width="20" height="20" aria-hidden="true"><use href="#i-palette"/></svg>
+                <span class="grow" data-i18n>Appearance</span>
+            </button>
+            <button type="button" data-page="desktop">
+                <svg class="icon" width="20" height="20" aria-hidden="true"><use href="#i-desktop"/></svg>
+                <span class="grow" data-i18n>Desktop</span>
+            </button>
+            <button type="button" data-page="apps">
+                <svg class="icon" width="20" height="20" aria-hidden="true"><use href="#i-apps"/></svg>
+                <span class="grow" data-i18n>Apps</span>
+            </button>
+            <button type="button" data-page="agent">
+                <svg class="icon" width="20" height="20" aria-hidden="true"><use href="#i-sparkle"/></svg>
+                <span class="grow" data-i18n>AI agent</span>
+            </button>
+            <button type="button" data-page="system">
+                <svg class="icon" width="20" height="20" aria-hidden="true"><use href="#i-chip"/></svg>
+                <span class="grow" data-i18n>System</span>
+            </button>
+            <button type="button" data-page="setup">
+                <svg class="icon" width="20" height="20" aria-hidden="true"><use href="#i-file"/></svg>
+                <span class="grow" data-i18n>Your setup</span>
+            </button>
+        </nav>
+        <nav class="nav elsewhere" aria-label="Elsewhere" data-i18n-attr="aria-label">
+            <p class="nav-label" data-i18n>Elsewhere</p>
+            <button type="button" id="open-security">
+                <svg class="icon" width="20" height="20" aria-hidden="true"><use href="#i-shield"/></svg>
+                <span class="grow" data-i18n>Security settings</span>
+                <svg class="icon faint" width="16" height="16" aria-hidden="true"><use href="#i-external"/></svg>
+            </button>
+            <button type="button" id="open-updates">
+                <svg class="icon" width="20" height="20" aria-hidden="true"><use href="#i-refresh"/></svg>
+                <span class="grow" data-i18n>Updates</span>
+                <span class="nav-state" id="updates-state"></span>
+                <svg class="icon faint" width="16" height="16" aria-hidden="true"><use href="#i-external"/></svg>
+            </button>
+            <button type="button" id="open-backups" hidden>
+                <svg class="icon" width="20" height="20" aria-hidden="true"><use href="#i-archive"/></svg>
+                <span class="grow" data-i18n>Backups</span>
+                <svg class="icon faint" width="16" height="16" aria-hidden="true"><use href="#i-external"/></svg>
+            </button>
+        </nav>
+        <div class="sidebar-foot">
+            <button type="button" class="link quiet" id="open-manual">
+                <svg class="icon" width="18" height="18" aria-hidden="true"><use href="#i-book"/></svg>
+                <span data-i18n>Control in the manual</span>
+            </button>
+            <p class="terminal"><span data-i18n>Also in a terminal:</span><br><code dir="ltr">ame control</code></p>
+        </div>
+    </aside>
+    <main id="main">
+        <header class="topbar">
+            <label class="search">
+                <svg class="icon" width="18" height="18" aria-hidden="true"><use href="#i-search"/></svg>
+                <input id="search" type="search" placeholder="Search the settings" aria-label="Search the settings" data-i18n-attr="placeholder aria-label">
+            </label>
+        </header>
+        <div id="view"></div>
+    </main>
+</body>
+</html>

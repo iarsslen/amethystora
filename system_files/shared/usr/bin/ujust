@@ -1,0 +1,6 @@
+#!/usr/bin/bash
+#
+# ujust is ame under its older name, kept for old habits and guides. The names the commands had before
+# they were grouped still work: they are aliases in /usr/share/amethystora/just/00-entry.just.
+
+exec /usr/bin/ame "$@"

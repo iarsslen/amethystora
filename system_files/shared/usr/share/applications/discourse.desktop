@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+NoDisplay=false
+Terminal=false
+Exec=xdg-open https://github.com/iarsslen/amethystora/discussions
+Icon=amethystora-community
+Name=Community
+Name[cs]=Komunita
+Name[fr]=Communauté
+Comment=Amethystora Discussions
+Comment[fr]=Discussions autour de Amethystora
+Comment[cs]=Diskuze o Amethystorau
+Categories=Utility;

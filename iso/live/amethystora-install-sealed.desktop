@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Install Amethystora, sealed (experimental)
+Comment=Install a sealed system onto a whole disk: every file checked against what was signed
+Exec=/usr/libexec/amethystora-in-terminal /usr/bin/amethystora-install-sealed
+Icon=drive-harddisk
+Terminal=false
+Categories=System;

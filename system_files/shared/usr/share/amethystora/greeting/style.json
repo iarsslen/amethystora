@@ -1,0 +1,40 @@
+{
+  "document": {
+    "margin": 2
+  },
+  "paragraph": {},
+  "list": {
+    "level_indent": 2
+  },
+  "heading": {
+    "block_suffix": "\n",
+    "color": "#b37df9",
+    "bold": true
+  },
+  "text": {},
+  "emph": {
+    "italic": true
+  },
+  "strong": {
+    "color": "#b37df9",
+    "bold": true
+  },
+  "item": {
+    "block_prefix": "• "
+  },
+  "link": {
+    "color": "#b37df9",
+    "underline": true
+  },
+  "link_text": {
+    "bold": true
+  },
+  "code": {
+    "prefix": " ",
+    "suffix": " ",
+    "color": "#b37df9",
+    "bold": true
+  },
+  "code_block": {},
+  "table": {}
+}

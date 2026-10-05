@@ -1,0 +1,2 @@
+# amepkg is amethystora-pkg under a shorter name: the same completion serves both
+. /usr/share/bash-completion/completions/amethystora-pkg

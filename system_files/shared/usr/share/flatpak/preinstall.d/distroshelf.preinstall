@@ -1,0 +1,5 @@
+# DistroShelf, the window onto the containers amethystora-pkg makes, and any others: what is in them,
+# their terminals, and package files installed into them.
+[Flatpak Preinstall com.ranfdev.DistroShelf]
+Branch=stable
+IsRuntime=false

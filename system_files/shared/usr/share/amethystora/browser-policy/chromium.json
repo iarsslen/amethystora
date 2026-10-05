@@ -1,0 +1,13 @@
+{
+    "ExtensionInstallBlocklist": ["*"],
+    "ExtensionInstallAllowlist": [
+        "nngceckbapebfimnlniiiahkandclblb",
+        "aeblfdkhhhdcdjpifhhbdiojplfjncoa",
+        "ghmbeldphafepmbegfdlkpapadhbakde",
+        "oboonakemofpalcgghocfoadofidjkkk"
+    ],
+    "DefaultWebUsbGuardSetting": 2,
+    "DefaultSerialGuardSetting": 2,
+    "DefaultWebHidGuardSetting": 2,
+    "DefaultWebBluetoothGuardSetting": 2
+}

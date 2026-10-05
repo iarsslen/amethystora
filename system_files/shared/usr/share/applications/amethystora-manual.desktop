@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=Amethystora Manual
+GenericName=Documentation
+Comment=How Amethystora works: the desktop, hotkeys, themes, software, updates and security
+Keywords=help;docs;documentation;manual;guide;hotkeys;shortcuts;keybindings;
+Exec=amethystora-manual
+Icon=amethystora-docs
+Terminal=false
+Categories=Utility;Documentation;
+StartupNotify=true
+StartupWMClass=amethystora-manual
+Actions=hotkeys;
+
+[Desktop Action hotkeys]
+Name=Hotkeys
+Exec=amethystora-manual keybindings

@@ -1,0 +1,80 @@
+# The sealed variant of a built image (`just seal`), published as :stable-sealed. A unified kernel image
+# (UKI) signed with Amethystora's Secure Boot key carries the composefs digest of every file of the
+# image in its kernel command line, and the initramfs mounts the system only if it matches, with
+# fs-verity, so a file changed on disk reads as an I/O error. The chain: firmware, shim, systemd-boot,
+# the signed UKI, the digest, every file. /etc and /var are not covered.
+#
+# Built FROM the image `just build` made, before it is rechunked. Nothing may change the tree after the
+# digest is computed, so the tree is rechunked here, by chunkah, before the UKI is built from it, and the
+# UKI is the only thing added afterwards, under /boot, which the digest does not cover.
+#
+# Adapted from Fedora's sealed test images (https://github.com/travier/fedora-atomic-desktops-sealed,
+# CC0-1.0) and the pattern in bootc's experimental-composefs documentation.
+#
+# Secrets: SECUREBOOT_KEY and SECUREBOOT_CERT, mounted for the steps that sign and never written into a
+# layer. Built with --skip-unused-stages=false, so that the lint and the tests run, and with a volume on
+# /run/src, an empty folder chunkah writes the rechunked tree into for `FROM oci:` to read back.
+
+ARG BASE_IMAGE=overridden
+
+FROM scratch AS ctx
+COPY /build_files /build_files
+COPY /system_files/sealed /system_files/sealed
+
+# The image as built, without what only an ostree deployment uses, with systemd-boot, and with an
+# initramfs that mounts the composefs digest the kernel command line names
+FROM ${BASE_IMAGE} AS rootfs-base
+RUN --mount=type=cache,dst=/var/cache/libdnf5 \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=secret,id=SECUREBOOT_CERT \
+    /ctx/build_files/sealed/00-sealed.sh
+
+FROM rootfs-base AS lint
+RUN bootc container lint
+
+# What builds and signs the UKI, kept out of the image: the image's own bootc, so that the digest is the
+# one the machine computes, with ukify and sbsign beside it
+FROM rootfs-base AS tools
+RUN --mount=type=cache,dst=/var/cache/libdnf5 \
+    dnf -y install systemd-ukify sbsigntools
+
+# systemd-boot, signed with the same key. bootctl, which bootc installs it with, takes the .signed file
+FROM tools AS signed-boot
+RUN --mount=type=secret,id=SECUREBOOT_KEY \
+    --mount=type=secret,id=SECUREBOOT_CERT \
+    sbsign --key /run/secrets/SECUREBOOT_KEY --cert /run/secrets/SECUREBOOT_CERT \
+        --output /systemd-bootx64.efi.signed /usr/lib/systemd/boot/efi/systemd-bootx64.efi
+
+# The tree the digest is computed over: the kernel and the initramfs go into the UKI instead
+FROM rootfs-base AS rootfs
+COPY --from=signed-boot /systemd-bootx64.efi.signed /usr/lib/systemd/boot/efi/systemd-bootx64.efi.signed
+RUN rm -f /usr/lib/modules/*/vmlinuz /usr/lib/modules/*/initramfs.img
+
+# Rechunked before the digest: the published layers must unpack to exactly the tree the UKI names
+FROM quay.io/coreos/chunkah:v0.7.0@sha256:8b56578258d1d10d3e1c7b0f71a4d05317c5fde331c4f483576a1b60e65f0cea AS chunkah
+RUN --mount=type=bind,from=rootfs,source=/,target=/chunkah,ro \
+    chunkah build --max-layers 128 --prune /ostree --prune /sysroot/ostree --output oci:/run/src/oci
+
+FROM oci:sealed_build/oci AS chunked
+ENV container=oci
+STOPSIGNAL SIGRTMIN+3
+CMD ["/sbin/init"]
+
+# The UKI: the composefs digest of the rechunked tree and the kernel arguments of its kargs.d, signed
+FROM tools AS uki
+RUN --mount=type=bind,from=chunked,source=/,target=/run/target,ro \
+    --mount=type=bind,from=rootfs-base,source=/usr/lib/modules,target=/run/kernel,ro \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=secret,id=SECUREBOOT_KEY \
+    --mount=type=secret,id=SECUREBOOT_CERT \
+    /ctx/build_files/sealed/10-uki.sh
+
+FROM tools AS tests
+RUN --mount=type=bind,from=chunked,source=/,target=/run/target,ro \
+    --mount=type=bind,from=uki,source=/out,target=/run/uki,ro \
+    --mount=type=bind,from=rootfs-base,source=/usr/lib/modules,target=/run/kernel,ro \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    /ctx/build_files/sealed/20-tests-sealed.sh
+
+FROM chunked AS final
+COPY --from=uki /out/ /boot/EFI/Linux/

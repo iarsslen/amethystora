@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; font-src 'self' file:">
+    <title data-i18n>Amethystora Manual</title>
+    <link rel="stylesheet" href="manual.css">
+    <script src="marked.umd.js" defer></script>
+    <script src="i18n.js" defer></script>
+    <script src="manual.js" defer></script>
+</head>
+<body>
+    <aside class="sidebar">
+        <!-- The wordmark of the boot splash and the login screen, the glowing stone as its "a" -->
+        <a class="brand" href="#" aria-label="Amethystora Manual" data-i18n-attr="aria-label">
+            <span class="wordmark" dir="ltr"><img class="a" src="gem.svg" alt="">methystora</span>
+            <span class="product" data-i18n>Manual</span>
+        </a>
+        <label class="search">
+            <input id="search" type="search" placeholder="Search the manual" data-i18n-attr="placeholder" autocomplete="off" spellcheck="false">
+            <span class="hint" dir="ltr"><kbd>Ctrl</kbd><kbd>K</kbd></span>
+        </label>
+        <nav id="toc" aria-label="Pages" data-i18n-attr="aria-label"></nav>
+        <ol id="results" aria-label="Search results" data-i18n-attr="aria-label" hidden></ol>
+    </aside>
+    <main id="main">
+        <article id="page" class="page"></article>
+        <nav id="pager" class="pager" aria-label="Previous and next page" data-i18n-attr="aria-label"></nav>
+    </main>
+</body>
+</html>

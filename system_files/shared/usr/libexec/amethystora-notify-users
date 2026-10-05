@@ -1,0 +1,65 @@
+#!/usr/bin/bash
+# Show a desktop notification to whoever is logged in at the machine, from a service running as root.
+#
+# Usage: amethystora-notify-users [--action KEY=LABEL]... SUMMARY BODY [URGENCY]
+#
+# Best effort by nature: nobody may be logged in when a scheduled scan finds something. What is said
+# here is therefore never the only record of it. The journal line below always happens, the finding
+# itself stays in the log file `ame security scan` reads, and amethystora-security-alert.service says it
+# again at the next graphical login.
+#
+# With actions, it offers them as buttons and waits for the notifications to be answered, then prints
+# one "<user> <key>" line for each, the key empty for one closed without an answer. It exits 1 when
+# nobody was logged in to ask.
+
+set -uo pipefail
+
+ACTIONS=()
+while [[ "${1:-}" == --action ]]; do
+    ACTIONS+=("--action=${2:?usage: $0 [--action KEY=LABEL]... SUMMARY BODY [URGENCY]}")
+    shift 2
+done
+
+SUMMARY="${1:?usage: $0 [--action KEY=LABEL]... SUMMARY BODY [URGENCY]}"
+BODY="${2:?usage: $0 [--action KEY=LABEL]... SUMMARY BODY [URGENCY]}"
+URGENCY="${3:-normal}"
+
+# The part that cannot be missed: this is what `systemctl status` of the failed unit shows. With
+# actions, stdout is for the answers.
+if [[ ${#ACTIONS[@]} -eq 0 ]]; then
+    printf '%s\n%s\n' "${SUMMARY}" "${BODY}"
+    command -v notify-send >/dev/null || exit 0
+else
+    printf '%s\n%s\n' "${SUMMARY}" "${BODY}" >&2
+    command -v notify-send >/dev/null || exit 1
+fi
+
+# A session bus socket is what someone logged in has and a system user does not, so the sockets are the
+# list of people who can be told. notify-send has to reach the user's own bus, not the system one.
+TOLD=0
+for bus in /run/user/*/bus; do
+    [[ -S "${bus}" ]] || continue
+    uid="${bus#/run/user/}"
+    uid="${uid%/bus}"
+    [[ "${uid}" =~ ^[0-9]+$ ]] || continue
+    # Not system accounts, nor nobody. A domain's are numbered from far above nobody's 65534.
+    [[ "${uid}" -ge 1000 && "${uid}" -ne 65534 ]] || continue
+    user="$(id -nu "${uid}" 2>/dev/null)" || continue
+    TOLD=$((TOLD + 1))
+    if [[ ${#ACTIONS[@]} -eq 0 ]]; then
+        runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=${bus}" \
+            notify-send --app-name=Amethystora --urgency="${URGENCY}" --icon=dialog-warning \
+            "${SUMMARY}" "${BODY}" || true
+        continue
+    fi
+    # Each in the background, all answered in whatever order the people at the machine get to them
+    {
+        answer="$(runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=${bus}" \
+            notify-send --app-name=Amethystora --urgency="${URGENCY}" --icon=dialog-information --wait \
+            "${ACTIONS[@]}" "${SUMMARY}" "${BODY}" 2>/dev/null)"
+        printf '%s %s\n' "${user}" "${answer}"
+    } &
+done
+[[ ${#ACTIONS[@]} -eq 0 ]] && exit 0
+wait
+[[ "${TOLD}" -gt 0 ]]

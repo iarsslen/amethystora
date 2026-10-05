@@ -1,0 +1,147 @@
+#!/usr/bin/bash
+#
+# Widgets for the top bar: small commands whose output the bar shows as a label, an icon and a menu.
+# Each one is a folder in ~/.config/amethystora/widgets, which the bar loads again as soon as anything
+# in it is saved. The format is in the agent skill amethystora-widgets, beside working examples.
+#
+#   amethystora-widgets [list [--json]]   the widgets, and which are on
+#   amethystora-widgets make ["<idea>"]   have the AI agent make one
+#   amethystora-widgets new <id> [<example>]   start one from an example: hello (the default),
+#                                         pomodoro or do-not-disturb
+#   amethystora-widgets run <id>          run it once the way the bar does, and check what it prints
+#   amethystora-widgets fix <id> ["<what is wrong>"]   have the AI agent find out why it fails, and fix it
+#   amethystora-widgets on|off <id>       show it in the bar, or not
+#   amethystora-widgets remove <id>       move it to the trash
+#   amethystora-widgets restart           stop and start every widget
+#
+# A widget runs as you, with access to everything you have: only keep ones you have read.
+
+set -euo pipefail
+
+# shellcheck source=../lib/amethystora/theme/lib.sh
+source /usr/lib/amethystora/theme/lib.sh
+
+UUID=amethystora-widgets@iarsslen.github.io
+CHECK="/usr/share/gnome-shell/extensions/${UUID}/check.js"
+EXAMPLES=/usr/share/amethystora/widgets/examples
+SKILL=/usr/share/amethystora/agents/skills/amethystora-widgets/SKILL.md
+WIDGETS_DIR="${CONFIG_DIR}/widgets"
+
+usage() {
+    sed -n '3,17p' "$0" | sed 's/^# \?//'
+}
+
+# The folder of a widget that exists
+widget_dir() {
+    [[ -n $1 ]] || die "name the widget: amethystora-widgets $2 <id>"
+    [[ -d "${WIDGETS_DIR}/$1" ]] || die "there is no widget $1 in ${WIDGETS_DIR}"
+    echo "${WIDGETS_DIR}/$1"
+}
+
+list() {
+    local dir name state enabled bar=true
+    local -a dirs
+    shopt -s nullglob
+    dirs=("${WIDGETS_DIR}"/*/)
+    # The same, for Amethystora Control: {bar, widgets: [{id, name, on, broken}]}, where bar says whether
+    # the extension that shows them is on
+    if [[ ${1:-} == --json ]]; then
+        if enabled="$(gnome-extensions list --enabled 2>/dev/null)" && ! grep -qxF "${UUID}" <<<"${enabled}"; then
+            bar=false
+        fi
+        for dir in "${dirs[@]}"; do
+            dir="${dir%/}"
+            name="$(jq -r '.name // empty' "${dir}/widget.json" 2>/dev/null || true)"
+            jq -nc --arg id "${dir##*/}" --arg name "${name}" --argjson on "$([[ -e "${dir}/disabled" ]] && echo false || echo true)" \
+                '{$id, name: (if $name == "" then null else $name end), $on, broken: ($name == "")}'
+        done | jq -sc --argjson bar "${bar}" '{$bar, widgets: .}'
+        return
+    fi
+    if ((${#dirs[@]} == 0)); then
+        echo "No widgets yet. Have the agent make one: amethystora-widgets make"
+        return
+    fi
+    for dir in "${dirs[@]}"; do
+        dir="${dir%/}"
+        name="$(jq -r '.name // empty' "${dir}/widget.json" 2>/dev/null || true)"
+        state=on
+        [[ ! -e "${dir}/disabled" ]] || state=off
+        printf '%-24s %-4s %s\n' "${dir##*/}" "${state}" "${name:-(widget.json is missing or broken)}"
+    done
+    if enabled="$(gnome-extensions list --enabled 2>/dev/null)" && ! grep -qxF "${UUID}" <<<"${enabled}"; then
+        echo "The bar is not showing widgets: its extension is off. Turn it on with: amethystora-widgets restart" >&2
+    fi
+}
+
+# Copied in beside the others under a hidden name, which the bar ignores, and only then given its own,
+# so that the bar never loads a widget half copied
+new_widget() {
+    local id="$1" example="${2:-hello}"
+    [[ ${id} =~ ^[a-z0-9][a-z0-9-]*$ ]] ||
+        die "a widget's id is lower case letters, digits and dashes: amethystora-widgets new <id> [<example>]"
+    [[ -d "${EXAMPLES}/${example}" ]] || die "there is no example ${example}: $(ls "${EXAMPLES}" | paste -sd' ')"
+    [[ ! -e "${WIDGETS_DIR}/${id}" ]] || die "${WIDGETS_DIR}/${id} exists already"
+    mkdir -p "${WIDGETS_DIR}"
+    rm -rf "${WIDGETS_DIR}/.${id}.new"
+    cp -r "${EXAMPLES}/${example}" "${WIDGETS_DIR}/.${id}.new"
+    mv "${WIDGETS_DIR}/.${id}.new" "${WIDGETS_DIR}/${id}"
+    echo "Made ${WIDGETS_DIR}/${id} from the ${example} example, and it is in the top bar now."
+    echo "Change its files there, and check it with: amethystora-widgets run ${id}"
+}
+
+# The method is in the skill, written once for whichever agent is chosen; this only says what to make
+make_widget() {
+    local idea="$*"
+    if [[ -z ${idea} ]]; then
+        idea="Ask me what it should show and do, then make it."
+    else
+        idea="It should do this: ${idea}"
+    fi
+    exec amethystora-agent ask "Make me a widget for the top bar. ${idea}
+
+Use the amethystora-widgets skill: it says what a widget is made of and how to check one. If you have no skill mechanism, read ${SKILL} and follow it."
+}
+
+fix_widget() {
+    local id="$1" what="${2:-}" dir report
+    dir="$(widget_dir "${id}" fix)"
+    report="$(gjs -m "${CHECK}" "${dir}" 2>&1)" || true
+    exec amethystora-agent ask "The top bar widget ${id} in ${dir} does not work as it should.${what:+ ${what}}
+
+What amethystora-widgets run ${id} says:
+${report}
+
+Find out why and fix it, with the amethystora-widgets skill. If you have no skill mechanism, read ${SKILL} and follow it."
+}
+
+case "${1:-list}" in
+    list) list "${2:-}" ;;
+    make) shift; make_widget "$@" ;;
+    new) new_widget "${2:-}" "${3:-}" ;;
+    run)
+        dir="$(widget_dir "${2:-}" run)"
+        exec gjs -m "${CHECK}" "${dir}"
+        ;;
+    fix) fix_widget "${2:-}" "${3:-}" ;;
+    on)
+        dir="$(widget_dir "${2:-}" on)"
+        rm -f "${dir}/disabled"
+        echo "${2} is on"
+        ;;
+    off)
+        dir="$(widget_dir "${2:-}" off)"
+        touch "${dir}/disabled"
+        echo "${2} is off"
+        ;;
+    remove)
+        dir="$(widget_dir "${2:-}" remove)"
+        gio trash "${dir}"
+        echo "${2} is in the trash"
+        ;;
+    restart)
+        gnome-extensions disable "${UUID}" 2>/dev/null || true
+        gnome-extensions enable "${UUID}"
+        ;;
+    -h | --help | help) usage ;;
+    *) die "unknown command: $1. Run amethystora-widgets --help" ;;
+esac

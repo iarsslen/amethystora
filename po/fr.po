@@ -1,0 +1,1833 @@
+# French translation of what Amethystora's own shell programs say, the security report and the app
+# permissions. Translated from po/amethystora.pot.
+msgid ""
+msgstr ""
+"Project-Id-Version: amethystora\n"
+"Report-Msgid-Bugs-To: https://github.com/iarsslen/amethystora/issues\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates and boot"
+msgstr "Mises à jour et démarrage"
+
+#: usr/libexec/amethystora-security-status
+msgid "Watching"
+msgstr "Surveillance"
+
+#: usr/libexec/amethystora-security-status
+msgid "Apps"
+msgstr "Applications"
+
+#: usr/libexec/amethystora-security-status
+msgid "Scans"
+msgstr "Analyses"
+
+#: usr/libexec/amethystora-security-status
+msgid "Off unless you turned it on"
+msgstr "Désactivé sauf si vous l’avez activé"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${title} is on (${COMMAND})"
+msgstr "${title} : en service (${COMMAND})"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${title}: ${COMMAND} (${reason})"
+msgstr "${title} : ${COMMAND} (${reason})"
+
+#. Translators: the state of a check in the terminal, in a column seven letters wide: keep it short
+#: usr/libexec/amethystora-security-status
+msgid "ok"
+msgstr "ok"
+
+#. Translators: the state of a check in the terminal, in a column seven letters wide: keep it short
+#: usr/libexec/amethystora-security-status
+msgid "check"
+msgstr "voir"
+
+#. Translators: the state of a check in the terminal, in a column seven letters wide: keep it short
+#: usr/libexec/amethystora-security-status
+msgid "off"
+msgstr "alerte"
+
+#: usr/libexec/amethystora-security-status
+msgid "today"
+msgstr "aujourd’hui"
+
+#: usr/libexec/amethystora-security-status
+msgid "yesterday"
+msgstr "hier"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${DAYS} day ago"
+msgid_plural "${DAYS} days ago"
+msgstr[0] "il y a ${DAYS} jour"
+msgstr[1] "il y a ${DAYS} jours"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "This machine is running ${IMAGE}"
+msgstr "Cette machine exécute ${IMAGE}"
+
+#: usr/libexec/amethystora-security-status
+msgid "Signed updates"
+msgstr "Mises à jour signées"
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates are refused unless they carry this image's signature"
+msgstr "Les mises à jour sont refusées si elles ne portent pas la signature de cette image"
+
+#: usr/libexec/amethystora-security-status
+msgid "Signature checking is staged, and turns on at the next restart"
+msgstr "La vérification des signatures est prête, et s’active au prochain redémarrage"
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates are not signature-checked"
+msgstr "La signature des mises à jour n’est pas vérifiée"
+
+#: usr/libexec/amethystora-security-status
+msgid "Anything that can answer for the registry could replace this machine's whole system."
+msgstr "Quiconque peut se faire passer pour le registre pourrait remplacer tout le système de cette machine."
+
+#: usr/libexec/amethystora-security-status
+msgid "Fix it with this, then restart:"
+msgstr "Corrigez avec ceci, puis redémarrez :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates"
+msgstr "Mises à jour"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "This machine follows a single build (${TAG}) and will not receive updates"
+msgstr "Cette machine suit une seule version (${TAG}) et ne recevra pas de mises à jour"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Follow the ${STREAM} stream again with:"
+msgstr "Suivez de nouveau le flux ${STREAM} avec :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Layered packages"
+msgstr "Paquets superposés"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${LAYERED} package is layered on this image with rpm-ostree"
+msgid_plural "${LAYERED} packages are layered on this image with rpm-ostree"
+msgstr[0] "${LAYERED} paquet est superposé à cette image avec rpm-ostree"
+msgstr[1] "${LAYERED} paquets sont superposés à cette image avec rpm-ostree"
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates keep them, but each one slows every update; the image is the better place"
+msgstr "Les mises à jour les conservent, mais chacun ralentit chaque mise à jour ; l’image est un meilleur endroit pour eux"
+
+#: usr/libexec/amethystora-security-status
+msgid "System image"
+msgstr "Image système"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "This system image was built ${WHEN}"
+msgstr "Cette image système a été construite ${WHEN}"
+
+#: usr/libexec/amethystora-security-status
+msgid "A newer system image is waiting for a restart"
+msgstr "Une image système plus récente attend un redémarrage"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The one running was built ${AGE} day ago. Restart to use the new one."
+msgid_plural "The one running was built ${AGE} days ago. Restart to use the new one."
+msgstr[0] "Celle en cours d’exécution a été construite il y a ${AGE} jour. Redémarrez pour utiliser la nouvelle."
+msgstr[1] "Celle en cours d’exécution a été construite il y a ${AGE} jours. Redémarrez pour utiliser la nouvelle."
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "This system image is ${AGE} day old"
+msgid_plural "This system image is ${AGE} days old"
+msgstr[0] "Cette image système a ${AGE} jour"
+msgstr[1] "Cette image système a ${AGE} jours"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Security fixes reach this machine as new images, and none has arrived since ${SINCE}."
+msgstr "Les correctifs de sécurité arrivent sur cette machine sous forme de nouvelles images, et aucune n’est arrivée depuis le ${SINCE}."
+
+#: usr/libexec/amethystora-security-status
+msgid "Update now with:"
+msgstr "Mettez à jour maintenant avec :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Automatic updates"
+msgstr "Mises à jour automatiques"
+
+#: usr/libexec/amethystora-security-status
+msgid "Automatic updates are off"
+msgstr "Les mises à jour automatiques sont désactivées"
+
+#: usr/libexec/amethystora-security-status
+msgid "Turn them back on with:"
+msgstr "Réactivez-les avec :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates install by themselves"
+msgstr "Les mises à jour s’installent toutes seules"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The last update that finished was ${DAYS} day ago"
+msgid_plural "The last update that finished was ${DAYS} days ago"
+msgstr[0] "La dernière mise à jour terminée remonte à ${DAYS} jour"
+msgstr[1] "La dernière mise à jour terminée remonte à ${DAYS} jours"
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates start, but do not get to the end. System Updates shows why, or run one here:"
+msgstr "Les mises à jour démarrent, mais ne vont pas jusqu’au bout. « Mises à jour du système » indique pourquoi, ou lancez-en une ici :"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Updates install by themselves. The last one finished ${WHEN}"
+msgstr "Les mises à jour s’installent toutes seules. La dernière s’est terminée ${WHEN}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${name}, never upgraded"
+msgstr "${name}, jamais mis à jour"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${name}, last upgraded ${WHEN}"
+msgstr "${name}, dernière mise à jour ${WHEN}"
+
+#: usr/libexec/amethystora-security-status
+msgid "Containers"
+msgstr "Conteneurs"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} container has not been upgraded for two weeks"
+msgid_plural "${N} containers have not been upgraded for two weeks"
+msgstr[0] "${N} conteneur n’a pas été mis à jour depuis deux semaines"
+msgstr[1] "${N} conteneurs n’ont pas été mis à jour depuis deux semaines"
+
+#: usr/libexec/amethystora-security-status
+msgid "What runs in a container goes without the fixes its distribution has published since. Upgrade them now with:"
+msgstr "Ce qui s’exécute dans un conteneur se passe des correctifs que sa distribution a publiés depuis. Mettez-les à jour maintenant avec :"
+
+#: usr/libexec/amethystora-security-status
+msgid "The container amethystora-pkg manages is upgraded every day"
+msgstr "Le conteneur que gère amethystora-pkg est mis à jour chaque jour"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The ${COUNT} container amethystora-pkg manages is upgraded every day"
+msgid_plural "The ${COUNT} containers amethystora-pkg manages are upgraded every day"
+msgstr[0] "Le ${COUNT} conteneur que gère amethystora-pkg est mis à jour chaque jour"
+msgstr[1] "Les ${COUNT} conteneurs que gère amethystora-pkg sont mis à jour chaque jour"
+
+#: usr/libexec/amethystora-security-status
+msgid "Verified system files"
+msgstr "Fichiers système vérifiés"
+
+#: usr/libexec/amethystora-security-status
+msgid "The running system is on composefs: /usr is verified as it is read, not only when pulled"
+msgstr "Le système en cours d’exécution utilise composefs : /usr est vérifié à la lecture, et pas seulement au téléchargement"
+
+#: usr/libexec/amethystora-security-status
+msgid "/usr is read-only and replaced whole by each update, but is not re-verified as it is read"
+msgstr "/usr est en lecture seule et remplacé en entier à chaque mise à jour, mais n’est pas revérifié à la lecture"
+
+#: usr/libexec/amethystora-security-status
+msgid "Secure Boot"
+msgstr "Secure Boot"
+
+#: usr/libexec/amethystora-security-status
+msgid "Secure Boot is on: this machine boots only a kernel it has checked"
+msgstr "Secure Boot est activé : cette machine ne démarre qu’un noyau qu’elle a vérifié"
+
+#: usr/libexec/amethystora-security-status
+msgid "Secure Boot is off"
+msgstr "Secure Boot est désactivé"
+
+#: usr/libexec/amethystora-security-status
+msgid "The kernel protections below rest on it. Without it, anything that reaches root can boot a different kernel and step around them."
+msgstr "Les protections du noyau ci-dessous reposent sur lui. Sans lui, tout ce qui obtient les droits root peut démarrer un autre noyau et les contourner."
+
+#: usr/libexec/amethystora-security-status
+msgid "Turn Secure Boot on in this machine's firmware, then run:"
+msgstr "Activez Secure Boot dans le micrologiciel de cette machine, puis exécutez :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Secure Boot state unknown (no EFI on this machine, or its firmware will not say)"
+msgstr "État de Secure Boot inconnu (pas d’EFI sur cette machine, ou son micrologiciel ne l’indique pas)"
+
+#: usr/libexec/amethystora-security-status
+msgid "Signing keys"
+msgstr "Clés de signature"
+
+#: usr/libexec/amethystora-security-status
+msgid "This image's signing keys are enrolled"
+msgstr "Les clés de signature de cette image sont enregistrées"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Not enrolled: ${CERT}"
+msgstr "Non enregistré : ${CERT}"
+
+#: usr/libexec/amethystora-security-status
+msgid "What it signs, such as evdi for DisplayLink docks, will not load."
+msgstr "Ce qu’il signe, comme evdi pour les stations d’accueil DisplayLink, ne se chargera pas."
+
+#: usr/libexec/amethystora-security-status
+msgid "Enroll it with:"
+msgstr "Pour l’enregistrer :"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Enrollment of ${CERT} is waiting for the next restart"
+msgstr "L’enregistrement de ${CERT} attend le prochain redémarrage"
+
+#: usr/libexec/amethystora-security-status
+msgid "Finish it in the blue MOK manager screen that appears during boot."
+msgstr "Terminez-le dans l’écran bleu du gestionnaire MOK qui apparaît au démarrage."
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${cert} is not on this machine"
+msgstr "${cert} n’est pas sur cette machine"
+
+#: usr/libexec/amethystora-security-status
+msgid "Whether its key is enrolled cannot be checked without it."
+msgstr "Sans lui, impossible de vérifier si sa clé est enregistrée."
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Could not tell whether ${CERT} is enrolled"
+msgstr "Impossible de savoir si ${CERT} est enregistré"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "mokutil said: ${rest}"
+msgstr "mokutil a répondu : ${rest}"
+
+#: usr/libexec/amethystora-security-status
+msgid "Kernel lockdown"
+msgstr "Verrouillage du noyau"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Kernel lockdown is on (${LOCKDOWN}): root cannot rewrite the running kernel"
+msgstr "Le verrouillage du noyau est activé (${LOCKDOWN}) : root ne peut pas réécrire le noyau en cours d’exécution"
+
+#: usr/libexec/amethystora-security-status
+msgid "Kernel lockdown is off, as it is on every NVIDIA image"
+msgstr "Le verrouillage du noyau est désactivé, comme sur toutes les images NVIDIA"
+
+#: usr/libexec/amethystora-security-status
+msgid "The NVIDIA driver is a module signed with this machine's own key, and lockdown would leave a machine without Secure Boot with no graphics driver at all."
+msgstr "Le pilote NVIDIA est un module signé avec la clé propre à cette machine, et le verrouillage laisserait une machine sans Secure Boot sans aucun pilote graphique."
+
+#: usr/libexec/amethystora-security-status
+msgid "Kernel lockdown is off"
+msgstr "Le verrouillage du noyau est désactivé"
+
+#: usr/libexec/amethystora-security-status
+msgid "Turn it back on with:"
+msgstr "Pour réactiver :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Firmware security"
+msgstr "Sécurité du micrologiciel"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "fwupd rates this machine's firmware protections ${LEVEL} of 5, and something running weakens them"
+msgstr "fwupd note les protections du micrologiciel de cette machine ${LEVEL} sur 5, et quelque chose en cours d’exécution les affaiblit"
+
+#: usr/libexec/amethystora-security-status
+msgid "Every protection fwupd looks at, with what each is:"
+msgstr "Chaque protection que fwupd examine, avec sa description :"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "fwupd rates this machine's firmware protections ${LEVEL} of 5"
+msgstr "fwupd note les protections du micrologiciel de cette machine ${LEVEL} sur 5"
+
+#: usr/libexec/amethystora-security-status
+msgid "That is mostly up to the machine's maker. Every protection fwupd looks at, with what each is:"
+msgstr "Cela dépend surtout du fabricant de la machine. Chaque protection que fwupd examine, avec sa description :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Audit log"
+msgstr "Journal d’audit"
+
+#: usr/libexec/amethystora-security-status
+msgid "The audit log is recording"
+msgstr "Le journal d’audit enregistre"
+
+#: usr/libexec/amethystora-security-status
+msgid "The audit log is not recording"
+msgstr "Le journal d’audit n’enregistre pas"
+
+#: usr/libexec/amethystora-security-status
+msgid "Start it with:"
+msgstr "Pour démarrer :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Audit rules"
+msgstr "Règles d’audit"
+
+#: usr/libexec/amethystora-security-status
+msgid "Audit rules are immutable until the next reboot"
+msgstr "Les règles d’audit sont immuables jusqu’au prochain redémarrage"
+
+#: usr/libexec/amethystora-security-status
+msgid "Failed logins"
+msgstr "Échecs de connexion"
+
+#: usr/libexec/amethystora-security-status
+msgid "Repeated failed logins get the address blocked (ame security addresses)"
+msgstr "Les échecs de connexion répétés font bloquer l’adresse (ame security addresses)"
+
+#: usr/libexec/amethystora-security-status
+msgid "fail2ban is not running"
+msgstr "fail2ban ne s’exécute pas"
+
+#: usr/libexec/amethystora-security-status
+msgid "Firewall"
+msgstr "Pare-feu"
+
+#: usr/libexec/amethystora-security-status
+msgid "Firewall is on the amethystora zone: nothing incoming that a desktop does not need"
+msgstr "Le pare-feu est sur la zone amethystora : rien n’entre dont un poste de travail n’a pas besoin"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Firewall default zone is ${ZONE}, not amethystora"
+msgstr "La zone par défaut du pare-feu est ${ZONE}, et non amethystora"
+
+#: usr/libexec/amethystora-security-status
+msgid "Put it back with:"
+msgstr "Rétablissez-la avec :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Suricata blocks connections to known malware, command servers and exploits"
+msgstr "Suricata bloque les connexions vers des logiciels malveillants connus, des serveurs de commande et des exploits"
+
+#: usr/libexec/amethystora-security-status
+msgid "Suricata inspects every connection and says what it recognises, without blocking"
+msgstr "Suricata inspecte chaque connexion et signale ce qu’il reconnaît, sans bloquer"
+
+#: usr/libexec/amethystora-security-status
+msgid "Network protection"
+msgstr "Protection du réseau"
+
+#: usr/libexec/amethystora-security-status
+msgid "Network protection is on, but not running"
+msgstr "La protection du réseau est activée, mais ne s’exécute pas"
+
+#: usr/libexec/amethystora-security-status
+msgid "Connections pass without being inspected until it runs again. Start it with:"
+msgstr "Les connexions passent sans être inspectées jusqu’à ce qu’elle reprenne. Démarrez-la avec :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Network protection is running, but no traffic reaches it"
+msgstr "La protection du réseau s’exécute, mais aucun trafic ne lui parvient"
+
+#: usr/libexec/amethystora-security-status
+msgid "Its nftables table (inet amethystora-ips) is gone, so connections pass without being inspected. Put it back with:"
+msgstr "Sa table nftables (inet amethystora-ips) a disparu : les connexions passent donc sans être inspectées. Rétablissez-la avec :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Network protection has no rules yet"
+msgstr "La protection du réseau n’a pas encore de règles"
+
+#: usr/libexec/amethystora-security-status
+msgid "Nothing is recognised until the rules have downloaded once. Download them now with:"
+msgstr "Rien n’est reconnu tant que les règles n’ont pas été téléchargées une première fois. Téléchargez-les maintenant avec :"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The network protection rules are ${DAYS} day old"
+msgid_plural "The network protection rules are ${DAYS} days old"
+msgstr[0] "Les règles de la protection du réseau ont ${DAYS} jour"
+msgstr[1] "Les règles de la protection du réseau ont ${DAYS} jours"
+
+#: usr/libexec/amethystora-security-status
+msgid "They download every day, and newer attacks are not recognised until they do. Check this machine's network, or try now with:"
+msgstr "Elles se téléchargent chaque jour, et les attaques plus récentes ne sont pas reconnues tant que ce n’est pas fait. Vérifiez le réseau de cette machine, ou essayez maintenant avec :"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "It blocked ${BLOCKED} connection in the last 7 days. See it with:"
+msgid_plural "It blocked ${BLOCKED} connections in the last 7 days. See them with:"
+msgstr[0] "Elle a bloqué ${BLOCKED} connexion au cours des 7 derniers jours. Pour la voir :"
+msgstr[1] "Elle a bloqué ${BLOCKED} connexions au cours des 7 derniers jours. Pour les voir :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Security watcher"
+msgstr "Veille de sécurité"
+
+#: usr/libexec/amethystora-security-status
+msgid "The security watcher noticed something"
+msgstr "La veille de sécurité a remarqué quelque chose"
+
+#: usr/libexec/amethystora-security-status
+msgid "A change to accounts, to what starts by itself or to a security setting, or a program reading the keyboard directly. See it with:"
+msgstr "Une modification des comptes, de ce qui démarre tout seul ou d’un paramètre de sécurité, ou un programme qui lit directement le clavier. Pour voir :"
+
+#: usr/libexec/amethystora-security-status
+msgid "The security watcher is off"
+msgstr "La veille de sécurité est désactivée"
+
+#: usr/libexec/amethystora-security-status
+msgid "The security watcher's last run failed"
+msgstr "La dernière exécution de la veille de sécurité a échoué"
+
+#: usr/libexec/amethystora-security-status
+msgid "See why with:"
+msgstr "Pour savoir pourquoi :"
+
+#: usr/libexec/amethystora-security-status
+msgid "The security watcher reads the audit log and checks the settings as they happen"
+msgstr "La veille de sécurité lit le journal d’audit et vérifie les paramètres au fil de l’eau"
+
+#: usr/libexec/amethystora-security-status
+msgid "The security watcher reads the audit log and checks the settings every 15 minutes"
+msgstr "La veille de sécurité lit le journal d’audit et vérifie les paramètres toutes les 15 minutes"
+
+#: usr/libexec/amethystora-security-status
+msgid "Real-time watching"
+msgstr "Surveillance en temps réel"
+
+#: usr/libexec/amethystora-security-status
+msgid "Real-time watching is on: changes are read as they happen, and files scanned as they are written"
+msgstr "La surveillance en temps réel est activée : les modifications sont lues au moment où elles se produisent, et les fichiers analysés au moment où ils sont écrits"
+
+#: usr/libexec/amethystora-security-status
+msgid "Real-time watching is on, but not running"
+msgstr "La surveillance en temps réel est activée, mais ne s’exécute pas"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Not running: ${UNITS}. Real-time scanning waits for the first virus signatures."
+msgstr "À l’arrêt : ${UNITS}. L’analyse en temps réel attend les premières signatures de virus."
+
+#: usr/libexec/amethystora-security-status
+msgid "Ransomware protection"
+msgstr "Protection contre les rançongiciels"
+
+#: usr/libexec/amethystora-security-status
+msgid "Ransomware protection is on, but no snapshot has been taken"
+msgstr "La protection contre les rançongiciels est activée, mais aucun instantané n’a été pris"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The latest snapshot of the home folders is ${HOURS} hour old"
+msgid_plural "The latest snapshot of the home folders is ${HOURS} hours old"
+msgstr[0] "Le dernier instantané des dossiers personnels a ${HOURS} heure"
+msgstr[1] "Le dernier instantané des dossiers personnels a ${HOURS} heures"
+
+#: usr/libexec/amethystora-security-status
+msgid "They are taken every hour. See why the last ones were not with:"
+msgstr "Ils sont pris toutes les heures. Pour savoir pourquoi les derniers ne l’ont pas été :"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The home folders are snapshotted every hour. The latest is from ${AT}"
+msgstr "Un instantané des dossiers personnels est pris toutes les heures. Le dernier date de ${AT}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The kernel setting ${key} is ${live}, not ${value}"
+msgstr "Le paramètre du noyau ${key} vaut ${live}, et non ${value}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The kernel argument ${karg} is missing"
+msgstr "L’argument du noyau ${karg} est absent"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The kernel module ${module} is no longer blocked"
+msgstr "Le module du noyau ${module} n’est plus bloqué"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${path} is changed on this machine"
+msgstr "${path} est modifié sur cette machine"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${path}, which the image ships, is gone"
+msgstr "${path}, que l’image fournit, a disparu"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${path} replaces the image's ${detail}"
+msgstr "${path} remplace ${detail}, fourni par l’image"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${path} changes how ${detail} runs"
+msgstr "${path} modifie la façon dont ${detail} s’exécute"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${path} stops ${detail} from ever starting"
+msgstr "${path} empêche ${detail} de jamais démarrer"
+
+#: usr/libexec/amethystora-security-status
+msgid "Image settings"
+msgstr "Paramètres de l’image"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} security setting differs from the image"
+msgid_plural "${N} security settings differ from the image"
+msgstr[0] "${N} paramètre de sécurité diffère de l’image"
+msgstr[1] "${N} paramètres de sécurité diffèrent de l’image"
+
+#: usr/libexec/amethystora-security-status
+msgid "If you did not change these, find out what did. The image's own copy of anything in /etc is in /usr/etc, to compare or copy back."
+msgstr "Si ce n’est pas vous qui les avez modifiés, cherchez ce qui l’a fait. La copie propre à l’image de tout ce qui se trouve dans /etc est dans /usr/etc, pour comparer ou recopier."
+
+#: usr/libexec/amethystora-security-status
+msgid "The image's security settings are as it ships them"
+msgstr "Les paramètres de sécurité de l’image sont tels qu’elle les fournit"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Added on this machine: ${PATHS}"
+msgstr "Ajoutés sur cette machine : ${PATHS}"
+
+#: usr/libexec/amethystora-security-status
+msgid "/etc/ld.so.preload exists: it loads a library into every program that starts"
+msgstr "/etc/ld.so.preload existe : il charge une bibliothèque dans chaque programme qui démarre"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "A setuid program outside the image: ${file}"
+msgstr "Un programme setuid hors de l’image : ${file}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "A plain file in /dev, where only devices belong: ${file}"
+msgstr "Un fichier ordinaire dans /dev, où seuls les périphériques ont leur place : ${file}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The kernel module ${name} did not come with this image"
+msgstr "Le module du noyau ${name} n’est pas fourni avec cette image"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The kernel module ${name} is not signed"
+msgstr "Le module du noyau ${name} n’est pas signé"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The network interface ${name} reads every packet on its network (promiscuous mode)"
+msgstr "L’interface réseau ${name} lit chaque paquet de son réseau (mode promiscuité)"
+
+#: usr/libexec/amethystora-security-status
+msgid "Rootkit checks"
+msgstr "Recherche de rootkits"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} thing where nothing should be"
+msgid_plural "${N} things where nothing should be"
+msgstr[0] "${N} élément là où rien ne devrait se trouver"
+msgstr[1] "${N} éléments là où rien ne devrait se trouver"
+
+#: usr/libexec/amethystora-security-status
+msgid "Each is either something you set up yourself, or something to look into now."
+msgstr "Chacun est soit quelque chose que vous avez mis en place vous-même, soit quelque chose à examiner dès maintenant."
+
+#: usr/libexec/amethystora-security-status
+msgid "Nothing where it should not be: no preloaded library, no setuid programs outside the image, no unknown kernel modules"
+msgstr "Rien là où il ne faut pas : aucune bibliothèque préchargée, aucun programme setuid hors de l’image, aucun module du noyau inconnu"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${program}, on port ${port}"
+msgstr "${program}, sur le port ${port}"
+
+#: usr/libexec/amethystora-security-status
+msgid "Open to the network"
+msgstr "Ouvert sur le réseau"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} program accepts connections from other machines"
+msgid_plural "${N} programs accept connections from other machines"
+msgstr[0] "${N} programme accepte des connexions d’autres machines"
+msgstr[1] "${N} programmes acceptent des connexions d’autres machines"
+
+#: usr/libexec/amethystora-security-status
+msgid "The firewall lets in only what a desktop needs from the local network, but every device on your tailnet can reach these."
+msgstr "Le pare-feu ne laisse entrer que ce dont un poste de travail a besoin depuis le réseau local, mais tous les appareils de votre tailnet peuvent les joindre."
+
+#: usr/libexec/amethystora-security-status
+msgid "No program accepts connections from other machines"
+msgstr "Aucun programme n’accepte de connexions d’autres machines"
+
+#: usr/libexec/amethystora-security-status
+msgid "App permissions"
+msgstr "Permissions des applications"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} app can leave its sandbox"
+msgid_plural "${N} apps can leave their sandbox"
+msgstr[0] "${N} application peut sortir de son bac à sable"
+msgstr[1] "${N} applications peuvent sortir de leur bac à sable"
+
+#: usr/libexec/amethystora-security-status
+msgid "Whatever runs in it can then do anything you can. If you did not mean it to, take it back in Flatseal, or see every app's permissions with:"
+msgstr "Tout ce qui s’y exécute peut alors faire tout ce que vous pouvez faire. Si ce n’était pas voulu, retirez-le dans Flatseal, ou consultez les permissions de chaque application avec :"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} app was given back what the image takes from every app"
+msgid_plural "${N} apps were given back what the image takes from every app"
+msgstr[0] "${N} application a récupéré ce que l’image retire à toutes les applications"
+msgstr[1] "${N} applications ont récupéré ce que l’image retire à toutes les applications"
+
+#: usr/libexec/amethystora-security-status
+msgid "See every app's permissions with:"
+msgstr "Consultez les permissions de chaque application avec :"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "No app can leave its sandbox or read what you type into another (${COUNT} app checked)"
+msgid_plural "No app can leave its sandbox or read what you type into another (${COUNT} apps checked)"
+msgstr[0] "Aucune application ne peut sortir de son bac à sable ni lire ce que vous tapez dans une autre (${COUNT} application vérifiée)"
+msgstr[1] "Aucune application ne peut sortir de son bac à sable ni lire ce que vous tapez dans une autre (${COUNT} applications vérifiées)"
+
+#: usr/libexec/amethystora-security-status
+msgid "Files it finds are moved to quarantine. See what it found with:"
+msgstr "Les fichiers qu’elle trouve sont mis en quarantaine. Pour voir ce qu’elle a trouvé :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Files it finds are deleted. See what it found with:"
+msgstr "Les fichiers qu’elle trouve sont supprimés. Pour voir ce qu’elle a trouvé :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Files it finds are left where they are. See what it found with:"
+msgstr "Les fichiers qu’elle trouve sont laissés où ils sont. Pour voir ce qu’elle a trouvé :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Weekly virus scan"
+msgstr "Analyse antivirus hebdomadaire"
+
+#: usr/libexec/amethystora-security-status
+msgid "The last virus scan found something"
+msgstr "La dernière analyse antivirus a trouvé quelque chose"
+
+#: usr/libexec/amethystora-security-status
+msgid "not yet"
+msgstr "pas encore"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Weekly virus scan, Sundays. Last run: ${LAST}"
+msgstr "Analyse antivirus hebdomadaire, le dimanche. Dernière exécution : ${LAST}"
+
+#: usr/libexec/amethystora-security-status
+msgid "The weekly virus scan is off"
+msgstr "L’analyse antivirus hebdomadaire est désactivée"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The weekly virus scan last ran ${DAYS} day ago"
+msgid_plural "The weekly virus scan last ran ${DAYS} days ago"
+msgstr[0] "La dernière analyse antivirus hebdomadaire remonte à ${DAYS} jour"
+msgstr[1] "La dernière analyse antivirus hebdomadaire remonte à ${DAYS} jours"
+
+#: usr/libexec/amethystora-security-status
+msgid "It runs on Sundays, or at the next start after a Sunday the machine was off. Run it now with:"
+msgstr "Elle s’exécute le dimanche, ou au démarrage qui suit un dimanche où la machine était éteinte. Lancez-la maintenant avec :"
+
+#: usr/libexec/amethystora-security-status
+msgid "Virus signatures"
+msgstr "Signatures de virus"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Virus signatures updated ${WHEN}"
+msgstr "Signatures de virus mises à jour ${WHEN}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Virus signatures are ${AGE} day old"
+msgid_plural "Virus signatures are ${AGE} days old"
+msgstr[0] "Les signatures de virus ont ${AGE} jour"
+msgstr[1] "Les signatures de virus ont ${AGE} jours"
+
+#: usr/libexec/amethystora-security-status
+msgid "A clean scan proves little with signatures this old. Check this machine's network."
+msgstr "Avec des signatures aussi anciennes, une analyse sans détection ne prouve pas grand-chose. Vérifiez le réseau de cette machine."
+
+#: usr/libexec/amethystora-security-status
+msgid "No virus signatures yet"
+msgstr "Pas encore de signatures de virus"
+
+#: usr/libexec/amethystora-security-status
+msgid "clamav-freshclam.service has not finished its first download."
+msgstr "clamav-freshclam.service n’a pas terminé son premier téléchargement."
+
+#: usr/libexec/amethystora-security-status
+msgid "Settings audit"
+msgstr "Audit des paramètres"
+
+#: usr/libexec/amethystora-security-status
+msgid "The monthly settings audit is off"
+msgstr "L’audit mensuel des paramètres est désactivé"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The settings audit last ran ${DAYS} day ago"
+msgid_plural "The settings audit last ran ${DAYS} days ago"
+msgstr[0] "Le dernier audit des paramètres remonte à ${DAYS} jour"
+msgstr[1] "Le dernier audit des paramètres remonte à ${DAYS} jours"
+
+#: usr/libexec/amethystora-security-status
+msgid "Run it now with:"
+msgstr "Lancez-le maintenant avec :"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Monthly settings audit. Last run: ${LAST}"
+msgstr "Audit mensuel des paramètres. Dernière exécution : ${LAST}"
+
+#: usr/libexec/amethystora-security-status
+msgid "Security key"
+msgstr "Clé de sécurité"
+
+#: usr/libexec/amethystora-security-status
+msgid "Sign in, unlock the screen and approve sudo with a FIDO2 key instead of your password"
+msgstr "Se connecter, déverrouiller l’écran et approuver sudo avec une clé FIDO2 au lieu de votre mot de passe"
+
+#: usr/libexec/amethystora-security-status
+msgid "Sign in, unlock the screen and approve sudo with a finger instead of your password"
+msgstr "Se connecter, déverrouiller l’écran et approuver sudo avec le doigt au lieu de votre mot de passe"
+
+#: usr/libexec/amethystora-security-status
+msgid "Fingerprint"
+msgstr "Empreinte digitale"
+
+#: usr/libexec/amethystora-security-status
+msgid "This machine has no fingerprint reader"
+msgstr "Cette machine n’a pas de lecteur d’empreintes digitales"
+
+#: usr/libexec/amethystora-security-status
+msgid "Backups"
+msgstr "Sauvegardes"
+
+#: usr/libexec/amethystora-security-status
+msgid "A daily restic backup to a repository that ransomware on this machine cannot delete from"
+msgstr "Une sauvegarde restic quotidienne vers un dépôt dont un rançongiciel présent sur cette machine ne peut rien supprimer"
+
+#: usr/libexec/amethystora-security-status
+msgid "Hourly read-only snapshots of the home folders, which ransomware running as you cannot change or delete"
+msgstr "Des instantanés en lecture seule des dossiers personnels, toutes les heures, qu’un rançongiciel s’exécutant en votre nom ne peut ni modifier ni supprimer"
+
+#: usr/libexec/amethystora-security-status
+msgid "Needs the home folders on a btrfs subvolume"
+msgstr "Nécessite les dossiers personnels sur un sous-volume btrfs"
+
+#: usr/libexec/amethystora-security-status
+msgid "Unlock the disk with the TPM"
+msgstr "Déverrouiller le disque avec le TPM"
+
+#: usr/libexec/amethystora-security-status
+msgid "The TPM hands over the disk key at boot, so you stop typing the passphrase"
+msgstr "Le TPM fournit la clé du disque au démarrage : vous n’avez plus à saisir la phrase de passe"
+
+#: usr/libexec/amethystora-security-status
+msgid "The system's disk is not encrypted"
+msgstr "Le disque du système n’est pas chiffré"
+
+#: usr/libexec/amethystora-security-status
+msgid "This machine has no usable TPM"
+msgstr "Cette machine n’a pas de TPM utilisable"
+
+#: usr/libexec/amethystora-security-status
+msgid "Needs Secure Boot on"
+msgstr "Nécessite Secure Boot activé"
+
+#: usr/libexec/amethystora-security-status
+msgid "USB protection"
+msgstr "Protection USB"
+
+#: usr/libexec/amethystora-security-status
+msgid "Allows what is plugged in now, and blocks any new USB device until you allow it"
+msgstr "Autorise ce qui est branché maintenant, et bloque tout nouveau périphérique USB jusqu’à ce que vous l’autorisiez"
+
+#: usr/libexec/amethystora-security-status
+msgid "Browser protection"
+msgstr "Protection des navigateurs"
+
+#: usr/libexec/amethystora-security-status
+msgid "Browsers install only the extensions on a list, and web pages cannot reach USB, serial, HID or Bluetooth devices"
+msgstr "Les navigateurs n’installent que les extensions d’une liste, et les pages web ne peuvent pas accéder aux périphériques USB, série, HID ou Bluetooth"
+
+#: usr/libexec/amethystora-security-status
+msgid "Key remapping"
+msgstr "Réaffectation des touches"
+
+#: usr/libexec/amethystora-security-status
+msgid "Input Remapper reads every key typed, so it stays off until you need it"
+msgstr "Input Remapper lit chaque touche tapée : il reste donc désactivé jusqu’à ce que vous en ayez besoin"
+
+#: usr/libexec/amethystora-security-status
+msgid "Files a virus scan finds are moved to quarantine, where nothing can open them"
+msgstr "Les fichiers trouvés par une analyse antivirus sont mis en quarantaine, où rien ne peut les ouvrir"
+
+#: usr/libexec/amethystora-security-status
+msgid "Files a virus scan finds are deleted"
+msgstr "Les fichiers trouvés par une analyse antivirus sont supprimés"
+
+#: usr/libexec/amethystora-security-status
+msgid "Move what a virus scan finds to quarantine, or delete it, instead of only saying so"
+msgstr "Mettre en quarantaine ou supprimer ce que trouve une analyse antivirus, au lieu de seulement le signaler"
+
+#: usr/libexec/amethystora-security-status
+msgid "Act on what scans find"
+msgstr "Agir sur ce que trouvent les analyses"
+
+#: usr/libexec/amethystora-security-status
+msgid "Read each change as it happens and scan every file as it is written, instead of every 15 minutes and every week"
+msgstr "Lire chaque modification au moment où elle se produit et analyser chaque fichier au moment où il est écrit, au lieu de toutes les 15 minutes et de chaque semaine"
+
+#: usr/libexec/amethystora-security-status
+msgid "Suricata inspects every connection and says what it recognises, without blocking yet"
+msgstr "Suricata inspecte chaque connexion et signale ce qu’il reconnaît, sans encore rien bloquer"
+
+#: usr/libexec/amethystora-security-status
+msgid "Inspect every connection with Suricata, and block the ones to known malware, command servers and exploits"
+msgstr "Inspecter chaque connexion avec Suricata, et bloquer celles vers des logiciels malveillants connus, des serveurs de commande et des exploits"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Talk to every service of your session, which can run programs outside its sandbox"
+msgstr "Communiquer avec tous les services de votre session, qui peuvent lancer des programmes hors de son bac à sable"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Talk to every service of the system"
+msgstr "Communiquer avec tous les services du système"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Run programs outside its sandbox, through the Flatpak service"
+msgstr "Lancer des programmes hors de son bac à sable, via le service Flatpak"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Start programs outside its sandbox, through your session's systemd"
+msgstr "Démarrer des programmes hors de son bac à sable, via le systemd de votre session"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Put a program where it starts at your next login, outside any sandbox"
+msgstr "Placer un programme là où il démarre à votre prochaine connexion, hors de tout bac à sable"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Use X11, where it can read what you type into other X11 apps"
+msgstr "Utiliser X11, où elle peut lire ce que vous tapez dans d’autres applications X11"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Read every key pressed on this machine"
+msgstr "Lire chaque touche pressée sur cette machine"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Use every device: cameras, security keys, game controllers"
+msgstr "Utiliser tous les périphériques : caméras, clés de sécurité, manettes de jeu"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Read and change every file you can"
+msgstr "Lire et modifier tous les fichiers auxquels vous avez accès"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Read and change everything in your home folder"
+msgstr "Lire et modifier tout ce qui se trouve dans votre dossier personnel"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Read every file you can"
+msgstr "Lire tous les fichiers auxquels vous avez accès"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Read everything in your home folder"
+msgstr "Lire tout ce qui se trouve dans votre dossier personnel"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Sign in with your SSH keys"
+msgstr "Se connecter avec vos clés SSH"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Sign and decrypt with your GPG keys"
+msgstr "Signer et déchiffrer avec vos clés GPG"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Read every password in your keyring"
+msgstr "Lire tous les mots de passe de votre trousseau"
+
+#: usr/libexec/amethystora-app-permissions
+msgid "granted on this machine"
+msgstr "accordé sur cette machine"
+
+#: usr/libexec/amethystora-layout-offer
+msgid "Use classic windows"
+msgstr "Utiliser les fenêtres classiques"
+
+#: usr/libexec/amethystora-layout-offer
+msgid "Keep tiling"
+msgstr "Garder la mosaïque"
+
+#: usr/libexec/amethystora-layout-offer
+msgid "Windows here tile side by side"
+msgstr "Ici, les fenêtres se rangent côte à côte"
+
+#: usr/libexec/amethystora-layout-offer
+msgid "New windows open next to each other, arranged for you, and Super+Left and Super+Right move between them. If you would rather have windows that float and overlap, as on Windows and macOS, use classic windows. ame desktop layout changes it any time."
+msgstr "Les nouvelles fenêtres s’ouvrent les unes à côté des autres, rangées pour vous, et Super+Left et Super+Right passent de l’une à l’autre. Si vous préférez des fenêtres qui flottent et se chevauchent, comme sous Windows et macOS, utilisez les fenêtres classiques. ame desktop layout permet d’en changer à tout moment."
+
+#: usr/libexec/amethystora-control-list
+msgid "On"
+msgstr "Activé"
+
+#: usr/libexec/amethystora-control-list
+msgid "Off"
+msgstr "Désactivé"
+
+#: usr/libexec/amethystora-control-list
+msgid "Theme"
+msgstr "Thème"
+
+#: usr/libexec/amethystora-control-list
+msgid "The colours of the desktop, the terminal and the apps that follow it, with the theme's own wallpapers."
+msgstr "Les couleurs du bureau, du terminal et des applications qui les suivent, avec les fonds d’écran propres au thème."
+
+#: usr/libexec/amethystora-control-list
+msgid "Pick a theme first: each theme has wallpapers of its own."
+msgstr "Choisissez d’abord un thème : chaque thème a ses propres fonds d’écran."
+
+#: usr/libexec/amethystora-control-list
+msgid "Wallpaper"
+msgstr "Fond d’écran"
+
+#: usr/libexec/amethystora-control-list
+msgid "The pictures of the current theme. Super+Ctrl+Space shows the next one."
+msgstr "Les images du thème actuel. Super+Ctrl+Space affiche la suivante."
+
+#: usr/libexec/amethystora-control-list
+msgid "Nothing is shown while animations are off in Settings, under Accessibility."
+msgstr "Rien ne s’affiche tant que les animations sont désactivées dans Paramètres, sous Accessibilité."
+
+#: usr/libexec/amethystora-control-list
+msgid "The transitions extension is not installed."
+msgstr "L’extension des transitions n’est pas installée."
+
+#: usr/libexec/amethystora-control-list
+msgid "Grow"
+msgstr "Ouverture"
+
+#: usr/libexec/amethystora-control-list
+msgid "A circle opens from the pointer"
+msgstr "Un cercle s’ouvre depuis le pointeur"
+
+#: usr/libexec/amethystora-control-list
+msgid "Close in"
+msgstr "Fermeture"
+
+#: usr/libexec/amethystora-control-list
+msgid "A circle closes in on the pointer from the edges"
+msgstr "Un cercle se referme sur le pointeur depuis les bords"
+
+#: usr/libexec/amethystora-control-list
+msgid "Wipe"
+msgstr "Balayage"
+
+#: usr/libexec/amethystora-control-list
+msgid "A soft edge sweeps across at an angle"
+msgstr "Un bord adouci balaie l’écran en biais"
+
+#: usr/libexec/amethystora-control-list
+msgid "Wave"
+msgstr "Vague"
+
+#: usr/libexec/amethystora-control-list
+msgid "A wavy edge sweeps across"
+msgstr "Un bord ondulé balaie l’écran"
+
+#: usr/libexec/amethystora-control-list
+msgid "Fade"
+msgstr "Fondu"
+
+#: usr/libexec/amethystora-control-list
+msgid "The old picture fades into the new one"
+msgstr "L’ancienne image se fond dans la nouvelle"
+
+#: usr/libexec/amethystora-control-list
+msgid "Random"
+msgstr "Au hasard"
+
+#: usr/libexec/amethystora-control-list
+msgid "One of the first four, at a random angle"
+msgstr "L’une des quatre premières, sous un angle pris au hasard"
+
+#: usr/libexec/amethystora-control-list
+msgid "None"
+msgstr "Aucune"
+
+#: usr/libexec/amethystora-control-list
+msgid "GNOME changes the picture by itself"
+msgstr "GNOME change l’image tout seul"
+
+#: usr/libexec/amethystora-control-list
+msgid "Transition"
+msgstr "Transition"
+
+#: usr/libexec/amethystora-control-list
+msgid "How a new theme or wallpaper is revealed."
+msgstr "La façon dont un nouveau thème ou fond d’écran apparaît."
+
+#: usr/libexec/amethystora-control-list
+msgid "Transition length"
+msgstr "Durée de la transition"
+
+#: usr/libexec/amethystora-control-list
+msgid "How long a transition takes, in milliseconds."
+msgstr "Le temps que prend une transition, en millisecondes."
+
+#: usr/libexec/amethystora-control-list
+msgid "A sealed machine starts with systemd-boot, which shows no artwork."
+msgstr "Une machine scellée démarre avec systemd-boot, qui n’affiche pas d’illustration."
+
+#: usr/libexec/amethystora-control-list
+msgid "This machine does not start with GRUB."
+msgstr "Cette machine ne démarre pas avec GRUB."
+
+#: usr/libexec/amethystora-control-list
+msgid "Only an administrator can see whether it is on."
+msgstr "Seul un administrateur peut voir si c’est activé."
+
+#: usr/libexec/amethystora-control-list
+msgid "Starting up"
+msgstr "Démarrage"
+
+#: usr/libexec/amethystora-control-list
+msgid "Boot menu artwork"
+msgstr "Illustration du menu de démarrage"
+
+#: usr/libexec/amethystora-control-list
+msgid "The Amethystora artwork on the menu the machine shows as it starts."
+msgstr "L’illustration d’Amethystora sur le menu que la machine affiche au démarrage."
+
+#: usr/libexec/amethystora-control-list
+msgid "Tiling"
+msgstr "Mosaïque"
+
+#: usr/libexec/amethystora-control-list
+msgid "Windows open side by side on a strip that scrolls, arranged for you"
+msgstr "Les fenêtres s’ouvrent côte à côte sur une bande qui défile, rangées pour vous"
+
+#: usr/libexec/amethystora-control-list
+msgid "Classic"
+msgstr "Classique"
+
+#: usr/libexec/amethystora-control-list
+msgid "Windows float and overlap, and you move and size them, as on Windows and macOS"
+msgstr "Les fenêtres flottent et se chevauchent, et vous les déplacez et les redimensionnez, comme sous Windows et macOS"
+
+#: usr/libexec/amethystora-control-list
+msgid "Windows"
+msgstr "Fenêtres"
+
+#: usr/libexec/amethystora-control-list
+msgid "Window layout"
+msgstr "Disposition des fenêtres"
+
+#: usr/libexec/amethystora-control-list
+msgid "How windows are arranged."
+msgstr "La façon dont les fenêtres sont rangées."
+
+#: usr/libexec/amethystora-control-list
+msgid "Keybindings"
+msgstr "Raccourcis clavier"
+
+#: usr/libexec/amethystora-control-list
+msgid "Every key the desktop answers to, in the manual."
+msgstr "Toutes les touches auxquelles répond le bureau, dans le manuel."
+
+#: usr/libexec/amethystora-control-list
+msgid "The bar is not showing widgets: the extension that shows them is off."
+msgstr "La barre n’affiche pas les widgets : l’extension qui les affiche est désactivée."
+
+#: usr/libexec/amethystora-control-list
+msgid "The widgets could not be listed."
+msgstr "Les widgets n’ont pas pu être listés."
+
+#: usr/libexec/amethystora-control-list
+msgid "Top bar"
+msgstr "Barre supérieure"
+
+#: usr/libexec/amethystora-control-list
+msgid "Top bar widgets"
+msgstr "Widgets de la barre supérieure"
+
+#: usr/libexec/amethystora-control-list
+msgid "Small commands whose output the top bar shows. Each runs as you, with everything you have: keep only the ones you have read."
+msgstr "De petites commandes dont la barre supérieure affiche le résultat. Chacune s’exécute en votre nom, avec tout ce que vous avez : ne gardez que celles que vous avez lues."
+
+#: usr/libexec/amethystora-control-list
+msgid "Terminal"
+msgstr "Terminal"
+
+#: usr/libexec/amethystora-control-list
+msgid "Terminal greeting"
+msgstr "Accueil du terminal"
+
+#: usr/libexec/amethystora-control-list
+msgid "The logo, a summary of the machine and a tip, in each new terminal."
+msgstr "Le logo, un résumé de la machine et une astuce, dans chaque nouveau terminal."
+
+#: usr/libexec/amethystora-control-list
+msgid "This works with bash, zsh and fish, and your shell is none of them."
+msgstr "Cela marche avec bash, zsh et fish, et votre shell n’est aucun des trois."
+
+#: usr/libexec/amethystora-control-list
+msgid "Terminal tools"
+msgstr "Outils du terminal"
+
+#: usr/libexec/amethystora-control-list
+msgid "Your shell uses eza for ls, bat for cat and ugrep for grep, with zoxide, direnv and mise, wherever they are installed."
+msgstr "Votre shell utilise eza pour ls, bat pour cat et ugrep pour grep, avec zoxide, direnv et mise, là où ils sont installés."
+
+#: usr/libexec/amethystora-control-list
+msgid "Games"
+msgstr "Jeux"
+
+#: usr/libexec/amethystora-control-list
+msgid "Steam from Flathub, with ProtonPlus, the MangoHud overlay and gamescope. X11 is granted back to Steam alone."
+msgstr "Steam depuis Flathub, avec ProtonPlus, la surcouche MangoHud et gamescope. X11 est rendu à Steam seul."
+
+#: usr/libexec/amethystora-control-list
+msgid "Add a store…"
+msgstr "Ajouter une boutique…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Other game stores"
+msgstr "Autres boutiques de jeux"
+
+#: usr/libexec/amethystora-control-list
+msgid "Heroic, for Epic, GOG and Amazon, and Lutris, for games from anywhere else."
+msgstr "Heroic, pour Epic, GOG et Amazon, et Lutris, pour les jeux de partout ailleurs."
+
+#: usr/libexec/amethystora-control-list
+msgid "Its container is running."
+msgstr "Son conteneur tourne."
+
+#: usr/libexec/amethystora-control-list
+msgid "Its container is stopped."
+msgstr "Son conteneur est arrêté."
+
+#: usr/libexec/amethystora-control-list
+msgid "Android apps"
+msgstr "Applications Android"
+
+#: usr/libexec/amethystora-control-list
+msgid "Waydroid runs Android, LineageOS without Google's apps, in a container beside your desktop."
+msgstr "Waydroid fait tourner Android, LineageOS sans les applications de Google, dans un conteneur à côté de votre bureau."
+
+#: usr/libexec/amethystora-control-list
+msgid "Stop…"
+msgstr "Arrêter…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Stop Android"
+msgstr "Arrêter Android"
+
+#: usr/libexec/amethystora-control-list
+msgid "Stops its container until you start it again."
+msgstr "Arrête son conteneur jusqu’à ce que vous le redémarriez."
+
+#: usr/libexec/amethystora-control-list
+msgid "Start…"
+msgstr "Démarrer…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Start Android"
+msgstr "Démarrer Android"
+
+#: usr/libexec/amethystora-control-list
+msgid "Starts its container and opens Android's own screen."
+msgstr "Démarre son conteneur et ouvre l’écran d’Android."
+
+#: usr/libexec/amethystora-control-list
+msgid "Drawing tablets"
+msgstr "Tablettes graphiques"
+
+#: usr/libexec/amethystora-control-list
+msgid "OpenTabletDriver from Flathub, for most drawing tablets: pressure, the pen's buttons, and the part of the screen the tablet covers."
+msgstr "OpenTabletDriver depuis Flathub, pour la plupart des tablettes graphiques : la pression, les boutons du stylet, et la partie de l’écran que couvre la tablette."
+
+#: usr/libexec/amethystora-control-list
+msgid "The AUR"
+msgstr "L’AUR"
+
+#: usr/libexec/amethystora-control-list
+msgid "Packages built from the Arch User Repository, in containers. Anyone can upload to it, and nobody reviews it."
+msgstr "Des paquets construits depuis l’Arch User Repository, dans des conteneurs. N’importe qui peut y publier, et personne ne vérifie ce qui s’y trouve."
+
+#: usr/libexec/amethystora-control-list
+msgid "The web apps could not be listed."
+msgstr "Les applications web n’ont pas pu être listées."
+
+#: usr/libexec/amethystora-control-list
+msgid "Web apps"
+msgstr "Applications web"
+
+#: usr/libexec/amethystora-control-list
+msgid "Sites in a window of their own, with a launcher in the app grid."
+msgstr "Des sites dans une fenêtre à eux, avec un lanceur dans la grille d’applications."
+
+#: usr/libexec/amethystora-control-list
+msgid "Add-ons"
+msgstr "Compléments"
+
+#: usr/libexec/amethystora-control-list
+msgid "Installed in your home."
+msgstr "Installé dans votre dossier personnel."
+
+#: usr/libexec/amethystora-control-list
+msgid "Install again…"
+msgstr "Réinstaller…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Install…"
+msgstr "Installer…"
+
+#: usr/libexec/amethystora-control-list
+msgid "JetBrains Toolbox"
+msgstr "JetBrains Toolbox"
+
+#: usr/libexec/amethystora-control-list
+msgid "The app that installs JetBrains' IDEs and keeps them up to date, downloaded from JetBrains and checked against the checksum JetBrains publishes."
+msgstr "L’application qui installe les IDE de JetBrains et les tient à jour, téléchargée depuis JetBrains et vérifiée avec la somme de contrôle que JetBrains publie."
+
+#: usr/libexec/amethystora-control-list
+msgid "Command-line tools"
+msgstr "Outils en ligne de commande"
+
+#: usr/libexec/amethystora-control-list
+msgid "eza, bat, ripgrep, zoxide, starship and more from Homebrew, with your shell set up to use them."
+msgstr "eza, bat, ripgrep, zoxide, starship et d’autres depuis Homebrew, avec votre shell réglé pour s’en servir."
+
+#: usr/libexec/amethystora-control-list
+msgid "Choose…"
+msgstr "Choisir…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Homebrew collections"
+msgstr "Collections Homebrew"
+
+#: usr/libexec/amethystora-control-list
+msgid "Lists of apps and tools to pick from and install with Homebrew, through Bold Brew, a tool from a third-party tap."
+msgstr "Des listes d’applications et d’outils à choisir et à installer avec Homebrew, via Bold Brew, un outil venu d’un tap tiers."
+
+#: usr/libexec/amethystora-control-list
+msgid "Cloud native tools"
+msgstr "Outils cloud native"
+
+#: usr/libexec/amethystora-control-list
+msgid "The CNCF's projects, Kubernetes and the tools around it, through Bold Brew."
+msgstr "Les projets de la CNCF, Kubernetes et les outils qui l’entourent, via Bold Brew."
+
+#: usr/libexec/amethystora-control-list
+msgid "The apps this image comes with"
+msgstr "Les applications fournies avec cette image"
+
+#: usr/libexec/amethystora-control-list
+msgid "Installs them now, rather than waiting for the first start with a network."
+msgstr "Les installe maintenant, plutôt que d’attendre le premier démarrage avec un réseau."
+
+#: usr/libexec/amethystora-control-list
+msgid "Agentic features"
+msgstr "Fonctions agentiques"
+
+#: usr/libexec/amethystora-control-list
+msgid "An AI agent that knows this system: Super+Ctrl+Shift+A, Ask the agent in Updates, Security and Logs, and the skills that tell it how Amethystora works."
+msgstr "Un agent IA qui connaît ce système : Super+Ctrl+Shift+A, Demander à l’agent dans Mises à jour, Sécurité et Journaux, et les compétences qui lui disent comment fonctionne Amethystora."
+
+#: usr/libexec/amethystora-control-list
+msgid "Installed"
+msgstr "Installé"
+
+#: usr/libexec/amethystora-control-list
+msgid "Not installed yet"
+msgstr "Pas encore installé"
+
+#: usr/libexec/amethystora-control-list
+msgid "The agentic features are off."
+msgstr "Les fonctions agentiques sont désactivées."
+
+#: usr/libexec/amethystora-control-list
+msgid "Which agent"
+msgstr "Quel agent"
+
+#: usr/libexec/amethystora-control-list
+msgid "The agent that Super+Ctrl+Shift+A and Ask the agent open. Each installs into your home the first time, and keeps itself up to date."
+msgstr "L’agent qu’ouvrent Super+Ctrl+Shift+A et Demander à l’agent. Chacun s’installe dans votre dossier personnel la première fois, et se tient à jour lui-même."
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "Install ${name}"
+msgstr "Installer ${name}"
+
+#: usr/libexec/amethystora-control-list
+msgid "With its maker's installer, into your home, where it keeps itself up to date."
+msgstr "Avec l’installateur de son éditeur, dans votre dossier personnel, où il se tient à jour lui-même."
+
+#: usr/libexec/amethystora-control-list
+msgid "The desktop"
+msgstr "Le bureau"
+
+#: usr/libexec/amethystora-control-list
+msgid "With the developer tools"
+msgstr "Avec les outils de développement"
+
+#: usr/libexec/amethystora-control-list
+msgid "Amethystora with NVIDIA"
+msgstr "Amethystora avec NVIDIA"
+
+#: usr/libexec/amethystora-control-list
+msgid "With NVIDIA's open driver"
+msgstr "Avec le pilote ouvert de NVIDIA"
+
+#: usr/libexec/amethystora-control-list
+msgid "Amethystora DX with NVIDIA"
+msgstr "Amethystora DX avec NVIDIA"
+
+#: usr/libexec/amethystora-control-list
+msgid "The developer tools, and NVIDIA's open driver"
+msgstr "Les outils de développement, et le pilote ouvert de NVIDIA"
+
+#: usr/libexec/amethystora-control-list
+msgid "The system"
+msgstr "Le système"
+
+#: usr/libexec/amethystora-control-list
+msgid "Image"
+msgstr "Image"
+
+#: usr/libexec/amethystora-control-list
+msgid "The system this machine runs. Switching downloads it, checks its signature, and takes effect at the next restart."
+msgstr "Le système que fait tourner cette machine. En changer le télécharge, vérifie sa signature, et prend effet au prochain redémarrage."
+
+#: usr/libexec/amethystora-control-list
+msgid "Stable"
+msgstr "Stable"
+
+#: usr/libexec/amethystora-control-list
+msgid "Built every week"
+msgstr "Construite chaque semaine"
+
+#: usr/libexec/amethystora-control-list
+msgid "Stable, daily"
+msgstr "Stable, quotidienne"
+
+#: usr/libexec/amethystora-control-list
+msgid "The same, built every day"
+msgstr "La même, construite chaque jour"
+
+#: usr/libexec/amethystora-control-list
+msgid "Latest"
+msgstr "La plus récente"
+
+#: usr/libexec/amethystora-control-list
+msgid "The newest Fedora, for testers"
+msgstr "Le Fedora le plus récent, pour les testeurs"
+
+#: usr/libexec/amethystora-control-list
+msgid "Sealed"
+msgstr "Scellée"
+
+#: usr/libexec/amethystora-control-list
+msgid "Stable, with every file checked as it is read"
+msgstr "Stable, avec chaque fichier vérifié à sa lecture"
+
+#: usr/libexec/amethystora-control-list
+msgid "This machine is sealed, so it follows the sealed stream only."
+msgstr "Cette machine est scellée, elle ne suit donc que le flux scellé."
+
+#: usr/libexec/amethystora-control-list
+msgid "Stream"
+msgstr "Flux"
+
+#: usr/libexec/amethystora-control-list
+msgid "How new the builds this machine follows are."
+msgstr "À quel point sont récentes les versions que suit cette machine."
+
+#: usr/libexec/amethystora-control-list
+msgid "Developer mode"
+msgstr "Mode développeur"
+
+#: usr/libexec/amethystora-control-list
+msgid "The developer image: VSCodium, Docker and Podman, Incus and virtual machines, and tools for profiling and debugging. Switching takes effect at the next restart."
+msgstr "L’image pour développeurs : VSCodium, Docker et Podman, Incus et les machines virtuelles, et des outils de profilage et de débogage. Le changement prend effet au prochain redémarrage."
+
+#: usr/libexec/amethystora-control-list
+msgid "Join…"
+msgstr "Rejoindre…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Join the developer groups"
+msgstr "Rejoindre les groupes de développement"
+
+#: usr/libexec/amethystora-control-list
+msgid "Lets your account use Docker, Incus, virtual machines and serial devices, from the next time you log in."
+msgstr "Permet à votre compte d’utiliser Docker, Incus, les machines virtuelles et les périphériques série, dès votre prochaine connexion."
+
+#: usr/libexec/amethystora-control-list
+msgid "Trust…"
+msgstr "Faire confiance…"
+
+#: usr/libexec/amethystora-control-list
+msgid "A sealed machine follows Amethystora's sealed images only."
+msgstr "Une machine scellée ne suit que les images scellées d’Amethystora."
+
+#: usr/libexec/amethystora-control-list
+msgid "An image of your own"
+msgstr "Une image à vous"
+
+#: usr/libexec/amethystora-control-list
+msgid "Takes images from your repository only when your key checks their signature. Do this before switching to an image built from the image template."
+msgstr "N’accepte les images de votre dépôt que si votre clé vérifie leur signature. Faites-le avant de basculer sur une image construite à partir du modèle d’image."
+
+#: usr/libexec/amethystora-control-list
+msgid "This kernel cannot hand the scheduling to another program."
+msgstr "Ce noyau ne peut pas confier l’ordonnancement à un autre programme."
+
+#: usr/libexec/amethystora-control-list
+msgid "The kernel's own"
+msgstr "Celui du noyau"
+
+#: usr/libexec/amethystora-control-list
+msgid "Suits nearly everything (the default)"
+msgstr "Convient à presque tout (par défaut)"
+
+#: usr/libexec/amethystora-control-list
+msgid "Keeps games smooth while other work runs"
+msgstr "Garde les jeux fluides pendant que d’autres tâches tournent"
+
+#: usr/libexec/amethystora-control-list
+msgid "Keeps the desktop responsive while something heavy builds or renders"
+msgstr "Garde le bureau réactif pendant qu’une compilation ou un rendu lourd tourne"
+
+#: usr/libexec/amethystora-control-list
+msgid "Steady timing, for audio and music work"
+msgstr "Un rythme régulier, pour l’audio et la musique"
+
+#: usr/libexec/amethystora-control-list
+msgid "Hardware"
+msgstr "Matériel"
+
+#: usr/libexec/amethystora-control-list
+msgid "CPU scheduler"
+msgstr "Ordonnanceur du processeur"
+
+#: usr/libexec/amethystora-control-list
+msgid "What decides which program runs on the CPU next."
+msgstr "Ce qui décide quel programme passe ensuite sur le processeur."
+
+#: usr/libexec/amethystora-control-list
+msgid "This machine does not start with UEFI."
+msgstr "Cette machine ne démarre pas avec UEFI."
+
+#: usr/libexec/amethystora-control-list
+msgid "Restart…"
+msgstr "Redémarrer…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Restart into the firmware settings"
+msgstr "Redémarrer dans les paramètres du micrologiciel"
+
+#: usr/libexec/amethystora-control-list
+msgid "Restarts the machine into its UEFI setup, where Secure Boot and the order of the disks are set. It asks first."
+msgstr "Redémarre la machine dans sa configuration UEFI, où se règlent le Secure Boot et l’ordre des disques. Cela demande d’abord."
+
+#: usr/libexec/amethystora-control-list
+msgid "Free space…"
+msgstr "Libérer de l’espace…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Free disk space"
+msgstr "Libérer de l’espace disque"
+
+#: usr/libexec/amethystora-control-list
+msgid "Removes container images and Flatpak runtimes nothing uses, old deployments, and Homebrew's cache, asking first."
+msgstr "Supprime les images de conteneurs et les environnements Flatpak que rien n’utilise, les anciens déploiements et le cache de Homebrew, en demandant d’abord."
+
+#: usr/libexec/amethystora-control-list
+msgid "Two copies"
+msgstr "Deux copies"
+
+#: usr/libexec/amethystora-control-list
+msgid "Three copies"
+msgstr "Trois copies"
+
+#: usr/libexec/amethystora-control-list
+msgid "Four copies"
+msgstr "Quatre copies"
+
+#: usr/libexec/amethystora-control-list
+msgid "Striped two copies"
+msgstr "Deux copies entrelacées"
+
+#: usr/libexec/amethystora-control-list
+msgid "Parity"
+msgstr "Parité"
+
+#: usr/libexec/amethystora-control-list
+msgid "Double parity"
+msgstr "Double parité"
+
+#: usr/libexec/amethystora-control-list
+msgid "One copy"
+msgstr "Une seule copie"
+
+#: usr/libexec/amethystora-control-list
+msgid "Combined"
+msgstr "Réunis"
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "${words}, on ${count} disk."
+msgid_plural "${words}, on ${count} disks."
+msgstr[0] "${words}, sur ${count} disque."
+msgstr[1] "${words}, sur ${count} disques."
+
+#: usr/libexec/amethystora-control-list
+msgid "Encrypted."
+msgstr "Chiffré."
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "${used_words} used of ${size_words}."
+msgstr "${used_words} utilisés sur ${size_words}."
+
+#: usr/libexec/amethystora-control-list
+msgid "Replacing a disk now."
+msgstr "Remplacement d’un disque en cours."
+
+#: usr/libexec/amethystora-control-list
+msgid "Putting its copies where they belong now."
+msgstr "Remise en place de ses copies en cours."
+
+#: usr/libexec/amethystora-control-list
+msgid "Not open, perhaps because one of its disks is missing. Its files are still on its disks."
+msgstr "Non ouvert, peut-être parce qu’un de ses disques manque. Ses fichiers sont toujours sur ses disques."
+
+#: usr/libexec/amethystora-control-list
+msgid "A disk is missing. Every file is still there, with one copy fewer until the disk is replaced."
+msgstr "Un disque manque. Tous les fichiers sont toujours là, avec une copie de moins jusqu’à ce que le disque soit remplacé."
+
+#: usr/libexec/amethystora-control-list
+msgid "A disk is missing, and the files that were on it cannot be read until it is back."
+msgstr "Un disque manque, et les fichiers qui s’y trouvaient ne peuvent pas être lus avant son retour."
+
+#: usr/libexec/amethystora-control-list
+msgid "A disk says it is failing: replace it before it stops."
+msgstr "Un disque signale qu’il est en train de lâcher : remplacez-le avant qu’il ne s’arrête."
+
+#: usr/libexec/amethystora-control-list
+msgid "The last check found damage it could not repair."
+msgstr "La dernière vérification a trouvé des dégâts qu’elle n’a pas pu réparer."
+
+#: usr/libexec/amethystora-control-list
+msgid "A disk has counted read or write errors."
+msgstr "Un disque a compté des erreurs de lecture ou d’écriture."
+
+#: usr/libexec/amethystora-control-list
+msgid "Part of it has one copy, written while a disk was missing."
+msgstr "Une partie n’a qu’une copie, écrite pendant qu’un disque manquait."
+
+#: usr/libexec/amethystora-control-list
+msgid "Either disk failing loses everything."
+msgstr "La panne de l’un des disques fait tout perdre."
+
+#: usr/libexec/amethystora-control-list
+msgid "Fine."
+msgstr "Tout va bien."
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "Every copy last checked on ${when}."
+msgstr "Toutes les copies vérifiées pour la dernière fois le ${when}."
+
+#: usr/libexec/amethystora-control-list
+msgid "Every copy not checked yet."
+msgstr "Les copies n’ont pas encore été vérifiées."
+
+#: usr/libexec/amethystora-control-list
+msgid "After a power cut, check every copy."
+msgstr "Après une coupure de courant, vérifiez toutes les copies."
+
+#: usr/libexec/amethystora-control-list
+msgid "Replace a disk…"
+msgstr "Remplacer un disque…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Put the copies back…"
+msgstr "Rétablir les copies…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Open it with a disk missing…"
+msgstr "L’ouvrir sans un de ses disques…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Add a disk…"
+msgstr "Ajouter un disque…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Forget…"
+msgstr "Oublier…"
+
+#: usr/libexec/amethystora-control-list
+msgid "The system's disks"
+msgstr "Les disques du système"
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "${name}, at ${mountpoint}"
+msgstr "${name}, dans ${mountpoint}"
+
+#: usr/libexec/amethystora-control-list
+msgid "Disks"
+msgstr "Disques"
+
+#: usr/libexec/amethystora-control-list
+msgid "Pools of disks"
+msgstr "Groupes de disques"
+
+#: usr/libexec/amethystora-control-list
+msgid "Disks that keep copies of each other, so that one can fail without taking a file with it."
+msgstr "Des disques qui gardent des copies les uns des autres, pour que l’un puisse tomber en panne sans emporter de fichier."
+
+#: usr/libexec/amethystora-control-list
+msgid "Needs two disks besides the system's."
+msgstr "Il faut deux disques en plus de celui du système."
+
+#: usr/libexec/amethystora-control-list
+msgid "Make a pool…"
+msgstr "Créer un groupe…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Make a pool from spare disks"
+msgstr "Créer un groupe avec des disques libres"
+
+#: usr/libexec/amethystora-control-list
+msgid "Two or more disks that keep copies of each other, or join into one, in a folder under /var/mnt. It asks which disks, how to lay them out and whether to encrypt them, and erases them only once you type ERASE."
+msgstr "Deux disques ou plus qui gardent des copies les uns des autres, ou se réunissent en un seul, dans un dossier sous /var/mnt. Il demande quels disques utiliser, comment les organiser et s’il faut les chiffrer, et ne les efface qu’une fois ERASE tapé."
+
+#: usr/libexec/amethystora-control-list
+msgid "Protect…"
+msgstr "Protéger…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Protect the system's disks"
+msgstr "Protéger les disques du système"
+
+#: usr/libexec/amethystora-control-list
+msgid "The system is spread over several disks with one copy of each file, so either one failing loses everything. This keeps a copy on each, erasing nothing. The machine still starts only from its first disk."
+msgstr "Le système est réparti sur plusieurs disques avec une seule copie de chaque fichier : la panne de l’un d’eux fait tout perdre. Ceci garde une copie sur chacun, sans rien effacer. La machine ne démarre toujours que depuis son premier disque."
+
+#: usr/libexec/amethystora-control-list
+msgid "Monthly check of every copy"
+msgstr "Vérification mensuelle de toutes les copies"
+
+#: usr/libexec/amethystora-control-list
+msgid "Reads everything on the pools once a month, on mains power, and repairs a damaged copy from a good one."
+msgstr "Lit tout le contenu des groupes une fois par mois, sur secteur, et répare une copie abîmée à partir d’une bonne."
+
+#: usr/libexec/amethystora-control-list
+msgid "A check is running now."
+msgstr "Une vérification est en cours."
+
+#: usr/libexec/amethystora-control-list
+msgid "Check now…"
+msgstr "Vérifier maintenant…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Check every copy now"
+msgstr "Vérifier toutes les copies maintenant"
+
+#: usr/libexec/amethystora-control-list
+msgid "The same check, now, in the background. After a power cut, do it for a pool with parity."
+msgstr "La même vérification, maintenant, en arrière-plan. Après une coupure de courant, faites-la pour un groupe avec parité."
+
+#: usr/libexec/amethystora-control-list
+msgid "Not on a sealed machine yet: it has not been tried on one."
+msgstr "Pas encore sur une machine scellée : cela n’a encore été essayé sur aucune."
+
+#: usr/libexec/amethystora-control-list
+msgid "Start over…"
+msgstr "Recommencer…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Start over"
+msgstr "Recommencer"
+
+#: usr/libexec/amethystora-control-list
+msgid "Makes a new installation of this image beside this one, without your accounts, settings or files. Nothing is erased: the old system stays on the disk, and the boot menu can still start it. Experimental. It asks twice."
+msgstr "Crée une nouvelle installation de cette image à côté de celle-ci, sans vos comptes, vos réglages ni vos fichiers. Rien n’est effacé : l’ancien système reste sur le disque, et le menu de démarrage peut toujours le lancer. Expérimental. Cela demande deux fois."
+
+#: usr/libexec/amethystora-control-list
+msgid "Your setup file"
+msgstr "Votre fichier de configuration"
+
+#: usr/libexec/amethystora-control-list
+msgid "Your image, apps, containers, extensions, theme and the settings you changed, in one file to keep, compare and apply here or on another machine."
+msgstr "Votre image, vos applications, vos conteneurs, vos extensions, votre thème et les réglages que vous avez changés, dans un seul fichier à garder, comparer et appliquer ici ou sur une autre machine."
+
+#: usr/libexec/amethystora-control-list
+msgid "Restore…"
+msgstr "Restaurer…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Make the setup again from a backup"
+msgstr "Refaire la configuration depuis une sauvegarde"
+
+#: usr/libexec/amethystora-control-list
+msgid "On a new machine: the image, apps, containers and theme of your last backup, each step chosen first."
+msgstr "Sur une nouvelle machine : l’image, les applications, les conteneurs et le thème de votre dernière sauvegarde, chaque étape choisie d’abord."
+
+#: usr/libexec/amethystora-control-list
+msgid "Appearance"
+msgstr "Apparence"
+
+#: usr/libexec/amethystora-control-list
+msgid "Desktop"
+msgstr "Bureau"
+
+#: usr/libexec/amethystora-control-list
+msgid "The AI agent"
+msgstr "L’agent IA"
+
+#: usr/libexec/amethystora-control-list
+msgid "System"
+msgstr "Système"
+
+#: usr/libexec/amethystora-control-list
+msgid "Your setup"
+msgstr "Votre configuration"
+
+#: usr/libexec/amethystora-control-list
+msgid "Security settings are in Amethystora Security: ame security status"
+msgstr "Les paramètres de sécurité sont dans Sécurité d’Amethystora : ame security status"

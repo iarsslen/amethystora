@@ -1,0 +1,11 @@
+[Unit]
+Description=Say what the scheduled security scans found
+# The scans notify the sessions open when they run; this catches what happened while nobody was here
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/amethystora-security-alert
+
+[Install]
+WantedBy=graphical-session.target

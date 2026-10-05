@@ -1,0 +1,22 @@
+[Unit]
+Description=Preinstall Flatpaks
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/usr/bin/flatpak
+Documentation=man:flatpak-preinstall(1)
+# A machine fresh from the ISO is often offline until someone joins a Wi-Fi network in GNOME Initial
+# Setup, so keep trying, less often each time, until it gets through
+StartLimitIntervalSec=0
+
+[Service]
+# Not oneshot: the boot neither waits for the download nor, offline, for the retries
+Type=exec
+ExecStart=/usr/bin/flatpak preinstall -y
+RemainAfterExit=true
+Restart=on-failure
+RestartSec=30
+RestartSteps=5
+RestartMaxDelaySec=10min
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,17 @@
+[Unit]
+Description=Network protection: download the rules
+Documentation=https://suricata-update.readthedocs.io/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Only while network protection is on; see amethystora-ips.service
+ExecCondition=/usr/libexec/amethystora-ips enabled
+# Downloads Emerging Threats Open, builds the rules for NETWORK in /etc/amethystora/security.conf, tests
+# them with Suricata and reloads it. A download that fails keeps the rules there were: the report says
+# when they grow old.
+ExecStart=/usr/libexec/amethystora-ips rules
+Nice=19
+IOSchedulingClass=idle
+# The timer is what runs this, so the service itself is never enabled and needs no [Install] section

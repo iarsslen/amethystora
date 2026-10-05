@@ -1,0 +1,15 @@
+{
+    "name": "zypper",
+    "need_sudo": true,
+    "noconfirm": "--no-confirm",
+    "install": "zypper install",
+    "remove": "zypper remove",
+    "purge": "zypper remove --clean-deps",
+    "search": "zypper search",
+    "show": "zypper info",
+    "list": "zypper search --installed-only",
+    "update": "zypper refresh",
+    "upgrade": "zypper dist-upgrade",
+    "autoremove": "zypper -q packages --unneeded | awk -F'|' '$1 ~ /i/ { gsub(/ /, \"\", $3); print $3 }' | xargs -r -o zypper remove --clean-deps",
+    "clean": "zypper clean --all"
+}

@@ -1,0 +1,52 @@
+#!/usr/bin/bash
+# Real-time watching (amethystora-security-realtime.service). The security watcher otherwise looks every 15
+# minutes; this has it look as soon as something it reads happens:
+#
+#   - with REALTIME=on in /etc/amethystora/security.conf, an audit log event under one of the keys in
+#     /etc/audit/rules.d/60-amethystora.rules, the way Wazuh's who-data follows the audit stream
+#   - while network protection is on (NETWORK=watch or block), an alert in Suricata's eve.json, so that
+#     a connection it cut off is explained while whoever made it is still wondering why it failed
+#
+#   amethystora-security-realtime           follow them
+#   amethystora-security-realtime --check   exit 0 when there is anything to follow (ExecCondition=)
+#
+# tail follows each log by name, through its rotations, with inotify, and waits for one that is not there
+# yet. The watcher reads the events itself, from its own checkpoints, so nothing here has to be parsed
+# and nothing is lost when a run is already going: that event is read by the next one.
+
+set -uo pipefail
+
+KEYS='identity|privilege|persistence|hardening|modules|input-capture|user-programs'
+CONFIG=/usr/libexec/amethystora-security-config
+# A burst (an editor saving a file is a write, a rename and a chmod) is one run, not three
+SETTLE=5
+# ...and a program that opens input devices all day, a game, is one run a minute
+EVERY=60
+
+FILES=()
+PATTERNS=()
+if "${CONFIG}" --is REALTIME on; then
+    FILES+=(/var/log/audit/audit.log)
+    PATTERNS+=(-e " key=\"(${KEYS})\"")
+fi
+if ! "${CONFIG}" --is NETWORK off; then
+    FILES+=(/var/log/suricata/eve.json)
+    PATTERNS+=(-e '"event_type":"alert"')
+fi
+
+if [[ "${1:-}" == --check ]]; then
+    [[ ${#FILES[@]} -gt 0 ]]
+    exit
+fi
+[[ ${#FILES[@]} -gt 0 ]] || exit 0
+
+last=-${EVERY}
+tail -q -F -n0 "${FILES[@]}" 2>/dev/null |
+    grep --line-buffered -E "${PATTERNS[@]}" |
+    while IFS= read -r _; do
+        deadline=$((SECONDS + SETTLE))
+        ((deadline < last + EVERY)) && deadline=$((last + EVERY))
+        while ((SECONDS < deadline)) && IFS= read -r -t "$((deadline - SECONDS))" _; do :; done
+        systemctl start --no-block amethystora-security-watch.service
+        last=${SECONDS}
+    done

@@ -1,0 +1,21 @@
+[Desktop Entry]
+Type=Application
+Name=Control
+GenericName=Amethystora Settings
+Comment=Amethystora's own settings: the theme, windows, games and Android apps, the AI agent, the image and more
+Exec=amethystora-control
+Icon=amethystora-control
+Terminal=false
+Categories=Settings;System;
+Keywords=settings;control;theme;wallpaper;transition;layout;tiling;widgets;greeting;games;steam;android;waydroid;tablet;aur;web apps;agent;image;stream;rebase;developer;scheduler;reset;setup;
+StartupNotify=true
+StartupWMClass=amethystora-control
+Actions=appearance;system;
+
+[Desktop Action appearance]
+Name=Appearance
+Exec=amethystora-control appearance
+
+[Desktop Action system]
+Name=System
+Exec=amethystora-control system

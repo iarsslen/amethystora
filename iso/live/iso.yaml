@@ -1,0 +1,15 @@
+# The boot menu of the live ISO, read by Titanoboa from /usr/lib/bootc-image-builder/iso.yaml in the
+# live system (the container-native ISO contract). The label is the ISO's volume name, which the
+# kernel arguments find the squashed system by. SELinux stays permissive in the live session, whose
+# squashed files carry no labels; the installed system enforces it.
+label: Amethystora-Live
+grub2:
+  default: 0
+  timeout: 10
+  entries:
+    - name: "Try or install Amethystora"
+      linux: "/images/pxeboot/vmlinuz quiet rhgb root=live:CDLABEL=Amethystora-Live enforcing=0 rd.live.image"
+      initrd: "/images/pxeboot/initrd.img"
+    - name: "Try or install Amethystora, in basic graphics mode"
+      linux: "/images/pxeboot/vmlinuz quiet rhgb root=live:CDLABEL=Amethystora-Live enforcing=0 rd.live.image nomodeset"
+      initrd: "/images/pxeboot/initrd.img"

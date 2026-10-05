@@ -1,0 +1,164 @@
+# Themes
+
+A theme is one palette, and everything is painted from it. Switch themes and the whole desktop
+changes together: GNOME's light or dark style and accent colour, the terminal, the shell prompt, the
+top bar, the dock, the wallpaper, VSCodium, and this manual. A light theme gives the dock a faint dark
+tint, so its icons still stand out on a pale wallpaper.
+
+## Switching
+
+| Key | Does |
+| --- | --- |
+| `Super+Ctrl+Shift+Space` | Pick a theme |
+| `Super+Ctrl+D` | Flip between the light and dark version of the theme |
+| `Super+Ctrl+Space` | Next wallpaper of the current theme |
+
+The same from a terminal:
+
+```bash
+ame desktop theme                   # pick one from a list
+amethystora-theme list              # the themes, with the current one marked
+amethystora-theme set "Tokyo Night" # apply one by name
+amethystora-theme toggle            # light or dark
+amethystora-theme current           # which one is on
+```
+
+Or open [Control](control.md) (`Super+Ctrl+Shift+C`), whose **Appearance** page shows every theme in
+its own colours, and the current theme's wallpapers.
+
+## The themes
+
+| Theme | Name to use | Style |
+| --- | --- | --- |
+| Amethystora | `amethystora` | Dark, the default |
+| Amethystora Light | `amethystora-light` | Light |
+| Catppuccin Mocha | `catppuccin` | Dark |
+| Catppuccin Latte | `catppuccin-latte` | Light |
+| Everforest | `everforest` | Dark |
+| Gruvbox | `gruvbox` | Dark |
+| Matte Black | `matte-black` | Dark |
+| Nord | `nord` | Dark |
+| Rosé Pine Dawn | `rose-pine-dawn` | Light |
+| Tokyo Night | `tokyo-night` | Dark |
+
+The two Amethystora themes also bring the Amethystora GTK theme, the one with the three coloured
+lights in the corner of every window. The others keep GNOME's own look in their accent colour.
+`Super+Ctrl+D` flips a theme to its partner (Catppuccin Mocha and Latte, Amethystora and Amethystora
+Light); a theme without a partner flips to Amethystora in the other mode.
+
+## Wallpapers
+
+Every theme comes with three wallpapers of made-up places drawn in its own colours, and switching to
+a theme puts its first one on the desktop: a neon city in the rain for Tokyo Night, an aurora over a
+mountain lake for Nord, misty pines for Everforest, a desert sunset for Gruvbox, peaks under a
+pastel moon for Catppuccin, an eclipse for Matte Black, and so on. `Super+Ctrl+Space` cycles
+through them. The two Amethystora themes open on a cut stone's facets, and also have the crystal
+field and a night sky of violet smoke; GNOME's Settings offers those under Appearance.
+
+To add your own, put pictures (JPG, PNG, WebP or SVG) in a folder named after the theme. They come
+after the theme's own pictures:
+
+```bash
+mkdir -p ~/.config/amethystora/backgrounds/amethystora
+cp ~/Pictures/mountains.jpg ~/.config/amethystora/backgrounds/amethystora/
+```
+
+`amethystora-theme bg list` shows what the current theme has to cycle through, and
+`ame desktop background <picture>` sets one directly.
+
+## Transitions
+
+A new theme or wallpaper does not simply appear. The screen holds still for a moment while everything
+changes underneath it, then the new desktop opens out in a circle from the pointer, with a glow in the
+theme's accent colour along the edge. It works the same whichever way you make the change: the keys
+above, GNOME's Settings, or the Dark Style button in the quick settings.
+
+```bash
+ame desktop transition         # pick one from a list
+ame desktop transition wave    # or name it
+```
+
+| Transition | Looks like |
+| --- | --- |
+| `grow` | A circle opens from the pointer. The default |
+| `outer` | The new desktop closes in on the pointer from the edges |
+| `wipe` | A soft edge sweeps across at an angle |
+| `wave` | The same, with a wavy edge |
+| `fade` | A plain crossfade |
+| `random` | One of the first four, at any angle |
+| `none` | No animation: the wallpaper fades as GNOME fades it |
+
+A transition takes 1.2 seconds. To change that, give it in milliseconds after the transition, or move
+the slider on Control's **Appearance** page:
+
+```bash
+ame desktop transition grow 800
+```
+
+There are no transitions while animations are turned off in Settings, under Accessibility. They come
+from the Amethystora Transitions extension, which Extension Manager can turn off.
+
+## Icons
+
+The icons are candy-icons, the same set under every theme: its folders, its file types, and its
+gradient pictograms for the apps that do a plain job, such as Files, Settings or the calculator.
+An app with a logo of its own keeps it. Firefox, Thunderbird, a JetBrains IDE and most of what
+you install show the icon their maker drew, not a redrawn one: a logo is a trademark, and how it
+looks is its owner's to decide. That is why the dock mixes the two styles.
+
+## Change a theme, or make your own
+
+Themes ship read-only in `/usr/share/amethystora/themes`. A folder of the same name in
+`~/.config/amethystora/themes` is laid over the top, so you only write the files you want to change.
+A folder with a name of its own is a new theme. Each file is small and optional, except the palette:
+
+| File | Holds |
+| --- | --- |
+| `colors.toml` | The palette: `accent`, `foreground`, `background`, `cursor`, `selection_foreground`, `selection_background`, and `color0` to `color15` |
+| `light.mode` | Present, and empty, when the theme is light |
+| `pair.theme` | The theme `Super+Ctrl+D` flips to |
+| `accent.theme` | GNOME's accent colour: blue, teal, green, yellow, orange, red, pink, purple or slate. Without it the closest one is picked |
+| `gtk.theme` | A GTK theme name, instead of GNOME's own look |
+| `icons.theme` | An icon theme, instead of candy-icons |
+| `cursor.theme` | A cursor theme |
+| `vscode.theme` | The VSCodium colour theme to switch to |
+| `tophat.theme` | The colour of the top bar meters, when the accent reads badly as a thin line |
+| `backgrounds/` | Wallpapers |
+| `backgrounds.list` | Wallpapers kept elsewhere on the system, one path per line. The first is the one the theme opens on |
+
+A theme with no pictures of its own gets four drawn in its colours: a soft glow, hills in a haze, a
+contour map and flowing ribbons.
+
+A theme of your own takes three commands:
+
+```bash
+mkdir -p ~/.config/amethystora/themes/sunset
+cp /usr/share/amethystora/themes/amethystora/colors.toml ~/.config/amethystora/themes/sunset/
+amethystora-theme set sunset
+```
+
+Edit the colours, run `amethystora-theme set sunset` again, and look at the result.
+
+## Going further
+
+- **How a config is written.** The terminal palette, the prompt, btop's colours and the drawn
+  wallpapers are templates in `/usr/share/amethystora/themed`. Copy one to
+  `~/.config/amethystora/themed/` and edit the copy to change how every theme renders it.
+- **Run something on every switch.** Put an executable in
+  `~/.config/amethystora/hooks/theme-set.d/`. It gets the theme's name in `AMETHYSTORA_THEME` and its
+  folder in `AMETHYSTORA_THEME_DIR`.
+- **Your own prompt stays yours.** If you have written `~/.config/starship.toml` yourself, the theme
+  leaves it alone.
+- **Never edit `~/.config/amethystora/current/`.** It is rewritten on every switch.
+
+## The boot menu
+
+The boot menu can carry the Amethystora artwork too. It is off by default, because the boot menu
+lives outside the image:
+
+```bash
+ame desktop boot-menu
+```
+
+Run it again to take the artwork off, or use the switch on Control's **Appearance** page, which opens
+the same in a terminal. Once it is on, image updates keep it up to date.

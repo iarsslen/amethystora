@@ -1,0 +1,7 @@
+{
+    "name": "alpine",
+    "description": "Alpine Linux 3.22",
+    "base": "quay.io/toolbx-images/alpine-toolbox:3.22@sha256:d064a24d46732ed25f784b438f1a6235e9c6e43935c1ac3f564b936a5e1c8a70",
+    "manager": "apk",
+    "packages": []
+}

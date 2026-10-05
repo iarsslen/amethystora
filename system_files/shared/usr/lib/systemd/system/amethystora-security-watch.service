@@ -1,0 +1,20 @@
+[Unit]
+Description=Security watcher: audit log, journal and settings
+Documentation=man:ausearch(8)
+After=auditd.service
+# The watcher itself failing is said out loud too: a watcher that stopped is worse than none
+OnFailure=amethystora-scan-alert@%n.service
+
+[Service]
+Type=oneshot
+# Reads the audit log, the journal and /etc, sweeps /etc and /var for setuid programs once a day, and
+# writes only to /var/lib/amethystora/security and its own two logs in /var/log
+ExecStart=/usr/libexec/amethystora-security-watch
+Nice=19
+IOSchedulingClass=idle
+# Not PrivateNetwork=, whose namespace has no listening sockets to list, nor ProtectKernelModules=,
+# which hides /usr/lib/modules, the list the report tells the image's own modules from others by
+ProtectClock=yes
+ProtectKernelTunables=yes
+RestrictRealtime=yes
+# The timer and the real-time watcher are what run this, so the service itself is never enabled

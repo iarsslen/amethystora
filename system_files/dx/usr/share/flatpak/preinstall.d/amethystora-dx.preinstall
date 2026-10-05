@@ -1,0 +1,22 @@
+# The development apps amethystora-dx comes with, installed beside the ones in amethystora.preinstall.
+# Leaving developer mode takes them off the machine again, unless they were installed by hand first.
+
+[Flatpak Preinstall de.leopoldluley.Clapgrep]
+Branch=stable
+IsRuntime=false
+
+[Flatpak Preinstall io.github.getnf.embellish]
+Branch=stable
+IsRuntime=false
+
+[Flatpak Preinstall io.podman_desktop.PodmanDesktop]
+Branch=stable
+IsRuntime=false
+
+[Flatpak Preinstall me.iepure.devtoolbox]
+Branch=stable
+IsRuntime=false
+
+[Flatpak Preinstall org.gnome.Builder]
+Branch=stable
+IsRuntime=false

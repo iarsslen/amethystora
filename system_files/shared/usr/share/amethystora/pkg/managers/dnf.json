@@ -1,0 +1,15 @@
+{
+    "name": "dnf",
+    "need_sudo": true,
+    "noconfirm": "-y",
+    "install": "dnf install",
+    "remove": "dnf remove",
+    "purge": "dnf remove",
+    "search": "dnf search",
+    "show": "dnf info",
+    "list": "dnf list --installed",
+    "update": "dnf makecache",
+    "upgrade": "dnf upgrade",
+    "autoremove": "dnf autoremove",
+    "clean": "dnf clean all"
+}

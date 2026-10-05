@@ -1,0 +1,1750 @@
+#!/usr/bin/bash
+#
+# amethystora-pkg, amepkg for short: software from other Linux distributions, each kept in a container
+# of its own, so that nothing installed this way touches the system image.
+#
+#   amepkg containers list | new | rm | reset     the containers it manages
+#   amepkg <container> install | remove | ...     packages in one of them, with its own package manager
+#   amepkg templates list | new | update | ...    what a new container starts from
+#   amepkg managers list | new | update | ...     the commands a container's package manager is driven by
+#   amepkg install <file>                          a .deb, .rpm or .pkg.tar.zst, in the container it fits
+#   amepkg upgrade-all                             every container brought up to date
+#
+# `amepkg --help` lists everything, and the manual explains it (amethystora-manual software).
+#
+# Containers are made by distrobox, on rootless podman: what is installed in one never touches the
+# system. They are not a sandbox, though. What runs in one runs as the user, with their home folder,
+# their display, their sound and their session bus, and every confirmation here says so.
+#
+# Only the containers this made are listed or acted on. Each has labels saying so (amethystora.pkg.*)
+# and a real name of pkg-<name>, and the user's other distrobox containers are left alone. distrobox's
+# own label, manager=distrobox, stays as distrobox sets it: distrobox itself, DistroShelf and the
+# terminal's container menu all find a container by it.
+#
+# The built-in templates and managers are read-only, in /usr/share/amethystora/pkg; the user's own are
+# in ~/.local/share/amethystora/pkg, one JSON file each. Every built-in template's image is pinned by
+# digest, and the pins ship in the signed system image, so a container made from one starts from
+# exactly the image the pin names. The image is pulled here, before distrobox is asked for the
+# container, so that neither the pin nor podman's signature policy can be stepped around.
+#
+# What changes as a container is used is kept in ~/.local/state/amethystora/pkg: when it was last
+# upgraded, and what was installed in it by name or from a file, which is what `ame restore-setup`
+# recreates it from.
+
+set -uo pipefail
+
+PROG="${0##*/}"
+# AMETHYSTORA_PKG_SHARE stands in for the built-in definitions when testing
+SHARE="${AMETHYSTORA_PKG_SHARE:-/usr/share/amethystora/pkg}"
+DATA="${XDG_DATA_HOME:-${HOME}/.local/share}/amethystora/pkg"
+STATE="${XDG_STATE_HOME:-${HOME}/.local/state}/amethystora/pkg"
+CACHE="${XDG_CACHE_HOME:-${HOME}/.cache}/amethystora/pkg"
+# Written by `ame apps aur`
+AUR_FLAG="${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/aur"
+APPLICATIONS="${XDG_DATA_HOME:-${HOME}/.local/share}/applications"
+POLICY=/etc/containers/policy.json
+UUPD_CONFIG=/etc/uupd/config.json
+AUR_RPC=https://aur.archlinux.org/rpc/v5/info
+LABEL=amethystora.pkg
+PREFIX=pkg-
+# What upgrade-all logs one line of JSON a container under, for System Updates to follow
+JOURNAL_ID=amethystora-pkg-upgrade
+# The words that are commands of their own, and so cannot be a container's name
+RESERVED=" containers templates managers install upgrade-all help "
+COMMANDS=(install remove purge search show list update upgrade autoremove clean)
+# Fields are joined with the unit separator: unlike a tab, read never runs two of it together, so an
+# empty field stays a field
+US=$'\x1f'
+LIMIT="Containers are not a sandbox: what you install in one runs as you, with your home folder, your display, your sound and your session bus."
+
+# Whether a package manager may ask its questions: --yes and upgrade-all say no
+NONINTERACTIVE=false
+
+say() { printf '%s\n' "$*"; }
+warn() { printf '%s: %s\n' "${PROG}" "$*" >&2; }
+die() {
+    printf '%s: %s\n' "${PROG}" "$*" >&2
+    exit 1
+}
+
+usage() {
+    cat <<EOF
+Usage: ${PROG} <command>
+
+Software from other Linux distributions, each kept in a container of its own.
+
+Containers
+  ${PROG} containers list [--json]
+  ${PROG} containers new [--template T] [--name N] [--home DIR] [--init] [--no-prompt]
+  ${PROG} containers rm N [--force]
+  ${PROG} containers reset N [--force]       delete it, then make it again from its template
+
+In a container N
+  ${PROG} N enter | run COMMAND... | start | stop
+  ${PROG} N install [--no-export] [--yes] PACKAGE...
+  ${PROG} N remove | purge [--yes] PACKAGE...
+  ${PROG} N search QUERY | show PACKAGE | list
+  ${PROG} N update | upgrade | autoremove | clean
+  ${PROG} N export | unexport --app APP | --bin PATH [--bin-output DIR]
+
+Templates: the image a new container starts from, its package manager and its first packages
+  ${PROG} templates list [--json] | show T
+  ${PROG} templates new | update [--name T] [--base IMAGE] [--packages "P..."] [--pkg-manager M]
+                     [--own-home[=no]] [--unshare LIST] [--description TEXT] [--no-prompt]
+  ${PROG} templates rm T [--force] | export T [--output FILE] | import FILE [--name T]
+
+Package managers: the commands a container's packages are handled with
+  ${PROG} managers list [--json] | show M
+  ${PROG} managers new | update [--name M] [--need-sudo[=no]] [--install CMD] [--remove CMD]
+                    [--purge CMD] [--search CMD] [--show CMD] [--list CMD] [--update CMD]
+                    [--upgrade CMD] [--autoremove CMD] [--clean CMD] [--noconfirm FLAG] [--no-prompt]
+  ${PROG} managers rm M [--force] | export M [--output FILE] | import FILE [--name M]
+
+Beyond containers
+  ${PROG} install [--yes] [--no-export] FILE   a .deb, .rpm or .pkg.tar.zst, scanned for viruses first
+  ${PROG} upgrade-all                           every container, as amethystora-pkg-upgrade.timer does daily
+
+${LIMIT}
+The manual explains it all: amethystora-manual software
+EOF
+}
+
+# --- Asking -----------------------------------------------------------------------------------------
+
+interactive() { [[ -t 0 && -t 2 ]]; }
+
+# gum is what the rest of the image asks with; read is what is there if it ever is not
+confirm() {
+    local answer
+    if command -v gum >/dev/null 2>&1; then
+        gum confirm --default="${2:-false}" "$1"
+        return
+    fi
+    read -r -p "$1 [y/N] " answer || return 1
+    [[ "${answer}" =~ ^[Yy] ]]
+}
+
+ask() {
+    local answer
+    if command -v gum >/dev/null 2>&1; then
+        gum input --header "$1" --value "${2:-}" --placeholder "${3:-}"
+        return
+    fi
+    read -r -e -p "$1 " -i "${2:-}" answer || return 1
+    printf '%s\n' "${answer}"
+}
+
+choose() {
+    local header="$1" choice
+    shift
+    if command -v gum >/dev/null 2>&1; then
+        gum choose --header "${header}" "$@"
+        return
+    fi
+    say "${header}" >&2
+    select choice in "$@"; do
+        [[ -n "${choice}" ]] && { printf '%s\n' "${choice}"; return 0; }
+    done
+    return 1
+}
+
+# A value the command needs and was not given: asked for on a terminal, a failure without one
+need() {
+    local what="$1" flag="$2" value
+    [[ "${NO_PROMPT:-false}" != true ]] && interactive || die "Missing ${flag}: ${what}."
+    value="$(ask "${what}" "${3:-}" "${4:-}")" || exit 1
+    [[ -n "${value}" ]] || die "Missing ${flag}: ${what}."
+    printf '%s\n' "${value}"
+}
+
+# --- Definitions ------------------------------------------------------------------------------------
+
+aur_on() { [[ -e "${AUR_FLAG}" ]]; }
+
+valid_name() { [[ "$1" =~ ^[a-z0-9][a-z0-9_-]{0,31}$ ]]; }
+
+# Built-in names, the AUR's included whether or not it is on, so that turning it on never finds a
+# definition of the user's already holding a name it brings
+builtin_name() { [[ -f "${SHARE}/$1/$2.json" || -f "${SHARE}/aur/$1/$2.json" ]]; }
+
+# Where a definition of a kind (templates or managers) is: built-in first, then the user's
+definition() {
+    local dir
+    for dir in "${SHARE}/$1" "${SHARE}/aur/$1" "${DATA}/$1"; do
+        [[ "${dir}" == "${SHARE}/aur/"* ]] && ! aur_on && continue
+        if [[ -f "${dir}/$2.json" ]]; then
+            printf '%s\n' "${dir}/$2.json"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Every definition of a kind, one "file<US>built-in" a line, each name once
+definition_files() {
+    local file
+    for file in "${SHARE}/$1"/*.json; do
+        [[ -f "${file}" ]] && printf '%s%strue\n' "${file}" "${US}"
+    done
+    if aur_on; then
+        for file in "${SHARE}/aur/$1"/*.json; do
+            [[ -f "${file}" ]] && printf '%s%strue\n' "${file}" "${US}"
+        done
+    fi
+    for file in "${DATA}/$1"/*.json; do
+        [[ -f "${file}" ]] || continue
+        builtin_name "$1" "$(basename "${file}" .json)" && continue
+        printf '%s%sfalse\n' "${file}" "${US}"
+    done
+}
+
+definition_names() {
+    local file
+    while IFS="${US}" read -r file _; do
+        basename "${file}" .json
+    done < <(definition_files "$1")
+}
+
+# An image reference with its registry spelled out. A short name such as ubuntu:24.04 would leave the
+# registry to podman's search list, and so to whoever answers first.
+valid_image() {
+    [[ "$1" =~ ^[A-Za-z0-9.-]+(:[0-9]+)?/[A-Za-z0-9._/-]+(:[A-Za-z0-9._-]+)?(@sha256:[0-9a-f]{64})?$ ]] || return 1
+    local host="${1%%/*}"
+    [[ "${host}" == *.* || "${host}" == *:* || "${host}" == localhost ]]
+}
+
+pinned() { [[ "$1" == *@sha256:* ]]; }
+
+# The repository of an image reference, without its tag or digest
+repository() {
+    local repo="${1%%@*}"
+    [[ "${repo##*/}" == *:* ]] && repo="${repo%:*}"
+    printf '%s\n' "${repo}"
+}
+
+# What podman is asked to pull: the digest alone when there is one, because podman takes a reference
+# with both a tag and a digest only in some of its commands
+pull_reference() {
+    if pinned "$1"; then
+        printf '%s@%s\n' "$(repository "$1")" "${1#*@}"
+    else
+        printf '%s\n' "$1"
+    fi
+}
+
+# Whether podman refuses this image without a valid signature: the most specific scope for it in
+# /etc/containers/policy.json, as podman picks one, asks for a signature
+signature_checked() {
+    local scope type
+    scope="$(repository "$1")"
+    while [[ -n "${scope}" ]]; do
+        type="$(jq -r --arg s "${scope}" '.transports.docker[$s][0].type // empty' "${POLICY}" 2>/dev/null)"
+        if [[ -n "${type}" ]]; then
+            [[ "${type}" == signedBy || "${type}" == sigstoreSigned ]]
+            return
+        fi
+        [[ "${scope}" == */* ]] || break
+        scope="${scope%/*}"
+    done
+    return 1
+}
+
+templates_json() {
+    local file builtin base verified
+    while IFS="${US}" read -r file builtin; do
+        base="$(jq -r '.base // ""' "${file}" 2>/dev/null)" || { warn "Skipping ${file}: it is not JSON."; continue; }
+        # A built-in template's pin is in the signed image, which is what makes it verified
+        verified="${builtin}"
+        [[ "${builtin}" == false ]] && signature_checked "${base}" && verified=true
+        jq -c --argjson builtin "${builtin}" --argjson verified "${verified}" '{
+            name, description: (.description // ""), base, manager, packages: (.packages // []),
+            own_home: (.own_home // false), unshare: (.unshare // []),
+            built_in: $builtin, verified: $verified, pinned: (.base | test("@sha256:[0-9a-f]{64}$"))
+        }' "${file}"
+    done < <(definition_files templates) | jq -s .
+}
+
+managers_json() {
+    local file builtin
+    while IFS="${US}" read -r file builtin; do
+        jq -c --argjson builtin "${builtin}" '{
+            name, need_sudo: (.need_sudo // false), noconfirm: (.noconfirm // ""),
+            install, remove, purge, search, show, list, update, upgrade, autoremove, clean,
+            built_in: $builtin
+        }' "${file}" 2>/dev/null || warn "Skipping ${file}: it is not JSON."
+    done < <(definition_files managers) | jq -s .
+}
+
+# --- Containers -------------------------------------------------------------------------------------
+
+state_file() { printf '%s/containers/%s.json\n' "${STATE}" "$1"; }
+
+# Changes a container's state with a jq filter, written whole and then moved into place
+state_update() {
+    local file current filter="$2"
+    file="$(state_file "$1")"
+    shift 2
+    mkdir -p "${file%/*}"
+    current='{}'
+    [[ -s "${file}" ]] && current="$(cat "${file}")"
+    jq "$@" "${filter}" <<<"${current}" >"${file}.new" && mv "${file}.new" "${file}"
+}
+
+# The containers this manages, one line each: name, real name, status, template, package manager,
+# image, home, init, unshare. Someone who has never used a container has no container storage, and is
+# not given one by asking podman about it.
+container_rows() {
+    [[ -d "${STATE}" || -d "${XDG_DATA_HOME:-${HOME}/.local/share}/containers/storage" ]] || return 0
+    podman ps -a --filter "label=${LABEL}.manager=amethystora-pkg" --format json 2>/dev/null |
+        jq -r --arg l "${LABEL}" '.[]? | .Labels as $L | [
+            $L[$l + ".name"], .Names[0], .State, $L[$l + ".template"], $L[$l + ".pkgmanager"],
+            $L[$l + ".image"], ($L[$l + ".home"] // ""), ($L[$l + ".init"] // "0"), ($L[$l + ".unshare"] // "")
+        ] | map(. // "") | join("\u001f")' | sort
+}
+
+# Sets C_NAME, C_REAL, C_STATUS, C_TEMPLATE, C_MANAGER, C_IMAGE, C_HOME, C_INIT, C_UNSHARE and C_DEF,
+# the manager's definition, from a line of container_rows
+load_container() {
+    IFS="${US}" read -r C_NAME C_REAL C_STATUS C_TEMPLATE C_MANAGER C_IMAGE C_HOME C_INIT C_UNSHARE <<<"$1"
+    C_DEF="$(definition managers "${C_MANAGER}")" || C_DEF=""
+}
+
+require_container() {
+    local row
+    [[ -n "${1:-}" ]] || die "Which container? See them with: ${PROG} containers list"
+    row="$(container_rows | awk -F"${US}" -v n="$1" '$1 == n { print; exit }')"
+    [[ -n "${row}" ]] || die "There is no container called $1. See them with: ${PROG} containers list"
+    load_container "${row}"
+}
+
+require_manager() {
+    [[ -n "${C_DEF}" ]] && return 0
+    if [[ -f "${SHARE}/aur/managers/${C_MANAGER}.json" ]]; then
+        die "${C_NAME} is handled by ${C_MANAGER}, which is only there while the AUR is on: ame apps aur"
+    fi
+    die "${C_NAME} is handled by the manager ${C_MANAGER}, which is gone. See: ${PROG} managers list"
+}
+
+enter() { distrobox enter --name "${C_REAL}" -- "$@"; }
+
+# One of the manager's commands, in the container: as root when the manager needs it, through sh so
+# that a command may be a short pipeline, and with the packages after it as arguments, never pasted
+# into it. When nobody is there to answer, the manager's own flag for not asking goes on the commands
+# that change packages, and apt is told not to ask either.
+pm() {
+    local action="$1" command flag script
+    shift
+    require_manager
+    command="$(jq -r --arg a "${action}" '.[$a] // empty' "${C_DEF}")"
+    [[ -n "${command}" ]] || die "The manager ${C_MANAGER} has no ${action} command."
+    script="${command}"
+    if [[ "${NONINTERACTIVE}" == true ]]; then
+        case "${action}" in
+            install | remove | purge | upgrade | autoremove)
+                flag="$(jq -r '.noconfirm // empty' "${C_DEF}")"
+                [[ -n "${flag}" ]] && script+=" ${flag}"
+                ;;
+        esac
+        script="DEBIAN_FRONTEND=noninteractive; export DEBIAN_FRONTEND; ${script}"
+    fi
+    # shellcheck disable=SC2016
+    script+=' "$@"'
+    if [[ "$(jq -r '.need_sudo // false' "${C_DEF}")" == true ]]; then
+        enter sudo sh -c "${script}" sh "$@"
+    else
+        enter sh -c "${script}" sh "$@"
+    fi
+}
+
+# The launchers a package put in the app grid, from the package's own file list. Guessing them from
+# the package's name misses an app whose launcher is named after something else.
+package_launchers() {
+    # shellcheck disable=SC2016
+    enter sh -c '
+        for package in "$@"; do
+            if command -v dpkg-query >/dev/null 2>&1; then
+                dpkg-query -L "${package}" 2>/dev/null
+            elif command -v pacman >/dev/null 2>&1; then
+                pacman -Qlq "${package}" 2>/dev/null
+            elif command -v apk >/dev/null 2>&1; then
+                apk info -qL "${package}" 2>/dev/null | sed "s|^|/|"
+            elif command -v rpm >/dev/null 2>&1; then
+                rpm -ql "${package}" 2>/dev/null
+            fi
+        done | grep -E "^/usr/share/applications/[^/]+\.desktop$" | sort -u |
+            while read -r launcher; do
+                [ -f "${launcher}" ] || continue
+                grep -qiE "^(NoDisplay|Hidden)=true" "${launcher}" && continue
+                grep -q "^Exec=" "${launcher}" && echo "${launcher}"
+            done' sh "$@" 2>/dev/null
+}
+
+# What distrobox-export wrote for a launcher: <container>-<launcher> in the app grid's folder
+exported_file() { printf '%s/%s-%s\n' "${APPLICATIONS}" "${C_REAL}" "${1##*/}"; }
+
+export_launchers() {
+    local launcher file
+    while IFS= read -r launcher; do
+        [[ -n "${launcher}" ]] || continue
+        if enter distrobox-export --app "${launcher}" --export-label "(on ${C_NAME})" >/dev/null 2>&1; then
+            file="$(exported_file "${launcher}")"
+            say "In the app grid: $(sed -n 's/^Name=//p' "${file}" 2>/dev/null | head -n1)"
+        else
+            warn "${launcher##*/} could not be put in the app grid."
+        fi
+    done < <(package_launchers "$@")
+}
+
+unexport_launchers() {
+    local launcher
+    while IFS= read -r launcher; do
+        [[ -n "${launcher}" ]] || continue
+        if [[ -e "$(exported_file "${launcher}")" ]]; then
+            enter distrobox-export --app "${launcher}" --delete >/dev/null 2>&1 ||
+                warn "${launcher##*/} could not be taken out of the app grid."
+        fi
+    done < <(package_launchers "$@")
+}
+
+# The launchers exported from a container, whoever exported them, as distrobox-export names them
+exported_apps() {
+    local file
+    for file in "${APPLICATIONS}/$1-"*.desktop; do
+        [[ -f "${file}" ]] || continue
+        grep -q -- "^Exec=.*distrobox-enter.* -n $1 " "${file}" || continue
+        printf '%s%s%s\n' "$(sed -n 's/^Name=//p' "${file}" | head -n1)" "${US}" "${file}"
+    done | jq -R 'split("\u001f") | {name: .[0], file: .[1]}' | jq -s .
+}
+
+# ...and the commands, by the two lines distrobox-export starts each one with
+exported_bins() {
+    local dir file
+    {
+        printf '%s\n' "${HOME}/.local/bin"
+        jq -r '.bin_dirs // [] | .[]' "$(state_file "$2")" 2>/dev/null
+    } | sort -u | while IFS= read -r dir; do
+        for file in "${dir}"/*; do
+            [[ -f "${file}" ]] || continue
+            grep -qx '# distrobox_binary' "${file}" 2>/dev/null && grep -qx -- "# name: $1" "${file}" &&
+                printf '%s\n' "${file}"
+        done
+    done | jq -R . | jq -s .
+}
+
+containers_json() {
+    local row
+    while IFS= read -r row; do
+        [[ -n "${row}" ]] || continue
+        load_container "${row}"
+        jq -nc --arg name "${C_NAME}" --arg real "${C_REAL}" --arg status "${C_STATUS}" \
+            --arg template "${C_TEMPLATE}" --arg manager "${C_MANAGER}" --arg image "${C_IMAGE}" \
+            --arg home "${C_HOME}" --arg init "${C_INIT}" --arg unshare "${C_UNSHARE}" \
+            --argjson apps "$(exported_apps "${C_REAL}")" --argjson bins "$(exported_bins "${C_REAL}" "${C_NAME}")" \
+            --argjson state "$(cat "$(state_file "${C_NAME}")" 2>/dev/null || echo '{}')" '{
+                name: $name, container: $real, template: $template, manager: $manager, image: $image,
+                status: $status, home: (if $home == "" then null else $home end), init: ($init == "1"),
+                unshare: ($unshare | split(",") | map(select(. != ""))),
+                exported_apps: $apps, exported_bins: $bins,
+                packages: ($state.packages // []), files: ($state.files // []),
+                aur_packages: ($state.aur_packages // []), aur_pending: ($state.aur_pending // null),
+                created: ($state.created // null), last_upgrade: ($state.last_upgrade // null),
+                last_upgrade_result: ($state.last_result // null)
+            }'
+    done < <(container_rows) | jq -s .
+}
+
+# "today", "yesterday", "3 days ago", or "never"
+ago() {
+    [[ "${1:-}" =~ ^[0-9]+$ ]] || { echo never; return; }
+    local days=$((($(date +%s) - $1) / 86400))
+    case "${days}" in
+        0) echo today ;;
+        1) echo yesterday ;;
+        *) echo "${days} days ago" ;;
+    esac
+}
+
+containers_list() {
+    local json
+    case "${1:-}" in
+        --json) containers_json; return ;;
+        "") ;;
+        *) die "usage: ${PROG} containers list [--json]" ;;
+    esac
+    json="$(containers_json)"
+    if [[ "$(jq length <<<"${json}")" == 0 ]]; then
+        say "No containers yet. Make one with: ${PROG} containers new"
+        return
+    fi
+    {
+        printf 'NAME%sTEMPLATE%sSTATUS%sUPGRADED%sIN THE APP GRID\n' "${US}" "${US}" "${US}" "${US}"
+        while IFS="${US}" read -r name template status upgraded apps; do
+            printf '%s%s%s%s%s%s%s%s%s\n' "${name}" "${US}" "${template}" "${US}" "${status}" "${US}" \
+                "$(ago "${upgraded}")" "${US}" "${apps:--}"
+        done < <(jq -r '.[] | [.name, .template, .status, (.last_upgrade // "" | tostring),
+            (.exported_apps | map(.name | sub(" \\(on [^)]*\\)$"; "")) | join(", "))] | join("\u001f")' <<<"${json}")
+    } | column -t -s "${US}"
+}
+
+# Makes a container from a template: pulls the image by its pin, has distrobox make the container,
+# brings it up to date and installs the template's packages
+create_container() {
+    local name="$1" template="$2" home="$3" init="$4" file base manager pull real labels unshare option
+    local -a args packages
+    file="$(definition templates "${template}")" ||
+        die "There is no template called ${template}. See them with: ${PROG} templates list"
+    base="$(jq -r '.base // ""' "${file}")"
+    manager="$(jq -r '.manager // ""' "${file}")"
+    valid_image "${base}" || die "The template ${template} names an image that is not a full reference: ${base}"
+    definition managers "${manager}" >/dev/null ||
+        die "The template ${template} is handled by the manager ${manager}, which is not there. See: ${PROG} managers list"
+    real="${PREFIX}${name}"
+    # distrobox hands its flags to the shell to split, labels included
+    [[ "${home}" != *[[:space:]\"\'\$\`\\]* ]] || die "A home folder whose path has no spaces or quotes, please: ${home}"
+
+    # A template of the user's whose image is neither pinned nor signature-checked is taken on trust
+    if [[ ! "${file}" == "${SHARE}/"* ]] && ! pinned "${base}" && ! signature_checked "${base}"; then
+        say "The template ${template} starts from ${base}, which is not pinned to a digest, and whose"
+        say "signature nothing on this machine checks. Whoever controls that image decides what is in it."
+        if [[ "${NONINTERACTIVE}" != true ]]; then
+            interactive || die "Making it needs a terminal to confirm, or --yes."
+            confirm "Use it anyway?" || exit 1
+        fi
+    fi
+
+    pull="$(pull_reference "${base}")"
+    say "Getting ${base}"
+    podman pull "${pull}" >&2 ||
+        die "podman could not pull ${pull}. If it says the signature is missing or wrong, the image is not the one the template names."
+
+    labels="--label ${LABEL}.manager=amethystora-pkg --label ${LABEL}.name=${name} --label ${LABEL}.template=${template}"
+    labels+=" --label ${LABEL}.pkgmanager=${manager} --label ${LABEL}.image=${base} --label ${LABEL}.init=${init}"
+    [[ -n "${home}" ]] && labels+=" --label ${LABEL}.home=${home}"
+    unshare="$(jq -r '.unshare // [] | join(",")' "${file}")"
+    [[ -n "${unshare}" ]] && labels+=" --label ${LABEL}.unshare=${unshare}"
+    args=(create --yes --no-entry --name "${real}" --image "${pull}" --additional-flags "${labels}")
+    [[ -n "${home}" ]] && args+=(--home "${home}")
+    [[ "${init}" == 1 ]] && args+=(--init)
+    for option in ${unshare//,/ }; do
+        args+=("--unshare-${option}")
+    done
+    distrobox "${args[@]}" >/dev/null || die "distrobox could not make the container."
+    state_update "${name}" '.created = (now | floor) | .packages = (.packages // [])'
+
+    C_NAME="${name}" C_REAL="${real}" C_MANAGER="${manager}" C_TEMPLATE="${template}" C_HOME="${home}"
+    C_DEF="$(definition managers "${manager}")"
+    say "Setting ${name} up. The first start takes a minute or two."
+    enter true || die "${name} was made, but did not start. See why with: podman logs ${real}"
+    if [[ "${manager}" == paru ]] && ! ensure_paru; then
+        warn "${name} is there, without paru. Make it again once the AUR can be reached: ${PROG} containers reset ${name}"
+        return 1
+    fi
+
+    local quiet="${NONINTERACTIVE}"
+    NONINTERACTIVE=true
+    if upgrade_container; then
+        state_update "${name}" '.last_upgrade = (now | floor) | .last_result = "ok"'
+    else
+        warn "${name} could not be brought up to date. Try again with: ${PROG} ${name} upgrade"
+    fi
+    mapfile -t packages < <(jq -r '.packages // [] | .[]' "${file}")
+    if [[ ${#packages[@]} -gt 0 ]]; then
+        say "Installing the template's packages: ${packages[*]}"
+        pm install "${packages[@]}" || warn "Some of the template's packages did not install. Try again with: ${PROG} ${name} install ${packages[*]}"
+    fi
+    NONINTERACTIVE="${quiet}"
+    return 0
+}
+
+containers_new() {
+    local template="" name="" home="" init=0 default existing
+    NO_PROMPT=false
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --template | -t) template="${2:-}"; shift ;;
+            --template=*) template="${1#*=}" ;;
+            --name | -n) name="${2:-}"; shift ;;
+            --name=*) name="${1#*=}" ;;
+            --home) home="${2:-}"; shift ;;
+            --home=*) home="${1#*=}" ;;
+            --init) init=1 ;;
+            --no-prompt) NO_PROMPT=true ;;
+            --yes | -y) NONINTERACTIVE=true ;;
+            *) die "usage: ${PROG} containers new [--template T] [--name N] [--home DIR] [--init] [--no-prompt]" ;;
+        esac
+        shift
+    done
+    if [[ -z "${template}" ]]; then
+        [[ "${NO_PROMPT}" != true ]] && interactive || die "Missing --template. See them with: ${PROG} templates list"
+        template="$(choose "Which template?" $(definition_names templates))" || exit 1
+    fi
+    definition templates "${template}" >/dev/null ||
+        die "There is no template called ${template}. See them with: ${PROG} templates list"
+    existing=" $(container_rows | cut -d"${US}" -f1 | tr '\n' ' ') "
+    if [[ -z "${name}" ]]; then
+        default="${template}"
+        local n=2
+        while [[ "${existing}" == *" ${default} "* ]]; do
+            default="${template}-${n}"
+            n=$((n + 1))
+        done
+        name="${default}"
+        if [[ "${NO_PROMPT}" != true ]] && interactive; then
+            name="$(ask "Name for the container" "${default}")" || exit 1
+        fi
+    fi
+    valid_name "${name}" || die "A container's name is lower-case letters, digits, - and _, up to 32 of them: ${name}"
+    [[ "${RESERVED}" != *" ${name} "* ]] || die "${name} is one of ${PROG}'s own commands, so it cannot name a container."
+    [[ "${existing}" != *" ${name} "* ]] || die "There is already a container called ${name}."
+    if podman container exists "${PREFIX}${name}" 2>/dev/null; then
+        die "podman already has a container called ${PREFIX}${name}, which ${PROG} did not make."
+    fi
+    if [[ -z "${home}" && "$(jq -r '.own_home // false' "$(definition templates "${template}")")" == true ]]; then
+        home="${DATA}/homes/${name}"
+    fi
+    if [[ -n "${home}" ]]; then
+        mkdir -p "${home}" || die "Could not make the home folder ${home}."
+        home="$(realpath "${home}")"
+    fi
+    say "${LIMIT}"
+    [[ -n "${home}" ]] && say "Its home folder is ${home}, which keeps its settings apart from yours; your files stay reachable by their full path."
+    create_container "${name}" "${template}" "${home}" "${init}" || exit 1
+    say "Made ${name}. Install into it with: ${PROG} ${name} install <package>"
+}
+
+# The name and --force of rm and reset
+name_and_force() {
+    local action="$1"
+    shift
+    FORCE=false
+    TARGET=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --force | -f) FORCE=true ;;
+            -*) die "usage: ${PROG} containers ${action} N [--force]" ;;
+            *) TARGET="$1" ;;
+        esac
+        shift
+    done
+}
+
+remove_home() {
+    [[ -n "${C_HOME}" && -d "${C_HOME}" ]] || return 0
+    if [[ "${C_HOME}" == "${DATA}/homes/"* && "${FORCE}" != true ]] && interactive &&
+        confirm "Delete its home folder too, ${C_HOME}?"; then
+        rm -rf -- "${C_HOME}"
+        return
+    fi
+    say "Its home folder is still there: ${C_HOME}"
+}
+
+containers_rm() {
+    name_and_force rm "$@"
+    require_container "${TARGET}"
+    if [[ "${FORCE}" != true ]]; then
+        interactive || die "Removing ${C_NAME} needs a terminal to confirm, or --force."
+        say "Removing ${C_NAME} deletes the container and everything installed in it, and takes its apps out of the app grid."
+        confirm "Remove ${C_NAME}?" || exit 1
+    fi
+    # distrobox takes the apps and commands exported from it away with it
+    distrobox rm --force "${C_REAL}" >/dev/null || die "distrobox could not remove ${C_REAL}."
+    rm -f -- "$(state_file "${C_NAME}")"
+    remove_home
+    say "Removed ${C_NAME}."
+}
+
+containers_reset() {
+    local packages
+    name_and_force reset "$@"
+    require_container "${TARGET}"
+    definition templates "${C_TEMPLATE}" >/dev/null ||
+        die "Its template, ${C_TEMPLATE}, is gone, so it cannot be made again. Remove it with: ${PROG} containers rm ${C_NAME}"
+    if [[ "${FORCE}" != true ]]; then
+        interactive || die "Resetting ${C_NAME} needs a terminal to confirm, or --force."
+        say "Resetting ${C_NAME} deletes it and makes it again from the template ${C_TEMPLATE}: what you"
+        say "installed in it goes, and so do its apps in the app grid. Its home folder stays."
+        confirm "Reset ${C_NAME}?" || exit 1
+    fi
+    packages="$(jq -r '.packages // [] | join(" ")' "$(state_file "${C_NAME}")" 2>/dev/null)"
+    distrobox rm --force "${C_REAL}" >/dev/null || die "distrobox could not remove ${C_REAL}."
+    rm -f -- "$(state_file "${C_NAME}")"
+    NONINTERACTIVE=true
+    create_container "${C_NAME}" "${C_TEMPLATE}" "${C_HOME}" "${C_INIT}" || exit 1
+    say "${C_NAME} is as new."
+    [[ -n "${packages}" ]] && say "It had these installed by name: ${packages}. Install them again with: ${PROG} ${C_NAME} install ${packages}"
+    return 0
+}
+
+cmd_containers() {
+    local action="${1:-}"
+    shift || true
+    case "${action}" in
+        list | ls) containers_list "$@" ;;
+        new | create) containers_new "$@" ;;
+        rm | remove) containers_rm "$@" ;;
+        reset) containers_reset "$@" ;;
+        "" | -h | --help | help) usage ;;
+        *) die "containers ${action} is not a command. See: ${PROG} --help" ;;
+    esac
+}
+
+# --- Safer sources ----------------------------------------------------------------------------------
+
+# A package's name the way an app is likely to be called: without the suffixes that only say how it
+# was built
+plain_name() {
+    local name="${1,,}" suffix
+    for suffix in -bin -git -stable -esr -desktop -nightly -appimage; do
+        name="${name%"${suffix}"}"
+    done
+    printf '%s\n' "${name}"
+}
+
+# A Flathub app that is the same thing as a package: by the last part of its ID or by its name.
+# Sandboxed, signed and updated with the system, it is the better way to have the app.
+flathub_match() {
+    command -v flatpak >/dev/null 2>&1 || return 1
+    local wanted id title rest
+    wanted="$(plain_name "$1")"
+    while IFS=$'\t' read -r id title rest; do
+        [[ "${id}" =~ ^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)+$ ]] || continue
+        local last="${id##*.}" plain="${title,,}"
+        if [[ "${last,,}" == "${wanted}" || "${plain// /-}" == "${wanted}" ]]; then
+            printf '%s%s%s\n' "${id}" "${US}" "${title:-${id}}"
+            return 0
+        fi
+    done < <(flatpak search --columns=application,name "${wanted}" 2>/dev/null)
+    return 1
+}
+
+# Offers the Flathub app in place of the package, on a terminal. Returns 0 when it was installed from
+# Flathub instead, and so there is nothing more to do.
+offer_flathub() {
+    local match id title choice
+    match="$(flathub_match "$1")" || return 1
+    id="${match%%"${US}"*}"
+    title="${match#*"${US}"}"
+    if [[ "${NONINTERACTIVE}" == true ]] || ! interactive; then
+        say "Note: ${title} is also on Flathub (${id}), sandboxed and updated with the system."
+        return 1
+    fi
+    choice="$(choose "${title} is on Flathub as ${id}: sandboxed, signed and updated with the system. Which?" \
+        "Flathub (${id})" "The package, in ${C_NAME:-a container}" "Cancel")" || exit 1
+    case "${choice}" in
+        Flathub*)
+            flatpak install flathub "${id}" || die "flatpak could not install ${id}."
+            return 0
+            ;;
+        Cancel | "") exit 1 ;;
+    esac
+    return 1
+}
+
+# The AUR's own record of packages: who maintains each, how many vote for it, since when it is there
+# and when it last changed. Anyone can upload to the AUR and nobody reviews it, so this is said before
+# anything from it is built. Returns 1 when a package is not in the AUR at all.
+show_aur() {
+    local json count=0 name version maintainer votes popularity first modified outdated warnings
+    local -a query=()
+    for name in "$@"; do
+        query+=(--data-urlencode "arg[]=${name}")
+    done
+    json="$(curl -fsSL --max-time 20 -G "${AUR_RPC}" "${query[@]}" 2>/dev/null)" ||
+        { warn "The AUR could not be reached to say what it knows of $*."; return 1; }
+    while IFS="${US}" read -r name version maintainer votes popularity first modified outdated; do
+        count=$((count + 1))
+        say ""
+        say "${name} ${version}, from the AUR"
+        say "  Maintainer   ${maintainer:-nobody: it is orphaned}"
+        say "  Votes        ${votes}, popularity ${popularity}"
+        say "  Submitted    $(date -d "@${first}" '+%-d %B %Y')"
+        say "  Updated      $(date -d "@${modified}" '+%-d %B %Y')"
+        [[ -n "${outdated}" ]] && say "  Out of date  flagged on $(date -d "@${outdated}" '+%-d %B %Y')"
+        warnings=()
+        (($(date +%s) - first < 30 * 86400)) && warnings+=("it is less than 30 days old")
+        [[ "${votes}" == 0 ]] && warnings+=("nobody has voted for it")
+        [[ -z "${maintainer}" ]] && warnings+=("nobody maintains it")
+        [[ ${#warnings[@]} -gt 0 ]] && say "  Careful:     $(printf '%s, ' "${warnings[@]}" | sed 's/, $//')"
+    done < <(jq -r '.results[]? | [.Name, .Version, (.Maintainer // ""), (.NumVotes | tostring),
+        (.Popularity * 100 | round / 100 | tostring), (.FirstSubmitted | tostring),
+        (.LastModified | tostring), (.OutOfDate // "" | tostring)] | join("\u001f")' <<<"${json}")
+    [[ "${count}" -eq $# ]]
+}
+
+# paru is not in Arch's repositories, so it is built from the AUR in the container itself, once, the
+# way any AUR package is built: after showing what the AUR says of it and, on a terminal, its PKGBUILD
+ensure_paru() {
+    enter sh -c 'command -v paru' >/dev/null 2>&1 && return 0
+    say "paru, the helper that builds packages from the AUR, is built from the AUR too, in ${C_NAME}."
+    show_aur paru || return 1
+    # shellcheck disable=SC2016
+    local build='set -e
+        sudo pacman -S --needed --noconfirm base-devel git
+        dir="$(mktemp -d)"
+        trap "rm -rf \"${dir}\"" EXIT
+        git clone --quiet --depth 1 https://aur.archlinux.org/paru.git "${dir}/paru"
+        cd "${dir}/paru"
+        if [ "$1" = show ]; then
+            cat PKGBUILD
+            printf "\nBuild paru from this PKGBUILD? [y/N] "
+            read -r answer
+            case "${answer}" in [Yy]*) ;; *) exit 1 ;; esac
+        fi
+        makepkg -sir --noconfirm'
+    say "Building it takes a few minutes."
+    if [[ "${NONINTERACTIVE}" != true ]] && interactive; then
+        enter sh -c "${build}" sh show
+    else
+        enter sh -c "${build}" sh quiet
+    fi
+}
+
+# --- In a container ---------------------------------------------------------------------------------
+
+container_install() {
+    local export=true package
+    local -a packages=() aur=()
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --no-export) export=false ;;
+            --yes | -y) NONINTERACTIVE=true ;;
+            -*) die "usage: ${PROG} ${C_NAME} install [--no-export] [--yes] PACKAGE..." ;;
+            *) packages+=("$1") ;;
+        esac
+        shift
+    done
+    [[ ${#packages[@]} -gt 0 ]] || die "usage: ${PROG} ${C_NAME} install [--no-export] [--yes] PACKAGE..."
+    require_manager
+
+    # Arch's own signed repositories before the AUR: paru takes a package from them when they have it,
+    # and only what they do not have is built from a PKGBUILD
+    if [[ "${C_MANAGER}" == paru ]]; then
+        for package in "${packages[@]}"; do
+            enter pacman -Si "${package}" >/dev/null 2>&1 || aur+=("${package}")
+        done
+    fi
+
+    # The same app from Flathub, offered first, one package at a time
+    local -a wanted=() building=()
+    for package in "${packages[@]}"; do
+        offer_flathub "${package}" || wanted+=("${package}")
+    done
+    [[ ${#wanted[@]} -gt 0 ]] || return 0
+    packages=("${wanted[@]}")
+    for package in "${aur[@]}"; do
+        [[ " ${packages[*]} " == *" ${package} "* ]] && building+=("${package}")
+    done
+    aur=("${building[@]}")
+
+    # What comes from the AUR is built only after somebody has read its PKGBUILD, which paru shows
+    # before it builds: that review is never skipped, --yes or not
+    if [[ ${#aur[@]} -gt 0 ]]; then
+        say "Not in Arch's repositories, so built from the AUR: ${aur[*]}"
+        show_aur "${aur[@]}" || die "Not everything asked for is in Arch's repositories or the AUR."
+        say ""
+        say "Anyone can upload to the AUR, and nobody reviews what is there. paru shows you each PKGBUILD"
+        say "before it builds anything: read it. ${LIMIT}"
+        interactive || die "Packages from the AUR are built only after you have read their PKGBUILD, which needs a terminal."
+        confirm "Build ${aur[*]} from the AUR?" || exit 1
+        NONINTERACTIVE=false
+    fi
+
+    pm install "${packages[@]}" || die "Not installed."
+    state_update "${C_NAME}" '.packages = ((.packages // []) + $p | unique)
+        | .aur_packages = ((.aur_packages // []) + $a | unique)' \
+        --argjson p "$(printf '%s\n' "${packages[@]}" | jq -R . | jq -sc .)" \
+        --argjson a "$(printf '%s\n' "${aur[@]}" | jq -R 'select(. != "")' | jq -sc .)"
+    [[ "${export}" == true ]] && export_launchers "${packages[@]}"
+    return 0
+}
+
+container_remove() {
+    local action="$1" package
+    local -a packages=()
+    shift
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --yes | -y) NONINTERACTIVE=true ;;
+            -*) die "usage: ${PROG} ${C_NAME} ${action} [--yes] PACKAGE..." ;;
+            *) packages+=("$1") ;;
+        esac
+        shift
+    done
+    [[ ${#packages[@]} -gt 0 ]] || die "usage: ${PROG} ${C_NAME} ${action} [--yes] PACKAGE..."
+    require_manager
+    # Out of the app grid first, while the package's file list still says which launchers are its own
+    unexport_launchers "${packages[@]}"
+    pm "${action}" "${packages[@]}" || die "Not removed."
+    state_update "${C_NAME}" '.packages = ((.packages // []) - $p) | .aur_packages = ((.aur_packages // []) - $p)
+        | .files = ((.files // []) | map(select(.name | IN($p[]) | not)))' \
+        --argjson p "$(printf '%s\n' "${packages[@]}" | jq -R . | jq -sc .)"
+    return 0
+}
+
+# Brings the container up to date: the package lists, then the packages. Unattended, an AUR container
+# upgrades only what comes from Arch's own repositories: an AUR package is built from a PKGBUILD that
+# somebody has to read first, so those wait for `amepkg <name> upgrade` on a terminal.
+upgrade_container() {
+    if [[ "${C_MANAGER}" == paru && "${NONINTERACTIVE}" == true ]]; then
+        enter sudo pacman -Syu --noconfirm
+        return
+    fi
+    pm update && pm upgrade
+}
+
+# What an AUR container has from outside Arch's repositories, and how many of those have a newer
+# version waiting in the AUR
+record_aur() {
+    [[ "${C_MANAGER}" == paru ]] || return 0
+    local foreign pending
+    foreign="$(enter pacman -Qmq 2>/dev/null | jq -R 'select(. != "")' | jq -sc .)" || return 0
+    pending="$(enter paru -Qua 2>/dev/null | grep -c .)"
+    state_update "${C_NAME}" '.aur_packages = $f | .aur_pending = $n' --argjson f "${foreign:-[]}" \
+        --argjson n "${pending:-0}"
+}
+
+container_upgrade() {
+    case "${1:-}" in
+        --yes | -y) NONINTERACTIVE=true ;;
+        "") ;;
+        *) die "usage: ${PROG} ${C_NAME} upgrade [--yes]" ;;
+    esac
+    [[ "${C_MANAGER}" == paru && "${NONINTERACTIVE}" == true ]] || require_manager
+    if upgrade_container; then
+        state_update "${C_NAME}" '.last_upgrade = (now | floor) | .last_result = "ok"'
+        record_aur
+        if [[ "${C_MANAGER}" == paru && "${NONINTERACTIVE}" == true ]]; then
+            say "${C_NAME}'s packages from Arch's repositories are up to date. Those from the AUR wait for"
+            say "you to read what changed: ${PROG} ${C_NAME} upgrade, without --yes."
+        else
+            say "${C_NAME} is up to date."
+        fi
+    else
+        state_update "${C_NAME}" '.last_result = "failed"'
+        die "${C_NAME} did not upgrade."
+    fi
+}
+
+container_export() {
+    local action="$1" app="" bin="" output="" state_dir
+    local -a args=()
+    shift
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --app) app="${2:-}"; shift ;;
+            --bin) bin="${2:-}"; shift ;;
+            --bin-output) output="${2:-}"; shift ;;
+            *) die "usage: ${PROG} ${C_NAME} ${action} --app APP | --bin PATH [--bin-output DIR]" ;;
+        esac
+        shift
+    done
+    [[ -n "${app}" || -n "${bin}" ]] || die "usage: ${PROG} ${C_NAME} ${action} --app APP | --bin PATH [--bin-output DIR]"
+    if [[ -n "${app}" ]]; then
+        args=(--app "${app}")
+        [[ "${action}" == export ]] && args+=(--export-label "(on ${C_NAME})")
+    else
+        args=(--bin "${bin}")
+        if [[ -n "${output}" ]]; then
+            mkdir -p "${output}" && output="$(realpath "${output}")"
+            args+=(--export-path "${output}")
+            state_dir="${output}"
+        fi
+    fi
+    [[ "${action}" == unexport ]] && args+=(--delete)
+    enter distrobox-export "${args[@]}" || die "Not ${action}ed."
+    if [[ -n "${state_dir:-}" && "${action}" == export ]]; then
+        state_update "${C_NAME}" '.bin_dirs = ((.bin_dirs // []) + [$d] | unique)' --arg d "${state_dir}"
+    fi
+    return 0
+}
+
+cmd_container() {
+    local name="$1" action="${2:-}"
+    shift
+    shift || true
+    case "${action}" in
+        "" | -h | --help | help) usage; return ;;
+    esac
+    require_container "${name}"
+    case "${action}" in
+        enter) exec distrobox enter --name "${C_REAL}" ;;
+        run)
+            [[ $# -gt 0 ]] || die "usage: ${PROG} ${C_NAME} run COMMAND..."
+            exec distrobox enter --name "${C_REAL}" -- "$@"
+            ;;
+        start) enter true && say "${C_NAME} is running." ;;
+        stop) podman stop "${C_REAL}" >/dev/null && say "${C_NAME} is stopped." ;;
+        install) container_install "$@" ;;
+        remove | purge) container_remove "${action}" "$@" ;;
+        search)
+            [[ $# -gt 0 ]] || die "usage: ${PROG} ${C_NAME} search QUERY"
+            pm search "$@"
+            ;;
+        show)
+            [[ $# -gt 0 ]] || die "usage: ${PROG} ${C_NAME} show PACKAGE"
+            pm show "$@"
+            ;;
+        list | update | autoremove | clean)
+            [[ "${1:-}" == --yes || "${1:-}" == -y ]] && NONINTERACTIVE=true
+            pm "${action}"
+            ;;
+        upgrade) container_upgrade "$@" ;;
+        export | unexport) container_export "${action}" "$@" ;;
+        *) die "${action} is not something ${PROG} does with a container. See: ${PROG} --help" ;;
+    esac
+}
+
+# --- Templates and managers -------------------------------------------------------------------------
+
+# A file whose first non-blank character opens a JSON object is Amethystora's own format. Anything else
+# is read as a flat YAML file: "key: value" lines, and lists either "- item" lines under their key or
+# [a, b] on one line. Returns the keys and values as one JSON object.
+read_definition() {
+    local file="$1"
+    if jq -e 'type == "object"' "${file}" >/dev/null 2>&1; then
+        jq -c . "${file}"
+        return
+    fi
+    awk '
+        function unquote(s) {
+            sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s)
+            if (s ~ /^".*"$/ || s ~ /^\047.*\047$/) s = substr(s, 2, length(s) - 2)
+            return s
+        }
+        /^[ \t]*(#|$)/ { next }
+        /^[A-Za-z_][A-Za-z0-9_-]*:/ {
+            key = $0; sub(/:.*/, "", key)
+            value = $0; sub(/^[^:]*:[ \t]*/, "", value)
+            if (value !~ /^["\047]/) sub(/[ \t]+#.*$/, "", value)
+            list = ""
+            if (value == "") { list = key; print key "[]\t"; next }
+            if (value ~ /^\[.*\]$/) {
+                print key "[]\t"
+                value = substr(value, 2, length(value) - 2)
+                n = split(value, items, ",")
+                for (i = 1; i <= n; i++) if (unquote(items[i]) != "") print key "[]\t" unquote(items[i])
+                next
+            }
+            print key "\t" unquote(value)
+            next
+        }
+        /^[ \t]*-[ \t]*/ && list != "" {
+            item = $0; sub(/^[ \t]*-[ \t]*/, "", item); sub(/[ \t]+#.*$/, "", item)
+            print list "[]\t" unquote(item)
+        }
+    ' "${file}" | jq -Rsc '
+        split("\n") | map(select(length > 0) | split("\t") | {key: .[0], value: (.[1:] | join("\t"))})
+        | reduce .[] as $e ({};
+            if ($e.key | endswith("[]")) then
+                .[$e.key[:-2]] = ((.[$e.key[:-2]] // []) + (if $e.value == "" then [] else [$e.value] end))
+            else .[$e.key] = $e.value end)'
+}
+
+# Writes a template or a manager of the user's, after checking it
+write_definition() {
+    local kind="$1" name="$2" json="$3" file
+    file="${DATA}/${kind}/${name}.json"
+    mkdir -p "${DATA}/${kind}"
+    jq . <<<"${json}" >"${file}.new" && mv "${file}.new" "${file}"
+}
+
+check_template() {
+    local json="$1" name base manager
+    name="$(jq -r '.name // ""' <<<"${json}")"
+    base="$(jq -r '.base // ""' <<<"${json}")"
+    manager="$(jq -r '.manager // ""' <<<"${json}")"
+    valid_name "${name}" || die "A template's name is lower-case letters, digits, - and _, up to 32 of them: ${name}"
+    valid_image "${base}" || die "The image has to be a full reference, with its registry: ${base:-none given}"
+    definition managers "${manager}" >/dev/null || die "There is no package manager called ${manager:-(none given)}. See them with: ${PROG} managers list"
+    jq -e '(.packages | type == "array") and ((.unshare // []) | all(IN("ipc", "netns", "process", "devsys", "groups", "all")))' \
+        <<<"${json}" >/dev/null || die "--unshare takes ipc, netns, process, devsys, groups or all."
+}
+
+check_manager() {
+    local json="$1" name command
+    name="$(jq -r '.name // ""' <<<"${json}")"
+    valid_name "${name}" || die "A manager's name is lower-case letters, digits, - and _, up to 32 of them: ${name}"
+    for command in "${COMMANDS[@]}"; do
+        [[ -n "$(jq -r --arg c "${command}" '.[$c] // ""' <<<"${json}")" ]] || die "The manager ${name} has no ${command} command."
+    done
+}
+
+# Names given to `new`, `update` and `import` may not be a built-in's
+user_name() {
+    local kind="$1" name="$2"
+    builtin_name "${kind}" "${name}" && die "${name} is a built-in ${kind%s}, which cannot be changed or replaced. Use another name."
+    return 0
+}
+
+definitions_list() {
+    local kind="$1" json
+    case "${2:-}" in
+        --json) "${kind}_json"; return ;;
+        "") ;;
+        *) die "usage: ${PROG} ${kind} list [--json]" ;;
+    esac
+    json="$("${kind}_json")"
+    if [[ "${kind}" == templates ]]; then
+        jq -r '.[] | [.name, .manager, (if .built_in then "built-in" elif .verified then "yours, signature-checked"
+            elif .pinned then "yours, pinned" else "yours, unverified" end),
+            (if .description == "" then "-" else .description end)] | join("\u001f")' <<<"${json}" |
+            { printf 'NAME%sMANAGER%sKIND%sDESCRIPTION\n' "${US}" "${US}" "${US}"; cat; } | column -t -s "${US}"
+    else
+        jq -r '.[] | [.name, (if .need_sudo then "as root" else "as you" end), (if .built_in then "built-in" else "yours" end),
+            .install] | join("\u001f")' <<<"${json}" |
+            { printf 'NAME%sRUNS%sKIND%sINSTALLS WITH\n' "${US}" "${US}" "${US}"; cat; } | column -t -s "${US}"
+    fi
+}
+
+definitions_show() {
+    local kind="$1" name="${2:-}" file
+    [[ -n "${name}" ]] || die "usage: ${PROG} ${kind} show NAME"
+    file="$(definition "${kind}" "${name}")" || die "There is no ${kind%s} called ${name}. See them with: ${PROG} ${kind} list"
+    "${kind}_json" | jq --arg n "${name}" '.[] | select(.name == $n)'
+}
+
+definitions_rm() {
+    local kind="$1" name="" force=false users
+    shift
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --force | -f) force=true ;;
+            -*) die "usage: ${PROG} ${kind} rm NAME [--force]" ;;
+            *) name="$1" ;;
+        esac
+        shift
+    done
+    [[ -n "${name}" ]] || die "usage: ${PROG} ${kind} rm NAME [--force]"
+    builtin_name "${kind}" "${name}" && die "${name} is built in, and cannot be removed."
+    [[ -f "${DATA}/${kind}/${name}.json" ]] || die "There is no ${kind%s} of yours called ${name}."
+    if [[ "${kind}" == templates ]]; then
+        users="$(containers_json | jq -r --arg n "${name}" '[.[] | select(.template == $n) | .name] | join(", ")')"
+    else
+        users="$(containers_json | jq -r --arg n "${name}" '[.[] | select(.manager == $n) | .name] | join(", ")')"
+    fi
+    [[ -n "${users}" ]] && say "In use by: ${users}. They keep working$([[ "${kind}" == templates ]] && echo ", but cannot be reset" || echo ", but none of their package commands will")."
+    if [[ "${force}" != true ]]; then
+        interactive || die "Removing ${name} needs a terminal to confirm, or --force."
+        confirm "Remove the ${kind%s} ${name}?" || exit 1
+    fi
+    rm -f -- "${DATA}/${kind}/${name}.json"
+    say "Removed ${name}."
+}
+
+definitions_export() {
+    local kind="$1" name="" output="" file
+    shift
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --output | -o) output="${2:-}"; shift ;;
+            --output=*) output="${1#*=}" ;;
+            -*) die "usage: ${PROG} ${kind} export NAME [--output FILE]" ;;
+            *) name="$1" ;;
+        esac
+        shift
+    done
+    [[ -n "${name}" ]] || die "usage: ${PROG} ${kind} export NAME [--output FILE]"
+    file="$(definition "${kind}" "${name}")" || die "There is no ${kind%s} called ${name}."
+    if [[ -n "${output}" ]]; then
+        jq . "${file}" >"${output}" || die "Could not write ${output}."
+        say "Wrote ${output}."
+    else
+        jq . "${file}"
+    fi
+}
+
+# Reads a definition in Amethystora's own JSON, or in the YAML other container tools write. A
+# package-manager file there names each command in a cmd* key; with model 1, each of those is only the
+# part after the manager's name, and with model 2, the default, the whole command.
+definitions_import() {
+    local kind="$1" file="" rename="" json name
+    shift
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --name | -n) rename="${2:-}"; shift ;;
+            --name=*) rename="${1#*=}" ;;
+            -*) die "usage: ${PROG} ${kind} import FILE [--name NAME]" ;;
+            *) file="$1" ;;
+        esac
+        shift
+    done
+    [[ -f "${file}" ]] || die "usage: ${PROG} ${kind} import FILE [--name NAME]"
+    json="$(read_definition "${file}")" || die "${file} is neither JSON nor YAML that can be read."
+    if [[ "${kind}" == templates ]]; then
+        json="$(jq -c 'if has("base") then {
+            name, description: (.description // ""), base,
+            manager: (.manager // .pkgmanager // ""),
+            packages: ((.packages // []) | if type == "array" then . else [.] end | map(select(. != ""))),
+            own_home: ((.own_home // false) | tostring == "true"),
+            unshare: (.unshare // [])
+        } else empty end' <<<"${json}")"
+        [[ -n "${json}" ]] || die "${file} is not a template: it names no base image."
+    else
+        json="$(jq -c '(.model // "2" | tostring) as $model | .name as $name |
+            def command($key; $old): (.[$key] // .[$old] // "") as $c |
+                if $c == "" then "" elif $model == "1" then "\($name) \($c)" else $c end;
+            {
+                name: $name,
+                need_sudo: ((.need_sudo // .needsudo // false) | tostring == "true"),
+                noconfirm: (.noconfirm // ""),
+                install: command("install"; "cmdinstall"), remove: command("remove"; "cmdremove"),
+                purge: command("purge"; "cmdpurge"), search: command("search"; "cmdsearch"),
+                show: command("show"; "cmdshow"), list: command("list"; "cmdlist"),
+                update: command("update"; "cmdupdate"), upgrade: command("upgrade"; "cmdupgrade"),
+                autoremove: command("autoremove"; "cmdautoremove"), clean: command("clean"; "cmdclean")
+            }' <<<"${json}")"
+    fi
+    [[ -n "${rename}" ]] && json="$(jq -c --arg n "${rename}" '.name = $n' <<<"${json}")"
+    name="$(jq -r '.name // ""' <<<"${json}")"
+    user_name "${kind}" "${name}"
+    if [[ "${kind}" == templates ]]; then check_template "${json}"; else check_manager "${json}"; fi
+    if [[ -f "${DATA}/${kind}/${name}.json" ]]; then
+        interactive || die "You already have a ${kind%s} called ${name}. Import it under another with --name."
+        confirm "Replace your ${kind%s} ${name}?" || exit 1
+    fi
+    write_definition "${kind}" "${name}" "${json}"
+    say "Imported the ${kind%s} ${name}."
+}
+
+# `new` asks for what it was not given. `update` changes only what it was given; given nothing, it
+# goes through every value with the one there now filled in.
+templates_edit() {
+    local action="$1" name="" current='{}' json prompting=false given=false
+    local base="" manager="" packages="" own_home="" unshare="" description=""
+    local -A set=()
+    shift
+    NO_PROMPT=false
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --name | -n) name="${2:-}"; shift ;;
+            --name=*) name="${1#*=}" ;;
+            --base | -b) base="${2:-}"; set[base]=1; shift ;;
+            --base=*) base="${1#*=}"; set[base]=1 ;;
+            --packages | -p) packages="${2:-}"; set[packages]=1; shift ;;
+            --packages=*) packages="${1#*=}"; set[packages]=1 ;;
+            --pkg-manager | -m) manager="${2:-}"; set[manager]=1; shift ;;
+            --pkg-manager=*) manager="${1#*=}"; set[manager]=1 ;;
+            --own-home) own_home=true; set[own_home]=1 ;;
+            --own-home=*) own_home="${1#*=}"; set[own_home]=1 ;;
+            --unshare) unshare="${2:-}"; set[unshare]=1; shift ;;
+            --unshare=*) unshare="${1#*=}"; set[unshare]=1 ;;
+            --description) description="${2:-}"; set[description]=1; shift ;;
+            --description=*) description="${1#*=}"; set[description]=1 ;;
+            --no-prompt) NO_PROMPT=true ;;
+            -*) die "usage: ${PROG} templates ${action} [--name T] [--base IMAGE] [--packages \"P...\"] [--pkg-manager M] [--own-home[=no]] [--unshare LIST] [--description TEXT] [--no-prompt]" ;;
+            *) name="$1" ;;
+        esac
+        shift
+    done
+    [[ ${#set[@]} -gt 0 ]] && given=true
+    [[ "${NO_PROMPT}" != true ]] && interactive && prompting=true
+    [[ -n "${name}" ]] || name="$(need "Name of the template" --name)"
+    user_name templates "${name}"
+    if [[ "${action}" == update ]]; then
+        [[ -f "${DATA}/templates/${name}.json" ]] || die "You have no template called ${name}. Make one with: ${PROG} templates new"
+        current="$(jq -c . "${DATA}/templates/${name}.json")"
+        [[ "${given}" == true ]] && prompting=false
+    elif [[ -f "${DATA}/templates/${name}.json" ]]; then
+        die "You already have a template called ${name}. Change it with: ${PROG} templates update --name ${name}"
+    fi
+    [[ -n "${set[base]:-}" ]] || base="$(jq -r '.base // ""' <<<"${current}")"
+    [[ -n "${set[manager]:-}" ]] || manager="$(jq -r '.manager // ""' <<<"${current}")"
+    [[ -n "${set[packages]:-}" ]] || packages="$(jq -r '.packages // [] | join(" ")' <<<"${current}")"
+    [[ -n "${set[own_home]:-}" ]] || own_home="$(jq -r '.own_home // false' <<<"${current}")"
+    [[ -n "${set[unshare]:-}" ]] || unshare="$(jq -r '.unshare // [] | join(",")' <<<"${current}")"
+    [[ -n "${set[description]:-}" ]] || description="$(jq -r '.description // ""' <<<"${current}")"
+    if [[ "${prompting}" == true ]]; then
+        [[ -n "${set[base]:-}" ]] || base="$(ask "Image, with its registry, and pinned with @sha256: if you can" \
+            "${base}" "quay.io/toolbx/ubuntu-toolbox:24.04")" || exit 1
+        # shellcheck disable=SC2046
+        [[ -n "${set[manager]:-}" ]] || manager="$(choose "Its package manager${manager:+ (now ${manager})}" \
+            $(definition_names managers))" || exit 1
+        [[ -n "${set[packages]:-}" ]] || packages="$(ask "Packages each new container starts with, separated by spaces (none is fine)" \
+            "${packages}")" || exit 1
+    fi
+    [[ -n "${base}" ]] || die "Missing --base: the image a container starts from."
+    [[ -n "${manager}" ]] || die "Missing --pkg-manager: the package manager its image uses. See them with: ${PROG} managers list"
+    case "${own_home}" in
+        yes | true) own_home=true ;;
+        no | false) own_home=false ;;
+        *) die "--own-home takes yes or no." ;;
+    esac
+    json="$(jq -nc --arg name "${name}" --arg description "${description}" --arg base "${base}" \
+        --arg manager "${manager}" --arg packages "${packages}" --argjson own_home "${own_home}" --arg unshare "${unshare}" '{
+            name: $name, description: $description, base: $base, manager: $manager,
+            packages: ($packages | split("[ ,]+"; null) | map(select(. != ""))),
+            own_home: $own_home, unshare: ($unshare | split("[ ,]+"; null) | map(select(. != "")))
+        }')"
+    check_template "${json}"
+    if ! pinned "${base}" && ! signature_checked "${base}"; then
+        say "Note: ${base} is not pinned to a digest, and nothing on this machine checks its signature."
+        say "It is listed as unverified, and making a container from it asks first."
+    fi
+    write_definition templates "${name}" "${json}"
+    say "$([[ "${action}" == new ]] && echo Made || echo Changed) the template ${name}. Use it with: ${PROG} containers new --template ${name}"
+}
+
+# What each of a package manager's commands looks like, as apt's are written
+declare -A EXAMPLES=(
+    [install]="apt-get install" [remove]="apt-get remove" [purge]="apt-get purge" [search]="apt-cache search"
+    [show]="apt-cache show" [list]="apt list --installed" [update]="apt-get update" [upgrade]="apt-get dist-upgrade"
+    [autoremove]="apt-get autoremove" [clean]="apt-get clean"
+)
+
+managers_edit() {
+    local action="$1" name="" need_sudo="" noconfirm="" current='{}' json command value prompting=false given=false
+    local -A commands=() set=()
+    shift
+    NO_PROMPT=false
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --name | -n) name="${2:-}"; shift ;;
+            --name=*) name="${1#*=}" ;;
+            --need-sudo) need_sudo=true; set[need_sudo]=1 ;;
+            --need-sudo=*) need_sudo="${1#*=}"; set[need_sudo]=1 ;;
+            --noconfirm) noconfirm="${2:-}"; set[noconfirm]=1; shift ;;
+            --noconfirm=*) noconfirm="${1#*=}"; set[noconfirm]=1 ;;
+            --no-prompt) NO_PROMPT=true ;;
+            --install | --remove | --purge | --search | --show | --list | --update | --upgrade | --autoremove | --clean)
+                commands["${1#--}"]="${2:-}"
+                set["${1#--}"]=1
+                shift
+                ;;
+            --install=* | --remove=* | --purge=* | --search=* | --show=* | --list=* | --update=* | --upgrade=* | --autoremove=* | --clean=*)
+                value="${1#--}"
+                commands["${value%%=*}"]="${1#*=}"
+                set["${value%%=*}"]=1
+                ;;
+            -*) die "usage: ${PROG} managers ${action} [--name M] [--need-sudo[=no]] [--install CMD] ... [--noconfirm FLAG] [--no-prompt]" ;;
+            *) name="$1" ;;
+        esac
+        shift
+    done
+    [[ ${#set[@]} -gt 0 ]] && given=true
+    [[ "${NO_PROMPT}" != true ]] && interactive && prompting=true
+    [[ -n "${name}" ]] || name="$(need "Name of the package manager" --name)"
+    user_name managers "${name}"
+    if [[ "${action}" == update ]]; then
+        [[ -f "${DATA}/managers/${name}.json" ]] || die "You have no package manager called ${name}. Make one with: ${PROG} managers new"
+        current="$(jq -c . "${DATA}/managers/${name}.json")"
+        [[ "${given}" == true ]] && prompting=false
+    elif [[ -f "${DATA}/managers/${name}.json" ]]; then
+        die "You already have a package manager called ${name}. Change it with: ${PROG} managers update --name ${name}"
+    fi
+    if [[ -z "${set[need_sudo]:-}" ]]; then
+        need_sudo="$(jq -r '.need_sudo // false' <<<"${current}")"
+        if [[ "${prompting}" == true ]]; then
+            confirm "Do its commands run as root?" "${need_sudo}" && need_sudo=true || need_sudo=false
+        fi
+    fi
+    case "${need_sudo}" in
+        yes | true) need_sudo=true ;;
+        no | false) need_sudo=false ;;
+        *) die "--need-sudo takes yes or no." ;;
+    esac
+    for command in "${COMMANDS[@]}"; do
+        [[ -n "${set[${command}]:-}" ]] && continue
+        value="$(jq -r --arg c "${command}" '.[$c] // ""' <<<"${current}")"
+        if [[ "${prompting}" == true ]]; then
+            value="$(ask "The command that does ${command}, without its packages" "${value}" "${EXAMPLES[${command}]}")" || exit 1
+        fi
+        commands["${command}"]="${value}"
+    done
+    if [[ -z "${set[noconfirm]:-}" ]]; then
+        noconfirm="$(jq -r '.noconfirm // ""' <<<"${current}")"
+        if [[ "${prompting}" == true ]]; then
+            noconfirm="$(ask "The option that makes it install without asking, such as apt's -y (empty when it never asks)" \
+                "${noconfirm}" "-y")" || exit 1
+        fi
+    fi
+    for command in "${COMMANDS[@]}"; do
+        [[ -n "${commands[${command}]}" ]] || die "Missing --${command}: the command that does ${command}, such as ${EXAMPLES[${command}]}."
+    done
+    json="$(jq -nc --arg name "${name}" --argjson need_sudo "${need_sudo}" --arg noconfirm "${noconfirm}" \
+        --arg install "${commands[install]}" --arg remove "${commands[remove]}" --arg purge "${commands[purge]}" \
+        --arg search "${commands[search]}" --arg show "${commands[show]}" --arg list "${commands[list]}" \
+        --arg update "${commands[update]}" --arg upgrade "${commands[upgrade]}" \
+        --arg autoremove "${commands[autoremove]}" --arg clean "${commands[clean]}" \
+        '{name: $name, need_sudo: $need_sudo, noconfirm: $noconfirm, install: $install, remove: $remove,
+          purge: $purge, search: $search, show: $show, list: $list, update: $update, upgrade: $upgrade,
+          autoremove: $autoremove, clean: $clean}')"
+    check_manager "${json}"
+    write_definition managers "${name}" "${json}"
+    say "$([[ "${action}" == new ]] && echo Made || echo Changed) the package manager ${name}."
+}
+
+cmd_definitions() {
+    local kind="$1" action="${2:-}"
+    shift
+    shift || true
+    case "${action}" in
+        list | ls) definitions_list "${kind}" "$@" ;;
+        show) definitions_show "${kind}" "$@" ;;
+        new | create | update) "${kind}_edit" "${action/create/new}" "$@" ;;
+        rm | remove) definitions_rm "${kind}" "$@" ;;
+        export) definitions_export "${kind}" "$@" ;;
+        import) definitions_import "${kind}" "$@" ;;
+        "" | -h | --help | help) usage ;;
+        *) die "${kind} ${action} is not a command. See: ${PROG} --help" ;;
+    esac
+}
+
+# --- A package file ---------------------------------------------------------------------------------
+
+# ClamAV first: clamd when its socket lets this account in, clamscan, which loads the signatures
+# itself, when it does not. 0 clean, 1 found (the signature is printed), 2 could not tell.
+scan_file() {
+    local output status
+    if command -v clamdscan >/dev/null 2>&1; then
+        output="$(clamdscan --fdpass --no-summary -- "$1" 2>&1)"
+        status=$?
+        [[ ${status} -le 1 ]] && { sed -n 's/^.*: \(.*\) FOUND$/\1/p' <<<"${output}"; return "${status}"; }
+    fi
+    command -v clamscan >/dev/null 2>&1 || return 2
+    say "Scanning it with clamscan, which takes a moment to load the virus signatures." >&2
+    output="$(clamscan --no-summary -- "$1" 2>&1)"
+    status=$?
+    [[ ${status} -le 1 ]] || return 2
+    sed -n 's/^.*: \(.*\) FOUND$/\1/p' <<<"${output}"
+    return "${status}"
+}
+
+# What a package file says about itself, said before it is installed: its name and version, who made
+# it, whether it is signed and whether it runs scripts as it installs. Sets P_NAME and P_VERSION.
+# Returns 1 for a file whose signature is there and does not check out.
+provenance() {
+    local kind="$1" file="$2" from="" signature="" scripts=false bad=false members control flag check
+    P_NAME=""
+    P_VERSION=""
+    case "${kind}" in
+        rpm)
+            local vendor packager
+            IFS=$'\t' read -r P_NAME P_VERSION vendor packager < <(rpm -qp --nosignature --nodigest \
+                --queryformat '%{NAME}\t%{VERSION}-%{RELEASE}\t%{VENDOR}\t%{PACKAGER}\n' "${file}" 2>/dev/null)
+            from="${vendor}"
+            [[ "${from}" == "(none)" || -z "${from}" ]] && from="${packager}"
+            [[ "${from}" == "(none)" ]] && from=""
+            # -v names each signature and digest with its result: OK, NOKEY (signed with a key this
+            # machine does not trust) or BAD (changed since it was signed)
+            check="$(rpm -Kv "${file}" 2>&1)"
+            if grep -q "BAD" <<<"${check}"; then
+                signature="Its signature does NOT match its contents: it was changed after it was signed."
+                bad=true
+            elif grep -qi "Signature.*NOKEY" <<<"${check}"; then
+                signature="Signed, with a key this machine does not know ($(grep -oi -m1 'key ID [0-9a-f]*' <<<"${check}"))."
+            elif grep -qi "Signature.*: OK" <<<"${check}"; then
+                signature="Signed, with a key this machine trusts ($(grep -oi -m1 'key ID [0-9a-f]*' <<<"${check}"))."
+            else
+                signature="Not signed."
+            fi
+            [[ -n "$(rpm -qp --scripts "${file}" 2>/dev/null)" ]] && scripts=true
+            ;;
+        deb)
+            members="$(ar t "${file}" 2>/dev/null)"
+            control="$(grep -m1 '^control\.tar' <<<"${members}")"
+            case "${control}" in
+                *.gz) flag=-z ;;
+                *.xz) flag=-J ;;
+                *.zst) flag=--zstd ;;
+                *) flag="" ;;
+            esac
+            local fields
+            # shellcheck disable=SC2086
+            fields="$(ar p "${file}" "${control}" 2>/dev/null | tar -xO ${flag} -f - --wildcards --no-anchored control 2>/dev/null)"
+            P_NAME="$(sed -n 's/^Package: *//p' <<<"${fields}" | head -n1)"
+            P_VERSION="$(sed -n 's/^Version: *//p' <<<"${fields}" | head -n1)"
+            from="$(sed -n 's/^Maintainer: *//p' <<<"${fields}" | head -n1)"
+            # shellcheck disable=SC2086
+            ar p "${file}" "${control}" 2>/dev/null | tar -t ${flag} -f - 2>/dev/null |
+                grep -qE '(^|/)(preinst|postinst|prerm|postrm)$' && scripts=true
+            if grep -q '^_gpg' <<<"${members}"; then
+                signature="It carries a signature of its own (debsigs), which nothing here checks."
+            else
+                signature="Not signed, as .deb files normally are not: a distribution signs the lists of its repositories, not each file, so a .deb downloaded on its own carries no proof of who made it."
+            fi
+            ;;
+        pacman)
+            case "${file}" in *.zst) flag=--zstd ;; *.xz) flag=-J ;; esac
+            local info
+            info="$(tar -xO "${flag}" -f "${file}" .PKGINFO 2>/dev/null)"
+            P_NAME="$(sed -n 's/^pkgname = //p' <<<"${info}" | head -n1)"
+            P_VERSION="$(sed -n 's/^pkgver = //p' <<<"${info}" | head -n1)"
+            from="$(sed -n 's/^packager = //p' <<<"${info}" | head -n1)"
+            tar -t "${flag}" -f "${file}" 2>/dev/null | grep -qx '\.INSTALL' && scripts=true
+            if [[ -f "${file}.sig" ]]; then
+                signature="A signature is next to it, which pacman checks against the keys it trusts as it installs."
+            else
+                signature="Not signed: there is no .sig file next to it."
+            fi
+            ;;
+    esac
+    [[ "${P_NAME}" =~ ^[A-Za-z0-9+._@-]+$ ]] || die "This does not read as a ${kind} package: no name in it."
+    say ""
+    say "${P_NAME} ${P_VERSION}"
+    say "  From        ${from:-it does not say}"
+    say "  Signature   ${signature}"
+    if [[ "${scripts}" == true ]]; then
+        say "  Scripts     It runs scripts of its own as it installs, as root inside the container."
+    else
+        say "  Scripts     None."
+    fi
+    [[ "${bad}" != true ]]
+}
+
+# The container a package file goes in: one made from the template for its kind first, then any
+# other whose package manager installs that kind; on a terminal, the choice when there are several.
+# Prints nothing when there is none yet.
+file_container() {
+    local template="$1" managers="$2" row name tmpl manager
+    local -a first=() other=()
+    while IFS= read -r row; do
+        [[ -n "${row}" ]] || continue
+        IFS="${US}" read -r name _ _ tmpl manager _ <<<"${row}"
+        if [[ "${tmpl}" == "${template}" ]]; then
+            first+=("${name}")
+        elif [[ " ${managers} " == *" ${manager} "* ]]; then
+            other+=("${name}")
+        fi
+    done < <(container_rows)
+    local -a all=("${first[@]}" "${other[@]}")
+    [[ ${#all[@]} -gt 0 ]] || return 0
+    if [[ ${#all[@]} -gt 1 && "${NONINTERACTIVE}" != true ]] && interactive; then
+        choose "Install it in which container?" "${all[@]}"
+        return
+    fi
+    printf '%s\n' "${all[0]}"
+}
+
+# Whether the container's own signed repositories have a package of that name
+repository_has() {
+    # shellcheck disable=SC2016
+    case "$1" in
+        deb) enter sh -c 'apt-cache policy "$1" 2>/dev/null | grep -q "Candidate: [^(]"' sh "$2" ;;
+        rpm) enter sh -c 'dnf -q info --available "$1" >/dev/null 2>&1 || zypper -q info "$1" 2>/dev/null | grep -q "^Name"' sh "$2" ;;
+        pacman) enter pacman -Si "$2" >/dev/null 2>&1 ;;
+    esac
+}
+
+cmd_install_file() {
+    local file="" export=true kind template managers work copy found status name choice
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --yes | -y) NONINTERACTIVE=true ;;
+            --no-export) export=false ;;
+            -*) die "usage: ${PROG} install [--yes] [--no-export] FILE" ;;
+            *) file="$1" ;;
+        esac
+        shift
+    done
+    [[ -n "${file}" ]] || die "usage: ${PROG} install [--yes] [--no-export] FILE"
+    [[ -f "${file}" ]] || die "There is no file ${file}."
+    case "${file,,}" in
+        *.deb) kind=deb template=debian managers="apt" ;;
+        *.rpm) kind=rpm template=fedora managers="dnf zypper" ;;
+        *.pkg.tar.zst | *.pkg.tar.xz) kind=pacman template=arch managers="pacman paru" ;;
+        *) die "${PROG} installs .deb, .rpm and .pkg.tar.zst files. For anything else: amethystora-manual software" ;;
+    esac
+
+    # Everything from here on works on a copy, so that what is scanned is what is installed
+    mkdir -p "${CACHE}" || die "Could not make ${CACHE}."
+    work="$(mktemp -d "${CACHE}/install.XXXXXX")" || die "Could not make a folder in ${CACHE}."
+    # shellcheck disable=SC2064
+    trap "rm -rf -- '${work}'" EXIT
+    copy="${work}/$(basename "${file}")"
+    cp -- "${file}" "${copy}" || die "Could not copy ${file}."
+    [[ -f "${file}.sig" ]] && cp -- "${file}.sig" "${copy}.sig"
+
+    say "Scanning $(basename "${file}") for viruses."
+    found="$(scan_file "${copy}")"
+    status=$?
+    case "${status}" in
+        0) say "No known malware in it." ;;
+        1) die "Not installed: it matches known malware (${found:-a ClamAV signature}). Delete it." ;;
+        *)
+            warn "It could not be scanned: the virus scanner has no signatures yet, or is not running."
+            [[ "${NONINTERACTIVE}" != true ]] && interactive || die "Not installed without a scan."
+            confirm "Install it without a scan?" || exit 1
+            ;;
+    esac
+
+    provenance "${kind}" "${copy}" || die "Not installed: a package whose signature is broken has been changed by someone."
+
+    name="$(file_container "${template}" "${managers}")"
+    say ""
+    # Safer ways to the same thing come first: the app from Flathub, sandboxed, or the package from the
+    # container's own repositories, which are signed and keep it updated
+    local -a options=()
+    local match="" in_repository=false
+    match="$(flathub_match "${P_NAME}")" && options+=("Flathub: ${match#*"${US}"} (${match%%"${US}"*}), sandboxed and updated with the system")
+    if [[ -n "${name}" ]]; then
+        require_container "${name}"
+        repository_has "${kind}" "${P_NAME}" && in_repository=true &&
+            options+=("${name}'s own repositories: ${P_NAME}, signed, and upgraded with the container")
+    fi
+    if [[ ${#options[@]} -gt 0 ]]; then
+        if [[ "${NONINTERACTIVE}" == true ]] || ! interactive; then
+            printf 'Note: there is a safer way to the same software. %s\n' "${options[@]}"
+        else
+            choice="$(choose "Safer ways to the same software, before a file from the web:" "${options[@]}" \
+                "This file" "Cancel")" || exit 1
+            case "${choice}" in
+                Flathub:*)
+                    flatpak install flathub "${match%%"${US}"*}" || die "flatpak could not install it."
+                    exit 0
+                    ;;
+                *"own repositories"*)
+                    container_install "${P_NAME}" $([[ "${export}" == true ]] || echo --no-export)
+                    exit
+                    ;;
+                "This file") ;;
+                *) exit 1 ;;
+            esac
+        fi
+    fi
+
+    say "${LIMIT}"
+    if [[ "${NONINTERACTIVE}" != true ]]; then
+        interactive || die "Installing a file needs a terminal to confirm, or --yes."
+        confirm "Install ${P_NAME} ${P_VERSION} from this file${name:+ in ${name}}?" || exit 1
+    fi
+
+    if [[ -z "${name}" ]]; then
+        name="${template}"
+        local n=2
+        while container_rows | cut -d"${US}" -f1 | grep -qx "${name}"; do
+            name="${template}-${n}"
+            n=$((n + 1))
+        done
+        say "There is no container for ${kind} packages yet, so ${name} is made from the template ${template}."
+        local quiet="${NONINTERACTIVE}"
+        NONINTERACTIVE=true
+        create_container "${name}" "${template}" "" 0 || exit 1
+        NONINTERACTIVE="${quiet}"
+    fi
+    require_container "${name}"
+    require_manager
+
+    # The package lists first, so that what it depends on comes from the newest the repositories have
+    local quiet="${NONINTERACTIVE}"
+    NONINTERACTIVE=true
+    pm update >/dev/null 2>&1
+    NONINTERACTIVE="${quiet}"
+    if [[ "${kind}" == pacman ]]; then
+        enter sudo pacman -U $([[ "${NONINTERACTIVE}" == true ]] && echo --noconfirm) "${copy}" || die "Not installed."
+    else
+        pm install "${copy}" || die "Not installed."
+    fi
+    state_update "${name}" '.files = ((.files // []) | map(select(.name != $n)) + [{name: $n, version: $v, file: $f, installed: (now | floor)}])' \
+        --arg n "${P_NAME}" --arg v "${P_VERSION}" --arg f "$(basename "${file}")"
+    [[ "${export}" == true ]] && export_launchers "${P_NAME}"
+    say "Installed ${P_NAME} in ${name}. It is upgraded with the container only if its repositories have it."
+    return 0
+}
+
+# --- Upgrading everything ---------------------------------------------------------------------------
+
+# uupd's own hardware checks, with the thresholds in /etc/uupd/config.json and uupd's defaults where
+# it has none: on battery below the minimum, memory used above the maximum, and the five-minute load
+# average above the CPU maximum, which uupd compares with the number as it is. Sets SKIP_REASON.
+hardware_ok() {
+    local enabled battery cpu memory percent load used
+    enabled="$(jq -r '.checks.hardware.enable // true' "${UUPD_CONFIG}" 2>/dev/null || echo true)"
+    [[ "${enabled}" == false ]] && return 0
+    battery="$(jq -r '.checks.hardware["bat-min-percent"] // 20' "${UUPD_CONFIG}" 2>/dev/null || echo 20)"
+    cpu="$(jq -r '.checks.hardware["cpu-max-percent"] // 50' "${UUPD_CONFIG}" 2>/dev/null || echo 50)"
+    memory="$(jq -r '.checks.hardware["mem-max-percent"] // 90' "${UUPD_CONFIG}" 2>/dev/null || echo 90)"
+    if [[ "$(busctl --system get-property org.freedesktop.UPower /org/freedesktop/UPower \
+        org.freedesktop.UPower OnBattery 2>/dev/null)" == "b true" ]]; then
+        percent="$(busctl --system get-property org.freedesktop.UPower /org/freedesktop/UPower/devices/DisplayDevice \
+            org.freedesktop.UPower.Device Percentage 2>/dev/null | awk '{ print $2 }')"
+        if awk -v p="${percent:-100}" -v m="${battery}" 'BEGIN { exit !(p < m) }'; then
+            SKIP_REASON="on battery, at ${percent%.*}%"
+            return 1
+        fi
+    fi
+    read -r _ load _ </proc/loadavg
+    if awk -v l="${load}" -v m="${cpu}" 'BEGIN { exit !(l > m) }'; then
+        SKIP_REASON="the machine is busy (load ${load})"
+        return 1
+    fi
+    used="$(awk '/^MemTotal:/ { t = $2 } /^MemAvailable:/ { a = $2 } END { if (t) printf "%.0f", (t - a) * 100 / t }' /proc/meminfo)"
+    if awk -v u="${used:-0}" -v m="${memory}" 'BEGIN { exit !(u > m) }'; then
+        SKIP_REASON="memory is ${used}% used"
+        return 1
+    fi
+    return 0
+}
+
+# One line of JSON in the journal, under an identifier of its own, for System Updates to read
+journal() {
+    printf '%s\n' "$1" | systemd-cat -t "${JOURNAL_ID}" 2>/dev/null || true
+}
+
+cmd_upgrade_all() {
+    local -a rows=()
+    local row index=0 failed=0 count started result lock
+    [[ $# -eq 0 ]] || die "usage: ${PROG} upgrade-all"
+    NONINTERACTIVE=true
+    exec </dev/null
+    mkdir -p "${STATE}"
+    exec {lock}>"${STATE}/upgrade.lock"
+    if command -v flock >/dev/null 2>&1 && ! flock -n "${lock}"; then
+        die "Another upgrade of the containers is already running."
+    fi
+    # Started by its timer, it holds back the way uupd's automatic updates do. Started by hand, or by
+    # System Updates after "Update now", it does not, as uupd-manual.service does not.
+    if [[ -n "${TRIGGER_UNIT:-}" ]] && ! hardware_ok; then
+        say "Not upgrading the containers now: ${SKIP_REASON}. The timer tries again tomorrow."
+        journal "$(jq -nc --arg r "${SKIP_REASON}" '{done: true, skipped: $r}')"
+        return 0
+    fi
+    mapfile -t rows < <(container_rows)
+    count=${#rows[@]}
+    if [[ "${count}" -eq 0 ]]; then
+        journal '{"done": true, "count": 0, "failed": 0}'
+        say "No containers to upgrade."
+        return 0
+    fi
+    for row in "${rows[@]}"; do
+        load_container "${row}"
+        index=$((index + 1))
+        journal "$(jq -nc --arg c "${C_NAME}" --argjson i "${index}" --argjson n "${count}" \
+            '{container: $c, state: "running", index: $i, count: $n}')"
+        say "Upgrading ${C_NAME} (${index} of ${count})"
+        started=${SECONDS}
+        # In a subshell, so that a manager missing a command fails this container and not the run. An
+        # AUR container needs no manager here: unattended, it is upgraded with pacman.
+        if [[ -n "${C_DEF}" || "${C_MANAGER}" == paru ]] && (upgrade_container); then
+            result=ok
+            state_update "${C_NAME}" '.last_upgrade = (now | floor) | .last_result = "ok"'
+            record_aur
+        else
+            result=failed
+            failed=$((failed + 1))
+            state_update "${C_NAME}" '.last_result = "failed"'
+        fi
+        # Left as it was found: a container nobody had started is not left running
+        [[ "${C_STATUS}" != running ]] && podman stop --time 10 "${C_REAL}" >/dev/null 2>&1
+        journal "$(jq -nc --arg c "${C_NAME}" --arg r "${result}" --argjson i "${index}" --argjson n "${count}" \
+            --argjson s "$((SECONDS - started))" '{container: $c, state: $r, index: $i, count: $n, seconds: $s}')"
+        [[ "${result}" == ok ]] && say "${C_NAME}: up to date" || say "${C_NAME}: did not upgrade"
+    done
+    date +%s >"${STATE}/last-run"
+    journal "$(jq -nc --argjson n "${count}" --argjson f "${failed}" '{done: true, count: $n, failed: $f}')"
+    [[ "${failed}" -eq 0 ]]
+}
+
+# --- Here we go -------------------------------------------------------------------------------------
+
+command -v jq >/dev/null 2>&1 || die "jq is missing, and ${PROG} reads everything with it."
+
+case "${1:-}" in
+    "" | -h | --help | help) usage ;;
+    containers) shift; cmd_containers "$@" ;;
+    templates) shift; cmd_definitions templates "$@" ;;
+    managers) shift; cmd_definitions managers "$@" ;;
+    install) shift; cmd_install_file "$@" ;;
+    upgrade-all) shift; cmd_upgrade_all "$@" ;;
+    -*) die "$1 is not an option here. See: ${PROG} --help" ;;
+    *) cmd_container "$@" ;;
+esac

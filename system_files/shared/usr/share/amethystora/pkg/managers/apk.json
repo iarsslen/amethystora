@@ -1,0 +1,15 @@
+{
+    "name": "apk",
+    "need_sudo": true,
+    "noconfirm": "",
+    "install": "apk add",
+    "remove": "apk del",
+    "purge": "apk del --purge",
+    "search": "apk search",
+    "show": "apk info -a",
+    "list": "apk list --installed",
+    "update": "apk update",
+    "upgrade": "apk upgrade",
+    "autoremove": "echo 'apk takes away what nothing needs any more as it removes a package, so there is nothing left to do.'",
+    "clean": "rm -rf /var/cache/apk/*"
+}

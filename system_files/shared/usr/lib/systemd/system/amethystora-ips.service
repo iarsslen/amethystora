@@ -1,0 +1,37 @@
+[Unit]
+Description=Network protection (Suricata, inline)
+Documentation=man:suricata(1)
+After=network-pre.target firewalld.service
+# Stopped for good, it is said out loud: the network still works, uninspected, and nobody would notice
+OnFailure=amethystora-scan-alert@%n.service
+
+[Service]
+# Only with NETWORK=watch or block in /etc/amethystora/security.conf. Otherwise the unit is skipped, not
+# failed, and nothing is inspected. `ame security settings network` starts or stops it as that changes.
+ExecCondition=/usr/libexec/amethystora-ips enabled
+# The table that queues this machine's traffic to Suricata, and lets it through while nothing reads the
+# queue (/usr/share/amethystora/ips/amethystora-ips.nft)
+ExecStartPre=/usr/sbin/nft -f /usr/share/amethystora/ips/amethystora-ips.nft
+# The pid file the package's log rotation signals, to have eve.json reopened
+ExecStartPre=/usr/bin/rm -f /run/suricata.pid
+ExecStart=/usr/bin/suricata -c /usr/share/amethystora/ips/suricata.yaml --pidfile /run/suricata.pid \
+    -q 0 -q 1 -q 2 -q 3 --runmode workers --user suricata --group suricata
+# New rules are swapped in while the old ones go on inspecting (amethystora-ips rules)
+ExecReload=/usr/bin/kill -USR2 $MAINPID
+ExecStopPost=-/usr/sbin/nft delete table inet amethystora-ips
+Restart=on-failure
+RestartSec=10
+# As the package's own unit has it, and what else Suricata does without
+MemoryDenyWriteExecute=yes
+LockPersonality=yes
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectClock=yes
+ProtectHome=yes
+ProtectSystem=full
+PrivateTmp=yes
+RestrictRealtime=yes
+
+[Install]
+WantedBy=multi-user.target

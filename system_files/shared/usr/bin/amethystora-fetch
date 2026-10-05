@@ -1,0 +1,50 @@
+#!/usr/bin/bash
+# fastfetch with the gem catching the light: a glint crosses its facets from the upper left, where the
+# light falls from, before the system summary is printed beside it. `fetch` for short, and what new
+# terminals show (/usr/libexec/amethystora-greeting).
+#
+# The frames are drawn by branding/generate.mjs from the same gem as the still logo, and the last of
+# them is the still logo, so fastfetch prints its logo over the final frame without a seam.
+#
+# The still logo is all that shows wherever the animation would not read or would get in the way:
+# output that is not a terminal, a terminal without truecolour (the text console among them), SSH, a
+# window too small to hold the gem, NO_COLOR, GNOME's animations turned off (Settings, Accessibility,
+# Reduce Animation), or any arguments, which go to fastfetch and may ask it for another logo.
+
+FRAMES_DIR=/usr/share/amethystora/logos/glint
+# Each of the 18 steps of the band stays up this long, about three quarters of a second in all
+FRAME_TIME=0.04
+
+animate() {
+    [ -t 0 ] && [ -t 1 ] && [ -z "${NO_COLOR-}" ] && [ -z "${SSH_CONNECTION-}" ] || return
+    case "${COLORTERM-}" in truecolor | 24bit) ;; *) return ;; esac
+    [ "$(gsettings get org.gnome.desktop.interface enable-animations 2>/dev/null)" != false ] || return
+
+    local frames=() lines=() file frame height rows cols saved
+    for file in "${FRAMES_DIR}"/*; do
+        frames+=("$(<"${file}")")
+    done
+    ((${#frames[@]} > 1)) || return
+    mapfile -t lines <"${FRAMES_DIR}/00"
+    height=${#lines[@]}
+    # Each frame is drawn over the last by moving back up, which only works while the whole gem is on screen
+    read -r rows cols < <(stty size 2>/dev/null)
+    ((${rows:-0} > height + 1 && ${cols:-0} >= 40)) || return
+
+    # Keys typed meanwhile are not echoed into the picture; the shell still gets them once it starts
+    saved="$(stty -g)"
+    trap 'stty "${saved}"; printf "\e[?25h"; exit 130' INT TERM
+    stty -echo
+    printf '\e[?25l%s\n' "${frames[0]}"
+    for frame in "${frames[@]:1}"; do
+        sleep "${FRAME_TIME}"
+        printf '\e[%dA%s\n' "${height}" "${frame}"
+    done
+    # Back to the gem's top left corner, where fastfetch starts drawing
+    printf '\e[%dA\e[?25h' "${height}"
+    stty "${saved}"
+    trap - INT TERM
+}
+
+(($#)) || animate
+exec amethystora-fastfetch "$@"

@@ -1,0 +1,208 @@
+#!/usr/bin/bash
+# What each Flatpak app of this account can reach beyond its sandbox, for the security report, the
+# Security app's Apps page and `ame security apps`. It changes nothing and asks for no password.
+#
+#   amethystora-app-permissions          a few lines per app, for a terminal
+#   amethystora-app-permissions --json   the same as JSON, for the report and the app
+#
+# What an app can reach is what `flatpak info --show-permissions` says: its manifest with every override
+# applied, the image's global one (/etc/flatpak/overrides/global) among them. A reach was granted on this
+# machine, in Flatseal or with `flatpak override`, when an override of that app's own names it, or when
+# the app's manifest (`flatpak info --show-metadata`) does not ask for it: X11 that Steam's manifest asks
+# for still had to be granted back here, because the global override takes it from every app. Run as
+# root this sees the machine's apps without anybody's own overrides, so the report runs it only as the
+# account it is for.
+#
+# Each reach has an id, which the report, the app and the manual all use:
+#
+#   leaves the sandbox  session-bus  the whole session bus, so any service of the session
+#                       system-bus   the whole system bus
+#                       flatpak      the Flatpak service, which runs programs outside the sandbox
+#                       systemd      the session's systemd, which starts programs outside it too
+#                       autostart    a place a program starts from at the next login, writable
+#   sees your typing    x11          X11, and with it every key typed into another X11 app
+#                       input        the input devices: every key pressed on the machine
+#   devices             devices      the whole of /dev: cameras, security keys, controllers
+#   files               host         every file this account can open, and change
+#                       home         the home folder, to read and change
+#                       host-read    every file this account can open, to read
+#                       home-read    the home folder, to read
+#   keys                ssh          the SSH agent, which signs in with your SSH keys
+#                       gpg          the GPG agent, which signs and decrypts with your keys
+#                       secrets      the keyring itself rather than through the portal: every password in it
+
+set -uo pipefail
+
+# The words, in the session's language where there is a translation of them (po/amethystora)
+export TEXTDOMAIN=amethystora
+# shellcheck source=/dev/null
+source gettext.sh
+
+JSON=false
+[[ "${1:-}" == "--json" ]] && JSON=true
+
+# The ids in the order they are shown: what leaves the sandbox first
+ORDER=(session-bus system-bus flatpak systemd autostart x11 input devices host home host-read home-read ssh gpg secrets)
+
+# What each one lets the app do, as the report, the app and the terminal say it
+reach_text() {
+    case "$1" in
+        session-bus) gettext "Talk to every service of your session, which can run programs outside its sandbox" ;;
+        system-bus) gettext "Talk to every service of the system" ;;
+        flatpak) gettext "Run programs outside its sandbox, through the Flatpak service" ;;
+        systemd) gettext "Start programs outside its sandbox, through your session's systemd" ;;
+        autostart) gettext "Put a program where it starts at your next login, outside any sandbox" ;;
+        x11) gettext "Use X11, where it can read what you type into other X11 apps" ;;
+        input) gettext "Read every key pressed on this machine" ;;
+        devices) gettext "Use every device: cameras, security keys, game controllers" ;;
+        host) gettext "Read and change every file you can" ;;
+        home) gettext "Read and change everything in your home folder" ;;
+        host-read) gettext "Read every file you can" ;;
+        home-read) gettext "Read everything in your home folder" ;;
+        ssh) gettext "Sign in with your SSH keys" ;;
+        gpg) gettext "Sign and decrypt with your GPG keys" ;;
+        secrets) gettext "Read every password in your keyring" ;;
+    esac
+}
+
+# One value of a keyfile, from a section: keyfile_value FILE SECTION KEY
+keyfile_value() {
+    awk -v section="[$2]" -v key="$3" '
+        $0 == section { inside = 1; next }
+        /^\[/ { inside = 0 }
+        inside && index($0, key "=") == 1 { print substr($0, length(key) + 2) }' "$1"
+}
+
+# The names a bus policy section lets the app talk to or own
+bus_names() {
+    awk -v section="[$2]" '
+        $0 == section { inside = 1; next }
+        /^\[/ { inside = 0 }
+        inside && /=(talk|own)$/ { sub(/=.*/, ""); print }' "$1"
+}
+
+# What a keyfile of permissions reaches, one id a line
+reaches() {
+    local file="$1" sockets devices filesystems entry path
+    local -a entries=()
+    local -A seen=()
+    sockets=";$(keyfile_value "${file}" Context sockets)"
+    devices=";$(keyfile_value "${file}" Context devices)"
+    filesystems="$(keyfile_value "${file}" Context filesystems)"
+    [[ "${sockets}" == *";session-bus;"* ]] && echo session-bus
+    [[ "${sockets}" == *";system-bus;"* ]] && echo system-bus
+    bus_names "${file}" "Session Bus Policy" | grep -qE '^org\.freedesktop\.Flatpak(\.|$)' && echo flatpak
+    bus_names "${file}" "Session Bus Policy" | grep -qxF org.freedesktop.systemd1 && echo systemd
+    [[ "${sockets}" == *";x11;"* ]] && echo x11
+    [[ "${devices}" == *";input;"* ]] && echo input
+    [[ "${devices}" == *";all;"* ]] && echo devices
+    [[ "${sockets}" == *";ssh-auth;"* ]] && echo ssh
+    [[ "${sockets}" == *";gpg-agent;"* ]] && echo gpg
+    bus_names "${file}" "Session Bus Policy" | grep -qxF org.freedesktop.secrets && echo secrets
+    IFS=';' read -ra entries <<<"${filesystems}"
+    for entry in "${entries[@]}"; do
+        [[ -n "${entry}" && "${entry}" != !* ]] || continue
+        path="${entry%%:*}"
+        if [[ "${entry}" == *:ro ]]; then
+            case "${path}" in
+                host | host-os | host-etc) seen[host-read]=1 ;;
+                home | "~") seen[home-read]=1 ;;
+            esac
+            continue
+        fi
+        case "${path}" in
+            host) seen[host]=1 ;;
+            home | "~") seen[home]=1 ;;
+            # The places a program starts from at the next login, outside any sandbox
+            xdg-config | xdg-config/autostart* | xdg-config/systemd* | xdg-data | xdg-data/applications* | \
+                "~/.config" | "~/.config/autostart"* | "~/.config/systemd"* | "~/.local" | "~/.local/bin"* | \
+                "~/.local/share" | "~/.local/share/applications"* | "~/.bashrc" | "~/.bash_profile" | \
+                "~/.profile" | "~/.zshrc" | "~/.config/fish"*) seen[autostart]=1 ;;
+        esac
+    done
+    # Changing the home folder or everything takes in the places programs start from, and changing
+    # counts for more than reading
+    [[ -n "${seen[host]:-}${seen[home]:-}" ]] && unset 'seen[autostart]'
+    [[ -n "${seen[host]:-}" ]] && unset 'seen[host-read]' 'seen[home]' 'seen[home-read]'
+    [[ -n "${seen[home]:-}" ]] && unset 'seen[home-read]'
+    for entry in "${!seen[@]}"; do
+        echo "${entry}"
+    done
+}
+
+TMP="$(mktemp -d)"
+trap 'rm -rf "${TMP}"' EXIT
+
+# Without a terminal, flatpak list prints no header and separates its columns with tabs
+mapfile -t APPS < <(FLATPAK_FANCY_OUTPUT=0 flatpak list --app --columns=application,installation,name 2>/dev/null)
+
+# The questions about one app: what it can reach, what it asked for, and what the overrides of its own
+# say, this account's (which `flatpak override --user --reset` takes back) and the machine's
+look() {
+    local index="$1" app="$2" installation="$3"
+    local -a where=()
+    case "${installation}" in
+        user) where=(--user) ;;
+        system) where=(--system) ;;
+        "system ("*")") where=("--installation=$(sed 's/^system (\(.*\))$/\1/' <<<"${installation}")") ;;
+    esac
+    flatpak info "${where[@]}" --show-permissions "${app}" >"${TMP}/${index}.now" 2>/dev/null
+    flatpak info "${where[@]}" --show-metadata "${app}" >"${TMP}/${index}.asked" 2>/dev/null
+    flatpak override --user --show "${app}" >"${TMP}/${index}.user" 2>/dev/null
+    flatpak override --system --show "${app}" >"${TMP}/${index}.system" 2>/dev/null
+}
+
+# A few apps at a time: every one is two runs of flatpak
+index=0
+for line in "${APPS[@]}"; do
+    IFS=$'\t' read -r app installation _ <<<"${line}"
+    if [[ -n "${app}" ]]; then
+        look "${index}" "${app}" "${installation}" &
+        (($(jobs -rp | wc -l) >= 8)) && wait -n
+    fi
+    index=$((index + 1))
+done
+wait
+
+declare -A TEXT=()
+for id in "${ORDER[@]}"; do
+    TEXT[${id}]="$(reach_text "${id}")"
+done
+
+RECORDS=()
+index=-1
+for line in "${APPS[@]}"; do
+    index=$((index + 1))
+    IFS=$'\t' read -r app installation name <<<"${line}"
+    [[ -n "${app}" && -s "${TMP}/${index}.now" ]] || continue
+    mapfile -t now < <(reaches "${TMP}/${index}.now")
+    mapfile -t asked < <(reaches "${TMP}/${index}.asked")
+    mapfile -t overridden < <(reaches "${TMP}/${index}.user"; reaches "${TMP}/${index}.system")
+    list=()
+    for id in "${ORDER[@]}"; do
+        printf '%s\n' "${now[@]}" | grep -qxF -- "${id}" || continue
+        granted=false
+        if printf '%s\n' "${overridden[@]}" | grep -qxF -- "${id}" ||
+            ! printf '%s\n' "${asked[@]}" | grep -qxF -- "${id}"; then
+            granted=true
+        fi
+        list+=("$(jq -nc --arg id "${id}" --arg text "${TEXT[${id}]}" --argjson granted "${granted}" '{$id, $text, $granted}')")
+    done
+    own=false
+    [[ -s "${TMP}/${index}.user" ]] && own=true
+    RECORDS+=("$( ( ((${#list[@]})) && printf '%s\n' "${list[@]}" ) | jq -sc --arg app "${app}" \
+        --arg name "${name:-${app}}" --arg installation "${installation}" --argjson own "${own}" \
+        '{$app, $name, $installation, user_overrides: $own, reaches: .}')")
+done
+
+if [[ "${JSON}" == true ]]; then
+    ( ((${#RECORDS[@]})) && printf '%s\n' "${RECORDS[@]}" ) | jq -sc 'sort_by(.name | ascii_downcase)'
+    exit 0
+fi
+
+# For a terminal: each app that reaches anything beyond its sandbox, with what, and what of it was
+# granted on this machine rather than asked for by the app
+GRANTED="$(gettext "granted on this machine")"
+( ((${#RECORDS[@]})) && printf '%s\n' "${RECORDS[@]}" ) |
+    jq -sr --arg granted "${GRANTED}" 'sort_by(.name | ascii_downcase)[] | select(.reaches | length > 0) |
+        "\n  \(.name) (\(.app))", (.reaches[] | "    \(.text)\(if .granted then " (" + $granted + ")" else "" end)")'

@@ -1,0 +1,20 @@
+#!/usr/bin/bash
+# The offer of classic windows, once, a minute or so into an account's first login (17-welcome.sh).
+# Windows tile here, which is not what anyone coming from Windows or macOS expects, and somebody who
+# cannot find out how to get ordinary windows back may not stay long enough to like the strip. It only
+# asks: nothing changes unless the button is pressed, and `ame desktop layout` changes it any time.
+
+set -uo pipefail
+
+# In the session's language where there is a translation of it (po/, text domain amethystora)
+export TEXTDOMAIN=amethystora
+# shellcheck source=/dev/null
+source gettext.sh
+
+answer="$(notify-send --app-name=Amethystora --icon=preferences-system-windows --wait \
+    --action=classic="$(gettext "Use classic windows")" --action=keep="$(gettext "Keep tiling")" \
+    "$(gettext "Windows here tile side by side")" \
+    "$(gettext "New windows open next to each other, arranged for you, and Super+Left and Super+Right move between them. If you would rather have windows that float and overlap, as on Windows and macOS, use classic windows. ame desktop layout changes it any time.")" \
+    2>/dev/null)"
+[[ "${answer}" == classic ]] && exec /usr/bin/ame desktop layout classic
+exit 0

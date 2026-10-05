@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=System Updates
+GenericName=Software Update
+Comment=Update the system, your apps and your command-line tools, and restart into a new version
+Exec=amethystora-update
+Icon=amethystora-update
+Terminal=false
+Categories=System;Settings;PackageManager;
+Keywords=update;upgrade;updates;system;flatpak;homebrew;brew;restart;version;rollback;
+StartupNotify=true
+StartupWMClass=amethystora-update

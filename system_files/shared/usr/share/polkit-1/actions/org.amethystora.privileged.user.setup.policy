@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+
+  <vendor>Amethystora</vendor>
+  <vendor_url>https://github.com/iarsslen/amethystora</vendor_url>
+
+  <action id="org.amethystora.policykit.privileged.user.setup">
+    <description>Allows certain user configuration tasks to run as root</description>
+    <icon_name>package-x-generic</icon_name>
+    <!-- Only the user sitting at the machine: not inactive or remote sessions (20-tests.sh checks) -->
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>yes</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/amethystora-privileged-setup</annotate>
+  </action>
+
+</policyconfig>

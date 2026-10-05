@@ -1,0 +1,18 @@
+[Unit]
+Description=Check every copy on the pools of disks, and repair a damaged one
+Documentation=man:btrfs-scrub(8) file:///usr/share/amethystora/manual/hardware.md
+# Hours of reading every disk is not for a laptop on battery; a desktop has no AC connector and counts
+# as on mains power
+ConditionACPower=true
+
+[Service]
+Type=oneshot
+ExecCondition=/usr/libexec/amethystora-raid present
+# btrfs scrub on every mounted pool that keeps copies, a combined one having none to repair from. What
+# it found goes to /var/lib/amethystora/raid for the status, and one a suspend cut short is resumed.
+ExecStart=/usr/libexec/amethystora-raid scrub-all
+Nice=19
+IOSchedulingClass=idle
+ProtectClock=yes
+RestrictRealtime=yes
+# The timer is what runs this, or `ame system raid scrub now`, so the service itself is never enabled

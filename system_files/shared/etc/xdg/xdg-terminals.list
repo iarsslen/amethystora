@@ -1,0 +1,3 @@
+# The terminal xdg-terminal-exec opens (Super+Return, Terminal=true launchers, amethystora-menu),
+# first one installed wins.
+org.gnome.Ptyxis.desktop

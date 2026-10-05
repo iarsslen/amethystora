@@ -1,0 +1,9 @@
+{
+  "name": "amethystora-update",
+  "productName": "Amethystora Updates",
+  "description": "The system, the apps and the command-line tools brought up to date, in a window of its own",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "main": "main.js",
+  "desktopName": "amethystora-update.desktop"
+}

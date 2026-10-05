@@ -1,0 +1,9 @@
+{
+  "name": "amethystora-control",
+  "productName": "Amethystora Control",
+  "description": "Amethystora's own settings outside security, each with the command that changes it, in a window of their own",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "main": "main.js",
+  "desktopName": "amethystora-control.desktop"
+}

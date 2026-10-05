@@ -1,0 +1,57 @@
+#!/usr/bin/bash
+# One restic backup run, as the user who owns the files (amethystora-backup.timer, set up by
+# `ame backup`). Settings come from ~/.config/amethystora/backup.env, which names the
+# repository and the file holding its password. Each run also stores the account's setup beside the
+# files (amethystora-setup-manifest), for `ame restore-setup` on a new machine.
+#
+# This never removes anything from the repository. `restic forget` and `restic prune` are deletes, and
+# a repository this machine can delete from is a repository ransomware can delete from: the point of
+# an append-only repository is that a compromised client can add snapshots and read its own, and
+# nothing more. Retention is run from somewhere else, with credentials this machine does not hold:
+#   restic -r <repository> forget --keep-daily 14 --keep-weekly 8 --keep-monthly 12 --prune
+
+set -euo pipefail
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora"
+ENV_FILE="${CONFIG_DIR}/backup.env"
+
+if [[ ! -r "${ENV_FILE}" ]]; then
+    echo "No backup configured. Set one up with: ame backup" >&2
+    exit 1
+fi
+
+# shellcheck source=/dev/null
+set -a && source "${ENV_FILE}" && set +a
+
+: "${RESTIC_REPOSITORY:?no RESTIC_REPOSITORY in ${ENV_FILE}}"
+: "${RESTIC_PASSWORD_FILE:?no RESTIC_PASSWORD_FILE in ${ENV_FILE}}"
+
+# What to back up: the home directory unless the settings name something else
+read -r -a PATHS <<<"${AMETHYSTORA_BACKUP_PATHS:-${HOME}}"
+
+# The user's own exclusions, if they wrote any, otherwise the ones shipped with the image
+EXCLUDES="${CONFIG_DIR}/backup-excludes"
+[[ -f "${EXCLUDES}" ]] || EXCLUDES=/usr/share/amethystora/backup-excludes
+
+echo "Backing up ${PATHS[*]} to ${RESTIC_REPOSITORY}"
+
+# --one-file-system keeps the run out of mounted network shares and removable drives, which are either
+# backed up in their own right or not ours to copy.
+restic backup \
+    --verbose=0 \
+    --one-file-system \
+    --exclude-caches \
+    --exclude-file="${EXCLUDES}" \
+    --tag amethystora \
+    "${PATHS[@]}"
+
+# The setup beside the files, as a snapshot of its own tagged amethystora-setup: the image, the apps,
+# Homebrew, the containers, the extensions and the theme, which `ame restore-setup` makes again on a
+# new machine. A setup that cannot be read takes nothing away from the backup of the files above.
+if MANIFEST="$(/usr/libexec/amethystora-setup-manifest)"; then
+    restic backup --verbose=0 --stdin --stdin-filename amethystora-setup.json --tag amethystora-setup \
+        <<<"${MANIFEST}" || echo "The setup could not be stored beside the backup." >&2
+fi
+
+echo "Snapshots in this repository:"
+restic snapshots --compact --latest 5 --tag amethystora

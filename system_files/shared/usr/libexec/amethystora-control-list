@@ -1,0 +1,795 @@
+#!/usr/bin/bash
+# Amethystora's own settings outside security: what each one is now, and the `ame` command that changes
+# it. Amethystora Control (amethystora-control) shows this list and runs those commands; `ame control`
+# prints it. Nothing here changes anything, and it asks for no password.
+#
+#   amethystora-control-list          the list, for a terminal (`ame control`)
+#   amethystora-control-list --json   the same list, for the window
+#
+# One list for both, so that the terminal and the window cannot disagree. Every change is an `ame`
+# command, so that whatever the window does a terminal can do too; a command that asks something,
+# explains a risk or needs a password says "terminal": true, and the window opens it in one. Security's
+# settings are not here: they are Amethystora Security's, and `ame security status` lists them.
+#
+# Each entry is made by item():
+#
+#   {page, id, kind, group, title, text, state, detail, available, reason, manual, usage, choices, ...}
+#
+# where kind is switch (its choices are on and off), choice, range, action, link, themes, wallpapers,
+# widgets, webapps, trust-image or setup, each of which the window knows how to draw. A choice is
+# {value, title, text, terminal, command}, made by choice(). A command is an argument vector, which the
+# window runs as it is: the page only ever sends back an entry's id and one of the values listed for it.
+
+set -uo pipefail
+
+# Its words, in the session's language where there is a translation of them (po/, compiled into
+# /usr/share/locale by 14-security.sh), as the security report's are. A message names its values as
+# shell variables, which eval_gettext fills in.
+export TEXTDOMAIN=amethystora
+# shellcheck source=/dev/null
+source gettext.sh
+# theme_list, theme_current, the theme folders and CONFIG_DIR, as amethystora-theme has them
+# shellcheck source=../lib/amethystora/theme/lib.sh
+source /usr/lib/amethystora/theme/lib.sh
+
+JSON=false
+[[ "${1:-}" == "--json" ]] && JSON=true
+
+IMAGE_INFO=/usr/share/amethystora/image-info.json
+SEALED=false
+[[ -e /usr/share/amethystora/sealed ]] && SEALED=true
+
+ITEMS=()
+CHOICES=()
+# Set before item() and cleared by it: an action's command, whether it opens in a terminal and the words
+# on its button, what else the window needs to draw the entry (a JSON object), why it is not available
+# here, a sentence under its state, and the command to type for the same thing in a terminal. GROUP, the
+# sub-heading on the page, stays until it is set again.
+COMMAND=()
+TERMINAL=true
+BUTTON=""
+EXTRA=""
+REASON=""
+DETAIL=""
+GROUP=""
+USAGE=""
+
+# A choice of a setting: its value, its words, whether it opens a terminal, and the command that sets it
+choice() {
+    local value="$1" title="$2" text="$3" terminal="$4"
+    shift 4
+    CHOICES+=("$(jq -nc --arg value "${value}" --arg title "${title}" --arg text "${text}" --argjson terminal "${terminal}" \
+        '{$value, $title, text: (if $text == "" then null else $text end), $terminal, command: $ARGS.positional}' \
+        --args "$@")")
+}
+
+# An entry of the list, with the choices made for it since the last one. They and the command reach jq
+# as one list of arguments: how many choices there are, each choice, then the command's words.
+item() {
+    local page="$1" id="$2" kind="$3" title="$4" text="$5" state="$6" manual="$7" extra="${EXTRA:-}"
+    [[ -n "${extra}" ]] || extra='{}'
+    ITEMS+=("$(jq -nc --arg page "${page}" --arg id "${id}" --arg kind "${kind}" --arg group "${GROUP}" \
+        --arg title "${title}" --arg text "${text}" --arg state "${state}" --arg detail "${DETAIL}" \
+        --arg reason "${REASON}" --arg manual "${manual}" --arg usage "${USAGE}" --arg button "${BUTTON}" \
+        --argjson terminal "${TERMINAL}" --argjson extra "${extra}" \
+        'def text: if . == "" then null else . end;
+         ($ARGS.positional[0] | tonumber) as $count
+         | ($ARGS.positional[1:$count + 1] | map(fromjson)) as $choices
+         | $ARGS.positional[$count + 1:] as $command
+         | {$page, $id, $kind, group: ($group | text), $title, text: ($text | text), state: ($state | text),
+            detail: ($detail | text), available: ($reason == ""), reason: ($reason | text),
+            manual: ($manual | text), usage: ($usage | text)}
+         + (if $count > 0 then {$choices} else {} end)
+         + (if ($command | length) > 0 then {$terminal, $command, button: ($button | text)} else {} end) + $extra' \
+        --args "${#CHOICES[@]}" "${CHOICES[@]}" "${COMMAND[@]}")")
+    CHOICES=()
+    COMMAND=()
+    TERMINAL=true
+    BUTTON=""
+    EXTRA=""
+    REASON=""
+    DETAIL=""
+    USAGE=""
+}
+
+# The two choices of a switch: the command given, with on or off after it
+switch_choices() {
+    local terminal="$1"
+    local -a pair
+    shift
+    mapfile -t pair < <(jq -nc --arg on "$(gettext "On")" --arg off "$(gettext "Off")" --argjson terminal "${terminal}" \
+        '{value: "on", title: $on, text: null, $terminal, command: ($ARGS.positional + ["on"])},
+         {value: "off", title: $off, text: null, $terminal, command: ($ARGS.positional + ["off"])}' --args "$@")
+    CHOICES+=("${pair[@]}")
+}
+
+# "tokyo-night" as "Tokyo Night": a theme's or a picture's name, which is a name and not translated
+pretty() {
+    sed -E 's/(^|[-_ ])([a-z])/\1\u\2/g; s/[-_]/ /g' <<<"$1"
+}
+
+# The slow reads, all at once: each writes what it said, and how it ended, to a file of its own
+WORK="$(mktemp -d)"
+trap 'rm -rf "${WORK}"' EXIT
+read_in_background() {
+    local name="$1"
+    shift
+    { timeout 20 "$@" >"${WORK}/${name}" 2>/dev/null; echo "$?" >"${WORK}/${name}.code"; } &
+}
+said() { cat "${WORK}/$1" 2>/dev/null; }
+ended() { cat "${WORK}/$1.code" 2>/dev/null || echo 1; }
+
+read_in_background steam flatpak info com.valvesoftware.Steam
+read_in_background tablet flatpak info net.opentabletdriver.OpenTabletDriver
+read_in_background grub amethystora-grub-theme status
+read_in_background agent amethystora-agent status
+read_in_background agents amethystora-agent list
+read_in_background widgets amethystora-widgets list --json
+read_in_background webapps amethystora-webapp list --json
+read_in_background image /usr/bin/amethystora-rollback-helper --choices
+read_in_background bling amethystora-bling status
+read_in_background backgrounds amethystora-theme bg list
+read_in_background raid /usr/libexec/amethystora-raid status --json
+wait
+
+# --- Appearance ------------------------------------------------------------------------------------
+
+THEME="$(theme_current 2>/dev/null || true)"
+while read -r slug; do
+    [[ -n "${slug}" ]] || continue
+    dir="${SYSTEM_THEMES_DIR}/${slug}"
+    [[ -f "${USER_THEMES_DIR}/${slug}/colors.toml" ]] && dir="${USER_THEMES_DIR}/${slug}"
+    light=false
+    if [[ -f "${SYSTEM_THEMES_DIR}/${slug}/light.mode" || -f "${USER_THEMES_DIR}/${slug}/light.mode" ]]; then
+        light=true
+    fi
+    # With the palette the window draws the theme's swatch from
+    CHOICES+=("$(sed -nE 's/^[[:space:]]*([a-z0-9_]+)[[:space:]]*=[[:space:]]*"(#[0-9a-fA-F]{6})".*/\1 \2/p' \
+        "${dir}/colors.toml" 2>/dev/null |
+        jq -Rnc --arg value "${slug}" --arg title "$(pretty "${slug}")" --argjson light "${light}" \
+            '{$value, $title, text: null, terminal: false, command: ($ARGS.positional + [$value]), $light,
+              colors: ([inputs | split(" ") | {key: .[0], value: .[1]}] | from_entries
+                | {background, foreground, accent, color1, color2, color3, color4, color5, color6})}' \
+            --args ame desktop theme)")
+done < <(theme_list)
+USAGE="ame desktop theme NAME"
+item appearance theme themes "$(gettext "Theme")" \
+    "$(gettext "The colours of the desktop, the terminal and the apps that follow it, with the theme's own wallpapers.")" \
+    "${THEME}" themes#switching
+
+if [[ -z "${THEME}" ]]; then
+    REASON="$(gettext "Pick a theme first: each theme has wallpapers of its own.")"
+fi
+CURRENT_PICTURE="$(readlink "${CURRENT_BACKGROUND}" 2>/dev/null || true)"
+while read -r picture; do
+    [[ -n "${picture}" ]] || continue
+    name="${picture##*/}"
+    choice "${picture}" "$(pretty "${name%.*}")" "" false ame desktop background "${picture}"
+done < <(said backgrounds)
+USAGE="ame desktop background"
+item appearance wallpaper wallpapers "$(gettext "Wallpaper")" \
+    "$(gettext "The pictures of the current theme. Super+Ctrl+Space shows the next one.")" \
+    "${CURRENT_PICTURE}" themes#wallpapers
+
+TRANSITIONS=org.gnome.shell.extensions.amethystora-transitions
+if gsettings list-keys "${TRANSITIONS}" >/dev/null 2>&1; then
+    STYLE="$(gsettings get "${TRANSITIONS}" style | tr -d "'")"
+    LENGTH="$(gsettings get "${TRANSITIONS}" duration | sed 's/^uint32 //')"
+    if [[ "$(gsettings get org.gnome.desktop.interface enable-animations 2>/dev/null)" == false ]]; then
+        DETAIL="$(gettext "Nothing is shown while animations are off in Settings, under Accessibility.")"
+    fi
+else
+    STYLE="" LENGTH=""
+    REASON="$(gettext "The transitions extension is not installed.")"
+fi
+choice grow "$(gettext "Grow")" "$(gettext "A circle opens from the pointer")" false ame desktop transition grow
+choice outer "$(gettext "Close in")" "$(gettext "A circle closes in on the pointer from the edges")" false ame desktop transition outer
+choice wipe "$(gettext "Wipe")" "$(gettext "A soft edge sweeps across at an angle")" false ame desktop transition wipe
+choice wave "$(gettext "Wave")" "$(gettext "A wavy edge sweeps across")" false ame desktop transition wave
+choice fade "$(gettext "Fade")" "$(gettext "The old picture fades into the new one")" false ame desktop transition fade
+choice random "$(gettext "Random")" "$(gettext "One of the first four, at a random angle")" false ame desktop transition random
+choice none "$(gettext "None")" "$(gettext "GNOME changes the picture by itself")" false ame desktop transition none
+USAGE="ame desktop transition STYLE"
+item appearance transition choice "$(gettext "Transition")" \
+    "$(gettext "How a new theme or wallpaper is revealed.")" "${STYLE}" themes#transitions
+
+[[ -n "${STYLE}" ]] || REASON="$(gettext "The transitions extension is not installed.")"
+EXTRA="$(jq -nc --arg style "${STYLE:-grow}" \
+    '{min: 200, max: 5000, step: 100, unit: "ms", terminal: false,
+      command: ["ame", "desktop", "transition", $style, "{value}"]}')"
+USAGE="ame desktop transition STYLE DURATION"
+item appearance transition-length range "$(gettext "Transition length")" \
+    "$(gettext "How long a transition takes, in milliseconds.")" "${LENGTH}" themes#transitions
+
+# GRUB keeps its menu in /boot, which a sealed machine, starting with systemd-boot, does not use. Where
+# /boot/grub2 is root's alone, only root can tell whether the artwork is there.
+BOOT_MENU=""
+if [[ "${SEALED}" == true ]]; then
+    REASON="$(gettext "A sealed machine starts with systemd-boot, which shows no artwork.")"
+elif [[ ! -d /boot/grub2 ]]; then
+    REASON="$(gettext "This machine does not start with GRUB.")"
+elif [[ ! -r /boot/grub2 || ! -x /boot/grub2 ]]; then
+    DETAIL="$(gettext "Only an administrator can see whether it is on.")"
+else
+    case "$(said grub)" in
+        on:*) BOOT_MENU=on ;;
+        *) BOOT_MENU=off ;;
+    esac
+    grep -q "does not boot with GRUB" <<<"$(said grub)" && REASON="$(gettext "This machine does not start with GRUB.")"
+fi
+switch_choices true ame desktop boot-menu
+GROUP="$(gettext "Starting up")"
+USAGE="ame desktop boot-menu on|off"
+item appearance boot-menu switch "$(gettext "Boot menu artwork")" \
+    "$(gettext "The Amethystora artwork on the menu the machine shows as it starts.")" "${BOOT_MENU}" themes#the-boot-menu
+GROUP=""
+
+# --- Desktop ---------------------------------------------------------------------------------------
+
+LAYOUT="$(cat "${CONFIG_DIR}/layout" 2>/dev/null || echo tiling)"
+choice tiling "$(gettext "Tiling")" \
+    "$(gettext "Windows open side by side on a strip that scrolls, arranged for you")" false ame desktop layout tiling
+choice classic "$(gettext "Classic")" \
+    "$(gettext "Windows float and overlap, and you move and size them, as on Windows and macOS")" false ame desktop layout classic
+GROUP="$(gettext "Windows")"
+USAGE="ame desktop layout tiling|classic"
+item desktop layout choice "$(gettext "Window layout")" "$(gettext "How windows are arranged.")" "${LAYOUT}" \
+    desktop#tiling-windows
+
+GROUP="$(gettext "Windows")"
+EXTRA='{"open": "manual"}'
+item desktop keybindings link "$(gettext "Keybindings")" \
+    "$(gettext "Every key the desktop answers to, in the manual.")" "" keybindings
+
+# The widgets, and the commands for each: the window puts a listed widget's id, or a new one it checked
+# against the rule amethystora-widgets has for ids, in the place of {id}
+if [[ "$(ended agent)" == 0 ]]; then AGENTIC=true; else AGENTIC=false; fi
+if [[ "$(ended widgets)" == 0 ]] && jq -e . <<<"$(said widgets)" >/dev/null 2>&1; then
+    WIDGETS="$(said widgets)"
+    [[ "$(jq -r .bar <<<"${WIDGETS}")" == true ]] ||
+        DETAIL="$(gettext "The bar is not showing widgets: the extension that shows them is off.")"
+else
+    WIDGETS='{"bar": true, "widgets": []}'
+    REASON="$(gettext "The widgets could not be listed.")"
+fi
+EXTRA="$(jq -nc --argjson list "${WIDGETS}" --argjson agentic "${AGENTIC}" \
+    --argjson examples "$(find /usr/share/amethystora/widgets/examples -mindepth 1 -maxdepth 1 -type d \
+        -printf '%f\n' 2>/dev/null | sort | jq -Rsc 'split("\n") | map(select(. != ""))')" \
+    '{widgets: $list.widgets, bar: $list.bar, $examples, $agentic, commands: {
+        on: {terminal: false, command: ["ame", "desktop", "widgets", "on", "{id}"]},
+        off: {terminal: false, command: ["ame", "desktop", "widgets", "off", "{id}"]},
+        remove: {terminal: false, command: ["ame", "desktop", "widgets", "remove", "{id}"]},
+        new: {terminal: false, command: ["ame", "desktop", "widgets", "new", "{id}", "{example}"]},
+        restart: {terminal: false, command: ["ame", "desktop", "widgets", "restart"]},
+        make: {terminal: true, command: ["ame", "desktop", "widgets", "make"]},
+        fix: {terminal: true, command: ["ame", "desktop", "widgets", "fix", "{id}"]}}}')"
+GROUP="$(gettext "Top bar")"
+USAGE="ame desktop widgets"
+item desktop widgets widgets "$(gettext "Top bar widgets")" \
+    "$(gettext "Small commands whose output the top bar shows. Each runs as you, with everything you have: keep only the ones you have read.")" \
+    "" widgets
+
+if [[ -e "${CONFIG_DIR}/no-greeting" ]]; then GREETING=off; else GREETING=on; fi
+switch_choices false ame desktop greeting
+GROUP="$(gettext "Terminal")"
+USAGE="ame desktop greeting on|off"
+item desktop greeting switch "$(gettext "Terminal greeting")" \
+    "$(gettext "The logo, a summary of the machine and a tip, in each new terminal.")" "${GREETING}" terminal#the-greeting
+
+BLING="$(said bling)"
+if [[ "$(ended bling)" != 0 ]]; then
+    BLING=""
+    REASON="$(gettext "This works with bash, zsh and fish, and your shell is none of them.")"
+fi
+switch_choices false ame desktop bling
+GROUP="$(gettext "Terminal")"
+USAGE="ame desktop bling on|off"
+item desktop bling switch "$(gettext "Terminal tools")" \
+    "$(gettext "Your shell uses eza for ls, bat for cat and ugrep for grep, with zoxide, direnv and mise, wherever they are installed.")" \
+    "${BLING}" terminal#command-line-tools
+GROUP=""
+
+# --- Apps ------------------------------------------------------------------------------------------
+
+if [[ "$(ended steam)" == 0 ]]; then GAMES=on; else GAMES=off; fi
+switch_choices true ame apps gaming
+USAGE="ame apps gaming on|off"
+item apps gaming switch "$(gettext "Games")" \
+    "$(gettext "Steam from Flathub, with ProtonPlus, the MangoHud overlay and gamescope. X11 is granted back to Steam alone.")" \
+    "${GAMES}" games#games
+
+if [[ "${GAMES}" == on ]]; then
+    COMMAND=(ame apps gaming launchers)
+    BUTTON="$(gettext "Add a store…")"
+    USAGE="ame apps gaming launchers"
+    item apps gaming-launchers action "$(gettext "Other game stores")" \
+        "$(gettext "Heroic, for Epic, GOG and Amazon, and Lutris, for games from anywhere else.")" "" games#games
+fi
+
+# waydroid-container.service is enabled when Android is set up: the recipe's own test reads root's files
+if [[ "$(systemctl is-enabled waydroid-container.service 2>/dev/null)" == enabled ]]; then
+    ANDROID=on
+    if systemctl is-active --quiet waydroid-container.service; then
+        DETAIL="$(gettext "Its container is running.")"
+    else
+        DETAIL="$(gettext "Its container is stopped.")"
+    fi
+else
+    ANDROID=off
+fi
+switch_choices true ame apps android
+USAGE="ame apps android on|off"
+item apps android switch "$(gettext "Android apps")" \
+    "$(gettext "Waydroid runs Android, LineageOS without Google's apps, in a container beside your desktop.")" \
+    "${ANDROID}" games#android-apps
+
+if [[ "${ANDROID}" == on ]]; then
+    if systemctl is-active --quiet waydroid-container.service; then
+        COMMAND=(ame apps android stop)
+        BUTTON="$(gettext "Stop…")"
+        USAGE="ame apps android stop"
+        item apps android-run action "$(gettext "Stop Android")" \
+            "$(gettext "Stops its container until you start it again.")" "" games#android-apps
+    else
+        COMMAND=(ame apps android start)
+        BUTTON="$(gettext "Start…")"
+        USAGE="ame apps android start"
+        item apps android-run action "$(gettext "Start Android")" \
+            "$(gettext "Starts its container and opens Android's own screen.")" "" games#android-apps
+    fi
+fi
+
+if [[ "$(ended tablet)" == 0 || -e /etc/udev/rules.d/71-opentabletdriver.rules ]]; then TABLET=on; else TABLET=off; fi
+switch_choices true ame apps opentabletdriver
+USAGE="ame apps opentabletdriver on|off"
+item apps opentabletdriver switch "$(gettext "Drawing tablets")" \
+    "$(gettext "OpenTabletDriver from Flathub, for most drawing tablets: pressure, the pen's buttons, and the part of the screen the tablet covers.")" \
+    "${TABLET}" hardware#drawing-tablets
+
+if [[ -e "${CONFIG_DIR}/aur" ]]; then AUR=on; else AUR=off; fi
+# Turning it on shows what the AUR is first, which is the point of it: that one is in a terminal
+choice on "$(gettext "On")" "" true ame apps aur on
+choice off "$(gettext "Off")" "" false ame apps aur off
+USAGE="ame apps aur on|off"
+item apps aur switch "$(gettext "The AUR")" \
+    "$(gettext "Packages built from the Arch User Repository, in containers. Anyone can upload to it, and nobody reviews it.")" \
+    "${AUR}" software#the-aur
+
+# A web app is removed by its name as the list gives it, which the window puts in the place of {name}
+if [[ "$(ended webapps)" == 0 ]] && jq -e . <<<"$(said webapps)" >/dev/null 2>&1; then
+    WEBAPPS="$(said webapps)"
+else
+    WEBAPPS='[]'
+    REASON="$(gettext "The web apps could not be listed.")"
+fi
+EXTRA="$(jq -nc --argjson list "${WEBAPPS}" '{webapps: $list, commands: {
+    install: {terminal: true, command: ["ame", "apps", "webapps", "install"]},
+    remove: {terminal: false, command: ["ame", "apps", "webapps", "remove", "{name}"]}}}')"
+USAGE="ame apps webapps install"
+item apps webapps webapps "$(gettext "Web apps")" \
+    "$(gettext "Sites in a window of their own, with a launcher in the app grid.")" "" web-apps
+
+GROUP="$(gettext "Add-ons")"
+if [[ -x "${XDG_DATA_HOME:-${HOME}/.local/share}/jetbrains-toolbox/bin/jetbrains-toolbox" ]]; then
+    DETAIL="$(gettext "Installed in your home.")"
+    BUTTON="$(gettext "Install again…")"
+    TOOLBOX=installed
+else
+    BUTTON="$(gettext "Install…")"
+    TOOLBOX=""
+fi
+COMMAND=(ame apps jetbrains-toolbox)
+USAGE="ame apps jetbrains-toolbox"
+item apps jetbrains-toolbox action "$(gettext "JetBrains Toolbox")" \
+    "$(gettext "The app that installs JetBrains' IDEs and keeps them up to date, downloaded from JetBrains and checked against the checksum JetBrains publishes.")" \
+    "${TOOLBOX}" developer#other-editors
+
+GROUP="$(gettext "Add-ons")"
+COMMAND=(ame apps cli)
+BUTTON="$(gettext "Install…")"
+USAGE="ame apps cli"
+item apps cli action "$(gettext "Command-line tools")" \
+    "$(gettext "eza, bat, ripgrep, zoxide, starship and more from Homebrew, with your shell set up to use them.")" \
+    "" terminal#command-line-tools
+
+GROUP="$(gettext "Add-ons")"
+COMMAND=(ame apps bbrew)
+BUTTON="$(gettext "Choose…")"
+USAGE="ame apps bbrew"
+item apps bbrew action "$(gettext "Homebrew collections")" \
+    "$(gettext "Lists of apps and tools to pick from and install with Homebrew, through Bold Brew, a tool from a third-party tap.")" \
+    "" software#command-line-tools-homebrew
+
+GROUP="$(gettext "Add-ons")"
+COMMAND=(ame apps cncf)
+BUTTON="$(gettext "Choose…")"
+USAGE="ame apps cncf"
+item apps cncf action "$(gettext "Cloud native tools")" \
+    "$(gettext "The CNCF's projects, Kubernetes and the tools around it, through Bold Brew.")" \
+    "" developer#kubernetes-and-the-cloud
+
+GROUP="$(gettext "Add-ons")"
+COMMAND=(ame apps flatpaks)
+BUTTON="$(gettext "Install…")"
+USAGE="ame apps flatpaks"
+item apps flatpaks action "$(gettext "The apps this image comes with")" \
+    "$(gettext "Installs them now, rather than waiting for the first start with a network.")" \
+    "" getting-started#3-install-your-apps
+GROUP=""
+
+# --- The AI agent ----------------------------------------------------------------------------------
+
+if [[ "${AGENTIC}" == true ]]; then AGENT_STATE=on; else AGENT_STATE=off; fi
+switch_choices false ame agent toggle
+USAGE="ame agent toggle on|off"
+item agent agent switch "$(gettext "Agentic features")" \
+    "$(gettext "An AI agent that knows this system: Super+Ctrl+Shift+A, Ask the agent in Updates, Security and Logs, and the skills that tell it how Amethystora works.")" \
+    "${AGENT_STATE}" ai-agent#privacy-and-turning-it-off
+
+# "Agentic features: on (claude)", or "(cursor-agent, not installed yet)"
+CHOSEN="$(said agent | sed -n 's/^Agentic features: on (\([a-z-]*\).*/\1/p')"
+# The chosen agent's name while it is not installed yet
+MISSING=""
+# Each agent amethystora-agent offers, as it finds them: "codex<TAB>installed|missing<TAB>Codex"
+while IFS=$'\t' read -r agent state title; do
+    [[ -n "${agent}" ]] || continue
+    if [[ "${state}" == installed ]]; then words="$(gettext "Installed")"; else words="$(gettext "Not installed yet")"; fi
+    choice "${agent}" "${title}" "${words}" false ame agent use "${agent}"
+    [[ "${agent}" != "${CHOSEN}" || "${state}" == installed ]] || MISSING="${title}"
+done < <(said agents)
+[[ "${AGENTIC}" == true ]] || REASON="$(gettext "The agentic features are off.")"
+USAGE="ame agent use $(said agents | cut -f1 | paste -sd '|')"
+item agent agent-choice choice "$(gettext "Which agent")" \
+    "$(gettext "The agent that Super+Ctrl+Shift+A and Ask the agent open. Each installs the first time you open it, and is kept up to date.")" \
+    "${CHOSEN}" ai-agent#installing-and-updating
+
+if [[ "${AGENTIC}" == true && -n "${MISSING}" ]]; then
+    name="${MISSING}"
+    if [[ "${CHOSEN}" == gemini ]]; then
+        words="$(gettext "With Homebrew, which updates it with the rest of the system.")"
+    else
+        words="$(gettext "With its maker's installer, into your home, where it keeps itself up to date.")"
+    fi
+    COMMAND=(ame agent install)
+    BUTTON="$(gettext "Install…")"
+    USAGE="ame agent install"
+    item agent agent-install action "$(eval_gettext "Install \${name}")" "${words}" "" ai-agent#installing-and-updating
+fi
+
+# --- System ----------------------------------------------------------------------------------------
+
+IMAGE_NAME="$(jq -r '."image-name" // ""' "${IMAGE_INFO}" 2>/dev/null)"
+IMAGE_TAG="$(jq -r '."image-tag" // ""' "${IMAGE_INFO}" 2>/dev/null)"
+CHOICES_JSON="$(said image)"
+jq -e . <<<"${CHOICES_JSON}" >/dev/null 2>&1 || CHOICES_JSON='{"images": [], "streams": []}'
+
+# The image with the stream it follows now: the helper still asks, with these chosen, and confirms
+while read -r image; do
+    [[ -n "${image}" ]] || continue
+    case "${image}" in
+        amethystora) choice "${image}" "Amethystora" "$(gettext "The desktop")" true ame system rebase "${image}" "${IMAGE_TAG}" ;;
+        amethystora-dx) choice "${image}" "Amethystora DX" "$(gettext "With the developer tools")" true \
+            ame system rebase "${image}" "${IMAGE_TAG}" ;;
+        amethystora-nvidia-open) choice "${image}" "$(gettext "Amethystora with NVIDIA")" "$(gettext "With NVIDIA's open driver")" true \
+            ame system rebase "${image}" "${IMAGE_TAG}" ;;
+        amethystora-dx-nvidia-open) choice "${image}" "$(gettext "Amethystora DX with NVIDIA")" \
+            "$(gettext "The developer tools, and NVIDIA's open driver")" true ame system rebase "${image}" "${IMAGE_TAG}" ;;
+        *) choice "${image}" "${image}" "" true ame system rebase "${image}" "${IMAGE_TAG}" ;;
+    esac
+done < <(jq -r '.images[]' <<<"${CHOICES_JSON}")
+GROUP="$(gettext "The system")"
+USAGE="ame system rebase IMAGE STREAM"
+item system image choice "$(gettext "Image")" \
+    "$(gettext "The system this machine runs. Switching downloads it, checks its signature, and takes effect at the next restart.")" \
+    "${IMAGE_NAME}" updates#switching-streams-and-images
+
+while read -r stream; do
+    [[ -n "${stream}" ]] || continue
+    case "${stream}" in
+        stable) choice stable "$(gettext "Stable")" "$(gettext "Built every week")" true ame system rebase "${IMAGE_NAME}" stable ;;
+        stable-daily) choice stable-daily "$(gettext "Stable, daily")" "$(gettext "The same, built every day")" true \
+            ame system rebase "${IMAGE_NAME}" stable-daily ;;
+        latest) choice latest "$(gettext "Latest")" "$(gettext "The newest Fedora, for testers")" true \
+            ame system rebase "${IMAGE_NAME}" latest ;;
+        stable-sealed) choice stable-sealed "$(gettext "Sealed")" "$(gettext "Stable, with every file checked as it is read")" true \
+            ame system rebase "${IMAGE_NAME}" stable-sealed ;;
+        *) choice "${stream}" "${stream}" "" true ame system rebase "${IMAGE_NAME}" "${stream}" ;;
+    esac
+done < <(jq -r '.streams[]' <<<"${CHOICES_JSON}")
+[[ "${SEALED}" == true ]] && REASON="$(gettext "This machine is sealed, so it follows the sealed stream only.")"
+GROUP="$(gettext "The system")"
+USAGE="ame system rebase IMAGE STREAM"
+item system stream choice "$(gettext "Stream")" "$(gettext "How new the builds this machine follows are.")" \
+    "${IMAGE_TAG}" updates#streams
+
+# amethystora-dx and amethystora-dx-nvidia-open are the developer images
+if grep -qE -e "-dx(-|$)" <<<"${IMAGE_NAME}"; then DEVMODE=on; else DEVMODE=off; fi
+switch_choices true ame system devmode
+GROUP="$(gettext "The system")"
+USAGE="ame system devmode on|off"
+item system devmode switch "$(gettext "Developer mode")" \
+    "$(gettext "The developer image: VSCodium, Docker and Podman, Incus and virtual machines, and tools for profiling and debugging. Switching takes effect at the next restart.")" \
+    "${DEVMODE}" developer#turning-it-on
+
+if [[ "${DEVMODE}" == on ]]; then
+    missing=()
+    for group in docker incus-admin libvirt dialout; do
+        id -nG 2>/dev/null | tr ' ' '\n' | grep -qx "${group}" || missing+=("${group}")
+    done
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        COMMAND=(ame system dx-group)
+        BUTTON="$(gettext "Join…")"
+        GROUP="$(gettext "The system")"
+        USAGE="ame system dx-group"
+        item system dx-group action "$(gettext "Join the developer groups")" \
+            "$(gettext "Lets your account use Docker, Incus, virtual machines and serial devices, from the next time you log in.")" \
+            "" developer#turning-it-on
+    fi
+fi
+
+# The repository and the key come from the window, which checks the one against the rule
+# amethystora-trust-image applies to it and takes the other from a file dialog of its own
+COMMAND=(ame system trust-image "{repository}" "{key}")
+BUTTON="$(gettext "Trust…")"
+[[ "${SEALED}" == true ]] && REASON="$(gettext "A sealed machine follows Amethystora's sealed images only.")"
+GROUP="$(gettext "The system")"
+USAGE="ame system trust-image REPOSITORY KEY"
+item system trust-image trust-image "$(gettext "An image of your own")" \
+    "$(gettext "Takes images from your repository only when your key checks their signature. Do this before switching to an image built from the image template.")" \
+    "" developer#an-image-of-your-own
+
+SCHEDULER=""
+if [[ -d /sys/kernel/sched_ext ]]; then
+    # What the kernel itself says runs: "enabled", and the scheduler's name, while a sched-ext one does
+    SCHEDULER=kernel
+    if [[ "$(cat /sys/kernel/sched_ext/state 2>/dev/null)" == enabled ]]; then
+        ops="$(cat /sys/kernel/sched_ext/root/ops 2>/dev/null)"
+        for name in lavd bpfland flash; do
+            [[ "${ops}" == "${name}"* ]] && SCHEDULER="${name}"
+        done
+    fi
+else
+    REASON="$(gettext "This kernel cannot hand the scheduling to another program.")"
+fi
+choice kernel "$(gettext "The kernel's own")" "$(gettext "Suits nearly everything (the default)")" true ame system scheduler kernel
+choice lavd lavd "$(gettext "Keeps games smooth while other work runs")" true ame system scheduler lavd
+choice bpfland bpfland "$(gettext "Keeps the desktop responsive while something heavy builds or renders")" true ame system scheduler bpfland
+choice flash flash "$(gettext "Steady timing, for audio and music work")" true ame system scheduler flash
+GROUP="$(gettext "Hardware")"
+USAGE="ame system scheduler NAME"
+item system scheduler choice "$(gettext "CPU scheduler")" "$(gettext "What decides which program runs on the CPU next.")" \
+    "${SCHEDULER}" games#a-faster-cpu-scheduler-for-games
+
+[[ -d /sys/firmware/efi ]] || REASON="$(gettext "This machine does not start with UEFI.")"
+COMMAND=(ame system bios)
+BUTTON="$(gettext "Restart…")"
+GROUP="$(gettext "Hardware")"
+USAGE="ame system bios"
+item system bios action "$(gettext "Restart into the firmware settings")" \
+    "$(gettext "Restarts the machine into its UEFI setup, where Secure Boot and the order of the disks are set. It asks first.")" \
+    "" hardware#secure-boot
+
+COMMAND=(ame system clean)
+BUTTON="$(gettext "Free space…")"
+GROUP="$(gettext "Hardware")"
+USAGE="ame system clean"
+item system clean action "$(gettext "Free disk space")" \
+    "$(gettext "Removes container images and Flatpak runtimes nothing uses, old deployments, and Homebrew's cache, asking first.")" \
+    "" troubleshooting#the-disk-is-filling-up
+
+# The pools of disks, as `amethystora-raid status --json` has them, and the system's disks when it spans
+# several: each with the actions that fit it, every command made here from the status, so that the page
+# never names a disk or a pool. Each asks which disk, asks for ERASE or needs a password, so all of them
+# open in a terminal. How a pool is doing is shown here and nowhere else: Security's report has none.
+RAID="$(said raid)"
+if [[ "$(ended raid)" == 0 ]] && jq -e '.version == 1' <<<"${RAID}" >/dev/null 2>&1; then
+    # Sizes as disk makers give them: 1.0 TB is 10^12 bytes
+    bytes() {
+        awk -v b="${1:-0}" 'BEGIN { split("B kB MB GB TB PB", u, " "); i = 1
+            while (b >= 1000 && i < 6) { b /= 1000; i++ }
+            s = sprintf(i == 1 ? "%d" : "%.1f", b); sub(/\.0$/, "", s); print s, u[i] }'
+    }
+    pool_action() {
+        local id="$1" title="$2"
+        shift 2
+        jq -nc --arg id "${id}" --arg title "${title}" '{$id, $title, terminal: true, command: $ARGS.positional}' --args "$@"
+    }
+    SPARE="$(jq '.spare | length' <<<"${RAID}")"
+    ROWS=()
+    while IFS=$'\x1f' read -r name system managed mountpoint layout count encrypted size used mounted missing survives \
+        problems busy scrubbed; do
+        case "${layout}" in
+            raid1) words="$(gettext "Two copies")" ;;
+            raid1c3) words="$(gettext "Three copies")" ;;
+            raid1c4) words="$(gettext "Four copies")" ;;
+            raid10) words="$(gettext "Striped two copies")" ;;
+            raid5) words="$(gettext "Parity")" ;;
+            raid6) words="$(gettext "Double parity")" ;;
+            single) if [[ "${system}" == true ]]; then words="$(gettext "One copy")"; else words="$(gettext "Combined")"; fi ;;
+            *) words="" ;;
+        esac
+        TEXT=()
+        [[ -n "${words}" ]] && TEXT+=("$(eval_ngettext "\${words}, on \${count} disk." "\${words}, on \${count} disks." "${count}")")
+        [[ "${encrypted}" == true ]] && TEXT+=("$(gettext "Encrypted.")")
+        if [[ -n "${size}" && -n "${used}" ]]; then
+            used_words="$(bytes "${used}")" size_words="$(bytes "${size}")"
+            TEXT+=("$(eval_gettext "\${used_words} used of \${size_words}.")")
+        fi
+        # How it is: the worst of what the status found
+        if [[ -n "${busy}" ]]; then
+            if [[ "${busy}" == *-replace-* ]]; then
+                TEXT+=("$(gettext "Replacing a disk now.")")
+            else
+                TEXT+=("$(gettext "Putting its copies where they belong now.")")
+            fi
+        elif [[ "${mounted}" == false ]]; then
+            TEXT+=("$(gettext "Not open, perhaps because one of its disks is missing. Its files are still on its disks.")")
+        elif [[ ",${problems}," == *,missing,* ]] && ((missing <= survives)); then
+            TEXT+=("$(gettext "A disk is missing. Every file is still there, with one copy fewer until the disk is replaced.")")
+        elif [[ ",${problems}," == *,missing,* ]]; then
+            TEXT+=("$(gettext "A disk is missing, and the files that were on it cannot be read until it is back.")")
+        elif [[ ",${problems}," == *,failing,* ]]; then
+            TEXT+=("$(gettext "A disk says it is failing: replace it before it stops.")")
+        elif [[ ",${problems}," == *,scrub,* ]]; then
+            TEXT+=("$(gettext "The last check found damage it could not repair.")")
+        elif [[ ",${problems}," == *,errors,* ]]; then
+            TEXT+=("$(gettext "A disk has counted read or write errors.")")
+        elif [[ ",${problems}," == *,degraded,* ]]; then
+            TEXT+=("$(gettext "Part of it has one copy, written while a disk was missing.")")
+        elif [[ ",${problems}," == *,unprotected,* ]]; then
+            TEXT+=("$(gettext "Either disk failing loses everything.")")
+        else
+            TEXT+=("$(gettext "Fine.")")
+        fi
+        if [[ -n "${layout}" && "${layout}" != single ]]; then
+            if [[ -n "${scrubbed}" ]]; then
+                when="$(date -d "@${scrubbed}" +%x)"
+                TEXT+=("$(eval_gettext "Every copy last checked on \${when}.")")
+            else
+                TEXT+=("$(gettext "Every copy not checked yet.")")
+            fi
+        fi
+        [[ "${layout}" == raid5 || "${layout}" == raid6 ]] && TEXT+=("$(gettext "After a power cut, check every copy.")")
+        ACTIONS=()
+        if [[ "${managed}" == true ]]; then
+            if [[ ",${problems}," =~ ,(missing|failing|errors), ]]; then
+                ACTIONS+=("$(pool_action replace "$(gettext "Replace a disk…")" ame system raid replace "${name}")")
+            elif [[ ",${problems}," == *,degraded,* ]]; then
+                ACTIONS+=("$(pool_action replace "$(gettext "Put the copies back…")" ame system raid replace "${name}")")
+            fi
+            [[ "${mounted}" == false ]] &&
+                ACTIONS+=("$(pool_action mount "$(gettext "Open it with a disk missing…")" ame system raid mount "${name}")")
+            [[ "${mounted}" == true && "${SPARE}" -gt 0 ]] &&
+                ACTIONS+=("$(pool_action add "$(gettext "Add a disk…")" ame system raid add "${name}")")
+            ACTIONS+=("$(pool_action forget "$(gettext "Forget…")" ame system raid forget "${name}")")
+        fi
+        if [[ "${system}" == true ]]; then title="$(gettext "The system's disks")"; else title="$(eval_gettext "\${name}, at \${mountpoint}")"; fi
+        STATE=ok
+        [[ -n "${problems}" ]] && STATE=check
+        ROWS+=("$(jq -nc --arg id "${name}" --arg title "${title}" --arg text "${TEXT[*]}" --arg state "${STATE}" \
+            '{$id, $title, $text, $state, actions: [$ARGS.positional[] | fromjson]}' --args "${ACTIONS[@]}")")
+    done < <(jq -r '.pools[] | [.name, .system, .managed, .mountpoint, (.layout // ""), (.devices | length), .encrypted,
+        (.size // ""), (.used // ""), .mounted, (.missing // 0), (.survives // 0), (.problems | join(",")),
+        ((.busy | join(",")) + (.operation // "")), (.scrub.time // "")] | map(tostring) | join("\u001f")' <<<"${RAID}")
+    if [[ ${#ROWS[@]} -gt 0 ]]; then
+        EXTRA="$(printf '%s\n' "${ROWS[@]}" | jq -sc '{disks: .}')"
+        GROUP="$(gettext "Disks")"
+        USAGE="ame system raid status"
+        item system disks disks "$(gettext "Pools of disks")" \
+            "$(gettext "Disks that keep copies of each other, so that one can fail without taking a file with it.")" \
+            "" hardware#pools-of-disks-raid
+    fi
+
+    [[ "${SPARE}" -ge 2 ]] || REASON="$(gettext "Needs two disks besides the system's.")"
+    COMMAND=(ame system raid create)
+    BUTTON="$(gettext "Make a pool…")"
+    GROUP="$(gettext "Disks")"
+    USAGE="ame system raid create"
+    item system raid-create action "$(gettext "Make a pool from spare disks")" \
+        "$(gettext "Two or more disks that keep copies of each other, or join into one, in a folder under /var/mnt. It asks which disks, how to lay them out and whether to encrypt them, and erases them only once you type ERASE.")" \
+        "" hardware#pools-of-disks-raid
+
+    if [[ "$(jq -r .system_single <<<"${RAID}")" == true ]]; then
+        COMMAND=(ame system raid mirror)
+        BUTTON="$(gettext "Protect…")"
+        GROUP="$(gettext "Disks")"
+        USAGE="ame system raid mirror"
+        item system raid-mirror action "$(gettext "Protect the system's disks")" \
+            "$(gettext "The system is spread over several disks with one copy of each file, so either one failing loses everything. This keeps a copy on each, erasing nothing. The machine still starts only from its first disk.")" \
+            "" hardware#pools-of-disks-raid
+    fi
+
+    if [[ "$(jq -r .raid <<<"${RAID}")" == true ]]; then
+        if [[ "$(jq -r '.scrub_timer // ""' <<<"${RAID}")" == enabled ]]; then SCRUB=on; else SCRUB=off; fi
+        switch_choices true ame system raid scrub
+        GROUP="$(gettext "Disks")"
+        USAGE="ame system raid scrub on|off"
+        item system raid-scrub switch "$(gettext "Monthly check of every copy")" \
+            "$(gettext "Reads everything on the pools once a month, on mains power, and repairs a damaged copy from a good one.")" \
+            "${SCRUB}" hardware#pools-of-disks-raid
+
+        [[ "$(jq -r .scrubbing <<<"${RAID}")" == true ]] && REASON="$(gettext "A check is running now.")"
+        COMMAND=(ame system raid scrub now)
+        BUTTON="$(gettext "Check now…")"
+        GROUP="$(gettext "Disks")"
+        USAGE="ame system raid scrub now"
+        item system raid-scrub-now action "$(gettext "Check every copy now")" \
+            "$(gettext "The same check, now, in the background. After a power cut, do it for a pool with parity.")" \
+            "" hardware#pools-of-disks-raid
+    fi
+fi
+
+# A new installation beside this one: nothing is erased, and the old system can still be started. Not
+# on a sealed machine until it has been tried there.
+[[ "${SEALED}" == true ]] && REASON="$(gettext "Not on a sealed machine yet: it has not been tried on one.")"
+COMMAND=(ame system powerwash)
+BUTTON="$(gettext "Start over…")"
+EXTRA='{"danger": true}'
+GROUP="$(gettext "Start over")"
+USAGE="ame system powerwash"
+item system powerwash action "$(gettext "Start over")" \
+    "$(gettext "Makes a new installation of this image beside this one, without your accounts, settings or files. Nothing is erased: the old system stays on the disk, and the boot menu can still start it. Experimental. It asks twice.")" \
+    "" troubleshooting#starting-over
+GROUP=""
+
+# --- Your setup ------------------------------------------------------------------------------------
+
+SETUP="${CONFIG_DIR}/setup.json"
+SAVED=""
+[[ -f "${SETUP}" ]] && SAVED="$(stat -c %Y "${SETUP}" 2>/dev/null)"
+EXTRA="$(jq -nc --arg file "${SETUP}" --arg saved "${SAVED}" '{$file,
+    saved: (if $saved == "" then null else ($saved | tonumber) end), commands: {
+        save: {terminal: false, command: ["ame", "setup", "save"]},
+        apply: {terminal: true, command: ["ame", "setup", "apply"]}}}')"
+USAGE="ame setup save|diff|apply"
+item setup setup-file setup "$(gettext "Your setup file")" \
+    "$(gettext "Your image, apps, containers, extensions, theme and the settings you changed, in one file to keep, compare and apply here or on another machine.")" \
+    "$([[ -n "${SAVED}" ]] && echo saved)" setup
+
+if [[ -r "${CONFIG_DIR}/backup.env" ]]; then
+    COMMAND=(ame restore-setup)
+    BUTTON="$(gettext "Restore…")"
+    USAGE="ame restore-setup"
+    item setup restore-setup action "$(gettext "Make the setup again from a backup")" \
+        "$(gettext "On a new machine: the image, apps, containers and theme of your last backup, each step chosen first.")" \
+        "" security#backups
+fi
+
+# --- Elsewhere -------------------------------------------------------------------------------------
+
+# Automatic updates are the Updates window's to switch, and backups the Backups window's, where it is
+# installed: the window links to them, with the first one's state
+if systemctl cat -- uupd.timer &>/dev/null; then TIMER=uupd.timer; else TIMER=rpm-ostreed-automatic.timer; fi
+if systemctl is-enabled --quiet "${TIMER}" 2>/dev/null; then UPDATES=on; else UPDATES=off; fi
+BACKUPS=false
+[[ -x /usr/bin/amethystora-backups ]] && BACKUPS=true
+
+if [[ "${JSON}" == true ]]; then
+    printf '%s\n' "${ITEMS[@]}" | jq -s --argjson sealed "${SEALED}" --arg updates "${UPDATES}" \
+        --argjson backups "${BACKUPS}" \
+        '{version: 1, $sealed, elsewhere: {automatic_updates: $updates, $backups}, items: .}'
+    exit 0
+fi
+
+# For a terminal: each setting with what it is now, and the command that changes it
+declare -A HEADINGS=(
+    [appearance]="$(gettext "Appearance")"
+    [desktop]="$(gettext "Desktop")"
+    [apps]="$(gettext "Apps")"
+    [agent]="$(gettext "The AI agent")"
+    [system]="$(gettext "System")"
+    [setup]="$(gettext "Your setup")"
+)
+for page in appearance desktop apps agent system setup; do
+    printf '\n  %s\n' "${HEADINGS[${page}]}"
+    printf '%s\n' "${ITEMS[@]}" | jq -r --arg page "${page}" \
+        'select(.page == $page and .kind != "link")
+         | (.state as $state | (.choices // []) | map(select(.value == $state)) | first | .title) as $chosen
+         | "   \(.title)" + (if .available | not then ": \(.reason)"
+             elif .kind == "range" and .state != null then ": \(.state) \(.unit)"
+             elif $chosen != null and .kind != "wallpapers" then ": \($chosen)"
+             else "" end),
+           (if .usage != null then "          \(.usage)" else empty end)'
+done
+echo
+echo "$(gettext "Security settings are in Amethystora Security: ame security status")"

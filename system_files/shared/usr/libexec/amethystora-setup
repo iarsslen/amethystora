@@ -1,0 +1,583 @@
+#!/usr/bin/bash
+# `ame setup save|diff|apply`: this account's setup in a file of its own, to keep in git, read, edit and
+# apply, here or on another machine (`ame restore-setup` makes it again from a backup instead):
+#
+#   amethystora-setup save [FILE]                      write this machine's setup to FILE ("-" prints it)
+#   amethystora-setup diff [--json] [FILE]             what the machine and the file disagree on
+#   amethystora-setup apply [--remove] [--yes] [FILE]  bring the machine in line with the file
+#
+# FILE is ~/.config/amethystora/setup.json unless one is named. It is what amethystora-setup-manifest
+# writes, less what describes the machine rather than the setup (its name, the account, the time), and
+# less everything that is an address or a script: the Flatpak remotes, the Brewfile (Ruby, which
+# Homebrew runs), templates and package managers of the account's own (images and commands), the AUR's
+# switch. A file can be shared, and one somebody shared must not be able to run anything. What is left
+# names things, and each comes from where it always does:
+#
+#   version      1
+#   image        {name, stream}, switched to through `ame system rebase`: signed images only, and it asks
+#   flatpaks     {system, user}: [{app, origin}], from remotes this machine already has
+#   brew         {taps, formulae, casks}, from Homebrew
+#   containers   [{name, template, init, packages}], made by amethystora-pkg from a template this machine
+#                has (the built-in ones pinned by digest in the image), packages from its repositories
+#   extensions   the GNOME extensions turned on, of those installed here
+#   theme        the desktop theme
+#   settings     {layout, favorites, keybindings, paperwm}: the window layout, the dock's apps, the keys
+#                of keybindings (the image's custom keybindings by their id, never a command) and
+#                PaperWM's gaps, and no other GNOME setting
+#
+# A file with any other key is refused, by `save` as well. A list the file leaves out counts as empty,
+# and a setting it leaves out as the machine's. `apply` adds what is missing after showing the list, and
+# takes nothing away unless --remove is given, and then only after asking; run twice, the second run
+# finds nothing to do.
+
+set -uo pipefail
+
+CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora"
+DEFAULT_FILE="${CONFIG_DIR}/setup.json"
+BREW="$(command -v brew 2>/dev/null || echo /home/linuxbrew/.linuxbrew/bin/brew)"
+CUSTOM=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings
+RELOCATABLE=org.gnome.settings-daemon.plugins.media-keys.custom-keybinding
+PAPERWM=org.gnome.shell.extensions.paperwm
+KEY_SCHEMAS='["org.gnome.desktop.wm.keybindings", "org.gnome.shell.keybindings", "org.gnome.mutter.keybindings",
+    "org.gnome.mutter.wayland.keybindings", "org.gnome.settings-daemon.plugins.media-keys",
+    "org.gnome.shell.extensions.paperwm.keybindings"]'
+GAPS='["window-gap", "horizontal-margin", "vertical-margin", "vertical-margin-bottom"]'
+
+die() {
+    printf '%s\n' "$*" >&2
+    exit 1
+}
+
+usage() {
+    sed -n 's/^#   amethystora-setup /ame setup /p' "$0"
+}
+
+interactive() { [[ -t 0 && -t 1 ]]; }
+
+# gum asks, as it does everywhere in the image; read is what is there if it is not
+confirm() {
+    local answer
+    if command -v gum >/dev/null 2>&1; then
+        gum confirm --default="$2" "$1"
+        return
+    fi
+    read -r -p "$1 [y/N] " answer || return 1
+    [[ "${answer}" =~ ^[Yy] ]]
+}
+
+# --- The format -----------------------------------------------------------------------------------
+
+# Each line it prints is a reason a file is not a setup file. Names are checked as well as keys: a name
+# that starts with "-" would be read as an option by the command it is handed to.
+CHECK="$(
+    cat <<'EOF'
+def name: type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._+@-]*$");
+def accels: type == "array" and all(.[]; type == "string" and test("^(<[A-Za-z0-9_]+>)*[A-Za-z0-9_]*$"));
+def at($key; f): if has($key) then .[$key] | f else empty end;
+# A $name parameter is also a filter called name, so this one must not be called keys
+def only($allowed; $where):
+    if type == "object" then (keys - $allowed)[] | "\($where)\(.) is not part of a setup file"
+    else "\($where) is not an object" end;
+# Each entry of a list that is not what f accepts, named
+def each($where; f; $what):
+    if type != "array" then "\($where) is not a list" else .[] | select(f | not) | "\($where): \(tojson) is not \($what)" end;
+if type != "object" then "it is not a JSON object" else
+    only(["version", "image", "flatpaks", "brew", "containers", "extensions", "theme", "settings"]; ""),
+    (if .version == 1 then empty else "its version is \(.version | tojson), and this reads version 1" end),
+    at("image"; only(["name", "stream"]; "image."),
+        (if type == "object" and (.name | type == "string" and test("^[a-z0-9][a-z0-9-]*$"))
+            and (.stream | type == "string" and test("^[a-z0-9][a-z0-9._-]*$")) then empty
+         else "image has a name and a stream, such as amethystora and stable" end)),
+    at("flatpaks"; only(["system", "user"]; "flatpaks."),
+        (if type == "object" then ("system", "user") as $i | at($i; each("flatpaks.\($i)";
+            type == "object" and keys == ["app", "origin"] and (.origin | name)
+                and (.app | type == "string" and test("^[A-Za-z][A-Za-z0-9_-]*([.][A-Za-z0-9_-]+)+$"));
+            "{\"app\": ID, \"origin\": REMOTE}")) else empty end)),
+    at("brew"; only(["taps", "formulae", "casks"]; "brew."),
+        (if type == "object" then ("taps", "formulae", "casks") as $k | at($k; each("brew.\($k)";
+            type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._+@-]*(/[A-Za-z0-9][A-Za-z0-9._+@-]*){0,2}$");
+            "one of Homebrew's names")) else empty end)),
+    at("containers"; if type != "array" then "containers is not a list" else .[] |
+        if type != "object" then "containers: \(tojson) is not a container" else
+            only(["name", "template", "init", "packages"]; "containers[]."),
+            (if (.name | type == "string" and test("^[a-z0-9][a-z0-9_-]{0,31}$")) and (.template | name) then empty
+             else "containers: \(tojson) has no name and template" end),
+            at("init"; if type == "boolean" then empty else "a container's init is true or false" end),
+            at("packages"; each("the packages of a container";
+                type == "string" and test("^[A-Za-z0-9@_+][A-Za-z0-9@._+:=~-]*$"); "a package's name"))
+        end end),
+    at("extensions"; each("extensions"; name; "an extension's id")),
+    at("theme"; if type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]*$") then empty else "theme is not a theme's name" end),
+    at("settings"; only(["layout", "favorites", "keybindings", "paperwm"]; "settings."),
+        (if type == "object" then
+            at("layout"; if IN("tiling", "classic") then empty else "settings.layout is tiling or classic" end),
+            at("favorites"; each("settings.favorites";
+                type == "string" and test("^[A-Za-z0-9_][A-Za-z0-9._+@-]*[.]desktop$"); "an app's .desktop file")),
+            at("keybindings"; only($schemas + ["custom"]; "settings.keybindings."),
+                (if type == "object" then to_entries[] | .key as $s | select($s | IN($schemas[], "custom")) | .value |
+                    if type != "object" then "settings.keybindings.\($s) is not an object"
+                    elif $s == "custom" then to_entries[] |
+                        if (.key | test("^custom[0-9]+$")) and (.value | accels and length <= 1) then empty
+                        else "settings.keybindings.custom.\(.key) is one of the image's custom keybindings, set to a list of one key or none" end
+                    else to_entries[] |
+                        if (.key | test("^[a-z0-9][a-z0-9-]*$")) and .key != "custom-keybindings" and (.value | accels) then empty
+                        else "settings.keybindings.\($s).\(.key) is not a keybinding set to a list of keys" end
+                    end else empty end)),
+            at("paperwm"; only($gaps; "settings.paperwm."),
+                (if type == "object" then to_entries[] | select(.key | IN($gaps[])) |
+                    if .value | type == "number" and . == floor and . >= 0 and . <= 1000 then empty
+                    else "settings.paperwm.\(.key) is a number of pixels" end else empty end))
+        else empty end))
+end
+EOF
+)"
+
+# Exits, saying why, unless the JSON on stdin is a setup file
+check() {
+    local problems
+    problems="$(jq -r --argjson schemas "${KEY_SCHEMAS}" --argjson gaps "${GAPS}" "${CHECK}" 2>&1)" ||
+        die "$1 is not JSON."
+    [[ -z "${problems}" ]] ||
+        die "$1 is not a setup file this version of Amethystora reads:"$'\n'"$(sed 's/^/  /' <<<"${problems}")"
+}
+
+load() {
+    [[ -f "$1" ]] || die "There is no setup file at $1 yet: ame setup save writes one."
+    check "$1" <"$1"
+}
+
+# This machine's setup as the file has it: the manifest's, less the machine, addresses and scripts, with
+# every list sorted, so that a file kept in git changes only where the setup does
+TO_SETUP="$(
+    cat <<'EOF'
+{
+    version: 1,
+    image: {name: .image.name, stream: .image.stream},
+    flatpaks: {system: (.flatpaks.system // [] | sort_by(.app)), user: (.flatpaks.user // [] | sort_by(.app))},
+    brew: (.brew // {} | {taps: (.taps // []), formulae: (.formulae // []), casks: (.casks // [])}),
+    containers: (.containers // [] | map({name, template, init: (.init == true), packages: (.packages // [] | sort)})
+        | sort_by(.name)),
+    extensions: (.extensions // [] | sort),
+    theme: .theme,
+    settings: .settings
+}
+| if .image.name == null or .image.stream == null then del(.image) else . end
+| if (.theme // "") == "" then del(.theme) else . end
+| if .settings == null then del(.settings) else . end
+EOF
+)"
+
+machine() {
+    /usr/libexec/amethystora-setup-manifest | jq "${TO_SETUP}"
+}
+
+# --- What the machine has -----------------------------------------------------------------------
+
+# A value as GSettings prints it, as JSON: lists of strings, strings and numbers
+as_json() { sed -E "s/^@as //; s/'/\"/g" | jq -c . 2>/dev/null; }
+
+# A list of names as GSettings takes it: the format keeps quotes out of every one, so @sh quotes each
+# the way GVariant does
+as_variant() { jq -r 'if length == 0 then "@as []" else "[" + (map(@sh) | join(", ")) + "]" end'; }
+
+# The value each setting the file names has here now, in the file's shape, or null where this machine
+# has no such setting. The manifest leaves out a setting that is the image's, so it has to be read.
+current() {
+    local schema key value
+    {
+        if jq -e '.settings // {} | has("favorites")' "$1" >/dev/null; then
+            value="$(gsettings get org.gnome.shell favorite-apps 2>/dev/null | as_json)"
+            jq -nc --argjson v "${value:-null}" '{favorites: $v}'
+        fi
+        while IFS=$'\t' read -r schema key; do
+            value=""
+            if [[ "${schema}" == custom ]]; then
+                # The image's own only: it sets their command in its dconf database
+                if [[ -n "$(dconf read -d "${CUSTOM}/${key}/command" 2>/dev/null)" ]]; then
+                    value="$(gsettings get "${RELOCATABLE}:${CUSTOM}/${key}/" binding 2>/dev/null | as_json |
+                        jq -c 'if . == "" then [] else [.] end')"
+                fi
+            elif [[ "$(gsettings range "${schema}" "${key}" 2>/dev/null)" == "type as" ]]; then
+                value="$(gsettings get "${schema}" "${key}" 2>/dev/null | as_json)"
+            fi
+            jq -nc --arg s "${schema}" --arg k "${key}" --argjson v "${value:-null}" '{keybindings: {($s): {($k): $v}}}'
+        done < <(jq -r '.settings.keybindings // {} | to_entries[] | .key as $s | .value | keys[] | [$s, .] | @tsv' "$1")
+        while IFS= read -r key; do
+            value=""
+            if [[ "$(gsettings range "${PAPERWM}" "${key}" 2>/dev/null)" == "type i" ]]; then
+                value="$(gsettings get "${PAPERWM}" "${key}" 2>/dev/null | as_json)"
+            fi
+            jq -nc --arg k "${key}" --argjson v "${value:-null}" '{paperwm: {($k): $v}}'
+        done < <(jq -r '.settings.paperwm // {} | keys[]' "$1")
+    } | jq -sc 'reduce .[] as $x ({favorites: null, keybindings: {}, paperwm: {}}; . * $x)'
+}
+
+# Where this machine can install from, and what it can turn on
+abilities() {
+    local extensions="${XDG_DATA_HOME:-${HOME}/.local/share}/gnome-shell/extensions"
+    jq -nc \
+        --argjson system "$(flatpak remotes --system --columns=name 2>/dev/null | jq -R . | jq -sc .)" \
+        --argjson user "$(flatpak remotes --user --columns=name 2>/dev/null | jq -R . | jq -sc .)" \
+        --argjson templates "$(amethystora-pkg templates list --json 2>/dev/null | jq -c 'map(.name)' 2>/dev/null || echo '[]')" \
+        --argjson aur "$(find /usr/share/amethystora/pkg/aur/templates -name '*.json' -printf '%f\n' 2>/dev/null |
+            sed 's/\.json$//' | jq -R . | jq -sc .)" \
+        --argjson themes "$(amethystora-theme list 2>/dev/null | sed 's/^[*] /  /' | awk '{ print $1 }' | jq -R . | jq -sc .)" \
+        --argjson extensions "$(find /usr/share/gnome-shell/extensions "${extensions}" -mindepth 1 -maxdepth 1 \
+            -type d -printf '%f\n' 2>/dev/null | jq -R . | jq -sc .)" \
+        --argjson brew "$([[ -x "${BREW}" ]] && echo true || echo false)" \
+        '{remotes: {system: $system, user: $user}, templates: $templates, aur_templates: $aur, themes: $themes,
+          extensions: $extensions, brew: $brew}'
+}
+
+# --- What differs ---------------------------------------------------------------------------------
+
+# Every difference between the file and the machine: something to add, something to set as the file
+# has it, or something the machine has that the file does not ("remove": uninstall, turn off, or put
+# back to the image's), each with ok false and a reason when this machine cannot do it
+CHANGES="$(
+    cat <<'EOF'
+def apps($x): [$x.flatpaks.system[]?, $x.flatpaks.user[]?] | map(.app);
+def brew($x; $k): $x.brew[$k] // [];
+($file.settings // {}) as $fs
+| ($here.settings // {}) as $hs
+| ($here.containers // [] | map(.name)) as $have
+| ($file.containers // [] | map(.name)) as $want
+| [
+    ($file.image // empty | select("\(.name):\(.stream)" != "\($here.image.name):\($here.image.stream)")
+        | {area: "image", action: "set", name, stream, to: "\(.name):\(.stream)",
+           from: "\($here.image.name // "?"):\($here.image.stream // "?")"}),
+    # An app installed in either installation counts, whichever the file has it in
+    (("system", "user") as $i | $file.flatpaks[$i][]? | select(.app | IN(apps($here)[]) | not)
+        | {area: "flatpak", action: "add", installation: $i, app, origin}
+        + if .origin | IN($can.remotes[$i][]) then {} else {ok: false, why: "this machine has no \($i) remote called \(.origin)"} end),
+    (("system", "user") as $i | $here.flatpaks[$i][]? | select(.app | IN(apps($file)[]) | not)
+        | {area: "flatpak", action: "remove", installation: $i, app}),
+    ((["tap", "taps"], ["formula", "formulae"], ["cask", "casks"]) as [$area, $k]
+        | ((brew($file; $k) - brew($here; $k))[] | {area: $area, action: "add", name: .}
+            + if $can.brew then {} else {ok: false, why: "Homebrew is not set up here"} end),
+          ((brew($here; $k) - brew($file; $k))[] | {area: $area, action: "remove", name: .})),
+    ($file.containers[]? | select(.name | IN($have[]) | not)
+        | {area: "container", action: "add", name, template, init: (.init // false), packages: (.packages // [])}
+        + if .template | IN($can.templates[]) then {}
+          elif .template | IN($can.aur_templates[]) then {ok: false, why: "it is made from the AUR, which is off here: ame apps aur turns it on"}
+          else {ok: false, why: "this machine has no template called \(.template)"} end),
+    ($here.containers[]? | select(.name | IN($want[]) | not) | {area: "container", action: "remove", name}),
+    ($file.containers[]? as $c | $here.containers[]? | select(.name == $c.name)
+        | ($c.packages // []) - (.packages // []) | select(length > 0)
+        | {area: "packages", action: "add", container: $c.name, packages: .}),
+    ((($file.extensions // []) - ($here.extensions // []))[] | {area: "extension", action: "add", uuid: .}
+        + if IN($can.extensions[]) then {} else {ok: false, why: "it is not installed here: Extension Manager finds it"} end),
+    ((($here.extensions // []) - ($file.extensions // []))[] | {area: "extension", action: "remove", uuid: .}),
+    ($file.theme // empty | select(. != $here.theme) | {area: "theme", action: "set", to: ., from: $here.theme}
+        + if IN($can.themes[]) then {} else {ok: false, why: "there is no theme called \(.) here"} end),
+    ($fs.layout // empty | select(. != $hs.layout) | {area: "layout", action: "set", to: ., from: $hs.layout}),
+    (if $fs | has("favorites") then
+        select($fs.favorites != $now.favorites) | {area: "favorites", action: "set", to: $fs.favorites, from: $now.favorites}
+     elif $hs | has("favorites") then {area: "favorites", action: "remove", from: $hs.favorites}
+     else empty end),
+    ($fs.keybindings // {} | to_entries[] | .key as $s | .value | to_entries[] | .key as $k | $now.keybindings[$s][$k] as $v
+        | select(.value != $v) | {area: "keybinding", action: "set", schema: $s, key: $k, to: .value, from: $v}
+        + if $v == null then {ok: false, why: "this machine has no such keybinding"} else {} end),
+    ($hs.keybindings // {} | to_entries[] | .key as $s | .value | to_entries[] | .key as $k
+        | select($fs.keybindings[$s] // {} | has($k) | not)
+        | {area: "keybinding", action: "remove", schema: $s, key: $k, from: .value}),
+    ($fs.paperwm // {} | to_entries[] | .key as $k | $now.paperwm[$k] as $v | select(.value != $v)
+        | {area: "gap", action: "set", key: $k, to: .value, from: $v}
+        + if $v == null then {ok: false, why: "PaperWM is not installed here"} else {} end),
+    ($hs.paperwm // {} | to_entries[] | .key as $k | select($fs.paperwm // {} | has($k) | not)
+        | {area: "gap", action: "remove", key: $k, from: .value})
+  ]
+| map({ok: true, why: null} + .)
+EOF
+)"
+
+changes() {
+    local here
+    here="$(machine)" && [[ -n "${here}" ]] || die "This machine's setup could not be read."
+    jq -nc --argjson file "$(<"$1")" --argjson here "${here}" --argjson now "$(current "$1")" \
+        --argjson can "$(abilities)" "${CHANGES}"
+}
+
+# One line for each change
+DESCRIBE="$(
+    cat <<'EOF'
+def accels: if length == 0 then "no key" else join(" or ") end;
+def text:
+    if .area == "image" then "the system: \(.to), in place of \(.from)"
+    elif .area == "flatpak" then "the app \(.app)" + if .action == "add" then ", from \(.origin)"
+        + if .installation == "user" then ", for you alone" else "" end else "" end
+    elif .area == "tap" then "the Homebrew tap \(.name)"
+        + if .action == "add" then ", whose formulae anyone can publish and Homebrew does not review" else "" end
+    elif .area == "formula" then "the Homebrew formula \(.name)"
+    elif .area == "cask" then "the Homebrew cask \(.name)"
+    elif .area == "container" then "the container \(.name)" + if .action == "add" then ", from the template \(.template)"
+        + if (.packages | length) > 0 then ", with \(.packages | join(", "))" else "" end
+        else ", and everything installed in it" end
+    elif .area == "packages" then "\(.packages | join(", ")) in the container \(.container)"
+    elif .area == "extension" then "the extension \(.uuid)"
+    elif .area == "theme" then "the theme: \(.to), in place of \(.from // "none")"
+    elif .area == "layout" then "the window layout: \(.to), in place of \(.from)"
+    elif .area == "favorites" then if .action == "set" then "the dock's apps: \(.to | join(", "))"
+        else "the dock's apps, back to the image's" end
+    elif .area == "keybinding" then "the keybinding " + if .schema == "custom" then .key else "\(.schema) \(.key)" end
+        + if .action == "set" then ": \(.to | accels)" + if .from == null then "" else ", in place of \(.from | accels)" end
+          else ", \(.from | accels) here, back to the image's" end
+    elif .area == "gap" then "PaperWM's \(.key)"
+        + if .action != "set" then ", \(.from) here, back to the image's"
+          elif .from == null then ": \(.to)" else ": \(.to), in place of \(.from)" end
+    else tojson end;
+EOF
+)"
+
+# Prints the changes on stdin that the jq condition $3 selects, marked with $2, under the heading $1
+section() {
+    jq -r --arg title "$1" --arg mark "$2" "${DESCRIBE}"' [.[] | select('"$3"')] | select(length > 0)
+        | if $title == "" then empty else $title end,
+          (.[] | "  \($mark) " + text + if .ok then "" else ": \(.why)" end),
+          if $title == "" then empty else "" end'
+}
+
+# --- The commands ---------------------------------------------------------------------------------
+
+save() {
+    local target="${1:-${DEFAULT_FILE}}" setup
+    [[ $# -le 1 && "${target}" != -?* ]] || die "usage: ame setup save [FILE]"
+    setup="$(machine)" && [[ -n "${setup}" ]] || die "This machine's setup could not be read."
+    check "This machine's setup" <<<"${setup}"
+    if [[ "${target}" == - ]]; then
+        printf '%s\n' "${setup}"
+        return
+    fi
+    # Through a link, to where it leads, as a file kept in a folder of dotfiles often is
+    target="$(realpath -m -- "${target}")"
+    mkdir -p "$(dirname "${target}")" || die "Could not make the folder for ${target}."
+    printf '%s\n' "${setup}" >"${target}.new" && mv -f "${target}.new" "${target}" || die "Could not write ${target}."
+    echo "Saved this machine's setup to ${target}:"
+    jq -r 'def n($count; $what): "\($count) \($what)\(if $count == 1 then "" else "s" end)";
+        "\(n(.flatpaks.system + .flatpaks.user | length; "app")), \(.brew.formulae + .brew.casks | length) from Homebrew, "
+        + "\(n(.containers | length; "container")), \(n(.extensions | length; "extension")), the theme \(.theme // "none"), "
+        + "and \(n(.settings.keybindings // {} | map(length) | add // 0; "keybinding")) of your own."' <<<"${setup}"
+    if ! git -C "$(dirname "${target}")" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        echo "To keep it in git, see: amethystora-manual setup#keeping-it-in-git"
+    fi
+}
+
+diff_setup() {
+    local json=false file="" changes
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json) json=true ;;
+            -*) die "usage: ame setup diff [--json] [FILE]" ;;
+            *) [[ -z "${file}" ]] || die "usage: ame setup diff [--json] [FILE]"; file="$1" ;;
+        esac
+        shift
+    done
+    file="${file:-${DEFAULT_FILE}}"
+    load "${file}"
+    changes="$(changes "${file}")" || exit 1
+    if [[ "${json}" == true ]]; then
+        jq . <<<"${changes}"
+    elif [[ "${changes}" == "[]" ]]; then
+        echo "This machine is as ${file} says."
+    else
+        section "In the file, not here (ame setup apply adds them):" + '.ok and .action == "add"' <<<"${changes}"
+        section "Set differently here (ame setup apply sets them as the file has them):" "~" '.ok and .action == "set"' <<<"${changes}"
+        section "Here, not in the file (ame setup apply --remove takes them away, after asking):" - '.action == "remove"' <<<"${changes}"
+        section "In the file, but this machine cannot have them:" "!" '.ok | not' <<<"${changes}"
+    fi
+}
+
+apply() {
+    local remove=false yes=false did=false file="" changes todo gone
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --remove) remove=true ;;
+            --yes | -y) yes=true ;;
+            -*) die "usage: ame setup apply [--remove] [--yes] [FILE]" ;;
+            *) [[ -z "${file}" ]] || die "usage: ame setup apply [--remove] [--yes] [FILE]"; file="$1" ;;
+        esac
+        shift
+    done
+    file="${file:-${DEFAULT_FILE}}"
+    load "${file}"
+    changes="$(changes "${file}")" || exit 1
+    todo="$(jq -c '[.[] | select(.ok and .action != "remove")]' <<<"${changes}")"
+    gone="$(jq -c '[.[] | select(.action == "remove")]' <<<"${changes}")"
+    section "In the file, but this machine cannot have them, so they are left out:" "!" '.ok | not' <<<"${changes}"
+
+    if [[ "${todo}" == "[]" && ("${remove}" == false || "${gone}" == "[]") ]]; then
+        echo "Nothing to do: this machine has everything ${file} names, as it names it."
+    fi
+    if [[ "${todo}" != "[]" ]]; then
+        echo "To make this machine as ${file} says:"
+        section "" + '.action == "add"' <<<"${todo}"
+        section "" "~" '.action == "set"' <<<"${todo}"
+        echo
+        if [[ "${yes}" != true ]]; then
+            interactive || die "apply asks before it changes anything, which needs a terminal, or --yes."
+            confirm "Go ahead?" true || exit 0
+        fi
+        add_all "${todo}"
+        did=true
+    fi
+    if [[ "${gone}" != "[]" && "${remove}" == true ]]; then
+        section "Here, and not in the file:" - 'true' <<<"${gone}"
+        interactive || die "--remove asks before it takes anything away, which needs a terminal."
+        if confirm "Take these away? Apps keep their data, and a container's home folder stays." false; then
+            remove_all "${gone}"
+            did=true
+        fi
+    elif [[ "${gone}" != "[]" ]]; then
+        echo "Left as they are: $(jq length <<<"${gone}") here that the file does not name (ame setup diff lists them)."
+    fi
+
+    if [[ ${#FAILED[@]} -gt 0 ]]; then
+        echo
+        echo "Done, except: $(printf '%s, ' "${FAILED[@]}" | sed 's/, $//'). Running it again picks up where it stopped."
+        return 1
+    fi
+    [[ "${did}" == false ]] || echo "Done."
+}
+
+# --- Doing it -------------------------------------------------------------------------------------
+
+# Each change is read into an array first, so that what runs keeps the terminal on its stdin and can
+# ask its questions there. What fails is named in FAILED.
+FAILED=()
+
+# The changes of one area, one JSON object a line
+of() { jq -c --arg a "$2" '.[] | select(.area == $a)' <<<"$1"; }
+
+add_all() {
+    local todo="$1" change installation origin name template value stream
+    local -a changes names args
+    mapfile -t changes < <(jq -r '[.[] | select(.area == "flatpak") | [.installation, .origin]] | unique[] | @tsv' <<<"${todo}")
+    for change in "${changes[@]}"; do
+        IFS=$'\t' read -r installation origin <<<"${change}"
+        mapfile -t names < <(jq -r --arg i "${installation}" --arg o "${origin}" \
+            '.[] | select(.area == "flatpak" and .installation == $i and .origin == $o) | .app' <<<"${todo}")
+        flatpak install "--${installation}" --noninteractive "${origin}" "${names[@]}" || FAILED+=("apps from ${origin}")
+    done
+
+    mapfile -t names < <(of "${todo}" tap | jq -r .name)
+    for name in "${names[@]}"; do
+        "${BREW}" tap "${name}" || FAILED+=("the Homebrew tap ${name}")
+    done
+    mapfile -t names < <(of "${todo}" formula | jq -r .name)
+    [[ ${#names[@]} -eq 0 ]] || "${BREW}" install --formula "${names[@]}" || FAILED+=("Homebrew formulae")
+    mapfile -t names < <(of "${todo}" cask | jq -r .name)
+    [[ ${#names[@]} -eq 0 ]] || "${BREW}" install --cask "${names[@]}" || FAILED+=("Homebrew casks")
+
+    # A package from the AUR is built only once its PKGBUILD has been read, --yes or not
+    mapfile -t changes < <(of "${todo}" container)
+    for change in "${changes[@]}"; do
+        name="$(jq -r .name <<<"${change}")"
+        template="$(jq -r .template <<<"${change}")"
+        args=(containers new --template "${template}" --name "${name}" --no-prompt --yes)
+        [[ "$(jq -r .init <<<"${change}")" == true ]] && args+=(--init)
+        amethystora-pkg "${args[@]}" || { FAILED+=("the container ${name}"); continue; }
+        mapfile -t names < <(jq -r '.packages[]' <<<"${change}")
+        [[ ${#names[@]} -eq 0 ]] || amethystora-pkg "${name}" install --yes "${names[@]}" || FAILED+=("packages in ${name}")
+    done
+    mapfile -t changes < <(of "${todo}" packages)
+    for change in "${changes[@]}"; do
+        name="$(jq -r .container <<<"${change}")"
+        mapfile -t names < <(jq -r '.packages[]' <<<"${change}")
+        amethystora-pkg "${name}" install --yes "${names[@]}" || FAILED+=("packages in ${name}")
+    done
+
+    mapfile -t names < <(of "${todo}" extension | jq -r .uuid)
+    for name in "${names[@]}"; do
+        gnome-extensions enable "${name}" || FAILED+=("the extension ${name}")
+    done
+    mapfile -t names < <(of "${todo}" theme | jq -r .to)
+    for name in "${names[@]}"; do
+        amethystora-theme set "${name}" || FAILED+=("the theme")
+    done
+    # After the extensions, so that the layout decides whether PaperWM is on
+    mapfile -t names < <(of "${todo}" layout | jq -r .to)
+    for name in "${names[@]}"; do
+        ame desktop layout "${name}" || FAILED+=("the window layout")
+    done
+
+    mapfile -t changes < <(of "${todo}" favorites)
+    for change in "${changes[@]}"; do
+        gsettings set org.gnome.shell favorite-apps "$(jq -c .to <<<"${change}" | as_variant)" || FAILED+=("the dock's apps")
+    done
+    mapfile -t changes < <(of "${todo}" keybinding)
+    for change in "${changes[@]}"; do
+        name="$(jq -r .key <<<"${change}")"
+        if [[ "$(jq -r .schema <<<"${change}")" == custom ]]; then
+            gsettings set "${RELOCATABLE}:${CUSTOM}/${name}/" binding "'$(jq -r '.to[0] // ""' <<<"${change}")'"
+        else
+            gsettings set "$(jq -r .schema <<<"${change}")" "${name}" "$(jq -c .to <<<"${change}" | as_variant)"
+        fi || FAILED+=("the keybinding ${name}")
+    done
+    mapfile -t changes < <(of "${todo}" gap | jq -r '[.key, .to] | @tsv')
+    for change in "${changes[@]}"; do
+        IFS=$'\t' read -r name value <<<"${change}"
+        gsettings set "${PAPERWM}" "${name}" "${value}" || FAILED+=("PaperWM's ${name}")
+    done
+
+    # Last, since it downloads a whole system, which only takes over at the next restart
+    mapfile -t changes < <(of "${todo}" image | jq -r '[.name, .stream] | @tsv')
+    for change in "${changes[@]}"; do
+        IFS=$'\t' read -r name stream <<<"${change}"
+        if interactive; then
+            ame system rebase "${name}" "${stream}" || FAILED+=("the system")
+        else
+            echo "Switching the system asks its own questions, in a terminal: ame system rebase ${name} ${stream}"
+            FAILED+=("the system")
+        fi
+    done
+}
+
+remove_all() {
+    local gone="$1" change installation schema name
+    local -a changes names
+    mapfile -t changes < <(of "${gone}" flatpak | jq -r '[.installation, .app] | @tsv')
+    for change in "${changes[@]}"; do
+        IFS=$'\t' read -r installation name <<<"${change}"
+        flatpak uninstall "--${installation}" --noninteractive "${name}" || FAILED+=("the app ${name}")
+    done
+    mapfile -t names < <(of "${gone}" formula | jq -r .name)
+    [[ ${#names[@]} -eq 0 ]] || "${BREW}" uninstall --formula "${names[@]}" || FAILED+=("Homebrew formulae")
+    mapfile -t names < <(of "${gone}" cask | jq -r .name)
+    [[ ${#names[@]} -eq 0 ]] || "${BREW}" uninstall --cask "${names[@]}" || FAILED+=("Homebrew casks")
+    mapfile -t names < <(of "${gone}" tap | jq -r .name)
+    for name in "${names[@]}"; do
+        "${BREW}" untap "${name}" || FAILED+=("the Homebrew tap ${name}")
+    done
+    mapfile -t names < <(of "${gone}" container | jq -r .name)
+    for name in "${names[@]}"; do
+        amethystora-pkg containers rm "${name}" --force || FAILED+=("the container ${name}")
+    done
+    mapfile -t names < <(of "${gone}" extension | jq -r .uuid)
+    for name in "${names[@]}"; do
+        gnome-extensions disable "${name}" || FAILED+=("the extension ${name}")
+    done
+    if [[ -n "$(of "${gone}" favorites)" ]]; then
+        gsettings reset org.gnome.shell favorite-apps || FAILED+=("the dock's apps")
+    fi
+    mapfile -t changes < <(of "${gone}" keybinding | jq -r '[.schema, .key] | @tsv')
+    for change in "${changes[@]}"; do
+        IFS=$'\t' read -r schema name <<<"${change}"
+        if [[ "${schema}" == custom ]]; then
+            gsettings reset "${RELOCATABLE}:${CUSTOM}/${name}/" binding
+        else
+            gsettings reset "${schema}" "${name}"
+        fi || FAILED+=("the keybinding ${name}")
+    done
+    mapfile -t names < <(of "${gone}" gap | jq -r .key)
+    for name in "${names[@]}"; do
+        gsettings reset "${PAPERWM}" "${name}" || FAILED+=("PaperWM's ${name}")
+    done
+}
+
+case "${1:-}" in
+    save) shift; save "$@" ;;
+    diff) shift; diff_setup "$@" ;;
+    apply) shift; apply "$@" ;;
+    -h | --help | help) usage ;;
+    *) usage >&2; exit 1 ;;
+esac

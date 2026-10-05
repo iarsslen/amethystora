@@ -1,0 +1,11 @@
+[Unit]
+Description=Offer the image that fits this machine's graphics card
+Documentation=file:///usr/share/amethystora/manual/hardware.md
+
+[Service]
+Type=oneshot
+# Skipped unless there is something to say that has not been said, and somebody logged in to say it to
+ExecCondition=/usr/libexec/amethystora-gpu-check pending
+ExecStart=/usr/libexec/amethystora-gpu-check
+# It waits for the notification to be answered, which can take as long as a person likes
+TimeoutStartSec=infinity

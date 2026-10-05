@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=Notes
+GenericName=Notes and Tasks
+Comment=Notes and to-do lists, kept on this computer only and encrypted
+Exec=amethystora-notes
+Icon=amethystora-notes
+Terminal=false
+Categories=Office;ProjectManagement;
+Keywords=notes;notebook;markdown;todo;to-do;tasks;planner;reminders;checklist;journal;joplin;planify;
+StartupNotify=true
+StartupWMClass=amethystora-notes
+Actions=tasks;
+
+[Desktop Action tasks]
+Name=Tasks
+Exec=amethystora-notes tasks
