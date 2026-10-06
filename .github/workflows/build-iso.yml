@@ -9,7 +9,7 @@ on:
   workflow_call:
     inputs:
       image:
-        description: "The image the ISO installs: amethystora or amethystora-dx"
+        description: "The image the ISO installs: amethystora"
         type: string
         default: amethystora
   workflow_dispatch:
@@ -20,17 +20,16 @@ on:
         default: amethystora
         options:
           - amethystora
-          - amethystora-dx
 
 # The installer ISO of a published stable image, built with bootc-image-builder and uploaded to
 # Cloudflare R2, which GitHub cannot host: a Release asset is limited to 2 GiB. Each upload replaces
-# the last one under the same name, so the download link never changes. Only amethystora and
-# amethystora-dx have an ISO; the NVIDIA images have none. Pull requests only build amethystora's.
+# the last one under the same name, so the download link never changes. Only amethystora has an ISO;
+# amethystora-dx and the NVIDIA images are switched to after installing.
 #
 # amethystora also gets a live ISO (the live-iso job), the one the website offers first: it boots into
 # Amethystora, which can be tried without installing anything, and installs from there. Named
-# amethystora.iso, for https://download.amethystora.org/amethystora.iso; the installer ISOs keep their
-# names (amethystora-stable.iso, amethystora-dx-stable.iso).
+# amethystora.iso, for https://download.amethystora.org/amethystora.iso; the installer ISO keeps its
+# name (amethystora-stable.iso).
 #
 # Secrets: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY (an R2 API token with Object Read
 # & Write on the bucket), R2_BUCKET, and SIGNING_SECRET, which signs the checksum as it signs the image.
@@ -63,8 +62,8 @@ jobs:
       - name: Prepare the installer configuration
         run: |
           case "${IMAGE}" in
-            amethystora|amethystora-dx) ;;
-            *) echo "::error::${IMAGE} has no ISO: only amethystora and amethystora-dx do"; exit 1 ;;
+            amethystora) ;;
+            *) echo "::error::${IMAGE} has no ISO: only amethystora does"; exit 1 ;;
           esac
           sed -i "s|@IMAGE@|${IMAGE}|" iso/iso.toml
 
@@ -236,11 +235,13 @@ jobs:
             --build-arg BASE_IMAGE="${IMAGE_REF}" --tag localhost/amethystora-live:stable \
             --file iso/live/Containerfile iso
 
+      # Titanoboa resolves iso-dest against its own folder, not the workspace, so the ISO is read from
+      # wherever its iso-dest output says it went
       - name: Build ISO
+        id: titanoboa
         uses: ublue-os/titanoboa@5c457c3d0518bd17e754be0fd98a60d29d26abb4
         with:
           image-ref: localhost/amethystora-live:stable
-          iso-dest: ${{ github.workspace }}/output/live.iso
 
       # What the live system is made of, for the ISO to carry beside NOTICE, whose written offer covers
       # it. Fedora's trademark guidelines keep its logo and release packages out of a system built from
@@ -256,12 +257,14 @@ jobs:
           fi
 
       - name: Add the licences
+        env:
+          LIVE_ISO: ${{ steps.titanoboa.outputs.iso-dest }}
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends xorriso
           mkdir upload
           # replay keeps the boot records Titanoboa wrote
-          xorriso -indev output/live.iso -outdev "upload/${ISO}" -boot_image any replay \
+          xorriso -indev "${LIVE_ISO}" -outdev "upload/${ISO}" -boot_image any replay \
             -map LICENSE /LICENSE -map NOTICE /NOTICE -map LIVE-PACKAGES /LIVE-PACKAGES
 
       - name: Checksum

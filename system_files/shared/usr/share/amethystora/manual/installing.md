@@ -10,7 +10,6 @@ network.
 | --- | --- |
 | [amethystora.iso](https://download.amethystora.org/amethystora.iso) | Amethystora on a stick: try it, then install it from there. Start with this one. |
 | [amethystora-stable.iso](https://download.amethystora.org/amethystora-stable.iso) | The installer alone, which also starts computers too old for UEFI |
-| [amethystora-dx-stable.iso](https://download.amethystora.org/amethystora-dx-stable.iso) | The installer of [developer mode](developer.md) |
 
 Each is several gigabytes. Beside each ISO is its checksum, `.sha256`, signed with the key every
 update is checked against. To check that what you downloaded is what was built:

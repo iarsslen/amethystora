@@ -33,7 +33,7 @@ The ISOs carry the images without NVIDIA's driver. On a machine with an NVIDIA c
 
 ## Getting Started
 
-Download [amethystora.iso](https://download.amethystora.org/amethystora.iso), write it to a USB stick and start the computer from it: Amethystora runs from the stick, to try without changing anything on the computer, and installs from there, offline, beside Windows if you want to keep it. It needs UEFI firmware. The installer alone, which also starts older computers, is [amethystora-stable.iso](https://download.amethystora.org/amethystora-stable.iso), and developer mode's [amethystora-dx-stable.iso](https://download.amethystora.org/amethystora-dx-stable.iso). Each has its checksum beside it as `<name>.sha256`, signed with the key in `cosign.pub`; the manual's Installing page says how to check it and how to install next to Windows.
+Download [amethystora.iso](https://download.amethystora.org/amethystora.iso), write it to a USB stick and start the computer from it: Amethystora runs from the stick, to try without changing anything on the computer, and installs from there, offline, beside Windows if you want to keep it. It needs UEFI firmware. The installer alone, which also starts older computers, is [amethystora-stable.iso](https://download.amethystora.org/amethystora-stable.iso). Each has its checksum beside it as `<name>.sha256`, signed with the key in `cosign.pub`; the manual's Installing page says how to check it and how to install next to Windows.
 
 From an existing Fedora Atomic or Universal Blue system, switch to Amethystora with:
 
