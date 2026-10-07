@@ -847,6 +847,39 @@ jq -e '. == []' <<<"$(HOME="${CONTROL_HOME}" amethystora-webapp list --json)" >/
     [[ "$(amethystora-bling status)" == off ]]
 )
 rm -rf "${CONTROL_HOME}"
+
+# The Backups app (16-backups.sh), put together as the Security app is, with the Manual's i18n.js
+BACKUPS_ELECTRON=/usr/lib/amethystora-backups/amethystora-backups
+test -x /usr/bin/amethystora-backups
+test -x "${BACKUPS_ELECTRON}"
+[[ "$(stat -c '%i' "${BACKUPS_ELECTRON}")" == "$(stat -c '%i' "${MANUAL_ELECTRON}")" ]]
+[[ "$(stat -c '%i' /usr/lib/amethystora-backups/resources/app/i18n.js)" == "$(stat -c '%i' /usr/lib/amethystora-manual/resources/app/i18n.js)" ]]
+test ! -e /usr/lib/amethystora-backups/chrome-sandbox
+for file in main.js preload.js backups.js index.html backups.css gem.svg fonts/QuicksandVariable.ttf; do
+    test -s "/usr/lib/amethystora-backups/resources/app/${file}"
+done
+for file in main.js preload.js backups.js; do
+    ELECTRON_RUN_AS_NODE=1 "${BACKUPS_ELECTRON}" -e \
+        'new (require("node:vm").Script)(require("node:fs").readFileSync(process.argv[1], "utf8"))' \
+        "/usr/lib/amethystora-backups/resources/app/${file}"
+done
+test -f /usr/share/licenses/amethystora-backups/Quicksand-OFL.txt
+cmp -s <(sed 1d /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg) \
+    <(sed 1d /usr/lib/amethystora-backups/resources/app/gem.svg)
+test -s /usr/share/icons/hicolor/scalable/places/amethystora-backups.svg
+command -v desktop-file-validate >/dev/null && desktop-file-validate /usr/share/applications/amethystora-backups.desktop
+# It offers itself under Open With on a folder in Files, and Files stays what opens one
+grep -qx 'MimeType=inode/directory;' /usr/share/applications/amethystora-backups.desktop
+grep -qx 'inode/directory=org.gnome.Nautilus.desktop' /etc/xdg/mimeapps.list
+# What it shows is one helper's, which finds nothing set up on the build machine and still answers. The
+# window runs no shell, asks for no password and switches nothing of Security's: it only opens Security.
+test -x /usr/libexec/amethystora-restore
+jq -e '.version == 1 and .backup.set_up == false and (.snapshots.on | type) == "boolean"' \
+    <<<"$(/usr/libexec/amethystora-restore status --json)" >/dev/null
+jq -e '.points == [] and .backup == "none"' <<<"$(/usr/libexec/amethystora-restore points --json)" >/dev/null
+grep -qE 'ame security|amethystora-security-config|\bsudo\b|\bpkexec\b|shell: true|(^|[^.])\bexec\(' \
+    /usr/lib/amethystora-backups/resources/app/main.js && false
+
 # OpenTabletDriver's udev rules come from a pinned release whose tarball is checked before anything goes
 # into /etc, and its daemon from the image's own user unit, which no account gets without asking
 OTD_RECIPE="$(ame --show apps::opentabletdriver)"
@@ -981,7 +1014,7 @@ for icon in org.gnome.Ptyxis io.github.kolunmi.Bazaar \
     io.github.flattool.Ignition io.gitlab.adhami3310.Impression io.gitlab.metadatacleaner.metadatacleaner input-remapper \
     com.ranfdev.DistroShelf org.gnome.Sysprof \
     amethystora-docs amethystora-community amethystora-update amethystora-security-status amethystora-logs \
-    amethystora-control; do
+    amethystora-control amethystora-backups; do
     test -e "${CANDY_DIR}/apps/scalable/${icon}.svg"
 done
 # Icons drawn for this image, in the pack's style, for what upstream has no artwork for and nothing
@@ -1569,6 +1602,16 @@ test -s /usr/share/amethystora/backup-excludes
 test -f /usr/lib/systemd/user/amethystora-backup.service
 test -f /usr/lib/systemd/user/amethystora-backup.timer
 grep -vE "^[[:space:]]*#" /usr/libexec/amethystora-backup | grep -qE "restic +(forget|prune)" && false
+# Getting files back (amethystora-restore, which the Backups window, `ame backup snapshots` and `ame security
+# ransomware restore` read) deletes nothing either: not from the backup, not a snapshot, and not with
+# restore's --delete from the home folder. Each run that succeeded leaves the time the report warns by.
+for file in /usr/libexec/amethystora-restore /usr/lib/amethystora-backups/resources/app/main.js; do
+    grep -vE "^[[:space:]]*(#|//)" "${file}" |
+        grep -qE "restic(_read)?( +--[a-z-]+)* +(forget|prune|rewrite|key)\b|subvolume +delete|(^|[[:space:]])--delete\b" && false
+done
+grep -q "amethystora-restore points$" /usr/share/amethystora/just/backup.just
+grep -q "amethystora-restore points --local" /usr/share/amethystora/just/security.just
+grep -q "backup-last-success" /usr/libexec/amethystora-backup
 
 # Ransomware protection: hourly read-only snapshots of /var/home, off until `ame
 # security ransomware` because they cost disk space. Both virus scans leave the snapshots out,

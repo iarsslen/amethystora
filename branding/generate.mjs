@@ -188,6 +188,13 @@ const logsGlyph = `<g fill="none" stroke="#ffffff" stroke-width="16" stroke-line
     <path d="M186 186l18 18"/>
   </g>`;
 
+// A clock with an arrow running back round it: the hours the snapshots and the backup go back to
+const backupsGlyph = `<g fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M72.6 100A64 64 0 1 1 65 143.1"/>
+    <path d="M128 100v34l22 14"/>
+  </g>
+  <path d="M57.3 86.5L91.9 106.5L61.6 119z" fill="#ffffff"/>`;
+
 // Three sliders, each set somewhere else along its track
 const controlGlyph = `<g fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round" stroke-opacity="0.6">
     <path d="M64 84h128M64 128h128M64 172h128"/>
@@ -2551,6 +2558,8 @@ write("usr/lib/amethystora-notes/resources/app/gem.svg", gemSvg(false, BOUNDS.jo
 write("usr/lib/amethystora-manual/resources/app/gem.svg", gemSvg(false, BOUNDS.join(" ")));
 // ...and Control's sidebar, the same
 write("usr/lib/amethystora-control/resources/app/gem.svg", gemSvg(false, BOUNDS.join(" ")));
+// ...and Backups', the same
+write("usr/lib/amethystora-backups/resources/app/gem.svg", gemSvg(false, BOUNDS.join(" ")));
 // Notes lifts the stem while it unlocks and Logs blinks it while it reads, so those two also get the bowl
 // and the stem as pictures of their own, in the same box, to lay one over the other
 for (const app of ["notes", "logs"]) {
@@ -2564,6 +2573,7 @@ write("usr/share/icons/hicolor/scalable/places/amethystora-community.svg", tileS
 write("usr/share/icons/hicolor/scalable/places/amethystora-update.svg", tileSvg(updateGlyph));
 write("usr/share/icons/hicolor/scalable/places/amethystora-logs.svg", tileSvg(logsGlyph));
 write("usr/share/icons/hicolor/scalable/places/amethystora-control.svg", tileSvg(controlGlyph));
+write("usr/share/icons/hicolor/scalable/places/amethystora-backups.svg", tileSvg(backupsGlyph));
 write("usr/share/amethystora/logos/symbols/amethystora", ansiLogo());
 write("usr/share/amethystora/logos/console/amethystora", consoleLogo());
 rmSync(join(SHARED, "usr/share/amethystora/logos/glint"), { recursive: true, force: true });

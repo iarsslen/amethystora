@@ -19,8 +19,10 @@ backup ACTION="":
         echo "No backup is set up for this account."
     fi
     if [[ -z "${action}" ]]; then
+        daily="Turn off the daily run"
+        systemctl --user is-enabled --quiet amethystora-backup.timer 2>/dev/null || daily="Turn on the daily run"
         action="$(gum choose --header "Backups (restic)" \
-            "Set up" "Back up now" "Show snapshots" "Turn off the daily run" "Cancel")"
+            "Set up" "Back up now" "Show snapshots" "${daily}" "Cancel")"
     fi
     case "${action}" in
         "Set up" | setup)
@@ -61,7 +63,7 @@ backup ACTION="":
             fi
             systemctl --user enable --now amethystora-backup.timer
             echo
-            echo "Set up, and running once a day."
+            echo "Set up, and running once a day. Files come back from it in Backups, in the app grid."
             echo
             echo "Nothing on this machine ever deletes from the repository, which is the point, so old"
             echo "snapshots build up. Thin them out from somewhere else, with credentials this machine"
@@ -73,12 +75,16 @@ backup ACTION="":
             journalctl --user -u amethystora-backup.service -n 30 --no-pager
             ;;
         "Show snapshots" | snapshots)
+            # Every point there is to go back to, the backup's and the hourly snapshots', as Backups shows them
+            /usr/libexec/amethystora-restore points
+            ;;
+        "Turn on the daily run" | on)
             if [[ ! -r "${ENV_FILE}" ]]; then
-                echo "No backup is set up. Set one up with: ame backup"
+                echo "No backup is set up. Set one up with: ame backup setup"
                 exit 1
             fi
-            set -a && source "${ENV_FILE}" && set +a
-            restic snapshots --compact
+            systemctl --user enable --now amethystora-backup.timer
+            echo "On, once a day."
             ;;
         "Turn off the daily run" | off)
             systemctl --user disable --now amethystora-backup.timer

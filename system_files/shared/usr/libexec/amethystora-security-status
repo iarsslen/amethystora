@@ -522,6 +522,31 @@ if [[ "${SNAPSHOT_TIMER}" == true ]]; then
     fi
 fi
 
+# The daily backup, while it is on, is expected to have succeeded within the week, when Time Machine warns
+# too. amethystora-restore says when it last did and whether that is too long ago, as the Backups window
+# shows it. As root, which is how the security watcher runs this, there is no backup to see.
+BACKUP_STATUS="$(/usr/libexec/amethystora-restore status --json 2>/dev/null || true)"
+if [[ "$(jq -r '.backup.daily // false' <<<"${BACKUP_STATUS}" 2>/dev/null)" == true ]]; then
+    LAST="$(jq -r '.backup.last_success // empty' <<<"${BACKUP_STATUS}")"
+    # Not "backups": that is the tile below, and the app finds a check's command by its id
+    if [[ "$(jq -r '.backup.stale' <<<"${BACKUP_STATUS}")" == true ]]; then
+        COMMAND="journalctl --user -u amethystora-backup.service -n 40"
+        if [[ -n "${LAST}" ]]; then
+            DAYS="$(days_since "${LAST}")"
+            report watching backup-runs check "$(gettext "Backups")" \
+                "$(eval_ngettext "No backup has succeeded for \${DAYS} day" "No backup has succeeded for \${DAYS} days" "${DAYS}")" \
+                "$(gettext "It runs once a day. See why the last ones failed with:")"
+        else
+            report watching backup-runs check "$(gettext "Backups")" \
+                "$(gettext "The daily backup is on, but none has succeeded yet")" "$(gettext "See why with:")"
+        fi
+    elif [[ -n "${LAST}" ]]; then
+        WHEN="$(days_ago "$(days_since "${LAST}")")"
+        report watching backup-runs ok "$(gettext "Backups")" \
+            "$(eval_gettext "Your home folder is backed up every day. The last backup succeeded \${WHEN}")"
+    fi
+fi
+
 # The image's security settings as this machine actually has them. The kernel settings and arguments and
 # the blocked modules are read live: a file in /etc/sysctl.d or /etc/modprobe.d undoes them without
 # touching /usr. What only root can compare, /etc against the image's own copy in /usr/etc, comes from

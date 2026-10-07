@@ -62,7 +62,8 @@ ame backup
 ```
 
 A daily backup to somewhere that ransomware on this machine cannot delete from. The command walks you
-through choosing where. [Security](security.md#backups).
+through choosing where. **Backups**, in the app grid, then shows what was backed up and puts files
+back. [Security](security.md#backups).
 
 ## 6. Learn the keys
 

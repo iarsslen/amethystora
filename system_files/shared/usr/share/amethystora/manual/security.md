@@ -257,7 +257,23 @@ backup only ever adds to the repository and never deletes old snapshots, so an a
 repository at the other end keeps everything backed up before an attack. The command explains how to
 set one up on rest-server, Borg, an object store with immutability, or a USB drive you unplug
 between backups. `ame backup now` backs up straight away, and `ame backup snapshots`
-lists what is there.
+lists every point in time there is to go back to, in the backup and in the hourly
+[snapshots](#ransomware-protection).
+
+Files come back in **Backups**, in the app grid (or **Backups** under **System** in the Amethystora
+menu). It shows your home folder as it was, with every point in time down its side: the hourly
+snapshots kept on this machine and the daily backups, each marked by where it is. Pick a time, open a
+folder, select what you want and press **Put back**. Nothing is deleted: a file your folder no longer
+has simply comes back, and one that changed since comes back beside it, with its date in its name
+(`report (2026-10-04 14.00).pdf`), unless you choose **Replace** or **Skip** when it asks. **Look**
+opens a read-only copy, **Versions** lists each time a file changed, and **Put the whole folder back**
+returns a folder as it was, replacing what has the same name. In Files, **Open With** on a folder
+offers Backups too, and `amethystora-backups ~/Documents` opens it there.
+
+Its **Status** page shows the last good backup and when the next one runs, with **Back up now**,
+**Change…** (`ame backup setup`, in a terminal) and the daily run's switch. The security report warns
+when no backup has succeeded for a week, and **Ask the agent** looks into one that failed. The hourly
+snapshots are switched in Security, which Backups only opens.
 
 Each backup also keeps your setup beside your files: the image and stream you follow, your Flatpak
 apps and where they came from, your Homebrew packages, the containers `amepkg` made with what you
@@ -272,7 +288,7 @@ ame restore-setup
 It shows what it would do first, and does only the parts you pick: switch to the same image, through
 `ame system rebase`, which takes signed images only; install the apps and Homebrew packages; make
 the containers again and install what was in them; turn the extensions back on; set the theme.
-`ame restore-setup <snapshot>` picks an older setup. Your files themselves come back with restic. To
+`ame restore-setup <snapshot>` picks an older setup. Your files themselves come back in Backups. To
 keep your setup in a file of your own as well, in git, see [Your setup in a file](setup.md).
 
 ### Ransomware protection
@@ -286,11 +302,12 @@ Ransomware running as you can encrypt everything you can write, and a snapshot i
 can write: changing or deleting one takes an administrator. Every snapshot from the last day is kept,
 and one a day for two weeks. The report says when the latest one is more than a few hours old.
 
-To get files back, run `ame security ransomware restore` and pick the time to go back to.
-**Open it in Files** shows your home folder as it was then, to copy from; **Put a folder back**
-copies a whole folder back in place, replacing the files it has and leaving the ones it does not, such
-as what ransomware renamed. Nobody else's files are visible in a snapshot, and yours are not visible to
-them.
+To get files back, open **Backups** and pick a time from before the attack ([Backups](#backups)):
+**Put the whole folder back** replaces the files the folder had then and leaves the ones it did not,
+such as what ransomware renamed. In a terminal, `ame security ransomware restore` asks for the time
+to go back to: **Open it in Files** shows your home folder as it was then, to copy from, and **Put a
+folder back** does what Backups does. Nobody else's files are visible in a snapshot, and yours are not
+visible to them.
 
 It needs the home folders on a btrfs subvolume of their own, which is how the installer sets up a disk
 unless it was partitioned by hand. The cost is disk space: a snapshot holds on to what was changed or

@@ -1,0 +1,1363 @@
+/* The Amethystora colours until a theme is applied. amethystora-theme's palette replaces the first ten
+   on every switch (applyPalette in backups.js), the status colours among them from the theme's own red,
+   green and yellow; everything else is mixed from those, as in the Manual, Security, Updates, Logs and
+   Control, so any theme reads well here without a stylesheet of its own. */
+:root {
+    --bg: #110c18;
+    --fg: #e8e0f2;
+    --accent: #9148f0;
+    --surface: #2a2136;
+    --muted: #6b5f7d;
+    --selection: #4a13a0;
+    --selection-fg: #f3ecfb;
+    --bad: #ef6b7d;
+    --ok: #8ddba4;
+    --warn: #e8c06a;
+    --on-accent: #ffffff;
+    color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-mode="dark"]) {
+        --bg: #fdf8ff;
+        --fg: #1d1a22;
+        --accent: #5d1ac4;
+        --surface: #e6dfec;
+        --muted: #b8b0c4;
+        --selection: #eaddff;
+        --selection-fg: #1d1a22;
+        --bad: #b3261e;
+        --ok: #2f7d4f;
+        --warn: #8a6100;
+        color-scheme: light;
+    }
+}
+
+:root[data-mode="light"] {
+    color-scheme: light;
+}
+
+:root {
+    --sidebar: color-mix(in oklab, var(--bg) 94%, var(--fg));
+    --card: color-mix(in oklab, var(--surface) 40%, var(--bg));
+    --control: color-mix(in oklab, var(--fg) 5%, transparent);
+    --line: color-mix(in oklab, var(--fg) 10%, transparent);
+    --line-strong: color-mix(in oklab, var(--fg) 15%, transparent);
+    --hairline: color-mix(in oklab, var(--fg) 7%, transparent);
+    --soft: color-mix(in oklab, var(--fg) 64%, var(--bg));
+    --faint: color-mix(in oklab, var(--fg) 56%, var(--bg));
+    --link: color-mix(in oklab, var(--accent) 72%, var(--fg));
+    --tint: color-mix(in oklab, var(--accent) 16%, transparent);
+    --code-bg: color-mix(in oklab, var(--surface) 55%, var(--bg));
+    --hover: color-mix(in oklab, var(--fg) 5%, transparent);
+    --shadow: none;
+    --radius: 16px;
+    --sans: "Inter", "Adwaita Sans", "Cantarell", system-ui, sans-serif;
+    --display: "Quicksand", var(--sans);
+    --mono: "JetBrains Mono", "Adwaita Mono", ui-monospace, monospace;
+}
+
+/* On a light theme a card stands out by being lighter than the window, not darker */
+:root[data-mode="light"] {
+    --card: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --control: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --faint: color-mix(in oklab, var(--fg) 72%, var(--bg));
+    --shadow: 0 1px 2px color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-mode]) {
+        --card: color-mix(in oklab, var(--bg) 20%, #ffffff);
+        --control: color-mix(in oklab, var(--bg) 20%, #ffffff);
+        --faint: color-mix(in oklab, var(--fg) 72%, var(--bg));
+        --shadow: 0 1px 2px color-mix(in oklab, var(--fg) 6%, transparent);
+    }
+}
+
+/* The face of the Amethystora wordmark, for headings (16-backups.sh puts it here from branding/fonts) */
+@font-face {
+    font-family: "Quicksand";
+    src: url("fonts/QuicksandVariable.ttf") format("truetype");
+    font-weight: 300 700;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr);
+    background: var(--bg);
+    color: var(--fg);
+    font: 14px/1.5 var(--sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+}
+
+button,
+input,
+select {
+    font: inherit;
+    color: inherit;
+}
+
+::selection {
+    background: var(--selection);
+    color: var(--selection-fg);
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+h1,
+h2,
+h3,
+p,
+pre {
+    margin: 0;
+}
+
+code {
+    font-family: var(--mono);
+}
+
+.sprite {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+}
+
+.icon {
+    flex: none;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.grow {
+    flex: 1;
+    min-width: 0;
+}
+
+.soft {
+    color: var(--soft);
+}
+
+.faint {
+    color: var(--faint);
+}
+
+.small {
+    font-size: 12.5px;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 10px;
+    background: color-mix(in oklab, var(--fg) 22%, transparent) padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--fg) 38%, transparent);
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* --- Sidebar ------------------------------------------------------------------------------------ */
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-height: 0;
+    padding: 22px 14px 20px;
+    overflow-y: auto;
+    background: var(--sidebar);
+    border-inline-end: 1px solid var(--line);
+}
+
+/* The wordmark of the boot splash and the login screen, as logoHtml in branding/generate.mjs sets it: the
+   stone as the "a" of "methystora" in Quicksand Bold, glowing in the three shades the splash lights it
+   with, and white. Every size is the generator's, in em, so it is the same mark at any size; the glow
+   is the login screen's, 10px on its 93px lettering. A light theme gets the generator's dark ink. */
+.brand {
+    display: flex;
+    align-items: baseline;
+    gap: 0.3em;
+    padding: 4px 6px 4px;
+    font: 700 21px/1 var(--display);
+    letter-spacing: -0.015em;
+    white-space: nowrap;
+}
+
+.wordmark {
+    color: #ffffff;
+}
+
+:root[data-mode="light"] .wordmark {
+    color: #241f31;
+}
+
+@media (prefers-color-scheme: light) {
+    :root:not([data-mode]) .wordmark {
+        color: #241f31;
+    }
+}
+
+.wordmark .a {
+    width: 0.677em;
+    height: 0.686em;
+    margin-inline-end: 0.055em;
+    vertical-align: -0.032em;
+    filter:
+        drop-shadow(0 0 0.1075em rgb(220 188 255 / 0.9))
+        drop-shadow(0 0 0.258em rgb(179 125 249 / 0.65))
+        drop-shadow(0 0 0.4946em rgb(145 72 240 / 0.5));
+}
+
+.brand .product {
+    color: var(--soft);
+    font-weight: 600;
+}
+
+.nav {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.nav-label {
+    padding: 0 12px 4px;
+    color: var(--faint);
+    font-size: 11.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.nav button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 40px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    font-size: 14.5px;
+    font-weight: 500;
+    text-align: start;
+    cursor: pointer;
+}
+
+.nav button:hover {
+    background: color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+.nav button[aria-current] {
+    background: var(--tint);
+    color: var(--link);
+    font-weight: 600;
+}
+
+.elsewhere button {
+    height: 36px;
+    font-size: 13.5px;
+}
+
+.nav-state {
+    color: var(--faint);
+    font-size: 12.5px;
+}
+
+.nav-state.on {
+    color: var(--ok);
+    font-weight: 600;
+}
+
+[dir="rtl"] .nav .icon.faint {
+    transform: scaleX(-1);
+}
+
+.sidebar-foot {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: auto;
+    padding: 0 8px;
+}
+
+.terminal {
+    color: var(--faint);
+    font-size: 12.5px;
+}
+
+.terminal code {
+    color: var(--soft);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+/* --- The page ----------------------------------------------------------------------------------- */
+
+main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.topbar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 14px 28px 0;
+}
+
+#view {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.page {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 18px 44px 56px;
+}
+
+.page-head {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+h1 {
+    font: 700 30px/1.2 var(--display);
+    letter-spacing: -0.01em;
+}
+
+.lead {
+    max-width: 640px;
+    color: var(--soft);
+    font-size: 14.5px;
+    text-wrap: pretty;
+}
+
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.section h2 {
+    color: var(--soft);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    min-height: 50vh;
+    color: var(--soft);
+}
+
+.loading .gem {
+    width: 34px;
+    height: 34px;
+    animation: breathe 1.6s ease-in-out infinite;
+}
+
+/* --- Buttons ------------------------------------------------------------------------------------ */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--control);
+    font-size: 13.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: filter 0.15s;
+}
+
+.btn:hover {
+    filter: brightness(1.15);
+}
+
+:root[data-mode="light"] .btn:hover {
+    filter: brightness(0.96);
+}
+
+.btn.primary {
+    border-color: transparent;
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+.btn.danger {
+    border-color: color-mix(in oklab, var(--bad) 50%, transparent);
+    color: var(--bad);
+}
+
+.btn.small {
+    height: 30px;
+    padding: 0 10px;
+    border-radius: 9px;
+    font-size: 12.5px;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    filter: none;
+    cursor: not-allowed;
+}
+
+.icon-btn {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: none;
+    color: var(--soft);
+    cursor: pointer;
+}
+
+.icon-btn:hover {
+    background: var(--hover);
+    color: var(--fg);
+}
+
+.link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--link);
+    font-size: 12.5px;
+    font-weight: 600;
+    text-align: start;
+    cursor: pointer;
+}
+
+.link:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.link.quiet {
+    color: var(--soft);
+    font-size: 13.5px;
+    font-weight: 500;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+/* --- Choices ------------------------------------------------------------------------------------ */
+
+.options {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 8px;
+}
+
+.option {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 11px 13px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--control);
+    text-align: start;
+    cursor: pointer;
+}
+
+.option:hover:not(:disabled) {
+    border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+
+.option[aria-checked="true"] {
+    border-color: var(--accent);
+    background: var(--tint);
+}
+
+.option:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.option .dot {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    border: 2px solid var(--line-strong);
+    border-radius: 50%;
+}
+
+.option[aria-checked="true"] .dot {
+    border-color: var(--accent);
+}
+
+.option[aria-checked="true"] .dot::after {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    content: "";
+}
+
+.option-words {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+}
+
+.option-words strong {
+    font-size: 13.5px;
+    font-weight: 600;
+}
+
+.option-words small {
+    color: var(--soft);
+    font-size: 12.5px;
+    text-wrap: pretty;
+}
+
+/* --- Notices ------------------------------------------------------------------------------------ */
+
+.callout {
+    display: flex;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--accent) 9%, transparent);
+    font-size: 13px;
+}
+
+.callout > .icon {
+    margin-top: 1px;
+    color: var(--link);
+}
+
+.callout.check {
+    border-color: color-mix(in oklab, var(--warn) 30%, transparent);
+    background: color-mix(in oklab, var(--warn) 6%, transparent);
+}
+
+.callout.check > .icon {
+    color: var(--warn);
+}
+
+.callout .grow {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.callout p {
+    color: var(--soft);
+    text-wrap: pretty;
+    overflow-wrap: anywhere;
+}
+
+.banner {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    max-width: 920px;
+    margin: 0 auto;
+    padding-block: 10px;
+    padding-inline: 16px 8px;
+    border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--accent) 12%, var(--bg));
+    box-shadow: 0 6px 20px color-mix(in oklab, #000000 22%, transparent);
+    font-size: 13px;
+}
+
+.banner > .icon {
+    color: var(--link);
+}
+
+.banner.failed {
+    border-color: color-mix(in oklab, var(--bad) 40%, transparent);
+    background: color-mix(in oklab, var(--bad) 10%, var(--bg));
+}
+
+.banner.failed > .icon {
+    color: var(--bad);
+}
+
+.banner-wrap {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    padding: 0 44px;
+}
+
+.empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 64px 24px;
+    color: var(--soft);
+    text-align: center;
+}
+
+.empty h2 {
+    color: var(--fg);
+    font: 700 21px/1.3 var(--display);
+}
+
+/* --- The top bar -------------------------------------------------------------------------------- */
+
+.topbar {
+    align-items: center;
+    gap: 14px;
+    min-height: 48px;
+    padding-bottom: 6px;
+}
+
+.topbar-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--faint);
+    font-size: 12.5px;
+}
+
+.topbar-state.check {
+    color: var(--warn);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.topbar-state .icon {
+    color: var(--ok);
+}
+
+.topbar-state.check .icon {
+    color: var(--warn);
+}
+
+.nav-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--warn);
+}
+
+/* --- Browse: the folder, and the timeline at the inline end -------------------------------------- */
+
+.browse {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 260px;
+    height: 100%;
+    min-height: 0;
+}
+
+.files {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+    min-height: 0;
+    padding-block: 10px 18px;
+    padding-inline: 36px 28px;
+}
+
+.folder-head {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.folder-title {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.folder-title h1 {
+    font-size: 26px;
+    overflow-wrap: anywhere;
+}
+
+.folder-title .lead {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+    color: var(--soft);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.chip.backup {
+    background: var(--tint);
+    color: var(--link);
+}
+
+.crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px;
+    font-size: 13.5px;
+}
+
+.crumb {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 7px;
+    border: 0;
+    border-radius: 7px;
+    background: none;
+    color: var(--link);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.crumb:hover {
+    background: var(--hover);
+}
+
+.crumb.current {
+    color: var(--fg);
+    cursor: default;
+}
+
+.crumb-sep {
+    color: var(--faint);
+}
+
+[dir="rtl"] .crumb-sep,
+[dir="rtl"] .link .icon {
+    transform: scaleX(-1);
+}
+
+.folder-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+
+.check-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--soft);
+    font-size: 13px;
+    cursor: pointer;
+}
+
+input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.file-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.file-list.padded {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 20px;
+}
+
+.file-row {
+    display: grid;
+    grid-template-columns: 16px 20px minmax(0, 1fr) auto 150px 76px;
+    align-items: center;
+    gap: 12px;
+    min-height: 42px;
+    padding: 4px 16px;
+    border-top: 1px solid var(--hairline);
+    cursor: pointer;
+    user-select: none;
+}
+
+.file-row:first-child {
+    border-top: 0;
+}
+
+.file-row:hover {
+    background: var(--hover);
+}
+
+.file-row.selected {
+    background: var(--tint);
+}
+
+.file-icon {
+    color: var(--soft);
+}
+
+.file-icon.folder {
+    color: var(--link);
+}
+
+.file-name {
+    overflow: hidden;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 13.5px;
+    text-align: start;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-name.folder {
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.file-name.folder:hover {
+    color: var(--link);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.file-when,
+.file-size {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.file-size {
+    text-align: end;
+}
+
+.selection-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px 10px 16px;
+    border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--accent) 10%, var(--bg));
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.working {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 18px 20px;
+    color: var(--soft);
+}
+
+.log {
+    max-height: 200px;
+    margin-top: 4px;
+    padding: 8px 10px;
+    overflow: auto;
+    border-radius: 8px;
+    background: var(--code-bg);
+    color: var(--soft);
+    font: 12px/1.5 var(--mono);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    user-select: text;
+}
+
+/* The timeline: each point in time on a line down the side, under the day it is in */
+.timeline {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-inline-start: 1px solid var(--line);
+    background: var(--sidebar);
+}
+
+.timeline-head {
+    padding: 16px 20px 8px;
+}
+
+.timeline-head h2 {
+    color: var(--soft);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.timeline-list {
+    flex: 1;
+    min-height: 0;
+    padding: 0 12px 16px;
+    overflow-y: auto;
+}
+
+.day h3 {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    padding: 12px 10px 4px;
+    background: var(--sidebar);
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.moment {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    height: 34px;
+    padding-block: 0;
+    padding-inline: 10px 10px;
+    border: 0;
+    border-radius: 9px;
+    background: none;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    text-align: start;
+    cursor: pointer;
+}
+
+.moment:hover {
+    background: var(--hover);
+}
+
+.moment[aria-current] {
+    background: var(--tint);
+    color: var(--link);
+    font-weight: 600;
+}
+
+/* The line the points sit on, through each one's dot */
+.moment::before {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    inset-inline-start: 14px;
+    width: 2px;
+    background: var(--line);
+    content: "";
+}
+
+.moment-dot {
+    position: relative;
+    z-index: 1;
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--sidebar);
+    border-radius: 50%;
+    background: var(--muted);
+}
+
+.moment.backup .moment-dot {
+    background: var(--accent);
+}
+
+.moment[aria-current] .moment-dot {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 35%, transparent);
+}
+
+.moment .source {
+    color: var(--faint);
+}
+
+.timeline-key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    padding: 10px 20px 14px;
+    border-top: 1px solid var(--line);
+}
+
+.timeline-key span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* --- Versions of one file ------------------------------------------------------------------------ */
+
+.versions-title {
+    font: 700 19px/1.3 var(--display);
+    overflow-wrap: anywhere;
+}
+
+.versions {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.version-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--hairline);
+}
+
+.version-row:first-child {
+    border-top: 0;
+}
+
+.version-row .grow {
+    display: flex;
+    flex-direction: column;
+}
+
+.version-row strong {
+    font-size: 13.5px;
+}
+
+.version-row small {
+    font-size: 12px;
+}
+
+/* --- Status ------------------------------------------------------------------------------------- */
+
+.setting {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px 20px;
+}
+
+.setting-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.setting-icon {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: var(--tint);
+    color: var(--link);
+}
+
+.setting-words {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.setting-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.setting h3 {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.setting-text {
+    max-width: 640px;
+    color: var(--soft);
+    font-size: 13px;
+    text-wrap: pretty;
+}
+
+.tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 11px;
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+    color: var(--soft);
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.tag.check {
+    background: color-mix(in oklab, var(--warn) 14%, transparent);
+    color: var(--warn);
+}
+
+.tag.on {
+    background: color-mix(in oklab, var(--ok) 14%, transparent);
+    color: var(--ok);
+}
+
+.facts {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 6px 18px;
+    font-size: 13px;
+}
+
+.fact {
+    display: contents;
+}
+
+.fact code {
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.callout.failed {
+    border-color: color-mix(in oklab, var(--bad) 35%, transparent);
+    background: color-mix(in oklab, var(--bad) 6%, transparent);
+}
+
+.callout.failed > .icon {
+    color: var(--bad);
+}
+
+.progress {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+
+.progress-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+}
+
+.empty .gem {
+    width: 46px;
+    height: 46px;
+    margin-bottom: 6px;
+}
+
+.offers {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+}
+
+.offer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 20px;
+}
+
+.offer > .icon {
+    color: var(--link);
+}
+
+.offer h3 {
+    font-size: 15px;
+}
+
+/* --- The question before putting back ------------------------------------------------------------ */
+
+/* "Backups" is a long word in some languages: it goes under the wordmark rather than off the sidebar */
+.brand {
+    flex-wrap: wrap;
+}
+
+/* Not a cell of the body's grid, which would give it a row of its own */
+#dialog {
+    display: contents;
+}
+
+.dialog-back {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    display: grid;
+    place-items: center;
+    background: color-mix(in oklab, #000000 50%, transparent);
+}
+
+.dialog {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: min(600px, calc(100% - 48px));
+    padding: 24px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg);
+    box-shadow: 0 18px 50px color-mix(in oklab, #000000 40%, transparent);
+}
+
+.dialog h2 {
+    font: 700 20px/1.3 var(--display);
+    overflow-wrap: anywhere;
+}
+
+.dialog .options {
+    grid-template-columns: 1fr;
+}
+
+.actions.end {
+    justify-content: flex-end;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes breathe {
+    50% {
+        opacity: 0.45;
+        transform: scale(0.92);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    ::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}
+
+@media (max-width: 1000px) {
+    body {
+        grid-template-columns: 220px minmax(0, 1fr);
+    }
+
+    .page {
+        padding-inline: 28px;
+    }
+
+    .browse {
+        grid-template-columns: minmax(0, 1fr) 210px;
+    }
+
+    .files {
+        padding-inline: 24px 20px;
+    }
+
+    .file-row {
+        grid-template-columns: 16px 20px minmax(0, 1fr) auto 76px;
+    }
+
+    .file-when {
+        display: none;
+    }
+}

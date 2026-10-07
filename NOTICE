@@ -88,7 +88,8 @@ usr/share/licenses/candy-icons. The icons added are:
     Security (usr/lib/amethystora-security/resources/app/index.html).
   - io.github.kolunmi.Bazaar.svg, drawn for Amethystora in the theme's style
     after Bazaar's own icon, a market stall under an awning.
-  - amethystora-notes.svg, which is Amethystora's own drawing.
+  - amethystora-notes.svg and amethystora-backups.svg, which are Amethystora's
+    own drawings.
 
 Of the application icons, the theme as Amethystora ships it keeps the
 pictograms of a job, such as a calculator or an envelope, and four logos in

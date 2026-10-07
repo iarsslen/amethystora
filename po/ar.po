@@ -584,6 +584,30 @@ msgstr "تُلتقط لقطات لمجلدات المنزل كل ساعة. أح�
 
 #: usr/libexec/amethystora-security-status
 #, sh-format
+msgid "No backup has succeeded for ${DAYS} day"
+msgid_plural "No backup has succeeded for ${DAYS} days"
+msgstr[0] "لم تنجح أي نسخة احتياطية اليوم"
+msgstr[1] "لم تنجح أي نسخة احتياطية منذ يوم واحد"
+msgstr[2] "لم تنجح أي نسخة احتياطية منذ يومين"
+msgstr[3] "لم تنجح أي نسخة احتياطية منذ ${DAYS} أيام"
+msgstr[4] "لم تنجح أي نسخة احتياطية منذ ${DAYS} يومًا"
+msgstr[5] "لم تنجح أي نسخة احتياطية منذ ${DAYS} يوم"
+
+#: usr/libexec/amethystora-security-status
+msgid "It runs once a day. See why the last ones failed with:"
+msgstr "تعمل مرة في اليوم. اعرف سبب فشل آخرها بالأمر:"
+
+#: usr/libexec/amethystora-security-status
+msgid "The daily backup is on, but none has succeeded yet"
+msgstr "النسخ الاحتياطي اليومي مفعّل، لكن لم تنجح أي نسخة بعد"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Your home folder is backed up every day. The last backup succeeded ${WHEN}"
+msgstr "يُنسخ مجلد المنزل احتياطيًا كل يوم. نجحت آخر نسخة ${WHEN}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
 msgid "The kernel setting ${key} is ${live}, not ${value}"
 msgstr "قيمة إعداد النواة ${key} هي ${live}، لا ${value}"
 

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" style="isolation:isolate" viewBox="0 0 48 48" width="48pt" height="48pt">
+<!--
+  The Backups app in the candy-icons style, installed into the theme by build_files/base/10-icons.sh
+  and drawn on by /usr/share/applications/amethystora-backups.desktop.
+
+  A clock with an arrow running back round it, the sign for history: the app goes back to any hour the
+  snapshots or the backup kept. It is drawn in strokes of the one gradient, the way the pack draws its
+  outlined apps, with the rounded caps and corners it uses throughout, as the Notes icon is.
+
+  The gradient is sky blue running into indigo, on the diagonal. Like the Security and Notes apps' it is
+  not amethyst, which sinks into the amethyst desktop under it.
+-->
+  <linearGradient id="_lgradient_backups" x1="8" y1="6" x2="40" y2="44" gradientUnits="userSpaceOnUse">
+    <stop offset="0%" stop-opacity="1" style="stop-color:rgb(70,200,255)"/>
+    <stop offset="100%" stop-opacity="1" style="stop-color:rgb(110,90,255)"/>
+  </linearGradient>
+  <path d="M 11 17.5 A 15 15 0 1 1 9.2 27.6 M 24 16.5 L 24 25.5 L 29.5 29" fill="none" stroke="url(#_lgradient_backups)" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M 7.3 14.3 L 15.5 18.9 L 8.2 22.3 Z" fill="url(#_lgradient_backups)" stroke="url(#_lgradient_backups)" stroke-width="1" stroke-linejoin="round"/>
+</svg>

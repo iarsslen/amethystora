@@ -29,7 +29,8 @@ const write = args.includes('--write');
 const poAt = args.indexOf('--po');
 const poDir = poAt >= 0 ? args[poAt + 1] : null;
 const root = args.find((arg, at) => !arg.startsWith('--') && (poAt < 0 || at !== poAt + 1)) || '/';
-const APPS = ['amethystora-manual', 'amethystora-security', 'amethystora-update', 'amethystora-logs', 'amethystora-notes', 'amethystora-control'];
+const APPS = ['amethystora-manual', 'amethystora-security', 'amethystora-update', 'amethystora-logs', 'amethystora-notes', 'amethystora-control',
+    'amethystora-backups'];
 // Not the apps' own code: the translations themselves, and the Markdown renderer
 const SKIP = new Set(['i18n.js', 'marked.umd.js', 'preload.js']);
 
@@ -55,6 +56,7 @@ const DATA = {
     'amethystora-logs': () => launcher('amethystora-logs'),
     'amethystora-notes': () => launcher('amethystora-notes'),
     'amethystora-control': () => launcher('amethystora-control'),
+    'amethystora-backups': () => launcher('amethystora-backups'),
 };
 
 const problems = [];

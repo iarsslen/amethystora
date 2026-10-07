@@ -305,7 +305,7 @@ it describes, and add to it when you add something a user would look for there.
 
 ### Translations
 
-The Manual, Security, Updates, Logs, Notes and Control follow the session's language. They share one runtime,
+The Manual, Security, Updates, Logs, Notes, Control and Backups follow the session's language. They share one runtime,
 `i18n.js`, kept in the Manual's folder and hard-linked into the others by their build scripts, as
 Electron is. The English text in the code is the key: `t('Update now')`, `t('Last updated {when}', {
 when })`, and plurals and variants in ICU MessageFormat (`{count, plural, one {# file} other {# files}}`).
@@ -472,8 +472,8 @@ it for `--json`, so a setting added or changed there reaches both. Never write a
   the repository against `amethystora-trust-image`'s own expression, which `20-tests.sh` compares. The
   key is picked in `main.js`'s own file dialog, and the page never names it.
 - **Security stays in Security,** by the maintainer's rule: nothing in the script or the window runs
-  `ame security`. The sidebar opens Security, Updates (whose switch automatic updates keep) and Backups,
-  once that window exists.
+  `ame security`. The sidebar opens Security, Updates (whose switch automatic updates keep) and Backups
+  (whose controls the backup keeps).
 - **Pools of disks** are the System page's Disks group: a `disks` entry with one row for each pool from
   `amethystora-raid status --json`, each with the actions the list gives it, which `main.js` runs with
   `pool(action, id)`. Every one of them is an `ame system raid` command in a terminal (`20-tests.sh`).
@@ -481,6 +481,40 @@ it for `--json`, so a setting added or changed there reaches both. Never write a
 Its manual page is `control.md`, and each card links to its own section. The sidebar draws the same
 wordmark as Security, from its own copy of `gem.svg`, and the app grid's icon is the tile `generate.mjs`
 draws (`amethystora-control.svg`).
+
+### The Backups app
+
+Amethystora Backups (`amethystora-backups [FOLDER | status]`, **Backups** in the app grid, **Open With**
+on a folder in Files) is the home folder as it was at any hour the hourly snapshots
+(`amethystora-home-snapshot`) or the daily restic backup (`amethystora-backup`) kept, on one timeline, and
+putting back what was lost. What it shows is one script, `/usr/libexec/amethystora-restore`, run as the
+user: `status`, `points`, `ls`, `versions`, `put-back` and `open`, each with `--json`. `ame backup
+snapshots` and `ame security ransomware restore` take their lists from `points` too, and the security
+report's `backup-runs` check reads `status`. Never work out a point, a path or a state in the window.
+
+- **The page sends back only what `main.js` read.** A point is one `points` gave, a path one `ls` listed
+  (or a folder above it, or the folder the window was opened on), and a way to put back one of
+  `keep-both`, `replace` and `skip`; each is an argument of its own. The helper refuses a path that
+  leaves the home or starts with `-`, and puts back only inside the home.
+- **Nothing deletes.** Neither the helper nor the window runs `restic forget`, `prune`, `rewrite` or
+  `key`, restore's `--delete`, or `btrfs subvolume delete`; `20-tests.sh` greps for them. Putting back
+  adds what is missing and keeps a file that changed beside the old one (`name (2026-10-04 14.00).ext`)
+  unless the page was told otherwise. Looking runs restic with `--no-lock`, so it works against an
+  append-only repository; `restic mount` is not used.
+- **The backup's controls stay here,** by the maintainer's choice: **Set up** runs `ame backup setup` in
+  a terminal, the daily run is `ame backup on|off`, and **Back up now** starts `amethystora-backup.service`
+  and follows it in the journal. The hourly snapshots are a security switch: the window shows them and
+  opens Security, and never runs `ame security`.
+- **The last good backup** is the stamp `amethystora-backup` writes to
+  `~/.local/state/amethystora/backup-last-success`. A daily run with none for 7 days is stale, which the
+  window and the report's `backup-runs` check say. The security watcher runs as root, sees no account's
+  backup, and does not notify about it.
+- Déjà Dup is still on `amethystora.preinstall`. Taking it off, after a release of notices, is
+  `plans/PLAN-backups-and-features.md`'s last step.
+
+Its manual section is `security.md#backups`. The sidebar draws the same wordmark as Security, from its
+own copy of `gem.svg`; the app grid's icon is drawn for the image in `build_files/shared/candy-icons`
+(named in `NOTICE`), with the tile `generate.mjs` draws (`amethystora-backups.svg`) for other themes.
 
 ### Pools of disks
 
@@ -855,15 +889,16 @@ packages for `generic-release` in the package database only, their files staying
 13. `15-update.sh` - Installs the runtime of System Updates (`amethystora-update`), the window that replaces upstream's System Update launcher, a terminal on `ujust update`: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`. The app itself is `system_files/shared/usr/lib/amethystora-update/resources/app`; upstream's launcher is not shipped
 14. `16-notes.sh` - Installs the runtime of Amethystora Notes (`amethystora-notes`), the encrypted notes and tasks app that replaces Joplin and Planify: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`, and a hard link to the Manual's `marked`. The app itself is `system_files/shared/usr/lib/amethystora-notes/resources/app`
 15. `16-logs.sh` - Installs the runtime of Amethystora Logs (`amethystora-logs`), the journal viewer that replaces GNOME Logs: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`. The app itself is `system_files/shared/usr/lib/amethystora-logs/resources/app`; GNOME Logs is left off the Flatpak list
-16. `16-control.sh` - Installs the runtime of Amethystora Control (`amethystora-control`), the window for Amethystora's own settings outside security: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`. The app itself is `system_files/shared/usr/lib/amethystora-control/resources/app`; what it lists is `/usr/libexec/amethystora-control-list`, which `ame control` prints
-17. `07-debrand.sh` - Renames every remaining Universal Blue file, command, service and reference to Amethystora (logic in `build_files/shared/debrand.py`; `20-tests.sh` fails the build if any is left). Licence files, copyright lines and the comments that credit an author keep upstream's names
-18. `08-hardening.sh` - Signature-verified updates, firewall default zone, account lockout, Parental Controls' allowed hours at the text consoles and over SSH (see Logins), kernel lockdown, and the sudo PATH that `ublue-os/main` leaves open. The polkit and udev fixes are made in the files themselves (`org.amethystora.privileged.user.setup.policy`, `50-zsa.rules`). Lockdown is skipped on the NVIDIA images, whose driver is an akmods build signed with the machine owner key: forcing lockdown on a machine with Secure Boot off would leave it without a graphics driver. The settings that are plain files live in `system_files/shared` (`usr/lib/sysctl.d`, `usr/lib/modprobe.d`, `usr/lib/bootc/kargs.d`, `etc/ssh/sshd_config.d`, `etc/security/faillock.conf`, `etc/flatpak/overrides/global`, `etc/audit/rules.d`)
-19. `17-cleanup.sh` - Cleanup operations, and the systemd units the image enables, the per-user ones with `systemctl --global` (`amethystora-pkg-upgrade.timer`, `amethystora-update-alert.service`). It also makes the `amepkg` link, since the build's rsync skips links in `system_files`. Two things here are deliberately *disabled*: `input-remapper.service`, which runs as root and reads every input device, and `usbguard.service`, which would block the keyboard on a machine where nobody had allowed it yet. Both are turned on per machine by an `ame security` command (`usb`, `input-remapper`). So are `waydroid-container.service` and `scx_loader.service` (`ame apps android`, `ame system scheduler`). It enables `fwupd-refresh.timer`, which Fedora leaves to GNOME Software, and the pools of disks' `amethystora-raid-check.timer` and `amethystora-raid-scrub.timer`
-20. `18-workarounds.sh` - Temporary fixes/workarounds
-21. `19-initramfs.sh` - Regenerates initramfs, adding dracut's `tpm2-tss` module where dracut has it so that `ame security disk-unlock` can hand the disk key to the TPM
-22. `build_files/shared/build-dx.sh` - dx only: copies `system_files/dx`, runs `build_files/dx/00-dx.sh` and then `01-tests-dx.sh`
-23. `build_files/shared/source-manifest.sh` - Writes `/usr/share/licenses/amethystora/SOURCES`: every package with its licence, source package and where that source is, which the GPL asks for and the written offer in `NOTICE` points to. Fedora keeps its own in Koji. RPM Fusion, negativo17 and Copr publish only their current builds, so the script fetches the source packages of theirs that are under a licence asking for the source into `/usr/src/amethystora`, and the build fails when one cannot be fetched; a Copr project the image starts installing from goes in its `COPR_PROJECTS`. NVIDIA's own repository, which the NVIDIA images take the container toolkit from, publishes no source packages at all, so its packages are listed with the address of their source instead (`NO_SOURCE_PACKAGES`); a GPL package from any other maker the script does not know still fails the build. `20-tests.sh` fails if a package is missing from the list or a source package from the image
-24. `20-tests.sh` - Runs last, after the repositories are validated and the build cleaned up; fails the build on anything missing or left behind, including a GNOME Shell extension shipped without its licence
+16. `16-backups.sh` - Installs the runtime of Amethystora Backups (`amethystora-backups`), the window that goes back through the hourly snapshots and the restic backup and puts files back: the same hard links to the Manual's Electron and `i18n.js` and the same Quicksand as `14-security.sh`. The app itself is `system_files/shared/usr/lib/amethystora-backups/resources/app`; what it shows is `/usr/libexec/amethystora-restore`'s
+17. `16-control.sh` - Installs the runtime of Amethystora Control (`amethystora-control`), the window for Amethystora's own settings outside security: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`. The app itself is `system_files/shared/usr/lib/amethystora-control/resources/app`; what it lists is `/usr/libexec/amethystora-control-list`, which `ame control` prints
+18. `07-debrand.sh` - Renames every remaining Universal Blue file, command, service and reference to Amethystora (logic in `build_files/shared/debrand.py`; `20-tests.sh` fails the build if any is left). Licence files, copyright lines and the comments that credit an author keep upstream's names
+19. `08-hardening.sh` - Signature-verified updates, firewall default zone, account lockout, Parental Controls' allowed hours at the text consoles and over SSH (see Logins), kernel lockdown, and the sudo PATH that `ublue-os/main` leaves open. The polkit and udev fixes are made in the files themselves (`org.amethystora.privileged.user.setup.policy`, `50-zsa.rules`). Lockdown is skipped on the NVIDIA images, whose driver is an akmods build signed with the machine owner key: forcing lockdown on a machine with Secure Boot off would leave it without a graphics driver. The settings that are plain files live in `system_files/shared` (`usr/lib/sysctl.d`, `usr/lib/modprobe.d`, `usr/lib/bootc/kargs.d`, `etc/ssh/sshd_config.d`, `etc/security/faillock.conf`, `etc/flatpak/overrides/global`, `etc/audit/rules.d`)
+20. `17-cleanup.sh` - Cleanup operations, and the systemd units the image enables, the per-user ones with `systemctl --global` (`amethystora-pkg-upgrade.timer`, `amethystora-update-alert.service`). It also makes the `amepkg` link, since the build's rsync skips links in `system_files`. Two things here are deliberately *disabled*: `input-remapper.service`, which runs as root and reads every input device, and `usbguard.service`, which would block the keyboard on a machine where nobody had allowed it yet. Both are turned on per machine by an `ame security` command (`usb`, `input-remapper`). So are `waydroid-container.service` and `scx_loader.service` (`ame apps android`, `ame system scheduler`). It enables `fwupd-refresh.timer`, which Fedora leaves to GNOME Software, and the pools of disks' `amethystora-raid-check.timer` and `amethystora-raid-scrub.timer`
+21. `18-workarounds.sh` - Temporary fixes/workarounds
+22. `19-initramfs.sh` - Regenerates initramfs, adding dracut's `tpm2-tss` module where dracut has it so that `ame security disk-unlock` can hand the disk key to the TPM
+23. `build_files/shared/build-dx.sh` - dx only: copies `system_files/dx`, runs `build_files/dx/00-dx.sh` and then `01-tests-dx.sh`
+24. `build_files/shared/source-manifest.sh` - Writes `/usr/share/licenses/amethystora/SOURCES`: every package with its licence, source package and where that source is, which the GPL asks for and the written offer in `NOTICE` points to. Fedora keeps its own in Koji. RPM Fusion, negativo17 and Copr publish only their current builds, so the script fetches the source packages of theirs that are under a licence asking for the source into `/usr/src/amethystora`, and the build fails when one cannot be fetched; a Copr project the image starts installing from goes in its `COPR_PROJECTS`. NVIDIA's own repository, which the NVIDIA images take the container toolkit from, publishes no source packages at all, so its packages are listed with the address of their source instead (`NO_SOURCE_PACKAGES`); a GPL package from any other maker the script does not know still fails the build. `20-tests.sh` fails if a package is missing from the list or a source package from the image
+25. `20-tests.sh` - Runs last, after the repositories are validated and the build cleaned up; fails the build on anything missing or left behind, including a GNOME Shell extension shipped without its licence
 
 The sealed images then run `build_files/sealed/` from `Containerfile.sealed`, on the finished image (see Sealed images).
 

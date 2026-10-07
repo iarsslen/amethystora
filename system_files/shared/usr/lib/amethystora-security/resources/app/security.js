@@ -346,6 +346,7 @@ const MANUAL_PAGES = {
     'network-protection': 'security#network-protection',
     'home-snapshots': 'security#ransomware-protection',
     'ransomware-protection': 'security#ransomware-protection',
+    'backup-runs': 'security#backups',
     containers: 'software#packages-from-other-distributions',
     'app-permissions': 'security#app-permissions',
 };

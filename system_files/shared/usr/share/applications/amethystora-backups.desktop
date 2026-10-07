@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Name=Backups
+GenericName=Backup and Restore
+Comment=Go back to any hour your snapshots or your backup kept, and put back what you need
+Exec=amethystora-backups %f
+Icon=amethystora-backups
+Terminal=false
+Categories=Utility;Archiving;
+Keywords=backup;backups;restore;snapshot;snapshots;restic;time machine;history;versions;undelete;recover;ransomware;
+MimeType=inode/directory;
+StartupNotify=true
+StartupWMClass=amethystora-backups
+Actions=status;
+
+[Desktop Action status]
+Name=Backup Status
+Exec=amethystora-backups status

@@ -1,0 +1,656 @@
+#!/usr/bin/bash
+# Earlier versions of this account's files, from the two places they are kept, and putting them back.
+#
+#   amethystora-restore status [--json]                  what is set up, and the last good backup
+#   amethystora-restore points [--local] [--json]        every point in time, newest first
+#   amethystora-restore ls POINT [PATH] [--json]         one folder as it was at POINT
+#   amethystora-restore versions PATH [--json]           the points at which PATH differs from the one before
+#   amethystora-restore put-back POINT PATH... (--keep-both | --replace | --skip) [--json]
+#   amethystora-restore open POINT PATH [--json]         a read-only copy, opened in its app
+#
+# The two places are the hourly read-only snapshots of the home folders (ame security ransomware), in
+# /var/home/.snapshots/<YYYY-MM-DD_HHMM>/<user>, and the daily restic backup (ame backup), in the
+# repository ~/.config/amethystora/backup.env names. A POINT is a snapshot's name or a restic snapshot's
+# short id, as `points` gives them. A PATH is inside the home: relative to it, or absolute.
+#
+# The Backups window (amethystora-backups) shows what this says with --json, `ame backup snapshots` and
+# `ame security ransomware restore` take their lists from `points`, and the security report its backups
+# check from `status`, so that none of them works anything out for itself. Run it as the account whose
+# files they are: a snapshot shows each account its own files, and the backup's password is the account's.
+#
+# Nothing here deletes from a backup or a snapshot, and nothing deletes the account's files. Looking runs
+# restic with --no-lock, so it never waits on the daily run, never writes beside it, and works against an
+# append-only repository. Putting back only adds and copies over, inside the home: a file the past
+# version lacks stays where it is, and one that differs is kept beside the newer one (--keep-both), copied
+# over it (--replace) or left as it is (--skip). restic mount is not used: it would leave the whole backup
+# mounted in the session, read over the network by anything that walks the file system.
+
+set -euo pipefail
+
+SNAPSHOTS=/var/home/.snapshots
+CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora"
+ENV_FILE="${CONFIG_DIR}/backup.env"
+# Written by amethystora-backup after each run that succeeded
+STAMP="${XDG_STATE_HOME:-${HOME}/.local/state}/amethystora/backup-last-success"
+# Where a backup is brought down to before it is put back, on the same disk as the home so that the copy
+# into place shares its blocks, and the read-only copies `open` makes
+CACHE="${XDG_CACHE_HOME:-${HOME}/.cache}/amethystora-restore"
+# A daily backup that has not succeeded for this long is stale, as Time Machine says after a week
+STALE_DAYS=7
+LOCAL_NAME='^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}$'
+RESTIC_ID='^[0-9a-f]{8,64}$'
+
+HOME_DIR="${HOME%/}"
+REAL_HOME="$(realpath -- "${HOME_DIR}")"
+# This account's folder inside each snapshot of /var/home, or nothing when its home is elsewhere
+OWN=""
+[[ "${REAL_HOME}" == /var/home/?* ]] && OWN="${REAL_HOME#/var/home/}"
+NOW="$(date +%s)"
+
+JSON=false
+LOCAL_ONLY=false
+MODE=""
+ARGS=()
+for arg in "$@"; do
+    case "${arg}" in
+        --json) JSON=true ;;
+        --local) LOCAL_ONLY=true ;;
+        --keep-both | --replace | --skip) MODE="${arg#--}" ;;
+        *) ARGS+=("${arg}") ;;
+    esac
+done
+set -- "${ARGS[@]+"${ARGS[@]}"}"
+
+WORK=""
+cleanup() {
+    [[ -z "${WORK}" ]] || rm -rf -- "${WORK}"
+}
+trap cleanup EXIT
+
+# A scratch folder for this run, under CACHE, removed when it ends
+work() {
+    if [[ -z "${WORK}" ]]; then
+        mkdir -p "${CACHE}"
+        WORK="$(mktemp -d "${CACHE}/run.XXXXXX")"
+    fi
+}
+
+# What went wrong, as {error, detail} for the window, which says it in its own words by the error, or as
+# a sentence for a terminal
+fail() {
+    local code="$1"
+    shift
+    if [[ "${JSON}" == true ]]; then
+        jq -nc --arg error "${code}" --arg detail "$*" '{$error, $detail}'
+    else
+        echo "$*" >&2
+    fi
+    exit 1
+}
+
+usage() {
+    sed -n '4,9p' "$0" | sed 's/^# \?//' >&2
+    exit 2
+}
+
+# A time, from restic's own (2026-10-04T14:00:01.123456789+02:00) or a number of seconds, as seconds
+JQ_DEFS='
+def epoch:
+    if type == "number" then floor
+    else capture("^(?<d>[0-9-]+T[0-9:]+)(\\.[0-9]+)?(?<z>Z|[+-][0-9]{2}:?[0-9]{2})$") as $m
+        | ($m.d + "Z" | fromdateiso8601)
+          - (if $m.z == "Z" then 0
+             else ($m.z | ltrimstr("+") | ltrimstr("-") | sub(":"; "")) as $hm
+                 | (($hm[0:2] | tonumber) * 3600 + ($hm[2:4] | tonumber) * 60)
+                 * (if ($m.z | startswith("-")) then -1 else 1 end)
+             end)
+    end;
+# What find -printf "%y\t%s\t%T@\t%f\0" wrote, as entries
+def found:
+    split("\u0000") | map(select(length > 0) | split("\t")
+        | {type: ({f: "file", d: "dir", l: "link"}[.[0]] // "other"), size: (.[1] | tonumber),
+           mtime: (.[2] | tonumber | floor), name: (.[3:] | join("\t"))}
+        | if .type == "dir" then .size = null else . end);
+'
+
+# --- The backup ------------------------------------------------------------------------------------
+
+# The repository and its password, read as amethystora-backup reads them
+load_backup() {
+    [[ -r "${ENV_FILE}" ]] || return 1
+    # shellcheck source=/dev/null
+    set -a && source "${ENV_FILE}" && set +a
+    [[ -n "${RESTIC_REPOSITORY:-}" && -n "${RESTIC_PASSWORD_FILE:-}" ]] || return 1
+    # Here rather than in restic_read, which runs in a subshell of its caller's
+    work
+}
+
+# The repository as it may be shown: rest:https://user:pass@host:8000/ is rest:https://host:8000/
+shown_repository() {
+    sed -E 's#(://)[^/@]*@#\1#' <<<"${RESTIC_REPOSITORY}"
+}
+
+# restic, only ever to read here: no lock, no prompt, and what it said kept for when it fails
+restic_read() {
+    restic --no-lock "$@" </dev/null 2>"${WORK}/said"
+}
+
+said() {
+    sed -n 's/^Fatal: //p; s/^.*"message":"\([^"]*\)".*$/\1/p' "${WORK}/said" 2>/dev/null | tail -n 1
+}
+
+# A path as a restic pattern that matches it and little else. A pattern's own characters (* ? [ \ $)
+# become ?, any one character, because the backslash that would escape them is a separator on some
+# systems; what else that matches is dropped by comparing the whole path afterwards.
+pattern() {
+    printf '%s' "$1" | sed 's/[][*?\\$]/?/g'
+}
+
+# The points in the backup that hold the home folder, newest first, as {source, id, time, host}
+backup_points() {
+    local out
+    out="$(restic_read snapshots --json --tag amethystora)" || return 1
+    jq -c --arg home "${HOME_DIR}" --arg real "${REAL_HOME}" "${JQ_DEFS}"'
+        def holds($c): any(.paths[]; . as $p | $p == "/" or $p == $c or ($p | startswith($c + "/"))
+            or ($c | startswith($p + "/")));
+        .[] | select(holds($home) or holds($real))
+        | {source: "backup", id: .short_id, time: (.time | epoch), host: .hostname}' <<<"${out}"
+}
+
+# --- The snapshots ---------------------------------------------------------------------------------
+
+# The snapshots of this account's home folder, as {source, id, time}. Each is named for the local time
+# amethystora-home-snapshot took it, which one `date` turns into seconds for all of them.
+local_points() {
+    [[ -n "${OWN}" ]] || return 0
+    local dir
+    local -a names=()
+    for dir in "${SNAPSHOTS}"/*; do
+        [[ "${dir##*/}" =~ ${LOCAL_NAME} && -d "${dir}/${OWN}" ]] && names+=("${dir##*/}")
+    done
+    [[ ${#names[@]} -gt 0 ]] || return 0
+    paste <(printf '%s\n' "${names[@]}") \
+        <(printf '%s\n' "${names[@]}" | sed -E 's/^(.{10})_(..)(..)$/\1 \2:\3/' | date -f - +%s) |
+        jq -Rc 'split("\t") | {source: "local", id: .[0], time: (.[1] | tonumber)}'
+}
+
+# Whether the home folders can be snapshotted at all: a btrfs subvolume of their own, whose root is
+# always inode 256, as amethystora-home-snapshot checks
+snapshots_possible() {
+    [[ "$(stat -f -c %T /var/home 2>/dev/null)" == btrfs && "$(stat -c %i /var/home 2>/dev/null)" == 256 ]]
+}
+
+# --- Points and paths ------------------------------------------------------------------------------
+
+# PATH, inside the home and relative to it, into REL. One that leaves the home or starts with "-" is
+# refused before anything reads it.
+inside() {
+    local given="$1" part rest
+    local -a kept=()
+    [[ "${given}" != -* ]] || fail outside "A path here may not start with -: ${given}"
+    if [[ "${given}" == /* ]]; then
+        if [[ "${given}/" == "${HOME_DIR}/"* ]]; then
+            given="${given#"${HOME_DIR}"}"
+        elif [[ "${given}/" == "${REAL_HOME}/"* ]]; then
+            given="${given#"${REAL_HOME}"}"
+        else
+            fail outside "Only what is inside your home folder comes back here: ${given}"
+        fi
+    fi
+    rest="${given}"
+    while [[ -n "${rest}" ]]; do
+        part="${rest%%/*}"
+        if [[ "${rest}" == */* ]]; then rest="${rest#*/}"; else rest=""; fi
+        case "${part}" in
+            "" | .) ;;
+            ..) fail outside "Only what is inside your home folder comes back here: $1" ;;
+            *) kept+=("${part}") ;;
+        esac
+    done
+    local IFS=/
+    REL="${kept[*]}"
+}
+
+# Whether a path, once its links are followed, is still inside a folder
+within() {
+    local resolved
+    resolved="$(realpath -m -- "$1")"
+    [[ "${resolved}" == "$2" || "${resolved}" == "$2/"* ]]
+}
+
+# POINT into SOURCE (local or backup), TAKEN (its time) and where its home folder is: FROM, the folder
+# inside a snapshot, or ROOT, the name the backup has the home under
+point() {
+    POINT="$1"
+    if [[ "${POINT}" =~ ${LOCAL_NAME} ]]; then
+        SOURCE=local
+        [[ -n "${OWN}" ]] || fail point "Your home folder, ${REAL_HOME}, is not one the snapshots cover."
+        FROM="${SNAPSHOTS}/${POINT}/${OWN}"
+        [[ -d "${FROM}" ]] || fail point "There is no snapshot ${POINT} of your home folder."
+        TAKEN="$(date -d "${POINT:0:10} ${POINT:11:2}:${POINT:13:2}" +%s)"
+    elif [[ "${POINT}" =~ ${RESTIC_ID} ]]; then
+        SOURCE=backup
+        load_backup || fail no-backup "No backup is set up. Set one up with: ame backup setup"
+        local out found
+        out="$(restic_read snapshots --json "${POINT}")" || fail repository "$(said)"
+        found="$(jq -r --arg home "${HOME_DIR}" --arg real "${REAL_HOME}" "${JQ_DEFS}"'
+            def holds($c): any(.paths[]; . as $p | $p == "/" or $p == $c or ($p | startswith($c + "/"))
+                or ($c | startswith($p + "/")));
+            .[0] // empty | select(.tags // [] | index("amethystora"))
+            | [(.time | epoch), (if holds($home) then $home elif holds($real) then $real else empty end)]
+            | @tsv' <<<"${out}")"
+        [[ -n "${found}" ]] || fail point "There is no backup ${POINT} of your home folder."
+        TAKEN="${found%%$'\t'*}"
+        ROOT="${found#*$'\t'}"
+    else
+        fail point "That is neither a snapshot nor a backup: ${POINT}"
+    fi
+}
+
+# The item at REL in the backup, brought down into a folder of its own: restic restores the folder it is
+# in, with only that item included, and the item is then that folder's entry of the same name
+from_backup() {
+    local rel="$1" into="$2" parent="" name="${1##*/}"
+    [[ "${rel}" == */* ]] && parent="${rel%/*}"
+    mkdir -p "${into}"
+    # Its summary goes to standard output even with --quiet, where it would come before this script's own
+    if [[ -z "${rel}" ]]; then
+        restic_read restore --quiet --exclude-xattr 'security.*' --target "${into}" "${POINT}:${ROOT}" \
+            >/dev/null || fail failed "$(said)"
+        FOUND="${into}"
+    else
+        restic_read restore --quiet --exclude-xattr 'security.*' --target "${into}" \
+            --include "/$(pattern "${name}")" "${POINT}:${ROOT}${parent:+/${parent}}" >/dev/null ||
+            fail failed "$(said)"
+        FOUND="${into}/${name}"
+    fi
+}
+
+# --- status ----------------------------------------------------------------------------------------
+
+# When the backup last succeeded: amethystora-backup's stamp, or, before its first run with this image
+# wrote one, the newest start of the unit that systemd logged as done
+last_success() {
+    local when=""
+    [[ -r "${STAMP}" ]] && when="$(tr -dc 0-9 <"${STAMP}")"
+    if [[ -z "${when}" ]]; then
+        when="$(journalctl --user --user-unit=amethystora-backup.service JOB_TYPE=start JOB_RESULT=done \
+            --output=json --lines=1 --quiet 2>/dev/null |
+            jq -r '.__REALTIME_TIMESTAMP // empty | tonumber / 1000000 | floor' 2>/dev/null || true)"
+    fi
+    printf '%s' "${when}"
+}
+
+# A unit's timestamp property as seconds, or nothing
+unit_time() {
+    systemctl "$@" --timestamp=unix --value 2>/dev/null | sed -n 's/^@\([0-9][0-9]*\).*$/\1/p' | head -n 1
+}
+
+cmd_status() {
+    local possible=false on=false points count latest set_up=false repository="" daily=false running=false
+    local failed=false last="" since="" next="" stale=false state
+    snapshots_possible && possible=true
+    systemctl is-enabled --quiet amethystora-home-snapshot.timer 2>/dev/null && on=true
+    points="$(local_points)"
+    count="$(grep -c . <<<"${points}" || true)"
+    latest="$(jq -s 'map(.time) | max // empty' <<<"${points}")"
+    if load_backup; then
+        set_up=true
+        repository="$(shown_repository)"
+        systemctl --user is-enabled --quiet amethystora-backup.timer 2>/dev/null && daily=true
+        state="$(systemctl --user is-active amethystora-backup.service 2>/dev/null || true)"
+        [[ "${state}" == active || "${state}" == activating ]] && running=true
+        [[ "${state}" == failed ]] && failed=true
+        last="$(last_success)"
+        since="$(stat -c %Y -- "${ENV_FILE}")"
+        next="$(unit_time --user show -p NextElapseUSecRealtime amethystora-backup.timer)"
+        # Stale once the daily run is on and nothing has succeeded for a week, counted from when it was
+        # set up for a backup that has never succeeded
+        if [[ "${daily}" == true && $((NOW - ${last:-${since}})) -gt $((STALE_DAYS * 86400)) ]]; then
+            stale=true
+        fi
+    fi
+    if [[ "${JSON}" == true ]]; then
+        jq -n --arg home "${REAL_HOME}" --argjson possible "${possible}" --argjson on "${on}" \
+            --argjson covers "$([[ -n "${OWN}" ]] && echo true || echo false)" --argjson count "${count:-0}" \
+            --arg latest "${latest}" --argjson set_up "${set_up}" --arg repository "${repository}" \
+            --argjson daily "${daily}" --argjson running "${running}" --argjson failed "${failed}" \
+            --arg last "${last}" --arg since "${since}" --arg next "${next}" --argjson stale "${stale}" \
+            --argjson stale_days "${STALE_DAYS}" '
+            def number: if . == "" then null else tonumber end;
+            {version: 1, $home,
+             snapshots: {$possible, $on, $covers, $count, latest: ($latest | number)},
+             backup: {$set_up, repository: (if $repository == "" then null else $repository end), $daily,
+                      $running, $failed, last_success: ($last | number), since: ($since | number),
+                      next: ($next | number), $stale, $stale_days}}'
+        return
+    fi
+    if [[ "${on}" == true ]]; then
+        echo "Hourly snapshots: on, ${count:-0} of your home folder${latest:+, the latest from $(date -d "@${latest}" '+%a %-d %b %H:%M')}."
+    elif [[ "${possible}" == true ]]; then
+        echo "Hourly snapshots: off. Turn them on with: ame security ransomware"
+    else
+        echo "Hourly snapshots: not possible here, the home folders are not on a btrfs subvolume of their own."
+    fi
+    if [[ "${set_up}" == true ]]; then
+        echo "Backup:           to ${repository}, the daily run $([[ "${daily}" == true ]] && echo on || echo off)."
+        if [[ -n "${last}" ]]; then
+            echo "Last good backup: $(date -d "@${last}" '+%a %-d %b %Y %H:%M')"
+        else
+            echo "Last good backup: none yet"
+        fi
+        [[ "${stale}" == false ]] || echo "No backup has succeeded for ${STALE_DAYS} days or more. See why with: journalctl --user -u amethystora-backup.service"
+    else
+        echo "Backup:           not set up. Set one up with: ame backup setup"
+    fi
+}
+
+# --- points ----------------------------------------------------------------------------------------
+
+cmd_points() {
+    local locals backups="" backup=none detail=""
+    locals="$(local_points)"
+    if [[ "${LOCAL_ONLY}" == false ]] && load_backup; then
+        if backups="$(backup_points)"; then
+            backup=ok
+        else
+            backup=unreachable
+            detail="$(said)"
+            backups=""
+        fi
+    fi
+    if [[ "${JSON}" == true ]]; then
+        printf '%s\n%s\n' "${locals}" "${backups}" | jq -sc --arg backup "${backup}" --arg detail "${detail}" \
+            '{version: 1, points: sort_by(-.time), $backup, detail: (if $detail == "" then null else $detail end)}'
+        return
+    fi
+    printf '%s\n%s\n' "${locals}" "${backups}" | jq -rs 'sort_by(-.time)[]
+        | [(.time | strflocaltime("%Y-%m-%d %H:%M")), (if .source == "local" then "this machine" else "backup      " end), .id]
+        | join("  ")'
+    [[ "${backup}" != unreachable ]] || echo "The backup could not be read: ${detail}" >&2
+}
+
+# --- ls --------------------------------------------------------------------------------------------
+
+cmd_ls() {
+    [[ $# -ge 1 && $# -le 2 ]] || usage
+    point "$1"
+    inside "${2:-}"
+    local listing now dir out
+    if [[ "${SOURCE}" == local ]]; then
+        dir="${FROM}${REL:+/${REL}}"
+        [[ -d "${dir}" ]] || fail not-found "There is no folder ${REL:-.} in the snapshot ${POINT}."
+        within "${dir}" "${FROM}" || fail outside "${REL} leads out of your home folder in that snapshot."
+        listing="$({ find "${dir}/" -mindepth 1 -maxdepth 1 -printf '%y\t%s\t%T@\t%f\0' 2>/dev/null || true; } |
+            jq -Rsc "${JQ_DEFS}"'found')"
+    else
+        dir="${ROOT}${REL:+/${REL}}"
+        out="$(restic_read ls --json "${POINT}" "${dir}")" || fail repository "$(said)"
+        jq -e --arg dir "${dir}" 'select(.struct_type == "node" and .path == $dir and .type == "dir")' \
+            <<<"${out}" >/dev/null || fail not-found "There is no folder ${REL:-.} in the backup ${POINT}."
+        listing="$(jq -sc --arg dir "${dir}" "${JQ_DEFS}"'
+            map(select(.struct_type == "node" and .path == ($dir + "/" + .name))
+                | {name, type: ({file: "file", dir: "dir", symlink: "link"}[.type] // "other"),
+                   size: (if .type == "dir" then null else .size // 0 end), mtime: (.mtime | epoch)})' <<<"${out}")"
+    fi
+    # The same folder now, to say of each entry whether it is still there and the same
+    now="$({ find "${HOME_DIR}${REL:+/${REL}}/" -mindepth 1 -maxdepth 1 -printf '%y\t%s\t%T@\t%f\0' 2>/dev/null || true; } |
+        jq -Rsc "${JQ_DEFS}"'found')"
+    jq -n --arg point "${POINT}" --arg source "${SOURCE}" --argjson time "${TAKEN}" --arg path "${REL}" \
+        --argjson then "${listing}" --argjson now "${now}" '
+        ($now | map({key: .name, value: .}) | from_entries) as $present
+        | {version: 1, point: {source: $source, id: $point, $time}, $path,
+           entries: ($then | sort_by(.type != "dir", .name) | map(. as $e | $present[$e.name] as $p
+               | . + {now: (if $p == null then "missing" elif $p.type != $e.type then "changed"
+                            elif $e.type == "dir" then "present"
+                            elif $p.size == $e.size and $p.mtime == $e.mtime then "same" else "changed" end)}))}' |
+        if [[ "${JSON}" == true ]]; then
+            jq -c .
+        else
+            jq -r '.entries[] | [(if .type == "dir" then "folder" else .type end),
+                (.mtime | strflocaltime("%Y-%m-%d %H:%M")), .now, .name + (if .type == "dir" then "/" else "" end)]
+                | @tsv' | column -t -s $'\t'
+        fi
+}
+
+# --- versions --------------------------------------------------------------------------------------
+
+cmd_versions() {
+    [[ $# -eq 1 ]] || usage
+    inside "$1"
+    [[ -n "${REL}" ]] || fail usage "Name a file or folder inside your home folder."
+    local locals="" backups="" out snapshots name backup=none detail="" current parent=""
+    local -a paths=()
+    [[ "${REL}" == */* ]] && parent="/${REL%/*}"
+    # On this machine: the path in each snapshot, unless a link on the way leads out of it
+    if [[ -n "${OWN}" ]]; then
+        while IFS= read -r name; do
+            [[ -n "${name}" ]] || continue
+            within "${SNAPSHOTS}/${name}/${OWN}${parent}" "${SNAPSHOTS}/${name}/${OWN}" &&
+                paths+=("${SNAPSHOTS}/${name}/${OWN}/${REL}")
+        done < <(local_points | jq -r .id)
+    fi
+    if [[ ${#paths[@]} -gt 0 ]]; then
+        locals="$(stat --printf '%n\0%F\0%s\0%Y\0' -- "${paths[@]}" 2>/dev/null | jq -Rc --arg base "${SNAPSHOTS}/" '
+            split("\u0000") | [range(0; length / 4 | floor) as $i | .[$i * 4:$i * 4 + 4]][]
+            | {source: "local", id: (.[0] | ltrimstr($base) | split("/")[0]),
+               type: (if .[1] | startswith("regular") then "file" elif .[1] == "directory" then "dir"
+                      elif .[1] == "symbolic link" then "link" else "other" end),
+               size: (.[2] | tonumber), mtime: (.[3] | tonumber)}
+            | if .type == "dir" then .size = null else . end' || true)"
+        locals="$(jq -c --argjson times "$(local_points | jq -sc 'map({key: .id, value: .time}) | from_entries')" \
+            '. + {time: $times[.id]}' <<<"${locals}")"
+    fi
+    # In the backup: restic find, for both names of the home, in every snapshot at once
+    if load_backup; then
+        if snapshots="$(backup_points)" &&
+            out="$(restic_read find --json --tag amethystora "$(pattern "${HOME_DIR}/${REL}")" \
+                "$(pattern "${REAL_HOME}/${REL}")")"; then
+            backup=ok
+            backups="$(jq -c --argjson points "$(jq -sc . <<<"${snapshots}")" \
+                --arg a "${HOME_DIR}/${REL}" --arg b "${REAL_HOME}/${REL}" "${JQ_DEFS}"'
+                .[] | .snapshot as $id | ($points | map(select(. as $p | $id | startswith($p.id))) | .[0]) as $point
+                | select($point != null) | .matches[] | select(.path == $a or .path == $b)
+                | {source: "backup", id: $point.id, time: $point.time, host: $point.host,
+                   type: ({file: "file", dir: "dir", symlink: "link"}[.type] // "other"),
+                   size: (if .type == "dir" then null else .size // 0 end), mtime: (.mtime | epoch)}' <<<"${out}")"
+        else
+            backup=unreachable
+            detail="$(said)"
+        fi
+    fi
+    current="$(stat --printf '%F\0%s\0%Y' -- "${HOME_DIR}/${REL}" 2>/dev/null | jq -Rc '
+        split("\u0000") | {type: (if .[0] | startswith("regular") then "file" elif .[0] == "directory" then "dir"
+            elif .[0] == "symbolic link" then "link" else "other" end), size: (.[1] | tonumber), mtime: (.[2] | tonumber)}
+        | if .type == "dir" then .size = null else . end' || echo null)"
+    printf '%s\n%s\n' "${locals}" "${backups}" | jq -sc --arg path "${REL}" --argjson now "${current:-null}" \
+        --arg backup "${backup}" --arg detail "${detail}" '
+        map(select(. != null)) | sort_by(.time)
+        | reduce .[] as $v ([]; if length > 0 and (.[-1] | .type == $v.type and .size == $v.size and .mtime == $v.mtime)
+            then . else . + [$v] end)
+        | {version: 1, $path, $now, versions: reverse, $backup, detail: (if $detail == "" then null else $detail end)}' |
+        if [[ "${JSON}" == true ]]; then
+            cat
+        else
+            jq -r '.versions[] | [(.time | strflocaltime("%Y-%m-%d %H:%M")),
+                (if .source == "local" then "this machine" else "backup      " end), .id,
+                "modified \(.mtime | strflocaltime("%Y-%m-%d %H:%M"))"] | join("  ")'
+        fi
+}
+
+# --- put-back --------------------------------------------------------------------------------------
+
+ADDED=0 SAME=0 KEPT=0 REPLACED=0 SKIPPED=0
+
+# Whether two entries are the same: the same bytes, or links to the same place
+same() {
+    if [[ -L "$1" || -L "$2" ]]; then
+        [[ -L "$1" && -L "$2" && "$(readlink -- "$1")" == "$(readlink -- "$2")" ]]
+    elif [[ -f "$1" && -f "$2" ]]; then
+        cmp -s -- "$1" "$2"
+    else
+        [[ -d "$1" && -d "$2" ]]
+    fi
+}
+
+# Where the old version of DEST goes beside it: "report (2026-10-04 14.00).pdf", or with a number after
+# the time when that is taken by something else
+beside() {
+    local src="$1" dest="$2" dir="${2%/*}" name="${2##*/}" stem ext n=1 candidate
+    if [[ "${name}" == ?*.* ]]; then
+        stem="${name%.*}" ext=".${name##*.}"
+    else
+        stem="${name}" ext=""
+    fi
+    candidate="${dir}/${stem} (${WHEN})${ext}"
+    while [[ -e "${candidate}" || -L "${candidate}" ]] && ! same "${src}" "${candidate}"; do
+        n=$((n + 1))
+        candidate="${dir}/${stem} (${WHEN}) ${n}${ext}"
+    done
+    printf '%s' "${candidate}"
+}
+
+# The copy into place shares the source's blocks where the disk can (a snapshot's, or the backup's once
+# it is down), and takes the label SELinux gives the place it lands in rather than the one it had
+copy() {
+    cp -a --no-preserve=context --reflink=auto "$@"
+}
+
+# SRC put back at DEST: what DEST lacks is added, what is the same is left alone, and what differs is
+# handled as MODE says. Nothing at DEST is ever removed, so a file the past version lacks stays.
+merge() {
+    local src="$1" dest="$2" entry old
+    if [[ ! -e "${dest}" && ! -L "${dest}" ]]; then
+        mkdir -p -- "${dest%/*}"
+        copy -- "${src}" "${dest}"
+        ADDED=$((ADDED + 1))
+        return
+    fi
+    if [[ -d "${src}" && ! -L "${src}" && -d "${dest}" && ! -L "${dest}" ]]; then
+        case "${MODE}" in
+            # The whole folder at once, as `ame security ransomware restore` does it
+            replace)
+                copy -- "${src}/." "${dest}/"
+                REPLACED=$((REPLACED + 1))
+                ;;
+            skip)
+                copy --update=none -- "${src}/." "${dest}/"
+                SKIPPED=$((SKIPPED + 1))
+                ;;
+            keep-both)
+                shopt -s dotglob nullglob
+                for entry in "${src}"/*; do
+                    merge "${entry}" "${dest}/${entry##*/}"
+                done
+                ;;
+        esac
+        return
+    fi
+    if same "${src}" "${dest}"; then
+        SAME=$((SAME + 1))
+        return
+    fi
+    # A folder is never replaced by a file or the other way round, which would delete one of them: the two
+    # are kept side by side instead
+    if [[ "${MODE}" == replace && ! -d "${src}" && ! -d "${dest}" ]]; then
+        copy --remove-destination -- "${src}" "${dest}"
+        REPLACED=$((REPLACED + 1))
+    elif [[ "${MODE}" == skip ]]; then
+        SKIPPED=$((SKIPPED + 1))
+    else
+        old="$(beside "${src}" "${dest}")"
+        if [[ -e "${old}" || -L "${old}" ]]; then
+            SAME=$((SAME + 1))
+        else
+            copy -- "${src}" "${old}"
+            KEPT=$((KEPT + 1))
+        fi
+    fi
+}
+
+cmd_put_back() {
+    [[ $# -ge 2 && -n "${MODE}" ]] || usage
+    point "$1"
+    shift
+    local given rel src dest n=0
+    local -a rels=() missing=()
+    for given in "$@"; do
+        inside "${given}"
+        dest="${HOME_DIR}${REL:+/${REL}}"
+        # Only ever into the home, whatever links lie on the way there now
+        within "${dest}" "${REAL_HOME}" || fail outside "${REL} leads out of your home folder."
+        rels+=("${REL}")
+    done
+    WHEN="$(date -d "@${TAKEN}" '+%Y-%m-%d %H.%M')"
+    for rel in "${rels[@]}"; do
+        dest="${HOME_DIR}${rel:+/${rel}}"
+        if [[ "${SOURCE}" == local ]]; then
+            src="${FROM}${rel:+/${rel}}"
+            [[ "${rel}" != */* ]] || within "${src%/*}" "${FROM}" ||
+                fail outside "${rel} leads out of your home folder in that snapshot."
+        else
+            work
+            n=$((n + 1))
+            from_backup "${rel}" "${WORK}/${n}"
+            src="${FOUND}"
+        fi
+        if [[ ! -e "${src}" && ! -L "${src}" ]]; then
+            missing+=("${rel}")
+            continue
+        fi
+        merge "${src}" "${dest}"
+    done
+    if [[ "${JSON}" == true ]]; then
+        jq -nc --argjson added "${ADDED}" --argjson same "${SAME}" --argjson kept "${KEPT}" \
+            --argjson replaced "${REPLACED}" --argjson skipped "${SKIPPED}" '
+            {version: 1, $added, $same, $kept, $replaced, $skipped, missing: $ARGS.positional}' \
+            --args "${missing[@]+"${missing[@]}"}"
+    else
+        echo "Put back: ${ADDED} added, ${SAME} already the same, ${KEPT} kept beside a newer version, ${REPLACED} replaced, ${SKIPPED} left as they are."
+        [[ ${#missing[@]} -eq 0 ]] || printf 'Not in that version: %s\n' "${missing[@]}"
+    fi
+}
+
+# --- open ------------------------------------------------------------------------------------------
+
+cmd_open() {
+    [[ $# -eq 2 ]] || usage
+    point "$1"
+    inside "$2"
+    [[ -n "${REL}" ]] || fail usage "Name a file or folder inside your home folder."
+    local target look
+    if [[ "${SOURCE}" == local ]]; then
+        # A snapshot is read-only already
+        target="${FROM}/${REL}"
+        within "${target}" "${FROM}" || fail outside "${REL} leads out of your home folder in that snapshot."
+    else
+        # A copy of its own, read-only, kept a day for whatever opened it
+        mkdir -p "${CACHE}/look"
+        find "${CACHE}/look" -mindepth 1 -maxdepth 1 -mmin +1440 \
+            -exec sh -c 'chmod -R u+w -- "$@" && rm -rf -- "$@"' sh {} + 2>/dev/null || true
+        look="$(mktemp -d "${CACHE}/look/${POINT}.XXXXXX")"
+        from_backup "${REL}" "${look}"
+        target="${FOUND}"
+        chmod -R a-w -- "${look}"
+    fi
+    [[ -e "${target}" || -L "${target}" ]] || fail not-found "There is no ${REL} in ${POINT}."
+    xdg-open "${target}" >/dev/null 2>&1 &
+    disown
+    if [[ "${JSON}" == true ]]; then
+        jq -nc --arg path "${target}" '{version: 1, opened: $path}'
+    else
+        echo "${target}"
+    fi
+}
+
+command="${1:-}"
+[[ $# -gt 0 ]] && shift
+case "${command}" in
+    status) cmd_status ;;
+    points) cmd_points ;;
+    ls) cmd_ls "$@" ;;
+    versions) cmd_versions "$@" ;;
+    put-back) cmd_put_back "$@" ;;
+    open) cmd_open "$@" ;;
+    *) usage ;;
+esac

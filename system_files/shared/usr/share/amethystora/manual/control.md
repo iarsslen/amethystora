@@ -29,6 +29,8 @@ The search box finds a setting on any page by what it is called or what it does.
   turns it on ([Security](security.md#see-where-you-stand)). Control's sidebar opens it.
 - **Automatic updates** are switched in Updates, which shows when the next one comes
   ([Updates](updates.md)). Control's sidebar says whether they are on, and opens it.
+- **Backups**, setting one up, backing up now and the daily run, are in Backups, which also puts files
+  back ([Backups](security.md#backups)). Control's sidebar opens it.
 - **GNOME's own settings**, such as displays, sound, networks and accounts, are in GNOME's Settings.
 
 ## In a terminal

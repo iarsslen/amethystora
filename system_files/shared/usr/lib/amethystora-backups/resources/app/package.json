@@ -1,0 +1,9 @@
+{
+  "name": "amethystora-backups",
+  "productName": "Amethystora Backups",
+  "description": "Earlier versions of your files, from the hourly snapshots and the daily backup, on one timeline, and putting them back",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "main": "main.js",
+  "desktopName": "amethystora-backups.desktop"
+}

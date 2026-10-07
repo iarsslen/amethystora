@@ -556,6 +556,30 @@ msgid "The home folders are snapshotted every hour. The latest is from ${AT}"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
+msgid "Backups"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "No backup has succeeded for ${DAYS} day"
+msgid_plural "No backup has succeeded for ${DAYS} days"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-security-status
+msgid "It runs once a day. See why the last ones failed with:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The daily backup is on, but none has succeeded yet"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Your home folder is backed up every day. The last backup succeeded ${WHEN}"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
 #, sh-format
 msgid "The kernel setting ${key} is ${live}, not ${value}"
 msgstr ""
@@ -859,10 +883,6 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "A password login over SSH also asks for a code from an app on your phone, and a key logs in as before"
-msgstr ""
-
-#: usr/libexec/amethystora-security-status
-msgid "Backups"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status

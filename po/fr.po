@@ -546,6 +546,26 @@ msgstr "Un instantané des dossiers personnels est pris toutes les heures. Le de
 
 #: usr/libexec/amethystora-security-status
 #, sh-format
+msgid "No backup has succeeded for ${DAYS} day"
+msgid_plural "No backup has succeeded for ${DAYS} days"
+msgstr[0] "Aucune sauvegarde n’a réussi depuis ${DAYS} jour"
+msgstr[1] "Aucune sauvegarde n’a réussi depuis ${DAYS} jours"
+
+#: usr/libexec/amethystora-security-status
+msgid "It runs once a day. See why the last ones failed with:"
+msgstr "Elle a lieu une fois par jour. Pour savoir pourquoi les dernières ont échoué :"
+
+#: usr/libexec/amethystora-security-status
+msgid "The daily backup is on, but none has succeeded yet"
+msgstr "La sauvegarde quotidienne est activée, mais aucune n’a encore réussi"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Your home folder is backed up every day. The last backup succeeded ${WHEN}"
+msgstr "Votre dossier personnel est sauvegardé chaque jour. La dernière sauvegarde a réussi ${WHEN}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
 msgid "The kernel setting ${key} is ${live}, not ${value}"
 msgstr "Le paramètre du noyau ${key} vaut ${live}, et non ${value}"
 

@@ -98,7 +98,7 @@ system_menu() {
     local choice
     heading "System"
     choice="$(choose "System" "Lock screen" "Log out" "Restart" "Shut down" \
-        "Check for updates" "Security report" "Logs" || true)"
+        "Check for updates" "Security report" "Logs" "Backups" || true)"
     case "${choice}" in
         "Lock screen") loginctl lock-session ;;
         "Log out") gnome-session-quit --logout ;;
@@ -110,6 +110,8 @@ system_menu() {
         "Security report") setsid -f amethystora-security >/dev/null 2>&1 ;;
         # The Logs app: the journal, searched and followed
         "Logs") setsid -f amethystora-logs >/dev/null 2>&1 ;;
+        # The Backups app: earlier versions of your files, and putting them back
+        "Backups") setsid -f amethystora-backups >/dev/null 2>&1 ;;
         *) back ;;
     esac
 }

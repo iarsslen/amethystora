@@ -1,0 +1,18 @@
+#!/usr/bin/bash
+#
+# Amethystora Backups: your home folder as it was at any hour the snapshots or the backup kept, and the
+# files and folders you want from then put back.
+#
+#   amethystora-backups            open it on your home folder
+#   amethystora-backups FOLDER     open it on a folder inside your home folder
+#   amethystora-backups status     open it on what is set up, and back up now
+#
+# What it shows and does is /usr/libexec/amethystora-restore's, run as you. The window is an Electron app
+# in /usr/lib/amethystora-backups (build_files/base/16-backups.sh).
+
+set -euo pipefail
+
+case "${1:-}" in
+    -h | --help | help) sed -n '3,11p' "$0" | sed 's/^# \?//' ;;
+    *) exec /usr/lib/amethystora-backups/amethystora-backups "$@" ;;
+esac

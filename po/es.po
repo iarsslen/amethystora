@@ -544,6 +544,26 @@ msgstr "Se toma una instantánea de las carpetas personales cada hora. La últim
 
 #: usr/libexec/amethystora-security-status
 #, sh-format
+msgid "No backup has succeeded for ${DAYS} day"
+msgid_plural "No backup has succeeded for ${DAYS} days"
+msgstr[0] "Ninguna copia de seguridad se ha completado desde hace ${DAYS} día"
+msgstr[1] "Ninguna copia de seguridad se ha completado desde hace ${DAYS} días"
+
+#: usr/libexec/amethystora-security-status
+msgid "It runs once a day. See why the last ones failed with:"
+msgstr "Se hace una vez al día. Vea por qué fallaron las últimas con:"
+
+#: usr/libexec/amethystora-security-status
+msgid "The daily backup is on, but none has succeeded yet"
+msgstr "La copia de seguridad diaria está activada, pero ninguna se ha completado todavía"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Your home folder is backed up every day. The last backup succeeded ${WHEN}"
+msgstr "Su carpeta personal se copia cada día. La última copia se completó ${WHEN}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
 msgid "The kernel setting ${key} is ${live}, not ${value}"
 msgstr "El ajuste del núcleo ${key} vale ${live}, no ${value}"
 

@@ -654,16 +654,19 @@ ransomware ACTION="":
             echo "On. Put files back with: ame security ransomware restore"
             ;;
         "Put files back" | restore)
-            if [[ ${#TAKEN[@]} -eq 0 ]]; then
-                echo "There are no snapshots to put files back from."
-                exit 1
-            fi
             home="$(realpath "${HOME}")"
             if [[ "${home}" != /var/home/* ]]; then
                 echo "Your home folder, ${home}, is not one the snapshots cover."
                 exit 1
             fi
-            snapshot="$(gum choose --header "From which snapshot? (date_time)" --height 16 "${TAKEN[@]}")"
+            # The snapshots that hold your home folder, newest first, as the Backups window lists them
+            mapfile -t YOURS < <(/usr/libexec/amethystora-restore points --local --json | jq -r '.points[].id')
+            if [[ ${#YOURS[@]} -eq 0 ]]; then
+                echo "There are no snapshots to put files back from."
+                exit 1
+            fi
+            echo "Backups, in the app grid, shows each folder as it was and puts back single files."
+            snapshot="$(gum choose --header "From which snapshot? (date_time)" --height 16 "${YOURS[@]}")"
             [[ -n "${snapshot}" ]] || exit 0
             from="${SNAPSHOTS}/${snapshot}/${home#/var/home/}"
             how="$(gum choose --header "Your home folder as it was at ${snapshot}" \

@@ -546,6 +546,26 @@ msgstr "Von den persönlichen Ordnern wird stündlich ein Schnappschuss erstellt
 
 #: usr/libexec/amethystora-security-status
 #, sh-format
+msgid "No backup has succeeded for ${DAYS} day"
+msgid_plural "No backup has succeeded for ${DAYS} days"
+msgstr[0] "Seit ${DAYS} Tag ist keine Sicherung gelungen"
+msgstr[1] "Seit ${DAYS} Tagen ist keine Sicherung gelungen"
+
+#: usr/libexec/amethystora-security-status
+msgid "It runs once a day. See why the last ones failed with:"
+msgstr "Sie läuft einmal am Tag. Den Grund, warum die letzten fehlschlugen, anzeigen mit:"
+
+#: usr/libexec/amethystora-security-status
+msgid "The daily backup is on, but none has succeeded yet"
+msgstr "Die tägliche Sicherung ist an, aber noch keine ist gelungen"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Your home folder is backed up every day. The last backup succeeded ${WHEN}"
+msgstr "Ihr persönlicher Ordner wird täglich gesichert. Die letzte Sicherung gelang ${WHEN}"
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
 msgid "The kernel setting ${key} is ${live}, not ${value}"
 msgstr "Die Kernel-Einstellung ${key} ist ${live}, nicht ${value}"
 

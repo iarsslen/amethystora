@@ -181,6 +181,13 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
 - Logs: `journalctl -b -p warning`, `journalctl --user -b`, `coredumpctl list`. The Logs app
   (`amethystora-logs`, in place of GNOME Logs) reads the same journal for the user, one app or service
   at a time; `amethystora-logs crashes` opens it on the crashes.
+- Earlier versions of the user's files: `/usr/libexec/amethystora-restore` lists them from the hourly
+  snapshots (`/var/home/.snapshots`) and the restic backup (`~/.config/amethystora/backup.env`) as one
+  timeline: `status`, `points`, `ls POINT [PATH]` and `versions PATH`, each with `--json`, read and
+  change nothing. The Backups app (`amethystora-backups [FOLDER]`) shows the same, and `put-back`
+  brings files back into the home without deleting anything. Nothing on the machine deletes from the
+  backup or a snapshot: never run `restic forget`, `prune` or `key remove` against it, or `btrfs
+  subvolume delete` on a snapshot.
 - `ame security status` summarises the security settings. The Security app (`amethystora-security`)
   shows the same report and scans for viruses. What a scan finds is only reported unless
   `ON_DETECTION` in `/etc/amethystora/security.conf` says quarantine or delete; `ame security settings`
@@ -219,6 +226,8 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
   sshd, kernel arguments, Secure Boot, USBGuard, network protection (turning it off, or allowing a
   rule). The image hardens these on purpose; explain the trade-off instead of working around it.
 - `gsettings reset-recursively`, deleting user files, or reverting the user's own customisations.
+- `amethystora-restore put-back`: say which version comes back and where first, and use `--replace`
+  only when they asked for it (`--keep-both` puts the old file beside the current one).
 - `ame system raid` with anything but `status`: it makes, changes and forgets pools of disks, and
   erases disks. Never choose the disks or the layout for the user, and never type `ERASE`: the command
   asks for it in a terminal, and that answer is the user's. Read a pool's state with

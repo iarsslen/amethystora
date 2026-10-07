@@ -89,6 +89,9 @@ echo "::endgroup::"
 # Amethystora Logs: the same
 /ctx/build_files/base/16-logs.sh
 
+# Amethystora Backups: the same
+/ctx/build_files/base/16-backups.sh
+
 # Amethystora Control: the same
 /ctx/build_files/base/16-control.sh
 

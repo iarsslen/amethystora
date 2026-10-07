@@ -1,8 +1,8 @@
 'use strict';
 
-// Translations for the Amethystora apps: the Manual, Security, Updates, Logs, Notes and Control. One file, which
-// each app's main process require()s and each app's page loads as a script before its own (as I18N);
-// the build hard-links the Manual's copy into the other apps, as it does Electron.
+// Translations for the Amethystora apps: the Manual, Security, Updates, Logs, Notes, Control and Backups.
+// One file, which each app's main process require()s and each app's page loads as a script before its own
+// (as I18N); the build hard-links the Manual's copy into the other apps, as it does Electron.
 //
 // The English text in the code is the key. t('Update now') is looked up in the app's catalog for the
 // session's language, locale/<language>.json, and is its own English when the catalog has nothing for
