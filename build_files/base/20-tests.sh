@@ -1399,7 +1399,7 @@ for file in /usr/libexec/amethystora-control-list /usr/libexec/amethystora-secur
     /usr/share/amethystora/just/system.just; do
     grep -qF "${DEV_GROUPS}" "${file}"
 done
-grep -rlE "usermod .*-a?G|gpasswd -a" /usr/lib/systemd/system /usr/libexec /usr/share/amethystora/*.hooks.d && false
+grep -rlIE "usermod .*-a?G|gpasswd -a" /usr/lib/systemd/system /usr/libexec /usr/share/amethystora/*.hooks.d && false
 
 # fail2ban: only the sshd jail is on, it reads the journal, and it bans through firewalld.
 # `fail2ban-client -d` is the dump Lynis (TOOL-5104) reads the jails from, so what it shows here is
