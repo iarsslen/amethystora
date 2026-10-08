@@ -1267,6 +1267,12 @@ if [[ -f /usr/lib/udev/rules.d/50-zsa.rules ]]; then
     grep -q 'MODE:="0666"' /usr/lib/udev/rules.d/50-zsa.rules && false
     grep -q 'TAG+="uaccess"' /usr/lib/udev/rules.d/50-zsa.rules
 fi
+# /dev/uinput makes a virtual keyboard that types into any window: no rule the image ships gives it to the
+# seat, Solaar's included. `ame security virtual-input off` writes the one that does, for Steam Input and
+# OpenTabletDriver.
+grep -rlE 'KERNEL=="uinput".*uaccess' /usr/lib/udev/rules.d /etc/udev/rules.d && false
+grep -q 'KERNEL=="uinput".*uaccess' /usr/share/amethystora/hardening/71-amethystora-uinput.rules
+/usr/libexec/amethystora-hardening is-on virtual-input
 # Firewall: the Amethystora zone, without Fedora Workstation's open port range
 [[ "$(firewall-offline-cmd --get-default-zone)" == "amethystora" ]]
 [[ -z "$(firewall-offline-cmd --zone=amethystora --list-ports)" ]]

@@ -28,6 +28,12 @@ not the app as Fedora builds it. Fedora puts a picture with Fedora's logo on
 its first page; since October 2026 Amethystora replaces that picture with its
 own each time an image is built (build_files/base/12-tour.sh).
 
+Solaar's udev rules (GPL-2.0-or-later, https://github.com/pwr-Solaar/Solaar),
+/usr/lib/udev/rules.d/42-logitech-unify-permissions.rules from Fedora's
+solaar-udev package, are changed when an image is built: the line that gives
+/dev/uinput to whoever sits at the machine is taken out, and the file says so
+(build_files/base/08-hardening.sh). Its source is Fedora's package.
+
 The desktop theme switcher takes its design and its colour palettes from Omakub
 and its fork Omabuntu. Each says in its README that it is released under the
 MIT License; neither carries a licence file or a copyright line of its own, so

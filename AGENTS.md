@@ -215,7 +215,9 @@ Packages are defined directly in build scripts rather than in a central configur
 Each is installed and off, and turned on per machine or per account by one command that says first what
 it changes. `ame apps gaming` installs Steam, ProtonPlus and the MangoHud and gamescope Vulkan layers of
 Steam's own runtime branch from Flathub, and grants X11 back to Steam alone, for the account
-(`flatpak override --user`); Steam itself never goes into the image (its package is RPM Fusion's
+(`flatpak override --user`), and gives `/dev/uinput` back for Steam Input (`ame security virtual-input off`;
+the image keeps it root's, Solaar's rule included, since a virtual keyboard types into any window, and
+`ame apps opentabletdriver` does the same); Steam itself never goes into the image (its package is RPM Fusion's
 non-free one). `gamemode` is in the image for games to reach through its portal. `ame apps android`
 sets up Waydroid (Fedora's package, with its own SELinux policy; binder is built into Fedora's kernel):
 it enables `waydroid-container.service`, which ships disabled, and downloads LineageOS without Google's
@@ -367,8 +369,8 @@ words, group and how it applies (`--list --json`, the app's **Settings** page, `
 every unit that runs one reads its key in `ExecCondition=` (a drop-in for the packages' own: `clamd@`,
 `clamav-freshclam`, `auditd`, `audit-rules`), and a key that is off writes no audit rule, so a line edited
 by hand applies at the next boot. What the image enforces from the start (kernel settings, blocked
-modules, kernel arguments, firewall zone, fail2ban, lockout, the Flatpak override, SSH settings, signed
-updates) is switched by `/usr/libexec/amethystora-hardening`, one `ame security` command each, which keeps
+modules, kernel arguments, firewall zone, fail2ban, lockout, the Flatpak override, virtual input, SSH
+settings, signed updates) is switched by `/usr/libexec/amethystora-hardening`, one `ame security` command each, which keeps
 what is off in `/etc/amethystora/hardening-off` and names the files it writes, which the watcher's drift
 check accepts exactly. A feature switched off is `info` in the report with the command that turns it on,
 never a warning; turned off any other way it still warns. A change made through a switch is noted

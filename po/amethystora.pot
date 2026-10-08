@@ -934,6 +934,18 @@ msgid "No program accepts connections from other machines"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status usr/libexec/amethystora-hardening
+msgid "Virtual keyboards"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Apps can make a virtual keyboard"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Whoever sits at the machine, and every app that may reach all of /dev, can type into any window through /dev/uinput. Steam Input and OpenTabletDriver need it."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-hardening
 msgid "App sandbox override"
 msgstr ""
 
@@ -2325,6 +2337,10 @@ msgid "Takes X11, the input devices and the Flatpak service from every Flatpak a
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
+msgid "/dev/uinput, which makes a virtual keyboard or mouse that types into any window, stays root's. Off, whoever sits at the machine has it, and so does every app that may reach all of /dev, browsers and Steam among them. Steam Input and OpenTabletDriver need it off, and their setup turns it off."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
 msgid "No root login, three tries a connection and no X11 forwarding for the SSH server. Off, OpenSSH's and Fedora's own settings apply."
 msgstr ""
 
@@ -2350,6 +2366,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-hardening
 msgid "From each app's next start."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "At once. Turned back on, from the next restart."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

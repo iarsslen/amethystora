@@ -234,6 +234,7 @@ the Settings page and as a command that says what it changes before it does:
 | `ame security failed-logins` | Blocking an address after failed SSH logins | At once |
 | `ame security lockout` | Locking an account after ten wrong passwords | At once |
 | `ame security app-sandbox` | Taking X11, the input devices and the Flatpak service from every app | From each app's next start; granting one app X11 in Flatseal is the narrower answer |
+| `ame security virtual-input` | `/dev/uinput`, which makes a virtual keyboard that types into any window, kept from apps | At once. Steam Input and OpenTabletDriver need it off, and their setup turns it off |
 | `ame security ssh-settings` | No root login, three tries and no X11 forwarding for the SSH server | At once |
 | `ame security signed-updates` | Switching this machine back to signature-checked updates at every start | From the next start; for an image of your own, `ame system trust-image` is the answer |
 

@@ -20,6 +20,12 @@ Windows games it runs through Proton draw on nothing else, so X11 is granted bac
 launchers you add, for your account alone. The Security app's **Apps** page lists it with every other
 permission ([App permissions](security.md#app-permissions)).
 
+Steam Input, which makes every controller work in every game, does it with a virtual controller made
+through `/dev/uinput`, which the image keeps from apps: a virtual keyboard can type into any window. Setting
+up gaming gives it back to whoever sits at the machine, and so to every app that may reach all of `/dev`,
+the Chromium browsers among them ([Switches](security.md#switches), `ame security virtual-input`). Taking
+gaming away takes it back, from the next restart, unless OpenTabletDriver still needs it.
+
 In a game's **Properties** in Steam, under **Launch Options**:
 
 | Launch option | Does |

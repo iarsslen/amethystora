@@ -168,7 +168,9 @@ ame apps opentabletdriver on
 It installs OpenTabletDriver from Flathub, copies its rules for which devices it may read into `/etc`,
 from the release Amethystora pins and checked against that release's checksum, and starts its driver
 at each login. It also turns off the kernel's own tablet drivers, which would take the tablet first,
-so restart if the tablet was plugged in. Set the pen's pressure, its buttons and the part of the screen
+so restart if the tablet was plugged in. It moves the pointer through `/dev/uinput`, which the image keeps
+from apps, so it gives that back to whoever sits at the machine ([Switches](security.md#switches), `ame
+security virtual-input`). Set the pen's pressure, its buttons and the part of the screen
 the tablet covers in **OpenTabletDriver**, in the app grid. `ame apps opentabletdriver off` takes it all
 away again, and the kernel's drivers come back after a restart. The **Drawing tablets** switch on
 [Control](control.md)'s **Apps** page does either in a terminal.

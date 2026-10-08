@@ -29,6 +29,17 @@ if grep -qE "^Defaults[[:space:]]+secure_path.*linuxbrew" /etc/sudoers; then
     visudo -c -q -f /etc/sudoers
 fi
 
+# /dev/uinput makes a virtual keyboard or mouse, which types into any window, a root terminal included.
+# Solaar's udev rules hand it to whoever sits at the machine, and so to every app that may reach all of /dev
+# (Steam, the Chromium browsers, Discord, OBS, Zoom), by a static node that a later rule cannot take the
+# tag back from. Its one line about uinput goes, marked as changed; its rules for Logitech's receivers stay.
+# `ame security virtual-input off` gives uinput back, which Steam Input and OpenTabletDriver need.
+SOLAAR_RULES=/usr/lib/udev/rules.d/42-logitech-unify-permissions.rules
+if grep -q '^KERNEL=="uinput"' "${SOLAAR_RULES}" 2>/dev/null; then
+    sed -i '/^KERNEL=="uinput"/d' "${SOLAAR_RULES}"
+    sed -i '1i # Changed by Amethystora (build_files/base/08-hardening.sh): the line giving /dev/uinput to whoever\n# sits at the machine is taken out. `ame security virtual-input off` gives it back.' "${SOLAAR_RULES}"
+fi
+
 # Firewall: Fedora Workstation's default zone accepts incoming connections on every port from 1025 up.
 # The Amethystora zone (/usr/lib/firewalld/zones/amethystora.xml) only lets in what a desktop needs.
 # Tailscale traffic is trusted: who may reach this machine over the tailnet is set by the tailnet's ACLs,

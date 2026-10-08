@@ -853,6 +853,11 @@ fi
 
 # --- Apps ---------------------------------------------------------------------------------------------
 
+if hardening_off virtual-input; then
+    COMMAND="ame security virtual-input on"
+    turned_off apps virtual-input "$(gettext "Virtual keyboards")" "$(gettext "Apps can make a virtual keyboard")" \
+        "$(gettext "Whoever sits at the machine, and every app that may reach all of /dev, can type into any window through /dev/uinput. Steam Input and OpenTabletDriver need it.")"
+fi
 if hardening_off app-sandbox; then
     COMMAND="ame security app-sandbox on"
     turned_off apps app-sandbox "$(gettext "App sandbox override")" "$(gettext "The image's override of every app's sandbox is turned off")" \

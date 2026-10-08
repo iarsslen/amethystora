@@ -25,7 +25,8 @@ ROOT="${AMETHYSTORA_HARDENING_ROOT:-}"
 OFF="${ROOT}/etc/amethystora/hardening-off"
 SHARE=/usr/share/amethystora/hardening
 KARGS=/usr/lib/bootc/kargs.d/10-amethystora-hardening.toml
-NAMES=(kernel blocked-modules kernel-args firewall failed-logins lockout app-sandbox ssh-settings signed-updates)
+NAMES=(kernel blocked-modules kernel-args firewall failed-logins lockout app-sandbox virtual-input ssh-settings
+    signed-updates)
 
 SYSCTL=sysctl.d/60-amethystora-hardening.conf
 MODPROBE=modprobe.d/60-amethystora-hardening.conf
@@ -34,6 +35,7 @@ JAIL=fail2ban/jail.d/20-amethystora-zone.conf
 FAILLOCK=security/faillock.conf
 SANDBOX=flatpak/overrides/global
 SSHD=ssh/sshd_config.d/39-amethystora-ssh-settings-off.conf
+UINPUT=udev/rules.d/71-amethystora-uinput.rules
 # The image's own /etc: ostree keeps it in /usr/etc on a machine, and the image itself, as the build sees
 # it, has only /etc
 IMAGE_ETC=/usr/etc
@@ -88,6 +90,7 @@ expected() {
         "${FAILLOCK}") sed -E 's/^deny[[:space:]]*=.*/deny = 0/' "${IMAGE_ETC}/${FAILLOCK}" ;;
         "${SANDBOX}") cat "${SHARE}/flatpak-global-off" ;;
         "${SSHD}") cat "${SHARE}/${SSHD##*/}" ;;
+        "${UINPUT}") cat "${SHARE}/${UINPUT##*/}" ;;
         *) return 1 ;;
     esac
 }
@@ -99,6 +102,7 @@ managed() {
     is_off lockout && printf '%s\tfile\n' "${FAILLOCK}"
     is_off app-sandbox && printf '%s\tfile\n' "${SANDBOX}"
     is_off ssh-settings && printf '%s\tfile\n' "${SSHD}"
+    is_off virtual-input && printf '%s\tfile\n' "${UINPUT}"
     return 0
 }
 
@@ -191,6 +195,19 @@ set_switch() {
                 place "${SANDBOX}" image
             fi
             ;;
+        virtual-input)
+            # Given at once to the module already loaded, through a change event; taken back from the next
+            # restart, since nothing takes an ACL away from a node that has one
+            if [[ "${switched}" == off ]]; then
+                place "${UINPUT}" || return 1
+                udevadm control --reload-rules 2>/dev/null
+                modprobe uinput 2>/dev/null
+                udevadm trigger --action=change --subsystem-match=misc --sysname-match=uinput 2>/dev/null
+            else
+                rm -f "/etc/${UINPUT}"
+                udevadm control --reload-rules 2>/dev/null
+            fi
+            ;;
         ssh-settings)
             if [[ "${switched}" == off ]]; then
                 place "${SSHD}" || return 1
@@ -221,6 +238,7 @@ words() {
         [failed-logins]="$(gettext "Failed logins over the network")"
         [lockout]="$(gettext "Account lockout")"
         [app-sandbox]="$(gettext "App sandbox override")"
+        [virtual-input]="$(gettext "Virtual keyboards")"
         [ssh-settings]="$(gettext "SSH server settings")"
         [signed-updates]="$(gettext "Signed updates")"
     )
@@ -232,6 +250,7 @@ words() {
         [failed-logins]="$(gettext "fail2ban blocks an address after repeated failed logins over SSH. Off, nothing runs for an SSH server that is off by default.")"
         [lockout]="$(gettext "Ten wrong passwords in a row lock an account for ten minutes. Off, nothing is locked however many are wrong.")"
         [app-sandbox]="$(gettext "Takes X11, the input devices and the Flatpak service from every Flatpak app. Off, each app has what its own manifest asks for. Granting X11 to one app in Flatseal is the narrower answer.")"
+        [virtual-input]="$(gettext "/dev/uinput, which makes a virtual keyboard or mouse that types into any window, stays root's. Off, whoever sits at the machine has it, and so does every app that may reach all of /dev, browsers and Steam among them. Steam Input and OpenTabletDriver need it off, and their setup turns it off.")"
         [ssh-settings]="$(gettext "No root login, three tries a connection and no X11 forwarding for the SSH server. Off, OpenSSH's and Fedora's own settings apply.")"
         [signed-updates]="$(gettext "Switches this machine back to updates that must carry this image's signature at every start. Off, it switches nothing either way. ame system trust-image is the answer for an image of your own.")"
     )
@@ -244,6 +263,7 @@ words() {
         [failed-logins]="$(gettext "At once.")"
         [lockout]="$(gettext "At once.")"
         [app-sandbox]="$(gettext "From each app's next start.")"
+        [virtual-input]="$(gettext "At once. Turned back on, from the next restart.")"
         [ssh-settings]="$(gettext "At once, if the SSH server is running.")"
         [signed-updates]="$(gettext "From the next start. This machine stays on the updates it follows now.")"
     )

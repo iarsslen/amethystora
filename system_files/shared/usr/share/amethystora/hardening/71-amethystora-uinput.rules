@@ -1,0 +1,12 @@
+# Written by `ame security virtual-input off` (/usr/libexec/amethystora-hardening), which Steam Input and
+# OpenTabletDriver need, and taken away again by `ame security virtual-input on`.
+#
+# /dev/uinput makes a virtual keyboard or mouse, which types into any window, a root terminal included. The
+# image keeps it root's. This gives it to whoever sits at the machine, and so to every app they run that may
+# reach all of /dev (Steam, the Chromium browsers, Discord, OBS and Zoom keep --device=all). The node is made
+# before the uinput module is loaded, so that nothing waits for it.
+## https://www.kernel.org/doc/html/latest/input/uinput.html
+## https://github.com/systemd/systemd/issues/4288
+## https://github.com/ValveSoftware/steam-for-linux/issues/4794#issuecomment-327006061
+
+ACTION!="remove", KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"

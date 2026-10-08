@@ -115,7 +115,7 @@ grep -qxP 'firewalld/firewalld.conf\tfile' <<<"${MANAGED}" || fail "managed: the
 grep -qx 'deny = 0' <<<"$("${HARDENING}" expected security/faillock.conf)" || fail "lockout off is deny = 0"
 grep -qx 'DefaultZone=FedoraWorkstation' <<<"$("${HARDENING}" expected firewalld/firewalld.conf)" || fail "the zone off"
 grep -qE '^(sockets|devices)=' <<<"$("${HARDENING}" expected flatpak/overrides/global)" && fail "the sandbox off keeps a denial"
-"${HARDENING}" status --json | jq -e 'length == 9 and all(.[]; (.title | length > 0) and (.state | IN("on", "off")))' >/dev/null ||
+"${HARDENING}" status --json | jq -e 'length == 10 and all(.[]; (.title | length > 0) and (.state | IN("on", "off")))' >/dev/null ||
     fail "the switches' status"
 REPORT="$(/usr/libexec/amethystora-security-status --json)"
 for id in firewall kernel kernel-args; do

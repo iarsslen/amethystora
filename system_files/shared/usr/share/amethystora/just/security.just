@@ -542,6 +542,10 @@ lockout ACTION="":
 app-sandbox ACTION="":
     @/usr/libexec/amethystora-hardening ask app-sandbox "{{ ACTION }}"
 
+# Keeping /dev/uinput, which makes virtual keyboards, from apps; Steam Input and drawing tablets need it
+virtual-input ACTION="":
+    @/usr/libexec/amethystora-hardening ask virtual-input "{{ ACTION }}"
+
 # The image's SSH server settings: no root login, three tries, no X11 forwarding
 ssh-settings ACTION="":
     @/usr/libexec/amethystora-hardening ask ssh-settings "{{ ACTION }}"

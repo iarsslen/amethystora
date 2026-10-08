@@ -70,7 +70,13 @@ gaming ACTION="":
             echo "X11 apps. Steam and the Windows games it runs through Proton draw on nothing else, so X11 is"
             echo "granted back to Steam alone, for your account. The Security app's Apps page lists it, and"
             echo "\`ame apps gaming off\` takes it back with the rest."
+            echo
+            echo "Steam Input, which lets every controller work in every game, makes a virtual controller"
+            echo "through /dev/uinput, which the image keeps from apps: a virtual keyboard can type into any"
+            echo "window. This gives it back to whoever sits at the machine (ame security virtual-input), and"
+            echo "so to every app that may reach all of /dev, the Chromium browsers among them."
             gum confirm "Set up gaming?" || exit 0
+            sudo /usr/libexec/amethystora-hardening set virtual-input off
             flatpak install --system -y flathub "${STEAM}" com.vysp3r.ProtonPlus
             # The overlay and the compositor are Vulkan layers of Steam's runtime, so of its branch
             branch="$(flatpak info --show-runtime "${STEAM}" | cut -d/ -f3)"
@@ -108,7 +114,11 @@ gaming ACTION="":
             done
             # The Vulkan layers are left to flatpak's own clean-up of what nothing uses
             flatpak uninstall --system -y --unused
-            echo "Done. X11 is taken back from them with their overrides."
+            # Virtual keyboards go back to root's, unless the tablet driver still needs them
+            if [[ ! -e /etc/udev/rules.d/71-opentabletdriver.rules ]]; then
+                sudo /usr/libexec/amethystora-hardening set virtual-input on
+            fi
+            echo "Done. X11 is taken back from them with their overrides, and /dev/uinput at the next restart."
             ;;
         *) exit 0 ;;
     esac
@@ -199,7 +209,12 @@ opentabletdriver ACTION="":
             echo "covers. This installs it from Flathub, and copies its udev rules from its ${OTD_TAG} release"
             echo "into /etc so that it can reach the tablet. It turns off the kernel's own tablet drivers"
             echo "(wacom, hid_uclogic), which would take the tablet first: if one already has, restart."
+            echo
+            echo "It moves the pointer through /dev/uinput, which the image keeps from apps: a virtual keyboard"
+            echo "can type into any window. This gives it back to whoever sits at the machine (ame security"
+            echo "virtual-input), and so to every app that may reach all of /dev, the Chromium browsers among them."
             gum confirm "Set up OpenTabletDriver?" || exit 0
+            sudo /usr/libexec/amethystora-hardening set virtual-input off
             TMP="$(mktemp -d)"
             trap 'rm -rf "${TMP}"' EXIT
             url="https://github.com/OpenTabletDriver/OpenTabletDriver/releases/download/${OTD_TAG}/opentabletdriver-${OTD_TAG#v}_linux-x64_binary.tar.gz"
@@ -230,6 +245,10 @@ opentabletdriver ACTION="":
             # With the blacklist left behind, the kernel's own tablet drivers would stay off
             sudo rm -f "${BLACKLIST}" "${RULES}"
             sudo udevadm control --reload-rules
+            # Virtual keyboards go back to root's, unless Steam Input still needs them
+            if ! flatpak info --system com.valvesoftware.Steam >/dev/null 2>&1; then
+                sudo /usr/libexec/amethystora-hardening set virtual-input on
+            fi
             systemctl --user disable --now "${UNIT}" 2>/dev/null || true
             systemctl --user disable --now opentabletdriver.service 2>/dev/null || true
             rm -f "${HOME}/.config/systemd/user/opentabletdriver.service"
