@@ -346,6 +346,9 @@ function doneNote(entry) {
 const MANUAL_PAGES = {
     'secure-boot': 'hardware#secure-boot',
     'signing-keys': 'hardware#secure-boot',
+    'disk-unlock-pin': 'security#unlock-the-disk-with-the-tpm',
+    'firmware-dbx': 'updates#firmware',
+    'firmware-pk': 'updates#firmware',
     'signed-updates': 'updates#signed-updates',
     'single-build': 'updates',
     network: 'security#network-protection',

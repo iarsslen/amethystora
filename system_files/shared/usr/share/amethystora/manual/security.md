@@ -402,13 +402,21 @@ ame security disk-unlock
 ```
 
 Instead of typing the disk passphrase at every boot, the machine's TPM hands over the key, but only
-while Secure Boot is on and the signing keys are the ones enrolled when you set it up. Add a PIN if
-you want the disk to need something you know as well. Your passphrase keeps working, so a cleared
-TPM never locks you out. This needs a disk that was encrypted when it was installed.
+while Secure Boot is on and the signing keys are the ones enrolled when you set it up, and only after
+you type a short PIN. Your passphrase keeps working, so a cleared TPM never locks you out. This needs
+a disk that was encrypted when it was installed.
+
+The PIN is what keeps the key from someone who takes the machine. On an image that is not sealed, the
+boot menu and the programs that ask for the disk key are plain files: someone holding the machine
+could start it into a shell, or with a disk of their own made to look like yours, and Secure Boot
+would see nothing changed. So it is set up only with a PIN here, and the report has a **Disk unlock**
+check that warns about a TPM key set up without one, as earlier versions allowed:
+`ame security disk-unlock on-pin` replaces it.
 
 On a [sealed image](updates.md#sealed-images) the TPM's key is as safe as Secure Boot itself: the
 programs that ask for the disk key are inside the signed kernel image, so they cannot be swapped for
-others that would keep it. Updates keep it working as long as Amethystora's key does not change.
+others that would keep it, and a PIN is up to you. Updates keep it working as long as Amethystora's
+key does not change.
 
 ### Block USB devices you did not plug in
 

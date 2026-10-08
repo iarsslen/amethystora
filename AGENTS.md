@@ -597,7 +597,11 @@ replaces, adds, opens and forgets them. Its plan, with what is left to do, is `p
   system to raid1. Mirroring the system onto a new disk (the plan's 2b) is not built: it waits for a VM
   spike, and starting with a disk of the system dead is unsolved.
 - `ame security disk-unlock` and the report's disk-unlock tile take the system's LUKS partitions from
-  `amethystora-raid root-luks`, never the first LUKS device on the machine, which may be a pool's.
+  `amethystora-raid root-luks`, never the first LUKS device on the machine, which may be a pool's. On
+  an image that is not sealed it enrols the TPM only with a PIN: there the boot menu and initramfs are
+  plain files, and a shell from the boot menu or a look-alike LUKS volume changes neither PCR 7 nor 14.
+  The watcher reads the LUKS header into `status.json` (`disk_unlock`), and the report's
+  `disk-unlock-pin` check names a key set up without one.
 
 ### The transitions
 

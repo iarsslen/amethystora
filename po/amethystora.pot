@@ -371,6 +371,18 @@ msgid "Secure Boot is off, and this machine's kernel arguments leave out lockdow
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
+msgid "Platform key"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The firmware's platform key is a test key that anyone can sign with"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Its maker shipped a key whose private half is published (PKfail), so anything signed with it starts with Secure Boot on. Only the maker can replace it: look for a firmware update, or ask them."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
 msgid "Firmware security"
 msgstr ""
 
@@ -390,6 +402,22 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "That is mostly up to the machine's maker. Every protection fwupd looks at, with what each is:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Revoked boot programs"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The firmware's list of boot programs to refuse is out of date"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Until the newer list is installed, Secure Boot still starts boot programs known to let an attacker past it. fwupd refuses to install it while a boot program on this machine is one the list refuses."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Install it with:"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
@@ -1227,6 +1255,30 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "Needs Secure Boot on"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Disk unlock"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The TPM opens the disk only with a PIN"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The TPM opens the disk without a PIN"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "This sealed image's boot menu and initramfs are inside the signed UKI, so the key comes only to the system it was enrolled for. A PIN also keeps it from someone who takes the machine."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Anyone who takes this machine can start it their own way and be handed the key: into a shell from the boot menu, or with a disk of theirs made to look like this one. Neither changes what the key is bound to."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Set it up again with a PIN:"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status

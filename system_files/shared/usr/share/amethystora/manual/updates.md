@@ -61,6 +61,14 @@ Firmware for the UEFI firmware itself is written at the next restart, by the fir
 machine plugged in until it has started again. The security report shows fwupd's rating of the
 firmware's protections, from HSI:0 to HSI:5; how high a machine can get is mostly up to its maker.
 
+Two things in it ask for something to be done:
+
+- **Revoked boot programs:** LVFS has a newer list of the boot programs Secure Boot must refuse (the
+  UEFI dbx) than the firmware holds. `fwupdmgr update` installs it, and refuses while a boot program on
+  this machine is one the list refuses.
+- **Platform key:** the machine's maker shipped a test key whose private half is published (PKfail),
+  so anyone can sign what Secure Boot starts. Only the maker can replace it, with a firmware update.
+
 ## Rolling back
 
 The previous system is always kept. If an update brings a problem:

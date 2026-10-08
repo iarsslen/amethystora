@@ -413,10 +413,21 @@ HSI="$(busctl get-property org.freedesktop.fwupd / org.freedesktop.fwupd HostSec
     sed -n 's/^s "\(HSI:[0-9]!\{0,1\}\).*"$/\1/p')"
 if [[ "${HSI}" =~ ^HSI:([0-9])(!?)$ ]]; then
     LEVEL="${BASH_REMATCH[1]}"
+    FLAGGED="${BASH_REMATCH[2]}"
+    ATTRIBUTES="$(timeout 30 fwupdmgr security --json 2>/dev/null || true)"
+    # A platform key that is a test key whose private half was published (PKfail, 2024): anyone can then
+    # sign what Secure Boot starts. fwupd's uefi-pk plugin rates it not-valid.
+    if jq -e '.SecurityAttributes[]? | select(.AppstreamId == "org.fwupd.hsi.Uefi.Pk" and .HsiResult == "not-valid")' \
+        <<<"${ATTRIBUTES}" >/dev/null 2>&1; then
+        report updates firmware-pk check "$(gettext "Platform key")" \
+            "$(gettext "The firmware's platform key is a test key that anyone can sign with")" \
+            "$(gettext "Its maker shipped a key whose private half is published (PKfail), so anything signed with it starts with Secure Boot on. Only the maker can replace it: look for a firmware update, or ask them.")"
+    fi
     COMMAND="fwupdmgr security"
-    if [[ -n "${BASH_REMATCH[2]}" ]]; then
-        mapfile -t WEAKENED < <(timeout 30 fwupdmgr security --json 2>/dev/null | jq -r '.SecurityAttributes[]? |
-            select(any(.Flags[]?; . == "runtime-issue") and (any(.Flags[]?; . == "success") | not)) | .Name // .AppstreamId')
+    if [[ -n "${FLAGGED}" ]]; then
+        mapfile -t WEAKENED < <(jq -r '.SecurityAttributes[]? |
+            select(any(.Flags[]?; . == "runtime-issue") and (any(.Flags[]?; . == "success") | not)) | .Name // .AppstreamId' \
+            <<<"${ATTRIBUTES}" 2>/dev/null)
         report updates firmware-security info "$(gettext "Firmware security")" \
             "$(eval_gettext "fwupd rates this machine's firmware protections \${LEVEL} of 5, and something running weakens them")" \
             "${WEAKENED[@]}" "$(gettext "Every protection fwupd looks at, with what each is:")"
@@ -425,6 +436,19 @@ if [[ "${HSI}" =~ ^HSI:([0-9])(!?)$ ]]; then
             "$(eval_gettext "fwupd rates this machine's firmware protections \${LEVEL} of 5")" \
             "$(gettext "That is mostly up to the machine's maker. Every protection fwupd looks at, with what each is:")"
     fi
+fi
+
+# A newer list of the boot programs Secure Boot must refuse (the UEFI dbx) than the firmware holds, from
+# the LVFS metadata fwupd-refresh.timer fetches. Asking needs no password, and with --json fwupdmgr asks
+# nothing; it says {"Devices":[]} when there is nothing to install.
+FIRMWARE_UPDATES="$(timeout 30 fwupdmgr get-updates --json 2>/dev/null || true)"
+if jq -e '.Devices[]? | select(.Plugin == "uefi_dbx" and ((.Releases // []) | length > 0))' \
+    <<<"${FIRMWARE_UPDATES}" >/dev/null 2>&1; then
+    COMMAND="fwupdmgr update"
+    report updates firmware-dbx check "$(gettext "Revoked boot programs")" \
+        "$(gettext "The firmware's list of boot programs to refuse is out of date")" \
+        "$(gettext "Until the newer list is installed, Secure Boot still starts boot programs known to let an attacker past it. fwupd refuses to install it while a boot program on this machine is one the list refuses.")" \
+        "$(gettext "Install it with:")"
 fi
 
 # --- Watching -----------------------------------------------------------------------------------------
@@ -1080,6 +1104,21 @@ elif ! grep -qi "enabled" <<<"${SB}"; then
         "$(gettext "Needs Secure Boot on")"
 else
     report optional disk-unlock off "${DISK_UNLOCK_TITLE}" "${DISK_UNLOCK_TEXT}"
+fi
+# Whether the TPM's key asks for a PIN is in the LUKS header, which the watcher reads as root. Without a
+# PIN, an image that is not sealed hands the key to whoever starts the machine their own way: its boot
+# menu and initramfs are plain files, and changing them changes neither PCR the key is bound to.
+TPM_PIN="$(jq -r 'if .disk_unlock.tpm == true then .disk_unlock.pin else empty end' "${WATCH_STATUS}" 2>/dev/null)"
+if [[ "${TPM_PIN}" == true ]]; then
+    report updates disk-unlock-pin ok "$(gettext "Disk unlock")" "$(gettext "The TPM opens the disk only with a PIN")"
+elif [[ "${TPM_PIN}" == false && "${SEALED}" == true ]]; then
+    report updates disk-unlock-pin info "$(gettext "Disk unlock")" "$(gettext "The TPM opens the disk without a PIN")" \
+        "$(gettext "This sealed image's boot menu and initramfs are inside the signed UKI, so the key comes only to the system it was enrolled for. A PIN also keeps it from someone who takes the machine.")"
+elif [[ "${TPM_PIN}" == false ]]; then
+    COMMAND="ame security disk-unlock on-pin"
+    report updates disk-unlock-pin check "$(gettext "Disk unlock")" "$(gettext "The TPM opens the disk without a PIN")" \
+        "$(gettext "Anyone who takes this machine can start it their own way and be handed the key: into a shell from the boot menu, or with a disk of theirs made to look like this one. Neither changes what the key is bound to.")" \
+        "$(gettext "Set it up again with a PIN:")"
 fi
 
 if systemctl is-enabled --quiet usbguard.service 2>/dev/null; then USB=on; else USB=off; fi

@@ -736,6 +736,23 @@ audit_status() {
         '{$enabled, $drops}'
 }
 
+# --- The TPM's disk key ----------------------------------------------------------------------------------
+
+# Whether the TPM holds a key to the system's disk, and whether every such key asks for a PIN, is in the
+# LUKS header, which only root can read. systemd-cryptenroll marks a key that takes a PIN "tpm2-pin".
+disk_unlock_status() {
+    local device header tpm=false pin=true
+    while read -r device; do
+        header="$(cryptsetup luksDump --dump-json-metadata "${device}" 2>/dev/null)" || continue
+        jq -e '[.tokens[] | select(.type == "systemd-tpm2")] | length > 0' <<<"${header}" >/dev/null || continue
+        tpm=true
+        jq -e '[.tokens[] | select(.type == "systemd-tpm2" and ."tpm2-pin" != true)] | length > 0' \
+            <<<"${header}" >/dev/null && pin=false
+    done < <(/usr/libexec/amethystora-raid root-luks 2>/dev/null)
+    [[ "${tpm}" == true ]] || pin=null
+    jq -n --argjson tpm "${tpm}" --argjson pin "${pin}" '{$tpm, $pin}'
+}
+
 # --- A run --------------------------------------------------------------------------------------------
 
 # What each part took, in milliseconds, under the key of its switch: status.json carries them, and the
@@ -789,13 +806,14 @@ if [[ -d /usr/etc && "${SETTING[IMAGE_DRIFT]:-on}" != off ]]; then
 fi
 AUDIT=null
 [[ "${SETTING[AUDIT_LOG]:-on}" != off ]] && AUDIT="$(audit_status)"
+DISK_UNLOCK="$(disk_unlock_status)"
 write_status() {
     jq -n --argjson checked "${NOW}" --argjson swept "${SWEPT:-null}" --argjson drift "${DRIFT:-null}" \
         --argjson setuid "${SETUID}" --argjson listeners "${LISTENING}" \
-        --argjson network "$(network_status)" --argjson audit "${AUDIT:-null}" \
+        --argjson network "$(network_status)" --argjson audit "${AUDIT:-null}" --argjson disk_unlock "${DISK_UNLOCK:-null}" \
         --argjson timings "$(for key in "${!TIMINGS[@]}"; do printf '%s\t%s\n' "${key}" "${TIMINGS[${key}]}"; done |
             jq -R 'split("\t") | {(.[0]): (.[1] | tonumber)}' | jq -s 'add // {}')" \
-        '{$checked, $swept, $drift, $setuid, $listeners, $network, $audit, $timings}' >"${STATUS}.new" &&
+        '{$checked, $swept, $drift, $setuid, $listeners, $network, $audit, $disk_unlock, $timings}' >"${STATUS}.new" &&
         chmod 0644 "${STATUS}.new" && mv "${STATUS}.new" "${STATUS}"
 }
 # Written before the report runs, which reads it, and again after with the report's own time

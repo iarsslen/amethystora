@@ -970,25 +970,35 @@ disk-unlock ACTION="":
         echo "cannot be rewritten without the machine refusing to start it. A PIN below still means the"
         echo "disk opens only for someone who knows it."
     else
-        echo "What it does not do: it does not measure the initramfs, which changes with every kernel"
-        echo "update and cannot be pinned without enrolling again each time. Someone who can rewrite the"
-        echo "initramfs can still reach the unlocked disk. A PIN below stops someone who takes the machine"
-        echo "and starts it with a rewritten initramfs. It does not stop someone who rewrites it and gives"
-        echo "the machine back: their initramfs can ask for the PIN itself and keep it once you type it."
+        echo "What it does not do: it does not measure the boot menu or the initramfs, which are plain"
+        echo "files on this image and change with every kernel update. Someone who takes the machine could"
+        echo "start it into a shell from the boot menu, or with a disk of their own made to look like this"
+        echo "one, and neither changes PCR 7 or 14: without a PIN, the TPM would hand them the key. So here"
+        echo "it is set up only with a PIN. That does not stop someone who rewrites the initramfs and gives"
+        echo "the machine back: theirs can ask for the PIN itself and keep it once you type it."
     fi
     echo
+    CHOICES=("Set up with a PIN")
+    [[ -e /usr/share/amethystora/sealed ]] && CHOICES+=("Set up")
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "TPM disk unlock" \
-            "Set up with a PIN" "Set up" "Remove the TPM key" "Cancel")"
+        action="$(gum choose --header "TPM disk unlock" "${CHOICES[@]}" "Remove the TPM key" "Cancel")"
     fi
     case "${action}" in
         "Set up with a PIN" | on-pin) FLAGS=(--tpm2-with-pin=yes) ;;
-        "Set up" | on) FLAGS=() ;;
+        "Set up" | on)
+            if [[ ! -e /usr/share/amethystora/sealed ]]; then
+                echo "Only with a PIN on an image that is not sealed: ame security disk-unlock on-pin"
+                exit 1
+            fi
+            FLAGS=()
+            ;;
         "Remove the TPM key" | off)
             for DEVICE in "${DEVICES[@]}"; do
                 sudo systemd-cryptenroll --wipe-slot=tpm2 "${DEVICE}"
             done
             echo "Removed. The passphrase is asked for at every boot again."
+            # The watcher reads the LUKS header for the report's Disk unlock check
+            sudo systemctl start --no-block amethystora-security-watch.service || true
             exit 0
             ;;
         *) exit 0 ;;
@@ -1013,6 +1023,7 @@ disk-unlock ACTION="":
     if [[ ! -e /usr/share/amethystora/sealed ]]; then
         sudo rpm-ostree kargs --append-if-missing=rd.luks.options=tpm2-device=auto
     fi
+    sudo systemctl start --no-block amethystora-security-watch.service || true
     echo
     echo "Done. It takes effect at the next boot."
 
