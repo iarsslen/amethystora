@@ -20,7 +20,7 @@ set -eoux pipefail
 # The window only ever loads the manual's own pages (main.js), so the Chromium inside it never renders
 # anything from the web. It still takes every Electron release, security fixes included.
 
-ELECTRON_VERSION="44.5.1"
+ELECTRON_VERSION="44.7.0"
 MARKED_VERSION="18.0.14"
 MANUAL_DIR=/usr/lib/amethystora-manual
 LICENSE_DIR=/usr/share/licenses/amethystora-manual
