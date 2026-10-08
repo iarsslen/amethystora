@@ -1537,6 +1537,9 @@ grep -qE "^After=auditd.service" /usr/lib/systemd/system/amethystora-audit-rules
 grep -q "^DefaultDependencies=no$" /usr/lib/systemd/system/amethystora-audit-rules.service
 grep -q "^Before=.*sysinit.target" /usr/lib/systemd/system/amethystora-audit-rules.service
 grep -q "^Before=.*sysinit.target" /usr/lib/systemd/system/auditd.service
+# It runs as root in every home, so it never follows a link an account made out of its home, neither to
+# give a folder back nor to watch one, tried against a stand-in /etc/passwd and /var/home
+bash /ctx/build_files/shared/test-audit-home-rules.sh
 
 # Weekly virus scan and monthly Lynis audit. What is done with a found file is ON_DETECTION's to say,
 # through the one helper, never a clamdscan flag in a script. It ships as report: a false positive that
