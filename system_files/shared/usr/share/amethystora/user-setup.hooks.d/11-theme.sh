@@ -28,4 +28,4 @@ version-script theme user 7 || exit 0
 
 set -xeuo pipefail
 
-/usr/bin/amethystora-theme set "$(/usr/bin/amethystora-theme current 2>/dev/null || echo amethystora)"
+AMETHYSTORA_THEME_QUIET=1 /usr/bin/amethystora-theme set "$(/usr/bin/amethystora-theme current 2>/dev/null || echo amethystora)"
