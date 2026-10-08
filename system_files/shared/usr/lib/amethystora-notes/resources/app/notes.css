@@ -771,6 +771,11 @@ main {
     color: var(--bad);
 }
 
+.tone.warn {
+    background: color-mix(in oklab, var(--warn) 14%, transparent);
+    color: var(--warn);
+}
+
 .tone.info {
     background: color-mix(in oklab, var(--fg) 8%, transparent);
     color: var(--soft);

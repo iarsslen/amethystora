@@ -11,9 +11,10 @@
 //   data.bin      the notes and tasks, one sealed JSON document (data.json when not encrypted)
 //   *.bak         the version before the last save, read when the newest cannot be
 //   resources/    the attachments, one sealed file each
+//   next/         everything written anew while encryption is turned on or off or the key changes
 //
 // Encryption is AES-256-GCM under a random 256-bit key, and that key is sealed the same way under one
-// derived from the passphrase with scrypt, so a new passphrase rewraps the key and nothing else. None of
+// derived from the passphrase with scrypt, so a new passphrase can rewrap the key and nothing else. None of
 // it is public-key cryptography, the kind a quantum computer breaks: against AES, Grover's algorithm at
 // best halves the key length, which leaves a 256-bit key at the 128-bit level, and is why AES-256 is what
 // NIST and CNSA 2.0 keep for the post-quantum era. The passphrase is the weak point, so scrypt is set to
@@ -35,6 +36,7 @@ const path = require('node:path');
 const readline = require('node:readline');
 const { promisify } = require('node:util');
 const zlib = require('node:zlib');
+const { constants: { MAX_STRING_LENGTH } } = require('node:buffer');
 const I18N = require('./i18n.js');
 
 // The session's language, which the page is handed too, and Chromium's own (i18n.js)
@@ -54,6 +56,7 @@ const VAULT = path.join(DIR, 'vault.json');
 const RESOURCES = path.join(DIR, 'resources');
 const PLAIN = path.join(DIR, 'data.json');
 const SEALED = path.join(DIR, 'data.bin');
+const NEXT = path.join(DIR, 'next');
 
 // 128 * N * r bytes of memory for every guess at the passphrase
 const KDF = { name: 'scrypt', N: 2 ** 17, r: 8, p: 1 };
@@ -78,6 +81,8 @@ let store = null;
 let dirty = false;
 let saveTimer = null;
 let saving = Promise.resolve();
+// Set while encryption is turned on or off or the key changes, when nothing else is saved
+let changing = null;
 // Upcoming reminders, which outlive a lock so that they still go off: { id, title, at, due }
 let reminders = [];
 let lastCheck = Date.now();
@@ -250,31 +255,17 @@ async function fidoDevices() {
         .map(([, device, name]) => ({ device, name: name.trim() || t('Security key') }));
 }
 
-// Whether the key keeps secrets for apps, has a PIN, and has a fingerprint enrolled
+// Whether the key keeps secrets for apps and can refuse a passkey without its PIN or a fingerprint, has a
+// PIN, and has a fingerprint enrolled
 async function fidoInfo(device) {
     const lines = await fido('fido2-token', ['-I', device]);
     const list = (label) => (lines.find((line) => line.startsWith(`${label}: `)) || '').slice(label.length + 2).split(', ');
     const options = list('options');
-    return { secrets: list('extension strings').includes('hmac-secret'), pin: options.includes('clientPin'), uv: options.includes('uv') };
-}
-
-// Whether this passkey was made on this key, which the key says without being touched
-function holds(device, passkey) {
-    return fido('fido2-assert', ['-G', '-t', 'up=false', device],
-        [crypto.randomBytes(32).toString('base64'), RELYING_PARTY, passkey.credential])
-        .then(() => true, (error) => !/NO_CREDENTIALS/.test(error.message));
-}
-
-// The plugged-in key that holds one of the passkeys, and which one
-async function findPasskey() {
-    for (const { device } of await fidoDevices()) {
-        for (const passkey of vault?.passkeys || []) {
-            if (await holds(device, passkey)) {
-                return { device, passkey };
-            }
-        }
-    }
-    return null;
+    const extensions = list('extension strings');
+    return {
+        secrets: extensions.includes('hmac-secret'), protect: extensions.includes('credProtect'),
+        pin: options.includes('clientPin'), uv: options.includes('uv'),
+    };
 }
 
 // The secret the key computes for this passkey once it is touched: after its PIN, or, given none, after
@@ -330,10 +321,10 @@ function normalise(data) {
     return result;
 }
 
-// The newest readable copy. An encrypted vault still reads data.json, which is where the notes are
-// when turning encryption on was cut short; the next save seals them and removes it.
+// The newest readable copy. An encrypted vault reads only sealed files, so that nobody can slip it notes
+// in the clear.
 async function readData() {
-    const candidates = key ? [SEALED, `${SEALED}.bak`, PLAIN, `${PLAIN}.bak`] : [PLAIN, `${PLAIN}.bak`];
+    const candidates = key ? [SEALED, `${SEALED}.bak`] : [PLAIN, `${PLAIN}.bak`];
     let found = false;
     for (const file of candidates) {
         let bytes;
@@ -344,7 +335,7 @@ async function readData() {
         }
         found = true;
         try {
-            const text = file.startsWith(SEALED) ? unseal(key, bytes, 'data') : bytes;
+            const text = key ? unseal(key, bytes, 'data') : bytes;
             const data = normalise(JSON.parse(text.toString('utf8')));
             if (file !== candidates[0]) {
                 dirty = true;
@@ -376,7 +367,7 @@ function scheduleSave() {
 function flush() {
     clearTimeout(saveTimer);
     saveTimer = null;
-    if (!store || !dirty) {
+    if (!store || !dirty || changing) {
         return saving;
     }
     dirty = false;
@@ -401,25 +392,74 @@ async function writeResource(id, bytes) {
     await writeAtomic(resourceFile(id), key ? seal(key, bytes, `resource:${id}`) : bytes);
 }
 
+// Throws on an attachment in the clear while the notes are encrypted
 async function readResource(id) {
     const bytes = await fsp.readFile(resourceFile(id));
-    return key && isSealed(bytes) ? unseal(key, bytes, `resource:${id}`) : bytes;
+    return key ? unseal(key, bytes, `resource:${id}`) : bytes;
 }
 
-// Seals any attachment still in the clear, which turning encryption on leaves only if it was cut short
-async function sealResources() {
+// Whether the current key opens a file, or, with no key, whether the file is not sealed
+function fits(bytes, label) {
+    if (!key) {
+        return !isSealed(bytes);
+    }
+    try {
+        unseal(key, bytes, label);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// Moves a file from next/ into place if the vault's key fits it, unless the one in place fits already:
+// that one was saved since, and is newer
+async function settle(from, to, label) {
+    const staged = await fsp.readFile(from).catch(() => null);
+    const current = await fsp.readFile(to).catch(() => null);
+    if (!staged || !fits(staged, label) || (current && fits(current, label))) {
+        return false;
+    }
+    await fsp.rename(from, to);
+    return true;
+}
+
+// Turning encryption on or off and changing the key write everything anew into next/, then vault.json,
+// then move next/ into place. Cut short before vault.json, next/ holds files that the vault's key does
+// not fit, and after it files that it does: only those are moved, and the rest is thrown away.
+async function commitNext() {
     let names = [];
     try {
-        names = await fsp.readdir(RESOURCES);
+        names = await fsp.readdir(path.join(NEXT, 'resources'));
     } catch {
-        return;
+        // Nothing waiting
     }
     for (const name of names.filter((item) => ID.test(item))) {
-        const bytes = await fsp.readFile(resourceFile(name)).catch(() => null);
-        if (bytes && !isSealed(bytes)) {
-            await writeResource(name, bytes);
+        await settle(path.join(NEXT, 'resources', name), resourceFile(name), `resource:${name}`);
+    }
+    if (await settle(path.join(NEXT, 'data'), key ? SEALED : PLAIN, 'data')) {
+        // The next save removes the other form, and the copy before this one, which the old key sealed
+        dirty = true;
+    }
+    await fsp.rm(NEXT, { recursive: true, force: true });
+}
+
+// Everything written anew for nextVault, sealed under nextKey or, without one, in the clear
+async function rewrite(nextKey, nextVault) {
+    await fsp.rm(NEXT, { recursive: true, force: true });
+    await fsp.mkdir(path.join(NEXT, 'resources'), { recursive: true, mode: 0o700 });
+    for (const id of Object.keys(store.resources)) {
+        const bytes = await readResource(id).catch(() => null);
+        if (bytes) {
+            await writeAtomic(path.join(NEXT, 'resources', id), nextKey ? seal(nextKey, bytes, `resource:${id}`) : bytes);
         }
     }
+    const json = Buffer.from(JSON.stringify(store));
+    await writeAtomic(path.join(NEXT, 'data'), nextKey ? seal(nextKey, json, 'data') : json);
+    await writeAtomic(VAULT, JSON.stringify(nextVault, null, 2));
+    vault = nextVault;
+    key?.fill(0);
+    key = nextKey;
+    await commitNext();
 }
 
 // Removes the attachments that no note, version or task refers to any more
@@ -475,7 +515,7 @@ function status() {
 }
 
 function describe() {
-    const passkeys = (vault?.passkeys || []).map(({ id, name, created }) => ({ id, name, created }));
+    const passkeys = (vault?.passkeys || []).map(({ id, name, created, protect }) => ({ id, name, created, protected: protect === 3 }));
     return { status: status(), encrypted: Boolean(vault?.encrypted), passkeys, dir: DIR, data: store };
 }
 
@@ -495,9 +535,6 @@ async function opened() {
     lastActive = Date.now();
     lastCheck = Date.now();
     computeReminders();
-    if (key) {
-        await sealResources();
-    }
     setTimeout(() => collectResources().catch(() => {}), 5000);
     if (dirty) {
         flush();
@@ -533,6 +570,7 @@ async function create(passphrase) {
 async function openWith(secret) {
     key = secret;
     try {
+        await commitNext();
         store = await readData();
     } catch (error) {
         key = null;
@@ -553,28 +591,45 @@ async function unlock(passphrase) {
     return openWith(secret);
 }
 
-// With a passkey: { pin: true } asks the page for the PIN of a key that reads no fingerprint
+// With a passkey: { pin: true } asks the page for the PIN of a key that reads no fingerprint. A passkey
+// made to need the PIN or a fingerprint is not even admitted to without one, so the key cannot be asked
+// first which passkey is its own: each is tried in turn, and the key turns down the ones it did not make.
 async function unlockWithPasskey(pin) {
     if (store) {
         return describe();
     }
-    const found = await findPasskey();
-    if (!found) {
+    const devices = await fidoDevices();
+    if (devices.length > 1) {
+        return { error: t('Leave only the security key that opens your notes plugged in.') };
+    }
+    if (!devices.length || !vault?.passkeys?.length) {
         return { error: t('Plug in a security key that opens your notes.') };
     }
-    if (!pin && !(await fidoInfo(found.device)).uv) {
+    const [{ device }] = devices;
+    if (!pin && !(await fidoInfo(device)).uv) {
         return { pin: true };
     }
-    const secret = await passkeySecret(found.device, found.passkey, pin);
-    let opening;
-    try {
-        opening = unseal(secret, Buffer.from(found.passkey.key, 'base64'), `passkey:${found.passkey.id}`);
-    } catch {
-        return { error: t('This passkey no longer opens your notes. Use your passphrase.') };
-    } finally {
-        secret.fill(0);
+    for (const passkey of vault.passkeys) {
+        let secret;
+        try {
+            secret = await passkeySecret(device, passkey, pin);
+        } catch (error) {
+            if (/NO_CREDENTIALS/.test(error.message)) {
+                continue;
+            }
+            throw error;
+        }
+        let opening;
+        try {
+            opening = unseal(secret, Buffer.from(passkey.key, 'base64'), `passkey:${passkey.id}`);
+        } catch {
+            return { error: t('This passkey no longer opens your notes. Use your passphrase.') };
+        } finally {
+            secret.fill(0);
+        }
+        return openWith(opening);
     }
-    return openWith(opening);
+    return { error: t('This security key is not one that opens your notes.') };
 }
 
 // Seals the data key once more, under the secret of the one security key that is plugged in
@@ -594,21 +649,23 @@ async function addPasskey({ current, pin }) {
     if (!info.secrets) {
         return { error: t('This security key cannot keep a secret for an app (FIDO2 hmac-secret), so it cannot open your notes.') };
     }
+    // Without it, a key of the first FIDO2 generation may give the same secret for a touch alone
+    if (!info.protect) {
+        return { error: t('This security key cannot be told to refuse a passkey without its PIN or a fingerprint (FIDO2 credProtect), so it cannot open your notes.') };
+    }
     if (!info.pin && !info.uv) {
         return { error: t('This security key has no PIN yet. Set one in Firefox at {page}, then add it here.', { page: 'about:webauthn' }) };
     }
     if (!pin && !info.uv) {
         return { error: t('Enter the PIN of the security key.') };
     }
-    if (await findPasskey()) {
-        return { error: t('This security key already opens your notes.') };
-    }
-    // Nothing is stored on the key: the credential it returns is all there is of it, and it stays here
-    const made = await fido('fido2-cred', ['-M', '-h', ...(pin ? [] : ['-v']), device], [
+    // Nothing is stored on the key: the credential it returns is all there is of it, and it stays here.
+    // Protection level 3 has the key refuse it without the PIN or a fingerprint.
+    const made = await fido('fido2-cred', ['-M', '-h', '-c', '3', ...(pin ? [] : ['-v']), device], [
         crypto.randomBytes(32).toString('base64'), RELYING_PARTY, os.userInfo().username, crypto.randomBytes(16).toString('base64'),
     ], pin);
     const passkey = {
-        id: crypto.randomBytes(16).toString('hex'), name, created: Date.now(),
+        id: crypto.randomBytes(16).toString('hex'), name, created: Date.now(), protect: 3,
         credential: made[4], salt: crypto.randomBytes(32).toString('base64'),
     };
     const secret = await passkeySecret(device, passkey, pin);
@@ -655,6 +712,7 @@ function lock() {
         return Promise.resolve();
     }
     locking ||= (async () => {
+        await changing?.catch(() => {});
         await requestFlush();
         await flush();
         computeReminders();
@@ -668,48 +726,43 @@ function lock() {
     return locking;
 }
 
-async function setEncryption({ action, current, next }) {
+async function setEncryption({ action, current, next, newKey }) {
     if (!store) {
         return { error: t('Unlock your notes first.') };
     }
     if (vault.encrypted && !(await unwrap(current))) {
         return { error: t('That is not the current passphrase.') };
     }
-    await flush();
-    await saving;
-    if (action === 'change' && vault.encrypted && next) {
-        // The passkeys seal the same key, so they stay
-        const changed = { ...await wrap(next, key), passkeys: vault.passkeys };
+    if (action === 'change' && vault.encrypted && next && !newKey) {
+        // The passkeys seal the same key, so they stay. A copy of it, which locking cannot wipe part way.
+        const changed = { ...await wrap(next, Buffer.from(key)), passkeys: vault.passkeys };
         await writeAtomic(VAULT, JSON.stringify(changed, null, 2));
         vault = changed;
-    } else if (action === 'enable' && !vault.encrypted && next) {
-        // The key is on disk before anything is sealed with it, so a crash part way loses nothing
-        const secret = crypto.randomBytes(32);
-        const changed = await wrap(next, secret);
-        await writeAtomic(VAULT, JSON.stringify(changed, null, 2));
-        vault = changed;
-        key = secret;
-        await sealResources();
-        dirty = true;
-        await flush();
-    } else if (action === 'disable' && vault.encrypted) {
-        // Everything in the clear first, and only then the vault that says so
-        for (const id of Object.keys(store.resources)) {
-            const bytes = await readResource(id).catch(() => null);
-            if (bytes) {
-                await writeAtomic(resourceFile(id), bytes);
-            }
-        }
-        await writeAtomic(PLAIN, Buffer.from(JSON.stringify(store)));
-        const changed = { format: 1, encrypted: false };
-        await writeAtomic(VAULT, JSON.stringify(changed, null, 2));
-        vault = changed;
-        key.fill(0);
-        key = null;
-        await removeQuiet(SEALED, `${SEALED}.bak`);
-    } else {
+        return describe();
+    }
+    let nextKey = null;
+    let nextVault = { format: 1, encrypted: false };
+    if ((action === 'change' && vault.encrypted && next) || (action === 'enable' && !vault.encrypted && next)) {
+        // A new key, so that an old vault.json, in a snapshot or a backup, opens nothing written from now
+        // on. The passkeys sealed the old one, and go with it.
+        nextKey = crypto.randomBytes(32);
+        nextVault = await wrap(next, nextKey);
+    } else if (action !== 'disable' || !vault.encrypted) {
         return { error: t('Nothing to change.') };
     }
+    await flush();
+    // Locking would take the key away part way, so neither starts while the other runs
+    if (!store || locking || changing) {
+        return { error: t('Unlock your notes first.') };
+    }
+    changing = saving.then(() => rewrite(nextKey, nextVault));
+    try {
+        await changing;
+    } finally {
+        changing = null;
+    }
+    dirty = true;
+    await flush();
     return describe();
 }
 
@@ -1266,7 +1319,14 @@ async function importBackup(file, passphrase, counts) {
         }
     }
     const packed = backupKey ? unseal(backupKey, Buffer.from(file.data, 'base64'), 'backup') : Buffer.from(file.data, 'base64');
-    const { store: saved, resources } = JSON.parse(zlib.gunzipSync(packed).toString('utf8'));
+    // No larger than the longest text there can be, which is all a backup unpacks to
+    let unpacked;
+    try {
+        unpacked = zlib.gunzipSync(packed, { maxOutputLength: MAX_STRING_LENGTH });
+    } catch {
+        throw new Error(t('This backup is damaged or too large to open.'));
+    }
+    const { store: saved, resources } = JSON.parse(unpacked.toString('utf8'));
     const data = normalise(saved);
     for (const [id, bytes] of Object.entries(resources || {})) {
         if (ID.test(id) && data.resources[id]) {
@@ -1533,6 +1593,7 @@ if (!app.requestSingleInstanceLock()) {
     handle('lock', () => lock().then(() => describe()));
     handle('encryption', (_event, change) => setEncryption({
         action: String(change?.action), current: change?.current ? String(change.current) : '', next: change?.next ? String(change.next) : '',
+        newKey: change?.newKey === true,
     }));
     handle('put', (_event, kind, items) => put(String(kind), items));
     handle('drop', (_event, kind, ids) => drop(String(kind), Array.isArray(ids) ? ids.map(String) : null));
@@ -1588,6 +1649,7 @@ if (!app.requestSingleInstanceLock()) {
         try {
             await readVault();
             if (vault && !vault.encrypted) {
+                await commitNext();
                 store = await readData();
                 await opened();
             }
@@ -1627,9 +1689,9 @@ if (!app.requestSingleInstanceLock()) {
     });
 
     app.on('before-quit', (event) => {
-        if (!quitting && (dirty || saveTimer)) {
+        if (!quitting && (dirty || saveTimer || changing)) {
             event.preventDefault();
-            flush().finally(() => {
+            Promise.resolve(changing).catch(() => {}).then(flush).finally(() => {
                 quitting = true;
                 app.quit();
             });

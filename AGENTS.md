@@ -480,7 +480,10 @@ subtasks. It imports Joplin's JEX export and Planify's JSON backup. Nothing is s
 connection: keep it that way, and keep Joplin and Planify off the Flatpak lists (`20-tests.sh`
 checks). Everything is in `~/.local/share/amethystora-notes`. When encrypted (offered, and chosen by
 default, on first run), the data and each attachment are sealed with AES-256-GCM under a random key,
-which is itself sealed under a key derived from the passphrase with scrypt. `main.js` holds the key
+which is itself sealed under a key derived from the passphrase with scrypt. An encrypted vault reads
+only sealed files. Turning encryption on or off and a new key (**Change the key as well**, on by default
+when the passphrase changes) write everything into `next/` first, then `vault.json`, and move into
+place only what the vault's key then fits. `main.js` holds the key
 only while unlocked and serves attachments to the page through `res://`. The page renders Markdown
 with the Manual's `marked`, with raw HTML escaped. Keep both properties. Its manual page is
 `notes.md`. It hard-links `marked` from the Manual, so a `marked` bump reaches both. Its lock screen
@@ -492,7 +495,11 @@ the same random key sealed once more, under the secret a FIDO2 security key comp
 for the credential and salt kept in `vault.json`. `main.js` asks the security key through `fido2-token`,
 `fido2-cred` and `fido2-assert` (`fido2-tools`, in `04-packages.sh`), which take their parameters and
 the PIN on stdin, and always with its PIN or a fingerprint (`pin=true` or `uv=true`): a touch alone
-must never open the notes. Nothing is stored on the security key, and a backup carries no passkey.
+must never open the notes. The credential is made with `credProtect` level 3 (`fido2-cred -c 3`), and a
+key without `credProtect` is refused: a key of the first FIDO2 generation may otherwise give the same
+`hmac-secret` for a touch alone. Such a key will not say whether it holds a credential without the PIN,
+so unlocking tries each passkey in turn. Nothing is stored on the security key, and a backup carries
+no passkey.
 
 ### The Control app
 

@@ -2373,10 +2373,21 @@ async function encryptionDialog(action) {
     const fields = passphraseFields({ current: action !== 'enable' });
     const titles = {
         enable: [t('Turn on encryption'), t('Choose a passphrase. From now on your notes, tasks and attachments are encrypted on disk.'), t('Encrypt')],
-        change: [t('Change the passphrase'), t('Your notes stay encrypted with the same key; only the passphrase that opens it changes.'), t('Change')],
+        change: [t('Change the passphrase'), t('Your notes stay encrypted, and open with the new passphrase from now on.'), t('Change')],
         disable: [t('Turn off encryption'), t('Your notes, tasks and attachments are written to disk as they are, readable by anyone who can read your files.'), t('Turn off')],
     }[action];
-    const body = action === 'disable' ? [fields.old, fields.error] : fields.nodes;
+    // A new key as well, unless asked not to: an old vault.json, from a snapshot or a backup, would still
+    // open the same key with the old passphrase
+    let newKey = true;
+    const keySwitch = h('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': 'true', 'aria-label': t('Change the key as well'), onclick: () => {
+        newKey = !newKey;
+        keySwitch.setAttribute('aria-checked', String(newKey));
+    } }, h('span'));
+    const keyRow = settingRow('key', 'info', t('Change the key as well'), [
+        t('Your notes and attachments are sealed anew, so that an old copy of vault.json, from a snapshot or a backup, cannot open them with the old passphrase.'),
+        ui.passkeys.length ? ` ${t('Your passkeys have to be added again.')}` : '',
+    ].join(''), keySwitch);
+    const body = { enable: fields.nodes, change: [...fields.nodes.slice(0, -1), keyRow, fields.error], disable: [fields.old, fields.error] }[action];
     const result = await modal({
         title: titles[0], text: titles[1], body,
         actions: [{ label: t('Cancel'), value: null }, {
@@ -2391,7 +2402,7 @@ async function encryptionDialog(action) {
                     return undefined;
                 }
                 fields.error.textContent = t('Working…');
-                const answer = await window.notes.encryption({ action, current: fields.old?.value || '', next });
+                const answer = await window.notes.encryption({ action, current: fields.old?.value || '', next, newKey: action === 'change' && newKey });
                 if (answer?.error) {
                     fields.error.textContent = answer.error;
                     return undefined;
@@ -2404,7 +2415,9 @@ async function encryptionDialog(action) {
         ui.encrypted = result.encrypted;
         ui.passkeys = result.passkeys;
         render();
-        toast({ enable: t('Encryption is on.'), change: t('The passphrase is changed.'), disable: t('Encryption is off.') }[action]);
+        toast({
+            enable: t('Encryption is on.'), change: newKey ? t('The passphrase and the key are changed.') : t('The passphrase is changed.'), disable: t('Encryption is off.'),
+        }[action]);
     }
 }
 
@@ -2452,7 +2465,7 @@ async function passkeyDialog() {
 async function removePasskey(passkey) {
     const sure = await confirmDialog({
         title: t('Remove {name}?', { name: passkey.name }),
-        text: t('It will no longer open your notes. Your passphrase keeps working.'),
+        text: t('It will no longer open your notes. Your passphrase keeps working. If the security key was lost, change the passphrase and the key as well: an old copy of vault.json, from a snapshot or a backup, still opens them with it.'),
         confirm: t('Remove'),
     });
     if (!sure) {
@@ -2557,7 +2570,9 @@ function renderSettings() {
                 ui.encrypted ? settingRow('key', 'info', t('Passkeys'),
                     t('A security key opens your notes with its PIN or your fingerprint, so that you need not type the passphrase. The passphrase keeps working.'),
                     button(t('Add a passkey'), passkeyDialog, { small: true, icon: 'plus' })) : null,
-                ui.passkeys.map((passkey) => settingRow('key', 'ok', passkey.name, t('Added {date}', { date: stamp(passkey.created) }),
+                ui.passkeys.map((passkey) => settingRow('key', passkey.protected ? 'ok' : 'warn', passkey.name, passkey.protected
+                    ? t('Added {date}', { date: stamp(passkey.created) })
+                    : t('Added {date}, before passkeys needed the PIN or a fingerprint every time. Remove it and add it again.', { date: stamp(passkey.created) }),
                     button(t('Remove'), () => removePasskey(passkey), { small: true }))),
                 ui.encrypted ? settingRow('lock', 'info', t('Lock when away'),
                     t('Locks after this long without using Notes, and whenever the screen locks, the computer sleeps or the window closes.'),
