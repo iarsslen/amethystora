@@ -907,6 +907,10 @@ for key in $(grep -oh '{{ [a-z0-9_]* }}' /usr/share/amethystora/themed/wallpaper
         grep -q "^${key} = \"#" "${theme}colors.toml"
     done
 done
+# A theme is data shared as dotfiles: its colours are put into the templates as text, never as a program,
+# and one that is not a colour refuses the theme. Every shipped theme renders completely.
+grep -q "sed -f" /usr/lib/amethystora/theme/lib.sh && false
+bash /ctx/build_files/shared/test-theme-render.sh
 # Every theme needs a palette; the default one is what 11-theme.sh applies at first login
 test -f /usr/share/amethystora/themes/amethystora/colors.toml
 for theme in /usr/share/amethystora/themes/*/; do

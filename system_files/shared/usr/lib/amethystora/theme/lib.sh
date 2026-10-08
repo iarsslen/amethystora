@@ -65,7 +65,8 @@ die() {
 
 # A theme name as it is typed ("Tokyo Night") to the directory name (tokyo-night)
 theme_slug() {
-    echo "$1" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9._-]\+/-/g' -e 's/^-//' -e 's/-$//'
+    # Never only dots: ".." would name the folder above the themes
+    echo "$1" | tr '[:upper:]' '[:lower:]' | sed -e 's/[^a-z0-9._-]\+/-/g' -e 's/^[.-]*//' -e 's/-$//'
 }
 
 theme_exists() {
@@ -141,44 +142,60 @@ closest_gnome_accent() {
 # {{ key_rgb }} (decimal r,g,b) from colors.toml. A file the theme ships itself is left alone, so a
 # theme can hand-write any config a template would otherwise generate. Any further key=value pairs
 # given as arguments are substituted too, for things a palette cannot hold, such as the theme name.
+# A theme is shared as dotfiles and looks like data, so nothing in it is ever read as a program: each
+# colour has to be a colour, and is put into the templates as text. (It used to become a sed command, and a
+# value holding | could end it and run anything, at every login.) A value that is not #rrggbb refuses the
+# whole theme, with its name, rather than render half of it.
 render_templates() {
-    local dest="$1" script key value rgb template output
+    local dest="$1" key value template output text
+    local -A values=()
     shift
 
     [[ -f "${dest}/colors.toml" ]] || return 0
-    script="$(mktemp)"
 
+    # The caller's own values, such as the theme's name, which it has checked
     for value in "$@"; do
-        printf 's|{{ %s }}|%s|g\n' "${value%%=*}" "${value#*=}"
-    done >"${script}"
+        values["${value%%=*}"]="${value#*=}"
+    done
 
     while IFS='=' read -r key value || [[ -n ${key} ]]; do
         key="${key//[\"\' ]/}"
         [[ -n ${key} && ${key} != \#* ]] || continue
         value="${value#*[\"\']}"
         value="${value%%[\"\']*}"
-        printf 's|{{ %s }}|%s|g\n' "${key}" "${value}"
-        printf 's|{{ %s_strip }}|%s|g\n' "${key}" "${value#\#}"
-        if [[ ${value} =~ ^#[0-9a-fA-F]{6}$ ]]; then
-            rgb="$(hex_to_rgb "${value}")"
-            printf 's|{{ %s_rgb }}|%s|g\n' "${key}" "${rgb}"
+        if [[ ! ${key} =~ ^[A-Za-z][A-Za-z0-9_]*$ || ! ${value} =~ ^#[0-9a-fA-F]{6}$ ]]; then
+            echo "The theme in ${dest##*/} is refused: in colors.toml, ${key%%[^A-Za-z0-9_]*} is not a colour written #rrggbb." >&2
+            return 1
         fi
-    done <"${dest}/colors.toml" >>"${script}"
+        values["${key}"]="${value}"
+        values["${key}_strip"]="${value#\#}"
+        values["${key}_rgb"]="$(hex_to_rgb "${value}")"
+    done <"${dest}/colors.toml"
 
     shopt -s nullglob
     for template in "${USER_TEMPLATES_DIR}"/*.tpl "${SYSTEM_TEMPLATES_DIR}"/*.tpl; do
         output="${dest}/$(basename "${template}" .tpl)"
-        [[ -f ${output} ]] || sed -f "${script}" "${template}" >"${output}"
+        [[ -f ${output} ]] && continue
+        # The whole file, its last newline included; each {{ key }} replaced as text, the replacement
+        # quoted so that bash 5.2 reads no & in it
+        IFS= read -r -d '' text <"${template}" || true
+        for key in "${!values[@]}"; do
+            text="${text//"{{ ${key} }}"/"${values[${key}]}"}"
+        done
+        printf '%s' "${text}" >"${output}"
     done
     shopt -u nullglob
-
-    rm -f "${script}"
 }
 
 # Settings are written with dconf rather than gsettings: it needs no schema, so it also reaches the
 # relocatable ones (Ptyxis profiles) and extensions that keep their schema out of the system path.
+#
+# The value comes from a theme's files, so it is escaped for the GVariant string dconf parses: a quote in a
+# theme's gtk.theme cannot end the string and write something else.
 dconf_write_string() {
-    dconf write "$1" "'$2'"
+    local value="${2//\\/\\\\}"
+    value="${value//\'/\\\'}"
+    dconf write "$1" "'${value}'"
 }
 
 have() {
