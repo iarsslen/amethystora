@@ -1512,3 +1512,10 @@ body.dropping .drop {
         flex-wrap: wrap;
     }
 }
+
+/* Events: a finding's sentence wraps, however long a name in it is */
+.list-row strong.event-text {
+    font-weight: 500;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}

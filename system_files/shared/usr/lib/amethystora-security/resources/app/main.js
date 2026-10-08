@@ -73,6 +73,8 @@ const IPS = '/usr/libexec/amethystora-ips';
 const IPS_UNIT = 'amethystora-ips.service';
 const IPS_ALLOWED = '/etc/amethystora/ips-allowed';
 const NETWORK_EVENTS = '/var/lib/amethystora/security/network.json';
+// What the security watcher found, newest first, which the members of wheel can read: the Events page
+const WATCH_EVENTS = '/var/lib/amethystora/security/events.json';
 const WATCH_STATUS = '/var/lib/amethystora/security/status.json';
 // The containers of other distributions, and whether the AUR is on for this account (ame apps aur)
 const PKG = '/usr/bin/amethystora-pkg';
@@ -105,7 +107,7 @@ let scan = null;
 // containers` what is installed outside Flatpak, `amethystora-security settings` every switch
 function pageArgument(argv) {
     const page = argv.slice(1).find((arg) => !arg.startsWith('-'));
-    return ['scan', 'network', 'apps', 'containers', 'settings'].includes(page) ? page : '';
+    return ['scan', 'network', 'apps', 'containers', 'events', 'settings'].includes(page) ? page : '';
 }
 
 // The colours of the current theme, or null before one has been applied. The same as the Manual's.
@@ -576,6 +578,13 @@ async function network() {
     };
 }
 
+// What the watcher found: each finding's time, level, the part that found it, its account and its sentence,
+// which the watcher has already made plain text. One this account may not read says so.
+function watchEvents() {
+    const events = readJson(WATCH_EVENTS);
+    return { readable: !events?.denied, events: Array.isArray(events) ? events : [] };
+}
+
 // Leaves one rule out on this machine, which asks for an administrator's password. Only a rule that
 // actually went off here, as network.json says, never one the page names out of nowhere.
 async function allowRule(rule) {
@@ -768,6 +777,9 @@ if (!app.requestSingleInstanceLock()) {
     });
 
     ipcMain.handle('network', () => network());
+    ipcMain.handle('events', () => watchEvents());
+    // Seeing them in a terminal marks them read, after the administrator's password
+    ipcMain.handle('events-terminal', () => launch(IN_TERMINAL, [AME, 'security', 'events']));
     ipcMain.handle('network-allow', (_event, rule) => allowRule(String(rule)));
 
     ipcMain.handle('inventory', () => inventory());

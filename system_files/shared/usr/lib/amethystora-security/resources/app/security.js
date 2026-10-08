@@ -41,6 +41,8 @@ const state = {
     permissions: null,
     // Every switch: the detection ones in security.conf, and what the image enforces from the start
     switches: null,
+    // What the security watcher found, as events.json says, for the members of wheel
+    events: null,
 };
 
 // The parts of the scanning page that change while it is on screen
@@ -410,7 +412,7 @@ function setBadge(badge, content, tone) {
 // The sidebar entry each page is under, and the recipe that does in a terminal what it does
 const NAV = {
     overview: 'overview', scan: 'scan', scanning: 'scan', result: 'scan', network: 'network', apps: 'apps', containers: 'containers',
-    settings: 'settings',
+    settings: 'settings', events: 'events',
 };
 const RECIPES = {
     overview: 'ame security status',
@@ -419,6 +421,7 @@ const RECIPES = {
     apps: 'ame security apps',
     containers: 'amepkg containers list',
     settings: 'ame security settings',
+    events: 'ame security events',
 };
 
 function renderNav() {
@@ -447,7 +450,7 @@ function renderNav() {
         } else if (page === 'apps') {
             const leaving = (state.permissions?.apps || []).filter(leaves).length;
             setBadge(badge, leaving ? t.number(leaving) : '', 'off');
-        } else if (page === 'settings') {
+        } else if (page === 'settings' || page === 'events') {
             setBadge(badge, '', '');
         } else if (busy) {
             setBadge(badge, icon('spinner', 12, 'spin'), 'busy');
@@ -466,6 +469,7 @@ const PAGES = {
     apps: () => appsPage(),
     containers: () => containersPage(),
     settings: () => settingsPage(),
+    events: () => eventsPage(),
 };
 
 function render() {
@@ -1310,6 +1314,47 @@ function containersPage() {
             linkButton(t('Containers in the manual'), () => window.security.manual('software#packages-from-other-distributions'), { icon: 'book' })));
 }
 
+// --- Events: what the security watcher found ------------------------------------------------------------
+
+// A finding's level as the dot in front of it: critical and normal were said out loud, quiet only recorded
+const EVENT_TONES = { critical: 'off', normal: 'check', quiet: 'info' };
+
+function eventRow(event) {
+    // The watcher made the sentence plain text already; textContent keeps it that way
+    const facts = [time(event.time * 1000), shortDay(event.time * 1000), event.account !== '-' ? event.account : null,
+        event.key, event.tactic !== '-' ? event.tactic : null].filter(Boolean);
+    return h('div', { class: 'list-row container-row' },
+        status(EVENT_TONES[event.level] || 'info'),
+        h('span', { class: 'grow' },
+            h('strong', { class: 'event-text' }, event.text),
+            h('small', { dir: 'ltr' }, facts.join(' · '))));
+}
+
+function eventsPage() {
+    const data = state.events;
+    const empty = (text) => h('div', { class: 'list card' }, h('p', { class: 'list-empty' }, text));
+    let list;
+    if (!data) {
+        list = empty(t('Reading…'));
+    } else if (!data.readable) {
+        list = empty(t('Only administrators can see what the security watcher found. {command} shows it after asking for your password.',
+            { command: 'ame security events' }));
+    } else if (!data.events.length) {
+        list = empty(t('Nothing yet. Whatever the watcher finds from now on is listed here.'));
+    } else {
+        list = h('div', { class: 'list card' }, data.events.slice(0, 200).map(eventRow));
+    }
+    return h('div', { class: 'page' },
+        h('header', { class: 'page-head' },
+            h('h1', {}, t('Events')),
+            h('p', { class: 'lead' },
+                t('What the security watcher found, newest first: changes to accounts, to who may become root, to what starts by itself and to the security settings, programs that read the keyboard or listen on the network, and checks that turned bad. Each says which account it is about and which part of the watcher found it. If you made the change, or installed something that did, there is nothing to do.'))),
+        section(t('Found'), list, data?.events?.length ? t('{count, plural, one {# event} other {# events}}', { count: data.events.length }) : null),
+        h('div', { class: 'actions' },
+            button(t('Mark them read, in a terminal'), () => window.security.eventsTerminal(), { icon: 'terminal' }),
+            linkButton(t('The security watcher in the manual'), () => window.security.manual('security#the-security-watcher'), { icon: 'book' })));
+}
+
 // --- Settings: every switch ------------------------------------------------------------------------------
 
 // The values a switch can take, in words
@@ -1492,9 +1537,9 @@ let reloading = null;
 function reload() {
     if (!reloading) {
         reloading = Promise.all([window.security.report(), window.security.scanner(), window.security.history(),
-            window.security.network(), window.security.inventory(), window.security.permissions(), window.security.switches()])
-            .then(([report, scanner, history, network, inventory, permissions, switches]) => {
-                Object.assign(state, { report, scanner, history: history.entries, home: history.home, network, inventory, permissions, switches });
+            window.security.network(), window.security.inventory(), window.security.permissions(), window.security.switches(), window.security.events()])
+            .then(([report, scanner, history, network, inventory, permissions, switches, events]) => {
+                Object.assign(state, { report, scanner, history: history.entries, home: history.home, network, inventory, permissions, switches, events });
                 if (history.running) {
                     state.running = history.running;
                 }
@@ -1571,7 +1616,7 @@ window.security.onFinished((entry) => {
 });
 window.security.onOpen((page) => {
     state.notice = '';
-    show(['scan', 'network', 'apps', 'containers', 'settings'].includes(page) ? page : 'overview');
+    show(['scan', 'network', 'apps', 'containers', 'events', 'settings'].includes(page) ? page : 'overview');
 });
 // Back from a terminal where something may have been fixed
 window.security.onFocus(() => {
@@ -1638,7 +1683,7 @@ document.addEventListener('keydown', (event) => {
 
 async function start() {
     applyPalette(await window.security.palette());
-    state.page = ['#scan', '#network', '#apps', '#containers', '#settings'].includes(location.hash) ? location.hash.slice(1) : 'overview';
+    state.page = ['#scan', '#network', '#apps', '#containers', '#events', '#settings'].includes(location.hash) ? location.hash.slice(1) : 'overview';
     render();
     await reload();
 }
