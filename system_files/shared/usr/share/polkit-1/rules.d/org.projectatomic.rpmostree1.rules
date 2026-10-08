@@ -1,0 +1,15 @@
+// Amethystora's own, in place of the one fedora-release ships, which the build takes out of the package
+// database but whose file stays: that one also let any program running as an administrator layer and remove
+// packages, roll the machine back to an older deployment, clean up, cancel and reload the daemon without a
+// password. A rollback to a build with a known hole in sudo, polkit or the kernel, waiting for the next
+// boot, was one prompt-free D-Bus call away. Only checking for updates and updating stay passwordless, for
+// the person at the machine; everything else asks for an administrator's password, as the policy says.
+// Automatic updates (uupd) run as root and are unaffected; the Updates app asks before a rollback.
+polkit.addRule(function (action, subject) {
+    if ((action.id == "org.projectatomic.rpmostree1.repo-refresh" ||
+         action.id == "org.projectatomic.rpmostree1.upgrade") &&
+        subject.active == true && subject.local == true) {
+        return polkit.Result.YES;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

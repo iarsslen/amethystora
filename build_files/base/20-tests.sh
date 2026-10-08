@@ -1248,6 +1248,12 @@ for rules in /usr/share/polkit-1/rules.d/*amethystora* /usr/share/polkit-1/rules
         grep -qxF "${action}" <<<"${POLKIT_ACTIONS}" || { echo "${rules} names ${action}, which no policy defines"; false; }
     done
 done
+# rpm-ostree: only checking for updates and updating go without a password. No rule may let a program that
+# runs as an administrator roll the machine back to an older build or change its packages unasked, as the
+# rule fedora-release ships did (Amethystora's own replaces it, under the same name)
+grep -rlE 'rpmostree1\.(install-uninstall-packages|install-local-packages|rollback|cleanup|deploy|rebase|override|bootconfig|finalize-deployment|cancel|reload-daemon)' \
+    /usr/share/polkit-1/rules.d /etc/polkit-1/rules.d 2>/dev/null && false
+grep -q "^// Amethystora's own" /usr/share/polkit-1/rules.d/org.projectatomic.rpmostree1.rules
 for program in $(grep -ohE 'policykit\.exec\.path">[^<]+' /usr/share/polkit-1/actions/*.policy | cut -d'>' -f2); do
     for rules in /usr/share/polkit-1/rules.d/*.rules; do
         if grep -qF '"org.freedesktop.policykit.exec"' "${rules}" && grep -qF "\"${program}\"" "${rules}"; then
