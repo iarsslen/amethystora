@@ -152,7 +152,10 @@ settings apart from yours, and distrobox's `--unshare` options (`--unshare netns
 command-line tools; an app with a window usually needs what they take away. A home folder of its own
 does not hide your files: they stay reachable by their full path. Yours are kept in
 `~/.local/share/amethystora/pkg`, and the built-in ones cannot be changed or removed. `export` writes
-one to a file, and `import` reads it back, here or on another machine.
+one to a file, and `import` reads it back, here or on another machine. A definition is a program: a
+package manager's commands run in every container made with it, and a template chooses the image they
+start from, so import only what you would run yourself. `ame restore-setup` shows each one a backup
+brings and asks before it imports it.
 `import` also reads the YAML files Apx writes for its stacks and package managers.
 
 The built-in templates' images are pinned to a digest that ships inside the signed system image, so

@@ -499,8 +499,11 @@ create_container() {
     definition managers "${manager}" >/dev/null ||
         die "The template ${template} is handled by the manager ${manager}, which is not there. See: ${PROG} managers list"
     real="${PREFIX}${name}"
-    # distrobox hands its flags to the shell to split, labels included
-    [[ "${home}" != *[[:space:]\"\'\$\`\\]* ]] || die "A home folder whose path has no spaces or quotes, please: ${home}"
+    # distrobox hands its flags to the shell to split and run (eval), labels included, so the home folder is
+    # made only of characters no shell reads as anything: ; | & ( < > got through a list of the forbidden
+    # ones, and a backup's setup (amethystora-restore-setup) passes a home it read from the backup
+    [[ -z "${home}" || "${home}" =~ ^[A-Za-z0-9._/@+-]+$ ]] ||
+        die "A home folder's path is letters, digits and . _ / @ + -, please: ${home}"
 
     # A template of the user's whose image is neither pinned nor signature-checked is taken on trust
     if [[ ! "${file}" == "${SHARE}/"* ]] && ! pinned "${base}" && ! signature_checked "${base}"; then
@@ -574,6 +577,9 @@ containers_new() {
         esac
         shift
     done
+    # Before anything is made, the folder included; create_container checks its real path again
+    [[ -z "${home}" || "${home}" =~ ^[A-Za-z0-9._/@+-]+$ ]] ||
+        die "A home folder's path is letters, digits and . _ / @ + -, please: ${home}"
     if [[ -z "${template}" ]]; then
         [[ "${NO_PROMPT}" != true ]] && interactive || die "Missing --template. See them with: ${PROG} templates list"
         template="$(choose "Which template?" $(definition_names templates))" || exit 1

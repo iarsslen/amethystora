@@ -156,6 +156,14 @@ if chosen "Containers"; then
             [[ -n "${definition}" ]] || continue
             name="$(jq -r .name <<<"${definition}")"
             amethystora-pkg "${kind}" show "${name}" >/dev/null 2>&1 && continue
+            # A definition from a backup is a program: a manager's commands run in every container made
+            # with it, and a template names the image they start from. Shown, and imported only when asked.
+            echo "The backup has a ${kind%s} of its own, ${name}:"
+            jq . <<<"${definition}" | /usr/libexec/amethystora-security-text --lines | sed 's/^/  /'
+            if [[ ! -t 0 ]] || ! gum confirm "Import the ${kind%s} ${name}, which runs what it says above?"; then
+                FAILED+=("the ${kind%s} ${name}, not imported")
+                continue
+            fi
             file="$(mktemp --suffix=.json)"
             printf '%s\n' "${definition}" >"${file}"
             amethystora-pkg "${kind}" import "${file}" || FAILED+=("the ${kind%s} ${name}")

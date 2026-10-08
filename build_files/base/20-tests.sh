@@ -481,6 +481,12 @@ HOME="${PKG_HOME}" amethystora-pkg managers list --json |
 HOME="${PKG_HOME}" amethystora-pkg managers show paru >/dev/null 2>&1 && false
 mkdir -p "${PKG_HOME}/.config/amethystora" && touch "${PKG_HOME}/.config/amethystora/aur"
 HOME="${PKG_HOME}" amethystora-pkg templates show arch-aur | jq -e '.manager == "paru" and .own_home' >/dev/null
+# A container's home folder reaches distrobox's eval: one holding a character a shell reads is refused
+# before anything is made (amethystora-restore-setup passes one read from a backup)
+PKG_OUT="$(HOME="${PKG_HOME}" PATH="${PKG_HOME}/bin:${PATH}" amethystora-pkg containers new --template debian \
+    --name hometest --home "${PKG_HOME}/a;touch ${PKG_HOME}/pwned" --no-prompt --yes 2>&1 || true)"
+grep -q "letters, digits" <<<"${PKG_OUT}"
+test ! -e "${PKG_HOME}/pwned"
 rm -rf "${PKG_HOME}"
 ame --show apps::aur >/dev/null
 # Every built-in template's image is pinned by digest, and the pins ship in the signed image, which is
