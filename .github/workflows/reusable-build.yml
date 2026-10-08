@@ -42,8 +42,8 @@ jobs:
     env:
       # Only main publishes and signs: its schedule, its dispatches and the merge queue in front of it, and
       # the beta branch its own stream. Pull requests, and dispatches from any other branch, build and test
-      # and publish nothing. The guard is in this file, so a branch can change it in its own copy: the
-      # secrets themselves are kept from other branches by the repository's environment settings.
+      # and publish nothing. The guard is in this file, so a branch can change it in its own copy: only
+      # secrets kept in an environment that admits main alone are out of such a branch's reach.
       PUBLISH: >-
         ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' ||
         github.event.merge_group.base_ref == 'refs/heads/main' ||
@@ -136,8 +136,8 @@ jobs:
             echo "::error::AKMODS_PRIVKEY secret missing: published images need it, or evdi (DisplayLink) will not load with Secure Boot"
             exit 1
           fi
-          # The runner's sudo ignores -E: hand the build its secrets explicitly, the key as a file rather
-          # than on sudo's command line, which every process on the runner can read
+          # The runner's sudo ignores -E: hand the build its key explicitly, as a file rather than on
+          # sudo's command line, which every process on the runner can read
           key_file="$(mktemp -p "${RUNNER_TEMP}")"
           trap 'rm -f "${key_file}"' EXIT
           if [[ -n "${AKMODS_PRIVKEY}" ]]; then
