@@ -230,6 +230,8 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
     LABELS+=("--label" "org.opencontainers.image.title=${image_name}")
     LABELS+=("--label" "org.opencontainers.image.version=${ver}")
     LABELS+=("--label" "ostree.linux=${kernel_release}")
+    # When the base image was built, for security-rebuild.yml to tell which fixes a rebuild brings in
+    LABELS+=("--label" "org.amethystora.base-created=${base_created}")
     LABELS+=("--label" "io.artifacthub.package.readme-url=https://raw.githubusercontent.com/{{ repo_organization }}/amethystora/refs/heads/main/README.md")
     LABELS+=("--label" "io.artifacthub.package.logo-url=https://github.com/{{ repo_organization }}.png")
     LABELS+=("--label" "org.opencontainers.image.description=The next generation Linux workstation, designed for reliability, performance, and sustainability.")
@@ -443,6 +445,7 @@ rechunk $image="amethystora" $tag="latest" $flavor="main" ghcr="0" pipeline="0":
         org.opencontainers.image.url=https://github.com/{{ repo_organization }}/amethystora
         org.opencontainers.image.vendor={{ repo_organization }}
         ostree.linux=$(${SUDOIF} ${PODMAN} inspect $CREF | jq -r '.[].Config.Labels["ostree.linux"]')
+        org.amethystora.base-created=$(${SUDOIF} ${PODMAN} inspect $CREF | jq -r '.[].Config.Labels["org.amethystora.base-created"]')
         containers.bootc=1
     "
 

@@ -1,0 +1,108 @@
+name: Security Rebuild
+on:
+  schedule:
+    - cron: "0 16 * * *" # Daily, after Fedora's updates are pushed and Universal Blue's base is built
+  workflow_dispatch:
+
+# The stable image is built weekly, so a security fix Fedora ships on a Wednesday would otherwise wait for
+# Tuesday. This reads Fedora's security updates (Bodhi, where updateinfo comes from) for the source
+# packages in the published stable image, from the SBOM attached to it, and starts Stable Images when a
+# rebuild would bring one in: when an update was pushed after the base image the published image was
+# built from, and before the base image now pinned in image-versions.yml (bump-base-images.yml moves it).
+# The base brings most packages, and the build installs the rest fresh, so that is when a rebuild has the
+# fix; each update starts at most one rebuild, since the next image's base is newer than it. The kernel is
+# left out: it follows CoreOS's stream through Universal Blue's akmods, not Fedora's updates. It reads,
+# and dispatches that one workflow; it changes nothing else.
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}
+
+jobs:
+  check:
+    name: Check
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    env:
+      IMAGE: ghcr.io/iarsslen/amethystora
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install ORAS
+        uses: oras-project/setup-oras@005458ad77f1c8facd38a094e4af2e69e5607ff4 # v2.0.2
+
+      - name: Compare
+        id: compare
+        run: |
+          set -euo pipefail
+          inspect="$(skopeo inspect --retry-times 3 "docker://${IMAGE}:stable")"
+          digest="$(jq -r .Digest <<<"${inspect}")"
+          fedora="$(jq -r '.Labels["ostree.linux"]' <<<"${inspect}" | grep -oP 'fc\K[0-9]+')"
+          # The base the published image was built from (images built before the Justfile labelled it
+          # count from their own date), and the base the next build would start from
+          published="$(jq -r '.Labels["org.amethystora.base-created"] // empty' <<<"${inspect}")"
+          if [[ -n "${published}" ]]; then
+            published="$(date -u -d "@${published}" '+%Y-%m-%d %H:%M:%S')"
+          else
+            published="$(date -u -d "$(jq -r '.Labels["org.opencontainers.image.created"]' <<<"${inspect}")" '+%Y-%m-%d %H:%M:%S')"
+          fi
+          base_digest="$(yq -r ".images[] | select(.name == \"silverblue-main-${fedora}\") | .digest" image-versions.yml)"
+          pinned="$(date -u -d "$(skopeo inspect --retry-times 3 "docker://ghcr.io/ublue-os/silverblue-main@${base_digest}" | jq -r .Created)" '+%Y-%m-%d %H:%M:%S')"
+          echo "Fedora ${fedora}: published image's base built ${published}, pinned base built ${pinned}"
+
+          # The source package of every package in the image (oras before 1.3 says manifests, not referrers)
+          sbom="$(oras discover --format json "${IMAGE}@${digest}" |
+            jq -r '[(.referrers // .manifests)[] | select(.artifactType == "application/vnd.spdx+json")][0].digest')"
+          oras pull --output sbom "${IMAGE}@${sbom}"
+          jq -r '.artifacts[] | select(.type == "rpm" and .foundBy == "rpm-db-cataloger") | .metadata.sourceRpm // empty' sbom/*.json |
+            sed -E 's/-[^-]+-[^-]+\.src\.rpm$//' | sort -u > SOURCES
+          (($(wc -l < SOURCES) > 100))
+
+          # Fedora's security updates pushed to stable since the published image's base: update, date, build
+          : > UPDATES
+          page=1
+          while :; do
+            curl --fail --retry 3 -sS -G https://bodhi.fedoraproject.org/updates/ \
+              --data-urlencode "releases=F${fedora}" --data-urlencode type=security --data-urlencode status=stable \
+              --data-urlencode "pushed_since=${published/ /T}" --data-urlencode rows_per_page=100 \
+              --data-urlencode "page=${page}" > page.json
+            jq -r '.updates[] | [.alias, .date_stable] as $u | .builds[] | $u + [.nvr] | @tsv' page.json >> UPDATES
+            ((page >= $(jq .pages page.json))) && break
+            page=$((page + 1))
+          done
+
+          # Those for a package in the image, but the kernel, that the pinned base already has
+          awk -F'\t' -v published="${published}" -v pinned="${pinned}" '
+            NR == FNR { in_image[$1] = 1; next }
+            { name = $3; sub(/-[^-]+-[^-]+$/, "", name) }
+            in_image[name] && name != "kernel" && $2 > published && $2 < pinned' SOURCES UPDATES > DUE
+          {
+            echo "## Security updates a rebuild of the stable image would bring in"
+            echo
+            if [[ -s DUE ]]; then awk -F'\t' '{ print "- " $1 " (" $2 "): " $3 }' DUE; else echo "None."; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [[ -s DUE ]]; then
+            echo "due=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Start Stable Images
+        if: steps.compare.outputs.due == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          running="$(gh run list --repo "${GITHUB_REPOSITORY}" --workflow build-image-stable.yml \
+            --json status --jq '[.[] | select(.status != "completed")] | length')"
+          if ((running > 0)); then
+            echo "Stable Images is running already"
+            exit 0
+          fi
+          gh workflow run build-image-stable.yml --repo "${GITHUB_REPOSITORY}" --ref main
