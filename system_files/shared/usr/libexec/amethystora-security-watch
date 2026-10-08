@@ -29,31 +29,56 @@
 #   amethystora-security-watch           one run (amethystora-security-watch.service)
 #   amethystora-security-watch --show    what is unread, then the end of the history
 #   amethystora-security-watch --seen    mark everything read
+#   amethystora-security-watch --keys    the audit keys it reads, for `ame security events`
+#
+# A finding carries its facts: when, its level, the part of the watcher that found it (an audit key, journal,
+# listeners, user-paths, network, report, settings), the account it is about or "-", the ATT&CK tactic it
+# belongs to or "-", and its sentence. The history keeps them as JSON lines (amethystora-security-events.jsonl,
+# root's alone, the last 5000), and events.json the last 500 for the Security app's Events page, which the
+# members of wheel can read. What somebody else wrote (a file name, a program's, a command line, a launcher's
+# Exec= line) goes through amethystora-security-text before it is kept, said or shown anywhere.
 
 set -uo pipefail
 
-STATE=/var/lib/amethystora/security
+# AMETHYSTORA_WATCH_ROOT is for build_files/shared/test-security-watch.sh, which runs this against a stand-in
+# /etc/passwd, /var/home, state and logs; a build must not write /var/lib or /var/log. AMETHYSTORA_WATCH_NOTIFY
+# names a stand-in for amethystora-notify-users then, and is read only with a stand-in root.
+ROOT="${AMETHYSTORA_WATCH_ROOT:-}"
+NOTIFY=/usr/libexec/amethystora-notify-users
+[[ -n "${ROOT}" && -n "${AMETHYSTORA_WATCH_NOTIFY:-}" ]] && NOTIFY="${AMETHYSTORA_WATCH_NOTIFY}"
+STATE="${ROOT}/var/lib/amethystora/security"
 STATUS="${STATE}/status.json"
-UNREAD=/var/log/amethystora-security-events.new
-HISTORY=/var/log/amethystora-security-events.log
+EVENTS="${STATE}/events.json"
+EVENTS_KEPT=500
+UNREAD="${ROOT}/var/log/amethystora-security-events.new"
+HISTORY="${ROOT}/var/log/amethystora-security-events.jsonl"
+# The history before it held facts, one "date time  text" a line: shown once more, then left as it is
+OLD_HISTORY="${ROOT}/var/log/amethystora-security-events.log"
 HISTORY_KEPT=5000
 # The setuid sweep reads every file under /etc and /var, home directories included
 SWEEP_EVERY=$((24 * 3600))
+AUDIT_KEYS=(identity privilege persistence hardening modules input-capture user-programs)
+TEXT=/usr/libexec/amethystora-security-text
 
-[[ "${EUID}" -eq 0 ]] || { echo "${0##*/} needs root." >&2; exit 77; }
+[[ "${EUID}" -eq 0 || "${1:-}" == --keys ]] || { echo "${0##*/} needs root." >&2; exit 77; }
 
 case "${1:-}" in
     --show)
         if [[ -s "${UNREAD}" ]]; then
             echo "New since you last looked:"
-            sed 's/^/  /' "${UNREAD}"
+            "${TEXT}" --lines <"${UNREAD}" | sed 's/^/  /'
         else
             echo "Nothing new since you last looked."
         fi
         if [[ -s "${HISTORY}" ]]; then
             echo
             echo "The last 20 in the history (${HISTORY}):"
-            tail -n 20 "${HISTORY}" | sed 's/^/  /'
+            tail -n 20 "${HISTORY}" | jq -r '[(.time | strftime("%F %T")), .level, .text] | join("  ")' 2>/dev/null |
+                "${TEXT}" --lines | sed 's/^/  /'
+        elif [[ -s "${OLD_HISTORY}" ]]; then
+            echo
+            echo "The last 20 in the history (${OLD_HISTORY}):"
+            tail -n 20 "${OLD_HISTORY}" | "${TEXT}" --lines | sed 's/^/  /'
         fi
         exit 0
         ;;
@@ -61,9 +86,13 @@ case "${1:-}" in
         [[ -e "${UNREAD}" ]] && : >"${UNREAD}"
         exit 0
         ;;
+    --keys)
+        (IFS='|'; echo "${AUDIT_KEYS[*]}")
+        exit 0
+        ;;
     "") ;;
     *)
-        echo "usage: ${0##*/} [--show | --seen]" >&2
+        echo "usage: ${0##*/} [--show | --seen | --keys]" >&2
         exit 64
         ;;
 esac
@@ -83,15 +112,19 @@ while IFS='=' read -r key value; do
     SETTING["${key}"]="${value}"
 done < <(/usr/libexec/amethystora-security-config --all)
 
-# What this run found, one "level<TAB>text" each. critical and normal are said out loud; quiet only goes
-# to the history, for what is worth a record and not an interruption. While the part that found it is
-# set to record, everything it finds is quiet.
+# What this run found, one JSON object each: add LEVEL KEY ACCOUNT TACTIC TEXT. critical and normal are said
+# out loud; quiet only goes to the history, for what is worth a record and not an interruption. While the
+# part that found it is set to record, everything it finds is quiet. The text is made safe to show here, once,
+# for the history, the unread list, events.json and the notification alike.
 FINDINGS=()
 MODE=on
 add() {
-    local level="$1"
+    local level="$1" key="$2" account="$3" tactic="$4" text
     [[ "${MODE}" == record ]] && level=quiet
-    FINDINGS+=("${level}"$'\t'"$2")
+    [[ "${account}" =~ ^[A-Za-z0-9_][A-Za-z0-9_.@-]*$ && "${account}" != unset ]] || account=-
+    text="$("${TEXT}" "$5")"
+    FINDINGS+=("$(jq -nc --argjson time "${NOW}" --arg level "${level}" --arg key "${key}" --arg account "${account}" \
+        --arg tactic "${tactic}" --arg text "${text}" '{$time, $level, $key, $account, $tactic, $text}')")
 }
 
 # Runs a part of the watcher unless its switch is off, with what it finds quiet while the switch is record
@@ -108,7 +141,11 @@ NOTED="$(cut -f1 "${STATE}/notes" 2>/dev/null | grep -E '^[0-9]+$' | tr '\n' ' '
 
 # --- The audit log ------------------------------------------------------------------------------------
 
-AUDIT_KEYS=(identity privilege persistence hardening modules input-capture user-programs)
+# The ATT&CK tactic a change under each key belongs to
+declare -A AUDIT_TACTIC=(
+    [identity]=Persistence [privilege]="Privilege Escalation" [persistence]=Persistence
+    [hardening]="Defense Evasion" [modules]=Persistence [input-capture]=Collection [user-programs]=Persistence
+)
 declare -A AUDIT_WHAT=(
     [identity]="Accounts changed"
     [privilege]="Who may become root changed"
@@ -202,7 +239,8 @@ read_audit() {
             text="${AUDIT_WHAT[${key}]}: ${event}"
             [[ "${count}" -gt 1 ]] && text+=" (${count} times)"
             # The first run has no "since": it only makes the checkpoints
-            [[ -n "${LAST_RUN}" ]] && add "${level}" "${text}"
+            # The account is the sentence's first word: "alice, acting as root, ..."
+            [[ -n "${LAST_RUN}" ]] && add "${level}" "${key}" "${event%%,*}" "${AUDIT_TACTIC[${key}]}" "${text}"
         done < <(audit_events "${key}")
     done
     MODE=on
@@ -236,14 +274,14 @@ read_journal() {
         SYSLOG_FACILITY=4 SYSLOG_FACILITY=10 + SYSLOG_IDENTIFIER=polkitd + _TRANSPORT=kernel 2>/dev/null)
 
     for user in "${!locked[@]}"; do
-        add critical "The account ${user} was locked after too many wrong passwords in a row (${locked[${user}]}). Unlock it early with: sudo faillock --user ${user} --reset"
+        add critical journal "${user}" "Credential Access" "The account ${user} was locked after too many wrong passwords in a row (${locked[${user}]}). Unlock it early with: sudo faillock --user ${user} --reset"
     done
     for user in "${!wrong[@]}"; do
         [[ "${wrong[${user}]}" -ge 3 ]] && level=normal || level=quiet
-        add "${level}" "${wrong[${user}]} wrong password(s) for sudo, as ${user}"
+        add "${level}" journal "${user}" "Credential Access" "${wrong[${user}]} wrong password(s) for sudo, as ${user}"
     done
-    [[ "${polkit}" -ge 3 ]] && add normal "${polkit} administrator password prompts were answered wrongly"
-    [[ "${usb}" -gt 0 ]] && add normal "USB protection blocked ${usb} USB device(s). Allow one with: ame security usb allow"
+    [[ "${polkit}" -ge 3 ]] && add normal journal - "Credential Access" "${polkit} administrator password prompts were answered wrongly"
+    [[ "${usb}" -gt 0 ]] && add normal journal - "Initial Access" "USB protection blocked ${usb} USB device(s). Allow one with: ame security usb allow"
 }
 
 # --- /etc against the image ---------------------------------------------------------------------------
@@ -351,10 +389,11 @@ drift() {
 sweep_setuid() {
     find /etc /var -xdev \
         \( -path /var/lib/containers -o -path /var/lib/docker -o -path /var/lib/flatpak \
-        -o -path '/var/home/*/.local/share/containers' -o -path '/var/home/*/.local/share/flatpak' \
-        -o -path '/var/home/*/.cache' \) -prune -o \
+        -o -path '/var/home/*/.local/share/containers' -o -path '/var/home/*/.local/share/flatpak' \) -prune -o \
         -type f \( -perm -4000 -o -perm -2000 \) -print 2>/dev/null | sort
 }
+sweep_to_list() { sweep_setuid >"${STATE}/setuid.list"; }
+drift_to_json() { DRIFT="$(drift | jq -R 'split("\t") | {change: .[0], path: .[1], detail: .[2]}' | jq -s .)"; }
 
 # --- Programs that accept connections -----------------------------------------------------------------
 
@@ -385,7 +424,7 @@ read_listeners() {
         grep -qxF -- "${key}" "${seen}" 2>/dev/null && continue
         echo "${key}" >>"${seen}"
         [[ -n "${LAST_RUN}" ]] &&
-            add normal "${program} accepts connections on port ${port} (${address}), which every device on your tailnet can reach"
+            add normal listeners - "Command and Control" "${program} accepts connections on port ${port} (${address}), which every device on your tailnet can reach"
     done <<<"${LISTENERS}"
 }
 
@@ -408,8 +447,8 @@ gpg-agent pinentry secret-tool "
 # finds them, which runs before anything could look them up.
 accounts() {
     {
-        cat /etc/passwd
-        for home in /var/home/*/; do
+        cat "${ROOT}/etc/passwd"
+        for home in "${ROOT}"/var/home/*/; do
             [[ -d "${home}" ]] && printf '%s:x:%s:::%s:\n' "$(basename "${home}")" "$(stat -c %u "${home}")" "${home%/}"
         done
     } | awk -F: '!seen[$3]++'
@@ -428,30 +467,39 @@ read_user_paths() {
         echo "$1" >>"${seen}"
         [[ "${first}" != true ]]
     }
+    # Root reads what an account put in its home: only a plain file, never through a link, and never for long
+    # or much. A launcher made a link to /proc/kmsg, which says it is a regular file, kept an earlier
+    # version waiting until the next boot.
+    plain() { [[ -f "$1" && ! -L "$1" ]]; }
+    head_of() { timeout 5 head -c "${2:-65536}" -- "$1" 2>/dev/null; }
+    hash_of() { head_of "$1" 16777216 | sha256sum | cut -c1-16; }
     while IFS=: read -r user _ uid _ _ home _; do
         # Not system accounts, nor nobody. A domain's are numbered from far above nobody's 65534.
         [[ "${uid}" -ge 1000 && "${uid}" -ne 65534 ]] || continue
         home="$(realpath -q "${home}" || true)"
         [[ -n "${home}" && -d "${home}" ]] || continue
         for dir in "${home}/.local/bin" "${home}/bin"; do
+            # A folder a link takes out of the home is said below, not read
+            [[ "$(realpath -e -- "${dir}" 2>/dev/null)" == "${home}"/* ]] || continue
             for file in "${dir}"/*; do
-                [[ -f "${file}" && -x "${file}" ]] || continue
+                plain "${file}" && [[ -x "${file}" ]] || continue
                 name="${file##*/}"
                 [[ -e "/usr/bin/${name}" || -e "/usr/sbin/${name}" ]] || continue
-                remember "${file} $(sha256sum "${file}" | cut -c1-16)" || continue
+                remember "${file} $(hash_of "${file}")" || continue
                 [[ "${PASSWORD_COMMANDS}" == *" ${name} "* ]] && level=critical || level=normal
                 where=""
-                grep -qx '# distrobox_binary' "${file}" 2>/dev/null && where=", exported from a container"
-                add "${level}" "~${user}${file#"${home}"} is run in place of the system's ${name} by ${user}${where}"
+                grep -qx '# distrobox_binary' <<<"$(head_of "${file}")" && where=", exported from a container"
+                add "${level}" user-paths "${user}" Persistence "~${user}${file#"${home}"} is run in place of the system's ${name} by ${user}${where}"
             done
         done
+        [[ "$(realpath -e -- "${home}/.local/share/applications" 2>/dev/null)" == "${home}"/* ]] &&
         for file in "${home}/.local/share/applications"/*.desktop; do
-            [[ -f "${file}" ]] || continue
-            line="$(grep -m1 '^Exec=' "${file}" 2>/dev/null)"
+            plain "${file}" || continue
+            line="$(head_of "${file}" | grep -m1 '^Exec=')"
             [[ "${line}" =~ ^Exec=(/usr/bin/)?(distrobox-enter|distrobox\ enter)\  ||
                 "${line}" == "Exec=amethystora-webapp "* ]] && continue
             remember "${file} $(sha256sum <<<"${line}" | cut -c1-16)" || continue
-            add normal "A launcher no container export made is in ${user}'s app grid: ~${user}${file#"${home}"}, which runs ${line#Exec=}"
+            add normal user-paths "${user}" Persistence "A launcher no container export made is in ${user}'s app grid: ~${user}${file#"${home}"}, which runs ${line#Exec=}"
         done
         # A place the per-home audit rules watch, taken out of the home by a link: they write no watch
         # through one, so what starts from there goes unseen. Only lstat and readlink, never a read.
@@ -466,7 +514,7 @@ read_user_paths() {
                 # The account chose where it leads: only plain characters of it reach a notification
                 shown="${target//${odd}/?}"
                 remember "${part} -> ${target}" &&
-                    add normal "~${user}${part#"${home}"} is a link out of ${user}'s home folder, to ${shown:-nowhere}: the audit log no longer watches what is put there"
+                    add normal user-paths "${user}" "Defense Evasion" "~${user}${part#"${home}"} is a link out of ${user}'s home folder, to ${shown:-nowhere}: the audit log no longer watches what is put there"
                 break
             done
         done
@@ -475,8 +523,9 @@ read_user_paths() {
         for file in "${dir}"/*; do
             name="${file##*/}"
             [[ "${PASSWORD_COMMANDS}" == *" ${name} "* && -x "${file}" ]] || continue
-            remember "${file} $(sha256sum "${file}" | cut -c1-16)" || continue
-            add critical "${file} is run in place of the system's ${name} by everyone whose shell loads Homebrew"
+            # Homebrew's commands are links into its Cellar, so a link is read here, but only for so long
+            remember "${file} $(hash_of "${file}")" || continue
+            add critical user-paths - Persistence "${file} is run in place of the system's ${name} by everyone whose shell loads Homebrew"
         done
     done
 }
@@ -532,7 +581,7 @@ read_network() {
     # block is said out loud with the way to undo it; an alert that let something through only when
     # the rule rates it serious.
     [[ -n "${LAST_RUN}" ]] && while IFS=$'\t' read -r level text; do
-        add "${level}" "${text}"
+        add "${level}" network - "Command and Control" "${text}"
     done < <(jq -rs '
         group_by([.action, .sid]) | .[]
         | (map(.host // "\(.src) and \(.dest)") | unique) as $peers | .[0] as $a | length as $times
@@ -576,20 +625,50 @@ network_status() {
 
 # The checks this speaks up about: the ones that say something was turned off or tampered with. Those
 # that only age (signatures, the image), and those that already raise their own alarm, are left out.
+# The security watcher's own check counts only when it is "check" (a run that failed or stalled, said by the
+# next one that does not); "off" there means what it found is unread, which it has said already.
 WATCHED_CHECKS='["signed-updates","lockdown","automatic-updates","audit-log","audit-rules","fail2ban",
-"firewall","network","image-settings","rootkit","virus-scan-schedule","settings-audit"]'
+"firewall","network","image-settings","rootkit","virus-scan-schedule","settings-audit","security-watcher","selinux"]'
+
+# Whether a switch's own command made a change since the last run (amethystora-security-config note), for any
+# of the names given: then that change was the person at the machine, and is recorded rather than said
+noted() {
+    local since="${LAST_RUN:-$((NOW - 1800))}" name
+    for name in "$@"; do
+        awk -F'\t' -v since="$((since - 5))" -v name="${name}" '$1 >= since && ($2 == name || index($2, name ":") == 1) { found = 1 }
+            END { exit !found }' "${STATE}/notes" 2>/dev/null && return 0
+    done
+    return 1
+}
 
 read_report() {
-    local now before
-    now="$(/usr/libexec/amethystora-security-status --json 2>/dev/null |
-        jq -c '[.checks[] | select(.group != "optional") | {id, state, text, details}]' 2>/dev/null)" || return
+    local report now before tiles was id state title level
+    report="$(/usr/libexec/amethystora-security-status --json 2>/dev/null)" || return
+    now="$(jq -c '[.checks[] | select(.group != "optional") | {id, state, text, details}]' <<<"${report}" 2>/dev/null)"
+    tiles="$(jq -c '[.checks[] | select(.group == "optional") | {id, state, title}]' <<<"${report}" 2>/dev/null)"
     [[ -n "${now}" ]] || return
+    # A protection turned off with no switch of the image's own, such as encrypted DNS or USB protection, is
+    # said once, unless its own command did it; one turned on is only recorded
+    was="$(cat "${STATE}/tiles.json" 2>/dev/null)"
+    printf '%s\n' "${tiles:-[]}" >"${STATE}/tiles.json"
+    if [[ -n "${was}" ]]; then
+        while IFS=$'\t' read -r id state title; do
+            level=normal
+            noted "${id}" "${id%-protection}" "${id}-scan" "${id}-watch" && level=quiet
+            [[ "${state}" == on ]] && level=quiet
+            add "${level}" report - "Defense Evasion" "${title} was turned ${state}"
+        done < <(jq -r --argjson was "${was}" '
+            (reduce $was[] as $tile ({}; .[$tile.id] = $tile.state)) as $before
+            | .[] | select($before[.id] != null and $before[.id] != .state and (.state | IN("on", "off"))
+                and ($before[.id] | IN("on", "off")))
+            | [.id, .state, .title] | @tsv' <<<"${tiles:-[]}")
+    fi
     before="$(cat "${STATE}/report.json" 2>/dev/null)"
     printf '%s\n' "${now}" >"${STATE}/report.json"
     [[ -n "${before}" ]] || return
     while IFS=$'\t' read -r state text details; do
         [[ "${state}" == off ]] && level=critical || level=normal
-        add "${level}" "${text}${details:+. ${details}}"
+        add "${level}" report - "Defense Evasion" "${text}${details:+. ${details}}"
     # A list that grows (another setuid program, another changed file) is news while the check is
     # already failing. A count of days going up is not, so the others count only when their state does.
     done < <(jq -r --argjson before "${before}" --argjson watched "${WATCHED_CHECKS}" '
@@ -597,28 +676,94 @@ read_report() {
         | .[]
         | select(.id | IN($watched[]))
         | select(.state == "check" or .state == "off")
+        | select(.id != "security-watcher" or .state == "check")
         | select($was[.id] == null or $was[.id].state != .state
             or ((.id | IN("image-settings", "rootkit")) and $was[.id].details != .details))
         | [.state, .text, (.details | join(" "))] | @tsv' <<<"${now}")
 }
 
+# --- The switches themselves --------------------------------------------------------------------------
+
+# A security setting changed in /etc/amethystora/security.conf, or one of what the image enforces turned off
+# (/etc/amethystora/hardening-off), named with what it changed to. The audit log says which program wrote
+# the file; this says what it now means. A change its own switch made is recorded, not said.
+read_settings() {
+    local now was key value old
+    now="$(/usr/libexec/amethystora-security-config --all | sort)"
+    was="$(cat "${STATE}/settings.seen" 2>/dev/null)"
+    printf '%s\n' "${now}" >"${STATE}/settings.seen"
+    if [[ -n "${was}" ]]; then
+        while IFS='=' read -r key value; do
+            old="$(sed -n "s/^${key}=//p" <<<"${was}")"
+            [[ -n "${old}" && "${old}" != "${value}" ]] || continue
+            level=normal
+            noted "$(tr 'A-Z_' 'a-z-' <<<"${key}")" profile realtime && level=quiet
+            add "${level}" settings - "Defense Evasion" "The security setting ${key} changed from ${old} to ${value} (/etc/amethystora/security.conf)"
+        done <<<"${now}"
+    fi
+    now="$(sort "${ROOT}/etc/amethystora/hardening-off" 2>/dev/null)"
+    [[ -e "${STATE}/hardening.seen" ]] || { printf '%s\n' "${now}" >"${STATE}/hardening.seen"; return; }
+    was="$(cat "${STATE}/hardening.seen")"
+    printf '%s\n' "${now}" >"${STATE}/hardening.seen"
+    while IFS= read -r key; do
+        [[ -n "${key}" ]] || continue
+        level=normal
+        noted "${key%% *}" && level=quiet
+        add "${level}" settings - "Defense Evasion" "${key} was turned off, of what the image enforces (ame security ${key%% *})"
+    done < <(comm -13 <(printf '%s\n' "${was}" | sed '/^$/d') <(printf '%s\n' "${now}" | sed '/^$/d'))
+}
+
+# --- What the audit log lost ---------------------------------------------------------------------------
+
+# The kernel drops an audit event rather than make anything wait when its backlog is full
+# (--backlog_wait_time 0, 99-amethystora-finalize.rules), and counts what it dropped. Only root can ask, so
+# the drops of the last week go into status.json for the report's "Audit rules" check, which says them. The
+# count starts again at every boot.
+audit_status() {
+    local status enabled lost previous since drops="${STATE}/audit-drops"
+    status="$(auditctl -s 2>/dev/null)" || { echo null; return; }
+    enabled="$(awk '$1 == "enabled" { print $2 }' <<<"${status}")"
+    lost="$(awk '$1 == "lost" { print $2 }' <<<"${status}")"
+    [[ "${enabled}" =~ ^[0-9]+$ && "${lost}" =~ ^[0-9]+$ ]] || { echo null; return; }
+    read -r previous since <"${STATE}/audit-lost" 2>/dev/null
+    [[ "${previous}" =~ ^[0-9]+$ && "${previous}" -le "${lost}" ]] || previous=0
+    [[ "${lost}" -gt "${previous}" ]] && echo "${NOW} $((lost - previous))" >>"${drops}"
+    echo "${lost} ${NOW}" >"${STATE}/audit-lost"
+    # A week of them, one "time count" a line
+    awk -v since="$((NOW - 7 * 86400))" '$1 >= since' "${drops}" 2>/dev/null >"${drops}.new"
+    mv "${drops}.new" "${drops}" 2>/dev/null
+    jq -n --argjson enabled "${enabled}" --argjson drops "$(jq -R 'split(" ") | {time: (.[0] | tonumber), count: (.[1] | tonumber)}' "${drops}" | jq -s .)" \
+        '{$enabled, $drops}'
+}
+
 # --- A run --------------------------------------------------------------------------------------------
+
+# What each part took, in milliseconds, under the key of its switch: status.json carries them, and the
+# Settings page shows each beside its switch
+declare -A TIMINGS=()
+timed() {
+    local key="$1" start="${EPOCHREALTIME//[.,]/}"
+    shift
+    "$@"
+    TIMINGS["${key}"]=$(((${EPOCHREALTIME//[.,]/} - start) / 1000))
+}
 
 # Each part is skipped while its switch is off. The ones that keep a place to read on from forget it, so
 # that turned on again they start from then, not from everything since they were turned off.
 if [[ "${SETTING[AUDIT_LOG]:-on}" != off ]]; then
-    read_audit
+    timed AUDIT_LOG read_audit
 fi
+timed HARDENING switched HARDENING read_settings
 [[ "${SETTING[JOURNAL]:-on}" == off ]] && rm -f "${STATE}/journal.cursor"
-switched JOURNAL read_journal
-read_network
+timed JOURNAL switched JOURNAL read_journal
+timed NETWORK read_network
 
 # null in status.json for a part that is off, which the report shows as turned off rather than as clean
 SETUID=null
 if [[ "${SETTING[SETUID_SWEEP]:-on}" != off ]]; then
     SWEPT="$(cat "${STATE}/swept" 2>/dev/null || true)"
     if [[ ! "${SWEPT}" =~ ^[0-9]+$ || $((NOW - SWEPT)) -ge ${SWEEP_EVERY} ]]; then
-        sweep_setuid >"${STATE}/setuid.list"
+        timed SETUID_SWEEP sweep_to_list
         SWEPT="${NOW}"
         echo "${SWEPT}" >"${STATE}/swept"
     fi
@@ -632,39 +777,48 @@ if [[ "${SETTING[LISTENERS]:-on}" != off ]]; then
     LISTENERS="$(listeners)"
     LISTENING="$(jq -R 'split("\t") | select(length == 3) |
         {port: (.[0] | tonumber), address: .[1], program: .[2]}' <<<"${LISTENERS}" | jq -s .)"
-    switched LISTENERS read_listeners
+    timed LISTENERS switched LISTENERS read_listeners
 fi
-switched USER_PATHS read_user_paths
+timed USER_PATHS switched USER_PATHS read_user_paths
 
-# What the report reads, world-readable: it names files and ports, not what is in them, and of network
-# protection only how much it blocked
+# What the report reads, world-readable: it names files and ports, not what is in them, of network
+# protection only how much it blocked, and of the audit log how many events it dropped
 DRIFT=null
 if [[ -d /usr/etc && "${SETTING[IMAGE_DRIFT]:-on}" != off ]]; then
-    DRIFT="$(drift | jq -R 'split("\t") | {change: .[0], path: .[1], detail: .[2]}' | jq -s .)"
+    timed IMAGE_DRIFT drift_to_json
 fi
-jq -n --argjson checked "${NOW}" --argjson swept "${SWEPT:-null}" --argjson drift "${DRIFT:-null}" \
-    --argjson setuid "${SETUID}" --argjson listeners "${LISTENING}" \
-    --argjson network "$(network_status)" \
-    '{$checked, $swept, $drift, $setuid, $listeners, $network}' >"${STATUS}.new" &&
-    chmod 0644 "${STATUS}.new" && mv "${STATUS}.new" "${STATUS}"
-
+AUDIT=null
+[[ "${SETTING[AUDIT_LOG]:-on}" != off ]] && AUDIT="$(audit_status)"
+write_status() {
+    jq -n --argjson checked "${NOW}" --argjson swept "${SWEPT:-null}" --argjson drift "${DRIFT:-null}" \
+        --argjson setuid "${SETUID}" --argjson listeners "${LISTENING}" \
+        --argjson network "$(network_status)" --argjson audit "${AUDIT:-null}" \
+        --argjson timings "$(for key in "${!TIMINGS[@]}"; do printf '%s\t%s\n' "${key}" "${TIMINGS[${key}]}"; done |
+            jq -R 'split("\t") | {(.[0]): (.[1] | tonumber)}' | jq -s 'add // {}')" \
+        '{$checked, $swept, $drift, $setuid, $listeners, $network, $audit, $timings}' >"${STATUS}.new" &&
+        chmod 0644 "${STATUS}.new" && mv "${STATUS}.new" "${STATUS}"
+}
+# Written before the report runs, which reads it, and again after with the report's own time
+write_status
 if [[ "${SETTING[REPORT_ALERTS]:-on}" != off ]]; then
-    read_report
+    timed REPORT_ALERTS read_report
+    write_status
 else
     # Turned on again, it compares from then
-    rm -f "${STATE}/report.json"
+    rm -f "${STATE}/report.json" "${STATE}/tiles.json"
 fi
 echo "${NOW}" >"${STATE}/last-run"
 
 [[ ${#FINDINGS[@]} -gt 0 ]] || exit 0
 
-STAMP="$(date '+%F %T')"
+STAMP="$(date -d "@${NOW}" '+%F %T')"
 TOLD=()
 URGENCY=normal
+mkdir -p -m 0755 "${HISTORY%/*}"
 for finding in "${FINDINGS[@]}"; do
-    level="${finding%%$'\t'*}"
-    text="${finding#*$'\t'}"
-    echo "${STAMP}  ${text}" >>"${HISTORY}"
+    level="$(jq -r .level <<<"${finding}")"
+    text="$(jq -r .text <<<"${finding}")"
+    printf '%s\n' "${finding}" >>"${HISTORY}"
     [[ "${level}" == quiet ]] && continue
     echo "${STAMP}  ${text}" >>"${UNREAD}"
     # NOTIFY: all, critical only, or none. Either way it waits in the unread list for the report.
@@ -677,6 +831,12 @@ for finding in "${FINDINGS[@]}"; do
 done
 chmod 0600 "${HISTORY}" "${UNREAD}" 2>/dev/null
 tail -n "${HISTORY_KEPT}" "${HISTORY}" >"${HISTORY}.new" && mv "${HISTORY}.new" "${HISTORY}"
+# The newest findings for the Security app's Events page, newest first. They name accounts and files, so
+# wheel can read them, as it can the journal, and nobody else.
+if tail -n "${EVENTS_KEPT}" "${HISTORY}" | jq -s 'reverse' >"${EVENTS}.new" 2>/dev/null; then
+    chgrp wheel "${EVENTS}.new" 2>/dev/null; chmod 0640 "${EVENTS}.new" && mv "${EVENTS}.new" "${EVENTS}"
+fi
+rm -f "${EVENTS}.new"
 printf '%s\n' "${FINDINGS[@]}"
 
 [[ ${#TOLD[@]} -gt 0 ]] || exit 0
@@ -687,4 +847,4 @@ else
     SUMMARY="${#TOLD[@]} security changes on this machine"
     BODY="$(printf '%s\n' "${TOLD[@]:0:2}")"$'\n'"See them all with: ame security events"
 fi
-/usr/libexec/amethystora-notify-users "${SUMMARY}" "${BODY}" "${URGENCY}" >/dev/null
+"${NOTIFY}" --security "${SUMMARY}" "${BODY}" "${URGENCY}" >/dev/null

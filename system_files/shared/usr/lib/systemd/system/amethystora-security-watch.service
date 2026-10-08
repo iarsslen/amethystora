@@ -13,6 +13,9 @@ Type=oneshot
 # key is the one place that decides
 ExecCondition=/usr/libexec/amethystora-security-config --is WATCHER on
 ExecStart=/usr/libexec/amethystora-security-watch
+# A run takes seconds. One that does not end, whatever an account put in its way, is stopped and fails, which
+# OnFailure says and the next run's report notices, rather than keeping the watcher waiting until reboot
+TimeoutStartSec=10min
 Nice=19
 IOSchedulingClass=idle
 # Not PrivateNetwork=, whose namespace has no listening sockets to list, nor ProtectKernelModules=,

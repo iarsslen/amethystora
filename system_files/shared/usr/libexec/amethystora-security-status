@@ -445,7 +445,17 @@ if [[ "${SETTING[AUDIT_LOG]}" != off && -f /etc/audit/rules.d/99-amethystora-fin
     for key in IDENTITY PRIVILEGE PERSISTENCE HARDENING MODULES INPUT_CAPTURE USER_PROGRAMS; do
         [[ "${SETTING[${key}]}" == off ]] && KEYS_OFF+=("$(tr 'A-Z_' 'a-z-' <<<"${key}")")
     done
-    if [[ ${#KEYS_OFF[@]} -gt 0 ]]; then
+    # The events the kernel dropped in the last week, which only the watcher, as root, can count
+    DROPPED="$(jq -r '[.audit.drops // [] | .[] | .count] | add // 0' "${WATCH_STATUS}" 2>/dev/null)"
+    ENABLED="$(jq -r '.audit.enabled // empty' "${WATCH_STATUS}" 2>/dev/null)"
+    if [[ "${DROPPED}" =~ ^[1-9][0-9]*$ ]]; then
+        report watching audit-rules check "$(gettext "Audit rules")" \
+            "$(eval_ngettext "The audit log dropped \${DROPPED} event in the last week" "The audit log dropped \${DROPPED} events in the last week" "${DROPPED}")" \
+            "$(gettext "The kernel drops an event rather than make anything wait when too many come at once, and what happened then was not recorded. Many at once can also be someone hiding a change in the noise.")"
+    elif [[ "${ENABLED}" =~ ^[01]$ ]]; then
+        report watching audit-rules check "$(gettext "Audit rules")" "$(gettext "The audit rules are not locked")" \
+            "$(gettext "Anything that reaches root can take them away without a restart. They lock at boot; something unlocked them, or they did not load to the end.")"
+    elif [[ ${#KEYS_OFF[@]} -gt 0 ]]; then
         COMMAND="ame security settings"
         KEYS="$(IFS=,; echo "${KEYS_OFF[*]}" | sed 's/,/, /g')"
         report watching audit-rules info "$(gettext "Audit rules")" "$(gettext "Audit rules are immutable until the next reboot")" \
@@ -454,6 +464,19 @@ if [[ "${SETTING[AUDIT_LOG]}" != off && -f /etc/audit/rules.d/99-amethystora-fin
     else
         report watching audit-rules ok "$(gettext "Audit rules")" "$(gettext "Audit rules are immutable until the next reboot")"
     fi
+fi
+# SELinux confines the system's services: one that is broken into reaches only what its policy allows. An
+# enforcing=0 kernel argument or `setenforce 0` would turn that off silently, so it is said.
+SELINUX_ENFORCE="$(cat /sys/fs/selinux/enforce 2>/dev/null || true)"
+if [[ "${SELINUX_ENFORCE}" == 1 ]]; then
+    report watching selinux ok "$(gettext "SELinux")" "$(gettext "SELinux is enforcing: each system service reaches only what its policy allows")"
+elif [[ "${SELINUX_ENFORCE}" == 0 ]]; then
+    COMMAND="sudo setenforce 1"
+    report watching selinux check "$(gettext "SELinux")" "$(gettext "SELinux is permissive")" \
+        "$(gettext "It records what it would refuse and refuses nothing. If you did not turn it off to find a problem, something else did. An enforcing=0 kernel argument does it at every start. Enforce it again until the next restart with:")"
+else
+    report watching selinux off "$(gettext "SELinux")" "$(gettext "SELinux is off")" \
+        "$(gettext "No system service is confined. Fedora keeps it on; something turned it off with selinux=0 or in /etc/selinux/config.")"
 fi
 if hardening_off failed-logins; then
     COMMAND="ame security failed-logins on"
@@ -554,6 +577,14 @@ elif [[ "$(systemctl show -p Result --value amethystora-security-watch.service 2
     COMMAND="journalctl -u amethystora-security-watch.service -n 40"
     report watching security-watcher check "$(gettext "Security watcher")" "$(gettext "The security watcher's last run failed")" \
         "$(gettext "See why with:")"
+elif CHECKED="$(jq -r '.checked // empty' "${WATCH_STATUS}" 2>/dev/null)" && [[ "${CHECKED}" =~ ^[0-9]+$ ]] &&
+    [[ $((NOW - CHECKED)) -gt 3600 && "$(cut -d' ' -f1 /proc/uptime 2>/dev/null | cut -d. -f1)" -gt 3600 ]]; then
+    # It runs every 15 minutes; one that has not finished for an hour is stuck or kept from running
+    COMMAND="journalctl -u amethystora-security-watch.service -n 40"
+    HOURS="$(((NOW - CHECKED) / 3600))"
+    report watching security-watcher check "$(gettext "Security watcher")" \
+        "$(eval_ngettext "The security watcher has not finished a run for \${HOURS} hour" "The security watcher has not finished a run for \${HOURS} hours" "${HOURS}")" \
+        "$(gettext "Nothing is read or said until it does. See why with:")"
 elif [[ "${SETTING[REALTIME_WATCH]}" == on && "${SETTING[AUDIT_LOG]}" != off ]]; then
     report watching security-watcher ok "$(gettext "Security watcher")" \
         "$(gettext "The security watcher reads the audit log and checks the settings as they happen")"

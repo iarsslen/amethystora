@@ -569,7 +569,7 @@ events ACTION="":
     echo
     echo "Each line is something that changed, with the program that changed it. If you did it, or"
     echo "installed something that did, there is nothing to do. The full audit record of one kind:"
-    echo "sudo ausearch -i -k <identity|privilege|persistence|hardening|modules|input-capture|user-programs>"
+    echo "sudo ausearch -i -k <$(/usr/libexec/amethystora-security-watch --keys)>"
     # Seen is seen: what was just shown stops being new, for the report and the next login
     sudo /usr/libexec/amethystora-security-watch --seen
 
@@ -591,7 +591,8 @@ connections ACTION="" RULE="":
             echo
             # The watcher is what reads Suricata's log, so what it saw a moment ago is shown too
             sudo systemctl start --wait amethystora-security-watch.service || true
-            sudo "${ips}" blocked
+            # Host names and rule messages come from the network: shown so that none can act on the terminal
+            sudo "${ips}" blocked | /usr/libexec/amethystora-security-text --lines
             echo
             echo "If a connection was yours and wanted, allow its rule again with:"
             echo "  ame security connections allow <rule number>"
@@ -1103,7 +1104,8 @@ scan ACTION="":
     action="{{ ACTION }}"
     if sudo test -s "${FINDINGS}"; then
         echo "The last scan found something:"
-        sudo cat "${FINDINGS}" | sed 's/^/  /'
+        # File names are whatever somebody called a file: shown so that none can act on the terminal
+        sudo cat "${FINDINGS}" | /usr/libexec/amethystora-security-text --lines | sed 's/^/  /'
     else
         echo "The last scan found nothing."
     fi

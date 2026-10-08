@@ -107,9 +107,10 @@ fi
 # augenrules sorts with in a service that has no locale of its own.
 LAST_RULES="$(find /etc/audit/rules.d -name '*.rules' -printf '%f\n' | LC_ALL=C sort | tail -n1)"
 [[ "${LAST_RULES}" == "99-amethystora-finalize.rules" ]]
-# A watch needs its path to exist when the rules load, and one that does not stops the rest loading.
-# Quadlets are the one watched directory nothing is guaranteed to have created.
-install -d -m 0755 /etc/containers/systemd
+# A watch needs its path to exist when the rules load; the generator leaves out one that does not, which
+# then goes unwatched. Quadlets and resolved's drop-ins (encrypted DNS writes one) are the watched
+# directories nothing is guaranteed to have created.
+install -d -m 0755 /etc/containers/systemd /etc/systemd/resolved.conf.d
 
 # How much log is kept and what happens when the disk fills. Deliberately not the answer the hardening
 # guides give: space_left_action = halt, and the rest of that family, turn a full disk into a laptop

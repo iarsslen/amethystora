@@ -1,0 +1,50 @@
+#!/usr/bin/bash
+# Makes text somebody else wrote safe to show: a file name, a program's name or command line, a launcher's
+# Exec= line, a host name from the network, a rule's message. The security watcher, the scans and every
+# security notification put such text through here before it reaches a notification, a history line or a
+# terminal, so that it can only ever be read, never act.
+#
+#   amethystora-security-text [--lines] [--markup] [--max N] [TEXT...]   TEXT, or stdin without one
+#
+# Control characters go, the C1 ones (U+0080 to U+009F) too: an escape sequence could rewrite what an
+# administrator's terminal shows, and a newline forge a line of the history. Tabs, and newlines unless
+# --lines keeps them, become spaces. --markup escapes &, < and > for a desktop notification's body, which
+# GNOME reads as markup. --max cuts each line to N characters (default 600), marking the cut with ….
+
+set -uo pipefail
+
+LINES=false MARKUP=false MAX=600
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --lines) LINES=true; shift ;;
+        --markup) MARKUP=true; shift ;;
+        --max) [[ "${2:-}" =~ ^[0-9]+$ ]] || exit 64; MAX="$2"; shift 2 ;;
+        --) shift; break ;;
+        *) break ;;
+    esac
+done
+
+clean() {
+    local text line out=""
+    # Bytes, so that C1 characters and stray bytes are found whatever the session's language is
+    text="$(LC_ALL=C sed -e 's/\xc2[\x80-\x9f]//g' | LC_ALL=C tr -d '\000-\010\013-\037\177' | tr '\t' ' ')"
+    [[ "${LINES}" == true ]] || text="${text//$'\n'/ }"
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+        [[ ${#line} -gt ${MAX} ]] && line="${line:0:MAX}…"
+        # Each replacement quoted: bash 5.2 reads a bare & in one as the text it replaces
+        if [[ "${MARKUP}" == true ]]; then
+            line="${line//&/"&amp;"}"
+            line="${line//</"&lt;"}"
+            line="${line//>/"&gt;"}"
+        fi
+        out+="${line}"$'\n'
+    done <<<"${text}"
+    printf '%s' "${out%$'\n'}"
+}
+
+if [[ $# -gt 0 ]]; then
+    printf '%s' "$*" | clean
+else
+    clean
+fi
+echo

@@ -30,3 +30,13 @@
 -w /etc/ssh/sshd_config.d/ -p wa -k hardening
 -w /etc/clamd.d/ -p wa -k hardening
 -w /etc/amethystora/ -p wa -k hardening
+## Encrypted DNS and the address shown to each network (their drop-ins), the disks unlocked at boot, how a
+## domain's accounts log in, USB protection's rules, a library loaded into every program, and SELinux
+-w /etc/systemd/resolved.conf.d/ -p wa -k hardening
+-w /etc/NetworkManager/conf.d/ -p wa -k hardening
+-w /etc/crypttab -p wa -k hardening
+-w /etc/sssd/ -p wa -k hardening
+-w /etc/realmd.conf -p wa -k hardening
+-w /etc/usbguard/ -p wa -k hardening
+-w /etc/ld.so.preload -p wa -k hardening
+-w /etc/selinux/ -p wa -k hardening

@@ -29,18 +29,22 @@ FINDINGS=/var/log/amethystora-clamav-findings.log
 chmod 0600 "${LOG}"
 
 found() {
-    local file="$1" signature="$2" mode outcome summary body
+    local file="$1" signature="$2" mode outcome summary body shown
     mode="$(/usr/libexec/amethystora-security-config ON_DETECTION)"
     outcome=reported
     [[ "${mode}" == report ]] || outcome="$(/usr/libexec/amethystora-quarantine act "${file}" | cut -f1)"
     # The file changed before it could be scanned again, and is clean now
     [[ "${outcome}" == clean ]] && return
 
-    echo "${signature} in ${file}: ${outcome}"
+    # A file name is whatever somebody called a file: what the journal and the findings log keep, which a
+    # terminal shows, is made safe to show; the file acted on is the real one
+    shown="$(/usr/libexec/amethystora-security-text --max 1000 "${file}")"
+    signature="$(/usr/libexec/amethystora-security-text --max 200 "${signature}")"
+    echo "${signature} in ${shown}: ${outcome}"
     {
         echo "# Real-time scan, $(date -Is). On detection: ${mode}."
-        echo "${file}: ${signature} FOUND"
-        [[ "${mode}" == report ]] || printf '# What was done:\n  %s: %s\n' "${outcome}" "${file}"
+        echo "${shown}: ${signature} FOUND"
+        [[ "${mode}" == report ]] || printf '# What was done:\n  %s: %s\n' "${outcome}" "${shown}"
     } >>"${FINDINGS}"
     chmod 0600 "${FINDINGS}"
 

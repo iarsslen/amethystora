@@ -11,3 +11,21 @@
 -w /etc/xdg/autostart/ -p wa -k persistence
 -w /etc/profile.d/ -p wa -k persistence
 -w /etc/containers/systemd/ -p wa -k persistence
+## ...and the other places that run something by themselves: the user manager's units for every account,
+## udev's and NetworkManager's scripts, what the dynamic linker and the initramfs load, what is set in
+## every session's environment, and what systemd-tmpfiles makes at each boot
+-w /etc/systemd/user/ -p wa -k persistence
+-w /etc/udev/rules.d/ -p wa -k persistence
+-w /etc/NetworkManager/dispatcher.d/ -p wa -k persistence
+-w /etc/ld.so.conf.d/ -p wa -k persistence
+-w /etc/tmpfiles.d/ -p wa -k persistence
+-w /etc/modules-load.d/ -p wa -k persistence
+-w /etc/environment -p wa -k persistence
+-w /etc/security/pam_env.conf -p wa -k persistence
+-w /etc/dracut.conf.d/ -p wa -k persistence
+## Commands in /usr/local, which comes before /usr/bin in PATH, and Flatpak's system-wide overrides and
+## extensions: on a machine, not in the image, so the generator leaves them out where they are not there yet
+-w /var/usrlocal/bin/ -p wa -k persistence
+-w /var/usrlocal/sbin/ -p wa -k persistence
+-w /var/lib/flatpak/overrides/ -p wa -k persistence
+-w /var/lib/flatpak/extension/ -p wa -k persistence

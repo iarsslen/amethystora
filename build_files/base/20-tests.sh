@@ -1659,8 +1659,10 @@ for key in $( { grep -ohE -- '-k [a-z-]+$' /usr/share/amethystora/audit/*.rules 
     /usr/libexec/amethystora-security-config "$(tr 'a-z-' 'A-Z_' <<<"${key}")" >/dev/null
 done
 # ...and a watch on a path that is not there stops every rule after it from loading, which the generator
-# leaves out on a machine rather than write
+# leaves out on a machine rather than write. What only a machine has (/var, the disks it unlocks, a preloaded
+# library) is watched once it is there; everything else has to be in the image.
 for path in $(grep -ohE '^-w [^ ]+' /usr/share/amethystora/audit/*.rules | cut -d' ' -f2); do
+    [[ "${path}" == /var/* || "${path}" == /etc/crypttab || "${path}" == /etc/ld.so.preload ]] && continue
     test -e "${path}"
 done
 
@@ -1685,6 +1687,13 @@ done
 bash /ctx/build_files/shared/test-security-switches.sh
 # Its checks are the report's: the watcher runs the report rather than keeping checks of its own
 grep -q "/usr/libexec/amethystora-security-status --json" /usr/libexec/amethystora-security-watch
+# What an account plants is only ever read: text it wrote reaches the history, a notification and a terminal
+# as plain text, a read in a home cannot keep a run waiting, and a run that hangs anyway is stopped. Every
+# notification goes through the one filter (amethystora-security-text), in amethystora-notify-users.
+test -x /usr/libexec/amethystora-security-text
+grep -q "^TimeoutStartSec=" /usr/lib/systemd/system/amethystora-security-watch.service
+grep -q "amethystora-security-text" /usr/libexec/amethystora-notify-users
+bash /ctx/build_files/shared/test-security-watch.sh
 grep -q "^events " /usr/share/amethystora/just/security.just
 /usr/libexec/amethystora-security-status --json |
     jq -e '.settings.on_detection == "report" and .settings.realtime == "off" and .settings.network == "off"' >/dev/null

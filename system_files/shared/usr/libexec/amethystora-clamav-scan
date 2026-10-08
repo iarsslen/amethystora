@@ -67,6 +67,10 @@ done
 
 OUTPUT="$(clamdscan --fdpass --multiscan --infected "${TARGETS[@]}" 2>&1)"
 STATUS=$?
+# What is written to the journal and the findings log, which `ame security scan` shows in a terminal: a file
+# name is whatever somebody called a file, so it is made safe to show first. The paths acted on are the
+# real ones, read from OUTPUT itself.
+SHOWN="$(/usr/libexec/amethystora-security-text --lines --max 1000 "${OUTPUT}")"
 
 case "${STATUS}" in
     0)
@@ -87,14 +91,14 @@ case "${STATUS}" in
         DONE=""
         if [[ "${MODE}" != report && ${#FOUND[@]} -gt 0 ]]; then
             DONE="$(/usr/libexec/amethystora-quarantine act "${FOUND[@]}" |
-                awk -F'\t' '{ print "  " $1 ": " $3 }')"
+                awk -F'\t' '{ print "  " $1 ": " $3 }' | /usr/libexec/amethystora-security-text --lines --max 1000)"
         fi
         echo "Infected files found. On detection: ${MODE}."
-        printf '%s\n' "${OUTPUT}"
+        printf '%s\n' "${SHOWN}"
         [[ -z "${DONE}" ]] || printf 'What was done:\n%s\n' "${DONE}"
         {
             echo "# ClamAV findings, $(date -Is). On detection: ${MODE}."
-            printf '%s\n' "${OUTPUT}"
+            printf '%s\n' "${SHOWN}"
             [[ -z "${DONE}" ]] || printf '# What was done:\n%s\n' "${DONE}"
         } >"${FINDINGS}"
         chmod 0600 "${FINDINGS}"
@@ -102,7 +106,7 @@ case "${STATUS}" in
         ;;
     *)
         echo "Scan could not run (clamdscan exit ${STATUS}):"
-        printf '%s\n' "${OUTPUT}"
+        printf '%s\n' "${SHOWN}"
         exit "${STATUS}"
         ;;
 esac

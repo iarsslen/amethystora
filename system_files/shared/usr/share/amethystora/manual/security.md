@@ -78,9 +78,12 @@ looks into it in a terminal and changes nothing until you agree.
 
 Every 15 minutes, or as things happen with [real-time watching](#settings) on, the watcher looks at:
 
-- **The audit log**: accounts, `sudo` rules, what starts by itself, the security settings and kernel
-  modules loaded from a login, each with the program that made the change. A program opening the
-  keyboard directly is said the first time that program does it; games and key remappers do it too.
+- **The audit log**: accounts, `sudo` rules, what starts by itself (services, autostart entries, the
+  shell startup files, `~/.ssh`, GNOME Shell extensions, D-Bus services, udev rules, git's settings), the
+  security settings, SELinux's, and kernel modules loaded from a login, each with the program that made the
+  change. A program opening the keyboard directly is said the first time that program does it; games and
+  key remappers do it too. When too many events come at once, the kernel drops some rather than slow the
+  machine down, and **Audit rules** in the report says how many it dropped in the last week.
 - **The journal**: an account locked after wrong passwords, three or more wrong `sudo` or
   administrator passwords, and USB devices [USB protection](#block-usb-devices-you-did-not-plug-in)
   blocked.
@@ -103,7 +106,17 @@ Every 15 minutes, or as things happen with [real-time watching](#settings) on, t
   again, and what it recognised without blocking when the rule rates it serious.
   [Network protection](#network-protection).
 - **The report itself**: when a check that says something was turned off, such as the firewall,
-  signed updates or the audit log, stops being fine.
+  signed updates, SELinux or the audit log, stops being fine, and when one of the protections that are off
+  until you turn them on is turned off again. A change you make with its own command is recorded and not
+  said (see [Switches](#switches)).
+- **Itself**: a run that failed, or none for an hour, is said by the report, and by the next run that
+  finishes.
+
+What it reads that somebody else wrote, a file name, a program's name, a launcher's command, a host name
+from the network, is shown as plain text everywhere: a name cannot write over a terminal or a
+notification, or pretend to be another line of the history. Each finding keeps when it happened, which
+part of the watcher found it, the account it is about and the kind of attack it would belong to, in
+`/var/log/amethystora-security-events.jsonl`, and the last 500 in the Security app's **Events** page.
 
 Anything new is a notification, and waits in the report until you read it:
 

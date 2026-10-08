@@ -421,12 +421,55 @@ msgid "Audit rules"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The audit log dropped ${DROPPED} event in the last week"
+msgid_plural "The audit log dropped ${DROPPED} events in the last week"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The kernel drops an event rather than make anything wait when too many come at once, and what happened then was not recorded. Many at once can also be someone hiding a change in the noise."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The audit rules are not locked"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Anything that reaches root can take them away without a restart. They lock at boot; something unlocked them, or they did not load to the end."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
 msgid "Audit rules are immutable until the next reboot"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
 #, sh-format
 msgid "Turned off, and not recorded from the next restart: ${KEYS}."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "SELinux"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "SELinux is enforcing: each system service reaches only what its policy allows"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "SELinux is permissive"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "It records what it would refuse and refuses nothing. If you did not turn it off to find a problem, something else did. An enforcing=0 kernel argument does it at every start. Enforce it again until the next restart with:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "SELinux is off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "No system service is confined. Fedora keeps it on; something turned it off with selinux=0 or in /etc/selinux/config."
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -595,6 +638,17 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "See why with:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The security watcher has not finished a run for ${HOURS} hour"
+msgid_plural "The security watcher has not finished a run for ${HOURS} hours"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Nothing is read or said until it does. See why with:"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status

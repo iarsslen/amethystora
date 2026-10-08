@@ -32,6 +32,12 @@ done
 SUMMARY="${1:?usage: $0 [--action KEY=LABEL]... SUMMARY BODY [URGENCY]}"
 BODY="${2:?usage: $0 [--action KEY=LABEL]... SUMMARY BODY [URGENCY]}"
 URGENCY="${3:-normal}"
+[[ "${URGENCY}" =~ ^(low|normal|critical)$ ]] || URGENCY=normal
+# What a notification says often holds what somebody else wrote: a file name, a program's, a host's. It can
+# only be read: no control character, no markup (GNOME reads the body as markup), nothing too long.
+SUMMARY="$(/usr/libexec/amethystora-security-text --max 200 "${SUMMARY}")"
+BODY="$(/usr/libexec/amethystora-security-text --lines --max 400 "${BODY}")"
+MARKUP_BODY="$(/usr/libexec/amethystora-security-text --lines --markup --max 400 "${BODY}")"
 
 # The part that cannot be missed: this is what `systemctl status` of the failed unit shows. With
 # actions, stdout is for the answers.
@@ -64,14 +70,14 @@ for bus in /run/user/*/bus; do
     if [[ ${#ACTIONS[@]} -eq 0 ]]; then
         runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=${bus}" \
             notify-send --app-name=Amethystora --urgency="${URGENCY}" --icon=dialog-warning \
-            "${SUMMARY}" "${BODY}" || true
+            -- "${SUMMARY}" "${MARKUP_BODY}" || true
         continue
     fi
     # Each in the background, all answered in whatever order the people at the machine get to them
     {
         answer="$(runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=${bus}" \
             notify-send --app-name=Amethystora --urgency="${URGENCY}" --icon=dialog-information --wait \
-            "${ACTIONS[@]}" "${SUMMARY}" "${BODY}" 2>/dev/null)"
+            "${ACTIONS[@]}" -- "${SUMMARY}" "${MARKUP_BODY}" 2>/dev/null)"
         printf '%s %s\n' "${user}" "${answer}"
     } &
 done

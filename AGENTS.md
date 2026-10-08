@@ -379,6 +379,17 @@ profile off|default` sets every detection key at once. `ame security allow repor
 cannot be fixed on the machine (`/usr/libexec/amethystora-security-allow`). `test-security-switches.sh`
 checks all of it. A new feature gets its switch with it, off by default.
 
+**What an account plants is only ever read.** Text somebody else wrote (a file name, a program's name
+or command line, a launcher's `Exec=`, a host name, a rule's message) goes through
+`/usr/libexec/amethystora-security-text` before it reaches a notification, a history line or a terminal:
+`amethystora-notify-users` puts every notification through it, the watcher every finding, the scans every
+file name they log, and the agent's prompts quote such text between lines of dashes as data. In a home the
+watcher reads only plain files, never through a link, under `timeout`, and its unit has a
+`TimeoutStartSec`. A finding carries its time, level, the part that found it (`key`), its account and
+ATT&CK tactic: the history is JSON lines in `/var/log/amethystora-security-events.jsonl`, and
+`events.json` beside `status.json` (root:wheel 0640) is the Security app's **Events** page.
+`test-security-watch.sh` plants such text and checks every place it reaches.
+
 What each Flatpak can reach beyond its sandbox is `/usr/libexec/amethystora-app-permissions --json`,
 run as the user, which the report's **App permissions** check, the app's **Apps** page and `ame
 security apps` all read. It compares `flatpak info --show-permissions` (every override applied) with the

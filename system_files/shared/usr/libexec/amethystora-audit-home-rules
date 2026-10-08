@@ -39,6 +39,17 @@ WATCH_DIRS=(
     .config/containers/systemd
     .local/share/systemd/user
     .local/share/flatpak/overrides
+    # A D-Bus service an app activates, and a GNOME Shell extension, which runs inside the compositor and
+    # sees every key pressed
+    .local/share/dbus-1/services
+    .local/share/gnome-shell/extensions
+)
+# ...and those watched only where they are, since an account without them has no use for them: SSH's keys
+# that let someone log in, its rc and its config (ProxyCommand runs a command), and fish's startup folders
+WATCH_EXISTING_DIRS=(
+    .ssh
+    .config/fish/conf.d
+    .config/fish/functions
 )
 # Where a session finds commands before the system's own, and the app grid's launchers, under a key of
 # their own: writes here are everyday (pip, a container's exported apps), so the watcher only records
@@ -53,16 +64,24 @@ PROGRAM_DIRS=(
 WATCH_FILES=(
     .bashrc
     .bash_profile
+    .bash_login
+    .bash_logout
     .profile
     .zshrc
     .zshenv
+    .zprofile
+    .zlogin
     .config/fish/config.fish
+    # Which app opens what, and git's settings, whose hooksPath, fsmonitor and sshCommand run commands
+    .config/mimeapps.list
+    .gitconfig
+    .config/git/config
 )
 
 # The places in a home these rules watch, one a line, for the security watcher: it says when a link takes
 # one of them out of the home, and so out of these rules' reach
 if [[ "${1:-}" == --paths ]]; then
-    printf '%s\n' "${WATCH_DIRS[@]}" "${PROGRAM_DIRS[@]}" "${WATCH_FILES[@]}" bin
+    printf '%s\n' "${WATCH_DIRS[@]}" "${PROGRAM_DIRS[@]}" "${WATCH_EXISTING_DIRS[@]}" "${WATCH_FILES[@]}" bin
     exit 0
 fi
 
@@ -166,6 +185,10 @@ wanted user-programs && USER_PROGRAMS=true
         for file in "${WATCH_FILES[@]}"; do
             [[ "${PERSISTENCE}" == true ]] || break
             [[ -f "${home}/${file}" ]] && real="$(inside "${home}" "${file}")" && echo "-w ${real} -p wa -k persistence"
+        done
+        for dir in "${WATCH_EXISTING_DIRS[@]}"; do
+            [[ "${PERSISTENCE}" == true ]] || break
+            [[ -d "${home}/${dir}" ]] && real="$(inside "${home}" "${dir}")" && echo "-w ${real}/ -p wa -k persistence"
         done
         # ~/bin is in the PATH a shell sets up, but only where it is there: nobody is given one to watch
         [[ "${USER_PROGRAMS}" == true && -d "${home}/bin" && ! -L "${home}/bin" ]] && real="$(inside "${home}" bin)" &&
