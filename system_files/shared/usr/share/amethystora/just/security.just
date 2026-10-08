@@ -629,6 +629,7 @@ dns ACTION="" *SERVERS:
         "" | Cancel) exit 0 ;;
         off)
             sudo "${helper}" off
+            systemctl --user stop amethystora-dns-portal.service 2>/dev/null || true
             echo "Off. Names are looked up with the network's own DNS servers again."
             exit 0
             ;;
@@ -682,6 +683,8 @@ dns ACTION="" *SERVERS:
     echo "is on. A notification offers to pause it then: ame security dns pause."
     gum confirm "Send every lookup to ${name}?" || exit 0
     sudo "${helper}" on "${action}" "${servers[@]}"
+    # What offers the pause on a network that wants a login first, from now rather than the next login
+    systemctl --user start amethystora-dns-portal.service 2>/dev/null || true
     echo "On. To go back to the network's own DNS servers: ame security dns off"
 
 # Give each network its own hardware address for this machine, and keep the machine's name from them

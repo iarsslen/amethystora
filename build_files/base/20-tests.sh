@@ -1345,8 +1345,18 @@ MAC=/usr/libexec/amethystora-mac
 RESOLVED_DROP_IN=/etc/systemd/resolved.conf.d/60-amethystora-dns.conf
 test -x "${DNS}"
 test -x "${MAC}"
-test -x /usr/lib/NetworkManager/dispatcher.d/60-amethystora-dns-portal
 [[ "$("${DNS}" status)" == off && "$("${MAC}" status)" == off ]]
+# The helper reloads systemd-resolved and never restarts it, which would forget the DNS settings
+# NetworkManager and Tailscale gave each network: its unit has to be able to reload
+grep -qxE "Type=notify-reload|ExecReload=.+" /usr/lib/systemd/system/systemd-resolved.service
+grep -qE "^[^#]*(reload-or-restart|restart systemd-resolved)" "${DNS}" && false
+# ...and changes each connected network's running connection, since reapplying an unchanged one
+# rebuilds nothing. What offers the pause runs in the session, not from NetworkManager's dispatcher.
+grep -qE "^[^#]*nmcli device reapply" "${DNS}" && false
+grep -qE "^[^#]*nmcli device modify" "${DNS}"
+test -L /etc/systemd/user/graphical-session.target.wants/amethystora-dns-portal.service
+compgen -G "/usr/lib/NetworkManager/dispatcher.d/*amethystora*" >/dev/null && false
+compgen -G "/etc/NetworkManager/dispatcher.d/*amethystora*" >/dev/null && false
 test ! -e "${RESOLVED_DROP_IN}"
 test ! -e /etc/NetworkManager/conf.d/60-amethystora-dns.conf
 test ! -e /etc/NetworkManager/conf.d/60-amethystora-mac.conf
@@ -1360,7 +1370,8 @@ RESOLVED_DIR_EXISTED=false
 grep -qx "DNSOverTLS=yes" "${RESOLVED_DROP_IN}"
 grep -qx "Domains=~." "${RESOLVED_DROP_IN}"
 grep -q "^DNS=9.9.9.9#dns.quad9.net " "${RESOLVED_DROP_IN}"
-NetworkManager --print-config | grep -qx "connection.dns-over-tls=0"
+# --print-config prints each key as key=value with nothing before it (main.c, nm_config_data_log)
+/usr/sbin/NetworkManager --print-config | grep -qx "connection.dns-over-tls=0"
 "${DNS}" on custom "192.0.2.1#dns.example.net" "2001:db8::1#dns.example.net"
 [[ "$("${DNS}" name)" == dns.example.net ]]
 "${DNS}" on custom "192.0.2.1" && false
@@ -1373,7 +1384,7 @@ test ! -e /etc/NetworkManager/conf.d/60-amethystora-dns.conf
 [[ "${RESOLVED_DIR_EXISTED}" == true ]] || rmdir "${RESOLVED_DROP_IN%/*}"
 "${MAC}" on
 [[ "$("${MAC}" status)" == on ]]
-NETWORKMANAGER_CONFIG="$(NetworkManager --print-config)"
+NETWORKMANAGER_CONFIG="$(/usr/sbin/NetworkManager --print-config)"
 grep -qx "wifi.cloned-mac-address=stable" <<<"${NETWORKMANAGER_CONFIG}"
 grep -qx "ipv4.dhcp-send-hostname=0" <<<"${NETWORKMANAGER_CONFIG}"
 "${MAC}" off

@@ -11,8 +11,8 @@
 #   amethystora-dns off                    as root: back to the network's own DNS servers
 #   amethystora-dns pause                  as root: the network's own servers, in plain text, for ten minutes
 #   amethystora-dns resume                 as root: end a pause
-#   amethystora-dns portal                 as root, from NetworkManager: offer a pause on a network that
-#                                          wants a login first (amethystora-dns-portal.service)
+#   amethystora-dns watch                  as the user, in the session: offer a pause on a network that
+#                                          wants a login first (amethystora-dns-portal.service, a user unit)
 #
 # The switch is two files, and nothing in /etc/amethystora/security.conf:
 #
@@ -44,7 +44,7 @@ cloudflare	Cloudflare	Cloudflare, Inc., in the United States	-	1.1.1.1#cloudflar
 google	Google	Google LLC, in the United States	Google keeps the address each lookup came from for a day or two.	8.8.8.8#dns.google 8.8.4.4#dns.google 2001:4860:4860::8888#dns.google 2001:4860:4860::8844#dns.google"
 
 usage() {
-    echo "usage: ${0##*/} status|name|list|paused|on RESOLVER|on custom ADDRESS#NAME...|off|pause|resume|portal" >&2
+    echo "usage: ${0##*/} status|name|list|paused|on RESOLVER|on custom ADDRESS#NAME...|off|pause|resume|watch" >&2
     exit 64
 }
 
@@ -63,22 +63,56 @@ valid_server() {
     [[ "${name}" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$ ]]
 }
 
-# systemd-resolved re-reads its settings on reload, and keeps what NetworkManager told it of each network
+# A reload, never a restart. On reload systemd-resolved re-reads its files and keeps what was set on each
+# network over D-Bus, by NetworkManager and by Tailscale, as it keeps everything on a link systemd-networkd
+# does not manage (resolved-manager.c, manager_dispatch_reload_signal; resolved-link.c,
+# link_read_settings). A restart would forget it all. Its unit reloads from systemd 256 on
+# (Type=notify-reload), which 20-tests.sh checks.
 apply_resolved() {
     systemctl is-active --quiet systemd-resolved.service || return 0
-    systemctl reload-or-restart systemd-resolved.service
+    systemctl reload systemd-resolved.service
 }
 
-# NetworkManager takes a changed default up when a network is applied again: the ones connected now are
-# applied here, so that their servers go to plain text before the resolver is set, never after
+# NetworkManager builds a network's DNS settings, DNS-over-TLS among them, when it connects, from the
+# connection and then from the defaults in NetworkManager.conf. A changed default reaches the networks
+# connected already only through a change to their running connection: `nmcli device reapply` with none
+# rebuilds nothing (nm-device.c, check_and_reapply_connection). So each is changed there alone, with
+# `nmcli device modify`, which leaves the saved profile and the DHCP lease as they are: to "no" when this
+# turns on, and when it turns off to "no" and then back to "default", which is a change whichever it ran
+# with, so that NetworkManager builds the settings again from defaults without this file. A network whose
+# own settings choose DNS-over-TLS keeps its choice. Should a change be refused, the network connects
+# again, which builds everything afresh. A VPN that runs through a plugin takes it up when it next connects.
 apply_networks() {
-    local device type state
+    local mode="$1" device type state uuid own
     systemctl is-active --quiet NetworkManager.service || return 0
     nmcli general reload conf
-    while IFS=: read -r device type state; do
-        [[ "${state}" == connected && "${type}" =~ ^(ethernet|wifi)$ ]] || continue
-        nmcli device reapply "${device}" >/dev/null || true
-    done < <(nmcli -t -f DEVICE,TYPE,STATE device 2>/dev/null)
+    while IFS=: read -r device type state uuid; do
+        [[ "${state}" == connected && "${type}" =~ ^(ethernet|wifi|wireguard)$ && -n "${uuid}" ]] || continue
+        # -g prints this setting as a number, -1 for "default" (nm-meta-setting-desc.c)
+        own="$(nmcli -g connection.dns-over-tls connection show "${uuid}" 2>/dev/null || true)"
+        [[ "${own}" =~ ^(-1|default) ]] || continue
+        if nmcli device modify "${device}" connection.dns-over-tls no >/dev/null &&
+            { [[ "${mode}" == on ]] || nmcli device modify "${device}" connection.dns-over-tls default >/dev/null; }; then
+            continue
+        fi
+        echo "Connecting ${device} again, to apply it there" >&2
+        nmcli connection up "${uuid}" ifname "${device}" >/dev/null ||
+            echo "${device} could not connect again: it takes this up when it next connects" >&2
+    done < <(nmcli -t -f DEVICE,TYPE,STATE,CON-UUID device 2>/dev/null)
+}
+
+# A notification in the session, and on its button `ame security dns pause` in a terminal, which asks for
+# the password: pausing on the network's say-so alone would let any network turn the encryption off
+offer_pause() {
+    local answer
+    command -v gdbus >/dev/null && gdbus wait --session --timeout 60 org.freedesktop.Notifications >/dev/null 2>&1
+    answer="$(notify-send --app-name=Amethystora --icon=network-wireless --urgency=normal --wait \
+        --action=pause="Pause for ten minutes…" \
+        "This network wants you to log in first" \
+        "Encrypted DNS keeps its login page from loading. Pausing it lets the network's own DNS servers answer, in plain text, for ten minutes." ||
+        true)"
+    [[ "${answer}" == pause ]] || return 0
+    systemd-run --user --collect --quiet /usr/libexec/amethystora-in-terminal ame security dns pause
 }
 
 case "${1:-}" in
@@ -116,7 +150,7 @@ case "${1:-}" in
             IFS=$'\t' read -r _ name _ _ servers <<<"${line}"
         fi
         install -Dpm0644 "${NM_SHIPPED}" "${NM_DROP_IN}"
-        apply_networks
+        apply_networks on
         mkdir -p "${RESOLVED_DROP_IN%/*}"
         cat >"${RESOLVED_DROP_IN}.new" <<EOF
 # Written by ame security dns (/usr/libexec/amethystora-dns), which says what this is and turns it off.
@@ -136,7 +170,7 @@ EOF
         systemctl stop amethystora-dns-resume.timer 2>/dev/null || true
         apply_resolved
         rm -f "${NM_DROP_IN}"
-        apply_networks
+        apply_networks off
         ;;
     pause)
         [[ -e "${RESOLVED_DROP_IN}" ]] || { echo "Encrypted DNS is off: there is nothing to pause." >&2; exit 1; }
@@ -158,23 +192,28 @@ EOF
         systemctl stop amethystora-dns-resume.timer 2>/dev/null || true
         apply_resolved
         ;;
-    portal)
-        # A network that wants a login first answers its own page's name only through its own servers,
-        # which encrypted DNS does not ask. Pausing on its say-so alone would let any network turn
-        # encryption off, so the person at the machine decides, in a terminal that asks for a password.
-        [[ -e "${RESOLVED_DROP_IN}" && ! -e "${PAUSE}" ]] || exit 0
-        ANSWERS="$(/usr/libexec/amethystora-notify-users --action pause="Pause for ten minutes…" \
-            "This network wants you to log in first" \
-            "Encrypted DNS keeps its login page from loading. Pausing it lets the network's own DNS servers answer, in plain text, for ten minutes.")" ||
-            exit 0
-        while read -r user answer; do
-            [[ "${answer}" == pause ]] || continue
-            uid="$(id -u "${user}")" || continue
-            runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus" \
-                "XDG_RUNTIME_DIR=/run/user/${uid}" systemd-run --user --collect --quiet \
-                /usr/libexec/amethystora-in-terminal ame security dns pause || true
-            break
-        done <<<"${ANSWERS}"
+    watch)
+        # As the user, in the graphical session (amethystora-dns-portal.service, a user unit): every change
+        # NetworkManager reports wakes it, and when the machine's connectivity turns to "portal", a network
+        # that wants a login first, it offers the pause. nmcli reads NetworkManager's state as any user may,
+        # and with -t prints it untranslated (nmcli/common.c). It stops once encrypted DNS is turned off.
+        command -v notify-send >/dev/null || exit 0
+        last=""
+        check() {
+            local state
+            [[ -e "${RESOLVED_DROP_IN}" ]] || exit 0
+            state="$(nmcli -t -f CONNECTIVITY general 2>/dev/null || true)"
+            if [[ "${state}" == portal && "${last}" != portal && ! -e "${PAUSE}" ]]; then
+                offer_pause &
+            fi
+            last="${state}"
+        }
+        check
+        while read -r _; do
+            check
+        done < <(LC_ALL=C nmcli monitor 2>/dev/null)
+        # nmcli monitor ends only when it fails, and the unit starts this again
+        exit 1
         ;;
     *) usage ;;
 esac

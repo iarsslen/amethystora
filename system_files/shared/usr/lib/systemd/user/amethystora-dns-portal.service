@@ -1,0 +1,18 @@
+[Unit]
+Description=Offer to pause encrypted DNS on a network that wants a login first
+Documentation=file:///usr/share/amethystora/manual/security.md
+# Only while encrypted DNS is on. `ame security dns` starts it when it turns it on, and it stops by itself
+# once it is turned off.
+ConditionPathExists=/etc/systemd/resolved.conf.d/60-amethystora-dns.conf
+After=graphical-session.target
+
+# In the session, as the user, as any desktop program runs: it reads NetworkManager's state with nmcli
+# and asks with a notification of the session's own
+[Service]
+Type=simple
+ExecStart=/usr/libexec/amethystora-dns watch
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=graphical-session.target
