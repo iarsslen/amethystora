@@ -22,8 +22,18 @@ cosign verify-blob --key cosign.pub --bundle amethystora.iso.sha256.bundle ameth
 sha256sum -c amethystora.iso.sha256
 ```
 
-On Windows, `certutil -hashfile amethystora.iso SHA256` prints the checksum to compare with the one in
-`amethystora.iso.sha256`.
+On Windows, the same in PowerShell, in the folder the ISO is in, with cosign's own Windows build. The
+checksum alone is not enough: it comes from the same server as the ISO, and only the signature says
+that Amethystora made it. The last line prints `True` when the ISO matches:
+
+```powershell
+curl.exe -LO https://github.com/sigstore/cosign/releases/latest/download/cosign-windows-amd64.exe
+curl.exe -LO https://raw.githubusercontent.com/iarsslen/amethystora/main/cosign.pub
+curl.exe -LO https://download.amethystora.org/amethystora.iso.sha256
+curl.exe -LO https://download.amethystora.org/amethystora.iso.sha256.bundle
+.\cosign-windows-amd64.exe verify-blob --key cosign.pub --bundle amethystora.iso.sha256.bundle amethystora.iso.sha256
+(Get-FileHash amethystora.iso).Hash -eq (Get-Content amethystora.iso.sha256).Split(' ')[0]
+```
 
 On a computer with an NVIDIA graphics card, install from either: a notification after the first boot
 offers the image with NVIDIA's driver ([Hardware](hardware.md#graphics)).
