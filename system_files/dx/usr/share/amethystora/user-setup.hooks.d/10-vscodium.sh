@@ -12,8 +12,8 @@ if test ! -e "$HOME"/.config/VSCodium/User/settings.json; then
 	cp -f /etc/skel/.config/VSCodium/User/settings.json "$HOME"/.config/VSCodium/User/settings.json
 fi
 
-# From Open VSX, VSCodium's marketplace. Microsoft's Remote SSH and Dev Containers may only be used
-# with Microsoft's builds: Open Remote SSH takes the place of the first, and dev containers are run
-# with the devcontainer command line (developer.md)
+# From Open VSX, VSCodium's marketplace, and only as published there by its own maker. Microsoft's Remote
+# SSH and Dev Containers may only be used with Microsoft's builds: Open Remote SSH takes the place of the
+# first, and dev containers are run with the devcontainer command line (developer.md). Container Tools is
+# not installed: Open VSX carries a copy its bot republished, not one from Microsoft.
 codium --install-extension jeanp413.open-remote-ssh
-codium --install-extension ms-azuretools.vscode-containers

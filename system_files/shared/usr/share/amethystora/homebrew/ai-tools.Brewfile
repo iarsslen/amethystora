@@ -1,7 +1,6 @@
-tap "anomalyco/tap"
 tap "charmbracelet/tap"
 brew "aichat"
-brew "anomalyco/tap/opencode"
+brew "opencode"
 brew "block-goose-cli"
 brew "charmbracelet/tap/crush"
 brew "gemini-cli"
