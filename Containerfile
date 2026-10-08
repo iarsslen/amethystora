@@ -36,12 +36,24 @@ ARG UBLUE_IMAGE_TAG="stable"
 ARG VERSION=""
 ARG IMAGE_FLAVOR=""
 
-# Build, cleanup, lint.
+# Build, cleanup, lint. In three steps, so that the kernel module signing key is mounted only for the one
+# that builds and signs the modules, before any of the build's own third-party repositories is added
+RUN --mount=type=cache,dst=/var/cache/libdnf5 \
+    --mount=type=cache,dst=/var/cache/rpm-ostree \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    /ctx/build_files/shared/prepare.sh
+
+RUN --mount=type=cache,dst=/var/cache/libdnf5 \
+    --mount=type=cache,dst=/var/cache/rpm-ostree \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=secret,id=AKMODS_PRIVKEY \
+    --mount=type=secret,id=AKMODS_CERT \
+    /ctx/build_files/base/03-install-kernel-akmods.sh
+
 RUN --mount=type=cache,dst=/var/cache/libdnf5 \
     --mount=type=cache,dst=/var/cache/rpm-ostree \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=secret,id=GITHUB_TOKEN \
-    --mount=type=secret,id=AKMODS_PRIVKEY \
     /ctx/build_files/shared/build.sh
 
 # Makes `/opt` writeable by default

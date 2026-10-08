@@ -112,10 +112,21 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          AKMODS_PRIVKEY: ${{ secrets.AKMODS_PRIVKEY }}
+          # Pull requests build with a throwaway module key (Justfile) and publish nothing
+          AKMODS_PRIVKEY: ${{ github.event_name != 'pull_request' && secrets.AKMODS_PRIVKEY || '' }}
         run: |
-          # The runner's sudo ignores -E: hand the build its secrets explicitly
-          sudo env GITHUB_TOKEN="${GITHUB_TOKEN}" AKMODS_PRIVKEY="${AKMODS_PRIVKEY}" \
+          if [[ -z "${AKMODS_PRIVKEY}" && "${{ github.event_name }}" != pull_request ]]; then
+            echo "::error::AKMODS_PRIVKEY secret missing: published images need it, or evdi (DisplayLink) will not load with Secure Boot"
+            exit 1
+          fi
+          # The runner's sudo ignores -E: hand the build its secrets explicitly, the key as a file rather
+          # than on sudo's command line, which every process on the runner can read
+          key_file="$(mktemp -p "${RUNNER_TEMP}")"
+          trap 'rm -f "${key_file}"' EXIT
+          if [[ -n "${AKMODS_PRIVKEY}" ]]; then
+            printenv AKMODS_PRIVKEY > "${key_file}"
+          fi
+          sudo env GITHUB_TOKEN="${GITHUB_TOKEN}" AKMODS_PRIVKEY_FILE="${key_file}" \
                $(command -v just) repo_organization="${{ github.repository_owner }}" \
                     build-ghcr "${{ matrix.base_name }}" \
                                "${{ matrix.stream_name }}" \
@@ -136,8 +147,14 @@ jobs:
         env:
           SECUREBOOT_KEY: ${{ github.event_name != 'pull_request' && secrets.SECUREBOOT_KEY || '' }}
         run: |
-          # The runner's sudo ignores -E: hand the build its secret explicitly
-          sudo env SECUREBOOT_KEY="${SECUREBOOT_KEY}" \
+          # The runner's sudo ignores -E: hand the build its secret explicitly, as a file rather than on
+          # sudo's command line, which every process on the runner can read
+          key_file="$(mktemp -p "${RUNNER_TEMP}")"
+          trap 'rm -f "${key_file}"' EXIT
+          if [[ -n "${SECUREBOOT_KEY}" ]]; then
+            printenv SECUREBOOT_KEY > "${key_file}"
+          fi
+          sudo env SECUREBOOT_KEY_FILE="${key_file}" \
                $(command -v just) repo_organization="${{ github.repository_owner }}" \
                     seal "${{ matrix.base_name }}" "${{ matrix.stream_name }}" "${{ matrix.image_flavor }}"
           key="$(sudo podman inspect "localhost/${IMAGE_NAME}:stable-sealed" | jq -r '.[0].Config.Labels["org.amethystora.secure-boot-key"]')"

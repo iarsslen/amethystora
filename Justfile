@@ -239,15 +239,22 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
         echo "No GitHub token found - build may hit rate limit"
     fi
 
-    # Kernel module signing key (for CI/CD): without it, modules built here do not load with Secure Boot
-    if [[ -n "${AKMODS_PRIVKEY:-}" ]]; then
+    # Kernel module signing key, from the file AKMODS_PRIVKEY_FILE names, so that the key is never on a
+    # command line or in this trace. Without it (pull requests, local builds), evdi is signed with a
+    # throwaway key made here, whose certificate goes in beside it so that the signing is still tested;
+    # no machine trusts it, and CI publishes nothing built without the release key (reusable-build.yml).
+    module_keys="$(mktemp -d)"
+    trap 'rm -rf "${module_keys}"' EXIT
+    if [[ -s "${AKMODS_PRIVKEY_FILE:-}" ]]; then
         echo "Adding kernel module signing key as build secret"
-        PODMAN_BUILD_ARGS+=(--secret "id=AKMODS_PRIVKEY,env=AKMODS_PRIVKEY")
-    elif [[ "{{ ghcr }}" == "1" ]]; then
-        echo "::error::AKMODS_PRIVKEY secret missing: published images need it, or evdi (DisplayLink) will not load with Secure Boot"
-        exit 1
+        PODMAN_BUILD_ARGS+=(--secret "id=AKMODS_PRIVKEY,src=${AKMODS_PRIVKEY_FILE}")
     else
-        echo "No kernel module signing key found - evdi will not load with Secure Boot"
+        echo "No kernel module signing key: evdi is signed with a throwaway key and will not load with Secure Boot"
+        openssl req -new -x509 -newkey rsa:2048 -nodes -sha256 -days 1 \
+            -subj "/CN=Amethystora throwaway module key/" \
+            -keyout "${module_keys}/key" -outform DER -out "${module_keys}/cert.der" 2>/dev/null
+        PODMAN_BUILD_ARGS+=(--secret "id=AKMODS_PRIVKEY,src=${module_keys}/key")
+        PODMAN_BUILD_ARGS+=(--secret "id=AKMODS_CERT,src=${module_keys}/cert.der")
     fi
 
     ${PODMAN} build "${PODMAN_BUILD_ARGS[@]}" .
@@ -301,14 +308,14 @@ seal $image="amethystora" $tag="stable" $flavor="main":
         {{ just }} build "${image}" "${tag}" "${flavor}"
     fi
 
-    # The Secure Boot key. Published images are signed with the release key, the SECUREBOOT_KEY secret,
-    # whose certificate is secure-boot.crt; every other build with a throwaway key made here, which no
-    # machine trusts, so that what it seals can be tested in a VM but never published. Never traced:
-    # the key is only ever in a file of its own, outside the repository.
+    # The Secure Boot key. Published images are signed with the release key, the SECUREBOOT_KEY secret
+    # in the file SECUREBOOT_KEY_FILE names, whose certificate is secure-boot.crt; every other build with
+    # a throwaway key made here, which no machine trusts, so that what it seals can be tested in a VM but
+    # never published. Never traced: the key is only ever in a file of its own, outside the repository.
     keys="$(mktemp -d)"
     trap 'rm -rf "${keys}" sealed_build' EXIT
-    if [[ -n "${SECUREBOOT_KEY:-}" && -s secure-boot.crt ]]; then
-        printenv SECUREBOOT_KEY >"${keys}/key"
+    if [[ -s "${SECUREBOOT_KEY_FILE:-}" && -s secure-boot.crt ]]; then
+        cp "${SECUREBOOT_KEY_FILE}" "${keys}/key"
         cp secure-boot.crt "${keys}/cert"
         if ! cmp -s <(openssl pkey -in "${keys}/key" -pubout) <(openssl x509 -in "${keys}/cert" -noout -pubkey); then
             echo "::error::SECUREBOOT_KEY is not the key of secure-boot.crt, the certificate machines trust"
@@ -316,7 +323,7 @@ seal $image="amethystora" $tag="stable" $flavor="main":
         fi
         key=release
     else
-        echo "Not both SECUREBOOT_KEY and secure-boot.crt: sealing with a throwaway key, for testing only"
+        echo "Not both SECUREBOOT_KEY_FILE and secure-boot.crt: sealing with a throwaway key, for testing only"
         openssl req -new -x509 -newkey rsa:2048 -nodes -sha256 -days 30 \
             -subj "/CN=Amethystora throwaway Secure Boot key/" \
             -keyout "${keys}/key" -out "${keys}/cert" 2>/dev/null
