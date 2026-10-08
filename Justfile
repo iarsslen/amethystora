@@ -147,6 +147,9 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
 
     # Verify Base Image with cosign, pinned by digest
     {{ just }} verify-container "${base_image_name}-main:${fedora_version}@${base_image_sha}"
+    # When it was built, from its image configuration (Universal Blue's images carry no created label),
+    # for image-info.json, which the report reads, and for 20-tests.sh, which fails a stale base
+    base_created="$(date -d "$(skopeo inspect --retry-times 3 "docker://ghcr.io/ublue-os/${base_image_name}-main@${base_image_sha}" | jq -r .Created)" +%s)"
 
     # Kernel Release/Pin
     if [[ -z "${kernel_pin:-}" ]]; then
@@ -206,6 +209,7 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
     BUILD_ARGS+=("--build-arg" "AKMODS_NVIDIA_DIGEST=${akmods_nvidia_sha}")
     BUILD_ARGS+=("--build-arg" "BASE_IMAGE_NAME=${base_image_name}")
     BUILD_ARGS+=("--build-arg" "BASE_IMAGE_SHA=${base_image_sha}")
+    BUILD_ARGS+=("--build-arg" "BASE_IMAGE_CREATED=${base_created}")
     BUILD_ARGS+=("--build-arg" "BREW_IMAGE={{ brew_image }}")
     BUILD_ARGS+=("--build-arg" "BREW_IMAGE_SHA=${brew_image_sha}")
     BUILD_ARGS+=("--build-arg" "FEDORA_MAJOR_VERSION=${fedora_version}")

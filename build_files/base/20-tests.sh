@@ -1919,6 +1919,25 @@ if [[ "${IMAGE_NAME}" =~ nvidia ]]; then
   done
 fi
 
+# --- The build and signing chain -----------------------------------------------------------------------
+# The base image is at most 10 days older than this build. image-versions.yml pins it by digest, so every
+# package it brings stays as it was until the pin moves; bump-base-images.yml proposes the move daily.
+BASE_CREATED="$(jq -r '."base-created"' /usr/share/amethystora/image-info.json)"
+if (($(date +%s) - BASE_CREATED > 10 * 86400)); then
+    echo "The base image was built $((($(date +%s) - BASE_CREATED) / 86400)) days ago: merge the pull request that updates image-versions.yml"
+    exit 1
+fi
+# The repositories whose keys the build pinned (pin_repo_key, copr-helpers.sh) name the checked copy,
+# never a key on their server
+for file in /etc/yum.repos.d/{tailscale,docker-ce,_copr_ublue-os-akmods}.repo \
+    /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:{che:nerd-fonts,ublue-os:packages,bieszczaders:kernel-cachyos-addons}.repo; do
+    [[ -f "${file}" ]] || continue
+    if grep -E '^gpgkey[[:space:]]*=' "${file}" | grep -v '=file:///etc/pki/rpm-gpg/'; then
+        echo "${file} names a signing key on a server"
+        exit 1
+    fi
+done
+
 IMPORTANT_UNITS=(
     clamav-freshclam.service
     clamd@scan.service

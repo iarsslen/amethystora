@@ -30,6 +30,8 @@ ARG AKMODS_FLAVOR="coreos-stable"
 ARG AKMODS_DIGEST=""
 ARG AKMODS_ZFS_DIGEST=""
 ARG AKMODS_NVIDIA_DIGEST=""
+# When the base image was built, in seconds since the epoch (00-image-info.sh)
+ARG BASE_IMAGE_CREATED=""
 ARG BASE_IMAGE_NAME="silverblue"
 ARG FEDORA_MAJOR_VERSION="40"
 ARG IMAGE_NAME="amethystora"

@@ -1,0 +1,89 @@
+name: Bump Base Images
+on:
+  schedule:
+    - cron: "0 15 * * *" # Daily, after Universal Blue's daily build of silverblue-main
+  workflow_dispatch:
+
+# The base image never moves by itself: image-versions.yml pins it by digest, and every package it
+# brings stays as it was until the pin moves. This resolves each tag in that file to its digest today,
+# checks the image against Universal Blue's key (keys/ublue-os-cosign.pub), and proposes the new digests
+# in one pull request, from the automation/base-images branch, which is updated in place while the pull
+# request is open. 20-tests.sh fails a build whose base is more than 10 days older than itself.
+#
+# A pull request opened with the workflow's own token starts no workflows, so its checks would not run.
+# With a BASE_BUMP_TOKEN secret (a fine-grained token with Contents and Pull requests write on this
+# repository only) they do; without one, the pull request is opened all the same and its checks have to
+# be started by hand.
+
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}
+
+jobs:
+  bump:
+    name: Bump
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      BRANCH: automation/base-images
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
+
+      # Each digest line is rewritten in place, by its line number, so that the file keeps its comments
+      # and layout
+      - name: Resolve and verify
+        id: bump
+        run: |
+          set -euo pipefail
+          : > CHANGES
+          count="$(yq '.images | length' image-versions.yml)"
+          for ((i = 0; i < count; i++)); do
+            image="$(yq -r ".images[${i}].image" image-versions.yml)"
+            tag="$(yq -r ".images[${i}].tag" image-versions.yml)"
+            pinned="$(yq -r ".images[${i}].digest" image-versions.yml)"
+            line="$(yq ".images[${i}].digest | line" image-versions.yml)"
+            inspect="$(skopeo inspect --retry-times 3 "docker://${image}:${tag}")"
+            digest="$(jq -r .Digest <<<"${inspect}")"
+            [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+            [[ "${digest}" == "${pinned}" ]] && continue
+            cosign verify --key keys/ublue-os-cosign.pub "${image}@${digest}" > /dev/null
+            sed -i "${line}s|${pinned}|${digest}|" image-versions.yml
+            echo "- \`${image}:${tag}\`, built $(jq -r .Created <<<"${inspect}"): \`${pinned}\` to \`${digest}\`" >> CHANGES
+          done
+          git diff --exit-code image-versions.yml > /dev/null && exit 0
+          git diff image-versions.yml
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open the pull request
+        if: steps.bump.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BASE_BUMP_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          title="chore(deps): update the pinned base images"
+          {
+            echo "Each image below was resolved from its tag and verified against Universal Blue's key"
+            echo "(keys/ublue-os-cosign.pub) before it was proposed."
+            echo
+            cat CHANGES
+          } > BODY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "${BRANCH}"
+          { echo "${title}"; echo; cat BODY; } | git commit -q -F - image-versions.yml
+          gh auth setup-git
+          git push --force origin "${BRANCH}"
+          if [[ -z "$(gh pr list --head "${BRANCH}" --state open --json number --jq '.[].number')" ]]; then
+            gh pr create --base main --head "${BRANCH}" --title "${title}" --body-file BODY
+          fi
