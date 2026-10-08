@@ -1,0 +1,5 @@
+# Written by `ame security block-automount on` (/usr/libexec/amethystora-hardening), locked beside it
+[org/gnome/desktop/media-handling]
+automount=false
+automount-open=false
+autorun-never=true

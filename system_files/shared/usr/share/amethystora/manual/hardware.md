@@ -49,6 +49,10 @@ first start, and asks the same password.
   stays dark until the key above is enrolled.
 - **External monitor brightness** can be set from the command line with `ddcutil`, for monitors
   that support it.
+- **Thunderbolt docks and devices** read and write memory by themselves unless the IOMMU keeps each to
+  what it was given. The [security report](security.md#see-where-you-stand)'s **DMA protection** check
+  says whether this machine's does, and `ame security kernel-args iommu.strict=1 on` turns it on where
+  the firmware has VT-d or AMD-Vi.
 
 ## Disks
 

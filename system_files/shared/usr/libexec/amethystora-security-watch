@@ -296,7 +296,8 @@ DRIFT_PATHS=(amethystora audit authselect brave/policies chromium/policies clamd
     sudoers.d sysctl.conf sysctl.d tmpfiles.d udev/rules.d usbguard xdg/autostart)
 # ...less what the image's own recipes and services write there as a matter of course
 EXPECTED_DRIFT=" amethystora/security.conf amethystora/ips-allowed amethystora/browser-extensions \
-amethystora/hardening-off amethystora/allow.d/report \
+amethystora/hardening-off amethystora/hardening-on amethystora/firewall-home amethystora/vscodium-extensions \
+amethystora/allow.d/report \
 audit/audit.rules audit/audit.rules.prev audit/rules.d/60-amethystora.rules audit/rules.d/61-amethystora-home.rules \
 brave/policies/managed/10-amethystora.json chromium/policies/managed/10-amethystora.json \
 firefox/policies/policies.json modprobe.d/tuned.conf opt/chrome/policies/managed/10-amethystora.json \
@@ -684,9 +685,10 @@ read_report() {
 
 # --- The switches themselves --------------------------------------------------------------------------
 
-# A security setting changed in /etc/amethystora/security.conf, or one of what the image enforces turned off
-# (/etc/amethystora/hardening-off), named with what it changed to. The audit log says which program wrote
-# the file; this says what it now means. A change its own switch made is recorded, not said.
+# A security setting changed in /etc/amethystora/security.conf, one of what the image enforces turned off
+# (/etc/amethystora/hardening-off) or a stricter setting turned off again (hardening-on), named with what it
+# changed to. The audit log says which program wrote the file; this says what it now means. A change its own
+# switch made is recorded, not said.
 read_settings() {
     local now was key value old
     now="$(/usr/libexec/amethystora-security-config --all | sort)"
@@ -711,6 +713,16 @@ read_settings() {
         noted "${key%% *}" && level=quiet
         add "${level}" settings - "Defense Evasion" "${key} was turned off, of what the image enforces (ame security ${key%% *})"
     done < <(comm -13 <(printf '%s\n' "${was}" | sed '/^$/d') <(printf '%s\n' "${now}" | sed '/^$/d'))
+    now="$(sort "${ROOT}/etc/amethystora/hardening-on" 2>/dev/null)"
+    [[ -e "${STATE}/hardening-on.seen" ]] || { printf '%s\n' "${now}" >"${STATE}/hardening-on.seen"; return; }
+    was="$(cat "${STATE}/hardening-on.seen")"
+    printf '%s\n' "${now}" >"${STATE}/hardening-on.seen"
+    while IFS= read -r key; do
+        [[ -n "${key}" ]] || continue
+        level=normal
+        noted "${key%% *}" && level=quiet
+        add "${level}" settings - "Defense Evasion" "${key}, a stricter setting, was turned off (ame security ${key%% *})"
+    done < <(comm -23 <(printf '%s\n' "${was}" | sed '/^$/d') <(printf '%s\n' "${now}" | sed '/^$/d'))
 }
 
 # --- What the audit log lost ---------------------------------------------------------------------------

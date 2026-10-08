@@ -1,0 +1,3 @@
+# Written by `ame security block-user-extensions on` (/usr/libexec/amethystora-hardening), locked beside it
+[org/gnome/shell]
+allow-extension-installation=false

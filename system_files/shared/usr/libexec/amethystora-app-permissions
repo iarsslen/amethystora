@@ -190,9 +190,15 @@ for line in "${APPS[@]}"; do
     done
     own=false
     [[ -s "${TMP}/${index}.user" ]] && own=true
+    # The network, which nearly every app has: whether it has it now, and whether this account took it away
+    network=false
+    [[ ";$(keyfile_value "${TMP}/${index}.now" Context shared);" == *";network;"* ]] && network=true
+    blocked=false
+    [[ ";$(keyfile_value "${TMP}/${index}.user" Context shared);" == *";!network;"* ]] && blocked=true
     RECORDS+=("$( ( ((${#list[@]})) && printf '%s\n' "${list[@]}" ) | jq -sc --arg app "${app}" \
         --arg name "${name:-${app}}" --arg installation "${installation}" --argjson own "${own}" \
-        '{$app, $name, $installation, user_overrides: $own, reaches: .}')")
+        --argjson network "${network}" --argjson blocked "${blocked}" \
+        '{$app, $name, $installation, user_overrides: $own, reaches: ., $network, network_blocked: $blocked}')")
 done
 
 if [[ "${JSON}" == true ]]; then

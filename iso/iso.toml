@@ -13,10 +13,13 @@ publisher = "Amethystora"
 # update: the installed system's policy.json takes Amethystora's images only with its signature. An
 # in-place switch only rewrites the origin, so it fetches nothing and needs no network. build-iso.yml
 # fails on a switch without the flag; amethystora-signed-updates stays for a later plain `bootc switch`.
+# The marker tells the first boot that this is a new installation, which gets the hourly snapshots of the
+# home folders (system-setup.hooks.d/26-snapshots-new-installation.sh).
 [customizations.installer.kickstart]
 contents = """
 %post
 bootc switch --mutate-in-place --enforce-container-sigpolicy --transport registry ghcr.io/iarsslen/@IMAGE@:stable
+mkdir -p /var/lib/amethystora && touch /var/lib/amethystora/new-installation
 %end
 """
 

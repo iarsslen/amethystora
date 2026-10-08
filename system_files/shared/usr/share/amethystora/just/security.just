@@ -192,7 +192,8 @@ secure-boot:
     echo "At next reboot, the blue MOK manager screen appears (QWERTY keyboard layout)."
     echo "Select \"Enroll MOK\", then \"Continue\", \"Yes\", and type \"${ENROLLMENT_PASSWORD}\" as the password."
 
-# Kernel lockdown on a machine without Secure Boot, where it costs the modules signed with this machine's key
+# Kernel lockdown on a machine without Secure Boot, where it costs the modules signed with this machine's key,
+# and its strict level, which also keeps root from reading the kernel's memory
 [positional-arguments]
 lockdown ACTION="":
     #!/usr/bin/bash
@@ -216,7 +217,7 @@ lockdown ACTION="":
         exit 1
     fi
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "Kernel lockdown" "Turn on" "Turn off" "Cancel")"
+        action="$(gum choose --header "Kernel lockdown" "Turn on" "Strict" "Turn off" "Cancel")"
     fi
     nvidia=false
     [[ "$(jq -r '."image-flavor" // ""' /usr/share/amethystora/image-info.json 2>/dev/null)" == nvidia* ]] && nvidia=true
@@ -236,15 +237,25 @@ lockdown ACTION="":
                 echo "are signed with a key the kernel does not trust then, and will not load."
             fi
             gum confirm "Turn kernel lockdown on, from the next restart?" || exit 0
-            sudo rpm-ostree kargs --append-if-missing=lockdown=integrity
+            sudo rpm-ostree kargs --append-if-missing=lockdown=integrity --delete-if-present=lockdown=confidentiality
             echo "On from the next restart."
+            ;;
+        "Strict" | strict)
+            echo
+            echo "Strict lockdown (confidentiality) also refuses what lets root read the running kernel: BPF"
+            echo "programs that read kernel memory, kprobes, perf with kernel data and /proc/kcore. bpftrace,"
+            echo "perf and eBPF security tools stop working. Unlike the usual level, it applies with Secure Boot"
+            echo "on too."
+            gum confirm "Make kernel lockdown strict, from the next restart?" || exit 0
+            sudo rpm-ostree kargs --append-if-missing=lockdown=confidentiality
+            echo "Strict from the next restart. ame security lockdown on goes back to the usual level."
             ;;
         "Turn off" | off)
             if [[ "${secure_boot}" == true ]]; then
                 echo "Secure Boot is on, so the kernel stays locked down. This only matters if it is turned off."
             fi
             gum confirm "Leave lockdown out of the kernel arguments, from the next restart?" || exit 0
-            sudo rpm-ostree kargs --delete-if-present=lockdown=integrity
+            sudo rpm-ostree kargs --delete-if-present=lockdown=integrity --delete-if-present=lockdown=confidentiality
             echo "Off from the next restart. Updates keep it that way; ame security lockdown on puts it back."
             ;;
         *) exit 0 ;;
@@ -318,6 +329,9 @@ settings SETTING="" VALUE="":
     value="${2:-}"
     if [[ -z "${setting}" ]]; then
         "${config}" --list
+        echo
+        echo "What the image enforces, and stricter settings, each changed with ame security and its name:"
+        /usr/libexec/amethystora-hardening status
         echo
         echo "Everything off at once, or back as the image ships it: ame security profile"
         mapfile -t names < <("${config}" --list --json | jq -r '.settings[].setting')
@@ -460,7 +474,7 @@ profile NAME="":
     esac
     sudo "${config}" profile "${name}"
     # Each unit reads its key as it starts, so a restart starts or stops it
-    sudo systemctl restart clamav-freshclam.service clamd@scan.service amethystora-clamav-onaccess.service \
+    sudo systemctl restart clamav-freshclam.service clamd@scan.socket amethystora-clamav-onaccess.service \
         amethystora-ips.service amethystora-security-realtime.service || true
     sudo systemctl start --no-block amethystora-security-watch.service || true
     echo "Done. The audit log and its rules follow at the next restart."
@@ -522,7 +536,7 @@ allow FEATURE="report" ENTRY="" ACTION="":
     sudo "${helper}" add report "${id} ${state}"
     echo "Accepted. ame security allow report ${id} remove shows it again."
 
-# The image's kernel settings: programs kept from each other's memory, kernel addresses hidden, no unprivileged BPF
+# The image's kernel settings (standard), stricter ones (strict: no io_uring, debuggers for root only), or off
 [positional-arguments]
 kernel ACTION="":
     @/usr/libexec/amethystora-hardening ask kernel "${1:-}"
@@ -532,7 +546,7 @@ kernel ACTION="":
 blocked-modules ACTION="":
     @/usr/libexec/amethystora-hardening ask blocked-modules "${1:-}"
 
-# The image's kernel arguments, each on its own: init_on_alloc, slab_nomerge, vsyscall=none...
+# Kernel arguments, each on its own: the image's (init_on_alloc, vsyscall=none...) and stricter ones (init_on_free...)
 [positional-arguments]
 kernel-args ARGUMENT="" ACTION="":
     @/usr/libexec/amethystora-hardening ask kernel-args "${1:-}" "${2:-}"
@@ -571,6 +585,96 @@ ssh-settings ACTION="":
 [positional-arguments]
 signed-updates ACTION="":
     @/usr/libexec/amethystora-hardening ask signed-updates "${1:-}"
+
+# Temporary IPv6 addresses, so that sites cannot follow this machine by one address
+[positional-arguments]
+ipv6-privacy ACTION="":
+    @/usr/libexec/amethystora-hardening ask ipv6-privacy "${1:-}"
+
+# Bluetooth's random address, and visible and pairable for 30 seconds at a time
+[positional-arguments]
+bluetooth-privacy ACTION="":
+    @/usr/libexec/amethystora-hardening ask bluetooth-privacy "${1:-}"
+
+# The clock set only from time servers that prove who they are (NTS), never one a network suggests
+[positional-arguments]
+time ACTION="":
+    @/usr/libexec/amethystora-hardening ask time "${1:-}"
+
+# A zone that answers nothing on networks you have not named home
+[positional-arguments]
+firewall-away ACTION="":
+    @/usr/libexec/amethystora-hardening ask firewall-away "${1:-}"
+
+# Avahi and ModemManager off: no printer or device discovery, no mobile broadband
+[positional-arguments]
+network-daemons ACTION="":
+    @/usr/libexec/amethystora-hardening ask network-daemons "${1:-}"
+
+# Bluetooth kept from loading at all
+[positional-arguments]
+block-bluetooth ACTION="":
+    @/usr/libexec/amethystora-hardening ask block-bluetooth "${1:-}"
+
+# The USB webcam driver kept from loading
+[positional-arguments]
+block-webcam ACTION="":
+    @/usr/libexec/amethystora-hardening ask block-webcam "${1:-}"
+
+# USB sticks and disks mounted only when opened in Files
+[positional-arguments]
+block-automount ACTION="":
+    @/usr/libexec/amethystora-hardening ask block-automount "${1:-}"
+
+# No installing GNOME extensions from extensions.gnome.org
+[positional-arguments]
+block-user-extensions ACTION="":
+    @/usr/libexec/amethystora-hardening ask block-user-extensions "${1:-}"
+
+# GNOME without Xwayland, so that no app can use X11
+[positional-arguments]
+block-xwayland ACTION="":
+    @/usr/libexec/amethystora-hardening ask block-xwayland "${1:-}"
+
+# Only the Flathub apps whose makers Flathub verified
+[positional-arguments]
+flathub-verified ACTION="":
+    @/usr/libexec/amethystora-hardening ask flathub-verified "${1:-}"
+
+# An administrator's password to install or remove Flatpak apps for the whole machine
+[positional-arguments]
+flatpak-password ACTION="":
+    @/usr/libexec/amethystora-hardening ask flatpak-password "${1:-}"
+
+# Nothing started from /tmp, /var/tmp or /dev/shm
+[positional-arguments]
+noexec-temp ACTION="":
+    @/usr/libexec/amethystora-hardening ask noexec-temp "${1:-}"
+
+# No copy of a crashed program's memory kept on disk
+[positional-arguments]
+no-coredumps ACTION="":
+    @/usr/libexec/amethystora-hardening ask no-coredumps "${1:-}"
+
+# npm, pnpm and uv refusing package versions published in the last few days
+[positional-arguments]
+package-cooldown ACTION="":
+    @/usr/libexec/amethystora-hardening ask package-cooldown "${1:-}"
+
+# Homebrew checking each bottle's build attestation; needs gh and a GitHub login
+[positional-arguments]
+brew-attestations ACTION="":
+    @/usr/libexec/amethystora-hardening ask brew-attestations "${1:-}"
+
+# A password before anyone edits a boot entry or opens the boot menu's command line
+[positional-arguments]
+boot-password ACTION="":
+    @/usr/libexec/amethystora-hardening ask boot-password "${1:-}"
+
+# VSCodium's extensions updated only by you, and only those you list (dx)
+[positional-arguments]
+vscodium-extensions ACTION="":
+    @/usr/libexec/amethystora-hardening ask vscodium-extensions "${1:-}"
 
 # What the security watcher noticed: accounts, what starts by itself, settings, keyboard readers
 [positional-arguments]

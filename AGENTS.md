@@ -213,7 +213,7 @@ Packages are defined directly in build scripts rather than in a central configur
   - `FEDORA_PACKAGES` array - Packages from official Fedora repos (installed in bulk)
   - `COPR_PACKAGES` array - Packages from COPR repos (installed individually with isolated enablement)
   - Fedora version-specific package sections using case statements (e.g., `42)`, `43)`)
-- `build_files/dx/00-dx.sh` - Developer experience package additions. The editor is VSCodium, from its repository with the key pinned in `system_files/dx/etc/pki/rpm-gpg`: Microsoft's VS Code licence does not allow it to be shared inside a published image, so do not bring it back. Nothing joins an account to `docker`, `incus-admin` or `libvirt`, each root under another name: `ame system dx-group` offers the groups listed in `system_files/shared/usr/share/amethystora/developer-groups`, which Control and the security report read too
+- `build_files/dx/00-dx.sh` - Developer experience package additions. The editor is VSCodium, from its repository with the key pinned in `system_files/dx/etc/pki/rpm-gpg`: Microsoft's VS Code licence does not allow it to be shared inside a published image, so do not bring it back. `user-setup.hooks.d/10-vscodium.sh` installs only Open VSX extensions their makers published there, not copies its bot republished. Nothing joins an account to `docker`, `incus-admin` or `libvirt`, each root under another name: `ame system dx-group` offers the groups listed in `system_files/shared/usr/share/amethystora/developer-groups`, which Control and the security report read too
 
 ### Games, Android apps, drawing tablets and the CPU scheduler
 
@@ -349,6 +349,10 @@ check into the recipe or the app. The app runs only the commands that script nam
 `/usr/libexec/amethystora-quarantine`, which scans each file again first; never add `--move` or
 `--remove` to a scan. `/usr/libexec/amethystora-security-config` is the one reader of that file.
 Starting the whole-machine scan without a password is all `50-amethystora-virus-scan.rules` allows.
+clamd runs only while something scans: `clamd@scan.socket` starts it, in the foreground so that it keeps
+the socket it is handed, and `amethystora-clamd-idle.timer` stops it when no scan and no real-time
+scanning needs it. The socket's folder is Fedora's (0710 `clamscan:virusgroup`), so an account scans with
+`clamscan`, as before.
 Network protection, the app's **Network** page, is Suricata inline on the machine's own traffic
 (`amethystora-ips.service`, `/usr/libexec/amethystora-ips`), off until `NETWORK` in that file says
 `watch` or `block`; only `block` cuts anything off. It fails open at every layer: the queue's `bypass`
@@ -384,6 +388,19 @@ profile off|default` sets every detection key at once. `ame security allow repor
 cannot be fixed on the machine (`/usr/libexec/amethystora-security-allow`). `test-security-switches.sh`
 checks all of it. A new feature gets its switch with it, off by default.
 
+The same helper holds the stricter settings, each off until turned on and kept in
+`/etc/amethystora/hardening-on`: `kernel strict` (io_uring, ptrace, address randomisation, IPsec), extra
+kernel arguments (`EXTRA_ARGS`), `time` (chrony with NTS only), `firewall-away` (the `amethystora-away`
+zone by default, home connections keeping `amethystora`), `network-daemons`, `block-bluetooth`,
+`block-webcam`, `block-automount` and `block-user-extensions` (locked dconf keys in `local.d`),
+`block-xwayland` (`--no-x11` in GNOME Shell's user unit, whose `ExecStart` `20-tests.sh` compares),
+`flathub-verified`, `flatpak-password`, `noexec-temp` (marked `/etc/fstab` lines), `no-coredumps`,
+`package-cooldown` (npm, pnpm and uv through `environment.d` and `profile.d`), `brew-attestations`,
+`boot-password` (`grub2-setpassword`, which bootupd's static `01_users.cfg` reads) and, on dx,
+`vscodium-extensions` (`/etc/vscodium/policy.json`, which VSCodium reads under that name). Each says what
+it costs before it is turned on; the report's `stricter` check names the ones that are on, and the watcher
+says when one is turned off any other way. `ame security lockdown strict` is lockdown's own third level.
+
 **What an account plants is only ever read.** Text somebody else wrote (a file name, a program's name
 or command line, a launcher's `Exec=`, a host name, a rule's message) goes through
 `/usr/libexec/amethystora-security-text` before it reaches a notification, a history line or a terminal:
@@ -400,7 +417,9 @@ run as the user, which the report's **App permissions** check, the app's **Apps*
 security apps` all read. It compares `flatpak info --show-permissions` (every override applied) with the
 app's manifest and its own overrides, and gives each reach an id from its fixed list; the report flags
 the ids that leave the sandbox, whoever granted them. The app takes back only the account's own
-overrides for an app the list says has some (`flatpak override --user --reset`). The global override
+overrides for an app the list says has some (`flatpak override --user --reset`), and takes one app's
+network away or gives it back the same way (`--unshare=network`, `--share=network`), only for an app the
+list says has it or had it taken. The global override
 the image ships, `/etc/flatpak/overrides/global`, only applies through the link
 `amethystora-flatpak-overrides.conf` makes in `/var/lib/flatpak/overrides`: Flatpak reads no other place.
 It takes X11, the input devices and the Flatpak service from every app, and leaves `--device=all` to the
@@ -696,6 +715,10 @@ it.
   card (PCI class `0x03`, vendor `0x10de`), or the image without the driver on one without, once per
   machine, through `amethystora-notify-users --action` and `ame system rebase IMAGE STREAM`. It
   never switches by itself; its state is `/var/lib/amethystora/gpu-check`.
+- The hourly snapshots of the home folders are on from the first boot of a machine installed from an
+  Amethystora ISO: both kickstarts leave `/var/lib/amethystora/new-installation`, which
+  `system-setup.hooks.d/26-snapshots-new-installation.sh` acts on and removes. A machine updated into it
+  keeps them as its owner left them.
 - `amethystora-backup` stores `amethystora-setup-manifest`'s JSON beside each backup, as a restic
   snapshot tagged `amethystora-setup` (no secrets in it), and `ame restore-setup`
   (`/usr/libexec/amethystora-restore-setup`) makes the setup again from it, each step chosen first.
@@ -971,8 +994,8 @@ staying in place.
 16. `16-backups.sh` - Installs the runtime of Amethystora Backups (`amethystora-backups`), the window that goes back through the hourly snapshots and the restic backup and puts files back: the same hard links to the Manual's Electron and `i18n.js` and the same Quicksand as `14-security.sh`. The app itself is `system_files/shared/usr/lib/amethystora-backups/resources/app`; what it shows is `/usr/libexec/amethystora-restore`'s
 17. `16-control.sh` - Installs the runtime of Amethystora Control (`amethystora-control`), the window for Amethystora's own settings outside security: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`. The app itself is `system_files/shared/usr/lib/amethystora-control/resources/app`; what it lists is `/usr/libexec/amethystora-control-list`, which `ame control` prints
 18. `07-debrand.sh` - Renames every remaining Universal Blue file, command, service and reference to Amethystora (logic in `build_files/shared/debrand.py`; `20-tests.sh` fails the build if any is left). Licence files, copyright lines and the comments that credit an author keep upstream's names
-19. `08-hardening.sh` - Signature-verified updates, firewall default zone, account lockout, Parental Controls' allowed hours at the text consoles and over SSH (see Logins), kernel lockdown, and the sudo PATH that `ublue-os/main` leaves open. The polkit and udev fixes are made in the files themselves (`org.amethystora.privileged.user.setup.policy`, `50-zsa.rules`). Lockdown is skipped on the NVIDIA images, whose driver is an akmods build signed with the machine owner key: forcing lockdown on a machine with Secure Boot off would leave it without a graphics driver. With Secure Boot on, Fedora's kernel locks itself down whatever the arguments say (`20-tests.sh` checks its config), so the argument only matters without; `ame security lockdown` adds or takes it off per machine. The settings that are plain files live in `system_files/shared` (`usr/lib/sysctl.d`, `usr/lib/modprobe.d`, `usr/lib/bootc/kargs.d`, `etc/ssh/sshd_config.d`, `etc/security/faillock.conf`, `etc/flatpak/overrides/global`, `etc/audit/rules.d`)
-20. `17-cleanup.sh` - Cleanup operations, and the systemd units the image enables, the per-user ones with `systemctl --global` (`amethystora-pkg-upgrade.timer`, `amethystora-update-alert.service`, `amethystora-dns-portal.service`). It also makes the `amepkg` link, since the build's rsync skips links in `system_files`. Two things here are deliberately *disabled*: `input-remapper.service`, which runs as root and reads every input device, and `usbguard.service`, which would block the keyboard on a machine where nobody had allowed it yet. Both are turned on per machine by an `ame security` command (`usb`, `input-remapper`). So are `waydroid-container.service` and `scx_loader.service` (`ame apps android`, `ame system scheduler`). It enables `fwupd-refresh.timer`, which Fedora leaves to GNOME Software, and the pools of disks' `amethystora-raid-check.timer` and `amethystora-raid-scrub.timer`
+19. `08-hardening.sh` - Signature-verified updates, firewall default zone, account lockout, Parental Controls' allowed hours at the text consoles and over SSH (see Logins), kernel lockdown, and the sudo PATH that `ublue-os/main` leaves open. The polkit and udev fixes are made in the files themselves (`org.amethystora.privileged.user.setup.policy`, `50-zsa.rules`). Lockdown is skipped on the NVIDIA images, whose driver is an akmods build signed with the machine owner key: forcing lockdown on a machine with Secure Boot off would leave it without a graphics driver. With Secure Boot on, Fedora's kernel locks itself down whatever the arguments say (`20-tests.sh` checks its config), so the argument only matters without; `ame security lockdown` adds or takes it off per machine. It takes setuid root off what a desktop never runs (`chfn`, `chage`, `gpasswd`, `newgrp`, `ksu`, `mount.davfs`), masks systemd's SSH-over-vsock generator in `/etc` (`ame security ssh-settings off` unmasks it) and sets BlueZ's privacy and 30-second visibility in its own `main.conf`, which reads no drop-ins (`ame security bluetooth-privacy`). The settings that are plain files live in `system_files/shared` (`usr/lib/sysctl.d`, `usr/lib/modprobe.d`, `usr/lib/bootc/kargs.d`, `etc/ssh/sshd_config.d`, `etc/security/faillock.conf`, `etc/flatpak/overrides/global`, `etc/audit/rules.d`)
+20. `17-cleanup.sh` - Cleanup operations, and the systemd units the image enables, the per-user ones with `systemctl --global` (`amethystora-pkg-upgrade.timer`, `amethystora-update-alert.service`, `amethystora-dns-portal.service`). It also makes the `amepkg` link, since the build's rsync skips links in `system_files`. Two things here are deliberately *disabled*: `input-remapper.service`, which runs as root and reads every input device, and `usbguard.service`, which would block the keyboard on a machine where nobody had allowed it yet. Both are turned on per machine by an `ame security` command (`usb`, `input-remapper`). So are `waydroid-container.service` and `scx_loader.service` (`ame apps android`, `ame system scheduler`). It enables `fwupd-refresh.timer`, which Fedora leaves to GNOME Software, the pools of disks' `amethystora-raid-check.timer` and `amethystora-raid-scrub.timer`, and `clamd@scan.socket` with `amethystora-clamd-idle.timer` in place of clamd itself
 21. `18-workarounds.sh` - Temporary fixes/workarounds
 22. `19-initramfs.sh` - Regenerates initramfs, adding dracut's `tpm2-tss` module where dracut has it so that `ame security disk-unlock` can hand the disk key to the TPM
 23. `build_files/shared/build-dx.sh` - dx only: copies `system_files/dx`, runs `build_files/dx/00-dx.sh` and then `01-tests-dx.sh`

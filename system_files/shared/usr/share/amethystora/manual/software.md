@@ -29,6 +29,11 @@ Two more tools are there for Flatpaks:
 - **Flatseal** shows and changes what each app is allowed to reach: folders, devices, the network.
 - **Warehouse** manages installed apps and cleans up what they leave behind.
 
+Two switches make installing stricter, each off until you turn it on:
+`ame security flathub-verified on` shows only the Flathub apps whose makers Flathub verified, and
+`ame security flatpak-password on` asks for an administrator's password to install or remove an app
+for the whole machine ([Stricter settings](security.md#stricter-settings)).
+
 ### What Flatpak apps may not do
 
 Every Flatpak is refused X11, `/dev/input` and the Flatpak service itself, whatever its own manifest
@@ -52,7 +57,9 @@ brew search <name>
 ```
 
 Homebrew installs into its own prefix, without `sudo`, and is updated along with the system. The
-[terminal](terminal.md#command-line-tools) page has more.
+[terminal](terminal.md#command-line-tools) page has more. `ame security brew-attestations on` has it
+check each bottle's build attestation before installing it, which needs `gh` and `gh auth login` on
+every account.
 
 ## Containers
 

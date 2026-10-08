@@ -1160,6 +1160,29 @@ async function resetApp(app, node) {
     render();
 }
 
+async function setNetwork(app, allow, node) {
+    node.disabled = true;
+    const outcome = await window.security.setNetwork(app.app, allow);
+    state.notice = outcome.error || '';
+    if (!outcome.error) {
+        state.permissions = outcome;
+    }
+    render();
+}
+
+// One app's network, taken away or given back as an override of this account's
+function networkRow(app) {
+    return h('div', { class: 'list-row container-row' },
+        status(app.network_blocked ? 'ok' : 'info'),
+        h('span', { class: 'grow' },
+            h('strong', {}, app.name),
+            h('small', { dir: 'ltr' }, app.app),
+            app.network_blocked ? h('small', {}, t('Its network is blocked here')) : null),
+        app.network_blocked
+            ? button(t('Give its network back'), (event) => setNetwork(app, true, event.currentTarget), { small: true })
+            : button(t('Block its network'), (event) => setNetwork(app, false, event.currentTarget), { small: true }));
+}
+
 function appRow(app) {
     const tone = leaves(app) ? 'off' : app.reaches.some((reach) => TYPING.has(reach.id)) ? 'check' : 'info';
     const reset = app.user_overrides
@@ -1212,6 +1235,11 @@ function appsPage() {
                 t('Whatever runs in it can do anything you can. If you did not mean it to, change it in Flatseal, or take back what you granted.'))
             : null,
         section(t('What apps can reach'), list, apps.length ? t('{count, plural, one {# app checked} other {# apps checked}}', { count: apps.length }) : null),
+        apps.some((app) => app.network || app.network_blocked)
+            ? section(t('Network'),
+                h('div', { class: 'list card' }, apps.filter((app) => app.network || app.network_blocked).map(networkRow)),
+                t('An app without the network cannot send anything it reads. From its next start.'))
+            : null,
         h('div', { class: 'actions' },
             button(t('Change permissions in Flatseal'), () => window.security.flatseal(), { icon: 'arrow-right', after: true }),
             linkButton(t('App permissions in the manual'), () => window.security.manual('security#app-permissions'), { icon: 'book' })));
@@ -1375,6 +1403,8 @@ const VALUES = {
     delete: t('Delete'),
     watch: t('Watch'),
     block: t('Block'),
+    standard: t('Standard'),
+    strict: t('Strict'),
 };
 
 // The groups amethystora-security-config gives its switches
@@ -1418,8 +1448,18 @@ function switchRow(entry) {
         segmented(entry));
 }
 
+// A prevention switch: on or off, or one of its levels (kernel: off, standard, strict)
 function enforcedRow(entry) {
     const on = entry.state === 'on';
+    const levels = entry.levels
+        ? h('div', { class: 'segmented', role: 'group', 'aria-label': entry.title },
+            entry.levels.map((value) => h('button', {
+                type: 'button',
+                class: value === entry.level ? 'active' : null,
+                'aria-pressed': value === entry.level ? 'true' : 'false',
+                onclick: value === entry.level ? null : () => window.security.change('hardening', entry.name, value),
+            }, VALUES[value] || value)))
+        : null;
     return h('div', { class: 'list-row switch-row' },
         h('span', { class: 'grow' },
             h('strong', {}, entry.title),
@@ -1432,8 +1472,8 @@ function enforcedRow(entry) {
                     ? null
                     : linkButton(item.state === 'on' ? t('Turn off…') : t('Turn on…'),
                         () => window.security.change('hardening', entry.name, item.state === 'on' ? 'off' : 'on', item.argument), { small: true })))),
-        entry.arguments
-            ? null
+        entry.arguments || levels
+            ? levels
             : h('span', { class: 'switch-side' },
                 pill(on ? t('On') : t('Off'), on ? 'ok' : ''),
                 button(on ? t('Turn off…') : t('Turn on…'), () => window.security.change('hardening', entry.name, on ? 'off' : 'on'), { small: true })));
@@ -1454,9 +1494,15 @@ function settingsPage() {
                 sections.push(section(title, h('div', { class: 'list card' }, rows.map(switchRow))));
             }
         }
-        if (switches.hardening.length) {
-            sections.push(section(t('What the image enforces'), h('div', { class: 'list card' }, switches.hardening.map(enforcedRow)),
+        const enforced = switches.hardening.filter((entry) => entry.default !== 'off');
+        const stricter = switches.hardening.filter((entry) => entry.default === 'off');
+        if (enforced.length) {
+            sections.push(section(t('What the image enforces'), h('div', { class: 'list card' }, enforced.map(enforcedRow)),
                 t('No profile changes these')));
+        }
+        if (stricter.length) {
+            sections.push(section(t('Stricter, off unless you turn them on'), h('div', { class: 'list card' }, stricter.map(enforcedRow)),
+                t('Each costs something a desktop may need')));
         }
     }
     const profile = switches?.profile || 'custom';

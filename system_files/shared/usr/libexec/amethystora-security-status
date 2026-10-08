@@ -459,6 +459,29 @@ if jq -e '.Devices[]? | select(.Plugin == "uefi_dbx" and ((.Releases // []) | le
         "$(gettext "Install it with:")"
 fi
 
+# DMA: a device on the PCIe bus, a Thunderbolt one included, reads and writes memory by itself unless the
+# IOMMU keeps it to what it was given. The kernel says for each Thunderbolt domain whether that protects it.
+IOMMU_ON=false
+compgen -G "/sys/class/iommu/*" >/dev/null && IOMMU_ON=true
+THUNDERBOLT_OPEN=false
+for domain in /sys/bus/thunderbolt/devices/domain*; do
+    [[ -e "${domain}/iommu_dma_protection" ]] || continue
+    [[ "$(cat "${domain}/iommu_dma_protection" 2>/dev/null)" == 1 ]] || THUNDERBOLT_OPEN=true
+done
+if [[ "${THUNDERBOLT_OPEN}" == true ]]; then
+    COMMAND="ame security kernel-args iommu.strict=1 on"
+    report updates dma-protection check "$(gettext "DMA protection")" \
+        "$(gettext "A Thunderbolt device plugged in can read and write this machine's memory")" \
+        "$(gettext "The kernel's DMA protection is off for Thunderbolt. Turn VT-d or AMD-Vi on in the firmware settings if they are off, then turn the IOMMU on, from the next restart, with:")"
+elif [[ "${IOMMU_ON}" == true ]]; then
+    report updates dma-protection ok "$(gettext "DMA protection")" "$(gettext "The IOMMU keeps each device to the memory it is given")"
+else
+    COMMAND="ame security kernel-args iommu.strict=1 on"
+    report updates dma-protection info "$(gettext "DMA protection")" \
+        "$(gettext "No IOMMU is on: a device on the PCIe bus can reach any of this machine's memory")" \
+        "$(gettext "Fedora's kernel leaves Intel's IOMMU off. If the firmware has VT-d or AMD-Vi on, turn it on, from the next restart, with:")"
+fi
+
 # --- Watching -----------------------------------------------------------------------------------------
 
 if [[ "${SETTING[AUDIT_LOG]}" == off ]]; then
@@ -529,7 +552,17 @@ fi
 if hardening_off ssh-settings; then
     COMMAND="ame security ssh-settings on"
     turned_off watching ssh-settings "$(gettext "SSH server settings")" "$(gettext "The image's SSH server settings are turned off")" \
-        "$(gettext "If the SSH server is on, root may log in with a key, six tries a connection are allowed, and X11 is forwarded.")"
+        "$(gettext "If the SSH server is on, root may log in with a key, six tries a connection are allowed, X11 is forwarded, and the host of a virtual machine can reach it over vsock.")"
+fi
+if hardening_off ipv6-privacy; then
+    COMMAND="ame security ipv6-privacy on"
+    turned_off watching ipv6-privacy "$(gettext "Temporary IPv6 addresses")" "$(gettext "Temporary IPv6 addresses are turned off")" \
+        "$(gettext "Every connection uses one IPv6 address, by which the sites this machine talks to can follow it.")"
+fi
+if hardening_off bluetooth-privacy; then
+    COMMAND="ame security bluetooth-privacy on"
+    turned_off watching bluetooth-privacy "$(gettext "Bluetooth privacy")" "$(gettext "Bluetooth privacy is turned off")" \
+        "$(gettext "Bluetooth uses this machine's fixed address, and stays visible and pairable for as long as it is asked to.")"
 fi
 ZONE="$(firewall-cmd --get-default-zone 2>/dev/null || echo unknown)"
 if hardening_off firewall; then
@@ -539,6 +572,9 @@ if hardening_off firewall; then
 elif [[ "${ZONE}" == "amethystora" ]]; then
     report watching firewall ok "$(gettext "Firewall")" \
         "$(gettext "Firewall is on the amethystora zone: nothing incoming that a desktop does not need")"
+elif [[ "${ZONE}" == "amethystora-away" ]] && /usr/libexec/amethystora-hardening is-on firewall-away; then
+    report watching firewall ok "$(gettext "Firewall")" \
+        "$(gettext "Away from home the firewall answers nothing; the networks you named home keep the amethystora zone")"
 else
     COMMAND="sudo firewall-cmd --set-default-zone=amethystora"
     report watching firewall check "$(gettext "Firewall")" "$(eval_gettext "Firewall default zone is \${ZONE}, not amethystora")" \
@@ -720,14 +756,22 @@ if hardening_off kernel; then
     turned_off updates kernel "$(gettext "Kernel settings")" "$(gettext "The image's kernel settings are turned off")" \
         "$(gettext "From the restart after it was turned off, programs can read each other's memory, kernel addresses and messages show without sudo, and unprivileged BPF is allowed.")"
 else
-    while IFS='=' read -r key value; do
-        key="${key//[[:space:]]/}"
-        value="${value//[[:space:]]/}"
-        [[ -n "${key}" && "${key}" != \#* ]] || continue
+    # With ame security kernel strict, its own file raises some of these, and its values are the ones expected
+    declare -A EXPECTED_SYSCTL=()
+    for file in /usr/lib/sysctl.d/60-amethystora-hardening.conf \
+        $(/usr/libexec/amethystora-hardening is-on kernel strict && echo /usr/share/amethystora/hardening/61-amethystora-strict-sysctl.conf); do
+        while IFS='=' read -r key value; do
+            key="${key//[[:space:]]/}"
+            [[ -n "${key}" && "${key}" != \#* ]] || continue
+            EXPECTED_SYSCTL["${key}"]="${value//[[:space:]]/}"
+        done <"${file}"
+    done
+    for key in "${!EXPECTED_SYSCTL[@]}"; do
+        value="${EXPECTED_SYSCTL[${key}]}"
         live="$(cat "/proc/sys/${key//.//}" 2>/dev/null)" || continue
         [[ "${live//[[:space:]]/}" == "${value}" ]] ||
             DIFFERS+=("$(eval_gettext "The kernel setting \${key} is \${live}, not \${value}")")
-    done </usr/lib/sysctl.d/60-amethystora-hardening.conf
+    done
 fi
 CMDLINE=" $(cat /proc/cmdline 2>/dev/null) "
 KARGS_OFF=()
@@ -783,6 +827,20 @@ elif [[ ${#ADDED[@]} -gt 0 ]]; then
         "$(eval_gettext "Added on this machine: \${PATHS}")"
 else
     report watching image-settings ok "$(gettext "Image settings")" "$(gettext "The image's security settings are as it ships them")"
+fi
+
+# The stricter settings the owner turned on (amethystora-hardening): each costs something, so the report
+# names them, in case one is why something stopped working
+mapfile -t STRICTER_ON < <(/usr/libexec/amethystora-hardening status --json 2>/dev/null | jq -r '.[] |
+    (select(.default == "off" and .state == "on") | .title),
+    (select(.level == "strict" and .default == "on") | .title + " (strict)"),
+    (.arguments // [] | .[] | select(.default == "off" and .state == "on") | .argument)')
+if [[ ${#STRICTER_ON[@]} -gt 0 ]]; then
+    N="${#STRICTER_ON[@]}"
+    COMMAND="ame security settings"
+    report updates stricter info "$(gettext "Stricter settings")" \
+        "$(eval_ngettext "\${N} stricter setting is on" "\${N} stricter settings are on" "${N}")" \
+        "${STRICTER_ON[@]}" "$(gettext "Each costs something a desktop may need, said beside its switch:")"
 fi
 
 # Groups whose members become root without the sudo password: Docker's socket starts a container that
@@ -925,6 +983,22 @@ if hardening_off app-sandbox; then
     COMMAND="ame security app-sandbox on"
     turned_off apps app-sandbox "$(gettext "App sandbox override")" "$(gettext "The image's override of every app's sandbox is turned off")" \
         "$(gettext "Each Flatpak app has what its own manifest asks for, X11, the input devices and the Flatpak service included, from its next start.")"
+fi
+
+# GNOME extensions of the account's own, from extensions.gnome.org or copied in: each runs inside the
+# desktop, which on Wayland is the compositor, and sees every key typed and every pixel. Said, not flagged:
+# they are the account's choice. Run as root by the watcher, there is no account to look at.
+if [[ ${EUID} -ne 0 ]]; then
+    mapfile -t USER_EXTENSIONS < <(find "${HOME}/.local/share/gnome-shell/extensions" -mindepth 1 -maxdepth 1 -type d \
+        -printf '%f\n' 2>/dev/null | sort | /usr/libexec/amethystora-security-text --lines --max 120)
+    if [[ ${#USER_EXTENSIONS[@]} -gt 0 ]]; then
+        N="${#USER_EXTENSIONS[@]}"
+        COMMAND="ame security block-user-extensions"
+        report apps user-extensions info "$(gettext "GNOME extensions")" \
+            "$(eval_ngettext "\${N} GNOME extension of your own runs inside the desktop" "\${N} GNOME extensions of your own run inside the desktop" "${N}")" \
+            "${USER_EXTENSIONS[@]}" \
+            "$(gettext "Each one sees every key typed and every pixel. Remove one you do not use in Extension Manager, and keep new ones from being installed with:")"
+    fi
 fi
 
 # What each Flatpak can reach beyond its sandbox (/usr/libexec/amethystora-app-permissions, whose words

@@ -53,7 +53,7 @@ default for GNOME Boxes) need no group at all.
 
 | Tool | For |
 | --- | --- |
-| VSCodium | The editor: VS Code built from its open source code, without Microsoft's telemetry or licence. Extensions come from [Open VSX](https://open-vsx.org); Open Remote SSH and Container Tools are installed. Its colours follow the [theme](themes.md). |
+| VSCodium | The editor: VS Code built from its open source code, without Microsoft's telemetry or licence. Extensions come from [Open VSX](https://open-vsx.org); Open Remote SSH is installed, as published by its maker. Its colours follow the [theme](themes.md). |
 | Docker Engine | With buildx and compose. The default for dev containers. |
 | Podman | With `podman-compose` and `podman machine`. Always there, rootless, and the Podman socket is on. |
 | Incus | System containers and virtual machines, managed like cloud instances |
@@ -64,6 +64,12 @@ default for GNOME Boxes) need no group at all.
 | android-tools | `adb` and `fastboot` |
 | ROCm | GPU compute on AMD graphics |
 | flatpak-builder | Building Flatpaks |
+
+Packages published minutes ago are how most poisoned releases reached people:
+`ame security package-cooldown on` has npm, pnpm and uv refuse versions less than 3 days old, and
+`strict` waits 7 and runs no install scripts. `ame security vscodium-extensions on` stops VSCodium updating extensions by
+itself, and installs only the extensions or publishers listed in `/etc/amethystora/vscodium-extensions`
+when you list any ([Stricter settings](security.md#stricter-settings)).
 
 ## Dev Containers
 

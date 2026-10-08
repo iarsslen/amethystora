@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<zone>
+  <short>Amethystora, away from home</short>
+  <description>For networks that are not home, with ame security firewall-away on: every incoming connection is rejected but IPv6 address setup. No printer or device discovery, no Windows shares and no phone pairing. The networks named home keep the Amethystora zone.</description>
+  <service name="dhcpv6-client"/>
+</zone>

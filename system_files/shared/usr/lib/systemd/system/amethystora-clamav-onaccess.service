@@ -2,9 +2,10 @@
 Description=Real-time virus scanning of home directories
 Documentation=man:clamonacc(8)
 # Wants, as the weekly scan has it: clamd waits for its first signatures, and until then this keeps
-# failing and trying again rather than being cancelled
-Wants=clamd@scan.service
-After=clamd@scan.service
+# failing and trying again rather than being cancelled. clamonacc connecting starts clamd through its
+# socket, and keeps it running: amethystora-clamd-idle.timer leaves it alone while this runs.
+Wants=clamd@scan.socket
+After=clamd@scan.socket
 
 [Service]
 # Only with REALTIME_SCAN=on (or REALTIME=on, which it follows until it is set itself) in

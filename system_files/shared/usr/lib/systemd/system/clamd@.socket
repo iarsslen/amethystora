@@ -1,0 +1,18 @@
+[Unit]
+Description=clamd scanner (%i) socket
+Documentation=man:clamd(8)
+
+# clamd starts when something connects to scan, rather than holding every virus signature in memory from
+# boot, and amethystora-clamd-idle.timer stops it again once nothing is scanning. The path is the
+# LocalSocket of /etc/clamd.d/%i.conf, which clamd checks the socket it is handed against. Its folder is
+# Fedora's (0710 clamscan:virusgroup), so root and virusgroup reach it, as they did the socket clamd made
+# itself; an account scans with clamscan instead.
+[Socket]
+ListenStream=/run/clamd.%i/clamd.sock
+SocketUser=clamscan
+SocketGroup=virusgroup
+SocketMode=0660
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

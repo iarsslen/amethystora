@@ -32,7 +32,9 @@ systemctl enable amethystora-raid-scrub.timer
 ln -sf amethystora-pkg /usr/bin/amepkg
 systemctl enable brew-setup.service
 systemctl enable clamav-freshclam.service
-systemctl enable clamd@scan.service
+# clamd starts through its socket when something scans, and stops when nothing does (clamd@.socket)
+systemctl enable clamd@scan.socket
+systemctl enable amethystora-clamd-idle.timer
 systemctl enable dconf-update.service
 # Blocks addresses that fail to log in too often (08-hardening.sh, /etc/fail2ban/jail.d/10-amethystora.conf)
 systemctl enable fail2ban.service

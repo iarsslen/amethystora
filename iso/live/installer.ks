@@ -5,7 +5,9 @@ ostreecontainer --url=@IMAGE@ --transport=containers-storage --no-signature-veri
 
 # Then the installed machine follows that image in the registry rather than the copy, signature-checked
 # from its first update, as one installed from the installer ISO does (iso/iso.toml). build.sh fails on
-# a switch without the flag.
+# a switch without the flag. The marker tells the first boot that this is a new installation, which gets
+# the hourly snapshots of the home folders (system-setup.hooks.d/26-snapshots-new-installation.sh).
 %post --erroronfail
 bootc switch --mutate-in-place --enforce-container-sigpolicy --transport registry @IMAGE@
+mkdir -p /var/lib/amethystora && touch /var/lib/amethystora/new-installation
 %end

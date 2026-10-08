@@ -427,6 +427,30 @@ msgstr ""
 msgid "Install it with:"
 msgstr ""
 
+#: usr/libexec/amethystora-security-status
+msgid "DMA protection"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "A Thunderbolt device plugged in can read and write this machine's memory"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The kernel's DMA protection is off for Thunderbolt. Turn VT-d or AMD-Vi on in the firmware settings if they are off, then turn the IOMMU on, from the next restart, with:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The IOMMU keeps each device to the memory it is given"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "No IOMMU is on: a device on the PCIe bus can reach any of this machine's memory"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Fedora's kernel leaves Intel's IOMMU off. If the firmware has VT-d or AMD-Vi on, turn it on, from the next restart, with:"
+msgstr ""
+
 #: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
 msgid "Audit log"
 msgstr ""
@@ -548,7 +572,31 @@ msgid "The image's SSH server settings are turned off"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
-msgid "If the SSH server is on, root may log in with a key, six tries a connection are allowed, and X11 is forwarded."
+msgid "If the SSH server is on, root may log in with a key, six tries a connection are allowed, X11 is forwarded, and the host of a virtual machine can reach it over vsock."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-hardening
+msgid "Temporary IPv6 addresses"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Temporary IPv6 addresses are turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Every connection uses one IPv6 address, by which the sites this machine talks to can follow it."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-hardening
+msgid "Bluetooth privacy"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Bluetooth privacy is turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Bluetooth uses this machine's fixed address, and stays visible and pairable for as long as it is asked to."
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -566,6 +614,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "Firewall is on the amethystora zone: nothing incoming that a desktop does not need"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Away from home the firewall answers nothing; the networks you named home keep the amethystora zone"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -877,6 +929,21 @@ msgid "Added on this machine: ${PATHS}"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
+msgid "Stricter settings"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} stricter setting is on"
+msgid_plural "${N} stricter settings are on"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Each costs something a desktop may need, said beside its switch:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
 msgid "Groups that amount to root"
 msgstr ""
 
@@ -1044,6 +1111,21 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "Each Flatpak app has what its own manifest asks for, X11, the input devices and the Flatpak service included, from its next start."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "GNOME extensions"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} GNOME extension of your own runs inside the desktop"
+msgid_plural "${N} GNOME extensions of your own run inside the desktop"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Each one sees every key typed and every pixel. Remove one you do not use in Extension Manager, and keep new ones from being installed with:"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -2422,15 +2504,79 @@ msgid "Failed logins over the network"
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
-msgid "Hides kernel addresses and messages, keeps programs from reading each other's memory, and turns off unprivileged BPF. Off, gdb -p, strace -p, perf and dmesg work without sudo, from the next restart."
+msgid "Authenticated time"
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
-msgid "Old network protocols and filesystems, FireWire and test drivers cannot load. Off, FireWire sound cards and cameras, disks from old Macs, SCTP and amateur radio work."
+msgid "Stricter firewall away from home"
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
-msgid "Memory wiped as it is handed out, slab caches kept apart, and no vsyscall page. init_on_alloc costs a few percent on work that allocates a lot, and vsyscall=none stops very old programs. Each one on its own, from the next restart."
+msgid "Network discovery and mobile broadband"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "No Bluetooth"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "No webcam"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "No automatic mounting"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "No new GNOME extensions"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "No X11 apps"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Verified Flathub apps only"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "A password for app installs"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Nothing runs from temporary folders"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "No core dumps"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Package release cooldown"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Homebrew attestations"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Boot menu password"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "VSCodium extensions"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Hides kernel addresses and messages, keeps programs from reading each other's memory, and turns off unprivileged BPF. Off, gdb -p, strace -p, perf and dmesg work without sudo, from the next restart. Strict also turns off io_uring, lets only root attach a debugger, randomises more of each program's memory layout and blocks IPsec; QEMU, Samba and some Node programs lose io_uring, gdb -p and strace -p need sudo, sanitizers stop working and libreswan and strongSwan cannot connect."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Old network protocols and filesystems, FireWire, test and fault-injection drivers, CAN, GNSS, the floppy and parallel ports cannot load. Off, FireWire sound cards and cameras, disks from old Macs, SCTP, CAN buses and amateur radio work."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Memory wiped as it is handed out, slab caches kept apart, and no vsyscall page. init_on_alloc costs a few percent on work that allocates a lot, and vsyscall=none stops very old programs. Stricter ones are off until turned on: only debuggers writing to read-only memory (Wine and anti-cheat untested), memory wiped as it is freed (slower), the IOMMU checking every device's memory access at once (slower disks and network), and no 32-bit programs (no Steam, no 32-bit Wine). Each one on its own, from the next restart."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
@@ -2454,11 +2600,83 @@ msgid "/dev/uinput, which makes a virtual keyboard or mouse that types into any 
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
-msgid "No root login, three tries a connection and no X11 forwarding for the SSH server. Off, OpenSSH's and Fedora's own settings apply."
+msgid "No root login, three tries a connection and no X11 forwarding for the SSH server, and no SSH over vsock from the host of a virtual machine. Off, OpenSSH's, Fedora's and systemd's own settings apply."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
 msgid "Switches this machine back to updates that must carry this image's signature at every start. Off, it switches nothing either way. ame system trust-image is the answer for an image of your own."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Each network sees a temporary IPv6 address that changes, as well as the one it hands out, so that websites cannot follow this machine by its address. Off, every connection uses one address."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Bluetooth uses a random address that changes, and stops being visible and accepting pairing 30 seconds after you ask for it. Off, BlueZ's own settings apply."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "The clock decides whether certificates and signatures are valid. On, it is set only from time servers that prove who they are (NTS), three of which must agree, and never from one a network suggests. Networks that block port 4460 then leave the clock unsynced."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Networks you have not named home get a zone that answers nothing: no printer or device discovery, no Windows shares and no phone pairing. The networks you name home keep the Amethystora zone, and any new network is away until you say otherwise."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Stops Avahi, which finds printers and devices on the network, and ModemManager, which runs mobile broadband modems. Both are root daemons that answer the network. On, printers have to be added by address and a mobile broadband modem does not work."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Bluetooth cannot load at all, so a flaw in it cannot be reached from radio range. Headphones, mice and keyboards that use it stop working."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "The USB webcam driver cannot load, whatever app asks. The webcam stops working."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "A USB stick or disk is not mounted until you open it in Files. Nothing on one runs by itself either way."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "GNOME extensions cannot be installed from extensions.gnome.org or Extension Manager. An extension runs inside the desktop and sees every key and pixel. The image's own extensions are not affected."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Xwayland does not start, so no app can use X11, where any app reads the keys typed into another. Steam, Wine, Proton and older apps stop working. From your next login."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Bazaar and flatpak show only the Flathub apps whose makers Flathub verified. Installed apps from anyone else stay but stop updating."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Installing or removing a Flatpak app for the whole machine asks for an administrator's password, so a program running as you cannot do it unseen. Updates still need none."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Programs cannot be started from /tmp, /var/tmp and /dev/shm, where downloaded malware likes to run from. Some installers, build scripts and go test stop working. A script run through its interpreter still runs."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "A program that crashes leaves no copy of its memory on disk, where passwords and keys in it could be read later. Crashes cannot be diagnosed from one either."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "npm, pnpm and uv refuse package versions published in the last 3 days, which is how long most poisoned releases lasted before they were taken down. Strict waits 7 days and also stops npm and pnpm running install scripts, which packages that build native code need."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Homebrew checks each bottle's build attestation before it installs it. It needs gh, from the cli Brewfile, and a GitHub login (gh auth login) on every account, or brew install fails."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "The boot menu asks for a password before anyone edits a boot entry or opens its command line, which could start this machine into a root shell. Starting normally needs none. Forget it and only booting from a USB stick changes it."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "VSCodium stops updating extensions by itself: worms have spread through Open VSX as updates to extensions people already had. Update them yourself, after reading what changed. With extensions or publishers listed one a line in /etc/amethystora/vscodium-extensions, only those can be installed."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
@@ -2491,4 +2709,36 @@ msgstr ""
 
 #: usr/libexec/amethystora-hardening
 msgid "From the next start. This machine stays on the updates it follows now."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "From each network's next connection."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "At once: Bluetooth restarts, and connected devices reconnect."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "At once if no app is using it, otherwise from the next restart."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "From your next login."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "At once for /tmp and /dev/shm, from the next restart for all three."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "In new terminals, and for every app from your next login."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "From the next start."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "From VSCodium's next start."
 msgstr ""

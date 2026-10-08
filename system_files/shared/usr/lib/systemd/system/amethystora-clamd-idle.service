@@ -1,0 +1,12 @@
+[Unit]
+Description=Stop clamd while nothing is scanning
+Documentation=man:clamd(8)
+
+# clamd holds every virus signature in memory, over a gigabyte, and its socket starts it again in a
+# moment when something scans. Real-time scanning keeps it, and so does a scan still running.
+[Service]
+Type=oneshot
+ExecCondition=/usr/bin/systemctl --quiet is-active clamd@scan.service
+ExecCondition=/usr/bin/sh -c '! systemctl --quiet is-active amethystora-clamav-onaccess.service amethystora-clamav-scan.service'
+ExecCondition=/usr/bin/sh -c '! pgrep -x clamdscan >/dev/null'
+ExecStart=/usr/bin/systemctl stop clamd@scan.service

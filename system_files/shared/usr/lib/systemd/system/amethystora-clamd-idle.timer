@@ -1,0 +1,9 @@
+[Unit]
+Description=Stop clamd while nothing is scanning, every half hour
+
+[Timer]
+OnBootSec=30min
+OnUnitInactiveSec=30min
+
+[Install]
+WantedBy=timers.target

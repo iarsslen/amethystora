@@ -115,13 +115,50 @@ grep -qxP 'firewalld/firewalld.conf\tfile' <<<"${MANAGED}" || fail "managed: the
 grep -qx 'deny = 0' <<<"$("${HARDENING}" expected security/faillock.conf)" || fail "lockout off is deny = 0"
 grep -qx 'DefaultZone=FedoraWorkstation' <<<"$("${HARDENING}" expected firewalld/firewalld.conf)" || fail "the zone off"
 grep -qE '^(sockets|devices)=' <<<"$("${HARDENING}" expected flatpak/overrides/global)" && fail "the sandbox off keeps a denial"
-"${HARDENING}" status --json | jq -e 'length == 10 and all(.[]; (.title | length > 0) and (.state | IN("on", "off")))' >/dev/null ||
-    fail "the switches' status"
+"${HARDENING}" status --json | jq -e 'length >= 27 and all(.[]; (.title | length > 0) and (.text | length > 0) and
+    (.state | IN("on", "off")) and (.default | IN("on", "off")))' >/dev/null || fail "the switches' status"
+# Every switch the image ships a file for has that file, and a stricter switch is off until turned on
+for rel in sysctl.d/61-amethystora-strict.conf modprobe.d/61-amethystora-strict.conf chrony.conf \
+    modprobe.d/61-amethystora-no-bluetooth.conf modprobe.d/61-amethystora-no-webcam.conf \
+    dconf/db/local.d/60-amethystora-automount dconf/db/local.d/locks/60-amethystora-user-extensions \
+    systemd/user/org.gnome.Shell@.service.d/60-amethystora-no-x11.conf \
+    polkit-1/rules.d/49-amethystora-flatpak-password.rules systemd/coredump.conf.d/60-amethystora-off.conf \
+    environment.d/60-amethystora-cooldown.conf profile.d/amethystora-brew-attestations.sh; do
+    [[ -n "$("${HARDENING}" expected "${rel}")" ]] || fail "nothing expected at /etc/${rel}"
+done
+for name in time firewall-away block-bluetooth flatpak-password package-cooldown boot-password; do
+    "${HARDENING}" is-on "${name}" && fail "${name}, a stricter setting, is on by default"
+done
+"${HARDENING}" is-on kernel strict && fail "the kernel is strict by default"
+"${HARDENING}" is-on kernel-args init_on_free=1 && fail "an extra kernel argument is on by default"
+printf 'kernel strict\ntime\nkernel-args init_on_free=1\npackage-cooldown strict\n' >"${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-on"
+# kernel is off from above: strict is kept for when it is on again
+"${HARDENING}" is-on kernel strict || fail "kernel strict"
+"${HARDENING}" is-on time || fail "a stricter setting turned on"
+"${HARDENING}" is-on kernel-args init_on_free=1 || fail "an extra kernel argument turned on"
+"${HARDENING}" is-on package-cooldown || fail "a level counts as on"
+MANAGED="$("${HARDENING}" managed)"
+grep -qxP 'sysctl.d/61-amethystora-strict.conf\tfile' <<<"${MANAGED}" || fail "managed: the strict kernel settings"
+grep -qxP 'chrony.conf\tfile' <<<"${MANAGED}" || fail "managed: the time servers"
+grep -qx 'server time.cloudflare.com iburst nts' <<<"$("${HARDENING}" expected chrony.conf)" || fail "the time servers use NTS"
+COOLDOWN="$("${HARDENING}" expected environment.d/60-amethystora-cooldown.conf)"
+grep -qx 'npm_config_min_release_age=7' <<<"${COOLDOWN}" && grep -qx 'npm_config_ignore_scripts=true' <<<"${COOLDOWN}" ||
+    fail "the strict cooldown"
+grep -qx 'export UV_EXCLUDE_NEWER="7 days"' <<<"$("${HARDENING}" expected profile.d/amethystora-cooldown.sh)" ||
+    fail "the cooldown's shell form"
+"${HARDENING}" status --json | jq -e 'any(.[]; .name == "package-cooldown" and .level == "strict") and any(.[]; .name == "kernel" and .level == "off") and
+    any(.[]; .name == "kernel-args" and any(.arguments[]; .argument == "init_on_free=1" and .state == "on" and .default == "off"))' >/dev/null ||
+    fail "levels and extra arguments in the status"
+rm "${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-on"
 REPORT="$(/usr/libexec/amethystora-security-status --json)"
 for id in firewall kernel kernel-args; do
     jq -e --arg id "${id}" 'any(.checks[]; .id == $id and .state == "info" and .command != null and .switched_off)' <<<"${REPORT}" >/dev/null ||
         fail "${id} switched off is not shown as turned off"
 done
+# A stricter setting that is on is named in the report, in case it is why something stopped working
+printf 'block-webcam\n' >"${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-on"
+/usr/libexec/amethystora-security-status --json | jq -e 'any(.checks[]; .id == "stricter" and .state == "info" and
+    any(.details[]; . == "No webcam"))' >/dev/null || fail "the report does not name a stricter setting that is on"
 unset AMETHYSTORA_HARDENING_ROOT
 
 # --- Accepted checks -----------------------------------------------------------------------------------

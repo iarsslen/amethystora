@@ -17,6 +17,10 @@ Ask it things in plain language:
 It starts in its normal mode, so it asks before it runs a command or changes a file. Read what it
 proposes before you say yes.
 
+A repository someone else wrote can tell an agent what to do as it opens: before you start one in a
+folder you cloned, read its `.claude/`, `.mcp.json` and `.vscode/tasks.json`, if it has them. Each can
+name commands the agent or your editor will run, or servers it will talk to, as you.
+
 ## Diagnose a problem
 
 **Diagnose a problem** in the Amethystora menu (`Super+Alt+Space`) hands the agent something that

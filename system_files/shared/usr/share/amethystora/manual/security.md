@@ -33,9 +33,12 @@ looks into it in a terminal and changes nothing until you agree.
 - **Updates must be signed.** Only images signed with Amethystora's key are installed, so a tampered
   or substituted image is refused. [Updates](updates.md#signed-updates).
 - **The firewall refuses incoming connections.** Allowed in are printer and device discovery,
-  Windows file sharing, IPv6 setup and GSConnect; your Tailscale tailnet is trusted. To let something
-  else in, such as a development server you want to reach from your phone, use the **Firewall** app
-  or `sudo firewall-cmd --add-port=8080/tcp` (add `--permanent` to keep it after a restart).
+  Windows file sharing, IPv6 setup and GSConnect; your Tailscale tailnet is trusted, so who on it may
+  reach this machine is decided by the tailnet's own access rules (ACLs). To let something else in,
+  such as a development server you want to reach from your phone, use the **Firewall** app or
+  `sudo firewall-cmd --add-port=8080/tcp` (add `--permanent` to keep it after a restart).
+  `ame security firewall-away on` answers nothing at all on networks you have not named home
+  ([Stricter settings](#stricter-settings)).
 - **Ten wrong passwords in a row** lock an account for ten minutes. Unlock it early from another
   administrator account with `sudo faillock --user <name> --reset`.
 - **Repeated failed logins over the network** get the address blocked: five failures within ten
@@ -50,7 +53,10 @@ looks into it in a terminal and changes nothing until you agree.
   which reads every key, is off until you ask for it.
 - **The kernel is hardened:** memory is wiped as it is handed out, kernel addresses are hidden,
   programs cannot read each other's memory, and rarely used modules (old network protocols and
-  filesystems, FireWire) cannot load. `gdb -p` on a process you did not start needs `sudo`.
+  filesystems, FireWire, test drivers, CAN, the floppy and parallel ports) cannot load. `gdb -p` on a
+  process you did not start needs `sudo`.
+- **Less to follow you by:** each network sees a temporary IPv6 address that changes, and Bluetooth a
+  random address, visible and pairable for 30 seconds when you ask for it.
 - **The kernel refuses to be rewritten while it runs.** Lockdown refuses modules without a signature
   the kernel trusts, writing to `/dev/mem`, and BPF programs that write into another program's
   memory, so a compromise of root ends at the next restart. Programs that only read, such as
@@ -151,6 +157,10 @@ everything you granted one app with **Take back what you granted** on the Apps p
 ame security apps reset
 ```
 
+The **Network** list on the same page takes the network away from one app, as an override of your
+account's own (`flatpak override --user --unshare=network`): it cannot then send anything it reads.
+**Give its network back** undoes it. Either applies from the app's next start.
+
 ## Sharing files without what they say about you
 
 Photos, documents and recordings carry more than what they show: where a photo was taken and with
@@ -196,7 +206,10 @@ ame security settings
 - **Network protection**: `off` (the default), `watch` or `block`.
   [Network protection](#network-protection).
 - **The virus scanner**: `weekly` (the default), `manual`, which scans only when you start a scan, or
-  `off`, which runs nothing at all: no daemon holding the virus signatures in memory, and no downloads.
+  `off`, which runs nothing at all and downloads nothing. Either way clamd, which holds the virus
+  signatures in memory, over a gigabyte, runs only while something scans: it starts when a scan
+  connects, which takes it a moment, and stops within half an hour of the last one. Real-time scanning
+  keeps it running.
 - **The settings audit**: Lynis every month, `on` (the default) or `off`. `ame security audit` runs one
   whenever you ask.
 - **The security watcher**: `on` (the default) or `off`, and each part of what it reads on its own: the
@@ -240,20 +253,50 @@ the Settings page and as a command that says what it changes before it does:
 
 | Command | What it switches | Turned off |
 | --- | --- | --- |
-| `ame security kernel` | Kernel addresses and messages hidden, programs kept from each other's memory, no unprivileged BPF | From the next restart. `gdb -p`, `strace -p`, `perf` and `dmesg` work without `sudo` |
-| `ame security blocked-modules` | Old network protocols and filesystems, FireWire and test drivers kept from loading | At once. FireWire sound cards and cameras, disks from old Macs, SCTP |
+| `ame security kernel` | Kernel addresses and messages hidden, programs kept from each other's memory, no unprivileged BPF, a panic after a hundred oopses | From the next restart. `gdb -p`, `strace -p`, `perf` and `dmesg` work without `sudo` |
+| `ame security blocked-modules` | Old network protocols and filesystems, FireWire, test and fault-injection drivers, CAN, GNSS, the floppy and parallel ports kept from loading | At once. FireWire sound cards and cameras, disks from old Macs, SCTP, CAN buses |
 | `ame security kernel-args` | `init_on_alloc=1`, `slab_nomerge`, `page_alloc.shuffle=1`, `randomize_kstack_offset=on`, `vsyscall=none`, each on its own | From the next restart. Not on a sealed image |
 | `ame security firewall` | The Amethystora firewall zone | At once. Fedora Workstation's zone lets in every port from 1025 up; opening one port is the narrower answer |
 | `ame security failed-logins` | Blocking an address after failed SSH logins | At once |
 | `ame security lockout` | Locking an account after ten wrong passwords | At once |
 | `ame security app-sandbox` | Taking X11, the input devices and the Flatpak service from every app | From each app's next start; granting one app X11 in Flatseal is the narrower answer |
 | `ame security virtual-input` | `/dev/uinput`, which makes a virtual keyboard that types into any window, kept from apps | At once. Steam Input and OpenTabletDriver need it off, and their setup turns it off |
-| `ame security ssh-settings` | No root login, three tries and no X11 forwarding for the SSH server | At once |
+| `ame security ssh-settings` | No root login, three tries and no X11 forwarding for the SSH server, and no SSH over vsock from the host of a virtual machine | At once |
 | `ame security signed-updates` | Switching this machine back to signature-checked updates at every start | From the next start; for an image of your own, `ame system trust-image` is the answer |
+| `ame security ipv6-privacy` | A temporary IPv6 address that changes, on every connection | From each network's next connection |
+| `ame security bluetooth-privacy` | Bluetooth's random address, and visible and pairable for 30 seconds at a time | At once; Bluetooth restarts |
 
 `ame security lockdown` and the protections that are off until you turn them on, below, are switches
 already. Something with root can change any of this, but not quietly: each change is recorded by the
 audit log, until you turn that off too.
+
+### Stricter settings
+
+Each of these takes something away that a desktop may need, so each is off until you turn it on, in the
+Settings page or with its command, which says what it costs first. The report lists the ones that are
+on, in case one is why something stopped working.
+
+| Command | What it does | What it costs |
+| --- | --- | --- |
+| `ame security kernel strict` | No io_uring, debuggers attach only as root, more address randomisation, no IPsec | QEMU, Samba and some Node programs lose io_uring; `gdb -p` needs `sudo`; sanitizers; libreswan and strongSwan |
+| `ame security kernel-args <argument> on` | `proc_mem.force_override=ptrace`, `init_on_free=1`, `iommu.strict=1` (the IOMMU on, and strict), `ia32_emulation=0`, each on its own | Untested with Wine and anti-cheat; slower; slower disks and network; no Steam or 32-bit Wine |
+| `ame security lockdown strict` | Root cannot read the running kernel either | `bpftrace`, `perf` with kernel data, eBPF security tools |
+| `ame security time` | The clock set only from time servers that prove who they are (NTS), three agreeing, never one a network suggests | Networks that block port 4460 leave the clock unsynced |
+| `ame security firewall-away` | Networks you have not named home answer nothing; `ame security firewall-away home` names more | Printers, shares and phone pairing only at home |
+| `ame security network-daemons` | Avahi and ModemManager stopped | Printers by address only; no mobile broadband |
+| `ame security block-bluetooth` | Bluetooth cannot load | Headphones, mice and keyboards that use it |
+| `ame security block-webcam` | The USB webcam driver cannot load | The webcam |
+| `ame security block-automount` | USB sticks and disks mounted only when you open them | A click in Files |
+| `ame security block-user-extensions` | No GNOME extensions installed from extensions.gnome.org; the report lists the ones you have | The image's own extensions are not affected |
+| `ame security block-xwayland` | No X11, from your next login | Steam, Wine, Proton and older apps |
+| `ame security flathub-verified` | Only Flathub apps whose makers Flathub verified | Installed apps from anyone else stop updating |
+| `ame security flatpak-password` | Installing or removing an app for the whole machine asks for an administrator's password | A password in Bazaar |
+| `ame security noexec-temp` | Nothing started from `/tmp`, `/var/tmp` or `/dev/shm` | Some installers, build scripts and `go test` |
+| `ame security no-coredumps` | No copy of a crashed program's memory on disk | Crashes cannot be diagnosed from one |
+| `ame security package-cooldown` | npm, pnpm and uv refuse versions published in the last 3 days; `strict` waits 7 and runs no install scripts | A fix published today waits too; strict breaks packages that build native code |
+| `ame security brew-attestations` | Homebrew checks each bottle's build attestation | `gh` and `gh auth login` on every account, or `brew install` fails |
+| `ame security boot-password` | A password before anyone edits a boot entry or opens the boot menu's command line | Forget it and only a USB stick changes it. Not on a sealed image |
+| `ame security vscodium-extensions` | VSCodium updates no extension by itself, and with names in `/etc/amethystora/vscodium-extensions` installs only those | Updates by hand. Developer mode only |
 
 ## Worth turning on
 
@@ -375,6 +418,8 @@ ame security ransomware
 ```
 
 Every hour, a read-only snapshot of every home folder on this machine, kept in `/var/home/.snapshots`.
+It is on from the first start of a machine installed from an Amethystora ISO; on one that was running
+before, it stays as you left it.
 Ransomware running as you can encrypt everything you can write, and a snapshot is not something you
 can write: changing or deleting one takes an administrator. Every snapshot from the last day is kept,
 and one a day for two weeks. The report says when the latest one is more than a few hours old.
@@ -417,6 +462,10 @@ On a [sealed image](updates.md#sealed-images) the TPM's key is as safe as Secure
 programs that ask for the disk key are inside the signed kernel image, so they cannot be swapped for
 others that would keep it, and a PIN is up to you. Updates keep it working as long as Amethystora's
 key does not change.
+
+`ame security boot-password on` puts a password on the boot menu as well: editing a boot entry, which is
+how someone at the keyboard would start the machine into a root shell, asks for it, and starting
+normally does not.
 
 ### Block USB devices you did not plug in
 
@@ -466,7 +515,9 @@ network's place, so choose one you trust; the command says who runs each, and
 `ame security dns quad9` picks one straight away.
 
 Names on the network itself, such as a printer's, still go to the network's own servers, and so does
-the check of whether a network reaches the internet. A VPN's own names keep working, and Tailscale's.
+the check of whether a network reaches the internet. Which names count as the network's own is the
+network's to say (its search domains): one that claims a whole domain, such as `com`, has every name in
+it asked of its own servers, in plain text. `resolvectl domain` shows what each network claimed. A VPN's own names keep working, and Tailscale's.
 Firefox may look names up itself, over DNS-over-HTTPS, as its own settings say.
 
 A network that wants you to log in first, in a hotel or on a train, cannot show its login page while

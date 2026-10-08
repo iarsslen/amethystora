@@ -1236,7 +1236,28 @@ grep -q 'action.lookup("verb") == "start"' "${SCAN_RULE}"
 grep -q "subject.local && subject.active" "${SCAN_RULE}"
 # Kernel settings, arguments and blocked modules
 grep -q "^kernel.kptr_restrict = 2$" /usr/lib/sysctl.d/60-amethystora-hardening.conf
+grep -q "^kernel.oops_limit = 100$" /usr/lib/sysctl.d/60-amethystora-hardening.conf
 grep -q '"slab_nomerge"' /usr/lib/bootc/kargs.d/10-amethystora-hardening.toml
+grep -q "^install rxrpc /usr/bin/false$" /usr/lib/modprobe.d/60-amethystora-hardening.conf
+# What costs nothing is on: temporary IPv6 addresses, Bluetooth's privacy (08-hardening.sh), no SSH over
+# vsock, and no setuid on what a desktop never runs
+grep -q "^ipv6.ip6-privacy=2$" /usr/lib/NetworkManager/conf.d/30-amethystora-ip6-privacy.conf
+[[ "$(readlink /etc/systemd/system-generators/systemd-ssh-generator)" == /dev/null ]]
+for program in chfn chage gpasswd newgrp ksu mount.davfs; do
+    if [[ -u "/usr/bin/${program}" ]]; then
+        echo "/usr/bin/${program} is still setuid root"
+        exit 1
+    fi
+done
+# What the stricter switches write has to be what its program takes: chrony's servers, the away zone, the
+# dconf keys. block-xwayland restates GNOME Shell's own command with --no-x11, so a change to it must show.
+chronyd -p -f /usr/share/amethystora/hardening/chrony.conf >/dev/null
+firewall-offline-cmd --get-zones | grep -qw amethystora-away
+DCONF_TEST="$(mktemp -d)"
+cp /usr/share/amethystora/hardening/dconf-automount /usr/share/amethystora/hardening/dconf-user-extensions "${DCONF_TEST}/"
+dconf compile "${DCONF_TEST}.db" "${DCONF_TEST}"
+rm -rf "${DCONF_TEST}" "${DCONF_TEST}.db"
+grep -qx "ExecStart=/usr/bin/gnome-shell --mode=%i" /usr/lib/systemd/user/org.gnome.Shell@.service
 # modprobe reports module names with underscores, whichever spelling the config file uses
 MODPROBE_CONFIG="$(modprobe --showconfig)"
 for module in dccp sctp rds tipc n_hdlc firewire_core firewire_sbp2 cramfs hfs vivid; do
@@ -1942,7 +1963,8 @@ done
 
 IMPORTANT_UNITS=(
     clamav-freshclam.service
-    clamd@scan.service
+    clamd@scan.socket
+    amethystora-clamd-idle.timer
     fail2ban.service
     gdm.service
     rpm-ostree-countme.timer

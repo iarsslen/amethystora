@@ -223,7 +223,7 @@ function change(kind, key, value, argument) {
         return;
     }
     const entry = switches?.hardening.find((item) => item.name === key);
-    if (!entry || entry.fixed || !['on', 'off', ''].includes(value)) {
+    if (!entry || entry.fixed || !['on', 'off', '', ...(entry.levels || [])].includes(value)) {
         return;
     }
     const chosen = entry.arguments?.find((item) => item.argument === argument);
@@ -653,6 +653,19 @@ async function resetPermissions(id) {
         : { error: stderr.trim() || t('{program} stopped with status {code}.', { program: 'flatpak override', code: String(code) }) };
 }
 
+// Takes the network away from one app, or gives back what this account took, as an override of the
+// account's own (Flatpak's own --unshare, from the app's next start). Only for an app the list just read.
+async function setNetwork(id, allow) {
+    const entry = permissions.find((item) => item.app === id && (allow ? item.network_blocked : item.network));
+    if (!entry) {
+        return { error: t('That app is not one the list can change.') };
+    }
+    const { code, stderr } = await run('flatpak', ['override', '--user', allow ? '--share=network' : '--unshare=network', entry.app]);
+    return code === 0
+        ? readPermissions()
+        : { error: stderr.trim() || t('{program} stopped with status {code}.', { program: 'flatpak override', code: String(code) }) };
+}
+
 // --- The window ------------------------------------------------------------------------------------
 
 function createWindow(page) {
@@ -784,6 +797,7 @@ if (!app.requestSingleInstanceLock()) {
 
     ipcMain.handle('inventory', () => inventory());
     ipcMain.handle('permissions', () => readPermissions());
+    ipcMain.handle('permissions-network', (_event, id, allow) => setNetwork(String(id), allow === true));
     ipcMain.handle('permissions-reset', (_event, id) => resetPermissions(String(id)));
     ipcMain.handle('flatseal', () => launch('flatpak', ['run', FLATSEAL]));
     // Upgrading asks the containers' package managers, whose output is worth reading, so in a terminal

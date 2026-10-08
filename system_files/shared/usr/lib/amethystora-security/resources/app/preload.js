@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('security', {
     inventory: () => ipcRenderer.invoke('inventory'),
     permissions: () => ipcRenderer.invoke('permissions'),
     resetPermissions: (id) => ipcRenderer.invoke('permissions-reset', String(id)),
+    setNetwork: (id, allow) => ipcRenderer.invoke('permissions-network', String(id), Boolean(allow)),
     flatseal: () => ipcRenderer.invoke('flatseal'),
     upgradeContainers: () => ipcRenderer.invoke('containers-upgrade'),
     stop: () => ipcRenderer.invoke('scan-stop'),

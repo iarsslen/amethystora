@@ -1,20 +1,27 @@
 #!/usr/bin/bash
-# The prevention switches: what the image enforces from the start, each of which the machine's owner can
-# turn off in case it makes the machine slower or gets in the way. Each is on until somebody turns it off,
-# with its own `ame security` command, which says what it changes before it does.
+# The prevention switches. Two kinds:
+#
+#   - What the image enforces from the start, each of which the machine's owner can turn off in case it
+#     makes the machine slower or gets in the way. On until somebody turns it off.
+#   - Stricter settings that cost something a desktop may need, off until somebody turns them on.
+#
+# Each has its own `ame security` command, which says what it changes before it does.
 #
 #   amethystora-hardening status [--json]         every switch, on or off, with what it does
-#   amethystora-hardening is-on NAME [ARGUMENT]   exit 0 when it is on (ExecCondition=)
-#   amethystora-hardening set NAME on|off [ARG]   turn it on or off (root); kernel-args takes the argument,
-#                                                 and all of them without one
+#   amethystora-hardening is-on NAME [ARGUMENT]   exit 0 when it is on (ExecCondition=); kernel strict and
+#                                                 package-cooldown strict ask for that level
+#   amethystora-hardening set NAME on|off [ARG]   turn it on or off (root); kernel and package-cooldown also
+#                                                 take strict, kernel-args takes the argument (all of the
+#                                                 image's without one), firewall-away the home connections
 #   amethystora-hardening ask NAME [ARG] [on|off] say what it does, ask, and set it with sudo: the
 #                                                 `ame security NAME` recipes
-#   amethystora-hardening managed                 what a switch that is off has written in /etc, one
+#   amethystora-hardening managed                 what the switches have written in /etc, one
 #                                                 "path<TAB>mask|file" a line, for the security watcher
-#   amethystora-hardening expected PATH           what the switch writes at /etc/PATH while it is off
+#   amethystora-hardening expected PATH           what a switch writes at /etc/PATH
 #
 # What the owner turned off is kept in /etc/amethystora/hardening-off, one switch a line ("kernel-args
-# init_on_alloc=1" for one argument). That is how the report tells a switch turned off from a setting
+# init_on_alloc=1" for one argument), and what they turned on in /etc/amethystora/hardening-on ("kernel
+# strict", "kernel-args init_on_free=1", "time"). That is how the report tells a switch from a setting
 # changed some other way, which it still flags, and how the watcher accepts exactly the files a switch
 # writes, as it does for SSH codes, and nothing in between.
 
@@ -23,124 +30,364 @@ set -uo pipefail
 # AMETHYSTORA_HARDENING_ROOT is for the tests in build_files/shared, which read a stand-in /etc
 ROOT="${AMETHYSTORA_HARDENING_ROOT:-}"
 OFF="${ROOT}/etc/amethystora/hardening-off"
+ON="${ROOT}/etc/amethystora/hardening-on"
+HOME_NETWORKS="${ROOT}/etc/amethystora/firewall-home"
 SHARE=/usr/share/amethystora/hardening
 KARGS=/usr/lib/bootc/kargs.d/10-amethystora-hardening.toml
+# On until turned off
 NAMES=(kernel blocked-modules kernel-args firewall failed-logins lockout app-sandbox virtual-input ssh-settings
-    signed-updates)
+    signed-updates ipv6-privacy bluetooth-privacy)
+# Off until turned on
+STRICTER=(time firewall-away network-daemons block-bluetooth block-webcam block-automount block-user-extensions
+    block-xwayland flathub-verified flatpak-password noexec-temp no-coredumps package-cooldown brew-attestations
+    boot-password vscodium-extensions)
+# The switches with a level above on, and their levels
+declare -A LEVELS=([kernel]="off standard strict" [package-cooldown]="off on strict")
+# Kernel arguments a switch adds one by one, off until turned on, each with what it puts on the command line
+declare -A EXTRA_ARGS=(
+    [proc_mem.force_override=ptrace]="proc_mem.force_override=ptrace"
+    [init_on_free=1]="init_on_free=1"
+    [iommu.strict=1]="intel_iommu=on iommu=force iommu.passthrough=0 iommu.strict=1"
+    [ia32_emulation=0]="ia32_emulation=0"
+)
+EXTRA_ORDER=(proc_mem.force_override=ptrace init_on_free=1 iommu.strict=1 ia32_emulation=0)
 
 SYSCTL=sysctl.d/60-amethystora-hardening.conf
 MODPROBE=modprobe.d/60-amethystora-hardening.conf
+STRICT_SYSCTL=sysctl.d/61-amethystora-strict.conf
+STRICT_MODPROBE=modprobe.d/61-amethystora-strict.conf
 FIREWALLD=firewalld/firewalld.conf
 JAIL=fail2ban/jail.d/20-amethystora-zone.conf
 FAILLOCK=security/faillock.conf
 SANDBOX=flatpak/overrides/global
 SSHD=ssh/sshd_config.d/39-amethystora-ssh-settings-off.conf
+SSH_GENERATOR=systemd/system-generators/systemd-ssh-generator
 UINPUT=udev/rules.d/71-amethystora-uinput.rules
+IP6_PRIVACY=NetworkManager/conf.d/30-amethystora-ip6-privacy.conf
+BLUEZ=bluetooth/main.conf
+CHRONY=chrony.conf
+NO_BLUETOOTH=modprobe.d/61-amethystora-no-bluetooth.conf
+NO_WEBCAM=modprobe.d/61-amethystora-no-webcam.conf
+AUTOMOUNT=dconf/db/local.d/60-amethystora-automount
+AUTOMOUNT_LOCK=dconf/db/local.d/locks/60-amethystora-automount
+EXTENSIONS=dconf/db/local.d/60-amethystora-user-extensions
+EXTENSIONS_LOCK=dconf/db/local.d/locks/60-amethystora-user-extensions
+NO_X11=systemd/user/org.gnome.Shell@.service.d/60-amethystora-no-x11.conf
+FLATPAK_PASSWORD=polkit-1/rules.d/49-amethystora-flatpak-password.rules
+COREDUMP=systemd/coredump.conf.d/60-amethystora-off.conf
+COOLDOWN_ENV=environment.d/60-amethystora-cooldown.conf
+COOLDOWN_PROFILE=profile.d/amethystora-cooldown.sh
+BREW_ENV=environment.d/60-amethystora-brew-attestations.conf
+BREW_PROFILE=profile.d/amethystora-brew-attestations.sh
+VSCODIUM=vscodium/policy.json
+VSCODIUM_ALLOWED="${ROOT}/etc/amethystora/vscodium-extensions"
+NETWORK_DAEMONS=(avahi-daemon.socket avahi-daemon.service ModemManager.service)
+# What noexec-temp adds to /etc/fstab, each line marked so that it can be taken out again
+NOEXEC_MARK=x-amethystora-noexec
+GRUB_USER=/boot/grub2/user.cfg
 # The image's own /etc: ostree keeps it in /usr/etc on a machine, and the image itself, as the build sees
 # it, has only /etc
 IMAGE_ETC=/usr/etc
 [[ -d "${IMAGE_ETC}" ]] || IMAGE_ETC=/etc
 # The zone the firewall falls back to with the Amethystora zone off: Fedora Workstation's, as before
 FALLBACK_ZONE=FedoraWorkstation
+# The zone for networks that are not home, with firewall-away on
+AWAY_ZONE=amethystora-away
 
 usage() {
-    echo "usage: ${0##*/} status [--json] | is-on NAME [ARGUMENT] | set NAME on|off [ARGUMENT]" \
+    echo "usage: ${0##*/} status [--json] | is-on NAME [ARGUMENT] | set NAME on|off|strict [ARGUMENT...]" \
         "| ask NAME [ARGUMENT] [on|off] | managed" \
-        "| expected PATH (switches: ${NAMES[*]})" >&2
+        "| expected PATH (switches: ${NAMES[*]} ${STRICTER[*]})" >&2
     exit 64
 }
 
-known() { [[ " ${NAMES[*]} " == *" $1 "* ]]; }
+known() { [[ " ${NAMES[*]} ${STRICTER[*]} " == *" $1 "* ]]; }
+stricter() { [[ " ${STRICTER[*]} " == *" $1 "* ]]; }
 need_root() { [[ "${EUID}" -eq 0 ]] || { echo "Changing a security setting needs root." >&2; exit 77; }; }
 sealed() { [[ -e /usr/share/amethystora/sealed ]]; }
+# What this image has: VSCodium is in the dx images only, and its switch is listed only there
+present() { [[ "$1" != vscodium-extensions || -x /usr/bin/codium ]]; }
 
 # The kernel arguments the image asks for, which kernel-args switches one by one
 arguments() {
-    sed -n 's/^kargs *= *\[\(.*\)\]/\1/p' "${KARGS}" 2>/dev/null | tr -d '",' | tr ' ' '\n' | grep .
+    sed -n 's/^kargs *= *\[\(.*\)\]/\1/p' "${KARGS}" 2>/dev/null | tr -d '",' | tr ' ' '\n' | grep . | grep -v '^lockdown='
 }
+
+listed() { grep -qxF -- "$2" "$1" 2>/dev/null; }
+
+# One of the kernel arguments a switch adds, off until turned on
+extra() { [[ -n "${1:-}" && -n "${EXTRA_ARGS[$1]+set}" ]]; }
 
 # Off when the owner turned it off: the whole switch, or for kernel-args the one argument named
 is_off() {
     if [[ "$1" == kernel-args && -z "${2:-}" ]]; then
         grep -q '^kernel-args ' "${OFF}" 2>/dev/null
     else
-        grep -qxF -- "$1${2:+ $2}" "${OFF}" 2>/dev/null
+        listed "${OFF}" "$1${2:+ $2}"
+    fi
+}
+
+# On: what the image enforces unless it is off, and a stricter setting only once it was turned on. With
+# an argument, the level (kernel strict) or the extra kernel argument asked for.
+is_on() {
+    local name="$1" argument="${2:-}"
+    if [[ "${name}" == kernel-args ]] && extra "${argument}"; then
+        listed "${ON}" "kernel-args ${argument}"
+    elif [[ -n "${LEVELS[${name}]+set}" && "${argument}" == strict ]]; then
+        listed "${ON}" "${name} strict"
+    elif stricter "${name}"; then
+        grep -qE "^${name}( strict)?\$" "${ON}" 2>/dev/null
+    else
+        ! is_off "${name}" ${argument:+"${argument}"}
+    fi
+}
+
+# The level of a switch that has levels: kernel off|standard|strict, package-cooldown off|on|strict
+level() {
+    case "$1" in
+        kernel) if is_off kernel; then echo off; elif is_on kernel strict; then echo strict; else echo standard; fi ;;
+        *) if is_on "$1" strict; then echo strict; elif is_on "$1"; then echo on; else echo off; fi ;;
+    esac
+}
+
+# Writes the line into, or takes it out of, a state file, and has the watcher record the change rather
+# than announce it: the person at the machine made it
+mark() {
+    local file="$1" line="$2" present="$3"
+    mkdir -p "${file%/*}"
+    { grep -vxF -- "${line}" "${file}" 2>/dev/null || true; [[ "${present}" == yes ]] && echo "${line}"; } >"${file}.new"
+    if [[ -s "${file}.new" ]]; then
+        mv "${file}.new" "${file}"
+        chmod 0644 "${file}"
+    else
+        rm -f "${file}.new" "${file}"
     fi
 }
 
 record() {
-    local line="$1${3:+ $3}" switched="$2"
-    mkdir -p "${OFF%/*}"
-    { grep -vxF -- "${line}" "${OFF}" 2>/dev/null || true; [[ "${switched}" == off ]] && echo "${line}"; } >"${OFF}.new"
-    if [[ -s "${OFF}.new" ]]; then
-        mv "${OFF}.new" "${OFF}"
-        chmod 0644 "${OFF}"
+    local name="$1" switched="$2" argument="${3:-}"
+    if [[ "${name}" == kernel-args ]] && extra "${argument}"; then
+        mark "${ON}" "kernel-args ${argument}" "$([[ "${switched}" == on ]] && echo yes || echo no)"
+    elif stricter "${name}"; then
+        mark "${ON}" "${name}" "$([[ "${switched}" == on ]] && echo yes || echo no)"
+        mark "${ON}" "${name} strict" "$([[ "${switched}" == strict ]] && echo yes || echo no)"
     else
-        rm -f "${OFF}.new" "${OFF}"
+        mark "${OFF}" "${name}${argument:+ ${argument}}" "$([[ "${switched}" == off ]] && echo yes || echo no)"
+        [[ "${name}" == kernel ]] && mark "${ON}" "kernel strict" "$([[ "${switched}" == strict ]] && echo yes || echo no)"
     fi
-    # The security watcher records the change without announcing it: the person at the machine made it
-    /usr/libexec/amethystora-security-config note "$1${3:+:$3}" "${switched}" 2>/dev/null || true
+    /usr/libexec/amethystora-security-config note "${name}${argument:+:${argument}}" "${switched}" 2>/dev/null || true
 }
 
-# The content of a file a switch writes while it is off, for set and for the watcher to compare with
+# The content of a file a switch writes, for set and for the watcher to compare with
 expected() {
     case "$1" in
-        "${FIREWALLD}") sed -E "s/^DefaultZone=.*/DefaultZone=${FALLBACK_ZONE}/" "${IMAGE_ETC}/${FIREWALLD}" ;;
+        "${FIREWALLD}")
+            sed -E "s/^DefaultZone=.*/DefaultZone=$(is_on firewall-away && echo "${AWAY_ZONE}" || echo "${FALLBACK_ZONE}")/" \
+                "${IMAGE_ETC}/${FIREWALLD}" ;;
         "${JAIL}") cat "${SHARE}/${JAIL##*/}" ;;
         "${FAILLOCK}") sed -E 's/^deny[[:space:]]*=.*/deny = 0/' "${IMAGE_ETC}/${FAILLOCK}" ;;
         "${SANDBOX}") cat "${SHARE}/flatpak-global-off" ;;
         "${SSHD}") cat "${SHARE}/${SSHD##*/}" ;;
         "${UINPUT}") cat "${SHARE}/${UINPUT##*/}" ;;
+        # Bluetooth as BlueZ ships it, from what 08-hardening.sh set in the image's copy
+        "${BLUEZ}")
+            sed -E -e 's/^DiscoverableTimeout = 30$/#DiscoverableTimeout = 0/' -e 's/^PairableTimeout = 30$/#PairableTimeout = 0/' \
+                -e 's/^Privacy = network$/#Privacy = off/' "${IMAGE_ETC}/${BLUEZ}" ;;
+        "${STRICT_SYSCTL}") cat "${SHARE}/61-amethystora-strict-sysctl.conf" ;;
+        "${STRICT_MODPROBE}") cat "${SHARE}/61-amethystora-strict-modprobe.conf" ;;
+        "${CHRONY}") cat "${SHARE}/chrony.conf" ;;
+        "${NO_BLUETOOTH}") cat "${SHARE}/${NO_BLUETOOTH##*/}" ;;
+        "${NO_WEBCAM}") cat "${SHARE}/${NO_WEBCAM##*/}" ;;
+        "${AUTOMOUNT}") cat "${SHARE}/dconf-automount" ;;
+        "${AUTOMOUNT_LOCK}") cat "${SHARE}/dconf-automount-locks" ;;
+        "${EXTENSIONS}") cat "${SHARE}/dconf-user-extensions" ;;
+        "${EXTENSIONS_LOCK}") cat "${SHARE}/dconf-user-extensions-locks" ;;
+        "${NO_X11}") cat "${SHARE}/${NO_X11##*/}" ;;
+        "${FLATPAK_PASSWORD}") cat "${SHARE}/${FLATPAK_PASSWORD##*/}" ;;
+        "${COREDUMP}") cat "${SHARE}/coredump-off.conf" ;;
+        "${COOLDOWN_ENV}") cooldown env ;;
+        "${COOLDOWN_PROFILE}") cooldown profile ;;
+        "${BREW_ENV}") echo "HOMEBREW_VERIFY_ATTESTATIONS=1" ;;
+        "${BREW_PROFILE}") echo "export HOMEBREW_VERIFY_ATTESTATIONS=1" ;;
+        # VSCodium's policies (VS Code's, under its own name): no extension updates by themselves, and only
+        # the extensions or publishers listed one a line in /etc/amethystora/vscodium-extensions, if any are
+        "${VSCODIUM}")
+            jq -n --arg allowed "$(grep -E '^[A-Za-z0-9][A-Za-z0-9.-]*$' "${VSCODIUM_ALLOWED}" 2>/dev/null |
+                jq -R '{(.): true}' | jq -sc 'add // empty')" \
+                '{ExtensionsAutoUpdate: false} + (if $allowed == "" then {} else {AllowedExtensions: $allowed} end)' ;;
         *) return 1 ;;
     esac
 }
 
+# Package managers' own cooldowns, as environment variables, which reach every shell, editor and container
+# of a session: npm's min-release-age (days, npm 11.10 and later), pnpm's minimum-release-age (minutes) and
+# uv's exclude-newer (a duration). Strict waits a week and runs no install scripts.
+cooldown() {
+    local days=3 scripts=""
+    is_on package-cooldown strict && { days=7; scripts=true; }
+    local -a vars=("npm_config_min_release_age=${days}" "pnpm_config_minimum_release_age=$((days * 1440))"
+        "UV_EXCLUDE_NEWER=${days} days")
+    [[ -n "${scripts}" ]] && vars+=("npm_config_ignore_scripts=true")
+    if [[ "$1" == env ]]; then
+        printf '%s\n' "${vars[@]}"
+    else
+        printf 'export %s\n' "${vars[@]/#UV_EXCLUDE_NEWER=*/UV_EXCLUDE_NEWER=\"${days} days\"}"
+    fi
+}
+
 managed() {
     is_off kernel && printf '%s\tmask\n' "${SYSCTL}"
+    is_on kernel strict && printf '%s\tfile\n%s\tfile\n' "${STRICT_SYSCTL}" "${STRICT_MODPROBE}"
     is_off blocked-modules && printf '%s\tmask\n' "${MODPROBE}"
     is_off firewall && printf '%s\tfile\n%s\tfile\n' "${FIREWALLD}" "${JAIL}"
+    is_on firewall-away && printf '%s\tfile\n' "${FIREWALLD}"
     is_off lockout && printf '%s\tfile\n' "${FAILLOCK}"
     is_off app-sandbox && printf '%s\tfile\n' "${SANDBOX}"
     is_off ssh-settings && printf '%s\tfile\n' "${SSHD}"
     is_off virtual-input && printf '%s\tfile\n' "${UINPUT}"
+    is_off ipv6-privacy && printf '%s\tmask\n' "${IP6_PRIVACY}"
+    is_off bluetooth-privacy && printf '%s\tfile\n' "${BLUEZ}"
+    is_on time && printf '%s\tfile\n' "${CHRONY}"
+    is_on block-bluetooth && printf '%s\tfile\n' "${NO_BLUETOOTH}"
+    is_on block-webcam && printf '%s\tfile\n' "${NO_WEBCAM}"
+    is_on block-automount && printf '%s\tfile\n%s\tfile\n' "${AUTOMOUNT}" "${AUTOMOUNT_LOCK}"
+    is_on block-user-extensions && printf '%s\tfile\n%s\tfile\n' "${EXTENSIONS}" "${EXTENSIONS_LOCK}"
+    is_on block-xwayland && printf '%s\tfile\n' "${NO_X11}"
+    is_on flatpak-password && printf '%s\tfile\n' "${FLATPAK_PASSWORD}"
+    is_on no-coredumps && printf '%s\tfile\n' "${COREDUMP}"
+    is_on package-cooldown && printf '%s\tfile\n%s\tfile\n' "${COOLDOWN_ENV}" "${COOLDOWN_PROFILE}"
+    is_on brew-attestations && printf '%s\tfile\n%s\tfile\n' "${BREW_ENV}" "${BREW_PROFILE}"
+    is_on vscodium-extensions && printf '%s\tfile\n' "${VSCODIUM}"
     return 0
 }
 
-# Puts the content expected() gives at /etc/PATH, or the image's own copy back with "image"
+# Puts the content expected() gives at /etc/PATH, or the image's own copy back with "image", or takes it
+# away with "remove"
 place() {
     local rel="$1" content
-    if [[ "${2:-}" == image ]]; then
-        if [[ -e "/usr/etc/${rel}" ]]; then
-            cp -a "/usr/etc/${rel}" "/etc/${rel}"
-        else
+    case "${2:-}" in
+        image)
+            if [[ -e "/usr/etc/${rel}" ]]; then
+                cp -a "/usr/etc/${rel}" "/etc/${rel}"
+            else
+                rm -f "/etc/${rel}"
+            fi
+            ;;
+        remove)
             rm -f "/etc/${rel}"
-        fi
-    else
-        content="$(expected "${rel}")" || return 1
-        mkdir -p "$(dirname "/etc/${rel}")"
-        printf '%s\n' "${content}" >"/etc/${rel}.new"
-        chmod 0644 "/etc/${rel}.new"
-        mv "/etc/${rel}.new" "/etc/${rel}"
-    fi
+            return 0
+            ;;
+        *)
+            content="$(expected "${rel}")" || return 1
+            mkdir -p "$(dirname "/etc/${rel}")"
+            printf '%s\n' "${content}" >"/etc/${rel}.new"
+            chmod 0644 "/etc/${rel}.new"
+            mv "/etc/${rel}.new" "/etc/${rel}"
+            ;;
+    esac
     restorecon "/etc/${rel}" 2>/dev/null || true
 }
 
 mask() {
     if [[ "$2" == off ]]; then
+        mkdir -p "$(dirname "/etc/$1")"
         ln -sfn /dev/null "/etc/$1"
     elif [[ "$(readlink "/etc/$1" 2>/dev/null)" == /dev/null ]]; then
         rm -f "/etc/$1"
     fi
 }
 
+# A kernel argument switch: the image's own, on until turned off, or one of EXTRA_ARGS, off until turned on
+set_kernel_arg() {
+    local name="$1" switched="$2" arg
+    if extra "${name}"; then
+        for arg in ${EXTRA_ARGS[${name}]}; do
+            if [[ "${switched}" == on ]]; then
+                rpm-ostree kargs --append-if-missing="${arg}" >/dev/null || return 1
+            else
+                rpm-ostree kargs --delete-if-present="${arg}" >/dev/null || return 1
+            fi
+        done
+    elif [[ "${switched}" == off ]]; then
+        rpm-ostree kargs --delete-if-present="${name}" >/dev/null || return 1
+    else
+        rpm-ostree kargs --append-if-missing="${name}" >/dev/null || return 1
+    fi
+    record kernel-args "${switched}" "${name}"
+}
+
+# Networks that are not home get the stricter zone: it is the default, and the connections named home
+# keep the Amethystora zone. Those are remembered, so that turning it off gives back only what it set.
+# fail2ban keeps banning in the Amethystora zone: the away zone answers nothing to ban.
+set_away() {
+    local switched="$1" uuid
+    shift
+    if [[ "${switched}" == on ]]; then
+        if is_off firewall; then
+            echo "The Amethystora zone is off (ame security firewall). Turn it on before this." >&2
+            return 1
+        fi
+        record firewall-away on
+        firewall-cmd --set-default-zone="${AWAY_ZONE}" >/dev/null || { record firewall-away off; return 1; }
+        mkdir -p "${HOME_NETWORKS%/*}"
+        for uuid in "$@"; do
+            [[ "${uuid}" =~ ^[0-9a-fA-F-]{36}$ ]] || continue
+            nmcli connection modify "${uuid}" connection.zone amethystora && echo "${uuid}" >>"${HOME_NETWORKS}"
+        done
+        [[ -e "${HOME_NETWORKS}" ]] && sort -u -o "${HOME_NETWORKS}" "${HOME_NETWORKS}"
+    else
+        firewall-cmd --set-default-zone=amethystora >/dev/null || return 1
+        while read -r uuid; do
+            [[ "$(nmcli -g connection.zone connection show "${uuid}" 2>/dev/null)" == amethystora ]] &&
+                nmcli connection modify "${uuid}" connection.zone ""
+        done <"${HOME_NETWORKS}" 2>/dev/null
+        rm -f "${HOME_NETWORKS}"
+        record firewall-away off
+    fi
+    return 0
+}
+
+# The scratch folders, mounted noexec from the next start, and at once where they can be remounted
+set_noexec() {
+    local switched="$1" fstab=/etc/fstab
+    grep -v "${NOEXEC_MARK}" "${fstab}" >"${fstab}.new"
+    if [[ "${switched}" == on ]]; then
+        cat >>"${fstab}.new" <<EOF
+tmpfs /tmp tmpfs mode=1777,strictatime,nosuid,nodev,noexec,size=50%,nr_inodes=1m,${NOEXEC_MARK} 0 0
+tmpfs /dev/shm tmpfs nosuid,nodev,noexec,${NOEXEC_MARK} 0 0
+/var/tmp /var/tmp none bind,nosuid,nodev,noexec,nofail,${NOEXEC_MARK} 0 0
+EOF
+    fi
+    chmod --reference="${fstab}" "${fstab}.new" 2>/dev/null
+    mv "${fstab}.new" "${fstab}"
+    restorecon "${fstab}" 2>/dev/null
+    systemctl daemon-reload
+    if [[ "${switched}" == on ]]; then
+        mount -o remount,noexec /tmp 2>/dev/null
+        mount -o remount,noexec /dev/shm 2>/dev/null
+        findmnt /var/tmp >/dev/null || { mount --bind /var/tmp /var/tmp && mount -o remount,bind,nosuid,nodev,noexec /var/tmp; }
+    else
+        mount -o remount,exec /tmp 2>/dev/null
+        mount -o remount,exec /dev/shm 2>/dev/null
+        findmnt /var/tmp >/dev/null && umount -l /var/tmp 2>/dev/null
+    fi
+    return 0
+}
+
 set_switch() {
     local name="$1" switched="$2" argument="${3:-}" arg
     case "${name}" in
         kernel)
-            mask "${SYSCTL}" "${switched}"
-            # Back on applies at once; off leaves each value as it is until the next restart, since
-            # nothing sets a kernel setting back to what it was before
-            [[ "${switched}" == on ]] && sysctl --system >/dev/null
+            mask "${SYSCTL}" "$([[ "${switched}" == off ]] && echo off || echo on)"
+            if [[ "${switched}" == strict ]]; then
+                place "${STRICT_SYSCTL}" && place "${STRICT_MODPROBE}" || return 1
+            else
+                place "${STRICT_SYSCTL}" remove
+                place "${STRICT_MODPROBE}" remove
+            fi
+            # Up applies at once; down leaves each value as it is until the next restart, since nothing
+            # sets a kernel setting back to what it was before
+            [[ "${switched}" != off ]] && sysctl --system >/dev/null
             ;;
         blocked-modules)
             mask "${MODPROBE}" "${switched}"
@@ -151,28 +398,32 @@ set_switch() {
                 return 1
             fi
             if [[ -n "${argument}" ]]; then
-                arguments | grep -qxF -- "${argument}" ||
-                    { echo "${argument} is not one of the image's kernel arguments: $(arguments | paste -sd' ')" >&2; return 64; }
+                arguments | grep -qxF -- "${argument}" || extra "${argument}" ||
+                    { echo "${argument} is not one of: $(arguments | paste -sd' ') ${EXTRA_ORDER[*]}" >&2; return 64; }
             fi
             for arg in $(if [[ -n "${argument}" ]]; then echo "${argument}"; else arguments; fi); do
-                if [[ "${switched}" == off ]]; then
-                    rpm-ostree kargs --delete-if-present="${arg}" >/dev/null || return 1
-                else
-                    rpm-ostree kargs --append-if-missing="${arg}" >/dev/null || return 1
-                fi
-                record kernel-args "${switched}" "${arg}"
+                set_kernel_arg "${arg}" "${switched}" || return 1
             done
             return 0
             ;;
         firewall)
             if [[ "${switched}" == off ]]; then
+                is_on firewall-away && { set_away off || return 1; }
                 firewall-cmd --set-default-zone="${FALLBACK_ZONE}" >/dev/null || return 1
+                record firewall off
                 place "${JAIL}"
             else
                 firewall-cmd --set-default-zone=amethystora >/dev/null || return 1
-                rm -f "/etc/${JAIL}"
+                record firewall on
+                place "${JAIL}" remove
             fi
             systemctl try-reload-or-restart fail2ban.service 2>/dev/null
+            return 0
+            ;;
+        firewall-away)
+            shift 2
+            set_away "${switched}" "$@"
+            return
             ;;
         failed-logins)
             if [[ "${switched}" == off ]]; then
@@ -209,17 +460,149 @@ set_switch() {
             fi
             ;;
         ssh-settings)
+            # With them, systemd's generator does not offer SSH over vsock to the host of a VM either
             if [[ "${switched}" == off ]]; then
                 place "${SSHD}" || return 1
+                rm -f "/etc/${SSH_GENERATOR}"
             else
                 rm -f "/etc/${SSHD}"
+                mask "${SSH_GENERATOR}" off
             fi
+            systemctl daemon-reload
             systemctl try-reload-or-restart sshd.service 2>/dev/null
             ;;
         signed-updates)
             # The service's ExecCondition reads this. Back on, it switches the machine to signed updates
             # again, staged for the next restart; off, it switches nothing either way.
             [[ "${switched}" == on ]] && { record "${name}" on; systemctl start --no-block amethystora-signed-updates.service; return 0; }
+            ;;
+        ipv6-privacy)
+            mask "${IP6_PRIVACY}" "${switched}"
+            nmcli general reload conf 2>/dev/null
+            ;;
+        bluetooth-privacy)
+            if [[ "${switched}" == off ]]; then
+                place "${BLUEZ}" || return 1
+            else
+                place "${BLUEZ}" image
+            fi
+            systemctl try-restart bluetooth.service 2>/dev/null
+            ;;
+        time)
+            if [[ "${switched}" == on ]]; then
+                place "${CHRONY}" || return 1
+            else
+                place "${CHRONY}" image
+            fi
+            systemctl try-restart chronyd.service 2>/dev/null
+            ;;
+        network-daemons)
+            # On is these daemons off: printer and device discovery, and mobile broadband
+            if [[ "${switched}" == on ]]; then
+                systemctl disable --now "${NETWORK_DAEMONS[@]}" 2>/dev/null
+                systemctl mask "${NETWORK_DAEMONS[@]}" >/dev/null 2>&1 || return 1
+            else
+                systemctl unmask "${NETWORK_DAEMONS[@]}" >/dev/null 2>&1
+                systemctl enable --now "${NETWORK_DAEMONS[@]}" 2>/dev/null || return 1
+            fi
+            ;;
+        block-bluetooth)
+            if [[ "${switched}" == on ]]; then
+                place "${NO_BLUETOOTH}" || return 1
+                systemctl disable --now bluetooth.service 2>/dev/null
+                rfkill block bluetooth 2>/dev/null
+            else
+                place "${NO_BLUETOOTH}" remove
+                rfkill unblock bluetooth 2>/dev/null
+                systemctl enable --now bluetooth.service 2>/dev/null
+            fi
+            ;;
+        block-webcam)
+            if [[ "${switched}" == on ]]; then
+                place "${NO_WEBCAM}" || return 1
+                modprobe -r uvcvideo 2>/dev/null
+            else
+                place "${NO_WEBCAM}" remove
+            fi
+            ;;
+        block-automount | block-user-extensions)
+            local file lock
+            if [[ "${name}" == block-automount ]]; then file="${AUTOMOUNT}" lock="${AUTOMOUNT_LOCK}"; else file="${EXTENSIONS}" lock="${EXTENSIONS_LOCK}"; fi
+            if [[ "${switched}" == on ]]; then
+                place "${file}" && place "${lock}" || return 1
+            else
+                place "${file}" remove
+                place "${lock}" remove
+            fi
+            dconf update || return 1
+            ;;
+        block-xwayland)
+            if [[ "${switched}" == on ]]; then
+                place "${NO_X11}" || return 1
+            else
+                place "${NO_X11}" remove
+            fi
+            ;;
+        flathub-verified)
+            # Only apps whose makers Flathub verified; installed ones from anyone else stop updating
+            flatpak remote-modify --system --subset="$([[ "${switched}" == on ]] && echo verified)" flathub || return 1
+            ;;
+        flatpak-password)
+            if [[ "${switched}" == on ]]; then
+                place "${FLATPAK_PASSWORD}" || return 1
+            else
+                place "${FLATPAK_PASSWORD}" remove
+            fi
+            ;;
+        noexec-temp)
+            set_noexec "${switched}" || return 1
+            ;;
+        no-coredumps)
+            if [[ "${switched}" == on ]]; then
+                place "${COREDUMP}" || return 1
+            else
+                place "${COREDUMP}" remove
+            fi
+            ;;
+        package-cooldown)
+            # Its level decides what is written, so it is recorded first
+            record "${name}" "${switched}"
+            if [[ "${switched}" == off ]]; then
+                place "${COOLDOWN_ENV}" remove
+                place "${COOLDOWN_PROFILE}" remove
+            else
+                place "${COOLDOWN_ENV}" && place "${COOLDOWN_PROFILE}" || return 1
+            fi
+            return 0
+            ;;
+        brew-attestations)
+            if [[ "${switched}" == on ]]; then
+                place "${BREW_ENV}" && place "${BREW_PROFILE}" || return 1
+            else
+                place "${BREW_ENV}" remove
+                place "${BREW_PROFILE}" remove
+            fi
+            ;;
+        vscodium-extensions)
+            present vscodium-extensions || { echo "VSCodium is in the dx images only." >&2; return 1; }
+            if [[ "${switched}" == on ]]; then
+                place "${VSCODIUM}" || return 1
+            else
+                place "${VSCODIUM}" remove
+            fi
+            ;;
+        boot-password)
+            # The password itself is set by grub2-setpassword, which asks for it (ask, below)
+            if sealed; then
+                echo "This machine is sealed: it starts without GRUB, from a signed kernel image." >&2
+                return 1
+            fi
+            if [[ "${switched}" == on ]]; then
+                grep -q '^GRUB2_PASSWORD=grub.pbkdf2.' "${GRUB_USER}" 2>/dev/null ||
+                    { echo "No GRUB password is set: run grub2-setpassword first." >&2; return 1; }
+            else
+                rm -f "${GRUB_USER}"
+            fi
             ;;
     esac
     record "${name}" "${switched}"
@@ -241,20 +624,56 @@ words() {
         [virtual-input]="$(gettext "Virtual keyboards")"
         [ssh-settings]="$(gettext "SSH server settings")"
         [signed-updates]="$(gettext "Signed updates")"
+        [ipv6-privacy]="$(gettext "Temporary IPv6 addresses")"
+        [bluetooth-privacy]="$(gettext "Bluetooth privacy")"
+        [time]="$(gettext "Authenticated time")"
+        [firewall-away]="$(gettext "Stricter firewall away from home")"
+        [network-daemons]="$(gettext "Network discovery and mobile broadband")"
+        [block-bluetooth]="$(gettext "No Bluetooth")"
+        [block-webcam]="$(gettext "No webcam")"
+        [block-automount]="$(gettext "No automatic mounting")"
+        [block-user-extensions]="$(gettext "No new GNOME extensions")"
+        [block-xwayland]="$(gettext "No X11 apps")"
+        [flathub-verified]="$(gettext "Verified Flathub apps only")"
+        [flatpak-password]="$(gettext "A password for app installs")"
+        [noexec-temp]="$(gettext "Nothing runs from temporary folders")"
+        [no-coredumps]="$(gettext "No core dumps")"
+        [package-cooldown]="$(gettext "Package release cooldown")"
+        [brew-attestations]="$(gettext "Homebrew attestations")"
+        [boot-password]="$(gettext "Boot menu password")"
+        [vscodium-extensions]="$(gettext "VSCodium extensions")"
     )
     declare -gA TEXT=(
-        [kernel]="$(gettext "Hides kernel addresses and messages, keeps programs from reading each other's memory, and turns off unprivileged BPF. Off, gdb -p, strace -p, perf and dmesg work without sudo, from the next restart.")"
-        [blocked-modules]="$(gettext "Old network protocols and filesystems, FireWire and test drivers cannot load. Off, FireWire sound cards and cameras, disks from old Macs, SCTP and amateur radio work.")"
-        [kernel-args]="$(gettext "Memory wiped as it is handed out, slab caches kept apart, and no vsyscall page. init_on_alloc costs a few percent on work that allocates a lot, and vsyscall=none stops very old programs. Each one on its own, from the next restart.")"
+        [kernel]="$(gettext "Hides kernel addresses and messages, keeps programs from reading each other's memory, and turns off unprivileged BPF. Off, gdb -p, strace -p, perf and dmesg work without sudo, from the next restart. Strict also turns off io_uring, lets only root attach a debugger, randomises more of each program's memory layout and blocks IPsec; QEMU, Samba and some Node programs lose io_uring, gdb -p and strace -p need sudo, sanitizers stop working and libreswan and strongSwan cannot connect.")"
+        [blocked-modules]="$(gettext "Old network protocols and filesystems, FireWire, test and fault-injection drivers, CAN, GNSS, the floppy and parallel ports cannot load. Off, FireWire sound cards and cameras, disks from old Macs, SCTP, CAN buses and amateur radio work.")"
+        [kernel-args]="$(gettext "Memory wiped as it is handed out, slab caches kept apart, and no vsyscall page. init_on_alloc costs a few percent on work that allocates a lot, and vsyscall=none stops very old programs. Stricter ones are off until turned on: only debuggers writing to read-only memory (Wine and anti-cheat untested), memory wiped as it is freed (slower), the IOMMU checking every device's memory access at once (slower disks and network), and no 32-bit programs (no Steam, no 32-bit Wine). Each one on its own, from the next restart.")"
         [firewall]="$(gettext "The Amethystora zone lets in only what a desktop needs. Off, Fedora Workstation's zone lets in every port from 1025 up. Opening the one port a server needs is the narrower answer.")"
         [failed-logins]="$(gettext "fail2ban blocks an address after repeated failed logins over SSH. Off, nothing runs for an SSH server that is off by default.")"
         [lockout]="$(gettext "Ten wrong passwords in a row lock an account for ten minutes. Off, nothing is locked however many are wrong.")"
         [app-sandbox]="$(gettext "Takes X11, the input devices and the Flatpak service from every Flatpak app. Off, each app has what its own manifest asks for. Granting X11 to one app in Flatseal is the narrower answer.")"
         [virtual-input]="$(gettext "/dev/uinput, which makes a virtual keyboard or mouse that types into any window, stays root's. Off, whoever sits at the machine has it, and so does every app that may reach all of /dev, browsers and Steam among them. Steam Input and OpenTabletDriver need it off, and their setup turns it off.")"
-        [ssh-settings]="$(gettext "No root login, three tries a connection and no X11 forwarding for the SSH server. Off, OpenSSH's and Fedora's own settings apply.")"
+        [ssh-settings]="$(gettext "No root login, three tries a connection and no X11 forwarding for the SSH server, and no SSH over vsock from the host of a virtual machine. Off, OpenSSH's, Fedora's and systemd's own settings apply.")"
         [signed-updates]="$(gettext "Switches this machine back to updates that must carry this image's signature at every start. Off, it switches nothing either way. ame system trust-image is the answer for an image of your own.")"
+        [ipv6-privacy]="$(gettext "Each network sees a temporary IPv6 address that changes, as well as the one it hands out, so that websites cannot follow this machine by its address. Off, every connection uses one address.")"
+        [bluetooth-privacy]="$(gettext "Bluetooth uses a random address that changes, and stops being visible and accepting pairing 30 seconds after you ask for it. Off, BlueZ's own settings apply.")"
+        [time]="$(gettext "The clock decides whether certificates and signatures are valid. On, it is set only from time servers that prove who they are (NTS), three of which must agree, and never from one a network suggests. Networks that block port 4460 then leave the clock unsynced.")"
+        [firewall-away]="$(gettext "Networks you have not named home get a zone that answers nothing: no printer or device discovery, no Windows shares and no phone pairing. The networks you name home keep the Amethystora zone, and any new network is away until you say otherwise.")"
+        [network-daemons]="$(gettext "Stops Avahi, which finds printers and devices on the network, and ModemManager, which runs mobile broadband modems. Both are root daemons that answer the network. On, printers have to be added by address and a mobile broadband modem does not work.")"
+        [block-bluetooth]="$(gettext "Bluetooth cannot load at all, so a flaw in it cannot be reached from radio range. Headphones, mice and keyboards that use it stop working.")"
+        [block-webcam]="$(gettext "The USB webcam driver cannot load, whatever app asks. The webcam stops working.")"
+        [block-automount]="$(gettext "A USB stick or disk is not mounted until you open it in Files. Nothing on one runs by itself either way.")"
+        [block-user-extensions]="$(gettext "GNOME extensions cannot be installed from extensions.gnome.org or Extension Manager. An extension runs inside the desktop and sees every key and pixel. The image's own extensions are not affected.")"
+        [block-xwayland]="$(gettext "Xwayland does not start, so no app can use X11, where any app reads the keys typed into another. Steam, Wine, Proton and older apps stop working. From your next login.")"
+        [flathub-verified]="$(gettext "Bazaar and flatpak show only the Flathub apps whose makers Flathub verified. Installed apps from anyone else stay but stop updating.")"
+        [flatpak-password]="$(gettext "Installing or removing a Flatpak app for the whole machine asks for an administrator's password, so a program running as you cannot do it unseen. Updates still need none.")"
+        [noexec-temp]="$(gettext "Programs cannot be started from /tmp, /var/tmp and /dev/shm, where downloaded malware likes to run from. Some installers, build scripts and go test stop working. A script run through its interpreter still runs.")"
+        [no-coredumps]="$(gettext "A program that crashes leaves no copy of its memory on disk, where passwords and keys in it could be read later. Crashes cannot be diagnosed from one either.")"
+        [package-cooldown]="$(gettext "npm, pnpm and uv refuse package versions published in the last 3 days, which is how long most poisoned releases lasted before they were taken down. Strict waits 7 days and also stops npm and pnpm running install scripts, which packages that build native code need.")"
+        [brew-attestations]="$(gettext "Homebrew checks each bottle's build attestation before it installs it. It needs gh, from the cli Brewfile, and a GitHub login (gh auth login) on every account, or brew install fails.")"
+        [boot-password]="$(gettext "The boot menu asks for a password before anyone edits a boot entry or opens its command line, which could start this machine into a root shell. Starting normally needs none. Forget it and only booting from a USB stick changes it.")"
+        [vscodium-extensions]="$(gettext "VSCodium stops updating extensions by itself: worms have spread through Open VSX as updates to extensions people already had. Update them yourself, after reading what changed. With extensions or publishers listed one a line in /etc/amethystora/vscodium-extensions, only those can be installed.")"
     )
-    # When turning it off takes effect
+    # When the change takes effect: turning one off of what the image enforces, or turning a stricter one on
     declare -gA WHEN=(
         [kernel]="$(gettext "From the next restart: a kernel setting keeps its value until then.")"
         [blocked-modules]="$(gettext "At once, for a module that is not loaded yet.")"
@@ -266,18 +685,37 @@ words() {
         [virtual-input]="$(gettext "At once. Turned back on, from the next restart.")"
         [ssh-settings]="$(gettext "At once, if the SSH server is running.")"
         [signed-updates]="$(gettext "From the next start. This machine stays on the updates it follows now.")"
+        [ipv6-privacy]="$(gettext "From each network's next connection.")"
+        [bluetooth-privacy]="$(gettext "At once: Bluetooth restarts, and connected devices reconnect.")"
+        [time]="$(gettext "At once.")"
+        [firewall-away]="$(gettext "At once.")"
+        [network-daemons]="$(gettext "At once.")"
+        [block-bluetooth]="$(gettext "At once.")"
+        [block-webcam]="$(gettext "At once if no app is using it, otherwise from the next restart.")"
+        [block-automount]="$(gettext "At once.")"
+        [block-user-extensions]="$(gettext "At once.")"
+        [block-xwayland]="$(gettext "From your next login.")"
+        [flathub-verified]="$(gettext "At once.")"
+        [flatpak-password]="$(gettext "At once.")"
+        [noexec-temp]="$(gettext "At once for /tmp and /dev/shm, from the next restart for all three.")"
+        [no-coredumps]="$(gettext "At once.")"
+        [package-cooldown]="$(gettext "In new terminals, and for every app from your next login.")"
+        [brew-attestations]="$(gettext "In new terminals, and for every app from your next login.")"
+        [boot-password]="$(gettext "From the next start.")"
+        [vscodium-extensions]="$(gettext "From VSCodium's next start.")"
     )
 }
 
-# Interactive, as the user, for `ame security NAME`: says what the switch does and what turning it off
-# costs, asks, and makes the change with sudo
+# Interactive, as the user, for `ame security NAME`: says what the switch does and what it costs, asks,
+# and makes the change with sudo
 ask() {
-    local name="$1" argument="" action state choice
+    local name="$1" argument="" action state choice header
+    local -a homes=()
     words
     if [[ "${name}" == kernel-args ]]; then
         argument="${2:-}"
         action="${3:-}"
-        # `ame security kernel-args off` is every one of them
+        # `ame security kernel-args off` is every one of the image's
         if [[ "${argument}" =~ ^(on|off)$ && -z "${action}" ]]; then
             action="${argument}"
             argument=""
@@ -285,8 +723,12 @@ ask() {
     else
         action="${2:-}"
     fi
-    state=on
-    is_off "${name}" ${argument:+"${argument}"} && state=off
+    if [[ -n "${LEVELS[${name}]+set}" ]]; then
+        state="$(level "${name}")"
+    else
+        state=off
+        is_on "${name}" ${argument:+"${argument}"} && state=on
+    fi
     echo "${TITLE[${name}]}: ${state}"
     fold -s -w 96 <<<"${TEXT[${name}]}"
     if [[ "${name}" == kernel-args ]]; then
@@ -294,27 +736,69 @@ ask() {
             echo "This machine is sealed: its kernel arguments are inside the signed kernel image, and cannot change."
             exit 1
         fi
-        for choice in $(arguments); do
-            printf '  %-28s %s\n' "${choice}" "$(is_off kernel-args "${choice}" && echo off || echo on)"
+        for choice in $(arguments) "${EXTRA_ORDER[@]}"; do
+            printf '  %-32s %s\n' "${choice}" "$(is_on kernel-args "${choice}" && echo on || echo off)"
         done
         if [[ -z "${argument}" && -z "${action}" ]]; then
             # shellcheck disable=SC2046 # one choice a word, and none has a space
-            argument="$(gum choose --header "${TITLE[${name}]}" $(arguments) Cancel)"
+            argument="$(gum choose --header "${TITLE[${name}]}" $(arguments) "${EXTRA_ORDER[@]}" Cancel)"
             [[ -n "${argument}" && "${argument}" != Cancel ]] || exit 0
         fi
     fi
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "${TITLE[${name}]}${argument:+: ${argument}}" "Turn off" "Turn on" Cancel)"
+        header="${TITLE[${name}]}${argument:+: ${argument}}"
+        case "${name}" in
+            kernel) action="$(gum choose --header "${header}" Standard Strict "Turn off" Cancel)" ;;
+            package-cooldown) action="$(gum choose --header "${header}" "Turn on" Strict "Turn off" Cancel)" ;;
+            firewall-away) action="$(gum choose --header "${header}" "Turn on" "Choose home networks" "Turn off" Cancel)" ;;
+            *) action="$(gum choose --header "${header}" "Turn on" "Turn off" Cancel)" ;;
+        esac
     fi
     case "${action}" in
+        Strict | strict)
+            [[ -n "${LEVELS[${name}]+set}" ]] || exit 64
+            echo
+            gum confirm "Make ${TITLE[${name}]} strict?" || exit 0
+            sudo /usr/libexec/amethystora-hardening set "${name}" strict
+            echo "Strict. ame security ${name} $([[ "${name}" == kernel ]] && echo standard || echo on) puts the usual level back."
+            ;;
         "Turn off" | off)
             echo
-            echo "${WHEN[${name}]}"
+            stricter "${name}" || extra "${argument}" || echo "${WHEN[${name}]}"
             gum confirm "Turn ${TITLE[${name}]}${argument:+ (${argument})} off?" || exit 0
             sudo /usr/libexec/amethystora-hardening set "${name}" off ${argument:+"${argument}"}
-            echo "Off. ame security ${name} on puts it back."
+            echo "Off. ame security ${name}${argument:+ ${argument}} on puts it back."
             ;;
-        "Turn on" | on | standard)
+        "Turn on" | on | Standard | standard | "Choose home networks" | home)
+            if stricter "${name}" || extra "${argument}"; then
+                echo
+                echo "${WHEN[${name}]}"
+            fi
+            case "${name}" in
+                firewall-away)
+                    # Which saved networks are home: each keeps the Amethystora zone
+                    mapfile -t homes < <(nmcli -t -f UUID,TYPE,NAME connection show 2>/dev/null |
+                        awk -F: '$2 ~ /wireless|ethernet/ { print $1 "  " substr($0, index($0, $3)) }' |
+                        gum choose --no-limit --header "Which of these are home? Every other network, and every new one, is away." |
+                        cut -d' ' -f1)
+                    gum confirm "Turn ${TITLE[${name}]} on, with ${#homes[@]} network(s) as home?" || exit 0
+                    sudo /usr/libexec/amethystora-hardening set firewall-away on "${homes[@]}"
+                    echo "On. Name more home networks with ame security firewall-away home."
+                    exit 0
+                    ;;
+                boot-password)
+                    if sealed; then
+                        echo "This machine is sealed: it starts without GRUB, from a signed kernel image."
+                        exit 1
+                    fi
+                    gum confirm "Set a boot menu password now?" || exit 0
+                    echo "Choose the password. It is asked for only to edit a boot entry, never to start."
+                    sudo grub2-setpassword || exit 1
+                    ;;
+                *)
+                    stricter "${name}" && { gum confirm "Turn ${TITLE[${name}]}${argument:+ (${argument})} on?" || exit 0; }
+                    ;;
+            esac
             sudo /usr/libexec/amethystora-hardening set "${name}" on ${argument:+"${argument}"}
             echo "On."
             ;;
@@ -323,29 +807,38 @@ ask() {
 }
 
 status() {
-    local name state arg json=false
+    local name state arg json=false fixed
     words
     [[ "${1:-}" == --json ]] && json=true
-    for name in "${NAMES[@]}"; do
-        state=on
-        is_off "${name}" && state=off
+    for name in "${NAMES[@]}" "${STRICTER[@]}"; do
+        present "${name}" || continue
+        state=off
+        is_on "${name}" && state=on
         if [[ "${json}" == true ]]; then
+            fixed=false
+            { [[ "${name}" == kernel-args || "${name}" == boot-password ]] && sealed; } && fixed=true
             jq -nc --arg name "${name}" --arg state "${state}" --arg title "${TITLE[${name}]}" \
-                --arg text "${TEXT[${name}]}" --argjson sealed "$(sealed && echo true || echo false)" \
+                --arg text "${TEXT[${name}]}" --argjson fixed "${fixed}" \
+                --arg default "$(stricter "${name}" && echo off || echo on)" \
+                --arg level "$([[ -n "${LEVELS[${name}]+set}" ]] && level "${name}")" \
+                --arg levels "${LEVELS[${name}]:-}" \
                 --argjson arguments "$(if [[ "${name}" == kernel-args ]]; then
-                    for arg in $(arguments); do
-                        jq -nc --arg argument "${arg}" --arg state "$(is_off kernel-args "${arg}" && echo off || echo on)" \
-                            '{$argument, $state}'
+                    for arg in $(arguments) "${EXTRA_ORDER[@]}"; do
+                        jq -nc --arg argument "${arg}" --arg state "$(is_on kernel-args "${arg}" && echo on || echo off)" \
+                            --arg default "$(extra "${arg}" && echo off || echo on)" \
+                            '{$argument, $state, $default}'
                     done | jq -sc .
                 else echo null; fi)" \
-                '{$name, $state, $title, $text, command: ("ame security " + $name),
-                  fixed: ($name == "kernel-args" and $sealed),
+                '{$name, $state, $title, $text, command: ("ame security " + $name), $fixed, $default,
+                  level: (if $level == "" then null else $level end),
+                  levels: (if $levels == "" then null else ($levels | split(" ")) end),
                   arguments: (if $arguments == null then null else $arguments end)}'
         else
-            printf '  %-32s %s\n' "${TITLE[${name}]}" "${state}"
+            if [[ -n "${LEVELS[${name}]+set}" ]]; then state="$(level "${name}")"; fi
+            printf '  %-40s %s\n' "${TITLE[${name}]}" "${state}"
             if [[ "${name}" == kernel-args ]]; then
-                for arg in $(arguments); do
-                    printf '      %-28s %s\n' "${arg}" "$(is_off kernel-args "${arg}" && echo off || echo on)"
+                for arg in $(arguments) "${EXTRA_ORDER[@]}"; do
+                    printf '      %-36s %s\n' "${arg}" "$(is_on kernel-args "${arg}" && echo on || echo off)"
                 done
             fi
         fi
@@ -363,13 +856,22 @@ case "${1:-}" in
         ;;
     is-on)
         [[ $# -ge 2 ]] && known "$2" || usage
-        ! is_off "$2" "${3:-}"
+        is_on "$2" "${3:-}"
         ;;
     set)
-        [[ $# -ge 3 && "$3" =~ ^(on|off)$ ]] && known "$2" || usage
-        [[ $# -le 3 || "$2" == kernel-args ]] || usage
+        [[ $# -ge 3 ]] && known "$2" || usage
+        case "$3" in
+            on | off) ;;
+            strict) [[ -n "${LEVELS[$2]+set}" ]] || usage ;;
+            standard) [[ "$2" == kernel ]] || usage ;;
+            *) usage ;;
+        esac
+        [[ $# -le 3 || "$2" == kernel-args || "$2" == firewall-away ]] || usage
         need_root
-        set_switch "$2" "$3" "${4:-}"
+        name="$2" switched="$3"
+        [[ "${switched}" == standard ]] && switched=on
+        shift 3
+        set_switch "${name}" "${switched}" "$@"
         ;;
     managed)
         managed

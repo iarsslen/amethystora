@@ -179,6 +179,30 @@ if [[ -d /etc/cron.daily ]]; then
     chmod 0700 /etc/cron.daily
 fi
 
+# Setuid root on programs a desktop never needs, each a target for an attack that overwrites a setuid
+# binary in the page cache (Copy Fail, Dirty Frag). sudo does what they do for an administrator: changing
+# one's own finger information or password ageing (chfn, chage), group passwords (gpasswd, newgrp),
+# Kerberos su (ksu) and mounting WebDAV as a user (mount.davfs; GNOME's Files reaches WebDAV through gvfs).
+for program in chfn chage gpasswd newgrp ksu mount.davfs; do
+    if [[ -u "/usr/bin/${program}" ]]; then
+        chmod u-s "/usr/bin/${program}"
+    fi
+done
+
+# SSH over vsock: systemd's generator offers sshd to the host of a virtual machine through AF_VSOCK, which
+# the firewall does not see. The generator masked in /etc; `ame security ssh-settings off` unmasks it.
+mkdir -p /etc/systemd/system-generators
+ln -sfn /dev/null /etc/systemd/system-generators/systemd-ssh-generator
+
+# Bluetooth: a random address that changes, and visible and pairable for 30 seconds once asked rather than
+# until turned off. BlueZ reads no drop-ins, so its own main.conf, which `ame security bluetooth-privacy
+# off` puts back as BlueZ ships it.
+sed -i -e 's/^#DiscoverableTimeout = 0$/DiscoverableTimeout = 30/' -e 's/^#PairableTimeout = 0$/PairableTimeout = 30/' \
+    -e 's/^#Privacy = off$/Privacy = network/' /etc/bluetooth/main.conf
+grep -qx 'DiscoverableTimeout = 30' /etc/bluetooth/main.conf
+grep -qx 'PairableTimeout = 30' /etc/bluetooth/main.conf
+grep -qx 'Privacy = network' /etc/bluetooth/main.conf
+
 # Lynis knows a system by the ID in /etc/os-release and reports every ID it has no case for as an
 # exception, at the top of each audit. This one is Fedora underneath, so it gets Fedora's case.
 sed -i 's/^\([[:space:]]*\)"fedora")$/\1"fedora" | "amethystora")/' /usr/share/lynis/include/osdetection

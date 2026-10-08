@@ -61,7 +61,7 @@ declare -A APPLIES=(
     [MODULES]="run reboot" [INPUT_CAPTURE]="run reboot" [USER_PROGRAMS]="run reboot"
     [JOURNAL]="run" [IMAGE_DRIFT]="run" [SETUID_SWEEP]="run" [LISTENERS]="run" [USER_PATHS]="run"
     [REPORT_ALERTS]="run"
-    [VIRUS_SCAN]="restart:clamav-freshclam.service restart:clamd@scan.service restart:amethystora-clamav-onaccess.service"
+    [VIRUS_SCAN]="restart:clamav-freshclam.service restart:clamd@scan.socket restart:amethystora-clamav-onaccess.service"
     [REALTIME_SCAN]="restart:amethystora-clamav-onaccess.service"
     [ON_DETECTION]="now" [SETTINGS_AUDIT]="now" [NOTIFY]="now"
     [NETWORK]="restart:amethystora-ips.service restart:amethystora-security-realtime.service run"
