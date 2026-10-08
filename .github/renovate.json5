@@ -12,7 +12,75 @@
   // silently stalls the dependency for months. Keep its own branches current
   // instead of hand-merging main into them.
   "rebaseWhen": "behind-base-branch",
+
+  // extensions.gnome.org's answer for an extension: the upload for the GNOME
+  // the image ships (GNOME 50 on Fedora 44; move it with the Fedora version)
+  customDatasources: {
+    'extensions-gnome-org': {
+      defaultRegistryUrlTemplate: 'https://extensions.gnome.org/extension-info/?uuid={{packageName}}&shell_version=50',
+      transformTemplates: [
+        '{"releases": [{"version": $string(version_tag)}]}',
+      ],
+    },
+  },
+
     customManagers: [
+    // The base images in image-versions.yml, each pinned by digest under its
+    // tag. bump-base-images.yml proposes the same updates daily, verified
+    // against Universal Blue's key; whichever is merged first, the other
+    // finds nothing left to do.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^image-versions\\.yml$/',
+      ],
+      matchStrings: [
+        'image: (?<depName>\\S+)\\s+tag: "?(?<currentValue>[^"\\s]+)"?\\s+digest: (?<currentDigest>sha256:[a-f0-9]{64})',
+      ],
+      datasourceTemplate: 'docker',
+      depTypeTemplate: 'base-image',
+    },
+    // The extensions.gnome.org uploads build-gnome-extensions.sh installs,
+    // by upload id. Only the calls at the top of the script: Space Bar's
+    // are pinned per GNOME, inside a test of the GNOME version, by hand.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^build_files/shared/build-gnome-extensions\\.sh$/',
+      ],
+      matchStrings: [
+        '\\ninstall_ego_extension "(?<depName>[^"]+)" \\d+ (?<currentValue>\\d+) ',
+      ],
+      datasourceTemplate: 'custom.extensions-gnome-org',
+      versioningTemplate: 'loose',
+      depTypeTemplate: 'gnome-extension-upload',
+    },
+    // The Syft release reusable-build.yml makes the SBOM with
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^\\.github/workflows/reusable-build\\.yml$/',
+      ],
+      matchStrings: [
+        'syft-version: (?<currentValue>v[0-9.]+)',
+      ],
+      depNameTemplate: 'anchore/syft',
+      datasourceTemplate: 'github-releases',
+    },
+    // The just release the workflows install (.github/actions/install-just),
+    // with the SHA-256 of its tarball, which this datasource works out for the
+    // new release
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^\\.github/actions/install-just/action\\.yml$/',
+      ],
+      matchStrings: [
+        'JUST_VERSION: (?<currentValue>\\S+)\\s+JUST_SHA256: (?<currentDigest>[a-f0-9]{64})',
+      ],
+      depNameTemplate: 'casey/just',
+      datasourceTemplate: 'github-release-attachments',
+    },
     {
       customType: 'regex',
       managerFilePatterns: [
@@ -161,13 +229,19 @@
     },
     ],
 
+  // Everything Renovate may merge by itself waits three days after its
+  // release first, digests included, so that a release pulled for being
+  // compromised is pulled before it ships: a merge to main is published by
+  // the next scheduled stable build.
   "packageRules": [
     {
       "automerge": true,
+      "minimumReleaseAge": "3 days",
       "matchUpdateTypes": ["pin", "pinDigest"]
     },
     {
       "automerge": true,
+      "minimumReleaseAge": "3 days",
       "matchManagers": ["dockerfile"],
       "matchUpdateTypes": ["digest"]
     },
@@ -178,18 +252,38 @@
     },
     {
       "automerge": true,
+      "minimumReleaseAge": "3 days",
       "matchUpdateTypes": ["digest"],
       "matchDepNames": [
         "ghcr.io/ublue-os/silverblue-main"
       ]
     },
-    // candy-icons and Sweet are pinned by commit and by the SHA-256 of
-    // GitHub's archive of it, which Renovate cannot work out. Their updates
-    // are listed on the Dependency Dashboard rather than opened as pull
-    // requests whose build would fail; the commit and its checksum are bumped
-    // together on main, by hand, and Renovate then drops the update.
+    // image-versions.yml pins one base per Fedora version: an entry follows
+    // its tag's digest, and a new Fedora is a new entry, added by hand
+    {
+      "matchDepTypes": ["base-image"],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "enabled": false
+    },
+    // cosign-installer stays on v3. v4 installs cosign v3, which stores
+    // signatures as OCI referrers, while every machine checks updates with
+    // use-sigstore-attachments (policy.json): they would refuse every update.
+    {
+      "matchPackageNames": ["sigstore/cosign-installer"],
+      "allowedVersions": "<4"
+    },
+    // candy-icons, Sweet and the extensions.gnome.org uploads are pinned
+    // with the SHA-256 of what is downloaded, which Renovate cannot work out
+    // for these. Their updates are listed on the Dependency Dashboard rather
+    // than opened as pull requests whose build would fail; the pin and its
+    // checksum are bumped together on main, by hand, and Renovate then drops
+    // the update.
     {
       "matchDepNames": ["EliverLara/candy-icons", "EliverLara/Sweet"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "matchDepTypes": ["gnome-extension-upload"],
       "dependencyDashboardApproval": true
     },
     {
