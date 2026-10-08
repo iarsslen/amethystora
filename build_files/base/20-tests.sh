@@ -14,7 +14,7 @@ for i in bin/ame bin/ujust share/amethystora/just/{00-entry,agent,apps,backup,ch
    stat /usr/$i
 done
 [[ "$(ame --summary)" == "$(ujust --summary)" ]]
-ujust --show setup-backup | grep -qx "alias setup-backup := backup"
+grep -qx "alias setup-backup := backup" <<<"$(ujust --show setup-backup)"
 # The fish completions answer, with no error before a subcommand is typed or after: a condition such as
 # `test (...) = x` fails while there is no word yet. --no-config loads none of them, so they are sourced.
 for line in "ame " "ame security " "ame pkg " "amethystora-pkg " "amethystora-pkg containers "; do
