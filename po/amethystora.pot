@@ -700,6 +700,11 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 #, sh-format
+msgid "Owned by a login account, which can change what root runs: ${file}"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
 msgid "The kernel module ${name} did not come with this image"
 msgstr ""
 

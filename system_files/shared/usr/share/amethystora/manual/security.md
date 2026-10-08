@@ -88,7 +88,8 @@ Every 15 minutes, or as things happen with [real-time watching](#settings) on, t
   security setting, or a file in `/etc` that replaces one of the image's in `/usr/lib`, shows as
   **Image settings** in the report.
 - **What should not exist on this system**: a setuid program outside `/usr`, `/etc/ld.so.preload`,
-  a plain file in `/dev`, a kernel module that did not come with the image or is not signed, and a
+  a plain file in `/dev`, a file or folder in `/etc` or `/usr/local` that belongs to a login account
+  rather than to root, a kernel module that did not come with the image or is not signed, and a
   network interface reading every packet. These are **Rootkit checks** in the report.
 - **What accepts connections**: each program that listens on the network, which every device on
   your tailnet can reach. A new one is said once.
@@ -96,7 +97,8 @@ Every 15 minutes, or as things happen with [real-time watching](#settings) on, t
   named like one of the system's commands, which your shell runs in place of the real one. A fake
   `sudo` or `ssh` there is an old way to catch a password, so those are said loudest; Homebrew's
   folder only counts for those. And a launcher in your app grid that no container export made. Each is
-  said when it appears, and again if it changes.
+  said when it appears, and again if it changes. A folder the audit log watches, such as `~/.config`,
+  made a link to somewhere outside your home folder is said too, once: the audit log stops watching it.
 - **Network protection**, while it is on: each connection it blocked, with the way to allow it
   again, and what it recognised without blocking when the rule rates it serious.
   [Network protection](#network-protection).

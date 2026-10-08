@@ -15,6 +15,7 @@
 #     connections from other machines.
 #   - What each account's session finds first: a command in ~/.local/bin, ~/bin or Homebrew's prefix
 #     named like one of the system's, and a launcher in the app grid that no container export made.
+#     And a place in a home the audit rules watch that a link takes out of it, where they cannot.
 #   - The report. Its checks live in /usr/libexec/amethystora-security-status and nowhere else. This runs
 #     it and speaks up when a check it watches goes from fine to not, or changes while it is not fine,
 #     the way Wazuh's configuration checks report a result only when it changes.
@@ -350,6 +351,9 @@ accounts() {
 
 read_user_paths() {
     local seen="${STATE}/user-paths-seen" first=false user uid home dir file name level key line where
+    local path part component target shown odd='[^[:alnum:]._/@+-]'
+    local -a parts home_paths
+    mapfile -t home_paths < <(/usr/libexec/amethystora-audit-home-rules --paths 2>/dev/null)
     # The first run of this check only records where things stand, on a machine with years of them
     [[ -e "${seen}" ]] || first=true
     touch "${seen}"
@@ -382,6 +386,23 @@ read_user_paths() {
                 "${line}" == "Exec=amethystora-webapp "* ]] && continue
             remember "${file} $(sha256sum <<<"${line}" | cut -c1-16)" || continue
             add normal "A launcher no container export made is in ${user}'s app grid: ~${user}${file#"${home}"}, which runs ${line#Exec=}"
+        done
+        # A place the per-home audit rules watch, taken out of the home by a link: they write no watch
+        # through one, so what starts from there goes unseen. Only lstat and readlink, never a read.
+        for path in "${home_paths[@]}"; do
+            part="${home}"
+            IFS=/ read -ra parts <<<"${path}"
+            for component in "${parts[@]}"; do
+                part+="/${component}"
+                [[ -L "${part}" ]] || continue
+                target="$(realpath -m -- "${part}" 2>/dev/null)"
+                [[ "${target}" == "${home}"/* && ! "${target}" =~ ${odd} ]] && continue
+                # The account chose where it leads: only plain characters of it reach a notification
+                shown="${target//${odd}/?}"
+                remember "${part} -> ${target}" &&
+                    add normal "~${user}${part#"${home}"} is a link out of ${user}'s home folder, to ${shown:-nowhere}: the audit log no longer watches what is put there"
+                break
+            done
         done
     done < <(accounts)
     for dir in /home/linuxbrew/.linuxbrew/bin /home/linuxbrew/.linuxbrew/sbin; do

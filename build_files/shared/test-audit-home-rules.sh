@@ -50,6 +50,11 @@ as 4202 ln -s ../dotfiles/autostart "${A}/.config/autostart"
 as 4202 ln -s dotfiles/bashrc "${A}/.bashrc"
 ln -s "${A}/My Stuff/applications" "${A}/.local/share/applications"
 
+# Its list of places, which the security watcher reads, changes nothing
+bash "${GENERATOR}" --paths | grep -qx .config/systemd/user
+bash "${GENERATOR}" --paths | grep -qx bin
+[[ ! -e "${RULES}" ]]
+
 bash "${GENERATOR}"
 
 # Nothing outside a home changed owner, and nothing outside a home is watched

@@ -1528,9 +1528,11 @@ grep -q "^max_log_file = 32$" /etc/audit/auditd.conf
 grep -qiE "^(space_left_action|admin_space_left_action|disk_full_action|disk_error_action) = (halt|single|suspend)$" \
     /etc/audit/auditd.conf && false
 
-# The per-home watches reach the kernel through the load auditd does as it starts, because once -e 2 is
-# in the rule set a second `augenrules --load` is refused.
+# The per-home watches reach the kernel through the one load at boot, by audit-rules.service once auditd
+# has started (audit 4.2; auditd itself before), because once -e 2 is in the rule set a second
+# `augenrules --load` is refused. So they are written before both.
 grep -qE "^Before=auditd.service( |$)" /usr/lib/systemd/system/amethystora-audit-rules.service
+grep -qE "^Before=.* audit-rules.service( |$)" /usr/lib/systemd/system/amethystora-audit-rules.service
 grep -qE "^After=auditd.service" /usr/lib/systemd/system/amethystora-audit-rules.service && false
 # auditd starts before sysinit.target, so a unit ordered before it has to as well: with the default
 # dependencies it sits after sysinit.target, and systemd breaks the cycle by not starting auditd
@@ -1538,8 +1540,15 @@ grep -q "^DefaultDependencies=no$" /usr/lib/systemd/system/amethystora-audit-rul
 grep -q "^Before=.*sysinit.target" /usr/lib/systemd/system/amethystora-audit-rules.service
 grep -q "^Before=.*sysinit.target" /usr/lib/systemd/system/auditd.service
 # It runs as root in every home, so it never follows a link an account made out of its home, neither to
-# give a folder back nor to watch one, tried against a stand-in /etc/passwd and /var/home
+# give a folder back nor to watch one, tried against a stand-in /etc/passwd and /var/home; and it can write
+# nowhere else (systemd-resolved runs this early with the same sandbox). The watcher says a watched place a
+# link took out of a home, from the generator's own list.
 bash /ctx/build_files/shared/test-audit-home-rules.sh
+grep -q "^ProtectSystem=strict$" /usr/lib/systemd/system/amethystora-audit-rules.service
+grep -q "^ReadWritePaths=/etc/audit -/var/home$" /usr/lib/systemd/system/amethystora-audit-rules.service
+grep -qF "amethystora-audit-home-rules --paths" /usr/libexec/amethystora-security-watch
+# The rootkit check counts a file of the system's owned by a login account, so the image ships none
+find /etc /var/usrlocal -xdev -uid +999 ! -uid 65534 2>/dev/null | grep . && false
 
 # Weekly virus scan and monthly Lynis audit. What is done with a found file is ON_DETECTION's to say,
 # through the one helper, never a clamdscan flag in a script. It ships as report: a false positive that
