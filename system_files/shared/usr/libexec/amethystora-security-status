@@ -245,9 +245,17 @@ fi
 BUILT="$(jq -r '[.deployments[] | select(.booted)][0].timestamp // empty' <<<"${STATUS:-null}" 2>/dev/null)"
 NEXT_BUILT="$(jq -r 'if (.deployments[0].booted | not) then .deployments[0].timestamp // empty else empty end' \
     <<<"${STATUS:-null}" 2>/dev/null)"
+# Most packages, sudo, glibc and OpenSSH among them, come with the base image the build starts from,
+# which image-versions.yml pins: they move only when the pin does, however new the image itself is.
+BASE_CREATED="$(jq -r '."base-created" // empty' /usr/share/amethystora/image-info.json 2>/dev/null)"
 if [[ "${BUILT}" =~ ^[0-9]+$ ]]; then
     AGE="$(days_since "${BUILT}")"
-    if [[ "${AGE}" -le 14 ]]; then
+    if [[ "${AGE}" -le 14 && "${BASE_CREATED}" =~ ^[0-9]+$ && "$(days_since "${BASE_CREATED}")" -gt 14 ]]; then
+        WHEN="$(days_ago "${AGE}")"
+        BASE_AGE="$(days_since "${BASE_CREATED}")"
+        report updates image-age info "$(gettext "System image")" "$(eval_gettext "This system image was built \${WHEN}")" \
+            "$(eval_ngettext "Most of its packages come with the base it is built on, which is \${BASE_AGE} day old: their fixes arrive when Amethystora moves to a newer base." "Most of its packages come with the base it is built on, which is \${BASE_AGE} days old: their fixes arrive when Amethystora moves to a newer base." "${BASE_AGE}")"
+    elif [[ "${AGE}" -le 14 ]]; then
         WHEN="$(days_ago "${AGE}")"
         report updates image-age ok "$(gettext "System image")" "$(eval_gettext "This system image was built \${WHEN}")"
     elif [[ "${NEXT_BUILT}" =~ ^[0-9]+$ && "${NEXT_BUILT}" -gt "${BUILT}" ]]; then

@@ -25,8 +25,9 @@ fi
 # The release packages go the same way: the guidelines name fedora-release beside fedora-logos, and
 # Fedora ships generic-release to stand in for it. Only the package database changes hands. The files
 # stay where they are: os-release is rewritten for this image by 00-image-info.sh, which also takes
-# Fedora's name out of the rest, and the presets, the dist macros and rpm-ostree's polkit rules that
-# came with Fedora's packages are what the system is built on.
+# Fedora's name out of the rest, and the presets and the dist macros that came with Fedora's packages
+# are what the system is built on. Their rpm-ostree polkit rules are replaced by the image's own, from
+# system_files, which the rsync below copies over them.
 readarray -t FEDORA_RELEASE < <(rpm -qa --queryformat '%{NAME}\n' 'fedora-release*')
 ((${#FEDORA_RELEASE[@]}))
 mkdir -p /tmp/generic-release

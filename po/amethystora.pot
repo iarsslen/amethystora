@@ -158,6 +158,13 @@ msgid "This system image was built ${WHEN}"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Most of its packages come with the base it is built on, which is ${BASE_AGE} day old: their fixes arrive when Amethystora moves to a newer base."
+msgid_plural "Most of its packages come with the base it is built on, which is ${BASE_AGE} days old: their fixes arrive when Amethystora moves to a newer base."
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-security-status
 msgid "A newer system image is waiting for a restart"
 msgstr ""
 

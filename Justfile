@@ -148,7 +148,7 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
     # Verify Base Image with cosign, pinned by digest
     {{ just }} verify-container "${base_image_name}-main:${fedora_version}@${base_image_sha}"
     # When it was built, from its image configuration (Universal Blue's images carry no created label),
-    # for image-info.json, which the report reads, and for 20-tests.sh, which fails a stale base
+    # for image-info.json, which the report reads, and for 20-tests.sh, which warns of a stale base
     base_created="$(date -d "$(skopeo inspect --retry-times 3 "docker://ghcr.io/ublue-os/${base_image_name}-main@${base_image_sha}" | jq -r .Created)" +%s)"
 
     # Kernel Release/Pin

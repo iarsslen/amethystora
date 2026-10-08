@@ -25,7 +25,7 @@ fi
 # When the base image was built, in seconds since the epoch: the created date of its image configuration,
 # which the Justfile reads with skopeo (Universal Blue's images carry no org.opencontainers.image.created
 # label). The report's image-age check reads it beside the image's own date, since packages that come
-# with the base move only when image-versions.yml does, and 20-tests.sh fails a base gone stale.
+# with the base move only when image-versions.yml does, and 20-tests.sh warns of a base gone stale.
 [[ "${BASE_IMAGE_CREATED:-}" =~ ^[0-9]+$ ]]
 
 cat >$IMAGE_INFO <<EOF

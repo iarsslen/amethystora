@@ -8,7 +8,7 @@ on:
 # brings stays as it was until the pin moves. This resolves each tag in that file to its digest today,
 # checks the image against Universal Blue's key (keys/ublue-os-cosign.pub), and proposes the new digests
 # in one pull request, from the automation/base-images branch, which is updated in place while the pull
-# request is open. 20-tests.sh fails a build whose base is more than 10 days older than itself.
+# request is open. 20-tests.sh warns of a build whose base is more than 10 days older than itself.
 #
 # A pull request opened with the workflow's own token starts no workflows, so its checks would not run.
 # With a BASE_BUMP_TOKEN secret (a fine-grained token with Contents and Pull requests write on this

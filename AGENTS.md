@@ -22,6 +22,7 @@ This document provides essential information for coding agents working with the 
 - `.pre-commit-config.yaml` - Pre-commit hooks for basic validation
 - `image-versions.yml` - Image version configurations
 - `cosign.pub` - Container signing public key
+- `keys/` - Upstream's public keys, kept here rather than fetched from a branch that can move: Universal Blue's cosign key (`ublue-os-cosign.pub`, which `just verify-container` checks the base, akmods and brew images with) and the two akmods certificates `just secureboot` checks the kernel against
 - `SECURITY.md` - How to report a vulnerability (privately, through the repository's Security tab)
 
 ### Key Directories
@@ -180,7 +181,9 @@ The repository uses mandatory pre-commit validation:
 - `build-images.yml` - Runs the stable, latest and beta builds together (manual dispatch only)
 - `reusable-build.yml` - Core build logic for all image variants, and on the stable stream the sealed images (see Sealed images)
 - `generate-release.yml` - Generates release artifacts and changelogs
-- `build-iso.yml` - Builds the installer ISO of a stable image, `amethystora-non-uefi.iso` (the only one that starts computers without UEFI), with bootc-image-builder and uploads it, with its checksum signed by cosign, to Cloudflare R2 (a Release asset is limited to 2 GiB). `Stable Images` runs it after scheduled and dispatched builds for `amethystora` only, each upload replacing the last under the same name; `amethystora-dx` and the NVIDIA images have no ISO, and the workflow fails on any other image. bootc-image-builder picks the installer's packages by os-release `ID` and has no definition for `amethystora`, so the workflow runs its container by hand and writes Fedora's definition out under that name, with `generic-logos` and `generic-release` added so that the installer carries neither `fedora-logos` nor `fedora-release`; do not switch back to its GitHub action, which cannot. `iso/installer-packages.py` then lists the installer's packages from the builder's manifest for the ISO to carry beside `LICENSE` and `NOTICE`, and fails the workflow before the upload if one of Fedora's two is among them. Both kickstarts (`iso/iso.toml`, `iso/live/installer.ks`) switch the installed machine with `--enforce-container-sigpolicy`, which only rewrites the origin and needs no network, and both ISO builds fail on a switch without it. The builder is pinned by digest to its last build that reads definitions from a folder; its successor compiles them in, so moving to it means rewriting that step. Its second job, `live-iso`, builds the live ISO of `amethystora` only, `amethystora.iso` (https://download.amethystora.org/amethystora.iso): it checks the published image against `cosign.pub`, builds `iso/live` from it with `podman build --cap-add sys_admin`, and has Titanoboa (`ublue-os/titanoboa`, Apache-2.0, pinned to its first commit that takes only an image) squash it into a UEFI-only ISO, then lists the live system's packages, fails on Fedora's logo or release package, adds `LICENSE`, `NOTICE` and the list, and signs and uploads as the installer job does. Titanoboa's offline-install store in `/usr/lib/containers/storage` does not work with Fedora 45's podman 6 (ublue-os/titanoboa#151): solve that before the stable image moves to 45
+- `build-iso.yml` - Builds the installer ISO of a stable image, `amethystora-non-uefi.iso` (the only one that starts computers without UEFI), with bootc-image-builder and uploads it, with its checksum signed by cosign, to Cloudflare R2 (a Release asset is limited to 2 GiB). Both of its ISOs are built from one digest of the published image, resolved and checked against `cosign.pub` once (the `image` job), so that the image cannot change between the check and either build. The builders run privileged and hold no secret: each hands its ISO, as an artifact, to the `publish` job on a runner of its own, which works out the checksum again, signs and uploads, and only on main. `Stable Images` runs it after scheduled and dispatched builds for `amethystora` only, each upload replacing the last under the same name; `amethystora-dx` and the NVIDIA images have no ISO, and the workflow fails on any other image. bootc-image-builder picks the installer's packages by os-release `ID` and has no definition for `amethystora`, so the workflow runs its container by hand and writes Fedora's definition out under that name, with `generic-logos` and `generic-release` added so that the installer carries neither `fedora-logos` nor `fedora-release`; do not switch back to its GitHub action, which cannot. `iso/installer-packages.py` then lists the installer's packages from the builder's manifest for the ISO to carry beside `LICENSE` and `NOTICE`, and fails the workflow before the upload if one of Fedora's two is among them. Both kickstarts (`iso/iso.toml`, `iso/live/installer.ks`) switch the installed machine with `--enforce-container-sigpolicy`, which only rewrites the origin and needs no network, and both ISO builds fail on a switch without it. The builder is pinned by digest to its last build that reads definitions from a folder; its successor compiles them in, so moving to it means rewriting that step. Its second job, `live-iso`, builds the live ISO of `amethystora` only, `amethystora.iso` (https://download.amethystora.org/amethystora.iso): it builds `iso/live` `FROM` the checked digest with `podman build --cap-add sys_admin` (`iso/live/build.sh` pulls the offline copy by the same digest), and has Titanoboa (`ublue-os/titanoboa`, Apache-2.0, pinned to its first commit that takes only an image) squash it into a UEFI-only ISO, then lists the live system's packages, fails on Fedora's logo or release package, adds `LICENSE`, `NOTICE` and the list, and hands it to `publish` as the installer job does. Titanoboa's offline-install store in `/usr/lib/containers/storage` does not work with Fedora 45's podman 6 (ublue-os/titanoboa#151): solve that before the stable image moves to 45
+- `bump-base-images.yml` - Daily on main: resolves every tag in `image-versions.yml` to its digest, checks each against `keys/ublue-os-cosign.pub`, and proposes the changed digests in one pull request from `automation/base-images`. Its pull requests start their checks only with a `BASE_BUMP_TOKEN` secret (a token with Contents and Pull requests write on this repository); `20-tests.sh` warns when the base is more than 10 days older than the build
+- `security-rebuild.yml` - Daily on main, read-only but for the dispatch: compares the published stable image's source packages (its SBOM) with Fedora's security updates in Bodhi, and starts `Stable Images` when one was pushed after the published image's base was built and before the pinned base was. The kernel is left to the weekly build. Images carry `org.amethystora.base-created` for it
 - `validate-renovate.yml` - Validates the Renovate configuration on pull requests
 - `scorecard.yml` - OpenSSF Scorecard supply-chain checks (weekly)
 - `clean.yml` - Cleanup old images and artifacts
@@ -191,7 +194,9 @@ The repository uses mandatory pre-commit validation:
 - Stream-specific workflows (stable, latest, beta) call `reusable-build.yml`
 - `reusable-build.yml` builds both base and dx variants for all flavors (main, nvidia-open)
 - Fedora version is dynamically detected based on stream tag
-- Images are signed with cosign and pushed to GHCR
+- Images are signed with cosign and pushed to GHCR, and every tag pushed is checked against `cosign.pub` afterwards
+- Only main publishes: one `PUBLISH` condition in `reusable-build.yml` (main's schedule and dispatches, the merge queue in front of main, and the `beta` branch's own stream) decides every push, signature, attestation and SBOM, and which builds get the real module and Secure Boot keys. Everything else builds with throwaway keys and publishes nothing. No build step gets `GITHUB_TOKEN`, and keys reach the build as files (`AKMODS_PRIVKEY_FILE`, `SECUREBOOT_KEY_FILE`), never on a command line
+- cosign is installed from its pinned installer before the build, into `/usr/local/bin` for sudo, and `just verify-container` fails without it; just comes from a pinned release with its checksum (`.github/actions/install-just`)
 - Every workflow sets `permissions: {}` or read-only access at the top and grants write access on the job that needs it, which OpenSSF Scorecard checks (`build-images.yml` is the exception: each job it runs needs the same write access)
 
 ### Manual Validation Steps
@@ -737,7 +742,9 @@ ostree images stay the default.
   the certificate as `/usr/share/amethystora/secure-boot/amethystora-uki.der`, rebuilds the initramfs
   with dracut's `bootc` module and writes `SOURCES` again. chunkah rechunks the tree **before** the
   digest: nothing may change the tree after `bootc container ukify` (`10-uki.sh`) has read it, and the
-  UKI under `/boot/EFI/Linux` is the only thing added afterwards. `20-tests-sealed.sh` checks the
+  UKI under `/boot/EFI/Linux` is the only thing added afterwards. `10-uki.sh` builds the UKI unsigned;
+  `15-sign-uki.sh` signs it and systemd-boot in the `signer` stage, a pinned Fedora image with only
+  sbsigntools added, the one place the Secure Boot key is mounted. `20-tests-sealed.sh` checks the
   signatures, the digest and the command line. The UKI's kernel arguments are the image's `kargs.d`,
   there is no other way to add one, and they never include a debug shell.
 - **Keys: shim and MOK** (the maintainer's choice of 2026-10-04, over replacing the firmware's PK, KEK
@@ -794,8 +801,11 @@ This function:
 
 ### Package Security Model
 **CRITICAL**: Packages are split into separate arrays to prevent COPR repos from injecting malicious versions of Fedora packages:
-- Fedora packages are installed first in bulk (safe)
+- Fedora packages are installed first in bulk, from Fedora's repositories by name (`--repo=fedora --repo=updates`, and `updates-testing` on beta): the akmods Copr and negativo17's `fedora-multimedia`, which outranks Fedora's, are still enabled at that point
 - COPR packages are installed individually with isolated repo enablement
+- Every third-party repository's signing key is pinned by fingerprint: `pin_repo_key` (`copr-helpers.sh`, with the Copr projects' fingerprints in its table) fetches the key a repository file names, refuses any other, keeps it in `/etc/pki/rpm-gpg` and points the file at that copy, so that dnf never takes a key from the server; `20-tests.sh` fails on a pinned repository that still names one. A new repository or Copr project gets its fingerprint there
+- RPM Fusion's release packages come from volunteer mirrors, and dnf checks no signature on a package given as a file or URL: `rpmfusion_release_install` takes RPM Fusion's keys from Fedora's signed `distribution-gpg-keys` and installs the release packages only with a valid signature
+- Downloads outside a package manager are pinned by SHA-256 in the script that fetches them (Starship, the extensions.gnome.org uploads, candy-icons, Sweet, Electron's published checksums), and Flathub is added from the base image's own `flathub.flatpakrepo` after its key is checked
 
 ### Licences and trademarks
 
@@ -872,11 +882,16 @@ The `Containerfile` uses a multi-stage build process:
 1. **Stage `ctx`** (FROM scratch): Copies all build context (system_files, build_files, etc.)
 2. **Stage `base`** (FROM silverblue-main): Base Amethystora image
    - Mounts build context from `ctx` stage
-   - Runs `/ctx/build_files/shared/build.sh` which executes all scripts in order
+   - Runs in three steps: `/ctx/build_files/shared/prepare.sh`, then
+     `03-install-kernel-akmods.sh`, the only step the kernel module signing key (`AKMODS_PRIVKEY`,
+     and for a throwaway key `AKMODS_CERT`) is mounted for, before any of the build's own
+     third-party repositories is added, then `/ctx/build_files/shared/build.sh`, which runs the rest
 3. **dx**: not a stage of its own. `just build amethystora-dx` passes `IMAGE_FLAVOR=dx`, and
    `build.sh` runs `build-dx.sh` inside the `base` stage once the rest has finished
 
 **Build Arguments:**
+- `AKMODS_DIGEST`, `AKMODS_ZFS_DIGEST`, `AKMODS_NVIDIA_DIGEST` - The kernel and module images, resolved to a digest and checked with cosign by the Justfile once; step 03 copies them by that digest
+- `BASE_IMAGE_CREATED` - When the base image was built (seconds since the epoch), which `00-image-info.sh` writes into `image-info.json` as `base-created` for the report's image-age check
 - `BASE_IMAGE_NAME` - Upstream base (silverblue/kinoite)
 - `BASE_IMAGE_SHA` - Digest of the base image, resolved from `image-versions.yml`
 - `FEDORA_MAJOR_VERSION` - Dynamically set by Just (43/44)
@@ -896,9 +911,16 @@ The key is the version `just fedora_version` resolves at build time, not the
 stream name, so the pinned digest can never disagree with the version the
 kernel and akmods were resolved for.
 
-At a Fedora rollover, add a new entry before building. A missing entry fails
-the build with `No digest pinned for silverblue-main-<version>` rather than
-silently falling back to a floating tag.
+At a Fedora rollover, add a new entry before building, and remove the one no
+stream resolves to any more. A missing entry fails the build with `No digest
+pinned for silverblue-main-<version>` rather than silently falling back to a
+floating tag.
+
+A pinned base never moves by itself, and most packages come with it.
+`bump-base-images.yml` proposes the new digests daily (Renovate's
+`image-versions.yml` manager does the same), `20-tests.sh` warns when the base
+is more than 10 days older than the build, and the report says how old the base
+of the running image is.
 
 `repo:tag@sha256:...` is valid for buildah `FROM` and for cosign, but `skopeo
 inspect` and `podman manifest inspect` both reject it with "Docker references
@@ -916,18 +938,21 @@ the cosign signature, the SBOM and the attestation. See
 and the equivalent workaround in `ublue-os/aurora`. Do not collapse the
 duplicate push.
 
-Publishing is skipped for `pull_request` events, so PR builds validate the
-image but never push. `Latest Images` publishes only on `merge_group` and
+Publishing happens only from main (`PUBLISH` in `reusable-build.yml`, see
+Workflow Architecture), so PR builds and dispatches from other branches validate
+the image but never push. `Latest Images` publishes only on `merge_group` and
 `workflow_dispatch`; there is no cron. Only `Stable Images` is scheduled
 (Tuesdays 01:00 UTC). Merging directly to `main` and bypassing the merge queue
 therefore publishes nothing.
 
 ### Build Script Execution Order
-`build_files/shared/build.sh` runs the scripts in `build_files/base/` in this order, which is not
-the numerical one. Before the first of them it removes the base image's `ublue-os-*` packages that
-`system_files` replaces, and swaps Fedora's logo and release packages for Fedora's generic ones, as
-its trademark guidelines ask of a remix: `fedora-logos` for `generic-logos`, and the `fedora-release`
-packages for `generic-release` in the package database only, their files staying in place.
+The build runs the scripts in `build_files/base/` in this order, which is not the numerical one:
+`build_files/shared/prepare.sh` the first, `03-install-kernel-akmods.sh` as a step of its own, and
+`build_files/shared/build.sh` the rest. Before the first of them, `prepare.sh` removes the base image's
+`ublue-os-*` packages that `system_files` replaces, and swaps Fedora's logo and release packages for
+Fedora's generic ones, as its trademark guidelines ask of a remix: `fedora-logos` for `generic-logos`,
+and the `fedora-release` packages for `generic-release` in the package database only, their files
+staying in place.
 1. `00-image-info.sh` - Sets image metadata and os-release info, and takes Fedora's name out of the other release files (`/usr/lib/fedora-release`, the CPE, the software identification tags)
 2. `03-install-kernel-akmods.sh` - Installs kernel and akmod packages
 3. `04-packages.sh` - Installs Fedora and COPR packages
