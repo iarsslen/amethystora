@@ -34,11 +34,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 500
+          persist-credentials: false
 
       - name: Install Just
-        run: |
-          /home/linuxbrew/.linuxbrew/bin/brew install just
-          echo "/home/linuxbrew/.linuxbrew/bin" >> $GITHUB_PATH
+        uses: ./.github/actions/install-just
 
       - name: Check Just Syntax
         shell: bash
@@ -51,15 +50,19 @@ jobs:
       - name: Generate Release Text
         id: generate-release-text
         shell: bash
+        # Passed through the environment, never written into the script: the handwritten text is free text
+        env:
+          VERSION: ${{ matrix.version }}
+          HANDWRITTEN: ${{ inputs.handwritten }}
         run: |
-          just changelogs "${{ matrix.version }}" "${{ inputs.handwritten }}"
+          just changelogs "${VERSION}" "${HANDWRITTEN}"
           source ./output.env
           echo "title=${TITLE}" >> $GITHUB_OUTPUT
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
       - name: Create Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
-        if: contains(fromJson('["stable"]'), matrix.version) && (github.event.schedule == '0 1 * * TUE' || contains(fromJson('["workflow_dispatch", "workflow_call"]'), github.event_name))
+        if: github.ref == 'refs/heads/main' && contains(fromJson('["stable"]'), matrix.version) && (github.event.schedule == '0 1 * * TUE' || contains(fromJson('["workflow_dispatch", "workflow_call"]'), github.event_name))
         with:
           name: ${{ steps.generate-release-text.outputs.title }}
           tag_name: ${{ steps.generate-release-text.outputs.tag }}

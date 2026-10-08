@@ -231,14 +231,6 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
     # Build Image
     PODMAN_BUILD_ARGS=("${BUILD_ARGS[@]}" "${LABELS[@]}" --tag localhost/"${image_name}:${tag}" --file Containerfile)
 
-    # Add GitHub token secret if available (for CI/CD)
-    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-        echo "Adding GitHub token as build secret"
-        PODMAN_BUILD_ARGS+=(--secret "id=GITHUB_TOKEN,env=GITHUB_TOKEN")
-    else
-        echo "No GitHub token found - build may hit rate limit"
-    fi
-
     # Kernel module signing key, from the file AKMODS_PRIVKEY_FILE names, so that the key is never on a
     # command line or in this trace. Without it (pull requests, local builds), evdi is signed with a
     # throwaway key made here, whose certificate goes in beside it so that the signing is still tested;
@@ -574,10 +566,11 @@ run $image="amethystora" $tag="latest" $flavor="main":
 
 # Test Changelogs
 [group('Changelogs')]
-changelogs branch="stable" handwritten="":
+changelogs $branch="stable" $handwritten="":
     #!/usr/bin/bash
     set -eou pipefail
-    python3 ./.github/changelogs.py "{{ branch }}" ./output.env ./changelog.md --workdir . --handwritten "{{ handwritten }}"
+    # From the environment rather than written into the script: the handwritten text is free text
+    python3 ./.github/changelogs.py "${branch}" ./output.env ./changelog.md --workdir . --handwritten "${handwritten}"
 
 # Verify Container with Cosign
 [group('Utility')]
@@ -862,7 +855,8 @@ retag-nvidia-on-ghcr working_tag="" stream="" dry_run="1":
     set -euxo pipefail
     skopeo="echo === skopeo"
     if [[ "{{ dry_run }}" -ne 1 ]]; then
-        echo "$GITHUB_PAT" | podman login -u $GITHUB_USERNAME --password-stdin ghcr.io
+        # printenv, not echo: the trace would print echo's argument, the token
+        printenv GITHUB_PAT | podman login -u "$GITHUB_USERNAME" --password-stdin ghcr.io
         skopeo="skopeo"
     fi
     for image in amethystora-nvidia-open amethystora-dx-nvidia-open; do

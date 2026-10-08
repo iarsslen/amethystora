@@ -6,6 +6,7 @@ import tempfile
 import time
 from typing import Any
 import re
+import shlex
 from collections import defaultdict
 
 REGISTRY = "ghcr.io/iarsslen/"
@@ -551,8 +552,10 @@ def main():
     with open(args.changelog, "w") as f:
         f.write(changelog)
 
+    # generate-release.yml sources this file and copies both into $GITHUB_OUTPUT. The title is made from
+    # registry labels, so it is put on one line and both are quoted for the shell
     with open(args.output, "w") as f:
-        f.write(f'TITLE="{title}"\nTAG={curr}\n')
+        f.write(f"TITLE={shlex.quote(' '.join(title.split()))}\nTAG={shlex.quote(curr)}\n")
 
 
 if __name__ == "__main__":
