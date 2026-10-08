@@ -26,6 +26,10 @@ COPY /po /po
 FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION}@${BASE_IMAGE_SHA} AS base
 
 ARG AKMODS_FLAVOR="coreos-stable"
+# The kernel and module images, by the digests the Justfile checked
+ARG AKMODS_DIGEST=""
+ARG AKMODS_ZFS_DIGEST=""
+ARG AKMODS_NVIDIA_DIGEST=""
 ARG BASE_IMAGE_NAME="silverblue"
 ARG FEDORA_MAJOR_VERSION="40"
 ARG IMAGE_NAME="amethystora"

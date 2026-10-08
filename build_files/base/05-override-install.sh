@@ -61,12 +61,13 @@ if ((${#MULTIMEDIA_DEPENDENTS[@]})); then
     rpm --verify --nofiles --noscripts "${MULTIMEDIA_DEPENDENTS[@]}"
 fi
 
-# Starship Shell Prompt, from a pinned release that Renovate bumps (.github/renovate.json5), checked
-# against the checksum published beside it
-STARSHIP_VERSION="1.26.0"
-STARSHIP_URL="https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}/starship-x86_64-unknown-linux-gnu.tar.gz"
+# Starship Shell Prompt, from a pinned release checked against the SHA-256 pinned beside it, not one
+# fetched from the same release. Renovate bumps both together (.github/renovate.json5)
+STARSHIP_TAG="v1.26.0"
+STARSHIP_SHA256="321f0dd7af8340a5f2e6a8fec6538a04f617486f9ec70d878f91c09cd8deef22"
+STARSHIP_URL="https://github.com/starship/starship/releases/download/${STARSHIP_TAG}/starship-x86_64-unknown-linux-gnu.tar.gz"
 ghcurl "${STARSHIP_URL}" --fail --retry 3 -o /tmp/starship.tar.gz
-echo "$(ghcurl "${STARSHIP_URL}.sha256" --fail --retry 3)  /tmp/starship.tar.gz" | sha256sum -c -
+echo "${STARSHIP_SHA256}  /tmp/starship.tar.gz" | sha256sum -c -
 tar -xzf /tmp/starship.tar.gz -C /tmp
 install -c -m 0755 /tmp/starship /usr/bin
 

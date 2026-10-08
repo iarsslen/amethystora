@@ -87,19 +87,22 @@ enable_extension "amethystora-widgets@iarsslen.github.io"
 # These are not submodules. Space Bar is TypeScript, so building it from source would pull npm and
 # the npm registry into the image build; TopHat and Just Perfection are not in Fedora's repositories
 # at all (only in updates-testing, which this build does not enable). The reviewed builds from
-# extensions.gnome.org are used instead, each pinned to one upload. PaperWM, Clipboard Indicator and
-# Fuzzy App Search need no build step, but come from there too, pinned and checked the same way.
+# extensions.gnome.org are used instead, each pinned to one upload and to the SHA-256 of its zip, which
+# extensions.gnome.org does not sign. PaperWM, Clipboard Indicator and Fuzzy App Search need no build
+# step, but come from there too, pinned and checked the same way.
 #
 # To update one: read the new upload id for this GNOME out of
-# https://extensions.gnome.org/extension-info/?uuid=<uuid> and change its version and tag below.
+# https://extensions.gnome.org/extension-info/?uuid=<uuid>, download that upload and change its
+# version, tag and SHA-256 below.
 
 install_ego_extension() {
-    local uuid="$1" version="$2" version_tag="$3"
+    local uuid="$1" version="$2" version_tag="$3" sha256="$4"
     local directory="/usr/share/gnome-shell/extensions/${uuid}"
     local archive="/tmp/${uuid}.zip"
 
     curl --fail --retry 3 --location --output "${archive}" \
         "https://extensions.gnome.org/download-extension/${uuid}.shell-extension.zip?version_tag=${version_tag}"
+    echo "${sha256}  ${archive}" | sha256sum -c -
     mkdir -p "${directory}"
     unzip -o "${archive}" -d "${directory}"
     rm -f "${archive}"
@@ -132,28 +135,35 @@ GNOME_MAJOR="$(gnome-shell --version | grep -oE '[0-9]+' | head -n1)"
 
 # PaperWM: scrollable tiling. Windows open side by side on a strip wider than the screen, and the
 # keyboard moves along it. Its keymap is fitted around the image's in zz1-amethystora-modifications.
-install_ego_extension "paperwm@paperwm.github.com" 148 70147
+install_ego_extension "paperwm@paperwm.github.com" 148 70147 \
+    2cef72ed7e31df4962584b52dabda9246c0ae81973b05f8d1202d9dbe9a3f794
 
 # Clipboard Indicator: the clipboard history in the panel, on Super+Shift+V
-install_ego_extension "clipboard-indicator@tudmotu.com" 71 70694
+install_ego_extension "clipboard-indicator@tudmotu.com" 71 70694 \
+    687cb404f9540958ddb0c1de638970572cef73f22f016e5d6c6d6f5d4cd55f97
 
 # GNOME Fuzzy App Search: app search that forgives typos, in the overview and in Search Light
-install_ego_extension "gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com" 28 70194
+install_ego_extension "gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com" 28 70194 \
+    16403a52ac1faada1ceae77032ff772ec460c3206b0bd48638ba21162549ee9f
 
 # TopHat: CPU, memory and network meters in the panel. Their colour follows the theme, set by
 # amethystora-theme.
-install_ego_extension "tophat@fflewddur.github.io" 24 69837
+install_ego_extension "tophat@fflewddur.github.io" 24 69837 \
+    c10c21d6c88c467d2f232bb281af2065ba4feda63e0937c4a14d108e8916ccdd
 
 # Just Perfection: the panel and animation tweaks in zz1-amethystora-modifications
-install_ego_extension "just-perfection-desktop@just-perfection" 37 74466
+install_ego_extension "just-perfection-desktop@just-perfection" 37 74466 \
+    c54ccd627540d86e6baf06c699f624ba7d5229aedfc8b00b0dc7182c6538eda8
 
 # Space Bar: the i3-style workspace indicator that makes the six fixed workspaces visible.
 # The only one of these that needs a pin per GNOME: v34 is the last build for GNOME 49 and
 # v39 the first for GNOME 50, so there is no single upload that covers both.
 if ((GNOME_MAJOR >= 50)); then
-    install_ego_extension "space-bar@luchrioh" 39 72977
+    install_ego_extension "space-bar@luchrioh" 39 72977 \
+        aca3f49832ac080b7b98855c112e179301d99d35a07eb5455ff40ae5707d751f
 else
-    install_ego_extension "space-bar@luchrioh" 34 65181
+    install_ego_extension "space-bar@luchrioh" 34 65181 \
+        6ade875e4423903e73d006139b28af9e98d85e64e7eb9272d98e640390ee60f1
 fi
 # Its upload carries no licence file. It began as a fork of Workspaces Bar by Francois Thirioux, whose
 # source says "License GPL v3", so that is the licence it comes under, and the text goes with it

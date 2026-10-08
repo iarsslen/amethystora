@@ -69,6 +69,14 @@ jobs:
       - name: Install Just
         uses: ./.github/actions/install-just
 
+      # Before the build, which checks the base, kernel and brew images with it (the Justfile's
+      # verify-container), and into /usr/local/bin, where the build, run through sudo, finds it
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
+        with:
+          install-dir: /usr/local/bin
+          use-sudo: true
+
       - name: Check Just Syntax
         shell: bash
         run: |
@@ -171,10 +179,6 @@ jobs:
           if [[ "${key}" != release && "${PUBLISH}" == true ]]; then
             echo "::warning::${IMAGE_NAME}:stable-sealed was sealed with a throwaway key, so it is not published. Run \`just secure-boot-key\` once, commit secure-boot.crt and set the SECUREBOOT_KEY secret."
           fi
-
-      - name: Install Cosign for the sealed image
-        if: steps.seal.outputs.key == 'release' && env.PUBLISH == 'true'
-        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
 
       # Published, signed and attested here rather than with the image, so that it leaves the runner's disk
       # before the rechunk needs the room. Tagged like the stable image's tags (stable-sealed,
@@ -353,10 +357,6 @@ jobs:
 
             digest="$(cat "${digest_file}")"
             echo "digest=${digest}" >> $GITHUB_OUTPUT
-
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
-        if: env.PUBLISH == 'true'
 
       - name: Sign container image
         if: env.PUBLISH == 'true'

@@ -38,16 +38,19 @@ set -eoux pipefail
 #     one for this image.
 
 CANDY_REPO="https://github.com/EliverLara/candy-icons"
-# master as of 2026-03-06; bump together with the alias targets below
+# master as of 2026-03-06; bump together with the alias targets below, and with the SHA-256 of
+# GitHub's archive of that commit, which nothing else checks
 CANDY_COMMIT="83512fbcadcb7e1015ebbe1729a1894946b021be"
+CANDY_SHA256="1de25126c50da4edf4b49623993c1ca5f626d5be1020e5bd1b1c683cd724721b"
 CANDY_DIR="/usr/share/icons/candy-icons"
 
 ghcurl "${CANDY_REPO}/archive/${CANDY_COMMIT}.tar.gz" --fail --retry 3 -o /tmp/candy-icons.tar.gz
+echo "${CANDY_SHA256}  /tmp/candy-icons.tar.gz" | sha256sum -c -
 mkdir -p "${CANDY_DIR}"
 tar -xzf /tmp/candy-icons.tar.gz -C "${CANDY_DIR}" --strip-components=1
 rm -f /tmp/candy-icons.tar.gz
 
-# The tarball is not checksummed, so check it really is the icon theme before anything is deleted
+# Check it really is the icon theme before anything is deleted
 test -f "${CANDY_DIR}/index.theme"
 grep -qx "Name=candy-icons" "${CANDY_DIR}/index.theme"
 (($(find "${CANDY_DIR}/apps/scalable" -name '*.svg' | wc -l) > 2000))

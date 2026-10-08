@@ -1,6 +1,8 @@
 repo_organization := "iarsslen"
 rechunker_image := "ghcr.io/ublue-os/legacy-rechunk:v1.0.1-x86_64@sha256:2627cbf92ca60ab7372070dcf93b40f457926f301509ffba47a04d6a9e1ddaf7"
 brew_image := "ghcr.io/ublue-os/brew:latest"
+# Fedora's own image, for sbverify where the host has none (secureboot)
+fedora_image := "quay.io/fedora/fedora:44@sha256:ba35579e107f26a4c2c000390fb3ff549f3858a9584a6b5a35f7fa51f54de309"
 images := '(
     [amethystora]=amethystora
     [amethystora-dx]=amethystora-dx
@@ -153,16 +155,24 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
         kernel_release="${kernel_pin}"
     fi
 
-    # Verify Containers with Cosign
-    {{ just }} verify-container "akmods:${akmods_flavor}-${fedora_version}-${kernel_release}"
+    # Verify Containers with Cosign. The kernel and module images are resolved to a digest once, checked
+    # by that digest, and the build copies them by it (03-install-kernel-akmods.sh), so the tag cannot
+    # move between the check and the build
+    akmods_tag="${akmods_flavor}-${fedora_version}-${kernel_release}"
+    akmods_sha="$(skopeo inspect --retry-times 3 "docker://ghcr.io/ublue-os/akmods:${akmods_tag}" | jq -r .Digest)"
+    {{ just }} verify-container "akmods@${akmods_sha}"
+    akmods_zfs_sha=""
     if [[ "${akmods_flavor}" =~ coreos ]]; then
-        {{ just }} verify-container "akmods-zfs:${akmods_flavor}-${fedora_version}-${kernel_release}"
+        akmods_zfs_sha="$(skopeo inspect --retry-times 3 "docker://ghcr.io/ublue-os/akmods-zfs:${akmods_tag}" | jq -r .Digest)"
+        {{ just }} verify-container "akmods-zfs@${akmods_zfs_sha}"
     fi
+    akmods_nvidia_sha=""
     if [[ "${flavor}" =~ nvidia-open ]]; then
-        {{ just }} verify-container "akmods-nvidia-open:${akmods_flavor}-${fedora_version}-${kernel_release}"
+        akmods_nvidia_sha="$(skopeo inspect --retry-times 3 "docker://ghcr.io/ublue-os/akmods-nvidia-open:${akmods_tag}" | jq -r .Digest)"
+        {{ just }} verify-container "akmods-nvidia-open@${akmods_nvidia_sha}"
     fi
 
-    {{ just }} verify-container "brew:latest@${brew_image_sha}" ghcr.io/ublue-os https://raw.githubusercontent.com/ublue-os/brew/refs/heads/main/cosign.pub
+    {{ just }} verify-container "brew:latest@${brew_image_sha}"
 
     # Get Version
     if [[ "${tag}" =~ stable ]]; then
@@ -191,6 +201,9 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
         BUILD_ARGS+=("--build-arg" "IMAGE_FLAVOR=dx")
     fi
     BUILD_ARGS+=("--build-arg" "AKMODS_FLAVOR=${akmods_flavor}")
+    BUILD_ARGS+=("--build-arg" "AKMODS_DIGEST=${akmods_sha}")
+    BUILD_ARGS+=("--build-arg" "AKMODS_ZFS_DIGEST=${akmods_zfs_sha}")
+    BUILD_ARGS+=("--build-arg" "AKMODS_NVIDIA_DIGEST=${akmods_nvidia_sha}")
     BUILD_ARGS+=("--build-arg" "BASE_IMAGE_NAME=${base_image_name}")
     BUILD_ARGS+=("--build-arg" "BASE_IMAGE_SHA=${base_image_sha}")
     BUILD_ARGS+=("--build-arg" "BREW_IMAGE={{ brew_image }}")
@@ -574,30 +587,20 @@ changelogs $branch="stable" $handwritten="":
 
 # Verify Container with Cosign
 [group('Utility')]
-verify-container container="" registry="ghcr.io/ublue-os" key="":
+verify-container container="" registry="ghcr.io/ublue-os" key="keys/ublue-os-cosign.pub":
     #!/usr/bin/bash
     set -eou pipefail
 
-    # Get Cosign if Needed
-    if [[ ! $(command -v cosign) ]]; then
-        COSIGN_CONTAINER_ID=$(${SUDOIF} ${PODMAN} create cgr.dev/chainguard/cosign:latest bash)
-        ${SUDOIF} ${PODMAN} cp "${COSIGN_CONTAINER_ID}":/usr/bin/cosign /usr/local/bin/cosign
-        ${SUDOIF} ${PODMAN} rm -f "${COSIGN_CONTAINER_ID}"
+    # cosign checks everything else, so it comes from a pinned release (CI: sigstore/cosign-installer),
+    # never from a container image that would have to be trusted to check itself
+    if ! command -v cosign >/dev/null; then
+        echo "cosign is needed to check the upstream images: install it first" >&2
+        exit 1
     fi
 
-    # Verify Cosign Image Signatures if needed
-    if [[ -n "${COSIGN_CONTAINER_ID:-}" ]]; then
-        if ! cosign verify --certificate-oidc-issuer=https://token.actions.githubusercontent.com --certificate-identity=https://github.com/chainguard-images/images/.github/workflows/release.yaml@refs/heads/main cgr.dev/chainguard/cosign >/dev/null; then
-            echo "NOTICE: Failed to verify cosign image signatures."
-            exit 1
-        fi
-    fi
-
-    # Public Key for Container Verification
-    key={{ key }}
-    if [[ -z "${key:-}" ]]; then
-        key="https://raw.githubusercontent.com/ublue-os/main/main/cosign.pub"
-    fi
+    # Universal Blue's public key, kept in the repository (keys/): ublue-os/main and ublue-os/brew
+    # publish the same one
+    key="{{ key }}"
 
     # Verify Container using cosign public key
     if ! cosign verify --key "${key}" "{{ registry }}"/"{{ container }}" >/dev/null; then
@@ -623,11 +626,10 @@ secureboot $image="amethystora" $tag="latest" $flavor="main":
     ${PODMAN} cp "$TMP":/usr/lib/modules/"${kernel_release}"/vmlinuz /tmp/vmlinuz
     ${PODMAN} rm "$TMP"
 
-    # Get the Public Certificates
-    curl --retry 3 -Lo /tmp/kernel-sign.der https://github.com/ublue-os/akmods/raw/main/certs/public_key.der
-    curl --retry 3 -Lo /tmp/akmods.der https://github.com/ublue-os/akmods/raw/main/certs/public_key_2.der
-    openssl x509 -in /tmp/kernel-sign.der -out /tmp/kernel-sign.crt
-    openssl x509 -in /tmp/akmods.der -out /tmp/akmods.crt
+    # The public certificates, ublue-os/akmods' certs/public_key.der and public_key_2.der, kept in the
+    # repository (keys/) rather than fetched from a branch that can move
+    openssl x509 -in keys/ublue-os-kernel-sign.der -out /tmp/kernel-sign.crt
+    openssl x509 -in keys/ublue-os-akmods.der -out /tmp/akmods.crt
 
     # Make sure we have sbverify
     CMD="$(command -v sbverify)"
@@ -639,8 +641,8 @@ secureboot $image="amethystora" $tag="latest" $flavor="main":
             --volume /tmp/kernel-sign.crt:/tmp/kernel-sign.crt:z \
             --volume /tmp/akmods.crt:/tmp/akmods.crt:z \
             --name ${temp_name} \
-            alpine:edge
-        ${PODMAN} exec ${temp_name} apk add sbsigntool
+            {{ fedora_image }}
+        ${PODMAN} exec ${temp_name} dnf -y install sbsigntools
         CMD="${PODMAN} exec ${temp_name} /usr/bin/sbverify"
     fi
 

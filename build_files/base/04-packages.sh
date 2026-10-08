@@ -226,6 +226,8 @@ authselect enable-feature with-pam-u2f
 
 dnf config-manager addrepo --from-repofile=https://pkgs.tailscale.com/stable/fedora/tailscale.repo
 dnf config-manager setopt tailscale-stable.enabled=0
+# Tailscale's package repository signing key, as served on 2026-10-08
+pin_repo_key /etc/yum.repos.d/tailscale.repo 2596A99EAAB33821893C0A79458CA832957F5868
 dnf -y install --enablerepo='tailscale-stable' tailscale
 
 # The AI agents amethystora-agent offers are deliberately not installed here. They release far more

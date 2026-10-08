@@ -118,18 +118,18 @@
       depTypeTemplate: 'pkg-template',
     },
     // The Starship release 05-override-install.sh installs the shell prompt
-    // from, checked there against the checksum Starship publishes beside it.
+    // from, with the SHA-256 of its tarball pinned beside it, which this
+    // datasource works out for the new tag, as for OpenTabletDriver below.
     {
       customType: 'regex',
       managerFilePatterns: [
         '/^build_files/base/05-override-install\\.sh$/',
       ],
       matchStrings: [
-        'STARSHIP_VERSION="(?<currentValue>[^"]+)"',
+        'STARSHIP_TAG="(?<currentValue>v[^"]+)"\\s+STARSHIP_SHA256="(?<currentDigest>[a-f0-9]{64})"',
       ],
       depNameTemplate: 'starship/starship',
-      datasourceTemplate: 'github-releases',
-      extractVersionTemplate: '^v(?<version>.+)$',
+      datasourceTemplate: 'github-release-attachments',
     },
     // The OpenTabletDriver release `ame apps opentabletdriver` takes the udev
     // rules from, on the user's machine, with the SHA-256 of the tarball it
@@ -182,6 +182,15 @@
       "matchDepNames": [
         "ghcr.io/ublue-os/silverblue-main"
       ]
+    },
+    // candy-icons and Sweet are pinned by commit and by the SHA-256 of
+    // GitHub's archive of it, which Renovate cannot work out. Their updates
+    // are listed on the Dependency Dashboard rather than opened as pull
+    // requests whose build would fail; the commit and its checksum are bumped
+    // together on main, by hand, and Renovate then drops the update.
+    {
+      "matchDepNames": ["EliverLara/candy-icons", "EliverLara/Sweet"],
+      "dependencyDashboardApproval": true
     },
     {
       "matchDepTypes": ["gnome-extension"],

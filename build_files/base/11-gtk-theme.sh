@@ -19,17 +19,20 @@ set -eoux pipefail
 # and so goes on matching whatever palette they set, where a purple theme would fight them.
 
 SWEET_REPO="https://github.com/EliverLara/Sweet"
-# master as of 2026-08-13
+# master as of 2026-08-13, with the SHA-256 of GitHub's archive of that commit, which nothing else
+# checks: bump both together
 SWEET_COMMIT="c405a6a73878ce3beb4323d26bc6fa674a485f36"
+SWEET_SHA256="8925007c837bc8b77a034b4bb90d0b8bd812b01b8fee625b939ba7326189b7d3"
 THEME_DIR=/usr/share/themes/Amethystora
 WORK=/tmp/sweet
 
 ghcurl "${SWEET_REPO}/archive/${SWEET_COMMIT}.tar.gz" --fail --retry 3 -o /tmp/sweet.tar.gz
+echo "${SWEET_SHA256}  /tmp/sweet.tar.gz" | sha256sum -c -
 mkdir -p "${WORK}"
 tar -xzf /tmp/sweet.tar.gz -C "${WORK}" --strip-components=1
 rm -f /tmp/sweet.tar.gz
 
-# The tarball is not checksummed, so check it really is the theme before anything is installed
+# Check it really is the theme before anything is installed
 test -f "${WORK}/index.theme"
 grep -qx "Name=Sweet" "${WORK}/index.theme"
 test -s "${WORK}/gtk-4.0/gtk-dark.css"

@@ -93,8 +93,15 @@ for file in fish htop nvtop; do
     fi
 done
 
-#Add the Flathub Flatpak remote and remove the Fedora Flatpak remote
-flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+#Add the Flathub Flatpak remote and remove the Fedora Flatpak remote. It is added from the .flatpakrepo
+# the base image carries, which machines add it from too (flatpak-add-flathub-repos.service), once the
+# key inside has been checked against Flathub's fingerprint, rather than from Flathub's server unchecked
+# shellcheck source=build_files/shared/copr-helpers.sh
+source /ctx/build_files/shared/copr-helpers.sh
+FLATHUB_REPO=/etc/flatpak/remotes.d/flathub.flatpakrepo
+sed -n 's/^GPGKey=//p' "${FLATHUB_REPO}" | base64 -d >/tmp/flathub.gpg
+[[ "$(key_fingerprints /tmp/flathub.gpg)" == 6E5C05D979C76DAF93C081354184DD4D907A7CAE ]]
+flatpak remote-add --system --if-not-exists flathub "${FLATHUB_REPO}"
 systemctl disable flatpak-add-fedora-repos.service
 
 # NOTE: With isolated COPR installation, most repos are never enabled globally.

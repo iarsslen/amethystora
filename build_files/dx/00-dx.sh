@@ -87,6 +87,8 @@ fi
 
 dnf config-manager addrepo --from-repofile=https://download.docker.com/linux/fedora/docker-ce.repo
 sed -i "s/enabled=.*/enabled=0/g" /etc/yum.repos.d/docker-ce.repo
+# Docker's RPM signing key ("Docker Release (CE rpm)"), as served on 2026-10-08
+pin_repo_key /etc/yum.repos.d/docker-ce.repo 060A61C51B558A7F742B77AAC52FEB6B621E9F35
 dnf -y install --enablerepo=docker-ce-stable \
     containerd.io \
     docker-buildx-plugin \

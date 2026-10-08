@@ -17,8 +17,9 @@ for pkg in kernel kernel-core kernel-modules kernel-modules-core kernel-modules-
     rpm --erase $pkg --nodeps
 done
 
-# Fetch Common AKMODS & Kernel RPMS
-skopeo copy --retry-times 3 docker://ghcr.io/ublue-os/akmods:"${AKMODS_FLAVOR}"-"$(rpm -E %fedora)"-"${KERNEL}" dir:/tmp/akmods
+# Fetch Common AKMODS & Kernel RPMS, by the digest the Justfile resolved from
+# akmods:${AKMODS_FLAVOR}-<fedora>-${KERNEL} and checked against Universal Blue's key
+skopeo copy --retry-times 3 docker://ghcr.io/ublue-os/akmods@"${AKMODS_DIGEST:?checked by the Justfile}" dir:/tmp/akmods
 AKMODS_TARGZ=$(jq -r '.layers[].digest' </tmp/akmods/manifest.json | cut -d : -f 2)
 tar -xvzf /tmp/akmods/"$AKMODS_TARGZ" -C /tmp/
 mv /tmp/rpms/* /tmp/akmods/
@@ -39,6 +40,8 @@ dnf5 versionlock add kernel kernel-devel kernel-devel-matched kernel-core kernel
 # Everyone
 # NOTE: we won't use dnf5 copr plugin for ublue-os/akmods until our upstream provides the COPR standard naming
 sed -i 's@enabled=0@enabled=1@g' /etc/yum.repos.d/_copr_ublue-os-akmods.repo
+# Its signing key, as the Copr project served it on 2026-10-08
+pin_repo_key /etc/yum.repos.d/_copr_ublue-os-akmods.repo 19E98556EE61C8EF1FABFEF88F7CFDB74F8B54DD
 
 # RPMFUSION Dependent AKMODS
 if [[ "${UBLUE_IMAGE_TAG}" == "beta" ]]; then
@@ -107,7 +110,7 @@ systemctl enable displaylink.service
 # Nvidia AKMODS
 if [[ "${IMAGE_NAME}" =~ nvidia ]]; then
     # Fetch Nvidia RPMs
-    skopeo copy --retry-times 3 docker://ghcr.io/ublue-os/akmods-nvidia-open:"${AKMODS_FLAVOR}"-"$(rpm -E %fedora)"-"${KERNEL}" dir:/tmp/akmods-rpms
+    skopeo copy --retry-times 3 docker://ghcr.io/ublue-os/akmods-nvidia-open@"${AKMODS_NVIDIA_DIGEST:?checked by the Justfile}" dir:/tmp/akmods-rpms
     NVIDIA_TARGZ=$(jq -r '.layers[].digest' </tmp/akmods-rpms/manifest.json | cut -d : -f 2)
     tar -xvzf /tmp/akmods-rpms/"$NVIDIA_TARGZ" -C /tmp/
     mv /tmp/rpms/* /tmp/akmods-rpms/
@@ -136,7 +139,7 @@ fi
 # ZFS for stable
 if [[ ${AKMODS_FLAVOR} =~ coreos ]]; then
     # Fetch ZFS RPMs
-    skopeo copy --retry-times 3 docker://ghcr.io/ublue-os/akmods-zfs:"${AKMODS_FLAVOR}"-"$(rpm -E %fedora)"-"${KERNEL}" dir:/tmp/akmods-zfs
+    skopeo copy --retry-times 3 docker://ghcr.io/ublue-os/akmods-zfs@"${AKMODS_ZFS_DIGEST:?checked by the Justfile}" dir:/tmp/akmods-zfs
     ZFS_TARGZ=$(jq -r '.layers[].digest' </tmp/akmods-zfs/manifest.json | cut -d : -f 2)
     tar -xvzf /tmp/akmods-zfs/"$ZFS_TARGZ" -C /tmp/
     mv /tmp/rpms/* /tmp/akmods-zfs/
