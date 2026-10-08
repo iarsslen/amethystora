@@ -347,18 +347,21 @@ case "${LOCKDOWN}" in
         report updates lockdown ok "$(gettext "Kernel lockdown")" \
             "$(eval_gettext "Kernel lockdown is on (\${LOCKDOWN}): root cannot rewrite the running kernel")" ;;
     *)
-        # Nothing to do about this one, so it is information rather than something to check
+        # Fedora's kernel locks itself down whenever it starts with Secure Boot, so this is a machine
+        # without, where only the argument (ame security lockdown) turns it on. Nothing to do about the
+        # NVIDIA images' choice, so that is information rather than something to check.
         if [[ "${IMAGE}" == *nvidia* ]]; then
             report updates lockdown info "$(gettext "Kernel lockdown")" \
-                "$(gettext "Kernel lockdown is off, as it is on every NVIDIA image")" \
-                "$(gettext "The NVIDIA driver is a module signed with this machine's own key, and lockdown would leave a machine without Secure Boot with no graphics driver at all.")"
+                "$(gettext "Kernel lockdown is off, as it is on every NVIDIA image without Secure Boot")" \
+                "$(gettext "The NVIDIA driver is a module signed with this machine's own key, which only Secure Boot makes the kernel trust: lockdown without it would leave the machine with no graphics driver at all.")"
         elif [[ "${SEALED}" == true ]]; then
             # Its kernel arguments are inside the signed UKI, which carries lockdown=integrity
             report updates lockdown check "$(gettext "Kernel lockdown")" "$(gettext "Kernel lockdown is off")" \
                 "$(gettext "This sealed image's kernel asks for it, so something is overriding it: report it as a bug.")"
         else
-            COMMAND="sudo rpm-ostree kargs --append=lockdown=integrity"
+            COMMAND="ame security lockdown on"
             report updates lockdown check "$(gettext "Kernel lockdown")" "$(gettext "Kernel lockdown is off")" \
+                "$(gettext "Secure Boot is off, and this machine's kernel arguments leave out lockdown=integrity, which the image asks for. Root can then rewrite the running kernel.")" \
                 "$(gettext "Turn it back on with:")"
         fi ;;
 esac
@@ -450,6 +453,13 @@ if [[ "${NETWORK}" != off ]]; then
     else
         report watching network ok "$(gettext "Network protection")" "${NETWORK_TEXT}"
     fi
+fi
+
+# A pause of encrypted DNS, for a network's login page, ends by itself within ten minutes
+if /usr/libexec/amethystora-dns paused; then
+    COMMAND="ame security dns resume"
+    report watching encrypted-dns-paused check "$(gettext "Encrypted DNS")" "$(gettext "Encrypted DNS is paused")" \
+        "$(gettext "The network's own DNS servers answer in plain text until the pause ends by itself, ten minutes after it began. End it now with:")"
 fi
 
 # The security watcher (/usr/libexec/amethystora-security-watch). What it noticed and nobody has looked
@@ -594,6 +604,24 @@ elif [[ ${#ADDED[@]} -gt 0 ]]; then
         "$(eval_gettext "Added on this machine: \${PATHS}")"
 else
     report watching image-settings ok "$(gettext "Image settings")" "$(gettext "The image's security settings are as it ships them")"
+fi
+
+# Groups whose members become root without the sudo password: Docker's socket starts a container that
+# mounts /, incus-admin makes privileged containers, and libvirt's qemu:///system attaches any disk.
+# Developer mode offers them (ame system dx-group) and joins nobody by itself. A member chose it, or was
+# put there by an older image, which joined every administrator: it is said either way.
+ROOT_GROUPS=()
+while read -r group root _; do
+    [[ "${root}" == root ]] || continue
+    members="$(getent group "${group}" 2>/dev/null | cut -d: -f4)"
+    [[ -n "${members}" ]] && ROOT_GROUPS+=("${group}: ${members//,/, }")
+done < <(grep -v '^#' /usr/share/amethystora/developer-groups 2>/dev/null)
+if [[ ${#ROOT_GROUPS[@]} -gt 0 ]]; then
+    COMMAND="ame system dx-group"
+    report watching root-groups info "$(gettext "Groups that amount to root")" \
+        "$(gettext "Some accounts can become root without the sudo password")" \
+        "${ROOT_GROUPS[@]}" \
+        "$(gettext "Any program running as one of them can take over the machine without asking. Choose your own account's groups with:")"
 fi
 
 # A domain this machine joined (realmd: Settings' Enterprise Login, or `realm join`), whose accounts can
@@ -851,6 +879,21 @@ report optional usb-protection "${USB}" "$(gettext "USB protection")" \
 COMMAND="ame security browser"
 report optional browser-protection "$(/usr/libexec/amethystora-browser-policy status)" "$(gettext "Browser protection")" \
     "$(gettext "Browsers install only the extensions on a list, and web pages cannot reach USB, serial, HID or Bluetooth devices")"
+
+# Encrypted DNS and a different address on each network, each switched by the files its helper writes
+DNS_STATE="$(/usr/libexec/amethystora-dns status)"
+if [[ "${DNS_STATE}" == on ]]; then
+    RESOLVER="$(/usr/libexec/amethystora-dns name)"
+    DNS_TEXT="$(eval_gettext "Names are looked up over DNS-over-TLS with \${RESOLVER}, so the network cannot see them or answer in its place")"
+else
+    DNS_TEXT="$(gettext "Look up names over DNS-over-TLS with a resolver you choose, so the network cannot see them or answer in its place")"
+fi
+COMMAND="ame security dns"
+report optional encrypted-dns "${DNS_STATE}" "$(gettext "Encrypted DNS")" "${DNS_TEXT}"
+
+COMMAND="ame security mac"
+report optional network-address "$(/usr/libexec/amethystora-mac status)" "$(gettext "A different address on each network")" \
+    "$(gettext "Each network sees an address of its own for this machine and is not told its name, so networks cannot recognise it wherever it goes")"
 
 if systemctl is-enabled --quiet input-remapper.service 2>/dev/null; then REMAP=on; else REMAP=off; fi
 COMMAND="ame security input-remapper"

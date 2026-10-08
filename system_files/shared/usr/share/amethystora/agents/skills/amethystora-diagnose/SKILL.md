@@ -63,6 +63,9 @@ Read the `amethystora` skill too: it says what may be changed on this system and
    it off. `/var/lib/amethystora/security/network.json` (readable by wheel) lists what it blocked, with
    the time, the rule (`sid`) and the host; a block of that host at that time is the likely cause, and
    `ame security connections allow <sid>` the fix, which loosens security: propose it, do not run it.
+   With `/usr/libexec/amethystora-dns status` saying `on`, names go to one resolver over DNS-over-TLS:
+   `resolvectl query <host>` shows what it answers, and a network that blocks DNS-over-TLS (port 853),
+   or wants a login first, answers nothing. `ame security dns pause` is the fix there; propose it.
 8. **A login that is refused**: `journalctl -b -g 'pam_|sshd|login' --no-pager` around the time.
    At a text console or over SSH, Parental Controls refuses a child's account outside its allowed
    hours ("has no time remaining"). With one-time codes for SSH on

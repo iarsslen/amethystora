@@ -1,0 +1,180 @@
+#!/usr/bin/bash
+# Encrypted DNS (ame security dns): every name this machine looks up goes over DNS-over-TLS to one
+# resolver its owner chose, so the network it is on neither sees the names nor answers for them.
+#
+#   amethystora-dns status                 on or off
+#   amethystora-dns name                   the resolver's name, or the servers' names for one's own
+#   amethystora-dns list                   id, name, who runs it, a note or "-", servers: one a line, by tabs
+#   amethystora-dns paused                 exit 0 while a pause lasts
+#   amethystora-dns on RESOLVER            as root: send lookups to one of the list's
+#   amethystora-dns on custom SERVER...    as root: ...or to servers of one's own, each ADDRESS#NAME
+#   amethystora-dns off                    as root: back to the network's own DNS servers
+#   amethystora-dns pause                  as root: the network's own servers, in plain text, for ten minutes
+#   amethystora-dns resume                 as root: end a pause
+#   amethystora-dns portal                 as root, from NetworkManager: offer a pause on a network that
+#                                          wants a login first (amethystora-dns-portal.service)
+#
+# The switch is two files, and nothing in /etc/amethystora/security.conf:
+#
+#   /etc/systemd/resolved.conf.d/60-amethystora-dns.conf  the servers, DNSOverTLS=yes, and the route-only
+#       domain "~.", which makes them the best match for every name that is on no network's own
+#       domains, so that no network's servers are asked for those (systemd-resolved.service(8))
+#   /etc/NetworkManager/conf.d/60-amethystora-dns.conf     the network's own servers in plain text, for
+#       what still goes to them: names on that network (a printer's), a VPN's own names, and
+#       NetworkManager's connectivity check, which asks each network's servers and would otherwise find
+#       every network offline. Tailscale sets the same on its own interface.
+#
+# A pause is a third file, in /run, after the first in order and so over it: it empties the servers and
+# the route-only domain, and amethystora-dns-resume.timer takes it away again after ten minutes, as a
+# restart does. DNSSEC is left as systemd-resolved has it, off: its allow-downgrade mode breaks too many
+# networks to turn on for everyone.
+
+set -euo pipefail
+
+RESOLVED_DROP_IN=/etc/systemd/resolved.conf.d/60-amethystora-dns.conf
+NM_DROP_IN=/etc/NetworkManager/conf.d/60-amethystora-dns.conf
+NM_SHIPPED=/usr/share/amethystora/network/60-amethystora-dns.conf
+PAUSE=/run/systemd/resolved.conf.d/99-amethystora-dns-pause.conf
+
+# The resolvers offered, each with DNS-over-TLS on every address it publishes. The note is said before
+# choosing it.
+RESOLVERS="quad9	Quad9	the Quad9 Foundation, in Switzerland	It also refuses to look up sites known for malware.	9.9.9.9#dns.quad9.net 149.112.112.112#dns.quad9.net 2620:fe::fe#dns.quad9.net 2620:fe::9#dns.quad9.net
+mullvad	Mullvad	Mullvad VPN AB, in Sweden	-	194.242.2.2#dns.mullvad.net 2a07:e340::2#dns.mullvad.net
+cloudflare	Cloudflare	Cloudflare, Inc., in the United States	-	1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com 2606:4700:4700::1111#cloudflare-dns.com 2606:4700:4700::1001#cloudflare-dns.com
+google	Google	Google LLC, in the United States	Google keeps the address each lookup came from for a day or two.	8.8.8.8#dns.google 8.8.4.4#dns.google 2001:4860:4860::8888#dns.google 2001:4860:4860::8844#dns.google"
+
+usage() {
+    echo "usage: ${0##*/} status|name|list|paused|on RESOLVER|on custom ADDRESS#NAME...|off|pause|resume|portal" >&2
+    exit 64
+}
+
+# A server of one's own: an IPv4 or IPv6 address, then the name its certificate is for, which strict
+# DNS-over-TLS checks
+valid_server() {
+    local address="${1%%#*}" name="${1#*#}" octet
+    [[ "$1" == *#* ]] || return 1
+    if [[ "${address}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+        for octet in ${address//./ }; do
+            ((10#${octet} <= 255)) || return 1
+        done
+    elif [[ ! "${address}" =~ ^[0-9a-fA-F:]+$ || "${address}" != *:*:* ]]; then
+        return 1
+    fi
+    [[ "${name}" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$ ]]
+}
+
+# systemd-resolved re-reads its settings on reload, and keeps what NetworkManager told it of each network
+apply_resolved() {
+    systemctl is-active --quiet systemd-resolved.service || return 0
+    systemctl reload-or-restart systemd-resolved.service
+}
+
+# NetworkManager takes a changed default up when a network is applied again: the ones connected now are
+# applied here, so that their servers go to plain text before the resolver is set, never after
+apply_networks() {
+    local device type state
+    systemctl is-active --quiet NetworkManager.service || return 0
+    nmcli general reload conf
+    while IFS=: read -r device type state; do
+        [[ "${state}" == connected && "${type}" =~ ^(ethernet|wifi)$ ]] || continue
+        nmcli device reapply "${device}" >/dev/null || true
+    done < <(nmcli -t -f DEVICE,TYPE,STATE device 2>/dev/null)
+}
+
+case "${1:-}" in
+    status)
+        if [[ -e "${RESOLVED_DROP_IN}" ]]; then echo on; else echo off; fi
+        ;;
+    name)
+        id="$(sed -n 's/^# amethystora-resolver: //p' "${RESOLVED_DROP_IN}" 2>/dev/null || true)"
+        if [[ "${id}" == custom ]]; then
+            sed -n 's/^DNS=//p' "${RESOLVED_DROP_IN}" | tr ' ' '\n' | sed 's/^[^#]*#//' | sort -u | paste -sd' ' -
+        else
+            awk -F'\t' -v id="${id}" '$1 == id { print $2 }' <<<"${RESOLVERS}"
+        fi
+        ;;
+    list)
+        printf '%s\n' "${RESOLVERS}"
+        ;;
+    paused)
+        [[ -e "${RESOLVED_DROP_IN}" && -e "${PAUSE}" ]]
+        ;;
+    on)
+        id="${2:-}"
+        [[ -n "${id}" ]] || usage
+        if [[ "${id}" == custom ]]; then
+            shift 2
+            [[ $# -ge 1 && $# -le 8 ]] || usage
+            for server in "$@"; do
+                valid_server "${server}" || { echo "Not ADDRESS#NAME: ${server}" >&2; exit 65; }
+            done
+            name="your own servers"
+            servers="$*"
+        else
+            line="$(awk -F'\t' -v id="${id}" '$1 == id' <<<"${RESOLVERS}")"
+            [[ -n "${line}" ]] || { echo "No resolver called ${id}" >&2; exit 65; }
+            IFS=$'\t' read -r _ name _ _ servers <<<"${line}"
+        fi
+        install -Dpm0644 "${NM_SHIPPED}" "${NM_DROP_IN}"
+        apply_networks
+        mkdir -p "${RESOLVED_DROP_IN%/*}"
+        cat >"${RESOLVED_DROP_IN}.new" <<EOF
+# Written by ame security dns (/usr/libexec/amethystora-dns), which says what this is and turns it off.
+# Every name on no network's own domains goes to ${name}, over DNS-over-TLS, and to nobody else.
+# amethystora-resolver: ${id}
+[Resolve]
+DNS=${servers}
+DNSOverTLS=yes
+Domains=~.
+EOF
+        chmod 0644 "${RESOLVED_DROP_IN}.new"
+        mv "${RESOLVED_DROP_IN}.new" "${RESOLVED_DROP_IN}"
+        apply_resolved
+        ;;
+    off)
+        rm -f "${RESOLVED_DROP_IN}" "${PAUSE}"
+        systemctl stop amethystora-dns-resume.timer 2>/dev/null || true
+        apply_resolved
+        rm -f "${NM_DROP_IN}"
+        apply_networks
+        ;;
+    pause)
+        [[ -e "${RESOLVED_DROP_IN}" ]] || { echo "Encrypted DNS is off: there is nothing to pause." >&2; exit 1; }
+        mkdir -p "${PAUSE%/*}"
+        cat >"${PAUSE}" <<'EOF'
+# Written by ame security dns pause: the network's own DNS servers answer, in plain text, until
+# amethystora-dns-resume.timer takes this away, ten minutes after it was written, or the next restart.
+[Resolve]
+DNS=
+Domains=
+DNSOverTLS=no
+EOF
+        # Restarted, the timer counts its ten minutes from now
+        systemctl restart amethystora-dns-resume.timer
+        apply_resolved
+        ;;
+    resume)
+        rm -f "${PAUSE}"
+        systemctl stop amethystora-dns-resume.timer 2>/dev/null || true
+        apply_resolved
+        ;;
+    portal)
+        # A network that wants a login first answers its own page's name only through its own servers,
+        # which encrypted DNS does not ask. Pausing on its say-so alone would let any network turn
+        # encryption off, so the person at the machine decides, in a terminal that asks for a password.
+        [[ -e "${RESOLVED_DROP_IN}" && ! -e "${PAUSE}" ]] || exit 0
+        ANSWERS="$(/usr/libexec/amethystora-notify-users --action pause="Pause for ten minutes…" \
+            "This network wants you to log in first" \
+            "Encrypted DNS keeps its login page from loading. Pausing it lets the network's own DNS servers answer, in plain text, for ten minutes.")" ||
+            exit 0
+        while read -r user answer; do
+            [[ "${answer}" == pause ]] || continue
+            uid="$(id -u "${user}")" || continue
+            runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus" \
+                "XDG_RUNTIME_DIR=/run/user/${uid}" systemd-run --user --collect --quiet \
+                /usr/libexec/amethystora-in-terminal ame security dns pause || true
+            break
+        done <<<"${ANSWERS}"
+        ;;
+    *) usage ;;
+esac

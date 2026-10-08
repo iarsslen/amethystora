@@ -28,8 +28,8 @@ on:
 #
 # amethystora also gets a live ISO (the live-iso job), the one the website offers first: it boots into
 # Amethystora, which can be tried without installing anything, and installs from there. Named
-# amethystora.iso, for https://download.amethystora.org/amethystora.iso; the installer ISO keeps its
-# name (amethystora-stable.iso).
+# amethystora.iso, for https://download.amethystora.org/amethystora.iso. The installer ISO, the only one
+# that also starts computers without UEFI, is amethystora-non-uefi.iso.
 #
 # Secrets: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY (an R2 API token with Object Read
 # & Write on the bucket), R2_BUCKET, and SIGNING_SECRET, which signs the checksum as it signs the image.
@@ -48,7 +48,7 @@ jobs:
       contents: read
     env:
       IMAGE: ${{ inputs.image || 'amethystora' }}
-      ISO: ${{ inputs.image || 'amethystora' }}-stable.iso
+      ISO: ${{ inputs.image || 'amethystora' }}-non-uefi.iso
 
     steps:
       - name: Maximize build space
@@ -66,6 +66,12 @@ jobs:
             *) echo "::error::${IMAGE} has no ISO: only amethystora does"; exit 1 ;;
           esac
           sed -i "s|@IMAGE@|${IMAGE}|" iso/iso.toml
+          # The machine it installs takes updates signature-checked from the first one
+          grep -q -- "--enforce-container-sigpolicy" iso/iso.toml
+          if grep "bootc switch" iso/iso.toml | grep -v -- "--enforce-container-sigpolicy"; then
+            echo "::error::iso.toml switches the installed machine without signature checking"
+            exit 1
+          fi
 
       # bootc-image-builder chooses the installer's packages by the image's os-release ID and has no
       # definition for amethystora, so Fedora's is written out under that name before it starts, with

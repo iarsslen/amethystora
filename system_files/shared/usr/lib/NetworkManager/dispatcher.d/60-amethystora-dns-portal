@@ -1,0 +1,7 @@
+#!/usr/bin/bash
+# With encrypted DNS on (ame security dns), a network that wants a login first, as in hotels and on
+# trains, cannot show its page: the person at the machine is offered a pause instead
+# (amethystora-dns portal). Started, not waited for: NetworkManager gives a script little time.
+[[ "${2:-}" == connectivity-change && "${CONNECTIVITY_STATE:-}" == PORTAL ]] || exit 0
+[[ -e /etc/systemd/resolved.conf.d/60-amethystora-dns.conf ]] || exit 0
+systemctl start --no-block amethystora-dns-portal.service

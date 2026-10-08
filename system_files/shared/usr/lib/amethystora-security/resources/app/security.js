@@ -276,6 +276,8 @@ const TILE_ICONS = {
     'on-detection': 'file-alert',
     realtime: 'activity',
     'network-protection': 'globe',
+    'encrypted-dns': 'lock',
+    'network-address': 'wifi',
 };
 
 // What this machine does with what a scan finds (ON_DETECTION), as the report read it

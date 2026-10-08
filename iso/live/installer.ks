@@ -3,9 +3,9 @@
 # build.sh replaces @IMAGE@ with the image the ISO was built from.
 ostreecontainer --url=@IMAGE@ --transport=containers-storage --no-signature-verification
 
-# Then the installed machine follows that image in the registry rather than the copy, as one installed
-# from the installer ISO does (iso/iso.toml), and amethystora-signed-updates switches it to
-# signature-checked updates at its first boot
+# Then the installed machine follows that image in the registry rather than the copy, signature-checked
+# from its first update, as one installed from the installer ISO does (iso/iso.toml). build.sh fails on
+# a switch without the flag.
 %post --erroronfail
-bootc switch --mutate-in-place --transport registry @IMAGE@
+bootc switch --mutate-in-place --enforce-container-sigpolicy --transport registry @IMAGE@
 %end

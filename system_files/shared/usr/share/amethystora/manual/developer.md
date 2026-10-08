@@ -21,8 +21,33 @@ If you have [layered packages](software.md#layering-the-last-resort), use
 which keeps them. Switching back to `amethystora` works the same way. The **Developer mode** switch on
 [Control](control.md)'s **System** page does either for you (`ame system devmode on` or `off`).
 
-On its first boot the dx image adds every administrator account to the `docker`, `incus-admin`,
-`libvirt` and `wireshark` groups. If `docker ps` says permission denied, log out and back in once.
+## Groups
+
+Docker, Incus and the system's virtual machines answer only to `sudo` until your account joins
+their groups, and the image joins nobody by itself:
+
+```bash
+ame system dx-group
+```
+
+It lists each group with what it lets you do, and you pick the ones your account should be in; the
+same command takes you out of one. **Developer groups** on [Control](control.md)'s **System** page
+opens it. Log out and back in afterwards.
+
+| Group | Lets your account |
+| --- | --- |
+| `docker` | Use Docker without `sudo` |
+| `incus-admin` | Use Incus without `sudo` |
+| `libvirt` | Run virtual machines on the system connection (`qemu:///system`) |
+| `dialout` | Use serial devices, such as microcontroller boards |
+| `wireshark` | Capture network traffic in Wireshark |
+
+The first three are root under another name: Docker can start a container that mounts the whole
+system, Incus can make privileged containers, and a system virtual machine can be given any disk. Any
+program running as you, a script from the internet included, can then take over the machine without
+your password, which `sudo` would otherwise ask for. The security report names the accounts in them.
+Podman, which is rootless, and virtual machines on your own connection (`qemu:///session`, the
+default for GNOME Boxes) need no group at all.
 
 ## What it adds
 
@@ -35,7 +60,7 @@ On its first boot the dx image adds every administrator account to the `docker`,
 | libvirt and virt-manager | Virtual machines with QEMU and KVM |
 | Sysprof, perf, bcc, bpftrace, bpftop, bpftool, trace-cmd | Profiling and tracing, from the whole system down to one function |
 | gdb, strace, ltrace, Valgrind | Debugging: step through a program, watch the calls it makes to the kernel and to its libraries, find memory errors. Attaching gdb to a program it did not start needs `sudo` ([why](security.md#on-from-the-start)). |
-| Wireshark | Capturing and reading network traffic, without `sudo` |
+| Wireshark | Capturing and reading network traffic, without `sudo` once you join its [group](#groups) |
 | android-tools | `adb` and `fastboot` |
 | ROCm | GPU compute on AMD graphics |
 | flatpak-builder | Building Flatpaks |

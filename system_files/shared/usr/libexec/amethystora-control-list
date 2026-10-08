@@ -511,20 +511,24 @@ item system devmode switch "$(gettext "Developer mode")" \
     "$(gettext "The developer image: VSCodium, Docker and Podman, Incus and virtual machines, and tools for profiling and debugging. Switching takes effect at the next restart.")" \
     "${DEVMODE}" developer#turning-it-on
 
+# The groups are offered, never joined for anyone: three of them amount to root without a password. The
+# list is the one the recipe and the security report read.
 if [[ "${DEVMODE}" == on ]]; then
-    missing=()
-    for group in docker incus-admin libvirt dialout; do
-        id -nG 2>/dev/null | tr ' ' '\n' | grep -qx "${group}" || missing+=("${group}")
-    done
-    if [[ ${#missing[@]} -gt 0 ]]; then
-        COMMAND=(ame system dx-group)
-        BUTTON="$(gettext "Join…")"
-        GROUP="$(gettext "The system")"
-        USAGE="ame system dx-group"
-        item system dx-group action "$(gettext "Join the developer groups")" \
-            "$(gettext "Lets your account use Docker, Incus, virtual machines and serial devices, from the next time you log in.")" \
-            "" developer#turning-it-on
+    joined=()
+    while read -r group _; do
+        id -nG 2>/dev/null | tr ' ' '\n' | grep -qx "${group}" && joined+=("${group}")
+    done < <(grep -v '^#' /usr/share/amethystora/developer-groups | awk NF)
+    if [[ ${#joined[@]} -gt 0 ]]; then
+        GROUPS_JOINED="${joined[*]}"
+        DETAIL="$(eval_gettext "Your account is in: \${GROUPS_JOINED}")"
     fi
+    COMMAND=(ame system dx-group)
+    BUTTON="$(gettext "Choose…")"
+    GROUP="$(gettext "The system")"
+    USAGE="ame system dx-group [GROUP...]"
+    item system dx-group action "$(gettext "Developer groups")" \
+        "$(gettext "Docker, Incus and virtual machines without sudo, and serial devices. Docker, Incus and libvirt each let any program you run become root without your password.")" \
+        "" developer#groups
 fi
 
 # The repository and the key come from the window, which checks the one against the rule

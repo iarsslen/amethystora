@@ -1,9 +1,11 @@
 #!/usr/bin/bash
 # Keep this machine's updates signature-checked (amethystora-signed-updates.service).
 #
-# Installs made from an ISO or with a plain `bootc switch` track the image without checking its
-# signature. Switch them to updates that /etc/containers/policy.json must accept: only images signed
-# with /etc/pki/containers/amethystora.pub.
+# A plain `bootc switch` tracks the image without checking its signature, and so do machines installed
+# from ISOs older than the ones whose kickstarts switch with --enforce-container-sigpolicy. Switch them
+# to updates that /etc/containers/policy.json must accept: only images signed with
+# /etc/pki/containers/amethystora.pub. The switch from another system cannot carry the flag itself:
+# bootc refuses it while the old system's policy.json accepts anything by default, as Fedora's does.
 #
 # The switch is staged like any update and takes effect at the next restart. It is not done in place:
 # `bootc switch --mutate-in-place` rewrites the running deployment's origin on /sysroot, which a booted

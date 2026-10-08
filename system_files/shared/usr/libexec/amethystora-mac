@@ -1,0 +1,39 @@
+#!/usr/bin/bash
+# A different address on each network (ame security mac): each Wi-Fi and wired network sees a hardware
+# address of its own for this machine, kept for that network, and is not told the machine's name.
+#
+#   amethystora-mac status   on or off
+#   amethystora-mac on       as root
+#   amethystora-mac off      as root
+#
+# The switch is one file, the shipped one copied into /etc/NetworkManager/conf.d, and nothing in
+# /etc/amethystora/security.conf. NetworkManager reads it at once and uses it from the next time each
+# network connects, which is when an address can change.
+
+set -euo pipefail
+
+SHIPPED=/usr/share/amethystora/network/60-amethystora-mac.conf
+DROP_IN=/etc/NetworkManager/conf.d/60-amethystora-mac.conf
+
+reload() {
+    systemctl is-active --quiet NetworkManager.service || return 0
+    nmcli general reload conf
+}
+
+case "${1:-}" in
+    status)
+        if cmp -s "${SHIPPED}" "${DROP_IN}"; then echo on; else echo off; fi
+        ;;
+    on)
+        install -Dpm0644 "${SHIPPED}" "${DROP_IN}"
+        reload
+        ;;
+    off)
+        rm -f "${DROP_IN}"
+        reload
+        ;;
+    *)
+        echo "usage: ${0##*/} status|on|off" >&2
+        exit 64
+        ;;
+esac

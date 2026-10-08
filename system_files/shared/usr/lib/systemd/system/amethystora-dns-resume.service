@@ -1,0 +1,7 @@
+[Unit]
+Description=End a pause of encrypted DNS
+Documentation=file:///usr/share/amethystora/manual/security.md
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/amethystora-dns resume

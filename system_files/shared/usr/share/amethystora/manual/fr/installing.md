@@ -9,7 +9,7 @@ environ dix minutes et ne nécessite pas de réseau.
 | Téléchargement | Ce que c’est |
 | --- | --- |
 | [amethystora.iso](https://download.amethystora.org/amethystora.iso) | Amethystora sur une clé : essayez-le, puis installez-le depuis la clé. Commencez par celui-ci. |
-| [amethystora-stable.iso](https://download.amethystora.org/amethystora-stable.iso) | L’installateur seul, qui démarre aussi les ordinateurs trop anciens pour l’UEFI |
+| [amethystora-non-uefi.iso](https://download.amethystora.org/amethystora-non-uefi.iso) | L’installateur seul, qui démarre aussi les ordinateurs trop anciens pour l’UEFI |
 
 Chacun pèse plusieurs gigaoctets. À côté de chaque ISO se trouve sa somme de contrôle, `.sha256`,
 signée avec la clé qui sert à vérifier chaque mise à jour. Pour vérifier que ce que vous avez

@@ -138,16 +138,19 @@ fi
 # reboot instead of moving into the kernel, where nothing running on the machine can find it. BPF that
 # only reads, as bpftrace and eBPF security sensors do, is refused by confidentiality mode alone.
 #
-# The cost, and it is a real one: modules signed with the machine owner key rather than Fedora's are
-# only trusted once Secure Boot is on and the key is enrolled, so a machine with Secure Boot turned off
-# loses the modules built with the image (evdi, for DisplayLink docks). Run `ame security secure-boot`
-# and turn Secure Boot on, or, on a machine where that is not possible:
-#   sudo rpm-ostree kargs --delete=lockdown=integrity
+# Fedora's x86 kernel locks itself down in integrity mode whenever it starts with Secure Boot
+# (CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT, which 20-tests.sh checks), whatever the arguments say. So this
+# argument only decides it on a machine with Secure Boot off, and there it has a real cost: modules
+# signed with the machine owner key rather than Fedora's are only trusted once Secure Boot is on and the
+# key is enrolled, so such a machine loses the modules built with the image (evdi, for DisplayLink
+# docks). Run `ame security secure-boot` and turn Secure Boot on, or, on a machine where that is not
+# possible, `ame security lockdown off`, which takes the argument off that machine for good.
 # Hibernation is also refused under lockdown; this image does not set it up (swap is zram, and no
 # resume= argument is set), so nothing here depends on it.
 #
 # Not applied to the NVIDIA images at all: their driver is an akmods build signed with the same machine
 # owner key, and a machine that booted without a graphics driver would have no way to read this comment.
+# With Secure Boot on they are locked down all the same, by the kernel itself.
 if [[ "${IMAGE_NAME}" =~ nvidia ]]; then
     echo "NVIDIA image: leaving kernel lockdown off, the driver is a machine-owner-key module"
 else

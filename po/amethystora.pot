@@ -334,11 +334,11 @@ msgid "Kernel lockdown is on (${LOCKDOWN}): root cannot rewrite the running kern
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
-msgid "Kernel lockdown is off, as it is on every NVIDIA image"
+msgid "Kernel lockdown is off, as it is on every NVIDIA image without Secure Boot"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
-msgid "The NVIDIA driver is a module signed with this machine's own key, and lockdown would leave a machine without Secure Boot with no graphics driver at all."
+msgid "The NVIDIA driver is a module signed with this machine's own key, which only Secure Boot makes the kernel trust: lockdown without it would leave the machine with no graphics driver at all."
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -347,6 +347,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "This sealed image's kernel asks for it, so something is overriding it: report it as a bug."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Secure Boot is off, and this machine's kernel arguments leave out lockdown=integrity, which the image asks for. Root can then rewrite the running kernel."
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -481,6 +485,18 @@ msgid "It blocked ${BLOCKED} connection in the last 7 days. See it with:"
 msgid_plural "It blocked ${BLOCKED} connections in the last 7 days. See them with:"
 msgstr[0] ""
 msgstr[1] ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Encrypted DNS"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Encrypted DNS is paused"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The network's own DNS servers answer in plain text until the pause ends by itself, ten minutes after it began. End it now with:"
+msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "Security watcher"
@@ -641,6 +657,18 @@ msgstr ""
 #: usr/libexec/amethystora-security-status
 #, sh-format
 msgid "Added on this machine: ${PATHS}"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Groups that amount to root"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Some accounts can become root without the sudo password"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Any program running as one of them can take over the machine without asking. Choose your own account's groups with:"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -931,6 +959,23 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "Browsers install only the extensions on a list, and web pages cannot reach USB, serial, HID or Bluetooth devices"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Names are looked up over DNS-over-TLS with ${RESOLVER}, so the network cannot see them or answer in its place"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Look up names over DNS-over-TLS with a resolver you choose, so the network cannot see them or answer in its place"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "A different address on each network"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Each network sees an address of its own for this machine and is not told its name, so networks cannot recognise it wherever it goes"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -1539,15 +1584,16 @@ msgid "The developer image: VSCodium, Docker and Podman, Incus and virtual machi
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
-msgid "Join…"
+#, sh-format
+msgid "Your account is in: ${GROUPS_JOINED}"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
-msgid "Join the developer groups"
+msgid "Developer groups"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
-msgid "Lets your account use Docker, Incus, virtual machines and serial devices, from the next time you log in."
+msgid "Docker, Incus and virtual machines without sudo, and serial devices. Docker, Incus and libvirt each let any program you run become root without your password."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list

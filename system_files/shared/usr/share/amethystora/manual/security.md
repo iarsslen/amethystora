@@ -51,12 +51,15 @@ looks into it in a terminal and changes nothing until you agree.
 - **The kernel is hardened:** memory is wiped as it is handed out, kernel addresses are hidden,
   programs cannot read each other's memory, and rarely used modules (old network protocols and
   filesystems, FireWire) cannot load. `gdb -p` on a process you did not start needs `sudo`.
-- **The kernel refuses to be rewritten while it runs.** Lockdown blocks loading untrusted modules,
-  writing `/dev/mem` and tracing kernel memory with BPF, so a compromise of root ends at the next
-  restart. It needs Secure Boot on and the key enrolled ([Hardware](hardware.md#secure-boot)). On a
-  machine where Secure Boot cannot be turned on, drop it with
-  `sudo rpm-ostree kargs --delete=lockdown=integrity`. The NVIDIA images do not use it, and on a
-  sealed image it is part of the signed kernel and cannot be dropped.
+- **The kernel refuses to be rewritten while it runs.** Lockdown refuses modules without a signature
+  the kernel trusts, writing to `/dev/mem`, and BPF programs that write into another program's
+  memory, so a compromise of root ends at the next restart. Programs that only read, such as
+  `bpftrace`, keep working. With Secure Boot on, the kernel locks itself down at every start. Without
+  it, the image turns lockdown on with a kernel argument, but the modules built into the image, such
+  as DisplayLink's, cannot load then ([Hardware](hardware.md#secure-boot)). On a machine where Secure
+  Boot cannot be turned on, `ame security lockdown off` leaves the argument out, and
+  `ame security lockdown on` puts it back, from the next restart. The NVIDIA images leave the argument
+  out, and on a sealed image it is part of the signed kernel and cannot be changed.
 - **A sealed image checks every file of the system as it is read.** If you installed one, its kernel
   carries the digest of the whole system, signed, and a file changed on the disk cannot be read at
   all, whoever changed it. [Sealed images](updates.md#sealed-images).
@@ -365,6 +368,46 @@ with developer mode on. Themes, dictionaries and language packs in Firefox are l
 What you allowed is in `/etc/amethystora/browser-extensions`, one ID a line. To take one back, remove
 its line and run `ame security browser on` again. It is off by default: Firefox comes
 exactly as Fedora builds it, and what it may install is your decision, not the image's.
+
+### Encrypted DNS
+
+```bash
+ame security dns
+```
+
+Every site you open and every server an app talks to is first a name looked up with a DNS server. By
+default that is whichever one the network hands out, asked in plain text: the network sees every name,
+and can answer with any address it likes. With encrypted DNS on, every lookup goes to one resolver you
+choose, over DNS-over-TLS, and to nobody else: Quad9, Mullvad, Cloudflare, Google, or servers of your
+own (`ame security dns custom 192.0.2.1#dns.example.net`). That resolver then sees every name in the
+network's place, so choose one you trust; the command says who runs each, and
+`ame security dns quad9` picks one straight away.
+
+Names on the network itself, such as a printer's, still go to the network's own servers, and so does
+the check of whether a network reaches the internet. A VPN's own names keep working, and Tailscale's.
+Firefox may look names up itself, over DNS-over-HTTPS, as its own settings say.
+
+A network that wants you to log in first, in a hotel or on a train, cannot show its login page while
+this is on. A notification offers to pause it: for ten minutes, the network's own servers answer, in
+plain text. `ame security dns pause` does the same, `ame security dns resume` ends the pause early,
+and `ame security dns off` turns encrypted DNS off.
+
+### A different address on each network
+
+```bash
+ame security mac
+```
+
+A network knows a laptop by its hardware (MAC) address, which is the same on every network, and most
+networks are told the machine's name as well, so a café, an office and an airport can each tell it is
+the same machine. With this on, each Wi-Fi and wired network sees an address of its own for this
+machine, the same each time it comes back, so your router keeps what it reserved for it and a login
+page remembers it. No network is told the machine's name, and connections out use a temporary IPv6
+address. It applies from the next time each network connects.
+
+A network that lets in only devices it has registered, as some universities and offices do, then
+refuses the machine. For that one network, open it in **Settings**, then **Identity**, and set
+**Cloned Address** to **Permanent**. `ame security mac off` turns it off everywhere.
 
 ### Network protection
 

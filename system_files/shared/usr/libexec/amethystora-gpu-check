@@ -29,7 +29,7 @@ done
 FLAVOR="$(jq -r '."image-flavor" // "main"' "${INFO}" 2>/dev/null)"
 IMAGE="$(jq -r '."image-name" // "amethystora"' "${INFO}" 2>/dev/null)"
 STREAM="$(jq -r '."image-tag" // "stable"' "${INFO}" 2>/dev/null)"
-LOCKDOWN="The NVIDIA images run without kernel lockdown: their driver is signed with a key of this machine's own, and lockdown would leave a machine without Secure Boot with no graphics driver at all."
+LOCKDOWN="Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on."
 if [[ "${NVIDIA}" == true && "${FLAVOR}" == main ]]; then
     KIND=nvidia-card
     TARGET="${IMAGE}-nvidia-open"

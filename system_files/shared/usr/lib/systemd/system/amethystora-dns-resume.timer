@@ -1,0 +1,9 @@
+[Unit]
+Description=End a pause of encrypted DNS ten minutes after it began
+Documentation=file:///usr/share/amethystora/manual/security.md
+
+# Started, and restarted, by `amethystora-dns pause`: it fires once, ten minutes after that
+[Timer]
+OnActiveSec=10min
+AccuracySec=5s
+RemainAfterElapse=no

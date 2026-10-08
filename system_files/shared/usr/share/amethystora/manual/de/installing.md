@@ -9,7 +9,7 @@ entscheiden. Die Installation dauert etwa zehn Minuten und braucht kein Netzwerk
 | Download | Was es ist |
 | --- | --- |
 | [amethystora.iso](https://download.amethystora.org/amethystora.iso) | Amethystora auf einem Stick: ausprobieren und dann von dort installieren. Beginnen Sie mit diesem. |
-| [amethystora-stable.iso](https://download.amethystora.org/amethystora-stable.iso) | Nur das Installationsprogramm, das auch Rechner startet, die zu alt für UEFI sind |
+| [amethystora-non-uefi.iso](https://download.amethystora.org/amethystora-non-uefi.iso) | Nur das Installationsprogramm, das auch Rechner startet, die zu alt für UEFI sind |
 
 Jedes ist mehrere Gigabyte groß. Neben jedem ISO liegt seine Prüfsumme, `.sha256`, signiert mit dem
 Schlüssel, gegen den jede Aktualisierung geprüft wird. So prüfen Sie, ob das Heruntergeladene dem

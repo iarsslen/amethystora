@@ -1337,6 +1337,59 @@ cmp -s "${SSH_TEST}/sshd.pam" /etc/pam.d/sshd
 test ! -e "${SSH_DROP_IN}"
 rm -rf "${SSH_TEST}"
 
+# Encrypted DNS (ame security dns) and a different address on each network (ame security mac): off, and
+# when on, exactly the files their helpers write, which NetworkManager reads as meant. On and off are
+# tried here, where neither systemd-resolved nor NetworkManager runs, and /etc has to come back as it was.
+DNS=/usr/libexec/amethystora-dns
+MAC=/usr/libexec/amethystora-mac
+RESOLVED_DROP_IN=/etc/systemd/resolved.conf.d/60-amethystora-dns.conf
+test -x "${DNS}"
+test -x "${MAC}"
+test -x /usr/lib/NetworkManager/dispatcher.d/60-amethystora-dns-portal
+[[ "$("${DNS}" status)" == off && "$("${MAC}" status)" == off ]]
+test ! -e "${RESOLVED_DROP_IN}"
+test ! -e /etc/NetworkManager/conf.d/60-amethystora-dns.conf
+test ! -e /etc/NetworkManager/conf.d/60-amethystora-mac.conf
+[[ "$(systemctl is-enabled amethystora-dns-resume.timer 2>/dev/null)" == "enabled" ]] && false
+/usr/libexec/amethystora-security-status --json |
+    jq -e '[.checks[] | select(.id == "encrypted-dns" or .id == "network-address") | .state] == ["off", "off"]' >/dev/null
+RESOLVED_DIR_EXISTED=false
+[[ -d "${RESOLVED_DROP_IN%/*}" ]] && RESOLVED_DIR_EXISTED=true
+"${DNS}" on quad9
+[[ "$("${DNS}" status)" == on && "$("${DNS}" name)" == Quad9 ]]
+grep -qx "DNSOverTLS=yes" "${RESOLVED_DROP_IN}"
+grep -qx "Domains=~." "${RESOLVED_DROP_IN}"
+grep -q "^DNS=9.9.9.9#dns.quad9.net " "${RESOLVED_DROP_IN}"
+NetworkManager --print-config | grep -qx "connection.dns-over-tls=0"
+"${DNS}" on custom "192.0.2.1#dns.example.net" "2001:db8::1#dns.example.net"
+[[ "$("${DNS}" name)" == dns.example.net ]]
+"${DNS}" on custom "192.0.2.1" && false
+"${DNS}" on custom "192.0.2.1#not a name" && false
+"${DNS}" on nobody && false
+"${DNS}" off
+[[ "$("${DNS}" status)" == off ]]
+test ! -e "${RESOLVED_DROP_IN}"
+test ! -e /etc/NetworkManager/conf.d/60-amethystora-dns.conf
+[[ "${RESOLVED_DIR_EXISTED}" == true ]] || rmdir "${RESOLVED_DROP_IN%/*}"
+"${MAC}" on
+[[ "$("${MAC}" status)" == on ]]
+NETWORKMANAGER_CONFIG="$(NetworkManager --print-config)"
+grep -qx "wifi.cloned-mac-address=stable" <<<"${NETWORKMANAGER_CONFIG}"
+grep -qx "ipv4.dhcp-send-hostname=0" <<<"${NETWORKMANAGER_CONFIG}"
+"${MAC}" off
+[[ "$("${MAC}" status)" == off ]]
+test ! -e /etc/NetworkManager/conf.d/60-amethystora-mac.conf
+
+# Developer groups: one list, which the recipe, Control and the report read, and nothing joins anyone to
+# them by itself. Docker, Incus and libvirt are root under another name, which the report says.
+DEV_GROUPS=/usr/share/amethystora/developer-groups
+[[ "$(awk '!/^#/ && $2 == "root" { print $1 }' "${DEV_GROUPS}" | paste -sd' ' -)" == "docker incus-admin libvirt" ]]
+for file in /usr/libexec/amethystora-control-list /usr/libexec/amethystora-security-status \
+    /usr/share/amethystora/just/system.just; do
+    grep -qF "${DEV_GROUPS}" "${file}"
+done
+grep -rlE "usermod .*-a?G|gpasswd -a" /usr/lib/systemd/system /usr/libexec /usr/share/amethystora/*.hooks.d && false
+
 # fail2ban: only the sshd jail is on, it reads the journal, and it bans through firewalld.
 # `fail2ban-client -d` is the dump Lynis (TOOL-5104) reads the jails from, so what it shows here is
 # what Lynis sees on the installed system. 08-hardening.sh checks the ban zone is the default zone.
@@ -1376,6 +1429,16 @@ if [[ "${IMAGE_NAME}" =~ nvidia ]]; then
 else
     grep -q '"lockdown=integrity"' "${LOCKDOWN_KARGS}"
 fi
+# ...and with Secure Boot on, everywhere: Fedora's kernel locks itself down then, which is all that keeps
+# the NVIDIA images, and a machine whose owner took the argument off (ame security lockdown), locked down.
+# A kernel built without it would leave them open with nothing said.
+KERNEL_CONFIGS=(/usr/lib/modules/*/config)
+test -f "${KERNEL_CONFIGS[0]}"
+for config in "${KERNEL_CONFIGS[@]}"; do
+    for option in CONFIG_SECURITY_LOCKDOWN_LSM CONFIG_SECURITY_LOCKDOWN_LSM_EARLY CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT; do
+        grep -qx "${option}=y" "${config}"
+    done
+done
 
 # Key remapping runs as root and reads every input device, so it ships installed and switched off.
 # `ame security input-remapper` is how someone who remaps keys turns it on.

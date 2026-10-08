@@ -9,7 +9,7 @@ necesita red.
 | Descarga | Qué es |
 | --- | --- |
 | [amethystora.iso](https://download.amethystora.org/amethystora.iso) | Amethystora en una memoria USB: pruébelo y después instálelo desde ella. Empiece por esta. |
-| [amethystora-stable.iso](https://download.amethystora.org/amethystora-stable.iso) | Solo el instalador, que también arranca equipos demasiado antiguos para UEFI |
+| [amethystora-non-uefi.iso](https://download.amethystora.org/amethystora-non-uefi.iso) | Solo el instalador, que también arranca equipos demasiado antiguos para UEFI |
 
 Cada una ocupa varios gigabytes. Junto a cada ISO está su suma de comprobación, `.sha256`, firmada
 con la misma clave con la que se comprueba cada actualización. Para comprobar que lo que ha

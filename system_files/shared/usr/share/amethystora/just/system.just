@@ -96,27 +96,88 @@ devmode ACTION="":
     if gum confirm "Do you want to install extra monospace fonts?" ; then
         brew bundle install --file=/usr/share/amethystora/homebrew/fonts.Brewfile
     fi
-    echo "Use ame system dx-group to add your user to the correct groups and complete the installation after rebooting into the development image"
+    echo "After the restart, ame system dx-group lets your account use Docker, Incus and virtual machines"
+    echo "without sudo, and says what that costs."
 
-# Configure docker,incus-admin,libvirt, container manager, serial permissions
-dx-group:
-    #!/usr/bin/pkexec bash
-    append_group() {
-        local group_name="$1"
-        if ! grep -q "^$group_name:" /etc/group; then
-            echo "Appending $group_name to /etc/group"
-            grep "^$group_name:" /usr/lib/group | sudo tee -a /etc/group > /dev/null
+# Choose your account's developer groups (Docker, Incus, libvirt, serial devices); three of them amount to root
+[positional-arguments]
+dx-group *GROUPS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # One list, which Control and the security report read too: group, "root" or "-", what it allows
+    list=/usr/share/amethystora/developer-groups
+    user="$(id -un)"
+    member() { id -nG "${user}" | tr ' ' '\n' | grep -qx "$1"; }
+    names=()
+    roots=()
+    echo "Developer groups for ${user} (* = in it):"
+    while read -r group root text; do
+        # Only the groups this image has: Docker and Incus come with the developer image
+        getent group "${group}" >/dev/null || continue
+        names+=("${group}")
+        [[ "${root}" == root ]] && roots+=("${group}")
+        if member "${group}"; then mark="*"; else mark=" "; fi
+        echo " ${mark} ${group}: ${text}"
+    done < <(grep -v '^#' "${list}" | awk NF)
+    if [[ ${#names[@]} -eq 0 ]]; then
+        echo "   None: they come with developer mode (ame system devmode on)."
+        exit 0
+    fi
+    echo
+    if [[ ${#roots[@]} -gt 0 ]]; then
+        echo "In ${roots[*]}, any program running as you can become root without the sudo password."
+    fi
+    echo "Podman, and virtual machines on your own connection (qemu:///session), need no group at all."
+    echo
+    if [[ $# -gt 0 ]]; then
+        wanted=("$@")
+        [[ "${wanted[*]}" == none ]] && wanted=()
+    else
+        selected=""
+        for group in "${names[@]}"; do
+            if member "${group}"; then selected+="${selected:+,}${group}"; fi
+        done
+        choice="$(gum choose --no-limit --header "Which groups should ${user} be in?" \
+            --selected "${selected}" "${names[@]}")" || exit 0
+        mapfile -t wanted <<<"${choice}"
+    fi
+    joins=()
+    leaves=()
+    for group in "${wanted[@]}"; do
+        [[ -n "${group}" ]] || continue
+        if [[ " ${names[*]} " != *" ${group} "* ]]; then
+            echo "Not a developer group here: ${group}. The ones there are: ${names[*]}"
+            exit 64
         fi
-    }
-
-    GROUPS_ADD=("docker" "incus-admin" "libvirt" "dialout")
-
-    for GROUP_ADD in "${GROUPS_ADD[@]}" ; do
-        append_group $GROUP_ADD
-        usermod -aG $GROUP_ADD {{ `id -un` }}
+        member "${group}" || joins+=("${group}")
     done
-
-    echo "Reboot system and log back in to use docker, libvirt, incus, and serial connections."
+    for group in "${names[@]}"; do
+        member "${group}" && [[ " ${wanted[*]} " != *" ${group} "* ]] && leaves+=("${group}")
+    done
+    if [[ ${#joins[@]} -eq 0 && ${#leaves[@]} -eq 0 ]]; then
+        echo "Nothing to change."
+        exit 0
+    fi
+    risky=()
+    for group in "${joins[@]}"; do
+        [[ " ${roots[*]} " == *" ${group} "* ]] && risky+=("${group}")
+    done
+    if [[ ${#risky[@]} -gt 0 ]]; then
+        gum confirm "Join ${risky[*]}, which let any program you run become root without your password?" || exit 0
+    fi
+    for group in "${joins[@]}"; do
+        # The image's own groups are in /usr/lib/group until something copies them into /etc/group, and a
+        # group without its /etc/gshadow line is an error to grpck
+        grep -q "^${group}:" /etc/group || grep "^${group}:" /usr/lib/group | sudo tee -a /etc/group >/dev/null
+        sudo grep -q "^${group}:" /etc/gshadow || echo "${group}:!::" | sudo tee -a /etc/gshadow >/dev/null
+        sudo usermod -aG "${group}" "${user}"
+        echo "Joined ${group}."
+    done
+    for group in "${leaves[@]}"; do
+        sudo gpasswd -d "${user}" "${group}" >/dev/null
+        echo "Left ${group}."
+    done
+    echo "Log out and back in for it to apply."
 
 # Factory reset this device (experimental)
 powerwash:

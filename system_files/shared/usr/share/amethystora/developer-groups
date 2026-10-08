@@ -1,0 +1,8 @@
+# The groups developer mode offers an account (ame system dx-group), in one place for the recipe, Control
+# and the security report. Each line: the group, "root" when a member can become root without the sudo
+# password, or "-", and what the group lets its members do. Nothing joins anyone to them by itself.
+docker root Docker without sudo. Its socket can start a container that mounts the whole system.
+incus-admin root Incus without sudo. It can make privileged containers, which are root on this machine.
+libvirt root Virtual machines on the system connection (qemu:///system), which can attach any disk of this machine.
+dialout - Serial devices, such as microcontroller boards and USB-to-serial adapters.
+wireshark - Capturing network traffic with Wireshark, without sudo.

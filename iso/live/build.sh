@@ -63,6 +63,12 @@ cp -a /src/product/. /
 install -Dpm0644 "${LIVE}/amethystora-live.conf" /etc/anaconda/profile.d/amethystora-live.conf
 # What Anaconda installs, and where it points the installed machine
 sed "s|@IMAGE@|${BASE_IMAGE}|g" "${LIVE}/installer.ks" >/usr/share/anaconda/interactive-defaults.ks
+# ...which takes its updates signature-checked from the first one
+grep -q -- "--enforce-container-sigpolicy" /usr/share/anaconda/interactive-defaults.ks
+if grep "bootc switch" /usr/share/anaconda/interactive-defaults.ks | grep -v -- "--enforce-container-sigpolicy"; then
+    echo "installer.ks switches the installed machine without signature checking" >&2
+    exit 1
+fi
 
 # The sealed images (:stable-sealed), which Anaconda cannot install yet, have an installer of their own:
 # a whole disk, the image downloaded from the registry, shim placed in front of systemd-boot

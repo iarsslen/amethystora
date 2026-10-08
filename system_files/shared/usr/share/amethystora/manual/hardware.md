@@ -32,8 +32,9 @@ first start, and asks the same password.
 
 - **Intel and AMD** work out of the box. The developer image adds ROCm for GPU compute on AMD.
 - **NVIDIA** needs the `-nvidia-open` images, which carry NVIDIA's open kernel driver ([Installing](installing.md#pick-an-image)).
-  The NVIDIA driver is built for the machine and signed with its own key, so the NVIDIA images do
-  not use kernel lockdown.
+  The NVIDIA driver is built for the machine and signed with its own key, which the kernel trusts
+  only with Secure Boot on. So the NVIDIA images turn kernel lockdown on only with Secure Boot, as
+  the kernel itself does, never with an argument of their own.
 - **Installed the image without NVIDIA's driver on a machine with an NVIDIA card?** There is no
   installer for the NVIDIA images, so this is how most NVIDIA machines start. A few minutes after the
   first boot a notification offers **Switch images…**, which opens `ame system rebase` on the

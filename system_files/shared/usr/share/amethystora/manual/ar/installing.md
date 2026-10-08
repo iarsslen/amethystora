@@ -8,7 +8,7 @@
 | التنزيل | ما هو |
 | --- | --- |
 | [amethystora.iso](https://download.amethystora.org/amethystora.iso) | نظام Amethystora على ذاكرة USB: جرّبه، ثم ثبّته منها. ابدأ بهذا. |
-| [amethystora-stable.iso](https://download.amethystora.org/amethystora-stable.iso) | المثبّت وحده، ويُقلع أيضًا على الحواسيب الأقدم من أن تدعم UEFI |
+| [amethystora-non-uefi.iso](https://download.amethystora.org/amethystora-non-uefi.iso) | المثبّت وحده، ويُقلع أيضًا على الحواسيب الأقدم من أن تدعم UEFI |
 
 حجم كل منها عدة غيغابايتات. وبجانب كل ملف ISO مجموعه الاختباري، `.sha256`، موقَّعًا بالمفتاح نفسه الذي
 يُتحقق به من كل تحديث. للتأكد من أن ما نزّلته هو ما بُني فعلًا:

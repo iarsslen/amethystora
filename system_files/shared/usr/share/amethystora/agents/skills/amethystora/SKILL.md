@@ -215,6 +215,19 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
   off by default; `/usr/libexec/amethystora-ssh-codes status`). Setting up codes needs the user's
   phone, so leave `ame security ssh-codes setup` to them, and never turn codes on for an account that
   has neither codes nor an SSH key.
+- Encrypted DNS (`ame security dns`, off by default; `/usr/libexec/amethystora-dns status` and `name`)
+  sends every lookup to one resolver over DNS-over-TLS, through a drop-in in
+  `/etc/systemd/resolved.conf.d` and one in `/etc/NetworkManager/conf.d`; `resolvectl status` shows it.
+  A network whose login page will not load may need it paused, which asks for a password:
+  `ame security dns pause` (ten minutes). A different address on each network (`ame security mac`,
+  off by default; `/usr/libexec/amethystora-mac status`) gives each network its own hardware address,
+  and a network that registers devices by address then refuses the machine.
+- Kernel lockdown is on with Secure Boot, and without it through the `lockdown=integrity` argument
+  (`ame security lockdown on|off`, `cat /sys/kernel/security/lockdown`). With Secure Boot off it keeps
+  the image's own modules, such as DisplayLink's evdi, from loading.
+- The developer groups (`ame system dx-group`, listed in `/usr/share/amethystora/developer-groups`) are
+  joined only when the user picks them: `docker`, `incus-admin` and `libvirt` let any program they run
+  become root without the sudo password. Prefer Podman, or `qemu:///session` for virtual machines.
 - To find out why something crashed or stopped working, follow the `amethystora-diagnose` skill. The
   Updates, Security and Logs apps start you that way with **Ask the agent**, handing you a unit, a PID
   or the report's own words for a check.
@@ -223,8 +236,10 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
 
 - Anything with `sudo`, `pkexec` or `rpm-ostree`.
 - Anything that loosens security: polkit rules, sudoers, the firewall (`firewall-cmd`), SELinux,
-  sshd, kernel arguments, Secure Boot, USBGuard, network protection (turning it off, or allowing a
-  rule). The image hardens these on purpose; explain the trade-off instead of working around it.
+  sshd, kernel arguments (`ame security lockdown off` among them), Secure Boot, USBGuard, network
+  protection (turning it off, or allowing a rule), encrypted DNS (pausing or turning it off), and
+  joining an account to `docker`, `incus-admin` or `libvirt`. The image hardens these on purpose;
+  explain the trade-off instead of working around it.
 - `gsettings reset-recursively`, deleting user files, or reverting the user's own customisations.
 - `amethystora-restore put-back`: say which version comes back and where first, and use `--replace`
   only when they asked for it (`--keep-both` puts the old file beside the current one).

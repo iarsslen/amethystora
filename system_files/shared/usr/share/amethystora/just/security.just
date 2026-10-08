@@ -187,6 +187,63 @@ secure-boot:
     echo "At next reboot, the blue MOK manager screen appears (QWERTY keyboard layout)."
     echo "Select \"Enroll MOK\", then \"Continue\", \"Yes\", and type \"${ENROLLMENT_PASSWORD}\" as the password."
 
+# Kernel lockdown on a machine without Secure Boot, where it costs the modules signed with this machine's key
+lockdown ACTION="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    action="{{ ACTION }}"
+    # The kernel argument is the switch. Fedora's kernel locks itself down whenever it starts with Secure
+    # Boot, whatever the arguments say, so the argument only decides it on a machine without.
+    mode="$(sed -n 's/.*\[\([a-z]*\)\].*/\1/p' /sys/kernel/security/lockdown 2>/dev/null || true)"
+    echo "Kernel lockdown is ${mode:-none} now."
+    secure_boot=false
+    mokutil --sb-state 2>/dev/null | grep -qi enabled && secure_boot=true
+    if [[ "${secure_boot}" == true ]]; then
+        echo "Secure Boot is on, so the kernel locks itself down at every start whatever this says."
+    elif grep -qw "lockdown=integrity" /proc/cmdline; then
+        echo "Secure Boot is off, and the kernel argument lockdown=integrity turns it on."
+    else
+        echo "Secure Boot is off, and no kernel argument turns it on."
+    fi
+    if [[ -e /usr/share/amethystora/sealed ]]; then
+        echo "This machine is sealed: its kernel arguments are inside the signed kernel image, and cannot change."
+        exit 1
+    fi
+    if [[ -z "${action}" ]]; then
+        action="$(gum choose --header "Kernel lockdown" "Turn on" "Turn off" "Cancel")"
+    fi
+    nvidia=false
+    [[ "$(jq -r '."image-flavor" // ""' /usr/share/amethystora/image-info.json 2>/dev/null)" == nvidia* ]] && nvidia=true
+    case "${action}" in
+        "Turn on" | on)
+            echo
+            echo "Lockdown refuses what lets root rewrite the running kernel: a module without a signature it"
+            echo "trusts, writing to /dev/mem, and BPF that writes into another program's memory. A compromise"
+            echo "of root then ends at the next restart."
+            if [[ "${secure_boot}" != true && "${nvidia}" == true ]]; then
+                echo
+                echo "Without Secure Boot, this machine's key is not trusted, and the NVIDIA driver is signed"
+                echo "with it: it will not load, and the screen falls back to a basic driver. Turn Secure Boot"
+                echo "on instead, and the kernel locks itself down with the driver working."
+            elif [[ "${secure_boot}" != true ]]; then
+                echo "Without Secure Boot, the modules built into the image, such as evdi for DisplayLink docks,"
+                echo "are signed with a key the kernel does not trust then, and will not load."
+            fi
+            gum confirm "Turn kernel lockdown on, from the next restart?" || exit 0
+            sudo rpm-ostree kargs --append-if-missing=lockdown=integrity
+            echo "On from the next restart."
+            ;;
+        "Turn off" | off)
+            if [[ "${secure_boot}" == true ]]; then
+                echo "Secure Boot is on, so the kernel stays locked down. This only matters if it is turned off."
+            fi
+            gum confirm "Leave lockdown out of the kernel arguments, from the next restart?" || exit 0
+            sudo rpm-ostree kargs --delete-if-present=lockdown=integrity
+            echo "Off from the next restart. Updates keep it that way; ame security lockdown on puts it back."
+            ;;
+        *) exit 0 ;;
+    esac
+
 # What the security settings are actually doing, and what to do about anything off. Changes nothing
 status:
     @/usr/libexec/amethystora-security-status
@@ -527,6 +584,144 @@ browser ACTION="" ID="":
         *) exit 0 ;;
     esac
 
+# Look up names over DNS-over-TLS with a resolver you choose, instead of in plain text with the network's
+[positional-arguments]
+dns ACTION="" *SERVERS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # The switch is the two files this helper writes, and its list of resolvers is the only one
+    helper=/usr/libexec/amethystora-dns
+    action="${1:-}"
+    [[ $# -gt 0 ]] && shift
+    servers=("$@")
+    if [[ "$("${helper}" status)" == on ]]; then
+        echo "Encrypted DNS is on: names are looked up with $("${helper}" name), over DNS-over-TLS."
+        if "${helper}" paused; then
+            echo "It is paused: the network's own DNS servers answer, in plain text, for up to ten minutes."
+        fi
+    else
+        echo "Encrypted DNS is off: names are looked up with the DNS servers the network hands out, in"
+        echo "plain text, so the network sees each name and can answer what it likes."
+    fi
+    mapfile -t resolvers < <("${helper}" list)
+    if [[ -z "${action}" ]]; then
+        options=()
+        for line in "${resolvers[@]}"; do
+            IFS=$'\t' read -r _ name who _ <<<"${line}"
+            options+=("${name}, run by ${who}")
+        done
+        choice="$(gum choose --header "Encrypted DNS: send every lookup to" "${options[@]}" \
+            "Servers of my own" "Pause for ten minutes" "End the pause" "Turn off" "Cancel")" || exit 0
+        case "${choice}" in
+            "Servers of my own") action=custom ;;
+            "Pause for ten minutes") action=pause ;;
+            "End the pause") action=resume ;;
+            "Turn off") action=off ;;
+            *)
+                for line in "${resolvers[@]}"; do
+                    IFS=$'\t' read -r id name who _ <<<"${line}"
+                    [[ "${choice}" == "${name}, run by ${who}" ]] && action="${id}"
+                done
+                ;;
+        esac
+    fi
+    case "${action}" in
+        "" | Cancel) exit 0 ;;
+        off)
+            sudo "${helper}" off
+            echo "Off. Names are looked up with the network's own DNS servers again."
+            exit 0
+            ;;
+        pause)
+            echo "For ten minutes, the network's own DNS servers answer, in plain text, so that a login page"
+            echo "can load. It ends by itself, or with: ame security dns resume"
+            sudo "${helper}" pause
+            echo "Paused. Log in to the network's page now."
+            exit 0
+            ;;
+        resume)
+            sudo "${helper}" resume
+            echo "Encrypted again."
+            exit 0
+            ;;
+        custom)
+            if [[ ${#servers[@]} -eq 0 ]]; then
+                echo "Each server as ADDRESS#NAME, NAME being what its certificate is for, separated by spaces."
+                input="$(gum input --prompt "Servers> " --placeholder "9.9.9.9#dns.quad9.net")" || exit 0
+                read -ra servers <<<"${input}"
+            fi
+            [[ ${#servers[@]} -gt 0 ]] || exit 0
+            name="${servers[*]}"
+            who=""
+            note="-"
+            ;;
+        *)
+            line=""
+            for candidate in "${resolvers[@]}"; do
+                [[ "${candidate%%$'\t'*}" == "${action}" ]] && line="${candidate}"
+            done
+            if [[ -z "${line}" ]]; then
+                echo "usage: ame security dns [quad9|mullvad|cloudflare|google|custom ADDRESS#NAME...|pause|resume|off]"
+                exit 64
+            fi
+            IFS=$'\t' read -r _ name who note _ <<<"${line}"
+            servers=()
+            ;;
+    esac
+    echo
+    echo "Every name this machine looks up then goes to ${name}, encrypted, and to nobody else."
+    [[ -z "${who}" ]] || echo "${name} is run by ${who}."
+    echo "It sees every name, and the network you are on sees none of them and cannot answer in its place."
+    [[ "${note}" == "-" ]] || echo "${note}"
+    echo
+    echo "Names on the network itself, such as a printer's, still go to the network's own servers, and so"
+    echo "does the check of whether a network reaches the internet. A VPN's own names keep working, and"
+    echo "Tailscale's. Firefox may look names up itself, over DNS-over-HTTPS, as its own settings say."
+    echo
+    echo "A network that wants a login first, as in hotels and on trains, cannot show its page while this"
+    echo "is on. A notification offers to pause it then: ame security dns pause."
+    gum confirm "Send every lookup to ${name}?" || exit 0
+    sudo "${helper}" on "${action}" "${servers[@]}"
+    echo "On. To go back to the network's own DNS servers: ame security dns off"
+
+# Give each network its own hardware address for this machine, and keep the machine's name from them
+mac ACTION="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    action="{{ ACTION }}"
+    # The switch is the one file this helper copies into /etc/NetworkManager/conf.d
+    helper=/usr/libexec/amethystora-mac
+    if [[ "$("${helper}" status)" == on ]]; then
+        echo "On: each network sees an address of its own for this machine, and not its name."
+    else
+        echo "Off: every network sees this machine's own hardware address, and is told its name."
+    fi
+    if [[ -z "${action}" ]]; then
+        action="$(gum choose --header "A different address on each network" "Turn on" "Turn off" "Cancel")"
+    fi
+    case "${action}" in
+        "Turn on" | on)
+            echo
+            echo "A network knows a laptop by its hardware (MAC) address, the same on every network it joins,"
+            echo "and is told its name too. With this on, each Wi-Fi and wired network sees an address of its"
+            echo "own for this machine, the same each time it comes back, so a router keeps what it reserved"
+            echo "for it and a login page remembers it. No network is told its name, and connections out use"
+            echo "a temporary IPv6 address."
+            echo
+            echo "A network that lets in only registered devices, as some universities and offices do, then"
+            echo "refuses it. For that network, open it in Settings, then Identity, and set Cloned Address"
+            echo "to Permanent."
+            gum confirm "Use a different address on each network?" || exit 0
+            sudo "${helper}" on
+            echo "On, from the next time each network connects. Turn Wi-Fi off and on to start now."
+            ;;
+        "Turn off" | off)
+            sudo "${helper}" off
+            echo "Off, from the next time each network connects."
+            ;;
+        *) exit 0 ;;
+    esac
+
 # Unlock the encrypted disk with this machine's TPM instead of typing the passphrase at every boot
 disk-unlock ACTION="":
     #!/usr/bin/bash
@@ -563,7 +758,9 @@ disk-unlock ACTION="":
     else
         echo "What it does not do: it does not measure the initramfs, which changes with every kernel"
         echo "update and cannot be pinned without enrolling again each time. Someone who can rewrite the"
-        echo "initramfs can still reach the unlocked disk. A PIN below is what closes that off."
+        echo "initramfs can still reach the unlocked disk. A PIN below stops someone who takes the machine"
+        echo "and starts it with a rewritten initramfs. It does not stop someone who rewrites it and gives"
+        echo "the machine back: their initramfs can ask for the PIN itself and keep it once you type it."
     fi
     echo
     if [[ -z "${action}" ]]; then
