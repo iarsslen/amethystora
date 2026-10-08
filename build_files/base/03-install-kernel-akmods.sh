@@ -4,6 +4,9 @@ echo "::group:: ===$(basename "$0")==="
 
 set -eoux pipefail
 
+# shellcheck source=build_files/shared/copr-helpers.sh
+source /ctx/build_files/shared/copr-helpers.sh
+
 # Beta Updates Testing Repo...
 if [[ "${UBLUE_IMAGE_TAG}" == "beta" ]]; then
     dnf5 config-manager setopt updates-testing.enabled=1
@@ -39,18 +42,14 @@ sed -i 's@enabled=0@enabled=1@g' /etc/yum.repos.d/_copr_ublue-os-akmods.repo
 
 # RPMFUSION Dependent AKMODS
 if [[ "${UBLUE_IMAGE_TAG}" == "beta" ]]; then
-    dnf5 -y install \
-        https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-"$(rpm -E %fedora)".noarch.rpm || true
-    dnf5 -y install \
-        https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-"$(rpm -E %fedora)".noarch.rpm || true
+    rpmfusion_release_install free || true
+    rpmfusion_release_install nonfree || true
     dnf5 -y install \
         v4l2loopback /tmp/akmods/kmods/*v4l2loopback*.rpm || true
     dnf5 -y remove rpmfusion-free-release || true
     dnf5 -y remove rpmfusion-nonfree-release || true
 else
-    dnf5 -y install \
-        https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-"$(rpm -E %fedora)".noarch.rpm \
-        https://mirrors.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-"$(rpm -E %fedora)".noarch.rpm
+    rpmfusion_release_install free nonfree
     dnf5 -y install \
         v4l2loopback /tmp/akmods/kmods/*v4l2loopback*.rpm
     dnf5 -y remove rpmfusion-free-release rpmfusion-nonfree-release

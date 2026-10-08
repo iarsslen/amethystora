@@ -19,6 +19,22 @@ dnf_install_retry() {
     return 1
 }
 
+# RPM Fusion's release packages, which add its repositories, come from a redirector that hands out
+# volunteer mirrors, and dnf checks no signature on a package given as a file or URL unless told to.
+# RPM Fusion's keys are taken from Fedora's own signed distribution-gpg-keys package instead, and the
+# release packages are installed only with a valid signature from them. Takes free, nonfree or both.
+rpmfusion_release_install() {
+    local fedora repo packages=()
+    fedora="$(rpm -E %fedora)"
+    rpm -q distribution-gpg-keys >/dev/null ||
+        dnf5 -y install --repo=fedora --repo=updates distribution-gpg-keys
+    for repo in "$@"; do
+        rpm --import "/usr/share/distribution-gpg-keys/rpmfusion/RPM-GPG-KEY-rpmfusion-${repo}-fedora-${fedora}"
+        packages+=("https://mirrors.rpmfusion.org/${repo}/fedora/rpmfusion-${repo}-release-${fedora}.noarch.rpm")
+    done
+    dnf5 -y install --setopt=localpkg_gpgcheck=1 "${packages[@]}"
+}
+
 copr_install_isolated() {
     local copr_name="$1"
     shift

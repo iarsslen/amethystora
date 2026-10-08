@@ -168,9 +168,15 @@ esac
 # owns on a machine that updates to the wrong account. 850 is far below where those are handed out.
 systemd-sysusers --inline 'u suricata 850 "Suricata IDS" / -'
 
-# Install all Fedora packages (bulk - safe from COPR injection)
+# Install all Fedora packages (bulk - safe from COPR injection). From Fedora's repositories by name: the
+# akmods Copr (03-install-kernel-akmods.sh) and negativo17's fedora-multimedia, which outranks Fedora's,
+# are still enabled here, until 17-cleanup.sh
+FEDORA_REPOS=(--repo=fedora --repo=updates)
+if [[ "${UBLUE_IMAGE_TAG}" == "beta" ]]; then
+    FEDORA_REPOS+=(--repo=updates-testing)
+fi
 echo "Installing ${#FEDORA_PACKAGES[@]} packages from Fedora repos..."
-dnf -y install "${FEDORA_PACKAGES[@]}"
+dnf -y install "${FEDORA_REPOS[@]}" "${FEDORA_PACKAGES[@]}"
 
 # Fedora's Firefox opens on start.fedoraproject.org and pins it on the new tab page. Those two lines of
 # its preferences are deleted, which leaves Firefox's own home page; nothing is put in their place

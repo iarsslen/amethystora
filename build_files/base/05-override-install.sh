@@ -4,6 +4,9 @@ echo "::group:: ===$(basename "$0")==="
 
 set -eoux pipefail
 
+# shellcheck source=build_files/shared/copr-helpers.sh
+source /ctx/build_files/shared/copr-helpers.sh
+
 # We do not need anything here at all
 rm -rf /usr/src
 # Except the licences. Some 120 of Fedora's packages keep their licence, copyright or NOTICE file among
@@ -50,7 +53,7 @@ fi
 dnf -y install --repo=fedora --repo=updates \
     ffmpeg-free fdk-aac-free libavcodec-free libavfilter-free libavformat-free libavutil-free \
     libswresample-free libswscale-free
-dnf -y install "https://mirrors.rpmfusion.org/free/fedora/rpmfusion-free-release-${FEDORA_MAJOR_VERSION}.noarch.rpm"
+rpmfusion_release_install free
 sed -i 's@^enabled=1@enabled=0@' /etc/yum.repos.d/rpmfusion-free*.repo
 dnf -y install --repo=fedora --repo=updates --repo=rpmfusion-free --repo=rpmfusion-free-updates \
     libavcodec-freeworld pipewire-codec-aptx
