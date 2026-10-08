@@ -12,6 +12,9 @@ After=network-online.target
 
 [Service]
 Type=oneshot
+# Skipped while the owner turned it off (ame security signed-updates off): then it no longer switches the
+# machine back to the signed origin, and switches nothing the other way either
+ExecCondition=/usr/libexec/amethystora-hardening is-on signed-updates
 ExecStart=/usr/libexec/amethystora-signed-updates
 
 [Install]

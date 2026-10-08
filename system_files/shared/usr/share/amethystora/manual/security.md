@@ -1,7 +1,7 @@
 # Security
 
 Amethystora is hardened beyond Fedora's defaults, and says so plainly: everything below can be
-checked, and most of it can be changed if it gets in your way.
+checked, and every part of it can be turned off if it gets in your way ([Switches](#switches)).
 
 ## See where you stand
 
@@ -163,6 +163,9 @@ the scan is done and says what happened to each file. The scans you ran are list
 
 ## Settings
 
+The **Settings** page of the Security app lists every switch, with what each does and, while it runs,
+what it costs. In a terminal:
+
 ```bash
 ame security settings
 ```
@@ -173,15 +176,70 @@ ame security settings
   scanning. Each file is checked again before anything is done to it. `ame security scan quarantine`
   lists what is in quarantine, and `ame security scan restore` puts a file back and can tell the
   scanner to leave that exact file alone from then on.
-- **Real-time watching**: `off` (the default) or `on`. On, the security watcher reads each change as
-  the audit log records it, and every file written in a home folder is scanned as it is closed. It
-  costs some CPU while files are being written, and scanning starts once the first virus signatures
-  have downloaded.
+- **Real-time watching**: `off` (the default) or `on`, for both halves at once, which can also be set
+  each on its own. `realtime-watch` has the security watcher read each change as the audit log records
+  it. `realtime-scan` scans every file written in a home folder as it is closed: it costs some CPU while
+  files are being written, and starts once the first virus signatures have downloaded.
 - **Network protection**: `off` (the default), `watch` or `block`.
   [Network protection](#network-protection).
+- **The virus scanner**: `weekly` (the default), `manual`, which scans only when you start a scan, or
+  `off`, which runs nothing at all: no daemon holding the virus signatures in memory, and no downloads.
+- **The settings audit**: Lynis every month, `on` (the default) or `off`. `ame security audit` runs one
+  whenever you ask.
+- **The security watcher**: `on` (the default) or `off`, and each part of what it reads on its own: the
+  audit log's kinds of change (accounts, `sudo`, what starts by itself, the security settings, kernel
+  modules, keyboard readers, programs in home folders), the journal, the image's settings, the setuid
+  sweep, open ports, the commands a session finds first, and the report's alerts. Each is `off`,
+  `record`, which keeps what it finds in the history without a notification, or `on`.
+- **The audit log**: `on` (the default) or `off`, from the next restart.
+- **Notifications**: `all` (the default), `critical`, or `none`. Whatever is not said is still in the
+  report and in `ame security events`.
 
-All three are kept in `/etc/amethystora/security.conf`. The command applies a change at once; an edit to
-the file by hand applies at the next restart.
+They are kept in `/etc/amethystora/security.conf`. The command and the app apply a change at once,
+apart from the audit log, which follows at the next restart.
+
+## Switches
+
+Every security feature is a switch, so that you can take back any of it if it makes this machine slower
+or gets in your way. Off costs nothing: nothing runs, nothing is downloaded and nothing is said. The
+audit log's rules are locked until the next restart, so a part of it you turn off stops being read at
+once and stops being recorded from the next restart.
+
+- **Everything at once.** `ame security profile off` turns off everything that can be: the watcher, the
+  virus scanner, the settings audit, real-time watching, network protection and the audit log.
+  `ame security profile default` puts every switch back as the image ships it. The Settings page has
+  both as buttons.
+- **From a text console.** Each service reads its switch as it starts, so a line edited by hand in
+  `/etc/amethystora/security.conf`, such as `VIRUS_SCAN=off`, takes effect at the next restart even when
+  the desktop does not start.
+- **Off is not a warning.** A feature you switched off is shown in the report as turned off, with the
+  command that turns it back on. Turned off some other way, such as a service disabled with
+  `systemctl`, it is still a warning, because that is what it would look like if something else did it.
+- **A change you make is not news.** The watcher records a change made through a switch, and does not
+  notify you about it. A change made any other way is said.
+- **A warning you cannot fix** on this machine, such as Secure Boot on a computer without it, can be
+  accepted with **Accept** on it in the Security app, or `ame security allow report`. It stays in the
+  report as information, out of the count, and is never said, until it turns worse.
+  `ame security allow report <check> remove` shows it again.
+
+What the image enforces from the start has switches of its own, each on until you turn it off, each in
+the Settings page and as a command that says what it changes before it does:
+
+| Command | What it switches | Turned off |
+| --- | --- | --- |
+| `ame security kernel` | Kernel addresses and messages hidden, programs kept from each other's memory, no unprivileged BPF | From the next restart. `gdb -p`, `strace -p`, `perf` and `dmesg` work without `sudo` |
+| `ame security blocked-modules` | Old network protocols and filesystems, FireWire and test drivers kept from loading | At once. FireWire sound cards and cameras, disks from old Macs, SCTP |
+| `ame security kernel-args` | `init_on_alloc=1`, `slab_nomerge`, `page_alloc.shuffle=1`, `randomize_kstack_offset=on`, `vsyscall=none`, each on its own | From the next restart. Not on a sealed image |
+| `ame security firewall` | The Amethystora firewall zone | At once. Fedora Workstation's zone lets in every port from 1025 up; opening one port is the narrower answer |
+| `ame security failed-logins` | Blocking an address after failed SSH logins | At once |
+| `ame security lockout` | Locking an account after ten wrong passwords | At once |
+| `ame security app-sandbox` | Taking X11, the input devices and the Flatpak service from every app | From each app's next start; granting one app X11 in Flatseal is the narrower answer |
+| `ame security ssh-settings` | No root login, three tries and no X11 forwarding for the SSH server | At once |
+| `ame security signed-updates` | Switching this machine back to signature-checked updates at every start | From the next start; for an image of your own, `ame system trust-image` is the answer |
+
+`ame security lockdown` and the protections that are off until you turn them on, below, are switches
+already. Something with root can change any of this, but not quietly: each change is recorded by the
+audit log, until you turn that off too.
 
 ## Worth turning on
 

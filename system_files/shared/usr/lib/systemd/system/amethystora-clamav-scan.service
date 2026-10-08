@@ -11,6 +11,9 @@ OnFailure=amethystora-scan-alert@%n.service
 
 [Service]
 Type=oneshot
+# Skipped while VIRUS_SCAN=off, and when its timer starts it while VIRUS_SCAN=manual: the scans started from
+# the Security app and `ame security scan now` start this unit too, and still run then
+ExecCondition=/usr/libexec/amethystora-clamav-scan --check
 ExecStart=/usr/libexec/amethystora-clamav-scan
 # A background scan that makes the desktop stutter is a scan the user turns off
 Nice=19

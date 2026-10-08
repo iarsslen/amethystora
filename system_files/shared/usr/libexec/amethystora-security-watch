@@ -23,6 +23,9 @@
 # The first run only records where things stand. After it, anything new is written to the history and,
 # unless it is routine, to the unread list `ame security events` shows, with one notification a run.
 #
+# Each part is a switch of its own in /etc/amethystora/security.conf (`ame security settings` lists them):
+# off, record (to the history, without a notification) or on. The watcher as a whole is WATCHER.
+#
 #   amethystora-security-watch           one run (amethystora-security-watch.service)
 #   amethystora-security-watch --show    what is unread, then the end of the history
 #   amethystora-security-watch --seen    mark everything read
@@ -72,10 +75,36 @@ NOW="$(date +%s)"
 LAST_RUN="$(cat "${STATE}/last-run" 2>/dev/null || true)"
 [[ "${LAST_RUN}" =~ ^[0-9]+$ ]] || LAST_RUN=""
 
+# Every part of this is a switch in /etc/amethystora/security.conf, read once: off, it is not read at all;
+# record, what it finds goes to the history without a notification; on, it is said. WATCHER=off stops the
+# whole run before it starts (ExecCondition= in the unit).
+declare -A SETTING=()
+while IFS='=' read -r key value; do
+    SETTING["${key}"]="${value}"
+done < <(/usr/libexec/amethystora-security-config --all)
+
 # What this run found, one "level<TAB>text" each. critical and normal are said out loud; quiet only goes
-# to the history, for what is worth a record and not an interruption.
+# to the history, for what is worth a record and not an interruption. While the part that found it is
+# set to record, everything it finds is quiet.
 FINDINGS=()
-add() { FINDINGS+=("$1"$'\t'"$2"); }
+MODE=on
+add() {
+    local level="$1"
+    [[ "${MODE}" == record ]] && level=quiet
+    FINDINGS+=("${level}"$'\t'"$2")
+}
+
+# Runs a part of the watcher unless its switch is off, with what it finds quiet while the switch is record
+switched() {
+    MODE="${SETTING[$1]:-on}"
+    shift
+    [[ "${MODE}" == off ]] || "$@"
+    MODE=on
+}
+
+# When a switch's own command changed something (amethystora-security-config note), what the audit log
+# recorded around then is that change: recorded, and not said. Two minutes from each note.
+NOTED="$(cut -f1 "${STATE}/notes" 2>/dev/null | grep -E '^[0-9]+$' | tr '\n' ' ')"
 
 # --- The audit log ------------------------------------------------------------------------------------
 
@@ -121,14 +150,36 @@ audit_events() {
             -k "${key}" --format text 2>/dev/null)"
     fi
     chmod 0600 "${checkpoint}" 2>/dev/null
-    # One line for each different thing that happened, however many times it did
-    sed -nE 's/^At [^ ]+ [^ ]+ //p' <<<"${output}" | sort | uniq -c
+    # One line for each different thing that happened, however many times it did, each marked "noted"
+    # when it happened within two minutes of a switch's own command and "-" otherwise. The times are the
+    # local ones ausearch writes, which mktime reads as local too.
+    awk -v noted="${NOTED}" '
+        BEGIN { count = split(noted, times, " ") }
+        /^At [0-9:]+ [0-9\/]+ / {
+            split($2, t, ":")
+            split($3, d, "/")
+            year = d[3] < 100 ? d[3] + 2000 : d[3]
+            when = mktime(year " " d[1] " " d[2] " " t[1] " " t[2] " " t[3])
+            mark = "-"
+            for (i = 1; i <= count; i++) {
+                if (when >= times[i] - 5 && when <= times[i] + 120) mark = "noted"
+            }
+            line = $0
+            sub(/^At [^ ]+ [^ ]+ /, "", line)
+            print mark " " line
+        }' <<<"${output}" | sort | uniq -c
 }
 
 read_audit() {
-    local key count event exe level text
+    local key count mark event exe level text
     for key in "${AUDIT_KEYS[@]}"; do
-        while read -r count event; do
+        MODE="${SETTING[$(tr 'a-z-' 'A-Z_' <<<"${key}")]:-on}"
+        if [[ "${MODE}" == off ]]; then
+            # Turned on again, it starts from that run rather than reading everything since it went off
+            rm -f "${STATE}/audit-${key}.checkpoint"
+            continue
+        fi
+        while read -r count mark event; do
             [[ -n "${event}" ]] || continue
             exe=""
             [[ "${event}" == *" using "* ]] && exe="${event##* using }"
@@ -147,12 +198,14 @@ read_audit() {
                     ;;
                 *) level=normal ;;
             esac
+            [[ "${mark}" == noted ]] && level=quiet
             text="${AUDIT_WHAT[${key}]}: ${event}"
             [[ "${count}" -gt 1 ]] && text+=" (${count} times)"
             # The first run has no "since": it only makes the checkpoints
             [[ -n "${LAST_RUN}" ]] && add "${level}" "${text}"
         done < <(audit_events "${key}")
     done
+    MODE=on
 }
 
 # --- The journal --------------------------------------------------------------------------------------
@@ -205,7 +258,8 @@ DRIFT_PATHS=(amethystora audit authselect brave/policies chromium/policies clamd
     sudoers.d sysctl.conf sysctl.d tmpfiles.d udev/rules.d usbguard xdg/autostart)
 # ...less what the image's own recipes and services write there as a matter of course
 EXPECTED_DRIFT=" amethystora/security.conf amethystora/ips-allowed amethystora/browser-extensions \
-audit/audit.rules audit/audit.rules.prev audit/rules.d/61-amethystora-home.rules \
+amethystora/hardening-off amethystora/allow.d/report \
+audit/audit.rules audit/audit.rules.prev audit/rules.d/60-amethystora.rules audit/rules.d/61-amethystora-home.rules \
 brave/policies/managed/10-amethystora.json chromium/policies/managed/10-amethystora.json \
 firefox/policies/policies.json modprobe.d/tuned.conf opt/chrome/policies/managed/10-amethystora.json \
 opt/edge/policies/managed/10-amethystora.json security/opasswd usbguard/rules.conf \
@@ -219,12 +273,18 @@ SECURITY_UNITS='^(auditd|fail2ban|firewalld|clamd@.*|clamav-.*|amethystora-.*|uu
 
 # One "change<TAB>path<TAB>detail" a line: added, changed, removed, replaces, overrides or masks
 drift() {
-    local pair dir lib etc name rel usr unit domain=false
-    local -A shadows=()
+    local pair dir lib etc name rel usr unit kind domain=false
+    local -A shadows=() masks=() files=()
     # A machine that joined a domain has authselect's sssd or winbind profile with every feature of the
     # image's, which realmd set through amethystora-domain-logins, and pam_winbind's settings realmd
     # writes. That is the image's setup for a domain: a feature turned off, or a file edited by hand, is not.
     /usr/libexec/amethystora-domain-logins check && domain=true
+    # What the owner turned off with the prevention switches (ame security kernel, firewall, lockout...):
+    # exactly the files the switch writes, which amethystora-hardening names, and nothing in between
+    while IFS=$'\t' read -r rel kind; do
+        [[ "${kind}" == mask ]] && masks["${rel}"]=1
+        [[ "${kind}" == file ]] && files["${rel}"]=1
+    done < <(/usr/libexec/amethystora-hardening managed 2>/dev/null)
     for pair in "${SHADOWED[@]}"; do
         dir="/etc/${pair%%:*}"
         lib="${pair#*:}"
@@ -234,6 +294,10 @@ drift() {
             [[ "${pair}" == systemd/system:* && ! "${name}" =~ ${SECURITY_UNITS} ]] && continue
             # What the image itself ships there is its own choice
             [[ -e "/usr/etc/${etc#/etc/}" ]] && cmp -s "${etc}" "/usr/etc/${etc#/etc/}" && continue
+            if [[ -n "${masks[${etc#/etc/}]+set}" && "$(readlink "${etc}")" == /dev/null ]]; then
+                shadows["${etc}"]=1
+                continue
+            fi
             if [[ "$(readlink "${etc}")" == /dev/null ]]; then
                 printf 'masks\t%s\t%s\n' "${etc}" "${name}"
             else
@@ -265,6 +329,8 @@ drift() {
             cmp -s "${etc}" <(/usr/libexec/amethystora-ssh-codes pam <"${usr}") && continue
         [[ "${rel}" == ssh/sshd_config.d/30-amethystora-ssh-codes.conf ]] &&
             cmp -s "${etc}" "/usr/share/amethystora/ssh-codes/${rel##*/}" && continue
+        [[ -n "${files[${rel}]+set}" ]] &&
+            cmp -s "${etc}" <(/usr/libexec/amethystora-hardening expected "${rel}") && continue
         if [[ ! -e "${usr}" && ! -L "${usr}" ]]; then
             printf 'added\t%s\t\n' "${etc}"
         elif [[ ! -e "${etc}" && ! -L "${etc}" ]]; then
@@ -538,36 +604,56 @@ read_report() {
 
 # --- A run --------------------------------------------------------------------------------------------
 
-read_audit
-read_journal
+# Each part is skipped while its switch is off. The ones that keep a place to read on from forget it, so
+# that turned on again they start from then, not from everything since they were turned off.
+if [[ "${SETTING[AUDIT_LOG]:-on}" != off ]]; then
+    read_audit
+fi
+[[ "${SETTING[JOURNAL]:-on}" == off ]] && rm -f "${STATE}/journal.cursor"
+switched JOURNAL read_journal
 read_network
 
-SWEPT="$(cat "${STATE}/swept" 2>/dev/null || true)"
-if [[ ! "${SWEPT}" =~ ^[0-9]+$ || $((NOW - SWEPT)) -ge ${SWEEP_EVERY} ]]; then
-    sweep_setuid >"${STATE}/setuid.list"
-    SWEPT="${NOW}"
-    echo "${SWEPT}" >"${STATE}/swept"
+# null in status.json for a part that is off, which the report shows as turned off rather than as clean
+SETUID=null
+if [[ "${SETTING[SETUID_SWEEP]:-on}" != off ]]; then
+    SWEPT="$(cat "${STATE}/swept" 2>/dev/null || true)"
+    if [[ ! "${SWEPT}" =~ ^[0-9]+$ || $((NOW - SWEPT)) -ge ${SWEEP_EVERY} ]]; then
+        sweep_setuid >"${STATE}/setuid.list"
+        SWEPT="${NOW}"
+        echo "${SWEPT}" >"${STATE}/swept"
+    fi
+    SETUID="$(jq -R . "${STATE}/setuid.list" | jq -s .)"
+else
+    rm -f "${STATE}/swept"
 fi
-LISTENERS="$(listeners)"
-read_listeners
-read_user_paths
+LISTENERS=""
+LISTENING=null
+if [[ "${SETTING[LISTENERS]:-on}" != off ]]; then
+    LISTENERS="$(listeners)"
+    LISTENING="$(jq -R 'split("\t") | select(length == 3) |
+        {port: (.[0] | tonumber), address: .[1], program: .[2]}' <<<"${LISTENERS}" | jq -s .)"
+    switched LISTENERS read_listeners
+fi
+switched USER_PATHS read_user_paths
 
 # What the report reads, world-readable: it names files and ports, not what is in them, and of network
 # protection only how much it blocked
-if [[ -d /usr/etc ]]; then
+DRIFT=null
+if [[ -d /usr/etc && "${SETTING[IMAGE_DRIFT]:-on}" != off ]]; then
     DRIFT="$(drift | jq -R 'split("\t") | {change: .[0], path: .[1], detail: .[2]}' | jq -s .)"
-else
-    DRIFT=null
 fi
-jq -n --argjson checked "${NOW}" --argjson swept "${SWEPT}" --argjson drift "${DRIFT:-null}" \
-    --argjson setuid "$(jq -R . "${STATE}/setuid.list" | jq -s .)" \
-    --argjson listeners "$(jq -R 'split("\t") | select(length == 3) |
-        {port: (.[0] | tonumber), address: .[1], program: .[2]}' <<<"${LISTENERS}" | jq -s .)" \
+jq -n --argjson checked "${NOW}" --argjson swept "${SWEPT:-null}" --argjson drift "${DRIFT:-null}" \
+    --argjson setuid "${SETUID}" --argjson listeners "${LISTENING}" \
     --argjson network "$(network_status)" \
     '{$checked, $swept, $drift, $setuid, $listeners, $network}' >"${STATUS}.new" &&
     chmod 0644 "${STATUS}.new" && mv "${STATUS}.new" "${STATUS}"
 
-read_report
+if [[ "${SETTING[REPORT_ALERTS]:-on}" != off ]]; then
+    read_report
+else
+    # Turned on again, it compares from then
+    rm -f "${STATE}/report.json"
+fi
 echo "${NOW}" >"${STATE}/last-run"
 
 [[ ${#FINDINGS[@]} -gt 0 ]] || exit 0
@@ -581,6 +667,11 @@ for finding in "${FINDINGS[@]}"; do
     echo "${STAMP}  ${text}" >>"${HISTORY}"
     [[ "${level}" == quiet ]] && continue
     echo "${STAMP}  ${text}" >>"${UNREAD}"
+    # NOTIFY: all, critical only, or none. Either way it waits in the unread list for the report.
+    case "${SETTING[NOTIFY]:-all}" in
+        none) continue ;;
+        critical) [[ "${level}" == critical ]] || continue ;;
+    esac
     TOLD+=("${text}")
     [[ "${level}" == critical ]] && URGENCY=critical
 done

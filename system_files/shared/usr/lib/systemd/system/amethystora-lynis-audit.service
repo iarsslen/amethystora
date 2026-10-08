@@ -9,6 +9,8 @@ Type=oneshot
 # run's, because what matters on a machine whose settings ship with the image is a finding that was
 # not there last month. Findings land in /var/log/lynis.log and, one per line, in
 # /var/log/lynis-report.dat, which is what `ame security audit` points at.
+# Skipped while SETTINGS_AUDIT=off; `ame security audit` runs one by hand either way
+ExecCondition=/usr/libexec/amethystora-security-config --is SETTINGS_AUDIT on
 ExecStart=/usr/libexec/amethystora-lynis-audit
 Nice=19
 IOSchedulingClass=idle

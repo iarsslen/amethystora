@@ -51,8 +51,9 @@ systemctl enable amethystora-system-setup.service
 # Keeps updates signature-checked (/usr/libexec/amethystora-signed-updates)
 systemctl enable amethystora-signed-updates.service
 
-# Audit watches on the paths that would have to change for something to survive a reboot
-# (/etc/audit/rules.d/60-amethystora.rules, plus the per-home ones this service generates)
+# Audit watches on the paths that would have to change for something to survive a reboot, which this
+# service writes at every boot from /usr/share/amethystora/audit and for each home, for every key not
+# switched off in /etc/amethystora/security.conf (AUDIT_LOG=off skips both units)
 systemctl enable auditd.service
 systemctl enable amethystora-audit-rules.service
 

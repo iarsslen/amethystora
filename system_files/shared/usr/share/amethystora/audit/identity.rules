@@ -1,0 +1,12 @@
+## Amethystora audit rules, key identity. amethystora-audit-home-rules copies this into
+## /etc/audit/rules.d/60-amethystora.rules at every boot, before auditd starts, unless IDENTITY=off in
+## /etc/amethystora/security.conf: a key that is off loads no rule and costs nothing. A watch on a path that
+## is not there is left out, since it would stop auditctl loading every rule after it.
+##
+## Read what these caught with: sudo ausearch -i -k identity
+
+## Accounts, and who is allowed to become root
+-w /etc/passwd -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/group -p wa -k identity
+-w /etc/gshadow -p wa -k identity

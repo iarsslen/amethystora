@@ -16,6 +16,25 @@ set -uo pipefail
 
 FINDINGS=/var/log/amethystora-clamav-findings.log
 
+# Whether to scan at all (ExecCondition=, --check): never while VIRUS_SCAN=off in
+# /etc/amethystora/security.conf, and while it is manual, only when somebody asked rather than the weekly
+# timer. systemd names what started the unit in TRIGGER_UNIT.
+wanted() {
+    case "$(/usr/libexec/amethystora-security-config VIRUS_SCAN)" in
+        off) return 1 ;;
+        manual) [[ "${TRIGGER_UNIT:-}" != amethystora-clamav-scan.timer ]] ;;
+        *) return 0 ;;
+    esac
+}
+if [[ "${1:-}" == --check ]]; then
+    wanted
+    exit
+fi
+if ! wanted; then
+    echo "Not scanning: VIRUS_SCAN in /etc/amethystora/security.conf says $(/usr/libexec/amethystora-security-config VIRUS_SCAN)."
+    exit 0
+fi
+
 # A scan is only worth as much as the signatures behind it, and nothing else checks them: freshclam is a
 # daemon that stays active whether or not its downloads ever reach the network, so a machine can scan
 # with year-old signatures every Sunday and look exactly like a machine that is clean.

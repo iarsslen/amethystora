@@ -1,0 +1,11 @@
+## Amethystora audit rules, key input-capture. amethystora-audit-home-rules copies this into
+## /etc/audit/rules.d/60-amethystora.rules at every boot, before auditd starts, unless INPUT_CAPTURE=off in
+## /etc/amethystora/security.conf: a key that is off loads no rule and costs nothing. A watch on a path that
+## is not there is left out, since it would stop auditctl loading every rule after it.
+##
+## Read what these caught with: sudo ausearch -i -k input-capture
+
+## Opening an input device: the one system call a software keylogger cannot avoid making. GNOME does
+## not appear here, because logind opens input devices on the session's behalf and passes the file
+## descriptors in, as root and without a login id. A program the user runs does appear.
+-a always,exit -F arch=b64 -S openat -F dir=/dev/input -F success=1 -F auid>=1000 -F auid!=unset -k input-capture

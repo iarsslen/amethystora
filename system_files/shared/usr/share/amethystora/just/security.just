@@ -142,6 +142,7 @@ ssh-codes ACTION="":
             echo "A password login over SSH will also ask for a code from the account's own phone app. An"
             echo "account without codes of its own can then log in over SSH only with a key."
             gum confirm "Turn one-time codes for SSH on?" || exit 0
+            sudo /usr/libexec/amethystora-security-config note ssh-codes on
             sudo "${codes}" on
             # A server reloaded with settings it refuses stops, so it checks them first. One that is not
             # running checks them as it starts, and before its first start it has no host keys to check with.
@@ -154,6 +155,7 @@ ssh-codes ACTION="":
             echo "On. A login with a key works as before."
             ;;
         "Turn off" | off)
+            sudo /usr/libexec/amethystora-security-config note ssh-codes off
             sudo "${codes}" off
             reload
             echo "Off. A password alone logs in over SSH again, and your codes stay set up."
@@ -301,22 +303,19 @@ audit:
     echo "The monthly audit compares each run with the one before and reports only what is new."
     echo "What it said last time: journalctl -u amethystora-lynis-audit.service"
 
-# What happens to files a virus scan finds, real-time watching and network protection (security.conf)
+# Every detection switch (security.conf): what each does, and changing one. Off costs nothing
 settings SETTING="" VALUE="":
     #!/usr/bin/bash
     set -euo pipefail
     config=/usr/libexec/amethystora-security-config
-    detection="$(${config} ON_DETECTION)"
-    realtime="$(${config} REALTIME)"
-    network="$(${config} NETWORK)"
-    echo "Files a virus scan finds:  ${detection}"
-    echo "Real-time watching:        ${realtime}"
-    echo "Network protection:        ${network}"
-    echo
     setting="{{ SETTING }}"
     value="{{ VALUE }}"
     if [[ -z "${setting}" ]]; then
-        setting="$(gum choose --header "Security settings" "on-detection" "realtime" "network" "Cancel")"
+        "${config}" --list
+        echo
+        echo "Everything off at once, or back as the image ships it: ame security profile"
+        mapfile -t names < <("${config}" --list --json | jq -r '.settings[].setting')
+        setting="$(gum choose --header "Change which?" --height 16 "${names[@]}" realtime Cancel)"
     fi
     case "${setting}" in
         on-detection)
@@ -380,14 +379,185 @@ settings SETTING="" VALUE="":
             sudo systemctl restart amethystora-security-realtime.service
             sudo systemctl start --no-block amethystora-security-watch.service
             ;;
+        "" | Cancel) exit 0 ;;
+        *)
+            key="$(tr 'a-z-' 'A-Z_' <<<"${setting}")"
+            entry="$("${config}" --list --json | jq -c --arg key "${key}" '.settings[] | select(.key == $key)')"
+            if [[ -z "${entry}" ]]; then
+                echo "There is no setting called ${setting}. ame security settings lists them."
+                exit 64
+            fi
+            title="$(jq -r .title <<<"${entry}")"
+            echo "${title}: $(jq -r .value <<<"${entry}")"
+            jq -r .text <<<"${entry}" | fold -s -w 96
+            if [[ -z "${value}" ]]; then
+                mapfile -t values < <(jq -r '.allowed[]' <<<"${entry}")
+                value="$(gum choose --header "${title}" "${values[@]}" Cancel)"
+                [[ -n "${value}" && "${value}" != Cancel ]] || exit 0
+            fi
+            # What turning these down gives up, said before it is done
+            case "${key}:${value}" in
+                HARDENING:off)
+                    echo "Turning a security switch off, this one included, is then not said, and from the next"
+                    echo "restart not recorded either." ;;
+                AUDIT_LOG:off)
+                    echo "From the next restart nothing records changes to accounts, sudo, what starts by itself"
+                    echo "or the security settings, and the switches that read the audit log have nothing to read." ;;
+                WATCHER:off)
+                    echo "Nothing then reads the audit log or the journal, or says what changed. The audit log goes"
+                    echo "on recording, for sudo ausearch, until its own switch is off too." ;;
+                VIRUS_SCAN:off)
+                    echo "No scanning, no signatures downloaded, and nothing holding them in memory. A package"
+                    echo "file you open is installed without a scan." ;;
+                NOTIFY:none)
+                    echo "A virus found is not a notification either. Everything still shows in the report and in"
+                    echo "ame security events." ;;
+            esac
+            if [[ "${value}" == off || "${value}" == none ]]; then
+                gum confirm "${title}: ${value}?" || exit 0
+            fi
+            sudo "${config}" set "${key}" "${value}"
+            # Each unit reads its key as it starts, so a restart applies it either way
+            for step in $(jq -r '.applies[]' <<<"${entry}"); do
+                case "${step}" in
+                    restart:*) sudo systemctl restart "${step#restart:}" || true ;;
+                    run) sudo systemctl start --no-block amethystora-security-watch.service || true ;;
+                    reboot) echo "The audit log's own part of this takes effect at the next restart." ;;
+                esac
+            done
+            echo "${title}: ${value}."
+            ;;
+    esac
+
+# Every detection switch at once: off turns off everything that can be, default puts each back as shipped
+profile NAME="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    config=/usr/libexec/amethystora-security-config
+    name="{{ NAME }}"
+    echo "The switches match the profile: $("${config}" --profile)"
+    if [[ -z "${name}" ]]; then
+        echo
+        echo "off      Turn off everything that can be: the security watcher, the virus scanner, the settings"
+        echo "         audit, real-time watching, network protection and the audit log. Nothing of it runs,"
+        echo "         the audit log from the next restart."
+        echo "default  Every switch back as the image ships it: network protection and real-time watching off,"
+        echo "         the rest on, and found files reported."
+        name="$(gum choose --header "Security profile" off default Cancel)"
+    fi
+    case "${name}" in
+        off)
+            gum confirm "Turn every detection switch off?" || exit 0 ;;
+        default) ;;
         *) exit 0 ;;
     esac
+    sudo "${config}" profile "${name}"
+    # Each unit reads its key as it starts, so a restart starts or stops it
+    sudo systemctl restart clamav-freshclam.service clamd@scan.service amethystora-clamav-onaccess.service \
+        amethystora-ips.service amethystora-security-realtime.service || true
+    sudo systemctl start --no-block amethystora-security-watch.service || true
+    echo "Done. The audit log and its rules follow at the next restart."
+    echo
+    echo "A profile leaves alone what the image enforces from the start, each with its own switch:"
+    /usr/libexec/amethystora-hardening status
+    echo "...and what you turned on yourself, such as ame security usb, dns or ransomware. ame security status"
+    echo "shows each of them."
+
+# Accept a check of the report that cannot be fixed on this machine, so that it stops being a warning
+allow FEATURE="report" ENTRY="" ACTION="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    helper=/usr/libexec/amethystora-security-allow
+    if [[ "{{ FEATURE }}" != report ]]; then
+        echo "Only the report's checks can be accepted: ame security allow report"
+        exit 64
+    fi
+    entry="{{ ENTRY }}"
+    accepted="$("${helper}" list report)"
+    if [[ "{{ ACTION }}" == remove ]]; then
+        line="$(awk -v id="${entry}" '$1 == id { print; exit }' <<<"${accepted}")"
+        if [[ -z "${line}" ]]; then
+            echo "${entry:-That check} is not accepted on this machine."
+            exit 0
+        fi
+        sudo "${helper}" remove report "${line}"
+        echo "Shown again: ${entry} is a warning while it needs your attention."
+        exit 0
+    fi
+    if [[ -n "${accepted}" ]]; then
+        echo "Accepted on this machine (ame security allow report ID remove shows one again):"
+        sed 's/^/  /' <<<"${accepted}"
+        echo
+    fi
+    # The checks that need attention now, as the report gives them to this account
+    open="$(/usr/libexec/amethystora-security-status --json |
+        jq -r '.checks[] | select(.group != "optional" and (.state == "check" or .state == "off")) | "\(.id)\t\(.state)\t\(.text)"')"
+    if [[ -z "${entry}" ]]; then
+        if [[ -z "${open}" ]]; then
+            echo "Nothing needs your attention."
+            exit 0
+        fi
+        mapfile -t choices < <(cut -f1,3 <<<"${open}")
+        choice="$(gum choose --header "Accept which?" "${choices[@]}" Cancel)"
+        [[ -n "${choice}" && "${choice}" != Cancel ]] || exit 0
+        entry="${choice%%$'\t'*}"
+    fi
+    line="$(awk -F'\t' -v id="${entry}" '$1 == id { print; exit }' <<<"${open}")"
+    if [[ -z "${line}" ]]; then
+        echo "${entry} is not a check that needs your attention now."
+        exit 0
+    fi
+    IFS=$'\t' read -r id state text <<<"${line}"
+    echo "\"${text}\" stays in the report as information, out of the summary and never said, until it"
+    echo "turns worse. Whatever causes it stays as it is."
+    gum confirm "Accept it?" || exit 0
+    sudo "${helper}" add report "${id} ${state}"
+    echo "Accepted. ame security allow report ${id} remove shows it again."
+
+# The image's kernel settings: programs kept from each other's memory, kernel addresses hidden, no unprivileged BPF
+kernel ACTION="":
+    @/usr/libexec/amethystora-hardening ask kernel "{{ ACTION }}"
+
+# Rarely used kernel modules kept from loading: old network protocols and filesystems, FireWire
+blocked-modules ACTION="":
+    @/usr/libexec/amethystora-hardening ask blocked-modules "{{ ACTION }}"
+
+# The image's kernel arguments, each on its own: init_on_alloc, slab_nomerge, vsyscall=none...
+kernel-args ARGUMENT="" ACTION="":
+    @/usr/libexec/amethystora-hardening ask kernel-args "{{ ARGUMENT }}" "{{ ACTION }}"
+
+# The Amethystora firewall zone, which lets in only what a desktop needs
+firewall ACTION="":
+    @/usr/libexec/amethystora-hardening ask firewall "{{ ACTION }}"
+
+# Blocking an address after repeated failed logins over SSH (fail2ban)
+failed-logins ACTION="":
+    @/usr/libexec/amethystora-hardening ask failed-logins "{{ ACTION }}"
+
+# Locking an account for ten minutes after ten wrong passwords in a row
+lockout ACTION="":
+    @/usr/libexec/amethystora-hardening ask lockout "{{ ACTION }}"
+
+# The image's override that takes X11, the input devices and the Flatpak service from every Flatpak app
+app-sandbox ACTION="":
+    @/usr/libexec/amethystora-hardening ask app-sandbox "{{ ACTION }}"
+
+# The image's SSH server settings: no root login, three tries, no X11 forwarding
+ssh-settings ACTION="":
+    @/usr/libexec/amethystora-hardening ask ssh-settings "{{ ACTION }}"
+
+# Switching this machine back to signature-checked updates at every start
+signed-updates ACTION="":
+    @/usr/libexec/amethystora-hardening ask signed-updates "{{ ACTION }}"
 
 # What the security watcher noticed: accounts, what starts by itself, settings, keyboard readers
 events ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
-    if [[ "{{ ACTION }}" == now ]]; then
+    if /usr/libexec/amethystora-security-config --is WATCHER off; then
+        echo "The security watcher is turned off, so nothing new is looked for. ame security settings turns it on."
+        echo
+    elif [[ "{{ ACTION }}" == now ]]; then
         echo "Looking now..."
         sudo systemctl start --wait amethystora-security-watch.service || true
     fi
@@ -463,10 +633,12 @@ input-remapper ACTION="":
             echo "key typed into every application, password prompts included. That is what remapping a"
             echo "key needs, and it is why this is off unless you ask for it."
             gum confirm "Turn key remapping on?" || exit 0
+            sudo /usr/libexec/amethystora-security-config note key-remapping on
             sudo systemctl enable --now input-remapper.service
             echo "On. Map keys in the Input Remapper application."
             ;;
         "Turn off" | off)
+            sudo /usr/libexec/amethystora-security-config note key-remapping off
             sudo systemctl disable --now input-remapper.service
             echo "Off. Saved mappings stay on disk and come back if you turn it on again."
             ;;
@@ -503,6 +675,7 @@ usb ACTION="":
             sudo chmod 0600 /etc/usbguard/rules.conf
             # Without this only root could list or allow a device, and the prompt below would not work
             sudo sed -i -E 's|^#?IPCAllowedGroups=.*|IPCAllowedGroups=wheel|' /etc/usbguard/usbguard-daemon.conf
+            sudo /usr/libexec/amethystora-security-config note usb-protection on
             sudo systemctl enable --now usbguard.service
             echo
             echo "On. A USB device plugged in from now on is blocked until you allow it here."
@@ -524,6 +697,7 @@ usb ACTION="":
             echo "Allowed, now and after a reboot."
             ;;
         "Turn off" | off)
+            sudo /usr/libexec/amethystora-security-config note usb-protection off
             sudo systemctl disable --now usbguard.service
             echo "Off. Every USB device is trusted again."
             ;;
@@ -562,6 +736,7 @@ browser ACTION="" ID="":
             echo "Extensions that are not on the list go: Firefox removes them, with their settings, the"
             echo "next time it starts, and the others turn theirs off. Allow the ones you use first."
             gum confirm "Turn browser protection on?" || exit 0
+            sudo /usr/libexec/amethystora-security-config note browser-protection on
             sudo "${policy}" on
             echo "On. Each browser takes it up the next time it starts."
             ;;
@@ -578,6 +753,7 @@ browser ACTION="" ID="":
             echo "and run: ame security browser on"
             ;;
         "Turn off" | off)
+            sudo /usr/libexec/amethystora-security-config note browser-protection off
             sudo "${policy}" off
             echo "Off. Browsers install any extension again; the ones Firefox removed do not come back."
             ;;
@@ -628,6 +804,7 @@ dns ACTION="" *SERVERS:
     case "${action}" in
         "" | Cancel) exit 0 ;;
         off)
+            sudo /usr/libexec/amethystora-security-config note encrypted-dns off
             sudo "${helper}" off
             systemctl --user stop amethystora-dns-portal.service 2>/dev/null || true
             echo "Off. Names are looked up with the network's own DNS servers again."
@@ -682,6 +859,7 @@ dns ACTION="" *SERVERS:
     echo "A network that wants a login first, as in hotels and on trains, cannot show its page while this"
     echo "is on. A notification offers to pause it then: ame security dns pause."
     gum confirm "Send every lookup to ${name}?" || exit 0
+    sudo /usr/libexec/amethystora-security-config note encrypted-dns on
     sudo "${helper}" on "${action}" "${servers[@]}"
     # What offers the pause on a network that wants a login first, from now rather than the next login
     systemctl --user start amethystora-dns-portal.service 2>/dev/null || true
@@ -715,10 +893,12 @@ mac ACTION="":
             echo "refuses it. For that network, open it in Settings, then Identity, and set Cloned Address"
             echo "to Permanent."
             gum confirm "Use a different address on each network?" || exit 0
+            sudo /usr/libexec/amethystora-security-config note network-address on
             sudo "${helper}" on
             echo "On, from the next time each network connects. Turn Wi-Fi off and on to start now."
             ;;
         "Turn off" | off)
+            sudo /usr/libexec/amethystora-security-config note network-address off
             sudo "${helper}" off
             echo "Off, from the next time each network connects."
             ;;
@@ -844,6 +1024,7 @@ ransomware ACTION="":
             echo "What this does not survive is ransomware that gets root. An append-only backup somewhere"
             echo "else does: ame backup"
             gum confirm "Turn ransomware protection on?" || exit 0
+            sudo /usr/libexec/amethystora-security-config note ransomware-protection on
             sudo systemctl enable --now amethystora-home-snapshot.timer
             sudo systemctl start amethystora-home-snapshot.service
             # Real-time scanning lists the folders it leaves out as it starts, and the snapshots are one
@@ -897,6 +1078,7 @@ ransomware ACTION="":
             esac
             ;;
         "Turn off" | off)
+            sudo /usr/libexec/amethystora-security-config note ransomware-protection off
             sudo systemctl disable --now amethystora-home-snapshot.timer
             echo "Off. No more snapshots are taken."
             if [[ ${#TAKEN[@]} -gt 0 ]] && gum confirm "Delete the ${#TAKEN[@]} snapshot(s) already taken, and free their space?"; then
@@ -935,6 +1117,10 @@ scan ACTION="":
     fi
     case "${action}" in
         "Scan now" | now)
+            if /usr/libexec/amethystora-security-config --is VIRUS_SCAN off; then
+                echo "The virus scanner is turned off. Turn it on first with: ame security settings virus-scan"
+                exit 1
+            fi
             echo "Scanning the home and temporary directories. This takes a while."
             sudo systemctl start --wait amethystora-clamav-scan.service || true
             sudo journalctl -u amethystora-clamav-scan.service -n 40 --no-pager

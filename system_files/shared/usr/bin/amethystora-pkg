@@ -1392,9 +1392,11 @@ cmd_definitions() {
 # --- A package file ---------------------------------------------------------------------------------
 
 # ClamAV first: clamd when its socket lets this account in, clamscan, which loads the signatures
-# itself, when it does not. 0 clean, 1 found (the signature is printed), 2 could not tell.
+# itself, when it does not. 0 clean, 1 found (the signature is printed), 2 could not tell, 3 the owner
+# turned the virus scanner off (VIRUS_SCAN=off in /etc/amethystora/security.conf).
 scan_file() {
     local output status
+    /usr/libexec/amethystora-security-config --is VIRUS_SCAN off 2>/dev/null && return 3
     if command -v clamdscan >/dev/null 2>&1; then
         output="$(clamdscan --fdpass --no-summary -- "$1" 2>&1)"
         status=$?
@@ -1559,6 +1561,7 @@ cmd_install_file() {
     status=$?
     case "${status}" in
         0) say "No known malware in it." ;;
+        3) say "Not scanned: the virus scanner is turned off on this machine (ame security settings virus-scan)." ;;
         1) die "Not installed: it matches known malware (${found:-a ClamAV signature}). Delete it." ;;
         *)
             warn "It could not be scanned: the virus scanner has no signatures yet, or is not running."

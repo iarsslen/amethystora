@@ -87,8 +87,8 @@ done
 # augenrules concatenates /etc/audit/rules.d/*.rules in name order and loads the result. The file the
 # audit package ships is called audit.rules, and a letter sorts after a digit, so it lands after every
 # numbered file in the directory. Its first rule is -D, "delete every rule loaded so far", which would
-# quietly erase the watches in 60-amethystora.rules and everything the boot-time generator adds after
-# them. Give it a name that sorts first, which is where its buffer settings belong anyway.
+# quietly erase the watches the boot-time generator writes into 60- and 61-amethystora. Give it a name
+# that sorts first, which is where its buffer settings belong anyway.
 if [[ -f /etc/audit/rules.d/audit.rules ]]; then
     mv /etc/audit/rules.d/audit.rules /etc/audit/rules.d/10-base.rules
 fi

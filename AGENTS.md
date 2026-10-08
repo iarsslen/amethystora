@@ -350,15 +350,32 @@ in `amethystora-ips.nft`, and the fail-open, exception and stream settings
 that way: a failure must cost inspection, never the network.
 
 The security watcher (`amethystora-security-watch`, on a 15-minute timer, or on each audit event when
-`REALTIME=on`) reads the audit log per key, the journal, `/etc` against `/usr/etc`, setuid files outside
-`/usr` and listening ports, writes what only root can see to `/var/lib/amethystora/security/status.json`
-for the report, and runs the report to notify when a watched check turns bad. It also looks at what
-each account's session finds first: a command in `~/.local/bin`, `~/bin` or Homebrew's prefix named
-like a system one, and a launcher in `~/.local/share/applications` that no container export made. A
-new audit key, in `60-amethystora.rules` or in the per-home rules `amethystora-audit-home-rules` writes
-(`persistence`, `user-programs`), has to be added to the watcher and to `amethystora-security-realtime`;
-`20-tests.sh` fails otherwise. The app's **Containers** page is what `amethystora-pkg containers list
---json` says, run as the user.
+`REALTIME_WATCH=on`) reads the audit log per key, the journal, `/etc` against `/usr/etc`, setuid files
+outside `/usr` and listening ports, writes what only root can see to
+`/var/lib/amethystora/security/status.json` for the report, and runs the report to notify when a watched
+check turns bad. It also looks at what each account's session finds first: a command in `~/.local/bin`,
+`~/bin` or Homebrew's prefix named like a system one, and a launcher in `~/.local/share/applications` that
+no container export made. The audit rules ship one file per key in `/usr/share/amethystora/audit`, which
+`amethystora-audit-home-rules` writes into `/etc/audit/rules.d/60-amethystora.rules` at every boot, beside
+the per-home rules (`persistence`, `user-programs`). A new audit key has to be added to the watcher, to
+`amethystora-security-realtime` and to `amethystora-security-config`; `20-tests.sh` fails otherwise. The
+app's **Containers** page is what `amethystora-pkg containers list --json` says, run as the user.
+
+**Every security feature is a switch, and off costs nothing** (the maintainer's rule of 2026-10-08). A
+detection feature is a key in `security.conf`, defined in `amethystora-security-config` with its values,
+words, group and how it applies (`--list --json`, the app's **Settings** page, `ame security settings`);
+every unit that runs one reads its key in `ExecCondition=` (a drop-in for the packages' own: `clamd@`,
+`clamav-freshclam`, `auditd`, `audit-rules`), and a key that is off writes no audit rule, so a line edited
+by hand applies at the next boot. What the image enforces from the start (kernel settings, blocked
+modules, kernel arguments, firewall zone, fail2ban, lockout, the Flatpak override, SSH settings, signed
+updates) is switched by `/usr/libexec/amethystora-hardening`, one `ame security` command each, which keeps
+what is off in `/etc/amethystora/hardening-off` and names the files it writes, which the watcher's drift
+check accepts exactly. A feature switched off is `info` in the report with the command that turns it on,
+never a warning; turned off any other way it still warns. A change made through a switch is noted
+(`amethystora-security-config note`), and the watcher records it without notifying. `ame security
+profile off|default` sets every detection key at once. `ame security allow report` accepts a check that
+cannot be fixed on the machine (`/usr/libexec/amethystora-security-allow`). `test-security-switches.sh`
+checks all of it. A new feature gets its switch with it, off by default.
 
 What each Flatpak can reach beyond its sandbox is `/usr/libexec/amethystora-app-permissions --json`,
 run as the user, which the report's **App permissions** check, the app's **Apps** page and `ame

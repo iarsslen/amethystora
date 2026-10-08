@@ -21,6 +21,11 @@ command -v notify-send >/dev/null || exit 0
 STATE="${XDG_STATE_HOME:-${HOME}/.local/state}/amethystora"
 
 say() {
+    # NOTIFY in /etc/amethystora/security.conf: all, critical only, or none. The report says it all anyway.
+    case "$(/usr/libexec/amethystora-security-config NOTIFY)" in
+        none) return 0 ;;
+        critical) [[ "${1}" == critical ]] || return 0 ;;
+    esac
     notify-send --app-name=Amethystora --urgency="${1}" --icon=dialog-warning "${2}" "${3}"
 }
 

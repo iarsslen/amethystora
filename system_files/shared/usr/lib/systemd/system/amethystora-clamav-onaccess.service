@@ -7,9 +7,11 @@ Wants=clamd@scan.service
 After=clamd@scan.service
 
 [Service]
-# Only with REALTIME=on in /etc/amethystora/security.conf. Otherwise the unit is skipped, not failed, and
-# nothing watches anything. `ame security settings realtime` starts or stops it as the setting changes.
-ExecCondition=/usr/libexec/amethystora-security-config --is REALTIME on
+# Only with REALTIME_SCAN=on (or REALTIME=on, which it follows until it is set itself) in
+# /etc/amethystora/security.conf, and the virus scanner not off. Otherwise the unit is skipped, not failed,
+# and nothing watches anything. `ame security settings` starts or stops it as the setting changes.
+ExecCondition=/usr/libexec/amethystora-security-config --is REALTIME_SCAN on
+ExecCondition=/usr/libexec/amethystora-security-config --is VIRUS_SCAN manual weekly
 ExecStart=/usr/libexec/amethystora-clamav-onaccess
 Restart=on-failure
 RestartSec=60

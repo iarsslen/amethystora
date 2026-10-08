@@ -27,6 +27,10 @@ contextBridge.exposeInMainWorld('security', {
     dismiss: (id) => ipcRenderer.invoke('dismiss', String(id)),
     run: (id) => ipcRenderer.invoke('run', String(id)),
     diagnose: (id) => ipcRenderer.invoke('diagnose', String(id)),
+    accept: (id, again) => ipcRenderer.invoke('accept', String(id), Boolean(again)),
+    // Every switch, and a change to one, which opens its command in a terminal
+    switches: () => ipcRenderer.invoke('switches'),
+    change: (kind, key, value, argument) => ipcRenderer.invoke('change', String(kind), String(key), String(value ?? ''), argument ? String(argument) : ''),
     showInFiles: (file) => ipcRenderer.invoke('show-in-files', String(file)),
     copy: (text) => ipcRenderer.invoke('copy', text),
     manual: (page) => ipcRenderer.invoke('manual', String(page)),

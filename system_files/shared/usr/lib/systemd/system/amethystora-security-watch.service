@@ -9,6 +9,9 @@ OnFailure=amethystora-scan-alert@%n.service
 Type=oneshot
 # Reads the audit log, the journal and /etc, sweeps /etc and /var for setuid programs once a day, and
 # writes only to /var/lib/amethystora/security and its own two logs in /var/log
+# Skipped, not failed, while WATCHER=off in /etc/amethystora/security.conf: the timer stays enabled, and the
+# key is the one place that decides
+ExecCondition=/usr/libexec/amethystora-security-config --is WATCHER on
 ExecStart=/usr/libexec/amethystora-security-watch
 Nice=19
 IOSchedulingClass=idle

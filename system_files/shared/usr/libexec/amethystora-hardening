@@ -1,0 +1,364 @@
+#!/usr/bin/bash
+# The prevention switches: what the image enforces from the start, each of which the machine's owner can
+# turn off in case it makes the machine slower or gets in the way. Each is on until somebody turns it off,
+# with its own `ame security` command, which says what it changes before it does.
+#
+#   amethystora-hardening status [--json]         every switch, on or off, with what it does
+#   amethystora-hardening is-on NAME [ARGUMENT]   exit 0 when it is on (ExecCondition=)
+#   amethystora-hardening set NAME on|off [ARG]   turn it on or off (root); kernel-args takes the argument,
+#                                                 and all of them without one
+#   amethystora-hardening ask NAME [ARG] [on|off] say what it does, ask, and set it with sudo: the
+#                                                 `ame security NAME` recipes
+#   amethystora-hardening managed                 what a switch that is off has written in /etc, one
+#                                                 "path<TAB>mask|file" a line, for the security watcher
+#   amethystora-hardening expected PATH           what the switch writes at /etc/PATH while it is off
+#
+# What the owner turned off is kept in /etc/amethystora/hardening-off, one switch a line ("kernel-args
+# init_on_alloc=1" for one argument). That is how the report tells a switch turned off from a setting
+# changed some other way, which it still flags, and how the watcher accepts exactly the files a switch
+# writes, as it does for SSH codes, and nothing in between.
+
+set -uo pipefail
+
+# AMETHYSTORA_HARDENING_ROOT is for the tests in build_files/shared, which read a stand-in /etc
+ROOT="${AMETHYSTORA_HARDENING_ROOT:-}"
+OFF="${ROOT}/etc/amethystora/hardening-off"
+SHARE=/usr/share/amethystora/hardening
+KARGS=/usr/lib/bootc/kargs.d/10-amethystora-hardening.toml
+NAMES=(kernel blocked-modules kernel-args firewall failed-logins lockout app-sandbox ssh-settings signed-updates)
+
+SYSCTL=sysctl.d/60-amethystora-hardening.conf
+MODPROBE=modprobe.d/60-amethystora-hardening.conf
+FIREWALLD=firewalld/firewalld.conf
+JAIL=fail2ban/jail.d/20-amethystora-zone.conf
+FAILLOCK=security/faillock.conf
+SANDBOX=flatpak/overrides/global
+SSHD=ssh/sshd_config.d/39-amethystora-ssh-settings-off.conf
+# The image's own /etc: ostree keeps it in /usr/etc on a machine, and the image itself, as the build sees
+# it, has only /etc
+IMAGE_ETC=/usr/etc
+[[ -d "${IMAGE_ETC}" ]] || IMAGE_ETC=/etc
+# The zone the firewall falls back to with the Amethystora zone off: Fedora Workstation's, as before
+FALLBACK_ZONE=FedoraWorkstation
+
+usage() {
+    echo "usage: ${0##*/} status [--json] | is-on NAME [ARGUMENT] | set NAME on|off [ARGUMENT]" \
+        "| ask NAME [ARGUMENT] [on|off] | managed" \
+        "| expected PATH (switches: ${NAMES[*]})" >&2
+    exit 64
+}
+
+known() { [[ " ${NAMES[*]} " == *" $1 "* ]]; }
+need_root() { [[ "${EUID}" -eq 0 ]] || { echo "Changing a security setting needs root." >&2; exit 77; }; }
+sealed() { [[ -e /usr/share/amethystora/sealed ]]; }
+
+# The kernel arguments the image asks for, which kernel-args switches one by one
+arguments() {
+    sed -n 's/^kargs *= *\[\(.*\)\]/\1/p' "${KARGS}" 2>/dev/null | tr -d '",' | tr ' ' '\n' | grep .
+}
+
+# Off when the owner turned it off: the whole switch, or for kernel-args the one argument named
+is_off() {
+    if [[ "$1" == kernel-args && -z "${2:-}" ]]; then
+        grep -q '^kernel-args ' "${OFF}" 2>/dev/null
+    else
+        grep -qxF -- "$1${2:+ $2}" "${OFF}" 2>/dev/null
+    fi
+}
+
+record() {
+    local line="$1${3:+ $3}" switched="$2"
+    mkdir -p "${OFF%/*}"
+    { grep -vxF -- "${line}" "${OFF}" 2>/dev/null || true; [[ "${switched}" == off ]] && echo "${line}"; } >"${OFF}.new"
+    if [[ -s "${OFF}.new" ]]; then
+        mv "${OFF}.new" "${OFF}"
+        chmod 0644 "${OFF}"
+    else
+        rm -f "${OFF}.new" "${OFF}"
+    fi
+    # The security watcher records the change without announcing it: the person at the machine made it
+    /usr/libexec/amethystora-security-config note "$1${3:+:$3}" "${switched}" 2>/dev/null || true
+}
+
+# The content of a file a switch writes while it is off, for set and for the watcher to compare with
+expected() {
+    case "$1" in
+        "${FIREWALLD}") sed -E "s/^DefaultZone=.*/DefaultZone=${FALLBACK_ZONE}/" "${IMAGE_ETC}/${FIREWALLD}" ;;
+        "${JAIL}") cat "${SHARE}/${JAIL##*/}" ;;
+        "${FAILLOCK}") sed -E 's/^deny[[:space:]]*=.*/deny = 0/' "${IMAGE_ETC}/${FAILLOCK}" ;;
+        "${SANDBOX}") cat "${SHARE}/flatpak-global-off" ;;
+        "${SSHD}") cat "${SHARE}/${SSHD##*/}" ;;
+        *) return 1 ;;
+    esac
+}
+
+managed() {
+    is_off kernel && printf '%s\tmask\n' "${SYSCTL}"
+    is_off blocked-modules && printf '%s\tmask\n' "${MODPROBE}"
+    is_off firewall && printf '%s\tfile\n%s\tfile\n' "${FIREWALLD}" "${JAIL}"
+    is_off lockout && printf '%s\tfile\n' "${FAILLOCK}"
+    is_off app-sandbox && printf '%s\tfile\n' "${SANDBOX}"
+    is_off ssh-settings && printf '%s\tfile\n' "${SSHD}"
+    return 0
+}
+
+# Puts the content expected() gives at /etc/PATH, or the image's own copy back with "image"
+place() {
+    local rel="$1" content
+    if [[ "${2:-}" == image ]]; then
+        if [[ -e "/usr/etc/${rel}" ]]; then
+            cp -a "/usr/etc/${rel}" "/etc/${rel}"
+        else
+            rm -f "/etc/${rel}"
+        fi
+    else
+        content="$(expected "${rel}")" || return 1
+        mkdir -p "$(dirname "/etc/${rel}")"
+        printf '%s\n' "${content}" >"/etc/${rel}.new"
+        chmod 0644 "/etc/${rel}.new"
+        mv "/etc/${rel}.new" "/etc/${rel}"
+    fi
+    restorecon "/etc/${rel}" 2>/dev/null || true
+}
+
+mask() {
+    if [[ "$2" == off ]]; then
+        ln -sfn /dev/null "/etc/$1"
+    elif [[ "$(readlink "/etc/$1" 2>/dev/null)" == /dev/null ]]; then
+        rm -f "/etc/$1"
+    fi
+}
+
+set_switch() {
+    local name="$1" switched="$2" argument="${3:-}" arg
+    case "${name}" in
+        kernel)
+            mask "${SYSCTL}" "${switched}"
+            # Back on applies at once; off leaves each value as it is until the next restart, since
+            # nothing sets a kernel setting back to what it was before
+            [[ "${switched}" == on ]] && sysctl --system >/dev/null
+            ;;
+        blocked-modules)
+            mask "${MODPROBE}" "${switched}"
+            ;;
+        kernel-args)
+            if sealed; then
+                echo "This machine is sealed: its kernel arguments are inside the signed kernel image." >&2
+                return 1
+            fi
+            if [[ -n "${argument}" ]]; then
+                arguments | grep -qxF -- "${argument}" ||
+                    { echo "${argument} is not one of the image's kernel arguments: $(arguments | paste -sd' ')" >&2; return 64; }
+            fi
+            for arg in $(if [[ -n "${argument}" ]]; then echo "${argument}"; else arguments; fi); do
+                if [[ "${switched}" == off ]]; then
+                    rpm-ostree kargs --delete-if-present="${arg}" >/dev/null || return 1
+                else
+                    rpm-ostree kargs --append-if-missing="${arg}" >/dev/null || return 1
+                fi
+                record kernel-args "${switched}" "${arg}"
+            done
+            return 0
+            ;;
+        firewall)
+            if [[ "${switched}" == off ]]; then
+                firewall-cmd --set-default-zone="${FALLBACK_ZONE}" >/dev/null || return 1
+                place "${JAIL}"
+            else
+                firewall-cmd --set-default-zone=amethystora >/dev/null || return 1
+                rm -f "/etc/${JAIL}"
+            fi
+            systemctl try-reload-or-restart fail2ban.service 2>/dev/null
+            ;;
+        failed-logins)
+            if [[ "${switched}" == off ]]; then
+                systemctl disable --now fail2ban.service 2>/dev/null || return 1
+            else
+                systemctl enable --now fail2ban.service 2>/dev/null || return 1
+            fi
+            ;;
+        lockout)
+            if [[ "${switched}" == off ]]; then
+                place "${FAILLOCK}" || return 1
+            else
+                place "${FAILLOCK}" image
+            fi
+            ;;
+        app-sandbox)
+            if [[ "${switched}" == off ]]; then
+                place "${SANDBOX}" || return 1
+            else
+                place "${SANDBOX}" image
+            fi
+            ;;
+        ssh-settings)
+            if [[ "${switched}" == off ]]; then
+                place "${SSHD}" || return 1
+            else
+                rm -f "/etc/${SSHD}"
+            fi
+            systemctl try-reload-or-restart sshd.service 2>/dev/null
+            ;;
+        signed-updates)
+            # The service's ExecCondition reads this. Back on, it switches the machine to signed updates
+            # again, staged for the next restart; off, it switches nothing either way.
+            [[ "${switched}" == on ]] && { record "${name}" on; systemctl start --no-block amethystora-signed-updates.service; return 0; }
+            ;;
+    esac
+    record "${name}" "${switched}"
+}
+
+# The words of each switch, in the session's language where there is a translation of them
+words() {
+    export TEXTDOMAIN=amethystora
+    # shellcheck source=/dev/null
+    source gettext.sh
+    declare -gA TITLE=(
+        [kernel]="$(gettext "Kernel settings")"
+        [blocked-modules]="$(gettext "Blocked kernel modules")"
+        [kernel-args]="$(gettext "Kernel arguments")"
+        [firewall]="$(gettext "Firewall zone")"
+        [failed-logins]="$(gettext "Failed logins over the network")"
+        [lockout]="$(gettext "Account lockout")"
+        [app-sandbox]="$(gettext "App sandbox override")"
+        [ssh-settings]="$(gettext "SSH server settings")"
+        [signed-updates]="$(gettext "Signed updates")"
+    )
+    declare -gA TEXT=(
+        [kernel]="$(gettext "Hides kernel addresses and messages, keeps programs from reading each other's memory, and turns off unprivileged BPF. Off, gdb -p, strace -p, perf and dmesg work without sudo, from the next restart.")"
+        [blocked-modules]="$(gettext "Old network protocols and filesystems, FireWire and test drivers cannot load. Off, FireWire sound cards and cameras, disks from old Macs, SCTP and amateur radio work.")"
+        [kernel-args]="$(gettext "Memory wiped as it is handed out, slab caches kept apart, and no vsyscall page. init_on_alloc costs a few percent on work that allocates a lot, and vsyscall=none stops very old programs. Each one on its own, from the next restart.")"
+        [firewall]="$(gettext "The Amethystora zone lets in only what a desktop needs. Off, Fedora Workstation's zone lets in every port from 1025 up. Opening the one port a server needs is the narrower answer.")"
+        [failed-logins]="$(gettext "fail2ban blocks an address after repeated failed logins over SSH. Off, nothing runs for an SSH server that is off by default.")"
+        [lockout]="$(gettext "Ten wrong passwords in a row lock an account for ten minutes. Off, nothing is locked however many are wrong.")"
+        [app-sandbox]="$(gettext "Takes X11, the input devices and the Flatpak service from every Flatpak app. Off, each app has what its own manifest asks for. Granting X11 to one app in Flatseal is the narrower answer.")"
+        [ssh-settings]="$(gettext "No root login, three tries a connection and no X11 forwarding for the SSH server. Off, OpenSSH's and Fedora's own settings apply.")"
+        [signed-updates]="$(gettext "Switches this machine back to updates that must carry this image's signature at every start. Off, it switches nothing either way. ame system trust-image is the answer for an image of your own.")"
+    )
+    # When turning it off takes effect
+    declare -gA WHEN=(
+        [kernel]="$(gettext "From the next restart: a kernel setting keeps its value until then.")"
+        [blocked-modules]="$(gettext "At once, for a module that is not loaded yet.")"
+        [kernel-args]="$(gettext "From the next restart.")"
+        [firewall]="$(gettext "At once.")"
+        [failed-logins]="$(gettext "At once.")"
+        [lockout]="$(gettext "At once.")"
+        [app-sandbox]="$(gettext "From each app's next start.")"
+        [ssh-settings]="$(gettext "At once, if the SSH server is running.")"
+        [signed-updates]="$(gettext "From the next start. This machine stays on the updates it follows now.")"
+    )
+}
+
+# Interactive, as the user, for `ame security NAME`: says what the switch does and what turning it off
+# costs, asks, and makes the change with sudo
+ask() {
+    local name="$1" argument="" action state choice
+    words
+    if [[ "${name}" == kernel-args ]]; then
+        argument="${2:-}"
+        action="${3:-}"
+        # `ame security kernel-args off` is every one of them
+        if [[ "${argument}" =~ ^(on|off)$ && -z "${action}" ]]; then
+            action="${argument}"
+            argument=""
+        fi
+    else
+        action="${2:-}"
+    fi
+    state=on
+    is_off "${name}" ${argument:+"${argument}"} && state=off
+    echo "${TITLE[${name}]}: ${state}"
+    fold -s -w 96 <<<"${TEXT[${name}]}"
+    if [[ "${name}" == kernel-args ]]; then
+        if sealed; then
+            echo "This machine is sealed: its kernel arguments are inside the signed kernel image, and cannot change."
+            exit 1
+        fi
+        for choice in $(arguments); do
+            printf '  %-28s %s\n' "${choice}" "$(is_off kernel-args "${choice}" && echo off || echo on)"
+        done
+        if [[ -z "${argument}" && -z "${action}" ]]; then
+            # shellcheck disable=SC2046 # one choice a word, and none has a space
+            argument="$(gum choose --header "${TITLE[${name}]}" $(arguments) Cancel)"
+            [[ -n "${argument}" && "${argument}" != Cancel ]] || exit 0
+        fi
+    fi
+    if [[ -z "${action}" ]]; then
+        action="$(gum choose --header "${TITLE[${name}]}${argument:+: ${argument}}" "Turn off" "Turn on" Cancel)"
+    fi
+    case "${action}" in
+        "Turn off" | off)
+            echo
+            echo "${WHEN[${name}]}"
+            gum confirm "Turn ${TITLE[${name}]}${argument:+ (${argument})} off?" || exit 0
+            sudo /usr/libexec/amethystora-hardening set "${name}" off ${argument:+"${argument}"}
+            echo "Off. ame security ${name} on puts it back."
+            ;;
+        "Turn on" | on | standard)
+            sudo /usr/libexec/amethystora-hardening set "${name}" on ${argument:+"${argument}"}
+            echo "On."
+            ;;
+        *) exit 0 ;;
+    esac
+}
+
+status() {
+    local name state arg json=false
+    words
+    [[ "${1:-}" == --json ]] && json=true
+    for name in "${NAMES[@]}"; do
+        state=on
+        is_off "${name}" && state=off
+        if [[ "${json}" == true ]]; then
+            jq -nc --arg name "${name}" --arg state "${state}" --arg title "${TITLE[${name}]}" \
+                --arg text "${TEXT[${name}]}" --argjson sealed "$(sealed && echo true || echo false)" \
+                --argjson arguments "$(if [[ "${name}" == kernel-args ]]; then
+                    for arg in $(arguments); do
+                        jq -nc --arg argument "${arg}" --arg state "$(is_off kernel-args "${arg}" && echo off || echo on)" \
+                            '{$argument, $state}'
+                    done | jq -sc .
+                else echo null; fi)" \
+                '{$name, $state, $title, $text, command: ("ame security " + $name),
+                  fixed: ($name == "kernel-args" and $sealed),
+                  arguments: (if $arguments == null then null else $arguments end)}'
+        else
+            printf '  %-32s %s\n' "${TITLE[${name}]}" "${state}"
+            if [[ "${name}" == kernel-args ]]; then
+                for arg in $(arguments); do
+                    printf '      %-28s %s\n' "${arg}" "$(is_off kernel-args "${arg}" && echo off || echo on)"
+                done
+            fi
+        fi
+    done | if [[ "${json}" == true ]]; then jq -s .; else cat; fi
+}
+
+case "${1:-}" in
+    status)
+        status "${2:-}"
+        ;;
+    ask)
+        [[ $# -ge 2 ]] && known "$2" || usage
+        shift
+        ask "$@"
+        ;;
+    is-on)
+        [[ $# -ge 2 ]] && known "$2" || usage
+        ! is_off "$2" "${3:-}"
+        ;;
+    set)
+        [[ $# -ge 3 && "$3" =~ ^(on|off)$ ]] && known "$2" || usage
+        [[ $# -le 3 || "$2" == kernel-args ]] || usage
+        need_root
+        set_switch "$2" "$3" "${4:-}"
+        ;;
+    managed)
+        managed
+        ;;
+    expected)
+        [[ $# -eq 2 ]] || usage
+        expected "$2"
+        ;;
+    *)
+        usage
+        ;;
+esac

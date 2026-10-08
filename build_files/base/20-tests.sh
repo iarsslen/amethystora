@@ -1485,33 +1485,49 @@ done
     jq -e 'has("amethystora") and (.policies.ExtensionSettings["*"].allowed_types | index("extension") | not)
         and ([.policies.ExtensionSettings[] | .installation_mode // "allowed"] | all(. == "allowed"))' >/dev/null
 
-# Audit rules: the watches that ship with the image, and the generator for the per-user ones, which
-# can only be written on a machine that already has home directories
-AUDIT_RULES=/etc/audit/rules.d/60-amethystora.rules
-grep -q "^-w /etc/flatpak/overrides/ -p wa -k hardening$" "${AUDIT_RULES}"
-grep -q "^-w /etc/containers/policy.json -p wa -k hardening$" "${AUDIT_RULES}"
+# Audit rules: the watches that ship with the image, one file per key, which the boot-time generator writes
+# into /etc/audit/rules.d for each key not switched off, with the per-user ones, which can only be written
+# on a machine that already has home directories. The image ships none of them in /etc.
+test ! -e /etc/audit/rules.d/60-amethystora.rules
+AUDIT_SHIPPED=/usr/share/amethystora/audit
+AUDIT_RULES="$(cat "${AUDIT_SHIPPED}"/*.rules)"
+grep -q "^-w /etc/flatpak/overrides/ -p wa -k hardening$" <<<"${AUDIT_RULES}"
+grep -q "^-w /etc/containers/policy.json -p wa -k hardening$" <<<"${AUDIT_RULES}"
 # A watch needs its path to be there when the rules load, and this one is the Firefox package's
-grep -q "^-w /etc/firefox/ -p wa -k hardening$" "${AUDIT_RULES}"
+grep -q "^-w /etc/firefox/ -p wa -k hardening$" <<<"${AUDIT_RULES}"
 test -d /etc/firefox
-grep -q "dir=/dev/input" "${AUDIT_RULES}"
+grep -q "dir=/dev/input" <<<"${AUDIT_RULES}"
 test -x /usr/libexec/amethystora-audit-home-rules
 # One line augenrules cannot parse stops every rule in the directory from loading, which would leave
 # the machine silently unaudited. auditctl cannot be asked about it during a container build, where
 # there is no audit netlink socket to talk to, so the shape of each rule is what gets checked.
-grep -vE '^[[:space:]]*(#|$)' "${AUDIT_RULES}" | grep -qvE '^-(w|a) ' && false
+grep -vE '^[[:space:]]*(#|$)' <<<"${AUDIT_RULES}" | grep -qvE '^-(w|a) ' && false
+# Every file is one key's, named after it, and that key is a switch (amethystora-security-config): a key
+# that is off loads no rule, from the next restart
+for rules in "${AUDIT_SHIPPED}"/*.rules; do
+    key="$(basename "${rules}" .rules)"
+    grep -vE '^[[:space:]]*(#|$)' "${rules}" | grep -qvE -- "-k ${key}$" && false
+    /usr/libexec/amethystora-security-config "$(tr 'a-z-' 'A-Z_' <<<"${key}")" >/dev/null
+done
 
 # The key the update policy names, not only the policy file that names it: a watch on policy.json
 # alone watches the lock and not the key.
 for path in /etc/pki/containers/ /etc/containers/registries.d/ /etc/pki/akmods/certs/; do
-    grep -q "^-w ${path} -p wa -k hardening$" "${AUDIT_RULES}"
+    grep -q "^-w ${path} -p wa -k hardening$" <<<"${AUDIT_RULES}"
 done
 
 # How the rule set ends. augenrules concatenates every .rules file in this directory in name order and
-# loads the result, so this reproduces that concatenation and checks it, rather than checking the files
-# one at a time: a -D ("delete every rule loaded so far") in a file that sorts after ours would erase
-# the whole lot, which is why 08-hardening.sh renames the file the audit package ships.
-AUDIT_CONCAT="$(find /etc/audit/rules.d -name '*.rules' -printf '%p\n' | LC_ALL=C sort |
-    while read -r rules; do cat "${rules}"; done)"
+# loads the result, so this reproduces that concatenation, with what the generator writes at boot for
+# the keys as the image ships them, and checks it, rather than checking the files one at a time: a -D
+# ("delete every rule loaded so far") in a file that sorts after ours would erase the whole lot, which is
+# why 08-hardening.sh renames the file the audit package ships.
+AUDIT_BOOT="$(mktemp -d)"
+mkdir -p "${AUDIT_BOOT}/etc/audit/rules.d" "${AUDIT_BOOT}/var/home"
+: >"${AUDIT_BOOT}/etc/passwd"
+AMETHYSTORA_AUDIT_ROOT="${AUDIT_BOOT}" bash /usr/libexec/amethystora-audit-home-rules
+AUDIT_CONCAT="$(find /etc/audit/rules.d "${AUDIT_BOOT}/etc/audit/rules.d" -name '*.rules' -printf '%f\t%p\n' |
+    LC_ALL=C sort | cut -f2 | while read -r rules; do cat "${rules}"; done)"
+rm -rf "${AUDIT_BOOT}"
 AUDIT_DIRECTIVES="$(grep -vE '^[[:space:]]*(#|$)' <<<"${AUDIT_CONCAT}" || true)"
 # Immutable, and it is the last word
 [[ "$(tail -n1 <<<"${AUDIT_DIRECTIVES}")" == "-e 2" ]]
@@ -1569,10 +1585,12 @@ grep -q "^d /var/lib/amethystora/quarantine 0700 root root" /usr/lib/tmpfiles.d/
 grep -q "^settings " /usr/share/amethystora/just/security.just
 grep -q '"Put a file back" | restore)' /usr/share/amethystora/just/security.just
 
-# Real-time watching and scanning: enabled, but each unit skips itself unless REALTIME=on, the way the
-# setting is meant to switch it rather than a unit somebody has to know about. The watcher's trigger also
-# runs while network protection is on, to follow Suricata's alerts, and asks its script whether to.
-grep -q "^ExecCondition=/usr/libexec/amethystora-security-config --is REALTIME on$" \
+# Real-time watching and scanning: enabled, but each unit skips itself unless its half of REALTIME is on,
+# the way the setting is meant to switch it rather than a unit somebody has to know about. The watcher's
+# trigger also runs while network protection is on, to follow Suricata's alerts, and asks its script whether to.
+grep -q "^ExecCondition=/usr/libexec/amethystora-security-config --is REALTIME_SCAN on$" \
+    /usr/lib/systemd/system/amethystora-clamav-onaccess.service
+grep -q "^ExecCondition=/usr/libexec/amethystora-security-config --is VIRUS_SCAN manual weekly$" \
     /usr/lib/systemd/system/amethystora-clamav-onaccess.service
 grep -q "^ExecCondition=/usr/libexec/amethystora-security-realtime --check$" \
     /usr/lib/systemd/system/amethystora-security-realtime.service
@@ -1589,15 +1607,38 @@ test -x /usr/libexec/amethystora-security-watch
 test -x /usr/libexec/amethystora-security-realtime
 grep -q "^OnFailure=amethystora-scan-alert@%n.service$" /usr/lib/systemd/system/amethystora-security-watch.service
 grep -q -- "-k user-programs" /usr/libexec/amethystora-audit-home-rules
-for key in $( { grep -ohE -- '-k [a-z-]+$' /etc/audit/rules.d/60-amethystora.rules | cut -d' ' -f2
+for key in $( { grep -ohE -- '-k [a-z-]+$' /usr/share/amethystora/audit/*.rules | cut -d' ' -f2
     grep -ohE -- '(-k |key=)[a-z-]+' /usr/libexec/amethystora-audit-home-rules | sed -E 's/^(-k |key=)//'; } | sort -u); do
     grep -E "^AUDIT_KEYS=\(" /usr/libexec/amethystora-security-watch | grep -qw -- "${key}"
     grep -E "^KEYS=" /usr/libexec/amethystora-security-realtime | grep -qw -- "${key}"
+    # ...and is a switch, as every audit key is
+    /usr/libexec/amethystora-security-config "$(tr 'a-z-' 'A-Z_' <<<"${key}")" >/dev/null
 done
-# ...and a watch on a path that is not there stops every rule after it from loading
-for path in $(grep -oE '^-w [^ ]+' /etc/audit/rules.d/60-amethystora.rules | cut -d' ' -f2); do
+# ...and a watch on a path that is not there stops every rule after it from loading, which the generator
+# leaves out on a machine rather than write
+for path in $(grep -ohE '^-w [^ ]+' /usr/share/amethystora/audit/*.rules | cut -d' ' -f2); do
     test -e "${path}"
 done
+
+# Every security feature is a switch, and off costs nothing: each unit the image enables for one reads its
+# key as it starts (ExecCondition=), the packages' own through a drop-in, so that a line in security.conf
+# edited by hand applies at the next boot. Then the settings helper, the generator, the report with every
+# key off, the prevention switches and accepted checks, against stand-ins.
+for unit in amethystora-security-watch amethystora-clamav-scan amethystora-clamav-onaccess amethystora-lynis-audit \
+    amethystora-audit-rules amethystora-security-realtime amethystora-ips amethystora-ips-rules amethystora-signed-updates; do
+    grep -q "^ExecCondition=" "/usr/lib/systemd/system/${unit}.service"
+done
+for unit in auditd.service audit-rules.service clamav-freshclam.service clamd@.service; do
+    grep -q "^ExecCondition=/usr/libexec/amethystora-security-config --is " "/usr/lib/systemd/system/${unit}.d/10-amethystora.conf"
+done
+test -x /usr/libexec/amethystora-hardening
+test -x /usr/libexec/amethystora-security-allow
+grep -q "^profile " /usr/share/amethystora/just/security.just
+grep -q "^allow " /usr/share/amethystora/just/security.just
+for switch in $(/usr/libexec/amethystora-hardening status --json | jq -r '.[].name'); do
+    grep -q "^${switch} " /usr/share/amethystora/just/security.just
+done
+bash /ctx/build_files/shared/test-security-switches.sh
 # Its checks are the report's: the watcher runs the report rather than keeping checks of its own
 grep -q "/usr/libexec/amethystora-security-status --json" /usr/libexec/amethystora-security-watch
 grep -q "^events " /usr/share/amethystora/just/security.just

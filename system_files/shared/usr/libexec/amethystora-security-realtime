@@ -2,10 +2,13 @@
 # Real-time watching (amethystora-security-realtime.service). The security watcher otherwise looks every 15
 # minutes; this has it look as soon as something it reads happens:
 #
-#   - with REALTIME=on in /etc/amethystora/security.conf, an audit log event under one of the keys in
-#     /etc/audit/rules.d/60-amethystora.rules, the way Wazuh's who-data follows the audit stream
+#   - with REALTIME_WATCH=on in /etc/amethystora/security.conf (or REALTIME=on, which it follows until it
+#     is set itself), an audit log event under one of the keys the audit rules write, the way Wazuh's
+#     who-data follows the audit stream
 #   - while network protection is on (NETWORK=watch or block), an alert in Suricata's eve.json, so that
 #     a connection it cut off is explained while whoever made it is still wondering why it failed
+#
+# Neither while the watcher itself is off (WATCHER=off): there is nothing to start then.
 #
 #   amethystora-security-realtime           follow them
 #   amethystora-security-realtime --check   exit 0 when there is anything to follow (ExecCondition=)
@@ -25,11 +28,13 @@ EVERY=60
 
 FILES=()
 PATTERNS=()
-if "${CONFIG}" --is REALTIME on; then
+if ! "${CONFIG}" --is WATCHER on; then
+    :
+elif "${CONFIG}" --is REALTIME_WATCH on && "${CONFIG}" --is AUDIT_LOG on; then
     FILES+=(/var/log/audit/audit.log)
     PATTERNS+=(-e " key=\"(${KEYS})\"")
 fi
-if ! "${CONFIG}" --is NETWORK off; then
+if "${CONFIG}" --is WATCHER on && ! "${CONFIG}" --is NETWORK off; then
     FILES+=(/var/log/suricata/eve.json)
     PATTERNS+=(-e '"event_type":"alert"')
 fi

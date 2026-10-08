@@ -1,0 +1,12 @@
+## Amethystora audit rules, key privilege. amethystora-audit-home-rules copies this into
+## /etc/audit/rules.d/60-amethystora.rules at every boot, before auditd starts, unless PRIVILEGE=off in
+## /etc/amethystora/security.conf: a key that is off loads no rule and costs nothing. A watch on a path that
+## is not there is left out, since it would stop auditctl loading every rule after it.
+##
+## Read what these caught with: sudo ausearch -i -k privilege
+
+## Who is allowed to become root
+-w /etc/sudoers -p wa -k privilege
+-w /etc/sudoers.d/ -p wa -k privilege
+-w /etc/polkit-1/rules.d/ -p wa -k privilege
+-w /usr/share/polkit-1/rules.d/ -p wa -k privilege

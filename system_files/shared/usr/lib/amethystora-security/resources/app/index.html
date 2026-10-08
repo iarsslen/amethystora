@@ -49,6 +49,7 @@
         <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2.5" fill="currentColor"/></symbol>
         <symbol id="i-box" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9"/></symbol>
         <symbol id="i-spinner" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 1-9 9"/></symbol>
+        <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></symbol>
     </svg>
 
     <!-- The app's own icon, amethystora-security-status in build_files/shared/candy-icons: the pack's
@@ -98,6 +99,11 @@
             <button type="button" data-page="containers">
                 <svg class="icon" width="20" height="20" aria-hidden="true"><use href="#i-box"/></svg>
                 <span class="grow" data-i18n>Containers</span>
+                <span class="badge" hidden></span>
+            </button>
+            <button type="button" data-page="settings">
+                <svg class="icon" width="20" height="20" aria-hidden="true"><use href="#i-sliders"/></svg>
+                <span class="grow" data-i18n>Settings</span>
                 <span class="badge" hidden></span>
             </button>
         </nav>

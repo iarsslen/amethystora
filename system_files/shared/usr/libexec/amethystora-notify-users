@@ -1,7 +1,11 @@
 #!/usr/bin/bash
 # Show a desktop notification to whoever is logged in at the machine, from a service running as root.
 #
-# Usage: amethystora-notify-users [--action KEY=LABEL]... SUMMARY BODY [URGENCY]
+# Usage: amethystora-notify-users [--security] [--action KEY=LABEL]... SUMMARY BODY [URGENCY]
+#
+# --security marks a security finding, which NOTIFY in /etc/amethystora/security.conf may quieten: all
+# (the default) says it, critical says only what is critical, none says nothing. Either way it is still
+# written below for the journal, and stays where the report and `ame security events` find it.
 #
 # Best effort by nature: nobody may be logged in when a scheduled scan finds something. What is said
 # here is therefore never the only record of it. The journal line below always happens, the finding
@@ -14,6 +18,11 @@
 
 set -uo pipefail
 
+SECURITY=false
+if [[ "${1:-}" == --security ]]; then
+    SECURITY=true
+    shift
+fi
 ACTIONS=()
 while [[ "${1:-}" == --action ]]; do
     ACTIONS+=("--action=${2:?usage: $0 [--action KEY=LABEL]... SUMMARY BODY [URGENCY]}")
@@ -29,6 +38,12 @@ URGENCY="${3:-normal}"
 if [[ ${#ACTIONS[@]} -eq 0 ]]; then
     printf '%s\n%s\n' "${SUMMARY}" "${BODY}"
     command -v notify-send >/dev/null || exit 0
+    if [[ "${SECURITY}" == true ]]; then
+        case "$(/usr/libexec/amethystora-security-config NOTIFY)" in
+            none) exit 0 ;;
+            critical) [[ "${URGENCY}" == critical ]] || exit 0 ;;
+        esac
+    fi
 else
     printf '%s\n%s\n' "${SUMMARY}" "${BODY}" >&2
     command -v notify-send >/dev/null || exit 1

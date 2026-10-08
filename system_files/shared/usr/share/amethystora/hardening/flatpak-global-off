@@ -1,0 +1,7 @@
+# Written by `ame security app-sandbox off` (/usr/libexec/amethystora-hardening). The image's override,
+# which takes X11, the input devices and the Flatpak service from every app, is off: each app has what its
+# own manifest asks for. Only the theme is still granted, read-only, so that apps keep the desktop's look.
+# `ame security app-sandbox on` puts the image's own version back.
+
+[Context]
+filesystems=~/.themes:ro;xdg-config/gtk-4.0:ro;

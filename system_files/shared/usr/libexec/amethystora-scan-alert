@@ -57,4 +57,4 @@ case "${UNIT}" in
         ;;
 esac
 
-exec /usr/libexec/amethystora-notify-users "${SUMMARY}" "${BODY}" "${URGENCY}"
+exec /usr/libexec/amethystora-notify-users --security "${SUMMARY}" "${BODY}" "${URGENCY}"

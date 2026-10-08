@@ -214,7 +214,7 @@ for (const app of APPS) {
 // goes to the translators with every message up to the next empty line.
 
 const SHELL = ['usr/libexec/amethystora-security-status', 'usr/libexec/amethystora-app-permissions', 'usr/libexec/amethystora-layout-offer',
-    'usr/libexec/amethystora-control-list'];
+    'usr/libexec/amethystora-control-list', 'usr/libexec/amethystora-security-config', 'usr/libexec/amethystora-hardening'];
 
 // A shell word in quotes, as the program it is passed to receives it
 function unshell(word) {

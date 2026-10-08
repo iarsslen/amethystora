@@ -1,56 +1,319 @@
 #!/usr/bin/bash
 # The one reader of /etc/amethystora/security.conf, for the scripts, the recipes and the Security app.
 #
-#   amethystora-security-config KEY            the value, or the default when it is unset or unknown
-#   amethystora-security-config --is KEY VALUE exit 0 when KEY is VALUE (ExecCondition= in the units)
-#   amethystora-security-config set KEY VALUE  change it (root)
+#   amethystora-security-config KEY                 the value, or the default when it is unset or unknown
+#   amethystora-security-config --is KEY VALUE...   exit 0 when KEY is one of the VALUEs (ExecCondition=)
+#   amethystora-security-config --all               every key, as KEY=value lines
+#   amethystora-security-config --list [--json]     every setting with its values and what it does
+#   amethystora-security-config --profile           off, default or custom: which profile the keys match
+#   amethystora-security-config set KEY VALUE       change it (root), and note who did
+#   amethystora-security-config profile off|default every key that can be off to off, or each to its
+#                                                   default (root)
+#   amethystora-security-config note SWITCH VALUE   record that a switch's own command changed it (root),
+#                                                   so the security watcher records the change without
+#                                                   announcing it
 #
 # A value it does not know is the default and never an error: a typo in the file must not turn
 # real-time scanning on, files found by a scan into files deleted, or connections into blocked ones.
+#
+# Every security feature that runs without being asked for has a key here, and off means it costs
+# nothing: each unit checks its key with --is as it starts, so a line edited by hand from a text console
+# takes effect at the next boot even when the desktop does not start.
 
 set -uo pipefail
 
-CONFIG=/etc/amethystora/security.conf
+# AMETHYSTORA_SECURITY_CONF and AMETHYSTORA_SECURITY_NOTES are for the tests in build_files/shared, which
+# run against stand-ins: a build must not write to /var/lib
+CONFIG="${AMETHYSTORA_SECURITY_CONF:-/etc/amethystora/security.conf}"
+NOTES="${AMETHYSTORA_SECURITY_NOTES:-/var/lib/amethystora/security/notes}"
+NOTES_KEPT=200
 
-declare -A DEFAULTS=([ON_DETECTION]=report [REALTIME]=off [NETWORK]=off)
-declare -A ALLOWED=([ON_DETECTION]="report quarantine delete" [REALTIME]="off on" [NETWORK]="off watch block")
+# In the order --list gives them. REALTIME is the shortcut for its two halves, and not listed itself.
+KEYS=(WATCHER REALTIME_WATCH AUDIT_LOG IDENTITY PRIVILEGE PERSISTENCE HARDENING MODULES INPUT_CAPTURE
+    USER_PROGRAMS JOURNAL IMAGE_DRIFT SETUID_SWEEP LISTENERS USER_PATHS
+    VIRUS_SCAN REALTIME_SCAN ON_DETECTION SETTINGS_AUDIT NETWORK NOTIFY REPORT_ALERTS)
+
+declare -A DEFAULTS=(
+    [ON_DETECTION]=report [REALTIME]=off [NETWORK]=off
+    [WATCHER]=on [AUDIT_LOG]=on [VIRUS_SCAN]=weekly [SETTINGS_AUDIT]=on [NOTIFY]=all
+    # The two halves of REALTIME take its value until they are set themselves
+    [REALTIME_SCAN]=REALTIME [REALTIME_WATCH]=REALTIME
+    [IDENTITY]=on [PRIVILEGE]=on [PERSISTENCE]=on [HARDENING]=on [MODULES]=on [INPUT_CAPTURE]=on
+    [USER_PROGRAMS]=record [JOURNAL]=on [IMAGE_DRIFT]=on [SETUID_SWEEP]=on [LISTENERS]=on [USER_PATHS]=on
+    [REPORT_ALERTS]=on
+)
+declare -A ALLOWED=(
+    [ON_DETECTION]="report quarantine delete" [REALTIME]="off on" [NETWORK]="off watch block"
+    [WATCHER]="off on" [AUDIT_LOG]="off on" [VIRUS_SCAN]="off manual weekly" [SETTINGS_AUDIT]="off on"
+    [NOTIFY]="all critical none" [REALTIME_SCAN]="off on" [REALTIME_WATCH]="off on"
+    [IDENTITY]="off record on" [PRIVILEGE]="off record on" [PERSISTENCE]="off record on"
+    [HARDENING]="off record on" [MODULES]="off record on" [INPUT_CAPTURE]="off record on"
+    [USER_PROGRAMS]="off record on" [JOURNAL]="off record on" [IMAGE_DRIFT]="off on"
+    [SETUID_SWEEP]="off on" [LISTENERS]="off record on" [USER_PATHS]="off record on" [REPORT_ALERTS]="off on"
+)
+# How a change is applied: restart:UNIT (each checks its key as it starts), run (the watcher reads it at its
+# next run), reboot (the kernel's audit rules, which -e 2 locks, and auditd), or now (read when used)
+declare -A APPLIES=(
+    [WATCHER]="restart:amethystora-security-realtime.service run"
+    [REALTIME_WATCH]="restart:amethystora-security-realtime.service"
+    [AUDIT_LOG]="reboot"
+    [IDENTITY]="run reboot" [PRIVILEGE]="run reboot" [PERSISTENCE]="run reboot" [HARDENING]="run reboot"
+    [MODULES]="run reboot" [INPUT_CAPTURE]="run reboot" [USER_PROGRAMS]="run reboot"
+    [JOURNAL]="run" [IMAGE_DRIFT]="run" [SETUID_SWEEP]="run" [LISTENERS]="run" [USER_PATHS]="run"
+    [REPORT_ALERTS]="run"
+    [VIRUS_SCAN]="restart:clamav-freshclam.service restart:clamd@scan.service restart:amethystora-clamav-onaccess.service"
+    [REALTIME_SCAN]="restart:amethystora-clamav-onaccess.service"
+    [ON_DETECTION]="now" [SETTINGS_AUDIT]="now" [NOTIFY]="now"
+    [NETWORK]="restart:amethystora-ips.service restart:amethystora-security-realtime.service run"
+)
+declare -A GROUP=(
+    [WATCHER]=watching [REALTIME_WATCH]=watching [AUDIT_LOG]=watching [IDENTITY]=audit [PRIVILEGE]=audit
+    [PERSISTENCE]=audit [HARDENING]=audit [MODULES]=audit [INPUT_CAPTURE]=audit [USER_PROGRAMS]=audit
+    [JOURNAL]=watching [IMAGE_DRIFT]=watching [SETUID_SWEEP]=watching [LISTENERS]=watching
+    [USER_PATHS]=watching [VIRUS_SCAN]=scans [REALTIME_SCAN]=scans [ON_DETECTION]=scans
+    [SETTINGS_AUDIT]=scans [NETWORK]=network [NOTIFY]=notices [REPORT_ALERTS]=notices
+)
+# What leaves the machine: none, or downloads (signatures and rules, fetched on the machine)
+declare -A SENDS=([VIRUS_SCAN]=downloads [NETWORK]=downloads)
 
 usage() {
-    echo "usage: ${0##*/} KEY | --is KEY VALUE | set KEY VALUE (keys: ${!DEFAULTS[*]})" >&2
+    echo "usage: ${0##*/} KEY | --is KEY VALUE... | --all | --list [--json] | --profile" \
+        "| set KEY VALUE | profile off|default | note SWITCH VALUE" >&2
     exit 64
 }
 
 known_key() { [[ -n "${DEFAULTS[$1]+set}" ]]; }
 allowed() { [[ " ${ALLOWED[$1]} " == *" $2 "* ]]; }
 
+# What the file says, read once: the last assignment wins, the way a sourced file would have it, without
+# sourcing anything
+declare -A FOUND=()
+while IFS='=' read -r key found; do
+    FOUND["${key}"]="${found}"
+done < <(sed -nE 's/^[[:space:]]*([A-Z_]+)[[:space:]]*=[[:space:]]*"?([a-z]*)"?[[:space:]]*(#.*)?$/\1=\2/p' \
+    "${CONFIG}" 2>/dev/null)
+
 value() {
-    local key="$1" found
-    # The last assignment wins, the way a sourced file would have it, without sourcing anything
-    found="$(sed -nE "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*\"?([a-z]*)\"?[[:space:]]*(#.*)?$/\1/p" \
-        "${CONFIG}" 2>/dev/null | tail -n1)"
-    if allowed "${key}" "${found}"; then
-        echo "${found}"
+    local key="$1" default
+    if allowed "${key}" "${FOUND[${key}]:-}"; then
+        echo "${FOUND[${key}]}"
+        return
+    fi
+    default="${DEFAULTS[${key}]}"
+    # A half of REALTIME that is not set itself follows it
+    [[ "${default}" == REALTIME ]] && default="$(value REALTIME)"
+    echo "${default}"
+}
+
+need_root() {
+    [[ "${EUID}" -eq 0 ]] || { echo "Changing a security setting needs root." >&2; exit 77; }
+}
+
+# Who asked, for the note: sudo and pkexec both say
+asker() {
+    if [[ -n "${SUDO_USER:-}" ]]; then
+        echo "${SUDO_USER}"
+    elif [[ -n "${PKEXEC_UID:-}" ]]; then
+        id -nu "${PKEXEC_UID}" 2>/dev/null || echo "${PKEXEC_UID}"
     else
-        echo "${DEFAULTS[${key}]}"
+        id -nu
+    fi
+}
+
+note() {
+    [[ "$1" =~ ^[a-z0-9_.=:-]+$ && "$2" =~ ^[a-z0-9_.=:-]+$ ]] || usage
+    need_root
+    mkdir -p -m 0755 "${NOTES%/*}"
+    printf '%s\t%s\t%s\t%s\n' "$(date +%s)" "$1" "$2" "$(asker)" >>"${NOTES}"
+    tail -n "${NOTES_KEPT}" "${NOTES}" >"${NOTES}.new" && mv "${NOTES}.new" "${NOTES}"
+    chmod 0600 "${NOTES}"
+}
+
+write() {
+    local key="$1" new="$2"
+    mkdir -p "${CONFIG%/*}"
+    if [[ -z "${new}" ]]; then
+        sed -i -E "/^[[:space:]]*${key}[[:space:]]*=/d" "${CONFIG}" 2>/dev/null
+    elif grep -qE "^[[:space:]]*${key}[[:space:]]*=" "${CONFIG}" 2>/dev/null; then
+        sed -i -E "s/^[[:space:]]*${key}[[:space:]]*=.*/${key}=${new}/" "${CONFIG}"
+    else
+        printf '%s=%s\n' "${key}" "${new}" >>"${CONFIG}"
+    fi
+    chmod 0644 "${CONFIG}"
+}
+
+# Which profile the keys match as they stand: off, default, or custom
+current_profile() {
+    local key off=true default=true
+    for key in "${!DEFAULTS[@]}"; do
+        allowed "${key}" off && [[ "$(value "${key}")" != off ]] && off=false
+        [[ "${DEFAULTS[${key}]}" == REALTIME ]] && continue
+        [[ "$(value "${key}")" != "${DEFAULTS[${key}]}" ]] && default=false
+    done
+    # The halves of REALTIME are at their default when they follow it
+    [[ -n "${FOUND[REALTIME_SCAN]:-}${FOUND[REALTIME_WATCH]:-}" &&
+        ( "$(value REALTIME_SCAN)" != "$(value REALTIME)" || "$(value REALTIME_WATCH)" != "$(value REALTIME)" ) ]] &&
+        default=false
+    if [[ "${off}" == true ]]; then
+        echo off
+    elif [[ "${default}" == true ]]; then
+        echo default
+    else
+        echo custom
+    fi
+}
+
+# What a running feature costs now, from systemd's own accounting: the memory of its daemons, or how long
+# its last run took. Empty when it is not running or has not run.
+cost() {
+    local units="" run="" unit bytes total=0 start stop
+    case "$1" in
+        VIRUS_SCAN) units="clamd@scan.service clamav-freshclam.service" ;;
+        REALTIME_SCAN) units="amethystora-clamav-onaccess.service" ;;
+        NETWORK) units="amethystora-ips.service" ;;
+        REALTIME_WATCH) units="amethystora-security-realtime.service" ;;
+        WATCHER) run=amethystora-security-watch.service ;;
+        SETTINGS_AUDIT) run=amethystora-lynis-audit.service ;;
+        AUDIT_LOG) units="auditd.service" ;;
+    esac
+    for unit in ${units}; do
+        bytes="$(systemctl show -p MemoryCurrent --value "${unit}" 2>/dev/null)"
+        [[ "${bytes}" =~ ^[0-9]+$ ]] && total=$((total + bytes))
+    done
+    if [[ "${total}" -gt 0 ]]; then
+        echo "{\"memory\":${total}}"
+    elif [[ -n "${run}" ]]; then
+        { read -r start; read -r stop; } < <(systemctl show -p ExecMainStartTimestampMonotonic \
+            -p ExecMainExitTimestampMonotonic --value "${run}" 2>/dev/null)
+        [[ "${start:-0}" =~ ^[1-9][0-9]*$ && "${stop:-0}" =~ ^[1-9][0-9]*$ && "${stop}" -ge "${start}" ]] &&
+            echo "{\"seconds\":$(((stop - start + 500000) / 1000000))}"
+    fi
+}
+
+list() {
+    # The words are the report's, in the session's language where there is a translation of them
+    export TEXTDOMAIN=amethystora
+    # shellcheck source=/dev/null
+    source gettext.sh
+    declare -A TITLE=(
+        [WATCHER]="$(gettext "Security watcher")"
+        [REALTIME_WATCH]="$(gettext "Real-time watching")"
+        [AUDIT_LOG]="$(gettext "Audit log")"
+        [IDENTITY]="$(gettext "Accounts")"
+        [PRIVILEGE]="$(gettext "Who may become root")"
+        [PERSISTENCE]="$(gettext "What starts by itself")"
+        [HARDENING]="$(gettext "Security settings")"
+        [MODULES]="$(gettext "Kernel modules")"
+        [INPUT_CAPTURE]="$(gettext "Keyboard readers")"
+        [USER_PROGRAMS]="$(gettext "Programs in home folders")"
+        [JOURNAL]="$(gettext "Logins and USB devices")"
+        [IMAGE_DRIFT]="$(gettext "Image settings")"
+        [SETUID_SWEEP]="$(gettext "Setuid sweep")"
+        [LISTENERS]="$(gettext "Open to the network")"
+        [USER_PATHS]="$(gettext "Commands a session finds first")"
+        [VIRUS_SCAN]="$(gettext "Virus scanner")"
+        [REALTIME_SCAN]="$(gettext "Real-time scanning")"
+        [ON_DETECTION]="$(gettext "Act on what scans find")"
+        [SETTINGS_AUDIT]="$(gettext "Settings audit")"
+        [NETWORK]="$(gettext "Network protection")"
+        [NOTIFY]="$(gettext "Notifications")"
+        [REPORT_ALERTS]="$(gettext "Report alerts")"
+    )
+    declare -A DESCRIBE=(
+        [WATCHER]="$(gettext "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on.")"
+        [REALTIME_WATCH]="$(gettext "Reads each change as the audit log records it, instead of every 15 minutes.")"
+        [AUDIT_LOG]="$(gettext "The kernel's record of changes to accounts, sudo, what starts by itself and the security settings, kept by auditd. Off, nothing is recorded and the switches that read it have nothing to read.")"
+        [IDENTITY]="$(gettext "Changes to accounts and their passwords.")"
+        [PRIVILEGE]="$(gettext "Changes to who may use sudo and to the administrator rules.")"
+        [PERSISTENCE]="$(gettext "Services, autostart entries and shell startup files: what would survive a restart.")"
+        [HARDENING]="$(gettext "Changes to the security settings, these switches included. Off, turning one of them off is not said either.")"
+        [MODULES]="$(gettext "Kernel modules loaded or removed from a login.")"
+        [INPUT_CAPTURE]="$(gettext "A program opening the keyboard or another input device directly, said the first time each program does it.")"
+        [USER_PROGRAMS]="$(gettext "Commands and launchers added to a home folder, recorded without notifying.")"
+        [JOURNAL]="$(gettext "Accounts locked after wrong passwords, repeated wrong sudo and administrator passwords, and blocked USB devices.")"
+        [IMAGE_DRIFT]="$(gettext "The security settings in /etc compared with the image's own copy, and the kernel's settings as they are.")"
+        [SETUID_SWEEP]="$(gettext "A daily search of /etc and /var for setuid programs, which only the image should have.")"
+        [LISTENERS]="$(gettext "A program that starts accepting connections from other machines.")"
+        [USER_PATHS]="$(gettext "A command in a home folder named like one of the system's, and a launcher no container export made.")"
+        [VIRUS_SCAN]="$(gettext "ClamAV. Off: no scanning, and no signatures kept in memory or downloaded. Manual: scans only when you start one. Weekly: and every Sunday, the home and temporary folders.")"
+        [REALTIME_SCAN]="$(gettext "Scans every file written in a home folder as it is closed. Costs CPU while files are being written.")"
+        [ON_DETECTION]="$(gettext "What happens to a file a virus scan finds: reported, moved to quarantine, or deleted.")"
+        [SETTINGS_AUDIT]="$(gettext "Lynis audits the settings every month, and says what is new since the last audit.")"
+        [NETWORK]="$(gettext "Suricata inspects this machine's connections. Watch says what it recognises; block also cuts off known malware.")"
+        [NOTIFY]="$(gettext "What is said out loud: everything, critical findings only, or nothing. Everything is still in the report and the history.")"
+        [REPORT_ALERTS]="$(gettext "Says when a check of the report turns bad: the firewall, signed updates, the audit log.")"
+    )
+    local key spent json=false
+    [[ "${1:-}" == --json ]] && json=true
+    if [[ "${json}" == true ]]; then
+        for key in "${KEYS[@]}"; do
+            spent="$(cost "${key}")"
+            jq -nc --arg key "${key}" --arg value "$(value "${key}")" --arg title "${TITLE[${key}]}" \
+                --arg text "${DESCRIBE[${key}]}" --arg group "${GROUP[${key}]}" \
+                --arg allowed "${ALLOWED[${key}]}" --arg applies "${APPLIES[${key}]}" \
+                --arg sends "${SENDS[${key}]:-none}" --argjson cost "${spent:-null}" \
+                '{$key, setting: ($key | ascii_downcase | gsub("_"; "-")), $value, $title, $text, $group,
+                  allowed: ($allowed | split(" ")), applies: ($applies | split(" ")), $sends, $cost}'
+        done | jq -s --arg profile "$(current_profile)" '{$profile, settings: .}'
+    else
+        for key in "${KEYS[@]}"; do
+            printf '  %-32s %-8s (%s)\n' "${TITLE[${key}]}" "$(value "${key}")" "${ALLOWED[${key}]// /, }"
+            printf '      %s\n' "$(fold -s -w 92 <<<"${DESCRIBE[${key}]}" | sed 's/ *$//; 2,$s/^/      /')"
+            printf '      ame security settings %s VALUE\n' "$(tr 'A-Z_' 'a-z-' <<<"${key}")"
+        done
     fi
 }
 
 case "${1:-}" in
     --is)
-        [[ $# -eq 3 ]] && known_key "$2" || usage
-        [[ "$(value "$2")" == "$3" ]]
+        [[ $# -ge 3 ]] && known_key "$2" || usage
+        current="$(value "$2")"
+        shift 2
+        for wanted in "$@"; do
+            [[ "${current}" == "${wanted}" ]] && exit 0
+        done
+        exit 1
+        ;;
+    --all)
+        for key in "${!DEFAULTS[@]}"; do
+            echo "${key}=$(value "${key}")"
+        done
+        ;;
+    --list)
+        list "${2:-}"
+        ;;
+    --profile)
+        current_profile
         ;;
     set)
         [[ $# -eq 3 ]] && known_key "$2" || usage
         allowed "$2" "$3" || { echo "${2} can be one of: ${ALLOWED[$2]}" >&2; exit 64; }
-        [[ "${EUID}" -eq 0 ]] || { echo "Changing a security setting needs root." >&2; exit 77; }
-        mkdir -p "${CONFIG%/*}"
-        if grep -qE "^[[:space:]]*$2[[:space:]]*=" "${CONFIG}" 2>/dev/null; then
-            sed -i -E "s/^[[:space:]]*$2[[:space:]]*=.*/$2=$3/" "${CONFIG}"
-        else
-            printf '%s=%s\n' "$2" "$3" >>"${CONFIG}"
+        need_root
+        write "$2" "$3"
+        # Setting REALTIME is setting both of its halves
+        if [[ "$2" == REALTIME ]]; then
+            write REALTIME_SCAN ""
+            write REALTIME_WATCH ""
         fi
-        chmod 0644 "${CONFIG}"
+        note "$(tr 'A-Z_' 'a-z-' <<<"$2")" "$3"
+        ;;
+    profile)
+        [[ $# -eq 2 && "$2" =~ ^(off|default)$ ]] || usage
+        need_root
+        for key in "${!DEFAULTS[@]}"; do
+            if [[ "$2" == off ]]; then
+                allowed "${key}" off && write "${key}" off
+            elif [[ "${DEFAULTS[${key}]}" == REALTIME ]]; then
+                write "${key}" ""
+            else
+                write "${key}" "${DEFAULTS[${key}]}"
+            fi
+        done
+        note profile "$2"
+        ;;
+    note)
+        [[ $# -eq 3 ]] || usage
+        note "$2" "$3"
         ;;
     "" | -*)
         usage

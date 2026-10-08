@@ -58,7 +58,7 @@ found() {
             summary="A virus scan found ${file##*/}"
             body="It matches ${signature}, and was left where it is. See it with: ame security scan" ;;
     esac
-    /usr/libexec/amethystora-notify-users "${summary}" "${body}" critical >/dev/null
+    /usr/libexec/amethystora-notify-users --security "${summary}" "${body}" critical >/dev/null
 }
 
 # Reading before clamonacc starts, so that nothing it logs is missed

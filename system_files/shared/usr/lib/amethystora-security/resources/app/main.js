@@ -22,6 +22,12 @@
 // /usr/libexec/amethystora-app-permissions says, also run as the user, whose overrides are the ones
 // that apply; taking back what the account granted one app is `flatpak override --user --reset`.
 //
+// Every security feature is a switch, and the Settings page lists them: the detection switches in
+// /etc/amethystora/security.conf (`amethystora-security-config --list --json`) and what the image
+// enforces from the start (`amethystora-hardening status --json`), both read as the user. A change runs
+// the switch's own `ame security` command in a terminal, which says what it changes and asks; the page
+// sends a key and one of the values this process read for it, and nothing else.
+//
 // The window is locked down the way the Manual's is: it loads nothing but its own page, and the page
 // can ask for nothing but what preload.js lists. A command it offers to run in a terminal is looked up
 // here, in the report this process read, and never taken from the page.
@@ -53,6 +59,8 @@ const REPORT = '/usr/libexec/amethystora-security-status';
 const IN_TERMINAL = '/usr/libexec/amethystora-in-terminal';
 const SIGNATURE_AGE = '/usr/libexec/amethystora-clamav-signature-age';
 const SECURITY_CONFIG = '/usr/libexec/amethystora-security-config';
+const HARDENING = '/usr/libexec/amethystora-hardening';
+const AME = '/usr/bin/ame';
 const QUARANTINE = '/usr/libexec/amethystora-quarantine';
 const CLAMD_CONFIG = '/etc/clamd.d/scan.conf';
 const CLAMD_SOCKET = '/run/clamd.scan/clamd.sock';
@@ -88,15 +96,16 @@ app.setPath('userData', path.join(CONFIG_HOME, 'amethystora-security'));
 
 let win = null;
 let report = null;
+let switches = null;
 let history = [];
 let scan = null;
 
 // The page to open: `amethystora-security scan` opens the virus scanner, `amethystora-security network`
 // network protection, `amethystora-security apps` what each app can reach, `amethystora-security
-// containers` what is installed outside Flatpak
+// containers` what is installed outside Flatpak, `amethystora-security settings` every switch
 function pageArgument(argv) {
     const page = argv.slice(1).find((arg) => !arg.startsWith('-'));
-    return ['scan', 'network', 'apps', 'containers'].includes(page) ? page : '';
+    return ['scan', 'network', 'apps', 'containers', 'settings'].includes(page) ? page : '';
 }
 
 // The colours of the current theme, or null before one has been applied. The same as the Manual's.
@@ -166,7 +175,69 @@ function diagnose(id) {
     }
 }
 
+// A check that needs attention, accepted on this machine, or shown again: `ame security allow report` in a
+// terminal, which asks for the password. Only a check the report this process read gives in that state.
+function accept(id, again) {
+    const check = report?.checks.find((item) => item.id === id && item.group !== 'optional');
+    if (!check || (again ? !check.accepted : !['check', 'off'].includes(check.state))) {
+        return;
+    }
+    launch(IN_TERMINAL, again ? [AME, 'security', 'allow', 'report', check.id, 'remove'] : [AME, 'security', 'allow', 'report', check.id]);
+}
+
+// --- The switches ----------------------------------------------------------------------------------
+
+async function readSwitches() {
+    const [detection, enforced] = await Promise.all([run(SECURITY_CONFIG, ['--list', '--json']), run(HARDENING, ['status', '--json'])]);
+    switches = { profile: 'custom', settings: [], hardening: [] };
+    try {
+        Object.assign(switches, JSON.parse(detection.stdout));
+    } catch {
+        switches.error = detection.stderr.trim() || t('{program} stopped with status {code}.', { program: 'amethystora-security-config', code: String(detection.code) });
+    }
+    try {
+        switches.hardening = JSON.parse(enforced.stdout);
+    } catch {
+        switches.error ||= enforced.stderr.trim() || t('{program} stopped with status {code}.', { program: 'amethystora-hardening', code: String(enforced.code) });
+    }
+    return switches;
+}
+
+// The switch's own command, in a terminal: `ame security settings KEY VALUE` for a detection switch,
+// `ame security NAME [ARGUMENT] on|off` for one of what the image enforces, and a profile. The value has to
+// be one the list gave that switch; an empty one lets the command ask.
+function change(kind, key, value, argument) {
+    if (kind === 'profile') {
+        if (['off', 'default'].includes(key)) {
+            launch(IN_TERMINAL, [AME, 'security', 'profile', key]);
+        }
+        return;
+    }
+    if (kind === 'setting') {
+        const entry = switches?.settings.find((item) => item.key === key);
+        if (entry && (value === '' || entry.allowed.includes(value))) {
+            launch(IN_TERMINAL, [AME, 'security', 'settings', entry.setting, ...(value ? [value] : [])]);
+        }
+        return;
+    }
+    const entry = switches?.hardening.find((item) => item.name === key);
+    if (!entry || entry.fixed || !['on', 'off', ''].includes(value)) {
+        return;
+    }
+    const chosen = entry.arguments?.find((item) => item.argument === argument);
+    if (argument && !chosen) {
+        return;
+    }
+    launch(IN_TERMINAL, [AME, 'security', entry.name, ...(chosen ? [chosen.argument] : []), ...(value ? [value] : [])]);
+}
+
 // --- The scanner -----------------------------------------------------------------------------------
+
+// Whether the owner turned the virus scanner off (VIRUS_SCAN=off): then nothing scans, here either
+function scannerOff() {
+    const result = spawnSync(SECURITY_CONFIG, ['VIRUS_SCAN'], { encoding: 'utf8', timeout: 10000 });
+    return (result.stdout || '').trim() === 'off';
+}
 
 // Days since the signatures were updated, or null when there are none to scan with
 function signatureAge() {
@@ -421,6 +492,9 @@ function startScanner(daemon) {
 function startScan(kind, targets, label) {
     if (scan) {
         return { error: t('A scan is already running.') };
+    }
+    if (scannerOff()) {
+        return { error: t('The virus scanner is turned off. Turn it on in Settings first.') };
     }
     const signatures = signatureAge();
     if (!signatures) {
@@ -686,6 +760,9 @@ if (!app.requestSingleInstanceLock()) {
     });
     // Starting the unit is all the polkit rule allows without a password; stopping it is not
     ipcMain.handle('scan-machine', async () => {
+        if (scannerOff()) {
+            return { error: t('The virus scanner is turned off. Turn it on in Settings first.') };
+        }
         const { code, stderr } = await run('systemctl', ['start', '--no-block', `${MACHINE_SCAN}.service`]);
         return code === 0 ? { started: true } : { error: stderr.trim() || t('The scan could not be started.') };
     });
@@ -714,6 +791,10 @@ if (!app.requestSingleInstanceLock()) {
         }
     });
     ipcMain.handle('diagnose', (_event, id) => diagnose(String(id)));
+    ipcMain.handle('accept', (_event, id, again) => accept(String(id), Boolean(again)));
+    ipcMain.handle('switches', () => readSwitches());
+    ipcMain.handle('change', (_event, kind, key, value, argument) =>
+        change(String(kind), String(key), String(value ?? ''), argument ? String(argument) : ''));
     ipcMain.handle('show-in-files', (_event, file) => {
         if (history.some((entry) => entry.found?.some((item) => item.path === file)) && fs.existsSync(file)) {
             shell.showItemInFolder(file);

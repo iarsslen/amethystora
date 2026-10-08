@@ -55,6 +55,15 @@ msgid "off"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Accepted on this machine. ame security allow report ${id} remove shows it again."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Turn it back on with:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
 msgid "today"
 msgstr ""
 
@@ -74,7 +83,7 @@ msgstr[1] ""
 msgid "This machine is running ${IMAGE}"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-hardening
 msgid "Signed updates"
 msgstr ""
 
@@ -96,6 +105,14 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "/etc/containers/policy.json no longer asks for this image's signature."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Signed updates are turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Updates are not signature-checked, and this machine is not switched back to signed ones at each start. Anything that can answer for the registry could replace its whole system."
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -354,10 +371,6 @@ msgid "Secure Boot is off, and this machine's kernel arguments leave out lockdow
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
-msgid "Turn it back on with:"
-msgstr ""
-
-#: usr/libexec/amethystora-security-status
 msgid "Firmware security"
 msgstr ""
 
@@ -379,8 +392,16 @@ msgstr ""
 msgid "That is mostly up to the machine's maker. Every protection fwupd looks at, with what each is:"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
 msgid "Audit log"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The audit log is turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Nothing records changes to accounts, sudo, what starts by itself or the security settings, from the restart after it was turned off. Back on, it records from the next restart."
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -404,7 +425,20 @@ msgid "Audit rules are immutable until the next reboot"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Turned off, and not recorded from the next restart: ${KEYS}."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
 msgid "Failed logins"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Blocking addresses after failed logins is turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "An address that keeps guessing SSH passwords is not blocked."
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -415,8 +449,41 @@ msgstr ""
 msgid "fail2ban is not running"
 msgstr ""
 
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-hardening
+msgid "Account lockout"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Account lockout is turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "No account is locked however many wrong passwords are typed, at the login and lock screens, sudo or an administrator prompt."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-hardening
+msgid "SSH server settings"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The image's SSH server settings are turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "If the SSH server is on, root may log in with a key, six tries a connection are allowed, and X11 is forwarded."
+msgstr ""
+
 #: usr/libexec/amethystora-security-status
 msgid "Firewall"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The Amethystora zone is turned off: the firewall's default zone is ${ZONE}"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Fedora Workstation's zone lets in every port from 1025 up, from every network."
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -440,7 +507,7 @@ msgstr ""
 msgid "Suricata inspects every connection and says what it recognises, without blocking"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
 msgid "Network protection"
 msgstr ""
 
@@ -498,7 +565,7 @@ msgstr ""
 msgid "The network's own DNS servers answer in plain text until the pause ends by itself, ten minutes after it began. End it now with:"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
 msgid "Security watcher"
 msgstr ""
 
@@ -508,6 +575,14 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "A change to accounts, to what starts by itself or to a security setting, or a program reading the keyboard directly. See it with:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The security watcher is turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Nothing reads the audit log or the journal, compares the settings with the image's, or says what changed."
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -530,12 +605,20 @@ msgstr ""
 msgid "The security watcher reads the audit log and checks the settings every 15 minutes"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
 msgid "Real-time watching"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "Real-time watching is on: changes are read as they happen, and files scanned as they are written"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Real-time watching is on: changes are read as they happen"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Real-time scanning is on: files are scanned as they are written"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -595,6 +678,18 @@ msgstr ""
 msgid "Your home folder is backed up every day. The last backup succeeded ${WHEN}"
 msgstr ""
 
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-hardening
+msgid "Kernel settings"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The image's kernel settings are turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "From the restart after it was turned off, programs can read each other's memory, kernel addresses and messages show without sudo, and unprivileged BPF is allowed."
+msgstr ""
+
 #: usr/libexec/amethystora-security-status
 #, sh-format
 msgid "The kernel setting ${key} is ${live}, not ${value}"
@@ -603,6 +698,31 @@ msgstr ""
 #: usr/libexec/amethystora-security-status
 #, sh-format
 msgid "The kernel argument ${karg} is missing"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-hardening
+msgid "Kernel arguments"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Turned off, from the next restart: ${KARGS}"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Each one can be turned back on alone."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-hardening
+msgid "Blocked kernel modules"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Rarely used kernel modules are no longer blocked"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Old network protocols and filesystems, FireWire and test drivers can load, and a flaw in one of them can be reached."
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -635,8 +755,16 @@ msgstr ""
 msgid "${path} stops ${detail} from ever starting"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
 msgid "Image settings"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Comparing the settings with the image's is turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "A security setting changed in /etc, or a kernel setting changed while the machine runs, is not noticed."
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -737,13 +865,57 @@ msgstr ""
 msgid "Nothing where it should not be: no preloaded library, no setuid programs outside the image, no unknown kernel modules"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
-#, sh-format
-msgid "${program}, on port ${port}"
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
+msgid "Setuid sweep"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
+msgid "The daily search for setuid programs is turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "A setuid program put outside the image, which runs as root whoever starts it, is not found."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Locked accounts, wrong passwords and blocked USB devices are not read from the journal."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Commands named like the system's and launchers no container made are not looked for in home folders."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "A check of this report that turns bad is not said."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Only critical findings are notifications; the rest wait here and in ame security events."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Nothing is a notification; every finding waits here and in ame security events."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Parts of the watcher are turned down"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
 msgid "Open to the network"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Watching for programs that accept connections is turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "A program that starts listening for other machines is not noticed."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${program}, on port ${port}"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -759,6 +931,18 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "No program accepts connections from other machines"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-hardening
+msgid "App sandbox override"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The image's override of every app's sandbox is turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Each Flatpak app has what its own manifest asks for, X11, the input devices and the Flatpak service included, from its next start."
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -814,8 +998,29 @@ msgstr ""
 msgid "The last virus scan found something"
 msgstr ""
 
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
+msgid "Virus scanner"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The virus scanner is turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Nothing is scanned, and no virus signatures are kept in memory or downloaded."
+msgstr ""
+
 #: usr/libexec/amethystora-security-status
 msgid "not yet"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Scans run when you start one, and not every week. Last run: ${LAST}"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Scan every Sunday again with:"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -866,8 +1071,16 @@ msgstr ""
 msgid "clamav-freshclam.service has not finished its first download."
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
 msgid "Settings audit"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The monthly settings audit is turned off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Lynis does not look for what changed since the last audit. ame security audit runs one when you ask."
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -1003,7 +1216,7 @@ msgstr ""
 msgid "Move what a virus scan finds to quarantine, or delete it, instead of only saying so"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
 msgid "Act on what scans find"
 msgstr ""
 
@@ -1937,4 +2150,212 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "Security settings are in Amethystora Security: ame security status"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Accounts"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Who may become root"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "What starts by itself"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Security settings"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Kernel modules"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Keyboard readers"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Programs in home folders"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Logins and USB devices"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Commands a session finds first"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Real-time scanning"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Notifications"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Report alerts"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Reads each change as the audit log records it, instead of every 15 minutes."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "The kernel's record of changes to accounts, sudo, what starts by itself and the security settings, kept by auditd. Off, nothing is recorded and the switches that read it have nothing to read."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Changes to accounts and their passwords."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Changes to who may use sudo and to the administrator rules."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Services, autostart entries and shell startup files: what would survive a restart."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Changes to the security settings, these switches included. Off, turning one of them off is not said either."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Kernel modules loaded or removed from a login."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "A program opening the keyboard or another input device directly, said the first time each program does it."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Commands and launchers added to a home folder, recorded without notifying."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Accounts locked after wrong passwords, repeated wrong sudo and administrator passwords, and blocked USB devices."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "The security settings in /etc compared with the image's own copy, and the kernel's settings as they are."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "A daily search of /etc and /var for setuid programs, which only the image should have."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "A program that starts accepting connections from other machines."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "A command in a home folder named like one of the system's, and a launcher no container export made."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "ClamAV. Off: no scanning, and no signatures kept in memory or downloaded. Manual: scans only when you start one. Weekly: and every Sunday, the home and temporary folders."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Scans every file written in a home folder as it is closed. Costs CPU while files are being written."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "What happens to a file a virus scan finds: reported, moved to quarantine, or deleted."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Lynis audits the settings every month, and says what is new since the last audit."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Suricata inspects this machine's connections. Watch says what it recognises; block also cuts off known malware."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "What is said out loud: everything, critical findings only, or nothing. Everything is still in the report and the history."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Says when a check of the report turns bad: the firewall, signed updates, the audit log."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Firewall zone"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Failed logins over the network"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Hides kernel addresses and messages, keeps programs from reading each other's memory, and turns off unprivileged BPF. Off, gdb -p, strace -p, perf and dmesg work without sudo, from the next restart."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Old network protocols and filesystems, FireWire and test drivers cannot load. Off, FireWire sound cards and cameras, disks from old Macs, SCTP and amateur radio work."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Memory wiped as it is handed out, slab caches kept apart, and no vsyscall page. init_on_alloc costs a few percent on work that allocates a lot, and vsyscall=none stops very old programs. Each one on its own, from the next restart."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "The Amethystora zone lets in only what a desktop needs. Off, Fedora Workstation's zone lets in every port from 1025 up. Opening the one port a server needs is the narrower answer."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "fail2ban blocks an address after repeated failed logins over SSH. Off, nothing runs for an SSH server that is off by default."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Ten wrong passwords in a row lock an account for ten minutes. Off, nothing is locked however many are wrong."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Takes X11, the input devices and the Flatpak service from every Flatpak app. Off, each app has what its own manifest asks for. Granting X11 to one app in Flatseal is the narrower answer."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "No root login, three tries a connection and no X11 forwarding for the SSH server. Off, OpenSSH's and Fedora's own settings apply."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Switches this machine back to updates that must carry this image's signature at every start. Off, it switches nothing either way. ame system trust-image is the answer for an image of your own."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "From the next restart: a kernel setting keeps its value until then."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "At once, for a module that is not loaded yet."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "From the next restart."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "At once."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "From each app's next start."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "At once, if the SSH server is running."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "From the next start. This machine stays on the updates it follows now."
 msgstr ""

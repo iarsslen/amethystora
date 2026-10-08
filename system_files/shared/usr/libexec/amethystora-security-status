@@ -13,6 +13,10 @@
 # them on: on, off or unavailable. COMMAND, set just before the call, is what fixes it or turns it on,
 # and a detail ending in a colon is the one that introduces it. The app offers to run that command in a
 # terminal, so it has to be one command and nothing more: no pipes, no quotes, no "then restart".
+#
+# A feature the machine's owner switched off (amethystora-security-config, amethystora-hardening) is info,
+# with the command that turns it on: off on purpose is not a fault. Turned off some other way, such as a
+# disabled unit, it is still a check, since nobody chose that through its switch.
 
 set -uo pipefail
 
@@ -86,24 +90,55 @@ print_record() {
 }
 
 report() {
-    local group="$1" id="$2" state="$3" title="$4" text="$5"
+    local group="$1" id="$2" state="$3" title="$4" text="$5" accepted=""
     shift 5
+    # A check the machine's owner accepted in this state (ame security allow report) is information from
+    # then on, never a warning, until its state changes
+    if [[ "${group}" != optional && -n "${ACCEPTED["${id} ${state}"]+set}" ]]; then
+        accepted="${state}"
+        state=info
+    fi
     if [[ "${JSON}" == true ]]; then
         RECORDS+=("$(jq -nc --arg group "${group}" --arg id "${id}" --arg state "${state}" \
-            --arg title "${title}" --arg text "${text}" --arg command "${COMMAND}" \
+            --arg title "${title}" --arg text "${text}" --arg command "${COMMAND}" --arg accepted "${accepted}" \
+            --argjson switched "${SWITCHED_OFF:-false}" \
             '{$group, $id, $state, $title, $text, details: $ARGS.positional,
-              command: (if $command == "" then null else $command end)}' --args "$@")")
+              command: (if $command == "" then null else $command end),
+              accepted: (if $accepted == "" then null else $accepted end), switched_off: $switched}' --args "$@")")
+    elif [[ -n "${accepted}" ]]; then
+        print_record "${group}" "${state}" "${title}" "${text}" "$@" \
+            "$(eval_gettext "Accepted on this machine. ame security allow report \${id} remove shows it again.")"
     else
         print_record "${group}" "${state}" "${title}" "${text}" "$@"
     fi
     COMMAND=""
+    SWITCHED_OFF=false
+}
+
+# A feature its owner switched off is shown as that, with the command that turns it on again, and never as
+# something to fix: the report says "turned off" where it would otherwise warn
+turned_off() {
+    local group="$1" id="$2" title="$3" text="$4"
+    shift 4
+    SWITCHED_OFF=true
+    report "${group}" "${id}" info "${title}" "${text}" "$@" "$(gettext "Turn it back on with:")"
 }
 
 NOW="$(date +%s)"
 # The machine's own choices (/etc/amethystora/security.conf), through the one reader of that file
-ON_DETECTION="$(/usr/libexec/amethystora-security-config ON_DETECTION)"
-REALTIME="$(/usr/libexec/amethystora-security-config REALTIME)"
-NETWORK="$(/usr/libexec/amethystora-security-config NETWORK)"
+declare -A SETTING=()
+while IFS='=' read -r key value; do
+    SETTING["${key}"]="${value}"
+done < <(/usr/libexec/amethystora-security-config --all)
+ON_DETECTION="${SETTING[ON_DETECTION]}"
+NETWORK="${SETTING[NETWORK]}"
+# What the owner turned off of what the image enforces from the start (ame security kernel, firewall...)
+hardening_off() { ! /usr/libexec/amethystora-hardening is-on "$@"; }
+# The checks the owner accepted, each in the state it was accepted in
+declare -A ACCEPTED=()
+while IFS= read -r line; do
+    ACCEPTED["${line}"]=1
+done < <(/usr/libexec/amethystora-security-allow list report 2>/dev/null)
 # What the security watcher saw that only root can see, written for this report at each of its runs
 WATCH_STATUS=/var/lib/amethystora/security/status.json
 
@@ -174,6 +209,10 @@ elif [[ "${SEALED}" == true ]]; then
     report updates signed-updates off "$(gettext "Signed updates")" "$(gettext "Updates are not signature-checked")" \
         "$(gettext "Anything that can answer for the registry could replace this machine's whole system.")" \
         "$(gettext "/etc/containers/policy.json no longer asks for this image's signature.")"
+elif hardening_off signed-updates; then
+    COMMAND="ame security signed-updates on"
+    turned_off updates signed-updates "$(gettext "Signed updates")" "$(gettext "Signed updates are turned off")" \
+        "$(gettext "Updates are not signature-checked, and this machine is not switched back to signed ones at each start. Anything that can answer for the registry could replace its whole system.")"
 else
     COMMAND="sudo systemctl start amethystora-signed-updates.service"
     report updates signed-updates off "$(gettext "Signed updates")" "$(gettext "Updates are not signature-checked")" \
@@ -390,24 +429,59 @@ fi
 
 # --- Watching -----------------------------------------------------------------------------------------
 
-if [[ "$(systemctl is-active auditd.service 2>/dev/null)" == "active" ]]; then
+if [[ "${SETTING[AUDIT_LOG]}" == off ]]; then
+    COMMAND="ame security settings audit-log on"
+    turned_off watching audit-log "$(gettext "Audit log")" "$(gettext "The audit log is turned off")" \
+        "$(gettext "Nothing records changes to accounts, sudo, what starts by itself or the security settings, from the restart after it was turned off. Back on, it records from the next restart.")"
+elif [[ "$(systemctl is-active auditd.service 2>/dev/null)" == "active" ]]; then
     report watching audit-log ok "$(gettext "Audit log")" "$(gettext "The audit log is recording")"
 else
     COMMAND="sudo systemctl start auditd.service"
     report watching audit-log off "$(gettext "Audit log")" "$(gettext "The audit log is not recording")" "$(gettext "Start it with:")"
 fi
-if [[ -f /etc/audit/rules.d/99-amethystora-finalize.rules ]]; then
-    report watching audit-rules ok "$(gettext "Audit rules")" "$(gettext "Audit rules are immutable until the next reboot")"
+if [[ "${SETTING[AUDIT_LOG]}" != off && -f /etc/audit/rules.d/99-amethystora-finalize.rules ]]; then
+    # The keys switched off load no rule from the next restart (amethystora-audit-home-rules)
+    KEYS_OFF=()
+    for key in IDENTITY PRIVILEGE PERSISTENCE HARDENING MODULES INPUT_CAPTURE USER_PROGRAMS; do
+        [[ "${SETTING[${key}]}" == off ]] && KEYS_OFF+=("$(tr 'A-Z_' 'a-z-' <<<"${key}")")
+    done
+    if [[ ${#KEYS_OFF[@]} -gt 0 ]]; then
+        COMMAND="ame security settings"
+        KEYS="$(IFS=,; echo "${KEYS_OFF[*]}" | sed 's/,/, /g')"
+        report watching audit-rules info "$(gettext "Audit rules")" "$(gettext "Audit rules are immutable until the next reboot")" \
+            "$(eval_gettext "Turned off, and not recorded from the next restart: \${KEYS}.")" \
+            "$(gettext "Turn them back on with:")"
+    else
+        report watching audit-rules ok "$(gettext "Audit rules")" "$(gettext "Audit rules are immutable until the next reboot")"
+    fi
 fi
-if [[ "$(systemctl is-active fail2ban.service 2>/dev/null)" == "active" ]]; then
+if hardening_off failed-logins; then
+    COMMAND="ame security failed-logins on"
+    turned_off watching fail2ban "$(gettext "Failed logins")" "$(gettext "Blocking addresses after failed logins is turned off")" \
+        "$(gettext "An address that keeps guessing SSH passwords is not blocked.")"
+elif [[ "$(systemctl is-active fail2ban.service 2>/dev/null)" == "active" ]]; then
     report watching fail2ban ok "$(gettext "Failed logins")" \
         "$(gettext "Repeated failed logins get the address blocked (ame security addresses)")"
 else
     COMMAND="sudo systemctl start fail2ban.service"
     report watching fail2ban check "$(gettext "Failed logins")" "$(gettext "fail2ban is not running")" "$(gettext "Start it with:")"
 fi
+if hardening_off lockout; then
+    COMMAND="ame security lockout on"
+    turned_off watching lockout "$(gettext "Account lockout")" "$(gettext "Account lockout is turned off")" \
+        "$(gettext "No account is locked however many wrong passwords are typed, at the login and lock screens, sudo or an administrator prompt.")"
+fi
+if hardening_off ssh-settings; then
+    COMMAND="ame security ssh-settings on"
+    turned_off watching ssh-settings "$(gettext "SSH server settings")" "$(gettext "The image's SSH server settings are turned off")" \
+        "$(gettext "If the SSH server is on, root may log in with a key, six tries a connection are allowed, and X11 is forwarded.")"
+fi
 ZONE="$(firewall-cmd --get-default-zone 2>/dev/null || echo unknown)"
-if [[ "${ZONE}" == "amethystora" ]]; then
+if hardening_off firewall; then
+    COMMAND="ame security firewall on"
+    turned_off watching firewall "$(gettext "Firewall")" "$(eval_gettext "The Amethystora zone is turned off: the firewall's default zone is \${ZONE}")" \
+        "$(gettext "Fedora Workstation's zone lets in every port from 1025 up, from every network.")"
+elif [[ "${ZONE}" == "amethystora" ]]; then
     report watching firewall ok "$(gettext "Firewall")" \
         "$(gettext "Firewall is on the amethystora zone: nothing incoming that a desktop does not need")"
 else
@@ -468,6 +542,10 @@ if [[ -s /var/log/amethystora-security-events.new ]]; then
     COMMAND="ame security events"
     report watching security-watcher off "$(gettext "Security watcher")" "$(gettext "The security watcher noticed something")" \
         "$(gettext "A change to accounts, to what starts by itself or to a security setting, or a program reading the keyboard directly. See it with:")"
+elif [[ "${SETTING[WATCHER]}" == off ]]; then
+    COMMAND="ame security settings watcher on"
+    turned_off watching security-watcher "$(gettext "Security watcher")" "$(gettext "The security watcher is turned off")" \
+        "$(gettext "Nothing reads the audit log or the journal, compares the settings with the image's, or says what changed.")"
 elif [[ "$(systemctl is-enabled amethystora-security-watch.timer 2>/dev/null)" != "enabled" ]]; then
     COMMAND="sudo systemctl enable --now amethystora-security-watch.timer"
     report watching security-watcher check "$(gettext "Security watcher")" "$(gettext "The security watcher is off")" \
@@ -476,7 +554,7 @@ elif [[ "$(systemctl show -p Result --value amethystora-security-watch.service 2
     COMMAND="journalctl -u amethystora-security-watch.service -n 40"
     report watching security-watcher check "$(gettext "Security watcher")" "$(gettext "The security watcher's last run failed")" \
         "$(gettext "See why with:")"
-elif [[ "${REALTIME}" == on ]]; then
+elif [[ "${SETTING[REALTIME_WATCH]}" == on && "${SETTING[AUDIT_LOG]}" != off ]]; then
     report watching security-watcher ok "$(gettext "Security watcher")" \
         "$(gettext "The security watcher reads the audit log and checks the settings as they happen")"
 else
@@ -484,16 +562,26 @@ else
         "$(gettext "The security watcher reads the audit log and checks the settings every 15 minutes")"
 fi
 
-# Real-time watching is a setting, so when it is on, what does it is expected to be running
-if [[ "${REALTIME}" == on ]]; then
+# Real-time watching and scanning are settings, so when one is on, what does it is expected to be running
+REALTIME_UNITS=()
+[[ "${SETTING[REALTIME_WATCH]}" == on && "${SETTING[WATCHER]}" != off && "${SETTING[AUDIT_LOG]}" != off ]] &&
+    REALTIME_UNITS+=(amethystora-security-realtime)
+[[ "${SETTING[REALTIME_SCAN]}" == on && "${SETTING[VIRUS_SCAN]}" != off ]] && REALTIME_UNITS+=(amethystora-clamav-onaccess)
+if [[ ${#REALTIME_UNITS[@]} -gt 0 ]]; then
     STOPPED=()
-    for unit in amethystora-security-realtime amethystora-clamav-onaccess; do
+    for unit in "${REALTIME_UNITS[@]}"; do
         systemctl is-active --quiet "${unit}.service" 2>/dev/null || STOPPED+=("${unit}.service")
     done
     # Not "realtime": that is the setting's tile below, and the app finds a check's command by its id
-    if [[ ${#STOPPED[@]} -eq 0 ]]; then
+    if [[ ${#STOPPED[@]} -eq 0 && ${#REALTIME_UNITS[@]} -eq 2 ]]; then
         report watching realtime-running ok "$(gettext "Real-time watching")" \
             "$(gettext "Real-time watching is on: changes are read as they happen, and files scanned as they are written")"
+    elif [[ ${#STOPPED[@]} -eq 0 && "${REALTIME_UNITS[0]}" == amethystora-security-realtime ]]; then
+        report watching realtime-running ok "$(gettext "Real-time watching")" \
+            "$(gettext "Real-time watching is on: changes are read as they happen")"
+    elif [[ ${#STOPPED[@]} -eq 0 ]]; then
+        report watching realtime-running ok "$(gettext "Real-time watching")" \
+            "$(gettext "Real-time scanning is on: files are scanned as they are written")"
     else
         COMMAND="sudo systemctl restart ${STOPPED[*]}"
         UNITS="${STOPPED[*]}"
@@ -563,24 +651,48 @@ fi
 # the watcher.
 DIFFERS=()
 ADDED=()
-while IFS='=' read -r key value; do
-    key="${key//[[:space:]]/}"
-    value="${value//[[:space:]]/}"
-    [[ -n "${key}" && "${key}" != \#* ]] || continue
-    live="$(cat "/proc/sys/${key//.//}" 2>/dev/null)" || continue
-    [[ "${live//[[:space:]]/}" == "${value}" ]] ||
-        DIFFERS+=("$(eval_gettext "The kernel setting \${key} is \${live}, not \${value}")")
-done </usr/lib/sysctl.d/60-amethystora-hardening.conf
+# What the owner turned off with its switch is said as that (below), and not counted as a difference
+if hardening_off kernel; then
+    COMMAND="ame security kernel on"
+    turned_off updates kernel "$(gettext "Kernel settings")" "$(gettext "The image's kernel settings are turned off")" \
+        "$(gettext "From the restart after it was turned off, programs can read each other's memory, kernel addresses and messages show without sudo, and unprivileged BPF is allowed.")"
+else
+    while IFS='=' read -r key value; do
+        key="${key//[[:space:]]/}"
+        value="${value//[[:space:]]/}"
+        [[ -n "${key}" && "${key}" != \#* ]] || continue
+        live="$(cat "/proc/sys/${key//.//}" 2>/dev/null)" || continue
+        [[ "${live//[[:space:]]/}" == "${value}" ]] ||
+            DIFFERS+=("$(eval_gettext "The kernel setting \${key} is \${live}, not \${value}")")
+    done </usr/lib/sysctl.d/60-amethystora-hardening.conf
+fi
 CMDLINE=" $(cat /proc/cmdline 2>/dev/null) "
+KARGS_OFF=()
 for karg in $(sed -n 's/^kargs *= *\[\(.*\)\]/\1/p' /usr/lib/bootc/kargs.d/10-amethystora-hardening.toml | tr -d '",'); do
-    [[ "${CMDLINE}" == *" ${karg} "* ]] || DIFFERS+=("$(eval_gettext "The kernel argument \${karg} is missing")")
+    if hardening_off kernel-args "${karg}"; then
+        KARGS_OFF+=("${karg}")
+    elif [[ "${CMDLINE}" != *" ${karg} "* ]]; then
+        DIFFERS+=("$(eval_gettext "The kernel argument \${karg} is missing")")
+    fi
 done
-SHOWCONFIG="$(modprobe --showconfig 2>/dev/null)"
-if [[ -n "${SHOWCONFIG}" ]]; then
-    while read -r _ module _; do
-        grep -qxF "install ${module//-/_} /usr/bin/false" <<<"${SHOWCONFIG}" ||
-            DIFFERS+=("$(eval_gettext "The kernel module \${module} is no longer blocked")")
-    done < <(grep '^install ' /usr/lib/modprobe.d/60-amethystora-hardening.conf)
+if [[ ${#KARGS_OFF[@]} -gt 0 ]]; then
+    COMMAND="ame security kernel-args"
+    KARGS="${KARGS_OFF[*]}"
+    turned_off updates kernel-args "$(gettext "Kernel arguments")" "$(eval_gettext "Turned off, from the next restart: \${KARGS}")" \
+        "$(gettext "Each one can be turned back on alone.")"
+fi
+if hardening_off blocked-modules; then
+    COMMAND="ame security blocked-modules on"
+    turned_off updates blocked-modules "$(gettext "Blocked kernel modules")" "$(gettext "Rarely used kernel modules are no longer blocked")" \
+        "$(gettext "Old network protocols and filesystems, FireWire and test drivers can load, and a flaw in one of them can be reached.")"
+else
+    SHOWCONFIG="$(modprobe --showconfig 2>/dev/null)"
+    if [[ -n "${SHOWCONFIG}" ]]; then
+        while read -r _ module _; do
+            grep -qxF "install ${module//-/_} /usr/bin/false" <<<"${SHOWCONFIG}" ||
+                DIFFERS+=("$(eval_gettext "The kernel module \${module} is no longer blocked")")
+        done < <(grep '^install ' /usr/lib/modprobe.d/60-amethystora-hardening.conf)
+    fi
 fi
 while IFS=$'\t' read -r change path detail; do
     case "${change}" in
@@ -592,7 +704,11 @@ while IFS=$'\t' read -r change path detail; do
         added) ADDED+=("${path}") ;;
     esac
 done < <(jq -r '.drift // [] | .[] | [.change, .path, .detail] | @tsv' "${WATCH_STATUS}" 2>/dev/null)
-if [[ ${#DIFFERS[@]} -gt 0 ]]; then
+if [[ "${SETTING[IMAGE_DRIFT]}" == off ]]; then
+    COMMAND="ame security settings image-drift on"
+    turned_off watching image-settings "$(gettext "Image settings")" "$(gettext "Comparing the settings with the image's is turned off")" \
+        "$(gettext "A security setting changed in /etc, or a kernel setting changed while the machine runs, is not noticed.")"
+elif [[ ${#DIFFERS[@]} -gt 0 ]]; then
     N="${#DIFFERS[@]}"
     report watching image-settings check "$(gettext "Image settings")" \
         "$(eval_ngettext "\${N} security setting differs from the image" "\${N} security settings differ from the image" "${N}")" \
@@ -689,10 +805,37 @@ else
     report watching rootkit ok "$(gettext "Rootkit checks")" \
         "$(gettext "Nothing where it should not be: no preloaded library, no setuid programs outside the image, no unknown kernel modules")"
 fi
+if [[ "${SETTING[SETUID_SWEEP]}" == off ]]; then
+    COMMAND="ame security settings setuid-sweep on"
+    turned_off watching setuid-sweep "$(gettext "Setuid sweep")" "$(gettext "The daily search for setuid programs is turned off")" \
+        "$(gettext "A setuid program put outside the image, which runs as root whoever starts it, is not found.")"
+fi
+
+# The parts of the watcher with no check of their own, each said here when its owner turned it down
+QUIETER=()
+[[ "${SETTING[JOURNAL]}" == off ]] &&
+    QUIETER+=("$(gettext "Locked accounts, wrong passwords and blocked USB devices are not read from the journal.")")
+[[ "${SETTING[USER_PATHS]}" == off ]] &&
+    QUIETER+=("$(gettext "Commands named like the system's and launchers no container made are not looked for in home folders.")")
+[[ "${SETTING[REPORT_ALERTS]}" == off ]] &&
+    QUIETER+=("$(gettext "A check of this report that turns bad is not said.")")
+case "${SETTING[NOTIFY]}" in
+    critical) QUIETER+=("$(gettext "Only critical findings are notifications; the rest wait here and in ame security events.")") ;;
+    none) QUIETER+=("$(gettext "Nothing is a notification; every finding waits here and in ame security events.")") ;;
+esac
+if [[ ${#QUIETER[@]} -gt 0 && "${SETTING[WATCHER]}" != off ]]; then
+    COMMAND="ame security settings"
+    report watching watcher-switches info "$(gettext "Security watcher")" "$(gettext "Parts of the watcher are turned down")" \
+        "${QUIETER[@]}" "$(gettext "Turn them back on with:")"
+fi
 
 # What accepts connections from other machines, with the program's name, which only root can see. The
 # firewall lets in only what a desktop needs from the local network, but the tailnet is trusted.
-if [[ -r "${WATCH_STATUS}" ]]; then
+if [[ "${SETTING[LISTENERS]}" == off ]]; then
+    COMMAND="ame security settings listeners on"
+    turned_off watching listeners "$(gettext "Open to the network")" "$(gettext "Watching for programs that accept connections is turned off")" \
+        "$(gettext "A program that starts listening for other machines is not noticed.")"
+elif [[ -r "${WATCH_STATUS}" ]]; then
     LISTENING=()
     while IFS=$'\t' read -r program port; do
         LISTENING+=("$(eval_gettext "\${program}, on port \${port}")")
@@ -709,6 +852,12 @@ if [[ -r "${WATCH_STATUS}" ]]; then
 fi
 
 # --- Apps ---------------------------------------------------------------------------------------------
+
+if hardening_off app-sandbox; then
+    COMMAND="ame security app-sandbox on"
+    turned_off apps app-sandbox "$(gettext "App sandbox override")" "$(gettext "The image's override of every app's sandbox is turned off")" \
+        "$(gettext "Each Flatpak app has what its own manifest asks for, X11, the input devices and the Flatpak service included, from its next start.")"
+fi
 
 # What each Flatpak can reach beyond its sandbox (/usr/libexec/amethystora-app-permissions, whose words
 # are translated as these are). One that can leave it, through a whole bus, the Flatpak service, systemd
@@ -746,6 +895,7 @@ fi
 
 # /var/log is traversable, so the size of the root-owned 0600 findings file is visible here even
 # though its contents are not, and this never asks for a password
+VIRUS_SCAN="${SETTING[VIRUS_SCAN]}"
 if [[ -s /var/log/amethystora-clamav-findings.log ]]; then
     COMMAND="ame security scan"
     case "${ON_DETECTION}" in
@@ -755,13 +905,25 @@ if [[ -s /var/log/amethystora-clamav-findings.log ]]; then
     esac
     report scans virus-scan off "$(gettext "Weekly virus scan")" "$(gettext "The last virus scan found something")" \
         "${DETECTED}"
+elif [[ "${VIRUS_SCAN}" == off ]]; then
+    COMMAND="ame security settings virus-scan weekly"
+    turned_off scans virus-scan "$(gettext "Virus scanner")" "$(gettext "The virus scanner is turned off")" \
+        "$(gettext "Nothing is scanned, and no virus signatures are kept in memory or downloaded.")"
+elif [[ "${VIRUS_SCAN}" == manual ]]; then
+    COMMAND="ame security settings virus-scan weekly"
+    LAST="$(last_run amethystora-clamav-scan || gettext "not yet")"
+    report scans virus-scan info "$(gettext "Weekly virus scan")" \
+        "$(eval_gettext "Scans run when you start one, and not every week. Last run: \${LAST}")" \
+        "$(gettext "Scan every Sunday again with:")"
 else
     LAST="$(last_run amethystora-clamav-scan || gettext "not yet")"
     report scans virus-scan ok "$(gettext "Weekly virus scan")" \
         "$(eval_gettext "Weekly virus scan, Sundays. Last run: \${LAST}")"
 fi
 # A scan that stopped running looks exactly like a machine with nothing to find, unless it is asked
-if [[ "$(systemctl is-enabled amethystora-clamav-scan.timer 2>/dev/null)" != "enabled" ]]; then
+if [[ "${VIRUS_SCAN}" != weekly ]]; then
+    :
+elif [[ "$(systemctl is-enabled amethystora-clamav-scan.timer 2>/dev/null)" != "enabled" ]]; then
     COMMAND="sudo systemctl enable --now amethystora-clamav-scan.timer"
     report scans virus-scan-schedule check "$(gettext "Weekly virus scan")" "$(gettext "The weekly virus scan is off")" \
         "$(gettext "Turn it back on with:")"
@@ -776,7 +938,10 @@ else
     fi
 fi
 AGE="$(/usr/libexec/amethystora-clamav-signature-age)" && SIG=0 || SIG=$?
+# With the scanner off nothing downloads them, and their age says nothing
+[[ "${VIRUS_SCAN}" == off ]] && SIG=off
 case "${SIG}" in
+    off) ;;
     0)
         WHEN="$(days_ago "${AGE}")"
         report scans signatures ok "$(gettext "Virus signatures")" "$(eval_gettext "Virus signatures updated \${WHEN}")" ;;
@@ -789,7 +954,11 @@ case "${SIG}" in
             "$(gettext "clamav-freshclam.service has not finished its first download.")" ;;
 esac
 RAN="$(last_run_time amethystora-lynis-audit)"
-if [[ "$(systemctl is-enabled amethystora-lynis-audit.timer 2>/dev/null)" != "enabled" ]]; then
+if [[ "${SETTING[SETTINGS_AUDIT]}" == off ]]; then
+    COMMAND="ame security settings settings-audit on"
+    turned_off scans settings-audit "$(gettext "Settings audit")" "$(gettext "The monthly settings audit is turned off")" \
+        "$(gettext "Lynis does not look for what changed since the last audit. ame security audit runs one when you ask.")"
+elif [[ "$(systemctl is-enabled amethystora-lynis-audit.timer 2>/dev/null)" != "enabled" ]]; then
     COMMAND="sudo systemctl enable --now amethystora-lynis-audit.timer"
     report scans settings-audit check "$(gettext "Settings audit")" "$(gettext "The monthly settings audit is off")" \
         "$(gettext "Turn it back on with:")"
@@ -915,8 +1084,11 @@ esac
 COMMAND="ame security settings on-detection"
 report optional on-detection "${DETECTION}" "$(gettext "Act on what scans find")" "${DETECTION_TEXT}"
 
+# Either half on is on; `ame security settings` sets each alone
+REALTIME_STATE=off
+[[ "${SETTING[REALTIME_WATCH]}" == on || "${SETTING[REALTIME_SCAN]}" == on ]] && REALTIME_STATE=on
 COMMAND="ame security settings realtime"
-report optional realtime "${REALTIME}" "$(gettext "Real-time watching")" \
+report optional realtime "${REALTIME_STATE}" "$(gettext "Real-time watching")" \
     "$(gettext "Read each change as it happens and scan every file as it is written, instead of every 15 minutes and every week")"
 
 # ...and network protection, which /usr/libexec/amethystora-ips runs
@@ -930,8 +1102,9 @@ report optional network-protection "${NETWORK_STATE}" "$(gettext "Network protec
 
 if [[ "${JSON}" == true ]]; then
     printf '%s\n' "${RECORDS[@]}" | jq -s --arg image "${IMAGE}" --arg detection "${ON_DETECTION}" \
-        --arg realtime "${REALTIME}" --arg network "${NETWORK}" \
-        '{$image, settings: {on_detection: $detection, $realtime, $network}, checks: .}'
+        --arg realtime "${REALTIME_STATE}" --arg network "${NETWORK}" --arg virus "${VIRUS_SCAN}" \
+        --arg profile "$(/usr/libexec/amethystora-security-config --profile)" \
+        '{$image, settings: {on_detection: $detection, $realtime, $network, virus_scan: $virus, $profile}, checks: .}'
 else
     echo
 fi

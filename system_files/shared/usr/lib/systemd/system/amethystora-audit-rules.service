@@ -22,6 +22,8 @@ Wants=auditd.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+# Nothing to write while AUDIT_LOG=off in /etc/amethystora/security.conf: auditd and its rules stay off
+ExecCondition=/usr/libexec/amethystora-security-config --is AUDIT_LOG on
 ExecStart=/usr/libexec/amethystora-audit-home-rules
 # auditd and the rules' load wait on this, so it may not sit there: a handful of lines per account takes
 # moments

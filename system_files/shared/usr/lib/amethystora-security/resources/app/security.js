@@ -39,6 +39,8 @@ const state = {
     inventory: null,
     // What each Flatpak can reach beyond its sandbox, as amethystora-app-permissions says
     permissions: null,
+    // Every switch: the detection ones in security.conf, and what the image enforces from the start
+    switches: null,
 };
 
 // The parts of the scanning page that change while it is on screen
@@ -408,6 +410,7 @@ function setBadge(badge, content, tone) {
 // The sidebar entry each page is under, and the recipe that does in a terminal what it does
 const NAV = {
     overview: 'overview', scan: 'scan', scanning: 'scan', result: 'scan', network: 'network', apps: 'apps', containers: 'containers',
+    settings: 'settings',
 };
 const RECIPES = {
     overview: 'ame security status',
@@ -415,6 +418,7 @@ const RECIPES = {
     network: 'ame security connections',
     apps: 'ame security apps',
     containers: 'amepkg containers list',
+    settings: 'ame security settings',
 };
 
 function renderNav() {
@@ -443,6 +447,8 @@ function renderNav() {
         } else if (page === 'apps') {
             const leaving = (state.permissions?.apps || []).filter(leaves).length;
             setBadge(badge, leaving ? t.number(leaving) : '', 'off');
+        } else if (page === 'settings') {
+            setBadge(badge, '', '');
         } else if (busy) {
             setBadge(badge, icon('spinner', 12, 'spin'), 'busy');
         } else {
@@ -459,6 +465,7 @@ const PAGES = {
     network: () => networkPage(),
     apps: () => appsPage(),
     containers: () => containersPage(),
+    settings: () => settingsPage(),
 };
 
 function render() {
@@ -557,7 +564,12 @@ function attentionCard(item) {
                 // all while the account has the agentic features off
                 state.report?.agent
                     ? linkButton(t('Ask the agent'), () => window.security.diagnose(check.id), { icon: 'sparkle' })
-                    : null)));
+                    : null,
+                // What cannot be fixed on this machine can be accepted: shown as information from then on,
+                // until it turns worse. Not what something found, which has its own way to be read.
+                ['virus-scan', 'security-watcher'].includes(check.id)
+                    ? null
+                    : linkButton(t('Accept'), () => window.security.accept(check.id), { icon: 'mark-ok', quiet: true }))));
 }
 
 function findingTitle(entry) {
@@ -591,10 +603,13 @@ function checkRow(check) {
     return h('div', { class: 'row' },
         dot(check.state === 'ok' ? 'ok' : 'info'),
         h('div', { class: 'row-text' },
-            h('div', { class: 'row-title' }, check.title),
+            h('div', { class: 'row-title' }, check.title, check.accepted ? pill(t('Accepted'), '', { small: true }) : null),
             h('div', { class: 'row-detail' }, check.text),
             lines.length ? h('div', { class: 'row-detail' }, lines.join(' ')) : null,
-            check.command ? linkButton(t('Run it now'), () => window.security.run(check.id), { small: true }) : null));
+            check.command
+                ? linkButton(check.switched_off ? t('Turn it back on') : t('Run it now'), () => window.security.run(check.id), { small: true })
+                : null,
+            check.accepted ? linkButton(t('Show it again'), () => window.security.accept(check.id, true), { small: true }) : null));
 }
 
 function groupsSection(attention) {
@@ -646,12 +661,20 @@ function optionalSection() {
 function scanPage() {
     const scanner = state.scanner;
     const busy = Boolean(state.running || scanner?.machine.running);
-    const blocked = !scanner?.signatures || busy;
+    // VIRUS_SCAN=off: nothing scans, and nothing holds the signatures, until its owner turns it on
+    const off = state.report?.settings?.virus_scan === 'off';
+    const blocked = off || !scanner?.signatures || busy;
     return h('div', { class: 'page' },
         h('header', { class: 'page-head' },
             h('h1', {}, t('Virus scan')),
             h('p', { class: 'lead' }, `${t('ClamAV compares your files with known malware.')} ${SCAN_LEADS[detection()]}`)),
         state.notice ? h('p', { class: 'notice', role: 'alert' }, state.notice) : null,
+        off
+            ? callout('info', t('The virus scanner is turned off'),
+                t('Nothing is scanned, and no virus signatures are kept in memory or downloaded.'),
+                h('div', { class: 'actions' },
+                    button(t('Turn it on…'), () => window.security.change('setting', 'VIRUS_SCAN', ''), { icon: 'terminal', primary: true })))
+            : null,
         busy
             ? h('div', { class: 'banner' },
                 icon('spinner', 18, 'spin'),
@@ -1287,6 +1310,126 @@ function containersPage() {
             linkButton(t('Containers in the manual'), () => window.security.manual('software#packages-from-other-distributions'), { icon: 'book' })));
 }
 
+// --- Settings: every switch ------------------------------------------------------------------------------
+
+// The values a switch can take, in words
+const VALUES = {
+    off: t('Off'),
+    on: t('On'),
+    record: t('Record only'),
+    manual: t('Manual'),
+    weekly: t('Weekly'),
+    all: t('All'),
+    critical: t('Critical only'),
+    none: t('None'),
+    report: t('Report'),
+    quarantine: t('Quarantine'),
+    delete: t('Delete'),
+    watch: t('Watch'),
+    block: t('Block'),
+};
+
+// The groups amethystora-security-config gives its switches
+const SWITCH_GROUPS = [
+    ['watching', t('Watching')],
+    ['audit', t('What the audit log records')],
+    ['scans', t('Scans')],
+    ['network', t('Network')],
+    ['notices', t('What is said')],
+];
+
+// What a switch costs while it is on, from systemd's accounting: memory now, or its last run
+function costText(cost) {
+    if (cost?.memory) {
+        return t('Uses {size} MB of memory now', { size: t.number(Math.round(cost.memory / 1048576)) });
+    }
+    if (Number.isFinite(cost?.seconds)) {
+        return t('Its last run took {time}', { time: took(cost.seconds) });
+    }
+    return '';
+}
+
+// One button for each value, the current one pressed; the others open the switch's command
+function segmented(entry) {
+    return h('div', { class: 'segmented', role: 'group', 'aria-label': entry.title },
+        entry.allowed.map((value) => h('button', {
+            type: 'button',
+            class: value === entry.value ? 'active' : null,
+            'aria-pressed': value === entry.value ? 'true' : 'false',
+            onclick: value === entry.value ? null : () => window.security.change('setting', entry.key, value),
+        }, VALUES[value] || value)));
+}
+
+function switchRow(entry) {
+    const cost = costText(entry.cost);
+    return h('div', { class: 'list-row switch-row' },
+        h('span', { class: 'grow' },
+            h('strong', {}, entry.title),
+            h('small', {}, entry.text),
+            cost ? h('small', { class: 'faint' }, cost) : null),
+        segmented(entry));
+}
+
+function enforcedRow(entry) {
+    const on = entry.state === 'on';
+    return h('div', { class: 'list-row switch-row' },
+        h('span', { class: 'grow' },
+            h('strong', {}, entry.title),
+            h('small', {}, entry.text),
+            (entry.arguments || []).map((item) => h('small', { class: 'container-line' },
+                h('span', { class: 'mono', dir: 'ltr' }, item.argument),
+                ' ',
+                pill(item.state === 'on' ? t('On') : t('Off'), item.state === 'on' ? 'ok' : '', { small: true }),
+                entry.fixed
+                    ? null
+                    : linkButton(item.state === 'on' ? t('Turn off…') : t('Turn on…'),
+                        () => window.security.change('hardening', entry.name, item.state === 'on' ? 'off' : 'on', item.argument), { small: true })))),
+        entry.arguments
+            ? null
+            : h('span', { class: 'switch-side' },
+                pill(on ? t('On') : t('Off'), on ? 'ok' : ''),
+                button(on ? t('Turn off…') : t('Turn on…'), () => window.security.change('hardening', entry.name, on ? 'off' : 'on'), { small: true })));
+}
+
+function settingsPage() {
+    const switches = state.switches;
+    const empty = (text) => h('div', { class: 'list card' }, h('p', { class: 'list-empty' }, text));
+    const sections = [];
+    if (!switches) {
+        sections.push(empty(t('Reading…')));
+    } else if (switches.error && !switches.settings.length) {
+        sections.push(empty(switches.error));
+    } else {
+        for (const [group, title] of SWITCH_GROUPS) {
+            const rows = switches.settings.filter((entry) => entry.group === group);
+            if (rows.length) {
+                sections.push(section(title, h('div', { class: 'list card' }, rows.map(switchRow))));
+            }
+        }
+        if (switches.hardening.length) {
+            sections.push(section(t('What the image enforces'), h('div', { class: 'list card' }, switches.hardening.map(enforcedRow)),
+                t('No profile changes these')));
+        }
+    }
+    const profile = switches?.profile || 'custom';
+    return h('div', { class: 'page' },
+        h('header', { class: 'page-head' },
+            h('h1', {}, t('Settings')),
+            h('p', { class: 'lead' },
+                t('Every security feature is a switch, in case one makes this machine slower or gets in your way. Off costs nothing: nothing runs, nothing is downloaded and nothing is said, and the audit log follows at the next restart. A change opens in a terminal, which says what it changes before it does it.'))),
+        callout('info',
+            t('{profile, select, off {Everything that can be off is off} default {Every switch is as the image ships it} other {Some switches are changed from how the image ships them}}', { profile }),
+            t('Turning everything off leaves alone what the image enforces from the start, below, and what you turned on yourself in the overview.'),
+            h('div', { class: 'actions' },
+                button(t('Turn everything off…'), () => window.security.change('profile', 'off'), { icon: 'terminal', disabled: profile === 'off' }),
+                button(t('Back to the defaults…'), () => window.security.change('profile', 'default'), { icon: 'terminal', disabled: profile === 'default' }))),
+        sections,
+        h('p', { class: 'faint small' },
+            t('Edited by hand, {file} takes effect at the next restart, even from a text console when the desktop does not start.', { file: '/etc/amethystora/security.conf' })),
+        h('div', { class: 'actions' },
+            linkButton(t('Switches in the manual'), () => window.security.manual('security#switches'), { icon: 'book' })));
+}
+
 // --- Talking to main.js ---------------------------------------------------------------------------------
 
 async function begin(request) {
@@ -1349,9 +1492,9 @@ let reloading = null;
 function reload() {
     if (!reloading) {
         reloading = Promise.all([window.security.report(), window.security.scanner(), window.security.history(),
-            window.security.network(), window.security.inventory(), window.security.permissions()])
-            .then(([report, scanner, history, network, inventory, permissions]) => {
-                Object.assign(state, { report, scanner, history: history.entries, home: history.home, network, inventory, permissions });
+            window.security.network(), window.security.inventory(), window.security.permissions(), window.security.switches()])
+            .then(([report, scanner, history, network, inventory, permissions, switches]) => {
+                Object.assign(state, { report, scanner, history: history.entries, home: history.home, network, inventory, permissions, switches });
                 if (history.running) {
                     state.running = history.running;
                 }
@@ -1428,7 +1571,7 @@ window.security.onFinished((entry) => {
 });
 window.security.onOpen((page) => {
     state.notice = '';
-    show(['scan', 'network', 'apps', 'containers'].includes(page) ? page : 'overview');
+    show(['scan', 'network', 'apps', 'containers', 'settings'].includes(page) ? page : 'overview');
 });
 // Back from a terminal where something may have been fixed
 window.security.onFocus(() => {
@@ -1495,7 +1638,7 @@ document.addEventListener('keydown', (event) => {
 
 async function start() {
     applyPalette(await window.security.palette());
-    state.page = ['#scan', '#network', '#apps', '#containers'].includes(location.hash) ? location.hash.slice(1) : 'overview';
+    state.page = ['#scan', '#network', '#apps', '#containers', '#settings'].includes(location.hash) ? location.hash.slice(1) : 'overview';
     render();
     await reload();
 }

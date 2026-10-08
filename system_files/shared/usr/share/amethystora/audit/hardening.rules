@@ -1,0 +1,32 @@
+## Amethystora audit rules, key hardening. amethystora-audit-home-rules copies this into
+## /etc/audit/rules.d/60-amethystora.rules at every boot, before auditd starts, unless HARDENING=off in
+## /etc/amethystora/security.conf: a key that is off loads no rule and costs nothing. A watch on a path that
+## is not there is left out, since it would stop auditctl loading every rule after it.
+##
+## Read what these caught with: sudo ausearch -i -k hardening
+
+## The hardening itself. Whatever turns these off does it before doing anything else worth seeing.
+-w /etc/flatpak/overrides/ -p wa -k hardening
+## Firefox's policy: where browser protection is written, and where an extension can be forced in
+-w /etc/firefox/ -p wa -k hardening
+-w /etc/containers/policy.json -p wa -k hardening
+## The key that policy.json names, and where the signatures it demands are looked up. Swapping the key
+## for one of the attacker's own defeats update verification with policy.json left untouched, so a
+## watch on that file alone watches the lock and not the key. The akmods certificate is the same
+## question one layer down: it is what says a kernel module was built by this image.
+-w /etc/pki/containers/ -p wa -k hardening
+-w /etc/containers/registries.d/ -p wa -k hardening
+-w /etc/pki/akmods/certs/ -p wa -k hardening
+-w /etc/security/faillock.conf -p wa -k hardening
+-w /etc/audit/ -p wa -k hardening
+## Where a file of the same name as one in /usr/lib replaces it whole, which turns the image's kernel
+## settings, blocked modules or firewall zone off without touching /usr; how passwords are checked; the
+## SSH server; what the virus scan leaves out; and this machine's own security settings.
+-w /etc/sysctl.d/ -p wa -k hardening
+-w /etc/modprobe.d/ -p wa -k hardening
+-w /etc/firewalld/ -p wa -k hardening
+-w /etc/pam.d/ -p wa -k hardening
+-w /etc/authselect/ -p wa -k hardening
+-w /etc/ssh/sshd_config.d/ -p wa -k hardening
+-w /etc/clamd.d/ -p wa -k hardening
+-w /etc/amethystora/ -p wa -k hardening

@@ -35,7 +35,7 @@ else
     if [[ "${COUNT}" -gt 0 ]]; then
         echo "${COUNT} warning(s) that were not there at the last audit:"
         printf '%s\n' "${NEW}"
-        /usr/libexec/amethystora-notify-users \
+        /usr/libexec/amethystora-notify-users --security \
             "Security audit: ${COUNT} new warning(s)" \
             "Something on this machine has changed since the last audit. See it with: ame security audit" \
             normal
