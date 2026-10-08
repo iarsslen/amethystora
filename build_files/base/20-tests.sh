@@ -1236,8 +1236,26 @@ done
 # No passwordless root for users who are not at the machine, and no user-writable directory in root's
 # sudo PATH, and no world-writable USB devices
 grep -q "<allow_any>no</allow_any>" /usr/share/polkit-1/actions/*privileged.user.setup.policy
+grep -q "<allow_active>auth_admin</allow_active>" /usr/share/polkit-1/actions/*privileged.user.setup.policy
 grep -q "polkit.Result.NO" /usr/share/polkit-1/rules.d/10-amethystora-privileged-setup.rules
 test -x /usr/bin/amethystora-privileged-setup
+# A rule that names an action no policy defines never applies, and whatever it meant to allow or refuse is
+# left to that action's defaults: every action a rule the image ships names has to be one a policy defines
+# (pkexec checks the action an exec.path annotation names, not org.freedesktop.policykit.exec)
+POLKIT_ACTIONS="$(grep -ohE '<action id="[^"]+"' /usr/share/polkit-1/actions/*.policy | cut -d'"' -f2)"
+for rules in /usr/share/polkit-1/rules.d/*amethystora* /usr/share/polkit-1/rules.d/20-privileged-user-setup.rules; do
+    for action in $(grep -ohE 'action\.id ?===? ?"[^"]+"' "${rules}" | cut -d'"' -f2); do
+        grep -qxF "${action}" <<<"${POLKIT_ACTIONS}" || { echo "${rules} names ${action}, which no policy defines"; false; }
+    done
+done
+for program in $(grep -ohE 'policykit\.exec\.path">[^<]+' /usr/share/polkit-1/actions/*.policy | cut -d'>' -f2); do
+    for rules in /usr/share/polkit-1/rules.d/*.rules; do
+        if grep -qF '"org.freedesktop.policykit.exec"' "${rules}" && grep -qF "\"${program}\"" "${rules}"; then
+            echo "${rules} names ${program} under org.freedesktop.policykit.exec, which pkexec never checks for it"
+            false
+        fi
+    done
+done
 grep -E "^Defaults[[:space:]]+secure_path" /etc/sudoers | grep -q linuxbrew && false
 if [[ -f /usr/lib/udev/rules.d/50-zsa.rules ]]; then
     grep -q 'MODE:="0666"' /usr/lib/udev/rules.d/50-zsa.rules && false
