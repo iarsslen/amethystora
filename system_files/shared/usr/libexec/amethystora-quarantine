@@ -13,12 +13,20 @@
 #
 # Every file is scanned again before anything is done to it, so whoever calls this can only ever have a
 # file acted on that ClamAV itself calls malware, whatever path they pass. Root only.
+#
+# The files are in folders their owners control, and an owner can swap a folder on the way, or the file
+# itself, for a link between the scan and the act. So root never acts on a path: it enters the file's own
+# folder without following a link, checks that it is the folder that was scanned, and acts on the name in
+# it, which no later swap of the path can redirect. What it moved into the store is checked to be a plain
+# file before anything else is done to it.
 
 set -uo pipefail
 
-STORE=/var/lib/amethystora/quarantine
+# AMETHYSTORA_QUARANTINE_ROOT is for build_files/shared/test-quarantine.sh: a build must not write /var/lib
+ROOT="${AMETHYSTORA_QUARANTINE_ROOT:-}"
+STORE="${ROOT}/var/lib/amethystora/quarantine"
 # ClamAV's allow list for single files (SHA-256, size, name), read from its database directory
-ALLOWED=/var/lib/clamav/amethystora-restored.sfp
+ALLOWED="${ROOT}/var/lib/clamav/amethystora-restored.sfp"
 
 [[ "${EUID}" -eq 0 ]] || { echo "${0##*/} needs root." >&2; exit 77; }
 
@@ -27,18 +35,45 @@ usage() {
     exit 64
 }
 
+# Into the folder PATH names, without following a link anywhere on the way: true only when that is where
+# the shell now is. Run in a subshell, so that the caller's own folder is kept.
+enter() {
+    cd -P -- "$1" 2>/dev/null && [[ "$(pwd -P)" == "$1" ]]
+}
+
+# Moves ./NAME of the current folder into the store, and records what it was. NAME was checked to be a
+# plain file; it may have been swapped for something else since, which is then thrown out of the store
+# rather than having its owner and mode changed through it.
 quarantine() {
-    local path="$1" signature="$2" item
+    local name="$1" path="$2" signature="$3" item
     mkdir -p -m 0700 "${STORE}"
     item="$(mktemp -d "${STORE}/$(date +%Y%m%d-%H%M%S)-XXXX")" || return 1
+    mv -T -- "./${name}" "${item}/file" || { rm -rf -- "${item}"; return 1; }
+    if [[ -L "${item}/file" || ! -f "${item}/file" ]]; then
+        rm -rf -- "${item}"
+        return 1
+    fi
     jq -n --arg path "${path}" --arg signature "${signature}" \
-        --arg owner "$(stat -c '%u:%g' -- "${path}")" --arg mode "$(stat -c '%a' -- "${path}")" \
-        --arg sha256 "$(sha256sum -- "${path}" | cut -d' ' -f1)" --arg date "$(date -Is)" \
-        '{$path, $signature, $owner, $mode, $sha256, $date}' >"${item}/info.json" &&
-        mv -- "${path}" "${item}/file" || { rm -rf -- "${item}"; return 1; }
+        --arg owner "$(stat -c '%u:%g' -- "${item}/file")" --arg mode "$(stat -c '%a' -- "${item}/file")" \
+        --arg sha256 "$(sha256sum -- "${item}/file" | cut -d' ' -f1)" --arg date "$(date -Is)" \
+        '{$path, $signature, $owner, $mode, $sha256, $date}' >"${item}/info.json" || return 1
     # Nothing opens or runs it from here by accident, root included, without first changing that
     chown root:root "${item}/file"
     chmod 0000 "${item}/file"
+}
+
+# The act on one file found, from inside its own folder
+act_on() {
+    local mode="$1" path="$2" signature="$3"
+    local parent="${path%/*}" name="${path##*/}"
+    (
+        enter "${parent:-/}" || exit 1
+        [[ -f "./${name}" && ! -L "./${name}" ]] || exit 1
+        case "${mode}" in
+            quarantine) quarantine "${name}" "${path}" "${signature}" ;;
+            delete) rm -f -- "./${name}" ;;
+        esac
+    )
 }
 
 act() {
@@ -47,9 +82,9 @@ act() {
     local -A found=()
     mode="$(/usr/libexec/amethystora-security-config ON_DETECTION)"
     for path in "$@"; do
-        # Regular files only, and never through a link: a link swapped in for a found file would
-        # otherwise move or delete whatever it points to
-        if [[ "${path}" != /* || -L "${path}" || ! -f "${path}" ]]; then
+        # Regular files only, named by their real path: never through a link, which would otherwise
+        # move or delete whatever it points to
+        if [[ "${path}" != /* || -L "${path}" || ! -f "${path}" || "$(realpath -e -- "${path}" 2>/dev/null)" != "${path}" ]]; then
             printf 'failed\t-\t%s\n' "${path}"
         else
             files+=("${path}")
@@ -80,8 +115,8 @@ act() {
             continue
         fi
         case "${mode}" in
-            quarantine) quarantine "${file}" "${found[${file}]}" && line=quarantined || line=failed ;;
-            delete) rm -f -- "${file}" && line=deleted || line=failed ;;
+            quarantine) act_on quarantine "${file}" "${found[${file}]}" && line=quarantined || line=failed ;;
+            delete) act_on delete "${file}" "${found[${file}]}" && line=deleted || line=failed ;;
             *) line=reported ;;
         esac
         printf '%s\t%s\t%s\n' "${line}" "${found[${file}]}" "${file}"
@@ -105,29 +140,62 @@ item() {
     echo "${STORE}/$1"
 }
 
+# Adds the file to ClamAV's allow list. The list's folder is clamupdate's, so the new list is written to a
+# file made there afresh and moved over the old one, and the old one is read only when it is a plain file:
+# a link put there would otherwise be written through, or copied into a list anyone can read.
+trust() {
+    local next
+    next="$(mktemp "${ALLOWED%/*}/.amethystora-restored.XXXXXX")" || return 1
+    {
+        [[ -f "${ALLOWED}" && ! -L "${ALLOWED}" ]] && cat -- "${ALLOWED}"
+        sigtool --sha256 "$1"
+    } >"${next}" && chmod 0644 "${next}" && mv -T -- "${next}" "${ALLOWED}" || { rm -f -- "${next}"; return 1; }
+    restorecon "${ALLOWED}" 2>/dev/null || true
+    clamdscan --reload >/dev/null 2>&1 || true
+}
+
 restore() {
-    local item path
+    local item path owner mode parent name
     item="$(item "$1")" || return 1
     path="$(jq -r .path "${item}/info.json")"
-    if [[ -e "${path}" || -L "${path}" ]]; then
-        echo "Something is at ${path} again. Move it away first, so that it is not overwritten." >&2
+    owner="$(jq -r .owner "${item}/info.json")"
+    mode="$(jq -r .mode "${item}/info.json")"
+    parent="${path%/*}"
+    parent="${parent:-/}"
+    name="${path##*/}"
+    [[ "${owner}" =~ ^[0-9]+:[0-9]+$ && "${mode}" =~ ^[0-7]{1,4}$ && -n "${name}" ]] || {
+        echo "What was recorded about ${path} is not readable." >&2
         return 1
-    fi
-    if [[ ! -d "$(dirname "${path}")" ]]; then
-        echo "The folder it was in, $(dirname "${path}"), is not there any more." >&2
-        return 1
-    fi
+    }
     # Allowed before it is back, or real-time scanning would find it again on its way in
     if [[ "${2:-}" == trust ]]; then
-        sigtool --sha256 "${item}/file" >>"${ALLOWED}" || return 1
-        chmod 0644 "${ALLOWED}"
-        restorecon "${ALLOWED}" 2>/dev/null || true
-        clamdscan --reload >/dev/null 2>&1 || true
+        trust "${item}/file" || return 1
     fi
-    mv -- "${item}/file" "${path}" || return 1
-    chown "$(jq -r .owner "${item}/info.json")" "${path}"
-    chmod "$(jq -r .mode "${item}/info.json")" "${path}"
-    restorecon "${path}" 2>/dev/null || true
+    # Its owner and mode while it is still in the store, which only root can reach, and then one rename
+    # into its folder: nothing is done through the path after that
+    chown -- "${owner}" "${item}/file" && chmod -- "${mode}" "${item}/file" || return 1
+    if ! (
+        # The folder it was in, reached without a link, and its owner's (or a shared one such as /tmp, which
+        # root owns and only lets each file's owner remove from)
+        if ! enter "${parent}"; then
+            echo "The folder it was in, ${parent}, is not there any more, or is not that folder now." >&2
+            exit 1
+        fi
+        if [[ "$(stat -c %u .)" != "${owner%%:*}" && ! ( "$(stat -c %u .)" == 0 && -k . ) ]]; then
+            echo "${parent} no longer belongs to the file's owner, so the file is not put back there." >&2
+            exit 1
+        fi
+        if [[ -e "./${name}" || -L "./${name}" ]]; then
+            echo "Something is at ${path} again. Move it away first, so that it is not overwritten." >&2
+            exit 1
+        fi
+        mv -T -n -- "${item}/file" "./${name}" && [[ ! -e "${item}/file" ]] || exit 1
+        restorecon "./${name}" 2>/dev/null || true
+    ); then
+        chown root:root "${item}/file" 2>/dev/null
+        chmod 0000 "${item}/file" 2>/dev/null
+        return 1
+    fi
     rm -rf -- "${item}"
     echo "Put back: ${path}"
 }

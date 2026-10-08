@@ -1583,8 +1583,10 @@ grep -q "^ON_DETECTION=report$" /etc/amethystora/security.conf
 for script in amethystora-clamav-scan amethystora-clamav-onaccess; do
     grep -q "/usr/libexec/amethystora-quarantine act" "/usr/libexec/${script}"
 done
-# The helper scans each file again itself before it acts, whoever called it
+# The helper scans each file again itself before it acts, whoever called it, and acts from inside the file's
+# own folder, so an account swapping a folder or the file for a link cannot point root anywhere else
 grep -q "clamdscan --fdpass" /usr/libexec/amethystora-quarantine
+bash /ctx/build_files/shared/test-quarantine.sh
 grep -q "^d /var/lib/amethystora/quarantine 0700 root root" /usr/lib/tmpfiles.d/amethystora-security.conf
 grep -q "^settings " /usr/share/amethystora/just/security.just
 grep -q '"Put a file back" | restore)' /usr/share/amethystora/just/security.just
