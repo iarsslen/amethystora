@@ -1,10 +1,14 @@
 # The live system of the live ISO (.github/workflows/build-iso.yml): Amethystora as it is published,
 # with what booting from a USB stick and installing from it take. Titanoboa squashes this image into the
 # ISO. Built with iso/ as the context, so that the installer's look in iso/product comes along.
+# BASE_IMAGE is the tag the installed machine follows, BASE_DIGEST the digest of it the workflow checked:
+# the live system and the copy it installs are both that digest.
 ARG BASE_IMAGE
-FROM ${BASE_IMAGE}
+ARG BASE_DIGEST
+FROM ${BASE_IMAGE}@${BASE_DIGEST}
 ARG BASE_IMAGE
-ENV BASE_IMAGE=${BASE_IMAGE}
+ARG BASE_DIGEST
+ENV BASE_IMAGE=${BASE_IMAGE} BASE_DIGEST=${BASE_DIGEST}
 COPY live/ /src/live/
 COPY product/ /src/product/
 RUN --mount=type=tmpfs,target=/var/tmp bash /src/live/build.sh && rm -rf /src

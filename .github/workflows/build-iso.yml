@@ -31,8 +31,15 @@ on:
 # amethystora.iso, for https://download.amethystora.org/amethystora.iso. The installer ISO, the only one
 # that also starts computers without UEFI, is amethystora-non-uefi.iso.
 #
-# Secrets: R2_ACCOUNT_ID, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY (an R2 API token with Object Read
-# & Write on the bucket), R2_BUCKET, and SIGNING_SECRET, which signs the checksum as it signs the image.
+# Both are built from one digest of the published image, resolved and checked against cosign.pub once
+# (the image job), so that the image cannot change between the check and either build. The builders run
+# privileged, so neither job holds a secret: each hands its ISO to the publish job, on a runner of its
+# own, which works out the checksum again from what it received, signs it and uploads. Only main
+# publishes: pull requests, and dispatches from any other branch, build the ISOs and stop there.
+#
+# Secrets (publish job only): R2_ACCOUNT_ID, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY (an R2 API token
+# with Object Read & Write on the bucket), R2_BUCKET, and SIGNING_SECRET, which signs the checksum as it
+# signs the image.
 
 permissions: {}
 
@@ -41,14 +48,49 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  image:
+    name: Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      IMAGE: ${{ inputs.image || 'amethystora' }}
+    outputs:
+      digest: ${{ steps.verify.outputs.digest }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
+
+      # Everything on both ISOs is the published image, so it is checked first against the key every
+      # update is checked against, by the digest both builds then use
+      - name: Verify the image
+        id: verify
+        run: |
+          case "${IMAGE}" in
+            amethystora) ;;
+            *) echo "::error::${IMAGE} has no ISO: only amethystora does"; exit 1 ;;
+          esac
+          digest="$(skopeo inspect --retry-times 3 "docker://ghcr.io/iarsslen/${IMAGE}:stable" | jq -r .Digest)"
+          [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          cosign verify --key cosign.pub "ghcr.io/iarsslen/${IMAGE}@${digest}" > /dev/null
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+
   build-iso:
     name: ISO
+    needs: [image]
     runs-on: ubuntu-26.04
     permissions:
       contents: read
     env:
       IMAGE: ${{ inputs.image || 'amethystora' }}
       ISO: ${{ inputs.image || 'amethystora' }}-non-uefi.iso
+      DIGEST: ${{ needs.image.outputs.digest }}
 
     steps:
       - name: Maximize build space
@@ -58,6 +100,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Prepare the installer configuration
         run: |
@@ -94,6 +138,9 @@ jobs:
       # bwrap-userns-restrict profile, which denies every capability to whatever bwrap starts.
       # osbuild runs each stage under bwrap, so its stages could neither chown nor mount; the profile
       # is unloaded before the builder starts.
+      #
+      # The image is pulled by the digest the image job checked and given its tag only in this
+      # runner's store, where the builder looks for it: nothing is pulled by tag.
       - name: Build ISO
         env:
           BUILDER: quay.io/centos-bootc/bootc-image-builder@sha256:2b52843ea2bfda73b0a08d97e76b734393b1d3a804681b9fabb26723bd3a2f0b
@@ -107,7 +154,8 @@ jobs:
             sudo apparmor_parser -R /etc/apparmor.d/bwrap-userns-restrict
           fi
           sudo podman pull "${BUILDER}"
-          sudo podman pull "${IMAGE_REF}"
+          sudo podman pull "${IMAGE_REF%:*}@${DIGEST}"
+          sudo podman tag "${IMAGE_REF%:*}@${DIGEST}" "${IMAGE_REF}"
           mkdir output
           sudo podman run --rm --privileged --security-opt label=type:unconfined_t \
             --volume /var/lib/containers/storage:/var/lib/containers/storage \
@@ -150,47 +198,14 @@ jobs:
           # file has invalidated
           implantisomd5 --force "upload/${ISO}"
 
-      - name: Checksum
-        working-directory: upload
-        run: |
-          sha256sum "${ISO}" | tee "${ISO}.sha256"
-
-      - name: Install Cosign
-        if: github.event_name != 'pull_request'
-        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
-
-      - name: Sign checksum
-        if: github.event_name != 'pull_request'
-        working-directory: upload
-        env:
-          COSIGN_EXPERIMENTAL: false
-          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
-        run: |
-          cosign sign-blob -y --key env://COSIGN_PRIVATE_KEY --bundle "${ISO}.sha256.bundle" "${ISO}.sha256"
-
-      - name: Upload to Cloudflare R2
-        if: github.event_name != 'pull_request'
-        working-directory: upload
-        env:
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: auto
-          # As Cloudflare advises for AWS CLI 2.23 and later, whose default checksums R2 has refused
-          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
-          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
-        run: |
-          if [[ -z "${R2_ACCOUNT_ID}" || -z "${R2_BUCKET}" || -z "${AWS_ACCESS_KEY_ID}" || -z "${AWS_SECRET_ACCESS_KEY}" ]]; then
-            echo "::error::The R2 secrets are not set, so the ISO cannot be uploaded"
-            exit 1
-          fi
-          # The ISO first, so that the checksum is never replaced before the ISO it describes
-          for file in "${ISO}" "${ISO}.sha256" "${ISO}.sha256.bundle"; do
-            aws s3 cp --no-progress \
-              --endpoint-url "https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" \
-              "${file}" "s3://${R2_BUCKET}/${file}"
-          done
+      - name: Hand the ISO to the publish job
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          path: upload/${{ env.ISO }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 1
 
   # The live ISO of amethystora: boot it from a USB stick, try Amethystora without installing anything,
   # and install it from there with Anaconda, offline. Titanoboa (ublue-os/titanoboa, Apache-2.0) squashes
@@ -202,12 +217,14 @@ jobs:
   # before the stable image moves to 45.
   live-iso:
     name: Live ISO
+    needs: [image]
     if: (inputs.image || 'amethystora') == 'amethystora'
     runs-on: ubuntu-26.04
     permissions:
       contents: read
     env:
       IMAGE_REF: ghcr.io/iarsslen/amethystora:stable
+      DIGEST: ${{ needs.image.outputs.digest }}
       ISO: amethystora.iso
 
     steps:
@@ -218,28 +235,22 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
-
-      # Everything on the ISO is the published image, so it is checked first against the key every update
-      # is checked against
-      - name: Verify the image
-        run: |
-          cosign verify --key cosign.pub "${IMAGE_REF}" > /dev/null
+        with:
+          persist-credentials: false
 
       # sys_admin and no SELinux label for the build, which pulls the image into the live system's own
-      # image store and rebuilds its initramfs
+      # image store and rebuilds its initramfs. Both the live system and the copy it carries are the
+      # digest the image job checked (iso/live/Containerfile)
       - name: Build the live system
         run: |
           sudo rm -rf /var/lib/containers/storage
           sudo mkdir -p /etc/containers
           printf '[storage]\ndriver = "overlay"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n' |
             sudo tee /etc/containers/storage.conf > /dev/null
-          sudo podman pull "${IMAGE_REF}"
+          sudo podman pull "${IMAGE_REF%:*}@${DIGEST}"
           sudo podman build --cap-add sys_admin --security-opt label=disable \
-            --build-arg BASE_IMAGE="${IMAGE_REF}" --tag localhost/amethystora-live:stable \
-            --file iso/live/Containerfile iso
+            --build-arg BASE_IMAGE="${IMAGE_REF}" --build-arg BASE_DIGEST="${DIGEST}" \
+            --tag localhost/amethystora-live:stable --file iso/live/Containerfile iso
 
       # Titanoboa resolves iso-dest against its own folder, not the workspace, so the ISO is read from
       # wherever its iso-dest output says it went
@@ -273,13 +284,52 @@ jobs:
           xorriso -indev "${LIVE_ISO}" -outdev "upload/${ISO}" -boot_image any replay \
             -map LICENSE /LICENSE -map NOTICE /NOTICE -map LIVE-PACKAGES /LIVE-PACKAGES
 
+      - name: Hand the ISO to the publish job
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          path: upload/${{ env.ISO }}
+          archive: false
+          if-no-files-found: error
+          retention-days: 1
+
+  # Each ISO is signed and uploaded on a fresh runner that ran none of the builders, the only place the
+  # signing key and the R2 token are. The checksum is computed here, from the bytes received. One leg per
+  # ISO, so that one that failed to build does not hold the other back.
+  publish:
+    name: Publish ${{ matrix.iso }}
+    needs: [build-iso, live-iso]
+    if: >-
+      ${{ !cancelled() && github.event_name != 'pull_request' && github.ref == 'refs/heads/main' &&
+      (needs.build-iso.result == 'success' || needs.live-iso.result == 'success') }}
+    runs-on: ubuntu-latest
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        iso:
+          - ${{ inputs.image || 'amethystora' }}-non-uefi.iso
+          - amethystora.iso
+    env:
+      ISO: ${{ matrix.iso }}
+
+    steps:
+      - name: Download the ISO
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ matrix.iso }}
+          path: upload
+
       - name: Checksum
         working-directory: upload
         run: |
+          test -f "${ISO}"
           sha256sum "${ISO}" | tee "${ISO}.sha256"
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@7e8b541eb2e61bf99390e1afd4be13a184e9ebc5 # v3.10.1
+
       - name: Sign checksum
-        if: github.event_name != 'pull_request'
         working-directory: upload
         env:
           COSIGN_EXPERIMENTAL: false
@@ -288,7 +338,6 @@ jobs:
           cosign sign-blob -y --key env://COSIGN_PRIVATE_KEY --bundle "${ISO}.sha256.bundle" "${ISO}.sha256"
 
       - name: Upload to Cloudflare R2
-        if: github.event_name != 'pull_request'
         working-directory: upload
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -296,6 +345,7 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: auto
+          # As Cloudflare advises for AWS CLI 2.23 and later, whose default checksums R2 has refused
           AWS_REQUEST_CHECKSUM_CALCULATION: when_required
           AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
         run: |

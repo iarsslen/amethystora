@@ -11,6 +11,7 @@
 set -xeuo pipefail
 
 : "${BASE_IMAGE:?the image the ISO installs}"
+: "${BASE_DIGEST:?the digest of it that the workflow checked}"
 LIVE=/src/live
 
 mkdir -p "$(realpath /root)"
@@ -18,14 +19,16 @@ mkdir -p "$(realpath /root)"
 # --- The system to install ----------------------------------------------------------------------------
 
 # Into the read-only image store that containers-common lists for root (additionalimagestores), where
-# the installer's ostreecontainer finds it by name. The storage settings are only for this pull.
+# the installer's ostreecontainer finds it by name. The storage settings are only for this pull. It is
+# pulled by digest, the one the live system is built from, and only then given the name it installs by.
 cat >/etc/containers/storage.conf <<'EOF'
 [storage]
 driver = "overlay"
 runroot = "/run/containers/storage"
 graphroot = "/usr/lib/containers/storage"
 EOF
-podman pull "${BASE_IMAGE}"
+podman pull "${BASE_IMAGE%:*}@${BASE_DIGEST}"
+podman tag "${BASE_IMAGE%:*}@${BASE_DIGEST}" "${BASE_IMAGE}"
 rm -f /etc/containers/storage.conf
 
 # --- The live boot and the installer ------------------------------------------------------------------
