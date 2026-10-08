@@ -3,8 +3,9 @@
 set default-list
 
 # Rebase assistant: another image or stream, signed images only (IMAGE and STREAM preselect them)
+[positional-arguments]
 rebase IMAGE="" STREAM="":
-    @/usr/bin/amethystora-rollback-helper {{ IMAGE }} {{ STREAM }}
+    @/usr/bin/amethystora-rollback-helper ${1:+"$1"} ${2:+"$2"}
 
 # Take an image of your own from REPOSITORY only when KEY, its cosign.pub, checks its signature
 [no-cd]
@@ -14,6 +15,7 @@ trust-image REPOSITORY KEY:
     @sudo /usr/libexec/amethystora-trust-image "$1" "$2"
 
 # Turn automatic updates on or off (ACTION: on or off; without it, you are asked)
+[positional-arguments]
 auto-updates ACTION="prompt":
     #!/usr/bin/bash
     CURRENT_STATE="disabled"
@@ -24,7 +26,7 @@ auto-updates ACTION="prompt":
     fi
 
     echo "Automatic updates are currently ${CURRENT_STATE}"
-    case "{{ ACTION }}" in
+    case "${1:-}" in
         on | enable) SELECTED_OPTION="Enable" ;;
         off | disable) SELECTED_OPTION="Disable" ;;
         *) SELECTED_OPTION="$(gum choose --header="Toggle automatic updates?" "Enable" "Disable" "Cancel")" ;;
@@ -45,6 +47,7 @@ auto-updates ACTION="prompt":
     fi
 
 # Switch between Amethystora and the Developer Experience (ACTION: on or off; without it, it flips)
+[positional-arguments]
 devmode ACTION="":
     #!/usr/bin/env bash
     set -e
@@ -60,7 +63,7 @@ devmode ACTION="":
     if grep -q -E -e "-dx(-|$)" <<< "${IMAGE_NAME}" ; then
         DX=true
     fi
-    case "{{ ACTION }}" in
+    case "${1:-}" in
         on)
             if [[ "${DX}" == true ]]; then
                 echo "Developer mode is already on: this is ${IMAGE_NAME}."
@@ -345,6 +348,7 @@ benchmark:
     stress-ng --matrix 0 -t 1m --times
 
 # Pick the CPU scheduler: the kernel's own, or a sched-ext one for games (lavd), a busy desktop (bpfland) or audio work (flash)
+[positional-arguments]
 scheduler NAME="":
     #!/usr/bin/bash
     set -euo pipefail
@@ -357,7 +361,7 @@ scheduler NAME="":
     current="$(running || true)"
     [[ -n "${current}" ]] || current="the kernel's own (EEVDF)"
     echo "Scheduling the CPU now: ${current}"
-    name="{{ NAME }}"
+    name="${1:-}"
     if [[ -z "${name}" ]]; then
         echo
         echo "kernel   The kernel's own, which suits nearly everything (the default)"

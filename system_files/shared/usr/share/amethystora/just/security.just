@@ -3,13 +3,14 @@
 set default-list
 
 # Log in, unlock the screen and approve sudo with a FIDO2 security key (YubiKey, Thetis, and their fingerprint models)
+[positional-arguments]
 key ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     # Keys are bound to the origin set in /etc/security/pam_u2f.conf, not to the hostname
     origin="pam://amethystora"
     keys="${HOME}/.config/Yubico/u2f_keys"
-    action="{{ ACTION }}"
+    action="${1:-}"
     if [[ -z "${action}" ]]; then
         registered="$(awk -F: -v user="${USER}" '$1 == user { print NF - 1 }' "${keys}" 2>/dev/null || true)"
         echo "Security keys registered for ${USER}: ${registered:-0}"
@@ -47,10 +48,11 @@ key ACTION="":
     echo "Your password keeps working."
 
 # Log in, unlock the screen and approve sudo with a finger, on a machine with a fingerprint reader
+[positional-arguments]
 fingerprint ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
-    action="{{ ACTION }}"
+    action="${1:-}"
     # The image turns fingerprint login on for every account (08-hardening.sh, authselect's
     # with-fingerprint), so a finger enrolled here works at once. fprintd says "No devices available"
     # when there is no reader it can drive.
@@ -96,10 +98,11 @@ fingerprint ACTION="":
     esac
 
 # Ask for a code from a phone app as well as the password when someone logs in over SSH with a password
+[positional-arguments]
 ssh-codes ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
-    action="{{ ACTION }}"
+    action="${1:-}"
     # The switch is the two files this helper writes, and nothing in /etc/amethystora/security.conf: sshd
     # cannot read that file, and a second record of the same state could disagree with the first
     codes=/usr/libexec/amethystora-ssh-codes
@@ -190,10 +193,11 @@ secure-boot:
     echo "Select \"Enroll MOK\", then \"Continue\", \"Yes\", and type \"${ENROLLMENT_PASSWORD}\" as the password."
 
 # Kernel lockdown on a machine without Secure Boot, where it costs the modules signed with this machine's key
+[positional-arguments]
 lockdown ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
-    action="{{ ACTION }}"
+    action="${1:-}"
     # The kernel argument is the switch. Fedora's kernel locks itself down whenever it starts with Secure
     # Boot, whatever the arguments say, so the argument only decides it on a machine without.
     mode="$(sed -n 's/.*\[\([a-z]*\)\].*/\1/p' /sys/kernel/security/lockdown 2>/dev/null || true)"
@@ -251,6 +255,7 @@ status:
     @/usr/libexec/amethystora-security-status
 
 # What each Flatpak app can reach beyond its sandbox, and taking back what you granted one
+[positional-arguments]
 apps ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
@@ -260,7 +265,7 @@ apps ACTION="":
     echo "this machine, in Flatseal or with flatpak override, is said beside it."
     "${permissions}"
     echo
-    action="{{ ACTION }}"
+    action="${1:-}"
     if [[ -z "${action}" ]]; then
         action="$(gum choose --header "App permissions" "Take back what I granted an app" "Open Flatseal" "Cancel")"
     fi
@@ -304,12 +309,13 @@ audit:
     echo "What it said last time: journalctl -u amethystora-lynis-audit.service"
 
 # Every detection switch (security.conf): what each does, and changing one. Off costs nothing
+[positional-arguments]
 settings SETTING="" VALUE="":
     #!/usr/bin/bash
     set -euo pipefail
     config=/usr/libexec/amethystora-security-config
-    setting="{{ SETTING }}"
-    value="{{ VALUE }}"
+    setting="${1:-}"
+    value="${2:-}"
     if [[ -z "${setting}" ]]; then
         "${config}" --list
         echo
@@ -430,11 +436,12 @@ settings SETTING="" VALUE="":
     esac
 
 # Every detection switch at once: off turns off everything that can be, default puts each back as shipped
+[positional-arguments]
 profile NAME="":
     #!/usr/bin/bash
     set -euo pipefail
     config=/usr/libexec/amethystora-security-config
-    name="{{ NAME }}"
+    name="${1:-}"
     echo "The switches match the profile: $("${config}" --profile)"
     if [[ -z "${name}" ]]; then
         echo
@@ -464,17 +471,18 @@ profile NAME="":
     echo "shows each of them."
 
 # Accept a check of the report that cannot be fixed on this machine, so that it stops being a warning
+[positional-arguments]
 allow FEATURE="report" ENTRY="" ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     helper=/usr/libexec/amethystora-security-allow
-    if [[ "{{ FEATURE }}" != report ]]; then
+    if [[ "${1:-}" != report ]]; then
         echo "Only the report's checks can be accepted: ame security allow report"
         exit 64
     fi
-    entry="{{ ENTRY }}"
+    entry="${2:-}"
     accepted="$("${helper}" list report)"
-    if [[ "{{ ACTION }}" == remove ]]; then
+    if [[ "${3:-}" == remove ]]; then
         line="$(awk -v id="${entry}" '$1 == id { print; exit }' <<<"${accepted}")"
         if [[ -z "${line}" ]]; then
             echo "${entry:-That check} is not accepted on this machine."
@@ -515,53 +523,64 @@ allow FEATURE="report" ENTRY="" ACTION="":
     echo "Accepted. ame security allow report ${id} remove shows it again."
 
 # The image's kernel settings: programs kept from each other's memory, kernel addresses hidden, no unprivileged BPF
+[positional-arguments]
 kernel ACTION="":
-    @/usr/libexec/amethystora-hardening ask kernel "{{ ACTION }}"
+    @/usr/libexec/amethystora-hardening ask kernel "${1:-}"
 
 # Rarely used kernel modules kept from loading: old network protocols and filesystems, FireWire
+[positional-arguments]
 blocked-modules ACTION="":
-    @/usr/libexec/amethystora-hardening ask blocked-modules "{{ ACTION }}"
+    @/usr/libexec/amethystora-hardening ask blocked-modules "${1:-}"
 
 # The image's kernel arguments, each on its own: init_on_alloc, slab_nomerge, vsyscall=none...
+[positional-arguments]
 kernel-args ARGUMENT="" ACTION="":
-    @/usr/libexec/amethystora-hardening ask kernel-args "{{ ARGUMENT }}" "{{ ACTION }}"
+    @/usr/libexec/amethystora-hardening ask kernel-args "${1:-}" "${2:-}"
 
 # The Amethystora firewall zone, which lets in only what a desktop needs
+[positional-arguments]
 firewall ACTION="":
-    @/usr/libexec/amethystora-hardening ask firewall "{{ ACTION }}"
+    @/usr/libexec/amethystora-hardening ask firewall "${1:-}"
 
 # Blocking an address after repeated failed logins over SSH (fail2ban)
+[positional-arguments]
 failed-logins ACTION="":
-    @/usr/libexec/amethystora-hardening ask failed-logins "{{ ACTION }}"
+    @/usr/libexec/amethystora-hardening ask failed-logins "${1:-}"
 
 # Locking an account for ten minutes after ten wrong passwords in a row
+[positional-arguments]
 lockout ACTION="":
-    @/usr/libexec/amethystora-hardening ask lockout "{{ ACTION }}"
+    @/usr/libexec/amethystora-hardening ask lockout "${1:-}"
 
 # The image's override that takes X11, the input devices and the Flatpak service from every Flatpak app
+[positional-arguments]
 app-sandbox ACTION="":
-    @/usr/libexec/amethystora-hardening ask app-sandbox "{{ ACTION }}"
+    @/usr/libexec/amethystora-hardening ask app-sandbox "${1:-}"
 
 # Keeping /dev/uinput, which makes virtual keyboards, from apps; Steam Input and drawing tablets need it
+[positional-arguments]
 virtual-input ACTION="":
-    @/usr/libexec/amethystora-hardening ask virtual-input "{{ ACTION }}"
+    @/usr/libexec/amethystora-hardening ask virtual-input "${1:-}"
 
 # The image's SSH server settings: no root login, three tries, no X11 forwarding
+[positional-arguments]
 ssh-settings ACTION="":
-    @/usr/libexec/amethystora-hardening ask ssh-settings "{{ ACTION }}"
+    @/usr/libexec/amethystora-hardening ask ssh-settings "${1:-}"
 
 # Switching this machine back to signature-checked updates at every start
+[positional-arguments]
 signed-updates ACTION="":
-    @/usr/libexec/amethystora-hardening ask signed-updates "{{ ACTION }}"
+    @/usr/libexec/amethystora-hardening ask signed-updates "${1:-}"
 
 # What the security watcher noticed: accounts, what starts by itself, settings, keyboard readers
+[positional-arguments]
 events ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     if /usr/libexec/amethystora-security-config --is WATCHER off; then
         echo "The security watcher is turned off, so nothing new is looked for. ame security settings turns it on."
         echo
-    elif [[ "{{ ACTION }}" == now ]]; then
+    elif [[ "${1:-}" == now ]]; then
         echo "Looking now..."
         sudo systemctl start --wait amethystora-security-watch.service || true
     fi
@@ -574,17 +593,18 @@ events ACTION="":
     sudo /usr/libexec/amethystora-security-watch --seen
 
 # Connections network protection blocked or noticed, and how to allow one again
+[positional-arguments]
 connections ACTION="" RULE="":
     #!/usr/bin/bash
     set -euo pipefail
     ips=/usr/libexec/amethystora-ips
-    case "{{ ACTION }}" in
+    case "${1:-}" in
         allow | block)
-            if [[ -z "{{ RULE }}" ]]; then
-                echo "usage: ame security connections {{ ACTION }} <rule number>"
+            if [[ -z "${2:-}" ]]; then
+                echo "usage: ame security connections ${1:-} <rule number>"
                 exit 64
             fi
-            sudo "${ips}" "{{ ACTION }}" "{{ RULE }}"
+            sudo "${ips}" "${1:-}" "${2:-}"
             ;;
         "")
             echo "Network protection: $(/usr/libexec/amethystora-security-config NETWORK) (ame security settings network)"
@@ -606,11 +626,12 @@ connections ACTION="" RULE="":
     esac
 
 # Addresses fail2ban has blocked for too many failed logins, and how to let one back in
+[positional-arguments]
 addresses ADDRESS="":
     #!/usr/bin/bash
     set -euo pipefail
-    if [[ -n "{{ ADDRESS }}" ]]; then
-        sudo fail2ban-client set sshd unbanip "{{ ADDRESS }}"
+    if [[ -n "${1:-}" ]]; then
+        sudo fail2ban-client set sshd unbanip "${1:-}"
         exit 0
     fi
     sudo fail2ban-client status sshd
@@ -619,10 +640,11 @@ addresses ADDRESS="":
     echo "Blocking is set up in /etc/fail2ban/jail.d/10-amethystora.conf."
 
 # Turn key remapping on or off. It is off by default: the service reads every key pressed on the machine
+[positional-arguments]
 input-remapper ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
-    action="{{ ACTION }}"
+    action="${1:-}"
     if systemctl is-enabled --quiet input-remapper.service 2>/dev/null; then
         echo "Key remapping is on."
     else
@@ -651,10 +673,11 @@ input-remapper ACTION="":
     esac
 
 # Refuse USB devices that were not plugged in when this was set up, against keyloggers and keystroke injectors
+[positional-arguments]
 usb ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
-    action="{{ ACTION }}"
+    action="${1:-}"
     if systemctl is-enabled --quiet usbguard.service 2>/dev/null; then
         echo "USB protection is on. Devices allowed so far:"
         sudo usbguard list-devices --allowed | sed 's/^/  /'
@@ -710,10 +733,11 @@ usb ACTION="":
     esac
 
 # Let browsers install only the extensions on a list, and keep web pages from USB, serial, HID and Bluetooth devices
+[positional-arguments]
 browser ACTION="" ID="":
     #!/usr/bin/bash
     set -euo pipefail
-    action="{{ ACTION }}"
+    action="${1:-}"
     policy=/usr/libexec/amethystora-browser-policy
     if [[ "$("${policy}" status)" == on ]]; then
         echo "Browser protection is on: browsers install only the extensions on the list."
@@ -746,7 +770,7 @@ browser ACTION="" ID="":
             echo "On. Each browser takes it up the next time it starts."
             ;;
         "Allow an extension" | allow)
-            id="{{ ID }}"
+            id="${2:-}"
             if [[ -z "${id}" ]]; then
                 echo "Firefox lists each extension's ID in about:support, under Add-ons. The others show"
                 echo "it on their extensions page with developer mode on."
@@ -871,10 +895,11 @@ dns ACTION="" *SERVERS:
     echo "On. To go back to the network's own DNS servers: ame security dns off"
 
 # Give each network its own hardware address for this machine, and keep the machine's name from them
+[positional-arguments]
 mac ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
-    action="{{ ACTION }}"
+    action="${1:-}"
     # The switch is the one file this helper copies into /etc/NetworkManager/conf.d
     helper=/usr/libexec/amethystora-mac
     if [[ "$("${helper}" status)" == on ]]; then
@@ -911,10 +936,11 @@ mac ACTION="":
     esac
 
 # Unlock the encrypted disk with this machine's TPM instead of typing the passphrase at every boot
+[positional-arguments]
 disk-unlock ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
-    action="{{ ACTION }}"
+    action="${1:-}"
     # The encrypted partitions this system runs from: every disk under its own filesystem, and never a
     # pool's, whose disks open with a key file of their own
     mapfile -t DEVICES < <(/usr/libexec/amethystora-raid root-luks)
@@ -991,11 +1017,12 @@ disk-unlock ACTION="":
     echo "Done. It takes effect at the next boot."
 
 # Hourly read-only snapshots of the home folders, which ransomware running as you cannot change or delete
+[positional-arguments]
 ransomware ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     SNAPSHOTS=/var/home/.snapshots
-    action="{{ ACTION }}"
+    action="${1:-}"
     # Newest first, by name, which is the time each was taken
     mapfile -t TAKEN < <(find "${SNAPSHOTS}" -mindepth 1 -maxdepth 1 -regextype egrep \
         -regex '.*/[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}' -printf '%f\n' 2>/dev/null | sort -r)
@@ -1096,12 +1123,13 @@ ransomware ACTION="":
     esac
 
 # Show what the virus scans found, run one now, or put back a file from quarantine
+[positional-arguments]
 scan ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     FINDINGS=/var/log/amethystora-clamav-findings.log
     QUARANTINE=/usr/libexec/amethystora-quarantine
-    action="{{ ACTION }}"
+    action="${1:-}"
     if sudo test -s "${FINDINGS}"; then
         echo "The last scan found something:"
         # File names are whatever somebody called a file: shown so that none can act on the terminal

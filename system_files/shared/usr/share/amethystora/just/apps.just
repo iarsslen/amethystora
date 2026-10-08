@@ -45,6 +45,7 @@ jetbrains-toolbox:
     echo "Installed in ${DEST}. It opens now, and is in the app grid as JetBrains Toolbox."
 
 # Games: Steam from Flathub with ProtonPlus, the MangoHud overlay and gamescope, and X11 granted back to Steam alone
+[positional-arguments]
 gaming ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
@@ -54,7 +55,7 @@ gaming ACTION="":
         ["Heroic (Epic, GOG and Amazon games)"]=com.heroicgameslauncher.hgl
         ["Lutris (games from anywhere else)"]=net.lutris.Lutris
     )
-    action="{{ ACTION }}"
+    action="${1:-}"
     if flatpak info "${STEAM}" >/dev/null 2>&1; then
         echo "Gaming is set up: Steam is installed."
         [[ -n "${action}" ]] || action="$(gum choose --header "Games" "Add another launcher" "Take it all away" "Cancel")"
@@ -124,10 +125,11 @@ gaming ACTION="":
     esac
 
 # Android apps, in Waydroid: set it up, start it, stop it, or take it all away again
+[positional-arguments]
 android ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
-    action="{{ ACTION }}"
+    action="${1:-}"
     # Written by `waydroid init`, so there whenever Android has been set up
     if sudo test -e /var/lib/waydroid/waydroid.cfg; then
         echo "Android is set up. Its container is $(systemctl is-active waydroid-container.service || true)."
@@ -183,6 +185,7 @@ android ACTION="":
     esac
 
 # Drawing tablets: OpenTabletDriver from Flathub, with the udev rules of its pinned release (ACTION: on or off)
+[positional-arguments]
 opentabletdriver ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
@@ -195,7 +198,7 @@ opentabletdriver ACTION="":
     # (.github/renovate.json5): nothing is copied into /etc from a download that does not match
     OTD_TAG="v0.6.7"
     OTD_SHA256="38b6953ef67579d0afbc99c28522e54182f28838920102566bb5619f152f7b2d"
-    action="{{ ACTION }}"
+    action="${1:-}"
     if flatpak info "${APP}" >/dev/null 2>&1 || [[ -e "${RULES}" ]]; then
         echo "OpenTabletDriver is set up."
         [[ -n "${action}" ]] || action="$(gum choose --header "Drawing tablets (OpenTabletDriver)" "Take it away" "Cancel")"
@@ -306,12 +309,13 @@ webapps *ARGS:
     @amethystora-webapp "$@"
 
 # Let amethystora-pkg build packages from the Arch User Repository, or stop it again (ACTION: on or off; off by default, and without it, it flips)
+[positional-arguments]
 aur ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     # Read by amethystora-pkg, which shows its paru manager and arch-aur template only while it is there
     FLAG="${XDG_CONFIG_HOME:-$HOME/.config}/amethystora/aur"
-    action="{{ ACTION }}"
+    action="${1:-}"
     if [[ -z "${action}" ]]; then
         if [[ -e "${FLAG}" ]]; then action=off; else action=on; fi
     fi

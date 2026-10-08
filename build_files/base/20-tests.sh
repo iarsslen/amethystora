@@ -14,6 +14,9 @@ for i in bin/ame bin/ujust share/amethystora/just/{00-entry,agent,apps,backup,ch
    stat /usr/$i
 done
 [[ "$(ame --summary)" == "$(ujust --summary)" ]]
+# just pastes {{ PARAM }} into a recipe's text before the shell reads it, so a " in one broke out of its
+# quotes: a recipe takes its parameters as positional arguments ([positional-arguments], "$1") instead
+grep -n '{{ [A-Z_]* }}' /usr/share/amethystora/just/*.just && false
 grep -qx "alias setup-backup := backup" <<<"$(ujust --show setup-backup)"
 # The fish completions answer, with no error before a subcommand is typed or after: a condition such as
 # `test (...) = x` fails while there is no word yet. --no-config loads none of them, so they are sourced.

@@ -1,13 +1,14 @@
 # vim: set ft=make :
 
 # Back up this account to a repository that ransomware on this machine cannot delete from
+[positional-arguments]
 backup ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     CONFIG_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/amethystora"
     ENV_FILE="${CONFIG_DIR}/backup.env"
     PASSWORD_FILE="${CONFIG_DIR}/backup-password"
-    action="{{ ACTION }}"
+    action="${1:-}"
     if [[ -r "${ENV_FILE}" ]]; then
         echo "Backing up to: $(sed -n 's/^RESTIC_REPOSITORY=//p' "${ENV_FILE}")"
         if systemctl --user is-enabled --quiet amethystora-backup.timer 2>/dev/null; then
@@ -94,5 +95,6 @@ backup ACTION="":
     esac
 
 # Make this account's setup again from a backup, on a new machine: the image, apps, containers, theme
+[positional-arguments]
 restore-setup SNAPSHOT="":
-    @/usr/libexec/amethystora-restore-setup {{ SNAPSHOT }}
+    @/usr/libexec/amethystora-restore-setup ${1:+"$1"}

@@ -3,11 +3,12 @@
 set default-list
 
 # Pick the desktop theme: colours, terminal palette, prompt and wallpaper (Super+Ctrl+Shift+Space)
+[positional-arguments]
 theme THEME="":
     #!/usr/bin/bash
     set -euo pipefail
-    if [[ -n "{{ THEME }}" ]]; then
-        amethystora-theme set "{{ THEME }}"
+    if [[ -n "${1:-}" ]]; then
+        amethystora-theme set "${1:-}"
         exit 0
     fi
     current="$(amethystora-theme current 2>/dev/null || true)"
@@ -25,12 +26,13 @@ background IMAGE="":
     exec amethystora-theme bg next
 
 # Pick how a new theme or wallpaper is revealed: grow, outer, wipe, wave, fade, random or none (DURATION: how long, 200 to 5000 milliseconds)
+[positional-arguments]
 transition STYLE="" DURATION="":
     #!/usr/bin/bash
     set -euo pipefail
     schema=org.gnome.shell.extensions.amethystora-transitions
-    style="{{ STYLE }}"
-    duration="{{ DURATION }}"
+    style="${1:-}"
+    duration="${2:-}"
     if [[ -n "${duration}" && ! "${duration}" =~ ^[0-9]+$ ]]; then
         echo "usage: ame desktop transition STYLE [DURATION in milliseconds]"
         exit 64
@@ -49,6 +51,7 @@ transition STYLE="" DURATION="":
     echo "Super+Ctrl+Space changes the wallpaper to show it."
 
 # Pick how windows are arranged: tiling, side by side on a strip (PaperWM), or classic, floating as on Windows and macOS
+[positional-arguments]
 layout STYLE="":
     #!/usr/bin/bash
     set -euo pipefail
@@ -56,7 +59,7 @@ layout STYLE="":
     # update and leaves PaperWM off while this says classic
     flag="${XDG_CONFIG_HOME:-$HOME/.config}/amethystora/layout"
     current="$(cat "${flag}" 2>/dev/null || echo tiling)"
-    style="{{ STYLE }}"
+    style="${1:-}"
     if [[ -z "${style}" ]]; then
         echo "tiling   Windows open side by side on a strip that scrolls, arranged for you (PaperWM)"
         echo "classic  Windows float and overlap, and you move and size them, as on Windows and macOS"
@@ -103,10 +106,11 @@ keybindings:
     glow --pager "${file}"
 
 # Put the Amethystora artwork on the GRUB boot menu, or take it off again
+[positional-arguments]
 boot-menu ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
-    action="{{ ACTION }}"
+    action="${1:-}"
     amethystora-grub-theme status
     if [[ -z "${action}" ]]; then
         action="$(gum choose --header "Boot menu" "Turn on" "Turn off" "Cancel")"
@@ -118,10 +122,11 @@ boot-menu ACTION="":
     esac
 
 # The logo and system summary shown in new terminals (ACTION: on or off; without it, it flips)
+[positional-arguments]
 greeting ACTION="":
     #!/usr/bin/bash
     FLAG="${XDG_CONFIG_HOME:-$HOME/.config}/amethystora/no-greeting"
-    action="{{ ACTION }}"
+    action="${1:-}"
     if [[ -z "${action}" ]]; then
         if [ -e "${FLAG}" ]; then action=on; else action=off; fi
     fi
@@ -142,5 +147,6 @@ greeting ACTION="":
     esac
 
 # The terminal's own tools in place of the usual ones: eza for ls, bat for cat, ugrep for grep, with zoxide, direnv and mise (ACTION: on or off)
+[positional-arguments]
 bling ACTION="":
-    @amethystora-bling {{ ACTION }}
+    @amethystora-bling ${1:+"$1"}
