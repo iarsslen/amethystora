@@ -1,0 +1,44 @@
+#!/usr/bin/bash
+# Powers the machine off once every desktop session on it has stayed locked for 18 hours, so that the disk
+# keys leave memory (`ame security locked-poweroff`, off until turned on). Run every ten minutes by
+# amethystora-locked-poweroff.timer, as root, which sees every account's session. GNOME tells logind when it
+# locks (LockedHint); a session unlocked in between starts the count again. A machine at the login screen,
+# with nobody signed in, is left alone.
+#
+# AMETHYSTORA_LOCKED_STATE and AMETHYSTORA_LOCKED_NOW are for build_files/shared/test-locked-poweroff.sh.
+
+set -uo pipefail
+
+HOURS=18
+STATE="${AMETHYSTORA_LOCKED_STATE:-/run/amethystora/locked-since}"
+NOW="${AMETHYSTORA_LOCKED_NOW:-$(date +%s)}"
+
+desktops=0
+unlocked=0
+while read -r session; do
+    [[ -n "${session}" ]] || continue
+    declare -A property=()
+    while IFS='=' read -r key value; do
+        property["${key}"]="${value}"
+    done < <(loginctl show-session "${session}" -p Type -p Class -p LockedHint 2>/dev/null)
+    [[ "${property[Class]:-}" == user && "${property[Type]:-}" =~ ^(wayland|x11)$ ]] || continue
+    desktops=$((desktops + 1))
+    [[ "${property[LockedHint]:-}" == yes ]] || unlocked=$((unlocked + 1))
+    unset property
+done < <(loginctl list-sessions --no-legend 2>/dev/null | awk '{ print $1 }')
+
+if [[ ${desktops} -eq 0 || ${unlocked} -gt 0 ]]; then
+    rm -f "${STATE}"
+    exit 0
+fi
+mkdir -p "${STATE%/*}"
+since="$(cat "${STATE}" 2>/dev/null)"
+if [[ ! "${since}" =~ ^[0-9]+$ ]]; then
+    echo "${NOW}" >"${STATE}"
+    exit 0
+fi
+if ((NOW - since >= HOURS * 3600)); then
+    echo "Every desktop session has been locked for ${HOURS} hours: powering off"
+    rm -f "${STATE}"
+    systemctl poweroff
+fi

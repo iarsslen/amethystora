@@ -40,7 +40,7 @@ NAMES=(kernel blocked-modules kernel-args firewall failed-logins lockout app-san
 # Off until turned on
 STRICTER=(time firewall-away network-daemons block-bluetooth block-webcam block-automount block-user-extensions
     block-xwayland flathub-verified flatpak-password noexec-temp no-coredumps package-cooldown brew-attestations
-    boot-password vscodium-extensions)
+    boot-password locked-poweroff vscodium-extensions)
 # The switches with a level above on, and their levels
 declare -A LEVELS=([kernel]="off standard strict" [package-cooldown]="off on strict")
 # Kernel arguments a switch adds one by one, off until turned on, each with what it puts on the command line
@@ -583,6 +583,18 @@ set_switch() {
                 place "${BREW_PROFILE}" remove
             fi
             ;;
+        locked-poweroff)
+            # The timer runs only while this is on, so that off runs nothing at all
+            if [[ "${switched}" == on ]]; then
+                record "${name}" on
+                systemctl enable --now amethystora-locked-poweroff.timer 2>/dev/null || { record "${name}" off; return 1; }
+            else
+                systemctl disable --now amethystora-locked-poweroff.timer 2>/dev/null
+                rm -f /run/amethystora/locked-since
+                record "${name}" off
+            fi
+            return 0
+            ;;
         vscodium-extensions)
             present vscodium-extensions || { echo "VSCodium is in the dx images only." >&2; return 1; }
             if [[ "${switched}" == on ]]; then
@@ -642,6 +654,7 @@ words() {
         [brew-attestations]="$(gettext "Homebrew attestations")"
         [boot-password]="$(gettext "Boot menu password")"
         [vscodium-extensions]="$(gettext "VSCodium extensions")"
+        [locked-poweroff]="$(gettext "Power off when locked for long")"
     )
     declare -gA TEXT=(
         [kernel]="$(gettext "Hides kernel addresses and messages, keeps programs from reading each other's memory, and turns off unprivileged BPF. Off, gdb -p, strace -p, perf and dmesg work without sudo, from the next restart. Strict also turns off io_uring, lets only root attach a debugger, randomises more of each program's memory layout and blocks IPsec; QEMU, Samba and some Node programs lose io_uring, gdb -p and strace -p need sudo, sanitizers stop working and libreswan and strongSwan cannot connect.")"
@@ -671,6 +684,7 @@ words() {
         [package-cooldown]="$(gettext "npm, pnpm and uv refuse package versions published in the last 3 days, which is how long most poisoned releases lasted before they were taken down. Strict waits 7 days and also stops npm and pnpm running install scripts, which packages that build native code need.")"
         [brew-attestations]="$(gettext "Homebrew checks each bottle's build attestation before it installs it. It needs gh, from the cli Brewfile, and a GitHub login (gh auth login) on every account, or brew install fails.")"
         [boot-password]="$(gettext "The boot menu asks for a password before anyone edits a boot entry or opens its command line, which could start this machine into a root shell. Starting normally needs none. Forget it and only booting from a USB stick changes it.")"
+        [locked-poweroff]="$(gettext "The machine powers off once every desktop session on it has stayed locked for 18 hours, so that the disk keys leave memory, as a phone restarts when it has not been unlocked for long. Whatever was open and not saved is lost.")"
         [vscodium-extensions]="$(gettext "VSCodium stops updating extensions by itself: worms have spread through Open VSX as updates to extensions people already had. Update them yourself, after reading what changed. With extensions or publishers listed one a line in /etc/amethystora/vscodium-extensions, only those can be installed.")"
     )
     # When the change takes effect: turning one off of what the image enforces, or turning a stricter one on
@@ -703,6 +717,7 @@ words() {
         [brew-attestations]="$(gettext "In new terminals, and for every app from your next login.")"
         [boot-password]="$(gettext "From the next start.")"
         [vscodium-extensions]="$(gettext "From VSCodium's next start.")"
+        [locked-poweroff]="$(gettext "At once: the 18 hours count from the next time every session is locked.")"
     )
 }
 

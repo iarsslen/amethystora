@@ -1,0 +1,8 @@
+[Unit]
+Description=Power off once every desktop session has been locked for 18 hours
+Documentation=man:loginctl(1)
+
+[Service]
+Type=oneshot
+ExecCondition=/usr/libexec/amethystora-hardening is-on locked-poweroff
+ExecStart=/usr/libexec/amethystora-locked-poweroff

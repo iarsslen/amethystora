@@ -666,6 +666,11 @@ package-cooldown ACTION="":
 brew-attestations ACTION="":
     @/usr/libexec/amethystora-hardening ask brew-attestations "${1:-}"
 
+# Powering off once every desktop session has been locked for 18 hours, so that the disk keys leave memory
+[positional-arguments]
+locked-poweroff ACTION="":
+    @/usr/libexec/amethystora-hardening ask locked-poweroff "${1:-}"
+
 # A password before anyone edits a boot entry or opens the boot menu's command line
 [positional-arguments]
 boot-password ACTION="":

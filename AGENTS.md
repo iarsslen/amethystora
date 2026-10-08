@@ -396,7 +396,8 @@ zone by default, home connections keeping `amethystora`), `network-daemons`, `bl
 `block-xwayland` (`--no-x11` in GNOME Shell's user unit, whose `ExecStart` `20-tests.sh` compares),
 `flathub-verified`, `flatpak-password`, `noexec-temp` (marked `/etc/fstab` lines), `no-coredumps`,
 `package-cooldown` (npm, pnpm and uv through `environment.d` and `profile.d`), `brew-attestations`,
-`boot-password` (`grub2-setpassword`, which bootupd's static `01_users.cfg` reads) and, on dx,
+`boot-password` (`grub2-setpassword`, which bootupd's static `01_users.cfg` reads), `locked-poweroff`
+(`amethystora-locked-poweroff.timer`, enabled only while it is on, reads logind's `LockedHint`) and, on dx,
 `vscodium-extensions` (`/etc/vscodium/policy.json`, which VSCodium reads under that name). Each says what
 it costs before it is turned on; the report's `stricter` check names the ones that are on, and the watcher
 says when one is turned off any other way. `ame security lockdown strict` is lockdown's own third level.

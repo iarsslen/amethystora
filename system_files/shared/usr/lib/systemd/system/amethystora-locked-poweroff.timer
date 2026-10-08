@@ -1,0 +1,10 @@
+[Unit]
+Description=Power off once every desktop session has been locked for 18 hours, checked every ten minutes
+
+# Enabled by `ame security locked-poweroff on` only, so that off runs nothing at all
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=10min
+
+[Install]
+WantedBy=timers.target

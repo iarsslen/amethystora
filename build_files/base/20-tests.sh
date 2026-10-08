@@ -1715,6 +1715,7 @@ for switch in $(/usr/libexec/amethystora-hardening status --json | jq -r '.[].na
     grep -q "^${switch} " /usr/share/amethystora/just/security.just
 done
 bash /ctx/build_files/shared/test-security-switches.sh
+bash /ctx/build_files/shared/test-locked-poweroff.sh
 # Its checks are the report's: the watcher runs the report rather than keeping checks of its own
 grep -q "/usr/libexec/amethystora-security-status --json" /usr/libexec/amethystora-security-watch
 # What an account plants is only ever read: text it wrote reaches the history, a notification and a terminal
