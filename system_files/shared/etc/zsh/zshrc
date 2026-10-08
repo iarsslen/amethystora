@@ -34,8 +34,9 @@ unset _comp_path
 # Completions
 #
 
-# load brew autocomplete
-if [ -d "/home/linuxbrew/.linuxbrew/share/zsh/site-functions" ]; then
+# load brew autocomplete: functions zsh runs, from a folder only the first account owns (see Brew below), so
+# only in that account's own shells
+if [[ -d "/home/linuxbrew/.linuxbrew/share/zsh/site-functions" && ${EUID} -ne 0 && -O /home/linuxbrew/.linuxbrew ]]; then
     fpath+=(/home/linuxbrew/.linuxbrew/share/zsh/site-functions)
 fi
 
@@ -195,15 +196,18 @@ colors
 # Sourcing
 #####################
 
-# Brew
-if [[ -o interactive ]] && [[ -d /home/linuxbrew/.linuxbrew ]]; then
-  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-  if type brew &>/dev/null; then
-    if [[ -w /home/linuxbrew/.linuxbrew ]]; then
-      if [[ ! -L "$(brew --prefix)/share/zsh/site-functions/_brew" ]]; then
-        brew completions link
-      fi
+# Brew. /home/linuxbrew/.linuxbrew belongs to the account brew-setup.service gave it to, the first one made,
+# so everything in it is that account's program, `brew shellenv` included. Only that account runs it; every
+# other account gets Homebrew's commands after the system's, and runs nothing from the folder by opening a
+# shell; root gets nothing, as sudo's PATH does not.
+if [[ -o interactive ]] && [[ -d /home/linuxbrew/.linuxbrew ]] && [[ ${EUID} -ne 0 ]]; then
+  if [[ -O /home/linuxbrew/.linuxbrew ]]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    if [[ ! -L "$(brew --prefix)/share/zsh/site-functions/_brew" ]]; then
+      brew completions link
     fi
+  else
+    path+=(/home/linuxbrew/.linuxbrew/bin /home/linuxbrew/.linuxbrew/sbin)
   fi
 fi
 

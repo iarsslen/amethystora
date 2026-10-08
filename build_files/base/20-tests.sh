@@ -1263,6 +1263,14 @@ for program in $(grep -ohE 'policykit\.exec\.path">[^<]+' /usr/share/polkit-1/ac
     done
 done
 grep -E "^Defaults[[:space:]]+secure_path" /etc/sudoers | grep -q linuxbrew && false
+# Homebrew's folder is the first account's: a shell runs its programs on starting (brew shellenv, completion
+# scripts, uutils ahead of /usr/bin) only for that account, never for root or anyone else
+for file in /etc/profile.d/*.sh /etc/zsh/zshrc /usr/share/fish/vendor_conf.d/*.fish; do
+    if grep -qE 'shellenv|bash_completion\.d/\*|site-functions\)|uubin' "${file}"; then
+        grep -qE -- '-O (/home/linuxbrew/\.linuxbrew|"\$\{_brew_prefix\}"|\$brew_prefix)' "${file}" ||
+            { echo "${file} runs Homebrew's programs without checking whose they are"; false; }
+    fi
+done
 if [[ -f /usr/lib/udev/rules.d/50-zsa.rules ]]; then
     grep -q 'MODE:="0666"' /usr/lib/udev/rules.d/50-zsa.rules && false
     grep -q 'TAG+="uaccess"' /usr/lib/udev/rules.d/50-zsa.rules
