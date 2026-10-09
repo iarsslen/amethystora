@@ -406,7 +406,8 @@ says when one is turned off any other way. `ame security lockdown strict` is loc
 or command line, a launcher's `Exec=`, a host name, a rule's message) goes through
 `/usr/libexec/amethystora-security-text` before it reaches a notification, a history line or a terminal:
 `amethystora-notify-users` puts every notification through it, the watcher every finding, the scans every
-file name they log, and the agent's prompts quote such text between lines of dashes as data. In a home the
+file name they log, and the agent's prompts quote such text between lines of dashes as data. The watcher
+tells only administrators (`--admins`), since its findings name other accounts' files. In a home the
 watcher reads only plain files, never through a link, under `timeout`, and its unit has a
 `TimeoutStartSec`. A finding carries its time, level, the part that found it (`key`), its account and
 ATT&CK tactic: the history is JSON lines in `/var/log/amethystora-security-events.jsonl`, and

