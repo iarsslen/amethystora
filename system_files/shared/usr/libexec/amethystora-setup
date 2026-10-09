@@ -96,7 +96,14 @@ if type != "object" then "it is not a JSON object" else
     at("brew"; only(["taps", "formulae", "casks"]; "brew."),
         (if type == "object" then ("taps", "formulae", "casks") as $k | at($k; each("brew.\($k)";
             type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._+@-]*(/[A-Za-z0-9][A-Za-z0-9._+@-]*){0,2}$");
-            "one of Homebrew's names")) else empty end)),
+            "one of Homebrew's names")) else empty end),
+        # A formula or cask named with its tap is installed from that repository, Ruby and all, so the tap is
+        # listed, and shown with its warning, as every other is
+        (if type == "object" then (.taps | if type == "array" then . else [] end) as $taps
+            | ("formulae", "casks") as $k | at($k; if type == "array" then .[] | strings
+                | select(split("/") | length == 3 and (.[:2] | join("/") | IN($taps[]) | not))
+                | "brew.\($k): \(tojson) comes from a tap that brew.taps does not list" else empty end)
+         else empty end)),
     at("containers"; if type != "array" then "containers is not a list" else .[] |
         if type != "object" then "containers: \(tojson) is not a container" else
             only(["name", "template", "init", "packages"]; "containers[]."),

@@ -116,11 +116,11 @@ echo '{"version": 1}' >"${T}/empty.json"
 "${SETUP}" diff --json "${T}/empty.json" | jq -e 'length == 11 and all(.action == "remove")' >/dev/null
 
 # apply installs what is missing, and without --remove takes nothing away
-jq '.flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .brew.formulae = ["fd"]
+jq '.flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .brew.formulae = ["fd", "someone/tools/lint"]
     | .settings.keybindings["org.gnome.desktop.wm.keybindings"].close = ["<Super>c"]' "${FILE}" >"${T}/more.json"
 "${SETUP}" apply --yes "${T}/more.json" >/dev/null
 grep -qx "flatpak install --system --noninteractive flathub org.gnome.Maps" "${LOG}"
-grep -qx "brew install --formula fd" "${LOG}"
+grep -qx "brew install --formula fd someone/tools/lint" "${LOG}"
 grep -qx "gsettings set org.gnome.desktop.wm.keybindings close \['<Super>c'\]" "${LOG}"
 grep -qE "uninstall|untap|reset|rm " "${LOG}" && false
 # --remove asks first, which takes a terminal: without one, nothing is taken away
@@ -129,7 +129,8 @@ grep -qE "uninstall|untap|reset|rm " "${LOG}" && false
 grep -qE "uninstall|untap|reset|rm " "${LOG}" && false
 
 # A file somebody shared must not run anything: a key the format does not know, a custom keybinding's
-# command or the list of them, an app id that would be read as an option, an address for a tap
+# command or the list of them, an app id that would be read as an option, an address for a tap, a formula
+# from a tap the file does not list (Homebrew would tap it unannounced)
 : >"${LOG}"
 for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"keybindings": {"custom": {"custom20": {"command": "rm -rf ~"}}}}}' \
@@ -137,6 +138,8 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"org.gnome.desktop.background": {"picture-uri": "x"}}}' \
     '{"version": 1, "flatpaks": {"system": [{"app": "--from=https://example.com/x.flatpakref", "origin": "flathub"}]}}' \
     '{"version": 1, "brew": {"taps": ["https://example.com/tap.git"]}}' \
+    '{"version": 1, "brew": {"formulae": ["someone/tools/thing"]}}' \
+    '{"version": 1, "brew": {"taps": ["someone/other"], "casks": ["someone/tools/thing"]}}' \
     '{"version": 1, "containers": [{"name": "x", "template": "debian", "packages": ["-o APT::Update::Pre-Invoke::=x"]}]}'; do
     printf '%s\n' "${bad}" >"${T}/bad.json"
     "${SETUP}" diff "${T}/bad.json" >/dev/null 2>&1 && { echo "accepted: ${bad}"; false; }

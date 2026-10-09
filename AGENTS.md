@@ -727,6 +727,10 @@ it.
 - `amethystora-backup` stores `amethystora-setup-manifest`'s JSON beside each backup, as a restic
   snapshot tagged `amethystora-setup` (no secrets in it), and `ame restore-setup`
   (`/usr/libexec/amethystora-restore-setup`) makes the setup again from it, each step chosen first.
+  Anything that can add a snapshot can write that manifest, an append-only repository's compromised
+  client included, so nothing in it runs unread: it never runs the Brewfile it keeps (Ruby), installs
+  Homebrew's names only, asks before each tap and each Flatpak remote the machine lacks, and checks every
+  name as `ame setup` does. Its loops read on fd 3, so that what they run keeps the terminal to ask on.
 
 ### Your setup as a file
 

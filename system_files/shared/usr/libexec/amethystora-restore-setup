@@ -6,8 +6,13 @@
 #   1. the system image and stream, switched to through `ame system rebase`, which takes signed
 #      images only, and taking over at the next restart
 #   2. the Flatpak apps of the machine and of the user, and any remote they came from that this
-#      machine does not have, checked with the key it was checked with before
-#   3. the Homebrew packages, with `brew bundle`
+#      machine does not have, checked with the key it was checked with before, once it is shown and
+#      you say so
+#   3. the Homebrew packages, by name, and the taps they came from once each is shown and you say so
+#
+# A backup is only as trustworthy as every machine that can add a snapshot to it, an append-only one
+# included, so nothing in it runs unread: not the Brewfile it keeps (Ruby, which Homebrew runs), not a
+# remote, a tap, a template or a package manager it names.
 #   4. the containers amethystora-pkg managed, from the same templates, with the packages that were
 #      installed in them by name
 #   5. the GNOME extensions that were on, of those this machine has
@@ -80,8 +85,8 @@ if [[ "${OLD_IMAGE}" != "${CURRENT_IMAGE}" && "${OLD_IMAGE}" != ":" ]]; then
     STEPS+=("The system: ${OLD_IMAGE}, in place of ${CURRENT_IMAGE}")
 fi
 [[ "${MISSING_APPS}" -gt 0 ]] && STEPS+=("Apps: ${MISSING_APPS} from Flathub and the other remotes it used")
-if [[ -n "$(m '.brewfile')" && -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
-    STEPS+=("Homebrew: $(m '.brewfile' | grep -cE '^(brew|cask|tap) ') formulae, casks and taps")
+if [[ "$(m '[.brew.formulae[]?, .brew.casks[]?] | length')" -gt 0 && -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+    STEPS+=("Homebrew: $(m '[.brew.formulae[]?, .brew.casks[]?] | length') formulae and casks")
 fi
 CONTAINERS="$(m '.containers[].name' | grep -vxF -f <(printf '%s\n' "${HERE}"))"
 [[ -n "${CONTAINERS}" ]] && STEPS+=("Containers: $(paste -sd ' ' <<<"${CONTAINERS}")")
@@ -113,11 +118,19 @@ fi
 if chosen "Apps"; then
     echo
     for installation in system user; do
-        while IFS=$'\t' read -r name url key; do
+        # On fd 3, so that what runs in the loop has the terminal, to ask its questions on
+        while IFS=$'\t' read -r -u 3 name url key; do
             [[ -n "${name}" ]] || continue
             flatpak remotes "--${installation}" --columns=name 2>/dev/null | grep -qxF "${name}" && continue
-            if [[ -z "${key}" || "${key}" == null ]]; then
-                echo "The ${installation} remote ${name} (${url}) had no key to check it with, so it is not added."
+            shown="$(/usr/libexec/amethystora-security-text -- "${name} (${url})")"
+            if [[ ! "${name}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ || -z "${key}" || "${key}" == null ]]; then
+                echo "The ${installation} remote ${shown} had no key to check it with, so it is not added."
+                continue
+            fi
+            # Whoever runs a remote decides what its apps are and what they may reach
+            echo "Some of the ${installation} apps came from the remote ${shown}, which this machine does not have."
+            if [[ ! -t 0 ]] || ! gum confirm "Add the remote ${name}, and install apps from it?"; then
+                FAILED+=("the remote ${name}, not added")
                 continue
             fi
             keyfile="$(mktemp)"
@@ -125,13 +138,15 @@ if chosen "Apps"; then
             flatpak remote-add "--${installation}" --if-not-exists --gpg-import="${keyfile}" "${name}" "${url}" ||
                 FAILED+=("the remote ${name}")
             rm -f "${keyfile}"
-        done < <(m --arg i "${installation}" '.remotes[$i][]? | [.name, .url, (.gpg_key // "null")] | @tsv')
+        done 3< <(m --arg i "${installation}" '.remotes[$i][]? | [.name, .url, (.gpg_key // "null")] | @tsv')
         while IFS=$'\t' read -r origin apps; do
             [[ -n "${origin}" ]] || continue
             # shellcheck disable=SC2086
             flatpak install "--${installation}" --noninteractive "${origin}" ${apps} || FAILED+=("apps from ${origin}")
         done < <(m --arg i "${installation}" --arg have "${INSTALLED}" '($have | split("\n")) as $have
-            | [.flatpaks[$i][] | select(.app | IN($have[]) | not)] | group_by(.origin)[]
+            | [.flatpaks[$i][] | select((.app | type == "string" and test("^[A-Za-z][A-Za-z0-9_-]*([.][A-Za-z0-9_-]+)+$"))
+                and (.origin | type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]*$")))
+                | select(.app | IN($have[]) | not)] | group_by(.origin)[]
             | [.[0].origin, (map(.app) | join(" "))] | @tsv')
     done
 fi
@@ -140,10 +155,29 @@ fi
 
 if chosen "Homebrew"; then
     echo
-    brewfile="$(mktemp --suffix=.Brewfile)"
-    m '.brewfile' >"${brewfile}"
-    /home/linuxbrew/.linuxbrew/bin/brew bundle install --file="${brewfile}" || FAILED+=("Homebrew")
-    rm -f "${brewfile}"
+    BREW=/home/linuxbrew/.linuxbrew/bin/brew
+    # The names, never the Brewfile beside them. A name is Homebrew's own, or one of a tap that is here: a
+    # tap is somebody's repository of formulae, Ruby too, so each the old machine had is named and added
+    # only when asked.
+    OK='def ok($taps): type == "string" and (split("/") as $p | ($p | all(.[]; test("^[A-Za-z0-9][A-Za-z0-9._+@-]*$")))
+        and (($p | length) == 1 or (($p | length) == 3 and ($p[:2] | join("/") | IN($taps[])))));'
+    TAPPED="$("${BREW}" tap 2>/dev/null)"
+    while IFS= read -r -u 3 tap; do
+        grep -qxF "${tap}" <<<"${TAPPED}" && continue
+        if [[ -t 0 ]] && gum confirm "Add the Homebrew tap ${tap}, whose formulae anyone can publish and Homebrew does not review?"; then
+            "${BREW}" tap "${tap}" && TAPPED+=$'\n'"${tap}" || FAILED+=("the Homebrew tap ${tap}")
+        else
+            FAILED+=("the Homebrew tap ${tap}, not added")
+        fi
+    done 3< <(m '.brew.taps[]? | select(type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._+@-]*/[A-Za-z0-9][A-Za-z0-9._+@-]*$"))')
+    mapfile -t names < <(m --arg taps "${TAPPED}" "${OK}"'($taps | split("\n")) as $t | .brew.formulae[]? | select(ok($t))')
+    [[ ${#names[@]} -eq 0 ]] || "${BREW}" install --formula "${names[@]}" || FAILED+=("Homebrew formulae")
+    mapfile -t names < <(m --arg taps "${TAPPED}" "${OK}"'($taps | split("\n")) as $t | .brew.casks[]? | select(ok($t))')
+    [[ ${#names[@]} -eq 0 ]] || "${BREW}" install --cask "${names[@]}" || FAILED+=("Homebrew casks")
+    LEFT="$(m --arg taps "${TAPPED}" "${OK}"'($taps | split("\n")) as $t
+        | [.brew.formulae[]?, .brew.casks[]? | select(ok($t) | not) | tostring] | join(", ")')"
+    [[ -z "${LEFT}" ]] || FAILED+=("$(/usr/libexec/amethystora-security-text --max 300 -- \
+        "from Homebrew, what is not Homebrew's name or comes from a tap not added: ${LEFT}")")
 fi
 
 # --- 4. Containers --------------------------------------------------------------------------------------
@@ -152,7 +186,7 @@ if chosen "Containers"; then
     echo
     # Templates and managers of the old account's own come first, since its containers were made from them
     for kind in managers templates; do
-        while IFS= read -r definition; do
+        while IFS= read -r -u 3 definition; do
             [[ -n "${definition}" ]] || continue
             name="$(jq -r .name <<<"${definition}")"
             amethystora-pkg "${kind}" show "${name}" >/dev/null 2>&1 && continue
@@ -166,14 +200,14 @@ if chosen "Containers"; then
             fi
             file="$(mktemp --suffix=.json)"
             printf '%s\n' "${definition}" >"${file}"
-            amethystora-pkg "${kind}" import "${file}" || FAILED+=("the ${kind%s} ${name}")
+            amethystora-pkg "${kind}" import --yes "${file}" || FAILED+=("the ${kind%s} ${name}")
             rm -f "${file}"
-        done < <(m -c ".${kind}[]?")
+        done 3< <(m -c ".${kind}[]?")
     done
     AUR_ON=false
     [[ -e "${CONFIG_DIR}/aur" ]] && AUR_ON=true
     OLD_HOME="$(m '.home')"
-    while IFS= read -r container; do
+    while IFS= read -r -u 3 container; do
         name="$(jq -r .name <<<"${container}")"
         grep -qxF "${name}" <<<"${CONTAINERS}" || continue
         template="$(jq -r .template <<<"${container}")"
@@ -190,18 +224,20 @@ if chosen "Containers"; then
             args+=(--home "${home/#"${OLD_HOME}"/${HOME}}")
         fi
         amethystora-pkg "${args[@]}" || { FAILED+=("the container ${name}"); continue; }
-        mapfile -t packages < <(jq -r '(.packages - .aur_packages)[]' <<<"${container}")
+        # Names, as a setup file has them: one that starts with - would be an option, one with a / an address
+        PACKAGE='def package: type == "string" and test("^[A-Za-z0-9@_+][A-Za-z0-9@._+:=~-]*$");'
+        mapfile -t packages < <(jq -r "${PACKAGE}"'(.packages - .aur_packages)[] | select(package)' <<<"${container}")
         if [[ ${#packages[@]} -gt 0 ]]; then
             amethystora-pkg "${name}" install --yes "${packages[@]}" || FAILED+=("packages in ${name}")
         fi
         # Each package from the AUR is built only after its PKGBUILD has been read, here as anywhere
-        mapfile -t packages < <(jq -r '(.packages - (.packages - .aur_packages))[]' <<<"${container}")
+        mapfile -t packages < <(jq -r "${PACKAGE}"'(.packages - (.packages - .aur_packages))[] | select(package)' <<<"${container}")
         if [[ ${#packages[@]} -gt 0 ]]; then
             amethystora-pkg "${name}" install "${packages[@]}" || FAILED+=("packages from the AUR in ${name}")
         fi
         files="$(jq -r '.files[]? | "\(.name) (\(.file))"' <<<"${container}")"
         [[ -n "${files}" ]] && printf 'Installed from a file, which is not in the backup, in %s: %s\n' "${name}" "$(paste -sd ',' <<<"${files}")"
-    done < <(m -c '.containers[]')
+    done 3< <(m -c '.containers[]')
 fi
 
 # --- 5. GNOME extensions --------------------------------------------------------------------------------
@@ -215,7 +251,7 @@ if chosen "GNOME extensions"; then
         else
             MISSING+=("${uuid}")
         fi
-    done < <(m '.extensions[]')
+    done < <(m '.extensions[]? | select(type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._+@-]*$"))')
     if [[ ${#MISSING[@]} -gt 0 ]]; then
         echo "Not on this machine, so not turned on (Extension Manager finds them):"
         printf '  %s\n' "${MISSING[@]}"
