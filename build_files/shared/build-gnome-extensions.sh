@@ -141,6 +141,12 @@ install_ego_extension "paperwm@paperwm.github.com" 148 70147 \
 # Clipboard Indicator: the clipboard history in the panel, on Super+Shift+V
 install_ego_extension "clipboard-indicator@tudmotu.com" 71 70694 \
     687cb404f9540958ddb0c1de638970572cef73f22f016e5d6c6d6f5d4cd55f97
+# With cache-only-favorites (zz1-amethystora-modifications), version 71 still writes each item copied to
+# its file in ~/.cache with the pinned ones, until the history is full: a password copied last stayed
+# there in plain text, and in the hourly snapshots. Only what the setting asks for is written now.
+CLIPBOARD_JS=/usr/share/gnome-shell/extensions/clipboard-indicator@tudmotu.com/extension.js
+sed -i 's/^\( *\)\.concat(\[entry\]);$/\1.concat(CACHE_ONLY_FAVORITE \&\& !entry.isFavorite() ? [] : [entry]);/' "${CLIPBOARD_JS}"
+grep -qF '.concat(CACHE_ONLY_FAVORITE && !entry.isFavorite() ? [] : [entry]);' "${CLIPBOARD_JS}"
 
 # GNOME Fuzzy App Search: app search that forgives typos, in the overview and in Search Light
 install_ego_extension "gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com" 28 70194 \

@@ -173,8 +173,8 @@ activities-button=false
 # Clipboard Indicator. Its own shortcuts are Ctrl+F8 to Ctrl+F12, which IDEs use for building and
 # debugging, so only the menu has a key, on Super+Shift+V (Super+V is the notifications). History is
 # kept in memory and only pinned items are written to disk, so a copied password does not land in
-# ~/.cache in plain text. Version 71 still writes the newest item to that file until the history is
-# full, so for a password the private mode switch in its menu is the dependable way.
+# ~/.cache in plain text: version 71 also wrote the newest item there, which build-gnome-extensions.sh
+# corrects. Copied pictures are still kept there as files (cache-images).
 [org.gnome.shell.extensions.clipboard-indicator]
 toggle-menu=['<Super><Shift>v']
 clear-history=@as []

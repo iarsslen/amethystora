@@ -28,9 +28,9 @@ Both searches forgive typos in app names: `calxu` still finds Calculator.
 again, type to search, and pin the ones you keep coming back to. It is also the clipboard icon in
 the top bar.
 
-The history lives only as long as your session, and only pinned items are saved. Before copying
-something secret, turn on **Private mode** in the same menu, and nothing is recorded until you turn
-it off.
+The history lives only as long as your session, and of the text you copy only pinned items are saved;
+pictures you copy are kept in `~/.cache` as files. Before copying something secret, turn on **Private
+mode** in the same menu, and nothing is recorded until you turn it off.
 
 ## The dock
 
