@@ -245,6 +245,11 @@ writable package database.
 
 ## VPN
 
-- **Tailscale** is installed, and you can run it without `sudo`: `tailscale up` joins your tailnet.
+- **Tailscale** is installed: `sudo tailscale up` joins your tailnet. It asks for your password because
+  Tailscale runs as root, and whoever controls it can join the machine to a tailnet somebody else runs
+  and turn on Tailscale SSH, which that tailnet can open to root. `sudo tailscale set --operator=$USER`
+  lets your account run it without `sudo`, which lets any program you run do the same. It sends
+  Tailscale none of the logs it would by default; their support may ask for them, which
+  `TS_NO_LOGS_NO_SUPPORT=false` in `/etc/default/tailscaled` turns back on.
   The firewall trusts the tailnet, where your tailnet's own access rules apply.
 - **WireGuard** configurations from any provider can be imported in **Settings → Network → VPN**.
