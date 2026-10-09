@@ -700,6 +700,12 @@ grep -rqx "update:" /usr/share/amethystora/just/
 # build this image installs puts the rule in /etc, uupd's own spec in /usr/share: either will do.
 test -f /usr/lib/systemd/system/uupd-manual.service
 grep -qs '"uupd-manual.service"' /etc/polkit-1/rules.d/uupd.rules /usr/share/polkit-1/rules.d/uupd.rules
+# ...for anyone, and to every other verb too (stop, kill, set-property): the image's own rule is read first
+# and leaves the person at the machine starting an update, and everything else to an administrator
+UUPD_RULE=/usr/share/polkit-1/rules.d/40-amethystora-uupd.rules
+grep -q 'action.lookup("verb") == "start" && subject.local && subject.active' "${UUPD_RULE}"
+grep -q "polkit.Result.AUTH_ADMIN" "${UUPD_RULE}"
+[[ "$(printf '%s\n' "${UUPD_RULE##*/}" uupd.rules | LC_ALL=C sort | head -n1)" == "${UUPD_RULE##*/}" ]]
 # Its Firmware section asks fwupd, which only knows what LVFS has once fwupd-refresh.timer has fetched it:
 # Fedora leaves that to GNOME Software, which this image does not have
 command -v fwupdmgr >/dev/null

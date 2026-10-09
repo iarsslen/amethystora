@@ -466,9 +466,11 @@ find accounts by their folders in `/var/home` as well, and never filter on `uid 
 
 System Updates (`amethystora-update`) replaces upstream's System Update launcher, which opened a
 terminal on `ujust update`; `ame update` stays for the terminal. **Update now** starts
-`uupd-manual.service`, the same updater the automatic updates run, which the `uupd.rules` the uupd
-package ships lets anyone start without a password (the ublue-os/packages build installs it in
-`/etc/polkit-1/rules.d`, not `/usr/share`). The window never runs `bootc`, `flatpak` or `brew`
+`uupd-manual.service`, the same updater the automatic updates run, which the person at the machine
+may start without a password. The `uupd.rules` the uupd package ships (the ublue-os/packages build
+installs it in `/etc/polkit-1/rules.d`, not `/usr/share`) allows every verb on both of uupd's units to
+anyone, `stop` and `set-property` included, so `40-amethystora-uupd.rules`, read before it, allows only
+`start`, and only locally; anything else takes an administrator's password. The window never runs `bootc`, `flatpak` or `brew`
 itself, with one exception: on a machine started from an older deployment than its default one,
 **Keep this version** runs `pkexec bootc rollback`, after an administrator's password
 (`amethystora-update-alert.service` says so at login and opens the window). It follows uupd's JSON log

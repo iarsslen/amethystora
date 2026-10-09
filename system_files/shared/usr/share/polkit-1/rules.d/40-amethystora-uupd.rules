@@ -1,0 +1,16 @@
+// The rule the uupd package ships (/etc/polkit-1/rules.d/uupd.rules) says yes to everything systemd asks
+// polkit about uupd's two units, for anyone: not only starting them, but stopping and killing them, and
+// set-property, which writes a drop-in to /etc/systemd/system.control that outlives reboots and updates.
+// Any account, a remote one included, could have turned the updates off for good. Rules are read in name
+// order, so this one decides first: the person at the machine starts an update without a password, as
+// System Updates does, and anything else takes an administrator's.
+polkit.addRule(function (action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        (action.lookup("unit") == "uupd.service" || action.lookup("unit") == "uupd-manual.service")) {
+        if (action.lookup("verb") == "start" && subject.local && subject.active) {
+            return polkit.Result.YES;
+        }
+        return polkit.Result.AUTH_ADMIN;
+    }
+    return polkit.Result.NOT_HANDLED;
+});
