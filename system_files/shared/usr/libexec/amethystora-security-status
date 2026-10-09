@@ -878,18 +878,22 @@ fi
 SIGNS=()
 [[ -e /etc/ld.so.preload ]] &&
     SIGNS+=("$(gettext "/etc/ld.so.preload exists: it loads a library into every program that starts")")
+# The names are whoever made the file's, a setgid one in any home included: one line each, through
+# amethystora-security-text, so that no escape sequence in one reaches the terminal this is read on
 while IFS= read -r file; do
     [[ -n "${file}" ]] && SIGNS+=("$(eval_gettext "A setuid program outside the image: \${file}")")
-done < <(jq -r '.setuid // [] | .[]' "${WATCH_STATUS}" 2>/dev/null)
+done < <(jq -r '.setuid // [] | .[] | gsub("[\r\n]"; " ")' "${WATCH_STATUS}" 2>/dev/null |
+    /usr/libexec/amethystora-security-text --lines --max 400)
 while IFS= read -r file; do
-    SIGNS+=("$(eval_gettext "A plain file in /dev, where only devices belong: \${file}")")
-done < <(find /dev -xdev -type f 2>/dev/null)
+    [[ -n "${file}" ]] && SIGNS+=("$(eval_gettext "A plain file in /dev, where only devices belong: \${file}")")
+done < <(find /dev -xdev -type f -print0 2>/dev/null | tr '\n\0' ' \n' | /usr/libexec/amethystora-security-text --lines --max 400)
 # The system's files belong to root or to a service. One owned by a login account lets that account change
 # what root runs, as an earlier amethystora-audit-home-rules could be led to arrange (20-tests.sh checks
 # that the image ships none, so any is the machine's own)
 while IFS= read -r file; do
-    SIGNS+=("$(eval_gettext "Owned by a login account, which can change what root runs: \${file}")")
-done < <(find /etc /var/usrlocal -xdev -uid +999 ! -uid 65534 2>/dev/null | head -n 20)
+    [[ -n "${file}" ]] && SIGNS+=("$(eval_gettext "Owned by a login account, which can change what root runs: \${file}")")
+done < <(find /etc /var/usrlocal -xdev -uid +999 ! -uid 65534 -print0 2>/dev/null | tr '\n\0' ' \n' | head -n 20 |
+    /usr/libexec/amethystora-security-text --lines --max 400)
 MODULES_DIR="/usr/lib/modules/$(uname -r)"
 if [[ -r "${MODULES_DIR}/modules.dep" && -r /proc/modules ]]; then
     # "extra" for the modules built with the image (akmods, evdi), "tree" for the kernel's own
@@ -959,6 +963,8 @@ if [[ "${SETTING[LISTENERS]}" == off ]]; then
 elif [[ -r "${WATCH_STATUS}" ]]; then
     LISTENING=()
     while IFS=$'\t' read -r program port; do
+        # A process names itself
+        program="$(/usr/libexec/amethystora-security-text --max 100 -- "${program}")"
         LISTENING+=("$(eval_gettext "\${program}, on port \${port}")")
     done < <(jq -r '.listeners // [] | .[] | [.program, (.port | tostring)] | @tsv' "${WATCH_STATUS}" 2>/dev/null)
     if [[ ${#LISTENING[@]} -gt 0 ]]; then
