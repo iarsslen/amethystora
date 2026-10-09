@@ -384,7 +384,21 @@ function readLine(line) {
     scan.loading = false;
     scan.files += 1;
     scan.current = match[1];
-    if (match[2] && scan.found.length < FINDINGS_KEPT) {
+    // A file's name can hold a newline, and then its own line "<anything>: <signature> FOUND": only a
+    // file that is there, in what was scanned, is a finding (compared resolved, /home being /var/home)
+    const real = (file) => {
+        try {
+            return fs.realpathSync(file);
+        } catch {
+            return null;
+        }
+    };
+    const file = match[2] ? real(match[1]) : null;
+    const within = file && scan.targets.some((target) => {
+        const place = real(target);
+        return place && (file === place || file.startsWith(place.replace(/\/?$/, '/')));
+    });
+    if (within && scan.found.length < FINDINGS_KEPT) {
         scan.found.push({ path: match[1], signature: match[2] });
     }
     if (!scan.timer) {

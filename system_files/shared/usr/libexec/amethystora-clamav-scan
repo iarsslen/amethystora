@@ -96,6 +96,8 @@ case "${STATUS}" in
         echo "Infected files found. On detection: ${MODE}."
         printf '%s\n' "${SHOWN}"
         [[ -z "${DONE}" ]] || printf 'What was done:\n%s\n' "${DONE}"
+        # root's alone from the first byte, not only once the chmod below comes
+        install -m 0600 /dev/null "${FINDINGS}"
         {
             echo "# ClamAV findings, $(date -Is). On detection: ${MODE}."
             printf '%s\n' "${SHOWN}"

@@ -10,6 +10,8 @@
 # start: clamonacc takes exact directories, where clamd's ExcludePath takes patterns.
 
 set -uo pipefail
+# root's alone from the start: the list names what each account keeps in its home, and the logs what was found
+umask 077
 
 LOG=/run/amethystora-clamav-onaccess.log
 EXCLUDES=/run/amethystora-clamav-onaccess.exclude
