@@ -59,7 +59,8 @@ brew search <name>
 Homebrew installs into its own prefix, without `sudo`, and is updated along with the system. The
 [terminal](terminal.md#command-line-tools) page has more. `ame security brew-attestations on` has it
 check each bottle's build attestation before installing it, which needs `gh` and `gh auth login` on
-every account.
+every account. Homebrew's analytics, which it sends unless told not to, are off
+(`/etc/homebrew/brew.env`).
 
 ## Containers
 
