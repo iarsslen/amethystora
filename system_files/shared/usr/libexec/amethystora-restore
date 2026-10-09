@@ -125,9 +125,10 @@ load_backup() {
     work
 }
 
-# The repository as it may be shown: rest:https://user:pass@host:8000/ is rest:https://host:8000/
+# The repository as it may be shown: rest:https://user:pass@host:8000/ is rest:https://host:8000/, and
+# so is rest:https://user:p@ss@host:8000/, up to the last @ before the host
 shown_repository() {
-    sed -E 's#(://)[^/@]*@#\1#' <<<"${RESTIC_REPOSITORY}"
+    sed -E 's#(://)[^/]*@#\1#' <<<"${RESTIC_REPOSITORY}"
 }
 
 # restic, only ever to read here: no lock, no prompt, and what it said kept for when it fails
@@ -528,9 +529,11 @@ merge() {
     fi
     if [[ -d "${src}" && ! -L "${src}" && -d "${dest}" && ! -L "${dest}" ]]; then
         case "${MODE}" in
-            # The whole folder at once, as `ame security ransomware restore` does it
+            # The whole folder at once, as `ame security ransomware restore` does it. What stands at a name is
+            # taken away first, so that a link left there (by ransomware, an archive, a checkout) is replaced,
+            # never written through to wherever it leads
             replace)
-                copy -- "${src}/." "${dest}/"
+                copy --remove-destination -- "${src}/." "${dest}/"
                 REPLACED=$((REPLACED + 1))
                 ;;
             skip)

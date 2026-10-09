@@ -1222,8 +1222,9 @@ ransomware ACTION="":
                     echo "snapshot's. Files the snapshot does not have, such as what ransomware renamed, stay."
                     gum confirm "Put ${folder:-your home folder} back as it was at ${snapshot}?" || exit 0
                     mkdir -p "${home}/${folder}"
-                    # A reflink shares the snapshot's blocks, so this takes no time and no space
-                    cp -a --reflink=auto "${from}/${folder}/." "${home}/${folder}/"
+                    # A reflink shares the snapshot's blocks, so this takes no time and no space. A link ransomware
+                    # left at a name is replaced, never written through
+                    cp -a --reflink=auto --remove-destination "${from}/${folder}/." "${home}/${folder}/"
                     echo "Put back. Delete what ransomware left next to your files, then check they open."
                     ;;
                 *) exit 0 ;;

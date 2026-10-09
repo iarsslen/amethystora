@@ -10,7 +10,7 @@ backup ACTION="":
     PASSWORD_FILE="${CONFIG_DIR}/backup-password"
     action="${1:-}"
     if [[ -r "${ENV_FILE}" ]]; then
-        echo "Backing up to: $(sed -n 's/^RESTIC_REPOSITORY=//p' "${ENV_FILE}")"
+        echo "Backing up to: $(sed -n 's/^RESTIC_REPOSITORY=//p' "${ENV_FILE}" | sed -E 's#(://)[^/]*@#\1#')"
         if systemctl --user is-enabled --quiet amethystora-backup.timer 2>/dev/null; then
             systemctl --user list-timers --no-pager amethystora-backup.timer
         else

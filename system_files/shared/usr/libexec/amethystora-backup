@@ -33,7 +33,9 @@ read -r -a PATHS <<<"${AMETHYSTORA_BACKUP_PATHS:-${HOME}}"
 EXCLUDES="${CONFIG_DIR}/backup-excludes"
 [[ -f "${EXCLUDES}" ]] || EXCLUDES=/usr/share/amethystora/backup-excludes
 
-echo "Backing up ${PATHS[*]} to ${RESTIC_REPOSITORY}"
+# Without the user and password a rest: address can carry: this goes to the journal, which administrators
+# read, and which an agent asked about a failed backup reads too
+echo "Backing up ${PATHS[*]} to $(sed -E 's#(://)[^/]*@#\1#' <<<"${RESTIC_REPOSITORY}")"
 
 # --one-file-system keeps the run out of mounted network shares and removable drives, which are either
 # backed up in their own right or not ours to copy.
