@@ -1195,6 +1195,11 @@ function configureMarked() {
             html(token) {
                 return escapeHtml(token.text ?? token.raw ?? '');
             },
+            // An attachment's picture, or one written into the note: a file: address in a note somebody
+            // shared could show, and a PDF export carry, any picture on this machine
+            image(token) {
+                return /^(res:\/\/|data:image\/)/.test(token.href || '') ? false : escapeHtml(token.text ?? '');
+            },
         },
     });
 }

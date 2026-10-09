@@ -387,9 +387,19 @@ function resourceFile(id) {
     return path.join(RESOURCES, id);
 }
 
+// The key to seal with, or null for notes that are not encrypted. Encrypted but locked, what was under way
+// when the notes locked (an attachment, an import) stops here rather than write in the clear.
+function sealing() {
+    if (vault?.encrypted && !key) {
+        throw new Error(t('Unlock your notes first.'));
+    }
+    return key;
+}
+
 async function writeResource(id, bytes) {
     await fsp.mkdir(RESOURCES, { recursive: true, mode: 0o700 });
-    await writeAtomic(resourceFile(id), key ? seal(key, bytes, `resource:${id}`) : bytes);
+    const secret = sealing();
+    await writeAtomic(resourceFile(id), secret ? seal(secret, bytes, `resource:${id}`) : bytes);
 }
 
 // Throws on an attachment in the clear while the notes are encrypted
@@ -1046,15 +1056,22 @@ async function backup() {
             resources[id] = bytes.toString('base64');
         }
     }
+    // Locked while the attachments were read: nothing of an encrypted vault is written in the clear
+    let secret;
+    try {
+        secret = sealing();
+    } catch (error) {
+        return { error: error.message };
+    }
     const packed = zlib.gzipSync(Buffer.from(JSON.stringify({ store, resources })));
-    const file = { format: 'amethystora-notes-backup', version: 1, created: new Date().toISOString(), encrypted: Boolean(key) };
-    if (key) {
-        Object.assign(file, { cipher: vault.cipher, kdf: vault.kdf, key: vault.key, data: seal(key, packed, 'backup').toString('base64') });
+    const file = { format: 'amethystora-notes-backup', version: 1, created: new Date().toISOString(), encrypted: Boolean(secret) };
+    if (secret) {
+        Object.assign(file, { cipher: vault.cipher, kdf: vault.kdf, key: vault.key, data: seal(secret, packed, 'backup').toString('base64') });
     } else {
         file.data = packed.toString('base64');
     }
     await writeAtomic(filePath, JSON.stringify(file));
-    return { path: filePath, encrypted: Boolean(key) };
+    return { path: filePath, encrypted: Boolean(secret) };
 }
 
 // --- Import ------------------------------------------------------------------------------------------
@@ -1216,7 +1233,7 @@ function importPlanify(data, counts) {
     for (const label of (data.labels || []).filter((item) => !item.is_deleted)) {
         if (!labelOf.has(String(label.name).toLowerCase())) {
             const id = idFor('planify', label.id);
-            upsert('labels', { id, title: String(label.name), color: PLANIFY_COLOURS[label.color] || 'violet' });
+            upsert('labels', { id, title: String(label.name), color: Object.hasOwn(PLANIFY_COLOURS, label.color) ? PLANIFY_COLOURS[label.color] : 'violet' });
             labelOf.set(String(label.name).toLowerCase(), id);
         }
     }
@@ -1228,7 +1245,7 @@ function importPlanify(data, counts) {
         }
         upsert('projects', {
             id: idFor('planify', project.id), title: String(project.name || t('Untitled')),
-            color: PLANIFY_COLOURS[project.color] || 'violet', order: Number(project.child_order) || 0, created: Date.now(),
+            color: Object.hasOwn(PLANIFY_COLOURS, project.color) ? PLANIFY_COLOURS[project.color] : 'violet', order: Number(project.child_order) || 0, created: Date.now(),
         });
         counts.projects += 1;
     }
