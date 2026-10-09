@@ -358,6 +358,7 @@ const MANUAL_PAGES = {
     'backup-runs': 'security#backups',
     containers: 'software#packages-from-other-distributions',
     'app-permissions': 'security#app-permissions',
+    'home-networks': 'security#on-from-the-start',
 };
 
 function manualPage(id) {

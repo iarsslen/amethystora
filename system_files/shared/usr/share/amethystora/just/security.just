@@ -606,6 +606,10 @@ time ACTION="":
 firewall-away ACTION="":
     @/usr/libexec/amethystora-hardening ask firewall-away "${1:-}"
 
+# Which saved networks are home: the only ones phone pairing (GSConnect) is open on
+home-networks:
+    @/usr/libexec/amethystora-hardening ask-home
+
 # Avahi and ModemManager off: no printer or device discovery, no mobile broadband
 [positional-arguments]
 network-daemons ACTION="":

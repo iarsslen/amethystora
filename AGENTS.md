@@ -391,7 +391,7 @@ checks all of it. A new feature gets its switch with it, off by default.
 The same helper holds the stricter settings, each off until turned on and kept in
 `/etc/amethystora/hardening-on`: `kernel strict` (io_uring, ptrace, address randomisation, IPsec), extra
 kernel arguments (`EXTRA_ARGS`), `time` (chrony with NTS only), `firewall-away` (the `amethystora-away`
-zone by default, home connections keeping `amethystora`), `network-daemons`, `block-bluetooth`,
+zone by default, the networks named home keeping theirs), `network-daemons`, `block-bluetooth`,
 `block-webcam`, `block-automount` and `block-user-extensions` (locked dconf keys in `local.d`),
 `block-xwayland` (`--no-x11` in GNOME Shell's user unit, whose `ExecStart` `20-tests.sh` compares),
 `flathub-verified`, `flatpak-password`, `noexec-temp` (marked `/etc/fstab` lines), `no-coredumps`,
@@ -401,6 +401,15 @@ zone by default, home connections keeping `amethystora`), `network-daemons`, `bl
 `vscodium-extensions` (`/etc/vscodium/policy.json`, which VSCodium reads under that name). Each says what
 it costs before it is turned on; the report's `stricter` check names the ones that are on, and the watcher
 says when one is turned off any other way. `ame security lockdown strict` is lockdown's own third level.
+
+**Phone pairing is open only at home** (the maintainer's choice of 2026-10-08). The firewall has three
+zones: `amethystora`, the default, which every network gets; `amethystora-home`, the same with GSConnect's
+`kdeconnect` service, for the saved connections named home (`ame security home-networks`, kept in
+`/etc/amethystora/firewall-home`, applied as each connection's `connection.zone`); and `amethystora-away`,
+the default instead while `firewall-away` is on. With the Amethystora zone off, the home networks go back to
+the default zone and the list stays. fail2ban bans in all three through the image's own
+`action.d/amethystora-zones.conf`, since fail2ban's `firewallcmd-rich-rules` bans in the default zone alone.
+`user-setup.hooks.d/18-home-networks.sh` tells an account with a phone paired, once, why it stopped connecting.
 
 **What an account plants is only ever read.** Text somebody else wrote (a file name, a program's name
 or command line, a launcher's `Exec=`, a host name, a rule's message) goes through

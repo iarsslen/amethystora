@@ -1327,9 +1327,12 @@ done
 grep -rlE 'KERNEL=="uinput".*uaccess' /usr/lib/udev/rules.d /etc/udev/rules.d && false
 grep -q 'KERNEL=="uinput".*uaccess' /usr/share/amethystora/hardening/71-amethystora-uinput.rules
 /usr/libexec/amethystora-hardening is-on virtual-input
-# Firewall: the Amethystora zone, without Fedora Workstation's open port range
+# Firewall: the Amethystora zone, without Fedora Workstation's open port range, and phone pairing (GSConnect)
+# open only in the zone of the networks named home
 [[ "$(firewall-offline-cmd --get-default-zone)" == "amethystora" ]]
 [[ -z "$(firewall-offline-cmd --zone=amethystora --list-ports)" ]]
+firewall-offline-cmd --zone=amethystora --query-service=kdeconnect >/dev/null && false
+firewall-offline-cmd --zone=amethystora-home --query-service=kdeconnect >/dev/null
 firewall-offline-cmd --zone=trusted --query-interface=tailscale0
 # Account lockout, and the SSH server's settings for when it is turned on
 grep -q "pam_faillock.so" /etc/pam.d/system-auth

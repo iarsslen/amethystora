@@ -33,12 +33,15 @@ looks into it in a terminal and changes nothing until you agree.
 - **Updates must be signed.** Only images signed with Amethystora's key are installed, so a tampered
   or substituted image is refused. [Updates](updates.md#signed-updates).
 - **The firewall refuses incoming connections.** Allowed in are printer and device discovery,
-  Windows file sharing, IPv6 setup and GSConnect; your Tailscale tailnet is trusted, so who on it may
+  Windows file sharing and IPv6 setup; your Tailscale tailnet is trusted, so who on it may
   reach this machine is decided by the tailnet's own access rules (ACLs). To let something else in,
   such as a development server you want to reach from your phone, use the **Firewall** app or
   `sudo firewall-cmd --add-port=8080/tcp` (add `--permanent` to keep it after a restart).
   `ame security firewall-away on` answers nothing at all on networks you have not named home
   ([Stricter settings](#stricter-settings)).
+- **Your phone reaches this machine only at home.** GSConnect, which pairs it, is open only on the
+  networks you name home, and closed on every other, a café's or a new one included. Name yours with
+  `ame security home-networks`, which lists the networks this machine has joined.
 - **Ten wrong passwords in a row** lock an account for ten minutes. Unlock it early from another
   administrator account with `sudo faillock --user <name> --reset`.
 - **Repeated failed logins over the network** get the address blocked: five failures within ten
@@ -282,7 +285,7 @@ on, in case one is why something stopped working.
 | `ame security kernel-args <argument> on` | `proc_mem.force_override=ptrace`, `init_on_free=1`, `iommu.strict=1` (the IOMMU on, and strict), `ia32_emulation=0`, each on its own | Untested with Wine and anti-cheat; slower; slower disks and network; no Steam or 32-bit Wine |
 | `ame security lockdown strict` | Root cannot read the running kernel either | `bpftrace`, `perf` with kernel data, eBPF security tools |
 | `ame security time` | The clock set only from time servers that prove who they are (NTS), three agreeing, never one a network suggests | Networks that block port 4460 leave the clock unsynced |
-| `ame security firewall-away` | Networks you have not named home answer nothing; `ame security firewall-away home` names more | Printers, shares and phone pairing only at home |
+| `ame security firewall-away` | Networks you have not named home answer nothing; `ame security home-networks` names more | Printers and shares only at home, as phone pairing always is |
 | `ame security network-daemons` | Avahi and ModemManager stopped | Printers by address only; no mobile broadband |
 | `ame security block-bluetooth` | Bluetooth cannot load | Headphones, mice and keyboards that use it |
 | `ame security block-webcam` | The USB webcam driver cannot load | The webcam |

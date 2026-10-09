@@ -18,6 +18,9 @@
 #   amethystora-hardening managed                 what the switches have written in /etc, one
 #                                                 "path<TAB>mask|file" a line, for the security watcher
 #   amethystora-hardening expected PATH           what a switch writes at /etc/PATH
+#   amethystora-hardening home [UUID...]          the saved connections named home, in place of the ones
+#                                                 before (root): the only networks GSConnect is open on
+#   amethystora-hardening ask-home                choose them: `ame security home-networks`
 #
 # What the owner turned off is kept in /etc/amethystora/hardening-off, one switch a line ("kernel-args
 # init_on_alloc=1" for one argument), and what they turned on in /etc/amethystora/hardening-on ("kernel
@@ -93,11 +96,13 @@ IMAGE_ETC=/usr/etc
 FALLBACK_ZONE=FedoraWorkstation
 # The zone for networks that are not home, with firewall-away on
 AWAY_ZONE=amethystora-away
+# The zone for the networks named home: the Amethystora zone, and GSConnect, which no other network is open to
+HOME_ZONE=amethystora-home
 
 usage() {
     echo "usage: ${0##*/} status [--json] | is-on NAME [ARGUMENT] | set NAME on|off|strict [ARGUMENT...]" \
         "| ask NAME [ARGUMENT] [on|off] | managed" \
-        "| expected PATH (switches: ${NAMES[*]} ${STRICTER[*]})" >&2
+        "| expected PATH | home [UUID...] | ask-home (switches: ${NAMES[*]} ${STRICTER[*]})" >&2
     exit 64
 }
 
@@ -316,32 +321,51 @@ set_kernel_arg() {
     record kernel-args "${switched}" "${name}"
 }
 
-# Networks that are not home get the stricter zone: it is the default, and the connections named home
-# keep the Amethystora zone. Those are remembered, so that turning it off gives back only what it set.
-# fail2ban keeps banning in the Amethystora zone: the away zone answers nothing to ban.
+# The networks named home, the saved connections in HOME_NETWORKS, are in the home zone whatever the default
+# is, which the Amethystora zone or firewall-away's makes it; with the Amethystora zone off, back in the
+# default one with every other network. NetworkManager moves a connection that is up at once.
+home_zones() {
+    local zone="$1" uuid
+    while read -r uuid; do
+        [[ "${uuid}" =~ ^[0-9a-fA-F-]{36}$ ]] && nmcli connection modify "${uuid}" connection.zone "${zone}" 2>/dev/null
+    done < <(cat "${HOME_NETWORKS}" 2>/dev/null)
+    return 0
+}
+
+# The given saved connections become the networks named home, in place of the ones before, which go back
+# to the default zone if they are still in the home one
+set_home() {
+    local uuid
+    local -a homes=()
+    for uuid in "$@"; do
+        [[ "${uuid}" =~ ^[0-9a-fA-F-]{36}$ ]] && homes+=("${uuid}")
+    done
+    while read -r uuid; do
+        [[ " ${homes[*]} " == *" ${uuid} "* ]] && continue
+        [[ "$(nmcli -g connection.zone connection show "${uuid}" 2>/dev/null)" == "${HOME_ZONE}" ]] &&
+            nmcli connection modify "${uuid}" connection.zone ""
+    done < <(cat "${HOME_NETWORKS}" 2>/dev/null)
+    mkdir -p "${HOME_NETWORKS%/*}"
+    printf '%s\n' "${homes[@]}" | sed '/^$/d' | sort -u >"${HOME_NETWORKS}.new" && mv "${HOME_NETWORKS}.new" "${HOME_NETWORKS}"
+    [[ -s "${HOME_NETWORKS}" ]] || rm -f "${HOME_NETWORKS}"
+    is_off firewall || home_zones "${HOME_ZONE}"
+}
+
+# Networks that are not home get the stricter zone: it becomes the default, while the networks named home
+# keep the home zone. Given saved connections, those are named home first.
 set_away() {
-    local switched="$1" uuid
+    local switched="$1"
     shift
     if [[ "${switched}" == on ]]; then
         if is_off firewall; then
             echo "The Amethystora zone is off (ame security firewall). Turn it on before this." >&2
             return 1
         fi
+        [[ $# -eq 0 ]] || set_home "$@"
         record firewall-away on
         firewall-cmd --set-default-zone="${AWAY_ZONE}" >/dev/null || { record firewall-away off; return 1; }
-        mkdir -p "${HOME_NETWORKS%/*}"
-        for uuid in "$@"; do
-            [[ "${uuid}" =~ ^[0-9a-fA-F-]{36}$ ]] || continue
-            nmcli connection modify "${uuid}" connection.zone amethystora && echo "${uuid}" >>"${HOME_NETWORKS}"
-        done
-        [[ -e "${HOME_NETWORKS}" ]] && sort -u -o "${HOME_NETWORKS}" "${HOME_NETWORKS}"
     else
         firewall-cmd --set-default-zone=amethystora >/dev/null || return 1
-        while read -r uuid; do
-            [[ "$(nmcli -g connection.zone connection show "${uuid}" 2>/dev/null)" == amethystora ]] &&
-                nmcli connection modify "${uuid}" connection.zone ""
-        done <"${HOME_NETWORKS}" 2>/dev/null
-        rm -f "${HOME_NETWORKS}"
         record firewall-away off
     fi
     return 0
@@ -412,10 +436,13 @@ set_switch() {
                 firewall-cmd --set-default-zone="${FALLBACK_ZONE}" >/dev/null || return 1
                 record firewall off
                 place "${JAIL}"
+                # Fedora's zone for every network, the ones named home too: the list stays for later
+                home_zones ""
             else
                 firewall-cmd --set-default-zone=amethystora >/dev/null || return 1
                 record firewall on
                 place "${JAIL}" remove
+                home_zones "${HOME_ZONE}"
             fi
             systemctl try-reload-or-restart fail2ban.service 2>/dev/null
             return 0
@@ -670,7 +697,7 @@ words() {
         [ipv6-privacy]="$(gettext "Each network sees a temporary IPv6 address that changes, as well as the one it hands out, so that websites cannot follow this machine by its address. Off, every connection uses one address.")"
         [bluetooth-privacy]="$(gettext "Bluetooth uses a random address that changes, and stops being visible and accepting pairing 30 seconds after you ask for it. Off, BlueZ's own settings apply.")"
         [time]="$(gettext "The clock decides whether certificates and signatures are valid. On, it is set only from time servers that prove who they are (NTS), three of which must agree, and never from one a network suggests. Networks that block port 4460 then leave the clock unsynced.")"
-        [firewall-away]="$(gettext "Networks you have not named home get a zone that answers nothing: no printer or device discovery, no Windows shares and no phone pairing. The networks you name home keep the Amethystora zone, and any new network is away until you say otherwise.")"
+        [firewall-away]="$(gettext "Networks you have not named home get a zone that answers nothing: no printer or device discovery and no Windows shares. The networks you name home keep theirs, the only one open to phone pairing, and any new network is away until you say otherwise.")"
         [network-daemons]="$(gettext "Stops Avahi, which finds printers and devices on the network, and ModemManager, which runs mobile broadband modems. Both are root daemons that answer the network. On, printers have to be added by address and a mobile broadband modem does not work.")"
         [block-bluetooth]="$(gettext "Bluetooth cannot load at all, so a flaw in it cannot be reached from radio range. Headphones, mice and keyboards that use it stop working.")"
         [block-webcam]="$(gettext "The USB webcam driver cannot load, whatever app asks. The webcam stops working.")"
@@ -723,8 +750,39 @@ words() {
 
 # Interactive, as the user, for `ame security NAME`: says what the switch does and what it costs, asks,
 # and makes the change with sudo
+# The saved Wi-Fi and wired networks to pick home from, with the ones named home already picked: prints the
+# UUIDs of those picked, and fails when the question is left
+pick_homes() {
+    local line
+    local -a lines=() picked=() args=(--no-limit --header "$1")
+    mapfile -t lines < <(nmcli -t -f UUID,TYPE,NAME connection show 2>/dev/null |
+        awk -F: '$2 ~ /wireless|ethernet/ { print $1 "  " substr($0, index($0, $3)) }')
+    if [[ ${#lines[@]} -eq 0 ]]; then
+        echo "There is no saved network yet: connect to yours, then run this again." >&2
+        return 1
+    fi
+    for line in "${lines[@]}"; do
+        grep -qxF -- "${line%%  *}" "${HOME_NETWORKS}" 2>/dev/null && picked+=("${line}")
+    done
+    [[ ${#picked[@]} -eq 0 ]] || args+=(--selected "$(IFS=,; echo "${picked[*]}")")
+    printf '%s\n' "${lines[@]}" | gum choose "${args[@]}" | cut -d' ' -f1
+}
+
+# `ame security home-networks`
+ask_home() {
+    local chosen
+    local -a homes=()
+    echo "A network named home is the only kind GSConnect is open on, to pair a phone and for the phone to reach"
+    echo "this machine. Every other network, and every new one, is closed to it."
+    chosen="$(pick_homes "Which of these are home?")" || exit 0
+    mapfile -t homes < <(sed '/^$/d' <<<"${chosen}")
+    gum confirm "Name ${#homes[@]} network(s) home?" || exit 0
+    sudo /usr/libexec/amethystora-hardening home "${homes[@]}"
+    echo "Done. ame security home-networks changes them."
+}
+
 ask() {
-    local name="$1" argument="" action state choice header
+    local name="$1" argument="" action state choice header chosen
     local -a homes=()
     words
     if [[ "${name}" == kernel-args ]]; then
@@ -791,14 +849,14 @@ ask() {
             fi
             case "${name}" in
                 firewall-away)
-                    # Which saved networks are home: each keeps the Amethystora zone
-                    mapfile -t homes < <(nmcli -t -f UUID,TYPE,NAME connection show 2>/dev/null |
-                        awk -F: '$2 ~ /wireless|ethernet/ { print $1 "  " substr($0, index($0, $3)) }' |
-                        gum choose --no-limit --header "Which of these are home? Every other network, and every new one, is away." |
-                        cut -d' ' -f1)
+                    # Which saved networks are home: each keeps the home zone, the same ones
+                    # `ame security home-networks` names
+                    chosen="$(pick_homes "Which of these are home? Every other network, and every new one, is away.")" || exit 0
+                    mapfile -t homes < <(sed '/^$/d' <<<"${chosen}")
                     gum confirm "Turn ${TITLE[${name}]} on, with ${#homes[@]} network(s) as home?" || exit 0
-                    sudo /usr/libexec/amethystora-hardening set firewall-away on "${homes[@]}"
-                    echo "On. Name more home networks with ame security firewall-away home."
+                    sudo /usr/libexec/amethystora-hardening home "${homes[@]}"
+                    sudo /usr/libexec/amethystora-hardening set firewall-away on
+                    echo "On. Name more home networks with ame security home-networks."
                     exit 0
                     ;;
                 boot-password)
@@ -894,6 +952,14 @@ case "${1:-}" in
     expected)
         [[ $# -eq 2 ]] || usage
         expected "$2"
+        ;;
+    home)
+        need_root
+        shift
+        set_home "$@"
+        ;;
+    ask-home)
+        ask_home
         ;;
     *)
         usage

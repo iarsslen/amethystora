@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<zone>
+  <short>Amethystora, at home</short>
+  <description>For the networks named home with ame security home-networks: the Amethystora zone, and pairing a phone with GSConnect, which no other network is open to.</description>
+  <service name="dhcpv6-client"/>
+  <service name="mdns"/>
+  <service name="samba-client"/>
+  <service name="kdeconnect"/>
+</zone>

@@ -617,7 +617,7 @@ msgid "Firewall is on the amethystora zone: nothing incoming that a desktop does
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
-msgid "Away from home the firewall answers nothing; the networks you named home keep the amethystora zone"
+msgid "Away from home the firewall answers nothing; the networks you named home keep their own zone"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -627,6 +627,25 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "Put it back with:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Home networks"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Phone pairing (GSConnect) is open on the ${HOMES} network named home, and on no other"
+msgid_plural "Phone pairing (GSConnect) is open on the ${HOMES} networks named home, and on no other"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-security-status
+msgid "No network is named home, so phone pairing (GSConnect) is closed on every one"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Name yours with:"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -2620,7 +2639,7 @@ msgid "The clock decides whether certificates and signatures are valid. On, it i
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
-msgid "Networks you have not named home get a zone that answers nothing: no printer or device discovery, no Windows shares and no phone pairing. The networks you name home keep the Amethystora zone, and any new network is away until you say otherwise."
+msgid "Networks you have not named home get a zone that answers nothing: no printer or device discovery and no Windows shares. The networks you name home keep theirs, the only one open to phone pairing, and any new network is away until you say otherwise."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
@@ -2749,4 +2768,12 @@ msgstr ""
 
 #: usr/libexec/amethystora-hardening
 msgid "At once: the 18 hours count from the next time every session is locked."
+msgstr ""
+
+#: usr/libexec/amethystora-home-networks-notice
+msgid "Your phone reaches this machine only at home"
+msgstr ""
+
+#: usr/libexec/amethystora-home-networks-notice
+msgid "Phone pairing (GSConnect) is open only on the networks you name home, and none is named yet. Name yours with: ame security home-networks"
 msgstr ""

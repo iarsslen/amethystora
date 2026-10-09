@@ -1,0 +1,18 @@
+#!/usr/bin/bash
+# Said once, a minute into an account's login, to one with a phone paired (user-setup.hooks.d/18-home-networks.sh):
+# phone pairing (GSConnect) was open on every network, and is now open only on the networks named home, of which
+# there are none until somebody names one. A phone that reached this machine yesterday would otherwise stop
+# without a word.
+
+set -uo pipefail
+
+# In the session's language where there is a translation of it (po/, text domain amethystora)
+export TEXTDOMAIN=amethystora
+# shellcheck source=/dev/null
+source gettext.sh
+
+notify-send --app-name=Amethystora --icon=phone \
+    "$(gettext "Your phone reaches this machine only at home")" \
+    "$(gettext "Phone pairing (GSConnect) is open only on the networks you name home, and none is named yet. Name yours with: ame security home-networks")" \
+    2>/dev/null
+exit 0

@@ -181,4 +181,32 @@ if [[ -n "${OPEN}" ]]; then
     [[ -z "$("${ALLOW}" list report)" ]] || fail "removing from the allowlist"
 fi
 
+# The networks named home, and only those, are in the home zone, the one zone open to phone pairing; one no
+# longer named goes back to the default zone, and with none named there is no list
+mkdir -p "${T}/stubs"
+cat >"${T}/stubs/nmcli" <<'EOF'
+#!/usr/bin/bash
+case "$1 $2" in
+    "-g connection.zone") sed -n "s/^$5 //p" "${NMCLI_ZONES}" ;;
+    "connection modify") sed -i "/^$3 /d" "${NMCLI_ZONES}"; echo "$3 $5" >>"${NMCLI_ZONES}" ;;
+esac
+EOF
+chmod 0755 "${T}/stubs/nmcli"
+export NMCLI_ZONES="${T}/zones"
+: >"${NMCLI_ZONES}"
+export AMETHYSTORA_HARDENING_ROOT="${T}/hardening"
+: >"${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-off"
+HOMES="${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/firewall-home"
+ONE=11111111-1111-1111-1111-111111111111 TWO=22222222-2222-2222-2222-222222222222
+PATH="${T}/stubs:${PATH}" "${HARDENING}" home "${ONE}" "${TWO}" "x;rm" || fail "naming home networks"
+grep -qx "${ONE} amethystora-home" "${NMCLI_ZONES}" && grep -qx "${TWO} amethystora-home" "${NMCLI_ZONES}" ||
+    fail "the networks named home are not in the home zone: $(cat "${NMCLI_ZONES}")"
+[[ "$(cat "${HOMES}")" == "${ONE}"$'\n'"${TWO}" ]] || fail "the list of home networks: $(cat "${HOMES}")"
+PATH="${T}/stubs:${PATH}" "${HARDENING}" home "${TWO}" || fail "naming fewer home networks"
+grep -qx "${ONE} " "${NMCLI_ZONES}" || fail "a network no longer home kept the home zone"
+PATH="${T}/stubs:${PATH}" "${HARDENING}" home || fail "naming no home network"
+[[ ! -e "${HOMES}" ]] || fail "with no home network named, a list is left"
+firewall-offline-cmd --zone=amethystora --query-service=kdeconnect >/dev/null && fail "the default zone is open to phone pairing"
+firewall-offline-cmd --zone=amethystora-home --query-service=kdeconnect >/dev/null || fail "the home zone is closed to phone pairing"
+
 echo "test-security-switches: every switch, off and on"

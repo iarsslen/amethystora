@@ -574,11 +574,25 @@ elif [[ "${ZONE}" == "amethystora" ]]; then
         "$(gettext "Firewall is on the amethystora zone: nothing incoming that a desktop does not need")"
 elif [[ "${ZONE}" == "amethystora-away" ]] && /usr/libexec/amethystora-hardening is-on firewall-away; then
     report watching firewall ok "$(gettext "Firewall")" \
-        "$(gettext "Away from home the firewall answers nothing; the networks you named home keep the amethystora zone")"
+        "$(gettext "Away from home the firewall answers nothing; the networks you named home keep their own zone")"
 else
     COMMAND="sudo firewall-cmd --set-default-zone=amethystora"
     report watching firewall check "$(gettext "Firewall")" "$(eval_gettext "Firewall default zone is \${ZONE}, not amethystora")" \
         "$(gettext "Put it back with:")"
+fi
+# Phone pairing is open only on the networks named home: said, so that a phone that cannot reach this
+# machine finds why here
+HOMES="$(grep -cE '^[0-9a-fA-F-]{36}$' /etc/amethystora/firewall-home 2>/dev/null)"
+if ! hardening_off firewall; then
+    COMMAND="ame security home-networks"
+    if [[ "${HOMES:-0}" -gt 0 ]]; then
+        report watching home-networks info "$(gettext "Home networks")" \
+            "$(eval_ngettext "Phone pairing (GSConnect) is open on the \${HOMES} network named home, and on no other" "Phone pairing (GSConnect) is open on the \${HOMES} networks named home, and on no other" "${HOMES}")"
+    else
+        report watching home-networks info "$(gettext "Home networks")" \
+            "$(gettext "No network is named home, so phone pairing (GSConnect) is closed on every one")" \
+            "$(gettext "Name yours with:")"
+    fi
 fi
 
 # Network protection is a setting, so when it is on, Suricata is expected to be running, to have the
