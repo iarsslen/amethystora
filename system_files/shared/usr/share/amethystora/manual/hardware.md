@@ -157,6 +157,12 @@ many Brother and older laser printers are included for the rest. Add a printer i
   change buttons, lighting and resolution.
 - **Remapping keys:** `ame security input-remapper` turns on Input Remapper ([Security](security.md#key-remapping)
   explains why it starts off).
+- **Keyboard configurators** (VIA, Vial, Keychron Launcher, ZSA's Oryx and Keymapp) reach Keychron,
+  Lemokey, ZSA and Vial keyboards for whoever is at the machine. Other keyboards are kept from them and
+  from every other program, because what a configurator reads is every key typed. To configure another
+  one, give it to whoever is at the machine with its vendor ID from `lsusb`:
+  `echo 'KERNEL=="hidraw*", ATTRS{idVendor}=="1234", TAG+="uaccess"' | sudo tee /etc/udev/rules.d/70-keyboard.rules`,
+  then plug it in again.
 - **FIDO2 security keys** can replace your password: [Security](security.md#security-keys).
 
 ## Drawing tablets

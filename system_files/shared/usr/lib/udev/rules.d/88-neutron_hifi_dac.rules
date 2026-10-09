@@ -3,4 +3,5 @@
 # Udev rule written for unprivileged access of Neutron HiFi DAC V1 functionality
 # https://neutronhifi.com/devices/dac/v1
 
-SUBSYSTEM=="usb", ATTRS{idVendor}=="1fc9", ATTRS{idProduct}=="82f9", MODE="0666"
+# Amethystora: for the user at the seat (uaccess), not every account (MODE 0666)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1fc9", ATTRS{idProduct}=="82f9", MODE="0660", TAG+="uaccess"

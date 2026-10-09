@@ -1305,6 +1305,16 @@ if [[ -f /usr/lib/udev/rules.d/50-zsa.rules ]]; then
     grep -q 'MODE:="0666"' /usr/lib/udev/rules.d/50-zsa.rules && false
     grep -q 'TAG+="uaccess"' /usr/lib/udev/rules.d/50-zsa.rules
 fi
+# A keyboard's hidraw device carries every key typed on it, and the devices under a vendor ID include the
+# keyboards built on its chips: no rule the image adds gives either to every account, as 92-viia.rules,
+# 60-arduino-mbed.rules and 50-zsa.rules did before they gave them to the user at the seat (uaccess)
+for rules in /usr/lib/udev/rules.d/*.rules; do
+    rpm -qf --quiet "${rules}" && continue
+    if grep -nE '(hidraw|idVendor).*MODE:?="0?[0-7]{2}[1-7]"|MODE:?="0?[0-7]{2}[1-7]".*(hidraw|idVendor)' "${rules}"; then
+        echo "${rules} gives a device to every account"
+        false
+    fi
+done
 # /dev/uinput makes a virtual keyboard that types into any window: no rule the image ships gives it to the
 # seat, Solaar's included. `ame security virtual-input off` writes the one that does, for Steam Input and
 # OpenTabletDriver.
