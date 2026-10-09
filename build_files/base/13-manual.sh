@@ -21,7 +21,7 @@ set -eoux pipefail
 # anything from the web. It still takes every Electron release, security fixes included.
 
 ELECTRON_VERSION="44.7.0"
-MARKED_VERSION="18.0.14"
+MARKED_VERSION="18.1.0"
 MANUAL_DIR=/usr/lib/amethystora-manual
 LICENSE_DIR=/usr/share/licenses/amethystora-manual
 
