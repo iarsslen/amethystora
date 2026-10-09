@@ -55,17 +55,19 @@
       versioningTemplate: 'loose',
       depTypeTemplate: 'gnome-extension-upload',
     },
-    // The Syft release reusable-build.yml makes the SBOM with
+    // The Syft release reusable-build.yml makes the SBOM with, with the
+    // SHA-256 of its tarball, which this datasource works out for the new
+    // release
     {
       customType: 'regex',
       managerFilePatterns: [
         '/^\\.github/workflows/reusable-build\\.yml$/',
       ],
       matchStrings: [
-        'syft-version: (?<currentValue>v[0-9.]+)',
+        'SYFT_TAG: (?<currentValue>v\\S+)\\s+SYFT_SHA256: (?<currentDigest>[a-f0-9]{64})',
       ],
       depNameTemplate: 'anchore/syft',
-      datasourceTemplate: 'github-releases',
+      datasourceTemplate: 'github-release-attachments',
     },
     // The just release the workflows install (.github/actions/install-just),
     // with the SHA-256 of its tarball, which this datasource works out for the
@@ -248,6 +250,12 @@
     {
       "matchUpdateTypes": ["pin", "digest", "pinDigest"],
       "matchPackageNames": ["ghcr.io/jasonn3/build-container-installer"],
+      "automerge": false
+    },
+    // Containerfile.sealed's Fedora is where the Secure Boot key is mounted to sign the UKI, and nothing
+    // checks its signature: a new digest of it is read before it is merged
+    {
+      "matchFileNames": ["Containerfile.sealed"],
       "automerge": false
     },
     {

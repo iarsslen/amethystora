@@ -252,6 +252,15 @@ jobs:
             --build-arg BASE_IMAGE="${IMAGE_REF}" --build-arg BASE_DIGEST="${DIGEST}" \
             --tag localhost/amethystora-live:stable --file iso/live/Containerfile iso
 
+      # Titanoboa builds the ISO in quay.io/fedora/fedora:latest, with CAP_SYS_ADMIN, and the ISO is signed
+      # after: that name is made the Fedora the Justfile pins by digest, which podman finds and does not pull
+      - name: Pin the Fedora Titanoboa builds in
+        run: |
+          fedora="$(sed -nE 's/^fedora_image := "([^"]+):[^:@"]+@(sha256:[a-f0-9]{64})"$/\1@\2/p' Justfile)"
+          [[ -n "${fedora}" ]]
+          sudo podman pull "${fedora}"
+          sudo podman tag "${fedora}" quay.io/fedora/fedora:latest
+
       # Titanoboa resolves iso-dest against its own folder, not the workspace, so the ISO is read from
       # wherever its iso-dest output says it went
       - name: Build ISO
