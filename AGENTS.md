@@ -679,7 +679,9 @@ the command over Amethystora's own; `amy` is a Homebrew formula, so nothing may 
   (custom manager, depType `pkg-template`) and never moves a template to a new release, which is done
   by hand with its `description`. Images are pulled by digest before `distrobox create`, so neither the
   pin nor `policy.json` can be skipped. Leave the policy's catch-all as it is, and do not re-sign third-
-  party images under `ghcr.io/iarsslen`.
+  party images under `ghcr.io/iarsslen`. `import` shows what a definition runs and asks before keeping
+  it (`--yes` skips that): a pin chosen by a template's author proves nothing about the image. A
+  template's packages are names, and the AUR packages a paru template names are left to `install`.
 - `policy.json` checks `registry.opensuse.org/opensuse/leap` against openSUSE's two container keys
   (`keyPaths`, containers/image 5.33 and later), both from openSUSE's `openSUSE-build-key` package,
   whose RPM signature was checked against openSUSE's project key: `opensuse-container-key.pub`, the

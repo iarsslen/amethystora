@@ -91,14 +91,14 @@ Templates: the image a new container starts from, its package manager and its fi
   ${PROG} templates list [--json] | show T
   ${PROG} templates new | update [--name T] [--base IMAGE] [--packages "P..."] [--pkg-manager M]
                      [--own-home[=no]] [--unshare LIST] [--description TEXT] [--no-prompt]
-  ${PROG} templates rm T [--force] | export T [--output FILE] | import FILE [--name T]
+  ${PROG} templates rm T [--force] | export T [--output FILE] | import FILE [--name T] [--yes]
 
 Package managers: the commands a container's packages are handled with
   ${PROG} managers list [--json] | show M
   ${PROG} managers new | update [--name M] [--need-sudo[=no]] [--install CMD] [--remove CMD]
                     [--purge CMD] [--search CMD] [--show CMD] [--list CMD] [--update CMD]
                     [--upgrade CMD] [--autoremove CMD] [--clean CMD] [--noconfirm FLAG] [--no-prompt]
-  ${PROG} managers rm M [--force] | export M [--output FILE] | import FILE [--name M]
+  ${PROG} managers rm M [--force] | export M [--output FILE] | import FILE [--name M] [--yes]
 
 Beyond containers
   ${PROG} install [--yes] [--no-export] FILE   a .deb, .rpm or .pkg.tar.zst, scanned for viruses first
@@ -388,7 +388,7 @@ export_launchers() {
         [[ -n "${launcher}" ]] || continue
         if enter distrobox-export --app "${launcher}" --export-label "(on ${C_NAME})" >/dev/null 2>&1; then
             file="$(exported_file "${launcher}")"
-            say "In the app grid: $(sed -n 's/^Name=//p' "${file}" 2>/dev/null | head -n1)"
+            say "In the app grid: $(sed -n 's/^Name=//p' "${file}" 2>/dev/null | head -n1 | /usr/libexec/amethystora-security-text)"
         else
             warn "${launcher##*/} could not be put in the app grid."
         fi
@@ -493,6 +493,8 @@ create_container() {
     local -a args packages
     file="$(definition templates "${template}")" ||
         die "There is no template called ${template}. See them with: ${PROG} templates list"
+    # Again here, for a template of the user's written before its packages were checked
+    check_template "$(<"${file}")"
     base="$(jq -r '.base // ""' "${file}")"
     manager="$(jq -r '.manager // ""' "${file}")"
     valid_image "${base}" || die "The template ${template} names an image that is not a full reference: ${base}"
@@ -551,6 +553,18 @@ create_container() {
         warn "${name} could not be brought up to date. Try again with: ${PROG} ${name} upgrade"
     fi
     mapfile -t packages < <(jq -r '.packages // [] | .[]' "${file}")
+    # What a template names from the AUR would be built here unread: it is left to `install`, which shows
+    # each PKGBUILD first
+    if [[ "${manager}" == paru && ${#packages[@]} -gt 0 ]]; then
+        local package
+        local -a repository=() aur=()
+        for package in "${packages[@]}"; do
+            if enter pacman -Si "${package}" >/dev/null 2>&1; then repository+=("${package}"); else aur+=("${package}"); fi
+        done
+        packages=("${repository[@]}")
+        [[ ${#aur[@]} -eq 0 ]] ||
+            say "Not built, since they come from the AUR and their PKGBUILDs come first: ${aur[*]}. Build them with: ${PROG} ${name} install ${aur[*]}"
+    fi
     if [[ ${#packages[@]} -gt 0 ]]; then
         say "Installing the template's packages: ${packages[*]}"
         pm install "${packages[@]}" || warn "Some of the template's packages did not install. Try again with: ${PROG} ${name} install ${packages[*]}"
@@ -798,11 +812,12 @@ ensure_paru() {
         fi
         makepkg -sir --noconfirm'
     say "Building it takes a few minutes."
-    if [[ "${NONINTERACTIVE}" != true ]] && interactive; then
-        enter sh -c "${build}" sh show
-    else
-        enter sh -c "${build}" sh quiet
+    # Its PKGBUILD is read first, --yes or not, as every PKGBUILD from the AUR is, so never without a terminal
+    if ! interactive; then
+        warn "paru is built only once its PKGBUILD has been read, which needs a terminal."
+        return 1
     fi
+    enter sh -c "${build}" sh show
 }
 
 # --- In a container ---------------------------------------------------------------------------------
@@ -1062,7 +1077,10 @@ check_template() {
     valid_name "${name}" || die "A template's name is lower-case letters, digits, - and _, up to 32 of them: ${name}"
     valid_image "${base}" || die "The image has to be a full reference, with its registry: ${base:-none given}"
     definition managers "${manager}" >/dev/null || die "There is no package manager called ${manager:-(none given)}. See them with: ${PROG} managers list"
-    jq -e '(.packages | type == "array") and ((.unshare // []) | all(IN("ipc", "netns", "process", "devsys", "groups", "all")))' \
+    # Names only: one that starts with - would be read as an option by the package manager it is handed to
+    jq -e '.packages | type == "array" and all(.[]; type == "string" and test("^[A-Za-z0-9@_+][A-Za-z0-9@._+:=~-]*$"))' \
+        <<<"${json}" >/dev/null || die "A template's packages are a list of package names, such as htop."
+    jq -e '(.unshare // []) | all(IN("ipc", "netns", "process", "devsys", "groups", "all"))' \
         <<<"${json}" >/dev/null || die "--unshare takes ipc, netns, process, devsys, groups or all."
 }
 
@@ -1163,18 +1181,19 @@ definitions_export() {
 # package-manager file there names each command in a cmd* key; with model 1, each of those is only the
 # part after the manager's name, and with model 2, the default, the whole command.
 definitions_import() {
-    local kind="$1" file="" rename="" json name
+    local kind="$1" file="" rename="" yes=false json name
     shift
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --name | -n) rename="${2:-}"; shift ;;
             --name=*) rename="${1#*=}" ;;
-            -*) die "usage: ${PROG} ${kind} import FILE [--name NAME]" ;;
+            --yes | -y) yes=true ;;
+            -*) die "usage: ${PROG} ${kind} import FILE [--name NAME] [--yes]" ;;
             *) file="$1" ;;
         esac
         shift
     done
-    [[ -f "${file}" ]] || die "usage: ${PROG} ${kind} import FILE [--name NAME]"
+    [[ -f "${file}" ]] || die "usage: ${PROG} ${kind} import FILE [--name NAME] [--yes]"
     json="$(read_definition "${file}")" || die "${file} is neither JSON nor YAML that can be read."
     if [[ "${kind}" == templates ]]; then
         json="$(jq -c 'if has("base") then {
@@ -1204,6 +1223,14 @@ definitions_import() {
     name="$(jq -r '.name // ""' <<<"${json}")"
     user_name "${kind}" "${name}"
     if [[ "${kind}" == templates ]]; then check_template "${json}"; else check_manager "${json}"; fi
+    # A definition is a program, and whoever wrote the file chose what it runs and the image it starts
+    # from, pinned or not: shown before it is kept
+    say "The ${kind%s} ${name}:"
+    jq . <<<"${json}" | /usr/libexec/amethystora-security-text --lines | sed 's/^/  /'
+    if [[ "${yes}" != true ]]; then
+        interactive || die "Importing asks first, which needs a terminal, or --yes."
+        confirm "Import the ${kind%s} ${name}, which runs what it says above?" || exit 1
+    fi
     if [[ -f "${DATA}/${kind}/${name}.json" ]]; then
         interactive || die "You already have a ${kind%s} called ${name}. Import it under another with --name."
         confirm "Replace your ${kind%s} ${name}?" || exit 1
@@ -1486,7 +1513,10 @@ provenance() {
             fi
             ;;
     esac
-    [[ "${P_NAME}" =~ ^[A-Za-z0-9+._@-]+$ ]] || die "This does not read as a ${kind} package: no name in it."
+    [[ "${P_NAME}" =~ ^[A-Za-z0-9+_@][A-Za-z0-9+._@-]*$ ]] || die "This does not read as a ${kind} package: no name in it."
+    # Whoever made the file wrote these: an escape sequence in one could rewrite the lines below it
+    P_VERSION="$(/usr/libexec/amethystora-security-text --max 100 -- "${P_VERSION}")"
+    from="$(/usr/libexec/amethystora-security-text --max 200 -- "${from}")"
     say ""
     say "${P_NAME} ${P_VERSION}"
     say "  From        ${from:-it does not say}"
@@ -1562,7 +1592,7 @@ cmd_install_file() {
     cp -- "${file}" "${copy}" || die "Could not copy ${file}."
     [[ -f "${file}.sig" ]] && cp -- "${file}.sig" "${copy}.sig"
 
-    say "Scanning $(basename "${file}") for viruses."
+    say "Scanning $(basename -- "${file}" | /usr/libexec/amethystora-security-text) for viruses."
     found="$(scan_file "${copy}")"
     status=$?
     case "${status}" in

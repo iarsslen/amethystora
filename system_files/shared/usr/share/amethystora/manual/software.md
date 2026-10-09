@@ -161,8 +161,8 @@ does not hide your files: they stay reachable by their full path. Yours are kept
 `~/.local/share/amethystora/pkg`, and the built-in ones cannot be changed or removed. `export` writes
 one to a file, and `import` reads it back, here or on another machine. A definition is a program: a
 package manager's commands run in every container made with it, and a template chooses the image they
-start from, so import only what you would run yourself. `ame restore-setup` shows each one a backup
-brings and asks before it imports it.
+start from, so import only what you would run yourself: `import` shows what the file defines and asks
+before it keeps it, and `ame restore-setup` does the same for each one a backup brings.
 `import` also reads the YAML files Apx writes for its stacks and package managers.
 
 The built-in templates' images are pinned to a digest that ships inside the signed system image, so
