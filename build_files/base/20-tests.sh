@@ -1494,12 +1494,14 @@ grep -rlIE "usermod .*-a?G|gpasswd -a" /usr/lib/systemd/system /usr/libexec /usr
 
 # fail2ban: only the sshd jail is on, it reads the journal, and it bans through firewalld.
 # `fail2ban-client -d` is the dump Lynis (TOOL-5104) reads the jails from, so what it shows here is
-# what Lynis sees on the installed system. 08-hardening.sh checks the ban zone is the default zone.
+# what Lynis sees on the installed system. The action is the image's own, which bans in each of
+# Amethystora's zones; 08-hardening.sh checks it names all three.
 test -f /etc/fail2ban/jail.d/10-amethystora.conf
 F2B_DUMP="$(fail2ban-client -d)"
 grep -q "'sshd'" <<<"${F2B_DUMP}"
 grep -q "'systemd'" <<<"${F2B_DUMP}"
-grep -q "firewallcmd-rich-rules" <<<"${F2B_DUMP}"
+grep -qF "'addaction', 'amethystora-zones'" <<<"${F2B_DUMP}"
+grep -qF 'firewall-cmd --zone=$z --add-rich-rule=' <<<"${F2B_DUMP}"
 # The ban database's directory is created at every boot, not only shipped in the image: /var reaches a
 # machine once, when it is installed, so on a machine installed before fail2ban was in the image it
 # never existed, and fail2ban exited with 255 straight after "Server ready". The path created has to
@@ -1812,7 +1814,8 @@ grep -q "^ExecStart=/usr/libexec/amethystora-lynis-audit$" \
 test -L /etc/systemd/user/graphical-session.target.wants/amethystora-security-alert.service
 # clamd not starting is the likeliest reason a machine is not being scanned, and a Requires= on it would
 # cancel this job rather than fail it, which runs no OnFailure at all. The scan has to reach the script.
-grep -q "^Wants=clamd@scan.service$" /usr/lib/systemd/system/amethystora-clamav-scan.service
+# clamd runs on demand: the scan wants its socket, which starts clamd as clamdscan connects.
+grep -q "^Wants=clamd@scan.socket$" /usr/lib/systemd/system/amethystora-clamav-scan.service
 grep -qE "^Requires=" /usr/lib/systemd/system/amethystora-clamav-scan.service && false
 
 # Signature age is what says whether a clean scan means anything; `systemctl is-active` of the freshclam
