@@ -159,9 +159,10 @@ if [[ ${AKMODS_FLAVOR} =~ coreos ]]; then
     # Install
     dnf5 -y install "${ZFS_RPMS[@]}"
 
-    # Depmod and autoload
+    # Depmod. Not loaded at every boot: OpenZFS's own udev rule loads the module once a disk with ZFS on it
+    # appears, before its import units run, and zpool loads it when asked. Loaded everywhere, it put its
+    # /dev/zfs, open to every account, on every machine, most of which have no pool.
     depmod -a -v "${KERNEL}"
-    echo "zfs" >/usr/lib/modules-load.d/zfs.conf
 fi
 
 # This is a step of its own (Containerfile): what it unpacked stays out of its layer
