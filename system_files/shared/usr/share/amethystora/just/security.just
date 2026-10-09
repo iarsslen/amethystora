@@ -330,7 +330,7 @@ settings SETTING="" VALUE="":
     if [[ -z "${setting}" ]]; then
         "${config}" --list
         echo
-        echo "What the image enforces, and stricter settings, each changed with ame security and its name:"
+        echo "What the image enforces, and stricter settings, each changed with ame security NAME:"
         /usr/libexec/amethystora-hardening status
         echo
         echo "Everything off at once, or back as the image ships it: ame security profile"
