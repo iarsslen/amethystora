@@ -85,7 +85,7 @@ looks into it in a terminal and changes nothing until you agree.
 Every 15 minutes, or as things happen with [real-time watching](#settings) on, the watcher looks at:
 
 - **The audit log**: accounts, `sudo` rules, what starts by itself (services, autostart entries, the
-  shell startup files, `~/.ssh`, GNOME Shell extensions, D-Bus services, udev rules, git's settings), the
+  shell startup files, `~/.ssh`, GNOME Shell extensions, top-bar widgets, D-Bus services, udev rules, git's settings), the
   security settings, SELinux's, and kernel modules loaded from a login, each with the program that made the
   change. A program opening the keyboard directly is said the first time that program does it; games and
   key remappers do it too. When too many events come at once, the kernel drops some rather than slow the
