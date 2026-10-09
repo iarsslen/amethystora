@@ -1076,8 +1076,10 @@ disk-unlock ACTION="":
     echo "key to sign something of your own with, stops the disk opening."
     if [[ -e /usr/share/amethystora/sealed ]]; then
         echo "This machine is sealed: its initramfs is inside the UKI that the enrolled key signs, so it"
-        echo "cannot be rewritten without the machine refusing to start it. A PIN below still means the"
-        echo "disk opens only for someone who knows it."
+        echo "cannot be rewritten without the machine refusing to start it. But neither PCR measures the"
+        echo "disk the system starts from, nor /etc on it: someone with a disk of their own made to look"
+        echo "like this one starts this same signed system on it, with their own settings, and without a"
+        echo "PIN the TPM would hand that system the key. So it is set up only with a PIN here too."
     else
         echo "What it does not do: it does not measure the boot menu or the initramfs, which are plain"
         echo "files on this image and change with every kernel update. Someone who takes the machine could"
@@ -1087,19 +1089,14 @@ disk-unlock ACTION="":
         echo "the machine back: theirs can ask for the PIN itself and keep it once you type it."
     fi
     echo
-    CHOICES=("Set up with a PIN")
-    [[ -e /usr/share/amethystora/sealed ]] && CHOICES+=("Set up")
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "TPM disk unlock" "${CHOICES[@]}" "Remove the TPM key" "Cancel")"
+        action="$(gum choose --header "TPM disk unlock" "Set up with a PIN" "Remove the TPM key" "Cancel")"
     fi
     case "${action}" in
         "Set up with a PIN" | on-pin) FLAGS=(--tpm2-with-pin=yes) ;;
-        "Set up" | on)
-            if [[ ! -e /usr/share/amethystora/sealed ]]; then
-                echo "Only with a PIN on an image that is not sealed: ame security disk-unlock on-pin"
-                exit 1
-            fi
-            FLAGS=()
+        on)
+            echo "Only with a PIN: ame security disk-unlock on-pin"
+            exit 1
             ;;
         "Remove the TPM key" | off)
             for DEVICE in "${DEVICES[@]}"; do

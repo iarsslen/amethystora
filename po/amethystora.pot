@@ -1359,10 +1359,6 @@ msgid "The TPM opens the disk without a PIN"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
-msgid "This sealed image's boot menu and initramfs are inside the signed UKI, so the key comes only to the system it was enrolled for. A PIN also keeps it from someone who takes the machine."
-msgstr ""
-
-#: usr/libexec/amethystora-security-status
 msgid "Anyone who takes this machine can start it their own way and be handed the key: into a shell from the boot menu, or with a disk of theirs made to look like this one. Neither changes what the key is bound to."
 msgstr ""
 

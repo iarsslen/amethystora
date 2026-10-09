@@ -459,10 +459,11 @@ would see nothing changed. So it is set up only with a PIN here, and the report 
 check that warns about a TPM key set up without one, as earlier versions allowed:
 `ame security disk-unlock on-pin` replaces it.
 
-On a [sealed image](updates.md#sealed-images) the TPM's key is as safe as Secure Boot itself: the
-programs that ask for the disk key are inside the signed kernel image, so they cannot be swapped for
-others that would keep it, and a PIN is up to you. Updates keep it working as long as Amethystora's
-key does not change.
+On a [sealed image](updates.md#sealed-images) the programs that ask for the disk key are inside the
+signed kernel image, so they cannot be swapped for others that would keep it. The PIN is still asked
+for there: Secure Boot does not see which disk the signed system starts from, or the settings in `/etc`
+on it, and a disk of someone else's made to look like yours would start the same system with theirs.
+Updates keep it working as long as Amethystora's key does not change.
 
 `ame security boot-password on` puts a password on the boot menu as well: editing a boot entry, which is
 how someone at the keyboard would start the machine into a root shell, asks for it, and starting

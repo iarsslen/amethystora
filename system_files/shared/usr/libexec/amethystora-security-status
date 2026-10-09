@@ -1194,14 +1194,12 @@ else
     report optional disk-unlock off "${DISK_UNLOCK_TITLE}" "${DISK_UNLOCK_TEXT}"
 fi
 # Whether the TPM's key asks for a PIN is in the LUKS header, which the watcher reads as root. Without a
-# PIN, an image that is not sealed hands the key to whoever starts the machine their own way: its boot
-# menu and initramfs are plain files, and changing them changes neither PCR the key is bound to.
+# PIN, the key goes to whoever starts the machine their own way: neither PCR it is bound to measures the
+# boot menu and initramfs of an image that is not sealed, which are plain files, nor, sealed or not, the
+# disk the system starts from and its /etc, which a disk of someone else's made to look like this one has.
 TPM_PIN="$(jq -r 'if .disk_unlock.tpm == true then .disk_unlock.pin else empty end' "${WATCH_STATUS}" 2>/dev/null)"
 if [[ "${TPM_PIN}" == true ]]; then
     report updates disk-unlock-pin ok "$(gettext "Disk unlock")" "$(gettext "The TPM opens the disk only with a PIN")"
-elif [[ "${TPM_PIN}" == false && "${SEALED}" == true ]]; then
-    report updates disk-unlock-pin info "$(gettext "Disk unlock")" "$(gettext "The TPM opens the disk without a PIN")" \
-        "$(gettext "This sealed image's boot menu and initramfs are inside the signed UKI, so the key comes only to the system it was enrolled for. A PIN also keeps it from someone who takes the machine.")"
 elif [[ "${TPM_PIN}" == false ]]; then
     COMMAND="ame security disk-unlock on-pin"
     report updates disk-unlock-pin check "$(gettext "Disk unlock")" "$(gettext "The TPM opens the disk without a PIN")" \
