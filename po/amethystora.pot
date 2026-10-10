@@ -2447,6 +2447,10 @@ msgid "AI agents' settings"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Programs run from download folders"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
 msgstr ""
 
@@ -2556,6 +2560,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "A hook, an MCP server, a plugin or a command put in an AI agent's own settings, which it then runs by itself, and a permission mode that turns its checks off. Read as each account with a session in the last day, and said to that account."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "A program run for the first time from a temporary folder, ~/.cache or the download folder: a download or a dropped file starting. Recorded by the audit log, from the next restart."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

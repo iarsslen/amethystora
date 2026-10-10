@@ -292,6 +292,11 @@ anything anywhere unless its own entry says so.
   script; and an AI agent run with its own checks turned off (such as `--dangerously-skip-permissions` or
   `--yolo`), said when it was not started at a terminal. Each is said the first time for that program.
   Flatpak's and Homebrew's updates, containers, AppImages and Go's tests are allowed already.
+- **Programs run from download folders** (`exec-watch`): the audit log records each program run from a
+  temporary folder, `~/.cache` or your download folder, and each is said the first time: a download or a
+  dropped file starting. Builds run thousands of programs from `/tmp`, so `record` keeps it quiet while it
+  learns. It takes effect from the next restart, and a script started through its interpreter (`sh
+  /tmp/x`) is seen by odd processes instead.
 - **Apps that gain permissions** (`app-permissions`): a Flatpak app that gains a way out of its sandbox
   ([App permissions](#app-permissions)), through an update, an override or another app in its place. An
   app installed with its permissions is recorded; a permission added to one you have is said. It is read

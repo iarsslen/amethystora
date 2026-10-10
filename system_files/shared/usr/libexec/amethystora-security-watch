@@ -57,7 +57,9 @@ OLD_HISTORY="${ROOT}/var/log/amethystora-security-events.log"
 HISTORY_KEPT=5000
 # The setuid sweep reads every file under /etc and /var, home directories included
 SWEEP_EVERY=$((24 * 3600))
-AUDIT_KEYS=(identity privilege persistence hardening modules input-capture user-programs)
+AUDIT_KEYS=(identity privilege persistence hardening modules input-capture user-programs exec-watch)
+# ...of which these are read by parts of their own, from the kernel's raw records, rather than as sentences
+AUDIT_OWN=" exec-watch "
 TEXT=/usr/libexec/amethystora-security-text
 
 [[ "${EUID}" -eq 0 || "${1:-}" == --keys ]] || { echo "${0##*/} needs root." >&2; exit 77; }
@@ -257,6 +259,7 @@ audit_events() {
 read_audit() {
     local key count mark event exe level text object
     for key in "${AUDIT_KEYS[@]}"; do
+        [[ "${AUDIT_OWN}" == *" ${key} "* ]] && continue
         MODE="${SETTING[$(tr 'a-z-' 'A-Z_' <<<"${key}")]:-on}"
         if [[ "${MODE}" == off ]]; then
             # Turned on again, it starts from that run rather than reading everything since it went off
@@ -299,6 +302,86 @@ read_audit() {
         done < <(audit_events "${key}")
     done
     MODE=on
+}
+
+# What the kernel recorded of each event under NAME's key, one line each, its fields apart by the unit
+# separator: time, process, parent, login uid, terminal, program, the path the call named (item 0, made whole
+# with the working folder), and the arguments a program was started with, apart by the record separator.
+# The kernel writes a value that holds a space, a quote or a control character in hex; it is read back, and
+# what is still a control character in it becomes "?".
+audit_records() {
+    audit_since "$1" -m SYSCALL,EXECVE,CWD,PATH -k "$1" -r | awk '
+        BEGIN { for (i = 0; i < 256; i++) byte[sprintf("%02X", i)] = sprintf("%c", i) }
+        function value(record, name, text,   m, i, out) {
+            if (match(record, " " name "=\"[^\"]*\"")) m = substr(record, RSTART + length(name) + 3, RLENGTH - length(name) - 4)
+            else if (match(record, " " name "=[^ ]+")) {
+                m = substr(record, RSTART + length(name) + 2, RLENGTH - length(name) - 2)
+                if (text && m ~ /^([0-9A-F][0-9A-F])+$/) {
+                    out = ""
+                    for (i = 1; i < length(m); i += 2) out = out byte[substr(m, i, 2)]
+                    m = out
+                }
+            } else return ""
+            gsub(/[\000-\037\177]/, "?", m)
+            return m
+        }
+        function flush() {
+            if (event == "") return
+            if (path != "" && path !~ /^\//) path = cwd "/" path
+            printf "%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\n", time, pid, ppid, auid, tty, exe, path, args
+        }
+        match($0, /msg=audit\([0-9]+\.[0-9]+:[0-9]+\)/) {
+            id = substr($0, RSTART + 10, RLENGTH - 11)
+            if (id != event) {
+                flush()
+                event = id
+                time = int(id)
+                pid = ppid = auid = tty = exe = cwd = path = args = ""
+            }
+            if ($0 ~ /^type=SYSCALL /) {
+                pid = value($0, "pid", 0); ppid = value($0, "ppid", 0); auid = value($0, "auid", 0)
+                tty = value($0, "tty", 0); exe = value($0, "exe", 1)
+            } else if ($0 ~ /^type=EXECVE /) {
+                argc = value($0, "argc", 0) + 0
+                for (i = 0; i < argc && i < 64; i++) args = args (i ? "\036" : "") value($0, "a" i, 1)
+            } else if ($0 ~ /^type=CWD /) {
+                cwd = value($0, "cwd", 1)
+            } else if ($0 ~ /^type=PATH / && value($0, "item", 0) == "0") {
+                path = value($0, "name", 1)
+            }
+        }
+        END { flush() }'
+}
+
+# --- Programs run from writable folders --------------------------------------------------------------------
+
+# A program run for the first time from /tmp, /var/tmp, /dev/shm, a home's cache or download folder: a
+# download or a dropped file starting. The audit rules record every such run (EXEC_WATCH, from the next boot);
+# each program is said once, by the SHA-256 of what is in it, and one gone by the time this looks by its path.
+# Hashing a file an account owns, as root: read-only, never through a link, and for no longer than ten seconds.
+EXEC_SEEN_KEPT=5000
+read_exec() {
+    local seen="${STATE}/exec-seen" time pid ppid auid tty exe path args sum user level
+    local -A said=()
+    touch "${seen}"
+    while IFS=$'\x1f' read -r time pid ppid auid tty exe path args; do
+        [[ -n "${exe}" && -z "${said[${exe}]+set}" ]] || continue
+        said["${exe}"]=1
+        if [[ -f "${exe}" && ! -L "${exe}" ]]; then
+            sum="$(timeout 10 head -c 104857600 -- "${exe}" 2>/dev/null | sha256sum | cut -d' ' -f1)"
+        else
+            sum="gone:${exe}"
+        fi
+        grep -qxF -- "${sum}" "${seen}" && continue
+        echo "${sum}" >>"${seen}"
+        user="$(id -nu "${auid}" 2>/dev/null || echo "${auid}")"
+        level=normal
+        allowed exec-watch "${exe}" && level=quiet
+        [[ -n "${LAST_RUN}" ]] &&
+            add "${level}" exec-watch "${user}" Execution "A program ran for the first time from where downloads and temporary files land: ${exe}, as ${user}" \
+                "allow=${exe}"
+    done < <(audit_records exec-watch)
+    tail -n "${EXEC_SEEN_KEPT}" "${seen}" >"${seen}.new" && mv "${seen}.new" "${seen}"
 }
 
 # --- SELinux's denials ----------------------------------------------------------------------------------
@@ -1199,6 +1282,8 @@ if [[ "${SETTING[AUDIT_LOG]:-on}" != off ]]; then
     timed AUDIT_LOG read_audit
     [[ "${SETTING[SELINUX_DENIALS]:-off}" == off ]] && rm -f "${STATE}/audit-selinux.checkpoint"
     timed SELINUX_DENIALS switched SELINUX_DENIALS read_selinux
+    [[ "${SETTING[EXEC_WATCH]:-off}" == off ]] && rm -f "${STATE}/audit-exec-watch.checkpoint"
+    timed EXEC_WATCH switched EXEC_WATCH read_exec
 fi
 timed HARDENING switched HARDENING read_settings
 [[ "${SETTING[PROCESSES]:-off}" == off ]] && rm -f "${STATE}/processes-seen"

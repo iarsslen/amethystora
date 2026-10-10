@@ -1,0 +1,14 @@
+## Amethystora audit rules, key exec-watch. amethystora-audit-home-rules copies this into
+## /etc/audit/rules.d/60-amethystora.rules at every boot, before auditd starts, unless EXEC_WATCH=off in
+## /etc/amethystora/security.conf, which is how the image ships: a key that is off loads no rule and costs
+## nothing. A rule on a folder that is not there is left out, since it would stop auditctl loading every rule
+## after it. The generator adds each home's ~/.cache and download folder under the same key.
+##
+## Read what these caught with: sudo ausearch -i -k exec-watch
+
+## A program run from where downloads and temporary files land, by anyone who logged in. The kernel tests
+## the folder at every execve, and records only those run from here. A script run through its interpreter
+## (sh /tmp/x) runs the interpreter, and is not seen here: odd processes (PROCESSES) sees it.
+-a always,exit -F arch=b64 -S execve,execveat -F dir=/tmp -F auid>=1000 -F auid!=unset -k exec-watch
+-a always,exit -F arch=b64 -S execve,execveat -F dir=/var/tmp -F auid>=1000 -F auid!=unset -k exec-watch
+-a always,exit -F arch=b64 -S execve,execveat -F dir=/dev/shm -F auid>=1000 -F auid!=unset -k exec-watch

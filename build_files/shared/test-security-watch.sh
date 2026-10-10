@@ -193,6 +193,33 @@ before="$(wc -l <"${HISTORY}")"
 timeout 120 "${WATCH}" >/dev/null || fail "the second run with SELinux denials failed"
 tail -n +"$((before + 1))" "${HISTORY}" | grep -q selinux-denials && fail "the same denial was said twice"
 
+# A program run from a writable folder, as the kernel records it: said once, by what is in it, and one gone,
+# with a name the kernel wrote in hex, by its name made plain
+echo "EXEC_WATCH=on" >>"${AMETHYSTORA_SECURITY_CONF}"
+cp /usr/bin/true /var/tmp/watch-exec
+execution() {
+    # ausearch reads a SYSCALL record only with all of a real one's fields, a0 to a3 included
+    printf 'type=SYSCALL msg=audit(%s.100:%s): arch=c000003e syscall=59 success=yes exit=0 a0=55d0 a1=55d1 a2=55d2 a3=0 items=2 ppid=10 pid=11 auid=4500 uid=4500 gid=4500 euid=4500 suid=4500 fsuid=4500 egid=4500 sgid=4500 fsgid=4500 tty=(none) ses=3 comm="x" exe=%s subj=unconfined_u:unconfined_r:unconfined_t:s0 key="exec-watch"\n' \
+        "$((BEGAN + STEP))" "$1" "$2"
+    printf 'type=EXECVE msg=audit(%s.100:%s): argc=2 a0=%s a1="--now"\n' "$((BEGAN + STEP))" "$1" "$2"
+    printf 'type=CWD msg=audit(%s.100:%s): cwd="/root"\n' "$((BEGAN + STEP))" "$1"
+    printf 'type=PATH msg=audit(%s.100:%s): item=0 name=%s inode=1 dev=00:01 nametype=NORMAL\n' "$((BEGAN + STEP))" "$1" "$2"
+}
+STEP=60
+{
+    execution 401 '"/var/tmp/watch-exec"'
+    execution 402 2F7661722F746D702F6120621B5B324A
+    execution 403 '"/var/tmp/watch-exec"'
+    close 499
+} >>"${AMETHYSTORA_WATCH_AUDIT}"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run with programs run from writable folders failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "exec-watch")')"
+jq -se 'length == 2 and any(.[]; .text == "A program ran for the first time from where downloads and temporary files land: /var/tmp/watch-exec, as 4500"
+        and .allow == "/var/tmp/watch-exec" and .tactic == "Execution")
+    and any(.[]; .text | test("/var/tmp/a b\\?\\[2J"))' <<<"${FOUND}" >/dev/null || fail "programs run from writable folders: ${FOUND}"
+rm -f /var/tmp/watch-exec
+
 # --- What runs ------------------------------------------------------------------------------------------------
 
 unset AMETHYSTORA_WATCH_AUDIT

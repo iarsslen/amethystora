@@ -85,6 +85,19 @@ grep -qE -- '-k identity$' "${SYSTEM_RULES}" || fail "a key that is on got none"
 grep -qE -- '-k user-programs$' "${HOME_RULES}" || fail "the home's own key that is on got none"
 grep -qvE '^-(w|a) ' <<<"$(grep -vE '^[[:space:]]*(#|$)' "${SYSTEM_RULES}")" && fail "a line auditctl cannot read"
 [[ -e "${R}/var/home/alice/.config/autostart" ]] && fail "a folder made for a key that is off"
+grep -qE -- '-k exec-watch$' "${SYSTEM_RULES}" "${HOME_RULES}" && fail "what is off as the image ships it got rules"
+# Turned on, a rule for each writable folder there is, and none for one that is not there, which would stop
+# auditctl at that line
+mkdir -m 0700 "${R}/var/home/alice/.cache" "${R}/var/home/alice/Downloads"
+chown 4300:4300 "${R}/var/home/alice/.cache" "${R}/var/home/alice/Downloads"
+printf 'EXEC_WATCH=on\n' >"${T}/keys.conf"
+AMETHYSTORA_SECURITY_CONF="${T}/keys.conf" AMETHYSTORA_AUDIT_ROOT="${R}" bash /usr/libexec/amethystora-audit-home-rules
+for dir in /tmp /var/tmp "${R}/var/home/alice/.cache" "${R}/var/home/alice/Downloads"; do
+    grep -qxF -- "-a always,exit -F arch=b64 -S execve,execveat -F dir=${dir} -F auid>=1000 -F auid!=unset -k exec-watch" \
+        "${SYSTEM_RULES}" "${HOME_RULES}" || fail "no rule on what runs from ${dir}"
+done
+grep -E '^-a .* -F (dir|path)=' "${SYSTEM_RULES}" "${HOME_RULES}" | grep -oE ' -F (dir|path)=[^ ]+' | cut -d= -f2 |
+    while read -r path; do [[ -e "${path}" ]] || fail "a rule on ${path}, which is not there"; done
 
 # --- The report: off is not a fault ------------------------------------------------------------------
 

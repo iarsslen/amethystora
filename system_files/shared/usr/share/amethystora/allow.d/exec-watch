@@ -1,0 +1,12 @@
+# The image's own entries for programs run from writable folders (EXEC_WATCH in
+# /etc/amethystora/security.conf): what tools run from there by design. The machine's own are in
+# /etc/amethystora/allow.d/exec-watch (ame security allow exec-watch PATH). A glob each; ~/ is every home folder.
+#
+# pip's and Go's builds, and AppImages, mounted in /tmp while they run
+/tmp/pip-*
+/tmp/go-build*
+/tmp/.mount_*
+# The browsers Playwright and Puppeteer download for tests, and Bazel's tools
+~/.cache/ms-playwright/*
+~/.cache/puppeteer/*
+~/.cache/bazel/*

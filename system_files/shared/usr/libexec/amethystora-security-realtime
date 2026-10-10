@@ -19,7 +19,7 @@
 
 set -uo pipefail
 
-KEYS='identity|privilege|persistence|hardening|modules|input-capture|user-programs'
+KEYS='identity|privilege|persistence|hardening|modules|input-capture|user-programs|exec-watch'
 CONFIG=/usr/libexec/amethystora-security-config
 # A burst (an editor saving a file is a write, a rename and a chmod) is one run, not three
 SETTLE=5
