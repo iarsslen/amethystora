@@ -1,0 +1,17 @@
+#!/usr/bin/bash
+# Said once, a minute into an account's login, to one whose Déjà Dup backed it up on a schedule and is no longer
+# installed (user-setup.hooks.d/19-deja-dup.sh): Déjà Dup left the apps the system comes with, and its backups
+# stopped with it.
+
+set -uo pipefail
+
+# In the session's language where there is a translation of it (po/, text domain amethystora)
+export TEXTDOMAIN=amethystora
+# shellcheck source=/dev/null
+source gettext.sh
+
+notify-send --app-name=Amethystora --icon=deja-dup \
+    "$(gettext "Déjà Dup no longer backs this account up")" \
+    "$(gettext "Déjà Dup is no longer one of the apps this system comes with, and its scheduled backups stopped when it was removed. Your backups made with it stay where they are. Set up Amethystora's backup with: ame backup setup, or install Déjà Dup again from Bazaar.")" \
+    2>/dev/null
+exit 0

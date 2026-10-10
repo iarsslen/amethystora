@@ -1,6 +1,7 @@
 # The apps every machine comes with, installed from Flathub by flatpak-preinstall.service on the first
 # boot that has a network: the installer ISO carries none. Bazaar, Flatseal and DistroShelf have files
-# of their own. No browser (Firefox is in the image), and Amethystora Logs in place of GNOME Logs.
+# of their own. No browser (Firefox is in the image), Amethystora Logs in place of GNOME Logs, and Amethystora
+# Backups in place of Déjà Dup.
 #
 # An app a user uninstalls stays uninstalled. An app taken off this list is uninstalled from every
 # machine that got it from here. Branch is required: Flatpak assumes "master" without it.
@@ -60,10 +61,6 @@ Branch=stable
 IsRuntime=false
 
 [Flatpak Preinstall org.gnome.Contacts]
-Branch=stable
-IsRuntime=false
-
-[Flatpak Preinstall org.gnome.DejaDup]
 Branch=stable
 IsRuntime=false
 

@@ -2777,3 +2777,11 @@ msgstr ""
 #: usr/libexec/amethystora-home-networks-notice
 msgid "Phone pairing (GSConnect) is open only on the networks you name home, and none is named yet. Name yours with: ame security home-networks"
 msgstr ""
+
+#: usr/libexec/amethystora-deja-dup-notice
+msgid "Déjà Dup no longer backs this account up"
+msgstr ""
+
+#: usr/libexec/amethystora-deja-dup-notice
+msgid "Déjà Dup is no longer one of the apps this system comes with, and its scheduled backups stopped when it was removed. Your backups made with it stay where they are. Set up Amethystora's backup with: ame backup setup, or install Déjà Dup again from Bazaar."
+msgstr ""

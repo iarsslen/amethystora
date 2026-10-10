@@ -88,6 +88,10 @@ grep -qx "StartLimitIntervalSec=0" /usr/lib/systemd/system/flatpak-preinstall.se
 test -f /usr/share/applications/org.mozilla.firefox.desktop
 grep -q "^x-scheme-handler/https=org.mozilla.firefox.desktop" /etc/xdg/mimeapps.list
 grep -rq "org.mozilla.firefox" /usr/share/flatpak/preinstall.d && false
+# Déjà Dup left the list for Amethystora Backups. An account whose scheduled backups stopped with it is told
+# once (user-setup.hooks.d/19-deja-dup.sh), in its own language (po/)
+grep -rq "org.gnome.DejaDup" /usr/share/flatpak/preinstall.d && false
+test -x /usr/libexec/amethystora-deja-dup-notice
 # Mozilla lets Firefox be redistributed only unaltered, so the image adds no policy to it, and with
 # no policy no extension
 test ! -e /etc/firefox/policies/policies.json

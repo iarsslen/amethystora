@@ -596,8 +596,9 @@ report's `backup-runs` check reads `status`. Never work out a point, a path or a
   `~/.local/state/amethystora/backup-last-success`. A daily run with none for 7 days is stale, which the
   window and the report's `backup-runs` check say. The security watcher runs as root, sees no account's
   backup, and does not notify about it.
-- Déjà Dup is still on `amethystora.preinstall`. Taking it off, after a release of notices, is
-  `plans/PLAN-backups-and-features.md`'s last step.
+- Déjà Dup is off `amethystora.preinstall`, and `20-tests.sh` keeps it off. An account whose Déjà Dup
+  backed it up on a schedule is told once, after it is gone (`user-setup.hooks.d/19-deja-dup.sh`). There is
+  no retire hook: a machine that kept Déjà Dup keeps backing up with it.
 
 Its manual section is `security.md#backups`. The sidebar draws the same wordmark as Security, from its
 own copy of `gem.svg`; the app grid's icon is drawn for the image in `build_files/shared/candy-icons`
