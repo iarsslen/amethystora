@@ -2455,6 +2455,14 @@ msgid "AI agents run with their checks off"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Credential tripwires"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Decoy key"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
 msgstr ""
 
@@ -2572,6 +2580,14 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "An AI agent started with a flag that turns its own checks off, as an npm install script did in the Nx attack: said when no terminal started it. Recorded by the audit log on the folders the agents run from, from the next restart."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "A program reading where secrets are kept that is not their own: SSH keys, package registry and cloud tokens, the browsers' passwords and cookies, the AI agents' tokens. One process reading several kinds is critical. Recorded by the audit log, from the next restart."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Puts a fake SSH key, ~/.ssh/id_backup, in each home folder, which nothing legitimate reads: any read of it is critical. Off takes it away again, at the next restart."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

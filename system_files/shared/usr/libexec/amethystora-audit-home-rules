@@ -163,6 +163,51 @@ AGENT_COMMANDS=(.local/bin/claude .local/bin/codex .local/bin/copilot .local/bin
     .opencode/bin/opencode)
 # Gemini CLI comes from Homebrew, whose prefix every account shares
 BREW_AGENTS=(/home/linuxbrew/.linuxbrew/bin/gemini)
+CREDENTIALS=false
+wanted credentials && CREDENTIALS=true
+DECOY=false
+wanted decoy && DECOY=true
+# Where secrets are kept in a home, each a glob: SSH's keys, the package registries', git's, GitHub's, the
+# clouds', the browsers' passwords and cookies (their Flatpaks' too), and the AI agents' tokens. Chromium's
+# "Login Data" has a space in its name, which an audit rule cannot hold, and is not watched.
+CREDENTIAL_FILES=(.ssh/id_* .npmrc .pypirc .git-credentials .config/gh/hosts.yml .aws/credentials .docker/config.json
+    .kube/config
+    .mozilla/firefox/*/logins.json .mozilla/firefox/*/key4.db .mozilla/firefox/*/cookies.sqlite
+    .var/app/org.mozilla.firefox/.mozilla/firefox/*/logins.json .var/app/org.mozilla.firefox/.mozilla/firefox/*/key4.db
+    .var/app/org.mozilla.firefox/.mozilla/firefox/*/cookies.sqlite
+    .config/{google-chrome,chromium,BraveSoftware/Brave-Browser,microsoft-edge}/*/{Cookies,Network/Cookies}
+    .var/app/{com.google.Chrome/config/google-chrome,org.chromium.Chromium/config/chromium}/*/{Cookies,Network/Cookies}
+    .var/app/{com.brave.Browser/config/BraveSoftware/Brave-Browser,com.microsoft.Edge/config/microsoft-edge}/*/{Cookies,Network/Cookies}
+    .claude/.credentials.json .codex/auth.json .codex/.credentials.json .gemini/oauth_creds.json
+    .gemini/gemini-credentials.json .gemini/mcp-oauth-tokens.json .local/share/opencode/auth.json
+    .local/share/opencode/mcp-auth.json .config/cursor/auth.json)
+CREDENTIAL_DIRS=(.local/share/keyrings)
+# The decoy: a key nothing legitimate reads, since ssh offers no key under this name on its own. Its first line
+# of base64 begins with this, which is how this script knows its own decoy from a key of the account's.
+DECOY_FILE=.ssh/id_backup
+DECOY_MARK=YW1ldGh5c3RvcmEtZGVjb3k6
+
+# A rule on reading a file, or the files in a folder, by the account's own logins
+read_rule() { echo "-a always,exit -F arch=b64 -F $1=$2 -F perm=r -F auid>=1000 -F auid!=unset -k $3"; }
+
+# Whether the decoy at PATH is this script's
+own_decoy() { [[ -f "$1" && ! -L "$1" ]] && head -c 4096 -- "$1" 2>/dev/null | sed -n 2p | grep -q "^${DECOY_MARK}"; }
+
+# Makes the decoy as the account, never over a file that is there: a private key in OpenSSH's armour, around
+# nothing but the mark and random bytes
+make_decoy() {
+    local home="$1" uid="$2" gid
+    gid="$(stat -c '%g' "${home}")"
+    setpriv --reuid="${uid}" --regid="${gid}" --clear-groups mkdir -p -m 0700 "${home}/.ssh" || return 1
+    [[ -e "${home}/${DECOY_FILE}" || -L "${home}/${DECOY_FILE}" ]] && return 0
+    inside "${home}" .ssh >/dev/null || return 1
+    {
+        echo "-----BEGIN OPENSSH PRIVATE KEY-----"
+        { printf 'amethystora-decoy:'; head -c 381 /dev/urandom; } | base64 -w 68
+        echo "-----END OPENSSH PRIVATE KEY-----"
+    } | setpriv --reuid="${uid}" --regid="${gid}" --clear-groups /usr/bin/bash -c 'umask 077; set -C; cat >"$1"' _ \
+        "${home}/${DECOY_FILE}"
+}
 
 # A rule on a folder each time a program runs from it, for the account's own logins. The folder has to be
 # there, or auditctl stops at the rule: the caller has checked it.
@@ -244,6 +289,43 @@ download_dir() {
                     exec_rule "${dir}" agent-clis
                 fi
             done
+        fi
+        # Reading where secrets are kept (CREDENTIALS): each file that is there, the keyring's folder, and the
+        # file the backup's password is in, which its settings name. Root reads those settings as it reads
+        # any file of an account's: plain, never through a link, and no more than a little of it.
+        if [[ "${CREDENTIALS}" == true ]]; then
+            {
+                for pattern in "${CREDENTIAL_FILES[@]}"; do
+                    for file in "${home}"/${pattern}; do
+                        [[ -f "${file}" && "${file}" != *.pub ]] || continue
+                        if real="$(inside "${home}" "${file#"${home}/"}")"; then
+                            read_rule path "${real}" credentials
+                        fi
+                    done
+                done
+                for dir in "${CREDENTIAL_DIRS[@]}"; do
+                    if [[ -d "${home}/${dir}" ]] && real="$(inside "${home}" "${dir}")"; then
+                        read_rule dir "${real}" credentials
+                    fi
+                done
+                settings="${home}/.config/amethystora/backup.env"
+                if [[ -f "${settings}" && ! -L "${settings}" ]]; then
+                    file="$(head -c 8192 -- "${settings}" | sed -n 's/^RESTIC_PASSWORD_FILE="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' | head -n1)"
+                    file="${file/#\~/${home}}"
+                    if [[ "${file}" == "${home}"/* && -f "${file}" ]] && real="$(inside "${home}" "${file#"${home}/"}")"; then
+                        read_rule path "${real}" credentials
+                    fi
+                fi
+            } | sort -u
+        fi
+        # The decoy (DECOY): made as the account when on, and taken back when off, only ever this script's own
+        if [[ "${DECOY}" == true ]]; then
+            if make_decoy "${home}" "${uid}" && own_decoy "${home}/${DECOY_FILE}" &&
+                real="$(inside "${home}" "${DECOY_FILE}")"; then
+                read_rule path "${real}" decoy
+            fi
+        elif own_decoy "${home}/${DECOY_FILE}" && real="$(inside "${home}" "${DECOY_FILE}")"; then
+            setpriv --reuid="${uid}" --regid="$(stat -c '%g' "${home}")" --clear-groups rm -f -- "${real}" || true
         fi
         echo
     done < <({

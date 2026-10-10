@@ -1,0 +1,9 @@
+# The image's own entries for the decoy key (DECOY in /etc/amethystora/security.conf): the programs that read
+# every file of a home, and so the decoy too. The machine's own are in /etc/amethystora/allow.d/decoy
+# (ame security allow decoy PROGRAM). A glob each.
+#
+# The backup, the virus scans and the file indexer
+/usr/bin/restic
+/usr/bin/clamscan
+/usr/bin/clamdscan
+/usr/libexec/localsearch-*

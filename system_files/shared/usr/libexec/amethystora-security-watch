@@ -57,9 +57,9 @@ OLD_HISTORY="${ROOT}/var/log/amethystora-security-events.log"
 HISTORY_KEPT=5000
 # The setuid sweep reads every file under /etc and /var, home directories included
 SWEEP_EVERY=$((24 * 3600))
-AUDIT_KEYS=(identity privilege persistence hardening modules input-capture user-programs exec-watch agent-clis)
+AUDIT_KEYS=(identity privilege persistence hardening modules input-capture user-programs exec-watch agent-clis credentials decoy)
 # ...of which these are read by parts of their own, from the kernel's raw records, rather than as sentences
-AUDIT_OWN=" exec-watch agent-clis "
+AUDIT_OWN=" exec-watch agent-clis credentials decoy "
 TEXT=/usr/libexec/amethystora-security-text
 
 [[ "${EUID}" -eq 0 || "${1:-}" == --keys ]] || { echo "${0##*/} needs root." >&2; exit 77; }
@@ -157,7 +157,7 @@ allowed() {
     local feature="$1" entry="$2" pattern
     if [[ -z "${ALLOWLIST[${feature}]+set}" ]]; then
         ALLOWLIST["${feature}"]="$(cat "${ALLOW_SHIPPED}/${feature}" "${ALLOW_MACHINE}/${feature}" 2>/dev/null |
-            grep -vE '^[[:space:]]*(#|$)' | sed 's#^~/#/var/home/*/#')"
+            grep -vE '^[[:space:]]*(#|$)' | sed 's#^~/#/var/home/*/#; s# ~/# /var/home/*/#g')"
     fi
     while IFS= read -r pattern; do
         [[ -n "${pattern}" ]] || continue
@@ -419,6 +419,76 @@ read_agent_clis() {
             add "${level}" agent-clis "${user}" Execution "An AI agent ran with its own checks turned off: ${AGENT} ${flag}, started by ${parent:-a process that is gone} ${how}$([[ "${count[${key}]}" -gt 1 ]] && echo " (${count[${key}]} times)")" \
                 "allow=${subject}"
     done
+}
+
+# --- Where secrets are kept --------------------------------------------------------------------------------
+
+# Password stealers, and the npm and PyPI packages that carried one (Shai-Hulud, the Nx attack), read keys
+# and tokens, send them out and exit: no signature, nothing left behind. The audit rules record each read of
+# the files that hold them (CREDENTIALS, from the next boot). A program reading a file that is not its own is
+# said, and one process reading two kinds of secret or more is critical: Shai-Hulud ran inside node, which
+# reads ~/.npmrc as a matter of course, and it was its sweep over ~/.ssh and ~/.aws that gave it away. What
+# reads is matched with the file in the allowlist ("PROGRAM FILE"), and an allowed read is not kept at all:
+# browsers read their cookies all day. It records which programs read secrets, never what they read.
+store_of() {
+    case "$1" in
+        */.ssh/*) STORE="SSH keys" ;;
+        */.npmrc) STORE="npm's token" ;;
+        */.pypirc) STORE="PyPI's token" ;;
+        */.git-credentials) STORE="git's passwords" ;;
+        */.config/gh/*) STORE="GitHub's token" ;;
+        */.aws/*) STORE="AWS keys" ;;
+        */.docker/*) STORE="container registry passwords" ;;
+        */.kube/*) STORE="Kubernetes credentials" ;;
+        */keyrings/*) STORE="the keyring" ;;
+        */firefox/*) STORE="Firefox's passwords and cookies" ;;
+        */Cookies) STORE="a browser's cookies" ;;
+        */.claude/* | */.codex/* | */.gemini/* | */opencode/* | */cursor/*) STORE="an AI agent's token" ;;
+        *) STORE="the backup's password" ;;
+    esac
+}
+
+read_credentials() {
+    local time pid ppid auid tty exe path args user key what
+    local -A said=() kinds=() who=()
+    while IFS=$'\x1f' read -r time pid ppid auid tty exe path args; do
+        [[ -n "${exe}" && "${path}" == /* ]] || continue
+        allowed credentials "${exe} ${path}" && continue
+        user="$(id -nu "${auid}" 2>/dev/null || echo "${auid}")"
+        store_of "${path}"
+        [[ "${kinds[${pid}]:-}" == *"|${STORE}|"* ]] || kinds["${pid}"]+="|${STORE}|"
+        who["${pid}"]="${exe}"$'\x1f'"${user}"
+        key="${exe}"$'\x1f'"${path}"
+        [[ -z "${said[${key}]+set}" ]] || continue
+        said["${key}"]=1
+        [[ -n "${LAST_RUN}" ]] &&
+            add normal credentials "${user}" "Credential Access" "${exe} read ${path} (${STORE}), as ${user}" \
+                "allow=${exe} ${path}"
+    done < <(audit_records credentials)
+    for pid in "${!kinds[@]}"; do
+        what="${kinds[${pid}]//||/, }"
+        what="${what//|/}"
+        [[ "${kinds[${pid}]}" == *"||"* && -n "${LAST_RUN}" ]] || continue
+        IFS=$'\x1f' read -r exe user <<<"${who[${pid}]}"
+        add critical credentials "${user}" "Credential Access" "One process read one kind of secret after another, as a password stealer does: ${exe} (process ${pid}, as ${user}) read ${what}" \
+            "allow=${exe} *"
+    done
+}
+
+# The decoy key (DECOY): nothing legitimate reads it, so any read but a backup's or a virus scan's is critical
+read_decoy() {
+    local time pid ppid auid tty exe path args user level
+    local -A said=()
+    while IFS=$'\x1f' read -r time pid ppid auid tty exe path args; do
+        [[ -n "${exe}" && -z "${said[${exe}]+set}" ]] || continue
+        said["${exe}"]=1
+        user="$(id -nu "${auid}" 2>/dev/null || echo "${auid}")"
+        level=critical
+        allowed decoy "${exe}" && level=quiet
+        [[ -n "${LAST_RUN}" ]] &&
+            add "${level}" decoy "${user}" "Credential Access" "${exe} read the decoy key ${path} (process ${pid}, as ${user}). Nothing legitimate reads it: this is what a password stealer looks like" \
+                "allow=${exe}"
+    done < <(audit_records decoy)
 }
 
 # --- SELinux's denials ----------------------------------------------------------------------------------
@@ -1325,6 +1395,10 @@ if [[ "${SETTING[AUDIT_LOG]:-on}" != off ]]; then
     timed EXEC_WATCH switched EXEC_WATCH read_exec
     [[ "${SETTING[AGENT_CLIS]:-off}" == off ]] && rm -f "${STATE}/audit-agent-clis.checkpoint"
     timed AGENT_CLIS switched AGENT_CLIS read_agent_clis
+    [[ "${SETTING[CREDENTIALS]:-off}" == off ]] && rm -f "${STATE}/audit-credentials.checkpoint"
+    timed CREDENTIALS switched CREDENTIALS read_credentials
+    [[ "${SETTING[DECOY]:-off}" == off ]] && rm -f "${STATE}/audit-decoy.checkpoint"
+    timed DECOY switched DECOY read_decoy
 fi
 timed HARDENING switched HARDENING read_settings
 [[ "${SETTING[PROCESSES]:-off}" == off ]] && rm -f "${STATE}/processes-seen"

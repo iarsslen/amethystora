@@ -304,6 +304,19 @@ anything anywhere unless its own entry says so.
   said; one you started at a terminal is recorded. It takes effect from the next restart, and an agent
   installed since then is seen by odd processes instead. A script of yours that runs an agent on purpose is
   allowed with **Allow…** on its event.
+- **Credential tripwires** (`credentials`): password stealers, and the poisoned npm and PyPI packages that
+  carried one, read keys and tokens, send them out and exit, leaving nothing to scan. The audit log records
+  each read of where secrets are kept: SSH's keys, npm's, PyPI's, git's, GitHub's, the clouds' and the
+  container registries' tokens, the keyring, the browsers' passwords and cookies, and the AI agents' tokens.
+  A program reading one that is not its own is said, and one process reading several kinds is critical:
+  that is the sweep a stealer makes. SSH, git, the browsers, the agents, the backup, the virus scans and the
+  file indexer are allowed already. It records which programs read secrets, never what they read, and takes
+  effect from the next restart. Chromium's saved passwords are in a file whose name has a space, which the
+  audit log cannot watch.
+- **Decoy key** (`decoy`): puts a fake SSH key, `~/.ssh/id_backup`, in each home folder. SSH never offers a
+  key by that name on its own, so nothing legitimate reads it, and any read of it is critical. It is a
+  switch of its own because it puts a file in your home folder; turned off, it is taken away again at the
+  next restart. A key of your own by that name is never touched, and then no decoy is made.
 - **Apps that gain permissions** (`app-permissions`): a Flatpak app that gains a way out of its sandbox
   ([App permissions](#app-permissions)), through an update, an override or another app in its place. An
   app installed with its permissions is recorded; a permission added to one you have is said. It is read

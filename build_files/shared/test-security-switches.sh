@@ -111,6 +111,34 @@ AMETHYSTORA_SECURITY_CONF="${T}/keys.conf" AMETHYSTORA_AUDIT_ROOT="${R}" bash /u
 AGENT_RULES="$(grep -- '-k agent-clis$' "${HOME_RULES}" | grep -oE 'dir=[^ ]+' | cut -d= -f2 | sort)"
 [[ "${AGENT_RULES}" == "$(printf '%s\n' "${A}/.local/bin" "${A}/.local/share/claude/versions" "${A}/.opencode/bin" | sort)" ]] ||
     fail "the folders agents run from: ${AGENT_RULES}"
+# Reading where secrets are kept: each file that is there, not a public key, the keyring's folder and the
+# backup's password; and the decoy, made as the account, only ever its own, and taken back when off
+mkdir -p "${A}/.ssh" "${A}/.local/share/keyrings" "${A}/.config/amethystora"
+touch "${A}/.ssh/id_ed25519" "${A}/.ssh/id_ed25519.pub" "${A}/.npmrc" "${A}/.config/amethystora/backup-password"
+echo 'RESTIC_PASSWORD_FILE="~/.config/amethystora/backup-password"' >"${A}/.config/amethystora/backup.env"
+chown -R 4300:4300 "${A}/.ssh" "${A}/.local" "${A}/.config" "${A}/.npmrc"
+printf 'CREDENTIALS=on\nDECOY=on\n' >"${T}/keys.conf"
+AMETHYSTORA_SECURITY_CONF="${T}/keys.conf" AMETHYSTORA_AUDIT_ROOT="${R}" bash /usr/libexec/amethystora-audit-home-rules
+for rule in "path=${A}/.ssh/id_ed25519" "path=${A}/.npmrc" "dir=${A}/.local/share/keyrings" \
+    "path=${A}/.config/amethystora/backup-password"; do
+    grep -qxF -- "-a always,exit -F arch=b64 -F ${rule} -F perm=r -F auid>=1000 -F auid!=unset -k credentials" "${HOME_RULES}" ||
+        fail "no rule on reading ${rule}"
+done
+grep -q 'id_ed25519.pub' "${HOME_RULES}" && fail "a rule on reading a public key"
+[[ "$(stat -c '%u %a' "${A}/.ssh/id_backup")" == "4300 600" ]] || fail "the decoy is not the account's own, 0600"
+grep -qxF -- "-a always,exit -F arch=b64 -F path=${A}/.ssh/id_backup -F perm=r -F auid>=1000 -F auid!=unset -k decoy" "${HOME_RULES}" ||
+    fail "no rule on reading the decoy"
+printf 'CREDENTIALS=on\n' >"${T}/keys.conf"
+AMETHYSTORA_SECURITY_CONF="${T}/keys.conf" AMETHYSTORA_AUDIT_ROOT="${R}" bash /usr/libexec/amethystora-audit-home-rules
+[[ ! -e "${A}/.ssh/id_backup" ]] || fail "the decoy stayed with its switch off"
+echo "a key of alice's own" >"${A}/.ssh/id_backup"
+printf 'DECOY=on\n' >"${T}/keys.conf"
+AMETHYSTORA_SECURITY_CONF="${T}/keys.conf" AMETHYSTORA_AUDIT_ROOT="${R}" bash /usr/libexec/amethystora-audit-home-rules
+grep -qx "a key of alice's own" "${A}/.ssh/id_backup" || fail "a key of the account's own was replaced by a decoy"
+grep -q -- '-k decoy$' "${HOME_RULES}" && fail "a key of the account's own was taken for the decoy"
+printf '' >"${T}/keys.conf"
+AMETHYSTORA_SECURITY_CONF="${T}/keys.conf" AMETHYSTORA_AUDIT_ROOT="${R}" bash /usr/libexec/amethystora-audit-home-rules
+[[ -e "${A}/.ssh/id_backup" ]] || fail "a key of the account's own was taken away"
 
 # --- The report: off is not a fault ------------------------------------------------------------------
 

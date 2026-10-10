@@ -252,6 +252,35 @@ jq -se --arg parent "${PARENT}" 'length == 2
     and any(.[]; .level == "quiet" and (.text | test("claude --permission-mode bypassPermissions, started by .* at a terminal$")))' \
     <<<"${FOUND}" >/dev/null || fail "agents run with their checks off: ${FOUND}"
 
+# Reading where secrets are kept: a program not on a file's list is said, one sweeping two kinds is critical,
+# ssh reading its keys is nothing; and any read of the decoy is critical, but the backup's
+printf 'CREDENTIALS=on\nDECOY=on\n' >>"${AMETHYSTORA_SECURITY_CONF}"
+opened() {
+    printf 'type=SYSCALL msg=audit(%s.100:%s): arch=c000003e syscall=257 success=yes exit=3 a0=ffffff9c a1=55d1 a2=0 a3=0 items=1 ppid=1 pid=%s auid=4500 uid=4500 gid=4500 euid=4500 suid=4500 fsuid=4500 egid=4500 sgid=4500 fsgid=4500 tty=(none) ses=3 comm="x" exe="%s" subj=unconfined_u:unconfined_r:unconfined_t:s0 key="%s"\n' \
+        "$((BEGAN + STEP))" "$1" "$2" "$3" "$5"
+    printf 'type=CWD msg=audit(%s.100:%s): cwd="/var/home/alice"\n' "$((BEGAN + STEP))" "$1"
+    printf 'type=PATH msg=audit(%s.100:%s): item=0 name="%s" inode=1 dev=00:01 nametype=NORMAL\n' "$((BEGAN + STEP))" "$1" "$4"
+}
+STEP=120
+{
+    opened 601 21 /usr/bin/python3.14 /var/home/alice/.ssh/id_ed25519 credentials
+    opened 602 21 /usr/bin/python3.14 .aws/credentials credentials
+    opened 603 22 /usr/bin/ssh /var/home/alice/.ssh/id_ed25519 credentials
+    opened 604 23 /usr/bin/cat /var/home/alice/.ssh/id_backup decoy
+    opened 605 24 /usr/bin/restic /var/home/alice/.ssh/id_backup decoy
+    close 699
+} >>"${AMETHYSTORA_WATCH_AUDIT}"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run with secrets read failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "credentials" or .key == "decoy")')"
+jq -se 'length == 5
+    and any(.[]; .key == "credentials" and .level == "normal" and .text == "/usr/bin/python3.14 read /var/home/alice/.ssh/id_ed25519 (SSH keys), as 4500")
+    and any(.[]; .key == "credentials" and .level == "normal" and (.text | test("read /var/home/alice/.aws/credentials .AWS keys.")))
+    and any(.[]; .key == "credentials" and .level == "critical" and (.text | test("process 21, as 4500. read (SSH keys, AWS keys|AWS keys, SSH keys)$")))
+    and any(.[]; .key == "decoy" and .level == "critical" and (.text | startswith("/usr/bin/cat read the decoy key")))
+    and any(.[]; .key == "decoy" and .level == "quiet" and (.text | startswith("/usr/bin/restic")))
+    and all(.[]; (.text | test("/usr/bin/ssh ")) | not)' <<<"${FOUND}" >/dev/null || fail "secrets read: ${FOUND}"
+
 # --- What runs ------------------------------------------------------------------------------------------------
 
 unset AMETHYSTORA_WATCH_AUDIT
