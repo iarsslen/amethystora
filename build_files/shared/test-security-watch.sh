@@ -367,4 +367,38 @@ jq -se 'length == 3
     and any(.[]; (.text | test("spy .tracepoint, tag dd44., by /var/tmp/loader")) and .level == "normal"
         and .allow == "spy /var/tmp/loader")' <<<"${FOUND}" >/dev/null || fail "BPF programs: ${FOUND}"
 
+# --- Ransomware behaviour, from stand-in snapshots and a stand-in btrfs -------------------------------------
+
+# btrfs's dump as btrfs-progs 7.1 writes it (seen on a real pair of snapshots): alice's documents rewritten
+# with random bytes, bob's few changed, mallory's deleted, and a cache's changes, which do not count
+sed -i 's/^BPF_PROGRAMS=on$/SNAPSHOT_WATCH=on/' "${AMETHYSTORA_SECURITY_CONF}"
+export AMETHYSTORA_WATCH_BTRFS="${T}/btrfs"
+printf '#!/usr/bin/bash\n[[ "$1" == receive ]] && cat "%s/dump"\nexit 0\n' "${T}" >"${T}/btrfs"
+chmod 0755 "${T}/btrfs"
+S="${R}/var/home/.snapshots"
+mkdir -p "${S}/2026-10-10_1200/alice/Docs"
+timeout 120 "${WATCH}" >/dev/null || fail "the first run reading snapshots failed"
+mkdir -p "${S}/2026-10-10_1300/alice/Docs"
+{
+    echo 'snapshot        ./2026-10-10_1300               uuid=1 transid=10 parent_uuid=2 parent_transid=9'
+    for i in $(seq 1 320); do
+        head -c 5000 < <(yes "plain text line ${i}") >"${S}/2026-10-10_1200/alice/Docs/note ${i}.txt"
+        head -c 5000 /dev/urandom >"${S}/2026-10-10_1300/alice/Docs/note ${i}.txt"
+        echo "update_extent   ./2026-10-10_1300/alice/Docs/note\\ ${i}.txt offset=0 len=5000"
+    done
+    for i in $(seq 1 20); do echo "update_extent   ./2026-10-10_1300/bob/b${i} offset=0 len=1"; done
+    for i in $(seq 1 400); do echo "update_extent   ./2026-10-10_1300/bob/.cache/c${i} offset=0 len=1"; done
+    for i in $(seq 1 350); do echo "unlink          ./2026-10-10_1300/mallory/Pictures/p${i}"; done
+    echo 'mkfile          ./2026-10-10_1300/o269-10-0'
+    echo 'rename          ./2026-10-10_1300/o269-10-0     dest=./2026-10-10_1300/alice/Docs/new\ file'
+} >"${T}/dump"
+before="$(wc -l <"${HISTORY}")"
+timeout 300 "${WATCH}" >/dev/null || fail "the run reading snapshots failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "snapshot-watch")')"
+jq -se 'length == 2
+    and any(.[]; .level == "critical" and .account == "alice" and .at == "2026-10-10_1200" and .tactic == "Impact"
+        and (.text | startswith("320 files in alice'"'"'s home folder changed within the hour before 2026-10-10_1300, and 100 of the 100 looked at went from readable to random")))
+    and any(.[]; .level == "critical" and .account == "mallory" and (.text | startswith("350 files were deleted from mallory")))' \
+    <<<"${FOUND}" >/dev/null || fail "ransomware behaviour: ${FOUND}"
+
 echo "test-security-watch: what an account plants is only ever read"

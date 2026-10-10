@@ -92,6 +92,14 @@ function folderArgument(argv, cwd = process.cwd()) {
     return resolved.startsWith(`${HOME}/`) ? resolved.slice(HOME.length + 1) : null;
 }
 
+// The point in time to open on, `--at=POINT`: a snapshot's name or a backup's id, in the shape `points`
+// gives them. The page opens on it only when the list it reads has it.
+function pointArgument(argv) {
+    const given = argv.slice(1).find((arg) => arg.startsWith('--at='));
+    const point = given ? given.slice('--at='.length) : '';
+    return /^([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}|[0-9a-f]{8,64})$/.test(point) ? point : '';
+}
+
 // The page to open: `amethystora-backups status` opens on the status
 function pageArgument(argv) {
     const page = argv.slice(1).find((arg) => !arg.startsWith('-'));
@@ -329,9 +337,10 @@ if (!app.requestSingleInstanceLock()) {
         win.focus();
         const page = pageArgument(argv);
         const folder = page ? null : folderArgument(argv, cwd);
-        if (folder !== null) {
-            remember(folder);
-            send('open', { page: 'browse', folder });
+        const point = pointArgument(argv);
+        if (folder !== null || point) {
+            remember(folder || '');
+            send('open', { page: 'browse', folder: folder || '', point });
         } else if (page) {
             send('open', { page });
         }
@@ -348,7 +357,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.on('locale', (event) => {
         event.returnValue = LOCALE;
     });
-    ipcMain.handle('start', () => ({ folder: start, home: HOME }));
+    ipcMain.handle('start', () => ({ folder: start, home: HOME, point: pointArgument(process.argv) }));
     ipcMain.handle('status', () => status());
     ipcMain.handle('points', () => readPoints());
     ipcMain.handle('ls', (_event, id, folder) => list(String(id), String(folder)));

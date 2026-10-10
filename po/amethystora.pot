@@ -2463,6 +2463,10 @@ msgid "Decoy key"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Ransomware behaviour"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
 msgstr ""
 
@@ -2588,6 +2592,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "Puts a fake SSH key, ~/.ssh/id_backup, in each home folder, which nothing legitimate reads: any read of it is critical. Off takes it away again, at the next restart."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "After each hourly snapshot, how many files of each account changed or were deleted within the hour, and whether those that changed went from readable to random, as encryption makes them. Needs ransomware protection's snapshots."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

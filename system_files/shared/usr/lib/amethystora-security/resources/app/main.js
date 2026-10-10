@@ -594,10 +594,24 @@ async function network() {
 }
 
 // What the watcher found: each finding's time, level, the part that found it, its account and its sentence,
-// which the watcher has already made plain text. One this account may not read says so.
+// which the watcher has already made plain text, and whether it is about this account. One this account may
+// not read says so.
 function watchEvents() {
     const events = readJson(WATCH_EVENTS);
-    return { readable: !events?.denied, events: Array.isArray(events) ? events : [] };
+    const me = os.userInfo().username;
+    return {
+        readable: !events?.denied,
+        events: Array.isArray(events) ? events.map((event) => ({ ...event, mine: event.account === me })) : [],
+    };
+}
+
+// The snapshot from before an event, opened in Backups: only for an event about this account, whose home is
+// the one Backups shows, and only a snapshot's name
+function openBackups(id) {
+    const event = findEvent(id);
+    if (event?.account === os.userInfo().username && /^[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{4}$/.test(event.at || '')) {
+        launch('amethystora-backups', [`--at=${event.at}`]);
+    }
 }
 
 // One event of the watcher's, by the id the page sent: never anything else the page says
@@ -830,6 +844,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('events-terminal', () => launch(IN_TERMINAL, [AME, 'security', 'events']));
     ipcMain.handle('network-allow', (_event, rule) => allowRule(String(rule)));
     ipcMain.handle('event-allow', (_event, id) => allowEvent(String(id)));
+    ipcMain.handle('event-backups', (_event, id) => openBackups(String(id)));
 
     ipcMain.handle('inventory', () => inventory());
     ipcMain.handle('permissions', () => readPermissions());

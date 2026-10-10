@@ -1357,6 +1357,9 @@ function eventRow(event) {
         event.key, event.tactic !== '-' ? event.tactic : null].filter(Boolean);
     // What the event can lead to, each a button its main process checks against the event itself
     const actions = [
+        event.at && event.mine ? button(t('Open in Backups'), () => window.security.openBackups(event.id), {
+            small: true, primary: event.level === 'critical', title: t('Your home folder as the snapshot from before it has it, to put files back'),
+        }) : null,
         event.allow ? button(t('Allow…'), () => window.security.allowEvent(event.id), {
             small: true, icon: 'terminal', title: t('Stop saying this. Asks first, in a terminal, and then for your password.'),
         }) : null,

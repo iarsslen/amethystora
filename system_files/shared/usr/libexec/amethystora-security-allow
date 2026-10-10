@@ -18,7 +18,7 @@
 #            "secure-boot check": shown as accepted, kept out of the summary and never said, until its
 #            state changes. For what cannot be fixed on this machine, such as Secure Boot it does not have.
 #   identity, privilege, persistence, hardening, modules, input-capture, user-programs, dev-hooks, processes,
-#   agent-config, exec-watch, agent-clis, decoy
+#   agent-config, exec-watch, agent-clis, decoy, snapshot-watch
 #            a path, or the program that wrote there, as the audit log names it, or a glob of either:
 #            '~/.local/share/gnome-shell/extensions/*' quietens new extensions in every home. What it
 #            matches is recorded, not said.
@@ -59,7 +59,7 @@ declare -A SHAPE=(
 # A path, a program or a glob of either, from the root or from every home
 PATHS='^(/|~/)[^[:cntrl:]]{0,1022}$'
 for feature in identity privilege persistence hardening modules input-capture user-programs dev-hooks processes agent-config \
-    exec-watch agent-clis decoy; do
+    exec-watch agent-clis decoy snapshot-watch; do
     SHAPE["${feature}"]="${PATHS}"
 done
 

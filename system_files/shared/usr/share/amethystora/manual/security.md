@@ -292,6 +292,13 @@ anything anywhere unless its own entry says so.
   script; and an AI agent run with its own checks turned off (such as `--dangerously-skip-permissions` or
   `--yolo`), said when it was not started at a terminal. Each is said the first time for that program.
   Flatpak's and Homebrew's updates, containers, AppImages and Go's tests are allowed already.
+- **Ransomware behaviour** (`snapshot-watch`): ransomware and wipers, whatever their family, rewrite or
+  delete many files at once. After each hourly snapshot ([Ransomware protection](#ransomware-protection),
+  which this needs), the watcher lists what changed since the one before, from the snapshots' bookkeeping
+  alone. When more than 300 files of one account changed, it looks at up to a hundred of them: a file that
+  went from readable to random is what encryption looks like, while photos and archives, already random, do
+  not count. Caches, build output and dependency folders are left out. Encryption, or more than 300 files
+  deleted, is critical, and its event has **Open in Backups**, at the snapshot from before it.
 - **Programs run from download folders** (`exec-watch`): the audit log records each program run from a
   temporary folder, `~/.cache` or your download folder, and each is said the first time: a download or a
   dropped file starting. Builds run thousands of programs from `/tmp`, so `record` keeps it quiet while it

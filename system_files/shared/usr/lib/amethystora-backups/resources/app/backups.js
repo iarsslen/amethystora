@@ -1000,6 +1000,10 @@ window.backups.onOpen((where) => {
     if (typeof where?.folder === 'string') {
         state.page = 'browse';
         openFolder(where.folder);
+        // A point in time asked for, such as the snapshot from before something rewrote the files
+        if (where.point && state.timeline?.points.some((point) => point.id === where.point)) {
+            choosePoint(where.point);
+        }
     } else {
         show(where?.page);
     }
@@ -1054,7 +1058,10 @@ async function start() {
     applyPalette(await window.backups.palette());
     const page = location.hash.slice(1);
     state.page = PAGES.has(page) ? page : 'browse';
-    state.folder = (await window.backups.start()).folder || '';
+    const started = await window.backups.start();
+    state.folder = started.folder || '';
+    // Opened on a point in time, which load() keeps when the timeline has it, and otherwise the newest
+    state.point = started.point || '';
     render();
     await load();
 }
