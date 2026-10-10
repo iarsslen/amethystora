@@ -2479,6 +2479,10 @@ msgid "Hunting rules"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Odd names in DNS"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
 msgstr ""
 
@@ -2620,6 +2624,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "Emerging Threats' hunting rules, which catch the suspicious but uncertain, where new attacks first show: recorded for the chains of steps, never said and never blocked. Costs memory for the rules."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Names looked up that look made by a program, as malware makes its command servers' names, or that carry data, as DNS tunnelling does. Every name passes through it and only those are kept, for up to 15 minutes, where only root can read them."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

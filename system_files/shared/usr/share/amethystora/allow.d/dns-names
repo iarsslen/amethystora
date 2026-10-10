@@ -1,0 +1,16 @@
+# The image's own entries for odd names in DNS (DNS_NAMES in /etc/amethystora/security.conf): the networks
+# that name their servers with random-looking labels as a matter of course, CDNs and clouds above all. The
+# machine's own are in /etc/amethystora/allow.d/dns-names (ame security allow dns-names NAME). A glob each.
+*.cloudfront.net
+*.akamaiedge.net
+*.akamaized.net
+*.amazonaws.com
+*.azureedge.net
+*.trafficmanager.net
+*.googleusercontent.com
+*.googlevideo.com
+*.1e100.net
+*.fastly.net
+*.cdn77.org
+*.edgekey.net
+*.edgesuite.net

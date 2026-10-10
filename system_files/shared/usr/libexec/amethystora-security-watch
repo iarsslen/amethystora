@@ -1506,6 +1506,28 @@ read_accounts() {
     done < <(accounts)
 }
 
+# --- Odd names in DNS ---------------------------------------------------------------------------------------
+
+# What amethystora-dns-names flagged among the names looked up since the last run (DNS_NAMES): one that looks
+# made by a program, or that carries data. Read and emptied each run; each name said once.
+DNS_FOUND="${STATE}/dns-names"
+DNS_SEEN_KEPT=5000
+read_dns() {
+    local seen="${STATE}/dns-seen" reason name level
+    [[ -s "${DNS_FOUND}" ]] || return 0
+    touch "${seen}"
+    while IFS=$'\x1f' read -r reason name; do
+        [[ "${name}" =~ ^[a-z0-9._-]{1,253}$ ]] || continue
+        grep -qxF -- "${name}" "${seen}" && continue
+        echo "${name}" >>"${seen}"
+        level=normal
+        allowed dns-names "${name}" && { level=quiet; ALLOWED_HIT=1; }
+        add "${level}" dns-names - "Command and Control" "A name looked up looks odd: ${name}, ${reason}" "allow=${name}"
+    done <"${DNS_FOUND}"
+    : >"${DNS_FOUND}"
+    tail -n "${DNS_SEEN_KEPT}" "${seen}" >"${seen}.new" && mv "${seen}.new" "${seen}"
+}
+
 # --- Chains of steps ----------------------------------------------------------------------------------------
 
 # An attack is steps that each look harmless: a program run from the downloads, a token read, a connection
@@ -1583,6 +1605,8 @@ timed SNAPSHOT_WATCH switched SNAPSHOT_WATCH read_snapshots
 [[ "${SETTING[JOURNAL]:-on}" == off ]] && rm -f "${STATE}/journal.cursor"
 timed JOURNAL switched JOURNAL read_journal
 timed NETWORK read_network
+[[ "${SETTING[DNS_NAMES]:-off}" == off ]] && rm -f "${DNS_FOUND}" "${STATE}/dns-seen"
+timed DNS_NAMES switched DNS_NAMES read_dns
 
 # null in status.json for a part that is off, which the report shows as turned off rather than as clean
 SETUID=null

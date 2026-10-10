@@ -28,6 +28,8 @@
 #   credentials
 #            a program and a file where secrets are kept that it may read, or globs of either:
 #            "/usr/bin/ssh ~/.ssh/*", "/usr/bin/restic *"
+#   dns-names
+#            a name looked up, or a glob of names: "*.example.net"
 #   bpf-programs
 #            a BPF program's name and the program that loaded it, or "unknown", or globs of them:
 #            "sd_* /usr/lib/systemd/systemd"
@@ -53,6 +55,8 @@ declare -A SHAPE=(
     [selinux-denials]='^[a-z0-9_*]{1,64} [a-z0-9_*]{1,64} [a-z0-9_*]{1,64} [a-z0-9_*,]{1,256}$'
     # A program and a file where secrets are kept that it may read, or globs of either
     [credentials]='^(/|~/|\*)[^[:cntrl:] ]{0,500} (/|~/|\*)[^[:cntrl:]]{0,500}$'
+    # A name looked up, or a glob of names: "*.example.net"
+    [dns-names]='^[a-z0-9.*?_-]{1,253}$'
     # A BPF program's name and the program that loaded it, "unknown" when none was left, or globs of them
     [bpf-programs]='^[A-Za-z0-9_.?*]{1,64} (/[^[:cntrl:]]{0,1000}|unknown|\*)$'
 )

@@ -1,0 +1,68 @@
+#!/usr/bin/bash
+# Odd names in DNS (DNS_NAMES in /etc/amethystora/security.conf, amethystora-dns-names.service): follows what
+# systemd-resolved is asked, through its own monitor, and keeps only the names that look made by a program
+# (a long random label, as malware that generates its command servers' names makes them) or that carry data
+# (a very long name or label, as DNS tunnelling does). Every app that asks resolved is seen, whether or not DNS
+# is encrypted; Firefox asks it too, since Fedora turns its own DNS over HTTPS off.
+#
+# Every name passes through this program's memory, and only those it flags are written, to a file only root
+# can read, which the security watcher reads and empties every 15 minutes. Nothing else is kept: no browsing
+# history, no address, no program. A name is somebody else's text, and is matched, never run.
+#
+#   amethystora-dns-names            follow the monitor (the service)
+#   amethystora-dns-names --check    the same test on names given one a line on stdin, for 20-tests.sh
+
+set -uo pipefail
+
+OUT=/var/lib/amethystora/security/dns-names
+
+# One "reason<US>name" line for each name worth a look, each once while this runs
+flag() {
+    awk '
+        BEGIN { vowels = "aeiouy" }
+        function entropy(s,   n, i, c, count, e) {
+            n = length(s)
+            for (i = 1; i <= n; i++) count[substr(s, i, 1)]++
+            for (c in count) e -= (count[c] / n) * log(count[c] / n) / log(2)
+            return e
+        }
+        {
+            name = tolower($0)
+            sub(/\.$/, "", name)
+            # A name is letters, digits, hyphens, underscores and dots: anything else is not worth a line
+            if (name !~ /^[a-z0-9._-]+$/ || name in seen) next
+            seen[name] = 1
+            reason = ""
+            labels = split(name, label, ".")
+            longest = 0
+            for (i = 1; i <= labels; i++) if (length(label[i]) > length(label[longest])) longest = i
+            if (length(name) > 120) reason = "a name of " length(name) " characters, as DNS tunnelling sends data"
+            else if (length(label[longest]) > 50) reason = "a label of " length(label[longest]) " characters, as DNS tunnelling sends data"
+            else if (labels > 10) reason = labels " labels deep"
+            else if (labels >= 2) {
+                # The part before the domain: a generated one is long, random, and short of vowels
+                word = label[labels - 1]
+                if (length(word) >= 14) {
+                    gsub(/[^a-z]/, "", word)
+                    v = 0
+                    for (i = 1; i <= length(word); i++) if (index(vowels, substr(word, i, 1))) v++
+                    if (length(word) >= 12 && entropy(label[labels - 1]) > 3.6 && v / length(word) < 0.25)
+                        reason = "a domain that looks made by a program"
+                }
+            }
+            if (reason != "") { printf "%s\037%s\n", reason, name; fflush() }
+        }'
+}
+
+if [[ "${1:-}" == --check ]]; then
+    flag
+    exit
+fi
+
+umask 077
+mkdir -p -m 0755 "${OUT%/*}"
+# resolved's monitor, one event a line, each question's name; the first line it is sent, that it is ready,
+# resolvectl keeps to itself
+resolvectl monitor --json=short --no-pager 2>/dev/null |
+    jq --unbuffered -r 'select(type == "object") | .question[]?.name? // empty | strings' 2>/dev/null |
+    flag >>"${OUT}"

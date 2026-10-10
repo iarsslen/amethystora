@@ -677,6 +677,14 @@ Two more sets of rules can join it, each off until you turn it on:
   suspicious but uncertain, which is where new attacks first show. They are recorded, for the
   [chains of steps](#looking-for-new-threats), and never said or blocked.
 
+**Odd names in DNS** (`ame security settings dns-names`) needs none of this. It follows what the system's
+resolver is asked, encrypted DNS or not, and keeps only a name that looks made by a program, as malware
+makes the names of its command servers, or one long enough to carry data, as DNS tunnelling does. Every
+name passes through it, and only those are kept, for up to 15 minutes, where only root can read them: it
+keeps no history of the sites you visit. A browser that sends its own encrypted DNS goes past it; Firefox
+does not unless you turn that on in its settings. CDNs, which name their servers at random, are allowed
+already.
+
 ### Key remapping
 
 Input Remapper runs as root and reads every key typed into every application. That is what

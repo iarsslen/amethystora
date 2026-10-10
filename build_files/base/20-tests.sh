@@ -1726,7 +1726,8 @@ done
 # edited by hand applies at the next boot. Then the settings helper, the generator, the report with every
 # key off, the prevention switches and accepted checks, against stand-ins.
 for unit in amethystora-security-watch amethystora-clamav-scan amethystora-clamav-onaccess amethystora-lynis-audit \
-    amethystora-audit-rules amethystora-security-realtime amethystora-ips amethystora-ips-rules amethystora-signed-updates; do
+    amethystora-audit-rules amethystora-security-realtime amethystora-ips amethystora-ips-rules amethystora-signed-updates \
+    amethystora-dns-names; do
     grep -q "^ExecCondition=" "/usr/lib/systemd/system/${unit}.service"
 done
 for unit in auditd.service audit-rules.service clamav-freshclam.service clamd@.service; do

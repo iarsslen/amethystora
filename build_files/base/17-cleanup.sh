@@ -74,6 +74,8 @@ systemctl enable amethystora-clamav-onaccess.service
 systemctl enable amethystora-ips.service
 systemctl enable amethystora-ips-rules.timer
 systemctl disable suricata.service
+# Odd names in DNS, the same way: enabled, and skipped while DNS_NAMES=off
+systemctl enable amethystora-dns-names.service
 
 systemctl enable flatpak-preinstall.service
 

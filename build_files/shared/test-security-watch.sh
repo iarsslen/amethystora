@@ -322,6 +322,23 @@ jq -se 'length == 2 and any(.[]; (.text | test("ET HUNTING")) and .level == "qui
     fail "network protection's alerts: ${FOUND}"
 rm -f "${R}/var/log/suricata/eve.json"
 
+# Odd names in DNS: what the monitor flags, and only that; the watcher says each once, what is allowed quietly
+FLAGGED="$(printf '%s\n' www.google.com fonts.gstatic.com github.com xjq3k9vbz2mwp8rtqk.com \
+    "$(printf 'a%.0s' $(seq 1 60)).tunnel.example" d3k8f9qxz7mvb2.cloudfront.net 'evil<b>.example' |
+    /usr/libexec/amethystora-dns-names --check)"
+[[ "$(cut -d$'\x1f' -f2 <<<"${FLAGGED}")" == "$(printf '%s\n' xjq3k9vbz2mwp8rtqk.com "$(printf 'a%.0s' $(seq 1 60)).tunnel.example")" ]] ||
+    fail "the names flagged: ${FLAGGED}"
+echo "DNS_NAMES=on" >>"${AMETHYSTORA_SECURITY_CONF}"
+echo '*.tunnel.example' >"${R}/etc/amethystora/allow.d/dns-names"
+printf '%s\n' "${FLAGGED}" >"${R}/var/lib/amethystora/security/dns-names"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run reading DNS names failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "dns-names")')"
+jq -se 'length == 2 and any(.[]; (.text | test("xjq3k9vbz2mwp8rtqk.com, a domain that looks made by a program")) and .level == "normal")
+    and any(.[]; (.text | test("tunnel.example, a label of 60 characters")) and .level == "quiet")' <<<"${FOUND}" >/dev/null ||
+    fail "odd names in DNS: ${FOUND}"
+[[ ! -s "${R}/var/lib/amethystora/security/dns-names" ]] || fail "what was read was not emptied"
+
 # --- What runs ------------------------------------------------------------------------------------------------
 
 unset AMETHYSTORA_WATCH_AUDIT
