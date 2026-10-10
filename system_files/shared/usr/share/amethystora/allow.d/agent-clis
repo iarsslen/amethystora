@@ -1,0 +1,7 @@
+# The image's own entries for AI agents run with their checks off (AGENT_CLIS in
+# /etc/amethystora/security.conf): what starts one so by design. The machine's own are in
+# /etc/amethystora/allow.d/agent-clis (ame security allow agent-clis PATH), for a script of yours that runs an
+# agent on purpose. A glob each, of the program that started the agent, or of the agent; ~/ is every home.
+#
+# Copilot CLI starts a detached session of itself with --yolo
+~/.local/bin/copilot

@@ -154,6 +154,15 @@ USER_PROGRAMS=false
 wanted user-programs && USER_PROGRAMS=true
 EXEC_WATCH=false
 wanted exec-watch && EXEC_WATCH=true
+AGENT_CLIS=false
+wanted agent-clis && AGENT_CLIS=true
+# Where amethystora-agent's agents are installed, by their makers' installers, in each home. A command here is
+# usually a link to the folder the agent really runs from, which is the one watched: Claude Code's and Cursor's
+# point into versions/ folders that their updates add to.
+AGENT_COMMANDS=(.local/bin/claude .local/bin/codex .local/bin/copilot .local/bin/cursor-agent .local/bin/agent
+    .opencode/bin/opencode)
+# Gemini CLI comes from Homebrew, whose prefix every account shares
+BREW_AGENTS=(/home/linuxbrew/.linuxbrew/bin/gemini)
 
 # A rule on a folder each time a program runs from it, for the account's own logins. The folder has to be
 # there, or auditctl stops at the rule: the caller has checked it.
@@ -218,7 +227,22 @@ download_dir() {
         # A program run from the cache or the download folder (EXEC_WATCH), where they are
         if [[ "${EXEC_WATCH}" == true ]]; then
             for dir in .cache "$(download_dir "${home}")"; do
-                [[ -d "${home}/${dir}" ]] && real="$(inside "${home}" "${dir}")" && exec_rule "${real}" exec-watch
+                if [[ -d "${home}/${dir}" ]] && real="$(inside "${home}" "${dir}")"; then
+                    exec_rule "${real}" exec-watch
+                fi
+            done
+        fi
+        # Each AI agent the account has, run (AGENT_CLIS): the folder its command leads to, once each. An agent
+        # installed after this boot is covered from the next; odd processes see it until then.
+        if [[ "${AGENT_CLIS}" == true ]]; then
+            for command in "${AGENT_COMMANDS[@]}"; do
+                if [[ -e "${home}/${command}" ]] && real="$(inside "${home}" "${command}")"; then
+                    echo "${real%/*}"
+                fi
+            done | sort -u | while read -r dir; do
+                if [[ -d "${dir}" ]]; then
+                    exec_rule "${dir}" agent-clis
+                fi
             done
         fi
         echo
@@ -228,6 +252,17 @@ download_dir() {
             [[ -d "${home}" ]] && printf '%s:x:%s:::%s:\n' "$(basename "${home}")" "$(stat -c %u "${home}")" "${home%/}"
         done
     } | awk -F: '!seen[$3]++')
+
+    # The agents in Homebrew's prefix, where it leads: inside the prefix, and plain
+    if [[ "${AGENT_CLIS}" == true ]]; then
+        for command in "${BREW_AGENTS[@]}"; do
+            real="$(realpath -e -- "${ROOT}${command}" 2>/dev/null)" || continue
+            if [[ ( "${real}" == "${ROOT}"/home/linuxbrew/* || "${real}" == "${ROOT}"/var/home/linuxbrew/* ) &&
+                "${real}" =~ ^[[:alnum:]._/@+-]+$ ]]; then
+                exec_rule "${real%/*}" agent-clis
+            fi
+        done
+    fi
 } >"${RULES}.new"
 
 mv "${RULES}.new" "${RULES}"

@@ -98,6 +98,19 @@ for dir in /tmp /var/tmp "${R}/var/home/alice/.cache" "${R}/var/home/alice/Downl
 done
 grep -E '^-a .* -F (dir|path)=' "${SYSTEM_RULES}" "${HOME_RULES}" | grep -oE ' -F (dir|path)=[^ ]+' | cut -d= -f2 |
     while read -r path; do [[ -e "${path}" ]] || fail "a rule on ${path}, which is not there"; done
+# An agent's runs are watched where its command leads, once for each folder, and never where a link takes it
+# out of the home
+A="${R}/var/home/alice"
+mkdir -p "${A}/.local/bin" "${A}/.local/share/claude/versions" "${A}/.opencode/bin"
+touch "${A}/.local/share/claude/versions/2.1.0" "${A}/.opencode/bin/opencode" "${A}/.local/bin/copilot"
+ln -s "${A}/.local/share/claude/versions/2.1.0" "${A}/.local/bin/claude"
+ln -s /usr/bin/true "${A}/.local/bin/codex"
+chown -R -h 4300:4300 "${A}/.local" "${A}/.opencode"
+printf 'AGENT_CLIS=on\n' >"${T}/keys.conf"
+AMETHYSTORA_SECURITY_CONF="${T}/keys.conf" AMETHYSTORA_AUDIT_ROOT="${R}" bash /usr/libexec/amethystora-audit-home-rules
+AGENT_RULES="$(grep -- '-k agent-clis$' "${HOME_RULES}" | grep -oE 'dir=[^ ]+' | cut -d= -f2 | sort)"
+[[ "${AGENT_RULES}" == "$(printf '%s\n' "${A}/.local/bin" "${A}/.local/share/claude/versions" "${A}/.opencode/bin" | sort)" ]] ||
+    fail "the folders agents run from: ${AGENT_RULES}"
 
 # --- The report: off is not a fault ------------------------------------------------------------------
 

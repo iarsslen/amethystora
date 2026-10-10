@@ -297,6 +297,13 @@ anything anywhere unless its own entry says so.
   dropped file starting. Builds run thousands of programs from `/tmp`, so `record` keeps it quiet while it
   learns. It takes effect from the next restart, and a script started through its interpreter (`sh
   /tmp/x`) is seen by odd processes instead.
+- **AI agents run with their checks off** (`agent-clis`): an AI agent started with a flag that has it do
+  whatever it is told without asking, such as `--dangerously-skip-permissions` or `--yolo`. The Nx attack of
+  August 2025 ran agents that way from an npm install script, to search the machine for secrets. The audit
+  log records each run of an agent from the folders it is installed in, and one started with no terminal is
+  said; one you started at a terminal is recorded. It takes effect from the next restart, and an agent
+  installed since then is seen by odd processes instead. A script of yours that runs an agent on purpose is
+  allowed with **Allow…** on its event.
 - **Apps that gain permissions** (`app-permissions`): a Flatpak app that gains a way out of its sandbox
   ([App permissions](#app-permissions)), through an update, an override or another app in its place. An
   app installed with its permissions is recorded; a permission added to one you have is said. It is read

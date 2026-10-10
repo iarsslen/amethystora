@@ -220,6 +220,38 @@ jq -se 'length == 2 and any(.[]; .text == "A program ran for the first time from
     and any(.[]; .text | test("/var/tmp/a b\\?\\[2J"))' <<<"${FOUND}" >/dev/null || fail "programs run from writable folders: ${FOUND}"
 rm -f /var/tmp/watch-exec
 
+# An agent run with its checks off: said with no terminal, once for however many runs, recorded at one, and
+# not at all without a flag
+echo "AGENT_CLIS=on" >>"${AMETHYSTORA_SECURITY_CONF}"
+agent_run() {
+    local serial="$1" tty="$2" index=0 arg
+    shift 2
+    printf 'type=SYSCALL msg=audit(%s.100:%s): arch=c000003e syscall=59 success=yes exit=0 a0=55d0 a1=55d1 a2=55d2 a3=0 items=2 ppid=1 pid=12 auid=4500 uid=4500 gid=4500 euid=4500 suid=4500 fsuid=4500 egid=4500 sgid=4500 fsgid=4500 tty=%s ses=3 comm="claude" exe="/var/home/alice/.local/share/claude/versions/2.1.0" subj=unconfined_u:unconfined_r:unconfined_t:s0 key="agent-clis"\n' \
+        "$((BEGAN + STEP))" "${serial}" "${tty}"
+    printf 'type=EXECVE msg=audit(%s.100:%s): argc=%s' "$((BEGAN + STEP))" "${serial}" "$#"
+    for arg in "$@"; do
+        printf ' a%s="%s"' "${index}" "${arg}"
+        index=$((index + 1))
+    done
+    echo
+}
+STEP=90
+{
+    agent_run 501 "(none)" claude --dangerously-skip-permissions -p hi
+    agent_run 502 "(none)" claude --dangerously-skip-permissions
+    agent_run 503 pts0 claude --permission-mode=bypassPermissions
+    agent_run 504 "(none)" claude --help
+    close 599
+} >>"${AMETHYSTORA_WATCH_AUDIT}"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run with agents failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "agent-clis")')"
+PARENT="$(readlink /proc/1/exe)"
+jq -se --arg parent "${PARENT}" 'length == 2
+    and any(.[]; .level == "normal" and .allow == $parent and .text == "An AI agent ran with its own checks turned off: claude --dangerously-skip-permissions, started by \($parent) with no terminal (2 times)")
+    and any(.[]; .level == "quiet" and (.text | test("claude --permission-mode bypassPermissions, started by .* at a terminal$")))' \
+    <<<"${FOUND}" >/dev/null || fail "agents run with their checks off: ${FOUND}"
+
 # --- What runs ------------------------------------------------------------------------------------------------
 
 unset AMETHYSTORA_WATCH_AUDIT

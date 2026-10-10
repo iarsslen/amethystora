@@ -2451,6 +2451,10 @@ msgid "Programs run from download folders"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "AI agents run with their checks off"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
 msgstr ""
 
@@ -2564,6 +2568,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "A program run for the first time from a temporary folder, ~/.cache or the download folder: a download or a dropped file starting. Recorded by the audit log, from the next restart."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "An AI agent started with a flag that turns its own checks off, as an npm install script did in the Nx attack: said when no terminal started it. Recorded by the audit log on the folders the agents run from, from the next restart."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
