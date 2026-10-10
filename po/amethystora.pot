@@ -2443,6 +2443,10 @@ msgid "Programs in the kernel"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "AI agents' settings"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
 msgstr ""
 
@@ -2548,6 +2552,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "A program loaded into the kernel's BPF, which is how eBPF rootkits hide files and connections: recorded when new, and said when loaded by a program outside the system, or when it watches the kernel and nothing is left holding it."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "A hook, an MCP server, a plugin or a command put in an AI agent's own settings, which it then runs by itself, and a permission mode that turns its checks off. Read as each account with a session in the last day, and said to that account."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

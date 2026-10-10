@@ -44,6 +44,43 @@ jq -se 'all(.[]; .allow | startswith("'"${H}"'/"))' <<<"${OUT}" >/dev/null || fa
 # The same home, read again, gives the same ids
 [[ "$(jq -r .id <<<"${OUT}")" == "$(as_account dev-hooks | jq -r .id)" ]] || fail "the ids are not stable"
 
+# --- agent-config -------------------------------------------------------------------------------------------
+
+mkdir -p "${H}/.claude" "${H}/.codex" "${H}/.gemini/extensions/x" "${H}/.config/opencode/plugin" "${H}/.cursor" \
+    "${H}/.copilot/hooks"
+cat >"${H}/.claude/settings.json" <<EOF
+{"hooks": {"PreToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "touch ${T}/ran-hook"}]}]},
+ "apiKeyHelper": "sh -c 'cat key'", "permissions": {"defaultMode": "bypassPermissions"}}
+EOF
+echo '{"mcpServers": {"evil": {"command": "npx", "args": ["-y", "evil-mcp"]}}, "projects": {"/p": {"allowedTools": ["Bash"]}}}' \
+    >"${H}/.claude.json"
+printf 'notify = ["notify-send", "done"]\napproval_policy = "never"\n[mcp_servers.far]\nurl = "https://example.org/mcp"\n' \
+    >"${H}/.codex/config.toml"
+echo '{"mcpServers": {"g": {"command": "node", "args": ["g.js"], "trust": true}}, "tools": {"discoveryCommand": "find-tools"}}' \
+    >"${H}/.gemini/settings.json"
+echo '{"name": "ext"}' >"${H}/.gemini/extensions/x/gemini-extension.json"
+printf '// comment\n{\n  "mcp": {"local": {"type": "local", "command": ["bun", "x.ts"]},},\n  "plugin": ["opencode-evil"],\n  "permission": "allow",\n}\n' \
+    >"${H}/.config/opencode/opencode.jsonc"
+echo 'export default {}' >"${H}/.config/opencode/plugin/p.ts"
+echo '{"approvalMode": "unrestricted"}' >"${H}/.cursor/cli-config.json"
+echo '{"version": 1, "hooks": {"preToolUse": [{"type": "command", "bash": "echo from copilot"}]}}' >"${H}/.copilot/hooks/h.json"
+chown -R 4600:4600 "${H}"
+
+OUT="$(as_account agent-config)" || fail "agent-config failed"
+[[ ! -e "${T}/ran-hook" ]] || fail "reading a hook ran it"
+for want in 'runs a command on PreToolUse: touch' 'runs a command as apiKeyHelper' "turns Claude Code's checks off" \
+    'starts the MCP server evil: npx -y evil-mcp' 'runs a command when a turn ends: notify-send done' 'has Codex never ask' \
+    'sends to the MCP server far: https://example.org/mcp' 'lets the MCP server g run tools without asking' \
+    'runs a command as tools.discoveryCommand' 'is an extension Gemini CLI loads: ext' 'starts the MCP server local: bun x.ts' \
+    'loads the plugin: opencode-evil' 'has Opencode never ask' 'is code Opencode loads' 'has Cursor run everything without asking' \
+    'runs a command on preToolUse: echo from copilot'; do
+    grep -qF -- "${want}" <<<"${OUT}" || fail "agent-config did not find \"${want}\": ${OUT}"
+done
+jq -se '(map(.id) | unique | length) == length
+    and any(.[]; (.text | test("lets Claude Code use tools without asking in /p")) and .level == "quiet")
+    and all(.[]; .allow | startswith("'"${H}"'/"))' <<<"${OUT}" >/dev/null || fail "agent-config's ids, levels or entries: ${OUT}"
+[[ "$(jq -r .id <<<"${OUT}")" == "$(as_account agent-config | jq -r .id)" ]] || fail "agent-config's ids are not stable"
+
 # --- app-permissions ----------------------------------------------------------------------------------------
 
 # No Flatpak app in a build: nothing, and no error

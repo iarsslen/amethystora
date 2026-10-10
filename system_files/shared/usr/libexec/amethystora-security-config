@@ -31,7 +31,7 @@ NOTES_KEPT=200
 # In the order --list gives them. REALTIME is the shortcut for its two halves, and not listed itself.
 KEYS=(WATCHER REALTIME_WATCH AUDIT_LOG IDENTITY PRIVILEGE PERSISTENCE HARDENING MODULES INPUT_CAPTURE
     USER_PROGRAMS JOURNAL IMAGE_DRIFT SETUID_SWEEP LISTENERS USER_PATHS
-    APP_PERMISSIONS PROCESSES SELINUX_DENIALS DEV_HOOKS BPF_PROGRAMS
+    APP_PERMISSIONS PROCESSES SELINUX_DENIALS DEV_HOOKS AGENT_CONFIG BPF_PROGRAMS
     VIRUS_SCAN REALTIME_SCAN ON_DETECTION SETTINGS_AUDIT NETWORK NOTIFY REPORT_ALERTS)
 
 declare -A DEFAULTS=(
@@ -47,6 +47,7 @@ declare -A DEFAULTS=(
     [SELINUX_DENIALS]=off
     [PROCESSES]=off
     [BPF_PROGRAMS]=off
+    [AGENT_CONFIG]=off
 )
 declare -A ALLOWED=(
     [ON_DETECTION]="report quarantine delete" [REALTIME]="off on" [NETWORK]="off watch block"
@@ -61,6 +62,7 @@ declare -A ALLOWED=(
     [SELINUX_DENIALS]="off record on"
     [PROCESSES]="off record on"
     [BPF_PROGRAMS]="off record on"
+    [AGENT_CONFIG]="off record on"
 )
 # How a change is applied: restart:UNIT (each checks its key as it starts), run (the watcher reads it at its
 # next run), reboot (the kernel's audit rules, which -e 2 locks, and auditd), or now (read when used)
@@ -80,6 +82,7 @@ declare -A APPLIES=(
     [SELINUX_DENIALS]="run"
     [PROCESSES]="run"
     [BPF_PROGRAMS]="run"
+    [AGENT_CONFIG]="run"
 )
 declare -A GROUP=(
     [WATCHER]=watching [REALTIME_WATCH]=watching [AUDIT_LOG]=watching [IDENTITY]=audit [PRIVILEGE]=audit
@@ -91,6 +94,7 @@ declare -A GROUP=(
     [SELINUX_DENIALS]=detection
     [PROCESSES]=detection
     [BPF_PROGRAMS]=detection
+    [AGENT_CONFIG]=detection
 )
 # What leaves the machine: none, or downloads (signatures and rules, fetched on the machine)
 declare -A SENDS=([VIRUS_SCAN]=downloads [NETWORK]=downloads)
@@ -242,6 +246,7 @@ list() {
         [SELINUX_DENIALS]="$(gettext "SELinux denials")"
         [PROCESSES]="$(gettext "Odd processes")"
         [BPF_PROGRAMS]="$(gettext "Programs in the kernel")"
+        [AGENT_CONFIG]="$(gettext "AI agents' settings")"
     )
     declare -A DESCRIBE=(
         [WATCHER]="$(gettext "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on.")"
@@ -271,6 +276,7 @@ list() {
         [SELINUX_DENIALS]="$(gettext "A confined service doing what its policy never let it, which is often what an exploit looks like: each different denial said the first time. Needs the audit log.")"
         [PROCESSES]="$(gettext "A program running from a deleted file, from memory alone, or from a temporary or download folder; one disguised as a kernel thread; a network tool or AI agent started by an npm package's install script; and an AI agent run with its own checks off. Each said the first time for that program.")"
         [BPF_PROGRAMS]="$(gettext "A program loaded into the kernel's BPF, which is how eBPF rootkits hide files and connections: recorded when new, and said when loaded by a program outside the system, or when it watches the kernel and nothing is left holding it.")"
+        [AGENT_CONFIG]="$(gettext "A hook, an MCP server, a plugin or a command put in an AI agent's own settings, which it then runs by itself, and a permission mode that turns its checks off. Read as each account with a session in the last day, and said to that account.")"
     )
     local key spent json=false
     [[ "${1:-}" == --json ]] && json=true

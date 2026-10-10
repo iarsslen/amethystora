@@ -301,6 +301,14 @@ anything anywhere unless its own entry says so.
   an exploit looks like from outside. Each different denial is said the first time; one SELinux let
   through, because that service's domain is permissive, is recorded. It reads the audit log, so it needs
   the audit log on.
+- **AI agents' settings** (`agent-config`): what your AI agents' own settings have them run by themselves.
+  A hook runs a command at every step the agent takes, and an MCP server is a program it starts, or an
+  address it sends to: planted in its settings, either runs the next time you ask it anything. Claude
+  Code's, Codex's, Gemini CLI's, Opencode's, Cursor's and Copilot's are read, with the commands their
+  settings run (a status line, a key helper), the plugins and extensions they load, and a permission mode
+  that turns their checks off. Folders and tools you trust are recorded. Only your own settings: read a
+  repository's agent files (`.claude/`, `.mcp.json`, `.vscode/tasks.json`) before you open it with an
+  agent. Read as each account, like app permissions.
 - **Programs in the kernel** (`bpf-programs`): eBPF rootkits load small programs into the kernel that
   hide files, processes and connections. systemd and the firewall load the same few every time, so a new
   one is recorded, and said when a program outside the system loaded it, or when it watches what the kernel
