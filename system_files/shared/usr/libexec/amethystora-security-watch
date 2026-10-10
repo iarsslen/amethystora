@@ -378,6 +378,7 @@ read_exec() {
         fi
         grep -qxF -- "${sum}" "${seen}" && continue
         echo "${sum}" >>"${seen}"
+        queue_hash "${sum}" "${exe}"
         user="$(id -nu "${auid}" 2>/dev/null || echo "${auid}")"
         level=normal
         allowed exec-watch "${exe}" && { level=quiet; ALLOWED_HIT=1; }
@@ -841,6 +842,7 @@ read_processes() {
         sum="$(timeout 10 head -c 104857600 "/proc/${pid}/exe" 2>/dev/null | sha256sum | cut -d' ' -f1)"
         grep -qxF -- "${reason} ${sum}" "${seen}" && continue
         echo "${reason} ${sum}" >>"${seen}"
+        queue_hash "${sum}" "${exe}"
         [[ "${first}" == false && -n "${LAST_RUN}" ]] || continue
         uid="${owner[${pid}]:-}"
         user="$(id -nu "${uid}" 2>/dev/null || echo "${uid:--}")"
@@ -954,6 +956,7 @@ DRIFT_PATHS=(amethystora audit authselect brave/policies chromium/policies clamd
 # ...less what the image's own recipes and services write there as a matter of course
 EXPECTED_DRIFT=" amethystora/security.conf amethystora/ips-allowed amethystora/browser-extensions \
 amethystora/hardening-off amethystora/hardening-on amethystora/firewall-home amethystora/vscodium-extensions \
+amethystora/abusech.key \
 audit/audit.rules audit/audit.rules.prev audit/rules.d/60-amethystora.rules audit/rules.d/61-amethystora-home.rules \
 brave/policies/managed/10-amethystora.json chromium/policies/managed/10-amethystora.json \
 firefox/policies/policies.json modprobe.d/tuned.conf opt/chrome/policies/managed/10-amethystora.json \
@@ -1506,6 +1509,51 @@ read_accounts() {
     done < <(accounts)
 }
 
+# --- Hash reputation ----------------------------------------------------------------------------------------
+
+# Known malware recognised sooner than a signature would (REPUTATION): the full SHA-256 of each program odd
+# processes or the download folders' watch saw run for the first time is looked up with MalwareBazaar
+# (abuse.ch), once, with the owner's own free key in /etc/amethystora/abusech.key. Only the hash is sent:
+# never the file, its name or its path. A hash knows only samples already submitted, and one byte changed
+# defeats it: this is no defence against new malware, only a faster word on old.
+REPUTATION_QUEUE="${STATE}/reputation-queue"
+REPUTATION_KEY="${ROOT}/etc/amethystora/abusech.key"
+REPUTATION_URL=https://mb-api.abuse.ch/api/v1/
+REPUTATION_PER_RUN=20
+# With a stand-in root, AMETHYSTORA_WATCH_CURL names a stand-in for curl
+CURL=curl
+[[ -n "${ROOT}" && -n "${AMETHYSTORA_WATCH_CURL:-}" ]] && CURL="${AMETHYSTORA_WATCH_CURL}"
+queue_hash() {
+    [[ "${SETTING[REPUTATION]:-off}" == on && "$1" =~ ^[0-9a-f]{64}$ ]] || return 0
+    printf '%s\t%s\n' "$1" "$2" >>"${REPUTATION_QUEUE}"
+}
+
+read_reputation() {
+    local asked="${STATE}/reputation-asked" key sum program answer status signature seen_first looked=0
+    [[ -s "${REPUTATION_QUEUE}" ]] || return 0
+    key="$(head -c 200 "${REPUTATION_KEY}" 2>/dev/null | tr -cd 'A-Za-z0-9_-')"
+    [[ -n "${key}" ]] || return 0
+    # The key goes in a header read from a file of root's, never on a command line other accounts can read
+    printf 'Auth-Key: %s\n' "${key}" >"${STATE}/reputation-header"
+    touch "${asked}"
+    while IFS=$'\t' read -r sum program; do
+        grep -qxF -- "${sum}" "${asked}" && continue
+        # A few a run: the rest wait for the next, where they still are
+        [[ "${looked}" -lt "${REPUTATION_PER_RUN}" ]] || { printf '%s\t%s\n' "${sum}" "${program}" >>"${REPUTATION_QUEUE}.next"; continue; }
+        looked=$((looked + 1))
+        answer="$("${CURL}" -fsS --proto '=https' --tlsv1.2 --max-time 15 -H @"${STATE}/reputation-header" \
+            --data-urlencode query=get_info --data-urlencode "hash=${sum}" "${REPUTATION_URL}" 2>/dev/null)" ||
+            { printf '%s\t%s\n' "${sum}" "${program}" >>"${REPUTATION_QUEUE}.next"; continue; }
+        echo "${sum}" >>"${asked}"
+        status="$(jq -r '.query_status // empty' <<<"${answer}" 2>/dev/null)"
+        [[ "${status}" == ok ]] || continue
+        signature="$(jq -r '.data[0].signature // "malware with no name"' <<<"${answer}")"
+        seen_first="$(jq -r '.data[0].first_seen // "some time ago"' <<<"${answer}")"
+        add critical reputation - Execution "A program that ran here is known malware: ${program}, which MalwareBazaar knows as ${signature}, first seen ${seen_first}"
+    done <"${REPUTATION_QUEUE}"
+    mv -f "${REPUTATION_QUEUE}.next" "${REPUTATION_QUEUE}" 2>/dev/null || : >"${REPUTATION_QUEUE}"
+}
+
 # --- Odd names in DNS ---------------------------------------------------------------------------------------
 
 # What amethystora-dns-names flagged among the names looked up since the last run (DNS_NAMES): one that looks
@@ -1602,6 +1650,9 @@ timed PROCESSES switched PROCESSES read_processes
 timed BPF_PROGRAMS switched BPF_PROGRAMS read_bpf
 [[ "${SETTING[SNAPSHOT_WATCH]:-off}" == off ]] && rm -f "${STATE}/snapshot-last"
 timed SNAPSHOT_WATCH switched SNAPSHOT_WATCH read_snapshots
+# After the parts that hash what runs, whose new programs it looks up
+[[ "${SETTING[REPUTATION]:-off}" == off ]] && rm -f "${REPUTATION_QUEUE}"
+timed REPUTATION switched REPUTATION read_reputation
 [[ "${SETTING[JOURNAL]:-on}" == off ]] && rm -f "${STATE}/journal.cursor"
 timed JOURNAL switched JOURNAL read_journal
 timed NETWORK read_network

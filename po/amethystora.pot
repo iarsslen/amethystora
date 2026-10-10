@@ -2516,6 +2516,10 @@ msgid "Ask the agent about events"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Hash reputation"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
 msgstr ""
 
@@ -2684,11 +2688,19 @@ msgid "Ask the agent on an event of the Events page has your AI agent explain wh
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Looks up each program odd processes or the download folders' watch saw run for the first time with MalwareBazaar, by its hash, with your own free abuse.ch key: known malware recognised sooner than a signature. It catches nothing new."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Osprey sends the address of every site you open to Osprey Project LLC, in California, and on from there to its providers, without the query string and without your address. Amethystora does not make it: it is GPL-3.0, and you install it from your browser's own store, where it can be removed like any other extension."
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "Each event you ask about goes to your AI agent's maker with what the agent then reads on this machine: file names, program names and command lines, some of them other accounts'. The event is written partly by whatever it is about, so the agent is told to treat it as data and never to change anything."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "The hash of each new program that runs goes to abuse.ch, a Swiss non-profit run with Spamhaus, with your key: never the file, its name or its path. A hash can still say which files you have, and the lookups made with one key say when new programs ran. It needs your own free key from auth.abuse.ch, for not-for-profit use."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

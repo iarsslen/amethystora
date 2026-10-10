@@ -447,6 +447,14 @@ settings SETTING="" VALUE="":
                 fold -s -w 96 <<<"${explain}"
                 gum confirm "Turn ${title} on, knowing that?" || exit 0
             fi
+            # Hash reputation asks with the owner's own abuse.ch key, kept where only root can read it
+            if [[ "${key}" == REPUTATION && "${value}" == on ]]; then
+                echo
+                echo "Make a free key at https://auth.abuse.ch/ (sign in with a GitHub, Google or similar account)."
+                abusech="$(gum input --password --prompt "abuse.ch key> " | tr -cd 'A-Za-z0-9_-')"
+                [[ -n "${abusech}" ]] || { echo "No key, so nothing is looked up."; exit 0; }
+                printf '%s\n' "${abusech}" | sudo install -D -m 0600 /dev/stdin /etc/amethystora/abusech.key
+            fi
             sudo "${config}" set "${key}" "${value}"
             # Each unit reads its key as it starts, so a restart applies it either way
             for step in $(jq -r '.applies[]' <<<"${entry}"); do

@@ -31,7 +31,7 @@ NOTES_KEPT=200
 # In the order --list gives them. REALTIME is the shortcut for its two halves, and not listed itself.
 KEYS=(WATCHER REALTIME_WATCH AUDIT_LOG IDENTITY PRIVILEGE PERSISTENCE HARDENING MODULES INPUT_CAPTURE
     USER_PROGRAMS JOURNAL IMAGE_DRIFT SETUID_SWEEP LISTENERS USER_PATHS
-    APP_PERMISSIONS PROCESSES SNAPSHOT_WATCH EXEC_WATCH AGENT_CLIS CREDENTIALS DECOY SELINUX_DENIALS DEV_HOOKS AGENT_CONFIG BPF_PROGRAMS CHAINS NETWORK_FEEDS NETWORK_HUNTING DNS_NAMES YARA_ELASTIC YARA_SIGNATURE_BASE YARA_FORGE OSPREY TRIAGE
+    APP_PERMISSIONS PROCESSES SNAPSHOT_WATCH EXEC_WATCH AGENT_CLIS CREDENTIALS DECOY SELINUX_DENIALS DEV_HOOKS AGENT_CONFIG BPF_PROGRAMS CHAINS NETWORK_FEEDS NETWORK_HUNTING DNS_NAMES YARA_ELASTIC YARA_SIGNATURE_BASE YARA_FORGE OSPREY TRIAGE REPUTATION
     VIRUS_SCAN REALTIME_SCAN ON_DETECTION SETTINGS_AUDIT NETWORK NOTIFY REPORT_ALERTS)
 
 declare -A DEFAULTS=(
@@ -62,6 +62,7 @@ declare -A DEFAULTS=(
     [YARA_FORGE]=off
     [OSPREY]=off
     [TRIAGE]=off
+    [REPUTATION]=off
 )
 declare -A ALLOWED=(
     [ON_DETECTION]="report quarantine delete" [REALTIME]="off on" [NETWORK]="off watch block"
@@ -91,6 +92,7 @@ declare -A ALLOWED=(
     [YARA_FORGE]="off on"
     [OSPREY]="off on"
     [TRIAGE]="off on"
+    [REPUTATION]="off on"
 )
 # How a change is applied: restart:UNIT (each checks its key as it starts), run (the watcher reads it at its
 # next run), reboot (the kernel's audit rules, which -e 2 locks, and auditd), or now (read when used)
@@ -125,6 +127,7 @@ declare -A APPLIES=(
     [YARA_FORGE]="restart:amethystora-yara.service"
     [OSPREY]="now"
     [TRIAGE]="now"
+    [REPUTATION]="run"
 )
 declare -A GROUP=(
     [WATCHER]=watching [REALTIME_WATCH]=watching [AUDIT_LOG]=watching [IDENTITY]=audit [PRIVILEGE]=audit
@@ -151,13 +154,14 @@ declare -A GROUP=(
     [YARA_FORGE]=scans
     [OSPREY]=away
     [TRIAGE]=away
+    [REPUTATION]=away
 )
 # What leaves the machine: none, or downloads (signatures and rules, fetched on the machine)
 declare -A SENDS=([VIRUS_SCAN]=downloads [NETWORK]=downloads [NETWORK_FEEDS]=downloads [YARA_ELASTIC]=downloads
     [YARA_SIGNATURE_BASE]=downloads [YARA_FORGE]=downloads
     # ...or what goes to somebody else: each such switch is chosen on its own, after its explanation, and no
     # profile turns one on
-    [OSPREY]=sites [TRIAGE]=event)
+    [OSPREY]=sites [TRIAGE]=event [REPUTATION]=hashes)
 
 usage() {
     echo "usage: ${0##*/} KEY | --is KEY VALUE... | --all | --list [--json] | --profile" \
@@ -321,6 +325,7 @@ list() {
         [YARA_FORGE]="$(gettext "YARA rules from YARA Forge")"
         [OSPREY]="$(gettext "Site checking (Osprey)")"
         [TRIAGE]="$(gettext "Ask the agent about events")"
+        [REPUTATION]="$(gettext "Hash reputation")"
     )
     declare -A DESCRIBE=(
         [WATCHER]="$(gettext "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on.")"
@@ -365,11 +370,13 @@ list() {
         [YARA_FORGE]="$(gettext "YARA Forge's core set, from many authors: only the rules whose licence asks nothing beyond naming the author. Downloaded on this machine.")"
         [OSPREY]="$(gettext "Browsers may install Osprey, which checks each site you open against more than twenty threat-intelligence providers and warns or blocks. Only allowed, never installed: you install it from your browser's store.")"
         [TRIAGE]="$(gettext "Ask the agent on an event of the Events page has your AI agent explain what it most likely is, in a terminal, reading only and changing nothing.")"
+        [REPUTATION]="$(gettext "Looks up each program odd processes or the download folders' watch saw run for the first time with MalwareBazaar, by its hash, with your own free abuse.ch key: known malware recognised sooner than a signature. It catches nothing new.")"
     )
     # What a switch that sends something to somebody else sends, and to whom, said before it is turned on
     declare -A EXPLAIN=(
         [OSPREY]="$(gettext "Osprey sends the address of every site you open to Osprey Project LLC, in California, and on from there to its providers, without the query string and without your address. Amethystora does not make it: it is GPL-3.0, and you install it from your browser's own store, where it can be removed like any other extension.")"
         [TRIAGE]="$(gettext "Each event you ask about goes to your AI agent's maker with what the agent then reads on this machine: file names, program names and command lines, some of them other accounts'. The event is written partly by whatever it is about, so the agent is told to treat it as data and never to change anything.")"
+        [REPUTATION]="$(gettext "The hash of each new program that runs goes to abuse.ch, a Swiss non-profit run with Spamhaus, with your key: never the file, its name or its path. A hash can still say which files you have, and the lookups made with one key say when new programs ran. It needs your own free key from auth.abuse.ch, for not-for-profit use.")"
     )
     local key spent json=false
     [[ "${1:-}" == --json ]] && json=true

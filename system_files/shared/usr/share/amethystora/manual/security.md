@@ -368,6 +368,14 @@ anything anywhere unless its own entry says so.
   and then reaching a command server, are critical. What the others only record counts too, so they can stay
   quiet and still help; what you allowed does not. Each chain is said once, and again only when it grows.
 
+**Hash reputation** (`ame security settings reputation`, off until you choose it) looks up each program that
+odd processes or the download folders' watch saw run for the first time with MalwareBazaar, by its hash,
+and says at once if it is known malware. It sends only the hash, never the file, its name or its path, to
+abuse.ch, with your own free key from [auth.abuse.ch](https://auth.abuse.ch/), which the command asks for and
+keeps where only root can read it. A hash can still say which files you have, and the lookups made with one
+key say when new programs ran, which is why you choose it on its own. It knows only malware someone has
+already sent in, and changing one byte of a program defeats it: it catches nothing new, only the old sooner.
+
 With **Ask the agent about events** on (`ame security settings triage`, off until you choose it), each event
 on the Events page has **Ask the agent**: your AI agent explains, in a terminal, what it most likely is and
 how sure it is, reading only and changing nothing. The event, and what the agent then reads on this machine,

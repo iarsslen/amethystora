@@ -306,6 +306,34 @@ timeout 120 "${WATCH}" >/dev/null || fail "the second run with a chain failed"
 tail -n +"$((before + 1))" "${HISTORY}" | grep -q '"key":"chains"' && fail "the same chain was said twice"
 rm -f /var/tmp/watch-chain
 
+# --- Hash reputation, from a stand-in for curl -----------------------------------------------------------
+
+# A known hash is critical, an unknown one nothing, each asked once, and the key never on a command line
+KNOWN="$(printf 'a%.0s' $(seq 1 64))" UNKNOWN="$(printf 'b%.0s' $(seq 1 64))"
+echo "REPUTATION=on" >>"${AMETHYSTORA_SECURITY_CONF}"
+mkdir -p "${R}/etc/amethystora"
+echo "secret-key-123" >"${R}/etc/amethystora/abusech.key"
+cat >"${T}/curl" <<EOF
+#!/usr/bin/bash
+printf '%s\n' "\$*" >>"${T}/curl-args"
+[[ "\$*" == *"hash=${KNOWN}"* ]] && echo '{"query_status":"ok","data":[{"signature":"Mirai","first_seen":"2026-01-02 03:04:05"}]}' && exit 0
+echo '{"query_status":"hash_not_found"}'
+EOF
+chmod 0755 "${T}/curl"
+export AMETHYSTORA_WATCH_CURL="${T}/curl"
+printf '%s\t%s\n' "${KNOWN}" /var/tmp/bad "${UNKNOWN}" /var/tmp/fine >"${R}/var/lib/amethystora/security/reputation-queue"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run looking up hashes failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "reputation")')"
+jq -se 'length == 1 and .[0].level == "critical" and (.[0].text | test("/var/tmp/bad, which MalwareBazaar knows as Mirai"))' \
+    <<<"${FOUND}" >/dev/null || fail "hash reputation: ${FOUND}"
+grep -q "secret-key-123" "${T}/curl-args" && fail "the key was on curl's command line"
+[[ "$(wc -l <"${T}/curl-args")" -eq 2 ]] || fail "each hash was not asked once"
+printf '%s\t%s\n' "${KNOWN}" /var/tmp/bad >"${R}/var/lib/amethystora/security/reputation-queue"
+timeout 120 "${WATCH}" >/dev/null || fail "the second run looking up hashes failed"
+[[ "$(wc -l <"${T}/curl-args")" -eq 2 ]] || fail "a hash was asked twice"
+sed -i '/^REPUTATION=on$/d' "${AMETHYSTORA_SECURITY_CONF}"
+
 # --- Network protection's alerts --------------------------------------------------------------------------
 
 # A hunting rule's alert is recorded and never said, whatever its severity; another severe one is said
