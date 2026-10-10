@@ -388,12 +388,32 @@ what is off in `/etc/amethystora/hardening-off` and names the files it writes, w
 check accepts exactly. A feature switched off is `info` in the report with the command that turns it on,
 never a warning; turned off any other way it still warns. A change made through a switch is noted
 (`amethystora-security-config note`), and the watcher records it without notifying. `ame security
-profile off|default` sets every detection key at once. `ame security allow report` accepts a check that
+profile off|default|light|balanced|thorough` sets every detection key at once; no profile turns on, or
+(but `off` and `default`) touches, a key whose `SENDS` is more than downloads, and each of those carries an
+`EXPLAIN` that is shown and asked before it is turned on. `ame security allow report` accepts a check that
 cannot be fixed on the machine, and `ame security allow KEY ENTRY` quietens a path or program a feature
 keeps finding (`/usr/libexec/amethystora-security-allow`, which holds each feature's entry shape). Every
 finding has an id, and a fact `allow=` when it can be allowed: **Allow…** on the Events page sends the id
 only, and `main.js` passes the entry the event holds. `test-security-switches.sh` checks all of it. A new
 feature gets its switch with it, off by default.
+
+**What looks for new threats** is the watcher's too, each part a key in group `detection` (or `network`,
+`scans`), off as the image ships: `PROCESSES` (/proc read in a few bounded passes, never a fork per
+process), `SELINUX_DENIALS`, `SNAPSHOT_WATCH` (`btrfs send --no-data` between hourly snapshots), `EXEC_WATCH`,
+`AGENT_CLIS`, `CREDENTIALS` and `DECOY` (audit keys of their own, whose rules the home generator writes for
+paths that exist, and the watcher reads from raw records with `audit_records`), `BPF_PROGRAMS`, `CHAINS`,
+`DNS_NAMES` (`amethystora-dns-names.service`, resolved's monitor), `BEHAVIOUR` (Falco, from falcosecurity's
+pinned repository, run only by `amethystora-behaviour.service`; 0.45.0's probe needs 0.45.1 for Fedora 44's
+kernel), the `YARA_*` sources (`amethystora-yara.service` as clamupdate, which splits and test-loads every
+set, since one rule ClamAV cannot load can stop its whole database) and `NETWORK_FEEDS`/`NETWORK_HUNTING`
+(`amethystora-ips due`). What only an account can see is read as that account by
+`/usr/libexec/amethystora-security-reader` (`APP_PERMISSIONS`, `DEV_HOOKS`, `AGENT_CONFIG`), run with
+`setpriv` and `timeout` for the accounts with a session in the last day, root keeping what it saw, and said to
+that account alone (`amethystora-notify-users --user`). `OSPREY`, `TRIAGE` and `REPUTATION` send something
+away and are in no profile. What turns each agent's checks off is `/usr/share/amethystora/agent-cli-flags`,
+which must name every agent `amethystora-agent` offers. A finding carries `at=` (the snapshot Backups opens,
+`--at=POINT`) and `tell=` where they apply; one the allowlist quietened carries `allowed` and builds no chain.
+`test-security-watch.sh`, `test-security-reader.sh` and `test-yara.sh` plant each kind of finding.
 
 The same helper holds the stricter settings, each off until turned on and kept in
 `/etc/amethystora/hardening-on`: `kernel strict` (io_uring, ptrace, address randomisation, IPsec), extra

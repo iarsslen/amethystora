@@ -198,7 +198,11 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
   audit, the audit log, real-time watching and scanning, notifications. What the image enforces has its
   own commands: `ame security kernel`, `blocked-modules`, `kernel-args`, `firewall`, `failed-logins`,
   `lockout`, `app-sandbox`, `ssh-settings` and `signed-updates` (`/usr/libexec/amethystora-hardening
-  status`). `ame security profile off` and `ame security profile default` do all the detection ones. When
+  status`). `ame security profile off` and `ame security profile default` do all the detection ones, and
+  `light`, `balanced` and `thorough` set what looks for new threats (odd processes, secrets read, the
+  behaviour sensor and the rest, off as the image ships). Three switches send something away (site
+  checking with Osprey, asking the agent about events, hash reputation): never turn those on for the
+  user, and no profile does. When
   the user asks for a faster machine or for something security blocks, name the one switch that does it
   and what it gives up, and let them run its command: never turn one off for them unasked, and always
   through its command, which the report then shows as turned off rather than as a fault. A warning that
@@ -209,7 +213,10 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
   minutes) noticed in the audit log and journal. Changes you make under `/etc` show up there, and a
   file in `/etc` that differs from the image's copy in `/usr/etc` shows as **Image settings**. So
   does a program you put in `~/.local/bin` or `~/bin` with a system command's name, and a launcher
-  in `~/.local/share/applications` that no container export made: name yours differently.
+  in `~/.local/share/applications` that no container export made: name yours differently. With what
+  looks for new threats on, running an agent with its checks off from a script, reading another tool's
+  token, or adding a hook or MCP server to an agent's settings is said too: tell the user that a change
+  of yours may show up there, and why.
 - Network protection is Suricata inline on this machine's own traffic (`amethystora-ips.service`,
   helper `/usr/libexec/amethystora-ips`), set by `NETWORK` in `/etc/amethystora/security.conf`: `off`
   (default), `watch` or `block`, changed with `ame security settings network`. It fails open. With

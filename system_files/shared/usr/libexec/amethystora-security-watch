@@ -19,6 +19,12 @@
 #   - The report. Its checks live in /usr/libexec/amethystora-security-status and nowhere else. This runs
 #     it and speaks up when a check it watches goes from fine to not, or changes while it is not fine,
 #     the way Wazuh's configuration checks report a result only when it changes.
+#   - What looks for new threats by what they do, each off until its switch is on, alone or with a profile:
+#     odd processes, SELinux's denials, ransomware in the hourly snapshots, AI agents run with their checks
+#     off, secrets read and the decoy key, programs run from the download folders, programs loaded into the
+#     kernel's BPF, odd names in DNS, the behaviour sensor (Falco), hash reputation, and what each account's
+#     own reader finds (amethystora-security-reader, run as that account): apps that gain permissions,
+#     agents' settings, developer tools' startup hooks. Chains of steps put what they find together.
 #
 # The first run only records where things stand. After it, anything new is written to the history and,
 # unless it is routine, to the unread list `ame security events` shows, with one notification a run.
