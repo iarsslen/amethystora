@@ -213,6 +213,14 @@ ame security settings
   signatures in memory, over a gigabyte, runs only while something scans: it starts when a scan
   connects, which takes it a moment, and stops within half an hour of the last one. Real-time scanning
   keeps it running.
+- **YARA rules for the virus scanner**: three sources, each `off` (the default) or `on`, which ClamAV
+  then matches files against by their structure, where a hash signature misses a variant: `yara-elastic`,
+  Elastic's rules for Linux malware; `yara-signature-base`, Florian Roth's, mostly about Windows malware and
+  attack tools, some of which a security professional runs on purpose; and `yara-forge`, YARA Forge's core
+  set from many authors, of which only the rules whose licence asks nothing but their author's name are
+  used. They are downloaded on this machine daily, not on a metered connection, and each rule ClamAV cannot
+  load is left out. A match names the rule and its author. The weekly scan, with them or not, waits for
+  mains power on a laptop; a scan you start does not.
 - **The settings audit**: Lynis every month, `on` (the default) or `off`. `ame security audit` runs one
   whenever you ask.
 - **The security watcher**: `on` (the default) or `off`, and each part of what it reads on its own: the

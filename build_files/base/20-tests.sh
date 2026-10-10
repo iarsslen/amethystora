@@ -1727,7 +1727,7 @@ done
 # key off, the prevention switches and accepted checks, against stand-ins.
 for unit in amethystora-security-watch amethystora-clamav-scan amethystora-clamav-onaccess amethystora-lynis-audit \
     amethystora-audit-rules amethystora-security-realtime amethystora-ips amethystora-ips-rules amethystora-signed-updates \
-    amethystora-dns-names; do
+    amethystora-dns-names amethystora-yara; do
     grep -q "^ExecCondition=" "/usr/lib/systemd/system/${unit}.service"
 done
 for unit in auditd.service audit-rules.service clamav-freshclam.service clamd@.service; do
@@ -1760,6 +1760,10 @@ for mode in $(grep -E '^declare -A READERS=' /usr/libexec/amethystora-security-w
     grep -qE "^    ${mode}\) " /usr/libexec/amethystora-security-reader
 done
 bash /ctx/build_files/shared/test-security-reader.sh
+# YARA rules are fetched on the machine, as freshclam's account and never as root, and split and tested so that
+# ClamAV loads every one it is given
+grep -q "^User=clamupdate$" /usr/lib/systemd/system/amethystora-yara.service
+bash /ctx/build_files/shared/test-yara.sh
 # What turns an agent's own checks off is known for every agent amethystora-agent offers
 for agent in $(sed -n 's/^AGENTS=(\(.*\))$/\1/p' /usr/bin/amethystora-agent); do
     grep -q "^${agent}"$'\t' /usr/share/amethystora/agent-cli-flags

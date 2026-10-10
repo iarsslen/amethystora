@@ -76,6 +76,8 @@ systemctl enable amethystora-ips-rules.timer
 systemctl disable suricata.service
 # Odd names in DNS, the same way: enabled, and skipped while DNS_NAMES=off
 systemctl enable amethystora-dns-names.service
+# YARA rules for the virus scanner, daily, skipped while every YARA_* switch is off
+systemctl enable amethystora-yara.timer
 
 systemctl enable flatpak-preinstall.service
 

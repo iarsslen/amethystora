@@ -1,0 +1,170 @@
+#!/usr/bin/bash
+# YARA rules in ClamAV: malware families recognised by their structure, where hash signatures miss a variant.
+# Three sources, each a switch in /etc/amethystora/security.conf, all off as the image ships, and each acting
+# only while the virus scanner is on: YARA_ELASTIC (Elastic's Linux rules), YARA_SIGNATURE_BASE (Florian Roth's
+# signature-base) and YARA_FORGE (YARA Forge's core set).
+#
+#   amethystora-yara due        exit 0 when there is something to do: a source on, or the rules of one turned
+#                               off still in ClamAV's folder (ExecCondition= in amethystora-yara.service)
+#   amethystora-yara update     fetch what is on, test it, put it where ClamAV loads it, and take away what is
+#                               off (amethystora-yara.service, as clamupdate)
+#   amethystora-yara credit     the scan's lines on stdin, with each YARA match's rule, author and licence
+#   amethystora-yara credit SIGNATURE   only that: "YARA rule by AUTHOR, LICENCE, SOURCE", or nothing
+#
+# Rules are fetched on this machine, never shipped in the image, over TLS and no bigger than 50 MB, and only
+# when they changed. ClamAV loads only part of YARA, and a rule it cannot parse silently disables every rule
+# after it in the same file, while one it cannot load ends the file's load and, being last, ClamAV's whole
+# database: so every set is split, each piece loaded with clamscan on its own, a piece that fails split down to
+# its rules, and only a set that loads clean, as a whole, replaces the one there was. A set that fails keeps
+# the old one. Every match names its rule's author, as the Detection Rule License and the others ask.
+
+set -uo pipefail
+
+DATABASE=/var/lib/clamav
+WORK=/var/lib/amethystora/yara
+CREDITS="${WORK}/credits.tsv"
+SPLIT=/usr/libexec/amethystora-yara-rules
+CONFIG=/usr/libexec/amethystora-security-config
+# AMETHYSTORA_YARA_ROOT is for the tests in build_files/shared, which use stand-in folders and archives
+if [[ -n "${AMETHYSTORA_YARA_ROOT:-}" ]]; then
+    DATABASE="${AMETHYSTORA_YARA_ROOT}/clamav"
+    WORK="${AMETHYSTORA_YARA_ROOT}/yara"
+    CREDITS="${WORK}/credits.tsv"
+fi
+
+declare -A KEY=([elastic]=YARA_ELASTIC [signature-base]=YARA_SIGNATURE_BASE [forge]=YARA_FORGE)
+declare -A URL=(
+    [elastic]=https://github.com/elastic/protections-artifacts/archive/refs/heads/main.tar.gz
+    [signature-base]=https://github.com/Neo23x0/signature-base/archive/refs/heads/master.tar.gz
+    [forge]=https://github.com/YARAHQ/yara-forge/releases/latest/download/yara-forge-rules-core.zip
+)
+SOURCES=(elastic signature-base forge)
+
+on() {
+    "${CONFIG}" --is "${KEY[$1]}" on && ! "${CONFIG}" --is VIRUS_SCAN off
+}
+
+due() {
+    local source
+    for source in "${SOURCES[@]}"; do
+        on "${source}" && return 0
+        [[ -e "${DATABASE}/amethystora-yara-${source}.yar" ]] && return 0
+    done
+    return 1
+}
+
+# Whether ClamAV loads FILE with nothing left out: clamscan on it alone, and not a word of a rule it could not
+# parse or load
+loads() {
+    local errors empty="${WORK}/empty"
+    # A plain file to scan: clamscan refuses /dev/null as a file it does not scan
+    [[ -f "${empty}" ]] || : >"${empty}"
+    errors="$(timeout 120 clamscan --quiet --no-summary -d "$1" "${empty}" 2>&1 >/dev/null)" || return 1
+    ! grep -qiE "yyerror|failed to parse|malformed|can't|cannot|error|skipping|empty database" <<<"${errors}"
+}
+
+# The pieces of a set that load, a failing piece's rules tried one by one, into OUT; their credits kept
+assemble() {
+    local pieces="$1" out="$2" piece rule
+    : >"${out}"
+    for piece in "${pieces}"/[0-9]*.yar; do
+        [[ -e "${piece}" ]] || continue
+        if loads "${piece}"; then
+            cat "${piece}" >>"${out}"
+            echo >>"${out}"
+        elif [[ "${source}" != elastic ]]; then
+            rm -rf "${pieces}/one"
+            "${SPLIT}" explode "${piece}" "${pieces}/one" || continue
+            for rule in "${pieces}/one"/*.yar; do
+                [[ -e "${rule}" ]] && loads "${rule}" && { cat "${rule}"; echo; } >>"${out}"
+            done
+        fi
+        # Elastic's files are kept unchanged, so one that does not load is left out whole
+    done
+}
+
+update() {
+    local source archive pieces out kept tag
+    install -d -m 0755 "${WORK}"
+    for source in "${SOURCES[@]}"; do
+        out="${DATABASE}/amethystora-yara-${source}.yar"
+        if ! on "${source}"; then
+            # Off costs nothing: ClamAV loads no rule of it from its next reload
+            rm -f "${out}" "${WORK}/${source}".*
+            continue
+        fi
+        archive="${WORK}/${source}.archive"
+        tag="${WORK}/${source}.etag"
+        # Not on a connection that costs by the byte when the timer started this, while there are rules
+        if [[ -n "${TRIGGER_UNIT:-}" && -s "${out}" ]] &&
+            [[ "$(busctl get-property org.freedesktop.NetworkManager /org/freedesktop/NetworkManager \
+                org.freedesktop.NetworkManager Metered 2>/dev/null)" =~ ^u\ (1|3)$ ]]; then
+            continue
+        fi
+        if [[ -n "${AMETHYSTORA_YARA_ROOT:-}" && -n "${AMETHYSTORA_YARA_ARCHIVE:-}" ]]; then
+            cp "${AMETHYSTORA_YARA_ARCHIVE}.${source}" "${archive}" || continue
+            rm -f "${tag}"
+        elif ! curl -fsSL --proto '=https' --tlsv1.2 --max-filesize 52428800 --max-time 600 \
+            --etag-compare "${tag}" --etag-save "${tag}.new" -o "${archive}.new" "${URL[${source}]}"; then
+            echo "Could not download ${source}'s rules; the ones there were stay." >&2
+            rm -f "${archive}.new" "${tag}.new"
+            continue
+        elif [[ ! -s "${archive}.new" && -s "${out}" ]]; then
+            # Not changed since the last download
+            rm -f "${archive}.new" "${tag}.new"
+            continue
+        else
+            mv "${archive}.new" "${archive}"
+            mv "${tag}.new" "${tag}" 2>/dev/null
+        fi
+        pieces="$(mktemp -d "${WORK}/${source}.pieces.XXXXXX")"
+        if ! "${SPLIT}" split "${source}" "${archive}" "${pieces}"; then
+            echo "Could not read ${source}'s rules; the ones there were stay." >&2
+            rm -rf "${pieces}"
+            continue
+        fi
+        assemble "${pieces}" "${pieces}/all.yar"
+        kept="$(grep -cE '^[[:space:]]*((private|global)[[:space:]]+)*rule[[:space:]]' "${pieces}/all.yar")"
+        if [[ "${kept}" -gt 0 ]] && loads "${pieces}/all.yar"; then
+            # In ClamAV's folder whole or not at all, and readable by clamd
+            install -m 0644 "${pieces}/all.yar" "${out}.new" && mv "${out}.new" "${out}"
+            # The credits of the rules kept, for what a match is called
+            awk -F'\t' 'NR == FNR { keep[$0] = 1; next } $1 in keep' \
+                <(sed -nE 's/^[[:space:]]*((private|global)[[:space:]]+)*rule[[:space:]]+([A-Za-z_][A-Za-z0-9_]*).*/\3/p' "${out}") \
+                "${pieces}/credits.tsv" >"${WORK}/${source}.credits"
+            echo "${source}: ${kept} rules"
+        else
+            echo "${source}'s rules did not load; the ones there were stay." >&2
+        fi
+        rm -rf "${pieces}"
+    done
+    cat "${WORK}"/*.credits 2>/dev/null >"${CREDITS}.new" && mv "${CREDITS}.new" "${CREDITS}"
+    chmod 0644 "${CREDITS}" 2>/dev/null
+    return 0
+}
+
+# "path: YARA.<rule>.UNOFFICIAL FOUND", with the rule's author and licence after it
+credit() {
+    if [[ $# -gt 0 ]]; then
+        [[ "$1" =~ ^YARA\.([A-Za-z0-9_]+)\.UNOFFICIAL$ ]] || return 0
+        awk -F'\t' -v rule="${BASH_REMATCH[1]}" '$1 == rule { print "YARA rule by " $3 ", " $4 ", " $2; exit }' \
+            "${CREDITS}" 2>/dev/null
+        return 0
+    fi
+    awk -F'\t' 'FILENAME == ARGV[1] { credit[$1] = $3 ", " $4 ", " $2; next }
+        match($0, /YARA\.[A-Za-z0-9_]+\.UNOFFICIAL FOUND$/) {
+            rule = substr($0, RSTART + 5, RLENGTH - 5 - 17)
+            if (rule in credit) { print $0 " (YARA rule by " credit[rule] ")"; next }
+        }
+        { print }' "${CREDITS}" - 2>/dev/null || cat
+}
+
+case "${1:-}" in
+    due) due ;;
+    update) update ;;
+    credit) shift; credit "$@" ;;
+    *)
+        echo "usage: ${0##*/} due | update | credit" >&2
+        exit 64
+        ;;
+esac

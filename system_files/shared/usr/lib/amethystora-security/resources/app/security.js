@@ -897,7 +897,9 @@ function findingRow(item) {
         h('div', { class: 'grow' },
             h('div', { class: 'finding-name' }, h('span', {}, basename(item.path)), pill(item.signature, 'off', { mono: true }),
                 outcome ? pill(outcome, tone, { small: true }) : null),
-            h('code', { dir: 'ltr' }, tilde(item.path))),
+            h('code', { dir: 'ltr' }, tilde(item.path)),
+            // A YARA rule's author is named with every match, as the rule's licence asks
+            item.credit ? h('small', { class: 'faint' }, t('YARA rule by {author}, {licence}, from {source}', item.credit)) : null),
         h('div', { class: 'actions' },
             moved ? null : button(t('Show in Files'), () => window.security.showInFiles(item.path), { icon: 'folder', small: true }),
             copyButton(item.path, t('Copy path'), t('Copy the path of the file'))));

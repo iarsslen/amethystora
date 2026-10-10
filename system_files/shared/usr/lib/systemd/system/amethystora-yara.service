@@ -1,0 +1,34 @@
+[Unit]
+Description=YARA rules for the virus scanner
+Documentation=man:clamscan(1)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Only while a YARA_* switch is on in /etc/amethystora/security.conf, or one turned off left its rules in
+# ClamAV's folder, which this then takes away
+ExecCondition=/usr/libexec/amethystora-yara due
+ExecStart=/usr/libexec/amethystora-yara update
+# freshclam's account, which owns ClamAV's folder: never root for what comes from the network
+User=clamupdate
+Group=clamupdate
+StateDirectory=amethystora/yara
+StateDirectoryMode=0755
+Nice=19
+IOSchedulingClass=idle
+CPUWeight=20
+ProtectSystem=strict
+ReadWritePaths=/var/lib/clamav
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=yes
+NoNewPrivileges=yes
+LockPersonality=yes
+# Fetching, splitting and testing a few thousand rules takes a minute or two
+TimeoutStartSec=30min

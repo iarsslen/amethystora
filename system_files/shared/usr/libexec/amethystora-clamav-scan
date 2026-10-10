@@ -23,8 +23,22 @@ wanted() {
     case "$(/usr/libexec/amethystora-security-config VIRUS_SCAN)" in
         off) return 1 ;;
         manual) [[ "${TRIGGER_UNIT:-}" != amethystora-clamav-scan.timer ]] ;;
-        *) return 0 ;;
+        *) [[ "${TRIGGER_UNIT:-}" != amethystora-clamav-scan.timer ]] || on_mains ;;
     esac
+}
+
+# Whether the machine runs on mains power, or has no battery: the weekly scan, which reads every home folder
+# with every signature and YARA rule, waits for it, and comes at the next start of the timer on mains. A scan
+# somebody asks for runs anyway.
+on_mains() {
+    local supply mains=false
+    for supply in /sys/class/power_supply/*; do
+        [[ "$(cat "${supply}/type" 2>/dev/null)" == Mains ]] || continue
+        mains=true
+        [[ "$(cat "${supply}/online" 2>/dev/null)" == 1 ]] && return 0
+    done
+    # A desktop has no supply that says Mains, and is always on it
+    [[ "${mains}" == false ]]
 }
 if [[ "${1:-}" == --check ]]; then
     wanted
@@ -70,7 +84,8 @@ STATUS=$?
 # What is written to the journal and the findings log, which `ame security scan` shows in a terminal: a file
 # name is whatever somebody called a file, so it is made safe to show first. The paths acted on are the
 # real ones, read from OUTPUT itself.
-SHOWN="$(/usr/libexec/amethystora-security-text --lines --max 1000 "${OUTPUT}")"
+# A YARA rule's match names the rule's author, as its licence asks (amethystora-yara).
+SHOWN="$(/usr/libexec/amethystora-yara credit <<<"${OUTPUT}" | /usr/libexec/amethystora-security-text --lines --max 1000)"
 
 case "${STATUS}" in
     0)

@@ -31,7 +31,7 @@ FINDINGS=/var/log/amethystora-clamav-findings.log
 chmod 0600 "${LOG}"
 
 found() {
-    local file="$1" signature="$2" mode outcome summary body shown
+    local file="$1" signature="$2" mode outcome summary body shown credit
     mode="$(/usr/libexec/amethystora-security-config ON_DETECTION)"
     outcome=reported
     [[ "${mode}" == report ]] || outcome="$(/usr/libexec/amethystora-quarantine act "${file}" | cut -f1)"
@@ -41,7 +41,9 @@ found() {
     # A file name is whatever somebody called a file: what the journal and the findings log keep, which a
     # terminal shows, is made safe to show; the file acted on is the real one
     shown="$(/usr/libexec/amethystora-security-text --max 1000 "${file}")"
-    signature="$(/usr/libexec/amethystora-security-text --max 200 "${signature}")"
+    # A YARA rule's match names the rule's author, as its licence asks (amethystora-yara)
+    credit="$(/usr/libexec/amethystora-yara credit "${signature}")"
+    signature="$(/usr/libexec/amethystora-security-text --max 400 "${signature}${credit:+ (${credit})}")"
     echo "${signature} in ${shown}: ${outcome}"
     {
         echo "# Real-time scan, $(date -Is). On detection: ${mode}."

@@ -369,6 +369,23 @@ function exclusions() {
 // One line per file: "<path>: OK", or "<path>: <signature> FOUND"
 const RESULT = /^(.*): (?:(\S+) FOUND|OK)$/;
 
+// A YARA rule's match names its author, as the rule's licence asks: from the credits amethystora-yara keeps
+// for the rules it put in ClamAV's folder, "rule<TAB>source<TAB>author<TAB>licence" a line
+const YARA_CREDITS = '/var/lib/amethystora/yara/credits.tsv';
+function yaraCredit(signature) {
+    const rule = /^YARA\.([A-Za-z0-9_]+)\.UNOFFICIAL$/.exec(signature)?.[1];
+    if (!rule) {
+        return null;
+    }
+    try {
+        const line = fs.readFileSync(YARA_CREDITS, 'utf8').split('\n').find((row) => row.startsWith(`${rule}\t`));
+        const [, source, author, licence] = line ? line.split('\t') : [];
+        return line ? { author, licence, source } : null;
+    } catch {
+        return null;
+    }
+}
+
 function readLine(line) {
     if (!scan) {
         return;
@@ -400,7 +417,7 @@ function readLine(line) {
         return place && (file === place || file.startsWith(place.replace(/\/?$/, '/')));
     });
     if (within && scan.found.length < FINDINGS_KEPT) {
-        scan.found.push({ path: match[1], signature: match[2] });
+        scan.found.push({ path: match[1], signature: match[2], credit: yaraCredit(match[2]) });
     }
     if (!scan.timer) {
         scan.timer = setTimeout(() => {

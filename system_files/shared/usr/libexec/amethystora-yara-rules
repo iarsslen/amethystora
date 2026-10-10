@@ -1,0 +1,215 @@
+#!/usr/bin/python3 -I
+"""YARA rule sets made into what ClamAV can load, for amethystora-yara, which runs this as clamupdate.
+
+    amethystora-yara-rules split SOURCE ARCHIVE OUT    the source's rules, in pieces to test, with their credits
+    amethystora-yara-rules explode PIECE OUT           a piece that failed, one rule a file
+
+The archive is read in memory, never unpacked by the names it gives. SOURCE is one of:
+
+    elastic         Elastic's protections-artifacts: its Linux files, each kept whole and unchanged, as the
+                    Elastic License 2.0 they are under asks
+    signature-base  Florian Roth's signature-base: rules under the Detection Rule License 1.1 only (those whose
+                    own licence says otherwise are left out), less the files that need LOKI's variables
+    forge           YARA Forge's core set: rules from repositories under a licence that asks nothing beyond
+                    keeping the author's name (MIT, BSD, Apache 2.0, the Detection Rule License, the Elastic
+                    License, CC0 and CC BY); a repository with no licence, a copyleft or a non-commercial one
+                    is left out
+
+Rules ClamAV cannot load are left out before they are tried: modules (pe, math, hash...), xor, base64,
+big-endian integers, global rules. Each rule of the last two sources is renamed with its source's prefix, so
+that two sources' rules of one name cannot clash, and so that a match names its source. OUT gets the pieces,
+numbered, and credits.tsv: "rule<TAB>source<TAB>author<TAB>licence", which a finding is named with.
+"""
+
+import io
+import os
+import re
+import sys
+import tarfile
+import zipfile
+
+LIMIT = 64 << 20
+PIECE = 40
+PREFIX = {"signature-base": "SigBase_", "forge": "Forge_"}
+LICENCE = {"elastic": "Elastic License 2.0", "signature-base": "Detection Rule License 1.1"}
+HEADER = re.compile(r"(?m)^[ \t]*((?:private|global)[ \t]+)*rule[ \t]+([A-Za-z_]\w*)")
+UNSUPPORTED = re.compile(
+    r"\b(pe|math|hash|dotnet|elf|cuckoo|magic|console|time|string|androguard|vt|macho|lnk)\."
+    r"|\b(xor|base64|base64wide|u?int(8|16|32)be|iequals|icontains|startswith|endswith|istartswith|iendswith|defined)\b"
+    r"|^\s*global\s+rule\b",
+    re.M)
+# The first that a repository's licence text matches. The Detection Rule License is written from MIT's text,
+# so it comes before MIT.
+ALLOWED_LICENCES = [
+    ("Detection Rule License 1.1", re.compile(r"Detection Rule License", re.I)),
+    ("Elastic License 2.0", re.compile(r"Elastic License", re.I)),
+    ("Apache 2.0", re.compile(r"Apache License", re.I)),
+    ("CC BY 4.0", re.compile(r"Attribution 4\.0 International", re.I)),
+    ("CC0", re.compile(r"CC0|Creative Commons Zero|CC-0", re.I)),
+    ("BSD", re.compile(r"\bBSD\b|Redistribution and use in source and binary forms", re.I)),
+    ("MIT", re.compile(r"MIT License|Permission is hereby granted, free of charge", re.I)),
+]
+REFUSED = re.compile(r"NonCommercial|GNU (Affero |Lesser )?General Public License|NO LICENSE SET", re.I)
+
+
+def members(path):
+    """Each file of the archive, as (name, text), read in memory"""
+    if zipfile.is_zipfile(path):
+        with zipfile.ZipFile(path) as archive:
+            for info in archive.infolist():
+                if not info.is_dir() and info.file_size <= LIMIT:
+                    yield info.filename, archive.read(info).decode("utf-8", "replace")
+    else:
+        with tarfile.open(path, "r:*") as archive:
+            for info in archive:
+                if info.isfile() and info.size <= LIMIT:
+                    yield info.name, archive.extractfile(info).read().decode("utf-8", "replace")
+
+
+def end_of(text, start):
+    """Where the rule whose body opens at or after START closes: braces counted outside strings, comments and
+    regular expressions"""
+    i = text.find("{", start)
+    if i < 0:
+        return -1
+    depth, n, last = 0, len(text), ""
+    while i < n:
+        c = text[i]
+        if c == '"':
+            i += 1
+            while i < n and text[i] != '"':
+                i += 2 if text[i] == "\\" else 1
+        elif text.startswith("//", i):
+            i = text.find("\n", i)
+            if i < 0:
+                return -1
+        elif text.startswith("/*", i):
+            i = text.find("*/", i + 2)
+            if i < 0:
+                return -1
+            i += 1
+        elif c == "/" and last == "=":
+            i += 1
+            while i < n and text[i] not in "/\n":
+                i += 2 if text[i] == "\\" else 1
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+        if not c.isspace():
+            last = c
+        i += 1
+    return -1
+
+
+def rules(text):
+    """Each rule of a file, as (start, name, text)"""
+    for match in HEADER.finditer(text):
+        end = end_of(text, match.end())
+        if end > 0:
+            yield match.start(), match.group(2), text[match.start():end + 1]
+
+
+def unsupported(rule):
+    """Whether a rule uses what ClamAV cannot load, looked for outside its quoted strings, which may say anything"""
+    return UNSUPPORTED.search(re.sub(r'"(?:[^"\\]|\\.)*"', '""', rule)) is not None
+
+
+def meta(rule, key):
+    found = re.search(r'(?m)^\s*' + key + r'\s*=\s*"((?:[^"\\]|\\.)*)"', rule)
+    return found.group(1) if found else ""
+
+
+def clean(value):
+    return re.sub(r"[\x00-\x1f\x7f\t]", " ", value).strip()[:200]
+
+
+def forge_licences(text):
+    """Where each repository's block starts in YARA Forge's file, and the licence it names"""
+    blocks = []
+    for block in re.finditer(r"/\*(.*?)\*/", text, re.S):
+        body = block.group(1)
+        if "Repository" not in body:
+            continue
+        name = re.search(r"Repository Name:\s*(.+)", body)
+        licence = None
+        if not REFUSED.search(body):
+            licence = next((label for label, pattern in ALLOWED_LICENCES if pattern.search(body)), None)
+        blocks.append((block.start(), clean(name.group(1)) if name else "?", licence))
+    return blocks
+
+
+def split(source, archive, out):
+    os.makedirs(out, exist_ok=True)
+    pieces, credits, kept = [], [], set()
+    if source == "elastic":
+        for name, text in members(archive):
+            if re.search(r"/yara/rules/Linux_[^/]+\.yar$", name):
+                found = list(rules(text))
+                if found and not any(unsupported(rule) for _, _, rule in found):
+                    pieces.append(text)
+                    credits += [(n, "Elastic", clean(meta(r, "author")) or "Elastic Security", LICENCE[source])
+                                for _, n, r in found]
+    else:
+        texts = dict(members(archive))
+        skip = set()
+        for name, text in texts.items():
+            if name.endswith("yara/external-variable-rules.txt"):
+                skip = {line.strip() for line in text.splitlines() if line.strip() and not line.startswith("#")}
+        chunk = []
+        for name, text in sorted(texts.items()):
+            if source == "signature-base" and not re.search(r"/yara/[^/]+\.yar$", name):
+                continue
+            if source == "forge" and not name.endswith("yara-rules-core.yar"):
+                continue
+            if os.path.basename(name) in skip:
+                continue
+            blocks = forge_licences(text) if source == "forge" else []
+            for start, rule_name, rule in rules(text):
+                if unsupported(rule) or rule_name in kept:
+                    continue
+                if source == "signature-base":
+                    own = meta(rule, "license")
+                    if own and "Detection Rule License" not in own:
+                        continue
+                    licence, origin = LICENCE[source], "signature-base"
+                else:
+                    owner = [b for b in blocks if b[0] < start]
+                    if not owner or not owner[-1][2]:
+                        continue
+                    origin, licence = "YARA Forge, from " + owner[-1][1], owner[-1][2]
+                kept.add(rule_name)
+                renamed = PREFIX[source] + rule_name
+                chunk.append(HEADER.sub(lambda m: (m.group(1) or "") + "rule " + renamed, rule, count=1))
+                credits.append((renamed, origin, clean(meta(rule, "author")) or "unknown", licence))
+                if len(chunk) == PIECE:
+                    pieces.append("\n\n".join(chunk) + "\n")
+                    chunk = []
+        if chunk:
+            pieces.append("\n\n".join(chunk) + "\n")
+    for number, text in enumerate(pieces):
+        with open(os.path.join(out, f"{number:05d}.yar"), "w", encoding="utf-8") as handle:
+            handle.write(text)
+    with open(os.path.join(out, "credits.tsv"), "w", encoding="utf-8") as handle:
+        for row in credits:
+            handle.write("\t".join(row) + "\n")
+
+
+def explode(piece, out):
+    os.makedirs(out, exist_ok=True)
+    with open(piece, encoding="utf-8") as handle:
+        text = handle.read()
+    for number, (_, _, rule) in enumerate(rules(text)):
+        with open(os.path.join(out, f"{number:05d}.yar"), "w", encoding="utf-8") as handle:
+            handle.write(rule + "\n")
+
+
+if __name__ == "__main__":
+    if len(sys.argv) == 5 and sys.argv[1] == "split" and sys.argv[2] in ("elastic", "signature-base", "forge"):
+        split(sys.argv[2], sys.argv[3], sys.argv[4])
+    elif len(sys.argv) == 4 and sys.argv[1] == "explode":
+        explode(sys.argv[2], sys.argv[3])
+    else:
+        sys.exit(__doc__)
