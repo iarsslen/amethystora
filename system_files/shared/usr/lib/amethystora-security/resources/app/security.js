@@ -1419,6 +1419,7 @@ const VALUES = {
 const SWITCH_GROUPS = [
     ['watching', t('Watching')],
     ['audit', t('What the audit log records')],
+    ['detection', t('Looking for new threats')],
     ['scans', t('Scans')],
     ['network', t('Network')],
     ['notices', t('What is said')],

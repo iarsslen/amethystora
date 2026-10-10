@@ -89,4 +89,55 @@ chown 4500:4500 "${APPS}/decoy.desktop"
 timeout 120 "${WATCH}" >/dev/null || fail "the run after the decoy launcher failed"
 grep -q "decoy.desktop" "${HISTORY}" || fail "a launcher that opens with a container's Exec= was not said"
 
+# --- What only an account can see -----------------------------------------------------------------------
+
+# A reader runs as the account, and the watcher says what is new in what it printed: to that account alone,
+# not what came with something new, and not what the owner allowed. Its first run only records.
+cat >"${AMETHYSTORA_SECURITY_CONF}" <<'EOF'
+AUDIT_LOG=off
+HARDENING=off
+JOURNAL=off
+LISTENERS=off
+IMAGE_DRIFT=off
+SETUID_SWEEP=off
+REPORT_ALERTS=off
+USER_PATHS=off
+NETWORK=off
+APP_PERMISSIONS=on
+EOF
+export AMETHYSTORA_WATCH_READER="${T}/reader" AMETHYSTORA_WATCH_ACCOUNTS=4500
+cat >"${T}/reader" <<EOF
+#!/usr/bin/bash
+[[ "\$(id -u)" == 4500 && "\${HOME}" == "${R}/var/home/alice" && "\$1" == app-permissions ]] || exit 1
+cat "${T}/read"
+EOF
+chmod 0755 "${T}/reader"
+printf '%s\n' '{"id":"org.a.App","level":"quiet","text":"org.a.App was installed"}' \
+    '{"id":"org.a.App session-bus","within":"org.a.App","level":"normal","text":"org.a.App can talk to the session"}' >"${T}/read"
+chmod 0644 "${T}/read"
+rm -f "${T}/notified"
+timeout 120 "${WATCH}" >/dev/null || fail "the reader's first run failed"
+[[ -e "${T}/notified" ]] && fail "a reader's first run said something"
+grep -qx "org.a.App session-bus" "${R}/var/lib/amethystora/security/accounts/4500/app-permissions.seen" ||
+    fail "the reader's first run was not kept"
+printf '%s\n' '{"id":"org.b.New","level":"quiet","text":"org.b.New was installed"}' \
+    '{"id":"org.b.New session-bus","within":"org.b.New","level":"normal","text":"org.b.New can talk to the session"}' \
+    '{"id":"org.a.App flatpak","within":"org.a.App","level":"normal","allow":"org.a.App flatpak","text":"org.a.App can now run programs\u001b[2J outside"}' \
+    >>"${T}/read"
+timeout 120 "${WATCH}" >/dev/null || fail "the reader's second run failed"
+jq -se 'map(select(.key == "app-permissions")) | length == 3
+    and any(.[]; .text | test("run programs") and (test("\u001b") | not)) and all(.[]; .account == "alice" and .tell == "alice")
+    and ([.[] | select(.level != "quiet") | .allow] == ["org.a.App flatpak"])' "${HISTORY}" >/dev/null ||
+    fail "what the reader found: $(grep app-permissions "${HISTORY}")"
+grep -qx -- "--user" "${T}/notified" && grep -qx alice "${T}/notified" || fail "a finding about alice's apps was not said to alice alone"
+grep -qx -- "--admins" "${T}/notified" && fail "a finding about alice's apps was said to the administrators"
+# What the owner allowed is recorded, not said
+mkdir -p "${R}/etc/amethystora/allow.d"
+echo 'org.c.* *' >"${R}/etc/amethystora/allow.d/app-permissions"
+echo '{"id":"org.a.App org.c","within":"org.a.App","level":"normal","allow":"org.c.Other systemd","text":"allowed"}' >>"${T}/read"
+rm -f "${T}/notified"
+timeout 120 "${WATCH}" >/dev/null || fail "the reader's third run failed"
+[[ -e "${T}/notified" ]] && fail "what the owner allowed was said"
+jq -se 'any(.[]; .text == "allowed" and .level == "quiet")' "${HISTORY}" >/dev/null || fail "what the owner allowed was not recorded"
+
 echo "test-security-watch: what an account plants is only ever read"

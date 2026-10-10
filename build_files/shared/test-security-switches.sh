@@ -44,6 +44,10 @@ while IFS='=' read -r key value; do
         fail "profile off left ${key}=${value}"
 done < <("${CONFIG}" --all)
 [[ "$("${CONFIG}" ON_DETECTION)" == report ]] || fail "profile off changed what scans do with a find"
+# Every setting is in the file, said or as a comment, where somebody editing it by hand finds it
+for key in $("${CONFIG}" --list --json | jq -r '.settings[].key'); do
+    grep -qE "^#?${key}=" /etc/amethystora/security.conf || fail "${key} is not in security.conf"
+done
 # Every setting is described, grouped, and says how it applies and what it sends
 "${CONFIG}" --list --json | jq -e '.settings | length > 20 and all(.[];
     (.title | length > 0) and (.text | length > 0) and (.group | length > 0) and (.applies | length > 0)

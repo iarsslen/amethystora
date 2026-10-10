@@ -834,9 +834,9 @@ disk_unlock_status() {
 READER=/usr/libexec/amethystora-security-reader
 [[ -n "${ROOT}" && -n "${AMETHYSTORA_WATCH_READER:-}" ]] && READER="${AMETHYSTORA_WATCH_READER}"
 # Each switch read this way, and the reader's mode for it
-declare -A READERS=()
+declare -A READERS=([APP_PERMISSIONS]=app-permissions)
 ACTIVE_FOR=86400
-ACCOUNT_TACTICS=" Persistence Execution Credential-Access Privilege-Escalation Defense-Evasion Command-and-Control "
+ACCOUNT_TACTICS=" Persistence Execution Collection Credential-Access Privilege-Escalation Defense-Evasion Command-and-Control "
 
 # The accounts with a session now are marked, and those marked in the last day are printed, by UID. With a
 # stand-in root, AMETHYSTORA_WATCH_ACCOUNTS names the UIDs logged in.
@@ -862,7 +862,7 @@ active_accounts() {
 }
 
 read_accounts() {
-    local key="$1" mode="${READERS[$1]}" feature user uid gid home groups out seen first id level tactic text allow
+    local key="$1" mode="${READERS[$1]}" feature user uid gid home groups out seen first new id level tactic text allow within
     feature="$(tr "A-Z_" "a-z-" <<<"${key}")"
     while IFS=: read -r user _ uid gid _ home _; do
         [[ " ${ACTIVE} " == *" ${uid} "* ]] || continue
@@ -875,21 +875,27 @@ read_accounts() {
         out="$(timeout 60 setpriv --reuid="${uid}" --regid="${gid}" "${groups}" -- /usr/bin/env -i HOME="${home}" \
             USER="${user}" LOGNAME="${user}" PATH=/usr/bin:/usr/sbin LANG=C.UTF-8 "${READER}" "${mode}" 2>/dev/null)" ||
             continue
+        # One line each, its fields apart by the unit separator, which no field keeps: a tab is whitespace to
+        # read, which would run an empty field into the next
         out="$(jq -rc 'select(type == "object" and (.id | type == "string") and (.text | type == "string"))
-            | [.id, (.level // "normal"), (.tactic // "-"), .text, (.allow // "")] | @tsv' <<<"${out}" 2>/dev/null)"
+            | [.id, (.level // "normal"), (.tactic // "-"), .text, (.allow // ""), (.within // "")]
+            | map(tostring | gsub("[[:cntrl:]]"; " ")) | join("\u001f")' <<<"${out}" 2>/dev/null)"
         seen="${STATE}/accounts/${uid}/${mode}.seen"
         first=false
         [[ -e "${seen}" ]] || first=true
-        while IFS=$'\t' read -r id level tactic text allow; do
-            [[ -n "${id}" ]] && ! grep -qxF -- "${id}" "${seen}" 2>/dev/null || continue
-            [[ "${first}" == false ]] || continue
+        # What is new since last time; a thing within something that is new itself came with it, and is quiet
+        new="$(cut -d$'\x1f' -f1 <<<"${out}" | grep . | grep -vxF -f "${seen}" 2>/dev/null)"
+        [[ -e "${seen}" ]] || new="$(cut -d$'\x1f' -f1 <<<"${out}" | grep .)"
+        while IFS=$'\x1f' read -r id level tactic text allow within; do
+            [[ -n "${id}" && "${first}" == false ]] && grep -qxF -- "${id}" <<<"${new}" || continue
             [[ "${level}" =~ ^(critical|normal|quiet)$ ]] || level=normal
+            [[ -n "${within}" ]] && grep -qxF -- "${within}" <<<"${new}" && level=quiet
             [[ "${ACCOUNT_TACTICS}" == *" ${tactic// /-} "* ]] || tactic=-
             [[ -n "${allow}" ]] && allowed "${feature}" "${allow}" && level=quiet
             add "${level}" "${feature}" "${user}" "${tactic}" "${text}" ${allow:+"allow=${allow}"} "tell=${user}"
         done <<<"${out}"
         mkdir -p -m 0700 "${seen%/*}"
-        cut -f1 <<<"${out}" | grep . >"${seen}"
+        cut -d$'\x1f' -f1 <<<"${out}" | grep . >"${seen}"
     done < <(accounts)
 }
 

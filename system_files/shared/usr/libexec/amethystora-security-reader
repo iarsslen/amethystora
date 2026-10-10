@@ -1,0 +1,48 @@
+#!/usr/bin/bash
+# What only an account can see, read as that account for the security watcher (amethystora-security-watch),
+# which runs this with setpriv, a clean environment and a timeout, for each account with a session in the last
+# day. It keeps nothing: it prints what is there now, one JSON line each, and the watcher, as root, keeps what
+# it printed last time and says what is new.
+#
+#   amethystora-security-reader MODE
+#
+# Each line is {id, text, level, tactic, allow, within}: id names the thing for as long as it stays the same,
+# level is how loud it is when new (critical, normal or quiet), allow is the entry `ame security allow` takes
+# for it, and within the id of what it belongs to, so that a thing that arrives with something new is not said
+# on its own: an app's permissions come with the app.
+#
+# What it reads, the account wrote, or something running as the account did: it is parsed and quoted, never
+# run, sourced or followed out of the home.
+#
+#   app-permissions   APP_PERMISSIONS: each Flatpak app, and each way out of its sandbox it has
+#                     (amethystora-app-permissions, which the report and the Apps page read too)
+
+set -uo pipefail
+
+# The reaches that leave the sandbox, and those that see what is typed
+LEAVES='["session-bus","system-bus","flatpak","systemd","autostart"]'
+TYPING='["x11","input"]'
+
+app_permissions() {
+    /usr/libexec/amethystora-app-permissions --json 2>/dev/null | jq -c --argjson leaves "${LEAVES}" --argjson typing "${TYPING}" '
+        .[]
+        # Flatpak refuses any other id, and only such an id reaches a notification
+        | select(.app | test("^[A-Za-z_][A-Za-z0-9_-]*(\\.[A-Za-z_][A-Za-z0-9_-]*)+$"))
+        | . as $app
+        | {id: .app, level: "quiet", tactic: "-",
+           text: ("The Flatpak app \(.name) (\(.app)) was installed"
+                  + (if (.reaches | length) > 0 then ". It can: " + (.reaches | map(.text) | join("; ")) else "" end))},
+          (.reaches[] | {id: "\($app.app) \(.id)", within: $app.app, allow: "\($app.app) \(.id)",
+           level: (if (.id | IN($leaves[])) then "normal" else "quiet" end),
+           tactic: (if (.id | IN($leaves[])) then "Privilege Escalation" elif (.id | IN($typing[])) then "Collection" else "-" end),
+           text: ("\($app.name) (\($app.app)) can now \(.text | .[:1] | ascii_downcase)\(.text | .[1:])"
+                  + (if .granted then ", granted on this machine" else ", because the app asks for it" end))})'
+}
+
+case "${1:-}" in
+    app-permissions) app_permissions ;;
+    *)
+        echo "usage: ${0##*/} app-permissions" >&2
+        exit 64
+        ;;
+esac

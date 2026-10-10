@@ -278,6 +278,21 @@ the Settings page and as a command that says what it changes before it does:
 already. Something with root can change any of this, but not quietly: each change is recorded by the
 audit log, until you turn that off too.
 
+## Looking for new threats
+
+New malware has no virus signature yet, so these look for what it does rather than what it is. Each is
+off until you turn it on, in the Settings page or with `ame security settings`, and each can be `record`,
+which keeps what it finds in the history and the Events page without a notification, or `on`. None sends
+anything anywhere unless its own entry says so.
+
+- **Apps that gain permissions** (`app-permissions`): a Flatpak app that gains a way out of its sandbox
+  ([App permissions](#app-permissions)), through an update, an override or another app in its place. An
+  app installed with its permissions is recorded; a permission added to one you have is said. It is read
+  as each account, for the accounts with a session in the last day, and said to that account alone.
+
+What one of them finds about your own account, such as your apps, is said to you. The rest is said to
+the administrators, who see all of it on the **Events** page.
+
 ### Stricter settings
 
 Each of these takes something away that a desktop may need, so each is off until you turn it on, in the

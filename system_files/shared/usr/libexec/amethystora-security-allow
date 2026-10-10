@@ -21,6 +21,9 @@
 #            a path, or the program that wrote there, as the audit log names it, or a glob of either:
 #            '~/.local/share/gnome-shell/extensions/*' quietens new extensions in every home. What it
 #            matches is recorded, not said.
+#   app-permissions
+#            a Flatpak app's id and a way out of its sandbox, as amethystora-app-permissions names it, or a
+#            glob of either: "com.valvesoftware.Steam x11", "org.example.App *"
 #
 # Every entry is one line of at most 1024 characters with no control character, in the shape its feature
 # reads: the watcher compares, and never runs, an entry.
@@ -35,6 +38,7 @@ MACHINE="${ROOT}/etc/amethystora/allow.d"
 declare -A SHAPE=(
     # A signing key's check is named after its certificate: key-amethystora-modules.der
     [report]='^[a-z0-9][A-Za-z0-9._-]{0,95} (check|off)$'
+    [app-permissions]='^[A-Za-z0-9_.*-]{1,255} [a-z*-]{1,32}$'
 )
 # A path, a program or a glob of either, from the root or from every home
 PATHS='^(/|~/)[^[:cntrl:]]{0,1022}$'
