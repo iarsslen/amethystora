@@ -1355,11 +1355,18 @@ function eventRow(event) {
     // The watcher made the sentence plain text already; textContent keeps it that way
     const facts = [time(event.time * 1000), shortDay(event.time * 1000), event.account !== '-' ? event.account : null,
         event.key, event.tactic !== '-' ? event.tactic : null].filter(Boolean);
+    // What the event can lead to, each a button its main process checks against the event itself
+    const actions = [
+        event.allow ? button(t('Allow…'), () => window.security.allowEvent(event.id), {
+            small: true, icon: 'terminal', title: t('Stop saying this. Asks first, in a terminal, and then for your password.'),
+        }) : null,
+    ].filter(Boolean);
     return h('div', { class: 'list-row container-row' },
         status(EVENT_TONES[event.level] || 'info'),
         h('span', { class: 'grow' },
             h('strong', { class: 'event-text' }, event.text),
-            h('small', { dir: 'ltr' }, facts.join(' · '))));
+            h('small', { dir: 'ltr' }, facts.join(' · '))),
+        actions.length ? h('span', { class: 'event-actions' }, actions) : null);
 }
 
 function eventsPage() {

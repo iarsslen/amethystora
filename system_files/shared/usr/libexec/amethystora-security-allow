@@ -2,6 +2,7 @@
 # The allowlists of the security features: what the machine's owner said was fine, so that it stops being
 # said without the feature being turned off. One root helper writes them, after checking each entry.
 #
+#   amethystora-security-allow --features             the features that have one, a line each
 #   amethystora-security-allow list FEATURE
 #   amethystora-security-allow add FEATURE ENTRY      (root)
 #   amethystora-security-allow remove FEATURE ENTRY   (root)
@@ -16,6 +17,13 @@
 #   report   a check of the report (amethystora-security-status) and the state it was accepted in, as
 #            "secure-boot check": shown as accepted, kept out of the summary and never said, until its
 #            state changes. For what cannot be fixed on this machine, such as Secure Boot it does not have.
+#   identity, privilege, persistence, hardening, modules, input-capture, user-programs
+#            a path, or the program that wrote there, as the audit log names it, or a glob of either:
+#            '~/.local/share/gnome-shell/extensions/*' quietens new extensions in every home. What it
+#            matches is recorded, not said.
+#
+# Every entry is one line of at most 1024 characters with no control character, in the shape its feature
+# reads: the watcher compares, and never runs, an entry.
 
 set -uo pipefail
 
@@ -23,23 +31,28 @@ set -uo pipefail
 ROOT="${AMETHYSTORA_ALLOW_ROOT:-}"
 SHIPPED=/usr/share/amethystora/allow.d
 MACHINE="${ROOT}/etc/amethystora/allow.d"
-FEATURES=(report)
+# What an entry of each looks like
+declare -A SHAPE=(
+    # A signing key's check is named after its certificate: key-amethystora-modules.der
+    [report]='^[a-z0-9][A-Za-z0-9._-]{0,95} (check|off)$'
+)
+# A path, a program or a glob of either, from the root or from every home
+PATHS='^(/|~/)[^[:cntrl:]]{0,1022}$'
+for feature in identity privilege persistence hardening modules input-capture user-programs; do
+    SHAPE["${feature}"]="${PATHS}"
+done
 
 usage() {
-    echo "usage: ${0##*/} list FEATURE | add FEATURE ENTRY | remove FEATURE ENTRY (features: ${FEATURES[*]})" >&2
+    echo "usage: ${0##*/} --features | list FEATURE | add FEATURE ENTRY | remove FEATURE ENTRY" >&2
     exit 64
 }
 
-# One line, no control characters, and the shape the feature reads
-valid() {
-    case "$1" in
-        # A signing key's check is named after its certificate: key-amethystora-modules.der
-        report) [[ "$2" =~ ^[a-z0-9][A-Za-z0-9._-]{0,95}\ (check|off)$ ]] ;;
-        *) return 1 ;;
-    esac
-}
+if [[ "${1:-}" == --features ]]; then
+    printf '%s\n' "${!SHAPE[@]}" | sort
+    exit 0
+fi
 
-[[ $# -ge 2 && " ${FEATURES[*]} " == *" $2 "* ]] || usage
+[[ $# -ge 2 && -n "${SHAPE[$2]+set}" ]] || usage
 FEATURE="$2"
 FILE="${MACHINE}/${FEATURE}"
 
@@ -50,10 +63,11 @@ case "$1" in
     add | remove)
         [[ $# -eq 3 ]] || usage
         ENTRY="$3"
-        valid "${FEATURE}" "${ENTRY}" || { echo "Not an entry ${FEATURE} takes: ${ENTRY}" >&2; exit 64; }
+        [[ "${ENTRY}" != *$'\n'* && "${ENTRY}" =~ ${SHAPE[${FEATURE}]} ]] ||
+            { echo "Not an entry ${FEATURE} takes: ${ENTRY}" | /usr/libexec/amethystora-security-text >&2; exit 64; }
         [[ "${EUID}" -eq 0 ]] || { echo "Changing an allowlist needs root." >&2; exit 77; }
         mkdir -p -m 0755 "${MACHINE}"
-        { grep -vxF -- "${ENTRY}" "${FILE}" 2>/dev/null || true; [[ "$1" == add ]] && echo "${ENTRY}"; } >"${FILE}.new"
+        { grep -vxF -- "${ENTRY}" "${FILE}" 2>/dev/null || true; [[ "$1" == add ]] && printf '%s\n' "${ENTRY}"; } >"${FILE}.new"
         mv "${FILE}.new" "${FILE}"
         chmod 0644 "${FILE}"
         restorecon "${FILE}" 2>/dev/null || true

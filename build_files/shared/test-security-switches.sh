@@ -168,6 +168,16 @@ export AMETHYSTORA_ALLOW_ROOT="${T}/allow"
 for entry in "secure boot check" "secure-boot ok" "x;rm check" $'secure-boot check\nfirewall check'; do
     "${ALLOW}" add report "${entry}" 2>/dev/null && fail "the allowlist took \"${entry}\""
 done
+# A path, or a glob of them from every home, for what the audit log's keys find; never a line that is not one
+"${ALLOW}" --features | grep -qx persistence || fail "persistence has no allowlist"
+GLOB='~/.local/share/gnome-shell/extensions/*'
+"${ALLOW}" add persistence "${GLOB}" || fail "the allowlist refused a glob of paths"
+grep -qxF "${GLOB}" <<<"$("${ALLOW}" list persistence)" || fail "the allowlist did not keep a glob of paths"
+for entry in "relative/path" $'/a\nb' $'/a\e[2J' ""; do
+    "${ALLOW}" add persistence "${entry}" 2>/dev/null && fail "the allowlist took $(printf '%q' "${entry}")"
+done
+"${ALLOW}" remove persistence "${GLOB}"
+[[ -z "$("${ALLOW}" list persistence)" ]] || fail "removing a path from the allowlist"
 "${CONFIG}" profile default
 OPEN="$(/usr/libexec/amethystora-security-status --json |
     jq -r 'first(.checks[] | select(.group != "optional" and (.state == "check" or .state == "off")) | "\(.id) \(.state)")')"

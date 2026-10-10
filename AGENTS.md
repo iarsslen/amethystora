@@ -385,8 +385,11 @@ check accepts exactly. A feature switched off is `info` in the report with the c
 never a warning; turned off any other way it still warns. A change made through a switch is noted
 (`amethystora-security-config note`), and the watcher records it without notifying. `ame security
 profile off|default` sets every detection key at once. `ame security allow report` accepts a check that
-cannot be fixed on the machine (`/usr/libexec/amethystora-security-allow`). `test-security-switches.sh`
-checks all of it. A new feature gets its switch with it, off by default.
+cannot be fixed on the machine, and `ame security allow KEY ENTRY` quietens a path or program a feature
+keeps finding (`/usr/libexec/amethystora-security-allow`, which holds each feature's entry shape). Every
+finding has an id, and a fact `allow=` when it can be allowed: **Allow…** on the Events page sends the id
+only, and `main.js` passes the entry the event holds. `test-security-switches.sh` checks all of it. A new
+feature gets its switch with it, off by default.
 
 The same helper holds the stricter settings, each off until turned on and kept in
 `/etc/amethystora/hardening-on`: `kernel strict` (io_uring, ptrace, address randomisation, IPsec), extra

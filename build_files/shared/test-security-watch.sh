@@ -69,7 +69,8 @@ timeout 120 "${WATCH}" >/dev/null || fail "a launcher linked to a file that neve
 HISTORY="${R}/var/log/amethystora-security-events.jsonl"
 [[ "$(wc -l <"${HISTORY}")" -eq 1 ]] || fail "the history should hold one finding: $(cat "${HISTORY}")"
 jq -e '.level == "normal" and .key == "user-paths" and .account == "alice" and .tactic == "Persistence"
-    and (.time | type == "number") and (.text | test("evil") and (test("[\u0001-\u001f\u007f]") | not))' \
+    and (.id | test("^[0-9]+-[0-9]+$")) and (.time | type == "number")
+    and (.text | test("evil") and (test("[\u0001-\u001f\u007f]") | not))' \
     "${HISTORY}" >/dev/null || fail "the finding's facts or text: $(cat "${HISTORY}")"
 grep -q "${ESC}" "${R}/var/log/amethystora-security-events.new" && fail "the unread list keeps an escape"
 [[ "$(wc -l <"${R}/var/log/amethystora-security-events.new")" -eq 1 ]] || fail "a newline in a name forged a line"

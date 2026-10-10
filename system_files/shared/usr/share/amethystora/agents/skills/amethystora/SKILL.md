@@ -202,7 +202,9 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
   the user asks for a faster machine or for something security blocks, name the one switch that does it
   and what it gives up, and let them run its command: never turn one off for them unasked, and always
   through its command, which the report then shows as turned off rather than as a fault. A warning that
-  cannot be fixed on this machine can be accepted with `ame security allow report`.
+  cannot be fixed on this machine can be accepted with `ame security allow report`, and a path or program
+  a feature keeps saying with `ame security allow FEATURE ENTRY` (`ame security allow FEATURE` lists
+  them): leave both to the user, since what is allowed is never said again, malware included.
 - `ame security events` shows what the security watcher (`amethystora-security-watch`, every 15
   minutes) noticed in the audit log and journal. Changes you make under `/etc` show up there, and a
   file in `/etc` that differs from the image's copy in `/usr/etc` shows as **Image settings**. So

@@ -250,6 +250,11 @@ once and stops being recorded from the next restart.
   accepted with **Accept** on it in the Security app, or `ame security allow report`. It stays in the
   report as information, out of the count, and is never said, until it turns worse.
   `ame security allow report <check> remove` shows it again.
+- **Something you know is fine.** An event on the **Events** page that names a file or a program has
+  **Allow…**: what matches it is recorded from then on, and no longer said. In a terminal,
+  `ame security allow persistence '~/.local/share/gnome-shell/extensions/*'` does the same for a path or a
+  glob of paths, `~/` standing for every home folder, and `ame security allow persistence` lists what is
+  allowed. Allow only what you know: whatever matches, malware included, goes unannounced from then on.
 
 What the image enforces from the start has switches of its own, each on until you turn it off, each in
 the Settings page and as a command that says what it changes before it does:

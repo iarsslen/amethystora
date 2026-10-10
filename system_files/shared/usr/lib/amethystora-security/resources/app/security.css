@@ -1519,3 +1519,13 @@ body.dropping .drop {
     white-space: normal;
     overflow-wrap: anywhere;
 }
+
+/* ...and what it can lead to, beside it */
+.event-actions {
+    display: inline-flex;
+    flex: none;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+}

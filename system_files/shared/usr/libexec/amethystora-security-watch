@@ -112,19 +112,57 @@ while IFS='=' read -r key value; do
     SETTING["${key}"]="${value}"
 done < <(/usr/libexec/amethystora-security-config --all)
 
-# What this run found, one JSON object each: add LEVEL KEY ACCOUNT TACTIC TEXT. critical and normal are said
-# out loud; quiet only goes to the history, for what is worth a record and not an interruption. While the
-# part that found it is set to record, everything it finds is quiet. The text is made safe to show here, once,
-# for the history, the unread list, events.json and the notification alike.
+# What this run found, one JSON object each: add LEVEL KEY ACCOUNT TACTIC TEXT [FACT=VALUE]... critical and
+# normal are said out loud; quiet only goes to the history, for what is worth a record and not an
+# interruption. While the part that found it is set to record, everything it finds is quiet. The text is made
+# safe to show here, once, for the history, the unread list, events.json and the notification alike.
+#
+# The facts a finding may carry besides, each for a button on the Events page or for who is told:
+#   allow=ENTRY  what `ame security allow KEY ENTRY` would add for it to stop being said
+#   at=POINT     the snapshot to go back to, which Backups opens
+#   tell=NAME    said to that account's sessions alone, since it is about that account's own things
+# Each finding has an id, which is all the page ever sends back.
 FINDINGS=()
 MODE=on
 add() {
-    local level="$1" key="$2" account="$3" tactic="$4" text
+    local level="$1" key="$2" account="$3" tactic="$4" text fact facts=()
     [[ "${MODE}" == record ]] && level=quiet
     [[ "${account}" =~ ^[A-Za-z0-9_][A-Za-z0-9_.@-]*$ && "${account}" != unset ]] || account=-
     text="$("${TEXT}" "$5")"
-    FINDINGS+=("$(jq -nc --argjson time "${NOW}" --arg level "${level}" --arg key "${key}" --arg account "${account}" \
-        --arg tactic "${tactic}" --arg text "${text}" '{$time, $level, $key, $account, $tactic, $text}')")
+    shift 5
+    for fact in "$@"; do
+        # A fact that would not be shown as it is, is not kept: an entry has to be one the allowlist takes
+        [[ "${fact}" =~ ^(allow|at|tell)=([^[:cntrl:]]{1,1024})$ ]] || continue
+        [[ "${BASH_REMATCH[1]}" != allow ]] || allowlist_feature "${key}" || continue
+        facts+=(--arg "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}")
+    done
+    FINDINGS+=("$(jq -nc --arg id "${NOW}-${#FINDINGS[@]}" --argjson time "${NOW}" --arg level "${level}" \
+        --arg key "${key}" --arg account "${account}" --arg tactic "${tactic}" --arg text "${text}" "${facts[@]}" \
+        '{$id, $time, $level, $key, $account, $tactic, $text} + ($ARGS.named | del(.id, .time, .level, .key, .account, .tactic, .text))')")
+}
+
+# --- What the machine's owner said is fine ---------------------------------------------------------------
+
+# The allowlists (amethystora-security-allow): the image's entries in /usr/share, the machine's in /etc. An
+# entry is a glob, against a path or a program as the feature reads it, or the exact words the feature gave;
+# ~/ at its start stands for every home.
+ALLOW_SHIPPED=/usr/share/amethystora/allow.d
+ALLOW_MACHINE="${ROOT}/etc/amethystora/allow.d"
+declare -A ALLOWLIST=()
+ALLOW_FEATURES=" $(/usr/libexec/amethystora-security-allow --features | tr '\n' ' ') "
+allowlist_feature() { [[ "${ALLOW_FEATURES}" == *" $1 "* ]]; }
+allowed() {
+    local feature="$1" entry="$2" pattern
+    if [[ -z "${ALLOWLIST[${feature}]+set}" ]]; then
+        ALLOWLIST["${feature}"]="$(cat "${ALLOW_SHIPPED}/${feature}" "${ALLOW_MACHINE}/${feature}" 2>/dev/null |
+            grep -vE '^[[:space:]]*(#|$)' | sed 's#^~/#/var/home/*/#')"
+    fi
+    while IFS= read -r pattern; do
+        [[ -n "${pattern}" ]] || continue
+        # shellcheck disable=SC2053 # the entry is a glob
+        [[ "${entry}" == ${pattern} ]] && return 0
+    done <<<"${ALLOWLIST[${feature}]}"
+    return 1
 }
 
 # Runs a part of the watcher unless its switch is off, with what it finds quiet while the switch is record
@@ -208,7 +246,7 @@ audit_events() {
 }
 
 read_audit() {
-    local key count mark event exe level text
+    local key count mark event exe level text object
     for key in "${AUDIT_KEYS[@]}"; do
         MODE="${SETTING[$(tr 'a-z-' 'A-Z_' <<<"${key}")]:-on}"
         if [[ "${MODE}" == off ]]; then
@@ -236,11 +274,19 @@ read_audit() {
                 *) level=normal ;;
             esac
             [[ "${mark}" == noted ]] && level=quiet
+            # What it was done to: "..., successfully opened-file /etc/sudoers using /usr/bin/vim". A path the
+            # owner allowed, or a program, is recorded and not said.
+            object=""
+            [[ "${event}" =~ successfully\ [a-z-]+\ (/.+)\ using\  ]] && object="${BASH_REMATCH[1]}"
+            if { [[ -n "${object}" ]] && allowed "${key}" "${object}"; } || { [[ -n "${exe}" ]] && allowed "${key}" "${exe}"; }; then
+                level=quiet
+            fi
             text="${AUDIT_WHAT[${key}]}: ${event}"
             [[ "${count}" -gt 1 ]] && text+=" (${count} times)"
             # The first run has no "since": it only makes the checkpoints
             # The account is the sentence's first word: "alice, acting as root, ..."
-            [[ -n "${LAST_RUN}" ]] && add "${level}" "${key}" "${event%%,*}" "${AUDIT_TACTIC[${key}]}" "${text}"
+            [[ -n "${LAST_RUN}" ]] && add "${level}" "${key}" "${event%%,*}" "${AUDIT_TACTIC[${key}]}" "${text}" \
+                ${object:+"allow=${object}"}
         done < <(audit_events "${key}")
     done
     MODE=on
@@ -303,7 +349,6 @@ DRIFT_PATHS=(amethystora audit authselect brave/policies chromium/policies clamd
 # ...less what the image's own recipes and services write there as a matter of course
 EXPECTED_DRIFT=" amethystora/security.conf amethystora/ips-allowed amethystora/browser-extensions \
 amethystora/hardening-off amethystora/hardening-on amethystora/firewall-home amethystora/vscodium-extensions \
-amethystora/allow.d/report \
 audit/audit.rules audit/audit.rules.prev audit/rules.d/60-amethystora.rules audit/rules.d/61-amethystora-home.rules \
 brave/policies/managed/10-amethystora.json chromium/policies/managed/10-amethystora.json \
 firefox/policies/policies.json modprobe.d/tuned.conf opt/chrome/policies/managed/10-amethystora.json \
@@ -367,6 +412,8 @@ drift() {
         rel="${etc#/etc/}"
         usr="/usr/etc/${rel}"
         [[ "${EXPECTED_DRIFT}" == *" ${rel} "* || -n "${shadows[${etc}]+set}" ]] && continue
+        # The allowlists the owner adds to through amethystora-security-allow, which notes each change
+        [[ "${rel}" == amethystora/allow.d/* ]] && continue
         [[ "${domain}" == true && ( "${rel}" =~ ^authselect/[^/]+$ || "${rel}" == security/pam_winbind.conf ) ]] &&
             continue
         # One-time codes for SSH exactly as amethystora-ssh-codes sets them, and nothing in between
@@ -775,6 +822,77 @@ disk_unlock_status() {
     jq -n --argjson tpm "${tpm}" --argjson pin "${pin}" '{$tpm, $pin}'
 }
 
+# --- What only an account can see ------------------------------------------------------------------------
+
+# Some things only an account can read: its own Flatpaks' permissions, its agents' configurations, its Python
+# and git setup. Each is read by /usr/libexec/amethystora-security-reader, as that account and never as root,
+# which would follow whatever link the account put in its home: with a clean environment, a fixed PATH, and
+# for no longer than a minute. The reader prints what it finds, one JSON line each ({id, level, tactic, text,
+# allow}). What it printed last time is kept here, in root's state, where the account cannot change it to
+# hide something new, and an id that was not there then is news, said to that account alone. Only accounts
+# with a session in the last day are read, so an account nobody uses costs nothing.
+READER=/usr/libexec/amethystora-security-reader
+[[ -n "${ROOT}" && -n "${AMETHYSTORA_WATCH_READER:-}" ]] && READER="${AMETHYSTORA_WATCH_READER}"
+# Each switch read this way, and the reader's mode for it
+declare -A READERS=()
+ACTIVE_FOR=86400
+ACCOUNT_TACTICS=" Persistence Execution Credential-Access Privilege-Escalation Defense-Evasion Command-and-Control "
+
+# The accounts with a session now are marked, and those marked in the last day are printed, by UID. With a
+# stand-in root, AMETHYSTORA_WATCH_ACCOUNTS names the UIDs logged in.
+active_accounts() {
+    local uid dir mark
+    {
+        if [[ -z "${ROOT}" ]]; then
+            loginctl list-users --no-legend --no-pager 2>/dev/null | awk '{ print $1 }'
+        else
+            printf '%s\n' ${AMETHYSTORA_WATCH_ACCOUNTS:-}
+        fi
+    } | while read -r uid; do
+        [[ "${uid}" =~ ^[0-9]+$ && "${uid}" -ge 1000 && "${uid}" -ne 65534 ]] || continue
+        mkdir -p -m 0700 "${STATE}/accounts/${uid}"
+        echo "${NOW}" >"${STATE}/accounts/${uid}/active"
+    done
+    for dir in "${STATE}"/accounts/*/; do
+        [[ -d "${dir}" ]] || continue
+        uid="$(basename "${dir}")"
+        mark="$(cat "${dir}active" 2>/dev/null)"
+        [[ "${mark}" =~ ^[0-9]+$ && $((NOW - mark)) -lt ${ACTIVE_FOR} ]] && echo "${uid}"
+    done
+}
+
+read_accounts() {
+    local key="$1" mode="${READERS[$1]}" feature user uid gid home groups out seen first id level tactic text allow
+    feature="$(tr "A-Z_" "a-z-" <<<"${key}")"
+    while IFS=: read -r user _ uid gid _ home _; do
+        [[ " ${ACTIVE} " == *" ${uid} "* ]] || continue
+        home="$(realpath -q "${home}" || true)"
+        [[ -n "${home}" && -d "${home}" ]] || continue
+        [[ "${gid}" =~ ^[0-9]+$ ]] || gid="$(stat -c %g "${home}")"
+        # A domain's account has its groups once SSSD answers; one nothing can look up gets none
+        groups=--init-groups
+        id -nu "${uid}" >/dev/null 2>&1 || groups=--clear-groups
+        out="$(timeout 60 setpriv --reuid="${uid}" --regid="${gid}" "${groups}" -- /usr/bin/env -i HOME="${home}" \
+            USER="${user}" LOGNAME="${user}" PATH=/usr/bin:/usr/sbin LANG=C.UTF-8 "${READER}" "${mode}" 2>/dev/null)" ||
+            continue
+        out="$(jq -rc 'select(type == "object" and (.id | type == "string") and (.text | type == "string"))
+            | [.id, (.level // "normal"), (.tactic // "-"), .text, (.allow // "")] | @tsv' <<<"${out}" 2>/dev/null)"
+        seen="${STATE}/accounts/${uid}/${mode}.seen"
+        first=false
+        [[ -e "${seen}" ]] || first=true
+        while IFS=$'\t' read -r id level tactic text allow; do
+            [[ -n "${id}" ]] && ! grep -qxF -- "${id}" "${seen}" 2>/dev/null || continue
+            [[ "${first}" == false ]] || continue
+            [[ "${level}" =~ ^(critical|normal|quiet)$ ]] || level=normal
+            [[ "${ACCOUNT_TACTICS}" == *" ${tactic// /-} "* ]] || tactic=-
+            [[ -n "${allow}" ]] && allowed "${feature}" "${allow}" && level=quiet
+            add "${level}" "${feature}" "${user}" "${tactic}" "${text}" ${allow:+"allow=${allow}"} "tell=${user}"
+        done <<<"${out}"
+        mkdir -p -m 0700 "${seen%/*}"
+        cut -f1 <<<"${out}" | grep . >"${seen}"
+    done < <(accounts)
+}
+
 # --- A run --------------------------------------------------------------------------------------------
 
 # What each part took, in milliseconds, under the key of its switch: status.json carries them, and the
@@ -819,6 +937,16 @@ if [[ "${SETTING[LISTENERS]:-on}" != off ]]; then
     timed LISTENERS switched LISTENERS read_listeners
 fi
 timed USER_PATHS switched USER_PATHS read_user_paths
+# What each account's own reader finds, for the accounts with a session in the last day. A reader that is off
+# forgets what it saw, so that turned on again it starts from then.
+ACTIVE=" $(active_accounts | tr '\n' ' ') "
+for key in "${!READERS[@]}"; do
+    if [[ "${SETTING[${key}]:-off}" == off ]]; then
+        rm -f "${STATE}"/accounts/*/"${READERS[${key}]}.seen"
+        continue
+    fi
+    timed "${key}" switched "${key}" read_accounts "${key}"
+done
 
 # What the report reads, world-readable: it names files and ports, not what is in them, of network
 # protection only how much it blocked, and of the audit log how many events it dropped
@@ -854,10 +982,11 @@ echo "${NOW}" >"${STATE}/last-run"
 STAMP="$(date -d "@${NOW}" '+%F %T')"
 TOLD=()
 URGENCY=normal
+# What is about one account's own things alone, said to that account: its findings a line each
+declare -A TOLD_TO=() URGENCY_TO=()
 mkdir -p -m 0755 "${HISTORY%/*}"
 for finding in "${FINDINGS[@]}"; do
-    level="$(jq -r .level <<<"${finding}")"
-    text="$(jq -r .text <<<"${finding}")"
+    { read -r level; read -r tell; IFS= read -r text; } < <(jq -r '.level, (.tell // ""), .text' <<<"${finding}")
     printf '%s\n' "${finding}" >>"${HISTORY}"
     [[ "${level}" == quiet ]] && continue
     echo "${STAMP}  ${text}" >>"${UNREAD}"
@@ -866,6 +995,11 @@ for finding in "${FINDINGS[@]}"; do
         none) continue ;;
         critical) [[ "${level}" == critical ]] || continue ;;
     esac
+    if [[ -n "${tell}" ]]; then
+        TOLD_TO["${tell}"]+="${text}"$'\n'
+        [[ "${level}" == critical ]] && URGENCY_TO["${tell}"]=critical
+        continue
+    fi
     TOLD+=("${text}")
     [[ "${level}" == critical ]] && URGENCY=critical
 done
@@ -879,13 +1013,28 @@ fi
 rm -f "${EVENTS}.new"
 printf '%s\n' "${FINDINGS[@]}"
 
+# One notification for a list of findings: the finding itself when there is one, the count and the first two
+# when there are more. say URGENCY OPTION... -- FINDING...
+say() {
+    local urgency="$1" options=()
+    shift
+    while [[ $# -gt 0 && "$1" != -- ]]; do
+        options+=("$1")
+        shift
+    done
+    shift
+    if [[ $# -eq 1 ]]; then
+        "${NOTIFY}" --security "${options[@]}" "$1" "See it with: ame security events" "${urgency}" >/dev/null
+    else
+        "${NOTIFY}" --security "${options[@]}" "$# security changes on this machine" \
+            "$(printf '%s\n' "${@:1:2}")"$'\n'"See them all with: ame security events" "${urgency}" >/dev/null
+    fi
+}
+# Findings about one account's own things go to its sessions alone (amethystora-security-reader)
+for user in "${!TOLD_TO[@]}"; do
+    mapfile -t lines <<<"${TOLD_TO[${user}]%$'\n'}"
+    say "${URGENCY_TO[${user}]:-normal}" --user "${user}" -- "${lines[@]}"
+done
 [[ ${#TOLD[@]} -gt 0 ]] || exit 0
-if [[ ${#TOLD[@]} -eq 1 ]]; then
-    SUMMARY="${TOLD[0]}"
-    BODY="See it with: ame security events"
-else
-    SUMMARY="${#TOLD[@]} security changes on this machine"
-    BODY="$(printf '%s\n' "${TOLD[@]:0:2}")"$'\n'"See them all with: ame security events"
-fi
-# Findings name other accounts' files and launchers, which the events keep for wheel alone
-"${NOTIFY}" --security --admins "${SUMMARY}" "${BODY}" "${URGENCY}" >/dev/null
+# The rest name other accounts' files and launchers, which the events keep for wheel alone
+say "${URGENCY}" --admins -- "${TOLD[@]}"

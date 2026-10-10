@@ -484,15 +484,37 @@ profile NAME="":
     echo "...and what you turned on yourself, such as ame security usb, dns or ransomware. ame security status"
     echo "shows each of them."
 
-# Accept a check of the report that cannot be fixed on this machine, so that it stops being a warning
+# Accept a check of the report that cannot be fixed on this machine, or stop a security feature saying what you know is fine
 [positional-arguments]
 allow FEATURE="report" ENTRY="" ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     helper=/usr/libexec/amethystora-security-allow
-    if [[ "${1:-}" != report ]]; then
-        echo "Only the report's checks can be accepted: ame security allow report"
+    feature="${1:-report}"
+    if ! "${helper}" --features | grep -qxF -- "${feature}"; then
+        echo "These have an allowlist: $("${helper}" --features | tr '\n' ' ')"
         exit 64
+    fi
+    if [[ "${feature}" != report ]]; then
+        entry="${2:-}"
+        if [[ -z "${entry}" ]]; then
+            echo "Allowed for ${feature} (ame security allow ${feature} ENTRY remove takes one back):"
+            "${helper}" list "${feature}" | /usr/libexec/amethystora-security-text --lines | sed 's/^/  /'
+            exit 0
+        fi
+        shown="$(/usr/libexec/amethystora-security-text "${entry}")"
+        if [[ "${3:-}" == remove ]]; then
+            sudo "${helper}" remove "${feature}" "${entry}"
+            echo "Said again: ${shown}"
+            exit 0
+        fi
+        echo "What ${feature} finds matching this is recorded, and no longer said:"
+        echo "  ${shown}"
+        echo "Allow only what you know: whatever matches, malware included, goes unannounced from now on."
+        gum confirm "Allow it?" || exit 0
+        sudo "${helper}" add "${feature}" "${entry}"
+        echo "Allowed. To take it back: ame security allow ${feature} ENTRY remove"
+        exit 0
     fi
     entry="${2:-}"
     accepted="$("${helper}" list report)"

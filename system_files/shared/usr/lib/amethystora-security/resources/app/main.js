@@ -76,6 +76,7 @@ const NETWORK_EVENTS = '/var/lib/amethystora/security/network.json';
 // What the security watcher found, newest first, which the members of wheel can read: the Events page
 const WATCH_EVENTS = '/var/lib/amethystora/security/events.json';
 const WATCH_STATUS = '/var/lib/amethystora/security/status.json';
+const ALLOW = '/usr/libexec/amethystora-security-allow';
 // The containers of other distributions, and whether the AUR is on for this account (ame apps aur)
 const PKG = '/usr/bin/amethystora-pkg';
 const AUR_FLAG = path.join(CONFIG_HOME, 'amethystora', 'aur');
@@ -599,6 +600,26 @@ function watchEvents() {
     return { readable: !events?.denied, events: Array.isArray(events) ? events : [] };
 }
 
+// One event of the watcher's, by the id the page sent: never anything else the page says
+function findEvent(id) {
+    const events = readJson(WATCH_EVENTS);
+    return Array.isArray(events) ? events.find((event) => event.id === id) || null : null;
+}
+
+// What the event names stops being said: `ame security allow KEY ENTRY` in a terminal, which shows the entry
+// and asks first, then for the password. The entry is the one the watcher wrote into the event, and its key
+// one the allowlist helper keeps a list for.
+function allowEvent(id) {
+    const event = findEvent(id);
+    if (!event?.allow || typeof event.allow !== 'string' || !/^[a-z][a-z-]*$/.test(event.key)) {
+        return;
+    }
+    const features = spawnSync(ALLOW, ['--features'], { encoding: 'utf8', timeout: 10000 }).stdout?.split('\n') || [];
+    if (features.includes(event.key)) {
+        launch(IN_TERMINAL, [AME, 'security', 'allow', event.key, event.allow]);
+    }
+}
+
 // Leaves one rule out on this machine, which asks for an administrator's password. Only a rule that
 // actually went off here, as network.json says, never one the page names out of nowhere.
 async function allowRule(rule) {
@@ -808,6 +829,7 @@ if (!app.requestSingleInstanceLock()) {
     // Seeing them in a terminal marks them read, after the administrator's password
     ipcMain.handle('events-terminal', () => launch(IN_TERMINAL, [AME, 'security', 'events']));
     ipcMain.handle('network-allow', (_event, rule) => allowRule(String(rule)));
+    ipcMain.handle('event-allow', (_event, id) => allowEvent(String(id)));
 
     ipcMain.handle('inventory', () => inventory());
     ipcMain.handle('permissions', () => readPermissions());
