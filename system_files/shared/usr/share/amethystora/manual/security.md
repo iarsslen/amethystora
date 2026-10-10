@@ -289,6 +289,13 @@ anything anywhere unless its own entry says so.
   ([App permissions](#app-permissions)), through an update, an override or another app in its place. An
   app installed with its permissions is recorded; a permission added to one you have is said. It is read
   as each account, for the accounts with a session in the last day, and said to that account alone.
+- **Startup hooks in developer tools** (`dev-hooks`): code put where a developer tool runs it by itself.
+  A Python `.pth` file whose lines start with `import` runs them at every start of Python, which is how a
+  poisoned package stays after it is removed; git's `core.hooksPath`, `core.fsmonitor` and
+  `core.sshCommand` run in every repository; SSH's `ProxyCommand`, `LocalCommand` and `Match exec` run
+  on connecting; npm's `script-shell` and `node-options` change what npm and Node run. A new VSCodium
+  extension is said too, and its updates, which it installs by itself, are recorded. Read as each
+  account, like app permissions. Virtual environments are not looked into.
 
 What one of them finds about your own account, such as your apps, is said to you. The rest is said to
 the administrators, who see all of it on the **Events** page.

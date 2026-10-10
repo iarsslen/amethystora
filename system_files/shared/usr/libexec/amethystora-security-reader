@@ -16,6 +16,8 @@
 #
 #   app-permissions   APP_PERMISSIONS: each Flatpak app, and each way out of its sandbox it has
 #                     (amethystora-app-permissions, which the report and the Apps page read too)
+#   dev-hooks         DEV_HOOKS: what a developer tool runs by itself, from Python's .pth files, git's
+#                     and SSH's settings, npm's, and the editor's extensions
 
 set -uo pipefail
 
@@ -39,10 +41,73 @@ app_permissions() {
                   + (if .granted then ", granted on this machine" else ", because the app asks for it" end))})'
 }
 
+# One thing found: item ID LEVEL TACTIC TEXT [ALLOW [WITHIN]]
+item() {
+    jq -nc --arg id "$1" --arg level "$2" --arg tactic "$3" --arg text "$4" --arg allow "${5:-}" --arg within "${6:-}" \
+        '{$id, $level, $tactic, $text} + (if $allow != "" then {$allow} else {} end) + (if $within != "" then {$within} else {} end)'
+}
+# A file of the account's, read no further than its first 64 KiB, and for no longer than five seconds
+head_of() { timeout 5 head -c 65536 -- "$1" 2>/dev/null; }
+# A path as the account knows it
+tilde() { [[ "$1" == "${HOME}"/* ]] && echo "~${1#"${HOME}"}" || echo "$1"; }
+short() { sha256sum <<<"$1" | cut -c1-16; }
+
+# Where a developer tool runs code by itself: Python's .pth files, which run each line that starts with
+# "import" at every start of Python (how LiteLLM's compromised release stayed); git's settings that run a
+# command in every repository; SSH's that run one on connecting; npm's shell for scripts and Node's options;
+# and VSCodium's extensions, which update themselves. Virtual environments are everywhere and not walked.
+dev_hooks() {
+    local file line key value dir name version publisher
+    shopt -s nullglob
+    for file in "${HOME}"/.local/lib/python3*/site-packages/*.pth /home/linuxbrew/.linuxbrew/lib/python3*/site-packages/*.pth; do
+        while IFS= read -r line; do
+            [[ "${line}" =~ ^import[[:space:]] ]] || continue
+            item "pth:${file}:$(short "${line}")" normal Persistence \
+                "$(tilde "${file}") runs code at every start of Python: ${line:0:300}" "${file}"
+        done < <(head_of "${file}")
+    done
+    # git's own settings, includes followed as git follows them; reading them runs nothing
+    for file in "${HOME}/.gitconfig" "${HOME}/.config/git/config"; do
+        [[ -f "${file}" ]] || continue
+        while IFS= read -r line; do
+            key="${line%% *}"
+            value="${line#* }"
+            item "git:${file}:${key}:$(short "${value}")" normal Persistence \
+                "$(tilde "${file}") sets ${key} to ${value:0:300}: git runs it in every repository" "${file}"
+        done < <(timeout 5 git config --file "${file}" --includes --get-regexp '^core\.(hookspath|fsmonitor|sshcommand)$' 2>/dev/null)
+    done
+    file="${HOME}/.ssh/config"
+    if [[ -f "${file}" ]]; then
+        while IFS= read -r line; do
+            item "ssh:$(short "${line}")" normal Persistence \
+                "$(tilde "${file}") runs a command when SSH connects: ${line:0:300}" "${file}"
+        done < <(head_of "${file}" | grep -iE '^[[:space:]]*(ProxyCommand|LocalCommand|KnownHostsCommand|Match[[:space:]].*exec)[[:space:]=]' | sed 's/^[[:space:]]*//')
+    fi
+    file="${HOME}/.npmrc"
+    if [[ -f "${file}" ]]; then
+        while IFS= read -r line; do
+            item "npm:$(short "${line}")" normal Persistence \
+                "$(tilde "${file}") changes what npm and Node run: ${line:0:300}" "${file}"
+        done < <(head_of "${file}" | grep -iE '^[[:space:]]*(script-shell|node-options)[[:space:]]*=' | sed 's/^[[:space:]]*//')
+    fi
+    # An extension is said when it arrives, and its new versions only recorded: they arrive by themselves
+    for dir in "${HOME}"/.vscode-oss/extensions/*/ "${HOME}"/.vscode/extensions/*/; do
+        [[ -f "${dir}package.json" ]] || continue
+        IFS=$'\t' read -r publisher name version < <(head_of "${dir}package.json" |
+            jq -r '[.publisher, .name, .version] | map(tostring | gsub("[^A-Za-z0-9._+-]"; "?")) | @tsv' 2>/dev/null)
+        [[ -n "${name}" ]] || continue
+        item "extension:${publisher}.${name}" normal Persistence \
+            "An editor extension was added: ${publisher}.${name} ${version}, in $(tilde "${dir%/}")" "${dir%/}"
+        item "extension:${publisher}.${name}:${version}" quiet Persistence \
+            "The editor extension ${publisher}.${name} updated itself to ${version}" "${dir%/}" "extension:${publisher}.${name}"
+    done
+}
+
 case "${1:-}" in
     app-permissions) app_permissions ;;
+    dev-hooks) dev_hooks ;;
     *)
-        echo "usage: ${0##*/} app-permissions" >&2
+        echo "usage: ${0##*/} app-permissions | dev-hooks" >&2
         exit 64
         ;;
 esac

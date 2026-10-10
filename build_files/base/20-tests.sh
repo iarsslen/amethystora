@@ -1758,6 +1758,7 @@ grep -q 'timeout 60 setpriv --reuid=' /usr/libexec/amethystora-security-watch
 for mode in $(grep -E '^declare -A READERS=' /usr/libexec/amethystora-security-watch | grep -oE '\]=[a-z-]+' | cut -c3-); do
     grep -qE "^    ${mode}\) " /usr/libexec/amethystora-security-reader
 done
+bash /ctx/build_files/shared/test-security-reader.sh
 /usr/libexec/amethystora-security-status --json |
     jq -e '.settings.on_detection == "report" and .settings.realtime == "off" and .settings.network == "off"' >/dev/null
 

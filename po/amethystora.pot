@@ -2427,6 +2427,10 @@ msgid "Apps that gain permissions"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Startup hooks in developer tools"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
 msgstr ""
 
@@ -2516,6 +2520,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "A Flatpak app that gains a way out of its sandbox, through an update, an override or another app in its place. Read as each account with a session in the last day, and said to that account."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Code put where a developer tool runs it by itself: Python's .pth files, git's hooks and fsmonitor, SSH's ProxyCommand, npm's script shell, and new editor extensions. Read as each account with a session in the last day, and said to that account."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

@@ -834,7 +834,7 @@ disk_unlock_status() {
 READER=/usr/libexec/amethystora-security-reader
 [[ -n "${ROOT}" && -n "${AMETHYSTORA_WATCH_READER:-}" ]] && READER="${AMETHYSTORA_WATCH_READER}"
 # Each switch read this way, and the reader's mode for it
-declare -A READERS=([APP_PERMISSIONS]=app-permissions)
+declare -A READERS=([APP_PERMISSIONS]=app-permissions [DEV_HOOKS]=dev-hooks)
 ACTIVE_FOR=86400
 ACCOUNT_TACTICS=" Persistence Execution Collection Credential-Access Privilege-Escalation Defense-Evasion Command-and-Control "
 
