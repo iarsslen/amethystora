@@ -126,6 +126,7 @@ done < <(/usr/libexec/amethystora-security-config --all)
 # Each finding has an id, which is all the page ever sends back.
 FINDINGS=()
 MODE=on
+ALLOWED_HIT=0
 add() {
     local level="$1" key="$2" account="$3" tactic="$4" text fact facts=()
     [[ "${MODE}" == record ]] && level=quiet
@@ -138,6 +139,9 @@ add() {
         [[ "${BASH_REMATCH[1]}" != allow ]] || allowlist_feature "${key}" || continue
         facts+=(--arg "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}")
     done
+    # What the owner allowed is kept, marked, and builds no chain of steps (CHAINS)
+    [[ "${ALLOWED_HIT}" == 1 ]] && facts+=(--arg allowed yes)
+    ALLOWED_HIT=0
     FINDINGS+=("$(jq -nc --arg id "${NOW}-${#FINDINGS[@]}" --argjson time "${NOW}" --arg level "${level}" \
         --arg key "${key}" --arg account "${account}" --arg tactic "${tactic}" --arg text "${text}" "${facts[@]}" \
         '{$id, $time, $level, $key, $account, $tactic, $text} + ($ARGS.named | del(.id, .time, .level, .key, .account, .tactic, .text))')")
@@ -172,7 +176,7 @@ switched() {
     MODE="${SETTING[$1]:-on}"
     shift
     [[ "${MODE}" == off ]] || "$@"
-    MODE=on
+    MODE=on ALLOWED_HIT=0
 }
 
 # When a switch's own command changed something (amethystora-security-config note), what the audit log
@@ -291,7 +295,7 @@ read_audit() {
             object=""
             [[ "${event}" =~ successfully\ [a-z-]+\ (/.+)\ using\  ]] && object="${BASH_REMATCH[1]}"
             if { [[ -n "${object}" ]] && allowed "${key}" "${object}"; } || { [[ -n "${exe}" ]] && allowed "${key}" "${exe}"; }; then
-                level=quiet
+                level=quiet ALLOWED_HIT=1
             fi
             text="${AUDIT_WHAT[${key}]}: ${event}"
             [[ "${count}" -gt 1 ]] && text+=" (${count} times)"
@@ -376,7 +380,7 @@ read_exec() {
         echo "${sum}" >>"${seen}"
         user="$(id -nu "${auid}" 2>/dev/null || echo "${auid}")"
         level=normal
-        allowed exec-watch "${exe}" && level=quiet
+        allowed exec-watch "${exe}" && { level=quiet; ALLOWED_HIT=1; }
         [[ -n "${LAST_RUN}" ]] &&
             add "${level}" exec-watch "${user}" Execution "A program ran for the first time from where downloads and temporary files land: ${exe}, as ${user}" \
                 "allow=${exe}"
@@ -414,7 +418,7 @@ read_agent_clis() {
         parent="${line[${key}]}"
         level=normal how="with no terminal"
         [[ "${tty}" != "(none)" ]] && { level=quiet; how="at a terminal"; }
-        allowed agent-clis "${subject}" && level=quiet
+        allowed agent-clis "${subject}" && { level=quiet; ALLOWED_HIT=1; }
         [[ -n "${LAST_RUN}" ]] &&
             add "${level}" agent-clis "${user}" Execution "An AI agent ran with its own checks turned off: ${AGENT} ${flag}, started by ${parent:-a process that is gone} ${how}$([[ "${count[${key}]}" -gt 1 ]] && echo " (${count[${key}]} times)")" \
                 "allow=${subject}"
@@ -484,7 +488,7 @@ read_decoy() {
         said["${exe}"]=1
         user="$(id -nu "${auid}" 2>/dev/null || echo "${auid}")"
         level=critical
-        allowed decoy "${exe}" && level=quiet
+        allowed decoy "${exe}" && { level=quiet; ALLOWED_HIT=1; }
         [[ -n "${LAST_RUN}" ]] &&
             add "${level}" decoy "${user}" "Credential Access" "${exe} read the decoy key ${path} (process ${pid}, as ${user}). Nothing legitimate reads it: this is what a password stealer looks like" \
                 "allow=${exe}"
@@ -662,7 +666,7 @@ read_selinux() {
         echo "${key}" >>"${seen}"
         level=normal
         [[ "${permissive}" == 1 ]] && level=quiet
-        allowed selinux-denials "${source} ${target} ${class} ${perms}" && level=quiet
+        allowed selinux-denials "${source} ${target} ${class} ${perms}" && { level=quiet; ALLOWED_HIT=1; }
         [[ -n "${LAST_RUN}" ]] &&
             add "${level}" selinux-denials - Execution "SELinux kept ${program:-a program} (${source}) from ${perms//,/, } on a ${class} of type ${target}$([[ "${permissive}" == 1 ]] && echo ", and let it through: that domain is permissive")" \
                 "allow=${source} ${target} ${class} ${perms}"
@@ -840,7 +844,7 @@ read_processes() {
         [[ "${first}" == false && -n "${LAST_RUN}" ]] || continue
         uid="${owner[${pid}]:-}"
         user="$(id -nu "${uid}" 2>/dev/null || echo "${uid:--}")"
-        allowed processes "${subject}" && level=quiet
+        allowed processes "${subject}" && { level=quiet; ALLOWED_HIT=1; }
         add "${level}" processes "${user}" "${tactic}" "${what} (process ${pid}, as ${user})" "allow=${subject}"
     done
 }
@@ -883,7 +887,7 @@ read_bpf() {
             by="by ${comm:+${comm//[^A-Za-z0-9_.\/+-]/?}, }a process that is gone"
             [[ "${BPF_HOOKS}" == *" ${type} "* ]] && level=normal
         fi
-        allowed bpf-programs "${name:-unnamed} ${loader:-unknown}" && level=quiet
+        allowed bpf-programs "${name:-unnamed} ${loader:-unknown}" && { level=quiet; ALLOWED_HIT=1; }
         add "${level}" bpf-programs - "Defense Evasion" \
             "A program was loaded into the kernel: ${name:-with no name} (${type}, tag ${tag}), ${by}" \
             "allow=${name:-unnamed} ${loader:-unknown}"
@@ -1492,12 +1496,52 @@ read_accounts() {
             [[ "${level}" =~ ^(critical|normal|quiet)$ ]] || level=normal
             [[ -n "${within}" ]] && grep -qxF -- "${within}" <<<"${new}" && level=quiet
             [[ "${ACCOUNT_TACTICS}" == *" ${tactic// /-} "* ]] || tactic=-
-            [[ -n "${allow}" ]] && allowed "${feature}" "${allow}" && level=quiet
+            [[ -n "${allow}" ]] && allowed "${feature}" "${allow}" && { level=quiet; ALLOWED_HIT=1; }
             add "${level}" "${feature}" "${user}" "${tactic}" "${text}" ${allow:+"allow=${allow}"} "tell=${user}"
         done <<<"${out}"
         mkdir -p -m 0700 "${seen%/*}"
         cut -d$'\x1f' -f1 <<<"${out}" | grep . >"${seen}"
     done < <(accounts)
+}
+
+# --- Chains of steps ----------------------------------------------------------------------------------------
+
+# An attack is steps that each look harmless: a program run from the downloads, a token read, a connection
+# out. Every finding names its account and its step, as an ATT&CK tactic; those recorded only count as well,
+# which is how a part set to record still protects without a sound, and what the owner allowed does not.
+# Two different steps for one account within half an hour is said; three, or reading secrets and then talking
+# to a command server, is critical. Network protection knows no account, so a command server it saw joins the
+# chain of every account that ran something or read secrets in that half hour. Each chain is said once, and
+# again only when it grows.
+CHAIN_WINDOW=1800
+read_chains() {
+    local window="${STATE}/chain-window" said="${STATE}/chains-said" account level tactics steps key
+    # This run's findings, then everything of the last half hour
+    printf '%s\n' "${FINDINGS[@]}" | jq -c 'select(type == "object" and .key != "chains" and .tactic != "-" and (.allowed // "") == "")
+        | {time, account, tactic, key}' >>"${window}" 2>/dev/null
+    jq -c --argjson since "$((NOW - CHAIN_WINDOW))" 'select(.time >= $since)' "${window}" >"${window}.new" 2>/dev/null &&
+        mv "${window}.new" "${window}"
+    awk -v since="$((NOW - CHAIN_WINDOW))" -F'\x1f' '$3 >= since' "${said}" >"${said}.new" 2>/dev/null
+    mv "${said}.new" "${said}" 2>/dev/null
+    while IFS=$'\x1f' read -r account level tactics steps; do
+        key="${account}"$'\x1f'"${tactics}"
+        grep -qF -- "${key}"$'\x1f' "${said}" 2>/dev/null && continue
+        printf '%s\x1f%s\n' "${key}" "${NOW}" >>"${said}"
+        add "${level}" chains "${account}" - "Steps of one attack, for ${account}, within half an hour: ${steps}. Each may be harmless alone; together they are how an attack goes"
+    done < <(jq -rs '
+        [.[] | select(.account == "-" and .tactic == "Command and Control")] as $c2
+        | [.[] | select(.account != "-")] | group_by(.account)[]
+        | . as $own
+        | ($own | map(.tactic) | any(. == "Execution" or . == "Credential Access")) as $active
+        | ($own + (if $active then $c2 else [] end)) as $all
+        | ($all | map(.tactic) | unique) as $tactics
+        | select(($tactics | length) >= 2)
+        | [$own[0].account,
+           (if ($tactics | length) >= 3 or (($tactics | index("Credential Access")) != null and ($tactics | index("Command and Control")) != null)
+            then "critical" else "normal" end),
+           ($tactics | join(",")),
+           ($all | map("\(.tactic) (\(.key))") | unique | join(", "))]
+        | join("\u001f")' "${window}" 2>/dev/null)
 }
 
 # --- A run --------------------------------------------------------------------------------------------
@@ -1597,6 +1641,12 @@ if [[ "${SETTING[REPORT_ALERTS]:-on}" != off ]]; then
 else
     # Turned on again, it compares from then
     rm -f "${STATE}/report.json" "${STATE}/tiles.json"
+fi
+# Last, so that it sees what every other part found in this run
+if [[ "${SETTING[CHAINS]:-off}" == off ]]; then
+    rm -f "${STATE}/chain-window" "${STATE}/chains-said"
+else
+    timed CHAINS switched CHAINS read_chains
 fi
 echo "${NOW}" >"${STATE}/last-run"
 

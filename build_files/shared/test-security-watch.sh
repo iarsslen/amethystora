@@ -281,6 +281,31 @@ jq -se 'length == 5
     and any(.[]; .key == "decoy" and .level == "quiet" and (.text | startswith("/usr/bin/restic")))
     and all(.[]; (.text | test("/usr/bin/ssh ")) | not)' <<<"${FOUND}" >/dev/null || fail "secrets read: ${FOUND}"
 
+# Steps of one attack: a program run from the downloads and a secret read, for one account, are a chain,
+# said once; what the owner allowed builds none
+echo "CHAINS=on" >>"${AMETHYSTORA_SECURITY_CONF}"
+# Another program than the one run before, which was said already: a byte more makes it one
+cp /usr/bin/true /var/tmp/watch-chain
+printf x >>/var/tmp/watch-chain
+STEP=150
+{
+    execution 701 '"/var/tmp/watch-chain"'
+    opened 702 31 /usr/bin/perl /var/home/alice/.npmrc credentials
+    close 799
+} >>"${AMETHYSTORA_WATCH_AUDIT}"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run with a chain failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "chains")')"
+jq -se 'length == 1 and .[0].level == "normal" and .[0].account == "4500"
+    and (.[0].text | test("Credential Access .credentials.") and test("Execution .exec-watch."))' <<<"${FOUND}" >/dev/null ||
+    fail "a chain of steps: ${FOUND}"
+STEP=180
+{ opened 801 32 /usr/bin/perl /var/home/alice/.pypirc credentials; close 899; } >>"${AMETHYSTORA_WATCH_AUDIT}"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the second run with a chain failed"
+tail -n +"$((before + 1))" "${HISTORY}" | grep -q '"key":"chains"' && fail "the same chain was said twice"
+rm -f /var/tmp/watch-chain
+
 # --- What runs ------------------------------------------------------------------------------------------------
 
 unset AMETHYSTORA_WATCH_AUDIT

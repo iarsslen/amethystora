@@ -2467,6 +2467,10 @@ msgid "Ransomware behaviour"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Chains of steps"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
 msgstr ""
 
@@ -2596,6 +2600,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "After each hourly snapshot, how many files of each account changed or were deleted within the hour, and whether those that changed went from readable to random, as encryption makes them. Needs ransomware protection's snapshots."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Steps of one attack, put together: two different ones for one account within half an hour, such as a program run from the downloads and a token read, are said, and three, or reading secrets then reaching a command server, are critical. It reads what the other switches find, recorded or said."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

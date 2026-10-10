@@ -354,6 +354,12 @@ anything anywhere unless its own entry says so.
   extension is said too, and its updates, which it installs by itself, are recorded. Read as each
   account, like app permissions. Virtual environments are not looked into.
 
+- **Chains of steps** (`chains`): an attack is steps that each look harmless alone: a program run from the
+  downloads, a token read, a connection out. Each finding names its account and its step, and this puts them
+  together: two different steps for one account within half an hour are said, and three, or reading secrets
+  and then reaching a command server, are critical. What the others only record counts too, so they can stay
+  quiet and still help; what you allowed does not. Each chain is said once, and again only when it grows.
+
 What one of them finds about your own account, such as your apps, is said to you. The rest is said to
 the administrators, who see all of it on the **Events** page.
 
