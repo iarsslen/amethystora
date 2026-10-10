@@ -665,6 +665,18 @@ machine's own connections, not what it forwards for virtual machines or containe
 takes a few hundred megabytes of memory. It is off by default: blocking anything is a decision about
 your own traffic, and yours to make.
 
+Two more sets of rules can join it, each off until you turn it on:
+
+- **Faster command-server lists** (`ame security settings network-feeds daily` or `hourly`): abuse.ch's
+  lists of botnet servers, of the certificates command servers use, and of addresses that served malware,
+  which know a new campaign within hours, where the rules above take days. Under `block`, the first two
+  block; the malware addresses only report, since one is often a shared host. They are downloaded on this
+  machine, not on a connection marked as metered, and take more memory: the malware addresses are some
+  forty thousand rules.
+- **Hunting rules** (`ame security settings network-hunting record`): Emerging Threats' rules for what is
+  suspicious but uncertain, which is where new attacks first show. They are recorded, for the
+  [chains of steps](#looking-for-new-threats), and never said or blocked.
+
 ### Key remapping
 
 Input Remapper runs as root and reads every key typed into every application. That is what

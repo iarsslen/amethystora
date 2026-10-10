@@ -1201,7 +1201,7 @@ read_user_paths() {
 # and the Security app. They name the sites this machine talked to, so wheel can read them, as it can the
 # journal, and nobody else. A log rotated between two runs loses what the first did not read of it,
 # which real-time watching, following eve.json while network protection is on, keeps to seconds.
-EVE=/var/log/suricata/eve.json
+EVE="${ROOT}/var/log/suricata/eve.json"
 NETWORK_EVENTS="${STATE}/network.json"
 NETWORK_KEPT=200
 # One alert, as network.json keeps it. Suricata writes local times: 2026-09-27T10:02:03.123456+0200.
@@ -1248,7 +1248,9 @@ read_network() {
     done < <(jq -rs '
         group_by([.action, .sid]) | .[]
         | (map(.host // "\(.src) and \(.dest)") | unique) as $peers | .[0] as $a | length as $times
-        | [(if $a.action == "blocked" then (if $a.severity == 1 then "critical" else "normal" end)
+        # ET HUNTING rules (NETWORK_HUNTING=record) are suspicious, not sure: recorded for the chains, never said
+        | [(if ($a.signature | startswith("ET HUNTING ")) then "quiet"
+            elif $a.action == "blocked" then (if $a.severity == 1 then "critical" else "normal" end)
             elif $a.severity == 1 then "normal" else "quiet" end),
            ((if $a.action == "blocked" then "Network protection blocked " else "Network protection noticed " end)
             + $a.signature + " (" + $peers[0]

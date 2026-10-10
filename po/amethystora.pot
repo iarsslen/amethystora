@@ -2471,6 +2471,14 @@ msgid "Chains of steps"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Faster command-server lists"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Hunting rules"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
 msgstr ""
 
@@ -2604,6 +2612,14 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "Steps of one attack, put together: two different ones for one account within half an hour, such as a program run from the downloads and a token read, are said, and three, or reading secrets then reaching a command server, are critical. It reads what the other switches find, recorded or said."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "abuse.ch's lists of botnet servers, command servers' certificates and malware addresses, added to network protection's rules, daily or hourly: they know new campaigns hours after they start. Downloaded on this machine, skipped on a metered connection."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Emerging Threats' hunting rules, which catch the suspicious but uncertain, where new attacks first show: recorded for the chains of steps, never said and never blocked. Costs memory for the rules."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

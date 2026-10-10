@@ -306,6 +306,22 @@ timeout 120 "${WATCH}" >/dev/null || fail "the second run with a chain failed"
 tail -n +"$((before + 1))" "${HISTORY}" | grep -q '"key":"chains"' && fail "the same chain was said twice"
 rm -f /var/tmp/watch-chain
 
+# --- Network protection's alerts --------------------------------------------------------------------------
+
+# A hunting rule's alert is recorded and never said, whatever its severity; another severe one is said
+mkdir -p "${R}/var/log/suricata"
+printf '%s\n' \
+    '{"timestamp":"2026-10-10T10:00:00.000000+0000","event_type":"alert","src_ip":"10.0.0.2","dest_ip":"203.0.113.9","dest_port":443,"proto":"TCP","alert":{"action":"allowed","signature_id":2030000,"signature":"ET HUNTING Suspicious TLS SNI","category":"x","severity":1}}' \
+    '{"timestamp":"2026-10-10T10:00:01.000000+0000","event_type":"alert","src_ip":"10.0.0.2","dest_ip":"203.0.113.10","dest_port":443,"proto":"TCP","alert":{"action":"allowed","signature_id":9000001,"signature":"Feodo Tracker: known command server","category":"x","severity":1}}' \
+    >"${R}/var/log/suricata/eve.json"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run reading network protection's alerts failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "network")')"
+jq -se 'length == 2 and any(.[]; (.text | test("ET HUNTING")) and .level == "quiet")
+    and any(.[]; (.text | test("Feodo Tracker")) and .level == "normal")' <<<"${FOUND}" >/dev/null ||
+    fail "network protection's alerts: ${FOUND}"
+rm -f "${R}/var/log/suricata/eve.json"
+
 # --- What runs ------------------------------------------------------------------------------------------------
 
 unset AMETHYSTORA_WATCH_AUDIT

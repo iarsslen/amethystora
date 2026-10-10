@@ -1,11 +1,13 @@
 [Unit]
-Description=Network protection: download the rules, daily
+Description=Network protection: download the rules when they are due
 
 [Timer]
-OnCalendar=daily
-# A machine that was off at midnight still gets them when it comes back
+# Hourly, and the service downloads only when due (amethystora-ips due): every hour with
+# NETWORK_FEEDS=hourly, otherwise once a day, at once after a setting changed, and not on a metered connection
+OnCalendar=hourly
+# A machine that was off still gets them when it comes back
 Persistent=true
-RandomizedDelaySec=2h
+RandomizedDelaySec=10min
 
 [Install]
 WantedBy=timers.target

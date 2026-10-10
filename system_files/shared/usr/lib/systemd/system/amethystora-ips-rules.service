@@ -8,6 +8,8 @@ After=network-online.target
 Type=oneshot
 # Only while network protection is on; see amethystora-ips.service
 ExecCondition=/usr/libexec/amethystora-ips enabled
+# ...and when a download is due: the timer runs hourly for NETWORK_FEEDS=hourly
+ExecCondition=/usr/libexec/amethystora-ips due
 # Downloads Emerging Threats Open, builds the rules for NETWORK in /etc/amethystora/security.conf, tests
 # them with Suricata and reloads it. A download that fails keeps the rules there were: the report says
 # when they grow old.

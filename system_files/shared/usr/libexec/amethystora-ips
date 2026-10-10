@@ -5,6 +5,9 @@
 # Security app's Allow button cannot build them differently.
 #
 #   amethystora-ips enabled            exit 0 while NETWORK is watch or block (ExecCondition= in the units)
+#   amethystora-ips due                exit 0 when the hourly timer should download: hourly feeds, rules a day
+#                                      old, or settings changed since the last build; never on a metered
+#                                      connection when there are rules already
 #   amethystora-ips rules [--offline]  build the rules for the current setting, then reload Suricata (root)
 #   amethystora-ips blocked            what it blocked and noticed lately, newest first (root or wheel)
 #   amethystora-ips allow RULE         leave that one rule out on this machine (root)
@@ -15,6 +18,10 @@
 # (/etc/amethystora/ips-allowed, one rule number a line). Only with NETWORK=block do the families in
 # drop.conf drop; otherwise every rule alerts, and nothing is blocked. --offline builds from the last
 # download, which is what allow and block do, so that neither needs the network.
+#
+# NETWORK_FEEDS adds abuse.ch's command-server lists, daily or hourly, which reach new campaigns in hours
+# where ET Open takes days; NETWORK_HUNTING=record keeps ET's hunting rules, whose alerts the security
+# watcher only records. Both are fetched on the machine, as ET Open is.
 
 set -uo pipefail
 
@@ -26,7 +33,7 @@ EVENTS=/var/lib/amethystora/security/network.json
 UNIT=amethystora-ips.service
 
 usage() {
-    echo "usage: ${0##*/} enabled | rules [--offline] | blocked | allow RULE | block RULE" >&2
+    echo "usage: ${0##*/} enabled | due | rules [--offline] | blocked | allow RULE | block RULE" >&2
     exit 64
 }
 
@@ -38,17 +45,72 @@ mode() {
     /usr/libexec/amethystora-security-config NETWORK
 }
 
+# abuse.ch's lists, CC0-1.0 in suricata-update's index: Feodo Tracker's botnet servers, SSLBL's certificates
+# of command servers, and URLhaus's malware addresses (plain HTTP only). The first two drop under block.
+FEEDS=(abuse.ch/feodotracker abuse.ch/sslbl-blacklist abuse.ch/urlhaus)
+RULES=/var/lib/suricata/rules/suricata.rules
+# What the rules were last built with, so that a changed setting builds them again
+BUILT="${WORK}/built-with"
+
+settings() {
+    echo "NETWORK=$(mode) NETWORK_FEEDS=$(/usr/libexec/amethystora-security-config NETWORK_FEEDS)" \
+        "NETWORK_HUNTING=$(/usr/libexec/amethystora-security-config NETWORK_HUNTING)"
+}
+
+# The sources suricata-update downloads: ET Open, and abuse.ch's while NETWORK_FEEDS is on. ET Open is named
+# too, since once any source is named only the named ones are used.
+sources() {
+    local source
+    if /usr/libexec/amethystora-security-config --is NETWORK_FEEDS off; then
+        for source in "${FEEDS[@]}"; do
+            suricata-update --quiet remove-source "${source}" >/dev/null 2>&1
+        done
+    else
+        for source in et/open "${FEEDS[@]}"; do
+            suricata-update --quiet enable-source "${source}" >/dev/null 2>&1
+        done
+    fi
+}
+
+# Whether the hourly timer downloads now
+due() {
+    local age
+    [[ -s "${RULES}" ]] || return 0
+    [[ "$(cat "${BUILT}" 2>/dev/null)" == "$(settings)" ]] || return 0
+    # Not on a connection that costs by the byte, unless asked (`ame security settings` starts it by hand)
+    if [[ -n "${TRIGGER_UNIT:-}" ]] &&
+        [[ "$(busctl get-property org.freedesktop.NetworkManager /org/freedesktop/NetworkManager \
+            org.freedesktop.NetworkManager Metered 2>/dev/null)" =~ ^u\ (1|3)$ ]]; then
+        return 1
+    fi
+    /usr/libexec/amethystora-security-config --is NETWORK_FEEDS hourly && return 0
+    age=$(($(date +%s) - $(stat -c %Y "${RULES}")))
+    [[ "${age}" -ge $((23 * 3600)) ]]
+}
+
 rules() {
     local -a args=(--quiet --no-reload --suricata-conf "${SHARE}/suricata.yaml"
         --disable-conf "${WORK}/disable.conf" --modify-conf "${SHARE}/modify.conf")
+    local used
     need_root rules
     install -d -m 0700 "${WORK}"
-    # The image's families, then the rules allowed on this machine
-    { cat "${SHARE}/disable.conf"; grep -xE '[0-9]+' "${ALLOWED}" 2>/dev/null; } >"${WORK}/disable.conf"
+    used="$(settings)"
+    # The image's families, less the hunting rules while they are kept to record, then the rules allowed on
+    # this machine
+    {
+        if /usr/libexec/amethystora-security-config --is NETWORK_HUNTING record; then
+            grep -vx 'group:emerging-hunting.rules' "${SHARE}/disable.conf"
+        else
+            cat "${SHARE}/disable.conf"
+        fi
+        grep -xE '[0-9]+' "${ALLOWED}" 2>/dev/null
+    } >"${WORK}/disable.conf"
     [[ "$(mode)" == block ]] && args+=(--drop-conf "${SHARE}/drop.conf")
     [[ "${1:-}" == --offline ]] && args+=(--offline)
+    sources
     # It tests the result with Suricata itself, and keeps the rules it had if that fails
     suricata-update "${args[@]}" || return
+    echo "${used}" >"${BUILT}"
     # A running Suricata swaps the new rules in while it goes on inspecting with the old ones
     systemctl try-reload-or-restart "${UNIT}"
 }
@@ -104,6 +166,7 @@ blocked() {
 
 case "${1:-}" in
     enabled) [[ "$(mode)" != off ]] ;;
+    due) due ;;
     rules) rules "${2:-}" ;;
     blocked) blocked ;;
     allow) allow "${2:-}" ;;
