@@ -44,6 +44,22 @@ while IFS='=' read -r key value; do
         fail "profile off left ${key}=${value}"
 done < <("${CONFIG}" --all)
 [[ "$("${CONFIG}" ON_DETECTION)" == report ]] || fail "profile off changed what scans do with a find"
+# The profiles that look for new threats are what they say they are, and none turns on, or touches, what sends
+# something to somebody else
+"${CONFIG}" profile default
+for profile in light balanced thorough; do
+    "${CONFIG}" profile "${profile}"
+    [[ "$("${CONFIG}" --profile)" == "${profile}" ]] || fail "profile ${profile} reads as $("${CONFIG}" --profile)"
+    "${CONFIG}" --list --json | jq -e 'all(.settings[] | select(.sends | IN("none", "downloads") | not); .value == "off")' >/dev/null ||
+        fail "profile ${profile} turned on something that sends away"
+    [[ "$("${CONFIG}" WATCHER)" == on && "$("${CONFIG}" VIRUS_SCAN)" == weekly ]] || fail "profile ${profile} changed an existing key"
+done
+[[ "$("${CONFIG}" BEHAVIOUR)" == record && "$("${CONFIG}" NETWORK_FEEDS)" == hourly ]] || fail "thorough"
+"${CONFIG}" set TRIAGE on
+"${CONFIG}" profile light
+[[ "$("${CONFIG}" TRIAGE)" == on && "$("${CONFIG}" --profile)" == light ]] || fail "a profile touched what sends away"
+"${CONFIG}" profile default
+[[ "$("${CONFIG}" TRIAGE)" == off ]] || fail "back to the defaults left what sends away on"
 # Every setting is in the file, said or as a comment, where somebody editing it by hand finds it
 for key in $("${CONFIG}" --list --json | jq -r '.settings[].key'); do
     grep -qE "^#?${key}=" /etc/amethystora/security.conf || fail "${key} is not in security.conf"

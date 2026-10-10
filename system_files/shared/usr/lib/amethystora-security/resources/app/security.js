@@ -1533,8 +1533,16 @@ function settingsPage() {
             h('p', { class: 'lead' },
                 t('Every security feature is a switch, in case one makes this machine slower or gets in your way. Off costs nothing: nothing runs, nothing is downloaded and nothing is said, and the audit log follows at the next restart. A change opens in a terminal, which says what it changes before it does it.'))),
         callout('info',
-            t('{profile, select, off {Everything that can be off is off} default {Every switch is as the image ships it} other {Some switches are changed from how the image ships them}}', { profile }),
-            t('Turning everything off leaves alone what the image enforces from the start, below, and what you turned on yourself in the overview.'),
+            t('{profile, select, off {Everything that can be off is off} default {Every switch is as the image ships it} light {The light profile: the cheapest ways to catch new threats} balanced {The balanced profile} thorough {The thorough profile: everything that looks for new threats} other {Some switches are changed from how the image ships them}}', { profile }),
+            t('A profile sets what looks for new threats in one step: light records and says the cheapest, balanced adds secrets read and the chains of steps, thorough turns everything on. None of them turns on what sends something to somebody else, and none touches what the image enforces from the start, below, or what you turned on yourself in the overview.'),
+            h('div', { class: 'segmented', role: 'group', 'aria-label': t('Profile') },
+                [['light', t('Light')], ['balanced', t('Balanced')], ['thorough', t('Thorough')]].map(([name, label]) =>
+                    h('button', {
+                        type: 'button',
+                        class: profile === name ? 'active' : null,
+                        'aria-pressed': profile === name ? 'true' : 'false',
+                        onclick: profile === name ? null : () => window.security.change('profile', name),
+                    }, label))),
             h('div', { class: 'actions' },
                 button(t('Turn everything off…'), () => window.security.change('profile', 'off'), { icon: 'terminal', disabled: profile === 'off' }),
                 button(t('Back to the defaults…'), () => window.security.change('profile', 'default'), { icon: 'terminal', disabled: profile === 'default' }))),

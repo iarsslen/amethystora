@@ -5,10 +5,12 @@
 #   amethystora-security-config --is KEY VALUE...   exit 0 when KEY is one of the VALUEs (ExecCondition=)
 #   amethystora-security-config --all               every key, as KEY=value lines
 #   amethystora-security-config --list [--json]     every setting with its values and what it does
-#   amethystora-security-config --profile           off, default or custom: which profile the keys match
+#   amethystora-security-config --profile           which profile the keys match: off, default, light,
+#                                                   balanced, thorough, or custom
 #   amethystora-security-config set KEY VALUE       change it (root), and note who did
-#   amethystora-security-config profile off|default every key that can be off to off, or each to its
-#                                                   default (root)
+#   amethystora-security-config profile NAME        off: every key that can be off to off; default: each to its
+#                                                   default; light, balanced, thorough: what looks for new
+#                                                   threats as the profile says, the rest to its default (root)
 #   amethystora-security-config note SWITCH VALUE   record that a switch's own command changed it (root),
 #                                                   so the security watcher records the change without
 #                                                   announcing it
@@ -169,7 +171,7 @@ declare -A SENDS=([VIRUS_SCAN]=downloads [NETWORK]=downloads [NETWORK_FEEDS]=dow
 
 usage() {
     echo "usage: ${0##*/} KEY | --is KEY VALUE... | --all | --list [--json] | --profile" \
-        "| set KEY VALUE | profile off|default | note SWITCH VALUE" >&2
+        "| set KEY VALUE | profile off|default|light|balanced|thorough | note SWITCH VALUE" >&2
     exit 64
 }
 
@@ -234,24 +236,63 @@ write() {
 }
 
 # Which profile the keys match as they stand: off, default, or custom
+# The profiles beside off and default, shortcuts that set what looks for new threats and every other key to
+# its default. None turns on, or touches, a switch that sends something to somebody else: each of those is
+# chosen on its own, after its explanation.
+declare -A PROFILE_LIGHT=([PROCESSES]=record [SELINUX_DENIALS]=record [SNAPSHOT_WATCH]=on [AGENT_CLIS]=record
+    [AGENT_CONFIG]=on [DEV_HOOKS]=record [APP_PERMISSIONS]=on)
+declare -A PROFILE_BALANCED=([PROCESSES]=on [SELINUX_DENIALS]=on [SNAPSHOT_WATCH]=on [AGENT_CLIS]=on [AGENT_CONFIG]=on
+    [DEV_HOOKS]=on [APP_PERMISSIONS]=on [BPF_PROGRAMS]=record [CREDENTIALS]=record [EXEC_WATCH]=record [CHAINS]=on
+    [NETWORK_FEEDS]=daily)
+declare -A PROFILE_THOROUGH=([PROCESSES]=on [SELINUX_DENIALS]=on [SNAPSHOT_WATCH]=on [AGENT_CLIS]=on [AGENT_CONFIG]=on
+    [DEV_HOOKS]=on [APP_PERMISSIONS]=on [BPF_PROGRAMS]=on [CREDENTIALS]=on [DECOY]=on [EXEC_WATCH]=on [CHAINS]=on
+    [NETWORK_FEEDS]=hourly [NETWORK_HUNTING]=record [DNS_NAMES]=record [YARA_ELASTIC]=on [YARA_SIGNATURE_BASE]=on
+    [YARA_FORGE]=on [BEHAVIOUR]=record)
+PROFILES="off default light balanced thorough"
+
+# Whether KEY sends something to somebody else, which no profile but off and default touches
+away() { [[ -n "${SENDS[$1]:-}" && "${SENDS[$1]}" != downloads ]]; }
+
+# What profile NAME sets KEY to, empty for its default; light, balanced and thorough leave what sends away be
+profile_value() {
+    local name="$1" key="$2"
+    case "${name}" in
+        off) allowed "${key}" off && echo off || echo "${FOUND[${key}]:-}" ;;
+        default) ;;
+        light | balanced | thorough)
+            local -n table="PROFILE_${name^^}"
+            if away "${key}"; then
+                echo "${FOUND[${key}]:-}"
+            else
+                echo "${table[${key}]:-}"
+            fi
+            ;;
+    esac
+}
+
+# Which profile the keys match as they stand: one of PROFILES, or custom
 current_profile() {
-    local key off=true default=true
-    for key in "${!DEFAULTS[@]}"; do
-        allowed "${key}" off && [[ "$(value "${key}")" != off ]] && off=false
-        [[ "${DEFAULTS[${key}]}" == REALTIME ]] && continue
-        [[ "$(value "${key}")" != "${DEFAULTS[${key}]}" ]] && default=false
+    local key name matches wanted
+    for name in ${PROFILES}; do
+        matches=true
+        for key in "${!DEFAULTS[@]}"; do
+            [[ "${DEFAULTS[${key}]}" == REALTIME ]] && continue
+            [[ "${name}" != off && "${name}" != default ]] && away "${key}" && continue
+            wanted="$(profile_value "${name}" "${key}")"
+            [[ "${name}" == off ]] && ! allowed "${key}" off && continue
+            [[ -n "${wanted}" ]] || wanted="${DEFAULTS[${key}]}"
+            [[ "$(value "${key}")" == "${wanted}" ]] || { matches=false; break; }
+        done
+        # The halves of REALTIME are off with the rest, and at their default when they follow it
+        if [[ "${name}" == off ]]; then
+            [[ "$(value REALTIME_SCAN)" == off && "$(value REALTIME_WATCH)" == off ]] || matches=false
+        elif [[ -n "${FOUND[REALTIME_SCAN]:-}${FOUND[REALTIME_WATCH]:-}" ]] &&
+            [[ "$(value REALTIME_SCAN)" != "$(value REALTIME)" || "$(value REALTIME_WATCH)" != "$(value REALTIME)" ]]; then
+            matches=false
+        fi
+        [[ "${matches}" == true ]] && { echo "${name}"; return; }
     done
-    # The halves of REALTIME are at their default when they follow it
-    [[ -n "${FOUND[REALTIME_SCAN]:-}${FOUND[REALTIME_WATCH]:-}" &&
-        ( "$(value REALTIME_SCAN)" != "$(value REALTIME)" || "$(value REALTIME_WATCH)" != "$(value REALTIME)" ) ]] &&
-        default=false
-    if [[ "${off}" == true ]]; then
-        echo off
-    elif [[ "${default}" == true ]]; then
-        echo default
-    else
-        echo custom
-    fi
+    echo custom
 }
 
 # What a running feature costs now, from systemd's own accounting: the memory of its daemons, or how long
@@ -443,15 +484,19 @@ case "${1:-}" in
         note "$(tr 'A-Z_' 'a-z-' <<<"$2")" "$3"
         ;;
     profile)
-        [[ $# -eq 2 && "$2" =~ ^(off|default)$ ]] || usage
+        [[ $# -eq 2 && " ${PROFILES} " == *" $2 "* ]] || usage
         need_root
         for key in "${!DEFAULTS[@]}"; do
             if [[ "$2" == off ]]; then
                 allowed "${key}" off && write "${key}" off
+            elif [[ "$2" != default ]] && away "${key}"; then
+                # What sends something away stays as its owner chose
+                continue
             elif [[ "${DEFAULTS[${key}]}" == REALTIME ]]; then
                 write "${key}" ""
             else
-                write "${key}" "${DEFAULTS[${key}]}"
+                wanted="$(profile_value "$2" "${key}")"
+                write "${key}" "${wanted:-${DEFAULTS[${key}]}}"
             fi
         done
         note profile "$2"

@@ -478,23 +478,38 @@ profile NAME="":
     echo "The switches match the profile: $("${config}" --profile)"
     if [[ -z "${name}" ]]; then
         echo
-        echo "off      Turn off everything that can be: the security watcher, the virus scanner, the settings"
-        echo "         audit, real-time watching, network protection and the audit log. Nothing of it runs,"
-        echo "         the audit log from the next restart."
-        echo "default  Every switch back as the image ships it: network protection and real-time watching off,"
-        echo "         the rest on, and found files reported."
-        name="$(gum choose --header "Security profile" off default Cancel)"
+        echo "off       Turn off everything that can be: the security watcher, the virus scanner, the settings"
+        echo "          audit, real-time watching, network protection and the audit log. Nothing of it runs,"
+        echo "          the audit log from the next restart."
+        echo "default   Every switch back as the image ships it: network protection and real-time watching off,"
+        echo "          what looks for new threats off, the rest on, and found files reported."
+        echo "light     As default, and the cheapest of what looks for new threats: odd processes, SELinux,"
+        echo "          AI agents and developer tools recorded; ransomware, agents' settings and apps' permissions"
+        echo "          said."
+        echo "balanced  As light, all of those said, with secrets read, programs run from downloads and BPF"
+        echo "          recorded, the chains of steps put together, and the command-server lists daily."
+        echo "thorough  Everything that looks for new threats on: the decoy key, the YARA rules, the behaviour"
+        echo "          sensor (Falco, a few hundred megabytes) recording, odd DNS names and hunting rules, the"
+        echo "          command-server lists hourly. Costs memory, CPU and downloads; developers will see noise."
+        echo "None of them turns on what sends something to somebody else: site checking, asking the agent"
+        echo "about events and hash reputation are each chosen on their own."
+        name="$(gum choose --header "Security profile" off default light balanced thorough Cancel)"
     fi
     case "${name}" in
         off)
             gum confirm "Turn every detection switch off?" || exit 0 ;;
-        default) ;;
+        default | light | balanced) ;;
+        thorough)
+            gum confirm "Turn on everything that looks for new threats?" || exit 0 ;;
         *) exit 0 ;;
     esac
     sudo "${config}" profile "${name}"
-    # Each unit reads its key as it starts, so a restart starts or stops it
+    # Each unit reads its key as it starts, so a restart starts or stops it, and the rules and YARA sets are
+    # fetched, or taken away, at once
     sudo systemctl restart clamav-freshclam.service clamd@scan.socket amethystora-clamav-onaccess.service \
-        amethystora-ips.service amethystora-security-realtime.service || true
+        amethystora-ips.service amethystora-security-realtime.service amethystora-dns-names.service \
+        amethystora-behaviour.service || true
+    sudo systemctl start --no-block amethystora-ips-rules.service amethystora-yara.service || true
     sudo systemctl start --no-block amethystora-security-watch.service || true
     echo "Done. The audit log and its rules follow at the next restart."
     echo

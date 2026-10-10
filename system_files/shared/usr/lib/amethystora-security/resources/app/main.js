@@ -211,7 +211,7 @@ async function readSwitches() {
 // be one the list gave that switch; an empty one lets the command ask.
 function change(kind, key, value, argument) {
     if (kind === 'profile') {
-        if (['off', 'default'].includes(key)) {
+        if (['off', 'default', 'light', 'balanced', 'thorough'].includes(key)) {
             launch(IN_TERMINAL, [AME, 'security', 'profile', key]);
         }
         return;

@@ -246,6 +246,15 @@ once and stops being recorded from the next restart.
   virus scanner, the settings audit, real-time watching, network protection and the audit log.
   `ame security profile default` puts every switch back as the image ships it. The Settings page has
   both as buttons.
+- **A profile for what looks for new threats.** `ame security profile light` records the cheapest of
+  [what looks for new threats](#looking-for-new-threats) and says ransomware, agents' settings and apps
+  that gain permissions; `balanced` says all of those, records secrets read, programs run from the
+  downloads and programs loaded into the kernel, puts the chains of steps together and fetches the
+  command-server lists daily; `thorough` turns all of it on, the decoy key, the YARA rules and the
+  behaviour sensor included, which costs memory, CPU and downloads, and on a developer's machine some
+  noise. Each sets every other switch to its default, and none turns on what sends something to somebody
+  else. Every switch can still be changed alone afterwards; the Settings page then says the switches are
+  changed from the profile.
 - **From a text console.** Each service reads its switch as it starts, so a line edited by hand in
   `/etc/amethystora/security.conf`, such as `VIRUS_SCAN=off`, takes effect at the next restart even when
   the desktop does not start.
