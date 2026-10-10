@@ -368,6 +368,12 @@ anything anywhere unless its own entry says so.
   and then reaching a command server, are critical. What the others only record counts too, so they can stay
   quiet and still help; what you allowed does not. Each chain is said once, and again only when it grows.
 
+With **Ask the agent about events** on (`ame security settings triage`, off until you choose it), each event
+on the Events page has **Ask the agent**: your AI agent explains, in a terminal, what it most likely is and
+how sure it is, reading only and changing nothing. The event, and what the agent then reads on this machine,
+goes to the agent's maker, which is why you choose it on its own. An event is written partly by whatever it
+is about, so the agent is told to read it as data, never as instructions.
+
 What one of them finds about your own account, such as your apps, is said to you. The rest is said to
 the administrators, who see all of it on the **Events** page.
 

@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('security', {
     allowRule: (rule) => ipcRenderer.invoke('network-allow', String(rule)),
     allowEvent: (id) => ipcRenderer.invoke('event-allow', String(id)),
     openBackups: (id) => ipcRenderer.invoke('event-backups', String(id)),
+    triageEvent: (id) => ipcRenderer.invoke('event-triage', String(id)),
     inventory: () => ipcRenderer.invoke('inventory'),
     permissions: () => ipcRenderer.invoke('permissions'),
     resetPermissions: (id) => ipcRenderer.invoke('permissions-reset', String(id)),

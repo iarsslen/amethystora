@@ -2512,6 +2512,10 @@ msgid "YARA rules from YARA Forge"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Ask the agent about events"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
 msgstr ""
 
@@ -2676,7 +2680,15 @@ msgid "Browsers may install Osprey, which checks each site you open against more
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Ask the agent on an event of the Events page has your AI agent explain what it most likely is, in a terminal, reading only and changing nothing."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Osprey sends the address of every site you open to Osprey Project LLC, in California, and on from there to its providers, without the query string and without your address. Amethystora does not make it: it is GPL-3.0, and you install it from your browser's own store, where it can be removed like any other extension."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Each event you ask about goes to your AI agent's maker with what the agent then reads on this machine: file names, program names and command lines, some of them other accounts'. The event is written partly by whatever it is about, so the agent is told to treat it as data and never to change anything."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

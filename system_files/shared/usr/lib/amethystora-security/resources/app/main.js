@@ -613,13 +613,31 @@ async function network() {
 // What the watcher found: each finding's time, level, the part that found it, its account and its sentence,
 // which the watcher has already made plain text, and whether it is about this account. One this account may
 // not read says so.
-function watchEvents() {
+async function watchEvents() {
     const events = readJson(WATCH_EVENTS);
     const me = os.userInfo().username;
     return {
         readable: !events?.denied,
         events: Array.isArray(events) ? events.map((event) => ({ ...event, mine: event.account === me })) : [],
+        triage: await triageOn(),
     };
+}
+
+// Whether an event may be handed to the AI agent: TRIAGE on, which sends the event to the agent's maker and
+// was chosen after its explanation, and the agentic features on for this account
+async function triageOn() {
+    const [setting, agent] = await Promise.all([run(SECURITY_CONFIG, ['--is', 'TRIAGE', 'on'], 10000), run(AGENT, ['status'], 10000)]);
+    return setting.code === 0 && agent.code === 0;
+}
+
+// An event handed to the agent, which explains it in a terminal and changes nothing: the facts the watcher
+// wrote, looked up by the id the page sent, which amethystora-agent quotes as data
+async function triageEvent(id) {
+    const event = findEvent(id);
+    if (event && (await triageOn())) {
+        const { time, level, key, account, tactic, text } = event;
+        launch(AGENT, ['triage', JSON.stringify({ time, level, key, account, tactic, text })]);
+    }
 }
 
 // The snapshot from before an event, opened in Backups: only for an event about this account, whose home is
@@ -862,6 +880,7 @@ if (!app.requestSingleInstanceLock()) {
     ipcMain.handle('network-allow', (_event, rule) => allowRule(String(rule)));
     ipcMain.handle('event-allow', (_event, id) => allowEvent(String(id)));
     ipcMain.handle('event-backups', (_event, id) => openBackups(String(id)));
+    ipcMain.handle('event-triage', (_event, id) => triageEvent(String(id)));
 
     ipcMain.handle('inventory', () => inventory());
     ipcMain.handle('permissions', () => readPermissions());

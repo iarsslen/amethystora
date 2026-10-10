@@ -1366,6 +1366,9 @@ function eventRow(event) {
         event.allow ? button(t('Allow…'), () => window.security.allowEvent(event.id), {
             small: true, icon: 'terminal', title: t('Stop saying this. Asks first, in a terminal, and then for your password.'),
         }) : null,
+        state.events?.triage && event.level !== 'quiet' ? button(t('Ask the agent'), () => window.security.triageEvent(event.id), {
+            small: true, icon: 'sparkle', title: t('The AI agent explains what this most likely is, in a terminal, and changes nothing'),
+        }) : null,
     ].filter(Boolean);
     return h('div', { class: 'list-row container-row' },
         status(EVENT_TONES[event.level] || 'info'),
