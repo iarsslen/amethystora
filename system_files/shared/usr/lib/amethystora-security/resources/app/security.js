@@ -276,6 +276,7 @@ const TILE_ICONS = {
     'disk-unlock': 'chip',
     'usb-protection': 'plug',
     'browser-protection': 'monitor',
+    'site-checking': 'scan',
     'key-remapping': 'keyboard',
     'on-detection': 'file-alert',
     realtime: 'activity',
@@ -1428,6 +1429,7 @@ const SWITCH_GROUPS = [
     ['scans', t('Scans')],
     ['network', t('Network')],
     ['notices', t('What is said')],
+    ['away', t('Sends something off this machine')],
 ];
 
 // What a switch costs while it is on, from systemd's accounting: memory now, or its last run
@@ -1458,6 +1460,8 @@ function switchRow(entry) {
         h('span', { class: 'grow' },
             h('strong', {}, entry.title),
             h('small', {}, entry.text),
+            // What it sends to somebody else, said here as well as before it is turned on
+            entry.explain ? h('small', { class: 'faint' }, entry.explain) : null,
             cost ? h('small', { class: 'faint' }, cost) : null),
         segmented(entry));
 }

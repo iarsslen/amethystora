@@ -10,6 +10,11 @@
 #   amethystora-browser-policy on            write the policy for every browser below (root)
 #   amethystora-browser-policy off           remove it (root)
 #   amethystora-browser-policy allow ID      add an extension to the list (root)
+#   amethystora-browser-policy disallow ID   take one off it again (root)
+#   amethystora-browser-policy refresh       write the policies again while it is on (root)
+#
+# Site checking (OSPREY=on in /etc/amethystora/security.conf, `ame security browser osprey`) adds Osprey's
+# extension to the list: it is only ever allowed, never installed, and the browser's own store installs it.
 
 set -euo pipefail
 
@@ -72,16 +77,27 @@ is_on() {
     return 1
 }
 
+# Osprey: Browser Protection (Osprey Project LLC, GPL-3.0), as the stores name it: Chrome's, which Chromium and
+# Brave install from too, Edge's and Firefox's
+OSPREY_IDS=(jmnpibhfpmpfjhhkmpadlbgjnbhpjgnd nopglhplnghfhpniofkcopmhbjdonlgn osprey@foulest.net)
+
+# What the machine allowed, one ID a line, and Osprey's while site checking is on
+allowed_ids() {
+    cat "${ALLOWED}" 2>/dev/null || true
+    /usr/libexec/amethystora-security-config --is OSPREY on && printf '%s\n' "${OSPREY_IDS[@]}"
+    return 0
+}
+
 # The shipped policy with this machine's extensions added, each engine taking the IDs in its own form
 policy() {
     local -a ids
     case "$1" in
         chromium)
-            mapfile -t ids < <(grep -E "${CHROMIUM_ID}" "${ALLOWED}" 2>/dev/null || true)
+            mapfile -t ids < <(allowed_ids | grep -E "${CHROMIUM_ID}" | sort -u || true)
             jq '.ExtensionInstallAllowlist += $ARGS.positional' "${SHARE}/chromium.json" --args "${ids[@]}"
             ;;
         firefox | firefox-flatpak)
-            mapfile -t ids < <(grep -E "${FIREFOX_ID}" "${ALLOWED}" 2>/dev/null || true)
+            mapfile -t ids < <(allowed_ids | grep -E "${FIREFOX_ID}" | sort -u || true)
             jq --arg engine "$1" '
                 .policies.ExtensionSettings +=
                     ($ARGS.positional | map({(.): {installation_mode: "allowed"}}) | add // {})
@@ -149,8 +165,22 @@ case "${1:-}" in
         fi
         if is_on; then turn_on >/dev/null; fi
         ;;
+    disallow)
+        need_root "$@"
+        id="${2:-}"
+        [[ "${id}" =~ ${CHROMIUM_ID} || "${id}" =~ ${FIREFOX_ID} ]] || die "not an extension ID: '${id}'"
+        [[ -f "${ALLOWED}" ]] && grep -vxF -- "${id}" "${ALLOWED}" >"${ALLOWED}.new" || true
+        [[ -f "${ALLOWED}.new" ]] && mv "${ALLOWED}.new" "${ALLOWED}" && chmod 0644 "${ALLOWED}"
+        # Browsers turn off, and Firefox removes, an extension the list no longer has at their next start
+        if is_on; then turn_on >/dev/null; fi
+        ;;
+    # Rewrites the policies after site checking was turned on or off, while protection is on
+    refresh)
+        need_root "$@"
+        if is_on; then turn_on >/dev/null; fi
+        ;;
     *)
-        sed -n '2,12p' "$0" | sed 's/^# \?//' >&2
+        sed -n '2,17p' "$0" | sed 's/^# \?//' >&2
         exit 64
         ;;
 esac

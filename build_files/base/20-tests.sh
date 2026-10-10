@@ -1581,6 +1581,16 @@ done
 "${BROWSER_POLICY}" show firefox |
     jq -e 'has("amethystora") and (.policies.ExtensionSettings["*"].allowed_types | index("extension") | not)
         and ([.policies.ExtensionSettings[] | .installation_mode // "allowed"] | all(. == "allowed"))' >/dev/null
+# Site checking (Osprey) is offered only: allowed once chosen, never as the image ships, and never installed
+"${BROWSER_POLICY}" show chromium | jq -e '.ExtensionInstallAllowlist | index("jmnpibhfpmpfjhhkmpadlbgjnbhpjgnd") | not' >/dev/null
+OSPREY_CONF="$(mktemp)"
+echo "OSPREY=on" >"${OSPREY_CONF}"
+AMETHYSTORA_SECURITY_CONF="${OSPREY_CONF}" "${BROWSER_POLICY}" show chromium |
+    jq -e '(.ExtensionInstallAllowlist | index("jmnpibhfpmpfjhhkmpadlbgjnbhpjgnd") and index("nopglhplnghfhpniofkcopmhbjdonlgn"))
+        and (has("ExtensionInstallForcelist") | not)' >/dev/null
+AMETHYSTORA_SECURITY_CONF="${OSPREY_CONF}" "${BROWSER_POLICY}" show firefox |
+    jq -e '.policies.ExtensionSettings["osprey@foulest.net"].installation_mode == "allowed"' >/dev/null
+rm -f "${OSPREY_CONF}"
 
 # Audit rules: the watches that ship with the image, one file per key, which the boot-time generator writes
 # into /etc/audit/rules.d for each key not switched off, with the per-user ones, which can only be written

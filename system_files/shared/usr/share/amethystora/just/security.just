@@ -408,6 +408,10 @@ settings SETTING="" VALUE="":
                 exit 64
             fi
             title="$(jq -r .title <<<"${entry}")"
+            # Site checking is a choice in browser protection, which allows Osprey in the browsers
+            if [[ "${key}" == OSPREY ]]; then
+                exec ame security browser osprey "${value}"
+            fi
             echo "${title}: $(jq -r .value <<<"${entry}")"
             jq -r .text <<<"${entry}" | fold -s -w 96
             if [[ -z "${value}" ]]; then
@@ -435,6 +439,13 @@ settings SETTING="" VALUE="":
             esac
             if [[ "${value}" == off || "${value}" == none ]]; then
                 gum confirm "${title}: ${value}?" || exit 0
+            fi
+            # What a switch sends to somebody else is said, and asked, before it is turned on
+            explain="$(jq -r '.explain // empty' <<<"${entry}")"
+            if [[ -n "${explain}" && "${value}" != off ]]; then
+                echo
+                fold -s -w 96 <<<"${explain}"
+                gum confirm "Turn ${title} on, knowing that?" || exit 0
             fi
             sudo "${config}" set "${key}" "${value}"
             # Each unit reads its key as it starts, so a restart applies it either way
@@ -884,9 +895,13 @@ browser ACTION="" ID="":
         echo "Allowed on this machine, as well as the password managers:"
         sed 's/^/  /' <<<"${allowed}"
     fi
+    if /usr/libexec/amethystora-security-config --is OSPREY on; then
+        echo "Site checking (Osprey) is allowed in browsers."
+    fi
     if [[ -z "${action}" ]]; then
         action="$(gum choose --header "Browser protection" \
-            "Turn on" "Allow an extension" "Turn off" "Cancel")"
+            "Turn on" "Allow an extension" "Take an extension off the list" "Add site checking (Osprey)" \
+            "Take site checking away" "Turn off" "Cancel")"
     fi
     case "${action}" in
         "Turn on" | on)
@@ -913,8 +928,54 @@ browser ACTION="" ID="":
             fi
             [[ -n "${id}" ]] || exit 0
             sudo "${policy}" allow "${id}"
-            echo "Allowed. To take one back, remove its line from /etc/amethystora/browser-extensions"
-            echo "and run: ame security browser on"
+            echo "Allowed. To take it back: ame security browser disallow ${id}"
+            ;;
+        "Take an extension off the list" | disallow)
+            id="${2:-}"
+            if [[ -z "${id}" ]]; then
+                [[ -n "${allowed}" ]] || { echo "No extension of this machine's own is on the list."; exit 0; }
+                mapfile -t ids <<<"${allowed}"
+                id="$(gum choose --header "Take which off?" "${ids[@]}" Cancel)"
+                [[ -n "${id}" && "${id}" != Cancel ]] || exit 0
+            fi
+            sudo "${policy}" disallow "${id}"
+            echo "Off the list. With protection on, browsers turn it off at their next start, and Firefox removes it."
+            ;;
+        "Add site checking (Osprey)" | osprey)
+            if [[ "${2:-on}" == off ]]; then
+                sudo /usr/libexec/amethystora-security-config set OSPREY off
+                sudo /usr/libexec/amethystora-security-config note site-checking off
+                sudo "${policy}" refresh
+                if [[ "$("${policy}" status)" == on ]]; then
+                    echo "Site checking is off: browsers turn Osprey off at their next start, and Firefox removes it."
+                else
+                    echo "Site checking is off. Browser protection is off too, so remove Osprey yourself where it is"
+                    echo "installed: Firefox's Add-ons and themes, or the other browsers' extensions page."
+                fi
+                exit 0
+            fi
+            echo
+            echo "Osprey: Browser Protection checks each site you open against more than twenty threat-intelligence"
+            echo "providers, and warns you or blocks the site. Amethystora does not make it: Osprey Project LLC"
+            echo "does, under the GPL-3.0, and you install it from your browser's own store."
+            echo
+            echo "It sends the address of every site you open to Osprey Project LLC, in California, which passes"
+            echo "it on to its providers without the query string and without your address. That is why it is"
+            echo "off until you choose it, and why no profile turns it on."
+            gum confirm "Allow Osprey in your browsers?" || exit 0
+            sudo /usr/libexec/amethystora-security-config set OSPREY on
+            sudo /usr/libexec/amethystora-security-config note site-checking on
+            sudo "${policy}" refresh
+            echo
+            echo "Allowed. Install it from your browser's store; nothing installs it for you:"
+            echo "  Firefox:                https://addons.mozilla.org/firefox/addon/osprey-browser-protection/"
+            echo "  Chrome, Chromium, Brave: https://chromewebstore.google.com/detail/jmnpibhfpmpfjhhkmpadlbgjnbhpjgnd"
+            echo "  Edge:                   https://microsoftedge.microsoft.com/addons/detail/nopglhplnghfhpniofkcopmhbjdonlgn"
+            xdg-open "https://addons.mozilla.org/firefox/addon/osprey-browser-protection/" >/dev/null 2>&1 || true
+            echo "Its own settings, which providers it asks, are Osprey's: Amethystora sets none of them."
+            ;;
+        "Take site checking away")
+            exec ame security browser osprey off
             ;;
         "Turn off" | off)
             sudo /usr/libexec/amethystora-security-config note browser-protection off

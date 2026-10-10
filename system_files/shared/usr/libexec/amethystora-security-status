@@ -1230,6 +1230,33 @@ COMMAND="ame security browser"
 report optional browser-protection "$(/usr/libexec/amethystora-browser-policy status)" "$(gettext "Browser protection")" \
     "$(gettext "Browsers install only the extensions on a list, and web pages cannot reach USB, serial, HID or Bluetooth devices")"
 
+# Site checking: Osprey allowed in browsers (OSPREY), and which of this account's own browsers have it, read
+# from their profiles: Firefox's list of extensions, the others' folder for its ID
+OSPREY_IN=()
+for profile in "${HOME}"/.mozilla/firefox/*/ "${HOME}"/.var/app/org.mozilla.firefox/.mozilla/firefox/*/; do
+    grep -qs '"osprey@foulest.net"' "${profile}extensions.json" && { OSPREY_IN+=(Firefox); break; }
+done
+for pair in "google-chrome:Chrome:jmnpibhfpmpfjhhkmpadlbgjnbhpjgnd" "chromium:Chromium:jmnpibhfpmpfjhhkmpadlbgjnbhpjgnd" \
+    "BraveSoftware/Brave-Browser:Brave:jmnpibhfpmpfjhhkmpadlbgjnbhpjgnd" "microsoft-edge:Edge:nopglhplnghfhpniofkcopmhbjdonlgn"; do
+    IFS=: read -r folder browser id <<<"${pair}"
+    compgen -G "${HOME}/.config/${folder}/*/Extensions/${id}" >/dev/null && OSPREY_IN+=("${browser}")
+done
+COMMAND="ame security browser osprey"
+if /usr/libexec/amethystora-security-config --is OSPREY on; then
+    COMMAND="ame security browser"
+    if [[ ${#OSPREY_IN[@]} -gt 0 ]]; then
+        BROWSERS="${OSPREY_IN[*]}"
+        report optional site-checking on "$(gettext "Site checking (Osprey)")" \
+            "$(eval_gettext "Osprey checks each site you open in \${BROWSERS}. Every address goes to Osprey Project LLC and its providers.")"
+    else
+        report optional site-checking on "$(gettext "Site checking (Osprey)")" \
+            "$(gettext "Osprey is allowed, and not installed in any of your browsers yet: install it from your browser's store.")"
+    fi
+else
+    report optional site-checking off "$(gettext "Site checking (Osprey)")" \
+        "$(gettext "Have your browser check each site you open against threat-intelligence providers. Every address you open goes to them.")"
+fi
+
 # Encrypted DNS and a different address on each network, each switched by the files its helper writes
 DNS_STATE="$(/usr/libexec/amethystora-dns status)"
 if [[ "${DNS_STATE}" == on ]]; then

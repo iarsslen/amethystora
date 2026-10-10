@@ -257,7 +257,11 @@ writes `usr/share/amethystora/browser-policy/chromium.json` or `firefox.json`, w
 `/etc/amethystora/browser-extensions` added, to every place in its `TARGETS` table: Brave, Chrome,
 Chromium, Edge and Firefox, as packages and as Flatpaks. To cover another browser, add its line
 there. Keep the Firefox forks out: a system policy replaces the one they ship. The policies only
-allow extensions and must never install one. The Security report reads the helper's `status`.
+allow extensions and must never install one. The Security report reads the helper's `status`. Site
+checking (`ame security browser osprey`, `OSPREY` in `security.conf`) adds Osprey's three IDs to the
+allowlists while chosen, after its explanation: it sends every site's address to Osprey Project LLC, so it
+is offered only, in no profile, never in the built-in list and never installed, and Osprey's own settings
+are left to the user.
 
 ### Agentic features
 
@@ -783,15 +787,19 @@ installations only: bootc cannot move an ostree deployment to the composefs back
 ostree images stay the default.
 
 - **Built in the stable build job**, right after `just build-ghcr`: `just seal` builds `FROM` the local
-  image, before it is rechunked. `build_files/sealed/00-sealed.sh` takes out rpm-ostree, bootupd and
-  GRUB, installs systemd-boot, copies `system_files/sealed`, sets `image-tag` to `stable-sealed`, ships
-  the certificate as `/usr/share/amethystora/secure-boot/amethystora-uki.der`, rebuilds the initramfs
-  with dracut's `bootc` module and writes `SOURCES` again. chunkah rechunks the tree **before** the
-  digest: nothing may change the tree after `bootc container ukify` (`10-uki.sh`) has read it, and the
-  UKI under `/boot/EFI/Linux` is the only thing added afterwards. `10-uki.sh` builds the UKI unsigned;
-  `15-sign-uki.sh` signs it and systemd-boot in the `signer` stage, a pinned Fedora image with only
-  sbsigntools added, the one place the Secure Boot key is mounted. `20-tests-sealed.sh` checks the
-  signatures, the digest and the command line. The UKI's kernel arguments are the image's `kargs.d`,
+  image, before it is rechunked. `build_files/sealed/00-sealed.sh` takes out rpm-ostree (with
+  `rpm -e --nodeps`: tuned requires it on a bootc system, and dnf would take tuned-ppd with it), bootupd
+  and GRUB, installs systemd-boot, copies `system_files/sealed`, sets `image-tag` to `stable-sealed`,
+  ships the certificate as `/usr/share/amethystora/secure-boot/amethystora-uki.der`, rebuilds the
+  initramfs with dracut's `bootc` module and the image's own `amethystora-sealed`, and writes `SOURCES`
+  again. chunkah rechunks the tree **before** the digest: nothing may change the tree after `bootc
+  container ukify` (`10-uki.sh`) has read it, and the UKI under `/boot/EFI/Linux` is the only thing
+  added afterwards. `10-uki.sh` builds the UKI unsigned; `15-sign-uki.sh` signs it and systemd-boot in
+  the `signer` stage, a pinned Fedora image with only sbsigntools added, the one place the Secure Boot
+  key is mounted. Pin Fedora's image from `registry.fedoraproject.org` (the Justfile's `fedora_image`
+  too): quay.io stops serving a digest of `fedora:44` as soon as Fedora moves the tag, which it does
+  daily, and that broke sealing in October 2026. `20-tests-sealed.sh` checks the signatures, the
+  digest and the command line. The UKI's kernel arguments are the image's `kargs.d`,
   there is no other way to add one, and they never include a debug shell.
 - **Keys: shim and MOK** (the maintainer's choice of 2026-10-04, over replacing the firmware's PK, KEK
   and db). The private key is the `SECUREBOOT_KEY` secret, separate from the cosign key; its certificate
@@ -814,14 +822,22 @@ ostree images stay the default.
   through pkexec and `50-amethystora-deployments.rules`), and branch on the marker for anything that
   changes kernel arguments: they cannot change there. `amethystora-signed-updates.service` does not run
   on it. The manual's `updates.md#sealed-images` describes it for users.
-- **Not verified yet; do it before setting the secret.** Boot a sealed image in a VM with Secure Boot
-  (`bcvk libvirt run --firmware=uefi-secure --filesystem=btrfs`, the image's certificate enrolled in the
-  VM's db): `/proc/cmdline` has `composefs=`, the root mount `verity=require`, `mokutil --sb-state` says
-  enabled, and a byte changed in a file under `/usr` on a copy of the disk makes it unreadable. Check
-  that `bootc switch` to an unsigned image is refused (bootc does not document whether its composefs
-  backend applies `policy.json` to every pull), that uupd updates it, and the live installer on real
-  hardware. Older machines need a shim signed with Microsoft's 2011 CA as well as the 2023 one:
-  `20-tests-sealed.sh` prints whose signatures Fedora's carries.
+- **`amethystora-sealed` is what makes the seal hold; keep it.** bootc (1.16 and 1.17, through
+  composefs-rs 0.9) mounts the image with `verity=require` only when the repository on the disk has
+  fs-verity, whatever the signed command line says: a normal install's `composefs/meta.json` has none,
+  so copying the image file under `composefs/objects` without fs-verity, which root or anyone with the
+  disk can do, mounts the system unverified and every file of it can be changed. The module's
+  `amethystora-sealed-verity.service` runs after `bootc-root-setup.service` and halts unless every
+  composefs mount has `verity=require` (never the emergency target: its locked root account lets the
+  boot continue). An install made by a kernel without fs-verity is refused the same way.
+- **Verified in a VM on 2026-10-10**, with the release key, QEMU and OVMF holding Microsoft's keys and
+  the image's certificates in MokList: the firmware's fallback path starts shim, shim systemd-boot and
+  the UKI; Secure Boot enabled, lockdown on, `composefs=` in `/proc/cmdline`, the root mount
+  `verity=require`; a changed object reads as an I/O error; the same disk without our certificate stops
+  at shim's Security Violation; the guard halts a disk whose image file lost fs-verity; and `bootc
+  switch` applies `policy.json` (an unsigned image under a `sigstoreSigned` rule is refused). Fedora's
+  shim in the image carries both Microsoft's 2011 and 2023 signatures. **Not verified:** the MOK
+  manager's enrolment screens, LUKS and the TPM, uupd updating a sealed machine, and real hardware.
 
 ### COPR Package Installation
 

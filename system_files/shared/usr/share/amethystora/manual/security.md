@@ -599,9 +599,19 @@ list, with their settings, the next time it starts; the other browsers turn thei
 shows each extension's ID in `about:support`, under Add-ons, and the others on their extensions page
 with developer mode on. Themes, dictionaries and language packs in Firefox are left alone.
 
-What you allowed is in `/etc/amethystora/browser-extensions`, one ID a line. To take one back, remove
-its line and run `ame security browser on` again. It is off by default: Firefox comes
-exactly as Fedora builds it, and what it may install is your decision, not the image's.
+What you allowed is in `/etc/amethystora/browser-extensions`, one ID a line. To take one back,
+`ame security browser disallow <id>`. It is off by default: Firefox comes exactly as Fedora builds it,
+and what it may install is your decision, not the image's.
+
+**Site checking** (`ame security browser osprey`) allows Osprey: Browser Protection, which checks each
+site you open against more than twenty threat-intelligence providers, and warns you or blocks the site.
+Amethystora does not make it, and never installs it: you do, from your browser's own store, which the
+command opens, and it can be removed there like any other extension. It sends the address of every site
+you open to Osprey Project LLC, in California, which passes it on to its providers without the query
+string and without your address. That is why it is off until you choose it, and why no profile turns it
+on. Which providers it asks is set in Osprey's own settings, and Amethystora sets none of them.
+`ame security browser osprey off` takes it off the list again: with browser protection on, browsers then
+turn it off, and Firefox removes it; with protection off, remove it yourself.
 
 ### Encrypted DNS
 

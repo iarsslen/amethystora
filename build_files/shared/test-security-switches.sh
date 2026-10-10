@@ -51,8 +51,8 @@ done
 # Every setting is described, grouped, and says how it applies and what it sends
 "${CONFIG}" --list --json | jq -e '.settings | length > 20 and all(.[];
     (.title | length > 0) and (.text | length > 0) and (.group | length > 0) and (.applies | length > 0)
-    and (.sends | IN("none", "downloads")) and (.value as $value | .allowed | index($value) != null))' >/dev/null ||
-    fail "a setting with no description, group, applies or sends"
+    and ((.sends | IN("none", "downloads")) or (.explain | length > 0)) and (.value as $value | .allowed | index($value) != null))' >/dev/null ||
+    fail "a setting with no description, group, applies or sends, or sending away with no explanation"
 
 # --- The units read their keys ------------------------------------------------------------------------
 

@@ -1401,6 +1401,23 @@ msgstr ""
 msgid "Browsers install only the extensions on a list, and web pages cannot reach USB, serial, HID or Bluetooth devices"
 msgstr ""
 
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
+msgid "Site checking (Osprey)"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "Osprey checks each site you open in ${BROWSERS}. Every address goes to Osprey Project LLC and its providers."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Osprey is allowed, and not installed in any of your browsers yet: install it from your browser's store."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Have your browser check each site you open against threat-intelligence providers. Every address you open goes to them."
+msgstr ""
+
 #: usr/libexec/amethystora-security-status
 #, sh-format
 msgid "Names are looked up over DNS-over-TLS with ${RESOLVER}, so the network cannot see them or answer in its place"
@@ -2652,6 +2669,14 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "YARA Forge's core set, from many authors: only the rules whose licence asks nothing beyond naming the author. Downloaded on this machine."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Browsers may install Osprey, which checks each site you open against more than twenty threat-intelligence providers and warns or blocks. Only allowed, never installed: you install it from your browser's store."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Osprey sends the address of every site you open to Osprey Project LLC, in California, and on from there to its providers, without the query string and without your address. Amethystora does not make it: it is GPL-3.0, and you install it from your browser's own store, where it can be removed like any other extension."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
