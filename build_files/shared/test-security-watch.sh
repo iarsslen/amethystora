@@ -193,4 +193,61 @@ before="$(wc -l <"${HISTORY}")"
 timeout 120 "${WATCH}" >/dev/null || fail "the second run with SELinux denials failed"
 tail -n +"$((before + 1))" "${HISTORY}" | grep -q selinux-denials && fail "the same denial was said twice"
 
+# --- What runs ------------------------------------------------------------------------------------------------
+
+unset AMETHYSTORA_WATCH_AUDIT
+sed -i 's/^SELINUX_DENIALS=on$/AUDIT_LOG=off\nPROCESSES=on/' "${AMETHYSTORA_SECURITY_CONF}"
+# The first run with it on only records what runs already
+timeout 120 "${WATCH}" >/dev/null || fail "the first run reading processes failed"
+P="$(mktemp -d /var/tmp/watch-XXXX)"
+cp /usr/bin/sleep "${P}/dropped"
+cp /usr/bin/sleep "${P}/gone"
+mkdir -p "${P}/allowed"
+# A program is remembered by what it is: a byte more makes it another one
+cp /usr/bin/sleep "${P}/allowed/sleep"
+printf x >>"${P}/allowed/sleep"
+printf '#!/usr/bin/bash\nsleep 300\n' >/var/tmp/claude
+chmod 0755 /var/tmp/claude
+PIDS=()
+"${P}/dropped" 300 &
+PIDS+=($!)
+"${P}/gone" 301 &
+PIDS+=($!)
+rm "${P}/gone"
+"${P}/allowed/sleep" 302 &
+PIDS+=($!)
+# A disguised thread, a network tool an npm script started, and an agent run with its checks off
+bash -c 'exec -a "[kworker/0:9]" /usr/bin/cat' < <(sleep 300) >/dev/null &
+PIDS+=($!)
+npm_lifecycle_event=postinstall bash -c 'exec -a curl /usr/bin/sleep 303' &
+PIDS+=($!)
+/var/tmp/claude --dangerously-skip-permissions </dev/null >/dev/null 2>&1 &
+PIDS+=($!)
+mkdir -p "${R}/etc/amethystora/allow.d"
+echo "${P}/allowed/*" >"${R}/etc/amethystora/allow.d/processes"
+sleep 1
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run reading processes failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "processes")')"
+kill "${PIDS[@]}" 2>/dev/null || true
+for want in "runs from a folder where downloads and temporary files land: ${P}/dropped" \
+    "runs from a file that was deleted since: ${P}/gone" 'names itself like a kernel thread, [kworker/0:9]' \
+    "An npm package's postinstall script started curl" \
+    'An AI agent runs with its own checks turned off: claude --dangerously-skip-permissions (/var/tmp/claude), started without a terminal'; do
+    grep -qF -- "${want}" <<<"${FOUND}" || fail "what runs: \"${want}\" was not found in ${FOUND}"
+done
+jq -se 'any(.[]; (.text | test("kernel thread")) and .level == "critical" and .tactic == "Defense Evasion")
+    and any(.[]; (.text | test("/allowed/sleep")) and .level == "quiet")
+    and any(.[]; (.text | test("AI agent")) and .allow == "/var/tmp/claude")
+    and all(.[]; .account == "root")' <<<"${FOUND}" >/dev/null || fail "what runs, its levels: ${FOUND}"
+# Each is said once
+before="$(wc -l <"${HISTORY}")"
+cp /usr/bin/sleep "${P}/dropped"
+"${P}/dropped" 304 &
+PIDS=($!)
+timeout 120 "${WATCH}" >/dev/null || fail "the second run reading processes failed"
+kill "${PIDS[@]}" 2>/dev/null || true
+tail -n +"$((before + 1))" "${HISTORY}" | grep -q '"key":"processes"' && fail "the same program was said twice"
+rm -rf "${P}" /var/tmp/claude
+
 echo "test-security-watch: what an account plants is only ever read"

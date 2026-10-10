@@ -1,0 +1,17 @@
+# The image's own entries for what runs (PROCESSES in /etc/amethystora/security.conf): programs that run
+# from where the security watcher looks, by design. The machine's own are in /etc/amethystora/allow.d/processes
+# (ame security allow processes PATH). A glob each; ~/ is every home folder.
+#
+# Flatpak's and Homebrew's programs, which their updates replace while they run
+/var/lib/flatpak/*
+~/.local/share/flatpak/*
+/home/linuxbrew/.linuxbrew/*
+# runc and crun run a copy of themselves from memory, so that a container cannot overwrite them
+/memfd:runc_cloned*
+/memfd:crun*
+# AppImages, mounted in /tmp while they run, and Go's test programs, built there
+/tmp/.mount_*
+/tmp/go-build*
+# Containers' programs, in their storage
+~/.local/share/containers/storage/*
+/var/lib/containers/storage/*

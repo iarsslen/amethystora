@@ -1759,6 +1759,10 @@ for mode in $(grep -E '^declare -A READERS=' /usr/libexec/amethystora-security-w
     grep -qE "^    ${mode}\) " /usr/libexec/amethystora-security-reader
 done
 bash /ctx/build_files/shared/test-security-reader.sh
+# What turns an agent's own checks off is known for every agent amethystora-agent offers
+for agent in $(sed -n 's/^AGENTS=(\(.*\))$/\1/p' /usr/bin/amethystora-agent); do
+    grep -q "^${agent}"$'\t' /usr/share/amethystora/agent-cli-flags
+done
 /usr/libexec/amethystora-security-status --json |
     jq -e '.settings.on_detection == "report" and .settings.realtime == "off" and .settings.network == "off"' >/dev/null
 

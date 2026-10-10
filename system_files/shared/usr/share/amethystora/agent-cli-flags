@@ -1,0 +1,32 @@
+# What turns an AI agent's own checks off, for the security watcher (amethystora-security-watch): run so by
+# something other than a person, an agent does whatever it is told without asking, which is how the Nx
+# attack of August 2025 used one from an npm install script. One "AGENT<TAB>WHAT" a line, where AGENT is the
+# name amethystora-agent gives it and WHAT one argument, two arguments as the agent takes them (an option and
+# its value, also matched as --option=value), or env:NAME=GLOB for a variable. Checked on 2026-10-10 against
+# each maker's reference and the installed program; 20-tests.sh fails when amethystora-agent offers an agent
+# this does not name.
+claude	--dangerously-skip-permissions
+claude	--permission-mode bypassPermissions
+codex	--dangerously-bypass-approvals-and-sandbox
+codex	--yolo
+codex	--dangerously-bypass-hook-trust
+codex	--sandbox danger-full-access
+codex	-s danger-full-access
+gemini	--yolo
+gemini	-y
+gemini	--approval-mode yolo
+copilot	--yolo
+copilot	--allow-all
+copilot	--allow-all-tools
+copilot	--allow-all-paths
+copilot	--allow-all-urls
+copilot	env:COPILOT_ALLOW_ALL=[1tTyYoO]*
+cursor-agent	--force
+cursor-agent	-f
+cursor-agent	--yolo
+cursor-agent	--sandbox disabled
+cursor-agent	--approve-mcps
+opencode	--auto
+opencode	--yolo
+opencode	--dangerously-skip-permissions
+opencode	env:OPENCODE_PERMISSION=*allow*

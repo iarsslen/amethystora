@@ -285,6 +285,13 @@ off until you turn it on, in the Settings page or with `ame security settings`, 
 which keeps what it finds in the history and the Events page without a notification, or `on`. None sends
 anything anywhere unless its own entry says so.
 
+- **Odd processes** (`processes`): every 15 minutes, what runs. A program whose file was deleted while it
+  runs, or that runs from memory alone, which malware does to leave nothing to scan; one in a temporary
+  folder, `~/.cache` or your download folder; a process that names itself like a kernel thread but runs a
+  program, which kernel threads never do; a network tool or an AI agent started by an npm package's install
+  script; and an AI agent run with its own checks turned off (such as `--dangerously-skip-permissions` or
+  `--yolo`), said when it was not started at a terminal. Each is said the first time for that program.
+  Flatpak's and Homebrew's updates, containers, AppImages and Go's tests are allowed already.
 - **Apps that gain permissions** (`app-permissions`): a Flatpak app that gains a way out of its sandbox
   ([App permissions](#app-permissions)), through an update, an override or another app in its place. An
   app installed with its permissions is recorded; a permission added to one you have is said. It is read

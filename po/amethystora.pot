@@ -2435,6 +2435,10 @@ msgid "SELinux denials"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Odd processes"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
 msgstr ""
 
@@ -2532,6 +2536,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "A confined service doing what its policy never let it, which is often what an exploit looks like: each different denial said the first time. Needs the audit log."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "A program running from a deleted file, from memory alone, or from a temporary or download folder; one disguised as a kernel thread; a network tool or AI agent started by an npm package's install script; and an AI agent run with its own checks off. Each said the first time for that program."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

@@ -353,6 +353,179 @@ read_selinux() {
     tail -n "${SELINUX_SEEN_KEPT}" "${seen}" >"${seen}.new" && mv "${seen}.new" "${seen}"
 }
 
+# --- What runs ------------------------------------------------------------------------------------------
+
+# Malware that leaves no file, or runs from where downloads land, is seen running before it is seen
+# anywhere else. Each run reads every process's program and command line, and for a few the environment:
+#   - a program whose file was deleted, or that lives in memory alone (memfd)
+#   - a program in a temporary folder, ~/.cache or the download folder
+#   - a process named like a kernel thread, [kworker/0:1], that runs a program: kernel threads have none
+#   - a network tool, an AI agent or a secret scanner started by an npm package's install script
+#   - an AI agent running with its own checks turned off (agent-cli-flags)
+# Each is said the first time for that program, by the SHA-256 of what runs, never of the path it claims.
+# Processes in a container or a sandbox of their own see other files under the same paths, so there only
+# the two that need no path count: a disguised thread and memory alone. What a process says of itself, its
+# name, command line and environment, is matched as plain text, and never used as a path or a pattern.
+# /proc is read in a few passes, each bounded in time: a process can keep a read of its own command line
+# waiting, and must not keep the watcher waiting with it.
+AGENT_FLAGS=/usr/share/amethystora/agent-cli-flags
+NETWORK_TOOLS=" curl wget nc ncat netcat socat ssh scp sftp rsync "
+SECRET_SCANNERS=" trufflehog gitleaks detect-secrets noseyparker "
+
+# Which agent a process is, into AGENT, from its program and its first two arguments: the command, or the
+# script node or bash runs; and AGENT_PATH, the path that said so. Set rather than printed: it is asked of
+# every process, and a subshell each would cost.
+agent_of() {
+    local exe="$1" first="$2" second="$3" name
+    AGENT="" AGENT_PATH=""
+    for name in "${first}" "${second}"; do
+        case "${name##*/}" in
+            claude | codex | copilot | opencode | cursor-agent) AGENT="${name##*/}" ;;
+            gemini | gemini.js) AGENT=gemini ;;
+            *) continue ;;
+        esac
+        # A command found in PATH names no folder: then the program is the agent
+        AGENT_PATH="${name}"
+        [[ "${name}" == /* ]] || AGENT_PATH="${exe}"
+        return
+    done
+    if [[ "${exe}" == */cursor-agent/versions/* ]]; then
+        AGENT=cursor-agent AGENT_PATH="${exe}"
+    elif [[ "${second}" == */cursor-agent/* ]]; then
+        AGENT=cursor-agent AGENT_PATH="${second}"
+    elif [[ "${second}" == */gemini-cli/* ]]; then
+        AGENT=gemini AGENT_PATH="${second}"
+    fi
+}
+
+# The first of AGENT's flags that the arguments (one a line on stdin) or the environment (one variable a
+# line) carry. An option's value is matched whether it was given as "--option value" or "--option=value".
+agent_flag() {
+    local agent="$1" environment="$2" args name flag variable glob entry
+    args=" $(sed -E 's/^(--[a-z-]+)=/\1 /' | tr '\n' ' ') "
+    while IFS=$'\t' read -r name flag; do
+        [[ "${name}" == "${agent}" ]] || continue
+        if [[ "${flag}" == env:*=* ]]; then
+            variable="${flag#env:}"
+            glob="${variable#*=}"
+            variable="${variable%%=*}"
+            while IFS= read -r entry; do
+                # shellcheck disable=SC2053 # the glob is the image's own, from agent-cli-flags
+                [[ "${entry%%=*}" == "${variable}" && "${entry#*=}" == ${glob} ]] && { echo "${variable}"; return; }
+            done <<<"${environment}"
+        elif [[ "${args}" == *" ${flag} "* ]]; then
+            echo "${flag}"
+            return
+        fi
+    done < <(grep -v '^#' "${AGENT_FLAGS}" 2>/dev/null)
+}
+
+read_processes() {
+    local seen="${STATE}/processes-seen" first=false pid target exe host_ns uid user name what level tactic sum
+    local reason event agent flag environment tty how home dir line subject
+    local -a argv writable=(/tmp/ /var/tmp/ /dev/shm/)
+    local -A program=() owner=() namespace=() command=()
+    [[ -e "${seen}" ]] || first=true
+    touch "${seen}"
+    # Each home's cache and download folders; the download folder's name follows the session's language
+    while IFS=: read -r _ _ uid _ _ home _; do
+        [[ "${uid}" -ge 1000 && "${uid}" -ne 65534 ]] || continue
+        home="$(realpath -q "${home}" || true)"
+        [[ -n "${home}" && -d "${home}" ]] || continue
+        writable+=("${home}/.cache/" "${home}/Downloads/")
+        dir="${home}/.config/user-dirs.dirs"
+        if [[ -f "${dir}" && ! -L "${dir}" ]]; then
+            dir="$(timeout 5 head -c 8192 -- "${dir}" | sed -n 's/^XDG_DOWNLOAD_DIR="\$HOME\/\([^"]*\)"$/\1/p' | head -n1)"
+            [[ -n "${dir}" && "${dir}" != *..* ]] && writable+=("${home}/${dir%/}/")
+        fi
+    done < <(accounts)
+    # Each process's program (none for a kernel thread), its owner and its mount namespace
+    while IFS=$'\t' read -r pid target; do
+        program["${pid}"]="${target}"
+    done < <(timeout 20 find /proc -mindepth 2 -maxdepth 2 -regex '/proc/[0-9]+/exe' -printf '%h\t%l\n' 2>/dev/null |
+        sed 's#^/proc/##')
+    while read -r pid uid; do
+        owner["${pid}"]="${uid}"
+    done < <(timeout 20 find /proc -mindepth 1 -maxdepth 1 -regex '/proc/[0-9]+' -printf '%f %U\n' 2>/dev/null)
+    while IFS=$'\t' read -r pid target; do
+        namespace["${pid%/ns}"]="${target}"
+    done < <(timeout 20 find /proc -mindepth 3 -maxdepth 3 -regex '/proc/[0-9]+/ns/mnt' -printf '%h\t%l\n' 2>/dev/null |
+        sed 's#^/proc/##')
+    # ...and its command line, the arguments apart by the unit separator, each newline in one a space
+    while IFS= read -r line; do
+        command["${line%%$'\x1f'*}"]="${line#*$'\x1f'}"
+    done < <(timeout 20 gawk 'BEGIN { RS = "\0" }
+        BEGINFILE { if (ERRNO != "") nextfile; if (pid != "") print pid "\037" out; split(FILENAME, part, "/"); pid = part[3]; out = "" }
+        { gsub(/[\n\037]/, " "); out = out (out == "" ? "" : "\037") $0 }
+        END { if (pid != "") print pid "\037" out }' /proc/[0-9]*/cmdline 2>/dev/null)
+    host_ns="${namespace[1]:-}"
+    for pid in "${!program[@]}"; do
+        target="${program[${pid}]}"
+        exe="${target% (deleted)}"
+        IFS=$'\x1f' read -ra argv <<<"${command[${pid}]:-}"
+        reason="" what="" level=normal tactic=Execution subject="${exe}"
+        if [[ "${argv[0]:-}" == "["* && ${#argv[@]} -eq 1 ]]; then
+            reason=kthread level=critical tactic="Defense Evasion"
+            what="A process names itself like a kernel thread, ${argv[0]}, but runs a program, ${exe}"
+        elif [[ "${exe}" == /memfd:* ]]; then
+            reason=memfd
+            what="A program runs from memory alone, with no file: ${exe}"
+        elif [[ "${namespace[${pid}]:-}" == "${host_ns}" && "${target}" == *" (deleted)" ]]; then
+            reason=deleted
+            what="A program runs from a file that was deleted since: ${exe}"
+        elif [[ "${namespace[${pid}]:-}" == "${host_ns}" ]]; then
+            for dir in "${writable[@]}"; do
+                [[ "${exe}" == "${dir}"* ]] || continue
+                reason=writable
+                what="A program runs from a folder where downloads and temporary files land: ${exe}"
+                break
+            done
+        fi
+        name="${argv[0]:-}"
+        name="${name##*/}"
+        agent_of "${exe}" "${argv[0]:-}" "${argv[1]:-}"
+        agent="${AGENT}"
+        # The environment, read only for what it can tell about: an agent, a network tool, a secret scanner
+        environment=""
+        if [[ -n "${agent}" || "${NETWORK_TOOLS}${SECRET_SCANNERS}" == *" ${name} "* ]]; then
+            environment="$(timeout 2 head -c 65536 "/proc/${pid}/environ" 2>/dev/null | tr '\0' '\n')"
+        fi
+        event=""
+        [[ -z "${reason}" && "${environment}" == *npm_lifecycle_event=* ]] &&
+            event="$(sed -n 's/^npm_lifecycle_event=//p' <<<"${environment}" | head -n1)"
+        if [[ -n "${event}" ]]; then
+            reason="npm:${agent:-${name}}"
+            what="An npm package's ${event//[^A-Za-z0-9:_-]/?} script started ${agent:-${name}}: ${exe}"
+        fi
+        if [[ -z "${reason}" && -n "${agent}" ]]; then
+            flag="$(printf '%s\n' "${argv[@]:1}" | agent_flag "${agent}" "${environment}")"
+            if [[ -n "${flag}" ]]; then
+                reason="agent:${agent}:${flag// /=}"
+                # Started at a terminal, it is most likely the person typing it: recorded, not said
+                # stat's second field is the process's name in parentheses, which may hold spaces: the
+                # terminal is the fifth field after it
+                tty="$(cat "/proc/${pid}/stat" 2>/dev/null)"
+                read -r _ _ _ _ tty _ <<<"${tty##*) }"
+                how=", started without a terminal"
+                [[ "${tty}" =~ ^[1-9][0-9]*$ ]] && { level=quiet; how=", at a terminal"; }
+                # The agent itself, not the node or bash it may run in: allowing that would allow everything
+                [[ "${AGENT_PATH}" == /* ]] && subject="${AGENT_PATH}"
+                what="An AI agent runs with its own checks turned off: ${agent} ${flag} (${subject})${how}"
+            fi
+        fi
+        [[ -n "${reason}" ]] || continue
+        # What runs, not what it claims to be: the file behind the process, there even when deleted
+        sum="$(timeout 10 head -c 104857600 "/proc/${pid}/exe" 2>/dev/null | sha256sum | cut -d' ' -f1)"
+        grep -qxF -- "${reason} ${sum}" "${seen}" && continue
+        echo "${reason} ${sum}" >>"${seen}"
+        [[ "${first}" == false && -n "${LAST_RUN}" ]] || continue
+        uid="${owner[${pid}]:-}"
+        user="$(id -nu "${uid}" 2>/dev/null || echo "${uid:--}")"
+        allowed processes "${subject}" && level=quiet
+        add "${level}" processes "${user}" "${tactic}" "${what} (process ${pid}, as ${user})" "allow=${subject}"
+    done
+}
+
 # --- The journal --------------------------------------------------------------------------------------
 
 read_journal() {
@@ -980,6 +1153,8 @@ if [[ "${SETTING[AUDIT_LOG]:-on}" != off ]]; then
     timed SELINUX_DENIALS switched SELINUX_DENIALS read_selinux
 fi
 timed HARDENING switched HARDENING read_settings
+[[ "${SETTING[PROCESSES]:-off}" == off ]] && rm -f "${STATE}/processes-seen"
+timed PROCESSES switched PROCESSES read_processes
 [[ "${SETTING[JOURNAL]:-on}" == off ]] && rm -f "${STATE}/journal.cursor"
 timed JOURNAL switched JOURNAL read_journal
 timed NETWORK read_network
