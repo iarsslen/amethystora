@@ -2439,6 +2439,10 @@ msgid "Odd processes"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Programs in the kernel"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
 msgstr ""
 
@@ -2540,6 +2544,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "A program running from a deleted file, from memory alone, or from a temporary or download folder; one disguised as a kernel thread; a network tool or AI agent started by an npm package's install script; and an AI agent run with its own checks off. Each said the first time for that program."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "A program loaded into the kernel's BPF, which is how eBPF rootkits hide files and connections: recorded when new, and said when loaded by a program outside the system, or when it watches the kernel and nothing is left holding it."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

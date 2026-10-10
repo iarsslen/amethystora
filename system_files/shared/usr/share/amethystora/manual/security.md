@@ -301,6 +301,11 @@ anything anywhere unless its own entry says so.
   an exploit looks like from outside. Each different denial is said the first time; one SELinux let
   through, because that service's domain is permissive, is recorded. It reads the audit log, so it needs
   the audit log on.
+- **Programs in the kernel** (`bpf-programs`): eBPF rootkits load small programs into the kernel that
+  hide files, processes and connections. systemd and the firewall load the same few every time, so a new
+  one is recorded, and said when a program outside the system loaded it, or when it watches what the kernel
+  does and nothing is left holding it. A rootkit that also hides its programs from this is not caught; most
+  do not.
 - **Startup hooks in developer tools** (`dev-hooks`): code put where a developer tool runs it by itself.
   A Python `.pth` file whose lines start with `import` runs them at every start of Python, which is how a
   poisoned package stays after it is removed; git's `core.hooksPath`, `core.fsmonitor` and

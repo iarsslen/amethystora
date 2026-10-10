@@ -26,6 +26,8 @@ FEDORA_PACKAGES=(
     bcache-tools
     bootc
     borgbackup
+    # What the kernel's BPF runs, for the security watcher (BPF_PROGRAMS)
+    bpftool
     # Ransomware protection's snapshots of /var/home (ame security ransomware)
     btrfs-progs
     clamav

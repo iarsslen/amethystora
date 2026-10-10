@@ -250,4 +250,33 @@ kill "${PIDS[@]}" 2>/dev/null || true
 tail -n +"$((before + 1))" "${HISTORY}" | grep -q '"key":"processes"' && fail "the same program was said twice"
 rm -rf "${P}" /var/tmp/claude
 
+# --- Programs in the kernel's BPF, from a stand-in bpftool ------------------------------------------------
+
+sed -i 's/^PROCESSES=on$/BPF_PROGRAMS=on/' "${AMETHYSTORA_SECURITY_CONF}"
+export AMETHYSTORA_WATCH_BPFTOOL="${T}/bpftool"
+printf '#!/usr/bin/bash\ncat "%s/bpf.json"\n' "${T}" >"${T}/bpftool"
+chmod 0755 "${T}/bpftool"
+echo '[{"id":1,"type":"cgroup_device","tag":"aa11","pids":[{"pid":1,"comm":"systemd"}]}]' >"${T}/bpf.json"
+timeout 120 "${WATCH}" >/dev/null || fail "the first run reading BPF failed"
+sleep 600 &
+HOLDER=$!
+cp /usr/bin/sleep /var/tmp/loader
+/var/tmp/loader 600 &
+LOADER=$!
+jq -nc --argjson holder "${HOLDER}" --argjson loader "${LOADER}" '[
+    {id: 1, type: "cgroup_device", tag: "aa11", pids: [{pid: 1, comm: "systemd"}]},
+    {id: 2, type: "cgroup_skb", tag: "bb22", name: "sd_fw_egress", pids: [{pid: $holder, comm: "sleep"}]},
+    {id: 3, type: "kprobe", tag: "cc33", name: "hide\u001b[2J"},
+    {id: 4, type: "tracepoint", tag: "dd44", name: "spy", pids: [{pid: $loader, comm: "loader"}]}]' >"${T}/bpf.json"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run reading BPF failed"
+kill "${HOLDER}" "${LOADER}" 2>/dev/null || true
+rm -f /var/tmp/loader
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "bpf-programs")')"
+jq -se 'length == 3
+    and any(.[]; (.text | test("sd_fw_egress .cgroup_skb, tag bb22., by /usr/bin/sleep")) and .level == "quiet")
+    and any(.[]; (.text | test("hide..2J .kprobe, tag cc33., by a process that is gone")) and .level == "normal")
+    and any(.[]; (.text | test("spy .tracepoint, tag dd44., by /var/tmp/loader")) and .level == "normal"
+        and .allow == "spy /var/tmp/loader")' <<<"${FOUND}" >/dev/null || fail "BPF programs: ${FOUND}"
+
 echo "test-security-watch: what an account plants is only ever read"

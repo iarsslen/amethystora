@@ -24,6 +24,9 @@
 #   selinux-denials
 #            a denial as SELinux names it: the source and target types, the class and the permissions, or
 #            globs of them: "xdm_t user_home_t file read,open"
+#   bpf-programs
+#            a BPF program's name and the program that loaded it, or "unknown", or globs of them:
+#            "sd_* /usr/lib/systemd/systemd"
 #   app-permissions
 #            a Flatpak app's id and a way out of its sandbox, as amethystora-app-permissions names it, or a
 #            glob of either: "com.valvesoftware.Steam x11", "org.example.App *"
@@ -44,6 +47,8 @@ declare -A SHAPE=(
     [app-permissions]='^[A-Za-z0-9_.*-]{1,255} [a-z*-]{1,32}$'
     # A denial as SELinux names it: source type, target type, class and permissions, or globs of them
     [selinux-denials]='^[a-z0-9_*]{1,64} [a-z0-9_*]{1,64} [a-z0-9_*]{1,64} [a-z0-9_*,]{1,256}$'
+    # A BPF program's name and the program that loaded it, "unknown" when none was left, or globs of them
+    [bpf-programs]='^[A-Za-z0-9_.?*]{1,64} (/[^[:cntrl:]]{0,1000}|unknown|\*)$'
 )
 # A path, a program or a glob of either, from the root or from every home
 PATHS='^(/|~/)[^[:cntrl:]]{0,1022}$'

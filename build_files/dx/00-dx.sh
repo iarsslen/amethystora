@@ -12,7 +12,6 @@ source /ctx/build_files/shared/copr-helpers.sh
 FEDORA_PACKAGES=(
     android-tools
     bcc
-    bpftool
     bpftop
     bpftrace
     cascadia-code-fonts
