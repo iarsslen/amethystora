@@ -289,6 +289,11 @@ anything anywhere unless its own entry says so.
   ([App permissions](#app-permissions)), through an update, an override or another app in its place. An
   app installed with its permissions is recorded; a permission added to one you have is said. It is read
   as each account, for the accounts with a session in the last day, and said to that account alone.
+- **SELinux denials** (`selinux-denials`): SELinux keeps each confined service to what its policy allows,
+  and records what it refused. A service suddenly refused something it never tried before is often what
+  an exploit looks like from outside. Each different denial is said the first time; one SELinux let
+  through, because that service's domain is permissive, is recorded. It reads the audit log, so it needs
+  the audit log on.
 - **Startup hooks in developer tools** (`dev-hooks`): code put where a developer tool runs it by itself.
   A Python `.pth` file whose lines start with `import` runs them at every start of Python, which is how a
   poisoned package stays after it is removed; git's `core.hooksPath`, `core.fsmonitor` and

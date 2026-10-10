@@ -140,4 +140,57 @@ timeout 120 "${WATCH}" >/dev/null || fail "the reader's third run failed"
 [[ -e "${T}/notified" ]] && fail "what the owner allowed was said"
 jq -se 'any(.[]; .text == "allowed" and .level == "quiet")' "${HISTORY}" >/dev/null || fail "what the owner allowed was not recorded"
 
+# --- What the audit log holds, from a stand-in log in the kernel's raw form ---------------------------------
+
+unset AMETHYSTORA_WATCH_READER AMETHYSTORA_WATCH_ACCOUNTS
+export AMETHYSTORA_WATCH_AUDIT="${T}/audit.log"
+cat >"${AMETHYSTORA_SECURITY_CONF}" <<'EOF'
+HARDENING=off
+JOURNAL=off
+LISTENERS=off
+IMAGE_DRIFT=off
+SETUID_SWEEP=off
+REPORT_ALERTS=off
+USER_PATHS=off
+NETWORK=off
+IDENTITY=off
+PRIVILEGE=off
+PERSISTENCE=off
+MODULES=off
+INPUT_CAPTURE=off
+USER_PROGRAMS=off
+SELINUX_DENIALS=on
+EOF
+# Each audit record after the run before, so that it is new to this one. ausearch gives an event only once
+# one more than two seconds newer has come, as on a machine one always does: close() writes that one.
+# The records of each step are written that many seconds after the test began (STEP), in order.
+BEGAN="$(date +%s)"
+STEP=1
+close() { printf 'type=USER_START msg=audit(%s.100:%s): pid=1 uid=0 auid=0 ses=1 msg=x\n' "$((BEGAN + STEP + 20))" "$1"; }
+avc() {
+    printf 'type=AVC msg=audit(%s.100:%s): avc:  denied  { %s } for  pid=4242 comm=%s name="shadow" dev="dm-0" ino=7 scontext=system_u:system_r:%s:s0 tcontext=system_u:object_r:%s:s0 tclass=file permissive=%s\n' \
+        "$((BEGAN + STEP))" "$1" "$2" "$3" "$4" "$5" "$6"
+}
+{
+    avc 101 "read open" '"evil"' httpd_t shadow_t 0
+    avc 102 "read open" '"evil"' httpd_t shadow_t 0
+    avc 103 "write" 6576696C1B5B324A unconfined_service_t etc_t 1
+    close 199
+} >"${AMETHYSTORA_WATCH_AUDIT}"
+chmod 0600 "${AMETHYSTORA_WATCH_AUDIT}"
+sleep 2
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run with SELinux denials failed"
+SELINUX_FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "selinux-denials")')"
+jq -se 'length == 2 and (.[0].level == "normal" and .[0].allow == "httpd_t shadow_t file read,open"
+    and (.[0].text | test("SELinux kept evil \\(httpd_t\\) from read, open on a file of type shadow_t")))
+    and (.[1].level == "quiet" and (.[1].text | test("permissive")))' <<<"${SELINUX_FOUND}" >/dev/null ||
+    fail "SELinux's denials: ${SELINUX_FOUND}"
+# The same denial again is not news
+STEP=30
+{ avc 104 "read open" '"evil"' httpd_t shadow_t 0; close 299; } >>"${AMETHYSTORA_WATCH_AUDIT}"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the second run with SELinux denials failed"
+tail -n +"$((before + 1))" "${HISTORY}" | grep -q selinux-denials && fail "the same denial was said twice"
+
 echo "test-security-watch: what an account plants is only ever read"

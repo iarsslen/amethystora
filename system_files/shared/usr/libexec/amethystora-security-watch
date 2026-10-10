@@ -207,24 +207,33 @@ INPUT_SEEN="${STATE}/input-programs"
 # Only SYSCALL events, which is what every rule here records. The kernel also notes each rule it loads
 # as a CONFIG_CHANGE carrying that rule's key, and those would read as "add_rule identity using
 # auditctl", once per rule at every boot. The rules cannot change after that: -e 2 locks them.
-audit_events() {
-    local key="$1" checkpoint="${STATE}/audit-$1.checkpoint" output status day time
+# What is new in the audit log since the last read of NAME, one checkpoint each: audit_since NAME
+# AUSEARCH-ARGUMENT... With a stand-in root, AMETHYSTORA_WATCH_AUDIT names a stand-in log, in the raw form the
+# kernel writes, which the tests plant.
+AUDIT_INPUT=()
+[[ -n "${ROOT}" && -n "${AMETHYSTORA_WATCH_AUDIT:-}" ]] && AUDIT_INPUT=(-if "${AMETHYSTORA_WATCH_AUDIT}")
+audit_since() {
+    local checkpoint="${STATE}/audit-$1.checkpoint" output status day time
+    shift
     if [[ -s "${checkpoint}" ]]; then
-        output="$(LC_ALL=C ausearch --checkpoint "${checkpoint}" -m SYSCALL -k "${key}" --format text \
-            2>/dev/null)"
+        output="$(LC_ALL=C ausearch "${AUDIT_INPUT[@]}" --checkpoint "${checkpoint}" "$@" 2>/dev/null)"
         status=$?
         # The event the checkpoint names has rotated out of the log: carry on from its time instead
         if [[ ${status} -ge 10 && ${status} -le 12 ]]; then
-            output="$(LC_ALL=C ausearch --checkpoint "${checkpoint}" --start checkpoint -m SYSCALL -k "${key}" \
-                --format text 2>/dev/null)"
+            output="$(LC_ALL=C ausearch "${AUDIT_INPUT[@]}" --checkpoint "${checkpoint}" --start checkpoint "$@" 2>/dev/null)"
         fi
     else
-        # No event under this key yet: everything since the last run, which also makes the checkpoint
+        # Nothing read under this name yet: everything since the last run, which also makes the checkpoint
         read -r day time <<<"$(LC_ALL=C date -d "@${LAST_RUN:-${NOW}}" '+%x %T')"
-        output="$(LC_ALL=C ausearch --checkpoint "${checkpoint}" --start "${day}" "${time}" -m SYSCALL \
-            -k "${key}" --format text 2>/dev/null)"
+        output="$(LC_ALL=C ausearch "${AUDIT_INPUT[@]}" --checkpoint "${checkpoint}" --start "${day}" "${time}" "$@" 2>/dev/null)"
     fi
     chmod 0600 "${checkpoint}" 2>/dev/null
+    printf '%s\n' "${output}"
+}
+
+audit_events() {
+    local key="$1" output
+    output="$(audit_since "${key}" -m SYSCALL -k "${key}" --format text)"
     # One line for each different thing that happened, however many times it did, each marked "noted"
     # when it happened within two minutes of a switch's own command and "-" otherwise. The times are the
     # local ones ausearch writes, which mktime reads as local too.
@@ -290,6 +299,58 @@ read_audit() {
         done < <(audit_events "${key}")
     done
     MODE=on
+}
+
+# --- SELinux's denials ----------------------------------------------------------------------------------
+
+# A confined service doing what its policy never let it is often what an exploit looks like from outside.
+# Each different denial (source type, target type, class, permissions and program) is said the first time;
+# one SELinux let through in permissive mode is only recorded. Read from the audit log, so only while it is on.
+SELINUX_SEEN_KEPT=5000
+# One "permissive<US>source<US>target<US>class<US>permissions<US>program" line for each denial
+selinux_denials() {
+    audit_since selinux -m AVC,USER_AVC -r | awk '
+        BEGIN { for (i = 0; i < 256; i++) byte[sprintf("%02X", i)] = sprintf("%c", i) }
+        # A value the kernel quoted, or wrote in hex because it holds a space, a quote or a control character
+        function field(name,   m, out, i) {
+            if (match($0, " " name "=\"[^\"]*\"")) return substr($0, RSTART + length(name) + 3, RLENGTH - length(name) - 4)
+            if (!match($0, " " name "=[^ \x27]+")) return ""
+            m = substr($0, RSTART + length(name) + 2, RLENGTH - length(name) - 2)
+            if (m !~ /^([0-9A-F][0-9A-F])+$/ || name !~ /^(comm|exe|name)$/) return m
+            out = ""
+            for (i = 1; i < length(m); i += 2) out = out byte[substr(m, i, 2)]
+            return out
+        }
+        function type_of(context,   part) { split(context, part, ":"); return part[3] }
+        /avc: +denied/ {
+            perms = ""
+            if (match($0, /\{ [^}]* \}/)) { perms = substr($0, RSTART + 2, RLENGTH - 4); gsub(/ +/, ",", perms) }
+            program = field("comm")
+            if (program == "") program = field("exe")
+            # A process names itself: only plain characters of it are kept
+            gsub(/[^A-Za-z0-9._\/+-]/, "?", program)
+            printf "%s\037%s\037%s\037%s\037%s\037%s\n", field("permissive"), type_of(field("scontext")),
+                type_of(field("tcontext")), field("tclass"), perms, program
+        }' | sort -u
+}
+
+read_selinux() {
+    local seen="${STATE}/selinux-seen" permissive source target class perms program key level
+    touch "${seen}"
+    while IFS=$'\x1f' read -r permissive source target class perms program; do
+        [[ "${source}" =~ ^[a-z0-9_]+$ && "${target}" =~ ^[a-z0-9_]+$ && "${class}" =~ ^[a-z0-9_]+$ &&
+            "${perms}" =~ ^[a-z0-9_,]+$ ]] || continue
+        key="${source} ${target} ${class} ${perms} ${program}"
+        grep -qxF -- "${key}" "${seen}" && continue
+        echo "${key}" >>"${seen}"
+        level=normal
+        [[ "${permissive}" == 1 ]] && level=quiet
+        allowed selinux-denials "${source} ${target} ${class} ${perms}" && level=quiet
+        [[ -n "${LAST_RUN}" ]] &&
+            add "${level}" selinux-denials - Execution "SELinux kept ${program:-a program} (${source}) from ${perms//,/, } on a ${class} of type ${target}$([[ "${permissive}" == 1 ]] && echo ", and let it through: that domain is permissive")" \
+                "allow=${source} ${target} ${class} ${perms}"
+    done < <(selinux_denials)
+    tail -n "${SELINUX_SEEN_KEPT}" "${seen}" >"${seen}.new" && mv "${seen}.new" "${seen}"
 }
 
 # --- The journal --------------------------------------------------------------------------------------
@@ -915,6 +976,8 @@ timed() {
 # that turned on again they start from then, not from everything since they were turned off.
 if [[ "${SETTING[AUDIT_LOG]:-on}" != off ]]; then
     timed AUDIT_LOG read_audit
+    [[ "${SETTING[SELINUX_DENIALS]:-off}" == off ]] && rm -f "${STATE}/audit-selinux.checkpoint"
+    timed SELINUX_DENIALS switched SELINUX_DENIALS read_selinux
 fi
 timed HARDENING switched HARDENING read_settings
 [[ "${SETTING[JOURNAL]:-on}" == off ]] && rm -f "${STATE}/journal.cursor"
