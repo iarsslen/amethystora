@@ -675,6 +675,18 @@ else
         "$(gettext "The security watcher reads the audit log and checks the settings every 15 minutes")"
 fi
 
+# The services the detection switches start, when theirs is on, are expected to be running: the behaviour
+# sensor (Falco's probe has to load into this kernel) and the DNS monitor
+for pair in "BEHAVIOUR:amethystora-behaviour.service" "DNS_NAMES:amethystora-dns-names.service"; do
+    SWITCH="${pair%%:*}" UNIT="${pair#*:}"
+    [[ "$(/usr/libexec/amethystora-security-config "${SWITCH}")" != off && "${SETTING[WATCHER]}" != off ]] || continue
+    if ! systemctl is-active --quiet "${UNIT}" 2>/dev/null; then
+        COMMAND="journalctl -u ${UNIT} -n 40"
+        report watching "$(tr 'A-Z_' 'a-z-' <<<"${SWITCH}")-running" check "$(gettext "Detection services")" \
+            "$(eval_gettext "\${UNIT} is not running, though its switch is on")" "$(gettext "See why with:")"
+    fi
+done
+
 # Real-time watching and scanning are settings, so when one is on, what does it is expected to be running
 REALTIME_UNITS=()
 [[ "${SETTING[REALTIME_WATCH]}" == on && "${SETTING[WATCHER]}" != off && "${SETTING[AUDIT_LOG]}" != off ]] &&

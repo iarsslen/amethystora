@@ -170,6 +170,18 @@ licence ships in usr/share/licenses/starship.
 
   - Starship  https://github.com/starship/starship
 
+Falco, the behaviour sensor in usr/bin/falco with its rules in etc/falco, is
+installed from falcosecurity's own package repository by
+build_files/base/04-packages.sh, under the Apache License, Version 2.0. Its
+package carries no licence file, so the licence ships in
+usr/share/licenses/falco. The eBPF probe built into it, and the kernel module
+whose source the package puts in usr/src/falco-*, are licensed under either
+the MIT License or the GNU General Public License, version 2, at the
+recipient's choice; that source is the probe's too.
+
+  - Falco  https://github.com/falcosecurity/falco
+  - libs   https://github.com/falcosecurity/libs
+
 The udev rules named *-gdu.rules in usr/lib/udev/rules.d are game-devices-udev
 by Fabian Bornschein, licensed under the MIT License; the licence ships in
 usr/share/licenses/game-devices-udev.

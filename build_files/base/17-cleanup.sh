@@ -78,6 +78,10 @@ systemctl disable suricata.service
 systemctl enable amethystora-dns-names.service
 # YARA rules for the virus scanner, daily, skipped while every YARA_* switch is off
 systemctl enable amethystora-yara.timer
+# The behaviour sensor, Falco, the same way: enabled, and skipped while BEHAVIOUR=off. Falco's own units stay
+# off, and its rules follower, which would download rules, is masked: the rules are the package's.
+systemctl enable amethystora-behaviour.service
+systemctl mask falcoctl-artifact-follow.service
 
 systemctl enable flatpak-preinstall.service
 

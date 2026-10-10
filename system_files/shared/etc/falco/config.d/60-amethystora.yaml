@@ -1,0 +1,27 @@
+# Falco as Amethystora's behaviour sensor (BEHAVIOUR in /etc/amethystora/security.conf, which
+# amethystora-behaviour.service reads): its modern eBPF probe, what it notices as JSON lines in one file the
+# security watcher reads, and nothing else. No web server, which the package's configuration opens on every
+# address, no syslog, no output to a terminal, and nothing below a notice.
+engine:
+  kind: modern_ebpf
+  modern_ebpf:
+    # Fewer and smaller ring buffers than Falco's own default: one for every four CPUs, of 4 MB each
+    cpus_for_each_buffer: 4
+    buf_size_preset: 3
+priority: notice
+json_output: true
+json_include_output_property: true
+json_include_tags_property: true
+file_output:
+  enabled: true
+  keep_alive: true
+  filename: /var/log/falco/events.json
+stdout_output:
+  enabled: false
+syslog_output:
+  enabled: false
+log_syslog: false
+log_stderr: true
+webserver:
+  enabled: false
+watch_config_files: false

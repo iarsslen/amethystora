@@ -306,6 +306,29 @@ timeout 120 "${WATCH}" >/dev/null || fail "the second run with a chain failed"
 tail -n +"$((before + 1))" "${HISTORY}" | grep -q '"key":"chains"' && fail "the same chain was said twice"
 rm -f /var/tmp/watch-chain
 
+# --- The behaviour sensor, from a stand-in of Falco's file ------------------------------------------------
+
+# Falco's lines as 0.45 writes them (one seen on a real run): a warning said with its tactic, twice is once,
+# a notice recorded, and a half-written last line left for the next run
+echo "BEHAVIOUR=on" >>"${AMETHYSTORA_SECURITY_CONF}"
+mkdir -p "${R}/var/log/falco"
+FALCO_LINE='{"hostname":"h","output":"x","output_fields":{"evt.time":1,"fd.name":"/etc/shadow","proc.cmdline":"cat /etc/shadow","proc.exepath":"/usr/bin/cat","proc.name":"cat","user.name":"alice","user.uid":1000},"priority":"Warning","rule":"Read sensitive file untrusted","source":"syscall","tags":["T1555","filesystem","host","maturity_stable","mitre_credential_access"],"time":"2026-10-10T14:01:57.748052002Z"}'
+{
+    echo "${FALCO_LINE}"
+    echo "${FALCO_LINE}"
+    echo '{"output_fields":{"proc.exepath":"/usr/bin/bash","user.name":"bob","proc.cmdline":"bash"},"priority":"Notice","rule":"Terminal shell in container","tags":["mitre_execution"]}'
+    printf '{"rule":"half'
+} >"${R}/var/log/falco/events.json"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run reading the behaviour sensor failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "behaviour")')"
+jq -se 'length == 2
+    and any(.[]; .level == "normal" and .tactic == "Credential Access" and .account == "alice"
+        and .text == "The behaviour sensor saw: Read sensitive file untrusted, by /usr/bin/cat as alice: cat /etc/shadow (2 times)"
+        and .allow == "/usr/bin/cat Read sensitive file untrusted")
+    and any(.[]; .level == "quiet" and .tactic == "Execution")' <<<"${FOUND}" >/dev/null || fail "the behaviour sensor: ${FOUND}"
+sed -i '/^BEHAVIOUR=on$/d' "${AMETHYSTORA_SECURITY_CONF}"
+
 # --- Hash reputation, from a stand-in for curl -----------------------------------------------------------
 
 # A known hash is critical, an unknown one nothing, each asked once, and the key never on a command line

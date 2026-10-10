@@ -1,0 +1,31 @@
+[Unit]
+Description=Behaviour sensor (Falco), for the security watcher
+Documentation=https://falco.org/docs/
+# Falco's own units, which the image never enables, would run a second probe beside this one
+Conflicts=falco-modern-bpf.service falco-kmod.service falco-custom.service
+
+[Service]
+Type=simple
+# Off as the image ships: BEHAVIOUR in /etc/amethystora/security.conf, and the watcher that reads what it finds
+ExecCondition=/usr/libexec/amethystora-security-config --is BEHAVIOUR record on
+ExecCondition=/usr/libexec/amethystora-security-config --is WATCHER on
+# The package's configuration, with Amethystora's in /etc/falco/config.d/60-amethystora.yaml over it
+ExecStart=/usr/bin/falco
+# A reopened file after the watcher moved the old one aside
+ExecReload=/usr/bin/kill -USR1 $MAINPID
+LogsDirectory=falco
+LogsDirectoryMode=0700
+Restart=on-failure
+RestartSec=60
+StartLimitBurst=3
+# Within its budget: a little CPU and a few hundred megabytes, most of them the probe's ring buffers
+CPUWeight=20
+IOWeight=20
+MemoryHigh=250M
+MemoryMax=400M
+ProtectSystem=full
+PrivateTmp=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

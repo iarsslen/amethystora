@@ -1509,6 +1509,62 @@ read_accounts() {
     done < <(accounts)
 }
 
+# --- The behaviour sensor -----------------------------------------------------------------------------------
+
+# What Falco saw (BEHAVIOUR, amethystora-behaviour.service): its rules match what processes do as the kernel
+# sees it, every command, file opened and connection, through its eBPF probe. Each run reads what is new in
+# its file of JSON lines, one line for each rule and program however often, at the level its rule gives:
+# critical, normal for a warning or an error, quiet for a notice. Its ATT&CK tags feed the chains. The file is
+# moved aside once it grows past 20 MB, and Falco reopens its own.
+FALCO_EVENTS="${ROOT}/var/log/falco/events.json"
+FALCO_KEPT=$((20 * 1024 * 1024))
+read_behaviour() {
+    local position="${STATE}/falco.position" chunk="${STATE}/falco.chunk" inode size last="" offset=0
+    local rule level tactic program user command count
+    [[ -f "${FALCO_EVENTS}" ]] || return 0
+    inode="$(stat -c %i "${FALCO_EVENTS}")"
+    size="$(stat -c %s "${FALCO_EVENTS}")"
+    { read -r last offset <"${position}"; } 2>/dev/null
+    [[ "${last}" == "${inode}" && "${offset}" =~ ^[0-9]+$ && "${offset}" -le "${size}" ]] || offset=0
+    tail -c "+$((offset + 1))" "${FALCO_EVENTS}" | head -c "$((size - offset))" >"${chunk}"
+    # Whole lines only: the last one may still be being written
+    if [[ -s "${chunk}" && "$(tail -c 1 "${chunk}" | od -An -tx1 | tr -d ' ')" != 0a ]]; then
+        sed -i '$d' "${chunk}"
+    fi
+    echo "${inode} $((offset + $(stat -c %s "${chunk}")))" >"${position}"
+    if [[ "${size}" -gt "${FALCO_KEPT}" && -z "${ROOT}" ]]; then
+        mv -f "${FALCO_EVENTS}" "${FALCO_EVENTS}.1" && systemctl reload amethystora-behaviour.service 2>/dev/null
+        rm -f "${position}"
+    fi
+    while IFS=$'\x1f' read -r rule level tactic program user command count; do
+        [[ -n "${rule}" ]] || continue
+        allowed behaviour "${program} ${rule}" && { level=quiet; ALLOWED_HIT=1; }
+        [[ -n "${LAST_RUN}" ]] &&
+            add "${level}" behaviour "${user}" "${tactic}" "The behaviour sensor saw: ${rule}, by ${program} as ${user}: ${command}$([[ "${count}" -gt 1 ]] && echo " (${count} times)")" \
+                "allow=${program} ${rule}"
+    done < <(jq -rs '
+        def tactic: (map(select(startswith("mitre_"))) | first // "") as $tag
+            | {mitre_initial_access: "Initial Access", mitre_execution: "Execution", mitre_persistence: "Persistence",
+               mitre_privilege_escalation: "Privilege Escalation", mitre_defense_evasion: "Defense Evasion",
+               mitre_credential_access: "Credential Access", mitre_discovery: "Discovery",
+               mitre_lateral_movement: "Lateral Movement", mitre_collection: "Collection",
+               mitre_command_and_control: "Command and Control", mitre_exfiltration: "Exfiltration",
+               mitre_impact: "Impact"}[$tag] // "-";
+        map(select(type == "object" and (.rule | type == "string")))
+        | group_by([.rule, .output_fields["proc.exepath"]])[]
+        | .[0] as $e | length as $count
+        | [$e.rule,
+           (if ($e.priority | IN("Emergency", "Alert", "Critical")) then "critical"
+            elif ($e.priority | IN("Error", "Warning")) then "normal" else "quiet" end),
+           (($e.tags // []) | tactic),
+           ($e.output_fields["proc.exepath"] // $e.output_fields["proc.name"] // "?"),
+           ($e.output_fields["user.name"] // "-"),
+           ($e.output_fields["proc.cmdline"] // ""),
+           $count]
+        | map(tostring | gsub("[[:cntrl:]]"; " ")) | join("\u001f")' "${chunk}" 2>/dev/null)
+    rm -f "${chunk}"
+}
+
 # --- Hash reputation ----------------------------------------------------------------------------------------
 
 # Known malware recognised sooner than a signature would (REPUTATION): the full SHA-256 of each program odd
@@ -1650,6 +1706,8 @@ timed PROCESSES switched PROCESSES read_processes
 timed BPF_PROGRAMS switched BPF_PROGRAMS read_bpf
 [[ "${SETTING[SNAPSHOT_WATCH]:-off}" == off ]] && rm -f "${STATE}/snapshot-last"
 timed SNAPSHOT_WATCH switched SNAPSHOT_WATCH read_snapshots
+[[ "${SETTING[BEHAVIOUR]:-off}" == off ]] && rm -f "${STATE}/falco.position"
+timed BEHAVIOUR switched BEHAVIOUR read_behaviour
 # After the parts that hash what runs, whose new programs it looks up
 [[ "${SETTING[REPUTATION]:-off}" == off ]] && rm -f "${REPUTATION_QUEUE}"
 timed REPUTATION switched REPUTATION read_reputation

@@ -362,6 +362,12 @@ anything anywhere unless its own entry says so.
   extension is said too, and its updates, which it installs by itself, are recorded. Read as each
   account, like app permissions. Virtual environments are not looked into.
 
+- **Behaviour sensor** (`behaviour`): Falco, which sees what every process does as the kernel sees it, each
+  command, file opened and connection, through an eBPF probe, and matches it against its rules: a shell
+  started by a server, a secret read by a program that has no business with it, a binary dropped and run.
+  The watcher reads what they notice. Unlike the others it runs all the time, for a little CPU and a few
+  hundred megabytes of memory, and its rules are the ones its package ships, never downloaded. If the probe
+  cannot load into the running kernel, the report says so under **Detection services**.
 - **Chains of steps** (`chains`): an attack is steps that each look harmless alone: a program run from the
   downloads, a token read, a connection out. Each finding names its account and its step, and this puts them
   together: two different steps for one account within half an hour are said, and three, or reading secrets

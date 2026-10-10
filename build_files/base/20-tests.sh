@@ -1737,7 +1737,7 @@ done
 # key off, the prevention switches and accepted checks, against stand-ins.
 for unit in amethystora-security-watch amethystora-clamav-scan amethystora-clamav-onaccess amethystora-lynis-audit \
     amethystora-audit-rules amethystora-security-realtime amethystora-ips amethystora-ips-rules amethystora-signed-updates \
-    amethystora-dns-names amethystora-yara; do
+    amethystora-dns-names amethystora-yara amethystora-behaviour; do
     grep -q "^ExecCondition=" "/usr/lib/systemd/system/${unit}.service"
 done
 for unit in auditd.service audit-rules.service clamav-freshclam.service clamd@.service; do
@@ -1770,6 +1770,17 @@ for mode in $(grep -E '^declare -A READERS=' /usr/libexec/amethystora-security-w
     grep -qE "^    ${mode}\) " /usr/libexec/amethystora-security-reader
 done
 bash /ctx/build_files/shared/test-security-reader.sh
+# The behaviour sensor: Falco from falcosecurity's own repository, with its rules as packaged, run only by
+# amethystora-behaviour.service while BEHAVIOUR is on. None of its own units runs, its rules follower is masked,
+# its web server is off, and its configuration with Amethystora's is one Falco loads.
+rpm -q falco >/dev/null
+for unit in falco-modern-bpf.service falco-kmod.service falco-custom.service; do
+    [[ "$(systemctl is-enabled "${unit}" 2>/dev/null)" == "enabled" ]] && false
+done
+[[ "$(systemctl is-enabled falcoctl-artifact-follow.service 2>/dev/null)" == "masked" ]]
+grep -A1 "^webserver:" /etc/falco/config.d/60-amethystora.yaml | grep -q "enabled: false"
+timeout 120 falco --dry-run >/dev/null
+test -s /usr/share/licenses/falco/LICENSE
 # YARA rules are fetched on the machine, as freshclam's account and never as root, and split and tested so that
 # ClamAV loads every one it is given
 grep -q "^User=clamupdate$" /usr/lib/systemd/system/amethystora-yara.service
@@ -2006,7 +2017,7 @@ if (($(date +%s) - BASE_CREATED > 10 * 86400)); then
 fi
 # The repositories whose keys the build pinned (pin_repo_key, copr-helpers.sh) name the checked copy,
 # never a key on their server
-for file in /etc/yum.repos.d/{tailscale,docker-ce,_copr_ublue-os-akmods}.repo \
+for file in /etc/yum.repos.d/{tailscale,docker-ce,falcosecurity,_copr_ublue-os-akmods}.repo \
     /etc/yum.repos.d/_copr:copr.fedorainfracloud.org:{che:nerd-fonts,ublue-os:packages,bieszczaders:kernel-cachyos-addons}.repo; do
     [[ -f "${file}" ]] || continue
     if grep -E '^gpgkey[[:space:]]*=' "${file}" | grep -v '=file:///etc/pki/rpm-gpg/'; then

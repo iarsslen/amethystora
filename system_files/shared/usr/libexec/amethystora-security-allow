@@ -28,6 +28,9 @@
 #   credentials
 #            a program and a file where secrets are kept that it may read, or globs of either:
 #            "/usr/bin/ssh ~/.ssh/*", "/usr/bin/restic *"
+#   behaviour
+#            a program and the name of the behaviour sensor's rule it set off, or globs of them:
+#            "/usr/bin/lynis Read sensitive file untrusted"
 #   dns-names
 #            a name looked up, or a glob of names: "*.example.net"
 #   bpf-programs
@@ -55,6 +58,8 @@ declare -A SHAPE=(
     [selinux-denials]='^[a-z0-9_*]{1,64} [a-z0-9_*]{1,64} [a-z0-9_*]{1,64} [a-z0-9_*,]{1,256}$'
     # A program and a file where secrets are kept that it may read, or globs of either
     [credentials]='^(/|~/|\*)[^[:cntrl:] ]{0,500} (/|~/|\*)[^[:cntrl:]]{0,500}$'
+    # A program and the name of the behaviour sensor's rule it set off, or globs of them
+    [behaviour]='^(/|\*)[^[:cntrl:] ]{0,500} [^[:cntrl:]]{1,200}$'
     # A name looked up, or a glob of names: "*.example.net"
     [dns-names]='^[a-z0-9.*?_-]{1,253}$'
     # A BPF program's name and the program that loaded it, "unknown" when none was left, or globs of them

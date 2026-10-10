@@ -232,6 +232,25 @@ dnf config-manager setopt tailscale-stable.enabled=0
 pin_repo_key /etc/yum.repos.d/tailscale.repo 2596A99EAAB33821893C0A79458CA832957F5868
 dnf -y install --enablerepo='tailscale-stable' tailscale
 
+# The behaviour sensor (BEHAVIOUR in /etc/amethystora/security.conf, off as the image ships): Falco and its
+# modern eBPF probe, from falcosecurity's own repository, whose packages and metadata are both signed.
+# No driver is chosen at install: any other choice has its scriptlet load a test BPF program, which a build
+# cannot, and enable Falco's own units. amethystora-behaviour.service runs it, with the configuration in
+# /etc/falco/config.d/60-amethystora.yaml, and its rules follower, which would download rules, is masked
+# (17-cleanup.sh). Apache-2.0; its eBPF probe is MIT or GPL-2.0-only, at the user's choice.
+cat >/etc/yum.repos.d/falcosecurity.repo <<'EOF'
+[falcosecurity]
+name=falcosecurity
+baseurl=https://download.falco.org/packages/rpm
+enabled=0
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://falco.org/repo/falcosecurity-packages.asc
+EOF
+# falcosecurity's package signing key, as served on 2026-10-10, which expires on 2028-12-10
+pin_repo_key /etc/yum.repos.d/falcosecurity.repo 478B2FBBC75F4237B731DA4365106822B35B1B1F
+FALCO_FRONTEND=noninteractive FALCO_DRIVER_CHOICE=none dnf -y install --enablerepo=falcosecurity falco
+
 # The AI agents amethystora-agent offers are deliberately not installed here. They release far more
 # often than the image, so it installs them into each user's home with their makers' own installers,
 # where they update on a schedule the user controls.
