@@ -94,7 +94,7 @@ jobs:
 
     steps:
       - name: Maximize build space
-        uses: ublue-os/remove-unwanted-software@695eb75bc387dbcd9685a8e72d23439d8686cba6 # v10
+        uses: ublue-os/remove-unwanted-software@695eb75bc387dbcd9685a8e72d23439d8686cba6 # master
         with:
           remove-codeql: true
 
@@ -211,10 +211,10 @@ jobs:
   # and install it from there with Anaconda, offline. Titanoboa (ublue-os/titanoboa, Apache-2.0) squashes
   # a live system into a UEFI-only ISO; the live system is the published image with the live boot, the
   # live session and the installer added (iso/live), and a copy of the image itself, which is what gets
-  # installed. Titanoboa is pinned to its first commit that takes nothing but that image: everything else
-  # is in the image. Its trick for the offline copy, an image store in /usr/lib/containers/storage, does
-  # not work with Fedora 45's podman 6 (ublue-os/titanoboa#151), which this job will need an answer to
-  # before the stable image moves to 45.
+  # installed. Titanoboa is pinned to a commit of its main branch, newer than its last tag, from the first
+  # that takes nothing but that image: everything else is in the image. Its trick for the offline copy, an
+  # image store in /usr/lib/containers/storage, does not work with Fedora 45's podman 6
+  # (ublue-os/titanoboa#151), which this job will need an answer to before the stable image moves to 45.
   live-iso:
     name: Live ISO
     needs: [image]
@@ -229,7 +229,7 @@ jobs:
 
     steps:
       - name: Maximize build space
-        uses: ublue-os/remove-unwanted-software@695eb75bc387dbcd9685a8e72d23439d8686cba6 # v10
+        uses: ublue-os/remove-unwanted-software@695eb75bc387dbcd9685a8e72d23439d8686cba6 # master
         with:
           remove-codeql: true
 
@@ -265,7 +265,7 @@ jobs:
       # wherever its iso-dest output says it went
       - name: Build ISO
         id: titanoboa
-        uses: ublue-os/titanoboa@5c457c3d0518bd17e754be0fd98a60d29d26abb4
+        uses: ublue-os/titanoboa@5c457c3d0518bd17e754be0fd98a60d29d26abb4 # main
         with:
           image-ref: localhost/amethystora-live:stable
 

@@ -8,6 +8,22 @@
     "enabled": true
   },
 
+  // Renovate leaves the pre-commit hooks alone unless told
+  "pre-commit": {
+    "enabled": true
+  },
+
+  // The Copilot setup steps are a workflow outside .github/workflows
+  "github-actions": {
+    managerFilePatterns: [
+      '/^\\.github/copilot-setup-steps\\.yml$/',
+    ],
+  },
+
+  // config:best-practices skips every tests/ and examples/ folder, the VM
+  // lab's Containerfile with them
+  "ignorePaths": [],
+
   // Renovate cannot touch a branch that has been manually edited, which
   // silently stalls the dependency for months. Keep its own branches current
   // instead of hand-merging main into them.
@@ -41,8 +57,8 @@
       depTypeTemplate: 'base-image',
     },
     // The extensions.gnome.org uploads build-gnome-extensions.sh installs,
-    // by upload id. Only the calls at the top of the script: Space Bar's
-    // are pinned per GNOME, inside a test of the GNOME version, by hand.
+    // by upload id: the calls at the top of the script, and Space Bar's for
+    // the GNOME the datasource asks for (its build for GNOME 49 was the last)
     {
       customType: 'regex',
       managerFilePatterns: [
@@ -50,6 +66,7 @@
       ],
       matchStrings: [
         '\\ninstall_ego_extension "(?<depName>[^"]+)" \\d+ (?<currentValue>\\d+) ',
+        'GNOME_MAJOR >= 50\\)\\); then\\n\\s+install_ego_extension "(?<depName>[^"]+)" \\d+ (?<currentValue>\\d+) ',
       ],
       datasourceTemplate: 'custom.extensions-gnome-org',
       versioningTemplate: 'loose',
@@ -68,6 +85,19 @@
       ],
       depNameTemplate: 'anchore/syft',
       datasourceTemplate: 'github-release-attachments',
+    },
+    // The bootc-image-builder build-iso.yml makes the installer ISO with
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^\\.github/workflows/build-iso\\.yml$/',
+      ],
+      matchStrings: [
+        'BUILDER: (?<depName>[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]{64})',
+      ],
+      currentValueTemplate: 'latest',
+      datasourceTemplate: 'docker',
+      depTypeTemplate: 'bootc-image-builder',
     },
     // The just release the workflows install (.github/actions/install-just),
     // with the SHA-256 of its tarball, which this datasource works out for the
@@ -290,6 +320,28 @@
       "matchDepTypes": ["base-image"],
       "matchUpdateTypes": ["major", "minor", "patch"],
       "enabled": false
+    },
+    // The Containerfile's brew image is built FROM it with the digest from
+    // image-versions.yml appended, which follows it there: a digest in the
+    // ARG would make two
+    {
+      "matchFileNames": ["Containerfile"],
+      "matchDepNames": ["ghcr.io/ublue-os/brew"],
+      "enabled": false
+    },
+    // Fedora's highest number is Rawhide: the Fedora images move to a new
+    // release by hand, with the base image
+    {
+      "matchDepNames": ["registry.fedoraproject.org/fedora"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    // The ISO's builder is held at its build of June 2026, the last that
+    // reads its definitions from a folder (build-iso.yml): a new one is
+    // listed on the Dependency Dashboard, and taken with that step rewritten
+    {
+      "matchDepTypes": ["bootc-image-builder"],
+      "dependencyDashboardApproval": true
     },
     // cosign-installer stays on v3. v4 installs cosign v3, which stores
     // signatures as OCI referrers, while every machine checks updates with
