@@ -15,6 +15,7 @@ codex	-s danger-full-access
 gemini	--yolo
 gemini	-y
 gemini	--approval-mode yolo
+agy	--dangerously-skip-permissions
 copilot	--yolo
 copilot	--allow-all
 copilot	--allow-all-tools

@@ -1,7 +1,7 @@
 # The AI agent
 
 `Super+Ctrl+Shift+A` opens an AI agent in a terminal: Claude Code by default, or Opencode, Codex,
-Gemini CLI, Copilot CLI or Cursor CLI if you prefer. It comes with a skill that explains this system
+Antigravity CLI, Copilot CLI or Cursor CLI if you prefer. It comes with a skill that explains this system
 to it, so it knows which files belong to the image and which are yours to change, how themes and
 hotkeys work, how software is installed on an image-based system, and what to ask you before it
 touches anything.
@@ -50,7 +50,7 @@ agent features are off, the buttons are not there.
 | `amethystora-agent` | Open the agent (the same as `Super+Ctrl+Shift+A`) |
 | `amethystora-agent ask "<question>"` | Open it with a first question |
 | `amethystora-agent diagnose [...]` | Find out why something broke, changing nothing |
-| `amethystora-agent use <agent>` | Choose the agent: `claude`, `opencode`, `codex`, `gemini`, `copilot` or `cursor-agent`; also `ame agent use` |
+| `amethystora-agent use <agent>` | Choose the agent: `claude`, `opencode`, `codex`, `agy`, `copilot` or `cursor-agent`; also `ame agent use` |
 | `amethystora-agent install` | Install the chosen agent ahead of time; also `ame agent install` |
 | `ame agent toggle` | Turn the agent features off, or on again (`ame agent toggle off` says which) |
 
@@ -61,12 +61,14 @@ agent features are off, the buttons are not there.
 The agents are not part of the image, because they release far more often than it does. The first
 time you open one, it offers to install it into your home with its maker's own installer. From then
 on it keeps itself up to date, and you can update it yourself: `claude update`, `opencode upgrade`,
-`codex update`, `copilot update` or `cursor-agent update`. Claude Code is installed on its stable
+`codex update`, `agy update`, `copilot update` or `cursor-agent update`. Claude Code is installed on its stable
 channel, a release about a week old. Because it lives in your home, the same copy also works inside
 any toolbox or distrobox.
 
-Google publishes no installer for Gemini CLI, so it comes from Homebrew instead, and `ame update` and
-the automatic updates upgrade it with the rest of your Homebrew apps.
+Antigravity CLI (`agy`) is Google's agent, in place of Gemini CLI. A Gemini CLI you already chose and
+installed still opens, and `ame update` upgrades it with the rest of your Homebrew apps; to move,
+choose `agy`. Antigravity's installer also adds `~/.local/bin` to your shell's `PATH` in your shell's
+startup files.
 
 ## Privacy and turning it off
 

@@ -87,19 +87,19 @@ The icons are [candy-icons](https://github.com/EliverLara/candy-icons), the same
 
 #### AI agent
 
-Every image is set up for [Claude Code](https://claude.com/claude-code), [Opencode](https://opencode.ai), [Codex](https://github.com/openai/codex), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Copilot CLI](https://github.com/github/copilot-cli) and [Cursor CLI](https://cursor.com/cli), with a skill that explains this system to them: which paths belong to the image and which are yours to change, how themes and keybindings work, how to install software on an atomic system, and what to ask you before touching. `Super+Ctrl+Shift+A`, or "Ask an agent" in the Amethystora menu, opens one in a terminal in its normal mode, so it asks before it acts. "Diagnose a problem" in the same menu hands it a crash, a failed service or your own description, with a second skill that has it investigate from the logs and core dumps, change nothing, and come back with the cause and a proposed fix.
+Every image is set up for [Claude Code](https://claude.com/claude-code), [Opencode](https://opencode.ai), [Codex](https://github.com/openai/codex), [Antigravity CLI](https://antigravity.google/product/antigravity-cli), [Copilot CLI](https://github.com/github/copilot-cli) and [Cursor CLI](https://cursor.com/cli), with a skill that explains this system to them: which paths belong to the image and which are yours to change, how themes and keybindings work, how to install software on an atomic system, and what to ask you before touching. `Super+Ctrl+Shift+A`, or "Ask an agent" in the Amethystora menu, opens one in a terminal in its normal mode, so it asks before it acts. "Diagnose a problem" in the same menu hands it a crash, a failed service or your own description, with a second skill that has it investigate from the logs and core dumps, change nothing, and come back with the cause and a proposed fix.
 
 ```bash
 amethystora-agent ask "make the dock icons smaller"
 amethystora-agent diagnose       # why did something break? Also: a PID, a service, or "wifi drops after suspend"
-amethystora-agent use codex      # or opencode, gemini, copilot, cursor-agent; the default is Claude Code
+amethystora-agent use codex      # or opencode, agy, copilot, cursor-agent; the default is Claude Code
 ame agent install                # install it ahead of time instead of on first launch
 ame agent toggle                 # turn the agent features off, or on again
 ```
 
-The agents themselves are not in the image, because they release far more often than it does. The first launch offers to install the chosen one into your home with its maker's own installer, and from then on it keeps itself up to date and you decide when: `claude update`, `opencode upgrade`, `codex update`, `copilot update` or `cursor-agent update`, or turn automatic updates off in their settings. Gemini CLI, for which Google publishes no installer, comes from Homebrew instead and updates with it. Claude Code is installed on its stable channel, a release about a week old. Since it lives in your home, the same copy also runs inside any toolbox or distrobox.
+The agents themselves are not in the image, because they release far more often than it does. The first launch offers to install the chosen one into your home with its maker's own installer, and from then on it keeps itself up to date and you decide when: `claude update`, `opencode upgrade`, `codex update`, `agy update`, `copilot update` or `cursor-agent update`, or turn automatic updates off in their settings. Antigravity CLI took the place of Gemini CLI; a Gemini CLI already installed from Homebrew still opens and updates with it. Claude Code is installed on its stable channel, a release about a week old. Since it lives in your home, the same copy also runs inside any toolbox or distrobox.
 
-Turning the features off removes the menu entry, disables the keybinding and unlinks the skills from `~/.claude/skills` and `~/.agents/skills`. An installed agent stays installed either way, and none does anything until you sign in to it.
+Turning the features off removes the menu entry, disables the keybinding and unlinks the skills from `~/.claude/skills`, `~/.agents/skills` and `~/.gemini/antigravity-cli/skills`. An installed agent stays installed either way, and none does anything until you sign in to it.
 
 Where something fails, the apps hand it over: **Ask the agent** in System Updates when an update did not finish, in Security beside anything that needs your attention, and in Logs beside a crash or a service's message. They pass on only the unit, the process number or the report's own words, and the agent reads the rest itself.
 

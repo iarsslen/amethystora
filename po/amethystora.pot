@@ -1949,10 +1949,6 @@ msgid "The agent that Super+Ctrl+Shift+A and Ask the agent open. Each installs t
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
-msgid "With Homebrew, which updates it with the rest of the system."
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
 msgid "With its maker's installer, into your home, where it keeps itself up to date."
 msgstr ""
 

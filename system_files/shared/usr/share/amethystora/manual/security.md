@@ -353,7 +353,7 @@ anything anywhere unless its own entry says so.
 - **AI agents' settings** (`agent-config`): what your AI agents' own settings have them run by themselves.
   A hook runs a command at every step the agent takes, and an MCP server is a program it starts, or an
   address it sends to: planted in its settings, either runs the next time you ask it anything. Claude
-  Code's, Codex's, Gemini CLI's, Opencode's, Cursor's and Copilot's are read, with the commands their
+  Code's, Codex's, Antigravity CLI's, Gemini CLI's, Opencode's, Cursor's and Copilot's are read, with the commands their
   settings run (a status line, a key helper), the plugins and extensions they load, and a permission mode
   that turns their checks off. Folders and tools you trust are recorded. Only your own settings: read a
   repository's agent files (`.claude/`, `.mcp.json`, `.vscode/tasks.json`) before you open it with an

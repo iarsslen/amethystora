@@ -266,18 +266,19 @@ are left to the user.
 ### Agentic features
 
 Every image, base and dx, ships `amethystora-agent`, the launcher behind `Super+Ctrl+Shift+A` and
-the menu's "Ask an agent". The agents it offers, Claude Code, Opencode, Codex, Gemini CLI, Copilot CLI
-and Cursor CLI (`AGENTS` in the launcher, which `amethystora-agent list` prints for Control), are
+the menu's "Ask an agent". The agents it offers, Claude Code, Opencode, Codex, Antigravity CLI (`agy`),
+Copilot CLI and Cursor CLI (`AGENTS` in the launcher, which `amethystora-agent list` prints for Control), are
 deliberately not in the image: they release far more often than it does, so the launcher installs the
 chosen one into the user's home with its maker's installer on first launch (or `ame agent install`),
-where it updates on the user's terms. Gemini CLI is the exception: Google publishes no installer, so it
-comes from Homebrew and updates with it. Do not add them to `04-packages.sh`; `20-tests.sh` fails if
+where it updates on the user's terms. Antigravity CLI replaced Gemini CLI, which came from Homebrew: a
+Gemini CLI already chosen and installed still opens, and the security readers still know it. Do not add them to `04-packages.sh`; `20-tests.sh` fails if
 one appears in `/usr/bin`. The
 skill in `system_files/shared/usr/share/amethystora/agents/skills/amethystora/SKILL.md` tells
 agents how to change *a user's machine* safely: this repository is where it is written, not a place
 it applies to. `amethystora-diagnose/SKILL.md` beside it is the read-only method behind
 `amethystora-agent diagnose`. `user-setup.hooks.d/13-agentic.sh` links every skill there into
-`~/.claude/skills`, which Claude Code reads, and `~/.agents/skills`, which the others read. Opencode reads
+`~/.claude/skills`, which Claude Code reads, `~/.agents/skills`, which the others read, and
+`~/.gemini/antigravity-cli/skills`, Antigravity CLI's own. Opencode reads
 both and requires skill names to be unique across them, so the launcher starts it with
 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`. The features are on by default. `ame agent toggle` turns them off per user by writing
 `~/.config/amethystora/no-agentic`. Keep the skill accurate when you change a command, path or

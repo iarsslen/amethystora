@@ -445,11 +445,7 @@ item agent agent-choice choice "$(gettext "Which agent")" \
 
 if [[ "${AGENTIC}" == true && -n "${MISSING}" ]]; then
     name="${MISSING}"
-    if [[ "${CHOSEN}" == gemini ]]; then
-        words="$(gettext "With Homebrew, which updates it with the rest of the system.")"
-    else
-        words="$(gettext "With its maker's installer, into your home, where it keeps itself up to date.")"
-    fi
+    words="$(gettext "With its maker's installer, into your home, where it keeps itself up to date.")"
     COMMAND=(ame agent install)
     BUTTON="$(gettext "Install…")"
     USAGE="ame agent install"

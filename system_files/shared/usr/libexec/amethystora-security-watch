@@ -710,6 +710,8 @@ agent_of() {
         case "${name##*/}" in
             claude | codex | copilot | opencode | cursor-agent) AGENT="${name##*/}" ;;
             gemini | gemini.js) AGENT=gemini ;;
+            # Antigravity CLI keeps the copy it updated from as agy.N.old
+            agy | agy.*.old) AGENT=agy ;;
             *) continue ;;
         esac
         # A command found in PATH names no folder: then the program is the agent

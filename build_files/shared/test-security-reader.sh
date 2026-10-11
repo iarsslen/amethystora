@@ -47,7 +47,7 @@ jq -se 'all(.[]; .allow | startswith("'"${H}"'/"))' <<<"${OUT}" >/dev/null || fa
 # --- agent-config -------------------------------------------------------------------------------------------
 
 mkdir -p "${H}/.claude" "${H}/.codex" "${H}/.gemini/extensions/x" "${H}/.config/opencode/plugin" "${H}/.cursor" \
-    "${H}/.copilot/hooks"
+    "${H}/.copilot/hooks" "${H}/.gemini/antigravity-cli/plugins/pl" "${H}/.gemini/config"
 cat >"${H}/.claude/settings.json" <<EOF
 {"hooks": {"PreToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "touch ${T}/ran-hook"}]}]},
  "apiKeyHelper": "sh -c 'cat key'", "permissions": {"defaultMode": "bypassPermissions"}}
@@ -59,6 +59,11 @@ printf 'notify = ["notify-send", "done"]\napproval_policy = "never"\n[mcp_server
 echo '{"mcpServers": {"g": {"command": "node", "args": ["g.js"], "trust": true}}, "tools": {"discoveryCommand": "find-tools"}}' \
     >"${H}/.gemini/settings.json"
 echo '{"name": "ext"}' >"${H}/.gemini/extensions/x/gemini-extension.json"
+echo '{"toolPermission": "always-proceed", "statusLine": {"type": "command", "command": "agy-status"}}' \
+    >"${H}/.gemini/antigravity-cli/settings.json"
+echo '{"guard": {"enabled": true, "PreToolUse": [{"matcher": "*", "hooks": [{"type": "command", "command": "from-agy"}]}]}}' \
+    >"${H}/.gemini/config/hooks.json"
+echo '{"mcpServers": {"remote": {"serverUrl": "https://example.net/mcp"}}}' >"${H}/.gemini/antigravity-cli/plugins/pl/mcp_config.json"
 printf '// comment\n{\n  "mcp": {"local": {"type": "local", "command": ["bun", "x.ts"]},},\n  "plugin": ["opencode-evil"],\n  "permission": "allow",\n}\n' \
     >"${H}/.config/opencode/opencode.jsonc"
 echo 'export default {}' >"${H}/.config/opencode/plugin/p.ts"
@@ -73,7 +78,9 @@ for want in 'runs a command on PreToolUse: touch' 'runs a command as apiKeyHelpe
     'sends to the MCP server far: https://example.org/mcp' 'lets the MCP server g run tools without asking' \
     'runs a command as tools.discoveryCommand' 'is an extension Gemini CLI loads: ext' 'starts the MCP server local: bun x.ts' \
     'loads the plugin: opencode-evil' 'has Opencode never ask' 'is code Opencode loads' 'has Cursor run everything without asking' \
-    'runs a command on preToolUse: echo from copilot'; do
+    'runs a command on preToolUse: echo from copilot' 'has Antigravity CLI never ask' 'runs a command as statusLine: agy-status' \
+    'runs a command on PreToolUse: from-agy' 'sends to the MCP server remote: https://example.net/mcp' \
+    'is a plugin Antigravity CLI loads: pl'; do
     grep -qF -- "${want}" <<<"${OUT}" || fail "agent-config did not find \"${want}\": ${OUT}"
 done
 jq -se '(map(.id) | unique | length) == length

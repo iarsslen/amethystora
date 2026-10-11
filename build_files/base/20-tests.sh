@@ -1967,7 +1967,7 @@ done
 # install), or Homebrew's; a copy in /usr/bin would be one the user cannot update. Control offers
 # each of them. A skill's name has to match its directory, or some of the agents skip it.
 test -x /usr/bin/amethystora-agent
-AGENT_IDS=(claude opencode codex gemini copilot cursor-agent)
+AGENT_IDS=(claude opencode codex agy copilot cursor-agent)
 [[ "$(amethystora-agent list | cut -f1 | paste -sd ' ')" == "${AGENT_IDS[*]}" ]]
 for agent in "${AGENT_IDS[@]}"; do
     [[ ! -e "/usr/bin/${agent}" ]]

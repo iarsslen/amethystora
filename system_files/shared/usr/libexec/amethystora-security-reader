@@ -215,7 +215,7 @@ def servers(path, table, key="command"):
         command = server.get(key) if key in server else server.get("command")
         if command:
             emit(path, f"starts the MCP server {name}", f"{words(command)} {words(server.get('args'))}")
-        address = server.get("url") or server.get("httpUrl")
+        address = server.get("url") or server.get("httpUrl") or server.get("serverUrl")
         if address:
             emit(path, f"sends to the MCP server {name}", address, tactic="Command and Control")
         if server.get("trust") is True:
@@ -295,6 +295,31 @@ for path in sorted(glob.glob(f"{HOME}/.gemini/extensions/*/gemini-extension.json
     if isinstance(data, dict):
         emit(path, "is an extension Gemini CLI loads", data.get("name") or os.path.basename(os.path.dirname(path)))
         servers(path, data.get("mcpServers"))
+
+# Antigravity CLI, which names each group of its hooks: {name: {enabled, Event: [...]}}
+path = f"{HOME}/.gemini/antigravity-cli/settings.json"
+data = load(path, "jsonc")
+if isinstance(data, dict):
+    hooks(path, data.get("hooks"))
+    for group in (data.get("hooks") or {}).values() if isinstance(data.get("hooks"), dict) else []:
+        hooks(path, group)
+    for key in ("statusLine", "title"):
+        if isinstance(data.get(key), dict) and data[key].get("command"):
+            emit(path, f"runs a command as {key}", words(data[key]["command"]))
+    if data.get("toolPermission") == "always-proceed":
+        off(path, "has Antigravity CLI never ask", "toolPermission always-proceed")
+    trusted(path, "trusts", data.get("trustedWorkspaces"))
+for base in (f"{HOME}/.gemini/config", f"{HOME}/.gemini/antigravity-cli"):
+    for path in [f"{base}/hooks.json"] + sorted(glob.glob(f"{base}/plugins/*/hooks.json")):
+        data = load(path, "jsonc")
+        for group in data.values() if isinstance(data, dict) else []:
+            hooks(path, group)
+    for path in [f"{base}/mcp_config.json"] + sorted(glob.glob(f"{base}/plugins/*/mcp_config.json")):
+        data = load(path, "jsonc")
+        if isinstance(data, dict):
+            servers(path, data.get("mcpServers"))
+    for path in sorted(glob.glob(f"{base}/plugins/*/")):
+        emit(path.rstrip("/"), "is a plugin Antigravity CLI loads", os.path.basename(path.rstrip("/")))
 
 # Opencode
 for path in (f"{HOME}/.config/opencode/{name}" for name in ("config.json", "opencode.json", "opencode.jsonc")):

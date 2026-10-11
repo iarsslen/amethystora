@@ -173,11 +173,11 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
 - Switching images or streams: `ame system rebase [IMAGE] [STREAM]` (signed images only). On a new
   machine, `ame restore-setup` remakes the user's setup from the manifest their restic backup
   stores (`/usr/libexec/amethystora-setup-manifest` writes it); it is interactive, so leave it to them.
-- The agents are not part of the image. `amethystora-agent list` shows which are installed. Most
+- The agents are not part of the image. `amethystora-agent list` shows which are installed. They
   live in the user's home (`~/.local/bin`, or `~/.opencode/bin` for Opencode), `ame update` leaves
   them alone and they update themselves: `claude update`, `opencode upgrade`, `codex update`,
-  `copilot update`, `cursor-agent update`. Gemini CLI comes from Homebrew, which `ame update`
-  upgrades.
+  `agy update`, `copilot update`, `cursor-agent update`. A Gemini CLI installed before Antigravity
+  CLI replaced it comes from Homebrew, which `ame update` upgrades.
 - Logs: `journalctl -b -p warning`, `journalctl --user -b`, `coredumpctl list`. The Logs app
   (`amethystora-logs`, in place of GNOME Logs) reads the same journal for the user, one app or service
   at a time; `amethystora-logs crashes` opens it on the crashes.

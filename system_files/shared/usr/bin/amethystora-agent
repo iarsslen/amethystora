@@ -10,7 +10,7 @@
 #                                      find out why something broke, without changing anything
 #   amethystora-agent triage <event>   explain a security watcher's finding (the Security app's Events)
 #   amethystora-agent use <agent>      choose the agent (default: the first one installed): claude,
-#                                      opencode, codex, gemini, copilot or cursor-agent
+#                                      opencode, codex, agy, copilot or cursor-agent
 #   amethystora-agent install [<agent>]   install it, or the chosen one
 #   amethystora-agent list             each agent, whether it is installed, and its name
 #   amethystora-agent on|off           turn the agentic features on or off (ame agent toggle)
@@ -19,13 +19,14 @@
 #
 # The agents are not part of the image: they release far more often than it does. The first launch
 # offers to install the chosen one into your home with its maker's installer, and from there it
-# updates itself (`claude update`, `opencode upgrade`, `codex update`, `copilot update`,
-# `cursor-agent update`), which each one's settings can turn off. Gemini CLI comes from Homebrew
-# instead, and updates with it.
+# updates itself (`claude update`, `opencode upgrade`, `codex update`, `agy update`,
+# `copilot update`, `cursor-agent update`), which each one's settings can turn off. Gemini CLI, which
+# Antigravity CLI (agy) replaced, is no longer offered; one already chosen and installed still opens.
 #
 # The skills in /usr/share/amethystora/agents/skills tell the agent what may be edited here and how
 # to diagnose a problem. They are linked into ~/.claude/skills, which Claude Code reads, and into
-# ~/.agents/skills, which the others read, so they follow the image on every update. The agent starts
+# ~/.agents/skills, which the others read, and Antigravity CLI's own folder, so they follow the image on
+# every update. The agent starts
 # in its normal permission mode: it asks before it acts. Opencode's own agent does not, so a diagnosis,
 # which reads what anyone can write to the journal, starts Opencode's plan agent, which does.
 
@@ -35,12 +36,12 @@ set -euo pipefail
 source /usr/lib/amethystora/theme/lib.sh
 
 # By the command each one starts with, which is also what `use` takes
-AGENTS=(claude opencode codex gemini copilot cursor-agent)
+AGENTS=(claude opencode codex agy copilot cursor-agent)
 # Where their installers put them. Opened from a keybinding there is no login shell to have added
 # these to PATH. Homebrew's goes last, so that nothing in it stands in for a system command.
 PATH="${HOME}/.local/bin:${HOME}/.opencode/bin:${PATH}:/home/linuxbrew/.linuxbrew/bin"
 SKILLS_DIR=/usr/share/amethystora/agents/skills
-SKILLS_LINK_DIRS=("${HOME}/.claude/skills" "${HOME}/.agents/skills")
+SKILLS_LINK_DIRS=("${HOME}/.claude/skills" "${HOME}/.agents/skills" "${HOME}/.gemini/antigravity-cli/skills")
 DISABLED="${CONFIG_DIR}/no-agentic"
 CHOICE="${CONFIG_DIR}/agent"
 
@@ -58,6 +59,7 @@ title() {
         claude) echo "Claude Code" ;;
         opencode) echo "Opencode" ;;
         codex) echo "Codex" ;;
+        agy) echo "Antigravity CLI" ;;
         gemini) echo "Gemini CLI" ;;
         copilot) echo "Copilot CLI" ;;
         cursor-agent) echo "Cursor CLI" ;;
@@ -88,12 +90,16 @@ sync_skills() {
     done
 }
 
-# The chosen agent, else the first one installed, else the first one there is to install
+# The chosen agent, else the first one installed, else the first one there is to install. One no longer
+# offered (Gemini CLI) stays chosen while it is installed.
 agent() {
     local name
     if [[ -s ${CHOICE} ]]; then
-        cat "${CHOICE}"
-        return
+        name="$(<"${CHOICE}")"
+        if [[ " ${AGENTS[*]} " == *" ${name} "* ]] || have "${name}"; then
+            echo "${name}"
+            return
+        fi
     fi
     for name in "${AGENTS[@]}"; do
         have "${name}" && { echo "${name}"; return; }
@@ -112,20 +118,17 @@ installer() {
 # Each into the account's home. Claude Code follows its stable channel, a release about a week old
 # with the ones that turned out badly skipped; its updates keep to the channel it was installed with.
 # Opencode's installer adds ~/.opencode/bin to the shell's PATH, and updates itself to patch releases
-# only, offering the rest. Codex's, Copilot CLI's and Cursor CLI's go to ~/.local/bin; the first two
-# check the checksum of what they download, Cursor's checks nothing. Google publishes no installer
-# for Gemini CLI, so it comes from Homebrew, which `ame update` and the automatic updates upgrade.
+# only, offering the rest. Codex's, Antigravity CLI's, Copilot CLI's and Cursor CLI's go to ~/.local/bin;
+# the first three check the checksum of what they download, Cursor's checks nothing. Antigravity CLI's also
+# adds ~/.local/bin to the shell's PATH.
 install_agent() {
     case "$1" in
         claude) installer claude https://claude.ai/install.sh stable ;;
         opencode) installer opencode https://opencode.ai/install ;;
         codex) installer codex https://chatgpt.com/codex/install.sh ;;
+        agy) installer agy https://antigravity.google/cli/install.sh ;;
         copilot) installer copilot https://gh.io/copilot-install ;;
         cursor-agent) installer cursor-agent https://cursor.com/install ;;
-        gemini)
-            have brew || die "Gemini CLI installs with Homebrew, which is not set up for this account"
-            brew install gemini-cli
-            ;;
         *) die "usage: amethystora-agent install [$(IFS='|'; echo "${AGENTS[*]}")]" ;;
     esac
 }
@@ -161,7 +164,7 @@ launch() {
     [[ -z ${DIAGNOSING:-} ]] || opencode+=(--agent plan)
     case "${name}" in
         opencode) exec "${opencode[@]}" --prompt "$*" ;;
-        gemini | copilot) exec "${name}" -i "$*" ;;
+        agy | gemini | copilot) exec "${name}" -i "$*" ;;
         *) exec "${name}" "$*" ;;
     esac
 }

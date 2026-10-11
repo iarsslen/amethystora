@@ -159,10 +159,10 @@ wanted agent-clis && AGENT_CLIS=true
 # Where amethystora-agent's agents are installed, by their makers' installers, in each home. A command here is
 # usually a link to the folder the agent really runs from, which is the one watched: Claude Code's and Cursor's
 # point into versions/ folders that their updates add to.
-AGENT_COMMANDS=(.local/bin/claude .local/bin/codex .local/bin/copilot .local/bin/cursor-agent .local/bin/agent
-    .opencode/bin/opencode)
-# Gemini CLI comes from Homebrew, whose prefix every account shares
-BREW_AGENTS=(/home/linuxbrew/.linuxbrew/bin/gemini)
+AGENT_COMMANDS=(.local/bin/claude .local/bin/codex .local/bin/agy .local/bin/copilot .local/bin/cursor-agent
+    .local/bin/agent .opencode/bin/opencode)
+# Gemini CLI came from Homebrew, whose prefix every account shares, and Antigravity CLI can
+BREW_AGENTS=(/home/linuxbrew/.linuxbrew/bin/gemini /home/linuxbrew/.linuxbrew/bin/agy)
 CREDENTIALS=false
 wanted credentials && CREDENTIALS=true
 DECOY=false
@@ -180,7 +180,7 @@ CREDENTIAL_FILES=(.ssh/id_* .npmrc .pypirc .git-credentials .config/gh/hosts.yml
     .var/app/{com.brave.Browser/config/BraveSoftware/Brave-Browser,com.microsoft.Edge/config/microsoft-edge}/*/{Cookies,Network/Cookies}
     .claude/.credentials.json .codex/auth.json .codex/.credentials.json .gemini/oauth_creds.json
     .gemini/gemini-credentials.json .gemini/mcp-oauth-tokens.json .local/share/opencode/auth.json
-    .local/share/opencode/mcp-auth.json .config/cursor/auth.json)
+    .local/share/opencode/mcp-auth.json .config/cursor/auth.json .gemini/antigravity-cli/antigravity-oauth-token)
 CREDENTIAL_DIRS=(.local/share/keyrings)
 # The decoy: a key nothing legitimate reads, since ssh offers no key under this name on its own. Its first line
 # of base64 begins with this, which is how this script knows its own decoy from a key of the account's.

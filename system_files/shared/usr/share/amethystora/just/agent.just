@@ -21,12 +21,12 @@ toggle ACTION="":
             ;;
     esac
 
-# Install the AI agent, where it keeps itself up to date: claude, opencode, codex, gemini, copilot or cursor-agent (default: the chosen one)
+# Install the AI agent, where it keeps itself up to date: claude, opencode, codex, agy, copilot or cursor-agent (default: the chosen one)
 [positional-arguments]
 install AGENT="":
     @amethystora-agent install ${1:+"$1"}
 
-# Choose the AI agent that the menu, Super+Ctrl+Shift+A and Ask the agent open: claude, opencode, codex, gemini, copilot or cursor-agent
+# Choose the AI agent that the menu, Super+Ctrl+Shift+A and Ask the agent open: claude, opencode, codex, agy, copilot or cursor-agent
 [positional-arguments]
 use AGENT:
     @amethystora-agent use "$1"
