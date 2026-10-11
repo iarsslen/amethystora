@@ -141,6 +141,13 @@ for rule in "path=${A}/.ssh/id_ed25519" "path=${A}/.npmrc" "dir=${A}/.local/shar
         fail "no rule on reading ${rule}"
 done
 grep -q 'id_ed25519.pub' "${HOME_RULES}" && fail "a rule on reading a public key"
+# A browser's passwords, in a name no rule's path can hold: by inode and device
+mkdir -p "${A}/.config/chromium/Default"
+touch "${A}/.config/chromium/Default/Login Data"
+AMETHYSTORA_SECURITY_CONF="${T}/keys.conf" AMETHYSTORA_AUDIT_ROOT="${R}" bash /usr/libexec/amethystora-audit-home-rules
+dev="$(findmnt -n -o MAJ:MIN --target "${A}/.config/chromium/Default/Login Data" | tr -d ' ')"
+grep -qxF -- "-a always,exit -F arch=b64 -S open,openat,openat2 -F inode=$(stat -c %i "${A}/.config/chromium/Default/Login Data") -F devmajor=${dev%:*} -F devminor=${dev#*:} -F auid>=1000 -F auid!=unset -k credentials" "${HOME_RULES}" ||
+    fail "no rule on opening Login Data: $(grep -F 'inode=' "${HOME_RULES}")"
 [[ "$(stat -c '%u %a' "${A}/.ssh/id_backup")" == "4300 600" ]] || fail "the decoy is not the account's own, 0600"
 grep -qxF -- "-a always,exit -F arch=b64 -F path=${A}/.ssh/id_backup -F perm=r -F auid>=1000 -F auid!=unset -k decoy" "${HOME_RULES}" ||
     fail "no rule on reading the decoy"

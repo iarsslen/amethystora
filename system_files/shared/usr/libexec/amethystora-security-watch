@@ -454,6 +454,7 @@ store_of() {
         */keyrings/*) STORE="the keyring" ;;
         */firefox/*) STORE="Firefox's passwords and cookies" ;;
         */Cookies) STORE="a browser's cookies" ;;
+        */"Login Data" | */"Login Data For Account") STORE="a browser's passwords" ;;
         */.claude/* | */.codex/* | */.gemini/* | */opencode/* | */cursor/*) STORE="an AI agent's token" ;;
         *) STORE="the backup's password" ;;
     esac

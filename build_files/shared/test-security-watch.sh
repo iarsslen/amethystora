@@ -268,12 +268,16 @@ STEP=120
     opened 603 22 /usr/bin/ssh /var/home/alice/.ssh/id_ed25519 credentials
     opened 604 23 /usr/bin/cat /var/home/alice/.ssh/id_backup decoy
     opened 605 24 /usr/bin/restic /var/home/alice/.ssh/id_backup decoy
+    # A name with a space, as the audit log writes it: in hex
+    opened 606 25 /usr/bin/cp "$(printf '%s' "/var/home/alice/.config/chromium/Default/Login Data" | od -An -tx1 | tr -d ' \n' | tr a-f A-F)" credentials |
+        sed 's/name="\([0-9A-F]*\)"/name=\1/'
     close 699
 } >>"${AMETHYSTORA_WATCH_AUDIT}"
 before="$(wc -l <"${HISTORY}")"
 timeout 120 "${WATCH}" >/dev/null || fail "the run with secrets read failed"
 FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "credentials" or .key == "decoy")')"
-jq -se 'length == 5
+jq -se 'length == 6
+    and any(.[]; .key == "credentials" and .text == "/usr/bin/cp read /var/home/alice/.config/chromium/Default/Login Data (a browser'"'"'s passwords), as 4500")
     and any(.[]; .key == "credentials" and .level == "normal" and .text == "/usr/bin/python3.14 read /var/home/alice/.ssh/id_ed25519 (SSH keys), as 4500")
     and any(.[]; .key == "credentials" and .level == "normal" and (.text | test("read /var/home/alice/.aws/credentials .AWS keys.")))
     and any(.[]; .key == "credentials" and .level == "critical" and (.text | test("process 21, as 4500. read (SSH keys, AWS keys|AWS keys, SSH keys)$")))
