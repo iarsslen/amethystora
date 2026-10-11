@@ -38,6 +38,10 @@ This document provides essential information for coding agents working with the 
 - `branding/` - Source of the artwork; `node branding/generate.mjs` draws it
 - `iso/` - `iso.toml`, the bootc-image-builder configuration of the installer ISO; `product/`, which `build-iso.yml` adds to the ISO as `images/product.img`: the installer's Amethystora look (a stylesheet and artwork drawn by `branding/generate.mjs`), crash reporting (libreport files that send crash reports to Amethystora's issue tracker instead of Fedora's Bugzilla) and the Anaconda profile that keeps Fedora's installer settings although the installer's os-release says `generic`; `installer-packages.py`, which lists what the installer is made of; and `live/`, the live system of the live ISO: a `Containerfile` built `FROM` the published image with `build.sh`, which adds Fedora's live boot, live session and Anaconda's web installer, a copy of the image for an offline install (`installer.ks`), a profile for the image's own os-release ID, and the boot menu Titanoboa reads (`iso.yaml`)
 - `po/` - The gettext catalogs of the shell programs that are translated, the security report and the app permissions (text domain `amethystora`): `amethystora.pot`, which `node build_files/shared/check-translations.js --write --po po system_files/shared` writes from the scripts, and one `<language>.po` each, which `14-security.sh` compiles into `/usr/share/locale`
+- `tests/vm/` - The VM lab: a privileged container with QEMU, KVM, Secure Boot firmware and a TPM, and an MCP
+  server (`server.mjs`) that installs a published image onto a disk, boots it, runs commands in it, and sees
+  and uses its screen (`README.md`). Its helper reaches the guest as a systemd credential at boot: never put
+  any of it in the image
 - `.github/workflows/` - Comprehensive CI/CD pipelines
 
 The desktop layer (the `ujust` recipes, the Homebrew Brewfiles, the setup services and hooks, the

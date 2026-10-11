@@ -1,0 +1,15 @@
+# The VM lab: QEMU with KVM, UEFI with Secure Boot, a TPM, podman to install an image onto a disk, and the MCP
+# server that drives it. Run privileged, with /dev/kvm; see README.md.
+FROM registry.fedoraproject.org/fedora:44
+
+RUN dnf -y install --setopt=install_weak_deps=False \
+        edk2-ovmf nodejs podman python3-virt-firmware qemu-device-uefi-vars qemu-img qemu-system-x86-core swtpm \
+        swtpm-tools systemd-udev && \
+    dnf clean all
+
+COPY agent.py make-disk.sh server.mjs /opt/amethystora-vm/
+# A checkout on Windows may have given them CRLF
+RUN sed -i 's/\r$//' /opt/amethystora-vm/*
+
+# bootc install waits for udev to see the partitions it makes, sharing its /run/udev
+CMD ["bash", "-c", "/usr/lib/systemd/systemd-udevd --daemon && exec sleep infinity"]
