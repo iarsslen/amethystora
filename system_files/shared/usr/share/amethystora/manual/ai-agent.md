@@ -15,7 +15,9 @@ Ask it things in plain language:
 - "Make a top bar widget that shows the weather." See [Widgets](widgets.md).
 
 It starts in its normal mode, so it asks before it runs a command or changes a file. Read what it
-proposes before you say yes.
+proposes before you say yes. Opencode's own normal mode asks for almost nothing, so started from here it
+asks before a command, an edit and a web fetch, unless your own `~/.config/opencode/opencode.json` sets a
+`permission`, which then wins.
 
 A repository someone else wrote can tell an agent what to do as it opens: before you start one in a
 folder you cloned, read its `.claude/`, `.mcp.json` and `.vscode/tasks.json`, if it has them. Each can

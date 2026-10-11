@@ -152,6 +152,7 @@ launch() {
     # Opencode reads ~/.claude/skills as well as ~/.agents/skills, and a skill's name must be unique
     # across the folders it reads
     [[ ${name} != opencode ]] || export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1
+    [[ ${name} != opencode ]] || opencode_asks
     if [[ $# -eq 0 ]]; then
         exec "${name}"
     fi
@@ -212,6 +213,19 @@ $(/usr/libexec/amethystora-security-text --max 200 -- "${target}")
 ${facts}
 
 Use the amethystora-diagnose skill: it says how to investigate here and what to report. If you have no skill mechanism, read ${SKILLS_DIR}/amethystora-diagnose/SKILL.md and follow it."
+}
+
+# Opencode runs most of what it decides to without asking unless its configuration says otherwise. Started from
+# here, it asks before a shell command, an edit and a web fetch, unless the account's own configuration names a
+# permission, or OPENCODE_PERMISSION is set already: a choice the user made is theirs.
+OPENCODE_ASKS='{"bash":"ask","edit":"ask","webfetch":"ask"}'
+opencode_asks() {
+    local file
+    [[ -z ${OPENCODE_PERMISSION:-} ]] || return 0
+    for file in "${XDG_CONFIG_HOME:-${HOME}/.config}"/opencode/{opencode.json,opencode.jsonc,config.json}; do
+        grep -qs '"permission"' "${file}" && return 0
+    done
+    export OPENCODE_PERMISSION="${OPENCODE_ASKS}"
 }
 
 # A finding of the security watcher, from the Security app's Events page (TRIAGE in
