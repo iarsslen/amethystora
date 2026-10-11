@@ -9,8 +9,8 @@
 #                                            home folder at its first login (root)
 #   amethystora-domain-logins image          the image's own profile and features, for `realm leave` (root)
 #   amethystora-domain-logins check          whether /etc/authselect is a domain setup made here: sssd or
-#                                            winbind, every feature of the image's still on, and no file
-#                                            edited by hand. The security watcher asks this.
+#                                            winbind with exactly the features a join sets, and every
+#                                            file as authselect writes it. The security watcher asks this.
 #   amethystora-domain-logins --print MODE   only print the authselect command
 
 set -euo pipefail
@@ -29,6 +29,27 @@ die() {
 # turned on
 features() {
     grep -vE '^[[:space:]]*(#|$)' "$1" | tail -n +2
+}
+
+# The files authselect writes, each with the option `authselect test` prints it with
+GENERATED=(nsswitch.conf:--nsswitch system-auth:--system-auth password-auth:--password-auth
+    smartcard-auth:--smartcard-auth fingerprint-auth:--fingerprint-auth switchable-auth:--switchable-auth
+    postlogin:--postlogin dconf-db:--dconf-db dconf-locks:--dconf-lock)
+
+# Whether /etc/authselect holds what authselect writes for the profile and features given, and nothing else:
+# each file the header they all start with, then its body as `authselect test` prints it after a line naming
+# the file. `authselect check` will not do: it calls a file with a line added by hand valid.
+as_written() {
+    local header entry file
+    header="$(head -n 5 "${IMAGE_CONF%/*}/system-auth")"
+    [[ "$(find /etc/authselect -mindepth 1 -maxdepth 1 ! -name custom -printf '%f\n' | sort)" == \
+        "$(printf '%s\n' authselect.conf "${GENERATED[@]%%:*}" | sort)" ]] || return 1
+    for entry in "${GENERATED[@]}"; do
+        file="/etc/authselect/${entry%%:*}"
+        [[ -f "${file}" && ! -L "${file}" && "$(head -n 5 "${file}")" == "${header}" ]] || return 1
+        [[ "$(tail -n +6 "${file}")" == "$(authselect test "$@" "${entry#*:}" 2>/dev/null | tail -n +2)" ]] ||
+            return 1
+    done
 }
 
 PRINT=false
@@ -50,10 +71,14 @@ case "${1:-}" in
         COMMAND=(authselect select "$(grep -vE '^[[:space:]]*(#|$)' "${IMAGE_CONF}" | head -n1)" "${FEATURES[@]}")
         ;;
     check)
-        [[ "$(grep -vE '^[[:space:]]*(#|$)' "${CONF}" | head -n1)" =~ ^(sssd|winbind)$ ]] || exit 1
-        # A feature of the image's that is no longer on
-        grep -vxF -f <(features "${CONF}") <(features "${IMAGE_CONF}") >/dev/null && exit 1
-        authselect check >/dev/null 2>&1
+        PROFILE="$(grep -vE '^[[:space:]]*(#|$)' "${CONF}" | head -n1)"
+        [[ "${PROFILE}" =~ ^(sssd|winbind)$ ]] || exit 1
+        # Exactly the features a join turns on: one of the image's turned off, or one more turned on by hand,
+        # is not the image's setup for a domain
+        mapfile -t CURRENT < <(features "${CONF}")
+        [[ " ${FEATURES[*]} " == *" with-mkhomedir "* ]] || FEATURES+=(with-mkhomedir)
+        [[ "$(printf '%s\n' "${CURRENT[@]}" | sort)" == "$(printf '%s\n' "${FEATURES[@]}" | sort)" ]] || exit 1
+        as_written "${PROFILE}" "${CURRENT[@]}"
         exit
         ;;
     *)

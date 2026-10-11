@@ -1388,6 +1388,18 @@ done
 [[ "$("${DOMAIN_LOGINS}" --print image)" == \
     "authselect select $(head -n1 <<<"${AUTHSELECT_CONF}") ${AUTHSELECT_FEATURES[*]} --force" ]]
 "${DOMAIN_LOGINS}" check && false
+# ...takes the setup its own command makes for a domain, and not one with a line added by hand afterwards,
+# which `authselect check` calls valid. Tried on the image's own /etc/authselect, which comes back as it was.
+DOMAIN_TEST="$(mktemp -d)"
+cp -a /etc/authselect "${DOMAIN_TEST}/before"
+read -ra DOMAIN_SELECT <<<"$("${DOMAIN_LOGINS}" --print sssd)"
+"${DOMAIN_SELECT[@]}" --nobackup >/dev/null
+"${DOMAIN_LOGINS}" check
+echo "auth sufficient pam_permit.so" >>/etc/authselect/system-auth
+"${DOMAIN_LOGINS}" check && false
+authselect select "$(head -n1 <<<"${AUTHSELECT_CONF}")" "${AUTHSELECT_FEATURES[@]}" --force --nobackup >/dev/null
+diff -r "${DOMAIN_TEST}/before" /etc/authselect
+rm -rf "${DOMAIN_TEST}"
 # A domain's accounts are in no /etc/passwd and numbered far above 65534: the per-account checks find
 # accounts by their home folders as well
 for file in /usr/libexec/amethystora-security-watch /usr/libexec/amethystora-audit-home-rules \
