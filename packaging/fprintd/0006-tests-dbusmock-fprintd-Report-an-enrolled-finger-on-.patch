@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Arsslen Idadi <arsslens021@gmail.com>
+Date: Sun, 4 Oct 2026 11:29:47 -0400
+Subject: [PATCH 6/7] tests/dbusmock/fprintd: Report an enrolled finger on
+ scripted identification
+
+A scripted verify-match on a device that identifies (VerifyStart with
+"any") reached emit_verify_status() with no matched finger, so it raised
+"Unknown finger name 'None'" instead of reporting an enrolled finger, as
+SetVerifyScript's documentation says it does.
+
+(cherry picked from commit c9cf263d408be3d954c84d7c07521ac80e2ebe48)
+---
+ tests/dbusmock/fprintd.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tests/dbusmock/fprintd.py b/tests/dbusmock/fprintd.py
+index 80436c3..6d0eb51 100644
+--- a/tests/dbusmock/fprintd.py
++++ b/tests/dbusmock/fprintd.py
+@@ -225,7 +225,7 @@ def glib_sleep(timeout):
+ def emit_verify_status(device, result, done, matched_finger=None):
+     if device.selected_finger in VALID_FINGER_NAMES:
+         matched_finger = device.selected_finger
+-    elif matched_finger == 'any':
++    elif matched_finger in (None, 'any'):
+         enrolled = device.fingers.get(device.claimed_user) or []
+         if enrolled:
+             matched_finger = enrolled[0]

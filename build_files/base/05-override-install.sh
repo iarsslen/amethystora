@@ -71,6 +71,22 @@ echo "${STARSHIP_SHA256}  /tmp/starship.tar.gz" | sha256sum -c -
 tar -xzf /tmp/starship.tar.gz -C /tmp
 install -c -m 0755 /tmp/starship /usr/bin
 
+# fprintd with the duress finger (packaging/fprintd), which the Containerfile's fprintd stage built, in place
+# of Fedora's. Its release begins with the highest of Fedora's it was made from, so a base image whose
+# fprintd is another version or a later release carries a change of Fedora's this build lacks: the build
+# stops until packaging/fprintd takes it (its README). The source package travels in the image.
+FPRINTD_OURS="$(rpm -qp --queryformat '%{VERSION} %{RELEASE}' /fprintd/fprintd-pam-[0-9]*.rpm)"
+FPRINTD_FEDORA="$(rpm -q --queryformat '%{VERSION} %{RELEASE}' fprintd-pam)"
+FPRINTD_OURS_RELEASE="$(cut -d' ' -f2 <<<"${FPRINTD_OURS}" | cut -d. -f1)"
+FPRINTD_FEDORA_RELEASE="$(cut -d' ' -f2 <<<"${FPRINTD_FEDORA}" | cut -d. -f1)"
+if [[ "${FPRINTD_FEDORA%% *}" != "${FPRINTD_OURS%% *}" || ${FPRINTD_FEDORA_RELEASE} -gt ${FPRINTD_OURS_RELEASE} ]]; then
+    echo "::error::Fedora's fprintd is ${FPRINTD_FEDORA}, past packaging/fprintd's ${FPRINTD_OURS}: take Fedora's change there"
+    exit 1
+fi
+dnf5 -y install /fprintd/fprintd-[0-9]*.rpm /fprintd/fprintd-pam-[0-9]*.rpm
+[[ "$(rpm -q --queryformat '%{RELEASE}\n' fprintd fprintd-pam | grep -c '\.amethystora\.')" == 2 ]]
+install -D -m 0644 -t /usr/src/amethystora /fprintd/fprintd-*.src.rpm
+
 # Remove desktop entries
 if [[ -f /usr/share/applications/gnome-system-monitor.desktop ]]; then
     sed -i 's@\[Desktop Entry\]@\[Desktop Entry\]\nHidden=true@g' /usr/share/applications/gnome-system-monitor.desktop

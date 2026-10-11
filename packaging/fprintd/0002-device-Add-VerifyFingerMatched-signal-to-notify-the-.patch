@@ -1,0 +1,123 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marco=20Trevisan=20=28Trevi=C3=B1o=29?= <mail@3v1n0.net>
+Date: Thu, 25 Jun 2026 21:33:29 +0200
+Subject: [PATCH 2/7] device: Add VerifyFingerMatched signal to notify the
+ identified finger
+
+When using verification with `any` finger, which implies user
+identification, we are not reporting to our clients what finger has been
+matched and this can be useful for settings applications to provide a
+way to identify a finger or by other apps to associate an action to a
+specific finger.
+
+So expose this information to the claiming client.
+
+(cherry picked from commit 38f1104e19dc7825fd2cf1ac7834a7ddeffca3ac,
+without its change to tests/fprintd.py, which does not apply to 1.94.5)
+---
+ src/device.c                          | 21 ++++++++++++++++-----
+ src/net.reactivated.Fprint.Device.xml | 19 +++++++++++++++++++
+ 2 files changed, 35 insertions(+), 5 deletions(-)
+
+diff --git a/src/device.c b/src/device.c
+index d6544f6..fff7ffe 100644
+--- a/src/device.c
++++ b/src/device.c
+@@ -1287,12 +1287,12 @@ emit_enroll_status (FprintDevice *rdev,
+ static void
+ report_verify_status (FprintDevice *rdev,
+                       gboolean      match,
++                      FpFinger      finger,
+                       GError       *error)
+ {
++  g_autoptr(SessionData) session = NULL;
+   FprintDevicePrivate *priv = fprint_device_get_instance_private (rdev);
+   const char *result = verify_result_to_name (match, error);
+-
+-  g_autoptr(SessionData) session = NULL;
+   gboolean done;
+ 
+   done = (error == NULL || error->domain != FP_DEVICE_RETRY);
+@@ -1308,6 +1308,15 @@ report_verify_status (FprintDevice *rdev,
+       return;
+     }
+ 
++  if (done && match && finger != FP_FINGER_UNKNOWN)
++    {
++      const char *finger_name = fp_finger_to_name (finger);
++
++      g_debug ("report_verify_status: matched finger %s", finger_name);
++      emit_device_signal (rdev, session, "VerifyFingerMatched",
++                          g_variant_new ("(s)", finger_name));
++    }
++
+   g_debug ("report_verify_status: result %s", result);
+   emit_device_signal (rdev, session, "VerifyStatus",
+                       g_variant_new ("(sb)", result, done));
+@@ -1569,6 +1578,7 @@ match_cb (FpDevice *device,
+ {
+   FprintDevice *rdev = user_data;
+   FprintDevicePrivate *priv = fprint_device_get_instance_private (rdev);
++  FpFinger finger;
+   gboolean matched;
+   gboolean cancelled;
+ 
+@@ -1576,8 +1586,9 @@ match_cb (FpDevice *device,
+ 
+   cancelled = g_cancellable_is_cancelled (priv->current_cancellable);
+   matched = match != NULL && cancelled == FALSE;
++  finger = matched ? fp_print_get_finger (match) : FP_FINGER_UNKNOWN;
+ 
+-  report_verify_status (rdev, matched, error);
++  report_verify_status (rdev, matched, finger, error);
+ }
+ 
+ static void
+@@ -1612,7 +1623,7 @@ verify_cb (FpDevice *dev, GAsyncResult *res, void *user_data)
+ 
+       if (error)
+         {
+-          report_verify_status (rdev, FALSE, error);
++          report_verify_status (rdev, FALSE, FP_FINGER_UNKNOWN, error);
+ 
+           if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+             g_warning ("Device reported an error during verify: %s",
+@@ -1657,7 +1668,7 @@ identify_cb (FpDevice *dev, GAsyncResult *res, void *user_data)
+ 
+       if (error)
+         {
+-          report_verify_status (rdev, FALSE, error);
++          report_verify_status (rdev, FALSE, FP_FINGER_UNKNOWN, error);
+ 
+           if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+             g_warning ("Device reported an error during identify: %s",
+diff --git a/src/net.reactivated.Fprint.Device.xml b/src/net.reactivated.Fprint.Device.xml
+index 809ab53..0f1bfa2 100644
+--- a/src/net.reactivated.Fprint.Device.xml
++++ b/src/net.reactivated.Fprint.Device.xml
+@@ -491,6 +491,25 @@
+ 
+ 		<!-- ************************************************************ -->
+ 
++		<signal name="VerifyFingerMatched">
++			<arg type="s" name="finger_name">
++				<doc:doc>
++					<doc:summary>
++						<doc:para>
++							A string representing the finger that has been verified.
++						</doc:para>
++					</doc:summary>
++				</doc:doc>
++			</arg>
++			<doc:doc>
++				<doc:seealso>
++					<doc:ref type="description" to="fingerprint-names">Fingerprint names</doc:ref>.
++				</doc:seealso>
++			</doc:doc>
++		</signal>
++
++		<!-- ************************************************************ -->
++
+ 		<signal name="VerifyStatus">
+ 			<arg type="s" name="result">
+ 				<doc:doc>

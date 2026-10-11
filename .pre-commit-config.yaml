@@ -7,5 +7,8 @@ repos:
         - id: check-json
         - id: check-toml
         - id: check-yaml
+        # A patch's blank context lines are one space, and it must stay byte for byte as git wrote it
         - id: end-of-file-fixer
+          exclude: ^packaging/.*\.patch$
         - id: trailing-whitespace
+          exclude: ^packaging/.*\.patch$

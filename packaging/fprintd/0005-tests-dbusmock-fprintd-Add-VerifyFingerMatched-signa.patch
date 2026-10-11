@@ -1,0 +1,145 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marco=20Trevisan=20=28Trevi=C3=B1o=29?= <mail@3v1n0.net>
+Date: Fri, 26 Jun 2026 02:14:04 +0200
+Subject: [PATCH 5/7] tests/dbusmock/fprintd: Add VerifyFingerMatched signal
+
+(cherry picked from commit bc0066738cacab3c4fcf84e81dc84c38148a804e)
+---
+ tests/dbusmock/fprintd.py   | 32 ++++++++++++++++++++++++++------
+ tests/test_fprintd_utils.py | 17 +++++++++--------
+ 2 files changed, 35 insertions(+), 14 deletions(-)
+
+diff --git a/tests/dbusmock/fprintd.py b/tests/dbusmock/fprintd.py
+index c3bde5d..80436c3 100644
+--- a/tests/dbusmock/fprintd.py
++++ b/tests/dbusmock/fprintd.py
+@@ -222,12 +222,28 @@ def glib_sleep(timeout):
+     while (waiting):
+         GLib.main_context_default().iteration(True)
+ 
++def emit_verify_status(device, result, done, matched_finger=None):
++    if device.selected_finger in VALID_FINGER_NAMES:
++        matched_finger = device.selected_finger
++    elif matched_finger == 'any':
++        enrolled = device.fingers.get(device.claimed_user) or []
++        if enrolled:
++            matched_finger = enrolled[0]
++
++    if done and result == 'verify-match':
++        if matched_finger not in VALID_FINGER_NAMES:
++            raise dbus.exceptions.DBusException(
++                'Unknown finger name \'%s\'' % matched_finger,
++                name='org.freedesktop.DBus.Error.InvalidArgs')
++        device.EmitSignal(DEVICE_IFACE, 'VerifyFingerMatched', 's', [matched_finger])
++
++    device.EmitSignal(DEVICE_IFACE, 'VerifyStatus', 'sb', [result, done])
++
+ def device_run_script(device, result, done):
+     if result == 'MOCK: quit':
+         sys.exit(0)
+ 
+-    # Emit signal
+-    device.EmitSignal(DEVICE_IFACE, 'VerifyStatus', 'sb', [result, done])
++    emit_verify_status(device, result, done)
+ 
+ @dbus.service.method(DEVICE_IFACE,
+                      in_signature='s', out_signature='')
+@@ -297,8 +313,8 @@ def VerifyStart(device, finger_name):
+         raise error
+ 
+ @dbus.service.method(DEVICE_MOCK_IFACE,
+-                     in_signature='sb', out_signature='')
+-def EmitVerifyStatus(device, result, done):
++                     in_signature='sbs', out_signature='')
++def EmitVerifyStatus(device, result, done, matched_finger):
+     if (not device.action) or (device.action != 'verify'):
+         raise dbus.exceptions.DBusException(
+             'Cannot send verify statuses when not verifying',
+@@ -307,7 +323,8 @@ def EmitVerifyStatus(device, result, done):
+         raise dbus.exceptions.DBusException(
+             'Unknown verify status \'%s\'' % result,
+             name='org.freedesktop.DBus.Error.InvalidArgs')
+-    device.EmitSignal(DEVICE_IFACE, 'VerifyStatus', 'sb', [result, done])
++
++    emit_verify_status(device, result, done, matched_finger)
+ 
+ @dbus.service.method(DEVICE_IFACE,
+                      in_signature='', out_signature='')
+@@ -418,7 +435,10 @@ def SetVerifyScript(device, script):
+     After VerifyStart is called, signal results will be sent in order after
+     a certain timeout declared in seconds. The array contains each
+     'result' followed by the 'done' argument for VerifyStatus, and the
+-    amount of time to wait before each signal is sent.
++    amount of time to wait before each signal is sent. For a 'verify-match'
++    result a VerifyFingerMatched signal is emitted too, reporting the
++    selected finger as the matched one, or a reproducible enrolled finger
++    when verifying with 'any'.
+ 
+     Returns nothing.
+     '''
+diff --git a/tests/test_fprintd_utils.py b/tests/test_fprintd_utils.py
+index efa5893..c200583 100755
+--- a/tests/test_fprintd_utils.py
++++ b/tests/test_fprintd_utils.py
+@@ -210,6 +210,7 @@ class TestFprintdUtilsVerify(TestFprintdUtilsBase):
+         out = b''.join(preamble)
+ 
+         self.assertNotIn(b'Verify result:', out)
++        self.selected_finger = self.device_mock.GetSelectedFinger()
+ 
+         if finger:
+             expected_finger = finger
+@@ -224,7 +225,7 @@ class TestFprintdUtilsVerify(TestFprintdUtilsBase):
+     def test_fprintd_verify(self):
+         self.start_verify_process()
+ 
+-        self.device_mock.EmitVerifyStatus('verify-match', True)
++        self.device_mock.EmitVerifyStatus('verify-match', True, self.selected_finger)
+         time.sleep(self.sleep_time)
+         self.assertVerifyMatch(True)
+ 
+@@ -232,14 +233,14 @@ class TestFprintdUtilsVerify(TestFprintdUtilsBase):
+         for finger in self.enrolled_fingers:
+             self.start_verify_process(finger=finger)
+ 
+-            self.device_mock.EmitVerifyStatus('verify-match', True)
++            self.device_mock.EmitVerifyStatus('verify-match', True, finger)
+             time.sleep(self.sleep_time)
+             self.assertVerifyMatch(True)
+ 
+     def test_fprintd_verify_any_finger_no_identification(self):
+         self.start_verify_process(finger='any')
+ 
+-        self.device_mock.EmitVerifyStatus('verify-match', True)
++        self.device_mock.EmitVerifyStatus('verify-match', True, self.selected_finger)
+         time.sleep(self.sleep_time)
+         self.assertVerifyMatch(True)
+ 
+@@ -251,8 +252,9 @@ class TestFprintdUtilsVerify(TestFprintdUtilsBase):
+             self.device_path)
+         self.set_enrolled_fingers(VALID_FINGER_NAMES)
+         self.start_verify_process(finger='any')
+-
+-        self.device_mock.EmitVerifyStatus('verify-match', True)
++    
++        expected_finger = self.enrolled_fingers[0]
++        self.device_mock.EmitVerifyStatus('verify-match', True, expected_finger)
+         time.sleep(self.sleep_time)
+         self.assertVerifyMatch(True)
+ 
+@@ -276,13 +278,12 @@ class TestFprintdUtilsVerify(TestFprintdUtilsBase):
+ 
+     def test_fprintd_verify_script(self):
+         script = [
+-            ( 'verify-match', True, 2 )
++            ( 'verify-match', True, int(self.sleep_time * 1000) )
+         ]
+         self.device_mock.SetVerifyScript(script)
+-        time.sleep(2)
+ 
+         self.start_verify_process()
+-        time.sleep(2 + self.sleep_time)
++        time.sleep(self.sleep_time * 2)
+         self.assertVerifyMatch(True)
+ 
+     def test_fprintd_multiple_verify_fails(self):

@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marco=20Trevisan=20=28Trevi=C3=B1o=29?= <mail@3v1n0.net>
+Date: Thu, 25 Jun 2026 15:28:33 +0200
+Subject: [PATCH 4/7] tests/dbusmock/fprintd: Cleanup the emission code
+
+(cherry picked from commit 635d25560efeac705093a0adaa69d7d368b2a07e)
+---
+ tests/dbusmock/fprintd.py | 15 +++------------
+ 1 file changed, 3 insertions(+), 12 deletions(-)
+
+diff --git a/tests/dbusmock/fprintd.py b/tests/dbusmock/fprintd.py
+index 1bd0043..c3bde5d 100644
+--- a/tests/dbusmock/fprintd.py
++++ b/tests/dbusmock/fprintd.py
+@@ -227,10 +227,7 @@ def device_run_script(device, result, done):
+         sys.exit(0)
+ 
+     # Emit signal
+-    device.EmitSignal(DEVICE_IFACE, 'VerifyStatus', 'sb', [
+-                        result,
+-                        done
+-                      ])
++    device.EmitSignal(DEVICE_IFACE, 'VerifyStatus', 'sb', [result, done])
+ 
+ @dbus.service.method(DEVICE_IFACE,
+                      in_signature='s', out_signature='')
+@@ -310,10 +307,7 @@ def EmitVerifyStatus(device, result, done):
+         raise dbus.exceptions.DBusException(
+             'Unknown verify status \'%s\'' % result,
+             name='org.freedesktop.DBus.Error.InvalidArgs')
+-    device.EmitSignal(DEVICE_IFACE, 'VerifyStatus', 'sb', [
+-                          result,
+-                          done
+-                      ])
++    device.EmitSignal(DEVICE_IFACE, 'VerifyStatus', 'sb', [result, done])
+ 
+ @dbus.service.method(DEVICE_IFACE,
+                      in_signature='', out_signature='')
+@@ -361,10 +355,7 @@ def EmitEnrollStatus(device, result, done):
+         if device.enrolling_finger not in device.fingers[device.claimed_user]:
+             device.fingers[device.claimed_user].append(device.enrolling_finger)
+ 
+-    device.EmitSignal(DEVICE_IFACE, 'EnrollStatus', 'sb', [
+-                          result,
+-                          done
+-                      ])
++    device.EmitSignal(DEVICE_IFACE, 'EnrollStatus', 'sb', [result, done])
+ 
+ @dbus.service.method(DEVICE_IFACE,
+                      in_signature='', out_signature='')

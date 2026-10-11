@@ -1,0 +1,204 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marco=20Trevisan=20=28Trevi=C3=B1o=29?= <mail@3v1n0.net>
+Date: Thu, 25 Jun 2026 12:25:43 +0200
+Subject: [PATCH 1/7] device: Emit signals only to the claiming clients
+
+We used to broadcast the signals to all the dbus clients, while this is
+not a security concern it may still provide information we may not want
+to expose, so let's just emit the signals to the claming clients rather
+than to everybody.
+
+Adjust the tests to handle the signal emissions for each client, connecting
+to each device instance separately.
+
+(cherry picked from commit 6396302d7e2feba35452e3c7dd9557029b22ca9a,
+without its change to tests/fprintd.py, which does not apply to 1.94.5)
+---
+ src/device.c | 84 ++++++++++++++++++++++++++++++++++++----------------
+ 1 file changed, 59 insertions(+), 25 deletions(-)
+
+diff --git a/src/device.c b/src/device.c
+index 4de4a10..d6544f6 100644
+--- a/src/device.c
++++ b/src/device.c
+@@ -132,15 +132,7 @@ enum fprint_device_properties {
+   FPRINT_DEVICE_BUSY,
+ };
+ 
+-enum fprint_device_signals {
+-  SIGNAL_VERIFY_STATUS,
+-  SIGNAL_VERIFY_FINGER_SELECTED,
+-  SIGNAL_ENROLL_STATUS,
+-  NUM_SIGNALS,
+-};
+-
+ static guint32 last_id = ~0;
+-static guint signals[NUM_SIGNALS] = { 0, };
+ 
+ #ifndef POLKIT_HAS_AUTOPOINTERS
+ /* FIXME: Remove this once we're fine to depend on polkit 0.114 */
+@@ -428,13 +420,6 @@ fprint_device_class_init (FprintDeviceClass *klass)
+   g_object_class_install_property (gobject_class,
+                                    FPRINT_DEVICE_BUSY, pspec);
+ 
+-  signals[SIGNAL_VERIFY_STATUS] =
+-    g_signal_lookup ("verify-status", FPRINT_TYPE_DEVICE);
+-  signals[SIGNAL_ENROLL_STATUS] =
+-    g_signal_lookup ("enroll-status", FPRINT_TYPE_DEVICE);
+-  signals[SIGNAL_VERIFY_FINGER_SELECTED] =
+-    g_signal_lookup ("verify-finger-selected", FPRINT_TYPE_DEVICE);
+-
+   quark_auth_user = g_quark_from_static_string ("authorized-user");
+ }
+ 
+@@ -1260,6 +1245,45 @@ load_all_prints (FprintDevice *rdev)
+   return g_steal_pointer (&res);
+ }
+ 
++static void
++emit_device_signal (FprintDevice *rdev,
++                    SessionData  *session,
++                    const char   *signal_name,
++                    GVariant     *parameters)
++{
++  g_autoptr(GError) error = NULL;
++  GDBusInterfaceSkeleton *skeleton = G_DBUS_INTERFACE_SKELETON (rdev);
++  GDBusConnection *connection;
++  const char *object_path;
++
++  connection = g_dbus_interface_skeleton_get_connection (skeleton);
++  object_path = g_dbus_interface_skeleton_get_object_path (skeleton);
++
++  g_return_if_fail (connection != NULL);
++  g_return_if_fail (object_path != NULL);
++
++  if (!g_dbus_connection_emit_signal (connection,
++                                      session->sender,
++                                      object_path,
++                                      FPRINT_SERVICE_NAME ".Device",
++                                      signal_name,
++                                      parameters,
++                                      &error))
++    g_critical ("Failed to emit signal '%s': %s", signal_name, error->message);
++}
++
++static inline void
++emit_enroll_status (FprintDevice *rdev,
++                    SessionData  *session,
++                    const char   *status,
++                    gboolean      done)
++{
++  emit_device_signal (rdev,
++                      session,
++                      "EnrollStatus",
++                      g_variant_new ("(sb)", status, done));
++}
++
+ static void
+ report_verify_status (FprintDevice *rdev,
+                       gboolean      match,
+@@ -1285,7 +1309,8 @@ report_verify_status (FprintDevice *rdev,
+     }
+ 
+   g_debug ("report_verify_status: result %s", result);
+-  g_signal_emit (rdev, signals[SIGNAL_VERIFY_STATUS], 0, result, done);
++  emit_device_signal (rdev, session, "VerifyStatus",
++                      g_variant_new ("(sb)", result, done));
+ 
+   if (done)
+     session->verify_status_reported = TRUE;
+@@ -1757,8 +1782,8 @@ fprint_device_verify_start (FprintDBusDevice      *dbus_dev,
+ 
+   /* Emit VerifyFingerSelected telling the front-end which finger
+    * we selected for auth */
+-  g_signal_emit (rdev, signals[SIGNAL_VERIFY_FINGER_SELECTED],
+-                 0, fp_finger_to_name (finger));
++  emit_device_signal (rdev, session, "VerifyFingerSelected",
++                      g_variant_new ("(s)", fp_finger_to_name (finger)));
+ 
+   return TRUE;
+ }
+@@ -1861,14 +1886,20 @@ enroll_progress_cb (FpDevice *dev,
+                     gpointer  user_data,
+                     GError   *error)
+ {
++  g_autoptr(SessionData) session = NULL;
+   FprintDevice *rdev = user_data;
++  FprintDevicePrivate *priv = fprint_device_get_instance_private (rdev);
++
+   const char *name = enroll_result_to_name (FALSE, FALSE, error);
+ 
+   g_debug ("enroll_stage_cb: result %s", name);
+ 
+   /* NOTE: We add one more step internally, but we can ignore that here. */
+-  if (completed_stages < fp_device_get_nr_enroll_stages (dev))
+-    g_signal_emit (rdev, signals[SIGNAL_ENROLL_STATUS], 0, name, FALSE);
++  if (completed_stages >= fp_device_get_nr_enroll_stages (dev))
++    return;
++
++  session = session_data_get (priv);
++  emit_enroll_status (rdev, session, name, FALSE);
+ }
+ 
+ static gint
+@@ -2004,6 +2035,7 @@ fprint_device_create_enroll_template (FprintDevice *rdev, FpFinger finger)
+ static void
+ enroll_cb (FpDevice *dev, GAsyncResult *res, void *user_data)
+ {
++  g_autoptr(SessionData) session = NULL;
+   g_autoptr(GError) error = NULL;
+   FprintDevice *rdev = user_data;
+   FprintDevicePrivate *priv = fprint_device_get_instance_private (rdev);
+@@ -2050,7 +2082,8 @@ enroll_cb (FpDevice *dev, GAsyncResult *res, void *user_data)
+         name = "enroll-failed";
+     }
+ 
+-  g_signal_emit (rdev, signals[SIGNAL_ENROLL_STATUS], 0, name, TRUE);
++  session = session_data_get (priv);
++  emit_enroll_status (rdev, session, name, TRUE);
+ 
+   if (error && !g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+     g_warning ("Device reported an error during enroll: %s", error->message);
+@@ -2081,6 +2114,7 @@ enroll_identify_cb (FpDevice *dev, GAsyncResult *res, void *user_data)
+   g_autoptr(FpPrint) found_print = NULL;
+   FprintDevice *rdev = user_data;
+   FprintDevicePrivate *priv = fprint_device_get_instance_private (rdev);
++  g_autoptr(SessionData) session = session_data_get (priv);
+   const char *name;
+ 
+   fp_device_identify_finish (dev, res, &matched_print, &found_print, &error);
+@@ -2097,7 +2131,7 @@ enroll_identify_cb (FpDevice *dev, GAsyncResult *res, void *user_data)
+       gboolean retry = error->domain == FP_DEVICE_RETRY;
+ 
+       name = enroll_result_to_name (!retry, FALSE, error);
+-      g_signal_emit (rdev, signals[SIGNAL_ENROLL_STATUS], 0, name, !retry);
++      emit_enroll_status (rdev, session, name, !retry);
+ 
+       /* Retry or clean up. */
+       if (retry)
+@@ -2133,7 +2167,7 @@ enroll_identify_cb (FpDevice *dev, GAsyncResult *res, void *user_data)
+ 
+   if (matched_print)
+     {
+-      g_signal_emit (rdev, signals[SIGNAL_ENROLL_STATUS], 0, "enroll-duplicate", TRUE);
++      emit_enroll_status (rdev, session, "enroll-duplicate", TRUE);
+ 
+       stoppable_action_completed (rdev);
+       return;
+@@ -2152,14 +2186,14 @@ enroll_identify_cb (FpDevice *dev, GAsyncResult *res, void *user_data)
+         {
+           g_warning ("Failed to garbage collect duplicate print, cannot continue with enroll: %s",
+                      error->message);
+-          g_signal_emit (rdev, signals[SIGNAL_ENROLL_STATUS], 0, "enroll-duplicate", TRUE);
++          emit_enroll_status (rdev, session, "enroll-duplicate", TRUE);
+ 
+           stoppable_action_completed (rdev);
+           return;
+         }
+     }
+ 
+-  g_signal_emit (rdev, signals[SIGNAL_ENROLL_STATUS], 0, "enroll-stage-passed", FALSE);
++  emit_enroll_status (rdev, session, "enroll-stage-passed", FALSE);
+ 
+   /* We are good and can start to enroll. */
+   enroll_start (rdev);

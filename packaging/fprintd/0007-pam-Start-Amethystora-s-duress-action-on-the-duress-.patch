@@ -1,0 +1,622 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Arsslen Idadi <arsslens021@gmail.com>
+Date: Sun, 11 Oct 2026 08:20:29 -0400
+Subject: [PATCH 7/7] pam: Start Amethystora's duress action on the duress
+ finger
+
+With duress=allow or duress=deny, read the account's duress finger from
+its line in /etc/amethystora/duress.d/fingers, and when a reader that
+identified reports that finger as the match, call Run on the
+org.amethystora.Duress service of the system bus, without waiting for
+an answer and without starting the service. With allow the finger then
+logs in like any other; with deny it is refused exactly as a finger
+that did not match, and the module asks again.
+
+The file is ignored unless it and its folder are root's and nobody else
+may read them. A reader that verified a single finger it chose itself
+never counts, nor does a daemon that does not name the matched finger.
+Nothing about the duress finger is logged, with debug or without.
+
+duress-dir= points the module at another folder, for the tests, which
+run as root only: as anyone else the file is never trusted.
+---
+ data/pam_fprintd.pod                          |  21 +-
+ pam/pam_fprintd.c                             | 209 ++++++++++++++++++
+ tests/pam/services/fprintd-pam-test-duress.in |   1 +
+ tests/pam/services/meson.build                |  30 ++-
+ tests/pam/test_pam_fprintd.py                 | 175 +++++++++++++++
+ 5 files changed, 429 insertions(+), 7 deletions(-)
+ create mode 100644 tests/pam/services/fprintd-pam-test-duress.in
+
+diff --git a/data/pam_fprintd.pod b/data/pam_fprintd.pod
+index 3ab4643..09f7cda 100644
+--- a/data/pam_fprintd.pod
++++ b/data/pam_fprintd.pod
+@@ -4,7 +4,7 @@ pam_fprintd - PAM module to authenticate against fprintd, the fingerprint daemon
+ 
+ =head1 SYNOPSIS
+ 
+-B<pam_fprintd.so> [debug|debug=[I<on>|I<off>|I<true>|I<false>|I<1>|I<0>]] [max-tries=I<MAX_TRIES>] [timeout=I<TIMEOUT>]
++B<pam_fprintd.so> [debug|debug=[I<on>|I<off>|I<true>|I<false>|I<1>|I<0>]] [max-tries=I<MAX_TRIES>] [timeout=I<TIMEOUT>] [duress=[I<allow>|I<deny>]]
+ 
+ =head1 DESCRIPTION
+ 
+@@ -38,6 +38,25 @@ is 30 seconds, with 1 second being the minimum.
+ Use a negative value to set no limit at all, so that fingerprint authentication will
+ be always active while this module is loaded.
+ 
++=item B<duress=[I<allow>|I<deny>]>
++
++Amethystora's duress finger. When the reader identified the scan as the account's
++duress finger, the module asks the B<org.amethystora.Duress> service on the system bus
++to start the owner's action, without waiting for it. With I<allow> the finger then
++logs in like any other; with I<deny> it is refused exactly as a finger that did not
++match, and the module asks again.
++
++The account's duress finger is named by its line in F</etc/amethystora/duress.d/fingers>,
++I<UID> and the finger's name apart by one space. The module ignores the file unless
++the folder and the file are owned by root and cannot be read by anyone else, and
++ignores every finger on a reader that does not identify. Nothing about the duress
++finger is logged, with debug or without.
++
++=item B<duress-dir=I<PATH>>
++
++The folder to read the duress finger from, in place of F</etc/amethystora/duress.d>.
++For tests.
++
+ =back
+ 
+ =head1 LIMITATIONS
+diff --git a/pam/pam_fprintd.c b/pam/pam_fprintd.c
+index 95c430c..937d533 100644
+--- a/pam/pam_fprintd.c
++++ b/pam/pam_fprintd.c
+@@ -27,10 +27,13 @@
+ #include <stdint.h>
+ #include <unistd.h>
+ #include <sys/types.h>
++#include <sys/stat.h>
+ #include <string.h>
+ #include <syslog.h>
+ #include <time.h>
+ #include <errno.h>
++#include <fcntl.h>
++#include <pwd.h>
+ 
+ #include <libintl.h>
+ 
+@@ -80,10 +83,26 @@
+ #define DEBUG_MATCH "debug="
+ #define MAX_TRIES_MATCH "max-tries="
+ #define TIMEOUT_MATCH "timeout="
++#define DURESS_MATCH "duress="
++#define DURESS_DIR_MATCH "duress-dir="
++
++/* Amethystora's duress finger: the file "fingers" in this folder names it,
++ * and a match with it asks this service to start the owner's action */
++#define DURESS_DIR "/etc/amethystora/duress.d"
++#define DURESS_SERVICE "org.amethystora.Duress"
++#define DURESS_PATH "/org/amethystora/Duress"
++
++typedef enum {
++  DURESS_OFF,
++  DURESS_ALLOW,
++  DURESS_DENY,
++} duress_mode;
+ 
+ static bool debug = false;
+ static unsigned max_tries = DEFAULT_MAX_TRIES;
+ static unsigned timeout = DEFAULT_TIMEOUT;
++static duress_mode duress = DURESS_OFF;
++static const char *duress_dir = DURESS_DIR;
+ 
+ #define USEC_PER_SEC ((uint64_t) 1000000ULL)
+ #define NSEC_PER_USEC ((uint64_t) 1000ULL)
+@@ -219,12 +238,20 @@ typedef struct
+   pam_handle_t *pamh;
+ 
+   char         *driver;
++
++  char         *duress_finger;
++  uid_t         uid;
++  char         *selected_finger;
++  char         *matched_finger;
+ } verify_data;
+ 
+ static void
+ verify_data_free (verify_data *data)
+ {
+   free (data->result);
++  free (data->duress_finger);
++  free (data->selected_finger);
++  free (data->matched_finger);
+   free (data->driver);
+   free (data->dev);
+   free (data);
+@@ -313,6 +340,9 @@ verify_finger_selected (sd_bus_message *m,
+       return 0;
+     }
+ 
++  free (data->selected_finger);
++  data->selected_finger = strdup (finger_name);
++
+   msg = finger_str_to_msg (finger_name, data->driver, data->is_swipe);
+   if (!msg)
+     {
+@@ -326,6 +356,136 @@ verify_finger_selected (sd_bus_message *m,
+   return 0;
+ }
+ 
++/* Nothing about the duress finger is ever logged, not even with debug on:
++ * the journal is not the place to learn whether an account has one */
++static int
++verify_finger_matched (sd_bus_message *m,
++                       void           *userdata,
++                       sd_bus_error   *ret_error)
++{
++  verify_data *data = userdata;
++  const char *finger_name = NULL;
++
++  if (sd_bus_message_read_basic (m, 's', &finger_name) < 0)
++    return 0;
++
++  if (!data->verify_started)
++    return 0;
++
++  free (data->matched_finger);
++  data->matched_finger = strdup (finger_name);
++
++  return 0;
++}
++
++static bool
++is_finger_name (const char *name)
++{
++  unsigned i;
++
++  /* The first is "any", which no print is enrolled as */
++  for (i = 1; fingers[i].dbus_name != NULL; i++)
++    if (str_equal (fingers[i].dbus_name, name))
++      return true;
++
++  return false;
++}
++
++/* The account's duress finger, from the line "<uid> <finger>" of
++ * DURESS_DIR/fingers, or NULL when it has none or the file cannot be trusted.
++ * Only root can have written it: the folder and the file are root's, and
++ * neither may be read by anyone else. One file for every account, so that
++ * nothing outside the folder tells which accounts have one. */
++static char *
++read_duress_finger (const char *username,
++                    uid_t      *uid)
++{
++  struct passwd pwd, *found = NULL;
++  struct stat st;
++  char buf[4096];
++  char prefix[32];
++  char content[4096];
++  char *line, *next;
++  ssize_t len;
++  int dir_fd, fd;
++
++  if (getpwnam_r (username, &pwd, buf, sizeof (buf), &found) != 0 || found == NULL)
++    return NULL;
++  snprintf (prefix, sizeof (prefix), "%u ", (unsigned) pwd.pw_uid);
++
++  dir_fd = open (duress_dir, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC);
++  if (dir_fd < 0)
++    return NULL;
++  if (fstat (dir_fd, &st) < 0 || st.st_uid != 0 || (st.st_mode & 077) != 0)
++    {
++      close (dir_fd);
++      return NULL;
++    }
++
++  fd = openat (dir_fd, "fingers", O_RDONLY | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC);
++  close (dir_fd);
++  if (fd < 0)
++    return NULL;
++  if (fstat (fd, &st) < 0 || !S_ISREG (st.st_mode) || st.st_uid != 0 || (st.st_mode & 077) != 0 ||
++      st.st_size >= (off_t) sizeof (content))
++    {
++      close (fd);
++      return NULL;
++    }
++
++  len = read (fd, content, sizeof (content) - 1);
++  close (fd);
++  if (len <= 0)
++    return NULL;
++  content[len] = '\0';
++
++  for (line = content; line != NULL && *line != '\0'; line = next)
++    {
++      next = strchr (line, '\n');
++      if (next)
++        *next++ = '\0';
++
++      if (str_has_prefix (line, prefix) && is_finger_name (line + strlen (prefix)))
++        {
++          *uid = pwd.pw_uid;
++          return strdup (line + strlen (prefix));
++        }
++    }
++
++  return NULL;
++}
++
++/* Only a reader that identified, comparing the scan with every enrolled
++ * finger, says which one matched. One that verified a single finger it chose
++ * itself never counts, whichever finger that was. */
++static bool
++is_duress_match (verify_data *data)
++{
++  return data->duress_finger != NULL &&
++         str_equal (data->selected_finger, "any") &&
++         str_equal (data->matched_finger, data->duress_finger);
++}
++
++/* Without waiting for an answer, and without starting the service if it is
++ * not running: what the action does is the service's business */
++static void
++start_duress_action (sd_bus      *bus,
++                     verify_data *data)
++{
++  pf_autoptr (sd_bus_message) m = NULL;
++
++  if (sd_bus_message_new_method_call (bus, &m, DURESS_SERVICE, DURESS_PATH,
++                                      DURESS_SERVICE, "Run") < 0)
++    return;
++  if (sd_bus_message_append (m, "u", (uint32_t) data->uid) < 0 ||
++      sd_bus_message_set_expect_reply (m, 0) < 0 ||
++      sd_bus_message_set_auto_start (m, 0) < 0)
++    return;
++  if (sd_bus_send (bus, m, NULL) < 0)
++    return;
++  sd_bus_flush (bus);
++}
++
+ /* See https://github.com/systemd/systemd/issues/14636 */
+ static int
+ get_property_string (sd_bus       *bus,
+@@ -415,6 +575,7 @@ do_verify (sd_bus      *bus,
+ {
+   pf_autoptr (sd_bus_slot) verify_status_slot = NULL;
+   pf_autoptr (sd_bus_slot) verify_finger_selected_slot = NULL;
++  pf_autoptr (sd_bus_slot) verify_finger_matched_slot = NULL;
+   pf_autofree char *scan_type = NULL;
+ #ifdef __linux__
+   sigset_t signals;
+@@ -470,6 +631,18 @@ do_verify (sd_bus      *bus,
+                        verify_finger_selected,
+                        data);
+ 
++  if (data->duress_finger)
++    {
++      sd_bus_match_signal (bus,
++                           &verify_finger_matched_slot,
++                           "net.reactivated.Fprint",
++                           data->dev,
++                           "net.reactivated.Fprint.Device",
++                           "VerifyFingerMatched",
++                           verify_finger_matched,
++                           data);
++    }
++
+ #ifdef __linux__
+   sigemptyset (&signals);
+   sigaddset (&signals, SIGINT);
+@@ -489,6 +662,10 @@ do_verify (sd_bus      *bus,
+ 
+       free (data->result);
+       data->result = NULL;
++      free (data->selected_finger);
++      data->selected_finger = NULL;
++      free (data->matched_finger);
++      data->matched_finger = NULL;
+ 
+       if (debug)
+         pam_syslog (data->pamh, LOG_DEBUG, "About to call VerifyStart");
+@@ -585,6 +762,18 @@ do_verify (sd_bus      *bus,
+         }
+       else
+         {
++          if (str_equal (data->result, "verify-match") && is_duress_match (data))
++            {
++              start_duress_action (bus, data);
++
++              /* Refused, the duress finger looks like any finger that did not match */
++              if (duress == DURESS_DENY)
++                {
++                  free (data->result);
++                  data->result = strdup ("verify-no-match");
++                }
++            }
++
+           if (str_equal (data->result, "verify-no-match"))
+             send_err_msg (data->pamh, _("Failed to match fingerprint"));
+           else if (str_equal (data->result, "verify-match"))
+@@ -778,6 +967,9 @@ do_auth (pam_handle_t *pamh, const char *username)
+   if (data->dev == NULL)
+     return PAM_AUTHINFO_UNAVAIL;
+ 
++  if (duress != DURESS_OFF)
++    data->duress_finger = read_duress_finger (username, &data->uid);
++
+   /* Only connect to NameOwnerChanged when needed. In case of automatic startup
+    * we rely on the fact that we never see those signals.
+    */
+@@ -846,6 +1038,11 @@ pam_sm_authenticate (pam_handle_t *pamh, int flags, int argc,
+   if (pam_get_user (pamh, &username, NULL) != PAM_SUCCESS)
+     return PAM_AUTHINFO_UNAVAIL;
+ 
++  /* The module stays loaded between services: one without the option must not
++   * inherit the last one's */
++  duress = DURESS_OFF;
++  duress_dir = DURESS_DIR;
++
+   for (i = 0; i < argc; i++)
+     {
+       if (argv[i] != NULL)
+@@ -909,6 +1106,18 @@ pam_sm_authenticate (pam_handle_t *pamh, int flags, int argc,
+                   pam_syslog (pamh, LOG_DEBUG, "timeout specified as: %d secs", timeout);
+                 }
+             }
++          else if (str_equal (argv[i], DURESS_MATCH "allow"))
++            {
++              duress = DURESS_ALLOW;
++            }
++          else if (str_equal (argv[i], DURESS_MATCH "deny"))
++            {
++              duress = DURESS_DENY;
++            }
++          else if (str_has_prefix (argv[i], DURESS_DIR_MATCH "/"))
++            {
++              duress_dir = argv[i] + strlen (DURESS_DIR_MATCH);
++            }
+         }
+     }
+ 
+diff --git a/tests/pam/services/fprintd-pam-test-duress.in b/tests/pam/services/fprintd-pam-test-duress.in
+new file mode 100644
+index 0000000..d0bfa6e
+--- /dev/null
++++ b/tests/pam/services/fprintd-pam-test-duress.in
+@@ -0,0 +1 @@
++auth   required     @FPRINTDPAMPATH@ debug timeout=10 @DURESS@ duress-dir=@DURESSDIR@
+diff --git a/tests/pam/services/meson.build b/tests/pam/services/meson.build
+index b9e66e1..587a089 100644
+--- a/tests/pam/services/meson.build
++++ b/tests/pam/services/meson.build
+@@ -1,13 +1,31 @@
+-# Meson doesn't allow to have configure_file's as targets we depend on... Meh!
+-pam_service_file = custom_target('pam_test_service_file',
+-    output: 'null',
+-    command: 'true',
+-    depends: pam_fprintd,
+-    depend_files: configure_file(
++pam_service_configs = [
++    configure_file(
+         input: 'fprintd-pam-test.in',
+         output: 'fprintd-pam-test',
+         configuration: configuration_data({
+             'FPRINTDPAMPATH': pam_fprintd.full_path(),
+         }),
+     ),
++]
++
++# The duress finger's folder, which the tests write, outside this one: every
++# file here is taken for a PAM service
++foreach option: ['allow', 'deny', 'off']
++    pam_service_configs += configure_file(
++        input: 'fprintd-pam-test-duress.in',
++        output: 'fprintd-pam-test-duress-@0@'.format(option),
++        configuration: configuration_data({
++            'FPRINTDPAMPATH': pam_fprintd.full_path(),
++            'DURESS': option == 'off' ? '' : 'duress=' + option,
++            'DURESSDIR': meson.project_build_root() / 'tests' / 'pam' / 'duress.d',
++        }),
++    )
++endforeach
++
++# Meson doesn't allow to have configure_file's as targets we depend on... Meh!
++pam_service_file = custom_target('pam_test_service_file',
++    output: 'null',
++    command: 'true',
++    depends: pam_fprintd,
++    depend_files: pam_service_configs,
+ )
+diff --git a/tests/pam/test_pam_fprintd.py b/tests/pam/test_pam_fprintd.py
+index 54943e4..9b36f5c 100644
+--- a/tests/pam/test_pam_fprintd.py
++++ b/tests/pam/test_pam_fprintd.py
+@@ -19,6 +19,7 @@ import dbus
+ import dbusmock
+ import glob
+ import os
++import pwd
+ import shutil
+ import time
+ import pypamtest
+@@ -349,6 +350,180 @@ class TestPamFprintd(dbusmock.DBusTestCase):
+         self.assertEqual(len(res.errors), 0)
+         self.assertEqual(len(res.info), 0)
+ 
++@unittest.skipUnless(os.geteuid() == 0, 'the duress finger is only read from files of root')
++class TestPamFprintdDuress(dbusmock.DBusTestCase):
++    '''Amethystora's duress finger: the account's file names it, the reader
++    identifies, and the mock reports the first enrolled finger as the match'''
++
++    setUpClass = classmethod(TestPamFprintd.setUpClass.__func__)
++    tearDownClass = classmethod(TestPamFprintd.tearDownClass.__func__)
++    start_monitor = classmethod(TestPamFprintd.start_monitor.__func__)
++    stop_monitor = classmethod(TestPamFprintd.stop_monitor.__func__)
++
++    def setUp(self):
++        super().setUp()
++        (self.p_mock, self.obj_fprintd_manager) = self.spawn_server_template(
++            self.template_name, {})
++        self.obj_fprintd_mock = dbus.Interface(self.obj_fprintd_manager, 'net.reactivated.Fprint.Manager.Mock')
++        self.user = pwd.getpwuid(os.getuid()).pw_name
++        self.duress_dir = os.path.join(os.environ['TOPBUILDDIR'], 'tests', 'pam', 'duress.d')
++        self.p_duress = None
++
++    def tearDown(self):
++        shutil.rmtree(self.duress_dir, ignore_errors=True)
++        if self.p_duress:
++            self.p_duress.terminate()
++            self.p_duress.wait()
++        self.p_mock.terminate()
++        self.p_mock.wait()
++        super().tearDown()
++
++    def setup_device(self, identification=True):
++        device_path = self.obj_fprintd_mock.AddDevice('FDO Trigger Finger Laser Reader', 3, 'press', identification)
++        self.device_mock = self.dbus_con.get_object('net.reactivated.Fprint', device_path)
++        self.device_mock.SetEnrolledFingers(self.user, ['right-ring-finger', 'left-index-finger'])
++
++    def setup_duress_service(self):
++        self.p_duress = self.spawn_server('org.amethystora.Duress', '/org/amethystora/Duress',
++                                          'org.amethystora.Duress', system_bus=True,
++                                          stdout=subprocess.DEVNULL)
++        self.duress_mock = dbus.Interface(
++            self.dbus_con.get_object('org.amethystora.Duress', '/org/amethystora/Duress'),
++            dbusmock.MOCK_IFACE)
++        self.duress_mock.AddMethod('org.amethystora.Duress', 'Run', 'u', '', '')
++
++    def write_duress_finger(self, finger, dir_mode=0o700, file_mode=0o600, uid=None):
++        '''The account's line in the fingers file, between two other accounts' lines'''
++        uid = os.getuid() if uid is None else uid
++        os.makedirs(self.duress_dir, exist_ok=True)
++        os.chmod(self.duress_dir, dir_mode)
++        path = os.path.join(self.duress_dir, 'fingers')
++        with open(path, 'w') as f:
++            f.write('%d left-thumb\n' % (os.getuid() + 1000))
++            f.write('%d %s\n' % (uid, finger))
++            f.write('%d left-index-finger\n' % (os.getuid() + 1001))
++        os.chmod(path, file_mode)
++        return path
++
++    def duress_runs(self, wait=2):
++        '''The uid of each Run call, once at least one came or wait ran out'''
++        calls = []
++        deadline = time.time() + wait
++        while time.time() < deadline:
++            calls = self.duress_mock.GetMethodCalls('Run')
++            if calls:
++                break
++            time.sleep(0.1)
++        return [int(args[0]) for (_, args) in calls]
++
++    def authenticate(self, service, expected_rv, tries=1):
++        self.device_mock.SetVerifyScript([( 'verify-match', True, 1 )] * tries)
++        tc = pypamtest.TestCase(pypamtest.PAMTEST_AUTHENTICATE, expected_rv=expected_rv)
++        return pypamtest.run_pamtest(self.user, service, [tc], [ 'unused' ])
++
++    def test_pam_duress_allow(self):
++        self.setup_device()
++        self.setup_duress_service()
++        self.write_duress_finger('right-ring-finger')
++
++        res = self.authenticate('fprintd-pam-test-duress-allow', PAM_SUCCESS)
++        self.assertRegex(res.info[0], r'Place your finger on the fingerprint reader')
++        self.assertEqual(len(res.errors), 0)
++        self.assertEqual(self.duress_runs(), [os.getuid()])
++
++    def test_pam_duress_deny(self):
++        self.setup_device()
++        self.setup_duress_service()
++        self.write_duress_finger('right-ring-finger')
++
++        res = self.authenticate('fprintd-pam-test-duress-deny', PAM_MAXTRIES, tries=3)
++        self.assertEqual(list(res.errors), ['Failed to match fingerprint'] * 3)
++        self.assertEqual(self.duress_runs(), [os.getuid()] * 3)
++
++    def test_pam_duress_other_finger(self):
++        self.setup_device()
++        self.setup_duress_service()
++        self.write_duress_finger('left-index-finger')
++
++        for service in ['fprintd-pam-test-duress-allow', 'fprintd-pam-test-duress-deny']:
++            with self.subTest(service=service):
++                res = self.authenticate(service, PAM_SUCCESS)
++                self.assertEqual(len(res.errors), 0)
++                self.device_mock.VerifyStop()
++                self.device_mock.Release()
++        self.assertEqual(self.duress_runs(wait=0.5), [])
++
++    def test_pam_duress_option_off(self):
++        self.setup_device()
++        self.setup_duress_service()
++        self.write_duress_finger('right-ring-finger')
++
++        res = self.authenticate('fprintd-pam-test-duress-off', PAM_SUCCESS)
++        self.assertEqual(len(res.errors), 0)
++        self.assertEqual(self.duress_runs(wait=0.5), [])
++
++    def test_pam_duress_no_identification(self):
++        # The reader verifies the first enrolled finger only, which is the duress finger
++        self.setup_device(identification=False)
++        self.setup_duress_service()
++        self.write_duress_finger('right-ring-finger')
++
++        res = self.authenticate('fprintd-pam-test-duress-deny', PAM_SUCCESS)
++        self.assertRegex(res.info[0], r'Place your right ring finger on the fingerprint reader')
++        self.assertEqual(len(res.errors), 0)
++        self.assertEqual(self.duress_runs(wait=0.5), [])
++
++    def test_pam_duress_untrusted_file(self):
++        self.setup_device()
++        self.setup_duress_service()
++
++        def symlink():
++            path = self.write_duress_finger('right-ring-finger')
++            os.rename(path, path + '.real')
++            os.symlink(path + '.real', path)
++
++        def other_owner():
++            os.chown(self.write_duress_finger('right-ring-finger'), 65534, 65534)
++
++        def folder_other_owner():
++            self.write_duress_finger('right-ring-finger')
++            os.chown(self.duress_dir, 65534, 65534)
++
++        cases = {
++            'folder readable': lambda: self.write_duress_finger('right-ring-finger', dir_mode=0o755),
++            'file readable': lambda: self.write_duress_finger('right-ring-finger', file_mode=0o644),
++            'file readable by group': lambda: self.write_duress_finger('right-ring-finger', file_mode=0o640),
++            'file not root\'s': other_owner,
++            'folder not root\'s': folder_other_owner,
++            'symlink': symlink,
++            'any finger': lambda: self.write_duress_finger('any'),
++            'unknown finger': lambda: self.write_duress_finger('right-sixth-finger'),
++            'empty': lambda: self.write_duress_finger(''),
++            'another account\'s line': lambda: self.write_duress_finger('right-ring-finger', uid=os.getuid() + 10),
++            'missing': lambda: os.makedirs(self.duress_dir, mode=0o700),
++        }
++        for name, setup in cases.items():
++            with self.subTest(case=name):
++                shutil.rmtree(self.duress_dir, ignore_errors=True)
++                setup()
++                res = self.authenticate('fprintd-pam-test-duress-deny', PAM_SUCCESS)
++                self.assertEqual(len(res.errors), 0)
++                self.device_mock.VerifyStop()
++                self.device_mock.Release()
++        self.assertEqual(self.duress_runs(wait=0.5), [])
++
++    def test_pam_duress_without_service(self):
++        # Refused all the same: whether anything listens changes nothing on screen
++        self.setup_device()
++        self.write_duress_finger('right-ring-finger')
++
++        res = self.authenticate('fprintd-pam-test-duress-deny', PAM_MAXTRIES, tries=3)
++        self.assertEqual(list(res.errors), ['Failed to match fingerprint'] * 3)
++
++        # The module stopped and released the reader itself after the last try
++        res = self.authenticate('fprintd-pam-test-duress-allow', PAM_SUCCESS)
++        self.assertEqual(len(res.errors), 0)
++
+ if __name__ == '__main__':
+     if 'PAM_WRAPPER_SERVICE_DIR' not in os.environ:
+         print('Cannot run test without environment set correctly, run "meson test" instead')

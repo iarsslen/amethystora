@@ -217,6 +217,24 @@
       depNameTemplate: 'OpenTabletDriver/OpenTabletDriver',
       datasourceTemplate: 'github-release-attachments',
     },
+    // The fprintd release packaging/fprintd builds the image's fprintd from, with
+    // the duress finger's patches (its README). A new release's pull request
+    // fails to build until the tarball's SHA-512 and the patches are updated
+    // with it, which is done on main by hand.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^packaging/fprintd/fprintd\\.spec$/',
+      ],
+      matchStrings: [
+        '\\nVersion:\\s+(?<currentValue>\\S+)\\n',
+      ],
+      depNameTemplate: 'libfprint/fprintd',
+      datasourceTemplate: 'gitlab-tags',
+      registryUrlTemplate: 'https://gitlab.freedesktop.org',
+      extractVersionTemplate: '^v(?<version>.+)$',
+      depTypeTemplate: 'fprintd',
+    },
     // The Renovate image validate-renovate.yml checks this file with, pinned
     // by digest so that the check runs exactly the release named there.
     {
@@ -314,6 +332,13 @@
     {
       "matchDepTypes": ["pkg-template"],
       "groupName": "amethystora-pkg templates"
+    },
+    // fprintd's releases are looked for once a week, and never merged by
+    // Renovate: each one means taking the patches across by hand
+    {
+      "matchDepTypes": ["fprintd"],
+      "schedule": ["before 6am on monday"],
+      "automerge": false
     }
   ]
 }

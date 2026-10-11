@@ -13,3 +13,6 @@
 *.json linguist-language=JSON
 
 *.der binary
+
+# Patches apply byte for byte, so git leaves their line endings alone
+packaging/**/*.patch -text

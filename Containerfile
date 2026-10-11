@@ -21,6 +21,15 @@ COPY cosign.pub /system_files/shared/etc/pki/containers/amethystora.pub
 COPY /branding/fonts /branding/fonts
 # The shell programs' translations, compiled into /usr/share/locale (14-security.sh)
 COPY /po /po
+# The packages Amethystora rebuilds, built in their own stage below
+COPY /packaging /packaging
+
+## fprintd with the duress finger's patches, built on the base it is installed into. Its build tools stay
+## in this stage: only the packages in /out reach the image (05-override-install.sh)
+FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION}@${BASE_IMAGE_SHA} AS fprintd
+RUN --mount=type=cache,dst=/var/cache/libdnf5 \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    /ctx/build_files/shared/build-fprintd.sh
 
 ## amethystora image section
 FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION}@${BASE_IMAGE_SHA} AS base
@@ -59,6 +68,7 @@ RUN --mount=type=cache,dst=/var/cache/libdnf5 \
 RUN --mount=type=cache,dst=/var/cache/libdnf5 \
     --mount=type=cache,dst=/var/cache/rpm-ostree \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=bind,from=fprintd,source=/out,target=/fprintd \
     /ctx/build_files/shared/build.sh
 
 # Makes `/opt` writeable by default
