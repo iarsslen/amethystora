@@ -1,13 +1,19 @@
-# The VM lab: QEMU with KVM, UEFI with Secure Boot, a TPM, podman to install an image onto a disk, and the MCP
-# server that drives it. Run privileged, with /dev/kvm; see README.md.
+# The VM lab: QEMU with KVM, UEFI with Secure Boot, a TPM, podman to install an image onto a disk, the MCP
+# server that drives it, and what `just build` needs to build the image here. Run privileged, with /dev/kvm;
+# see README.md.
 FROM registry.fedoraproject.org/fedora:44
 
 RUN dnf -y install --setopt=install_weak_deps=False \
-        edk2-ovmf nodejs podman python3-virt-firmware qemu-device-uefi-vars qemu-img qemu-system-x86-core swtpm \
-        swtpm-tools systemd-udev && \
+        edk2-ovmf git-core jq just nodejs openssl podman python3-virt-firmware qemu-device-uefi-vars \
+        qemu-img qemu-system-x86-core skopeo swtpm swtpm-tools systemd-udev yq && \
     dnf clean all
 
-COPY agent.py make-disk.sh server.mjs /opt/amethystora-vm/
+# cosign, which Fedora does not package: the release CI's cosign-installer (v3.10.1) installs, checked
+RUN curl -fsSLo /usr/local/bin/cosign https://github.com/sigstore/cosign/releases/download/v2.6.1/cosign-linux-amd64 && \
+    echo "064954c5d8c7e3b28188eee5b1727b31c411550bc5fefd41aa672d3c761d103a  /usr/local/bin/cosign" | sha256sum -c && \
+    chmod 0755 /usr/local/bin/cosign
+
+COPY agent.py lab.mjs make-disk.sh server.mjs /opt/amethystora-vm/
 # A checkout on Windows may have given them CRLF
 RUN sed -i 's/\r$//' /opt/amethystora-vm/*
 

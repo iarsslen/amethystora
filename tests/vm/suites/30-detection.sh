@@ -1,0 +1,68 @@
+#!/usr/bin/bash
+# What looks for new threats, switched on as the thorough profile has it, finds what it is there to find on a
+# machine that boots with it: a secret read (SSH key, a Chromium browser's saved passwords), the decoy key read,
+# and a program run from the downloads folder, each done in the test account's own session. Falco (BEHAVIOUR)
+# runs, and stays under the memory its unit allows. The audit rules are written at boot, so the profile goes on,
+# then the machine restarts.
+source "$(dirname "$0")/lib.sh"
+
+HOME_DIR="/var/home/${TEST_USER}"
+HISTORY=/var/log/amethystora-security-events.jsonl
+config=/usr/libexec/amethystora-security-config
+
+# After the restart, the session comes back by itself (GDM signs the account in)
+if ! wait_for 300 has_session; then
+    skip "no session for ${TEST_USER} (10-account.sh)"
+    finish
+fi
+
+if [[ "${SUITE_PHASE}" == 1 ]]; then
+    check "the security report answers" sh -c '/usr/libexec/amethystora-security-status --json | jq -e .checks >/dev/null'
+    check "the thorough profile goes on" "${config}" profile thorough
+    # Secrets where a stealer would look, there before the boot that writes the rules on them
+    as_user "mkdir -p -m 0700 ~/.ssh && head -c 400 /dev/urandom | base64 >~/.ssh/id_ed25519 && chmod 0600 ~/.ssh/id_ed25519
+        mkdir -p ~/.config/chromium/Default && head -c 4096 /dev/urandom >'${HOME_DIR}/.config/chromium/Default/Login Data'
+        mkdir -p ~/Downloads"
+    reboot_and_continue
+fi
+
+[[ "$(${config} --profile)" == thorough ]] && ok "the profile is still thorough after the restart" || not_ok "the profile is $(${config} --profile) after the restart"
+rules="$(auditctl -l 2>&1)"
+for key in credentials decoy exec-watch; do
+    grep -q -- "-k ${key}\$\|key=${key}\$" <<<"${rules}" && ok "audit rules for ${key} are loaded" || not_ok "no audit rule for ${key}" "$(grep -c . <<<"${rules}") rules loaded"
+done
+grep -q -- "-F inode=" <<<"${rules}" && ok "Login Data is watched by its inode" || not_ok "no inode rule for Login Data"
+check "the decoy key is there" test -s "${HOME_DIR}/.ssh/id_backup"
+
+before="$(wc -l <"${HISTORY}" 2>/dev/null || echo 0)"
+in_session "python3 -c 'open(\"${HOME_DIR}/.ssh/id_ed25519\").read()'
+    cp '${HOME_DIR}/.config/chromium/Default/Login Data' /tmp/stolen
+    cat ~/.ssh/id_backup >/dev/null
+    cp /usr/bin/true ~/Downloads/amethystora-test-program && ~/Downloads/amethystora-test-program"
+# ausearch gives an event only once a later one is more than two seconds newer
+sleep 4
+in_session "cat ~/.ssh/id_ed25519 >/dev/null"
+sleep 3
+check "the security watcher runs" systemctl start amethystora-security-watch.service
+found="$(tail -n +"$((before + 1))" "${HISTORY}" 2>/dev/null)"
+expect() {
+    local what="$1" filter="$2"
+    if jq -e -s "any(.[]; ${filter})" <<<"${found}" >/dev/null 2>&1; then ok "found: ${what}"; else not_ok "not found: ${what}" "$(jq -r -s '.[] | "\(.key) \(.level): \(.text)"' <<<"${found}" | tail -n 15)"; fi
+}
+expect "the SSH key read" '.key == "credentials" and (.text | contains("id_ed25519"))'
+expect "the browser's saved passwords read" '.key == "credentials" and (.text | contains("Login Data"))'
+expect "the decoy read, as critical" '.key == "decoy" and .level == "critical"'
+expect "the program run from Downloads" '.key == "exec-watch" and (.text | contains("amethystora-test-program"))'
+
+# Falco: running, and its memory against the unit's MemoryHigh of 250M
+if wait_for 120 systemctl is-active --quiet amethystora-behaviour.service; then
+    ok "Falco runs"
+    sleep 60
+    peak="$(systemctl show amethystora-behaviour.service -p MemoryPeak --value)"
+    now="$(systemctl show amethystora-behaviour.service -p MemoryCurrent --value)"
+    echo "# Falco memory: $((now / 1048576)) MiB now, $((peak / 1048576)) MiB at most"
+    ((peak < 250 * 1048576)) && ok "Falco stays under 250 MiB" || not_ok "Falco reached $((peak / 1048576)) MiB, over its 250 MiB"
+else
+    not_ok "Falco is not running" "$(journalctl -b -u amethystora-behaviour.service --no-pager -o cat | tail -n 15)"
+fi
+finish

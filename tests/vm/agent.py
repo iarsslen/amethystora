@@ -10,6 +10,7 @@
 import base64
 import json
 import os
+import pwd
 import select
 import subprocess
 import threading
@@ -42,9 +43,13 @@ def run(request):
     if op == "ping":
         return {"rc": 0}
     if op == "read":
+        most = int(request.get("max", LIMIT))
+        data = b""
+        # In small reads: /proc and /sys allocate what each read asks for, and refuse megabytes
         with open(request["path"], "rb") as file:
-            data = file.read(int(request.get("max", LIMIT)) + 1)
-        return {"rc": 0, "data": b64(data), "truncated": len(data) > int(request.get("max", LIMIT))}
+            while len(data) <= most and (chunk := file.read(1 << 16)):
+                data += chunk
+        return {"rc": 0, "data": b64(data[:most]), "truncated": len(data) > most}
     if op == "write":
         path = request["path"]
         with open(path, "wb") as file:
@@ -58,9 +63,12 @@ def run(request):
     if user == "root":
         argv = ["/usr/bin/bash", "-c", command]
     elif request.get("session"):
-        # In the account's graphical session, with its environment: what a user's own terminal would see
-        argv = ["systemd-run", f"--machine={user}@.host", "--user", "--pipe", "--wait", "--quiet", "--collect",
-                "--", "/usr/bin/bash", "-lc", command]
+        # In the account's graphical session, with its environment: what a user's own terminal would see. As
+        # the account on its user manager's bus: systemd-run --machine loses its connection from a service.
+        uid = pwd.getpwnam(user).pw_uid
+        argv = ["runuser", "-u", user, "--", "env", f"XDG_RUNTIME_DIR=/run/user/{uid}",
+                f"DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{uid}/bus", "systemd-run", "--user", "--pipe",
+                "--wait", "--quiet", "--collect", "--", "/usr/bin/bash", "-lc", command]
     else:
         argv = ["runuser", "-l", user, "-c", command]
     try:

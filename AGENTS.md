@@ -39,10 +39,11 @@ This document provides essential information for coding agents working with the 
 - `iso/` - `iso.toml`, the bootc-image-builder configuration of the installer ISO; `product/`, which `build-iso.yml` adds to the ISO as `images/product.img`: the installer's Amethystora look (a stylesheet and artwork drawn by `branding/generate.mjs`), crash reporting (libreport files that send crash reports to Amethystora's issue tracker instead of Fedora's Bugzilla) and the Anaconda profile that keeps Fedora's installer settings although the installer's os-release says `generic`; `installer-packages.py`, which lists what the installer is made of; and `live/`, the live system of the live ISO: a `Containerfile` built `FROM` the published image with `build.sh`, which adds Fedora's live boot, live session and Anaconda's web installer, a copy of the image for an offline install (`installer.ks`), a profile for the image's own os-release ID, and the boot menu Titanoboa reads (`iso.yaml`)
 - `packaging/` - Packages Amethystora rebuilds, each in its folder with a README: `fprintd/` is Fedora's fprintd with the duress finger's patches, built in the Containerfile's `fprintd` stage on every image build. Renovate looks for a new fprintd release every Monday. The `.patch` files are kept byte for byte (`.gitattributes`, and the pre-commit whitespace hooks skip them)
 - `po/` - The gettext catalogs of the shell programs that are translated, the security report and the app permissions (text domain `amethystora`): `amethystora.pot`, which `node build_files/shared/check-translations.js --write --po po system_files/shared` writes from the scripts, and one `<language>.po` each, which `14-security.sh` compiles into `/usr/share/locale`
-- `tests/vm/` - The VM lab: a privileged container with QEMU, KVM, Secure Boot firmware and a TPM, and an MCP
-  server (`server.mjs`) that installs a published image onto a disk, boots it, runs commands in it, and sees
-  and uses its screen (`README.md`). Its helper reaches the guest as a systemd credential at boot: never put
-  any of it in the image
+- `tests/vm/` - The VM lab: a privileged container with QEMU, KVM, Secure Boot firmware, a TPM and the build's
+  tools. `run.sh` builds the last commit, installs it onto a disk, boots it and runs `suites/` in it; an MCP
+  server (`server.mjs`) drives a VM by hand (`README.md`). Its helper reaches the guest as a systemd credential
+  at boot: never put any of it in the image. A new feature gets its check in `suites/` with it. "Run the
+  tests" means the `run-tests` skill (`.claude/skills/run-tests`), and only when asked
 - `.github/workflows/` - Comprehensive CI/CD pipelines
 
 The desktop layer (the `ujust` recipes, the Homebrew Brewfiles, the setup services and hooks, the
@@ -1104,7 +1105,8 @@ The sealed images then run `build_files/sealed/` from `Containerfile.sealed`, on
 1. **ALWAYS validate first:** `just check && pre-commit run --all-files`
 2. **Make minimal modifications** - prefer configuration over code changes
 3. **Test formatting:** `just fix` to auto-format
-4. **Avoid full container builds** unless specifically testing container changes
+4. **Avoid full container builds** unless specifically testing container changes, or asked to run the tests
+   (`tests/vm`, the `run-tests` skill)
 5. **Focus on system_files/ changes** for most user-facing modifications
 
 ### File Editing Best Practices

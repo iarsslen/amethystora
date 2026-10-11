@@ -1,0 +1,22 @@
+#!/usr/bin/bash
+# run.sh [all | build | disk | test] [--keep]: a test run of this checkout's last commit in the VM lab
+# (README.md). Starts the lab when it is not running, sends HEAD into it as a git bundle, which holds what is
+# committed whatever the checkout's line endings, and runs tests/vm/run.mjs from it there. The run's files
+# stay in the lab, in /vm/runs/last.
+set -euo pipefail
+
+export MSYS_NO_PATHCONV=1
+cd "$(dirname "$0")/../.."
+if ! command -v docker >/dev/null && command -v cygpath >/dev/null; then
+    PATH="$(cygpath -u "${LOCALAPPDATA}")/Programs/DockerDesktop/resources/bin:${PATH}"
+fi
+if [[ "$(docker inspect -f '{{.State.Running}}' amevm 2>/dev/null)" != true ]]; then
+    docker start amevm >/dev/null 2>&1 || bash tests/vm/setup.sh
+fi
+if ! docker exec amevm test -c /dev/kvm; then
+    docker run --rm --privileged --pid=host alpine nsenter -t 1 -m -- sh -c \
+        'grep -q AuthenticAMD /proc/cpuinfo && modprobe kvm_amd || modprobe kvm_intel'
+fi
+git bundle create - HEAD 2>/dev/null | docker exec -i amevm sh -c 'cat >/vm/head.bundle'
+docker exec amevm sh -c 'rm -rf /build/src && git clone -q /vm/head.bundle /build/src'
+exec docker exec amevm node /build/src/tests/vm/run.mjs "$@"
