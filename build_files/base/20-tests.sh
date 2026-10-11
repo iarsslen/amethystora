@@ -1774,6 +1774,8 @@ bash /ctx/build_files/shared/test-security-reader.sh
 # amethystora-behaviour.service while BEHAVIOUR is on. None of its own units runs, its rules follower is masked,
 # its web server is off, and its configuration with Amethystora's is one Falco loads.
 rpm -q falco >/dev/null
+# 0.45.1 or later, whose probe loads into Fedora 44's kernel: its release candidate until it is stable
+[[ "$(printf '%s\n' 0.45.1 "$(rpm -q --queryformat '%{VERSION}' falco)" | sort -V | head -n1)" == 0.45.1 ]]
 for unit in falco-modern-bpf.service falco-kmod.service falco-custom.service; do
     [[ "$(systemctl is-enabled "${unit}" 2>/dev/null)" == "enabled" ]] && false
 done
