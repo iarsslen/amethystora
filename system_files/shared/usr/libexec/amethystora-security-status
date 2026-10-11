@@ -1177,6 +1177,25 @@ else
     report optional fingerprint off "$(gettext "Fingerprint")" "${FINGERPRINT_TEXT}"
 fi
 
+# The duress finger is never shown while it works: whoever was made to unlock the machine may be shown this
+# report next. The watcher, which alone may read its folder, names only what keeps its action from running
+# (amethystora-duress check), and never whose finger it is.
+DURESS_DETAILS=()
+while read -r problem; do
+    case "${problem}" in
+        folder-open) DURESS_DETAILS+=("$(gettext "Its folder can be read by more than root, so the duress finger is ignored")") ;;
+        action-missing) DURESS_DETAILS+=("$(gettext "Its action is gone")") ;;
+        action-changed) DURESS_DETAILS+=("$(gettext "Its action was changed other than through ame security duress, so it will not run")") ;;
+        print-changed) DURESS_DETAILS+=("$(gettext "A duress finger was enrolled again or removed, so its action will not run")") ;;
+        service-stopped) DURESS_DETAILS+=("$(gettext "Its service is not running, so a duress finger would run nothing")") ;;
+    esac
+done < <(jq -r '.duress // [] | .[]' "${WATCH_STATUS}" 2>/dev/null)
+if [[ ${#DURESS_DETAILS[@]} -gt 0 ]]; then
+    COMMAND="ame security duress"
+    report watching duress-finger check "$(gettext "Duress finger")" \
+        "$(gettext "The duress finger would not run its action")" "${DURESS_DETAILS[@]}" "$(gettext "Set it up again with:")"
+fi
+
 COMMAND="ame security ssh-codes"
 report optional ssh-codes "$(/usr/libexec/amethystora-ssh-codes status)" "$(gettext "One-time codes for SSH")" \
     "$(gettext "A password login over SSH also asks for a code from an app on your phone, and a key logs in as before")"

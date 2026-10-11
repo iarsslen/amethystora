@@ -71,6 +71,26 @@ authselect enable-feature with-faillock
 test -e /usr/lib64/security/pam_fprintd.so
 authselect enable-feature with-fingerprint
 
+# The duress finger (`ame security duress`, /usr/libexec/amethystora-duress): the feature
+# with-duress-fingerprint, which the owner turns on per machine, adds pam_fprintd's duress option
+# (packaging/fprintd) to its line in fingerprint-auth, where GDM and the lock screen ask for a finger, and in
+# system-auth, where sudo, polkit and the text consoles do. The vendor profiles the base image made link each
+# file to the default profile's; these two become copies with that one change, in local and in the two
+# profiles a domain join selects (amethystora-domain-logins). With the feature off, authselect writes what
+# it wrote before, to the byte.
+for profile in local sssd winbind; do
+    for file in fingerprint-auth:allow system-auth:deny; do
+        default="/usr/share/authselect/default/${profile}/${file%%:*}"
+        vendor="/usr/share/authselect/vendor/${profile}/${file%%:*}"
+        [[ -L "${vendor}" && "$(readlink "${vendor}")" == "${default}" ]]
+        [[ "$(grep -cE '[[:space:]]pam_fprintd\.so([[:space:]]|$)' "${default}")" -eq 1 ]]
+        rm "${vendor}"
+        sed -E "s/([[:space:]])pam_fprintd\.so([[:space:]]|$)/\1{if \"with-duress-fingerprint\":pam_fprintd.so duress=${file#*:}|pam_fprintd.so}\2/" \
+            "${default}" >"${vendor}"
+        [[ "$(grep -c 'with-duress-fingerprint' "${vendor}")" -eq 1 ]]
+    done
+done
+
 # Parental Controls' allowed hours at the text consoles and over SSH. GNOME Shell locks a child's desktop
 # when its time runs out and will not unlock it until the time comes round again, but a text console or an
 # SSH login never meets that lock. There pam_malcontent refuses the account outside its hours, and hands

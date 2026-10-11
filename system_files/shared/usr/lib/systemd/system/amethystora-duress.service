@@ -1,0 +1,22 @@
+[Unit]
+Description=Duress finger
+Documentation=man:pam_fprintd(8)
+# Listening before anyone can log in, so that the first login of a boot can already start the action
+Before=display-manager.service systemd-user-sessions.service
+
+[Service]
+# pam_fprintd tells it when an account's duress finger matched, and it runs `amethystora-duress run`.
+# Enabled and started only while the feature is on (`ame security duress`, amethystora-duress on), and
+# nothing about it goes to the journal, not even systemd's own lines: anyone in wheel may read the journal,
+# and whether the action ran is nobody's business but the owner's. amethystora-duress keeps its own log,
+# root's alone.
+Type=dbus
+BusName=org.amethystora.Duress
+ExecStart=/usr/libexec/amethystora-duress-service
+LogLevelMax=emerg
+StandardOutput=null
+StandardError=null
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

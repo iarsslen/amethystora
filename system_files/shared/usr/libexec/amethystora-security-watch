@@ -980,12 +980,14 @@ SECURITY_UNITS='^(auditd|fail2ban|firewalld|clamd@.*|clamav-.*|amethystora-.*|uu
 
 # One "change<TAB>path<TAB>detail" a line: added, changed, removed, replaces, overrides or masks
 drift() {
-    local pair dir lib etc name rel usr unit kind domain=false
+    local pair dir lib etc name rel usr unit kind domain=false duress=false
     local -A shadows=() masks=() files=()
     # A machine that joined a domain has authselect's sssd or winbind profile with every feature of the
     # image's, which realmd set through amethystora-domain-logins, and pam_winbind's settings realmd
     # writes. That is the image's setup for a domain: a feature turned off, or a file edited by hand, is not.
     /usr/libexec/amethystora-domain-logins check && domain=true
+    # The duress finger's feature added last to the image's own, every file as authselect wrote it
+    /usr/libexec/amethystora-duress authselect && duress=true
     # What the owner turned off with the prevention switches (ame security kernel, firewall, lockout...):
     # exactly the files the switch writes, which amethystora-hardening names, and nothing in between
     while IFS=$'\t' read -r rel kind; do
@@ -1033,6 +1035,10 @@ drift() {
         [[ "${rel}" == amethystora/allow.d/* ]] && continue
         [[ "${domain}" == true && ( "${rel}" =~ ^authselect/[^/]+$ || "${rel}" == security/pam_winbind.conf ) ]] &&
             continue
+        [[ "${duress}" == true && "${rel}" =~ ^authselect/[^/]+$ ]] && continue
+        # The duress finger's own folder, whose sums duress_status checks: a line here would name the files
+        # in it to everyone who reads the report
+        [[ "${rel}" == amethystora/duress.d/* ]] && continue
         # One-time codes for SSH exactly as amethystora-ssh-codes sets them, and nothing in between
         [[ "${rel}" == pam.d/sshd && -f "${usr}" ]] &&
             cmp -s "${etc}" <(/usr/libexec/amethystora-ssh-codes pam <"${usr}") && continue
@@ -1305,7 +1311,8 @@ network_status() {
 # The security watcher's own check counts only when it is "check" (a run that failed or stalled, said by the
 # next one that does not); "off" there means what it found is unread, which it has said already.
 WATCHED_CHECKS='["signed-updates","lockdown","automatic-updates","audit-log","audit-rules","fail2ban",
-"firewall","network","image-settings","rootkit","virus-scan-schedule","settings-audit","security-watcher","selinux"]'
+"firewall","network","image-settings","rootkit","virus-scan-schedule","settings-audit","security-watcher","selinux",
+"duress-finger"]'
 
 # Whether a switch's own command made a change since the last run (amethystora-security-config note), for any
 # of the names given: then that change was the person at the machine, and is recorded rather than said
@@ -1439,6 +1446,19 @@ disk_unlock_status() {
     done < <(/usr/libexec/amethystora-raid root-luks 2>/dev/null)
     [[ "${tpm}" == true ]] || pin=null
     jq -n --argjson tpm "${tpm}" --argjson pin "${pin}" '{$tpm, $pin}'
+}
+
+# --- The duress finger ------------------------------------------------------------------------------------
+
+# What keeps the duress finger's action from running, from amethystora-duress, which only root can ask: its
+# folder open, its action changed or gone, a duress finger's print written again, its service stopped. Only
+# the kinds, never which account, since the report is world-readable; and null while nothing is wrong or the
+# feature is off, so that the report says nothing of a duress finger that works.
+duress_status() {
+    local found
+    [[ "$(/usr/libexec/amethystora-duress status)" == on ]] || { echo null; return; }
+    found="$(/usr/libexec/amethystora-duress check 2>/dev/null)" && { echo null; return; }
+    cut -d' ' -f1 <<<"${found}" | sort -u | jq -R . | jq -sc .
 }
 
 # --- What only an account can see ------------------------------------------------------------------------
@@ -1768,13 +1788,15 @@ fi
 AUDIT=null
 [[ "${SETTING[AUDIT_LOG]:-on}" != off ]] && AUDIT="$(audit_status)"
 DISK_UNLOCK="$(disk_unlock_status)"
+DURESS="$(duress_status)"
 write_status() {
     jq -n --argjson checked "${NOW}" --argjson swept "${SWEPT:-null}" --argjson drift "${DRIFT:-null}" \
         --argjson setuid "${SETUID}" --argjson listeners "${LISTENING}" \
         --argjson network "$(network_status)" --argjson audit "${AUDIT:-null}" --argjson disk_unlock "${DISK_UNLOCK:-null}" \
+        --argjson duress "${DURESS:-null}" \
         --argjson timings "$(for key in "${!TIMINGS[@]}"; do printf '%s\t%s\n' "${key}" "${TIMINGS[${key}]}"; done |
             jq -R 'split("\t") | {(.[0]): (.[1] | tonumber)}' | jq -s 'add // {}')" \
-        '{$checked, $swept, $drift, $setuid, $listeners, $network, $audit, $disk_unlock, $timings}' >"${STATUS}.new" &&
+        '{$checked, $swept, $drift, $setuid, $listeners, $network, $audit, $disk_unlock, $duress, $timings}' >"${STATUS}.new" &&
         chmod 0644 "${STATUS}.new" && mv "${STATUS}.new" "${STATUS}"
 }
 # Written before the report runs, which reads it, and again after with the report's own time

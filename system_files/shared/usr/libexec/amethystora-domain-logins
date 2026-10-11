@@ -38,6 +38,9 @@ if [[ "${1:-}" == --print ]]; then
 fi
 
 mapfile -t FEATURES < <(features "${IMAGE_CONF}")
+# The duress finger is the owner's switch (amethystora-duress), not the image's: joining or leaving keeps it
+# as it was, and the sssd and winbind profiles take it as local does (08-hardening.sh)
+grep -qx with-duress-fingerprint "${CONF}" 2>/dev/null && FEATURES+=(with-duress-fingerprint)
 case "${1:-}" in
     sssd | winbind)
         COMMAND=(authselect select "$1" "${FEATURES[@]}")

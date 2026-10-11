@@ -1,0 +1,270 @@
+#!/usr/bin/bash
+# Amethystora's duress finger, one enrolled finger that also runs its owner's action. At the login and lock
+# screens it unlocks like any other finger. At sudo, polkit and the text consoles it is refused as a finger
+# that did not match. Either way the action runs, once per boot. pam_fprintd tells the finger apart
+# (packaging/fprintd: duress=allow in fingerprint-auth, duress=deny in system-auth, through the authselect
+# feature with-duress-fingerprint) and asks amethystora-duress-service, which runs `run` here.
+#
+# Everything is in /etc/amethystora/duress.d, root's and readable by nobody else, as pam_fprintd demands:
+#   fingers   UID FINGER, a line for each account with a duress finger, in one file for all of them, so
+#             that no file name outside tells which accounts have one
+#   action    the owner's one script, run as root with DURESS_USER and DURESS_UID
+#   sums      sha256sum's lines for the action and each duress finger's print, written only by this
+# The action runs only while every sum it needs still holds. It never runs when its print was written
+# again, for example because the finger was enrolled afresh as an ordinary one, or when the action was
+# changed by anything but this command. `check` says the same to the security watcher. What a run did is
+# kept in /var/lib/amethystora/duress/log, root's alone, and nothing about it reaches the journal.
+#
+#   amethystora-duress status            on or off, for this machine
+#   amethystora-duress supported         whether this image's fprintd and pam_fprintd can tell the duress
+#                                        finger apart (exit 0 or 1)
+#   amethystora-duress on|off            the authselect feature and the service (root)
+#   amethystora-duress forget            off, and the folder and the log removed (root)
+#   amethystora-duress set USER FINGER   USER's duress finger, enrolled already (root)
+#   amethystora-duress unset USER        forget USER's duress finger; the print stays enrolled (root)
+#   amethystora-duress accounts          the accounts that have one, a name a line (root)
+#   amethystora-duress finger USER       USER's duress finger, or nothing (root)
+#   amethystora-duress action FILE       FILE becomes the action (root)
+#   amethystora-duress check             what no longer holds, a line each: action-missing,
+#                                        action-changed, print-changed USER, service-stopped,
+#                                        folder-open; exit 1 when anything (root)
+#   amethystora-duress authselect        whether /etc/authselect is the image's own with only the duress
+#                                        feature added, for the security watcher (exit 0 or 1)
+#   amethystora-duress run UID           run the action for UID, as the service asks (root)
+
+set -euo pipefail
+
+DIR=/etc/amethystora/duress.d
+LOG_DIR=/var/lib/amethystora/duress
+PRINTS=/var/lib/fprint
+FEATURE=with-duress-fingerprint
+UNIT=amethystora-duress.service
+CONF=/etc/authselect/authselect.conf
+IMAGE_CONF=/usr/etc/authselect/authselect.conf
+# fprintd's names in the order of libfprint's FpFinger, from 1, which is how it names each print's file
+FINGERS=(left-thumb left-index-finger left-middle-finger left-ring-finger left-little-finger
+    right-thumb right-index-finger right-middle-finger right-ring-finger right-little-finger)
+
+die() {
+    echo "${0##*/}: $*" >&2
+    exit 1
+}
+
+need_root() {
+    [[ ${EUID} -eq 0 ]] || die "this needs root: sudo ${0##*/} $*"
+}
+
+# Written beside the file and moved over it, root's and readable by nobody else
+write() {
+    local file="$1" new
+    new="$(mktemp "${DIR}/.new.XXXXXX")"
+    cat >"${new}"
+    chmod 0600 "${new}"
+    mv -f "${new}" "${file}"
+}
+
+prepare() {
+    install -d -m 0700 -o root -g root "${DIR}"
+    touch "${DIR}/fingers" "${DIR}/sums"
+    chmod 0600 "${DIR}/fingers" "${DIR}/sums"
+}
+
+uid_of() {
+    getent passwd "$1" | cut -d: -f3
+}
+
+# The one file fprintd keeps USER's FINGER in: /var/lib/fprint/USER/DRIVER/DEVICE/N, N in hex
+print_of() {
+    local user="$1" finger="$2" i
+    local -a prints=()
+    for i in "${!FINGERS[@]}"; do
+        [[ "${FINGERS[i]}" == "${finger}" ]] || continue
+        mapfile -t prints < <(find "${PRINTS}/${user}" -mindepth 3 -maxdepth 3 -type f \
+            -name "$(printf '%x' $((i + 1)))" 2>/dev/null)
+    done
+    [[ ${#prints[@]} -eq 1 ]] || return 1
+    echo "${prints[0]}"
+}
+
+# The sums file without the line for PATH
+sums_without() {
+    awk -v path="$1" '{ line = $0; sub(/^[0-9a-f]+  /, "", line) } line != path' "${DIR}/sums"
+}
+
+# What no longer holds: the folder, the action, and the print of each duress finger, or of UID's alone
+problems() {
+    local only="${1:-}" mode="" owner="" uid finger user print line
+    read -r mode owner < <(stat -c '%a %u' "${DIR}" 2>/dev/null) || true
+    if [[ "${owner}" != 0 || "${mode}" != 700 ]]; then
+        echo folder-open
+        return 0
+    fi
+    if [[ ! -f "${DIR}/action" || -L "${DIR}/action" ]]; then
+        echo action-missing
+    elif ! grep -qxF "$(sha256sum "${DIR}/action")" "${DIR}/sums"; then
+        echo action-changed
+    elif [[ "$(stat -c '%u %a' "${DIR}/action")" != "0 700" ]]; then
+        echo action-changed
+    fi
+    [[ -f "${DIR}/fingers" ]] || return 0
+    while read -r uid finger; do
+        [[ -z "${only}" || "${uid}" == "${only}" ]] || continue
+        user="$(getent passwd "${uid}" | cut -d: -f1)"
+        print=""
+        [[ -n "${user}" ]] && print="$(print_of "${user}" "${finger}" || true)"
+        line=""
+        [[ -n "${print}" ]] && line="$(sha256sum "${print}")"
+        if [[ -z "${line}" ]] || ! grep -qxF "${line}" "${DIR}/sums"; then
+            echo "print-changed ${user:-${uid}}"
+        fi
+    done <"${DIR}/fingers"
+    return 0
+}
+
+case "${1:-}" in
+    status)
+        if grep -qx "${FEATURE}" "${CONF}" 2>/dev/null; then echo on; else echo off; fi
+        ;;
+    supported)
+        # The strings each part of the patch adds: the daemon names the matched finger, and the module
+        # knows the service it tells
+        grep -qa VerifyFingerMatched /usr/libexec/fprintd &&
+            grep -qa org.amethystora.Duress /usr/lib64/security/pam_fprintd.so
+        ;;
+    on)
+        need_root "$@"
+        "$0" supported || die "this image's fprintd cannot tell one finger from another"
+        prepare
+        install -d -m 0700 -o root -g root "${LOG_DIR}"
+        grep -qx "${FEATURE}" "${CONF}" || authselect enable-feature "${FEATURE}" >/dev/null
+        systemctl enable --now --quiet "${UNIT}"
+        ;;
+    off)
+        need_root "$@"
+        if grep -qx "${FEATURE}" "${CONF}"; then authselect disable-feature "${FEATURE}" >/dev/null; fi
+        systemctl disable --now --quiet "${UNIT}"
+        ;;
+    forget)
+        need_root "$@"
+        "$0" off
+        rm -rf "${DIR}" "${LOG_DIR}"
+        ;;
+    set)
+        need_root "$@"
+        [[ $# -eq 3 ]] || die "usage: ${0##*/} set USER FINGER"
+        user="$2" finger="$3"
+        [[ " ${FINGERS[*]} " == *" ${finger} "* ]] || die "no finger is called ${finger}"
+        uid="$(uid_of "${user}")"
+        [[ -n "${uid}" ]] || die "no account is called ${user}"
+        print="$(print_of "${user}" "${finger}")" || die "fprintd keeps no single print of ${finger} for ${user}"
+        prepare
+        old="$(awk -v uid="${uid}" '$1 == uid { print $2 }' "${DIR}/fingers")"
+        { awk -v uid="${uid}" '$1 != uid' "${DIR}/fingers"; echo "${uid} ${finger}"; } | write "${DIR}/fingers"
+        if [[ -n "${old}" ]] && old="$(print_of "${user}" "${old}")"; then
+            sums_without "${old}" | write "${DIR}/sums"
+        fi
+        { sums_without "${print}"; sha256sum "${print}"; } | write "${DIR}/sums"
+        ;;
+    unset)
+        need_root "$@"
+        [[ $# -eq 2 ]] || die "usage: ${0##*/} unset USER"
+        uid="$(uid_of "$2")"
+        [[ -n "${uid}" && -f "${DIR}/fingers" ]] || exit 0
+        finger="$(awk -v uid="${uid}" '$1 == uid { print $2 }' "${DIR}/fingers")"
+        awk -v uid="${uid}" '$1 != uid' "${DIR}/fingers" | write "${DIR}/fingers"
+        # A print already gone leaves its line, which nothing reads once the finger is forgotten
+        if [[ -n "${finger}" ]] && print="$(print_of "$2" "${finger}")"; then
+            sums_without "${print}" | write "${DIR}/sums"
+        fi
+        ;;
+    accounts)
+        need_root "$@"
+        [[ -f "${DIR}/fingers" ]] || exit 0
+        while read -r uid _; do getent passwd "${uid}" | cut -d: -f1; done <"${DIR}/fingers"
+        ;;
+    finger)
+        need_root "$@"
+        [[ $# -eq 2 && -f "${DIR}/fingers" ]] || exit 0
+        uid="$(uid_of "$2")"
+        [[ -n "${uid}" ]] || exit 0
+        awk -v uid="${uid}" '$1 == uid { print $2 }' "${DIR}/fingers"
+        ;;
+    action)
+        need_root "$@"
+        [[ $# -eq 2 && -f "$2" ]] || die "usage: ${0##*/} action FILE"
+        prepare
+        new="$(mktemp "${DIR}/.new.XXXXXX")"
+        cat -- "$2" >"${new}"
+        chmod 0700 "${new}"
+        mv -f "${new}" "${DIR}/action"
+        { sums_without "${DIR}/action"; sha256sum "${DIR}/action"; } | write "${DIR}/sums"
+        ;;
+    check)
+        need_root "$@"
+        [[ -d "${DIR}" ]] || exit 0
+        found="$(problems)"
+        if [[ "$("$0" status)" == on ]] && ! systemctl is-active --quiet "${UNIT}"; then
+            found+=$'\n'service-stopped
+        fi
+        found="$(sed '/^$/d' <<<"${found}")"
+        [[ -z "${found}" ]] && exit 0
+        echo "${found}"
+        exit 1
+        ;;
+    authselect)
+        # The image's profile and features, then the duress feature, which the owner turned on last, and every
+        # file the image's own but for the option on its two pam_fprintd lines, byte for byte. `authselect
+        # check` would not do: it calls a file with a line added by hand valid.
+        [[ -f "${IMAGE_CONF}" ]] || exit 1
+        cmp -s <(grep -vE '^[[:space:]]*(#|$)' "${CONF}") \
+            <(grep -vE '^[[:space:]]*(#|$)' "${IMAGE_CONF}"; echo "${FEATURE}") || exit 1
+        while read -r name; do
+            case "${name}" in
+                authselect.conf) continue ;;
+                system-auth) option=deny ;;
+                fingerprint-auth) option=allow ;;
+                *) option="" ;;
+            esac
+            expected="/usr/etc/authselect/${name}"
+            [[ -f "${expected}" && -f "/etc/authselect/${name}" ]] || exit 1
+            if [[ -n "${option}" ]]; then
+                cmp -s "/etc/authselect/${name}" <(sed -E \
+                    "s/([[:space:]])pam_fprintd\.so([[:space:]]|$)/\1pam_fprintd.so duress=${option}\2/" "${expected}") ||
+                    exit 1
+            else
+                cmp -s "/etc/authselect/${name}" "${expected}" || exit 1
+            fi
+        done < <(find /etc/authselect /usr/etc/authselect -maxdepth 1 -mindepth 1 \( -type f -o -type l \) -printf '%f\n' |
+            sort -u)
+        ;;
+    run)
+        need_root "$@"
+        [[ "${2:-}" =~ ^[0-9]+$ ]] || exit 64
+        uid="$2"
+        install -d -m 0700 -o root -g root "${LOG_DIR}"
+        exec >>"${LOG_DIR}/log" 2>&1
+        log() { printf '%s %s\n' "$(date -Is)" "$*"; }
+        user="$(getent passwd "${uid}" | cut -d: -f1)"
+        found="$(problems "${uid}" 2>&1)"
+        grep -q "^${uid} " "${DIR}/fingers" 2>/dev/null || found+=$'\n'no-finger
+        found="$(sed '/^$/d' <<<"${found}" | paste -sd ' ')"
+        if [[ -n "${found}" ]]; then
+            log "not run for ${user:-${uid}}: ${found}"
+            exit 0
+        fi
+        # Once per boot, whichever account and however many touches
+        if ! mkdir -m 0700 /run/amethystora-duress 2>/dev/null; then
+            log "not run for ${user}: it ran already since this boot"
+            exit 0
+        fi
+        log "running the action for ${user}"
+        rc=0
+        env -i PATH=/usr/bin:/usr/sbin HOME=/root LANG=C.UTF-8 DURESS_USER="${user}" DURESS_UID="${uid}" \
+            timeout 300 "${DIR}/action" </dev/null || rc=$?
+        log "the action ended with ${rc}"
+        ;;
+    *)
+        sed -n '2,/^$/p' "$0" | sed 's/^# \?//' >&2
+        exit 64
+        ;;
+esac

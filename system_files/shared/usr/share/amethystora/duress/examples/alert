@@ -1,0 +1,8 @@
+#!/usr/bin/bash
+# A duress finger's action: send an alert to an address of yours, such as an ntfy.sh topic that only you
+# know. `ame security duress` writes the address below. Like every action it runs as root, once per boot,
+# with DURESS_USER and DURESS_UID set, and nothing it prints reaches the journal.
+URL=""
+[[ -n "${URL}" ]] || exit 0
+curl --fail --silent --show-error --max-time 20 --retry 3 --retry-connrefused \
+    --data "Duress finger used by ${DURESS_USER} on $(hostname) at $(date -Is)" -- "${URL}"

@@ -460,6 +460,38 @@ under **Fingerprint Login**. Two things still ask for the password: the disk pas
 the keyring, which a sign-in by finger leaves locked until an app needs it. The readers that work are
 listed at [fprint.freedesktop.org](https://fprint.freedesktop.org/supported-devices.html).
 
+### A duress finger
+
+A duress finger is one more finger, enrolled like your others, for when someone makes you unlock the
+machine in front of them. At the login screen and the lock screen it unlocks the machine as any finger
+does, so nothing looks different. At `sudo`, administrator prompts and the text consoles it is refused,
+as a finger that did not match, so it never hands over administrator rights. Either way, an action you
+chose beforehand runs as root, once until the next start:
+
+```bash
+ame security duress
+```
+
+**Set up mine** enrols the finger, has you touch the reader with it and with another finger to check that
+the reader tells them apart, and asks what the action should be: an alert sent to an address of yours
+(an [ntfy.sh](https://ntfy.sh) topic only you know, for example), the disk's key taken out of the TPM so
+that the next start asks for the passphrase ([Unlock the disk with the TPM](#unlock-the-disk-with-the-tpm)),
+power off ten minutes later, or a script of your own, which it shows you before it keeps it. None of
+these erases anything. **Test mine** says which finger a touch matched and never runs the action;
+**Remove mine** forgets yours, and **Turn off for everyone** forgets every account's and the action.
+
+It needs a reader that compares a touch with every enrolled finger at once, which most readers built
+into laptops do; the setup says so when yours does not. Nothing about the duress finger reaches the
+journal or the Security report while it works, and the setup lives in a folder only root can read. The
+security watcher checks it: when the action or a duress finger's print changes other than through
+`ame security duress`, the action no longer runs, and the report and a notification say so. Enrolling
+the finger again, or **Remove all fingers** in `ame security fingerprint`, does the same; set it up
+again afterwards.
+
+What it cannot do: stop anyone asking for your password instead, help against a copy of the disk made
+before, or hide from someone who already has root on this machine. In many places, destroying data
+while compelled by the authorities is an offence of its own; what the action does is yours to decide.
+
 ### One-time codes for SSH
 
 If you turn the SSH server on and log in to this machine with a password, a stolen password is enough

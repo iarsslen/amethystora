@@ -15,7 +15,7 @@ This document provides essential information for coding agents working with the 
 ## Repository Structure
 
 ### Root Directory Files
-- `Containerfile` - Main container build definition (stages: `ctx`, `brew`, `base`)
+- `Containerfile` - Main container build definition (stages: `ctx`, `brew`, `fprintd`, `base`)
 - `Containerfile.sealed` - The sealed variant of a built image (`just seal`; see Sealed images)
 - `secure-boot.crt` - The certificate of the Secure Boot key sealed images are signed with, once `just secure-boot-key` has made it
 - `Justfile` - Build automation recipes (like a Makefile but more readable)
@@ -37,6 +37,7 @@ This document provides essential information for coding agents working with the 
   - `shared/` - Common build utilities and helper scripts
 - `branding/` - Source of the artwork; `node branding/generate.mjs` draws it
 - `iso/` - `iso.toml`, the bootc-image-builder configuration of the installer ISO; `product/`, which `build-iso.yml` adds to the ISO as `images/product.img`: the installer's Amethystora look (a stylesheet and artwork drawn by `branding/generate.mjs`), crash reporting (libreport files that send crash reports to Amethystora's issue tracker instead of Fedora's Bugzilla) and the Anaconda profile that keeps Fedora's installer settings although the installer's os-release says `generic`; `installer-packages.py`, which lists what the installer is made of; and `live/`, the live system of the live ISO: a `Containerfile` built `FROM` the published image with `build.sh`, which adds Fedora's live boot, live session and Anaconda's web installer, a copy of the image for an offline install (`installer.ks`), a profile for the image's own os-release ID, and the boot menu Titanoboa reads (`iso.yaml`)
+- `packaging/` - Packages Amethystora rebuilds, each in its folder with a README: `fprintd/` is Fedora's fprintd with the duress finger's patches, built in the Containerfile's `fprintd` stage on every image build. Renovate looks for a new fprintd release every Monday. The `.patch` files are kept byte for byte (`.gitattributes`, and the pre-commit whitespace hooks skip them)
 - `po/` - The gettext catalogs of the shell programs that are translated, the security report and the app permissions (text domain `amethystora`): `amethystora.pot`, which `node build_files/shared/check-translations.js --write --po po system_files/shared` writes from the scripts, and one `<language>.po` each, which `14-security.sh` compiles into `/usr/share/locale`
 - `tests/vm/` - The VM lab: a privileged container with QEMU, KVM, Secure Boot firmware and a TPM, and an MCP
   server (`server.mjs`) that installs a published image onto a disk, boots it, runs commands in it, and sees
@@ -504,6 +505,22 @@ find accounts by their folders in `/var/home` as well, and never filter on `uid 
   google-authenticator too. Its state is the two files `/usr/libexec/amethystora-ssh-codes` writes, an
   sshd drop-in and one line in `/etc/pam.d/sshd`, deliberately not a key in `security.conf`, which sshd
   cannot read. The watcher accepts exactly those two and nothing in between.
+- **`ame security duress`** (off by default) sets up a duress finger: one more finger that unlocks at the
+  login and lock screens (`duress=allow` in `fingerprint-auth`), is refused at sudo, polkit and the text
+  consoles (`duress=deny` in `system-auth`), and runs the owner's action as root either way, once per boot.
+  pam_fprintd tells the finger apart only in the image's own fprintd build (`packaging/fprintd`, built in
+  the Containerfile's `fprintd` stage): upstream's `VerifyFingerMatched` signal and its signals sent only to the
+  claiming client, both unreleased after 1.94.5, plus Amethystora's patch to pam_fprintd. The feature
+  `with-duress-fingerprint` is the per-machine switch: `08-hardening.sh` turns the link to `system-auth` and
+  `fingerprint-auth` in the vendor `local`, `sssd` and `winbind` profiles into copies with one `{if}` each,
+  so that with it off authselect writes the same bytes as before, and `amethystora-domain-logins` keeps it
+  through a join or a leave. Under SELinux, GDM's and polkit's PAM may neither start a unit nor read
+  fprintd's prints, so the module only reads `/etc/amethystora/duress.d/fingers` and sends `Run(uid)`,
+  without waiting, to `amethystora-duress-service`, which runs from boot while the feature is on and has
+  `/usr/libexec/amethystora-duress run` check the sums of the action and of the print before anything
+  runs. **Nothing may reveal whether an account has a duress finger**: no key in `security.conf`, nothing
+  in the journal (`LogLevelMax=emerg`), one file for every account, the report and `status.json` silent
+  until something keeps the action from running, and the agent skills told never to touch or mention it.
 
 ### The Updates app
 
@@ -972,14 +989,19 @@ the value this recipe returns rather than off the stream name.
 ### Containerfile Multi-Stage Build
 The `Containerfile` uses a multi-stage build process:
 
-1. **Stage `ctx`** (FROM scratch): Copies all build context (system_files, build_files, etc.)
-2. **Stage `base`** (FROM silverblue-main): Base Amethystora image
+1. **Stage `ctx`** (FROM scratch): Copies all build context (system_files, build_files, packaging, etc.)
+2. **Stage `fprintd`** (FROM the same pinned silverblue-main): `build_files/shared/build-fprintd.sh` builds
+   `packaging/fprintd` with rpmbuild into `/out`. Its build tools never reach the image: `base` mounts `/out`
+   for `build.sh`, and `05-override-install.sh` installs fprintd and fprintd-pam from it in place of
+   Fedora's, refusing a base whose fprintd is past the spec's, and puts the source package in
+   `/usr/src/amethystora`
+3. **Stage `base`** (FROM silverblue-main): Base Amethystora image
    - Mounts build context from `ctx` stage
    - Runs in three steps: `/ctx/build_files/shared/prepare.sh`, then
      `03-install-kernel-akmods.sh`, the only step the kernel module signing key (`AKMODS_PRIVKEY`,
      and for a throwaway key `AKMODS_CERT`) is mounted for, before any of the build's own
      third-party repositories is added, then `/ctx/build_files/shared/build.sh`, which runs the rest
-3. **dx**: not a stage of its own. `just build amethystora-dx` passes `IMAGE_FLAVOR=dx`, and
+4. **dx**: not a stage of its own. `just build amethystora-dx` passes `IMAGE_FLAVOR=dx`, and
    `build.sh` runs `build-dx.sh` inside the `base` stage once the rest has finished
 
 **Build Arguments:**

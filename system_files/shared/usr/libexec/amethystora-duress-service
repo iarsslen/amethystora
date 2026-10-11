@@ -1,0 +1,134 @@
+#!/usr/bin/python3
+# Amethystora's duress finger: the root service pam_fprintd tells when an account's duress finger matched
+# (packaging/fprintd, its duress=allow|deny). It owns org.amethystora.Duress on the system bus, which only
+# root may call (/usr/share/dbus-1/system.d/org.amethystora.Duress.conf), and hands each Run(uid) to
+# `amethystora-duress run UID`, which checks everything again before it runs the owner's action.
+#
+# It runs from boot for as long as the feature is on. Under SELinux, GDM, the lock screen and polkit's
+# helper may send a message to an unconfined service, but none of them may start a unit. A unit started
+# at that moment would also say so in the journal.
+#
+#   amethystora-duress-service                       the service (amethystora-duress.service)
+#   amethystora-duress-service identify USER         claim the reader for USER and print what fprintd says
+#                                                    of one touch: selected=, matched= and result= lines
+#   amethystora-duress-service identify USER --selected
+#                                                    only the finger it compares the touch with, untouched
+#   amethystora-duress-service has-signal            whether fprintd names the finger that matched
+#
+# identify and has-signal run as the account itself, or as root for another one. fprintd sends what it
+# says of a touch only to the client that claimed the reader.
+
+import os
+import signal
+import subprocess
+import sys
+
+from gi.repository import Gio, GLib
+
+FPRINT = 'net.reactivated.Fprint'
+HELPER = '/usr/libexec/amethystora-duress'
+NAME = 'org.amethystora.Duress'
+XML = '''<node><interface name="org.amethystora.Duress">
+<method name="Run"><arg type="u" name="uid" direction="in"/></method>
+</interface></node>'''
+
+
+def serve():
+    # The helper is started and left alone: the kernel reaps it
+    signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+    bus = Gio.bus_get_sync(Gio.BusType.SYSTEM)
+
+    def on_call(conn, sender, path, interface, method, params, invocation):
+        # Only root may call it, which the bus's policy enforces as the message is sent. The caller cannot be
+        # asked about afterwards: once a login is let through, pam_fprintd has gone before this runs.
+        if method == 'Run':
+            subprocess.Popen([HELPER, 'run', str(params.unpack()[0])], stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+        # pam_fprintd expects no answer, and none is sent to a call that says so
+        invocation.return_value(None)
+
+    bus.register_object_with_closures2('/org/amethystora/Duress', Gio.DBusNodeInfo.new_for_xml(XML).interfaces[0],
+                                       on_call)
+    loop = GLib.MainLoop()
+    Gio.bus_own_name_on_connection(bus, NAME, Gio.BusNameOwnerFlags.NONE, None, lambda *_: loop.quit())
+    loop.run()
+    sys.exit(1)
+
+
+def device(bus):
+    manager = Gio.DBusProxy.new_sync(bus, Gio.DBusProxyFlags.NONE, None, FPRINT,
+                                     '/net/reactivated/Fprint/Manager', FPRINT + '.Manager', None)
+    path = manager.call_sync('GetDefaultDevice', None, Gio.DBusCallFlags.NONE, 10000, None).unpack()[0]
+    return Gio.DBusProxy.new_sync(bus, Gio.DBusProxyFlags.DO_NOT_LOAD_PROPERTIES, None, FPRINT, path,
+                                  FPRINT + '.Device', None)
+
+
+def has_signal():
+    bus = Gio.bus_get_sync(Gio.BusType.SYSTEM)
+    reader = device(bus)
+    xml = bus.call_sync(FPRINT, reader.get_object_path(), 'org.freedesktop.DBus.Introspectable', 'Introspect',
+                        None, GLib.VariantType('(s)'), Gio.DBusCallFlags.NONE, 10000, None).unpack()[0]
+    sys.exit(0 if 'name="VerifyFingerMatched"' in xml else 1)
+
+
+def identify(user, selected_only):
+    bus = Gio.bus_get_sync(Gio.BusType.SYSTEM)
+    reader = device(bus)
+    seen = {}
+    loop = GLib.MainLoop()
+
+    def on_signal(proxy, sender, name, params):
+        if name == 'VerifyFingerSelected':
+            seen['selected'] = params[0]
+            if selected_only:
+                loop.quit()
+        elif name == 'VerifyFingerMatched':
+            seen['matched'] = params[0]
+        elif name == 'VerifyStatus':
+            result, done = params.unpack()
+            if done:
+                seen['result'] = result
+                loop.quit()
+            else:
+                print('Not read well (%s): touch the reader again.' % result, file=sys.stderr)
+
+    def call(method, *args):
+        signature = '(' + 's' * len(args) + ')'
+        return reader.call_sync(method, GLib.Variant(signature, args) if args else None,
+                                Gio.DBusCallFlags.NONE, 10000, None)
+
+    reader.connect('g-signal', on_signal)
+    call('Claim', user)
+    try:
+        call('VerifyStart', 'any')
+        GLib.timeout_add_seconds(30, loop.quit)
+        loop.run()
+        try:
+            call('VerifyStop')
+        except GLib.Error:
+            pass
+    finally:
+        call('Release')
+    for key in ('selected', 'matched', 'result'):
+        print('%s=%s' % (key, seen.get(key, '')))
+
+
+def main(argv):
+    try:
+        if len(argv) == 1:
+            serve()
+        elif argv[1] == 'has-signal' and len(argv) == 2:
+            has_signal()
+        elif argv[1] == 'identify' and len(argv) in (3, 4) and argv[3:] in ([], ['--selected']):
+            identify(argv[2], argv[3:] == ['--selected'])
+        else:
+            print('usage: %s [identify USER [--selected] | has-signal]' % os.path.basename(argv[0]),
+                  file=sys.stderr)
+            sys.exit(64)
+    except GLib.Error as error:
+        print('%s: %s' % (os.path.basename(argv[0]), error.message), file=sys.stderr)
+        sys.exit(2)
+
+
+if __name__ == '__main__':
+    main(sys.argv)

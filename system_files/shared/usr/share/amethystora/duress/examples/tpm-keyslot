@@ -1,0 +1,8 @@
+#!/usr/bin/bash
+# A duress finger's action: take the system disk's key out of the TPM, so that from the next start the disk
+# asks for its passphrase again. Nothing is erased: the passphrase still opens the disk, and
+# `ame security disk-unlock` gives the key back to the TPM. Like every action it runs as root, once per
+# boot, with DURESS_USER and DURESS_UID set.
+/usr/libexec/amethystora-raid root-luks | while read -r device; do
+    systemd-cryptenroll --wipe-slot=tpm2 "${device}"
+done

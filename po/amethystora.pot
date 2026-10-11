@@ -1335,6 +1335,38 @@ msgid "This machine has no fingerprint reader"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
+msgid "Its folder can be read by more than root, so the duress finger is ignored"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Its action is gone"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Its action was changed other than through ame security duress, so it will not run"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "A duress finger was enrolled again or removed, so its action will not run"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Its service is not running, so a duress finger would run nothing"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Duress finger"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The duress finger would not run its action"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Set it up again with:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
 msgid "One-time codes for SSH"
 msgstr ""
 

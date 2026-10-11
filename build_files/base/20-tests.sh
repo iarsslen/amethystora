@@ -1432,6 +1432,47 @@ cmp -s "${SSH_TEST}/sshd.pam" /etc/pam.d/sshd
 test ! -e "${SSH_DROP_IN}"
 rm -rf "${SSH_TEST}"
 
+# The duress finger (ame security duress): off, its service not enabled, and no folder. The image's
+# authselect profiles take its feature in the two files 08-hardening.sh copied and in no other, and the
+# feature, tried on the image's own /etc/authselect, adds the option to those two lines only and comes off
+# leaving every file as it was.
+DURESS=/usr/libexec/amethystora-duress
+test -x "${DURESS}"
+# ...on the image's own fprintd (packaging/fprintd), whose source package travels with it
+"${DURESS}" supported
+[[ "$(rpm -q --queryformat '%{RELEASE}\n' fprintd fprintd-pam | grep -c '\.amethystora\.')" == 2 ]]
+test -s "/usr/src/amethystora/$(rpm -q --queryformat '%{SOURCERPM}' fprintd-pam)"
+test -x /usr/libexec/amethystora-duress-service
+python3 -m py_compile /usr/libexec/amethystora-duress-service
+[[ "$("${DURESS}" status)" == off ]]
+[[ "$(systemctl is-enabled amethystora-duress.service 2>/dev/null)" == "enabled" ]] && false
+test ! -e /etc/amethystora/duress.d
+grep -qx "LogLevelMax=emerg" /usr/lib/systemd/system/amethystora-duress.service
+test -f /usr/share/dbus-1/system.d/org.amethystora.Duress.conf
+for example in /usr/share/amethystora/duress/examples/*; do bash -n "${example}"; done
+for profile in local sssd winbind; do
+    for file in /usr/share/authselect/vendor/"${profile}"/*; do
+        case "${file##*/}" in
+            fingerprint-auth | system-auth)
+                [[ "$(grep -c 'with-duress-fingerprint' "${file}")" == 1 ]] ;;
+            nsswitch.conf) ;;
+            *) [[ -L "${file}" ]] ;;
+        esac
+    done
+done
+authselect check >/dev/null
+DURESS_TEST="$(mktemp -d)"
+cp -a /etc/authselect "${DURESS_TEST}/before"
+authselect enable-feature with-duress-fingerprint >/dev/null
+[[ "$("${DURESS}" status)" == on ]]
+grep -qE "^auth[[:space:]]+sufficient[[:space:]]+pam_fprintd\.so duress=deny$" /etc/pam.d/system-auth
+grep -qE "^auth[[:space:]]+\[success=done default=bad\][[:space:]]+pam_fprintd\.so duress=allow$" /etc/pam.d/fingerprint-auth
+[[ "$(diff -r "${DURESS_TEST}/before" /etc/authselect | grep -c '^[<>]')" == 5 ]]
+authselect check >/dev/null
+authselect disable-feature with-duress-fingerprint >/dev/null
+diff -r "${DURESS_TEST}/before" /etc/authselect
+rm -rf "${DURESS_TEST}"
+
 # Encrypted DNS (ame security dns) and a different address on each network (ame security mac): off, and
 # when on, exactly the files their helpers write, which NetworkManager reads as meant. On and off are
 # tried here, where neither systemd-resolved nor NetworkManager runs, and /etc has to come back as it was.

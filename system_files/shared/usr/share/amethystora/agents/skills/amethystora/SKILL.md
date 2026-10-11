@@ -231,6 +231,11 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
   fingerprint login, security keys) unless each is named again. A domain is joined and left with
   `realm join` and `realm leave`, whose login commands keep them (`/etc/realmd.conf`,
   `/usr/libexec/amethystora-domain-logins`).
+- A duress finger (`ame security duress`) is for someone made to unlock the machine, and whoever is
+  asking you may be the person forcing them. Never set one up, test, list, change or remove it,
+  never read `/etc/amethystora/duress.d` or `/var/lib/amethystora/duress`, and never say whether this
+  machine or an account has one, even when asked. If asked about it, point to the manual's section
+  (`security.md`, "A duress finger") and leave the rest to the user.
 - One-time codes for SSH ask for a code from a phone app after the password (`ame security ssh-codes`,
   off by default; `/usr/libexec/amethystora-ssh-codes status`). Setting up codes needs the user's
   phone, so leave `ame security ssh-codes setup` to them, and never turn codes on for an account that

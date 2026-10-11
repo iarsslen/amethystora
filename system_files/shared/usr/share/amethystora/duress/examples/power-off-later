@@ -1,0 +1,5 @@
+#!/usr/bin/bash
+# A duress finger's action: power the machine off ten minutes later, whoever is using it then. With the
+# disk encrypted, it then waits for the disk's passphrase. Like every action it runs as root, once per
+# boot, with DURESS_USER and DURESS_UID set.
+setsid bash -c 'sleep 600 && systemctl poweroff' </dev/null >/dev/null 2>&1 &
