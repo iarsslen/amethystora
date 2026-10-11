@@ -1,0 +1,26 @@
+#!/usr/bin/bash
+# Run in the sealed initramfs after bootc has mounted the composefs root (amethystora-sealed-verity.service).
+# bootc mounts the image the signed command line names, but it requires fs-verity on the system's files
+# only when the repository on the disk says it has it: with composefs/meta.json and the image copied
+# without fs-verity, which anyone who can write to the disk can do, the root is mounted unverified and
+# every file of the system can be changed. So the system starts only if each composefs mount has
+# fs-verity required.
+
+found=0
+while read -r _ _ _ _ mountpoint _ rest; do
+    [[ "${rest}" == *" - overlay composefs:"* ]] || continue
+    found=1
+    if [[ ",${rest##* }," != *",verity=require,"* ]]; then
+        bad="${mountpoint}"
+    fi
+done </proc/self/mountinfo
+
+if [[ "${found}" -eq 1 && -z "${bad:-}" ]]; then
+    exit 0
+fi
+
+command -v plymouth >/dev/null && plymouth quit
+message="Amethystora was not started: its system files on this disk cannot be verified (${bad:-no composefs mount}), so they may have been changed. Start the computer from an Amethystora installer to copy your files off, then install again."
+echo "${message}" >/dev/kmsg
+echo "${message}" >/dev/console
+exit 1

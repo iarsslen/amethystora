@@ -4,4 +4,10 @@
 # boot splash. There is no root= argument: systemd finds the root partition by its GPT type, and unlocks
 # it with the TPM when one holds its key. All of it is inside the signed UKI, so a machine cannot change
 # any of it, at the boot menu or anywhere else.
-kargs = ["rw", "rootflags=compress=zstd:1,subvol=root", "quiet", "rhgb"]
+#
+# systemd.import_credentials=no: systemd takes no credentials from the firmware's SMBIOS strings, a
+# hypervisor or the ESP. They could add a drop-in to any unit, the initramfs's own included, and so stop
+# amethystora-sealed-verity, or set root's password, SSH keys, udev rules and files through systemd's own
+# units: an ESP credential needs only to be TPM-encrypted, which anyone who can start the machine from a
+# signed live USB can do. Nothing in the image uses them.
+kargs = ["rw", "rootflags=compress=zstd:1,subvol=root", "quiet", "rhgb", "systemd.import_credentials=no"]

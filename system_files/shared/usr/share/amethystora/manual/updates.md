@@ -142,7 +142,9 @@ Amethystora's Secure Boot key. The firmware starts shim, shim starts the boot me
 systemd-boot starts that kernel only if its signature holds. The system is then mounted only if its
 files match the digest, and each file is checked again whenever it is read. A file changed on the
 disk, by a program running as root or by someone who took the disk out, reads as an error instead of
-running. `/etc` and `/var` are your machine's own, and are not covered.
+running. A disk changed so that its files cannot be checked at all does not start: a message says so,
+and the [live ISO](installing.md#try-it) can still read your files. `/etc` and `/var` are your
+machine's own, and are not covered.
 
 What is different on a sealed machine:
 

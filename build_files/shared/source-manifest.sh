@@ -75,9 +75,11 @@ rpm -qa --queryformat '%{NAME}\t%{LICENSE}\t%{SOURCERPM}\t%{VENDOR}\t%{URL}\n' |
 # stopped publishing fails the build: the base image is then older than that maker's repository, and
 # the next base image has the current build. The other licences are met by saying where the source is,
 # which SOURCES does either way, and so is a package no repository publishes a source package for.
+# One the image carries already is not fetched again: the sealed images run this a second time, on
+# packages its maker may have replaced since.
 mkdir -p "${SOURCES_DIR}"
 while IFS=$'\t' read -r vendor srpm family; do
-    if fetch_source "${vendor}" "${srpm}"; then
+    if [[ -s "${SOURCES_DIR}/${srpm}" ]] || fetch_source "${vendor}" "${srpm}"; then
         continue
     fi
     if [[ ${vendor} != "(none)" && ${vendor} != "${NO_SOURCE_PACKAGES}" && ${family} == gpl ]]; then

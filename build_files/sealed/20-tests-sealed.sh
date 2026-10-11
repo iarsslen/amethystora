@@ -9,8 +9,10 @@ set -xeuo pipefail
 T=/run/target
 CERT=/tmp/amethystora-uki.pem
 openssl x509 -inform DER -in "${T}/usr/share/amethystora/secure-boot/amethystora-uki.der" -out "${CERT}"
-# rpm will not open a database on a read-only mount
-cp -a "${T}/usr/lib/sysimage/rpm" /tmp/rpmdb
+# rpm will not open a database on a read-only mount. The folder's contents, since the image may have it
+# as a link to /usr/share/rpm
+mkdir /tmp/rpmdb
+cp -a "${T}/usr/lib/sysimage/rpm/." /tmp/rpmdb/
 RPM=(rpm --dbpath /tmp/rpmdb)
 
 # One UKI, named for its kernel and signed with the certificate the image ships, the one the installer
@@ -24,15 +26,16 @@ sbverify --cert "${CERT}" "${UKI}"
 
 # Its command line carries the digest of exactly this tree, which is what the machine checks at boot, and
 # requires it ("composefs=?" would make fs-verity optional and the image unsealed)
-CMDLINE="$(ukify inspect --json=short "${UKI}" | jq -r '.".cmdline".text')"
+CMDLINE="$(ukify inspect "${UKI}" --json=short | jq -r '.".cmdline".text')"
 DIGEST="$(bootc container compute-composefs-digest "${T}")"
 [[ " ${CMDLINE} " == *" composefs=${DIGEST} "* ]]
 
-# ...and the kernel arguments of kargs.d: read-write btrfs root, the splash, the hardening, and lockdown
-# on every image but the NVIDIA ones, as 08-hardening.sh sets it. No debug shell: nothing can be added to
+# ...and the kernel arguments of kargs.d: read-write btrfs root, the splash, no credentials from the
+# firmware or the ESP, the hardening, and lockdown on every image but the NVIDIA ones, as
+# 08-hardening.sh sets it. No debug shell: nothing can be added to
 # this command line on the machine, and a shell there would be root's, with the disk already unlocked.
-for karg in rw rootflags=compress=zstd:1,subvol=root quiet rhgb slab_nomerge init_on_alloc=1 \
-    page_alloc.shuffle=1 randomize_kstack_offset=on vsyscall=none; do
+for karg in rw rootflags=compress=zstd:1,subvol=root quiet rhgb systemd.import_credentials=no \
+    slab_nomerge init_on_alloc=1 page_alloc.shuffle=1 randomize_kstack_offset=on vsyscall=none; do
     [[ " ${CMDLINE} " == *" ${karg} "* ]]
 done
 if [[ "$(jq -r '."image-flavor"' "${T}/usr/share/amethystora/image-info.json")" == nvidia-open ]]; then
@@ -42,12 +45,15 @@ else
 fi
 [[ "${CMDLINE}" != *debug_shell* ]]
 
-# The kernel and the initramfs are only in the UKI. The initramfs mounts composefs (bootc's module) and
-# can ask the TPM for the disk key (tpm2-tss), as 19-initramfs.sh's does
+# The kernel and the initramfs are only in the UKI. The initramfs mounts composefs (bootc's module), stops
+# a boot where it was mounted without fs-verity (amethystora-sealed), and can ask the TPM for the disk
+# key (tpm2-tss), as 19-initramfs.sh's does
 if compgen -G "${T}/usr/lib/modules/*/vmlinuz" || compgen -G "${T}/usr/lib/modules/*/initramfs.img"; then
     exit 1
 fi
 lsinitrd -m "/run/kernel/${KERNEL}/initramfs.img" | grep -x bootc
+lsinitrd -m "/run/kernel/${KERNEL}/initramfs.img" | grep -x amethystora-sealed
+lsinitrd "/run/kernel/${KERNEL}/initramfs.img" | grep 'initrd-root-fs.target.wants/amethystora-sealed-verity.service' >/dev/null
 if dracut --list-modules 2>/dev/null | grep -x tpm2-tss >/dev/null; then
     lsinitrd -m "/run/kernel/${KERNEL}/initramfs.img" | grep -x tpm2-tss
 fi
@@ -58,6 +64,8 @@ for package in rpm-ostree bootupd grub2-common grub2-efi-x64 grub2-tools; do
         exit 1
     fi
 done
+# ...and nothing that required rpm-ostree went with it: the power profiles stay
+"${RPM[@]}" -q tuned tuned-ppd
 # systemd-boot is, signed with the same key, and bootc installs it onto btrfs
 "${RPM[@]}" -q systemd-boot-unsigned
 sbverify --cert "${CERT}" "${T}/usr/lib/systemd/boot/efi/systemd-bootx64.efi.signed"

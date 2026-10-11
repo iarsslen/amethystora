@@ -844,19 +844,24 @@ ostree images stay the default.
   through pkexec and `50-amethystora-deployments.rules`), and branch on the marker for anything that
   changes kernel arguments: they cannot change there. `amethystora-signed-updates.service` does not run
   on it. The manual's `updates.md#sealed-images` describes it for users.
-- **`amethystora-sealed` is what makes the seal hold; keep it.** bootc (1.16 and 1.17, through
-  composefs-rs 0.9) mounts the image with `verity=require` only when the repository on the disk has
-  fs-verity, whatever the signed command line says: a normal install's `composefs/meta.json` has none,
-  so copying the image file under `composefs/objects` without fs-verity, which root or anyone with the
-  disk can do, mounts the system unverified and every file of it can be changed. The module's
-  `amethystora-sealed-verity.service` runs after `bootc-root-setup.service` and halts unless every
-  composefs mount has `verity=require` (never the emergency target: its locked root account lets the
-  boot continue). An install made by a kernel without fs-verity is refused the same way.
+- **`amethystora-sealed` is what makes the seal hold; keep it.** bootc's initramfs does not by itself
+  insist on fs-verity for the image the signed command line names; the details stay out of the
+  repository until bootc has a fix.
+  The module's `amethystora-sealed-verity.service` runs after `bootc-root-setup.service` and halts
+  unless every composefs mount has `verity=require` (never the emergency target: its locked root
+  account lets the boot continue). An install made by a kernel without fs-verity is refused the same
+  way. Drop it only once bootc enforces this itself, and not before every machine's repository has
+  fs-verity on `meta.json`, or they stop starting.
+- **`systemd.import_credentials=no`** is in the sealed `kargs.d`: credentials from SMBIOS, a hypervisor
+  or a TPM-encrypted file on the ESP could add a drop-in to any unit, the guard's included (shown in
+  the VM with SMBIOS), and systemd's own units take root's password, SSH keys, udev rules and files
+  from them. Plain ESP credentials are already ignored. Nothing in the image uses credentials.
 - **Verified in a VM on 2026-10-10**, with the release key, QEMU and OVMF holding Microsoft's keys and
   the image's certificates in MokList: the firmware's fallback path starts shim, shim systemd-boot and
   the UKI; Secure Boot enabled, lockdown on, `composefs=` in `/proc/cmdline`, the root mount
   `verity=require`; a changed object reads as an I/O error; the same disk without our certificate stops
-  at shim's Security Violation; the guard halts a disk whose image file lost fs-verity; and `bootc
+  at shim's Security Violation; the guard halts a disk whose image file lost fs-verity, also when an
+  SMBIOS drop-in tries to switch it off (2026-10-11, with `systemd.import_credentials=no`); and `bootc
   switch` applies `policy.json` (an unsigned image under a `sigstoreSigned` rule is refused). Fedora's
   shim in the image carries both Microsoft's 2011 and 2023 signatures. **Not verified:** the MOK
   manager's enrolment screens, LUKS and the TPM, uupd updating a sealed machine, and real hardware.

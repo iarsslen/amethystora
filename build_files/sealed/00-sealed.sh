@@ -15,7 +15,9 @@ rsync -rvK /ctx/system_files/sealed/ /
 
 # rpm-ostree reads ostree deployments only, and a sealed machine has none, so its status, kargs and
 # rebase would all fail there: bootc does each of them instead. Its units are disabled first, so that no
-# enabled unit is left naming a file that is gone.
+# enabled unit is left naming a file that is gone. Without its dependents: tuned requires rpm-ostree on a
+# bootc system, for kernel arguments a sealed machine cannot change anyway, and dnf would take tuned and
+# the power profiles (tuned-ppd) with it.
 for unit in rpm-ostree-countme.service rpm-ostree-countme.timer rpm-ostreed-automatic.timer; do
     systemctl disable "${unit}" 2>/dev/null || true
 done
@@ -24,7 +26,7 @@ for package in rpm-ostree rpm-ostree-libs gnome-software-rpm-ostree; do
     rpm -q "${package}" >/dev/null && REMOVE+=("${package}")
 done
 if ((${#REMOVE[@]})); then
-    dnf -y remove --setopt=clean_requirements_on_remove=False "${REMOVE[@]}"
+    rpm -e --nodeps "${REMOVE[@]}"
 fi
 rm -f /etc/rpm-ostreed.conf
 
@@ -56,15 +58,17 @@ openssl x509 -in /run/secrets/SECUREBOOT_CERT -outform DER -out /usr/share/ameth
 chmod 0644 /usr/share/amethystora/secure-boot/amethystora-uki.der
 
 # The initramfs, with bootc's module, which mounts the composefs image the kernel command line names and
-# refuses one whose digest differs, and with tpm2-tss, as 19-initramfs.sh has it, for `ame security
-# disk-unlock`. /etc/passwd and /etc/group go in as Fedora's sealed images put them.
+# refuses one whose digest differs, with amethystora-sealed, which stops the boot when bootc mounted it
+# without fs-verity (bootc does when the disk's repository has none, whatever the command line says),
+# and with tpm2-tss, as 19-initramfs.sh has it, for `ame security disk-unlock`. /etc/passwd and
+# /etc/group go in as Fedora's sealed images put them.
 readarray -t KERNELS < <(find /usr/lib/modules -mindepth 1 -maxdepth 1 -printf '%f\n')
 if [[ ${#KERNELS[@]} -ne 1 ]]; then
     echo "::error::A sealed image carries one kernel, and this one has ${#KERNELS[@]}: ${KERNELS[*]}"
     exit 1
 fi
 KERNEL="${KERNELS[0]}"
-DRACUT_MODULES=(bootc)
+DRACUT_MODULES=(bootc amethystora-sealed)
 if dracut --list-modules 2>/dev/null | grep -x tpm2-tss >/dev/null; then
     DRACUT_MODULES+=(tpm2-tss)
 else
