@@ -62,8 +62,9 @@ settings() {
     local schema key value dir id
     {
         changed org.gnome.shell | awk '$2 == "favorite-apps"'
+        # Keybindings only, lists of keys: those schemas also hold numbers, such as the volume step
         for schema in "${KEY_SCHEMAS[@]}"; do
-            changed "${schema}" | awk '$2 != "custom-keybindings"'
+            changed "${schema}" | awk '$2 != "custom-keybindings" && $3 ~ /^(\[|@as$)/'
         done
         changed org.gnome.shell.extensions.paperwm |
             awk '$2 ~ /^(window-gap|horizontal-margin|vertical-margin|vertical-margin-bottom)$/'
