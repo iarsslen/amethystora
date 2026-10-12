@@ -65,13 +65,16 @@ caught() {
     fi
 }
 
-# T1059 Command execution from a world-writable folder: a program run from /tmp (PROCESSES). A copy of
-# /usr/bin/true stands in for a dropped payload.
+# T1059 Command execution from a world-writable folder: a program run from /tmp (PROCESSES). read_processes
+# scans /proc for running programs, so the stand-in has to be alive while the watcher looks: a copy of
+# /usr/bin/sleep, started as a non-waiting transient unit, is still running when the watcher scans, then stopped.
 mark
-in_session "cp /usr/bin/true /tmp/art-dropped-payload && /tmp/art-dropped-payload"
-sleep 3
+in_session "cp /usr/bin/sleep /tmp/art-dropped-payload"
+user_bus systemd-run --user --unit=art-proc --collect --quiet -- /tmp/art-dropped-payload 60 || true
+wait_for 15 pgrep -u "${TEST_USER}" -f /tmp/art-dropped-payload
 run_watcher
 caught T1059 processes '.key == "processes" and (.text | contains("art-dropped-payload"))' "a program run from /tmp"
+user_bus systemctl --user stop art-proc >/dev/null 2>&1 || true
 
 # T1547.013 / T1543.002 Persistence: an XDG autostart entry and a user systemd unit, which the audit rules on
 # those folders record (PERSISTENCE, on by default). Benign: both only touch a marker.
