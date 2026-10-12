@@ -69,6 +69,9 @@ every run.
 | `10-account.sh` | the test account `tester` signs in on Wayland, and its first login's setup runs |
 | `20-apps.sh` | each Amethystora app opens and stays open |
 | `30-detection.sh` | the thorough profile, after a restart, finds a secret read, the decoy read and a program run from Downloads; Falco's memory |
+| `40-setup.sh` | `ame setup` save, diff and apply against real GNOME settings, Flathub and Homebrew; the setup kept with a backup and read back by `ame restore-setup`; `ame system trust-image`, a switch to an unsigned image refused, `amethystora-image-check` |
+| `50-raid.sh` | pools of disks on the spare disks: parity, two copies encrypted and combined made, restarted, scrubbed (a scrub cut short is resumed), a disk taken away while mounted and one missing at boot, opened degraded, replaced, added to and forgotten; the recovery key, Control's words, no TPM unlock for a pool |
+| `60-vanilla.sh` | `amepkg`: an Alpine container with a launcher exported and taken back, the daily upgrade, Apx files imported, a `.deb` from a file scanned and installed; the watcher's fake `sudo` and stray launcher; the NVIDIA offer on stand-in hardware; "You're on the previous version" and `bootc rollback` |
 
 A new feature gets its check here with it, and a bug a run found gets the check that would have caught it.
 
