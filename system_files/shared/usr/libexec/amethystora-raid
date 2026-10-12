@@ -45,10 +45,11 @@ NAME_RULE='^[a-z0-9][a-z0-9-]{0,30}$'
 LUKS_TYPE=CA7D7CCB-63ED-4C53-861C-1742536059CC
 LINUX_TYPE=0FC63DAF-8483-4772-8E79-3D69D8477DE4
 GIB=1073741824
-# What the partition table, and LUKS2's header, take from a disk at most: what a replacement needs over
-# the size of the device it replaces
-PLAIN_OVERHEAD=$((2 * 1048576))
-LUKS_OVERHEAD=$((18 * 1048576))
+# What the partition table (1 MiB before the partition, the backup table's 33 sectors after it, on a disk
+# of 512-byte sectors) and LUKS2's 16 MiB header take from a disk: what a replacement needs over the size of
+# the device it replaces, which the disk it replaces gave as much to, so that a disk of the same size fits
+PLAIN_OVERHEAD=$((1048576 + 33 * 512))
+LUKS_OVERHEAD=$((PLAIN_OVERHEAD + 16 * 1048576))
 # Both of a pool's keys are random and long, so neither needs a slow key derivation, which would cost a
 # second and a gigabyte of memory per disk at every boot: the minimal PBKDF2 that systemd-cryptenroll
 # gives its own high-entropy keys
