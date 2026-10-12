@@ -26,6 +26,9 @@ const IMAGE = 'localhost/amethystora:latest';
 const DISK = 'test';
 const VM = 'test';
 const GUEST_DIR = '/run/amethystora-tests';
+// Blank disks for the pools of disks (50-raid.sh): four alike, and a larger one
+const SPARES_GB = [8, 8, 8, 8, 10];
+const MAX_PHASES = 6;
 const stage = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : 'all';
 const keep = process.argv.includes('--keep');
 
@@ -119,7 +122,7 @@ async function suite(name) {
     const stderr = decode(answer.stderr);
     fs.appendFileSync(`${RUN}/${name}.log`, `--- phase ${phase}, exit ${answer.rc}${answer.error ? ` (${answer.error})` : ''}\n${decode(answer.stdout)}${stderr ? `--- stderr\n${stderr}` : ''}`);
     rc = answer.rc;
-    if (rc !== 100 || phase >= 3) break;
+    if (rc !== 100 || phase >= MAX_PHASES) break;
     say(`   ${name}: rebooting for phase ${phase + 1}`);
     await reboot();
   }
@@ -158,7 +161,7 @@ async function test() {
   } catch {
     // Not running
   }
-  await call('vm_start', { name: VM, disk: DISK, fresh: true });
+  await call('vm_start', { name: VM, disk: DISK, fresh: true, spares_gb: SPARES_GB });
   say(`   ${(await call('vm_wait', { name: VM, timeout_s: 900 })).content[0].text}`);
   const results = [];
   for (const name of fs.readdirSync(SUITES).filter((f) => /^\d\d-.+\.sh$/.test(f)).sort()) {

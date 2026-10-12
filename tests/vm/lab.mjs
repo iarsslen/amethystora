@@ -203,18 +203,21 @@ export const tools = [
       name: { type: 'string' }, disk: { type: 'string', description: 'default latest' },
       memory_mb: { type: 'integer', description: 'default 4096' }, cpus: { type: 'integer', description: 'default 4' },
       secure_boot: { type: 'boolean', description: 'default true' }, tpm: { type: 'boolean', description: 'default true' },
-      fresh: { type: 'boolean', description: 'throw the overlay, its checkpoints, the firmware variables and the TPM away first' },
+      fresh: { type: 'boolean', description: 'throw the overlay, its checkpoints, the firmware variables, the TPM and the spare disks away first' },
+      spares_gb: { type: 'array', items: { type: 'integer' }, description: 'blank SATA disks of these sizes in GiB, at most 6, serials SPARE-1...; kept until fresh' },
     },
     required: ['name'],
-    async call({ name, disk = 'latest', memory_mb = 4096, cpus = 4, secure_boot = true, tpm = true, fresh = false }) {
+    async call({ name, disk = 'latest', memory_mb = 4096, cpus = 4, secure_boot = true, tpm = true, fresh = false, spares_gb = [] }) {
       checkName(name);
       checkName(disk, 'disk');
       if (running(name)) throw new Error(`VM ${name} is running already`);
       const base = `${DISKS}/${disk}.qcow2`;
       if (!fs.existsSync(base)) throw new Error(`no disk ${disk}: disk_build makes it`);
+      if (spares_gb.length > 6) throw new Error('at most 6 spare disks: the machine has six SATA ports');
       if (fresh) {
         for (const ext of ['qcow2', 'vars.json', 'serial', 'png']) fs.rmSync(file(name, ext), { force: true });
         for (const ext of ['tpm', 'checkpoints']) fs.rmSync(file(name, ext), { recursive: true, force: true });
+        for (const entry of fs.readdirSync(VMS).filter((f) => f.startsWith(`${name}.spare`))) fs.rmSync(`${VMS}/${entry}`);
       }
       if (!fs.existsSync(file(name, 'qcow2'))) {
         await run('qemu-img', ['create', '-q', '-f', 'qcow2', '-F', 'qcow2', '-b', base, file(name, 'qcow2')]);
@@ -236,6 +239,13 @@ export const tools = [
         '-device', 'VGA,xres=1280,yres=800', '-device', 'qemu-xhci', '-device', 'usb-tablet', '-display', 'none',
         '-serial', `file:${file(name, 'serial')}`, '-qmp', `unix:${file(name, 'qmp')},server=on,wait=off`,
         '-pidfile', file(name, 'pid'), ...credentials()];
+      // Blank disks on the machine's own SATA controller, which smartctl can read, for the pools of disks
+      for (const [i, size] of spares_gb.entries()) {
+        const spare = file(name, `spare${i + 1}.qcow2`);
+        if (!fs.existsSync(spare)) await run('qemu-img', ['create', '-q', '-f', 'qcow2', spare, `${size}G`]);
+        args.push('-drive', `file=${spare},if=none,id=spare${i + 1},format=qcow2,discard=unmap`,
+          '-device', `ide-hd,drive=spare${i + 1},bus=ide.${i},serial=SPARE-${i + 1}`);
+      }
       if (tpm) {
         try {
           process.kill(Number(fs.readFileSync(file(name, 'swtpm.pid'), 'utf8')));
@@ -452,7 +462,7 @@ export const tools = [
     description: 'The lab\'s VMs: running or not, the disk each started from, and how much each has written.',
     schema: {},
     async call() {
-      const names = [...new Set(fs.readdirSync(VMS).filter((f) => f.endsWith('.qcow2')).map((f) => f.slice(0, -6)))].sort();
+      const names = [...new Set(fs.readdirSync(VMS).filter((f) => f.endsWith('.qcow2') && !/\.spare\d+\.qcow2$/.test(f)).map((f) => f.slice(0, -6)))].sort();
       const lines = [];
       for (const name of names) {
         const { stdout } = await run('qemu-img', ['info', '-U', '--output=json', file(name, 'qcow2')]);

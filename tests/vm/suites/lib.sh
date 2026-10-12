@@ -51,6 +51,9 @@ user_bus() {
         DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" "$@"
 }
 user_systemctl() { user_bus systemctl --user "$@"; }
+# in_terminal SECONDS [EXPECT SEND]... -- COMMAND...: COMMAND on a terminal of its own, for what asks a person;
+# each EXPECT (a Python regular expression) waited for, then SEND typed (term.py)
+in_terminal() { python3 "$(dirname "${BASH_SOURCE[0]}")/term.py" "$@"; }
 in_session() { user_bus systemd-run --user --pipe --wait --quiet --collect -- /usr/bin/bash -lc "$*"; }
 has_session() { [[ "$(loginctl show-user "${TEST_USER}" -p State --value 2>/dev/null)" == active ]]; }
 

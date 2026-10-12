@@ -53,8 +53,14 @@ is how an agent runs it and fixes what fails.
 A suite is `suites/NN-name.sh`, run as root in the VM beside `lib.sh`, which it sources. It says one line per
 check, as TAP does (`ok - ...`, `not ok - ...` with indented lines saying why, `skip - ...`), uses `check`,
 `wait_for`, `as_user` and `in_session` from `lib.sh`, and ends with `finish`. Exit status 100
-(`reboot_and_continue`) restarts the VM and runs the suite again with `SUITE_PHASE` one higher. A line
+(`reboot_and_continue`) restarts the VM and runs the suite again with `SUITE_PHASE` one higher, six phases at
+most; a restart empties `/run`, so what a suite keeps between phases goes in `/var/lib/vmlab-tests`. A line
 starting with `#` is a measurement, which the report repeats.
+
+What asks a person something (gum, a typed `ERASE`, a check for a terminal) runs through `in_terminal`, which
+gives the command a terminal of its own (`term.py`), waits for each question and types its answer. The test VM
+has five blank SATA disks besides its own, serials `SPARE-1` to `SPARE-5` (four of 8 GiB, then 10 GiB), new for
+every run.
 
 | Suite | What it checks |
 | --- | --- |
