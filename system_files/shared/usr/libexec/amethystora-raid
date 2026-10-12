@@ -1311,8 +1311,9 @@ cmd_check() {
         write_state "${STATE}/last.json" <<<"${current}"
         exit 0
     fi
-    # Nobody to tell: not written down as told, so the first run after somebody logs in tells them
-    compgen -G '/run/user/*/bus' >/dev/null || exit 0
+    # Nobody to tell: not written down as told, so the first run after somebody logs in tells them. Only a
+    # person's bus counts, as amethystora-notify-users tells only them: the login screen's (gdm) has one too.
+    compgen -G '/run/user/[1-9][0-9][0-9][0-9]*/bus' >/dev/null || exit 0
     write_state "${STATE}/last.json" <<<"${current}"
     # The notification waits for its answer in a unit of its own, while the hourly check carries on. It
     # says the worst news in full, and names the rest.
