@@ -512,9 +512,10 @@ beside() {
 }
 
 # The copy into place shares the source's blocks where the disk can (a snapshot's, or the backup's once
-# it is down), and takes the label SELinux gives the place it lands in rather than the one it had
+# it is down), and takes the label SELinux gives the place it lands in rather than the one it had: -Z,
+# since -a alone copies the label among the other extended attributes, the cache's included
 copy() {
-    cp -a --no-preserve=context --reflink=auto "$@"
+    cp -a --no-preserve=context -Z --reflink=auto "$@"
 }
 
 # SRC put back at DEST: what DEST lacks is added, what is the same is left alone, and what differs is
