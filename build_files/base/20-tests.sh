@@ -1652,6 +1652,8 @@ rm -f "${OSPREY_CONF}"
 # into /etc/audit/rules.d for each key not switched off, with the per-user ones, which can only be written
 # on a machine that already has home directories. The image ships none of them in /etc.
 test ! -e /etc/audit/rules.d/60-amethystora.rules
+# ...and nothing turns syscall auditing off under them, as the audit package's own audit.rules does
+grep -rqE '^-a[[:space:]]+(task,never|never,task)' /etc/audit/rules.d && false
 AUDIT_SHIPPED=/usr/share/amethystora/audit
 AUDIT_RULES="$(cat "${AUDIT_SHIPPED}"/*.rules)"
 grep -q "^-w /etc/flatpak/overrides/ -p wa -k hardening$" <<<"${AUDIT_RULES}"

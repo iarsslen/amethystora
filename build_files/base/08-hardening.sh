@@ -120,13 +120,13 @@ done
 # Audit: the rule set has to be the last word, and it has to survive a full disk.
 #
 # augenrules concatenates /etc/audit/rules.d/*.rules in name order and loads the result. The file the
-# audit package ships is called audit.rules, and a letter sorts after a digit, so it lands after every
-# numbered file in the directory. Its first rule is -D, "delete every rule loaded so far", which would
-# quietly erase the watches the boot-time generator writes into 60- and 61-amethystora. Give it a name
-# that sorts first, which is where its buffer settings belong anyway.
-if [[ -f /etc/audit/rules.d/audit.rules ]]; then
-    mv /etc/audit/rules.d/audit.rules /etc/audit/rules.d/10-base.rules
-fi
+# audit package ships, audit.rules, is audit's no-audit set: -D, then "-a task,never", which turns syscall
+# auditing off for every process started after it, -w watches included, so not one of the image's keys
+# would ever record anything. In its place goes audit's own base configuration (-D and the buffers), under
+# a name that sorts first: -D, "delete every rule loaded so far", anywhere later would quietly erase the
+# watches the boot-time generator writes into 60- and 61-amethystora.
+rm -f /etc/audit/rules.d/audit.rules
+install -m 0640 /usr/share/audit-rules/10-base-config.rules /etc/audit/rules.d/10-base.rules
 # Nothing may sort after the file that closes the rule set with -e 2. C collation, because that is what
 # augenrules sorts with in a service that has no locale of its own.
 LAST_RULES="$(find /etc/audit/rules.d -name '*.rules' -printf '%f\n' | LC_ALL=C sort | tail -n1)"
