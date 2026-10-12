@@ -54,14 +54,15 @@ expect "the browser's saved passwords read" '.key == "credentials" and (.text | 
 expect "the decoy read, as critical" '.key == "decoy" and .level == "critical"'
 expect "the program run from Downloads" '.key == "exec-watch" and (.text | contains("amethystora-test-program"))'
 
-# Falco: running, and its memory against the unit's MemoryHigh of 250M
+# Falco: running, and its memory against the unit's MemoryHigh
 if wait_for 120 systemctl is-active --quiet amethystora-behaviour.service; then
     ok "Falco runs"
     sleep 60
     peak="$(systemctl show amethystora-behaviour.service -p MemoryPeak --value)"
     now="$(systemctl show amethystora-behaviour.service -p MemoryCurrent --value)"
+    high="$(($(systemctl show amethystora-behaviour.service -p MemoryHigh --value) / 1048576))"
     echo "# Falco memory: $((now / 1048576)) MiB now, $((peak / 1048576)) MiB at most"
-    ((peak < 250 * 1048576)) && ok "Falco stays under 250 MiB" || not_ok "Falco reached $((peak / 1048576)) MiB, over its 250 MiB"
+    ((peak < high * 1048576)) && ok "Falco stays under ${high} MiB" || not_ok "Falco reached $((peak / 1048576)) MiB, over its ${high} MiB"
 else
     not_ok "Falco is not running" "$(journalctl -b -u amethystora-behaviour.service --no-pager -o cat | tail -n 15)"
 fi

@@ -21,7 +21,7 @@ StartLimitBurst=3
 # Within its budget: a little CPU and a few hundred megabytes, most of them the probe's ring buffers
 CPUWeight=20
 IOWeight=20
-MemoryHigh=250M
+MemoryHigh=320M
 MemoryMax=400M
 ProtectSystem=full
 PrivateTmp=yes
