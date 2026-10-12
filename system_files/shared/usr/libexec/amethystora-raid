@@ -316,9 +316,11 @@ def nodes: $lsblk.blockdevices[]? | recurse(.children[]?);
 def trim: (. // "") | gsub("^\\s+|\\s+$"; "");
 def disk: {path, model: (.model | trim), serial: (.serial | trim), size, tran};
 def disk_of($kname): (first($lsblk.blockdevices[]? | select(.type == "disk" and any(recurse(.children[]?); .kname == $kname)) | disk)) // null;
-# The profile holding the most bytes is the one the pool was made with: a pool mounted with a disk missing
-# writes single
-def main(profiles): [(profiles // {}) | to_entries[] | select(.value > 0)] | max_by(.value) | if . == null then null else .key end;
+# The profile the pool was made with: one holding bytes other than single (or dup), since a pool mounted with a
+# disk missing writes single and only then, however much it wrote; single only when there is no other
+def main(profiles): [(profiles // {}) | to_entries[] | select(.value > 0)] as $all
+    | ([$all[] | select(.key != "single" and .key != "dup")] | max_by(.value)) // ($all | max_by(.value))
+    | if . == null then null else .key end;
 def survives: {"raid1": 1, "raid1c3": 2, "raid1c4": 3, "raid10": 1, "raid5": 1, "raid6": 2}[. // ""] // 0;
 def smart($d): if $d == null then null else
     ([$disks.devices[]? | select(if ($d.serial // "") != "" then .serial == $d.serial else .disk == $d.path end) | .smart] | first) end;

@@ -95,13 +95,15 @@ mkdir -p "${S}/class/block/dm-5/dm" "${S}/class/block/dm-5/slaves/sdm1" "${S}/bl
 echo "CRYPT-LUKS2-m1-raid-data-1" >"${S}/class/block/dm-5/dm/uuid"
 printf '1 /dev/dm-5\n2 <missing>\n' | show /var/mnt/data
 
-# backup: two copies, counting errors, and with single bytes written while a disk was away
+# backup: two copies, counting errors, and with single bytes written while a disk was away: more data than it
+# held, and as much metadata, as the VM lab's pool had once a disk was back
 btrfs_fs "${BACKUP}" backup dm-6 dm-7
 devinfo "${BACKUP}" 1 0 0 3 0 0 0
 devinfo "${BACKUP}" 2 0 0 0 0 1 0
 profile "${BACKUP}" data raid1 50000000000
-profile "${BACKUP}" data single 536870912
+profile "${BACKUP}" data single 60000000000
 profile "${BACKUP}" metadata raid1 1073741824
+profile "${BACKUP}" metadata single 1073741824
 printf '1 /dev/dm-6\n2 /dev/dm-7\n' | show /var/mnt/backup
 
 # joined: combined, unencrypted, whose single data is what it was made as
@@ -204,7 +206,8 @@ jq -e '.managed and .mounted and .encrypted and .layout == "raid1" and .metadata
     and .devices[0].disk.path == "/dev/sdm" and .devices[0].kname == "dm-5" and .devices[1].missing
     and .mountpoint == "/var/mnt/data" and .target == "/var/mnt/data"' <<<"$(pool data)" >/dev/null
 # backup: each error counter, by disk, and single bytes on a pool made with copies
-jq -e '.errors == 4 and .devices[0].errors.read == 3 and .devices[1].errors.corruption == 1
+jq -e '.layout == "raid1" and .metadata == "raid1" and .survives == 1
+    and .errors == 4 and .devices[0].errors.read == 3 and .devices[1].errors.corruption == 1
     and .devices[1].error_count == 1 and .degraded and .problems == ["errors", "degraded"]
     and .devices[1].disk.path == "/dev/sdq"' <<<"$(pool backup)" >/dev/null
 # joined: combined is single by choice, fine, and survives nothing
