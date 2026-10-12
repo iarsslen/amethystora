@@ -1803,6 +1803,9 @@ grep -q "^allow " /usr/share/amethystora/just/security.just
 for switch in $(/usr/libexec/amethystora-hardening status --json | jq -r '.[].name'); do
     grep -q "^${switch} " /usr/share/amethystora/just/security.just
 done
+# What runs from /var/tmp is watched, and two tests need the folder, which a machine has from its first boot and
+# the build does not (clean-stage.sh empties /var): there while they run, gone again after
+mkdir -m 1777 /var/tmp
 bash /ctx/build_files/shared/test-security-switches.sh
 bash /ctx/build_files/shared/test-locked-poweroff.sh
 # Its checks are the report's: the watcher runs the report rather than keeping checks of its own
@@ -1814,6 +1817,7 @@ test -x /usr/libexec/amethystora-security-text
 grep -q "^TimeoutStartSec=" /usr/lib/systemd/system/amethystora-security-watch.service
 grep -q "amethystora-security-text" /usr/libexec/amethystora-notify-users
 bash /ctx/build_files/shared/test-security-watch.sh
+rmdir /var/tmp
 grep -q "^events " /usr/share/amethystora/just/security.just
 # What only an account can see is read as that account and never as root, by the one reader, each of its
 # modes one the watcher names, and for no longer than a minute
