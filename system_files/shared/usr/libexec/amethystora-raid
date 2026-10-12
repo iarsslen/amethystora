@@ -618,7 +618,9 @@ normalise_key() {
 partition_disk() {  # DISK TYPE PARTNAME
     local nodes=() part
     mapfile -t nodes < <(lsblk -nrpo PATH "$1" 2>/dev/null | tac)
-    as_root wipefs -a -q "${nodes[@]}" || return 1
+    # Not on standard output, which is the partition's path: wipefs says there, -q or not, that it had the
+    # kernel read the partition table again, on any disk that had one
+    as_root wipefs -a -q "${nodes[@]}" >&2 || return 1
     printf 'label: gpt\ntype=%s, name="%s"\n' "$2" "$3" |
         as_root sfdisk --quiet --wipe always --wipe-partitions always "$1" >/dev/null || return 1
     as_root udevadm settle
