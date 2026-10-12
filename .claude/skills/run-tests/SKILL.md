@@ -1,70 +1,95 @@
 ---
 name: run-tests
-description: Build Amethystora from the last commit, boot it in the VM lab and run the test suites, fixing what fails. Use only when the user explicitly asks to run the tests ("run the tests", "build and test").
+description: Build Amethystora from the last commit, boot it in the VM lab, run the test suites, and fix what fails until it passes. Use only when the user explicitly asks to run the tests ("run the tests", "build and test", "test it in the VM").
 ---
 
-# Running the tests
+# Running the tests and fixing what fails
 
-A run builds the whole image and boots it, which takes an hour or more: start one only when the user asks.
-The maintainer's choices for it (2026-10-11): a run builds **committed HEAD**; build failures and test
-failures are **fixed, committed and run again**; when a local build cannot run, **GitHub** builds instead.
+A run builds the whole image from the last commit (`just build`), installs it onto a disk, boots it with
+Secure Boot and a TPM in the VM lab (`tests/vm`), and runs the suites in `tests/vm/suites` in it. It takes
+an hour or more, so start one only when the user asks. The maintainer's rules for it (2026-10-11):
 
-## 1. Commit first
+- A run builds **committed HEAD**, never the working tree.
+- What fails is **fixed, committed and run again**, up to three rounds, then reported.
+- When a local build cannot run, a **GitHub** build on a test branch takes its place.
 
-A run tests what is committed. Commit your own finished work before starting, staging your files by name:
-other sessions work in this tree, and their uncommitted files are theirs (`git status` lists them). Never
-commit someone else's change to make a run pass.
+How to read a failure, try a fix without a full rebuild, and tell the lab's problems from the image's:
+[diagnosing.md](diagnosing.md). How the lab works: `tests/vm/README.md`.
+
+## 1. Before the run
+
+1. `git status`: commit your own finished work first, staging your files by name. Other sessions work in
+   this tree; their uncommitted files stay out of the run and out of your commits.
+2. On Windows, Docker Desktop's CLI is not on PATH in the Bash tool:
+   `export PATH="$(cygpath -u "$LOCALAPPDATA")/Programs/DockerDesktop/resources/bin:$PATH"`, and
+   `MSYS_NO_PATHCONV=1` before any `docker exec` that names a path inside the lab.
+3. Nothing else to prepare: `run.sh` starts the lab container (`amevm`) when it is stopped, loads KVM when
+   Docker lost it, and brings the lab's code up to date from the commit. Only a change to
+   `tests/vm/Containerfile` needs `bash tests/vm/setup.sh` first.
 
 ## 2. Run
 
 ```bash
-bash tests/vm/run.sh            # all: build, disk, test (an hour or more)
-bash tests/vm/run.sh test       # the suites again, on the disk the last run made
-bash tests/vm/run.sh test --keep  # and leave the VM ("test") running, for a look over MCP
+bash tests/vm/run.sh >SCRATCHPAD/run.log 2>&1     # build, disk, test
 ```
 
-Run it in the background (`run_in_background: true`) and wait for the notification; it starts the lab
-container when it is stopped. It prints a summary at the end. Everything else is in the lab:
+Start it with `run_in_background: true` and the longest timeout (2 hours); you are told when it ends. Do not
+pipe it into `tail`: that hides its exit status. The run carries on inside the lab even if the command is
+cut off, and writes as it goes:
 
 ```bash
-docker exec amevm cat /vm/runs/last/summary.md
-docker exec amevm ls /vm/runs/last          # run.log, build.log, disk.log, NN-suite.sh.log and .png, journal.log
-docker cp amevm:/vm/runs/last/20-apps.sh.png <scratchpad>/   # then Read it
+docker exec amevm cat /vm/runs/last/run.log       # one line per stage and per suite
+docker exec amevm cat /vm/runs/last/summary.md    # at the end: stages, suites, every "not ok"
 ```
 
-On Windows put Docker Desktop's `resources/bin` on PATH and set `MSYS_NO_PATHCONV=1` for `docker exec`
-commands that name a path inside the lab.
+To follow it, wait in the background for a line, never with a chain of `sleep`s:
 
-## 3. When the build fails
+```bash
+until docker exec amevm grep -q "== build: \(passed\|FAILED\)" /vm/runs/last/run.log; do sleep 30; done
+```
 
-The summary ends with the last 80 lines of `build.log`; search the rest for the first error
-(`docker exec amevm grep -n -E "::error|error:|FAIL|Error" /vm/runs/last/build.log | head`). `20-tests.sh` runs
-inside the build, so a failed check there is a build failure too. Fix the cause, commit (`fix(scope): ...`
-with the `Assisted-by` footer), and run again. The build is one long step, so each attempt is a full build.
-After three attempts at the same error, stop and report.
+`run.sh build`, `run.sh disk` and `run.sh test` run one stage from what the last run left; `test --keep`
+leaves VM `test` running afterwards for the `amethystora-vm` MCP tools. Careful: after a failed build,
+`run.sh test` boots the **previous** disk, not your change.
 
-A failure of the environment rather than the code (out of disk: `docker system df`; out of memory; a
-registry or network that does not answer) goes to GitHub instead (section 6).
+## 3. When something fails
 
-## 4. When a test fails
+Work through [diagnosing.md](diagnosing.md):
 
-Read the suite's log, its screenshot and the guest's `journal.log`. To look closer, `run.sh test --keep`
-and the `amethystora-vm` MCP tools (`vm_exec`, `vm_screenshot`, `vm_serial` on VM `test`). Fix the cause in
-the image, commit, and run again: `run.sh` when the image changed, `run.sh test` when only a suite did. At
-most three rounds, then report what is left.
+1. Find the first real error: the build's failing script and command, or the suite's `not ok` with its
+   indented reasons, its log, its screenshot and the guest's journal.
+2. Decide whether the lab or the image is wrong. A check that is itself wrong is fixed in the suite.
+3. Try the fix on its own (a container of the image, the running VM) before paying for a rebuild.
+4. Fix it at its cause, in the fewest lines. Never weaken, skip or delete a check to get a pass.
+5. Commit it: `fix(scope): what was wrong`, a body saying what the run found, and the footer
+   `Assisted-by: <model> via Claude Code` (no Co-Authored-By line). One commit per cause.
+6. Add the check that would have caught it, if nothing did: `20-tests.sh` for what is true of the image
+   as built, `tests/vm/suites` for what has to happen on a running machine.
+7. Run again: `run.sh` when the image changed, `run.sh test` when only a suite did.
 
-Never weaken, skip or delete a check to make a run pass. A check that is itself wrong is fixed, and the
-commit says why. A failure that needs the user (a design choice, a secret, a decision between two
-behaviours, a bug upstream) is reported with its evidence, not worked around.
+**Code that is not yours.** Committed code from another session is part of HEAD, and fixing it is part of
+the run. But a file with uncommitted changes in `git status` is being edited right now: report the failure
+instead of editing it.
 
-## 5. Report
+**What needs the user.** A design choice, a secret, a decision between two behaviours, a change upstream,
+or anything the fix would take away from a user: stop on it, report it with the evidence, and go on with
+the rest.
 
-The summary table, the commits the run made, how long each stage took, and what is left with why.
-Measurements a suite prints (lines starting with `#`, such as Falco's memory) go in the report too.
+**When to stop.** Three rounds of fix and rerun, or three attempts at the same build error, then report.
+If the build cannot run here at all, go to section 5.
 
-## 6. GitHub instead of a local build
+## 4. Report
 
-Only when the build cannot run here. Never push to `main`.
+- The summary table: each stage with its time, each suite with its counts.
+- The commits the run made, one line each, and what each fixed.
+- Measurements the suites printed (lines starting with `#`, such as Falco's memory).
+- What is left, why, and what it needs from the user.
+- The run's folder in the lab (`/vm/runs/<when>`), for the screenshots and logs.
+
+## 5. GitHub instead of a local build
+
+Only when the build cannot run here (out of disk: `docker system df`; out of memory; a registry that does not
+answer). Never push to `main`; `gh` is logged in as the maintainer, and git pushes over SSH.
 
 ```bash
 sha=$(git rev-parse --short HEAD)
@@ -73,14 +98,16 @@ gh workflow run "Latest Images" --repo iarsslen/amethystora --ref "test/${sha}"
 gh run list --repo iarsslen/amethystora --workflow "Latest Images" --branch "test/${sha}" --limit 1
 gh run watch RUN_ID --repo iarsslen/amethystora --exit-status
 gh run view RUN_ID --repo iarsslen/amethystora --log-failed | tail -n 200
-git push origin --delete "test/${sha}"   # when done
+git push origin --delete "test/${sha}"     # when done
 ```
 
-A branch build publishes nothing (`PUBLISH` in `reusable-build.yml`), so it checks the build and
-`20-tests.sh` only. The VM suites then need a local build, or the image `main` publishes once the user has
-pushed (`run.sh disk` and `test` on it: tag it `localhost/amethystora:latest` in the lab first).
+A branch build publishes nothing (`PUBLISH` in `reusable-build.yml`): it checks the build and `20-tests.sh`
+only. The VM suites then wait for a local build, or for the image `main` publishes after the user pushes
+(tag it `localhost/amethystora:latest` in the lab, then `run.sh disk` and `run.sh test`).
 
-## Adding to the suites
+## Keeping the suites growing
 
-A new feature gets its check in `tests/vm/suites` with it: a new `NN-name.sh` or a line in a suite that
-fits, as `tests/vm/README.md` describes. A bug a run found gets the check that would have caught it.
+A new feature gets its check in `tests/vm/suites` with it, and a bug a run found gets the check that would have
+caught it. A suite is `NN-name.sh`, TAP lines from `lib.sh`'s helpers, ending with `finish`; exit 100 reboots
+and runs it again with `SUITE_PHASE` one higher (`tests/vm/README.md`). A change to the lab or a suite is
+tested by the next run once committed.
