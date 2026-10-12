@@ -479,6 +479,7 @@ json_check "the report's check is good again after a good backup" "${report}" '.
 # A backup that cannot be read: the wrong key for the repository
 as_tester sh -c "printf wrong >\"\$HOME/.config/amethystora/backup-password\""
 reload
+show_browse
 check "with the backup unreadable, the snapshots are still shown and it says why" page '
     if (state.timeline.backup !== "unreachable") throw new Error(state.timeline.backup);
     if (!state.timeline.points.length || !has("The backup could not be read")) throw new Error("not said");'
