@@ -62,6 +62,10 @@ gives the command a terminal of its own (`term.py`), waits for each question and
 has five blank SATA disks besides its own, serials `SPARE-1` to `SPARE-5` (four of 8 GiB, then 10 GiB), new for
 every run.
 
+An app's window is used through its page: started with `--remote-debugging-port=PORT`, it is driven by
+`cdp.mjs`, run with the app's own Electron as Node (`ELECTRON_RUN_AS_NODE=1`), which clicks what a person would
+click and reads the page's state (`70-backups.sh` shows how).
+
 | Suite | What it checks |
 | --- | --- |
 | `00-boot.sh` | every unit started, Secure Boot and lockdown on, a TPM, the image's own module loads, nothing crashed |
@@ -72,6 +76,8 @@ every run.
 | `40-setup.sh` | `ame setup` save, diff and apply against real GNOME settings, Flathub and Homebrew; the setup kept with a backup and read back by `ame restore-setup`; `ame system trust-image`, a switch to an unsigned image refused, `amethystora-image-check` |
 | `50-raid.sh` | pools of disks on the spare disks: parity, two copies encrypted and combined made, restarted, scrubbed (a scrub cut short is resumed), a disk taken away while mounted and one missing at boot, opened degraded, replaced, added to and forgotten; the recovery key, Control's words, no TPM unlock for a pool |
 | `60-vanilla.sh` | `amepkg`: an Alpine container with a launcher exported and taken back, the daily upgrade, Apx files imported, a `.deb` from a file scanned and installed; the watcher's fake `sudo` and stray launcher; the NVIDIA offer on stand-in hardware; "You're on the previous version" and `bootc rollback` |
+| `70-backups.sh` | the home folders made a btrfs subvolume (a restart), the hourly snapshots and a backup to an append-only rest-server; Backups' helper and window on both: points, folders, versions, putting back (labels, reflinks, refusals), Look, the whole folder, Open With, a stale and a failed backup |
+| `75-deja-dup.sh` | Déjà Dup from Flathub: where its schedule is kept, what `flatpak preinstall` uninstalls when its list stops naming an app, and the one notice at the next login |
 
 A new feature gets its check here with it, and a bug a run found gets the check that would have caught it.
 
