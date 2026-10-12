@@ -251,10 +251,15 @@ pick_target() {
 }
 
 # btrfs filesystem show's devices, "devid size kernel-name", with "-" for one that is missing. Run on a
-# mounted filesystem it needs no root: it asks the kernel, which knows which device has which devid.
-show_lines() {
+# mounted filesystem it needs no root to say which device has which devid, which it asks the kernel. Without
+# root it cannot open the devices, and calls every one MISSING with size 0: --unopened takes the device the
+# kernel names all the same (the status, which reads sysfs for what is missing).
+show_lines() {  # [--unopened]
     local devid size path
-    awk '$1 == "devid" { print $2, $4, (($0 ~ /MISSING/ || $NF !~ /^\//) ? "-" : $NF) }' |
+    awk -v unopened="${1:-}" '$1 == "devid" { path = "-"
+        for (i = 5; i < NF; i++) if ($i == "path" && $(i + 1) ~ /^\//) path = $(i + 1)
+        if ($0 ~ /MISSING/ && unopened == "") path = "-"
+        print $2, $4, path }' |
         while read -r devid size path; do
             [[ "${path}" == - ]] || path="$(readlink -f -- "${path}")"
             printf '%s %s %s\n' "${devid}" "${size}" "${path##*/}"
@@ -431,7 +436,7 @@ status_json() {
         size="" used="" show=""
         if [[ -n "${target}" ]]; then
             read -r size used < <(df -B1 --output=size,used "${target}" 2>/dev/null | tail -n 1)
-            show="$(btrfs filesystem show --raw "${target}" 2>/dev/null | show_lines)"
+            show="$(btrfs filesystem show --raw "${target}" 2>/dev/null | show_lines --unopened)"
         fi
         filesystems+=("$(fs_facts "${fs}" | jq -cRn --arg target "${target}" --arg size "${size}" \
             --arg used "${used}" --arg show "${show}" "${FS_JQ}")")
