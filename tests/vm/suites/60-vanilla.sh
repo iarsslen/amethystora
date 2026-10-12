@@ -6,8 +6,9 @@
 #      sudo and a stray launcher beside the launcher it exported, the daily upgrade and the report's check on it,
 #      definitions imported, and a file that matches known malware refused
 #   2. a .deb from a file: scanned, explained, asked about, then installed in a Debian container made for it
-#   3. the NVIDIA check, here and on stand-in hardware; a newer version made the default while this one runs,
-#      as picking the second boot entry leaves a machine, and "Keep this version"; then everything goes
+#   3. the NVIDIA check, here and on stand-in hardware; then everything amethystora-pkg made goes
+#   4. a newer version of the image made the default while this one runs, as picking the second boot entry
+#      leaves a machine, and "Keep this version"
 source "$(dirname "$0")/lib.sh"
 
 HOME_DIR="/var/home/${TEST_USER}"
@@ -284,6 +285,89 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     reboot_and_continue
 fi
 
+# --- Phase 4: "You're on the previous version" (item 3) --------------------------------------------------
+# A newer version of the image, made here from the running one with a label added, imported and deployed as
+# the default without being staged: the running version is then the second of two and older than the first,
+# what picking the second entry at the boot menu leaves. Not staged, since a staged one needs a restart, and
+# the lab's disks lose it at shutdown: bootc install to-disk leaves /boot out of /etc/fstab, so systemd's
+# gpt-auto puts the ESP's automount there and ostree cannot remount /boot to finish it. Signing in again
+# stands for that boot's login.
+if [[ "${SUITE_PHASE}" == 4 ]]; then
+    NEWER=ostree-unverified-image:containers-storage:localhost/vmlab-newer
+    stamp="/run/user/${TUID}/amethystora-previous-version"
+    alert="notify-send.*previous version"
+    deployments() { user_bus /usr/libexec/amethystora-deployments 2>/dev/null; }
+    original="$(rpm-ostree status --json | jq -r '.deployments[] | select(.booted) | .checksum')"
+    made=false
+    if [[ "$(rpm-ostree status --json | jq '.deployments | length')" != 1 ]]; then
+        skip "the previous version: the machine started with more than one deployment, which this would change"
+    else
+        began=${SECONDS}
+        if out="$({ bootc image copy-to-storage &&
+            printf 'FROM localhost/bootc\nLABEL org.amethystora.vmlab=newer\n' | podman build -q -t localhost/vmlab-newer -f - &&
+            unshare -m sh -c 'mount -o remount,rw /sysroot && ostree container image pull /sysroot/ostree/repo "$1"' sh "${NEWER}"; } 2>&1)" &&
+            commit="$(sed -n 's/^Wrote: .* => //p' <<<"${out}")" && [[ -n "${commit}" ]] &&
+            printf '[origin]\ncontainer-image-reference=%s\n' "${NEWER}" >"${STATE}/newer.origin" &&
+            out="$(ostree admin deploy --origin-file="${STATE}/newer.origin" "${commit}" 2>&1)"; then
+            made=true
+            echo "# a newer version of the image, made and deployed: $((SECONDS - began)) s"
+        else
+            not_ok "could not make a newer version to test with" "$(tail -n 15 <<<"${out}")"
+        fi
+    fi
+    if [[ "${made}" == true ]]; then
+        check "amethystora-deployments, read as the account, lists the newer version first, not staged, the running one second" jq -e '
+            .deployments | length == 2 and (.[0].booted | not) and (.[0].staged | not) and .[1].booted
+            and .[0].timestamp > .[1].timestamp' <<<"$(deployments)"
+        rm -f "${stamp}"
+        before="$(loginctl show-user "${TEST_USER}" -p Display --value 2>/dev/null)"
+        systemctl restart gdm
+        relogged() {
+            local now
+            now="$(loginctl show-user "${TEST_USER}" -p Display --value 2>/dev/null)"
+            [[ -n "${now}" && "${now}" != "${before}" ]] && has_session
+        }
+        if ! wait_for 300 relogged; then
+            not_ok "${TEST_USER} got no new session after GDM restarted" "$(loginctl list-sessions --no-legend)"
+        elif wait_for 240 pgrep -u "${TEST_USER}" -f "${alert}" && [[ -e "${stamp}" ]]; then
+            ok "at login, a notification says You're on the previous version"
+        else
+            not_ok "no notification at login" "$(journalctl -b _SYSTEMD_USER_UNIT=amethystora-update-alert.service --no-pager -o cat | tail -n 10)"
+        fi
+        pkill -u "${TEST_USER}" -f "${alert}"
+        skip "the notification opening System Updates, and its Keep this version: a click, then an administrator's password at pkexec"
+        out="$(bootc rollback 2>&1)"
+        if jq -e '.deployments[0].booted' <<<"$(deployments)" >/dev/null; then
+            ok "bootc rollback, what Keep this version runs, makes the running version the default"
+        else
+            not_ok "bootc rollback did not make the running version the default" "${out}"
+        fi
+        if has_session; then
+            rm -f "${stamp}"
+            in_session 'timeout 60 /usr/libexec/amethystora-update-alert' >/dev/null 2>&1
+            if [[ ! -e "${stamp}" ]]; then ok "after it, the alert has nothing to say"; else not_ok "the alert still says so on the default version"; fi
+            pkill -u "${TEST_USER}" -f "${alert}"
+        fi
+        # Back as it was: the running version the default and alone, the newer one's image gone from ostree and
+        # from podman
+        rpm-ostree status --json | jq -e '.deployments[0].booted' >/dev/null || rpm-ostree rollback >/dev/null 2>&1
+        [[ "$(rpm-ostree status --json | jq '.deployments | length')" -gt 1 ]] && rpm-ostree cleanup -r >/dev/null 2>&1
+        unshare -m sh -c 'mount -o remount,rw /sysroot && ostree container image remove --repo /sysroot/ostree/repo "$1" &&
+            ostree prune --repo /sysroot/ostree/repo --refs-only' sh "${NEWER}" >/dev/null 2>&1
+        podman rmi -f localhost/vmlab-newer localhost/bootc >/dev/null 2>&1
+        if jq -e --arg c "${original}" '(.deployments | length) == 1 and .deployments[0].booted and .deployments[0].checksum == $c' \
+            <<<"$(rpm-ostree status --json)" >/dev/null &&
+            ! ostree container image list --repo /sysroot/ostree/repo 2>/dev/null | grep -q vmlab-newer &&
+            ! podman image exists localhost/bootc; then
+            ok "the machine is left on its one deployment, the default, with no image of this suite's"
+        else
+            not_ok "the deployments are not as they were" "$(rpm-ostree status 2>&1 | head -n 30)"
+        fi
+    fi
+    rm -rf "${STATE}"
+    finish
+fi
+
 # --- Phase 3 ---------------------------------------------------------------------------------------------
 
 # The NVIDIA check (item 2). Here: a QEMU display on the main image, so nothing to say and nothing kept.
@@ -374,67 +458,4 @@ else
     not_ok "this suite left images or files in ${TEST_USER}'s home"
 fi
 
-# "You're on the previous version" (item 3). A newer version is made here, with no download: the running tree
-# committed again today and deployed as the default, not staged. The running version is then the second of two
-# and older than the first: what picking the second entry at the boot menu leaves. Signing in again stands for
-# that boot's login, without depending on the boot menu.
-stamp="/run/user/${TUID}/amethystora-previous-version"
-alert="notify-send.*previous version"
-deployments() { user_bus /usr/libexec/amethystora-deployments 2>/dev/null; }
-original="$(rpm-ostree status --json | jq -r '.deployments[] | select(.booted) | .checksum')"
-made=false
-if [[ "$(rpm-ostree status --json | jq '.deployments | length')" != 1 ]]; then
-    skip "the previous version: the machine started with more than one deployment, which this would change"
-elif out="$({ unshare -m sh -c 'mount -o remount,rw /sysroot && ostree commit --repo=/sysroot/ostree/repo --branch=vmlab/newer \
-    --tree=ref="$1" --add-metadata-string=version=vmlab-newer --subject="A newer version, made by the VM lab"' sh "${original}" &&
-    ostree admin deploy vmlab/newer; } 2>&1)"; then
-    made=true
-else
-    not_ok "could not make a newer version to test with" "${out}"
-fi
-if [[ "${made}" == true ]]; then
-    check "amethystora-deployments, read as the account, lists the newer version first, not staged, the running one second" jq -e '
-        .deployments | length == 2 and (.[0].booted | not) and (.[0].staged | not) and .[1].booted
-        and .[0].timestamp > .[1].timestamp' <<<"$(deployments)"
-    rm -f "${stamp}"
-    before="$(loginctl show-user "${TEST_USER}" -p Display --value 2>/dev/null)"
-    systemctl restart gdm
-    relogged() {
-        local now
-        now="$(loginctl show-user "${TEST_USER}" -p Display --value 2>/dev/null)"
-        [[ -n "${now}" && "${now}" != "${before}" ]] && has_session
-    }
-    if ! wait_for 300 relogged; then
-        not_ok "${TEST_USER} got no new session after GDM restarted" "$(loginctl list-sessions --no-legend)"
-    elif wait_for 240 pgrep -u "${TEST_USER}" -f "${alert}" && [[ -e "${stamp}" ]]; then
-        ok "at login, a notification says You're on the previous version"
-    else
-        not_ok "no notification at login" "$(journalctl -b _SYSTEMD_USER_UNIT=amethystora-update-alert.service --no-pager -o cat | tail -n 10)"
-    fi
-    pkill -u "${TEST_USER}" -f "${alert}"
-    skip "the notification opening System Updates, and its Keep this version: a click, then an administrator's password at pkexec"
-    out="$(bootc rollback 2>&1)"
-    if jq -e '.deployments[0].booted' <<<"$(deployments)" >/dev/null; then
-        ok "bootc rollback, what Keep this version runs, makes the running version the default"
-    else
-        not_ok "bootc rollback did not make the running version the default" "${out}"
-    fi
-    if has_session; then
-        rm -f "${stamp}"
-        in_session 'timeout 60 /usr/libexec/amethystora-update-alert' >/dev/null 2>&1
-        if [[ ! -e "${stamp}" ]]; then ok "after it, the alert has nothing to say"; else not_ok "the alert still says so on the default version"; fi
-        pkill -u "${TEST_USER}" -f "${alert}"
-    fi
-    # Back as it was: the ref gone, the running version the default, the other deployment removed
-    unshare -m sh -c 'mount -o remount,rw /sysroot && ostree refs --repo=/sysroot/ostree/repo --delete vmlab/newer' >/dev/null 2>&1
-    rpm-ostree status --json | jq -e '.deployments[0].booted' >/dev/null || rpm-ostree rollback >/dev/null 2>&1
-    [[ "$(rpm-ostree status --json | jq '.deployments | length')" -gt 1 ]] && rpm-ostree cleanup -r >/dev/null 2>&1
-    if jq -e --arg c "${original}" '(.deployments | length) == 1 and .deployments[0].booted and .deployments[0].checksum == $c' \
-        <<<"$(rpm-ostree status --json)" >/dev/null && ! ostree refs --repo=/sysroot/ostree/repo | grep -q '^vmlab/'; then
-        ok "the machine is left on its one deployment, the default"
-    else
-        not_ok "the deployments are not as they were" "$(rpm-ostree status 2>&1 | head -n 30)"
-    fi
-fi
-rm -rf "${STATE}"
-finish
+reboot_and_continue
