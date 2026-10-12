@@ -1264,13 +1264,13 @@ report optional browser-protection "$(/usr/libexec/amethystora-browser-policy st
 # Site checking: Osprey allowed in browsers (OSPREY), and which of this account's own browsers have it, read
 # from their profiles: Firefox's list of extensions, the others' folder for its ID
 OSPREY_IN=()
-for profile in "${HOME}"/.mozilla/firefox/*/ "${HOME}"/.var/app/org.mozilla.firefox/.mozilla/firefox/*/; do
+for profile in "${HOME:-/nonexistent}"/.mozilla/firefox/*/ "${HOME:-/nonexistent}"/.var/app/org.mozilla.firefox/.mozilla/firefox/*/; do
     grep -qs '"osprey@foulest.net"' "${profile}extensions.json" && { OSPREY_IN+=(Firefox); break; }
 done
 for pair in "google-chrome:Chrome:jmnpibhfpmpfjhhkmpadlbgjnbhpjgnd" "chromium:Chromium:jmnpibhfpmpfjhhkmpadlbgjnbhpjgnd" \
     "BraveSoftware/Brave-Browser:Brave:jmnpibhfpmpfjhhkmpadlbgjnbhpjgnd" "microsoft-edge:Edge:nopglhplnghfhpniofkcopmhbjdonlgn"; do
     IFS=: read -r folder browser id <<<"${pair}"
-    compgen -G "${HOME}/.config/${folder}/*/Extensions/${id}" >/dev/null && OSPREY_IN+=("${browser}")
+    compgen -G "${HOME:-/nonexistent}/.config/${folder}/*/Extensions/${id}" >/dev/null && OSPREY_IN+=("${browser}")
 done
 COMMAND="ame security browser osprey"
 if /usr/libexec/amethystora-security-config --is OSPREY on; then

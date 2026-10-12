@@ -1215,6 +1215,9 @@ grep -qx "    @/usr/libexec/amethystora-security-status" /usr/share/amethystora/
 /usr/libexec/amethystora-security-status >/dev/null
 /usr/libexec/amethystora-security-status --json |
     jq -e '.checks | length > 0 and all(.group and .id and .state and .title and .text)' >/dev/null
+# And as the security watcher runs it, a service with no HOME: the report stopped there, and the watcher, which
+# then has no report, told nobody of anything
+env -u HOME /usr/libexec/amethystora-security-status --json | jq -e '.checks | length > 0' >/dev/null
 grep -q "secure-boot-notified" /usr/libexec/amethystora-security-alert
 # The recipe that enrolls the signing keys and the report that says whether they are enrolled ask the one
 # helper. They used to check on their own and disagreed, because one of them counted a certificate it
