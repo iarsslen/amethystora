@@ -251,13 +251,15 @@ async function backupNow() {
     }
     const before = await unitState();
     const already = before.ActiveState === 'activating' || before.ActiveState === 'active';
+    // Followed from the moment before it starts: its first line comes before journalctl could be following
+    const since = `--since=@${Math.floor(Date.now() / 1000)}`;
     if (!already) {
         const started = await run('systemctl', ['--user', 'start', '--no-block', UNIT], 15000);
         if (started.code !== 0) {
             return { error: 'failed', detail: started.stderr.trim() };
         }
     }
-    const journal = spawn('journalctl', ['--user', `--user-unit=${UNIT}`, '--follow', '--lines=0', '--output=cat', '--quiet']);
+    const journal = spawn('journalctl', ['--user', `--user-unit=${UNIT}`, '--follow', since, '--output=cat', '--quiet']);
     journal.on('error', () => {});
     readline.createInterface({ input: journal.stdout }).on('line', (line) => {
         if (line.trim()) {
