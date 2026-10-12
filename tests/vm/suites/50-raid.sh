@@ -18,7 +18,7 @@ STATE=/var/lib/amethystora/raid
 TESTS=/var/lib/vmlab-tests
 ENV_FILE="${TESTS}/50-raid.env"
 SUDOERS=/etc/sudoers.d/zz-vmlab
-OPTIONS=compress=zstd:1,nofail,x-systemd.device-timeout=30s,x-gvfs-show,x-amethystora-raid
+OPTIONS=compress=zstd:1,nofail,x-systemd.device-bound=no,x-systemd.device-timeout=30s,x-gvfs-show,x-amethystora-raid
 CRYPT_OPTIONS=luks,discard,nofail,x-systemd.device-timeout=30s
 # systemd's recovery-key form: modhex, eight groups of eight
 RECOVERY='[cbdefghijklnrtuv]{8}(-[cbdefghijklnrtuv]{8}){7}'

@@ -914,12 +914,14 @@ cmd_create() {
     [[ -n "${uuid}" ]] || failed "The new filesystem could not be found."
 
     # Into /etc/crypttab and /etc/fstab, each with nofail, which crypttab(5) says both need for a missing
-    # disk not to hold up the boot. compress=zstd:1 is the installer's own; x-gvfs-show puts the pool in
-    # the Files sidebar; x-amethystora-raid tells the status a pool is expected, which systemd ignores.
+    # disk not to hold up the boot. compress=zstd:1 is the installer's own; x-systemd.device-bound=no keeps
+    # systemd from unmounting the pool when the one disk it was mounted from goes, where the kernel goes on
+    # with the others; x-gvfs-show puts the pool in the Files sidebar; x-amethystora-raid tells the status a
+    # pool is expected, which systemd ignores.
     for line in "${luks[@]}"; do
         append_line "${CRYPTTAB}" "${line}" 0600
     done
-    append_line "${FSTAB}" "UUID=${uuid} ${MNT}/${name} btrfs compress=zstd:1,nofail,x-systemd.device-timeout=30s,x-gvfs-show,x-amethystora-raid 0 0" 0644
+    append_line "${FSTAB}" "UUID=${uuid} ${MNT}/${name} btrfs compress=zstd:1,nofail,x-systemd.device-bound=no,x-systemd.device-timeout=30s,x-gvfs-show,x-amethystora-raid 0 0" 0644
 
     as_root install -d -m 0755 "${MNT}/${name}"
     as_root systemctl daemon-reload

@@ -132,7 +132,7 @@ ${HAND} /mnt/hand rw,relatime
 EOF
 
 mkdir -p "${AMETHYSTORA_RAID_ROOT}/etc"
-OPTIONS=compress=zstd:1,nofail,x-systemd.device-timeout=30s,x-gvfs-show,x-amethystora-raid
+OPTIONS=compress=zstd:1,nofail,x-systemd.device-bound=no,x-systemd.device-timeout=30s,x-gvfs-show,x-amethystora-raid
 cat >"${AMETHYSTORA_RAID_ROOT}/etc/fstab" <<EOF
 UUID=${ROOT} / btrfs subvol=root,compress=zstd:1 0 0
 UUID=${DATA} /var/mnt/data btrfs ${OPTIONS} 0 0
