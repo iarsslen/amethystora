@@ -33,9 +33,11 @@ preinstall() { flatpak preinstall -y </dev/null; }
 dejadup_gsettings() { in_session "flatpak run --command=gsettings ${APP} $*"; }
 # The next login's per-account setup, every hook in user-setup.hooks.d
 login_setup() { user_systemctl start --wait amethystora-user-setup.service; }
-# The notifications sent with Déjà Dup's icon, each a Notify call in what dbus-monitor saw
+# The notifications sent with Déjà Dup's icon: each a Notify call to org.freedesktop.Notifications in what
+# dbus-monitor saw, not the copy GNOME's notification service passes on to the Shell
 notices() {
-    awk '/^method call/ { n += hit; hit = 0 } /string "deja-dup"/ { hit = 1 } END { print n + hit }' "${NOTIFY_LOG}" 2>/dev/null
+    awk '/^method call/ { n += hit; hit = 0; sent = /destination=org\.freedesktop\.Notifications / }
+        sent && /string "deja-dup"/ { hit = 1 } END { print n + hit }' "${NOTIFY_LOG}" 2>/dev/null
 }
 
 cleanup() {
@@ -115,5 +117,9 @@ else
 fi
 login_setup
 sleep 75
-if [[ "$(notices)" == 1 ]]; then ok "the next login says nothing again"; else not_ok "told $(notices) times"; fi
+if [[ "$(notices)" == 1 ]]; then
+    ok "the next login says nothing again"
+else
+    not_ok "told $(notices) times" "$(grep '^method call' "${NOTIFY_LOG}")"
+fi
 finish
