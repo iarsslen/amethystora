@@ -31,29 +31,12 @@ if ! wait_for 300 has_session; then
     finish
 fi
 
-subvolume() { [[ "$(stat -f -c %T /var/home)" == btrfs && "$(stat -c %i /var/home)" == 256 ]]; }
-
-if [[ "${SUITE_PHASE}" == 1 ]] && ! subvolume; then
-    # The subvolume "home" at the top of the system's btrfs, mounted on /var/home as Anaconda writes it, with
-    # what is there now copied in while nobody is signed in
-    device="$(findmnt -no SOURCE -T /var/home | sed 's/\[.*//')"
-    uuid="$(blkid -s UUID -o value "${device}")"
-    systemctl stop gdm
-    loginctl terminate-user "${TEST_USER}" 2>/dev/null
-    wait_for 60 sh -c "! pgrep -u ${TEST_USER} >/dev/null"
-    mkdir -p /run/vmlab-top
-    mount -o subvolid=5 "${device}" /run/vmlab-top
-    [[ -d /run/vmlab-top/home ]] || btrfs subvolume create /run/vmlab-top/home >/dev/null
-    chown --reference=/var/home /run/vmlab-top/home
-    chmod --reference=/var/home /run/vmlab-top/home
-    chcon --reference=/var/home /run/vmlab-top/home
-    cp -a --reflink=auto /var/home/. /run/vmlab-top/home/
-    umount /run/vmlab-top
-    grep -qs ' /var/home btrfs ' /etc/fstab || echo "UUID=${uuid} /var/home btrfs subvol=home,compress=zstd:1 0 0" >>/etc/fstab
+if [[ "${SUITE_PHASE}" == 1 ]] && ! home_subvolume; then
+    make_home_subvolume
     reboot_and_continue
 fi
 
-if subvolume; then
+if home_subvolume; then
     ok "the home folders are a btrfs subvolume of their own"
 else
     not_ok "/var/home is not a btrfs subvolume after the restart" "$(findmnt /var/home)" "$(grep home /etc/fstab)"

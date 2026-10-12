@@ -57,6 +57,30 @@ in_terminal() { python3 "$(dirname "${BASH_SOURCE[0]}")/term.py" "$@"; }
 in_session() { user_bus systemd-run --user --pipe --wait --quiet --collect -- /usr/bin/bash -lc "$*"; }
 has_session() { [[ "$(loginctl show-user "${TEST_USER}" -p State --value 2>/dev/null)" == active ]]; }
 
+# Whether the home folders are a btrfs subvolume of their own, as the installer makes them and the hourly
+# snapshots need: the root of a subvolume is always inode 256
+home_subvolume() { [[ "$(stat -f -c %T /var/home)" == btrfs && "$(stat -c %i /var/home)" == 256 ]]; }
+# What `bootc install to-disk` leaves out: the subvolume "home" at the top of the system's btrfs, mounted on
+# /var/home as Anaconda writes it, with what is there now copied in while nobody is signed in. It takes
+# effect at the next boot (reboot_and_continue).
+make_home_subvolume() {
+    local device uuid
+    device="$(findmnt -no SOURCE -T /var/home | sed 's/\[.*//')"
+    uuid="$(blkid -s UUID -o value "${device}")"
+    systemctl stop gdm
+    loginctl terminate-user "${TEST_USER}" 2>/dev/null
+    wait_for 60 sh -c "! pgrep -u ${TEST_USER} >/dev/null"
+    mkdir -p /run/vmlab-top
+    mount -o subvolid=5 "${device}" /run/vmlab-top
+    [[ -d /run/vmlab-top/home ]] || btrfs subvolume create /run/vmlab-top/home >/dev/null
+    chown --reference=/var/home /run/vmlab-top/home
+    chmod --reference=/var/home /run/vmlab-top/home
+    chcon --reference=/var/home /run/vmlab-top/home
+    cp -a --reflink=auto /var/home/. /run/vmlab-top/home/
+    umount /run/vmlab-top
+    grep -qs ' /var/home btrfs ' /etc/fstab || echo "UUID=${uuid} /var/home btrfs subvol=home,compress=zstd:1 0 0" >>/etc/fstab
+}
+
 # The core dumps since a time `date '+%F %T'` gave, of what MATCHES says (COREDUMP_UID=1000), after giving
 # systemd-coredump a moment to file them
 crashes_since() {

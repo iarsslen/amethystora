@@ -60,7 +60,9 @@ starting with `#` is a measurement, which the report repeats.
 What asks a person something (gum, a typed `ERASE`, a check for a terminal) runs through `in_terminal`, which
 gives the command a terminal of its own (`term.py`), waits for each question and types its answer. The test VM
 has five blank SATA disks besides its own, serials `SPARE-1` to `SPARE-5` (four of 8 GiB, then 10 GiB), new for
-every run.
+every run. Its home folders are not a btrfs subvolume of their own, as the installer would make them: a suite
+that needs one (the hourly snapshots do) calls `make_home_subvolume` unless `home_subvolume` says it is one
+already, then restarts.
 
 An app's window is used through its page: started with `--remote-debugging-port=PORT`, it is driven by
 `cdp.mjs`, run with the app's own Electron as Node (`ELECTRON_RUN_AS_NODE=1`), which clicks what a person would
