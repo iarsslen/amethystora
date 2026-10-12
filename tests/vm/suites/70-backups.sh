@@ -135,7 +135,7 @@ cleanup() {
     chmod -R u+w "${HOME_DIR}/.cache/amethystora-restore" 2>/dev/null
     rm -rf "${HOME_DIR}/.cache/amethystora-restore"
     podman rm -f vmlab-rest >/dev/null 2>&1
-    rm -rf "${KEEP}"
+    rm -rf "${KEEP}" /run/vmlab-backups
 }
 trap cleanup EXIT
 since="$(date '+%F %T')"
@@ -301,14 +301,16 @@ fi
 
 # --- The helper: putting back ----------------------------------------------------------------------------
 
-# A file Look hands to the desktop is recorded by an app made the default for text
-cat >"${KEEP}/opener" <<EOF
+# A file Look hands to the desktop is recorded by an app made the default for text, which the account can
+# run: not under /var/lib/vmlab-tests, which 50-raid.sh keeps to root
+install -d -m 0755 /run/vmlab-backups
+cat >/run/vmlab-backups/opener <<EOF
 #!/bin/sh
 printf '%s\n' "\$1" >>${OPENED}
 EOF
-chmod 0755 "${KEEP}/opener"
+chmod 0755 /run/vmlab-backups/opener
 in_home "mkdir -p .local/share/applications && printf '%s\n' '[Desktop Entry]' 'Type=Application' 'Name=vmlab opener' \
-    'Exec=${KEEP}/opener %f' 'MimeType=text/plain;' 'NoDisplay=true' >.local/share/applications/vmlab-opener.desktop &&
+    'Exec=/run/vmlab-backups/opener %f' 'MimeType=text/plain;' 'NoDisplay=true' >.local/share/applications/vmlab-opener.desktop &&
     xdg-mime default vmlab-opener.desktop text/plain"
 
 when() { date -d "@$(jq -r --arg id "$1" '.points[] | select(.id == $id) | .time' <<<"${points}")" '+%Y-%m-%d %H.%M'; }
