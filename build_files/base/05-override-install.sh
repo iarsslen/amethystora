@@ -83,7 +83,7 @@ if [[ "${FPRINTD_FEDORA%% *}" != "${FPRINTD_OURS%% *}" || ${FPRINTD_FEDORA_RELEA
     echo "::error::Fedora's fprintd is ${FPRINTD_FEDORA}, past packaging/fprintd's ${FPRINTD_OURS}: take Fedora's change there"
     exit 1
 fi
-dnf5 -y install /fprintd/fprintd-[0-9]*.rpm /fprintd/fprintd-pam-[0-9]*.rpm
+dnf5 -y install /fprintd/fprintd-[0-9]*."$(uname -m)".rpm /fprintd/fprintd-pam-[0-9]*."$(uname -m)".rpm
 [[ "$(rpm -q --queryformat '%{RELEASE}\n' fprintd fprintd-pam | grep -c '\.amethystora\.')" == 2 ]]
 install -D -m 0644 -t /usr/src/amethystora /fprintd/fprintd-*.src.rpm
 
