@@ -25,9 +25,17 @@ PORT=9333
 ELECTRON=/usr/lib/amethystora-backups/amethystora-backups
 OPENED=/tmp/vmlab-opened
 
-# After a restart, the session comes back by itself (GDM signs the account in)
+# After a restart, the session comes back by itself (GDM signs the account in). Without one after this suite's
+# own restart, the home subvolume is what kept it away.
 if ! wait_for 300 has_session; then
-    skip "no session for ${TEST_USER} (10-account.sh)"
+    if [[ "${SUITE_PHASE}" == 1 ]]; then
+        skip "no session for ${TEST_USER} (10-account.sh)"
+    else
+        not_ok "no session for ${TEST_USER} after the restart onto the home subvolume" \
+            "system: $(systemctl is-system-running 2>&1)" "$(systemctl list-jobs --no-pager 2>&1 | head -n 8)" \
+            "$(findmnt /var/home 2>&1)" "$(grep -v '^#' /etc/fstab 2>&1)" \
+            "$(journalctl -b -p warning -u gdm -u var-home.mount --no-pager -o cat 2>&1 | tail -n 10)"
+    fi
     finish
 fi
 
