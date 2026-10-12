@@ -17,6 +17,9 @@ check "the kernel is locked down" grep -qE '\[(integrity|confidentiality)\]' /sy
 check "a TPM 2.0 is there" test -c /dev/tpmrm0
 check "the booted deployment is the image under test" sh -c 'rpm-ostree status --booted --json | jq -e ".deployments[0].\"container-image-reference\" | test(\"amethystora\")"'
 check "the image's own kernel module loads under Secure Boot (v4l2loopback)" modprobe v4l2loopback
+# The audit rules are written at boot by a unit whose sandbox, when systemd cannot set it up, skips it quietly
+check "the audit rules were written at boot" systemctl is-active --quiet amethystora-audit-rules.service
+check "the image's audit rules are loaded" sh -c 'auditctl -l | grep -q -- "-k identity\$"'
 dumps="$(coredumpctl list --no-legend --no-pager 2>/dev/null)"
 if [[ -z "${dumps}" ]]; then ok "nothing crashed"; else not_ok "something crashed" "${dumps}"; fi
 finish

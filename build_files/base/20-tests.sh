@@ -1726,7 +1726,7 @@ grep -q "^Before=.*sysinit.target" /usr/lib/systemd/system/auditd.service
 # link took out of a home, from the generator's own list.
 bash /ctx/build_files/shared/test-audit-home-rules.sh
 grep -q "^ProtectSystem=strict$" /usr/lib/systemd/system/amethystora-audit-rules.service
-grep -q "^ReadWritePaths=/etc/audit -/var/home$" /usr/lib/systemd/system/amethystora-audit-rules.service
+grep -q "^ReadWritePaths=/etc -/var/home$" /usr/lib/systemd/system/amethystora-audit-rules.service
 grep -qF "amethystora-audit-home-rules --paths" /usr/libexec/amethystora-security-watch
 # The rootkit check counts a file of the system's owned by a login account, so the image ships none
 find /etc /var/usrlocal -xdev -uid +999 ! -uid 65534 2>/dev/null | grep . && false

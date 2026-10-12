@@ -28,11 +28,13 @@ ExecStart=/usr/libexec/amethystora-audit-home-rules
 # auditd and the rules' load wait on this, so it may not sit there: a handful of lines per account takes
 # moments
 TimeoutStartSec=30
-# It runs as root in every home, so whatever an account puts there, it can write nowhere but the audit
-# rules and the homes themselves. systemd-resolved runs this early with the same sandbox. augenrules, for
-# a run by hand, makes its temporary file in /tmp; /var/home is missing only on a machine with no homes.
+# It runs as root in every home, so whatever an account puts there, it can write nowhere but /etc and the
+# homes themselves. /etc, not /etc/audit: SELinux lets systemd mount over /etc but not over auditd_etc_t,
+# and a sandbox systemd cannot set up skipped this unit at every boot. systemd-resolved runs this early with
+# the same sandbox. augenrules, for a run by hand, makes its temporary file in /tmp; /var/home is missing
+# only on a machine with no homes.
 ProtectSystem=strict
-ReadWritePaths=/etc/audit -/var/home
+ReadWritePaths=/etc -/var/home
 PrivateTmp=disconnected
 NoNewPrivileges=yes
 
