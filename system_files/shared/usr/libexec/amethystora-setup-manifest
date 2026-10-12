@@ -49,10 +49,20 @@ KEY_SCHEMAS=(org.gnome.desktop.wm.keybindings org.gnome.shell.keybindings org.gn
     org.gnome.shell.extensions.paperwm.keybindings)
 CUSTOM=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings
 
+# PaperWM, while it is on, empties GNOME's bindings that collide with its own, and keeps what they were in
+# restore-keybinds (JSON, in a string) to hand back when it is turned off: those are the account's, not the
+# empty ones. As "schema key value" lines, the value as gsettings prints a list.
+PAPERWM_KEPT="$(gsettings get org.gnome.shell.extensions.paperwm restore-keybinds 2>/dev/null |
+    sed -E -e "s/^'(.*)'\$/\\1/" -e 's/\\(.)/\1/g' | jq -r 'to_entries[] | (.value.bind | fromjson) as $keys
+        | "\(.value.schema_id) \(.key) " + if $keys == [] then "@as []"
+            else "[" + ($keys | map(@sh) | join(", ")) + "]" end' 2>/dev/null)"
+
 # The lines "schema key value" of a schema whose value is not the image's
 changed() {
     comm -13 <(GSETTINGS_BACKEND=memory gsettings list-recursively "$1" 2>/dev/null | sort) \
-        <(gsettings list-recursively "$1" 2>/dev/null | sort) | awk -v schema="$1" '$1 == schema'
+        <(gsettings list-recursively "$1" 2>/dev/null | awk 'NR == FNR { key = $1 " " $2; $1 = $2 = "";
+            kept[key] = substr($0, 3); next } ($1 " " $2) in kept { print $1, $2, kept[$1 " " $2]; next } 1' \
+            <(printf '%s\n' "${PAPERWM_KEPT}") - | sort) | awk -v schema="$1" '$1 == schema'
 }
 
 # A value as GSettings prints it, as JSON: the ones kept are lists of strings, strings and numbers
