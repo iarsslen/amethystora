@@ -58,12 +58,15 @@ expect "the program run from Downloads" '.key == "exec-watch" and (.text | conta
 if wait_for 120 systemctl is-active --quiet amethystora-behaviour.service; then
     ok "Falco runs"
     sleep 60
+fi
+# Still running a minute later, or there is no memory to measure
+if ! systemctl is-active --quiet amethystora-behaviour.service; then
+    not_ok "Falco is not running" "$(journalctl -b -u amethystora-behaviour.service --no-pager -o cat | tail -n 15)"
+else
     peak="$(systemctl show amethystora-behaviour.service -p MemoryPeak --value)"
     now="$(systemctl show amethystora-behaviour.service -p MemoryCurrent --value)"
     high="$(($(systemctl show amethystora-behaviour.service -p MemoryHigh --value) / 1048576))"
     echo "# Falco memory: $((now / 1048576)) MiB now, $((peak / 1048576)) MiB at most"
     ((peak < high * 1048576)) && ok "Falco stays under ${high} MiB" || not_ok "Falco reached $((peak / 1048576)) MiB, over its ${high} MiB"
-else
-    not_ok "Falco is not running" "$(journalctl -b -u amethystora-behaviour.service --no-pager -o cat | tail -n 15)"
 fi
 finish
