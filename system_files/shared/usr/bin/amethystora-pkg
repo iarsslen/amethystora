@@ -1426,12 +1426,14 @@ cmd_definitions() {
 
 # ClamAV first: clamd when its socket lets this account in, clamscan, which loads the signatures
 # itself, when it does not. 0 clean, 1 found (the signature is printed), 2 could not tell, 3 the owner
-# turned the virus scanner off (VIRUS_SCAN=off in /etc/amethystora/security.conf).
+# turned the virus scanner off (VIRUS_SCAN=off in /etc/amethystora/security.conf). The file goes to clamd on
+# standard input: clamdscan answers OK, without asking clamd, for a path clamd's ExcludePath names, and the
+# copy being installed is in the account's cache, which the whole-machine scans leave out.
 scan_file() {
     local output status
     /usr/libexec/amethystora-security-config --is VIRUS_SCAN off 2>/dev/null && return 3
     if command -v clamdscan >/dev/null 2>&1; then
-        output="$(clamdscan --fdpass --no-summary -- "$1" 2>&1)"
+        output="$(clamdscan --no-summary - <"$1" 2>&1)"
         status=$?
         [[ ${status} -le 1 ]] && { sed -n 's/^.*: \(.*\) FOUND$/\1/p' <<<"${output}"; return "${status}"; }
     fi
