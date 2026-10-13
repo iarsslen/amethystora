@@ -100,9 +100,12 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     plain_before="$(plain_status)"
 
     # What a session finds first: a sudo in ~/.local/bin, and a launcher no container export made, beside the
-    # one distrobox-export made. The watcher's first run only records what is there.
+    # one distrobox-export made. The watcher's first run only records what is there. A finding carries its run's
+    # start, so no run may be under way when the time is taken: one its timer started earlier would find them
+    # dated before it.
     watcher_idle() { [[ "$(systemctl show -p ActiveState --value amethystora-security-watch.service)" != activating ]]; }
     [[ -e /var/lib/amethystora/security/user-paths-seen ]] || systemctl start amethystora-security-watch.service
+    wait_for 600 watcher_idle
     since="$(date +%s)"
     printf '#!/bin/sh\n# vmlab-%s\nexec /usr/bin/sudo "$@"\n' "${since}" | put .local/bin/sudo 0755
     printf '[Desktop Entry]\nType=Application\nName=VM lab stray\nExec=/usr/bin/true vmlab-%s\nNoDisplay=true\n' "${since}" |
@@ -319,17 +322,14 @@ if [[ "${SUITE_PHASE}" == 4 ]]; then
         check "amethystora-deployments, read as the account, lists the newer version first, not staged, the running one second" jq -e '
             .deployments | length == 2 and (.[0].booted | not) and (.[0].staged | not) and .[1].booted
             and .[0].timestamp > .[1].timestamp' <<<"$(deployments)"
+        # A login starts the alert's unit, which graphical-session.target wants for every account: started here as
+        # that target starts it. Restarting GDM for a new login, as this did first, is not something a slow VM's
+        # automatic login always survives.
+        check "the alert starts with every account's graphical session" \
+            systemctl --global is-enabled --quiet amethystora-update-alert.service
         rm -f "${stamp}"
-        before="$(loginctl show-user "${TEST_USER}" -p Display --value 2>/dev/null)"
-        systemctl restart gdm
-        relogged() {
-            local now
-            now="$(loginctl show-user "${TEST_USER}" -p Display --value 2>/dev/null)"
-            [[ -n "${now}" && "${now}" != "${before}" ]] && has_session
-        }
-        if ! wait_for 300 relogged; then
-            not_ok "${TEST_USER} got no new session after GDM restarted" "$(loginctl list-sessions --no-legend)"
-        elif wait_for 240 pgrep -u "${TEST_USER}" -f "${alert}" && [[ -e "${stamp}" ]]; then
+        user_systemctl restart amethystora-update-alert.service
+        if wait_for 240 pgrep -u "${TEST_USER}" -f "${alert}" && [[ -e "${stamp}" ]]; then
             ok "at login, a notification says You're on the previous version"
         else
             not_ok "no notification at login" "$(journalctl -b _SYSTEMD_USER_UNIT=amethystora-update-alert.service --no-pager -o cat | tail -n 10)"

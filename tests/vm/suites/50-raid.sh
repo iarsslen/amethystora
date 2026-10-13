@@ -384,9 +384,10 @@ case "${SUITE_PHASE}" in
 
     grep -q ' /var/mnt/data ' /etc/fstab || abandon "data is not there"
     check "data is mounted" findmnt -rn --mountpoint /var/mnt/data
-    # More than the first gigabyte of chunks mkfs gave it, as a pool in use has: what is then written with a
-    # disk missing stays the smaller part (see the notes)
-    check "${TEST_USER} writes 3 GiB to data" as_user 'head -c 3G /dev/urandom >/var/mnt/data/blob && sync'
+    # More than the first gigabyte of chunks mkfs gave it, as a pool in use has, and with what is written with a
+    # disk missing still leaving the disk that is left room: btrfs replace needs some to set block groups
+    # read-only, and 3 GiB then 1.2 GiB on these 8 GiB disks once ran it out (ENOSPC)
+    check "${TEST_USER} writes 2 GiB to data" as_user 'head -c 2G /dev/urandom >/var/mnt/data/blob && sync'
     remember BLOB_SUM "$(sha256sum /var/mnt/data/blob | cut -d ' ' -f 1)"
     run_check
     holds "disks.json names both disks of data" "$(cat "${STATE}/disks.json" 2>&1)" \
@@ -436,7 +437,7 @@ case "${SUITE_PHASE}" in
     check "it is mounted degraded" sh -c 'findmnt -rno OPTIONS --mountpoint /var/mnt/data | grep -qw degraded'
     check "degraded is not written into /etc/fstab" has_line /etc/fstab "UUID=${DATA_UUID} /var/mnt/data btrfs ${OPTIONS} 0 0"
     check "the file written at the start is there" sh -c '[ "$(cat /var/mnt/data/marker)" = data ]'
-    check "writing works: ${TEST_USER} writes 1.2 GiB" as_user 'head -c 1200M /dev/urandom >/var/mnt/data/degraded && sync'
+    check "writing works: ${TEST_USER} writes 512 MiB" as_user 'head -c 512M /dev/urandom >/var/mnt/data/degraded && sync'
     degraded_sum="$(sha256sum /var/mnt/data/degraded | cut -d ' ' -f 1)"
     holds "the status: a disk missing, still two copies, part of it written with one" "$(pool_json data)" \
         '.mounted and .missing == 1 and .layout == "raid1" and .degraded
