@@ -33,11 +33,12 @@ preinstall() { flatpak preinstall -y </dev/null; }
 dejadup_gsettings() { in_session "flatpak run --command=gsettings ${APP} $*"; }
 # The next login's per-account setup, every hook in user-setup.hooks.d
 login_setup() { user_systemctl start --wait amethystora-user-setup.service; }
-# The notifications sent with Déjà Dup's icon: each a Notify call to org.freedesktop.Notifications in what
-# dbus-monitor saw, not the copy GNOME's notification service passes on to the Shell
+# The notifications with Déjà Dup's icon that reached the Shell. GNOME's notification service owns
+# org.freedesktop.Notifications and passes each Notify call on to the Shell with x-shell-sender added, so
+# dbus-monitor sees every notification twice, both times addressed by unique name: the second one counts.
 notices() {
-    awk '/^method call/ { n += hit; hit = 0; sent = /destination=org\.freedesktop\.Notifications / }
-        sent && /string "deja-dup"/ { hit = 1 } END { print n + hit }' "${NOTIFY_LOG}" 2>/dev/null
+    awk '/^method call/ { n += icon && shell; icon = shell = 0 } /string "deja-dup"/ { icon = 1 }
+        /string "x-shell-sender"/ { shell = 1 } END { print n + (icon && shell) }' "${NOTIFY_LOG}" 2>/dev/null
 }
 
 cleanup() {

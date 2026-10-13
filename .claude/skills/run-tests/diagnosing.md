@@ -76,7 +76,7 @@ Problems the lab has already met, with their fixes:
 | `no /dev/kvm` | Docker Desktop forgot the KVM module when it restarted | `run.sh` and `setup.sh` load it again |
 | a file copied into the lab misbehaves | the Windows checkout has CRLF line endings | `run.sh` sends a git bundle, which holds LF; strip `\r` from anything copied by hand |
 | the test account cannot run or read a suite's file | `50-raid.sh` makes `/var/lib/vmlab-tests` root's alone (0700) | keep what the account uses in `/run/<suite>` or in its home |
-| `dbus-monitor` shows every notification twice | GNOME's notification service passes each `Notify` call on to the Shell | count the calls with `destination=org.freedesktop.Notifications` |
+| `dbus-monitor` shows every notification twice | GNOME's notification service owns `org.freedesktop.Notifications` and passes each `Notify` call on to the Shell; both show only unique names | count the calls that carry the `x-shell-sender` hint the service adds |
 
 Add a row whenever a run teaches the lab something new.
 
