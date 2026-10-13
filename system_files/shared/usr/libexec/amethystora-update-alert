@@ -7,20 +7,22 @@
 # the next restart is not this: rpm-ostree marks that one staged. amethystora-deployments gives the same
 # list on a sealed image, which has no rpm-ostree.
 #
-# Said once a boot: the mark is kept in the runtime directory, which a restart empties.
+# Said once a boot: the mark is the boot's id, kept in the account's state, which a logout leaves alone
+# (the runtime directory went with the last session, and the notice came again at every login).
 
 set -uo pipefail
 
 command -v notify-send >/dev/null || exit 0
 
-STAMP="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/amethystora-previous-version"
-[[ -e "${STAMP}" ]] && exit 0
+STAMP="${XDG_STATE_HOME:-${HOME}/.local/state}/amethystora/previous-version"
+BOOT="$(cat /proc/sys/kernel/random/boot_id)"
+[[ "$(cat "${STAMP}" 2>/dev/null)" == "${BOOT}" ]] && exit 0
 
 STATUS="$(/usr/libexec/amethystora-deployments 2>/dev/null)" || exit 0
 jq -e '(.deployments | map(.booted) | index(true)) as $b | $b != null and $b > 0
     and (.deployments[0].staged | not)
     and ((.deployments[0].timestamp // 0) > (.deployments[$b].timestamp // 0))' <<<"${STATUS}" >/dev/null || exit 0
-: >"${STAMP}"
+mkdir -p "${STAMP%/*}" && printf '%s\n' "${BOOT}" >"${STAMP}"
 
 # GNOME Shell takes the notification name on the bus a little after the session starts
 command -v gdbus >/dev/null &&
