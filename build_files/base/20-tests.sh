@@ -1585,6 +1585,9 @@ grep -q "^org.freedesktop.Flatpak=none$" "${FLATPAK_OVERRIDES}"
 grep -qxF "L /var/lib/flatpak/overrides/global - - - - ${FLATPAK_OVERRIDES}" /usr/lib/tmpfiles.d/amethystora-flatpak-overrides.conf
 test -f /usr/share/flatpak/preinstall.d/flatseal.preinstall
 
+# systemd's console size query hangs the boot under Plymouth, until Fedora's has systemd/systemd#43802
+grep -q '"systemd.tty.term.console=dumb"' /usr/lib/bootc/kargs.d/*.toml
+
 # Kernel lockdown: on everywhere except the NVIDIA images, whose driver is a machine-owner-key module
 # that a machine with Secure Boot turned off would no longer be able to load
 LOCKDOWN_KARGS=/usr/lib/bootc/kargs.d/11-amethystora-lockdown.toml

@@ -1,0 +1,5 @@
+# systemd 257 and later asks the console for its size with escape sequences and waits for the answer,
+# which never comes while Plymouth holds the console: in the VM lab about 1 boot in 10 to 50 stopped
+# before the login screen, PID 1 asleep writing to it. A dumb terminal is never asked. Once Fedora's
+# systemd has upstream's fix, this file can go: https://github.com/systemd/systemd/pull/43802
+kargs = ["systemd.tty.term.console=dumb"]

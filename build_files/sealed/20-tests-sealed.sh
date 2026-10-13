@@ -31,11 +31,12 @@ DIGEST="$(bootc container compute-composefs-digest "${T}")"
 [[ " ${CMDLINE} " == *" composefs=${DIGEST} "* ]]
 
 # ...and the kernel arguments of kargs.d: read-write btrfs root, the splash, no credentials from the
-# firmware or the ESP, the hardening, and lockdown on every image but the NVIDIA ones, as
-# 08-hardening.sh sets it. No debug shell: nothing can be added to
+# firmware or the ESP, the hardening, no console size query, and lockdown on every image but the NVIDIA
+# ones, as 08-hardening.sh sets it. No debug shell: nothing can be added to
 # this command line on the machine, and a shell there would be root's, with the disk already unlocked.
 for karg in rw rootflags=compress=zstd:1,subvol=root quiet rhgb systemd.import_credentials=no \
-    slab_nomerge init_on_alloc=1 page_alloc.shuffle=1 randomize_kstack_offset=on vsyscall=none; do
+    slab_nomerge init_on_alloc=1 page_alloc.shuffle=1 randomize_kstack_offset=on vsyscall=none \
+    systemd.tty.term.console=dumb; do
     [[ " ${CMDLINE} " == *" ${karg} "* ]]
 done
 if [[ "$(jq -r '."image-flavor"' "${T}/usr/share/amethystora/image-info.json")" == nvidia-open ]]; then

@@ -1,4 +1,4 @@
-# The kernel command line of a sealed image's UKI, beside the hardening and lockdown arguments of the
+# The kernel command line of a sealed image's UKI, beside the hardening, lockdown and console arguments of the
 # other files here and the composefs digest bootc adds after them: the root filesystem read-write, btrfs's
 # compression and the `root` subvolume the sealed installer makes (amethystora-install-sealed), and the
 # boot splash. There is no root= argument: systemd finds the root partition by its GPT type, and unlocks
