@@ -42,6 +42,11 @@ fi
 [[ "$(${config} --profile)" == thorough ]] && ok "the profile is still thorough after the restart" ||
     not_ok "the profile is $(${config} --profile) after the restart"
 
+# Where the history stands at the start of phase 2: the chains check looks across all of phase 2, since a
+# chain forms as soon as two of this account's tactics are in the half-hour window, which may be an earlier
+# watcher run than the one that adds the step we last triggered.
+HISTORY_AT_START="$(wc -l <"${HISTORY}" 2>/dev/null || echo 0)"
+
 # A technique is measured by running its benign trigger in the test account's own session, then one run of
 # the watcher, then looking at what it added to the history since. coverage records the mapping either way.
 run_watcher() { systemctl start amethystora-security-watch.service; }
@@ -104,8 +109,23 @@ sleep 3
 run_watcher
 caught T1059.nx agent-clis '.key == "agent-clis" and (.text | contains("--dangerously-skip-permissions"))' "an AI agent run with its checks off, no terminal"
 caught T1552.001 credentials '.key == "credentials" and .level == "critical"' "one process reading two kinds of secret"
-# T1059 + T1552: the two steps joined into one chain for the account (CHAINS)
-caught chains chains '.key == "chains" and (.account == "'"${TEST_USER}"'")' "the steps joined into a chain"
+# T1059 + T1552 (and the earlier steps) joined into a chain for the account (CHAINS). A chain is said once as
+# soon as two tactics are in the window and again when it grows, so it may land in an earlier run than this
+# one: look across all of phase 2, not just since the last mark. On a miss, dump the watcher's chain state so
+# the next run says whether the window held the tactics (a watcher problem) or not (the suite's triggers).
+phase2() { tail -n +"$((HISTORY_AT_START + 1))" "${HISTORY}" 2>/dev/null; }
+chain_level="$(phase2 | jq -r -s '[.[] | select(.key == "chains" and .account == "'"${TEST_USER}"'")]
+    | if length == 0 then "" elif any(.level == "critical") then "critical" else (.[0].level // "normal") end' 2>/dev/null)"
+if [[ -n "${chain_level}" ]]; then
+    echo "# COVERAGE chains chains ${chain_level}"
+    ok "the steps joined into a chain (chains -> chains, ${chain_level})"
+else
+    echo "# COVERAGE chains chains MISSED"
+    not_ok "the steps joined into a chain not caught (chains -> chains)" \
+        "chain-window (what the watcher had to join): $(tail -n 40 /var/lib/amethystora/security/chain-window 2>/dev/null)" \
+        "chains-said: $(cat /var/lib/amethystora/security/chains-said 2>/dev/null)" \
+        "chains in phase 2 history: $(phase2 | jq -r -s '.[] | select(.key == "chains") | "\(.account) \(.level): \(.text)"' 2>/dev/null)"
+fi
 
 # The LiteLLM case (T1546): a Python .pth file runs an import at every Python start, read by the account's own
 # reader (DEV_HOOKS). Benign: the import is of a module that does nothing.
