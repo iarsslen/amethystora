@@ -47,6 +47,14 @@ fi
 # watcher run than the one that adds the step we last triggered.
 HISTORY_AT_START="$(wc -l <"${HISTORY}" 2>/dev/null || echo 0)"
 
+# 30-detection already made tester a "Credential Access, Execution" chain earlier in this boot session, and
+# the watcher correctly says each chain once: its entry in chains-said would dedup the identical two-tactic
+# chain this suite builds, so a chain only showed here when tester happened to pick up a third tactic -- which
+# was intermittent. Clear the watcher's chain state so this suite measures chain formation from its own steps,
+# the way the watcher would on a machine where this attack is the first. The audit rules and findings are
+# untouched; only the chain window and the said-once record are reset.
+rm -f /var/lib/amethystora/security/chain-window /var/lib/amethystora/security/chains-said
+
 # A technique is measured by running its benign trigger in the test account's own session, then one run of
 # the watcher, then looking at what it added to the history since. coverage records the mapping either way.
 run_watcher() { systemctl start amethystora-security-watch.service; }
