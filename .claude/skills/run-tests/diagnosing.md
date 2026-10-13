@@ -79,6 +79,7 @@ Problems the lab has already met, with their fixes:
 | a phase's lines are all lost: "could not run: no answer on test.agent within 1815 s" | the phase ran past its half hour, often a terminal question that never came (`in_terminal` waits its whole timeout) | split the suite's phase; read what it did in the guest's journal (`sudo` logs each command) |
 | the test account cannot run or read a suite's file | `50-raid.sh` makes `/var/lib/vmlab-tests` root's alone (0700) | keep what the account uses in `/run/<suite>` or in its home |
 | `dbus-monitor` shows every notification twice | GNOME's notification service owns `org.freedesktop.Notifications` and passes each `Notify` call on to the Shell; both show only unique names | count the calls that carry the `x-shell-sender` hint the service adds |
+| downloads fail in several suites at once ("lookup quay.io: no such host", Homebrew's and Flathub's), then work again in later ones | the Windows host's own DNS dropped out: the guest's resolved asks QEMU's 10.0.2.3, which asks the host (2026-10-13, about half an hour); Docker Desktop's `%LOCALAPPDATA%\Docker\log\host\httpproxy.log` shows its own lookups failing then | not the image's or the suite's: run the suites again |
 
 Add a row whenever a run teaches the lab something new.
 
