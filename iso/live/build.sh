@@ -95,7 +95,14 @@ systemctl disable uupd.timer flatpak-preinstall.service fwupd-refresh.timer amet
 systemctl --global disable amethystora-pkg-upgrade.timer amethystora-update-alert.service \
     amethystora-security-alert.service
 
-# What Titanoboa makes the ISO from (the container-native ISO contract): its label and boot menu
+# What Titanoboa makes the ISO from (the container-native ISO contract): its label and boot menu, every
+# entry of which carries the image's kernel arguments from kargs.d, which a live boot does not read
 install -Dpm0644 "${LIVE}/iso.yaml" /usr/lib/bootc-image-builder/iso.yaml
+for karg in $(sed -n 's/^kargs = \[\(.*\)\]$/\1/p' /usr/lib/bootc/kargs.d/12-amethystora-console.toml | tr -d '",'); do
+    if grep -E '^ +linux: ' "${LIVE}/iso.yaml" | grep -vqF " ${karg}"; then
+        echo "iso/live/iso.yaml: a boot entry lacks ${karg}" >&2
+        exit 1
+    fi
+done
 
 dnf clean all
