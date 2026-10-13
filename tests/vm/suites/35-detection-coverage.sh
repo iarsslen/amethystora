@@ -114,6 +114,26 @@ caught T1552.001 credentials '.key == "credentials" and .level == "critical"' "o
 # one: look across all of phase 2, not just since the last mark. On a miss, dump the watcher's chain state so
 # the next run says whether the window held the tactics (a watcher problem) or not (the suite's triggers).
 phase2() { tail -n +"$((HISTORY_AT_START + 1))" "${HISTORY}" 2>/dev/null; }
+# The chain state, printed every run (pass or fail) as "# " lines run.mjs keeps in full, so the intermittent
+# miss can be characterised either way: what read_chains' own jq would emit now from the live window, what it
+# has already said, and what reached the history. If the jq emits a tester chain but none is in the history,
+# the watcher computed it and dropped it (dedup or a bug, image side); if the jq emits nothing, the window did
+# not hold two of tester's tactics (the suite's triggers).
+win=/var/lib/amethystora/security/chain-window
+said=/var/lib/amethystora/security/chains-said
+emits="$(jq -rs '
+    [.[] | select(.account == "-" and .tactic == "Command and Control")] as $c2
+    | [.[] | select(.account != "-")] | group_by(.account)[]
+    | . as $own
+    | ($own | map(.tactic) | any(. == "Execution" or . == "Credential Access")) as $active
+    | ($own + (if $active then $c2 else [] end)) as $all
+    | ($all | map(.tactic) | unique) as $tactics
+    | select(($tactics | length) >= 2)
+    | [$own[0].account, ($tactics | join("+"))] | join(" ")' "${win}" 2>&1 | paste -sd';')"
+echo "# chains-debug window-lines=$(wc -l <"${win}" 2>/dev/null) tester-tactics=$(jq -r 'select(.account == "'"${TEST_USER}"'") | .tactic' "${win}" 2>/dev/null | sort -u | paste -sd+)"
+echo "# chains-debug jq-emits-now=[${emits}]"
+echo "# chains-debug chains-said=[$(sed 's/\x1f/|/g' "${said}" 2>/dev/null | paste -sd';')]"
+echo "# chains-debug phase2-chains=[$(phase2 | jq -r -s '.[] | select(.key == "chains") | "\(.account):\(.level)"' 2>/dev/null | paste -sd';')]"
 chain_level="$(phase2 | jq -r -s '[.[] | select(.key == "chains" and .account == "'"${TEST_USER}"'")]
     | if length == 0 then "" elif any(.level == "critical") then "critical" else (.[0].level // "normal") end' 2>/dev/null)"
 if [[ -n "${chain_level}" ]]; then
@@ -121,10 +141,7 @@ if [[ -n "${chain_level}" ]]; then
     ok "the steps joined into a chain (chains -> chains, ${chain_level})"
 else
     echo "# COVERAGE chains chains MISSED"
-    not_ok "the steps joined into a chain not caught (chains -> chains)" \
-        "chain-window (what the watcher had to join): $(tail -n 40 /var/lib/amethystora/security/chain-window 2>/dev/null)" \
-        "chains-said: $(cat /var/lib/amethystora/security/chains-said 2>/dev/null)" \
-        "chains in phase 2 history: $(phase2 | jq -r -s '.[] | select(.key == "chains") | "\(.account) \(.level): \(.text)"' 2>/dev/null)"
+    not_ok "the steps joined into a chain not caught (chains -> chains); see the # chains-debug lines"
 fi
 
 # The LiteLLM case (T1546): a Python .pth file runs an import at every Python start, read by the account's own
