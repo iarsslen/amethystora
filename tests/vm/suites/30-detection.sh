@@ -70,6 +70,10 @@ else
     # What the peak is made of, its own memory or a cache the kernel takes back at MemoryHigh, and how often it did
     cg="/sys/fs/cgroup$(systemctl show amethystora-behaviour.service -p ControlGroup --value)"
     echo "# Falco memory now: $(awk '$1 ~ /^(anon|file|kernel|sock|shmem)$/ { printf "%s %d MiB, ", $1, $2 / 1048576 }' "${cg}/memory.stat")events: $(paste -sd ' ' "${cg}/memory.events")"
-    ((peak < high * 1048576)) && ok "Falco stays under ${high} MiB" || not_ok "Falco reached $((peak / 1048576)) MiB, over its ${high} MiB"
+    # The peak is not what is checked: it counts the page cache of the events file Falco writes, which grows until
+    # MemoryHigh takes it back, so it reaches any limit. Falco's own memory is anon + kernel.
+    own="$(awk '$1 == "anon" || $1 == "kernel" { sum += $2 } END { printf "%d", sum / 1048576 }' "${cg}/memory.stat")"
+    [[ -n "${own}" ]] && ((own < high)) && ok "Falco's own memory stays under ${high} MiB" || not_ok "Falco's own memory is ${own:-unreadable} MiB, over its ${high} MiB"
+    grep -qx 'oom_kill 0' "${cg}/memory.events" && ok "Falco was never killed for memory" || not_ok "Falco was killed for memory" "$(paste -sd ' ' "${cg}/memory.events")"
 fi
 finish
