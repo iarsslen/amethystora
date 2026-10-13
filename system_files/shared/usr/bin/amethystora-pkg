@@ -59,6 +59,8 @@ LIMIT="Containers are not a sandbox: what you install in one runs as you, with y
 
 # Whether a package manager may ask its questions: --yes and upgrade-all say no
 NONINTERACTIVE=false
+# Whether the Flathub app was offered already, by install FILE, and the package chosen over it
+FLATHUB_OFFERED=false
 
 say() { printf '%s\n' "$*"; }
 warn() { printf '%s: %s\n' "${PROG}" "$*" >&2; }
@@ -741,6 +743,7 @@ flathub_match() {
 # Flathub instead, and so there is nothing more to do.
 offer_flathub() {
     local match id title choice
+    [[ "${FLATHUB_OFFERED}" == true ]] && return 1
     match="$(flathub_match "$1")" || return 1
     id="${match%%"${US}"*}"
     title="${match#*"${US}"}"
@@ -1634,6 +1637,7 @@ cmd_install_file() {
                     exit 0
                     ;;
                 *"own repositories"*)
+                    FLATHUB_OFFERED=true
                     container_install "${P_NAME}" $([[ "${export}" == true ]] || echo --no-export)
                     exit
                     ;;
