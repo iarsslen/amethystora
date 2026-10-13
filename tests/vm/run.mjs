@@ -99,13 +99,14 @@ async function reboot() {
     if (Date.now() - began > 900000) throw new Error('the VM did not come back within 15 minutes of a reboot');
   }
   await call('vm_wait', { name: VM, timeout_s: 900 });
-  // Once the test account signs in by itself, a boot that brings it no session stalled: plymouthd stops
-  // answering now and then, and PID 1 waits on the console it holds. Powered off and on again, said in the
-  // log, twice at most; then the suite cannot run, rather than skip everything as passed.
+  // Once the test account signs in by itself, a boot that brings it no session stalled: now and then PID 1
+  // waits on the console for the answer to its size query, which plymouthd, holding the console, never
+  // gives (12-amethystora-console.toml skips the query). Powered off and on again, said in the log, twice at
+  // most; then the suite cannot run, rather than skip everything as passed.
   for (let tries = 0; await sessionExpected() && !(await session(240)); tries++) {
     if (tries === 2) throw new Error('the test account got no session after three boots');
     say('   no session after this boot: powering the VM off and on again');
-    // What PID 1 and plymouthd wait on, which the power cycle loses: the evidence for the splash's stall
+    // What PID 1 and plymouthd wait on, which the power cycle loses: the evidence for the stall
     fs.writeFileSync(`${RUN}/stalled-boot-${tries + 1}.txt`, await guest('cat /proc/1/stack; ' +
       'for p in $(pidof plymouthd); do echo "plymouthd $p $(grep ^State /proc/$p/status)"; cat /proc/$p/stack; done; ' +
       'journalctl -b -o short-monotonic --no-pager _PID=1 | grep -v " audit" | tail -n 15', 60));
