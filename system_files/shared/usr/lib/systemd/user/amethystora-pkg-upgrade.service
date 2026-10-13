@@ -3,7 +3,7 @@ Description=Upgrade the containers amethystora-pkg manages
 Documentation=man:distrobox(1)
 # Nothing to do for an account that has never made one, and podman is not asked
 ConditionPathIsDirectory=%S/amethystora/pkg/containers
-After=network-online.target
+# A user unit cannot wait for network-online.target: upgrade-all, started by the timer, waits for the network
 
 [Service]
 Type=oneshot

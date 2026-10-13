@@ -1720,6 +1720,15 @@ hardware_ok() {
     return 0
 }
 
+# Whether the machine is online, waiting a minute for it: the run its timer catches up on at login can start
+# before the network, and a user unit cannot wait for network-online.target. Sets SKIP_REASON.
+online() {
+    command -v nm-online >/dev/null 2>&1 || return 0
+    nm-online -q -t 60 && return 0
+    SKIP_REASON="there is no network"
+    return 1
+}
+
 # One line of JSON in the journal, under an identifier of its own, for System Updates to read
 journal() {
     printf '%s\n' "$1" | systemd-cat -t "${JOURNAL_ID}" 2>/dev/null || true
@@ -1736,9 +1745,9 @@ cmd_upgrade_all() {
     if command -v flock >/dev/null 2>&1 && ! flock -n "${lock}"; then
         die "Another upgrade of the containers is already running."
     fi
-    # Started by its timer, it holds back the way uupd's automatic updates do. Started by hand, or by
-    # System Updates after "Update now", it does not, as uupd-manual.service does not.
-    if [[ -n "${TRIGGER_UNIT:-}" ]] && ! hardware_ok; then
+    # Started by its timer, it holds back the way uupd's automatic updates do, and while there is no network.
+    # Started by hand, or by System Updates after "Update now", it does not, as uupd-manual.service does not.
+    if [[ -n "${TRIGGER_UNIT:-}" ]] && { ! online || ! hardware_ok; }; then
         say "Not upgrading the containers now: ${SKIP_REASON}. The timer tries again tomorrow."
         journal "$(jq -nc --arg r "${SKIP_REASON}" '{done: true, skipped: $r}')"
         return 0

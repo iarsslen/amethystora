@@ -462,6 +462,10 @@ test -x /usr/bin/amethystora-pkg
 [[ "$(readlink /usr/bin/amepkg)" == amethystora-pkg ]]
 amepkg --help | grep -q "^Usage: amepkg "
 ame pkg --help | grep -q "^Usage: amethystora-pkg "
+# The daily upgrade, started by its timer, waits for the network with nm-online: its user unit cannot wait for
+# network-online.target
+test -x /usr/bin/nm-online
+grep -q "nm-online -q" /usr/bin/amethystora-pkg
 for completion in bash-completion/completions/amethystora-pkg bash-completion/completions/amepkg \
     fish/vendor_completions.d/amethystora-pkg.fish fish/vendor_completions.d/amepkg.fish zsh/site-functions/_amethystora-pkg; do
     test -s "/usr/share/${completion}"
