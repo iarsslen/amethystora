@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Pools of disks (ame system raid) on the five blank SATA disks the lab adds, SPARE-1 to SPARE-5 (8 GiB, the
-# fifth 10 GiB), as plans/PLAN-raid.md's "Check on a machine" has them, over five starts of the machine:
+# fifth 10 GiB), as plans/PLAN-raid.md's "Check on a machine" has them, over six starts of the machine:
 #   1. parity (raid5, not encrypted) on SPARE-3 to 5, the disks named; data on the two left with Enter, Enter,
 #      Enter and ERASE (two copies, encrypted). Their lines, key, owner, and Files showing them.
 #   2. Both back after a restart, data unlocked by its key with nothing asked; the recovery key; the status
@@ -9,7 +9,8 @@
 #   3. The disk back; parity forgotten, its files left; joined (combined, encrypted) made on two of its disks.
 #   4. joined back after the restart, then forgotten; data filled, and one of its disks made to vanish.
 #   5. data did not open and the boot did not wait for it; opened with a disk missing, written to, the disk
-#      replaced by SPARE-5, checked clean; SPARE-4 added; data forgotten, leaving nothing behind.
+#      replaced by SPARE-5, its copies put back.
+#   6. data after the restart checked clean; SPARE-4 added; data forgotten, leaving nothing behind.
 # The script asks sudo for each step that needs root, so tester's sudo asks no password while this suite runs.
 source "$(dirname "$0")/lib.sh"
 
@@ -482,7 +483,17 @@ case "${SUITE_PHASE}" in
         read -r part _ < <(parts_of data | awk '$2 == "raid-data-3"')
         check "the recovery key, typed, opens the new disk" opens_typed "${part}" "${DATA_KEY}"
         check "the recovery key, as --key-file -, opens the new disk" opens_as_file "${part}" "${DATA_KEY}"
+    fi
+    remember REPLACED "${replaced}"
+    reboot_and_continue
+    ;;
 
+6)
+    # The rest on data as the restart left it: every copy checked, a disk added, then the pool forgotten. A
+    # phase of its own, so that a step that runs long costs only this part's lines.
+    grep -q ' /var/mnt/data ' /etc/fstab || abandon "data is not there"
+    if [[ "${REPLACED}" == true ]]; then
+        holds "data is mounted after the restart, with nothing missing" "$(pool_json data)" '.mounted and .missing == 0'
         # Every copy checked now, and clean
         started="$(date +%s)"
         check "ame system raid scrub now starts the check" as_user 'ame system raid scrub now'
