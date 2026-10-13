@@ -8,8 +8,8 @@
 #      resumed; a disk of parity taken away while mounted, and what the hourly check makes of it.
 #   3. The disk back; parity forgotten, its files left; joined (combined, encrypted) made on two of its disks.
 #   4. joined back after the restart, then forgotten; data filled, and one of its disks made to vanish.
-#   5. data did not open and the boot did not wait for it; opened with a disk missing, written to, the disk
-#      replaced by SPARE-5, its copies put back.
+#   5. data did not open and the boot did not wait for it; opened with a disk missing, written to; a replace
+#      refused while it is too full, one stopped part way; the disk replaced by SPARE-5, its copies put back.
 #   6. data after the restart checked clean; SPARE-4 added; data forgotten, leaving nothing behind.
 # The script asks sudo for each step that needs root, so tester's sudo asks no password while this suite runs.
 source "$(dirname "$0")/lib.sh"
@@ -446,6 +446,26 @@ case "${SUITE_PHASE}" in
     check "the check tells ${TEST_USER}: A disk of the pool data is missing, naming ${MISSING_SERIAL}" \
         wait_for 60 notified "A disk of the pool data is missing" "${MISSING_SERIAL}"
 
+    # A pool too full to be rebuilt is refused before anything is erased: the disk that is left filled to under a
+    # gigabyte unallocated, which btrfs replace needs to set block groups read-only (ENOSPC without), then emptied
+    unallocated() {
+        btrfs device usage -b /var/mnt/data 2>/dev/null | awk '/^\/.*, ID: / { there = 1; next } /^[^[:space:]]/ { there = 0 }
+            there && $1 == "Unallocated:" { print $2 }' | sort -n | head -n 1
+    }
+    room="$(unallocated)" before="$(lsblk -nro NAME,PARTLABEL "$(spare 5)" | paste -sd ' ')"
+    for ((i = 0; i < 40 && $(unallocated) >= 900 * 1048576; i++)); do
+        as_user "fallocate -l 256M /var/mnt/data/filler-${i}" || break
+    done
+    echo "# unallocated on the disk that is left: $((${room:-0} / 1048576)) MiB, filled to $(($(unallocated) / 1048576)) MiB"
+    out="$(in_terminal 300 -- "${AS_TESTER[@]}" 'ame system raid replace data')"
+    if grep -qF 'data is too full to be rebuilt' <<<"${out}" && ! grep -qF 'Type ERASE' <<<"${out}" &&
+        [[ "$(lsblk -nro NAME,PARTLABEL "$(spare 5)" | paste -sd ' ')" == "${before}" ]]; then
+        ok "a pool too full to be rebuilt is refused before any disk is erased"
+    else
+        not_ok "replace on a pool too full to be rebuilt" "$(tail -n 15 <<<"${out}")"
+    fi
+    rm -f /var/mnt/data/filler-* && sync
+
     # Replace: once only to see which disks are offered (Ctrl+C at that question), then with SPARE-5
     out="$(in_terminal 300 'Which disk of data goes\?' $'\r' 'Which disk takes its place\?' $'\x03' \
         -- "${AS_TESTER[@]}" 'ame system raid replace data')"
@@ -465,6 +485,29 @@ case "${SUITE_PHASE}" in
     else
         downs=""
         for ((i = 1; i < place; i++)); do downs+=$'\e[B'; done
+        # A replace that stops part way leaves the new disk blank again: cancelled as soon as it runs
+        in_terminal 1200 'Which disk of data goes\?' $'\r' 'Which disk takes its place\?' "${downs}"$'\r' 'Type ERASE' $'ERASE\r' \
+            'The recovery key of data' "${DATA_KEY}"$'\r' -- "${AS_TESTER[@]}" 'ame system raid replace data' >"${TESTS}/cancelled.out" 2>&1 &
+        job=$! cancelled=false
+        while kill -0 "${job}" 2>/dev/null; do
+            if [[ "${cancelled}" == false ]] && btrfs replace status -1 /var/mnt/data 2>/dev/null | grep -q '% done' &&
+                btrfs replace cancel /var/mnt/data >/dev/null 2>&1; then
+                cancelled=true
+            fi
+            sleep 0.2
+        done
+        wait "${job}"
+        out="$(cat "${TESTS}/cancelled.out")"
+        if [[ "${cancelled}" != true ]]; then
+            skip "a replace that stops part way: it could not be caught running"
+        elif grep -qF 'is blank again' <<<"${out}" && ! grep -q '^raid-data-3[[:space:]]' /etc/crypttab &&
+            [[ ! -e /dev/mapper/raid-data-3 && -z "$(lsblk -nro FSTYPE,PARTLABEL "$(spare 5)" | tr -d ' \n')" ]] &&
+            status_json | jq -e '[.spare[].serial] | index("SPARE-5")' >/dev/null; then
+            ok "a replace that stops part way leaves the new disk blank, out of /etc/crypttab, and spare again"
+        else
+            not_ok "a replace that stopped part way left the new disk behind" "$(tail -n 6 <<<"${out}")" \
+                "$(lsblk -o NAME,FSTYPE,PARTLABEL "$(spare 5)")" "$(grep '^raid-data' /etc/crypttab)"
+        fi
         out="$(in_terminal 1200 'Which disk of data goes\?' $'\r' 'Which disk takes its place\?' "${downs}"$'\r' 'Type ERASE' $'ERASE\r' \
             'The recovery key of data' "${DATA_KEY}"$'\r' -- "${AS_TESTER[@]}" 'ame system raid replace data')"
         says "the recovery key typed in is put on the new disk" "${out}" 'The recovery key opens the new disk too'

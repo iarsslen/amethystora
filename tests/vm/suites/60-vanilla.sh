@@ -143,6 +143,17 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     else
         not_ok "no date recorded (last-run: ${last_run:-none})"
     fi
+    # Started by its timer with no network, as when it catches up at a login before Wi-Fi: it waits a minute,
+    # then leaves the containers for the next day, saying why, rather than counting each one failed
+    nmcli networking off
+    out="$(in_session 'TRIGGER_UNIT=amethystora-pkg-upgrade.timer amethystora-pkg upgrade-all' 2>&1)"
+    nmcli networking on
+    if grep -qF 'Not upgrading the containers now: there is no network.' <<<"${out}"; then
+        ok "with no network, the timer's run waits for it, then upgrades nothing and says why"
+    else
+        not_ok "the timer's run with no network" "$(tail -n 10 <<<"${out}")"
+    fi
+    check "the network is back" nm-online -q -t 120
     out="$(in_session 'amepkg vmlab-plain run true' 2>&1)"
     if [[ -n "${plain_before}" && "$(plain_status)" == "${plain_before}" ]] && grep -q "There is no container called vmlab-plain" <<<"${out}" &&
         jq -e 'all(.[]; .container != "vmlab-plain")' <<<"$(pkg_list containers)" >/dev/null; then
@@ -221,22 +232,24 @@ EOF
 fi
 
 # A .deb of its own, so that nothing on Flathub or in Debian's repositories is offered in its place: a command,
-# a launcher and an install script, no dependencies (apt installs it without asking)
-make_deb() {
-    local dir="${STATE}/deb"
+# a launcher and an install script, no dependencies (apt installs it without asking). Named otherwise, it is a
+# file for what the name is. Makes ${STATE}/deb-NAME/NAME_VERSION_all.deb.
+make_deb() {  # [NAME VERSION]
+    local name="${1:-vmlab-hello}" version="${2:-1.0}"
+    local dir="${STATE}/deb-${name}"
     rm -rf "${dir}"
     mkdir -p "${dir}/control" "${dir}/data/usr/bin" "${dir}/data/usr/share/applications" || return 1
-    printf 'Package: vmlab-hello\nVersion: 1.0\nArchitecture: all\nMaintainer: VM lab <vmlab@example.invalid>\nDescription: What the VM lab installs from a file\n' \
-        >"${dir}/control/control"
+    printf 'Package: %s\nVersion: %s\nArchitecture: all\nMaintainer: VM lab <vmlab@example.invalid>\nDescription: What the VM lab installs from a file\n' \
+        "${name}" "${version}" >"${dir}/control/control"
     printf '#!/bin/sh\nexit 0\n' >"${dir}/control/postinst"
-    printf '#!/bin/sh\necho vmlab-hello\n' >"${dir}/data/usr/bin/vmlab-hello"
-    chmod 0755 "${dir}/control/postinst" "${dir}/data/usr/bin/vmlab-hello"
-    printf '[Desktop Entry]\nType=Application\nName=VM lab hello\nExec=vmlab-hello\nTerminal=true\n' \
-        >"${dir}/data/usr/share/applications/vmlab-hello.desktop"
+    printf '#!/bin/sh\necho %s\n' "${name}" >"${dir}/data/usr/bin/${name}"
+    chmod 0755 "${dir}/control/postinst" "${dir}/data/usr/bin/${name}"
+    printf '[Desktop Entry]\nType=Application\nName=VM lab %s\nExec=%s\nTerminal=true\n' "${name#vmlab-}" "${name}" \
+        >"${dir}/data/usr/share/applications/${name}.desktop"
     printf '2.0\n' >"${dir}/debian-binary"
     tar -C "${dir}/control" --owner=0 --group=0 -czf "${dir}/control.tar.gz" . &&
         tar -C "${dir}/data" --owner=0 --group=0 -czf "${dir}/data.tar.gz" . &&
-        (cd "${dir}" && ar rcS vmlab-hello_1.0_all.deb debian-binary control.tar.gz data.tar.gz)
+        (cd "${dir}" && ar rcS "${name}_${version}_all.deb" debian-binary control.tar.gz data.tar.gz)
 }
 
 if [[ "${SUITE_PHASE}" == 2 ]]; then
@@ -245,7 +258,7 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     elif ! make_deb; then
         not_ok "could not build the test .deb"
     else
-        put vmlab-pkg/vmlab-hello_1.0_all.deb <"${STATE}/deb/vmlab-hello_1.0_all.deb"
+        put vmlab-pkg/vmlab-hello_1.0_all.deb <"${STATE}/deb-vmlab-hello/vmlab-hello_1.0_all.deb"
         began=${SECONDS}
         out="$(in_terminal 840 'Install vmlab-hello 1\.0 from this file\?' 'y' -- "${AS_TESTER[@]}" \
             'cd && amepkg install vmlab-pkg/vmlab-hello_1.0_all.deb')"
@@ -282,6 +295,23 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
         else
             not_ok "vmlab-hello in the Debian container: ${out:-nothing}"
         fi
+
+        # A file for an app that is on Flathub (org.gnome.meld) and in Debian's repositories: both are offered
+        # first, and picking the repositories' asks nothing about Flathub a second time. apt's own question is
+        # answered no, so that nothing is downloaded.
+        in_session 'amepkg debian update' >/dev/null 2>&1
+        if make_deb meld 0.0.1 && put vmlab-pkg/meld_0.0.1_all.deb <"${STATE}/deb-meld/meld_0.0.1_all.deb"; then
+            out="$(in_terminal 600 'Safer ways to the same software' $'\e[B\r' 'Do you want to continue' $'n\r' \
+                -- "${AS_TESTER[@]}" 'cd && amepkg install vmlab-pkg/meld_0.0.1_all.deb')"
+            if grep -qF 'Flathub: Meld' <<<"${out}" && grep -qF "debian's own repositories: meld" <<<"${out}" &&
+                grep -qF 'Do you want to continue' <<<"${out}" && ! grep -qF 'is on Flathub as' <<<"${out}"; then
+                ok "a file for an app on Flathub offers it and the repositories first, and asks about Flathub once"
+            else
+                not_ok "the safer ways for meld's file" "$(tail -n 25 <<<"${out}")"
+            fi
+        else
+            not_ok "could not build or place the meld .deb"
+        fi
     fi
     skip "an .rpm from a file: the same steps into a Fedora container, a second large image, with rpm -K for the signature"
     skip "the AUR: an Arch image, and paru built from source after its PKGBUILD is read, past a phase's half hour"
@@ -297,7 +327,7 @@ fi
 # stands for that boot's login.
 if [[ "${SUITE_PHASE}" == 4 ]]; then
     NEWER=ostree-unverified-image:containers-storage:localhost/vmlab-newer
-    stamp="/run/user/${TUID}/amethystora-previous-version"
+    stamp="${HOME_DIR}/.local/state/amethystora/previous-version"
     alert="notify-send.*previous version"
     deployments() { user_bus /usr/libexec/amethystora-deployments 2>/dev/null; }
     original="$(rpm-ostree status --json | jq -r '.deployments[] | select(.booted) | .checksum')"
@@ -335,6 +365,18 @@ if [[ "${SUITE_PHASE}" == 4 ]]; then
             not_ok "no notification at login" "$(journalctl -b _SYSTEMD_USER_UNIT=amethystora-update-alert.service --no-pager -o cat | tail -n 10)"
         fi
         pkill -u "${TEST_USER}" -f "${alert}"
+        # Once a boot, logouts or not: the mark is this boot's id, in the account's state, not in /run/user
+        if [[ "$(cat "${stamp}" 2>/dev/null)" == "$(cat /proc/sys/kernel/random/boot_id)" ]]; then
+            user_systemctl restart amethystora-update-alert.service
+            if wait_for 30 pgrep -u "${TEST_USER}" -f "${alert}"; then
+                not_ok "a second login in the same boot is told again"
+                pkill -u "${TEST_USER}" -f "${alert}"
+            else
+                ok "a second login in the same boot is not told again"
+            fi
+        else
+            not_ok "the alert's mark is not this boot's id" "$(cat "${stamp}" 2>&1)"
+        fi
         skip "the notification opening System Updates, and its Keep this version: a click, then an administrator's password at pkexec"
         out="$(bootc rollback 2>&1)"
         if jq -e '.deployments[0].booted' <<<"$(deployments)" >/dev/null; then
@@ -364,7 +406,7 @@ if [[ "${SUITE_PHASE}" == 4 ]]; then
             not_ok "the deployments are not as they were" "$(rpm-ostree status 2>&1 | head -n 30)"
         fi
     fi
-    rm -rf "${STATE}"
+    rm -rf "${STATE}" "${stamp}"
     finish
 fi
 
