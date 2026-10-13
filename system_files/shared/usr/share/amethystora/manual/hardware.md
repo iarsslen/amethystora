@@ -110,6 +110,9 @@ the pool says what happened and offers what to do:
 - **Replace a disk** (`ame system raid replace NAME`) takes a spare disk at least as large, erases it
   and copies onto it what the old one held. It asks for the pool's recovery key, to put it on the new
   disk too; left empty, every disk of the pool gets a new one. It goes on if the window is closed.
+  btrfs needs a gigabyte free on each disk that is left to rebuild onto a new one, so a pool too full
+  for that is refused before anything is erased: delete what you can spare, then try again. A replace
+  that stops part way leaves the new disk blank again, to be picked once more.
 - **Open it with a disk missing** (`ame system raid mount NAME`) is for a pool that did not open
   because a disk was missing when the machine started. What is written to it then has one copy until
   the disk is replaced. A pool missing more disks than its layout survives opens read-only, so that

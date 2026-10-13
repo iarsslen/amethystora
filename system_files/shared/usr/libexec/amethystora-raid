@@ -764,6 +764,31 @@ spread_back() {  # POOL TARGET
 # The crypttab lines of a pool's disks that are no longer in it, the disk replaced, with their mappings.
 # Nothing goes while any disk of the pool is still missing, which may come back, nor without the list of
 # what is in the pool, without which nothing can be told apart.
+# Whether a pool has room to be rebuilt: btrfs replace sets each part of the pool read-only in turn, which
+# takes unallocated space on the disks that are there, and while a disk was missing everything written went
+# to them. With less than a gigabyte on one of them it stops (ENOSPC), the new disk already erased. Chunks
+# left empty go back first, which a balance of the empty ones alone does in a moment.
+room_to_replace() {  # TARGET
+    local least
+    as_root btrfs balance start -dusage=0 -musage=0 "$1" >/dev/null 2>&1
+    least="$(as_root btrfs device usage -b "$1" 2>/dev/null | awk '/^[^[:space:]].*, ID: / { there = ($1 ~ /^\//) }
+        there && $1 == "Unallocated:" { print $2 }' | sort -n | head -n 1)"
+    [[ -z "${least}" || "${least}" -ge "${GIB}" ]]
+}
+
+# A disk prepare_disk made ready that never joined its pool, blank again so that it shows as spare: its mapping
+# closed, its crypttab line taken out, every signature on it wiped
+unprepare_disk() {  # DISK SOURCE
+    local mapping="${2#/dev/mapper/}" nodes=()
+    if [[ "$2" == /dev/mapper/* ]]; then
+        as_root cryptsetup close "${mapping}" 2>/dev/null
+        as_root sed -i "/^${mapping}[[:space:]]/d" "${CRYPTTAB}"
+        as_root systemctl daemon-reload
+    fi
+    mapfile -t nodes < <(lsblk -nrpo PATH "$1" 2>/dev/null | tac)
+    as_root wipefs -a -q "${nodes[@]}" >&2
+}
+
 retire_lines() {  # POOL TARGET
     local devices members mapping dm
     devices="$(as_root btrfs filesystem show --raw "$2" 2>/dev/null | show_lines)"
@@ -1025,6 +1050,8 @@ cmd_replace() {
         echo "Every disk of ${name} is fine."
         gum confirm --default=no "Replace one anyway?" || exit 0
     fi
+    room_to_replace "${target}" ||
+        die "${name} is too full to be rebuilt: btrfs needs a gigabyte free on each disk that is left. Delete what you can spare from ${MNT}/${name}, then run ame system raid replace ${name} again. Nothing was erased."
     mapfile -t lines < <(jq -r '.devices | sort_by((.missing or .smart == "failed" or .error_count > 0) | not)[]
         | "disk \(.devid)  " + (if (.disk.model // "") != "" then "\(.disk.model) \(.disk.serial // "")" else "" end)
           + (if .missing then "  missing" elif .smart == "failed" then "  failing" elif .error_count > 0 then "  \(.error_count) errors" else "  fine" end)' <<<"${pool}")
@@ -1061,9 +1088,12 @@ cmd_replace() {
         outgoing="$(find "${SYS}/class/block/${old}/slaves" -mindepth 1 -maxdepth 1 -printf '/dev/%f\n' 2>/dev/null | head -n 1)"
     fi
     source="$(prepare_disk "${disk}" "${name}" "${encrypted}" "${outgoing}")" || exit 1
-    long_run replace "${name}" "Replacing disk ${devid} of ${name}" "${target}" \
-        btrfs replace start -B -f "${args[@]}" "${source}" "${target}" ||
+    if ! long_run replace "${name}" "Replacing disk ${devid} of ${name}" "${target}" \
+        btrfs replace start -B -f "${args[@]}" "${source}" "${target}"; then
+        unprepare_disk "${disk}" "${source}" &&
+            die "The replace did not finish: journalctl -u amethystora-raid-replace-${name} says why. ${disk} is blank again."
         die "The replace did not finish: journalctl -u amethystora-raid-replace-${name} says why."
+    fi
     # A larger disk gives what it can; and what was written as single while a disk was missing, which a
     # replace leaves as it is, gets its copies back
     as_root btrfs filesystem resize "${devid}:max" "${target}" >/dev/null 2>&1
