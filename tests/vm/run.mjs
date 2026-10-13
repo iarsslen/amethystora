@@ -99,6 +99,31 @@ async function reboot() {
     if (Date.now() - began > 900000) throw new Error('the VM did not come back within 15 minutes of a reboot');
   }
   await call('vm_wait', { name: VM, timeout_s: 900 });
+  // Once the test account signs in by itself, a boot that brings it no session stalled: plymouthd stops
+  // answering now and then, and PID 1 waits on the console it holds. Powered off and on again, said in the
+  // log, twice at most; then the suite cannot run, rather than skip everything as passed.
+  for (let tries = 0; await sessionExpected() && !(await session(240)); tries++) {
+    if (tries === 2) throw new Error('the test account got no session after three boots');
+    say('   no session after this boot: powering the VM off and on again');
+    await call('vm_stop', { name: VM, force: true });
+    await call('vm_start', { name: VM, disk: DISK, spares_gb: SPARES_GB });
+    await call('vm_wait', { name: VM, timeout_s: 900 });
+  }
+}
+
+async function guest(command, seconds = 20) {
+  try {
+    return decode((await agent(VM, { op: 'exec', command, timeout: seconds }, seconds)).stdout).trim();
+  } catch {
+    return '';
+  }
+}
+const sessionExpected = async () => (await guest('grep -s "^AutomaticLogin=tester" /etc/gdm/custom.conf')) !== '';
+async function session(seconds) {
+  for (const until = Date.now() + seconds * 1000; Date.now() < until; await sleep(10000)) {
+    if ((await guest('loginctl show-user tester -p State --value')) === 'active') return true;
+  }
+  return false;
 }
 
 // The suites and lib.sh into the guest's /run, which a reboot empties
