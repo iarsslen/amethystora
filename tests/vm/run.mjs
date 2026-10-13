@@ -105,6 +105,10 @@ async function reboot() {
   for (let tries = 0; await sessionExpected() && !(await session(240)); tries++) {
     if (tries === 2) throw new Error('the test account got no session after three boots');
     say('   no session after this boot: powering the VM off and on again');
+    // What PID 1 and plymouthd wait on, which the power cycle loses: the evidence for the splash's stall
+    fs.writeFileSync(`${RUN}/stalled-boot-${tries + 1}.txt`, await guest('cat /proc/1/stack; ' +
+      'for p in $(pidof plymouthd); do echo "plymouthd $p $(grep ^State /proc/$p/status)"; cat /proc/$p/stack; done; ' +
+      'journalctl -b -o short-monotonic --no-pager _PID=1 | grep -v " audit" | tail -n 15', 60));
     await call('vm_stop', { name: VM, force: true });
     await call('vm_start', { name: VM, disk: DISK, spares_gb: SPARES_GB });
     await call('vm_wait', { name: VM, timeout_s: 900 });
