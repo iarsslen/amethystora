@@ -67,6 +67,9 @@ else
     now="$(systemctl show amethystora-behaviour.service -p MemoryCurrent --value)"
     high="$(($(systemctl show amethystora-behaviour.service -p MemoryHigh --value) / 1048576))"
     echo "# Falco memory: $((now / 1048576)) MiB now, $((peak / 1048576)) MiB at most"
+    # What the peak is made of, its own memory or a cache the kernel takes back at MemoryHigh, and how often it did
+    cg="/sys/fs/cgroup$(systemctl show amethystora-behaviour.service -p ControlGroup --value)"
+    echo "# Falco memory now: $(awk '$1 ~ /^(anon|file|kernel|sock|shmem)$/ { printf "%s %d MiB, ", $1, $2 / 1048576 }' "${cg}/memory.stat")events: $(paste -sd ' ' "${cg}/memory.events")"
     ((peak < high * 1048576)) && ok "Falco stays under ${high} MiB" || not_ok "Falco reached $((peak / 1048576)) MiB, over its ${high} MiB"
 fi
 finish
