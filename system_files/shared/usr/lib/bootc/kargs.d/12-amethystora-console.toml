@@ -2,4 +2,5 @@
 # which never comes while Plymouth holds the console: in the VM lab about 1 boot in 10 to 50 stopped
 # before the login screen, PID 1 asleep writing to it. A dumb terminal is never asked. Once Fedora's
 # systemd has upstream's fix, this file can go: https://github.com/systemd/systemd/pull/43802
+# When it goes, system-setup.hooks.d/27-console-query.sh needs a version that takes the argument off again.
 kargs = ["systemd.tty.term.console=dumb"]

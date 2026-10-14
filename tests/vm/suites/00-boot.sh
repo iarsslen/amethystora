@@ -20,6 +20,10 @@ check "the image's own kernel module loads under Secure Boot (v4l2loopback)" mod
 # The audit rules are written at boot by a unit whose sandbox, when systemd cannot set it up, skips it quietly
 check "the audit rules were written at boot" systemctl is-active --quiet amethystora-audit-rules.service
 check "the image's audit rules are loaded" sh -c 'auditctl -l | grep -q -- "-k identity\$"'
+# kargs.d put it there; the system setup's step for machines rpm-ostree updates ran, found it and did nothing
+check "the console is not asked its size at boot" grep -qwF systemd.tty.term.console=dumb /proc/cmdline
+check "the system setup ran its console step" wait_for 60 jq -e '.version.system."console-query" == "1"' \
+    /root/.local/share/amethystora/setup_versioning.json
 dumps="$(coredumpctl list --no-legend --no-pager 2>/dev/null)"
 if [[ -z "${dumps}" ]]; then ok "nothing crashed"; else not_ok "something crashed" "${dumps}"; fi
 finish

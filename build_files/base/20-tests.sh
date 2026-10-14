@@ -1591,6 +1591,26 @@ test -f /usr/share/flatpak/preinstall.d/flatseal.preinstall
 
 # systemd's console size query hangs the boot under Plymouth, until Fedora's has systemd/systemd#43802
 grep -q '"systemd.tty.term.console=dumb"' /usr/lib/bootc/kargs.d/*.toml
+# ...which rpm-ostree, updating a machine with layered packages, ignores: the system setup adds it there once,
+# without restarting, unless the machine has it or is sealed. Tried against a stand-in rpm-ostree
+CONSOLE_TEST="$(mktemp -d)"
+mkdir "${CONSOLE_TEST}/bin"
+printf '#!/usr/bin/bash\necho "$*" >>"${CALLS}"\n' >"${CONSOLE_TEST}/bin/rpm-ostree"
+chmod +x "${CONSOLE_TEST}/bin/rpm-ostree"
+console_hook() {
+    echo "BOOT_IMAGE=/vmlinuz root=UUID=0 rhgb quiet $2" >"${CONSOLE_TEST}/cmdline"
+    SETUP_CHECKER_FILE="${CONSOLE_TEST}/$1.json" AMETHYSTORA_CMDLINE="${CONSOLE_TEST}/cmdline" \
+        AMETHYSTORA_SEALED="${CONSOLE_TEST}/sealed" CALLS="${CONSOLE_TEST}/calls" \
+        PATH="${CONSOLE_TEST}/bin:${PATH}" bash /usr/share/amethystora/system-setup.hooks.d/27-console-query.sh
+}
+console_hook lacking ""
+console_hook lacking ""
+[[ "$(cat "${CONSOLE_TEST}/calls")" == "kargs --append-if-missing=systemd.tty.term.console=dumb" ]]
+console_hook present systemd.tty.term.console=dumb
+touch "${CONSOLE_TEST}/sealed"
+console_hook sealed ""
+[[ "$(cat "${CONSOLE_TEST}/calls")" == "kargs --append-if-missing=systemd.tty.term.console=dumb" ]]
+rm -rf "${CONSOLE_TEST}"
 
 # Kernel lockdown: on everywhere except the NVIDIA images, whose driver is a machine-owner-key module
 # that a machine with Secure Boot turned off would no longer be able to load
