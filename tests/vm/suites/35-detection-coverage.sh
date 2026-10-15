@@ -168,6 +168,47 @@ sleep 2
 run_watcher
 caught T1546.chaindrop agent-config '.key == "agent-config" and (.account == "'"${TEST_USER}"'")' "a hook planted in an agent's settings"
 
+# The checks below are placed after the chains check on purpose: each adds a finding the window would fold
+# into tester's chain, and the chain is measured above. They cover detection features the full ART sweep
+# confirmed fire that neither this suite nor 30-detection.sh already exercised. 30-detection covers decoy and
+# exec-watch (its decoy read and its "program run from Downloads"), so those are deliberately not repeated
+# here: the watcher says each such finding once a boot, so a second trigger after 30-detection would be
+# deduped and read as a miss. Each trigger below is benign and self-cleaning.
+
+# T1136 Account manipulation (IDENTITY, Persistence): a write to the account files. The watcher rates a write
+# by an account tool (useradd/usermod) quiet and any other write normal, so the trigger is a plain append by
+# the shell, not useradd. Benign: a throwaway group line, removed after. -w /etc/group -p wa catches it.
+mark
+printf 'art-identity:x:60999:\n' >>/etc/group
+sleep 3
+printf '# art-identity\n' >>/etc/group   # a newer write so ausearch releases the one above (2 s hold)
+sleep 1
+run_watcher
+caught T1136 identity '.key == "identity"' "a non-tool write to the account files"
+sed -i '/^art-identity:/d; /^# art-identity$/d' /etc/group   # clean up
+
+# T1548 Abuse elevation (PRIVILEGE, Privilege Escalation, critical): a drop-in under /etc/sudoers.d. Benign and
+# syntactically harmless -- a comment-only file -- since -w /etc/sudoers.d/ -p wa catches the directory write
+# whatever the contents; removed after so sudo is never actually changed.
+mark
+printf '# art-privilege drop-in (test)\n' >/etc/sudoers.d/art-privilege
+sleep 3
+touch /etc/sudoers.d/art-privilege       # a newer attribute change so ausearch releases it
+sleep 1
+run_watcher
+caught T1548 privilege '.key == "privilege"' "a drop-in created under /etc/sudoers.d"
+rm -f /etc/sudoers.d/art-privilege
+
+# T1071 A listener on a routable address (LISTENERS, Command and Control): a TCP listener on anything but
+# loopback is what a device every machine on the tailnet can reach. Benign: a short-lived http.server bound to
+# 0.0.0.0, alive while the watcher looks, then stopped.
+mark
+user_bus systemd-run --user --unit=art-listener --collect --quiet -- python3 -m http.server 8099 --bind 0.0.0.0 || true
+wait_for 15 bash -c 'ss -ltn 2>/dev/null | grep -q ":8099"'
+run_watcher
+caught T1071 listeners '.key == "listeners" and (.text | contains("8099"))' "a listener on a non-loopback port"
+user_bus systemctl --user stop art-listener >/dev/null 2>&1 || true
+
 # T1486 Data encrypted for impact (feature 3): a mass rewrite of an account's files from readable to random
 # between two hourly snapshots. Needs /var/home to be its own btrfs subvolume, which an installer-made disk
 # has; where it is not, this is skipped rather than failed.
