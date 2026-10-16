@@ -1,0 +1,13 @@
+#!/usr/bin/bash
+# Has the D-Bus of every session on this machine read its configuration again, as flatpak does for the session
+# of whoever runs it after an install. Run as root, from flatpak-preinstall.service, flatpak has no session to
+# tell: the apps it installed that start over D-Bus (Text Editor, Weather, Clocks...) then did nothing when
+# opened from the app grid of a session that was there before them, until its next login.
+
+for uid in $(loginctl list-users --no-legend 2>/dev/null | awk '{ print $1 }'); do
+    [[ "${uid}" =~ ^[0-9]+$ && -S "/run/user/${uid}/bus" ]] || continue
+    timeout 10 setpriv --reuid="${uid}" --regid="$(id -g "${uid}")" --clear-groups \
+        env XDG_RUNTIME_DIR="/run/user/${uid}" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${uid}/bus" \
+        busctl --user call org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus ReloadConfig >/dev/null 2>&1
+done
+exit 0

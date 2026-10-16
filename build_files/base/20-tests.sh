@@ -83,6 +83,10 @@ done
 # It retries until it gets through, without holding up the boot while it waits or downloads
 grep -qx "Type=exec" /usr/lib/systemd/system/flatpak-preinstall.service
 grep -qx "StartLimitIntervalSec=0" /usr/lib/systemd/system/flatpak-preinstall.service
+# ...and tells the sessions already there about the apps it put in, which flatpak run as root cannot: the
+# ones that start over D-Bus did not open until the next login (25-every-app.sh on a new machine)
+grep -q "flatpak preinstall -y && exec /usr/libexec/amethystora-reload-session-buses" /usr/lib/systemd/system/flatpak-preinstall.service
+test -x /usr/libexec/amethystora-reload-session-buses
 
 # Firefox is the browser: Fedora's package, in the image, and so not on the Flatpak list as well
 test -f /usr/share/applications/org.mozilla.firefox.desktop

@@ -11,7 +11,9 @@ StartLimitIntervalSec=0
 [Service]
 # Not oneshot: the boot neither waits for the download nor, offline, for the retries
 Type=exec
-ExecStart=/usr/bin/flatpak preinstall -y
+# ...and once the apps are in, every session's D-Bus reads their services, or the ones that start over D-Bus
+# would not open in a session that was there before them (amethystora-reload-session-buses)
+ExecStart=/usr/bin/bash -c '/usr/bin/flatpak preinstall -y && exec /usr/libexec/amethystora-reload-session-buses'
 RemainAfterExit=true
 Restart=on-failure
 RestartSec=30
