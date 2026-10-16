@@ -1104,9 +1104,11 @@ listeners() {
 }
 
 # A program listening on a port for the first time is news. Ports from the ephemeral range are chosen
-# anew at every start, so for those the program is what is remembered, not the number.
+# anew at every start, so for those the program is what is remembered, not the number. What the image's own
+# programs listen on (fwupd's passim, started when firmware is looked for), or the owner allowed, is
+# recorded, not said: "program port" in the allowlist.
 read_listeners() {
-    local seen="${STATE}/listeners-seen" low high port address program key
+    local seen="${STATE}/listeners-seen" low high port address program key level
     read -r low high </proc/sys/net/ipv4/ip_local_port_range 2>/dev/null || { low=32768; high=60999; }
     while IFS=$'\t' read -r port address program; do
         [[ "${port}" =~ ^[0-9]+$ ]] || continue
@@ -1114,8 +1116,12 @@ read_listeners() {
         [[ "${port}" -ge "${low}" && "${port}" -le "${high}" ]] && key="${program} ephemeral"
         grep -qxF -- "${key}" "${seen}" 2>/dev/null && continue
         echo "${key}" >>"${seen}"
+        level=normal
+        allowed listeners "${key}" && { level=quiet; ALLOWED_HIT=1; }
         [[ -n "${LAST_RUN}" ]] &&
-            add normal listeners - "Command and Control" "${program} accepts connections on port ${port} (${address}), which every device on your tailnet can reach"
+            add "${level}" listeners - "Command and Control" "${program} accepts connections on port ${port} (${address}), which every device on your tailnet can reach" \
+                "allow=${key}"
+        ALLOWED_HIT=0
     done <<<"${LISTENERS}"
 }
 

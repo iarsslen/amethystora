@@ -272,6 +272,9 @@ once and stops being recorded from the next restart.
   `ame security allow persistence '~/.local/share/gnome-shell/extensions/*'` does the same for a path or a
   glob of paths, `~/` standing for every home folder, and `ame security allow persistence` lists what is
   allowed. Allow only what you know: whatever matches, malware included, goes unannounced from then on.
+  The image allows a few of its own the same way, such as Fedora's sssd and tuned rewriting their settings
+  at every start and fwupd's passim listening for nearby machines: `ame security allow hardening` and
+  `ame security allow listeners` list them.
 
 What the image enforces from the start has switches of its own, each on until you turn it off, each in
 the Settings page and as a command that says what it changes before it does:

@@ -344,6 +344,25 @@ jq -se 'length == 4
     fail "a boot's and a login's writes: ${FOUND}"
 printf 'PERSISTENCE=off\nHARDENING=off\n' >>"${AMETHYSTORA_SECURITY_CONF}"
 
+# Programs that accept connections, from a stand-in ss: the image's own passim is recorded, and one nobody
+# knows is said, with what allows it
+mkdir -p "${T}/ss-bin"
+cat >"${T}/ss-bin/ss" <<'EOF'
+#!/usr/bin/bash
+echo 'LISTEN 0 4096 0.0.0.0:27500 0.0.0.0:* users:(("passimd",pid=900,fd=8))'
+echo 'LISTEN 0 4096 0.0.0.0:4444 0.0.0.0:* users:(("watch-nc",pid=901,fd=3))'
+EOF
+chmod 0755 "${T}/ss-bin/ss"
+echo "LISTENERS=on" >>"${AMETHYSTORA_SECURITY_CONF}"
+before="$(wc -l <"${HISTORY}")"
+PATH="${T}/ss-bin:${PATH}" timeout 120 "${WATCH}" >/dev/null || fail "the run with listeners failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "listeners")')"
+jq -se 'length == 2
+    and any(.[]; .level == "quiet" and .allow == "passimd 27500" and .allowed == "yes")
+    and any(.[]; .level == "normal" and .allow == "watch-nc 4444" and (.text | startswith("watch-nc accepts connections on port 4444")))' \
+    <<<"${FOUND}" >/dev/null || fail "programs that accept connections: ${FOUND}"
+echo "LISTENERS=off" >>"${AMETHYSTORA_SECURITY_CONF}"
+
 # --- The behaviour sensor, from a stand-in of Falco's file ------------------------------------------------
 
 # Falco's lines as 0.45 writes them (one seen on a real run): a warning said with its tactic, twice is once,

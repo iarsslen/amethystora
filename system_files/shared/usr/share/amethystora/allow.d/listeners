@@ -1,0 +1,11 @@
+# The image's own entries for the programs that accept connections (LISTENERS in /etc/amethystora/security.conf):
+# what the image's own services listen on, which starts when the watcher may already have looked, recorded and
+# not said. The machine's own are in /etc/amethystora/allow.d/listeners (ame security allow listeners "PROGRAM
+# PORT"). A glob each.
+#
+# fwupd's passim, which offers the firmware metadata fwupd downloaded to the machines nearby; it starts when
+# firmware is looked for, from Updates or GNOME Firmware (P2pPolicy in /etc/fwupd/fwupd.conf)
+passimd 27500
+# GSConnect, for phones, from the first login, which may come after the watcher's first run; the firewall
+# opens it at home only (ame security home-networks)
+gjs 1716

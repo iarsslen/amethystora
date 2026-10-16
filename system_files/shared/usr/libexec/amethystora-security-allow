@@ -39,6 +39,9 @@
 #   app-permissions
 #            a Flatpak app's id and a way out of its sandbox, as amethystora-app-permissions names it, or a
 #            glob of either: "com.valvesoftware.Steam x11", "org.example.App *"
+#   listeners
+#            a program that accepts connections, as ss names it, and its port, or "ephemeral" for one from the
+#            range ports are picked from at every start, or globs of them: "passimd 27500", "syncthing *"
 #
 # Every entry is one line of at most 1024 characters with no control character, in the shape its feature
 # reads: the watcher compares, and never runs, an entry.
@@ -54,6 +57,8 @@ declare -A SHAPE=(
     # A signing key's check is named after its certificate: key-amethystora-modules.der
     [report]='^[a-z0-9][A-Za-z0-9._-]{0,95} (check|off)$'
     [app-permissions]='^[A-Za-z0-9_.*-]{1,255} [a-z*-]{1,32}$'
+    # A program as ss names it, and its port or "ephemeral", or globs of them
+    [listeners]='^[A-Za-z0-9_.+*?-]{1,64} ([0-9]{1,5}|ephemeral|\*)$'
     # A denial as SELinux names it: source type, target type, class and permissions, or globs of them
     [selinux-denials]='^[a-z0-9_*]{1,64} [a-z0-9_*]{1,64} [a-z0-9_*]{1,64} [a-z0-9_*,]{1,256}$'
     # A program and a file where secrets are kept that it may read, or globs of either
