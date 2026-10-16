@@ -542,11 +542,19 @@ reload
 show_status
 if wait_for 120 stale_said; then
     ok "the window says so, at the top of every page too"
+    asked="$(date '+%F %T')"
     check "with the agent offered" atspi click "Ask the agent" button
 else
     not_ok "the window does not say the backup is stale" "$(says | tail -n 30)"
 fi
-check "Ask the agent hands it the backup's unit" wait_for 60 pgrep -u "${TEST_USER}" -f 'amethystora-agent diagnose amethystora-backup.service'
+# The terminal the agent reopens itself in is a scope the account's manager logs with its command: the agent
+# itself may end within a second (35-detection-coverage.sh leaves a claude that exits at once), too soon for
+# pgrep to see it
+agent_asked() {
+    journalctl --since "${asked:-now}" --no-pager -o cat _UID="$(id -u "${TEST_USER}")" |
+        grep -qF 'amethystora-agent diagnose amethystora-backup.service'
+}
+check "Ask the agent hands it the backup's unit" wait_for 60 agent_asked
 pkill -u "${TEST_USER}" -f 'amethystora-agent diagnose' 2>/dev/null
 as_tester sh -c 'date +%s >"$HOME/.local/state/amethystora/backup-last-success"'
 report="$(as_tester /usr/libexec/amethystora-security-status --json 2>/dev/null)"
