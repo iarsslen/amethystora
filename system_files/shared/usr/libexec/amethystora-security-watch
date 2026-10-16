@@ -1423,12 +1423,14 @@ read_settings() {
 # the drops of the last week go into status.json for the report's "Audit rules" check, which says them. The
 # count starts again at every boot.
 audit_status() {
-    local status enabled lost previous since drops="${STATE}/audit-drops"
+    # previous starts at 0: the first run has no audit-lost to read, and set -u ended this there before it
+    # wrote one, so the report never had the drops
+    local status enabled lost previous=0 since drops="${STATE}/audit-drops"
     status="$(auditctl -s 2>/dev/null)" || { echo null; return; }
     enabled="$(awk '$1 == "enabled" { print $2 }' <<<"${status}")"
     lost="$(awk '$1 == "lost" { print $2 }' <<<"${status}")"
     [[ "${enabled}" =~ ^[0-9]+$ && "${lost}" =~ ^[0-9]+$ ]] || { echo null; return; }
-    read -r previous since <"${STATE}/audit-lost" 2>/dev/null
+    { read -r previous since <"${STATE}/audit-lost"; } 2>/dev/null
     [[ "${previous}" =~ ^[0-9]+$ && "${previous}" -le "${lost}" ]] || previous=0
     [[ "${lost}" -gt "${previous}" ]] && echo "${NOW} $((lost - previous))" >>"${drops}"
     echo "${lost} ${NOW}" >"${STATE}/audit-lost"
