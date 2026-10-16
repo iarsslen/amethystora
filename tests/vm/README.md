@@ -74,6 +74,7 @@ click and reads the page's state (`70-backups.sh` shows how).
 | `05-first-run.sh` | GNOME's first-run setup starts on a machine with no account, and no per-account setup runs in it |
 | `10-account.sh` | the test account `tester` signs in on Wayland, and its first login's setup runs |
 | `20-apps.sh` | each Amethystora app opens and stays open |
+| `25-every-app.sh` | every other app in the app grid opens as the grid starts it and stays open, none crashes or is refused what its manifest asks for (Mission Center's gatherer runs), and neither opening them all nor a restart and a login makes the security watcher say anything |
 | `30-detection.sh` | the thorough profile, after a restart, finds a secret read, the decoy read and a program run from Downloads; Falco's memory |
 | `40-setup.sh` | `ame setup` save, diff and apply against real GNOME settings, Flathub and Homebrew; the setup kept with a backup and read back by `ame restore-setup`; `ame system trust-image`, a switch to an unsigned image refused, `amethystora-image-check` |
 | `50-raid.sh` | pools of disks on the spare disks: parity, two copies encrypted and combined made, restarted, scrubbed (a scrub cut short is resumed), a disk taken away while mounted and one missing at boot, opened degraded, replaced, added to and forgotten; the recovery key, Control's words, no TPM unlock for a pool |
