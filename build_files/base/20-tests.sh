@@ -1588,6 +1588,14 @@ grep -q "^devices=!input;$" "${FLATPAK_OVERRIDES}"
 grep -q "^org.freedesktop.Flatpak=none$" "${FLATPAK_OVERRIDES}"
 grep -qxF "L /var/lib/flatpak/overrides/global - - - - ${FLATPAK_OVERRIDES}" /usr/lib/tmpfiles.d/amethystora-flatpak-overrides.conf
 test -f /usr/share/flatpak/preinstall.d/flatseal.preinstall
+# ...and the Flatpak service is given back by name to the apps the image installs that cannot work without it
+# (Mission Center's gatherer did not start), each linked where Flatpak reads it and allowed for the report
+grep -qxF "org.freedesktop.Flatpak=talk" /usr/share/amethystora/flatpak-overrides/io.missioncenter.MissionCenter
+for override in /usr/share/amethystora/flatpak-overrides/*; do
+    grep -qxF "org.freedesktop.Flatpak=talk" "${override}" || continue
+    grep -qxF "L /var/lib/flatpak/overrides/${override##*/} - - - - ${override}" /usr/lib/tmpfiles.d/*.conf
+    grep -qxF "${override##*/} flatpak" /usr/share/amethystora/allow.d/app-permissions
+done
 
 # systemd's console size query hangs the boot under Plymouth, until Fedora's has systemd/systemd#43802
 grep -q '"systemd.tty.term.console=dumb"' /usr/lib/bootc/kargs.d/*.toml

@@ -1041,9 +1041,17 @@ fi
 if [[ ${EUID} -ne 0 ]] && command -v flatpak >/dev/null; then
     PERMISSIONS="$(timeout 120 /usr/libexec/amethystora-app-permissions --json 2>/dev/null)"
     COUNT="$(jq -r 'length' <<<"${PERMISSIONS:-[]}" 2>/dev/null || echo 0)"
-    mapfile -t ESCAPES < <(jq -r '.[] | . as $app | [.reaches[] | select(.id | IN("session-bus", "system-bus", "flatpak", "systemd", "autostart")) | .text] |
+    # What the image or the machine's owner allowed (`ame security allow app-permissions`, globs of "APP REACH"),
+    # as regular expressions: no way out nobody chose. The Flatpak service the image gives back to the apps it
+    # installs that need it is said as X11 granted back is.
+    ALLOWED_REACHES="$(/usr/libexec/amethystora-security-allow list app-permissions 2>/dev/null |
+        jq -Rsc 'split("\n") | map(select(length > 0) | "^" + (gsub("\\."; "\\.") | gsub("\\*"; ".*")) + "$")')"
+    REACHES='def allowed($app): "\($app.app) \(.id)" as $pair | any($allowed[]; . as $re | $pair | test($re));'
+    mapfile -t ESCAPES < <(jq -r --argjson allowed "${ALLOWED_REACHES:-[]}" "${REACHES}"' .[] | . as $app |
+        [.reaches[] | select((.id | IN("session-bus", "system-bus", "flatpak", "systemd", "autostart")) and (allowed($app) | not)) | .text] |
         select(length > 0) | "\($app.name): \(join("; "))"' <<<"${PERMISSIONS:-[]}" 2>/dev/null)
-    mapfile -t TYPING < <(jq -r '.[] | . as $app | [.reaches[] | select(.id | IN("x11", "input")) | .text] |
+    mapfile -t TYPING < <(jq -r --argjson allowed "${ALLOWED_REACHES:-[]}" "${REACHES}"' .[] | . as $app |
+        [.reaches[] | select((.id | IN("x11", "input")) or (.id == "flatpak" and allowed($app))) | .text] |
         select(length > 0) | "\($app.name): \(join("; "))"' <<<"${PERMISSIONS:-[]}" 2>/dev/null)
     if [[ ${#ESCAPES[@]} -gt 0 ]]; then
         COMMAND="ame security apps"

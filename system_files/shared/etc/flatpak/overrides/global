@@ -36,5 +36,6 @@ filesystems=~/.themes:ro;xdg-config/gtk-4.0:ro;
 [Session Bus Policy]
 # Talking to the Flatpak service from inside the sandbox is a full escape: `flatpak-spawn --host`
 # runs any command outside it, as the user, with no sandbox at all. Applications that legitimately
-# need it (terminals, IDEs shipping their own toolchain) are the ones to grant it back to by name.
+# need it (terminals, IDEs shipping their own toolchain) are the ones to grant it back to by name, as
+# /usr/lib/tmpfiles.d/amethystora-flatpak-overrides.conf does for the ones the image installs.
 org.freedesktop.Flatpak=none

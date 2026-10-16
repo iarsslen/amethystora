@@ -153,7 +153,7 @@ by the app itself:
 
 What an app asks for through a portal, such as a file you choose for it, is asked each time and is
 not listed. The security report says when an app can leave its sandbox, and when one was given back
-X11 or the input devices. If you did not mean it to, change it in **Flatseal**, or take back
+X11, the input devices or, as the apps the image installs that need it are, the Flatpak service. If you did not mean it to, change it in **Flatseal**, or take back
 everything you granted one app with **Take back what you granted** on the Apps page, or:
 
 ```bash

@@ -45,6 +45,10 @@ needs it granted back, one app at a time, in Flatseal or with:
 flatpak override --user --socket=x11 <app-id>
 ```
 
+The apps Amethystora installs that cannot work without the Flatpak service have it given back:
+Mission Center, which reads the machine through a helper outside its sandbox, Bazaar, Warehouse,
+Refine, DistroShelf, and on the developer image Podman Desktop and Builder.
+
 What each app can reach beyond its sandbox, what it asked for and what you granted it, is on the
 **Apps** page of the Security app, and in a terminal with `ame security apps`
 ([App permissions](security.md#app-permissions)).

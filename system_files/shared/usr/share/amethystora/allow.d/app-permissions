@@ -1,0 +1,9 @@
+# The Flatpak service the image gives back to the apps it installs that need it (amethystora-flatpak-overrides.conf
+# in /usr/lib/tmpfiles.d): shown as given back, never as a way out nobody chose
+io.missioncenter.MissionCenter flatpak
+io.github.flattool.Warehouse flatpak
+io.github.kolunmi.Bazaar flatpak
+page.tesk.Refine flatpak
+com.ranfdev.DistroShelf flatpak
+io.podman_desktop.PodmanDesktop flatpak
+org.gnome.Builder flatpak
