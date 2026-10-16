@@ -9,7 +9,7 @@ Icon=amethystora-docs
 Terminal=false
 Categories=Utility;Documentation;
 StartupNotify=true
-StartupWMClass=amethystora-manual
+StartupWMClass=org.amethystora.Manual
 Actions=hotkeys;
 
 [Desktop Action hotkeys]

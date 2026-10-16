@@ -9,7 +9,7 @@ Terminal=false
 Categories=System;Security;Settings;
 Keywords=security;status;report;antivirus;virus;scan;malware;clamav;firewall;audit;lynis;secure boot;updates;signature;
 StartupNotify=true
-StartupWMClass=amethystora-security
+StartupWMClass=org.amethystora.Security
 Actions=scan;
 
 [Desktop Action scan]

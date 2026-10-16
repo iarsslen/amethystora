@@ -1,25 +1,24 @@
 'use strict';
 
-// The translations of the Amethystora apps (i18n.js), for 20-tests.sh and for whoever changes a string.
+// The translations of the Amethystora apps (apps/, common/src/i18n.rs), for 20-tests.sh and for whoever
+// changes a string.
 //
 //   check-translations.js [root]           check, and exit 1 on anything wrong
 //   check-translations.js --write [root]   also rewrite each app's locale/en.json from the code
 //   ... --po DIR                           also the shell programs' gettext catalogs in DIR (po/), and
 //                                          with --write their template, DIR/amethystora.pot
+//   ... --apps DIR                         the apps' Cargo workspace, if not apps/ two folders up from here
 //
-// root is where the apps are, /usr/lib/amethystora-* under it: / in the image (the default), or
-// system_files/shared in the repository. In the image it runs on the Manual's own Electron as Node, as
-// check-manual.js does:
+// root is where the catalogs are, /usr/lib/amethystora-<app>/resources/app/locale under it: / in the
+// image (the default), or system_files/shared in the repository. In the image it runs on the Node that
+// 20-tests.sh installs for it and check-manual.js, and takes out again.
 //
-//   ELECTRON_RUN_AS_NODE=1 /usr/lib/amethystora-manual/amethystora-manual check-translations.js
-//
-// Every English message is found where the code says it: the first argument of t( or t.parts(, which
-// has to be a plain string in quotes, the text or listed attributes of an element in index.html marked
-// data-i18n or data-i18n-attr, and what an app shows from data of its own (t.dynamic), which is listed
-// in DATA below. locale/en.json has to hold exactly those, each as its own
-// translation: it is what Weblate translates from. Every other catalog has to parse, and use no value a
-// message does not have. A translation of a message the code no longer has is only reported: Weblate
-// takes it out at its next sync.
+// Every English message is found where the code says it: the first argument of t!, t_parts! and
+// t_markup! in the app's crate (apps/<app>/src), which the macros only take as a string in quotes, and
+// what an app shows from data of its own (t.dynamic), which is listed in DATA below. locale/en.json has
+// to hold exactly those, each as its own translation: it is what Weblate translates from. Every other
+// catalog has to parse, and use no value a message does not have. A translation of a message the code no
+// longer has is only reported: Weblate takes it out at its next sync.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -28,14 +27,109 @@ const args = process.argv.slice(2);
 const write = args.includes('--write');
 const poAt = args.indexOf('--po');
 const poDir = poAt >= 0 ? args[poAt + 1] : null;
-const root = args.find((arg, at) => !arg.startsWith('--') && (poAt < 0 || at !== poAt + 1)) || '/';
+const appsAt = args.indexOf('--apps');
+const appsDir = appsAt >= 0 ? args[appsAt + 1] : path.join(__dirname, '..', '..', 'apps');
+const root = args.find((arg, at) => !arg.startsWith('--') && (poAt < 0 || at !== poAt + 1) && (appsAt < 0 || at !== appsAt + 1)) || '/';
+
 const APPS = ['amethystora-manual', 'amethystora-security', 'amethystora-update', 'amethystora-logs', 'amethystora-notes', 'amethystora-control',
     'amethystora-backups'];
-// Not the apps' own code: the translations themselves, and the Markdown renderer
-const SKIP = new Set(['i18n.js', 'marked.umd.js', 'preload.js']);
 
-const i18nFile = path.join(root, 'usr/lib/amethystora-manual/resources/app/i18n.js');
-const I18N = require(path.resolve(i18nFile));
+// --- Messages, as common/src/i18n.rs reads them ------------------------------------------------------
+//
+// ICU MessageFormat: { name }, { name, plural, one {...} other {...} } and { name, select, key {...}
+// other {...} }, with # for the number inside a plural. A message as parts: text, HASH, and { name,
+// type, options } for a value.
+
+const HASH = { hash: true };
+
+function parse(message) {
+    let at = 0;
+    const fail = (what) => {
+        throw new Error(`${what} at ${at} in "${message}"`);
+    };
+    function parts(inPlural, nested) {
+        const list = [];
+        let text = '';
+        const flush = () => {
+            if (text) {
+                list.push(text);
+                text = '';
+            }
+        };
+        while (at < message.length) {
+            const c = message[at];
+            if (c === '}') {
+                if (!nested) {
+                    fail('a } that closes nothing');
+                }
+                break;
+            }
+            if (c === '{') {
+                flush();
+                list.push(argument(inPlural));
+            } else if (c === '#' && inPlural) {
+                flush();
+                list.push(HASH);
+                at += 1;
+            } else {
+                text += c;
+                at += 1;
+            }
+        }
+        flush();
+        return list;
+    }
+    function argument(inPlural) {
+        at += 1;
+        const head = /^\s*(\w+)\s*(?:,\s*(plural|select)\s*,\s*)?(})?/.exec(message.slice(at));
+        if (!head) {
+            fail('a value without a name');
+        }
+        at += head[0].length;
+        const [, name, type, closed] = head;
+        if (closed) {
+            return { name };
+        }
+        if (!type) {
+            fail(`a value ${name} that is not closed`);
+        }
+        const options = {};
+        for (;;) {
+            const key = /^\s*(=\d+|\w+)\s*\{/.exec(message.slice(at));
+            if (!key) {
+                break;
+            }
+            at += key[0].length;
+            options[key[1]] = parts(type === 'plural' || inPlural, true);
+            if (message[at] !== '}') {
+                fail(`the option ${key[1]} of ${name} is not closed`);
+            }
+            at += 1;
+        }
+        const end = /^\s*}/.exec(message.slice(at));
+        if (!end || !options.other) {
+            fail(`${name} needs an "other" option and a closing }`);
+        }
+        at += end[0].length;
+        return { name, type, options };
+    }
+    return parts(false, false);
+}
+
+// The names of the values a message takes, and of those its plurals and selects choose by
+function names(message) {
+    const found = new Set();
+    const walk = (list) => {
+        for (const part of list) {
+            if (part && part.name) {
+                found.add(part.name);
+                Object.values(part.options || {}).forEach(walk);
+            }
+        }
+    };
+    walk(parse(message));
+    return found;
+}
 
 // The words of an app's launcher, in its main entry and its actions, which translate-desktop.py writes
 // into it in every language the app's catalogs have them in
@@ -62,59 +156,44 @@ const DATA = {
 const problems = [];
 const notes = [];
 
-// A JavaScript string in quotes, as the text it stands for
-function unquote(literal) {
-    const quote = literal[0];
-    return literal.slice(1, -1).replace(/\\(u\{[0-9a-fA-F]+\}|u[0-9a-fA-F]{4}|x[0-9a-fA-F]{2}|.)/g, (_match, escape) => {
+// A Rust string literal, as the text it stands for
+function unquoteRust(literal) {
+    return literal.slice(1, -1).replace(/\\(\n\s*|u\{[0-9a-fA-F]+\}|x[0-9a-fA-F]{2}|.)/g, (_match, escape) => {
+        if (escape[0] === '\n') {
+            return '';
+        }
         if (escape[0] === 'u' || escape[0] === 'x') {
             return String.fromCodePoint(parseInt(escape.replace(/^[ux]\{?|\}$/g, ''), 16));
         }
-        return { n: '\n', t: '\t', r: '\r', 0: '\0' }[escape] ?? (escape === quote ? quote : escape);
+        return { n: '\n', t: '\t', r: '\r', 0: '\0' }[escape] ?? escape;
     });
 }
 
-function decodeHtml(text) {
-    return text.replace(/&(amp|lt|gt|quot|#39|nbsp);/g, (_match, name) => ({
-        amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", nbsp: ' ',
-    })[name]);
+// Every .rs file under a folder
+function rustFiles(dir) {
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const file = path.join(dir, entry.name);
+        return entry.isDirectory() ? rustFiles(file) : entry.name.endsWith('.rs') ? [file] : [];
+    });
 }
 
+// The messages of an app (apps/<name>/src): the first argument of t!, t_parts! and t_markup!, which
+// the macros only take as a string literal
 function messages(dir) {
     const found = new Map();
-    const add = (message, where) => {
-        if (!found.has(message)) {
-            found.set(message, where);
-        }
-    };
-    for (const file of fs.readdirSync(dir).filter((name) => name.endsWith('.js') && !SKIP.has(name))) {
-        const text = fs.readFileSync(path.join(dir, file), 'utf8');
-        // t( and t.parts( whose first argument is anything but a quoted string cannot be translated
-        for (const match of text.matchAll(/(?<![\w$.])t(?:\.parts)?\(\s*(?=\S)/g)) {
+    for (const file of rustFiles(dir)) {
+        const text = fs.readFileSync(file, 'utf8');
+        for (const match of text.matchAll(/(?<![\w$.])t(?:_parts|_markup)?!\(\s*(?=\S)/g)) {
             const rest = text.slice(match.index + match[0].length);
-            const literal = /^('(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*")/.exec(rest);
+            const literal = /^"(?:[^"\\]|\\[\s\S])*"/.exec(rest);
             const line = text.slice(0, match.index).split('\n').length;
             if (!literal) {
-                problems.push(`${dir}/${file}:${line}: t() needs the English as a string in quotes`);
+                problems.push(`${file}:${line}: t!() needs the English as a string in quotes`);
                 continue;
             }
-            add(unquote(literal[1]), `${file}:${line}`);
-        }
-    }
-    const html = path.join(dir, 'index.html');
-    if (fs.existsSync(html)) {
-        const text = fs.readFileSync(html, 'utf8');
-        // data-i18n itself, not data-i18n-attr
-        for (const match of text.matchAll(/<(\w+)\b([^>]*\sdata-i18n(?![\w-])[^>]*)>([^<]*)<\/\1>/g)) {
-            add(decodeHtml(match[3].trim()), 'index.html');
-        }
-        for (const match of text.matchAll(/<\w+\b([^>]*\bdata-i18n-attr="([^"]+)"[^>]*)>/g)) {
-            for (const attribute of match[2].split(/\s+/).filter(Boolean)) {
-                const value = new RegExp(`\\s${attribute}="([^"]*)"`).exec(match[1]);
-                if (value) {
-                    add(decodeHtml(value[1]), 'index.html');
-                } else {
-                    problems.push(`${dir}/index.html: data-i18n-attr names ${attribute}, which the element does not have`);
-                }
+            const message = unquoteRust(literal[0]);
+            if (!found.has(message)) {
+                found.set(message, `${path.relative(dir, file)}:${line}`);
             }
         }
     }
@@ -123,12 +202,12 @@ function messages(dir) {
 
 let checked = 0;
 for (const app of APPS) {
-    const dir = path.join(root, 'usr/lib', app, 'resources/app');
-    if (!fs.existsSync(dir)) {
-        problems.push(`${dir}: not there`);
+    const crate = path.join(appsDir, app.replace(/^amethystora-/, ''), 'src');
+    if (!fs.existsSync(crate)) {
+        problems.push(`${crate}: not there`);
         continue;
     }
-    const found = messages(dir);
+    const found = messages(crate);
     for (const message of DATA[app]?.() || []) {
         if (!found.has(message)) {
             found.set(message, 'data');
@@ -136,12 +215,12 @@ for (const app of APPS) {
     }
     for (const [message, where] of found) {
         try {
-            I18N.parse(message);
+            parse(message);
         } catch (error) {
             problems.push(`${app} ${where}: ${error.message}`);
         }
     }
-    const folder = path.join(dir, 'locale');
+    const folder = path.join(root, 'usr/lib', app, 'resources/app/locale');
     const baseFile = path.join(folder, 'en.json');
     const sorted = [...found.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
     const base = Object.fromEntries(sorted.map((message) => [message, message]));
@@ -189,8 +268,8 @@ for (const app of APPS) {
                 continue;
             }
             try {
-                const own = I18N.names(message);
-                for (const name of I18N.names(translation)) {
+                const own = names(message);
+                for (const name of names(translation)) {
                     if (!own.has(name)) {
                         problems.push(`${app}: locale/${file}: "${translation}" uses {${name}}, which "${message}" does not have`);
                     }

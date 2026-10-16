@@ -6,8 +6,8 @@
 #   amethystora-control <page>   open it on appearance, desktop, apps, agent, system or setup
 #
 # What it lists is /usr/libexec/amethystora-control-list, which `ame control` prints in a terminal, and
-# every change it makes is the `ame` command that list names. The window is an Electron app in
-# /usr/lib/amethystora-control (build_files/base/16-control.sh).
+# every change it makes is the `ame` command that list names. The window is a GTK program, one with
+# the other Amethystora apps (apps/, build_files/base/13-apps.sh).
 
 set -euo pipefail
 

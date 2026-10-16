@@ -7,8 +7,9 @@ repos:
         - id: check-json
         - id: check-toml
         - id: check-yaml
-        # A patch's blank context lines are one space, and it must stay byte for byte as git wrote it
+        # A patch's blank context lines are one space, and it must stay byte for byte as git wrote it; so must
+        # Notes' test fixtures, which are the files the Electron window wrote
         - id: end-of-file-fixer
-          exclude: ^packaging/.*\.patch$
+          exclude: ^(packaging/.*\.patch|apps/notes/tests/fixtures/.*)$
         - id: trailing-whitespace
-          exclude: ^packaging/.*\.patch$
+          exclude: ^(packaging/.*\.patch|apps/notes/tests/fixtures/.*)$

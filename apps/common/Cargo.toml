@@ -1,0 +1,26 @@
+[package]
+name = "amethystora-ui"
+description = "What the Amethystora apps share: the window, the palette, the wordmark, icons, translations and running programs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+gtk.workspace = true
+adw.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+libc.workspace = true
+pulldown-cmark.workspace = true
+icu_locale_core = "2"
+icu_plurals = "2"
+icu_decimal = "2"
+icu_list = "2"
+icu_datetime = "2"
+icu_collator = "2"
+icu_calendar = "2"
+icu_time = "2"
+icu_experimental = "0.6"
+fixed_decimal = { version = "0.7", features = ["ryu"] }

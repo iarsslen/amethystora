@@ -1,0 +1,106 @@
+{
+  "counts": {
+    "notes": 0,
+    "notebooks": 0,
+    "tasks": 3,
+    "projects": 1,
+    "attachments": 0
+  },
+  "store": {
+    "version": 1,
+    "settings": {},
+    "resources": {},
+    "notebooks": {},
+    "notes": {},
+    "tags": {},
+    "revisions": {},
+    "projects": {
+      "c5399b131888e8ad4cb4ced5ae5173ed": {
+        "id": "c5399b131888e8ad4cb4ced5ae5173ed",
+        "title": "Garden",
+        "color": "green",
+        "order": 3,
+        "created": 1792161710527
+      }
+    },
+    "sections": {
+      "f55637e35036d7555c1d89ba20202bfe": {
+        "id": "f55637e35036d7555c1d89ba20202bfe",
+        "project": "c5399b131888e8ad4cb4ced5ae5173ed",
+        "title": "Spring",
+        "order": 1
+      }
+    },
+    "tasks": {
+      "53108433b3912d7f2f935d9016d738d1": {
+        "id": "53108433b3912d7f2f935d9016d738d1",
+        "title": "Water the roses",
+        "notes": "Before nine",
+        "project": "c5399b131888e8ad4cb4ced5ae5173ed",
+        "section": "f55637e35036d7555c1d89ba20202bfe",
+        "parent": null,
+        "due": "2024-05-04",
+        "time": "08:30",
+        "reminder": null,
+        "repeat": {
+          "every": 3,
+          "unit": "day"
+        },
+        "priority": 1,
+        "labels": [
+          "a646f43bab603357d3e21b60180a870e"
+        ],
+        "pinned": true,
+        "done": null,
+        "created": 1714557600000,
+        "order": 2
+      },
+      "1b4c3a7844364ed138894cc4d89b7d2b": {
+        "id": "1b4c3a7844364ed138894cc4d89b7d2b",
+        "title": "Buy seeds",
+        "notes": "",
+        "project": "c5399b131888e8ad4cb4ced5ae5173ed",
+        "section": null,
+        "parent": "53108433b3912d7f2f935d9016d738d1",
+        "due": null,
+        "time": null,
+        "reminder": null,
+        "repeat": null,
+        "priority": 4,
+        "labels": [],
+        "pinned": false,
+        "done": 1714640400000,
+        "created": 1714561200000,
+        "order": 1
+      },
+      "ff2bd88bdf9040ead4f64ff8991d4365": {
+        "id": "ff2bd88bdf9040ead4f64ff8991d4365",
+        "title": "Call the plumber",
+        "notes": "",
+        "project": null,
+        "section": null,
+        "parent": null,
+        "due": "2024-05-06",
+        "time": null,
+        "reminder": null,
+        "repeat": null,
+        "priority": 2,
+        "labels": [
+          "a646f43bab603357d3e21b60180a870e"
+        ],
+        "pinned": false,
+        "done": null,
+        "created": 1714636800000,
+        "order": 0
+      }
+    },
+    "labels": {
+      "a646f43bab603357d3e21b60180a870e": {
+        "id": "a646f43bab603357d3e21b60180a870e",
+        "title": "Phone",
+        "color": "pink"
+      }
+    }
+  },
+  "resources": {}
+}

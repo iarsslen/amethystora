@@ -1,0 +1,55 @@
+#!/usr/bin/python3
+# A stand-in for libfido2's fido2-assert, for the passkey tests: it checks that Notes asks exactly as main.js
+# asked (fido2-assert -G -h -t pin=true|uv=true DEVICE, then the client data hash, the relying party, the
+# credential and the salt on stdin, and the PIN when it prompts for one) and answers as a security key that
+# made the credentials in config.json would: with the hmac-secret on the fifth line.
+import base64
+import hashlib
+import json
+import os
+import sys
+import time
+
+here = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(here, 'config.json')) as file:
+    config = json.load(file)
+args = sys.argv[1:]
+with open(os.path.join(here, 'calls.log'), 'a') as log:
+    log.write(json.dumps({'tool': 'fido2-assert', 'args': args}) + '\n')
+
+
+def fail(message):
+    sys.stderr.write(message + '\n')
+    sys.exit(1)
+
+
+if len(args) != 5 or args[:3] != ['-G', '-h', '-t'] or args[3] not in ('pin=true', 'uv=true') or args[4] != config['device']:
+    fail('usage: fido2-assert -G [-bdhpruv] [-t option] [-i input_file] [-o output_file] device')
+lines = [sys.stdin.readline() for _ in range(4)]
+if not all(line.endswith('\n') for line in lines):
+    fail('fido2-assert: input: missing lines')
+cdh, rp, credential, salt = (line[:-1] for line in lines)
+if len(base64.b64decode(cdh)) != 32 or rp != 'amethystora-notes' or len(base64.b64decode(salt)) != 32:
+    fail('fido2-assert: input: invalid')
+if args[3] == 'pin=true':
+    sys.stderr.write('Enter PIN for %s: ' % config['device'])
+    sys.stderr.flush()
+    pin = sys.stdin.readline()
+    if not pin.endswith('\n'):
+        fail('fido2-assert: fido_dev_get_assert: FIDO_ERR_PIN_REQUIRED')
+    if pin[:-1] != config['pin']:
+        fail('fido2-assert: fido_dev_get_assert: FIDO_ERR_PIN_INVALID')
+elif not config.get('uv'):
+    fail('fido2-assert: fido_dev_get_assert: FIDO_ERR_UNSUPPORTED_OPTION')
+if config.get('slow'):
+    time.sleep(60)
+known = config['credentials']
+if credential not in known:
+    fail('fido2-assert: fido_dev_get_assert: FIDO_ERR_NO_CREDENTIALS')
+# The key's own secret for this credential and salt: what the fixture sealed under, or one it works out
+secret = known[credential] or base64.b64encode(hashlib.sha256((credential + salt).encode()).digest()).decode()
+print(cdh)
+print(rp)
+print(base64.b64encode(b'authenticator data').decode())
+print(base64.b64encode(b'signature').decode())
+print(secret)

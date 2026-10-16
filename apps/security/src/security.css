@@ -1,0 +1,900 @@
+/* Amethystora Security, ported from the Electron page's security.css. Line heights are in pixels, the page's
+   factor times the font size, as CSS computes them: GTK multiplies a factor by the font's own height, which
+   differs from script to script, so Arabic lines would come out far taller than the page had them. The ten
+   theme colours and --on-accent are palette.rs's; everything else is mixed from them, as in the Manual, so any
+   theme reads well here without a stylesheet of its own. Layout (gaps, widths, columns, wrapping) is
+   page.rs's; this paints. The page's logical sides (inline-start, inline-end) are :dir(ltr) and :dir(rtl). */
+
+:root {
+    --sidebar: color-mix(in oklab, var(--bg) 94%, var(--fg));
+    --card: color-mix(in oklab, var(--surface) 40%, var(--bg));
+    --control: color-mix(in oklab, var(--fg) 5%, transparent);
+    --line: color-mix(in oklab, var(--fg) 10%, transparent);
+    --line-strong: color-mix(in oklab, var(--fg) 15%, transparent);
+    --hairline: color-mix(in oklab, var(--fg) 7%, transparent);
+    --soft: color-mix(in oklab, var(--fg) 64%, var(--bg));
+    --faint: color-mix(in oklab, var(--fg) 56%, var(--bg));
+    --link: color-mix(in oklab, var(--accent) 72%, var(--fg));
+    --tint: color-mix(in oklab, var(--accent) 16%, transparent);
+    --code-bg: color-mix(in oklab, var(--surface) 55%, var(--bg));
+    --shadow: none;
+    --radius: 16px;
+}
+
+/* On a light theme a card stands out by being lighter than the window, not darker */
+window.light {
+    --card: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --control: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --faint: color-mix(in oklab, var(--fg) 72%, var(--bg));
+    --shadow: 0 1px 2px color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+window.amethystora {
+    font-family: Inter, "Adwaita Sans", Cantarell, sans-serif;
+    font-size: 14px;
+    line-height: 21px;
+    font-feature-settings: "cv11", "ss01";
+}
+
+.code,
+.mono {
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+}
+
+.soft {
+    color: var(--soft);
+}
+
+.faint {
+    color: var(--faint);
+}
+
+/* .small in the page, a name AdwClamp gives its child by its width */
+.small-type {
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+scrollbar slider {
+    background-color: color-mix(in oklab, var(--fg) 22%, transparent);
+}
+
+scrollbar slider:hover {
+    background-color: color-mix(in oklab, var(--fg) 38%, transparent);
+}
+
+/* --- Sidebar ------------------------------------------------------------------------------------ */
+
+.sidebar {
+    padding: 22px 14px 20px;
+    background: var(--sidebar);
+}
+
+.sidebar:dir(ltr) {
+    border-right: 1px solid var(--line);
+}
+
+.sidebar:dir(rtl) {
+    border-left: 1px solid var(--line);
+}
+
+/* The wordmark of the boot splash and the login screen, as logoHtml in branding/generate.mjs sets it: the
+   stone as the "a" of "methystora" in Quicksand Bold, glowing in the three shades the splash lights it
+   with, and white. Every size is the generator's, in em, so it is the same mark at any size. A light theme
+   gets the generator's dark ink. */
+.brand {
+    padding: 4px 6px 0;
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    line-height: 21px;
+    letter-spacing: -0.015em;
+}
+
+.wordmark {
+    color: #ffffff;
+}
+
+window.light .wordmark {
+    color: #241f31;
+}
+
+.brand .product {
+    color: var(--soft);
+    font-weight: 600;
+}
+
+button.nav-button {
+    min-height: 42px;
+    padding: 0 12px;
+    border-radius: 10px;
+    font-size: 14.5px;
+    line-height: 21.75px;
+    font-weight: 500;
+}
+
+button.nav-button:hover {
+    background: color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+button.nav-button.current {
+    background: var(--tint);
+    color: var(--link);
+    font-weight: 600;
+}
+
+.badge {
+    min-width: 8px;
+    min-height: 22px;
+    padding: 0 7px;
+    border-radius: 11px;
+    background: color-mix(in oklab, var(--bad) 16%, transparent);
+    color: var(--bad);
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 700;
+}
+
+.badge.check {
+    background: color-mix(in oklab, var(--warn) 16%, transparent);
+    color: var(--warn);
+}
+
+.badge.busy {
+    background: var(--tint);
+    color: var(--link);
+}
+
+.sidebar-foot {
+    padding: 0 8px;
+}
+
+.terminal {
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+/* On the paragraph's second line, whose height its own words set */
+.terminal .code {
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 18.75px;
+}
+
+/* --- Common pieces ------------------------------------------------------------------------------ */
+
+.page {
+    padding: 36px 44px 48px;
+}
+
+window.narrow .page {
+    padding-left: 32px;
+    padding-right: 32px;
+}
+
+.loading {
+    color: var(--soft);
+}
+
+.card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background-color: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.section .h2 {
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+.section-note {
+    color: var(--faint);
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.lead {
+    color: var(--soft);
+    font-size: 15px;
+    line-height: 22.5px;
+}
+
+.page-head .h1,
+.result-head .h1,
+.scanning .h1 {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 32px;
+    line-height: 38.4px;
+    letter-spacing: -0.01em;
+}
+
+button.btn {
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--control);
+    color: var(--fg);
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 600;
+    transition: filter 150ms;
+}
+
+button.btn > box {
+    border-spacing: 8px;
+}
+
+button.btn:hover {
+    filter: brightness(1.15);
+}
+
+window.light button.btn:hover {
+    filter: brightness(0.96);
+}
+
+button.btn.primary {
+    border-color: transparent;
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+button.btn.small {
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 9px;
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+button.btn:disabled {
+    opacity: 0.5;
+    filter: none;
+}
+
+button.link,
+box.link {
+    color: var(--link);
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 600;
+}
+
+button.link > box,
+box.link {
+    border-spacing: 8px;
+}
+
+button.link:hover label {
+    text-decoration-line: underline;
+}
+
+button.link.quiet {
+    color: var(--soft);
+    font-weight: 500;
+}
+
+button.link.small {
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.pill {
+    min-height: 22px;
+    padding: 0 9px;
+    border-radius: 11px;
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 700;
+}
+
+.pill.small-pill {
+    min-height: 20px;
+    padding: 0 8px;
+    font-size: 11.5px;
+    line-height: 17.25px;
+}
+
+.pill.mono {
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+    font-weight: 500;
+}
+
+.pill.ok,
+.dot.ok,
+.tone.ok {
+    background: color-mix(in oklab, var(--ok) 14%, transparent);
+    color: var(--ok);
+}
+
+.pill.check,
+.dot.check,
+.tone.check {
+    background: color-mix(in oklab, var(--warn) 14%, transparent);
+    color: var(--warn);
+}
+
+.pill.off,
+.dot.off,
+.tone.off {
+    background: color-mix(in oklab, var(--bad) 15%, transparent);
+    color: var(--bad);
+}
+
+.dot.info,
+.tone.info {
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+    color: var(--soft);
+}
+
+.tone.accent {
+    background: var(--tint);
+    color: var(--link);
+}
+
+.dot {
+    min-width: 22px;
+    min-height: 22px;
+    margin-top: 1px;
+    border-radius: 50%;
+}
+
+.status {
+    min-width: 30px;
+    min-height: 30px;
+    border-radius: 50%;
+}
+
+.notice {
+    padding: 12px 16px;
+    border: 1px solid color-mix(in oklab, var(--warn) 30%, transparent);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--warn) 6%, transparent);
+}
+
+.banner {
+    padding: 12px 16px;
+    border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--accent) 9%, transparent);
+}
+
+/* --- Overview ----------------------------------------------------------------------------------- */
+
+.hero {
+    padding: 28px 30px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background-color: var(--card);
+    background-image: radial-gradient(110% 170% at 0% 0%,
+        color-mix(in oklab, var(--accent) 28%, transparent) 0%,
+        color-mix(in oklab, var(--accent) 7%, transparent) 42%,
+        transparent 72%);
+    box-shadow: var(--shadow);
+}
+
+/* The side a line starts on, where the glows that light a card from its icon sit */
+.hero:dir(rtl) {
+    background-image: radial-gradient(110% 170% at 100% 0%,
+        color-mix(in oklab, var(--accent) 28%, transparent) 0%,
+        color-mix(in oklab, var(--accent) 7%, transparent) 42%,
+        transparent 72%);
+}
+
+.emblem-badge {
+    min-width: 24px;
+    min-height: 24px;
+    border: 3px solid var(--card);
+    border-radius: 50%;
+    color: var(--bg);
+    font-size: 14px;
+    line-height: 21px;
+    font-weight: 800;
+}
+
+.emblem-badge.off {
+    background: var(--bad);
+}
+
+.emblem-badge.check {
+    background: var(--warn);
+}
+
+.emblem-badge.ok {
+    background: var(--ok);
+}
+
+.hero-text .h1 {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 34px;
+    line-height: 39.1px;
+    letter-spacing: -0.01em;
+}
+
+.attention {
+    padding: 20px 22px;
+    border: 1px solid;
+    border-radius: var(--radius);
+}
+
+.attention.off {
+    border-color: color-mix(in oklab, var(--bad) 32%, transparent);
+    background: color-mix(in oklab, var(--bad) 6%, transparent);
+}
+
+.attention.check {
+    border-color: color-mix(in oklab, var(--warn) 30%, transparent);
+    background: color-mix(in oklab, var(--warn) 5%, transparent);
+}
+
+.attention-icon {
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 12px;
+}
+
+.attention .h3 {
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 600;
+}
+
+.attention .p {
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+.command:dir(ltr) {
+    padding: 8px 8px 8px 16px;
+}
+
+.command:dir(rtl) {
+    padding: 8px 16px 8px 8px;
+}
+
+.command {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--code-bg);
+}
+
+.command .code {
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+.command button.btn {
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 8px;
+    background: var(--sidebar);
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.group-head {
+    padding: 14px 16px 12px;
+}
+
+.group-head .h3 {
+    font-size: 14.5px;
+    line-height: 21.75px;
+    font-weight: 600;
+}
+
+.row {
+    padding: 12px 16px 14px;
+    border-top: 1px solid var(--hairline);
+}
+
+.row-title {
+    font-size: 14px;
+    line-height: 21px;
+    font-weight: 600;
+}
+
+.row-detail {
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.13px;
+}
+
+.row button.link {
+    margin-top: 4px;
+}
+
+.tile {
+    padding: 18px;
+}
+
+.tile-icon,
+.choice-icon,
+.strip-icon {
+    min-width: 38px;
+    min-height: 38px;
+    border-radius: 11px;
+}
+
+.tile .h3 {
+    font-size: 15px;
+    line-height: 22.5px;
+    font-weight: 600;
+}
+
+.tile .p {
+    color: var(--soft);
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.tile-state {
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.tile-state.on {
+    color: var(--ok);
+    font-weight: 600;
+}
+
+.tile-state.unavailable {
+    color: var(--warn);
+    font-weight: 600;
+}
+
+button.manual-tile {
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius);
+    background: none;
+}
+
+button.manual-tile:hover {
+    background: color-mix(in oklab, var(--fg) 4%, transparent);
+}
+
+.manual-tile .tile-title {
+    font-size: 15px;
+    line-height: 22.5px;
+    font-weight: 600;
+}
+
+.manual-tile .tile-note {
+    color: var(--soft);
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+/* --- Virus scan --------------------------------------------------------------------------------- */
+
+.strip-cell {
+    padding: 16px 18px;
+}
+
+.strip.columns > .strip-cell:not(:first-child):dir(ltr) {
+    border-left: 1px solid var(--hairline);
+}
+
+.strip.columns > .strip-cell:not(:first-child):dir(rtl) {
+    border-right: 1px solid var(--hairline);
+}
+
+.strip.rows > .strip-cell:not(:first-child) {
+    border-top: 1px solid var(--hairline);
+}
+
+.label {
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+}
+
+.value {
+    font-size: 14.5px;
+    line-height: 21.75px;
+    font-weight: 600;
+}
+
+.choice {
+    padding: 20px;
+}
+
+.choice.main {
+    border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+    background-image: radial-gradient(120% 120% at 0% 0%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 60%);
+}
+
+.choice.main:dir(rtl) {
+    background-image: radial-gradient(120% 120% at 100% 0%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 60%);
+}
+
+.choice-icon {
+    min-width: 42px;
+    min-height: 42px;
+    border-radius: 12px;
+}
+
+.choice .h3 {
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 600;
+}
+
+.choice .p {
+    color: var(--soft);
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+.list-row {
+    padding: 12px 18px;
+    border-top: 1px solid var(--hairline);
+}
+
+.list-row:first-child {
+    border-top: none;
+}
+
+button.list-row:hover {
+    background: color-mix(in oklab, var(--fg) 4%, transparent);
+}
+
+.list-row .strong {
+    font-size: 14.5px;
+    line-height: 21.75px;
+    font-weight: 600;
+}
+
+.list-row .small-text {
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.list-row .chevron {
+    color: var(--faint);
+}
+
+.list-row .container-line {
+    color: var(--fg);
+    opacity: 0.86;
+}
+
+/* What an app can reach, in the colour of what it amounts to: leaving its sandbox, seeing what is typed into
+   another app, or anything else */
+.list-row .reach-line .reach {
+    color: var(--fg);
+}
+
+.list-row .reach-line .reach.off {
+    color: var(--bad);
+}
+
+.list-row .reach-line .reach.check {
+    color: var(--warn);
+}
+
+.list-empty {
+    padding: 16px 18px;
+    color: var(--soft);
+}
+
+/* --- Scanning ----------------------------------------------------------------------------------- */
+
+.scanning {
+    padding: 40px 56px;
+}
+
+.scanning .h1 {
+    margin-top: 30px;
+    font-size: 30px;
+    line-height: 36px;
+}
+
+.scanning .lead {
+    margin-top: 8px;
+}
+
+.stats {
+    margin-top: 32px;
+}
+
+.stat {
+    padding: 16px 12px;
+}
+
+.stats > .stat:not(:first-child):dir(ltr) {
+    border-left: 1px solid var(--hairline);
+}
+
+.stats > .stat:not(:first-child):dir(rtl) {
+    border-right: 1px solid var(--hairline);
+}
+
+.stat-value {
+    font-size: 24px;
+    line-height: 36px;
+    font-weight: 700;
+    font-feature-settings: "cv11", "ss01", "tnum";
+}
+
+.stat-value.off {
+    color: var(--bad);
+}
+
+.current-file {
+    margin-top: 22px;
+}
+
+.current-path {
+    color: var(--soft);
+}
+
+.current-path .code {
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+bar {
+    min-height: 6px;
+    border-radius: 3px;
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+}
+
+bar > .fill {
+    border-radius: 3px;
+    background-image: linear-gradient(90deg, transparent, var(--accent) 30%, var(--link) 70%, transparent);
+}
+
+.scanning > button.btn {
+    margin-top: 30px;
+}
+
+.footnote {
+    margin-top: 16px;
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+/* --- Result ------------------------------------------------------------------------------------- */
+
+.result-head .h1 {
+    font-size: 30px;
+    line-height: 36px;
+}
+
+.result-icon {
+    min-width: 60px;
+    min-height: 60px;
+    border-radius: 18px;
+}
+
+.callout {
+    padding: 16px 18px;
+    border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+    border-radius: 14px;
+    background: color-mix(in oklab, var(--accent) 9%, transparent);
+}
+
+.callout > icon {
+    margin-top: 1px;
+    color: var(--link);
+}
+
+.callout.check {
+    border-color: color-mix(in oklab, var(--warn) 30%, transparent);
+    background: color-mix(in oklab, var(--warn) 6%, transparent);
+}
+
+.callout.check > icon {
+    color: var(--warn);
+}
+
+.callout .strong {
+    font-size: 14.5px;
+    line-height: 21.75px;
+    font-weight: 600;
+}
+
+.callout .p {
+    color: var(--soft);
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+.finding {
+    padding: 18px 20px;
+    border-color: color-mix(in oklab, var(--bad) 28%, transparent);
+}
+
+.finding-name {
+    font-size: 15px;
+    line-height: 22.5px;
+    font-weight: 600;
+}
+
+.finding .code {
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+/* <small>, one size smaller than the 14 px around it */
+.finding .small-text {
+    font-size: 11.67px;
+    line-height: 17.5px;
+}
+
+/* --- Dropping files ----------------------------------------------------------------------------- */
+
+.drop {
+    margin: 12px;
+    border: 2px dashed var(--accent);
+    border-radius: 20px;
+    background: color-mix(in oklab, var(--bg) 82%, transparent);
+    color: var(--link);
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 26px;
+    line-height: 32.5px;
+}
+
+/* Settings: a switch a row, with its values as one group of buttons, the current one pressed */
+.list-row.switch-row .strong {
+    font-size: 14.5px;
+}
+
+.segmented {
+    border: 1px solid var(--line-strong);
+    border-radius: 9px;
+    background: var(--control);
+}
+
+.segmented > button.segment {
+    border-radius: 0;
+    min-height: 30px;
+    padding: 0 11px;
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-weight: 600;
+}
+
+.segmented > button.segment:dir(ltr) {
+    border-left: 1px solid var(--line-strong);
+}
+
+.segmented > button.segment:dir(rtl) {
+    border-right: 1px solid var(--line-strong);
+}
+
+.segmented > button.segment:first-child {
+    border-left: none;
+    border-right: none;
+}
+
+.segmented > button.segment:not(.active):hover {
+    background: color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+.segmented > button.segment.active {
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+/* Events: a finding's sentence wraps, however long a name in it is */
+.list-row .strong.event-text {
+    font-weight: 500;
+}

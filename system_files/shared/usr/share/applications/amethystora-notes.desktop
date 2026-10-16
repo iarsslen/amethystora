@@ -9,7 +9,7 @@ Terminal=false
 Categories=Office;ProjectManagement;
 Keywords=notes;notebook;markdown;todo;to-do;tasks;planner;reminders;checklist;journal;joplin;planify;
 StartupNotify=true
-StartupWMClass=amethystora-notes
+StartupWMClass=org.amethystora.Notes
 Actions=tasks;
 
 [Desktop Action tasks]

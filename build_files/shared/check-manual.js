@@ -3,12 +3,11 @@
 // Checks the manual's pages for 20-tests.sh: every page in pages.json exists and has a title, and
 // every link between pages lands on a page that is listed and on a heading that page has. The same for
 // each translation, manual/<language>/<page>.md: it translates a listed page, and its links land on
-// the headings of the English pages, whose ids a translated page keeps (manual.js). One whose headings
+// the headings of the English pages, whose ids a translated page keeps (apps/manual). One whose headings
 // no longer match the English page's is only reported: Weblate brings it back in line at its next sync.
-// Run by the manual's own Electron as Node, so the image needs no Node of its own:
+// Run on the Node that 20-tests.sh installs for it and check-translations.js, and takes out again:
 //
-//   ELECTRON_RUN_AS_NODE=1 /usr/lib/amethystora-manual/amethystora-manual check-manual.js [manual dir]
-//       [--links page#heading...]
+//   node check-manual.js [manual dir] [--links page#heading...]
 //
 // Links from outside the manual, such as Control's cards (amethystora-control-list --json), are given
 // after --links in the form `amethystora-manual` takes, and each has to land the same way.
@@ -23,10 +22,13 @@ const toc = JSON.parse(fs.readFileSync(path.join(manual, 'pages.json'), 'utf8'))
 const pages = new Map();
 const problems = [];
 
-// The same ids manual.js gives headings, from their text with the Markdown taken out
+// The same ids the Manual gives headings (markdown::slug in apps/common), from their text with the Markdown
+// taken out: what HTML escapes left out, and every run of what is neither a letter (Unicode's Alphabetic,
+// which takes in Arabic's vowel marks) nor a number one dash
 function slug(heading) {
     return heading.replace(/`/g, '').replace(/\*\*?/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-        .replace(/&[#\w]+;/g, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '');
+        .replace(/&[#\w]+;/g, '').replace(/[&<>"']/g, '').toLowerCase().replace(/[^\p{Alphabetic}\p{N}]+/gu, '-')
+        .replace(/^-|-$/g, '');
 }
 
 for (const group of toc) {

@@ -7,7 +7,7 @@
 #   amethystora-logs <view>     open it on all, session, system, kernel, security, crashes or sources
 #
 # It reads the journal with journalctl, as you: administrators see everything, anyone else their own
-# session and apps. The window is an Electron app in /usr/lib/amethystora-logs (build_files/base/16-logs.sh).
+# session and apps. The window is a GTK program, one with the other Amethystora apps (apps/, 13-apps.sh).
 
 set -euo pipefail
 

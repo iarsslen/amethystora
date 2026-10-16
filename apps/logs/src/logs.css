@@ -1,0 +1,955 @@
+/* Amethystora Logs, ported from the Electron page's logs.css. Line heights are in pixels, the page's factor
+   times the font size, as CSS computes them: GTK multiplies a factor by the font's own height, which differs
+   from script to script, so Arabic lines would come out far taller than the page had them. The ten theme
+   colours and --on-accent are palette.rs's; everything else is mixed from them, as in the Manual, Security
+   and Updates, so any theme reads well here without a stylesheet of its own. Layout (gaps, widths, the
+   grids, wrapping) is page.rs's and layout.rs's; this paints. GTK's own min-width and min-height are the
+   box inside padding and border, where the page's box-sizing: border-box sizes took them in.
+
+   The page's two widths are libadwaita breakpoints, of which one applies at a time: what held at most 1100
+   pixels wide is written for window.narrow and window.narrower (at most 900) alike. */
+
+:root {
+    --sidebar: color-mix(in oklab, var(--bg) 94%, var(--fg));
+    --card: color-mix(in oklab, var(--surface) 40%, var(--bg));
+    --control: color-mix(in oklab, var(--fg) 5%, transparent);
+    --line: color-mix(in oklab, var(--fg) 10%, transparent);
+    --line-strong: color-mix(in oklab, var(--fg) 15%, transparent);
+    --hairline: color-mix(in oklab, var(--fg) 7%, transparent);
+    --soft: color-mix(in oklab, var(--fg) 64%, var(--bg));
+    --faint: color-mix(in oklab, var(--fg) 56%, var(--bg));
+    --link: color-mix(in oklab, var(--accent) 72%, var(--fg));
+    --tint: color-mix(in oklab, var(--accent) 16%, transparent);
+    --code-bg: color-mix(in oklab, var(--surface) 55%, var(--bg));
+    --hover: color-mix(in oklab, var(--fg) 5%, transparent);
+    --shadow: none;
+    --radius: 16px;
+}
+
+/* On a light theme a card stands out by being lighter than the window, not darker */
+window.light {
+    --card: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --control: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --faint: color-mix(in oklab, var(--fg) 72%, var(--bg));
+    --shadow: 0 1px 2px color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+window.amethystora {
+    font-family: Inter, "Adwaita Sans", Cantarell, sans-serif;
+    font-size: 14px;
+    line-height: 21px;
+    font-feature-settings: "cv11", "ss01";
+}
+
+.code,
+.mono {
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+}
+
+.soft {
+    color: var(--soft);
+}
+
+.faint {
+    color: var(--faint);
+}
+
+.small {
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+scrollbar slider {
+    background-color: color-mix(in oklab, var(--fg) 22%, transparent);
+}
+
+scrollbar slider:hover {
+    background-color: color-mix(in oklab, var(--fg) 38%, transparent);
+}
+
+/* --- Sidebar ------------------------------------------------------------------------------------ */
+
+/* 264 pixels wide, and 220 in a narrow window, border and padding included: min-width is the box inside them */
+.sidebar {
+    min-width: 235px;
+    padding: 22px 14px 20px;
+}
+
+window.narrower .sidebar {
+    min-width: 191px;
+}
+
+.sidebar-scroller {
+    background: var(--sidebar);
+    border-right: 1px solid var(--line);
+}
+
+.sidebar-scroller:dir(rtl) {
+    border-right: none;
+    border-left: 1px solid var(--line);
+}
+
+/* The wordmark of the boot splash and the login screen, as logoHtml in branding/generate.mjs sets it: the
+   stone as the "a" of "methystora" in Quicksand Bold, glowing in the three shades the splash lights it
+   with, and white. Every size is the generator's, in em, so it is the same mark at any size; the glow
+   is the login screen's, 10px on its 93px lettering. A light theme gets the generator's dark ink. */
+.brand {
+    padding: 4px 6px;
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    line-height: 21px;
+    letter-spacing: -0.015em;
+}
+
+.wordmark {
+    color: #ffffff;
+}
+
+window.light .wordmark {
+    color: #241f31;
+}
+
+.brand .product {
+    color: var(--soft);
+    font-weight: 600;
+}
+
+.nav-label {
+    padding: 0 12px 4px;
+    color: var(--faint);
+    font-size: 11.5px;
+    line-height: 17.25px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+button.nav-button {
+    min-height: 40px;
+    padding: 0 12px;
+    border-radius: 10px;
+    color: var(--fg);
+    font-size: 14.5px;
+    line-height: 21.75px;
+    font-weight: 500;
+}
+
+button.nav-button:hover {
+    background: color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+button.nav-button.current {
+    background: var(--tint);
+    color: var(--link);
+    font-weight: 600;
+}
+
+/* 22 pixels high and at least as wide, the count in the middle */
+.badge {
+    min-width: 8px;
+    min-height: 22px;
+    padding: 0 7px;
+    border-radius: 11px;
+    background: color-mix(in oklab, var(--bad) 16%, transparent);
+    color: var(--bad);
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 700;
+    font-feature-settings: "tnum";
+}
+
+.sidebar-foot {
+    padding: 0 8px;
+}
+
+.terminal {
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.terminal .code {
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 18.75px;
+}
+
+/* --- Common pieces ------------------------------------------------------------------------------ */
+
+.page {
+    padding: 36px 44px 48px;
+}
+
+window.narrow .page,
+window.narrower .page {
+    padding-left: 32px;
+    padding-right: 32px;
+}
+
+.h1 {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 30px;
+    line-height: 36px;
+    letter-spacing: -0.01em;
+}
+
+.lead {
+    color: var(--soft);
+    font-size: 14.5px;
+    line-height: 21.75px;
+}
+
+.loading {
+    color: var(--soft);
+}
+
+.card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.section .h2 {
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+.section-note {
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-feature-settings: "tnum";
+}
+
+button.btn {
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--control);
+    color: var(--fg);
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 600;
+    transition: filter 150ms;
+}
+
+button.btn > box {
+    border-spacing: 8px;
+}
+
+button.btn:hover {
+    filter: brightness(1.15);
+}
+
+window.light button.btn:hover {
+    filter: brightness(0.96);
+}
+
+button.btn.primary {
+    border-color: transparent;
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+button.btn.small {
+    min-height: 30px;
+    padding: 0 11px;
+    border-radius: 9px;
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+button.btn:disabled {
+    opacity: 0.5;
+    filter: none;
+}
+
+button.icon-btn {
+    min-width: 30px;
+    min-height: 30px;
+    border-radius: 8px;
+    color: var(--soft);
+}
+
+button.icon-btn:hover {
+    background: var(--hover);
+    color: var(--fg);
+}
+
+button.link {
+    color: var(--link);
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 600;
+}
+
+button.link > box {
+    border-spacing: 8px;
+}
+
+button.link:hover label {
+    text-decoration-line: underline;
+}
+
+button.link.quiet {
+    color: var(--soft);
+    font-weight: 500;
+}
+
+button.link.small {
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.pill {
+    min-height: 22px;
+    padding: 0 9px;
+    border-radius: 11px;
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 700;
+}
+
+.pill.ok,
+.tone.ok {
+    background: color-mix(in oklab, var(--ok) 14%, transparent);
+    color: var(--ok);
+}
+
+.pill.check,
+.tone.check {
+    background: color-mix(in oklab, var(--warn) 14%, transparent);
+    color: var(--warn);
+}
+
+.pill.off,
+.tone.off {
+    background: color-mix(in oklab, var(--bad) 15%, transparent);
+    color: var(--bad);
+}
+
+.pill.info,
+.pill.debug,
+.tone.info {
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+    color: var(--soft);
+}
+
+.pill.accent,
+.tone.accent {
+    background: var(--tint);
+    color: var(--link);
+}
+
+.callout {
+    padding: 14px 16px;
+    border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+    border-radius: 14px;
+    background: color-mix(in oklab, var(--accent) 9%, transparent);
+}
+
+.callout > icon {
+    margin-top: 1px;
+    color: var(--link);
+}
+
+.callout.check {
+    border-color: color-mix(in oklab, var(--warn) 30%, transparent);
+    background: color-mix(in oklab, var(--warn) 6%, transparent);
+}
+
+.callout.check > icon {
+    color: var(--warn);
+}
+
+.callout .strong {
+    font-size: 14px;
+    line-height: 21px;
+    font-weight: 600;
+}
+
+.callout .p {
+    color: var(--soft);
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.banner {
+    padding: 8px 8px 8px 14px;
+    border: 1px solid color-mix(in oklab, var(--ok) 30%, transparent);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--ok) 8%, transparent);
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.banner:dir(rtl) {
+    padding: 8px 14px 8px 8px;
+}
+
+.banner > icon {
+    color: var(--ok);
+}
+
+.banner.check {
+    border-color: color-mix(in oklab, var(--warn) 30%, transparent);
+    background: color-mix(in oklab, var(--warn) 6%, transparent);
+}
+
+.banner.check > icon {
+    color: var(--warn);
+}
+
+.command {
+    padding: 6px 6px 6px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--code-bg);
+}
+
+.command:dir(rtl) {
+    padding: 6px 14px 6px 6px;
+}
+
+.command .code {
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.command button.btn {
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 8px;
+    background: var(--sidebar);
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.search {
+    min-height: 36px;
+    padding: 0 5px 0 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--control);
+    color: var(--soft);
+}
+
+.search:dir(rtl) {
+    padding: 0 12px 0 5px;
+}
+
+.search:focus-within {
+    border-color: color-mix(in oklab, var(--accent) 70%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+.search text {
+    color: var(--fg);
+    font-size: 14px;
+    line-height: 21px;
+}
+
+.search text > placeholder {
+    color: var(--faint);
+    opacity: 1;
+}
+
+button.toggle {
+    min-height: 28px;
+    padding: 0 8px;
+    border-radius: 7px;
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-weight: 600;
+}
+
+button.toggle:hover {
+    background: var(--hover);
+}
+
+button.toggle.pressed {
+    background: var(--tint);
+    color: var(--link);
+}
+
+/* A <select>: as wide as its widest choice, at most 240 pixels, the chevron at its end */
+menubutton.select > button {
+    min-height: 36px;
+    padding: 0 11px 0 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--control);
+    box-shadow: none;
+    color: var(--fg);
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 500;
+}
+
+menubutton.select > button:dir(rtl) {
+    padding: 0 12px 0 11px;
+}
+
+menubutton.select icon {
+    color: var(--soft);
+}
+
+/* Its choices, as the system drew a <select>'s list */
+popover.choices > contents {
+    padding: 4px;
+}
+
+popover.choices .group {
+    padding: 6px 10px 2px;
+    color: var(--faint);
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 600;
+}
+
+popover.choices button.option {
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 6px;
+    color: var(--fg);
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+popover.choices button.option.grouped {
+    padding-left: 20px;
+}
+
+popover.choices button.option:hover,
+popover.choices button.option:focus-visible {
+    background: var(--hover);
+}
+
+popover.choices button.option.current {
+    background: var(--tint);
+    color: var(--link);
+    font-weight: 600;
+}
+
+/* --- The log view ------------------------------------------------------------------------------- */
+
+.logs-head {
+    padding: 28px 32px 16px;
+    border-bottom: 1px solid var(--line);
+}
+
+window.narrow .logs-head,
+window.narrower .logs-head {
+    padding-left: 24px;
+    padding-right: 24px;
+}
+
+.title-row .lead {
+    margin-top: 4px;
+}
+
+.head-actions {
+    margin-top: 4px;
+}
+
+.count {
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-feature-settings: "tnum";
+}
+
+.chip {
+    min-height: 30px;
+    padding: 0 4px 0 11px;
+    border-radius: 15px;
+    background: var(--tint);
+    color: var(--link);
+    font-size: 13px;
+    line-height: 19.5px;
+    font-weight: 600;
+}
+
+.chip:dir(rtl) {
+    padding: 0 11px 0 4px;
+}
+
+.chip button {
+    min-width: 24px;
+    min-height: 24px;
+    border-radius: 12px;
+    color: inherit;
+}
+
+.chip button:hover {
+    background: color-mix(in oklab, var(--accent) 22%, transparent);
+}
+
+.list-pad {
+    padding: 24px 32px;
+}
+
+/* The rows are drawn by the page's rules, not the list view's */
+listview.rows {
+    background: none;
+    color: inherit;
+}
+
+listview.rows > row {
+    padding: 0;
+    margin: 0;
+    min-height: 0;
+    border-radius: 0;
+    background: none;
+    outline-offset: -2px;
+}
+
+listview.rows > row:hover,
+listview.rows > row:selected {
+    background: none;
+}
+
+listview.rows > row:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+}
+
+.day {
+    padding: 12px 32px 6px;
+    background: color-mix(in oklab, var(--bg) 92%, transparent);
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+window.narrow .day,
+window.narrower .day {
+    padding-left: 24px;
+}
+
+window.narrow .day:dir(rtl),
+window.narrower .day:dir(rtl) {
+    padding-left: 32px;
+    padding-right: 24px;
+}
+
+/* 34 pixels high with its padding and the hairline above it */
+.entry {
+    min-height: 23px;
+    padding: 5px 32px;
+    border-top: 1px solid var(--hairline);
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+window.narrow .entry,
+window.narrower .entry {
+    padding-left: 24px;
+    padding-right: 24px;
+}
+
+.entry.after-day {
+    border-top-color: transparent;
+}
+
+.entry:hover {
+    background: var(--hover);
+}
+
+.entry.selected {
+    background: var(--tint);
+}
+
+.entry-time {
+    min-width: 76px;
+    color: var(--faint);
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+    font-size: 12.5px;
+    line-height: 16.5px;
+    font-feature-settings: "tnum";
+}
+
+window.narrow .entry-time,
+window.narrower .entry-time {
+    min-width: 72px;
+}
+
+.entry-source {
+    min-width: 170px;
+    color: var(--soft);
+    font-weight: 600;
+}
+
+window.narrow .entry-source,
+window.narrower .entry-source {
+    min-width: 130px;
+}
+
+.entry.bad .entry-message {
+    color: color-mix(in oklab, var(--bad) 70%, var(--fg));
+}
+
+.level {
+    min-width: 8px;
+    min-height: 8px;
+    border-radius: 4px;
+    background: color-mix(in oklab, var(--fg) 22%, transparent);
+}
+
+.level.off {
+    background: var(--bad);
+}
+
+.level.check {
+    background: var(--warn);
+}
+
+.level.accent {
+    background: var(--link);
+}
+
+.level.debug {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--fg) 25%, transparent);
+}
+
+.list-foot {
+    padding: 22px 32px 28px;
+}
+
+button.fresh {
+    margin-top: 12px;
+    min-height: 32px;
+    padding: 0 14px;
+    border-radius: 16px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 13px;
+    line-height: 19.5px;
+    font-weight: 600;
+    box-shadow: 0 4px 16px color-mix(in oklab, #000000 30%, transparent);
+}
+
+button.fresh icon.up {
+    transform: rotate(180deg);
+}
+
+button.fresh > box {
+    border-spacing: 6px;
+}
+
+.empty {
+    padding: 72px 32px;
+}
+
+.empty-icon {
+    min-width: 64px;
+    min-height: 64px;
+    margin-bottom: 8px;
+    border-radius: 20px;
+}
+
+.empty .h2 {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    line-height: 28.6px;
+}
+
+.empty .p {
+    color: var(--soft);
+}
+
+.empty .actions {
+    margin-top: 12px;
+}
+
+/* --- One entry ---------------------------------------------------------------------------------- */
+
+.detail {
+    background: var(--sidebar);
+    border-left: 1px solid var(--line);
+}
+
+.detail:dir(rtl) {
+    border-left: none;
+    border-right: 1px solid var(--line);
+}
+
+/* A narrow window: the entry opens over the list rather than beside it, its shadow over the list */
+window.narrow .detail,
+window.narrower .detail {
+    box-shadow: -12px 0 32px color-mix(in oklab, #000000 28%, transparent);
+}
+
+window.narrow .detail:dir(rtl),
+window.narrower .detail:dir(rtl) {
+    box-shadow: 12px 0 32px color-mix(in oklab, #000000 28%, transparent);
+}
+
+.detail-inner {
+    padding: 18px 22px 28px;
+}
+
+.detail-title {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    line-height: 27.3px;
+}
+
+.message-box {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--code-bg);
+}
+
+.message {
+    padding: 14px 16px;
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+    font-size: 12.5px;
+    line-height: 20px;
+}
+
+.facts {
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.facts .dt {
+    color: var(--soft);
+    font-weight: 600;
+}
+
+.fields {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card);
+}
+
+.fields button.summary {
+    padding: 11px 14px;
+    color: var(--soft);
+    font-size: 13px;
+    line-height: 19.5px;
+    font-weight: 600;
+}
+
+.fields button.summary > box {
+    border-spacing: 10px;
+}
+
+.fields .chevron {
+    transition: transform 150ms;
+}
+
+.fields.open .chevron {
+    transform: rotate(90deg);
+}
+
+.fields .dl {
+    padding: 12px 14px;
+    border-top: 1px solid var(--hairline);
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+    font-size: 12px;
+    line-height: 18px;
+}
+
+.fields .dt {
+    color: var(--soft);
+}
+
+.fields-foot {
+    padding: 10px 14px 12px;
+    border-top: 1px solid var(--hairline);
+}
+
+/* --- Apps and services -------------------------------------------------------------------------- */
+
+button.app {
+    padding: 12px 14px;
+}
+
+button.app:hover {
+    border-color: color-mix(in oklab, var(--accent) 40%, transparent);
+}
+
+.avatar {
+    min-width: 38px;
+    min-height: 38px;
+    border-radius: 11px;
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+}
+
+.app-text .strong {
+    font-size: 14px;
+    line-height: 21px;
+    font-weight: 600;
+}
+
+.app-text .small-text {
+    color: var(--faint);
+    font-size: 12px;
+    line-height: 18px;
+}
+
+button.list-row {
+    padding: 10px 18px;
+    border-top: 1px solid var(--hairline);
+}
+
+button.list-row.first {
+    border-top: none;
+}
+
+button.list-row:hover {
+    background: var(--hover);
+}
+
+.list-row .strong {
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+    font-size: 13px;
+    line-height: 19.5px;
+    font-weight: 500;
+}
+
+.list-row .small-text {
+    color: var(--faint);
+    font-size: 12px;
+    line-height: 18px;
+}
+
+.list-row .chevron {
+    color: var(--faint);
+}
+
+.list-empty {
+    padding: 14px 18px;
+    color: var(--soft);
+}
+
+/* The window's own buttons, which the page had in the window's frame: at the end of the view's title row,
+   level with its buttons, or in the open entry's head */
+.title-row windowcontrols {
+    margin-top: 8px;
+}
+
+.detail-bar {
+    padding: 8px 12px 0;
+}
+
+.detail-bar + scrolledwindow .detail-inner {
+    padding-top: 6px;
+}

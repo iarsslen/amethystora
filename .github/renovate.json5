@@ -176,32 +176,6 @@
       currentValueTemplate: 'master',
       datasourceTemplate: 'git-refs',
     },
-    // The Electron release and the marked version 13-manual.sh builds the
-    // Amethystora Manual from. Not automerged: 20-tests.sh starts the new
-    // Electron and checks every page, and that runs in the PR build.
-    {
-      customType: 'regex',
-      managerFilePatterns: [
-        '/^build_files/base/13-manual\\.sh$/',
-      ],
-      matchStrings: [
-        'ELECTRON_VERSION="(?<currentValue>[^"]+)"',
-      ],
-      depNameTemplate: 'electron/electron',
-      datasourceTemplate: 'github-releases',
-      extractVersionTemplate: '^v(?<version>.+)$',
-    },
-    {
-      customType: 'regex',
-      managerFilePatterns: [
-        '/^build_files/base/13-manual\\.sh$/',
-      ],
-      matchStrings: [
-        'MARKED_VERSION="(?<currentValue>[^"]+)"',
-      ],
-      depNameTemplate: 'marked',
-      datasourceTemplate: 'npm',
-    },
     // The images amethystora-pkg's built-in templates start from, each pinned
     // by digest. The pins ship in the signed image, which is what makes a
     // container made from one start from exactly the image they name, so they
@@ -384,6 +358,21 @@
     {
       "matchDepTypes": ["pkg-template"],
       "groupName": "amethystora-pkg templates"
+    },
+    // The apps' crates (apps/, cargo). gtk-rs releases gtk4 and libadwaita
+    // together, and ICU4X its crates, which only work at matching versions,
+    // so each moves as one pull request, whose build runs every app's tests
+    // (build-apps.sh). The GTK and libadwaita the bindings may use are held
+    // by the oldest Fedora the image builds on (apps/Cargo.toml's features).
+    {
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["gtk4", "libadwaita"],
+      "groupName": "gtk-rs"
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchPackageNames": ["/^icu_/", "fixed_decimal"],
+      "groupName": "ICU4X"
     },
     // fprintd's releases are looked for once a week, and never merged by
     // Renovate: each one means taking the patches across by hand

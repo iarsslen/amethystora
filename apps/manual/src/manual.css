@@ -1,0 +1,433 @@
+/* The Amethystora Manual, ported from the Electron page's manual.css. The theme's colours are palette.rs's;
+   everything else is mixed from them, so any theme reads well here without a stylesheet of its own. Line
+   heights are in pixels, the page's factor times the font size, as CSS computes them (PLAN-rust-apps.md);
+   the margins between the page's blocks are markdown.rs's, which collapses them as HTML did. */
+
+:root {
+    --sidebar: color-mix(in oklab, var(--bg) 94%, var(--fg));
+    --line: color-mix(in oklab, var(--fg) 12%, transparent);
+    --soft: color-mix(in oklab, var(--fg) 64%, var(--bg));
+    --link: color-mix(in oklab, var(--accent) 72%, var(--fg));
+    --tint: color-mix(in oklab, var(--accent) 14%, transparent);
+    --code-bg: color-mix(in oklab, var(--surface) 55%, var(--bg));
+    --radius: 10px;
+}
+
+window.amethystora {
+    font-family: Inter, "Adwaita Sans", Cantarell, sans-serif;
+    font-size: 16px;
+    line-height: 26.4px;
+    font-feature-settings: "cv11", "ss01";
+}
+
+scrollbar slider {
+    background-color: color-mix(in oklab, var(--fg) 22%, transparent);
+}
+
+scrollbar slider:hover {
+    background-color: color-mix(in oklab, var(--fg) 38%, transparent);
+}
+
+/* --- Sidebar ------------------------------------------------------------------------------------ */
+
+.sidebar {
+    background: var(--sidebar);
+    border-right: 1px solid var(--line);
+}
+
+.sidebar:dir(rtl) {
+    border-right: none;
+    border-left: 1px solid var(--line);
+}
+
+/* The wordmark of the boot splash and the login screen, as logoHtml in branding/generate.mjs sets it */
+button.brand-button {
+    padding: 26px 20px 18px;
+}
+
+.brand {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    line-height: 21px;
+    letter-spacing: -0.015em;
+}
+
+.wordmark {
+    color: #ffffff;
+}
+
+window.light .wordmark {
+    color: #241f31;
+}
+
+.brand .product {
+    color: var(--soft);
+    font-weight: 600;
+}
+
+.search {
+    margin: 4px 14px 10px;
+}
+
+entry.search-input {
+    min-height: 0;
+    padding: 9px 74px 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg);
+    box-shadow: none;
+    color: var(--fg);
+    font-size: 14px;
+    line-height: 23.1px;
+    outline: none;
+}
+
+entry.search-input > text > placeholder {
+    color: var(--soft);
+}
+
+entry.search-input:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--tint);
+}
+
+.search .hint {
+    margin-right: 9px;
+}
+
+.search .hint:dir(rtl) {
+    margin-right: 0;
+    margin-left: 9px;
+}
+
+.kbd {
+    min-width: 0;
+    padding: 1px 5px 0;
+    border: 1px solid color-mix(in oklab, var(--accent) 35%, var(--line));
+    border-bottom-width: 2px;
+    border-radius: 6px;
+    background: color-mix(in oklab, var(--accent) 9%, var(--bg));
+    color: var(--fg);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 17.6px;
+}
+
+.toc,
+.results {
+    padding: 4px 10px 24px;
+}
+
+.toc-heading {
+    margin: 18px 10px 6px;
+    color: var(--soft);
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 18.98px;
+    letter-spacing: 0.08em;
+}
+
+button.toc-link {
+    padding: 5px 10px;
+    border-radius: 8px;
+    color: var(--fg);
+    font-size: 14.5px;
+    line-height: 23.93px;
+}
+
+button.toc-link:hover {
+    background: color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+button.toc-link.current {
+    background: var(--tint);
+    color: var(--link);
+    font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--accent);
+}
+
+button.toc-link.current:dir(rtl) {
+    box-shadow: inset -3px 0 0 var(--accent);
+}
+
+button.hit {
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--fg);
+}
+
+button.hit:hover,
+button.hit.selected {
+    background: var(--tint);
+}
+
+.hit-title {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 23.1px;
+}
+
+.hit-text {
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.13px;
+}
+
+.results .none {
+    padding: 8px 10px;
+    color: var(--soft);
+    font-size: 14px;
+    line-height: 23.1px;
+}
+
+/* --- The page ------------------------------------------------------------------------------------ */
+
+.page,
+.pager {
+    padding-left: 48px;
+    padding-right: 48px;
+}
+
+window.narrow .page,
+window.narrow .pager {
+    padding-left: 28px;
+    padding-right: 28px;
+}
+
+.page {
+    padding-top: 44px;
+}
+
+.eyebrow {
+    margin-bottom: 6px;
+    color: var(--link);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 21.45px;
+    letter-spacing: 0.08em;
+}
+
+label.h1 {
+    font-size: 40px;
+    font-weight: 700;
+    line-height: 46px;
+    letter-spacing: -0.025em;
+}
+
+window.narrow label.h1 {
+    font-size: 32px;
+    line-height: 36.8px;
+}
+
+label.lead {
+    color: var(--soft);
+    font-size: 18.5px;
+    line-height: 29.6px;
+}
+
+overlay.heading.h2 {
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+}
+
+label.h2 {
+    font-size: 25px;
+    font-weight: 700;
+    line-height: 31.25px;
+    letter-spacing: -0.015em;
+}
+
+label.h3 {
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 31.35px;
+    letter-spacing: -0.01em;
+}
+
+label.h4 {
+    font-weight: 700;
+}
+
+.anchor {
+    min-width: 24px;
+    margin-left: -24px;
+    color: var(--muted);
+    opacity: 0;
+}
+
+.anchor:dir(rtl) {
+    margin-left: 0;
+    margin-right: -24px;
+}
+
+.heading.h2 .anchor {
+    font-size: 25px;
+    font-weight: 700;
+    line-height: 31.25px;
+}
+
+.heading.h3 .anchor {
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 31.35px;
+}
+
+.heading.hover .anchor {
+    opacity: 1;
+}
+
+label link {
+    color: var(--link);
+}
+
+label link:hover {
+    color: var(--link);
+}
+
+.marker {
+    min-width: 18px;
+    margin-right: 6px;
+    color: var(--accent);
+}
+
+.marker:dir(rtl) {
+    margin-right: 0;
+    margin-left: 6px;
+}
+
+.hr {
+    min-height: 0;
+    border-top: 1px solid var(--line);
+}
+
+/* What richtext draws behind inline code and keys: their colours, from probes it never shows */
+.probe-soft {
+    color: var(--soft);
+}
+
+.probe-code {
+    color: var(--code-bg);
+}
+
+.probe-key {
+    color: color-mix(in oklab, var(--accent) 9%, var(--bg));
+}
+
+.probe-key-line {
+    color: color-mix(in oklab, var(--accent) 35%, var(--line));
+}
+
+.pre {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--code-bg);
+}
+
+/* Its lines are the page's own 26.4 px: in CSS the pre's strut, from its 16 px text, sets the line box
+   whatever the smaller code in it asks for */
+.pre-code {
+    padding: 16px 18px;
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+    font-size: 13.5px;
+    line-height: 26.4px;
+}
+
+button.copy {
+    margin: 8px;
+    padding: 3px 10px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--bg);
+    color: var(--soft);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 18px;
+    opacity: 0;
+    transition: opacity 150ms;
+}
+
+.code.hover button.copy,
+button.copy:focus-visible {
+    opacity: 1;
+}
+
+button.copy:hover {
+    color: var(--fg);
+}
+
+.table {
+    font-size: 15px;
+}
+
+.th {
+    padding: 8px 12px;
+    border-bottom: 2px solid var(--line);
+}
+
+.th-text {
+    color: var(--soft);
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 20.63px;
+    letter-spacing: 0.06em;
+}
+
+.td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+}
+
+.td-text {
+    font-size: 15px;
+    line-height: 24.75px;
+}
+
+.td.hover {
+    background: color-mix(in oklab, var(--fg) 3%, transparent);
+}
+
+/* > **Tip** ... reads as a callout */
+.blockquote {
+    padding: 14px 18px;
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    background: var(--tint);
+}
+
+.blockquote:dir(rtl) {
+    border-left: none;
+    border-right: 3px solid var(--accent);
+    border-radius: var(--radius) 0 0 var(--radius);
+}
+
+/* --- Previous and next -------------------------------------------------------------------------- */
+
+.pager {
+    padding-top: 36px;
+    padding-bottom: 64px;
+}
+
+button.pager-link {
+    padding: 14px 18px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--fg);
+    font-weight: 600;
+}
+
+button.pager-link:hover {
+    border-color: var(--accent);
+    background: var(--tint);
+}
+
+.pager-label {
+    color: var(--soft);
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 21.45px;
+}
+
+.pager-title {
+    font-weight: 600;
+}

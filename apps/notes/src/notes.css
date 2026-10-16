@@ -1,0 +1,1867 @@
+/* Amethystora Notes, ported from the Electron page's notes.css. The ten theme colours and --on-accent are
+   palette.rs's; everything else is mixed from them, as in the Manual, Security and Updates, so any theme reads
+   well here without a stylesheet of its own. Line heights are in pixels, the page's factor times the font
+   size, as CSS computes them (PLAN-rust-apps.md). Layout (grids, gaps, widths, wrapping) is the page's code;
+   this paints. Class names are the page's, with [aria-current] as .current, [aria-pressed] and
+   [aria-checked] as .on, [data-color] as .color-NAME and [data-priority] as .prio-N. */
+
+:root {
+    --sidebar: color-mix(in oklab, var(--bg) 94%, var(--fg));
+    --card: color-mix(in oklab, var(--surface) 40%, var(--bg));
+    --raised: color-mix(in oklab, var(--surface) 34%, var(--bg));
+    --control: color-mix(in oklab, var(--fg) 5%, transparent);
+    --line: color-mix(in oklab, var(--fg) 10%, transparent);
+    --line-strong: color-mix(in oklab, var(--fg) 15%, transparent);
+    --hairline: color-mix(in oklab, var(--fg) 7%, transparent);
+    --hover: color-mix(in oklab, var(--fg) 6%, transparent);
+    --soft: color-mix(in oklab, var(--fg) 64%, var(--bg));
+    --faint: color-mix(in oklab, var(--fg) 56%, var(--bg));
+    --link: color-mix(in oklab, var(--accent) 72%, var(--fg));
+    --tint: color-mix(in oklab, var(--accent) 16%, transparent);
+    --code-bg: color-mix(in oklab, var(--surface) 55%, var(--bg));
+    --shadow: none;
+    --float: 0 12px 32px rgb(0 0 0 / 0.35), 0 2px 6px rgb(0 0 0 / 0.2);
+    --radius: 16px;
+}
+
+/* On a light theme a card stands out by being lighter than the window, not darker */
+window.light {
+    --card: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --raised: color-mix(in oklab, var(--bg) 30%, #ffffff);
+    --control: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --faint: color-mix(in oklab, var(--fg) 72%, var(--bg));
+    --shadow: 0 1px 2px color-mix(in oklab, var(--fg) 6%, transparent);
+    --float: 0 12px 32px rgb(0 0 0 / 0.14), 0 2px 6px rgb(0 0 0 / 0.08);
+}
+
+/* The colours a project or a label can take: mid tones that read on a dark and a light window alike */
+.color-violet { --dot: #9d6bf5; }
+.color-blue { --dot: #4a90e2; }
+.color-teal { --dot: #26a69a; }
+.color-green { --dot: #4caf6a; }
+.color-yellow { --dot: #d4a72c; }
+.color-orange { --dot: #e8833a; }
+.color-red { --dot: #e05561; }
+.color-pink { --dot: #d65db1; }
+.color-slate { --dot: #8b8fa3; }
+
+/* A task's priority, as the colour of its box */
+.prio-4 { --prio: var(--faint); }
+.prio-1 { --prio: var(--bad); }
+.prio-2 { --prio: var(--warn); }
+.prio-3 { --prio: var(--link); }
+
+window.amethystora {
+    font-family: Inter, "Adwaita Sans", Cantarell, sans-serif;
+    font-size: 14px;
+    line-height: 21px;
+    font-feature-settings: "cv11", "ss01";
+}
+
+.mono {
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+}
+
+.soft {
+    color: var(--soft);
+}
+
+.faint {
+    color: var(--faint);
+}
+
+label.small {
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+label.error {
+    color: var(--bad);
+}
+
+label.hint {
+    color: var(--soft);
+}
+
+scrollbar slider {
+    min-width: 4px;
+    min-height: 4px;
+    background-color: color-mix(in oklab, var(--fg) 22%, transparent);
+}
+
+scrollbar slider:hover {
+    background-color: color-mix(in oklab, var(--fg) 38%, transparent);
+}
+
+/* Text fields drawn as the page's inputs, not as GTK's entries */
+entry.plain,
+text.plain {
+    min-height: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    outline: none;
+    background: none;
+    box-shadow: none;
+    color: var(--fg);
+}
+
+/* An input's placeholder is Chromium's own grey, as the page leaves it for every input but the five below */
+entry > text > placeholder {
+    color: #a9a9a9;
+    opacity: 1;
+}
+
+window.light entry > text > placeholder {
+    color: #757575;
+}
+
+entry.title-input > text > placeholder,
+entry.quick-input > text > placeholder,
+window.light entry.title-input > text > placeholder,
+window.light entry.quick-input > text > placeholder,
+.placeholder {
+    color: color-mix(in oklab, var(--faint) 80%, transparent);
+}
+
+textview.plain,
+textview.plain > text {
+    background: none;
+    color: var(--fg);
+}
+
+/* --- Sidebar ------------------------------------------------------------------------------------ */
+
+.sidebar {
+    min-width: 239px;
+    padding: 22px 12px 18px;
+    background: var(--sidebar);
+    border-right: 1px solid var(--line);
+}
+
+.sidebar:dir(rtl) {
+    border-right: none;
+    border-left: 1px solid var(--line);
+}
+
+window.narrow .sidebar {
+    min-width: 207px;
+}
+
+/* The wordmark of the boot splash and the login screen, as logoHtml in branding/generate.mjs sets it: the
+   stone as the "a" of "methystora" in Quicksand Bold, glowing in the three shades the splash lights it
+   with, and white. A light theme gets the generator's dark ink. */
+.brand {
+    padding: 4px 8px 0;
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    line-height: 21px;
+    letter-spacing: -0.015em;
+}
+
+.wordmark {
+    color: #ffffff;
+}
+
+window.light .wordmark {
+    color: #241f31;
+}
+
+.brand .product {
+    color: var(--soft);
+    font-weight: 600;
+}
+
+.modes {
+    padding: 4px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--control);
+}
+
+button.mode {
+    min-height: 34px;
+    border-radius: 9px;
+    color: var(--soft);
+    font-weight: 600;
+}
+
+button.mode:hover {
+    color: var(--fg);
+}
+
+button.mode.current {
+    background: var(--tint);
+    color: var(--link);
+}
+
+label.count {
+    color: var(--faint);
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 600;
+    font-feature-settings: "tnum";
+}
+
+.modes label.count {
+    min-width: 8px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: color-mix(in oklab, var(--accent) 22%, transparent);
+    color: var(--link);
+    line-height: 20px;
+}
+
+.search {
+    min-height: 36px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--control);
+    color: var(--faint);
+}
+
+.search:focus-within {
+    border-color: color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+.search entry {
+    font-size: 14px;
+    line-height: 21px;
+}
+
+.nav-scroll {
+    margin: 0 -4px;
+}
+
+.nav {
+    padding: 0 4px;
+}
+
+.nav-heading {
+    margin: 14px 0 4px;
+    padding: 0 6px 0 12px;
+    color: var(--faint);
+    font-size: 11.5px;
+    line-height: 17.25px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+}
+
+.nav-heading:dir(rtl) {
+    padding: 0 12px 0 6px;
+}
+
+/* As icon buttons, which they are too, but smaller */
+button.icon-btn.nav-add,
+button.icon-btn.nav-more {
+    min-width: 26px;
+    min-height: 26px;
+    border-radius: 7px;
+    color: var(--faint);
+}
+
+button.icon-btn.nav-add:hover,
+button.icon-btn.nav-more:hover {
+    background: var(--hover);
+    color: var(--fg);
+}
+
+.nav-gap {
+    min-height: 10px;
+}
+
+.nav-row {
+    border-radius: 9px;
+}
+
+.nav-row.drop-target {
+    outline: 2px dashed var(--accent);
+    outline-offset: -2px;
+}
+
+button.nav-item {
+    min-height: 36px;
+    padding: 0 10px 0 12px;
+    border-radius: 9px;
+    font-size: 14px;
+    line-height: 21px;
+    font-weight: 500;
+}
+
+button.nav-item:dir(rtl) {
+    padding: 0 12px 0 10px;
+}
+
+button.nav-item:hover {
+    background: var(--hover);
+}
+
+button.nav-item.current {
+    background: var(--tint);
+    color: var(--link);
+    font-weight: 600;
+}
+
+button.nav-item.current label.count {
+    color: var(--link);
+}
+
+button.nav-item.depth-1:dir(ltr) { padding-left: 26px; }
+button.nav-item.depth-2:dir(ltr) { padding-left: 40px; }
+button.nav-item.depth-3:dir(ltr) { padding-left: 54px; }
+button.nav-item.depth-4:dir(ltr) { padding-left: 68px; }
+button.nav-item.depth-5:dir(ltr) { padding-left: 82px; }
+button.nav-item.depth-1:dir(rtl) { padding-right: 26px; }
+button.nav-item.depth-2:dir(rtl) { padding-right: 40px; }
+button.nav-item.depth-3:dir(rtl) { padding-right: 54px; }
+button.nav-item.depth-4:dir(rtl) { padding-right: 68px; }
+button.nav-item.depth-5:dir(rtl) { padding-right: 82px; }
+
+button.nav-item.twisted:dir(ltr) { padding-left: 2px; }
+button.nav-item.twisted.depth-1:dir(ltr) { padding-left: 16px; }
+button.nav-item.twisted.depth-2:dir(ltr) { padding-left: 30px; }
+button.nav-item.twisted.depth-3:dir(ltr) { padding-left: 44px; }
+button.nav-item.twisted.depth-4:dir(ltr) { padding-left: 58px; }
+button.nav-item.twisted.depth-5:dir(ltr) { padding-left: 72px; }
+button.nav-item.twisted:dir(rtl) { padding-right: 2px; }
+button.nav-item.twisted.depth-1:dir(rtl) { padding-right: 16px; }
+button.nav-item.twisted.depth-2:dir(rtl) { padding-right: 30px; }
+button.nav-item.twisted.depth-3:dir(rtl) { padding-right: 44px; }
+button.nav-item.twisted.depth-4:dir(rtl) { padding-right: 58px; }
+button.nav-item.twisted.depth-5:dir(rtl) { padding-right: 72px; }
+
+.twisty {
+    min-width: 16px;
+    min-height: 16px;
+    margin-right: -4px;
+    color: var(--faint);
+}
+
+.twisty:dir(rtl) {
+    margin-right: 0;
+    margin-left: -4px;
+}
+
+button.nav-more {
+    opacity: 0;
+    margin: 0 4px;
+}
+
+.nav-row:hover button.nav-more,
+button.nav-more:focus-visible {
+    opacity: 1;
+}
+
+.nav-row:hover button.nav-item label.count {
+    opacity: 0;
+}
+
+.dot {
+    min-width: 10px;
+    min-height: 10px;
+    margin: 0 4px;
+    border-radius: 999px;
+    background: var(--dot, var(--accent));
+}
+
+.dot.big {
+    min-width: 14px;
+    min-height: 14px;
+    margin: 0;
+}
+
+.sidebar-foot {
+    padding-top: 10px;
+    border-top: 1px solid var(--hairline);
+}
+
+.sidebar-foot button.link {
+    margin: 8px 12px 0;
+}
+
+button.foot-button {
+    min-height: 36px;
+    padding: 0 12px;
+    border-radius: 9px;
+    color: var(--soft);
+    font-weight: 500;
+}
+
+button.foot-button:hover {
+    background: var(--hover);
+    color: var(--fg);
+}
+
+button.foot-button.current {
+    background: var(--tint);
+    color: var(--link);
+}
+
+/* --- Common pieces ------------------------------------------------------------------------------ */
+
+.page {
+    padding: 36px 44px 48px;
+}
+
+window.narrow .page {
+    padding-left: 24px;
+    padding-right: 24px;
+}
+
+.page-head .h1 {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 30px;
+    line-height: 36px;
+    letter-spacing: -0.01em;
+}
+
+.page-head .lead {
+    margin-top: 6px;
+}
+
+.loading {
+    color: var(--soft);
+}
+
+.card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.section .h2 {
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+label.lead {
+    color: var(--soft);
+    font-size: 15px;
+    line-height: 22.5px;
+}
+
+button.btn {
+    min-height: 38px;
+    padding: 0 16px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--control);
+    color: var(--fg);
+    font-size: 14px;
+    line-height: 21px;
+    font-weight: 600;
+    transition: filter 150ms;
+}
+
+button.btn > box {
+    border-spacing: 8px;
+}
+
+button.btn:hover {
+    filter: brightness(1.15);
+}
+
+window.light button.btn:hover {
+    filter: brightness(0.96);
+}
+
+button.btn.primary {
+    border-color: transparent;
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+button.btn.danger {
+    border-color: color-mix(in oklab, var(--bad) 40%, transparent);
+    color: var(--bad);
+}
+
+button.btn.primary.danger {
+    background: var(--bad);
+    color: #ffffff;
+}
+
+button.btn.small {
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 9px;
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+button.btn:disabled {
+    opacity: 0.5;
+    filter: none;
+}
+
+button.link {
+    color: var(--link);
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 600;
+}
+
+button.link > box {
+    border-spacing: 7px;
+}
+
+button.link:hover label {
+    text-decoration-line: underline;
+}
+
+button.link.quiet {
+    color: var(--soft);
+    font-weight: 500;
+}
+
+button.link.small {
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+button.icon-btn {
+    min-width: 34px;
+    min-height: 34px;
+    border-radius: 9px;
+    color: var(--soft);
+}
+
+button.icon-btn:hover {
+    background: var(--hover);
+    color: var(--fg);
+}
+
+button.icon-btn.on {
+    background: var(--tint);
+    color: var(--link);
+}
+
+button.icon-btn.accent {
+    background: var(--tint);
+    color: var(--link);
+}
+
+button.icon-btn.accent:hover {
+    background: color-mix(in oklab, var(--accent) 26%, transparent);
+}
+
+.tone.ok {
+    background: color-mix(in oklab, var(--ok) 14%, transparent);
+    color: var(--ok);
+}
+
+.tone.off {
+    background: color-mix(in oklab, var(--bad) 15%, transparent);
+    color: var(--bad);
+}
+
+.tone.warn {
+    background: color-mix(in oklab, var(--warn) 14%, transparent);
+    color: var(--warn);
+}
+
+.tone.info {
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+    color: var(--soft);
+}
+
+.tone.accent {
+    background: var(--tint);
+    color: var(--link);
+}
+
+.callout {
+    padding: 12px 14px;
+    border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--accent) 9%, transparent);
+}
+
+.callout > icon {
+    color: var(--link);
+}
+
+.callout.caution {
+    border-color: color-mix(in oklab, var(--warn) 30%, transparent);
+    background: color-mix(in oklab, var(--warn) 6%, transparent);
+}
+
+.callout.caution > icon {
+    color: var(--warn);
+}
+
+.callout label.p {
+    color: var(--soft);
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.command {
+    padding: 10px 16px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--code-bg);
+}
+
+.command label {
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.chip {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: var(--tint);
+    color: var(--link);
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 600;
+}
+
+button.chip-x {
+    min-width: 16px;
+    min-height: 16px;
+    margin-right: -4px;
+    border-radius: 999px;
+    color: inherit;
+    opacity: 0.7;
+}
+
+button.chip-x:dir(rtl) {
+    margin-right: 0;
+    margin-left: -4px;
+}
+
+button.chip-x:hover {
+    background: var(--hover);
+    opacity: 1;
+}
+
+entry.field {
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    outline: none;
+    background: var(--control);
+    box-shadow: none;
+    color: var(--fg);
+    font-size: 14.5px;
+    line-height: 21.75px;
+}
+
+entry.field:focus-within {
+    border-color: var(--accent);
+}
+
+/* A <select>: its choice and the arrow, its choices in a popover */
+button.select {
+    min-height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 9px;
+    background: var(--control);
+    color: var(--fg);
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 400;
+}
+
+button.select:disabled {
+    opacity: 0.5;
+}
+
+button.select.compact {
+    padding: 0 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+button.select.crumb-select {
+    min-height: 28px;
+    padding: 0 6px;
+    border-color: transparent;
+    border-radius: 8px;
+    background: none;
+    color: var(--soft);
+    font-size: 13px;
+    line-height: 19.5px;
+    font-weight: 500;
+}
+
+button.select.crumb-select:hover {
+    border-color: var(--line);
+    background: var(--control);
+}
+
+popover.choices > contents {
+    padding: 4px 0;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    background: var(--bg);
+    box-shadow: var(--float);
+}
+
+popover.choices button.option {
+    min-height: 0;
+    padding: 2px 10px;
+    border-radius: 0;
+    color: var(--fg);
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+popover.choices button.option:hover,
+popover.choices button.option.current {
+    background: var(--selection);
+    color: var(--selection-fg);
+}
+
+/* --- Rows, as in Security and Updates ------------------------------------------------------------- */
+
+.row {
+    padding: 14px 18px;
+    border-top: 1px solid var(--hairline);
+}
+
+.row.first {
+    border-top: none;
+}
+
+.row-icon {
+    min-width: 38px;
+    min-height: 38px;
+    border-radius: 11px;
+}
+
+.row-title {
+    font-size: 14.5px;
+    line-height: 21.75px;
+    font-weight: 600;
+}
+
+/* 18px, not the page's 18.125: GTK rounds a label's height up, which put a pixel more under every row */
+.row-detail {
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18px;
+}
+
+/* A switch, as the page's role="switch" button */
+button.switch {
+    min-width: 44px;
+    min-height: 24px;
+    border: 1px solid var(--line-strong);
+    border-radius: 13px;
+    background: var(--control);
+    transition: background 150ms;
+}
+
+button.switch .knob {
+    min-width: 18px;
+    min-height: 18px;
+    margin: 3px;
+    border-radius: 999px;
+    background: var(--soft);
+    transition: background 150ms;
+}
+
+button.switch.on {
+    border-color: transparent;
+    background: var(--accent);
+}
+
+button.switch.on .knob {
+    background: var(--on-accent);
+}
+
+/* --- The gate: first run and unlock, with the stone of the boot splash ---------------------------- */
+
+.gate {
+    padding: 48px 24px;
+}
+
+.gate .h1 {
+    margin-top: 12px;
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 30px;
+    line-height: 36px;
+    letter-spacing: -0.01em;
+}
+
+.gate .lead {
+    margin-bottom: 8px;
+}
+
+.gate-card {
+    padding: 20px;
+}
+
+.gate-card-head {
+    margin-bottom: 4px;
+}
+
+.gate-card-head .strong {
+    font-size: 15px;
+    line-height: 22.5px;
+    font-weight: 700;
+}
+
+label.note {
+    color: var(--faint);
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+bar.meter {
+    min-height: 5px;
+    border-radius: 3px;
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+}
+
+bar.meter > .fill {
+    border-radius: 3px;
+}
+
+bar.meter.weak > .fill { background: var(--bad); }
+bar.meter.fair > .fill { background: var(--warn); }
+bar.meter.good > .fill,
+bar.meter.strong > .fill { background: var(--ok); }
+
+/* --- Notes -------------------------------------------------------------------------------------- */
+
+.list-pane {
+    min-width: 319px;
+    border-right: 1px solid var(--line);
+}
+
+.list-pane:dir(rtl) {
+    border-right: none;
+    border-left: 1px solid var(--line);
+}
+
+window.narrow .list-pane {
+    min-width: 269px;
+}
+
+.list-head {
+    padding: 20px 14px 12px 20px;
+}
+
+.list-head:dir(rtl) {
+    padding: 20px 20px 12px 14px;
+}
+
+.list-head .h2 {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    line-height: 25px;
+}
+
+listview.notes-list {
+    padding: 0 10px 16px;
+    background: none;
+}
+
+listview.notes-list > row {
+    padding: 0;
+    margin: 0;
+    border-radius: 11px;
+    background: none;
+    outline: none;
+}
+
+listview.notes-list > row + row {
+    margin-top: 2px;
+}
+
+.note-item {
+    padding: 11px 12px;
+    border-radius: 11px;
+}
+
+.note-item:hover {
+    background: var(--hover);
+}
+
+.note-item.current {
+    background: var(--tint);
+}
+
+.note-title {
+    font-size: 14.5px;
+    line-height: 21.75px;
+    font-weight: 600;
+}
+
+.note-item.current .note-title {
+    color: var(--link);
+}
+
+.note-snippet {
+    color: var(--soft);
+    font-size: 13px;
+    line-height: 18.85px;
+}
+
+.note-meta {
+    margin-top: 3px;
+    color: var(--faint);
+    font-size: 12px;
+    line-height: 18px;
+}
+
+.note-meta label {
+    font-size: 12px;
+    line-height: 18px;
+}
+
+.note-meta .chip {
+    padding: 1px 8px;
+}
+
+.empty {
+    padding: 16px 12px;
+    color: var(--faint);
+}
+
+.editor {
+    padding: 12px 28px 0;
+}
+
+.editor-head {
+    min-height: 40px;
+}
+
+.crumb {
+    color: var(--soft);
+}
+
+.segment {
+    margin-right: 6px;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--control);
+}
+
+.segment:dir(rtl) {
+    margin-right: 0;
+    margin-left: 6px;
+}
+
+.segment button {
+    min-width: 32px;
+    min-height: 28px;
+    border-radius: 7px;
+    color: var(--faint);
+}
+
+.segment button:hover {
+    color: var(--fg);
+}
+
+.segment button.on {
+    background: var(--tint);
+    color: var(--link);
+}
+
+.banner {
+    margin: 8px 0 4px;
+}
+
+entry.title-input {
+    margin-top: 10px;
+    padding: 4px 0;
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    line-height: 35px;
+    letter-spacing: -0.01em;
+}
+
+.tag-row {
+    min-height: 30px;
+    margin-top: 4px;
+}
+
+entry.tag-input {
+    min-height: 26px;
+    padding: 0 4px;
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.toolbar {
+    margin-top: 10px;
+    padding: 5px 0;
+    border-top: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+}
+
+button.tool {
+    min-width: 32px;
+    min-height: 30px;
+    border-radius: 7px;
+    color: var(--soft);
+}
+
+button.tool:hover {
+    background: var(--hover);
+    color: var(--fg);
+}
+
+.tool-sep {
+    min-width: 1px;
+    min-height: 18px;
+    margin: 0 6px;
+    background: var(--line);
+}
+
+textview.source,
+textview.source > text {
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+    font-size: 14px;
+    line-height: 23.8px;
+}
+
+.source-box {
+    padding: 18px 20px 0 0;
+}
+
+.source-box:dir(rtl) {
+    padding: 18px 0 0 20px;
+}
+
+.source-placeholder {
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+    font-size: 14px;
+    line-height: 23.8px;
+}
+
+.preview {
+    padding: 12px 4px 48px 24px;
+}
+
+.preview:dir(rtl) {
+    padding: 12px 24px 48px 4px;
+}
+
+.split .preview-scroll {
+    border-left: 1px solid var(--hairline);
+}
+
+.split .preview-scroll:dir(rtl) {
+    border-left: none;
+    border-right: 1px solid var(--hairline);
+}
+
+.preview-only .preview:dir(ltr) {
+    padding-left: 0;
+}
+
+.preview-only .preview:dir(rtl) {
+    padding-right: 0;
+}
+
+window.narrow .split .preview-scroll {
+    border-left: none;
+    border-right: none;
+    border-top: 1px solid var(--hairline);
+}
+
+window.narrow .split .preview:dir(ltr) {
+    padding-left: 0;
+}
+
+window.narrow .split .preview:dir(rtl) {
+    padding-right: 0;
+}
+
+.editor-foot {
+    padding: 8px 0 10px;
+    border-top: 1px solid var(--hairline);
+}
+
+.editor-empty {
+    padding: 24px;
+    color: var(--soft);
+}
+
+.editor-empty > icon {
+    color: var(--faint);
+    opacity: 0.7;
+}
+
+/* --- Rendered Markdown -------------------------------------------------------------------------- */
+
+.markdown label.lead {
+    color: var(--fg);
+}
+
+.markdown label.p,
+.markdown label.lead,
+.markdown label.li-text,
+.markdown label.td-text,
+.markdown label.th-text {
+    font-size: 15px;
+    line-height: 25.5px;
+}
+
+.markdown label.h1,
+.markdown label.h2,
+.markdown label.h3,
+.markdown label.h4 {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+}
+
+.markdown label.h1 { font-size: 25.5px; line-height: 33.15px; }
+.markdown label.h2 { font-size: 21px; line-height: 27.3px; }
+.markdown label.h3 { font-size: 17.7px; line-height: 23.01px; }
+.markdown label.h4 { font-size: 15.3px; line-height: 19.89px; }
+
+.markdown .marker {
+    min-width: 14.5px;
+    margin-right: 8px;
+}
+
+.markdown .marker:dir(rtl) {
+    margin-right: 0;
+    margin-left: 8px;
+}
+
+.markdown .ul,
+.markdown .ol {
+    padding-left: 0;
+}
+
+.markdown .li.task {
+    margin-left: -1.5px;
+}
+
+.markdown .li.done label {
+    color: var(--faint);
+    text-decoration-line: line-through;
+}
+
+.markdown checkbutton.task-check {
+    min-height: 0;
+    margin: 0 8px 0 0;
+    padding: 4px 0 0;
+}
+
+.markdown checkbutton.task-check:dir(rtl) {
+    margin: 0 0 0 8px;
+}
+
+/* Chromium's own checkbox: white with a grey edge, or in a dark page filled grey */
+.markdown checkbutton.task-check > check {
+    min-width: 13px;
+    min-height: 13px;
+    margin: 0;
+    padding: 0;
+    border: 1px solid #858585;
+    border-radius: 2px;
+    background: #3b3b3b;
+    -gtk-icon-size: 11px;
+}
+
+window.light .markdown checkbutton.task-check > check {
+    border-color: #767676;
+    background: #ffffff;
+}
+
+window.light .markdown checkbutton.task-check:checked > check,
+.markdown checkbutton.task-check:checked > check {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+.markdown checkbutton.task-check:checked > check {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+.markdown label link {
+    color: var(--link);
+}
+
+.markdown .probe-code {
+    color: var(--code-bg);
+}
+
+.markdown .probe-chip {
+    color: var(--control);
+}
+
+.markdown .probe-chip-line {
+    color: var(--line);
+}
+
+.markdown .probe-chip-icon {
+    color: var(--link);
+}
+
+.markdown .pre {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--code-bg);
+}
+
+.markdown .pre-code {
+    padding: 12px 14px;
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+    font-size: 13px;
+    /* The pre's strut, from its 15 px text at 1.7, sets the line box whatever the smaller code asks for */
+    line-height: 25.5px;
+}
+
+.markdown .blockquote {
+    padding: 2px 0 2px 14px;
+    border-left: 3px solid color-mix(in oklab, var(--accent) 55%, transparent);
+}
+
+.markdown .blockquote:dir(rtl) {
+    padding: 2px 14px 2px 0;
+    border-left: none;
+    border-right: 3px solid color-mix(in oklab, var(--accent) 55%, transparent);
+}
+
+.markdown .blockquote label {
+    color: var(--soft);
+}
+
+.markdown .hr {
+    min-height: 1px;
+    background: var(--line);
+}
+
+.markdown .picture {
+    border-radius: 8px;
+}
+
+.markdown .table {
+    border-top: 1px solid var(--line);
+    border-left: 1px solid var(--line);
+}
+
+.markdown .th,
+.markdown .td {
+    padding: 6px 12px;
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+}
+
+.markdown .th {
+    background: var(--control);
+}
+
+.markdown .th-text,
+.markdown .td-text {
+    font-size: 14.1px;
+    line-height: 23.97px;
+}
+
+.markdown .th-text {
+    font-weight: 700;
+}
+
+/* --- Tasks -------------------------------------------------------------------------------------- */
+
+listview.task-list {
+    background: none;
+}
+
+listview.task-list > row {
+    padding: 0;
+    margin: 0;
+    background: none;
+    outline: none;
+}
+
+.task-slot {
+    padding: 0 40px;
+}
+
+window.narrow .task-slot {
+    padding: 0 24px;
+}
+
+.task-slot.top {
+    padding-top: 32px;
+}
+
+.task-slot.bottom {
+    padding-bottom: 64px;
+}
+
+.tasks-head {
+    margin-bottom: 18px;
+}
+
+.tasks-head .h1 {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    line-height: 33.6px;
+    letter-spacing: -0.01em;
+}
+
+/* Its margin-bottom of 10px collapsed into the 22px of the group under it: the page adds it to what does not
+   have one of its own, the empty state (.task-empty.after-head) */
+.quick-wrap {
+    margin-bottom: 0;
+}
+
+.task-empty.after-head {
+    margin-top: 10px;
+}
+
+.quick {
+    margin-top: 4px;
+    padding: 0 14px;
+    border: 1px solid transparent;
+    border-radius: 11px;
+}
+
+/* Its margin-top collapsed into the 18px under the head, which it always follows */
+.quick.first {
+    margin-top: 0;
+    border-color: var(--line);
+    background: var(--control);
+}
+
+.quick:focus-within {
+    border-color: color-mix(in oklab, var(--accent) 60%, transparent);
+    background: var(--control);
+}
+
+.quick-plus {
+    color: var(--link);
+}
+
+entry.quick-input {
+    min-height: 42px;
+    font-size: 14.5px;
+    line-height: 21.75px;
+}
+
+.quick.later entry.quick-input {
+    min-height: 36px;
+    font-size: 14px;
+    line-height: 21px;
+}
+
+.quick-hint {
+    margin: 6px 16px 0;
+}
+
+.task-group {
+    margin-top: 22px;
+}
+
+.task-group.quiet .group-head label.h2 {
+    color: var(--faint);
+}
+
+.group-head {
+    padding: 0 4px 6px;
+    border-bottom: 1px solid var(--line);
+}
+
+.group-head label.h2 {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    line-height: 19.5px;
+}
+
+.group-head.bad label.h2 {
+    color: var(--bad);
+}
+
+.group-head button.icon-btn {
+    min-width: 28px;
+    min-height: 28px;
+}
+
+.task-row {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--hairline);
+}
+
+.task-row:hover {
+    background: color-mix(in oklab, var(--fg) 3.5%, transparent);
+}
+
+.task-row.current {
+    border-bottom-color: transparent;
+    border-radius: 10px;
+    background: var(--tint);
+}
+
+.task-row.depth-1:dir(ltr) { padding-left: 38px; }
+.task-row.depth-2:dir(ltr) { padding-left: 68px; }
+.task-row.depth-3:dir(ltr) { padding-left: 98px; }
+.task-row.depth-4:dir(ltr) { padding-left: 128px; }
+.task-row.depth-1:dir(rtl) { padding-right: 38px; }
+.task-row.depth-2:dir(rtl) { padding-right: 68px; }
+.task-row.depth-3:dir(rtl) { padding-right: 98px; }
+.task-row.depth-4:dir(rtl) { padding-right: 128px; }
+
+button.check {
+    min-width: 18px;
+    min-height: 18px;
+    margin-top: 1px;
+    border: 2px solid var(--prio);
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--prio) 10%, transparent);
+    color: transparent;
+    transition: background 150ms, color 150ms;
+}
+
+button.check:hover {
+    color: var(--prio);
+}
+
+button.check.on {
+    background: var(--prio);
+    color: var(--bg);
+}
+
+label.task-title {
+    font-size: 14.5px;
+    line-height: 21.75px;
+}
+
+.done label.task-title,
+.done label.sub-title {
+    color: var(--faint);
+    text-decoration-line: line-through;
+}
+
+label.task-notes {
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.task-meta {
+    color: var(--soft);
+}
+
+.task-meta label {
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.meta-due.late {
+    color: var(--bad);
+}
+
+.meta-due.today {
+    color: var(--ok);
+}
+
+.task-meta .meta-project {
+    color: var(--faint);
+}
+
+.meta-project .dot {
+    min-width: 8px;
+    min-height: 8px;
+    margin: 0;
+}
+
+.label-chip {
+    padding: 0 8px;
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--dot) 18%, transparent);
+    color: color-mix(in oklab, var(--dot) 75%, var(--fg));
+}
+
+.label-chip label,
+.task-meta .label-chip label {
+    font-size: 12px;
+    line-height: 20px;
+    font-weight: 600;
+}
+
+.pin-mark {
+    margin-top: 2px;
+    color: var(--link);
+}
+
+.task-empty {
+    padding: 56px 0;
+    color: var(--faint);
+}
+
+.detail-pane {
+    min-width: 399px;
+    border-left: 1px solid var(--line);
+    background: var(--sidebar);
+}
+
+.detail-pane:dir(rtl) {
+    border-left: none;
+    border-right: 1px solid var(--line);
+}
+
+window.narrow .detail-pane {
+    min-width: 339px;
+}
+
+.detail {
+    padding: 14px 20px 28px;
+}
+
+.detail-top button.check {
+    margin-top: 5px;
+}
+
+textview.detail-title,
+textview.detail-title > text {
+    font-size: 19px;
+    line-height: 26.6px;
+    font-weight: 600;
+}
+
+.detail-title-placeholder {
+    font-size: 19px;
+    line-height: 26.6px;
+    font-weight: 600;
+}
+
+.detail-notes-box {
+    min-height: 66px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--control);
+}
+
+.detail-notes-box:focus-within {
+    border-color: var(--accent);
+}
+
+textview.detail-notes,
+textview.detail-notes > text,
+.detail-notes-placeholder {
+    font-size: 14px;
+    line-height: 21.7px;
+}
+
+.detail-fields {
+    padding: 14px 0;
+    border-top: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+}
+
+label.detail-label {
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-weight: 600;
+}
+
+.detail-field button.select,
+.detail-field button.date-field,
+.detail-field spinbutton {
+    min-height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 9px;
+    background: var(--control);
+    box-shadow: none;
+    color: var(--fg);
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 400;
+}
+
+.detail-field entry.field {
+    min-height: 32px;
+    padding: 0 10px;
+    border-radius: 9px;
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+.detail-field spinbutton {
+    padding: 0 0 0 10px;
+}
+
+.detail-field spinbutton > text {
+    min-width: 0;
+}
+
+.detail-field spinbutton > button {
+    min-width: 0;
+    min-height: 0;
+    padding: 0 4px;
+    border: none;
+    background: none;
+    box-shadow: none;
+}
+
+.detail-field button:disabled,
+.detail-field spinbutton:disabled {
+    opacity: 0.5;
+}
+
+.detail-field .inline button.icon-btn {
+    min-width: 30px;
+    min-height: 30px;
+}
+
+.priority button {
+    min-height: 30px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-weight: 600;
+}
+
+.priority button icon {
+    color: var(--prio);
+}
+
+.priority button.on {
+    border-color: color-mix(in oklab, var(--prio) 60%, transparent);
+    background: color-mix(in oklab, var(--prio) 14%, transparent);
+    color: var(--fg);
+}
+
+button.add-label {
+    min-height: 22px;
+    padding: 0 9px;
+    border: 1px dashed var(--line-strong);
+    border-radius: 999px;
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 18px;
+    font-weight: 600;
+}
+
+button.add-label:hover {
+    color: var(--fg);
+}
+
+.subtasks .detail-label {
+    margin-bottom: 4px;
+}
+
+.sub-row {
+    padding: 5px 2px;
+}
+
+.sub-row button.check {
+    min-width: 15px;
+    min-height: 15px;
+    margin: 0;
+}
+
+button.sub-title {
+    font-size: 14px;
+    line-height: 21px;
+    font-weight: 400;
+}
+
+button.sub-title:hover {
+    color: var(--link);
+}
+
+.subtasks .quick {
+    margin: 4px 0 0;
+    padding: 0 8px;
+}
+
+.detail-foot {
+    margin-top: 4px;
+}
+
+/* --- Menus, dialogs, toasts --------------------------------------------------------------------- */
+
+popover.menu > contents {
+    min-width: 196px;
+    padding: 6px;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    background: var(--raised);
+    box-shadow: var(--float);
+}
+
+popover.menu button.item {
+    min-height: 34px;
+    padding: 0 10px;
+    border-radius: 8px;
+    color: var(--fg);
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 400;
+}
+
+popover.menu button.item:hover,
+popover.menu button.item:focus-visible {
+    outline: none;
+    background: var(--hover);
+}
+
+popover.menu button.item.danger {
+    color: var(--bad);
+}
+
+popover.menu icon {
+    color: var(--soft);
+}
+
+popover.menu .danger icon {
+    color: var(--bad);
+}
+
+popover.menu icon.menu-check {
+    color: var(--link);
+}
+
+popover.menu .menu-gap {
+    min-width: 16px;
+}
+
+popover.menu .dot {
+    margin: 0 3px;
+}
+
+popover.menu .menu-sep {
+    min-height: 1px;
+    margin: 5px 4px;
+    background: var(--line);
+}
+
+.backdrop {
+    background: rgb(0 0 0 / 0.45);
+}
+
+.modal {
+    border: 1px solid var(--line-strong);
+    border-radius: 18px;
+    background: var(--raised);
+    color: var(--fg);
+    box-shadow: var(--float);
+}
+
+.modal-form {
+    padding: 22px 22px 18px;
+}
+
+.modal .h2 {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    line-height: 26px;
+}
+
+label.modal-text {
+    color: var(--soft);
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+.modal-actions {
+    margin-top: 8px;
+}
+
+.history {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+
+.history-list-scroll {
+    border-right: 1px solid var(--line);
+}
+
+.history-list-scroll:dir(rtl) {
+    border-right: none;
+    border-left: 1px solid var(--line);
+}
+
+.history-list {
+    padding: 6px;
+}
+
+button.history-item {
+    padding: 8px 10px;
+    border-radius: 8px;
+    color: var(--fg);
+    font-size: 13px;
+    line-height: 19.5px;
+    font-weight: 600;
+}
+
+button.history-item:hover {
+    background: var(--hover);
+}
+
+button.history-item.current {
+    background: var(--tint);
+    color: var(--link);
+}
+
+.history-preview {
+    padding: 8px 20px 24px;
+    background: var(--bg);
+}
+
+.history-preview label.p,
+.history-preview label.li-text {
+    font-size: 14px;
+    line-height: 23.8px;
+}
+
+.history-preview label.h1 { font-size: 23.8px; line-height: 30.94px; }
+.history-preview label.h2 { font-size: 19.6px; line-height: 25.48px; }
+.history-preview label.h3 { font-size: 16.52px; line-height: 21.48px; }
+
+.toasts {
+    margin-bottom: 20px;
+}
+
+.toast {
+    padding: 10px 16px;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    background: var(--raised);
+    box-shadow: var(--float);
+}
+
+.toast label {
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+/* The window's own buttons where a row of the page has them at its end */
+.editor-head windowcontrols,
+.detail-head windowcontrols {
+    margin-left: 6px;
+}
+
+.editor-head windowcontrols:dir(rtl),
+.detail-head windowcontrols:dir(rtl) {
+    margin-left: 0;
+    margin-right: 6px;
+}

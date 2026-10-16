@@ -1,0 +1,54 @@
+{
+  "counts": {
+    "notes": 1,
+    "notebooks": 0,
+    "tasks": 0,
+    "projects": 0,
+    "attachments": 0
+  },
+  "store": {
+    "version": 1,
+    "settings": {},
+    "resources": {},
+    "notebooks": {
+      "d675d99f42a23f61d2d11f7d8c446a12": {
+        "id": "d675d99f42a23f61d2d11f7d8c446a12",
+        "title": "Imported",
+        "parent": null,
+        "created": 1792161711367,
+        "updated": 1792161711367
+      }
+    },
+    "notes": {
+      "bcb0fbae26e18ca4934c8b36d9f29d2c": {
+        "id": "bcb0fbae26e18ca4934c8b36d9f29d2c",
+        "notebook": "d675d99f42a23f61d2d11f7d8c446a12",
+        "title": "Front matter",
+        "body": "The body.\n",
+        "tags": [
+          "52c225ab337491470cc25d8f63a9cdbe",
+          "5160d8fd0f43570b8097974b08639269"
+        ],
+        "created": 1792161711367,
+        "updated": 1792161711367,
+        "trashed": null
+      }
+    },
+    "tags": {
+      "52c225ab337491470cc25d8f63a9cdbe": {
+        "id": "52c225ab337491470cc25d8f63a9cdbe",
+        "title": "kitchen"
+      },
+      "5160d8fd0f43570b8097974b08639269": {
+        "id": "5160d8fd0f43570b8097974b08639269",
+        "title": "new one"
+      }
+    },
+    "revisions": {},
+    "projects": {},
+    "sections": {},
+    "tasks": {},
+    "labels": {}
+  },
+  "resources": {}
+}

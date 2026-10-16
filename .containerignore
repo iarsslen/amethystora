@@ -1,0 +1,2 @@
+# A local Cargo build of apps/ is never part of what the image is built from: the apps stage builds them
+apps/target

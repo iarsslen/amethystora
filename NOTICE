@@ -97,9 +97,8 @@ usr/share/licenses/candy-icons. The icons added are:
   - amethystora-security-status.svg, whose shield is the theme's own, from its
     preferences-system-privacy.svg. It is a modified part of candy-icons and
     is licensed, like the theme, under the GNU General Public License, version
-    3, not under the Apache License. So are its two copies: the one in
-    usr/share/icons/hicolor, and the one drawn in the window of Amethystora
-    Security (usr/lib/amethystora-security/resources/app/index.html).
+    3, not under the Apache License. So is its copy in usr/share/icons/hicolor,
+    which the window of Amethystora Security draws its shield from as it runs.
   - io.github.kolunmi.Bazaar.svg, drawn for Amethystora in the theme's style
     after Bazaar's own icon, a market stall under an awning.
   - amethystora-notes.svg and amethystora-backups.svg, which are Amethystora's
@@ -113,14 +112,19 @@ them. An application whose logo the theme redrew shows the icon its maker
 gave it instead. The names and logos of the applications in an image are
 trademarks of their owners, who do not sponsor or endorse Amethystora.
 
-The manual's window is an Electron app. Electron and marked, which renders the
-pages, are installed from their upstream releases by
-build_files/base/13-manual.sh, each licensed under the MIT License. Their
-licences, and those of the Chromium components Electron includes, ship in
-usr/share/licenses/amethystora-manual.
+The Amethystora apps (the Manual, Security, Updates, Notes, Logs, Backups and
+Control) are one program, written for Amethystora in Rust (apps/), which
+build_files/shared/build-apps.sh builds with the Rust crates it lists in
+usr/share/licenses/amethystora-apps/crates/CRATES, each with the licence it is
+used under. Most are under the MIT License or the Apache License, version 2.0;
+ICU4X, which writes the dates, numbers and lists, is under the Unicode License,
+version 3. The licence and notice files of each crate ship beside the list. The
+windows draw the wordmark in Quicksand, under the SIL Open Font License, version
+1.1, whose licence ships in usr/share/licenses/amethystora-apps.
 
-  - Electron  https://github.com/electron/electron
-  - marked    https://github.com/markedjs/marked
+  - gtk-rs     https://gtk-rs.org
+  - ICU4X      https://github.com/unicode-org/icu4x
+  - Quicksand  https://github.com/andrew-paglinawan/QuicksandFamily
 
 The GTK theme in usr/share/themes/Amethystora is Sweet by Eliver Lara,
 licensed under the GNU General Public License, version 3:

@@ -64,7 +64,6 @@ Problems the lab has already met, with their fixes:
 | --- | --- | --- |
 | `Connection reset by peer`, `Transport endpoint is not connected` from `systemctl --user -M` or `systemd-run --machine` | from a system service, machined's route to an account's manager breaks | `lib.sh`'s `user_systemctl`, `user_bus` and `in_session`: `runuser` with the account's `XDG_RUNTIME_DIR` and bus |
 | `pgrep -x some-long-name` finds nothing | `-x` sees only the first 15 characters of a process's name | `pgrep -f /path/of/the/program` |
-| an Electron app dumps core (SIGTRAP) as it is closed | `systemctl stop` sends SIGTERM to every process of the app at once | `systemctl --user kill --kill-whom=main --signal=SIGTERM UNIT`, as quitting does |
 | `gnome-session-service` of `gnome-initial-setup` aborts | `10-account.sh` restarts GDM under it | count only the test account's crashes (`crashes_since TIME COREDUMP_UID=...`) |
 | `OSError: [Errno 12] Cannot allocate memory` reading a file | `/proc` and `/sys` allocate what one `read()` asks for | the helper reads in 64 KiB pieces; keep it that way |
 | a check of the desktop fails at once, passes by hand | GNOME draws in software under nested virtualization: seconds behind | `wait_for SECONDS COMMAND` on the state, never a short fixed `sleep` |

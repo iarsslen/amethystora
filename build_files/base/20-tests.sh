@@ -29,7 +29,7 @@ done
 # Every command the image tells somebody to run is one: the report's, the notifications', the apps', the
 # manual's and the agent skill's. A group named alone is one too.
 grep -rhoIE --exclude-dir=node_modules '\bame [a-z][a-z0-9-]*( [a-z][a-z0-9-]*)?' /usr/bin/ame* \
-    /usr/libexec/amethystora-* /usr/lib/amethystora-*/resources/app /usr/lib/systemd/{system,user}/amethystora-* \
+    /usr/libexec/amethystora-* /ctx/apps/*/src /usr/lib/systemd/{system,user}/amethystora-* \
     /usr/share/amethystora /etc/amethystora /etc/profile.d/amethystora-greeting.sh | sort -u |
     while read -r _ first second; do
         ame --show "${first}" >/dev/null 2>&1 || ame --show "${first}::${second}" >/dev/null 2>&1 ||
@@ -598,7 +598,7 @@ grep -q "Open Control" /usr/libexec/amethystora-raid
 # offers to keep it or to restart into the newest
 test -x /usr/libexec/amethystora-update-alert
 test -L /etc/systemd/user/graphical-session.target.wants/amethystora-update-alert.service
-grep -q "'/usr/bin/bootc', 'rollback'" /usr/lib/amethystora-update/resources/app/main.js
+grep -qF '"pkexec", &["/usr/bin/bootc", "rollback"]' /ctx/apps/update/src/backend.rs
 # The manual's welcome page, once, at an account's first login
 test -x /usr/share/amethystora/user-setup.hooks.d/17-welcome.sh
 grep -q "^version-script welcome user " /usr/share/amethystora/user-setup.hooks.d/17-welcome.sh
@@ -609,39 +609,54 @@ test -x /usr/libexec/amethystora-layout-offer
 grep -q "/usr/libexec/amethystora-layout-offer$" /usr/share/amethystora/user-setup.hooks.d/17-welcome.sh
 grep -q "paperwm@paperwm.github.com" /usr/share/amethystora/user-setup.hooks.d/15-extensions.sh
 
-# The manual (13-manual.sh): Electron starts, which also proves every library it links against is on
-# the image, the app, its renderer and its wordmark's font and stone are in place, and every page in
-# pages.json exists and every link between pages lands on a page and a heading that exist
-MANUAL_ELECTRON=/usr/lib/amethystora-manual/amethystora-manual
-test -x /usr/bin/amethystora-manual
-test -x "${MANUAL_ELECTRON}"
-test ! -e /usr/lib/amethystora-manual/chrome-sandbox
-for file in main.js preload.js manual.js index.html manual.css marked.umd.js gem.svg fonts/QuicksandVariable.ttf; do
-    test -s "/usr/lib/amethystora-manual/resources/app/${file}"
+# The Amethystora apps (13-apps.sh): one program, which each app's own path is a hard link to. It starts as
+# each of them and says which it is, which also proves every library it links against is on the image, and
+# each launcher's window class is the id the program gives that app's window, by which GNOME finds the
+# launcher's name and icon. Nothing of the Electron windows is left beside it but their catalogs, and the
+# licences of the crates built into it are beside the list of them (build-apps.sh). The stone of the
+# wordmarks, which the program carries, is the logo's own, cropped the way branding/generate.mjs crops it.
+APPS_PROGRAM=/usr/lib/amethystora-apps/amethystora-apps
+test -x "${APPS_PROGRAM}"
+for app in manual security update notes logs backups control; do
+    test -x "/usr/bin/amethystora-${app}"
+    [[ "/usr/lib/amethystora-${app}/amethystora-${app}" -ef "${APPS_PROGRAM}" ]]
+    [[ "$(env -u DISPLAY -u WAYLAND_DISPLAY "/usr/lib/amethystora-${app}/amethystora-${app}" --version)" == "amethystora-${app} "* ]]
+    [[ -z "$(find "/usr/lib/amethystora-${app}" -mindepth 1 -not -name "amethystora-${app}" -not -path '*/resources' \
+        -not -path '*/resources/app' -not -path '*/resources/app/locale' -not -path '*/resources/app/locale/*.json')" ]]
+    APP_DESKTOP="/usr/share/applications/amethystora-${app}.desktop"
+    command -v desktop-file-validate >/dev/null && desktop-file-validate "${APP_DESKTOP}"
+    APP_CLASS="$(sed -n 's/^StartupWMClass=//p' "${APP_DESKTOP}")"
+    [[ "${APP_CLASS}" =~ ^org\.amethystora\.[A-Z][a-z]+$ ]]
+    grep -qaF "${APP_CLASS}" "${APPS_PROGRAM}"
 done
-ELECTRON_RUN_AS_NODE=1 "${MANUAL_ELECTRON}" -e 'process.exit(0)'
-ELECTRON_RUN_AS_NODE=1 "${MANUAL_ELECTRON}" /ctx/build_files/shared/check-manual.js
-# ...and the pages as written, before 07-debrand.sh renamed upstream wherever no copyright mark keeps it
-ELECTRON_RUN_AS_NODE=1 "${MANUAL_ELECTRON}" /ctx/build_files/shared/check-manual.js /ctx/system_files/shared/usr/share/amethystora/manual
-test -f /usr/share/licenses/amethystora-manual/LICENSES.chromium.html
-test -f /usr/share/licenses/amethystora-manual/marked/LICENSE
-test -f /usr/share/licenses/amethystora-manual/Quicksand-OFL.txt
-cmp -s <(sed 1d /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg) \
-    <(sed 1d /usr/lib/amethystora-manual/resources/app/gem.svg)
-# It replaces upstream's Documentation launcher, and Super+F1 opens it
-MANUAL_DESKTOP=/usr/share/applications/amethystora-manual.desktop
+test -s /usr/lib/amethystora-apps/fonts/QuicksandVariable.ttf
+test -f /usr/share/licenses/amethystora-apps/Quicksand-OFL.txt
+APPS_CRATES=/usr/share/licenses/amethystora-apps/crates/CRATES
+grep -q $'^gtk4\t' "${APPS_CRATES}"
+grep -q $'^libadwaita\t' "${APPS_CRATES}"
+grep -v '^#' "${APPS_CRATES}" | while IFS=$'\t' read -r name version _; do
+    compgen -G "/usr/share/licenses/amethystora-apps/crates/${name}-${version}/*" >/dev/null
+done
+cmp -s <(sed 1d /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg) <(sed 1d /ctx/apps/common/assets/gem.svg)
+# The Chromium profiles the Electron windows left in each account's ~/.config go at its next login
+test -x /usr/share/amethystora/user-setup.hooks.d/20-retire-electron-profiles.sh
+# The checks written in JavaScript run on the apps stage's Node, mounted at /apps-stage with its libraries,
+# so that the image carries no Node of its own
+NODE=(env LD_LIBRARY_PATH=/apps-stage/usr/lib64 /apps-stage/usr/bin/node)
+
+# The manual: every page in pages.json exists and every link between pages lands on a page and a heading
+# that exist, as the pages are in the image and as they were written, before 07-debrand.sh renamed
+# upstream wherever no copyright mark keeps it. It replaces upstream's Documentation launcher, and Super+F1
+# opens it.
+"${NODE[@]}" /ctx/build_files/shared/check-manual.js
+"${NODE[@]}" /ctx/build_files/shared/check-manual.js /ctx/system_files/shared/usr/share/amethystora/manual
 test ! -e /usr/share/applications/documentation.desktop
-command -v desktop-file-validate >/dev/null && desktop-file-validate "${MANUAL_DESKTOP}"
 grep -q "^command='amethystora-manual'$" /etc/dconf/db/distro.d/06-amethystora-keybindings
 
-# Translations (i18n.js): every window runs on the Manual's own i18n.js; every message its code has is in
-# its catalog's English, and every translation parses and names only the values its English names; the
-# same for the shell programs' gettext catalogs (po/), compiled where gettext looks for them. Chromium
-# keeps its own words for each language the apps speak, and each launcher carries its translated name.
-for app in security update logs notes control; do
-    [[ /usr/lib/amethystora-manual/resources/app/i18n.js -ef "/usr/lib/amethystora-${app}/resources/app/i18n.js" ]]
-done
-ELECTRON_RUN_AS_NODE=1 "${MANUAL_ELECTRON}" /ctx/build_files/shared/check-translations.js --po /ctx/po /
+# Translations (apps/common/src/i18n.rs): every message the apps' code has is in its catalog's English, and
+# every translation parses and names only the values its English names; the same for the shell programs'
+# gettext catalogs (po/), compiled where gettext looks for them. Each launcher carries its translated name.
+"${NODE[@]}" /ctx/build_files/shared/check-translations.js --po /ctx/po --apps /ctx/apps /
 command -v gettext ngettext envsubst >/dev/null
 test -f /usr/bin/gettext.sh
 for po in /ctx/po/*.po; do
@@ -651,7 +666,6 @@ done
 for catalog in /usr/lib/amethystora-*/resources/app/locale/*.json; do
     language="$(basename "${catalog}" .json)"
     [[ "${language}" == en ]] && continue
-    compgen -G "/usr/lib/amethystora-manual/locales/${language}*.pak" >/dev/null
     app="$(basename "$(dirname "$(dirname "$(dirname "$(dirname "${catalog}")")")")")"
     name="$(sed -n 's/^Name=//p' "/usr/share/applications/${app}.desktop" | head -n1)"
     if [[ -n "$(jq -r --arg name "${name}" '.[$name] // ""' "${catalog}")" ]]; then
@@ -659,53 +673,17 @@ for catalog in /usr/lib/amethystora-*/resources/app/locale/*.json; do
     fi
 done
 
-# The Security app (14-security.sh): the Manual's Electron under a name of its own, the same files rather
-# than a copy of them, and the app, its renderer and its wordmark's font and stone in place. Its scripts
-# at least compile, which is as much as a build can ask of a window it cannot open.
-SECURITY_ELECTRON=/usr/lib/amethystora-security/amethystora-security
-test -x /usr/bin/amethystora-security
-test -x "${SECURITY_ELECTRON}"
-[[ "$(stat -c '%i' "${SECURITY_ELECTRON}")" == "$(stat -c '%i' "${MANUAL_ELECTRON}")" ]]
-test ! -e /usr/lib/amethystora-security/chrome-sandbox
-for file in main.js preload.js security.js index.html security.css gem.svg fonts/QuicksandVariable.ttf; do
-    test -s "/usr/lib/amethystora-security/resources/app/${file}"
-done
-for file in main.js preload.js security.js; do
-    ELECTRON_RUN_AS_NODE=1 "${SECURITY_ELECTRON}" -e \
-        'new (require("node:vm").Script)(require("node:fs").readFileSync(process.argv[1], "utf8"))' \
-        "/usr/lib/amethystora-security/resources/app/${file}"
-done
-test -f /usr/share/licenses/amethystora-security/Quicksand-OFL.txt
-# The stone in its wordmark is the logo's own, cropped the way branding/generate.mjs crops it
-cmp -s <(sed 1d /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg) \
-    <(sed 1d /usr/lib/amethystora-security/resources/app/gem.svg)
+# The Security app runs the commands it offers in a terminal, and draws its shield from the icon theme's
+# own file (GPL-3.0, NOTICE) when it runs, rather than carrying a copy
 test -x /usr/libexec/amethystora-in-terminal
+test -s /usr/share/icons/hicolor/scalable/apps/amethystora-security-status.svg
 # What each Flatpak can reach beyond its sandbox, for the report's check, the Apps page and `ame security
 # apps`: one helper, run as the user, whose JSON the three read
 test -x /usr/libexec/amethystora-app-permissions
 grep -q 'amethystora-app-permissions --json' /usr/libexec/amethystora-security-status
 
-# The Updates app (15-update.sh), put together as the Security app is
-UPDATE_ELECTRON=/usr/lib/amethystora-update/amethystora-update
-test -x /usr/bin/amethystora-update
-test -x "${UPDATE_ELECTRON}"
-[[ "$(stat -c '%i' "${UPDATE_ELECTRON}")" == "$(stat -c '%i' "${MANUAL_ELECTRON}")" ]]
-test ! -e /usr/lib/amethystora-update/chrome-sandbox
-for file in main.js preload.js update.js index.html update.css gem.svg fonts/QuicksandVariable.ttf; do
-    test -s "/usr/lib/amethystora-update/resources/app/${file}"
-done
-for file in main.js preload.js update.js; do
-    ELECTRON_RUN_AS_NODE=1 "${UPDATE_ELECTRON}" -e \
-        'new (require("node:vm").Script)(require("node:fs").readFileSync(process.argv[1], "utf8"))' \
-        "/usr/lib/amethystora-update/resources/app/${file}"
-done
-test -f /usr/share/licenses/amethystora-update/Quicksand-OFL.txt
-cmp -s <(sed 1d /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg) \
-    <(sed 1d /usr/lib/amethystora-update/resources/app/gem.svg)
-# It replaces upstream's System Update launcher, while `ame update` stays for the terminal
-UPDATE_DESKTOP=/usr/share/applications/amethystora-update.desktop
+# The Updates app replaces upstream's System Update launcher, while `ame update` stays for the terminal
 test ! -e /usr/share/applications/system-update.desktop
-command -v desktop-file-validate >/dev/null && desktop-file-validate "${UPDATE_DESKTOP}"
 grep -rqx "update:" /usr/share/amethystora/just/
 # "Update now" starts uupd's manual unit, which the rule the uupd package ships lets anyone start
 # without a password. Without the rule it would still start, after asking for one. The ublue-os/packages
@@ -723,59 +701,18 @@ grep -q "polkit.Result.AUTH_ADMIN" "${UUPD_RULE}"
 command -v fwupdmgr >/dev/null
 [[ "$(systemctl is-enabled fwupd-refresh.timer 2>/dev/null)" == "enabled" ]]
 
-# The Notes app (16-notes.sh), put together as the Security app is, with the Manual's marked as well
-NOTES_ELECTRON=/usr/lib/amethystora-notes/amethystora-notes
-test -x /usr/bin/amethystora-notes
-test -x "${NOTES_ELECTRON}"
-[[ "$(stat -c '%i' "${NOTES_ELECTRON}")" == "$(stat -c '%i' "${MANUAL_ELECTRON}")" ]]
-[[ "$(stat -c '%i' /usr/lib/amethystora-notes/resources/app/marked.umd.js)" == "$(stat -c '%i' /usr/lib/amethystora-manual/resources/app/marked.umd.js)" ]]
-test ! -e /usr/lib/amethystora-notes/chrome-sandbox
-for file in main.js preload.js notes.js index.html notes.css gem.svg gem-bowl.svg gem-stem.svg fonts/QuicksandVariable.ttf; do
-    test -s "/usr/lib/amethystora-notes/resources/app/${file}"
-done
-for file in main.js preload.js notes.js; do
-    ELECTRON_RUN_AS_NODE=1 "${NOTES_ELECTRON}" -e \
-        'new (require("node:vm").Script)(require("node:fs").readFileSync(process.argv[1], "utf8"))' \
-        "/usr/lib/amethystora-notes/resources/app/${file}"
-done
-# The notes are sealed with AES-256-GCM under a key from scrypt: both have to be in this Electron's crypto
-ELECTRON_RUN_AS_NODE=1 "${NOTES_ELECTRON}" -e '
-    const crypto = require("node:crypto");
-    const key = crypto.scryptSync("test", "salt", 32, { N: 2 ** 17, r: 8, p: 1, maxmem: 512 * 1024 * 1024 });
-    crypto.createCipheriv("aes-256-gcm", key, crypto.randomBytes(12));'
-# A passkey is asked of the security key through libfido2's tools (fido2-tools)
+# The Notes app asks a security key for a passkey through libfido2's tools (fido2-tools). Its sealing is the
+# program's own, AES-256-GCM under a key from scrypt, which the apps stage's tests hold to the vaults the
+# Electron window wrote.
 for tool in fido2-token fido2-cred fido2-assert; do
     command -v "${tool}"
 done
-test -f /usr/share/licenses/amethystora-notes/Quicksand-OFL.txt
-test -f /usr/share/licenses/amethystora-notes/marked/LICENSE
-cmp -s <(sed 1d /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg) \
-    <(sed 1d /usr/lib/amethystora-notes/resources/app/gem.svg)
 test -s /usr/share/icons/hicolor/scalable/apps/amethystora-notes.svg
-command -v desktop-file-validate >/dev/null && desktop-file-validate /usr/share/applications/amethystora-notes.desktop
 # It takes the place of Joplin and Planify, so no Flatpak list the image carries may bring them back
 grep -rqsE '"(net\.cozic\.joplin_desktop|io\.github\.alainm23\.planify)"' /usr/share/amethystora/homebrew /usr/share/flatpak/preinstall.d && false
 
-# The Logs app (16-logs.sh), put together as the Security app is
-LOGS_ELECTRON=/usr/lib/amethystora-logs/amethystora-logs
-test -x /usr/bin/amethystora-logs
-test -x "${LOGS_ELECTRON}"
-[[ "$(stat -c '%i' "${LOGS_ELECTRON}")" == "$(stat -c '%i' "${MANUAL_ELECTRON}")" ]]
-test ! -e /usr/lib/amethystora-logs/chrome-sandbox
-for file in main.js preload.js logs.js index.html logs.css gem.svg gem-bowl.svg gem-stem.svg fonts/QuicksandVariable.ttf; do
-    test -s "/usr/lib/amethystora-logs/resources/app/${file}"
-done
-for file in main.js preload.js logs.js; do
-    ELECTRON_RUN_AS_NODE=1 "${LOGS_ELECTRON}" -e \
-        'new (require("node:vm").Script)(require("node:fs").readFileSync(process.argv[1], "utf8"))' \
-        "/usr/lib/amethystora-logs/resources/app/${file}"
-done
-test -f /usr/share/licenses/amethystora-logs/Quicksand-OFL.txt
-cmp -s <(sed 1d /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg) \
-    <(sed 1d /usr/lib/amethystora-logs/resources/app/gem.svg)
-command -v desktop-file-validate >/dev/null && desktop-file-validate /usr/share/applications/amethystora-logs.desktop
-# It replaces GNOME Logs, which the upstream Flatpak list installed. The options it hands journalctl
-# have to be ones this journalctl knows.
+# The Logs app replaces GNOME Logs, which the upstream Flatpak list installed. The options it hands
+# journalctl have to be ones this journalctl knows.
 grep -rqF "org.gnome.Logs" /usr/share/flatpak/preinstall.d && false
 # ...and a machine that already had it loses it, once, by 21-retire-gnome-logs.sh
 grep -q "flatpak uninstall --system .*org.gnome.Logs" /usr/share/amethystora/system-setup.hooks.d/21-retire-gnome-logs.sh
@@ -784,25 +721,8 @@ for option in --case-sensitive --output-fields --after-cursor --identifier --use
     grep -q -- "${option}" <<<"${JOURNALCTL_HELP}"
 done
 
-# The Control app (16-control.sh), put together as the Security app is, on Super+Ctrl+Shift+C
-CONTROL_ELECTRON=/usr/lib/amethystora-control/amethystora-control
-test -x /usr/bin/amethystora-control
-test -x "${CONTROL_ELECTRON}"
-[[ "$(stat -c '%i' "${CONTROL_ELECTRON}")" == "$(stat -c '%i' "${MANUAL_ELECTRON}")" ]]
-test ! -e /usr/lib/amethystora-control/chrome-sandbox
-for file in main.js preload.js control.js index.html control.css gem.svg fonts/QuicksandVariable.ttf; do
-    test -s "/usr/lib/amethystora-control/resources/app/${file}"
-done
-for file in main.js preload.js control.js; do
-    ELECTRON_RUN_AS_NODE=1 "${CONTROL_ELECTRON}" -e \
-        'new (require("node:vm").Script)(require("node:fs").readFileSync(process.argv[1], "utf8"))' \
-        "/usr/lib/amethystora-control/resources/app/${file}"
-done
-test -f /usr/share/licenses/amethystora-control/Quicksand-OFL.txt
-cmp -s <(sed 1d /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg) \
-    <(sed 1d /usr/lib/amethystora-control/resources/app/gem.svg)
+# The Control app, on Super+Ctrl+Shift+C
 test -s /usr/share/icons/hicolor/scalable/places/amethystora-control.svg
-command -v desktop-file-validate >/dev/null && desktop-file-validate /usr/share/applications/amethystora-control.desktop
 grep -q "^command='amethystora-control'$" /etc/dconf/db/distro.d/06-amethystora-keybindings
 # What it shows is one list, which `ame control` prints too. Nothing is set up on the build machine and no
 # session runs there, so entries may be unavailable, but the list parses, its ids are its own, each kind
@@ -824,16 +744,15 @@ jq -e 'any(.items[]; .id == "raid-create")' <<<"${CONTROL_LIST}" >/dev/null
 [[ -z "$(jq -c '.items[] | select(.id | startswith("raid-")) | ., (.choices // [])[] | select(.command != null)
     | select(.command[0:3] != ["ame", "system", "raid"] or .terminal != true)' <<<"${CONTROL_LIST}")" ]]
 mapfile -t CONTROL_MANUAL < <(jq -r '.items[].manual // empty' <<<"${CONTROL_LIST}" | sort -u)
-ELECTRON_RUN_AS_NODE=1 "${MANUAL_ELECTRON}" /ctx/build_files/shared/check-manual.js /usr/share/amethystora/manual \
-    --links "${CONTROL_MANUAL[@]}"
-# The window runs nothing of its own: no shell, no password prompt, nothing of Security's (its page runs
-# nothing at all, and only shows commands to copy). The repository it lets you trust is checked with the
-# very expression amethystora-trust-image checks it with.
-grep -qE 'ame security|amethystora-security-config|\bsudo\b|\bpkexec\b|shell: true|(^|[^.])\bexec\(' \
-    /usr/lib/amethystora-control/resources/app/main.js && false
+"${NODE[@]}" /ctx/build_files/shared/check-manual.js /usr/share/amethystora/manual --links "${CONTROL_MANUAL[@]}"
+# The window runs nothing of its own: no shell, no password prompt, nothing of Security's (the commands it
+# shows to copy are only text). The repository it lets you trust is checked with the very expression
+# amethystora-trust-image checks it with.
+grep -rhvE '^[[:space:]]*//' /ctx/apps/control/src |
+    grep -qE '"(sudo|pkexec|sh|bash)"|"-c"|ame security|amethystora-security-config' && false
 TRUST_RULE="$(sed -n 's/^\[\[ "\${REPOSITORY}" =~ \(.*\) \]\] ||$/\1/p' /usr/libexec/amethystora-trust-image)"
 [[ -n "${TRUST_RULE}" ]]
-grep -qF "String.raw\`${TRUST_RULE}\`" /usr/lib/amethystora-control/resources/app/main.js
+grep -qF "r\"${TRUST_RULE}\"" /ctx/apps/control/src/backend.rs
 # The helpers it reads: the images and streams the rebase helper offers, the widgets and the web apps
 jq -e '(.images | length) == 4 and (.streams | length) > 0' <<<"$(/usr/bin/amethystora-rollback-helper --choices)" >/dev/null
 CONTROL_HOME="$(mktemp -d)"
@@ -875,26 +794,8 @@ jq -e '. == []' <<<"$(HOME="${CONTROL_HOME}" amethystora-webapp list --json)" >/
 )
 rm -rf "${CONTROL_HOME}"
 
-# The Backups app (16-backups.sh), put together as the Security app is, with the Manual's i18n.js
-BACKUPS_ELECTRON=/usr/lib/amethystora-backups/amethystora-backups
-test -x /usr/bin/amethystora-backups
-test -x "${BACKUPS_ELECTRON}"
-[[ "$(stat -c '%i' "${BACKUPS_ELECTRON}")" == "$(stat -c '%i' "${MANUAL_ELECTRON}")" ]]
-[[ "$(stat -c '%i' /usr/lib/amethystora-backups/resources/app/i18n.js)" == "$(stat -c '%i' /usr/lib/amethystora-manual/resources/app/i18n.js)" ]]
-test ! -e /usr/lib/amethystora-backups/chrome-sandbox
-for file in main.js preload.js backups.js index.html backups.css gem.svg fonts/QuicksandVariable.ttf; do
-    test -s "/usr/lib/amethystora-backups/resources/app/${file}"
-done
-for file in main.js preload.js backups.js; do
-    ELECTRON_RUN_AS_NODE=1 "${BACKUPS_ELECTRON}" -e \
-        'new (require("node:vm").Script)(require("node:fs").readFileSync(process.argv[1], "utf8"))' \
-        "/usr/lib/amethystora-backups/resources/app/${file}"
-done
-test -f /usr/share/licenses/amethystora-backups/Quicksand-OFL.txt
-cmp -s <(sed 1d /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg) \
-    <(sed 1d /usr/lib/amethystora-backups/resources/app/gem.svg)
+# The Backups app
 test -s /usr/share/icons/hicolor/scalable/places/amethystora-backups.svg
-command -v desktop-file-validate >/dev/null && desktop-file-validate /usr/share/applications/amethystora-backups.desktop
 # It offers itself under Open With on a folder in Files, and Files stays what opens one
 grep -qx 'MimeType=inode/directory;' /usr/share/applications/amethystora-backups.desktop
 grep -qx 'inode/directory=org.gnome.Nautilus.desktop' /etc/xdg/mimeapps.list
@@ -904,8 +805,8 @@ test -x /usr/libexec/amethystora-restore
 jq -e '.version == 1 and .backup.set_up == false and (.snapshots.on | type) == "boolean"' \
     <<<"$(/usr/libexec/amethystora-restore status --json)" >/dev/null
 jq -e '.points == [] and .backup == "none"' <<<"$(/usr/libexec/amethystora-restore points --json)" >/dev/null
-grep -qE 'ame security|amethystora-security-config|\bsudo\b|\bpkexec\b|shell: true|(^|[^.])\bexec\(' \
-    /usr/lib/amethystora-backups/resources/app/main.js && false
+grep -rhvE '^[[:space:]]*//' /ctx/apps/backups/src |
+    grep -qE '"(sudo|pkexec|sh|bash)"|"-c"|ame security|amethystora-security-config' && false
 
 # OpenTabletDriver's udev rules come from a pinned release whose tarball is checked before anything goes
 # into /etc, and its daemon from the image's own user unit, which no account gets without asking
@@ -1211,7 +1112,7 @@ grep -q "rpm-ostree rebase ostree-image-signed" /usr/libexec/amethystora-securit
 # not sealed, so it must not say it is.
 test -x /usr/libexec/amethystora-deployments
 for file in /usr/libexec/amethystora-security-status /usr/libexec/amethystora-update-alert \
-    /usr/lib/amethystora-update/resources/app/main.js; do
+    /ctx/apps/update/src/backend.rs; do
     grep -q /usr/libexec/amethystora-deployments "${file}"
 done
 test -e /usr/share/amethystora/sealed && false
@@ -1983,10 +1884,10 @@ grep -vE "^[[:space:]]*#" /usr/libexec/amethystora-backup | grep -qE "restic +(f
 # Getting files back (amethystora-restore, which the Backups window, `ame backup snapshots` and `ame security
 # ransomware restore` read) deletes nothing either: not from the backup, not a snapshot, and not with
 # restore's --delete from the home folder. Each run that succeeded leaves the time the report warns by.
-for file in /usr/libexec/amethystora-restore /usr/lib/amethystora-backups/resources/app/main.js; do
-    grep -vE "^[[:space:]]*(#|//)" "${file}" |
-        grep -qE "restic(_read)?( +--[a-z-]+)* +(forget|prune|rewrite|key)\b|subvolume +delete|(^|[[:space:]])--delete\b" && false
-done
+grep -vE "^[[:space:]]*#" /usr/libexec/amethystora-restore |
+    grep -qE "restic(_read)?( +--[a-z-]+)* +(forget|prune|rewrite|key)\b|subvolume +delete|(^|[[:space:]])--delete\b" && false
+# ...and the window runs neither restic nor btrfs itself, only the helper
+grep -rhvE '^[[:space:]]*//' /ctx/apps/backups/src | grep -qE '"(restic|btrfs)"|"--delete"' && false
 grep -q "amethystora-restore points$" /usr/share/amethystora/just/backup.just
 grep -q "amethystora-restore points --local" /usr/share/amethystora/just/security.just
 grep -q "backup-last-success" /usr/libexec/amethystora-backup

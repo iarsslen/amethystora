@@ -1,0 +1,114 @@
+/* What every Amethystora window shares under its own stylesheet: the theme's colours handed to libadwaita,
+   so that its popovers, entries and menus are drawn in them too, and the pieces made to look like the
+   Electron pages' rather than like GTK's buttons. The colours themselves (--bg, --fg, --accent, ...) are
+   palette.rs's, on :root; each app's stylesheet mixes the rest from them. */
+
+:root {
+    --window-bg-color: var(--bg);
+    --window-fg-color: var(--fg);
+    --view-bg-color: var(--bg);
+    --view-fg-color: var(--fg);
+    --headerbar-bg-color: var(--bg);
+    --headerbar-fg-color: var(--fg);
+    --headerbar-backdrop-color: var(--bg);
+    --headerbar-shade-color: transparent;
+    --headerbar-darker-shade-color: transparent;
+    --sidebar-bg-color: color-mix(in oklab, var(--bg) 94%, var(--fg));
+    --sidebar-fg-color: var(--fg);
+    --sidebar-backdrop-color: color-mix(in oklab, var(--bg) 94%, var(--fg));
+    --sidebar-shade-color: transparent;
+    --card-bg-color: color-mix(in oklab, var(--surface) 40%, var(--bg));
+    --card-fg-color: var(--fg);
+    --dialog-bg-color: color-mix(in oklab, var(--surface) 30%, var(--bg));
+    --dialog-fg-color: var(--fg);
+    --popover-bg-color: color-mix(in oklab, var(--surface) 45%, var(--bg));
+    --popover-fg-color: var(--fg);
+    --thumbnail-bg-color: color-mix(in oklab, var(--surface) 45%, var(--bg));
+    --accent-bg-color: var(--accent);
+    --accent-fg-color: var(--on-accent);
+    --accent-color: color-mix(in oklab, var(--accent) 72%, var(--fg));
+    --destructive-bg-color: var(--bad);
+    --destructive-fg-color: var(--on-accent);
+    --destructive-color: var(--bad);
+    --error-bg-color: var(--bad);
+    --error-color: var(--bad);
+    --success-bg-color: var(--ok);
+    --success-color: var(--ok);
+    --warning-bg-color: var(--warn);
+    --warning-color: var(--warn);
+    --border-color: color-mix(in oklab, var(--fg) 15%, transparent);
+    --shade-color: rgb(0 0 0 / 0.2);
+    --scrollbar-outline-color: transparent;
+}
+
+window.amethystora {
+    background: var(--bg);
+    color: var(--fg);
+}
+
+/* The window's buttons, over the top corner of the page when the page has no bar of its own there */
+windowcontrols.floating {
+    margin: 10px 12px;
+}
+
+/* The headerbar is only the window's buttons, over the page */
+window.amethystora headerbar {
+    background: none;
+    box-shadow: none;
+    min-height: 0;
+}
+
+selection {
+    background: var(--selection);
+    color: var(--selection-fg);
+}
+
+/* Buttons that are drawn as the pages drew theirs, not as GTK's */
+button.btn,
+button.link,
+button.plain {
+    background: none;
+    box-shadow: none;
+    border: none;
+    min-height: 0;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    text-shadow: none;
+    -gtk-icon-shadow: none;
+    outline-color: var(--accent);
+    font-weight: inherit;
+}
+
+button.btn:focus-visible,
+button.link:focus-visible,
+button.plain:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* The wordmark: its gaps in em of its lettering, so that it is the same mark at any size and zoom */
+.brand .wordmark gem {
+    margin-right: 0.055em;
+}
+
+.brand .product:dir(ltr) {
+    margin-left: 0.3em;
+}
+
+.brand .product:dir(rtl) {
+    margin-right: 0.3em;
+}
+
+/* The stone's halo is the accent */
+gem {
+    color: var(--accent);
+}
+
+tooltip {
+    background: color-mix(in oklab, var(--surface) 70%, var(--bg));
+    color: var(--fg);
+    border: 1px solid color-mix(in oklab, var(--fg) 12%, transparent);
+    border-radius: 8px;
+    box-shadow: none;
+}

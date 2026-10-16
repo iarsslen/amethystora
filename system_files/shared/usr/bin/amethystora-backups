@@ -9,8 +9,8 @@
 #   amethystora-backups --at=POINT [FOLDER]
 #                                  open it at a point in time: a snapshot's name or a backup's id
 #
-# What it shows and does is /usr/libexec/amethystora-restore's, run as you. The window is an Electron app
-# in /usr/lib/amethystora-backups (build_files/base/16-backups.sh).
+# What it shows and does is /usr/libexec/amethystora-restore's, run as you. The window is a GTK program,
+# one with the other Amethystora apps (apps/, build_files/base/13-apps.sh).
 
 set -euo pipefail
 

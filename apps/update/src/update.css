@@ -1,0 +1,456 @@
+/* Amethystora Updates, ported from the Electron page's update.css. Line heights are in pixels, the page's factor
+   times the font size, as CSS computes them: GTK multiplies a factor by the font's own height, which differs
+   from script to script, so Arabic lines would come out far taller than the page had them. The ten theme colours and --on-accent
+   are palette.rs's; everything else is mixed from them, as in the other windows, so any theme reads well
+   here without a stylesheet of its own. Layout (gaps, widths, wrapping) is page.rs's; this paints. */
+
+:root {
+    --top: color-mix(in oklab, var(--bg) 94%, var(--fg));
+    --card: color-mix(in oklab, var(--surface) 40%, var(--bg));
+    --control: color-mix(in oklab, var(--fg) 5%, transparent);
+    --line: color-mix(in oklab, var(--fg) 10%, transparent);
+    --line-strong: color-mix(in oklab, var(--fg) 15%, transparent);
+    --hairline: color-mix(in oklab, var(--fg) 7%, transparent);
+    --soft: color-mix(in oklab, var(--fg) 64%, var(--bg));
+    --faint: color-mix(in oklab, var(--fg) 56%, var(--bg));
+    --link: color-mix(in oklab, var(--accent) 72%, var(--fg));
+    --tint: color-mix(in oklab, var(--accent) 16%, transparent);
+    --code-bg: color-mix(in oklab, var(--surface) 55%, var(--bg));
+    --shadow: none;
+    --radius: 16px;
+}
+
+/* On a light theme a card stands out by being lighter than the window, not darker */
+window.light {
+    --card: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --control: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --faint: color-mix(in oklab, var(--fg) 72%, var(--bg));
+    --shadow: 0 1px 2px color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+window.amethystora {
+    font-family: Inter, "Adwaita Sans", Cantarell, sans-serif;
+    font-size: 14px;
+    line-height: 21px;
+    font-feature-settings: "cv11", "ss01";
+}
+
+.code,
+.log {
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+}
+
+.soft {
+    color: var(--soft);
+}
+
+.faint {
+    color: var(--faint);
+}
+
+/* Labels only: adw::Clamp gives its child .small, .medium or .large by its own width */
+label.small {
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+scrollbar slider {
+    background-color: color-mix(in oklab, var(--fg) 22%, transparent);
+}
+
+scrollbar slider:hover {
+    background-color: color-mix(in oklab, var(--fg) 38%, transparent);
+}
+
+/* --- Top bar ----------------------------------------------------------------------------------- */
+
+/* The window buttons sit in the bar without making it taller than the wordmark makes it */
+.top windowcontrols {
+    margin-top: -6px;
+    margin-bottom: -6px;
+}
+
+.top {
+    padding: 16px 24px;
+    background: var(--top);
+    border-bottom: 1px solid var(--line);
+}
+
+/* The wordmark of the boot splash and the login screen, as logoHtml in branding/generate.mjs sets it: the
+   stone as the "a" of "methystora" in Quicksand Bold, glowing in the three shades the splash lights it
+   with, and white. A light theme gets the generator's dark ink. */
+.brand {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    line-height: 22px;
+    letter-spacing: -0.015em;
+}
+
+.wordmark {
+    color: #ffffff;
+}
+
+window.light .wordmark {
+    color: #241f31;
+}
+
+.brand .product {
+    color: var(--soft);
+    font-weight: 600;
+}
+
+/* --- Common pieces ----------------------------------------------------------------------------- */
+
+.page {
+    padding: 12px 40px 40px;
+}
+
+window.narrow .page {
+    padding-left: 24px;
+    padding-right: 24px;
+}
+
+.loading {
+    min-height: 420px;
+    color: var(--soft);
+}
+
+.card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.section .h2 {
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.lead {
+    color: var(--soft);
+    font-size: 15px;
+    line-height: 22.5px;
+}
+
+button.btn {
+    min-height: 38px;
+    padding: 0 16px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--control);
+    color: var(--fg);
+    font-size: 14px;
+    line-height: 21px;
+    font-weight: 600;
+    transition: filter 150ms;
+}
+
+button.btn > box {
+    border-spacing: 8px;
+}
+
+button.btn:hover {
+    filter: brightness(1.15);
+}
+
+window.light button.btn:hover {
+    filter: brightness(0.96);
+}
+
+button.btn.primary {
+    border-color: transparent;
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+button.btn.small {
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 9px;
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+button.btn:disabled {
+    opacity: 0.5;
+    filter: none;
+}
+
+button.link {
+    color: var(--link);
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 600;
+}
+
+button.link > box {
+    border-spacing: 7px;
+}
+
+button.link:hover label {
+    text-decoration-line: underline;
+}
+
+button.link.quiet {
+    color: var(--soft);
+    font-weight: 500;
+}
+
+button.link.small {
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.tone.ok {
+    background: color-mix(in oklab, var(--ok) 14%, transparent);
+    color: var(--ok);
+}
+
+.tone.off {
+    background: color-mix(in oklab, var(--bad) 15%, transparent);
+    color: var(--bad);
+}
+
+.tone.info {
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+    color: var(--soft);
+}
+
+.tone.accent {
+    background: var(--tint);
+    color: var(--link);
+}
+
+.callout {
+    padding: 16px 18px;
+    border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+    border-radius: 14px;
+    background: color-mix(in oklab, var(--accent) 9%, transparent);
+}
+
+.callout > icon {
+    margin-top: 1px;
+    color: var(--link);
+}
+
+.callout.check {
+    border-color: color-mix(in oklab, var(--warn) 30%, transparent);
+    background: color-mix(in oklab, var(--warn) 6%, transparent);
+}
+
+.callout.check > icon {
+    color: var(--warn);
+}
+
+.callout .strong {
+    font-size: 14.5px;
+    line-height: 21.75px;
+    font-weight: 600;
+}
+
+.callout .p {
+    color: var(--soft);
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+.command {
+    padding: 8px 8px 8px 16px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--code-bg);
+}
+
+.command .code {
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+.command button.btn {
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 8px;
+    background: var(--top);
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+/* --- The hero: the stone of the boot splash, and what is happening ------------------------------ */
+
+.hero {
+    padding: 36px 0 6px;
+}
+
+.hero .h1 {
+    margin-top: 26px;
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 32px;
+    line-height: 38.4px;
+    letter-spacing: -0.01em;
+}
+
+.hero .lead {
+    margin-top: 8px;
+}
+
+.hero .actions {
+    margin-top: 24px;
+}
+
+/* Under a card, such as the firmware's, they line up with what they act on */
+.section .actions {
+    margin-top: 12px;
+}
+
+.note {
+    margin-top: 16px;
+    color: var(--faint);
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.progress {
+    margin-top: 26px;
+}
+
+.percent {
+    min-width: 3em;
+    color: var(--soft);
+    font-size: 13px;
+    line-height: 19.5px;
+    font-weight: 600;
+    font-feature-settings: "tnum";
+}
+
+bar {
+    min-height: 6px;
+    border-radius: 3px;
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+}
+
+bar > .fill {
+    border-radius: 3px;
+    background-image: linear-gradient(90deg, var(--accent), var(--link));
+}
+
+bar.indeterminate > .fill {
+    background-image: linear-gradient(90deg, transparent, var(--accent) 30%, var(--link) 70%, transparent);
+}
+
+/* --- Rows ------------------------------------------------------------------------------------- */
+
+.row {
+    padding: 14px 18px;
+    border-top: 1px solid var(--hairline);
+}
+
+.row:first-child {
+    border-top: none;
+}
+
+.row-icon {
+    min-width: 38px;
+    min-height: 38px;
+    border-radius: 11px;
+}
+
+.row-label {
+    color: var(--soft);
+    font-size: 11.5px;
+    line-height: 17.25px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.row-title {
+    font-size: 14.5px;
+    line-height: 21.75px;
+    font-weight: 600;
+}
+
+.row-detail {
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.13px;
+}
+
+.row button.link {
+    margin-top: 6px;
+}
+
+/* A step's state: waiting, what it is doing, or how it went */
+.state {
+    color: var(--faint);
+    font-size: 13px;
+    line-height: 19.5px;
+    font-weight: 600;
+    font-feature-settings: "tnum";
+}
+
+.state.accent {
+    color: var(--link);
+}
+
+.state.ok {
+    color: var(--ok);
+}
+
+.state.off {
+    color: var(--bad);
+}
+
+/* --- What the updater said -------------------------------------------------------------------- */
+
+.details button.summary-button {
+    padding: 14px 18px;
+    color: var(--soft);
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 600;
+}
+
+.details .chevron {
+    transition: transform 150ms;
+}
+
+.details.open .chevron {
+    transform: rotate(90deg);
+}
+
+.details .log-scroller {
+    border-top: 1px solid var(--hairline);
+    background: var(--code-bg);
+}
+
+.log {
+    padding: 14px 18px;
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 19.2px;
+}
+
+.details-foot {
+    padding: 14px 18px 16px;
+    border-top: 1px solid var(--hairline);
+}
+
+.terminal {
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.terminal .code {
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 18px;
+}

@@ -1,0 +1,24 @@
+{
+  "format": 1,
+  "encrypted": true,
+  "cipher": "aes-256-gcm",
+  "kdf": {
+    "name": "scrypt",
+    "N": 131072,
+    "r": 8,
+    "p": 1,
+    "salt": "wRJYMUIGlhoGOfQsJ/Nn0A=="
+  },
+  "key": "QU52MZQXDFHPYxInwkYoocxVuqU6lnmQa8Dxd8OgH60tZiLox7Grmrxvm/SRCq7O+EDwFeJNa7UsL8jg24n2IQ==",
+  "passkeys": [
+    {
+      "id": "feed0000000000000000000000000001",
+      "name": "YubiKey 5 NFC",
+      "created": 1790899200000,
+      "protect": 3,
+      "credential": "YSBjcmVkZW50aWFsIHRoZSBzdGFuZC1pbiBzZWN1cml0eSBrZXkgbWFkZQ==",
+      "salt": "BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=",
+      "key": "QU52MS7C/FQSTxKH67aXyHj+UZgxG4Kbgg7AE+1JVvsNASY8mEWnJ4yq1e+QT66Yv6/I0a6458/iublpac2r2g=="
+    }
+  ]
+}

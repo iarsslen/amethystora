@@ -64,9 +64,9 @@ every run. Its home folders are not a btrfs subvolume of their own, as the insta
 that needs one (the hourly snapshots do) calls `make_home_subvolume` unless `home_subvolume` says it is one
 already, then restarts.
 
-An app's window is used through its page: started with `--remote-debugging-port=PORT`, it is driven by
-`cdp.mjs`, run with the app's own Electron as Node (`ELECTRON_RUN_AS_NODE=1`), which clicks what a person would
-click and reads the page's state (`70-backups.sh` shows how).
+An app's window is used as a person would use it, through the accessibility tree every GTK window has:
+`atspi.py`, run as the account on its session's bus, finds, clicks and types into what the window shows and
+reads what it says (`70-backups.sh` shows how).
 
 | Suite | What it checks |
 | --- | --- |

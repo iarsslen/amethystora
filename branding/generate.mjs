@@ -2545,28 +2545,13 @@ if (process.argv.includes("--preview")) {
 }
 
 write("usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg", gemSvg());
-// The gem the wordmark sets as its "a", cropped as logoHtml crops it: the Security app draws the wordmark
-// live, in the same font, size and glow, so its sidebar carries the mark of the boot splash and login screen
-write("usr/lib/amethystora-security/resources/app/gem.svg", gemSvg(false, BOUNDS.join(" ")));
-// ...and the Updates app's top bar, whose gem also stands on its own, lit as the login screen lights it
-write("usr/lib/amethystora-update/resources/app/gem.svg", gemSvg(false, BOUNDS.join(" ")));
-// ...and the Logs app's sidebar, drawn as Security's is
-write("usr/lib/amethystora-logs/resources/app/gem.svg", gemSvg(false, BOUNDS.join(" ")));
-// ...and the Notes app's sidebar and lock screen, the same
-write("usr/lib/amethystora-notes/resources/app/gem.svg", gemSvg(false, BOUNDS.join(" ")));
-// ...and the Manual's sidebar, the same
-write("usr/lib/amethystora-manual/resources/app/gem.svg", gemSvg(false, BOUNDS.join(" ")));
-// ...and Control's sidebar, the same
-write("usr/lib/amethystora-control/resources/app/gem.svg", gemSvg(false, BOUNDS.join(" ")));
-// ...and Backups', the same
-write("usr/lib/amethystora-backups/resources/app/gem.svg", gemSvg(false, BOUNDS.join(" ")));
-// Notes lifts the stem while it unlocks and Logs blinks it while it reads, so those two also get the bowl
-// and the stem as pictures of their own, in the same box, to lay one over the other
-for (const app of ["notes", "logs"]) {
-  for (const [name, part] of [["bowl", "ring"], ["stem", "stem"]]) {
-    write(`usr/lib/amethystora-${app}/resources/app/gem-${name}.svg`, gemSvg(false, BOUNDS.join(" "), FACETS.filter((f) => f.part === part)));
-  }
-}
+// The gem the wordmark sets as its "a", cropped as logoHtml crops it, and its stem alone in the same box:
+// the apps draw the wordmark live from these polygons (apps/common/src/gem.rs), in the same font, size and
+// glow, so that their sidebars carry the mark of the boot splash and login screen, and Notes lifts the stem
+// while it unlocks and Logs blinks it while it reads
+const APPS = join(ROOT, "apps");
+write("common/assets/gem.svg", gemSvg(false, BOUNDS.join(" ")), APPS);
+write("common/assets/gem-stem.svg", gemSvg(false, BOUNDS.join(" "), FACETS.filter((f) => f.part === "stem")), APPS);
 write("usr/share/icons/hicolor/scalable/actions/amethystora-logo-symbolic.svg", symbolicSvg);
 write("usr/share/icons/hicolor/scalable/places/amethystora-docs.svg", tileSvg(docsGlyph));
 write("usr/share/icons/hicolor/scalable/places/amethystora-community.svg", tileSvg(communityGlyph));

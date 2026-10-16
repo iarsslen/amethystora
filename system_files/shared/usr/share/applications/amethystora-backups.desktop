@@ -10,7 +10,7 @@ Categories=Utility;Archiving;
 Keywords=backup;backups;restore;snapshot;snapshots;restic;time machine;history;versions;undelete;recover;ransomware;
 MimeType=inode/directory;
 StartupNotify=true
-StartupWMClass=amethystora-backups
+StartupWMClass=org.amethystora.Backups
 Actions=status;
 
 [Desktop Action status]

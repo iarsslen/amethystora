@@ -17,12 +17,14 @@ COPY /system_files /system_files
 COPY LICENSE NOTICE /system_files/shared/usr/share/licenses/amethystora/
 # Public half of the key CI signs the images with: updates are only accepted with a valid signature
 COPY cosign.pub /system_files/shared/etc/pki/containers/amethystora.pub
-# The wordmark's font, for the windows that draw it (14-security.sh)
+# The wordmark's font, for the windows that draw it (13-apps.sh)
 COPY /branding/fonts /branding/fonts
 # The shell programs' translations, compiled into /usr/share/locale (14-security.sh)
 COPY /po /po
 # The packages Amethystora rebuilds, built in their own stage below
 COPY /packaging /packaging
+# The Amethystora apps, in Rust, built in their own stage below
+COPY /apps /apps
 
 ## fprintd with the duress finger's patches, built on the base it is installed into. Its build tools stay
 ## in this stage: only the packages in /out reach the image (05-override-install.sh)
@@ -30,6 +32,14 @@ FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION}@${BASE_IMAGE_SHA} AS fprintd
 RUN --mount=type=cache,dst=/var/cache/libdnf5 \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/build_files/shared/build-fprintd.sh
+
+## The Amethystora apps (apps/), built on the base they run on. Rust and the crates stay in this stage:
+## only the program and the crates' licences in /out reach the image (13-apps.sh). Its Node runs the
+## checks written in JavaScript (20-tests.sh), so that the image needs none of its own
+FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION}@${BASE_IMAGE_SHA} AS apps
+RUN --mount=type=cache,dst=/var/cache/libdnf5 \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    /ctx/build_files/shared/build-apps.sh
 
 ## amethystora image section
 FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION}@${BASE_IMAGE_SHA} AS base
@@ -69,6 +79,7 @@ RUN --mount=type=cache,dst=/var/cache/libdnf5 \
     --mount=type=cache,dst=/var/cache/rpm-ostree \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=fprintd,source=/out,target=/fprintd \
+    --mount=type=bind,from=apps,source=/,target=/apps-stage \
     /ctx/build_files/shared/build.sh
 
 # Makes `/opt` writeable by default

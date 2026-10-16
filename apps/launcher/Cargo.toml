@@ -1,0 +1,16 @@
+[package]
+name = "amethystora-apps"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+amethystora-ui.workspace = true
+amethystora-update.workspace = true
+amethystora-security.workspace = true
+amethystora-control.workspace = true
+amethystora-backups.workspace = true
+amethystora-logs.workspace = true
+amethystora-manual.workspace = true
+amethystora-notes.workspace = true

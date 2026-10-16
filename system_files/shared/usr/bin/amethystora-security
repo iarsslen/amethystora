@@ -6,7 +6,7 @@
 #   amethystora-security scan     open it on the virus scanner
 #
 # The report is /usr/libexec/amethystora-security-status, which `ame security status` prints in a
-# terminal. The window is an Electron app in /usr/lib/amethystora-security (build_files/base/14-security.sh).
+# terminal. The window is a GTK program, one with the other Amethystora apps (apps/, 13-apps.sh).
 
 set -euo pipefail
 

@@ -6,7 +6,7 @@
 #   amethystora-notes tasks    open it on the tasks
 #
 # Nothing is synced and nothing leaves the machine. The notes are in ~/.local/share/amethystora-notes.
-# The window is an Electron app in /usr/lib/amethystora-notes (build_files/base/16-notes.sh).
+# The window is a GTK program, one with the other Amethystora apps (apps/, build_files/base/13-apps.sh).
 
 set -euo pipefail
 

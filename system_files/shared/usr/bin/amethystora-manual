@@ -8,7 +8,7 @@
 #   amethystora-manual --list          the pages there are
 #
 # The pages are the Markdown files in /usr/share/amethystora/manual, listed in pages.json. The
-# window is an Electron app in /usr/lib/amethystora-manual (build_files/base/13-manual.sh).
+# window is a GTK program, one with the other Amethystora apps (apps/, build_files/base/13-apps.sh).
 
 set -euo pipefail
 

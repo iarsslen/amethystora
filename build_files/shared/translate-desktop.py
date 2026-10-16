@@ -7,7 +7,7 @@ Each app's launcher, /usr/share/applications/<app>.desktop, says in English what
 it does and what to find it by, in its main entry and in its actions. The app's catalogs, locale/<language>.json
 beside it, hold those same words translated (check-translations.js lists them there for the translators),
 and this writes each translation in below its English, the way the desktop entry specification has a
-launcher carry its other languages. Run by 13-manual.sh, once the apps and their catalogs are in place.
+launcher carry its other languages. Run by 13-apps.sh, once the apps and their catalogs are in place.
 """
 
 import json

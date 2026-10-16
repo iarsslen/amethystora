@@ -30,6 +30,8 @@ This document provides essential information for coding agents working with the 
   - `shared/` - Every image: configurations, fonts, themes, the manual, the `ame` commands
   - `dx/` - `amethystora-dx` only, copied in by `build_files/shared/build-dx.sh`
   - `sealed/` - the sealed images only, copied in by `build_files/sealed/00-sealed.sh`
+- `apps/` - The Amethystora apps (Manual, Security, Updates, Notes, Logs, Backups, Control): one Rust
+  program, a Cargo workspace built in the Containerfile's `apps` stage (see The Amethystora apps)
 - `build_files/` - Build scripts organized as base/, dx/, shared/
   - `base/` - Base image build scripts (00-image-info.sh through 20-tests.sh)
   - `dx/` - Developer experience build scripts
@@ -291,10 +293,42 @@ both and requires skill names to be unique across them, so the launcher starts i
 recipe that it names.
 
 Updates, Security and Logs offer **Ask the agent** where something failed, while the features are on
-(`amethystora-agent status`): each runs `amethystora-agent diagnose` with what its main process picked
-itself, never words from its page. Updates passes the failed updater unit (one of its two), Security the
+(`amethystora-agent status`): each runs `amethystora-agent diagnose` with what the program picked
+itself, never words shown in its window. Updates passes the failed updater unit (one of its two), Security the
 check's id looked up in the report it read (and passes that check's title and sentence), Logs a crash's
 process number or the `.service` an entry came from, both checked for their shape.
+
+### The Amethystora apps
+
+The Manual, Security, Updates, Notes, Logs, Backups and Control are one program, written in Rust with
+GTK 4 and libadwaita: the Cargo workspace in `apps/`, one crate for each app beside `common` (the
+crate `amethystora-ui`, which they share) and `launcher`, which picks the app by the name it was started
+as. The Containerfile's `apps` stage builds it on the same pinned base with Fedora's Rust
+(`build_files/shared/build-apps.sh`), once every crate's tests pass, and `13-apps.sh` hard-links it to
+each app's own path, `/usr/lib/amethystora-<app>/amethystora-<app>`, which the `/usr/bin` launchers
+start. They were Electron windows of some 300 MB each until October 2026, and look as those did: keep
+the look when you change one.
+
+- `common` holds what the windows share: the frame (sidebar and window controls), the palette, which
+  follows `~/.config/amethystora/current` as the theme changes, the wordmark (drawn live in Quicksand,
+  from `apps/common/assets/gem.svg` and `gem-stem.svg`, which `branding/generate.mjs` writes), the
+  icons, Markdown (`markdown.rs`, raw HTML shown as text), translations and running programs
+  (`process.rs`), always as an argument vector, never through a shell. Each app's stylesheet is beside
+  its code; the desktop's own `gtk.css` is kept out of the windows.
+- A window's app id is `org.amethystora.<App>`, which its launcher's `StartupWMClass` names, so that GNOME
+  finds the launcher's name and icon for it.
+- An app keeps how it was left in `~/.local/state/amethystora/<app>.json`.
+  `user-setup.hooks.d/20-retire-electron-profiles.sh` takes away the Chromium profiles the Electron
+  windows kept in `~/.config/amethystora-<app>`.
+- `apps/Cargo.lock` pins every crate by checksum. Renovate's cargo manager bumps them, gtk-rs and ICU4X
+  each as one group. The licences of the crates built into the program ship in
+  `/usr/share/licenses/amethystora-apps/crates`, beside `CRATES`, their list, and `build-apps.sh` fails
+  on a crate without a licence file of its own.
+- The apps stage has Node as well, which runs `20-tests.sh`'s checks written in JavaScript
+  (`check-manual.js`, `check-translations.js`) from where the stage is mounted, `/apps-stage`, and
+  Notes' compatibility tests: the image carries no Node.
+- The VM lab drives a window as a person would, through its accessibility tree
+  (`tests/vm/suites/atspi.py`).
 
 ### The manual
 
@@ -310,10 +344,9 @@ it describes, and add to it when you add something a user would look for there.
 - `07-debrand.sh` rewrites every Universal Blue name in the image except on a line that
   also carries a copyright or licence phrase, or a comment that opens with a credit (`# Written by`,
   `# Modified by`, `# Source:`), so upstream is credited only that way (`about.md`).
-- The window is an Electron app in `system_files/shared/usr/lib/amethystora-manual/resources/app`.
-  It only loads its own pages, opens web links in the browser, and follows the theme's palette.
-  `13-manual.sh` adds the pinned Electron and `marked` it runs on. The sidebar draws the same wordmark
-  as Security, from its own copy of `gem.svg`.
+- The window is `apps/manual`, one of the Amethystora apps. It only shows the manual's own pages, opens
+  web links in the browser, and follows the theme's palette. The sidebar draws the same wordmark as
+  Security.
 - A page translated into another language is `manual/<language>/<page>.md` (the hotkeys page too, as
   `manual/<language>/keybindings.md`). Weblate writes them from the English, paragraph by paragraph, so
   edit the English only. A translated page's headings take the ids of the English page's headings in
@@ -323,28 +356,29 @@ it describes, and add to it when you add something a user would look for there.
 
 ### Translations
 
-The Manual, Security, Updates, Logs, Notes, Control and Backups follow the session's language. They share one runtime,
-`i18n.js`, kept in the Manual's folder and hard-linked into the others by their build scripts, as
-Electron is. The English text in the code is the key: `t('Update now')`, `t('Last updated {when}', {
-when })`, and plurals and variants in ICU MessageFormat (`{count, plural, one {# file} other {# files}}`).
+The Manual, Security, Updates, Logs, Notes, Control and Backups follow the session's language, through
+`apps/common/src/i18n.rs`. The English text in the code is the key: `t!("Update now")`,
+`t!("Last updated {when}", when = ...)`, and plurals and variants in ICU MessageFormat
+(`{count, plural, one {# file} other {# files}}`).
 
-- The first argument of `t(` or `t.parts(` is always a plain string in quotes, a whole sentence or label:
-  never a template literal, never fragments joined into a sentence. Text in `index.html` is marked
-  `data-i18n` or `data-i18n-attr`. Text an app reads from data goes through `t.dynamic()` and is listed
-  in `check-translations.js`'s `DATA`, which already lists the Manual's section names and every app's
-  launcher.
-- Each app's catalogs are `locale/<language>.json` beside it, keyed by the English. `locale/en.json`
+- The first argument of `t!`, `t_parts!` and `t_markup!` is always a string literal, a whole sentence or
+  label: never fragments joined into a sentence. Text an app reads from data goes through
+  `i18n::dynamic()` and is listed in `check-translations.js`'s `DATA`, which already lists the Manual's
+  section names and every app's launcher.
+- Each app's catalogs are `locale/<language>.json` in `system_files/shared/usr/lib/amethystora-<app>/resources/app`,
+  where the Electron windows had them and Weblate writes them, keyed by the English. `locale/en.json`
   lists every message and is what Weblate translates from: after changing a message, run
-  `node build_files/shared/check-translations.js --write --po po system_files/shared`, which rewrites it
-  and `po/amethystora.pot`. `20-tests.sh` runs the same check without `--write`.
-- Dates, numbers and lists go through `Intl` with `t.locale` (`t.days()`, `t.list()`, `t.number()`),
-  never `toLocale*String([])`: Chromium's own locale follows the session only for the languages whose
-  `.pak` `13-manual.sh` keeps. Data that must read left to right in any language (paths, commands, ids)
-  gets `dir="ltr"`; stylesheets use logical properties (`margin-inline-start`, `inset-inline-end`), so
-  that Arabic lays out right to left.
+  `node build_files/shared/check-translations.js --write --po po system_files/shared`, which reads the
+  messages from `apps/` and rewrites it and `po/amethystora.pot`. `20-tests.sh` runs the same check
+  without `--write`.
+- Dates, numbers, sizes and lists go through `i18n` (`i18n::date()`, `i18n::days()`, `i18n::list()`,
+  `i18n::number()`, `i18n::unit()`), never `format!`: ICU4X writes them as Chromium's Intl did, which
+  `apps/common/tests/intl.rs` holds them to. Data that must read left to right in any language (paths,
+  commands, ids) is set `gtk::TextDirection::Ltr`. GTK lays the rest out right to left for Arabic, and a
+  stylesheet rule that names a side has its `:dir(rtl)` counterpart.
 - The security report, the app permissions and Control's list translate with gettext (`gettext`,
   `eval_gettext` and `eval_ngettext`, values as shell variables), and the Security and Control apps show
-  their words as they come. Never pass the report's or the helpers' text through `t()`.
+  their words as they come. Never pass the report's or the helpers' text through `t!`.
 - `translate-desktop.py` writes each launcher's translated `Name`, `GenericName`, `Comment` and
   `Keywords` from the app's catalogs at build time: edit the English in the `.desktop` file only.
 
@@ -401,7 +435,7 @@ profile off|default|light|balanced|thorough` sets every detection key at once; n
 cannot be fixed on the machine, and `ame security allow KEY ENTRY` quietens a path or program a feature
 keeps finding (`/usr/libexec/amethystora-security-allow`, which holds each feature's entry shape). Every
 finding has an id, and a fact `allow=` when it can be allowed: **Allow…** on the Events page sends the id
-only, and `main.js` passes the entry the event holds. `test-security-switches.sh` checks all of it. A new
+only, and the program passes the entry the event holds. `test-security-switches.sh` checks all of it. A new
 feature gets its switch with it, off by default.
 
 **What looks for new threats** is the watcher's too, each part a key in group `detection` (or `network`,
@@ -483,8 +517,8 @@ Tailscale set on each network and a restart forgets it; networks connected alrea
 network that wants a login first, the user unit `amethystora-dns-portal.service` (in the session, not a
 NetworkManager dispatcher script) offers a ten-minute pause, which the person at the machine starts:
 never pause it automatically, or any network could turn the encryption off.
-The sidebar draws the boot splash's wordmark live, from `gem.svg` (written by `branding/generate.mjs`)
-and Quicksand, with the generator's own sizes and glow.
+The sidebar draws the boot splash's wordmark live, from `apps/common/assets/gem.svg` (written by
+`branding/generate.mjs`) and Quicksand, with the generator's own sizes and glow.
 
 ### Logins
 
@@ -538,14 +572,13 @@ itself, with one exception: on a machine started from an older deployment than i
 **Keep this version** runs `pkexec bootc rollback`, after an administrator's password
 (`amethystora-update-alert.service` says so at login and opens the window). It follows uupd's JSON log
 in the journal and reads the deployments from `rpm-ostree status`. If uupd changes the `Updating`,
-`module_fail` or `Updates Completed Successfully` messages it logs, update `main.js` to match. After an
+`module_fail` or `Updates Completed Successfully` messages it logs, update `apps/update/src/backend.rs` to match. After an
 update started there, it starts the account's `amethystora-pkg-upgrade.service` and shows it as the
-**Containers** step, which reuses the step `update.js` keeps for uupd's own distrobox module; a
+**Containers** step, which reuses the step the window keeps for uupd's own distrobox module; a
 container's failure shows there only, never as a failed system update. Its **Firmware** section asks
 fwupd (`fwupdmgr get-updates --json`, no password) and installs in a terminal (`fwupdmgr update`), where
 fwupd asks before a restart; `fwupd-refresh.timer`, which `17-cleanup.sh` enables because Fedora leaves
-it to GNOME Software, fetches what LVFS has. The top bar draws the same wordmark as Security, from its
-own copy of `gem.svg`.
+it to GNOME Software, fetches what LVFS has. The top bar draws the same wordmark as Security.
 
 ### The Logs app
 
@@ -553,13 +586,13 @@ Amethystora Logs (`amethystora-logs`, **Logs** in the app grid) replaces GNOME L
 `amethystora.preinstall` leaves out and `system-setup.hooks.d/21-retire-gnome-logs.sh` uninstalls,
 once, from a machine that already had it. It is read-only: it runs
 `journalctl` as the user, and nothing else but a terminal, the Manual and the agent's diagnosis on what
-`main.js` picked, so administrators (`wheel`) see the whole machine and anyone else their own session. `main.js` builds every `journalctl` argument from the page's choices:
-an app has to be one `main.js` found with `journalctl --field`, a unit or program only ever reaches it
-as the value of `--unit`, `--user-unit` or `--identifier`, and the search only as the value of `--grep`.
-Keep it that way, and never pass a string from the page as an argument of its own. Its manual section
-is `troubleshooting.md#the-logs`. The sidebar draws the same wordmark as Security, from its own copy
-of `gem.svg`. While it reads the journal it shows the gem with its stem blinking, from `gem-bowl.svg`
-and `gem-stem.svg`, which the generator writes as well.
+the program picked, so administrators (`wheel`) see the whole machine and anyone else their own session.
+`apps/logs/src/backend.rs` builds every `journalctl` argument from the window's choices: an app has to be
+one it found with `journalctl --field`, a unit or program only ever reaches it as the value of `--unit`,
+`--user-unit` or `--identifier`, and the search only as the value of `--grep`. Keep it that way, and
+never pass a string typed in the window as an argument of its own. Its manual section is
+`troubleshooting.md#the-logs`. The sidebar draws the same wordmark as Security, and blinks the gem's stem
+while it reads the journal.
 
 ### The Notes app
 
@@ -573,16 +606,16 @@ default, on first run), the data and each attachment are sealed with AES-256-GCM
 which is itself sealed under a key derived from the passphrase with scrypt. An encrypted vault reads
 only sealed files. Turning encryption on or off and a new key (**Change the key as well**, on by default
 when the passphrase changes) write everything into `next/` first, then `vault.json`, and move into
-place only what the vault's key then fits. `main.js` holds the key
-only while unlocked and serves attachments to the page through `res://`. The page renders Markdown
-with the Manual's `marked`, with raw HTML escaped. Keep both properties. Its manual page is
-`notes.md`. It hard-links `marked` from the Manual, so a `marked` bump reaches both. Its lock screen
-draws the gem from `gem-bowl.svg` and `gem-stem.svg` (written by `branding/generate.mjs`), so that the
-stem can lift while the passphrase is checked.
+place only what the vault's key then fits. The program holds the key only while unlocked, and opens an
+attachment only to show or save it. A note's Markdown is rendered as the Manual's is
+(`apps/common/src/markdown.rs`), with raw HTML shown as text. Keep both properties. The files are the
+ones the Electron window wrote, in the same formats: `apps/notes/tests/compat.rs` opens what that
+window wrote, and has its own code (`electron.js`, on the apps stage's Node) read what this one writes.
+Its manual page is `notes.md`. Its lock screen lifts the gem's stem while the passphrase is checked.
 
 A passkey (**Settings**, **Add a passkey**) opens the notes beside the passphrase, never in its place:
 the same random key sealed once more, under the secret a FIDO2 security key computes with `hmac-secret`
-for the credential and salt kept in `vault.json`. `main.js` asks the security key through `fido2-token`,
+for the credential and salt kept in `vault.json`. It asks the security key through `fido2-token`,
 `fido2-cred` and `fido2-assert` (`fido2-tools`, in `04-packages.sh`), which take their parameters and
 the PIN on stdin, and always with its PIN or a fingerprint (`pin=true` or `uv=true`): a touch alone
 must never open the notes. The credential is made with `credProtect` level 3 (`fido2-cred -c 3`), and a
@@ -606,21 +639,20 @@ it for `--json`, so a setting added or changed there reaches both. Never write a
   a recipe first. A command marked `terminal: true` opens in `amethystora-in-terminal`; every command
   that asks something, explains a risk or needs a password is marked so. One run directly has no
   terminal and must never prompt.
-- **The page sends only ids.** It sends back an entry's id and one of the values the list gave, and
-  `main.js` runs the command the list has for it, as an argument vector. The only things typed on the
-  page, a slider's number, a new widget's name and a repository to trust, are checked in `main.js` first;
-  the repository against `amethystora-trust-image`'s own expression, which `20-tests.sh` compares. The
-  key is picked in `main.js`'s own file dialog, and the page never names it.
+- **The window runs only what the list gave.** An entry's id and one of the values the list gave pick
+  the command the list has for it, which `apps/control/src/backend.rs` runs as an argument vector. The
+  only things typed in the window, a slider's number, a new widget's name and a repository to trust, are
+  checked there first; the repository against `amethystora-trust-image`'s own expression, which
+  `20-tests.sh` compares. The key is picked in a file dialog.
 - **Security stays in Security,** by the maintainer's rule: nothing in the script or the window runs
   `ame security`. The sidebar opens Security, Updates (whose switch automatic updates keep) and Backups
   (whose controls the backup keeps).
 - **Pools of disks** are the System page's Disks group: a `disks` entry with one row for each pool from
-  `amethystora-raid status --json`, each with the actions the list gives it, which `main.js` runs with
+  `amethystora-raid status --json`, each with the actions the list gives it, which `backend.rs` runs with
   `pool(action, id)`. Every one of them is an `ame system raid` command in a terminal (`20-tests.sh`).
 
 Its manual page is `control.md`, and each card links to its own section. The sidebar draws the same
-wordmark as Security, from its own copy of `gem.svg`, and the app grid's icon is the tile `generate.mjs`
-draws (`amethystora-control.svg`).
+wordmark as Security, and the app grid's icon is the tile `generate.mjs` draws (`amethystora-control.svg`).
 
 ### The Backups app
 
@@ -632,14 +664,14 @@ user: `status`, `points`, `ls`, `versions`, `put-back` and `open`, each with `--
 snapshots` and `ame security ransomware restore` take their lists from `points` too, and the security
 report's `backup-runs` check reads `status`. Never work out a point, a path or a state in the window.
 
-- **The page sends back only what `main.js` read.** A point is one `points` gave, a path one `ls` listed
+- **The window passes back only what the helper said.** A point is one `points` gave, a path one `ls` listed
   (or a folder above it, or the folder the window was opened on), and a way to put back one of
   `keep-both`, `replace` and `skip`; each is an argument of its own. The helper refuses a path that
   leaves the home or starts with `-`, and puts back only inside the home.
 - **Nothing deletes.** Neither the helper nor the window runs `restic forget`, `prune`, `rewrite` or
   `key`, restore's `--delete`, or `btrfs subvolume delete`; `20-tests.sh` greps for them. Putting back
   adds what is missing and keeps a file that changed beside the old one (`name (2026-10-04 14.00).ext`)
-  unless the page was told otherwise. Looking runs restic with `--no-lock`, so it works against an
+  unless the window was told otherwise. Looking runs restic with `--no-lock`, so it works against an
   append-only repository; `restic mount` is not used.
 - **The backup's controls stay here,** by the maintainer's choice: **Set up** runs `ame backup setup` in
   a terminal, the daily run is `ame backup on|off`, and **Back up now** starts `amethystora-backup.service`
@@ -653,8 +685,7 @@ report's `backup-runs` check reads `status`. Never work out a point, a path or a
   backed it up on a schedule is told once, after it is gone (`user-setup.hooks.d/19-deja-dup.sh`). There is
   no retire hook: a machine that kept Déjà Dup keeps backing up with it.
 
-Its manual section is `security.md#backups`. The sidebar draws the same wordmark as Security, from its
-own copy of `gem.svg`; the app grid's icon is drawn for the image in `build_files/shared/candy-icons`
+Its manual section is `security.md#backups`. The sidebar draws the same wordmark as Security; the app grid's icon is drawn for the image in `build_files/shared/candy-icons`
 (named in `NOTICE`), with the tile `generate.mjs` draws (`amethystora-backups.svg`) for other themes.
 
 ### Pools of disks
@@ -918,7 +949,7 @@ This function:
 - COPR packages are installed individually with isolated repo enablement
 - Every third-party repository's signing key is pinned by fingerprint: `pin_repo_key` (`copr-helpers.sh`, with the Copr projects' fingerprints in its table) fetches the key a repository file names, refuses any other, keeps it in `/etc/pki/rpm-gpg` and points the file at that copy, so that dnf never takes a key from the server; `20-tests.sh` fails on a pinned repository that still names one. A new repository or Copr project gets its fingerprint there
 - RPM Fusion's release packages come from volunteer mirrors, and dnf checks no signature on a package given as a file or URL: `rpmfusion_release_install` takes RPM Fusion's keys from Fedora's signed `distribution-gpg-keys` and installs the release packages only with a valid signature
-- Downloads outside a package manager are pinned by SHA-256 in the script that fetches them (Starship, the extensions.gnome.org uploads, candy-icons, Sweet, Electron's published checksums), and Flathub is added from the base image's own `flathub.flatpakrepo` after its key is checked
+- Downloads outside a package manager are pinned by SHA-256 in the script that fetches them (Starship, the extensions.gnome.org uploads, candy-icons, Sweet), the apps' crates by `apps/Cargo.lock`'s checksums,, and Flathub is added from the base image's own `flathub.flatpakrepo` after its key is checked
 
 ### Licences and trademarks
 
@@ -998,13 +1029,18 @@ The `Containerfile` uses a multi-stage build process:
    for `build.sh`, and `05-override-install.sh` installs fprintd and fprintd-pam from it in place of
    Fedora's, refusing a base whose fprintd is past the spec's, and puts the source package in
    `/usr/src/amethystora`
-3. **Stage `base`** (FROM silverblue-main): Base Amethystora image
+3. **Stage `apps`** (FROM the same pinned silverblue-main): `build_files/shared/build-apps.sh` installs
+   Fedora's Rust, runs the tests of every crate in `apps/` and builds the one program into `/out`, with
+   the licences of its crates, then clears its build away. `base` mounts the whole stage at `/apps-stage`:
+   `13-apps.sh` installs from its `/out`, and `20-tests.sh` runs its Node. Neither Rust nor Node reaches
+   the image
+4. **Stage `base`** (FROM silverblue-main): Base Amethystora image
    - Mounts build context from `ctx` stage
    - Runs in three steps: `/ctx/build_files/shared/prepare.sh`, then
      `03-install-kernel-akmods.sh`, the only step the kernel module signing key (`AKMODS_PRIVKEY`,
      and for a throwaway key `AKMODS_CERT`) is mounted for, before any of the build's own
      third-party repositories is added, then `/ctx/build_files/shared/build.sh`, which runs the rest
-4. **dx**: not a stage of its own. `just build amethystora-dx` passes `IMAGE_FLAVOR=dx`, and
+5. **dx**: not a stage of its own. `just build amethystora-dx` passes `IMAGE_FLAVOR=dx`, and
    `build.sh` runs `build-dx.sh` inside the `base` stage once the rest has finished
 
 **Build Arguments:**
@@ -1081,21 +1117,16 @@ staying in place.
 8. `11-gtk-theme.sh` - Installs the Amethystora GTK theme: EliverLara's Sweet, by the author of candy-icons, with every cool colour in it rotated onto the amethyst palette by `build_files/shared/recolor.py`. It ships under Amethystora's own name because the palette is no longer Sweet's. Only the `amethystora` and `amethystora-light` themes name it in their `gtk.theme`; the rest stay on adw-gtk3, which follows the GNOME accent colour. libadwaita ignores `gtk-theme` and a Flatpak cannot see `/usr/share/themes` at all, so both are reached by `theme-set.hooks.d/20-gtk-apps.sh`: it mirrors the active theme into `~/.themes`, which `/etc/flatpak/overrides/global` grants every sandbox read-only, and writes the `~/.config/gtk-4.0/gtk.css` that imports from the mirror
 9. `12-login-screen.sh` - Patches the login screen background into GNOME Shell's own stylesheet. GNOME reads it from the `#lockDialogGroup` rule inside `gnome-shell-theme.gresource` and from nowhere else, so the bundle is unpacked, the rule appended and the bundle rebuilt. The picture is the crown the boot splash ends on, as sharp as the splash draws it and without the gem, drawn by `branding/generate.mjs`
 10. `12-tour.sh` - Swaps the picture on GNOME Tour's first page, which Fedora builds with Fedora's logo on it, for Amethystora's, in the resource bundle the Tour reads its pictures from (`/usr/share/gnome-tour/resources.gresource`), unpacked and rebuilt as `12-login-screen.sh` does. The picture is the boot splash at the top of its glow, drawn by `branding/generate.mjs` into `/usr/share/amethystora/tour/welcome.svg`
-11. `13-manual.sh` - Installs the runtime of the Amethystora Manual (`amethystora-manual`, `Super+F1`): a pinned Electron release, checked against the checksum Electron publishes, and a pinned `marked` from the npm registry, checked against its integrity. Both are bumped by Renovate. It also adds Quicksand for the wordmark, from `branding/fonts`, keeps Chromium's own `.pak` only for the languages the apps are translated into, and writes the apps' launchers in those languages (`translate-desktop.py`). The app itself is `system_files/shared/usr/lib/amethystora-manual/resources/app` and its pages are `system_files/shared/usr/share/amethystora/manual`
-12. `14-security.sh` - Installs the runtime of Amethystora Security (`amethystora-security`), the security report and virus scanner that replace the report's terminal launcher and ClamUI: hard links to the Manual's Electron, so that the image carries one Electron for both, and Quicksand for its wordmark from `branding/fonts`, which the `ctx` stage copies in. The app itself is `system_files/shared/usr/lib/amethystora-security/resources/app`; the report it draws is `/usr/libexec/amethystora-security-status`, which `ame security status` prints. It also derives network protection's Suricata configuration (`/usr/share/amethystora/ips/suricata.yaml`) from the one the suricata package ships, with `build_files/shared/ips-config.py`, so that it fits Suricata 7 and 8 alike, and compiles `po/*.po`, the report's and the app permissions' translations, into `/usr/share/locale/<language>/LC_MESSAGES/amethystora.mo` with `msgfmt --check`
-13. `15-update.sh` - Installs the runtime of System Updates (`amethystora-update`), the window that replaces upstream's System Update launcher, a terminal on `ujust update`: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`. The app itself is `system_files/shared/usr/lib/amethystora-update/resources/app`; upstream's launcher is not shipped
-14. `16-notes.sh` - Installs the runtime of Amethystora Notes (`amethystora-notes`), the encrypted notes and tasks app that replaces Joplin and Planify: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`, and a hard link to the Manual's `marked`. The app itself is `system_files/shared/usr/lib/amethystora-notes/resources/app`
-15. `16-logs.sh` - Installs the runtime of Amethystora Logs (`amethystora-logs`), the journal viewer that replaces GNOME Logs: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`. The app itself is `system_files/shared/usr/lib/amethystora-logs/resources/app`; GNOME Logs is left off the Flatpak list
-16. `16-backups.sh` - Installs the runtime of Amethystora Backups (`amethystora-backups`), the window that goes back through the hourly snapshots and the restic backup and puts files back: the same hard links to the Manual's Electron and `i18n.js` and the same Quicksand as `14-security.sh`. The app itself is `system_files/shared/usr/lib/amethystora-backups/resources/app`; what it shows is `/usr/libexec/amethystora-restore`'s
-17. `16-control.sh` - Installs the runtime of Amethystora Control (`amethystora-control`), the window for Amethystora's own settings outside security: the same hard links to the Manual's Electron and the same Quicksand as `14-security.sh`. The app itself is `system_files/shared/usr/lib/amethystora-control/resources/app`; what it lists is `/usr/libexec/amethystora-control-list`, which `ame control` prints
-18. `07-debrand.sh` - Renames every remaining Universal Blue file, command, service and reference to Amethystora (logic in `build_files/shared/debrand.py`; `20-tests.sh` fails the build if any is left). Licence files, copyright lines and the comments that credit an author keep upstream's names
-19. `08-hardening.sh` - Signature-verified updates, firewall default zone, account lockout, Parental Controls' allowed hours at the text consoles and over SSH (see Logins), kernel lockdown, and the sudo PATH that `ublue-os/main` leaves open. The polkit and udev fixes are made in the files themselves (`org.amethystora.privileged.user.setup.policy`; `50-zsa.rules`, `60-arduino-mbed.rules`, `88-neutron_hifi_dac.rules` and `92-viia.rules`, which give their devices to the user at the seat with `uaccess` instead of to every account: a keyboard's hidraw device carries every key typed on it, and `20-tests.sh` fails on a rule the image adds that gives a hidraw device or a vendor's devices to everyone). Lockdown is skipped on the NVIDIA images, whose driver is an akmods build signed with the machine owner key: forcing lockdown on a machine with Secure Boot off would leave it without a graphics driver. With Secure Boot on, Fedora's kernel locks itself down whatever the arguments say (`20-tests.sh` checks its config), so the argument only matters without; `ame security lockdown` adds or takes it off per machine. It takes setuid root off what a desktop never runs (`chfn`, `chage`, `gpasswd`, `newgrp`, `ksu`, `mount.davfs`), masks systemd's SSH-over-vsock generator in `/etc` (`ame security ssh-settings off` unmasks it) and sets BlueZ's privacy and 30-second visibility in its own `main.conf`, which reads no drop-ins (`ame security bluetooth-privacy`). The settings that are plain files live in `system_files/shared` (`usr/lib/sysctl.d`, `usr/lib/modprobe.d`, `usr/lib/bootc/kargs.d`, `etc/ssh/sshd_config.d`, `etc/security/faillock.conf`, `etc/flatpak/overrides/global`, `etc/audit/rules.d`)
-20. `17-cleanup.sh` - Cleanup operations, and the systemd units the image enables, the per-user ones with `systemctl --global` (`amethystora-pkg-upgrade.timer`, `amethystora-update-alert.service`, `amethystora-dns-portal.service`). It also makes the `amepkg` link, since the build's rsync skips links in `system_files`. Two things here are deliberately *disabled*: `input-remapper.service`, which runs as root and reads every input device, and `usbguard.service`, which would block the keyboard on a machine where nobody had allowed it yet. Both are turned on per machine by an `ame security` command (`usb`, `input-remapper`). So are `waydroid-container.service` and `scx_loader.service` (`ame apps android`, `ame system scheduler`). It enables `fwupd-refresh.timer`, which Fedora leaves to GNOME Software, the pools of disks' `amethystora-raid-check.timer` and `amethystora-raid-scrub.timer`, and `clamd@scan.socket` with `amethystora-clamd-idle.timer` in place of clamd itself
-21. `18-workarounds.sh` - Temporary fixes/workarounds
-22. `19-initramfs.sh` - Regenerates initramfs, adding dracut's `tpm2-tss` module where dracut has it so that `ame security disk-unlock` can hand the disk key to the TPM
-23. `build_files/shared/build-dx.sh` - dx only: copies `system_files/dx`, runs `build_files/dx/00-dx.sh` and then `01-tests-dx.sh`
-24. `build_files/shared/source-manifest.sh` - Writes `/usr/share/licenses/amethystora/SOURCES`: every package with its licence, source package and where that source is, which the GPL asks for and the written offer in `NOTICE` points to. Fedora keeps its own in Koji. RPM Fusion, negativo17 and Copr publish only their current builds, so the script fetches the source packages of theirs that are under a licence asking for the source into `/usr/src/amethystora`, and the build fails when one cannot be fetched; a Copr project the image starts installing from goes in its `COPR_PROJECTS`. NVIDIA's own repository, which the NVIDIA images take the container toolkit from, publishes no source packages at all, so its packages are listed with the address of their source instead (`NO_SOURCE_PACKAGES`); a GPL package from any other maker the script does not know still fails the build. `20-tests.sh` fails if a package is missing from the list or a source package from the image
-25. `20-tests.sh` - Runs last, after the repositories are validated and the build cleaned up; fails the build on anything missing or left behind, including a GNOME Shell extension shipped without its licence
+11. `13-apps.sh` - Installs the Amethystora apps (the Manual, `Super+F1`; Security; Updates; Notes; Logs; Backups; Control): the one program the Containerfile's `apps` stage built from `apps/` (`build_files/shared/build-apps.sh`, see The Amethystora apps), hard-linked to each app's own path in `/usr/lib/amethystora-<app>`, Quicksand for the wordmark from `branding/fonts`, which the `ctx` stage copies in, and the licences of the crates built into it. It also writes the apps' launchers in the languages the apps are translated into (`translate-desktop.py`). Each app's translations stay in `system_files/shared/usr/lib/amethystora-<app>/resources/app/locale`
+12. `14-security.sh` - What Amethystora Security reports on, beside its window: derives network protection's Suricata configuration (`/usr/share/amethystora/ips/suricata.yaml`) from the one the suricata package ships, with `build_files/shared/ips-config.py`, so that it fits Suricata 7 and 8 alike, and compiles `po/*.po`, the report's and the app permissions' translations, into `/usr/share/locale/<language>/LC_MESSAGES/amethystora.mo` with `msgfmt --check`
+13. `07-debrand.sh` - Renames every remaining Universal Blue file, command, service and reference to Amethystora (logic in `build_files/shared/debrand.py`; `20-tests.sh` fails the build if any is left). Licence files, copyright lines and the comments that credit an author keep upstream's names
+14. `08-hardening.sh` - Signature-verified updates, firewall default zone, account lockout, Parental Controls' allowed hours at the text consoles and over SSH (see Logins), kernel lockdown, and the sudo PATH that `ublue-os/main` leaves open. The polkit and udev fixes are made in the files themselves (`org.amethystora.privileged.user.setup.policy`; `50-zsa.rules`, `60-arduino-mbed.rules`, `88-neutron_hifi_dac.rules` and `92-viia.rules`, which give their devices to the user at the seat with `uaccess` instead of to every account: a keyboard's hidraw device carries every key typed on it, and `20-tests.sh` fails on a rule the image adds that gives a hidraw device or a vendor's devices to everyone). Lockdown is skipped on the NVIDIA images, whose driver is an akmods build signed with the machine owner key: forcing lockdown on a machine with Secure Boot off would leave it without a graphics driver. With Secure Boot on, Fedora's kernel locks itself down whatever the arguments say (`20-tests.sh` checks its config), so the argument only matters without; `ame security lockdown` adds or takes it off per machine. It takes setuid root off what a desktop never runs (`chfn`, `chage`, `gpasswd`, `newgrp`, `ksu`, `mount.davfs`), masks systemd's SSH-over-vsock generator in `/etc` (`ame security ssh-settings off` unmasks it) and sets BlueZ's privacy and 30-second visibility in its own `main.conf`, which reads no drop-ins (`ame security bluetooth-privacy`). The settings that are plain files live in `system_files/shared` (`usr/lib/sysctl.d`, `usr/lib/modprobe.d`, `usr/lib/bootc/kargs.d`, `etc/ssh/sshd_config.d`, `etc/security/faillock.conf`, `etc/flatpak/overrides/global`, `etc/audit/rules.d`)
+15. `17-cleanup.sh` - Cleanup operations, and the systemd units the image enables, the per-user ones with `systemctl --global` (`amethystora-pkg-upgrade.timer`, `amethystora-update-alert.service`, `amethystora-dns-portal.service`). It also makes the `amepkg` link, since the build's rsync skips links in `system_files`. Two things here are deliberately *disabled*: `input-remapper.service`, which runs as root and reads every input device, and `usbguard.service`, which would block the keyboard on a machine where nobody had allowed it yet. Both are turned on per machine by an `ame security` command (`usb`, `input-remapper`). So are `waydroid-container.service` and `scx_loader.service` (`ame apps android`, `ame system scheduler`). It enables `fwupd-refresh.timer`, which Fedora leaves to GNOME Software, the pools of disks' `amethystora-raid-check.timer` and `amethystora-raid-scrub.timer`, and `clamd@scan.socket` with `amethystora-clamd-idle.timer` in place of clamd itself
+16. `18-workarounds.sh` - Temporary fixes/workarounds
+17. `19-initramfs.sh` - Regenerates initramfs, adding dracut's `tpm2-tss` module where dracut has it so that `ame security disk-unlock` can hand the disk key to the TPM
+18. `build_files/shared/build-dx.sh` - dx only: copies `system_files/dx`, runs `build_files/dx/00-dx.sh` and then `01-tests-dx.sh`
+19. `build_files/shared/source-manifest.sh` - Writes `/usr/share/licenses/amethystora/SOURCES`: every package with its licence, source package and where that source is, which the GPL asks for and the written offer in `NOTICE` points to. Fedora keeps its own in Koji. RPM Fusion, negativo17 and Copr publish only their current builds, so the script fetches the source packages of theirs that are under a licence asking for the source into `/usr/src/amethystora`, and the build fails when one cannot be fetched; a Copr project the image starts installing from goes in its `COPR_PROJECTS`. NVIDIA's own repository, which the NVIDIA images take the container toolkit from, publishes no source packages at all, so its packages are listed with the address of their source instead (`NO_SOURCE_PACKAGES`); a GPL package from any other maker the script does not know still fails the build. `20-tests.sh` fails if a package is missing from the list or a source package from the image
+20. `20-tests.sh` - Runs last, after the repositories are validated and the build cleaned up; fails the build on anything missing or left behind, including a GNOME Shell extension shipped without its licence
 
 The sealed images then run `build_files/sealed/` from `Containerfile.sealed`, on the finished image (see Sealed images).
 

@@ -33,26 +33,11 @@ export PATH="/tmp/scripts/helpers:$PATH"
 # GNOME Tour's first page, which Fedora builds with Fedora's logo on it
 /ctx/build_files/base/12-tour.sh
 
-# The Amethystora Manual: the runtime its window needs
-/ctx/build_files/base/13-manual.sh
+# The Amethystora apps (Manual, Security, Updates, Notes, Logs, Backups, Control): one Rust program
+/ctx/build_files/base/13-apps.sh
 
-# Amethystora Security: the Manual's runtime, and the wordmark's font
+# Amethystora Security: network protection's Suricata configuration, and the report's translations
 /ctx/build_files/base/14-security.sh
-
-# Amethystora Updates: the same
-/ctx/build_files/base/15-update.sh
-
-# Amethystora Notes: the same, and the Manual's Markdown renderer
-/ctx/build_files/base/16-notes.sh
-
-# Amethystora Logs: the same
-/ctx/build_files/base/16-logs.sh
-
-# Amethystora Backups: the same
-/ctx/build_files/base/16-backups.sh
-
-# Amethystora Control: the same
-/ctx/build_files/base/16-control.sh
 
 # Rename the remaining Universal Blue files, commands and services to Amethystora
 /ctx/build_files/base/07-debrand.sh

@@ -1,0 +1,61 @@
+# The Amethystora apps, in Rust: the shared library (common), one crate per app, and the one binary the
+# image ships (launcher), which every app's path is a hard link to. plans/PLAN-rust-apps.md says why.
+[workspace]
+resolver = "3"
+members = ["common", "launcher", "update", "security", "control", "backups", "logs", "manual", "notes"]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2024"
+license = "Apache-2.0"
+rust-version = "1.85"
+publish = false
+
+[workspace.dependencies]
+# GTK 4.16 and libadwaita 1.7 are what the oldest Fedora the image builds on has
+gtk = { package = "gtk4", version = "0.11", features = ["v4_16"] }
+adw = { package = "libadwaita", version = "0.9", features = ["v1_7"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+libc = "0.2"
+# For the expressions the apps share with shell helpers, such as the repository amethystora-trust-image takes
+regex = { version = "1", default-features = false, features = ["std", "unicode-perl", "unicode-case"] }
+# The Manual and Notes render Markdown; Notes seals its notebooks (AES-256-GCM under a key from scrypt) and
+# reads and writes gzip
+pulldown-cmark = { version = "0.13", default-features = false, features = ["html"] }
+aes-gcm = "0.11"
+scrypt = { version = "0.12", default-features = false }
+sha2 = "0.11"
+getrandom = "0.3"
+base64 = "0.22"
+flate2 = "1"
+amethystora-ui = { path = "common" }
+amethystora-update = { path = "update" }
+amethystora-security = { path = "security" }
+amethystora-control = { path = "control" }
+amethystora-backups = { path = "backups" }
+amethystora-logs = { path = "logs" }
+amethystora-manual = { path = "manual" }
+amethystora-notes = { path = "notes" }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"
+
+# Notes' key derivation and sealing are slow enough unoptimised to make its tests crawl in a debug build
+[profile.dev.package.scrypt]
+opt-level = 3
+[profile.dev.package.salsa20]
+opt-level = 3
+[profile.dev.package.pbkdf2]
+opt-level = 3
+[profile.dev.package.sha2]
+opt-level = 3
+[profile.dev.package.hmac]
+opt-level = 3
+[profile.dev.package.aes]
+opt-level = 3
+[profile.dev.package.aes-gcm]
+opt-level = 3

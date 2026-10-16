@@ -1,0 +1,905 @@
+/* Amethystora Control, ported from the Electron page's control.css. Line heights are in pixels, the page's
+   factor times the font size, as CSS computes them: GTK multiplies a factor by the font's own height, which
+   differs from script to script, so Arabic lines would come out far taller than the page had them. The ten
+   theme colours and --on-accent are palette.rs's; everything else is mixed from them, as in the Manual,
+   Security, Updates and Logs, so any theme reads well here without a stylesheet of its own. Layout (gaps,
+   widths, grids, wrapping) is page.rs's and layout.rs's; this paints. */
+
+:root {
+    --sidebar: color-mix(in oklab, var(--bg) 94%, var(--fg));
+    --card: color-mix(in oklab, var(--surface) 40%, var(--bg));
+    --control: color-mix(in oklab, var(--fg) 5%, transparent);
+    --line: color-mix(in oklab, var(--fg) 10%, transparent);
+    --line-strong: color-mix(in oklab, var(--fg) 15%, transparent);
+    --hairline: color-mix(in oklab, var(--fg) 7%, transparent);
+    --soft: color-mix(in oklab, var(--fg) 64%, var(--bg));
+    --faint: color-mix(in oklab, var(--fg) 56%, var(--bg));
+    --link: color-mix(in oklab, var(--accent) 72%, var(--fg));
+    --tint: color-mix(in oklab, var(--accent) 16%, transparent);
+    --code-bg: color-mix(in oklab, var(--surface) 55%, var(--bg));
+    --hover: color-mix(in oklab, var(--fg) 5%, transparent);
+    --shadow: none;
+    --radius: 16px;
+}
+
+/* On a light theme a card stands out by being lighter than the window, not darker */
+window.light {
+    --card: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --control: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --faint: color-mix(in oklab, var(--fg) 72%, var(--bg));
+    --shadow: 0 1px 2px color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+window.amethystora {
+    font-family: Inter, "Adwaita Sans", Cantarell, sans-serif;
+    font-size: 14px;
+    line-height: 21px;
+    font-feature-settings: "cv11", "ss01";
+}
+
+.code {
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+}
+
+/* A disabled control is dimmed by the page's own opacity below, and not by libadwaita's as well */
+window.amethystora *:disabled {
+    filter: none;
+}
+
+.soft {
+    color: var(--soft);
+}
+
+.faint {
+    color: var(--faint);
+}
+
+/* On labels only: adw::Clamp gives the page's column a class small of its own when it is narrow */
+label.small {
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+scrollbar slider {
+    background-color: color-mix(in oklab, var(--fg) 22%, transparent);
+}
+
+scrollbar slider:hover {
+    background-color: color-mix(in oklab, var(--fg) 38%, transparent);
+}
+
+/* --- Sidebar ------------------------------------------------------------------------------------ */
+
+/* 264 pixels wide, and 220 in a narrow window, border and padding included: min-width is the box inside them */
+.sidebar {
+    min-width: 235px;
+    padding: 22px 14px 20px;
+    background: var(--sidebar);
+    border-right: 1px solid var(--line);
+}
+
+.sidebar:dir(rtl) {
+    border-right: none;
+    border-left: 1px solid var(--line);
+}
+
+window.narrow .sidebar {
+    min-width: 191px;
+}
+
+/* The wordmark of the boot splash and the login screen, as logoHtml in branding/generate.mjs sets it: the
+   stone as the "a" of "methystora" in Quicksand Bold, glowing in the three shades the splash lights it
+   with, and white. Every size is the generator's, in em, so it is the same mark at any size; the glow
+   is the login screen's, 10px on its 93px lettering. A light theme gets the generator's dark ink. */
+.brand {
+    padding: 4px 6px;
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    line-height: 21px;
+    letter-spacing: -0.015em;
+}
+
+.wordmark {
+    color: #ffffff;
+}
+
+window.light .wordmark {
+    color: #241f31;
+}
+
+.brand .product {
+    color: var(--soft);
+    font-weight: 600;
+}
+
+.nav-label {
+    padding: 0 12px 4px;
+    color: var(--faint);
+    font-size: 11.5px;
+    line-height: 17.25px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+button.nav-button {
+    min-height: 40px;
+    padding: 0 12px;
+    border-radius: 10px;
+    color: var(--fg);
+    font-size: 14.5px;
+    line-height: 21.75px;
+    font-weight: 500;
+}
+
+button.nav-button:hover {
+    background: color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+button.nav-button.current {
+    background: var(--tint);
+    color: var(--link);
+    font-weight: 600;
+}
+
+.elsewhere button.nav-button {
+    min-height: 36px;
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+.nav-state {
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-weight: 500;
+}
+
+.nav-state.on {
+    color: var(--ok);
+    font-weight: 600;
+}
+
+.nav icon.faint {
+    color: var(--faint);
+}
+
+.sidebar-foot {
+    padding: 0 8px;
+}
+
+.terminal {
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.terminal .code {
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 18.75px;
+}
+
+/* --- The page ----------------------------------------------------------------------------------- */
+
+.topbar {
+    padding: 14px 28px 0;
+}
+
+window.narrow .topbar {
+    padding-left: 20px;
+    padding-right: 20px;
+}
+
+/* The window's buttons, which the page had in the window's frame */
+.topbar windowcontrols {
+    margin-left: 14px;
+    margin-right: -14px;
+}
+
+.topbar:dir(rtl) windowcontrols {
+    margin-left: -14px;
+    margin-right: 14px;
+}
+
+.page {
+    padding: 18px 44px 56px;
+}
+
+window.narrow .page {
+    padding-left: 28px;
+    padding-right: 28px;
+}
+
+.h1 {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 30px;
+    line-height: 36px;
+    letter-spacing: -0.01em;
+}
+
+.lead {
+    color: var(--soft);
+    font-size: 14.5px;
+    line-height: 21.75px;
+}
+
+.section .h2 {
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+.card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+/* min-height: 50vh is the size page.rs asks for */
+.loading {
+    color: var(--soft);
+}
+
+@keyframes breathe {
+    0%,
+    100% {
+        opacity: 1;
+        transform: none;
+    }
+
+    50% {
+        opacity: 0.45;
+        transform: scale(0.92);
+    }
+}
+
+.loading gem {
+    animation: breathe 1.6s ease-in-out infinite;
+}
+
+/* --- A setting ---------------------------------------------------------------------------------- */
+
+.setting {
+    padding: 18px 20px;
+}
+
+.setting.unavailable .setting-head .h3,
+.setting.unavailable .setting-text {
+    color: var(--faint);
+}
+
+.setting .h3 {
+    font-size: 15px;
+    line-height: 22.5px;
+    font-weight: 600;
+}
+
+.setting-text {
+    color: var(--soft);
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.setting-detail {
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.setting-detail.check {
+    color: var(--warn);
+    font-weight: 500;
+}
+
+.setting-foot {
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.setting-foot .code {
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 18.75px;
+}
+
+.tag {
+    min-height: 22px;
+    padding: 0 8px;
+    border-radius: 11px;
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+    color: var(--soft);
+    font-size: 11.5px;
+    line-height: 17.25px;
+    font-weight: 600;
+}
+
+.tag.check {
+    background: color-mix(in oklab, var(--warn) 14%, transparent);
+    color: var(--warn);
+}
+
+.tag.on {
+    background: color-mix(in oklab, var(--ok) 14%, transparent);
+    color: var(--ok);
+}
+
+.setting.danger {
+    border-color: color-mix(in oklab, var(--bad) 40%, transparent);
+    background: color-mix(in oklab, var(--bad) 6%, var(--card));
+}
+
+.setting.danger .h3 {
+    color: var(--bad);
+}
+
+/* What a command run from a card said, under it */
+.said {
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--code-bg);
+}
+
+.said.failed {
+    border-color: color-mix(in oklab, var(--bad) 40%, transparent);
+}
+
+.said-head {
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-weight: 600;
+}
+
+.said.failed .said-head {
+    color: var(--bad);
+}
+
+.said .pre {
+    font-size: 12px;
+    line-height: 18.6px;
+}
+
+/* --- Switches and buttons ----------------------------------------------------------------------- */
+
+button.switch {
+    min-width: 46px;
+    min-height: 26px;
+    border-radius: 13px;
+    background: color-mix(in oklab, var(--fg) 18%, transparent);
+    transition: background 150ms;
+}
+
+button.switch .knob {
+    min-width: 20px;
+    min-height: 20px;
+    margin: 3px;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px color-mix(in oklab, #000000 30%, transparent);
+}
+
+button.switch.checked {
+    background: var(--accent);
+}
+
+button.switch:disabled {
+    opacity: 0.45;
+}
+
+button.btn {
+    min-height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--control);
+    /* button { color: inherit }, as the page had it: soft in an empty page's middle, for one */
+    color: inherit;
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 600;
+    transition: filter 150ms;
+}
+
+button.btn > box {
+    border-spacing: 8px;
+}
+
+button.btn:hover {
+    filter: brightness(1.15);
+}
+
+window.light button.btn:hover {
+    filter: brightness(0.96);
+}
+
+button.btn.primary {
+    border-color: transparent;
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+button.btn.danger {
+    border-color: color-mix(in oklab, var(--bad) 50%, transparent);
+    color: var(--bad);
+}
+
+button.btn.small {
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+button.btn:disabled {
+    opacity: 0.5;
+    filter: none;
+}
+
+.icon-btn {
+    min-width: 30px;
+    min-height: 30px;
+    border-radius: 8px;
+    color: var(--soft);
+}
+
+button.icon-btn:hover {
+    background: var(--hover);
+    color: var(--fg);
+}
+
+button.link {
+    color: var(--link);
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-weight: 600;
+}
+
+button.link > box {
+    border-spacing: 6px;
+}
+
+button.link:hover label {
+    text-decoration-line: underline;
+}
+
+button.link.quiet {
+    color: var(--soft);
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 500;
+}
+
+/* --- Choices ------------------------------------------------------------------------------------ */
+
+button.option {
+    padding: 11px 13px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--control);
+    color: var(--fg);
+}
+
+button.option:hover:not(:disabled) {
+    border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+
+button.option.checked {
+    border-color: var(--accent);
+    background: var(--tint);
+}
+
+button.option:disabled {
+    opacity: 0.55;
+}
+
+.option .dot {
+    min-width: 14px;
+    min-height: 14px;
+    margin-top: 1px;
+    border: 2px solid var(--line-strong);
+    border-radius: 9px;
+}
+
+.option.checked .dot {
+    border-color: var(--accent);
+}
+
+.option .dot-fill {
+    min-width: 8px;
+    min-height: 8px;
+    border-radius: 4px;
+    background: var(--accent);
+}
+
+.option-words .strong {
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 600;
+}
+
+.option-words .small {
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+/* A theme as a small window in its own colours: its background, a line of its text, its accent, and
+   six of its terminal colours (the colours themselves are classes page.rs makes from the list) */
+button.swatch {
+    color: var(--fg);
+}
+
+.swatch-picture {
+    padding: 11px 12px;
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    background-color: var(--code-bg);
+}
+
+button.swatch:hover .swatch-picture {
+    border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+
+button.swatch.checked .swatch-picture {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
+}
+
+.swatch-text {
+    color: var(--fg);
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    line-height: 17px;
+}
+
+swatchbar {
+    min-height: 7px;
+    color: var(--accent);
+}
+
+.swatch-dot {
+    min-width: 12px;
+    min-height: 12px;
+    border-radius: 6px;
+}
+
+.swatch-name {
+    padding: 0 2px;
+    font-size: 13px;
+    line-height: 19.5px;
+    font-weight: 600;
+}
+
+.swatch-name icon {
+    color: var(--link);
+}
+
+button.picture {
+    border: 2px solid var(--line);
+    border-radius: 12px;
+    background: var(--code-bg);
+}
+
+button.picture:hover {
+    border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+
+button.picture.checked {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
+}
+
+/* The range input as Chromium draws it with accent-color: an 8-pixel track, filled in the accent up to a
+   16-pixel thumb, inside the input's own 2-pixel margin. The track's colours are Chromium's, which it keeps
+   on a dark page too. */
+.range scale {
+    min-height: 0;
+    min-width: 0;
+    margin: 2px;
+    padding: 4px 0;
+}
+
+.range scale trough {
+    min-height: 6px;
+    border: 1px solid #b2b2b2;
+    border-radius: 4px;
+    outline: none;
+    background-color: #efefef;
+}
+
+.range scale highlight {
+    min-height: 6px;
+    margin: -1px;
+    border: 1px solid color-mix(in srgb, var(--accent) 50%, #767676);
+    border-radius: 4px;
+    background-color: var(--accent);
+}
+
+.range scale slider {
+    min-width: 16px;
+    min-height: 16px;
+    margin: -5px -1px;
+    border: none;
+    border-radius: 8px;
+    outline: none;
+    background-color: var(--accent);
+    box-shadow: none;
+}
+
+.range scale:disabled trough {
+    border-color: #d2d2d2;
+    background-color: rgb(239 239 239 / 0.3);
+}
+
+.range scale:disabled highlight,
+.range scale:disabled slider {
+    border-color: #cbcbcb;
+    background-color: #cbcbcb;
+}
+
+.range .output {
+    min-width: 64px;
+    color: var(--soft);
+    font-size: 13px;
+    line-height: 19.5px;
+    font-feature-settings: "tnum";
+}
+
+/* --- Lists: widgets, web apps, changes ---------------------------------------------------------- */
+
+.rows {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+
+.row {
+    min-height: 32px;
+    padding: 8px 14px;
+    border-top: 1px solid var(--hairline);
+}
+
+.row:first-child {
+    border-top: none;
+}
+
+.row-words .strong {
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 600;
+}
+
+.row-words .small {
+    color: var(--faint);
+    font-size: 12px;
+    line-height: 18px;
+}
+
+.row-empty {
+    padding: 14px;
+    color: var(--soft);
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.mark {
+    min-width: 22px;
+    min-height: 22px;
+    border-radius: 7px;
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 13px;
+}
+
+.mark.add {
+    background: color-mix(in oklab, var(--ok) 15%, transparent);
+    color: var(--ok);
+}
+
+.mark.set {
+    background: var(--tint);
+    color: var(--link);
+}
+
+.mark.remove {
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+    color: var(--soft);
+}
+
+.mark.cannot {
+    background: color-mix(in oklab, var(--warn) 15%, transparent);
+    color: var(--warn);
+}
+
+/* --- Forms -------------------------------------------------------------------------------------- */
+
+entry.field {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    outline: none;
+    background: var(--control);
+    color: var(--fg);
+    box-shadow: none;
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+entry.field:focus-within {
+    border-color: color-mix(in oklab, var(--accent) 70%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+entry.field.invalid {
+    border-color: color-mix(in oklab, var(--bad) 60%, transparent);
+}
+
+entry.field > text > placeholder {
+    color: var(--faint);
+    opacity: 1;
+}
+
+dropdown.field > button {
+    min-height: 34px;
+    padding: 0 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    outline: none;
+    background: var(--control);
+    color: var(--fg);
+    box-shadow: none;
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 400;
+}
+
+.form-note {
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.form-note.bad {
+    color: var(--bad);
+}
+
+.command {
+    padding: 5px 5px 5px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--code-bg);
+}
+
+.command:dir(rtl) {
+    padding: 5px 12px 5px 5px;
+}
+
+.command .code {
+    font-size: 12px;
+    line-height: 18px;
+}
+
+/* --- Notices ------------------------------------------------------------------------------------ */
+
+.callout {
+    padding: 12px 14px;
+    border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--accent) 9%, transparent);
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.callout > icon {
+    margin-top: 1px;
+    color: var(--link);
+}
+
+.callout.check {
+    border-color: color-mix(in oklab, var(--warn) 30%, transparent);
+    background: color-mix(in oklab, var(--warn) 6%, transparent);
+}
+
+.callout.check > icon {
+    color: var(--warn);
+}
+
+.callout .strong {
+    font-weight: 700;
+}
+
+.callout .p {
+    color: var(--soft);
+}
+
+.banner {
+    padding: 10px 8px 10px 16px;
+    border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--accent) 12%, var(--bg));
+    box-shadow: 0 6px 20px color-mix(in oklab, #000000 22%, transparent);
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.banner:dir(rtl) {
+    padding: 10px 16px 10px 8px;
+}
+
+.banner > icon {
+    color: var(--link);
+}
+
+.banner.failed {
+    border-color: color-mix(in oklab, var(--bad) 40%, transparent);
+    background: color-mix(in oklab, var(--bad) 10%, var(--bg));
+}
+
+.banner.failed > icon {
+    color: var(--bad);
+}
+
+.banner-wrap {
+    padding: 0 44px;
+}
+
+window.narrow .banner-wrap {
+    padding: 0 28px;
+}
+
+/* --- Search ------------------------------------------------------------------------------------- */
+
+/* 340 pixels wide, border and padding included */
+.search {
+    min-width: 318px;
+    min-height: 34px;
+    padding: 0 8px 0 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--control);
+    color: var(--soft);
+}
+
+.search:dir(rtl) {
+    padding: 0 12px 0 8px;
+}
+
+.search:focus-within {
+    border-color: color-mix(in oklab, var(--accent) 70%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+.search text {
+    background: none;
+    color: var(--fg);
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+.search text > placeholder {
+    color: var(--faint);
+    opacity: 1;
+}
+
+.empty {
+    padding: 64px 24px;
+    color: var(--soft);
+}
+
+.empty .h2 {
+    color: var(--fg);
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    line-height: 27.3px;
+}

@@ -1,0 +1,1521 @@
+//! The page of Amethystora Control, as control.js drew it. What it shows is the list backend.rs reads from
+//! /usr/libexec/amethystora-control-list: every entry, its words, its state and its choices. A change hands
+//! back the entry's id and the value of a choice the list gave, and backend.rs runs the command the list
+//! has for it. An entry's words are the script's, already in the session's language through gettext, and
+//! are shown as they come; only the page's own words are looked up in its catalog. Everything is built as
+//! widgets with text in them, never as markup.
+
+use std::rc::Rc;
+
+use amethystora_ui::gem::Gem;
+use amethystora_ui::i18n::{self, DateStyle, Unit, Width};
+use amethystora_ui::{adw, gdk, gio, glib, gtk, process, t, ui};
+use glib::Unichar;
+use gtk::prelude::*;
+use serde_json::Value;
+
+use crate::backend::{self, Item, Outcome, PICTURES};
+use crate::icons::icon;
+use crate::layout::{Aspect, AutoGrid, Flex, Grow, Pretty, SwatchBar};
+use crate::{Banner, Control, Diff};
+
+/// How a button looks, as the page's button() was told
+#[derive(Debug, Clone, Copy, Default)]
+struct Look {
+    icon: Option<&'static str>,
+    small: bool,
+    primary: bool,
+    danger: bool,
+    disabled: bool,
+}
+
+/// The pages of the sidebar, with what each is called and says about itself
+fn page_words(page: &str) -> (String, String) {
+    match page {
+        "appearance" => (t!("Appearance"), t!("The theme, the wallpaper, and how a new one is revealed.")),
+        "desktop" => (t!("Desktop"), t!("How windows are arranged, the top bar and the terminal.")),
+        "apps" => (t!("Apps"), t!("Games, Android apps, drawing tablets and web apps, and what else installs with one command.")),
+        "agent" => (t!("The AI agent"), t!("An AI agent that knows this system, and which one opens.")),
+        "system" => (t!("System"), t!("The image this machine runs and the stream it follows, the CPU scheduler, and the firmware.")),
+        "setup" => (t!("Your setup"), t!("Your setup as a file, to keep, to compare, and to apply here or on another machine.")),
+        _ => (String::new(), String::new()),
+    }
+}
+
+/// The areas of a setup file's differences (ame setup diff), by the names the script gives them
+fn area(name: &str) -> Option<String> {
+    Some(match name {
+        "image" => t!("System image"),
+        "flatpak" => t!("App"),
+        "tap" => t!("Homebrew tap"),
+        "formula" => t!("Homebrew formula"),
+        "cask" => t!("Homebrew cask"),
+        "container" => t!("Container"),
+        "packages" => t!("Packages in a container"),
+        "extension" => t!("Extension"),
+        "theme" => t!("Theme"),
+        "layout" => t!("Window layout"),
+        "favorites" => t!("The dock's apps"),
+        "keybinding" => t!("Keybinding"),
+        "gap" => t!("PaperWM's gaps"),
+        _ => return None,
+    })
+}
+
+/// A box with a role a screen reader is told, which only a new widget can be given
+fn role_box(orientation: gtk::Orientation, spacing: i32, classes: &[&str], role: gtk::AccessibleRole) -> gtk::Box {
+    let container = gtk::Box::builder().orientation(orientation).spacing(spacing).accessible_role(role).build();
+    for class in classes {
+        container.add_css_class(class);
+    }
+    container
+}
+
+/// A heading, which wraps as ui::label's text does; its role can only be given as it is made
+fn heading(text: &str, class: &str) -> gtk::Label {
+    gtk::Label::builder()
+        .label(text)
+        .accessible_role(gtk::AccessibleRole::Heading)
+        .wrap(true)
+        .wrap_mode(gtk::pango::WrapMode::WordChar)
+        .natural_wrap_mode(gtk::NaturalWrapMode::None)
+        .xalign(0.0)
+        .halign(gtk::Align::Fill)
+        .css_classes([class])
+        .build()
+}
+
+fn centered(label: gtk::Label) -> gtk::Label {
+    label.set_justify(gtk::Justification::Center);
+    label.set_xalign(0.5);
+    label
+}
+
+/// A paragraph the page gave `text-wrap: pretty`, which never leaves one word alone on its last line
+fn pretty(text: &str, classes: &[&str]) -> Pretty {
+    Pretty::new(&ui::label(text, classes))
+}
+
+/// Text the page sets left to right in every language: paths, commands, ids
+fn ltr(label: gtk::Label) -> gtk::Label {
+    label.set_direction(gtk::TextDirection::Ltr);
+    label
+}
+
+/// One line of a row, cut short with an ellipsis rather than wrapped
+fn row_line(text: &str, classes: &[&str]) -> gtk::Label {
+    let label = ui::line(text, classes);
+    label.set_ellipsize(gtk::pango::EllipsizeMode::End);
+    label.set_hexpand(true);
+    label
+}
+
+/// Milliseconds as seconds, the language's way: "1.2 sec"
+fn seconds(ms: f64) -> String {
+    // t.number(ms / 1000, { style: 'unit', unit: 'second', unitDisplay: 'short', maximumFractionDigits: 1 })
+    i18n::unit(ms / 1000.0, Unit::Second, Width::Short, 0, 1)
+}
+
+/// A date and time, the language's way
+fn when(seconds: f64) -> String {
+    i18n::date(seconds, DateStyle::MediumShort)
+}
+
+/// Letters without their accents, in lower case, so that "écran" is found by "ecran"
+pub fn plain(text: &str) -> String {
+    glib::normalize(text, glib::NormalizeMode::Default).chars().filter(|c| !c.is_mark()).collect::<String>().to_lowercase()
+}
+
+fn matches(item: &Item, words: &[String]) -> bool {
+    let mut parts: Vec<String> = vec![
+        item.title.clone(),
+        item.text.clone().unwrap_or_default(),
+        item.detail.clone().unwrap_or_default(),
+        item.group.clone().unwrap_or_default(),
+        item.usage.clone().unwrap_or_default(),
+        page_words(&item.page).0,
+    ];
+    parts.extend(item.choices.iter().map(|choice| format!("{} {}", choice.title, choice.text.clone().unwrap_or_default())));
+    let haystack = plain(&parts.join(" "));
+    words.iter().all(|word| haystack.contains(word.as_str()))
+}
+
+// --- What one difference of the setup file is about -----------------------------------------------------
+
+fn value_text(value: Option<&Value>) -> Option<String> {
+    match value {
+        Some(Value::String(s)) if !s.is_empty() => Some(s.clone()),
+        Some(Value::Number(n)) => Some(n.to_string()),
+        _ => None,
+    }
+}
+
+fn value_words(value: Option<&Value>) -> Option<Vec<String>> {
+    value?.as_array().map(|list| list.iter().map(|word| value_text(Some(word)).unwrap_or_default()).collect())
+}
+
+/// What one difference between the machine and the setup file is about, in the file's own names
+pub fn change_name(change: &Value) -> String {
+    let field = |name: &str| change.get(name);
+    match field("area").and_then(Value::as_str).unwrap_or("") {
+        "packages" => format!("{}: {}", value_text(field("container")).unwrap_or_default(), value_words(field("packages")).unwrap_or_default().join(", ")),
+        "favorites" => value_words(field("to")).or_else(|| value_words(field("from"))).unwrap_or_default().join(", "),
+        "keybinding" => {
+            let key = value_text(field("key")).unwrap_or_default();
+            match value_text(field("schema")).as_deref() {
+                Some("custom") => key,
+                schema => format!("{} {key}", schema.unwrap_or_default()),
+            }
+        }
+        _ => ["app", "uuid", "key", "name"]
+            .iter()
+            .find_map(|name| value_text(field(name)))
+            .or_else(|| field("to").and_then(Value::as_str).filter(|to| !to.is_empty()).map(str::to_string))
+            .unwrap_or_default(),
+    }
+}
+
+/// cannot, add, set or remove
+pub fn change_kind(change: &Value) -> String {
+    let ok = match change.get("ok") {
+        Some(Value::Bool(b)) => *b,
+        Some(Value::Null) | None => false,
+        Some(_) => true,
+    };
+    if ok { change.get("action").and_then(Value::as_str).unwrap_or("").to_string() } else { "cannot".into() }
+}
+
+fn change_order(kind: &str) -> u8 {
+    match kind {
+        "cannot" => 0,
+        "add" => 1,
+        "set" => 2,
+        "remove" => 3,
+        _ => 4,
+    }
+}
+
+impl Control {
+    // --- Building blocks ----------------------------------------------------------------------------------
+
+    fn button(&self, label: &str, look: Look, on_click: impl Fn(&Rc<Control>) + 'static) -> gtk::Button {
+        let mut classes = vec!["btn"];
+        if look.small {
+            classes.push("small");
+        }
+        if look.primary {
+            classes.push("primary");
+        }
+        if look.danger {
+            classes.push("danger");
+        }
+        let me = self.me.clone();
+        let button = ui::button(label, look.icon.map(|name| icon(name, 16)), &classes, move || {
+            if let Some(this) = me.upgrade() {
+                on_click(&this);
+            }
+        });
+        button.set_sensitive(!look.disabled);
+        button.set_valign(gtk::Align::Center);
+        button
+    }
+
+    fn link_button(&self, label: &str, name: &'static str, on_click: impl Fn(&Rc<Control>) + 'static) -> gtk::Button {
+        let me = self.me.clone();
+        let button = ui::button(label, Some(icon(name, 15)), &["link"], move || {
+            if let Some(this) = me.upgrade() {
+                on_click(&this);
+            }
+        });
+        button.set_halign(gtk::Align::Start);
+        button.set_valign(gtk::Align::Center);
+        button
+    }
+
+    /// A button that asks once more before it does what it says, for what cannot be put back by clicking
+    /// again
+    fn confirm_button(&self, label: &str, ask: &str, name: &'static str, disabled: bool, on_confirm: impl Fn(&Rc<Control>) + 'static) -> gtk::Button {
+        let button = ui::button(label, Some(icon(name, 15)), &["btn", "small"], || {});
+        button.set_sensitive(!disabled);
+        button.set_valign(gtk::Align::Center);
+        let armed: Rc<std::cell::RefCell<Option<glib::SourceId>>> = Rc::default();
+        let (label, ask) = (label.to_string(), ask.to_string());
+        let me = self.me.clone();
+        button.connect_clicked(move |button| {
+            if let Some(timer) = armed.borrow_mut().take() {
+                timer.remove();
+                if let Some(this) = me.upgrade() {
+                    on_confirm(&this);
+                }
+                return;
+            }
+            button.add_css_class("danger");
+            if let Some(words) = ui::button_words(button) {
+                words.set_label(&ask);
+            }
+            let weak = button.downgrade();
+            let (label, again) = (label.clone(), armed.clone());
+            let timer = glib::timeout_add_local_once(std::time::Duration::from_secs(4), move || {
+                again.borrow_mut().take();
+                if let Some(button) = weak.upgrade() {
+                    button.remove_css_class("danger");
+                    if let Some(words) = ui::button_words(&button) {
+                        words.set_label(&label);
+                    }
+                }
+            });
+            armed.replace(Some(timer));
+        });
+        button
+    }
+
+    /// A button that says it copied, for a moment
+    fn copy_button(text: &str) -> gtk::Button {
+        let button = ui::copy_button(text, icon("copy", 15), &t!("Copy"), &t!("Copied"), &t!("Copy"), &["btn", "small"]);
+        button.set_valign(gtk::Align::Center);
+        button
+    }
+
+    fn command_block(command: &str) -> gtk::Box {
+        let block = ui::hbox(10, &["command"]);
+        let code = ltr(ui::label(command, &["code"]));
+        code.set_hexpand(true);
+        code.set_selectable(true);
+        code.set_wrap_mode(gtk::pango::WrapMode::Char);
+        block.append(&code);
+        block.append(&Self::copy_button(command));
+        block
+    }
+
+    fn callout(tone: &str, title: Option<&str>, text: Option<&str>, extra: Vec<gtk::Widget>) -> gtk::Box {
+        let callout = ui::hbox(12, &["callout", tone]);
+        let mark = icon(if tone == "check" { "alert" } else { "info" }, 18);
+        mark.set_valign(gtk::Align::Start);
+        callout.append(&mark);
+        let body = ui::vbox(6, &["grow"]);
+        body.set_hexpand(true);
+        if let Some(title) = title {
+            body.append(&ui::label(title, &["strong"]));
+        }
+        if let Some(text) = text {
+            body.append(&pretty(text, &["p"]));
+        }
+        for child in extra {
+            body.append(&child);
+        }
+        callout.append(&body);
+        callout
+    }
+
+    fn actions(children: Vec<gtk::Widget>) -> adw::WrapBox {
+        let actions = ui::wrap(8, 8, &["actions"]);
+        for child in children {
+            actions.append(&child);
+        }
+        actions
+    }
+
+    /// The spinning mark of something running, in a button's place
+    fn spinner() -> gtk::Box {
+        let place = role_box(gtk::Orientation::Horizontal, 0, &["icon-btn"], gtk::AccessibleRole::Status);
+        place.update_property(&[gtk::accessible::Property::Label(&t!("Running"))]);
+        place.set_hexpand(false);
+        place.set_valign(gtk::Align::Start);
+        let mark = icon("spinner", 18);
+        mark.set_hexpand(true);
+        mark.set_spinning(true);
+        place.append(&mark);
+        place
+    }
+
+    /// A small button with only an icon, which says what it does to a screen reader
+    fn icon_button(&self, name: &'static str, size: i32, label: &str, on_click: impl Fn(&Rc<Control>) + 'static) -> gtk::Button {
+        let mark = icon(name, size);
+        let button = gtk::Button::builder().child(&mark).css_classes(["plain", "icon-btn"]).valign(gtk::Align::Center).build();
+        button.update_property(&[gtk::accessible::Property::Label(label)]);
+        let me = self.me.clone();
+        button.connect_clicked(move |_| {
+            if let Some(this) = me.upgrade() {
+                on_click(&this);
+            }
+        });
+        button
+    }
+
+    /// The page's .switch: a track and a knob, which the next render moves once the change is made
+    fn switch(&self, on: bool, label: &str, disabled: bool, on_click: impl Fn(&Rc<Control>) + 'static) -> gtk::Button {
+        let knob = ui::hbox(0, &["knob"]);
+        knob.set_halign(if on { gtk::Align::End } else { gtk::Align::Start });
+        knob.set_valign(gtk::Align::Center);
+        let button = gtk::Button::builder().accessible_role(gtk::AccessibleRole::Switch).child(&knob).css_classes(["plain", "switch"]).build();
+        if on {
+            button.add_css_class("checked");
+        }
+        button.set_halign(gtk::Align::Start);
+        button.set_valign(gtk::Align::Start);
+        button.update_state(&[gtk::accessible::State::Checked(if on { gtk::AccessibleTristate::True } else { gtk::AccessibleTristate::False })]);
+        button.update_property(&[gtk::accessible::Property::Label(label)]);
+        button.set_sensitive(!disabled);
+        let me = self.me.clone();
+        button.connect_clicked(move |_| {
+            if let Some(this) = me.upgrade() {
+                on_click(&this);
+            }
+        });
+        button
+    }
+
+    /// One of a set of choices, which says whether it is the one chosen
+    fn radio(child: &impl IsA<gtk::Widget>, classes: &[&str], chosen: bool) -> gtk::Button {
+        let button = gtk::Button::builder().accessible_role(gtk::AccessibleRole::Radio).child(child).build();
+        button.add_css_class("plain");
+        for class in classes {
+            button.add_css_class(class);
+        }
+        if chosen {
+            button.add_css_class("checked");
+        }
+        button.update_state(&[gtk::accessible::State::Checked(if chosen { gtk::AccessibleTristate::True } else { gtk::AccessibleTristate::False })]);
+        button
+    }
+
+    // --- Running what the list says ---------------------------------------------------------------------
+
+    fn change(self: &Rc<Self>, id: &str, value: &str) {
+        let this = self.clone();
+        let (key, value) = (id.to_string(), value.to_string());
+        self.perform(id, async move { backend::perform(backend::change(this.known().as_deref(), &key, &value)).await });
+    }
+
+    fn act(self: &Rc<Self>, id: &str) {
+        let this = self.clone();
+        let key = id.to_string();
+        self.perform(id, async move { backend::perform(backend::act(this.known().as_deref(), &key)).await });
+    }
+
+    fn widget(self: &Rc<Self>, card: &str, action: &str, widget: &str) {
+        let this = self.clone();
+        let (action, widget) = (action.to_string(), widget.to_string());
+        self.perform(card, async move { backend::perform(backend::widget(this.known().as_deref(), &action, &widget)).await });
+    }
+
+    fn webapp(self: &Rc<Self>, card: &str, action: &str, name: &str) {
+        let this = self.clone();
+        let (action, name) = (action.to_string(), name.to_string());
+        self.perform(card, async move { backend::perform(backend::webapp(this.known().as_deref(), &action, &name)).await });
+    }
+
+    fn pool(self: &Rc<Self>, card: &str, action: &str, disk: &str) {
+        let this = self.clone();
+        let (action, disk) = (action.to_string(), disk.to_string());
+        self.perform(card, async move { backend::perform(backend::pool(this.known().as_deref(), &action, &disk)).await });
+    }
+
+    fn setup(self: &Rc<Self>, card: &str, action: &str) {
+        let this = self.clone();
+        let action = action.to_string();
+        self.perform(card, async move { backend::perform(backend::setup(this.known().as_deref(), &action)).await });
+    }
+
+    // --- One entry --------------------------------------------------------------------------------------
+
+    fn busy(&self, id: &str) -> bool {
+        self.state.borrow().busy.contains(id)
+    }
+
+    fn terminal_tag() -> gtk::Box {
+        let tag = ui::hbox(5, &["tag"]);
+        tag.set_tooltip_text(Some(&t!("Opens in a terminal, where it asks before it changes anything")));
+        tag.set_valign(gtk::Align::Center);
+        tag.append(&icon("terminal", 13));
+        tag.append(&ui::line(&t!("Terminal"), &[]));
+        tag
+    }
+
+    /// What the last command run from this card said
+    fn said_box(&self, item: &Item) -> Option<gtk::Widget> {
+        let said = self.state.borrow().said.get(&item.id).cloned()?;
+        let classes: &[&str] = if said.ok { &["said"] } else { &["said", "failed"] };
+        let role = if said.ok { gtk::AccessibleRole::Status } else { gtk::AccessibleRole::Alert };
+        let block = role_box(gtk::Orientation::Vertical, 6, classes, role);
+        let head = ui::hbox(8, &["said-head"]);
+        head.append(&icon(if said.ok { "check" } else { "alert" }, 15));
+        let title = ui::label(&if said.ok { t!("Done") } else { t!("That did not work") }, &["grow"]);
+        title.set_hexpand(true);
+        head.append(&title);
+        let id = item.id.clone();
+        head.append(&self.icon_button("close", 15, &t!("Dismiss"), move |this| {
+            this.state.borrow_mut().said.remove(&id);
+            this.render();
+        }));
+        block.append(&head);
+        if !said.output.is_empty() {
+            let output = ltr(ui::label(&said.output, &["pre", "code"]));
+            output.set_selectable(true);
+            output.set_wrap_mode(gtk::pango::WrapMode::WordChar);
+            output.set_valign(gtk::Align::Start);
+            let scroller = gtk::ScrolledWindow::builder()
+                .hscrollbar_policy(gtk::PolicyType::Never)
+                .max_content_height(180)
+                .propagate_natural_height(true)
+                .child(&output)
+                .build();
+            block.append(&scroller);
+        }
+        Some(block.upcast())
+    }
+
+    /// A card: the entry's words and state, its control at the inline end, whatever it shows below them,
+    /// and where it is in the manual and in a terminal
+    fn card_frame(&self, item: &Item, control: Option<gtk::Widget>, below: Vec<gtk::Widget>, danger: bool, tags: Vec<gtk::Widget>) -> gtk::Box {
+        let mut classes = vec!["setting", "card"];
+        if !item.available {
+            classes.push("unavailable");
+        }
+        if danger {
+            classes.push("danger");
+        }
+        let card = ui::vbox(14, &classes);
+        card.update_property(&[gtk::accessible::Property::Label(&item.title)]);
+        let head = ui::hbox(16, &["setting-head"]);
+        let words = ui::vbox(3, &["setting-words"]);
+        words.set_hexpand(true);
+        let title = Flex::new(8, 8, &["setting-title"]);
+        title.append(&heading(&item.title, "h3"));
+        for tag in tags {
+            title.append(&tag);
+        }
+        words.append(&title);
+        if let Some(text) = &item.text {
+            words.append(&ui::limit(&pretty(text, &["setting-text"]), 620));
+        }
+        if let (false, Some(reason)) = (item.available, &item.reason) {
+            words.append(&ui::label(reason, &["setting-detail", "check"]));
+        }
+        if let Some(detail) = &item.detail {
+            words.append(&ui::label(detail, &["setting-detail"]));
+        }
+        head.append(&words);
+        if self.busy(&item.id) {
+            head.append(&Self::spinner());
+        } else if let Some(control) = control {
+            control.set_valign(gtk::Align::Start);
+            head.append(&control);
+        }
+        card.append(&head);
+        for child in below {
+            card.append(&child);
+        }
+        if let Some(said) = self.said_box(item) {
+            card.append(&said);
+        }
+        // A link's own button is its way to the manual
+        let manual = item.manual.clone().filter(|_| item.kind != "link");
+        if manual.is_some() || item.usage.is_some() {
+            let foot = Flex::new(16, 6, &["setting-foot"]);
+            if let Some(page) = manual {
+                foot.append(&self.link_button(&t!("In the manual"), "book", move |_| process::manual(&page)));
+            }
+            if let Some(usage) = &item.usage {
+                let line = ui::hbox(0, &[]);
+                line.append(&ui::line(&format!("{} ", t!("In a terminal:")), &[]));
+                let code = ltr(ui::label(usage, &["code"]));
+                code.set_wrap_mode(gtk::pango::WrapMode::Char);
+                code.set_hexpand(true);
+                line.append(&code);
+                foot.append(&line);
+            }
+            card.append(&foot);
+        }
+        card
+    }
+
+    /// Whether the next click on a switch, the one away from its state, opens a terminal
+    fn next_opens_terminal(item: &Item) -> bool {
+        item.choices.iter().find(|choice| Some(&choice.value) != item.state.as_ref()).is_some_and(|choice| choice.terminal)
+    }
+
+    fn switch_card(&self, item: &Item) -> gtk::Box {
+        let busy = self.busy(&item.id) || !item.available;
+        let id = item.id.clone();
+        let control: gtk::Widget = match item.state.as_deref() {
+            Some(state @ ("on" | "off")) => {
+                let on = state == "on";
+                self.switch(on, &item.title, busy, move |this| this.change(&id, if on { "off" } else { "on" })).upcast()
+            }
+            // A state only an administrator can see: both ways, each in a terminal
+            _ => {
+                let (on, off) = (id.clone(), id.clone());
+                Self::actions(vec![
+                    self.button(&t!("Turn on…"), Look { small: true, disabled: busy, ..Default::default() }, move |this| this.change(&on, "on")).upcast(),
+                    self.button(&t!("Turn off…"), Look { small: true, disabled: busy, ..Default::default() }, move |this| this.change(&off, "off")).upcast(),
+                ])
+                .upcast()
+            }
+        };
+        let tags = if item.available && Self::next_opens_terminal(item) { vec![Self::terminal_tag().upcast()] } else { Vec::new() };
+        self.card_frame(item, Some(control), Vec::new(), false, tags)
+    }
+
+    fn choice_card(&self, item: &Item) -> gtk::Box {
+        let disabled = self.busy(&item.id) || !item.available;
+        let options = AutoGrid::new(220, 8, &["options"]);
+        options.update_property(&[gtk::accessible::Property::Label(&item.title)]);
+        for choice in &item.choices {
+            let chosen = Some(&choice.value) == item.state.as_ref();
+            let content = ui::hbox(10, &[]);
+            let dot = ui::hbox(0, &["dot"]);
+            dot.set_valign(gtk::Align::Start);
+            dot.set_hexpand(false);
+            if chosen {
+                let fill = ui::hbox(0, &["dot-fill"]);
+                fill.set_halign(gtk::Align::Center);
+                fill.set_valign(gtk::Align::Center);
+                fill.set_hexpand(true);
+                dot.append(&fill);
+            }
+            content.append(&dot);
+            let words = ui::vbox(1, &["option-words"]);
+            words.set_hexpand(true);
+            words.append(&ui::label(&choice.title, &["strong"]));
+            if let Some(text) = &choice.text {
+                words.append(&pretty(text, &["small"]));
+            }
+            content.append(&words);
+            if choice.terminal && !chosen {
+                let mark = icon("terminal", 15);
+                mark.add_css_class("faint");
+                mark.set_valign(gtk::Align::Start);
+                content.append(&mark);
+            }
+            let option = Self::radio(&content, &["option"], chosen);
+            option.set_sensitive(!disabled);
+            let (me, id, value) = (self.me.clone(), item.id.clone(), choice.value.clone());
+            option.connect_clicked(move |_| {
+                if let (Some(this), false) = (me.upgrade(), chosen) {
+                    this.change(&id, &value);
+                }
+            });
+            options.append(&option);
+        }
+        self.card_frame(item, None, vec![options.upcast()], false, Vec::new())
+    }
+
+    fn range_card(&self, item: &Item) -> gtk::Box {
+        let min = item.min.unwrap_or(0.0);
+        let max = item.max.unwrap_or(100.0).max(min);
+        let step = item.step.filter(|step| *step > 0.0).unwrap_or(1.0);
+        let value = item.state.as_deref().and_then(|state| state.trim().parse::<f64>().ok()).filter(|n| *n != 0.0).unwrap_or(min);
+        let ms = item.unit.as_deref() == Some("ms");
+        let show = move |n: f64| if ms { seconds(n) } else { i18n::number(n) };
+        let output = ui::line(&show(value), &["output"]);
+        let scale = gtk::Scale::with_range(gtk::Orientation::Horizontal, min, max, step);
+        scale.set_value(value);
+        scale.set_draw_value(false);
+        scale.set_hexpand(true);
+        scale.set_increments(step, step);
+        scale.update_property(&[gtk::accessible::Property::Label(&item.title)]);
+        scale.set_sensitive(!self.busy(&item.id) && item.available);
+        // On the steps the list gives, as a range input moves
+        scale.connect_change_value(move |scale, _, value| {
+            let snapped = (((value - min) / step).round() * step + min).clamp(min, max);
+            scale.set_value(snapped);
+            glib::Propagation::Stop
+        });
+        let shown = output.clone();
+        scale.connect_value_changed(move |scale| shown.set_label(&show(scale.value())));
+        // A range input says it changed once it is let go of, or for each key that moves it
+        let sent = std::rc::Rc::new(std::cell::Cell::new(value));
+        let events = gtk::EventControllerLegacy::new();
+        events.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let (me, id, scale_ref) = (self.me.clone(), item.id.clone(), scale.downgrade());
+        events.connect_event(move |_, event| {
+            let ended = matches!(event.event_type(), gdk::EventType::ButtonRelease | gdk::EventType::TouchEnd | gdk::EventType::KeyRelease);
+            if let (true, Some(this), Some(scale)) = (ended, me.upgrade(), scale_ref.upgrade()) {
+                let now = scale.value();
+                if (now - sent.get()).abs() > f64::EPSILON {
+                    sent.set(now);
+                    let id = id.clone();
+                    let value = format!("{}", now.round() as i64);
+                    // Not from inside the scale's own event
+                    glib::idle_add_local_once(move || this.change(&id, &value));
+                }
+            }
+            glib::Propagation::Proceed
+        });
+        scale.add_controller(events);
+        // The wheel scrolls the page, as it did over a range input, rather than moving the slider
+        let wheel = gtk::EventControllerScroll::new(gtk::EventControllerScrollFlags::VERTICAL);
+        wheel.set_propagation_phase(gtk::PropagationPhase::Capture);
+        let page = self.parts.scroller.vadjustment();
+        wheel.connect_scroll(move |controller, _, dy| {
+            let delta = if controller.unit() == gdk::ScrollUnit::Wheel { dy * page.page_size().powf(2.0 / 3.0) } else { dy };
+            page.set_value(page.value() + delta);
+            glib::Propagation::Stop
+        });
+        scale.add_controller(wheel);
+        let row = ui::hbox(14, &["range"]);
+        row.append(&scale);
+        row.append(&output);
+        // The slider at most 420 pixels wide, and what it is set to after it
+        self.card_frame(item, None, vec![ui::limit(&row, 420 + 14 + 64).upcast()], false, Vec::new())
+    }
+
+    fn action_card(&self, item: &Item) -> gtk::Box {
+        let id = item.id.clone();
+        let label = item.button.clone().unwrap_or_else(|| t!("Run"));
+        let control = self.button(&label, Look { danger: item.danger, disabled: self.busy(&item.id) || !item.available, ..Default::default() }, move |this| this.act(&id));
+        let tags = if item.terminal && item.available { vec![Self::terminal_tag().upcast()] } else { Vec::new() };
+        self.card_frame(item, Some(control.upcast()), Vec::new(), item.danger, tags)
+    }
+
+    fn link_card(&self, item: &Item) -> gtk::Box {
+        let page = item.manual.clone().unwrap_or_default();
+        let control = self.button(&t!("Open"), Look { icon: Some("book"), ..Default::default() }, move |_| process::manual(&page));
+        self.card_frame(item, Some(control.upcast()), Vec::new(), false, Vec::new())
+    }
+
+    /// The class that paints a swatch's part in one of its theme's colours, when the colour is one
+    fn color_class(&self, prefix: &str, color: Option<&String>, added: &mut bool) -> Option<String> {
+        let color = color.filter(|c| c.len() == 7 && c.starts_with('#') && c[1..].chars().all(|d| d.is_ascii_hexdigit()))?.to_lowercase();
+        if self.colors.borrow_mut().insert(color.clone()) {
+            *added = true;
+        }
+        Some(format!("{prefix}-{}", &color[1..]))
+    }
+
+    fn refresh_colors(&self) {
+        let css: String = self
+            .colors
+            .borrow()
+            .iter()
+            .map(|color| format!(".bg-{0} {{ background-color: #{0}; }}\n.fg-{0} {{ color: #{0}; }}\n", &color[1..]))
+            .collect();
+        self.color_css.load_from_string(&css);
+    }
+
+    /// A theme as a small window in its own colours: its background, a line of its text, its accent, and
+    /// six of its terminal colours
+    fn themes_card(&self, item: &Item) -> gtk::Box {
+        let disabled = self.busy(&item.id) || !item.available;
+        let swatches = AutoGrid::new(150, 12, &["themes"]);
+        swatches.update_property(&[gtk::accessible::Property::Label(&item.title)]);
+        let mut added = false;
+        for choice in &item.choices {
+            let colors = &choice.colors;
+            let chosen = Some(&choice.value) == item.state.as_ref();
+            let picture = ui::vbox(7, &["swatch-picture"]);
+            picture.set_overflow(gtk::Overflow::Hidden);
+            if let Some(class) = self.color_class("bg", colors.get("background"), &mut added) {
+                picture.add_css_class(&class);
+            }
+            let text = ui::line("Aa", &["swatch-text"]);
+            if let Some(class) = self.color_class("fg", colors.get("foreground"), &mut added) {
+                text.add_css_class(&class);
+            }
+            picture.append(&text);
+            let bar = SwatchBar::default();
+            if let Some(class) = self.color_class("fg", colors.get("accent"), &mut added) {
+                bar.add_css_class(&class);
+            }
+            picture.append(&bar);
+            let spacer = ui::hbox(0, &[]);
+            spacer.set_vexpand(true);
+            picture.append(&spacer);
+            let dots = ui::hbox(5, &["swatch-dots"]);
+            for key in ["color1", "color2", "color3", "color4", "color5", "color6"] {
+                let dot = ui::hbox(0, &["swatch-dot"]);
+                if let Some(class) = self.color_class("bg", colors.get(key), &mut added) {
+                    dot.add_css_class(&class);
+                }
+                dots.append(&dot);
+            }
+            picture.append(&dots);
+            let content = ui::vbox(8, &[]);
+            content.append(&Aspect::new(&picture, 10.0 / 16.0));
+            let name = ui::hbox(6, &["swatch-name"]);
+            if chosen {
+                name.append(&icon("check", 14));
+            }
+            let words = ui::label(&choice.title, &[]);
+            words.set_hexpand(true);
+            name.append(&words);
+            content.append(&name);
+            let swatch = Self::radio(&content, &["swatch"], chosen);
+            swatch.set_valign(gtk::Align::Start);
+            swatch.set_sensitive(!disabled);
+            let (me, id, value) = (self.me.clone(), item.id.clone(), choice.value.clone());
+            swatch.connect_clicked(move |_| {
+                if let (Some(this), false) = (me.upgrade(), chosen) {
+                    this.change(&id, &value);
+                }
+            });
+            swatches.append(&swatch);
+        }
+        if added {
+            self.refresh_colors();
+        }
+        self.card_frame(item, None, vec![swatches.upcast()], false, Vec::new())
+    }
+
+    /// A wallpaper of the current theme, only one the list named and only a picture, decoded once at about
+    /// the size it is shown rather than whole
+    fn thumbnail(&self, path: &str, picture: &gtk::Picture) {
+        if let Some(texture) = self.thumbnails.borrow().get(path) {
+            picture.set_paintable(Some(texture));
+            return;
+        }
+        let extension = std::path::Path::new(path).extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+        if !PICTURES.contains(&extension.as_str()) {
+            return;
+        }
+        let (me, path, picture) = (self.me.clone(), path.to_string(), picture.downgrade());
+        glib::spawn_future_local(async move {
+            let Ok(stream) = gio::File::for_path(&path).read_future(glib::Priority::LOW).await else { return };
+            let Ok(pixbuf) = gtk::gdk_pixbuf::Pixbuf::from_stream_at_scale_future(&stream, 512, 320, true).await else { return };
+            let texture = gdk::Texture::for_pixbuf(&pixbuf);
+            if let Some(this) = me.upgrade() {
+                this.thumbnails.borrow_mut().insert(path, texture.clone());
+            }
+            if let Some(picture) = picture.upgrade() {
+                picture.set_paintable(Some(&texture));
+            }
+        });
+    }
+
+    fn wallpapers_card(&self, item: &Item) -> gtk::Box {
+        let disabled = self.busy(&item.id) || !item.available;
+        let below: Vec<gtk::Widget> = if !item.available {
+            Vec::new()
+        } else if item.choices.is_empty() {
+            vec![ui::label(&t!("This theme has no pictures of its own."), &["row-empty"]).upcast()]
+        } else {
+            let pictures = AutoGrid::new(170, 12, &["pictures"]);
+            pictures.update_property(&[gtk::accessible::Property::Label(&item.title)]);
+            for choice in &item.choices {
+                let chosen = Some(&choice.value) == item.state.as_ref();
+                let image = gtk::Picture::builder().content_fit(gtk::ContentFit::Cover).can_shrink(true).build();
+                image.set_alternative_text(Some(&choice.title));
+                self.thumbnail(&choice.value, &image);
+                let frame = Self::radio(&Aspect::new(&image, 10.0 / 16.0), &["picture"], chosen);
+                frame.set_overflow(gtk::Overflow::Hidden);
+                frame.set_tooltip_text(Some(&choice.title));
+                frame.update_property(&[gtk::accessible::Property::Label(&choice.title)]);
+                frame.set_valign(gtk::Align::Start);
+                frame.set_sensitive(!disabled);
+                let (me, id, value) = (self.me.clone(), item.id.clone(), choice.value.clone());
+                frame.connect_clicked(move |_| {
+                    if let (Some(this), false) = (me.upgrade(), chosen) {
+                        this.change(&id, &value);
+                    }
+                });
+                pictures.append(&frame);
+            }
+            vec![pictures.upcast()]
+        };
+        self.card_frame(item, None, below, false, Vec::new())
+    }
+
+    fn rows(rows: Vec<gtk::Box>) -> gtk::Box {
+        let list = ui::vbox(0, &["rows"]);
+        list.set_overflow(gtk::Overflow::Hidden);
+        for row in rows {
+            list.append(&row);
+        }
+        list
+    }
+
+    fn row_words(title: &str, detail: Option<&str>, detail_ltr: bool, title_ltr: bool) -> gtk::Box {
+        let words = ui::vbox(0, &["row-words"]);
+        words.set_hexpand(true);
+        words.set_valign(gtk::Align::Center);
+        let strong = row_line(title, &["strong"]);
+        words.append(&if title_ltr { ltr(strong) } else { strong });
+        if let Some(detail) = detail {
+            let small = row_line(detail, &["small"]);
+            words.append(&if detail_ltr { ltr(small) } else { small });
+        }
+        words
+    }
+
+    fn widgets_card(&self, item: &Item) -> gtk::Box {
+        let busy = self.busy(&item.id);
+        let widgets = &item.widgets;
+        let rows: gtk::Widget = if widgets.is_empty() {
+            ui::label(&t!("No widgets yet."), &["row-empty"]).upcast()
+        } else {
+            Self::rows(
+                widgets
+                    .iter()
+                    .map(|widget| {
+                        let row = ui::hbox(12, &["row"]);
+                        let name = widget.name.clone().unwrap_or_else(|| widget.id.clone());
+                        let detail = if widget.broken { t!("{id}: its widget.json is missing or broken", id = &widget.id) } else { widget.id.clone() };
+                        row.append(&Self::row_words(&name, Some(&detail), true, false));
+                        if item.agentic {
+                            let (card, id) = (item.id.clone(), widget.id.clone());
+                            row.append(&self.button(&t!("Fix…"), Look { small: true, icon: Some("wrench"), disabled: busy, ..Default::default() }, move |this| {
+                                this.widget(&card, "fix", &id)
+                            }));
+                        }
+                        let (card, id) = (item.id.clone(), widget.id.clone());
+                        row.append(&self.confirm_button(&t!("Remove"), &t!("Move it to the trash?"), "trash", busy, move |this| this.widget(&card, "remove", &id)));
+                        let (card, id, on) = (item.id.clone(), widget.id.clone(), widget.on);
+                        let toggle = self.switch(widget.on, &t!("Show {name} in the top bar", name = &name), busy, move |this| {
+                            this.widget(&card, if on { "off" } else { "on" }, &id)
+                        });
+                        toggle.set_valign(gtk::Align::Center);
+                        row.append(&toggle);
+                        row
+                    })
+                    .collect(),
+            )
+            .upcast()
+        };
+
+        // A new one from an example, under a name checked as amethystora-widgets checks it
+        let examples = item.examples.clone();
+        {
+            let mut state = self.state.borrow_mut();
+            if !examples.contains(&state.widget_example) {
+                state.widget_example = examples.first().cloned().unwrap_or_default();
+            }
+        }
+        let (name_now, example_now) = {
+            let state = self.state.borrow();
+            (state.widget_name.clone(), state.widget_example.clone())
+        };
+        let valid = backend::valid_widget_name(item, &name_now);
+        let card = item.id.clone();
+        let add = self.button(&t!("Add"), Look { icon: Some("plus"), disabled: busy || !valid || example_now.is_empty(), ..Default::default() }, move |this| {
+            let (name, example) = {
+                let mut state = this.state.borrow_mut();
+                (std::mem::take(&mut state.widget_name), state.widget_example.clone())
+            };
+            let that = this.clone();
+            this.perform(&card, async move { backend::perform(backend::new_widget(that.known().as_deref(), &name, &example)).await });
+        });
+        let field = gtk::Entry::builder()
+            .text(&name_now)
+            // An example of a name, which is lower case letters, digits and dashes in any language
+            .placeholder_text("my-widget")
+            .css_classes(["field"])
+            .build();
+        field.set_direction(gtk::TextDirection::Ltr);
+        field.update_property(&[gtk::accessible::Property::Label(&t!("The new widget's name"))]);
+        if !name_now.is_empty() && !valid {
+            field.add_css_class("invalid");
+        }
+        {
+            let (me, add, item) = (self.me.clone(), add.downgrade(), item.clone());
+            field.connect_changed(move |field| {
+                let Some(this) = me.upgrade() else { return };
+                let name = field.text().trim().to_string();
+                let ok = backend::valid_widget_name(&item, &name);
+                if !name.is_empty() && !ok {
+                    field.add_css_class("invalid");
+                } else {
+                    field.remove_css_class("invalid");
+                }
+                let example = {
+                    let mut state = this.state.borrow_mut();
+                    state.widget_name = name;
+                    state.widget_example.clone()
+                };
+                if let Some(add) = add.upgrade() {
+                    add.set_sensitive(!busy && ok && !example.is_empty());
+                }
+            });
+        }
+        let names: Vec<&str> = examples.iter().map(String::as_str).collect();
+        let select = gtk::DropDown::from_strings(&names);
+        select.add_css_class("field");
+        select.update_property(&[gtk::accessible::Property::Label(&t!("The example it starts from"))]);
+        if let Some(at) = examples.iter().position(|example| *example == example_now) {
+            select.set_selected(at as u32);
+        }
+        {
+            let (me, examples) = (self.me.clone(), examples.clone());
+            select.connect_selected_notify(move |select| {
+                if let (Some(this), Some(example)) = (me.upgrade(), examples.get(select.selected() as usize)) {
+                    this.state.borrow_mut().widget_example = example.clone();
+                }
+            });
+        }
+
+        let mut below: Vec<gtk::Widget> = Vec::new();
+        if !item.bar {
+            let card = item.id.clone();
+            below.push(
+                Self::callout(
+                    "check",
+                    None,
+                    None,
+                    vec![Self::actions(vec![
+                        self.button(&t!("Turn the extension on"), Look { small: true, ..Default::default() }, move |this| this.widget(&card, "restart", "")).upcast(),
+                    ])
+                    .upcast()],
+                )
+                .upcast(),
+            );
+        }
+        if item.available {
+            below.push(rows);
+            let form = Flex::new(8, 8, &["form"]);
+            form.append_with(
+                &ui::label(&t!("Start one from an example, then change its files in ~/.config/amethystora/widgets:"), &["form-note"]),
+                Grow { whole_line: true, ..Default::default() },
+            );
+            form.append_with(&field, Grow { grow: 1.0, basis: Some(240), whole_line: false });
+            form.append_with(&select, Grow { grow: 0.0, basis: Some(180), whole_line: false });
+            form.append(&add);
+            below.push(form.upcast());
+            if item.agentic {
+                let card = item.id.clone();
+                below.push(
+                    Self::actions(vec![
+                        self.button(&t!("Make one with the agent…"), Look { icon: Some("sparkle"), ..Default::default() }, move |this| this.widget(&card, "make", "")).upcast(),
+                    ])
+                    .upcast(),
+                );
+            }
+        }
+        self.card_frame(item, None, below, false, Vec::new())
+    }
+
+    fn webapps_card(&self, item: &Item) -> gtk::Box {
+        let busy = self.busy(&item.id);
+        let rows: gtk::Widget = if item.webapps.is_empty() {
+            ui::label(&t!("No web apps yet."), &["row-empty"]).upcast()
+        } else {
+            Self::rows(
+                item.webapps
+                    .iter()
+                    .map(|webapp| {
+                        let row = ui::hbox(12, &["row"]);
+                        row.append(&Self::row_words(&webapp.name, Some(&webapp.address), true, false));
+                        let (card, name) = (item.id.clone(), webapp.name.clone());
+                        row.append(&self.confirm_button(&t!("Remove"), &t!("Remove it?"), "trash", busy, move |this| this.webapp(&card, "remove", &name)));
+                        row
+                    })
+                    .collect(),
+            )
+            .upcast()
+        };
+        let card = item.id.clone();
+        let control = self.button(&t!("Add a web app…"), Look { icon: Some("plus"), disabled: busy || !item.available, ..Default::default() }, move |this| {
+            this.webapp(&card, "install", "")
+        });
+        let below = if item.available { vec![rows] } else { Vec::new() };
+        let tags = if item.available { vec![Self::terminal_tag().upcast()] } else { Vec::new() };
+        self.card_frame(item, Some(control.upcast()), below, false, tags)
+    }
+
+    fn trust_card(&self, item: &Item) -> gtk::Box {
+        let busy = self.busy(&item.id);
+        let (repository, key, trusted) = {
+            let state = self.state.borrow();
+            (state.repository.clone(), state.key.clone(), state.trusted.clone())
+        };
+        let note = ui::label("", &["form-note"]);
+        let card = item.id.clone();
+        let trust = self.button(&item.button.clone().unwrap_or_else(|| t!("Trust…")), Look { primary: true, ..Default::default() }, move |this| {
+            let repository = this.state.borrow().repository.clone();
+            let that = this.clone();
+            this.perform(&card, async move {
+                let own = std::fs::read_to_string(backend::IMAGE_INFO).ok().and_then(|info| backend::own_repository(&info));
+                let key = that.chosen_key.borrow().clone();
+                let result = backend::perform(backend::trust_image(that.known().as_deref(), &repository, own.as_deref(), key.as_deref())).await;
+                if result == Outcome::Terminal {
+                    that.state.borrow_mut().trusted = repository;
+                }
+                result
+            });
+        });
+        let available = item.available;
+        let refresh = {
+            let (note, trust) = (note.clone(), trust.downgrade());
+            move |repository: &str, key: &str| {
+                let typed = !repository.is_empty();
+                let ok = backend::valid_repository(repository);
+                if typed && !ok {
+                    note.add_css_class("bad");
+                    note.set_label(&t!("A repository such as ghcr.io/you/your-image: lower case, and no tag."));
+                } else {
+                    note.remove_css_class("bad");
+                    note.set_label(&t!("The repository your image is published to, and the cosign.pub from it."));
+                }
+                if let Some(trust) = trust.upgrade() {
+                    trust.set_sensitive(!busy && available && ok && !key.is_empty());
+                }
+            }
+        };
+        let field = gtk::Entry::builder().text(&repository).placeholder_text("ghcr.io/you/your-image").css_classes(["field"]).sensitive(item.available).build();
+        field.set_direction(gtk::TextDirection::Ltr);
+        field.update_property(&[gtk::accessible::Property::Label(&t!("The repository"))]);
+        if !repository.is_empty() && !backend::valid_repository(&repository) {
+            field.add_css_class("invalid");
+        }
+        {
+            let (me, refresh) = (self.me.clone(), refresh.clone());
+            field.connect_changed(move |field| {
+                let Some(this) = me.upgrade() else { return };
+                let repository = field.text().trim().to_string();
+                if !repository.is_empty() && !backend::valid_repository(&repository) {
+                    field.add_css_class("invalid");
+                } else {
+                    field.remove_css_class("invalid");
+                }
+                let key = {
+                    let mut state = this.state.borrow_mut();
+                    state.repository = repository.clone();
+                    state.key.clone()
+                };
+                refresh(&repository, &key);
+            });
+        }
+        let key_label = if key.is_empty() { t!("Choose cosign.pub…") } else { key.clone() };
+        let key_button = self.button(&key_label, Look { icon: Some("key"), disabled: busy || !item.available, ..Default::default() }, |this| this.choose_key());
+        refresh(&repository, &key);
+        let mut below: Vec<gtk::Widget> = Vec::new();
+        if item.available {
+            let form = Flex::new(8, 8, &["form"]);
+            form.append_with(&field, Grow { grow: 1.0, basis: Some(240), whole_line: false });
+            form.append(&key_button);
+            form.append(&trust);
+            form.append_with(&note, Grow { whole_line: true, ..Default::default() });
+            below.push(form.upcast());
+        }
+        if !trusted.is_empty() {
+            below.push(
+                Self::callout(
+                    "info",
+                    Some(&t!("Then switch to it, and hand the signature policy back to the image")),
+                    None,
+                    vec![
+                        Self::command_block(&format!("sudo bootc switch --enforce-container-sigpolicy {trusted}:stable")).upcast(),
+                        Self::command_block("sudo cp /usr/etc/containers/policy.json /etc/containers/policy.json").upcast(),
+                        Self::actions(vec![self.link_button(&t!("Why, in the manual"), "book", |_| process::manual("developer#an-image-of-your-own")).upcast()]).upcast(),
+                    ],
+                )
+                .upcast(),
+            );
+        }
+        let tags = if item.available { vec![Self::terminal_tag().upcast()] } else { Vec::new() };
+        self.card_frame(item, None, below, false, tags)
+    }
+
+    fn setup_diff_rows(&self) -> gtk::Widget {
+        let diff = self.state.borrow().diff.clone();
+        let changes = match diff {
+            Diff::Unread | Diff::Reading => {
+                let line = ui::hbox(4, &["row-empty"]);
+                let mark = icon("spinner", 15);
+                mark.set_spinning(true);
+                line.append(&mark);
+                line.append(&ui::label(&t!("Comparing this machine with the file…"), &[]));
+                return line.upcast();
+            }
+            Diff::Error(error) => return Self::callout("check", Some(&t!("The file could not be compared with this machine")), Some(&error), Vec::new()).upcast(),
+            Diff::Changes(changes) => changes,
+        };
+        if changes.is_empty() {
+            return Self::callout("info", Some(&t!("This machine is as your setup file says.")), None, Vec::new()).upcast();
+        }
+        let mut sorted: Vec<&Value> = changes.iter().collect();
+        sorted.sort_by_key(|change| change_order(&change_kind(change)));
+        let section = ui::vbox(12, &["section"]);
+        section.append(&ui::label(
+            &t!(
+                "{count, plural, one {One difference} other {# differences}} between this machine and the file. Apply adds and sets what is missing; it takes nothing away.",
+                count = changes.len()
+            ),
+            &["soft", "small"],
+        ));
+        let rows = sorted
+            .into_iter()
+            .map(|change| {
+                let kind = change_kind(change);
+                let (mark, words) = match kind.as_str() {
+                    "cannot" => ("!", t!("In the file, but this machine cannot have it")),
+                    "add" => ("+", t!("In the file, not here")),
+                    "set" => ("~", t!("Set differently here")),
+                    "remove" => ("\u{2212}", t!("Here, not in the file")),
+                    _ => ("", String::new()),
+                };
+                let row = ui::hbox(12, &["row"]);
+                let sign = ui::line(mark, &["mark", &kind]);
+                sign.set_xalign(0.5);
+                sign.set_valign(gtk::Align::Center);
+                sign.set_tooltip_text(Some(&words));
+                sign.update_property(&[gtk::accessible::Property::Label(&words)]);
+                row.append(&sign);
+                let name = change.get("area").and_then(Value::as_str).unwrap_or("").to_string();
+                let area = area(&name).unwrap_or(name);
+                let ok = matches!(change.get("ok"), Some(Value::Bool(true)));
+                let detail = if ok { area } else { format!("{area}: {}", change.get("why").and_then(Value::as_str).unwrap_or("")) };
+                row.append(&Self::row_words(&change_name(change), Some(&detail), false, true));
+                row
+            })
+            .collect();
+        section.append(&Self::rows(rows));
+        section.upcast()
+    }
+
+    fn setup_card(&self, item: &Item) -> gtk::Box {
+        let busy = self.busy(&item.id);
+        let saved = match item.saved {
+            Some(saved) => t!("Saved {when}", when = when(saved)),
+            None => t!("Not saved yet."),
+        };
+        let has_save = item.commands.contains_key("save");
+        let has_apply = item.commands.contains_key("apply");
+        let foot = Flex::new(16, 6, &["setting-foot"]);
+        let file = ltr(ui::label(item.file.as_deref().unwrap_or(""), &["code"]));
+        file.set_wrap_mode(gtk::pango::WrapMode::Char);
+        foot.append(&file);
+        foot.append(&ui::label(&saved, &[]));
+        let card = item.id.clone();
+        let mut actions: Vec<gtk::Widget> = vec![self
+            .button(
+                &if item.saved.is_some() { t!("Save again") } else { t!("Save") },
+                Look { primary: item.saved.is_none(), disabled: busy || !has_save, ..Default::default() },
+                move |this| this.setup(&card, "save"),
+            )
+            .upcast()];
+        if item.saved.is_some() {
+            let card = item.id.clone();
+            actions.push(self.button(&t!("Apply…"), Look { icon: Some("terminal"), disabled: busy || !has_apply, ..Default::default() }, move |this| this.setup(&card, "apply")).upcast());
+        }
+        let mut below: Vec<gtk::Widget> = vec![foot.upcast(), Self::actions(actions).upcast()];
+        if item.saved.is_some() {
+            below.push(self.setup_diff_rows());
+        }
+        self.card_frame(item, None, below, false, Vec::new())
+    }
+
+    /// The pools of disks, each with the actions the list gave it
+    fn disks_card(&self, item: &Item) -> gtk::Box {
+        let busy = self.busy(&item.id);
+        let below: Vec<gtk::Widget> = if item.disks.is_empty() {
+            Vec::new()
+        } else {
+            vec![Self::rows(
+                item.disks
+                    .iter()
+                    .map(|disk| {
+                        let row = ui::hbox(12, &["row"]);
+                        row.append(&Self::row_words(&disk.title, disk.text.as_deref(), false, false));
+                        let tag = if disk.state == "check" {
+                            let tag = ui::hbox(5, &["tag", "check"]);
+                            tag.append(&icon("alert", 13));
+                            tag.append(&ui::line(&t!("Needs a look"), &[]));
+                            tag
+                        } else {
+                            let tag = ui::hbox(5, &["tag", "on"]);
+                            tag.append(&ui::line(&t!("Fine"), &[]));
+                            tag
+                        };
+                        tag.set_valign(gtk::Align::Center);
+                        row.append(&tag);
+                        for action in &disk.actions {
+                            let (card, id, disk) = (item.id.clone(), action.id.clone(), disk.id.clone());
+                            let look = Look { icon: action.terminal.then_some("terminal"), small: true, disabled: busy || !item.available, ..Default::default() };
+                            row.append(&self.button(&action.title, look, move |this| this.pool(&card, &id, &disk)));
+                        }
+                        row
+                    })
+                    .collect(),
+            )
+            .upcast()]
+        };
+        self.card_frame(item, None, below, false, Vec::new())
+    }
+
+    fn card(&self, item: &Item) -> gtk::Box {
+        match item.kind.as_str() {
+            "switch" => self.switch_card(item),
+            "choice" => self.choice_card(item),
+            "range" => self.range_card(item),
+            "link" => self.link_card(item),
+            "themes" => self.themes_card(item),
+            "wallpapers" => self.wallpapers_card(item),
+            "widgets" => self.widgets_card(item),
+            "webapps" => self.webapps_card(item),
+            "trust-image" => self.trust_card(item),
+            "setup" => self.setup_card(item),
+            "disks" => self.disks_card(item),
+            _ => self.action_card(item),
+        }
+    }
+
+    // --- Pages --------------------------------------------------------------------------------------------
+
+    fn section(&self, title: Option<&str>, items: &[&Item]) -> gtk::Box {
+        let section = ui::vbox(12, &["section"]);
+        if let Some(title) = title {
+            // In capitals the language's own way: GTK does not measure the stylesheet's text-transform
+            section.append(&heading(&title.to_uppercase(), "h2"));
+        }
+        let cards = ui::vbox(12, &["cards"]);
+        for item in items {
+            cards.append(&self.card(item));
+        }
+        section.append(&cards);
+        section
+    }
+
+    /// An entry's cards in the groups the list gives them, in its order
+    fn sections(&self, list: &[&Item]) -> Vec<gtk::Box> {
+        let mut groups: Vec<(String, Vec<&Item>)> = Vec::new();
+        for item in list {
+            let group = item.group.clone().unwrap_or_default();
+            match groups.last_mut() {
+                Some((last, items)) if *last == group => items.push(item),
+                _ => groups.push((group, vec![item])),
+            }
+        }
+        groups.iter().map(|(group, items)| self.section((!group.is_empty()).then_some(group.as_str()), items)).collect()
+    }
+
+    fn banner(&self) -> Option<gtk::Widget> {
+        let banner: Banner = self.state.borrow().banner.clone()?;
+        let wrap = ui::vbox(0, &["banner-wrap"]);
+        let classes: &[&str] = if banner.failed { &["banner", "failed"] } else { &["banner"] };
+        let line = role_box(gtk::Orientation::Horizontal, 12, classes, gtk::AccessibleRole::Status);
+        line.append(&icon(if banner.failed { "alert" } else { "terminal" }, 18));
+        let text = ui::label(&banner.text, &["grow"]);
+        text.set_hexpand(true);
+        line.append(&text);
+        line.append(&self.icon_button("close", 16, &t!("Dismiss"), |this| {
+            this.state.borrow_mut().banner = None;
+            this.render();
+        }));
+        wrap.append(&ui::limit_center(&line, 920));
+        Some(wrap.upcast())
+    }
+
+    /// The column every page is, at most 920 pixels wide in the middle
+    fn page(child: &gtk::Box) -> gtk::Widget {
+        adw::Clamp::builder().maximum_size(920).tightening_threshold(920).child(child).build().upcast()
+    }
+
+    fn empty(children: Vec<gtk::Widget>) -> gtk::Widget {
+        let empty = ui::vbox(8, &["empty"]);
+        for child in children {
+            child.set_halign(if child.is::<gtk::Label>() { gtk::Align::Fill } else { gtk::Align::Center });
+            empty.append(&child);
+        }
+        ui::limit_center(&empty, 480).upcast()
+    }
+
+    fn page_head(title: &str, lead: &str) -> gtk::Box {
+        let head = ui::vbox(6, &["page-head"]);
+        head.append(&heading(title, "h1"));
+        head.append(&ui::limit(&pretty(lead, &["lead"]), 640));
+        head
+    }
+
+    fn page_view(&self) -> gtk::Widget {
+        let (page, list) = {
+            let state = self.state.borrow();
+            (state.page, state.list.clone())
+        };
+        let (title, lead) = page_words(page);
+        let view = ui::vbox(28, &["page"]);
+        view.append(&Self::page_head(&title, &lead));
+        let items: Vec<&Item> = list.as_ref().map(|list| list.items.iter().filter(|item| item.page == page).collect()).unwrap_or_default();
+        if items.is_empty() {
+            view.append(&Self::empty(vec![ui::label(&t!("Nothing to set here on this machine."), &[]).upcast()]));
+        } else {
+            for section in self.sections(&items) {
+                view.append(&section);
+            }
+        }
+        if page == "system" {
+            let line = Flex::new(4, 0, &[]);
+            line.append(&ui::label(&t!("Security settings are in Amethystora Security, and automatic updates in Updates."), &["soft", "small"]));
+            line.append(&self.link_button(&t!("Open Security"), "shield", |this| this.open_link("security")));
+            view.append(&line);
+        }
+        Self::page(&view)
+    }
+
+    fn search_view(&self) -> gtk::Widget {
+        let (search, list) = {
+            let state = self.state.borrow();
+            (state.search.clone(), state.list.clone())
+        };
+        let words: Vec<String> = plain(&search).split_whitespace().map(str::to_string).collect();
+        let found: Vec<&Item> = list.as_ref().map(|list| list.items.iter().filter(|item| matches(item, &words)).collect()).unwrap_or_default();
+        let view = ui::vbox(28, &["page"]);
+        if found.is_empty() {
+            let actions = Self::actions(vec![
+                self.button(&t!("Open Security"), Look { icon: Some("shield"), small: true, ..Default::default() }, |this| this.open_link("security")).upcast(),
+                self.button(&t!("Open Updates"), Look { icon: Some("refresh"), small: true, ..Default::default() }, |this| this.open_link("updates")).upcast(),
+            ]);
+            view.append(&Self::empty(vec![
+                centered(heading(&t!("Nothing matches"), "h2")).upcast(),
+                centered(ui::label(&t!("Security settings are in Amethystora Security, and automatic updates in Updates."), &[])).upcast(),
+                actions.upcast(),
+            ]));
+            return Self::page(&view);
+        }
+        view.append(&Self::page_head(
+            &t!("Search"),
+            &t!("{count, plural, one {One setting matches} other {# settings match}} “{search}”.", count = found.len(), search = &search),
+        ));
+        for page in backend::PAGES {
+            let here: Vec<&Item> = found.iter().copied().filter(|item| item.page == page).collect();
+            if !here.is_empty() {
+                view.append(&self.section(Some(&page_words(page).0), &here));
+            }
+        }
+        Self::page(&view)
+    }
+
+    fn loading_view(&self) -> gtk::Widget {
+        let loading = role_box(gtk::Orientation::Vertical, 0, &["loading"], gtk::AccessibleRole::Status);
+        // min-height: 50vh, half the window as it is now, or as it opens
+        let height = self.shell.window.height();
+        loading.set_size_request(-1, if height > 0 { height / 2 } else { 420 });
+        loading.set_vexpand(false);
+        let middle = ui::vbox(12, &[]);
+        middle.set_vexpand(true);
+        middle.set_valign(gtk::Align::Center);
+        middle.set_halign(gtk::Align::Center);
+        let gem = Gem::plain(34.0);
+        gem.add_css_class("gem");
+        middle.append(&gem);
+        middle.append(&ui::line(&t!("Reading the settings…"), &[]));
+        loading.append(&middle);
+        loading.upcast()
+    }
+
+    fn error_view(&self) -> gtk::Widget {
+        let error = self.state.borrow().error.clone();
+        let view = ui::vbox(28, &["page"]);
+        view.append(&Self::empty(vec![
+            centered(heading(&t!("The settings could not be read"), "h2")).upcast(),
+            centered(ui::label(&error, &[])).upcast(),
+            Self::actions(vec![self.button(&t!("Try again"), Look { icon: Some("refresh"), primary: true, ..Default::default() }, |this| this.load(false)).upcast()]).upcast(),
+        ]));
+        Self::page(&view)
+    }
+
+    // --- The window ---------------------------------------------------------------------------------------
+
+    fn render_nav(&self) {
+        let state = self.state.borrow();
+        for (page, button) in &self.parts.pages {
+            button.set_current(state.search.is_empty() && *page == state.page);
+        }
+        let updates = state.list.as_ref().and_then(|list| list.automatic_updates.clone());
+        let label = &self.parts.updates_state;
+        label.set_label(&match updates.as_deref() {
+            Some("on") => t!("On"),
+            Some("off") => t!("Off"),
+            _ => String::new(),
+        });
+        if updates.as_deref() == Some("on") {
+            label.add_css_class("on");
+        } else {
+            label.remove_css_class("on");
+        }
+        self.parts.backups.set_visible(state.list.as_ref().is_some_and(|list| list.backups));
+    }
+
+    /// Drawn again in place, at the same scroll, as a change comes back
+    pub(crate) fn render(&self) {
+        self.render_nav();
+        let adjustment = self.parts.scroller.vadjustment();
+        let top = adjustment.value();
+        // What had the focus goes with the page, and the focus with it to no widget, as it went to the
+        // page's body: GTK would otherwise hand it to the next widget it finds, and scroll to that
+        let window = &self.shell.window;
+        let inside = |area: &gtk::Box| gtk::prelude::GtkWindowExt::focus(window).is_some_and(|focus| focus.is_ancestor(area));
+        if inside(&self.parts.view) || inside(&self.parts.banner) {
+            gtk::prelude::GtkWindowExt::set_focus(window, None::<&gtk::Widget>);
+        }
+        ui::clear(&self.parts.banner);
+        let banner = self.banner();
+        self.parts.banner.set_visible(banner.is_some());
+        if let Some(banner) = banner {
+            self.parts.banner.append(&banner);
+        }
+        ui::clear(&self.parts.view);
+        let (has_list, has_error, searching) = {
+            let state = self.state.borrow();
+            (state.list.is_some(), !state.error.is_empty(), !state.search.is_empty())
+        };
+        let content = if !has_list {
+            if has_error { self.error_view() } else { self.loading_view() }
+        } else if searching {
+            self.search_view()
+        } else {
+            self.page_view()
+        };
+        self.parts.view.append(&content);
+        adjustment.set_value(top);
+        // Once the page is laid out again, which may move the focus and with it the scroll
+        let adjustment = adjustment.clone();
+        glib::idle_add_local_once(move || {
+            if (adjustment.value() - top).abs() > 0.5 {
+                adjustment.set_value(top);
+            }
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn plain_letters() {
+        assert_eq!(plain("Écran Noël"), "ecran noel");
+        assert_eq!(plain("Fond d’écran"), "fond d’ecran");
+        assert_eq!(plain("SCHEDULER"), "scheduler");
+    }
+
+    #[test]
+    fn names_the_changes() {
+        assert_eq!(change_name(&json!({"area": "packages", "container": "debian", "packages": ["a", "b"]})), "debian: a, b");
+        assert_eq!(change_name(&json!({"area": "favorites", "to": ["x.desktop", "y.desktop"], "from": ["x.desktop"]})), "x.desktop, y.desktop");
+        assert_eq!(change_name(&json!({"area": "favorites", "action": "remove", "from": ["x.desktop"]})), "x.desktop");
+        assert_eq!(change_name(&json!({"area": "keybinding", "schema": "custom", "key": "terminal"})), "terminal");
+        assert_eq!(change_name(&json!({"area": "keybinding", "schema": "org.gnome.desktop.wm.keybindings", "key": "close"})), "org.gnome.desktop.wm.keybindings close");
+        assert_eq!(change_name(&json!({"area": "flatpak", "app": "org.gimp.GIMP"})), "org.gimp.GIMP");
+        assert_eq!(change_name(&json!({"area": "theme", "to": "nord", "from": "amethystora"})), "nord");
+        assert_eq!(change_name(&json!({"area": "gap", "key": "window-gap", "from": 12})), "window-gap");
+        assert_eq!(change_name(&json!({"area": "image", "name": "amethystora", "to": "amethystora:stable"})), "amethystora");
+        assert_eq!(change_kind(&json!({"ok": false, "action": "add"})), "cannot");
+        assert_eq!(change_kind(&json!({"ok": true, "action": "set"})), "set");
+        assert_eq!(change_kind(&json!({"action": "add"})), "cannot");
+    }
+
+    #[test]
+    fn finds_by_every_word() {
+        let item = Item {
+            page: "appearance".into(),
+            title: "Transition".into(),
+            text: Some("How a new théme is revealed.".into()),
+            choices: vec![crate::backend::Choice { value: "wave".into(), title: "Wave".into(), text: Some("A wavy edge".into()), ..Default::default() }],
+            ..Default::default()
+        };
+        let words = |text: &str| plain(text).split_whitespace().map(str::to_string).collect::<Vec<_>>();
+        assert!(matches(&item, &words("theme")));
+        assert!(matches(&item, &words("WAVY  revealed")));
+        assert!(matches(&item, &words("appearance")));
+        assert!(!matches(&item, &words("wavy scheduler")));
+        assert!(matches(&item, &[]));
+    }
+
+    #[test]
+    fn seconds_as_the_language_writes_them() {
+        assert_eq!(seconds(1200.0), "1.2 sec");
+        assert_eq!(seconds(5000.0), "5 sec");
+        assert_eq!(seconds(250.0), "0.3 sec");
+    }
+}

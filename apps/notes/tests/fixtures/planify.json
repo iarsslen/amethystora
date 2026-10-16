@@ -1,0 +1,103 @@
+{
+  "version": "2.0",
+  "date": "2024-05-03T10:00:00",
+  "labels": [
+    {
+      "id": "L1",
+      "name": "Phone",
+      "color": "berry_red",
+      "is_deleted": false
+    },
+    {
+      "id": "L2",
+      "name": "Old",
+      "color": "blue",
+      "is_deleted": true
+    }
+  ],
+  "projects": [
+    {
+      "id": "inbox-1",
+      "name": "Inbox",
+      "color": "blue",
+      "inbox_project": true,
+      "child_order": 0,
+      "is_deleted": false
+    },
+    {
+      "id": "P1",
+      "name": "Garden",
+      "color": "olive_green",
+      "inbox_project": false,
+      "child_order": 3,
+      "is_deleted": false
+    }
+  ],
+  "sections": [
+    {
+      "id": "S1",
+      "project_id": "P1",
+      "name": "Spring",
+      "section_order": 1,
+      "is_deleted": false,
+      "is_archived": false
+    }
+  ],
+  "items": [
+    {
+      "id": "I1",
+      "content": "Water the roses",
+      "description": "Before nine",
+      "due": "{\"date\":\"2024-05-04T08:30:00\",\"is_recurring\":true,\"recurrency_type\":2,\"recurrency_interval\":3}",
+      "added_at": "2024-05-01T10:00:00",
+      "completed_at": "",
+      "checked": false,
+      "priority": 4,
+      "project_id": "P1",
+      "section_id": "S1",
+      "parent_id": "",
+      "labels": [
+        "phone"
+      ],
+      "pinned": true,
+      "child_order": 2,
+      "is_deleted": false
+    },
+    {
+      "id": "I2",
+      "content": "Buy seeds",
+      "description": "",
+      "due": "{\"date\":\"\"}",
+      "added_at": "2024-05-01T11:00:00",
+      "completed_at": "2024-05-02T09:00:00",
+      "checked": true,
+      "priority": 1,
+      "project_id": "P1",
+      "section_id": "",
+      "parent_id": "I1",
+      "labels": [],
+      "pinned": false,
+      "child_order": 1,
+      "is_deleted": false
+    },
+    {
+      "id": "I3",
+      "content": "Call the plumber",
+      "description": "",
+      "due": "{\"date\":\"2024-05-06\"}",
+      "added_at": "2024-05-02T08:00:00",
+      "checked": false,
+      "priority": 3,
+      "project_id": "inbox-1",
+      "section_id": "",
+      "parent_id": "",
+      "labels": [
+        "Phone",
+        "Old"
+      ],
+      "pinned": false,
+      "child_order": 0,
+      "is_deleted": false
+    }
+  ]
+}

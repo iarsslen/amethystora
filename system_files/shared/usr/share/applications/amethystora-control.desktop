@@ -9,7 +9,7 @@ Terminal=false
 Categories=Settings;System;
 Keywords=settings;control;theme;wallpaper;transition;layout;tiling;widgets;greeting;games;steam;android;waydroid;tablet;aur;web apps;agent;image;stream;rebase;developer;scheduler;reset;setup;
 StartupNotify=true
-StartupWMClass=amethystora-control
+StartupWMClass=org.amethystora.Control
 Actions=appearance;system;
 
 [Desktop Action appearance]

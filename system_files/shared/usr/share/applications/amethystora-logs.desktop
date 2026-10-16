@@ -9,7 +9,7 @@ Terminal=false
 Categories=System;Monitor;
 Keywords=logs;log;journal;journalctl;syslog;errors;warnings;crash;crashes;coredump;kernel;dmesg;boot;debug;
 StartupNotify=true
-StartupWMClass=amethystora-logs
+StartupWMClass=org.amethystora.Logs
 Actions=crashes;apps;
 
 [Desktop Action crashes]

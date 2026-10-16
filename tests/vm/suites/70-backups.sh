@@ -3,10 +3,11 @@
 # out, the home folders a btrfs subvolume of their own, with the hourly snapshots on and the daily backup going
 # to an append-only rest-server: what the helper lists, finds and puts back from both, as the account; that
 # putting back shares a snapshot's blocks, takes the SELinux label of where it lands, refuses what leads out of
-# the home, and deletes nothing; and the window, used through its page as a person would (cdp.mjs): back up now
-# with the journal followed, the daily run, keep both, versions, look, the whole folder, a stale and a failed
-# backup, the agent, setting up, Security, and opening it on a folder as Files does. `bootc install to-disk`
-# makes no home subvolume, so phase 1 makes one, as the installer would have, and restarts.
+# the home, and deletes nothing; and the window, used through its accessibility tree as a person would
+# (atspi.py): back up now with the journal followed, the daily run, keep both, versions, look, the whole folder,
+# a stale and a failed backup, the agent, setting up, Security, and opening it on a folder as Files does.
+# `bootc install to-disk` makes no home subvolume, so phase 1 makes one, as the installer would have, and
+# restarts.
 source "$(dirname "$0")/lib.sh"
 cd /
 
@@ -20,9 +21,11 @@ REST_PASSWORD=vmlab-rest-account
 REPO_PASSWORD=vmlab-repository-key
 REPO="rest:http://${TEST_USER}:${REST_PASSWORD}@127.0.0.1:8000/${TEST_USER}/"
 SHOWN="rest:http://127.0.0.1:8000/${TEST_USER}/"
-# The window's page, reachable over Chromium's debugging protocol on this port
-PORT=9333
-ELECTRON=/usr/lib/amethystora-backups/amethystora-backups
+# The window, as the accessibility tree names it, and its program
+APP=amethystora-backups
+BINARY=/usr/lib/amethystora-backups/amethystora-backups
+# atspi.py where the account can run it: the suites' own folder is root's
+ATSPI=/run/vmlab-backups/atspi.py
 OPENED=/tmp/vmlab-opened
 
 # After a restart, the session comes back by itself (GDM signs the account in). Without one after this suite's
@@ -70,49 +73,96 @@ snapshot() {
 }
 backup_ids() { restore points | jq -r '.points[] | select(.source == "backup") | .id'; }
 in_home() { as_tester bash -c "cd ~ && $1"; }
-# The window's page (cdp.mjs): BODY run in it, and what it returns
-page() { ELECTRON_RUN_AS_NODE=1 "${ELECTRON}" "${HERE}/cdp.mjs" "${PORT}" "$1"; }
-# The window, started as its launcher starts it, in English, with its page reachable; ARGS after its own
+
+# --- The window, through its accessibility tree ---------------------------------------------------------
+
+# atspi.py on the window, as the account, on its session's accessibility bus
+atspi() { user_bus python3 "${ATSPI}" "${APP}" "$@"; }
+# Whether the window shows TEXT (a name, a label's text)
+has() { atspi has "$1"; }
+# What the window says, one line each
+says() { atspi text 2>/dev/null; }
+# atspi_state TEXT STATE: the first widget named TEXT is checked, selected...
+atspi_state() {
+    user_bus python3 - "${ATSPI%/*}" "${APP}" "$1" "$2" <<'EOF'
+import sys
+sys.path.insert(0, sys.argv[1])
+import atspi
+from gi.repository import Atspi
+app = atspi.application(sys.argv[2])
+node = atspi.find(app, sys.argv[3]) if app else None
+sys.exit(0 if node and node.get_state_set().contains(getattr(Atspi.StateType, sys.argv[4].upper())) else 1)
+EOF
+}
+# The window, started as its launcher starts it, in English; ARGS after its own
 WINDOW_UNIT=""
 window() {
     WINDOW_UNIT="vmlab-backups-${RANDOM}"
     user_bus systemd-run --user --unit="${WINDOW_UNIT}" --collect --quiet --setenv=LC_ALL=en_US.UTF-8 \
-        --setenv=LANGUAGE=en -- /usr/bin/amethystora-backups "--remote-debugging-port=${PORT}" \
-        '--remote-allow-origins=*' "$@"
-    wait_for 120 page 'if (!state.status || !state.timeline) throw new Error("still loading")'
+        --setenv=LANGUAGE=en -- /usr/bin/amethystora-backups "$@"
+    # What is set up and every point in time read, the folder's heading shown
+    atspi wait 120 "as it was" >/dev/null 2>&1
 }
 # Closed as quitting closes it: its main process told to end
 close_window() {
     [[ -z "${WINDOW_UNIT}" ]] || user_systemctl kill --kill-whom=main --signal=SIGTERM "${WINDOW_UNIT}.service" >/dev/null 2>&1
-    wait_for 30 sh -c "! pgrep -u ${TEST_USER} -f '^${ELECTRON}'"
+    wait_for 30 sh -c "! pgrep -u ${TEST_USER} -f '^${BINARY}'"
+}
+# What the window calls a point in time, as a screen reader hears it: its day, its time and where it is kept,
+# in American English as the window is started (en_US: "Today, 02:05 PM, On this machine")
+point_label() {
+    local point time day
+    point="$(restore points | jq -c --arg id "$1" '.points[] | select(.id == $id)')"
+    time="$(jq -r .time <<<"${point}")"
+    case "$(date -d "@${time}" +%F)" in
+        "$(date +%F)") day=Today ;;
+        "$(date -d yesterday +%F)") day=Yesterday ;;
+        *) day="$(LC_ALL=en_US.UTF-8 date -d "@${time}" '+%A, %B %-d')" ;;
+    esac
+    printf '%s, %s, %s' "${day}" "$(LC_ALL=en_US.UTF-8 date -d "@${time}" '+%I:%M %p')" \
+        "$([[ "$(jq -r .source <<<"${point}")" == local ]] && echo 'On this machine' || echo 'In the backup')"
+}
+# Shown at the point the timeline names LABEL (point_label), with the folder whose heading is HEADING read
+showing() {
+    atspi_state "$1" selected && has "$2 as it was" && ! has "Reading the folder…"
+}
+# Shown at the point ID, so
+shown_at() {
+    local label
+    label="$(point_label "$1")" && wait_for "$3" showing "${label}" "$2"
 }
 # The timeline's point ID picked, and its listing of the folder shown read
 go_to() {
-    page "const i = state.timeline.points.findIndex((p) => p.id === '$1');
-        if (i < 0) throw new Error('no point $1 in ' + JSON.stringify(state.timeline.points));
-        document.querySelectorAll('.moment')[i].click();" >/dev/null &&
-        wait_for 180 page "if (state.point !== '$1' || !state.listing || !state.listing.entries) throw 0"
+    local label
+    label="$(point_label "$1")"
+    atspi click "${label}" button >/dev/null && wait_for 180 showing "${label}" "$2"
 }
-# The folder NAME in the listing opened, then RELATIVE (its path in the home) shown
+# The folder NAME in the listing opened, the window then at POINT
 open_folder() {
-    page "click('.file-name.folder', '$1')" >/dev/null &&
-        wait_for 180 page "if (state.folder !== '$2' || !state.listing || !state.listing.entries) throw 0"
+    atspi click "$1" button >/dev/null && shown_at "$2" "$1" 180
 }
-select_file() {
-    page "const row = [...document.querySelectorAll('.file-row')].find((r) => r.querySelector('.file-name').textContent === '$1');
-        if (!row) throw new Error('no row for $1');
-        const box = row.querySelector('input');
-        if (!box.checked) box.click();
-        return true;" >/dev/null
+# A row of the folder ticked, once the list shows it, and seen ticked
+select_file() { atspi wait 60 "Select $1" >/dev/null && atspi check "Select $1" on && wait_for 30 atspi_state "Select $1" checked; }
+# The last thing done in the window came to TEXT, once it has
+banner_says() {
+    if wait_for 300 has "$1"; then
+        ok "$2"
+    else
+        not_ok "$2" "$(says | tail -n 30)"
+    fi
 }
-# What the last thing done in the window came to, once it has
-banner() {
-    wait_for 300 page 'if (state.working || !state.banner) throw 0' && page 'return state.banner'
+# What Ctrl+R does: what is set up and every point read again, as the application's own action, whose
+# outcome the checks after it wait for
+reload() {
+    user_bus gdbus call --session --dest org.amethystora.Backups --object-path /org/amethystora/Backups \
+        --method org.gtk.Actions.Activate reload '[]' '{}' >/dev/null
 }
-# What Ctrl+R does: what is set up and every point read again
-reload() { page 'await load({ quiet: true })' >/dev/null; }
-show_status() { page 'click(".nav [data-page=status]")' >/dev/null && sleep 1; }
-show_browse() { page 'click(".nav [data-page=browse]")' >/dev/null && sleep 1; }
+# Each row of a folder is named for its entry and how it is now
+rows_marked() { has 'report.txt, Changed since' && has 'big.bin, Same as now'; }
+versions_read() { has 'Versions of report.txt' && ! has 'Looking for every version'; }
+stale_said() { has "No backup has succeeded for 8 days" && has "Last good backup 8 days ago"; }
+show_status() { atspi click Status button >/dev/null && atspi wait 30 "Daily backup" >/dev/null; }
+show_browse() { atspi click Browse button >/dev/null && atspi wait 60 "as it was" >/dev/null; }
 
 cleanup() {
     close_window
@@ -249,42 +299,69 @@ json_check "versions: the three that differ, from both sources, newest first" "$
 
 # --- The window: backing up ------------------------------------------------------------------------------
 
+install -d -m 0755 /run/vmlab-backups
+install -m 0644 "${HERE}/atspi.py" "${ATSPI}"
 window
-check "the window opens on the home folder at the newest point" page \
-    'if (state.folder !== "" || state.point !== state.timeline.points[0].id) throw new Error(state.folder + " " + state.point)'
-check "its timeline has both, marked by where each is kept" page '
-    if (state.timeline.backup !== "ok") throw new Error(state.timeline.backup + " " + state.timeline.detail);
-    const local = document.querySelectorAll(".moment.local").length, backup = document.querySelectorAll(".moment.backup").length;
-    if (local < 3 || backup !== 1) throw new Error(local + " local, " + backup + " in the backup");'
+newest="$(restore points | jq -r '.points[0].id')"
+check "the window opens on the home folder at the newest point" shown_at "${newest}" "Your home folder" 60
+said="$(says)"
+local_points="$(grep -c ', On this machine$' <<<"${said}")"
+backup_points="$(grep -c ', In the backup$' <<<"${said}")"
+if ((local_points >= 3 && backup_points == 1)) && ! grep -qF "The backup could not be read" <<<"${said}"; then
+    ok "its timeline has both, marked by where each is kept"
+else
+    not_ok "its timeline does not have both" "${local_points} on this machine, ${backup_points} in the backup" "$(tail -n 30 <<<"${said}")"
+fi
 
 show_status
-check "Back up now starts the backup" page '
-    window.vmlabLines = [];
-    window.backups.onBackupLine((line) => window.vmlabLines.push(line));
-    click(".card .btn", "Back up now");'
-if wait_for 600 page 'if (!state.backup || state.backup.running) throw 0'; then
-    done_="$(page 'return { ok: state.backup.ok, lines: window.vmlabLines, said: document.body.innerText.includes("Your home folder is in the backup as it is now.") }')"
-    json_check "it says the backup succeeded" "${done_}" '.ok and .said'
-    json_check "it follows the run in the journal as it goes" "${done_}" 'any(.lines[]; contains("Snapshots in this repository"))'
-    json_check "from its first line" "${done_}" 'any(.lines[]; startswith("Backing up "))'
-    json_check "what it followed has no password" "${done_}" "all(.lines[]; contains(\"${REST_PASSWORD}\") | not)"
+# The run followed as it goes: what the window shows of it read until it says how it went
+: >"${KEEP}/window-lines"
+rm -f "${KEEP}/first-line"
+followed=false
+# The window shows the run's last lines only: its first is looked for all along, beside the reading below
+(atspi wait 600 "Backing up /" >/dev/null 2>&1 && touch "${KEEP}/first-line") &
+first_line=$!
+if atspi click "Back up now" button >/dev/null; then
+    deadline=$((SECONDS + 600))
+    while ((SECONDS < deadline)); do
+        said="$(says)"
+        printf '%s\n' "${said}" >>"${KEEP}/window-lines"
+        pgrep -u "${TEST_USER}" -f "journalctl --user --user-unit=amethystora-backup.service --follow" >/dev/null && followed=true
+        grep -qx -e "Your home folder is in the backup as it is now." -e "The backup did not succeed" <<<"${said}" && break
+    done
+    if grep -qx "Your home folder is in the backup as it is now." <<<"${said}"; then
+        ok "Back up now starts the backup, and it says the backup succeeded"
+    else
+        not_ok "the backup started from the window did not end well within 10 minutes" "$(tail -n 30 <<<"${said}")"
+    fi
+    [[ "${followed}" == true ]] && ok "it follows the run in the journal as it goes" ||
+        not_ok "it did not follow the run in the journal" "$(sort -u "${KEEP}/window-lines" | tail -n 20)"
+    if [[ -e "${KEEP}/first-line" ]] || grep -q '^Backing up /' "${KEEP}/window-lines"; then
+        ok "from its first line"
+    else
+        not_ok "the run's first line was not shown" "$(sort -u "${KEEP}/window-lines" | tail -n 20)"
+    fi
+    grep -qF "${REST_PASSWORD}" "${KEEP}/window-lines" && not_ok "what it followed has a password" ||
+        ok "what it followed has no password"
 else
-    not_ok "the backup started from the window did not end within 10 minutes" "$(page 'return state.backup' 2>&1)"
+    not_ok "there is no Back up now on the status page" "$(says | tail -n 30)"
 fi
-check "the new backup is on the timeline" wait_for 120 page \
-    'if (state.timeline.points.filter((p) => p.source === "backup").length !== 2) throw 0'
+pkill -u "${TEST_USER}" -f "${ATSPI} ${APP} wait 600 Backing up" 2>/dev/null
+wait "${first_line}" 2>/dev/null
+backups_shown() { [[ "$(says | grep -c ', In the backup$')" == 2 ]]; }
+show_browse
+check "the new backup is on the timeline" wait_for 120 backups_shown
 B2="$(backup_ids | head -n 1)"
 
-check "Turn off the daily run" page 'click(".card .btn", "Turn off the daily run")'
-if wait_for 60 page 'if (state.dailyBusy || state.status.backup.daily) throw 0' &&
-    ! as_tester systemctl --user is-enabled --quiet amethystora-backup.timer; then
+show_status
+check "Turn off the daily run" atspi click "Turn off the daily run" button
+if wait_for 60 has "Turn on the daily run" && ! as_tester systemctl --user is-enabled --quiet amethystora-backup.timer; then
     ok "the daily run is off, its timer disabled"
 else
     not_ok "the daily run did not go off" "$(as_tester systemctl --user is-enabled amethystora-backup.timer 2>&1)"
 fi
-check "Turn on the daily run" page 'click(".card .btn", "Turn on the daily run")'
-if wait_for 60 page 'if (state.dailyBusy || !state.status.backup.daily) throw 0' &&
-    as_tester systemctl --user is-enabled --quiet amethystora-backup.timer; then
+check "Turn on the daily run" atspi click "Turn on the daily run" button
+if wait_for 60 has "Turn off the daily run" && as_tester systemctl --user is-enabled --quiet amethystora-backup.timer; then
     ok "the daily run is on again, its timer enabled"
 else
     not_ok "the daily run did not come back on"
@@ -294,7 +371,6 @@ fi
 
 # A file Look hands to the desktop is recorded by an app made the default for text, which the account can
 # run: not under /var/lib/vmlab-tests, which 50-raid.sh keeps to root
-install -d -m 0755 /run/vmlab-backups
 cat >/run/vmlab-backups/opener <<EOF
 #!/bin/sh
 printf '%s\n' "\$1" >>${OPENED}
@@ -372,59 +448,68 @@ json_check "open from a snapshot: the snapshot's own file" "${out}" ".opened == 
 in_home 'printf "version 3\n" >Documents/report.txt && printf "a 3\n" >Documents/notes/a.txt'
 S2_WHEN="$(when "${S2}")"
 show_browse
-if go_to "${S2}" && open_folder Documents Documents; then
+if go_to "${S2}" "Your home folder" && open_folder Documents "${S2}"; then
     ok "the window shows Documents as it was at a snapshot"
-    check "it marks what is gone and what changed since" page '
-        const tag = (name) => [...document.querySelectorAll(".file-row")].find((r) => r.querySelector(".file-name").textContent === name)?.querySelector(".file-now").textContent;
-        if (tag("report.txt") !== "Changed since" || tag("big.bin") !== "Same as now") throw new Error(tag("report.txt") + ", " + tag("big.bin"));'
+    check "it marks what is gone and what changed since" rows_marked
     select_file report.txt
-    check "Put back asks what to do with what is there now" page '
-        click(".selection-bar .btn", "Put back");
-        await new Promise((r) => setTimeout(r, 500));
-        if (!find(".dialog [role=radio][aria-checked=true]", "Keep both")) throw new Error("no question, or not Keep both first");
-        click(".dialog .btn.primary");'
-    json_check "keep both puts it back beside" "$(banner)" '.tone == "done" and (.text | contains("beside"))'
+    if atspi click "Put back" button >/dev/null && atspi wait 30 "Keep both" >/dev/null; then
+        if atspi_state "Keep both" checked; then
+            ok "Put back asks what to do with what is there now, Keep both first"
+        else
+            not_ok "the question does not have Keep both first" "$(says | tail -n 20)"
+        fi
+        # The page behind the question is hidden from the accessibility tree while it is asked: this is its own
+        atspi click "Put back" button >/dev/null
+    else
+        not_ok "Put back asks nothing" "$(says | tail -n 20)"
+    fi
+    banner_says "is beside the newer one" "keep both puts it back beside"
     check "the snapshot's version is beside, the newer one untouched" sh -c \
         "grep -qx 'version 2' '${HOME_DIR}/Documents/report (${S2_WHEN}).txt' && grep -qx 'version 3' '${HOME_DIR}/Documents/report.txt'"
 
     select_file report.txt
-    check "Versions lists every version that differs" page 'click(".selection-bar .btn", "Versions")'
-    if wait_for 300 page 'if (!state.versions || state.versions.result === "reading") throw 0'; then
-        check "with a row each, from both sources" page '
-            const result = state.versions.result;
-            if (result.error || result.backup !== "ok") throw new Error(JSON.stringify(result));
-            const rows = document.querySelectorAll(".version-row");
-            if (rows.length !== result.versions.length || rows.length < 3) throw new Error(rows.length + " rows");
-            click(".link", "Back to the folder");'
+    check "Versions lists every version that differs" atspi click Versions button
+    if wait_for 300 versions_read; then
+        said="$(says)"
+        # One line of each row says where it is kept and when it was changed
+        rows="$(grep -c -e '^On this machine · ' -e '^In the backup · ' <<<"${said}")"
+        if ((rows >= 3)) && grep -q '^On this machine · ' <<<"${said}" && grep -q '^In the backup · ' <<<"${said}" &&
+            ! grep -qF "The backup could not be read" <<<"${said}"; then
+            ok "with a row each, from both sources"
+        else
+            not_ok "the versions are not from both sources" "${rows} rows" "$(tail -n 30 <<<"${said}")"
+        fi
+        atspi click "Back to the folder" button >/dev/null
     else
-        not_ok "the versions were not found within 5 minutes"
+        not_ok "the versions were not found within 5 minutes" "$(says | tail -n 20)"
     fi
 else
-    not_ok "the window did not show Documents at ${S2}" "$(page 'return state.listing' 2>&1)"
+    not_ok "the window did not show Documents at ${S2}" "$(says | tail -n 30)"
 fi
 
-if go_to "${B2}"; then
+if go_to "${B2}" Documents; then
     lines="$(wc -l <"${OPENED}" 2>/dev/null || echo 0)"
     select_file report.txt
-    check "Look, at a point in the backup" page 'click(".selection-bar .btn", "Look")'
-    json_check "says it opened a read-only copy" "$(banner)" '.tone == "done" and (.text | startswith("Opened read-only"))'
+    check "Look, at a point in the backup" atspi click Look button
+    banner_says "Opened read-only" "says it opened a read-only copy"
     check "and handed the backup's copy to the app" wait_for 30 sh -c \
         "tail -n +$((lines + 1)) '${OPENED}' | grep -q '/.cache/amethystora-restore/look/${B2}\.'"
 else
-    not_ok "the window did not go to the backup ${B2}"
+    not_ok "the window did not go to the backup ${B2}" "$(says | tail -n 30)"
 fi
 
-if go_to "${S1}" && open_folder notes Documents/notes; then
-    check "Put the whole folder back asks first" page '
-        click(".folder-tools .btn", "Put the whole folder back");
-        await new Promise((r) => setTimeout(r, 500));
-        if (!has("nothing is deleted")) throw new Error("no warning");
-        click(".dialog .btn.primary", "Put the folder back");'
-    json_check "puts it back" "$(banner)" '.tone == "done"'
+if go_to "${S1}" Documents && open_folder notes "${S1}"; then
+    if atspi click "Put the whole folder back" button >/dev/null && atspi wait 30 "nothing is deleted" >/dev/null; then
+        ok "Put the whole folder back asks first"
+        atspi click "Put the folder back" button >/dev/null
+    else
+        not_ok "Put the whole folder back gives no warning" "$(says | tail -n 20)"
+    fi
+    banner_says "What had the same name was replaced." "puts it back"
     check "what had the same name is the snapshot's again" grep -qx "a 1" "${HOME_DIR}/Documents/notes/a.txt"
     check "what the snapshot lacked is still there" grep -qx "c 2" "${HOME_DIR}/Documents/notes/c.txt"
 else
-    not_ok "the window did not show Documents/notes at ${S1}"
+    not_ok "the window did not show Documents/notes at ${S1}" "$(says | tail -n 30)"
 fi
 
 # --- The window: opened on a folder ----------------------------------------------------------------------
@@ -436,18 +521,16 @@ grep -q 'amethystora-backups.desktop' <<<"${folders}" && ok "Backups is offered 
     not_ok "Backups is not among the apps that open a folder" "${folders}"
 # As Files' Open With does it: the launcher with the folder, which the open window takes over. The window is
 # on the home folder first, so that only the launch can take it to the folder.
-page 'click(".crumb", "Home")' >/dev/null
-wait_for 60 page 'if (state.folder !== "" || !state.listing?.entries) throw 0'
+atspi click Home button >/dev/null
+atspi wait 60 "Your home folder as it was" >/dev/null
 user_bus systemd-run --user --collect --quiet -p KillMode=process -- \
     gio launch /usr/share/applications/amethystora-backups.desktop "${HOME_DIR}/Documents/notes"
-check "Open With on a folder shows that folder in the open window" wait_for 60 page \
-    'if (state.folder !== "Documents/notes" || !state.listing?.entries) throw 0'
+check "Open With on a folder shows that folder in the open window" atspi wait 60 "notes as it was"
 check "and the second start ends, leaving that window" wait_for 30 sh -c \
-    "! pgrep -u ${TEST_USER} -f '^${ELECTRON} ${HOME_DIR}/Documents/notes'"
+    "! pgrep -u ${TEST_USER} -f '^${BINARY} ${HOME_DIR}/Documents/notes'"
 close_window
 window "--at=${S1}" "${HOME_DIR}/Documents"
-check "amethystora-backups --at=POINT FOLDER opens there" page \
-    "if (state.folder !== 'Documents' || state.point !== '${S1}') throw new Error(state.folder + ' at ' + state.point)"
+check "amethystora-backups --at=POINT FOLDER opens there" shown_at "${S1}" Documents 120
 
 # --- The window: when the backup goes wrong --------------------------------------------------------------
 
@@ -457,10 +540,12 @@ report="$(as_tester /usr/libexec/amethystora-security-status --json 2>/dev/null)
 json_check "the security report warns about it (backup-runs)" "${report}" '.checks[] | select(.id == "backup-runs") | .state == "check"'
 reload
 show_status
-check "the window says so, with the agent offered" page '
-    if (!has("No backup has succeeded for 8 days")) throw new Error("not said");
-    if (document.getElementById("status-dot").hidden) throw new Error("no dot on Status");
-    click(".link", "Ask the agent");'
+if wait_for 120 stale_said; then
+    ok "the window says so, at the top of every page too"
+    check "with the agent offered" atspi click "Ask the agent" button
+else
+    not_ok "the window does not say the backup is stale" "$(says | tail -n 30)"
+fi
 check "Ask the agent hands it the backup's unit" wait_for 60 pgrep -u "${TEST_USER}" -f 'amethystora-agent diagnose amethystora-backup.service'
 pkill -u "${TEST_USER}" -f 'amethystora-agent diagnose' 2>/dev/null
 as_tester sh -c 'date +%s >"$HOME/.local/state/amethystora/backup-last-success"'
@@ -471,25 +556,31 @@ json_check "the report's check is good again after a good backup" "${report}" '.
 as_tester sh -c "printf wrong >\"\$HOME/.config/amethystora/backup-password\""
 reload
 show_browse
-check "with the backup unreadable, the snapshots are still shown and it says why" page '
-    if (state.timeline.backup !== "unreachable") throw new Error(state.timeline.backup);
-    if (!state.timeline.points.length || !has("The backup could not be read")) throw new Error("not said");'
-show_status
-page 'click(".card .btn", "Back up now")' >/dev/null
-if wait_for 300 page 'if (!state.backup || state.backup.running) throw 0'; then
-    check "a backup that fails says so, with what it logged and the agent" page '
-        if (state.backup.ok) throw new Error("said it succeeded");
-        if (!has("The backup did not succeed") || !find(".log", "wrong password")) throw new Error("no log");
-        if (!find(".link", "Ask the agent")) throw new Error("no agent");'
+wait_for 180 has "The backup could not be read"
+said="$(says)"
+if grep -qF "The backup could not be read" <<<"${said}" && grep -q ', On this machine$' <<<"${said}"; then
+    ok "with the backup unreadable, the snapshots are still shown and it says why"
 else
-    not_ok "the failing backup did not end within 5 minutes"
+    not_ok "it does not say the backup could not be read" "$(tail -n 30 <<<"${said}")"
+fi
+show_status
+atspi click "Back up now" button >/dev/null
+if wait_for 300 has "The backup did not succeed"; then
+    said="$(says)"
+    if grep -qF "wrong password" <<<"${said}" && grep -qx "Ask the agent" <<<"${said}"; then
+        ok "a backup that fails says so, with what it logged and the agent"
+    else
+        not_ok "the failed backup's log or the agent is not shown" "$(tail -n 30 <<<"${said}")"
+    fi
+else
+    not_ok "the failing backup did not end within 5 minutes" "$(says | tail -n 30)"
 fi
 as_tester sh -c "printf '%s' '${REPO_PASSWORD}' >\"\$HOME/.config/amethystora/backup-password\""
 
-check "Change… opens ame backup setup in a terminal" page 'click(".card .btn", "Change")'
+check "Change… opens ame backup setup in a terminal" atspi click "Change…" button
 check "where the recipe runs" wait_for 60 pgrep -u "${TEST_USER}" -f '00-entry.just backup setup'
 pkill -u "${TEST_USER}" -f 'amethystora-in-terminal ame backup|ame backup setup' 2>/dev/null
-check "Security settings opens Security" page 'click("#open-security")'
+check "Security settings opens Security" atspi click "Security settings" button
 check "which starts" wait_for 90 pgrep -u "${TEST_USER}" -f '^/usr/lib/amethystora-security/amethystora-security'
 pkill -TERM -o -u "${TEST_USER}" -f '^/usr/lib/amethystora-security/amethystora-security' 2>/dev/null
 

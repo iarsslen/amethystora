@@ -1,0 +1,27 @@
+#!/usr/bin/python3
+# A stand-in for libfido2's fido2-token, for the passkey tests: -L lists the keys config.json plugs in, as
+# fido2-token prints them, and -I DEVICE says what the key can do (options and extension strings).
+import json
+import os
+import sys
+
+here = os.path.dirname(os.path.abspath(__file__))
+with open(os.path.join(here, 'config.json')) as file:
+    config = json.load(file)
+args = sys.argv[1:]
+with open(os.path.join(here, 'calls.log'), 'a') as log:
+    log.write(json.dumps({'tool': 'fido2-token', 'args': args}) + '\n')
+if args == ['-L']:
+    for line in config['list']:
+        print(line)
+elif args == ['-I', config['device']]:
+    print('proto: 0x02')
+    print('major: 0x05')
+    print('version strings: U2F_V2, FIDO_2_0, FIDO_2_1_PRE')
+    print('extension strings: ' + ', '.join(config['extensions']))
+    print('aaguid: cb69481e8ff7403993ec0a2729a154a8')
+    print('options: ' + ', '.join(config['options']))
+    print('maxmsgsiz: 1200')
+else:
+    sys.stderr.write('usage: fido2-token -I [-cd] [-k rp_id -i cred_id] device\n')
+    sys.exit(1)
