@@ -1917,6 +1917,9 @@ KERNEL_VERSION="$(rpm -q kernel-core --queryformat '%{VERSION}-%{RELEASE}.%{ARCH
 modinfo "/usr/lib/modules/${KERNEL_VERSION}/extra/evdi/evdi.ko.xz" >/dev/null
 test -f /usr/lib/udev/rules.d/99-displaylink.rules
 systemctl is-enabled displaylink.service
+# Skipped, not restarted every five seconds, where evdi cannot load (Secure Boot without the key enrolled)
+grep -qx "ExecStartPre=" /usr/lib/systemd/system/displaylink.service.d/10-amethystora.conf
+grep -qx "ExecCondition=/usr/sbin/modprobe evdi" /usr/lib/systemd/system/displaylink.service.d/10-amethystora.conf
 grep -q "^d /var/log/displaylink " /usr/lib/tmpfiles.d/displaylink.conf
 # DisplayLinkManager is proprietary. Its licence lets it be redistributed unmodified, and only with
 # the licence itself beside it
