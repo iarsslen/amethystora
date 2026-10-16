@@ -949,6 +949,8 @@ window.backups.onBackupLine((line) => {
 window.backups.onBackupDone(async (result) => {
     state.backup = { running: false, ok: result.ok, lines: result.lines };
     state.failedLines = null;
+    // Said at once, not after the status is read again, which takes restic a few seconds
+    render();
     await load({ quiet: true });
 });
 
