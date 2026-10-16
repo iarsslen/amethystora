@@ -416,7 +416,7 @@ on, in case one is why something stopped working.
 | `ame security lockdown strict` | Root cannot read the running kernel either | `bpftrace`, `perf` with kernel data, eBPF security tools |
 | `ame security time` | The clock set only from time servers that prove who they are (NTS), three agreeing, never one a network suggests | Networks that block port 4460 leave the clock unsynced |
 | `ame security firewall-away` | Networks you have not named home answer nothing; `ame security home-networks` names more | Printers and shares only at home, as phone pairing always is |
-| `ame security network-daemons` | Avahi and ModemManager stopped | Printers by address only; no mobile broadband |
+| `ame security network-daemons` | Avahi, ModemManager and passim (fwupd's sharing of firmware updates with machines nearby) stopped | Printers by address only; no mobile broadband; each machine downloads its own firmware updates |
 | `ame security block-bluetooth` | Bluetooth cannot load | Headphones, mice and keyboards that use it |
 | `ame security block-webcam` | The USB webcam driver cannot load | The webcam |
 | `ame security block-automount` | USB sticks and disks mounted only when you open them | A click in Files |

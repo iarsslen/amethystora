@@ -85,6 +85,9 @@ BREW_PROFILE=profile.d/amethystora-brew-attestations.sh
 VSCODIUM=vscodium/policy.json
 VSCODIUM_ALLOWED="${ROOT}/etc/amethystora/vscodium-extensions"
 NETWORK_DAEMONS=(avahi-daemon.socket avahi-daemon.service ModemManager.service)
+# ...and fwupd's passim, which offers the firmware metadata fwupd downloaded to the machines nearby: fwupd starts it
+# over D-Bus when firmware is looked for, it is never enabled, so it is only stopped and masked, then unmasked
+NETWORK_ON_DEMAND=(passim.service)
 # What noexec-temp adds to /etc/fstab, each line marked so that it can be taken out again
 NOEXEC_MARK=x-amethystora-noexec
 GRUB_USER=/boot/grub2/user.cfg
@@ -524,12 +527,13 @@ set_switch() {
             systemctl try-restart chronyd.service 2>/dev/null
             ;;
         network-daemons)
-            # On is these daemons off: printer and device discovery, and mobile broadband
+            # On is these daemons off: printer and device discovery, mobile broadband, and firmware sharing
             if [[ "${switched}" == on ]]; then
                 systemctl disable --now "${NETWORK_DAEMONS[@]}" 2>/dev/null
-                systemctl mask "${NETWORK_DAEMONS[@]}" >/dev/null 2>&1 || return 1
+                systemctl stop "${NETWORK_ON_DEMAND[@]}" 2>/dev/null
+                systemctl mask "${NETWORK_DAEMONS[@]}" "${NETWORK_ON_DEMAND[@]}" >/dev/null 2>&1 || return 1
             else
-                systemctl unmask "${NETWORK_DAEMONS[@]}" >/dev/null 2>&1
+                systemctl unmask "${NETWORK_DAEMONS[@]}" "${NETWORK_ON_DEMAND[@]}" >/dev/null 2>&1
                 systemctl enable --now "${NETWORK_DAEMONS[@]}" 2>/dev/null || return 1
             fi
             ;;
@@ -667,7 +671,7 @@ words() {
         [bluetooth-privacy]="$(gettext "Bluetooth privacy")"
         [time]="$(gettext "Authenticated time")"
         [firewall-away]="$(gettext "Stricter firewall away from home")"
-        [network-daemons]="$(gettext "Network discovery and mobile broadband")"
+        [network-daemons]="$(gettext "Network discovery, mobile broadband and firmware sharing")"
         [block-bluetooth]="$(gettext "No Bluetooth")"
         [block-webcam]="$(gettext "No webcam")"
         [block-automount]="$(gettext "No automatic mounting")"
@@ -698,7 +702,7 @@ words() {
         [bluetooth-privacy]="$(gettext "Bluetooth uses a random address that changes, and stops being visible and accepting pairing 30 seconds after you ask for it. Off, BlueZ's own settings apply.")"
         [time]="$(gettext "The clock decides whether certificates and signatures are valid. On, it is set only from time servers that prove who they are (NTS), three of which must agree, and never from one a network suggests. Networks that block port 4460 then leave the clock unsynced.")"
         [firewall-away]="$(gettext "Networks you have not named home get a zone that answers nothing: no printer or device discovery and no Windows shares. The networks you name home keep theirs, the only one open to phone pairing, and any new network is away until you say otherwise.")"
-        [network-daemons]="$(gettext "Stops Avahi, which finds printers and devices on the network, and ModemManager, which runs mobile broadband modems. Both are root daemons that answer the network. On, printers have to be added by address and a mobile broadband modem does not work.")"
+        [network-daemons]="$(gettext "Stops Avahi, which finds printers and devices on the network, ModemManager, which runs mobile broadband modems, and passim, which offers the firmware updates this machine downloaded to the machines nearby. All three answer the network. On, printers have to be added by address, a mobile broadband modem does not work, and each machine downloads its own firmware updates.")"
         [block-bluetooth]="$(gettext "Bluetooth cannot load at all, so a flaw in it cannot be reached from radio range. Headphones, mice and keyboards that use it stop working.")"
         [block-webcam]="$(gettext "The USB webcam driver cannot load, whatever app asks. The webcam stops working.")"
         [block-automount]="$(gettext "A USB stick or disk is not mounted until you open it in Files. Nothing on one runs by itself either way.")"

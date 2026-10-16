@@ -2765,7 +2765,7 @@ msgid "Stricter firewall away from home"
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
-msgid "Network discovery and mobile broadband"
+msgid "Network discovery, mobile broadband and firmware sharing"
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
@@ -2881,7 +2881,7 @@ msgid "Networks you have not named home get a zone that answers nothing: no prin
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
-msgid "Stops Avahi, which finds printers and devices on the network, and ModemManager, which runs mobile broadband modems. Both are root daemons that answer the network. On, printers have to be added by address and a mobile broadband modem does not work."
+msgid "Stops Avahi, which finds printers and devices on the network, ModemManager, which runs mobile broadband modems, and passim, which offers the firmware updates this machine downloaded to the machines nearby. All three answer the network. On, printers have to be added by address, a mobile broadband modem does not work, and each machine downloads its own firmware updates."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

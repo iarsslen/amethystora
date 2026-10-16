@@ -820,7 +820,7 @@ firewall-away ACTION="":
 home-networks:
     @/usr/libexec/amethystora-hardening ask-home
 
-# Avahi and ModemManager off: no printer or device discovery, no mobile broadband
+# Avahi, ModemManager and passim off: no printer or device discovery, no mobile broadband, no firmware sharing
 [positional-arguments]
 network-daemons ACTION="":
     @/usr/libexec/amethystora-hardening ask network-daemons "${1:-}"
