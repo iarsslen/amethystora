@@ -24,15 +24,24 @@ dnf_install_retry() {
 # RPM Fusion's keys are taken from Fedora's own signed distribution-gpg-keys package instead, and the
 # release packages are installed only with a valid signature from them. Takes free, nonfree or both.
 rpmfusion_release_install() {
-    local fedora repo packages=()
+    local fedora repo file server packages=()
     fedora="$(rpm -E %fedora)"
     rpm -q distribution-gpg-keys >/dev/null ||
         dnf5 -y install --repo=fedora --repo=updates distribution-gpg-keys
     for repo in "$@"; do
         rpm --import "/usr/share/distribution-gpg-keys/rpmfusion/RPM-GPG-KEY-rpmfusion-${repo}-fedora-${fedora}"
-        packages+=("https://mirrors.rpmfusion.org/${repo}/fedora/rpmfusion-${repo}-release-${fedora}.noarch.rpm")
+        file="/tmp/rpmfusion-${repo}-release-${fedora}.noarch.rpm"
+        # The mirror the redirector picks can be down, and dnf then retries that one mirror only: ask the
+        # redirector again, then RPM Fusion's own server. The signature, not the server, is what is trusted
+        for server in mirrors mirrors download1; do
+            rm -f "${file}"
+            curl --fail --connect-timeout 30 --max-time 120 -sSL -o "${file}" \
+                "https://${server}.rpmfusion.org/${repo}/fedora/${file##*/}" && break
+        done
+        packages+=("${file}")
     done
     dnf5 -y install --setopt=localpkg_gpgcheck=1 "${packages[@]}"
+    rm -f "${packages[@]}"
 }
 
 # The fingerprint of each primary key in an OpenPGP key file, one per line
