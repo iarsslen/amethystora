@@ -342,6 +342,27 @@ jq -se 'length == 4
     and any(.[]; .level == "quiet" and .allowed == "yes" and (.text | test("/var/home/alice/.ssh/known_hosts using /usr/bin/ssh")))
     and any(.[]; .level == "normal" and (.text | test("autostart/watch-start.desktop")))' <<<"${FOUND}" >/dev/null ||
     fail "a boot's and a login's writes: ${FOUND}"
+
+# Just after a switch's note, what root did is that switch's change and recorded; an autostart entry an account's
+# own program wrote then is still said
+STEP=240
+printf '%s\tnetwork-daemons\ton\n' "$((BEGAN + STEP))" >>"${R}/var/lib/amethystora/security/notes"
+{
+    printf 'type=SYSCALL msg=audit(%s.100:951): arch=c000003e syscall=257 success=yes exit=3 a0=ffffff9c a1=55d1 a2=241 a3=1b6 items=1 ppid=1 pid=51 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="systemctl" exe="/usr/bin/systemctl" subj=system_u:system_r:unconfined_service_t:s0 key="persistence"\n' "$((BEGAN + STEP))"
+    printf 'type=CWD msg=audit(%s.100:951): cwd="/"\n' "$((BEGAN + STEP))"
+    printf 'type=PATH msg=audit(%s.100:951): item=0 name="/etc/systemd/system/watch-switch.service" inode=5 dev=00:01 mode=0100644 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL\n' "$((BEGAN + STEP))"
+    printf 'type=PROCTITLE msg=audit(%s.100:951): proctitle=73797374656D63746C\n' "$((BEGAN + STEP))"
+    opened 952 52 /usr/bin/cp /var/home/alice/.config/autostart/watch-after-switch.desktop persistence
+    close 1099
+} >>"${AMETHYSTORA_WATCH_AUDIT}"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run after a switch's note failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "persistence")')"
+jq -se 'length == 2
+    and any(.[]; .level == "quiet" and (.text | test("acting as root, successfully opened-file /etc/systemd/system/watch-switch.service")))
+    and any(.[]; .level == "normal" and (.text | test("autostart/watch-after-switch.desktop")))' <<<"${FOUND}" >/dev/null ||
+    fail "what was written just after a switch: ${FOUND}"
+: >"${R}/var/lib/amethystora/security/notes"
 printf 'PERSISTENCE=off\nHARDENING=off\n' >>"${AMETHYSTORA_SECURITY_CONF}"
 
 # Programs that accept connections, from a stand-in ss: the image's own passim is recorded, and one nobody
