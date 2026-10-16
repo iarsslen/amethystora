@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 # The NVIDIA check (amethystora-gpu-check.timer, a few minutes after boot and every 15 minutes after,
-# until there is somebody logged in to tell). The NVIDIA images have no installer of their own, so
-# every NVIDIA owner installs the image without the driver first:
+# until there is somebody logged in to tell), for a machine installed from the ISO of the other kind of
+# image, or whose graphics card changed:
 #
 #   - an NVIDIA graphics card on an image without NVIDIA's driver: it offers the image with it
 #   - an image with NVIDIA's driver on a machine with no NVIDIA card: it offers the one without

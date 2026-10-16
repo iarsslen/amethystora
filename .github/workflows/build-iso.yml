@@ -9,7 +9,7 @@ on:
   workflow_call:
     inputs:
       image:
-        description: "The image the ISO installs: amethystora"
+        description: "The image the ISO installs: amethystora, amethystora-dx, amethystora-nvidia-open or amethystora-dx-nvidia-open"
         type: string
         default: amethystora
   workflow_dispatch:
@@ -20,16 +20,19 @@ on:
         default: amethystora
         options:
           - amethystora
+          - amethystora-dx
+          - amethystora-nvidia-open
+          - amethystora-dx-nvidia-open
 
 # The installer ISO of a published stable image, built with bootc-image-builder and uploaded to
 # Cloudflare R2, which GitHub cannot host: a Release asset is limited to 2 GiB. Each upload replaces
-# the last one under the same name, so the download link never changes. Only amethystora has an ISO;
-# amethystora-dx and the NVIDIA images are switched to after installing.
+# the last one under the same name, so the download link never changes. Each of the four stable images
+# has its ISOs.
 #
-# amethystora also gets a live ISO (the live-iso job), the one the website offers first: it boots into
-# Amethystora, which can be tried without installing anything, and installs from there. Named
-# amethystora.iso, for https://download.amethystora.org/amethystora.iso. The installer ISO, the only one
-# that also starts computers without UEFI, is amethystora-non-uefi.iso.
+# Each also gets a live ISO (the live-iso job), the one the website offers first: it boots into
+# Amethystora, which can be tried without installing anything, and installs from there. Named after the
+# image, as amethystora.iso, for https://download.amethystora.org/amethystora.iso. The installer ISO, the
+# only one that also starts computers without UEFI, is <image>-non-uefi.iso.
 #
 # Both are built from one digest of the published image, resolved and checked against cosign.pub once
 # (the image job), so that the image cannot change between the check and either build. The builders run
@@ -73,8 +76,8 @@ jobs:
         id: verify
         run: |
           case "${IMAGE}" in
-            amethystora) ;;
-            *) echo "::error::${IMAGE} has no ISO: only amethystora does"; exit 1 ;;
+            amethystora | amethystora-dx | amethystora-nvidia-open | amethystora-dx-nvidia-open) ;;
+            *) echo "::error::${IMAGE} has no ISO: it is not one of the four stable images"; exit 1 ;;
           esac
           digest="$(skopeo inspect --retry-times 3 "docker://ghcr.io/iarsslen/${IMAGE}:stable" | jq -r .Digest)"
           [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
@@ -106,13 +109,13 @@ jobs:
       - name: Prepare the installer configuration
         run: |
           case "${IMAGE}" in
-            amethystora) ;;
-            *) echo "::error::${IMAGE} has no ISO: only amethystora does"; exit 1 ;;
+            amethystora | amethystora-dx | amethystora-nvidia-open | amethystora-dx-nvidia-open) ;;
+            *) echo "::error::${IMAGE} has no ISO: it is not one of the four stable images"; exit 1 ;;
           esac
           sed -i "s|@IMAGE@|${IMAGE}|" iso/iso.toml
           # The machine it installs takes updates signature-checked from the first one
           grep -q -- "--enforce-container-sigpolicy" iso/iso.toml
-          if grep "bootc switch" iso/iso.toml | grep -v -- "--enforce-container-sigpolicy"; then
+          if grep -E "^[^#]*bootc switch" iso/iso.toml | grep -v -- "--enforce-container-sigpolicy"; then
             echo "::error::iso.toml switches the installed machine without signature checking"
             exit 1
           fi
@@ -207,7 +210,7 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
-  # The live ISO of amethystora: boot it from a USB stick, try Amethystora without installing anything,
+  # The live ISO of the image: boot it from a USB stick, try Amethystora without installing anything,
   # and install it from there with Anaconda, offline. Titanoboa (ublue-os/titanoboa, Apache-2.0) squashes
   # a live system into a UEFI-only ISO; the live system is the published image with the live boot, the
   # live session and the installer added (iso/live), and a copy of the image itself, which is what gets
@@ -218,14 +221,13 @@ jobs:
   live-iso:
     name: Live ISO
     needs: [image]
-    if: (inputs.image || 'amethystora') == 'amethystora'
     runs-on: ubuntu-26.04
     permissions:
       contents: read
     env:
-      IMAGE_REF: ghcr.io/iarsslen/amethystora:stable
+      IMAGE_REF: ghcr.io/iarsslen/${{ inputs.image || 'amethystora' }}:stable
       DIGEST: ${{ needs.image.outputs.digest }}
-      ISO: amethystora.iso
+      ISO: ${{ inputs.image || 'amethystora' }}.iso
 
     steps:
       - name: Maximize build space
@@ -318,7 +320,7 @@ jobs:
       matrix:
         iso:
           - ${{ inputs.image || 'amethystora' }}-non-uefi.iso
-          - amethystora.iso
+          - ${{ inputs.image || 'amethystora' }}.iso
     env:
       ISO: ${{ matrix.iso }}
 

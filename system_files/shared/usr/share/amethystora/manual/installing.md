@@ -6,13 +6,20 @@ network.
 
 ## Download
 
-| Download | What it is |
-| --- | --- |
-| [amethystora.iso](https://download.amethystora.org/amethystora.iso) | Amethystora on a stick: try it, then install it from there. Start with this one. |
-| [amethystora-non-uefi.iso](https://download.amethystora.org/amethystora-non-uefi.iso) | The installer alone, which also starts computers too old for UEFI |
+Each [image](#pick-an-image) has two ISOs. The first is Amethystora on a stick: try it, then install
+it from there. Start with that one. The second is the installer alone, which also starts computers too
+old for UEFI.
+
+| Image | Try and install | The installer alone |
+| --- | --- | --- |
+| The standard desktop | [amethystora.iso](https://download.amethystora.org/amethystora.iso) | [amethystora-non-uefi.iso](https://download.amethystora.org/amethystora-non-uefi.iso) |
+| [Developer mode](developer.md) | [amethystora-dx.iso](https://download.amethystora.org/amethystora-dx.iso) | [amethystora-dx-non-uefi.iso](https://download.amethystora.org/amethystora-dx-non-uefi.iso) |
+| The standard desktop with NVIDIA's driver | [amethystora-nvidia-open.iso](https://download.amethystora.org/amethystora-nvidia-open.iso) | [amethystora-nvidia-open-non-uefi.iso](https://download.amethystora.org/amethystora-nvidia-open-non-uefi.iso) |
+| Developer mode with NVIDIA's driver | [amethystora-dx-nvidia-open.iso](https://download.amethystora.org/amethystora-dx-nvidia-open.iso) | [amethystora-dx-nvidia-open-non-uefi.iso](https://download.amethystora.org/amethystora-dx-nvidia-open-non-uefi.iso) |
 
 Each is several gigabytes. Beside each ISO is its checksum, `.sha256`, signed with the key every
-update is checked against. To check that what you downloaded is what was built:
+update is checked against. To check that what you downloaded is what was built (for another ISO, put
+its name in place of `amethystora.iso`):
 
 ```bash
 curl -LO https://raw.githubusercontent.com/iarsslen/amethystora/main/cosign.pub
@@ -35,8 +42,10 @@ curl.exe -LO https://download.amethystora.org/amethystora.iso.sha256.bundle
 (Get-FileHash amethystora.iso).Hash -eq (Get-Content amethystora.iso.sha256).Split(' ')[0]
 ```
 
-On a computer with an NVIDIA graphics card, install from either: a notification after the first boot
-offers the image with NVIDIA's driver ([Hardware](hardware.md#graphics)).
+On a computer with an NVIDIA graphics card, take an ISO with NVIDIA's driver. With Secure Boot on, the
+first start after installing begins with a blue screen, the MOK manager, which asks you to trust the
+key the driver is signed with ([Hardware](hardware.md#secure-boot)). Installed from another ISO, a
+notification after the first boot offers the image with NVIDIA's driver ([Hardware](hardware.md#graphics)).
 
 ## Write it to a USB stick
 
@@ -134,8 +143,8 @@ and from the restart after that, an update is only accepted if it carries Amethy
 | `ghcr.io/iarsslen/amethystora-nvidia-open` | The standard desktop with NVIDIA's open kernel driver |
 | `ghcr.io/iarsslen/amethystora-dx-nvidia-open` | Developer mode with NVIDIA's open kernel driver |
 
-The ISOs install the images without NVIDIA's driver. On a computer with an NVIDIA card, the first
-boot offers to switch to the matching NVIDIA image ([Hardware](hardware.md#graphics)).
+Each has its own ISOs ([Download](#download)). On a computer with an NVIDIA card installed without
+NVIDIA's driver, the first boot offers to switch to the matching NVIDIA image ([Hardware](hardware.md#graphics)).
 
 ## Pick a stream
 

@@ -26,7 +26,8 @@ then run the command above.
 
 A [sealed image](updates.md#sealed-images) needs Amethystora's key before it can start at all, so its
 installer asks the MOK manager for it, together with the modules' key: the blue screen comes at the
-first start, and asks the same password.
+first start, and asks the same password. An NVIDIA image installed from its ISO with Secure Boot on
+does the same, since NVIDIA's driver does not load without the key.
 
 ## Graphics
 
@@ -35,8 +36,7 @@ first start, and asks the same password.
   The NVIDIA driver is built for the machine and signed with its own key, which the kernel trusts
   only with Secure Boot on. So the NVIDIA images turn kernel lockdown on only with Secure Boot, as
   the kernel itself does, never with an argument of their own.
-- **Installed the image without NVIDIA's driver on a machine with an NVIDIA card?** There is no
-  installer for the NVIDIA images, so this is how most NVIDIA machines start. A few minutes after the
+- **Installed the image without NVIDIA's driver on a machine with an NVIDIA card?** A few minutes after the
   first boot a notification offers **Switch images…**, which opens `ame system rebase` on the
   matching `-nvidia-open` image; it takes signed images only and asks before it switches. An NVIDIA
   image on a machine without an NVIDIA card offers the image without the driver, which keeps

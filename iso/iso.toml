@@ -15,12 +15,23 @@ publisher = "Amethystora"
 # fails on a switch without the flag; amethystora-signed-updates stays for a later plain `bootc switch`.
 # The marker tells the first boot that this is a new installation, which gets the hourly snapshots of the
 # home folders (system-setup.hooks.d/26-snapshots-new-installation.sh). A switch that fails fails the
-# installation, as in iso/live/installer.ks, rather than leave a machine on the ISO's copy, never updated.
+# installation, as in iso/live/installer.ks, rather than leave a machine on the ISO's copy, never updated:
+# Anaconda goes by the script's last exit status only, hence set -e.
+# The NVIDIA images' driver is signed with a key the firmware does not know: with Secure Boot on, the
+# kernel refuses it until the key is enrolled, and their kernel arguments turn off the simple display
+# driver that would stand in. So their certificates are queued as `ame security secure-boot` queues them,
+# and the MOK manager asks for the password amethystora at the first start. No backslashes in here:
+# TOML would read them first.
 [customizations.installer.kickstart]
 contents = """
 %post --erroronfail
+set -e
 bootc switch --mutate-in-place --enforce-container-sigpolicy --transport registry ghcr.io/iarsslen/@IMAGE@:stable
 mkdir -p /var/lib/amethystora && touch /var/lib/amethystora/new-installation
+if [ -e /usr/lib/bootc/kargs.d/00-nvidia.toml ] && mokutil --sb-state 2>/dev/null | grep -qi enabled; then
+    mokutil --timeout -1 || :
+    { echo amethystora; echo amethystora; } | mokutil --import /usr/share/amethystora/secure-boot/*.der || :
+fi
 %end
 """
 

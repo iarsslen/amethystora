@@ -47,8 +47,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # amethystora-dx and the NVIDIA images get no ISO
-        image: ["amethystora"]
+        image: ["amethystora", "amethystora-dx", "amethystora-nvidia-open", "amethystora-dx-nvidia-open"]
     uses: ./.github/workflows/build-iso.yml
     with:
       image: ${{ matrix.image }}
