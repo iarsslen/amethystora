@@ -325,13 +325,19 @@ STEP=210
     printf 'type=PROCTITLE msg=audit(%s.100:902): proctitle=2F7573722F62696E2F676E6F6D652D7368656C6C\n' "$((BEGAN + STEP))"
     opened 903 41 /usr/bin/ssh /var/home/alice/.ssh/known_hosts persistence
     opened 904 42 /usr/bin/cp /var/home/alice/.config/autostart/watch-start.desktop persistence
+    # sssd.service setting the mode of its folder, which the allowlist names without the mode it was given
+    printf 'type=SYSCALL msg=audit(%s.100:905): arch=c000003e syscall=268 success=yes exit=0 a0=ffffff9c a1=55d1 a2=1e8 a3=0 items=1 ppid=1 pid=43 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="chmod" exe="/usr/bin/chmod" subj=system_u:system_r:unconfined_service_t:s0 key="hardening"\n' "$((BEGAN + STEP))"
+    printf 'type=CWD msg=audit(%s.100:905): cwd="/"\n' "$((BEGAN + STEP))"
+    printf 'type=PATH msg=audit(%s.100:905): item=0 name="/etc/sssd" inode=3 dev=00:01 mode=040750 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL\n' "$((BEGAN + STEP))"
+    printf 'type=PROCTITLE msg=audit(%s.100:905): proctitle=63686D6F64\n' "$((BEGAN + STEP))"
     close 999
 } >>"${AMETHYSTORA_WATCH_AUDIT}"
 before="$(wc -l <"${HISTORY}")"
 timeout 120 "${WATCH}" >/dev/null || fail "the run with a boot's and a login's writes failed"
 FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "persistence" or .key == "hardening")')"
-jq -se 'length == 3
+jq -se 'length == 4
     and all(.[]; (.text | test("add_rule")) | not)
+    and any(.[]; .key == "hardening" and .level == "quiet" and .allow == "/etc/sssd" and .allowed == "yes")
     and any(.[]; .level == "quiet" and (.text | test("unsuccessfully deleted /var/home/alice/.local/share/dbus-1/services/")))
     and any(.[]; .level == "quiet" and .allowed == "yes" and (.text | test("/var/home/alice/.ssh/known_hosts using /usr/bin/ssh")))
     and any(.[]; .level == "normal" and (.text | test("autostart/watch-start.desktop")))' <<<"${FOUND}" >/dev/null ||

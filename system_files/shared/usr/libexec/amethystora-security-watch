@@ -308,6 +308,10 @@ read_audit() {
             # owner allowed, or a program, is recorded and not said.
             object=""
             [[ "${event}" =~ successfully\ [a-z-]+\ (/.+)\ using\  ]] && object="${BASH_REMATCH[1]}"
+            # ...of a change of mode or owner, the file alone: "to 0750" is what it became, and a mode set through
+            # a relative path (chmod -R) comes out as a number that is different every time
+            [[ "${event}" =~ successfully\ changed-file-(permissions|ownership)-of\ (/.+)\ to\ [^\ ]+\ using\  ]] &&
+                object="${BASH_REMATCH[2]}"
             if { [[ -n "${object}" ]] && allowed "${key}" "${object}"; } || { [[ -n "${exe}" ]] && allowed "${key}" "${exe}"; }; then
                 level=quiet ALLOWED_HIT=1
             fi
