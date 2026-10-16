@@ -310,6 +310,34 @@ timeout 120 "${WATCH}" >/dev/null || fail "the second run with a chain failed"
 tail -n +"$((before + 1))" "${HISTORY}" | grep -q '"key":"chains"' && fail "the same chain was said twice"
 rm -f /var/tmp/watch-chain
 
+# What an ordinary boot and login write, as a real machine's audit log had it: the rules loaded at boot are no
+# change at all, GNOME Shell taking away a file that is not there changed nothing, and SSH meeting a new host
+# is the image's allowlist's; an autostart entry is still said
+printf 'PERSISTENCE=on\nHARDENING=on\n' >>"${AMETHYSTORA_SECURITY_CONF}"
+STEP=210
+{
+    printf 'type=CONFIG_CHANGE msg=audit(%s.100:901): auid=4294967295 ses=4294967295 subj=system_u:system_r:unconfined_service_t:s0 op=add_rule key="hardening" list=4 res=1\n' "$((BEGAN + STEP))"
+    printf 'type=SYSCALL msg=audit(%s.100:901): arch=c000003e syscall=44 success=yes exit=1088 a0=3 a1=7ffe a2=440 a3=0 items=0 ppid=846 pid=876 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="auditctl" exe="/usr/bin/auditctl" subj=system_u:system_r:unconfined_service_t:s0 key=(null)\n' "$((BEGAN + STEP))"
+    printf 'type=SYSCALL msg=audit(%s.100:902): arch=c000003e syscall=87 success=no exit=-2 a0=564d a1=1 a2=7ffe a3=0 items=1 ppid=1548 pid=1824 auid=4500 uid=4500 gid=4500 euid=4500 suid=4500 fsuid=4500 egid=4500 sgid=4500 fsgid=4500 tty=(none) ses=2 comm="gnome-shell" exe="/usr/bin/gnome-shell" subj=unconfined_u:unconfined_r:unconfined_t:s0 key="persistence"\n' "$((BEGAN + STEP))"
+    printf 'type=CWD msg=audit(%s.100:902): cwd="/var/home/alice"\n' "$((BEGAN + STEP))"
+    printf 'type=PATH msg=audit(%s.100:902): item=0 name="/var/home/alice/.local/share/dbus-1/services/" inode=2 dev=00:01 mode=040700 ouid=4500 ogid=4500 rdev=00:00 nametype=PARENT\n' "$((BEGAN + STEP))"
+    # Without the end of the event, ausearch names no path for a removal
+    printf 'type=PROCTITLE msg=audit(%s.100:902): proctitle=2F7573722F62696E2F676E6F6D652D7368656C6C\n' "$((BEGAN + STEP))"
+    opened 903 41 /usr/bin/ssh /var/home/alice/.ssh/known_hosts persistence
+    opened 904 42 /usr/bin/cp /var/home/alice/.config/autostart/watch-start.desktop persistence
+    close 999
+} >>"${AMETHYSTORA_WATCH_AUDIT}"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run with a boot's and a login's writes failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "persistence" or .key == "hardening")')"
+jq -se 'length == 3
+    and all(.[]; (.text | test("add_rule")) | not)
+    and any(.[]; .level == "quiet" and (.text | test("unsuccessfully deleted /var/home/alice/.local/share/dbus-1/services/")))
+    and any(.[]; .level == "quiet" and .allowed == "yes" and (.text | test("/var/home/alice/.ssh/known_hosts using /usr/bin/ssh")))
+    and any(.[]; .level == "normal" and (.text | test("autostart/watch-start.desktop")))' <<<"${FOUND}" >/dev/null ||
+    fail "a boot's and a login's writes: ${FOUND}"
+printf 'PERSISTENCE=off\nHARDENING=off\n' >>"${AMETHYSTORA_SECURITY_CONF}"
+
 # --- The behaviour sensor, from a stand-in of Falco's file ------------------------------------------------
 
 # Falco's lines as 0.45 writes them (one seen on a real run): a warning said with its tactic, twice is once,

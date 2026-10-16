@@ -62,6 +62,11 @@ PROGRAM_DIRS=(
     .local/bin
     .local/share/applications
 )
+# ...and which app opens what, as everyday: GLib rewrites it whenever an app registers for a type, which
+# GSConnect does at every login, and for each "Open With" a person makes the default
+PROGRAM_FILES=(
+    .config/mimeapps.list
+)
 # Startup files, watched only where they exist: creating one is caught by the watch on the home
 # directory's own shell configuration only if it is already there, so a missing file is a known gap.
 WATCH_FILES=(
@@ -75,8 +80,7 @@ WATCH_FILES=(
     .zprofile
     .zlogin
     .config/fish/config.fish
-    # Which app opens what, and git's settings, whose hooksPath, fsmonitor and sshCommand run commands
-    .config/mimeapps.list
+    # git's settings, whose hooksPath, fsmonitor and sshCommand run commands
     .gitconfig
     .config/git/config
 )
@@ -84,7 +88,7 @@ WATCH_FILES=(
 # The places in a home these rules watch, one a line, for the security watcher: it says when a link takes
 # one of them out of the home, and so out of these rules' reach
 if [[ "${1:-}" == --paths ]]; then
-    printf '%s\n' "${WATCH_DIRS[@]}" "${PROGRAM_DIRS[@]}" "${WATCH_EXISTING_DIRS[@]}" "${WATCH_FILES[@]}" bin
+    printf '%s\n' "${WATCH_DIRS[@]}" "${PROGRAM_DIRS[@]}" "${WATCH_EXISTING_DIRS[@]}" "${WATCH_FILES[@]}" "${PROGRAM_FILES[@]}" bin
     exit 0
 fi
 
@@ -276,6 +280,10 @@ download_dir() {
         for file in "${WATCH_FILES[@]}"; do
             [[ "${PERSISTENCE}" == true ]] || break
             [[ -f "${home}/${file}" ]] && real="$(inside "${home}" "${file}")" && echo "-w ${real} -p wa -k persistence"
+        done
+        for file in "${PROGRAM_FILES[@]}"; do
+            [[ "${USER_PROGRAMS}" == true ]] || break
+            [[ -f "${home}/${file}" ]] && real="$(inside "${home}" "${file}")" && echo "-w ${real} -p wa -k user-programs"
         done
         for dir in "${WATCH_EXISTING_DIRS[@]}"; do
             [[ "${PERSISTENCE}" == true ]] || break

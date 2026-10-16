@@ -1,0 +1,14 @@
+# The image's own entries for the security settings the audit log watches (HARDENING in
+# /etc/amethystora/security.conf): what Fedora's own services rewrite at every start, recorded and not said. The
+# machine's own are in /etc/amethystora/allow.d/hardening (ame security allow hardening PATH). A glob each; these
+# are exact paths, so that nothing else in the same folders is quietened.
+#
+# sssd.service sets the owner and mode of its folders before it starts; ausearch names the two inside
+# /etc/sssd from where chmod -R stood, //conf.d and //pki
+/etc/sssd
+/etc/sssd/conf.d
+/etc/sssd/pki
+//conf.d
+//pki
+# tuned writes the module options of its profile when it applies one
+/etc/modprobe.d/tuned.conf

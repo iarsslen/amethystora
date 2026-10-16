@@ -258,7 +258,7 @@ for entry in "relative/path" $'/a\nb' $'/a\e[2J' ""; do
     "${ALLOW}" add persistence "${entry}" 2>/dev/null && fail "the allowlist took $(printf '%q' "${entry}")"
 done
 "${ALLOW}" remove persistence "${GLOB}"
-[[ -z "$("${ALLOW}" list persistence)" ]] || fail "removing a path from the allowlist"
+grep -qxF "${GLOB}" <<<"$("${ALLOW}" list persistence)" && fail "removing a path from the allowlist"
 "${CONFIG}" profile default
 OPEN="$(/usr/libexec/amethystora-security-status --json |
     jq -r 'first(.checks[] | select(.group != "optional" and (.state == "check" or .state == "off")) | "\(.id) \(.state)")')"

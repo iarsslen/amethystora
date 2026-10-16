@@ -1,0 +1,8 @@
+# The image's own entries for what starts by itself (PERSISTENCE in /etc/amethystora/security.conf): files in
+# the folders the audit log watches that change in ordinary use and start nothing, recorded and not said. The
+# machine's own are in /etc/amethystora/allow.d/persistence (ame security allow persistence PATH). A glob each;
+# ~/ is every home folder. These are exact paths: a rename onto authorized_keys is still said.
+#
+# The hosts SSH has met, which it adds to on every new one
+~/.ssh/known_hosts
+~/.ssh/known_hosts.old

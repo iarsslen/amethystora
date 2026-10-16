@@ -218,7 +218,9 @@ INPUT_SEEN="${STATE}/input-programs"
 #
 # Only SYSCALL events, which is what every rule here records. The kernel also notes each rule it loads
 # as a CONFIG_CHANGE carrying that rule's key, and those would read as "add_rule identity using
-# auditctl", once per rule at every boot. The rules cannot change after that: -e 2 locks them.
+# auditctl", once per rule at every boot: auditctl's own call is in the same event, so -m SYSCALL keeps
+# them, and their lines are left out by what they say. The rules cannot change after that: -e 2 locks
+# them, and a try is unsuccessful, which is said.
 # What is new in the audit log since the last read of NAME, one checkpoint each: audit_since NAME
 # AUSEARCH-ARGUMENT... With a stand-in root, AMETHYSTORA_WATCH_AUDIT names a stand-in log, in the raw form the
 # kernel writes, which the tests plant.
@@ -262,6 +264,7 @@ audit_events() {
             }
             line = $0
             sub(/^At [^ ]+ [^ ]+ /, "", line)
+            if (line ~ / successfully (add|remove)_rule [^ ]+ using [^ ]*auditctl$/) next
             print mark " " line
         }' <<<"${output}" | sort | uniq -c
 }
@@ -296,6 +299,11 @@ read_audit() {
                 *) level=normal ;;
             esac
             [[ "${mark}" == noted ]] && level=quiet
+            # A write or a removal that failed changed nothing: GNOME Shell's GSConnect takes away copies of its
+            # files that are not there at every login. A module the kernel refused, and a try at the locked
+            # rules, are still said.
+            [[ "${key}" != modules && "${event}" == *" unsuccessfully "* && "${event}" != *" unsuccessfully "*_rule" "* ]] &&
+                level=quiet
             # What it was done to: "..., successfully opened-file /etc/sudoers using /usr/bin/vim". A path the
             # owner allowed, or a program, is recorded and not said.
             object=""
