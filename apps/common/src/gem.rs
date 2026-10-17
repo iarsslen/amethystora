@@ -115,6 +115,9 @@ fn draw_stone(snapshot: &gtk::Snapshot, width: f32, lift: f32, stem_opacity: f32
     snapshot.restore();
 }
 
+/// The halo, in the widget's CSS colour: radial-gradient(closest-side, accent 34%, accent 10% 55%, transparent)
+static HALO: crate::glow::Gradient = crate::glow::Gradient { center: (0.5, 0.5), radii: (0.5, 0.5), stops: &[(0.0, 0.34), (0.55, 0.10), (1.0, 0.0)] };
+
 fn stone_ratio() -> f32 {
     let stone = stone();
     stone.height / stone.width
@@ -279,26 +282,21 @@ mod imp {
                         Motion::Latch => breathe(seconds, 2.4),
                         _ => (0.75, 1.0),
                     };
-                    let accent = widget.color();
                     let side = width.min(height) + 2.0 * reach;
                     let center = graphene::Point::new(width / 2.0, height / 2.0);
                     let radius = side / 2.0 * scale as f32;
-                    let tint = |alpha: f32| gdk::RGBA::new(accent.red(), accent.green(), accent.blue(), alpha);
-                    snapshot.push_opacity(opacity);
-                    snapshot.append_radial_gradient(
-                        &graphene::Rect::new(center.x() - radius, center.y() - radius, 2.0 * radius, 2.0 * radius),
-                        &center,
-                        radius,
-                        radius,
-                        0.0,
-                        1.0,
-                        &[
-                            gsk::ColorStop::new(0.0, tint(0.34)),
-                            gsk::ColorStop::new(0.55, tint(0.10)),
-                            gsk::ColorStop::new(1.0, tint(0.0)),
-                        ],
-                    );
-                    snapshot.pop();
+                    // A texture (glow.rs says why): breathing, made once at its size at rest and scaled and faded
+                    // as it goes; still, made as it is drawn, its opacity in it, as GTK's gradient was
+                    let bounds = graphene::Rect::new(center.x() - radius, center.y() - radius, 2.0 * radius, 2.0 * radius);
+                    let accent = widget.color();
+                    if self.tick.borrow().is_some() {
+                        snapshot.push_opacity(opacity);
+                        crate::glow::append_scaled(snapshot, &*widget, &HALO, (side, side), &bounds, &accent);
+                        snapshot.pop();
+                    } else {
+                        let tint = gdk::RGBA::new(accent.red(), accent.green(), accent.blue(), accent.alpha() * opacity as f32);
+                        crate::glow::append(snapshot, &*widget, &HALO, &bounds, false, &tint);
+                    }
                     // The stone, as an <img> with object-fit: contain in a box the stone's size
                     let stone_width = stone_size.min(stone_size / stone_ratio());
                     let stone_height = stone_width * stone_ratio();

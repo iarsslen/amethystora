@@ -1,12 +1,31 @@
-//! The two drawings of the page that are not line icons: the app's own shield on the overview, and the stone
-//! the scanning page shows while a scan runs.
+//! The drawings of the page that are not line icons: the app's own shield on the overview, the stone the
+//! scanning page shows while a scan runs, and the glows two cards are lit by.
 
 use std::cell::{Cell, RefCell};
 
 use amethystora_ui::gem::{self, Gem};
+use amethystora_ui::glow;
 use amethystora_ui::{gdk, gio, glib, graphene, gsk, gtk};
 use gtk::prelude::*;
 use gtk::subclass::prelude::*;
+
+// --- The cards lit from the corner a line starts at ---------------------------------------------------------
+
+/// The overview's hero: radial-gradient(110% 170% at 0% 0%, accent 28% 0%, accent 7% 42%, transparent 72%)
+static HERO: glow::Gradient = glow::Gradient { center: (0.0, 0.0), radii: (1.1, 1.7), stops: &[(0.0, 0.28), (0.42, 0.07), (0.72, 0.0)] };
+
+/// The scanner's main choice: radial-gradient(120% 120% at 0% 0%, accent 22%, transparent 60%)
+static CHOICE: glow::Gradient = glow::Gradient { center: (0.0, 0.0), radii: (1.2, 1.2), stops: &[(0.0, 0.22), (0.6, 0.0)] };
+
+/// The overview's hero on its glow, which `.hero-glow` in the stylesheet paints the hero's background for
+pub fn hero_glow(hero: &gtk::Box) -> gtk::Widget {
+    glow::behind(hero, &HERO, "hero-glow")
+}
+
+/// The scanner's main choice on its glow, which `.choice-glow` paints the card's background for
+pub fn choice_glow(choice: &gtk::Box) -> gtk::Widget {
+    glow::behind(choice, &CHOICE, "choice-glow")
+}
 
 // --- The shield ---------------------------------------------------------------------------------------------
 
@@ -133,6 +152,9 @@ mod stone {
     const STONE: f32 = 156.0;
     const REACH: f32 = 36.0;
 
+    /// The glow, in the widget's CSS colour: radial-gradient(closest-side, accent 42%, accent 12% 55%, transparent)
+    static GLOW: glow::Gradient = glow::Gradient { center: (0.5, 0.5), radii: (0.5, 0.5), stops: &[(0.0, 0.42), (0.55, 0.12), (1.0, 0.0)] };
+
     impl WidgetImpl for ScanGem {
         fn measure(&self, _orientation: gtk::Orientation, _for_size: i32) -> (i32, i32, i32, i32) {
             let size = (SIZE as f64 * amethystora_ui::icon::zoom()).round() as i32;
@@ -155,21 +177,19 @@ mod stone {
             // The glow: radial-gradient(closest-side, accent 42%, accent 12% 55%, transparent), breathing between
             // 0.55 at 94% and 1 at 105% every 3.2 s, eased in and out (glow)
             let (opacity, scale) = if moving { breathe(seconds) } else { (1.0, 1.0) };
-            let accent = widget.color();
-            let tint = |alpha: f32| gdk::RGBA::new(accent.red(), accent.green(), accent.blue(), alpha);
             let center = graphene::Point::new(width / 2.0, height / 2.0);
-            let radius = (width.min(height) / 2.0 + REACH * zoom) * scale as f32;
-            snapshot.push_opacity(opacity);
-            snapshot.append_radial_gradient(
-                &graphene::Rect::new(center.x() - radius, center.y() - radius, 2.0 * radius, 2.0 * radius),
-                &center,
-                radius,
-                radius,
-                0.0,
-                1.0,
-                &[gsk::ColorStop::new(0.0, tint(0.42)), gsk::ColorStop::new(0.55, tint(0.12)), gsk::ColorStop::new(1.0, tint(0.0))],
-            );
-            snapshot.pop();
+            let rest = width.min(height) / 2.0 + REACH * zoom;
+            let radius = rest * scale as f32;
+            // A texture (glow.rs in the shared crate says why): breathing, made once at its size at rest and
+            // scaled and faded as it goes; still, made as it is drawn
+            let bounds = graphene::Rect::new(center.x() - radius, center.y() - radius, 2.0 * radius, 2.0 * radius);
+            if moving {
+                snapshot.push_opacity(opacity);
+                glow::append_scaled(snapshot, &*widget, &GLOW, (2.0 * rest, 2.0 * rest), &bounds, &widget.color());
+                snapshot.pop();
+            } else {
+                glow::append(snapshot, &*widget, &GLOW, &bounds, false, &widget.color());
+            }
             let Some(stone) = self.stone.borrow().clone() else { return };
             widget.snapshot_child(&stone, snapshot);
             if !moving {

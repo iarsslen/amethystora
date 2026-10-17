@@ -17,7 +17,7 @@ use amethystora_ui::ui::{self, Bar};
 use amethystora_ui::{adw, gdk, glib, gtk, process, t};
 use gtk::prelude::*;
 
-use crate::art::{ScanGem, Shield};
+use crate::art::{self, ScanGem, Shield};
 use crate::backend::{self, Check, Container, Entry, Event, Found, Hardening, Kind, Label, Machine, Network, NetworkEvent, Setting, Signatures};
 use crate::icons;
 use crate::{Begun, PageState, Security, Shown};
@@ -1127,7 +1127,7 @@ impl Security {
         emblem
     }
 
-    fn hero(&self, report: &backend::Report, headline: &str, summary: &str, tone: &str, count: usize) -> gtk::Box {
+    fn hero(&self, report: &backend::Report, headline: &str, summary: &str, tone: &str, count: usize) -> gtk::Widget {
         let hero = ui::hbox(26, &["hero"]);
         hero.update_property(&[gtk::accessible::Property::Label(headline)]);
         hero.append(&Self::emblem(tone, count));
@@ -1160,7 +1160,7 @@ impl Security {
         checked.set_halign(gtk::Align::End);
         side.append(&checked);
         hero.append(&side);
-        hero
+        art::hero_glow(&hero)
     }
 
     fn attention_card(&self, check: &Check) -> gtk::Box {
@@ -1489,7 +1489,7 @@ impl Security {
         Self::page(children)
     }
 
-    fn choice(&self, main: bool, icon: &str, title: &str, text: &str, buttons: Vec<gtk::Widget>) -> gtk::Box {
+    fn choice(&self, main: bool, icon: &str, title: &str, text: &str, buttons: Vec<gtk::Widget>) -> gtk::Widget {
         let choice = ui::vbox(14, &["choice", "card"]);
         if main {
             choice.add_css_class("main");
@@ -1503,7 +1503,7 @@ impl Security {
         words.append(&wrapping(text, &["p"]));
         choice.append(&words);
         choice.append(&actions(buttons));
-        choice
+        if main { art::choice_glow(&choice) } else { choice.upcast() }
     }
 
     fn strip_cell(tone: &str, icon: &str, label: &str, value: &str) -> gtk::Box {

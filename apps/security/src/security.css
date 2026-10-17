@@ -373,20 +373,18 @@ button.link.small {
     padding: 28px 30px;
     border: 1px solid var(--line);
     border-radius: 18px;
-    background-color: var(--card);
-    background-image: radial-gradient(110% 170% at 0% 0%,
-        color-mix(in oklab, var(--accent) 28%, transparent) 0%,
-        color-mix(in oklab, var(--accent) 7%, transparent) 42%,
-        transparent 72%);
-    box-shadow: var(--shadow);
 }
 
-/* The side a line starts on, where the glows that light a card from its icon sit */
-.hero:dir(rtl) {
-    background-image: radial-gradient(110% 170% at 100% 0%,
-        color-mix(in oklab, var(--accent) 28%, transparent) 0%,
-        color-mix(in oklab, var(--accent) 7%, transparent) 42%,
-        transparent 72%);
+/* The hero's background, under it: its colour and shadow, and the glow that lights it from the corner a line
+   starts at, radial-gradient(110% 170% at 0% 0%, accent 28% 0%, accent 7% 42%, transparent 72%), which art.rs
+   draws in this colour across the padding box (the padding is the hero's border). Not a radial-gradient()
+   here: glow.rs in the shared crate says why */
+.hero-glow {
+    padding: 1px;
+    border-radius: 18px;
+    background-color: var(--card);
+    box-shadow: var(--shadow);
+    color: var(--accent);
 }
 
 .emblem-badge {
@@ -613,11 +611,18 @@ button.manual-tile:hover {
 
 .choice.main {
     border-color: color-mix(in oklab, var(--accent) 45%, transparent);
-    background-image: radial-gradient(120% 120% at 0% 0%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 60%);
+    background-color: transparent;
+    box-shadow: none;
 }
 
-.choice.main:dir(rtl) {
-    background-image: radial-gradient(120% 120% at 100% 0%, color-mix(in oklab, var(--accent) 22%, transparent), transparent 60%);
+/* The main choice's background, under it, as .hero-glow is the hero's: a .card's colour and shadow, and
+   radial-gradient(120% 120% at 0% 0%, accent 22%, transparent 60%) from the corner a line starts at */
+.choice-glow {
+    padding: 1px;
+    border-radius: var(--radius);
+    background-color: var(--card);
+    box-shadow: var(--shadow);
+    color: var(--accent);
 }
 
 .choice-icon {

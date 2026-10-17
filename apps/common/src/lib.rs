@@ -6,6 +6,7 @@ pub mod app;
 pub mod brand;
 pub mod frame;
 pub mod gem;
+pub mod glow;
 pub mod i18n;
 pub mod icon;
 pub mod markdown;
