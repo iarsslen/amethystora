@@ -548,6 +548,10 @@ msgid "Repeated failed logins get the address blocked (ame security addresses)"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
+msgid "The SSH server is off, so there is nothing to guard: fail2ban starts with it"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
 msgid "fail2ban is not running"
 msgstr ""
 
@@ -744,6 +748,14 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "See why with:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "On battery, the security watcher waits for mains power, and then reads what was recorded meanwhile"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "To have it run on battery too:"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -1789,7 +1801,19 @@ msgid "Terminal greeting"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
-msgid "The logo, a summary of the machine and a tip, in each new terminal."
+msgid "The logo, a summary of the machine and a tip, in the first terminal of a session."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Phone"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Phone pairing"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Notifications, files, the clipboard and texts shared with an Android phone through KDE Connect, on the networks named home."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -2143,6 +2167,38 @@ msgid "What decides which program runs on the CPU next."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Quick, then repacked"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The most memory left and the quickest return, for a little work every hour on mains power (the default)"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Quick"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Nothing runs in the background, but it takes more memory"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Compact"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Small from the start, but a program that was moved out comes back half as quickly"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Swapped-out memory"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "How what programs are not using is compressed when RAM runs short. From the next restart."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "This machine does not start with UEFI."
 msgstr ""
 
@@ -2429,6 +2485,10 @@ msgid "Security settings are in Amethystora Security: ame security status"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "On battery"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Accounts"
 msgstr ""
 
@@ -2562,6 +2622,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Whether the watcher's runs every 15 minutes go on while the machine is on battery. Skipped, the next run on mains power reads the audit log and the journal from where the last one stopped, so what they recorded is said later; what is looked at as it stands, such as the ports open, is looked at then. Real-time watching is not skipped."
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
