@@ -250,7 +250,10 @@ writable package database.
 
 ## VPN
 
-- **Tailscale** is installed: `sudo tailscale up` joins your tailnet. It asks for your password because
+- **Tailscale** is installed: `ame system tailscale on` starts it and joins your tailnet, and
+  `ame system tailscale off` stops it. Its service runs only once you turned it on, or where the machine
+  had joined a tailnet before, so a machine that never uses it saves its memory. Turning it on asks for
+  your password because
   Tailscale runs as root, and whoever controls it can join the machine to a tailnet somebody else runs
   and turn on Tailscale SSH, which that tailnet can open to root. `sudo tailscale set --operator=$USER`
   lets your account run it without `sudo`, which lets any program you run do the same. It sends

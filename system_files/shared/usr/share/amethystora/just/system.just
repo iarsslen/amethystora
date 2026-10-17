@@ -46,6 +46,18 @@ auto-updates ACTION="prompt":
         echo "Updates have been disabled"
     fi
 
+# Tailscale, which joins this machine to your tailnet (ACTION: on or off; without it, says which). Its
+# service runs only once it is on, or where the machine had joined a tailnet before; on asks for your
+# password, and passes anything after it to `tailscale up`
+[positional-arguments]
+tailscale ACTION="" *ARGS:
+    #!/usr/bin/bash
+    case "${1:-}" in
+        on | off) sudo /usr/libexec/amethystora-tailscale "$@" ;;
+        "") echo "Tailscale is $(/usr/libexec/amethystora-tailscale status)" ;;
+        *) echo "Usage: ame system tailscale on|off [options for tailscale up]" >&2; exit 64 ;;
+    esac
+
 # Switch between Amethystora and the Developer Experience (ACTION: on or off; without it, it flips)
 [positional-arguments]
 devmode ACTION="":

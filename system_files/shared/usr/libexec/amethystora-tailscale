@@ -1,0 +1,52 @@
+#!/usr/bin/bash
+# Whether tailscaled runs on this machine. It takes some 33 MB from boot on whether or not the machine ever
+# joins a tailnet, so it runs once somebody turned Tailscale on here, or on a machine that had joined a
+# tailnet already, and on no other.
+#
+#   amethystora-tailscale wanted       0 when tailscaled should run (its unit's ExecCondition)
+#   amethystora-tailscale on [ARGS]    run it from now on, and join a tailnet (tailscale up ARGS)
+#   amethystora-tailscale off          stop it, and keep it stopped; the tailnet's settings stay for later
+#   amethystora-tailscale status       whether it is on, off or follows an earlier login
+set -euo pipefail
+
+CHOICE=/var/lib/amethystora/tailscale
+STATE=/var/lib/tailscale/tailscaled.state
+
+# What the owner chose, or nothing when nobody has: on or off
+choice() { cat "${CHOICE}" 2>/dev/null || true; }
+# A machine that joined a tailnet before this has a profile in tailscaled's state, and keeps Tailscale
+joined() { [[ -s "${STATE}" ]] && grep -q '"profile-' "${STATE}"; }
+
+case "${1:-}" in
+    wanted)
+        case "$(choice)" in
+            on) exit 0 ;;
+            off) exit 1 ;;
+        esac
+        joined
+        ;;
+    on)
+        shift
+        mkdir -p "${CHOICE%/*}"
+        echo on >"${CHOICE}"
+        systemctl start tailscaled.service
+        exec tailscale up "$@"
+        ;;
+    off)
+        mkdir -p "${CHOICE%/*}"
+        echo off >"${CHOICE}"
+        systemctl stop tailscaled.service
+        echo "Tailscale is off; \`ame system tailscale on\` turns it back on."
+        ;;
+    status)
+        # Without root, tailscaled's state cannot be read: whether it runs says what the boot decided
+        case "$(choice)" in
+            on | off) choice ;;
+            *) if systemctl is-active --quiet tailscaled.service; then echo on; else echo off; fi ;;
+        esac
+        ;;
+    *)
+        sed -n '2,9p' "$0" | sed 's/^# \?//'
+        exit 64
+        ;;
+esac
