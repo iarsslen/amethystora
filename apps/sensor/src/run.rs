@@ -74,6 +74,14 @@ pub fn run(probe: bool) -> Result<(), Box<dyn Error>> {
     })?;
     let ring = builder.build()?;
 
+    // A copy of each event goes to the journal as well (authpriv), so the Logs app's Security view keeps
+    // showing the file events it used to read from auditd (PLAN-audit-cost.md Q5). Best-effort: a failed
+    // connection or send never stops the sensor.
+    let journal = std::os::unix::net::UnixDatagram::unbound().ok();
+    if let Some(j) = &journal {
+        let _ = j.connect("/dev/log");
+    }
+
     let mut serial = (std::process::id() as u64) << 16;
     loop {
         ring.poll(Duration::from_millis(500))?;
@@ -85,10 +93,43 @@ pub fn run(probe: bool) -> Result<(), Box<dyn Error>> {
                 if let Err(e) = log.write(&rec, serial) {
                     eprintln!("amethystora-sensor: writing a record: {e}");
                 }
+                if let Some(j) = &journal {
+                    let _ = j.send(&journal_line(&rec));
+                }
                 reg.register_new_dir(&ev, &rec, &dirs, &bss);
             }
         }
     }
+}
+
+/// A short, readable copy of an event for the journal, at authpriv.notice, which the Logs app's Security
+/// view reads (SYSLOG_FACILITY=10). The watcher reads the full audit record from the sensor's own log; this
+/// is only so the raw journal view is not left empty where the sensor stands in for the audit rules.
+fn journal_line(rec: &Record) -> Vec<u8> {
+    let key = crate::keys::names_of(rec.keys).first().copied().unwrap_or("sensor");
+    let object = if !rec.dir.is_empty() {
+        let mut v = rec.dir.clone();
+        v.push(b'/');
+        v.extend_from_slice(&rec.name);
+        v
+    } else if !rec.path2.is_empty() {
+        rec.path2.clone()
+    } else if !rec.module.is_empty() {
+        rec.module.clone()
+    } else {
+        rec.name.clone()
+    };
+    // authpriv (10) * 8 + notice (5) = 85
+    let mut line = format!("<85>amethystora-sensor[{}]: {key}: ", std::process::id()).into_bytes();
+    // A path or name is untrusted text; keep only printable bytes here (the full record keeps the kernel's
+    // hex form). The watcher's own text filter handles what reaches a person.
+    for &b in &object {
+        line.push(if (0x20..0x7f).contains(&b) { b } else { b'?' });
+    }
+    line.extend_from_slice(
+        format!(" (comm={} uid={} auid={})", String::from_utf8_lossy(&rec.comm), rec.uid, rec.auid).as_bytes(),
+    );
+    line
 }
 
 // --- Registration ------------------------------------------------------------------------------------------

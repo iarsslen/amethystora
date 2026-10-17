@@ -413,9 +413,16 @@ check turns bad. It also looks at what each account's session finds first: a com
 `~/bin` or Homebrew's prefix named like a system one, and a launcher in `~/.local/share/applications` that
 no container export made. The audit rules ship one file per key in `/usr/share/amethystora/audit`, which
 `amethystora-audit-home-rules` writes into `/etc/audit/rules.d/60-amethystora.rules` at every boot, beside
-the per-home rules (`persistence`, `user-programs`). A new audit key has to be added to the watcher, to
-`amethystora-security-realtime` and to `amethystora-security-config`; `20-tests.sh` fails otherwise. The
-app's **Containers** page is what `amethystora-pkg containers list --json` says, run as the user.
+the per-home rules (`persistence`, `user-programs`). Where the kernel takes it, the **file-watch sensor**
+records those keys instead, without audit's per-system-call cost (`apps/sensor`, `amethystora-sensor`,
+`plans/security/PLAN-audit-cost.md`): the generator probes it once a boot and, for every key it covers,
+writes a `/run/amethystora/sensor/{plan,watch.list}` line from the same shipped rules rather than an audit
+rule, so the kernel loads only `-a never,task`; the watcher then reads that key from the sensor's own log
+(`sensor-KEY` checkpoint) and auditd's for the rest. A kernel the sensor cannot load on, or `ame security
+audit-locked`, falls back to the audit rules unchanged. A new audit key has to be added to the watcher, to
+`amethystora-security-realtime`, to `amethystora-security-config` and to the sensor (`src/bpf/sensor.h`'s
+keys and `src/keys.rs`); `20-tests.sh` fails otherwise, and checks `amethystora-sensor --keys` against the
+watcher's. The app's **Containers** page is what `amethystora-pkg containers list --json` says, run as the user.
 
 **Every security feature is a switch, and off costs nothing** (the maintainer's rule of 2026-10-08). A
 detection feature is a key in `security.conf`, defined in `amethystora-security-config` with its values,

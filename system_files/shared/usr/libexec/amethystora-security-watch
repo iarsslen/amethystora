@@ -1478,6 +1478,24 @@ audit_status() {
         '{$enabled, $drops}'
 }
 
+# The file-watch sensor's state for the report: the keys the plan gives it, and whether it is running
+sensor_status() {
+    local covered active=false
+    covered="$(tr ' ' '\n' <<<"${SENSOR_COVERS}" | grep . | jq -R . | jq -sc . 2>/dev/null)"
+    systemctl is-active --quiet amethystora-sensor.service 2>/dev/null && active=true
+    jq -nc --argjson covered "${covered:-[]}" --argjson active "${active}" '{$covered, $active}'
+}
+
+# A stop worth saying: the plan gives the sensor keys, yet it is not running, so the kernel records nothing
+# for them (the audit rules are off in its place). A stop takes a reboot to be the normal state, as the
+# locked audit rules do. Silent when the sensor covers nothing (a fallback boot, or a stand-in in the tests).
+sensor_watch() {
+    [[ "${SENSOR_COVERS}" =~ [a-z] ]] || return 0
+    systemctl is-active --quiet amethystora-sensor.service 2>/dev/null && return 0
+    add critical hardening - "Defense Evasion" \
+        "The file-watch sensor is not running, and the audit rules are off in its place: changes to accounts, sudo, what starts by itself and the security settings are not being recorded. Start amethystora-sensor, or keep the audit rules with: ame security audit-locked on"
+}
+
 # --- The TPM's disk key ----------------------------------------------------------------------------------
 
 # Whether the TPM holds a key to the system's disk, and whether every such key asks for a PIN, is in the
@@ -1774,6 +1792,9 @@ if [[ "${SETTING[AUDIT_LOG]:-on}" != off ]]; then
     timed CREDENTIALS switched CREDENTIALS read_credentials
     [[ "${SETTING[DECOY]:-off}" == off ]] && rm -f "${STATE}/audit-decoy.checkpoint" "${STATE}/sensor-decoy.checkpoint"
     timed DECOY switched DECOY read_decoy
+    # The sensor stands in for the audit rules where it covers a key; say when it should be recording but is
+    # not (MODE is on here, set back by the last switched call, so the stop is said)
+    sensor_watch
 fi
 timed HARDENING switched HARDENING read_settings
 [[ "${SETTING[PROCESSES]:-off}" == off ]] && rm -f "${STATE}/processes-seen"
@@ -1836,14 +1857,16 @@ AUDIT=null
 [[ "${SETTING[AUDIT_LOG]:-on}" != off ]] && AUDIT="$(audit_status)"
 DISK_UNLOCK="$(disk_unlock_status)"
 DURESS="$(duress_status)"
+SENSOR_STATE=null
+[[ "${SETTING[AUDIT_LOG]:-on}" != off ]] && SENSOR_STATE="$(sensor_status)"
 write_status() {
     jq -n --argjson checked "${NOW}" --argjson swept "${SWEPT:-null}" --argjson drift "${DRIFT:-null}" \
         --argjson setuid "${SETUID}" --argjson listeners "${LISTENING}" \
         --argjson network "$(network_status)" --argjson audit "${AUDIT:-null}" --argjson disk_unlock "${DISK_UNLOCK:-null}" \
-        --argjson duress "${DURESS:-null}" \
+        --argjson duress "${DURESS:-null}" --argjson sensor "${SENSOR_STATE:-null}" \
         --argjson timings "$(for key in "${!TIMINGS[@]}"; do printf '%s\t%s\n' "${key}" "${TIMINGS[${key}]}"; done |
             jq -R 'split("\t") | {(.[0]): (.[1] | tonumber)}' | jq -s 'add // {}')" \
-        '{$checked, $swept, $drift, $setuid, $listeners, $network, $audit, $disk_unlock, $duress, $timings}' >"${STATUS}.new" &&
+        '{$checked, $swept, $drift, $setuid, $listeners, $network, $audit, $disk_unlock, $duress, $sensor, $timings}' >"${STATUS}.new" &&
         chmod 0644 "${STATUS}.new" && mv "${STATUS}.new" "${STATUS}"
 }
 # Written before the report runs, which reads it, and again after with the report's own time

@@ -72,11 +72,15 @@ looks into it in a terminal and changes nothing until you agree.
 - **A sealed image checks every file of the system as it is read.** If you installed one, its kernel
   carries the digest of the whole system, signed, and a file changed on the disk cannot be read at
   all, whoever changed it. [Sealed images](updates.md#sealed-images).
-- **What would survive a restart is watched, and you are told.** The audit log records changes to
-  accounts, to who may use `sudo`, to what starts by itself (your autostart entries, your own
-  systemd services, the shell startup files) and to the security settings, and every program that
-  opens an input device. The security watcher reads it every 15 minutes and says what changed and
-  which program changed it. [The security watcher](#the-security-watcher).
+- **What would survive a restart is watched, and you are told.** Changes to accounts, to who may use
+  `sudo`, to what starts by itself (your autostart entries, your own systemd services, the shell
+  startup files) and to the security settings, and every program that opens an input device, are
+  recorded. On most machines a small sensor records them where they happen, so watching them costs
+  the rest of the machine nothing; where its kernel will not run it, the kernel's own audit log does
+  the same, which makes every program a little slower. Either way the security watcher reads what was
+  recorded every 15 minutes and says what changed and which program changed it, and `ame security
+  audit-locked` keeps the audit log doing it if you would rather. [The security
+  watcher](#the-security-watcher).
 - **A virus scan runs every week** over your home and temporary folders, and **Lynis audits the
   settings every month.** By default neither deletes or moves anything: a false positive that takes
   away a file you wanted is worse than most of what it would remove. `ame security scan` shows what
