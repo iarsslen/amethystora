@@ -150,9 +150,13 @@ look() {
     flatpak info "${where[@]}" --show-metadata "${app}" >"${TMP}/${index}.asked" 2>/dev/null
     flatpak override --user --show "${app}" >"${TMP}/${index}.user" 2>/dev/null
     flatpak override --system --show "${app}" >"${TMP}/${index}.system" 2>/dev/null
+    # What each says, worked out here, alongside the other apps: one after the other this took seconds
+    reaches "${TMP}/${index}.now" >"${TMP}/${index}.now.ids"
+    reaches "${TMP}/${index}.asked" >"${TMP}/${index}.asked.ids"
+    { reaches "${TMP}/${index}.user"; reaches "${TMP}/${index}.system"; } >"${TMP}/${index}.overridden.ids"
 }
 
-# A few apps at a time: every one is two runs of flatpak
+# A few apps at a time: every one is four runs of flatpak
 index=0
 for line in "${APPS[@]}"; do
     IFS=$'\t' read -r app installation _ <<<"${line}"
@@ -170,20 +174,21 @@ for id in "${ORDER[@]}"; do
 done
 
 RECORDS=()
+declare -A now asked overridden
 index=-1
 for line in "${APPS[@]}"; do
     index=$((index + 1))
     IFS=$'\t' read -r app installation name <<<"${line}"
     [[ -n "${app}" && -s "${TMP}/${index}.now" ]] || continue
-    mapfile -t now < <(reaches "${TMP}/${index}.now")
-    mapfile -t asked < <(reaches "${TMP}/${index}.asked")
-    mapfile -t overridden < <(reaches "${TMP}/${index}.user"; reaches "${TMP}/${index}.system")
+    now=() asked=() overridden=()
+    while read -r id; do now[${id}]=1; done <"${TMP}/${index}.now.ids"
+    while read -r id; do asked[${id}]=1; done <"${TMP}/${index}.asked.ids"
+    while read -r id; do overridden[${id}]=1; done <"${TMP}/${index}.overridden.ids"
     list=()
     for id in "${ORDER[@]}"; do
-        printf '%s\n' "${now[@]}" | grep -qxF -- "${id}" || continue
+        [[ -n "${now[${id}]:-}" ]] || continue
         granted=false
-        if printf '%s\n' "${overridden[@]}" | grep -qxF -- "${id}" ||
-            ! printf '%s\n' "${asked[@]}" | grep -qxF -- "${id}"; then
+        if [[ -n "${overridden[${id}]:-}" || -z "${asked[${id}]:-}" ]]; then
             granted=true
         fi
         list+=("$(jq -nc --arg id "${id}" --arg text "${TEXT[${id}]}" --argjson granted "${granted}" '{$id, $text, $granted}')")
