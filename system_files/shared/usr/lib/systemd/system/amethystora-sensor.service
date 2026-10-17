@@ -11,6 +11,8 @@ DefaultDependencies=no
 After=local-fs.target amethystora-audit-rules.service
 Before=basic.target shutdown.target
 Conflicts=shutdown.target
+# Stopping it is itself worth recording: a stop from a console takes a reboot, as the locked audit rules do.
+RefuseManualStop=yes
 
 [Service]
 Type=exec
@@ -20,8 +22,6 @@ ExecCondition=/usr/libexec/amethystora-sensor --check
 ExecStart=/usr/libexec/amethystora-sensor
 Restart=always
 RestartSec=1
-# Stopping it is itself worth recording: a stop from a console takes a reboot, as the locked audit rules do.
-RefuseManualStop=yes
 
 # It runs as root to load BPF and to open every watched folder, but reaches nothing it does not need: the
 # system read-only, the homes read-only (it only reads them), and only its own log to write.
