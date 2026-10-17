@@ -207,9 +207,14 @@ for rel in sysctl.d/61-amethystora-strict.conf modprobe.d/61-amethystora-strict.
     environment.d/60-amethystora-cooldown.conf profile.d/amethystora-brew-attestations.sh; do
     [[ -n "$("${HARDENING}" expected "${rel}")" ]] || fail "nothing expected at /etc/${rel}"
 done
-for name in time firewall-away block-bluetooth flatpak-password package-cooldown boot-password; do
+# audit-locked writes no file (the boot-time generator reads it), so it is in this list, not the one above
+for name in time firewall-away block-bluetooth flatpak-password package-cooldown boot-password audit-locked; do
     "${HARDENING}" is-on "${name}" && fail "${name}, a stricter setting, is on by default"
 done
+# ...and turned on, is-on reports it (which is how the audit generator falls back to the locked rules)
+printf 'audit-locked\n' >"${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-on"
+"${HARDENING}" is-on audit-locked || fail "audit-locked, turned on, is not reported on"
+rm -f "${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-on"
 "${HARDENING}" is-on kernel strict && fail "the kernel is strict by default"
 "${HARDENING}" is-on kernel-args init_on_free=1 && fail "an extra kernel argument is on by default"
 printf 'kernel strict\ntime\nkernel-args init_on_free=1\npackage-cooldown strict\n' >"${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-on"

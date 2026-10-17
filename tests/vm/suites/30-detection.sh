@@ -27,11 +27,18 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
 fi
 
 [[ "$(${config} --profile)" == thorough ]] && ok "the profile is still thorough after the restart" || not_ok "the profile is $(${config} --profile) after the restart"
+# Each key is watched by an audit rule, or by the file-watch sensor (then its key is in the plan and the
+# watch list, not in auditctl, which shows only -a never,task). Either source feeds the same findings below.
 rules="$(auditctl -l 2>&1)"
+plan=/run/amethystora/sensor/plan
+watchlist=/run/amethystora/sensor/watch.list
+watched() { grep -q -- "-k $1\$\|key=$1\$" <<<"${rules}" || grep -qx "$1 sensor" "${plan}" 2>/dev/null; }
 for key in credentials decoy exec-watch; do
-    grep -q -- "-k ${key}\$\|key=${key}\$" <<<"${rules}" && ok "audit rules for ${key} are loaded" || not_ok "no audit rule for ${key}" "$(grep -c . <<<"${rules}") rules loaded"
+    watched "${key}" && ok "${key} is watched (audit rule or the sensor)" || not_ok "no watch for ${key}" "$(grep -c . <<<"${rules}") rules; plan: $(cat "${plan}" 2>/dev/null | tr '\n' ' ')"
 done
-grep -q -- "-F inode=" <<<"${rules}" && ok "Login Data is watched by its inode" || not_ok "no inode rule for Login Data"
+# Login Data: an inode rule under audit, a read-file watch (its name, space and all) under the sensor
+{ grep -q -- "-F inode=" <<<"${rules}" || grep -q "^read-file credentials .*Login Data\$" "${watchlist}" 2>/dev/null; } &&
+    ok "Login Data is watched (inode rule or the sensor)" || not_ok "Login Data not watched"
 check "the decoy key is there" test -s "${HOME_DIR}/.ssh/id_backup"
 
 before="$(wc -l <"${HISTORY}" 2>/dev/null || echo 0)"

@@ -890,6 +890,12 @@ locked-poweroff ACTION="":
 boot-password ACTION="":
     @/usr/libexec/amethystora-hardening ask boot-password "${1:-}"
 
+# The audit rules, locked until reboot, instead of the file-watch sensor: the same records, harder to
+# stop, but every system call is a little slower
+[positional-arguments]
+audit-locked ACTION="":
+    @/usr/libexec/amethystora-hardening ask audit-locked "${1:-}"
+
 # VSCodium's extensions updated only by you, and only those you list (dx)
 [positional-arguments]
 vscodium-extensions ACTION="":

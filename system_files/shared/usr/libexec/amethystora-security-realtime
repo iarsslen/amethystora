@@ -31,7 +31,10 @@ PATTERNS=()
 if ! "${CONFIG}" --is WATCHER on; then
     :
 elif "${CONFIG}" --is REALTIME_WATCH on && "${CONFIG}" --is AUDIT_LOG on; then
-    FILES+=(/var/log/audit/audit.log)
+    # auditd's log, and the file-watch sensor's (amethystora-sensor): a key is on one or the other, both
+    # carry the same key="(...)" line, and tail waits for whichever is not there. The watcher reads each
+    # from its own checkpoint, so following both only decides when to look, never what is read.
+    FILES+=(/var/log/audit/audit.log /var/log/amethystora-sensor/audit.log)
     PATTERNS+=(-e " key=\"(${KEYS})\"")
 fi
 if "${CONFIG}" --is WATCHER on && ! "${CONFIG}" --is NETWORK off; then

@@ -2889,6 +2889,10 @@ msgid "Power off when locked for long"
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
+msgid "Locked audit rules"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
 msgid "Hides kernel addresses and messages, keeps programs from reading each other's memory, and turns off unprivileged BPF. Off, gdb -p, strace -p, perf and dmesg work without sudo, from the next restart. Strict also turns off io_uring, lets only root attach a debugger, randomises more of each program's memory layout and blocks IPsec; QEMU, Samba and some Node programs lose io_uring, gdb -p and strace -p need sudo, sanitizers stop working and libreswan and strongSwan cannot connect."
 msgstr ""
 
@@ -3005,6 +3009,10 @@ msgid "VSCodium stops updating extensions by itself: worms have spread through O
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
+msgid "Changes to accounts, sudo, what starts by itself and the security settings are watched by the kernel's own audit rules, locked until the next restart, instead of by the file-watch sensor. The records are the same, and killing the sensor can no longer stop them without a reboot, but every program on the machine runs a little slower, as audit makes the kernel weigh every system call."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
 msgid "From the next restart: a kernel setting keeps its value until then."
 msgstr ""
 
@@ -3070,6 +3078,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-hardening
 msgid "At once: the 18 hours count from the next time every session is locked."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "From the next restart, when the audit rules are written."
 msgstr ""
 
 #: usr/libexec/amethystora-home-networks-notice

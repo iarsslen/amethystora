@@ -222,25 +222,48 @@ INPUT_SEEN="${STATE}/input-programs"
 # auditctl", once per rule at every boot: auditctl's own call is in the same event, so -m SYSCALL keeps
 # them, and their lines are left out by what they say. The rules cannot change after that: -e 2 locks
 # them, and a try is unsuccessful, which is said.
-# What is new in the audit log since the last read of NAME, one checkpoint each: audit_since NAME
-# AUSEARCH-ARGUMENT... With a stand-in root, AMETHYSTORA_WATCH_AUDIT names a stand-in log, in the raw form the
-# kernel writes, which the tests plant.
+# Where the file-watch sensor (amethystora-sensor) writes its records, and which keys it covers, from the
+# plan the boot-time generator wrote (plans/security/PLAN-audit-cost.md). A key the plan gives the sensor is
+# read from the sensor's log, by a checkpoint of its own, so a change of source never confuses a checkpoint;
+# every other key, and the AVCs, stay on auditd's log exactly as before. With a stand-in root the tests name
+# a stand-in sensor log (AMETHYSTORA_WATCH_SENSOR) and plan (AMETHYSTORA_SENSOR_RUN).
+SENSOR_LOG=/var/log/amethystora-sensor/audit.log
+[[ -n "${ROOT}" && -n "${AMETHYSTORA_WATCH_SENSOR:-}" ]] && SENSOR_LOG="${AMETHYSTORA_WATCH_SENSOR}"
+SENSOR_RUN="${AMETHYSTORA_SENSOR_RUN:-${ROOT}/run/amethystora/sensor}"
+SENSOR_COVERS=" "
+if [[ -r "${SENSOR_RUN}/plan" ]]; then
+    while read -r _skey _swhere _; do
+        [[ "${_swhere}" == sensor ]] && SENSOR_COVERS+="${_skey} "
+    done <"${SENSOR_RUN}/plan"
+fi
+
+# What is new since the last read of NAME, one checkpoint each: audit_since NAME AUSEARCH-ARGUMENT... The
+# source is the sensor's log for a key the plan gives it, auditd's otherwise. With a stand-in root,
+# AMETHYSTORA_WATCH_AUDIT names a stand-in audit log, in the raw form the kernel writes, which the tests plant.
 AUDIT_INPUT=()
 [[ -n "${ROOT}" && -n "${AMETHYSTORA_WATCH_AUDIT:-}" ]] && AUDIT_INPUT=(-if "${AMETHYSTORA_WATCH_AUDIT}")
 audit_since() {
-    local checkpoint="${STATE}/audit-$1.checkpoint" output status day time
+    local name="$1" output status day time src input checkpoint
     shift
+    if [[ "${SENSOR_COVERS}" == *" ${name} "* ]]; then
+        src=sensor
+        input=(-if "${SENSOR_LOG}")
+    else
+        src=audit
+        input=("${AUDIT_INPUT[@]}")
+    fi
+    checkpoint="${STATE}/${src}-${name}.checkpoint"
     if [[ -s "${checkpoint}" ]]; then
-        output="$(LC_ALL=C ausearch "${AUDIT_INPUT[@]}" --checkpoint "${checkpoint}" "$@" 2>/dev/null)"
+        output="$(LC_ALL=C ausearch "${input[@]}" --checkpoint "${checkpoint}" "$@" 2>/dev/null)"
         status=$?
         # The event the checkpoint names has rotated out of the log: carry on from its time instead
         if [[ ${status} -ge 10 && ${status} -le 12 ]]; then
-            output="$(LC_ALL=C ausearch "${AUDIT_INPUT[@]}" --checkpoint "${checkpoint}" --start checkpoint "$@" 2>/dev/null)"
+            output="$(LC_ALL=C ausearch "${input[@]}" --checkpoint "${checkpoint}" --start checkpoint "$@" 2>/dev/null)"
         fi
     else
         # Nothing read under this name yet: everything since the last run, which also makes the checkpoint
         read -r day time <<<"$(LC_ALL=C date -d "@${LAST_RUN:-${NOW}}" '+%x %T')"
-        output="$(LC_ALL=C ausearch "${AUDIT_INPUT[@]}" --checkpoint "${checkpoint}" --start "${day}" "${time}" "$@" 2>/dev/null)"
+        output="$(LC_ALL=C ausearch "${input[@]}" --checkpoint "${checkpoint}" --start "${day}" "${time}" "$@" 2>/dev/null)"
     fi
     chmod 0600 "${checkpoint}" 2>/dev/null
     printf '%s\n' "${output}"
@@ -276,8 +299,9 @@ read_audit() {
         [[ "${AUDIT_OWN}" == *" ${key} "* ]] && continue
         MODE="${SETTING[$(tr 'a-z-' 'A-Z_' <<<"${key}")]:-on}"
         if [[ "${MODE}" == off ]]; then
-            # Turned on again, it starts from that run rather than reading everything since it went off
-            rm -f "${STATE}/audit-${key}.checkpoint"
+            # Turned on again, it starts from that run rather than reading everything since it went off,
+            # whichever source it was reading from
+            rm -f "${STATE}/audit-${key}.checkpoint" "${STATE}/sensor-${key}.checkpoint"
             continue
         fi
         while read -r count mark event; do
@@ -1742,13 +1766,13 @@ if [[ "${SETTING[AUDIT_LOG]:-on}" != off ]]; then
     timed AUDIT_LOG read_audit
     [[ "${SETTING[SELINUX_DENIALS]:-off}" == off ]] && rm -f "${STATE}/audit-selinux.checkpoint"
     timed SELINUX_DENIALS switched SELINUX_DENIALS read_selinux
-    [[ "${SETTING[EXEC_WATCH]:-off}" == off ]] && rm -f "${STATE}/audit-exec-watch.checkpoint"
+    [[ "${SETTING[EXEC_WATCH]:-off}" == off ]] && rm -f "${STATE}/audit-exec-watch.checkpoint" "${STATE}/sensor-exec-watch.checkpoint"
     timed EXEC_WATCH switched EXEC_WATCH read_exec
-    [[ "${SETTING[AGENT_CLIS]:-off}" == off ]] && rm -f "${STATE}/audit-agent-clis.checkpoint"
+    [[ "${SETTING[AGENT_CLIS]:-off}" == off ]] && rm -f "${STATE}/audit-agent-clis.checkpoint" "${STATE}/sensor-agent-clis.checkpoint"
     timed AGENT_CLIS switched AGENT_CLIS read_agent_clis
-    [[ "${SETTING[CREDENTIALS]:-off}" == off ]] && rm -f "${STATE}/audit-credentials.checkpoint"
+    [[ "${SETTING[CREDENTIALS]:-off}" == off ]] && rm -f "${STATE}/audit-credentials.checkpoint" "${STATE}/sensor-credentials.checkpoint"
     timed CREDENTIALS switched CREDENTIALS read_credentials
-    [[ "${SETTING[DECOY]:-off}" == off ]] && rm -f "${STATE}/audit-decoy.checkpoint"
+    [[ "${SETTING[DECOY]:-off}" == off ]] && rm -f "${STATE}/audit-decoy.checkpoint" "${STATE}/sensor-decoy.checkpoint"
     timed DECOY switched DECOY read_decoy
 fi
 timed HARDENING switched HARDENING read_settings

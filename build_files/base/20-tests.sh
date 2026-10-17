@@ -1669,6 +1669,27 @@ FIRST_WATCH="$(grep -n '^-w ' <<<"${AUDIT_DIRECTIVES}" | head -n1 | cut -d: -f1 
 [[ -n "${FIRST_WATCH}" ]]
 [[ -z "${LAST_DELETE}" || "${LAST_DELETE}" -lt "${FIRST_WATCH}" ]]
 
+# The file-watch sensor's side of the generator (plans/security/PLAN-audit-cost.md). The run above had no
+# BPF to probe, so it fell back to the audit rules, which the FIRST_WATCH check confirmed. Forced on, the
+# generator writes one -a never,task instead of every syscall rule, and the same watches into a watch list.
+SENSOR_BOOT="$(mktemp -d)"
+mkdir -p "${SENSOR_BOOT}/etc/audit/rules.d" "${SENSOR_BOOT}/var/home" "${SENSOR_BOOT}/run/sensor"
+: >"${SENSOR_BOOT}/etc/passwd"
+AMETHYSTORA_AUDIT_ROOT="${SENSOR_BOOT}" AMETHYSTORA_SENSOR_RUN="${SENSOR_BOOT}/run/sensor" \
+    AMETHYSTORA_SENSOR_FORCE=sensor bash /usr/libexec/amethystora-audit-home-rules
+SENSOR_SYS="${SENSOR_BOOT}/etc/audit/rules.d/60-amethystora.rules"
+# The only directive loaded is the task filter; no -w and no -S syscall rule
+grep -qx -- "-a never,task" "${SENSOR_SYS}"
+grep -vE '^[[:space:]]*(#|$)' "${SENSOR_SYS}" | grep -qvxE -- '-a never,task' && false
+# The watch list carries the folders and files, from the same shipped rules, and the plan gives every key
+grep -qx 'tree hardening /etc/sysctl.d' "${SENSOR_BOOT}/run/sensor/watch.list"
+grep -qx 'file identity /etc/passwd' "${SENSOR_BOOT}/run/sensor/watch.list"
+grep -qx 'exec-tree exec-watch /tmp' "${SENSOR_BOOT}/run/sensor/watch.list"
+grep -qx 'identity sensor' "${SENSOR_BOOT}/run/sensor/plan"
+# Every key the sensor covers is in the plan (modules among them, covered by its bit with no watch line)
+grep -qx 'modules sensor' "${SENSOR_BOOT}/run/sensor/plan"
+rm -rf "${SENSOR_BOOT}"
+
 # A full disk may never halt or suspend somebody's laptop. A gap in the audit log is the lesser loss,
 # so the actions that stop the machine are the ones this asserts are absent.
 grep -q "^max_log_file = 32$" /etc/audit/auditd.conf

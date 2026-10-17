@@ -33,6 +33,85 @@ wanted() {
     [[ "${SETTING[${name//-/_}]:-}" != off ]]
 }
 
+# The file-watch sensor (amethystora-sensor, plans/security/PLAN-audit-cost.md): where it covers a key, that
+# key gets no audit syscall rule (so no per-call cost), and what to watch is written to a plan and a watch
+# list under /run instead, from the very same shipped rules and per-home logic as the audit rules. The two
+# outputs never disagree because one set of decisions makes both. The audit keys, in the watcher's order.
+AUDIT_KEYS=(identity privilege persistence hardening modules input-capture user-programs exec-watch agent-clis \
+    credentials decoy)
+SENSOR_BIN="${AMETHYSTORA_SENSOR_BIN:-/usr/libexec/amethystora-sensor}"
+RUNDIR="${AMETHYSTORA_SENSOR_RUN:-${ROOT}/run/amethystora/sensor}"
+PLAN="${RUNDIR}/plan"
+WATCHLIST="${RUNDIR}/watch.list"
+PROBE_CACHE="${ROOT}/var/lib/amethystora/security/sensor-probe"
+USE_SENSOR=false
+
+# Does the sensor take this kernel and this build? A test forces it either way; a stand-in run (a build,
+# AMETHYSTORA_AUDIT_ROOT set) never probes, since there is no BPF to load there; otherwise load-and-detach
+# once (amethystora-sensor --probe), cached by kernel version and the binary's hash so only a new deployment
+# pays for it. audit-locked, a stricter setting, keeps today's audit rules and their cost.
+decide_sensor() {
+    case "${AMETHYSTORA_SENSOR_FORCE:-}" in
+        sensor) return 0 ;;
+        audit) return 1 ;;
+    esac
+    [[ -z "${ROOT}" ]] || return 1
+    [[ "${SETTING[AUDIT_LOG]:-on}" != off ]] || return 1
+    if [[ -x /usr/libexec/amethystora-hardening ]] && /usr/libexec/amethystora-hardening is-on audit-locked 2>/dev/null; then
+        return 1
+    fi
+    [[ -x "${SENSOR_BIN}" ]] || return 1
+    local key cached sum
+    sum="$(sha256sum "${SENSOR_BIN}" 2>/dev/null | cut -d' ' -f1)"
+    key="$(uname -r) ${sum}"
+    if [[ -r "${PROBE_CACHE}" ]]; then
+        cached="$(head -n1 "${PROBE_CACHE}" 2>/dev/null)"
+        [[ "${cached}" == "ok ${key}" ]] && return 0
+        [[ "${cached}" == "no ${key}" ]] && return 1
+    fi
+    mkdir -p "$(dirname "${PROBE_CACHE}")" 2>/dev/null
+    if "${SENSOR_BIN}" --probe 2>/dev/null; then
+        echo "ok ${key}" >"${PROBE_CACHE}" 2>/dev/null
+        return 0
+    fi
+    echo "no ${key}" >"${PROBE_CACHE}" 2>/dev/null
+    return 1
+}
+
+# A watch for the sensor, one "KIND KEY PATH" line (KIND: tree, file, exec-tree, read-tree, read-file)
+watchlist() { printf '%s %s %s\n' "$1" "$2" "$3" >>"${WATCHLIST}.new"; }
+
+# One shipped audit rule line turned into a watch-list line for the sensor. A -w folder or file, and the
+# folder a program runs from; a module or input rule needs none, since the plan's key is enough.
+to_watchlist() {
+    local key="$1" line="$2" p
+    if [[ "${line}" =~ ^-w\ ([^ ]+)\  ]]; then
+        p="${BASH_REMATCH[1]}"
+        [[ -e "${p%/}" ]] || return 0
+        if [[ "${p}" == */ ]]; then watchlist tree "${key}" "${p%/}"; else watchlist file "${key}" "${p}"; fi
+    elif [[ "${line}" =~ -S\ execve && "${line}" =~ \ -F\ dir=([^ ]+) ]]; then
+        p="${BASH_REMATCH[1]}"
+        [[ -e "${p%/}" ]] || return 0
+        watchlist exec-tree "${key}" "${p%/}"
+    fi
+}
+
+# A per-home watch, emitted as a watch-list line when the sensor covers it, else as the audit rule it would
+# have been (byte for byte what this wrote before the sensor, so the fallback is unchanged)
+emit() {
+    if [[ "${USE_SENSOR}" == true ]]; then
+        watchlist "$1" "$2" "$3"
+        return
+    fi
+    case "$1" in
+        tree) echo "-w $3/ -p wa -k $2" ;;
+        file) echo "-w $3 -p wa -k $2" ;;
+        exec-tree) exec_rule "$3" "$2" ;;
+        read-tree) read_rule dir "$3" "$2" ;;
+        read-file) read_rule path "$3" "$2" ;;
+    esac
+}
+
 # Directories worth watching whether or not anything has created them yet: each is a standard XDG path
 # that the desktop would create on its own, and a watch on the directory catches the file appearing in
 # it, which is what persistence looks like. Quadlets are containers the user's systemd starts at login.
@@ -128,11 +207,31 @@ give_back() {
     done
 }
 
+# Decide the sensor once, then write the plan (one wanted key a line, "KEY sensor" or "KEY audit") and start
+# a fresh watch list. mkdir of /run early in boot is safe; a stand-in run writes these under its own root.
+decide_sensor && USE_SENSOR=true
+DECISION=audit
+[[ "${USE_SENSOR}" == true ]] && DECISION=sensor
+mkdir -p "${RUNDIR}"
+: >"${WATCHLIST}.new"
+{
+    for key in "${AUDIT_KEYS[@]}"; do
+        wanted "${key}" && echo "${key} ${DECISION}"
+    done
+} >"${PLAN}.new"
+
 # The image's rules, for each key that is not off. A watch on a path that is not there would stop auditctl
-# loading every rule after it, -e 2 included, so such a line is left out rather than written.
+# loading every rule after it, -e 2 included, so such a line is left out rather than written. Where the
+# sensor covers a key, nothing is written here but the plan's entry and the watch list's lines; and once
+# every wanted key is the sensor's, one -a never,task is all that loads, which is Fedora's own default.
 {
     echo "## Generated by ${0} from ${SHIPPED}, for the keys not"
     echo "## off in /etc/amethystora/security.conf. Edits are overwritten at the next boot."
+    if [[ "${USE_SENSOR}" == true ]]; then
+        echo "## The file-watch sensor (amethystora-sensor) covers every watched key; the kernel audits no"
+        echo "## system call. What it watches is in ${WATCHLIST}."
+        echo "-a never,task"
+    fi
     for shipped in "${SHIPPED}"/*.rules; do
         [[ -f "${shipped}" ]] || continue
         key="$(basename "${shipped}" .rules)"
@@ -142,11 +241,14 @@ give_back() {
             continue
         fi
         while IFS= read -r line; do
-            if [[ "${line}" =~ ^-w\ ([^ ]+)\  && ! -e "${BASH_REMATCH[1]}" ]]; then
+            [[ "${line}" == -* ]] || continue
+            if [[ "${USE_SENSOR}" == true ]]; then
+                to_watchlist "${key}" "${line}"
+            elif [[ "${line}" =~ ^-w\ ([^ ]+)\  && ! -e "${BASH_REMATCH[1]}" ]]; then
                 echo "## Left out, not on this machine: ${line}"
             elif [[ "${line}" =~ \ -F\ (dir|path)=([^ ]+) && ! -e "${BASH_REMATCH[2]}" ]]; then
                 echo "## Left out, not on this machine: ${line}"
-            elif [[ "${line}" == -* ]]; then
+            else
                 echo "${line}"
             fi
         done <"${shipped}"
@@ -278,29 +380,29 @@ download_dir() {
             fi
             give_back "${home}" "${uid}" "${dir}"
             if real="$(inside "${home}" "${dir}")"; then
-                echo "-w ${real}/ -p wa -k ${key}"
+                emit tree "${key}" "${real}"
             fi
         done
         for file in "${WATCH_FILES[@]}"; do
             [[ "${PERSISTENCE}" == true ]] || break
-            [[ -f "${home}/${file}" ]] && real="$(inside "${home}" "${file}")" && echo "-w ${real} -p wa -k persistence"
+            [[ -f "${home}/${file}" ]] && real="$(inside "${home}" "${file}")" && emit file persistence "${real}"
         done
         for file in "${PROGRAM_FILES[@]}"; do
             [[ "${USER_PROGRAMS}" == true ]] || break
-            [[ -f "${home}/${file}" ]] && real="$(inside "${home}" "${file}")" && echo "-w ${real} -p wa -k user-programs"
+            [[ -f "${home}/${file}" ]] && real="$(inside "${home}" "${file}")" && emit file user-programs "${real}"
         done
         for dir in "${WATCH_EXISTING_DIRS[@]}"; do
             [[ "${PERSISTENCE}" == true ]] || break
-            [[ -d "${home}/${dir}" ]] && real="$(inside "${home}" "${dir}")" && echo "-w ${real}/ -p wa -k persistence"
+            [[ -d "${home}/${dir}" ]] && real="$(inside "${home}" "${dir}")" && emit tree persistence "${real}"
         done
         # ~/bin is in the PATH a shell sets up, but only where it is there: nobody is given one to watch
         [[ "${USER_PROGRAMS}" == true && -d "${home}/bin" && ! -L "${home}/bin" ]] && real="$(inside "${home}" bin)" &&
-            echo "-w ${real}/ -p wa -k user-programs"
+            emit tree user-programs "${real}"
         # A program run from the cache or the download folder (EXEC_WATCH), where they are
         if [[ "${EXEC_WATCH}" == true ]]; then
             for dir in .cache "$(download_dir "${home}")"; do
                 if [[ -d "${home}/${dir}" ]] && real="$(inside "${home}" "${dir}")"; then
-                    exec_rule "${real}" exec-watch
+                    emit exec-tree exec-watch "${real}"
                 fi
             done
         fi
@@ -313,7 +415,7 @@ download_dir() {
                 fi
             done | sort -u | while read -r dir; do
                 if [[ -d "${dir}" ]]; then
-                    exec_rule "${dir}" agent-clis
+                    emit exec-tree agent-clis "${dir}"
                 fi
             done
         fi
@@ -326,19 +428,25 @@ download_dir() {
                     for file in "${home}"/${pattern}; do
                         [[ -f "${file}" && "${file}" != *.pub ]] || continue
                         if real="$(inside "${home}" "${file#"${home}/"}")"; then
-                            read_rule path "${real}" credentials
+                            emit read-file credentials "${real}"
                         fi
                     done
                 done
                 for dir in "${CREDENTIAL_DIRS[@]}"; do
                     if [[ -d "${home}/${dir}" ]] && real="$(inside "${home}" "${dir}")"; then
-                        read_rule dir "${real}" credentials
+                        emit read-tree credentials "${real}"
                     fi
                 done
                 for pattern in "${CREDENTIAL_INODES[@]}"; do
                     for file in "${home}"/${pattern}; do
                         [[ -f "${file}" && "$(realpath -e -- "${file}" 2>/dev/null)" == "${file}" ]] || continue
-                        inode_rule "${file}" credentials
+                        # The sensor matches "Login Data" by folder and name (a space and all), so it needs
+                        # no inode; audit cannot hold the space, so there it stays an inode rule.
+                        if [[ "${USE_SENSOR}" == true ]]; then
+                            watchlist read-file credentials "${file}"
+                        else
+                            inode_rule "${file}" credentials
+                        fi
                     done
                 done
                 settings="${home}/.config/amethystora/backup.env"
@@ -346,7 +454,7 @@ download_dir() {
                     file="$(head -c 8192 -- "${settings}" | sed -n 's/^RESTIC_PASSWORD_FILE="\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' | head -n1)"
                     file="${file/#\~/${home}}"
                     if [[ "${file}" == "${home}"/* && -f "${file}" ]] && real="$(inside "${home}" "${file#"${home}/"}")"; then
-                        read_rule path "${real}" credentials
+                        emit read-file credentials "${real}"
                     fi
                 fi
             } | sort -u
@@ -355,7 +463,7 @@ download_dir() {
         if [[ "${DECOY}" == true ]]; then
             if make_decoy "${home}" "${uid}" && own_decoy "${home}/${DECOY_FILE}" &&
                 real="$(inside "${home}" "${DECOY_FILE}")"; then
-                read_rule path "${real}" decoy
+                emit read-file decoy "${real}"
             fi
         elif own_decoy "${home}/${DECOY_FILE}" && real="$(inside "${home}" "${DECOY_FILE}")"; then
             setpriv --reuid="${uid}" --regid="$(stat -c '%g' "${home}")" --clear-groups rm -f -- "${real}" || true
@@ -374,7 +482,7 @@ download_dir() {
             real="$(realpath -e -- "${ROOT}${command}" 2>/dev/null)" || continue
             if [[ ( "${real}" == "${ROOT}"/home/linuxbrew/* || "${real}" == "${ROOT}"/var/home/linuxbrew/* ) &&
                 "${real}" =~ ^[[:alnum:]._/@+-]+$ ]]; then
-                exec_rule "${real%/*}" agent-clis
+                emit exec-tree agent-clis "${real%/*}"
             fi
         done
     fi
@@ -383,6 +491,10 @@ download_dir() {
 mv "${RULES}.new" "${RULES}"
 chmod 0600 "${RULES}"
 restorecon "${RULES}" 2>/dev/null || true
+
+# The sensor's plan and watch list, written together with the rules from the one set of decisions above.
+mv "${WATCHLIST}.new" "${WATCHLIST}" && chmod 0644 "${WATCHLIST}"
+mv "${PLAN}.new" "${PLAN}" && chmod 0644 "${PLAN}"
 
 # Nothing to load here in the normal case: this runs before every file in /etc/audit/rules.d is loaded
 # at boot, by audit-rules.service once auditd has started (audit 4.2 and later; auditd itself before).

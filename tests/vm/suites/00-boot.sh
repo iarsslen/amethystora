@@ -19,7 +19,10 @@ check "the booted deployment is the image under test" sh -c 'rpm-ostree status -
 check "the image's own kernel module loads under Secure Boot (v4l2loopback)" modprobe v4l2loopback
 # The audit rules are written at boot by a unit whose sandbox, when systemd cannot set it up, skips it quietly
 check "the audit rules were written at boot" systemctl is-active --quiet amethystora-audit-rules.service
-check "the image's audit rules are loaded" sh -c 'auditctl -l | grep -q -- "-k identity\$"'
+# Identity is watched by an audit rule, or by the file-watch sensor (plans/security/PLAN-audit-cost.md),
+# in which case the plan gives it the key and auditctl shows only the -a never,task filter.
+check "identity is watched (audit rule or the sensor)" sh -c 'auditctl -l | grep -q -- "-k identity\$" || grep -qx "identity sensor" /run/amethystora/sensor/plan'
+check "no per-syscall audit rule loaded when the sensor covers identity" sh -c '! grep -qx "identity sensor" /run/amethystora/sensor/plan || auditctl -l | grep -qE -- "(never,task|task,never)"'
 # kargs.d put it there; the system setup's step for machines rpm-ostree updates ran, found it and did nothing
 check "the console is not asked its size at boot" grep -qwF systemd.tty.term.console=dumb /proc/cmdline
 check "the system setup ran its console step" wait_for 60 jq -e '.version.system."console-query" == "1"' \

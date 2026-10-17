@@ -33,6 +33,11 @@ systemctl enable amethystora-gpu-check.timer
 # and no btrfs over several disks; `ame system raid scrub off` turns the scrub off.
 systemctl enable amethystora-raid-check.timer
 systemctl enable amethystora-raid-scrub.timer
+# The file-watch sensor (amethystora-sensor, plans/security/PLAN-audit-cost.md): it records the files the
+# audit rules watch without their per-system-call cost. Enabled, but its ExecCondition skips it unless the
+# boot-time plan gives it a key, which it does only when its load probe passed and AUDIT_LOG and WATCHER are
+# on; a kernel it cannot load on falls back to the audit rules, with nothing lost but the saving.
+systemctl enable amethystora-sensor.service
 # Swapped-out memory that stays unused, repacked smaller every hour on mains power (zram-generator.conf.d)
 systemctl enable amethystora-zram-recompress.timer
 # amepkg is amethystora-pkg under a shorter name. Made here, because a link in system_files is one the

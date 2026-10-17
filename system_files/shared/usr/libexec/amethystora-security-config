@@ -312,7 +312,7 @@ cost() {
         REALTIME_WATCH) units="amethystora-security-realtime.service" ;;
         WATCHER) run=amethystora-security-watch.service ;;
         SETTINGS_AUDIT) run=amethystora-lynis-audit.service ;;
-        AUDIT_LOG) units="auditd.service" ;;
+        AUDIT_LOG) units="auditd.service amethystora-sensor.service" ;;
         BEHAVIOUR) units="amethystora-behaviour.service" ;;
         DNS_NAMES) units="amethystora-dns-names.service" ;;
         YARA_ELASTIC | YARA_SIGNATURE_BASE | YARA_FORGE) run=amethystora-yara.service ;;
