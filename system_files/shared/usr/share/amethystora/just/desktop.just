@@ -146,6 +146,42 @@ greeting ACTION="":
             ;;
     esac
 
+# Your Android phone through GSConnect: notifications, files, clipboard and texts (ACTION: on or off; without
+# it, it flips). Off until turned on, since its service keeps some 30 MB in every session
+[positional-arguments]
+phone ACTION="":
+    #!/usr/bin/bash
+    UUID=gsconnect@andyholmes.github.io
+    # One uuid a line, and back to a list, as user-setup.hooks.d/15-extensions.sh does: outside a session,
+    # where gnome-extensions cannot reach GNOME Shell, the setting is changed directly
+    uuids() { gsettings get org.gnome.shell enabled-extensions | grep -oE "'[^']+'" | tr -d "'" || true; }
+    variant() { if (($#)); then printf "'%s'\n" "$@" | paste -sd, | sed 's/^/[/; s/$/]/'; else echo '[]'; fi; }
+    on() { uuids | grep -qxF "${UUID}"; }
+    action="${1:-}"
+    if [[ -z "${action}" ]]; then
+        if on; then action=off; else action=on; fi
+    fi
+    case "${action}" in
+        on)
+            if ! gnome-extensions enable "${UUID}" 2>/dev/null && ! on; then
+                mapfile -t list < <(uuids)
+                gsettings set org.gnome.shell enabled-extensions "$(variant "${list[@]}" "${UUID}")"
+            fi
+            echo "Phone pairing is on: install KDE Connect on the phone, and pair them on a network you named home."
+            ;;
+        off)
+            if ! gnome-extensions disable "${UUID}" 2>/dev/null; then
+                mapfile -t list < <(uuids | grep -vxF "${UUID}")
+                gsettings set org.gnome.shell enabled-extensions "$(variant "${list[@]}")"
+            fi
+            echo "Phone pairing is off"
+            ;;
+        *)
+            echo "usage: ame desktop phone [on|off]"
+            exit 64
+            ;;
+    esac
+
 # The terminal's own tools in place of the usual ones: eza for ls, bat for cat, ugrep for grep, with zoxide, direnv and mise (ACTION: on or off)
 [positional-arguments]
 bling ACTION="":

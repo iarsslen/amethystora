@@ -159,6 +159,9 @@ show-net=true
 show-disk=false
 show-fs=false
 use-system-accent=false
+# Each refresh redraws the meters: at the default rate the compositor woke six or seven times a second on an
+# idle desktop
+refresh-rate='slow'
 
 # Just Perfection: quicker animations, and no workspace popup, because Space Bar already shows
 # which workspace you moved to. Space Bar hides the Activities button once, when it starts, and

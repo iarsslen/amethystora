@@ -152,7 +152,9 @@ many Brother and older laser printers are included for the rest. Add a printer i
 ## Phones
 
 - **Android:** GSConnect links the phone to the desktop: notifications, file transfer, a shared
-  clipboard and texts. Install KDE Connect on the phone and pair them from the quick settings, on a
+  clipboard and texts. It is off until you turn it on, with `ame desktop phone on` or the **Phone pairing**
+  switch on [Control](control.md)'s **Desktop** page, since it keeps a service running in every session.
+  Install KDE Connect on the phone and pair them from the quick settings, on a
   network you have named home: elsewhere the firewall keeps the phone out
   ([Security](security.md#on-from-the-start)). Name it with `ame security home-networks`.
 - **iPhone:** plug it in and trust the computer on the phone; its photos and files show up in Files.

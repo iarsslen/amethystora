@@ -287,6 +287,13 @@ USAGE="ame desktop bling on|off"
 item desktop bling switch "$(gettext "Terminal tools")" \
     "$(gettext "Your shell uses eza for ls, bat for cat and ugrep for grep, with zoxide, direnv and mise, wherever they are installed.")" \
     "${BLING}" terminal#command-line-tools
+
+if gsettings get org.gnome.shell enabled-extensions 2>/dev/null | grep -qF "'gsconnect@andyholmes.github.io'"; then PHONE=on; else PHONE=off; fi
+switch_choices false ame desktop phone
+GROUP="$(gettext "Phone")"
+USAGE="ame desktop phone on|off"
+item desktop phone switch "$(gettext "Phone pairing")" \
+    "$(gettext "Notifications, files, the clipboard and texts shared with an Android phone through KDE Connect, on the networks named home.")" "${PHONE}" hardware#phones
 GROUP=""
 
 # --- Apps ------------------------------------------------------------------------------------------
