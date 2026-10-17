@@ -415,3 +415,39 @@ scheduler NAME="":
             ;;
         *) exit 0 ;;
     esac
+
+# How swapped-out memory is compressed (MODE: default, fast or compact; without it, explains and asks), from the next restart
+[positional-arguments]
+zram MODE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # The image's own is zram-generator.conf.d/10-amethystora.conf; a choice goes after it, in /etc
+    choice=/etc/systemd/zram-generator.conf.d/90-amethystora-choice.conf
+    current="$(sed -n 's/^# mode: //p' "${choice}" 2>/dev/null || true)"
+    echo "Swapped-out memory is compressed: ${current:-default}"
+    mode="${1:-}"
+    if [[ -z "${mode}" ]]; then
+        echo
+        echo "When RAM runs short, what programs are not using moves into compressed memory, and comes back"
+        echo "when a program needs it. Measured on a 4 GB machine holding 3 GB of program data:"
+        echo
+        echo "default  Compressed quickly as it leaves RAM, and what stays unused repacked smaller every hour"
+        echo "         on mains power: about 420 MB of RAM for each GB moved out, back at about 310 MB/s."
+        echo "fast     Compressed quickly and left so (Fedora's own): nothing runs in the background, but about"
+        echo "         540 MB of RAM for each GB, back at about 250 MB/s."
+        echo "compact  Compressed small from the start: about 430 MB of RAM for each GB, but moving out and"
+        echo "         back is about half as quick, at about 130 MB/s."
+        echo
+        mode="$(gum choose --header "Swapped-out memory" default fast compact)"
+    fi
+    case "${mode}" in
+        default) sudo rm -f "${choice}" ;;
+        fast | compact)
+            algorithm=lzo-rle
+            [[ "${mode}" == compact ]] && algorithm=zstd
+            sudo mkdir -p "${choice%/*}"
+            printf '# mode: %s\n[zram0]\ncompression-algorithm = %s\n' "${mode}" "${algorithm}" | sudo tee "${choice}" >/dev/null
+            ;;
+        *) exit 0 ;;
+    esac
+    echo "${mode}, from the next restart."

@@ -1,0 +1,9 @@
+[Unit]
+Description=Repack unused swapped-out memory every hour
+
+[Timer]
+OnBootSec=30min
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target

@@ -55,6 +55,18 @@ does the same, since NVIDIA's driver does not load without the key.
   says whether this machine's does, and `ame security kernel-args iommu.strict=1 on` turns it on where
   the firmware has VT-d or AMD-Vi.
 
+## Memory
+
+When RAM runs short, what programs are not using moves into compressed memory (zram) rather than to the
+disk, and comes back when a program needs it. It is compressed quickly as it leaves RAM, and what then
+stays unused is repacked smaller every hour while the machine is on mains power. On a 4 GB machine
+holding 3 GB of program data, that took about 420 MB of RAM for each GB moved out, against 540 MB with
+the quick compression alone, and brought it back sooner than compressing it small from the start.
+
+`ame system zram` explains the choices and asks, and so does **Swapped-out memory** on
+[Control](control.md)'s **System** page: `default`, `fast` (no repacking, Fedora's own) or `compact`
+(small from the start, slower to come back). A choice takes effect from the next restart.
+
 ## Disks
 
 - **Encryption** is chosen when installing and cannot be added afterwards. Once it is on,

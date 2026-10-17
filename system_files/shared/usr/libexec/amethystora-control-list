@@ -567,6 +567,20 @@ USAGE="ame system scheduler NAME"
 item system scheduler choice "$(gettext "CPU scheduler")" "$(gettext "What decides which program runs on the CPU next.")" \
     "${SCHEDULER}" games#a-faster-cpu-scheduler-for-games
 
+# What ame system zram chose, in the file it writes; the image's own otherwise
+ZRAM="$(sed -n 's/^# mode: //p' /etc/systemd/zram-generator.conf.d/90-amethystora-choice.conf 2>/dev/null)"
+choice default "$(gettext "Quick, then repacked")" \
+    "$(gettext "The most memory left and the quickest return, for a little work every hour on mains power (the default)")" \
+    true ame system zram default
+choice fast "$(gettext "Quick")" "$(gettext "Nothing runs in the background, but it takes more memory")" true ame system zram fast
+choice compact "$(gettext "Compact")" "$(gettext "Small from the start, but a program that was moved out comes back half as quickly")" \
+    true ame system zram compact
+GROUP="$(gettext "Hardware")"
+USAGE="ame system zram MODE"
+item system zram choice "$(gettext "Swapped-out memory")" \
+    "$(gettext "How what programs are not using is compressed when RAM runs short. From the next restart.")" \
+    "${ZRAM:-default}" hardware#memory
+
 [[ -d /sys/firmware/efi ]] || REASON="$(gettext "This machine does not start with UEFI.")"
 COMMAND=(ame system bios)
 BUTTON="$(gettext "Restart…")"

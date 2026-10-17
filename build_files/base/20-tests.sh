@@ -2040,6 +2040,9 @@ for file in /etc/yum.repos.d/{tailscale,docker-ce,falcosecurity,_copr_ublue-os-a
     fi
 done
 
+# Swapped-out memory: lzo-rle, with zstd for what stays unused (zram-generator.conf.d, and the hourly timer below)
+grep -qx 'compression-algorithm = lzo-rle zstd' /usr/lib/systemd/zram-generator.conf.d/10-amethystora.conf
+
 IMPORTANT_UNITS=(
     clamav-freshclam.service
     clamd@scan.socket
@@ -2063,6 +2066,7 @@ IMPORTANT_UNITS=(
     amethystora-gpu-check.timer
     amethystora-raid-check.timer
     amethystora-raid-scrub.timer
+    amethystora-zram-recompress.timer
   )
 
 for unit in "${IMPORTANT_UNITS[@]}"; do

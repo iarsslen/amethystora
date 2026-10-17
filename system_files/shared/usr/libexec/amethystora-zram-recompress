@@ -1,0 +1,14 @@
+#!/usr/bin/bash
+# Repacks the swapped-out memory that stayed unused, with each zram device's second algorithm
+# (zram-generator.conf.d/10-amethystora.conf), then marks every page, so that the next run repacks what
+# stays unused until then. A device with one algorithm only (`ame system zram fast|compact`) is left alone.
+set -uo pipefail
+
+for dev in /sys/block/zram*; do
+    [[ -e "${dev}/recompress" && "$(cat "${dev}/disksize" 2>/dev/null)" != 0 ]] || continue
+    # The second algorithm is the one in brackets on the line for priority 1
+    grep -q '^#1: .*\[' "${dev}/recomp_algorithm" 2>/dev/null || continue
+    echo type=idle >"${dev}/recompress" || echo "${dev##*/}: could not recompress" >&2
+    echo all >"${dev}/idle" || echo "${dev##*/}: could not mark pages unused" >&2
+done
+exit 0

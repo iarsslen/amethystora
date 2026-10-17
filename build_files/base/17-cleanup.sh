@@ -27,6 +27,8 @@ systemctl enable amethystora-gpu-check.timer
 # and no btrfs over several disks; `ame system raid scrub off` turns the scrub off.
 systemctl enable amethystora-raid-check.timer
 systemctl enable amethystora-raid-scrub.timer
+# Swapped-out memory that stays unused, repacked smaller every hour on mains power (zram-generator.conf.d)
+systemctl enable amethystora-zram-recompress.timer
 # amepkg is amethystora-pkg under a shorter name. Made here, because a link in system_files is one the
 # build's rsync would skip.
 ln -sf amethystora-pkg /usr/bin/amepkg

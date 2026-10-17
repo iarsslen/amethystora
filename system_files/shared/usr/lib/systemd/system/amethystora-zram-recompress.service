@@ -1,0 +1,15 @@
+[Unit]
+Description=Repack unused swapped-out memory with zram's second algorithm
+Documentation=https://docs.kernel.org/admin-guide/blockdev/zram.html
+# Some seconds of CPU for a few gigabytes: on mains power only, and never ahead of what somebody is doing
+ConditionACPower=true
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/amethystora-zram-recompress
+Nice=19
+CPUWeight=20
+IOSchedulingClass=idle
+ProtectHome=yes
+PrivateNetwork=yes
+NoNewPrivileges=yes
