@@ -33,14 +33,6 @@ fi
 PRESET_IMAGE="${1:-}"
 PRESET_STREAM="${2:-}"
 
-function list_tags() {
-  local filter="$1"
-  skopeo list-tags "docker://${IMAGE_REGISTRY}/${IMAGE_NAME}" \
-    | jq -r '.Tags[]' \
-    | grep -E --color=never "$filter" \
-    | sort -rV | head -n 31
-}
-
 echo -ne "Current image: ${IMAGE_NAME}:${IMAGE_TAG}\n"
 IMAGE_NAME="$(gum choose --header="Select your image:" --selected="${PRESET_IMAGE:-${IMAGE_NAME}}" "${IMAGES[@]}" cancel)"
 [[ "$IMAGE_NAME" == "cancel" || "$IMAGE_NAME" == "" ]] && exit 0
@@ -56,20 +48,9 @@ channel_choice="$(gum choose --selected="${PRESET_STREAM:-${IMAGE_TAG}}" "${CHAN
 [[ "$channel_choice" == "cancel" || "$channel_choice" == "" ]] && exit 0
 channel_selected=${channel_choice%% *}
 
+# Always the stream's own tag: a dated one (latest-20261017) names a single build, and a machine
+# switched to it would pull that same build at every update, forever
 rebase_target="${base_image}:${channel_selected}"
-
-if gum confirm --default=no "Would you like to pin to a specific build date?" ; then
-  echo "Fetching available tags for channel: $channel_selected..."
-  filter="${channel_selected}.[0-9]{8}"
-
-  valid_tags=( $(list_tags "$filter") )
-  [[ "${#valid_tags[@]}" -eq 0 ]] && { echo "No tags found for $filter"; exit 1; }
-
-  selected_tag="$(gum choose cancel "${valid_tags[@]}")"
-  [[ "$selected_tag" == "cancel" || "$selected_tag" == "" ]] && exit 0
-
-  rebase_target="${base_image}:${selected_tag}"
-fi
 
 gum confirm "Confirm rebase to ${rebase_target}?" || exit 1
 
