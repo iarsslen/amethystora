@@ -1805,18 +1805,6 @@ msgid "The logo, a summary of the machine and a tip, in the first terminal of a 
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
-msgid "Phone"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Phone pairing"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Notifications, files, the clipboard and texts shared with an Android phone through KDE Connect, on the networks named home."
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
 msgid "This works with bash, zsh and fish, and your shell is none of them."
 msgstr ""
 
@@ -1826,6 +1814,18 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "Your shell uses eza for ls, bat for cat and ugrep for grep, with zoxide, direnv and mise, wherever they are installed."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Phone"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Phone pairing"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Notifications, files, the clipboard and texts shared with an Android phone through KDE Connect, on the networks named home."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
