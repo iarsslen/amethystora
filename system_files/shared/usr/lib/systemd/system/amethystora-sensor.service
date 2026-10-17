@@ -1,0 +1,45 @@
+[Unit]
+Description=Amethystora file-watch sensor
+Documentation=file:///usr/share/amethystora/manual/security.md
+# It watches the same files and operations the audit rules watch, where they happen rather than at every
+# system call, and writes them as audit records of its own for the security watcher to read. See
+# plans/security/PLAN-audit-cost.md. It runs only while the plan gives it at least one key (--check).
+#
+# Early, like the audit rules it stands in for, and after them so their plan (which keys are the sensor's)
+# is written first. local-fs.target is all it needs, for /etc, /var and the homes it registers.
+DefaultDependencies=no
+After=local-fs.target amethystora-audit-rules.service
+Before=basic.target shutdown.target
+Conflicts=shutdown.target
+
+[Service]
+Type=exec
+# Wanted only while the audit log and the watcher are on and the plan gave it a key (see amethystora-sensor
+# --check); off, it is skipped, not failed, like the audit rules.
+ExecCondition=/usr/libexec/amethystora-sensor --check
+ExecStart=/usr/libexec/amethystora-sensor
+Restart=always
+RestartSec=1
+# Stopping it is itself worth recording: a stop from a console takes a reboot, as the locked audit rules do.
+RefuseManualStop=yes
+
+# It runs as root to load BPF and to open every watched folder, but reaches nothing it does not need: the
+# system read-only, the homes read-only (it only reads them), and only its own log to write.
+ProtectSystem=strict
+ProtectHome=read-only
+LogsDirectory=amethystora-sensor
+PrivateTmp=yes
+ProtectControlGroups=yes
+ProtectKernelLogs=yes
+ProtectClock=yes
+RestrictAddressFamilies=AF_UNIX AF_NETLINK
+NoNewPrivileges=yes
+# Loading tracing BPF and reading kernel memory from it, and opening any folder to register it. The exact
+# set is to be tightened once the lab confirms what the load needs; CAP_SYS_ADMIN covers older kernels.
+CapabilityBoundingSet=CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH CAP_SYS_PTRACE
+# The budget is a target to measure, not a wall that should fail the load; the BPF maps count here too.
+MemoryHigh=48M
+MemoryMax=128M
+
+[Install]
+WantedBy=multi-user.target

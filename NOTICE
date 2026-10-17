@@ -126,6 +126,17 @@ windows draw the wordmark in Quicksand, under the SIL Open Font License, version
   - ICU4X      https://github.com/unicode-org/icu4x
   - Quicksand  https://github.com/andrew-paglinawan/QuicksandFamily
 
+The file-watch sensor in usr/libexec/amethystora-sensor (apps/sensor/) is one
+more program of the same build, which watches the files the audit rules watch
+without their per-system-call cost (plans/security/PLAN-audit-cost.md). Its BPF
+object is Amethystora's own code, under the GNU General Public License, version
+2, or the BSD 2-Clause License at your option, so it may use the kernel's
+GPL-only BPF helpers; that licence ships in usr/share/licenses/amethystora-sensor.
+It wraps the kernel's libbpf through the libbpf-rs and libbpf-sys crates, under
+the GNU Lesser General Public License, version 2.1, or the BSD 2-Clause License;
+these and its other crates are in the list beside the apps'. It links the libbpf
+the image already carries, nothing of it vendored.
+
 The GTK theme in usr/share/themes/Amethystora is Sweet by Eliver Lara,
 licensed under the GNU General Public License, version 3:
 

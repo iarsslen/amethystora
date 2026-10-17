@@ -14,9 +14,11 @@ echo "::group:: ===$(basename "$0")==="
 
 set -eoux pipefail
 
-# The toolchain and the libraries' headers from Fedora's own repositories alone (build-fprintd.sh says why)
+# The toolchain and the libraries' headers from Fedora's own repositories alone (build-fprintd.sh says why).
+# clang, bpftool, libbpf-devel and kernel-devel (for vmlinux.h) build amethystora-sensor's BPF object; the
+# sensor links Fedora's libbpf, which the image itself carries, so nothing of libbpf is vendored.
 dnf5 -y install --repo=fedora --repo=updates --setopt=install_weak_deps=False \
-    rust cargo gcc gtk4-devel libadwaita-devel jq nodejs
+    rust cargo gcc gtk4-devel libadwaita-devel jq nodejs clang llvm bpftool libbpf-devel kernel-devel
 
 # The workspace is copied out of the read-only context, and built outside it
 cp -a /ctx/apps /tmp/apps
@@ -28,20 +30,28 @@ cargo fetch --locked
 # run its timers on GLib's default main context, which only one thread may own
 TZ=UTC cargo test --release --locked --workspace -- --test-threads=1
 cargo build --release --locked -p amethystora-apps
+# The sensor is a binary of its own (no GTK): it loads a BPF object and writes audit records for the
+# security watcher (plans/security/PLAN-audit-cost.md).
+cargo build --release --locked -p amethystora-sensor
 
 mkdir -p /out/licenses
 install -Dpm0755 "${CARGO_TARGET_DIR}/release/amethystora-apps" /out/amethystora-apps
+install -Dpm0755 "${CARGO_TARGET_DIR}/release/amethystora-sensor" /out/amethystora-sensor
+# It must link the image's own libbpf, not a vendored copy, or the version it was built against travels with
+# it: the image carries libbpf and the apps stage built against the same Fedora release.
+ldd "${CARGO_TARGET_DIR}/release/amethystora-sensor" | grep -q 'libbpf\.so\.1' ||
+    { echo "::error::amethystora-sensor is not linked against the system libbpf"; exit 1; }
 
 # Every crate built into the program (its normal dependencies: build tools and test-only crates are not in
 # it), with its licence, and the licence and notice files it ships: most are MIT or Apache-2.0, whose
 # terms ask for their notices to travel with the program
-cargo tree --locked -p amethystora-apps -e normal --prefix none --format '{p}' |
+cargo tree --locked -p amethystora-apps -p amethystora-sensor -e normal --prefix none --format '{p}' |
     sed -n 's/^\([^ ]*\) v\([^ ]*\)\( (\*)\)\{0,1\}$/\1\t\2/p' | sort -u >/tmp/built.tsv
 cargo metadata --locked --format-version 1 >/tmp/metadata.json
 jq -r '.packages[] | select(.source != null)
     | [.name, .version, (.license // "see its licence file"), (.repository // ""), (.manifest_path | sub("/Cargo.toml$"; ""))]
     | @tsv' /tmp/metadata.json | sort -u >/tmp/packages.tsv
-printf '# The Rust crates built into /usr/lib/amethystora-apps/amethystora-apps: name, version, licence, source\n' \
+printf '# The Rust crates built into the Amethystora apps and amethystora-sensor: name, version, licence, source\n' \
     >/out/licenses/CRATES
 missing=()
 while IFS=$'\t' read -r name version licence repository folder; do

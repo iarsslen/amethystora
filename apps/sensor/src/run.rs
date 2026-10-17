@@ -1,0 +1,406 @@
+//! The daemon: load the BPF object, register every watched folder by its kernel inode, then follow the ring
+//! buffer and write each event out as audit records. Registration learns a folder's inode by opening it,
+//! which the file_open program sees (it is the sensor's own process) and leaves in .bss for the daemon to
+//! read; the daemon keeps the descriptor so the inode cannot be reused while it is watched.
+
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::error::Error;
+use std::ffi::CString;
+use std::fs::{self, File, OpenOptions};
+use std::io::Write;
+use std::os::fd::{FromRawFd, OwnedFd};
+use std::os::unix::ffi::OsStrExt;
+use std::os::unix::fs::OpenOptionsExt;
+use std::path::PathBuf;
+use std::rc::Rc;
+use std::time::Duration;
+
+use libbpf_rs::{Map, MapCore, MapFlags, RingBufferBuilder};
+
+use crate::event::{self, Event};
+use crate::plan::{self, Kind};
+use crate::record::Record;
+use crate::{bpf, keys, record};
+
+const LOG_DIR: &str = "/var/log/amethystora-sensor";
+/// The log is rotated past this size; the watcher reads only what is new since its checkpoint.
+const LOG_MAX: u64 = 32 * 1024 * 1024;
+/// A watched folder's inode (its kernel pointer) is held open, so the map can only hold so many.
+const MAX_FOLDERS: u32 = 60000;
+/// How deep a watched tree is walked when registering it.
+const MAX_DEPTH: u32 = 64;
+/// SDIR_HAS_FILES in sensor.h: the folder holds single watched files, matched by name.
+const SDIR_HAS_FILES: u32 = 1;
+
+/// Runs the sensor, or just probes it (load and attach every program, then stop) for the generator.
+pub fn run(probe: bool) -> Result<(), Box<dyn Error>> {
+    if probe {
+        // All eleven keys, so every program is loaded and attached; dropping the result detaches them.
+        let all = (1u32 << keys::KEYS.len()) - 1;
+        bpf::load(all, true)?;
+        return Ok(());
+    }
+
+    let sensor_keys = plan::sensor_keys();
+    if sensor_keys == 0 {
+        // Nothing for the sensor to do; the plan gave every key to auditd. The ExecCondition stops this
+        // from running at all, so this is only a safeguard.
+        return Ok(());
+    }
+
+    let loaded = bpf::load(sensor_keys, false)?;
+    let dirs = map_named(&loaded.object, "dirs")?;
+    let files = map_named(&loaded.object, "files")?;
+    let bss = map_named(&loaded.object, "bss")?;
+    let events = map_named(&loaded.object, "events")?;
+
+    let mut reg = Registry::new();
+    for watch in plan::watches(sensor_keys) {
+        reg.add_watch(&watch, &dirs, &files, &bss);
+    }
+
+    let mut log = Log::open()?;
+    let offset = boot_offset_ns();
+
+    // The callback copies each record out; the loop drains and writes them, so it is free to touch the
+    // other maps (dynamic registration) without the ring buffer holding them.
+    let queue: Rc<RefCell<Vec<Vec<u8>>>> = Rc::new(RefCell::new(Vec::new()));
+    let sink = queue.clone();
+    let mut builder = RingBufferBuilder::new();
+    builder.add(&events, move |data: &[u8]| {
+        sink.borrow_mut().push(data.to_vec());
+        0
+    })?;
+    let ring = builder.build()?;
+
+    let mut serial = (std::process::id() as u64) << 16;
+    loop {
+        ring.poll(Duration::from_millis(500))?;
+        let batch: Vec<Vec<u8>> = queue.borrow_mut().drain(..).collect();
+        for raw in batch {
+            if let Some(ev) = Event::parse(&raw) {
+                serial = serial.wrapping_add(1);
+                let rec = reg.record_of(&ev, offset);
+                if let Err(e) = log.write(&rec, serial) {
+                    eprintln!("amethystora-sensor: writing a record: {e}");
+                }
+                reg.register_new_dir(&ev, &rec, &dirs, &bss);
+            }
+        }
+    }
+}
+
+// --- Registration ------------------------------------------------------------------------------------------
+
+struct FolderRec {
+    path: Vec<u8>,
+    write_keys: u32,
+    read_keys: u32,
+    exec_keys: u32,
+    flags: u32,
+}
+
+struct Registry {
+    by_inode: HashMap<u64, u32>,
+    folders: HashMap<u32, FolderRec>,
+    fds: Vec<OwnedFd>,
+    next_id: u32,
+}
+
+impl Registry {
+    fn new() -> Self {
+        Registry { by_inode: HashMap::new(), folders: HashMap::new(), fds: Vec::new(), next_id: 1 }
+    }
+
+    fn add_watch(&mut self, w: &plan::Watch, dirs: &Map, files: &Map, bss: &Map) {
+        let path = w.path.as_os_str().as_bytes().to_vec();
+        let bit = 1u32 << w.key_bit;
+        match w.kind {
+            Kind::Tree => self.register_tree(&path, bit, 0, 0, 0, MAX_DEPTH, dirs, bss),
+            Kind::ReadTree => self.register_tree(&path, 0, bit, 0, 0, MAX_DEPTH, dirs, bss),
+            Kind::ExecTree => {
+                self.register_folder(&path, 0, 0, bit, 0, dirs, bss);
+            }
+            Kind::File | Kind::ReadFile => self.register_file(&w.path, w.kind, bit, dirs, files, bss),
+        }
+    }
+
+    /// A single watched file: its folder registered so it holds files, and an entry under the folder's inode
+    /// and the file's name.
+    fn register_file(&mut self, path: &std::path::Path, kind: Kind, bit: u32, dirs: &Map, files: &Map, bss: &Map) {
+        let (Some(parent), Some(name)) = (path.parent(), path.file_name()) else {
+            return;
+        };
+        let name = name.as_bytes();
+        if name.is_empty() || name.len() >= 64 {
+            return;
+        }
+        let parent = parent.as_os_str().as_bytes().to_vec();
+        let Some((_, inode)) = self.register_folder(&parent, 0, 0, 0, SDIR_HAS_FILES, dirs, bss) else {
+            return;
+        };
+        // file_key: parent inode then the name, zero-padded to 64.
+        let mut key = Vec::with_capacity(72);
+        key.extend_from_slice(&inode.to_ne_bytes());
+        let mut padded = [0u8; 64];
+        padded[..name.len()].copy_from_slice(name);
+        key.extend_from_slice(&padded);
+        // file_info: id (the folder's is used for the event, so 0 here), write_keys, read_keys.
+        let (write_keys, read_keys) = if kind == Kind::ReadFile { (0, bit) } else { (bit, 0) };
+        // Merge with any entry already there.
+        let (mut w, mut r) = (write_keys, read_keys);
+        if let Ok(Some(old)) = files.lookup(&key, MapFlags::ANY) {
+            if old.len() >= 12 {
+                w |= u32::from_ne_bytes(old[4..8].try_into().unwrap());
+                r |= u32::from_ne_bytes(old[8..12].try_into().unwrap());
+            }
+        }
+        let mut val = Vec::with_capacity(12);
+        val.extend_from_slice(&0u32.to_ne_bytes());
+        val.extend_from_slice(&w.to_ne_bytes());
+        val.extend_from_slice(&r.to_ne_bytes());
+        let _ = files.update(&key, &val, MapFlags::ANY);
+    }
+
+    /// A watched folder and every folder below it (writes or reads), to MAX_DEPTH.
+    #[allow(clippy::too_many_arguments)]
+    fn register_tree(&mut self, path: &[u8], w: u32, r: u32, e: u32, flags: u32, depth: u32, dirs: &Map, bss: &Map) {
+        if self.register_folder(path, w, r, e, flags, dirs, bss).is_none() || depth == 0 {
+            return;
+        }
+        // Its subfolders, not through a link. read_dir opens the folder (a self open), which is why the
+        // folder's own inode was captured in register_folder first.
+        let os = std::ffi::OsStr::from_bytes(path);
+        let Ok(entries) = fs::read_dir(os) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            match entry.file_type() {
+                Ok(ft) if ft.is_dir() && !ft.is_symlink() => {
+                    let child = entry.path().as_os_str().as_bytes().to_vec();
+                    self.register_tree(&child, w, r, e, flags, depth - 1, dirs, bss);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Registers one folder: open it (which the BPF sees and leaves its inode in .bss), then hold the
+    /// descriptor and record the folder under that inode in the map. Returns the folder's id and inode.
+    fn register_folder(&mut self, path: &[u8], w: u32, r: u32, e: u32, flags: u32, dirs: &Map, bss: &Map) -> Option<(u32, u64)> {
+        if self.next_id >= MAX_FOLDERS {
+            return None;
+        }
+        let (fd, inode) = open_folder(path, bss)?;
+
+        let id = if let Some(&id) = self.by_inode.get(&inode) {
+            let rec = self.folders.get_mut(&id).unwrap();
+            rec.write_keys |= w;
+            rec.read_keys |= r;
+            rec.exec_keys |= e;
+            rec.flags |= flags;
+            id
+        } else {
+            let id = self.next_id;
+            self.next_id += 1;
+            self.by_inode.insert(inode, id);
+            self.folders.insert(id, FolderRec { path: path.to_vec(), write_keys: w, read_keys: r, exec_keys: e, flags });
+            self.fds.push(fd);
+            id
+        };
+        let rec = &self.folders[&id];
+        let mut val = Vec::with_capacity(20);
+        val.extend_from_slice(&rec.id_bytes(id));
+        let _ = dirs.update(&inode.to_ne_bytes(), &val, MapFlags::ANY);
+        Some((id, inode))
+    }
+
+    /// A mkdir, or a rename, that made a new folder inside a watched tree: register it (and rescan it) so
+    /// what appears in it afterwards is watched too.
+    fn register_new_dir(&mut self, ev: &Event, rec: &Record, dirs: &Map, bss: &Map) {
+        if ev.head.result != 0 {
+            return;
+        }
+        let (parent_id, is_dir) = match ev.head.op {
+            event::SOP_MKDIR => (ev.head.dir, true),
+            event::SOP_RENAME => (ev.head.dir2, rec.obj_mode & 0o170000 == 0o040000),
+            _ => return,
+        };
+        if !is_dir || parent_id == 0 {
+            return;
+        }
+        let Some(parent) = self.folders.get(&parent_id) else {
+            return;
+        };
+        let (w, r, e) = (parent.write_keys, parent.read_keys, parent.exec_keys);
+        if w == 0 && r == 0 {
+            return;
+        }
+        let name = if ev.head.op == event::SOP_MKDIR { &rec.name } else { &rec.name2 };
+        let mut child = parent.path.clone();
+        child.push(b'/');
+        child.extend_from_slice(name);
+        self.register_tree(&child, w, r, e, 0, MAX_DEPTH, dirs, bss);
+    }
+
+    /// The folder a numbered id names, empty when none.
+    fn path_of(&self, id: u32) -> Vec<u8> {
+        if id == 0 {
+            Vec::new()
+        } else {
+            self.folders.get(&id).map(|f| f.path.clone()).unwrap_or_default()
+        }
+    }
+
+    /// Turns a ring-buffer event into the record the writer takes, resolving folder ids to their paths.
+    fn record_of(&self, ev: &Event, offset: i128) -> Record {
+        let h = &ev.head;
+        let is_module = h.op == event::SOP_MODULE_LOAD || h.op == event::SOP_MODULE_DELETE;
+        let argv: Vec<Vec<u8>> =
+            ev.strings[event::SSTR_ARGV].split(|&b| b == 0).filter(|s| !s.is_empty()).map(|s| s.to_vec()).collect();
+        let wall = (h.time as i128 + offset).max(0) as u128;
+        Record {
+            op: h.op,
+            syscall: h.syscall,
+            result: h.result as i64,
+            keys: h.keys,
+            args: h.args,
+            pid: h.pid,
+            ppid: h.ppid,
+            auid: h.auid,
+            ses: h.ses,
+            uid: h.uid,
+            gid: h.gid,
+            euid: h.euid,
+            suid: h.suid,
+            fsuid: h.fsuid,
+            egid: h.egid,
+            sgid: h.sgid,
+            fsgid: h.fsgid,
+            comm: cstr(&h.comm),
+            tty: cstr(&h.tty),
+            exe: ev.strings[event::SSTR_EXE].to_vec(),
+            cwd: ev.strings[event::SSTR_CWD].to_vec(),
+            flags: h.flags,
+            obj_mode: h.mode,
+            obj_ino: h.ino,
+            obj_ouid: h.ouid,
+            obj_ogid: h.ogid,
+            obj_dev: dev_str(h.dev),
+            obj_rdev: dev_str(h.rdev),
+            parent_mode: h.parent_mode,
+            dir: self.path_of(h.dir),
+            name: if is_module { Vec::new() } else { ev.strings[event::SSTR_NAME].to_vec() },
+            dir2: self.path_of(h.dir2),
+            name2: ev.strings[event::SSTR_NAME2].to_vec(),
+            path2: ev.strings[event::SSTR_PATH2].to_vec(),
+            argc: h.argc,
+            argv,
+            module: if is_module { ev.strings[event::SSTR_NAME].to_vec() } else { Vec::new() },
+            time_ns: wall,
+        }
+    }
+}
+
+impl FolderRec {
+    /// dir_info: id, write_keys, read_keys, exec_keys, flags.
+    fn id_bytes(&self, id: u32) -> [u8; 20] {
+        let mut b = [0u8; 20];
+        b[0..4].copy_from_slice(&id.to_ne_bytes());
+        b[4..8].copy_from_slice(&self.write_keys.to_ne_bytes());
+        b[8..12].copy_from_slice(&self.read_keys.to_ne_bytes());
+        b[12..16].copy_from_slice(&self.exec_keys.to_ne_bytes());
+        b[16..20].copy_from_slice(&self.flags.to_ne_bytes());
+        b
+    }
+}
+
+// --- The log ------------------------------------------------------------------------------------------------
+
+struct Log {
+    file: File,
+    written: u64,
+}
+
+impl Log {
+    fn open() -> std::io::Result<Log> {
+        fs::create_dir_all(LOG_DIR)?;
+        let path = PathBuf::from(LOG_DIR).join("audit.log");
+        let written = fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        let file = OpenOptions::new().create(true).append(true).mode(0o600).open(&path)?;
+        Ok(Log { file, written })
+    }
+
+    fn write(&mut self, rec: &Record, serial: u64) -> std::io::Result<()> {
+        let mut buf = Vec::new();
+        record::write_event(&mut buf, rec, serial)?;
+        self.file.write_all(&buf)?;
+        self.file.flush()?;
+        self.written += buf.len() as u64;
+        if self.written > LOG_MAX {
+            self.rotate()?;
+        }
+        Ok(())
+    }
+
+    fn rotate(&mut self) -> std::io::Result<()> {
+        let path = PathBuf::from(LOG_DIR).join("audit.log");
+        let _ = fs::rename(&path, path.with_extension("log.1"));
+        self.file = OpenOptions::new().create(true).append(true).mode(0o600).open(&path)?;
+        self.written = 0;
+        Ok(())
+    }
+}
+
+// --- Small helpers ------------------------------------------------------------------------------------------
+
+fn map_named<'a>(object: &'a libbpf_rs::Object, needle: &str) -> Result<Map<'a>, Box<dyn Error>> {
+    object
+        .maps()
+        .find(|m| m.name().to_str().map(|s| s.contains(needle)).unwrap_or(false))
+        .ok_or_else(|| format!("the BPF object has no {needle} map").into())
+}
+
+/// Opens a folder read-only without following a final-component link, and reads back the inode the BPF left
+/// in .bss for the sensor's own opens.
+fn open_folder(path: &[u8], bss: &Map) -> Option<(OwnedFd, u64)> {
+    let cpath = CString::new(path).ok()?;
+    let fd = unsafe {
+        libc::open(cpath.as_ptr(), libc::O_RDONLY | libc::O_DIRECTORY | libc::O_NOFOLLOW | libc::O_CLOEXEC)
+    };
+    if fd < 0 {
+        return None;
+    }
+    let owned = unsafe { OwnedFd::from_raw_fd(fd) };
+    // The file_open program wrote this folder's inode to globals.registered_inode (offset 8 of .bss).
+    let value = bss.lookup(&0u32.to_ne_bytes(), MapFlags::ANY).ok()??;
+    if value.len() < 16 {
+        return None;
+    }
+    let inode = u64::from_ne_bytes(value[8..16].try_into().ok()?);
+    if inode == 0 {
+        return None;
+    }
+    Some((owned, inode))
+}
+
+fn cstr(b: &[u8]) -> Vec<u8> {
+    let end = b.iter().position(|&c| c == 0).unwrap_or(b.len());
+    b[..end].to_vec()
+}
+
+/// A dev_t as audit prints it: major:minor in hex, from the kernel's 32-bit encoding.
+fn dev_str(dev: u32) -> String {
+    format!("{:02x}:{:02x}", dev >> 20, dev & 0xf_ffff)
+}
+
+/// Realtime minus boottime, so an event's boottime stamp becomes a wall-clock one.
+fn boot_offset_ns() -> i128 {
+    let read = |clock| {
+        let mut ts = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+        unsafe { libc::clock_gettime(clock, &mut ts) };
+        ts.tv_sec as i128 * 1_000_000_000 + ts.tv_nsec as i128
+    };
+    read(libc::CLOCK_REALTIME) - read(libc::CLOCK_BOOTTIME)
+}

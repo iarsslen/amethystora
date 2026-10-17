@@ -647,6 +647,15 @@ done
 cmp -s <(sed 1d /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg) <(sed 1d /ctx/apps/common/assets/gem.svg)
 # The Chromium profiles the Electron windows left in each account's ~/.config go at its next login
 test -x /usr/share/amethystora/user-setup.hooks.d/20-retire-electron-profiles.sh
+# The file-watch sensor (plans/security/PLAN-audit-cost.md): a binary of its own, built by the apps stage; the
+# keys it can cover are exactly the watcher's audit keys; its unit runs only while it is wanted; and its
+# record writer gives the watcher the same sentences auditd would, which ausearch reads without any kernel.
+test -x /usr/libexec/amethystora-sensor
+test -f /usr/share/licenses/amethystora-sensor/COPYING
+grep -q $'^libbpf-rs\t' "${APPS_CRATES}"
+diff <(/usr/libexec/amethystora-sensor --keys | paste -sd'|' -) <(/usr/libexec/amethystora-security-watch --keys)
+grep -q '^ExecCondition=/usr/libexec/amethystora-sensor --check$' /usr/lib/systemd/system/amethystora-sensor.service
+bash /ctx/build_files/shared/test-sensor-records.sh
 # The checks written in JavaScript run on the apps stage's Node, mounted at /apps-stage with its libraries,
 # so that the image carries no Node of its own
 NODE=(env LD_LIBRARY_PATH=/apps-stage/usr/lib64 /apps-stage/usr/bin/node)
@@ -1551,6 +1560,13 @@ for config in "${KERNEL_CONFIGS[@]}"; do
     for option in CONFIG_SECURITY_LOCKDOWN_LSM CONFIG_SECURITY_LOCKDOWN_LSM_EARLY CONFIG_LOCK_DOWN_IN_EFI_SECURE_BOOT; do
         grep -qx "${option}=y" "${config}"
     done
+done
+# What the file-watch sensor's BPF needs (plans/security/PLAN-audit-cost.md section 4.8). The sensor's own
+# --probe is the real gate and falls back to the audit rules per boot when a kernel cannot take it, so a
+# missing option here is a heads-up, not a wall.
+for option in CONFIG_DEBUG_INFO_BTF CONFIG_BPF_SYSCALL CONFIG_BPF_JIT CONFIG_FUNCTION_TRACER \
+    CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS CONFIG_BPF_EVENTS CONFIG_AUDIT CONFIG_SECURITY; do
+    grep -qx "${option}=y" "${KERNEL_CONFIGS[0]}" || echo "::warning::sensor: ${option} is not =y in the kernel"
 done
 
 # Key remapping runs as root and reads every input device, so it ships installed and switched off.
