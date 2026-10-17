@@ -102,10 +102,11 @@ dnf5 -y remove akmod-evdi
 find /etc/pki/akmods -type f -o -type l 2>/dev/null | while read -r file; do
     [[ "${file}" == "${AKMODS_CERT}" ]] || rpm -qf "${file}" >/dev/null 2>&1 || rm -f "${file}"
 done
-# DisplayLinkManager runs from boot, as the package preset (skipped above with the scriptlets) and Bazzite have it:
-# the udev rule that would start it on plug only matches docks whose USB manufacturer string is "DisplayLink",
-# and most rebranded docks report their own.
-systemctl enable displaylink.service
+# DisplayLinkManager starts when a DisplayLink device is there, at boot as well as on plug, and stops when it
+# goes: the package's udev rule matches DisplayLink's own USB vendor id (17e9), which rebranded docks keep.
+# It is not enabled, as the package's preset (skipped above with the scriptlets) would have it: from boot, it
+# ran on every machine, dock or not.
+systemctl disable displaylink.service
 
 # Nvidia AKMODS
 if [[ "${IMAGE_NAME}" =~ nvidia ]]; then

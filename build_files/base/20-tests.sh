@@ -1916,7 +1916,12 @@ grep -q -- "--wipe-slot=tpm2 --tpm2-device=auto --tpm2-pcrs=7+14" /usr/share/ame
 KERNEL_VERSION="$(rpm -q kernel-core --queryformat '%{VERSION}-%{RELEASE}.%{ARCH}')"
 modinfo "/usr/lib/modules/${KERNEL_VERSION}/extra/evdi/evdi.ko.xz" >/dev/null
 test -f /usr/lib/udev/rules.d/99-displaylink.rules
-systemctl is-enabled displaylink.service
+# Started by the device, not from boot: the rule has to match DisplayLink's vendor id and pull the unit in
+grep -qE 'ATTR\{idVendor\}=="17e9".*ENV\{SYSTEMD_WANTS\}\+="displaylink\.service"' /usr/lib/udev/rules.d/99-displaylink.rules
+if systemctl is-enabled -q displaylink.service; then
+    echo "displaylink.service is enabled: it would run from boot on every machine, dock or not"
+    exit 1
+fi
 # Skipped, not restarted every five seconds, where evdi cannot load (Secure Boot without the key enrolled)
 grep -qx "ExecStartPre=" /usr/lib/systemd/system/displaylink.service.d/10-amethystora.conf
 grep -qx "ExecCondition=/usr/sbin/modprobe evdi" /usr/lib/systemd/system/displaylink.service.d/10-amethystora.conf

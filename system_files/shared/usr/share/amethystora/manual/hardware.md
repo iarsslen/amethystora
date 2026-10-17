@@ -45,8 +45,9 @@ does the same, since NVIDIA's driver does not load without the key.
 
 ## Docks and displays
 
-- **DisplayLink docks** work with the driver built into the image. With Secure Boot on, the dock
-  stays dark until the key above is enrolled.
+- **DisplayLink docks** work with the driver built into the image, whose manager starts when the dock is
+  plugged in and stops when it is unplugged. With Secure Boot on, the dock stays dark until the key above
+  is enrolled.
 - **External monitor brightness** can be set from the command line with `ddcutil`, for monitors
   that support it.
 - **Thunderbolt docks and devices** read and write memory by themselves unless the IOMMU keeps each to
