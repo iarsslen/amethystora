@@ -4,6 +4,12 @@ echo "::group:: ===$(basename "$0")==="
 
 set -eoux pipefail
 
+# ibus-mozc starts Xwayland at every login, so that ibus-x11 runs before any X11 app does. IBus starts
+# ibus-x11 itself whenever Xwayland starts (/etc/xdg/Xwayland-session.d/10-ibus-x11), and GNOME starts
+# Xwayland when an X11 app needs it: without this, a session with no X11 app runs no Xwayland, some 80 MB.
+test -x /etc/xdg/Xwayland-session.d/10-ibus-x11
+rm -f /etc/xdg/autostart/ibus-mozc-launch-xwayland.desktop
+
 # Setup Systemd
 # systemctl --global enable bazaar.service
 systemctl --global enable podman-auto-update.timer

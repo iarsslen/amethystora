@@ -309,6 +309,9 @@ EXCLUDED_PACKAGES=(
     gnome-software
     gnome-software-rpm-ostree
     gnome-terminal-nautilus
+    # IBus started its predictive engine, a Python program of some 70 MB, in every session, with no input
+    # source using it. `rpm-ostree install ibus-typing-booster` brings it back for those who type with it.
+    ibus-typing-booster
     podman-docker
     yelp
 )

@@ -399,6 +399,13 @@ grep -q "'blur-my-shell@aunetx'" /usr/share/glib-2.0/schemas/zz0-amethystora-mod
 # back after every update; the default it reads has to be the one the image compiled
 test -x /usr/share/amethystora/user-setup.hooks.d/15-extensions.sh
 GSETTINGS_BACKEND=memory gsettings get org.gnome.shell enabled-extensions | grep -q "'blur-my-shell@aunetx'"
+# Xwayland only when an X11 app needs it, ibus-x11 with it (17-cleanup.sh), and no idle input engine
+test ! -e /etc/xdg/autostart/ibus-mozc-launch-xwayland.desktop
+test -x /etc/xdg/Xwayland-session.d/10-ibus-x11
+if rpm -q ibus-typing-booster >/dev/null; then
+    echo "ibus-typing-booster is back: IBus starts it in every session"
+    exit 1
+fi
 # Application windows are on the glass too, every one of them rather than a named few
 grep -q "^enable-all=true$" "${BMS_DCONF}"
 [[ "$(sed -n '/^\[org\/gnome\/shell\/extensions\/blur-my-shell\/applications\]$/,/^$/p' "${BMS_DCONF}" |
