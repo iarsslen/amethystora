@@ -765,6 +765,8 @@ fn value_words(value: &str) -> String {
         "block" => t!("Block"),
         "standard" => t!("Standard"),
         "strict" => t!("Strict"),
+        "skip" => t!("Skip"),
+        "run" => t!("Run"),
         _ => value.to_string(),
     }
 }

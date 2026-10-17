@@ -31,7 +31,7 @@ NOTES="${AMETHYSTORA_SECURITY_NOTES:-/var/lib/amethystora/security/notes}"
 NOTES_KEPT=200
 
 # In the order --list gives them. REALTIME is the shortcut for its two halves, and not listed itself.
-KEYS=(WATCHER REALTIME_WATCH AUDIT_LOG IDENTITY PRIVILEGE PERSISTENCE HARDENING MODULES INPUT_CAPTURE
+KEYS=(WATCHER ON_BATTERY REALTIME_WATCH AUDIT_LOG IDENTITY PRIVILEGE PERSISTENCE HARDENING MODULES INPUT_CAPTURE
     USER_PROGRAMS JOURNAL IMAGE_DRIFT SETUID_SWEEP LISTENERS USER_PATHS
     # What looks for new threats, off as the image ships
     APP_PERMISSIONS PROCESSES SELINUX_DENIALS SNAPSHOT_WATCH AGENT_CLIS AGENT_CONFIG DEV_HOOKS BPF_PROGRAMS
@@ -43,7 +43,7 @@ KEYS=(WATCHER REALTIME_WATCH AUDIT_LOG IDENTITY PRIVILEGE PERSISTENCE HARDENING 
 
 declare -A DEFAULTS=(
     [ON_DETECTION]=report [REALTIME]=off [NETWORK]=off
-    [WATCHER]=on [AUDIT_LOG]=on [VIRUS_SCAN]=weekly [SETTINGS_AUDIT]=on [NOTIFY]=all
+    [WATCHER]=on [ON_BATTERY]=skip [AUDIT_LOG]=on [VIRUS_SCAN]=weekly [SETTINGS_AUDIT]=on [NOTIFY]=all
     # The two halves of REALTIME take its value until they are set themselves
     [REALTIME_SCAN]=REALTIME [REALTIME_WATCH]=REALTIME
     [IDENTITY]=on [PRIVILEGE]=on [PERSISTENCE]=on [HARDENING]=on [MODULES]=on [INPUT_CAPTURE]=on
@@ -74,7 +74,7 @@ declare -A DEFAULTS=(
 )
 declare -A ALLOWED=(
     [ON_DETECTION]="report quarantine delete" [REALTIME]="off on" [NETWORK]="off watch block"
-    [WATCHER]="off on" [AUDIT_LOG]="off on" [VIRUS_SCAN]="off manual weekly" [SETTINGS_AUDIT]="off on"
+    [WATCHER]="off on" [ON_BATTERY]="skip run" [AUDIT_LOG]="off on" [VIRUS_SCAN]="off manual weekly" [SETTINGS_AUDIT]="off on"
     [NOTIFY]="all critical none" [REALTIME_SCAN]="off on" [REALTIME_WATCH]="off on"
     [IDENTITY]="off record on" [PRIVILEGE]="off record on" [PERSISTENCE]="off record on"
     [HARDENING]="off record on" [MODULES]="off record on" [INPUT_CAPTURE]="off record on"
@@ -107,6 +107,7 @@ declare -A ALLOWED=(
 # next run), reboot (the kernel's audit rules, which -e 2 locks, and auditd), or now (read when used)
 declare -A APPLIES=(
     [WATCHER]="restart:amethystora-security-realtime.service run"
+    [ON_BATTERY]="run"
     [REALTIME_WATCH]="restart:amethystora-security-realtime.service"
     [AUDIT_LOG]="reboot"
     [IDENTITY]="run reboot" [PRIVILEGE]="run reboot" [PERSISTENCE]="run reboot" [HARDENING]="run reboot"
@@ -140,7 +141,7 @@ declare -A APPLIES=(
     [BEHAVIOUR]="restart:amethystora-behaviour.service run"
 )
 declare -A GROUP=(
-    [WATCHER]=watching [REALTIME_WATCH]=watching [AUDIT_LOG]=watching [IDENTITY]=audit [PRIVILEGE]=audit
+    [WATCHER]=watching [ON_BATTERY]=watching [REALTIME_WATCH]=watching [AUDIT_LOG]=watching [IDENTITY]=audit [PRIVILEGE]=audit
     [PERSISTENCE]=audit [HARDENING]=audit [MODULES]=audit [INPUT_CAPTURE]=audit [USER_PROGRAMS]=audit
     [JOURNAL]=watching [IMAGE_DRIFT]=watching [SETUID_SWEEP]=watching [LISTENERS]=watching
     [USER_PATHS]=watching [VIRUS_SCAN]=scans [REALTIME_SCAN]=scans [ON_DETECTION]=scans
@@ -350,6 +351,7 @@ list() {
     source gettext.sh
     declare -A TITLE=(
         [WATCHER]="$(gettext "Security watcher")"
+        [ON_BATTERY]="$(gettext "On battery")"
         [REALTIME_WATCH]="$(gettext "Real-time watching")"
         [AUDIT_LOG]="$(gettext "Audit log")"
         [IDENTITY]="$(gettext "Accounts")"
@@ -396,6 +398,7 @@ list() {
     )
     declare -A DESCRIBE=(
         [WATCHER]="$(gettext "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on.")"
+        [ON_BATTERY]="$(gettext "Whether the watcher's runs every 15 minutes go on while the machine is on battery. Skipped, the next run on mains power reads the audit log and the journal from where the last one stopped, so what they recorded is said later; what is looked at as it stands, such as the ports open, is looked at then. Real-time watching is not skipped.")"
         [REALTIME_WATCH]="$(gettext "Reads each change as the audit log records it, instead of every 15 minutes.")"
         [AUDIT_LOG]="$(gettext "The kernel's record of changes to accounts, sudo, what starts by itself and the security settings, kept by auditd. Off, nothing is recorded and the switches that read it have nothing to read.")"
         [IDENTITY]="$(gettext "Changes to accounts and their passwords.")"

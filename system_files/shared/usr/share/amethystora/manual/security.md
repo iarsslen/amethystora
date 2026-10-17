@@ -85,7 +85,12 @@ looks into it in a terminal and changes nothing until you agree.
 
 ## The security watcher
 
-Every 15 minutes, or as things happen with [real-time watching](#settings) on, the watcher looks at:
+Every 15 minutes, or as things happen with [real-time watching](#settings) on, the watcher looks at what
+is listed below. On battery, its runs every 15 minutes wait for mains power, and the next one reads the audit
+log and the journal from where the last one stopped; `ame security settings on-battery run` keeps them going
+on battery too.
+
+The watcher looks at:
 
 - **The audit log**: accounts, `sudo` rules, what starts by itself (services, autostart entries, the
   shell startup files, `~/.ssh`, GNOME Shell extensions, top-bar widgets, D-Bus services, udev rules, git's settings), the

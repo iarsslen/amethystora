@@ -659,6 +659,12 @@ elif [[ "$(systemctl show -p Result --value amethystora-security-watch.service 2
     COMMAND="journalctl -u amethystora-security-watch.service -n 40"
     report watching security-watcher check "$(gettext "Security watcher")" "$(gettext "The security watcher's last run failed")" \
         "$(gettext "See why with:")"
+elif [[ "${SETTING[ON_BATTERY]:-skip}" == skip && "${SETTING[REALTIME_WATCH]}" != on ]] && ! systemd-ac-power 2>/dev/null; then
+    # Its runs wait for mains power (amethystora-security-watch.service), which is not a watcher that stopped
+    COMMAND="ame security settings on-battery run"
+    report watching security-watcher info "$(gettext "Security watcher")" \
+        "$(gettext "On battery, the security watcher waits for mains power, and then reads what was recorded meanwhile")" \
+        "$(gettext "To have it run on battery too:")"
 elif CHECKED="$(jq -r '.checked // empty' "${WATCH_STATUS}" 2>/dev/null)" && [[ "${CHECKED}" =~ ^[0-9]+$ ]] &&
     [[ $((NOW - CHECKED)) -gt 3600 && "$(cut -d' ' -f1 /proc/uptime 2>/dev/null | cut -d. -f1)" -gt 3600 ]]; then
     # It runs every 15 minutes; one that has not finished for an hour is stuck or kept from running

@@ -12,6 +12,10 @@ Type=oneshot
 # Skipped, not failed, while WATCHER=off in /etc/amethystora/security.conf: the timer stays enabled, and the
 # key is the one place that decides
 ExecCondition=/usr/libexec/amethystora-security-config --is WATCHER on
+# The timer's runs, not real-time watching's, wait for mains power while ON_BATTERY=skip, as the image ships
+# it. A machine with no battery is on mains power.
+ExecCondition=/usr/bin/bash -c '[[ "$${TRIGGER_UNIT:-}" != amethystora-security-watch.timer ]] || \
+    /usr/libexec/amethystora-security-config --is ON_BATTERY run || systemd-ac-power'
 ExecStart=/usr/libexec/amethystora-security-watch
 # A run takes seconds. One that does not end, whatever an account put in its way, is stopped and fails, which
 # OnFailure says and the next run's report notices, rather than keeping the watcher waiting until reboot
