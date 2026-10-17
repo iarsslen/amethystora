@@ -380,7 +380,9 @@ while read -r line; do
         continue
         ;;
     esac
-    gsettings --schemadir "${BMS}/schemas" list-keys "${bms_schema}" | grep -qx "${line%%=*}"
+    # Capture the keys first rather than piping into grep -q: with pipefail, grep closing the pipe on a
+    # match makes gsettings exit with SIGPIPE (141), which fails the build under load for no real reason.
+    grep -qx "${line%%=*}" <<<"$(gsettings --schemadir "${BMS}/schemas" list-keys "${bms_schema}")"
 done <"${BMS_DCONF}"
 # A component that names a pipeline the pipelines dict does not define falls back to the stock blur
 # without a word, so every pipeline the file selects has to be one the file also defines
