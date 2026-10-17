@@ -1673,9 +1673,12 @@ FIRST_WATCH="$(grep -n '^-w ' <<<"${AUDIT_DIRECTIVES}" | head -n1 | cut -d: -f1 
 # BPF to probe, so it fell back to the audit rules, which the FIRST_WATCH check confirmed. Forced on, the
 # generator writes one -a never,task instead of every syscall rule, and the same watches into a watch list.
 SENSOR_BOOT="$(mktemp -d)"
-mkdir -p "${SENSOR_BOOT}/etc/audit/rules.d" "${SENSOR_BOOT}/var/home" "${SENSOR_BOOT}/run/sensor"
+mkdir -p "${SENSOR_BOOT}/etc/audit/rules.d" "${SENSOR_BOOT}/etc/amethystora" "${SENSOR_BOOT}/var/home" "${SENSOR_BOOT}/run/sensor"
 : >"${SENSOR_BOOT}/etc/passwd"
+# exec-watch ships off, so turn it on here to exercise the exec-tree conversion as well
+echo "EXEC_WATCH=on" >"${SENSOR_BOOT}/etc/amethystora/security.conf"
 AMETHYSTORA_AUDIT_ROOT="${SENSOR_BOOT}" AMETHYSTORA_SENSOR_RUN="${SENSOR_BOOT}/run/sensor" \
+    AMETHYSTORA_SECURITY_CONF="${SENSOR_BOOT}/etc/amethystora/security.conf" \
     AMETHYSTORA_SENSOR_FORCE=sensor bash /usr/libexec/amethystora-audit-home-rules
 SENSOR_SYS="${SENSOR_BOOT}/etc/audit/rules.d/60-amethystora.rules"
 # The only directive loaded is the task filter; no -w and no -S syscall rule
