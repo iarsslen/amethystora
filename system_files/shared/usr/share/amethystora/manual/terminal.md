@@ -13,8 +13,9 @@ Its colours follow the [theme](themes.md), and so does the prompt.
 
 ## The greeting
 
-A new terminal says hello with the Amethystora logo, a summary of the machine, the image you are
-running, a few useful commands and a tip. `ame desktop greeting off` turns it off, `on` brings it back,
+The first terminal you open in a session says hello with the Amethystora logo, a summary of the machine,
+the image you are running, a few useful commands and a tip; the ones after it just say welcome, so they
+open sooner. `ame desktop greeting off` turns it off, `on` brings it back,
 and so does the switch on [Control](control.md)'s **Desktop** page.
 
 `fetch` shows the logo and the system summary again whenever you like. A glint crosses the logo's

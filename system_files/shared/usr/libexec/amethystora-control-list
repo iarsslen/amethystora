@@ -274,7 +274,7 @@ switch_choices false ame desktop greeting
 GROUP="$(gettext "Terminal")"
 USAGE="ame desktop greeting on|off"
 item desktop greeting switch "$(gettext "Terminal greeting")" \
-    "$(gettext "The logo, a summary of the machine and a tip, in each new terminal.")" "${GREETING}" terminal#the-greeting
+    "$(gettext "The logo, a summary of the machine and a tip, in the first terminal of a session.")" "${GREETING}" terminal#the-greeting
 
 BLING="$(said bling)"
 if [[ "$(ended bling)" != 0 ]]; then

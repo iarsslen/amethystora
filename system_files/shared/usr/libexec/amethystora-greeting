@@ -8,6 +8,8 @@ if [ -t 1 ] && [ -z "${NO_COLOR-}" ]; then
 else
     printf '\nWelcome to Amethystora\n\n'
 fi
+# The welcome line alone, for the terminals after the first of a session
+[ "${1:-}" = --short ] && exit 0
 
 # Label colour: purple also where fastfetch cannot read GNOME's accent colour (text console, SSH)
 export FASTFETCH_FORCE_THEME="${FASTFETCH_FORCE_THEME:-purple}"

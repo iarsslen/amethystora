@@ -8,5 +8,11 @@ function fish_greeting
     end
     set -gx AMETHYSTORA_GREETED 1
 
+    # The whole greeting in the first terminal of a session, its welcome line in the ones after
+    if set -q XDG_RUNTIME_DIR; and test -e $XDG_RUNTIME_DIR/amethystora-greeted
+        /usr/libexec/amethystora-greeting --short
+        return
+    end
+    set -q XDG_RUNTIME_DIR; and touch $XDG_RUNTIME_DIR/amethystora-greeted 2>/dev/null
     /usr/libexec/amethystora-greeting
 end
