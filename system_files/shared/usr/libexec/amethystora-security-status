@@ -540,6 +540,10 @@ if hardening_off failed-logins; then
 elif [[ "$(systemctl is-active fail2ban.service 2>/dev/null)" == "active" ]]; then
     report watching fail2ban ok "$(gettext "Failed logins")" \
         "$(gettext "Repeated failed logins get the address blocked (ame security addresses)")"
+elif [[ "$(systemctl is-active sshd.service 2>/dev/null)" != "active" ]]; then
+    # fail2ban guards the SSH server alone, and starts with it (fail2ban.service.d/10-amethystora-ssh.conf)
+    report watching fail2ban ok "$(gettext "Failed logins")" \
+        "$(gettext "The SSH server is off, so there is nothing to guard: fail2ban starts with it")"
 else
     COMMAND="sudo systemctl start fail2ban.service"
     report watching fail2ban check "$(gettext "Failed logins")" "$(gettext "fail2ban is not running")" "$(gettext "Start it with:")"
