@@ -909,6 +909,8 @@ grep -q "^Written offer" /usr/share/licenses/amethystora/NOTICE
 # What is not installed from a package has no package to carry its licence: Starship is one binary
 # from its release (05-override-install.sh), and the *-gdu.rules are game-devices-udev's
 test -x /usr/bin/starship
+# Its setup for each shell, written at build time (05-override-install.sh)
+grep -q "starship prompt" /usr/share/amethystora/starship/init.bash /usr/share/amethystora/starship/init.zsh
 test -s /usr/share/licenses/starship/LICENSE
 compgen -G "/usr/lib/udev/rules.d/71-*-gdu.rules" >/dev/null
 test -s /usr/share/licenses/game-devices-udev/LICENSE

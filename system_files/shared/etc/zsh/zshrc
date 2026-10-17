@@ -213,7 +213,12 @@ fi
 
 # Starship
 if type "starship" > /dev/null; then
-  eval "$(starship init zsh)"
+  # What `starship init zsh` prints, written by the build for this starship (05-override-install.sh)
+  if [[ -r /usr/share/amethystora/starship/init.zsh ]]; then
+    source /usr/share/amethystora/starship/init.zsh
+  else
+    eval "$(starship init zsh)"
+  fi
 fi
 
 #####################
