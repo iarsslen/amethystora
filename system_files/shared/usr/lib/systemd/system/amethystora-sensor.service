@@ -28,15 +28,19 @@ RefuseManualStop=yes
 ProtectSystem=strict
 ProtectHome=read-only
 LogsDirectory=amethystora-sensor
+LogsDirectoryMode=0700
 PrivateTmp=yes
 ProtectControlGroups=yes
 ProtectKernelLogs=yes
 ProtectClock=yes
 RestrictAddressFamilies=AF_UNIX AF_NETLINK
 NoNewPrivileges=yes
+# It holds one open descriptor per watched folder to pin its inode (up to tens of thousands across /etc and
+# every home), far past the default soft limit, so raise it or registration would stop at EMFILE.
+LimitNOFILE=524288
 # Loading tracing BPF and reading kernel memory from it, and opening any folder to register it. The exact
 # set is to be tightened once the lab confirms what the load needs; CAP_SYS_ADMIN covers older kernels.
-CapabilityBoundingSet=CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH CAP_SYS_PTRACE
+CapabilityBoundingSet=CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH
 # The budget is a target to measure, not a wall that should fail the load; the BPF maps count here too.
 MemoryHigh=48M
 MemoryMax=128M

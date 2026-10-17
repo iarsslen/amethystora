@@ -93,12 +93,14 @@ enum sensor_string {
 	SSTR_COUNT = 6,
 };
 
+/* Each a power of two: the kernel side masks a kept length with MAX - 1, so a non-power-of-two cap would
+ * silently truncate some lengths. Their sum (6400) stays within SENSOR_DATA. */
 #define SENSOR_DATA 8192
 #define SENSOR_NAME_MAX 256
 #define SENSOR_NAME2_MAX 1024
-#define SENSOR_EXE_MAX 1536
+#define SENSOR_EXE_MAX 1024
 #define SENSOR_CWD_MAX 1024
-#define SENSOR_PATH2_MAX 1536
+#define SENSOR_PATH2_MAX 1024
 #define SENSOR_ARGV_MAX 2048
 
 /* flags of SOP_OPEN, besides the open's own f_flags */

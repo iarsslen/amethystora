@@ -103,7 +103,9 @@ pub struct Event<'a> {
 impl<'a> Event<'a> {
     /// Reads one ring-buffer record. None when it is too short or its header is not the sensor's own.
     pub fn parse(bytes: &'a [u8]) -> Option<Event<'a>> {
-        if bytes.len() < DATA_OFFSET {
+        // read_unaligned reads the whole struct (264 bytes, with its tail padding), so guard on that, not
+        // on DATA_OFFSET (260): a 260–263-byte record would otherwise over-read the slice.
+        if bytes.len() < core::mem::size_of::<EventHeader>() {
             return None;
         }
         // The record is 8-aligned in the ring buffer, but read unaligned to be safe either way.

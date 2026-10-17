@@ -246,7 +246,7 @@ egid={} sgid={} fsgid={} tty=",
         };
         path.extend_from_slice(
             format!(
-                " inode={ino} dev={dev} mode={:06o} ouid={ouid} ogid={ogid} rdev={rdev} nametype={}",
+                " inode={ino} dev={dev} mode=0{:o} ouid={ouid} ogid={ogid} rdev={rdev} nametype={}",
                 item.mode, item.nametype
             )
             .as_bytes(),

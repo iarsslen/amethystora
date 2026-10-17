@@ -89,8 +89,10 @@ struct {
 	__type(value, struct file_info);
 } files SEC(".maps");
 
-/* Pinned by the daemon, so that what was recorded before it was stopped, the signal that stopped it among it,
- * is read by the one started after it */
+/* The events, which the daemon drains while it runs. It is NOT pinned across restarts in this version, so a
+ * signal that kills the daemon before it drains takes the buffered records with it; such a kill is caught
+ * instead by systemd's SERVICE_STOP, which the watcher's tamper check reads (PLAN-audit-cost.md section 4.7).
+ * Non-fatal signals and link-detach attempts are recorded live. Pinning it to survive a kill is a later step. */
 struct {
 	__uint(type, BPF_MAP_TYPE_RINGBUF);
 	__uint(max_entries, 1 << 20);
@@ -369,7 +371,9 @@ static __always_inline __u32 put_empty(struct sensor_event *e, __u32 pos, int sl
 	if (pos > SENSOR_DATA - 1)
 		return pos;
 	e->data[pos & (SENSOR_DATA - 1)] = 0;
-	e->len[slot & (SSTR_COUNT - 1)] = 0;
+	/* slot is a compile-time constant at every call site, so the index needs no mask (and a mask by
+	 * SSTR_COUNT, which is not a power of two, would alias slots 2 and 3 onto 0 and 1) */
+	e->len[slot] = 0;
 	return pos + 1;
 }
 
@@ -424,7 +428,8 @@ static __always_inline __u32 put_path(struct scratch *s, __u32 pos, int slot, in
 	len &= max - 1;
 	bpf_probe_read_kernel(&s->e.data[pos], len, &s->path[start & (PATHBUF - 1)]);
 	s->e.data[(pos + len) & (SENSOR_DATA - 1)] = 0;
-	s->e.len[slot & (SSTR_COUNT - 1)] = len;
+	/* slot is a compile-time constant here; no mask (see put_empty) */
+	s->e.len[slot] = len;
 	return pos + len + 1;
 }
 
@@ -597,14 +602,14 @@ int BPF_PROG(file_open, struct file *file, int ret)
  * matches it against the paths it watches, joined with the working folder when it is relative. Only a refusal
  * (EACCES, EPERM), and a read only while a key watches reads: every other open costs one comparison here.
  * Measured on 7.2: inode_permission, where the check itself fails, is called hundreds of thousands of times in
- * one `find /usr` and costs a fifth of every stat; do_file_open is called once an open. */
+ * one `find /usr` and costs a fifth of every stat; do_filp_open is called once an open. */
 #define EACCES 13
 #define EPERM 1
 #define O_ACCMODE 3
 #define O_CREAT 0100
 #define O_DIRECTORY 0200000
 
-SEC("fexit/do_file_open")
+SEC("fexit/do_filp_open")
 int BPF_PROG(open_refused, int dfd, struct filename *pathname, const struct open_flags *op, struct file *ret)
 {
 	struct task_struct *task;
@@ -715,15 +720,14 @@ int BPF_PROG(vfs_unlink_exit, struct mnt_idmap *idmap, struct inode *dir, struct
 }
 
 SEC("fexit/vfs_rmdir")
-int BPF_PROG(vfs_rmdir_exit, struct mnt_idmap *idmap, struct inode *dir, struct dentry *dentry,
-	     struct delegated_inode *delegated, int ret)
+int BPF_PROG(vfs_rmdir_exit, struct mnt_idmap *idmap, struct inode *dir, struct dentry *dentry, int ret)
 {
 	return named_op(SOP_RMDIR, dir, dentry, ret, NULL);
 }
 
 SEC("fexit/vfs_mkdir")
 int BPF_PROG(vfs_mkdir_exit, struct mnt_idmap *idmap, struct inode *dir, struct dentry *dentry, umode_t mode,
-	     struct delegated_inode *delegated, struct dentry *ret)
+	     struct dentry *ret)
 {
 	long result = IS_ERR_VALUE(ret) ? (long)ret : 0;
 
@@ -732,14 +736,14 @@ int BPF_PROG(vfs_mkdir_exit, struct mnt_idmap *idmap, struct inode *dir, struct 
 
 SEC("fexit/vfs_mknod")
 int BPF_PROG(vfs_mknod_exit, struct mnt_idmap *idmap, struct inode *dir, struct dentry *dentry, umode_t mode,
-	     dev_t dev, struct delegated_inode *delegated, int ret)
+	     dev_t dev, int ret)
 {
 	return named_op(SOP_MKNOD, dir, dentry, ret, NULL);
 }
 
 SEC("fexit/vfs_symlink")
 int BPF_PROG(vfs_symlink_exit, struct mnt_idmap *idmap, struct inode *dir, struct dentry *dentry,
-	     const char *target, struct delegated_inode *delegated, int ret)
+	     const char *target, int ret)
 {
 	return named_op(SOP_SYMLINK, dir, dentry, ret, target);
 }
@@ -1162,8 +1166,9 @@ static __always_inline void emit_tamper(__u32 op, __u32 flags, struct task_struc
 	submit(s, pos);
 }
 
-/* A signal sent to it, from anywhere but itself: recorded before it arrives, so that even SIGKILL's sender is
- * read, by the sensor started after it, from the pinned ring buffer */
+/* A signal sent to it, from anywhere but itself, recorded before it is delivered. While the daemon keeps
+ * running (a non-fatal signal) the record is drained and kept; a signal that kills it is lost with the
+ * unpinned ring buffer and is caught instead by systemd's SERVICE_STOP (section 4.7). */
 SEC("fentry/security_task_kill")
 int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int sig, const struct cred *cred)
 {

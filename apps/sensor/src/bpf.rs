@@ -44,26 +44,35 @@ fn name_is(name: &OsStr, needle: &str) -> bool {
 
 /// Opens the object, runs only the programs the enabled keys need (every one when probing), loads and
 /// attaches it, and records its own pid and program ids.
-pub fn load(enabled_keys: u32, probe: bool) -> libbpf_rs::Result<Loaded> {
+pub fn load(enabled_keys: u32, probe: bool) -> Result<Loaded, Box<dyn std::error::Error>> {
     let mut open = ObjectBuilder::default().open_memory(OBJECT)?;
 
     // The keys it runs for, into .rodata, before load: a key that is off leaves its code out, pruned by the
     // verifier. Its own pid goes into .bss the same way, so no window exists where it does not know itself.
+    // Both must take, or the sensor would run blind (no keys) or not recognise its own opens (no pid), so a
+    // failure here is fatal rather than a silent no-op.
     let self_tgid = std::process::id();
+    let mut set_rodata = false;
+    let mut set_bss = false;
     for mut map in open.maps_mut() {
         if name_is(map.name(), "rodata") {
             if let Some(buf) = map.initial_value_mut() {
                 if buf.len() >= 4 {
                     buf[0..4].copy_from_slice(&enabled_keys.to_ne_bytes());
+                    set_rodata = true;
                 }
             }
         } else if name_is(map.name(), "bss") {
             if let Some(buf) = map.initial_value_mut() {
                 if buf.len() >= 4 {
                     buf[0..4].copy_from_slice(&self_tgid.to_ne_bytes());
+                    set_bss = true;
                 }
             }
         }
+    }
+    if !set_rodata || !set_bss {
+        return Err(format!("could not set the sensor's keys/pid (rodata={set_rodata}, bss={set_bss})").into());
     }
 
     // Load only the programs the keys need; probing loads them all, to see the kernel takes every one.
@@ -77,9 +86,13 @@ pub fn load(enabled_keys: u32, probe: bool) -> libbpf_rs::Result<Loaded> {
     let object = open.load()?;
 
     // Record the sensor's own program ids, which the bpf() tamper check compares a detach or replace against.
-    // A program that was not loaded (its key off) has no fd, so id_from_fd fails and it is skipped.
+    // Only loaded programs (autoload on) have an fd and an id; an off key's programs are skipped, so
+    // id_from_fd is never asked about an unloaded program.
     if let Some(own) = object.maps().find(|m| name_is(m.name(), "own_progs")) {
         for prog in object.progs() {
+            if !prog.autoload() {
+                continue;
+            }
             if let Ok(id) = Program::id_from_fd(prog.as_fd()) {
                 if id != 0 {
                     let _ = own.update(&id.to_ne_bytes(), &[1u8], MapFlags::ANY);
@@ -88,16 +101,21 @@ pub fn load(enabled_keys: u32, probe: bool) -> libbpf_rs::Result<Loaded> {
         }
     }
 
-    // Attach every program that was loaded. A program left out (its key off) is not loaded and attach would
-    // fail for it, so those are skipped unless we are probing, where every program must take.
+    // Attach every program that was loaded (autoload on). Probing requires each to take; in the run path a
+    // failure drops that program's coverage, so it is logged rather than swallowed.
     let mut links = Vec::new();
     for prog in object.progs_mut() {
+        if !prog.autoload() {
+            continue;
+        }
+        let name = prog.name().to_str().unwrap_or("?").to_string();
         match prog.attach() {
             Ok(link) => links.push(link),
             Err(e) => {
                 if probe {
-                    return Err(e);
+                    return Err(e.into());
                 }
+                eprintln!("amethystora-sensor: {name} did not attach, its coverage is lost: {e}");
             }
         }
     }
