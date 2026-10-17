@@ -22,11 +22,15 @@ SYSTEM_RULES="${ROOT}/etc/audit/rules.d/60-amethystora.rules"
 SHIPPED=/usr/share/amethystora/audit
 
 # Whether an audit key is wanted: anything but off, under its name in security.conf (input-capture is
-# INPUT_CAPTURE). A key the helper does not know is wanted, as one with no switch always was.
+# INPUT_CAPTURE). A key the helper does not know is wanted, as one with no switch always was. Every value
+# is read once: asking the helper for each key in turn took most of a second, early in every boot.
+declare -A SETTING=()
+while IFS='=' read -r name value; do
+    SETTING["${name}"]="${value}"
+done < <(/usr/libexec/amethystora-security-config --all 2>/dev/null)
 wanted() {
-    local name
-    name="$(tr "a-z-" "A-Z_" <<<"$1")"
-    ! /usr/libexec/amethystora-security-config --is "${name}" off 2>/dev/null
+    local name="${1^^}"
+    [[ "${SETTING[${name//-/_}]:-}" != off ]]
 }
 
 # Directories worth watching whether or not anything has created them yet: each is a standard XDG path

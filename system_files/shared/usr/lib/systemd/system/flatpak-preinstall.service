@@ -19,6 +19,12 @@ Restart=on-failure
 RestartSec=30
 RestartSteps=5
 RestartMaxDelaySec=10min
+# On a new machine this installs some 80 refs while somebody is already using the desktop: it takes what
+# the session leaves, and nothing from it
+Nice=19
+CPUWeight=20
+IOSchedulingClass=idle
+IOWeight=20
 
 [Install]
 WantedBy=multi-user.target
