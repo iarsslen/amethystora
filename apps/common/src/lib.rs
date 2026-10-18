@@ -1,5 +1,5 @@
 //! What the Amethystora apps share: the window and its stylesheets, the theme's colours, the wordmark and
-//! the stone, line icons, translations, and running programs. plans/PLAN-rust-apps.md says why the apps
+//! the stone, line icons, translations, and running programs. plans/done/PLAN-rust-apps.md says why the apps
 //! are native GTK windows rather than web pages.
 
 pub mod app;

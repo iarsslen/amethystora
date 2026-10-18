@@ -1,5 +1,5 @@
 # The Amethystora apps, in Rust: the shared library (common), one crate per app, and the one binary the
-# image ships (launcher), which every app's path is a hard link to. plans/PLAN-rust-apps.md says why.
+# image ships (launcher), which every app's path is a hard link to. plans/done/PLAN-rust-apps.md says why.
 [workspace]
 resolver = "3"
 members = ["common", "launcher", "update", "security", "control", "backups", "logs", "manual", "notes", "sensor"]

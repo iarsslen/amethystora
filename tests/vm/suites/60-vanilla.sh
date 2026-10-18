@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Software from other distributions (amethystora-pkg), the NVIDIA check and "You're on the previous version"
-# (plans/PLAN-vanilla-features.md, items 1 to 3), as a machine runs them. A phase each, for the time each takes:
+# (plans/done/PLAN-vanilla-features.md, items 1 to 3), as a machine runs them. A phase each, for the time each takes:
 #
 #   1. a container made from the alpine template and used as the account would, the watcher's look at a fake
 #      sudo and a stray launcher beside the launcher it exported, the daily upgrade and the report's check on it,
