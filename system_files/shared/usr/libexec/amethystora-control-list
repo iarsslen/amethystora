@@ -517,9 +517,11 @@ item system devmode switch "$(gettext "Developer mode")" \
 # The groups are offered, never joined for anyone: three of them amount to root without a password. The
 # list is the one the recipe and the security report read.
 if [[ "${DEVMODE}" == on ]]; then
+    # The account's groups as the group database has them, as the recipe reads them: this process keeps the
+    # ones its session started with until the next login
     joined=()
     while read -r group _; do
-        id -nG 2>/dev/null | tr ' ' '\n' | grep -qx "${group}" && joined+=("${group}")
+        id -nG "$(id -un)" 2>/dev/null | tr ' ' '\n' | grep -qx "${group}" && joined+=("${group}")
     done < <(grep -v '^#' /usr/share/amethystora/developer-groups | awk NF)
     if [[ ${#joined[@]} -gt 0 ]]; then
         GROUPS_JOINED="${joined[*]}"
