@@ -23,7 +23,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { agent, call, decode, screendump } from './lab.mjs';
+import { agent, call, decode, screendump, serialWrite } from './lab.mjs';
 
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 const SRC = path.resolve(HERE, '../..');
@@ -155,8 +155,9 @@ async function start(machine, request = {}, fresh = false) {
   if (request.type_passphrase) await typePassphrase(m.vm);
 }
 
-// The passphrase typed at the prompt, as a person would, once it shows on the serial console (the installer's
-// disk has console=ttyS0 too); how many times it was asked goes to the suite as VMLAB_PROMPTS
+// The passphrase typed at the prompt, as a person would, once it shows on the serial console: the installer's
+// disk starts without Plymouth, with console=ttyS0 last, so systemd asks there. How many times it was asked
+// goes to the suite as VMLAB_PROMPTS.
 const prompts = new Map();
 async function typePassphrase(vm) {
   const serial = `/vm/vms/${vm}.serial`;
@@ -167,10 +168,10 @@ async function typePassphrase(vm) {
     await sleep(3000);
   }
   await sleep(2000);
-  await call('vm_keys', { name: vm, text: `${PASSPHRASE}\n` });
+  await serialWrite(vm, `${PASSPHRASE}\r`);
   // Long enough for a second prompt to show if there is one, which is then answered too
   await sleep(45000);
-  if (asked() > 1) await call('vm_keys', { name: vm, text: `${PASSPHRASE}\n` });
+  if (asked() > 1) await serialWrite(vm, `${PASSPHRASE}\r`);
   prompts.set(vm, asked());
 }
 

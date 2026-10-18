@@ -9,7 +9,8 @@
 # layout, which the system mirror (ame system raid mirror DISK) needs: an ESP, an ext4 /boot, and btrfs with
 # the subvolumes root and home, on LUKS2 opened with PASSPHRASE when one is given, written with
 # `bootc install to-filesystem` and the fstab and crypttab lines Anaconda writes. Its kernel arguments add
-# the serial console, where the lab sees the passphrase prompt.
+# the serial console, last so that it is /dev/console, and turn Plymouth off: systemd then asks for the
+# passphrase there, where the lab sees the prompt and types the answer (serialWrite in lab.mjs).
 set -euo pipefail
 
 IMAGE="$1"
@@ -85,7 +86,7 @@ mount "${loop}p2" /target/boot
 mkdir -p /target/boot/efi
 mount "${loop}p1" /target/boot/efi
 bootc install to-filesystem --generic-image --karg rootflags=subvol=root \
-    --karg console=tty0 --karg console=ttyS0,115200 "${kargs[@]}" /target
+    --karg console=tty0 --karg console=ttyS0,115200 --karg rd.plymouth=0 --karg plymouth.enable=0 "${kargs[@]}" /target
 fs="$(blkid -s UUID -o value "${root}")"
 esp="$(blkid -s UUID -o value "${loop}p1")"
 # What Anaconda writes besides /boot, which bootc wrote

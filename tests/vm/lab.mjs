@@ -102,6 +102,15 @@ function qmp(name, execute, args) {
 }
 
 let requestId = 0;
+// Text typed on the serial console, as at a prompt there (a disk's passphrase on a machine without Plymouth)
+export function serialWrite(name, text) {
+  return new Promise((resolve, reject) => {
+    const socket = net.createConnection(file(name, 'console'));
+    socket.on('error', reject);
+    socket.on('connect', () => socket.end(text, resolve));
+  });
+}
+
 export function agent(name, request, timeoutS = 120) {
   const id = ++requestId;
   return serial(`${name}.agent`, () =>
@@ -245,7 +254,9 @@ export const tools = [
         '-device', 'virtio-serial-pci', '-chardev', `socket,id=lab,path=${file(name, 'agent')},server=on,wait=off`,
         '-device', 'virtserialport,chardev=lab,name=org.amethystora.vmtest',
         '-device', 'VGA,xres=1280,yres=800', '-device', 'qemu-xhci', '-device', 'usb-tablet', '-display', 'none',
-        '-serial', `file:${file(name, 'serial')}`, '-qmp', `unix:${file(name, 'qmp')},server=on,wait=off`,
+        // The serial console, kept in NAME.serial, and typed into through NAME.console (serialWrite)
+        '-chardev', `socket,id=con,path=${file(name, 'console')},server=on,wait=off,logfile=${file(name, 'serial')},logappend=off`,
+        '-serial', 'chardev:con', '-qmp', `unix:${file(name, 'qmp')},server=on,wait=off`,
         '-pidfile', file(name, 'pid'), ...credentials(extra)];
       // Blank disks on the machine's own SATA controller, which smartctl can read, for the pools of disks. One
       // left out is a disk that is not there at all; a faulty one reads through blkdebug, raw over it so that
