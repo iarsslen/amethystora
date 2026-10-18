@@ -130,8 +130,12 @@ the pool says what happened and offers what to do:
   because a disk was missing when the machine started. What is written to it then has one copy until
   the disk is replaced. A pool missing more disks than its layout survives opens read-only, so that
   what is left can be copied off.
-- **Put the copies back** comes up when the missing disk came back: what was written while it was
-  away has one copy until then.
+- **Put the copies back** comes up when the missing disk came back. What was written while it was
+  away has one copy, and the disk itself still has the old copies of it: btrfs reads the good copy and
+  counts the old one as an error, so the disk shows as **back**, not as failing. Putting the copies
+  back checks every copy, rewrites the old ones from the good ones, gives what has one copy its second,
+  and sets the disk's count back to zero. A file btrfs keeps no checksum of (one marked No_COW, such
+  as the journal's) cannot be told apart that way, so its copy on that disk may stay old.
 - A disk **counting errors** had reads or writes fail. btrfs read the other copy, so no file was lost,
   but a count that keeps rising means the disk, or its cable, is going. Once the cause is fixed,
   `sudo btrfs device stats --reset /var/mnt/NAME` sets the count back to zero.
@@ -148,12 +152,33 @@ the pool says what happened and offers what to do:
 
 ### The system's own disks
 
-The installer makes no pools: install on one disk, and make a pool of the others afterwards. Two disks
-chosen in the installer hold the system with one copy of each file, so either one failing loses
-everything. **Protect the system's disks** (`ame system raid mirror`) keeps a copy of each file on
-each disk instead, and erases nothing. The machine still starts only from its first disk, which has
-the boot files, and may need help to start at all with a disk dead, but every file stays readable on
-the disk that is left, from the live USB stick.
+The installer makes no pools: install on one disk, and make a pool of the others afterwards. The system
+itself can be on two disks as well, so that the machine goes on with one of them dead:
+
+- **Mirror the system onto a new disk** (`ame system raid mirror DISK`) copies a system installed on
+  one disk onto a spare disk at least as large: its own EFI partition, a half of `/boot` (the two
+  halves are a RAID1, `md-boot`), and a copy of every file, encrypted with the system's passphrase if
+  the system is. It erases that disk once you type `ERASE`, and nothing on the system's disk. Once the
+  copy is done, the machine restarts once from the new disk; when that start has worked, the first
+  disk's `/boot` joins the new one's, and from then on the machine starts from either disk. The
+  passphrase is still typed once, and a [TPM](security.md#unlock-the-disk-with-the-tpm) that unlocked
+  the disk gets a key for the new one too, with its PIN, as the command asks.
+- **Protect the system's disks** (`ame system raid mirror`) is for a system the installer spread
+  over two disks with one copy of each file, where either one failing loses everything. It keeps a
+  copy of each file on each disk instead, and erases nothing. The boot files stay on the first disk:
+  the machine starts from it, and with that disk dead every file is still on the other, readable from
+  the live USB stick.
+
+A sealed machine cannot be mirrored: its signed kernel command line names one disk.
+
+**Starting with a disk dead.** Without one of its disks, the system waits for it at the start, with
+no end. Turn the machine off and on again, and in the boot menu, which shows for five seconds on a
+system over several disks, choose **Start with a disk missing**: the system starts from the disk that
+is left, and says which disk is missing. Then **Replace a disk** (`ame system raid replace system`)
+puts a new disk, at least as large, in its place, with an EFI partition and a half of `/boot` of its
+own, and **Put the copies back** mends what was written in the meantime once the disk itself comes
+back. A machine whose firmware does not start from the second disk by itself needs it chosen once in
+its boot menu (often F12 or F8).
 
 ## Printers and scanners
 

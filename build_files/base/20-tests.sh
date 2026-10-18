@@ -599,7 +599,15 @@ bash /ctx/build_files/shared/test-raid.sh
 for unit in amethystora-raid-check amethystora-raid-scrub; do
     grep -q "^ExecCondition=/usr/libexec/amethystora-raid present$" "/usr/lib/systemd/system/${unit}.service"
 done
-systemd-analyze verify --man=no --recursive-errors=no /usr/lib/systemd/system/amethystora-raid-{check,scrub}.{service,timer}
+grep -q "^ExecCondition=/usr/libexec/amethystora-raid present-system$" /usr/lib/systemd/system/amethystora-raid-boot.service
+systemd-analyze verify --man=no --recursive-errors=no /usr/lib/systemd/system/amethystora-raid-{check,scrub}.{service,timer} \
+    /usr/lib/systemd/system/amethystora-raid-boot.service
+# A system over several disks starts with one missing from the boot menu: the initramfs lets its btrfs mount
+# degraded when the kernel command line asks for it (and only then), which the entry amethystora-raid writes does
+lsinitrd "/usr/lib/modules/$(ls /usr/lib/modules | head -n 1)/initramfs.img" |
+    grep -q "usr/lib/udev/rules.d/65-amethystora-btrfs-degraded.rules"
+grep -qF 'ENV{rootflags}!="*degraded*", GOTO' /usr/lib/dracut/modules.d/90amethystora-degraded/65-amethystora-btrfs-degraded.rules
+[[ ! -e /usr/lib/udev/rules.d/65-amethystora-btrfs-degraded.rules ]]
 grep -q "/usr/libexec/amethystora-raid root-luks" /usr/share/amethystora/just/security.just
 grep -q "/usr/libexec/amethystora-raid root-luks" /usr/libexec/amethystora-security-status
 grep -q "Open Control" /usr/libexec/amethystora-raid
@@ -2231,6 +2239,7 @@ IMPORTANT_UNITS=(
     amethystora-gpu-check.timer
     amethystora-raid-check.timer
     amethystora-raid-scrub.timer
+    amethystora-raid-boot.service
     amethystora-zram-recompress.timer
   )
 

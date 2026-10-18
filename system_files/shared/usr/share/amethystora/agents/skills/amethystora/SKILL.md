@@ -270,9 +270,13 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
 - `gsettings reset-recursively`, deleting user files, or reverting the user's own customisations.
 - `amethystora-restore put-back`: say which version comes back and where first, and use `--replace`
   only when they asked for it (`--keep-both` puts the old file beside the current one).
-- `ame system raid` with anything but `status`: it makes, changes and forgets pools of disks, and
-  erases disks. Never choose the disks or the layout for the user, and never type `ERASE`: the command
-  asks for it in a terminal, and that answer is the user's. Read a pool's state with
-  `/usr/libexec/amethystora-raid status --json`, which needs no root.
+- `ame system raid` with anything but `status`: it makes, changes and forgets pools of disks, mirrors
+  the system onto a new disk (`mirror DISK`, which restarts the machine) and replaces a disk of the
+  system (`replace system`), and erases disks. Never choose the disks or the layout for the user, and
+  never type `ERASE` or the disk's passphrase: the command asks for them in a terminal, and those
+  answers are the user's. Read the state of the pools and of the system's disks with
+  `/usr/libexec/amethystora-raid status --json`, which needs no root. Never edit `/boot/grub2/custom.cfg`
+  between its `amethystora-raid` markers, the boot entries, `/etc/crypttab` or the `md-boot` array by
+  hand.
 
 Turning these instructions off is `ame agent toggle off`.

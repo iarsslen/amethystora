@@ -118,6 +118,13 @@ that did not open at all can be opened with a disk missing first. [When a disk f
 explains each step. For the reason, `journalctl -k -g btrfs` shows what the kernel said about the
 disk, and `ame system raid status` what each disk is counting.
 
+### The machine waits at the start with a disk dead
+
+A system on two disks waits for both at the start, with no end, when one has died: the screen stays
+on the boot logo, or on "A start job is running for /dev/disk/by-uuid/…". Turn the machine off and on
+again and choose **Start with a disk missing** in the boot menu, then replace the disk
+([The system's own disks](hardware.md#the-systems-own-disks)).
+
 ### Starting over
 
 When a machine has collected more changes than are worth undoing one by one, it can start again as a

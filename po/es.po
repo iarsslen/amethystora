@@ -1763,10 +1763,6 @@ msgid "Protect the system's disks"
 msgstr "Proteger los discos del sistema"
 
 #: usr/libexec/amethystora-control-list
-msgid "The system is spread over several disks with one copy of each file, so either one failing loses everything. This keeps a copy on each, erasing nothing. The machine still starts only from its first disk."
-msgstr "El sistema está repartido entre varios discos con una sola copia de cada archivo, así que si falla cualquiera se pierde todo. Esto guarda una copia en cada uno, sin borrar nada. El equipo sigue arrancando solo desde su primer disco."
-
-#: usr/libexec/amethystora-control-list
 msgid "Monthly check of every copy"
 msgstr "Comprobación mensual de todas las copias"
 
@@ -1849,3 +1845,47 @@ msgstr "Su configuración"
 #: usr/libexec/amethystora-control-list
 msgid "Security settings are in Amethystora Security: ame security status"
 msgstr "Los ajustes de seguridad están en Seguridad de Amethystora: ame security status"
+
+#: usr/libexec/amethystora-control-list
+msgid "The system is spread over several disks with one copy of each file, so either one failing loses everything. This keeps a copy on each, erasing nothing. The machine starts from its first disk, or with another disk dead from the boot menu's Start with a disk missing."
+msgstr "El sistema está repartido entre varios discos con una sola copia de cada archivo, así que si falla cualquiera se pierde todo. Esto guarda una copia en cada uno, sin borrar nada. El equipo arranca desde su primer disco o, con otro disco averiado, desde la entrada Start with a disk missing del menú de arranque."
+
+#: usr/libexec/amethystora-control-list
+msgid "Checking every copy now."
+msgstr "Comprobando todas las copias ahora."
+
+#: usr/libexec/amethystora-control-list
+msgid "Mirroring it onto the new disk stopped before the restart from that disk worked. Every file is on both disks."
+msgstr "La copia en espejo al disco nuevo se detuvo antes de que funcionara el reinicio desde ese disco. Cada archivo está en ambos discos."
+
+#: usr/libexec/amethystora-control-list
+msgid "Restart to finish: the machine starts once from the new disk, then the first disk joins it for good."
+msgstr "Reinicie para terminar: el equipo arranca una vez desde el disco nuevo y después el primer disco se une a él definitivamente."
+
+#: usr/libexec/amethystora-control-list
+msgid "A disk that was missing is back, with old copies of what was written while it was away."
+msgstr "Ha vuelto un disco que faltaba, con copias antiguas de lo que se escribió mientras no estaba."
+
+#: usr/libexec/amethystora-control-list
+msgid "Its boot files have one copy, so it starts from one of its disks only."
+msgstr "Sus archivos de arranque tienen una sola copia, así que solo arranca desde uno de sus discos."
+
+#: usr/libexec/amethystora-control-list
+msgid "Restart from the new disk…"
+msgstr "Reiniciar desde el disco nuevo…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Needs a spare disk at least as large as the system's."
+msgstr "Necesita un disco libre al menos tan grande como el del sistema."
+
+#: usr/libexec/amethystora-control-list
+msgid "Mirror…"
+msgstr "Duplicar…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Mirror the system onto a new disk"
+msgstr "Duplicar el sistema en un disco nuevo"
+
+#: usr/libexec/amethystora-control-list
+msgid "Copies the system onto a spare disk at least as large as its own, its EFI partition and /boot included, so that the machine starts from either disk and goes on with one dead. It erases that disk once you type ERASE, then restarts once from it."
+msgstr "Copia el sistema, con su partición EFI y /boot, en un disco libre al menos tan grande como el suyo, para que el equipo arranque desde cualquiera de los dos y siga funcionando con uno averiado. Borra ese disco solo cuando escriba ERASE y luego reinicia una vez desde él."

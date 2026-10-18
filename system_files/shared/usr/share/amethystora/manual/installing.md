@@ -87,9 +87,9 @@ then gets on with it.
   [the TPM unlocks it](security.md#unlock-the-disk-with-the-tpm) if you want it to.
 - **To keep Windows,** read [Next to Windows](#next-to-windows) first.
 - **Choose one disk.** Two disks chosen here hold the system with one copy of each file, so either one
-  failing loses everything. Install on one, and make a [pool](hardware.md#pools-of-disks-raid) of the
-  others afterwards; if the system is on two already, Control's **Protect the system's disks** keeps a
-  copy on each.
+  failing loses everything. Install on one, and afterwards [mirror the system](hardware.md#the-systems-own-disks)
+  onto a second disk, or make a [pool](hardware.md#pools-of-disks-raid) of the others; if the system is
+  on two already, Control's **Protect the system's disks** keeps a copy on each.
 
 When it is done, restart and take the stick out. The first start asks for your language, keyboard,
 account and password, and the apps install by themselves once the computer is online. Then go through

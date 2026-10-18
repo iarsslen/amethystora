@@ -1,0 +1,22 @@
+[Unit]
+Description=Keep the system's disks ready to start, one of them missing or not
+Documentation=file:///usr/share/amethystora/manual/hardware.md
+After=local-fs.target
+Before=amethystora-raid-check.service
+
+[Service]
+Type=oneshot
+# Skipped on a system on one disk, which is most of them
+ExecCondition=/usr/libexec/amethystora-raid present-system
+# After the restart from the new disk of a mirror of the system (ame system raid mirror DISK): the first
+# disk's /boot joins the new one's, and both EFI partitions point at it. On every start of a system over
+# several disks: the disks seen missing written down, and the boot menu's "Start with a disk missing" made to
+# start what is running now.
+ExecStart=/usr/libexec/amethystora-raid boot
+# /boot is moved onto its mirror while this runs, once
+TimeoutStartSec=15min
+ProtectClock=yes
+RestrictRealtime=yes
+
+[Install]
+WantedBy=multi-user.target

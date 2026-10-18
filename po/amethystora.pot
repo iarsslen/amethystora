@@ -2302,7 +2302,19 @@ msgid "Replacing a disk now."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Checking every copy now."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Putting its copies where they belong now."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Mirroring it onto the new disk stopped before the restart from that disk worked. Every file is on both disks."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Restart to finish: the machine starts once from the new disk, then the first disk joins it for good."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -2330,7 +2342,15 @@ msgid "A disk has counted read or write errors."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "A disk that was missing is back, with old copies of what was written while it was away."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Part of it has one copy, written while a disk was missing."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Its boot files have one copy, so it starts from one of its disks only."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -2352,6 +2372,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "After a power cut, check every copy."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Restart from the new disk…"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -2412,6 +2436,22 @@ msgid "Two or more disks that keep copies of each other, or join into one, in a 
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Needs a spare disk at least as large as the system's."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Mirror…"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Mirror the system onto a new disk"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Copies the system onto a spare disk at least as large as its own, its EFI partition and /boot included, so that the machine starts from either disk and goes on with one dead. It erases that disk once you type ERASE, then restarts once from it."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Protect…"
 msgstr ""
 
@@ -2420,7 +2460,7 @@ msgid "Protect the system's disks"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
-msgid "The system is spread over several disks with one copy of each file, so either one failing loses everything. This keeps a copy on each, erasing nothing. The machine still starts only from its first disk."
+msgid "The system is spread over several disks with one copy of each file, so either one failing loses everything. This keeps a copy on each, erasing nothing. The machine starts from its first disk, or with another disk dead from the boot menu's Start with a disk missing."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list

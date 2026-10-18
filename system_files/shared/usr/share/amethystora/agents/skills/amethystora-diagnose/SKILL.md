@@ -64,9 +64,12 @@ Read the `amethystora` skill too: it says what may be changed on this system and
    refusing a module shows as "Key was rejected by service".
    When a disk is suspected, `/usr/libexec/amethystora-raid status --json` says, without root, which
    disk of which pool is missing, counting errors (`errors` per disk), failing its SMART check (as of
-   the last hourly check) or left with one copy (`degraded`), and `journalctl -k -g btrfs --no-pager`
-   what the kernel said about it. Replacing a disk erases one: propose `ame system raid replace NAME`
-   to the user, never run it.
+   the last hourly check), back after it was missing (`returned`, whose errors are the old copies it
+   missed, not a failing disk) or left with one copy (`degraded`), and `journalctl -k -g btrfs --no-pager`
+   what the kernel said about it. The system's own disks are the pool named `system`; when mirrored,
+   their `/boot` is the RAID1 `md-boot` (`cat /proc/mdstat`), and a start with one of them dead is the
+   boot menu's **Start with a disk missing**. Replacing a disk erases one: propose `ame system raid
+   replace NAME` (or `replace system`) to the user, never run it.
 6. **SELinux**, when something is denied that should be allowed: `journalctl -b -t setroubleshoot`.
    The full audit log needs root (`sudo ausearch -m avc -ts recent`); ask first.
 7. **A connection that fails**, when the rest of the network works: with

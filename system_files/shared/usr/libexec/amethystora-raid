@@ -9,7 +9,7 @@
 #   amethystora-raid add NAME [DISK]                 one more disk in a pool
 #   amethystora-raid mount NAME                      open a pool that lost a disk, until it is replaced
 #   amethystora-raid forget NAME                     stop mounting a pool, leaving its files on its disks
-#   amethystora-raid mirror                          a copy of each file on each of the system's disks
+#   amethystora-raid mirror [DISK]                   the system on each of its disks, or onto a new one
 #   amethystora-raid scrub [now|on|off]              read every copy now and repair, or switch the monthly scrub
 #   amethystora-raid status [--json]                 what there is and how it is doing, changing nothing
 #
@@ -21,7 +21,17 @@
 #   amethystora-raid check               amethystora-raid-check.service: read SMART, say what changed
 #   amethystora-raid notify SUMMARY BODY the check's notification, whose button opens Control
 #   amethystora-raid scrub-all           amethystora-raid-scrub.service
+#   amethystora-raid boot                amethystora-raid-boot.service: finish a mirror of the system after the
+#                                        restart from its new disk, and keep the boot menu's entry that
+#                                        starts a system over several disks with one of them missing
 #
+# The system's own disks: `mirror` with no disk keeps a copy of each file on each disk of a system the
+# installer spread over several (2a); `mirror DISK` copies a system on one disk, laid out as the installer
+# does it (an ESP, an ext4 /boot and btrfs, on LUKS or not), onto a new disk: its own ESP, /boot made a RAID1
+# of both (md-boot, metadata 1.0, so each half reads as plain ext4) and btrfs raid1, then one restart from the
+# new disk before the first disk's /boot joins (2b). Either way the boot menu gains "Start with a disk
+# missing", whose rootflags=...,degraded the initramfs honours (dracut module amethystora-degraded); `replace
+# system` puts a new disk in place of a dead one.
 # Nothing offers a disk that is in use (mounted, swap, held by LUKS, md or LVM, a member of a mounted
 # btrfs or of a pool that did not mount, zram, read-only), and nothing erases one without a terminal in
 # which the disk was shown and ERASE typed: there is no --yes. A pool is one btrfs over a GPT partition
@@ -53,9 +63,21 @@ LUKS_OVERHEAD=$((18 * 1048576))
 # second and a gigabyte of memory per disk at every boot: the minimal PBKDF2 that systemd-cryptenroll
 # gives its own high-entropy keys
 LUKS_PBKDF=(--pbkdf pbkdf2 --pbkdf-force-iterations 1000)
-LSBLK_COLUMNS=NAME,KNAME,PATH,TYPE,SIZE,MODEL,SERIAL,TRAN,RO,FSTYPE,LABEL,UUID,PARTLABEL,MOUNTPOINTS
+LSBLK_COLUMNS=NAME,KNAME,PATH,TYPE,SIZE,MODEL,SERIAL,TRAN,RO,FSTYPE,LABEL,UUID,PARTLABEL,PARTTYPE,PARTUUID,MOUNTPOINTS
 # Every btrfs mount, "uuid target options" a line, which status_json() reads once
 TARGETS=""
+# The system's disks: the GPT types of an ESP and of a Linux RAID member, and what says how far a mirror is
+ESP_TYPE=c12a7328-f81f-11d2-ba4b-00a0c93ec93b
+RAID_TYPE=a19d880f-05fc-4d3b-a006-743f0f84911e
+SEALED="${R}/usr/share/amethystora/sealed"
+BOOT="${R}/boot"
+BOOT_MD=/dev/md/md-boot
+# A mirror waiting for its restart from the new disk; the disks seen missing, for telling one that came back
+MIRROR_STATE="${STATE}/mirror.json"
+MISSING_STATE="${STATE}/missing.json"
+# What updates the system, held while its boot files are copied
+UPDATE_TIMERS=(uupd.timer rpm-ostreed-automatic.timer bootc-fetch-apply-updates.timer)
+UPDATE_SERVICES=(uupd.service uupd-manual.service rpm-ostreed-automatic.service bootc-fetch-apply-updates.service)
 
 die() {
     printf '%s\n' "$*" >&2
@@ -64,6 +86,7 @@ die() {
 
 usage() {
     sed -n 's/^#   amethystora-raid /ame system raid /p' "$0" | head -n 9
+    echo "ame system raid replace system    a new disk in place of a dead one of the system's"
 }
 
 interactive() { [[ -t 0 && -t 1 ]]; }
@@ -265,6 +288,21 @@ show_lines() {  # [--unopened]
         done
 }
 
+# Devices of a mounted btrfs whose disk is gone from under them: a LUKS mapping, still open, over a disk the
+# kernel dropped when it was pulled out. btrfs goes on with the others and counts errors for it; it is missing.
+gone_devices() {  # FS-SYSFS-DIR
+    local dev slave live
+    for dev in "$1"/devices/*; do
+        dev="${dev##*/}"
+        [[ -d "${SYS}/class/block/${dev}/dm" ]] || continue
+        live=false
+        for slave in "${SYS}/class/block/${dev}/slaves"/*; do
+            [[ -e "${slave}" ]] && live=true
+        done
+        [[ "${live}" == true ]] || printf '%s\n' "${dev}"
+    done
+}
+
 # A mounted btrfs, from sysfs, which anyone may read, a fact a line; FS_JQ makes JSON of it
 fs_facts() {
     local fs="$1" dir kind
@@ -274,6 +312,7 @@ fs_facts() {
     for dir in "${fs}"/devices/*; do
         [[ -e "${dir}" || -L "${dir}" ]] && printf 'device %s\n' "${dir##*/}"
     done
+    gone_devices "${fs}" | sed 's/^/gone /'
     for dir in "${fs}"/devinfo/*; do
         [[ -d "${dir}" ]] || continue
         printf 'devid %s %s\n' "${dir##*/}" "$(cat "${dir}/missing" 2>/dev/null || echo 0)"
@@ -299,7 +338,7 @@ FS_JQ='
   def number: if . == "" or . == null then null else tonumber end;
   {uuid: fact("uuid"), label: fact("label"),
    operation: (fact("operation") | if . == "" or . == "none" then null else . end),
-   devices: facts("device"),
+   devices: facts("device"), gone: facts("gone"),
    devinfo: ([facts("devid")[] | split(" ") | {devid: (.[0] | tonumber), missing: (.[1] == "1")}] | sort_by(.devid)),
    errors: (reduce (facts("error")[] | split(" ")) as $e ({}; .[$e[0]][$e[1] | sub("_errs$"; "")] = ($e[2] | tonumber))),
    profiles: (reduce (facts("profile")[] | split(" ")) as $p ({data: {}, metadata: {}};
@@ -342,7 +381,10 @@ def name_of($mountpoint): $mountpoint | split("/") | last;
   | [ $f.devinfo[] as $d
       | ([$f.show[]? | select(.devid == $d.devid and .kname != "-") | .kname] | first) as $shown
       | ([$disks.devices[]? | select(.fsid == $f.uuid and .devid == $d.devid)] | first) as $known
-      | (if $d.missing then null
+      # Gone from under its open LUKS mapping, which btrfs does not call missing
+      | ($shown != null and ($f.gone | index($shown)) != null) as $gone
+      | ($d + {missing: ($d.missing or $gone)}) as $d
+      | (if $d.missing and ($gone | not) then null
          elif $shown != null then $shown
          elif $known != null and ($f.devices | index($known.kname)) != null then $known.kname
          else null end) as $kname
@@ -350,24 +392,35 @@ def name_of($mountpoint): $mountpoint | split("/") | last;
          // (if $known != null then {path: $known.disk, model: $known.model, serial: $known.serial, size: null, tran: null}
              else null end)) as $disk
       | ($f.errors[$d.devid | tostring] // {}) as $errors
-      | {devid: $d.devid, missing: $d.missing, kname: $kname,
+      # A disk that was missing and is back has the old copies of what was written while it was away, which
+      # btrfs counts as errors as it finds them: that is no sign of a failing disk
+      | (($d.missing | not) and ($seen[$f.uuid][$d.devid | tostring] != null)) as $returned
+      | {devid: $d.devid, missing: $d.missing, returned: $returned, kname: $kname,
          size: ([$f.show[]? | select(.devid == $d.devid) | .size] | first),
          errors: $errors, error_count: ([$errors[]] | add // 0),
          disk: $disk, usb: ($disk.tran == "usb"),
          smart: (if $d.missing then null else smart($disk) end)} ] as $devices
   | ($devices | map(select(.missing)) | length) as $missing
-  | ($devices | map(.error_count) | add // 0) as $errors
+  | ($devices | map(select(.returned | not) | .error_count) | add // 0) as $errors
   | ($scrubs[$f.uuid] // null) as $scrub
   | ($meta == null or $meta == "single" or $meta == "dup") as $plain_meta
   | (($data != null and $data != "single" and ($f.profiles.data.single // 0) > 0)
      or (($plain_meta | not) and (($f.profiles.metadata.single // 0) + ($f.profiles.metadata.dup // 0)) > 0)) as $degraded
   | (if $system then ($rootluks | length) > 0
      else any($devices[]; .kname as $k | $k != null and any(nodes; .kname == $k and .type == "crypt")) end) as $encrypted
+  # The system /boot mirrored as well (md-boot), and how many of its halves are there
+  | (if $system and $sys.md != null then {degraded: ($sys.md.degraded > 0), raid_disks: $sys.md.raid_disks,
+       members: ($sys.md.members | length), state: $sys.md.state, mounted: ($sys.boot.source // "" | test("^/dev/md"))}
+     else null end) as $boot
+  | (if $system then $sys.mirror else null end) as $mirror
   | [ (if $missing > 0 then "missing" else empty end),
       (if any($devices[]; .smart == "failed") then "failing" else empty end),
       (if ($scrub.uncorrectable // 0) > 0 then "scrub" else empty end),
       (if $errors > 0 then "errors" else empty end),
+      (if any($devices[]; .returned) then "returned" else empty end),
       (if $degraded then "degraded" else empty end),
+      (if $missing == 0 and $boot != null and $boot.degraded and $mirror == null then "boot" else empty end),
+      (if $mirror != null then (if $mirror.state == "failed" then "mirror-failed" else "restart" end) else empty end),
       (if $system and $data == "single" then "unprotected" else empty end) ] as $problems
   | {id: $id, name: $id, system: $system, managed: ($e != null), uuid: $f.uuid, label: $f.label,
      mountpoint: (if $e != null then $e.mountpoint elif $system then "/" else $f.target end),
@@ -375,7 +428,8 @@ def name_of($mountpoint): $mountpoint | split("/") | last;
      layout: $data, metadata: $meta, survives: ($data | survives),
      size: $f.size, used: $f.used, data_used: $f.data_used, metadata_used: $f.metadata_used,
      devices: $devices, missing: $missing, errors: $errors, degraded: $degraded, operation: $f.operation,
-     busy: [$units[] | select(. as $unit | any("replace", "balance", "mirror"; $unit == "amethystora-raid-\(.)-\($id).service"))],
+     boot: $boot, mirror: $mirror,
+     busy: [$units[] | select(. as $unit | any("replace", "balance", "mirror", "scrub"; $unit == "amethystora-raid-\(.)-\($id).service"))],
      scrub: $scrub, problems: $problems, state: (if $problems == [] then "ok" else "check" end)} ]
 + [ $fstab[] as $e
     | select(any($fs[]; .uuid == $e.uuid) | not)
@@ -404,8 +458,25 @@ def name_of($mountpoint): $mountpoint | split("/") | last;
         and (pool_part | not)))
     | disk + {kname, usb: (.tran == "usb"), contents: [recurse(.children[]?) | select(.fstype != null) | {fstype, label}]} ]
 | . as $spare
+# Mirroring a system on one disk onto a new one (2b): laid out as the installer does it (an ESP, an ext4 /boot
+# and the btrfs, on LUKS or not, all on that disk), on UEFI, not sealed, onto a spare disk at least as large.
+# The reason it cannot, or null; nothing at all where it does not apply (several disks already).
+| def disk_at($path): (first($lsblk.blockdevices[]? | select(.type == "disk" and any(recurse(.children[]?); .path == $path)))) // null;
+  (if $sys == null or ($sys.devices | length) != 1 then null else
+    disk_at($sys.devices[0].part) as $disk
+    | (if $sys.boot != null then disk_at($sys.boot.source) else null end) as $bootdisk
+    | ([$disk.children[]? | select((.parttype // "" | ascii_downcase) == $esp_type and .fstype == "vfat")] | length) as $esps
+    | [$spare[] | select(.size >= ($disk.size // infinite))] as $fits
+    | (if $sys.mirror != null then "pending"
+       elif $sys.sealed then "sealed"
+       elif ($sys.efi | not) then "no-uefi"
+       elif $disk == null or $bootdisk == null or $bootdisk.path != $disk.path or $sys.boot.fstype != "ext4" or $esps != 1 then "layout"
+       elif $fits == [] then "no-disk"
+       else null end) as $reason
+    | {possible: ($reason == null), reason: $reason, disk: $disk.path, size: $disk.size, candidates: [$fits[].path]} end) as $onto
 | {version: 1, pools: $pools, spare: $spare,
    system_single: any($pools[]; .system and .layout == "single"),
+   mirror_onto: $onto,
    raid: ($pools != []),
    scrub_timer: (if $timer == "" then null else $timer end),
    scrubbing: any($units[]; . == "amethystora-raid-scrub.service" or . == "amethystora-raid-scrub-now.service")}'
@@ -422,6 +493,58 @@ scrubs() {
 units() {
     systemctl list-units --plain --no-legend --state=activating,active,deactivating 'amethystora-raid-*' 2>/dev/null |
         awk '$1 ~ /^amethystora-raid-/ { print $1 }'
+}
+
+# The md array of the system's /boot, from sysfs: "kname degraded raid_disks array_state member..." with each
+# member "kname:state", or nothing
+md_boot() {
+    local md dev members=()
+    md="$(readlink -f "${R}${BOOT_MD}" 2>/dev/null)"
+    [[ -n "${md}" && -d "${SYS}/block/${md##*/}/md" ]] || return 0
+    md="${md##*/}"
+    for dev in "${SYS}/block/${md}/md"/dev-*; do
+        [[ -d "${dev}" ]] || continue
+        members+=("$(readlink -f "${dev}/block")")
+        members[-1]="${members[-1]##*/}:$(tr ',' '+' <"${dev}/state" 2>/dev/null)"
+    done
+    printf '%s %s %s %s %s\n' "${md}" "$(cat "${SYS}/block/${md}/md/degraded" 2>/dev/null || echo 0)" \
+        "$(cat "${SYS}/block/${md}/md/raid_disks" 2>/dev/null || echo 0)" \
+        "$(cat "${SYS}/block/${md}/md/array_state" 2>/dev/null || echo inactive)" "${members[*]}"
+}
+
+# The system's own disks, without root: each device of its btrfs with the partition under it (a LUKS one when
+# it is encrypted), /boot, its md array if it has one, and the rest the status works out from lsblk
+system_json() {
+    local fstype source uuid dev part devices=() boot md
+    read -r fstype source uuid <<<"$(root_fs)"
+    if [[ "${fstype}" != btrfs || -z "${uuid}" ]]; then
+        echo null
+        return
+    fi
+    for dev in "${SYS}/fs/btrfs/${uuid}/devices"/*; do
+        [[ -e "${dev}" || -L "${dev}" ]] || continue
+        dev="${dev##*/}"
+        part="$(luks_under "${dev}" | head -n 1)"
+        devices+=("${dev} ${part:-/dev/${dev}} $([[ -n "${part}" ]] && echo true || echo false)")
+    done
+    boot="$(findmnt -rn -o SOURCE,FSTYPE,UUID --mountpoint /boot 2>/dev/null | head -n 1)"
+    md="$(md_boot)"
+    jq -n --arg uuid "${uuid}" --arg boot "${boot}" --arg md "${md}" \
+        --argjson sealed "$([[ -e "${SEALED}" ]] && echo true || echo false)" \
+        --argjson efi "$([[ -d "${SYS}/firmware/efi" ]] && echo true || echo false)" \
+        --argjson mirror "$(jq -c 'select(type == "object")' "${MIRROR_STATE}" 2>/dev/null || echo null)" '
+        {uuid: $uuid, sealed: $sealed, efi: $efi, mirror: $mirror,
+         devices: [$ARGS.positional[] | split(" ") | {kname: .[0], part: .[1], luks: (.[2] == "true")}],
+         boot: ($boot | split(" ") | if length >= 2 then {source: .[0], fstype: .[1], uuid: (.[2] // null)} else null end),
+         md: ($md | split(" ") | if length >= 4 then {kname: .[0], degraded: (.[1] | tonumber), raid_disks: (.[2] | tonumber),
+              state: .[3], members: [.[4:][] | split(":") | {kname: .[0], state: (.[1] // "")}]} else null end)}' \
+        --args "${devices[@]}"
+}
+
+# The disks seen missing, which the check and the boot write down for root, so that one that comes back,
+# with the old copies of what was written while it was away, is told from one counting errors
+missing_seen() {
+    jq -c 'select(type == "object")' "${MISSING_STATE}" 2>/dev/null || echo '{}'
 }
 
 # Everything there is to say, as JSON, without root: sysfs, lsblk, findmnt and fstab, which anyone may
@@ -456,6 +579,9 @@ status_json() {
         --argjson scrubs "$(scrubs)" \
         --argjson units "$(units | jq -cRn '[inputs]')" \
         --arg timer "$(systemctl is-enabled amethystora-raid-scrub.timer 2>/dev/null)" \
+        --argjson sys "$(system_json)" \
+        --argjson seen "$(missing_seen)" \
+        --arg esp_type "${ESP_TYPE}" \
         "${STATUS_JQ}"
 }
 
@@ -469,19 +595,23 @@ def disk: [(if .devid != null then "disk \(.devid)" else empty end),
     (if (.disk.model // "") != "" then .disk.model + (if (.disk.serial // "") != "" then " (\(.disk.serial))" else "" end) else empty end)]
     | join("  ");
 def errors: if . == 1 then "1 error" else "\(.) errors" end;
-def run($what): if .managed then ": ame system raid \($what) \(.name)" else "" end;
+def run($what): if .managed then ": ame system raid \($what) \(.name)" elif .system then ": ame system raid \($what) system" else "" end;
 def how:
     if .busy != [] or .operation != null then
-        "Busy " + (if any(.busy[]; test("-replace-")) then "replacing a disk." elif .busy != [] then "putting its copies where they belong."
-                   else "(\(.operation))." end)
+        "Busy " + (if any(.busy[]; test("-replace-")) then "replacing a disk." elif any(.busy[]; test("-scrub-")) then "checking every copy."
+                   elif .busy != [] then "putting its copies where they belong." else "(\(.operation))." end)
+    elif .mirror != null and .mirror.state == "failed" then "Mirroring it onto the new disk stopped: \(.mirror.reason // "journalctl -u amethystora-raid-boot says why")."
+    elif .mirror != null then "Restart to finish: the machine starts once from the new disk, then the boot files of the first disk join it."
     elif .mounted | not then "Not mounted, perhaps because one of its disks is missing. Open it with what is there" + run("mount") + "."
     elif .missing > 0 then
         if .missing <= .survives then "A disk is missing. Every file is still there, with one copy fewer until the disk is replaced" + run("replace") + "."
         else "A disk is missing, and the files that were on it cannot be read until it is back." end
     elif any(.devices[]; .smart == "failed") then "A disk says it is failing. Replace it" + run("replace") + "."
     elif (.scrub.uncorrectable // 0) > 0 then "The last check found damage it could not repair: journalctl -k -g btrfs names the files."
-    elif .errors > 0 then "A disk has counted read or write errors."
+    elif .errors > 0 then "A disk has counted read or write errors" + (if .survives > 0 then ". If the count keeps rising, replace it" + run("replace") + "." else "." end)
+    elif any(.devices[]; .returned) then "A disk that was missing is back, with old copies of what was written while it was away. Put the copies back" + run("replace") + "."
     elif .degraded then "Part of it has one copy, written while a disk was missing. Put the copies back" + run("replace") + "."
+    elif .boot != null and .boot.degraded then "Its boot files have one copy. Put the copies back" + run("replace") + "."
     elif .system and .layout == "single" then "Either disk failing loses everything: ame system raid mirror keeps a copy on each."
     else "Fine." end;
 (if .pools == [] then "No pools of disks." else "Pools of disks" end),
@@ -496,8 +626,11 @@ def how:
             + (if .scrub.finished == false then ", not to the end." elif (.scrub.corrected // 0) > 0 then ", \(.scrub.corrected) errors repaired."
                else ", nothing to repair." end)
         else "Every copy not checked yet." end) else empty end),
-    (.devices[] | "      " + disk + (if .missing then "  missing" elif .smart == "failed" then "  failing"
+    (if .boot != null then "    Its boot files are on \(.boot.members) of its disks." else empty end),
+    (.devices[] | "      " + disk + (if .missing then "  missing" elif .smart == "failed" then "  failing" elif .returned then "  back"
         elif .error_count > 0 then "  \(.error_count | errors)" else "" end) + (if .usb then "  USB" else "" end))),
+(if .mirror_onto.possible == true then "", "The system is on one disk: ame system raid mirror DISK copies it onto another at least as large, so that it starts from either."
+ else empty end),
 "",
 (if .spare == [] then "No spare disks." else "Spare disks: " + ([.spare[] | "\(.path) (\(if .model != "" then .model else "disk" end), \(.size | human)\(if .usb then ", USB" else "" end))"] | join(", ")) end),
 (if .raid then "The monthly check of every copy is " + (if .scrub_timer == "enabled" then "on" else "off" end) + "."
@@ -533,7 +666,7 @@ name_free() {
 }
 
 pool_json() {  # STATUS NAME
-    jq -c --arg name "$2" 'first(.pools[] | select(.managed and .name == $name)) // empty' <<<"$1"
+    jq -c --arg name "$2" 'first(.pools[] | select((.managed or .system) and .name == $name)) // empty' <<<"$1"
 }
 
 # The pool NAME names, or without one the only pool there is, or the one asked for, the ones that need a
@@ -743,6 +876,7 @@ progress() {  # OP TARGET
     local line=""
     case "$1" in
         replace) line="$(as_root_quietly btrfs replace status -1 "$2")" ;;
+        scrub) line="$(as_root_quietly btrfs scrub status "$2" | awk -F": *" '/Bytes scrubbed/ { print "Checked " $2 }')" ;;
         *) line="$(as_root_quietly btrfs balance status "$2" | sed -n 2p)" ;;
     esac
     [[ -n "${line}" ]] && printf '\r\033[K%s' "${line}"
@@ -1013,13 +1147,168 @@ cmd_mount() {
     [[ $? -ne 1 ]]
 }
 
+# Copies put back after a disk was missing: the system's /boot halves that are not in its mirror again, every
+# copy read and an old one rewritten from a good one (a disk that came back has the old copies of what was
+# written while it was away, which btrfs counts as errors as it finds them), what has one copy given its
+# second, and the disk that came back no longer counting what it missed
+put_back() {  # NAME TARGET POOL-JSON
+    local name="$1" target="$2" pool="$3" returned=() line devid kname part code disk
+    mapfile -t returned < <(jq -r '.devices[] | select(.returned) | "\(.devid) \(.kname)"' <<<"${pool}")
+    [[ ${#returned[@]} -gt 0 ]] && echo "A disk of ${name} that was missing is back, with old copies of what was written while it was away."
+    jq -e '.degraded' <<<"${pool}" >/dev/null && echo "Part of ${name} has one copy, written while a disk was missing."
+    jq -e '.boot.degraded == true' <<<"${pool}" >/dev/null && echo "The boot files of the system have one copy."
+    gum confirm "Put the copies back now? It reads everything, so it takes a while on a large disk." || exit 0
+    as_root true || exit 1
+    if jq -e '.boot.degraded == true' <<<"${pool}" >/dev/null; then
+        for disk in $(jq -r '.devices[] | select(.missing | not) | .disk.path // empty' <<<"${pool}" | sort -u); do
+            part="$(lsblk -nrpo PATH,PARTTYPE "${disk}" | awk -v type="${RAID_TYPE}" 'tolower($2) == type { print $1; exit }')"
+            [[ -n "${part}" ]] || continue
+            grep -qw "${part##*/}" /proc/mdstat && continue
+            echo "${part} joins the mirror of /boot again."
+            as_root mdadm "${BOOT_MD}" --re-add "${part}" >/dev/null 2>&1 ||
+                { as_root wipefs -a -q "${part}" && as_root mdadm "${BOOT_MD}" --add "${part}" >/dev/null; } ||
+                echo "${part} could not join the mirror of /boot: mdadm --detail ${BOOT_MD} says why." >&2
+        done
+    fi
+    if [[ ${#returned[@]} -gt 0 ]]; then
+        long_run scrub "${name}" "Checking every copy of ${name}" "${target}" btrfs scrub start -B "${target}"
+        code=$?
+        [[ ${code} -eq 3 ]] && die "The check found damage it could not repair from another copy: journalctl -k -g btrfs names the files."
+        [[ ${code} -eq 0 ]] || die "The check did not finish: journalctl -u amethystora-raid-scrub-${name} says why."
+    fi
+    spread_back "${name}" "${target}" || die "That did not finish: journalctl -u amethystora-raid-balance-${name} says why."
+    for line in "${returned[@]}"; do
+        read -r devid kname <<<"${line}"
+        as_root btrfs device stats --reset "/dev/${kname}" >/dev/null
+    done
+    [[ ${#returned[@]} -gt 0 ]] && forget_missing "$(jq -r .uuid <<<"${pool}")" $(printf '%s\n' "${returned[@]}" | awk '{ print $1 }')
+    # A replace whose window was closed before it got this far left the old disk's line behind
+    [[ "$(jq -r '.encrypted and .managed' <<<"${pool}")" == true ]] && retire_lines "${name}" "${target}"
+    echo "Every file of ${name} has its copies again."
+}
+
+# A new disk of the system in place of one that is gone or failing: like the disk that is left, an EFI
+# partition, a half of /boot's mirror and the rest for the system when the system was mirrored onto a disk of
+# its own (2b), or one partition for the system when the installer spread it (2a), encrypted with the system's
+# passphrase when it is. The dead disk's kernel argument, crypttab line and firmware entry go after.
+replace_system() {  # STATUS POOL-JSON DEVID OLD-KNAME CHOICE
+    local status="$1" pool="$2" devid="$3" old="$4" choice="$5" target encrypted template template_part template_disk
+    local mirrored=false candidates disk lines=() passphrase="" outgoing="" esp boot_uuid new_esp new_boot new_root source args=()
+    local part uuid entry number
+    target="$(jq -r .target <<<"${pool}")"
+    encrypted="$(jq -r .encrypted <<<"${pool}")"
+    jq -e '.boot != null' <<<"${pool}" >/dev/null && mirrored=true
+    # The disk that stays, which the new one is made like
+    template="$(jq -r --argjson devid "${devid}" '[.devices[] | select((.missing | not) and .devid != $devid) | .kname] | first // empty' <<<"${pool}")"
+    [[ -n "${template}" ]] || die "No disk of the system is left to copy onto a new one."
+    template_part="$(luks_under "${template}" | head -n 1)"
+    template_part="${template_part:-/dev/${template}}"
+    template_disk="$(disk_of_part "${template_part}")"
+    if [[ "${mirrored}" == true ]]; then
+        candidates="$(jq -c --argjson need "$(lsblk -bndo SIZE "${template_disk}")" '.spare | map(select(.size >= $need))' <<<"${status}")"
+    else
+        candidates="$(jq -c --argjson need "$(($(part_size "${template_part}") + LUKS_OVERHEAD))" '.spare | map(select(.size >= $need))' <<<"${status}")"
+    fi
+    [[ "$(jq length <<<"${candidates}")" -gt 0 ]] ||
+        die "No spare disk is large enough to take its place: the new one needs to be as large as ${template_disk}. Connect one, then run ame system raid replace system again."
+    disk="$(pick_disk "${candidates}" "Which disk takes its place? Everything on it is erased.")" || exit 0
+    mapfile -t lines < <(disk_plan "${candidates}" "${disk}")
+    box "Disk ${devid} of the system ($(sed -E 's/^disk [0-9]+ +//' <<<"${choice}")) is replaced by:" "" "${lines[@]}" "" \
+        "Everything on ${disk} is erased.$([[ "${mirrored}" == true ]] && echo " It gets an EFI partition and a half of /boot of its own, so that the machine starts from it too.")"
+    ask_erase "${disk}"
+    still_spare "${disk}"
+    as_root true || exit 1
+    [[ "${encrypted}" == true ]] && passphrase="$(ask_passphrase "${template_part}")"
+    hold_updates
+    [[ "${old}" != - ]] && outgoing="$(luks_under "${old}" | head -n 1)"
+
+    echo "Erasing ${disk}…"
+    mapfile -t lines < <(lsblk -nrpo PATH "${disk}" | tac)
+    as_root wipefs -a -q "${lines[@]}" >&2 || die "${disk} could not be erased."
+    if [[ "${mirrored}" == true ]]; then
+        esp="$(esp_on "${template_disk}")"
+        part="$(lsblk -nrpo PATH,PARTTYPE "${template_disk}" | awk -v type="${RAID_TYPE}" 'tolower($2) == type { print $1; exit }')"
+        [[ -n "${esp}" && -n "${part}" ]] || die "The EFI partition or /boot's half on ${template_disk} could not be found."
+        printf 'label: gpt\nsize=%s, type=%s, name="EFI System Partition"\nsize=%s, type=%s, name="boot"\ntype=%s, name="system"\n' \
+            "$(($(part_size "${esp}") / 512))" "${ESP_TYPE}" "$(($(part_size "${part}") / 512))" "${RAID_TYPE}" "$(part_type "${template_part}")" |
+            as_root sfdisk --quiet --wipe always --wipe-partitions always "${disk}" >/dev/null || die "${disk} could not be partitioned."
+        as_root udevadm settle
+        new_esp="$(part_of "${disk}" 1)" new_boot="$(part_of "${disk}" 2)" new_root="$(part_of "${disk}" 3)"
+    else
+        printf 'label: gpt\ntype=%s, name="system"\n' "$(part_type "${template_part}")" |
+            as_root sfdisk --quiet --wipe always --wipe-partitions always "${disk}" >/dev/null || die "${disk} could not be partitioned."
+        as_root udevadm settle
+        new_root="$(part_of "${disk}" 1)"
+    fi
+    [[ -n "${new_root}" ]] || die "${disk} could not be partitioned."
+    if [[ "${encrypted}" == true ]]; then
+        source="$(system_luks "${new_root}" "${passphrase}")" || die "${new_root} could not be encrypted."
+    else
+        source="${new_root}"
+    fi
+    if [[ "${old}" == - ]]; then args=("${devid}"); else args=(-r "/dev/${old}"); fi
+    long_run replace system "Replacing disk ${devid} of the system" "${target}" btrfs replace start -B -f "${args[@]}" "${source}" "${target}" ||
+        die "The replace did not finish: journalctl -u amethystora-raid-replace-system says why."
+    as_root btrfs filesystem resize "${devid}:max" "${target}" >/dev/null 2>&1
+    spread_back system "${target}" || echo "Putting back the copies did not finish: run ame system raid replace system again."
+    forget_missing "$(jq -r .uuid <<<"${pool}")" "${devid}"
+
+    if [[ "${mirrored}" == true ]]; then
+        echo "The new disk joins /boot's mirror, and gets the EFI partition's files."
+        boot_uuid="$(as_root blkid -p -s UUID -o value "${BOOT_MD}")"
+        as_root mdadm "${BOOT_MD}" --remove failed >/dev/null 2>&1
+        as_root mdadm "${BOOT_MD}" --remove detached >/dev/null 2>&1
+        as_root mdadm "${BOOT_MD}" --add "${new_boot}" >/dev/null || echo "${new_boot} could not join /boot's mirror: mdadm --detail ${BOOT_MD} says why." >&2
+        copy_esp "${esp}" "${new_esp}" "${boot_uuid}" || echo "The EFI partition could not be copied onto ${new_esp}." >&2
+        entry="$(efi_entry "${new_esp}" "Amethystora (${disk##*/})")" || echo "The firmware's boot entry for ${disk} could not be made." >&2
+        # The entries made for a disk that is gone, and /boot/efi on one that is
+        while read -r number part; do
+            [[ -n "${part}" && ! -e "/dev/disk/by-partuuid/${part}" ]] && as_root efibootmgr --quiet --delete-bootnum --bootnum "${number}" >/dev/null
+        done < <(as_root efibootmgr -v | awk '/Amethystora \(/ && match(tolower($0), /hd\([0-9]+,gpt,[0-9a-f-]+/) {
+            n = $1; sub(/^Boot/, "", n); sub(/\*$/, "", n); split(substr(tolower($0), RSTART, RLENGTH), p, ","); print n, p[3] }')
+        uuid="$(awk '!/^[[:space:]]*#/ && $2 == "/boot/efi" { sub(/^UUID=/, "", $1); print $1 }' "${FSTAB}")"
+        if [[ -n "${uuid}" && ! -e "/dev/disk/by-uuid/${uuid}" ]]; then
+            as_root sed -i -E "s#^UUID=${uuid}([[:space:]]+/boot/efi[[:space:]])#UUID=$(lsblk -ndo UUID "${esp}")\1#" "${FSTAB}"
+            as_root systemctl daemon-reload
+        fi
+    fi
+    # The old disk's key: its kernel argument and crypttab line, which would have the next boot wait for it
+    if [[ "${encrypted}" == true ]]; then
+        [[ -n "${outgoing}" ]] && uuid="$(as_root cryptsetup luksUUID "${outgoing}" 2>/dev/null)" && as_root cryptsetup close "luks-${uuid}" 2>/dev/null
+        for uuid in $(tr ' ' '\n' </proc/cmdline | sed -n 's/^rd\.luks\.uuid=\(luks-\)\?//p'; awk '!/^[[:space:]]*#/ && $2 ~ /^UUID=/ { print substr($2, 6) }' <(as_root cat "${CRYPTTAB}")); do
+            if [[ ! -e "/dev/disk/by-uuid/${uuid}" ]] || { [[ -n "${outgoing}" ]] && [[ "$(as_root cryptsetup luksUUID "${outgoing}" 2>/dev/null)" == "${uuid}" ]]; }; then
+                kargs_remove "rd.luks.uuid=luks-${uuid}"
+                kargs_remove "rd.luks.uuid=${uuid}"
+                as_root sed -i "/^[^#[:space:]]*[[:space:]]\+UUID=${uuid}[[:space:]]/d" "${CRYPTTAB}"
+            fi
+        done
+    fi
+    write_boot_entry
+    release_updates
+    echo "Disk ${devid} of the system is replaced."
+    if [[ "${encrypted}" == true ]] && as_root cryptsetup luksDump "${template_part}" | grep -q systemd-tpm2; then
+        echo
+        echo "The TPM opens the system's disks at boot. It needs a key for the new one too:"
+        ame security disk-unlock on-pin
+    fi
+}
+
 cmd_replace() {
     need_terminal replace
     local status name pool target devid old encrypted lines=() candidates choice need size old_line source args=()
-    local disk outgoing=""
+    local disk outgoing="" system=false
     status="$(status_json)" || die "The disks could not be read."
-    name="$(pick_pool "${status}" "${1:-}")" || exit 1
-    pool="$(pool_json "${status}" "${name}")"
+    if [[ "${1:-}" == system ]]; then
+        system=true name=system
+        pool="$(jq -c 'first(.pools[] | select(.system)) // empty' <<<"${status}")"
+        [[ -n "${pool}" ]] || die "The system is on one disk: ame system raid mirror DISK copies it onto another."
+        jq -e '.mirror == null' <<<"${pool}" >/dev/null || die "The system's mirror is waiting for its restart: restart first."
+        jq -e '.layout != "single"' <<<"${pool}" >/dev/null ||
+            die "The system keeps one copy of each file, so a dead disk's files cannot be rebuilt: ame system raid mirror keeps a copy on each disk while they are all there."
+    else
+        name="$(pick_pool "${status}" "${1:-}")" || exit 1
+        pool="$(pool_json "${status}" "${name}")"
+    fi
     if [[ "$(jq -r .mounted <<<"${pool}")" == false ]]; then
         echo "${name} is not mounted, so it is opened with a disk missing first."
         open_pool "${status}" "${name}"
@@ -1036,22 +1325,18 @@ cmd_replace() {
     target="$(jq -r .target <<<"${pool}")"
     encrypted="$(jq -r .encrypted <<<"${pool}")"
 
-    # The disk to replace: a missing one, a failing one or one counting errors, or, asked first, any
-    if ! jq -e 'any(.devices[]; .missing or .smart == "failed" or .error_count > 0)' <<<"${pool}" >/dev/null; then
-        if [[ "$(jq -r .degraded <<<"${pool}")" == true ]]; then
-            echo "Every disk of ${name} is there, but part of it has one copy, written while a disk was missing."
-            gum confirm "Put the copies back now?" || exit 0
-            spread_back "${name}" "${target}" || die "That did not finish: journalctl -u amethystora-raid-balance-${name} says why."
-            # A replace whose window was closed before it got this far left the old disk's line behind
-            [[ "${encrypted}" == true ]] && retire_lines "${name}" "${target}"
-            echo "Every file of ${name} has its copies again."
+    # The disk to replace: a missing one, a failing one or one counting errors, or, asked first, any. One that
+    # came back counts what it missed, which putting the copies back mends.
+    if ! jq -e 'any(.devices[]; .missing or .smart == "failed" or ((.returned | not) and .error_count > 0))' <<<"${pool}" >/dev/null; then
+        if jq -e '.degraded or any(.devices[]; .returned) or .boot.degraded == true' <<<"${pool}" >/dev/null; then
+            put_back "${name}" "${target}" "${pool}"
             exit 0
         fi
         echo "Every disk of ${name} is fine."
         gum confirm --default=no "Replace one anyway?" || exit 0
     fi
     room_to_replace "${target}" ||
-        die "${name} is too full to be rebuilt: btrfs needs a gigabyte free on each disk that is left. Delete what you can spare from ${MNT}/${name}, then run ame system raid replace ${name} again. Nothing was erased."
+        die "${name} is too full to be rebuilt: btrfs needs a gigabyte free on each disk that is left. Delete what you can spare$([[ "${system}" == true ]] || echo " from ${MNT}/${name}"), then run ame system raid replace ${name} again. Nothing was erased."
     mapfile -t lines < <(jq -r '.devices | sort_by((.missing or .smart == "failed" or .error_count > 0) | not)[]
         | "disk \(.devid)  " + (if (.disk.model // "") != "" then "\(.disk.model) \(.disk.serial // "")" else "" end)
           + (if .missing then "  missing" elif .smart == "failed" then "  failing" elif .error_count > 0 then "  \(.error_count) errors" else "  fine" end)' <<<"${pool}")
@@ -1064,6 +1349,10 @@ cmd_replace() {
     [[ -n "${size}" ]] || die "btrfs does not know disk ${devid} of ${name}."
     if [[ "${old}" == - ]] && jq -e '.survives == 0' <<<"${pool}" >/dev/null; then
         die "${name} keeps no copies, so what was on disk ${devid} cannot be rebuilt: its files are gone until it is back. Copy off the rest from ${MNT}/${name}."
+    fi
+    if [[ "${system}" == true ]]; then
+        replace_system "${status}" "${pool}" "${devid}" "${old}" "${choice}"
+        return
     fi
 
     # A replacement at least as large, as btrfs replace requires, with room for its partition table and LUKS
@@ -1099,6 +1388,7 @@ cmd_replace() {
     as_root btrfs filesystem resize "${devid}:max" "${target}" >/dev/null 2>&1
     spread_back "${name}" "${target}" || echo "Putting back the copies did not finish: run ame system raid replace ${name} again."
     [[ "${encrypted}" == true ]] && retire_lines "${name}" "${target}"
+    forget_missing "$(jq -r .uuid <<<"${pool}")" "${devid}"
     echo "Disk ${devid} of ${name} is replaced."
 }
 
@@ -1179,13 +1469,443 @@ cmd_forget() {
     echo "${name} is forgotten. Its disks show as spare: making a pool of them erases them."
 }
 
-cmd_mirror() {
-    need_terminal mirror
-    local status pool target count lines sizes=() room need
-    status="$(status_json)" || die "The disks could not be read."
-    pool="$(jq -c 'first(.pools[] | select(.system)) // empty' <<<"${status}")"
-    jq -e '.layout == "single"' <<<"${pool:-null}" >/dev/null 2>&1 ||
-        die "The system is not spread over several disks with one copy of each file, so there is nothing to protect this way."
+# --- The system's own disks ------------------------------------------------------------------------------
+
+BOOT_ENTRY_BEGIN='### BEGIN amethystora-raid ###'
+BOOT_ENTRY_END='### END amethystora-raid ###'
+
+# The mount of /boot itself, not the automount systemd may keep over it: "source options"
+boot_mount() {
+    findmnt -rn -o SOURCE,FSTYPE,OPTIONS --mountpoint /boot 2>/dev/null | awk '$2 != "autofs" { print $1, $3; exit }'
+}
+
+# COMMAND... with /boot writable, as ostree makes it for its own changes, and read-only again after when it was.
+# On a system whose /boot is a folder of its btrfs, /boot is a bind mount, which is remounted as one.
+with_boot_rw() {
+    local source options bind="" code
+    read -r source options <<<"$(boot_mount)"
+    [[ "${source}" == *\[* ]] && bind=bind,
+    if [[ ",${options}," == *,ro,* ]]; then
+        as_root mount -o "remount,${bind}rw" /boot || return 1
+        "$@"
+        code=$?
+        as_root mount -o "remount,${bind}ro" /boot
+        return "${code}"
+    fi
+    "$@"
+}
+
+# A kernel argument added to every deployment in place, by ostree, which the next deployment takes its own from
+kargs_add() {  # ARG
+    as_root ostree admin kargs edit-in-place --append-if-missing="$1"
+}
+
+# One taken away from every deployment's boot entry, which is what ostree's in-place edit writes too: it has no
+# way to take one away itself
+kargs_remove() {  # ARG
+    with_boot_rw as_root bash -c 'for entry in "$2"/loader/entries/*.conf; do
+        awk -v arg="$1" '\''$1 == "options" { line = "options"; for (i = 2; i <= NF; i++) if ($i != arg) line = line " " $i; print line; next } { print }'\'' \
+            "${entry}" >"${entry}.new" && mv -f "${entry}.new" "${entry}"; done' _ "$1" "${BOOT}"
+}
+
+# The boot entry's options, made to start the system with a disk missing: btrfs mounted degraded (which the
+# initramfs's amethystora-degraded rule lets it be), and every LUKS device nofail, so that the missing one is
+# not waited for, keeping options already given to all of them (the TPM's)
+degraded_options() {
+    awk '{ for (i = 1; i <= NF; i++) {
+            if ($i ~ /^rootflags=/) { if ($i !~ /degraded/) $i = $i ",degraded"; flags = 1 }
+            else if ($i ~ /^rd\.luks\.options=/ && $i !~ /^rd\.luks\.options=(luks-)?[0-9a-fA-F]{8}-[0-9a-fA-F-]{27}=/) {
+                if ($i !~ /nofail/) $i = $i ",nofail"; nofail = 1 }
+            else if ($i ~ /^rd\.luks\.uuid=/) luks = 1 }
+        line = $0
+        if (!flags) line = line " rootflags=degraded"
+        if (luks && !nofail) line = line " rd.luks.options=nofail"
+        print line }'
+}
+
+# The boot menu entry that starts the system with one of its disks missing, for custom.cfg, which bootupd's own
+# grub.cfg reads after its entries: the deployment running now, named by its own folder rather than by
+# /ostree/boot.N, which the next update's entries replace. The menu waits 5 s, not 1, to give time to choose it.
+degraded_entry() {
+    local booted entry deployment linux initrd options
+    booted="$(tr ' ' '\n' <"${R}/proc/cmdline" | sed -n 's/^ostree=//p' | head -n 1)"
+    [[ -n "${booted}" ]] || return 1
+    entry="$(grep -lsF -- " ostree=${booted}" "${BOOT}"/loader/entries/*.conf | head -n 1)"
+    deployment="$(readlink -f "${R}/sysroot${booted}" 2>/dev/null)"
+    deployment="${deployment#"${R}/sysroot"}"
+    [[ -n "${entry}" && "${deployment}" == /ostree/deploy/* ]] || return 1
+    linux="$(awk '$1 == "linux" { print $2; exit }' "${entry}")"
+    initrd="$(awk '$1 == "initrd" { $1 = ""; sub(/^ +/, ""); print; exit }' "${entry}")"
+    options="$(awk '$1 == "options" { $1 = ""; sub(/^ +/, ""); print; exit }' "${entry}" |
+        sed "s#\(^\| \)ostree=[^ ]*#\1ostree=${deployment}#" | degraded_options)"
+    [[ -n "${linux}" && -n "${initrd}" && -n "${options}" ]] || return 1
+    printf '%s\n' "${BOOT_ENTRY_BEGIN}" \
+        "# amethystora-raid boot writes this at every start of a system over several disks: it starts the system" \
+        "# with one of its disks missing (ame system raid status, and the manual's hardware.md, say more)" \
+        'if [ "${timeout}" = 1 ]; then set timeout=5; fi' \
+        "menuentry 'Start with a disk missing' --unrestricted --id amethystora-degraded {" \
+        "    load_video" "    set gfxpayload=keep" "    insmod gzio" \
+        "    linux ${linux} ${options}" "    initrd ${initrd}" "}" "${BOOT_ENTRY_END}"
+}
+
+# Whether the system's btrfs is over several disks
+system_spread() {
+    local fstype source uuid devices
+    read -r fstype source uuid <<<"$(root_fs)"
+    [[ "${fstype}" == btrfs && -n "${uuid}" ]] || return 1
+    devices=("${SYS}/fs/btrfs/${uuid}/devinfo"/*)
+    [[ ${#devices[@]} -ge 2 && -e "${devices[1]}" ]]
+}
+
+# custom.cfg with the entry when the system is over several disks, and without it when it is not, the rest of
+# what is there kept as it is
+write_boot_entry() {
+    local cfg="${BOOT}/grub2/custom.cfg" current="" block="" new
+    [[ -d "${BOOT}/grub2" ]] || return 0
+    [[ -f "${cfg}" ]] && current="$(cat "${cfg}")"
+    if system_spread; then
+        block="$(degraded_entry)" || { echo "The boot entry for starting with a disk missing could not be written: no boot entry names the running system." >&2; return 1; }
+    fi
+    new="$(awk -v b="${BOOT_ENTRY_BEGIN}" -v e="${BOOT_ENTRY_END}" '$0 == b { skip = 1 } !skip { print } $0 == e { skip = 0 }' <<<"${current}")"
+    [[ -n "${block}" ]] && new="${new:+${new}$'\n'}${block}"
+    [[ "${new}" == "${current}" ]] && return 0
+    if [[ -z "${new}" ]]; then
+        with_boot_rw as_root rm -f "${cfg}"
+    else
+        with_boot_rw as_root bash -c 'printf "%s\n" "$2" >"$1.new" && sync "$1.new" && mv -f "$1.new" "$1"' _ "${cfg}" "${new}"
+    fi
+}
+
+# Every disk of a mounted btrfs that is missing now, written down with when it was first seen so (root's)
+note_missing() {
+    local fs devid now seen missing gone target path
+    seen="$(missing_seen)"
+    now="$(date +%s)"
+    TARGETS="$(findmnt -rn -t btrfs -o UUID,TARGET,OPTIONS 2>/dev/null)"
+    for fs in "${SYS}"/fs/btrfs/*-*-*-*-*; do
+        missing=()
+        for devid in "${fs}"/devinfo/*; do
+            [[ "$(cat "${devid}/missing" 2>/dev/null)" == 1 ]] && missing+=("${devid##*/}")
+        done
+        # A disk gone from under its LUKS mapping, by its devid, which btrfs names beside its device
+        gone=" $(gone_devices "${fs}" | paste -sd ' ') "
+        target="$(pick_target "${fs##*/}")"
+        if [[ "${gone}" != "  " && -n "${target}" ]]; then
+            while read -r path devid; do
+                [[ "${gone}" == *" $(basename "$(readlink -f "${path}")") "* ]] && missing+=("${devid}")
+            done < <(btrfs device usage -b "${target}" 2>/dev/null | awk -F ', ID: ' 'NF == 2 { sub(/[^0-9].*/, "", $2); print $1, $2 }')
+        fi
+        for devid in "${missing[@]}"; do
+            seen="$(jq -c --arg fs "${fs##*/}" --arg devid "${devid}" --argjson now "${now}" '.[$fs][$devid] //= $now' <<<"${seen}")"
+        done
+    done
+    [[ "${seen}" == "$(missing_seen)" ]] || write_state "${MISSING_STATE}" <<<"${seen}"
+}
+
+# A disk of a btrfs no longer remembered as missing: it was replaced, or its copies are back
+forget_missing() {  # FSID DEVID...
+    local fs="$1" seen
+    shift
+    seen="$(missing_seen | jq -c --arg fs "${fs}" '.[$fs] |= (. // {} | del(.[$ARGS.positional[]])) | with_entries(select(.value != {}))' --args "$@")"
+    as_root bash -c 'install -d -m 0755 "$1" && cat >"$2.new" && chmod 0644 "$2.new" && mv -f "$2.new" "$2"' _ "${STATE}" "${MISSING_STATE}" <<<"${seen}"
+}
+
+# The update timers held, and refused while an update runs: nothing may write /boot while it is copied
+hold_updates() {
+    local unit
+    for unit in "${UPDATE_SERVICES[@]}"; do
+        systemctl is-active --quiet "${unit}" 2>/dev/null && die "An update is running (${unit}): try again once it has finished."
+    done
+    for unit in "${UPDATE_TIMERS[@]}"; do
+        as_root systemctl stop "${unit}" 2>/dev/null
+    done
+}
+release_updates() {
+    local unit
+    for unit in "${UPDATE_TIMERS[@]}"; do
+        systemctl is-enabled --quiet "${unit}" 2>/dev/null && as_root systemctl start "${unit}" 2>/dev/null
+    done
+    return 0
+}
+
+# A partition's size in bytes, and its GPT type
+part_size() { lsblk -bndo SIZE "$1"; }
+part_type() { lsblk -ndo PARTTYPE "$1" | tr '[:upper:]' '[:lower:]'; }
+part_of() {  # DISK N: the Nth partition of a disk
+    lsblk -nrpo PATH,TYPE "$1" | awk -v n="$2" '$2 == "part" { if (++i == n) { print $1; exit } }'
+}
+# The disk a partition is on
+disk_of_part() { printf '/dev/%s\n' "$(lsblk -ndo PKNAME "$1")"; }
+# The ESP on a disk
+esp_on() {
+    lsblk -nrpo PATH,PARTTYPE,FSTYPE "$1" | awk -v type="${ESP_TYPE}" 'tolower($2) == type && $3 == "vfat" { print $1; exit }'
+}
+
+# The firmware's boot entry for the shim on an ESP, made if there is none: "Amethystora (DISK)" added at the end
+# of the boot order, so that the firmware tries it when the disks before it are gone. Prints its number.
+efi_entry() {  # ESP LABEL
+    local disk number partuuid loader='\EFI\fedora\shimx64.efi' order
+    disk="$(disk_of_part "$1")"
+    partuuid="$(lsblk -ndo PARTUUID "$1" | tr '[:upper:]' '[:lower:]')"
+    number="$(as_root efibootmgr -v 2>/dev/null | awk -v p="${partuuid}" 'tolower($0) ~ p && /shimx64/ { sub(/^Boot/, "", $1); sub(/\*$/, "", $1); print $1; exit }')"
+    if [[ -z "${number}" ]]; then
+        order="$(as_root efibootmgr | sed -n 's/^BootOrder: //p')"
+        as_root efibootmgr --quiet --create-only --disk "${disk}" --part "$(lsblk -ndo PARTN "$1")" --label "$2" --loader "${loader}" >/dev/null || return 1
+        number="$(as_root efibootmgr -v | awk -v p="${partuuid}" 'tolower($0) ~ p && /shimx64/ { sub(/^Boot/, "", $1); sub(/\*$/, "", $1); print $1; exit }')"
+        [[ -n "${number}" ]] || return 1
+        as_root efibootmgr --quiet --bootorder "${order:+${order},}${number}" >/dev/null || return 1
+    fi
+    printf '%s\n' "${number}"
+}
+
+# The boot files of an ESP copied onto a new one, made vfat, with the bootupd's bootuuid.cfg pointing at /boot's
+# filesystem (an older installation's Fedora grub.cfg, which searches for it by UUID, changed the same way)
+copy_esp() {  # FROM-ESP TO-ESP BOOT-UUID
+    local from to
+    as_root mkfs.vfat -F 32 -n EFI "$2" >/dev/null || return 1
+    from="$(mktemp -d)" to="$(mktemp -d)"
+    if ! { as_root mount -o ro "$1" "${from}" && as_root mount "$2" "${to}"; }; then
+        as_root umount "${from}" 2>/dev/null
+        rmdir "${from}" "${to}"
+        return 1
+    fi
+    as_root cp -a "${from}/." "${to}/"
+    point_esp "${to}" "$3"
+    as_root umount "${from}" "${to}"
+    rmdir "${from}" "${to}"
+}
+
+point_esp() {  # MOUNTED-ESP BOOT-UUID
+    local cfg
+    for cfg in "$1"/EFI/*/grub.cfg; do
+        [[ -f "${cfg}" ]] || continue
+        printf 'set BOOT_UUID="%s"\n' "$2" | as_root tee "${cfg%/grub.cfg}/bootuuid.cfg" >/dev/null
+        as_root sed -i -E "s/(--fs-uuid --set=dev )[0-9a-fA-F-]+/\1$2/" "${cfg}"
+    done
+}
+
+# The same, on an ESP that may be mounted at /boot/efi already
+point_esp_at() {  # ESP BOOT-UUID
+    local at
+    at="$(findmnt -rn -o TARGET --source "$1" | head -n 1)"
+    if [[ -n "${at}" ]]; then
+        point_esp "${at}" "$2"
+        return
+    fi
+    at="$(mktemp -d)"
+    as_root mount "$1" "${at}" || { rmdir "${at}"; return 1; }
+    point_esp "${at}" "$2"
+    as_root umount "${at}"
+    rmdir "${at}"
+}
+
+# An fstab line made nofail: the first disk's EFI partition is one of two once the system is mirrored, and the
+# system starts without it
+fstab_nofail() {  # MOUNTPOINT
+    as_root awk -v mp="$1" '!/^[[:space:]]*#/ && $2 == mp && $4 !~ /(^|,)nofail(,|$)/ { $4 = $4 ",nofail" } { print }' "${FSTAB}" |
+        as_root bash -c 'cat >"$1.new" && chmod --reference="$1" "$1.new" && mv -f "$1.new" "$1"' _ "${FSTAB}"
+    as_root systemctl daemon-reload
+}
+
+# The system's passphrase, typed, and checked against a LUKS partition of the system before anything is erased
+ask_passphrase() {  # LUKS-PARTITION
+    local passphrase
+    for _ in 1 2 3; do
+        passphrase="$(gum input --password --width 80 --placeholder "The passphrase of the system's disk")" || exit 0
+        if printf '%s' "${passphrase}" | as_root cryptsetup open --test-passphrase --key-file - "$1" 2>/dev/null; then
+            printf '%s\n' "${passphrase}"
+            return 0
+        fi
+        echo "That is not the passphrase of the system's disk." >&2
+    done
+    die "Nothing was erased."
+}
+
+# A root partition encrypted with the system's passphrase, opened as luks-UUID, in /etc/crypttab as the
+# installer writes its line (nofail: the system mounts the other disk's half degraded when this one is gone),
+# and in the kernel command line, which is what opens it at boot. Prints the opened device.
+system_luks() {  # PARTITION PASSPHRASE
+    local uuid
+    printf '%s' "$2" | as_root cryptsetup luksFormat --type luks2 --batch-mode --key-file - "$1" >&2 || return 1
+    uuid="$(as_root cryptsetup luksUUID "$1")"
+    printf '%s' "$2" | as_root cryptsetup open --allow-discards --key-file - "$1" "luks-${uuid}" >&2 || return 1
+    append_line "${CRYPTTAB}" "luks-${uuid} UUID=${uuid} none discard,nofail" 0600
+    kargs_add "rd.luks.uuid=luks-${uuid}" >&2 || return 1
+    printf '/dev/mapper/luks-%s\n' "${uuid}"
+}
+
+mirror_onto() {  # STATUS [DISK]
+    local status="$1" onto disk size root_part esp boot_part luks=false passphrase="" lines=()
+    local esp_size boot_size root_type new_esp new_boot new_root device md_uuid uuid target entry copy
+    onto="$(jq -c .mirror_onto <<<"${status}")"
+    case "$(jq -r '.reason // empty' <<<"${onto}")" in
+        pending) die "A mirror of the system is waiting for the restart that finishes it: restart the machine." ;;
+        sealed) die "A sealed system cannot be mirrored: the signed kernel command line names one disk, and its root partition is found by its type on the disk it started from." ;;
+        no-uefi) die "The system's mirror starts each disk through its own EFI partition, and this machine did not start through UEFI." ;;
+        layout) die "The system's disk is not laid out as the installer does it (an EFI partition, /boot and the system on one disk), so it is not mirrored this way." ;;
+        no-disk) die "No spare disk is at least as large as the system's ($(human "$(jq -r .size <<<"${onto}")")). Connect one, then run ame system raid mirror again." ;;
+    esac
+    size="$(jq -r .size <<<"${onto}")"
+    disk="$(pick_disk "$(jq -c --argjson size "${size}" '[.spare[] | select(.size >= $size)]' <<<"${status}")" \
+        "Which disk does the system go onto? Everything on it is erased." "${1:-}")" || exit 0
+    root_part="$(jq -r '.devices[0].part' <<<"$(system_json)")"
+    [[ "$(jq -r '.devices[0].luks' <<<"$(system_json)")" == true ]] && luks=true
+    read -r boot_part _ <<<"$(boot_mount)"
+    esp="$(esp_on "$(disk_of_part "${root_part}")")"
+    [[ -n "${esp}" && -n "${boot_part}" ]] || die "The system's EFI partition or /boot could not be found."
+    /usr/libexec/amethystora-deployments 2>/dev/null | jq -e 'any(.deployments[]; .staged == true)' >/dev/null 2>&1 &&
+        die "An update is waiting for the next restart: restart first, then mirror the system."
+
+    mapfile -t lines < <(disk_plan "$(jq -c .spare <<<"${status}")" "${disk}")
+    lines=("The system goes onto this disk, as a copy of the one it is on:" "" "${lines[@]}" ""
+        "It gets an EFI partition and /boot of its own, and a copy of every file: the machine then starts from either disk, and goes on with one of them dead."
+        "" "Everything on ${disk} is erased. The system's disk keeps everything on it. After the copy, the machine restarts once from the new disk; once that start has worked, the first disk's /boot joins the new one's, which erases nothing but its old copy.")
+    [[ "${luks}" == true ]] && lines+=("" "The new disk is encrypted with the system's passphrase, which is typed once at each start, as now.")
+    box "${lines[@]}"
+    ask_erase "${disk}"
+    still_spare "${disk}"
+    as_root true || exit 1
+    [[ "${luks}" == true ]] && passphrase="$(ask_passphrase "${root_part}")"
+    hold_updates
+
+    # The same partitions as the system's disk: its ESP's size, its /boot's size as a RAID member, the rest for
+    # the system, of its own partition's type
+    esp_size="$(part_size "${esp}")" boot_size="$(part_size "${boot_part}")" root_type="$(part_type "${root_part}")"
+    echo "Erasing ${disk}…"
+    mapfile -t lines < <(lsblk -nrpo PATH "${disk}" | tac)
+    as_root wipefs -a -q "${lines[@]}" >&2 || die "${disk} could not be erased."
+    printf 'label: gpt\nsize=%s, type=%s, name="EFI System Partition"\nsize=%s, type=%s, name="boot"\ntype=%s, name="system"\n' \
+        "$((esp_size / 512))" "${ESP_TYPE}" "$((boot_size / 512))" "${RAID_TYPE}" "${root_type}" |
+        as_root sfdisk --quiet --wipe always --wipe-partitions always "${disk}" >/dev/null || die "${disk} could not be partitioned."
+    as_root udevadm settle
+    new_esp="$(part_of "${disk}" 1)" new_boot="$(part_of "${disk}" 2)" new_root="$(part_of "${disk}" 3)"
+    [[ -n "${new_root}" ]] || die "${disk} could not be partitioned."
+
+    # The system first: its kernel argument is in the boot entries before they are copied
+    if [[ "${luks}" == true ]]; then
+        device="$(system_luks "${new_root}" "${passphrase}")" || die "${new_root} could not be encrypted."
+    else
+        device="${new_root}"
+    fi
+    TARGETS="$(findmnt -rn -t btrfs -o UUID,TARGET,OPTIONS 2>/dev/null)"
+    read -r _ _ uuid <<<"$(root_fs)"
+    target="$(pick_target "${uuid}")"
+    as_root btrfs device add -f "${device}" "${target}" || die "btrfs could not add ${device} to the system."
+
+    # /boot: a RAID1 of the old one's partition, which joins after the restart, and the new disk's, with a copy
+    # of what is there. Metadata 1.0 at the end leaves each half readable as a plain ext4, as the firmware's GRUB
+    # and bootupd's own grub.cfg (which looks for md/md-boot first) need.
+    echo "Making /boot a mirror…"
+    as_root mdadm --create "${BOOT_MD}" --run --name=md-boot --homehost=any --level=1 --metadata=1.0 \
+        --raid-devices=2 missing "${new_boot}" >&2 || die "${new_boot} could not be made a RAID member."
+    as_root mkfs.ext4 -q -F "${BOOT_MD}" || die "/boot's mirror could not be made."
+    md_uuid="$(as_root blkid -p -s UUID -o value "${BOOT_MD}")"
+    copy="$(mktemp -d)"
+    as_root mount "${BOOT_MD}" "${copy}" || die "/boot's mirror could not be mounted."
+    as_root rsync -aHAX --one-file-system /boot/ "${copy}/" || { as_root umount "${copy}"; die "/boot could not be copied."; }
+    as_root umount "${copy}"
+    rmdir "${copy}"
+
+    echo "Copying the EFI partition…"
+    copy_esp "${esp}" "${new_esp}" "${md_uuid}" || die "The EFI partition could not be copied."
+    fstab_nofail /boot/efi
+    entry="$(efi_entry "${new_esp}" "Amethystora (${disk##*/})")" || die "The firmware's boot entry for ${disk} could not be made."
+
+    # What the restart from the new disk finishes, which amethystora-raid-boot.service does
+    jq -n --arg disk "${disk}" --arg entry "${entry}" --arg boot_id "$(cat /proc/sys/kernel/random/boot_id)" \
+        --arg old_boot "$(lsblk -ndo PARTUUID "${boot_part}")" --arg old_esp "$(lsblk -ndo PARTUUID "${esp}")" \
+        --arg new_esp "$(lsblk -ndo PARTUUID "${new_esp}")" --arg boot_uuid "${md_uuid}" \
+        '{state: "pending", time: (now | floor), $disk, $entry, $boot_id, $old_boot, $old_esp, $new_esp, $boot_uuid}' |
+        as_root bash -c 'install -d -m 0755 "$1" && cat >"$2.new" && chmod 0644 "$2.new" && mv -f "$2.new" "$2"' _ "${STATE}" "${MIRROR_STATE}"
+
+    long_run mirror system "Copying the system onto ${disk}" "${target}" \
+        btrfs balance start -dconvert=raid1 -mconvert=raid1,soft "${target}" ||
+        die "The copy did not finish: journalctl -u amethystora-raid-mirror-system says why. Running ame system raid mirror again carries on."
+    write_boot_entry
+    release_updates
+
+    # The TPM opened the first disk: it gets the new one's key too, with its PIN
+    if [[ "${luks}" == true ]] && as_root cryptsetup luksDump "${root_part}" | grep -q systemd-tpm2; then
+        echo
+        echo "The TPM opens the system's disk at boot. It needs a key for the new disk too:"
+        ame security disk-unlock on-pin
+    fi
+    as_root efibootmgr --quiet --bootnext "${entry}" >/dev/null
+    echo
+    box "Every file of the system is on both disks now. One restart from the new disk is left: once it works, the first disk's /boot joins the new one's, and the machine starts from either." \
+        "" "The next restart is from the new disk, whenever it is: ame system raid status says when it is all done."
+    gum confirm "Restart now?" && as_root systemctl reboot
+    return 0
+}
+
+# Once the restart from the new disk worked (amethystora-raid-boot.service): the first disk's /boot joins the
+# mirror, its EFI partition points at it, and bootupd updates both. A start from anywhere else changes
+# nothing, and is said.
+mirror_finish() {
+    local state current entry boot_part esp copy reason=""
+    state="$(jq -c 'select(type == "object")' "${MIRROR_STATE}" 2>/dev/null)" || return 0
+    [[ "$(jq -r .state <<<"${state}")" == pending ]] || return 0
+    [[ "$(jq -r .boot_id <<<"${state}")" != "$(cat /proc/sys/kernel/random/boot_id)" ]] || return 0
+    entry="$(jq -r .entry <<<"${state}")"
+    current="$(efibootmgr 2>/dev/null | sed -n 's/^BootCurrent: //p')"
+    boot_part="$(blkid -t "PARTUUID=$(jq -r .old_boot <<<"${state}")" -o device 2>/dev/null | head -n 1)"
+    esp="$(blkid -t "PARTUUID=$(jq -r .old_esp <<<"${state}")" -o device 2>/dev/null | head -n 1)"
+    if [[ "${current}" != "${entry}" ]]; then
+        reason="the machine started from Boot${current:-?}, not from the new disk's Boot${entry}; ame system raid mirror tries the restart again"
+    elif [[ -z "${boot_part}" || -z "${esp}" ]]; then
+        reason="the first disk's /boot or EFI partition is not there"
+    fi
+    if [[ -z "${reason}" ]]; then
+        echo "Started from the new disk: the first disk's /boot joins the mirror."
+        # Its one half waits for mdadm's last resort, half a minute into the start
+        mdadm -IRs >/dev/null 2>&1
+        udevadm settle
+        copy="$(mktemp -d)"
+        # What changed in /boot since the copy, then /boot from the mirror, and the old one in it
+        if mount "${BOOT_MD}" "${copy}" && rsync -aHAX --delete --one-file-system --exclude=/lost+found /boot/ "${copy}/" &&
+            umount "${copy}" && { umount /boot/efi 2>/dev/null; umount /boot; } && mount "${BOOT_MD}" /boot; then
+            mount /boot/efi 2>/dev/null
+            sed -i -E "s#^UUID=[^[:space:]]+([[:space:]]+/boot[[:space:]])#UUID=$(jq -r .boot_uuid <<<"${state}")\1#" "${FSTAB}"
+            systemctl daemon-reload
+            wipefs -a -q "${boot_part}" && mdadm "${BOOT_MD}" --add "${boot_part}" ||
+                reason="the first disk's /boot could not join the mirror"
+            point_esp_at "${esp}" "$(jq -r .boot_uuid <<<"${state}")" || reason="the first disk's EFI partition could not be pointed at the mirror"
+            bootupctl update 2>&1 | sed 's/^/bootupctl: /'
+        else
+            umount "${copy}" 2>/dev/null
+            findmnt -rn --mountpoint /boot >/dev/null || mount /boot
+            mount /boot/efi 2>/dev/null
+            reason="/boot could not be moved onto its mirror"
+        fi
+        rmdir "${copy}" 2>/dev/null
+    fi
+    if [[ -n "${reason}" ]]; then
+        echo "The mirror of the system did not finish: ${reason}." >&2
+        jq -c --arg reason "${reason}" '.state = "failed" | .reason = $reason' <<<"${state}" | write_state "${MIRROR_STATE}"
+        return 1
+    fi
+    rm -f "${MIRROR_STATE}"
+    echo "The system is on both disks, and starts from either."
+}
+
+# Again from the new disk, after a start that did not come from it
+mirror_retry() {
+    local state
+    state="$(jq -c 'select(type == "object")' "${MIRROR_STATE}" 2>/dev/null)"
+    echo "Mirroring the system stopped: $(jq -r '.reason // "it did not finish"' <<<"${state}")."
+    echo "Every file is on both disks; what is left is one start from the new disk, before the first disk's /boot joins it."
+    gum confirm "Restart from the new disk now?" || exit 0
+    as_root true || exit 1
+    jq -c --arg boot_id "$(cat /proc/sys/kernel/random/boot_id)" '.state = "pending" | .boot_id = $boot_id | del(.reason)' <<<"${state}" |
+        as_root bash -c 'cat >"$1.new" && chmod 0644 "$1.new" && mv -f "$1.new" "$1"' _ "${MIRROR_STATE}"
+    as_root efibootmgr --quiet --bootnext "$(jq -r .entry <<<"${state}")" >/dev/null
+    as_root systemctl reboot
+}
+
+# The installer spread the system over several disks with one copy of each file (2a): a copy on each instead
+mirror_spread() {  # STATUS
+    local pool target count lines sizes=() room need
+    pool="$(jq -c 'first(.pools[] | select(.system))' <<<"$1")"
     jq -e '.busy == [] and .operation == null and .missing == 0' <<<"${pool}" >/dev/null ||
         die "The system's disks are busy, or one is missing: ame system raid status says which."
     target="$(jq -r .target <<<"${pool}")"
@@ -1200,12 +1920,45 @@ cmd_mirror() {
         die "Two copies of everything need $(human "${need}") on these disks, which give $(human "${room}") that way. Free some space first (ame system clean)."
     box "The system is spread over ${count} disks with one copy of each file: either one failing loses everything." "" \
         "This keeps a copy of each file on each disk instead, erasing nothing. It takes a while, and runs on its own." "" \
-        "What it cannot do: the boot files, /boot and the EFI partition, stay on the first disk only. The machine still starts only from that disk, and may need help to start at all with a disk dead. But every file stays readable on the disk that is left, from the live USB stick."
+        "What it cannot do: the boot files, /boot and the EFI partition, stay on the first disk only. The machine starts only from that disk; with another disk dead, choose Start with a disk missing in the boot menu. With the first disk dead, every file is still on the others, readable from the live USB stick."
     gum confirm "Keep a copy on each disk?" || exit 0
     long_run mirror system "Keeping a copy of the system on each of its disks" "${target}" \
         btrfs balance start -dconvert=raid1 -mconvert=raid1,soft "${target}" ||
         die "That did not finish: journalctl -u amethystora-raid-mirror-system says why. Running it again carries on."
+    write_boot_entry
     echo "Done: every file of the system is on each of its disks."
+}
+
+cmd_mirror() {
+    need_terminal mirror
+    local status
+    status="$(status_json)" || die "The disks could not be read."
+    if jq -e 'any(.pools[]; .system and .mirror.state == "failed")' <<<"${status}" >/dev/null 2>&1; then
+        mirror_retry
+    elif [[ -n "${1:-}" ]] || jq -e '.mirror_onto != null' <<<"${status}" >/dev/null; then
+        jq -e '.mirror_onto != null' <<<"${status}" >/dev/null ||
+            die "The system is on several disks already: ame system raid status says how they keep its files."
+        mirror_onto "${status}" "${1:-}"
+    elif jq -e '.system_single' <<<"${status}" >/dev/null; then
+        mirror_spread "${status}"
+    else
+        die "The system keeps a copy of each file on each of its disks already."
+    fi
+}
+
+# Where the system's disks were at boot: a mirror finished, the disks seen missing written down, and the boot
+# menu's entry that starts the system with a disk missing kept up to date (amethystora-raid-boot.service)
+cmd_boot() {
+    [[ ${EUID} -eq 0 ]] || die "This is amethystora-raid-boot.service's."
+    note_missing
+    [[ -f "${MIRROR_STATE}" ]] && mirror_finish
+    write_boot_entry
+}
+
+# What amethystora-raid-boot.service has to do: the system over several disks, a mirror to finish, or the
+# boot entry of one that is not any more to take away
+system_present() {
+    system_spread || [[ -f "${MIRROR_STATE}" ]] || grep -qsxF "${BOOT_ENTRY_BEGIN}" "${BOOT}/grub2/custom.cfg"
 }
 
 cmd_scrub() {
@@ -1252,9 +2005,17 @@ cmd_menu() {
         options+=("${title}")
         actions+=("${action}")
     done < <(jq -r '(.spare | length) as $spare
-        | (.pools[] | select(.managed)
-            | (if (.missing // 0) > 0 or .degraded or any(.devices[]; .smart == "failed" or .error_count > 0)
-               then ["Replace a disk of \(.name)", "replace \(.name)"] else empty end),
+        | (.pools[] | select(.system and .layout != "single" and .mirror == null)
+            | (if (.missing // 0) > 0 or any(.devices[]; .smart == "failed" or ((.returned | not) and .error_count > 0))
+               then ["Replace a disk of the system", "replace system"]
+               elif .degraded or any(.devices[]; .returned) or .boot.degraded == true then ["Put back the copies of the system", "replace system"]
+               else empty end)),
+          (.pools[] | select(.system and .mirror.state == "failed") | ["Restart from the new disk again", "mirror"]),
+          (if .mirror_onto.possible == true then ["Mirror the system onto a new disk", "mirror"] else empty end),
+          (.pools[] | select(.managed)
+            | (if (.missing // 0) > 0 or any(.devices[]; .smart == "failed" or ((.returned | not) and .error_count > 0))
+               then ["Replace a disk of \(.name)", "replace \(.name)"]
+               elif .degraded or any(.devices[]; .returned) then ["Put back the copies of \(.name)", "replace \(.name)"] else empty end),
               (if .mounted | not then ["Open \(.name) with a disk missing", "mount \(.name)"] else empty end),
               (if .mounted and $spare > 0 then ["Add a disk to \(.name)", "add \(.name)"] else empty end)),
           (if $spare >= 2 then ["Make a pool from spare disks", "create"] else empty end),
@@ -1314,15 +2075,25 @@ def disk: if (.disk.model // "") != "" then .disk.model + (if (.disk.serial // "
         body: ("\(disk) has counted \(.error_count) read or write error\(if .error_count == 1 then "" else "s" end). " + (if $p.survives > 0
             then "btrfs reads a good copy from another disk, so every file is still there. Replace the disk if the count keeps rising."
             else "The pool keeps no second copy, so files on that disk may be damaged." end))}),
+     (.devices[] | select(.returned) | {key: "\($p.uuid)/returned/\(.devid)", count: 1, rank: 5,
+        summary: "A disk of \($p | who) is back",
+        body: "\(disk) was missing and is back, with old copies of what was written while it was away. Put the copies back: ame system raid replace \(if $p.system then "system" else $p.name end)."}),
      (if .degraded then {key: "\(.uuid)/degraded", count: 1, rank: 6,
         summary: "Part of \(who) has one copy",
-        body: "What was written while a disk was missing has a single copy until the copies are put back."} else empty end))
+        body: "What was written while a disk was missing has a single copy until the copies are put back."} else empty end),
+     (if .boot != null and .boot.degraded and .missing == 0 and .mirror == null then {key: "\(.uuid)/boot", count: 1, rank: 6,
+        summary: "The boot files of the system have one copy",
+        body: "The system starts from one of its disks only until they are put back: ame system raid replace system."} else empty end),
+     (if .mirror != null and .mirror.state == "failed" then {key: "\(.uuid)/mirror/\(.mirror.time)", count: 1, rank: 2,
+        summary: "Mirroring the system did not finish",
+        body: "\(.mirror.reason // "journalctl -u amethystora-raid-boot says why"). Every file is still on the first disk."} else empty end))
 ]'
 
 cmd_check() {
     [[ ${EUID} -eq 0 ]] || die "This is amethystora-raid-check.service's: ame system raid status says the same without root."
     local status known smart disk facts current last news
     present || exit 0
+    note_missing
     status="$(status_json)" || exit 1
     # SMART, which only root can read, for the status to show everyone. A disk asleep keeps what it said
     # last, and one that went missing who it was, for as long as its pool is there.
@@ -1426,6 +2197,8 @@ case "${1:-}" in
     check) cmd_check ;;
     notify) shift && cmd_notify "$@" ;;
     scrub-all) cmd_scrub_all ;;
+    boot) cmd_boot ;;
+    present-system) system_present ;;
     -h | --help | help) usage ;;
     *)
         usage >&2

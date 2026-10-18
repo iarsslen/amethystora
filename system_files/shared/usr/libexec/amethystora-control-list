@@ -642,9 +642,15 @@ if [[ "$(ended raid)" == 0 ]] && jq -e '.version == 1' <<<"${RAID}" >/dev/null 2
         if [[ -n "${busy}" ]]; then
             if [[ "${busy}" == *-replace-* ]]; then
                 TEXT+=("$(gettext "Replacing a disk now.")")
+            elif [[ "${busy}" == *-scrub-* ]]; then
+                TEXT+=("$(gettext "Checking every copy now.")")
             else
                 TEXT+=("$(gettext "Putting its copies where they belong now.")")
             fi
+        elif [[ ",${problems}," == *,mirror-failed,* ]]; then
+            TEXT+=("$(gettext "Mirroring it onto the new disk stopped before the restart from that disk worked. Every file is on both disks.")")
+        elif [[ ",${problems}," == *,restart,* ]]; then
+            TEXT+=("$(gettext "Restart to finish: the machine starts once from the new disk, then the first disk joins it for good.")")
         elif [[ "${mounted}" == false ]]; then
             TEXT+=("$(gettext "Not open, perhaps because one of its disks is missing. Its files are still on its disks.")")
         elif [[ ",${problems}," == *,missing,* ]] && ((missing <= survives)); then
@@ -657,8 +663,12 @@ if [[ "$(ended raid)" == 0 ]] && jq -e '.version == 1' <<<"${RAID}" >/dev/null 2
             TEXT+=("$(gettext "The last check found damage it could not repair.")")
         elif [[ ",${problems}," == *,errors,* ]]; then
             TEXT+=("$(gettext "A disk has counted read or write errors.")")
+        elif [[ ",${problems}," == *,returned,* ]]; then
+            TEXT+=("$(gettext "A disk that was missing is back, with old copies of what was written while it was away.")")
         elif [[ ",${problems}," == *,degraded,* ]]; then
             TEXT+=("$(gettext "Part of it has one copy, written while a disk was missing.")")
+        elif [[ ",${problems}," == *,boot,* ]]; then
+            TEXT+=("$(gettext "Its boot files have one copy, so it starts from one of its disks only.")")
         elif [[ ",${problems}," == *,unprotected,* ]]; then
             TEXT+=("$(gettext "Either disk failing loses everything.")")
         else
@@ -674,10 +684,22 @@ if [[ "$(ended raid)" == 0 ]] && jq -e '.version == 1' <<<"${RAID}" >/dev/null 2
         fi
         [[ "${layout}" == raid5 || "${layout}" == raid6 ]] && TEXT+=("$(gettext "After a power cut, check every copy.")")
         ACTIONS=()
+        # The system keeps copies once mirrored, and is then mended as a pool is
+        if [[ "${system}" == true && -n "${layout}" && "${layout}" != single ]]; then
+            if [[ ",${problems}," == *,mirror-failed,* ]]; then
+                ACTIONS+=("$(pool_action mirror "$(gettext "Restart from the new disk…")" ame system raid mirror)")
+            elif [[ ",${problems}," == *,restart,* ]]; then
+                :
+            elif [[ ",${problems}," =~ ,(missing|failing|errors), ]]; then
+                ACTIONS+=("$(pool_action replace "$(gettext "Replace a disk…")" ame system raid replace system)")
+            elif [[ ",${problems}," =~ ,(degraded|returned|boot), ]]; then
+                ACTIONS+=("$(pool_action replace "$(gettext "Put the copies back…")" ame system raid replace system)")
+            fi
+        fi
         if [[ "${managed}" == true ]]; then
             if [[ ",${problems}," =~ ,(missing|failing|errors), ]]; then
                 ACTIONS+=("$(pool_action replace "$(gettext "Replace a disk…")" ame system raid replace "${name}")")
-            elif [[ ",${problems}," == *,degraded,* ]]; then
+            elif [[ ",${problems}," =~ ,(degraded|returned), ]]; then
                 ACTIONS+=("$(pool_action replace "$(gettext "Put the copies back…")" ame system raid replace "${name}")")
             fi
             [[ "${mounted}" == false ]] &&
@@ -712,14 +734,27 @@ if [[ "$(ended raid)" == 0 ]] && jq -e '.version == 1' <<<"${RAID}" >/dev/null 2
         "$(gettext "Two or more disks that keep copies of each other, or join into one, in a folder under /var/mnt. It asks which disks, how to lay them out and whether to encrypt them, and erases them only once you type ERASE.")" \
         "" hardware#pools-of-disks-raid
 
+    # A system on one disk, laid out as the installer does it, copied onto a new disk at least as large (2b)
+    ONTO="$(jq -r '.mirror_onto.reason // (if .mirror_onto.possible == true then "possible" else "" end)' <<<"${RAID}")"
+    if [[ "${ONTO}" == possible || "${ONTO}" == no-disk ]]; then
+        [[ "${ONTO}" == no-disk ]] && REASON="$(gettext "Needs a spare disk at least as large as the system's.")"
+        COMMAND=(ame system raid mirror)
+        BUTTON="$(gettext "Mirror…")"
+        GROUP="$(gettext "Disks")"
+        USAGE="ame system raid mirror DISK"
+        item system raid-mirror-disk action "$(gettext "Mirror the system onto a new disk")" \
+            "$(gettext "Copies the system onto a spare disk at least as large as its own, its EFI partition and /boot included, so that the machine starts from either disk and goes on with one dead. It erases that disk once you type ERASE, then restarts once from it.")" \
+            "" hardware#the-systems-own-disks
+    fi
+
     if [[ "$(jq -r .system_single <<<"${RAID}")" == true ]]; then
         COMMAND=(ame system raid mirror)
         BUTTON="$(gettext "Protect…")"
         GROUP="$(gettext "Disks")"
         USAGE="ame system raid mirror"
         item system raid-mirror action "$(gettext "Protect the system's disks")" \
-            "$(gettext "The system is spread over several disks with one copy of each file, so either one failing loses everything. This keeps a copy on each, erasing nothing. The machine still starts only from its first disk.")" \
-            "" hardware#pools-of-disks-raid
+            "$(gettext "The system is spread over several disks with one copy of each file, so either one failing loses everything. This keeps a copy on each, erasing nothing. The machine starts from its first disk, or with another disk dead from the boot menu's Start with a disk missing.")" \
+            "" hardware#the-systems-own-disks
     fi
 
     if [[ "$(jq -r .raid <<<"${RAID}")" == true ]]; then

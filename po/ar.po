@@ -1847,10 +1847,6 @@ msgid "Protect the system's disks"
 msgstr "حماية أقراص النظام"
 
 #: usr/libexec/amethystora-control-list
-msgid "The system is spread over several disks with one copy of each file, so either one failing loses everything. This keeps a copy on each, erasing nothing. The machine still starts only from its first disk."
-msgstr "النظام موزّع على عدة أقراص بنسخة واحدة من كل ملف، فتعطّل أيّ قرص منها يُضيّع كل شيء. هذا يحفظ نسخة على كل قرص دون محو أي شيء. ويبقى الجهاز يبدأ من قرصه الأول فقط."
-
-#: usr/libexec/amethystora-control-list
 msgid "Monthly check of every copy"
 msgstr "فحص شهري لكل النسخ"
 
@@ -1933,3 +1929,47 @@ msgstr "إعدادك"
 #: usr/libexec/amethystora-control-list
 msgid "Security settings are in Amethystora Security: ame security status"
 msgstr "إعدادات الأمان في تطبيق الأمان في Amethystora: ame security status"
+
+#: usr/libexec/amethystora-control-list
+msgid "The system is spread over several disks with one copy of each file, so either one failing loses everything. This keeps a copy on each, erasing nothing. The machine starts from its first disk, or with another disk dead from the boot menu's Start with a disk missing."
+msgstr "النظام موزّع على عدة أقراص بنسخة واحدة من كل ملف، فتعطّل أيّ قرص منها يُضيّع كل شيء. هذا يحفظ نسخة على كل قرص دون محو أي شيء. ويبدأ الجهاز من قرصه الأول، أو من مدخل Start with a disk missing في قائمة الإقلاع إن تعطّل قرص آخر."
+
+#: usr/libexec/amethystora-control-list
+msgid "Checking every copy now."
+msgstr "يجري التحقق من كل نسخة الآن."
+
+#: usr/libexec/amethystora-control-list
+msgid "Mirroring it onto the new disk stopped before the restart from that disk worked. Every file is on both disks."
+msgstr "توقف النسخ المطابق إلى القرص الجديد قبل أن ينجح الإقلاع منه. كل ملف موجود على القرصين."
+
+#: usr/libexec/amethystora-control-list
+msgid "Restart to finish: the machine starts once from the new disk, then the first disk joins it for good."
+msgstr "أعد التشغيل للإنهاء: يبدأ الجهاز مرة واحدة من القرص الجديد، ثم ينضم إليه القرص الأول نهائيًا."
+
+#: usr/libexec/amethystora-control-list
+msgid "A disk that was missing is back, with old copies of what was written while it was away."
+msgstr "عاد قرص كان مفقودًا، وعليه نسخ قديمة مما كُتب أثناء غيابه."
+
+#: usr/libexec/amethystora-control-list
+msgid "Its boot files have one copy, so it starts from one of its disks only."
+msgstr "لملفات إقلاعه نسخة واحدة، لذا يبدأ من أحد أقراصه فقط."
+
+#: usr/libexec/amethystora-control-list
+msgid "Restart from the new disk…"
+msgstr "أعد التشغيل من القرص الجديد…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Needs a spare disk at least as large as the system's."
+msgstr "يحتاج إلى قرص احتياطي بحجم قرص النظام على الأقل."
+
+#: usr/libexec/amethystora-control-list
+msgid "Mirror…"
+msgstr "انسخ نسخة مطابقة…"
+
+#: usr/libexec/amethystora-control-list
+msgid "Mirror the system onto a new disk"
+msgstr "انسخ النظام نسخة مطابقة على قرص جديد"
+
+#: usr/libexec/amethystora-control-list
+msgid "Copies the system onto a spare disk at least as large as its own, its EFI partition and /boot included, so that the machine starts from either disk and goes on with one dead. It erases that disk once you type ERASE, then restarts once from it."
+msgstr "ينسخ النظام، مع قسم EFI و‎/boot، إلى قرص احتياطي بحجم قرصه على الأقل، فيبدأ الجهاز من أيّ القرصين ويستمر إن تعطّل أحدهما. لا يُمسح ذلك القرص إلا بعد كتابة ERASE، ثم يعيد التشغيل منه مرة واحدة."

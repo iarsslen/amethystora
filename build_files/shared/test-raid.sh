@@ -32,6 +32,8 @@ case "${0##*/}" in
         case "$*" in
             *"-t btrfs"*) cat "${STAND_IN}/mounts" ;;
             *"--mountpoint /sysroot"*) echo "btrfs /dev/mapper/luks-c0[/root] ${ROOT}" ;;
+            *"--mountpoint /boot"*OPTIONS*) echo "/dev/sda2 ext4 rw,relatime" ;;
+            *"--mountpoint /boot"*) echo "/dev/sda2 ext4 b0000000-0000-4000-8000-000000000000" ;;
             *) exit 1 ;;
         esac
         ;;
@@ -163,7 +165,7 @@ crypt() {  # KERNEL-NAME [KEY=JSON...]
 }
 TB=1000204886016
 {
-    disk sda 512110190592 '{"tran": "nvme"}' "[$(part sda1 '{"fstype": "vfat", "mountpoints": ["/boot/efi"]}'),
+    disk sda 512110190592 '{"tran": "nvme"}' "[$(part sda1 '{"fstype": "vfat", "parttype": "C12A7328-F81F-11D2-BA4B-00A0C93EC93B", "mountpoints": ["/boot/efi"]}'),
         $(part sda2 '{"fstype": "ext4", "mountpoints": ["/boot"]}'),
         $(part sda3 '{"fstype": "crypto_LUKS", "uuid": "c0"}' "[$(crypt dm-0 "{\"uuid\": \"${ROOT}\", \"mountpoints\": [\"/sysroot\", \"/var\"]}")]")]"
     disk sdb "${TB}" '{"model": " Blank One  "}'
@@ -253,6 +255,62 @@ usable raid5 $((2 * TB_GIB)) "${TB}" "${TB}" "${TB}"
 usable raid6 $((2 * TB_GIB)) "${TB}" "${TB}" "${TB}" "${TB}"
 usable raid10 $((2 * TB_GIB)) "${TB}" "${TB}" "${TB}" "${TB}"
 usable single $((TB_GIB + 1863)) "${TB}" "${TB2}"
+
+# The system on one disk, laid out as the installer does it, on UEFI: it can be mirrored onto either blank disk,
+# both larger than its own. Sealed, or started without UEFI, it cannot.
+mkdir -p "${S}/firmware/efi"
+jq -e '.mirror_onto == {possible: true, reason: null, disk: "/dev/sda", size: 512110190592, candidates: ["/dev/sdb", "/dev/sdc"]}' \
+    <<<"$("${RAID}" status --json)" >/dev/null
+grep -q "ame system raid mirror DISK copies it onto another" <<<"$("${RAID}" status)"
+mkdir -p "${AMETHYSTORA_RAID_ROOT}/usr/share/amethystora" && touch "${AMETHYSTORA_RAID_ROOT}/usr/share/amethystora/sealed"
+jq -e '.mirror_onto.reason == "sealed" and (.mirror_onto.possible | not)' <<<"$("${RAID}" status --json)" >/dev/null
+rm "${AMETHYSTORA_RAID_ROOT}/usr/share/amethystora/sealed" && rmdir "${S}/firmware/efi"
+jq -e '.mirror_onto.reason == "no-uefi"' <<<"$("${RAID}" status --json)" >/dev/null
+"${RAID}" mirror </dev/null >/dev/null 2>&1 && false
+
+# A disk that was missing and is back counts the old copies it has as errors: it is told apart, and is no
+# failing disk
+mkdir -p "${AMETHYSTORA_RAID_ROOT}/var/lib/amethystora/raid"
+echo "{\"${BACKUP}\": {\"2\": 1700000000}}" >"${AMETHYSTORA_RAID_ROOT}/var/lib/amethystora/raid/missing.json"
+jq -e '.devices[1].returned and (.devices[0].returned | not) and .errors == 3 and .problems == ["errors", "returned", "degraded"]' \
+    <<<"$("${RAID}" status --json | jq -c '.pools[] | select(.id == "backup")')" >/dev/null
+rm "${AMETHYSTORA_RAID_ROOT}/var/lib/amethystora/raid/missing.json"
+
+# Over several disks, the system gets the boot menu's "Start with a disk missing" at each start: the running
+# deployment, named by its own folder, mounted degraded with every LUKS device nofail, after what custom.cfg
+# held already; and loses it again on one disk. Root's, as amethystora-raid-boot.service runs it.
+if [[ ${EUID} -eq 0 ]]; then
+    B="${AMETHYSTORA_RAID_ROOT}/boot"
+    DEPLOY=/ostree/deploy/default/deploy/abc123.0
+    mkdir -p "${B}/loader/entries" "${B}/grub2" "${AMETHYSTORA_RAID_ROOT}/proc" "${AMETHYSTORA_RAID_ROOT}/sysroot${DEPLOY}" \
+        "${AMETHYSTORA_RAID_ROOT}/sysroot/ostree/boot.1/default/abc"
+    ln -s "../../../deploy/default/deploy/abc123.0" "${AMETHYSTORA_RAID_ROOT}/sysroot/ostree/boot.1/default/abc/0"
+    KARGS="root=UUID=${ROOT} rootflags=subvol=root rw rd.luks.uuid=luks-c0 rd.luks.options=tpm2-device=auto ostree=/ostree/boot.1/default/abc/0"
+    echo "BOOT_IMAGE=(hd0,gpt2)/ostree/default-abc/vmlinuz ${KARGS}" >"${AMETHYSTORA_RAID_ROOT}/proc/cmdline"
+    printf 'title Amethystora
+version 1
+options %s
+linux /ostree/default-abc/vmlinuz-7
+initrd /ostree/default-abc/initramfs-7.img
+'         "${KARGS}" >"${B}/loader/entries/ostree-1.conf"
+    echo 'menuentry "Mine" { true }' >"${B}/grub2/custom.cfg"
+    devinfo "${ROOT}" 2 0 0 0 0 0 0
+    "${RAID}" present-system
+    "${RAID}" boot
+    grep -qx 'menuentry "Mine" { true }' "${B}/grub2/custom.cfg"
+    grep -qx "menuentry 'Start with a disk missing' --unrestricted --id amethystora-degraded {" "${B}/grub2/custom.cfg"
+    LINUX="    linux /ostree/default-abc/vmlinuz-7 root=UUID=${ROOT} rootflags=subvol=root,degraded rw rd.luks.uuid=luks-c0"
+    grep -qxF "${LINUX} rd.luks.options=tpm2-device=auto,nofail ostree=${DEPLOY}" "${B}/grub2/custom.cfg"
+    grep -qxF "    initrd /ostree/default-abc/initramfs-7.img" "${B}/grub2/custom.cfg"
+    before="$(cat "${B}/grub2/custom.cfg")"
+    "${RAID}" boot
+    [[ "$(cat "${B}/grub2/custom.cfg")" == "${before}" && "$(grep -c amethystora-degraded "${B}/grub2/custom.cfg")" == 1 ]]
+    rm -r "${S}/fs/btrfs/${ROOT}/devinfo/2"
+    "${RAID}" present-system
+    "${RAID}" boot
+    [[ "$(cat "${B}/grub2/custom.cfg")" == 'menuentry "Mine" { true }' ]]
+    "${RAID}" present-system && false
+fi
 
 # Nothing above touched a disk, and without a terminal create refuses before it asks anything
 [[ ! -s "${LOG}" ]]

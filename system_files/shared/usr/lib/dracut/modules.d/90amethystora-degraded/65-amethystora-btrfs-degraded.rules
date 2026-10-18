@@ -1,0 +1,13 @@
+# In the initramfs only (dracut module amethystora-degraded): the system's btrfs over several disks is ready to
+# mount with one of them missing when, and only when, the kernel command line asks for it degraded, as the
+# boot menu's "Start with a disk missing" does (amethystora-raid boot). 64-btrfs.rules keeps every member
+# waiting for the others, and nothing else gets past it: without this the boot waits for the missing disk
+# forever. Nothing is mounted around a disk that is only slow unless a person chose that entry.
+SUBSYSTEM!="block", GOTO="amethystora_degraded_end"
+ACTION=="remove", GOTO="amethystora_degraded_end"
+ENV{ID_FS_TYPE}!="btrfs", GOTO="amethystora_degraded_end"
+ENV{ID_BTRFS_READY}!="0", GOTO="amethystora_degraded_end"
+IMPORT{cmdline}="rootflags"
+ENV{rootflags}!="*degraded*", GOTO="amethystora_degraded_end"
+ENV{SYSTEMD_READY}="1"
+LABEL="amethystora_degraded_end"
