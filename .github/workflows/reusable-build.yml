@@ -197,14 +197,19 @@ jobs:
         run: |
           set -euo pipefail
           registry="${IMAGE_REGISTRY,,}"
-          printenv GITHUB_TOKEN | sudo podman login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+          # Root's login in a file of its own: without one, sudo keeps XDG_RUNTIME_DIR and root's podman
+          # writes /run/user/<runner>/containers/auth.json, leaving that folder root's, and the rootless
+          # podman login of the image's own push then fails ("mkdir .../containers/overlay: permission denied")
+          auth="${RUNNER_TEMP}/sealed-auth.json"
+          trap 'sudo rm -f "${auth}"' EXIT
+          printenv GITHUB_TOKEN | sudo podman login --authfile "${auth}" ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
           printenv GITHUB_TOKEN | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
           version="$(sudo podman inspect "localhost/${IMAGE_NAME}:stable-sealed" | jq -r '.[0].Config.Labels["org.opencontainers.image.version"]')"
           digest_file="$PWD/.push-sealed-digest"
           for tag in stable-sealed "stable-sealed-${version}" "stable-sealed-${version:3}"; do
             dest="${registry}/${IMAGE_NAME}:${tag}"
-            sudo podman push --compression-format gzip --digestfile "${digest_file}" "localhost/${IMAGE_NAME}:stable-sealed" "${dest}"
-            sudo podman push --compression-format gzip --digestfile "${digest_file}" "localhost/${IMAGE_NAME}:stable-sealed" "${dest}"
+            sudo podman push --authfile "${auth}" --compression-format gzip --digestfile "${digest_file}" "localhost/${IMAGE_NAME}:stable-sealed" "${dest}"
+            sudo podman push --authfile "${auth}" --compression-format gzip --digestfile "${digest_file}" "localhost/${IMAGE_NAME}:stable-sealed" "${dest}"
           done
           digest="$(cat "${digest_file}")"
           cosign sign -y --key env://COSIGN_PRIVATE_KEY "${registry}/${IMAGE_NAME}@${digest}"
