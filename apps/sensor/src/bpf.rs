@@ -6,7 +6,8 @@
 use std::ffi::OsStr;
 use std::os::fd::AsFd;
 
-use libbpf_rs::{Link, MapCore, MapFlags, Object, ObjectBuilder, Program};
+use libbpf_rs::btf::types;
+use libbpf_rs::{Btf, Link, MapCore, MapFlags, Object, ObjectBuilder, Program};
 
 use crate::keys;
 
@@ -22,6 +23,7 @@ fn required_mask(prog: &str) -> u32 {
         "vfs_unlink_exit" | "vfs_rmdir_exit" | "vfs_mkdir_exit" | "vfs_mknod_exit" | "vfs_symlink_exit"
         | "vfs_link_exit" | "vfs_rename_entry" | "vfs_rename_exit" | "notify_change_exit" | "vfs_truncate_exit"
         | "vfs_setxattr_exit" | "vfs_removexattr_exit" | "vfs_set_acl_exit" | "vfs_remove_acl_exit" => keys::WRITE_KEYS,
+        "file_open_input" => keys::INPUT_BIT,
         "bprm_check" | "process_exec" => keys::EXEC_KEYS,
         "module_file" | "module_loaded" | "finit_module_exit" | "init_module_exit" | "delete_module_exit" => {
             keys::MODULES_BIT
@@ -46,6 +48,17 @@ fn name_is(name: &OsStr, needle: &str) -> bool {
 /// attaches it, and records its own pid and program ids.
 pub fn load(enabled_keys: u32, probe: bool) -> Result<Loaded, Box<dyn std::error::Error>> {
     let mut open = ObjectBuilder::default().open_memory(OBJECT)?;
+
+    // The DAC-refused-open hook's kernel function is named do_file_open on the image's kernel and
+    // do_filp_open on mainline; point the program at whichever this kernel's BTF has, and skip it if
+    // neither (the rest of the sensor still loads, only pre-DAC refusals go unrecorded). The vmlinux BTF
+    // this reads is large, so it is dropped before load(), which loads its own copy for CO-RE: the two
+    // peaks do not then overlap.
+    let open_target: Option<String> = {
+        let vmlinux = Btf::from_vmlinux().ok();
+        let has_func = |name: &str| vmlinux.as_ref().and_then(|b| b.type_by_name::<types::Func<'_>>(name)).is_some();
+        ["do_file_open", "do_filp_open"].into_iter().find(|n| has_func(n)).map(String::from)
+    };
 
     // The keys it runs for, into .rodata, before load: a key that is off leaves its code out, pruned by the
     // verifier. Its own pid goes into .bss the same way, so no window exists where it does not know itself.
@@ -79,7 +92,14 @@ pub fn load(enabled_keys: u32, probe: bool) -> Result<Loaded, Box<dyn std::error
     for mut prog in open.progs_mut() {
         let name = prog.name().to_str().unwrap_or("").to_string();
         let mask = required_mask(&name);
-        let wanted = probe || mask == u32::MAX || (mask & enabled_keys) != 0;
+        let mut wanted = probe || mask == u32::MAX || (mask & enabled_keys) != 0;
+        // Point the refused-open program at this kernel's function name, or skip it if it has neither.
+        if name == "open_refused" {
+            match &open_target {
+                Some(target) if prog.set_attach_target(0, Some(target.clone())).is_ok() => {}
+                _ => wanted = false,
+            }
+        }
         prog.set_autoload(wanted);
     }
 

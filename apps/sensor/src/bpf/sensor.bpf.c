@@ -155,7 +155,10 @@ struct {
 	__type(value, struct stash);
 } stash SEC(".maps");
 
-extern const struct file_operations bpf_link_fops __ksym;
+/* __weak so the object still loads on a kernel whose BTF does not carry this symbol (it is static in the
+ * kernel and not always emitted): there it resolves to 0 and the bpf() tamper check below becomes a no-op,
+ * rather than failing the whole load. Where it is present, the check works. */
+extern const struct file_operations bpf_link_fops __ksym __weak;
 
 static __always_inline void count_drop(void)
 {
@@ -281,27 +284,32 @@ struct walk {
 
 static long walk_step(__u64 index, struct walk *w)
 {
+	/* The kernel pointers are read out of the local walk struct plainly first: BPF_CORE_READ must only ever
+	 * see a kernel type, or libbpf tries to relocate `struct walk`'s own fields against the kernel's BTF. */
+	struct dentry *dentry = w->dentry;
+	struct vfsmount *vfsmnt = w->vfsmnt;
+	struct mount *mnt = w->mnt;
 	struct dentry *parent, *mnt_root;
 	struct mount *up;
 	const unsigned char *name;
 	__u32 len;
 
-	if (w->dentry == w->root_dentry && w->vfsmnt == w->root_mnt)
+	if (dentry == w->root_dentry && vfsmnt == w->root_mnt)
 		return 1;
-	parent = BPF_CORE_READ(w->dentry, d_parent);
-	mnt_root = BPF_CORE_READ(w->vfsmnt, mnt_root);
-	if (w->dentry == mnt_root || w->dentry == parent) {
+	parent = BPF_CORE_READ(dentry, d_parent);
+	mnt_root = BPF_CORE_READ(vfsmnt, mnt_root);
+	if (dentry == mnt_root || dentry == parent) {
 		/* The top of a mount: on to where it is mounted, or done at the top of the tree */
-		up = BPF_CORE_READ(w->mnt, mnt_parent);
-		if (!w->mnt || up == w->mnt)
+		up = BPF_CORE_READ(mnt, mnt_parent);
+		if (!mnt || up == mnt)
 			return 1;
-		w->dentry = BPF_CORE_READ(w->mnt, mnt_mountpoint);
+		w->dentry = BPF_CORE_READ(mnt, mnt_mountpoint);
 		w->mnt = up;
 		w->vfsmnt = (struct vfsmount *)((char *)up + bpf_core_field_offset(struct mount, mnt));
 		return 0;
 	}
-	len = BPF_CORE_READ(w->dentry, d_name.len) & 255;
-	name = BPF_CORE_READ(w->dentry, d_name.name);
+	len = BPF_CORE_READ(dentry, d_name.len) & 255;
+	name = BPF_CORE_READ(dentry, d_name.name);
 	/* No room: the path loses its front */
 	if (w->off < (int)len + 1)
 		return 1;
@@ -525,46 +533,21 @@ int BPF_PROG(file_open, struct file *file, int ret)
 	struct inode *inode, *dir;
 	struct scratch *s;
 	__u32 keys, id = 0, fmode, fflags, pos = 0, len;
-	umode_t imode;
 	bool write;
-	int start;
 
 	if ((__u32)(bpf_get_current_pid_tgid() >> 32) == globals.self_tgid) {
 		globals.registered_inode = (__u64)BPF_CORE_READ(file, f_inode);
 		return 0;
 	}
-	if (!(enabled_keys & (WRITE_KEYS | READ_KEYS | (1 << SKEY_INPUT_CAPTURE))))
+	/* Input-device opens are a program of their own (file_open_input), so this one stays within the
+	 * verifier's complexity limit: it walks the program and the working folder once, in the path below. */
+	if (!(enabled_keys & (WRITE_KEYS | READ_KEYS)))
 		return 0;
 	if (BPF_CORE_READ(task, flags) & PF_KTHREAD)
 		return 0;
 	inode = BPF_CORE_READ(file, f_inode);
-	imode = BPF_CORE_READ(inode, i_mode);
 	fmode = BPF_CORE_READ(file, f_mode);
 	fflags = BPF_CORE_READ(file, f_flags);
-
-	if ((enabled_keys & (1 << SKEY_INPUT_CAPTURE)) && S_ISCHR(imode)) {
-		/* As the rule had it: opened, by a login, under /dev/input (every input device's major) */
-		if (ret != 0 || MAJOR(BPF_CORE_READ(inode, i_rdev)) != INPUT_MAJOR)
-			return 0;
-		keys = applying(1 << SKEY_INPUT_CAPTURE, task);
-		if (!keys)
-			return 0;
-		s = begin(SOP_OPEN, ret, keys);
-		if (!s)
-			return 0;
-		s->e.flags = fflags | SOPEN_INPUT;
-		object(&s->e, inode);
-		actor(&s->e, task);
-		dentry = BPF_CORE_READ(file, f_path.dentry);
-		pos = PUT_KSTR(&s->e, pos, SSTR_NAME, BPF_CORE_READ(dentry, d_name.name), SENSOR_NAME_MAX);
-		pos = put_empty(&s->e, pos, SSTR_NAME2);
-		pos = put_program(s, pos, task);
-		start = walk_path(s, dentry, BPF_CORE_READ(file, f_path.mnt), task);
-		pos = put_path(s, pos, SSTR_PATH2, start, SENSOR_PATH2_MAX);
-		pos = put_empty(&s->e, pos, SSTR_ARGV);
-		submit(s, pos);
-		return 0;
-	}
 
 	write = (fmode & (FMODE_WRITE | FMODE_CREATED)) || (fflags & O_TRUNC);
 	if (!write && !((enabled_keys & READ_KEYS) && (fmode & FMODE_READ)))
@@ -593,6 +576,49 @@ int BPF_PROG(file_open, struct file *file, int ret)
 	pos = put_empty(&s->e, pos, SSTR_NAME2);
 	pos = put_program(s, pos, task);
 	pos = put_empty(&s->e, pos, SSTR_PATH2);
+	pos = put_empty(&s->e, pos, SSTR_ARGV);
+	submit(s, pos);
+	return 0;
+}
+
+/* Opening an input device, by a login: the one system call a software keylogger cannot avoid. A program of
+ * its own, not part of file_open, so neither grows past the verifier's complexity limit; loaded only while
+ * input-capture is on. */
+SEC("fexit/security_file_open")
+int BPF_PROG(file_open_input, struct file *file, int ret)
+{
+	struct task_struct *task;
+	struct inode *inode;
+	struct dentry *dentry;
+	struct scratch *s;
+	__u32 keys, pos = 0;
+	int start;
+
+	if (ret != 0 || !(enabled_keys & (1 << SKEY_INPUT_CAPTURE)))
+		return 0;
+	if ((__u32)(bpf_get_current_pid_tgid() >> 32) == globals.self_tgid)
+		return 0;
+	inode = BPF_CORE_READ(file, f_inode);
+	if (!S_ISCHR(BPF_CORE_READ(inode, i_mode)) || MAJOR(BPF_CORE_READ(inode, i_rdev)) != INPUT_MAJOR)
+		return 0;
+	task = bpf_get_current_task_btf();
+	if (BPF_CORE_READ(task, flags) & PF_KTHREAD)
+		return 0;
+	keys = applying(1 << SKEY_INPUT_CAPTURE, task);
+	if (!keys)
+		return 0;
+	s = begin(SOP_OPEN, ret, keys);
+	if (!s)
+		return 0;
+	s->e.flags = BPF_CORE_READ(file, f_flags) | SOPEN_INPUT;
+	object(&s->e, inode);
+	actor(&s->e, task);
+	dentry = BPF_CORE_READ(file, f_path.dentry);
+	pos = PUT_KSTR(&s->e, pos, SSTR_NAME, BPF_CORE_READ(dentry, d_name.name), SENSOR_NAME_MAX);
+	pos = put_empty(&s->e, pos, SSTR_NAME2);
+	pos = put_program(s, pos, task);
+	start = walk_path(s, dentry, BPF_CORE_READ(file, f_path.mnt), task);
+	pos = put_path(s, pos, SSTR_PATH2, start, SENSOR_PATH2_MAX);
 	pos = put_empty(&s->e, pos, SSTR_ARGV);
 	submit(s, pos);
 	return 0;
@@ -937,8 +963,10 @@ struct exec_walk {
 
 static long exec_step(__u64 index, struct exec_walk *w)
 {
-	struct inode *inode = BPF_CORE_READ(w->dentry, d_inode);
-	struct dentry *parent = BPF_CORE_READ(w->dentry, d_parent);
+	/* The kernel dentry out of the local struct first, so BPF_CORE_READ relocates only kernel types */
+	struct dentry *dentry = w->dentry;
+	struct inode *inode = BPF_CORE_READ(dentry, d_inode);
+	struct dentry *parent = BPF_CORE_READ(dentry, d_parent);
 	struct dir_info *d = folder(inode);
 
 	if (d && d->exec_keys) {
@@ -946,7 +974,7 @@ static long exec_step(__u64 index, struct exec_walk *w)
 		w->id = d->id;
 		return 1;
 	}
-	if (!parent || parent == w->dentry)
+	if (!parent || parent == dentry)
 		return 1;
 	w->dentry = parent;
 	return 0;
@@ -1206,6 +1234,9 @@ int BPF_PROG(bpf_call, int cmd, union bpf_attr *attr, unsigned int size, bool ke
 		return 0;
 	task = bpf_get_current_task_btf();
 	if (BPF_CORE_READ(task, tgid) == globals.self_tgid)
+		return 0;
+	/* Without bpf_link_fops there is no way to tell an fd is a BPF link, so this check cannot run here */
+	if (!&bpf_link_fops)
 		return 0;
 	fdt = BPF_CORE_READ(task, files, fdt);
 	max = BPF_CORE_READ(fdt, max_fds);
