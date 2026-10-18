@@ -554,6 +554,11 @@ find accounts by their folders in `/var/home` as well, and never filter on `uid 
   sshd drop-in and one line in `/etc/pam.d/sshd`, deliberately not a key in `security.conf`, which sshd
   cannot read. The watcher accepts exactly those two and nothing in between.
 - **`ame security duress`** (off by default) sets up a duress finger: one more finger that unlocks at the
+- **Both rest on `amethystora-pam.cil`**, an SELinux module `08-hardening.sh` installs. Fedora's policy lets
+  neither the console's `login` nor `sshd-session` ask accountsservice, so without it `pam_malcontent` fails
+  open and a child logs in at any hour; and it labels google-authenticator's new secret file only under a
+  name the module no longer uses, so every login with a code fails. Neither shows in a build:
+  `tests/vm/suites/83-logins.sh` makes each login as a person would.
   login and lock screens (`duress=allow` in `fingerprint-auth`), is refused at sudo, polkit and the text
   consoles (`duress=deny` in `system-auth`), and runs the owner's action as root either way, once per boot.
   pam_fprintd tells the finger apart only in the image's own fprintd build (`packaging/fprintd`, built in

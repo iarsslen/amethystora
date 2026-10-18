@@ -143,6 +143,20 @@ for service in login sshd; do
     cat "/tmp/${service}.pam" >"/etc/pam.d/${service}"
     rm "/tmp/${service}.pam"
 done
+# Fedora's SELinux policy lets neither the console's login nor sshd's per-connection process ask
+# accountsservice, so without this the module fails and every child logs in at any hour. The same module
+# lets sshd keep ~/.google_authenticator up to date for one-time codes (amethystora-pam.cil says why).
+semodule -i /usr/share/selinux/packages/amethystora-pam.cil
+POLICY="$(echo /etc/selinux/targeted/policy/policy.*)"
+for domain in local_login_t sshd_session_t; do
+    [[ -n "$(sesearch -A -s "${domain}" -t accountsd_t -c dbus -p send_msg "${POLICY}")" ]]
+done
+sesearch -T -s sshd_session_t -t user_home_dir_t -c file "${POLICY}" >/tmp/transitions
+grep -qx "type_transition sshd_session_t user_home_dir_t:file auth_home_t;" /tmp/transitions
+rm /tmp/transitions
+# ...which are the domains the two programs run in
+[[ "$(matchpathcon -n /usr/bin/login)" == *:login_exec_t:* ]]
+[[ "$(matchpathcon -n /usr/libexec/openssh/sshd-session)" == *:sshd_session_exec_t:* ]]
 
 # Audit: the rule set has to be the last word, and it has to survive a full disk.
 #

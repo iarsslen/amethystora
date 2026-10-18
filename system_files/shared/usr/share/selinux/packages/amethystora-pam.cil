@@ -1,0 +1,18 @@
+; What Fedora's SELinux policy lacks for two PAM modules the image runs where Fedora does not expect them,
+; installed by build_files/base/08-hardening.sh. tests/vm/suites/83-logins.sh shows each rule at work.
+
+; Parental Controls' allowed hours (pam_malcontent, in login and sshd) ask accountsservice for the account's
+; limits over D-Bus. The text console (local_login_t) and OpenSSH's per-connection process (sshd_session_t)
+; may not make that call, so the module fails, its line lets the login through, and a child logs in at any
+; hour. This is what the policy's accountsd_dbus_chat() gives a domain.
+(allow local_login_t accountsd_t (dbus (send_msg)))
+(allow accountsd_t local_login_t (dbus (send_msg)))
+(allow sshd_session_t accountsd_t (dbus (send_msg)))
+(allow accountsd_t sshd_session_t (dbus (send_msg)))
+
+; One-time codes for SSH (pam_google_authenticator) rewrite ~/.google_authenticator after every code, for
+; the codes used once and the rate limit, through a new file named .google_authenticator~XXXXXX. The policy
+; labels it auth_home_t only under the exact name .google_authenticator~, so it would take the home folder's
+; own type, which sshd may not create, and every login with a code would fail. The module's file is the
+; only one sshd's per-connection process makes directly in a home folder.
+(typetransition sshd_session_t user_home_dir_t file auth_home_t)
