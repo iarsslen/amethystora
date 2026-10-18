@@ -59,20 +59,64 @@ fn under(path: &[u8], root: &[u8]) -> bool {
     path == root || (path.len() > root.len() && path.starts_with(root) && path[root.len()] == b'/')
 }
 
-/// The absolute path a refused open names: the system call's path as given, joined to the acting process's
-/// working folder when it is relative, as open_refused leaves for the daemon to do.
+/// The absolute path a refused open names, in the spelling the watch list uses. The system call's path as
+/// given (open_refused reports it raw, unresolved), joined to the working folder when relative, then
+/// collapsed lexically (`.`, `..`, repeated slashes) and with a leading `/home/` folded to `/var/home/` —
+/// the generator stores every home watch under its `/var/home` realpath (`/home` is a symlink to it), so a
+/// refused open addressed as `/home/<user>/...`, or with `..`, must fold to the same bytes to match. The
+/// match stays string-based (the open failed, so there is no inode to match by, unlike an allowed open); a
+/// refused path reached through some other symlinked parent is still not matched, a gap only in this
+/// secondary net, never in the inode-matched reads of allowed opens.
 pub fn refused_path(path2: &[u8], cwd: &[u8]) -> Vec<u8> {
-    if path2.first() == Some(&b'/') {
+    let joined = if path2.first() == Some(&b'/') || cwd.is_empty() {
         path2.to_vec()
-    } else if !cwd.is_empty() {
+    } else {
         let mut v = cwd.to_vec();
         if v.last() != Some(&b'/') {
             v.push(b'/');
         }
         v.extend_from_slice(path2);
         v
-    } else {
-        path2.to_vec()
+    };
+    let mut out = normalize(&joined);
+    fold_home(&mut out);
+    out
+}
+
+/// Collapses `.`, `..` and repeated slashes in an absolute path, lexically (no filesystem access, so no
+/// symlink is followed). A `..` at the root stays at the root, as the kernel resolves it. A relative path
+/// (no cwd to join) is left as-is: it cannot match an absolute watch anyway.
+fn normalize(path: &[u8]) -> Vec<u8> {
+    if path.first() != Some(&b'/') {
+        return path.to_vec();
+    }
+    let mut parts: Vec<&[u8]> = Vec::new();
+    for comp in path.split(|&b| b == b'/') {
+        match comp {
+            b"" | b"." => {}
+            b".." => {
+                parts.pop();
+            }
+            c => parts.push(c),
+        }
+    }
+    let mut out = Vec::with_capacity(path.len());
+    for c in &parts {
+        out.push(b'/');
+        out.extend_from_slice(c);
+    }
+    if out.is_empty() {
+        out.push(b'/');
+    }
+    out
+}
+
+/// Folds a leading `/home` to `/var/home`, the symlink the generator resolves away when it stores a watch.
+fn fold_home(path: &mut Vec<u8>) {
+    if path.starts_with(b"/home/") {
+        path.splice(0..5, *b"/var/home");
+    } else if path.as_slice() == b"/home" {
+        *path = b"/var/home".to_vec();
     }
 }
 
@@ -144,5 +188,28 @@ mod tests {
         assert_eq!(refused_path(b"id_ed25519", b"/var/home/a/.ssh"), b"/var/home/a/.ssh/id_ed25519".to_vec());
         assert_eq!(refused_path(b"/etc/passwd", b"/home/x"), b"/etc/passwd".to_vec());
         assert_eq!(refused_path(b".ssh/id", b"/var/home/a/"), b"/var/home/a/.ssh/id".to_vec());
+    }
+
+    #[test]
+    fn refused_path_normalises_and_folds_home() {
+        // /home is a symlink to /var/home, which is how the generator stores the watch.
+        assert_eq!(refused_path(b"/home/a/.ssh/id_ed25519", b""), b"/var/home/a/.ssh/id_ed25519".to_vec());
+        assert_eq!(refused_path(b"/home", b""), b"/var/home".to_vec());
+        // but not a path that merely starts with the letters "home".
+        assert_eq!(refused_path(b"/homer/x", b""), b"/homer/x".to_vec());
+        // lexical collapse of . .. and //.
+        assert_eq!(refused_path(b"/etc/../etc/sudoers.d/evil", b""), b"/etc/sudoers.d/evil".to_vec());
+        assert_eq!(refused_path(b"//etc///passwd", b""), b"/etc/passwd".to_vec());
+        assert_eq!(refused_path(b"/a/b/../../x", b""), b"/x".to_vec());
+        assert_eq!(refused_path(b"/../x", b""), b"/x".to_vec());
+    }
+
+    #[test]
+    fn a_refused_watched_path_still_matches_when_spelled_via_home_or_dotdot() {
+        // The cross-user / cross-privilege refused probe the audit fallback catches by inode: the attacker
+        // spells the watched path the conventional way, /home not /var/home.
+        assert_eq!(matcher().keys(&refused_path(b"/home/a/.ssh/id_backup", b""), false), CRED | DECOY);
+        assert_eq!(matcher().keys(&refused_path(b"/home/a/.local/share/keyrings/x", b""), false), CRED);
+        assert_eq!(matcher().keys(&refused_path(b"/etc/../etc/passwd", b""), true), IDENTITY);
     }
 }

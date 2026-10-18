@@ -98,7 +98,7 @@ pub fn run(probe: bool) -> Result<(), Box<dyn Error>> {
                 // actually cover the path, and drop it when none do. Without this, every EACCES/EPERM open
                 // an account makes — reading /proc, probing a path it may not read — would be recorded under
                 // credentials and the decoy, as if a secret had been read.
-                if rec.flags & event::SOPEN_REFUSED != 0 {
+                if rec.op == event::SOP_OPEN && rec.flags & event::SOPEN_REFUSED != 0 {
                     let write = rec.flags & event::SOPEN_READ == 0;
                     rec.keys &= refused.keys(&refused_path(&rec.path2, &rec.cwd), write);
                     if rec.keys == 0 {
