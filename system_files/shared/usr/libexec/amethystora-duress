@@ -1,22 +1,24 @@
 #!/usr/bin/bash
 # Amethystora's duress credential, a finger or a password that also runs its owner's action. At the login
 # and lock screens it unlocks like any other; at sudo, polkit and the text consoles it is refused as one
-# that did not match. Either way the action runs, once per boot. A duress finger is told apart by
-# pam_fprintd (packaging/fprintd: duress=allow in fingerprint-auth, duress=deny in system-auth, through the
-# authselect feature with-duress-fingerprint); a duress password by amethystora-duress-pam, which pam_exec
-# runs after pam_unix (the feature with-duress-password, 08-hardening.sh). Both ask amethystora-duress-service,
-# which runs `run` here.
+# that did not match. The finger and the password each have their own action, run as root once per boot. A
+# duress finger is told apart by pam_fprintd (packaging/fprintd: duress=allow in fingerprint-auth,
+# duress=deny in system-auth, through the authselect feature with-duress-fingerprint); a duress password by
+# amethystora-duress-pam, which pam_exec runs after pam_unix (the feature with-duress-password,
+# 08-hardening.sh). Both ask amethystora-duress-service, which runs `run` here with the source.
 #
 # Everything is in /etc/amethystora/duress.d, root's and readable by nobody else, as the login path demands:
-#   fingers    UID FINGER, a line for each account with a duress finger, in one file for all of them, so
-#              that no file name outside tells which accounts have one
-#   passwords  UID HASH, the same for a duress password; HASH is a yescrypt hash, never the password
-#   action     the owner's one script, run as root with DURESS_USER and DURESS_UID
-#   sums       sha256sum's lines for the action and each duress finger's print, written only by this
-# The action runs only while every sum it needs still holds. It never runs when its print was written
-# again, for example because the finger was enrolled afresh as an ordinary one, or when the action was
-# changed by anything but this command. `check` says the same to the security watcher. What a run did is
-# kept in /var/lib/amethystora/duress/log, root's alone, and nothing about it reaches the journal.
+#   fingers             UID FINGER, a line for each account with a duress finger, in one file for all of
+#                       them, so that no file name outside tells which accounts have one
+#   passwords           UID HASH, the same for a duress password; HASH is a yescrypt hash, never the password
+#   action-fingerprint  the owner's root script for the duress finger, an unrestricted root-level script run
+#                       with DURESS_USER, DURESS_UID and DURESS_SOURCE (and no time limit)
+#   action-password     the owner's root script for the duress password; each source has its own
+#   sums                sha256sum's lines for each action and each duress finger's print, written only here
+# An action runs only while every sum it needs still holds. The finger's never runs when its print was
+# written again, for example because the finger was enrolled afresh as an ordinary one, and neither runs
+# when its action was changed by anything but this command. `check` says the same to the security watcher.
+# What a run did is kept in /var/lib/amethystora/duress/log, root's alone, never in the journal.
 #
 #   amethystora-duress status                on or off, for this machine (either feature)
 #   amethystora-duress status-fingerprint    just the duress finger feature (on or off)
@@ -35,13 +37,13 @@
 #   amethystora-duress password-accounts     the accounts with a duress password, a name a line (root)
 #   amethystora-duress has-password USER     whether USER has a duress password (exit 0 or 1, root)
 #   amethystora-duress finger USER           USER's duress finger, or nothing (root)
-#   amethystora-duress action FILE           FILE becomes the action (root)
-#   amethystora-duress check                 what no longer holds, a line each: action-missing,
-#                                            action-changed, print-changed USER, service-stopped,
-#                                            folder-open; exit 1 when anything (root)
+#   amethystora-duress action SOURCE FILE    FILE becomes the fingerprint or password action (root)
+#   amethystora-duress check [SOURCE]        what no longer holds for a source (or both), a line each:
+#                                            action-missing, action-changed, print-changed USER,
+#                                            service-stopped, folder-open; exit 1 when anything (root)
 #   amethystora-duress authselect            whether /etc/authselect is the image's own with only the
 #                                            duress features that are on added, for the watcher (exit 0/1)
-#   amethystora-duress run UID               run the action for UID, as the service asks (root)
+#   amethystora-duress run UID SOURCE        run SOURCE's action for UID, as the service asks (root)
 
 set -euo pipefail
 
@@ -119,21 +121,42 @@ sums_without() {
     awk -v path="$1" '{ line = $0; sub(/^[0-9a-f]+  /, "", line) } line != path' "${DIR}/sums"
 }
 
-# What no longer holds: the folder, the action, and the print of each duress finger, or of UID's alone
+# Whether a credential type is set up on this machine (some account has one)
+in_use() {
+    case "$1" in
+        fingerprint) [[ -s "${DIR}/fingers" ]] ;;
+        password) [[ -s "${DIR}/passwords" ]] ;;
+        *) return 1 ;;
+    esac
+}
+
+# What no longer holds for one source's action: its file gone, its sum changed, or its mode loosened
+action_problems() {
+    local af="${DIR}/action-$1"
+    if [[ ! -f "${af}" || -L "${af}" ]]; then
+        echo action-missing
+    elif ! grep -qxF "$(sha256sum "${af}")" "${DIR}/sums"; then
+        echo action-changed
+    elif [[ "$(stat -c '%u %a' "${af}")" != "0 700" ]]; then
+        echo action-changed
+    fi
+}
+
+# What no longer holds, for the given source (empty = both): the folder, each in-use action, and each duress
+# finger's print (or UID's alone). The finger and the password each have their own action-<source> script.
 problems() {
-    local only="${1:-}" mode="" owner="" uid finger user print line
+    local source="${1:-}" only="${2:-}" mode="" owner="" uid finger user print line s
     read -r mode owner < <(stat -c '%a %u' "${DIR}" 2>/dev/null) || true
     if [[ "${owner}" != 0 || "${mode}" != 700 ]]; then
         echo folder-open
         return 0
     fi
-    if [[ ! -f "${DIR}/action" || -L "${DIR}/action" ]]; then
-        echo action-missing
-    elif ! grep -qxF "$(sha256sum "${DIR}/action")" "${DIR}/sums"; then
-        echo action-changed
-    elif [[ "$(stat -c '%u %a' "${DIR}/action")" != "0 700" ]]; then
-        echo action-changed
-    fi
+    for s in fingerprint password; do
+        [[ -z "${source}" || "${source}" == "${s}" ]] || continue
+        in_use "${s}" || continue
+        action_problems "${s}"
+    done
+    [[ -z "${source}" || "${source}" == fingerprint ]] || return 0
     [[ -f "${DIR}/fingers" ]] || return 0
     while read -r uid finger; do
         [[ -z "${only}" || "${uid}" == "${only}" ]] || continue
@@ -278,19 +301,29 @@ case "${1:-}" in
         ;;
     action)
         need_root "$@"
-        [[ $# -eq 2 && -f "$2" ]] || die "usage: ${0##*/} action FILE"
+        [[ $# -eq 3 && -f "$3" ]] || die "usage: ${0##*/} action fingerprint|password FILE"
+        source="$2"
+        [[ "${source}" == fingerprint || "${source}" == password ]] || die "no source is called ${source}"
         prepare
         new="$(mktemp "${DIR}/.new.XXXXXX")"
-        cat -- "$2" >"${new}"
+        cat -- "$3" >"${new}"
         chmod 0700 "${new}"
-        mv -f "${new}" "${DIR}/action"
-        { sums_without "${DIR}/action"; sha256sum "${DIR}/action"; } | write "${DIR}/sums"
+        mv -f "${new}" "${DIR}/action-${source}"
+        { sums_without "${DIR}/action-${source}"; sha256sum "${DIR}/action-${source}"; } | write "${DIR}/sums"
         ;;
     check)
         need_root "$@"
+        source="${2:-}"
+        [[ -z "${source}" || "${source}" == fingerprint || "${source}" == password ]] || die "no source is called ${source}"
         [[ -d "${DIR}" ]] || exit 0
-        found="$(problems)"
-        if [[ "$("$0" status)" == on ]] && ! systemctl is-active --quiet "${UNIT}"; then
+        found="$(problems "${source}")"
+        # The service is shared, so a stopped service is a problem for a source only when its feature is on
+        case "${source}" in
+            fingerprint) on="$("$0" status-fingerprint)" ;;
+            password) on="$("$0" status-password)" ;;
+            *) on="$("$0" status)" ;;
+        esac
+        if [[ "${on}" == on ]] && ! systemctl is-active --quiet "${UNIT}"; then
             found+=$'\n'service-stopped
         fi
         found="$(sed '/^$/d' <<<"${found}")"
@@ -342,29 +375,35 @@ case "${1:-}" in
         need_root "$@"
         [[ "${2:-}" =~ ^[0-9]+$ ]] || exit 64
         uid="$2"
+        # The service passes the source; an older caller that passes only a uid means the finger
+        source="${3:-fingerprint}"
+        [[ "${source}" == fingerprint || "${source}" == password ]] || exit 64
         install -d -m 0700 -o root -g root "${LOG_DIR}"
         exec >>"${LOG_DIR}/log" 2>&1
         log() { printf '%s %s\n' "$(date -Is)" "$*"; }
         user="$(getent passwd "${uid}" | cut -d: -f1)"
-        found="$(problems "${uid}" 2>&1)"
-        if ! grep -q "^${uid} " "${DIR}/fingers" 2>/dev/null &&
-            ! grep -q "^${uid} " "${DIR}/passwords" 2>/dev/null; then
-            found+=$'\n'no-credential
-        fi
+        found="$(problems "${source}" "${uid}" 2>&1)"
+        case "${source}" in
+            fingerprint) grep -q "^${uid} " "${DIR}/fingers" 2>/dev/null || found+=$'\n'no-credential ;;
+            password) grep -q "^${uid} " "${DIR}/passwords" 2>/dev/null || found+=$'\n'no-credential ;;
+        esac
         found="$(sed '/^$/d' <<<"${found}" | paste -sd ' ')"
         if [[ -n "${found}" ]]; then
-            log "not run for ${user:-${uid}}: ${found}"
+            log "not run for ${user:-${uid}} (${source}): ${found}"
             exit 0
         fi
-        # Once per boot, whichever account and however many touches
-        if ! mkdir -m 0700 /run/amethystora-duress 2>/dev/null; then
-            log "not run for ${user}: it ran already since this boot"
+        # Once per boot per source, whichever account and however many touches
+        mkdir -p -m 0700 /run/amethystora-duress
+        if ! mkdir -m 0700 "/run/amethystora-duress/${source}" 2>/dev/null; then
+            log "not run for ${user} (${source}): it ran already since this boot"
             exit 0
         fi
-        log "running the action for ${user}"
+        log "running the ${source} action for ${user}"
         rc=0
-        env -i PATH=/usr/bin:/usr/sbin HOME=/root LANG=C.UTF-8 DURESS_USER="${user}" DURESS_UID="${uid}" \
-            timeout 300 "${DIR}/action" </dev/null || rc=$?
+        # The owner's action is an unrestricted root script: a clean environment, but no time limit
+        env -i PATH=/usr/bin:/usr/sbin HOME=/root LANG=C.UTF-8 \
+            DURESS_USER="${user}" DURESS_UID="${uid}" DURESS_SOURCE="${source}" \
+            "${DIR}/action-${source}" </dev/null || rc=$?
         log "the action ended with ${rc}"
         ;;
     *)

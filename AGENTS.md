@@ -561,19 +561,22 @@ find accounts by their folders in `/var/home` as well, and never filter on `uid 
   through a join or a leave. Under SELinux, GDM's and polkit's PAM may neither start a unit nor read
   fprintd's prints, so the module only reads `/etc/amethystora/duress.d/fingers` and sends `Run(uid)`,
   without waiting, to `amethystora-duress-service`, which runs from boot while the feature is on and has
-  `/usr/libexec/amethystora-duress run` check the sums of the action and of the print before anything
-  runs. **A duress password** is the same feature for a typed password: the per-machine switch
-  `with-duress-password` adds one `pam_exec.so ... /usr/libexec/amethystora-duress-pam` line after
+  `/usr/libexec/amethystora-duress run UID SOURCE` check the sums of that source's action and of the print
+  before anything runs. **A duress password** is the same feature for a typed password: the per-machine
+  switch `with-duress-password` adds one `pam_exec.so ... /usr/libexec/amethystora-duress-pam` line after
   `pam_unix` (before faillock's authfail) in `system-auth` and `password-auth`, in all three vendor
   profiles, a whole-line `{if}` so that with it off authselect writes the same bytes as before. That helper
   reads only `/etc/amethystora/duress.d/passwords` (`UID` and a yescrypt hash, never the password), decides
   allow or deny from `PAM_SERVICE` (only `gdm-password`, the login and the lock screen, unlocks; everywhere
-  else is refused like a wrong password), and sends the same `Run(uid)`. A duress password needs no
-  fingerprint reader; the finger and the password share the one action, service, log and once-per-boot, and
-  either turns the service on. **Nothing may reveal whether an account has a duress finger or password**: no
-  key in `security.conf`, nothing in the journal (`LogLevelMax=emerg`), one file for every account, the
-  report and `status.json` silent until something keeps the action from running, and the agent skills told
-  never to touch or mention it.
+  else is refused like a wrong password), and sends `RunPassword(uid)` (the finger sends `Run(uid)`). **The
+  finger and the password each have their own function**: each runs its own script, `action-fingerprint` or
+  `action-password` (an unrestricted root-level script, `env -i` but no time limit, with `DURESS_SOURCE` set),
+  fires once per boot on its own, and is reported under its own check (`duress-finger`, `duress-password`);
+  they share only the folder, the log, the service (`Run`/`RunPassword`) and the switch surface, and either
+  feature turns the service on. A duress password needs no fingerprint reader. **Nothing may reveal whether an
+  account has a duress finger or password**: no key in `security.conf`, nothing in the journal
+  (`LogLevelMax=emerg`), one file for every account, the report and `status.json` silent until something keeps
+  an action from running, and the agent skills told never to touch or mention it.
 
 ### The Updates app
 

@@ -1200,24 +1200,30 @@ else
     report optional fingerprint off "$(gettext "Fingerprint")" "${FINGERPRINT_TEXT}"
 fi
 
-# The duress finger is never shown while it works: whoever was made to unlock the machine may be shown this
-# report next. The watcher, which alone may read its folder, names only what keeps its action from running
-# (amethystora-duress check), and never whose finger it is.
-DURESS_DETAILS=()
-while read -r problem; do
-    case "${problem}" in
-        folder-open) DURESS_DETAILS+=("$(gettext "Its folder can be read by more than root, so the duress finger is ignored")") ;;
-        action-missing) DURESS_DETAILS+=("$(gettext "Its action is gone")") ;;
-        action-changed) DURESS_DETAILS+=("$(gettext "Its action was changed other than through ame security duress, so it will not run")") ;;
-        print-changed) DURESS_DETAILS+=("$(gettext "A duress finger was enrolled again or removed, so its action will not run")") ;;
-        service-stopped) DURESS_DETAILS+=("$(gettext "Its service is not running, so a duress finger would run nothing")") ;;
-    esac
-done < <(jq -r '.duress // [] | .[]' "${WATCH_STATUS}" 2>/dev/null)
-if [[ ${#DURESS_DETAILS[@]} -gt 0 ]]; then
-    COMMAND="ame security duress"
-    report watching duress-finger check "$(gettext "Duress finger")" \
-        "$(gettext "The duress finger would not run its action")" "${DURESS_DETAILS[@]}" "$(gettext "Set it up again with:")"
-fi
+# A duress credential is never shown while it works: whoever was made to unlock the machine may be shown this
+# report next. The watcher, which alone may read its folder, names only what keeps an action from running
+# (amethystora-duress check), and never whose credential it is. The finger and the password each have their
+# own action, so each is reported on its own, with its own title.
+duress_report() {
+    # $1 the key in .duress (fingerprint|password), $2 the check id, $3 the title, $4 the sentence
+    local key="$1" id="$2" title="$3" sentence="$4" problem
+    local -a details=()
+    while read -r problem; do
+        case "${problem}" in
+            folder-open) details+=("$(gettext "Its folder can be read by more than root, so it is ignored")") ;;
+            action-missing) details+=("$(gettext "Its action is gone")") ;;
+            action-changed) details+=("$(gettext "Its action was changed other than through ame security duress, so it will not run")") ;;
+            print-changed) details+=("$(gettext "A duress finger was enrolled again or removed, so its action will not run")") ;;
+            service-stopped) details+=("$(gettext "Its service is not running, so it would run nothing")") ;;
+        esac
+    done < <(jq -r --arg k "${key}" '.duress[$k] // [] | .[]' "${WATCH_STATUS}" 2>/dev/null)
+    if [[ ${#details[@]} -gt 0 ]]; then
+        COMMAND="ame security duress"
+        report watching "${id}" check "${title}" "${sentence}" "${details[@]}" "$(gettext "Set it up again with:")"
+    fi
+}
+duress_report fingerprint duress-finger "$(gettext "Duress finger")" "$(gettext "The duress finger would not run its action")"
+duress_report password duress-password "$(gettext "Duress password")" "$(gettext "The duress password would not run its action")"
 
 COMMAND="ame security ssh-codes"
 report optional ssh-codes "$(/usr/libexec/amethystora-ssh-codes status)" "$(gettext "One-time codes for SSH")" \

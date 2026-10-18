@@ -85,12 +85,13 @@ def stored_hash(uid):
 
 
 def fire(uid):
-    # Ask the service to start the owner's action, without waiting and without starting it. Whether anything
-    # listens must change neither the timing nor the screen, so every outcome is swallowed.
+    # Ask the service to start the duress password's own action (RunPassword, not the finger's Run), without
+    # waiting and without starting it. Whether anything listens must change neither the timing nor the
+    # screen, so every outcome is swallowed.
     try:
         subprocess.run(
             ["/usr/bin/busctl", "call", "--system", "--timeout=2",
-             SERVICE, OBJECT, SERVICE, "Run", "u", str(uid)],
+             SERVICE, OBJECT, SERVICE, "RunPassword", "u", str(uid)],
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             timeout=3, check=False)
     except Exception:

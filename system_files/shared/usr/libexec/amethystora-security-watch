@@ -1357,7 +1357,7 @@ network_status() {
 # next one that does not); "off" there means what it found is unread, which it has said already.
 WATCHED_CHECKS='["signed-updates","lockdown","automatic-updates","audit-log","audit-rules","fail2ban",
 "firewall","network","image-settings","rootkit","virus-scan-schedule","settings-audit","security-watcher","selinux",
-"duress-finger"]'
+"duress-finger","duress-password"]'
 
 # Whether a switch's own command made a change since the last run (amethystora-security-config note), for any
 # of the names given: then that change was the person at the machine, and is recorded rather than said
@@ -1513,17 +1513,26 @@ disk_unlock_status() {
     jq -n --argjson tpm "${tpm}" --argjson pin "${pin}" '{$tpm, $pin}'
 }
 
-# --- The duress finger ------------------------------------------------------------------------------------
+# --- The duress finger and password -----------------------------------------------------------------------
 
-# What keeps the duress finger's action from running, from amethystora-duress, which only root can ask: its
-# folder open, its action changed or gone, a duress finger's print written again, its service stopped. Only
-# the kinds, never which account, since the report is world-readable; and null while nothing is wrong or the
-# feature is off, so that the report says nothing of a duress finger that works.
+# What keeps a duress action from running, from amethystora-duress, which only root can ask: its folder open,
+# its action changed or gone, a duress finger's print written again, its service stopped. The finger and the
+# password each have their own action, so each is reported on its own ({fingerprint, password}), with only
+# the kinds, never which account (the report is world-readable); a source is null while it works or is off,
+# and the whole thing is null while neither feature is on, so the report says nothing of a duress that works.
+duress_source_kinds() {
+    local out
+    [[ "$(/usr/libexec/amethystora-duress "status-$1")" == on ]] || { echo null; return; }
+    if out="$(/usr/libexec/amethystora-duress check "$1" 2>/dev/null)"; then
+        echo null
+    else
+        cut -d' ' -f1 <<<"${out}" | sort -u | jq -R . | jq -sc .
+    fi
+}
 duress_status() {
-    local found
     [[ "$(/usr/libexec/amethystora-duress status)" == on ]] || { echo null; return; }
-    found="$(/usr/libexec/amethystora-duress check 2>/dev/null)" && { echo null; return; }
-    cut -d' ' -f1 <<<"${found}" | sort -u | jq -R . | jq -sc .
+    jq -nc --argjson fingerprint "$(duress_source_kinds fingerprint)" \
+        --argjson password "$(duress_source_kinds password)" '{$fingerprint, $password}'
 }
 
 # --- What only an account can see ------------------------------------------------------------------------

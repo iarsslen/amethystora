@@ -1347,7 +1347,7 @@ msgid "This machine has no fingerprint reader"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
-msgid "Its folder can be read by more than root, so the duress finger is ignored"
+msgid "Its folder can be read by more than root, so it is ignored"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -1363,7 +1363,11 @@ msgid "A duress finger was enrolled again or removed, so its action will not run
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
-msgid "Its service is not running, so a duress finger would run nothing"
+msgid "Its service is not running, so it would run nothing"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Set it up again with:"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -1375,7 +1379,11 @@ msgid "The duress finger would not run its action"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
-msgid "Set it up again with:"
+msgid "Duress password"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The duress password would not run its action"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status

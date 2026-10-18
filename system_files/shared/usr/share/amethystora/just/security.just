@@ -116,7 +116,8 @@ duress ACTION="":
     if [[ -z "${action}" ]]; then
         action="$(gum choose --header "Duress finger or password" \
             "Set up a duress finger" "Set up a duress password" \
-            "Test my duress finger" "Change the action" \
+            "Test my duress finger" \
+            "Change the duress finger's action" "Change the duress password's action" \
             "Remove my duress finger" "Remove my duress password" \
             "Turn off for everyone" "Cancel")"
     fi
@@ -148,8 +149,9 @@ duress ACTION="":
         echo
     }
     choose_action() {
-        local choice file url address='^https://[A-Za-z0-9._~:/?#@!&()*+,;=%-]+$'
-        choice="$(gum choose --header "What should the duress credential do?" "Send an alert to an address of mine" \
+        local src="$1" label choice file url address='^https://[A-Za-z0-9._~:/?#@!&()*+,;=%-]+$'
+        [[ "${src}" == fingerprint ]] && label="duress finger" || label="duress password"
+        choice="$(gum choose --header "What should the ${label} do?" "Send an alert to an address of mine" \
             "Take the disk's key out of the TPM" "Power off ten minutes later" "Run a script of my own" "Cancel")"
         file="$(mktemp)"
         case "${choice}" in
@@ -175,9 +177,9 @@ duress ACTION="":
         echo
         cat "${file}"
         echo
-        gum confirm "Use this as the duress action?" || exit 0
+        gum confirm "Use this as the ${label}'s action?" || exit 0
         sudo /usr/libexec/amethystora-security-config note duress action
-        sudo "${duress}" action "${file}"
+        sudo "${duress}" action "${src}" "${file}"
         rm -f "${file}"
     }
     case "${action}" in
@@ -221,8 +223,8 @@ duress ACTION="":
             fi
             sudo /usr/libexec/amethystora-security-config note duress on
             sudo "${duress}" set "${USER}" "${finger}"
-            if ! sudo test -f /etc/amethystora/duress.d/action; then
-                choose_action
+            if ! sudo test -f /etc/amethystora/duress.d/action-fingerprint; then
+                choose_action fingerprint
             fi
             sudo "${duress}" on
             echo "Set up. Test it with: ame security duress, Test my duress finger, which never runs the action."
@@ -248,8 +250,8 @@ duress ACTION="":
             fi
             sudo /usr/libexec/amethystora-security-config note duress password
             printf '%s' "${pw}" | sudo "${duress}" set-password "${USER}"
-            if ! sudo test -f /etc/amethystora/duress.d/action; then
-                choose_action
+            if ! sudo test -f /etc/amethystora/duress.d/action-password; then
+                choose_action password
             fi
             sudo "${duress}" on-password
             echo "Set up. Choose something you would not type by habit, and keep it different from your login"
@@ -266,11 +268,14 @@ duress ACTION="":
             else
                 echo "That finger did not match any of yours."
             fi
-            problems="$(sudo "${duress}" check || true)"
+            problems="$(sudo "${duress}" check fingerprint || true)"
             [[ -z "${problems}" ]] || { echo "But the action would not run now:"; echo "${problems}"; }
             ;;
-        "Change the action" | action)
-            choose_action
+        "Change the duress finger's action" | action-fingerprint)
+            choose_action fingerprint
+            ;;
+        "Change the duress password's action" | action-password)
+            choose_action password
             ;;
         "Remove my duress finger" | remove)
             finger="$(sudo "${duress}" finger "${USER}")"
@@ -294,7 +299,7 @@ duress ACTION="":
             echo "Removed."
             ;;
         "Turn off for everyone" | off)
-            gum confirm "Forget every account's duress finger, password and the action? The fingers stay, as ordinary ones." || exit 0
+            gum confirm "Forget every account's duress finger, password and both actions? The fingers stay, as ordinary ones." || exit 0
             sudo /usr/libexec/amethystora-security-config note duress off
             sudo "${duress}" forget
             echo "Turned off."

@@ -1,10 +1,12 @@
 #!/usr/bin/python3
-# Amethystora's duress finger: the root service pam_fprintd tells when an account's duress finger matched
-# (packaging/fprintd, its duress=allow|deny). It owns org.amethystora.Duress on the system bus, which only
-# root may call (/usr/share/dbus-1/system.d/org.amethystora.Duress.conf), and hands each Run(uid) to
-# `amethystora-duress run UID`, which checks everything again before it runs the owner's action.
+# Amethystora's duress service: the root service the login path tells when an account's duress credential
+# matched. pam_fprintd calls Run(uid) for a duress finger (packaging/fprintd, its duress=allow|deny);
+# amethystora-duress-pam calls RunPassword(uid) for a duress password. It owns org.amethystora.Duress on the
+# system bus, which only root may call (/usr/share/dbus-1/system.d/org.amethystora.Duress.conf), and hands
+# each to `amethystora-duress run UID SOURCE`, which checks everything again before it runs that source's
+# action. The finger and the password each run their own action.
 #
-# It runs from boot for as long as the feature is on. Under SELinux, GDM, the lock screen and polkit's
+# It runs from boot for as long as either feature is on. Under SELinux, GDM, the lock screen and polkit's
 # helper may send a message to an unconfined service, but none of them may start a unit. A unit started
 # at that moment would also say so in the journal.
 #
@@ -28,8 +30,12 @@ from gi.repository import Gio, GLib
 FPRINT = 'net.reactivated.Fprint'
 HELPER = '/usr/libexec/amethystora-duress'
 NAME = 'org.amethystora.Duress'
+# Run is the duress finger's (pam_fprintd calls it), RunPassword the duress password's (amethystora-duress-pam
+# calls it): each runs its own action, so the finger and the password each have their own function
+SOURCES = {'Run': 'fingerprint', 'RunPassword': 'password'}
 XML = '''<node><interface name="org.amethystora.Duress">
 <method name="Run"><arg type="u" name="uid" direction="in"/></method>
+<method name="RunPassword"><arg type="u" name="uid" direction="in"/></method>
 </interface></node>'''
 
 
@@ -40,11 +46,12 @@ def serve():
 
     def on_call(conn, sender, path, interface, method, params, invocation):
         # Only root may call it, which the bus's policy enforces as the message is sent. The caller cannot be
-        # asked about afterwards: once a login is let through, pam_fprintd has gone before this runs.
-        if method == 'Run':
-            subprocess.Popen([HELPER, 'run', str(params.unpack()[0])], stdin=subprocess.DEVNULL,
+        # asked about afterwards: once a login is let through, the caller has gone before this runs.
+        source = SOURCES.get(method)
+        if source:
+            subprocess.Popen([HELPER, 'run', str(params.unpack()[0]), source], stdin=subprocess.DEVNULL,
                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-        # pam_fprintd expects no answer, and none is sent to a call that says so
+        # The caller expects no answer, and none is sent to a call that says so
         invocation.return_value(None)
 
     bus.register_object_with_closures2('/org/amethystora/Duress', Gio.DBusNodeInfo.new_for_xml(XML).interfaces[0],

@@ -485,23 +485,25 @@ ame security duress
 ```
 
 **Set up a duress finger** enrols one more finger, has you touch the reader with it and with another
-finger to check that the reader tells them apart, and asks what the action should be. **Set up a duress
+finger to check that the reader tells them apart, and asks what its action should be. **Set up a duress
 password** asks for a second password, only yours and different from the one you log in with, and asks the
-same. The action is one of: an alert sent to an address of yours (an [ntfy.sh](https://ntfy.sh) topic only
-you know, for example), the disk's key taken out of the TPM so that the next start asks for the passphrase
+same. The finger and the password **each have their own action**, so each can do something different; you
+change either later with **Change the duress finger's action** or **Change the duress password's action**.
+An action is one of: an alert sent to an address of yours (an [ntfy.sh](https://ntfy.sh) topic only you
+know, for example), the disk's key taken out of the TPM so that the next start asks for the passphrase
 ([Unlock the disk with the TPM](#unlock-the-disk-with-the-tpm)), power off ten minutes later, or a script
-of your own, which it shows you before it keeps it. None of these erases anything, and the finger and the
-password share the one action. **Test my duress finger** says which finger a touch matched and never runs
-the action; **Remove my duress finger** and **Remove my duress password** forget yours, and **Turn off
-for everyone** forgets every account's and the action.
+of your own, which it shows you before it keeps it. None of the examples erases anything, but the action is
+an ordinary root script and yours to write, so it can do whatever root can. **Test my duress finger** says
+which finger a touch matched and never runs the action; **Remove my duress finger** and **Remove my duress
+password** forget yours, and **Turn off for everyone** forgets every account's and both actions.
 
 A duress finger needs a reader that compares a touch with every enrolled finger at once, which most
 readers built into laptops do; the setup says so when yours does not. A duress password needs no reader.
 Nothing about either reaches the journal or the Security report while it works, and the setup lives in a
-folder only root can read. The security watcher checks it: when the action, or a duress finger's print,
-changes other than through `ame security duress`, the action no longer runs, and the report and a
-notification say so. Enrolling the finger again, or **Remove all fingers** in `ame security fingerprint`,
-removes a duress finger too; set it up again afterwards.
+folder only root can read. The security watcher checks each: when an action, or a duress finger's print,
+changes other than through `ame security duress`, that action no longer runs, and the report and a
+notification say so under its own heading. Enrolling the finger again, or **Remove all fingers** in
+`ame security fingerprint`, removes a duress finger too; set it up again afterwards.
 
 What it cannot do: stop anyone asking for your usual password instead, help against a copy of the disk
 made before, or hide from someone who already has root on this machine. In many places, destroying data
