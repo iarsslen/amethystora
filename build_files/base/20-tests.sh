@@ -604,8 +604,7 @@ systemd-analyze verify --man=no --recursive-errors=no /usr/lib/systemd/system/am
     /usr/lib/systemd/system/amethystora-raid-boot.service
 # A system over several disks starts with one missing from the boot menu: the initramfs lets its btrfs mount
 # degraded when the kernel command line asks for it (and only then), which the entry amethystora-raid writes does
-lsinitrd "/usr/lib/modules/$(ls /usr/lib/modules | head -n 1)/initramfs.img" |
-    grep -q "usr/lib/udev/rules.d/65-amethystora-btrfs-degraded.rules"
+grep -q "usr/lib/udev/rules.d/65-amethystora-btrfs-degraded.rules" <<<"${INITRAMFS_FILES}"
 grep -qF 'ENV{rootflags}!="*degraded*", GOTO' /usr/lib/dracut/modules.d/90amethystora-degraded/65-amethystora-btrfs-degraded.rules
 [[ ! -e /usr/lib/udev/rules.d/65-amethystora-btrfs-degraded.rules ]]
 grep -q "/usr/libexec/amethystora-raid root-luks" /usr/share/amethystora/just/security.just
