@@ -31,7 +31,7 @@ cargo fetch --locked
 TZ=UTC cargo test --release --locked --workspace -- --test-threads=1
 cargo build --release --locked -p amethystora-apps
 # The sensor is a binary of its own (no GTK): it loads a BPF object and writes audit records for the
-# security watcher (plans/security/PLAN-audit-cost.md).
+# security watcher (plans/done/PLAN-audit-cost.md).
 cargo build --release --locked -p amethystora-sensor
 
 mkdir -p /out/licenses

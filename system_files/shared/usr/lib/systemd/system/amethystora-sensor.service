@@ -3,7 +3,7 @@ Description=Amethystora file-watch sensor
 Documentation=file:///usr/share/amethystora/manual/security.md
 # It watches the same files and operations the audit rules watch, where they happen rather than at every
 # system call, and writes them as audit records of its own for the security watcher to read. See
-# plans/security/PLAN-audit-cost.md. It runs only while the plan gives it at least one key (--check).
+# plans/done/PLAN-audit-cost.md. It runs only while the plan gives it at least one key (--check).
 #
 # Early, like the audit rules it stands in for, and after them so their plan (which keys are the sensor's)
 # is written first. local-fs.target is all it needs, for /etc, /var and the homes it registers.

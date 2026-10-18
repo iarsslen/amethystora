@@ -223,7 +223,7 @@ INPUT_SEEN="${STATE}/input-programs"
 # them, and their lines are left out by what they say. The rules cannot change after that: -e 2 locks
 # them, and a try is unsuccessful, which is said.
 # Where the file-watch sensor (amethystora-sensor) writes its records, and which keys it covers, from the
-# plan the boot-time generator wrote (plans/security/PLAN-audit-cost.md). A key the plan gives the sensor is
+# plan the boot-time generator wrote (plans/done/PLAN-audit-cost.md). A key the plan gives the sensor is
 # read from the sensor's log, by a checkpoint of its own, so a change of source never confuses a checkpoint;
 # every other key, and the AVCs, stay on auditd's log exactly as before. With a stand-in root the tests name
 # a stand-in sensor log (AMETHYSTORA_WATCH_SENSOR) and plan (AMETHYSTORA_SENSOR_RUN).

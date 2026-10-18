@@ -19,7 +19,7 @@ check "the booted deployment is the image under test" sh -c 'rpm-ostree status -
 check "the image's own kernel module loads under Secure Boot (v4l2loopback)" modprobe v4l2loopback
 # The audit rules are written at boot by a unit whose sandbox, when systemd cannot set it up, skips it quietly
 check "the audit rules were written at boot" systemctl is-active --quiet amethystora-audit-rules.service
-# Identity is watched by an audit rule, or by the file-watch sensor (plans/security/PLAN-audit-cost.md),
+# Identity is watched by an audit rule, or by the file-watch sensor (plans/done/PLAN-audit-cost.md),
 # in which case the plan gives it the key and auditctl shows only the -a never,task filter.
 check "identity is watched (audit rule or the sensor)" sh -c 'auditctl -l | grep -q -- "-k identity\$" ||
     { grep -qx "identity sensor" /run/amethystora/sensor/plan && systemctl is-active --quiet amethystora-sensor.service; }'

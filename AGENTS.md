@@ -415,7 +415,7 @@ no container export made. The audit rules ship one file per key in `/usr/share/a
 `amethystora-audit-home-rules` writes into `/etc/audit/rules.d/60-amethystora.rules` at every boot, beside
 the per-home rules (`persistence`, `user-programs`). Where the kernel takes it, the **file-watch sensor**
 records those keys instead, without audit's per-system-call cost (`apps/sensor`, `amethystora-sensor`,
-`plans/security/PLAN-audit-cost.md`): the generator probes it once a boot and, for every key it covers,
+`plans/done/PLAN-audit-cost.md`): the generator probes it once a boot and, for every key it covers,
 writes a `/run/amethystora/sensor/{plan,watch.list}` line from the same shipped rules rather than an audit
 rule, so the kernel loads only `-a never,task`; the watcher then reads that key from the sensor's own log
 (`sensor-KEY` checkpoint) and auditd's for the rest. A kernel the sensor cannot load on, or `ame security

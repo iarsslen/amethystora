@@ -26,7 +26,7 @@ for app in manual security update notes logs backups control; do
 done
 
 # The file-watch sensor is a binary of its own (no GTK), not one of the windowed apps: it loads a BPF object
-# and writes audit records for the security watcher (plans/security/PLAN-audit-cost.md). Its BPF object is
+# and writes audit records for the security watcher (plans/done/PLAN-audit-cost.md). Its BPF object is
 # Amethystora's own code, dual-licensed so it may use the kernel's GPL-only BPF helpers; the Rust crates
 # built into it are listed with the apps' in ${LICENSE_DIR}/crates.
 install -Dpm0755 /apps-stage/out/amethystora-sensor /usr/libexec/amethystora-sensor

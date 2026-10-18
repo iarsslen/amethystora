@@ -1,7 +1,7 @@
 # amethystora-sensor: the daemon behind the BPF audit sensor. It is in the apps workspace, but shares
 # nothing with the GTK apps: no amethystora-ui, no GTK. The apps stage builds it on its own
 # (cargo build -p amethystora-sensor) with clang, bpftool and libbpf-devel added, and 13-apps.sh installs
-# it as /usr/libexec/amethystora-sensor. plans/security/PLAN-audit-cost.md says why it exists.
+# it as /usr/libexec/amethystora-sensor. plans/done/PLAN-audit-cost.md says why it exists.
 [package]
 name = "amethystora-sensor"
 version.workspace = true

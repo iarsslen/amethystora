@@ -128,7 +128,7 @@ windows draw the wordmark in Quicksand, under the SIL Open Font License, version
 
 The file-watch sensor in usr/libexec/amethystora-sensor (apps/sensor/) is one
 more program of the same build, which watches the files the audit rules watch
-without their per-system-call cost (plans/security/PLAN-audit-cost.md). Its BPF
+without their per-system-call cost (plans/done/PLAN-audit-cost.md). Its BPF
 object is Amethystora's own code, under the GNU General Public License, version
 2, or the BSD 2-Clause License at your option, so it may use the kernel's
 GPL-only BPF helpers; that licence ships in usr/share/licenses/amethystora-sensor.

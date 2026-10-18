@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # The point of the sensor: once it covers every watched key, the kernel audits no system call, so stat- and
-# open-heavy work pays nothing for the watching (plans/security/PLAN-audit-cost.md section 7). This records
+# open-heavy work pays nothing for the watching (plans/done/PLAN-audit-cost.md section 7). This records
 # find /usr and a stat loop for the run report; the rigorous A/B against the base image is the perf lab's.
 # Only meaningful on a boot the sensor took over.
 source "$(dirname "$0")/lib.sh"

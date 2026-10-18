@@ -33,7 +33,7 @@ systemctl enable amethystora-gpu-check.timer
 # and no btrfs over several disks; `ame system raid scrub off` turns the scrub off.
 systemctl enable amethystora-raid-check.timer
 systemctl enable amethystora-raid-scrub.timer
-# The file-watch sensor (amethystora-sensor, plans/security/PLAN-audit-cost.md): it records the files the
+# The file-watch sensor (amethystora-sensor, plans/done/PLAN-audit-cost.md): it records the files the
 # audit rules watch without their per-system-call cost. Enabled, but its ExecCondition skips it unless the
 # boot-time plan gives it a key, which it does only when its load probe passed and AUDIT_LOG and WATCHER are
 # on; a kernel it cannot load on falls back to the audit rules, with nothing lost but the saving.

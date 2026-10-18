@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 # The sensor's record writer against ausearch: feed it JSON events (no BPF) and check that ausearch reads
 # the records it writes as the sentences the security watcher expects, exactly as it reads what auditd logs
-# (plans/security/PLAN-audit-cost.md section 4.4). This is the parity gate that needs no kernel: the live
+# (plans/done/PLAN-audit-cost.md section 4.4). This is the parity gate that needs no kernel: the live
 # BPF side is checked in the VM lab (tests/vm/suites).
 #
 # Runs in 20-tests.sh on the base image, which has ausearch. AMETHYSTORA_SENSOR overrides the binary for the

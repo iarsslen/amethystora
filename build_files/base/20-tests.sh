@@ -649,7 +649,7 @@ done
 cmp -s <(sed 1d /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg) <(sed 1d /ctx/apps/common/assets/gem.svg)
 # The Chromium profiles the Electron windows left in each account's ~/.config go at its next login
 test -x /usr/share/amethystora/user-setup.hooks.d/20-retire-electron-profiles.sh
-# The file-watch sensor (plans/security/PLAN-audit-cost.md): a binary of its own, built by the apps stage; the
+# The file-watch sensor (plans/done/PLAN-audit-cost.md): a binary of its own, built by the apps stage; the
 # keys it can cover are exactly the watcher's audit keys; its unit runs only while it is wanted; and its
 # record writer gives the watcher the same sentences auditd would, which ausearch reads without any kernel.
 test -x /usr/libexec/amethystora-sensor
@@ -1656,7 +1656,7 @@ for config in "${KERNEL_CONFIGS[@]}"; do
         grep -qx "${option}=y" "${config}"
     done
 done
-# What the file-watch sensor's BPF needs (plans/security/PLAN-audit-cost.md section 4.8). The sensor's own
+# What the file-watch sensor's BPF needs (plans/done/PLAN-audit-cost.md section 4.8). The sensor's own
 # --probe is the real gate and falls back to the audit rules per boot when a kernel cannot take it, so a
 # missing option here is a heads-up, not a wall.
 for option in CONFIG_DEBUG_INFO_BTF CONFIG_BPF_SYSCALL CONFIG_BPF_JIT CONFIG_FUNCTION_TRACER \
@@ -1763,7 +1763,7 @@ FIRST_WATCH="$(grep -n '^-w ' <<<"${AUDIT_DIRECTIVES}" | head -n1 | cut -d: -f1 
 [[ -n "${FIRST_WATCH}" ]]
 [[ -z "${LAST_DELETE}" || "${LAST_DELETE}" -lt "${FIRST_WATCH}" ]]
 
-# The file-watch sensor's side of the generator (plans/security/PLAN-audit-cost.md). The run above had no
+# The file-watch sensor's side of the generator (plans/done/PLAN-audit-cost.md). The run above had no
 # BPF to probe, so it fell back to the audit rules, which the FIRST_WATCH check confirmed. Forced on, the
 # generator writes one -a never,task instead of every syscall rule, and the same watches into a watch list.
 SENSOR_BOOT="$(mktemp -d)"

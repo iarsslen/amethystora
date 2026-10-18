@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# The file-watch sensor (amethystora-sensor, plans/security/PLAN-audit-cost.md) covers the always-on keys:
+# The file-watch sensor (amethystora-sensor, plans/done/PLAN-audit-cost.md) covers the always-on keys:
 # a write to a watched file or folder is recorded by the sensor, read back by the security watcher, and said,
 # exactly as the audit rules would have. A boot the sensor did not take fails it (the maintainer's Q3): the
 # lab runs the image's own kernel, so the default keys falling back to the audit rules here means they will
