@@ -1,46 +1,62 @@
 #!/usr/bin/bash
-# Amethystora's duress finger, one enrolled finger that also runs its owner's action. At the login and lock
-# screens it unlocks like any other finger. At sudo, polkit and the text consoles it is refused as a finger
-# that did not match. Either way the action runs, once per boot. pam_fprintd tells the finger apart
-# (packaging/fprintd: duress=allow in fingerprint-auth, duress=deny in system-auth, through the authselect
-# feature with-duress-fingerprint) and asks amethystora-duress-service, which runs `run` here.
+# Amethystora's duress credential, a finger or a password that also runs its owner's action. At the login
+# and lock screens it unlocks like any other; at sudo, polkit and the text consoles it is refused as one
+# that did not match. Either way the action runs, once per boot. A duress finger is told apart by
+# pam_fprintd (packaging/fprintd: duress=allow in fingerprint-auth, duress=deny in system-auth, through the
+# authselect feature with-duress-fingerprint); a duress password by amethystora-duress-pam, which pam_exec
+# runs after pam_unix (the feature with-duress-password, 08-hardening.sh). Both ask amethystora-duress-service,
+# which runs `run` here.
 #
-# Everything is in /etc/amethystora/duress.d, root's and readable by nobody else, as pam_fprintd demands:
-#   fingers   UID FINGER, a line for each account with a duress finger, in one file for all of them, so
-#             that no file name outside tells which accounts have one
-#   action    the owner's one script, run as root with DURESS_USER and DURESS_UID
-#   sums      sha256sum's lines for the action and each duress finger's print, written only by this
+# Everything is in /etc/amethystora/duress.d, root's and readable by nobody else, as the login path demands:
+#   fingers    UID FINGER, a line for each account with a duress finger, in one file for all of them, so
+#              that no file name outside tells which accounts have one
+#   passwords  UID HASH, the same for a duress password; HASH is a yescrypt hash, never the password
+#   action     the owner's one script, run as root with DURESS_USER and DURESS_UID
+#   sums       sha256sum's lines for the action and each duress finger's print, written only by this
 # The action runs only while every sum it needs still holds. It never runs when its print was written
 # again, for example because the finger was enrolled afresh as an ordinary one, or when the action was
 # changed by anything but this command. `check` says the same to the security watcher. What a run did is
 # kept in /var/lib/amethystora/duress/log, root's alone, and nothing about it reaches the journal.
 #
-#   amethystora-duress status            on or off, for this machine
-#   amethystora-duress supported         whether this image's fprintd and pam_fprintd can tell the duress
-#                                        finger apart (exit 0 or 1)
-#   amethystora-duress on|off            the authselect feature and the service (root)
-#   amethystora-duress forget            off, and the folder and the log removed (root)
-#   amethystora-duress set USER FINGER   USER's duress finger, enrolled already (root)
-#   amethystora-duress unset USER        forget USER's duress finger; the print stays enrolled (root)
-#   amethystora-duress accounts          the accounts that have one, a name a line (root)
-#   amethystora-duress finger USER       USER's duress finger, or nothing (root)
-#   amethystora-duress action FILE       FILE becomes the action (root)
-#   amethystora-duress check             what no longer holds, a line each: action-missing,
-#                                        action-changed, print-changed USER, service-stopped,
-#                                        folder-open; exit 1 when anything (root)
-#   amethystora-duress authselect        whether /etc/authselect is the image's own with only the duress
-#                                        feature added, for the security watcher (exit 0 or 1)
-#   amethystora-duress run UID           run the action for UID, as the service asks (root)
+#   amethystora-duress status                on or off, for this machine (either feature)
+#   amethystora-duress status-fingerprint    just the duress finger feature (on or off)
+#   amethystora-duress status-password       just the duress password feature (on or off)
+#   amethystora-duress supported             whether this image's fprintd and pam_fprintd can tell the
+#                                            duress finger apart (exit 0 or 1)
+#   amethystora-duress password-supported    whether this image can check a duress password (exit 0 or 1)
+#   amethystora-duress on|off                the finger's authselect feature and the service (root)
+#   amethystora-duress on-password|off-password   the password's feature and the service (root)
+#   amethystora-duress forget                both off, and the folder and the log removed (root)
+#   amethystora-duress set USER FINGER       USER's duress finger, enrolled already (root)
+#   amethystora-duress unset USER            forget USER's duress finger; the print stays enrolled (root)
+#   amethystora-duress set-password USER     USER's duress password, read on stdin and hashed (root)
+#   amethystora-duress unset-password USER   forget USER's duress password (root)
+#   amethystora-duress accounts              the accounts with a duress finger, a name a line (root)
+#   amethystora-duress password-accounts     the accounts with a duress password, a name a line (root)
+#   amethystora-duress has-password USER     whether USER has a duress password (exit 0 or 1, root)
+#   amethystora-duress finger USER           USER's duress finger, or nothing (root)
+#   amethystora-duress action FILE           FILE becomes the action (root)
+#   amethystora-duress check                 what no longer holds, a line each: action-missing,
+#                                            action-changed, print-changed USER, service-stopped,
+#                                            folder-open; exit 1 when anything (root)
+#   amethystora-duress authselect            whether /etc/authselect is the image's own with only the
+#                                            duress features that are on added, for the watcher (exit 0/1)
+#   amethystora-duress run UID               run the action for UID, as the service asks (root)
 
 set -euo pipefail
 
 DIR=/etc/amethystora/duress.d
 LOG_DIR=/var/lib/amethystora/duress
 PRINTS=/var/lib/fprint
-FEATURE=with-duress-fingerprint
+FEATURE_FP=with-duress-fingerprint
+FEATURE_PW=with-duress-password
 UNIT=amethystora-duress.service
 CONF=/etc/authselect/authselect.conf
 IMAGE_CONF=/usr/etc/authselect/authselect.conf
+PAM_HELPER=/usr/libexec/amethystora-duress-pam
+# The one pam_exec line the password feature adds after pam_unix. 08-hardening.sh writes exactly this into
+# the authselect vendor profiles, so it is kept here identically for the drift check to rebuild it.
+DURESS_PAM_LINE='auth [success=done default=ignore] pam_exec.so quiet expose_authtok /usr/libexec/amethystora-duress-pam'
 # fprintd's names in the order of libfprint's FpFinger, from 1, which is how it names each print's file
 FINGERS=(left-thumb left-index-finger left-middle-finger left-ring-finger left-little-finger
     right-thumb right-index-finger right-middle-finger right-ring-finger right-little-finger)
@@ -65,8 +81,20 @@ write() {
 
 prepare() {
     install -d -m 0700 -o root -g root "${DIR}"
-    touch "${DIR}/fingers" "${DIR}/sums"
-    chmod 0600 "${DIR}/fingers" "${DIR}/sums"
+    touch "${DIR}/fingers" "${DIR}/sums" "${DIR}/passwords"
+    chmod 0600 "${DIR}/fingers" "${DIR}/sums" "${DIR}/passwords"
+}
+
+# The service listens while any account has a duress finger or password, and stops when none does
+any_credential() {
+    [[ -s "${DIR}/fingers" || -s "${DIR}/passwords" ]]
+}
+service_follows() {
+    if any_credential; then
+        systemctl enable --now --quiet "${UNIT}"
+    else
+        systemctl disable --now --quiet "${UNIT}"
+    fi
 }
 
 uid_of() {
@@ -123,7 +151,17 @@ problems() {
 
 case "${1:-}" in
     status)
-        if grep -qx "${FEATURE}" "${CONF}" 2>/dev/null; then echo on; else echo off; fi
+        if grep -qx "${FEATURE_FP}" "${CONF}" 2>/dev/null || grep -qx "${FEATURE_PW}" "${CONF}" 2>/dev/null; then
+            echo on
+        else
+            echo off
+        fi
+        ;;
+    status-fingerprint)
+        if grep -qx "${FEATURE_FP}" "${CONF}" 2>/dev/null; then echo on; else echo off; fi
+        ;;
+    status-password)
+        if grep -qx "${FEATURE_PW}" "${CONF}" 2>/dev/null; then echo on; else echo off; fi
         ;;
     supported)
         # The strings each part of the patch adds: the daemon names the matched finger, and the module
@@ -131,22 +169,41 @@ case "${1:-}" in
         grep -qa VerifyFingerMatched /usr/libexec/fprintd &&
             grep -qa org.amethystora.Duress /usr/lib64/security/pam_fprintd.so
         ;;
+    password-supported)
+        # A duress password needs only pam_exec and this image's helper, both always present
+        [[ -x "${PAM_HELPER}" ]] && test -e /usr/lib64/security/pam_exec.so
+        ;;
     on)
         need_root "$@"
         "$0" supported || die "this image's fprintd cannot tell one finger from another"
         prepare
         install -d -m 0700 -o root -g root "${LOG_DIR}"
-        grep -qx "${FEATURE}" "${CONF}" || authselect enable-feature "${FEATURE}" >/dev/null
+        grep -qx "${FEATURE_FP}" "${CONF}" || authselect enable-feature "${FEATURE_FP}" >/dev/null
+        systemctl enable --now --quiet "${UNIT}"
+        ;;
+    on-password)
+        need_root "$@"
+        "$0" password-supported || die "this image cannot check a duress password"
+        prepare
+        install -d -m 0700 -o root -g root "${LOG_DIR}"
+        grep -qx "${FEATURE_PW}" "${CONF}" || authselect enable-feature "${FEATURE_PW}" >/dev/null
         systemctl enable --now --quiet "${UNIT}"
         ;;
     off)
         need_root "$@"
-        if grep -qx "${FEATURE}" "${CONF}"; then authselect disable-feature "${FEATURE}" >/dev/null; fi
-        systemctl disable --now --quiet "${UNIT}"
+        if grep -qx "${FEATURE_FP}" "${CONF}"; then authselect disable-feature "${FEATURE_FP}" >/dev/null; fi
+        service_follows
+        ;;
+    off-password)
+        need_root "$@"
+        if grep -qx "${FEATURE_PW}" "${CONF}"; then authselect disable-feature "${FEATURE_PW}" >/dev/null; fi
+        service_follows
         ;;
     forget)
         need_root "$@"
-        "$0" off
+        if grep -qx "${FEATURE_FP}" "${CONF}"; then authselect disable-feature "${FEATURE_FP}" >/dev/null; fi
+        if grep -qx "${FEATURE_PW}" "${CONF}"; then authselect disable-feature "${FEATURE_PW}" >/dev/null; fi
+        systemctl disable --now --quiet "${UNIT}"
         rm -rf "${DIR}" "${LOG_DIR}"
         ;;
     set)
@@ -189,6 +246,36 @@ case "${1:-}" in
         [[ -n "${uid}" ]] || exit 0
         awk -v uid="${uid}" '$1 == uid { print $2 }' "${DIR}/fingers"
         ;;
+    set-password)
+        need_root "$@"
+        [[ $# -eq 2 ]] || die "usage: ${0##*/} set-password USER"
+        uid="$(uid_of "$2")"
+        [[ -n "${uid}" ]] || die "no account is called $2"
+        # The password is read from stdin and only its hash is ever written
+        hash="$("${PAM_HELPER}" hash)" || die "could not hash the password"
+        [[ -n "${hash}" ]] || die "could not hash the password"
+        prepare
+        { awk -v uid="${uid}" '$1 != uid' "${DIR}/passwords"; printf '%s %s\n' "${uid}" "${hash}"; } |
+            write "${DIR}/passwords"
+        ;;
+    unset-password)
+        need_root "$@"
+        [[ $# -eq 2 ]] || die "usage: ${0##*/} unset-password USER"
+        uid="$(uid_of "$2")"
+        [[ -n "${uid}" && -f "${DIR}/passwords" ]] || exit 0
+        awk -v uid="${uid}" '$1 != uid' "${DIR}/passwords" | write "${DIR}/passwords"
+        ;;
+    password-accounts)
+        need_root "$@"
+        [[ -f "${DIR}/passwords" ]] || exit 0
+        while read -r uid _; do getent passwd "${uid}" | cut -d: -f1; done <"${DIR}/passwords"
+        ;;
+    has-password)
+        need_root "$@"
+        [[ $# -eq 2 && -f "${DIR}/passwords" ]] || exit 1
+        uid="$(uid_of "$2")"
+        [[ -n "${uid}" ]] && grep -q "^${uid} " "${DIR}/passwords"
+        ;;
     action)
         need_root "$@"
         [[ $# -eq 2 && -f "$2" ]] || die "usage: ${0##*/} action FILE"
@@ -212,28 +299,42 @@ case "${1:-}" in
         exit 1
         ;;
     authselect)
-        # The image's profile and features, then the duress feature, which the owner turned on last, and every
-        # file the image's own but for the option on its two pam_fprintd lines, byte for byte. `authselect
-        # check` would not do: it calls a file with a line added by hand valid.
+        # The image's profile and features, then whichever duress features are on, and every file the
+        # image's own but for the pam_fprintd option (the finger) and one pam_exec line after pam_unix (the
+        # password), byte for byte. `authselect check` would not do: it calls a file with a line added by
+        # hand valid.
         [[ -f "${IMAGE_CONF}" ]] || exit 1
-        cmp -s <(grep -vE '^[[:space:]]*(#|$)' "${CONF}") \
-            <(grep -vE '^[[:space:]]*(#|$)' "${IMAGE_CONF}"; echo "${FEATURE}") || exit 1
+        fp=off
+        pw=off
+        grep -qx "${FEATURE_FP}" "${CONF}" 2>/dev/null && fp=on || true
+        grep -qx "${FEATURE_PW}" "${CONF}" 2>/dev/null && pw=on || true
+        # The live features, less whichever duress features are on, must be exactly the image's: so no other
+        # feature was added or removed and no base feature changed.
+        cmp -s <(grep -vE '^[[:space:]]*(#|$)' "${CONF}" | grep -vxE "${FEATURE_FP}|${FEATURE_PW}") \
+            <(grep -vE '^[[:space:]]*(#|$)' "${IMAGE_CONF}") || exit 1
         while read -r name; do
-            case "${name}" in
-                authselect.conf) continue ;;
-                system-auth) option=deny ;;
-                fingerprint-auth) option=allow ;;
-                *) option="" ;;
-            esac
+            [[ "${name}" == authselect.conf ]] && continue
             expected="/usr/etc/authselect/${name}"
-            [[ -f "${expected}" && -f "/etc/authselect/${name}" ]] || exit 1
-            if [[ -n "${option}" ]]; then
-                cmp -s "/etc/authselect/${name}" <(sed -E \
-                    "s/([[:space:]])pam_fprintd\.so([[:space:]]|$)/\1pam_fprintd.so duress=${option}\2/" "${expected}") ||
-                    exit 1
-            else
-                cmp -s "/etc/authselect/${name}" "${expected}" || exit 1
-            fi
+            live="/etc/authselect/${name}"
+            [[ -f "${expected}" && -f "${live}" ]] || exit 1
+            option=""
+            case "${name}" in
+                system-auth) [[ "${fp}" == on ]] && option=deny ;;
+                fingerprint-auth) [[ "${fp}" == on ]] && option=allow ;;
+            esac
+            # Rebuild the file from the image's own: the finger's pam_fprintd option, then the password's
+            # pam_exec line after pam_unix, for whichever feature is on.
+            cmp -s "${live}" <(
+                if [[ -n "${option}" ]]; then
+                    sed -E "s/([[:space:]])pam_fprintd\.so([[:space:]]|$)/\1pam_fprintd.so duress=${option}\2/" "${expected}"
+                else
+                    cat "${expected}"
+                fi | if [[ "${pw}" == on && ( "${name}" == system-auth || "${name}" == password-auth ) ]]; then
+                    awk -v line="${DURESS_PAM_LINE}" '{ print } !done && /pam_unix\.so/ { print line; done = 1 }'
+                else
+                    cat
+                fi
+            ) || exit 1
         done < <(find /etc/authselect /usr/etc/authselect -maxdepth 1 -mindepth 1 \( -type f -o -type l \) -printf '%f\n' |
             sort -u)
         ;;
@@ -246,7 +347,10 @@ case "${1:-}" in
         log() { printf '%s %s\n' "$(date -Is)" "$*"; }
         user="$(getent passwd "${uid}" | cut -d: -f1)"
         found="$(problems "${uid}" 2>&1)"
-        grep -q "^${uid} " "${DIR}/fingers" 2>/dev/null || found+=$'\n'no-finger
+        if ! grep -q "^${uid} " "${DIR}/fingers" 2>/dev/null &&
+            ! grep -q "^${uid} " "${DIR}/passwords" 2>/dev/null; then
+            found+=$'\n'no-credential
+        fi
         found="$(sed '/^$/d' <<<"${found}" | paste -sd ' ')"
         if [[ -n "${found}" ]]; then
             log "not run for ${user:-${uid}}: ${found}"

@@ -91,6 +91,33 @@ for profile in local sssd winbind; do
     done
 done
 
+# The duress password (`ame security duress`, /usr/libexec/amethystora-duress): the feature
+# with-duress-password, which the owner turns on per machine, adds one pam_exec line after pam_unix in
+# system-auth and password-auth, where every password is checked. The helper /usr/libexec/amethystora-duress-pam
+# fires the owner's action on an account's duress password and, at the graphical login and the lock screen
+# (gdm-password), lets it in; everywhere else it is refused like a wrong password. The line sits before
+# faillock's authfail, so a let-in duress login records no failure. authselect omits a fully conditional
+# line when the feature is off, so with it off authselect writes what it wrote before, to the byte. The
+# finger step above already made system-auth a real vendor file; password-auth is still a symlink here.
+DURESS_PAM_LINE='auth [success=done default=ignore] pam_exec.so quiet expose_authtok /usr/libexec/amethystora-duress-pam'
+for profile in local sssd winbind; do
+    for file in system-auth password-auth; do
+        default="/usr/share/authselect/default/${profile}/${file}"
+        vendor="/usr/share/authselect/vendor/${profile}/${file}"
+        if [[ -L "${vendor}" ]]; then
+            [[ "$(readlink "${vendor}")" == "${default}" ]]
+            rm "${vendor}"
+            cp "${default}" "${vendor}"
+        fi
+        [[ "$(grep -cE '[[:space:]]pam_unix\.so([[:space:]]|$)' "${vendor}")" -ge 1 ]]
+        awk -v line="{if \"with-duress-password\":${DURESS_PAM_LINE}}" '
+            { print }
+            !done && /pam_unix\.so/ { print line; done = 1 }' "${vendor}" >"${vendor}.new"
+        mv "${vendor}.new" "${vendor}"
+        [[ "$(grep -c 'with-duress-password' "${vendor}")" -eq 1 ]]
+    done
+done
+
 # Parental Controls' allowed hours at the text consoles and over SSH. GNOME Shell locks a child's desktop
 # when its time runs out and will not unlock it until the time comes round again, but a text console or an
 # SSH login never meets that lock. There pam_malcontent refuses the account outside its hours, and hands

@@ -93,37 +93,31 @@ fingerprint ACTION="":
             gum confirm "Remove every finger enrolled for ${USER}?" || exit 0
             fprintd-delete "${USER}"
             echo "Removed. Sign in with your password."
-            if [[ "$(/usr/libexec/amethystora-duress status)" == on ]]; then
+            if [[ "$(/usr/libexec/amethystora-duress status-fingerprint)" == on ]]; then
                 echo "A duress finger is gone with the others. Set one up again with: ame security duress"
             fi
             ;;
         *) exit 0 ;;
     esac
 
-# A duress finger: one more finger that unlocks at the login screen, is refused at sudo, and runs your action
+# A duress finger or password: one that unlocks at the login screen, is refused at sudo, and runs your action
 [positional-arguments]
 duress ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     action="${1:-}"
-    # Its state is root's alone: /etc/amethystora/duress.d and the authselect feature with-duress-fingerprint
-    # (/usr/libexec/amethystora-duress), and deliberately no key in /etc/amethystora/security.conf, which
-    # anyone may read. Nothing shown to a person made to unlock the machine should say which account has one.
+    # Its state is root's alone: /etc/amethystora/duress.d and the authselect features with-duress-fingerprint
+    # and with-duress-password (/usr/libexec/amethystora-duress), and deliberately no key in
+    # /etc/amethystora/security.conf, which anyone may read. Nothing shown to a person made to unlock the
+    # machine should say which account has one.
     duress=/usr/libexec/amethystora-duress
     identify=(/usr/libexec/amethystora-duress-service identify "${USER}")
-    if ! "${duress}" supported; then
-        echo "This image's fingerprint service cannot tell one finger from another, which a duress finger needs."
-        exit 1
-    fi
-    listed="$(timeout 30 fprintd-list "${USER}" 2>&1 || true)"
-    if [[ -z "${listed}" ]] || grep -qi "no devices" <<<"${listed}"; then
-        echo "This machine has no fingerprint reader that fprintd can use."
-        exit 1
-    fi
-    mapfile -t fingers < <(sed -n 's/^ *- #[0-9]*: *//p' <<<"${listed}")
-    echo "Duress fingers are $("${duress}" status) on this machine."
+    echo "Duress protection is $("${duress}" status) on this machine."
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "Duress finger" "Set up mine" "Test mine" "Change the action" "Remove mine" \
+        action="$(gum choose --header "Duress finger or password" \
+            "Set up a duress finger" "Set up a duress password" \
+            "Test my duress finger" "Change the action" \
+            "Remove my duress finger" "Remove my duress password" \
             "Turn off for everyone" "Cancel")"
     fi
     # Touch the reader once and say which enrolled finger it matched, never running the action
@@ -131,9 +125,31 @@ duress ACTION="":
         echo "$1" >&2
         "${identify[@]}" | sed -n 's/^matched=//p'
     }
+    # The fingers the reader has enrolled, for the finger actions only; a duress password needs no reader
+    finger_list() {
+        if ! "${duress}" supported; then
+            echo "This image's fingerprint service cannot tell one finger from another, which a duress finger needs."
+            exit 1
+        fi
+        local listed
+        listed="$(timeout 30 fprintd-list "${USER}" 2>&1 || true)"
+        if [[ -z "${listed}" ]] || grep -qi "no devices" <<<"${listed}"; then
+            echo "This machine has no fingerprint reader that fprintd can use."
+            exit 1
+        fi
+        mapfile -t fingers < <(sed -n 's/^ *- #[0-9]*: *//p' <<<"${listed}")
+    }
+    # The warning both set-up paths show first: what a duress credential cannot do
+    limits() {
+        echo "It cannot stop anyone asking for your password instead, nor help against a copy of the disk"
+        echo "made before, and anyone with root on this machine can read how it is set up."
+        echo "In many places, destroying data while compelled by the authorities is an offence of its own."
+        echo "What the action does is yours to decide: none of the examples destroys anything."
+        echo
+    }
     choose_action() {
         local choice file url address='^https://[A-Za-z0-9._~:/?#@!&()*+,;=%-]+$'
-        choice="$(gum choose --header "What should the duress finger do?" "Send an alert to an address of mine" \
+        choice="$(gum choose --header "What should the duress credential do?" "Send an alert to an address of mine" \
             "Take the disk's key out of the TPM" "Power off ten minutes later" "Run a script of my own" "Cancel")"
         file="$(mktemp)"
         case "${choice}" in
@@ -159,23 +175,20 @@ duress ACTION="":
         echo
         cat "${file}"
         echo
-        gum confirm "Use this as the duress finger's action?" || exit 0
+        gum confirm "Use this as the duress action?" || exit 0
         sudo /usr/libexec/amethystora-security-config note duress action
         sudo "${duress}" action "${file}"
         rm -f "${file}"
     }
     case "${action}" in
-        "Set up mine" | setup)
+        "Set up a duress finger" | setup)
+            finger_list
             echo "A duress finger is one more finger, enrolled like the others. At the login screen and the lock"
             echo "screen it unlocks the machine as any finger does. At sudo, at password prompts and at a text"
             echo "console it is refused, as a finger that did not match. Either way the action you choose runs,"
             echo "as root, once until the next start, and nothing about it reaches the journal."
             echo
-            echo "It cannot stop anyone asking for your password instead, nor help against a copy of the disk"
-            echo "made before, and anyone with root on this machine can read how it is set up."
-            echo "In many places, destroying data while compelled by the authorities is an offence of its own."
-            echo "What the action does is yours to decide: none of the examples destroys anything."
-            echo
+            limits
             if [[ ${#fingers[@]} -eq 0 ]]; then
                 echo "Enroll an ordinary finger first, with: ame security fingerprint add"
                 exit 1
@@ -212,9 +225,37 @@ duress ACTION="":
                 choose_action
             fi
             sudo "${duress}" on
-            echo "Set up. Test it with: ame security duress test, which never runs the action."
+            echo "Set up. Test it with: ame security duress, Test my duress finger, which never runs the action."
             ;;
-        "Test mine" | test)
+        "Set up a duress password" | setup-password)
+            echo "A duress password is a second password, only yours. At the login screen and the lock screen"
+            echo "it unlocks the machine like your real one. At sudo, at administrator prompts, at a text console"
+            echo "and over SSH it is refused, as a wrong password. Either way the action you choose runs, as root,"
+            echo "once until the next start, and nothing about it reaches the journal."
+            echo
+            limits
+            if ! "${duress}" password-supported; then
+                echo "This image cannot check a duress password."
+                exit 1
+            fi
+            gum confirm "Set up a duress password for ${USER}?" || exit 0
+            pw="$(gum input --password --header "A duress password for ${USER}, not your login password")"
+            [[ -n "${pw}" ]] || exit 0
+            pw2="$(gum input --password --header "Type it again")"
+            if [[ "${pw}" != "${pw2}" ]]; then
+                echo "They did not match."
+                exit 1
+            fi
+            sudo /usr/libexec/amethystora-security-config note duress password
+            printf '%s' "${pw}" | sudo "${duress}" set-password "${USER}"
+            if ! sudo test -f /etc/amethystora/duress.d/action; then
+                choose_action
+            fi
+            sudo "${duress}" on-password
+            echo "Set up. Choose something you would not type by habit, and keep it different from your login"
+            echo "password: a duress password the same as your real one never runs the action."
+            ;;
+        "Test my duress finger" | test)
             finger="$(sudo "${duress}" finger "${USER}")"
             [[ -n "${finger}" ]] || { echo "${USER} has no duress finger."; exit 0; }
             matched="$(touch_once "Touch the reader once, with the duress finger or another.")"
@@ -231,7 +272,7 @@ duress ACTION="":
         "Change the action" | action)
             choose_action
             ;;
-        "Remove mine" | remove)
+        "Remove my duress finger" | remove)
             finger="$(sudo "${duress}" finger "${USER}")"
             [[ -n "${finger}" ]] || { echo "${USER} has no duress finger."; exit 0; }
             sudo /usr/libexec/amethystora-security-config note duress off
@@ -242,8 +283,18 @@ duress ACTION="":
             [[ -n "$(sudo "${duress}" accounts)" ]] || sudo "${duress}" off
             echo "Removed."
             ;;
+        "Remove my duress password" | remove-password)
+            if ! sudo "${duress}" has-password "${USER}"; then
+                echo "${USER} has no duress password."
+                exit 0
+            fi
+            sudo /usr/libexec/amethystora-security-config note duress off
+            sudo "${duress}" unset-password "${USER}"
+            [[ -n "$(sudo "${duress}" password-accounts)" ]] || sudo "${duress}" off-password
+            echo "Removed."
+            ;;
         "Turn off for everyone" | off)
-            gum confirm "Forget every account's duress finger and the action? The fingers stay, as ordinary ones." || exit 0
+            gum confirm "Forget every account's duress finger, password and the action? The fingers stay, as ordinary ones." || exit 0
             sudo /usr/libexec/amethystora-security-config note duress off
             sudo "${duress}" forget
             echo "Turned off."

@@ -1398,8 +1398,13 @@ for example in /usr/share/amethystora/duress/examples/*; do bash -n "${example}"
 for profile in local sssd winbind; do
     for file in /usr/share/authselect/vendor/"${profile}"/*; do
         case "${file##*/}" in
-            fingerprint-auth | system-auth)
+            fingerprint-auth)
                 [[ "$(grep -c 'with-duress-fingerprint' "${file}")" == 1 ]] ;;
+            system-auth)
+                [[ "$(grep -c 'with-duress-fingerprint' "${file}")" == 1 ]]
+                [[ "$(grep -c 'with-duress-password' "${file}")" == 1 ]] ;;
+            password-auth)
+                [[ "$(grep -c 'with-duress-password' "${file}")" == 1 ]] ;;
             nsswitch.conf) ;;
             *) [[ -L "${file}" ]] ;;
         esac
@@ -1410,13 +1415,75 @@ DURESS_TEST="$(mktemp -d)"
 cp -a /etc/authselect "${DURESS_TEST}/before"
 authselect enable-feature with-duress-fingerprint >/dev/null
 [[ "$("${DURESS}" status)" == on ]]
+[[ "$("${DURESS}" status-fingerprint)" == on ]]
 grep -qE "^auth[[:space:]]+sufficient[[:space:]]+pam_fprintd\.so duress=deny$" /etc/pam.d/system-auth
 grep -qE "^auth[[:space:]]+\[success=done default=bad\][[:space:]]+pam_fprintd\.so duress=allow$" /etc/pam.d/fingerprint-auth
 [[ "$(diff -r "${DURESS_TEST}/before" /etc/authselect | grep -c '^[<>]')" == 5 ]]
 authselect check >/dev/null
+# (the helper's own `authselect` drift check reads /usr/etc/authselect, this image's committed /etc, which
+# exists only at runtime, not during the build; the VM suite exercises it there)
 authselect disable-feature with-duress-fingerprint >/dev/null
 diff -r "${DURESS_TEST}/before" /etc/authselect
 rm -rf "${DURESS_TEST}"
+
+# The duress password (ame security duress): off by default, and when turned on it adds one pam_exec line
+# after pam_unix in system-auth and password-auth and nowhere else, coming off leaving every file as it was.
+# Its helper runs as pam_exec would and hashes with yescrypt, both tried without touching PAM.
+test -x /usr/libexec/amethystora-duress-pam
+python3 -m py_compile /usr/libexec/amethystora-duress-pam
+test -e /usr/lib64/security/pam_exec.so
+[[ "$("${DURESS}" status-password)" == off ]]
+"${DURESS}" password-supported
+# The helper's own hash (yescrypt) must verify with crypt(3), as the login path does; a wrong one must not
+DURESS_HASH="$(printf 'swordfish' | /usr/libexec/amethystora-duress-pam hash)"
+grep -q '^\$y\$' <<<"${DURESS_HASH}"
+python3 - "${DURESS_HASH}" <<'PY'
+import ctypes, sys
+h = sys.argv[1].encode()
+lib = ctypes.CDLL("libcrypt.so.2")
+lib.crypt.restype = ctypes.c_char_p
+lib.crypt.argtypes = (ctypes.c_char_p, ctypes.c_char_p)
+assert lib.crypt(b'swordfish', h) == h, "right password did not verify"
+assert lib.crypt(b'wrong', h) != h, "wrong password verified"
+PY
+# act() on a stand-in duress.d (no system bus at build time, so the action request is a harmless no-op)
+DURESS_PW_DIR="$(mktemp -d)"
+chmod 0700 "${DURESS_PW_DIR}"
+printf '%s %s\n' "$(id -u)" "${DURESS_HASH}" >"${DURESS_PW_DIR}/passwords"
+chmod 0600 "${DURESS_PW_DIR}/passwords"
+duress_act() {
+    local rc=0
+    printf '%s' "$1" | AMETHYSTORA_DURESS_DIR="${DURESS_PW_DIR}" PAM_USER="$(id -un)" PAM_SERVICE="$2" \
+        /usr/libexec/amethystora-duress-pam || rc=$?
+    echo "${rc}"
+}
+# a wrong password is ignored everywhere
+[[ "$(duress_act nope sudo)" == 1 ]]
+# the right password unlocks at the graphical login, and is refused like a wrong one everywhere else
+[[ "$(duress_act swordfish gdm-password)" == 0 ]]
+[[ "$(duress_act swordfish sudo)" == 1 ]]
+# a file readable by others is ignored, as pam_fprintd ignores a loose finger file
+chmod 0644 "${DURESS_PW_DIR}/passwords"
+[[ "$(duress_act swordfish gdm-password)" == 1 ]]
+rm -rf "${DURESS_PW_DIR}"
+# the feature toggles cleanly in the authselect profiles
+DURESS_PW_TEST="$(mktemp -d)"
+cp -a /etc/authselect "${DURESS_PW_TEST}/before"
+authselect enable-feature with-duress-password >/dev/null
+[[ "$("${DURESS}" status-password)" == on ]]
+[[ "$("${DURESS}" status)" == on ]]
+for f in system-auth password-auth; do
+    grep -qxE "auth[[:space:]]+\[success=done default=ignore\][[:space:]]+pam_exec\.so quiet expose_authtok /usr/libexec/amethystora-duress-pam" "/etc/pam.d/${f}"
+done
+[[ "$(diff -r "${DURESS_PW_TEST}/before" /etc/authselect | grep -c '^[<>]')" == 2 ]]
+authselect check >/dev/null
+# both features on at once still leave a valid stack and come off cleanly
+authselect enable-feature with-duress-fingerprint >/dev/null
+authselect check >/dev/null
+authselect disable-feature with-duress-fingerprint >/dev/null
+authselect disable-feature with-duress-password >/dev/null
+diff -r "${DURESS_PW_TEST}/before" /etc/authselect
+rm -rf "${DURESS_PW_TEST}"
 
 # Encrypted DNS (ame security dns) and a different address on each network (ame security mac): off, and
 # when on, exactly the files their helpers write, which NetworkManager reads as meant. On and off are

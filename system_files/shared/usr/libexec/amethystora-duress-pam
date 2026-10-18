@@ -1,0 +1,145 @@
+#!/usr/bin/python3
+# Amethystora's duress password: the pam_exec helper that the feature with-duress-password adds to the auth
+# stack, after pam_unix, in system-auth and password-auth (build_files/base/08-hardening.sh). When the
+# password typed is an account's duress password, it asks the org.amethystora.Duress service to start the
+# owner's action; then at the graphical login and the lock screen (gdm-password) it lets the login through,
+# and everywhere else (sudo, polkit, the text consoles, SSH) it is refused exactly as a wrong password. It
+# reads only /etc/amethystora/duress.d/passwords, root's and readable by nobody else, as pam_fprintd reads
+# the duress finger. Nothing about it is ever written where a person could read it: no stdout, no journal.
+#
+# pam_exec runs it as root in the auth phase, with PAM_USER and PAM_SERVICE in the environment and the typed
+# password on stdin (expose_authtok). Exit 0 lets the login through (the pam line is
+# [success=done default=ignore]); any other exit is ignored, so the stack carries on to the real password
+# check. The action fires on a match whether the login is let through or refused. The line runs only after
+# pam_unix has already failed, so an ordinary wrong password passes through it and a correct one never
+# reaches it.
+#
+#   amethystora-duress-pam         as pam_exec runs it: read the password and act
+#   amethystora-duress-pam hash    read a password on stdin and print a yescrypt hash of it, for
+#                                  amethystora-duress set-password; never reached from PAM
+import ctypes
+import hmac
+import os
+import pwd
+import stat
+import subprocess
+import sys
+
+DIR = os.environ.get("AMETHYSTORA_DURESS_DIR", "/etc/amethystora/duress.d")
+# The graphical login and the GNOME lock screen, the only places a duress password unlocks. Everywhere else
+# it is refused like a wrong password, so it never hands over a root prompt or a shell.
+ALLOW_SERVICES = {"gdm-password"}
+SERVICE = "org.amethystora.Duress"
+OBJECT = "/org/amethystora/Duress"
+
+_libcrypt = ctypes.CDLL("libcrypt.so.2", use_errno=True)
+_libcrypt.crypt.restype = ctypes.c_char_p
+_libcrypt.crypt.argtypes = (ctypes.c_char_p, ctypes.c_char_p)
+_libcrypt.crypt_gensalt.restype = ctypes.c_char_p
+_libcrypt.crypt_gensalt.argtypes = (ctypes.c_char_p, ctypes.c_ulong, ctypes.c_char_p, ctypes.c_int)
+
+
+def crypt(word, setting):
+    # crypt(3) reads the method and salt from the start of setting; a whole stored hash serves as setting
+    return _libcrypt.crypt(word, setting)
+
+
+def gensalt():
+    return _libcrypt.crypt_gensalt(b"$y$", 0, None, 0)
+
+
+def read_password():
+    # pam_exec writes the typed password to stdin with no trailing newline; take it whole
+    return sys.stdin.buffer.read().rstrip(b"\x00")
+
+
+def stored_hash(uid):
+    # UID's duress password hash from DIR/passwords, or None. The folder and the file must be root's and
+    # unreadable by anyone else, or the file is ignored, exactly as pam_fprintd treats the finger file.
+    try:
+        dfd = os.open(DIR, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    except OSError:
+        return None
+    try:
+        st = os.fstat(dfd)
+        if st.st_uid != 0 or st.st_mode & 0o077:
+            return None
+        try:
+            fd = os.open("passwords", os.O_RDONLY | os.O_NOFOLLOW, dir_fd=dfd)
+        except OSError:
+            return None
+    finally:
+        os.close(dfd)
+    try:
+        st = os.fstat(fd)
+        if not stat.S_ISREG(st.st_mode) or st.st_uid != 0 or st.st_mode & 0o077 or st.st_size > (1 << 20):
+            return None
+        data = os.read(fd, 1 << 20)
+    finally:
+        os.close(fd)
+    prefix = b"%d " % uid
+    for line in data.split(b"\n"):
+        if line.startswith(prefix):
+            return line[len(prefix):]
+    return None
+
+
+def fire(uid):
+    # Ask the service to start the owner's action, without waiting and without starting it. Whether anything
+    # listens must change neither the timing nor the screen, so every outcome is swallowed.
+    try:
+        subprocess.run(
+            ["/usr/bin/busctl", "call", "--system", "--timeout=2",
+             SERVICE, OBJECT, SERVICE, "Run", "u", str(uid)],
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=3, check=False)
+    except Exception:
+        pass
+
+
+def act():
+    password = read_password()
+    if not password:
+        return 1
+    try:
+        uid = pwd.getpwnam(os.environ.get("PAM_USER", "")).pw_uid
+    except KeyError:
+        return 1
+    stored = stored_hash(uid)
+    # A hash is computed whether or not the account has a duress password, so a wrong password takes the
+    # same time either way.
+    setting = stored if stored is not None else gensalt()
+    try:
+        computed = crypt(password, setting)
+    except Exception:
+        computed = None
+    if stored is None or computed is None or not hmac.compare_digest(computed, stored):
+        return 1
+    fire(uid)
+    return 0 if os.environ.get("PAM_SERVICE", "") in ALLOW_SERVICES else 1
+
+
+def hash_password():
+    password = read_password()
+    if not password:
+        print("a duress password cannot be empty", file=sys.stderr)
+        return 64
+    out = crypt(password, gensalt())
+    if out is None:
+        print("could not hash the password", file=sys.stderr)
+        return 1
+    sys.stdout.buffer.write(out + b"\n")
+    return 0
+
+
+def main(argv):
+    if len(argv) == 1:
+        return act()
+    if len(argv) == 2 and argv[1] == "hash":
+        return hash_password()
+    print("usage: %s [hash]" % os.path.basename(argv[0]), file=sys.stderr)
+    return 64
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
