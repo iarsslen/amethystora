@@ -1,6 +1,6 @@
 #!/usr/bin/bash
 # Pools of disks (ame system raid) on the five blank SATA disks the lab adds, SPARE-1 to SPARE-5 (8 GiB, the
-# fifth 10 GiB), as plans/PLAN-raid.md's "Check on a machine" has them, over six starts of the machine:
+# fifth 10 GiB), as plans/done/PLAN-raid.md's "Check on a machine" has them, over ten starts of the machine:
 #   1. parity (raid5, not encrypted) on SPARE-3 to 5, the disks named; data on the two left with Enter, Enter,
 #      Enter and ERASE (two copies, encrypted). Their lines, key, owner, and Files showing them.
 #   2. Both back after a restart, data unlocked by its key with nothing asked; the recovery key; the status
@@ -10,7 +10,13 @@
 #   4. joined back after the restart, then forgotten; data filled, and one of its disks made to vanish.
 #   5. data did not open and the boot did not wait for it; opened with a disk missing, written to; a replace
 #      refused while it is too full, one stopped part way; the disk replaced by SPARE-5, its copies put back.
-#   6. data after the restart checked clean; SPARE-4 added; data forgotten, leaving nothing behind.
+#   6. data after the restart checked clean; SPARE-4 added, then pulled out while mounted (encrypted).
+#   7. SPARE-4 back: back, not failing, its copies put back. A file's copy given bad sectors for the next start.
+#   8. The damaged disk: the file reads right, the disk counts errors, the notification's Open Control clicked,
+#      the disk replaced by SPARE-3 while it still reads. A copy overwritten behind btrfs's back repaired by a
+#      scrub. A real suspend cuts a scrub short, which the next run resumes. A disk of data unplugged.
+#   9. data did not open, and the boot did not wait; opened with the disk gone, written to; the disk plugged in.
+#  10. It is back and its copies put back; data forgotten, leaving nothing behind.
 # The script asks sudo for each step that needs root, so tester's sudo asks no password while this suite runs.
 source "$(dirname "$0")/lib.sh"
 
@@ -96,6 +102,46 @@ opens_as_file() { printf '%s' "$2" | cryptsetup open --test-passphrase --key-slo
 notified() {
     pgrep -u "${TEST_USER}" -af notify-send | grep -F -- '--action=open=Open Control' | grep -F -- "$1" | grep -qF -- "${2:-$1}"
 }
+
+# Where a copy of a file's first block is, on a disk of the pool: "SPARE-N SECTOR...", its eight 512-byte sectors
+# on that disk, or with "bytes" "SPARE-N OFFSET", its byte offset. btrfs-map-logical gives each copy's device and
+# offset on it; under LUKS the data starts after its header, and the partition where the table says.
+bad_place() {  # FILE [bytes]
+    local logical member line device offset part disk serial luks start
+    logical="$(filefrag -v "$1" 2>/dev/null | awk '$1 == "0:" { sub(/\.\..*/, "", $4); print $4 * 4096; exit }')"
+    member="$(btrfs filesystem show --raw "$(dirname "$1")" 2>/dev/null | awk '$1 == "devid" && $NF ~ /^\// { print $NF; exit }')"
+    [[ -n "${logical}" && -n "${member}" ]] || return 1
+    while read -r line; do
+        device="$(awk '{ for (i = 1; i < NF; i++) if ($i == "device") print $(i + 1) }' <<<"${line}")"
+        offset="$(awk '{ for (i = 1; i < NF; i++) if ($i == "physical") print $(i + 1) }' <<<"${line}")"
+        [[ -n "${device}" && -n "${offset}" ]] || continue
+        device="$(readlink -f "${device}")"
+        part="$(find "/sys/class/block/${device##*/}/slaves" -mindepth 1 -maxdepth 1 -printf '%f\n' 2>/dev/null | head -n 1)"
+        luks=0
+        if [[ -n "${part}" ]]; then
+            luks="$(cryptsetup luksDump "/dev/${part}" | awk '/^Data segments/ { s = 1 } s && $1 == "offset:" { print $2; exit }')"
+        else
+            part="${device##*/}"
+        fi
+        disk="$(lsblk -ndo PKNAME "/dev/${part}")"
+        serial="$(lsblk -ndo SERIAL "/dev/${disk}")"
+        start="$(cat "/sys/class/block/${part}/start")"
+        [[ "${serial}" == SPARE-* && "${serial}" != SPARE-3 ]] || continue
+        offset=$((start * 512 + luks + offset))
+        if [[ "${2:-}" == bytes ]]; then
+            echo "${serial} ${offset}"
+        else
+            echo "${serial} $(seq -s ' ' $((offset / 512)) $((offset / 512 + 7)))"
+        fi
+        return 0
+    done < <(btrfs-map-logical -l "${logical}" "${member}" 2>/dev/null)
+    return 1
+}
+# GNOME Shell, and an app's window, through the accessibility tree, as the account (atspi.py)
+ATSPI=/run/vmlab-raid/atspi.py
+install -D -m 0755 "$(dirname "$0")/atspi.py" "${ATSPI}"
+shell() { user_bus python3 "${ATSPI}" gnome-shell "$@"; }
+shell_app() { user_bus python3 "${ATSPI}" "$@"; }
 
 # For a phase that cannot go on: what is left of the pools undone by hand, and the end of the suite
 abandon() {
@@ -556,13 +602,187 @@ case "${SUITE_PHASE}" in
         holds "data is on three disks, its metadata in three copies" "$(pool_json data)" \
             '(.devices | length) == 3 and .missing == 0 and .metadata == "raid1c3" and any(.devices[]; .disk.serial == "SPARE-4")'
     fi
+    [[ "${REPLACED}" == true ]] || abandon "data was not replaced and added to, so the damaged disks cannot follow"
+
+    # A disk pulled out of an encrypted pool while it is mounted: its LUKS mapping stays, over nothing
+    run_check
+    pulled="$(spare 4)"
+    devid="$(pool_json data | jq -r '.devices[] | select(.disk.serial == "SPARE-4") | .devid')"
+    remember PULLED_DEVID "${devid}"
+    echo 1 >"/sys/block/${pulled##*/}/device/delete"
+    check "data takes a write with SPARE-4 pulled out" as_user 'head -c 32M /dev/urandom >/var/mnt/data/pulled && sync'
+    sleep 5
+    echo "# the kernel: $(journalctl -k --since -1min --no-pager -o cat | grep -iE 'btrfs|I/O error' | tail -n 4 | paste -sd '|')"
+    holds "the status calls SPARE-4 missing, though its LUKS mapping is still open" "$(pool_json data)" \
+        "any(.devices[]; .devid == ${devid} and .missing and .disk.serial == \"SPARE-4\") and (.problems | index(\"missing\")) != null"
+    run_check
+    check "the check tells ${TEST_USER}: A disk of the pool data is missing, naming SPARE-4" \
+        wait_for 60 notified "A disk of the pool data is missing" "SPARE-4"
+    remember PULLED_SUM "$(sha256sum /var/mnt/data/pulled | cut -d ' ' -f 1)"
+    reboot_and_continue
+    ;;
+
+7)
+    # SPARE-4 is back after the restart, with what it missed: back, not failing, and put right
+    check "SPARE-4 is back" test -b "$(spare 4)"
+    holds "the status calls it back, not counting errors" "$(pool_json data)" \
+        "any(.devices[]; .devid == ${PULLED_DEVID} and .returned) and (.problems | index(\"returned\")) != null and (.problems | index(\"errors\")) == null"
+    holds "Control offers Put the copies back… for data" "$(row_of "$(control_json)" data)" \
+        '(.text | contains("A disk that was missing is back")) and any(.actions[]; .id == "replace" and .title == "Put the copies back…")'
+    out="$(in_terminal 1200 'Put the copies back now\?' y -- "${AS_TESTER[@]}" 'ame system raid replace data')"
+    says "ame system raid replace data puts the copies back" "${out}" 'is back, with old copies' 'Every file of data has its copies again'
+    holds "data is whole: nothing back, counting or with one copy" "$(pool_json data)" \
+        '.state == "ok" and all(.devices[]; (.returned | not) and .error_count == 0)'
+    [[ "$(sha256sum /var/mnt/data/pulled | cut -d ' ' -f 1)" == "${PULLED_SUM}" ]] && ok "what was written with SPARE-4 out reads the same" ||
+        not_ok "the file written with SPARE-4 out changed"
+
+    # A disk with bad sectors: one copy of a file on a disk whose sectors there fail every read, as a disk
+    # that is going does, from the next start (QEMU's blkdebug)
+    check "${TEST_USER} writes a file to damage" as_user 'head -c 8M /dev/urandom >/var/mnt/data/damaged && sync'
+    remember DAMAGED_SUM "$(sha256sum /var/mnt/data/damaged | cut -d ' ' -f 1)"
+    where="$(bad_place /var/mnt/data/damaged)"
+    if [[ -z "${where}" ]]; then
+        not_ok "the damaged file's copies could not be found on the disks" "$(filefrag -v /var/mnt/data/damaged 2>&1 | tail -n 3)"
+    else
+        read -r serial sectors <<<"${where}"
+        remember DAMAGED_SERIAL "${serial}"
+        echo "# the file's copy on ${serial} is at sectors ${sectors}"
+        next_boot "{\"faulty\": {\"${serial#SPARE-}\": [${sectors// /, }]}}"
+    fi
+    reboot_and_continue
+    ;;
+
+8)
+    [[ -n "${DAMAGED_SERIAL:-}" ]] || abandon "no disk was damaged"
+    # Read again and again, from new processes, so that btrfs reads each copy in turn
+    sums=""
+    for _ in 1 2 3 4 5 6; do
+        echo 3 >/proc/sys/vm/drop_caches
+        sums+="$(sha256sum /var/mnt/data/damaged | cut -d ' ' -f 1) "
+    done
+    [[ "$(tr ' ' '\n' <<<"${sums}" | grep -v "^$" | sort -u)" == "${DAMAGED_SUM}" ]] && ok "the damaged file reads right every time" ||
+        not_ok "the damaged file read wrong" "${sums}"
+    kernel="$(journalctl -k -b --no-pager -o cat | grep -iE 'I/O error|read error corrected|btrfs.*errs' | tail -n 6)"
+    echo "# the kernel: $(paste -sd '|' <<<"${kernel}")"
+    grep -qi 'read error corrected' <<<"${kernel}" && ok "btrfs read the good copy and rewrote the bad one" ||
+        not_ok "btrfs did not say it corrected a read error" "${kernel:-(nothing)}"
+    holds "the status: ${DAMAGED_SERIAL} is counting errors" "$(pool_json data)" \
+        "any(.devices[]; .disk.serial == \"${DAMAGED_SERIAL}\" and .error_count > 0) and (.problems | index(\"errors\")) != null"
+    echo "# SMART of the damaged disk: $(smartctl -H -j "$(readlink -f "/dev/disk/by-id/ata-QEMU_HARDDISK_${DAMAGED_SERIAL}")" | jq -c .smart_status)"
+    run_check
+    check "the check tells ${TEST_USER}: A disk of the pool data is counting errors, naming ${DAMAGED_SERIAL}" \
+        wait_for 60 notified "A disk of the pool data is counting errors" "${DAMAGED_SERIAL}"
+    # The notification's button, clicked as a person would, through GNOME Shell's accessibility tree
+    if shell click "Open Control" && wait_for 120 shell_app amethystora-control has "Disks"; then
+        ok "Open Control opens Control on its System page, at the Disks group"
+        holds "Control says a disk of data counts errors, and offers Replace a disk…" "$(row_of "$(control_json)" data)" \
+            '(.text | contains("A disk has counted read or write errors.")) and any(.actions[]; .id == "replace" and .title == "Replace a disk…")'
+        pkill -u "${TEST_USER}" -f amethystora-control
+    else
+        not_ok "Open Control did not open Control" "$(shell text 2>&1 | grep -i -A2 -B2 'disk' | head -n 20)"
+    fi
+    # Replaced while it still reads, from the good copies: the disk counting errors is the one offered first
+    out="$(in_terminal 1200 'Which disk of data goes\?' $'\r' 'Which disk takes its place\?' $'\r' 'Type ERASE' $'ERASE\r' \
+        'The recovery key of data' "${DATA_KEY}"$'\r' -- "${AS_TESTER[@]}" 'ame system raid replace data')"
+    says "ame system raid replace data puts SPARE-3 in place of the damaged ${DAMAGED_SERIAL}" "${out}" 'errors' 'Disk [0-9]+ of data is replaced'
+    holds "data is whole on SPARE-3, without ${DAMAGED_SERIAL}" "$(pool_json data)" \
+        ".state == \"ok\" and any(.devices[]; .disk.serial == \"SPARE-3\") and (any(.devices[]; .disk.serial == \"${DAMAGED_SERIAL}\") | not)"
+    [[ "$(sha256sum /var/mnt/data/damaged | cut -d ' ' -f 1)" == "${DAMAGED_SUM}" ]] && ok "the damaged file is whole on the new disk" ||
+        not_ok "the damaged file changed through the replace"
+
+    # A copy damaged without a word from the disk: what btrfs's checksums are for
+    check "${TEST_USER} writes a file to corrupt" as_user 'head -c 8M /dev/urandom >/var/mnt/data/corrupted && sync'
+    sum="$(sha256sum /var/mnt/data/corrupted | cut -d ' ' -f 1)"
+    where="$(bad_place /var/mnt/data/corrupted bytes)"
+    read -r serial offset <<<"${where}"
+    dd if=/dev/urandom of="$(readlink -f "/dev/disk/by-id/ata-QEMU_HARDDISK_${serial}")" bs=4096 count=16 \
+        seek="$((offset / 4096))" oflag=direct conv=notrunc status=none
+    echo 3 >/proc/sys/vm/drop_caches
+    # Checked before anything reads the file, which would repair the copy itself
+    started="$(date +%s)"
+    check "ame system raid scrub now" as_user 'ame system raid scrub now'
+    wait_for 1200 scrub_now_done
+    holds "the scrub found the copy overwritten on ${serial} behind btrfs's back and repaired it" "$(cat "${STATE}/scrub-${DATA_UUID}.json" 2>&1)" \
+        ".time >= ${started} and .finished and .corrected > 0 and .uncorrectable == 0"
+    [[ "$(sha256sum /var/mnt/data/corrupted | cut -d ' ' -f 1)" == "${sum}" ]] && ok "the overwritten file reads right" ||
+        not_ok "the overwritten file read wrong"
+
+    # A real suspend while every copy is read: the next run resumes it
+    if [[ "$(cat /sys/power/mem_sleep 2>/dev/null)" != *s2idle* && "$(cat /sys/power/state)" != *freeze* ]]; then
+        skip "a suspend during a scrub: this machine cannot suspend"
+    else
+        systemctl start --no-block amethystora-raid-scrub.service
+        wait_for 60 pgrep -f 'btrfs scrub start -B -R /var/mnt/data'
+        sleep 3
+        rtcwake -m no -s 40 >/dev/null
+        before="$(date +%s)"
+        systemctl suspend
+        # This waits out the suspend, frozen with everything else
+        wait_for 300 sh -c "[ \$(date +%s) -ge $((before + 30)) ]"
+        wait_for 600 sh -c '! systemctl is-active --quiet amethystora-raid-scrub.service'
+        slept="$(journalctl -b --since "@${before}" --no-pager -o cat | grep -cE 'PM: suspend (entry|exit)|System returned from sleep')"
+        echo "# suspend lines in the journal: ${slept}; the scrub: $(cat "${STATE}/scrub-${DATA_UUID}.json")"
+        if ((slept > 0)) && jq -e '.finished == false' "${STATE}/scrub-${DATA_UUID}.json" >/dev/null; then
+            ok "a suspend cut the scrub short, and it is written down as not finished"
+            systemctl start amethystora-raid-scrub.service &
+            job=$! seen=""
+            while kill -0 "${job}" 2>/dev/null; do
+                seen+="$(pgrep -af 'btrfs scrub (start|resume) -B -R /var/mnt/data' | grep -oE 'scrub (start|resume)')"$'\n'
+                sleep 0.2
+            done
+            wait "${job}"
+            grep -qx 'scrub resume' <<<"${seen}" && ok "the next run resumes the scrub the suspend cut short" ||
+                not_ok "the next run did not resume it" "seen: $(sort -u <<<"${seen}" | paste -sd ' ')"
+        else
+            not_ok "the suspend did not cut the scrub short" "suspend lines: ${slept}" "$(cat "${STATE}/scrub-${DATA_UUID}.json")" \
+                "$(journalctl -b --since "@${before}" --no-pager -o cat | grep -iE 'scrub|suspend|sleep' | tail -n 10)"
+        fi
+    fi
+
+    # A disk truly gone at the next start: not there at all
+    absent="$(pool_json data | jq -r '[.devices[] | select(.disk.serial != "SPARE-3") | .disk.serial] | first')"
+    remember ABSENT_SERIAL "${absent}"
+    remember REF_BOOT "$(graphical_at)"
+    # SPARE-6 stays unplugged, as it is for every suite but 85-raid-mirror.sh
+    next_boot "{\"absent\": [${absent#SPARE-}, 6]}"
+    reboot_and_continue
+    ;;
+
+9)
+    check "${ABSENT_SERIAL} is not there at all" test ! -e "/dev/disk/by-id/ata-QEMU_HARDDISK_${ABSENT_SERIAL}"
+    booted="$(graphical_at)"
+    echo "# desktop at ${booted} s, ${REF_BOOT} s with every disk there"
+    ((booted - REF_BOOT <= 30)) && ok "the missing disk held the boot up 30 s at most ($((booted - REF_BOOT)) s)" ||
+        not_ok "the boot took $((booted - REF_BOOT)) s longer with a disk of data gone"
+    check "data did not open" sh -c '! findmnt -rn --mountpoint /var/mnt/data'
+    run_check
+    check "the check tells ${TEST_USER}: The pool data did not open" wait_for 60 notified "The pool data did not open"
+    says "ame system raid mount data opens it with ${ABSENT_SERIAL} gone" "$(as_user 'ame system raid mount data' 2>&1)" \
+        'data is open at /var/mnt/data with a disk missing'
+    check "writing works" as_user 'head -c 64M /dev/urandom >/var/mnt/data/absent && sync'
+    remember ABSENT_SUM "$(sha256sum /var/mnt/data/absent | cut -d ' ' -f 1)"
+    run_check
+    next_boot '{"absent": [6]}'
+    reboot_and_continue
+    ;;
+
+10)
+    # The disk back: data opens by itself again, and has its copies put back
+    check "data opens by itself with ${ABSENT_SERIAL} back" findmnt -rn --mountpoint /var/mnt/data
+    holds "the status calls ${ABSENT_SERIAL} back" "$(pool_json data)" \
+        "any(.devices[]; .disk.serial == \"${ABSENT_SERIAL}\" and .returned)"
+    out="$(in_terminal 1200 'Put the copies back now\?' y -- "${AS_TESTER[@]}" 'ame system raid replace data')"
+    says "ame system raid replace data puts the copies back" "${out}" 'Every file of data has its copies again'
+    holds "data is whole" "$(pool_json data)" '.state == "ok" and all(.devices[]; (.returned | not) and .error_count == 0) and (.degraded | not)'
+    [[ "$(sha256sum /var/mnt/data/absent | cut -d ' ' -f 1)" == "${ABSENT_SUM}" && "$(sha256sum /var/mnt/data/damaged | cut -d ' ' -f 1)" == "${DAMAGED_SUM}" ]] &&
+        ok "every file reads as it was written" || not_ok "a file changed"
 
     # The end: data forgotten, and nothing of any pool left behind
     out="$(in_terminal 180 'Forget data\?' y -- "${AS_TESTER[@]}" 'ame system raid forget data')"
     says "ame system raid forget data" "${out}" 'data is forgotten'
     check "nothing of data is left: fstab and crypttab lines, key, folder, open disks" forgotten data
     check "no pool's line, key or open disk is left anywhere" nothing_left
-    holds "no pool is left, and the five disks are spare again" "$(status_json)" '.pools == [] and (.spare | length) == 5'
+    holds "no pool is left, and the disks are spare again (the damaged one too)" "$(status_json)" '.pools == [] and (.spare | length) == 5'
     run_check
     check_skipped && ok "with every pool forgotten, the check stops at its ExecCondition again" ||
         not_ok "with every pool forgotten, the check still ran" "$(journalctl -b -u amethystora-raid-check.service --no-pager -o cat | tail -n 10)"

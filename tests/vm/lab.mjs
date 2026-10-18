@@ -209,12 +209,13 @@ export const tools = [
       fresh: { type: 'boolean', description: 'throw the overlay, its checkpoints, the firmware variables, the TPM and the spare disks away first' },
       spares_gb: { type: 'array', items: { type: 'integer' }, description: 'blank SATA disks of these sizes in GiB, at most 6, serials SPARE-1...; kept until fresh' },
       absent: { type: 'array', items: { type: 'integer' }, description: 'spare disks (1, 2...) left unplugged this time, kept as they are' },
+      system_absent: { type: 'boolean', description: 'the disk the VM was made from left unplugged this time, for a system mirrored onto a spare one' },
       faulty: { type: 'object', description: 'spare disks with bad sectors this time: {"3": [sector, ...]}, each 512-byte sector failing every read with an I/O error' },
       credentials: { type: 'object', description: 'systemd credentials for the guest, {"cryptsetup.passphrase": "..."}' },
     },
     required: ['name'],
     async call({ name, disk = 'latest', memory_mb = 4096, cpus = 4, secure_boot = true, tpm = true, fresh = false, spares_gb = [],
-      absent = [], faulty = {}, credentials: extra = {} }) {
+      absent = [], system_absent = false, faulty = {}, credentials: extra = {} }) {
       checkName(name);
       checkName(disk, 'disk');
       if (running(name)) throw new Error(`VM ${name} is running already`);
@@ -239,7 +240,7 @@ export const tools = [
       const args = ['-name', name, '-enable-kvm', '-machine', 'q35,smm=off', '-cpu', 'host', '-smp', String(cpus),
         '-m', String(memory_mb), '-global', 'ICH9-LPC.disable_s3=1',
         '-bios', `${OVMF}/OVMF.qemuvars.fd`, '-device', `uefi-vars-x64,jsonfile=${file(name, 'vars.json')}`,
-        '-drive', `file=${file(name, 'qcow2')},if=virtio,format=qcow2,discard=unmap`,
+        ...(system_absent ? [] : ['-drive', `file=${file(name, 'qcow2')},if=virtio,format=qcow2,discard=unmap`]),
         '-netdev', 'user,id=n0', '-device', 'virtio-net-pci,netdev=n0',
         '-device', 'virtio-serial-pci', '-chardev', `socket,id=lab,path=${file(name, 'agent')},server=on,wait=off`,
         '-device', 'virtserialport,chardev=lab,name=org.amethystora.vmtest',

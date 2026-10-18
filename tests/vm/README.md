@@ -62,7 +62,10 @@ starting with `#` is a measurement, which the report repeats. A phase that calls
 power cycle instead, the machine started again with a spare disk unplugged (`{"absent": [2]}`), with sectors
 that fail every read (`{"faulty": {"3": [sector, ...]}}`, through QEMU's blkdebug), or with the disk's
 passphrase typed at its prompt rather than handed over (`{"type_passphrase": true}`; the next phase finds how
-many times it was asked in `VMLAB_PROMPTS`). A later plain restart keeps the machine as that start left it.
+many times it was asked in `VMLAB_PROMPTS`), without its own disk (`{"system_absent": true}`), or with a
+credential left out (`{"credentials": {"cryptsetup.passphrase": null}}`, for the TPM alone). A later plain
+restart keeps the machine as that start left it. Exit status 101 (`continue_phase`) runs the next phase in the
+same boot, for what outlasts a phase's 30 minutes.
 
 A suite whose second line is `# vmlab-vm: installer` runs on a second machine, installed as the installer
 lays a disk out: an ESP, an ext4 `/boot`, and btrfs (subvolumes `root` and `home`) on LUKS2, with the fstab and
@@ -92,10 +95,12 @@ reads what it says (`70-backups.sh` shows how).
 | `25-every-app.sh` | every other app in the app grid opens as the grid starts it and stays open, none crashes or is refused what its manifest asks for (Mission Center's gatherer runs), and neither opening them all nor a restart and a login makes the security watcher say anything |
 | `30-detection.sh` | the thorough profile, after a restart, finds a secret read, the decoy read and a program run from Downloads; Falco's memory |
 | `40-setup.sh` | `ame setup` save, diff and apply against real GNOME settings, Flathub and Homebrew; the setup kept with a backup and read back by `ame restore-setup`; `ame system trust-image`, a switch to an unsigned image refused, `amethystora-image-check` |
-| `50-raid.sh` | pools of disks on the spare disks: parity, two copies encrypted and combined made, restarted, scrubbed (a scrub cut short is resumed), a disk taken away while mounted and one missing at boot, opened degraded, replaced, added to and forgotten; the recovery key, Control's words, no TPM unlock for a pool |
+| `50-raid.sh` | pools of disks on the spare disks: parity, two copies encrypted and combined made, restarted, scrubbed (a scrub cut short is resumed), a disk taken away while mounted and one missing at boot, opened degraded, replaced, added to and forgotten; the recovery key, Control's words, no TPM unlock for a pool; a disk pulled out of an encrypted pool, one with bad sectors (the notification's Open Control clicked) replaced while it reads, a copy damaged behind btrfs's back repaired by a scrub, a real suspend during a scrub, a disk unplugged at boot and plugged back, its copies put back |
+| `55-raid-system.sh` | on the installer-layout machine: the system mirrored onto a new disk (2b), the passphrase asked once, the restart from the new disk finishing it, the TPM on both disks and not a pool's, an update on both halves of `/boot` and both ESPs, each disk dead in turn (Start with a disk missing), one back with its copies put back, the other replaced |
 | `60-vanilla.sh` | `amepkg`: an Alpine container with a launcher exported and taken back, the daily upgrade, Apx files imported, a `.deb` from a file scanned and installed; the watcher's fake `sudo` and stray launcher; the NVIDIA offer on stand-in hardware; "You're on the previous version" and `bootc rollback` |
 | `70-backups.sh` | the home folders made a btrfs subvolume (a restart), the hourly snapshots and a backup to an append-only rest-server; Backups' helper and window on both: points, folders, versions, putting back (labels, reflinks, refusals), Look, the whole folder, Open With, a stale and a failed backup |
 | `75-deja-dup.sh` | Déjà Dup from Flathub: where its schedule is kept, what `flatpak preinstall` uninstalls when its list stops naming an app, and the one notice at the next login |
+| `85-raid-mirror.sh` | the system spread over two disks as the installer leaves it (SPARE-6), mirrored (2a), started with the second disk unplugged from Start with a disk missing, the disk back and its copies put back, then on one disk again |
 
 A new feature gets its check here with it, and a bug a run found gets the check that would have caught it.
 

@@ -16,6 +16,7 @@
 // "skip - ..." line per check, and exit status 0 only when it passed. Exit status 100 asks for a reboot:
 // the suite runs again after it, with SUITE_PHASE one higher. A suite whose second line is
 // "# vmlab-vm: installer" runs on a machine of its own installed as the installer lays a disk out, encrypted.
+// Exit status 101 runs the next phase in the same boot, for what takes longer than a phase may (30 minutes).
 // A phase that leaves /var/lib/vmlab-tests/next-boot.json gets a power cycle instead of a reboot, with what it
 // asks for (next_boot in lib.sh): spare disks absent or faulty, other credentials, the passphrase typed.
 import { execFileSync, spawn } from 'node:child_process';
@@ -147,8 +148,10 @@ async function start(machine, request = {}, fresh = false) {
   const m = MACHINES[machine];
   const credentials = { ...m.credentials, ...(request.credentials || {}) };
   if (request.type_passphrase) delete credentials['cryptsetup.passphrase'];
+  // A credential asked for as null is left out: {"cryptsetup.passphrase": null} has the TPM open the disk alone
+  for (const [key, value] of Object.entries(credentials)) if (value === null) delete credentials[key];
   await call('vm_start', { name: m.vm, disk: m.disk, fresh, spares_gb: m.spares,
-    absent: request.absent || m.absent || [], faulty: request.faulty || {}, credentials });
+    absent: request.absent || m.absent || [], system_absent: Boolean(request.system_absent), faulty: request.faulty || {}, credentials });
   if (request.type_passphrase) await typePassphrase(m.vm);
 }
 
@@ -239,7 +242,9 @@ async function suite(machine, name) {
     const stderr = decode(answer.stderr);
     fs.appendFileSync(`${RUN}/${name}.log`, `--- phase ${phase}, exit ${answer.rc}${answer.error ? ` (${answer.error})` : ''}\n${decode(answer.stdout)}${stderr ? `--- stderr\n${stderr}` : ''}`);
     rc = answer.rc;
-    if (rc !== 100 || phase >= MAX_PHASES) break;
+    if ((rc !== 100 && rc !== 101) || phase >= MAX_PHASES) break;
+    // 101: the next phase in the same boot, for what takes longer than one phase may
+    if (rc === 101) continue;
     say(`   ${name}: rebooting for phase ${phase + 1}`);
     await reboot(machine);
   }
