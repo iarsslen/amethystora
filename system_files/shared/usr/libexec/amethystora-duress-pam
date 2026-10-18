@@ -14,6 +14,17 @@
 # pam_unix has already failed, so an ordinary wrong password passes through it and a correct one never
 # reaches it.
 #
+# Verification is written to give an attacker nothing:
+#   - it refuses to run unless it is root, so a process that is not root never even looks at the file, and
+#     the folder and the file must be root's and unreadable by anyone else (O_NOFOLLOW, fstat on the fd, no
+#     path races) or the file is ignored;
+#   - the hash is yescrypt (memory-hard, salted); any other scheme in the file is refused, so a tampered or
+#     downgraded hash cannot be verified against;
+#   - every call does exactly one crypt and one constant-time compare, whether or not the account has a
+#     duress password, so neither the time taken nor the result reveals which accounts have one (and the
+#     line runs behind pam_unix's failure and pam_faildelay anyway);
+#   - the password is compared in constant time (hmac.compare_digest), never logged, and leaves on no path.
+#
 #   amethystora-duress-pam         as pam_exec runs it: read the password and act
 #   amethystora-duress-pam hash    read a password on stdin and print a yescrypt hash of it, for
 #                                  amethystora-duress set-password; never reached from PAM
@@ -48,6 +59,13 @@ def gensalt():
     return _libcrypt.crypt_gensalt(b"$y$", 0, None, 0)
 
 
+# Every verification hashes against a real yescrypt setting, even when the account has no duress password,
+# so the work (and so the time) is the same either way. Computed once, at load, for every invocation alike.
+DUMMY_SETTING = gensalt()
+# The one scheme a stored hash may use; anything else in the file is treated as no password at all
+HASH_PREFIX = b"$y$"
+
+
 def read_password():
     # pam_exec writes the typed password to stdin with no trailing newline; take it whole
     return sys.stdin.buffer.read().rstrip(b"\x00")
@@ -72,15 +90,18 @@ def stored_hash(uid):
         os.close(dfd)
     try:
         st = os.fstat(fd)
-        if not stat.S_ISREG(st.st_mode) or st.st_uid != 0 or st.st_mode & 0o077 or st.st_size > (1 << 20):
+        # A small cap: the file holds one short line per account with a duress password, never more
+        if not stat.S_ISREG(st.st_mode) or st.st_uid != 0 or st.st_mode & 0o077 or st.st_size > (1 << 18):
             return None
-        data = os.read(fd, 1 << 20)
+        data = os.read(fd, 1 << 18)
     finally:
         os.close(fd)
     prefix = b"%d " % uid
     for line in data.split(b"\n"):
         if line.startswith(prefix):
-            return line[len(prefix):]
+            value = line[len(prefix):]
+            # Only a yescrypt hash is honoured; a downgraded or corrupt one is as good as no password
+            return value if value.startswith(HASH_PREFIX) else None
     return None
 
 
@@ -100,21 +121,25 @@ def fire(uid):
 
 def act():
     password = read_password()
-    if not password:
+    # Only root may verify a duress password: the file is root's, and a process that is not root must never
+    # be trusted to read it or to reach the root-only action service
+    if not password or os.geteuid() != 0:
         return 1
     try:
         uid = pwd.getpwnam(os.environ.get("PAM_USER", "")).pw_uid
     except KeyError:
         return 1
     stored = stored_hash(uid)
-    # A hash is computed whether or not the account has a duress password, so a wrong password takes the
-    # same time either way.
-    setting = stored if stored is not None else gensalt()
+    # Exactly one crypt and one constant-time compare, against the account's hash or, when it has none, a
+    # throwaway setting of the same cost: a wrong password and an account without a duress password take the
+    # same time, so neither the time nor the result says which accounts have one.
+    setting = stored if stored is not None else DUMMY_SETTING
     try:
-        computed = crypt(password, setting)
+        computed = crypt(password, setting) if setting is not None else None
     except Exception:
         computed = None
-    if stored is None or computed is None or not hmac.compare_digest(computed, stored):
+    ok = computed is not None and hmac.compare_digest(computed, setting)
+    if stored is None or not ok:
         return 1
     fire(uid)
     return 0 if os.environ.get("PAM_SERVICE", "") in ALLOW_SERVICES else 1
@@ -126,7 +151,8 @@ def hash_password():
         print("a duress password cannot be empty", file=sys.stderr)
         return 64
     out = crypt(password, gensalt())
-    if out is None:
+    if out is None or not out.startswith(HASH_PREFIX):
+        # Never store anything but a yescrypt hash: that is the only scheme verification will honour
         print("could not hash the password", file=sys.stderr)
         return 1
     sys.stdout.buffer.write(out + b"\n")

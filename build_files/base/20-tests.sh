@@ -1462,7 +1462,28 @@ duress_act() {
 # the right password unlocks at the graphical login, and is refused like a wrong one everywhere else
 [[ "$(duress_act swordfish gdm-password)" == 0 ]]
 [[ "$(duress_act swordfish sudo)" == 1 ]]
+# a non-root caller is refused even with the right password and an allow-service: the file is root's and
+# the action service is root-only, so verification trusts nothing a non-root process could have reached
+DURESS_RC=0
+printf 'swordfish' | setpriv --reuid=nobody --regid=nobody --clear-groups \
+    env AMETHYSTORA_DURESS_DIR="${DURESS_PW_DIR}" PAM_USER="$(id -un)" PAM_SERVICE=gdm-password \
+    /usr/libexec/amethystora-duress-pam || DURESS_RC=$?
+[[ "${DURESS_RC}" == 1 ]]
+# a downgraded hash is refused even when it genuinely matches the password: only yescrypt is honoured
+DURESS_SHA512="$(python3 - <<'PY'
+import ctypes
+l = ctypes.CDLL("libcrypt.so.2"); l.crypt.restype = ctypes.c_char_p; l.crypt.argtypes = (ctypes.c_char_p,) * 2
+l.crypt_gensalt.restype = ctypes.c_char_p
+l.crypt_gensalt.argtypes = (ctypes.c_char_p, ctypes.c_ulong, ctypes.c_char_p, ctypes.c_int)
+print(l.crypt(b"swordfish", l.crypt_gensalt(b"$6$", 0, None, 0)).decode())
+PY
+)"
+grep -q '^\$6\$' <<<"${DURESS_SHA512}"
+printf '%s %s\n' "$(id -u)" "${DURESS_SHA512}" >"${DURESS_PW_DIR}/passwords"
+chmod 0600 "${DURESS_PW_DIR}/passwords"
+[[ "$(duress_act swordfish gdm-password)" == 1 ]]
 # a file readable by others is ignored, as pam_fprintd ignores a loose finger file
+printf '%s %s\n' "$(id -u)" "${DURESS_HASH}" >"${DURESS_PW_DIR}/passwords"
 chmod 0644 "${DURESS_PW_DIR}/passwords"
 [[ "$(duress_act swordfish gdm-password)" == 1 ]]
 rm -rf "${DURESS_PW_DIR}"
