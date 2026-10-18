@@ -18,6 +18,7 @@ mod event;
 mod keys;
 mod plan;
 mod record;
+mod refused;
 
 #[cfg(not(test))]
 mod bpf;

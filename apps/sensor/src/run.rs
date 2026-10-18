@@ -21,6 +21,7 @@ use libbpf_rs::{Map, MapCore, MapFlags, RingBufferBuilder};
 use crate::event::{self, Event};
 use crate::plan::{self, Kind};
 use crate::record::Record;
+use crate::refused::{refused_path, RefusedMatcher};
 use crate::{bpf, keys, record};
 
 const LOG_DIR: &str = "/var/log/amethystora-sensor";
@@ -56,8 +57,10 @@ pub fn run(probe: bool) -> Result<(), Box<dyn Error>> {
     let events = map_named(&loaded.object, "events")?;
 
     let mut reg = Registry::new();
+    let mut refused = RefusedMatcher::default();
     for watch in plan::watches(sensor_keys) {
         reg.add_watch(&watch, &dirs, &files, &bss);
+        refused.add(&watch);
     }
 
     let mut log = Log::open()?;
@@ -89,7 +92,19 @@ pub fn run(probe: bool) -> Result<(), Box<dyn Error>> {
         for raw in batch {
             if let Some(ev) = Event::parse(&raw) {
                 serial = serial.wrapping_add(1);
-                let rec = reg.record_of(&ev, offset);
+                let mut rec = reg.record_of(&ev, offset);
+                // A refused open (open_refused in the BPF) carries every enabled read or write key and the
+                // raw path, because no inode is matched in the kernel; keep only the keys whose watches
+                // actually cover the path, and drop it when none do. Without this, every EACCES/EPERM open
+                // an account makes — reading /proc, probing a path it may not read — would be recorded under
+                // credentials and the decoy, as if a secret had been read.
+                if rec.flags & event::SOPEN_REFUSED != 0 {
+                    let write = rec.flags & event::SOPEN_READ == 0;
+                    rec.keys &= refused.keys(&refused_path(&rec.path2, &rec.cwd), write);
+                    if rec.keys == 0 {
+                        continue;
+                    }
+                }
                 if let Err(e) = log.write(&rec, serial) {
                     eprintln!("amethystora-sensor: writing a record: {e}");
                 }

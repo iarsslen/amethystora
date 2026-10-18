@@ -61,6 +61,25 @@ expect "the browser's saved passwords read" '.key == "credentials" and (.text | 
 expect "the decoy read, as critical" '.key == "decoy" and .level == "critical"'
 expect "the program run from Downloads" '.key == "exec-watch" and (.text | contains("amethystora-test-program"))'
 
+# A refused read of a path nothing watches must not be reported as a secret. A desktop reads other
+# processes' /proc files and probes paths it may not read all day; the sensor's refused-open hook carries
+# every read key with the raw path and leaves the matching to the daemon, so a regression there would flood
+# the report with false "a secret was read" findings (and bury the real ones). auditd's rules watch only the
+# named files, so this holds on a fallback boot too.
+noise_before="$(wc -l <"${HISTORY}" 2>/dev/null || echo 0)"
+in_session "cat /proc/1/io /proc/1/smaps_rollup /etc/shadow >/dev/null 2>&1; true"
+sleep 4
+in_session "cat /proc/1/io >/dev/null 2>&1; true"
+sleep 3
+systemctl start amethystora-security-watch.service
+noise="$(tail -n +"$((noise_before + 1))" "${HISTORY}" 2>/dev/null)"
+if jq -e -s 'any(.[]; (.key == "credentials" or .key == "decoy") and (.text | test("/proc/|/etc/shadow")))' <<<"${noise}" >/dev/null 2>&1; then
+    not_ok "a refused read of an unwatched path was reported as a secret" \
+        "$(jq -r -s '.[] | select(.key == "credentials" or .key == "decoy") | "\(.key): \(.text)"' <<<"${noise}" | grep -E '/proc/|/etc/shadow' | head)"
+else
+    ok "a refused read of an unwatched path is not reported as a secret"
+fi
+
 # Falco: running, and its memory against the unit's MemoryHigh
 if wait_for 120 systemctl is-active --quiet amethystora-behaviour.service; then
     ok "Falco runs"
