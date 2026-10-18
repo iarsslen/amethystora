@@ -22,6 +22,14 @@ not_ok() {
 skip() { echo "skip - $*"; }
 finish() { exit "${FAILED}"; }
 reboot_and_continue() { exit 100; }
+# next_boot JSON: the restart reboot_and_continue asks for is a power cycle, the machine started again with what
+# JSON says (run.mjs): {"absent": [N]} leaves SPARE-N unplugged, {"faulty": {"N": [sector, ...]}} gives SPARE-N
+# sectors that fail every read, {"type_passphrase": true} has the disk's passphrase typed at its prompt, which
+# the next phase finds counted in VMLAB_PROMPTS. A later plain restart keeps the machine as that start left it.
+next_boot() {
+    install -d -m 0700 /var/lib/vmlab-tests
+    printf '%s\n' "$1" >/var/lib/vmlab-tests/next-boot.json
+}
 
 # check WHAT COMMAND...: ok when the command succeeds, not ok with the end of its output when it does not
 check() {

@@ -42,7 +42,10 @@ bash tests/vm/run.sh test --keep    # and leave the VM ("test") running afterwar
 `run.sh` sends the last commit into the lab as a git bundle (whatever the checkout's line endings),
 and `run.mjs` builds it with `just build amethystora latest main` (a throwaway module signing key, as every
 build without the release key), installs it with `make-disk.sh`, and runs each suite in `suites/` as root
-in the VM, in order. The disk's firmware has the image's own certificates in shim's MOK list, as on a
+in the VM, in order. With `VMLAB_NAME=NAME`, a run has its own source tree, image tag
+(`localhost/amethystora-run:NAME`), disks and VMs, and its files go to `/vm/runs/last-NAME`, so that two
+sessions can share the lab; the build itself tags `localhost/amethystora:latest` first, so two builds at once
+are agreed on beforehand. The disk's firmware has the image's own certificates in shim's MOK list, as on a
 machine whose owner enrolled them. Everything a run did is in the lab's `/vm/runs/last`: one log per stage
 and per suite, a screenshot after each suite, the guest's journal, `results.json` and `summary.md`, which
 `run.sh` prints last. It exits 0 only when everything passed. The `run-tests` skill in `.claude/skills`
@@ -55,13 +58,25 @@ check, as TAP does (`ok - ...`, `not ok - ...` with indented lines saying why, `
 `wait_for`, `as_user` and `in_session` from `lib.sh`, and ends with `finish`. Exit status 100
 (`reboot_and_continue`) restarts the VM and runs the suite again with `SUITE_PHASE` one higher, six phases at
 most; a restart empties `/run`, so what a suite keeps between phases goes in `/var/lib/vmlab-tests`. A line
-starting with `#` is a measurement, which the report repeats.
+starting with `#` is a measurement, which the report repeats. A phase that calls `next_boot JSON` first gets a
+power cycle instead, the machine started again with a spare disk unplugged (`{"absent": [2]}`), with sectors
+that fail every read (`{"faulty": {"3": [sector, ...]}}`, through QEMU's blkdebug), or with the disk's
+passphrase typed at its prompt rather than handed over (`{"type_passphrase": true}`; the next phase finds how
+many times it was asked in `VMLAB_PROMPTS`). A later plain restart keeps the machine as that start left it.
+
+A suite whose second line is `# vmlab-vm: installer` runs on a second machine, installed as the installer
+lays a disk out: an ESP, an ext4 `/boot`, and btrfs (subvolumes `root` and `home`) on LUKS2, with the fstab and
+crypttab lines Anaconda writes and the serial console in its kernel arguments (`make-disk.sh --installer`). Its
+passphrase (`VMLAB_PASSPHRASE`) and a TPM PIN for suites to enrol (`VMLAB_TPM_PIN`) reach systemd-cryptsetup as
+credentials, so nothing has to be typed at boot. It has four spare disks, two of 8 GiB and two of 48 GiB,
+larger than its own 40 GiB.
 
 What asks a person something (gum, a typed `ERASE`, a check for a terminal) runs through `in_terminal`, which
 gives the command a terminal of its own (`term.py`), waits for each question and types its answer. The test VM
 has five blank SATA disks besides its own, serials `SPARE-1` to `SPARE-5` (four of 8 GiB, then 10 GiB), new for
-every run. Its home folders are not a btrfs subvolume of their own, as the installer would make them: a suite
-that needs one (the hourly snapshots do) calls `make_home_subvolume` unless `home_subvolume` says it is one
+every run, and a sixth of 24 GiB, more than the system's data, which stays unplugged until a suite asks for it
+with `next_boot '{"absent": []}'`. Its home folders are not a btrfs subvolume of their own, as the installer
+would make them: a suite that needs one (the hourly snapshots do) calls `make_home_subvolume` unless `home_subvolume` says it is one
 already, then restarts.
 
 An app's window is used as a person would use it, through the accessibility tree every GTK window has:
@@ -88,7 +103,8 @@ A new feature gets its check here with it, and a bug a run found gets the check 
 
 1. `disk_build` installs an image onto a disk with `bootc install to-disk` (btrfs, as the installer ISO
    makes it), about 10 minutes. `disk_list` says when it is ready.
-2. `vm_start` starts a VM on an overlay of that disk; `vm_wait` returns once the boot is over.
+2. `vm_start` starts a VM on an overlay of that disk, with spare disks (`spares_gb`), some of them `absent` or
+   `faulty`, and `credentials` for systemd; `vm_wait` returns once the boot is over.
 3. `vm_exec` runs a command as root, as an account, or in that account's graphical session (`session`).
    `vm_write` and `vm_read` move files.
 4. `vm_screenshot`, `vm_keys` and `vm_mouse` see and use the desktop; `vm_serial` is the serial console.

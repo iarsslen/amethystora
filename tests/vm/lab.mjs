@@ -110,7 +110,9 @@ export function agent(name, request, timeoutS = 120) {
 
 // --- The guest's helper, as systemd credentials over SMBIOS ---------------------------------------------------
 
-function credentials() {
+// The helper, and any other credentials asked for by name (cryptsetup.passphrase, cryptsetup.tpm2-pin), which
+// systemd-cryptsetup imports at boot, in the initramfs too
+function credentials(extra = {}) {
   const b64 = (text) => Buffer.from(text).toString('base64');
   // Started with sysinit.target, so that it answers while a later part of the boot hangs
   const unit = ['[Unit]', 'Description=Amethystora VM lab helper', 'DefaultDependencies=no',
@@ -121,6 +123,7 @@ function credentials() {
     ['systemd.extra-unit.amethystora-vmlab.service', b64(unit)],
     ['systemd.unit-dropin.sysinit.target', b64(dropin)],
     ['vmlab-agent.py', fs.readFileSync(path.join(HERE, 'agent.py')).toString('base64')],
+    ...Object.entries(extra).map(([key, value]) => [checkName(key, 'credential'), b64(value)]),
   ].flatMap(([key, value]) => ['-smbios', `type=11,value=io.systemd.credential.binary:${key}=${value}`]);
 }
 
@@ -205,9 +208,13 @@ export const tools = [
       secure_boot: { type: 'boolean', description: 'default true' }, tpm: { type: 'boolean', description: 'default true' },
       fresh: { type: 'boolean', description: 'throw the overlay, its checkpoints, the firmware variables, the TPM and the spare disks away first' },
       spares_gb: { type: 'array', items: { type: 'integer' }, description: 'blank SATA disks of these sizes in GiB, at most 6, serials SPARE-1...; kept until fresh' },
+      absent: { type: 'array', items: { type: 'integer' }, description: 'spare disks (1, 2...) left unplugged this time, kept as they are' },
+      faulty: { type: 'object', description: 'spare disks with bad sectors this time: {"3": [sector, ...]}, each 512-byte sector failing every read with an I/O error' },
+      credentials: { type: 'object', description: 'systemd credentials for the guest, {"cryptsetup.passphrase": "..."}' },
     },
     required: ['name'],
-    async call({ name, disk = 'latest', memory_mb = 4096, cpus = 4, secure_boot = true, tpm = true, fresh = false, spares_gb = [] }) {
+    async call({ name, disk = 'latest', memory_mb = 4096, cpus = 4, secure_boot = true, tpm = true, fresh = false, spares_gb = [],
+      absent = [], faulty = {}, credentials: extra = {} }) {
       checkName(name);
       checkName(disk, 'disk');
       if (running(name)) throw new Error(`VM ${name} is running already`);
@@ -238,13 +245,25 @@ export const tools = [
         '-device', 'virtserialport,chardev=lab,name=org.amethystora.vmtest',
         '-device', 'VGA,xres=1280,yres=800', '-device', 'qemu-xhci', '-device', 'usb-tablet', '-display', 'none',
         '-serial', `file:${file(name, 'serial')}`, '-qmp', `unix:${file(name, 'qmp')},server=on,wait=off`,
-        '-pidfile', file(name, 'pid'), ...credentials()];
-      // Blank disks on the machine's own SATA controller, which smartctl can read, for the pools of disks
+        '-pidfile', file(name, 'pid'), ...credentials(extra)];
+      // Blank disks on the machine's own SATA controller, which smartctl can read, for the pools of disks. One
+      // left out is a disk that is not there at all; a faulty one reads through blkdebug, raw over it so that
+      // its sectors are the guest's, which fails each read of a bad sector as a damaged disk does.
       for (const [i, size] of spares_gb.entries()) {
         const spare = file(name, `spare${i + 1}.qcow2`);
         if (!fs.existsSync(spare)) await run('qemu-img', ['create', '-q', '-f', 'qcow2', spare, `${size}G`]);
-        args.push('-drive', `file=${spare},if=none,id=spare${i + 1},format=qcow2,discard=unmap`,
-          '-device', `ide-hd,drive=spare${i + 1},bus=ide.${i},serial=SPARE-${i + 1}`);
+        if (absent.includes(i + 1)) continue;
+        const bad = faulty[String(i + 1)] || [];
+        if (bad.length) {
+          const config = file(name, `spare${i + 1}.blkdebug`);
+          fs.writeFileSync(config, bad.map((sector) => ['[inject-error]', 'event = "read_aio"', 'errno = "5"',
+            `sector = "${Number(sector)}"`, 'once = "off"', ''].join('\n')).join('\n'));
+          args.push('-drive', `if=none,id=spare${i + 1},driver=raw,discard=unmap,file.driver=blkdebug,file.config=${config},` +
+            `file.image.driver=qcow2,file.image.file.driver=file,file.image.file.filename=${spare}`);
+        } else {
+          args.push('-drive', `file=${spare},if=none,id=spare${i + 1},format=qcow2,discard=unmap`);
+        }
+        args.push('-device', `ide-hd,drive=spare${i + 1},bus=ide.${i},serial=SPARE-${i + 1}`);
       }
       if (tpm) {
         try {

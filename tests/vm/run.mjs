@@ -7,12 +7,16 @@
 //   node run.mjs [all | build | disk | test] [--keep]
 //
 // all (the default) does the three in turn and stops at the first that fails; the others do one, from what
-// the last run left. --keep leaves the VM ("test") running afterwards, for a closer look over MCP. The exit
-// status is 0 only when everything that ran passed.
+// the last run left. --keep leaves the VMs running afterwards, for a closer look over MCP. The exit status is
+// 0 only when everything that ran passed. VMLAB_NAME (default test) names the run's image tag, disks and VMs,
+// so that two sessions' runs do not take each other's.
 //
 // A suite is a bash script run as root in the guest, beside lib.sh: one "ok - ...", "not ok - ..." or
 // "skip - ..." line per check, and exit status 0 only when it passed. Exit status 100 asks for a reboot:
-// the suite runs again after it, with SUITE_PHASE one higher.
+// the suite runs again after it, with SUITE_PHASE one higher. A suite whose second line is
+// "# vmlab-vm: installer" runs on a machine of its own installed as the installer lays a disk out, encrypted.
+// A phase that leaves /var/lib/vmlab-tests/next-boot.json gets a power cycle instead of a reboot, with what it
+// asks for (next_boot in lib.sh): spare disks absent or faulty, other credentials, the passphrase typed.
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,20 +26,37 @@ import { agent, call, decode, screendump } from './lab.mjs';
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 const SRC = path.resolve(HERE, '../..');
 const SUITES = `${HERE}/suites`;
-const IMAGE = 'localhost/amethystora:latest';
-const DISK = 'test';
-const VM = 'test';
+const NAME = process.env.VMLAB_NAME || 'test';
+if (!/^[a-z0-9][a-z0-9-]{0,20}$/.test(NAME)) throw new Error(`VMLAB_NAME must be lowercase letters, digits and - (got ${NAME})`);
+const BUILT = 'localhost/amethystora:latest';
+// What `just build` tags, kept under the run's own name at once, which the disks are made from
+const IMAGE = `localhost/amethystora-run:${NAME}`;
 const GUEST_DIR = '/run/amethystora-tests';
-// Blank disks for the pools of disks (50-raid.sh): four alike, and a larger one
-const SPARES_GB = [8, 8, 8, 8, 10];
-const MAX_PHASES = 6;
+const NEXT_BOOT = '/var/lib/vmlab-tests/next-boot.json';
+// The lab's disk passphrase, and the PIN a suite enrols the TPM with, both handed to systemd-cryptsetup as
+// credentials so that nobody has to type them (next_boot can have one typed instead)
+const PASSPHRASE = 'amethystora-lab-passphrase';
+const TPM_PIN = '246813579';
+// Two machines: the one `bootc install to-disk` makes, with blank disks for the pools of disks (50-raid.sh): four
+// alike, then a larger one, and one larger than the system's data for its mirror, unplugged until a suite asks
+// for it (next_boot), so that the others see five; and one installed as the installer lays a disk out, encrypted,
+// with two disks for a pool and two larger than its own for the mirror
+const MACHINES = {
+  default: { vm: NAME, disk: NAME, make: [], spares: [8, 8, 8, 8, 10, 24], absent: [6], credentials: {} },
+  installer: {
+    vm: `${NAME}-installer`, disk: `${NAME}-installer`, make: ['40G', `--installer=${PASSPHRASE}`], spares: [8, 8, 48, 48],
+    credentials: { 'cryptsetup.passphrase': PASSPHRASE, 'cryptsetup.tpm2-pin': TPM_PIN },
+  },
+};
+const MAX_PHASES = 12;
 const stage = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : 'all';
 const keep = process.argv.includes('--keep');
 
-const RUN = `/vm/runs/${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}`;
+const RUN = `/vm/runs/${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}${NAME === 'test' ? '' : `-${NAME}`}`;
 fs.mkdirSync(RUN, { recursive: true });
-fs.rmSync('/vm/runs/last', { force: true });
-fs.symlinkSync(RUN, '/vm/runs/last');
+const LAST = NAME === 'test' ? '/vm/runs/last' : `/vm/runs/last-${NAME}`;
+fs.rmSync(LAST, { force: true });
+fs.symlinkSync(RUN, LAST);
 
 const say = (line) => {
   console.log(line);
@@ -71,93 +92,152 @@ async function build() {
   // The submodules are the GNOME extensions the build compiles; a bundle carries none of them
   if (!(await step('submodules', 'git', ['-C', SRC, 'submodule', 'update', '--init', '--recursive']))) return false;
   if (!(await step('build', 'just', ['build', 'amethystora', 'latest', 'main']))) return false;
+  if (!(await step('tag', 'podman', ['tag', BUILT, IMAGE]))) return false;
   // What earlier builds left, no longer tagged
   await step('prune', 'podman', ['image', 'prune', '-f']);
   return true;
 }
 
-const disk = () => step('disk', 'bash', [`${HERE}/make-disk.sh`, IMAGE, DISK]);
+// The machines whose suites are there to run
+const suitesOf = (machine) => fs.readdirSync(SUITES).filter((f) => /^\d\d-.+\.sh$/.test(f)).sort()
+  .filter((f) => (/^# vmlab-vm: installer$/m.test(fs.readFileSync(`${SUITES}/${f}`, 'utf8').split('\n').slice(0, 3).join('\n'))
+    ? 'installer' : 'default') === machine);
+
+async function disk() {
+  for (const [kind, m] of Object.entries(MACHINES)) {
+    if (suitesOf(kind).length && !(await step(`disk-${kind}`, 'bash', [`${HERE}/make-disk.sh`, IMAGE, m.disk, ...m.make]))) return false;
+  }
+  return true;
+}
 
 // The guest's boot id, or nothing while it does not answer
-async function bootId() {
+async function bootId(vm) {
   try {
-    const answer = await agent(VM, { op: 'read', path: '/proc/sys/kernel/random/boot_id' }, 5);
+    const answer = await agent(vm, { op: 'read', path: '/proc/sys/kernel/random/boot_id' }, 5);
     return decode(answer.data).trim();
   } catch {
     return '';
   }
 }
 
-async function reboot() {
-  const before = await bootId();
-  await agent(VM, { op: 'exec', command: '(sleep 2; systemctl reboot) >/dev/null 2>&1 &' }, 30);
-  const began = Date.now();
-  for (;;) {
-    await sleep(5000);
-    const now = await bootId();
-    if (now && now !== before) break;
-    if (Date.now() - began > 900000) throw new Error('the VM did not come back within 15 minutes of a reboot');
-  }
-  await call('vm_wait', { name: VM, timeout_s: 900 });
-  // Once the test account signs in by itself, a boot that brings it no session stalled: now and then PID 1
-  // waits on the console for the answer to its size query, which plymouthd, holding the console, never
-  // gives (12-amethystora-console.toml skips the query). Powered off and on again, said in the log, twice at
-  // most; then the suite cannot run, rather than skip everything as passed.
-  for (let tries = 0; await sessionExpected() && !(await session(240)); tries++) {
-    if (tries === 2) throw new Error('the test account got no session after three boots');
-    say('   no session after this boot: powering the VM off and on again');
-    // What PID 1 and plymouthd wait on, which the power cycle loses: the evidence for the stall
-    fs.writeFileSync(`${RUN}/stalled-boot-${tries + 1}.txt`, await guest('cat /proc/1/stack; ' +
-      'for p in $(pidof plymouthd); do echo "plymouthd $p $(grep ^State /proc/$p/status)"; cat /proc/$p/stack; done; ' +
-      'journalctl -b -o short-monotonic --no-pager _PID=1 | grep -v " audit" | tail -n 15', 60));
-    await call('vm_stop', { name: VM, force: true });
-    await call('vm_start', { name: VM, disk: DISK, spares_gb: SPARES_GB });
-    await call('vm_wait', { name: VM, timeout_s: 900 });
-  }
-}
-
-async function guest(command, seconds = 20) {
+async function guest(vm, command, seconds = 20) {
   try {
-    return decode((await agent(VM, { op: 'exec', command, timeout: seconds }, seconds)).stdout).trim();
+    return decode((await agent(vm, { op: 'exec', command, timeout: seconds }, seconds)).stdout).trim();
   } catch {
     return '';
   }
 }
-const sessionExpected = async () => (await guest('grep -s "^AutomaticLogin=tester" /etc/gdm/custom.conf')) !== '';
-async function session(seconds) {
+const sessionExpected = async (vm) => (await guest(vm, 'grep -s "^AutomaticLogin=tester" /etc/gdm/custom.conf')) !== '';
+async function session(vm, seconds) {
   for (const until = Date.now() + seconds * 1000; Date.now() < until; await sleep(10000)) {
-    if ((await guest('loginctl show-user tester -p State --value')) === 'active') return true;
+    if ((await guest(vm, 'loginctl show-user tester -p State --value')) === 'active') return true;
   }
   return false;
 }
 
+// A VM of this run started, as a machine is, or with what a suite asked for its next start
+async function start(machine, request = {}, fresh = false) {
+  const m = MACHINES[machine];
+  const credentials = { ...m.credentials, ...(request.credentials || {}) };
+  if (request.type_passphrase) delete credentials['cryptsetup.passphrase'];
+  await call('vm_start', { name: m.vm, disk: m.disk, fresh, spares_gb: m.spares,
+    absent: request.absent || m.absent || [], faulty: request.faulty || {}, credentials });
+  if (request.type_passphrase) await typePassphrase(m.vm);
+}
+
+// The passphrase typed at the prompt, as a person would, once it shows on the serial console (the installer's
+// disk has console=ttyS0 too); how many times it was asked goes to the suite as VMLAB_PROMPTS
+const prompts = new Map();
+async function typePassphrase(vm) {
+  const serial = `/vm/vms/${vm}.serial`;
+  const asked = () => (fs.existsSync(serial) ? fs.readFileSync(serial, 'latin1') : '').match(/[Pp]lease enter passphrase/g)?.length || 0;
+  const began = Date.now();
+  while (asked() === 0) {
+    if (Date.now() - began > 600000) throw new Error('no passphrase prompt on the serial console within 10 minutes');
+    await sleep(3000);
+  }
+  await sleep(2000);
+  await call('vm_keys', { name: vm, text: `${PASSPHRASE}\n` });
+  // Long enough for a second prompt to show if there is one, which is then answered too
+  await sleep(45000);
+  if (asked() > 1) await call('vm_keys', { name: vm, text: `${PASSPHRASE}\n` });
+  prompts.set(vm, asked());
+}
+
+async function reboot(machine) {
+  const { vm } = MACHINES[machine];
+  // A power cycle, when the phase asked for one
+  let request = null;
+  try {
+    const answer = await agent(vm, { op: 'read', path: NEXT_BOOT }, 10);
+    if (answer.rc === 0) request = JSON.parse(decode(answer.data));
+  } catch {
+    // None asked for
+  }
+  const before = await bootId(vm);
+  if (request) {
+    await agent(vm, { op: 'exec', command: `rm -f ${NEXT_BOOT}` }, 10);
+    say(`   power cycle: ${JSON.stringify(request)}`);
+    await call('vm_stop', { name: vm });
+    await start(machine, request);
+  } else {
+    await agent(vm, { op: 'exec', command: '(sleep 2; systemctl reboot) >/dev/null 2>&1 &' }, 30);
+  }
+  const began = Date.now();
+  for (;;) {
+    await sleep(5000);
+    const now = await bootId(vm);
+    if (now && now !== before) break;
+    if (Date.now() - began > 900000) throw new Error('the VM did not come back within 15 minutes of a reboot');
+  }
+  await call('vm_wait', { name: vm, timeout_s: 900 });
+  // Once the test account signs in by itself, a boot that brings it no session stalled: now and then PID 1
+  // waits on the console for the answer to its size query, which plymouthd, holding the console, never
+  // gives (12-amethystora-console.toml skips the query). Powered off and on again, said in the log, twice at
+  // most; then the suite cannot run, rather than skip everything as passed.
+  for (let tries = 0; await sessionExpected(vm) && !(await session(vm, 240)); tries++) {
+    if (tries === 2) throw new Error('the test account got no session after three boots');
+    say('   no session after this boot: powering the VM off and on again');
+    // What PID 1 and plymouthd wait on, which the power cycle loses: the evidence for the stall
+    fs.writeFileSync(`${RUN}/stalled-boot-${tries + 1}.txt`, await guest(vm, 'cat /proc/1/stack; ' +
+      'for p in $(pidof plymouthd); do echo "plymouthd $p $(grep ^State /proc/$p/status)"; cat /proc/$p/stack; done; ' +
+      'journalctl -b -o short-monotonic --no-pager _PID=1 | grep -v " audit" | tail -n 15', 60));
+    await call('vm_stop', { name: vm, force: true });
+    await start(machine, request ? { ...request, type_passphrase: false } : {});
+    await call('vm_wait', { name: vm, timeout_s: 900 });
+  }
+}
+
 // The suites and lib.sh into the guest's /run, which a reboot empties
-async function install() {
-  await agent(VM, { op: 'exec', command: `mkdir -p ${GUEST_DIR}` });
+async function install(vm) {
+  await agent(vm, { op: 'exec', command: `mkdir -p ${GUEST_DIR}` });
   for (const name of fs.readdirSync(SUITES)) {
     const data = fs.readFileSync(`${SUITES}/${name}`).toString('base64');
-    const answer = await agent(VM, { op: 'write', path: `${GUEST_DIR}/${name}`, data, mode: '0755' });
+    const answer = await agent(vm, { op: 'write', path: `${GUEST_DIR}/${name}`, data, mode: '0755' });
     if (answer.rc !== 0) throw new Error(`could not write ${name} into the VM: ${answer.error}`);
   }
 }
 
-async function suite(name) {
+async function suite(machine, name) {
+  const { vm } = MACHINES[machine];
   const began = Date.now();
   let output = '';
   let rc = 0;
   for (let phase = 1; ; phase++) {
-    await install();
-    const answer = await agent(VM, { op: 'exec', command: `SUITE_PHASE=${phase} bash ${GUEST_DIR}/${name}`, timeout: 1800 }, 1800);
+    await install(vm);
+    const env = `SUITE_PHASE=${phase} VMLAB_PASSPHRASE=${PASSPHRASE} VMLAB_TPM_PIN=${TPM_PIN} VMLAB_PROMPTS=${prompts.get(vm) ?? ''}`;
+    prompts.delete(vm);
+    const answer = await agent(vm, { op: 'exec', command: `${env} bash ${GUEST_DIR}/${name}`, timeout: 1800 }, 1800);
     output += decode(answer.stdout);
     const stderr = decode(answer.stderr);
     fs.appendFileSync(`${RUN}/${name}.log`, `--- phase ${phase}, exit ${answer.rc}${answer.error ? ` (${answer.error})` : ''}\n${decode(answer.stdout)}${stderr ? `--- stderr\n${stderr}` : ''}`);
     rc = answer.rc;
     if (rc !== 100 || phase >= MAX_PHASES) break;
     say(`   ${name}: rebooting for phase ${phase + 1}`);
-    await reboot();
+    await reboot(machine);
   }
   try {
-    fs.writeFileSync(`${RUN}/${name}.png`, await screendump(VM));
+    fs.writeFileSync(`${RUN}/${name}.png`, await screendump(vm));
   } catch {
     // No screen to take
   }
@@ -185,30 +265,35 @@ async function suite(name) {
 
 async function test() {
   const began = Date.now();
-  say(`== test: ${IMAGE} on disk ${DISK}, VM ${VM}`);
-  try {
-    await call('vm_stop', { name: VM, force: true });
-  } catch {
-    // Not running
-  }
-  await call('vm_start', { name: VM, disk: DISK, fresh: true, spares_gb: SPARES_GB });
-  say(`   ${(await call('vm_wait', { name: VM, timeout_s: 900 })).content[0].text}`);
   const results = [];
-  for (const name of fs.readdirSync(SUITES).filter((f) => /^\d\d-.+\.sh$/.test(f)).sort()) {
+  for (const machine of Object.keys(MACHINES)) {
+    const names = suitesOf(machine);
+    if (!names.length) continue;
+    const { vm, disk: base } = MACHINES[machine];
+    say(`== test: ${IMAGE} on disk ${base}, VM ${vm}`);
     try {
-      results.push(await suite(name));
-    } catch (error) {
-      results.push({ suite: name, passed: false, exit: -1, ok: 0, skipped: 0, failures: [`not ok - the suite could not run: ${error.message}`], time: '-' });
-      say(`   ${name}: could not run: ${error.message}`);
+      await call('vm_stop', { name: vm, force: true });
+    } catch {
+      // Not running
     }
+    await start(machine, {}, true);
+    say(`   ${(await call('vm_wait', { name: vm, timeout_s: 900 })).content[0].text}`);
+    for (const name of names) {
+      try {
+        results.push(await suite(machine, name));
+      } catch (error) {
+        results.push({ suite: name, passed: false, exit: -1, ok: 0, skipped: 0, failures: [`not ok - the suite could not run: ${error.message}`], time: '-' });
+        say(`   ${name}: could not run: ${error.message}`);
+      }
+    }
+    try {
+      const journal = await agent(vm, { op: 'exec', command: 'journalctl -b -p warning --no-pager -o short-monotonic; echo; systemctl --failed --no-pager', timeout: 120 }, 120);
+      fs.writeFileSync(`${RUN}/journal${machine === 'default' ? '' : `-${machine}`}.log`, decode(journal.stdout));
+    } catch {
+      // The guest no longer answers: the suites' logs say why
+    }
+    if (!keep) await call('vm_stop', { name: vm }).catch(() => {});
   }
-  try {
-    const journal = await agent(VM, { op: 'exec', command: 'journalctl -b -p warning --no-pager -o short-monotonic; echo; systemctl --failed --no-pager', timeout: 120 }, 120);
-    fs.writeFileSync(`${RUN}/journal.log`, decode(journal.stdout));
-  } catch {
-    // The guest no longer answers: the suites' logs say why
-  }
-  if (!keep) await call('vm_stop', { name: VM }).catch(() => {});
   fs.writeFileSync(`${RUN}/results.json`, `${JSON.stringify(results, null, 2)}\n`);
   const passed = results.every((r) => r.passed);
   stages.push({ stage: 'test', passed, time: minutes(began), results });
@@ -218,7 +303,7 @@ async function test() {
 function summary() {
   const lines = [`# Test run ${path.basename(RUN)}`, '', `Commit: ${git('log', '-1', '--format=%h %s')}`, ''];
   for (const s of stages) {
-    if (s.stage === 'prune') continue;
+    if (s.stage === 'prune' || s.stage === 'tag') continue;
     lines.push(`- ${s.stage}: ${s.passed ? 'passed' : '**FAILED**'} (${s.time})`);
   }
   const tested = stages.find((s) => s.stage === 'test');
@@ -241,7 +326,7 @@ function summary() {
 for (const name of ['agent.py', 'lab.mjs', 'make-disk.sh', 'server.mjs']) {
   fs.copyFileSync(`${HERE}/${name}`, `/opt/amethystora-vm/${name}`);
 }
-say(`Test run of ${git('log', '-1', '--format=%h %s')}: ${stage}`);
+say(`Test run of ${git('log', '-1', '--format=%h %s')}: ${stage}${NAME === 'test' ? '' : ` (${NAME})`}`);
 let ok = true;
 if (stage === 'all' || stage === 'build') ok = await build();
 if (ok && (stage === 'all' || stage === 'disk')) ok = await disk();
