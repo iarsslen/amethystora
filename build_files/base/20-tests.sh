@@ -1377,18 +1377,6 @@ cmp -s "${SSH_TEST}/sshd.pam" /etc/pam.d/sshd
 test ! -e "${SSH_DROP_IN}"
 rm -rf "${SSH_TEST}"
 
-# The FocalTech FT9201 reader (packaging/libfprint): the image's own libfprint, whose source package
-# travels with it, and its hwdb, generated from the drivers' id tables: 2808:93a9 is focaltech_moh's, and
-# the 64x80 2808:9338 and 2808:9348 are not, their matcher falling short (patch 0019)
-rpm -q --queryformat '%{RELEASE}\n' libfprint | grep -q '\.amethystora\.'
-test -s "/usr/src/amethystora/$(rpm -q --queryformat '%{SOURCERPM}' libfprint)"
-ft9201_driver() {
-    awk -v id="usb:v2808p$1*" '/^# Supported by libfprint driver / { driver = $NF } /^# Known unsupported/ { driver = "" }
-        $0 == id { print driver }' /usr/lib/udev/hwdb.d/60-autosuspend-libfprint-2.hwdb
-}
-[[ "$(ft9201_driver 93A9)" == focaltech_moh ]]
-[[ -z "$(ft9201_driver 9338)" && -z "$(ft9201_driver 9348)" ]]
-
 # The duress finger (ame security duress): off, its service not enabled, and no folder. The image's
 # authselect profiles take its feature in the two files 08-hardening.sh copied and in no other, and the
 # feature, tried on the image's own /etc/authselect, adds the option to those two lines only and comes off

@@ -472,17 +472,6 @@ under **Fingerprint Login**. Two things still ask for the password: the disk pas
 the keyring, which a sign-in by finger leaves locked until an app needs it. The readers that work are
 listed at [fprint.freedesktop.org](https://fprint.freedesktop.org/supported-devices.html).
 
-Amethystora also drives a FocalTech FT9201 reader that the list does not have yet, often sold as
-a small USB key: `lsusb` shows it as `2808:93a9`. For now it only works once a Windows computer has
-used it since it was last plugged in: from power-on it needs setting up that only FocalTech's
-Windows driver does, so on a computer that runs only Amethystora it cannot be used yet, and
-unplugging it undoes the setting up. Its sensor is a few millimetres across, so
-enrolling takes more presses than usual, and a press that shows a part of the finger the others did
-not is asked for again. Lift your finger fully and put it back the same way each time. When you
-sign in, a press that shows too little of the finger is asked for again too, without counting as a
-failed try. The FT9201 readers shown as `2808:9338` and `2808:9348` have an even smaller sensor, on
-which no matcher has been shown safe enough to sign in with yet, so they are not used.
-
 ### A duress finger
 
 A duress finger is one more finger, enrolled like your others, for when someone makes you unlock the

@@ -36,16 +36,6 @@ own, from its development after its release 1.94.5, and one of Amethystora's,
 the duress finger in pam_fprintd. Its source package travels in the image, in
 usr/src/amethystora.
 
-libfprint (LGPL-2.1-or-later, https://gitlab.freedesktop.org/libfprint/libfprint),
-which drives fingerprint readers, is not the package as Fedora builds it
-either. Each image build makes it again from Fedora's spec with twenty
-patches, kept in packaging/libfprint of the repository under libfprint's
-licence: fifteen from libfprint merge requests !572 (0xCoDSnet) and !646
-(dgmtnz), which add the focaltech_moh driver for FocalTech FT9201 readers, and
-five of Amethystora's, which add another of those readers, a matcher of its
-own and a test, and keep the driver to that reader. Its source package travels
-in the image, in usr/src/amethystora.
-
 Solaar's udev rules (GPL-2.0-or-later, https://github.com/pwr-Solaar/Solaar),
 /usr/lib/udev/rules.d/42-logitech-unify-permissions.rules from Fedora's
 solaar-udev package, are changed when an image is built: the line that gives

@@ -33,13 +33,6 @@ RUN --mount=type=cache,dst=/var/cache/libdnf5 \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/build_files/shared/build-fprintd.sh
 
-## libfprint with the FocalTech FT9201 readers, built the same way: only the packages in /out reach the
-## image (05-override-install.sh)
-FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION}@${BASE_IMAGE_SHA} AS libfprint
-RUN --mount=type=cache,dst=/var/cache/libdnf5 \
-    --mount=type=bind,from=ctx,source=/,target=/ctx \
-    /ctx/build_files/shared/build-libfprint.sh
-
 ## The Amethystora apps (apps/), built on the base they run on. Rust and the crates stay in this stage:
 ## only the program and the crates' licences in /out reach the image (13-apps.sh). Its Node runs the
 ## checks written in JavaScript (20-tests.sh), so that the image needs none of its own
@@ -86,7 +79,6 @@ RUN --mount=type=cache,dst=/var/cache/libdnf5 \
     --mount=type=cache,dst=/var/cache/rpm-ostree \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=fprintd,source=/out,target=/fprintd \
-    --mount=type=bind,from=libfprint,source=/out,target=/libfprint \
     --mount=type=bind,from=apps,source=/,target=/apps-stage \
     /ctx/build_files/shared/build.sh
 
