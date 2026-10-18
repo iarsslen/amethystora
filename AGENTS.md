@@ -537,7 +537,8 @@ The image's authselect profile carries `with-pam-u2f` (`04-packages.sh`), `with-
 `with-fingerprint` (`08-hardening.sh`, the installer's own feature last), and no profile change may drop
 them. realmd's stock login commands would (`authselect select sssd with-mkhomedir --force`), so
 `/etc/realmd.conf` runs `/usr/libexec/amethystora-domain-logins` for all four: a join selects `sssd` or
-`winbind` with the image's features and `with-mkhomedir`, and `realm leave` the image's own profile again.
+`winbind` with the image's features and `with-mkhomedir`, and `realm leave` the image's own profile again,
+with the image's `pam_winbind.conf`, which a winbind join edits and realmd does not put back.
 The watcher takes that setup, and nothing else, as the image's (`amethystora-domain-logins check`): exactly
 the features a join turns on, and every file in `/etc/authselect` as `authselect test` prints it, byte for
 byte. Never rely on `authselect check`, which calls a file with a line added by hand valid. A

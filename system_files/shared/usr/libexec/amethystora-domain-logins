@@ -7,7 +7,8 @@
 #   amethystora-domain-logins sssd|winbind   the profile realmd joined with, the image's features and
 #                                            with-mkhomedir; then oddjobd, which makes a domain account's
 #                                            home folder at its first login (root)
-#   amethystora-domain-logins image          the image's own profile and features, for `realm leave` (root)
+#   amethystora-domain-logins image          the image's own profile and features, and pam_winbind's settings
+#                                            as it ships them, for `realm leave` (root)
 #   amethystora-domain-logins check          whether /etc/authselect is a domain setup made here: sssd or
 #                                            winbind with exactly the features a join sets, and every
 #                                            file as authselect writes it. The security watcher asks this.
@@ -83,7 +84,7 @@ case "${1:-}" in
         exit
         ;;
     *)
-        sed -n '2,14p' "$0" | sed 's/^# \?//' >&2
+        sed -n '2,15p' "$0" | sed 's/^# \?//' >&2
         exit 64
         ;;
 esac
@@ -97,4 +98,10 @@ fi
 "${COMMAND[@]}"
 if [[ "$1" != image ]]; then
     systemctl enable --now oddjobd.service
+# A winbind join adds krb5_auth, cached_login and krb5_ccache_type to pam_winbind's settings, and realmd
+# leaves them there when it leaves. Nothing reads them without a domain, and the watcher would report them
+# from then on. Written over rather than copied, so that the file keeps its mode and label.
+elif [[ -f /usr/etc/security/pam_winbind.conf ]] &&
+    ! cmp -s /usr/etc/security/pam_winbind.conf /etc/security/pam_winbind.conf; then
+    cat /usr/etc/security/pam_winbind.conf >/etc/security/pam_winbind.conf
 fi
