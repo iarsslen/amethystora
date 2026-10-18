@@ -96,9 +96,11 @@ done
 # system-auth and password-auth, where every password is checked. The helper /usr/libexec/amethystora-duress-pam
 # fires the owner's action on an account's duress password and, at the graphical login and the lock screen
 # (gdm-password), lets it in; everywhere else it is refused like a wrong password. The line sits before
-# faillock's authfail, so a let-in duress login records no failure. authselect omits a fully conditional
-# line when the feature is off, so with it off authselect writes what it wrote before, to the byte. The
-# finger step above already made system-auth a real vendor file; password-auth is still a symlink here.
+# faillock's authfail, so a let-in duress login records no failure. It ends in {include if}, as authselect's
+# own optional lines do, which leaves the whole line out when the feature is off: a false {if} would leave an
+# empty line instead, and every profile written again (a domain joined and left) would differ from the
+# image's. The finger step above already made system-auth a real vendor file; password-auth is still a
+# symlink here.
 DURESS_PAM_LINE='auth [success=done default=ignore] pam_exec.so quiet expose_authtok /usr/libexec/amethystora-duress-pam'
 for profile in local sssd winbind; do
     for file in system-auth password-auth; do
@@ -110,7 +112,7 @@ for profile in local sssd winbind; do
             cp "${default}" "${vendor}"
         fi
         [[ "$(grep -cE '[[:space:]]pam_unix\.so([[:space:]]|$)' "${vendor}")" -ge 1 ]]
-        awk -v line="{if \"with-duress-password\":${DURESS_PAM_LINE}}" '
+        awk -v line="${DURESS_PAM_LINE} {include if \"with-duress-password\"}" '
             { print }
             !done && /pam_unix\.so/ { print line; done = 1 }' "${vendor}" >"${vendor}.new"
         mv "${vendor}.new" "${vendor}"

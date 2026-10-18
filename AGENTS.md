@@ -575,7 +575,8 @@ find accounts by their folders in `/var/home` as well, and never filter on `uid 
   before anything runs. **A duress password** is the same feature for a typed password: the per-machine
   switch `with-duress-password` adds one `pam_exec.so ... /usr/libexec/amethystora-duress-pam` line after
   `pam_unix` (before faillock's authfail) in `system-auth` and `password-auth`, in all three vendor
-  profiles, a whole-line `{if}` so that with it off authselect writes the same bytes as before. That helper
+  profiles, marked `{include if}` so that with it off authselect writes the same bytes as before (a false
+  `{if}` leaves an empty line). That helper
   reads only `/etc/amethystora/duress.d/passwords` (`UID` and a yescrypt hash, never the password), decides
   allow or deny from `PAM_SERVICE` (only `gdm-password`, the login and the lock screen, unlocks; everywhere
   else is refused like a wrong password), and sends `RunPassword(uid)` (the finger sends `Run(uid)`). **The

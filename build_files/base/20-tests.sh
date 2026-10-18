@@ -1506,9 +1506,10 @@ authselect enable-feature with-duress-password >/dev/null
 [[ "$("${DURESS}" status-password)" == on ]]
 [[ "$("${DURESS}" status)" == on ]]
 for f in system-auth password-auth; do
-    grep -qxE "auth[[:space:]]+\[success=done default=ignore\][[:space:]]+pam_exec\.so quiet expose_authtok /usr/libexec/amethystora-duress-pam" "/etc/pam.d/${f}"
+    grep -qxE "auth[[:space:]]+\[success=done default=ignore\][[:space:]]+pam_exec\.so quiet expose_authtok /usr/libexec/amethystora-duress-pam[[:space:]]*" "/etc/pam.d/${f}"
 done
-[[ "$(diff -r "${DURESS_PW_TEST}/before" /etc/authselect | grep -c '^[<>]')" == 2 ]]
+# one line added to each of the two files, and the feature to authselect.conf
+[[ "$(diff -r "${DURESS_PW_TEST}/before" /etc/authselect | grep -c '^[<>]')" == 3 ]]
 authselect check >/dev/null
 # both features on at once still leave a valid stack and come off cleanly
 authselect enable-feature with-duress-fingerprint >/dev/null
