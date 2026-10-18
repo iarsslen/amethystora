@@ -94,6 +94,20 @@ dnf5 -y install /fprintd/fprintd-[0-9]*."$(uname -m)".rpm /fprintd/fprintd-pam-[
 [[ "$(rpm -q --queryformat '%{RELEASE}\n' fprintd fprintd-pam | grep -c '\.amethystora\.')" == 2 ]]
 install -D -m 0644 -t /usr/src/amethystora /fprintd/fprintd-*.src.rpm
 
+# libfprint with the FocalTech FT9201 readers (packaging/libfprint), which the Containerfile's libfprint
+# stage built, in place of Fedora's, under the same rule as fprintd above (its README)
+LIBFPRINT_OURS="$(rpm -qp --queryformat '%{VERSION} %{RELEASE}' /libfprint/libfprint-[0-9]*."$(uname -m)".rpm)"
+LIBFPRINT_FEDORA="$(rpm -q --queryformat '%{VERSION} %{RELEASE}' libfprint)"
+LIBFPRINT_OURS_RELEASE="$(cut -d' ' -f2 <<<"${LIBFPRINT_OURS}" | cut -d. -f1)"
+LIBFPRINT_FEDORA_RELEASE="$(cut -d' ' -f2 <<<"${LIBFPRINT_FEDORA}" | cut -d. -f1)"
+if [[ "${LIBFPRINT_FEDORA%% *}" != "${LIBFPRINT_OURS%% *}" || ${LIBFPRINT_FEDORA_RELEASE} -gt ${LIBFPRINT_OURS_RELEASE} ]]; then
+    echo "::error::Fedora's libfprint is ${LIBFPRINT_FEDORA}, past packaging/libfprint's ${LIBFPRINT_OURS}: take Fedora's change there"
+    exit 1
+fi
+dnf5 -y install /libfprint/libfprint-[0-9]*."$(uname -m)".rpm
+rpm -q --queryformat '%{RELEASE}\n' libfprint | grep -q '\.amethystora\.'
+install -D -m 0644 -t /usr/src/amethystora /libfprint/libfprint-*.src.rpm
+
 # Remove desktop entries
 if [[ -f /usr/share/applications/gnome-system-monitor.desktop ]]; then
     sed -i 's@\[Desktop Entry\]@\[Desktop Entry\]\nHidden=true@g' /usr/share/applications/gnome-system-monitor.desktop

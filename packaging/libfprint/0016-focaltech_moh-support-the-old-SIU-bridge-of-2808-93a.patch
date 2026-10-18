@@ -1,0 +1,910 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Arsslen Idadi <arsslens021@gmail.com>
+Date: Sat, 17 Oct 2026 15:47:43 -0400
+Subject: [PATCH 16/18] focaltech_moh: support the old SIU bridge of 2808:93a9
+
+2808:93a9 puts the FT9201 behind an older USB bridge than 2808:9338 and
+2808:9348. It does not answer request 0x6F; its AFE registers are read with
+0x3A instead (wIndex = register, the reply carries that register and the
+next), and the frame is fetched with 0x35 (wValue = length, wIndex = 0x3400)
+followed by a bulk read of width * height + 2 bytes, two header bytes first.
+Its sensor is 96x96, AFE chip 0x95a8.
+
+It also captures differently: a touch wakes the MCU, which scans once and
+holds the frame until it sleeps again about 0.9 s later. While it holds one,
+AFE 0x20 reads a5 5a and 0x1D reads 0xa0. The driver waits for that, reads
+the frame, and first waits for any frame captured before the request to go,
+so that only a touch made after it counts. 0x22 (0x70, 0x70), sent twice,
+wakes the MCU, which open needs and which a sensor left in deep sleep by
+another host needs too.
+
+Open refuses a sensor whose 0x30 is not 0xbb, the value every unit seen so
+far carries, rather than guess at setting one up, and any size but 96x96.
+The bridge is told apart by product id, and everything that assumed 64x80
+now takes the size from the device.
+---
+ data/autosuspend.hwdb                         |   2 +-
+ .../drivers/focaltech_moh/focaltech_moh.c     | 533 ++++++++++++++++--
+ .../drivers/focaltech_moh/focaltech_moh.h     |  74 ++-
+ libfprint/fprint-list-udev-hwdb.c             |   1 -
+ 4 files changed, 567 insertions(+), 43 deletions(-)
+
+diff --git a/data/autosuspend.hwdb b/data/autosuspend.hwdb
+index 56d5be9d..527d17ed 100644
+--- a/data/autosuspend.hwdb
++++ b/data/autosuspend.hwdb
+@@ -204,6 +204,7 @@ usb:v2808p6553*
+ # Supported by libfprint driver focaltech_moh
+ usb:v2808p9338*
+ usb:v2808p9348*
++usb:v2808p93A9*
+  ID_AUTOSUSPEND=1
+  ID_PERSIST=0
+ 
+@@ -545,7 +546,6 @@ usb:v27C6p5F10*
+ usb:v27C6p5F91*
+ usb:v2808p06FC*
+ usb:v2808p6652*
+-usb:v2808p93A9*
+ usb:v2808pA553*
+ usb:v2808pA573*
+ usb:v2808pA658*
+diff --git a/libfprint/drivers/focaltech_moh/focaltech_moh.c b/libfprint/drivers/focaltech_moh/focaltech_moh.c
+index 32458ad6..2e8db63a 100644
+--- a/libfprint/drivers/focaltech_moh/focaltech_moh.c
++++ b/libfprint/drivers/focaltech_moh/focaltech_moh.c
+@@ -44,8 +44,9 @@ G_DEFINE_TYPE (FpiDeviceFocaltechMoh, fpi_device_focaltech_moh,
+                FP_TYPE_DEVICE)
+ 
+ static const FpIdEntry id_table[] = {
+-  { .vid = FOCALTECH_VID, .pid = 0x9338 },
+-  { .vid = FOCALTECH_VID, .pid = 0x9348 },
++  { .vid = FOCALTECH_VID, .pid = 0x9338, .driver_data = FT9201_BRIDGE_NEW_SIU },
++  { .vid = FOCALTECH_VID, .pid = 0x9348, .driver_data = FT9201_BRIDGE_NEW_SIU },
++  { .vid = FOCALTECH_VID, .pid = 0x93a9, .driver_data = FT9201_BRIDGE_OLD_SIU },
+   { .vid = 0, .pid = 0 },
+ };
+ 
+@@ -54,10 +55,8 @@ static const FpIdEntry id_table[] = {
+ /* ------------------------------------------------------------------ */
+ 
+ static void
+-ft9201_preprocess (const guint8 *src, guint8 *dst)
++ft9201_preprocess (const guint8 *src, guint8 *dst, int w, int h)
+ {
+-  int w = FT9201_RAW_WIDTH;
+-  int h = FT9201_RAW_HEIGHT;
+   int half = FT9201_LOCAL_MEAN_WINDOW / 2;
+   int x, y, kx, ky;
+ 
+@@ -110,10 +109,8 @@ count_unique_values (const guint8 *data, int size)
+ /* ------------------------------------------------------------------ */
+ 
+ static double
+-ft9201_ncc (const guint8 *a, const guint8 *b, int dx, int dy)
++ft9201_ncc (const guint8 *a, const guint8 *b, int w, int h, int dx, int dy)
+ {
+-  int w = FT9201_RAW_WIDTH;
+-  int h = FT9201_RAW_HEIGHT;
+   int x0 = MAX (0, -dx), x1 = MIN (w, w - dx);
+   int y0 = MAX (0, -dy), y1 = MIN (h, h - dy);
+   int n = (x1 - x0) * (y1 - y0);
+@@ -160,7 +157,7 @@ ft9201_ncc (const guint8 *a, const guint8 *b, int dx, int dy)
+  * the mean score loss is 0.004 (median 0.000, worst 0.053) and no genuine pair
+  * that cleared the threshold stopped clearing it. */
+ static double
+-ft9201_match_score (const guint8 *tmpl, const guint8 *probe)
++ft9201_match_score (const guint8 *tmpl, const guint8 *probe, int w, int h)
+ {
+   int r = FT9201_SEARCH_RADIUS;
+   int step = FT9201_COARSE_STEP;
+@@ -171,7 +168,7 @@ ft9201_match_score (const guint8 *tmpl, const guint8 *probe)
+   for (dy = -r; dy <= r; dy += step)
+     for (dx = -r; dx <= r; dx += step)
+       {
+-        double score = ft9201_ncc (tmpl, probe, dx, dy);
++        double score = ft9201_ncc (tmpl, probe, w, h, dx, dy);
+ 
+         if (score > best)
+           {
+@@ -189,7 +186,7 @@ ft9201_match_score (const guint8 *tmpl, const guint8 *probe)
+         if (ABS (dx) > r || ABS (dy) > r)
+           continue;
+ 
+-        score = ft9201_ncc (tmpl, probe, dx, dy);
++        score = ft9201_ncc (tmpl, probe, w, h, dx, dy);
+         if (score > best)
+           best = score;
+       }
+@@ -438,12 +435,430 @@ capture_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+     }
+ }
+ 
++/* ------------------------------------------------------------------ */
++/* Old SIU bridge (2808:93a9)                                          */
++/* ------------------------------------------------------------------ */
++
++static void
++ft9201_next_state_delayed_cb (FpiUsbTransfer *transfer,
++                              FpDevice       *dev,
++                              gpointer        user_data,
++                              GError         *error)
++{
++  if (error)
++    {
++      fpi_ssm_mark_failed (transfer->ssm, error);
++      return;
++    }
++
++  fpi_ssm_next_state_delayed (transfer->ssm, GPOINTER_TO_INT (user_data));
++}
++
++static void
++ft9201_ctrl_out_delayed (FpDevice *dev,
++                         FpiSsm   *ssm,
++                         guint8    request,
++                         guint16   value,
++                         guint16   index,
++                         int       delay_ms)
++{
++  FpiUsbTransfer *transfer = fpi_usb_transfer_new (dev);
++
++  transfer->ssm = ssm;
++  fpi_usb_transfer_fill_control (transfer,
++                                 G_USB_DEVICE_DIRECTION_HOST_TO_DEVICE,
++                                 G_USB_DEVICE_REQUEST_TYPE_VENDOR,
++                                 G_USB_DEVICE_RECIPIENT_DEVICE,
++                                 request, value, index, 0);
++  fpi_usb_transfer_submit (transfer, FT9201_CMD_TIMEOUT,
++                           fpi_device_get_cancellable (dev),
++                           ft9201_next_state_delayed_cb,
++                           GINT_TO_POINTER (delay_ms));
++}
++
++/* Reads an AFE register; the reply carries it and the register after it. */
++static void
++ft9201_afe_read (FpDevice              *dev,
++                 FpiSsm                *ssm,
++                 guint8                 reg,
++                 FpiUsbTransferCallback callback)
++{
++  FpiUsbTransfer *transfer = fpi_usb_transfer_new (dev);
++
++  transfer->ssm = ssm;
++  fpi_usb_transfer_fill_control (transfer,
++                                 G_USB_DEVICE_DIRECTION_DEVICE_TO_HOST,
++                                 G_USB_DEVICE_REQUEST_TYPE_VENDOR,
++                                 G_USB_DEVICE_RECIPIENT_DEVICE,
++                                 FT9201_REQ_AFE_READ, 0, reg, 4);
++  fpi_usb_transfer_submit (transfer, FT9201_CMD_TIMEOUT,
++                           fpi_device_get_cancellable (dev),
++                           callback, NULL);
++}
++
++static gboolean
++ft9201_afe_reply_ok (FpiUsbTransfer *transfer,
++                     GError         *error)
++{
++  if (error)
++    {
++      fpi_ssm_mark_failed (transfer->ssm, error);
++      return FALSE;
++    }
++
++  if (transfer->actual_length < 2)
++    {
++      fpi_ssm_mark_failed (transfer->ssm,
++                           fpi_device_error_new_msg (FP_DEVICE_ERROR_PROTO,
++                                                     "Short AFE register reply (%" G_GSSIZE_FORMAT " bytes)",
++                                                     transfer->actual_length));
++      return FALSE;
++    }
++
++  return TRUE;
++}
++
++static gboolean
++ft9201_mcu_awake (const guint8 *reply)
++{
++  return reply[0] == 0xA5 && reply[1] == 0x5A;
++}
++
++static void
++open_old_reply_cb (FpiUsbTransfer *transfer,
++                   FpDevice       *dev,
++                   gpointer        user_data,
++                   GError         *error)
++{
++  FpiDeviceFocaltechMoh *self = FPI_DEVICE_FOCALTECH_MOH (dev);
++  const guint8 *reply = transfer->buffer;
++
++  if (!ft9201_afe_reply_ok (transfer, error))
++    return;
++
++  switch (fpi_ssm_get_cur_state (transfer->ssm))
++    {
++    case OPEN_OLD_MCU:
++      if (ft9201_mcu_awake (reply))
++        {
++          fpi_ssm_next_state (transfer->ssm);
++        }
++      else if (++self->sleep_polls < FT9201_OPEN_MCU_POLLS)
++        {
++          fpi_ssm_jump_to_state_delayed (transfer->ssm, OPEN_OLD_MCU,
++                                         FT9201_OLD_POLL_INTERVAL);
++        }
++      else
++        {
++          fpi_ssm_mark_failed (transfer->ssm,
++                               fpi_device_error_new_msg (FP_DEVICE_ERROR_GENERAL,
++                                                         "Sensor MCU did not wake (%02x %02x)",
++                                                         reply[0], reply[1]));
++        }
++      break;
++
++    case OPEN_OLD_CONFIGURED:
++      /* Set on every sensor seen so far. Setting it up from scratch is not
++       * understood, so refuse rather than guess at register writes. */
++      if (reply[0] != FT9201_CONFIGURED)
++        {
++          fpi_ssm_mark_failed (transfer->ssm,
++                               fpi_device_error_new_msg (FP_DEVICE_ERROR_NOT_SUPPORTED,
++                                                         "Sensor is not set up (0x%02x)",
++                                                         reply[0]));
++        }
++      else
++        {
++          fpi_ssm_next_state (transfer->ssm);
++        }
++      break;
++
++    case OPEN_OLD_SIZE:
++      if (reply[0] != FT9201_OLD_WIDTH || reply[1] != FT9201_OLD_HEIGHT)
++        {
++          fpi_ssm_mark_failed (transfer->ssm,
++                               fpi_device_error_new_msg (FP_DEVICE_ERROR_NOT_SUPPORTED,
++                                                         "Unsupported sensor size %ux%u",
++                                                         reply[0], reply[1]));
++        }
++      else
++        {
++          fpi_ssm_next_state (transfer->ssm);
++        }
++      break;
++
++    case OPEN_OLD_CHIP_ID:
++      self->chip_id = (reply[0] << 8) | reply[1];
++      fp_info ("FT9201 behind the old SIU bridge: %dx%d sensor, AFE chip 0x%04x",
++               self->width, self->height, self->chip_id);
++      fpi_ssm_next_state (transfer->ssm);
++      break;
++
++    default:
++      g_assert_not_reached ();
++    }
++}
++
++static void
++open_old_ssm_handler (FpiSsm *ssm, FpDevice *dev)
++{
++  switch (fpi_ssm_get_cur_state (ssm))
++    {
++    case OPEN_OLD_WAKE1:
++    case OPEN_OLD_WAKE2:
++      ft9201_ctrl_out_delayed (dev, ssm, FT9201_REQ_WAKE, FT9201_WAKE_ARG,
++                               FT9201_WAKE_ARG, FT9201_WAKE_DELAY);
++      break;
++
++    case OPEN_OLD_MCU:
++      ft9201_afe_read (dev, ssm, FT9201_AFE_MCU, open_old_reply_cb);
++      break;
++
++    case OPEN_OLD_CONFIGURED:
++      ft9201_afe_read (dev, ssm, FT9201_AFE_CONFIGURED, open_old_reply_cb);
++      break;
++
++    case OPEN_OLD_SIZE:
++      ft9201_afe_read (dev, ssm, FT9201_AFE_SIZE, open_old_reply_cb);
++      break;
++
++    case OPEN_OLD_CHIP_ID:
++      ft9201_afe_read (dev, ssm, FT9201_AFE_CHIP_ID, open_old_reply_cb);
++      break;
++
++    default:
++      g_assert_not_reached ();
++    }
++}
++
++static gboolean
++ft9201_fail_if_cancelled (FpDevice *dev, FpiSsm *ssm)
++{
++  GError *cancelled = NULL;
++
++  if (!fpi_device_action_is_cancelled (dev))
++    return FALSE;
++
++  g_cancellable_set_error_if_cancelled (fpi_device_get_cancellable (dev),
++                                        &cancelled);
++  fpi_ssm_mark_failed (ssm, cancelled);
++  return TRUE;
++}
++
++static void
++capture_old_poll_cb (FpiUsbTransfer *transfer,
++                     FpDevice       *dev,
++                     gpointer        user_data,
++                     GError         *error)
++{
++  FpiDeviceFocaltechMoh *self = FPI_DEVICE_FOCALTECH_MOH (dev);
++  FpiSsm *ssm = transfer->ssm;
++  const guint8 *reply = transfer->buffer;
++
++  if (!ft9201_afe_reply_ok (transfer, error))
++    return;
++
++  /* Waiting for a touch has no end of its own. */
++  if (ft9201_fail_if_cancelled (dev, ssm))
++    return;
++
++  if (fpi_ssm_get_cur_state (ssm) == CAPTURE_OLD_POLL_MCU)
++    {
++      guint16 mcu = (reply[0] << 8) | reply[1];
++
++      if (mcu != self->last_mcu)
++        fp_dbg ("MCU status %04x", mcu);
++      self->last_mcu = mcu;
++
++      if (ft9201_mcu_awake (reply))
++        {
++          self->sleep_polls = 0;
++          fpi_ssm_next_state (ssm);
++          return;
++        }
++
++      /* Asleep, so no frame waits. The bridge answers 00 00 or 01 01 while
++       * the MCU sleeps, and a touch wakes it from either. 01 01 is also how
++       * the sensor is found after another host had it, where it may not
++       * wake by itself, so a long run of it gets a wake request. */
++      self->frame_drained = TRUE;
++      if (reply[0] == 0x01 && reply[1] == 0x01 &&
++          ++self->sleep_polls >= FT9201_DEEP_SLEEP_POLLS)
++        {
++          fp_dbg ("Sensor stays in deep sleep, waking it");
++          self->sleep_polls = 0;
++          fpi_ssm_jump_to_state (ssm, CAPTURE_OLD_WAKE1);
++          return;
++        }
++      if (reply[0] != 0x01 || reply[1] != 0x01)
++        self->sleep_polls = 0;
++
++      fpi_ssm_jump_to_state_delayed (ssm, CAPTURE_OLD_POLL_MCU,
++                                     FT9201_OLD_POLL_INTERVAL);
++      return;
++    }
++
++  /* CAPTURE_OLD_POLL_FRAME, with the MCU awake */
++  if (reply[0] != FT9201_FRAME_WAITING)
++    {
++      self->frame_drained = TRUE;
++      fpi_ssm_jump_to_state_delayed (ssm, CAPTURE_OLD_POLL_MCU,
++                                     FT9201_OLD_POLL_INTERVAL);
++      return;
++    }
++
++  /* A frame captured before this request is never used: it is gone once
++   * the MCU sleeps, and only a touch after that counts. */
++  if (!self->frame_drained)
++    {
++      fpi_ssm_jump_to_state_delayed (ssm, CAPTURE_OLD_POLL_MCU,
++                                     FT9201_OLD_POLL_INTERVAL);
++      return;
++    }
++
++  fp_dbg ("Sensor captured a frame");
++  fpi_device_report_finger_status_changes (dev,
++                                           FP_FINGER_STATUS_PRESENT,
++                                           FP_FINGER_STATUS_NONE);
++  fpi_ssm_jump_to_state (ssm, CAPTURE_OLD_PREP1);
++}
++
++static void
++capture_old_read_cb (FpiUsbTransfer *transfer,
++                     FpDevice       *dev,
++                     gpointer        user_data,
++                     GError         *error)
++{
++  FpiDeviceFocaltechMoh *self = FPI_DEVICE_FOCALTECH_MOH (dev);
++
++  if (error)
++    {
++      fpi_ssm_mark_failed (transfer->ssm, error);
++      return;
++    }
++
++  fp_dbg ("Frame header %02x %02x", transfer->buffer[0], transfer->buffer[1]);
++  memcpy (self->image_buf, transfer->buffer + FT9201_OLD_HEADER,
++          self->width * self->height);
++
++  /* This frame stays in the sensor until its MCU sleeps; the next capture
++   * must not take it again. */
++  self->frame_drained = FALSE;
++  fpi_ssm_next_state (transfer->ssm);
++}
++
++static void
++capture_old_woken_cb (FpiUsbTransfer *transfer,
++                      FpDevice       *dev,
++                      gpointer        user_data,
++                      GError         *error)
++{
++  if (error)
++    {
++      fpi_ssm_mark_failed (transfer->ssm, error);
++      return;
++    }
++
++  fpi_ssm_jump_to_state_delayed (transfer->ssm, CAPTURE_OLD_POLL_MCU,
++                                 FT9201_WAKE_DELAY);
++}
++
++static void
++capture_old_ssm_handler (FpiSsm *ssm, FpDevice *dev)
++{
++  FpiDeviceFocaltechMoh *self = FPI_DEVICE_FOCALTECH_MOH (dev);
++
++  switch (fpi_ssm_get_cur_state (ssm))
++    {
++    case CAPTURE_OLD_POLL_MCU:
++      ft9201_afe_read (dev, ssm, FT9201_AFE_MCU, capture_old_poll_cb);
++      break;
++
++    case CAPTURE_OLD_POLL_FRAME:
++      ft9201_afe_read (dev, ssm, FT9201_AFE_FRAME, capture_old_poll_cb);
++      break;
++
++    case CAPTURE_OLD_WAKE1:
++      ft9201_ctrl_out_delayed (dev, ssm, FT9201_REQ_WAKE, FT9201_WAKE_ARG,
++                               FT9201_WAKE_ARG, FT9201_WAKE_DELAY);
++      break;
++
++    case CAPTURE_OLD_WAKE2:
++      {
++        FpiUsbTransfer *transfer = fpi_usb_transfer_new (dev);
++
++        /* Back to polling once woken. */
++        transfer->ssm = ssm;
++        fpi_usb_transfer_fill_control (transfer,
++                                       G_USB_DEVICE_DIRECTION_HOST_TO_DEVICE,
++                                       G_USB_DEVICE_REQUEST_TYPE_VENDOR,
++                                       G_USB_DEVICE_RECIPIENT_DEVICE,
++                                       FT9201_REQ_WAKE, FT9201_WAKE_ARG,
++                                       FT9201_WAKE_ARG, 0);
++        fpi_usb_transfer_submit (transfer, FT9201_CMD_TIMEOUT,
++                                 fpi_device_get_cancellable (dev),
++                                 capture_old_woken_cb, NULL);
++      }
++      break;
++
++    case CAPTURE_OLD_PREP1:
++      ft9201_ctrl_out_delayed (dev, ssm, FT9201_REQ_PREPARE, FT9201_PREPARE_INIT,
++                               0, FT9201_PREPARE_DELAY);
++      break;
++
++    case CAPTURE_OLD_PREP2:
++      ft9201_ctrl_out (dev, ssm, FT9201_REQ_PREPARE, FT9201_PREPARE_READ, 0);
++      break;
++
++    case CAPTURE_OLD_CMD:
++      ft9201_ctrl_out (dev, ssm, FT9201_REQ_FRAME_SIZE,
++                       self->width * self->height + FT9201_OLD_HEADER,
++                       FT9201_FRAME_ADDR);
++      break;
++
++    case CAPTURE_OLD_READ:
++      {
++        FpiUsbTransfer *transfer = fpi_usb_transfer_new (dev);
++
++        fpi_usb_transfer_fill_bulk (transfer, FT9201_EP_IN,
++                                    self->width * self->height + FT9201_OLD_HEADER);
++        transfer->short_is_error = TRUE;
++        transfer->ssm = ssm;
++        fpi_usb_transfer_submit (transfer, FT9201_CMD_TIMEOUT,
++                                 fpi_device_get_cancellable (dev),
++                                 capture_old_read_cb, NULL);
++      }
++      break;
++
++    default:
++      g_assert_not_reached ();
++    }
++}
++
++/* The capture sub-SSM for this device's bridge. */
++static FpiSsm *
++ft9201_capture_ssm_new (FpDevice *dev)
++{
++  FpiDeviceFocaltechMoh *self = FPI_DEVICE_FOCALTECH_MOH (dev);
++
++  if (self->bridge == FT9201_BRIDGE_OLD_SIU)
++    {
++      self->frame_drained = FALSE;
++      self->sleep_polls = 0;
++      return fpi_ssm_new (dev, capture_old_ssm_handler, CAPTURE_OLD_NUM_STATES);
++    }
++
++  return fpi_ssm_new (dev, capture_ssm_handler, CAPTURE_NUM_STATES);
++}
++
+ /* Scores a probe image against every template stored in `print`.
+  * Returns FALSE if the print does not carry usable template data. Shared by
+  * verify and identify so both apply exactly the same criterion. */
+ static gboolean
+ ft9201_score_against_print (FpPrint      *print,
+                             const guint8 *probe,
++                            int           w,
++                            int           h,
+                             double       *out_best,
+                             int          *out_confirms)
+ {
+@@ -474,9 +889,9 @@ ft9201_score_against_print (FpPrint      *print,
+       g_variant_get (img_var, "(@ay)", &inner);
+       tmpl_data = g_variant_get_fixed_array (inner, &tmpl_len, 1);
+ 
+-      if (tmpl_len == FT9201_RAW_SIZE)
++      if (tmpl_len == (gsize) (w * h))
+         {
+-          double score = ft9201_match_score (tmpl_data, probe);
++          double score = ft9201_match_score (tmpl_data, probe, w, h);
+ 
+           fp_dbg ("NCC template %d: %.4f", idx, score);
+           if (score > best)
+@@ -515,8 +930,7 @@ enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+     {
+     case ENROLL_CAPTURE:
+       {
+-        FpiSsm *capture = fpi_ssm_new (dev, capture_ssm_handler,
+-                                       CAPTURE_NUM_STATES);
++        FpiSsm *capture = ft9201_capture_ssm_new (dev);
+ 
+         fpi_device_report_finger_status_changes (dev,
+                                                  FP_FINGER_STATUS_NEEDED,
+@@ -528,13 +942,13 @@ enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+     case ENROLL_STORE_IMAGE:
+       {
+         int unique;
+-        guint8 preprocessed[FT9201_RAW_SIZE];
++        guint8 preprocessed[FT9201_MAX_SIZE];
+ 
+         fpi_device_report_finger_status_changes (dev,
+                                                  FP_FINGER_STATUS_NONE,
+                                                  FP_FINGER_STATUS_PRESENT);
+ 
+-        unique = count_unique_values (self->image_buf, FT9201_RAW_SIZE);
++        unique = count_unique_values (self->image_buf, self->width * self->height);
+         fp_dbg ("Enroll stage %d: %d unique values", self->enroll_stage, unique);
+ 
+         if (unique < FT9201_MIN_UNIQUE_VALUES)
+@@ -546,9 +960,9 @@ enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+             return;
+           }
+ 
+-        ft9201_preprocess (self->image_buf, preprocessed);
+-        memcpy (self->enroll_images + self->enroll_stage * FT9201_RAW_SIZE, preprocessed,
+-                FT9201_RAW_SIZE);
++        ft9201_preprocess (self->image_buf, preprocessed, self->width, self->height);
++        memcpy (self->enroll_images + self->enroll_stage * self->width * self->height,
++                preprocessed, self->width * self->height);
+ 
+         self->enroll_stage++;
+         fp_dbg ("Enroll stage %d/%d completed",
+@@ -577,7 +991,8 @@ enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+           {
+             GVariant *img = g_variant_new_fixed_array (
+               G_VARIANT_TYPE_BYTE,
+-              self->enroll_images + i * FT9201_RAW_SIZE, FT9201_RAW_SIZE, 1);
++              self->enroll_images + i * self->width * self->height,
++              self->width * self->height, 1);
+ 
+             g_variant_builder_add (&builder, "(@ay)", img);
+           }
+@@ -624,8 +1039,7 @@ verify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+     {
+     case VERIFY_CAPTURE:
+       {
+-        FpiSsm *capture = fpi_ssm_new (dev, capture_ssm_handler,
+-                                       CAPTURE_NUM_STATES);
++        FpiSsm *capture = ft9201_capture_ssm_new (dev);
+ 
+         fpi_device_report_finger_status_changes (dev,
+                                                  FP_FINGER_STATUS_NEEDED,
+@@ -637,7 +1051,7 @@ verify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+     case VERIFY_MATCH:
+       {
+         FpPrint *print = NULL;
+-        guint8 preprocessed[FT9201_RAW_SIZE];
++        guint8 preprocessed[FT9201_MAX_SIZE];
+         double best = -1.0;
+         int confirms = 0;
+         int unique;
+@@ -646,7 +1060,7 @@ verify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+                                                  FP_FINGER_STATUS_NONE,
+                                                  FP_FINGER_STATUS_PRESENT);
+ 
+-        unique = count_unique_values (self->image_buf, FT9201_RAW_SIZE);
++        unique = count_unique_values (self->image_buf, self->width * self->height);
+         fp_dbg ("Verify: %d unique values", unique);
+ 
+         if (unique < FT9201_MIN_UNIQUE_VALUES)
+@@ -659,11 +1073,12 @@ verify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+             return;
+           }
+ 
+-        ft9201_preprocess (self->image_buf, preprocessed);
++        ft9201_preprocess (self->image_buf, preprocessed, self->width, self->height);
+ 
+         fpi_device_get_verify_data (dev, &print);
+ 
+-        if (!ft9201_score_against_print (print, preprocessed, &best, &confirms))
++        if (!ft9201_score_against_print (print, preprocessed, self->width,
++                                         self->height, &best, &confirms))
+           {
+             fpi_device_verify_report (dev, FPI_MATCH_ERROR, NULL,
+                                       fpi_device_error_new (FP_DEVICE_ERROR_DATA_INVALID));
+@@ -719,8 +1134,7 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+     {
+     case IDENTIFY_CAPTURE:
+       {
+-        FpiSsm *capture = fpi_ssm_new (dev, capture_ssm_handler,
+-                                       CAPTURE_NUM_STATES);
++        FpiSsm *capture = ft9201_capture_ssm_new (dev);
+ 
+         fpi_device_report_finger_status_changes (dev,
+                                                  FP_FINGER_STATUS_NEEDED,
+@@ -732,7 +1146,7 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+     case IDENTIFY_MATCH:
+       {
+         g_autoptr(GPtrArray) prints = NULL;
+-        guint8 preprocessed[FT9201_RAW_SIZE];
++        guint8 preprocessed[FT9201_MAX_SIZE];
+         FpPrint *best_match = NULL;
+         double best_score = -1.0;
+         int unique;
+@@ -742,7 +1156,7 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+                                                  FP_FINGER_STATUS_NONE,
+                                                  FP_FINGER_STATUS_PRESENT);
+ 
+-        unique = count_unique_values (self->image_buf, FT9201_RAW_SIZE);
++        unique = count_unique_values (self->image_buf, self->width * self->height);
+         fp_dbg ("Identify: %d unique values", unique);
+ 
+         if (unique < FT9201_MIN_UNIQUE_VALUES)
+@@ -755,7 +1169,7 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+             return;
+           }
+ 
+-        ft9201_preprocess (self->image_buf, preprocessed);
++        ft9201_preprocess (self->image_buf, preprocessed, self->width, self->height);
+ 
+         fpi_device_get_identify_data (dev, &prints);
+         if (prints != NULL)
+@@ -772,7 +1186,8 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+             double best = -1.0;
+             int confirms = 0;
+ 
+-            if (!ft9201_score_against_print (candidate, preprocessed, &best, &confirms))
++            if (!ft9201_score_against_print (candidate, preprocessed, self->width,
++                                             self->height, &best, &confirms))
+               {
+                 fp_dbg ("Gallery print %u carries no usable template data", i);
+                 continue;
+@@ -819,6 +1234,22 @@ identify_ssm_complete (FpiSsm *ssm, FpDevice *dev, GError *error)
+ /* Device lifecycle                                                    */
+ /* ------------------------------------------------------------------ */
+ 
++static void
++open_old_ssm_complete (FpiSsm *ssm, FpDevice *dev, GError *error)
++{
++  FpiDeviceFocaltechMoh *self = FPI_DEVICE_FOCALTECH_MOH (dev);
++
++  if (error)
++    {
++      g_clear_pointer (&self->image_buf, g_free);
++      g_clear_pointer (&self->enroll_images, g_free);
++      g_usb_device_release_interface (fpi_device_get_usb_device (dev),
++                                      0, 0, NULL);
++    }
++
++  fpi_device_open_complete (dev, error);
++}
++
+ static void
+ dev_open (FpDevice *dev)
+ {
+@@ -827,7 +1258,12 @@ dev_open (FpDevice *dev)
+ 
+   G_DEBUG_HERE ();
+ 
+-  if (!g_usb_device_reset (fpi_device_get_usb_device (dev), &error))
++  self->bridge = fpi_device_get_driver_data (dev);
++
++  /* Only the new SIU bridge is reset: how the old one comes out of a reset
++   * has not been seen, and it needs none. */
++  if (self->bridge == FT9201_BRIDGE_NEW_SIU &&
++      !g_usb_device_reset (fpi_device_get_usb_device (dev), &error))
+     {
+       fp_dbg ("USB reset failed (non-fatal): %s", error->message);
+       g_clear_error (&error);
+@@ -840,10 +1276,29 @@ dev_open (FpDevice *dev)
+       return;
+     }
+ 
+-  self->image_buf = g_malloc0 (FT9201_RAW_SIZE);
+-  self->enroll_images = g_malloc0 (FT9201_NUM_ENROLL_STAGES * FT9201_RAW_SIZE);
++  if (self->bridge == FT9201_BRIDGE_OLD_SIU)
++    {
++      self->width = FT9201_OLD_WIDTH;
++      self->height = FT9201_OLD_HEIGHT;
++    }
++  else
++    {
++      self->width = FT9201_RAW_WIDTH;
++      self->height = FT9201_RAW_HEIGHT;
++    }
++
++  self->image_buf = g_malloc0 (self->width * self->height);
++  self->enroll_images = g_malloc0 (FT9201_NUM_ENROLL_STAGES * self->width * self->height);
+   self->warmup_done = FALSE;
+ 
++  if (self->bridge == FT9201_BRIDGE_OLD_SIU)
++    {
++      self->sleep_polls = 0;
++      fpi_ssm_start (fpi_ssm_new (dev, open_old_ssm_handler, OPEN_OLD_NUM_STATES),
++                     open_old_ssm_complete);
++      return;
++    }
++
+   fpi_device_open_complete (dev, NULL);
+ }
+ 
+@@ -911,8 +1366,8 @@ capture_task_ssm_complete (FpiSsm *ssm, FpDevice *dev, GError *error)
+   /* Deliberately hand out the *raw* sensor frame, not the preprocessed one:
+    * this is what makes the capture useful for evaluating preprocessing and
+    * matching offline. */
+-  img = fp_image_new (FT9201_RAW_WIDTH, FT9201_RAW_HEIGHT);
+-  memcpy (img->data, self->image_buf, FT9201_RAW_SIZE);
++  img = fp_image_new (self->width, self->height);
++  memcpy (img->data, self->image_buf, self->width * self->height);
+ 
+   fpi_device_capture_complete (dev, img, NULL);
+ }
+@@ -926,7 +1381,7 @@ focaltech_moh_capture (FpDevice *dev)
+                                            FP_FINGER_STATUS_NEEDED,
+                                            FP_FINGER_STATUS_NONE);
+ 
+-  self->task_ssm = fpi_ssm_new (dev, capture_ssm_handler, CAPTURE_NUM_STATES);
++  self->task_ssm = ft9201_capture_ssm_new (dev);
+   fpi_ssm_start (self->task_ssm, capture_task_ssm_complete);
+ }
+ 
+diff --git a/libfprint/drivers/focaltech_moh/focaltech_moh.h b/libfprint/drivers/focaltech_moh/focaltech_moh.h
+index b3bbdae3..76e5e26d 100644
+--- a/libfprint/drivers/focaltech_moh/focaltech_moh.h
++++ b/libfprint/drivers/focaltech_moh/focaltech_moh.h
+@@ -30,11 +30,46 @@ G_DECLARE_FINAL_TYPE (FpiDeviceFocaltechMoh, fpi_device_focaltech_moh, FPI,
+ 
+ #define FT9201_EP_IN 0x83   /* Bulk IN  (EP3, 32B max packet) */
+ 
++/* The FT9201 sits behind one of two USB bridges, told apart by product id. */
++enum ft9201_bridge {
++  FT9201_BRIDGE_NEW_SIU = 1,    /* 2808:9338, 2808:9348: registers through 0x6F */
++  FT9201_BRIDGE_OLD_SIU = 2,    /* 2808:93a9: AFE registers through 0x3A */
++};
++
+ /* Raw sensor image: 64 wide x 80 high, 8-bit grayscale */
+ #define FT9201_RAW_WIDTH 64
+ #define FT9201_RAW_HEIGHT 80
+ #define FT9201_RAW_SIZE (FT9201_RAW_WIDTH * FT9201_RAW_HEIGHT)      /* 5120 */
+ 
++/* Behind the old SIU bridge the sensor is 96x96, 8-bit grayscale, and it
++ * captures by itself: a touch wakes its MCU, which scans once and keeps the
++ * frame until it goes back to sleep about 0.9 s later. The host only waits
++ * for that and reads the frame. */
++#define FT9201_OLD_WIDTH 96
++#define FT9201_OLD_HEIGHT 96
++#define FT9201_OLD_HEADER 2             /* bytes ahead of the pixels */
++#define FT9201_MAX_SIZE (FT9201_OLD_WIDTH * FT9201_OLD_HEIGHT)
++
++#define FT9201_REQ_WAKE 0x22            /* wValue = wIndex = 0x70, sent twice */
++#define FT9201_WAKE_ARG 0x70
++#define FT9201_WAKE_DELAY 20            /* ms after each wake request */
++#define FT9201_REQ_AFE_READ 0x3A        /* wIndex = register; replies reg, reg+1, 0, 0 */
++#define FT9201_REQ_FRAME_SIZE 0x35      /* wValue = bytes to read, wIndex = 0x3400 */
++#define FT9201_FRAME_ADDR 0x3400
++#define FT9201_PREPARE_DELAY 20         /* ms between the two prepare requests */
++
++#define FT9201_AFE_SIZE 0x14            /* width, then height */
++#define FT9201_AFE_CHIP_ID 0x16         /* high byte, then low byte */
++#define FT9201_AFE_FRAME 0x1D           /* FT9201_FRAME_WAITING while a frame waits */
++#define FT9201_AFE_MCU 0x20             /* a5 5a while the MCU is awake */
++#define FT9201_AFE_CONFIGURED 0x30      /* FT9201_CONFIGURED once set up */
++#define FT9201_FRAME_WAITING 0xA0
++#define FT9201_CONFIGURED 0xBB
++
++#define FT9201_OLD_POLL_INTERVAL 20     /* ms between polls of the AFE status */
++#define FT9201_OPEN_MCU_POLLS 25        /* tries for the MCU to wake at open */
++#define FT9201_DEEP_SLEEP_POLLS 150     /* ~3 s of 01 01 before waking it again */
++
+ #define FT9201_CMD_TIMEOUT 5000
+ #define FT9201_POLL_INTERVAL 30   /* ms between finger detection polls */
+ #define FT9201_FINGER_UP_INTERVAL 10   /* ms between latch-drain polls */
+@@ -121,6 +156,33 @@ enum capture_states {
+   CAPTURE_NUM_STATES,
+ };
+ 
++/* Old SIU bridge: open. Wakes the MCU, then checks that the sensor is set up
++ * and is the geometry this driver knows. */
++enum open_old_states {
++  OPEN_OLD_WAKE1,             /* OUT 0x22(0x70, 0x70) */
++  OPEN_OLD_WAKE2,             /* OUT 0x22(0x70, 0x70) */
++  OPEN_OLD_MCU,               /* IN 0x3A(0x20) -- until a5 5a */
++  OPEN_OLD_CONFIGURED,        /* IN 0x3A(0x30) -- must be 0xbb */
++  OPEN_OLD_SIZE,              /* IN 0x3A(0x14) -- width, height */
++  OPEN_OLD_CHIP_ID,           /* IN 0x3A(0x16) -- chip id, for the log */
++  OPEN_OLD_NUM_STATES,
++};
++
++/* Old SIU bridge: capture. First waits until no frame is waiting, so that a
++ * touch made before the request is never used, then for the sensor's own
++ * capture, then reads it. Used as a sub-SSM like the new SIU one. */
++enum capture_old_states {
++  CAPTURE_OLD_POLL_MCU,       /* IN 0x3A(0x20) -- MCU awake? */
++  CAPTURE_OLD_POLL_FRAME,     /* IN 0x3A(0x1D) -- frame waiting? */
++  CAPTURE_OLD_WAKE1,          /* OUT 0x22 -- out of deep sleep */
++  CAPTURE_OLD_WAKE2,          /* OUT 0x22 */
++  CAPTURE_OLD_PREP1,          /* OUT 0x34(0xFF) */
++  CAPTURE_OLD_PREP2,          /* OUT 0x34(3) */
++  CAPTURE_OLD_CMD,            /* OUT 0x35(w*h+2, 0x3400) */
++  CAPTURE_OLD_READ,           /* BULK IN w*h+2 */
++  CAPTURE_OLD_NUM_STATES,
++};
++
+ /* Enroll SSM: captures 5 images, stores as template */
+ enum enroll_states {
+   ENROLL_CAPTURE,             /* Sub-SSM: full capture cycle */
+@@ -147,13 +209,21 @@ struct _FpiDeviceFocaltechMoh
+ {
+   FpDevice parent;
+ 
++  enum ft9201_bridge bridge;
++  int      width;               /* frame size in pixels */
++  int      height;
++  guint16  chip_id;             /* old SIU only */
++
+   gboolean warmup_done;
+   int      finger_up_polls;
+-  guint8  *image_buf;
++  gboolean frame_drained;       /* old SIU: no stale frame waits any more */
++  int      sleep_polls;         /* old SIU: polls finding the MCU in deep sleep */
++  guint16  last_mcu;            /* old SIU: last MCU status, to log changes */
++  guint8  *image_buf;           /* width * height */
+ 
+   /* Enroll state */
+   int enroll_stage;
+-  /* FT9201_NUM_ENROLL_STAGES * FT9201_RAW_SIZE bytes, allocated in dev_open().
++  /* FT9201_NUM_ENROLL_STAGES * width * height bytes, allocated in dev_open().
+    * Kept off the instance struct: GObject caps instance size at 64K and the
+    * template set alone exceeds that once the stage count is raised. */
+   guint8 *enroll_images;
+diff --git a/libfprint/fprint-list-udev-hwdb.c b/libfprint/fprint-list-udev-hwdb.c
+index 4907480d..16637454 100644
+--- a/libfprint/fprint-list-udev-hwdb.c
++++ b/libfprint/fprint-list-udev-hwdb.c
+@@ -188,7 +188,6 @@ static const FpIdEntry allowlist_id_table[] = {
+   { .vid = 0x27c6, .pid = 0x5f91 },
+   { .vid = 0x2808, .pid = 0x06fc },
+   { .vid = 0x2808, .pid = 0x6652 },
+-  { .vid = 0x2808, .pid = 0x93a9 },
+   { .vid = 0x2808, .pid = 0xa553 },
+   { .vid = 0x2808, .pid = 0xa573 },
+   { .vid = 0x2808, .pid = 0xa658 },

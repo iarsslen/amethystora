@@ -239,6 +239,23 @@
       extractVersionTemplate: '^v(?<version>.+)$',
       depTypeTemplate: 'fprintd',
     },
+    // The libfprint release packaging/libfprint builds the image's libfprint
+    // from, with the FocalTech FT9201 readers (its README); taken across by
+    // hand like fprintd's.
+    {
+      customType: 'regex',
+      managerFilePatterns: [
+        '/^packaging/libfprint/libfprint\\.spec$/',
+      ],
+      matchStrings: [
+        '\\nVersion:\\s+(?<currentValue>\\S+)\\n',
+      ],
+      depNameTemplate: 'libfprint/libfprint',
+      datasourceTemplate: 'gitlab-tags',
+      registryUrlTemplate: 'https://gitlab.freedesktop.org',
+      extractVersionTemplate: '^v(?<version>.+)$',
+      depTypeTemplate: 'libfprint',
+    },
     // The Renovate image validate-renovate.yml checks this file with, pinned
     // by digest so that the check runs exactly the release named there.
     {
@@ -374,10 +391,10 @@
       "matchPackageNames": ["/^icu_/", "fixed_decimal"],
       "groupName": "ICU4X"
     },
-    // fprintd's releases are looked for once a week, and never merged by
-    // Renovate: each one means taking the patches across by hand
+    // fprintd's and libfprint's releases are looked for once a week, and never
+    // merged by Renovate: each one means taking the patches across by hand
     {
-      "matchDepTypes": ["fprintd"],
+      "matchDepTypes": ["fprintd", "libfprint"],
       "schedule": ["before 6am on monday"],
       "automerge": false
     }

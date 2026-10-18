@@ -1,0 +1,107 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: 0xCoDSnet <effectorplay@gmail.com>
+Date: Fri, 13 Mar 2026 22:47:05 +0400
+Subject: [PATCH 02/18] focaltech_moh: add finger detection via INT_STATUS
+ polling
+
+Poll vendor request 0x43 (INT_STATUS) to detect finger presence
+before capturing. Byte 0: 0x00 = no finger, 0x01 = finger present.
+Retry every 30ms until finger is detected.
+
+Also add warmup skip on subsequent capture cycles to avoid
+consuming stale data from the USB pipe.
+---
+ .../drivers/focaltech_moh/focaltech_moh.c     | 51 ++++++++++++++++++-
+ .../drivers/focaltech_moh/focaltech_moh.h     |  3 ++
+ 2 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/libfprint/drivers/focaltech_moh/focaltech_moh.c b/libfprint/drivers/focaltech_moh/focaltech_moh.c
+index c8c7b8c0..0a75221e 100644
+--- a/libfprint/drivers/focaltech_moh/focaltech_moh.c
++++ b/libfprint/drivers/focaltech_moh/focaltech_moh.c
+@@ -94,6 +94,39 @@ capture_read_cb (FpiUsbTransfer *transfer,
+   fpi_ssm_next_state (transfer->ssm);
+ }
+ 
++static void
++finger_poll_cb (FpiUsbTransfer *transfer,
++               FpDevice       *dev,
++               gpointer        user_data,
++               GError         *error)
++{
++  FpImageDevice *img_dev = FP_IMAGE_DEVICE (dev);
++
++  if (error)
++    {
++      fpi_ssm_mark_failed (transfer->ssm, error);
++      return;
++    }
++
++  /* INT_STATUS byte 0: 0x00 = no finger, 0x01 = finger present */
++  fp_dbg ("INT_STATUS: 0x%02x 0x%02x 0x%02x 0x%02x (len=%zu)",
++          transfer->buffer[0], transfer->buffer[1],
++          transfer->buffer[2], transfer->buffer[3],
++          transfer->actual_length);
++  if (transfer->buffer[0] == 0x01)
++    {
++      fp_dbg ("Finger detected!");
++      fpi_image_device_report_finger_status (img_dev, TRUE);
++      fpi_ssm_next_state (transfer->ssm);
++    }
++  else
++    {
++      /* No finger — retry same state after delay */
++      fpi_ssm_jump_to_state_delayed (transfer->ssm, CAPTURE_POLL_FINGER,
++                                     FT9201_POLL_INTERVAL);
++    }
++}
++
+ static void
+ capture_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+ {
+@@ -136,6 +169,22 @@ capture_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+       }
+       break;
+ 
++    /* Finger detection: poll INT_STATUS (0x43) */
++    case CAPTURE_POLL_FINGER:
++      {
++        FpiUsbTransfer *transfer = fpi_usb_transfer_new (dev);
++
++        fpi_usb_transfer_fill_control (transfer,
++                                       G_USB_DEVICE_DIRECTION_DEVICE_TO_HOST,
++                                       G_USB_DEVICE_REQUEST_TYPE_VENDOR,
++                                       G_USB_DEVICE_RECIPIENT_DEVICE,
++                                       FT9201_REQ_INT_STATUS, 0, 0, 4);
++        transfer->ssm = ssm;
++        fpi_usb_transfer_submit (transfer, FT9201_CMD_TIMEOUT, NULL,
++                                 finger_poll_cb, NULL);
++      }
++      break;
++
+     /* Sync: poke 0xFF00 (no bulk read) */
+     case CAPTURE_SYNC_PREP1:
+       ft9201_ctrl_out (dev, ssm, FT9201_REQ_PREPARE, FT9201_PREPARE_INIT, 0);
+@@ -261,7 +310,7 @@ capture_ssm_complete (FpiSsm *ssm, FpDevice *dev, GError *error)
+   fp_dbg ("Image captured (%d unique values), submitting",
+           FT9201_IMG_SIZE);
+ 
+-  fpi_image_device_report_finger_status (img_dev, TRUE);
++  /* finger_on already reported in finger_poll_cb */
+   fpi_image_device_image_captured (img_dev, image);
+   fpi_image_device_report_finger_status (img_dev, FALSE);
+ 
+diff --git a/libfprint/drivers/focaltech_moh/focaltech_moh.h b/libfprint/drivers/focaltech_moh/focaltech_moh.h
+index ef8fe763..e3efc59a 100644
+--- a/libfprint/drivers/focaltech_moh/focaltech_moh.h
++++ b/libfprint/drivers/focaltech_moh/focaltech_moh.h
+@@ -67,6 +67,9 @@ enum capture_states {
+   CAPTURE_WARMUP_CMD,         /* OUT 0x6F(32, 0x9180) */
+   CAPTURE_WARMUP_READ,        /* BULK IN 32B (discard) */
+ 
++  /* Finger detection: poll INT_STATUS until finger present */
++  CAPTURE_POLL_FINGER,        /* IN 0x43 — byte0: 0=no finger, 1=finger */
++
+   /* Sync: poke 0xFF00 */
+   CAPTURE_SYNC_PREP1,         /* OUT 0x34(0xFF) */
+   CAPTURE_SYNC_PREP2,         /* OUT 0x34(3) */

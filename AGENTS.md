@@ -15,7 +15,7 @@ This document provides essential information for coding agents working with the 
 ## Repository Structure
 
 ### Root Directory Files
-- `Containerfile` - Main container build definition (stages: `ctx`, `brew`, `fprintd`, `base`)
+- `Containerfile` - Main container build definition (stages: `ctx`, `brew`, `fprintd`, `libfprint`, `apps`, `base`)
 - `Containerfile.sealed` - The sealed variant of a built image (`just seal`; see Sealed images)
 - `secure-boot.crt` - The certificate of the Secure Boot key sealed images are signed with, once `just secure-boot-key` has made it
 - `Justfile` - Build automation recipes (like a Makefile but more readable)
@@ -39,7 +39,7 @@ This document provides essential information for coding agents working with the 
   - `shared/` - Common build utilities and helper scripts
 - `branding/` - Source of the artwork; `node branding/generate.mjs` draws it
 - `iso/` - `iso.toml`, the bootc-image-builder configuration of the installer ISO; `product/`, which `build-iso.yml` adds to the ISO as `images/product.img`: the installer's Amethystora look (a stylesheet and artwork drawn by `branding/generate.mjs`), crash reporting (libreport files that send crash reports to Amethystora's issue tracker instead of Fedora's Bugzilla) and the Anaconda profile that keeps Fedora's installer settings although the installer's os-release says `generic`; `installer-packages.py`, which lists what the installer is made of; and `live/`, the live system of the live ISO: a `Containerfile` built `FROM` the published image with `build.sh`, which adds Fedora's live boot, live session and Anaconda's web installer, a copy of the image for an offline install (`installer.ks`), a profile for the image's own os-release ID, and the boot menu Titanoboa reads (`iso.yaml`)
-- `packaging/` - Packages Amethystora rebuilds, each in its folder with a README: `fprintd/` is Fedora's fprintd with the duress finger's patches, built in the Containerfile's `fprintd` stage on every image build. Renovate looks for a new fprintd release every Monday. The `.patch` files are kept byte for byte (`.gitattributes`, and the pre-commit whitespace hooks skip them)
+- `packaging/` - Packages Amethystora rebuilds, each in its folder with a README: `fprintd/` is Fedora's fprintd with the duress finger's patches, built in the Containerfile's `fprintd` stage on every image build; `libfprint/` is Fedora's libfprint with the `focaltech_moh` driver for the FocalTech FT9201 reader USB 2808:93a9, built in the `libfprint` stage: libfprint merge requests !572 and !646, three patches of Amethystora's, written for upstream, that add 2808:93a9 and a matcher deciding on minutiae, measured only on synthetic fingerprints (its README says what that leaves unknown), and a fourth, Amethystora's alone, that leaves the 64x80 2808:9338 and 2808:9348 unsupported, their matcher falling short. Renovate looks for a new release of either every Monday. The `.patch` files are kept byte for byte (`.gitattributes`, and the pre-commit whitespace hooks skip them)
 - `po/` - The gettext catalogs of the shell programs that are translated, the security report and the app permissions (text domain `amethystora`): `amethystora.pot`, which `node build_files/shared/check-translations.js --write --po po system_files/shared` writes from the scripts, and one `<language>.po` each, which `14-security.sh` compiles into `/usr/share/locale`
 - `tests/vm/` - The VM lab: a privileged container with QEMU, KVM, Secure Boot firmware, a TPM and the build's
   tools. `run.sh` builds the last commit, installs it onto a disk, boots it and runs `suites/` in it; an MCP
@@ -1036,18 +1036,21 @@ The `Containerfile` uses a multi-stage build process:
    for `build.sh`, and `05-override-install.sh` installs fprintd and fprintd-pam from it in place of
    Fedora's, refusing a base whose fprintd is past the spec's, and puts the source package in
    `/usr/src/amethystora`
-3. **Stage `apps`** (FROM the same pinned silverblue-main): `build_files/shared/build-apps.sh` installs
+3. **Stage `libfprint`** (FROM the same pinned silverblue-main): `build_files/shared/build-libfprint.sh`
+   builds `packaging/libfprint` the same way, running the FT9201 matcher's tests in its `%check`, and
+   `05-override-install.sh` installs libfprint from it under the same rule
+4. **Stage `apps`** (FROM the same pinned silverblue-main): `build_files/shared/build-apps.sh` installs
    Fedora's Rust, runs the tests of every crate in `apps/` and builds the one program into `/out`, with
    the licences of its crates, then clears its build away. `base` mounts the whole stage at `/apps-stage`:
    `13-apps.sh` installs from its `/out`, and `20-tests.sh` runs its Node. Neither Rust nor Node reaches
    the image
-4. **Stage `base`** (FROM silverblue-main): Base Amethystora image
+5. **Stage `base`** (FROM silverblue-main): Base Amethystora image
    - Mounts build context from `ctx` stage
    - Runs in three steps: `/ctx/build_files/shared/prepare.sh`, then
      `03-install-kernel-akmods.sh`, the only step the kernel module signing key (`AKMODS_PRIVKEY`,
      and for a throwaway key `AKMODS_CERT`) is mounted for, before any of the build's own
      third-party repositories is added, then `/ctx/build_files/shared/build.sh`, which runs the rest
-5. **dx**: not a stage of its own. `just build amethystora-dx` passes `IMAGE_FLAVOR=dx`, and
+6. **dx**: not a stage of its own. `just build amethystora-dx` passes `IMAGE_FLAVOR=dx`, and
    `build.sh` runs `build-dx.sh` inside the `base` stage once the rest has finished
 
 **Build Arguments:**
