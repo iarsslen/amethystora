@@ -649,6 +649,8 @@ case "${SUITE_PHASE}" in
         echo "# the file's copy on ${serial} is at sectors ${sectors}"
         next_boot "{\"faulty\": {\"${serial#SPARE-}\": [${sectors// /, }]}}"
     fi
+    # GNOME Shell's widgets on the accessibility bus from the next login, for the notification's button
+    as_user 'gsettings set org.gnome.desktop.interface toolkit-accessibility true'
     reboot_and_continue
     ;;
 
@@ -681,6 +683,7 @@ case "${SUITE_PHASE}" in
     else
         not_ok "Open Control did not open Control" "$(shell text 2>&1 | grep -i -A2 -B2 'disk' | head -n 20)"
     fi
+    as_user 'gsettings reset org.gnome.desktop.interface toolkit-accessibility'
     # Replaced while it still reads, from the good copies: the disk counting errors is the one offered first
     out="$(in_terminal 1200 'Which disk of data goes\?' $'\r' 'Which disk takes its place\?' $'\r' 'Type ERASE' $'ERASE\r' \
         'The recovery key of data' "${DATA_KEY}"$'\r' -- "${AS_TESTER[@]}" 'ame system raid replace data')"
