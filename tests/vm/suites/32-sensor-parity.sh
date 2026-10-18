@@ -70,4 +70,17 @@ expect "a change to a security setting (hardening)" '.key == "hardening" and (.t
 rss="$(systemctl show -p MemoryCurrent --value amethystora-sensor.service 2>/dev/null)"
 [[ "${rss}" =~ ^[0-9]+$ ]] && echo "# sensor memory: $((rss / 1024 / 1024)) MB"
 
+# What is done to the sensor is said: a signal it lives through, which it records itself, and a kill, which
+# systemd undoes within a second and the watcher says by the restart. Last, since it restarts the sensor.
+before="$(wc -l <"${HISTORY}" 2>/dev/null || echo 0)"
+kill -CONT "${sensor_pid}"
+sleep 2
+kill -KILL "${sensor_pid}"
+check "systemd started the sensor again after a kill" wait_for 60 sh -c \
+    '[ "$(systemctl show -p NRestarts --value amethystora-sensor.service)" -ge 1 ] && systemctl is-active --quiet amethystora-sensor.service'
+check "the security watcher runs after the kill" systemctl start amethystora-security-watch.service
+found="$(tail -n +"$((before + 1))" "${HISTORY}" 2>/dev/null)"
+expect "a signal sent to it" '.key == "hardening" and .level == "critical" and (.text | contains("reached for the file-watch sensor itself"))'
+expect "its restart after a kill" '.key == "hardening" and .level == "critical" and (.text | contains("stopped and was started again"))'
+
 finish

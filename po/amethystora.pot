@@ -480,15 +480,30 @@ msgid "Audit rules"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
+msgid "The file-watch sensor is not running"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "It records changes to accounts, sudo, what starts by itself and the security settings in place of the audit rules, and nothing records them until it runs again."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
 #, sh-format
-msgid "The audit log dropped ${DROPPED} event in the last week"
-msgid_plural "The audit log dropped ${DROPPED} events in the last week"
+msgid "The file-watch sensor dropped ${SENSOR_DROPPED} event since it started"
+msgid_plural "The file-watch sensor dropped ${SENSOR_DROPPED} events since it started"
 msgstr[0] ""
 msgstr[1] ""
 
 #: usr/libexec/amethystora-security-status
 msgid "The kernel drops an event rather than make anything wait when too many come at once, and what happened then was not recorded. Many at once can also be someone hiding a change in the noise."
 msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "The audit log dropped ${DROPPED} event in the last week"
+msgid_plural "The audit log dropped ${DROPPED} events in the last week"
+msgstr[0] ""
+msgstr[1] ""
 
 #: usr/libexec/amethystora-security-status
 msgid "The audit rules are not locked"

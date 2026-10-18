@@ -503,7 +503,20 @@ if [[ "${SETTING[AUDIT_LOG]}" != off && -f /etc/audit/rules.d/99-amethystora-fin
     # The events the kernel dropped in the last week, which only the watcher, as root, can count
     DROPPED="$(jq -r '[.audit.drops // [] | .[] | .count] | add // 0' "${WATCH_STATUS}" 2>/dev/null)"
     ENABLED="$(jq -r '.audit.enabled // empty' "${WATCH_STATUS}" 2>/dev/null)"
-    if [[ "${DROPPED}" =~ ^[1-9][0-9]*$ ]]; then
+    # Where the file-watch sensor records those keys in place of the rules (the watcher's status names them):
+    # whether it runs, asked now, and the events it could not write since it started
+    SENSOR_KEYS="$(jq -r '.sensor.covered // [] | length' "${WATCH_STATUS}" 2>/dev/null)"
+    SENSOR_DROPPED="$(jq -r '.sensor.drops // 0' "${WATCH_STATUS}" 2>/dev/null)"
+    if [[ "${SENSOR_KEYS}" =~ ^[1-9] ]] && ! systemctl is-active --quiet amethystora-sensor.service 2>/dev/null; then
+        COMMAND="sudo systemctl start amethystora-sensor.service"
+        report watching audit-rules check "$(gettext "Audit rules")" "$(gettext "The file-watch sensor is not running")" \
+            "$(gettext "It records changes to accounts, sudo, what starts by itself and the security settings in place of the audit rules, and nothing records them until it runs again.")" \
+            "$(gettext "Start it with:")"
+    elif [[ "${SENSOR_DROPPED}" =~ ^[1-9][0-9]*$ ]]; then
+        report watching audit-rules check "$(gettext "Audit rules")" \
+            "$(eval_ngettext "The file-watch sensor dropped \${SENSOR_DROPPED} event since it started" "The file-watch sensor dropped \${SENSOR_DROPPED} events since it started" "${SENSOR_DROPPED}")" \
+            "$(gettext "The kernel drops an event rather than make anything wait when too many come at once, and what happened then was not recorded. Many at once can also be someone hiding a change in the noise.")"
+    elif [[ "${DROPPED}" =~ ^[1-9][0-9]*$ ]]; then
         report watching audit-rules check "$(gettext "Audit rules")" \
             "$(eval_ngettext "The audit log dropped \${DROPPED} event in the last week" "The audit log dropped \${DROPPED} events in the last week" "${DROPPED}")" \
             "$(gettext "The kernel drops an event rather than make anything wait when too many come at once, and what happened then was not recorded. Many at once can also be someone hiding a change in the noise.")"

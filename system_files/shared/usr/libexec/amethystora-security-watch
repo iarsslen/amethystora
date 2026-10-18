@@ -229,6 +229,9 @@ INPUT_SEEN="${STATE}/input-programs"
 # a stand-in sensor log (AMETHYSTORA_WATCH_SENSOR) and plan (AMETHYSTORA_SENSOR_RUN).
 SENSOR_LOG=/var/log/amethystora-sensor/audit.log
 [[ -n "${ROOT}" && -n "${AMETHYSTORA_WATCH_SENSOR:-}" ]] && SENSOR_LOG="${AMETHYSTORA_WATCH_SENSOR}"
+# The sensor's unit is asked through systemctl, or a stand-in the tests name (AMETHYSTORA_WATCH_SYSTEMCTL)
+SYSTEMCTL=systemctl
+[[ -n "${ROOT}" && -n "${AMETHYSTORA_WATCH_SYSTEMCTL:-}" ]] && SYSTEMCTL="${AMETHYSTORA_WATCH_SYSTEMCTL}"
 SENSOR_RUN="${AMETHYSTORA_SENSOR_RUN:-${ROOT}/run/amethystora/sensor}"
 SENSOR_COVERS=" "
 if [[ -r "${SENSOR_RUN}/plan" ]]; then
@@ -245,7 +248,8 @@ AUDIT_INPUT=()
 audit_since() {
     local name="$1" output status day time src input checkpoint
     shift
-    if [[ "${SENSOR_COVERS}" == *" ${name} "* ]]; then
+    # "sensor" is what was done to the sensor itself, which only its own log holds
+    if [[ "${name}" == sensor || "${SENSOR_COVERS}" == *" ${name} "* ]]; then
         src=sensor
         input=(-if "${SENSOR_LOG}")
     else
@@ -1489,22 +1493,53 @@ audit_status() {
         '{$enabled, $drops}'
 }
 
-# The file-watch sensor's state for the report: the keys the plan gives it, and whether it is running
+# The file-watch sensor's state for the report: the keys the plan gives it, whether it is running, and the
+# events its BPF could not write since it started (the ring buffer full in a burst), which it keeps in its
+# run directory, as audit's lost events are counted
 sensor_status() {
-    local covered active=false
+    local covered active=false drops
     covered="$(tr ' ' '\n' <<<"${SENSOR_COVERS}" | grep . | jq -R . | jq -sc . 2>/dev/null)"
-    systemctl is-active --quiet amethystora-sensor.service 2>/dev/null && active=true
-    jq -nc --argjson covered "${covered:-[]}" --argjson active "${active}" '{$covered, $active}'
+    "${SYSTEMCTL}" is-active --quiet amethystora-sensor.service 2>/dev/null && active=true
+    drops="$(cat "${SENSOR_RUN}/dropped" 2>/dev/null)"
+    [[ "${drops}" =~ ^[0-9]+$ ]] || drops=0
+    jq -nc --argjson covered "${covered:-[]}" --argjson active "${active}" --argjson drops "${drops}" \
+        '{$covered, $active, $drops}'
 }
 
 # A stop worth saying: the plan gives the sensor keys, yet it is not running, so the kernel records nothing
 # for them (the audit rules are off in its place). A stop takes a reboot to be the normal state, as the
-# locked audit rules do. Silent when the sensor covers nothing (a fallback boot, or a stand-in in the tests).
+# locked audit rules do. A kill is undone within a second (Restart=always), so every restart since the last
+# look is said as well, counted per boot since a shutdown is none; and so is what the sensor recorded done to
+# itself, a signal or a bpf() call at its links, but systemd's own (a shutdown, or a kill a restart says).
+# Silent when the sensor covers nothing (a fallback boot, or a stand-in in the tests).
 sensor_watch() {
+    local boot restarts last_boot="" last_restarts="" count mark event times
     [[ "${SENSOR_COVERS}" =~ [a-z] ]] || return 0
-    systemctl is-active --quiet amethystora-sensor.service 2>/dev/null && return 0
-    add critical hardening - "Defense Evasion" \
-        "The file-watch sensor is not running, and the audit rules are off in its place: changes to accounts, sudo, what starts by itself and the security settings are not being recorded. Start amethystora-sensor, or keep the audit rules with: ame security audit-locked on"
+    if ! "${SYSTEMCTL}" is-active --quiet amethystora-sensor.service 2>/dev/null; then
+        add critical hardening - "Defense Evasion" \
+            "The file-watch sensor is not running, and the audit rules are off in its place: changes to accounts, sudo, what starts by itself and the security settings are not being recorded. Start amethystora-sensor, or keep the audit rules with: ame security audit-locked on"
+        return 0
+    fi
+    boot="$(cat /proc/sys/kernel/random/boot_id 2>/dev/null)"
+    restarts="$("${SYSTEMCTL}" show -p NRestarts --value amethystora-sensor.service 2>/dev/null)"
+    [[ -r "${STATE}/sensor-restarts" ]] && read -r last_boot last_restarts <"${STATE}/sensor-restarts"
+    [[ "${last_boot}" == "${boot}" && "${last_restarts}" =~ ^[0-9]+$ ]] || last_restarts=0
+    if [[ "${restarts}" =~ ^[0-9]+$ ]]; then
+        if [[ "${restarts}" -gt "${last_restarts}" ]]; then
+            times=""
+            [[ $((restarts - last_restarts)) -gt 1 ]] && times=" ($((restarts - last_restarts)) times)"
+            add critical hardening - "Defense Evasion" \
+                "The file-watch sensor stopped and was started again since the last check${times}: what happened while it was down was not recorded. A kill does this, and so does a crash, which its journal names: journalctl -u amethystora-sensor"
+        fi
+        echo "${boot} ${restarts}" >"${STATE}/sensor-restarts"
+    fi
+    while read -r count mark event; do
+        [[ -n "${event}" && "${event}" != *" using /usr/lib/systemd/systemd" ]] || continue
+        times=""
+        [[ "${count}" -gt 1 ]] && times=" (${count} times)"
+        add "$([[ "${mark}" == noted ]] && echo quiet || echo critical)" hardening - "Defense Evasion" \
+            "Something reached for the file-watch sensor itself: ${event}${times}"
+    done < <(audit_events sensor)
 }
 
 # --- The TPM's disk key ----------------------------------------------------------------------------------

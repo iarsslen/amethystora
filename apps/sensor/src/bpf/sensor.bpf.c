@@ -89,10 +89,10 @@ struct {
 	__type(value, struct file_info);
 } files SEC(".maps");
 
-/* The events, which the daemon drains while it runs. It is NOT pinned across restarts in this version, so a
- * signal that kills the daemon before it drains takes the buffered records with it; such a kill is caught
- * instead by systemd's SERVICE_STOP, which the watcher's tamper check reads (PLAN-audit-cost.md section 4.7).
- * Non-fatal signals and link-detach attempts are recorded live. Pinning it to survive a kill is a later step. */
+/* The events, which the daemon drains while it runs. It is not pinned, by the maintainer's choice: a signal
+ * that kills the daemon takes the buffered records with it, and what happens until systemd has started it
+ * again goes unrecorded; the watcher says every such restart (NRestarts, per boot). Non-fatal signals and
+ * link-detach attempts are recorded live (PLAN-audit-cost.md section 4.7). */
 struct {
 	__uint(type, BPF_MAP_TYPE_RINGBUF);
 	__uint(max_entries, 1 << 20);
@@ -1263,9 +1263,9 @@ static __always_inline void emit_tamper(__u32 op, __u32 flags, struct task_struc
 	submit(s, pos);
 }
 
-/* A signal sent to it, from anywhere but itself, recorded before it is delivered. While the daemon keeps
- * running (a non-fatal signal) the record is drained and kept; a signal that kills it is lost with the
- * unpinned ring buffer and is caught instead by systemd's SERVICE_STOP (section 4.7). */
+/* A signal sent to it, from anywhere but itself or the kernel, recorded before it is delivered. While the
+ * daemon keeps running (a non-fatal signal, SIGSTOP once it resumes) the record is drained and kept; a signal
+ * that kills it is lost with the unpinned ring buffer, and the watcher says the restart instead. */
 SEC("fentry/security_task_kill")
 int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int sig, const struct cred *cred)
 {
@@ -1274,7 +1274,7 @@ int BPF_PROG(task_kill, struct task_struct *p, struct kernel_siginfo *info, int 
 	if (!sig || !globals.self_tgid || BPF_CORE_READ(p, tgid) != globals.self_tgid)
 		return 0;
 	task = bpf_get_current_task_btf();
-	if (BPF_CORE_READ(task, tgid) == globals.self_tgid)
+	if (!recorded(task))
 		return 0;
 	emit_tamper(SOP_KILL, sig, task);
 	return 0;

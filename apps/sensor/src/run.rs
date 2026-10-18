@@ -72,6 +72,7 @@ pub fn run(probe: bool) -> Result<(), Box<dyn Error>> {
     let files = map_named(&loaded.object, "files")?;
     let bss = map_named(&loaded.object, "bss")?;
     let events = map_named(&loaded.object, "events")?;
+    let dropped = map_named(&loaded.object, "dropped")?;
 
     let mut reg = Registry::new();
     let mut refused = RefusedMatcher::default();
@@ -106,9 +107,19 @@ pub fn run(probe: bool) -> Result<(), Box<dyn Error>> {
     }
 
     let mut serial = (std::process::id() as u64) << 16;
+    let mut drops_said = 0u64;
     loop {
         ring.poll(Duration::from_millis(500))?;
         let batch: Vec<Vec<u8>> = queue.borrow_mut().drain(..).collect();
+        // Events the BPF could not write (the ring buffer full in a burst), counted per CPU: the watcher reports
+        // them as it does audit's lost events. Looked at only after a batch, since a burst is what fills it.
+        if !batch.is_empty() {
+            let drops = count_drops(&dropped);
+            if drops != drops_said {
+                let _ = fs::write(plan::run_dir().join("dropped"), format!("{drops}\n"));
+                drops_said = drops;
+            }
+        }
         for raw in batch {
             if let Some(ev) = Event::parse(&raw) {
                 serial = serial.wrapping_add(1);
@@ -170,6 +181,17 @@ fn journal_line(rec: &Record) -> Vec<u8> {
         format!(" (comm={} uid={} auid={})", String::from_utf8_lossy(&rec.comm), rec.uid, rec.auid).as_bytes(),
     );
     line
+}
+
+/// The events the BPF dropped since it loaded, summed over the CPUs (the `dropped` per-CPU array, slot 0).
+fn count_drops(dropped: &Map) -> u64 {
+    match dropped.lookup_percpu(&0u32.to_ne_bytes(), MapFlags::ANY) {
+        Ok(Some(cpus)) => cpus
+            .iter()
+            .filter_map(|v| v.get(..8).and_then(|b| b.try_into().ok()).map(u64::from_ne_bytes))
+            .sum(),
+        _ => 0,
+    }
 }
 
 /// Tells systemd the sensor is watching (sd_notify's READY=1), which the logins wait for. A second READY is
