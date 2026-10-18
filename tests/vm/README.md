@@ -56,7 +56,7 @@ is how an agent runs it and fixes what fails.
 A suite is `suites/NN-name.sh`, run as root in the VM beside `lib.sh`, which it sources. It says one line per
 check, as TAP does (`ok - ...`, `not ok - ...` with indented lines saying why, `skip - ...`), uses `check`,
 `wait_for`, `as_user` and `in_session` from `lib.sh`, and ends with `finish`. Exit status 100
-(`reboot_and_continue`) restarts the VM and runs the suite again with `SUITE_PHASE` one higher, six phases at
+(`reboot_and_continue`) restarts the VM and runs the suite again with `SUITE_PHASE` one higher, sixteen phases at
 most; a restart empties `/run`, so what a suite keeps between phases goes in `/var/lib/vmlab-tests`. A line
 starting with `#` is a measurement, which the report repeats. A phase that calls `next_boot JSON` first gets a
 power cycle instead, the machine started again with a spare disk unplugged (`{"absent": [2]}`), with sectors

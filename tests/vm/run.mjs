@@ -54,7 +54,7 @@ const MACHINES = {
     credentials: { 'cryptsetup.passphrase': PASSPHRASE, 'cryptsetup.tpm2-pin': TPM_PIN },
   },
 };
-const MAX_PHASES = 12;
+const MAX_PHASES = 16;
 const stage = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : 'all';
 const keep = process.argv.includes('--keep');
 
