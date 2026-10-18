@@ -1260,7 +1260,7 @@ replace_system() {  # STATUS POOL-JSON DEVID OLD-KNAME CHOICE
         as_root mdadm "${BOOT_MD}" --remove detached >/dev/null 2>&1
         as_root mdadm "${BOOT_MD}" --add "${new_boot}" >/dev/null || echo "${new_boot} could not join /boot's mirror: mdadm --detail ${BOOT_MD} says why." >&2
         copy_esp "${esp}" "${new_esp}" "${boot_uuid}" || echo "The EFI partition could not be copied onto ${new_esp}." >&2
-        entry="$(efi_entry "${new_esp}" "Amethystora (${disk##*/})")" || echo "The firmware's boot entry for ${disk} could not be made." >&2
+        entry="$(efi_entry "${new_esp}" "Amethystora (${disk##*/})" "${esp}")" || echo "The firmware's boot entry for ${disk} could not be made." >&2
         # The entries made for a disk that is gone, and /boot/efi on one that is
         while read -r number part; do
             [[ -n "${part}" && ! -e "/dev/disk/by-partuuid/${part}" ]] && as_root efibootmgr --quiet --delete-bootnum --bootnum "${number}" >/dev/null
@@ -1641,20 +1641,33 @@ esp_on() {
     lsblk -nrpo PATH,PARTTYPE,FSTYPE "$1" | awk -v type="${ESP_TYPE}" 'tolower($2) == type && $3 == "vfat" { print $1; exit }'
 }
 
-# The firmware's boot entry for the shim on an ESP, made if there is none: "Amethystora (DISK)" added at the end
-# of the boot order, so that the firmware tries it when the disks before it are gone. Prints its number.
-efi_entry() {  # ESP LABEL
-    local disk number partuuid loader='\EFI\fedora\shimx64.efi' order
+# The firmware's entries for an ESP's shim, by the ESP's partition UUID
+efi_entries_of() {  # ESP
+    local partuuid
+    partuuid="$(lsblk -ndo PARTUUID "$1" 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+    [[ -n "${partuuid}" ]] || return 0
+    as_root efibootmgr -v 2>/dev/null | awk -v p="${partuuid}" 'tolower($0) ~ p && tolower($0) ~ /shimx64/ {
+        sub(/^Boot/, "", $1); sub(/\*$/, "", $1); print $1 }'
+}
+
+# The firmware's boot entry for the shim on an ESP, made if there is none: "Amethystora (DISK)", right after the
+# entry of the other disk's ESP in the boot order, so that the firmware tries it as soon as that disk is gone,
+# before the entries it makes for each disk by itself (which start shim's fallback). Prints its number.
+efi_entry() {  # ESP LABEL OTHER-ESP
+    local disk number loader='\EFI\fedora\shimx64.efi' order after
     disk="$(disk_of_part "$1")"
-    partuuid="$(lsblk -ndo PARTUUID "$1" | tr '[:upper:]' '[:lower:]')"
-    number="$(as_root efibootmgr -v 2>/dev/null | awk -v p="${partuuid}" 'tolower($0) ~ p && /shimx64/ { sub(/^Boot/, "", $1); sub(/\*$/, "", $1); print $1; exit }')"
+    number="$(efi_entries_of "$1" | head -n 1)"
     if [[ -z "${number}" ]]; then
-        order="$(as_root efibootmgr | sed -n 's/^BootOrder: //p')"
         as_root efibootmgr --quiet --create-only --disk "${disk}" --part "$(lsblk -ndo PARTN "$1")" --label "$2" --loader "${loader}" >/dev/null || return 1
-        number="$(as_root efibootmgr -v | awk -v p="${partuuid}" 'tolower($0) ~ p && /shimx64/ { sub(/^Boot/, "", $1); sub(/\*$/, "", $1); print $1; exit }')"
+        number="$(efi_entries_of "$1" | head -n 1)"
         [[ -n "${number}" ]] || return 1
-        as_root efibootmgr --quiet --bootorder "${order:+${order},}${number}" >/dev/null || return 1
     fi
+    after="$(efi_entries_of "$3" | head -n 1)"
+    order="$(as_root efibootmgr | sed -n 's/^BootOrder: //p' | tr ',' '\n' | grep -vx "${number}" | paste -sd ,)"
+    order="$(awk -v RS=, -v ORS=, -v after="${after}" -v n="${number}" 'NR == 1 && after == "" { print; print n; next }
+        { sub(/\n$/, ""); print } $0 == after { print n }' <<<"${order}" | sed 's/,$//')"
+    [[ ",${order}," == *",${number},"* ]] || order="${number}${order:+,${order}}"
+    as_root efibootmgr --quiet --bootorder "${order}" >/dev/null || return 1
     printf '%s\n' "${number}"
 }
 
@@ -1809,7 +1822,7 @@ mirror_onto() {  # STATUS [DISK]
     echo "Copying the EFI partition…"
     copy_esp "${esp}" "${new_esp}" "${md_uuid}" || die "The EFI partition could not be copied."
     fstab_nofail /boot/efi
-    entry="$(efi_entry "${new_esp}" "Amethystora (${disk##*/})")" || die "The firmware's boot entry for ${disk} could not be made."
+    entry="$(efi_entry "${new_esp}" "Amethystora (${disk##*/})" "${esp}")" || die "The firmware's boot entry for ${disk} could not be made."
 
     # What the restart from the new disk finishes, which amethystora-raid-boot.service does
     jq -n --arg disk "${disk}" --arg entry "${entry}" --arg boot_id "$(cat /proc/sys/kernel/random/boot_id)" \
