@@ -43,8 +43,10 @@ LimitNOFILE=524288
 # Loading tracing BPF and reading kernel memory from it, and opening any folder to register it. The exact
 # set is to be tightened once the lab confirms what the load needs; CAP_SYS_ADMIN covers older kernels.
 CapabilityBoundingSet=CAP_BPF CAP_PERFMON CAP_SYS_ADMIN CAP_SYS_RESOURCE CAP_DAC_READ_SEARCH
-# Steady-state is ~11 MB, but loading the programs reads the kernel's BTF (tens of MB) for a moment, and
-# MemoryHigh throttles — not just caps — so it has to clear that peak or the daemon stalls mid-registration.
+# Steady-state is ~11 MB, and the load peaks at ~12 MB with every key on: the verifier's work is charged here,
+# 136 MB while it walked the paths again for every caller (see walk_path in sensor.bpf.c). MemoryHigh
+# throttles — not just caps — so it stays well clear of a machine with tens of thousands of watched folders,
+# each a held descriptor and a map entry, or the daemon stalls mid-registration.
 MemoryHigh=192M
 MemoryMax=256M
 

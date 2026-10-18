@@ -321,20 +321,27 @@ static long walk_step(__u64 index, struct walk *w)
 	return 0;
 }
 
-static __always_inline int walk_path(struct scratch *s, struct dentry *dentry, struct vfsmount *vfsmnt,
-				     struct task_struct *task)
+/* A global function, as put_program is: the verifier checks it once, on its own, rather than again for every
+ * state a caller reaches it in. Inline, each string an event carries split the caller's states and every one
+ * walked the path again, which was most of a load (6.7 million instructions verified, 14 s in the lab). So the
+ * kernel pointers come as plain values, read only through BPF_CORE_READ, and the task is the current one, as it
+ * is at every call. */
+__noinline int walk_path(struct scratch *s, __u64 dentry, __u64 vfsmnt)
 {
+	struct task_struct *task = bpf_get_current_task_btf();
 	struct walk w = {};
 
+	if (!s)
+		return -1;
 	w.s = s;
-	w.dentry = dentry;
-	w.vfsmnt = vfsmnt;
+	w.dentry = (struct dentry *)dentry;
+	w.vfsmnt = (struct vfsmount *)vfsmnt;
 	w.mnt = vfsmnt ? (struct mount *)((char *)vfsmnt - bpf_core_field_offset(struct mount, mnt)) : NULL;
 	w.root_dentry = BPF_CORE_READ(task, fs, root.dentry);
 	w.root_mnt = BPF_CORE_READ(task, fs, root.mnt);
 	w.off = PATHBUF - 1;
 	s->path[PATHBUF - 1] = 0;
-	if (dentry)
+	if (w.dentry)
 		bpf_loop(PATH_DEPTH, walk_step, &w, 0);
 	if (w.off == PATHBUF - 1) {
 		w.off = PATHBUF - 2;
@@ -472,19 +479,23 @@ static __always_inline void actor(struct sensor_event *e, struct task_struct *ta
 	}
 }
 
-/* The program and the working folder, after the names: EXE and CWD */
-static __always_inline __u32 put_program(struct scratch *s, __u32 pos, struct task_struct *task)
+/* The program and the working folder, after the names: EXE and CWD. Global, as walk_path is, and for the same
+ * reason: pos comes as any value, which every put checks. */
+__noinline __u32 put_program(struct scratch *s, __u32 pos)
 {
+	struct task_struct *task = bpf_get_current_task_btf();
 	struct file *exe = BPF_CORE_READ(task, mm, exe_file);
 	int start;
 
+	if (!s)
+		return pos;
 	if (exe) {
-		start = walk_path(s, BPF_CORE_READ(exe, f_path.dentry), BPF_CORE_READ(exe, f_path.mnt), task);
+		start = walk_path(s, (__u64)BPF_CORE_READ(exe, f_path.dentry), (__u64)BPF_CORE_READ(exe, f_path.mnt));
 		pos = put_path(s, pos, SSTR_EXE, start, SENSOR_EXE_MAX);
 	} else {
 		pos = put_empty(&s->e, pos, SSTR_EXE);
 	}
-	start = walk_path(s, BPF_CORE_READ(task, fs, pwd.dentry), BPF_CORE_READ(task, fs, pwd.mnt), task);
+	start = walk_path(s, (__u64)BPF_CORE_READ(task, fs, pwd.dentry), (__u64)BPF_CORE_READ(task, fs, pwd.mnt));
 	return put_path(s, pos, SSTR_CWD, start, SENSOR_CWD_MAX);
 }
 
@@ -514,7 +525,7 @@ static __always_inline void emit_named(__u32 op, int result, __u32 keys, __u32 i
 	actor(&s->e, task);
 	pos = PUT_KSTR(&s->e, pos, SSTR_NAME, BPF_CORE_READ(dentry, d_name.name), SENSOR_NAME_MAX);
 	pos = PUT_KSTR(&s->e, pos, SSTR_NAME2, name2, SENSOR_NAME2_MAX);
-	pos = put_program(s, pos, task);
+	pos = put_program(s, pos);
 	pos = put_empty(&s->e, pos, SSTR_PATH2);
 	pos = put_empty(&s->e, pos, SSTR_ARGV);
 	submit(s, pos);
@@ -574,7 +585,7 @@ int BPF_PROG(file_open, struct file *file, int ret)
 	actor(&s->e, task);
 	pos = PUT_KSTR(&s->e, pos, SSTR_NAME, BPF_CORE_READ(dentry, d_name.name), SENSOR_NAME_MAX);
 	pos = put_empty(&s->e, pos, SSTR_NAME2);
-	pos = put_program(s, pos, task);
+	pos = put_program(s, pos);
 	pos = put_empty(&s->e, pos, SSTR_PATH2);
 	pos = put_empty(&s->e, pos, SSTR_ARGV);
 	submit(s, pos);
@@ -616,8 +627,8 @@ int BPF_PROG(file_open_input, struct file *file, int ret)
 	dentry = BPF_CORE_READ(file, f_path.dentry);
 	pos = PUT_KSTR(&s->e, pos, SSTR_NAME, BPF_CORE_READ(dentry, d_name.name), SENSOR_NAME_MAX);
 	pos = put_empty(&s->e, pos, SSTR_NAME2);
-	pos = put_program(s, pos, task);
-	start = walk_path(s, dentry, BPF_CORE_READ(file, f_path.mnt), task);
+	pos = put_program(s, pos);
+	start = walk_path(s, (__u64)dentry, (__u64)BPF_CORE_READ(file, f_path.mnt));
 	pos = put_path(s, pos, SSTR_PATH2, start, SENSOR_PATH2_MAX);
 	pos = put_empty(&s->e, pos, SSTR_ARGV);
 	submit(s, pos);
@@ -668,7 +679,7 @@ int BPF_PROG(open_refused, int dfd, struct filename *pathname, const struct open
 	actor(&s->e, task);
 	pos = put_empty(&s->e, pos, SSTR_NAME);
 	pos = put_empty(&s->e, pos, SSTR_NAME2);
-	pos = put_program(s, pos, task);
+	pos = put_program(s, pos);
 	pos = PUT_KSTR(&s->e, pos, SSTR_PATH2, BPF_CORE_READ(pathname, name), SENSOR_PATH2_MAX);
 	pos = put_empty(&s->e, pos, SSTR_ARGV);
 	submit(s, pos);
@@ -731,7 +742,7 @@ static __always_inline int attr_op(__u32 op, struct dentry *dentry, int ret, con
 	actor(&s->e, task);
 	pos = PUT_KSTR(&s->e, pos, SSTR_NAME, BPF_CORE_READ(dentry, d_name.name), SENSOR_NAME_MAX);
 	pos = PUT_KSTR(&s->e, pos, SSTR_NAME2, name2, SENSOR_NAME2_MAX);
-	pos = put_program(s, pos, task);
+	pos = put_program(s, pos);
 	pos = put_empty(&s->e, pos, SSTR_PATH2);
 	pos = put_empty(&s->e, pos, SSTR_ARGV);
 	submit(s, pos);
@@ -811,7 +822,7 @@ int BPF_PROG(vfs_link_exit, struct dentry *old_dentry, struct mnt_idmap *idmap, 
 	nr = s->e.syscall;
 	pos = PUT_KSTR(&s->e, pos, SSTR_NAME, BPF_CORE_READ(new_dentry, d_name.name), SENSOR_NAME_MAX);
 	pos = PUT_KSTR(&s->e, pos, SSTR_NAME2, BPF_CORE_READ(old_dentry, d_name.name), SENSOR_NAME2_MAX);
-	pos = put_program(s, pos, task);
+	pos = put_program(s, pos);
 	/* The unknown side as given: link(old, new), linkat(olddfd, old, newdfd, new) */
 	if (!id)
 		given = (const char *)(nr == NR_LINK ? s->e.args[1] : nr == NR_LINKAT ? s->e.args[3] : 0);
@@ -887,7 +898,7 @@ int BPF_PROG(vfs_rename_exit, struct renamedata *rd, int ret)
 	nr = s->e.syscall;
 	pos = PUT_KSTR(&s->e, pos, SSTR_NAME, st->old_name, SENSOR_NAME_MAX);
 	pos = PUT_KSTR(&s->e, pos, SSTR_NAME2, st->new_name, SENSOR_NAME2_MAX);
-	pos = put_program(s, pos, task);
+	pos = put_program(s, pos);
 	/* The side the daemon does not know, as given: rename(old, new), renameat(2)(olddfd, old, newdfd, new) */
 	if (!st->rename_dir2)
 		given = (const char *)(nr == NR_RENAME ? s->e.args[1] :
@@ -1015,7 +1026,7 @@ int BPF_PROG(bprm_check, struct linux_binprm *bprm)
 	st->bprm = (__u64)bprm;
 	st->exec_keys = keys;
 	st->exec_dir = w.id;
-	start = walk_path(s, BPF_CORE_READ(file, f_path.dentry), BPF_CORE_READ(file, f_path.mnt), task);
+	start = walk_path(s, (__u64)BPF_CORE_READ(file, f_path.dentry), (__u64)BPF_CORE_READ(file, f_path.mnt));
 	if (start >= 0 && start <= PATHBUF - 1) {
 		__u32 len = PATHBUF - 1 - start;
 
@@ -1054,7 +1065,7 @@ int BPF_PROG(process_exec, struct task_struct *p, pid_t old_pid, struct linux_bi
 	actor(&s->e, task);
 	pos = put_empty(&s->e, pos, SSTR_NAME);
 	pos = put_empty(&s->e, pos, SSTR_NAME2);
-	pos = put_program(s, pos, task);
+	pos = put_program(s, pos);
 	len = st->exec_len & (SENSOR_PATH2_MAX - 1);
 	if (pos <= SENSOR_DATA - SENSOR_PATH2_MAX) {
 		bpf_probe_read_kernel(&s->e.data[pos], len, st->exec_path);
@@ -1150,7 +1161,7 @@ static __always_inline int module_call(__u32 op, __u32 nr, const struct pt_regs 
 	if (st)
 		st->module_set = 0;
 	pos = put_empty(&s->e, pos, SSTR_NAME2);
-	pos = put_program(s, pos, task);
+	pos = put_program(s, pos);
 	pos = put_empty(&s->e, pos, SSTR_PATH2);
 	pos = put_empty(&s->e, pos, SSTR_ARGV);
 	submit(s, pos);
@@ -1188,7 +1199,7 @@ static __always_inline void emit_tamper(__u32 op, __u32 flags, struct task_struc
 	actor(&s->e, task);
 	pos = put_empty(&s->e, pos, SSTR_NAME);
 	pos = put_empty(&s->e, pos, SSTR_NAME2);
-	pos = put_program(s, pos, task);
+	pos = put_program(s, pos);
 	pos = put_empty(&s->e, pos, SSTR_PATH2);
 	pos = put_empty(&s->e, pos, SSTR_ARGV);
 	submit(s, pos);
