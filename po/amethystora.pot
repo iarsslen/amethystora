@@ -2656,7 +2656,7 @@ msgid "Reads each change as the audit log records it, instead of every 15 minute
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
-msgid "The kernel's record of changes to accounts, sudo, what starts by itself and the security settings, kept by auditd. Off, nothing is recorded and the switches that read it have nothing to read."
+msgid "The kernel's record of changes to accounts, sudo, what starts by itself and the security settings, kept by the file-watch sensor where the kernel takes it, and by auditd otherwise. Off, nothing is recorded and the switches that read it have nothing to read."
 msgstr ""
 
 #: usr/libexec/amethystora-security-config

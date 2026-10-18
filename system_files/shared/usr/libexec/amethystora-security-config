@@ -400,7 +400,7 @@ list() {
         [WATCHER]="$(gettext "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on.")"
         [ON_BATTERY]="$(gettext "Whether the watcher's runs every 15 minutes go on while the machine is on battery. Skipped, the next run on mains power reads the audit log and the journal from where the last one stopped, so what they recorded is said later; what is looked at as it stands, such as the ports open, is looked at then. Real-time watching is not skipped.")"
         [REALTIME_WATCH]="$(gettext "Reads each change as the audit log records it, instead of every 15 minutes.")"
-        [AUDIT_LOG]="$(gettext "The kernel's record of changes to accounts, sudo, what starts by itself and the security settings, kept by auditd. Off, nothing is recorded and the switches that read it have nothing to read.")"
+        [AUDIT_LOG]="$(gettext "The kernel's record of changes to accounts, sudo, what starts by itself and the security settings, kept by the file-watch sensor where the kernel takes it, and by auditd otherwise. Off, nothing is recorded and the switches that read it have nothing to read.")"
         [IDENTITY]="$(gettext "Changes to accounts and their passwords.")"
         [PRIVILEGE]="$(gettext "Changes to who may use sudo and to the administrator rules.")"
         [PERSISTENCE]="$(gettext "Services, autostart entries and shell startup files: what would survive a restart.")"

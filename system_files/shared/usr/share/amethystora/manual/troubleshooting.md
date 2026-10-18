@@ -18,8 +18,8 @@ consider. [The AI agent](ai-agent.md#diagnose-a-problem) has more.
 
 Open **Logs** from the app grid, or run `amethystora-logs`. It opens on **Important**, the errors
 from everything on the machine since it started. The sidebar splits the rest into your session, the
-system, the kernel and hardware, security (sign-ins, `sudo`, what the audit rules caught) and
-**Crashes**, each with a count of what is new since the last boot where it matters.
+system, the kernel and hardware, security (sign-ins, `sudo`, what the audit rules or the file-watch
+sensor caught) and **Crashes**, each with a count of what is new since the last boot where it matters.
 
 - **Search** looks through what the messages say, as you type. The `.*` button beside it takes the
   search as a regular expression instead.

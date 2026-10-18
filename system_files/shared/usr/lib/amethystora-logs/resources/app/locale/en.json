@@ -99,7 +99,7 @@
   "Show everything again": "Show everything again",
   "Show new entries as they are written": "Show new entries as they are written",
   "Show older": "Show older",
-  "Sign-ins, sudo and polkit, and what the audit rules caught.": "Sign-ins, sudo and polkit, and what the audit rules caught.",
+  "Sign-ins, sudo and polkit, and what the audit rules or the file-watch sensor caught.": "Sign-ins, sudo and polkit, and what the audit rules or the file-watch sensor caught.",
   "Signal": "Signal",
   "System": "System",
   "System services": "System services",

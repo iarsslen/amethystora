@@ -78,9 +78,10 @@ looks into it in a terminal and changes nothing until you agree.
   recorded. On most machines a small sensor records them where they happen, so watching them costs
   the rest of the machine nothing; where its kernel will not run it, the kernel's own audit log does
   the same, which makes every program a little slower. Either way the security watcher reads what was
-  recorded every 15 minutes and says what changed and which program changed it, and `ame security
-  audit-locked` keeps the audit log doing it if you would rather. [The security
-  watcher](#the-security-watcher).
+  recorded every 15 minutes and says what changed and which program changed it. Something with root can
+  stop the sensor: that is said too, but what happens while it is down is not recorded, whereas the audit
+  log, locked at boot, holds until the next restart. `ame security audit-locked` keeps the audit log doing
+  it if you would rather. [The security watcher](#the-security-watcher).
 - **A virus scan runs every week** over your home and temporary folders, and **Lynis audits the
   settings every month.** By default neither deletes or moves anything: a false positive that takes
   away a file you wanted is worse than most of what it would remove. `ame security scan` shows what

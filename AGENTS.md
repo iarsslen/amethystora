@@ -451,8 +451,9 @@ feature gets its switch with it, off by default.
 **What looks for new threats** is the watcher's too, each part a key in group `detection` (or `network`,
 `scans`), off as the image ships: `PROCESSES` (/proc read in a few bounded passes, never a fork per
 process), `SELINUX_DENIALS`, `SNAPSHOT_WATCH` (`btrfs send --no-data` between hourly snapshots), `EXEC_WATCH`,
-`AGENT_CLIS`, `CREDENTIALS` and `DECOY` (audit keys of their own, whose rules the home generator writes for
-paths that exist, and the watcher reads from raw records with `audit_records`), `BPF_PROGRAMS`, `CHAINS`,
+`AGENT_CLIS`, `CREDENTIALS` and `DECOY` (audit keys of their own, whose rules, or the sensor's watch-list
+lines, the home generator writes for paths that exist, and the watcher reads from raw records with
+`audit_records`), `BPF_PROGRAMS`, `CHAINS`,
 `DNS_NAMES` (`amethystora-dns-names.service`, resolved's monitor), `BEHAVIOUR` (Falco, from falcosecurity's
 pinned repository, run only by `amethystora-behaviour.service`; 0.45.0's probe does not load into Fedora 44's
 kernel, so the build installs 0.45.1's release candidate from falcosecurity's `rpm-dev` until stable has

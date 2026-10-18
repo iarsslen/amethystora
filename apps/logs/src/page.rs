@@ -46,7 +46,11 @@ fn category(name: &str) -> (String, String, String) {
             t!("The kernel and its drivers: devices plugged in and out, disks, graphics, power."),
             t!("Nothing was logged"),
         ),
-        "security" => (t!("Security"), t!("Sign-ins, sudo and polkit, and what the audit rules caught."), t!("Nothing was logged")),
+        "security" => (
+            t!("Security"),
+            t!("Sign-ins, sudo and polkit, and what the audit rules or the file-watch sensor caught."),
+            t!("Nothing was logged"),
+        ),
         _ => (t!("Crashes"), t!("Programs that crashed, and where in their code they were when they did."), t!("Nothing crashed")),
     }
 }

@@ -210,8 +210,10 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
   a feature keeps saying with `ame security allow FEATURE ENTRY` (`ame security allow FEATURE` lists
   them): leave both to the user, since what is allowed is never said again, malware included.
 - `ame security events` shows what the security watcher (`amethystora-security-watch`, every 15
-  minutes) noticed in the audit log and journal. Changes you make under `/etc` show up there, and a
-  file in `/etc` that differs from the image's copy in `/usr/etc` shows as **Image settings**. So
+  minutes) noticed in the audit log, the file-watch sensor's (`/var/log/amethystora-sensor/audit.log`,
+  where it records those changes in audit's place) and the journal. Changes you make under `/etc`
+  show up there, and a file in `/etc` that differs from the image's copy in `/usr/etc` shows as
+  **Image settings**. So
   does a program you put in `~/.local/bin` or `~/bin` with a system command's name, and a launcher
   in `~/.local/share/applications` that no container export made: name yours differently. With what
   looks for new threats on, running an agent with its checks off from a script, reading another tool's

@@ -974,6 +974,7 @@ events ACTION="":
     echo "Each line is something that changed, with the program that changed it. If you did it, or"
     echo "installed something that did, there is nothing to do. The full audit record of one kind:"
     echo "sudo ausearch -i -k <$(/usr/libexec/amethystora-security-watch --keys)>"
+    echo "and, for the kinds the file-watch sensor records, -if /var/log/amethystora-sensor/audit.log as well."
     # Seen is seen: what was just shown stops being new, for the report and the next login
     sudo /usr/libexec/amethystora-security-watch --seen
 
