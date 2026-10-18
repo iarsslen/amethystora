@@ -1090,6 +1090,64 @@ int BPF_PROG(process_exec, struct task_struct *p, pid_t old_pid, struct linux_bi
 	return 0;
 }
 
+/* ...or it did not run: an exec the file permissions, a noexec mount or an LSM refused, as audit recorded it
+ * (success=no, the caller as exe, the name as given). Most refusals come before security_bprm_check, so no
+ * folder is matched here: the name goes to the daemon, which keeps it only under a watched folder, as for a
+ * refused open. Any failure also ends the exec that bprm_check may have stashed, so that a later exec whose
+ * linux_binprm reuses the address is not taken for it. */
+#define NR_EXECVE 59
+#define NR_EXECVEAT 322
+
+static __always_inline int exec_call(__u32 nr, const struct pt_regs *regs, long ret)
+{
+	struct task_struct *task;
+	struct stash *st;
+	struct scratch *s;
+	__u32 keys, pos = 0;
+
+	if (ret >= 0 || !(enabled_keys & EXEC_KEYS))
+		return 0;
+	task = bpf_get_current_task_btf();
+	st = bpf_task_storage_get(&stash, task, 0, 0);
+	if (st)
+		st->bprm = 0;
+	if (ret != -EACCES && ret != -EPERM)
+		return 0;
+	keys = applying(EXEC_KEYS, task);
+	if (!keys || !recorded(task))
+		return 0;
+	s = begin(SOP_EXEC, ret, keys);
+	if (!s)
+		return 0;
+	s->e.flags = SOPEN_REFUSED;
+	actor(&s->e, task);
+	s->e.syscall = nr;
+	s->e.args[0] = BPF_CORE_READ(regs, di);
+	s->e.args[1] = BPF_CORE_READ(regs, si);
+	s->e.args[2] = BPF_CORE_READ(regs, dx);
+	s->e.args[3] = BPF_CORE_READ(regs, r10);
+	pos = put_empty(&s->e, pos, SSTR_NAME);
+	pos = put_empty(&s->e, pos, SSTR_NAME2);
+	pos = put_program(s, pos);
+	/* execve(name, ...), execveat(dfd, name, ...) */
+	pos = PUT_USTR(&s->e, pos, SSTR_PATH2, (const char *)s->e.args[nr == NR_EXECVEAT ? 1 : 0], SENSOR_PATH2_MAX);
+	pos = put_empty(&s->e, pos, SSTR_ARGV);
+	submit(s, pos);
+	return 0;
+}
+
+SEC("fexit/__x64_sys_execve")
+int BPF_PROG(execve_exit, const struct pt_regs *regs, long ret)
+{
+	return exec_call(NR_EXECVE, regs, ret);
+}
+
+SEC("fexit/__x64_sys_execveat")
+int BPF_PROG(execveat_exit, const struct pt_regs *regs, long ret)
+{
+	return exec_call(NR_EXECVEAT, regs, ret);
+}
+
 /* --- Kernel modules ---------------------------------------------------------------------------------------- */
 
 /* The module's name, for the record: its file's for finit_module, until the kernel has read its own */

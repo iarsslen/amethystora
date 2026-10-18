@@ -32,6 +32,8 @@ log="${work}/audit.log"
 {"op":16,"syscall":176,"result":0,"keys":["modules"],"module":"evil_mod","args":["55d1","800","0","0"],"exe":"/usr/bin/rmmod"}
 {"op":1,"syscall":257,"result":-13,"keys":["hardening"],"flags":1073741824,"path2":"/etc/sudoers","cwd":"/root","exe":"/usr/bin/vi"}
 {"op":17,"syscall":59,"result":0,"keys":["exec-watch"],"path2":"/var/tmp/dropper","exe":"/var/tmp/dropper","argv":["/var/tmp/dropper","--flag","a b"],"argc":3,"cwd":"/var/tmp","mode":"0100755"}
+{"op":17,"syscall":59,"result":-13,"keys":["exec-watch"],"flags":1073741824,"path2":"/tmp/refused","cwd":"/tmp","exe":"/usr/bin/bash"}
+{"op":18,"syscall":62,"result":0,"keys":["sensor"],"args":["4d2","13","0","0"],"exe":"/usr/bin/kill"}
 {"op":1,"syscall":257,"result":3,"keys":["credentials"],"flags":134217728,"dir":"/var/home/alice/.config/my app","name":"creds.json","cwd":"/var/home/alice","mode":"0100600","exe":"/usr/bin/cat"}
 {"op":1,"syscall":257,"result":3,"keys":["credentials"],"flags":134217728,"dir":"/var/home/alice/.ssh","name":"id_rsa","cwd":"/var/home/alice","mode":"0100600","exe":"/usr/bin/cat"}
 {"op":1,"syscall":257,"result":3,"keys":["hardening"],"dir":"/etc","name":"a file","mode":"0100644","exe":"/usr/bin/vi"}
@@ -65,6 +67,13 @@ raw_exec="$(LC_ALL=C ausearch -if "${log}" -m SYSCALL,EXECVE,CWD,PATH -k exec-wa
 grep -qiE 'a2=612062( |$)' <<<"${raw_exec}" || note "the exec argv with a space was not hex-encoded (a2=612062)"
 exec_i="$(LC_ALL=C ausearch -if "${log}" -m SYSCALL,EXECVE,CWD,PATH -k exec-watch -i </dev/null 2>/dev/null)"
 grep -qF -- "--flag" <<<"${exec_i}" || note "the exec argv did not round-trip through ausearch -i"
+# A refused exec as audit wrote one: success=no, the caller as exe, the name in PATH item 0, and no EXECVE
+refused="$(grep -F -A3 'exe="/usr/bin/bash"' "${log}")"
+grep -q 'syscall=59 success=no exit=-13 ' <<<"${refused}" || note "a refused exec is not success=no exit=-13"
+grep -q 'item=0 name="/tmp/refused"' <<<"${refused}" || note "a refused exec lost the name it was given"
+grep -q '^type=EXECVE' <<<"${refused}" && note "a refused exec carries an EXECVE record"
+# What was done to the sensor itself, under its own key, for the watcher's tamper check
+expect "successfully killed-pid using /usr/bin/kill"
 cred="$(LC_ALL=C ausearch -if "${log}" -m SYSCALL,CWD,PATH -k credentials -i </dev/null 2>/dev/null)"
 grep -qF -- "/var/home/alice/.ssh/id_rsa" <<<"${cred}" || note "the credentials raw record lost its path"
 grep -qF -- "/var/home/alice/.config/my app/creds.json" <<<"${cred}" || note "a credential path with a space did not decode"

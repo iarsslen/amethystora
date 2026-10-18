@@ -24,7 +24,7 @@ fn required_mask(prog: &str) -> u32 {
         | "vfs_link_exit" | "vfs_rename_entry" | "vfs_rename_exit" | "notify_change_exit" | "vfs_truncate_exit"
         | "vfs_setxattr_exit" | "vfs_removexattr_exit" | "vfs_set_acl_exit" | "vfs_remove_acl_exit" => keys::WRITE_KEYS,
         "file_open_input" => keys::INPUT_BIT,
-        "bprm_check" | "process_exec" => keys::EXEC_KEYS,
+        "bprm_check" | "process_exec" | "execve_exit" | "execveat_exit" => keys::EXEC_KEYS,
         "module_file" | "module_loaded" | "finit_module_exit" | "init_module_exit" | "delete_module_exit" => {
             keys::MODULES_BIT
         }

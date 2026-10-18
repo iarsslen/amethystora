@@ -1,4 +1,4 @@
-//! Narrowing refused opens by path. The BPF's open_refused hook has no inode to match (the open failed, so
+//! Narrowing refused opens and execs by path. The BPF's open_refused hook has no inode to match (the open failed, so
 //! there is no file to read i_ino from), so it emits every enabled read or write key with the path the
 //! system call gave and leaves the matching to the daemon. This holds the watch roots, by direction, so a
 //! refused open is kept only for the keys that truly watch its path. Without it, every EACCES/EPERM open an
@@ -19,6 +19,7 @@ pub struct RefusedMatcher {
     read_files: Vec<(Vec<u8>, u32)>,
     write_trees: Vec<(Vec<u8>, u32)>,
     write_files: Vec<(Vec<u8>, u32)>,
+    exec_trees: Vec<(Vec<u8>, u32)>,
 }
 
 impl RefusedMatcher {
@@ -30,9 +31,14 @@ impl RefusedMatcher {
             Kind::File => self.write_files.push((path, bit)),
             Kind::ReadTree => self.read_trees.push((path, bit)),
             Kind::ReadFile => self.read_files.push((path, bit)),
-            // A program run from a folder is its own hook; a refused open never matches an exec watch.
-            Kind::ExecTree => {}
+            Kind::ExecTree => self.exec_trees.push((path, bit)),
         }
+    }
+
+    /// The keys that watch a refused exec of `path` (absolute): the folders a program is watched being run
+    /// from, which an allowed exec matches by inode in the BPF (exec_step), and a refused one only by name.
+    pub fn exec_keys(&self, path: &[u8]) -> u32 {
+        self.exec_trees.iter().filter(|(t, _)| under(path, t)).fold(0, |mask, (_, k)| mask | k)
     }
 
     /// The keys that watch a refused open of `path` (absolute): a write when `write`, otherwise a read.
@@ -173,6 +179,17 @@ mod tests {
         assert_eq!(matcher().keys(b"/etc/passwd", false), 0);
         // a read watch is not a write watch
         assert_eq!(matcher().keys(b"/var/home/a/.ssh/id_ed25519", true), 0);
+    }
+
+    #[test]
+    fn refused_exec_matches_exec_watches_only() {
+        // exec-watch is bit 7: a program refused under Downloads, at any depth, and nothing else.
+        assert_eq!(matcher().exec_keys(b"/var/home/a/Downloads/tool"), 1 << 7);
+        assert_eq!(matcher().exec_keys(b"/var/home/a/Downloads/x/y/tool"), 1 << 7);
+        assert_eq!(matcher().exec_keys(b"/var/home/a/Downloads2/tool"), 0);
+        assert_eq!(matcher().exec_keys(b"/etc/sudoers.d/tool"), 0);
+        // an exec watch is no open watch
+        assert_eq!(matcher().keys(b"/var/home/a/Downloads/tool", false), 0);
     }
 
     #[test]

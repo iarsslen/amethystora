@@ -206,8 +206,8 @@ egid={} sgid={} fsgid={} tty=",
     line.push(b'\n');
     out.write_all(&line)?;
 
-    // The program's arguments, for an exec.
-    if r.op == SOP_EXEC {
+    // The program's arguments, for an exec that ran; a refused one has none, as audit writes it.
+    if r.op == SOP_EXEC && r.result >= 0 {
         let mut ex = Vec::new();
         ex.extend_from_slice(format!("type=EXECVE msg=audit({id}): argc={}", r.argc).as_bytes());
         for (i, arg) in r.argv.iter().enumerate() {

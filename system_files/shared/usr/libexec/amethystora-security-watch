@@ -355,7 +355,8 @@ read_audit() {
 
 # What the kernel recorded of each event under NAME's key, one line each, its fields apart by the unit
 # separator: time, process, parent, login uid, terminal, program, the path the call named (item 0, made whole
-# with the working folder), and the arguments a program was started with, apart by the record separator.
+# with the working folder), whether the call succeeded (yes or no), and the arguments a program was started
+# with, apart by the record separator.
 # The kernel writes a value that holds a space, a quote or a control character in hex; it is read back, and
 # what is still a control character in it becomes "?".
 audit_records() {
@@ -377,7 +378,7 @@ audit_records() {
         function flush() {
             if (event == "") return
             if (path != "" && path !~ /^\//) path = cwd "/" path
-            printf "%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\n", time, pid, ppid, auid, tty, exe, path, args
+            printf "%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\n", time, pid, ppid, auid, tty, exe, path, ok, args
         }
         match($0, /msg=audit\([0-9]+\.[0-9]+:[0-9]+\)/) {
             id = substr($0, RSTART + 10, RLENGTH - 11)
@@ -385,11 +386,11 @@ audit_records() {
                 flush()
                 event = id
                 time = int(id)
-                pid = ppid = auid = tty = exe = cwd = path = args = ""
+                pid = ppid = auid = tty = exe = cwd = path = ok = args = ""
             }
             if ($0 ~ /^type=SYSCALL /) {
                 pid = value($0, "pid", 0); ppid = value($0, "ppid", 0); auid = value($0, "auid", 0)
-                tty = value($0, "tty", 0); exe = value($0, "exe", 1)
+                tty = value($0, "tty", 0); exe = value($0, "exe", 1); ok = value($0, "success", 0)
             } else if ($0 ~ /^type=EXECVE /) {
                 argc = value($0, "argc", 0) + 0
                 for (i = 0; i < argc && i < 64; i++) args = args (i ? "\036" : "") value($0, "a" i, 1)
@@ -408,28 +409,36 @@ audit_records() {
 # download or a dropped file starting. The audit rules record every such run (EXEC_WATCH, from the next boot);
 # each program is said once, by the SHA-256 of what is in it, and one gone by the time this looks by its path.
 # Hashing a file an account owns, as root: read-only, never through a link, and for no longer than ten seconds.
+# A run the system refused (a noexec folder, no execute permission, SELinux) is said too, once, by the program
+# it tried, which is the path the call named: its exe is the program that tried.
 EXEC_SEEN_KEPT=5000
 read_exec() {
-    local seen="${STATE}/exec-seen" time pid ppid auid tty exe path args sum user level
+    local seen="${STATE}/exec-seen" time pid ppid auid tty exe path ok args program sum user level text
     local -A said=()
     touch "${seen}"
-    while IFS=$'\x1f' read -r time pid ppid auid tty exe path args; do
-        [[ -n "${exe}" && -z "${said[${exe}]+set}" ]] || continue
-        said["${exe}"]=1
-        if [[ -f "${exe}" && ! -L "${exe}" ]]; then
-            sum="$(timeout 10 head -c 104857600 -- "${exe}" 2>/dev/null | sha256sum | cut -d' ' -f1)"
+    while IFS=$'\x1f' read -r time pid ppid auid tty exe path ok args; do
+        program="${exe}"
+        [[ "${ok}" == no ]] && program="${path}"
+        [[ -n "${program}" && -z "${said[${ok}:${program}]+set}" ]] || continue
+        said["${ok}:${program}"]=1
+        if [[ -f "${program}" && ! -L "${program}" ]]; then
+            sum="$(timeout 10 head -c 104857600 -- "${program}" 2>/dev/null | sha256sum | cut -d' ' -f1)"
         else
-            sum="gone:${exe}"
+            sum="gone:${program}"
         fi
+        [[ "${ok}" == no ]] && sum="refused:${sum}"
         grep -qxF -- "${sum}" "${seen}" && continue
         echo "${sum}" >>"${seen}"
-        queue_hash "${sum}" "${exe}"
         user="$(id -nu "${auid}" 2>/dev/null || echo "${auid}")"
+        if [[ "${ok}" == no ]]; then
+            text="A program was kept from running where downloads and temporary files land: ${program}, as ${user}"
+        else
+            queue_hash "${sum}" "${exe}"
+            text="A program ran for the first time from where downloads and temporary files land: ${program}, as ${user}"
+        fi
         level=normal
-        allowed exec-watch "${exe}" && { level=quiet; ALLOWED_HIT=1; }
-        [[ -n "${LAST_RUN}" ]] &&
-            add "${level}" exec-watch "${user}" Execution "A program ran for the first time from where downloads and temporary files land: ${exe}, as ${user}" \
-                "allow=${exe}"
+        allowed exec-watch "${program}" && { level=quiet; ALLOWED_HIT=1; }
+        [[ -n "${LAST_RUN}" ]] && add "${level}" exec-watch "${user}" Execution "${text}" "allow=${program}"
     done < <(audit_records exec-watch)
     tail -n "${EXEC_SEEN_KEPT}" "${seen}" >"${seen}.new" && mv "${seen}.new" "${seen}"
 }
@@ -441,10 +450,12 @@ read_exec() {
 # one in the Nx attack, and recorded when one did, which is most likely its user. One line for each agent,
 # flag and starter in a run, however often. Allowed by what started it, or by the agent itself.
 read_agent_clis() {
-    local time pid ppid auid tty exe path args flag parent user key level how subject
+    local time pid ppid auid tty exe path ok args flag parent user key level how subject
     local -a argv
     local -A count=() line=()
-    while IFS=$'\x1f' read -r time pid ppid auid tty exe path args; do
+    while IFS=$'\x1f' read -r time pid ppid auid tty exe path ok args; do
+        # An agent the system kept from running ran with nothing turned off
+        [[ "${ok}" == no ]] && continue
         IFS=$'\x1e' read -ra argv <<<"${args}"
         agent_of "${exe}" "${argv[0]:-}" "${argv[1]:-}"
         [[ -n "${AGENT}" ]] || continue
@@ -500,9 +511,9 @@ store_of() {
 }
 
 read_credentials() {
-    local time pid ppid auid tty exe path args user key what
+    local time pid ppid auid tty exe path ok args user key what
     local -A said=() kinds=() who=()
-    while IFS=$'\x1f' read -r time pid ppid auid tty exe path args; do
+    while IFS=$'\x1f' read -r time pid ppid auid tty exe path ok args; do
         [[ -n "${exe}" && "${path}" == /* ]] || continue
         allowed credentials "${exe} ${path}" && continue
         user="$(id -nu "${auid}" 2>/dev/null || echo "${auid}")"
@@ -528,9 +539,9 @@ read_credentials() {
 
 # The decoy key (DECOY): nothing legitimate reads it, so any read but a backup's or a virus scan's is critical
 read_decoy() {
-    local time pid ppid auid tty exe path args user level
+    local time pid ppid auid tty exe path ok args user level
     local -A said=()
-    while IFS=$'\x1f' read -r time pid ppid auid tty exe path args; do
+    while IFS=$'\x1f' read -r time pid ppid auid tty exe path ok args; do
         [[ -n "${exe}" && -z "${said[${exe}]+set}" ]] || continue
         said["${exe}"]=1
         user="$(id -nu "${auid}" 2>/dev/null || echo "${auid}")"
