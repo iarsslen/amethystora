@@ -34,7 +34,8 @@ ProtectHome=read-only
 ReadWritePaths=-/run/amethystora/sensor
 LogsDirectory=amethystora-sensor
 LogsDirectoryMode=0700
-PrivateTmp=yes
+# No PrivateTmp: it registers /tmp and /var/tmp by opening them, and private ones would be its own, not the
+# folders programs are run from (ProtectSystem=strict keeps both read-only to it all the same)
 ProtectControlGroups=yes
 ProtectKernelLogs=yes
 ProtectClock=yes

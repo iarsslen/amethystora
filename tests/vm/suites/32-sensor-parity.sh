@@ -28,6 +28,10 @@ if [[ "$(systemctl show -p NRestarts --value amethystora-sensor.service)" == 0 ]
 else
     skip "the sensor restarted since boot; its start no longer tells when the logins opened"
 fi
+# What it registers as /tmp and /var/tmp is the real ones, not a private copy of its own
+sensor_pid="$(systemctl show -p MainPID --value amethystora-sensor.service)"
+check "the sensor sees the real /tmp and /var/tmp" sh -c \
+    "[ \"\$(nsenter -t ${sensor_pid} -m stat -c %d:%i /tmp /var/tmp)\" = \"\$(stat -c %d:%i /tmp /var/tmp)\" ]"
 # With the sensor active the kernel audits no system call: auditctl is just the task filter
 check "no per-syscall audit rule is loaded" sh -c 'auditctl -l | grep -qE -- "(never,task|task,never)" && ! auditctl -l | grep -qE -- "^-[wa] .*(-k |key=)"'
 check "the sensor is writing its log" test -f /var/log/amethystora-sensor/audit.log

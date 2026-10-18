@@ -657,9 +657,10 @@ test -f /usr/share/licenses/amethystora-sensor/COPYING
 grep -q $'^libbpf-rs\t' "${APPS_CRATES}"
 diff <(/usr/libexec/amethystora-sensor --keys | paste -sd'|' -) <(/usr/libexec/amethystora-security-watch --keys)
 grep -q '^ExecCondition=/usr/libexec/amethystora-sensor --check$' /usr/lib/systemd/system/amethystora-sensor.service
-# Nobody logs in before it is watching
+# Nobody logs in before it is watching, and it sees the real /tmp and /var/tmp, which it watches programs run from
 grep -q '^Type=notify$' /usr/lib/systemd/system/amethystora-sensor.service
 grep -q '^Before=systemd-user-sessions\.service' /usr/lib/systemd/system/amethystora-sensor.service
+[[ -z "$(grep '^PrivateTmp=' /usr/lib/systemd/system/amethystora-sensor.service)" ]]
 systemd-analyze verify --man=no --recursive-errors=no /usr/lib/systemd/system/amethystora-sensor.service
 bash /ctx/build_files/shared/test-sensor-records.sh
 # The checks written in JavaScript run on the apps stage's Node, mounted at /apps-stage with its libraries,
