@@ -54,13 +54,17 @@ cleanup() {
     losetup -d "${loop}"
 }
 trap cleanup EXIT
+# bootc install to-filesystem has bootupd install its BIOS component too, as on its own to-disk disks, and GRUB
+# needs a BIOS boot partition for that on GPT: 1 MiB at the start, numbered 4 so that the ESP, /boot and the
+# system are 1 to 3 as on a UEFI machine Anaconda installed (which installs no BIOS component)
 sfdisk --quiet "${loop}" <<EOF
 label: gpt
-size=600MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, name="EFI System Partition"
-size=2GiB, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4
-type=0FC63DAF-8483-4772-8E79-3D69D8477DE4
+${loop}p4 : start=2048, size=2048, type=21686148-6449-6E6F-744E-656564454649, name="BIOS boot"
+${loop}p1 : start=4096, size=600MiB, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, name="EFI System Partition"
+${loop}p2 : size=2GiB, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4
+${loop}p3 : type=0FC63DAF-8483-4772-8E79-3D69D8477DE4
 EOF
-for i in 1 2 3; do
+for i in 1 2 3 4; do
     for _ in $(seq 50); do [[ -b "${loop}p${i}" ]] && break; sleep 0.2; done
 done
 mkfs.vfat -F 32 -n EFI "${loop}p1" >/dev/null
