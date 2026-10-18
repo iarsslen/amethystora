@@ -24,9 +24,11 @@ Restart=always
 RestartSec=1
 
 # It runs as root to load BPF and to open every watched folder, but reaches nothing it does not need: the
-# system read-only, the homes read-only (it only reads them), and only its own log to write.
+# system read-only, the homes read-only (it only reads them), and only its own log and its run directory to
+# write (the readiness marker; the generator owns the directory, this only writes within it).
 ProtectSystem=strict
 ProtectHome=read-only
+ReadWritePaths=-/run/amethystora/sensor
 LogsDirectory=amethystora-sensor
 LogsDirectoryMode=0700
 PrivateTmp=yes

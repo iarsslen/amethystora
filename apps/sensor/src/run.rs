@@ -50,6 +50,14 @@ pub fn run(probe: bool) -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
+    // The readiness marker: absent while the BPF object loads (tens of MB of kernel BTF, over ten seconds)
+    // and the watched folders register, written once every folder and file is in the maps. Until then the
+    // programs may be attached but the maps empty, so a read is not yet matched; a reader that must know the
+    // sensor is fully watching (the VM test, and anything after it) waits for this. Cleared first in case a
+    // previous instance left it after a restart within the same boot.
+    let ready = plan::run_dir().join("ready");
+    let _ = fs::remove_file(&ready);
+
     let loaded = bpf::load(sensor_keys, false)?;
     let dirs = map_named(&loaded.object, "dirs")?;
     let files = map_named(&loaded.object, "files")?;
@@ -62,6 +70,8 @@ pub fn run(probe: bool) -> Result<(), Box<dyn Error>> {
         reg.add_watch(&watch, &dirs, &files, &bss);
         refused.add(&watch);
     }
+    // Every watch is now in the maps: the sensor is fully watching.
+    let _ = fs::write(&ready, b"ready\n");
 
     let mut log = Log::open()?;
     let offset = boot_offset_ns();

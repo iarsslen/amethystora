@@ -15,6 +15,10 @@ if ! grep -qx 'identity sensor' "${plan}" 2>/dev/null; then
 fi
 
 check "the sensor service is running" systemctl is-active --quiet amethystora-sensor.service
+# It is watching only once it has registered every folder, which waits on a ten-second BPF load; wait for it
+# to say so before making the changes below, so they are not missed in that window.
+wait_for 120 test -f /run/amethystora/sensor/ready &&
+    ok "the sensor finished registering" || not_ok "the sensor did not become ready within 120 s"
 # With the sensor active the kernel audits no system call: auditctl is just the task filter
 check "no per-syscall audit rule is loaded" sh -c 'auditctl -l | grep -qE -- "(never,task|task,never)" && ! auditctl -l | grep -qE -- "^-[wa] .*(-k |key=)"'
 check "the sensor is writing its log" test -f /var/log/amethystora-sensor/audit.log

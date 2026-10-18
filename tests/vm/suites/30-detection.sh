@@ -41,6 +41,15 @@ done
     ok "Login Data is watched (inode rule or the sensor)" || not_ok "Login Data not watched"
 check "the decoy key is there" test -s "${HOME_DIR}/.ssh/id_backup"
 
+# When the sensor stands in for the audit rules, it is watching only once it has registered every folder and
+# file, which waits on a ten-second BPF load; a read before that is no more caught than one before auditd's
+# rules load. Wait for it to say it is ready, as a monitoring setup would, so the reads below fall after it.
+# The audit fallback writes no such marker and needs no wait.
+if grep -q 'sensor$' "${plan}" 2>/dev/null; then
+    wait_for 120 test -f /run/amethystora/sensor/ready &&
+        ok "the sensor finished registering" || not_ok "the sensor did not become ready within 120 s"
+fi
+
 before="$(wc -l <"${HISTORY}" 2>/dev/null || echo 0)"
 in_session "python3 -c 'open(\"${HOME_DIR}/.ssh/id_ed25519\").read()'
     cp '${HOME_DIR}/.config/chromium/Default/Login Data' /tmp/stolen
