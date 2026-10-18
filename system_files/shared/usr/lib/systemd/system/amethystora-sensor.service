@@ -7,15 +7,18 @@ Documentation=file:///usr/share/amethystora/manual/security.md
 #
 # Early, like the audit rules it stands in for, and after them so their plan (which keys are the sensor's)
 # is written first. local-fs.target is all it needs, for /etc, /var and the homes it registers.
+# Nobody logs in until it is watching (READY=1, once every watch is registered, about a second), so that
+# nothing an account does goes unrecorded; the rest of the boot goes on beside it. It never holds the logins
+# past 30 s (LOGIN_WAIT in run.rs), and one that keeps failing lets them in once systemd stops restarting it.
 DefaultDependencies=no
 After=local-fs.target amethystora-audit-rules.service
-Before=basic.target shutdown.target
+Before=systemd-user-sessions.service shutdown.target
 Conflicts=shutdown.target
 # Stopping it is itself worth recording: a stop from a console takes a reboot, as the locked audit rules do.
 RefuseManualStop=yes
 
 [Service]
-Type=exec
+Type=notify
 # Wanted only while the audit log and the watcher are on and the plan gave it a key (see amethystora-sensor
 # --check); off, it is skipped, not failed, like the audit rules.
 ExecCondition=/usr/libexec/amethystora-sensor --check

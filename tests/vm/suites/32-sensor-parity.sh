@@ -15,10 +15,19 @@ if ! grep -qx 'identity sensor' "${plan}" 2>/dev/null; then
 fi
 
 check "the sensor service is running" systemctl is-active --quiet amethystora-sensor.service
-# It is watching only once it has registered every folder, which waits on a ten-second BPF load; wait for it
-# to say so before making the changes below, so they are not missed in that window.
+# It is watching only once it has registered every folder, after its BPF load; wait for it to say so before
+# making the changes below, so they are not missed in that window.
 wait_for 120 test -f /run/amethystora/sensor/ready &&
     ok "the sensor finished registering" || not_ok "the sensor did not become ready within 120 s"
+# Nobody could log in before it was watching: it said so (READY=1) before systemd-user-sessions started. Only
+# for the instance that started at boot; a restart since moves its timestamp past the logins.
+if [[ "$(systemctl show -p NRestarts --value amethystora-sensor.service)" == 0 ]]; then
+    ready_at="$(systemctl show -p ActiveEnterTimestampMonotonic --value amethystora-sensor.service)"
+    logins_at="$(systemctl show -p ExecMainStartTimestampMonotonic --value systemd-user-sessions.service)"
+    check "the logins waited until the sensor was watching" test "${ready_at}" -le "${logins_at}"
+else
+    skip "the sensor restarted since boot; its start no longer tells when the logins opened"
+fi
 # With the sensor active the kernel audits no system call: auditctl is just the task filter
 check "no per-syscall audit rule is loaded" sh -c 'auditctl -l | grep -qE -- "(never,task|task,never)" && ! auditctl -l | grep -qE -- "^-[wa] .*(-k |key=)"'
 check "the sensor is writing its log" test -f /var/log/amethystora-sensor/audit.log

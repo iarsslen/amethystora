@@ -42,8 +42,8 @@ done
 check "the decoy key is there" test -s "${HOME_DIR}/.ssh/id_backup"
 
 # When the sensor stands in for the audit rules, it is watching only once it has registered every folder and
-# file, which waits on a ten-second BPF load; a read before that is no more caught than one before auditd's
-# rules load. Wait for it to say it is ready, as a monitoring setup would, so the reads below fall after it.
+# file, after its BPF load; a read before that is no more caught than one before auditd's rules load. The
+# logins wait for it, but only up to 30 s: wait for it to say it is ready, so the reads below fall after it.
 # The audit fallback writes no such marker and needs no wait.
 if grep -q 'sensor$' "${plan}" 2>/dev/null; then
     wait_for 120 test -f /run/amethystora/sensor/ready &&

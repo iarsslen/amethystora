@@ -33,6 +33,9 @@ const MAX_FOLDERS: u32 = 60000;
 const MAX_DEPTH: u32 = 64;
 /// SDIR_HAS_FILES in sensor.h: the folder holds single watched files, matched by name.
 const SDIR_HAS_FILES: u32 = 1;
+/// The longest the logins wait for the sensor to be watching: a machine slow enough to take longer lets them
+/// in anyway, while the sensor goes on loading.
+const LOGIN_WAIT: Duration = Duration::from_secs(30);
 
 /// Runs the sensor, or just probes it (load and attach every program, then stop) for the generator.
 pub fn run(probe: bool) -> Result<(), Box<dyn Error>> {
@@ -50,13 +53,19 @@ pub fn run(probe: bool) -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 
-    // The readiness marker: absent while the BPF object loads (tens of MB of kernel BTF, over ten seconds)
-    // and the watched folders register, written once every folder and file is in the maps. Until then the
-    // programs may be attached but the maps empty, so a read is not yet matched; a reader that must know the
-    // sensor is fully watching (the VM test, and anything after it) waits for this. Cleared first in case a
-    // previous instance left it after a restart within the same boot.
+    // The readiness marker: absent while the BPF object loads (the verifier, about a second) and the watched
+    // folders register, written once every folder and file is in the maps. Until then the programs may be
+    // attached but the maps empty, so a read is not yet matched; a reader that must know the sensor is fully
+    // watching (the VM test, and anything after it) waits for this. Cleared first in case a previous instance
+    // left it after a restart within the same boot.
     let ready = plan::run_dir().join("ready");
     let _ = fs::remove_file(&ready);
+    // systemd holds the logins until the sensor says it is watching (Type=notify, before
+    // systemd-user-sessions.service), so that nothing an account does goes unrecorded; never past LOGIN_WAIT.
+    std::thread::spawn(|| {
+        std::thread::sleep(LOGIN_WAIT);
+        notify_ready();
+    });
 
     let loaded = bpf::load(sensor_keys, false)?;
     let dirs = map_named(&loaded.object, "dirs")?;
@@ -72,6 +81,7 @@ pub fn run(probe: bool) -> Result<(), Box<dyn Error>> {
     }
     // Every watch is now in the maps: the sensor is fully watching.
     let _ = fs::write(&ready, b"ready\n");
+    notify_ready();
 
     let mut log = Log::open()?;
     let offset = boot_offset_ns();
@@ -155,6 +165,23 @@ fn journal_line(rec: &Record) -> Vec<u8> {
         format!(" (comm={} uid={} auid={})", String::from_utf8_lossy(&rec.comm), rec.uid, rec.auid).as_bytes(),
     );
     line
+}
+
+/// Tells systemd the sensor is watching (sd_notify's READY=1), which the logins wait for. A second READY is
+/// ignored, and without $NOTIFY_SOCKET (run by hand) there is nobody to tell.
+fn notify_ready() {
+    use std::os::linux::net::SocketAddrExt;
+    use std::os::unix::net::{SocketAddr, UnixDatagram};
+
+    let Some(socket) = std::env::var_os("NOTIFY_SOCKET") else { return };
+    let addr = match socket.as_bytes() {
+        [b'@', name @ ..] => SocketAddr::from_abstract_name(name),
+        [b'/', ..] => SocketAddr::from_pathname(&socket),
+        _ => return,
+    };
+    if let (Ok(addr), Ok(sock)) = (addr, UnixDatagram::unbound()) {
+        let _ = sock.send_to_addr(b"READY=1", &addr);
+    }
 }
 
 // --- Registration ------------------------------------------------------------------------------------------

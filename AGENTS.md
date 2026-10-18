@@ -419,10 +419,13 @@ records those keys instead, without audit's per-system-call cost (`apps/sensor`,
 writes a `/run/amethystora/sensor/{plan,watch.list}` line from the same shipped rules rather than an audit
 rule, so the kernel loads only `-a never,task`; the watcher then reads that key from the sensor's own log
 (`sensor-KEY` checkpoint) and auditd's for the rest. A kernel the sensor cannot load on, or `ame security
-audit-locked`, falls back to the audit rules unchanged. A new audit key has to be added to the watcher, to
-`amethystora-security-realtime`, to `amethystora-security-config` and to the sensor (`src/bpf/sensor.h`'s
-keys and `src/keys.rs`); `20-tests.sh` fails otherwise, and checks `amethystora-sensor --keys` against the
-watcher's. The app's **Containers** page is what `amethystora-pkg containers list --json` says, run as the user.
+audit-locked`, falls back to the audit rules unchanged. Nobody logs in before it is watching (`Type=notify`,
+before `systemd-user-sessions.service`, 30 s at most), and its path walk and `put_program` are BPF global
+functions, which the verifier checks once: inline, they made its load take 14 s. A new audit key has to be
+added to the watcher, to `amethystora-security-realtime`, to `amethystora-security-config` and to the sensor
+(`src/bpf/sensor.h`'s keys and `src/keys.rs`); `20-tests.sh` fails otherwise, and checks
+`amethystora-sensor --keys` against the watcher's. The app's **Containers** page is what
+`amethystora-pkg containers list --json` says, run as the user.
 
 **Every security feature is a switch, and off costs nothing** (the maintainer's rule of 2026-10-08). A
 detection feature is a key in `security.conf`, defined in `amethystora-security-config` with its values,
