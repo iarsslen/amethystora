@@ -1785,6 +1785,20 @@ grep -qx 'exec-tree exec-watch /tmp' "${SENSOR_BOOT}/run/sensor/watch.list"
 grep -qx 'identity sensor' "${SENSOR_BOOT}/run/sensor/plan"
 # Every key the sensor covers is in the plan (modules among them, covered by its bit with no watch line)
 grep -qx 'modules sensor' "${SENSOR_BOOT}/run/sensor/plan"
+# It runs only while it is wanted: with the audit log on and the plan giving it keys, and not with it off
+SENSOR_CHECK=(env AMETHYSTORA_SECURITY_CONF="${SENSOR_BOOT}/etc/amethystora/security.conf"
+    AMETHYSTORA_SENSOR_RUN="${SENSOR_BOOT}/run/sensor" /usr/libexec/amethystora-sensor --check)
+"${SENSOR_CHECK[@]}"
+# A key switched off is neither in the plan nor in the watch list, as it loads no audit rule either
+printf 'EXEC_WATCH=on\nPRIVILEGE=off\n' >"${SENSOR_BOOT}/etc/amethystora/security.conf"
+AMETHYSTORA_AUDIT_ROOT="${SENSOR_BOOT}" AMETHYSTORA_SENSOR_RUN="${SENSOR_BOOT}/run/sensor" \
+    AMETHYSTORA_SECURITY_CONF="${SENSOR_BOOT}/etc/amethystora/security.conf" \
+    AMETHYSTORA_SENSOR_FORCE=sensor bash /usr/libexec/amethystora-audit-home-rules
+grep -qx 'identity sensor' "${SENSOR_BOOT}/run/sensor/plan"
+grep -q '^privilege ' "${SENSOR_BOOT}/run/sensor/plan" && false
+grep -q ' privilege ' "${SENSOR_BOOT}/run/sensor/watch.list" && false
+echo "AUDIT_LOG=off" >>"${SENSOR_BOOT}/etc/amethystora/security.conf"
+"${SENSOR_CHECK[@]}" && false
 rm -rf "${SENSOR_BOOT}"
 
 # A full disk may never halt or suspend somebody's laptop. A gap in the audit log is the lesser loss,

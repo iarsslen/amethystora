@@ -468,6 +468,62 @@ jq -se 'length == 2 and any(.[]; (.text | test("xjq3k9vbz2mwp8rtqk.com, a domain
     fail "odd names in DNS: ${FOUND}"
 [[ ! -s "${R}/var/lib/amethystora/security/dns-names" ]] || fail "what was read was not emptied"
 
+# --- What the file-watch sensor records, as its own record writer writes it ------------------------------
+
+# A stand-in plan gives every key to the sensor, so the watcher reads them from the sensor's log, by
+# checkpoints of their own: a program run, one kept from running, a secret read, a write to the sudoers
+# folder, and a signal sent to the sensor, each written by amethystora-sensor --records (no BPF). A stand-in
+# systemctl has the unit running, then restarted once since the last look; and the drops it counted reach
+# the status.
+export AMETHYSTORA_WATCH_SENSOR="${T}/sensor.log" AMETHYSTORA_SENSOR_RUN="${T}/sensor-run"
+export AMETHYSTORA_WATCH_SYSTEMCTL="${T}/systemctl"
+mkdir -p "${AMETHYSTORA_SENSOR_RUN}"
+printf '%s sensor\n' identity privilege persistence hardening modules input-capture user-programs exec-watch \
+    agent-clis credentials decoy >"${AMETHYSTORA_SENSOR_RUN}/plan"
+echo 7 >"${AMETHYSTORA_SENSOR_RUN}/dropped"
+echo 0 >"${T}/restarts"
+cat >"${T}/systemctl" <<EOF
+#!/usr/bin/bash
+[[ "\$*" == *NRestarts* ]] && cat "${T}/restarts"
+exit 0
+EOF
+chmod 0755 "${T}/systemctl"
+echo "PRIVILEGE=on" >>"${AMETHYSTORA_SECURITY_CONF}"
+: >"${AMETHYSTORA_WATCH_SENSOR}"
+chmod 0600 "${AMETHYSTORA_WATCH_SENSOR}"
+timeout 120 "${WATCH}" >/dev/null || fail "the first run reading the sensor failed"
+cp /usr/bin/true /var/tmp/watch-sensor-run
+printf 'sensor' >>/var/tmp/watch-sensor-run
+head -c 64 /dev/urandom >/var/tmp/watch-sensor-refused
+/usr/libexec/amethystora-sensor --records >>"${AMETHYSTORA_WATCH_SENSOR}" <<'EVENTS'
+{"op":17,"syscall":59,"keys":["exec-watch"],"auid":4500,"uid":4500,"path2":"/var/tmp/watch-sensor-run","exe":"/var/tmp/watch-sensor-run","argv":["/var/tmp/watch-sensor-run"],"argc":1,"cwd":"/var/tmp","mode":"0100755"}
+{"op":17,"syscall":59,"result":-13,"keys":["exec-watch"],"flags":1073741824,"auid":4500,"uid":4500,"path2":"/var/tmp/watch-sensor-refused","exe":"/usr/bin/bash","cwd":"/var/tmp"}
+{"op":1,"syscall":257,"result":3,"keys":["credentials"],"flags":134217728,"auid":4500,"uid":4500,"dir":"/var/home/alice/.ssh","name":"id_ed25519","cwd":"/var/home/alice","mode":"0100600","exe":"/usr/bin/base64"}
+{"op":1,"syscall":257,"result":3,"keys":["privilege"],"flags":2147483648,"auid":4500,"dir":"/etc/sudoers.d","name":"watch-sensor","parent_mode":"040750","mode":"0100644","exe":"/usr/bin/tee"}
+{"op":18,"syscall":62,"keys":["sensor"],"auid":4500,"args":["4d2","13","0","0"],"exe":"/usr/bin/kill"}
+EVENTS
+echo 1 >"${T}/restarts"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run reading the sensor failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key != "chains")')"
+jq -se 'any(.[]; .key == "exec-watch" and .text == "A program ran for the first time from where downloads and temporary files land: /var/tmp/watch-sensor-run, as 4500")
+    and any(.[]; .key == "exec-watch" and .allow == "/var/tmp/watch-sensor-refused"
+        and .text == "A program was kept from running where downloads and temporary files land: /var/tmp/watch-sensor-refused, as 4500")
+    and any(.[]; .key == "credentials" and (.text | startswith("/usr/bin/base64 read /var/home/alice/.ssh/id_ed25519")))
+    and any(.[]; .key == "privilege" and .level == "critical" and (.text | test("/etc/sudoers.d/watch-sensor using /usr/bin/tee")))
+    and any(.[]; .key == "hardening" and .level == "critical" and (.text | test("reached for the file-watch sensor itself: .*killed-pid using /usr/bin/kill")))
+    and any(.[]; .key == "hardening" and .level == "critical" and (.text | test("stopped and was started again since the last check:")))' \
+    <<<"${FOUND}" >/dev/null || fail "what the sensor recorded: ${FOUND}"
+jq -e '.sensor.drops == 7 and .sensor.active == true and any(.sensor.covered[]; . == "privilege")' \
+    "${R}/var/lib/amethystora/security/status.json" >/dev/null || fail "the sensor's status: $(jq -c .sensor "${R}/var/lib/amethystora/security/status.json")"
+# Nothing new, and no restart since: nothing said
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the second run reading the sensor failed"
+tail -n +"$((before + 1))" "${HISTORY}" | grep -qE 'exec-watch|file-watch sensor' && fail "the sensor's findings were said twice"
+rm -f /var/tmp/watch-sensor-run /var/tmp/watch-sensor-refused
+unset AMETHYSTORA_WATCH_SENSOR AMETHYSTORA_SENSOR_RUN AMETHYSTORA_WATCH_SYSTEMCTL
+echo "PRIVILEGE=off" >>"${AMETHYSTORA_SECURITY_CONF}"
+
 # --- What runs ------------------------------------------------------------------------------------------------
 
 unset AMETHYSTORA_WATCH_AUDIT

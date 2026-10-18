@@ -1,16 +1,25 @@
 #!/usr/bin/bash
 # The file-watch sensor (amethystora-sensor, plans/security/PLAN-audit-cost.md) covers the always-on keys:
 # a write to a watched file or folder is recorded by the sensor, read back by the security watcher, and said,
-# exactly as the audit rules would have. Only meaningful on a boot the sensor took over (auditctl shows the
-# -a never,task filter and nothing else); on a fallback boot the audit rules do it and 30-detection covers
-# that path, so this suite skips.
+# exactly as the audit rules would have. A boot the sensor did not take fails it (the maintainer's Q3): the
+# lab runs the image's own kernel, so the default keys falling back to the audit rules here means they will
+# on the machines too, with the cost back. A machine set to keep the audit rules is skipped, and 30-detection
+# covers the audit path.
 source "$(dirname "$0")/lib.sh"
 
 HISTORY=/var/log/amethystora-security-events.jsonl
 plan=/run/amethystora/sensor/plan
 
 if ! grep -qx 'identity sensor' "${plan}" 2>/dev/null; then
-    skip "the sensor did not take this boot (fallback to the audit rules); 30-detection covers that"
+    if /usr/libexec/amethystora-hardening is-on audit-locked 2>/dev/null ||
+        /usr/libexec/amethystora-security-config --is AUDIT_LOG off; then
+        skip "this machine keeps the audit rules (audit-locked, or the audit log off)"
+    else
+        not_ok "the default keys fell back to the audit rules: the sensor did not load on this kernel" \
+            "plan: $(paste -sd' ' "${plan}" 2>/dev/null)" \
+            "probe: $(cat /var/lib/amethystora/security/sensor-probe 2>/dev/null)" \
+            "$(journalctl -b -u amethystora-audit-rules.service -u amethystora-sensor.service --no-pager 2>/dev/null | tail -n 15)"
+    fi
     finish
 fi
 
