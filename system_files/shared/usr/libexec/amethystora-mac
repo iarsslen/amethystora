@@ -1,6 +1,7 @@
 #!/usr/bin/bash
 # A different address on each network (ame security mac): each Wi-Fi and wired network sees a hardware
-# address of its own for this machine, kept for that network, and is not told the machine's name.
+# address and a DHCP identity of its own for this machine, kept for that network, and is not told the
+# machine's name.
 #
 #   amethystora-mac status   on or off
 #   amethystora-mac on       as root

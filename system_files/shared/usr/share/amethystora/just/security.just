@@ -1319,7 +1319,7 @@ dns ACTION="" *SERVERS:
     echo
     echo "Names on the network itself, such as a printer's, still go to the network's own servers, and so"
     echo "does the check of whether a network reaches the internet. A VPN's own names keep working, and"
-    echo "Tailscale's. Firefox may look names up itself, over DNS-over-HTTPS, as its own settings say."
+    echo "Tailscale's. Firefox asks this resolver too, unless DNS over HTTPS is turned on in its own settings."
     echo
     echo "A network that wants a login first, as in hotels and on trains, cannot show its page while this"
     echo "is on. A notification offers to pause it then: ame security dns pause."
@@ -1341,7 +1341,8 @@ mac ACTION="":
     if [[ "$("${helper}" status)" == on ]]; then
         echo "On: each network sees an address of its own for this machine, and not its name."
     else
-        echo "Off: every network sees this machine's own hardware address, and is told its name."
+        echo "Off: wired networks see this machine's own hardware address, Wi-Fi networks one for each"
+        echo "network name, and every network is told the machine's name."
     fi
     if [[ -z "${action}" ]]; then
         action="$(gum choose --header "A different address on each network" "Turn on" "Turn off" "Cancel")"
@@ -1349,11 +1350,11 @@ mac ACTION="":
     case "${action}" in
         "Turn on" | on)
             echo
-            echo "A network knows a laptop by its hardware (MAC) address, the same on every network it joins,"
-            echo "and is told its name too. With this on, each Wi-Fi and wired network sees an address of its"
-            echo "own for this machine, the same each time it comes back, so a router keeps what it reserved"
-            echo "for it and a login page remembers it. No network is told its name, and connections out use"
-            echo "a temporary IPv6 address."
+            echo "A wired network knows a computer by its hardware (MAC) address, the same on every network it"
+            echo "joins, and every network is told its name, and over IPv6 an identity made from it. With this"
+            echo "on, each Wi-Fi and wired network sees an address and an identity of its own for this machine,"
+            echo "the same each time it comes back, so a router keeps what it reserved for it and a login page"
+            echo "remembers it. No network is told its name."
             echo
             echo "A network that lets in only registered devices, as some universities and offices do, then"
             echo "refuses it. For that network, open it in Settings, then Identity, and set Cloned Address"

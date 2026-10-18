@@ -102,11 +102,13 @@ apply_networks() {
 }
 
 # A notification in the session, and on its button `ame security dns pause` in a terminal, which asks for
-# the password: pausing on the network's say-so alone would let any network turn the encryption off
+# the password: pausing on the network's say-so alone would let any network turn the encryption off.
+# Critical, so that it stays on the screen with its button until it is answered: GNOME Shell shows a
+# normal one for a few seconds, collapsed, without its button, and the network is of no use until then.
 offer_pause() {
     local answer
     command -v gdbus >/dev/null && gdbus wait --session --timeout 60 org.freedesktop.Notifications >/dev/null 2>&1
-    answer="$(notify-send --app-name=Amethystora --icon=network-wireless --urgency=normal --wait \
+    answer="$(notify-send --app-name=Amethystora --icon=network-wireless --urgency=critical --wait \
         --action=pause="Pause for ten minutes…" \
         "This network wants you to log in first" \
         "Encrypted DNS keeps its login page from loading. Pausing it lets the network's own DNS servers answer, in plain text, for ten minutes." ||

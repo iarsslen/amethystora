@@ -710,7 +710,9 @@ Names on the network itself, such as a printer's, still go to the network's own 
 the check of whether a network reaches the internet. Which names count as the network's own is the
 network's to say (its search domains): one that claims a whole domain, such as `com`, has every name in
 it asked of its own servers, in plain text. `resolvectl domain` shows what each network claimed. A VPN's own names keep working, and Tailscale's.
-Firefox may look names up itself, over DNS-over-HTTPS, as its own settings say.
+Firefox asks the same resolver, since its own DNS-over-HTTPS is off as Fedora builds it. Turned on in
+Firefox's settings (**Privacy & Security**, **DNS over HTTPS**), it sends Firefox's lookups to the
+provider chosen there instead, encrypted too.
 
 A network that wants you to log in first, in a hotel or on a train, cannot show its login page while
 this is on. A notification offers to pause it: for ten minutes, the network's own servers answer, in
@@ -723,12 +725,14 @@ and `ame security dns off` turns encrypted DNS off.
 ame security mac
 ```
 
-A network knows a laptop by its hardware (MAC) address, which is the same on every network, and most
-networks are told the machine's name as well, so a café, an office and an airport can each tell it is
-the same machine. With this on, each Wi-Fi and wired network sees an address of its own for this
-machine, the same each time it comes back, so your router keeps what it reserved for it and a login
-page remembers it. No network is told the machine's name, and connections out use a temporary IPv6
-address. It applies from the next time each network connects.
+A wired network knows a computer by its hardware (MAC) address, which is the same on every network,
+and every network is told the machine's name, and over IPv6 an identity made from it, so a café, an
+office and an airport can each tell it is the same machine. Wi-Fi networks already see an address of
+their own, one for each network name. With this on, each Wi-Fi and wired network sees an address and
+an identity of its own for this machine, the same each time it comes back, so your router keeps what
+it reserved for it and a login page remembers it, and no network is told the machine's name. It
+applies from the next time each network connects. Temporary IPv6 addresses, which change over time,
+are on already (`ame security ipv6-privacy`).
 
 A network that lets in only devices it has registered, as some universities and offices do, then
 refuses the machine. For that one network, open it in **Settings**, then **Identity**, and set

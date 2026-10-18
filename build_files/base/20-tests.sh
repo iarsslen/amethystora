@@ -1528,6 +1528,8 @@ grep -qE "^[^#]*(reload-or-restart|restart systemd-resolved)" "${DNS}" && false
 grep -qE "^[^#]*nmcli device reapply" "${DNS}" && false
 grep -qE "^[^#]*nmcli device modify" "${DNS}"
 test -L /etc/systemd/user/graphical-session.target.wants/amethystora-dns-portal.service
+# The offer stays on the screen with its button until answered: GNOME Shell shows a normal one collapsed
+grep -qE -- "--urgency=critical --wait" "${DNS}"
 compgen -G "/usr/lib/NetworkManager/dispatcher.d/*amethystora*" >/dev/null && false
 compgen -G "/etc/NetworkManager/dispatcher.d/*amethystora*" >/dev/null && false
 test ! -e "${RESOLVED_DROP_IN}"
@@ -1560,6 +1562,10 @@ test ! -e /etc/NetworkManager/conf.d/60-amethystora-dns.conf
 NETWORKMANAGER_CONFIG="$(/usr/sbin/NetworkManager --print-config)"
 grep -qx "wifi.cloned-mac-address=stable" <<<"${NETWORKMANAGER_CONFIG}"
 grep -qx "ipv4.dhcp-send-hostname=0" <<<"${NETWORKMANAGER_CONFIG}"
+# DHCPv6's identity is otherwise made from the machine-id, the same on every network
+grep -qx "ipv6.dhcp-duid=stable-uuid" <<<"${NETWORKMANAGER_CONFIG}"
+# ...and temporary IPv6 addresses are ame security ipv6-privacy's alone, which this must not turn back on
+grep -q "ip6-privacy" /usr/share/amethystora/network/60-amethystora-mac.conf && false
 "${MAC}" off
 [[ "$("${MAC}" status)" == off ]]
 test ! -e /etc/NetworkManager/conf.d/60-amethystora-mac.conf
