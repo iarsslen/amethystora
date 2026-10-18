@@ -5,6 +5,7 @@ Runs COMMAND on a terminal of its own, 120 columns by 40 lines, as a person at a
 a question (gum, a typed confirmation, a check of [[ -t 0 ]]). For each EXPECT and SEND, in turn, it waits until
 the regular expression EXPECT shows in what COMMAND printed since the last match, colours and cursor movement
 left out, then types SEND as it is. Then it waits for COMMAND to end. Each wait lasts TIMEOUT seconds at most.
+An EXPECT that starts with ? is a question COMMAND may not ask: if it ends first, the steps after it are left.
 
 It prints everything COMMAND showed, without colours, and exits with COMMAND's status, or 124 when something
 expected did not show or COMMAND did not end in time (it is killed then). It answers none of the questions a
@@ -61,14 +62,17 @@ def main():
     searched = 0
     for expect, send in zip(steps[0::2], steps[1::2]):
         deadline = time.monotonic() + timeout
-        pattern = re.compile(expect)
+        optional = expect.startswith('?')
+        pattern = re.compile(expect[1:] if optional else expect)
         while not (match := pattern.search(text(), searched)):
+            if ended and optional:
+                break
             if ended or time.monotonic() > deadline:
                 print(f'term.py: {expect!r} did not show within {timeout:.0f} s', file=sys.stderr)
                 status = 124
                 break
             read(0.5)
-        if status:
+        if status or match is None:
             break
         searched = match.end()
         # The question drawn whole before the answer
