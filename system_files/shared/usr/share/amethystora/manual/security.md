@@ -473,7 +473,10 @@ the keyring, which a sign-in by finger leaves locked until an app needs it. The 
 listed at [fprint.freedesktop.org](https://fprint.freedesktop.org/supported-devices.html).
 
 Amethystora also drives a FocalTech FT9201 reader that the list does not have yet, often sold as
-a small USB key: `lsusb` shows it as `2808:93a9`. Its sensor is a few millimetres across, so
+a small USB key: `lsusb` shows it as `2808:93a9`. For now it only works once a Windows computer has
+used it since it was last plugged in: from power-on it needs setting up that only FocalTech's
+Windows driver does, so on a computer that runs only Amethystora it cannot be used yet, and
+unplugging it undoes the setting up. Its sensor is a few millimetres across, so
 enrolling takes more presses than usual, and a press that shows a part of the finger the others did
 not is asked for again. Lift your finger fully and put it back the same way each time. When you
 sign in, a press that shows too little of the finger is asked for again too, without counting as a

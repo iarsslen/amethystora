@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: 0xCoDSnet <effectorplay@gmail.com>
 Date: Fri, 13 Mar 2026 22:47:05 +0400
-Subject: [PATCH 02/18] focaltech_moh: add finger detection via INT_STATUS
+Subject: [PATCH 02/20] focaltech_moh: add finger detection via INT_STATUS
  polling
 
 Poll vendor request 0x43 (INT_STATUS) to detect finger presence

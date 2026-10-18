@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Arsslen Idadi <arsslens021@gmail.com>
 Date: Sat, 17 Oct 2026 15:47:43 -0400
-Subject: [PATCH 16/18] focaltech_moh: support the old SIU bridge of 2808:93a9
+Subject: [PATCH 16/20] focaltech_moh: support the old SIU bridge of 2808:93a9
 
 2808:93a9 puts the FT9201 behind an older USB bridge than 2808:9338 and
 2808:9348. It does not answer request 0x6F; its AFE registers are read with
@@ -15,19 +15,23 @@ holds the frame until it sleeps again about 0.9 s later. While it holds one,
 AFE 0x20 reads a5 5a and 0x1D reads 0xa0. The driver waits for that, reads
 the frame, and first waits for any frame captured before the request to go,
 so that only a touch made after it counts. 0x22 (0x70, 0x70), sent twice,
-wakes the MCU, which open needs and which a sensor left in deep sleep by
-another host needs too.
+wakes the MCU, which open needs. Asleep, the bridge answers 00 00 or 01 01;
+after a wake request the sensor sometimes settles in 01 01 where a touch
+goes unnoticed, so 01 01 lasting about 1.7 s gets another wake request.
 
-Open refuses a sensor whose 0x30 is not 0xbb, the value every unit seen so
-far carries, rather than guess at setting one up, and any size but 96x96.
-The bridge is told apart by product id, and everything that assumed 64x80
-now takes the size from the device.
+From power-on the MCU does not wake at all, and every register reads 00 00,
+until FocalTech's Windows driver has set the sensor up, most likely by
+loading its firmware; a USB reset does not undo that. How to set it up is
+not known, so open fails then with an error that says so. It also refuses a
+sensor whose 0x30 is not 0xbb, the value every set-up unit carries, and any
+size but 96x96. The bridge is told apart by product id, and everything that
+assumed 64x80 now takes the size from the device.
 ---
  data/autosuspend.hwdb                         |   2 +-
- .../drivers/focaltech_moh/focaltech_moh.c     | 533 ++++++++++++++++--
+ .../drivers/focaltech_moh/focaltech_moh.c     | 541 ++++++++++++++++--
  .../drivers/focaltech_moh/focaltech_moh.h     |  74 ++-
  libfprint/fprint-list-udev-hwdb.c             |   1 -
- 4 files changed, 567 insertions(+), 43 deletions(-)
+ 4 files changed, 575 insertions(+), 43 deletions(-)
 
 diff --git a/data/autosuspend.hwdb b/data/autosuspend.hwdb
 index 56d5be9d..527d17ed 100644
@@ -50,7 +54,7 @@ index 56d5be9d..527d17ed 100644
  usb:v2808pA573*
  usb:v2808pA658*
 diff --git a/libfprint/drivers/focaltech_moh/focaltech_moh.c b/libfprint/drivers/focaltech_moh/focaltech_moh.c
-index 32458ad6..2e8db63a 100644
+index 32458ad6..eec5d71a 100644
 --- a/libfprint/drivers/focaltech_moh/focaltech_moh.c
 +++ b/libfprint/drivers/focaltech_moh/focaltech_moh.c
 @@ -44,8 +44,9 @@ G_DEFINE_TYPE (FpiDeviceFocaltechMoh, fpi_device_focaltech_moh,
@@ -116,7 +120,7 @@ index 32458ad6..2e8db63a 100644
          if (score > best)
            best = score;
        }
-@@ -438,12 +435,430 @@ capture_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -438,12 +435,438 @@ capture_ssm_handler (FpiSsm *ssm, FpDevice *dev)
      }
  }
  
@@ -235,9 +239,15 @@ index 32458ad6..2e8db63a 100644
 +        }
 +      else
 +        {
++          /* From power-on, until FocalTech's Windows driver has set it up
++           * (most likely by loading the MCU's firmware), the bridge answers
++           * but the MCU never wakes: its registers all read 00 00. How to
++           * set it up is not known. */
 +          fpi_ssm_mark_failed (transfer->ssm,
-+                               fpi_device_error_new_msg (FP_DEVICE_ERROR_GENERAL,
-+                                                         "Sensor MCU did not wake (%02x %02x)",
++                               fpi_device_error_new_msg (FP_DEVICE_ERROR_NOT_SUPPORTED,
++                                                         "Sensor did not start (%02x %02x): from power-on "
++                                                         "it needs setting up that only FocalTech's "
++                                                         "Windows driver does yet",
 +                                                         reply[0], reply[1]));
 +        }
 +      break;
@@ -363,9 +373,11 @@ index 32458ad6..2e8db63a 100644
 +        }
 +
 +      /* Asleep, so no frame waits. The bridge answers 00 00 or 01 01 while
-+       * the MCU sleeps, and a touch wakes it from either. 01 01 is also how
-+       * the sensor is found after another host had it, where it may not
-+       * wake by itself, so a long run of it gets a wake request. */
++       * the MCU sleeps. A touch wakes it from 00 00, and from 01 01 after a
++       * capture; but 01 01 is also how the sensor is found after another
++       * host had it, and where it sometimes settles after a wake request,
++       * and there a touch may go unnoticed. So a run of it gets another
++       * wake request. */
 +      self->frame_drained = TRUE;
 +      if (reply[0] == 0x01 && reply[1] == 0x01 &&
 +          ++self->sleep_polls >= FT9201_DEEP_SLEEP_POLLS)
@@ -547,7 +559,7 @@ index 32458ad6..2e8db63a 100644
                              double       *out_best,
                              int          *out_confirms)
  {
-@@ -474,9 +889,9 @@ ft9201_score_against_print (FpPrint      *print,
+@@ -474,9 +897,9 @@ ft9201_score_against_print (FpPrint      *print,
        g_variant_get (img_var, "(@ay)", &inner);
        tmpl_data = g_variant_get_fixed_array (inner, &tmpl_len, 1);
  
@@ -559,7 +571,7 @@ index 32458ad6..2e8db63a 100644
  
            fp_dbg ("NCC template %d: %.4f", idx, score);
            if (score > best)
-@@ -515,8 +930,7 @@ enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -515,8 +938,7 @@ enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
      {
      case ENROLL_CAPTURE:
        {
@@ -569,7 +581,7 @@ index 32458ad6..2e8db63a 100644
  
          fpi_device_report_finger_status_changes (dev,
                                                   FP_FINGER_STATUS_NEEDED,
-@@ -528,13 +942,13 @@ enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -528,13 +950,13 @@ enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
      case ENROLL_STORE_IMAGE:
        {
          int unique;
@@ -585,7 +597,7 @@ index 32458ad6..2e8db63a 100644
          fp_dbg ("Enroll stage %d: %d unique values", self->enroll_stage, unique);
  
          if (unique < FT9201_MIN_UNIQUE_VALUES)
-@@ -546,9 +960,9 @@ enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -546,9 +968,9 @@ enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
              return;
            }
  
@@ -598,7 +610,7 @@ index 32458ad6..2e8db63a 100644
  
          self->enroll_stage++;
          fp_dbg ("Enroll stage %d/%d completed",
-@@ -577,7 +991,8 @@ enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -577,7 +999,8 @@ enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
            {
              GVariant *img = g_variant_new_fixed_array (
                G_VARIANT_TYPE_BYTE,
@@ -608,7 +620,7 @@ index 32458ad6..2e8db63a 100644
  
              g_variant_builder_add (&builder, "(@ay)", img);
            }
-@@ -624,8 +1039,7 @@ verify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -624,8 +1047,7 @@ verify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
      {
      case VERIFY_CAPTURE:
        {
@@ -618,7 +630,7 @@ index 32458ad6..2e8db63a 100644
  
          fpi_device_report_finger_status_changes (dev,
                                                   FP_FINGER_STATUS_NEEDED,
-@@ -637,7 +1051,7 @@ verify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -637,7 +1059,7 @@ verify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
      case VERIFY_MATCH:
        {
          FpPrint *print = NULL;
@@ -627,7 +639,7 @@ index 32458ad6..2e8db63a 100644
          double best = -1.0;
          int confirms = 0;
          int unique;
-@@ -646,7 +1060,7 @@ verify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -646,7 +1068,7 @@ verify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
                                                   FP_FINGER_STATUS_NONE,
                                                   FP_FINGER_STATUS_PRESENT);
  
@@ -636,7 +648,7 @@ index 32458ad6..2e8db63a 100644
          fp_dbg ("Verify: %d unique values", unique);
  
          if (unique < FT9201_MIN_UNIQUE_VALUES)
-@@ -659,11 +1073,12 @@ verify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -659,11 +1081,12 @@ verify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
              return;
            }
  
@@ -651,7 +663,7 @@ index 32458ad6..2e8db63a 100644
            {
              fpi_device_verify_report (dev, FPI_MATCH_ERROR, NULL,
                                        fpi_device_error_new (FP_DEVICE_ERROR_DATA_INVALID));
-@@ -719,8 +1134,7 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -719,8 +1142,7 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
      {
      case IDENTIFY_CAPTURE:
        {
@@ -661,7 +673,7 @@ index 32458ad6..2e8db63a 100644
  
          fpi_device_report_finger_status_changes (dev,
                                                   FP_FINGER_STATUS_NEEDED,
-@@ -732,7 +1146,7 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -732,7 +1154,7 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
      case IDENTIFY_MATCH:
        {
          g_autoptr(GPtrArray) prints = NULL;
@@ -670,7 +682,7 @@ index 32458ad6..2e8db63a 100644
          FpPrint *best_match = NULL;
          double best_score = -1.0;
          int unique;
-@@ -742,7 +1156,7 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -742,7 +1164,7 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
                                                   FP_FINGER_STATUS_NONE,
                                                   FP_FINGER_STATUS_PRESENT);
  
@@ -679,7 +691,7 @@ index 32458ad6..2e8db63a 100644
          fp_dbg ("Identify: %d unique values", unique);
  
          if (unique < FT9201_MIN_UNIQUE_VALUES)
-@@ -755,7 +1169,7 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -755,7 +1177,7 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
              return;
            }
  
@@ -688,7 +700,7 @@ index 32458ad6..2e8db63a 100644
  
          fpi_device_get_identify_data (dev, &prints);
          if (prints != NULL)
-@@ -772,7 +1186,8 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -772,7 +1194,8 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
              double best = -1.0;
              int confirms = 0;
  
@@ -698,7 +710,7 @@ index 32458ad6..2e8db63a 100644
                {
                  fp_dbg ("Gallery print %u carries no usable template data", i);
                  continue;
-@@ -819,6 +1234,22 @@ identify_ssm_complete (FpiSsm *ssm, FpDevice *dev, GError *error)
+@@ -819,6 +1242,22 @@ identify_ssm_complete (FpiSsm *ssm, FpDevice *dev, GError *error)
  /* Device lifecycle                                                    */
  /* ------------------------------------------------------------------ */
  
@@ -721,7 +733,7 @@ index 32458ad6..2e8db63a 100644
  static void
  dev_open (FpDevice *dev)
  {
-@@ -827,7 +1258,12 @@ dev_open (FpDevice *dev)
+@@ -827,7 +1266,12 @@ dev_open (FpDevice *dev)
  
    G_DEBUG_HERE ();
  
@@ -735,7 +747,7 @@ index 32458ad6..2e8db63a 100644
      {
        fp_dbg ("USB reset failed (non-fatal): %s", error->message);
        g_clear_error (&error);
-@@ -840,10 +1276,29 @@ dev_open (FpDevice *dev)
+@@ -840,10 +1284,29 @@ dev_open (FpDevice *dev)
        return;
      }
  
@@ -767,7 +779,7 @@ index 32458ad6..2e8db63a 100644
    fpi_device_open_complete (dev, NULL);
  }
  
-@@ -911,8 +1366,8 @@ capture_task_ssm_complete (FpiSsm *ssm, FpDevice *dev, GError *error)
+@@ -911,8 +1374,8 @@ capture_task_ssm_complete (FpiSsm *ssm, FpDevice *dev, GError *error)
    /* Deliberately hand out the *raw* sensor frame, not the preprocessed one:
     * this is what makes the capture useful for evaluating preprocessing and
     * matching offline. */
@@ -778,7 +790,7 @@ index 32458ad6..2e8db63a 100644
  
    fpi_device_capture_complete (dev, img, NULL);
  }
-@@ -926,7 +1381,7 @@ focaltech_moh_capture (FpDevice *dev)
+@@ -926,7 +1389,7 @@ focaltech_moh_capture (FpDevice *dev)
                                             FP_FINGER_STATUS_NEEDED,
                                             FP_FINGER_STATUS_NONE);
  
@@ -788,7 +800,7 @@ index 32458ad6..2e8db63a 100644
  }
  
 diff --git a/libfprint/drivers/focaltech_moh/focaltech_moh.h b/libfprint/drivers/focaltech_moh/focaltech_moh.h
-index b3bbdae3..76e5e26d 100644
+index b3bbdae3..afc34d4a 100644
 --- a/libfprint/drivers/focaltech_moh/focaltech_moh.h
 +++ b/libfprint/drivers/focaltech_moh/focaltech_moh.h
 @@ -30,11 +30,46 @@ G_DECLARE_FINAL_TYPE (FpiDeviceFocaltechMoh, fpi_device_focaltech_moh, FPI,
@@ -833,7 +845,7 @@ index b3bbdae3..76e5e26d 100644
 +
 +#define FT9201_OLD_POLL_INTERVAL 20     /* ms between polls of the AFE status */
 +#define FT9201_OPEN_MCU_POLLS 25        /* tries for the MCU to wake at open */
-+#define FT9201_DEEP_SLEEP_POLLS 150     /* ~3 s of 01 01 before waking it again */
++#define FT9201_DEEP_SLEEP_POLLS 75      /* ~1.7 s of 01 01 before waking it again */
 +
  #define FT9201_CMD_TIMEOUT 5000
  #define FT9201_POLL_INTERVAL 30   /* ms between finger detection polls */

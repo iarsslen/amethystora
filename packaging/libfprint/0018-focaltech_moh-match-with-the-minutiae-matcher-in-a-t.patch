@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Arsslen Idadi <arsslens021@gmail.com>
 Date: Sun, 18 Oct 2026 00:12:57 +0000
-Subject: [PATCH 18/18] focaltech_moh: match with the minutiae matcher, in a
+Subject: [PATCH 18/20] focaltech_moh: match with the minutiae matcher, in a
  thread
 
 Verify and identify now go through focaltech_moh_match.c, and share one
@@ -27,13 +27,13 @@ that it carries no fingerprint. The matcher needs ridges and rightly enrols
 nothing from it, so the test now captures a frame and checks the protocol;
 matching is covered by test-focaltech-moh-match.
 ---
- .../drivers/focaltech_moh/focaltech_moh.c     | 897 +++++++++---------
- .../drivers/focaltech_moh/focaltech_moh.h     |  68 +-
+ .../drivers/focaltech_moh/focaltech_moh.c     | 849 +++++++++---------
+ .../drivers/focaltech_moh/focaltech_moh.h     |  74 +-
  tests/focaltech_moh/custom.py                 |  30 +-
- 3 files changed, 487 insertions(+), 508 deletions(-)
+ 3 files changed, 459 insertions(+), 494 deletions(-)
 
 diff --git a/libfprint/drivers/focaltech_moh/focaltech_moh.c b/libfprint/drivers/focaltech_moh/focaltech_moh.c
-index 3e149592..6a175282 100644
+index eec5d71a..1acc8a98 100644
 --- a/libfprint/drivers/focaltech_moh/focaltech_moh.c
 +++ b/libfprint/drivers/focaltech_moh/focaltech_moh.c
 @@ -19,23 +19,23 @@
@@ -220,76 +220,7 @@ index 3e149592..6a175282 100644
  /* ------------------------------------------------------------------ */
  /* USB helper: send vendor control OUT                                 */
  /* ------------------------------------------------------------------ */
-@@ -540,37 +396,51 @@ open_old_reply_cb (FpiUsbTransfer *transfer,
-     {
-     case OPEN_OLD_MCU:
-       if (ft9201_mcu_awake (reply))
--        fpi_ssm_next_state (transfer->ssm);
-+        {
-+          fpi_ssm_next_state (transfer->ssm);
-+        }
-       else if (++self->sleep_polls < FT9201_OPEN_MCU_POLLS)
--        fpi_ssm_jump_to_state_delayed (transfer->ssm, OPEN_OLD_MCU,
--                                       FT9201_OLD_POLL_INTERVAL);
-+        {
-+          fpi_ssm_jump_to_state_delayed (transfer->ssm, OPEN_OLD_MCU,
-+                                         FT9201_OLD_POLL_INTERVAL);
-+        }
-       else
--        fpi_ssm_mark_failed (transfer->ssm,
--                             fpi_device_error_new_msg (FP_DEVICE_ERROR_GENERAL,
--                                                       "Sensor MCU did not wake (%02x %02x)",
--                                                       reply[0], reply[1]));
-+        {
-+          fpi_ssm_mark_failed (transfer->ssm,
-+                               fpi_device_error_new_msg (FP_DEVICE_ERROR_GENERAL,
-+                                                         "Sensor MCU did not wake (%02x %02x)",
-+                                                         reply[0], reply[1]));
-+        }
-       break;
- 
-     case OPEN_OLD_CONFIGURED:
-       /* Set on every sensor seen so far. Setting it up from scratch is not
-        * understood, so refuse rather than guess at register writes. */
-       if (reply[0] != FT9201_CONFIGURED)
--        fpi_ssm_mark_failed (transfer->ssm,
--                             fpi_device_error_new_msg (FP_DEVICE_ERROR_NOT_SUPPORTED,
--                                                       "Sensor is not set up (0x%02x)",
--                                                       reply[0]));
-+        {
-+          fpi_ssm_mark_failed (transfer->ssm,
-+                               fpi_device_error_new_msg (FP_DEVICE_ERROR_NOT_SUPPORTED,
-+                                                         "Sensor is not set up (0x%02x)",
-+                                                         reply[0]));
-+        }
-       else
--        fpi_ssm_next_state (transfer->ssm);
-+        {
-+          fpi_ssm_next_state (transfer->ssm);
-+        }
-       break;
- 
-     case OPEN_OLD_SIZE:
-       if (reply[0] != FT9201_OLD_WIDTH || reply[1] != FT9201_OLD_HEIGHT)
--        fpi_ssm_mark_failed (transfer->ssm,
--                             fpi_device_error_new_msg (FP_DEVICE_ERROR_NOT_SUPPORTED,
--                                                       "Unsupported sensor size %ux%u",
--                                                       reply[0], reply[1]));
-+        {
-+          fpi_ssm_mark_failed (transfer->ssm,
-+                               fpi_device_error_new_msg (FP_DEVICE_ERROR_NOT_SUPPORTED,
-+                                                         "Unsupported sensor size %ux%u",
-+                                                         reply[0], reply[1]));
-+        }
-       else
--        fpi_ssm_next_state (transfer->ssm);
-+        {
-+          fpi_ssm_next_state (transfer->ssm);
-+        }
-       break;
- 
-     case OPEN_OLD_CHIP_ID:
-@@ -837,158 +707,331 @@ ft9201_capture_ssm_new (FpDevice *dev)
+@@ -859,158 +715,331 @@ ft9201_capture_ssm_new (FpDevice *dev)
    return fpi_ssm_new (dev, capture_ssm_handler, CAPTURE_NUM_STATES);
  }
  
@@ -409,15 +340,15 @@ index 3e149592..6a175282 100644
 +        {
 +          g_autoptr(GPtrArray) presses = NULL;
 +          g_autofree Ft9201Comparison *cmps = NULL;
- 
--      g_variant_unref (img_var);
--      idx++;
++
 +          job->evidence[p] = FT9201_NO_EVIDENCE;
 +          if (!job->usable)
 +            continue;
 +          if (g_task_return_error_if_cancelled (task))
 +            return;
-+
+ 
+-      g_variant_unref (img_var);
+-      idx++;
 +          presses = ft9201_print_data_load (g_ptr_array_index (job->prints, p),
 +                                            job->width, job->height);
 +          if (presses == NULL)
@@ -622,24 +553,24 @@ index 3e149592..6a175282 100644
 -          }
 +  self->enroll_stage = grown;
 +  fpi_device_enroll_progress (dev, self->enroll_stage, NULL, NULL);
-+
+ 
+-        ft9201_preprocess (self->image_buf, preprocessed, self->width, self->height);
+-        memcpy (self->enroll_images + self->enroll_stage * self->width * self->height,
+-                preprocessed, self->width * self->height);
 +  if (self->enroll_stage < FT9201_NUM_ENROLL_STAGES)
 +    fpi_ssm_jump_to_state (ssm, ENROLL_CAPTURE);
 +  else
 +    fpi_ssm_next_state (ssm);
 +}
  
--        ft9201_preprocess (self->image_buf, preprocessed, self->width, self->height);
--        memcpy (self->enroll_images + self->enroll_stage * self->width * self->height,
--                preprocessed, self->width * self->height);
+-        self->enroll_stage++;
+-        fp_dbg ("Enroll stage %d/%d completed",
+-                self->enroll_stage, FT9201_NUM_ENROLL_STAGES);
 +static void
 +enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
 +{
 +  FpiDeviceFocaltechMoh *self = FPI_DEVICE_FOCALTECH_MOH (dev);
- 
--        self->enroll_stage++;
--        fp_dbg ("Enroll stage %d/%d completed",
--                self->enroll_stage, FT9201_NUM_ENROLL_STAGES);
++
 +  switch (fpi_ssm_get_cur_state (ssm))
 +    {
 +    case ENROLL_CAPTURE:
@@ -683,9 +614,9 @@ index 3e149592..6a175282 100644
 -        GVariantBuilder builder;
 -        GVariant *data;
 -        int i;
--
--        fpi_device_get_enroll_data (dev, &print);
  
+-        fpi_device_get_enroll_data (dev, &print);
+-
 -        g_variant_builder_init (&builder, G_VARIANT_TYPE ("a(ay)"));
 -        for (i = 0; i < FT9201_NUM_ENROLL_STAGES; i++)
 +        /* Keep the best linked presses of the group, if it grew past the
@@ -728,7 +659,7 @@ index 3e149592..6a175282 100644
  
          fpi_device_enroll_complete (dev, g_object_ref (print), NULL);
          fpi_ssm_mark_completed (ssm);
-@@ -1000,203 +1043,174 @@ enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -1022,203 +1051,174 @@ enroll_ssm_handler (FpiSsm *ssm, FpDevice *dev)
      }
  }
  
@@ -845,14 +776,14 @@ index 3e149592..6a175282 100644
 +      fp_dbg ("Press not usable, asking again");
 +      fpi_device_verify_report (dev, FPI_MATCH_ERROR, NULL,
 +                                fpi_device_retry_new (FP_DEVICE_RETRY_CENTER_FINGER));
-     }
++    }
 +  else if (job->evidence[0] == FT9201_NO_EVIDENCE)
 +    {
 +      /* Not a retry: the enrolled print itself cannot be read. */
 +      fpi_device_verify_complete (dev, fpi_device_error_new (FP_DEVICE_ERROR_DATA_INVALID));
 +      fpi_ssm_mark_completed (ssm);
 +      return;
-+    }
+     }
 +  else
 +    {
 +      fp_info ("Verify evidence %d", job->evidence[0]);
@@ -888,7 +819,9 @@ index 3e149592..6a175282 100644
  
 -  if (error)
 +  if (!job->usable)
-+    {
+     {
+-      fpi_device_verify_report (dev, FPI_MATCH_ERROR, NULL, error);
+-      fpi_device_verify_complete (dev, NULL);
 +      fp_dbg ("Press not usable, asking again");
 +      fpi_device_identify_report (dev, NULL, NULL,
 +                                  fpi_device_retry_new (FP_DEVICE_RETRY_CENTER_FINGER));
@@ -901,9 +834,7 @@ index 3e149592..6a175282 100644
 +   * driver cannot read take no part. */
 +  fpi_device_get_identify_data (dev, &prints);
 +  for (guint i = 0; prints && i < prints->len && i < job->prints->len; i++)
-     {
--      fpi_device_verify_report (dev, FPI_MATCH_ERROR, NULL, error);
--      fpi_device_verify_complete (dev, NULL);
++    {
 +      fp_dbg ("Gallery print %u: evidence %d", i, job->evidence[i]);
 +      if (job->evidence[i] != FT9201_NO_EVIDENCE &&
 +          ft9201_evidence_accepts (job->evidence[i]) &&
@@ -1016,10 +947,10 @@ index 3e149592..6a175282 100644
 -                fp_dbg ("Gallery print %u carries no usable template data", i);
 -                continue;
 -              }
--
--            fp_dbg ("Gallery print %u: best %.4f, %d confirming", i, best, confirms);
 +                GVariant *data = ft9201_print_data (g_ptr_array_index (prints, i));
  
+-            fp_dbg ("Gallery print %u: best %.4f, %d confirming", i, best, confirms);
+-
 -            if (ft9201_accept (best, confirms) && best > best_score)
 -              {
 -                best_score = best;
@@ -1050,7 +981,7 @@ index 3e149592..6a175282 100644
        }
        break;
  
-@@ -1206,14 +1220,19 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
+@@ -1228,14 +1228,19 @@ identify_ssm_handler (FpiSsm *ssm, FpDevice *dev)
  }
  
  static void
@@ -1072,7 +1003,7 @@ index 3e149592..6a175282 100644
  }
  
  /* ------------------------------------------------------------------ */
-@@ -1228,7 +1247,6 @@ open_old_ssm_complete (FpiSsm *ssm, FpDevice *dev, GError *error)
+@@ -1250,7 +1255,6 @@ open_old_ssm_complete (FpiSsm *ssm, FpDevice *dev, GError *error)
    if (error)
      {
        g_clear_pointer (&self->image_buf, g_free);
@@ -1080,7 +1011,7 @@ index 3e149592..6a175282 100644
        g_usb_device_release_interface (fpi_device_get_usb_device (dev),
                                        0, 0, NULL);
      }
-@@ -1274,7 +1292,7 @@ dev_open (FpDevice *dev)
+@@ -1296,7 +1300,7 @@ dev_open (FpDevice *dev)
      }
  
    self->image_buf = g_malloc0 (self->width * self->height);
@@ -1089,7 +1020,7 @@ index 3e149592..6a175282 100644
    self->warmup_done = FALSE;
  
    if (self->bridge == FT9201_BRIDGE_OLD_SIU)
-@@ -1296,8 +1314,8 @@ dev_close (FpDevice *dev)
+@@ -1318,8 +1322,8 @@ dev_close (FpDevice *dev)
  
    G_DEBUG_HERE ();
  
@@ -1099,7 +1030,7 @@ index 3e149592..6a175282 100644
  
    g_usb_device_release_interface (fpi_device_get_usb_device (dev),
                                    0, 0, &error);
-@@ -1313,18 +1331,20 @@ focaltech_moh_enroll (FpDevice *dev)
+@@ -1335,18 +1339,20 @@ focaltech_moh_enroll (FpDevice *dev)
  {
    FpiDeviceFocaltechMoh *self = FPI_DEVICE_FOCALTECH_MOH (dev);
  
@@ -1123,7 +1054,7 @@ index 3e149592..6a175282 100644
  }
  
  /* ------------------------------------------------------------------ */
-@@ -1371,15 +1391,6 @@ focaltech_moh_capture (FpDevice *dev)
+@@ -1393,15 +1399,6 @@ focaltech_moh_capture (FpDevice *dev)
    fpi_ssm_start (self->task_ssm, capture_task_ssm_complete);
  }
  
@@ -1139,7 +1070,7 @@ index 3e149592..6a175282 100644
  /* ------------------------------------------------------------------ */
  /* GType boilerplate                                                   */
  /* ------------------------------------------------------------------ */
-@@ -1404,8 +1415,8 @@ fpi_device_focaltech_moh_class_init (FpiDeviceFocaltechMohClass *klass)
+@@ -1426,8 +1423,8 @@ fpi_device_focaltech_moh_class_init (FpiDeviceFocaltechMohClass *klass)
    dev_class->open = dev_open;
    dev_class->close = dev_close;
    dev_class->enroll = focaltech_moh_enroll;
@@ -1151,7 +1082,7 @@ index 3e149592..6a175282 100644
  
    /* The temperature model counts time spent *waiting for a finger* as active
 diff --git a/libfprint/drivers/focaltech_moh/focaltech_moh.h b/libfprint/drivers/focaltech_moh/focaltech_moh.h
-index 625283b5..c8f2f953 100644
+index afc34d4a..83eaac62 100644
 --- a/libfprint/drivers/focaltech_moh/focaltech_moh.h
 +++ b/libfprint/drivers/focaltech_moh/focaltech_moh.h
 @@ -75,30 +75,9 @@ enum ft9201_bridge {
@@ -1226,9 +1157,12 @@ index 625283b5..c8f2f953 100644
 +  FpDevice           parent;
  
    enum ft9201_bridge bridge;
-   int                width;     /* frame size in pixels */
-   int                height;
-   guint16            chip_id;   /* old SIU only */
+-  int      width;               /* frame size in pixels */
+-  int      height;
+-  guint16  chip_id;             /* old SIU only */
++  int                width;     /* frame size in pixels */
++  int                height;
++  guint16            chip_id;   /* old SIU only */
  
 -  gboolean warmup_done;
 -  int      finger_up_polls;

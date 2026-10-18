@@ -1,8 +1,8 @@
 # libfprint with the FocalTech FT9201 reader
 
-Fedora's libfprint package with nineteen patches, for a FocalTech FT9201 reader that libfprint does not
+Fedora's libfprint package with twenty patches, for a FocalTech FT9201 reader that libfprint does not
 support yet: USB `2808:93a9`, an inexpensive press sensor sold as a USB key. Its 64x80 siblings `2808:9338`
-and `2808:9348`, which the patches also cover, are left out (0019). Each image build makes it in the
+and `2808:9348`, which the patches also cover, are left out (0020). Each image build makes it in the
 Containerfile's `libfprint` stage
 (`build_files/shared/build-libfprint.sh`), on the same pinned base image, and
 `build_files/base/05-override-install.sh` installs it in place of Fedora's and puts its source package in
@@ -14,7 +14,7 @@ add a driver and change no interface.
   `focaltech_moh` driver for `2808:9338`, its USB protocol reverse engineered) and
   [!646](https://gitlab.freedesktop.org/libfprint/libfprint/-/merge_requests/646) (dgmtnz: `2808:9348`,
   identify, a retuned matcher), as they stood on 2026-10-17, neither merged.
-- **0016 to 0018** are Amethystora's, written to be proposed upstream on top of them:
+- **0016 to 0019** are Amethystora's, written to be proposed upstream on top of them:
   - 0016: `2808:93a9`, whose FT9201 sits behind an older USB bridge (AFE registers through request `0x3A`,
     the frame through `0x35`), with a 96x96 sensor that captures by itself when touched;
   - 0017: a matcher that decides on minutiae. The correlation matcher of 0004 to 0014 accepts a wrong finger
@@ -22,12 +22,24 @@ add a driver and change no interface.
     phase are tuned. This one aligns by masked correlation over rotations and shifts, then counts minutiae
     that agree at that pose in two enrolled presses;
   - 0018: the driver uses it, in a thread, enrols by groups of presses that link up, and asks again for a
-    press it cannot decide on. Prints made with 0004 to 0015 are not read.
-- **0019** is Amethystora's alone, not for upstream: the driver claims `2808:93a9` only, and `2808:9338` and
+    press it cannot decide on. Prints made with 0004 to 0015 are not read;
+  - 0019: a test recorded on a real `2808:93a9` with the back of a hand, which has no friction ridges, so
+    that the recording holds no fingerprint.
+- **0020** is Amethystora's alone, not for upstream: the driver claims `2808:93a9` only, and `2808:9338` and
   `2808:9348` go back to libfprint's list of unsupported devices, as in its releases. On their 64x80 sensor
   the matcher was measured at one false accept in 39848 usable presses of another finger (a 95% upper bound
   of 1 in 8400), with 60% of presses asked for again: short of what signing in and `sudo` need. Drop it once
   a matcher is shown safe on them.
+
+## It needs Windows first
+
+From power-on, `2808:93a9` does not work until FocalTech's Windows driver has set it up: the USB bridge
+answers, but the sensor's MCU never wakes and every register reads `00 00`, most likely because the Windows
+driver loads its firmware. After that it keeps working until it loses power; a USB reset does not undo it.
+The driver refuses a sensor in that state at open, with an error that says so. On a machine that only ever
+runs Amethystora, the reader therefore does not work yet. Making it work needs what the Windows driver sends
+at power-on, recorded from the USB traffic; if that is FocalTech's firmware, it is theirs, and the image
+cannot carry it without their permission.
 
 The spec is Fedora's (MIT, as Fedora's spec files are) with `Release`, the patches, a `%check` and the
 changelog changed. The patches are LGPL-2.1-or-later, as libfprint is. `sources` pins the release tarball's
@@ -40,11 +52,11 @@ It was chosen and measured on synthetic fingerprints, generated after SFinGe, ne
 fingers it was not tuned on, of 246753 usable presses of another finger (148086 of them another finger of
 the same person) none was accepted, a 95% upper bound of one in 82000; a usable press of the right finger is
 accepted 73% of the time, and 18% of presses are asked for again. The tools and how to reproduce this are in
-the lab repository that goes with the merge request (`ft9201-lab`). Its `%check` runs the matcher's own tests
-on every image build.
+the lab repository that goes with the merge request (`ft9201-lab`). The spec's `%check` runs the matcher's own
+tests and replays the `2808:93a9` recording on every image build.
 
-What that does not show: how real skin on a real FT9201 does. The `2808:93a9` protocol was worked out and
-tested on a real reader with knuckles, which carry no fingerprint; the matcher has not met a real finger.
+What that does not show: how real skin on a real FT9201 does. The `2808:93a9` protocol was worked out on a
+real reader, and its test recorded there with the back of a hand; the matcher has not met a real finger.
 
 ## Making the patches again
 
@@ -55,7 +67,7 @@ From a clone of `https://gitlab.freedesktop.org/libfprint/libfprint.git` with LF
 git fetch origin refs/merge-requests/646/head:mr646
 git checkout -b amethystora v1.94.100
 git cherry-pick $(git merge-base master mr646)..mr646   # !572's six commits and !646's nine
-# ...then Amethystora's three for upstream, then 0019
+# ...then Amethystora's four for upstream, then 0020
 git format-patch --no-signature --zero-commit v1.94.100..HEAD -o <this folder>
 ```
 

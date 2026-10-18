@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: dgmtnz <dgmtnz.2019@gmail.com>
 Date: Fri, 21 Aug 2026 18:39:58 +0200
-Subject: [PATCH 11/18] focaltech_moh: satisfy uncrustify
+Subject: [PATCH 11/20] focaltech_moh: satisfy uncrustify
 
 Output of scripts/uncrustify.sh, which test_indent enforces. Mostly
 touches #define alignment in the header, so it is kept as its own

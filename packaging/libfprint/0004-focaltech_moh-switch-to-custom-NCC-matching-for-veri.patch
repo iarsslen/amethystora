@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: 0xCoDSnet <effectorplay@gmail.com>
 Date: Sun, 15 Mar 2026 15:45:36 +0400
-Subject: [PATCH 04/18] focaltech_moh: switch to custom NCC matching for
+Subject: [PATCH 04/20] focaltech_moh: switch to custom NCC matching for
  verification
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8

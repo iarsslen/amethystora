@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: dgmtnz <dgmtnz.2019@gmail.com>
 Date: Fri, 21 Aug 2026 00:53:18 +0200
-Subject: [PATCH 08/18] focaltech_moh: add raw image capture
+Subject: [PATCH 08/20] focaltech_moh: add raw image capture
 
 Implements dev_class->capture, handing out the raw sensor frame rather
 than the preprocessed one. Without it there is no way to evaluate

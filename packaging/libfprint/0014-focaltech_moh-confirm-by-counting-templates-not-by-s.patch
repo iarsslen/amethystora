@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: dgmtnz <dgmtnz.2019@gmail.com>
 Date: Thu, 10 Sep 2026 15:41:11 +0200
-Subject: [PATCH 14/18] focaltech_moh: confirm by counting templates, not by
+Subject: [PATCH 14/20] focaltech_moh: confirm by counting templates, not by
  second-best score
 
 @Kwaadpepper broke the corroborated rule in !646 with a middle finger

@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: 0xCoDSnet <effectorplay@gmail.com>
 Date: Thu, 12 Mar 2026 21:14:33 +0400
-Subject: [PATCH 01/18] Add FocalTech FT9201 fingerprint sensor driver
+Subject: [PATCH 01/20] Add FocalTech FT9201 fingerprint sensor driver
 
 Reverse-engineered USB protocol for FocalTech FT9201 (FT9338 chip,
 VID:PID 2808:9338). Area fingerprint sensor, 64x80 pixels, 8-bit

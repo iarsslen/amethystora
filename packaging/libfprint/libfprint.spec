@@ -8,11 +8,11 @@
 # (.github/renovate.json5).
 #
 # Patches 1 to 15 are the focaltech_moh driver of libfprint merge requests !572 (0xCoDSnet) and !646
-# (dgmtnz), for 2808:9338 and 2808:9348; 16 to 18 are Amethystora's, written for upstream: 2808:93a9, and a
-# matcher that decides on minutiae, which the earlier ones' correlation matcher could not do safely; 19 is
-# Amethystora's alone: it drives 2808:93a9 only, the 64x80 sensors falling short with that matcher. The
-# patches are LGPL-2.1-or-later, as libfprint is. README.md says where they come from and how to make them
-# again.
+# (dgmtnz), for 2808:9338 and 2808:9348; 16 to 19 are Amethystora's, written for upstream: 2808:93a9, a
+# matcher that decides on minutiae, which the earlier ones' correlation matcher could not do safely, and a
+# test recorded on 2808:93a9; 20 is Amethystora's alone: it drives 2808:93a9 only, the 64x80 sensors
+# falling short with that matcher. The patches are LGPL-2.1-or-later, as libfprint is. README.md says where
+# they come from, how to make them again, and what does not work yet.
 Name:           libfprint
 
 Version:        1.94.100
@@ -44,7 +44,8 @@ Patch:          0015-focaltech_moh-honour-cancellation-on-long-running-op.patch
 Patch:          0016-focaltech_moh-support-the-old-SIU-bridge-of-2808-93a.patch
 Patch:          0017-focaltech_moh-add-a-matcher-that-decides-on-minutiae.patch
 Patch:          0018-focaltech_moh-match-with-the-minutiae-matcher-in-a-t.patch
-Patch:          0019-focaltech_moh-drive-2808-93a9-alone-for-Amethystora.patch
+Patch:          0019-focaltech_moh-add-a-test-recorded-on-2808-93a9.patch
+Patch:          0020-focaltech_moh-drive-2808-93a9-alone-for-Amethystora.patch
 
 BuildRequires:  meson
 BuildRequires:  gcc
@@ -97,8 +98,9 @@ the functionality of the installed %{name} package.
 
 %check
 # The FT9201 matcher on synthetic presses: genuine accepted, impostors and
-# parallel ridges refused, malformed prints refused, corrupted ones survived.
-%meson_test focaltech-moh-match
+# parallel ridges refused, malformed prints refused, corrupted ones survived;
+# then the driver against the USB traffic recorded on a real 2808:93a9.
+%meson_test focaltech-moh-match focaltech_moh-93a9
 
 %ldconfig_scriptlets
 
@@ -130,8 +132,10 @@ the functionality of the installed %{name} package.
 * Sun Oct 18 2026 Arsslen Idadi <arsslens021@gmail.com> - 1.94.100-1.1.amethystora
 - Add the focaltech_moh driver for the FocalTech FT9201 readers 2808:9338
   and 2808:9348 (libfprint merge requests !572 and !646)
-- Support 2808:93a9, behind the FT9201's older USB bridge
+- Support 2808:93a9, behind the FT9201's older USB bridge, once FocalTech's
+  Windows driver has set it up since power-on
 - Match on minutiae at the pose masked correlation finds, in a thread
+- Add a test recorded on 2808:93a9
 - Drive 2808:93a9 alone: the 64x80 sensors fall short with this matcher
-- Run the matcher's tests in %%check
+- Run the matcher's tests and the 2808:93a9 recording in %%check
 - Fedora's changelog is in Fedora's tree, which %%autochangelog reads

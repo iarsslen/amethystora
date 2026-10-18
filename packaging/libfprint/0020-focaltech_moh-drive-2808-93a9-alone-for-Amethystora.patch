@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Arsslen Idadi <arsslens021@gmail.com>
 Date: Sun, 18 Oct 2026 00:39:22 +0000
-Subject: [PATCH 19/19] focaltech_moh: drive 2808:93a9 alone, for Amethystora
+Subject: [PATCH 20/20] focaltech_moh: drive 2808:93a9 alone, for Amethystora
 
 Not for upstream. On the 64x80 sensor of 2808:9338 and 2808:9348 the
 matcher was measured, on synthetic fingerprints, at one false accept in
@@ -42,7 +42,7 @@ index 527d17ed..16cebd9d 100644
  usb:v2808pA573*
  usb:v2808pA658*
 diff --git a/libfprint/drivers/focaltech_moh/focaltech_moh.c b/libfprint/drivers/focaltech_moh/focaltech_moh.c
-index 6a175282..f64dd307 100644
+index 1acc8a98..4ff0e493 100644
 --- a/libfprint/drivers/focaltech_moh/focaltech_moh.c
 +++ b/libfprint/drivers/focaltech_moh/focaltech_moh.c
 @@ -43,9 +43,10 @@
@@ -72,7 +72,7 @@ index 16637454..29d2ac8d 100644
    { .vid = 0x2808, .pid = 0xa573 },
    { .vid = 0x2808, .pid = 0xa658 },
 diff --git a/tests/meson.build b/tests/meson.build
-index 5722292e..bdf47bcf 100644
+index 8daf3d03..1caf70a9 100644
 --- a/tests/meson.build
 +++ b/tests/meson.build
 @@ -38,7 +38,6 @@ drivers_tests = {
@@ -80,6 +80,6 @@ index 5722292e..bdf47bcf 100644
      'elan-cobo': {},
      'elanmoc': {},
 -    'focaltech_moh': { 'timeout': 60 },
+     'focaltech_moh-93a9': { 'timeout': 60 },
      'elanspi': { 'timeout': 30 },
      'synaptics': {},
-     'upektc_img': {},

@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: 0xCoDSnet <effectorplay@gmail.com>
 Date: Sat, 14 Mar 2026 14:22:18 +0400
-Subject: [PATCH 03/18] focaltech_moh: implement multi-stage enrollment
+Subject: [PATCH 03/20] focaltech_moh: implement multi-stage enrollment
 
 Use change_state callback (nb1010 pattern) to start capture SSM
 when framework transitions to AWAIT_FINGER_ON state. This enables

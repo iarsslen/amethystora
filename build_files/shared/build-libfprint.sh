@@ -3,7 +3,8 @@
 # (packaging/libfprint), built on the same base image it is installed into, so that it links against the
 # libraries the image has. Only two packages leave the stage, in /out: libfprint, which
 # 05-override-install.sh installs in place of Fedora's, and its source package, which travels in the image
-# as the LGPL asks. The build runs the FT9201 matcher's tests (the spec's %check).
+# as the LGPL asks. The build runs the FT9201 matcher's tests and replays the recording of a real 2808:93a9
+# (the spec's %check).
 
 echo "::group:: ===$(basename "$0")==="
 
