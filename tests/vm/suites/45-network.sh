@@ -401,7 +401,8 @@ name=www.wikipedia.org
 capture_start "${MAIN}"
 out="$(query "${name}")"
 seen="$(capture_stop)"
-if grep -qF "${name}" <<<"${seen}" && ! grep -qE '\.853[: ]' <<<"${seen}"; then ok "names go to the network's own servers again"; else
+# ...with nothing sent over DNS-over-TLS: what the closing of its last connection carries has no data
+if grep -qF "${name}" <<<"${seen}" && ! grep -qE '> [0-9a-f.:]+\.853: .*length [1-9]' <<<"${seen}"; then ok "names go to the network's own servers again"; else
     not_ok "after off, ${name}" "${out}" "on ${MAIN}:" "$(head -n 20 <<<"${seen}")"; fi
 same "the saved connection was left as it was" "$(nmcli -g connection.dns-over-tls connection show "${MAIN_UUID}")" -1
 if vpn_kept; then ok "and the VPN keeps its settings"; else not_ok "the VPN's settings are gone" "$(resolvectl status "${VPN}")"; fi
