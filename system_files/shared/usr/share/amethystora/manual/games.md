@@ -63,8 +63,8 @@ ame system scheduler
 Control's **System** page offers the same four. The choice holds after a restart, and `ame system
 scheduler kernel` puts the kernel's own back. If a
 sched-ext scheduler stops, the kernel takes over again by itself, so the worst one can do is make
-things slower. A kernel built before Fedora's dwarves 1.32 cannot load the current schedulers; the
-command says so and leaves the kernel's own in place.
+things slower. If the kernel will not take the one chosen, the command shows what the loader said and
+leaves the kernel's own in place.
 
 ## Android apps
 

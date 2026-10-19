@@ -285,6 +285,15 @@ copr_install_isolated "ublue-os/packages" "gnome-rounded-blur"
 # scx_loader.service ships disabled (17-cleanup.sh), so the kernel's own scheduler runs until somebody
 # picks another. GPL-2.0, so source-manifest.sh fetches the source packages into the image.
 copr_install_isolated "bieszczaders/kernel-cachyos-addons" "scx-scheds" "scx-tools"
+# libbpf reads the kernel's build configuration from /boot/config-RELEASE, which an ostree machine keeps in
+# /usr/lib/modules instead, hidden from scx_loader by its ProtectKernelModules: without it every scheduler
+# failed to load (-EINVAL). The loader's drop-in mounts this folder on its /boot.
+mkdir -p /usr/lib/amethystora/kconfig
+for config in /usr/lib/modules/*/config; do
+    release="$(basename "$(dirname "${config}")")"
+    ln -f "${config}" "/usr/lib/amethystora/kconfig/config-${release}" 2>/dev/null ||
+        cp "${config}" "/usr/lib/amethystora/kconfig/config-${release}"
+done
 
 # Version-specific COPR packages
 # case "$FEDORA_MAJOR_VERSION" in

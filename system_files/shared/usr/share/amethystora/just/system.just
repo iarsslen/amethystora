@@ -416,8 +416,7 @@ scheduler NAME="":
                 echo "The kernel did not take scx_${name}. What the loader said:"
                 journalctl -u scx_loader.service -n 15 --no-pager -q || true
                 echo
-                echo "A kernel built before Fedora's dwarves 1.32 cannot load the current schedulers, which a"
-                echo "later image fixes. Back to the kernel's own scheduler."
+                echo "Back to the kernel's own scheduler."
                 sudo systemctl disable --now scx_loader.service
                 sudo rm -f "${config}"
                 exit 1

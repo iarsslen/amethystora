@@ -1748,6 +1748,12 @@ rpm -q waydroid gamemode scx-scheds scx-tools >/dev/null
 [[ "$(systemctl is-enabled waydroid-container.service 2>/dev/null)" == "enabled" ]] && false
 [[ "$(systemctl is-enabled scx_loader.service 2>/dev/null)" == "enabled" ]] && false
 test ! -e /etc/scx_loader/config.toml
+# The loader sees each kernel's build configuration where libbpf looks for it (04-packages.sh)
+for config in /usr/lib/modules/*/config; do
+    cmp -s "${config}" "/usr/lib/amethystora/kconfig/config-$(basename "$(dirname "${config}")")"
+done
+grep -qx 'BindReadOnlyPaths=/usr/lib/amethystora/kconfig:/boot' \
+    /usr/lib/systemd/system/scx_loader.service.d/50-amethystora-kconfig.conf
 # Same for USB protection, which blocks every device that was not present when it was set up: useless
 # as a default, because the first boot would block the keyboard nobody had allowed yet
 [[ "$(systemctl is-enabled usbguard.service 2>/dev/null)" == "enabled" ]] && false
