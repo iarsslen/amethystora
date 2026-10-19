@@ -50,6 +50,9 @@ if grep -q 'sensor$' "${plan}" 2>/dev/null; then
         ok "the sensor finished registering" || not_ok "the sensor did not become ready within 120 s"
 fi
 
+# Prime the watcher, as 32-sensor-parity does: its first run on a machine only records where things stand, so
+# on a machine no earlier suite ran it on, the reads below would fall into that first run and not be said.
+check "the security watcher primes" systemctl start amethystora-security-watch.service
 before="$(wc -l <"${HISTORY}" 2>/dev/null || echo 0)"
 in_session "python3 -c 'open(\"${HOME_DIR}/.ssh/id_ed25519\").read()'
     cp '${HOME_DIR}/.config/chromium/Default/Login Data' /tmp/stolen
