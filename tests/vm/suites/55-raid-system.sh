@@ -78,15 +78,22 @@ md_alike() {
     md_wait
     [[ "$(cat "/sys/block/$(basename "$(readlink -f /dev/md/md-boot)")/md/mismatch_cnt")" == 0 ]]
 }
-# An ESP's boot files, checksummed, wherever it is mounted or not
-esp_sums() {  # PARTITION
-    local at
-    at="$(mktemp -d)"
-    mount -o ro "$1" "${at}" || { rmdir "${at}"; return 1; }
-    (cd "${at}" && find EFI -type f -print0 | sort -z | xargs -0 sha256sum)
-    umount "${at}"
-    rmdir "${at}"
+# COMMAND run in an ESP's top folder, where it is mounted (/boot/efi), or else mounted read-only for it: a second,
+# read-only mount of one mounted already is refused
+in_esp() {  # PARTITION COMMAND...
+    local at mine="" code
+    at="$(findmnt -rn -o TARGET --source "$1" | head -n 1)"
+    if [[ -z "${at}" ]]; then
+        at="$(mktemp -d)" mine=1
+        mount -o ro "$1" "${at}" || { rmdir "${at}"; return 1; }
+    fi
+    (cd "${at}" && "${@:2}")
+    code=$?
+    [[ -z "${mine}" ]] || { umount "${at}"; rmdir "${at}"; }
+    return "${code}"
 }
+# An ESP's boot files, checksummed
+esp_sums() { in_esp "$1" sh -c 'find EFI -type f -print0 | sort -z | xargs -0 sha256sum'; }
 luks_of() { cryptsetup luksUUID "$1"; }
 has_tpm() { cryptsetup luksDump "$1" | grep -q systemd-tpm2; }
 # "Start with a disk missing" is chosen in the boot menu itself, as a person would (next_boot's menu_last): a line
@@ -224,7 +231,9 @@ finished)
     md_uuid="$(blkid -s UUID -o value /dev/md/md-boot)"
     check "/boot is mounted from the mirror" sh -c "findmnt -rn -o SOURCE --mountpoint /boot | grep -q '^/dev/md'"
     check "fstab mounts /boot by the mirror's filesystem" grep -qE "^UUID=${md_uuid}[[:space:]]+/boot[[:space:]]" /etc/fstab
-    check "both ESPs point at the mirror" sh -c "for p in ${FIRST_ESP} ${NEW_ESP}; do d=\$(mktemp -d); mount -o ro \$p \$d; grep -q '${md_uuid}' \$d/EFI/fedora/bootuuid.cfg; r=\$?; umount \$d; [ \$r = 0 ] || exit 1; done"
+    in_esp "${FIRST_ESP}" grep -q "${md_uuid}" EFI/fedora/bootuuid.cfg && in_esp "${NEW_ESP}" grep -q "${md_uuid}" EFI/fedora/bootuuid.cfg &&
+        ok "both ESPs point at the mirror" ||
+        not_ok "an ESP does not point at the mirror (${md_uuid})" "$(in_esp "${FIRST_ESP}" cat EFI/fedora/bootuuid.cfg)" "$(in_esp "${NEW_ESP}" cat EFI/fedora/bootuuid.cfg)"
     holds "the status: the system is two copies, its boot files on both disks, fine" "$(system_json)" \
         '.state == "ok" and .boot.members == 2 and (.boot.degraded | not) and .mirror == null'
     echo "# bootupctl status: $(bootupctl status 2>&1 | paste -sd ' ')"

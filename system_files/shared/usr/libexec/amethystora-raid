@@ -1713,18 +1713,23 @@ efi_entry() {  # ESP LABEL OTHER-ESP
 # The boot files of an ESP copied onto a new one, made vfat, with the bootupd's bootuuid.cfg pointing at /boot's
 # filesystem (an older installation's Fedora grub.cfg, which searches for it by UUID, changed the same way)
 copy_esp() {  # FROM-ESP TO-ESP BOOT-UUID
-    local from to
+    local from to mounted code=1
     as_root mkfs.vfat -F 32 -n EFI "$2" >/dev/null || return 1
-    from="$(mktemp -d)" to="$(mktemp -d)"
-    if ! { as_root mount -o ro "$1" "${from}" && as_root mount "$2" "${to}"; }; then
-        as_root umount "${from}" 2>/dev/null
+    # Read where it is mounted, at /boot/efi: a second mount of it, read-only, is refused
+    mounted="$(findmnt -rn -o TARGET --source "$1" | head -n 1)"
+    from="${mounted:-$(mktemp -d)}" to="$(mktemp -d)"
+    if ! { [[ -n "${mounted}" ]] || as_root mount -o ro "$1" "${from}"; }; then
         rmdir "${from}" "${to}"
         return 1
     fi
-    as_root cp -a "${from}/." "${to}/"
-    point_esp "${to}" "$3"
-    as_root umount "${from}" "${to}"
-    rmdir "${from}" "${to}"
+    if as_root mount "$2" "${to}"; then
+        # vfat keeps no owners or modes to copy
+        as_root cp -r "${from}/." "${to}/" && point_esp "${to}" "$3" && code=0
+        as_root umount "${to}"
+    fi
+    rmdir "${to}"
+    [[ -n "${mounted}" ]] || { as_root umount "${from}"; rmdir "${from}"; }
+    return "${code}"
 }
 
 point_esp() {  # MOUNTED-ESP BOOT-UUID
