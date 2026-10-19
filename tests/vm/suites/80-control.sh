@@ -405,11 +405,14 @@ EOF
     pkill -u "${TEST_USER}" -f "^/usr/lib/amethystora-manual/amethystora-manual"
     pkill -u "${TEST_USER}" -x ptyxis
     sleep 3
-    WINDOW_UNIT="vmlab-control-${RANDOM}"
-    user_bus systemd-run --user --unit="${WINDOW_UNIT}" --collect --quiet --setenv=LC_ALL=en_US.UTF-8 \
-        --setenv=LANGUAGE=en -- /usr/bin/amethystora-control desktop
-    if atspi wait 120 "Terminal greeting" >/dev/null 2>&1; then
-        ok "Control opens on the page asked for (desktop)"
+    window_inactive() { ! window_active; }
+    # Opened as a person opens it, with its hotkey (custom29), on a keyboard GNOME takes for a person's
+    # (keys.py): a window started any other way, without a person's input behind it, GNOME gives no focus to
+    python3 "${SUITE_DIR}/keys.py" super+ctrl+shift+c
+    if atspi wait 120 "Theme" >/dev/null 2>&1; then
+        check "Super+Ctrl+Shift+C opens Control, which has the focus" wait_for 30 window_active
+        atspi click "Desktop" >/dev/null 2>&1
+        atspi wait 30 "Terminal greeting" >/dev/null 2>&1
         rm -f "${CONFIG}/no-greeting"
         # A switch clicked runs its command, and the page reads the list again
         atspi click "Terminal greeting" "${SWITCH}" >/dev/null 2>&1
@@ -431,6 +434,12 @@ EOF
         fi
         check "the window says it opened in a terminal" atspi wait 20 "It opened in a terminal"
         atspi click "Desktop" >/dev/null 2>&1
+        # The terminal in front, as a person has it: GNOME may open it behind, then Alt+Tab brings it forward
+        if ! wait_for 20 window_inactive; then
+            echo "# the terminal opened without the focus, so Alt+Tab gave it the focus"
+            python3 "${SUITE_DIR}/keys.py" alt+tab
+        fi
+        check "the terminal has the focus, not Control" wait_for 20 window_inactive
         rm -f "${CONFIG}/no-greeting"
         # The terminal closed as a person closes it: its window, with what runs in it
         pkill -u "${TEST_USER}" -f "amethystora-in-terminal ame system clean"
@@ -438,12 +447,7 @@ EOF
         if wait_for 30 window_active; then
             ok "the window has the focus back once the terminal closes"
         else
-            not_ok "the window did not get the focus back after the terminal closed" \
-                "$(user_bus gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell \
-                    --method org.gnome.Shell.Eval 'global.display.focus_window?.get_wm_class()' 2>&1)"
-            # Clicked on, as a person would, for the next check
-            user_bus gdbus call --session --dest org.amethystora.Control --object-path /org/amethystora/Control \
-                --method org.freedesktop.Application.Activate '{}' >/dev/null 2>&1
+            not_ok "the window did not get the focus back after the terminal closed" "$(pgrep -a -u "${TEST_USER}" | tail -n 8)"
         fi
         if wait_for 30 atspi_state "Terminal greeting" "${SWITCH}" checked; then
             ok "and has read the list again: the greeting's switch shows it on"
@@ -457,9 +461,10 @@ EOF
             user_bus python3 "${OWN}/atspi.py" amethystora-manual wait 60 "built to be driven from the keyboard"
         pkill -u "${TEST_USER}" -f "^/usr/lib/amethystora-manual/amethystora-manual" || true
     else
-        not_ok "Control did not show its Desktop page" "$(journalctl -b _SYSTEMD_USER_UNIT="${WINDOW_UNIT}.service" --no-pager -o cat | tail -n 15)"
+        not_ok "Super+Ctrl+Shift+C did not open Control" "$(journalctl -b --user-unit=org.gnome.SettingsDaemon.MediaKeys.service --no-pager -o cat 2>&1 | tail -n 8)" \
+            "$(pgrep -a -u "${TEST_USER}" | grep -i control)"
     fi
-    user_systemctl kill --kill-whom=main --signal=SIGTERM "${WINDOW_UNIT}" >/dev/null 2>&1
+    pkill -u "${TEST_USER}" -f "^/usr/lib/amethystora-control/amethystora-control"
     reboot_and_continue
 fi
 
