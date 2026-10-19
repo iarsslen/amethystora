@@ -175,7 +175,7 @@ abandon() {
     done
     sed -i '/x-amethystora-raid/d' /etc/fstab
     [[ -f /etc/crypttab ]] && sed -i '/^raid-/d' /etc/crypttab
-    rm -f /etc/cryptsetup-keys.d/raid-*.key "${SUDOERS}"
+    rm -f /etc/cryptsetup-keys.d/raid-*.key "${SUDOERS}" /etc/udev/rules.d/99-vmlab-damaged.rules
     systemctl daemon-reload
     finish
 }
@@ -667,6 +667,10 @@ case "${SUITE_PHASE}" in
         remember DAMAGED_SERIAL "${serial}"
         echo "# the file's copy on ${serial} is at sectors ${sectors}"
         next_boot "{\"faulty\": {\"${serial#SPARE-}\": [${sectors// /, }]}}"
+        # One command at a time to that disk from its next start: QEMU's AHCI answers a failed read as a disk does,
+        # but with several commands queued (NCQ) the guest's I/O to it stalled in the lab (2026-10-19)
+        printf 'ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", ENV{ID_SERIAL_SHORT}=="%s", ATTR{device/queue_depth}="1"\n' \
+            "${serial}" >/etc/udev/rules.d/99-vmlab-damaged.rules
     fi
     # GNOME Shell's widgets on the accessibility bus from the next login, for the notification's button
     as_user 'gsettings set org.gnome.desktop.interface toolkit-accessibility true'
@@ -822,7 +826,7 @@ case "${SUITE_PHASE}" in
     check_skipped && ok "with every pool forgotten, the check stops at its ExecCondition again" ||
         not_ok "with every pool forgotten, the check still ran" "$(journalctl -b -u amethystora-raid-check.service --no-pager -o cat | tail -n 10)"
     pkill -u "${TEST_USER}" -f 'action=open=Open Control'
-    rm -f "${SUDOERS}"
+    rm -f "${SUDOERS}" /etc/udev/rules.d/99-vmlab-damaged.rules
     check "${TEST_USER}'s sudo asks for a password again" sh -c "! runuser -u ${TEST_USER} -- sudo -n true 2>/dev/null"
     finish
     ;;
