@@ -394,7 +394,7 @@ case "${SUITE_PHASE}" in
     holds "Control says a disk of parity is missing with every file still there, and offers Replace a disk" "$(row_of "$(control_json)" parity)" \
         '.state == "check" and (.text | contains("A disk is missing. Every file is still there"))
          and any(.actions[]; .id == "replace" and .terminal and .command == ["ame", "system", "raid", "replace", "parity"])'
-    skip "the notification's Open Control button: nothing here can click it"
+    # Its Open Control button is clicked in phase 8
     reboot_and_continue
     ;;
 
