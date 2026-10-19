@@ -219,6 +219,13 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
   looks for new threats on, running an agent with its checks off from a script, reading another tool's
   token, or adding a hook or MCP server to an agent's settings is said too: tell the user that a change
   of yours may show up there, and why.
+- `ame security app-integrity` shows what the daily check of the system's files and every Flatpak app
+  against what their updates installed found (`APP_INTEGRITY`, off as the image ships, on in every
+  profile); `check` runs one, and `repair [APP]` fetches an app again and installs it again, keeping its
+  data. Any file you change inside `/var/lib/flatpak` or `~/.local/share/flatpak`, and any launcher you put
+  in their `exports`, is a finding: install, update and remove apps only with `flatpak` or Bazaar. A
+  finding about the system's own files (`/sysroot/ostree`, `/boot`) means something with root changed
+  them: never try to put such a file back, and leave reinstalling to the user.
 - Network protection is Suricata inline on this machine's own traffic (`amethystora-ips.service`,
   helper `/usr/libexec/amethystora-ips`), set by `NETWORK` in `/etc/amethystora/security.conf`: `off`
   (default), `watch` or `block`, changed with `ame security settings network`. It fails open. With

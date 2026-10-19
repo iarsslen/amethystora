@@ -140,6 +140,37 @@ timeout 120 "${WATCH}" >/dev/null || fail "the reader's third run failed"
 [[ -e "${T}/notified" ]] && fail "what the owner allowed was said"
 jq -se 'any(.[]; .text == "allowed" and .level == "quiet")' "${HISTORY}" >/dev/null || fail "what the owner allowed was not recorded"
 
+# --- What the app integrity check found ------------------------------------------------------------------------
+
+# Its findings, in the readers' form, are said when new: one about the system's apps to the administrators, one
+# about alice's own to alice and to the administrators. The report gets the system's sentences, and of alice's
+# only which app; nothing is said twice.
+echo "APP_INTEGRITY=on" >>"${AMETHYSTORA_SECURITY_CONF}"
+I="${R}/var/lib/amethystora/security/integrity"
+mkdir -p -m 0700 "${I}"
+echo '{"time": 1790000000, "sealed": false, "system": {"objects": 9, "deployments": 1}, "flatpak": {"apps": 3}, "accounts": {"alice": {"apps": 1}}}' >"${I}/last.json"
+printf '%s\n' '{"id":"file:-:app/org.a.App/x86_64/stable:files/bin/a","level":"critical","tactic":"Persistence","account":"-","installation":"system","app":"org.a.App","text":"A file of the Flatpak app org.a.App changed outside an update: files/bin/a\u001b[2J"}' \
+    '{"id":"alice:file:account:app/org.b.Mine/x86_64/stable:files/x","level":"critical","tactic":"Persistence","account":"alice","installation":"user","app":"org.b.Mine","text":"A file of the Flatpak app org.b.Mine changed outside an update: files/x"}' \
+    >"${I}/findings.jsonl"
+printf '#!/usr/bin/bash\nprintf "%%s\\n" "$@" >>"%s/notified"\n' "${T}" >"${T}/notify"
+rm -f "${T}/notified"
+timeout 120 "${WATCH}" >/dev/null || fail "the run reading the app integrity check failed"
+FOUND="$(jq -c 'select(.key == "app-integrity")' "${HISTORY}")"
+jq -se 'length == 2 and all(.[]; .level == "critical" and .tactic == "Persistence")
+    and any(.[]; .account == "-" and (.text | test("org.a.App") and (test("\u001b") | not)) and (has("tell") | not))
+    and any(.[]; .account == "alice" and .tell == "alice")' <<<"${FOUND}" >/dev/null || fail "what the check found: ${FOUND}"
+grep -qx -- "--user" "${T}/notified" && grep -qx -- "--admins" "${T}/notified" ||
+    fail "a change to alice's own app was not said to alice and to the administrators: $(cat "${T}/notified")"
+jq -e '.integrity.flatpak.apps == 3 and (.integrity.findings | length == 2)
+    and any(.integrity.findings[]; .account == "-" and (.text | test("org.a.App")))
+    and any(.integrity.findings[]; .account == "alice" and .app == "org.b.Mine" and (has("text") | not))' \
+    "${R}/var/lib/amethystora/security/status.json" >/dev/null || fail "the report's view: $(jq -c .integrity "${R}/var/lib/amethystora/security/status.json")"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the second run reading the app integrity check failed"
+tail -n +"$((before + 1))" "${HISTORY}" | grep -q '"key":"app-integrity"' && fail "what the check found was said twice"
+sed -i '/^APP_INTEGRITY=on$/d' "${AMETHYSTORA_SECURITY_CONF}"
+printf '#!/usr/bin/bash\nprintf "%%s\\n" "$@" >"%s/notified"\n' "${T}" >"${T}/notify"
+
 # --- What the audit log holds, from a stand-in log in the kernel's raw form ---------------------------------
 
 unset AMETHYSTORA_WATCH_READER AMETHYSTORA_WATCH_ACCOUNTS

@@ -272,8 +272,66 @@ msgid "/usr is mounted read-only from the files the signed update installed, but
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
+msgid "They are checked against the update once a day instead (ame security app-integrity)."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Check them against the update once a day with:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
 msgid "/usr is read-only and replaced whole by each update, but is not re-verified as it is read"
 msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "App integrity"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Installed apps are not checked against their updates"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "A file of an app or of the system changed outside an update, or a launcher that runs something other than its app, is not noticed. Check them once a day with:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Installed apps have not been checked against their updates yet"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "The first check runs within a day, or now with:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "A file of your own app ${app} changed outside an update"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Put the apps back as their updates installed them with:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} thing changed outside an update"
+msgid_plural "${N} things changed outside an update"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${APPS} app checked on ${WHEN}, unchanged since its update"
+msgid_plural "${APPS} apps checked on ${WHEN}, unchanged since their updates"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${APPS} app and the system's files checked on ${WHEN}, unchanged since their updates"
+msgid_plural "${APPS} apps and the system's files checked on ${WHEN}, unchanged since their updates"
+msgstr[0] ""
+msgstr[1] ""
 
 #: usr/libexec/amethystora-security-status
 msgid "Secure Boot"
@@ -2612,6 +2670,10 @@ msgid "Apps that gain permissions"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Installed apps checked against their updates"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Startup hooks in developer tools"
 msgstr ""
 
@@ -2785,6 +2847,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "A Flatpak app that gains a way out of its sandbox, through an update, an override or another app in its place. Read as each account with a session in the last day, and said to that account."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Once a day, and after each change to the system's apps, the system's own files and every Flatpak app's are compared with what their signed updates installed, and a launcher with the app it starts: whatever changed outside an update is critical. Only what changed since the last check is read. Each account's own apps are read as that account, for the accounts with a session in the last day."
 msgstr ""
 
 #: usr/libexec/amethystora-security-config

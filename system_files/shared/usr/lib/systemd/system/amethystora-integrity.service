@@ -1,0 +1,28 @@
+[Unit]
+Description=Installed apps and the system's files, checked against their updates
+Documentation=file:///usr/share/amethystora/manual/security.md
+
+[Service]
+Type=oneshot
+# Skipped, not failed, while APP_INTEGRITY=off in /etc/amethystora/security.conf, as the image ships it: the
+# timer and the path stay enabled, and the key is the one place that decides
+ExecCondition=/usr/libexec/amethystora-security-config --is APP_INTEGRITY on
+# The timer's and the path's runs wait for mains power while ON_BATTERY=skip, as the watcher's do; one asked for
+# (ame security app-integrity check) runs at once. A machine with no battery is on mains power.
+ExecCondition=/usr/bin/bash -c '[[ -z "$${TRIGGER_UNIT:-}" ]] || \
+    /usr/libexec/amethystora-security-config --is ON_BATTERY run || systemd-ac-power'
+# Reads the system's ostree repository, /boot and the Flatpak installations, the accounts' own as those accounts,
+# and writes only to /var/lib/amethystora/security/integrity
+ExecStart=/usr/libexec/amethystora-integrity
+Nice=19
+IOSchedulingClass=idle
+CPUWeight=20
+IOWeight=20
+MemoryHigh=512M
+# A run with nothing new is a walk of the files' metadata; the first, and an account's first, read what they
+# check once
+TimeoutStartSec=2h
+ProtectClock=yes
+ProtectKernelTunables=yes
+RestrictRealtime=yes
+# The timer and the path are what run this, so the service itself is never enabled

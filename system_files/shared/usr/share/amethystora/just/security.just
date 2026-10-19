@@ -513,6 +513,102 @@ apps ACTION="":
         *) exit 0 ;;
     esac
 
+# Installed apps and the system's files against what their updates installed: what the last check found, a
+# check now, or an app put back as its update installed it
+[positional-arguments]
+app-integrity ACTION="status" APP="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # What the check found, as the security watcher passes it on; of your own apps only which
+    status=/var/lib/amethystora/security/status.json
+    me="$(id -un)"
+    action="${1:-status}"
+    app="${2:-}"
+    if ! /usr/libexec/amethystora-security-config --is APP_INTEGRITY on; then
+        echo "Installed apps are not checked against their updates. Turn it on with:"
+        echo "  ame security settings app-integrity on"
+        exit 0
+    fi
+    case "${action}" in
+        status)
+            if ! jq -e '.integrity.time' "${status}" >/dev/null 2>&1; then
+                echo "Not checked yet. The first check runs within a day, or now with: ame security app-integrity check"
+                exit 0
+            fi
+            jq -r --arg me "${me}" '.integrity as $i |
+                "Last checked: \($i.time | strflocaltime("%c"))",
+                (if $i.system then "The system: \($i.system.objects) files, in \($i.system.deployments) deployment\(if $i.system.deployments == 1 then "" else "s" end)"
+                 else "The system: sealed, so it checks every file itself as it is read" end),
+                "The system'"'"'s Flatpaks: \($i.flatpak.apps // 0) apps and \($i.flatpak.runtimes // 0) runtimes",
+                "",
+                (if ([$i.findings[] | select(.account == "-" or .account == $me)] | length) == 0
+                 then "Nothing changed outside an update."
+                 else ($i.findings[] | select(.account == "-") | "  \(.text)"),
+                      ($i.findings[] | select(.account == $me) | "  A file of your own app \(.app // "?") changed outside an update")
+                 end)' "${status}" | /usr/libexec/amethystora-security-text --lines
+            ;;
+        check)
+            echo "Checking. The first check reads every app once, which takes a few minutes; after that, only what changed."
+            sudo systemctl start amethystora-integrity.service
+            # The watcher says what is new, and passes it on to the report and to this
+            sudo systemctl start amethystora-security-watch.service
+            ame security app-integrity status
+            ;;
+        repair)
+            # The apps to put back: the one named, or every one the last check named, with the installation each is
+            # in and the remote it came from. The system's own files are not among them: something with root
+            # changed those, and the machine cannot vouch for its own repair.
+            mapfile -t targets < <(jq -r --arg me "${me}" --arg app "${app}" '.integrity.findings // [] | .[]
+                | select((.account == "-" or .account == $me) and (.installation == "system" or .installation == "user"))
+                | select($app == "" or .app == $app)
+                | [.installation, (.ref // ""), (.origin // "")] | @tsv' "${status}" 2>/dev/null | sort -u)
+            if [[ -n "${app}" && ${#targets[@]} -eq 0 ]]; then
+                for installation in system user; do
+                    ref="$(flatpak info "--${installation}" --show-ref "${app}" 2>/dev/null)" || continue
+                    origin="$(flatpak info "--${installation}" --show-origin "${app}")"
+                    targets+=("${installation}"$'\t'"${ref}"$'\t'"${origin}")
+                    break
+                done
+                [[ ${#targets[@]} -gt 0 ]] || { echo "${app} is not installed."; exit 1; }
+            fi
+            if [[ ${#targets[@]} -eq 0 ]]; then
+                echo "The last check named no app to put back."
+                if jq -e '.integrity.findings // [] | any(.[]; .installation == "os")' "${status}" >/dev/null 2>&1; then
+                    echo "It found the system's own files changed. Something with administrator rights changed them, so"
+                    echo "back up your files and reinstall from the installer: see Starting over in the manual."
+                fi
+                exit 0
+            fi
+            echo "Each app is put back as its update installed it: its files are fetched again from where it came from and"
+            echo "installed again. Its data in ~/.var/app stays as it is."
+            gum confirm "Put back ${app:-the apps the last check named}?" || exit 0
+            # Each installation's repository first, which fetches again what it holds that no longer matches, then each
+            # app installed again from it
+            for installation in $(printf '%s\n' "${targets[@]}" | cut -f1 | sort -u); do
+                if [[ "${installation}" == system ]]; then
+                    sudo flatpak repair --system
+                else
+                    flatpak repair --user
+                fi
+            done
+            for target in "${targets[@]}"; do
+                IFS=$'\t' read -r installation ref origin <<<"${target}"
+                [[ -n "${ref}" && -n "${origin}" ]] || continue
+                if [[ "${installation}" == system ]]; then
+                    sudo flatpak install --system --reinstall --noninteractive -y "${origin}" "${ref}"
+                else
+                    flatpak install --user --reinstall --noninteractive -y "${origin}" "${ref}"
+                fi
+            done
+            echo
+            ame security app-integrity check
+            ;;
+        *)
+            echo "usage: ame security app-integrity [status | check | repair [APP]]"
+            exit 64
+            ;;
+    esac
+
 # Audit this machine's security settings with Lynis and say what to do about each finding
 audit:
     #!/usr/bin/bash

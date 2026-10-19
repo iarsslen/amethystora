@@ -1960,9 +1960,11 @@ done
 # key off, the prevention switches and accepted checks, against stand-ins.
 for unit in amethystora-security-watch amethystora-clamav-scan amethystora-clamav-onaccess amethystora-lynis-audit \
     amethystora-audit-rules amethystora-security-realtime amethystora-ips amethystora-ips-rules amethystora-signed-updates \
-    amethystora-dns-names amethystora-yara amethystora-behaviour; do
+    amethystora-dns-names amethystora-yara amethystora-behaviour amethystora-integrity; do
     grep -q "^ExecCondition=" "/usr/lib/systemd/system/${unit}.service"
 done
+grep -q "^ExecCondition=/usr/libexec/amethystora-security-config --is APP_INTEGRITY on$" \
+    /usr/lib/systemd/system/amethystora-integrity.service
 for unit in auditd.service audit-rules.service clamav-freshclam.service clamd@.service; do
     grep -q "^ExecCondition=/usr/libexec/amethystora-security-config --is " "/usr/lib/systemd/system/${unit}.d/10-amethystora.conf"
 done
@@ -1997,6 +1999,14 @@ for mode in $(grep -E '^declare -A READERS=' /usr/libexec/amethystora-security-w
     grep -qE "^    ${mode}\) " /usr/libexec/amethystora-security-reader
 done
 bash /ctx/build_files/shared/test-security-reader.sh
+# Installed apps and the system's files against their updates (APP_INTEGRITY): the check, daily and after each
+# change to the system's Flatpaks, against stand-in repositories, deploys and boot files, an account's own read as
+# that account; and the image has what it imports
+test -x /usr/libexec/amethystora-integrity
+systemctl is-enabled amethystora-integrity.timer amethystora-integrity.path >/dev/null
+grep -qx "PathChanged=/var/lib/flatpak/.changed" /usr/lib/systemd/system/amethystora-integrity.path
+grep -q "^app-integrity " /usr/share/amethystora/just/security.just
+bash /ctx/build_files/shared/test-app-integrity.sh
 # The behaviour sensor: Falco from falcosecurity's own repository, with its rules as packaged, run only by
 # amethystora-behaviour.service while BEHAVIOUR is on. None of its own units runs, its rules follower is masked,
 # its web server is off, and its configuration with Amethystora's is one Falco loads.

@@ -1,0 +1,1138 @@
+#!/usr/bin/python3 -I
+# Installed apps and the system's own files, checked against what their signed updates installed (APP_INTEGRITY:
+# amethystora-integrity.service, daily, and after each change to the system's Flatpaks).
+#
+#   amethystora-integrity                     one check, as root
+#   amethystora-integrity account --rows-fd N [--trust FINGERPRINT]...
+#                                             an account's own Flatpak installation, run as that account by the
+#                                             check above: its rows on descriptor N, read only, and what changed
+#                                             as JSON lines on stdout, which root writes
+#
+# What it reads:
+#
+#   - The system's ostree repository (/sysroot/ostree/repo), where /usr comes from: each object, each
+#     deployment's .ostree.cfs, and the kernels and initramfs images in /boot, each against the system it
+#     starts. Secure Boot checks the kernel but not the initramfs. A sealed image checks every file of the
+#     system as it is read, and skips this part.
+#   - The system's Flatpaks (/var/lib/flatpak): each object of the repository, and each file of each active
+#     deploy against its commit, whose signature has to be Flathub's or a key of the system's remotes'. What
+#     Flatpak writes itself is kept as it was written: its launchers, which have to run their own app, its
+#     wrapper in export/bin, the deploy data and extra data. The installation's exports have to be its apps'.
+#   - Each account's own (~/.local/share/flatpak), read as that account, for the accounts with a session in the
+#     last day. Its rows are kept here by root, where the account can neither change nor read them.
+#
+# Updates verify everything they write: ostree checks every object it pulls, and Flatpak's system helper every
+# object it imports. So what root installed is trusted the first time it is seen, and kept by its stat: a
+# change of content, mode, owner or extended attribute moves the ctime, which nothing can set back, and only
+# then is the file read and checked. A change of link count alone is a deploy hardlinking an object. An
+# account's installation is the account's to write, so there each new object is checked by its content once,
+# and every change too. Nothing here repairs anything: `ame security app-integrity repair` reinstalls an app,
+# and a change to the system's own files means reinstalling from the installer.
+#
+# What it finds goes to /var/lib/amethystora/security/integrity/findings.jsonl, all of it at every run, a JSON
+# line each in the security reader's form ({id, text, level, tactic, account, within}), and the security
+# watcher, started at the end, says what is new.
+
+import errno
+import fcntl
+import glob
+import hashlib
+import json
+import os
+import re
+import shlex
+import sqlite3
+import stat
+import subprocess
+import sys
+import tempfile
+import time
+
+import gi
+
+gi.require_version("OSTree", "1.0")
+from gi.repository import Gio, GLib, OSTree  # noqa: E402
+
+# AMETHYSTORA_INTEGRITY_ROOT is for build_files/shared/test-app-integrity.sh, which runs this against stand-in
+# repositories, deploys and state; with it, AMETHYSTORA_INTEGRITY_ACCOUNTS names the UIDs with a session, and
+# the accounts are read from its etc/passwd, as the security watcher's tests do
+ROOT = os.environ.get("AMETHYSTORA_INTEGRITY_ROOT", "")
+SECURITY = ROOT + "/var/lib/amethystora/security"
+STATE = SECURITY + "/integrity"
+SYSROOT = ROOT + "/sysroot/ostree"
+BOOT = ROOT + "/boot/ostree"
+SYSTEM_FLATPAK = ROOT + "/var/lib/flatpak"
+SEALED = ROOT + "/usr/share/amethystora/sealed"
+FLATPAK = "/usr/bin/flatpak"
+# Flathub's key, as 17-cleanup.sh checks it before it adds the remote
+FLATHUB = "6E5C05D979C76DAF93C081354184DD4D907A7CAE"
+ACTIVE_FOR = 86400
+# An account's installation is read when it changed, or once this long has gone by
+ACCOUNT_EVERY = 23 * 3600
+ACCOUNT_TIMEOUT = 1800
+# More changed files of one deploy than this are said as one finding
+MOST = 20
+REINSTALL = ("Something with administrator rights changed this system's own files. Back up your files and "
+             "reinstall from the installer (manual: troubleshooting.md#starting-over).")
+
+TYPES = {"file": OSTree.ObjectType.FILE, "dirtree": OSTree.ObjectType.DIR_TREE,
+         "dirmeta": OSTree.ObjectType.DIR_META, "commit": OSTree.ObjectType.COMMIT}
+KINDS = {"object", "cfs", "boot", "overlay", "dir", "deployed", "copy", "empty", "link", "own", "export", "wrapper"}
+LEVELS = {"critical", "normal", "quiet"}
+TACTICS = {"Persistence", "Execution", "Initial Access"}
+# The options Flatpak itself puts in a launcher's flatpak run, before the app
+RUN_OPTIONS = {"--branch", "--arch", "--command", "--file-forwarding", "--no-a11y-bus", "--no-documents-portal"}
+# What Flatpak's triggers (/usr/share/flatpak/triggers) write into an installation's exports
+TRIGGERED = re.compile(r"share/applications/mimeinfo\.cache|share/icons/[^/]+/icon-theme\.cache"
+                       r"|share/icons/hicolor/index\.theme|share/mime/(?!packages/).+")
+
+FINDINGS = []
+
+
+def finding(id_, level, tactic, text, **facts):
+    FINDINGS.append({"id": id_, "level": level, "tactic": tactic, "text": text, **facts})
+
+
+# --- The rows -------------------------------------------------------------------------------------------------
+
+SCHEMA = """
+CREATE TABLE IF NOT EXISTS dirs (id INTEGER PRIMARY KEY, path TEXT UNIQUE NOT NULL);
+CREATE TABLE IF NOT EXISTS entries (dir INTEGER NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL, ino INTEGER,
+    ctime INTEGER, mtime INTEGER, size INTEGER, nlink INTEGER, mode INTEGER, uid INTEGER, gid INTEGER, ref TEXT,
+    PRIMARY KEY (dir, name)) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS deploys (path TEXT PRIMARY KEY, notes TEXT NOT NULL) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT) WITHOUT ROWID;
+"""
+
+
+class Store:
+    """The rows of one machine's or one account's files, by folder: kind, inode, ctime, mtime, size, link count,
+    mode, owner, group and what it is checked against. log, when given, is told every change: that is how an
+    account's run hands its changes to root."""
+
+    def __init__(self, con, log=None):
+        self.con = con
+        self.log = log
+        self.ids = {}
+        con.executescript(SCHEMA)
+
+    def dir_id(self, path, create):
+        if path not in self.ids:
+            row = self.con.execute("SELECT id FROM dirs WHERE path = ?", (path,)).fetchone()
+            if row is None:
+                if not create:
+                    return None
+                row = (self.con.execute("INSERT INTO dirs (path) VALUES (?)", (path,)).lastrowid,)
+            self.ids[path] = row[0]
+        return self.ids[path]
+
+    def children(self, path):
+        folder = self.dir_id(path, False)
+        if folder is None:
+            return {}
+        return {r[0]: tuple(r[1:]) for r in self.con.execute(
+            "SELECT name, kind, ino, ctime, mtime, size, nlink, mode, uid, gid, ref FROM entries WHERE dir = ?",
+            (folder,))}
+
+    def under(self, path):
+        """Every row of every folder from PATH down, folder by folder, a folder before what is in it"""
+        return self.con.execute(
+            "SELECT d.path, e.name, e.kind, e.ino, e.ctime, e.mtime, e.size, e.nlink, e.mode, e.uid, e.gid, e.ref "
+            "FROM dirs d JOIN entries e ON e.dir = d.id WHERE d.path = ? OR (d.path >= ? AND d.path < ?) "
+            "ORDER BY d.path", (path, path + "/", path + "0")).fetchall()
+
+    def put(self, path, name, row):
+        self.con.execute("INSERT OR REPLACE INTO entries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                         (self.dir_id(path, True), name, *row))
+        if self.log:
+            self.log({"op": "put", "dir": path, "name": name, "row": list(row)})
+
+    def drop(self, path, name):
+        folder = self.dir_id(path, False)
+        if folder is not None:
+            self.con.execute("DELETE FROM entries WHERE dir = ? AND name = ?", (folder, name))
+        if self.log:
+            self.log({"op": "drop", "dir": path, "name": name})
+
+    def drop_tree(self, path):
+        """PATH's own row, and every row from it down"""
+        for (sub,) in self.con.execute("SELECT path FROM dirs WHERE path = ? OR (path >= ? AND path < ?)",
+                                       (path, path + "/", path + "0")).fetchall():
+            folder = self.dir_id(sub, False)
+            self.con.execute("DELETE FROM entries WHERE dir = ?", (folder,))
+            self.con.execute("DELETE FROM dirs WHERE id = ?", (folder,))
+            self.ids.pop(sub, None)
+        parent = self.dir_id(os.path.dirname(path), False)
+        if parent is not None:
+            self.con.execute("DELETE FROM entries WHERE dir = ? AND name = ?", (parent, os.path.basename(path)))
+        if self.log:
+            self.log({"op": "drop_tree", "dir": path})
+
+    def deploy(self, path):
+        row = self.con.execute("SELECT notes FROM deploys WHERE path = ?", (path,)).fetchone()
+        return None if row is None else json.loads(row[0])
+
+    def deploys(self):
+        return [r[0] for r in self.con.execute("SELECT path FROM deploys")]
+
+    def put_deploy(self, path, notes):
+        self.con.execute("INSERT OR REPLACE INTO deploys VALUES (?, ?)", (path, json.dumps(notes)))
+        if self.log:
+            self.log({"op": "deploy", "dir": path, "notes": notes})
+
+    def drop_deploy(self, path):
+        self.con.execute("DELETE FROM deploys WHERE path = ?", (path,))
+        if self.log:
+            self.log({"op": "drop_deploy", "dir": path})
+
+    def meta(self, key, default=None):
+        row = self.con.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+        return default if row is None else row[0]
+
+    def set_meta(self, key, value):
+        self.con.execute("INSERT OR REPLACE INTO meta VALUES (?, ?)", (key, value))
+
+    def tidy(self):
+        self.con.execute("DELETE FROM dirs WHERE id NOT IN (SELECT DISTINCT dir FROM entries)")
+        self.ids.clear()
+
+
+def row_of(st, kind, ref=None, dirty=False):
+    """A row from a stat. A dirty one never matches, so that what was wrong is looked at again next time."""
+    return (kind, -1 if dirty else st.st_ino, st.st_ctime_ns, st.st_mtime_ns, st.st_size, st.st_nlink, st.st_mode,
+            st.st_uid, st.st_gid, ref)
+
+
+def unchanged(row, st):
+    return row[1:9] == (st.st_ino, st.st_ctime_ns, st.st_mtime_ns, st.st_size, st.st_nlink, st.st_mode,
+                        st.st_uid, st.st_gid)
+
+
+def relinked(row, st):
+    """Only its link count changed, and with it the ctime: a deploy or an undeploy hardlinking it. A ctime that
+    moved with the same link count is a change, however the rest was put back."""
+    return row[5] != st.st_nlink and (row[1], row[3], row[4], row[6], row[7], row[8]) == (
+        st.st_ino, st.st_mtime_ns, st.st_size, st.st_mode, st.st_uid, st.st_gid)
+
+
+# --- Reading files ----------------------------------------------------------------------------------------------
+
+def open_plain(path):
+    """A plain file, never through a link and never a FIFO that would keep the read waiting"""
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+    if not stat.S_ISREG(os.fstat(fd).st_mode):
+        os.close(fd)
+        raise OSError(errno.EINVAL, "not a plain file", path)
+    return os.fdopen(fd, "rb")
+
+
+def digest(path):
+    sha = hashlib.sha256()
+    try:
+        with open_plain(path) as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                sha.update(chunk)
+    except OSError:
+        return None
+    return sha.hexdigest()
+
+
+def same_bytes(one, other):
+    try:
+        with open_plain(one) as a, open_plain(other) as b:
+            if os.fstat(a.fileno()).st_size != os.fstat(b.fileno()).st_size:
+                return False
+            while True:
+                x, y = a.read(1 << 20), b.read(1 << 20)
+                if x != y:
+                    return False
+                if not x:
+                    return True
+    except OSError:
+        return False
+
+
+def text_of(path, most=1 << 20):
+    try:
+        with open_plain(path) as f:
+            return f.read(most).decode("utf-8", "replace")
+    except OSError:
+        return None
+
+
+def lstat(path):
+    try:
+        return os.lstat(path)
+    except OSError:
+        return None
+
+
+# --- ostree -----------------------------------------------------------------------------------------------------
+
+def open_repo(path):
+    repo = OSTree.Repo.new(Gio.File.new_for_path(path))
+    repo.open(None)
+    return repo
+
+
+def load(repo, otype, csum):
+    try:
+        result = repo.load_variant(otype, csum)
+    except GLib.Error:
+        return None
+    return result[-1] if isinstance(result, tuple) else result
+
+
+def raw(variant):
+    return bytes(variant.get_data_as_bytes().get_data()).hex()
+
+
+def tree_of(repo, csum):
+    """A dirtree's files, (name, content checksum), and folders, (name, dirtree checksum)"""
+    tree = load(repo, OSTree.ObjectType.DIR_TREE, csum)
+    if tree is None:
+        return None
+    files, dirs = tree.get_child_value(0), tree.get_child_value(1)
+    return ([(files.get_child_value(i).get_child_value(0).unpack(), raw(files.get_child_value(i).get_child_value(1)))
+             for i in range(files.n_children())],
+            [(dirs.get_child_value(i).get_child_value(0).unpack(), raw(dirs.get_child_value(i).get_child_value(1)))
+             for i in range(dirs.n_children())])
+
+
+def sound(repo, otype, csum):
+    try:
+        repo.fsck_object(otype, csum, None)
+        return True
+    except GLib.Error:
+        return False
+
+
+def check_objects(store, repo, objects, own, changed):
+    """Each object of a repository against its row. Root's are trusted the first time and when only their link
+    count moved; an account's are checked by their content then too. Gives the checksums of those that no longer
+    match, and how many there are."""
+    bad, count = set(), 0
+    try:
+        subs = sorted(os.listdir(objects))
+    except OSError:
+        return bad, 0
+    for sub in subs:
+        if not re.fullmatch(r"[0-9a-f]{2}", sub):
+            continue
+        folder = objects + "/" + sub
+        rows = store.children(folder)
+        present = set()
+        try:
+            entries = list(os.scandir(folder))
+        except OSError:
+            continue
+        for entry in entries:
+            rest, _, ext = entry.name.partition(".")
+            otype = TYPES.get(ext)
+            if otype is None or not re.fullmatch(r"[0-9a-f]{62}", rest):
+                continue
+            try:
+                st = entry.stat(follow_symlinks=False)
+            except OSError:
+                continue
+            present.add(entry.name)
+            count += 1
+            row = rows.get(entry.name)
+            if row is not None and unchanged(row, st):
+                continue
+            if not own and (row is None or relinked(row, st)):
+                store.put(folder, entry.name, row_of(st, "object"))
+            elif sound(repo, otype, sub + rest):
+                store.put(folder, entry.name, row_of(st, "object"))
+            elif os.path.lexists(entry.path):
+                # The row stays as it was trusted, so the next run looks again
+                bad.add(sub + rest)
+                changed(entry.path)
+        for name in rows.keys() - present:
+            store.drop(folder, name)
+    return bad, count
+
+
+# --- The system's own files ---------------------------------------------------------------------------------------
+
+def system_changed(path, how="changed outside an update"):
+    finding("system:" + path, "critical", "Persistence", f"A file of the system {how}: {path}. {REINSTALL}",
+            installation="os")
+
+
+def kept_by_digest(store, folder, name, kind, check=None):
+    """A file kept by its SHA-256: a single file nothing rewrites, or one whose name is its checksum (check)"""
+    path = folder + "/" + name
+    rows = store.children(folder)
+    row, st = rows.get(name), lstat(path)
+    if st is None:
+        if row is not None:
+            store.drop(folder, name)
+        return
+    if row is not None and unchanged(row, st):
+        return
+    sha = digest(path)
+    if check is not None:
+        if sha == check:
+            store.put(folder, name, row_of(st, kind, sha))
+        else:
+            system_changed(path, "no longer has the content its name says")
+    elif row is None or sha == row[9]:
+        store.put(folder, name, row_of(st, kind, row[9] if row is not None else sha))
+    else:
+        system_changed(path)
+
+
+def check_boot(store, deployments):
+    """The kernels and initramfs images in /boot against the systems they start, by their bytes: the first time
+    they are seen too, since no update checks them there"""
+    seen = set()
+    for folder in sorted(glob.glob(glob.escape(BOOT) + "/*/")):
+        folder = folder.rstrip("/")
+        seen.add(folder)
+        rows = store.children(folder)
+        present = set()
+        try:
+            names = sorted(os.listdir(folder))
+        except OSError:
+            continue
+        for name in names:
+            path = folder + "/" + name
+            st = lstat(path)
+            if st is None or not stat.S_ISREG(st.st_mode):
+                continue
+            if os.path.basename(folder) == "initramfs-overlays":
+                # ostree names each overlay by its own SHA-256
+                if name.endswith(".img") and re.fullmatch(r"[0-9a-f]{64}", name[:-4]):
+                    present.add(name)
+                    kept_by_digest(store, folder, name, "overlay", name[:-4])
+                continue
+            match = re.fullmatch(r"(vmlinuz|initramfs)-(.+?)(\.img)?", name)
+            if not match or "/" in match.group(2):
+                continue
+            present.add(name)
+            row = rows.get(name)
+            if row is not None and unchanged(row, st):
+                continue
+            module = "vmlinuz" if match.group(1) == "vmlinuz" else "initramfs.img"
+            candidates = [d + f"/usr/lib/modules/{match.group(2)}/{module}" for d in deployments]
+            if not ROOT:
+                candidates.append(f"/usr/lib/modules/{match.group(2)}/{module}")
+            same = next((c for c in candidates if same_bytes(path, c)), None)
+            if same is not None:
+                store.put(folder, name, row_of(st, "boot", same))
+            else:
+                system_changed(path, "that starts this machine is not what an update installed")
+        for name in rows.keys() - present:
+            store.drop(folder, name)
+    for (folder,) in store.con.execute("SELECT path FROM dirs WHERE path >= ? AND path < ?",
+                                       (BOOT + "/", BOOT + "0")).fetchall():
+        if folder not in seen:
+            store.drop_tree(folder)
+
+
+def check_system(store):
+    """The system's ostree repository, its deployments' composefs images and the boot files. None on a sealed
+    image, which checks every file of the system as it is read."""
+    repo_path = SYSROOT + "/repo"
+    if os.path.exists(SEALED) or not os.path.isdir(repo_path + "/objects"):
+        return None
+    repo = open_repo(repo_path)
+    _, objects = check_objects(store, repo, repo_path + "/objects", False, system_changed)
+    deployments = sorted(p for p in glob.glob(glob.escape(SYSROOT) + "/deploy/*/deploy/*")
+                         if re.fullmatch(r"[0-9a-f]{64}\.[0-9]+", os.path.basename(p)) and os.path.isdir(p))
+    for deployment in deployments:
+        # ostree never rewrites one: each deployment gets its own
+        kept_by_digest(store, deployment, ".ostree.cfs", "cfs")
+    for (folder,) in store.con.execute("SELECT path FROM dirs WHERE path >= ? AND path < ?",
+                                       (SYSROOT + "/deploy/", SYSROOT + "/deploy0")).fetchall():
+        if folder not in deployments:
+            store.drop_tree(folder)
+    check_boot(store, deployments)
+    return {"objects": objects, "deployments": len(deployments)}
+
+
+# --- Flatpak ------------------------------------------------------------------------------------------------------
+
+def still_active(dep):
+    try:
+        return os.readlink(os.path.dirname(dep.path) + "/active") == dep.commit
+    except OSError:
+        return False
+
+
+class Deploy:
+    def __init__(self, kind, app, arch, branch, commit, path, origin, subpaths):
+        self.kind, self.app, self.arch, self.branch, self.commit = kind, app, arch, branch, commit
+        self.path, self.origin, self.subpaths = path, origin, subpaths
+        self.ref = f"{kind}/{app}/{arch}/{branch}"
+        self.what = "app" if kind == "app" else "runtime"
+
+
+def deploy_data(path):
+    """The origin and the subpaths Flatpak checked out, from its deploy data, (ssasta{sv})"""
+    try:
+        with open_plain(path + "/deploy") as f:
+            data = f.read(1 << 20)
+        variant = GLib.Variant.new_from_bytes(GLib.VariantType.new("(ssasta{sv})"), GLib.Bytes.new(data), False)
+        origin = variant.get_child_value(0).unpack()
+        subpaths = [s.strip("/") for s in variant.get_child_value(2).unpack() if s.strip("/")]
+        return origin, ["files/" + s for s in subpaths if ".." not in s.split("/")]
+    except (OSError, GLib.Error, TypeError, ValueError):
+        return "", []
+
+
+def deploys_of(base):
+    """The active deploy of each installed ref"""
+    found = []
+    for kind in ("app", "runtime"):
+        for active in sorted(glob.glob(f"{glob.escape(base)}/{kind}/*/*/*/active")):
+            try:
+                commit = os.readlink(active)
+            except OSError:
+                continue
+            folder = os.path.dirname(active)
+            path = folder + "/" + commit
+            st = lstat(path)
+            if not re.fullmatch(r"[0-9a-f]{64}", commit) or st is None or not stat.S_ISDIR(st.st_mode):
+                continue
+            rest = folder[len(f"{base}/{kind}/"):].split("/")
+            origin, subpaths = deploy_data(path)
+            found.append(Deploy(kind, rest[0], rest[1], rest[2], commit, path, origin, subpaths))
+    return found
+
+
+def remotes_of(base):
+    """Each remote's name, and whether it checks signatures"""
+    keyfile = GLib.KeyFile()
+    try:
+        keyfile.load_from_file(base + "/repo/config", GLib.KeyFileFlags.NONE)
+    except GLib.Error:
+        return {}
+    groups = keyfile.get_groups()
+    groups = groups[0] if isinstance(groups, tuple) else groups
+    remotes = {}
+    for group in groups:
+        match = re.fullmatch(r'remote "(.+)"', group)
+        if match:
+            try:
+                remotes[match.group(1)] = keyfile.get_boolean(group, "gpg-verify")
+            except GLib.Error:
+                remotes[match.group(1)] = True
+    return remotes
+
+
+def system_fingerprints():
+    """Flathub's key, and every key the system's own remotes keep, root's alone"""
+    trusted = {FLATHUB}
+    keyrings = glob.glob(glob.escape(SYSTEM_FLATPAK) + "/repo/*.trustedkeys.gpg")
+    if keyrings:
+        with tempfile.TemporaryDirectory() as home:
+            for keyring in keyrings:
+                try:
+                    out = subprocess.run(["gpg", "--batch", "--no-options", "--homedir", home, "--with-colons",
+                                          "--show-keys", keyring], capture_output=True, text=True, timeout=60).stdout
+                except (OSError, subprocess.SubprocessError):
+                    continue
+                trusted |= {line.split(":")[9].upper() for line in out.splitlines()
+                            if line.startswith("fpr:") and len(line.split(":")) > 9}
+    return trusted
+
+
+def signature_notes(repo, remotes, dep, trusted, account):
+    """The commit's signature, checked by the fingerprint in its result: ostree trusts every keyring in the
+    repository's folder, whichever is asked for"""
+    facts = {"within": dep.app, "app": dep.app, "ref": dep.ref, "origin": dep.origin, "account": account}
+    if remotes.get(dep.origin, True) is False:
+        return [{"id": f"unsigned:{account}:{dep.ref}", "level": "normal", "tactic": "Initial Access",
+                 "text": f"The Flatpak {dep.what} {dep.app} was installed from a source that does not sign it "
+                         f"({dep.origin})", **facts}]
+    signers = []
+    try:
+        if dep.origin in remotes:
+            result = repo.verify_commit_for_remote(dep.commit, dep.origin, None)
+        else:
+            result = repo.verify_commit_ext(dep.commit, None, None, None)
+        attrs = [OSTree.GpgSignatureAttr.VALID, OSTree.GpgSignatureAttr.FINGERPRINT,
+                 OSTree.GpgSignatureAttr.FINGERPRINT_PRIMARY]
+        for i in range(result.count_all()):
+            valid, fingerprint, primary = result.get(i, attrs).unpack()
+            if valid and trusted & {fingerprint.upper(), primary.upper()}:
+                return []
+            signers.append(primary or fingerprint)
+    except GLib.Error:
+        pass
+    if not signers:
+        return [{"id": f"unsigned:{account}:{dep.ref}", "level": "normal", "tactic": "Initial Access",
+                 "text": f"The Flatpak {dep.what} {dep.app} was installed from a source that does not sign it "
+                         f"({dep.origin or 'no remote'})", **facts}]
+    return [{"id": f"unknown:{account}:{dep.ref}", "level": "normal", "tactic": "Initial Access",
+             "text": f"The Flatpak {dep.what} {dep.app} comes from a source this machine does not know "
+                     f"({dep.origin or 'no remote'}, signed by {signers[0]})", **facts}]
+
+
+def scope_of(rel, subpaths):
+    """all: checked out whole; part: a folder on the way to what was (with subpaths); None: not checked out"""
+    if not subpaths or rel == "metadata":
+        return "all"
+    for sub in subpaths:
+        if rel == sub or rel.startswith(sub + "/"):
+            return "all"
+        if rel == "" or sub.startswith(rel + "/"):
+            return "part"
+    return None
+
+
+def written_by_flatpak(dep, rel, in_commit=False):
+    """What Flatpak writes into a deploy itself, outside the commit: own, kept as written; export, a launcher
+    or D-Bus service whose Exec has to run this app; wrapper, the command in export/bin. The folders it puts
+    that command in are its own when the commit has none."""
+    if rel in ("deploy", "files/.ref") or rel == "files/extra" or rel.startswith("files/extra/"):
+        return "own"
+    if rel in ("export", "export/bin") and not in_commit:
+        return "own"
+    if dep.kind == "runtime" and rel in ("files/etc/passwd", "files/etc/group", "files/etc/machine-id",
+                                         "files/etc/resolv.conf"):
+        return "own"
+    if rel.startswith("export/"):
+        if rel == f"export/bin/{dep.app}":
+            return "wrapper"
+        if rel.endswith((".desktop", ".service")):
+            return "export"
+        if re.search(r"/search-providers/[^/]+\.ini$|/mime/packages/[^/]+\.xml$", rel):
+            return "own"
+    return None
+
+
+def runs_app(value, app):
+    """A flatpak run of this app, with only the options Flatpak itself writes"""
+    try:
+        argv = shlex.split(value)
+    except ValueError:
+        return False
+    if argv[:2] != [FLATPAK, "run"]:
+        return False
+    i = 2
+    while i < len(argv) and argv[i].startswith("--"):
+        if argv[i].split("=", 1)[0] not in RUN_OPTIONS:
+            return False
+        i += 1
+    return i < len(argv) and argv[i] == app
+
+
+def export_problem(path, dep, kind):
+    """None when what Flatpak wrote still runs this app and nothing else, or the line that does not"""
+    text = text_of(path)
+    if text is None:
+        return "it cannot be read"
+    if kind == "wrapper":
+        # As flatpak-dir.c writes it, each value quoted only where it needs to be
+        quoted = [f"(?:{re.escape(s)}|'{re.escape(s)}')" for s in (FLATPAK, dep.branch, dep.arch, dep.app)]
+        wanted = (f"#!/bin/sh\nexec {quoted[0]} run --branch={quoted[1]} --arch={quoted[2]} {quoted[3]} "
+                  + r'"\$@"' + "\n")
+        if re.fullmatch(wanted, text):
+            return None
+        return text.strip().splitlines()[-1][:300] if text.strip() else "it is empty"
+    for line in text.splitlines():
+        match = re.match(r"\s*(Exec|TryExec|SystemdService)\s*=\s*(.*)", line)
+        if not match:
+            continue
+        key, value = match.groups()
+        # Flatpak sets TryExec to itself, so that the launcher goes when Flatpak does, and takes SystemdService
+        # out, which would start a unit of the host's
+        if key == "SystemdService" or not (runs_app(value, dep.app) or (key == "TryExec" and value == FLATPAK)):
+            return line.strip()[:300]
+    return None
+
+
+class Installation:
+    """One Flatpak installation: the system's, as root, or an account's, as that account"""
+
+    def __init__(self, store, base, account, trusted):
+        self.store, self.base, self.account, self.trusted = store, base, account, trusted
+        self.own = account != "-"
+        self.repo = open_repo(base + "/repo")
+        self.objects = base + "/repo/objects"
+        self.counts = {"apps": 0, "runtimes": 0, "objects": 0, "files": 0}
+        self.bad = set()
+        self.said = {}
+
+    def where(self):
+        return "your" if self.own else "the system's"
+
+    def facts(self, dep):
+        return {"within": dep.app, "app": dep.app, "ref": dep.ref, "origin": dep.origin, "account": self.account}
+
+    def changed(self, dep, rel, how):
+        count = self.said.get(dep.path, 0) + 1
+        self.said[dep.path] = count
+        if count <= MOST:
+            finding(f"file:{self.account}:{dep.ref}:{rel}", "critical", "Persistence",
+                    f"A file of the Flatpak {dep.what} {dep.app} {how} outside an update: {rel}. Put it back with: "
+                    f"ame security app-integrity repair {dep.app}", **self.facts(dep))
+
+    def object_changed(self, path):
+        finding(f"object:{self.account}:{path}", "critical", "Persistence",
+                f"A file of {self.where()} Flatpak apps changed outside an update: {path}. Put it back with: "
+                f"ame security app-integrity repair", account=self.account)
+
+    def check(self):
+        self.bad, self.counts["objects"] = check_objects(self.store, self.repo, self.objects, self.own,
+                                                         self.object_changed)
+        remotes = remotes_of(self.base)
+        deploys = deploys_of(self.base)
+        current = {dep.path for dep in deploys}
+        for path in self.store.deploys():
+            if path not in current:
+                self.store.drop_tree(path)
+                self.store.drop_deploy(path)
+        for dep in deploys:
+            self.counts["apps" if dep.kind == "app" else "runtimes"] += 1
+            notes = self.store.deploy(dep.path)
+            if notes is None:
+                notes = signature_notes(self.repo, remotes, dep, self.trusted, self.account)
+                self.first_sight(dep)
+                self.store.put_deploy(dep.path, notes)
+            else:
+                self.recheck(dep)
+            FINDINGS.extend(notes)
+            if self.said.get(dep.path, 0) > MOST:
+                finding(f"files:{self.account}:{dep.ref}", "critical", "Persistence",
+                        f"{self.said[dep.path] - MOST} more files of the Flatpak {dep.what} {dep.app} changed outside "
+                        f"an update. Put them back with: ame security app-integrity repair {dep.app}", **self.facts(dep))
+        self.check_exports(deploys)
+        return self.counts
+
+    # A deploy the first time: its tree against its commit, as Flatpak checks it out
+
+    def first_sight(self, dep):
+        commit = load(self.repo, OSTree.ObjectType.COMMIT, dep.commit)
+        tree = None if commit is None else tree_of(self.repo, raw(commit.get_child_value(6)))
+        if tree is None:
+            self.changed(dep, "", "cannot be checked: its commit is not in the repository, and")
+            return
+        self.walk(dep, tree, "")
+
+    def walk(self, dep, tree, rel):
+        folder = dep.path + ("/" + rel if rel else "")
+        files, dirs = tree
+        expected = {name: ("file", csum) for name, csum in files}
+        expected.update({name: ("dir", csum) for name, csum in dirs})
+        try:
+            names = sorted(os.listdir(folder))
+        except OSError:
+            return
+        # What is wrong is kept dirty, so that the next run looks at it again and says it again until it is put back
+        stray = False
+        for name in names:
+            sub = f"{rel}/{name}" if rel else name
+            path = folder + "/" + name
+            st = lstat(path)
+            if st is None:
+                continue
+            written = written_by_flatpak(dep, sub, name in expected)
+            if written:
+                self.record_written(dep, path, sub, st, written)
+                continue
+            if name not in expected or scope_of(sub, dep.subpaths) is None:
+                self.changed(dep, sub, "was added")
+                stray = True
+                continue
+            self.counts["files"] += 1
+            what, csum = expected[name]
+            if what == "file":
+                row = self.deployed_row(path, csum, st)
+                if row is None:
+                    self.changed(dep, sub, "changed")
+                    row = row_of(st, "copy", csum, dirty=True)
+                self.store.put(folder, name, row)
+            elif not stat.S_ISDIR(st.st_mode):
+                self.changed(dep, sub, "changed")
+                self.store.put(folder, name, row_of(st, "dir", dirty=True))
+            else:
+                subtree = tree_of(self.repo, csum)
+                if subtree is not None:
+                    self.walk(dep, subtree, sub)
+        st = lstat(folder)
+        if st is not None:
+            self.store.put(os.path.dirname(folder), os.path.basename(folder), row_of(st, "dir", dirty=stray))
+
+    def record_written(self, dep, path, rel, st, kind):
+        folder, name = os.path.dirname(path), os.path.basename(path)
+        if kind in ("export", "wrapper"):
+            problem = "it is not a plain file" if not stat.S_ISREG(st.st_mode) else export_problem(path, dep, kind)
+            if problem:
+                self.export_runs(dep, rel, problem)
+            self.store.put(folder, name, row_of(st, kind, dirty=bool(problem)))
+        elif stat.S_ISDIR(st.st_mode):
+            try:
+                children = sorted(os.listdir(path))
+            except OSError:
+                children = []
+            for child in children:
+                child_st = lstat(path + "/" + child)
+                if child_st is not None:
+                    self.record_written(dep, path + "/" + child, f"{rel}/{child}", child_st,
+                                        written_by_flatpak(dep, f"{rel}/{child}") or "own")
+            self.store.put(folder, name, row_of(st, "dir"))
+        elif stat.S_ISLNK(st.st_mode):
+            self.store.put(folder, name, row_of(st, "own", "link:" + os.readlink(path)))
+        elif stat.S_ISREG(st.st_mode):
+            self.store.put(folder, name, row_of(st, "own", digest(path)))
+        else:
+            self.changed(dep, rel, "is not a plain file, and was added")
+        self.counts["files"] += 1
+
+    def export_runs(self, dep, rel, line):
+        finding(f"export:{self.account}:{dep.ref}:{rel}", "critical", "Execution",
+                f"The launcher {rel} of the Flatpak {dep.what} {dep.app} runs something other than the app: {line}. "
+                f"Put it back with: ame security app-integrity repair {dep.app}", **self.facts(dep))
+
+    def deployed_row(self, path, csum, st):
+        """A checked-out file's row when it is what its object holds: the object itself, hardlinked, or a copy
+        where Flatpak copies (an empty file, one its owner cannot read, a link, or a hardlink refused)"""
+        obj = f"{self.objects}/{csum[:2]}/{csum[2:]}.file"
+        ost = lstat(obj)
+        if ost is None or csum in self.bad:
+            return None
+        if stat.S_ISLNK(ost.st_mode):
+            target = os.readlink(obj)
+            return row_of(st, "link", target) if stat.S_ISLNK(st.st_mode) and os.readlink(path) == target else None
+        if not stat.S_ISREG(st.st_mode):
+            return None
+        if (st.st_dev, st.st_ino) == (ost.st_dev, ost.st_ino):
+            return row_of(st, "deployed", csum)
+        if st.st_size == 0 and ost.st_size == 0:
+            return row_of(st, "empty", csum)
+        return row_of(st, "copy", csum) if same_bytes(path, obj) else None
+
+    # A deploy seen before: each row by its stat, and only what changed read
+
+    def recheck(self, dep):
+        parent, name = os.path.dirname(dep.path), os.path.basename(dep.path)
+        own_row = self.store.children(parent).get(name)
+        rows = ([(parent, name, *own_row)] if own_row else []) + self.store.under(dep.path)
+        gone = []
+        for folder, name, *row in rows:
+            path = folder + "/" + name
+            if any(path.startswith(g + "/") for g in gone):
+                continue
+            rel = path[len(dep.path) + 1:]
+            self.counts["files"] += 1
+            st = lstat(path)
+            if st is None:
+                # An update or an uninstall under way is not a change
+                if not still_active(dep):
+                    return
+                if row[0] == "dir":
+                    gone.append(path)
+                self.changed(dep, rel, "was deleted")
+                continue
+            if row[1] != -1 and unchanged(row, st):
+                continue
+            new = self.verdict(dep, folder, path, rel, row, st)
+            if new is not None:
+                self.store.put(folder, name, new)
+
+    def verdict(self, dep, folder, path, rel, row, st):
+        """The row a changed file gets, when it still is what it should be; None, and a finding, when not"""
+        kind, ref = row[0], row[9]
+        if kind == "dir":
+            try:
+                names = set(os.listdir(path)) if stat.S_ISDIR(st.st_mode) else None
+            except OSError:
+                names = None
+            if names is None:
+                self.changed(dep, rel, "changed")
+                return None
+            added = sorted(names - set(self.store.children(path)))
+            for name in added:
+                self.changed(dep, f"{rel}/{name}" if rel else name, "was added")
+            return row_of(st, "dir", dirty=bool(added))
+        if kind == "deployed" and not self.own and relinked(row, st):
+            obj = lstat(f"{self.objects}/{ref[:2]}/{ref[2:]}.file")
+            if obj is not None and obj.st_ino == st.st_ino:
+                return row_of(st, kind, ref)
+        if kind in ("deployed", "copy", "empty"):
+            new = self.deployed_row(path, ref, st)
+        elif kind == "link":
+            new = row_of(st, kind, ref) if stat.S_ISLNK(st.st_mode) and os.readlink(path) == ref else None
+        elif kind == "own":
+            if stat.S_ISLNK(st.st_mode):
+                same = ref == "link:" + os.readlink(path)
+            else:
+                same = stat.S_ISREG(st.st_mode) and digest(path) == ref
+            new = row_of(st, kind, ref) if same else None
+        else:
+            problem = "it is not a plain file" if not stat.S_ISREG(st.st_mode) else export_problem(path, dep, kind)
+            if problem:
+                self.export_runs(dep, rel, problem)
+                return None
+            return row_of(st, kind)
+        if new is None:
+            self.changed(dep, rel, "changed")
+        return new
+
+    # The installation's exports: what the desktop and the session start, outside every sandbox
+
+    def check_exports(self, deploys):
+        root = self.base + "/exports"
+        allowed = tuple(dep.path + "/export/" for dep in deploys)
+        stack = [root]
+        while stack:
+            folder = stack.pop()
+            try:
+                entries = list(os.scandir(folder))
+            except OSError:
+                continue
+            for entry in entries:
+                rel = entry.path[len(root) + 1:]
+                if entry.is_dir(follow_symlinks=False):
+                    stack.append(entry.path)
+                    continue
+                if entry.is_symlink():
+                    if os.path.realpath(entry.path).startswith(allowed):
+                        continue
+                elif entry.is_file(follow_symlinks=False) and TRIGGERED.fullmatch(rel):
+                    continue
+                finding(f"stray:{self.account}:{rel}", "normal", "Execution",
+                        f"A launcher or command no installed app made is in {self.where()} Flatpak exports, where it "
+                        f"runs outside every sandbox: {entry.path}", account=self.account)
+
+
+# --- An account's installation ----------------------------------------------------------------------------------
+
+def account_mode(args):
+    """As the account: its rows, root's, read from a descriptor, and every change and finding printed"""
+    fd, trusted = None, set()
+    i = 0
+    while i < len(args):
+        if args[i] == "--rows-fd" and i + 1 < len(args):
+            fd = int(args[i + 1])
+        elif args[i] == "--trust" and i + 1 < len(args):
+            trusted.add(args[i + 1].upper())
+        i += 2
+    data = b""
+    if fd is not None:
+        while chunk := os.read(fd, 1 << 20):
+            data += chunk
+        os.close(fd)
+    con = sqlite3.connect(":memory:")
+    if data:
+        con.deserialize(data)
+
+    def emit(op):
+        sys.stdout.write(json.dumps(op) + "\n")
+
+    store = Store(con, emit)
+    base = os.path.expanduser("~") + "/.local/share/flatpak"
+    counts = {}
+    if os.path.isdir(base + "/repo"):
+        counts = Installation(store, base, "account", trusted).check()
+    emit({"op": "counts", "counts": counts})
+    for item in FINDINGS:
+        emit({"op": "finding", "finding": item})
+    return 0
+
+
+def accounts():
+    """(uid, name, gid, home) of each account with a session now or in the last day"""
+    uids = set()
+    if ROOT:
+        uids = {int(u) for u in os.environ.get("AMETHYSTORA_INTEGRITY_ACCOUNTS", "").split() if u.isdigit()}
+    else:
+        try:
+            out = subprocess.run(["loginctl", "list-users", "--no-legend", "--no-pager"], capture_output=True,
+                                 text=True, timeout=30).stdout
+            uids = {int(line.split()[0]) for line in out.splitlines() if line.split() and line.split()[0].isdigit()}
+        except (OSError, subprocess.SubprocessError):
+            pass
+        # ...and those the security watcher saw with one in the last day
+        for mark in glob.glob(SECURITY + "/accounts/*/active"):
+            try:
+                with open(mark) as f:
+                    if time.time() - int(f.read().strip()) < ACTIVE_FOR:
+                        uids.add(int(os.path.basename(os.path.dirname(mark))))
+            except (OSError, ValueError):
+                pass
+    found = {}
+    try:
+        with open(ROOT + "/etc/passwd") as f:
+            for line in f:
+                parts = line.rstrip("\n").split(":")
+                if len(parts) >= 6 and parts[2].isdigit() and parts[3].isdigit():
+                    found.setdefault(int(parts[2]), (parts[0], int(parts[3]), parts[5]))
+    except OSError:
+        pass
+    # A domain's accounts are not in /etc/passwd: by their folders in /var/home, as the watcher finds them
+    for home in glob.glob(ROOT + "/var/home/*/"):
+        st = lstat(home.rstrip("/"))
+        if st is not None and stat.S_ISDIR(st.st_mode):
+            found.setdefault(st.st_uid, (os.path.basename(home.rstrip("/")), st.st_gid, home.rstrip("/")))
+    return [(uid, *found[uid]) for uid in sorted(uids) if uid >= 1000 and uid != 65534 and uid in found]
+
+
+def check_account(uid, name, gid, home, trusted):
+    """One account's own installation, read as the account when it changed or once a day; its findings and
+    counts. Root only ever looks at the account's folders with lstat."""
+    base = home + "/.local/share/flatpak"
+    for path in (home, home + "/.local", home + "/.local/share", base, base + "/repo"):
+        st = lstat(path)
+        if st is None or not stat.S_ISDIR(st.st_mode):
+            return [], None
+    con = sqlite3.connect(f"{STATE}/{uid}.db")
+    store = Store(con)
+    con.commit()
+    last = float(store.meta("checked", "0"))
+    changed = lstat(base + "/.changed")
+    if time.time() - last < ACCOUNT_EVERY and (changed is None or changed.st_mtime <= last):
+        return json.loads(store.meta("findings", "[]")), json.loads(store.meta("counts", "null"))
+    groups = "--init-groups"
+    if subprocess.run(["id", "-nu", str(uid)], capture_output=True).returncode != 0:
+        groups = "--clear-groups"
+    fd = os.open(f"{STATE}/{uid}.db", os.O_RDONLY | os.O_CLOEXEC)
+    command = ["timeout", str(ACCOUNT_TIMEOUT), "setpriv", f"--reuid={uid}", f"--regid={gid}", groups, "--",
+               "/usr/bin/env", "-i", f"HOME={home}", f"USER={name}", f"LOGNAME={name}", "PATH=/usr/bin:/usr/sbin",
+               "LANG=C.UTF-8"]
+    if ROOT:
+        command.append(f"AMETHYSTORA_INTEGRITY_ROOT={ROOT}")
+    command += [os.path.abspath(sys.argv[0]), "account", "--rows-fd", str(fd)]
+    for fingerprint in sorted(trusted):
+        command += ["--trust", fingerprint]
+    findings, counts = [], None
+    with subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                          pass_fds=(fd,)) as proc:
+        os.close(fd)
+        for line in proc.stdout:
+            try:
+                op = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(op, dict):
+                continue
+            if op.get("op") == "finding":
+                item = account_finding(op.get("finding"), name)
+                if item:
+                    findings.append(item)
+            elif op.get("op") == "counts" and isinstance(op.get("counts"), dict):
+                counts = {k: v for k, v in op["counts"].items() if isinstance(k, str) and isinstance(v, int)}
+            else:
+                apply(store, op, base)
+    if proc.returncode != 0:
+        con.rollback()
+        return json.loads(store.meta("findings", "[]")), json.loads(store.meta("counts", "null"))
+    store.tidy()
+    store.set_meta("checked", str(time.time()))
+    store.set_meta("findings", json.dumps(findings))
+    store.set_meta("counts", json.dumps(counts))
+    con.commit()
+    return findings, counts
+
+
+def account_finding(item, name):
+    """A finding the account's run printed, as it may be kept: the account's own, said to it"""
+    if not isinstance(item, dict) or not all(isinstance(item.get(k), str) for k in ("id", "text", "level", "tactic")):
+        return None
+    if item["level"] not in LEVELS or item["tactic"] not in TACTICS:
+        return None
+    kept = {k: item[k][:2000] for k in ("id", "text", "level", "tactic", "within", "app", "ref", "origin")
+            if isinstance(item.get(k), str)}
+    kept["id"] = f"{name}:{kept['id']}"
+    kept["account"] = name
+    kept["installation"] = "user"
+    return kept
+
+
+def apply(store, op, base):
+    """A change the account's run printed, written into its rows, about its own installation and nothing else"""
+    path = op.get("dir")
+    if not isinstance(path, str) or not (path == base or path.startswith(base + "/")) or "\0" in path:
+        return
+    kind = op.get("op")
+    if kind == "put":
+        name, row = op.get("name"), op.get("row")
+        if (isinstance(name, str) and name and "/" not in name and isinstance(row, list) and len(row) == 10
+                and row[0] in KINDS and all(isinstance(v, int) for v in row[1:9])
+                and (row[9] is None or isinstance(row[9], str))):
+            store.put(path, name, tuple(row))
+    elif kind == "drop" and isinstance(op.get("name"), str):
+        store.drop(path, op["name"])
+    elif kind == "drop_tree":
+        store.drop_tree(path)
+    elif kind == "deploy" and isinstance(op.get("notes"), list):
+        store.put_deploy(path, [n for n in op["notes"] if isinstance(n, dict)])
+    elif kind == "drop_deploy":
+        store.drop_deploy(path)
+
+
+# --- A check --------------------------------------------------------------------------------------------------------
+
+def main():
+    if sys.argv[1:2] == ["account"]:
+        return account_mode(sys.argv[2:])
+    if len(sys.argv) > 1:
+        print(f"usage: {os.path.basename(sys.argv[0])}", file=sys.stderr)
+        return 64
+    if os.geteuid() != 0:
+        print(f"{os.path.basename(sys.argv[0])} needs root.", file=sys.stderr)
+        return 77
+    os.umask(0o077)
+    os.makedirs(STATE, mode=0o700, exist_ok=True)
+    os.chmod(STATE, 0o700)
+    with open(STATE + "/lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        trusted = system_fingerprints()
+        con = sqlite3.connect(STATE + "/system.db")
+        store = Store(con)
+        last = {"time": int(time.time()), "sealed": os.path.exists(SEALED), "failed": []}
+
+        # One part that fails, said in last.json and the journal, keeps none of the others from their run
+        def part(name, check):
+            try:
+                result = check()
+                con.commit()
+                return result
+            except Exception as error:  # noqa: BLE001
+                con.rollback()
+                store.ids.clear()
+                print(f"{name}: {error!r}", file=sys.stderr)
+                last["failed"].append(name)
+                return None
+
+        last["system"] = part("system", lambda: check_system(store))
+        last["flatpak"] = None
+        if os.path.isdir(SYSTEM_FLATPAK + "/repo/objects"):
+            last["flatpak"] = part("flatpak", lambda: Installation(store, SYSTEM_FLATPAK, "-", trusted).check())
+        for item in FINDINGS:
+            item.setdefault("account", "-")
+            item.setdefault("installation", "system")
+        store.tidy()
+        con.commit()
+        con.close()
+        last["accounts"] = {}
+        for uid, name, gid, home in accounts():
+            try:
+                found, counts = check_account(uid, name, gid, home, trusted)
+            except Exception as error:  # noqa: BLE001
+                print(f"account {uid}: {error!r}", file=sys.stderr)
+                last["failed"].append(name)
+                continue
+            FINDINGS.extend(found)
+            if counts is not None:
+                last["accounts"][name] = counts
+        last["findings"] = len(FINDINGS)
+        with open(STATE + "/findings.jsonl.new", "w") as f:
+            for item in FINDINGS:
+                f.write(json.dumps(item) + "\n")
+        os.replace(STATE + "/findings.jsonl.new", STATE + "/findings.jsonl")
+        with open(STATE + "/last.json.new", "w") as f:
+            json.dump(last, f)
+        os.replace(STATE + "/last.json.new", STATE + "/last.json")
+    # The watcher says what is new, and gives the report what it found
+    if not ROOT:
+        subprocess.run(["systemctl", "start", "--no-block", "amethystora-security-watch.service"], check=False)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

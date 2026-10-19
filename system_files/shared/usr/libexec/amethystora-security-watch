@@ -22,9 +22,10 @@
 #   - What looks for new threats by what they do, each off until its switch is on, alone or with a profile:
 #     odd processes, SELinux's denials, ransomware in the hourly snapshots, AI agents run with their checks
 #     off, secrets read and the decoy key, programs run from the download folders, programs loaded into the
-#     kernel's BPF, odd names in DNS, the behaviour sensor (Falco), hash reputation, and what each account's
+#     kernel's BPF, odd names in DNS, the behaviour sensor (Falco), hash reputation, what each account's
 #     own reader finds (amethystora-security-reader, run as that account): apps that gain permissions,
-#     agents' settings, developer tools' startup hooks. Chains of steps put what they find together.
+#     agents' settings, developer tools' startup hooks, and what the app integrity check found
+#     (amethystora-integrity). Chains of steps put what they find together.
 #
 # The first run only records where things stand. After it, anything new is written to the history and,
 # unless it is routine, to the unread list `ame security events` shows, with one notification a run.
@@ -1779,6 +1780,46 @@ read_accounts() {
     done < <(accounts)
 }
 
+# --- Installed apps against their updates ------------------------------------------------------------------------
+
+# What the app integrity check found (APP_INTEGRITY, amethystora-integrity, daily and after each change to the
+# system's Flatpaks), all of it at each of its runs, in the readers' form: what was not there at the last read is
+# said. What is about an account's own apps is said to that account, and to the administrators as well. None of it
+# can be allowed: a changed file is not a setting, and the way out is putting it back.
+INTEGRITY="${STATE}/integrity"
+read_integrity() {
+    local seen="${STATE}/integrity.seen" out new id level tactic text account
+    local -a facts
+    [[ -r "${INTEGRITY}/findings.jsonl" ]] || return 0
+    touch "${seen}"
+    out="$(jq -rc 'select(type == "object" and (.id | type == "string") and (.text | type == "string"))
+        | [.id, (.level // "normal"), (.tactic // "-"), .text, (.account // "-")]
+        | map(tostring | gsub("[[:cntrl:]]"; " ")) | join("\u001f")' "${INTEGRITY}/findings.jsonl" 2>/dev/null)"
+    new="$(cut -d$'\x1f' -f1 <<<"${out}" | grep . | grep -vxF -f "${seen}")"
+    while IFS=$'\x1f' read -r id level tactic text account; do
+        [[ -n "${id}" ]] && grep -qxF -- "${id}" <<<"${new}" || continue
+        [[ "${level}" =~ ^(critical|normal|quiet)$ ]] || level=normal
+        [[ " Persistence Execution Initial-Access " == *" ${tactic// /-} "* ]] || tactic=-
+        facts=()
+        [[ "${account}" != - ]] && facts=("tell=${account}")
+        add "${level}" app-integrity "${account}" "${tactic}" "${text}" "${facts[@]}"
+    done <<<"${out}"
+    cut -d$'\x1f' -f1 <<<"${out}" | grep . >"${seen}"
+    return 0
+}
+
+# ...and for the report, world-readable: when it last ran, what it checked, and what it found about the system's
+# own and the system's apps. Of an account's own apps only whose they are, how loud and which app, for that
+# account's report: their sentences name its files, and are said to it and kept in the events.
+integrity_status() {
+    [[ -r "${INTEGRITY}/last.json" ]] || { echo null; return; }
+    jq -c --slurpfile found "${INTEGRITY}/findings.jsonl" '{time, sealed, system, flatpak,
+        accounts: (.accounts // {} | keys),
+        findings: [$found[] | select(type == "object") | if .account == "-"
+            then {id, level, text, account, app, ref, origin, installation}
+            else {level, account, app, ref, origin, installation} end]}' "${INTEGRITY}/last.json" 2>/dev/null || echo null
+}
+
 # --- The behaviour sensor -----------------------------------------------------------------------------------
 
 # What Falco saw (BEHAVIOUR, amethystora-behaviour.service): its rules match what processes do as the kernel
@@ -2022,6 +2063,8 @@ for key in "${!READERS[@]}"; do
     fi
     timed "${key}" switched "${key}" read_accounts "${key}"
 done
+[[ "${SETTING[APP_INTEGRITY]:-off}" == off ]] && rm -f "${STATE}/integrity.seen"
+timed APP_INTEGRITY switched APP_INTEGRITY read_integrity
 
 # What the report reads, world-readable: it names files and ports, not what is in them, of network
 # protection only how much it blocked, and of the audit log how many events it dropped
@@ -2035,14 +2078,16 @@ DISK_UNLOCK="$(disk_unlock_status)"
 DURESS="$(duress_status)"
 SENSOR_STATE=null
 [[ "${SETTING[AUDIT_LOG]:-on}" != off ]] && SENSOR_STATE="$(sensor_status)"
+INTEGRITY_STATE=null
+[[ "${SETTING[APP_INTEGRITY]:-off}" != off ]] && INTEGRITY_STATE="$(integrity_status)"
 write_status() {
     jq -n --argjson checked "${NOW}" --argjson swept "${SWEPT:-null}" --argjson drift "${DRIFT:-null}" \
         --argjson setuid "${SETUID}" --argjson listeners "${LISTENING}" \
         --argjson network "$(network_status)" --argjson audit "${AUDIT:-null}" --argjson disk_unlock "${DISK_UNLOCK:-null}" \
-        --argjson duress "${DURESS:-null}" --argjson sensor "${SENSOR_STATE:-null}" \
+        --argjson duress "${DURESS:-null}" --argjson sensor "${SENSOR_STATE:-null}" --argjson integrity "${INTEGRITY_STATE:-null}" \
         --argjson timings "$(for key in "${!TIMINGS[@]}"; do printf '%s\t%s\n' "${key}" "${TIMINGS[${key}]}"; done |
             jq -R 'split("\t") | {(.[0]): (.[1] | tonumber)}' | jq -s 'add // {}')" \
-        '{$checked, $swept, $drift, $setuid, $listeners, $network, $audit, $disk_unlock, $duress, $sensor, $timings}' >"${STATUS}.new" &&
+        '{$checked, $swept, $drift, $setuid, $listeners, $network, $audit, $disk_unlock, $duress, $sensor, $integrity, $timings}' >"${STATUS}.new" &&
         chmod 0644 "${STATUS}.new" && mv "${STATUS}.new" "${STATUS}"
 }
 # Written before the report runs, which reads it, and again after with the report's own time
@@ -2071,7 +2116,7 @@ URGENCY=normal
 declare -A TOLD_TO=() URGENCY_TO=()
 mkdir -p -m 0755 "${HISTORY%/*}"
 for finding in "${FINDINGS[@]}"; do
-    { read -r level; read -r tell; IFS= read -r text; } < <(jq -r '.level, (.tell // ""), .text' <<<"${finding}")
+    { read -r level; read -r key; read -r tell; IFS= read -r text; } < <(jq -r '.level, .key, (.tell // ""), .text' <<<"${finding}")
     printf '%s\n' "${finding}" >>"${HISTORY}"
     [[ "${level}" == quiet ]] && continue
     echo "${STAMP}  ${text}" >>"${UNREAD}"
@@ -2083,7 +2128,8 @@ for finding in "${FINDINGS[@]}"; do
     if [[ -n "${tell}" ]]; then
         TOLD_TO["${tell}"]+="${text}"$'\n'
         [[ "${level}" == critical ]] && URGENCY_TO["${tell}"]=critical
-        continue
+        # An app of the account's own changed outside an update: the administrators are told as well
+        [[ "${key}" == app-integrity ]] || continue
     fi
     TOLD+=("${text}")
     [[ "${level}" == critical ]] && URGENCY=critical

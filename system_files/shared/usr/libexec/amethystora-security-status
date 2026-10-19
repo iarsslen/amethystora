@@ -337,11 +337,68 @@ if grep -Eq '(^| )composefs=[0-9a-f]+( |$)' /proc/cmdline 2>/dev/null &&
     report updates composefs ok "$(gettext "Verified system files")" \
         "$(gettext "The system is sealed: every file of it is checked, as it is read, against the digest its signed kernel carries")"
 elif grep -q composefs /proc/mounts 2>/dev/null; then
-    report updates composefs info "$(gettext "Verified system files")" \
-        "$(gettext "/usr is mounted read-only from the files the signed update installed, but nothing checks them as they are read")"
+    if [[ "${SETTING[APP_INTEGRITY]}" == on ]]; then
+        report updates composefs info "$(gettext "Verified system files")" \
+            "$(gettext "/usr is mounted read-only from the files the signed update installed, but nothing checks them as they are read")" \
+            "$(gettext "They are checked against the update once a day instead (ame security app-integrity).")"
+    else
+        COMMAND="ame security settings app-integrity on"
+        report updates composefs info "$(gettext "Verified system files")" \
+            "$(gettext "/usr is mounted read-only from the files the signed update installed, but nothing checks them as they are read")" \
+            "$(gettext "Check them against the update once a day with:")"
+    fi
 else
     report updates composefs info "$(gettext "Verified system files")" \
         "$(gettext "/usr is read-only and replaced whole by each update, but is not re-verified as it is read")"
+fi
+
+# Installed apps and the system's own files against what their signed updates installed (APP_INTEGRITY,
+# amethystora-integrity), as the security watcher passes on what the check found. Of an account's own apps, the
+# watcher passes on only which, and how loud: their sentences are said to that account.
+ME="$(id -un 2>/dev/null)"
+INTEGRITY_TIME="$(jq -r '.integrity.time // empty' "${WATCH_STATUS}" 2>/dev/null)"
+if [[ "${SETTING[APP_INTEGRITY]}" != on ]]; then
+    COMMAND="ame security settings app-integrity on"
+    report updates app-integrity info "$(gettext "App integrity")" \
+        "$(gettext "Installed apps are not checked against their updates")" \
+        "$(gettext "A file of an app or of the system changed outside an update, or a launcher that runs something other than its app, is not noticed. Check them once a day with:")"
+elif [[ ! "${INTEGRITY_TIME}" =~ ^[0-9]+$ ]]; then
+    COMMAND="ame security app-integrity check"
+    report updates app-integrity info "$(gettext "App integrity")" \
+        "$(gettext "Installed apps have not been checked against their updates yet")" \
+        "$(gettext "The first check runs within a day, or now with:")"
+else
+    # What the check said about the system's own and the system's apps, as it said it, and which apps of this
+    # account's own it found changed
+    CHANGED=()
+    while IFS= read -r line; do
+        [[ -n "${line}" ]] && CHANGED+=("${line}")
+    done < <(jq -r '.integrity.findings // [] | .[] | select(.account == "-" and .level != "quiet") | .text | gsub("[\r\n]"; " ")' \
+        "${WATCH_STATUS}" 2>/dev/null | /usr/libexec/amethystora-security-text --lines --max 400)
+    while IFS= read -r app; do
+        [[ "${app}" =~ ^[A-Za-z0-9_.-]{1,255}$ ]] && CHANGED+=("$(eval_gettext "A file of your own app \${app} changed outside an update")")
+    done < <(jq -r --arg me "${ME}" '[.integrity.findings // [] | .[] | select(.account == $me and .level != "quiet") | .app // "-"]
+        | unique[]' "${WATCH_STATUS}" 2>/dev/null)
+    APPS="$(jq -r '.integrity.flatpak.apps // 0' "${WATCH_STATUS}" 2>/dev/null)"
+    WHEN="$(date -d "@${INTEGRITY_TIME}" '+%a %-d %b, %H:%M')"
+    if [[ ${#CHANGED[@]} -gt 0 ]]; then
+        N="${#CHANGED[@]}"
+        # Only an app can be put back: the system's own files mean reinstalling, which each of those says
+        if jq -e --arg me "${ME}" '.integrity.findings // [] | any(.[]; (.account == "-" or .account == $me)
+            and (.installation == "system" or .installation == "user"))' "${WATCH_STATUS}" >/dev/null 2>&1; then
+            COMMAND="ame security app-integrity repair"
+            CHANGED+=("$(gettext "Put the apps back as their updates installed them with:")")
+        fi
+        report updates app-integrity off "$(gettext "App integrity")" \
+            "$(eval_ngettext "\${N} thing changed outside an update" "\${N} things changed outside an update" "${N}")" \
+            "${CHANGED[@]}"
+    elif [[ "$(jq -r '.integrity.system == null' "${WATCH_STATUS}" 2>/dev/null)" == true ]]; then
+        report updates app-integrity ok "$(gettext "App integrity")" \
+            "$(eval_ngettext "\${APPS} app checked on \${WHEN}, unchanged since its update" "\${APPS} apps checked on \${WHEN}, unchanged since their updates" "${APPS:-0}")"
+    else
+        report updates app-integrity ok "$(gettext "App integrity")" \
+            "$(eval_ngettext "\${APPS} app and the system's files checked on \${WHEN}, unchanged since their updates" "\${APPS} apps and the system's files checked on \${WHEN}, unchanged since their updates" "${APPS:-0}")"
+    fi
 fi
 
 SB="$(mokutil --sb-state 2>/dev/null || true)"

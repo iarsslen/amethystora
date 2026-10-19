@@ -1,0 +1,11 @@
+[Unit]
+Description=Installed apps and the system's files, checked against their updates, daily
+
+[Timer]
+OnBootSec=20min
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=1h
+
+[Install]
+WantedBy=timers.target

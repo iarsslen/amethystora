@@ -86,7 +86,16 @@ Read the `amethystora` skill too: it says what may be changed on this system and
    (`/usr/libexec/amethystora-ssh-codes status`), an SSH password login also needs the account's own
    code, and an account without `~/.google_authenticator` can then log in over SSH only with a key. A
    domain account: `realm list`, then `journalctl -b -u sssd --no-pager`.
-9. **A deeper backtrace**, only when the recorded one is not enough. The dx image has gdb
+9. **A finding of the app integrity check**: `ame security app-integrity` lists what the last check found
+   (the `integrity` part of `/var/lib/amethystora/security/status.json`, which anyone can read; the
+   sentences about an account's own apps are in `ame security events`). A Flatpak app's file that changed
+   outside an update, or a launcher that runs something other than its app, is how malware stays, or gets
+   inside an app: an app that misbehaves since is likely why. `ame security app-integrity repair APP`
+   fetches the app again and keeps its data; propose it. A file of the system's own (`/sysroot/ostree`,
+   `/boot`) means something with administrator rights changed the system, and the machine cannot vouch
+   for its own repair: the fix is backing up and reinstalling from the installer
+   (`troubleshooting.md#starting-over`), the user's to decide. Never try to restore such a file.
+10. **A deeper backtrace**, only when the recorded one is not enough. The dx image has gdb
    (`command -v gdb`); on the base image it is not there, so this installs something: ask first.
    `brew install gdb`, or a toolbox container
    (`toolbox create`, then `sudo dnf install gdb` inside it). Then `coredumpctl debug <pid>` and

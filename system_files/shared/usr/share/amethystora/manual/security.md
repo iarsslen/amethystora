@@ -418,6 +418,30 @@ is about, so the agent is told to read it as data, never as instructions.
 What one of them finds about your own account, such as your apps, is said to you. The rest is said to
 the administrators, who see all of it on the **Events** page.
 
+### Your apps and the system's own files
+
+An update is checked before it installs: the system's must carry Amethystora's signature, and an app's
+its maker's or Flathub's. After that, on an ordinary image, nothing checks those files again as they are
+read; a [sealed image](updates.md#sealed-images) does. With **App integrity** on
+(`ame security settings app-integrity on`, and in every profile), they are compared with what their updates
+installed once a day, and again after each change to the apps installed for everyone:
+
+- **The system's own files**, and the kernel and initramfs it starts with. One changed there means
+  something with administrator rights changed this system, and the system cannot vouch for its own repair:
+  back up your files and reinstall from the installer ([Starting over](troubleshooting.md#starting-over)).
+- **Each Flatpak app and runtime**, and its launchers, which have to start the app they belong to. Every
+  launcher in the app grid that comes from Flatpak has to be an installed app's. An app installed from a
+  source that does not sign it, or signed by a key this machine does not know, is said once.
+- **The apps installed for you alone**, read as you, for the accounts used in the last day. What changed
+  there is said to you and to the administrators.
+
+Only what changed since the last check is read, so a check with nothing new costs a walk of the files'
+details. `ame security app-integrity` shows what the last check found, `ame security app-integrity check`
+checks now, and `ame security app-integrity repair` puts each app it named back as its update installed it,
+fetching its files again; what the app keeps in `~/.var/app` stays. Homebrew, `~/.local/bin`, the AI agents,
+editor and browser extensions and containers keep no signed record of what they installed, so they are not
+checked this way: the watcher looks at where they start from instead.
+
 ### Stricter settings
 
 Each of these takes something away that a desktop may need, so each is off until you turn it on, in the

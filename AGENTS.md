@@ -466,11 +466,31 @@ that account alone (`amethystora-notify-users --user`). `OSPREY`, `TRIAGE` and `
 away and are in no profile. What turns each agent's checks off is `/usr/share/amethystora/agent-cli-flags`,
 which must name every agent `amethystora-agent` offers. A finding carries `at=` (the snapshot Backups opens,
 `--at=POINT`) and `tell=` where they apply; one the allowlist quietened carries `allowed` and builds no chain.
-`test-security-watch.sh`, `test-security-reader.sh` and `test-yara.sh` plant each kind of finding.
+`test-security-watch.sh`, `test-security-reader.sh` and `test-yara.sh` plant each kind of finding. A library
+loaded by `LD_PRELOAD` from outside `/usr`, and a session whose user manager gives every program a variable of
+`/usr/share/amethystora/code-variables` (`systemctl --user -M USER@.host show-environment`), are `PROCESSES`'
+too; the same list is the app permissions' `code` reach.
+
+**App integrity** (`APP_INTEGRITY`, `/usr/libexec/amethystora-integrity`, Python with the OSTree bindings and
+SQLite; `plans/security/PLAN-app-integrity.md`) checks the system's ostree repository, each deployment's
+`.ostree.cfs`, the kernels and initramfs images in `/boot`, and every Flatpak installation against what their
+signed updates installed, daily and on `/var/lib/flatpak/.changed` (`amethystora-integrity.timer` and
+`.path`). Updates verify what they write, so root's files are trusted the first time and kept by their stat
+(`integrity/system.db`), and only a changed ctime is read; an account's own installation is checked by content,
+read as that account with its rows, root's, handed to it on a descriptor and its changes printed back. A
+deploy's tree is compared with its commit, and its signature by fingerprint (Flathub's or a system remote's
+keyring's), since ostree trusts every keyring in the repository's folder; what Flatpak writes itself (its
+launchers, whose `Exec=` has to be its own `flatpak run` of the app, the `export/bin` wrapper, the deploy data,
+extra data) is kept as written, and every entry of an installation's `exports` has to lead into an active deploy.
+Its findings (`integrity/findings.jsonl`, all of them each run) reach the watcher as a reader's would, and
+`status.json`'s `integrity` the report's `app-integrity` check; none can be allowed. A finding about the
+system's own files means reinstalling: nothing repairs those, and `ame security app-integrity repair` only
+fetches an app again. `test-app-integrity.sh` plants each kind of change against stand-ins.
 
 The same helper holds the stricter settings, each off until turned on and kept in
 `/etc/amethystora/hardening-on`: `kernel strict` (io_uring, ptrace, address randomisation, IPsec), extra
-kernel arguments (`EXTRA_ARGS`), `time` (chrony with NTS only), `firewall-away` (the `amethystora-away`
+kernel arguments (`EXTRA_ARGS`; `proc_mem.force_override=ptrace` was one and is now the image's own in
+`kargs.d`, which `system-setup.hooks.d/28-proc-mem.sh` adds where rpm-ostree updates), `time` (chrony with NTS only), `firewall-away` (the `amethystora-away`
 zone by default, the networks named home keeping theirs), `network-daemons`, `block-bluetooth`,
 `block-webcam`, `block-automount` and `block-user-extensions` (locked dconf keys in `local.d`),
 `block-xwayland` (`--no-x11` in GNOME Shell's user unit, whose `ExecStart` `20-tests.sh` compares),

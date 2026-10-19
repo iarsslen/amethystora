@@ -53,6 +53,8 @@ for profile in light balanced thorough; do
     "${CONFIG}" --list --json | jq -e 'all(.settings[] | select(.sends | IN("none", "downloads") | not); .value == "off")' >/dev/null ||
         fail "profile ${profile} turned on something that sends away"
     [[ "$("${CONFIG}" WATCHER)" == on && "$("${CONFIG}" VIRUS_SCAN)" == weekly ]] || fail "profile ${profile} changed an existing key"
+    # Every profile checks the apps against their updates
+    [[ "$("${CONFIG}" APP_INTEGRITY)" == on ]] || fail "profile ${profile} leaves the apps unchecked"
 done
 [[ "$("${CONFIG}" BEHAVIOUR)" == record && "$("${CONFIG}" NETWORK_FEEDS)" == hourly ]] || fail "thorough"
 "${CONFIG}" set TRIAGE on
@@ -176,6 +178,9 @@ for id in security-watcher audit-log virus-scan settings-audit listeners image-s
         fail "${id} does not say it is turned off, with the command that turns it on"
 done
 jq -e '.settings.profile == "off" and .settings.virus_scan == "off"' <<<"${REPORT}" >/dev/null || fail "the report's settings"
+# Off as the image ships it, the app check says so, with the command that turns it on
+jq -e 'any(.checks[]; .id == "app-integrity" and .state == "info" and .command == "ame security settings app-integrity on")' \
+    <<<"${REPORT}" >/dev/null || fail "the app integrity check does not say how to turn it on"
 
 # --- The prevention switches ----------------------------------------------------------------------------
 

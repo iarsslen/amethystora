@@ -1,0 +1,10 @@
+[Unit]
+Description=Installed apps checked against their updates, after each change to the system's Flatpaks
+
+[Path]
+# Flatpak touches it after every install, update and uninstall of the system's apps
+PathChanged=/var/lib/flatpak/.changed
+Unit=amethystora-integrity.service
+
+[Install]
+WantedBy=paths.target

@@ -47,6 +47,9 @@
 #
 # Every entry is one line of at most 1024 characters with no control character, in the shape its feature
 # reads: the watcher compares, and never runs, an entry.
+#
+# app-integrity has none: what it finds is a file that changed outside an update, which is not a setting to
+# accept but something to put back (ame security app-integrity repair), or a reason to reinstall.
 
 set -uo pipefail
 
