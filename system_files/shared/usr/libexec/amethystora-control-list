@@ -446,11 +446,12 @@ GROUP=""
 # --- The AI agent ----------------------------------------------------------------------------------
 
 if [[ "${AGENTIC}" == true ]]; then AGENT_STATE=on; else AGENT_STATE=off; fi
-# The account's own level and what the administrator allows it (amethystora-agent policy, agent.conf's one reader)
-POLICY="$(said policy)"
-jq -e 'type == "object"' <<<"${POLICY}" >/dev/null 2>&1 || POLICY='{}'
-[[ "$(jq -r '.ceiling // "act"' <<<"${POLICY}")" != off ]] ||
-    REASON="$(gettext "An administrator turned the AI agent off for this account.")"
+# The account's own level and what the administrator allows it (amethystora-agent policy, agent.conf's one reader),
+# in one read. The defaults are jq's, so that no field is empty for read to run two of them together.
+IFS=$'\t' read -r CEILING CHANGES_ON ROOT_MODE ALLOW < <(jq -r 'if type == "object" then . else {} end
+    | [.ceiling // "act", .tools // false, .root // "session", .allow // "act"] | @tsv' <<<"$(said policy)" 2>/dev/null)
+[[ -n "${CEILING:-}" ]] || { CEILING=act CHANGES_ON=false ROOT_MODE=session ALLOW=act; }
+[[ "${CEILING}" != off ]] || REASON="$(gettext "An administrator turned the AI agent off for this account.")"
 switch_choices false ame agent toggle
 USAGE="ame agent toggle on|off"
 item agent agent switch "$(gettext "Agentic features")" \
@@ -458,10 +459,10 @@ item agent agent switch "$(gettext "Agentic features")" \
     "${AGENT_STATE}" ai-agent#turning-it-on-and-off
 
 # Level 2: the tools that change things, which need level 1 and an administrator allowing them
-if [[ "$(jq -r '.tools // false' <<<"${POLICY}")" == true ]]; then CHANGES=on; else CHANGES=off; fi
+if [[ "${CHANGES_ON}" == true ]]; then CHANGES=on; else CHANGES=off; fi
 if [[ "${AGENTIC}" != true ]]; then
     REASON="$(gettext "Turn the agentic features on first.")"
-elif [[ "$(jq -r '.ceiling // "act"' <<<"${POLICY}")" != act ]]; then
+elif [[ "${CEILING}" != act ]]; then
     REASON="$(gettext "An administrator allows the agent only to know on this machine.")"
 fi
 switch_choices false ame agent tools
@@ -518,14 +519,14 @@ choice terminal "$(gettext "In a terminal")" \
 USAGE="ame agent root session|minutes|each|terminal"
 item agent agent-root choice "$(gettext "Root commands")" \
     "$(gettext "How the agent may run a command as root, once you let it make changes. It asks you first every time, in the agent.")" \
-    "$(jq -r '.root // "session"' <<<"${POLICY}")" ai-agent#root-commands
+    "${ROOT_MODE}" ai-agent#root-commands
 choice act "$(gettext "Know and change")" "$(gettext "Both levels, as each account chooses")" true ame agent lock act
 choice know "$(gettext "Only know")" "$(gettext "The agent and its read-only tools, but no changes")" true ame agent lock know
 choice off "$(gettext "Off")" "$(gettext "No agent features for anyone")" true ame agent lock off
 USAGE="ame agent lock [ACCOUNT] act|know|off"
 item agent agent-lock choice "$(gettext "Lock for every account")" \
     "$(gettext "The most any account may turn on; one account can be given its own with ame agent lock ACCOUNT LEVEL. For a child's account, Parental Controls' app filter is the stronger tool.")" \
-    "$(jq -r '.allow // "act"' <<<"${POLICY}")" ai-agent#the-lock
+    "${ALLOW}" ai-agent#the-lock
 GROUP=""
 
 # --- System ----------------------------------------------------------------------------------------
