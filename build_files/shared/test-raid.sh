@@ -276,23 +276,20 @@ jq -e '.devices[1].returned and (.devices[0].returned | not) and .errors == 3 an
     <<<"$("${RAID}" status --json | jq -c '.pools[] | select(.id == "backup")')" >/dev/null
 rm "${AMETHYSTORA_RAID_ROOT}/var/lib/amethystora/raid/missing.json"
 
-# Over several disks, the system gets the boot menu's "Start with a disk missing" at each start: the running
-# deployment, named by its own folder, mounted degraded with every LUKS device nofail, after what custom.cfg
-# held already; and loses it again on one disk. Root's, as amethystora-raid-boot.service runs it.
+# Over several disks, the system gets the boot menu's "Start with a disk missing" at each start: the default
+# deployment's entry, its ostree= link as ostree wrote it (the only kind ostree-prepare-root follows), mounted
+# degraded with every LUKS device nofail, after what custom.cfg held already; and loses it again on one disk.
+# Root's, as amethystora-raid-boot.service runs it.
 if [[ ${EUID} -eq 0 ]]; then
     B="${AMETHYSTORA_RAID_ROOT}/boot"
-    DEPLOY=/ostree/deploy/default/deploy/abc123.0
-    mkdir -p "${B}/loader/entries" "${B}/grub2" "${AMETHYSTORA_RAID_ROOT}/proc" "${AMETHYSTORA_RAID_ROOT}/sysroot${DEPLOY}" \
-        "${AMETHYSTORA_RAID_ROOT}/sysroot/ostree/boot.1/default/abc"
-    ln -s "../../../deploy/default/deploy/abc123.0" "${AMETHYSTORA_RAID_ROOT}/sysroot/ostree/boot.1/default/abc/0"
+    mkdir -p "${B}/loader/entries" "${B}/grub2"
     KARGS="root=UUID=${ROOT} rootflags=subvol=root rw rd.luks.uuid=luks-c0 rd.luks.options=tpm2-device=auto ostree=/ostree/boot.1/default/abc/0"
-    echo "BOOT_IMAGE=(hd0,gpt2)/ostree/default-abc/vmlinuz ${KARGS}" >"${AMETHYSTORA_RAID_ROOT}/proc/cmdline"
-    printf 'title Amethystora
-version 1
-options %s
-linux /ostree/default-abc/vmlinuz-7
-initrd /ostree/default-abc/initramfs-7.img
-'         "${KARGS}" >"${B}/loader/entries/ostree-1.conf"
+    entry() {  # FILE INDEX BOOTCSUM: an ostree boot entry, the default one with index 0
+        printf '%s\n' "title Amethystora (ostree:$2)" "version $((2 - $2))" "options ${KARGS/abc\/0/$3\/$2}" \
+            "linux /ostree/default-$3/vmlinuz-7" "initrd /ostree/default-$3/initramfs-7.img" >"${B}/loader/entries/$1"
+    }
+    entry ostree-1.conf 1 old
+    entry ostree-2.conf 0 abc
     echo 'menuentry "Mine" { true }' >"${B}/grub2/custom.cfg"
     devinfo "${ROOT}" 2 0 0 0 0 0 0
     "${RAID}" present-system
@@ -300,7 +297,7 @@ initrd /ostree/default-abc/initramfs-7.img
     grep -qx 'menuentry "Mine" { true }' "${B}/grub2/custom.cfg"
     grep -qx "menuentry 'Start with a disk missing' --unrestricted --id amethystora-degraded {" "${B}/grub2/custom.cfg"
     LINUX="    linux /ostree/default-abc/vmlinuz-7 root=UUID=${ROOT} rootflags=subvol=root,degraded rw rd.luks.uuid=luks-c0"
-    grep -qxF "${LINUX} rd.luks.options=tpm2-device=auto,nofail ostree=${DEPLOY}" "${B}/grub2/custom.cfg"
+    grep -qxF "${LINUX} rd.luks.options=tpm2-device=auto,nofail ostree=/ostree/boot.1/default/abc/0" "${B}/grub2/custom.cfg"
     grep -qxF "    initrd /ostree/default-abc/initramfs-7.img" "${B}/grub2/custom.cfg"
     before="$(cat "${B}/grub2/custom.cfg")"
     "${RAID}" boot

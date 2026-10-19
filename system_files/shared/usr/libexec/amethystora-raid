@@ -24,7 +24,7 @@
 #   amethystora-raid boot                amethystora-raid-boot.service: finish a mirror of the system after the
 #                                        restart from its new disk, and keep the boot menu's entry that
 #                                        starts a system over several disks with one of them missing
-#
+#   amethystora-raid boot-entry          that entry alone, as the same service writes it at shutdown
 # The system's own disks: `mirror` with no disk keeps a copy of each file on each disk of a system the
 # installer spread over several (2a); `mirror DISK` copies a system on one disk, laid out as the installer
 # does it (an ESP, an ext4 /boot and btrfs, on LUKS or not), onto a new disk: its own ESP, /boot made a RAID1
@@ -1525,20 +1525,18 @@ degraded_options() {
 }
 
 # The boot menu entry that starts the system with one of its disks missing, for custom.cfg, which bootupd's own
-# grub.cfg reads after its entries: the deployment running now, named by its own folder rather than by
-# /ostree/boot.N, which the next update's entries replace. The menu waits 5 s, not 1, to give time to choose it.
+# grub.cfg reads after its entries: the default deployment's entry (ostree titles it "(ostree:0)"), with its
+# ostree= path as ostree wrote it, since ostree-prepare-root takes only that /ostree/boot.N link. The next update
+# replaces those links, so this is written again at each start and at each shutdown, after ostree has written
+# the new entries (amethystora-raid-boot.service). The menu waits 5 s, not 1, to give time to choose it.
 degraded_entry() {
-    local booted entry deployment linux initrd options
-    booted="$(tr ' ' '\n' <"${R}/proc/cmdline" | sed -n 's/^ostree=//p' | head -n 1)"
-    [[ -n "${booted}" ]] || return 1
-    entry="$(grep -lsF -- " ostree=${booted}" "${BOOT}"/loader/entries/*.conf | head -n 1)"
-    deployment="$(readlink -f "${R}/sysroot${booted}" 2>/dev/null)"
-    deployment="${deployment#"${R}/sysroot"}"
-    [[ -n "${entry}" && "${deployment}" == /ostree/deploy/* ]] || return 1
+    local entry linux initrd options
+    entry="$(grep -lsF '(ostree:0)' "${BOOT}"/loader/entries/*.conf | head -n 1)"
+    [[ -n "${entry}" ]] || entry="$(find "${BOOT}/loader/entries" -name '*.conf' 2>/dev/null | sort | head -n 1)"
+    [[ -n "${entry}" ]] || return 1
     linux="$(awk '$1 == "linux" { print $2; exit }' "${entry}")"
     initrd="$(awk '$1 == "initrd" { $1 = ""; sub(/^ +/, ""); print; exit }' "${entry}")"
-    options="$(awk '$1 == "options" { $1 = ""; sub(/^ +/, ""); print; exit }' "${entry}" |
-        sed "s#\(^\| \)ostree=[^ ]*#\1ostree=${deployment}#" | degraded_options)"
+    options="$(awk '$1 == "options" { $1 = ""; sub(/^ +/, ""); print; exit }' "${entry}" | degraded_options)"
     [[ -n "${linux}" && -n "${initrd}" && -n "${options}" ]] || return 1
     printf '%s\n' "${BOOT_ENTRY_BEGIN}" \
         "# amethystora-raid boot writes this at every start of a system over several disks: it starts the system" \
@@ -2232,6 +2230,7 @@ case "${1:-}" in
     notify) shift && cmd_notify "$@" ;;
     scrub-all) cmd_scrub_all ;;
     boot) cmd_boot ;;
+    boot-entry) [[ ${EUID} -eq 0 ]] && write_boot_entry ;;
     present-system) system_present ;;
     -h | --help | help) usage ;;
     *)

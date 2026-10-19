@@ -88,7 +88,7 @@ mirroring)
         continue_phase
     fi
     says "ame system raid mirror keeps a copy on each disk" "$(cat "${TESTS}/mirror.out")" \
-        'stay on the first disk only' 'Done: every file of the system is on each of its disks'
+        'the boot files, /boot and the EFI partition' 'Done: every file of the system is on each of its disks'
     holds "the system is two copies on two disks, fine" "$(system_json)" \
         '.layout == "raid1" and .metadata == "raid1" and .state == "ok" and (.devices | length) == 2'
     check "the boot menu has Start with a disk missing" grep -q "menuentry 'Start with a disk missing'" /boot/grub2/custom.cfg

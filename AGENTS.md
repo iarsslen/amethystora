@@ -756,8 +756,9 @@ replaces, adds, opens and forgets them. Its plan, with what is left to do, is `p
 - **Starting with a disk dead:** 64-btrfs.rules keeps a btrfs with a member missing waiting forever, and
   systemd will not add the policy (#36886). On a system over several disks, `amethystora-raid-boot.service`
   writes the boot menu entry **Start with a disk missing** into `/boot/grub2/custom.cfg`, between
-  `amethystora-raid` markers, at every start: the running deployment with `rootflags=...,degraded` and
-  `rd.luks.options=...,nofail`, naming its deployment folder rather than `/ostree/boot.N`, and a 5 s menu.
+  `amethystora-raid` markers, at every start and again at shutdown after ostree finalized an update: the
+  default deployment's entry with `rootflags=...,degraded` and `rd.luks.options=...,nofail`, and a 5 s menu.
+  Its `ostree=` stays the `/ostree/boot.N` link ostree wrote, the only kind ostree-prepare-root follows.
   The dracut module `amethystora-degraded` (initramfs only) marks the btrfs ready when, and only when,
   `rootflags` asks for `degraded`: nothing mounts around a disk that is only slow unless a person chose
   that entry. `replace system` puts a new disk in its place (ESP, `md-boot` half and LUKS when mirrored).
