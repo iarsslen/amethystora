@@ -21,9 +21,11 @@
 #   amethystora-raid check               amethystora-raid-check.service: read SMART, say what changed
 #   amethystora-raid notify SUMMARY BODY the check's notification, whose button opens Control
 #   amethystora-raid scrub-all           amethystora-raid-scrub.service
-#   amethystora-raid boot                amethystora-raid-boot.service: finish a mirror of the system after the
-#                                        restart from its new disk, and keep the boot menu's entry that
-#                                        starts a system over several disks with one of them missing
+#   amethystora-raid boot-mirror         amethystora-raid-mirror.service: before /boot is mounted, at the restart
+#                                        from a mirror's new disk, the first disk's /boot joins the mirror
+#   amethystora-raid boot                amethystora-raid-boot.service: finish that mirror (SELinux's labels),
+#                                        and keep the boot menu's entry that starts a system over several
+#                                        disks with one of them missing
 #   amethystora-raid boot-entry          that entry alone, as the same service writes it at shutdown
 # The system's own disks: `mirror` with no disk keeps a copy of each file on each disk of a system the
 # installer spread over several (2a); `mirror DISK` copies a system on one disk, laid out as the installer
@@ -611,7 +613,7 @@ def how:
     if .busy != [] or .operation != null then
         "Busy " + (if any(.busy[]; test("-replace-")) then "replacing a disk." elif any(.busy[]; test("-scrub-")) then "checking every copy."
                    elif .busy != [] then "putting its copies where they belong." else "(\(.operation))." end)
-    elif .mirror != null and .mirror.state == "failed" then "Mirroring it onto the new disk stopped: \(.mirror.reason // "journalctl -u amethystora-raid-boot says why")."
+    elif .mirror != null and .mirror.state == "failed" then "Mirroring it onto the new disk stopped: \(.mirror.reason // "journalctl -u amethystora-raid-mirror says why")."
     elif .mirror != null then "Restart to finish: the machine starts once from the new disk, then the boot files of the first disk join it."
     elif .mounted | not then "Not mounted, perhaps because one of its disks is missing. Open it with what is there" + run("mount") + "."
     elif .missing > 0 then
@@ -1911,16 +1913,20 @@ mirror_onto() {  # STATUS [DISK]
     return 0
 }
 
-# Once the restart from the new disk worked (amethystora-raid-boot.service): the first disk's /boot joins the
-# mirror, its EFI partition points at it, and bootupd updates both. A start from anywhere else changes
-# nothing, and is said.
-mirror_finish() {
-    local state current entry boot_part esp copy started reason=""
+# At the restart from the new disk, before /boot is mounted (amethystora-raid-mirror.service), while nothing holds
+# it: the mirror gets what changed in the first disk's /boot since the copy, fstab mounts the mirror (boot.mount,
+# waiting for this, reads it again), the first disk's /boot becomes its other half and its EFI partition points at
+# it. A start from anywhere else changes nothing, and is said.
+mirror_join() {
+    [[ ${EUID} -eq 0 ]] || die "This is amethystora-raid-mirror.service's."
+    local state current entry boot_part esp from to started reason="" boot_uuid fsck_unit
     state="$(jq -c 'select(type == "object")' "${MIRROR_STATE}" 2>/dev/null)" || return 0
     [[ "$(jq -r .state <<<"${state}")" == pending ]] || return 0
     [[ "$(jq -r .boot_id <<<"${state}")" != "$(cat /proc/sys/kernel/random/boot_id)" ]] || return 0
-    entry="$(jq -r .entry <<<"${state}")"
+    entry="$(jq -r .entry <<<"${state}")" boot_uuid="$(jq -r .boot_uuid <<<"${state}")"
     current="$(efibootmgr 2>/dev/null | sed -n 's/^BootCurrent: //p')"
+    # The disks, which udev may still be naming this early in the start
+    udevadm settle --timeout=60
     boot_part="$(blkid -t "PARTUUID=$(jq -r .old_boot <<<"${state}")" -o device 2>/dev/null | head -n 1)"
     esp="$(blkid -t "PARTUUID=$(jq -r .old_esp <<<"${state}")" -o device 2>/dev/null | head -n 1)"
     # Started from the new disk: the ESP the firmware's entry names, whichever entry it was, else that entry
@@ -1933,35 +1939,47 @@ mirror_finish() {
     fi
     if [[ -z "${reason}" ]]; then
         echo "Started from the new disk: the first disk's /boot joins the mirror."
-        # Its one half waits for mdadm's last resort, half a minute into the start
+        # Its one half would wait for mdadm's last resort, half a minute into the start
         mdadm -IRs >/dev/null 2>&1
-        udevadm settle
-        copy="$(mktemp -d)"
-        # What changed in /boot since the copy, then /boot from the mirror, and the old one in it
-        if mount "${BOOT_MD}" "${copy}" && rsync -aHA --delete --one-file-system --exclude=/lost+found /boot/ "${copy}/" &&
-            umount "${copy}" && { umount /boot/efi 2>/dev/null; umount /boot; } && mount "${BOOT_MD}" /boot; then
-            # Copied without SELinux's labels, which rsync may not set on a new filesystem: /boot's own now
-            restorecon -RF /boot
-            mount /boot/efi 2>/dev/null
-            sed -i -E "s#^UUID=[^[:space:]]+([[:space:]]+/boot[[:space:]])#UUID=$(jq -r .boot_uuid <<<"${state}")\1#" "${FSTAB}"
+        udevadm settle --timeout=60
+        # systemd checks the first disk's /boot, fstab's, before mounting it: not while it is copied or joins
+        fsck_unit="systemd-fsck@$(systemd-escape -p "/dev/disk/by-uuid/$(awk '!/^[[:space:]]*#/ && $2 == "/boot" {
+            sub(/^UUID=/, "", $1); print $1 }' "${FSTAB}")").service"
+        for _ in $(seq 120); do
+            systemctl list-jobs --no-legend 2>/dev/null | grep -qF "${fsck_unit}" ||
+                [[ "$(systemctl show -p ActiveState --value "${fsck_unit}" 2>/dev/null)" == activating ]] || break
+            sleep 0.5
+        done
+        from="$(mktemp -d)" to="$(mktemp -d)"
+        if mount -o ro "${boot_part}" "${from}" && mount "${BOOT_MD}" "${to}" &&
+            rsync -aHA --delete --exclude=/lost+found "${from}/" "${to}/"; then
+            umount "${from}" "${to}"
+            sed -i -E "s#^UUID=[^[:space:]]+([[:space:]]+/boot[[:space:]])#UUID=${boot_uuid}\1#" "${FSTAB}"
             systemctl daemon-reload
-            wipefs -a -q "${boot_part}" && mdadm "${BOOT_MD}" --add "${boot_part}" ||
+            wipefs -a -q "${boot_part}" && mdadm "${BOOT_MD}" --add "${boot_part}" >/dev/null ||
                 reason="the first disk's /boot could not join the mirror"
-            point_esp_at "${esp}" "$(jq -r .boot_uuid <<<"${state}")" || reason="the first disk's EFI partition could not be pointed at the mirror"
-            bootupctl update 2>&1 | sed 's/^/bootupctl: /'
+            point_esp_at "${esp}" "${boot_uuid}" || reason="the first disk's EFI partition could not be pointed at the mirror"
         else
-            umount "${copy}" 2>/dev/null
-            findmnt -rn --mountpoint /boot >/dev/null || mount /boot
-            mount /boot/efi 2>/dev/null
-            reason="/boot could not be moved onto its mirror"
+            umount "${from}" "${to}" 2>/dev/null
+            reason="/boot's mirror could not be brought up to date from the first disk's"
         fi
-        rmdir "${copy}" 2>/dev/null
+        rmdir "${from}" "${to}" 2>/dev/null
     fi
     if [[ -n "${reason}" ]]; then
         echo "The mirror of the system did not finish: ${reason}." >&2
         jq -c --arg reason "${reason}" '.state = "failed" | .reason = $reason' <<<"${state}" | write_state "${MIRROR_STATE}"
         return 1
     fi
+    jq -c '.state = "joined"' <<<"${state}" | write_state "${MIRROR_STATE}"
+}
+
+# Once /boot is mounted from its mirror (amethystora-raid-boot.service): its files labelled as SELinux has them,
+# which the copy, made without their labels, left out. bootupd's own update at each start finds both ESPs.
+mirror_finish() {
+    local state
+    state="$(jq -c 'select(type == "object")' "${MIRROR_STATE}" 2>/dev/null)" || return 0
+    [[ "$(jq -r .state <<<"${state}")" == joined ]] || return 0
+    restorecon -RF /boot
     rm -f "${MIRROR_STATE}"
     echo "The system is on both disks, and starts from either."
 }
@@ -2165,7 +2183,7 @@ def disk: if (.disk.model // "") != "" then .disk.model + (if (.disk.serial // "
         body: "The system starts from one of its disks only until they are put back: ame system raid replace system."} else empty end),
      (if .mirror != null and .mirror.state == "failed" then {key: "\(.uuid)/mirror/\(.mirror.time)", count: 1, rank: 2,
         summary: "Mirroring the system did not finish",
-        body: "\(.mirror.reason // "journalctl -u amethystora-raid-boot says why"). Every file is still on the first disk."} else empty end))
+        body: "\(.mirror.reason // "journalctl -u amethystora-raid-mirror says why"). Every file is still on the first disk."} else empty end))
 ]'
 
 cmd_check() {
@@ -2278,6 +2296,7 @@ case "${1:-}" in
     scrub-all) cmd_scrub_all ;;
     boot) cmd_boot ;;
     boot-entry) [[ ${EUID} -eq 0 ]] && write_boot_entry ;;
+    boot-mirror) mirror_join ;;
     present-system) system_present ;;
     -h | --help | help) usage ;;
     *)

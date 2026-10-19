@@ -1,0 +1,23 @@
+[Unit]
+Description=Finish mirroring the system onto a new disk, before /boot is mounted
+Documentation=file:///usr/share/amethystora/manual/hardware.md
+# At the start after ame system raid mirror DISK, while nothing holds /boot: the mirror of /boot gets what changed
+# on the first disk's since the copy, fstab mounts the mirror, and the first disk's /boot becomes its other half
+DefaultDependencies=no
+# The mirror's state in /var, the firmware's variables (which disk this start came from), and the disks
+RequiresMountsFor=/var/lib/amethystora/raid
+After=sys-firmware-efi-efivars.mount systemd-udev-trigger.service systemd-remount-fs.service ostree-remount.service
+Before=boot.mount local-fs.target shutdown.target
+Conflicts=shutdown.target
+ConditionPathExists=/var/lib/amethystora/raid/mirror.json
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# /tmp may not be mounted yet
+Environment=TMPDIR=/run
+ExecStart=/usr/libexec/amethystora-raid boot-mirror
+TimeoutStartSec=10min
+
+[Install]
+WantedBy=local-fs.target
