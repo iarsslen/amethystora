@@ -268,7 +268,7 @@ msgid "The system is sealed: every file of it is checked, as it is read, against
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
-msgid "The running system is on composefs: /usr is verified as it is read, not only when pulled"
+msgid "/usr is mounted read-only from the files the signed update installed, but nothing checks them as they are read"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status

@@ -327,18 +327,18 @@ if [[ -d "${XDG_STATE_HOME:-${HOME:-/nonexistent}/.local/state}/amethystora/pkg/
     fi
 fi
 
-# What the signature buys is a trusted image at the moment it is pulled. Whether /usr is still
-# checked afterwards is composefs's job, and that comes from the base image rather than from
-# anything set here, so this reports what is actually mounted rather than what was intended. A sealed
-# image boots with the digest of all its files on the signed kernel's command line, and its root is
-# mounted only with fs-verity required.
+# What the signature buys is a trusted image at the moment it is pulled. Only a sealed image checks /usr
+# afterwards: it boots with the digest of all its files on the signed kernel's command line, and its root
+# is mounted only with fs-verity required. The ostree images mount composefs with `enabled = yes`, which
+# expects no digest and passes overlayfs no verity option, so an object changed in /sysroot/ostree/repo is
+# what /usr then serves. This reports what is actually mounted rather than what was intended.
 if grep -Eq '(^| )composefs=[0-9a-f]+( |$)' /proc/cmdline 2>/dev/null &&
     findmnt -no OPTIONS / 2>/dev/null | grep -q 'verity=require'; then
     report updates composefs ok "$(gettext "Verified system files")" \
         "$(gettext "The system is sealed: every file of it is checked, as it is read, against the digest its signed kernel carries")"
 elif grep -q composefs /proc/mounts 2>/dev/null; then
-    report updates composefs ok "$(gettext "Verified system files")" \
-        "$(gettext "The running system is on composefs: /usr is verified as it is read, not only when pulled")"
+    report updates composefs info "$(gettext "Verified system files")" \
+        "$(gettext "/usr is mounted read-only from the files the signed update installed, but nothing checks them as they are read")"
 else
     report updates composefs info "$(gettext "Verified system files")" \
         "$(gettext "/usr is read-only and replaced whole by each update, but is not re-verified as it is read")"
