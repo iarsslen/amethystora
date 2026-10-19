@@ -119,7 +119,7 @@ back)
     holds "SPARE-6 is back, with the old copies of what it missed, and not failing" "$(system_json)" \
         '.missing == 0 and any(.devices[]; .returned) and (.problems | index("returned")) != null and .errors == 0'
     out="$(in_terminal 1500 'Put the copies back now\?' y -- "${AS_TESTER[@]}" 'ame system raid replace system')"
-    says "ame system raid replace system puts the copies back" "${out}" 'Every file of system has its copies again'
+    says "ame system raid replace system puts the copies back" "${out}" 'Every file of (the )?system has its copies again'
     holds "the system is whole: nothing missing, back, counting or with one copy" "$(system_json)" \
         '.state == "ok" and all(.devices[]; (.returned | not) and .error_count == 0) and (.degraded | not)'
     out="$(btrfs scrub start -B /var 2>&1)"

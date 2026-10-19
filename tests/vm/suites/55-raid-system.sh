@@ -297,7 +297,7 @@ first-back)
     holds "Control offers Put the copies back… for the system" "$(row_of "$(control_json)" system)" \
         'any(.actions[]; .id == "replace" and .command == ["ame", "system", "raid", "replace", "system"])'
     out="$(in_terminal 1500 'Put the copies back now\?' y -- "${AS_TESTER[@]}" 'ame system raid replace system')"
-    says "ame system raid replace system puts the copies back" "${out}" 'is back, with old copies' 'Every file of system has its copies again'
+    says "ame system raid replace system puts the copies back" "${out}" 'is back, with old copies' 'Every file of (the )?system has its copies again'
     md_wait
     holds "the system is whole again: nothing missing, back or counting" "$(system_json)" \
         '.state == "ok" and .missing == 0 and .errors == 0 and all(.devices[]; (.returned | not) and .error_count == 0) and .boot.members == 2'
@@ -340,7 +340,8 @@ replacing)
         '.missing == 0 and .layout == "raid1" and (.degraded | not) and .boot.members == 2 and any(.devices[]; .disk.serial == "SPARE-4")'
     check "SPARE-3's key is out of the boot entries and /etc/crypttab" sh -c \
         "! grep -qs '${NEW_LUKS}' /boot/loader/entries/*.conf /etc/crypttab"
-    check "SPARE-4's key is in both" sh -c "u=\$(cryptsetup luksUUID ${REPLACED_ROOT}); grep -q \$u /etc/crypttab && grep -q \"rd.luks.uuid=luks-\$u\" /boot/loader/entries/ostree-1.conf"
+    check "SPARE-4's key is in /etc/crypttab and every boot entry" sh -c \
+        "u=\$(cryptsetup luksUUID ${REPLACED_ROOT}); grep -q \$u /etc/crypttab && for e in /boot/loader/entries/*.conf; do grep -q \"rd.luks.uuid=luks-\$u\" \$e || exit 1; done"
     check "the firmware's entry for SPARE-3 is gone, SPARE-4 has one" sh -c \
         "! efibootmgr -v | grep -qi '${NEW_ESP_PARTUUID}' && efibootmgr | grep -q 'Amethystora ($(basename "${REPLACED_DISK}"))'"
     has_tpm "${REPLACED_ROOT}" && ok "the TPM holds a key for SPARE-4" || not_ok "no TPM key on SPARE-4"

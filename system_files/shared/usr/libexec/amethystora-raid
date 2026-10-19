@@ -288,6 +288,17 @@ show_lines() {  # [--unopened]
         done
 }
 
+# A device's size in its filesystem, which btrfs filesystem show gives a missing one as 0: then its item in the
+# chunk tree, read from a device that is there. Nothing when neither knows it.
+devid_size() {  # TARGET DEVID SHOWN-SIZE
+    local there
+    [[ "${3:-0}" -gt 0 ]] && { printf '%s\n' "$3"; return; }
+    there="$(as_root btrfs filesystem show --raw "$1" | show_lines | awk '$3 != "-" { print $3; exit }')"
+    [[ -n "${there}" ]] || return 0
+    as_root btrfs inspect-internal dump-tree -t chunk "/dev/${there}" 2>/dev/null |
+        awk -v devid="$2" '$1 == "devid" && $2 == devid && $3 == "total_bytes" { print $4; exit }'
+}
+
 # Devices of a mounted btrfs whose disk is gone from under them: a LUKS mapping, still open, over a disk the
 # kernel dropped when it was pulled out. btrfs goes on with the others and counts errors for it; it is missing.
 gone_devices() {  # FS-SYSFS-DIR
@@ -892,8 +903,11 @@ spread_back() {  # POOL TARGET
     [[ -n "${data}" && "${data}" != single ]] && args+=("-dconvert=${data},soft")
     [[ -n "${metadata}" ]] && args+=("-mconvert=${metadata},soft")
     [[ ${#args[@]} -gt 0 ]] || return 0
-    long_run balance "$1" "Putting back the copies of $1" "$2" btrfs balance start "${args[@]}" "$2"
+    long_run balance "$1" "Putting back the copies of $(pool_words "$1")" "$2" btrfs balance start "${args[@]}" "$2"
 }
+
+# A pool's name as a sentence says it: the system's own disks are "the system"
+pool_words() { if [[ "$1" == system ]]; then echo "the system"; else echo "$1"; fi; }
 
 # The crypttab lines of a pool's disks that are no longer in it, the disk replaced, with their mappings.
 # Nothing goes while any disk of the pool is still missing, which may come back, nor without the list of
@@ -1152,10 +1166,11 @@ cmd_mount() {
 # written while it was away, which btrfs counts as errors as it finds them), what has one copy given its
 # second, and the disk that came back no longer counting what it missed
 put_back() {  # NAME TARGET POOL-JSON
-    local name="$1" target="$2" pool="$3" returned=() line devid kname part code disk
+    local name="$1" target="$2" pool="$3" returned=() line devid kname part code disk what
+    what="$(pool_words "${name}")"
     mapfile -t returned < <(jq -r '.devices[] | select(.returned) | "\(.devid) \(.kname)"' <<<"${pool}")
-    [[ ${#returned[@]} -gt 0 ]] && echo "A disk of ${name} that was missing is back, with old copies of what was written while it was away."
-    jq -e '.degraded' <<<"${pool}" >/dev/null && echo "Part of ${name} has one copy, written while a disk was missing."
+    [[ ${#returned[@]} -gt 0 ]] && echo "A disk of ${what} that was missing is back, with old copies of what was written while it was away."
+    jq -e '.degraded' <<<"${pool}" >/dev/null && echo "Part of ${what} has one copy, written while a disk was missing."
     jq -e '.boot.degraded == true' <<<"${pool}" >/dev/null && echo "The boot files of the system have one copy."
     gum confirm "Put the copies back now? It reads everything, so it takes a while on a large disk." || exit 0
     as_root true || exit 1
@@ -1171,7 +1186,7 @@ put_back() {  # NAME TARGET POOL-JSON
         done
     fi
     if [[ ${#returned[@]} -gt 0 ]]; then
-        long_run scrub "${name}" "Checking every copy of ${name}" "${target}" btrfs scrub start -B "${target}"
+        long_run scrub "${name}" "Checking every copy of ${what}" "${target}" btrfs scrub start -B "${target}"
         code=$?
         [[ ${code} -eq 3 ]] && die "The check found damage it could not repair from another copy: journalctl -k -g btrfs names the files."
         [[ ${code} -eq 0 ]] || die "The check did not finish: journalctl -u amethystora-raid-scrub-${name} says why."
@@ -1184,17 +1199,17 @@ put_back() {  # NAME TARGET POOL-JSON
     [[ ${#returned[@]} -gt 0 ]] && forget_missing "$(jq -r .uuid <<<"${pool}")" $(printf '%s\n' "${returned[@]}" | awk '{ print $1 }')
     # A replace whose window was closed before it got this far left the old disk's line behind
     [[ "$(jq -r '.encrypted and .managed' <<<"${pool}")" == true ]] && retire_lines "${name}" "${target}"
-    echo "Every file of ${name} has its copies again."
+    echo "Every file of ${what} has its copies again."
 }
 
 # A new disk of the system in place of one that is gone or failing: like the disk that is left, an EFI
 # partition, a half of /boot's mirror and the rest for the system when the system was mirrored onto a disk of
 # its own (2b), or one partition for the system when the installer spread it (2a), encrypted with the system's
 # passphrase when it is. The dead disk's kernel argument, crypttab line and firmware entry go after.
-replace_system() {  # STATUS POOL-JSON DEVID OLD-KNAME CHOICE
-    local status="$1" pool="$2" devid="$3" old="$4" choice="$5" target encrypted template template_part template_disk
+replace_system() {  # STATUS POOL-JSON DEVID OLD-KNAME CHOICE SIZE
+    local status="$1" pool="$2" devid="$3" old="$4" choice="$5" size="$6" target encrypted template template_part template_disk
     local mirrored=false candidates disk lines=() passphrase="" outgoing="" esp boot_uuid new_esp new_boot new_root source args=()
-    local part uuid entry number
+    local part uuid entry number need header=0
     target="$(jq -r .target <<<"${pool}")"
     encrypted="$(jq -r .encrypted <<<"${pool}")"
     jq -e '.boot != null' <<<"${pool}" >/dev/null && mirrored=true
@@ -1204,13 +1219,20 @@ replace_system() {  # STATUS POOL-JSON DEVID OLD-KNAME CHOICE
     template_part="$(luks_under "${template}" | head -n 1)"
     template_part="${template_part:-/dev/${template}}"
     template_disk="$(disk_of_part "${template_part}")"
+    # At least as large as the system's part of the disk that goes, as btrfs replace requires, with LUKS's header,
+    # the partition table's first megabyte, and the EFI partition and /boot's half beside it: a disk the same size
+    # as the one that goes always is. Checked again exactly once it is partitioned.
+    [[ "${encrypted}" == true ]] && header=$((LUKS_OVERHEAD - PLAIN_OVERHEAD))
+    need=$((size + header + 1048576))
     if [[ "${mirrored}" == true ]]; then
-        candidates="$(jq -c --argjson need "$(lsblk -bndo SIZE "${template_disk}")" '.spare | map(select(.size >= $need))' <<<"${status}")"
-    else
-        candidates="$(jq -c --argjson need "$(($(part_size "${template_part}") + LUKS_OVERHEAD))" '.spare | map(select(.size >= $need))' <<<"${status}")"
+        esp="$(esp_on "${template_disk}")"
+        part="$(boot_half_on "${template_disk}")"
+        [[ -n "${esp}" && -n "${part}" ]] || die "The EFI partition or /boot's half on ${template_disk} could not be found."
+        need=$((need + $(part_size "${esp}") + $(part_size "${part}")))
     fi
+    candidates="$(jq -c --argjson need "${need}" '.spare | map(select(.size >= $need))' <<<"${status}")"
     [[ "$(jq length <<<"${candidates}")" -gt 0 ]] ||
-        die "No spare disk is large enough to take its place: the new one needs to be as large as ${template_disk}. Connect one, then run ame system raid replace system again."
+        die "No spare disk is large enough to take its place: the new one needs $(human "${need}") or more. Connect one, then run ame system raid replace system again."
     disk="$(pick_disk "${candidates}" "Which disk takes its place? Everything on it is erased.")" || exit 0
     mapfile -t lines < <(disk_plan "${candidates}" "${disk}")
     box "Disk ${devid} of the system ($(sed -E 's/^disk [0-9]+ +//' <<<"${choice}")) is replaced by:" "" "${lines[@]}" "" \
@@ -1226,9 +1248,6 @@ replace_system() {  # STATUS POOL-JSON DEVID OLD-KNAME CHOICE
     mapfile -t lines < <(lsblk -nrpo PATH "${disk}" | tac)
     as_root wipefs -a -q "${lines[@]}" >&2 || die "${disk} could not be erased."
     if [[ "${mirrored}" == true ]]; then
-        esp="$(esp_on "${template_disk}")"
-        part="$(boot_half_on "${template_disk}")"
-        [[ -n "${esp}" && -n "${part}" ]] || die "The EFI partition or /boot's half on ${template_disk} could not be found."
         printf 'label: gpt\nsize=%s, type=%s, name="EFI System Partition"\nsize=%s, type=%s, name="boot"\ntype=%s, name="system"\n' \
             "$(($(part_size "${esp}") / 512))" "${ESP_TYPE}" "$(($(part_size "${part}") / 512))" "${RAID_TYPE}" "$(part_type "${template_part}")" |
             as_root sfdisk --quiet --wipe always --wipe-partitions always "${disk}" >/dev/null || die "${disk} could not be partitioned."
@@ -1241,6 +1260,8 @@ replace_system() {  # STATUS POOL-JSON DEVID OLD-KNAME CHOICE
         new_root="$(part_of "${disk}" 1)"
     fi
     [[ -n "${new_root}" ]] || die "${disk} could not be partitioned."
+    (($(part_size "${new_root}") - header >= size)) ||
+        die "${disk} is a little too small to take its place: the system needs $(human "$((size + header))") on it. Nothing but ${disk} was changed."
     if [[ "${encrypted}" == true ]]; then
         source="$(system_luks "${new_root}" "${passphrase}")" || die "${new_root} could not be encrypted."
     else
@@ -1333,7 +1354,7 @@ cmd_replace() {
             put_back "${name}" "${target}" "${pool}"
             exit 0
         fi
-        echo "Every disk of ${name} is fine."
+        echo "Every disk of $(pool_words "${name}") is fine."
         gum confirm --default=no "Replace one anyway?" || exit 0
     fi
     room_to_replace "${target}" ||
@@ -1341,18 +1362,20 @@ cmd_replace() {
     mapfile -t lines < <(jq -r '.devices | sort_by((.missing or .smart == "failed" or .error_count > 0) | not)[]
         | "disk \(.devid)  " + (if (.disk.model // "") != "" then "\(.disk.model) \(.disk.serial // "")" else "" end)
           + (if .missing then "  missing" elif .smart == "failed" then "  failing" elif .error_count > 0 then "  \(.error_count) errors" else "  fine" end)' <<<"${pool}")
-    choice="$(gum choose --header "Which disk of ${name} goes?" "${lines[@]}")" || exit 0
+    choice="$(gum choose --header "Which disk of $(pool_words "${name}") goes?" "${lines[@]}")" || exit 0
     devid="$(awk '{ print $2; exit }' <<<"${choice}")"
     as_root true || exit 1
     old_line="$(as_root btrfs filesystem show --raw "${target}" | show_lines | awk -v devid="${devid}" '$1 == devid')"
     size="$(awk '{ print $2 }' <<<"${old_line}")"
     old="$(awk '{ print $3 }' <<<"${old_line}")"
     [[ -n "${size}" ]] || die "btrfs does not know disk ${devid} of ${name}."
+    size="$(devid_size "${target}" "${devid}" "${size}")"
+    size="${size:-0}"
     if [[ "${old}" == - ]] && jq -e '.survives == 0' <<<"${pool}" >/dev/null; then
         die "${name} keeps no copies, so what was on disk ${devid} cannot be rebuilt: its files are gone until it is back. Copy off the rest from ${MNT}/${name}."
     fi
     if [[ "${system}" == true ]]; then
-        replace_system "${status}" "${pool}" "${devid}" "${old}" "${choice}"
+        replace_system "${status}" "${pool}" "${devid}" "${old}" "${choice}" "${size}"
         return
     fi
 
