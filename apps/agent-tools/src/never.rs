@@ -108,7 +108,8 @@ fn security_refusal(args: &[&str]) -> Option<String> {
         [switch, "on"] => SECURITY_ON.contains(switch),
         ["profile", "light" | "balanced" | "thorough"] => true,
         ["kernel-args", argument, "on"] => argument.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '=' | '-')),
-        ["dns", "on", servers @ ..] => servers.iter().all(|server| server.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | ':' | '#' | '-'))),
+        // A resolver of the list, or resuming after a pause; custom asks its servers in a terminal
+        ["dns", "quad9" | "mullvad" | "cloudflare" | "google" | "resume"] => true,
         _ => false,
     };
     if allowed {
@@ -144,6 +145,8 @@ mod tests {
             "ame security allow report",
             "ame security profile off",
             "ame security lockdown off",
+            "ame security dns pause",
+            "ame security dns off",
             "ame system raid create",
             "amethystora-raid create",
             "restic -r x forget --prune",
@@ -174,6 +177,7 @@ mod tests {
             "ame security lockdown on",
             "ame security profile balanced",
             "ame security kernel-args init_on_free=1 on",
+            "ame security dns quad9",
             "ame system raid status",
             "ame system rebase amethystora stable",
             "python3 /home/a/fix.py",

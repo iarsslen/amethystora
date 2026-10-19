@@ -2,7 +2,7 @@
 //!
 //!   change    one of Control's settings, by the entry's id and one of its values, with the list's own command
 //!             (amethystora-control-core, which Control uses too); one marked terminal opens in a terminal
-//!   software  Flatpak for the account, Homebrew, or an amethystora-pkg container, in that order of preference
+//!   software  Flatpak, Homebrew, or an amethystora-pkg container, in that order of preference
 //!   run       a command for the user: as root through the root helper, in the administrator's mode, or in a
 //!             terminal, where the user reads it and says yes
 //!   undo      the recorded inverse of a change, through the same path
@@ -83,6 +83,10 @@ fn change_to(cache: &Cache, jobs: &Jobs, entry: &str, value: &str, undoing: Opti
         }
         _ => format!("{value} is not one of {entry}'s values now: state settings lists them."),
     })?;
+    // The list holds what the agent may never do too: its own lock and root mode, its own levels, the AUR
+    if let Some(why) = never::refusal(&planned.argv) {
+        return Err(format!("Refused: {why}. The user changes {} themselves, in Control.", item.title));
+    }
     // The way back: the value it had, when that is one of its values
     let undo = before
         .as_deref()
@@ -152,6 +156,19 @@ fn simple_name(name: &str) -> bool {
         && name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '@' | '+' | '.' | '_' | '-' | ':'))
 }
 
+/// Which installation a Flatpak goes in, or comes out of: the account's own where it has Flathub as a remote of
+/// its own (or the app is there), and otherwise the machine's, where the image's own recipes install, which asks
+/// for no password unless the stricter flatpak-password is on
+fn flatpak_installation(action: &str, name: &str) -> &'static str {
+    let user_has = |argv: &[&str]| run::run(argv, Duration::from_secs(20)).ok();
+    let mine = if action == "remove" {
+        user_has(&["flatpak", "info", "--user", name])
+    } else {
+        run::run(&["flatpak", "remotes", "--user", "--columns=name"], Duration::from_secs(20)).stdout.lines().any(|line| line.trim() == "flathub")
+    };
+    if mine { "--user" } else { "--system" }
+}
+
 /// The argument vector for a software action, checked; and the action that undoes it
 pub fn software_argv(action: &str, source: &str, name: &str, container: Option<&str>) -> Result<(Vec<String>, Option<&'static str>), String> {
     let words = |list: &[&str]| list.iter().map(|word| word.to_string()).collect::<Vec<String>>();
@@ -171,9 +188,10 @@ pub fn software_argv(action: &str, source: &str, name: &str, container: Option<&
             if action != "search" && !flatpak_id(name) {
                 return Err("a Flatpak is named by its id, such as org.gnome.Calculator".into());
             }
+            let installation = flatpak_installation(action, name);
             match action {
-                "install" => words(&["flatpak", "install", "--user", "--noninteractive", "flathub", name]),
-                "remove" => words(&["flatpak", "uninstall", "--user", "--noninteractive", name]),
+                "install" => words(&["flatpak", "install", installation, "--noninteractive", "flathub", name]),
+                "remove" => words(&["flatpak", "uninstall", installation, "--noninteractive", name]),
                 _ => words(&["flatpak", "search", "--columns=application,name,description", name]),
             }
         }
@@ -342,7 +360,9 @@ mod tests {
     #[test]
     fn software_takes_names_only() {
         let (argv, back) = software_argv("install", "flathub", "org.gnome.Calculator", None).unwrap();
-        assert_eq!(argv, ["flatpak", "install", "--user", "--noninteractive", "flathub", "org.gnome.Calculator"]);
+        assert_eq!(argv[..2], ["flatpak", "install"]);
+        assert!(argv[2] == "--user" || argv[2] == "--system");
+        assert_eq!(argv[3..], ["--noninteractive", "flathub", "org.gnome.Calculator"]);
         assert_eq!(back, Some("remove"));
         assert!(software_argv("install", "flathub", "--system", None).is_err());
         assert!(software_argv("install", "flathub", "org.gnome", None).is_err());

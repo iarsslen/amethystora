@@ -24,7 +24,7 @@ use amethystora_ui::t;
 use regex::Regex;
 use serde_json::Value;
 
-pub use amethystora_control_core::{Choice, Command, Disk, Item, List, PoolAction, Refusal, Run, Webapp, Widget, LIST};
+pub use amethystora_control_core::{Item, List, Refusal, Run, LIST};
 use amethystora_control_core as core;
 
 pub const SETUP: &str = "/usr/libexec/amethystora-setup";
@@ -113,11 +113,6 @@ pub async fn perform(plan: Result<Run, String>) -> Outcome {
     let args: Vec<&str> = run.argv[1..].iter().map(String::as_str).collect();
     let result = process::run_with(&run.argv[0], &args, Options { timeout: Duration::from_secs(300), ..Default::default() }).await;
     Outcome::Ran { ok: result.code == 0, output: said(&result) }
-}
-
-/// A slider's number as the page sends it: one to nine digits, inside the list's range
-pub fn range_value(item: &Item, value: &str) -> Option<String> {
-    core::range_value(item, value)
 }
 
 /// A setting set to one of its choices, or a slider to a number in its range

@@ -1501,7 +1501,7 @@ mod tests {
             page: "appearance".into(),
             title: "Transition".into(),
             text: Some("How a new théme is revealed.".into()),
-            choices: vec![crate::backend::Choice { value: "wave".into(), title: "Wave".into(), text: Some("A wavy edge".into()), ..Default::default() }],
+            choices: vec![amethystora_control_core::Choice { value: "wave".into(), title: "Wave".into(), text: Some("A wavy edge".into()), ..Default::default() }],
             ..Default::default()
         };
         let words = |text: &str| plain(text).split_whitespace().map(str::to_string).collect::<Vec<_>>();

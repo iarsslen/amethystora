@@ -39,7 +39,7 @@ and how to undo it.
 
 ## Installing software
 
-In this order: a GUI app from Flatpak (`flatpak install --user flathub <app-id>`), a CLI tool from
+In this order: a GUI app from Flatpak (`flatpak install flathub <app-id>`, Flathub being the machine's remote), a CLI tool from
 Homebrew (`brew install <formula>`), another distribution's packages in an `amethystora-pkg` container,
 and only last, after asking, `rpm-ostree install`, which slows every update and needs a reboot. Never
 add dnf repositories or run `dnf install` on the host. Details are in the software reference.

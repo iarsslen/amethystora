@@ -4,7 +4,9 @@
 
 In this order of preference:
 
-1. GUI apps: Flatpak, `flatpak install --user flathub <app-id>`.
+1. GUI apps: Flatpak, `flatpak install flathub <app-id>` (Flathub is the machine's remote, so the app goes
+   into the machine's installation, as the image's own commands put theirs; no password unless the stricter
+   `flatpak-password` is on).
 2. CLI tools: Homebrew, `brew install <formula>`.
 3. Anything needing another distribution's packages: `amethystora-pkg` (`amepkg`), which makes
    distrobox containers from templates and installs with their own package managers.
