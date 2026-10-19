@@ -40,7 +40,7 @@ const LOGIN_WAIT: Duration = Duration::from_secs(30);
 /// Runs the sensor, or just probes it (load and attach every program, then stop) for the generator.
 pub fn run(probe: bool) -> Result<(), Box<dyn Error>> {
     if probe {
-        // All eleven keys, so every program is loaded and attached; dropping the result detaches them.
+        // Every key, so every program is loaded and attached; dropping the result detaches them.
         let all = (1u32 << keys::KEYS.len()) - 1;
         bpf::load(all, true)?;
         return Ok(());
@@ -377,6 +377,7 @@ impl Registry {
     fn record_of(&self, ev: &Event, offset: i128) -> Record {
         let h = &ev.head;
         let is_module = h.op == event::SOP_MODULE_LOAD || h.op == event::SOP_MODULE_DELETE;
+        let is_memory = h.op == event::SOP_MEMORY;
         let argv: Vec<Vec<u8>> =
             ev.strings[event::SSTR_ARGV].split(|&b| b == 0).filter(|s| !s.is_empty()).map(|s| s.to_vec()).collect();
         let wall = (h.time as i128 + offset).max(0) as u128;
@@ -411,13 +412,19 @@ impl Registry {
             obj_rdev: dev_str(h.rdev),
             parent_mode: h.parent_mode,
             dir: self.path_of(h.dir),
-            name: if is_module { Vec::new() } else { ev.strings[event::SSTR_NAME].to_vec() },
+            name: if is_module || is_memory { Vec::new() } else { ev.strings[event::SSTR_NAME].to_vec() },
             dir2: self.path_of(h.dir2),
             name2: ev.strings[event::SSTR_NAME2].to_vec(),
             path2: ev.strings[event::SSTR_PATH2].to_vec(),
             argc: h.argc,
             argv,
             module: if is_module { ev.strings[event::SSTR_NAME].to_vec() } else { Vec::new() },
+            target: h.target,
+            target_auid: h.target_auid,
+            target_uid: h.target_uid,
+            target_comm: if is_memory { ev.strings[event::SSTR_NAME].to_vec() } else { Vec::new() },
+            target_mnt: h.target_mnt,
+            own_mnt: h.own_mnt,
             time_ns: wall,
         }
     }

@@ -38,7 +38,7 @@ wanted() {
 # list under /run instead, from the very same shipped rules and per-home logic as the audit rules. The two
 # outputs never disagree because one set of decisions makes both. The audit keys, in the watcher's order.
 AUDIT_KEYS=(identity privilege persistence hardening modules input-capture user-programs exec-watch agent-clis \
-    credentials decoy)
+    credentials decoy injection)
 SENSOR_BIN="${AMETHYSTORA_SENSOR_BIN:-/usr/libexec/amethystora-sensor}"
 RUNDIR="${AMETHYSTORA_SENSOR_RUN:-${ROOT}/run/amethystora/sensor}"
 PLAN="${RUNDIR}/plan"

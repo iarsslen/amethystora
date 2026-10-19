@@ -7,8 +7,8 @@ pub struct Key {
     pub bit: u32,
 }
 
-/// The eleven keys a user can switch, which the sensor can take from auditd, in AUDIT_KEYS order.
-pub const KEYS: [Key; 11] = [
+/// The twelve keys a user can switch, which the sensor can take from auditd, in AUDIT_KEYS order.
+pub const KEYS: [Key; 12] = [
     Key { name: "identity", bit: 0 },
     Key { name: "privilege", bit: 1 },
     Key { name: "persistence", bit: 2 },
@@ -20,6 +20,7 @@ pub const KEYS: [Key; 11] = [
     Key { name: "agent-clis", bit: 8 },
     Key { name: "credentials", bit: 9 },
     Key { name: "decoy", bit: 10 },
+    Key { name: "injection", bit: 11 },
 ];
 
 /// Not a switch: what was done to the sensor itself, recorded under its own key while it runs.
@@ -39,6 +40,8 @@ pub const EXEC_KEYS: u32 = (1 << 7) | (1 << 8);
 pub const INPUT_BIT: u32 = 1 << 5;
 /// ...loading or removing a kernel module.
 pub const MODULES_BIT: u32 = 1 << 4;
+/// ...attaching to another program, or reaching into its memory.
+pub const INJECTION_BIT: u32 = 1 << 11;
 
 /// The key's bit, or None for a name the sensor does not know.
 pub fn bit_of(name: &str) -> Option<u32> {

@@ -469,7 +469,12 @@ which must name every agent `amethystora-agent` offers. A finding carries `at=` 
 `test-security-watch.sh`, `test-security-reader.sh` and `test-yara.sh` plant each kind of finding. A library
 loaded by `LD_PRELOAD` from outside `/usr`, and a session whose user manager gives every program a variable of
 `/usr/share/amethystora/code-variables` (`systemctl --user -M USER@.host show-environment`), are `PROCESSES`'
-too; the same list is the app permissions' `code` reach.
+too; the same list is the app permissions' `code` reach. `INJECTION`, an audit key of its own, is every attach to,
+or read or write of, another program's memory by a login: the sensor's `fexit/security_ptrace_access_check`, which
+returns at once unless the mode attaches (every `/proc/PID/stat` read asks it too), records the result, the call and
+the program reached, and an `OBJ_PID` record with both mount namespaces (`omnt`, `mnt`); `injection.rules` is the
+audit fallback, which sees no `/proc/PID/mem`. A program's own business (the same program, a neighbour outside the
+shared folders, one sandbox other than the host's) and `/usr/share/amethystora/debuggers` are recorded only.
 
 **App integrity** (`APP_INTEGRITY`, `/usr/libexec/amethystora-integrity`, Python with the OSTree bindings and
 SQLite; `plans/security/PLAN-app-integrity.md`) checks the system's ostree repository, each deployment's

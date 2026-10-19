@@ -64,9 +64,9 @@ OLD_HISTORY="${ROOT}/var/log/amethystora-security-events.log"
 HISTORY_KEPT=5000
 # The setuid sweep reads every file under /etc and /var, home directories included
 SWEEP_EVERY=$((24 * 3600))
-AUDIT_KEYS=(identity privilege persistence hardening modules input-capture user-programs exec-watch agent-clis credentials decoy)
+AUDIT_KEYS=(identity privilege persistence hardening modules input-capture user-programs exec-watch agent-clis credentials decoy injection)
 # ...of which these are read by parts of their own, from the kernel's raw records, rather than as sentences
-AUDIT_OWN=" exec-watch agent-clis credentials decoy "
+AUDIT_OWN=" exec-watch agent-clis credentials decoy injection "
 TEXT=/usr/libexec/amethystora-security-text
 
 [[ "${EUID}" -eq 0 || "${1:-}" == --keys ]] || { echo "${0##*/} needs root." >&2; exit 77; }
@@ -556,6 +556,131 @@ read_decoy() {
             add "${level}" decoy "${user}" "Credential Access" "${exe} read the decoy key ${path} (process ${pid}, as ${user}). Nothing legitimate reads it: this is what a password stealer looks like" \
                 "allow=${exe}"
     done < <(audit_records decoy)
+}
+
+# --- Reaching into another program's memory ------------------------------------------------------------------
+
+# A program that attached to another, or read or wrote its memory (INJECTION, from the next boot): ptrace's
+# attach and seize, process_vm_readv and process_vm_writev, pidfd_getfd and /proc/PID/mem opened. The file-watch
+# sensor records each at the kernel's own permission check, with the program reached and both mount namespaces;
+# the audit rules, where it does not run, record the calls alone, and the program reached is looked up while it
+# still runs. A program's own business is recorded and not said: the same program, one in the same folder that
+# is not a folder every program shares, or one in the same Flatpak or container that is not the host. So is what
+# a debugger does (/usr/share/amethystora/debuggers). The rest is said: a write into another program (ATT&CK
+# T1055), a read of its memory (T1003.007), and a try the kernel refused. One line for each program, program
+# reached, kind and result in a run, however often. Allowed by the program that reached, alone or with the
+# program it reached.
+DEBUGGERS=/usr/share/amethystora/debuggers
+SHARED_FOLDERS=" /usr/bin /usr/sbin /usr/libexec /usr/local/bin /home/linuxbrew/.linuxbrew/bin "
+
+# Each event under the key, one line, its fields apart by the unit separator: time, process, login uid,
+# terminal, program, system call, its first three arguments (hex), whether it succeeded, and what OBJ_PID and
+# PATH item 0 say of the process reached: its pid, name, mount namespace, the acting task's, and its program
+injection_records() {
+    audit_since injection -m SYSCALL,OBJ_PID,PATH -k injection -r | awk '
+        BEGIN { for (i = 0; i < 256; i++) byte[sprintf("%02X", i)] = sprintf("%c", i) }
+        function value(record, name, text,   m, i, out) {
+            if (match(record, " " name "=\"[^\"]*\"")) m = substr(record, RSTART + length(name) + 3, RLENGTH - length(name) - 4)
+            else if (match(record, " " name "=[^ ]+")) {
+                m = substr(record, RSTART + length(name) + 2, RLENGTH - length(name) - 2)
+                if (text && m ~ /^([0-9A-F][0-9A-F])+$/) {
+                    out = ""
+                    for (i = 1; i < length(m); i += 2) out = out byte[substr(m, i, 2)]
+                    m = out
+                }
+            } else return ""
+            gsub(/[\000-\037\177]/, "?", m)
+            return m
+        }
+        function flush() {
+            if (event == "") return
+            printf "%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\037%s\n", time, pid, auid,
+                tty, exe, sc, a0, a1, a2, ok, opid, ocomm, omnt, mnt, path
+        }
+        match($0, /msg=audit\([0-9]+\.[0-9]+:[0-9]+\)/) {
+            id = substr($0, RSTART + 10, RLENGTH - 11)
+            if (id != event) {
+                flush()
+                event = id
+                time = int(id)
+                pid = auid = tty = exe = sc = a0 = a1 = a2 = ok = opid = ocomm = omnt = mnt = path = ""
+            }
+            if ($0 ~ /^type=SYSCALL /) {
+                pid = value($0, "pid", 0); auid = value($0, "auid", 0); tty = value($0, "tty", 0)
+                exe = value($0, "exe", 1); sc = value($0, "syscall", 0); ok = value($0, "success", 0)
+                a0 = value($0, "a0", 0); a1 = value($0, "a1", 0); a2 = value($0, "a2", 0)
+            } else if ($0 ~ /^type=OBJ_PID /) {
+                opid = value($0, "opid", 0); ocomm = value($0, "ocomm", 1)
+                omnt = value($0, "omnt", 0); mnt = value($0, "mnt", 0)
+            } else if ($0 ~ /^type=PATH / && value($0, "item", 0) == "0") {
+                path = value($0, "name", 1)
+            }
+        }
+        END { flush() }'
+}
+
+read_injection() {
+    local time pid auid tty exe syscall a0 a1 a2 ok opid ocomm omnt mnt target how class flags own user key level
+    local tactic text host_mnt reached
+    local -A count=()
+    host_mnt="$(stat -L -c %i /proc/1/ns/mnt 2>/dev/null)"
+    while IFS=$'\x1f' read -r time pid auid tty exe syscall a0 a1 a2 ok opid ocomm omnt mnt target; do
+        [[ -n "${exe}" && "${syscall}" =~ ^[0-9]+$ ]] || continue
+        [[ "${a0}" =~ ^[0-9a-f]+$ ]] || a0=0
+        [[ "${a1}" =~ ^[0-9a-f]+$ ]] || a1=0
+        [[ "${a2}" =~ ^[0-9a-f]+$ ]] || a2=0
+        # The process reached: the sensor names it, and the audit rules give its pid among the call's arguments
+        if [[ ! "${opid}" =~ ^[0-9]+$ ]]; then
+            opid=""
+            case "${syscall}" in
+                101) opid="$((16#${a1}))" ;;
+                310 | 311) opid="$((16#${a0}))" ;;
+            esac
+        fi
+        [[ -z "${target}" && "${opid:-0}" -gt 0 ]] && target="$(readlink "/proc/${opid}/exe" 2>/dev/null)"
+        target="${target% (deleted)}"
+        # What it did: ptrace's attach or seize, the two process_vm calls, pidfd_getfd, an open of /proc/PID/mem
+        # by its flags (open's second argument, openat's third), and what shows no call, an io_uring open
+        case "${syscall}" in
+            101) how="attached to" class=write ;;
+            310) how="read the memory of" class=read ;;
+            311) how="wrote into the memory of" class=write ;;
+            438) how="took a descriptor of" class=write ;;
+            2 | 257)
+                flags=$((16#$([[ "${syscall}" == 2 ]] && echo "${a1}" || echo "${a2}")))
+                if ((flags & 3)); then how="opened for writing the memory of" class=write; else how="read the memory of" class=read; fi
+                ;;
+            *) how="reached into the memory of" class=write ;;
+        esac
+        reached="${target:-${ocomm:-a process}}${opid:+ (process ${opid})}"
+        # Its own business: the same program, a neighbour in a folder of its own, the same sandbox
+        own=false
+        if [[ -n "${target}" ]]; then
+            [[ "${target}" == "${exe}" ]] && own=true
+            [[ "${target%/*}" == "${exe%/*}" && "${SHARED_FOLDERS}" != *" ${exe%/*} "* && "${exe%/*}" != */.local/bin ]] && own=true
+        fi
+        [[ "${mnt}" =~ ^[1-9][0-9]*$ && "${mnt}" == "${omnt}" && "${mnt}" != "${host_mnt}" ]] && own=true
+        grep -qxF -- "${exe}" "${DEBUGGERS}" 2>/dev/null && own=true
+        user="$(id -nu "${auid}" 2>/dev/null || echo "${auid}")"
+        key="${exe}"$'\x1f'"${target}"$'\x1f'"${how}"$'\x1f'"${ok}"$'\x1f'"${user}"$'\x1f'"${own}"$'\x1f'"${class}"$'\x1f'"${reached}"
+        count["${key}"]=$((${count[${key}]:-0} + 1))
+    done < <(injection_records)
+    for key in "${!count[@]}"; do
+        IFS=$'\x1f' read -r exe target how ok user own class reached <<<"${key}"
+        level=normal tactic="Defense Evasion"
+        [[ "${own}" == true ]] && level=quiet
+        if [[ "${ok}" == no ]]; then
+            text="${exe} tried to reach into ${reached} and the kernel refused it, as ${user}"
+        else
+            [[ "${class}" == read ]] && tactic="Credential Access"
+            text="${exe} ${how} ${reached}, as ${user}"
+        fi
+        [[ "${count[${key}]}" -gt 1 ]] && text+=" (${count[${key}]} times)"
+        if allowed injection "${exe}" || { [[ -n "${target}" ]] && allowed injection "${exe} ${target}"; }; then
+            level=quiet ALLOWED_HIT=1
+        fi
+        [[ -n "${LAST_RUN}" ]] && add "${level}" injection "${user}" "${tactic}" "${text}" "allow=${exe}${target:+ ${target}}"
+    done
 }
 
 # --- Ransomware behaviour ----------------------------------------------------------------------------------
@@ -2009,6 +2134,8 @@ if [[ "${SETTING[AUDIT_LOG]:-on}" != off ]]; then
     timed CREDENTIALS switched CREDENTIALS read_credentials
     [[ "${SETTING[DECOY]:-off}" == off ]] && rm -f "${STATE}/audit-decoy.checkpoint" "${STATE}/sensor-decoy.checkpoint"
     timed DECOY switched DECOY read_decoy
+    [[ "${SETTING[INJECTION]:-off}" == off ]] && rm -f "${STATE}/audit-injection.checkpoint" "${STATE}/sensor-injection.checkpoint"
+    timed INJECTION switched INJECTION read_injection
     # The sensor stands in for the audit rules where it covers a key; say when it should be recording but is
     # not (MODE is on here, set back by the last switched call, so the stop is said)
     sensor_watch

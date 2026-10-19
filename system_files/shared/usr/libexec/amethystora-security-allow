@@ -24,6 +24,9 @@
 #            matches is recorded, not said. For processes, a library a program loads by LD_PRELOAD is such a
 #            path too, and a session's environment is a variable and the path it names, or globs of them:
 #            "LD_LIBRARY_PATH ~/opt/toolchain/lib"
+#   injection
+#            a program that reached into another's memory, alone or with the program it reached, or globs of
+#            them: "/usr/bin/x", "/usr/bin/x /usr/bin/y"
 #   selinux-denials
 #            a denial as SELinux names it: the source and target types, the class and the permissions, or
 #            globs of them: "xdm_t user_home_t file read,open"
@@ -77,7 +80,7 @@ declare -A SHAPE=(
 )
 # A path, a program or a glob of either, from the root or from every home
 PATHS='^(/|~/)[^[:cntrl:]]{0,1022}$'
-for feature in identity privilege persistence hardening modules input-capture user-programs dev-hooks processes agent-config \
+for feature in identity privilege persistence hardening modules input-capture user-programs dev-hooks processes agent-config injection \
     exec-watch agent-clis decoy snapshot-watch; do
     SHAPE["${feature}"]="${PATHS}"
 done

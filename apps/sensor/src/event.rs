@@ -21,6 +21,7 @@ pub const SOP_MODULE_DELETE: u32 = 16;
 pub const SOP_EXEC: u32 = 17;
 pub const SOP_KILL: u32 = 18;
 pub const SOP_BPF: u32 = 19;
+pub const SOP_MEMORY: u32 = 20;
 
 /// The strings in an event's data, in order, each NUL-terminated (`enum sensor_string`).
 pub const SSTR_NAME: usize = 0;
@@ -78,21 +79,26 @@ pub struct EventHeader {
     pub attr_gid: u32,
     pub argc: u32,
     pub parent_mode: u32,
+    pub target: u32,
+    pub target_auid: u32,
+    pub target_uid: u32,
+    pub target_mnt: u32,
+    pub own_mnt: u32,
     pub len: [u16; SSTR_COUNT],
     pub comm: [u8; 16],
     pub tty: [u8; 64],
 }
 
-/// Where the strings begin: the kernel's offsetof(struct sensor_event, data). The Rust struct rounds its
-/// size up to its 8-byte alignment (264), but the data in the byte stream starts at 260, which is what the
-/// kernel puts in `header` and what this must equal.
-pub const DATA_OFFSET: usize = 260;
+/// Where the strings begin: the kernel's offsetof(struct sensor_event, data), which is what the kernel puts
+/// in `header` and what this must equal. The head happens to end on its 8-byte alignment, so the Rust struct
+/// has no tail padding and is exactly this long.
+pub const DATA_OFFSET: usize = 280;
 
 // The layout has to match the kernel's, or every field is read wrong.
-const _: () = assert!(core::mem::offset_of!(EventHeader, len) == 168);
-const _: () = assert!(core::mem::offset_of!(EventHeader, comm) == 180);
-const _: () = assert!(core::mem::offset_of!(EventHeader, tty) == 196);
-const _: () = assert!(core::mem::size_of::<EventHeader>() == 264);
+const _: () = assert!(core::mem::offset_of!(EventHeader, len) == 188);
+const _: () = assert!(core::mem::offset_of!(EventHeader, comm) == 200);
+const _: () = assert!(core::mem::offset_of!(EventHeader, tty) == 216);
+const _: () = assert!(core::mem::size_of::<EventHeader>() == 280);
 
 /// An event read from the ring buffer: its head, and the six strings as byte slices into the record.
 pub struct Event<'a> {
@@ -103,8 +109,8 @@ pub struct Event<'a> {
 impl<'a> Event<'a> {
     /// Reads one ring-buffer record. None when it is too short or its header is not the sensor's own.
     pub fn parse(bytes: &'a [u8]) -> Option<Event<'a>> {
-        // read_unaligned reads the whole struct (264 bytes, with its tail padding), so guard on that, not
-        // on DATA_OFFSET (260): a 260–263-byte record would otherwise over-read the slice.
+        // read_unaligned reads the whole struct (280 bytes, no tail padding now), so guard on that, which is
+        // DATA_OFFSET as well: a shorter record would otherwise over-read the slice.
         if bytes.len() < core::mem::size_of::<EventHeader>() {
             return None;
         }

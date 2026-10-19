@@ -1,7 +1,9 @@
 //! Writing an operation as the kernel's own audit records, so that the watcher's ausearch reads it exactly
 //! as it reads what auditd logs. Nothing here decides a verb or a sentence: it writes faithful SYSCALL,
-//! CWD, PATH, EXECVE, KERN_MODULE and EOE records, and ausearch does the interpreting. That is the whole
-//! point of the format — the findings keep their shape by construction (PLAN-audit-cost.md section 4.4).
+//! CWD, PATH, EXECVE, KERN_MODULE, OBJ_PID and EOE records, and ausearch does the interpreting. That is the
+//! whole point of the format — the findings keep their shape by construction (PLAN-audit-cost.md section 4.4).
+//! OBJ_PID carries two fields audit's own does not, the mount namespaces of the target (omnt) and of the
+//! acting task (mnt), which ausearch passes on as they are.
 
 use std::io::{self, Write};
 
@@ -49,6 +51,14 @@ pub struct Record {
     pub argv: Vec<Vec<u8>>,
     pub argc: u32,
     pub module: Vec<u8>,
+    /// The process whose memory was reached (SOP_MEMORY): its pid, login uid, uid, name and mount namespace,
+    /// and the acting task's mount namespace beside it
+    pub target: u32,
+    pub target_auid: u32,
+    pub target_uid: u32,
+    pub target_comm: Vec<u8>,
+    pub target_mnt: u32,
+    pub own_mnt: u32,
     /// Wall-clock time of the event, in nanoseconds since the epoch.
     pub time_ns: u128,
 }
@@ -161,6 +171,8 @@ fn path_items(r: &Record) -> Vec<PathItem> {
             vec![obj(object_path(r), "NORMAL", r.obj_mode)]
         }
         SOP_EXEC => vec![obj(if r.path2.is_empty() { object_path(r) } else { r.path2.clone() }, "NORMAL", r.obj_mode)],
+        // The program of the process whose memory was reached, as the one thing it touched
+        SOP_MEMORY => vec![obj(r.path2.clone(), "UNKNOWN", 0)],
         // Modules carry a KERN_MODULE record instead of a PATH, and the tamper events (kill, bpf) no path.
         SOP_MODULE_LOAD | SOP_MODULE_DELETE | SOP_KILL | SOP_BPF => Vec::new(),
         _ => Vec::new(),
@@ -216,6 +228,21 @@ egid={} sgid={} fsgid={} tty=",
         }
         ex.push(b'\n');
         out.write_all(&ex)?;
+    }
+
+    // The process whose memory was reached, as audit writes one a ptrace attach reached
+    if r.op == SOP_MEMORY {
+        let mut obj = Vec::new();
+        obj.extend_from_slice(
+            format!(
+                "type=OBJ_PID msg=audit({id}): opid={} oauid={} ouid={} oses=-1 obj=? ",
+                r.target, r.target_auid as i32, r.target_uid
+            )
+            .as_bytes(),
+        );
+        enc(&mut obj, "ocomm", &r.target_comm);
+        obj.extend_from_slice(format!(" omnt={} mnt={}\n", r.target_mnt, r.own_mnt).as_bytes());
+        out.write_all(&obj)?;
     }
 
     // The module's name, for a load or an unload.
@@ -320,6 +347,34 @@ mod tests {
         assert!(text.contains("type=KERN_MODULE msg=audit(0.000:7): name=\"v4l2loopback\""));
         assert!(text.contains("items=0"));
         assert!(!text.contains("type=PATH"));
+    }
+
+    #[test]
+    fn memory_has_the_target_and_its_program() {
+        let r = Record {
+            op: SOP_MEMORY,
+            syscall: 311, // process_vm_writev
+            result: -1,
+            keys: 1 << 11, // injection
+            args: [0x4d2, 0, 0, 0],
+            target: 1234,
+            target_auid: 1000,
+            target_uid: 1000,
+            target_comm: b"sleep".to_vec(),
+            target_mnt: 4026531841,
+            own_mnt: 4026531841,
+            path2: b"/usr/bin/sleep".to_vec(),
+            exe: b"/tmp/x".to_vec(),
+            obj_dev: "00:00".into(),
+            obj_rdev: "00:00".into(),
+            ..Default::default()
+        };
+        let text = written(&r);
+        assert!(text.contains("syscall=311 success=no exit=-1 a0=4d2"), "{text}");
+        assert!(text.contains("key=\"injection\""), "{text}");
+        assert!(text.contains("type=OBJ_PID msg=audit(0.000:7): opid=1234 oauid=1000 ouid=1000 oses=-1 obj=? ocomm=\"sleep\" omnt=4026531841 mnt=4026531841"), "{text}");
+        assert!(text.contains("item=0 name=\"/usr/bin/sleep\""), "{text}");
+        assert!(text.contains("nametype=UNKNOWN"), "{text}");
     }
 
     #[test]

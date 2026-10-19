@@ -1946,6 +1946,11 @@ for key in $( { grep -ohE -- '-k [a-z-]+$' /usr/share/amethystora/audit/*.rules 
     # ...and is a switch, as every audit key is
     /usr/libexec/amethystora-security-config "$(tr 'a-z-' 'A-Z_' <<<"${key}")" >/dev/null
 done
+# What reaches into another program's memory (INJECTION) has its fallback beside the other keys' rules, and its
+# debuggers, whose doings are recorded and never said, are programs only an update writes
+test -s /usr/share/amethystora/audit/injection.rules
+/usr/libexec/amethystora-security-allow --features | grep -qx injection
+[[ -z "$(grep -vE '^(#|$)' /usr/share/amethystora/debuggers | grep -vE '^/usr/[^ ]+$')" ]]
 # ...and a watch on a path that is not there stops every rule after it from loading, which the generator
 # leaves out on a machine rather than write. What only a machine has (/var, the disks it unlocks, a preloaded
 # library) is watched once it is there; everything else has to be in the image.

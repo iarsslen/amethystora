@@ -1,0 +1,19 @@
+## Amethystora audit rules, key injection. amethystora-audit-home-rules copies this into
+## /etc/audit/rules.d/60-amethystora.rules at every boot, before auditd starts, unless INJECTION=off in
+## /etc/amethystora/security.conf, as the image ships it: a key that is off loads no rule and costs nothing.
+##
+## Read what these caught with: sudo ausearch -i -k injection
+
+## Attaching to another program, or reaching into its memory, by anyone who logged in: ptrace's attach
+## (PTRACE_ATTACH, 0x10) and seize (PTRACE_SEIZE, 0x4206), process_vm_readv and process_vm_writev, and
+## pidfd_getfd, which takes another process's descriptor. Refused tries are recorded too, by their result.
+## Where the file-watch sensor (amethystora-sensor) runs, it records these at the kernel's own permission
+## check instead, with the program reached, and sees /proc/PID/mem opened as well. These rules cannot: audit
+## has no rule for a path under /proc that names every process. A 32-bit program makes the same calls by
+## numbers of its own, hence the b32 lines.
+-a always,exit -F arch=b64 -S ptrace -F a0=0x10 -F auid>=1000 -F auid!=unset -k injection
+-a always,exit -F arch=b64 -S ptrace -F a0=0x4206 -F auid>=1000 -F auid!=unset -k injection
+-a always,exit -F arch=b64 -S process_vm_readv,process_vm_writev,pidfd_getfd -F auid>=1000 -F auid!=unset -k injection
+-a always,exit -F arch=b32 -S ptrace -F a0=0x10 -F auid>=1000 -F auid!=unset -k injection
+-a always,exit -F arch=b32 -S ptrace -F a0=0x4206 -F auid>=1000 -F auid!=unset -k injection
+-a always,exit -F arch=b32 -S process_vm_readv,process_vm_writev,pidfd_getfd -F auid>=1000 -F auid!=unset -k injection

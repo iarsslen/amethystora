@@ -53,8 +53,11 @@ for profile in light balanced thorough; do
     "${CONFIG}" --list --json | jq -e 'all(.settings[] | select(.sends | IN("none", "downloads") | not); .value == "off")' >/dev/null ||
         fail "profile ${profile} turned on something that sends away"
     [[ "$("${CONFIG}" WATCHER)" == on && "$("${CONFIG}" VIRUS_SCAN)" == weekly ]] || fail "profile ${profile} changed an existing key"
-    # Every profile checks the apps against their updates
+    # Every profile checks the apps against their updates, and records what reaches into other programs' memory,
+    # which balanced and thorough say
     [[ "$("${CONFIG}" APP_INTEGRITY)" == on ]] || fail "profile ${profile} leaves the apps unchecked"
+    [[ "$("${CONFIG}" INJECTION)" == "$([[ "${profile}" == light ]] && echo record || echo on)" ]] ||
+        fail "profile ${profile} sets INJECTION to $("${CONFIG}" INJECTION)"
 done
 [[ "$("${CONFIG}" BEHAVIOUR)" == record && "$("${CONFIG}" NETWORK_FEEDS)" == hourly ]] || fail "thorough"
 "${CONFIG}" set TRIAGE on

@@ -217,8 +217,8 @@ Never edit `~/.config/amethystora/current/`: it is regenerated on every switch.
   does a program you put in `~/.local/bin` or `~/bin` with a system command's name, and a launcher
   in `~/.local/share/applications` that no container export made: name yours differently. With what
   looks for new threats on, running an agent with its checks off from a script, reading another tool's
-  token, or adding a hook or MCP server to an agent's settings is said too: tell the user that a change
-  of yours may show up there, and why.
+  token, adding a hook or MCP server to an agent's settings, or attaching to a program you did not start
+  with anything but a debugger is said too: tell the user that a change of yours may show up there, and why.
 - `ame security app-integrity` shows what the daily check of the system's files and every Flatpak app
   against what their updates installed found (`APP_INTEGRITY`, off as the image ships, on in every
   profile); `check` runs one, and `repair [APP]` fetches an app again and installs it again, keeping its

@@ -20,6 +20,7 @@ enum sensor_key {
 	SKEY_AGENT_CLIS = 8,
 	SKEY_CREDENTIALS = 9,
 	SKEY_DECOY = 10,
+	SKEY_INJECTION = 11,
 	/* Not a switch: what was done to the sensor itself, always recorded while it runs */
 	SKEY_SENSOR = 15,
 };
@@ -27,7 +28,7 @@ enum sensor_key {
 /* The keys whose rules record only what a login did (auid>=1000 -F auid!=unset) */
 #define LOGIN_KEYS                                                                                 \
 	((1 << SKEY_MODULES) | (1 << SKEY_INPUT_CAPTURE) | (1 << SKEY_EXEC_WATCH) | (1 << SKEY_AGENT_CLIS) | \
-	 (1 << SKEY_CREDENTIALS) | (1 << SKEY_DECOY))
+	 (1 << SKEY_CREDENTIALS) | (1 << SKEY_DECOY) | (1 << SKEY_INJECTION))
 /* ...and the keys that watch writes and attribute changes to folders and files (-w ... -p wa) */
 #define WRITE_KEYS                                                                                \
 	((1 << SKEY_IDENTITY) | (1 << SKEY_PRIVILEGE) | (1 << SKEY_PERSISTENCE) | (1 << SKEY_HARDENING) | \
@@ -55,6 +56,7 @@ enum sensor_op {
 	SOP_EXEC = 17,
 	SOP_KILL = 18,    /* a signal sent to the sensor: flags holds it */
 	SOP_BPF = 19,     /* one of the sensor's links detached or replaced: flags holds the bpf() command */
+	SOP_MEMORY = 20,  /* another process's memory attached to, read or written: flags holds the ptrace mode */
 };
 
 /* The folders the maps hold, by the kernel's own inode, which the daemon keeps open */
@@ -83,12 +85,12 @@ struct file_info {
 
 /* Where the strings of an event are in its data, one after another, each followed by a NUL */
 enum sensor_string {
-	SSTR_NAME = 0,  /* the object's name in its folder; a module's name */
+	SSTR_NAME = 0,  /* the object's name in its folder; a module's name; the name of the process whose memory */
 	SSTR_NAME2 = 1, /* a rename's or a link's other name, a symlink's target, an attribute's name */
 	SSTR_EXE = 2,   /* the program, as the acting process sees it from its root */
 	SSTR_CWD = 3,   /* the acting process's working folder */
 	SSTR_PATH2 = 4, /* a whole path the daemon cannot make from a folder it knows: a program run, an input device, the other
-	                  side of a rename or link, a name a refused open gave */
+	                  side of a rename or link, a name a refused open gave, the program of the process whose memory */
 	SSTR_ARGV = 5,  /* a program's arguments, each followed by a NUL */
 	SSTR_COUNT = 6,
 };
@@ -132,6 +134,11 @@ struct sensor_event {
 	__u32 attr_gid;
 	__u32 argc;
 	__u32 parent_mode; /* the mode of the folder the object is in */
+	__u32 target;      /* SOP_MEMORY: the process whose memory, its login uid and uid, and its mount namespace beside */
+	__u32 target_auid; /* the acting task's, which tell a Flatpak's or a container's own processes apart */
+	__u32 target_uid;
+	__u32 target_mnt;
+	__u32 own_mnt;
 	__u16 len[SSTR_COUNT];
 	char comm[16];
 	char tty[64];

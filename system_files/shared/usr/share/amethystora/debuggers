@@ -1,0 +1,13 @@
+# The debuggers and tracers whose job is another program's memory: what they do to it is recorded and never said
+# (INJECTION, in amethystora-security-watch). The programs of the dx image's gdb, strace, ltrace, valgrind and
+# perf, and of CRIU and scanmem for whoever installs them, as `dnf repoquery -l` lists them for Fedora 44. One
+# program a line, under /usr only: one anywhere an account can write would let anything call itself a debugger.
+/usr/bin/gdb
+/usr/libexec/gdb
+/usr/bin/gdbserver
+/usr/bin/strace
+/usr/bin/ltrace
+/usr/bin/valgrind
+/usr/bin/perf
+/usr/bin/criu
+/usr/bin/scanmem

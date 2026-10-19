@@ -185,6 +185,12 @@ fn record_from_json(v: &serde_json::Value) -> record::Record {
         argc: v.get("argc").and_then(Value::as_u64).map_or(argv.len() as u32, |x| x as u32),
         argv,
         module: bytes("module"),
+        target: u32f("target"),
+        target_auid: v.get("target_auid").and_then(Value::as_u64).map_or(u32::MAX, |x| x as u32),
+        target_uid: u32f("target_uid"),
+        target_comm: bytes("target_comm"),
+        target_mnt: u32f("target_mnt"),
+        own_mnt: u32f("own_mnt"),
         time_ns: v.get("time").and_then(Value::as_u64).map(|s| s as u128 * 1_000_000_000).unwrap_or(0),
     }
 }

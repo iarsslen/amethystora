@@ -1244,6 +1244,70 @@ int BPF_PROG(delete_module_exit, const struct pt_regs *regs, long ret)
 	return module_call(SOP_MODULE_DELETE, NR_DELETE_MODULE, regs, ret);
 }
 
+/* --- Another program's memory ------------------------------------------------------------------------------ */
+
+#define PTRACE_MODE_ATTACH 0x02
+
+/* The number of a task's mount namespace, or 0 on a kernel that names it otherwise */
+static __always_inline __u32 mount_ns(struct task_struct *task)
+{
+	struct mnt_namespace *ns = BPF_CORE_READ(task, nsproxy, mnt_ns);
+
+	if (!ns || !bpf_core_field_exists(ns->ns.inum))
+		return 0;
+	return BPF_CORE_READ(ns, ns.inum);
+}
+
+/* Attaching to another program, or reaching into its memory, by a login. ptrace's attach and seize,
+ * process_vm_readv and process_vm_writev, pidfd_getfd and opening /proc/PID/mem each ask the LSMs, Yama among them,
+ * with PTRACE_MODE_ATTACH once the checks of who may at all have passed; their answer is the result, so a refusal
+ * by Yama is recorded as well. Every read of /proc/PID/stat asks the same hook with PTRACE_MODE_READ, so anything
+ * but an attach returns at once. A refusal before the LSMs (another account's process, without the capability)
+ * never comes here, nor does a thread of the caller's own. The system call and its arguments, which actor()
+ * reads, say which of these it was; the target's program, name and mount namespace say what was reached. */
+SEC("fexit/security_ptrace_access_check")
+int BPF_PROG(ptrace_access, struct task_struct *child, unsigned int mode, int ret)
+{
+	const char *comm = child->comm;
+	struct task_struct *task;
+	struct file *exe;
+	struct scratch *s;
+	__u32 keys, pos = 0;
+	int start;
+
+	if (!(mode & PTRACE_MODE_ATTACH) || !(enabled_keys & (1 << SKEY_INJECTION)))
+		return 0;
+	task = bpf_get_current_task_btf();
+	if (!recorded(task))
+		return 0;
+	keys = applying(1 << SKEY_INJECTION, task);
+	if (!keys)
+		return 0;
+	s = begin(SOP_MEMORY, ret, keys);
+	if (!s)
+		return 0;
+	s->e.flags = mode;
+	s->e.target = BPF_CORE_READ(child, tgid);
+	s->e.target_auid = BPF_CORE_READ(child, loginuid.val);
+	s->e.target_uid = BPF_CORE_READ(child, real_cred, uid.val);
+	s->e.target_mnt = mount_ns(child);
+	s->e.own_mnt = mount_ns(task);
+	actor(&s->e, task);
+	pos = PUT_KSTR(&s->e, pos, SSTR_NAME, comm, 16);
+	pos = put_empty(&s->e, pos, SSTR_NAME2);
+	pos = put_program(s, pos);
+	exe = BPF_CORE_READ(child, mm, exe_file);
+	if (exe) {
+		start = walk_path(s, (__u64)BPF_CORE_READ(exe, f_path.dentry), (__u64)BPF_CORE_READ(exe, f_path.mnt));
+		pos = put_path(s, pos, SSTR_PATH2, start, SENSOR_PATH2_MAX);
+	} else {
+		pos = put_empty(&s->e, pos, SSTR_PATH2);
+	}
+	pos = put_empty(&s->e, pos, SSTR_ARGV);
+	submit(s, pos);
+	return 0;
+}
+
 /* --- What is done to the sensor itself --------------------------------------------------------------------- */
 
 static __always_inline void emit_tamper(__u32 op, __u32 flags, struct task_struct *task)

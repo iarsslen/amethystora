@@ -28,6 +28,7 @@ fn required_mask(prog: &str) -> u32 {
         "module_file" | "module_loaded" | "finit_module_exit" | "init_module_exit" | "delete_module_exit" => {
             keys::MODULES_BIT
         }
+        "ptrace_access" => keys::INJECTION_BIT,
         // An unknown name: load it, so a program added later is not silently left off.
         _ => u32::MAX,
     }

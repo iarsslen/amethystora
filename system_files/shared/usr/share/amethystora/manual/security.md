@@ -355,6 +355,13 @@ anything anywhere unless its own entry says so.
   file indexer are allowed already. It records which programs read secrets, never what they read, and takes
   effect from the next restart. Chromium's saved passwords are in a file whose name has a space, which the
   audit log cannot watch.
+- **Programs reaching into others' memory** (`injection`): a program that attaches to another, or reads or
+  writes its memory, which is how malware gets inside the app you type a password into, and every such try
+  the kernel refused. A program cannot do it to one it did not start, but it can to its own children, as a
+  debugger must. A debugger (`gdb`, `strace`, `perf`) and a program reaching into its own processes, such as
+  a crash reporter or two programs of one Flatpak, are recorded and not said. The file-watch sensor records
+  each where the kernel checks it, or the audit log on a kernel that will not run the sensor, from the next
+  restart.
 - **Decoy key** (`decoy`): puts a fake SSH key, `~/.ssh/id_backup`, in each home folder. SSH never offers a
   key by that name on its own, so nothing legitimate reads it, and any read of it is critical. It is a
   switch of its own because it puts a file in your home folder; turned off, it is taken away again at the

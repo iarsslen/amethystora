@@ -396,6 +396,28 @@ jq -se 'length == 2
 : >"${R}/var/lib/amethystora/security/notes"
 printf 'PERSISTENCE=off\nHARDENING=off\n' >>"${AMETHYSTORA_SECURITY_CONF}"
 
+# Reaching into another program's memory, from the audit rules' records alone, which name no program reached:
+# it is looked up while it still runs, by the pid among the call's arguments
+echo "INJECTION=on" >>"${AMETHYSTORA_SECURITY_CONF}"
+sleep 600 &
+REACHED=$!
+REACHED_EXE="$(readlink "/proc/${REACHED}/exe")"
+STEP=270
+{
+    printf 'type=SYSCALL msg=audit(%s.100:1101): arch=c000003e syscall=101 success=yes exit=0 a0=10 a1=%x a2=0 a3=0 items=0 ppid=1 pid=61 auid=4500 uid=4500 gid=4500 euid=4500 suid=4500 fsuid=4500 egid=4500 sgid=4500 fsgid=4500 tty=(none) ses=3 comm="watch-attach" exe="/var/tmp/watch-attach" subj=unconfined_u:unconfined_r:unconfined_t:s0 key="injection"\n' \
+        "$((BEGAN + STEP))" "${REACHED}"
+    close 1199
+} >>"${AMETHYSTORA_WATCH_AUDIT}"
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run with an attach from the audit rules failed"
+kill "${REACHED}" 2>/dev/null || true
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "injection")')"
+jq -se --arg text "/var/tmp/watch-attach attached to ${REACHED_EXE} (process ${REACHED}), as 4500" \
+    --arg allow "/var/tmp/watch-attach ${REACHED_EXE}" 'length == 1 and .[0].level == "normal"
+    and .[0].tactic == "Defense Evasion" and .[0].text == $text and .[0].allow == $allow' <<<"${FOUND}" >/dev/null ||
+    fail "an attach from the audit rules: ${FOUND}"
+echo "INJECTION=off" >>"${AMETHYSTORA_SECURITY_CONF}"
+
 # Programs that accept connections, from a stand-in ss: the image's own passim is recorded, and one nobody
 # knows is said, with what allows it
 mkdir -p "${T}/ss-bin"
@@ -551,6 +573,42 @@ jq -e '.sensor.drops == 7 and .sensor.active == true and any(.sensor.covered[]; 
 before="$(wc -l <"${HISTORY}")"
 timeout 120 "${WATCH}" >/dev/null || fail "the second run reading the sensor failed"
 tail -n +"$((before + 1))" "${HISTORY}" | grep -qE 'exec-watch|file-watch sensor' && fail "the sensor's findings were said twice"
+
+# Reaching into another program's memory, as the sensor records it, with the program reached and both mount
+# namespaces: a write into another program, a read of its memory, an open of /proc/PID/mem to read, and a try
+# the kernel refused are said; a program's own business (a neighbour in its own folder, two programs in one
+# sandbox), a debugger, and what the owner allowed are recorded
+echo "injection sensor" >>"${AMETHYSTORA_SENSOR_RUN}/plan"
+echo "INJECTION=on" >>"${AMETHYSTORA_SECURITY_CONF}"
+echo "/var/tmp/watch-allowed /usr/bin/*" >"${R}/etc/amethystora/allow.d/injection"
+timeout 120 "${WATCH}" >/dev/null || fail "the first run reading the sensor's injection failed"
+HOST="$(stat -L -c %i /proc/1/ns/mnt)"
+/usr/libexec/amethystora-sensor --records >>"${AMETHYSTORA_WATCH_SENSOR}" <<EVENTS
+{"op":20,"syscall":311,"keys":["injection"],"auid":4500,"args":["1092"],"exe":"/var/tmp/watch-inject","path2":"/usr/bin/gnome-keyring-daemon","target":4242,"target_comm":"gnome-keyring-d","target_mnt":${HOST},"own_mnt":${HOST}}
+{"op":20,"syscall":310,"keys":["injection"],"auid":4500,"args":["1093"],"exe":"/var/tmp/watch-dump","path2":"/usr/bin/firefox","target":4243,"target_mnt":${HOST},"own_mnt":${HOST}}
+{"op":20,"syscall":101,"result":-1,"keys":["injection"],"auid":4500,"args":["10","1094"],"exe":"/var/tmp/watch-attach","path2":"/usr/bin/sleep","target":4244,"target_mnt":${HOST},"own_mnt":${HOST}}
+{"op":20,"syscall":257,"keys":["injection"],"auid":4500,"args":["ffffff9c","0","0"],"exe":"/var/tmp/watch-peek","path2":"/usr/bin/cat","target":4245,"target_mnt":${HOST},"own_mnt":${HOST}}
+{"op":20,"syscall":101,"keys":["injection"],"auid":4500,"args":["4206"],"exe":"/opt/watch-app/crashpad_handler","path2":"/opt/watch-app/app","target":4246,"target_mnt":${HOST},"own_mnt":${HOST}}
+{"op":20,"syscall":311,"keys":["injection"],"auid":4500,"exe":"/usr/bin/wineserver","path2":"/app/bin/game.exe","target":4247,"target_mnt":4026599999,"own_mnt":4026599999}
+{"op":20,"syscall":101,"keys":["injection"],"auid":4500,"args":["10"],"exe":"/usr/libexec/gdb","path2":"/usr/bin/sleep","target":4248,"target_mnt":${HOST},"own_mnt":${HOST}}
+{"op":20,"syscall":257,"keys":["injection"],"auid":4500,"args":["ffffff9c","0","2"],"exe":"/var/tmp/watch-allowed","path2":"/usr/bin/sleep","target":4249,"target_mnt":${HOST},"own_mnt":${HOST}}
+EVENTS
+before="$(wc -l <"${HISTORY}")"
+timeout 120 "${WATCH}" >/dev/null || fail "the run reading the sensor's injection failed"
+FOUND="$(tail -n +"$((before + 1))" "${HISTORY}" | jq -c 'select(.key == "injection")')"
+jq -se 'length == 8
+    and any(.[]; .level == "normal" and .tactic == "Defense Evasion" and .allow == "/var/tmp/watch-inject /usr/bin/gnome-keyring-daemon"
+        and .text == "/var/tmp/watch-inject wrote into the memory of /usr/bin/gnome-keyring-daemon (process 4242), as 4500")
+    and any(.[]; .level == "normal" and .tactic == "Credential Access" and .text == "/var/tmp/watch-dump read the memory of /usr/bin/firefox (process 4243), as 4500")
+    and any(.[]; .level == "normal" and .tactic == "Defense Evasion"
+        and .text == "/var/tmp/watch-attach tried to reach into /usr/bin/sleep (process 4244) and the kernel refused it, as 4500")
+    and any(.[]; .level == "normal" and .tactic == "Credential Access" and (.text | startswith("/var/tmp/watch-peek read the memory of /usr/bin/cat")))
+    and any(.[]; .level == "quiet" and (.text | startswith("/opt/watch-app/crashpad_handler attached to /opt/watch-app/app")))
+    and any(.[]; .level == "quiet" and (.text | startswith("/usr/bin/wineserver wrote into the memory of /app/bin/game.exe")))
+    and any(.[]; .level == "quiet" and (.text | startswith("/usr/libexec/gdb attached to")))
+    and any(.[]; .level == "quiet" and .allowed == "yes" and (.text | startswith("/var/tmp/watch-allowed opened for writing the memory of")))' \
+    <<<"${FOUND}" >/dev/null || fail "what reached into other programs' memory: ${FOUND}"
+echo "INJECTION=off" >>"${AMETHYSTORA_SECURITY_CONF}"
 rm -f /var/tmp/watch-sensor-run /var/tmp/watch-sensor-refused
 unset AMETHYSTORA_WATCH_SENSOR AMETHYSTORA_SENSOR_RUN AMETHYSTORA_WATCH_SYSTEMCTL
 echo "PRIVILEGE=off" >>"${AMETHYSTORA_SECURITY_CONF}"

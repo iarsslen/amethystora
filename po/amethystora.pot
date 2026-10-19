@@ -2710,6 +2710,10 @@ msgid "Decoy key"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Programs reaching into others' memory"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Ransomware behaviour"
 msgstr ""
 
@@ -2887,6 +2891,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "Puts a fake SSH key, ~/.ssh/id_backup, in each home folder, which nothing legitimate reads: any read of it is critical. Off takes it away again, at the next restart."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "A program attaching to another, or reading or writing its memory, which is how malware gets inside the app a password is typed into, and every such try the kernel refused. A debugger, and a program reaching into its own processes, are recorded and not said. Recorded where it happens by the file-watch sensor, or by the audit log where the kernel will not take the sensor, from the next restart."
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
