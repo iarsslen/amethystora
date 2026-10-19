@@ -293,6 +293,9 @@ refused "${TEST_USER}" "${TEST_USER}" '' && ok "a password without a code is ref
 refused "${TEST_USER}" "${TEST_USER}" 000000 && ok "a wrong code is refused" || not_ok "a wrong code logs in"
 refused "${TEST_USER}" "not-${TEST_USER}" "$(totp)" && ok "a wrong password with the right code is refused" ||
     not_ok "a wrong password with the right code logs in"
+# The account's codes take three logins in 30 seconds (setup's --rate-limit=3 --rate-time=30), the three
+# refused above among them
+sleep 31
 inode="$(stat -c %i "${SECRET}")"
 code="$(totp)"
 out="$(ssh_in "${TEST_USER}" "${TEST_USER}" "${code}")"
@@ -304,6 +307,7 @@ else
     not_ok "sshd did not rewrite the account's codes" "$(ls -Z "${SECRET}")" "$(denials_since "${t}" google_authenticator)"
 fi
 refused "${TEST_USER}" "${TEST_USER}" "${code}" && ok "a code is refused the second time" || not_ok "a code logged in twice"
+sleep 31
 scratch="$(grep -m1 -E '^[0-9]{8}$' "${SECRET}")"
 if [[ "$(ssh_in "${TEST_USER}" "${TEST_USER}" "${scratch}")" == "${TEST_USER}" ]] && ! grep -qx "${scratch}" "${SECRET}" &&
     refused "${TEST_USER}" "${TEST_USER}" "${scratch}"; then
@@ -373,10 +377,14 @@ if ! wait_for 1200 test -e "${WORK}/dc-ready"; then
     skip "the domain controller could not be set up here: $(tail -n 3 "${WORK}/dc.log" | paste -sd ' ')"
     finish
 fi
-ok "a Samba domain controller runs for ${DOMAIN} ($(($(date +%s) - STARTED)) s from the suite's start)"
+ok "a Samba domain controller was made for ${DOMAIN} ($(($(date +%s) - STARTED)) s from the suite's start)"
 BRIDGE="$(podman network inspect vmlab-ad --format '{{.NetworkInterface}}')"
 resolvectl dns "${BRIDGE}" "${DC_IP}"
 resolvectl domain "${BRIDGE}" "~${DOMAIN}"
+# samba-tool wrote the account into the database directly, which says nothing of the server: wait until its
+# DNS answers what realmd asks first
+dc_answers() { resolvectl query --cache=no -t SRV "_ldap._tcp.${DOMAIN}"; }
+wait_for 180 dc_answers || not_ok "the domain controller's DNS does not answer" "$(resolvectl query --cache=no -t SRV "_ldap._tcp.${DOMAIN}" 2>&1)"
 IMAGE_FEATURES="$(grep -vE '^[[:space:]]*(#|$)' /usr/etc/authselect/authselect.conf | tail -n +2 | paste -sd ' ')"
 
 discovered="$(realm discover "${DOMAIN}" 2>&1)"
