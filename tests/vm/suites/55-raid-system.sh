@@ -89,20 +89,8 @@ esp_sums() {  # PARTITION
 }
 luks_of() { cryptsetup luksUUID "$1"; }
 has_tpm() { cryptsetup luksDump "$1" | grep -q systemd-tpm2; }
-# The boot menu's choice of "Start with a disk missing", as a person would make it, outside amethystora-raid's
-# own lines; and taken back
-choose_degraded() {
-    mount -o remount,rw /boot
-    sed -i '1i set default=amethystora-degraded # vmlab' /boot/grub2/custom.cfg
-    mount -o remount,ro /boot 2>/dev/null
-    sync
-}
-unchoose_degraded() {
-    mount -o remount,rw /boot
-    sed -i '/# vmlab$/d' /boot/grub2/custom.cfg
-    mount -o remount,ro /boot 2>/dev/null
-    sync
-}
+# "Start with a disk missing" is chosen in the boot menu itself, as a person would (next_boot's menu_last): a line
+# in custom.cfg would stay on the half of /boot that was away, which GRUB may read once it is back
 # The TPM, with the lab's PIN, on every disk of the system: ame security disk-unlock on-pin, which asks each
 # disk's passphrase and the PIN twice
 enrol_tpm() {
@@ -275,9 +263,8 @@ updated)
     first="$(esp_sums "${FIRST_ESP}")" second="$(esp_sums "${NEW_ESP}")"
     [[ "${first}" == "${second}" ]] && ok "and still after bootupctl update" || not_ok "bootupctl update left the ESPs different"
     # The first disk dead: the machine starts from the second disk, chosen degraded in the boot menu
-    choose_degraded
     remember REF_BOOT "$(($(systemctl show graphical.target -p ActiveEnterTimestampMonotonic --value) / 1000000))"
-    next_boot '{"system_absent": true, "credentials": {"cryptsetup.passphrase": null}}'
+    next_boot '{"system_absent": true, "menu_last": true, "credentials": {"cryptsetup.passphrase": null}}'
     step first-dead
     reboot_and_continue
     ;;
@@ -297,7 +284,6 @@ first-dead)
         'any(.actions[]; .id == "replace" and .terminal and .command == ["ame", "system", "raid", "replace", "system"])'
     check "the missing disk is written down" jq -e 'length > 0' /var/lib/amethystora/raid/missing.json
     check "${TEST_USER} writes while the disk is missing" as_user 'head -c 64M /dev/urandom >~/degraded && sync'
-    unchoose_degraded
     step first-back
     next_boot '{"credentials": {"cryptsetup.passphrase": null}}'
     reboot_and_continue
@@ -320,9 +306,8 @@ first-back)
         not_ok "the second check found something" "${out}"
     check "both halves of /boot are alike" md_alike
     # The second disk dead: started degraded from the first, and replaced by SPARE-4
-    choose_degraded
     step second-dead
-    next_boot '{"absent": [3], "credentials": {"cryptsetup.passphrase": null}}'
+    next_boot '{"absent": [3], "menu_last": true, "credentials": {"cryptsetup.passphrase": null}}'
     reboot_and_continue
     ;;
 
@@ -330,7 +315,6 @@ second-dead)
     [[ "$(started_from)" == "${FIRST_ESP_PARTUUID}" ]] && ok "with SPARE-3 gone, the machine starts from the first disk" ||
         not_ok "the machine started from Boot$(boot_current)"
     check "the system is mounted degraded" sh -c 'findmnt -rn -o OPTIONS --mountpoint /sysroot | grep -qw degraded'
-    unchoose_degraded
     systemd-run --unit=vmlab-replace --collect --quiet -p StandardOutput="file:${TESTS}/replace.out" -p StandardError=inherit \
         python3 "$(dirname "$0")/term.py" 3000 'Which disk of the system goes\?' $'\r' 'Which disk takes its place\?' $'\r' \
         'Type ERASE' $'ERASE\r' 'passphrase of the system' "${PASS}"$'\r' \

@@ -152,7 +152,22 @@ async function start(machine, request = {}, fresh = false) {
   for (const [key, value] of Object.entries(credentials)) if (value === null) delete credentials[key];
   await call('vm_start', { name: m.vm, disk: m.disk, fresh, spares_gb: m.spares,
     absent: request.absent || m.absent || [], system_absent: Boolean(request.system_absent), faulty: request.faulty || {}, credentials });
+  if (request.menu_last) await chooseLastEntry(m.vm);
   if (request.type_passphrase) await typePassphrase(m.vm);
+}
+
+// The boot menu's last entry chosen, as a person would, with End and Enter, once the menu shows on the serial
+// console (GRUB writes there through the firmware) and before its countdown ends: on a system over several
+// disks that is "Start with a disk missing" (custom.cfg, after every other entry)
+async function chooseLastEntry(vm) {
+  const serial = `/vm/vms/${vm}.serial`;
+  const shown = () => (fs.existsSync(serial) ? fs.readFileSync(serial, 'latin1') : '').includes('will be executed automatically');
+  const began = Date.now();
+  while (!shown()) {
+    if (Date.now() - began > 300000) throw new Error('no boot menu on the serial console within 5 minutes');
+    await sleep(300);
+  }
+  await call('vm_keys', { name: vm, keys: ['end', 'ret'] });
 }
 
 // The passphrase typed at the prompt, as a person would, once it shows on the serial console: the installer's

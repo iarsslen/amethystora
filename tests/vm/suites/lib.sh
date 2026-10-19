@@ -27,7 +27,8 @@ continue_phase() { exit 101; }
 # next_boot JSON: the restart reboot_and_continue asks for is a power cycle, the machine started again with what
 # JSON says (run.mjs): {"absent": [N]} leaves SPARE-N unplugged, {"faulty": {"N": [sector, ...]}} gives SPARE-N
 # sectors that fail every read, {"system_absent": true} leaves the VM's own disk unplugged, {"credentials":
-# {"cryptsetup.passphrase": null}} leaves a credential out, {"type_passphrase": true} has the disk's passphrase
+# {"cryptsetup.passphrase": null}} leaves a credential out, {"menu_last": true} chooses the boot menu's last entry
+# (End, Enter) as it shows, {"type_passphrase": true} has the disk's passphrase
 # typed at its prompt, which the next phase finds counted in VMLAB_PROMPTS. A later plain restart keeps the
 # machine as that start left it.
 next_boot() {
