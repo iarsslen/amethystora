@@ -1293,10 +1293,11 @@ replace_system() {  # STATUS POOL-JSON DEVID OLD-KNAME CHOICE SIZE
             as_root systemctl daemon-reload
         fi
     fi
-    # The old disk's key: its kernel argument and crypttab line, which would have the next boot wait for it
+    # The old disk's key: its kernel argument and crypttab line, which would have the next boot wait for it. Only
+    # the system's own, which the kernel arguments name: a pool's disk unplugged now keeps its line.
     if [[ "${encrypted}" == true ]]; then
         [[ -n "${outgoing}" ]] && uuid="$(as_root cryptsetup luksUUID "${outgoing}" 2>/dev/null)" && as_root cryptsetup close "luks-${uuid}" 2>/dev/null
-        for uuid in $(tr ' ' '\n' </proc/cmdline | sed -n 's/^rd\.luks\.uuid=\(luks-\)\?//p'; awk '!/^[[:space:]]*#/ && $2 ~ /^UUID=/ { print substr($2, 6) }' <(as_root cat "${CRYPTTAB}")); do
+        for uuid in $(tr ' ' '\n' </proc/cmdline | sed -n 's/^rd\.luks\.uuid=\(luks-\)\?//p'); do
             if [[ ! -e "/dev/disk/by-uuid/${uuid}" ]] || { [[ -n "${outgoing}" ]] && [[ "$(as_root cryptsetup luksUUID "${outgoing}" 2>/dev/null)" == "${uuid}" ]]; }; then
                 kargs_remove "rd.luks.uuid=luks-${uuid}"
                 kargs_remove "rd.luks.uuid=${uuid}"
