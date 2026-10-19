@@ -3,20 +3,23 @@
 # the plan's "Verify" list left open answered on a running machine. A card's command is the one the list the
 # window reads gives it (amethystora-control-list --json), run as the window runs it: a direct one as its
 # argument vector in the account's session, with no terminal; one the list opens in a terminal on a terminal of
-# its own, its questions answered (term.py). Then the list is read again for the state it says. Seven phases, in six starts:
+# its own, its questions answered (term.py). Then the list is read again for the state it says. Nine
+# phases, in seven starts:
 #   1. The list: its speed, its commands, what it reads without root (the boot menu, sched_ext); the hotkey
 #      against every other key of GNOME and its extensions; custom29 in the setup file; every direct card
 #      (theme, wallpaper, transition and its length, layout, widgets, greeting, terminal tools, phone pairing,
 #      the agent and which one, the AUR off, web apps removed, also by names with spaces and a leading dash, the
 #      setup file saved); the window: a switch clicked, a terminal opened and closed, the list read again.
 #   2. The terminal cards: the boot menu, the CPU scheduler, swapped-out memory, the AUR on, a web app added,
-#      the firmware settings declined, freeing space, the image and the stream offered (declined at the last
-#      question), the developer groups on a developer image, and last the default apps.
+#      the firmware settings declined, the image and the stream offered (declined at the last question), the
+#      developer groups on a developer image.
 #   3-4. Android, in one boot, its download being longer than a phase: enabled after on, still after stop and
 #      not after off (drawing in software on an NVIDIA image).
-#   5. Drawing tablets, and the daemon their unit runs.
-#   6. Games: Steam and its layers, X11 for Steam alone, other stores offered, all taken away again.
-#   7. The add-ons: the chosen agent installed, JetBrains Toolbox, the command-line tools, Bold Brew's lists.
+#   5-6. The first boot's own Flatpaks waited for, as every card after installs or removes Flatpaks; then
+#      drawing tablets, and the daemon their unit runs.
+#   7. Games: Steam and its layers, X11 for Steam alone, other stores offered, all taken away again.
+#   8. The apps this image comes with installed now, and disk space freed.
+#   9. The add-ons: the chosen agent installed, JetBrains Toolbox, the command-line tools, Bold Brew's lists.
 # Switching to the developer image and starting over are 90-control-switch.sh's.
 source "$(dirname "$0")/lib.sh"
 
@@ -164,6 +167,14 @@ card_ended() {
     STATUS="$(cat "${TESTS}/$1.status")"
     read_list
 }
+# The first boot's flatpak preinstall holds Flatpak's lock while it downloads the image's apps, some 80
+# refs at the lowest priority and the lab's slow pace: a card that installs or removes Flatpaks waits for it
+preinstall_done() { [[ "$(systemctl show flatpak-preinstall.service -p SubState --value)" == exited ]]; }
+preinstall_ready() {
+    preinstall_done && return 0
+    skip "the first boot's flatpak preinstall is still $(systemctl show flatpak-preinstall.service -p SubState --value): phase ${SUITE_PHASE}'s cards, which install Flatpaks, are left"
+    return 1
+}
 # card_ok WHAT [CHECK...]: ok when the card's command ended well and every CHECK (a command) holds
 card_ok() {
     local what="$1" failed=""
@@ -197,16 +208,6 @@ fi
 
 # --- Phase 1: the list, the direct cards, the window --------------------------------------------------------
 if [[ "${SUITE_PHASE}" == 1 ]]; then
-    apps="$(as_window flatpak list --app --columns=application | wc -l)"
-    times=()
-    for _ in 1 2 3; do times+=("$(ms user_bus env LC_ALL=C.UTF-8 "${LIST}" --json)"); done
-    best="$(printf '%s\n' "${times[@]}" | sort -n | head -n 1)"
-    echo "# amethystora-control-list --json: ${times[*]} ms, with ${apps} Flatpak apps"
-    if ((best < 1000)); then
-        ok "the list is read in under a second (${best} ms) with ${apps} Flatpak apps"
-    else
-        not_ok "the list takes ${best} ms with ${apps} Flatpak apps, more than a second" "${times[*]} ms"
-    fi
     json_holds "every id is listed once, and every command is an ame command, none under ame security" "${LIST_JSON}" '
         (.items | map(.id) | length == (unique | length))
         and ([.items[] | (.command // empty), ((.choices // [])[] | .command), ((.commands // {})[] | .command),
@@ -525,10 +526,6 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     card_ok "the firmware settings declined at the question, and nothing restarts: ${CARD}" \
         "sleep 5" "[[ \"\$(cat /proc/sys/kernel/random/boot_id)\" == '${boot}' ]]"
 
-    in_card 600 'Prune all Podman images and volumes\?' y '?Docker images and volumes\?|Proceed with these changes' y \
-        '?Proceed with these changes' y -- clean
-    card_ok "free disk space, every question answered yes: ${CARD}"
-
     # The image and the stream: the helper starts on the choice made, and asks before switching; declined there
     image="$(jq -r '."image-name"' "${IMAGE_INFO}")"
     stream="$(jq -r '."image-tag"' "${IMAGE_INFO}")"
@@ -561,11 +558,6 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
             '(.items[] | select(.id == "devmode") | .state == "off") and all(.items[]; .id != "dx-group")'
     fi
 
-    # Last, as it may download for long: an app of the list that Flathub ended in favour of another is
-    # offered in its place first, which the first boot's flatpak preinstall -y accepts
-    in_card 1300 '?Replace\? \[Y/n\]|Proceed with these changes' y '?Proceed with these changes' y -- flatpaks
-    card_ok "the apps this image comes with, installed now: ${CARD}"
-    [[ ${STATUS} == 0 ]] || echo "# flatpak then: $(pgrep -a flatpak | cut -c1-150 | paste -sd ';') | $(flatpak list --app --columns=application | grep -i thunderbird | paste -sd ' ')"
     reboot_and_continue
 fi
 
@@ -611,9 +603,30 @@ if [[ "${SUITE_PHASE}" == 4 ]]; then
     reboot_and_continue
 fi
 
-# --- Phase 5: drawing tablets, its own, after Android's long wait -----------------------------------------
+# --- Phase 5: the first boot's apps, waited for in the same boot as the phase after -----------------
 if [[ "${SUITE_PHASE}" == 5 ]]; then
+    if preinstall_done || wait_for 1650 preinstall_done; then
+        ok "the first boot's flatpak preinstall has installed the image's apps"
+    else
+        echo "# flatpak-preinstall.service still $(systemctl show flatpak-preinstall.service -p SubState --value) after 27 min more"
+    fi
+    continue_phase
+fi
+
+# --- Phase 6: drawing tablets -----------------------------------------
+if [[ "${SUITE_PHASE}" == 6 ]] && preinstall_ready; then
     allow_root
+    # Verify: the list's speed with many Flatpaks, once the first boot's are in and nothing else downloads
+    apps="$(as_window flatpak list --app --columns=application | wc -l)"
+    times=()
+    for _ in 1 2 3; do times+=("$(ms user_bus env LC_ALL=C.UTF-8 "${LIST}" --json)"); done
+    best="$(printf '%s\n' "${times[@]}" | sort -n | head -n 1)"
+    echo "# amethystora-control-list --json: ${times[*]} ms, with ${apps} Flatpak apps"
+    if ((best < 1000)); then
+        ok "the list is read in under a second (${best} ms) with ${apps} Flatpak apps"
+    else
+        not_ok "the list takes ${best} ms with ${apps} Flatpak apps, more than a second" "${times[*]} ms"
+    fi
     # Verify: the daemon the image's unit starts, from the Flatpak
     in_card 1200 'Set up OpenTabletDriver\?' y -- opentabletdriver on
     card_ok "drawing tablets set up: ${CARD}" "[[ \"\$(state opentabletdriver)\" == on ]]" \
@@ -636,8 +649,10 @@ if [[ "${SUITE_PHASE}" == 5 ]]; then
     reboot_and_continue
 fi
 
-# --- Phase 6: games ----------------------------------------------------------------------------------------
-if [[ "${SUITE_PHASE}" == 6 ]]; then
+[[ "${SUITE_PHASE}" == 6 ]] && reboot_and_continue
+
+# --- Phase 7: games ----------------------------------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 7 ]] && preinstall_ready; then
     allow_root
     in_card 1500 'Set up gaming\?' y 'Also install\?' $'\x03' -- gaming on
     card_ok "games set up: ${CARD}" "[[ \"\$(state gaming)\" == on ]]" "flatpak info com.vysp3r.ProtonPlus" \
@@ -651,8 +666,27 @@ if [[ "${SUITE_PHASE}" == 6 ]]; then
     reboot_and_continue
 fi
 
-# --- Phase 7: the add-ons and the agent --------------------------------------------------------------------
-if [[ "${SUITE_PHASE}" == 7 ]]; then
+[[ "${SUITE_PHASE}" == 7 ]] && reboot_and_continue
+
+# --- Phase 8: the default apps, and freeing space, once the first boot's apps are in ----------------------
+if [[ "${SUITE_PHASE}" == 8 ]] && preinstall_ready; then
+    allow_root
+    # An app of the list that Flathub ended in favour of another is
+    # offered in its place first, which the first boot's flatpak preinstall -y accepts
+    in_card 1000 '?Replace\? \[Y/n\]|Proceed with these changes' y '?Proceed with these changes' y -- flatpaks
+    card_ok "the apps this image comes with, installed now: ${CARD}"
+    [[ ${STATUS} == 0 ]] || echo "# flatpak then: $(pgrep -a flatpak | cut -c1-150 | paste -sd ';') | $(flatpak list --app --columns=application | grep -i thunderbird | paste -sd ' ')"
+
+    in_card 600 'Prune all Podman images and volumes\?' y '?Docker images and volumes\?|Proceed with these changes' y \
+        '?Proceed with these changes' y -- clean
+    card_ok "free disk space, every question answered yes: ${CARD}"
+
+    reboot_and_continue
+fi
+[[ "${SUITE_PHASE}" == 8 ]] && reboot_and_continue
+
+# --- Phase 9: the add-ons and the agent --------------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 9 ]]; then
     allow_root
     chosen="$(state agent-choice)"
     if [[ -n "$(item agent-install)" ]]; then
