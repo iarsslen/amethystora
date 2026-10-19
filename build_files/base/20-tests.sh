@@ -2006,6 +2006,11 @@ test -x /usr/libexec/amethystora-integrity
 systemctl is-enabled amethystora-integrity.timer amethystora-integrity.path >/dev/null
 grep -qx "PathChanged=/var/lib/flatpak/.changed" /usr/lib/systemd/system/amethystora-integrity.path
 grep -q "^app-integrity " /usr/share/amethystora/just/security.just
+# ...which the person at the machine starts without a password, and nothing more of the unit
+INTEGRITY_RULE=/usr/share/polkit-1/rules.d/50-amethystora-integrity.rules
+grep -q 'action.lookup("unit") == "amethystora-integrity.service"' "${INTEGRITY_RULE}"
+grep -q 'action.lookup("verb") == "start"' "${INTEGRITY_RULE}"
+grep -q "subject.local && subject.active" "${INTEGRITY_RULE}"
 bash /ctx/build_files/shared/test-app-integrity.sh
 # The behaviour sensor: Falco from falcosecurity's own repository, with its rules as packaged, run only by
 # amethystora-behaviour.service while BEHAVIOUR is on. None of its own units runs, its rules follower is masked,

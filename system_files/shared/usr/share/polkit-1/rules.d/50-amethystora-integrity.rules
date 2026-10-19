@@ -1,0 +1,14 @@
+// `ame security app-integrity check` runs the app integrity check now, as its daily timer does, by starting its
+// unit. Let the person sitting at the machine do that without a password, so that putting back an app of their
+// own needs none either. The check reads, writes only its own records in a root-only folder, and repairs
+// nothing; it skips itself while APP_INTEGRITY is off. Starting it is all this allows. Stopping or changing the
+// unit still takes an administrator, as does starting it from anywhere but the machine.
+polkit.addRule(function (action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        action.lookup("unit") == "amethystora-integrity.service" &&
+        action.lookup("verb") == "start" &&
+        subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

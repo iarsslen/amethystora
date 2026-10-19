@@ -549,9 +549,14 @@ app-integrity ACTION="status" APP="":
             ;;
         check)
             echo "Checking. The first check reads every app once, which takes a few minutes; after that, only what changed."
-            sudo systemctl start amethystora-integrity.service
-            # The watcher says what is new, and passes it on to the report and to this
-            sudo systemctl start amethystora-security-watch.service
+            # The person at the machine may start it without a password (50-amethystora-integrity.rules)
+            started="$(date +%s)"
+            systemctl start amethystora-integrity.service
+            # The check starts the watcher as it ends, which says what is new and passes it on to the report and to this
+            for _ in $(seq 1 60); do
+                [[ "$(jq -r '.integrity.time // 0' "${status}" 2>/dev/null)" -ge "${started}" ]] && break
+                sleep 1
+            done
             ame security app-integrity status
             ;;
         repair)
