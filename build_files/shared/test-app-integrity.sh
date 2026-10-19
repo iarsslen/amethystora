@@ -56,15 +56,22 @@ source_tree() {
 # does then: its deploy data, files/.ref, the launcher rewritten as a new file, the wrapper, the active link and the
 # installation's exports. Prints the commit.
 deploy() {
-    local base="$1" id="$2" src="$3" key="$4" origin="${5:-test}" ref commit dir
-    ref="app/${id}/x86_64/stable"
-    commit="$(ostree commit --repo="${base}/repo" --branch="${ref}" --canonical-permissions --no-xattrs \
+    local base="$1" id="$2" src="$3" key="$4" origin="${5:-test}" commit
+    commit="$(ostree commit --repo="${base}/repo" --branch="app/${id}/x86_64/stable" --canonical-permissions --no-xattrs \
         ${key:+--gpg-sign="${key}" --gpg-homedir="${GNUPGHOME}"} "${src}")"
+    place "${base}" "${id}" "${commit}" "${origin}"
+    echo "${commit}"
+}
+
+# A commit checked out and made ready as Flatpak does, which a reinstall does again with the same commit; the
+# deploy data carries when it was deployed
+place() {
+    local base="$1" id="$2" commit="$3" origin="$4" dir
     dir="${base}/app/${id}/x86_64/stable/${commit}"
     mkdir -p "${dir%/*}"
     ostree checkout --repo="${base}/repo" -U "${commit}" "${dir}"
-    python3 -c 'import sys; from gi.repository import GLib
-v = GLib.Variant("(ssasta{sv})", (sys.argv[2], sys.argv[3], [], 0, {}))
+    python3 -c 'import sys, time; from gi.repository import GLib
+v = GLib.Variant("(ssasta{sv})", (sys.argv[2], sys.argv[3], [], 0, {"timestamp": GLib.Variant("t", time.time_ns())}))
 open(sys.argv[1], "wb").write(v.get_data_as_bytes().get_data())' "${dir}/deploy" "${origin}" "${commit}"
     : >"${dir}/files/.ref"
     rm "${dir}/export/share/applications/${id}.desktop"
@@ -77,7 +84,6 @@ open(sys.argv[1], "wb").write(v.get_data_as_bytes().get_data())' "${dir}/deploy"
     ln -sfn "../../../app/${id}/current/active/export/share/applications/${id}.desktop" \
         "${base}/exports/share/applications/${id}.desktop"
     ln -sfn "../../app/${id}/current/active/export/bin/${id}" "${base}/exports/bin/${id}"
-    echo "${commit}"
 }
 
 undeploy() {
@@ -250,6 +256,17 @@ grep -q "^unknown:-:app/org.example.Other/x86_64/stable" <<<"${FOUND}" || fail "
 undeploy "${FP}" org.example.Unsigned
 undeploy "${FP}" org.example.Other
 clean "both uninstalled"
+
+# A reinstall, as the repair does it: the old deploy moved aside, as Flatpak moves it into .removed, the same
+# commit checked out again into a new folder of the same name, with what Flatpak writes written anew, extra data
+# included, and the old one taken away
+mkdir -p "${FP}/.removed"
+mv "${D}" "${FP}/.removed/org.example.App-${COMMIT}"
+place "${FP}" org.example.App "${COMMIT}" test
+mkdir -p "${D}/files/extra"
+printf 'downloaded\n' >"${D}/files/extra/blob"
+rm -rf "${FP}/.removed"
+clean "a reinstall of the same commit"
 
 # An update: a new commit deployed, the old one taken away, exports pointing at the new one
 printf '#!/bin/sh\necho updated\n' >"${T}/app/files/bin/app"

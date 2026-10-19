@@ -43,6 +43,7 @@ import re
 import shlex
 import sqlite3
 import stat
+import struct
 import subprocess
 import sys
 import tempfile
@@ -100,7 +101,7 @@ CREATE TABLE IF NOT EXISTS dirs (id INTEGER PRIMARY KEY, path TEXT UNIQUE NOT NU
 CREATE TABLE IF NOT EXISTS entries (dir INTEGER NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL, ino INTEGER,
     ctime INTEGER, mtime INTEGER, size INTEGER, nlink INTEGER, mode INTEGER, uid INTEGER, gid INTEGER, ref TEXT,
     PRIMARY KEY (dir, name)) WITHOUT ROWID;
-CREATE TABLE IF NOT EXISTS deploys (path TEXT PRIMARY KEY, notes TEXT NOT NULL) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS deploys (path TEXT PRIMARY KEY, notes TEXT NOT NULL, folder TEXT) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT) WITHOUT ROWID;
 """
 
@@ -169,16 +170,17 @@ class Store:
             self.log({"op": "drop_tree", "dir": path})
 
     def deploy(self, path):
-        row = self.con.execute("SELECT notes FROM deploys WHERE path = ?", (path,)).fetchone()
-        return None if row is None else json.loads(row[0])
+        """What the first look at a deploy found, and which folder it was (folder_of)"""
+        row = self.con.execute("SELECT notes, folder FROM deploys WHERE path = ?", (path,)).fetchone()
+        return (None, None) if row is None else (json.loads(row[0]), row[1])
 
     def deploys(self):
         return [r[0] for r in self.con.execute("SELECT path FROM deploys")]
 
-    def put_deploy(self, path, notes):
-        self.con.execute("INSERT OR REPLACE INTO deploys VALUES (?, ?)", (path, json.dumps(notes)))
+    def put_deploy(self, path, notes, folder):
+        self.con.execute("INSERT OR REPLACE INTO deploys VALUES (?, ?, ?)", (path, json.dumps(notes), folder))
         if self.log:
-            self.log({"op": "deploy", "dir": path, "notes": notes})
+            self.log({"op": "deploy", "dir": path, "notes": notes, "folder": folder})
 
     def drop_deploy(self, path):
         self.con.execute("DELETE FROM deploys WHERE path = ?", (path,))
@@ -265,6 +267,27 @@ def lstat(path):
         return os.lstat(path)
     except OSError:
         return None
+
+
+FS_IOC_GETVERSION = 0x80087601
+
+
+def folder_of(path):
+    """Which folder PATH is: its inode, and the generation that tells a new folder from an old one whose inode
+    number ext4 and XFS gave it again"""
+    st = lstat(path)
+    if st is None:
+        return None
+    generation = 0
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC)
+        try:
+            generation = struct.unpack("l", fcntl.ioctl(fd, FS_IOC_GETVERSION, bytes(8)))[0]
+        finally:
+            os.close(fd)
+    except OSError:
+        pass
+    return f"{st.st_ino}:{generation}"
 
 
 # --- ostree -----------------------------------------------------------------------------------------------------
@@ -688,11 +711,17 @@ class Installation:
                 self.store.drop_deploy(path)
         for dep in deploys:
             self.counts["apps" if dep.kind == "app" else "runtimes"] += 1
-            notes = self.store.deploy(dep.path)
+            notes, folder = self.store.deploy(dep.path)
+            now = folder_of(dep.path)
+            # A reinstall checks the same commit out again into a new folder of the same name, and writes what
+            # Flatpak writes anew: looked at as the first time, its files against the commit's objects again
+            if notes is not None and now is not None and folder != now:
+                self.store.drop_tree(dep.path)
+                notes = None
             if notes is None:
                 notes = signature_notes(self.repo, remotes, dep, self.trusted, self.account)
                 self.first_sight(dep)
-                self.store.put_deploy(dep.path, notes)
+                self.store.put_deploy(dep.path, notes, now)
             else:
                 self.recheck(dep)
             FINDINGS.extend(notes)
@@ -1059,8 +1088,8 @@ def apply(store, op, base):
         store.drop(path, op["name"])
     elif kind == "drop_tree":
         store.drop_tree(path)
-    elif kind == "deploy" and isinstance(op.get("notes"), list):
-        store.put_deploy(path, [n for n in op["notes"] if isinstance(n, dict)])
+    elif kind == "deploy" and isinstance(op.get("notes"), list) and (op.get("folder") is None or isinstance(op["folder"], str)):
+        store.put_deploy(path, [n for n in op["notes"] if isinstance(n, dict)], op.get("folder"))
     elif kind == "drop_deploy":
         store.drop_deploy(path)
 
