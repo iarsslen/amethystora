@@ -62,7 +62,8 @@ starting with `#` is a measurement, which the report repeats. A phase that calls
 power cycle instead, the machine started again with a spare disk unplugged (`{"absent": [2]}`), with sectors
 that fail every read (`{"faulty": {"3": [sector, ...]}}`, through QEMU's blkdebug), or with the disk's
 passphrase typed at its prompt rather than handed over (`{"type_passphrase": true}`; the next phase finds how
-many times it was asked in `VMLAB_PROMPTS`), without its own disk (`{"system_absent": true}`), or with a
+many times it was asked in `VMLAB_PROMPTS`), with the boot menu's last entry chosen as it shows on the
+serial console (`{"menu_last": true}`, End and Enter), without its own disk (`{"system_absent": true}`), or with a
 credential left out (`{"credentials": {"cryptsetup.passphrase": null}}`, for the TPM alone). A later plain
 restart keeps the machine as that start left it. Exit status 101 (`continue_phase`) runs the next phase in the
 same boot, for what outlasts a phase's 30 minutes.
