@@ -1,10 +1,12 @@
 #!/usr/bin/python3
-"""keys.py STEP...: types on a keyboard of its own, which the kernel's uinput makes, as a person types: GNOME
-takes it for real input, and gives the focus to what it opens. Run as root (the image keeps /dev/uinput
-root's). A STEP is a key or a chord of keys joined by + (super, ctrl+shift+c, alt+tab, return), or text: to
-type, its letters, digits and spaces each pressed in turn. Waits a moment after each step.
+"""keys.py STEP...: types and clicks on a keyboard and pointer of its own, which the kernel's uinput makes, as
+a person does: GNOME takes it for real input, and gives the focus to what it opens. Run as root (the image
+keeps /dev/uinput root's). A STEP is a key or a chord of keys joined by + (super, ctrl+shift+c, alt+tab,
+return), text: to type, its letters, digits and spaces each pressed in turn, or click:X,Y, the left button at
+X and Y, fractions of the screen's width and height (click:0.5,0.5 is its middle). Waits a moment after each.
+A session takes no key until it has had its first click.
 
-    keys.py super text:control return
+    keys.py click:0.5,0.5 super+ctrl+shift+c
 """
 import fcntl
 import os
@@ -22,8 +24,12 @@ for row, start in (("qwertyuiop", 16), ("asdfghjkl", 30), ("zxcvbnm", 44)):
     for i, c in enumerate(row):
         KEYS[c] = start + i
 
-UI_SET_EVBIT, UI_SET_KEYBIT, UI_DEV_CREATE, UI_DEV_DESTROY = 0x40045564, 0x40045565, 0x5501, 0x5502
-EV_SYN, EV_KEY = 0, 1
+UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_ABSBIT = 0x40045564, 0x40045565, 0x40045567
+UI_DEV_CREATE, UI_DEV_DESTROY = 0x5501, 0x5502
+EV_SYN, EV_KEY, EV_ABS = 0, 1, 3
+ABS_X, ABS_Y, BTN_LEFT = 0, 1, 0x110
+# An absolute pointer, as QEMU's tablet is: a relative one's moves are accelerated, so where it lands is a guess
+ABS_MAX = 32767
 
 
 def emit(fd, kind, code, value):
@@ -42,6 +48,14 @@ def press(fd, codes):
         time.sleep(0.03)
 
 
+def click(fd, x, y):
+    emit(fd, EV_ABS, ABS_X, round(float(x) * ABS_MAX))
+    emit(fd, EV_ABS, ABS_Y, round(float(y) * ABS_MAX))
+    emit(fd, EV_SYN, 0, 0)
+    time.sleep(0.3)
+    press(fd, [BTN_LEFT])
+
+
 def main(steps):
     if not steps:
         sys.exit(__doc__)
@@ -51,14 +65,24 @@ def main(steps):
     # compositor reads keys from, only when it has all of the first 31
     for code in range(1, 256):
         fcntl.ioctl(fd, UI_SET_KEYBIT, code)
-    # struct uinput_user_dev: the name, the input_id, ff_effects_max, then the four absolute-axis arrays
-    os.write(fd, struct.pack("80sHHHHi", b"vmlab keyboard", 3, 0x1234, 0x5678, 1, 0) + bytes(4 * 64 * 4))
+    # And a pointer's button and axes, for click
+    fcntl.ioctl(fd, UI_SET_KEYBIT, BTN_LEFT)
+    fcntl.ioctl(fd, UI_SET_EVBIT, EV_ABS)
+    fcntl.ioctl(fd, UI_SET_ABSBIT, ABS_X)
+    fcntl.ioctl(fd, UI_SET_ABSBIT, ABS_Y)
+    # struct uinput_user_dev: the name, the input_id, ff_effects_max, then absmax, absmin, absfuzz and absflat
+    absmax = [0] * 64
+    absmax[ABS_X] = absmax[ABS_Y] = ABS_MAX
+    os.write(fd, struct.pack("80sHHHHi", b"vmlab keyboard", 3, 0x1234, 0x5678, 1, 0)
+             + struct.pack("64i", *absmax) + bytes(3 * 64 * 4))
     fcntl.ioctl(fd, UI_DEV_CREATE)
-    # The compositor finds the new keyboard through udev first
+    # The compositor finds the new device through udev first
     time.sleep(2)
     try:
         for step in steps:
-            if step.startswith("text:"):
+            if step.startswith("click:"):
+                click(fd, *step[6:].split(","))
+            elif step.startswith("text:"):
                 for c in step[5:].lower():
                     press(fd, [KEYS["space" if c == " " else c]])
             else:

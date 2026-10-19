@@ -420,9 +420,9 @@ EOF
     window_inactive() { ! window_active; }
     # Opened as a person opens it, with its hotkey (custom29), on a keyboard GNOME takes for a person's
     # (keys.py): a window started any other way, without a person's input behind it, GNOME gives no focus to
-    # The session starts in GNOME's overview, which a person leaves with Escape: a window opened over it does
-    # not get the focus
-    python3 "${SUITE_DIR}/keys.py" esc super+ctrl+shift+c
+    # A session takes no key until it has had its first click: one in the middle of the screen, the overview's
+    # workspace, which also leaves the overview, then the hotkey
+    python3 "${SUITE_DIR}/keys.py" click:0.5,0.5 super+ctrl+shift+c
     if atspi wait 120 "Theme" >/dev/null 2>&1; then
         check "Super+Ctrl+Shift+C opens Control, which has the focus" wait_for 30 window_active
         atspi click "Desktop" >/dev/null 2>&1
