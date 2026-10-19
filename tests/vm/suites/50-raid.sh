@@ -729,8 +729,13 @@ case "${SUITE_PHASE}" in
     out="$(in_terminal 1200 'Which disk of data goes\?' $'\r' 'Which disk takes its place\?' $'\r' 'Type ERASE' $'ERASE\r' \
         'The recovery key of data' "${DATA_KEY}"$'\r' -- "${AS_TESTER[@]}" 'ame system raid replace data')"
     says "ame system raid replace data puts SPARE-3 in place of the damaged ${DAMAGED_SERIAL}" "${out}" 'errors' 'Disk [0-9]+ of data is replaced'
-    holds "data is whole on SPARE-3, without ${DAMAGED_SERIAL}" "$(pool_json data)" \
-        ".state == \"ok\" and any(.devices[]; .disk.serial == \"SPARE-3\") and (any(.devices[]; .disk.serial == \"${DAMAGED_SERIAL}\") | not)"
+    # Read again for up to two minutes: just after a replace, the kernel's names for the new disk may not be there yet
+    whole=".state == \"ok\" and any(.devices[]; .disk.serial == \"SPARE-3\") and (any(.devices[]; .disk.serial == \"${DAMAGED_SERIAL}\") | not)"
+    for _ in $(seq 30); do
+        jq -e "${whole}" <<<"$(pool_json data)" >/dev/null 2>&1 && break
+        sleep 4
+    done
+    holds "data is whole on SPARE-3, without ${DAMAGED_SERIAL}" "$(pool_json data)" "${whole}"
     [[ "$(sha256sum /var/mnt/data/damaged | cut -d ' ' -f 1)" == "${DAMAGED_SUM}" ]] && ok "the damaged file is whole on the new disk" ||
         not_ok "the damaged file changed through the replace"
     # The rest in phases of their own in this same boot: together they outlast the lab's 30 minutes a phase
