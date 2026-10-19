@@ -19,6 +19,10 @@ IOSchedulingClass=idle
 CPUWeight=20
 IOWeight=20
 MemoryHigh=512M
+# What a run costs, in systemd's own accounting (systemctl show -p CPUUsageNSec -p IOReadBytes), which the
+# VM lab measures against the plan's budget
+CPUAccounting=yes
+IOAccounting=yes
 # A run with nothing new is a walk of the files' metadata; the first, and an account's first, read what they
 # check once
 TimeoutStartSec=2h
