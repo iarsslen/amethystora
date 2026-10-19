@@ -31,7 +31,8 @@ This document provides essential information for coding agents working with the 
   - `dx/` - `amethystora-dx` only, copied in by `build_files/shared/build-dx.sh`
   - `sealed/` - the sealed images only, copied in by `build_files/sealed/00-sealed.sh`
 - `apps/` - The Amethystora apps (Manual, Security, Updates, Notes, Logs, Backups, Control): one Rust
-  program, a Cargo workspace built in the Containerfile's `apps` stage (see The Amethystora apps)
+  program, a Cargo workspace built in the Containerfile's `apps` stage (see The Amethystora apps); the same
+  workspace builds `amethystora-sensor` and the AI agent's tools (`agent-tools`, see Agentic features)
 - `build_files/` - Build scripts organized as base/, dx/, shared/
   - `base/` - Base image build scripts (00-image-info.sh through 20-tests.sh)
   - `dx/` - Developer experience build scripts
@@ -293,7 +294,65 @@ both and requires skill names to be unique across them, so the launcher starts i
 the image ships no account with it. The update that made them so left every account off;
 `user-setup.hooks.d/13-agentic-off.sh`, which runs before `13-agentic.sh` unlinks the skills it looks for,
 takes away the old `no-agentic` marker and tells an account that had them on, once. Keep the skill
-accurate when you change a command, path or recipe that it names.
+accurate when you change a command, path or recipe that it names. The main skill is a short core (under
+7 KB, `20-tests.sh`) and `references/<topic>.md` files it names, read only when needed.
+
+**Two levels, and the tools** (`plans/PLAN-agentic-os.md`). Level 1, "Agentic features", is the agent, its
+skills and Amethystora's own read-only tools; level 2, "Let the agent make changes" (`ame agent tools on`,
+the marker `~/.config/amethystora/agent-tools`, which needs level 1), adds the tools that change things.
+The tools are one Rust program, `apps/agent-tools` (`/usr/libexec/amethystora-agent-tools`, no GTK): an MCP
+server over stdio written by hand, which the agent starts and which lives only while it does, and the same
+answers as a command (`amethystora-agent search|read|state|history`). Level 1 is `search` and `read` (the
+index), `state` (thirteen topics, each a projection of the helper that already answers it, never state worked
+out on its own), `logs` (every value given to journalctl as its own option) and `history`, pre-allowed in
+the agents. Level 2 is `change` (a Control entry, through `apps/control-core`, the GTK-free crate Control
+uses too), `software` (Flatpak, Homebrew, amepkg; never layering), `run` (a command handed to the user, in a
+terminal or as root) and `undo`, each asked for every time; every change is recorded in
+`~/.local/state/amethystora/agent-tools/actions.jsonl` with its way back. Text written by others reaches the
+agent cleaned and marked as data. Off costs nothing: no daemon, timer or service.
+- **The launcher gives each agent the tools at launch** and writes nothing into its settings: Claude Code
+  `--mcp-config` and `--allowedTools`, Copilot CLI `--additional-mcp-config` and `--allow-tool`, Codex `-c
+  mcp_servers.amethystora...` with each read tool's `approval_mode`, Opencode `OPENCODE_CONFIG_CONTENT`. Cursor
+  CLI and Antigravity CLI take no such option, so while the features are on their settings hold exactly
+  one entry (`~/.cursor/mcp.json`, `~/.gemini/config/mcp_config.json`, and the read tools' allow rules),
+  which the security reader accepts and nothing more under that name. `amethystora-agent argv AGENT` prints
+  a launch, and `20-tests.sh` holds every option to `agent-cli-flags`. Check a new option with the installed
+  agent's `--help` first, as these were on 2026-10-19.
+- **The never list** (`apps/agent-tools/src/never.rs`) is refused by the tools and again by the root helper:
+  the duress feature, a security command that loosens protection or sends something away (only reads and
+  turning protection on pass), deleting from a backup or a snapshot, erasing disks, the AUR, sudoers, polkit,
+  PAM, the agent's own lock and root mode, the Notes data, and shells or wrappers that would run commands out
+  of sight. The tools that change things refuse while the agent runs with its own checks off (a flag from
+  `agent-cli-flags` on the agent above the server, or a setting the security reader reports).
+- **`/etc/amethystora/agent.conf`** is the administrator's: `ALLOW=act|know|off` (the most any account may
+  turn on), `ALLOW_FOR=account:level` (one account's own), `ROOT=session|minutes|each|terminal`. Its one
+  reader and writer is the tools program (`policy`, and `conf` as root, behind `ame agent lock` and `ame
+  agent root`); a value it cannot read counts as the strictest. The watcher's drift check accepts it.
+- **Root commands** run through `/usr/libexec/amethystora-agent-root`, which pkexec starts from the tool
+  server with a socket pair on its stdin and stdout (a pipe could be opened by another process of the
+  account through `/proc/PID/fd`), one polkit action per mode in `org.amethystora.agent.policy` (picked by
+  `exec.argv1`), no rule letting anyone through. It reads agent.conf itself, runs only for the tool server of
+  an account allowed to act, `env -i`, ten minutes at most, and says every command in a notification and the
+  journal (`amethystora-agent-root`). In `session` it serves until the agent ends, the screen locks, an hour
+  passes or agent.conf changes. `amethystora-in-terminal --agent --report` is the hand-off to a terminal.
+- **Control's AI agent page** shows the root mode and the lock, each an `ame agent` command in a terminal:
+  the maintainer's exception of 2026-10-18 to Security keeping every security setting, since they govern
+  the agent, not a security feature.
+
+**The knowledge and the index.** `system_files/shared/usr/share/amethystora/agents/knowledge` is written for
+agents: `architecture.md`, `by-design.md` (each default the image hardens, its symptom, how to confirm it and
+its switch), `desktop.md`, `agent.md`, `playbooks/<symptom>.md` (Symptom, Look, Causes on Amethystora, Fix,
+Verify, Undo; `amethystora-doctor` findings name them) and `aliases.tsv`. **Keep it accurate** like the manual
+and the skill: `20-tests.sh` fails on a `/usr` path, unit or `ame` command it names that the image lacks, and
+nothing in it may name the duress feature. `build_files/shared/build-agent-index.sh` writes the index when
+the image is built: the manual, the skills, the knowledge and a reference generated from the image itself
+(every `ame` command from just's dump, helper header, unit, security switch and Control entry), cut into
+passages of about 300 tokens whose ids are the manual's links, ranked by BM25F and by meaning with
+potion-base-8M (Model2Vec, MIT), whose tokenizer and safetensors reader are in the crate and are held to the
+model's own output (`tests/model-reference.jsonl`). `apps/agent-tools/tests/golden.tsv` is asked of the
+source tree's index by cargo and of the image's by `20-tests.sh`, at recall@3 of at least 0.9: add a question
+when you add a page an agent should find. `/usr/libexec/amethystora-doctor` (`ame system doctor`, `state
+health`) is the read-only health check outside security, about ten seconds, no password.
 
 Updates, Security and Logs offer **Ask the agent** where something failed, while the features are on
 (`amethystora-agent status`): each runs `amethystora-agent diagnose` with what the program picked
@@ -704,7 +763,11 @@ it for `--json`, so a setting added or changed there reaches both. Never write a
   `20-tests.sh` compares. The key is picked in a file dialog.
 - **Security stays in Security,** by the maintainer's rule: nothing in the script or the window runs
   `ame security`. The sidebar opens Security, Updates (whose switch automatic updates keep) and Backups
-  (whose controls the backup keeps).
+  (whose controls the backup keeps). The one exception, by the maintainer's choice of 2026-10-18, is the AI
+  agent's root mode and lock (`ame agent root`, `ame agent lock`), which govern the agent rather than a
+  security feature (see Agentic features).
+- **The list logic is `apps/control-core`**, a crate without GTK, which the agent's `change` tool uses too,
+  so that both change a setting the same way; Control only says each refusal in its own words.
 - **Pools of disks** are the System page's Disks group: a `disks` entry with one row for each pool from
   `amethystora-raid status --json`, each with the actions the list gives it, which `backend.rs` runs with
   `pool(action, id)`. Every one of them is an `ame system raid` command in a terminal (`20-tests.sh`).
@@ -1027,7 +1090,7 @@ This function:
 - COPR packages are installed individually with isolated repo enablement
 - Every third-party repository's signing key is pinned by fingerprint: `pin_repo_key` (`copr-helpers.sh`, with the Copr projects' fingerprints in its table) fetches the key a repository file names, refuses any other, keeps it in `/etc/pki/rpm-gpg` and points the file at that copy, so that dnf never takes a key from the server; `20-tests.sh` fails on a pinned repository that still names one. A new repository or Copr project gets its fingerprint there
 - RPM Fusion's release packages come from volunteer mirrors, and dnf checks no signature on a package given as a file or URL: `rpmfusion_release_install` takes RPM Fusion's keys from Fedora's signed `distribution-gpg-keys` and installs the release packages only with a valid signature
-- Downloads outside a package manager are pinned by SHA-256 in the script that fetches them (Starship, the extensions.gnome.org uploads, candy-icons, Sweet), the apps' crates by `apps/Cargo.lock`'s checksums,, and Flathub is added from the base image's own `flathub.flatpakrepo` after its key is checked
+- Downloads outside a package manager are pinned by SHA-256 in the script that fetches them (Starship, the extensions.gnome.org uploads, candy-icons, Sweet), the apps' crates by `apps/Cargo.lock`'s checksums, the agent's embedding model by its revision and SHA-256 in `build-apps.sh` (its licences in `usr/share/licenses/potion-base-8M`, named in `NOTICE`), and Flathub is added from the base image's own `flathub.flatpakrepo` after its key is checked
 
 ### Licences and trademarks
 
@@ -1108,8 +1171,10 @@ The `Containerfile` uses a multi-stage build process:
    Fedora's, refusing a base whose fprintd is past the spec's, and puts the source package in
    `/usr/src/amethystora`
 3. **Stage `apps`** (FROM the same pinned silverblue-main): `build_files/shared/build-apps.sh` installs
-   Fedora's Rust, runs the tests of every crate in `apps/` and builds the one program into `/out`, with
-   the licences of its crates, then clears its build away. `base` mounts the whole stage at `/apps-stage`:
+   Fedora's Rust, downloads the agent's embedding model (potion-base-8M, at one Hugging Face revision, each
+   file checked against its SHA-256), runs the tests of every crate in `apps/` and builds the one program,
+   `amethystora-sensor` and the agent's two tools into `/out`, with the licences of their crates, then clears
+   its build away. `base` mounts the whole stage at `/apps-stage`:
    `13-apps.sh` installs from its `/out`, and `20-tests.sh` runs its Node. Neither Rust nor Node reaches
    the image
 4. **Stage `base`** (FROM silverblue-main): Base Amethystora image
@@ -1203,6 +1268,7 @@ staying in place.
 16. `18-workarounds.sh` - Temporary fixes/workarounds
 17. `19-initramfs.sh` - Regenerates initramfs, adding dracut's `tpm2-tss` module where dracut has it so that `ame security disk-unlock` can hand the disk key to the TPM
 18. `build_files/shared/build-dx.sh` - dx only: copies `system_files/dx`, runs `build_files/dx/00-dx.sh` and then `01-tests-dx.sh`
+18a. `build_files/shared/build-agent-index.sh` - The AI agent's index (`amethystora-agent-tools index --write`), once every name is final and every unit enabled or not, of the image as it then is, dx's files included (see Agentic features)
 19. `build_files/shared/source-manifest.sh` - Writes `/usr/share/licenses/amethystora/SOURCES`: every package with its licence, source package and where that source is, which the GPL asks for and the written offer in `NOTICE` points to. Fedora keeps its own in Koji. RPM Fusion, negativo17 and Copr publish only their current builds, so the script fetches the source packages of theirs that are under a licence asking for the source into `/usr/src/amethystora`, and the build fails when one cannot be fetched; a Copr project the image starts installing from goes in its `COPR_PROJECTS`. NVIDIA's own repository, which the NVIDIA images take the container toolkit from, publishes no source packages at all, so its packages are listed with the address of their source instead (`NO_SOURCE_PACKAGES`); a GPL package from any other maker the script does not know still fails the build. `20-tests.sh` fails if a package is missing from the list or a source package from the image
 20. `20-tests.sh` - Runs last, after the repositories are validated and the build cleaned up; fails the build on anything missing or left behind, including a GNOME Shell extension shipped without its licence
 
