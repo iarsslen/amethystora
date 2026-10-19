@@ -57,6 +57,16 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     ORIGIN="$(origin_file)"
     cp -a "${ORIGIN}" "${STATE}/origin"
     reference="$(rpm-ostree status --booted --json | jq -r '.deployments[0]."container-image-reference"')"
+    # A machine whose image came from the registry unchecked, as a disk made from a published image does: at its
+    # first boot with a network the safety net stages the switch to checked updates. Taken away once seen, so that
+    # what follows starts from one deployment, as an installer's %post does.
+    if [[ "${reference}" == ostree-unverified-registry:ghcr.io/iarsslen/* ]]; then
+        settled() { [[ "$(systemctl show -P ActiveState amethystora-signed-updates.service)" != activating ]]; }
+        wait_for 1200 settled
+        same "at its first boot with a network, amethystora-signed-updates staged the switch to checked updates" \
+            "$(booted '.status.staged.image.image.signature | tostring')" containerPolicy
+        rpm-ostree cleanup --pending >/dev/null 2>&1
+    fi
     # What both kickstarts run in %post, inside the installed system, with the network off as the installer ISO
     # has it (its Network module is off)
     nmcli networking off
@@ -82,7 +92,9 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     if [[ "${reference}" == ostree-*registry:ghcr.io/iarsslen/* ]]; then
         image="${reference#*registry:}"
         rw_sysroot bootc switch --mutate-in-place --transport registry "${image}" >/dev/null 2>&1
-        same "a plain bootc switch leaves updates unchecked" "$(booted '.status.booted.image.image.signature | tostring')" insecure
+        unchecked="$(booted '.status.booted.image.image.signature | tostring')"
+        if [[ "${unchecked}" != containerPolicy ]]; then ok "a plain bootc switch leaves updates unchecked (${unchecked})"; else
+            not_ok "a plain bootc switch left updates signature-checked"; fi
         timeout 1200 systemctl start amethystora-signed-updates.service
         same "amethystora-signed-updates stages the signed switch again" \
             "$(booted '(.status.staged.image.image.image // "") + " " + (.status.staged.image.image.signature | tostring)')" \
