@@ -1,0 +1,110 @@
+# How people say things, and the words the manual and the knowledge use: PHRASE<TAB>WORDS. A query that holds
+# the phrase (as whole words, any case) also looks for the words. Read by amethystora-agent-tools' word ranking.
+wifi	network networkmanager wireless nmcli
+wi-fi	network networkmanager wireless nmcli
+wlan	network wireless
+internet	network dns connection
+hotkey	keybinding shortcut
+hotkeys	keybindings shortcuts
+shortcut	keybinding hotkey hotkeys
+keyboard shortcut	hotkeys hotkey keybinding
+shortcuts	hotkeys keybindings
+won't open	start crash window
+wont open	start crash window
+doesn't open	start crash window
+does not open	start crash window
+won't start	start crash fail
+no window	x11 xwayland window override
+black screen	display driver nvidia boot
+no sound	audio pipewire wireplumber wpctl output
+no audio	sound pipewire wireplumber wpctl
+speaker	sound audio output
+mic	microphone input audio
+controller	gamepad steam input uinput
+gamepad	controller steam input uinput
+game	games steam gaming
+slow	performance cpu memory profile
+lag	performance slow
+laggy	performance slow
+freeze	stall hang crash
+frozen	stall hang
+stuck	stall hang
+hang	stall freeze
+disk full	space storage free cleanup
+out of space	disk full storage cleanup
+storage	disk space
+password	login sudo lockout faillock
+locked out	lockout faillock login
+can't log in	login refused lockout faillock
+cant log in	login refused lockout faillock
+sign in	login
+update failed	update uupd deployment rpm-ostree
+upgrade	update
+rollback	rolling back deployment previous
+roll back	rolling back deployment previous
+undo update	rolling back deployment previous
+install app	flatpak flathub software install
+install	software flatpak brew
+uninstall	remove software
+apt	container amepkg debian ubuntu
+apt-get	container amepkg debian ubuntu
+pacman	container amepkg arch
+dnf	rpm-ostree layer container
+yay	aur arch container
+time is wrong	clock time timezone ntp
+clock	time timedatectl
+timezone	time clock
+phone	gsconnect kde connect pairing home network
+pair	pairing bluetooth gsconnect
+bluetooth	bluez pairing rfkill
+headphones	bluetooth audio sound
+printer	print cups avahi discovery
+usb	device usbguard
+mouse	input device
+keyboard	input device keybinding layout
+tablet	drawing tablet opentabletdriver
+webcam	camera video uvcvideo
+camera	webcam video
+nvidia	gpu driver mok secure boot
+gpu	graphics driver nvidia
+graphics	gpu driver
+backup	backups restic snapshots restore
+restore	backups put back snapshots versions
+deleted file	backups restore snapshots put back
+virus	scan clamav security
+antivirus	virus scan clamav
+firewall	zone firewalld port
+port	firewall
+not reachable	firewall port zone
+unreachable	firewall port zone
+dev server	firewall port
+ssh	sshd firewall login
+vpn	network wireguard tailscale
+dark mode	dark style theme color-scheme
+dark theme	dark style theme
+wallpaper	background theme
+theme	themes colours amethystora-theme
+font	text size fonts
+bigger text	text size scaling
+text bigger	text size scaling font
+text smaller	text size scaling font
+extension	extensions gnome-extensions shell
+extensions broken	extension error update gnome shell
+widget	widgets top bar
+top bar	panel widgets
+dock	dash favourites favorite-apps
+window	windows layout tiling paperwm
+tiling	paperwm layout windows
+battery	power profile powerprofilesctl
+fan	performance cpu power thermal
+hot	thermal fan cpu
+boot	start bootloader grub deployment
+grub	boot menu
+secure boot	mok mokutil shim lockdown
+encryption	luks disk unlock tpm
+raid	pools disks mirror
+docker	podman containers developer
+vm	virtual machine libvirt qemu
+virtual machine	libvirt qemu boxes
+steam	games gaming flatpak x11
+android	waydroid

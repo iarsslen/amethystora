@@ -169,6 +169,24 @@ impl Index {
         })
     }
 
+    /// Every passage of one source (`playbook/no-sound`), in order, as one text of at most `max` characters
+    pub fn whole(&self, source: &str, max: usize) -> String {
+        let prefix = format!("{}#", source.trim_end_matches('#'));
+        let mut out = String::new();
+        for passage in self.passages.iter().filter(|passage| passage.id.starts_with(&prefix)) {
+            let part = format!("## {} ({})\n{}\n\n", passage.title.rsplit(" › ").next().unwrap_or(""), passage.id, passage.text);
+            if out.len() + part.len() > max {
+                out.push_str(&format!("(more: read {} by part)\n", passage.id));
+                break;
+            }
+            if out.is_empty() {
+                out.push_str(&format!("{}\n\n", passage.title.split(" › ").next().unwrap_or(source)));
+            }
+            out.push_str(&part);
+        }
+        out
+    }
+
     /// One passage, with the ids before and after it in the same source
     pub fn read(&self, id: &str) -> Option<(&Passage, Option<&str>, Option<&str>)> {
         let at = self.find(id)?;

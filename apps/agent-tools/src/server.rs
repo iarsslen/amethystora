@@ -69,7 +69,7 @@ impl Server {
     /// The tools this account may use now, as tools/list gives them
     pub fn tools(&self, level: Level) -> Vec<Value> {
         let mut tools = vec![
-            tool("search", "Search Amethystora's manual, playbooks for fixing problems, and the image's own reference (ame commands, helpers, units, \
+            tool("search", "Search Amethystora's manual, playbooks for fixing problems, and the image's own reference (its commands, helpers, units, \
                 settings, Control entries). Ask in English. Gives ids for read.",
                 json!({"query": {"type": "string"}, "k": {"type": "integer", "minimum": 1, "maximum": 10, "description": "hits, default 4"}}), &["query"], true),
             tool("read", "One passage in full, by an id from search or a manual link (updates#rolling-back), with the ids before and after it.",
@@ -90,7 +90,7 @@ impl Server {
                 tool("change", "Set one of Amethystora's settings as Control does: an id and one of its values from state settings. A value marked * \
                     opens a terminal for the user. Recorded; undo puts it back.",
                     json!({"id": {"type": "string"}, "value": {"type": "string"}}), &["id", "value"], false),
-                tool("software", "Install, remove or search software, in this order of preference: flathub (a Flatpak for this account), brew \
+                tool("software", "Install, remove or search software, in this order of preference: flathub (a Flatpak), brew \
                     (Homebrew, command-line tools), container (an amethystora-pkg container named in container). Never layers into the image.",
                     json!({"action": {"type": "string", "enum": ["install", "remove", "search"]},
                         "source": {"type": "string", "enum": ["flathub", "brew", "container"]}, "id": {"type": "string"},
@@ -180,6 +180,13 @@ impl Server {
     fn read(&self, args: &Value) -> Result<String, String> {
         let id = string_arg(args, "id").ok_or("read needs an id")?;
         let index = self.index()?;
+        // A playbook or page by its own name, whose first part is only a title: all of it, up to a cap
+        if index.find(id).is_none() {
+            let whole = index.whole(id, 6000);
+            if !whole.is_empty() {
+                return Ok(whole);
+            }
+        }
         let (passage, before, after) = index.read(id).ok_or_else(|| format!("No passage {id}: take an id from search."))?;
         let mut out = format!("{} — {}\n{}", passage.id, passage.title, passage.text);
         let near: Vec<String> =

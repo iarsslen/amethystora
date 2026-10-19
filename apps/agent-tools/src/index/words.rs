@@ -111,14 +111,19 @@ impl Aliases {
             text.lines()
                 .filter(|line| !line.starts_with('#') && !line.trim().is_empty())
                 .filter_map(|line| line.split_once('\t'))
-                .map(|(phrase, words)| (phrase.trim().to_lowercase(), words.trim().to_string()))
+                .map(|(phrase, words)| (Self::plain(phrase).trim().to_string(), words.trim().to_string()))
                 .collect(),
         )
     }
 
+    /// Lower case, with every mark but the apostrophe a space: "Wi-Fi" is "wi fi" in a phrase and a query alike
+    fn plain(text: &str) -> String {
+        text.to_lowercase().replace(|c: char| !c.is_alphanumeric() && c != '\'', " ").split_whitespace().collect::<Vec<_>>().join(" ")
+    }
+
     /// The query with the words its phrases stand for
     pub fn expand(&self, query: &str) -> String {
-        let lower = format!(" {} ", query.to_lowercase().replace(|c: char| !c.is_alphanumeric() && c != '\'', " "));
+        let lower = format!(" {} ", Self::plain(query));
         let mut out = query.to_string();
         for (phrase, words) in &self.0 {
             if lower.contains(&format!(" {phrase} ")) {
@@ -226,8 +231,9 @@ mod tests {
 
     #[test]
     fn aliases_add_the_pages_words() {
-        let aliases = Aliases::parse("# comment\nwifi\tnetwork wireless\nwon't open\tstart crash\n");
+        let aliases = Aliases::parse("# comment\nwifi\tnetwork wireless\nwon't open\tstart crash\nwi-fi\tnetwork\n");
         assert_eq!(aliases.expand("WiFi drops"), "WiFi drops network wireless");
+        assert_eq!(aliases.expand("Wi-Fi drops"), "Wi-Fi drops network");
         assert_eq!(aliases.expand("the app won't open"), "the app won't open start crash");
         assert_eq!(aliases.expand("wifinder"), "wifinder");
     }

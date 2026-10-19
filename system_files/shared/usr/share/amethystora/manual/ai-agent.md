@@ -76,6 +76,11 @@ and **Ask the agent** in **Logs** beside a crash or something a service wrote. T
 service, the process number or the report's own words, and the agent reads the rest itself. While the
 agent features are off, the buttons are not there.
 
+`ame system doctor` is the health check the agent starts from: failed services, updates, disk space,
+memory, crashes, the clock, the driver, backups and pools of disks, each finding with the guide that
+fixes it. It reads only, and you can run it yourself; `ame system doctor ID` checks one thing again after
+a fix.
+
 ## Commands
 
 | Command | Does |

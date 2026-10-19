@@ -216,7 +216,7 @@ fn health(cache: &Cache, filter: &str) -> Result<String, String> {
     let mut lines: Vec<String> = findings
         .iter()
         .map(|f| {
-            let playbook = f["playbook"].as_str().map(|p| format!(" (read playbook/{p})")).unwrap_or_default();
+            let playbook = f["playbook"].as_str().map(|p| format!(" (read {p})")).unwrap_or_default();
             format!("{} {}: {}{playbook}", s(&f["level"]), s(&f["id"]), text::field(s(&f["evidence"]), 300))
         })
         .collect();

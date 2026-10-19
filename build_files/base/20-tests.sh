@@ -2337,7 +2337,30 @@ jq -r 'select(.path != null) | .path' "${KNOWLEDGE}/index.jsonl" | sort -u | whi
 grep -qi duress "${KNOWLEDGE}/index.jsonl" && false
 HOME="${AGENT_HOME}" XDG_CONFIG_HOME="" "${AGENT_TOOLS}" search "roll back an update" | grep -q "manual/updates#rolling-back"
 HOME="${AGENT_HOME}" XDG_CONFIG_HOME="" "${AGENT_TOOLS}" read "ame/security/dns" | grep -q "ame security dns"
+# The golden questions find their passage in the first three, on this image's own index, words and meaning fused
+HOME="${AGENT_HOME}" XDG_CONFIG_HOME="" "${AGENT_TOOLS}" eval /ctx/apps/agent-tools/tests/golden.tsv --dir "${KNOWLEDGE}" --min 0.9
 rm -rf "${AGENT_HOME}"
+# The knowledge written for agents names only what is there: every path under /usr (placeholders, /usr/etc,
+# which only a deployed machine has, and the sealed images' marker aside) and every unit; the check of `ame` commands above reads it too. Every
+# playbook a doctor finding points to is there.
+KNOWLEDGE_FILES=("${KNOWLEDGE}"/*.md "${KNOWLEDGE}"/playbooks/*.md)
+(($(ls "${KNOWLEDGE}"/playbooks/*.md | wc -l) >= 15))
+grep -ohE '/usr/[A-Za-z0-9._@/+-]+' "${KNOWLEDGE_FILES[@]}" | sed 's/[.,:;)]*$//' | grep -vE '[A-Z]{2,}|^/usr/etc(/|$)|^/usr/share/amethystora/sealed$' | sort -u |
+    while read -r path; do
+        [[ -e "${path}" || -L "${path}" ]] || { echo "The agent's knowledge names ${path}, which is not in the image"; exit 1; }
+    done
+grep -ohE '\b[a-z0-9][a-z0-9_.@-]*\.(service|timer|socket|path)\b' "${KNOWLEDGE_FILES[@]}" | sort -u | while read -r unit; do
+    template="$(sed -E 's/@[^.]+\./@./' <<<"${unit}")"
+    compgen -G "/usr/lib/systemd/system/${template}" >/dev/null || compgen -G "/usr/lib/systemd/user/${template}" >/dev/null ||
+        { echo "The agent's knowledge names ${unit}, which is not in the image"; exit 1; }
+done
+for playbook in $(grep -o 'playbook/[a-z-]*' /usr/libexec/amethystora-doctor | sort -u); do
+    test -s "${KNOWLEDGE}/playbooks/${playbook#playbook/}.md"
+done
+# The health check reads only, as an account, and says what it found as JSON a tool reads
+test -x /usr/libexec/amethystora-doctor
+ame --show system::doctor >/dev/null
+/usr/libexec/amethystora-doctor --json | jq -e '(.findings | type) == "array" and (.seconds | type) == "number"' >/dev/null
 # The launcher gives an agent the tools only while the features are on, and with options none of which turns
 # the agent's own checks off (agent-cli-flags, as the watcher matches them). Cursor CLI and Antigravity CLI,
 # which take no such option, have the entry in their settings only while the features are on.

@@ -7,6 +7,11 @@ set default-list
 rebase IMAGE="" STREAM="":
     @/usr/bin/amethystora-rollback-helper ${1:+"$1"} ${2:+"$2"}
 
+# What is wrong with this machine outside security, each with the guide that fixes it: failed services, updates, space, memory, crashes, the clock, the driver. Reads only (ID: one check, to see whether a fix worked)
+[positional-arguments]
+doctor ID="":
+    @/usr/libexec/amethystora-doctor ${1:+--only "$1"}
+
 # Take an image of your own from REPOSITORY only when KEY, its cosign.pub, checks its signature
 [no-cd]
 [no-exit-message]

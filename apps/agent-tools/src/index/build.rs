@@ -91,7 +91,7 @@ fn commands(sources: &Sources, passages: &mut Vec<Passage>) {
     let justfile = justfile.to_string_lossy();
     let output = run::run(&["just", "--justfile", &justfile, "--dump", "--dump-format", "json"], Duration::from_secs(60));
     let Ok(dump) = serde_json::from_str::<Value>(&output.stdout) else {
-        eprintln!("index: the ame commands could not be read: {}", output.stderr.trim());
+        eprintln!("index: just could not list the commands: {}", output.stderr.trim());
         return;
     };
     fn walk(module: &Value, path: &[String], passages: &mut Vec<Passage>) {
@@ -388,7 +388,19 @@ pub fn recall(index: &Index, set: &[Golden]) -> (Vec<(Ranking, usize)>, usize, V
     let mut hits = vec![(Ranking::Words, 0), (Ranking::Meaning, 0), (Ranking::Fused, 0)];
     let mut missed = Vec::new();
     for question in set {
-        let wanted: Vec<usize> = question.expected.iter().filter_map(|id| index.passages.iter().position(|p| &p.id == id)).collect();
+        // An id ending in #* is any passage of that page
+        let wanted: Vec<usize> = index
+            .passages
+            .iter()
+            .enumerate()
+            .filter(|(_, p)| {
+                question.expected.iter().any(|id| match id.strip_suffix('*') {
+                    Some(prefix) => p.id.starts_with(prefix),
+                    None => &p.id == id,
+                })
+            })
+            .map(|(at, _)| at)
+            .collect();
         if wanted.is_empty() {
             continue;
         }

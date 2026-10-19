@@ -1,0 +1,177 @@
+#!/usr/bin/bash
+# A health check of this machine outside security, for people (`ame system doctor`) and for the AI agent's tools
+# (`state health`): what is wrong, the evidence, and the passage of the agent's knowledge that fixes it. It reads
+# only, as the account that runs it, asks for no password, writes nothing, runs nothing in the background and
+# takes about ten seconds at most. The security report is not repeated here: `ame security status` is that.
+#
+#   amethystora-doctor              the findings, for a terminal
+#   amethystora-doctor --json       {findings: [{id, level, evidence, playbook}], seconds}
+#   amethystora-doctor --only ID    one check, to verify a fix: exits 1 while it still finds something
+#
+# A finding's level is problem (something is broken), warning (something will break or is slowed) or info. Its
+# playbook is what the agent's `read` tool takes: playbook/<name>, or a page of the manual.
+
+set -uo pipefail
+
+JSON=false
+ONLY=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --json) JSON=true; shift ;;
+        --only) ONLY="${2:-}"; shift 2 ;;
+        -h | --help) sed -n '2,/^$/p' "$0" | sed 's/^# \?//'; exit 0 ;;
+        *) echo "usage: amethystora-doctor [--json] [--only ID]" >&2; exit 64 ;;
+    esac
+done
+
+STARTED=${SECONDS}
+FINDINGS=()
+IMAGE_INFO=/usr/share/amethystora/image-info.json
+
+# One finding: ID LEVEL PLAYBOOK EVIDENCE. What it quotes from elsewhere (unit names, programs) is cleaned.
+found() {
+    local evidence
+    evidence="$(/usr/libexec/amethystora-security-text --max 400 "$4" 2>/dev/null || printf '%s' "$4")"
+    FINDINGS+=("$(jq -nc --arg id "$1" --arg level "$2" --arg playbook "$3" --arg evidence "${evidence}" \
+        '{$id, $level, $evidence, playbook: (if $playbook == "" then null else $playbook end)}')")
+}
+
+# Whether a check runs: all of them, or the one asked for
+wanted() { [[ -z "${ONLY}" || "${ONLY}" == "$1" ]]; }
+
+t() { timeout 5 "$@" 2>/dev/null; }
+
+# --- failed units -------------------------------------------------------------------------------------------
+if wanted failed-units; then
+    system="$(t systemctl --failed --plain --no-legend | awk '{print $1}' | paste -sd ' ')"
+    user="$(t systemctl --user --failed --plain --no-legend | awk '{print $1}' | paste -sd ' ')"
+    [[ -z "${system}" ]] || found failed-units problem "" "System units that failed: ${system} (state units with one as filter shows its last lines)"
+    [[ -z "${user}" ]] || found failed-units problem "" "User units that failed: ${user} (state units with one as filter shows its last lines)"
+fi
+
+# --- updates ------------------------------------------------------------------------------------------------
+if wanted update-failed; then
+    for unit in uupd.service uupd-manual.service; do
+        result="$(t systemctl show "${unit}" -p Result --value)"
+        [[ -z "${result}" || "${result}" == success ]] ||
+            found update-failed problem playbook/update-fails "${unit} last ended with ${result}"
+    done
+fi
+DEPLOYMENTS="$(t /usr/libexec/amethystora-deployments)"
+if wanted update-staged && jq -e '[.deployments[]? | select(.staged == true)] | length > 0' <<<"${DEPLOYMENTS}" >/dev/null 2>&1; then
+    found update-staged info manual/updates "An update is staged and waits for a restart"
+fi
+if wanted older-deployment && jq -e '(.deployments // []) as $d | ($d | map(select(.staged != true)) | first) as $default
+        | ($d | any(.booted == true)) and ($default.booted != true)' <<<"${DEPLOYMENTS}" >/dev/null 2>&1; then
+    found older-deployment warning manual/updates#rolling-back \
+        "Started from an older deployment than the default; sudo bootc rollback keeps it, the next restart goes back"
+fi
+if wanted layered-packages; then
+    layered="$(jq -r '[.deployments[]? | select(.booted == true) | (.["requested-packages"] // []) + (.["requested-local-packages"] // [])
+        | .[]] | join(" ")' <<<"${DEPLOYMENTS}" 2>/dev/null)"
+    [[ -z "${layered}" ]] || found layered-packages warning playbook/update-fails \
+        "Layered packages: ${layered}. Every update goes through rpm-ostree, slower, and the image's later kernel arguments do not arrive"
+fi
+
+# --- space and memory ---------------------------------------------------------------------------------------
+if wanted disk-space; then
+    while read -r target pcent avail; do
+        used="${pcent%\%}"
+        [[ "${used}" =~ ^[0-9]+$ ]] || continue
+        if ((used >= 95)); then
+            found disk-space problem playbook/disk-full "${target} is ${pcent} full (${avail} free)"
+        elif ((used >= 85)); then
+            found disk-space warning playbook/disk-full "${target} is ${pcent} full (${avail} free)"
+        fi
+    done < <(t df -h --output=target,pcent,avail / /var /var/home | tail -n +2 | sort -u -k1,1)
+fi
+if wanted memory; then
+    some="$(sed -n 's/^some avg60=\([0-9.]*\).*/\1/p' /proc/pressure/memory 2>/dev/null)"
+    [[ -n "${some}" ]] && awk -v v="${some}" 'BEGIN { exit !(v > 10) }' &&
+        found memory warning playbook/slow-machine "Programs waited for memory ${some}% of the last minute"
+    read -r total free < <(awk '/^SwapTotal:/ { t = $2 } /^SwapFree:/ { f = $2 } END { print t + 0, f + 0 }' /proc/meminfo)
+    if ((total > 0)) && (((total - free) * 100 / total >= 80)); then
+        found memory warning playbook/slow-machine "Swap is $(((total - free) * 100 / total))% used"
+    fi
+fi
+
+# --- errors, crashes ----------------------------------------------------------------------------------------
+if wanted errors; then
+    noisy="$(t journalctl -b -p err -o json --output-fields=_SYSTEMD_UNIT --no-pager -n 2000 |
+        jq -r '._SYSTEMD_UNIT // empty' 2>/dev/null | sort | uniq -c | sort -rn | awk '$1 >= 20 { printf "%s (%d) ", $2, $1 }')"
+    [[ -z "${noisy}" ]] || found errors warning "" "Units with many errors this boot: ${noisy}(logs with one as unit and priority err)"
+fi
+if wanted crashes; then
+    crashed="$(t coredumpctl list --since=-1d --json=short --no-pager | jq -r '[.[].exe | split("/") | last] | unique | join(" ")' 2>/dev/null)"
+    [[ -z "${crashed}" ]] || found crashes warning playbook/app-wont-start "Crashed in the last day: ${crashed} (state crashes)"
+fi
+if wanted shell-errors; then
+    count="$(t journalctl --user -b -o cat --no-pager -t gnome-shell --grep 'JS ERROR|Extension .* had error' | wc -l)"
+    ((count > 0)) && found shell-errors warning playbook/extensions-after-update \
+        "GNOME Shell logged ${count} script or extension error(s) this boot (logs with identifier gnome-shell)"
+fi
+if wanted selinux; then
+    denials="$(t journalctl -b -k --no-pager -o cat --grep 'avc:  denied' | wc -l)"
+    ((denials > 0)) && found selinux info "" "SELinux denied ${denials} access(es) this boot (logs with grep avc)"
+fi
+
+# --- containers, backups, pools ------------------------------------------------------------------------------
+if wanted containers; then
+    old="$(t /usr/bin/amethystora-pkg containers list --json | jq -r --argjson now "$(date +%s)" '
+        [.[] | select(.last_upgrade_result == "failed" or ((.last_upgrade // $now) < $now - 14 * 86400)) | .name] | join(" ")' 2>/dev/null)"
+    [[ -z "${old}" ]] || found containers warning playbook/containers "Containers not upgraded for two weeks, or whose last upgrade failed: ${old}"
+fi
+if wanted backups; then
+    backup="$(t /usr/libexec/amethystora-restore status --json)"
+    jq -e '.backup.set_up and (.backup.failed or .backup.stale)' <<<"${backup}" >/dev/null 2>&1 &&
+        found backups warning playbook/backups "The daily backup $(jq -r 'if .backup.failed then "failed at its last run" else "has not succeeded for a week" end' <<<"${backup}")"
+fi
+if wanted pools; then
+    pools="$(t /usr/libexec/amethystora-raid status --json | jq -r '[.pools[]? | select(.state != "ok") | "\(.name) (\(.problems | join(", ")))"] | join("; ")' 2>/dev/null)"
+    [[ -z "${pools}" ]] || found pools problem manual/hardware#when-a-disk-fails "Pools of disks that need attention: ${pools}"
+fi
+
+# --- the clock, Secure Boot, the driver, firmware -------------------------------------------------------------
+if wanted time-sync && [[ "$(t timedatectl show -p NTPSynchronized --value)" == no ]]; then
+    found time-sync warning playbook/clock "The clock is not synchronised with a time server"
+fi
+SECURE_BOOT="$(t mokutil --sb-state)"
+if wanted secure-boot && [[ "${SECURE_BOOT}" == *disabled* ]]; then
+    found secure-boot info manual/hardware#secure-boot "Secure Boot is off"
+fi
+if wanted nvidia && [[ "$(jq -r '."image-flavor" // ""' "${IMAGE_INFO}" 2>/dev/null)" == nvidia* ]] &&
+    grep -qi "^0x10de" /sys/class/drm/card*/device/vendor 2>/dev/null && ! grep -q '^nvidia ' /proc/modules; then
+    if [[ "${SECURE_BOOT}" == *enabled* ]]; then
+        found nvidia problem playbook/nvidia "The NVIDIA driver is not loaded, with Secure Boot on: its key may not be enrolled"
+    else
+        found nvidia problem playbook/nvidia "The NVIDIA driver is not loaded"
+    fi
+fi
+if wanted firmware; then
+    firmware="$(t fwupdmgr get-updates --json | jq -r '[.Devices[]? | select((.Releases // []) | length > 0) | .Name] | join(", ")' 2>/dev/null)"
+    [[ -z "${firmware}" ]] || found firmware info manual/updates#firmware "Firmware updates are waiting for: ${firmware}"
+fi
+
+# --- the security watcher, said only ------------------------------------------------------------------------
+if wanted security; then
+    events=/var/lib/amethystora/security/events.json
+    if [[ -r "${events}" ]]; then
+        recent="$(jq --argjson since "$(($(date +%s) - 86400))" '[.. | objects | select(.level? == "critical" and ((.time? // 0) | tonumber? // 0) > $since)] | length' \
+            "${events}" 2>/dev/null)"
+        [[ "${recent:-0}" =~ ^[0-9]+$ ]] && ((recent > 0)) &&
+            found security warning "" "The security watcher found ${recent} critical thing(s) in the last day: state security, or ame security events"
+    fi
+fi
+
+LIST="$(printf '%s\n' "${FINDINGS[@]}" | jq -sc 'map(select(. != null))')"
+if [[ "${JSON}" == true ]]; then
+    jq -n --argjson findings "${LIST}" --argjson seconds "$((SECONDS - STARTED))" '{$findings, $seconds}'
+elif [[ "$(jq length <<<"${LIST}")" == 0 ]]; then
+    echo "Nothing wrong found."
+else
+    jq -r '.[] | "\(.level): \(.evidence)" + (if .playbook then "\n    (the agent reads: \(.playbook))" else "" end)' <<<"${LIST}"
+fi
+if [[ -n "${ONLY}" && "$(jq length <<<"${LIST}")" != 0 ]]; then
+    exit 1
+fi
+exit 0

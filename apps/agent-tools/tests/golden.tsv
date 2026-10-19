@@ -1,0 +1,76 @@
+# The golden questions: QUESTION<TAB>IDS, where IDS are the passages that answer it, any one of them in the first
+# three counting as found, apart by |. An id ending in #* is any passage of that page. Asked by cargo test of the
+# source tree's pages (golden.rs) and by 20-tests.sh of the image's own index, which also has the reference
+# generated from the image (ame/, helper/, unit/, setting/, control/). The target is recall@3 of at least 0.9.
+steam controller not detected	knowledge/by-design#dev-uinput-is-roots|manual/games#games~2|playbook/device-does-nothing#*
+update failed disk full	playbook/update-fails#*|playbook/disk-full#*|manual/troubleshooting#the-disk-is-filling-up
+phone won't pair	manual/hardware#phones|knowledge/by-design#phone-pairing-is-open-only-at-home
+app has no window	knowledge/by-design#flatpak-apps-get-no-x11-input-devices-or-flatpak-service|playbook/app-wont-start#*|manual/troubleshooting#an-app-cannot-see-a-folder-a-device-or-will-not-open-at-all
+time is wrong	playbook/clock#*|knowledge/by-design#time
+how do I roll back an update	manual/updates#rolling-back|knowledge/architecture#deployments-and-rolling-back|manual/troubleshooting#an-update-broke-something
+no sound from the speakers	playbook/no-sound#*|knowledge/desktop#sound
+wifi keeps disconnecting	playbook/wifi-dns#*|knowledge/desktop#radios-and-the-network
+bluetooth headphones won't connect	playbook/bluetooth#*
+black screen on my nvidia laptop	playbook/nvidia#*|manual/hardware#graphics
+the computer is stuck while booting	playbook/boot-stalls#*|manual/troubleshooting#the-machine-waits-at-the-start-with-a-disk-dead
+account locked after wrong passwords	manual/troubleshooting#the-account-is-locked-after-wrong-passwords|knowledge/by-design#ten-wrong-passwords-lock-an-account-for-ten-minutes|playbook/login-refused#*
+the machine is very slow	playbook/slow-machine#*
+usb stick does nothing	playbook/device-does-nothing#*|knowledge/by-design#usb-devices-plugged-in-later-are-refused-only-with-usbguard-on|knowledge/by-design#block-webcam-block-bluetooth-block-automount-block-user-extensions
+my distrobox container is broken	playbook/containers#*|manual/software#containers|manual/software#containers-by-hand
+the backup failed	playbook/backups#*|manual/security#backups
+gnome extension broke after an update	playbook/extensions-after-update#*|manual/troubleshooting#an-extension-misbehaves-or-the-desktop-looks-wrong
+why can't I use dnf install	manual/faq#why-can-i-not-use-dnf-install|manual/software#layering-the-last-resort
+install a deb package	manual/faq#how-do-i-install-a-deb-or-an-rpm|manual/software#a-package-file
+how do I run an appimage	manual/faq#how-do-i-run-an-appimage
+change the theme	manual/themes#switching|manual/themes#change-a-theme-or-make-your-own|manual/themes
+make the text bigger	knowledge/desktop#appearance-and-text
+turn on night light	knowledge/desktop#night-light-and-the-screen
+save battery with a power profile	knowledge/desktop#power|manual/hardware#laptops
+change the keyboard layout	knowledge/desktop#keyboard-and-input|manual/troubleshooting#switching-keyboard-layouts
+floating windows like on windows	manual/desktop#classic-windows|manual/desktop#floating-windows
+open a port in the firewall for a dev server	knowledge/by-design#the-firewall-answers-only-what-a-desktop-needs
+dmesg says operation not permitted	knowledge/by-design#dmesg-ptrace-and-core-dumps-are-restricted
+the debugger cannot attach to a process	knowledge/by-design#dmesg-ptrace-and-core-dumps-are-restricted
+virtualbox kernel module will not load	knowledge/by-design#kernel-lockdown-keeps-unsigned-modules-out
+sudo cannot find a tool I installed with homebrew	knowledge/by-design#the-sudo-path-is-fixed
+a script in /tmp fails with permission denied	knowledge/by-design#noexec-temp
+the hotel wifi login page does not load	knowledge/by-design#encrypted-dns-behind-a-networks-login-page-only-with-dns-on|playbook/wifi-dns#*|manual/security#encrypted-dns
+a website is suddenly blocked	knowledge/by-design#network-protection-blocks-a-connection-only-with-network-block|manual/security#network-protection
+where do my settings live	manual/faq#where-do-my-settings-live|knowledge/architecture#user-and-system-scope
+I cannot edit files in /usr	manual/faq#why-can-i-not-change-files-in-usr|knowledge/architecture#the-image-and-its-three-folders
+a kernel argument is not applied after the update	knowledge/architecture#kernel-arguments|knowledge/by-design#the-images-kernel-arguments
+layered packages make updates slow	knowledge/by-design#layered-packages-slow-every-update|manual/software#layering-the-last-resort
+switch to the beta stream	manual/updates#switching-streams-and-images|manual/updates#streams
+install firmware updates	manual/updates#firmware
+scan for viruses	manual/security#scanning-for-viruses
+what can a flatpak app access	manual/security#app-permissions|manual/software#what-flatpak-apps-may-not-do|knowledge/by-design#flatpak-apps-get-no-x11-input-devices-or-flatpak-service
+restore a file I deleted	manual/security#backups*|playbook/backups#*|skill/amethystora/updates#earlier-versions-of-the-users-files
+unlock the encrypted disk with the tpm	manual/security#unlock-the-disk-with-the-tpm
+set up fingerprint login	manual/security#fingerprint-login
+parental controls allowed hours	manual/security#parental-controls|knowledge/by-design#parental-controls-hours-at-the-text-consoles-and-over-ssh
+a disk of my raid pool died	manual/hardware#when-a-disk-fails|manual/troubleshooting#a-disk-of-a-pool-failed
+play windows games	manual/games#games|manual/faq#can-i-play-games|manual/faq#can-i-run-windows-software
+run android apps	manual/games#android-apps|manual/faq#can-i-run-android-apps
+make a widget for the top bar	manual/widgets*|skill/amethystora-widgets*
+save my setup to a file	manual/setup#saving-it|manual/setup
+let the agent run commands as root	manual/ai-agent#root-commands|knowledge/agent#root-commands
+turn the ai agent off for my kid's account	manual/ai-agent#the-lock|knowledge/agent#the-lock|control/agent-lock|ame/agent/lock
+what did the agent change	manual/ai-agent#history-and-undo|knowledge/agent#records
+enroll the secure boot key with mok	manual/getting-started#1-let-secure-boot-trust-the-image|manual/hardware#secure-boot
+the displaylink dock shows nothing	manual/troubleshooting#a-displaylink-dock-shows-nothing
+install command line tools	manual/software#command-line-tools-homebrew
+make a web app for a website	manual/web-apps#install-one|manual/web-apps
+keyboard shortcut to open a terminal	manual/keybindings#launching|manual/terminal#opening-one
+start over with a fresh installation	manual/troubleshooting#starting-over
+notes encryption passphrase	manual/notes#encryption
+gsconnect does not find my phone	knowledge/by-design#phone-pairing-is-open-only-at-home|manual/hardware#phones
+the drawing tablet pen does nothing	manual/hardware#drawing-tablets|knowledge/by-design#dev-uinput-is-roots
+my server is not reachable from another computer	knowledge/by-design#the-firewall-answers-only-what-a-desktop-needs
+rebase refused because the image is not signed	knowledge/by-design#only-signed-images-are-installed|manual/updates#signed-updates|manual/developer#an-image-of-your-own
+where are the deployments and how do updates run	knowledge/architecture#how-updates-run|knowledge/architecture#deployments-and-rolling-back|manual/updates
+turn on do not disturb	knowledge/desktop#notifications-and-do-not-disturb
+what does ame security dns do	ame/security/dns|manual/security#encrypted-dns
+which service runs network protection	unit/amethystora-ips.service|manual/security#network-protection*|playbook/wifi-dns#network-protection
+change the network protection setting	setting/NETWORK|manual/security#network-protection*|knowledge/by-design#network-protection-blocks-a-connection-only-with-network-block|skill/amethystora/security#the-network
+change the window layout setting	control/layout|manual/desktop#classic-windows
+what is amethystora-restore	helper/amethystora-restore|playbook/backups#*|manual/security#backups*|skill/amethystora/updates#earlier-versions-of-the-users-files
