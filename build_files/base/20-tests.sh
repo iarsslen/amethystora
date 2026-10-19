@@ -1001,7 +1001,7 @@ done
     grep -vxFf <(find /ctx/build_files/shared/candy-icons -name '*.svg' -printf '%f\n'))" ]]
 # None of the names that answered for a logo is left, as a drawing or as a link to one, so each of
 # these shows its maker's icon: Firefox's is in its package, and a Flatpak exports its own
-for icon in firefox org.mozilla.firefox thunderbird org.mozilla.Thunderbird jetbrains-toolbox \
+for icon in firefox org.mozilla.firefox thunderbird org.mozilla.Thunderbird org.mozilla.thunderbird_esr jetbrains-toolbox \
     com.jetbrains.IntelliJ-IDEA-Ultimate code com.visualstudio.code google-chrome com.brave.Browser \
     claude opencode org.onlyoffice.desktopeditors io.podman_desktop.PodmanDesktop fedora-logo-icon; do
     [[ ! -e "${CANDY_DIR}/apps/scalable/${icon}.svg" && ! -L "${CANDY_DIR}/apps/scalable/${icon}.svg" ]]

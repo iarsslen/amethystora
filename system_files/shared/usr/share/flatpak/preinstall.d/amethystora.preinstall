@@ -133,7 +133,7 @@ IsRuntime=true
 Branch=3.22
 IsRuntime=true
 
-[Flatpak Preinstall org.mozilla.Thunderbird]
+[Flatpak Preinstall org.mozilla.thunderbird_esr]
 Branch=stable
 IsRuntime=false
 
