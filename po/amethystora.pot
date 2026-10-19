@@ -2070,7 +2070,7 @@ msgid "Agentic features"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
-msgid "An AI agent that knows this system: Super+Ctrl+Shift+A, Ask the agent in Updates, Security and Logs, and the skills that tell it how Amethystora works."
+msgid "An AI agent that knows this system, off until you turn it on: Super+Ctrl+Shift+A, Ask the agent in Updates, Security and Logs, and the skills that tell it how Amethystora works."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -3243,4 +3243,12 @@ msgstr ""
 
 #: usr/libexec/amethystora-deja-dup-notice
 msgid "Déjà Dup is no longer one of the apps this system comes with, and its scheduled backups stopped when it was removed. Your backups made with it stay where they are. Set up Amethystora's backup with: ame backup setup, or install Déjà Dup again from Bazaar."
+msgstr ""
+
+#: usr/libexec/amethystora-agentic-off-notice
+msgid "The AI agent is now off until you turn it on"
+msgstr ""
+
+#: usr/libexec/amethystora-agentic-off-notice
+msgid "Turn it on in Control, AI agent, or with: ame agent toggle on"
 msgstr ""

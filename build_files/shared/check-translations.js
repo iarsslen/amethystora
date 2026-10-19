@@ -294,7 +294,8 @@ for (const app of APPS) {
 
 const SHELL = ['usr/libexec/amethystora-security-status', 'usr/libexec/amethystora-app-permissions', 'usr/libexec/amethystora-layout-offer',
     'usr/libexec/amethystora-control-list', 'usr/libexec/amethystora-security-config', 'usr/libexec/amethystora-hardening',
-    'usr/libexec/amethystora-home-networks-notice', 'usr/libexec/amethystora-deja-dup-notice'];
+    'usr/libexec/amethystora-home-networks-notice', 'usr/libexec/amethystora-deja-dup-notice',
+    'usr/libexec/amethystora-agentic-off-notice'];
 
 // A shell word in quotes, as the program it is passed to receives it
 function unshell(word) {

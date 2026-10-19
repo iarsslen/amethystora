@@ -2,7 +2,7 @@
 
 set default-list
 
-# Turn the AI agent on or off: its menu entry, Super+Ctrl+Shift+A, and the skill that tells it about this system (ACTION: on or off; without it, it flips)
+# Turn the AI agent on or off for your account, off until you turn it on: its menu entry, Super+Ctrl+Shift+A, and the skill that tells it about this system (ACTION: on or off; without it, it flips)
 [positional-arguments]
 toggle ACTION="":
     #!/usr/bin/bash

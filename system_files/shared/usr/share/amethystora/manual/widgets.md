@@ -3,7 +3,7 @@
 The top bar can show things of your own: a focus timer, the weather, unread mail, whether the VPN is
 up, how many pull requests wait for your review. Each one is a *widget*, a small program whose output
 the bar turns into a label, an icon and a menu. You do not have to write it yourself: the
-[AI agent](ai-agent.md) does.
+[AI agent](ai-agent.md) does, once you turn it on (`ame agent toggle on`).
 
 ## Ask the agent for one
 

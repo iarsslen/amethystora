@@ -20,6 +20,8 @@ import {Runner, WIDGETS_DIR, loadWidget, runAction} from './runner.js';
 
 // amethystora-theme swaps the current theme into this folder; its palette gives each class its colour
 const THEME_DIR = GLib.build_filenamev([GLib.get_user_config_dir(), 'amethystora', 'current']);
+// The account turned the AI agent on (ame agent toggle on): the agent is offered only then
+const AGENTIC = GLib.build_filenamev([GLib.get_user_config_dir(), 'amethystora', 'agentic']);
 const CLASS_COLORS = {accent: 'accent', good: 'color2', warning: 'color3', critical: 'color1'};
 // Milliseconds for a burst of saves to settle before anything is loaded again
 const SETTLE = 300;
@@ -117,7 +119,7 @@ class WidgetButton extends PanelMenu.Button {
         this._fillMenu(state.menu);
     }
 
-    // What went wrong, in the menu of a warning sign, with the agent offered to fix it
+    // What went wrong, in the menu of a warning sign, with the agent offered to fix it while it is on
     _fail(message) {
         this._state = null;
         this._error = message;
@@ -129,7 +131,8 @@ class WidgetButton extends PanelMenu.Button {
         this._fillMenu([
             {label: `${this._widget.manifest?.name ?? this._widget.id}: ${message}`},
             {separator: true},
-            {label: 'Fix it with the AI agent', run: ['amethystora-widgets', 'fix', this._widget.id]},
+            ...GLib.file_test(AGENTIC, GLib.FileTest.EXISTS)
+                ? [{label: 'Fix it with the AI agent', run: ['amethystora-widgets', 'fix', this._widget.id]}] : [],
             {label: 'Open its folder', open: this._widget.dir},
         ]);
     }

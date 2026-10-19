@@ -5,7 +5,8 @@ back if an update caused it, and report it so the next image fixes it.
 
 ## Let the agent look first
 
-**Diagnose a problem** in the Amethystora menu (`Super+Alt+Space`), or from a terminal:
+With the [AI agent](ai-agent.md) on (`ame agent toggle on`), **Diagnose a problem** in the Amethystora
+menu (`Super+Alt+Space`), or from a terminal:
 
 ```bash
 amethystora-agent diagnose "the second monitor stays black after suspend"

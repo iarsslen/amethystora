@@ -25,8 +25,8 @@ the apps in your app grid that come from them, and what was built from the AUR, 
 was last upgraded. The report says so when one has gone two weeks without an upgrade.
 [Containers](software.md#containers).
 
-When something needs your attention, **Ask the agent** hands it to the [AI agent](ai-agent.md), which
-looks into it in a terminal and changes nothing until you agree.
+When something needs your attention and the [AI agent](ai-agent.md) is on, **Ask the agent** hands it
+to the agent, which looks into it in a terminal and changes nothing until you agree.
 
 ## On from the start
 

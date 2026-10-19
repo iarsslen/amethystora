@@ -441,8 +441,8 @@ if [[ "${AGENTIC}" == true ]]; then AGENT_STATE=on; else AGENT_STATE=off; fi
 switch_choices false ame agent toggle
 USAGE="ame agent toggle on|off"
 item agent agent switch "$(gettext "Agentic features")" \
-    "$(gettext "An AI agent that knows this system: Super+Ctrl+Shift+A, Ask the agent in Updates, Security and Logs, and the skills that tell it how Amethystora works.")" \
-    "${AGENT_STATE}" ai-agent#privacy-and-turning-it-off
+    "$(gettext "An AI agent that knows this system, off until you turn it on: Super+Ctrl+Shift+A, Ask the agent in Updates, Security and Logs, and the skills that tell it how Amethystora works.")" \
+    "${AGENT_STATE}" ai-agent#turning-it-on-and-off
 
 # "Agentic features: on (claude)", or "(cursor-agent, not installed yet)"
 CHOSEN="$(said agent | sed -n 's/^Agentic features: on (\([a-z-]*\).*/\1/p')"

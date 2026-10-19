@@ -12,7 +12,7 @@ the keys are in your fingers you will rarely reach for it.
   the rest of the quick settings.
 
 The meters and the workspaces follow the colours of the current [theme](themes.md). The bar can
-also show [widgets](widgets.md) of your own, which the AI agent makes for you.
+also show [widgets](widgets.md) of your own, which the AI agent makes for you once you turn it on.
 
 ## Finding things
 
@@ -45,7 +45,7 @@ terminal and [`ame`](terminal.md#ame):
 
 | Entry | Does |
 | --- | --- |
-| Ask an agent | Opens the [AI agent](ai-agent.md) |
+| Ask an agent | Opens the [AI agent](ai-agent.md), while it is on |
 | Diagnose a problem | Has the agent find out why something broke |
 | Make a widget | Has the agent make a [widget](widgets.md) for the top bar |
 | Theme | The theme picker |

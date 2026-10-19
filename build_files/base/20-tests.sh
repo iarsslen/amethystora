@@ -827,12 +827,15 @@ jq -e '. == []' <<<"$(HOME="${CONTROL_HOME}" amethystora-webapp list --json)" >/
     ame apps aur off
     ame apps aur off
     test ! -e "${FLAGS}/aur"
-    ame agent toggle off
-    ame agent toggle off
-    test -e "${FLAGS}/no-agentic"
+    # The agentic features are off until the account turns them on
+    amethystora-agent status >/dev/null && false
     ame agent toggle on
     ame agent toggle on
-    test ! -e "${FLAGS}/no-agentic"
+    test -e "${FLAGS}/agentic"
+    amethystora-agent status >/dev/null
+    ame agent toggle off
+    ame agent toggle off
+    test ! -e "${FLAGS}/agentic"
     touch "${HOME}/.bashrc"
     ame desktop bling on
     ame desktop bling on
@@ -2229,6 +2232,11 @@ for agent in "${AGENT_IDS[@]}"; do
 done
 [[ "$(jq -r '.items[] | select(.id == "agent-choice") | [.choices[].value] | join(" ")' <<<"${CONTROL_LIST}")" == "${AGENT_IDS[*]}" ]]
 test -x /usr/share/amethystora/user-setup.hooks.d/13-agentic.sh
+# Off as the image ships them: no account has the marker, and the update that turned them off says so once to
+# an account that had them on, from a hook that runs before 13-agentic.sh unlinks the skills it looks for
+test -x /usr/libexec/amethystora-agentic-off-notice
+[[ "$(find /usr/share/amethystora/user-setup.hooks.d -maxdepth 1 -name '13-agentic*' -printf '%f\n' | LC_ALL=C sort | head -n1)" == 13-agentic-off.sh ]]
+test ! -e /etc/skel/.config/amethystora/agentic
 for skill in amethystora amethystora-diagnose; do
     grep -qx "name: ${skill}" "/usr/share/amethystora/agents/skills/${skill}/SKILL.md"
 done

@@ -1,0 +1,17 @@
+#!/usr/bin/bash
+# Said once, a minute into an account's login, to one that had the agentic features on before they became off
+# by default (user-setup.hooks.d/13-agentic-off.sh): the agent stopped answering Super+Ctrl+Shift+A, and the
+# menu entries and Ask the agent went, which would otherwise happen without a word.
+
+set -uo pipefail
+
+# In the session's language where there is a translation of it (po/, text domain amethystora)
+export TEXTDOMAIN=amethystora
+# shellcheck source=/dev/null
+source gettext.sh
+
+notify-send --app-name=Amethystora --icon=dialog-information \
+    "$(gettext "The AI agent is now off until you turn it on")" \
+    "$(gettext "Turn it on in Control, AI agent, or with: ame agent toggle on")" \
+    2>/dev/null
+exit 0

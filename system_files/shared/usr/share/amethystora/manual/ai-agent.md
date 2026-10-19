@@ -1,6 +1,10 @@
 # The AI agent
 
-`Super+Ctrl+Shift+A` opens an AI agent in a terminal: Claude Code by default, or Opencode, Codex,
+The AI agent is off until you turn it on: in [Control](control.md)'s **AI agent** page, or with
+`ame agent toggle on`. Until then nothing on this page is there: no hotkey, no menu entries, no
+**Ask the agent** buttons, and no agent is told anything about this system.
+
+Once it is on, `Super+Ctrl+Shift+A` opens an AI agent in a terminal: Claude Code by default, or Opencode, Codex,
 Antigravity CLI, Copilot CLI or Cursor CLI if you prefer. It comes with a skill that explains this system
 to it, so it knows which files belong to the image and which are yours to change, how themes and
 hotkeys work, how software is installed on an image-based system, and what to ask you before it
@@ -52,7 +56,7 @@ agent features are off, the buttons are not there.
 | `amethystora-agent diagnose [...]` | Find out why something broke, changing nothing |
 | `amethystora-agent use <agent>` | Choose the agent: `claude`, `opencode`, `codex`, `agy`, `copilot` or `cursor-agent`; also `ame agent use` |
 | `amethystora-agent install` | Install the chosen agent ahead of time; also `ame agent install` |
-| `ame agent toggle` | Turn the agent features off, or on again (`ame agent toggle off` says which) |
+| `ame agent toggle on` | Turn the agent features on for your account, or `off` again |
 
 [Control](control.md)'s **AI agent** page has the same switch and choice, and installs the chosen agent.
 
@@ -70,8 +74,13 @@ installed still opens, and `ame update` upgrades it with the rest of your Homebr
 choose `agy`. Antigravity's installer also adds `~/.local/bin` to your shell's `PATH` in your shell's
 startup files.
 
-## Privacy and turning it off
+## Turning it on and off
+
+The agent features are off on a new machine and for every new account, and an update turned them
+off for every account that had them on, which a notification said once. Each account turns them on
+for itself: `ame agent toggle on` adds the menu entries, the hotkey and the **Ask the agent** buttons,
+and links the skill; `ame agent toggle off` takes them away again. An agent you installed stays
+installed either way.
 
 No agent does anything until you sign in to it, and what you send it goes to the provider you
-signed in to. `ame agent toggle` removes the menu entries, disables the hotkey and unlinks the
-skill; an agent you installed stays installed either way.
+signed in to.

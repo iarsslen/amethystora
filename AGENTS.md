@@ -288,9 +288,12 @@ it applies to. `amethystora-diagnose/SKILL.md` beside it is the read-only method
 `~/.claude/skills`, which Claude Code reads, `~/.agents/skills`, which the others read, and
 `~/.gemini/antigravity-cli/skills`, Antigravity CLI's own. Opencode reads
 both and requires skill names to be unique across them, so the launcher starts it with
-`OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`. The features are on by default. `ame agent toggle` turns them off per user by writing
-`~/.config/amethystora/no-agentic`. Keep the skill accurate when you change a command, path or
-recipe that it names.
+`OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`. The features are **off by default** (the maintainer's choice of
+2026-10-18): `ame agent toggle on` turns them on per user by writing `~/.config/amethystora/agentic`, and
+the image ships no account with it. The update that made them so left every account off;
+`user-setup.hooks.d/13-agentic-off.sh`, which runs before `13-agentic.sh` unlinks the skills it looks for,
+takes away the old `no-agentic` marker and tells an account that had them on, once. Keep the skill
+accurate when you change a command, path or recipe that it names.
 
 Updates, Security and Logs offer **Ask the agent** where something failed, while the features are on
 (`amethystora-agent status`): each runs `amethystora-agent diagnose` with what the program picked

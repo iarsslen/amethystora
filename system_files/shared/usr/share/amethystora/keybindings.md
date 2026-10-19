@@ -63,7 +63,7 @@ the top bar on the left.
 | `Super+E` | Home folder |
 | `Ctrl+Shift+Esc` | Mission Center, to see and stop what is running |
 | `Ctrl+Alt+Space` or `Super+.` | Emoji picker |
-| `Super+Ctrl+Shift+A` | An AI agent that knows this system (`ame agent toggle` turns it off) |
+| `Super+Ctrl+Shift+A` | An AI agent that knows this system, once you turn it on (`ame agent toggle on`) |
 | `Super+Ctrl+Shift+C` | Control: the theme, windows, games, the agent, the image and Amethystora's other settings |
 | `Super+F1` | This manual |
 

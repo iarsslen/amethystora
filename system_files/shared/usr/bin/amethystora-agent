@@ -1,8 +1,8 @@
 #!/usr/bin/bash
 #
-# Open an AI coding agent that knows this system, and turn that on or off. On by default; off, the
-# agent is not offered in the menu, its keybinding does nothing and the agents are not told about
-# Amethystora. An agent already installed stays installed either way.
+# Open an AI coding agent that knows this system, and turn that on or off. Off until the account turns
+# it on: off, the agent is not offered in the menu, its keybinding does nothing and the agents are not
+# told about Amethystora. An agent already installed stays installed either way.
 #
 #   amethystora-agent                  open the agent in a terminal (Super+Ctrl+Shift+A)
 #   amethystora-agent ask "<prompt>"   open it with a first prompt
@@ -42,7 +42,8 @@ AGENTS=(claude opencode codex agy copilot cursor-agent)
 PATH="${HOME}/.local/bin:${HOME}/.opencode/bin:${PATH}:/home/linuxbrew/.linuxbrew/bin"
 SKILLS_DIR=/usr/share/amethystora/agents/skills
 SKILLS_LINK_DIRS=("${HOME}/.claude/skills" "${HOME}/.agents/skills" "${HOME}/.gemini/antigravity-cli/skills")
-DISABLED="${CONFIG_DIR}/no-agentic"
+# On while it exists, which no account has until it turns the features on: the image ships them off
+ENABLED="${CONFIG_DIR}/agentic"
 CHOICE="${CONFIG_DIR}/agent"
 
 usage() {
@@ -50,7 +51,7 @@ usage() {
 }
 
 enabled() {
-    [[ ! -e ${DISABLED} ]]
+    [[ -e ${ENABLED} ]]
 }
 
 # The agent's name, for people to read
@@ -136,8 +137,8 @@ install_agent() {
 launch() {
     local name answer
     if ! enabled; then
-        notify "Agentic features are off" "Turn them on with: ame agent toggle"
-        die "agentic features are off. Turn them on with: ame agent toggle"
+        notify "Agentic features are off" "Turn them on in Control, AI agent, or with: ame agent toggle on"
+        die "agentic features are off. Turn them on in Control, AI agent, or with: ame agent toggle on"
     fi
     # Opened from a keybinding there is no terminal attached, so it reopens itself in one
     if [[ ! -t 0 ]]; then
@@ -269,13 +270,13 @@ case "${1:-}" in
         echo "Agent: $(title "$2")"
         ;;
     on)
-        rm -f "${DISABLED}"
+        mkdir -p "${CONFIG_DIR}"
+        touch "${ENABLED}"
         sync_skills
         echo "Agentic features on"
         ;;
     off)
-        mkdir -p "${CONFIG_DIR}"
-        touch "${DISABLED}"
+        rm -f "${ENABLED}"
         sync_skills
         echo "Agentic features off"
         ;;
