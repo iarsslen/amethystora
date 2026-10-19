@@ -137,7 +137,7 @@ single)
         echo "# the system is still going back onto one disk"
         continue_phase
     fi
-    holds "the system is on one disk again" "$(system_json)" '. == null'
+    [[ -z "$(system_json)" ]] && ok "the system is on one disk again" || not_ok "the system is on several disks still" "$(system_json)"
     systemctl restart amethystora-raid-boot.service
     check "and the boot menu's entry for a disk missing went with the second disk" sh -c \
         "! grep -qs amethystora-degraded /boot/grub2/custom.cfg"

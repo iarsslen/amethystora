@@ -1496,13 +1496,16 @@ with_boot_rw() {
     "$@"
 }
 
-# A kernel argument added to every deployment in place, by ostree, which the next deployment takes its own from
+# A kernel argument added to every deployment's boot entry in place, which is what ostree's in-place edit writes
+# and the next deployment takes its own from. Not that edit itself: its --append-if-missing, all it has, skips a
+# key that is there already, and a second disk's rd.luks.uuid has the first's beside it.
 kargs_add() {  # ARG
-    with_boot_rw as_root ostree admin kargs edit-in-place --append-if-missing="$1"
+    with_boot_rw as_root bash -c 'for entry in "$2"/loader/entries/*.conf; do
+        awk -v arg="$1" '\''$1 == "options" { for (i = 2; i <= NF; i++) if ($i == arg) { print; next } print $0 " " arg; next } { print }'\'' \
+            "${entry}" >"${entry}.new" && mv -f "${entry}.new" "${entry}" || exit 1; done' _ "$1" "${BOOT}"
 }
 
-# One taken away from every deployment's boot entry, which is what ostree's in-place edit writes too: it has no
-# way to take one away itself
+# One taken away from every deployment's boot entry, the same way
 kargs_remove() {  # ARG
     with_boot_rw as_root bash -c 'for entry in "$2"/loader/entries/*.conf; do
         awk -v arg="$1" '\''$1 == "options" { line = "options"; for (i = 2; i <= NF; i++) if ($i != arg) line = line " " $i; print line; next } { print }'\'' \
@@ -1842,7 +1845,7 @@ mirror_onto() {  # STATUS [DISK]
     md_uuid="$(as_root blkid -p -s UUID -o value "${BOOT_MD}")"
     copy="$(mktemp -d)"
     as_root mount "${BOOT_MD}" "${copy}" || die "/boot's mirror could not be mounted."
-    as_root rsync -aHAX --one-file-system /boot/ "${copy}/" || { as_root umount "${copy}"; die "/boot could not be copied."; }
+    as_root rsync -aHA --one-file-system /boot/ "${copy}/" || { as_root umount "${copy}"; die "/boot could not be copied."; }
     as_root umount "${copy}"
     rmdir "${copy}"
 
@@ -1906,8 +1909,10 @@ mirror_finish() {
         udevadm settle
         copy="$(mktemp -d)"
         # What changed in /boot since the copy, then /boot from the mirror, and the old one in it
-        if mount "${BOOT_MD}" "${copy}" && rsync -aHAX --delete --one-file-system --exclude=/lost+found /boot/ "${copy}/" &&
+        if mount "${BOOT_MD}" "${copy}" && rsync -aHA --delete --one-file-system --exclude=/lost+found /boot/ "${copy}/" &&
             umount "${copy}" && { umount /boot/efi 2>/dev/null; umount /boot; } && mount "${BOOT_MD}" /boot; then
+            # Copied without SELinux's labels, which rsync may not set on a new filesystem: /boot's own now
+            restorecon -RF /boot
             mount /boot/efi 2>/dev/null
             sed -i -E "s#^UUID=[^[:space:]]+([[:space:]]+/boot[[:space:]])#UUID=$(jq -r .boot_uuid <<<"${state}")\1#" "${FSTAB}"
             systemctl daemon-reload
