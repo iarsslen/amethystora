@@ -100,14 +100,17 @@ if [[ "${SUITE_PHASE}" == 3 ]]; then
     runuser -u "${TEST_USER}" -- sh -c "echo kept >${HOME_DIR}/${MARK}"
     stateroot="$(bootc status --json | jq -r '.status.booted.ostree.stateroot // "default"')"
     in_card 2400 'experimental feature' $'\e[B\r' 'Are you sure' $'\e[B\r' -- powerwash
-    after="$(staged)"
-    if [[ ${STATUS} == 0 && -n "${after}" && "$(jq -r '.ostree.stateroot' <<<"${after}")" != "${stateroot}" ]]; then
-        ok "Start over, asked twice, stages a new installation in a stateroot of its own: ${CARD}"
+    # bootc install reset deploys into a stateroot of its own, which bootc status, showing the booted one's,
+    # does not list as staged; the restart shows which starts
+    new="$(ls /sysroot/ostree/deploy | grep -vx "${stateroot}" | head -n 1)"
+    if [[ ${STATUS} == 0 && -n "${new}" ]] && ls -d "/sysroot/ostree/deploy/${new}/deploy/"*.0 >/dev/null 2>&1; then
+        ok "Start over, asked twice, makes a new installation in a stateroot of its own (${new}): ${CARD}"
     else
-        not_ok "Start over staged no new installation" "exit status ${STATUS}, staged: ${after}" "$(tail -n 25 <<<"${OUT}")"
+        not_ok "Start over made no new installation" "exit status ${STATUS}, stateroots: $(ls /sysroot/ostree/deploy | paste -sd ' ')" \
+            "$(ostree admin status 2>&1 | head -n 12)" "$(tail -n 25 <<<"${OUT}")"
         finish
     fi
-    echo "# staged: $(jq -c '{stateroot: .ostree.stateroot, image: .image.image.image}' <<<"${after}")"
+    echo "# after Start over, before the restart: $(ostree admin status 2>&1 | paste -sd ' ' | cut -c1-400)"
     rm -f "${SUDOERS}" "${POLKIT}"
     reboot_and_continue
 fi
