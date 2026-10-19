@@ -2250,9 +2250,29 @@ ame --show agent::toggle >/dev/null
 grep -q "^install " /usr/share/amethystora/just/agent.just
 # The administrator's lock and root mode: shipped as the image's defaults, read by the tools as the one reader,
 # and changed only by their two commands, which the security watcher's drift check accepts
-for recipe in lock root history; do
+for recipe in lock root history tools; do
     ame --show "agent::${recipe}" >/dev/null
 done
+# Level 2 needs level 1, and lists the four tools that change things beside the five that read; the
+# amethystora-tools skill names exactly the nine
+(
+    export HOME="$(mktemp -d)" XDG_CONFIG_HOME="" SHELL=/usr/bin/bash
+    ame agent tools on && false
+    ame agent toggle on
+    ame agent tools on
+    test -e "${HOME}/.config/amethystora/agent-tools"
+    [[ "$(/usr/libexec/amethystora-agent-tools mcp <<<'{"jsonrpc":"2.0","id":2,"method":"tools/list"}' | jq -sr '[.[0].result.tools[].name] | join(" ")')" == \
+        "search read state logs history change software run undo" ]]
+    [[ "$(sed -n 's/^description: .*tools (\(.*\)) to understand.*/\1/p' /usr/share/amethystora/agents/skills/amethystora-tools/SKILL.md |
+        tr -c 'a-z\n' ' ' | tr -s ' ' '\n' | grep -vxE 'with|changes|allowed|' | sort | paste -sd ' ')" == \
+        "change history logs read run search software state undo" ]]
+    ame agent toggle off
+    test ! -e "${HOME}/.config/amethystora/agent-tools"
+    rm -rf "${HOME}"
+)
+# The hand-off to a terminal shows what the agent asks to run and reports how it ended
+grep -q -- "--agent REASON" /usr/libexec/amethystora-in-terminal
+grep -q -- "--report DIR" /usr/libexec/amethystora-in-terminal
 grep -qx "ALLOW=act" /etc/amethystora/agent.conf
 grep -qx "ROOT=session" /etc/amethystora/agent.conf
 /usr/libexec/amethystora-agent-tools policy --json | jq -e '.allow == "act" and .root == "session" and .allow_for == {}' >/dev/null

@@ -57,10 +57,10 @@ fn main() -> ExitCode {
         "mcp" => {
             let server = Server::default();
             let stdin = std::io::stdin();
-            match mcp::serve(&server, BufReader::new(stdin.lock()), std::io::stdout().lock()) {
-                Ok(()) => ExitCode::SUCCESS,
-                Err(_) => ExitCode::FAILURE,
-            }
+            let served = mcp::serve(&server, BufReader::new(stdin.lock()), std::io::stdout().lock());
+            // The agent ended: so does the root helper of its session
+            server.root.close();
+            if served.is_ok() { ExitCode::SUCCESS } else { ExitCode::FAILURE }
         }
         "search" => {
             let mut words: Vec<String> = Vec::new();

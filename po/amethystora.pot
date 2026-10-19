@@ -2078,6 +2078,22 @@ msgid "An AI agent that knows this system, off until you turn it on: Super+Ctrl+
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Turn the agentic features on first."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "An administrator allows the agent only to know on this machine."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Let the agent make changes"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Its tools set Amethystora's settings, install apps, and hand you commands to run, as root too, each asked for every time in the agent and recorded so that it can be undone."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Installed"
 msgstr ""
 

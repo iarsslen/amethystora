@@ -14,6 +14,8 @@
 #   amethystora-agent install [<agent>]   install it, or the chosen one
 #   amethystora-agent list             each agent, whether it is installed, and its name
 #   amethystora-agent on|off           turn the agentic features on or off (ame agent toggle)
+#   amethystora-agent tools on|off|status
+#                                      let the agent's tools make changes, each asked for (ame agent tools)
 #   amethystora-agent status           print whether they are on; exits 1 when off
 #   amethystora-agent policy [--json]  what this account may use, the administrator's lock and root mode
 #   amethystora-agent sync             link or unlink the skills to match, run at every login
@@ -52,6 +54,8 @@ SKILLS_DIR=/usr/share/amethystora/agents/skills
 SKILLS_LINK_DIRS=("${HOME}/.claude/skills" "${HOME}/.agents/skills" "${HOME}/.gemini/antigravity-cli/skills")
 # On while it exists, which no account has until it turns the features on: the image ships them off
 ENABLED="${CONFIG_DIR}/agentic"
+# Level 2, the tools that change things: on while this exists as well (ame agent tools)
+CHANGES="${CONFIG_DIR}/agent-tools"
 CHOICE="${CONFIG_DIR}/agent"
 # Amethystora's tools, an MCP server each agent starts (plans/PLAN-agentic-os.md), the entry naming it, and the
 # ones that only read, which every agent is told it may use without asking
@@ -407,10 +411,35 @@ case "${1:-}" in
         echo "Agentic features on"
         ;;
     off)
-        rm -f "${ENABLED}"
+        # Changes need the features on: turned on again, the agent starts from knowing only
+        rm -f "${ENABLED}" "${CHANGES}"
         sync_skills
         sync_tools
         echo "Agentic features off"
+        ;;
+    # Level 2: the tools that change things, each of which the agent asks for every time
+    tools)
+        case "${2:-}" in
+            on)
+                enabled || die "turn the agentic features on first: ame agent toggle on"
+                [[ "$(ceiling)" == act ]] || die "an administrator allows the agent only to know on this machine (ame agent lock)"
+                touch "${CHANGES}"
+                echo "The agent may make changes, asking you before each one"
+                ;;
+            off)
+                rm -f "${CHANGES}"
+                echo "The agent may not make changes"
+                ;;
+            status)
+                if enabled && [[ -e ${CHANGES} && "$(ceiling)" == act ]]; then
+                    echo "Changes by the agent: on"
+                else
+                    echo "Changes by the agent: off"
+                    exit 1
+                fi
+                ;;
+            *) die "usage: amethystora-agent tools on|off|status" ;;
+        esac
         ;;
     install) install_agent "${2:-$(agent)}" ;;
     # One line each, separated by tabs, for Control: "codex<TAB>installed|missing<TAB>Codex"

@@ -21,6 +21,25 @@ toggle ACTION="":
             ;;
     esac
 
+# Let the AI agent's tools make changes: settings, apps, and commands it hands you, each asked for every time (ACTION: on or off; without it, it flips). Needs the agentic features on
+[positional-arguments]
+tools ACTION="":
+    #!/usr/bin/bash
+    case "${1:-}" in
+        on | off) amethystora-agent tools "$1" ;;
+        "")
+            if amethystora-agent tools status >/dev/null; then
+                amethystora-agent tools off
+            else
+                amethystora-agent tools on
+            fi
+            ;;
+        *)
+            echo "usage: ame agent tools [on|off]"
+            exit 64
+            ;;
+    esac
+
 # Install the AI agent, where it keeps itself up to date: claude, opencode, codex, agy, copilot or cursor-agent (default: the chosen one)
 [positional-arguments]
 install AGENT="":

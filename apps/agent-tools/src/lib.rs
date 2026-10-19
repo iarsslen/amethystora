@@ -3,13 +3,16 @@
 //! knows: it searches a local index of the manual and the image's own reference, and reads the machine's
 //! state and journal. Level 2 acts, and asks first every time. plans/PLAN-agentic-os.md says why.
 
+pub mod act;
 pub mod checks;
+pub mod handoff;
 pub mod history;
 pub mod index;
 pub mod logs;
 pub mod mcp;
 pub mod never;
 pub mod policy;
+pub mod root;
 pub mod run;
 pub mod server;
 pub mod state;

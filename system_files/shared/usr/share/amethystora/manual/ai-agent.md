@@ -27,6 +27,35 @@ A repository someone else wrote can tell an agent what to do as it opens: before
 folder you cloned, read its `.claude/`, `.mcp.json` and `.vscode/tasks.json`, if it has them. Each can
 name commands the agent or your editor will run, or servers it will talk to, as you.
 
+## What it can do
+
+The agent comes with tools of Amethystora's own, which it uses in place of reading whole pages and
+running commands one by one. There are two levels, each turned on by you, for your account:
+
+| Level | What the agent can do | How it asks |
+| --- | --- | --- |
+| **Agentic features** (`ame agent toggle on`) | Search this manual and the image's own reference of commands, services and settings; read this machine's state (updates, settings, security, apps, disks, backups, failed services, crashes) and its logs; see what it changed before | It does not ask: these only read |
+| **Let the agent make changes** (`ame agent tools on`) | Set Amethystora's settings as Control does, install and remove apps (Flatpaks for you, Homebrew, containers), hand you commands to run, as root too, and undo what it changed | Before every change, in the agent; a command that asks questions opens in a terminal, where you read it and say yes |
+
+The second level needs the first. Some things the agent may never do, whatever you allow: anything about
+a duress finger or password, loosening a security setting or turning on one that sends something away,
+deleting from a backup or a snapshot, erasing a disk, turning the AUR on, or changing its own lock or root
+mode. It names such a command, and you run it yourself. It runs a security command only when you ask, and
+only one that turns protection on.
+
+The tools only work while the agent was started from here (`Super+Ctrl+Shift+A`, the menu or
+`amethystora-agent`), except in Cursor CLI and Antigravity CLI, whose own settings hold them while the
+features are on. An agent started with its own checks turned off (such as `--dangerously-skip-permissions`)
+gets no tool that changes anything.
+
+## Turning it on and off
+
+The agent features are off on a new machine and for every new account, and an update turned them
+off for every account that had them on, which a notification said once. Each account turns them on
+for itself: `ame agent toggle on` adds the menu entries, the hotkey and the **Ask the agent** buttons,
+and links the skill; `ame agent toggle off` takes them away again, and changes with them. An agent you
+installed stays installed either way.
+
 ## Diagnose a problem
 
 **Diagnose a problem** in the Amethystora menu (`Super+Alt+Space`) hands the agent something that
@@ -57,8 +86,40 @@ agent features are off, the buttons are not there.
 | `amethystora-agent use <agent>` | Choose the agent: `claude`, `opencode`, `codex`, `agy`, `copilot` or `cursor-agent`; also `ame agent use` |
 | `amethystora-agent install` | Install the chosen agent ahead of time; also `ame agent install` |
 | `ame agent toggle on` | Turn the agent features on for your account, or `off` again |
+| `ame agent tools on` | Let the agent make changes, asking each time, or `off` again |
+| `ame agent history` | What the agent changed |
+| `amethystora-agent search "<question>"` | Search the manual and the image's reference as the agent does; also `read` and `state` |
 
-[Control](control.md)'s **AI agent** page has the same switch and choice, and installs the chosen agent.
+[Control](control.md)'s **AI agent** page has the same switches and choice, and installs the chosen agent.
+
+## Root commands
+
+When you let the agent make changes, a command it needs to run as root asks you first in the agent, and
+then as an administrator chose in [Control](control.md)'s **AI agent** page, for every account:
+
+| Mode | What your password gives |
+| --- | --- |
+| **Once per agent session** (`session`, the default) | One password; then root commands run until the agent ends, the screen locks, or an hour passes without one |
+| **For five minutes** (`minutes`) | One password, then five minutes for that agent alone |
+| **Every time** (`each`) | A password for every command |
+| **In a terminal** (`terminal`) | Each command opens in a terminal, where you read it and type your password for `sudo` |
+
+`ame agent root MODE` changes it. Every root command shows a notification and is written to the journal
+(`journalctl -t amethystora-agent-root`). A command that asks questions always opens in a terminal.
+
+## The lock
+
+An administrator can cap what any account may turn on, in Control or with `ame agent lock act|know|off`:
+`act` allows both levels, `know` only the agent and its read-only tools, `off` nothing. One account can
+have its own, `ame agent lock ACCOUNT know`, and `ame agent lock ACCOUNT default` puts it back. The lock
+governs Amethystora's agent features; it is not a sandbox, and for a child's account Parental Controls'
+app filter is the stronger tool. Both settings are in `/etc/amethystora/agent.conf`.
+
+## History and undo
+
+Every change the agent's tools make is recorded, with what it was before and how to undo it:
+`ame agent history`, or **What the agent changed** in Control. Ask the agent to undo one by its id. A
+command it handed you has no undo of its own: the agent can tell you what would reverse it.
 
 ## Installing and updating
 
@@ -74,41 +135,9 @@ installed still opens, and `ame update` upgrades it with the rest of your Homebr
 choose `agy`. Antigravity's installer also adds `~/.local/bin` to your shell's `PATH` in your shell's
 startup files.
 
-## Turning it on and off
-
-The agent features are off on a new machine and for every new account, and an update turned them
-off for every account that had them on, which a notification said once. Each account turns them on
-for itself: `ame agent toggle on` adds the menu entries, the hotkey and the **Ask the agent** buttons,
-and links the skill; `ame agent toggle off` takes them away again. An agent you installed stays
-installed either way.
+## Privacy
 
 No agent does anything until you sign in to it, and what you send it goes to the provider you
-signed in to.
-
-## Root commands
-
-When you let the agent make changes, a command it needs to run as root asks you first in the agent, and
-then as an administrator chose in [Control](control.md)'s **AI agent** page, for every account:
-
-| Mode | What your password gives |
-| --- | --- |
-| **Once per agent session** (`session`, the default) | One password; then root commands run until the agent ends, the screen locks, or an hour passes without one |
-| **For five minutes** (`minutes`) | One password, then five minutes for that agent alone |
-| **Every time** (`each`) | A password for every command |
-| **In a terminal** (`terminal`) | Each command opens in a terminal, where you read it and type your password for `sudo` |
-
-`ame agent root MODE` changes it. Every root command shows a notification and is written to the journal
-(`journalctl -t amethystora-agent-root`).
-
-## The lock
-
-An administrator can cap what any account may turn on, in Control or with `ame agent lock act|know|off`:
-`act` allows both levels, `know` only the agent and its read-only tools, `off` nothing. One account can
-have its own, `ame agent lock ACCOUNT know`, and `ame agent lock ACCOUNT default` puts it back. The lock
-governs Amethystora's agent features; it is not a sandbox, and for a child's account Parental Controls'
-app filter is the stronger tool. Both settings are in `/etc/amethystora/agent.conf`.
-
-## History and undo
-
-Every change the agent's tools make is recorded, with what it was before and how to undo it:
-`ame agent history`, or **What the agent changed** in Control. Ask the agent to undo one by its id.
+signed in to. So does what its tools answer: the search runs on this machine, but the passages,
+the machine's state and the log lines the agent reads go to that provider like anything else it reads.
+Nothing personal is in the search's index: not your files, not the journal.

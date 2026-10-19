@@ -450,6 +450,19 @@ item agent agent switch "$(gettext "Agentic features")" \
     "$(gettext "An AI agent that knows this system, off until you turn it on: Super+Ctrl+Shift+A, Ask the agent in Updates, Security and Logs, and the skills that tell it how Amethystora works.")" \
     "${AGENT_STATE}" ai-agent#turning-it-on-and-off
 
+# Level 2: the tools that change things, which need level 1 and an administrator allowing them
+if [[ "$(jq -r '.tools // false' <<<"${POLICY}")" == true ]]; then CHANGES=on; else CHANGES=off; fi
+if [[ "${AGENTIC}" != true ]]; then
+    REASON="$(gettext "Turn the agentic features on first.")"
+elif [[ "$(jq -r '.ceiling // "act"' <<<"${POLICY}")" != act ]]; then
+    REASON="$(gettext "An administrator allows the agent only to know on this machine.")"
+fi
+switch_choices false ame agent tools
+USAGE="ame agent tools on|off"
+item agent agent-tools switch "$(gettext "Let the agent make changes")" \
+    "$(gettext "Its tools set Amethystora's settings, install apps, and hand you commands to run, as root too, each asked for every time in the agent and recorded so that it can be undone.")" \
+    "${CHANGES}" ai-agent#what-it-can-do
+
 # "Agentic features: on (claude)", or "(cursor-agent, not installed yet)"
 CHOSEN="$(said agent | sed -n 's/^Agentic features: on (\([a-z-]*\).*/\1/p')"
 # The chosen agent's name while it is not installed yet
