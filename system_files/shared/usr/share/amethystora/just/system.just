@@ -62,6 +62,8 @@ tailscale ACTION="" *ARGS:
 [positional-arguments]
 devmode ACTION="":
     #!/usr/bin/env bash
+    # Homebrew's own commands, which a terminal that is not a login shell (one Control opens) does not have
+    PATH="${PATH}:/home/linuxbrew/.linuxbrew/bin"
     set -e
     IMAGE_INFO_FILE="${IMAGE_INFO_FILE:-/usr/share/amethystora/image-info.json}"
     IMAGE_NAME="$(jq -rc '."image-name"' "${IMAGE_INFO_FILE}")"
@@ -239,6 +241,8 @@ bios-info:
 # Free disk space: unused container images and volumes, Flatpak runtimes, old deployments, Homebrew's cache
 clean:
     #!/usr/bin/bash
+    # Homebrew's own commands, which a terminal that is not a login shell (one Control opens) does not have
+    PATH="${PATH}:/home/linuxbrew/.linuxbrew/bin"
     if gum confirm "Prune all Podman images and volumes?"; then
         podman image prune -af
         podman volume prune -f
@@ -343,6 +347,8 @@ power-draw:
 # Run a one minute system benchmark
 benchmark:
     #!/usr/bin/env bash
+    # Homebrew's own commands, which a terminal that is not a login shell (one Control opens) does not have
+    PATH="${PATH}:/home/linuxbrew/.linuxbrew/bin"
     if ! command -v "stress-ng" ; then
         if gum confirm "Stress does not seem to be on your path, do you wish to install it?" ; then
             set -eu

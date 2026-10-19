@@ -267,6 +267,8 @@ opentabletdriver ACTION="":
 # Install applications from curated Brewfiles (includes full-desktop.Brewfile with GNOME Circle apps)
 bbrew:
     #!/usr/bin/env bash
+    # Homebrew's own commands, which a terminal that is not a login shell (one Control opens) does not have
+    PATH="${PATH}:/home/linuxbrew/.linuxbrew/bin"
     if ! command -v bbrew &>/dev/null ; then
         if gum confirm "Bold Brew is not installed, would you like to install it?" ; then
             set -e
@@ -282,6 +284,8 @@ bbrew:
 # Install CNCF projects from a curated Brewfile
 cncf:
     #!/usr/bin/env bash
+    # Homebrew's own commands, which a terminal that is not a login shell (one Control opens) does not have
+    PATH="${PATH}:/home/linuxbrew/.linuxbrew/bin"
     if ! command -v bbrew &>/dev/null ; then
         if gum confirm "Bold Brew is not installed, would you like to install it?" ; then
             brew install Valkyrie00/homebrew-bbrew/bbrew
@@ -299,7 +303,7 @@ flatpaks:
 [no-exit-message]
 cli:
     @amethystora-bling on
-    brew bundle --file=/usr/share/amethystora/homebrew/cli.Brewfile
+    PATH="${PATH}:/home/linuxbrew/.linuxbrew/bin" brew bundle --file=/usr/share/amethystora/homebrew/cli.Brewfile
 
 # Sites in windows of their own, with a launcher in the app grid: list, install, remove (amethystora-webapp)
 [no-cd]
