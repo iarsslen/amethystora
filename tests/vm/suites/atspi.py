@@ -5,7 +5,8 @@ this does for them.
 
     atspi.py APP has TEXT                  0 when the window shows TEXT (a name, a label's or an entry's text)
     atspi.py APP wait SECONDS TEXT         ...waiting for it as long as that
-    atspi.py APP click TEXT [ROLE]         activates the first widget named TEXT (a button, a link...)
+    atspi.py APP click TEXT [ROLE]         activates the first widget named TEXT (a button, a link...), or clicks
+                                           it with the pointer when it has no action (GNOME Shell's own)
     atspi.py APP type TEXT [ENTRY]         puts TEXT in the first entry (or the one named ENTRY)
     atspi.py APP check TEXT [on|off]       sets the check box or switch named TEXT
     atspi.py APP text                      prints everything the window says, one line each
@@ -98,6 +99,36 @@ def activate(node):
     return count > 0 and Atspi.Action.do_action(node, 0)
 
 
+def pointer_click(node):
+    """A click of the pointer in the middle of a widget with no action to do, as GNOME Shell's own buttons
+    are (a notification's): through Mutter's remote desktop API, which moves the pointer as
+    gnome-remote-desktop does, first into the top left corner, then by the widget's place"""
+    from gi.repository import Gio, GLib
+
+    box = Atspi.Component.get_extents(node, Atspi.CoordType.SCREEN)
+    bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+
+    def call(path, interface, method, args=None):
+        return bus.call_sync("org.gnome.Mutter.RemoteDesktop", path, interface, method, args, None,
+                             Gio.DBusCallFlags.NONE, -1, None)
+
+    session = call("/org/gnome/Mutter/RemoteDesktop", "org.gnome.Mutter.RemoteDesktop", "CreateSession").unpack()[0]
+    interface = "org.gnome.Mutter.RemoteDesktop.Session"
+    call(session, interface, "Start")
+    try:
+        call(session, interface, "NotifyPointerMotionRelative", GLib.Variant("(dd)", (-100000.0, -100000.0)))
+        call(session, interface, "NotifyPointerMotionRelative",
+             GLib.Variant("(dd)", (box.x + box.width / 2, box.y + box.height / 2)))
+        time.sleep(0.5)
+        for pressed in (True, False):
+            call(session, interface, "NotifyPointerButton", GLib.Variant("(ib)", (272, pressed)))  # BTN_LEFT
+            time.sleep(0.1)
+        time.sleep(0.5)
+    finally:
+        call(session, interface, "Stop")
+    return True
+
+
 def fail(why):
     print(why, file=sys.stderr)
     sys.exit(1)
@@ -125,7 +156,10 @@ def main(argv):
         if node is None:
             fail(f"nothing to click named {rest[0]!r}")
         if not activate(node):
-            fail(f"{rest[0]!r} could not be activated")
+            try:
+                pointer_click(node)
+            except Exception as error:
+                fail(f"{rest[0]!r} has nothing to activate, and the pointer could not click it: {error}")
         return
     if command == "type":
         node = find(app, rest[1], "text") if len(rest) > 1 else next((n for n, _ in walk(app) if n.get_role_name() in ("text", "entry")), None)

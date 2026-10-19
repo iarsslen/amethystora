@@ -128,7 +128,8 @@ bad_place() {  # FILE [bytes]
         disk="$(lsblk -ndo PKNAME "/dev/${part}")"
         serial="$(lsblk -ndo SERIAL "/dev/${disk}")"
         start="$(cat "/sys/class/block/${part}/start")"
-        [[ "${serial}" == SPARE-* && "${serial}" != SPARE-3 ]] || continue
+        # Never SPARE-3, which takes the damaged disk's place, nor SPARE-5, larger (10 GiB) than SPARE-3 can replace
+        [[ "${serial}" == SPARE-* && "${serial}" != SPARE-3 && "${serial}" != SPARE-5 ]] || continue
         offset=$((start * 512 + luks + offset))
         if [[ "${2:-}" == bytes ]]; then
             echo "${serial} ${offset}"
