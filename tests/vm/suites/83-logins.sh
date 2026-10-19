@@ -30,18 +30,21 @@ cat >"${WORK}/dc.sh" <<EOF
 set -euxo pipefail
 podman rm -f vmlab-dc
 podman network exists vmlab-ad || podman network create --subnet 10.89.0.0/24 vmlab-ad
+# The server is the container's own process, which starts once everything it needs is there (/dc-ready): one
+# started with podman exec belongs to whoever ran that, and did not outlive this unit
 podman run -d --name vmlab-dc --hostname dc1 --network vmlab-ad --ip ${DC_IP} --privileged \
-    registry.fedoraproject.org/fedora:44 sleep infinity
+    registry.fedoraproject.org/fedora:44 sh -c 'until [ -e /dc-ready ]; do sleep 1; done
+        exec samba --foreground --no-process-group --debug-stdout'
 podman exec vmlab-dc dnf -y -q install --setopt=install_weak_deps=False samba-dc samba-client krb5-workstation
 podman exec vmlab-dc sh -c 'rm -f /etc/samba/smb.conf && samba-tool domain provision --realm=AD.TEST --domain=AD \
     --server-role=dc --dns-backend=SAMBA_INTERNAL --use-rfc2307 --host-name=dc1 --host-ip=${DC_IP} \
     --adminpass=${DC_PASSWORD} >/dev/null'
+# Samba's MIT KDC takes the realm from /etc/krb5.conf, and without it dies and takes samba with it
+podman exec vmlab-dc cp /var/lib/samba/private/krb5.conf /etc/krb5.conf
 podman exec vmlab-dc samba-tool user create alice ${ALICE_PASSWORD}
 podman exec vmlab-dc samba-tool user setexpiry alice --noexpiry
+podman exec vmlab-dc touch /dc-ready
 touch ${WORK}/dc-ready
-# The server last and in the foreground: systemd stops the unit once its command ends, and a samba left
-# behind by podman exec -d goes with it
-exec podman exec vmlab-dc samba --foreground --no-process-group
 EOF
 systemctl reset-failed vmlab-dc-setup.service 2>/dev/null
 systemd-run --unit=vmlab-dc-setup --collect --quiet -p "StandardOutput=file:${WORK}/dc.log" \
@@ -393,7 +396,9 @@ resolvectl domain "${BRIDGE}" "~${DOMAIN}"
 # samba-tool wrote the account into the database directly, which says nothing of the server: wait until its
 # DNS answers what realmd asks first
 dc_answers() { resolvectl query --cache=no -t SRV "_ldap._tcp.${DOMAIN}"; }
-wait_for 180 dc_answers || not_ok "the domain controller's DNS does not answer" "$(resolvectl query --cache=no -t SRV "_ldap._tcp.${DOMAIN}" 2>&1)"
+wait_for 180 dc_answers || not_ok "the domain controller's DNS does not answer" \
+    "$(resolvectl query --cache=no -t SRV "_ldap._tcp.${DOMAIN}" 2>&1)" "$(podman ps -a --format '{{.Names}} {{.Status}}')" \
+    "$(podman logs --tail 15 vmlab-dc 2>&1)" "$(resolvectl status "${BRIDGE}" 2>&1 | head -n 8)"
 IMAGE_FEATURES="$(grep -vE '^[[:space:]]*(#|$)' /usr/etc/authselect/authselect.conf | tail -n +2 | paste -sd ' ')"
 
 discovered="$(realm discover "${DOMAIN}" 2>&1)"
