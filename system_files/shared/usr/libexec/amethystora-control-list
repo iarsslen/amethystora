@@ -28,6 +28,18 @@ set -uo pipefail
 export TEXTDOMAIN=amethystora
 # shellcheck source=/dev/null
 source gettext.sh
+# Without a process for every message, which made up most of the list's time: bash looks a $"..." string up
+# in the same catalog itself. A message with a quote, a dollar, a backquote or a backslash in it, which that
+# would not keep as it is, goes to the gettext program. eval_gettext, from gettext.sh, uses this one too.
+gettext() {
+    if [[ "$1" == *[\"\$\`\\]* ]]; then
+        command gettext "$1"
+        return
+    fi
+    local text
+    eval "text=\$\"$1\""
+    printf '%s' "${text}"
+}
 # theme_list, theme_current, the theme folders and CONFIG_DIR, as amethystora-theme has them
 # shellcheck source=../lib/amethystora/theme/lib.sh
 source /usr/lib/amethystora/theme/lib.sh
@@ -62,26 +74,16 @@ choice() {
     CHOICES+=("$*")
 }
 
-# An entry of the list, with the choices made for it since the last one. They and the command reach jq
-# as one list of arguments: how many choices there are, each choice, then the command's words.
+# An entry of the list, with the choices made for it since the last one.
 item() {
     local page="$1" id="$2" kind="$3" title="$4" text="$5" state="$6" manual="$7" extra="${EXTRA:-}"
     [[ -n "${extra}" ]] || extra='{}'
-    ITEMS+=("$(jq -nc --arg page "${page}" --arg id "${id}" --arg kind "${kind}" --arg group "${GROUP}" \
-        --arg title "${title}" --arg text "${text}" --arg state "${state}" --arg detail "${DETAIL}" \
-        --arg reason "${REASON}" --arg manual "${manual}" --arg usage "${USAGE}" --arg button "${BUTTON}" \
-        --argjson terminal "${TERMINAL}" --argjson extra "${extra}" \
-        'def text: if . == "" then null else . end;
-         ($ARGS.positional[0] | tonumber) as $count
-         | ($ARGS.positional[1:$count + 1] | map(if startswith("{") then fromjson else split("\u001f")
-             | {value: .[0], title: .[1], text: (.[2] | text), terminal: (.[3] == "true"), command: .[4:]} end)) as $choices
-         | $ARGS.positional[$count + 1:] as $command
-         | {$page, $id, $kind, group: ($group | text), $title, text: ($text | text), state: ($state | text),
-            detail: ($detail | text), available: ($reason == ""), reason: ($reason | text),
-            manual: ($manual | text), usage: ($usage | text)}
-         + (if $count > 0 then {$choices} else {} end)
-         + (if ($command | length) > 0 then {$terminal, $command, button: ($button | text)} else {} end) + $extra' \
-        --args "${#CHOICES[@]}" "${CHOICES[@]}" "${COMMAND[@]}")")
+    # A record of its fields apart by the record separator, then how many choices, the choices and the
+    # command's words, which items_json makes the objects of, with one jq for the whole list
+    local IFS=$'\x1e'
+    local fields=("${page}" "${id}" "${kind}" "${GROUP}" "${title}" "${text}" "${state}" "${DETAIL}" "${REASON}"
+        "${manual}" "${USAGE}" "${BUTTON}" "${TERMINAL}" "${extra}" "${#CHOICES[@]}" "${CHOICES[@]}" "${COMMAND[@]}")
+    ITEMS+=("${fields[*]}")
     CHOICES=()
     COMMAND=()
     TERMINAL=true
@@ -104,7 +106,14 @@ switch_choices() {
 
 # "tokyo-night" as "Tokyo Night": a theme's or a picture's name, which is a name and not translated
 pretty() {
-    sed -E 's/(^|[-_ ])([a-z])/\1\u\2/g; s/[-_]/ /g' <<<"$1"
+    local s="${1//[-_]/ }" out="" c prev=" " i
+    for ((i = 0; i < ${#s}; i++)); do
+        c="${s:i:1}"
+        [[ "${prev}" == " " && "${c}" == [a-z] ]] && c="${c^}"
+        out+="${c}"
+        prev="${c}"
+    done
+    printf '%s\n' "${out}"
 }
 
 # The slow reads, all at once: each writes what it said, and how it ended, to a file of its own
@@ -824,10 +833,28 @@ if systemctl is-enabled --quiet "${TIMER}" 2>/dev/null; then UPDATES=on; else UP
 BACKUPS=false
 [[ -x /usr/bin/amethystora-backups ]] && BACKUPS=true
 
+# Every entry as the object the window reads, one a line, from item()'s records: as arguments, since jq -R
+# breaks a character that its reads of standard input cut in two
+items_json() {
+    jq -nc 'def text: if . == "" then null else . end;
+        $ARGS.positional[] | split("\u001e") as $f
+        | ($f[14] | tonumber) as $count
+        | ($f[15:$count + 15] | map(if startswith("{") then fromjson else split("\u001f")
+            | {value: .[0], title: .[1], text: (.[2] | text), terminal: (.[3] == "true"), command: .[4:]} end)) as $choices
+        | $f[$count + 15:] as $command
+        | {page: $f[0], id: $f[1], kind: $f[2], group: ($f[3] | text), title: $f[4], text: ($f[5] | text),
+           state: ($f[6] | text), detail: ($f[7] | text), available: ($f[8] == ""), reason: ($f[8] | text),
+           manual: ($f[9] | text), usage: ($f[10] | text)}
+        + (if $count > 0 then {$choices} else {} end)
+        + (if ($command | length) > 0 then {terminal: ($f[12] | fromjson), $command, button: ($f[11] | text)} else {} end)
+        + ($f[13] | fromjson)' --args "${ITEMS[@]}"
+}
+ITEMS_JSON="$(items_json)"
+
 if [[ "${JSON}" == true ]]; then
-    printf '%s\n' "${ITEMS[@]}" | jq -s --argjson sealed "${SEALED}" --arg updates "${UPDATES}" \
+    jq -s --argjson sealed "${SEALED}" --arg updates "${UPDATES}" \
         --argjson backups "${BACKUPS}" \
-        '{version: 1, $sealed, elsewhere: {automatic_updates: $updates, $backups}, items: .}'
+        '{version: 1, $sealed, elsewhere: {automatic_updates: $updates, $backups}, items: .}' <<<"${ITEMS_JSON}"
     exit 0
 fi
 
@@ -842,14 +869,14 @@ declare -A HEADINGS=(
 )
 for page in appearance desktop apps agent system setup; do
     printf '\n  %s\n' "${HEADINGS[${page}]}"
-    printf '%s\n' "${ITEMS[@]}" | jq -r --arg page "${page}" \
+    jq -r --arg page "${page}" \
         'select(.page == $page and .kind != "link")
          | (.state as $state | (.choices // []) | map(select(.value == $state)) | first | .title) as $chosen
          | "   \(.title)" + (if .available | not then ": \(.reason)"
              elif .kind == "range" and .state != null then ": \(.state) \(.unit)"
              elif $chosen != null and .kind != "wallpapers" then ": \($chosen)"
              else "" end),
-           (if .usage != null then "          \(.usage)" else empty end)'
+           (if .usage != null then "          \(.usage)" else empty end)' <<<"${ITEMS_JSON}"
 done
 echo
 echo "$(gettext "Security settings are in Amethystora Security: ame security status")"
