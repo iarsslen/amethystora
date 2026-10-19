@@ -1062,8 +1062,8 @@ if [[ ${EUID} -ne 0 ]]; then
 fi
 
 # What each Flatpak can reach beyond its sandbox (/usr/libexec/amethystora-app-permissions, whose words
-# are translated as these are). One that can leave it, through a whole bus, the Flatpak service, systemd
-# or a place programs start from at login, is worth a look whoever granted it; X11 and the input devices,
+# are translated as these are). One that can leave it, through a whole bus, the Flatpak service, systemd,
+# a place programs start from at login or the account's other apps, is worth a look whoever granted it; X11 and the input devices,
 # which the image takes from every app, only when granted back. Overrides are each account's own, so run
 # as root by the security watcher this says nothing, as it does for the containers.
 if [[ ${EUID} -ne 0 ]] && command -v flatpak >/dev/null; then
@@ -1076,7 +1076,7 @@ if [[ ${EUID} -ne 0 ]] && command -v flatpak >/dev/null; then
         jq -Rsc 'split("\n") | map(select(length > 0) | "^" + (gsub("\\."; "\\.") | gsub("\\*"; ".*")) + "$")')"
     REACHES='def allowed($app): "\($app.app) \(.id)" as $pair | any($allowed[]; . as $re | $pair | test($re));'
     mapfile -t ESCAPES < <(jq -r --argjson allowed "${ALLOWED_REACHES:-[]}" "${REACHES}"' .[] | . as $app |
-        [.reaches[] | select((.id | IN("session-bus", "system-bus", "flatpak", "systemd", "autostart")) and (allowed($app) | not)) | .text] |
+        [.reaches[] | select((.id | IN("session-bus", "system-bus", "flatpak", "systemd", "autostart", "installations")) and (allowed($app) | not)) | .text] |
         select(length > 0) | "\($app.name): \(join("; "))"' <<<"${PERMISSIONS:-[]}" 2>/dev/null)
     mapfile -t TYPING < <(jq -r --argjson allowed "${ALLOWED_REACHES:-[]}" "${REACHES}"' .[] | . as $app |
         [.reaches[] | select((.id | IN("x11", "input")) or (.id == "flatpak" and allowed($app))) | .text] |

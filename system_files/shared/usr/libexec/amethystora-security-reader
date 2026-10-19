@@ -23,12 +23,15 @@
 
 set -uo pipefail
 
-# The reaches that leave the sandbox, and those that see what is typed
-LEAVES='["session-bus","system-bus","flatpak","systemd","autostart"]'
+# The reaches that leave the sandbox (a changed export of the account's own installation runs outside every
+# sandbox), those that see what is typed, and code loaded into the app from outside it
+LEAVES='["session-bus","system-bus","flatpak","systemd","autostart","installations"]'
 TYPING='["x11","input"]'
+CODE='["code"]'
 
 app_permissions() {
-    /usr/libexec/amethystora-app-permissions --json 2>/dev/null | jq -c --argjson leaves "${LEAVES}" --argjson typing "${TYPING}" '
+    /usr/libexec/amethystora-app-permissions --json 2>/dev/null |
+        jq -c --argjson leaves "${LEAVES}" --argjson typing "${TYPING}" --argjson code "${CODE}" '
         .[]
         # Flatpak refuses any other id, and only such an id reaches a notification
         | select(.app | test("^[A-Za-z_][A-Za-z0-9_-]*(\\.[A-Za-z_][A-Za-z0-9_-]*)+$"))
@@ -37,8 +40,9 @@ app_permissions() {
            text: ("The Flatpak app \(.name) (\(.app)) was installed"
                   + (if (.reaches | length) > 0 then ". It can: " + (.reaches | map(.text) | join("; ")) else "" end))},
           (.reaches[] | {id: "\($app.app) \(.id)", within: $app.app, allow: "\($app.app) \(.id)",
-           level: (if (.id | IN($leaves[])) then "normal" else "quiet" end),
-           tactic: (if (.id | IN($leaves[])) then "Privilege Escalation" elif (.id | IN($typing[])) then "Collection" else "-" end),
+           level: (if (.id | IN($leaves[], $code[])) then "normal" else "quiet" end),
+           tactic: (if (.id | IN($leaves[])) then "Privilege Escalation" elif (.id | IN($typing[])) then "Collection"
+                    elif (.id | IN($code[])) then "Persistence" else "-" end),
            text: ("\($app.name) (\($app.app)) can now \(.text | .[:1] | ascii_downcase)\(.text | .[1:])"
                   + (if .granted then ", granted on this machine" else ", because the app asks for it" end))})'
 }

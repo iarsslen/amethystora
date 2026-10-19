@@ -156,6 +156,8 @@ by the app itself:
 | What it can do | What that means |
 | --- | --- |
 | Talk to every service of your session or of the system, use the Flatpak service or your session's systemd, or put a program where it starts at your next login | It can leave its sandbox: whatever runs in it can do anything you can |
+| Change the other apps installed for you | It can leave its sandbox too: it can change another app, or the launcher that starts it, which runs outside every sandbox. Every app is kept out of your own installation unless a permission names it |
+| Load code chosen outside the app into it | Its environment sets a variable such as `LD_PRELOAD` that has it load a library, a plugin or a script from somewhere else. Set by an override rather than by the app, it is how a program gets inside an app, the one you type a password into, without changing the app's files |
 | Use X11, or read the input devices | It can see what you type into other apps. The image takes both from every app, so an app only has them if they were granted back |
 | Use every device | Cameras, security keys and game controllers, without asking |
 | Read and change your files, or only read them | Everything in your home folder, or every file you can open |
@@ -320,7 +322,10 @@ anything anywhere unless its own entry says so.
   folder, `~/.cache` or your download folder; a process that names itself like a kernel thread but runs a
   program, which kernel threads never do; a network tool or an AI agent started by an npm package's install
   script; and an AI agent run with its own checks turned off (such as `--dangerously-skip-permissions` or
-  `--yolo`), said when it was not started at a terminal. Each is said the first time for that program.
+  `--yolo`), said when it was not started at a terminal. Also a library from outside the system loaded into
+  a program with `LD_PRELOAD`, and a session whose own environment, which no file shows, has every program
+  it starts load code from outside the system: both are how malware gets inside the app you type a password
+  into without changing its files. Each is said the first time for that program.
   Flatpak's and Homebrew's updates, containers, AppImages and Go's tests are allowed already.
 - **Ransomware behaviour** (`snapshot-watch`): ransomware and wipers, whatever their family, rewrite or
   delete many files at once. After each hourly snapshot ([Ransomware protection](#ransomware-protection),

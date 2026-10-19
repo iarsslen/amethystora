@@ -1568,6 +1568,14 @@ msgid "Put a program where it starts at your next login, outside any sandbox"
 msgstr ""
 
 #: usr/libexec/amethystora-app-permissions
+msgid "Change the other apps installed for you"
+msgstr ""
+
+#: usr/libexec/amethystora-app-permissions
+msgid "Loads code chosen outside the app into it"
+msgstr ""
+
+#: usr/libexec/amethystora-app-permissions
 msgid "Use X11, where it can read what you type into other X11 apps"
 msgstr ""
 
@@ -2788,7 +2796,7 @@ msgid "A confined service doing what its policy never let it, which is often wha
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
-msgid "A program running from a deleted file, from memory alone, or from a temporary or download folder; one disguised as a kernel thread; a network tool or AI agent started by an npm package's install script; and an AI agent run with its own checks off. Each said the first time for that program."
+msgid "A program running from a deleted file, from memory alone, or from a temporary or download folder; one disguised as a kernel thread; a network tool or AI agent started by an npm package's install script; an AI agent run with its own checks off; a library from outside the system loaded into a program with LD_PRELOAD; and a session whose own environment has every program it starts load code from outside the system. Each said the first time for that program."
 msgstr ""
 
 #: usr/libexec/amethystora-security-config

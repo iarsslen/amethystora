@@ -21,7 +21,9 @@
 #   agent-config, exec-watch, agent-clis, decoy, snapshot-watch
 #            a path, or the program that wrote there, as the audit log names it, or a glob of either:
 #            '~/.local/share/gnome-shell/extensions/*' quietens new extensions in every home. What it
-#            matches is recorded, not said.
+#            matches is recorded, not said. For processes, a library a program loads by LD_PRELOAD is such a
+#            path too, and a session's environment is a variable and the path it names, or globs of them:
+#            "LD_LIBRARY_PATH ~/opt/toolchain/lib"
 #   selinux-denials
 #            a denial as SELinux names it: the source and target types, the class and the permissions, or
 #            globs of them: "xdm_t user_home_t file read,open"
@@ -76,6 +78,8 @@ for feature in identity privilege persistence hardening modules input-capture us
     exec-watch agent-clis decoy snapshot-watch; do
     SHAPE["${feature}"]="${PATHS}"
 done
+# ...and for processes, a session's variable and the path it names as well
+SHAPE[processes]='^((/|~/)[^[:cntrl:]]{0,1022}|[A-Za-z_*][A-Za-z0-9_*]{0,63} (/|~/|\*)[^[:cntrl:]]{0,958})$'
 
 usage() {
     echo "usage: ${0##*/} --features | list FEATURE | add FEATURE ENTRY | remove FEATURE ENTRY" >&2

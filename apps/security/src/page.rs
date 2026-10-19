@@ -678,7 +678,7 @@ fn rules_text(rules: Option<f64>) -> String {
 
 // What lets an app leave its sandbox altogether, and what lets it see what is typed into another app: the ids
 // amethystora-app-permissions gives each reach, as the report sorts them too
-const ESCAPES: [&str; 5] = ["session-bus", "system-bus", "flatpak", "systemd", "autostart"];
+const ESCAPES: [&str; 6] = ["session-bus", "system-bus", "flatpak", "systemd", "autostart", "installations"];
 const TYPING: [&str; 2] = ["x11", "input"];
 
 fn leaves(app: &backend::App) -> bool {

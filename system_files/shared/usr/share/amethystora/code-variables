@@ -1,0 +1,49 @@
+# The environment variables that load code chosen outside a program into it, in one place for the app
+# permissions (amethystora-app-permissions: the reach "code") and the security watcher (a session's
+# environment). One a line.
+#
+# Flatpak's own list of what `flatpak run` clears from the host (flatpak 1.18), less what loads no code
+# (TMP, TEMP, TEMPDIR, TZDIR, XDG_RUNTIME_DIR, KRB5CCNAME, GDK_BACKEND, XCURSOR_PATH, XKB_CONFIG_ROOT and
+# GST_PRESET_PATH, which holds element settings)...
+LD_PRELOAD
+LD_AUDIT
+LD_LIBRARY_PATH
+PYTHONPATH
+PYTHONPYCACHEPREFIX
+PERLLIB
+PERL5LIB
+GIO_EXTRA_MODULES
+GST_PLUGIN_PATH
+GST_PLUGIN_PATH_1_0
+GST_PLUGIN_SYSTEM_PATH
+GST_PLUGIN_SYSTEM_PATH_1_0
+GST_PLUGIN_SCANNER
+GST_PLUGIN_SCANNER_1_0
+GST_REGISTRY
+GST_REGISTRY_1_0
+GST_PTP_HELPER
+GST_PTP_HELPER_1_0
+GST_INSTALL_PLUGINS_HELPER
+VK_ADD_DRIVER_FILES
+VK_ADD_LAYER_PATH
+VK_DRIVER_FILES
+VK_ICD_FILENAMES
+VK_LAYER_PATH
+__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS
+__EGL_EXTERNAL_PLATFORM_CONFIG_FILENAMES
+__EGL_VENDOR_LIBRARY_DIRS
+__EGL_VENDOR_LIBRARY_FILENAMES
+# ...and what other toolkits and interpreters load from where a variable says
+GTK_PATH
+QT_PLUGIN_PATH
+NODE_OPTIONS
+JAVA_TOOL_OPTIONS
+_JAVA_OPTIONS
+ELECTRON_RUN_AS_NODE
+PYTHONSTARTUP
+PERL5OPT
+RUBYOPT
+LUA_PATH
+LUA_CPATH
+BASH_ENV
+ENV

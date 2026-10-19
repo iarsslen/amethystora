@@ -20,6 +20,10 @@
 #                       flatpak      the Flatpak service, which runs programs outside the sandbox
 #                       systemd      the session's systemd, which starts programs outside it too
 #                       autostart    a place a program starts from at the next login, writable
+#                       installations  the account's own Flatpak installation, writable: its other apps,
+#                                    and the launchers they export, which run outside every sandbox
+#   changes the app     code         a variable that loads code chosen outside the app into it, such as
+#                                    LD_PRELOAD (/usr/share/amethystora/code-variables)
 #   sees your typing    x11          X11, and with it every key typed into another X11 app
 #                       input        the input devices: every key pressed on the machine
 #   devices             devices      the whole of /dev: cameras, security keys, controllers
@@ -40,9 +44,10 @@ source gettext.sh
 
 JSON=false
 [[ "${1:-}" == "--json" ]] && JSON=true
+CODE_VARIABLES=/usr/share/amethystora/code-variables
 
 # The ids in the order they are shown: what leaves the sandbox first
-ORDER=(session-bus system-bus flatpak systemd autostart x11 input devices host home host-read home-read ssh gpg secrets)
+ORDER=(session-bus system-bus flatpak systemd autostart installations code x11 input devices host home host-read home-read ssh gpg secrets)
 
 # What each one lets the app do, as the report, the app and the terminal say it
 reach_text() {
@@ -52,6 +57,8 @@ reach_text() {
         flatpak) gettext "Run programs outside its sandbox, through the Flatpak service" ;;
         systemd) gettext "Start programs outside its sandbox, through your session's systemd" ;;
         autostart) gettext "Put a program where it starts at your next login, outside any sandbox" ;;
+        installations) gettext "Change the other apps installed for you" ;;
+        code) gettext "Loads code chosen outside the app into it" ;;
         x11) gettext "Use X11, where it can read what you type into other X11 apps" ;;
         input) gettext "Read every key pressed on this machine" ;;
         devices) gettext "Use every device: cameras, security keys, game controllers" ;;
@@ -71,6 +78,13 @@ keyfile_value() {
         $0 == section { inside = 1; next }
         /^\[/ { inside = 0 }
         inside && index($0, key "=") == 1 { print substr($0, length(key) + 2) }' "$1"
+}
+
+# The variables a keyfile's environment sets to something
+environment_names() {
+    awk '$0 == "[Environment]" { inside = 1; next }
+        /^\[/ { inside = 0 }
+        inside && /^[^=]+=./ { sub(/=.*/, ""); print }' "$1"
 }
 
 # The names a bus policy section lets the app talk to or own
@@ -99,6 +113,9 @@ reaches() {
     [[ "${sockets}" == *";ssh-auth;"* ]] && echo ssh
     [[ "${sockets}" == *";gpg-agent;"* ]] && echo gpg
     bus_names "${file}" "Session Bus Policy" | grep -qxF org.freedesktop.secrets && echo secrets
+    # A variable that loads code, set to something: flatpak run applies the app's environment, overrides
+    # included, after clearing the host's
+    environment_names "${file}" | grep -qxFf <(grep -v '^#' "${CODE_VARIABLES}") && echo code
     IFS=';' read -ra entries <<<"${filesystems}"
     for entry in "${entries[@]}"; do
         [[ -n "${entry}" && "${entry}" != !* ]] || continue
@@ -111,6 +128,10 @@ reaches() {
             continue
         fi
         case "${path}" in
+            # Every sandbox gets an empty folder over the account's installation, whatever else it may reach,
+            # unless a grant names it
+            "~/.local/share/flatpak" | "~/.local/share/flatpak/"* | xdg-data/flatpak | xdg-data/flatpak/* | \
+                /*/.local/share/flatpak | /*/.local/share/flatpak/*) seen[installations]=1 ;;
             host) seen[host]=1 ;;
             home | "~") seen[home]=1 ;;
             # The places a program starts from at the next login, outside any sandbox

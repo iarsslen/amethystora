@@ -711,6 +711,27 @@ test -s /usr/share/icons/hicolor/scalable/apps/amethystora-security-status.svg
 # apps`: one helper, run as the user, whose JSON the three read
 test -x /usr/libexec/amethystora-app-permissions
 grep -q 'amethystora-app-permissions --json' /usr/libexec/amethystora-security-status
+# ...tried against a stand-in flatpak. An override that loads a library into an app, and lets it change the
+# account's other apps (whose exports run outside every sandbox), is granted; a manifest that sets a plugin
+# path asks for it; an empty variable or a read-only look at the installation reaches nothing.
+PERMISSIONS_TEST="$(mktemp -d)"
+cat >"${PERMISSIONS_TEST}/flatpak" <<'EOF'
+#!/usr/bin/bash
+app="${*: -1}"
+case "$*" in
+    "list --app --columns=application,installation,name") printf 'org.example.Loaded\tuser\tLoaded\norg.example.Plugins\tsystem\tPlugins\n' ;;
+    *--show-permissions*org.example.Loaded) printf '[Context]\nfilesystems=xdg-data/flatpak;\n\n[Environment]\nLD_PRELOAD=/var/home/u/x.so\nPYTHONPATH=\n' ;;
+    *--show-permissions*org.example.Plugins) printf '[Context]\nfilesystems=~/.local/share/flatpak:ro;\n\n[Environment]\nGST_PLUGIN_PATH=/app/lib/gst\n' ;;
+    *--show-metadata*org.example.Plugins) printf '[Application]\nname=%s\n\n[Environment]\nGST_PLUGIN_PATH=/app/lib/gst\n' "${app}" ;;
+    *--show-metadata*) printf '[Application]\nname=%s\n' "${app}" ;;
+    "override --user --show org.example.Loaded") printf '[Context]\nfilesystems=xdg-data/flatpak;\n\n[Environment]\nLD_PRELOAD=/var/home/u/x.so\n' ;;
+esac
+EOF
+chmod +x "${PERMISSIONS_TEST}/flatpak"
+jq -e 'map({(.app): [.reaches[] | "\(.id) \(.granted)"]}) | add == {
+    "org.example.Loaded": ["installations true", "code true"], "org.example.Plugins": ["code false"]}' \
+    <<<"$(PATH="${PERMISSIONS_TEST}:${PATH}" /usr/libexec/amethystora-app-permissions --json)"
+rm -rf "${PERMISSIONS_TEST}"
 
 # The Updates app replaces upstream's System Update launcher, while `ame update` stays for the terminal
 test ! -e /usr/share/applications/system-update.desktop

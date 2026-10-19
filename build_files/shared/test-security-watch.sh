@@ -528,6 +528,12 @@ echo "PRIVILEGE=off" >>"${AMETHYSTORA_SECURITY_CONF}"
 
 unset AMETHYSTORA_WATCH_AUDIT
 sed -i 's/^SELINUX_DENIALS=on$/AUDIT_LOG=off\nPROCESSES=on/' "${AMETHYSTORA_SECURITY_CONF}"
+# alice is logged in, and a stand-in systemctl gives her user manager's environment
+export AMETHYSTORA_WATCH_SYSTEMCTL="${T}/systemctl" AMETHYSTORA_WATCH_ACCOUNTS=4500
+printf '#!/usr/bin/bash\n[[ "$*" == "--user -M alice@.host show-environment" ]] && cat "%s/session-env"\nexit 0\n' "${T}" \
+    >"${T}/systemctl"
+chmod 0755 "${T}/systemctl"
+echo "HOME=/var/home/alice" >"${T}/session-env"
 # The first run with it on only records what runs already
 timeout 120 "${WATCH}" >/dev/null || fail "the first run reading processes failed"
 P="$(mktemp -d /var/tmp/watch-XXXX)"
@@ -554,8 +560,24 @@ npm_lifecycle_event=postinstall bash -c 'exec -a curl /usr/bin/sleep 303' &
 PIDS+=($!)
 /var/tmp/claude --dangerously-skip-permissions </dev/null >/dev/null 2>&1 &
 PIDS+=($!)
+# Libraries loaded from outside /usr, by their path and by a bare name LD_LIBRARY_PATH finds outside it; one
+# under /usr, as gamemoderun's and MangoHud's are, or under /usr/$LIB, is not said, nor one that climbs out
+# of /usr is let through
+LD_PRELOAD="${P}/inject.so" /usr/bin/sleep 305 2>/dev/null &
+PIDS+=($!)
+LD_PRELOAD=libfake.so LD_LIBRARY_PATH="/usr/lib64:${P}/lib" /usr/bin/sleep 306 2>/dev/null &
+PIDS+=($!)
+# shellcheck disable=SC2016 # ld.so expands $LIB itself
+LD_PRELOAD='libgamemodeauto.so.0 /usr/$LIB/libMangoHud_shim.so' /usr/bin/sleep 307 2>/dev/null &
+PIDS+=($!)
+LD_AUDIT="/usr/lib64/../..${P}/audit.so" /usr/bin/sleep 308 2>/dev/null &
+PIDS+=($!)
+# ...and a session whose own environment has every program it starts load code: a library from a home, a
+# Java agent, and one the owner allowed; GStreamer's own plugins, under /usr, are not said
+printf '%s\n' "HOME=/var/home/alice" "LD_PRELOAD=/var/home/alice/.cache/x.so" "GST_PLUGIN_SYSTEM_PATH=/usr/lib64/gstreamer-1.0" \
+    "JAVA_TOOL_OPTIONS=-javaagent:/var/home/alice/agent.jar" "LD_AUDIT=/var/home/alice/allowed.so" >"${T}/session-env"
 mkdir -p "${R}/etc/amethystora/allow.d"
-echo "${P}/allowed/*" >"${R}/etc/amethystora/allow.d/processes"
+printf '%s\n' "${P}/allowed/*" "LD_AUDIT ~/allowed.so" >"${R}/etc/amethystora/allow.d/processes"
 sleep 1
 before="$(wc -l <"${HISTORY}")"
 timeout 120 "${WATCH}" >/dev/null || fail "the run reading processes failed"
@@ -564,13 +586,24 @@ kill "${PIDS[@]}" 2>/dev/null || true
 for want in "runs from a folder where downloads and temporary files land: ${P}/dropped" \
     "runs from a file that was deleted since: ${P}/gone" 'names itself like a kernel thread, [kworker/0:9]' \
     "An npm package's postinstall script started curl" \
-    'An AI agent runs with its own checks turned off: claude --dangerously-skip-permissions (/var/tmp/claude), started without a terminal'; do
+    'An AI agent runs with its own checks turned off: claude --dangerously-skip-permissions (/var/tmp/claude), started without a terminal' \
+    "A library from outside the system is loaded into /usr/bin/sleep: ${P}/inject.so" \
+    "A library from outside the system is loaded into /usr/bin/sleep: ${P}/lib/libfake.so" \
+    "A library from outside the system is loaded into /usr/bin/sleep: /usr/lib64/../..${P}/audit.so" \
+    "Every program started in alice's session now loads /var/home/alice/.cache/x.so (LD_PRELOAD)" \
+    "Every program started in alice's session now loads /var/home/alice/agent.jar (JAVA_TOOL_OPTIONS)"; do
     grep -qF -- "${want}" <<<"${FOUND}" || fail "what runs: \"${want}\" was not found in ${FOUND}"
 done
+grep -qE 'gamemode|MangoHud|gstreamer' <<<"${FOUND}" && fail "a library under /usr was said: ${FOUND}"
 jq -se 'any(.[]; (.text | test("kernel thread")) and .level == "critical" and .tactic == "Defense Evasion")
     and any(.[]; (.text | test("/allowed/sleep")) and .level == "quiet")
     and any(.[]; (.text | test("AI agent")) and .allow == "/var/tmp/claude")
-    and all(.[]; .account == "root")' <<<"${FOUND}" >/dev/null || fail "what runs, its levels: ${FOUND}"
+    and any(.[]; (.text | test("inject.so")) and .level == "normal" and .tactic == "Defense Evasion" and .allow == "'"${P}"'/inject.so")
+    and any(.[]; (.text | test("x.so .LD_PRELOAD.")) and .level == "normal" and .tactic == "Persistence" and .account == "alice"
+        and .allow == "LD_PRELOAD /var/home/alice/.cache/x.so")
+    and any(.[]; (.text | test("allowed.so .LD_AUDIT.")) and .level == "quiet")
+    and all(.[] | select(.text | test("session") | not); .account == "root")' <<<"${FOUND}" >/dev/null ||
+    fail "what runs, its levels: ${FOUND}"
 # Each is said once
 before="$(wc -l <"${HISTORY}")"
 cp /usr/bin/sleep "${P}/dropped"
@@ -580,6 +613,7 @@ timeout 120 "${WATCH}" >/dev/null || fail "the second run reading processes fail
 kill "${PIDS[@]}" 2>/dev/null || true
 tail -n +"$((before + 1))" "${HISTORY}" | grep -q '"key":"processes"' && fail "the same program was said twice"
 rm -rf "${P}" /var/tmp/claude
+unset AMETHYSTORA_WATCH_SYSTEMCTL AMETHYSTORA_WATCH_ACCOUNTS
 
 # --- Programs in the kernel's BPF, from a stand-in bpftool ------------------------------------------------
 

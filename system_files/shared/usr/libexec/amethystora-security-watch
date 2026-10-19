@@ -745,6 +745,9 @@ read_selinux() {
 #   - a process named like a kernel thread, [kworker/0:1], that runs a program: kernel threads have none
 #   - a network tool, an AI agent or a secret scanner started by an npm package's install script
 #   - an AI agent running with its own checks turned off (agent-cli-flags)
+#   - a library from outside /usr loaded into a program by LD_PRELOAD or LD_AUDIT, which is how malware gets
+#     inside the program a password is typed into without changing its file
+#   - a session whose own environment has every program it starts load code from outside /usr
 # Each is said the first time for that program, by the SHA-256 of what runs, never of the path it claims.
 # Processes in a container or a sandbox of their own see other files under the same paths, so there only
 # the two that need no path count: a disguised thread and memory alone. What a process says of itself, its
@@ -752,6 +755,7 @@ read_selinux() {
 # /proc is read in a few passes, each bounded in time: a process can keep a read of its own command line
 # waiting, and must not keep the watcher waiting with it.
 AGENT_FLAGS=/usr/share/amethystora/agent-cli-flags
+CODE_VARIABLES=/usr/share/amethystora/code-variables
 NETWORK_TOOLS=" curl wget nc ncat netcat socat ssh scp sftp rsync "
 SECRET_SCANNERS=" trufflehog gitleaks detect-secrets noseyparker "
 
@@ -805,11 +809,74 @@ agent_flag() {
     done < <(grep -v '^#' "${AGENT_FLAGS}" 2>/dev/null)
 }
 
+# Under /usr, which only an update writes: not a path that climbs out of it again
+under_usr() { [[ ( "$1" == /usr || "$1" == /usr/* ) && "$1" != *..* ]]; }
+
+# The first library LD_PRELOAD or LD_AUDIT loads into a process from outside /usr, into LIBRARY, from what of its
+# environment was read (the variables apart by the unit separator); empty when each one is under /usr. ld.so
+# expands /usr/$LIB/... under /usr. A bare name is looked for in LD_LIBRARY_PATH first, so it counts only when
+# that names a folder outside /usr, an empty part of it being the working folder. A relative path is the
+# process's working folder's. Set rather than printed, as agent_of is.
+preloaded_outside() {
+    local pid="$1" variable value entry dir=""
+    local -a variables entries
+    LIBRARY=""
+    IFS=$'\x1f' read -ra variables <<<"$2"
+    for variable in "${variables[@]}"; do
+        [[ "${variable}" == LD_LIBRARY_PATH=?* ]] || continue
+        value="${variable#*=}"
+        value="${value//;/:}"
+        IFS=: read -ra entries <<<"${value}"
+        [[ ":${value}:" == *::* ]] && entries+=("")
+        for entry in "${entries[@]}"; do
+            under_usr "${entry}" && continue
+            dir="${entry:-.}"
+            break
+        done
+    done
+    for variable in "${variables[@]}"; do
+        [[ "${variable}" == LD_PRELOAD=?* || "${variable}" == LD_AUDIT=?* ]] || continue
+        # Spaces or colons between libraries, as ld.so reads them
+        value="${variable#*=}"
+        IFS=: read -ra entries <<<"${value// /:}"
+        for entry in "${entries[@]}"; do
+            [[ -n "${entry}" ]] || continue
+            if [[ "${entry}" == */* ]]; then
+                under_usr "${entry}" && continue
+                LIBRARY="${entry}"
+            elif [[ -n "${dir}" ]]; then
+                LIBRARY="${dir%/}/${entry}"
+            else
+                continue
+            fi
+            [[ "${LIBRARY}" == /* ]] || LIBRARY="$(readlink "/proc/${pid}/cwd" 2>/dev/null)/${LIBRARY#./}"
+            return
+        done
+    done
+}
+
+# The first path a value of one of the code variables names outside /usr: path lists and options alike, apart
+# by colons, semicolons, commas, equals signs and spaces (-javaagent:/x.jar, --require=/x.js)
+path_outside() {
+    local part
+    local -a parts
+    IFS=$' \t:;,=' read -ra parts <<<"$1"
+    for part in "${parts[@]}"; do
+        part="${part#\$\'}"
+        part="${part%\'}"
+        [[ "${part}" == /* || "${part}" == "~"* ]] || continue
+        under_usr "${part}" && continue
+        echo "${part}"
+        return 0
+    done
+    return 1
+}
+
 read_processes() {
     local seen="${STATE}/processes-seen" first=false pid target exe host_ns uid user name what level tactic sum
-    local reason event agent flag environment tty how home dir line subject ppid
+    local reason event agent flag environment tty how home dir line subject ppid hashed variable path logged
     local -a argv writable=(/tmp/ /var/tmp/ /dev/shm/)
-    local -A program=() owner=() namespace=() command=()
+    local -A program=() owner=() namespace=() command=() preload=() code=()
     [[ -e "${seen}" ]] || first=true
     touch "${seen}"
     # Each home's cache and download folders; the download folder's name follows the session's language
@@ -843,6 +910,20 @@ read_processes() {
         BEGINFILE { if (ERRNO != "") nextfile; if (pid != "") print pid "\037" out; split(FILENAME, part, "/"); pid = part[3]; out = "" }
         { gsub(/[\n\037]/, " "); out = out (out == "" ? "" : "\037") $0 }
         END { if (pid != "") print pid "\037" out }' /proc/[0-9]*/cmdline 2>/dev/null)
+    # ...and what of its environment loads libraries into it, for the processes that set LD_PRELOAD or LD_AUDIT:
+    # those two and LD_LIBRARY_PATH, apart by the unit separator, from no more than the first 64 KiB of each
+    while IFS= read -r line; do
+        preload["${line%%$'\x1f'*}"]="${line#*$'\x1f'}"
+    done < <(timeout 20 gawk 'BEGIN { RS = "\0" }
+        function flush() { if (pid != "" && loads) print pid "\037" out }
+        BEGINFILE { flush(); pid = out = ""; loads = size = 0; if (ERRNO != "") nextfile; split(FILENAME, part, "/"); pid = part[3] }
+        { size += length($0) + 1; if (size > 65536) nextfile }
+        /^LD_(PRELOAD|AUDIT|LIBRARY_PATH)=/ {
+            gsub(/[\n\037]/, " ")
+            out = out (out == "" ? "" : "\037") $0
+            if (/^LD_(PRELOAD|AUDIT)=./) loads = 1
+        }
+        END { flush() }' /proc/[0-9]*/environ 2>/dev/null)
     host_ns="${namespace[1]:-}"
     for pid in "${!program[@]}"; do
         target="${program[${pid}]}"
@@ -865,6 +946,13 @@ read_processes() {
                 what="A program runs from a folder where downloads and temporary files land: ${exe}"
                 break
             done
+        fi
+        if [[ -z "${reason}" && -n "${preload[${pid}]:-}" && "${namespace[${pid}]:-}" == "${host_ns}" ]]; then
+            preloaded_outside "${pid}" "${preload[${pid}]}"
+            if [[ -n "${LIBRARY}" ]]; then
+                reason="preload:${LIBRARY}" tactic="Defense Evasion" subject="${LIBRARY}"
+                what="A library from outside the system is loaded into ${exe}: ${LIBRARY}"
+            fi
         fi
         name="${argv[0]:-}"
         name="${name##*/}"
@@ -901,17 +989,48 @@ read_processes() {
             fi
         fi
         [[ -n "${reason}" ]] || continue
-        # What runs, not what it claims to be: the file behind the process, there even when deleted
-        sum="$(timeout 10 head -c 104857600 "/proc/${pid}/exe" 2>/dev/null | sha256sum | cut -d' ' -f1)"
+        # What runs, not what it claims to be: the file behind the process, there even when deleted. For a
+        # library, the library, whichever programs load it, read as a plain file and never through a link.
+        if [[ "${reason}" == preload:* ]]; then
+            hashed="${subject}" sum="gone"
+            [[ -f "${subject}" && ! -L "${subject}" ]] &&
+                sum="$(timeout 10 head -c 104857600 -- "${subject}" 2>/dev/null | sha256sum | cut -d' ' -f1)"
+        else
+            hashed="${exe}"
+            sum="$(timeout 10 head -c 104857600 "/proc/${pid}/exe" 2>/dev/null | sha256sum | cut -d' ' -f1)"
+        fi
         grep -qxF -- "${reason} ${sum}" "${seen}" && continue
         echo "${reason} ${sum}" >>"${seen}"
-        queue_hash "${sum}" "${exe}"
+        queue_hash "${sum}" "${hashed}"
         [[ "${first}" == false && -n "${LAST_RUN}" ]] || continue
         uid="${owner[${pid}]:-}"
         user="$(id -nu "${uid}" 2>/dev/null || echo "${uid:--}")"
         allowed processes "${subject}" && { level=quiet; ALLOWED_HIT=1; }
         add "${level}" processes "${user}" "${tactic}" "${what} (process ${pid}, as ${user})" "allow=${subject}"
     done
+    # A session's own environment, which every program it starts from then on is given: what `systemctl --user
+    # set-environment` and dbus-update-activation-environment leave, and no file shows. Asked of the user manager
+    # of each account logged in now; each variable and value said once.
+    while IFS= read -r variable; do
+        code["${variable}"]=1
+    done < <(grep -v '^#' "${CODE_VARIABLES}" 2>/dev/null)
+    logged=" $(logged_in | tr '\n' ' ') "
+    while IFS=: read -r user _ uid _; do
+        [[ "${uid}" =~ ^[0-9]+$ && "${logged}" == *" ${uid} "* && "${user}" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]*$ ]] || continue
+        while IFS= read -r line; do
+            variable="${line%%=*}"
+            [[ "${variable}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ && -n "${code[${variable}]:-}" ]] &&
+                path="$(path_outside "${line#*=}")" || continue
+            sum="$(sha256sum <<<"${line}" | cut -c1-16)"
+            grep -qxF -- "session:${user}:${variable} ${sum}" "${seen}" && continue
+            echo "session:${user}:${variable} ${sum}" >>"${seen}"
+            [[ "${first}" == false && -n "${LAST_RUN}" ]] || continue
+            level=normal
+            allowed processes "${variable} ${path}" && { level=quiet; ALLOWED_HIT=1; }
+            add "${level}" processes "${user}" Persistence "Every program started in ${user}'s session now loads ${path} (${variable})" \
+                "allow=${variable} ${path}"
+        done < <(timeout 10 "${SYSTEMCTL}" --user -M "${user}@.host" show-environment 2>/dev/null)
+    done < <(accounts)
 }
 
 # --- Programs in the kernel's BPF -------------------------------------------------------------------------
@@ -1191,6 +1310,15 @@ accounts() {
             [[ -d "${home}" ]] && printf '%s:x:%s:::%s:\n' "$(basename "${home}")" "$(stat -c %u "${home}")" "${home%/}"
         done
     } | awk -F: '!seen[$3]++'
+}
+
+# The accounts with a session now, by UID. With a stand-in root, AMETHYSTORA_WATCH_ACCOUNTS names them.
+logged_in() {
+    if [[ -z "${ROOT}" ]]; then
+        loginctl list-users --no-legend --no-pager 2>/dev/null | awk '{ print $1 }'
+    else
+        printf '%s\n' ${AMETHYSTORA_WATCH_ACCOUNTS:-}
+    fi
 }
 
 read_user_paths() {
@@ -1597,17 +1725,10 @@ declare -A READERS=([APP_PERMISSIONS]=app-permissions [DEV_HOOKS]=dev-hooks [AGE
 ACTIVE_FOR=86400
 ACCOUNT_TACTICS=" Persistence Execution Collection Credential-Access Privilege-Escalation Defense-Evasion Command-and-Control "
 
-# The accounts with a session now are marked, and those marked in the last day are printed, by UID. With a
-# stand-in root, AMETHYSTORA_WATCH_ACCOUNTS names the UIDs logged in.
+# The accounts with a session now are marked, and those marked in the last day are printed, by UID
 active_accounts() {
     local uid dir mark
-    {
-        if [[ -z "${ROOT}" ]]; then
-            loginctl list-users --no-legend --no-pager 2>/dev/null | awk '{ print $1 }'
-        else
-            printf '%s\n' ${AMETHYSTORA_WATCH_ACCOUNTS:-}
-        fi
-    } | while read -r uid; do
+    logged_in | while read -r uid; do
         [[ "${uid}" =~ ^[0-9]+$ && "${uid}" -ge 1000 && "${uid}" -ne 65534 ]] || continue
         mkdir -p -m 0700 "${STATE}/accounts/${uid}"
         echo "${NOW}" >"${STATE}/accounts/${uid}/active"
