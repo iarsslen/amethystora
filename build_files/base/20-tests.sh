@@ -799,11 +799,11 @@ mapfile -t CONTROL_MANUAL < <(jq -r '.items[].manual // empty' <<<"${CONTROL_LIS
 # The window runs nothing of its own: no shell, no password prompt, nothing of Security's (the commands it
 # shows to copy are only text). The repository it lets you trust is checked with the very expression
 # amethystora-trust-image checks it with.
-grep -rhvE '^[[:space:]]*//' /ctx/apps/control/src |
+grep -rhvE '^[[:space:]]*//' /ctx/apps/control/src /ctx/apps/control-core/src |
     grep -qE '"(sudo|pkexec|sh|bash)"|"-c"|ame security|amethystora-security-config' && false
 TRUST_RULE="$(sed -n 's/^\[\[ "\${REPOSITORY}" =~ \(.*\) \]\] ||$/\1/p' /usr/libexec/amethystora-trust-image)"
 [[ -n "${TRUST_RULE}" ]]
-grep -qF "r\"${TRUST_RULE}\"" /ctx/apps/control/src/backend.rs
+grep -qF "r\"${TRUST_RULE}\"" /ctx/apps/control-core/src/lib.rs
 # The helpers it reads: the images and streams the rebase helper offers, the widgets and the web apps
 jq -e '(.images | length) == 4 and (.streams | length) > 0' <<<"$(/usr/bin/amethystora-rollback-helper --choices)" >/dev/null
 CONTROL_HOME="$(mktemp -d)"

@@ -7,6 +7,7 @@ publish.workspace = true
 
 [dependencies]
 amethystora-ui.workspace = true
+amethystora-control-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 regex.workspace = true

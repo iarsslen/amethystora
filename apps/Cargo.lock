@@ -81,10 +81,19 @@ dependencies = [
 name = "amethystora-control"
 version = "1.0.0"
 dependencies = [
+ "amethystora-control-core",
  "amethystora-ui",
  "libc",
  "regex",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "amethystora-control-core"
+version = "1.0.0"
+dependencies = [
+ "regex",
  "serde_json",
 ]
 

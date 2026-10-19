@@ -15,7 +15,6 @@
 //!
 //! Security's settings are not here: they are Amethystora Security's, which this window only opens.
 
-use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -25,28 +24,21 @@ use amethystora_ui::t;
 use regex::Regex;
 use serde_json::Value;
 
-pub const LIST: &str = "/usr/libexec/amethystora-control-list";
+pub use amethystora_control_core::{Choice, Command, Disk, Item, List, PoolAction, Refusal, Run, Webapp, Widget, LIST};
+use amethystora_control_core as core;
+
 pub const SETUP: &str = "/usr/libexec/amethystora-setup";
 pub const IMAGE_INFO: &str = "/usr/share/amethystora/image-info.json";
 /// The pages of the sidebar, in its order
 pub const PAGES: [&str; 6] = ["appearance", "desktop", "apps", "agent", "system", "setup"];
-/// A widget's name, as amethystora-widgets new takes it
-const WIDGET_ID: &str = r"^[a-z0-9][a-z0-9-]*$";
-/// A repository as amethystora-trust-image takes it: a registry with a dot or a port, a path in lower
-/// case, no tag and no digest. The helper's own expression, letter for letter, and it checks it again.
-const REPOSITORY: &str = r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(\.[a-z0-9-]+|:[0-9]+)(/[a-z0-9]+(([._]|__|-+)[a-z0-9]+)*)+$";
 /// The pictures a wallpaper can be, by their extension
 pub const PICTURES: [&str; 5] = ["jpg", "jpeg", "png", "webp", "svg"];
 /// Terminal colour codes some commands write into what they say
 const ANSI: &str = r"\x1b\[[0-9;?]*[A-Za-z]";
 
-fn regex(cell: &'static OnceLock<Regex>, pattern: &str) -> &'static Regex {
-    cell.get_or_init(|| Regex::new(pattern).expect("a valid expression"))
-}
-
 fn ansi() -> &'static Regex {
     static CELL: OnceLock<Regex> = OnceLock::new();
-    regex(&CELL, ANSI)
+    CELL.get_or_init(|| Regex::new(ANSI).expect("a valid expression"))
 }
 
 /// The page to open: `amethystora-control system` opens on the system's settings
@@ -56,255 +48,25 @@ pub fn page_argument(args: &[String]) -> Option<&'static str> {
 }
 
 // --- The list ---------------------------------------------------------------------------------------------
+//
+// What the list holds and how an entry's id and value become a command are amethystora-control-core's,
+// which the agent's tools share, so that both change a setting the same way. What it says when it refuses
+// is said here, in the window's own words.
 
-/// A command of the list, and whether it opens in a terminal. `command` is None unless it is a list of
-/// words, which is all that is ever run.
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct Command {
-    pub terminal: bool,
-    pub command: Option<Vec<String>>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Choice {
-    pub value: String,
-    pub title: String,
-    pub text: Option<String>,
-    pub terminal: bool,
-    pub command: Option<Vec<String>>,
-    /// A theme's palette, which its swatch is drawn in
-    pub colors: BTreeMap<String, String>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Widget {
-    pub id: String,
-    pub name: Option<String>,
-    pub on: bool,
-    pub broken: bool,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Webapp {
-    pub name: String,
-    pub address: String,
-}
-
-/// One of the actions the list gives a pool of disks
-#[derive(Debug, Clone, Default)]
-pub struct PoolAction {
-    pub id: String,
-    pub title: String,
-    pub terminal: bool,
-    pub command: Option<Vec<String>>,
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Disk {
-    pub id: String,
-    pub title: String,
-    pub text: Option<String>,
-    pub state: String,
-    pub actions: Vec<PoolAction>,
-}
-
-/// An entry of the list, as amethystora-control-list's item() makes it, with what its kind adds
-#[derive(Debug, Clone, Default)]
-pub struct Item {
-    pub page: String,
-    pub id: String,
-    pub kind: String,
-    pub group: Option<String>,
-    pub title: String,
-    pub text: Option<String>,
-    pub state: Option<String>,
-    pub detail: Option<String>,
-    pub available: bool,
-    pub reason: Option<String>,
-    pub manual: Option<String>,
-    pub usage: Option<String>,
-    pub choices: Vec<Choice>,
-    pub terminal: bool,
-    pub command: Option<Vec<String>>,
-    pub button: Option<String>,
-    pub danger: bool,
-    // A slider's
-    pub min: Option<f64>,
-    pub max: Option<f64>,
-    pub step: Option<f64>,
-    pub unit: Option<String>,
-    // The widgets', the web apps' and the setup file's
-    pub widgets: Vec<Widget>,
-    pub bar: bool,
-    pub examples: Vec<String>,
-    pub agentic: bool,
-    pub commands: HashMap<String, Command>,
-    pub webapps: Vec<Webapp>,
-    pub file: Option<String>,
-    pub saved: Option<f64>,
-    // The pools of disks
-    pub disks: Vec<Disk>,
-}
-
-/// The list as the script gave it: {version, sealed, elsewhere, items}, of which the page uses the last two
-#[derive(Debug, Clone, Default)]
-pub struct List {
-    /// Whether the Updates window's automatic updates are on, "on" or "off"
-    pub automatic_updates: Option<String>,
-    /// Whether the Backups window is installed
-    pub backups: bool,
-    pub items: Vec<Item>,
-}
-
-// Read leniently, as the page read the parsed JSON: a field that is missing or of another type is as if
-// it were not there, and only a command that is a list of words is ever run
-
-/// Text, or None for nothing or an empty string, which the page treated alike
-fn text(value: Option<&Value>) -> Option<String> {
-    match value {
-        Some(Value::String(s)) if !s.is_empty() => Some(s.clone()),
-        Some(Value::Number(n)) => Some(n.to_string()),
-        _ => None,
-    }
-}
-
-fn string(value: Option<&Value>) -> String {
-    text(value).unwrap_or_default()
-}
-
-/// JavaScript's truthiness, for the flags the page tested as `if (item.agentic)`
-fn truthy(value: Option<&Value>) -> bool {
-    match value {
-        Some(Value::Bool(b)) => *b,
-        Some(Value::Number(n)) => n.as_f64().is_some_and(|n| n != 0.0 && !n.is_nan()),
-        Some(Value::String(s)) => !s.is_empty(),
-        Some(Value::Array(_) | Value::Object(_)) => true,
-        _ => false,
-    }
-}
-
-fn number(value: Option<&Value>) -> Option<f64> {
-    match value {
-        Some(Value::Number(n)) => n.as_f64(),
-        _ => None,
-    }
-}
-
-fn words(value: Option<&Value>) -> Option<Vec<String>> {
-    let list = value?.as_array()?;
-    list.iter().map(|word| word.as_str().map(str::to_string)).collect()
-}
-
-fn array(value: Option<&Value>) -> &[Value] {
-    value.and_then(Value::as_array).map(Vec::as_slice).unwrap_or(&[])
-}
-
-fn command(value: &Value) -> Command {
-    Command { terminal: truthy(value.get("terminal")), command: words(value.get("command")) }
-}
-
-fn choice(value: &Value) -> Choice {
-    let colors = value
-        .get("colors")
-        .and_then(Value::as_object)
-        .map(|colors| colors.iter().filter_map(|(key, value)| Some((key.clone(), value.as_str()?.to_string()))).collect())
-        .unwrap_or_default();
-    Choice {
-        value: string(value.get("value")),
-        title: string(value.get("title")),
-        text: text(value.get("text")),
-        terminal: truthy(value.get("terminal")),
-        command: words(value.get("command")),
-        colors,
-    }
-}
-
-fn item(value: &Value) -> Item {
-    let field = |name: &str| value.get(name);
-    Item {
-        page: string(field("page")),
-        id: string(field("id")),
-        kind: string(field("kind")),
-        group: text(field("group")),
-        title: string(field("title")),
-        text: text(field("text")),
-        state: text(field("state")),
-        detail: text(field("detail")),
-        available: truthy(field("available")),
-        reason: text(field("reason")),
-        manual: text(field("manual")),
-        usage: text(field("usage")),
-        choices: array(field("choices")).iter().map(choice).collect(),
-        terminal: truthy(field("terminal")),
-        command: words(field("command")),
-        button: text(field("button")),
-        danger: truthy(field("danger")),
-        min: number(field("min")),
-        max: number(field("max")),
-        step: number(field("step")),
-        unit: text(field("unit")),
-        widgets: array(field("widgets"))
-            .iter()
-            .map(|widget| Widget {
-                id: string(widget.get("id")),
-                name: text(widget.get("name")),
-                on: truthy(widget.get("on")),
-                broken: truthy(widget.get("broken")),
-            })
-            .collect(),
-        bar: truthy(field("bar")),
-        examples: array(field("examples")).iter().filter_map(|example| example.as_str().map(str::to_string)).collect(),
-        agentic: truthy(field("agentic")),
-        commands: field("commands")
-            .and_then(Value::as_object)
-            .map(|commands| commands.iter().map(|(name, value)| (name.clone(), command(value))).collect())
-            .unwrap_or_default(),
-        webapps: array(field("webapps"))
-            .iter()
-            .map(|webapp| Webapp { name: string(webapp.get("name")), address: string(webapp.get("address")) })
-            .collect(),
-        file: text(field("file")),
-        saved: number(field("saved")),
-        disks: array(field("disks"))
-            .iter()
-            .map(|disk| Disk {
-                id: string(disk.get("id")),
-                title: string(disk.get("title")),
-                text: text(disk.get("text")),
-                state: string(disk.get("state")),
-                actions: array(disk.get("actions"))
-                    .iter()
-                    .map(|action| PoolAction {
-                        id: string(action.get("id")),
-                        title: string(action.get("title")),
-                        terminal: truthy(action.get("terminal")),
-                        command: words(action.get("command")),
-                    })
-                    .collect(),
-            })
-            .collect(),
+/// What to say when the list does not offer what was asked, or what was typed is not taken
+fn words(refusal: Refusal) -> String {
+    match refusal {
+        Refusal::Refused => refused(),
+        Refusal::WidgetName => t!("A widget's name is lower case letters, digits and dashes, and not the name of one you have."),
+        Refusal::Repository => t!("That is not a repository such as ghcr.io/you/your-image: lower case, and no tag."),
+        Refusal::OwnRepository => t!("Amethystora's own images are checked against Amethystora's key, and that stays as it is."),
+        Refusal::NoKey => t!("Choose the key first: the cosign.pub of your repository."),
     }
 }
 
 /// The list from what the script printed, or None when that was not JSON
 pub fn parse_list(stdout: &str) -> Option<List> {
-    let value: Value = serde_json::from_str(stdout).ok()?;
-    let elsewhere = value.get("elsewhere");
-    Some(List {
-        automatic_updates: text(elsewhere.and_then(|e| e.get("automatic_updates"))),
-        backups: truthy(elsewhere.and_then(|e| e.get("backups"))),
-        items: array(value.get("items")).iter().map(item).collect(),
-    })
-}
-
-impl List {
-    pub fn find(&self, id: &str) -> Option<&Item> {
-        self.items.iter().find(|item| item.id == id)
-    }
-
-    fn first_of_kind(&self, kind: &str) -> Option<&Item> {
-        self.items.iter().find(|item| item.kind == kind)
-    }
+    core::parse_list(stdout)
 }
 
 /// The list, read again, or what to say when it could not be read
@@ -338,34 +100,6 @@ pub fn said(result: &Output) -> String {
     lines[lines.len().saturating_sub(12)..].join("\n")
 }
 
-/// A command of the list with values checked here in the place of its placeholders, {value} and the like,
-/// each of which stands for a whole argument
-fn fill(command: &[String], values: &[(&str, &str)]) -> Vec<String> {
-    command
-        .iter()
-        .map(|arg| values.iter().find(|(key, _)| key == arg).map(|(_, value)| value.to_string()).unwrap_or_else(|| arg.clone()))
-        .collect()
-}
-
-/// What to run, once everything about it has been checked: an argument vector, in a terminal or here
-#[derive(Debug, Clone, PartialEq)]
-pub struct Run {
-    pub argv: Vec<String>,
-    pub terminal: bool,
-}
-
-/// Only a command that is a list of words, at least one, is ever run
-fn runnable(command: Option<&Vec<String>>, terminal: bool) -> Result<Run, String> {
-    match command {
-        Some(argv) if !argv.is_empty() => Ok(Run { argv: argv.clone(), terminal }),
-        _ => Err(refused()),
-    }
-}
-
-fn filled(command: Option<&Vec<String>>, terminal: bool, values: &[(&str, &str)]) -> Result<Run, String> {
-    runnable(command, terminal).map(|run| Run { argv: fill(&run.argv, values), terminal })
-}
-
 /// A command from the list, in a terminal when it asks for one, and otherwise here, with what it said
 pub async fn perform(plan: Result<Run, String>) -> Outcome {
     let run = match plan {
@@ -383,135 +117,65 @@ pub async fn perform(plan: Result<Run, String>) -> Outcome {
 
 /// A slider's number as the page sends it: one to nine digits, inside the list's range
 pub fn range_value(item: &Item, value: &str) -> Option<String> {
-    if value.is_empty() || value.len() > 9 || !value.chars().all(|c| c.is_ascii_digit()) {
-        return None;
-    }
-    let number: u64 = value.parse().ok()?;
-    let n = number as f64;
-    // A bound the list does not give holds nothing back, as a comparison with undefined did
-    if item.min.is_some_and(|min| n < min) || item.max.is_some_and(|max| n > max) {
-        return None;
-    }
-    Some(number.to_string())
+    core::range_value(item, value)
 }
 
 /// A setting set to one of its choices, or a slider to a number in its range
 pub fn change(list: Option<&List>, id: &str, value: &str) -> Result<Run, String> {
-    let item = list.and_then(|list| list.find(id)).filter(|item| item.available).ok_or_else(refused)?;
-    if item.kind == "range" {
-        let number = range_value(item, value).ok_or_else(refused)?;
-        return filled(item.command.as_ref(), item.terminal, &[("{value}", &number)]);
-    }
-    let choice = item.choices.iter().find(|choice| choice.value == value).ok_or_else(refused)?;
-    runnable(choice.command.as_ref(), choice.terminal)
+    core::change(list, id, value).map_err(words)
 }
 
 pub fn act(list: Option<&List>, id: &str) -> Result<Run, String> {
-    match list.and_then(|list| list.find(id)) {
-        Some(item) if item.available && item.kind == "action" => runnable(item.command.as_ref(), item.terminal),
-        _ => Err(refused()),
-    }
+    core::act(list, id).map_err(words)
 }
 
 /// The rule amethystora-widgets has for a widget's name, as the page checks it before it sends one
 pub fn valid_widget_name(item: &Item, name: &str) -> bool {
-    static CELL: OnceLock<Regex> = OnceLock::new();
-    regex(&CELL, WIDGET_ID).is_match(name) && name.len() <= 40 && !item.widgets.iter().any(|widget| widget.id == name)
+    core::valid_widget_name(item, name)
 }
 
 /// A widget the list named: on, off, fix or remove; or restart and make, which name none
 pub fn widget(list: Option<&List>, action: &str, id: &str) -> Result<Run, String> {
-    let item = list.and_then(|list| list.find("widgets")).ok_or_else(refused)?;
-    let command = item.commands.get(action);
-    let Some(command) = command.filter(|_| item.available && action != "new") else {
-        return Err(refused());
-    };
-    if (action == "make" || action == "fix") && !item.agentic {
-        return Err(refused());
-    }
-    let names_one = command.command.as_ref().is_some_and(|words| words.iter().any(|word| word == "{id}"));
-    if names_one && !item.widgets.iter().any(|widget| widget.id == id) {
-        return Err(refused());
-    }
-    filled(command.command.as_ref(), command.terminal, &[("{id}", id)])
+    core::widget(list, action, id).map_err(words)
 }
 
 /// A new widget from one of the examples, under a name of its own
 pub fn new_widget(list: Option<&List>, id: &str, example: &str) -> Result<Run, String> {
-    let item = list.and_then(|list| list.find("widgets")).ok_or_else(refused)?;
-    if !item.available || !item.examples.iter().any(|known| known == example) {
-        return Err(refused());
-    }
-    if !valid_widget_name(item, id) {
-        return Err(t!("A widget's name is lower case letters, digits and dashes, and not the name of one you have."));
-    }
-    let command = item.commands.get("new").ok_or_else(refused)?;
-    filled(command.command.as_ref(), command.terminal, &[("{id}", id), ("{example}", example)])
+    core::new_widget(list, id, example).map_err(words)
 }
 
 /// A web app the list named, removed; or a new one, added in a terminal
 pub fn webapp(list: Option<&List>, action: &str, name: &str) -> Result<Run, String> {
-    let item = list.and_then(|list| list.find("webapps")).ok_or_else(refused)?;
-    let Some(command) = item.commands.get(action).filter(|_| item.available) else {
-        return Err(refused());
-    };
-    let names_one = command.command.as_ref().is_some_and(|words| words.iter().any(|word| word == "{name}"));
-    if names_one && !item.webapps.iter().any(|webapp| webapp.name == name) {
-        return Err(refused());
-    }
-    filled(command.command.as_ref(), command.terminal, &[("{name}", name)])
+    core::webapp(list, action, name).map_err(words)
 }
 
 /// One of the actions the list gave a pool of disks
 pub fn pool(list: Option<&List>, action: &str, id: &str) -> Result<Run, String> {
-    let item = list.and_then(|list| list.first_of_kind("disks")).ok_or_else(refused)?;
-    let found = item.disks.iter().find(|disk| disk.id == id).and_then(|disk| disk.actions.iter().find(|candidate| candidate.id == action));
-    match found {
-        Some(found) if item.available => runnable(found.command.as_ref(), found.terminal),
-        _ => Err(refused()),
-    }
+    core::pool(list, action, id).map_err(words)
 }
 
 // --- An image of one's own --------------------------------------------------------------------------------
 
 /// The rule amethystora-trust-image has for a repository
 pub fn valid_repository(repository: &str) -> bool {
-    static CELL: OnceLock<Regex> = OnceLock::new();
-    regex(&CELL, REPOSITORY).is_match(repository)
+    core::valid_repository(repository)
 }
 
 /// Amethystora's own repositories, which keep Amethystora's key, as amethystora-trust-image has them
 pub fn own_repository(image_info: &str) -> Option<String> {
-    let info: Value = serde_json::from_str(image_info).ok()?;
-    let vendor = text(info.get("image-vendor"))?;
-    Some(format!("ghcr.io/{vendor}"))
+    core::own_repository(image_info)
 }
 
 /// Trusting a repository with the key picked in the file dialog. `own` is Amethystora's own repository.
 pub fn trust_image(list: Option<&List>, repository: &str, own: Option<&str>, key: Option<&Path>) -> Result<Run, String> {
-    let item = list.and_then(|list| list.find("trust-image")).filter(|item| item.available).ok_or_else(refused)?;
-    if !valid_repository(repository) {
-        return Err(t!("That is not a repository such as ghcr.io/you/your-image: lower case, and no tag."));
-    }
-    if own.is_some_and(|own| repository == own || repository.starts_with(&format!("{own}/"))) {
-        return Err(t!("Amethystora's own images are checked against Amethystora's key, and that stays as it is."));
-    }
-    // A path that is not text cannot be handed on as it is: as if none had been chosen
-    let Some(key) = key.filter(|key| key.exists()).and_then(Path::to_str) else {
-        return Err(t!("Choose the key first: the cosign.pub of your repository."));
-    };
-    filled(item.command.as_ref(), item.terminal, &[("{repository}", repository), ("{key}", key)])
+    core::trust_image(list, repository, own, key).map_err(words)
 }
 
 // --- The setup file ---------------------------------------------------------------------------------------
 
 /// The setup file saved here, or applied in a terminal, where `ame setup apply` shows what it adds first
 pub fn setup(list: Option<&List>, action: &str) -> Result<Run, String> {
-    let item = list.and_then(|list| list.first_of_kind("setup")).ok_or_else(refused)?;
-    match item.commands.get(action) {
-        Some(command) if item.available => runnable(command.command.as_ref(), command.terminal),
-        _ => Err(refused()),
-    }
+    core::setup(list, action).map_err(words)
 }
 
 /// What the machine and the setup file disagree on, which `ame setup diff` works out and changes nothing
@@ -590,113 +254,13 @@ mod tests {
     }
 
     #[test]
-    fn reads_the_list_leniently() {
-        let list = list();
-        assert_eq!(list.automatic_updates.as_deref(), Some("on"));
-        assert!(list.backups);
-        assert_eq!(list.items.len(), 10);
-        let greeting = list.find("greeting").unwrap();
-        assert_eq!(greeting.choices[1].terminal, true);
-        assert_eq!(greeting.group, None);
-        // A command with something other than words in it is never run
-        assert_eq!(list.find("bad").unwrap().command, None);
-        let widgets = list.find("widgets").unwrap();
-        assert_eq!(widgets.widgets[1].name, None);
-        assert!(widgets.widgets[1].broken);
-        assert!(!widgets.bar);
-        assert_eq!(list.find("setup-file").unwrap().saved, Some(1760000000.0));
-        assert!(parse_list("not json").is_none());
-        assert!(parse_list("{}").unwrap().items.is_empty());
-    }
-
-    #[test]
-    fn changes_only_to_what_the_list_offers() {
+    fn says_what_was_refused_in_the_windows_words() {
         let list = list();
         assert_eq!(argv(change(Some(&list), "greeting", "off")), ["ame", "desktop", "greeting", "off"]);
-        assert!(change(Some(&list), "greeting", "on").unwrap().terminal == false);
-        assert!(change(Some(&list), "greeting", "maybe").is_err());
-        // Not available here
-        assert!(change(Some(&list), "gaming", "on").is_err());
-        assert!(change(Some(&list), "nothing", "on").is_err());
-        assert!(change(None, "greeting", "on").is_err());
-        assert_eq!(argv(act(Some(&list), "cli")), ["ame", "apps", "cli"]);
-        assert!(act(Some(&list), "greeting").is_err());
-        assert!(act(Some(&list), "bad").is_err());
-    }
-
-    #[test]
-    fn sliders_take_numbers_in_range() {
-        let list = list();
-        assert_eq!(argv(change(Some(&list), "transition-length", "1500")), ["ame", "desktop", "transition", "grow", "1500"]);
-        assert_eq!(argv(change(Some(&list), "transition-length", "0300")), ["ame", "desktop", "transition", "grow", "300"]);
-        for bad in ["100", "5001", "-300", "1e3", "12.5", "", "1234567890", " 300", "300 "] {
-            assert!(change(Some(&list), "transition-length", bad).is_err(), "{bad}");
-        }
-    }
-
-    #[test]
-    fn widgets_by_the_lists_names() {
-        let list = list();
-        assert_eq!(argv(widget(Some(&list), "on", "pomodoro")), ["ame", "desktop", "widgets", "on", "pomodoro"]);
-        assert!(widget(Some(&list), "on", "weather").is_err());
-        assert_eq!(argv(widget(Some(&list), "restart", "")), ["ame", "desktop", "widgets", "restart"]);
-        // The agent's commands only while the agentic features are on, and new only through new_widget
-        assert!(widget(Some(&list), "fix", "pomodoro").is_err());
-        assert!(widget(Some(&list), "new", "x").is_err());
-        assert!(widget(Some(&list), "off", "pomodoro").is_err());
-        assert_eq!(argv(new_widget(Some(&list), "my-clock", "hello")), ["ame", "desktop", "widgets", "new", "my-clock", "hello"]);
-        assert!(new_widget(Some(&list), "my-clock", "elsewhere").is_err());
-        for bad in ["My-clock", "-clock", "pomodoro", "a b", "", "clock;rm", &"a".repeat(41)] {
-            assert!(new_widget(Some(&list), bad, "hello").is_err(), "{bad}");
-        }
-        assert!(new_widget(Some(&list), &"a".repeat(40), "hello").is_ok());
-    }
-
-    #[test]
-    fn web_apps_pools_and_setup() {
-        let list = list();
-        assert_eq!(argv(webapp(Some(&list), "remove", "Element")), ["ame", "apps", "webapps", "remove", "Element"]);
-        assert!(webapp(Some(&list), "remove", "Other").is_err());
-        assert!(webapp(Some(&list), "install", "").unwrap().terminal);
-        assert!(webapp(Some(&list), "rename", "Element").is_err());
-        assert_eq!(argv(pool(Some(&list), "forget", "media")), ["ame", "system", "raid", "forget", "media"]);
-        assert!(pool(Some(&list), "forget", "archive").is_err());
-        assert!(pool(Some(&list), "erase", "media").is_err());
-        assert_eq!(argv(setup(Some(&list), "save")), ["ame", "setup", "save"]);
-        assert!(setup(Some(&list), "apply").unwrap().terminal);
-        assert!(setup(Some(&list), "remove").is_err());
-    }
-
-    #[test]
-    fn repositories_as_the_helper_takes_them() {
-        for good in ["ghcr.io/you/your-image", "registry.example.com:5000/a/b", "localhost:5000/x", "quay.io/a_b/c__d/e--f"] {
-            assert!(valid_repository(good), "{good}");
-        }
-        for bad in ["ghcr.io/you/image:stable", "ghcr.io/You/image", "ghcr.io", "you/your-image", "ghcr.io/you/image@sha256:00",
-            "ghcr.io/you/-image", "ghcr.io//image", "-ghcr.io/you/image"] {
-            assert!(!valid_repository(bad), "{bad}");
-        }
-        assert_eq!(own_repository(r#"{"image-vendor": "iarsslen"}"#).as_deref(), Some("ghcr.io/iarsslen"));
-        assert_eq!(own_repository(r#"{"image-vendor": ""}"#), None);
-        assert_eq!(own_repository("nope"), None);
-    }
-
-    #[test]
-    fn trusts_only_with_a_key_and_not_amethystoras_own() {
-        let list = list();
-        let key = std::env::temp_dir().join("amethystora-control-test-cosign.pub");
-        std::fs::write(&key, "key").unwrap();
-        let own = Some("ghcr.io/iarsslen");
-        let run = trust_image(Some(&list), "ghcr.io/you/image", own, Some(&key)).unwrap();
-        assert!(run.terminal);
-        assert_eq!(run.argv, ["ame", "system", "trust-image", "ghcr.io/you/image", key.to_str().unwrap()]);
-        assert!(trust_image(Some(&list), "ghcr.io/iarsslen/amethystora", own, Some(&key)).is_err());
-        assert!(trust_image(Some(&list), "ghcr.io/iarsslen", own, Some(&key)).is_err());
-        assert!(trust_image(Some(&list), "ghcr.io/iarsslenx/image", own, Some(&key)).is_ok());
-        assert!(trust_image(Some(&list), "ghcr.io/you/image:tag", own, Some(&key)).is_err());
-        assert!(trust_image(Some(&list), "ghcr.io/you/image", own, None).is_err());
-        assert!(trust_image(Some(&list), "ghcr.io/you/image", own, Some(Path::new("/nonexistent/cosign.pub"))).is_err());
-        let _ = std::fs::remove_file(key);
+        assert_eq!(change(Some(&list), "greeting", "maybe"), Err(refused()));
+        assert_eq!(new_widget(Some(&list), "My-clock", "hello"), Err(words(Refusal::WidgetName)));
+        assert_ne!(words(Refusal::WidgetName), refused());
+        assert_eq!(trust_image(Some(&list), "ghcr.io/you/image", Some("ghcr.io/iarsslen"), None), Err(words(Refusal::NoKey)));
     }
 
     #[test]

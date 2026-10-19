@@ -1,0 +1,13 @@
+# What Amethystora Control and the agent's tools (amethystora-agent-tools) share: the settings list that
+# /usr/libexec/amethystora-control-list prints, read leniently, and the one way to turn an entry's id and one
+# of its values into the argument vector the list has for it. No GTK, so that the tools build without it.
+[package]
+name = "amethystora-control-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+regex.workspace = true
