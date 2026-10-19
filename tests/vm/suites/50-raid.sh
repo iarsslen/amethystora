@@ -16,7 +16,8 @@
 #   8. The damaged disk: the file reads right, a scrub repairs its copy and counts the errors, the notification's
 #      Open Control clicked, the disk replaced by SPARE-3 while it still reads.
 #   9. A copy overwritten behind btrfs's back repaired by a scrub.
-#  10. A real suspend cuts a scrub short, which the next run resumes. A disk of data unplugged.
+#  10. A suspend (the kernel's own test of it, to the devices) cuts a scrub short, which the next run resumes. A
+#      disk of data unplugged.
 #  11. data did not open, and the boot did not wait; opened with the disk gone, written to; the disk plugged in.
 #  12. It is back and its copies put back; data forgotten, leaving nothing behind.
 # The script asks sudo for each step that needs root, so tester's sudo asks no password while this suite runs.
@@ -756,18 +757,20 @@ case "${SUITE_PHASE}" in
     ;;
 
 10)
-    # A real suspend while every copy is read: the next run resumes it
-    if [[ "$(cat /sys/power/mem_sleep 2>/dev/null)" != *s2idle* && "$(cat /sys/power/state)" != *freeze* ]]; then
-        skip "a suspend during a scrub: this machine cannot suspend"
+    # A suspend while every copy is read: the next run resumes it. systemd's suspend and the kernel's, every task
+    # frozen and every device suspended, then woken by the kernel itself after 5 s (pm_test): in the lab's VM a
+    # sleep through the firmware (S3) never came back (2026-10-19), and nothing wakes one in s2idle
+    if ! grep -qw devices /sys/power/pm_test 2>/dev/null; then
+        skip "a suspend during a scrub: this kernel has no test of its suspend (pm_test)"
     else
         systemctl start --no-block amethystora-raid-scrub.service
         wait_for 60 pgrep -f 'btrfs scrub start -B -R /var/mnt/data'
         sleep 3
-        rtcwake -m no -s 40 >/dev/null
+        echo devices >/sys/power/pm_test
         before="$(date +%s)"
         systemctl suspend
-        # This waits out the suspend, frozen with everything else
-        wait_for 300 sh -c "[ \$(date +%s) -ge $((before + 30)) ]"
+        wait_for 180 sh -c "journalctl -b --since @${before} --no-pager -o cat | grep -q 'PM: suspend exit'"
+        echo none >/sys/power/pm_test
         wait_for 600 sh -c '! systemctl is-active --quiet amethystora-raid-scrub.service'
         slept="$(journalctl -b --since "@${before}" --no-pager -o cat | grep -cE 'PM: suspend (entry|exit)|System returned from sleep')"
         echo "# suspend lines in the journal: ${slept}; the scrub: $(cat "${STATE}/scrub-${DATA_UUID}.json")"
