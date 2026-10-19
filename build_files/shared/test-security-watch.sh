@@ -617,9 +617,9 @@ echo "PRIVILEGE=off" >>"${AMETHYSTORA_SECURITY_CONF}"
 
 unset AMETHYSTORA_WATCH_AUDIT
 sed -i 's/^SELINUX_DENIALS=on$/AUDIT_LOG=off\nPROCESSES=on/' "${AMETHYSTORA_SECURITY_CONF}"
-# alice is logged in, and a stand-in systemctl gives her user manager's environment
+# alice is logged in, and a stand-in systemctl gives her user manager's environment, asked as alice
 export AMETHYSTORA_WATCH_SYSTEMCTL="${T}/systemctl" AMETHYSTORA_WATCH_ACCOUNTS=4500
-printf '#!/usr/bin/bash\n[[ "$*" == "--user -M alice@.host show-environment" ]] && cat "%s/session-env"\nexit 0\n' "${T}" \
+printf '#!/usr/bin/bash\n[[ "$*" == "--user show-environment" && "$(id -u)" == 4500 && "${XDG_RUNTIME_DIR}" == /run/user/4500 ]] && cat "%s/session-env"\nexit 0\n' "${T}" \
     >"${T}/systemctl"
 chmod 0755 "${T}/systemctl"
 echo "HOME=/var/home/alice" >"${T}/session-env"

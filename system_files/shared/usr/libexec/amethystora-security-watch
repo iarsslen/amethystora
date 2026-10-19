@@ -1136,13 +1136,16 @@ read_processes() {
     done
     # A session's own environment, which every program it starts from then on is given: what `systemctl --user
     # set-environment` and dbus-update-activation-environment leave, and no file shows. Asked of the user manager
-    # of each account logged in now; each variable and value said once.
+    # of each account logged in now, as that account, on the manager's own socket: `systemctl -M USER@.host` from a
+    # system service starts a unit of its own for every question, and can lose its connection. Each variable and
+    # value said once.
     while IFS= read -r variable; do
         code["${variable}"]=1
     done < <(grep -v '^#' "${CODE_VARIABLES}" 2>/dev/null)
     logged=" $(logged_in | tr '\n' ' ') "
-    while IFS=: read -r user _ uid _; do
-        [[ "${uid}" =~ ^[0-9]+$ && "${logged}" == *" ${uid} "* && "${user}" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]*$ ]] || continue
+    while IFS=: read -r user _ uid gid _; do
+        [[ "${uid}" =~ ^[0-9]+$ && "${gid}" =~ ^[0-9]+$ && "${logged}" == *" ${uid} "* ]] || continue
+        [[ -n "${ROOT}" || -S "/run/user/${uid}/systemd/private" ]] || continue
         while IFS= read -r line; do
             variable="${line%%=*}"
             [[ "${variable}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ && -n "${code[${variable}]:-}" ]] &&
@@ -1155,7 +1158,8 @@ read_processes() {
             allowed processes "${variable} ${path}" && { level=quiet; ALLOWED_HIT=1; }
             add "${level}" processes "${user}" Persistence "Every program started in ${user}'s session now loads ${path} (${variable})" \
                 "allow=${variable} ${path}"
-        done < <(timeout 10 "${SYSTEMCTL}" --user -M "${user}@.host" show-environment 2>/dev/null)
+        done < <(timeout 10 setpriv --reuid="${uid}" --regid="${gid}" --clear-groups -- /usr/bin/env -i \
+            XDG_RUNTIME_DIR="/run/user/${uid}" PATH=/usr/bin:/usr/sbin "${SYSTEMCTL}" --user show-environment 2>/dev/null)
     done < <(accounts)
 }
 

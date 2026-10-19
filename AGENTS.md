@@ -530,7 +530,8 @@ which must name every agent `amethystora-agent` offers. A finding carries `at=` 
 `--at=POINT`) and `tell=` where they apply; one the allowlist quietened carries `allowed` and builds no chain.
 `test-security-watch.sh`, `test-security-reader.sh` and `test-yara.sh` plant each kind of finding. A library
 loaded by `LD_PRELOAD` from outside `/usr`, and a session whose user manager gives every program a variable of
-`/usr/share/amethystora/code-variables` (`systemctl --user -M USER@.host show-environment`), are `PROCESSES`'
+`/usr/share/amethystora/code-variables` (`systemctl --user show-environment`, run as the account with `setpriv` on its
+manager's own socket: `-M USER@.host` from a system service starts a unit for every question), are `PROCESSES`'
 too; the same list is the app permissions' `code` reach. `INJECTION`, an audit key of its own, is every attach to,
 or read or write of, another program's memory by a login: the sensor's `fexit/security_ptrace_access_check`, which
 returns at once unless the mode attaches (every `/proc/PID/stat` read asks it too), records the result, the call and
