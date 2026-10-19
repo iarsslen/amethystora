@@ -3,7 +3,7 @@
 # the plan's "Verify" list left open answered on a running machine. A card's command is the one the list the
 # window reads gives it (amethystora-control-list --json), run as the window runs it: a direct one as its
 # argument vector in the account's session, with no terminal; one the list opens in a terminal on a terminal of
-# its own, its questions answered (term.py). Then the list is read again for the state it says. Six phases, in five starts:
+# its own, its questions answered (term.py). Then the list is read again for the state it says. Seven phases, in six starts:
 #   1. The list: its speed, its commands, what it reads without root (the boot menu, sched_ext); the hotkey
 #      against every other key of GNOME and its extensions; custom29 in the setup file; every direct card
 #      (theme, wallpaper, transition and its length, layout, widgets, greeting, terminal tools, phone pairing,
@@ -13,9 +13,10 @@
 #      the firmware settings declined, freeing space, the image and the stream offered (declined at the last
 #      question), the developer groups on a developer image, and last the default apps.
 #   3-4. Android, in one boot, its download being longer than a phase: enabled after on, still after stop and
-#      not after off (drawing in software on an NVIDIA image); drawing tablets, and the daemon their unit runs.
-#   5. Games: Steam and its layers, X11 for Steam alone, other stores offered, all taken away again.
-#   6. The add-ons: the chosen agent installed, JetBrains Toolbox, the command-line tools, Bold Brew's lists.
+#      not after off (drawing in software on an NVIDIA image).
+#   5. Drawing tablets, and the daemon their unit runs.
+#   6. Games: Steam and its layers, X11 for Steam alone, other stores offered, all taken away again.
+#   7. The add-ons: the chosen agent installed, JetBrains Toolbox, the command-line tools, Bold Brew's lists.
 # Switching to the developer image and starting over are 90-control-switch.sh's.
 source "$(dirname "$0")/lib.sh"
 
@@ -568,7 +569,7 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     reboot_and_continue
 fi
 
-# --- Phases 3 and 4: Android, drawing tablets --------------------------------------------------------------
+# --- Phases 3 and 4: Android -----------------------------------------------------------------------------
 # Setting Android up downloads about a gigabyte from Waydroid's servers, which takes the lab longer than a
 # phase may: it starts in phase 3, and phase 4, in the same boot, waits for it
 if [[ "${SUITE_PHASE}" == 3 ]]; then
@@ -607,6 +608,12 @@ if [[ "${SUITE_PHASE}" == 4 ]]; then
     card_ok "and taken away: ${CARD}" "[[ \"\$(state android)\" == off ]]" \
         "! systemctl is-enabled --quiet waydroid-container.service" "[[ ! -e /var/lib/waydroid ]]"
 
+    reboot_and_continue
+fi
+
+# --- Phase 5: drawing tablets, its own, after Android's long wait -----------------------------------------
+if [[ "${SUITE_PHASE}" == 5 ]]; then
+    allow_root
     # Verify: the daemon the image's unit starts, from the Flatpak
     in_card 1200 'Set up OpenTabletDriver\?' y -- opentabletdriver on
     card_ok "drawing tablets set up: ${CARD}" "[[ \"\$(state opentabletdriver)\" == on ]]" \
@@ -629,8 +636,8 @@ if [[ "${SUITE_PHASE}" == 4 ]]; then
     reboot_and_continue
 fi
 
-# --- Phase 5: games ----------------------------------------------------------------------------------------
-if [[ "${SUITE_PHASE}" == 5 ]]; then
+# --- Phase 6: games ----------------------------------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 6 ]]; then
     allow_root
     in_card 1500 'Set up gaming\?' y 'Also install\?' $'\x03' -- gaming on
     card_ok "games set up: ${CARD}" "[[ \"\$(state gaming)\" == on ]]" "flatpak info com.vysp3r.ProtonPlus" \
@@ -644,8 +651,8 @@ if [[ "${SUITE_PHASE}" == 5 ]]; then
     reboot_and_continue
 fi
 
-# --- Phase 6: the add-ons and the agent --------------------------------------------------------------------
-if [[ "${SUITE_PHASE}" == 6 ]]; then
+# --- Phase 7: the add-ons and the agent --------------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 7 ]]; then
     allow_root
     chosen="$(state agent-choice)"
     if [[ -n "$(item agent-install)" ]]; then
