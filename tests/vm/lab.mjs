@@ -268,7 +268,9 @@ export const tools = [
         const bad = faulty[String(i + 1)] || [];
         if (bad.length) {
           const config = file(name, `spare${i + 1}.blkdebug`);
-          fs.writeFileSync(config, bad.map((sector) => ['[inject-error]', 'event = "read_aio"', 'errno = "5"',
+          // Reads only: a rule a read set off stays active until the next read, and without iotype it would fail
+          // the writes btrfs makes to repair the sector too, which a damaged disk takes
+          fs.writeFileSync(config, bad.map((sector) => ['[inject-error]', 'event = "read_aio"', 'iotype = "read"', 'errno = "5"',
             `sector = "${Number(sector)}"`, 'once = "off"', ''].join('\n')).join('\n'));
           args.push('-drive', `if=none,id=spare${i + 1},driver=raw,discard=unmap,file.driver=blkdebug,file.config=${config},` +
             `file.image.driver=qcow2,file.image.file.driver=file,file.image.file.filename=${spare}`);

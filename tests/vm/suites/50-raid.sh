@@ -137,6 +137,24 @@ bad_place() {  # FILE [bytes]
     done < <(btrfs-map-logical -l "${logical}" "${member}" 2>/dev/null)
     return 1
 }
+# A file's checksum, read in the background so that a read the kernel never finishes (a process in D state, which
+# no signal ends) cannot hold the suite: nothing, and false, after SECONDS
+bounded_sum() {  # FILE SECONDS
+    local out pid i
+    out="$(mktemp)"
+    (sha256sum "$1" >"${out}" 2>&1 </dev/null) &
+    pid=$!
+    for ((i = 0; i < $2; i++)); do
+        kill -0 "${pid}" 2>/dev/null || break
+        sleep 1
+    done
+    if kill -0 "${pid}" 2>/dev/null; then
+        rm -f "${out}"
+        return 1
+    fi
+    cut -d ' ' -f 1 "${out}"
+    rm -f "${out}"
+}
 # GNOME Shell, and an app's window, through the accessibility tree, as the account (atspi.py)
 ATSPI=/run/vmlab-raid/atspi.py
 install -D -m 0755 "$(dirname "$0")/atspi.py" "${ATSPI}"
@@ -656,11 +674,17 @@ case "${SUITE_PHASE}" in
 
 8)
     [[ -n "${DAMAGED_SERIAL:-}" ]] || abandon "no disk was damaged"
-    # Read again and again, from new processes, so that btrfs reads each copy in turn
+    # Read again and again, from new processes, so that btrfs reads each copy in turn. Each read in the
+    # background: one the kernel never finishes would otherwise hold this suite, and the lab's helper with it.
     sums=""
     for _ in 1 2 3 4 5 6; do
         echo 3 >/proc/sys/vm/drop_caches
-        sums+="$(sha256sum /var/mnt/data/damaged | cut -d ' ' -f 1) "
+        sum="$(bounded_sum /var/mnt/data/damaged 300)" || {
+            not_ok "a read of the damaged file did not finish within 5 minutes" \
+                "$(journalctl -k -b --no-pager -o short-monotonic | grep -iE 'ata[0-9]|I/O error|btrfs|blocked for more' | tail -n 30)"
+            finish
+        }
+        sums+="${sum} "
     done
     [[ "$(tr ' ' '\n' <<<"${sums}" | grep -v "^$" | sort -u)" == "${DAMAGED_SUM}" ]] && ok "the damaged file reads right every time" ||
         not_ok "the damaged file read wrong" "${sums}"
@@ -668,6 +692,13 @@ case "${SUITE_PHASE}" in
     echo "# the kernel: $(paste -sd '|' <<<"${kernel}")"
     grep -qi 'read error corrected' <<<"${kernel}" && ok "btrfs read the good copy and rewrote the bad one" ||
         not_ok "btrfs did not say it corrected a read error" "${kernel:-(nothing)}"
+    # btrfs counts no error against a disk for a read ahead of time, which those were; the check of every copy,
+    # which reads each one, does (128 in the lab's reproduction, all repaired from the good copy)
+    started="$(date +%s)"
+    check "ame system raid scrub now" as_user 'ame system raid scrub now'
+    wait_for 1200 scrub_now_done
+    holds "the check of every copy met the bad sectors and repaired them from the good copy" "$(cat "${STATE}/scrub-${DATA_UUID}.json" 2>&1)" \
+        ".time >= ${started} and .finished and .corrected > 0 and .uncorrectable == 0"
     holds "the status: ${DAMAGED_SERIAL} is counting errors" "$(pool_json data)" \
         "any(.devices[]; .disk.serial == \"${DAMAGED_SERIAL}\" and .error_count > 0) and (.problems | index(\"errors\")) != null"
     echo "# SMART of the damaged disk: $(smartctl -H -j "$(readlink -f "/dev/disk/by-id/ata-QEMU_HARDDISK_${DAMAGED_SERIAL}")" | jq -c .smart_status)"
