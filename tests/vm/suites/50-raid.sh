@@ -142,7 +142,8 @@ bad_place() {  # FILE [bytes]
 bounded_sum() {  # FILE SECONDS
     local out pid i
     out="$(mktemp)"
-    (sha256sum "$1" >"${out}" 2>&1 </dev/null) &
+    # Nothing of the suite's own output held by it, or the lab's helper would wait on it all the same
+    (sha256sum "$1" >"${out}" 2>&1) </dev/null >/dev/null 2>&1 &
     pid=$!
     for ((i = 0; i < $2; i++)); do
         kill -0 "${pid}" 2>/dev/null || break
@@ -681,7 +682,7 @@ case "${SUITE_PHASE}" in
         echo 3 >/proc/sys/vm/drop_caches
         sum="$(bounded_sum /var/mnt/data/damaged 300)" || {
             not_ok "a read of the damaged file did not finish within 5 minutes" \
-                "$(journalctl -k -b --no-pager -o short-monotonic | grep -iE 'ata[0-9]|I/O error|btrfs|blocked for more' | tail -n 30)"
+                "$(timeout 30 journalctl -k -b --no-pager -o short-monotonic | grep -iE 'ata[0-9]|I/O error|btrfs|blocked for more' | tail -n 30)"
             finish
         }
         sums+="${sum} "
