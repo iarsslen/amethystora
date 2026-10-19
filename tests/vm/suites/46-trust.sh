@@ -13,13 +13,25 @@
 source "$(dirname "$0")/lib.sh"
 
 STATE=/var/lib/vmlab-tests/46-trust
-UID_TEST="$(id -u "${TEST_USER}")"
 mkdir -p "${STATE}"
 
+# The account, as 10-account.sh signs one in on the other machine: this one has none until a suite makes it
+if ! getent passwd "${TEST_USER}" >/dev/null; then
+    useradd -m -G wheel -c "Test account" "${TEST_USER}"
+    echo "${TEST_USER}:${TEST_USER}" | chpasswd
+    printf '[daemon]\nAutomaticLoginEnable=True\nAutomaticLogin=%s\n' "${TEST_USER}" >/etc/gdm/custom.conf
+    install -d -o "${TEST_USER}" -g "${TEST_USER}" "/var/home/${TEST_USER}/.config"
+    install -o "${TEST_USER}" -g "${TEST_USER}" /dev/null "/var/home/${TEST_USER}/.config/gnome-initial-setup-done"
+    systemctl restart gdm
+fi
+UID_TEST="$(id -u "${TEST_USER}")"
 if ! wait_for 300 has_session; then
-    skip "no session for ${TEST_USER} (10-account.sh)"
+    not_ok "no session for ${TEST_USER}" "$(loginctl list-sessions --no-legend)"
     finish
 fi
+# The password, where sudo asks for one (a suite that ran before may have let the account off for its own run)
+PASSWORD=('[Pp]assword' "${TEST_USER}"$'\r')
+runuser -u "${TEST_USER}" -- sudo -n true 2>/dev/null && PASSWORD=()
 
 session_terminal() {
     local steps=()
@@ -92,7 +104,7 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     same "the administrator ${TEST_USER} is in none of the groups that amount to root (${roots[*]:-none here})" "${joined}" ""
     same "and the report names nobody" "$(record root-groups)" null
     if [[ " ${roots[*]} " == *" docker "* ]]; then
-        out="$(session_terminal 180 'become root without your password\?' y '[Pp]assword' "${TEST_USER}"$'\r' -- "ame system dx-group docker dialout")"
+        out="$(session_terminal 180 'become root without your password\?' y "${PASSWORD[@]}" -- "ame system dx-group docker dialout")"
         status=$?
         if [[ "${status}" == 0 && "${out}" == *"Joined docker."* && "${out}" == *"Joined dialout."* ]] &&
             id -nG "${TEST_USER}" | tr ' ' '\n' | grep -qx docker; then
@@ -110,7 +122,7 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
         else
             not_ok "Control's dx-group entry" "${listed}"
         fi
-        out="$(session_terminal 120 '[Pp]assword' "${TEST_USER}"$'\r' -- "ame system dx-group none")"
+        out="$(session_terminal 120 "${PASSWORD[@]}" -- "ame system dx-group none")"
         if [[ "${out}" == *"Left docker."* && "${out}" == *"Left dialout."* ]] && ! id -nG "${TEST_USER}" | tr ' ' '\n' | grep -qxE 'docker|dialout'; then
             ok "ame system dx-group none leaves them, without asking but for the password"
         else
@@ -118,10 +130,10 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
         fi
         same "and the report names nobody again" "$(record root-groups)" null
     else
-        out="$(session_terminal 120 '[Pp]assword' "${TEST_USER}"$'\r' -- "ame system dx-group dialout")"
+        out="$(session_terminal 120 "${PASSWORD[@]}" -- "ame system dx-group dialout")"
         if [[ "${out}" == *"Joined dialout."* && "${out}" != *"become root"* ]]; then ok "ame system dx-group dialout joins a group that is not root without asking"; else
             not_ok "ame system dx-group dialout" "$(tail -n 10 <<<"${out}")"; fi
-        session_terminal 120 '[Pp]assword' "${TEST_USER}"$'\r' -- "ame system dx-group none" >/dev/null
+        session_terminal 120 "${PASSWORD[@]}" -- "ame system dx-group none" >/dev/null
         same "and none leaves it" "$(id -nG "${TEST_USER}" | tr ' ' '\n' | grep -x dialout)" ""
         skip "joining docker, incus-admin and libvirt: this image does not have them (the developer image does)"
     fi
@@ -132,7 +144,7 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     else
         skip "lockdown=integrity: an NVIDIA image leaves it out"
     fi
-    out="$(session_terminal 900 'Leave lockdown out of the kernel arguments' y '[Pp]assword' "${TEST_USER}"$'\r' -- "ame security lockdown off")"
+    out="$(session_terminal 900 'Leave lockdown out of the kernel arguments' y "${PASSWORD[@]}" -- "ame security lockdown off")"
     if [[ $? == 0 ]] && ! grep -qw 'lockdown=integrity' <<<"$(next_args)"; then
         ok "ame security lockdown off takes the argument off the next start"
     else
@@ -163,7 +175,7 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
         check "the image's own modules load then (v4l2loopback)" modprobe v4l2loopback
         modprobe -r v4l2loopback 2>/dev/null
     fi
-    out="$(session_terminal 900 'Turn kernel lockdown on' y '[Pp]assword' "${TEST_USER}"$'\r' -- "ame security lockdown on")"
+    out="$(session_terminal 900 'Turn kernel lockdown on' y "${PASSWORD[@]}" -- "ame security lockdown on")"
     if [[ $? == 0 ]] && grep -qw 'lockdown=integrity' <<<"$(next_args)"; then
         ok "ame security lockdown on puts the argument back for the next start"
     else
