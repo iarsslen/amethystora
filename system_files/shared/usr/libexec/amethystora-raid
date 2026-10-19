@@ -1777,7 +1777,7 @@ mirror_onto() {  # STATUS [DISK]
     esac
     size="$(jq -r .size <<<"${onto}")"
     disk="$(pick_disk "$(jq -c --argjson size "${size}" '[.spare[] | select(.size >= $size)]' <<<"${status}")" \
-        "Which disk does the system go onto? Everything on it is erased." "${1:-}")" || exit 0
+        "Which disk does the system go onto? Everything on it is erased." "${2:-}")" || exit 0
     root_part="$(jq -r '.devices[0].part' <<<"$(system_json)")"
     [[ "$(jq -r '.devices[0].luks' <<<"$(system_json)")" == true ]] && luks=true
     read -r boot_part _ <<<"$(boot_mount)"
