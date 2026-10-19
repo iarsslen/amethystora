@@ -57,7 +57,6 @@ mkdir -p /out/licenses
 install -Dpm0755 "${CARGO_TARGET_DIR}/release/amethystora-apps" /out/amethystora-apps
 install -Dpm0755 "${CARGO_TARGET_DIR}/release/amethystora-sensor" /out/amethystora-sensor
 for program in amethystora-agent-tools amethystora-agent-root; do
-    [[ -x "${CARGO_TARGET_DIR}/release/${program}" ]] || continue
     install -Dpm0755 "${CARGO_TARGET_DIR}/release/${program}" "/out/${program}"
 done
 # It must link the image's own libbpf, not a vendored copy, or the version it was built against travels with

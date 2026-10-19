@@ -601,7 +601,10 @@ for unit in amethystora-raid-check amethystora-raid-scrub; do
 done
 grep -q "^ExecCondition=/usr/libexec/amethystora-raid present-system$" /usr/lib/systemd/system/amethystora-raid-boot.service
 systemd-analyze verify --man=no --recursive-errors=no /usr/lib/systemd/system/amethystora-raid-{check,scrub}.{service,timer} \
-    /usr/lib/systemd/system/amethystora-raid-boot.service
+    /usr/lib/systemd/system/amethystora-raid-{boot,mirror}.service
+# A mirror's first disk's /boot joins it while nothing holds /boot: before boot.mount, and only when one waits
+grep -q "^Before=boot.mount" /usr/lib/systemd/system/amethystora-raid-mirror.service
+grep -q "^ConditionPathExists=/var/lib/amethystora/raid/mirror.json$" /usr/lib/systemd/system/amethystora-raid-mirror.service
 # A system over several disks starts with one missing from the boot menu: the initramfs lets its btrfs mount
 # degraded when the kernel command line asks for it (and only then), which the entry amethystora-raid writes does
 grep -q "usr/lib/udev/rules.d/65-amethystora-btrfs-degraded.rules" <<<"${INITRAMFS_FILES}"
@@ -2270,6 +2273,28 @@ done
     test ! -e "${HOME}/.config/amethystora/agent-tools"
     rm -rf "${HOME}"
 )
+# The agent's root commands: one polkit action for each mode but terminal, each an administrator's password at
+# the machine and never anyone else's, and no rule letting anyone through without it. The helper runs only as
+# pkexec starts it, for the tool server, over a socket
+python3 -I - <<'PY'
+import xml.etree.ElementTree as ET
+want = {"org.amethystora.agent.root-session": ("auth_admin", "session"),
+        "org.amethystora.agent.root-minutes": ("auth_admin_keep", "minutes"),
+        "org.amethystora.agent.root-each": ("auth_admin", "each")}
+got = {}
+for action in ET.parse("/usr/share/polkit-1/actions/org.amethystora.agent.policy").getroot().findall("action"):
+    defaults = action.find("defaults")
+    notes = {note.get("key"): note.text for note in action.findall("annotate")}
+    assert defaults.find("allow_any").text == "no" and defaults.find("allow_inactive").text == "no", action.get("id")
+    assert notes["org.freedesktop.policykit.exec.path"] == "/usr/libexec/amethystora-agent-root", action.get("id")
+    got[action.get("id")] = (defaults.find("allow_active").text, notes["org.freedesktop.policykit.exec.argv1"])
+assert got == want, got
+PY
+grep -rqs "org.amethystora.agent" /usr/share/polkit-1/rules.d /etc/polkit-1/rules.d && false
+test -x /usr/libexec/amethystora-agent-root
+[[ "$(stat -c '%U %a' /usr/libexec/amethystora-agent-root)" == "root 755" ]]
+/usr/libexec/amethystora-agent-root session </dev/null 2>/dev/null && false
+[[ "$(PKEXEC_UID=0 /usr/libexec/amethystora-agent-root session </dev/null 2>&1)" == *socket* ]]
 # The hand-off to a terminal shows what the agent asks to run and reports how it ended
 grep -q -- "--agent REASON" /usr/libexec/amethystora-in-terminal
 grep -q -- "--report DIR" /usr/libexec/amethystora-in-terminal
@@ -2427,6 +2452,7 @@ IMPORTANT_UNITS=(
     amethystora-raid-check.timer
     amethystora-raid-scrub.timer
     amethystora-raid-boot.service
+    amethystora-raid-mirror.service
     amethystora-zram-recompress.timer
   )
 

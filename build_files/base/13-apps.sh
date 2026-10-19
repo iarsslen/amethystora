@@ -37,9 +37,8 @@ install -Dpm0644 /ctx/apps/sensor/src/bpf/COPYING /usr/share/licenses/amethystor
 # name in the image is final (build-agent-index.sh). Off costs nothing: nothing here runs until an agent the
 # user started starts it.
 install -Dpm0755 /apps-stage/out/amethystora-agent-tools /usr/libexec/amethystora-agent-tools
-if [[ -x /apps-stage/out/amethystora-agent-root ]]; then
-    install -Dpm0755 /apps-stage/out/amethystora-agent-root /usr/libexec/amethystora-agent-root
-fi
+# The helper that runs the agent's root commands, started with pkexec only (org.amethystora.agent.policy)
+install -Dpm0755 /apps-stage/out/amethystora-agent-root /usr/libexec/amethystora-agent-root
 install -d /usr/share/amethystora/agents/knowledge/model
 install -pm0644 -t /usr/share/amethystora/agents/knowledge/model /apps-stage/out/model/*
 

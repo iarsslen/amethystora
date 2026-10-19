@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC
+ "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<policyconfig>
+
+  <vendor>Amethystora</vendor>
+  <vendor_url>https://github.com/iarsslen/amethystora</vendor_url>
+
+  <!-- The AI agent's root commands (amethystora-agent-root, plans/PLAN-agentic-os.md), one action for each mode an
+       administrator can choose in /etc/amethystora/agent.conf, so that the password dialog says what the password
+       gives. pkexec picks the action by the helper's path and its first argument, the mode; the helper refuses a
+       mode the administrator did not choose. The terminal mode has none: sudo asks there. Only the person at the
+       machine, with an administrator's password, and no rule lets anyone through without one (20-tests.sh). -->
+  <action id="org.amethystora.agent.root-session">
+    <description>Let the AI agent run commands as root until it ends</description>
+    <message>The AI agent asks to run commands as root, until it ends, the screen locks or an hour passes without one. Each command was shown to you in the agent first.</message>
+    <icon_name>dialog-password</icon_name>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/amethystora-agent-root</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">session</annotate>
+  </action>
+
+  <action id="org.amethystora.agent.root-minutes">
+    <description>Let the AI agent run commands as root for five minutes</description>
+    <message>The AI agent asks to run a command as root, and more for five minutes. Each command was shown to you in the agent first.</message>
+    <icon_name>dialog-password</icon_name>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/amethystora-agent-root</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">minutes</annotate>
+  </action>
+
+  <action id="org.amethystora.agent.root-each">
+    <description>Let the AI agent run one command as root</description>
+    <message>The AI agent asks to run one command as root. It was shown to you in the agent first.</message>
+    <icon_name>dialog-password</icon_name>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/amethystora-agent-root</annotate>
+    <annotate key="org.freedesktop.policykit.exec.argv1">each</annotate>
+  </action>
+
+</policyconfig>

@@ -85,6 +85,68 @@ pub fn run(argv: &[&str], timeout: Duration) -> Output {
     run_env(argv, &[], timeout)
 }
 
+/// What the root helper runs: `env -i` with only `environment`, in `/`, both streams together, of which the
+/// last `keep` bytes are kept
+pub fn run_clean(argv: &[String], environment: &[(&str, &str)], timeout: Duration, keep: usize) -> Output {
+    let Some((program, args)) = argv.split_first() else {
+        return Output::default();
+    };
+    let (reader, writer) = match std::io::pipe() {
+        Ok(pair) => pair,
+        Err(error) => return Output { code: None, stdout: String::new(), stderr: error.to_string(), timed_out: false },
+    };
+    let mut command = Command::new(program);
+    command.args(args).env_clear().current_dir("/").stdin(Stdio::null()).process_group(0);
+    for (key, value) in environment {
+        command.env(key, value);
+    }
+    let spawned = match writer.try_clone() {
+        Ok(copy) => command.stdout(copy).stderr(writer).spawn(),
+        Err(error) => Err(error),
+    };
+    // The command's own ends of the pipe went with it; ours is only the reading one
+    drop(command);
+    let mut child = match spawned {
+        Ok(child) => child,
+        Err(error) => return Output { code: None, stdout: String::new(), stderr: format!("{program}: {error}"), timed_out: false },
+    };
+    let read = thread::spawn(move || {
+        let mut reader = reader;
+        let mut kept: Vec<u8> = Vec::new();
+        let mut buffer = [0u8; 65536];
+        while let Ok(n) = reader.read(&mut buffer) {
+            if n == 0 {
+                break;
+            }
+            kept.extend_from_slice(&buffer[..n]);
+            if kept.len() > keep * 2 {
+                kept.drain(..kept.len() - keep);
+            }
+        }
+        kept
+    });
+    let deadline = Instant::now() + timeout;
+    let mut timed_out = false;
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(status)) => break Some(status),
+            Ok(None) if Instant::now() >= deadline => {
+                timed_out = true;
+                break None;
+            }
+            Ok(None) => thread::sleep(Duration::from_millis(50)),
+            Err(_) => break None,
+        }
+    };
+    // Whatever it left running in its group goes with it, so that nothing keeps the pipe open
+    unsafe { libc::kill(-(child.id() as i32), libc::SIGKILL) };
+    let status = status.or_else(|| child.wait().ok().filter(|_| !timed_out));
+    let kept = read.join().unwrap_or_default();
+    let start = kept.len().saturating_sub(keep);
+    let stdout = String::from_utf8_lossy(&kept[start..]).into_owned();
+    Output { code: if timed_out { None } else { status.and_then(|status| status.code()) }, stdout, stderr: String::new(), timed_out }
+}
+
 /// Answers kept for a minute within one server, for the helpers that take seconds to answer
 pub struct Cache {
     kept: Mutex<HashMap<Vec<String>, (Instant, Output)>>,

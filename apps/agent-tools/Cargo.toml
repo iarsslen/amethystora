@@ -14,6 +14,10 @@ publish.workspace = true
 name = "amethystora-agent-tools"
 path = "src/main.rs"
 
+[[bin]]
+name = "amethystora-agent-root"
+path = "src/bin/root.rs"
+
 [dependencies]
 amethystora-control-core.workspace = true
 serde_json.workspace = true

@@ -64,7 +64,9 @@ impl Helper {
 
     /// Why it ended, from what pkexec said
     fn ended(mut self) -> String {
+        // Both halves of the socket close, or the helper would wait for a request forever
         drop(self.writer);
+        drop(self.reader);
         let status = self.child.wait().ok().and_then(|status| status.code());
         let mut said = String::new();
         if let Some(mut stderr) = self.child.stderr.take() {
