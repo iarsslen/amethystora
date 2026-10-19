@@ -2240,6 +2240,12 @@ test ! -e /etc/skel/.config/amethystora/agentic
 for skill in amethystora amethystora-diagnose; do
     grep -qx "name: ${skill}" "/usr/share/amethystora/agents/skills/${skill}/SKILL.md"
 done
+# The main skill is a short core, and its references are read only when needed: every reference the core
+# names is there, and every one there is named, or no agent would find it
+SKILL_DIR=/usr/share/amethystora/agents/skills/amethystora
+[[ "$(grep -o "${SKILL_DIR}/references/[a-z-]*\.md" "${SKILL_DIR}/SKILL.md" | sort -u)" == \
+    "$(find "${SKILL_DIR}/references" -name '*.md' | sort)" ]]
+(($(stat -c %s "${SKILL_DIR}/SKILL.md") < 7000))
 ame --show agent::toggle >/dev/null
 grep -q "^install " /usr/share/amethystora/just/agent.just
 
