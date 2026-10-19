@@ -854,8 +854,9 @@ replaces, adds, opens and forgets them. Its plan, with what is left to do, is `p
   default deployment's entry with `rootflags=...,degraded` and `rd.luks.options=...,nofail`, and a 5 s menu.
   Its `ostree=` stays the `/ostree/boot.N` link ostree wrote, the only kind ostree-prepare-root follows.
   The dracut module `amethystora-degraded` (initramfs only) marks the btrfs ready when, and only when,
-  `rootflags` asks for `degraded`: nothing mounts around a disk that is only slow unless a person chose
-  that entry. `replace system` puts a new disk in its place (ESP, `md-boot` half and LUKS when mirrored).
+  `rootflags` asks for `degraded`, and then has dracut's initqueue wait no longer for every `rd.luks.uuid`
+  (crypt's `90-crypt.sh`, which knows no `nofail`): nothing mounts around a disk that is only slow unless a
+  person chose that entry. `replace system` puts a new disk in its place (ESP, `md-boot` half and LUKS when mirrored).
 - **A disk that comes back** has the old copies of what was written while it was away, which btrfs
   counts as errors: the check and the boot write the disks they see missing to `missing.json`, the status
   calls such a disk `returned` rather than counting errors, and **Put the copies back** scrubs, soft-

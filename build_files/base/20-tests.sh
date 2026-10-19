@@ -609,6 +609,8 @@ grep -q "^ConditionPathExists=/var/lib/amethystora/raid/mirror.json$" /usr/lib/s
 # A system over several disks starts with one missing from the boot menu: the initramfs lets its btrfs mount
 # degraded when the kernel command line asks for it (and only then), which the entry amethystora-raid writes does
 grep -q "usr/lib/udev/rules.d/65-amethystora-btrfs-degraded.rules" <<<"${INITRAMFS_FILES}"
+# ...and dracut then waits no longer for the missing disk's LUKS (its initqueue's 90-crypt.sh)
+grep -q "dracut/hooks/cmdline/99-amethystora-degraded-crypt.sh" <<<"${INITRAMFS_FILES}"
 grep -qF 'ENV{rootflags}!="*degraded*", GOTO' /usr/lib/dracut/modules.d/90amethystora-degraded/65-amethystora-btrfs-degraded.rules
 [[ ! -e /usr/lib/udev/rules.d/65-amethystora-btrfs-degraded.rules ]]
 grep -q "/usr/libexec/amethystora-raid root-luks" /usr/share/amethystora/just/security.just
