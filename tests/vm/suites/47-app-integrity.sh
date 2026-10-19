@@ -29,6 +29,15 @@ session_terminal() {
         systemd-run --user --pty --wait --quiet --collect -- /usr/bin/bash -lc "$*"
 }
 
+# The first boot's flatpak preinstall brings the runtimes the two apps are picked on, and holds Flatpak's lock
+# while it does: on a new disk that can take most of a phase, so phase 1 waits for it and the rest is phase 2's
+preinstall_done() { [[ "$(systemctl show flatpak-preinstall.service -p SubState --value)" == exited ]]; }
+if [[ "${SUITE_PHASE}" == 1 ]] && ! preinstall_done; then
+    wait_for 1650 preinstall_done ||
+        echo "# flatpak-preinstall.service still $(systemctl show flatpak-preinstall.service -p SubState --value) after 27 min"
+    continue_phase
+fi
+
 check "app integrity goes on" "${config}" set APP_INTEGRITY on
 
 # Two small apps on a runtime the default apps brought already, one for the machine and one for the account
@@ -41,7 +50,7 @@ for candidate in org.gnome.Sudoku org.gnome.Mahjongg org.gnome.Tetravex org.gnom
     [[ ${#APPS[@]} -eq 2 ]] && break
 done
 if [[ ${#APPS[@]} -lt 2 ]]; then
-    skip "no two small apps on a runtime this machine has: Flathub cannot be reached?"
+    skip "no two small apps on a runtime this machine has (flatpak-preinstall.service $(systemctl show flatpak-preinstall.service -p SubState --value)): Flathub cannot be reached?"
     finish
 fi
 APP="${APPS[0]}" OWN="${APPS[1]}"
