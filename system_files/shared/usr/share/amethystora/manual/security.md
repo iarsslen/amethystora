@@ -55,9 +55,9 @@ looks into it in a terminal and changes nothing until you agree.
   devices ([Installing software](software.md#what-flatpak-apps-may-not-do)), and the key remapper,
   which reads every key, is off until you ask for it.
 - **The kernel is hardened:** memory is wiped as it is handed out, kernel addresses are hidden,
-  programs cannot read each other's memory, and rarely used modules (old network protocols and
-  filesystems, FireWire, test drivers, CAN, the floppy and parallel ports) cannot load. `gdb -p` on a
-  process you did not start needs `sudo`.
+  programs cannot read each other's memory, only a program's own debugger can write over its code, and
+  rarely used modules (old network protocols and filesystems, FireWire, test drivers, CAN, the floppy and
+  parallel ports) cannot load. `gdb -p` on a process you did not start needs `sudo`.
 - **Less to follow you by:** each network sees a temporary IPv6 address that changes, and Bluetooth a
   random address, visible and pairable for 30 seconds when you ask for it.
 - **The kernel refuses to be rewritten while it runs.** Lockdown refuses modules without a signature
@@ -293,7 +293,7 @@ the Settings page and as a command that says what it changes before it does:
 | --- | --- | --- |
 | `ame security kernel` | Kernel addresses and messages hidden, programs kept from each other's memory, no unprivileged BPF, a panic after a hundred oopses | From the next restart. `gdb -p`, `strace -p`, `perf` and `dmesg` work without `sudo` |
 | `ame security blocked-modules` | Old network protocols and filesystems, FireWire, test and fault-injection drivers, CAN, GNSS, the floppy and parallel ports kept from loading | At once. FireWire sound cards and cameras, disks from old Macs, SCTP, CAN buses |
-| `ame security kernel-args` | `init_on_alloc=1`, `slab_nomerge`, `page_alloc.shuffle=1`, `randomize_kstack_offset=on`, `vsyscall=none`, each on its own | From the next restart. Not on a sealed image |
+| `ame security kernel-args` | `init_on_alloc=1`, `slab_nomerge`, `page_alloc.shuffle=1`, `randomize_kstack_offset=on`, `vsyscall=none`, `proc_mem.force_override=ptrace` (only a program's own debugger writes over its code), each on its own | From the next restart. Not on a sealed image. Older releases of the `rr` debugger need the last one off |
 | `ame security firewall` | The Amethystora firewall zone | At once. Fedora Workstation's zone lets in every port from 1025 up; opening one port is the narrower answer |
 | `ame security failed-logins` | Blocking an address after failed SSH logins | At once |
 | `ame security lockout` | Locking an account after ten wrong passwords | At once |
@@ -422,7 +422,7 @@ on, in case one is why something stopped working.
 | Command | What it does | What it costs |
 | --- | --- | --- |
 | `ame security kernel strict` | No io_uring, debuggers attach only as root, more address randomisation, no IPsec | QEMU, Samba and some Node programs lose io_uring; `gdb -p` needs `sudo`; sanitizers; libreswan and strongSwan |
-| `ame security kernel-args <argument> on` | `proc_mem.force_override=ptrace`, `init_on_free=1`, `iommu.strict=1` (the IOMMU on, and strict), `ia32_emulation=0`, each on its own | Untested with Wine and anti-cheat; slower; slower disks and network; no Steam or 32-bit Wine |
+| `ame security kernel-args <argument> on` | `init_on_free=1`, `iommu.strict=1` (the IOMMU on, and strict), `ia32_emulation=0`, each on its own | Slower; slower disks and network; no Steam or 32-bit Wine |
 | `ame security lockdown strict` | Root cannot read the running kernel either | `bpftrace`, `perf` with kernel data, eBPF security tools |
 | `ame security time` | The clock set only from time servers that prove who they are (NTS), three agreeing, never one a network suggests | Networks that block port 4460 leave the clock unsynced |
 | `ame security firewall-away` | Networks you have not named home answer nothing; `ame security home-networks` names more | Printers and shares only at home, as phone pairing always is |

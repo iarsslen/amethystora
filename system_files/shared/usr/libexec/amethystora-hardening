@@ -48,12 +48,11 @@ STRICTER=(time firewall-away network-daemons block-bluetooth block-webcam block-
 declare -A LEVELS=([kernel]="off standard strict" [package-cooldown]="off on strict")
 # Kernel arguments a switch adds one by one, off until turned on, each with what it puts on the command line
 declare -A EXTRA_ARGS=(
-    [proc_mem.force_override=ptrace]="proc_mem.force_override=ptrace"
     [init_on_free=1]="init_on_free=1"
     [iommu.strict=1]="intel_iommu=on iommu=force iommu.passthrough=0 iommu.strict=1"
     [ia32_emulation=0]="ia32_emulation=0"
 )
-EXTRA_ORDER=(proc_mem.force_override=ptrace init_on_free=1 iommu.strict=1 ia32_emulation=0)
+EXTRA_ORDER=(init_on_free=1 iommu.strict=1 ia32_emulation=0)
 
 SYSCTL=sysctl.d/60-amethystora-hardening.conf
 MODPROBE=modprobe.d/60-amethystora-hardening.conf
@@ -691,7 +690,7 @@ words() {
     declare -gA TEXT=(
         [kernel]="$(gettext "Hides kernel addresses and messages, keeps programs from reading each other's memory, and turns off unprivileged BPF. Off, gdb -p, strace -p, perf and dmesg work without sudo, from the next restart. Strict also turns off io_uring, lets only root attach a debugger, randomises more of each program's memory layout and blocks IPsec; QEMU, Samba and some Node programs lose io_uring, gdb -p and strace -p need sudo, sanitizers stop working and libreswan and strongSwan cannot connect.")"
         [blocked-modules]="$(gettext "Old network protocols and filesystems, FireWire, test and fault-injection drivers, CAN, GNSS, the floppy and parallel ports cannot load. Off, FireWire sound cards and cameras, disks from old Macs, SCTP, CAN buses and amateur radio work.")"
-        [kernel-args]="$(gettext "Memory wiped as it is handed out, slab caches kept apart, and no vsyscall page. init_on_alloc costs a few percent on work that allocates a lot, and vsyscall=none stops very old programs. Stricter ones are off until turned on: only debuggers writing to read-only memory (Wine and anti-cheat untested), memory wiped as it is freed (slower), the IOMMU checking every device's memory access at once (slower disks and network), and no 32-bit programs (no Steam, no 32-bit Wine). Each one on its own, from the next restart.")"
+        [kernel-args]="$(gettext "Memory wiped as it is handed out, slab caches kept apart, no vsyscall page, and only a program's own debugger writing over its code. init_on_alloc costs a few percent on work that allocates a lot, vsyscall=none stops very old programs, and proc_mem.force_override=ptrace stops older releases of the rr debugger. Stricter ones are off until turned on: memory wiped as it is freed (slower), the IOMMU checking every device's memory access at once (slower disks and network), and no 32-bit programs (no Steam, no 32-bit Wine). Each one on its own, from the next restart.")"
         [firewall]="$(gettext "The Amethystora zone lets in only what a desktop needs. Off, Fedora Workstation's zone lets in every port from 1025 up. Opening the one port a server needs is the narrower answer.")"
         [failed-logins]="$(gettext "fail2ban blocks an address after repeated failed logins over SSH. Off, nothing runs for an SSH server that is off by default.")"
         [lockout]="$(gettext "Ten wrong passwords in a row lock an account for ten minutes. Off, nothing is locked however many are wrong.")"

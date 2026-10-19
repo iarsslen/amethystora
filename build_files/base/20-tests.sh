@@ -1651,6 +1651,35 @@ touch "${CONSOLE_TEST}/sealed"
 console_hook sealed ""
 [[ "$(cat "${CONSOLE_TEST}/calls")" == "kargs --append-if-missing=systemd.tty.term.console=dumb" ]]
 rm -rf "${CONSOLE_TEST}"
+# Only a program's own debugger writes over read-only memory through /proc/PID/mem: the image's argument, on
+# until turned off, which the system setup adds the same way unless the owner turned it off. A machine that
+# had turned on the extra argument it used to be loses that line of hardening-on.
+grep -q '"proc_mem.force_override=ptrace"' /usr/lib/bootc/kargs.d/10-amethystora-hardening.toml
+PROC_MEM_TEST="$(mktemp -d)"
+mkdir -p "${PROC_MEM_TEST}/bin" "${PROC_MEM_TEST}/etc/amethystora"
+printf '#!/usr/bin/bash\necho "$*" >>"${CALLS}"\n' >"${PROC_MEM_TEST}/bin/rpm-ostree"
+chmod +x "${PROC_MEM_TEST}/bin/rpm-ostree"
+proc_mem_hook() {
+    echo "BOOT_IMAGE=/vmlinuz root=UUID=0 rhgb quiet $2" >"${PROC_MEM_TEST}/cmdline"
+    SETUP_CHECKER_FILE="${PROC_MEM_TEST}/$1.json" AMETHYSTORA_CMDLINE="${PROC_MEM_TEST}/cmdline" \
+        AMETHYSTORA_SEALED="${PROC_MEM_TEST}/sealed" AMETHYSTORA_HARDENING_ROOT="${PROC_MEM_TEST}" \
+        CALLS="${PROC_MEM_TEST}/calls" PATH="${PROC_MEM_TEST}/bin:${PATH}" \
+        bash /usr/share/amethystora/system-setup.hooks.d/28-proc-mem.sh
+}
+printf 'kernel strict\nkernel-args proc_mem.force_override=ptrace\n' >"${PROC_MEM_TEST}/etc/amethystora/hardening-on"
+proc_mem_hook lacking ""
+proc_mem_hook lacking ""
+[[ "$(cat "${PROC_MEM_TEST}/calls")" == "kargs --append-if-missing=proc_mem.force_override=ptrace" ]]
+[[ "$(cat "${PROC_MEM_TEST}/etc/amethystora/hardening-on")" == "kernel strict" ]]
+proc_mem_hook present proc_mem.force_override=always
+echo "kernel-args proc_mem.force_override=ptrace" >"${PROC_MEM_TEST}/etc/amethystora/hardening-off"
+proc_mem_hook turned-off ""
+touch "${PROC_MEM_TEST}/sealed"
+echo "kernel-args proc_mem.force_override=ptrace" >"${PROC_MEM_TEST}/etc/amethystora/hardening-on"
+proc_mem_hook sealed ""
+[[ "$(cat "${PROC_MEM_TEST}/calls")" == "kargs --append-if-missing=proc_mem.force_override=ptrace" ]]
+[[ ! -e "${PROC_MEM_TEST}/etc/amethystora/hardening-on" ]]
+rm -rf "${PROC_MEM_TEST}"
 
 # Kernel lockdown: on everywhere except the NVIDIA images, whose driver is a machine-owner-key module
 # that a machine with Secure Boot turned off would no longer be able to load

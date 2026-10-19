@@ -36,7 +36,7 @@ DIGEST="$(bootc container compute-composefs-digest "${T}")"
 # this command line on the machine, and a shell there would be root's, with the disk already unlocked.
 for karg in rw rootflags=compress=zstd:1,subvol=root quiet rhgb systemd.import_credentials=no \
     slab_nomerge init_on_alloc=1 page_alloc.shuffle=1 randomize_kstack_offset=on vsyscall=none \
-    systemd.tty.term.console=dumb; do
+    proc_mem.force_override=ptrace systemd.tty.term.console=dumb; do
     [[ " ${CMDLINE} " == *" ${karg} "* ]]
 done
 if [[ "$(jq -r '."image-flavor"' "${T}/usr/share/amethystora/image-info.json")" == nvidia-open ]]; then

@@ -2964,7 +2964,7 @@ msgid "Old network protocols and filesystems, FireWire, test and fault-injection
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
-msgid "Memory wiped as it is handed out, slab caches kept apart, and no vsyscall page. init_on_alloc costs a few percent on work that allocates a lot, and vsyscall=none stops very old programs. Stricter ones are off until turned on: only debuggers writing to read-only memory (Wine and anti-cheat untested), memory wiped as it is freed (slower), the IOMMU checking every device's memory access at once (slower disks and network), and no 32-bit programs (no Steam, no 32-bit Wine). Each one on its own, from the next restart."
+msgid "Memory wiped as it is handed out, slab caches kept apart, no vsyscall page, and only a program's own debugger writing over its code. init_on_alloc costs a few percent on work that allocates a lot, vsyscall=none stops very old programs, and proc_mem.force_override=ptrace stops older releases of the rr debugger. Stricter ones are off until turned on: memory wiped as it is freed (slower), the IOMMU checking every device's memory access at once (slower disks and network), and no 32-bit programs (no Steam, no 32-bit Wine). Each one on its own, from the next restart."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
