@@ -29,8 +29,9 @@ if ! wait_for 300 has_session; then
     not_ok "no session for ${TEST_USER}" "$(loginctl list-sessions --no-legend)"
     finish
 fi
-# The password, where sudo asks for one (a suite that ran before may have let the account off for its own run)
-PASSWORD=('[Pp]assword' "${TEST_USER}"$'\r')
+# The password, where sudo asks for one (a suite that ran before may have let the account off for its own run), at
+# sudo's own prompt: dx-group's words say "password" before it
+PASSWORD=('\[sudo\] password for' "${TEST_USER}"$'\r')
 runuser -u "${TEST_USER}" -- sudo -n true 2>/dev/null && PASSWORD=()
 
 session_terminal() {
