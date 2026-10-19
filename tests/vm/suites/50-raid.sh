@@ -768,9 +768,12 @@ case "${SUITE_PHASE}" in
     if ! grep -qw devices /sys/power/pm_test 2>/dev/null; then
         skip "a suspend during a scrub: this kernel has no test of its suspend (pm_test)"
     else
+        # Slow enough for the suspend to come while it reads: a scrub of data's few gigabytes ends in seconds
+        for limit in /sys/fs/btrfs/"${DATA_UUID}"/devinfo/*/scrub_speed_max; do echo $((16 * 1048576)) >"${limit}"; done
         systemctl start --no-block amethystora-raid-scrub.service
         wait_for 60 pgrep -f 'btrfs scrub start -B -R /var/mnt/data'
         sleep 3
+        echo "# the scrub before the suspend: $(btrfs scrub status /var/mnt/data | grep -E 'Status|scrubbed' | paste -sd ' ')"
         echo devices >/sys/power/pm_test
         before="$(date +%s)"
         systemctl suspend
@@ -794,6 +797,7 @@ case "${SUITE_PHASE}" in
             not_ok "the suspend did not cut the scrub short" "suspend lines: ${slept}" "$(cat "${STATE}/scrub-${DATA_UUID}.json")" \
                 "$(journalctl -b --since "@${before}" --no-pager -o cat | grep -iE 'scrub|suspend|sleep' | tail -n 10)"
         fi
+        for limit in /sys/fs/btrfs/"${DATA_UUID}"/devinfo/*/scrub_speed_max; do echo 0 >"${limit}"; done
     fi
 
     # A disk truly gone at the next start: not there at all
