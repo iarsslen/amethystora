@@ -160,7 +160,8 @@ perms "${APP}" | grep -qx "code true" && ok "an override that preloads a library
 as_user "flatpak override --user --filesystem=~/.local/share/flatpak ${APP}"
 perms "${APP}" | grep -qx "installations true" && ok "a grant on the account's own installation is the installations reach" ||
     not_ok "no installations reach" "$(perms "${APP}")"
-as_user "ame security apps" 2>&1 | grep -q "Change the other apps installed for you" &&
+# Any action but the recipe's own leaves it once the list is printed, with no question asked
+as_user "ame security apps list" 2>&1 | grep -q "Change the other apps installed for you" &&
     ok "ame security apps says it" || not_ok "ame security apps does not say it"
 as_user "flatpak override --user --reset ${APP}"
 
