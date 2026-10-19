@@ -1,6 +1,7 @@
 #!/usr/bin/bash
 # Pools of disks (ame system raid) on the five blank SATA disks the lab adds, SPARE-1 to SPARE-5 (8 GiB, the
-# fifth 10 GiB), as plans/done/PLAN-raid.md's "Check on a machine" has them, over ten starts of the machine:
+# fifth 10 GiB), as plans/done/PLAN-raid.md's "Check on a machine" has them, over ten starts of the machine
+# (phases 8 to 10 are one start, split to stay under the lab's 30 minutes a phase):
 #   1. parity (raid5, not encrypted) on SPARE-3 to 5, the disks named; data on the two left with Enter, Enter,
 #      Enter and ERASE (two copies, encrypted). Their lines, key, owner, and Files showing them.
 #   2. Both back after a restart, data unlocked by its key with nothing asked; the recovery key; the status
@@ -12,11 +13,12 @@
 #      refused while it is too full, one stopped part way; the disk replaced by SPARE-5, its copies put back.
 #   6. data after the restart checked clean; SPARE-4 added, then pulled out while mounted (encrypted).
 #   7. SPARE-4 back: back, not failing, its copies put back. A file's copy given bad sectors for the next start.
-#   8. The damaged disk: the file reads right, the disk counts errors, the notification's Open Control clicked,
-#      the disk replaced by SPARE-3 while it still reads. A copy overwritten behind btrfs's back repaired by a
-#      scrub. A real suspend cuts a scrub short, which the next run resumes. A disk of data unplugged.
-#   9. data did not open, and the boot did not wait; opened with the disk gone, written to; the disk plugged in.
-#  10. It is back and its copies put back; data forgotten, leaving nothing behind.
+#   8. The damaged disk: the file reads right, a scrub repairs its copy and counts the errors, the notification's
+#      Open Control clicked, the disk replaced by SPARE-3 while it still reads.
+#   9. A copy overwritten behind btrfs's back repaired by a scrub.
+#  10. A real suspend cuts a scrub short, which the next run resumes. A disk of data unplugged.
+#  11. data did not open, and the boot did not wait; opened with the disk gone, written to; the disk plugged in.
+#  12. It is back and its copies put back; data forgotten, leaving nothing behind.
 # The script asks sudo for each step that needs root, so tester's sudo asks no password while this suite runs.
 source "$(dirname "$0")/lib.sh"
 
@@ -728,7 +730,11 @@ case "${SUITE_PHASE}" in
         ".state == \"ok\" and any(.devices[]; .disk.serial == \"SPARE-3\") and (any(.devices[]; .disk.serial == \"${DAMAGED_SERIAL}\") | not)"
     [[ "$(sha256sum /var/mnt/data/damaged | cut -d ' ' -f 1)" == "${DAMAGED_SUM}" ]] && ok "the damaged file is whole on the new disk" ||
         not_ok "the damaged file changed through the replace"
+    # The rest in phases of their own in this same boot: together they outlast the lab's 30 minutes a phase
+    continue_phase
+    ;;
 
+9)
     # A copy damaged without a word from the disk: what btrfs's checksums are for
     check "${TEST_USER} writes a file to corrupt" as_user 'head -c 8M /dev/urandom >/var/mnt/data/corrupted && sync'
     sum="$(sha256sum /var/mnt/data/corrupted | cut -d ' ' -f 1)"
@@ -745,7 +751,10 @@ case "${SUITE_PHASE}" in
         ".time >= ${started} and .finished and .corrected > 0 and .uncorrectable == 0"
     [[ "$(sha256sum /var/mnt/data/corrupted | cut -d ' ' -f 1)" == "${sum}" ]] && ok "the overwritten file reads right" ||
         not_ok "the overwritten file read wrong"
+    continue_phase
+    ;;
 
+10)
     # A real suspend while every copy is read: the next run resumes it
     if [[ "$(cat /sys/power/mem_sleep 2>/dev/null)" != *s2idle* && "$(cat /sys/power/state)" != *freeze* ]]; then
         skip "a suspend during a scrub: this machine cannot suspend"
@@ -787,7 +796,7 @@ case "${SUITE_PHASE}" in
     reboot_and_continue
     ;;
 
-9)
+11)
     check "${ABSENT_SERIAL} is not there at all" test ! -e "/dev/disk/by-id/ata-QEMU_HARDDISK_${ABSENT_SERIAL}"
     booted="$(graphical_at)"
     echo "# desktop at ${booted} s, ${REF_BOOT} s with every disk there"
@@ -805,7 +814,7 @@ case "${SUITE_PHASE}" in
     reboot_and_continue
     ;;
 
-10)
+12)
     # The disk back: data opens by itself again, and has its copies put back
     check "data opens by itself with ${ABSENT_SERIAL} back" findmnt -rn --mountpoint /var/mnt/data
     holds "the status calls ${ABSENT_SERIAL} back" "$(pool_json data)" \
