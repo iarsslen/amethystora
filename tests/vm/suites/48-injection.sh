@@ -130,6 +130,47 @@ if grep -qx "injection sensor" "${plan}" 2>/dev/null; then
 fi
 echo "# INJECTION's part of that run: $(jq -r '.timings.INJECTION' /var/lib/amethystora/security/status.json) ms"
 
+# What the sensor's program costs everything else: every read of /proc/PID/stat asks the same hook, and the
+# program returns at once unless the mode attaches. INJECTION off and on in turn, the sensor started again on a
+# plan without or with it (it reads the plan as it starts), medians of four rounds: /proc/PID/stat read as root,
+# who reaches the hook for every process, and find /usr, which 37 measures
+if grep -qx "injection sensor" "${plan}" 2>/dev/null; then
+    cp "${plan}" /run/vmlab-plan
+    restart_sensor() {
+        systemctl kill -s KILL amethystora-sensor.service
+        rm -f /run/amethystora/sensor/ready
+        wait_for 60 test -f /run/amethystora/sensor/ready
+    }
+    proc_read() {
+        python3 -I -c '
+import os, time
+pids = [p for p in os.listdir("/proc") if p.isdigit()]
+n, start = 0, time.perf_counter()
+for _ in range(200):
+    for p in pids:
+        try:
+            with open(f"/proc/{p}/stat", "rb") as f:
+                f.read()
+            n += 1
+        except OSError:
+            pass
+print(f"{(time.perf_counter() - start) / max(n, 1) * 1e6:.2f}")'
+    }
+    : >/run/vmlab-cost
+    for round in 1 2 3 4; do
+        for state in off on; do
+            if [[ "${state}" == on ]]; then cp /run/vmlab-plan "${plan}"; else grep -vx "injection sensor" /run/vmlab-plan >"${plan}"; fi
+            restart_sensor || not_ok "the sensor did not come back with injection ${state}"
+            echo "${state} $(proc_read) $( { /usr/bin/time -f '%e' find /usr -xdev >/dev/null; } 2>&1 | tail -n1)" >>/run/vmlab-cost
+        done
+    done
+    median() { awk -v s="$1" -v c="$2" '$1 == s { print $c }' /run/vmlab-cost | sort -n | awk '{ a[NR] = $1 } END { print (a[2] + a[3]) / 2 }'; }
+    echo "# /proc/PID/stat read, INJECTION off / on: $(median off 2) / $(median on 2) µs"
+    echo "# find /usr, INJECTION off / on: $(median off 3) / $(median on 3) s"
+    cp /run/vmlab-plan "${plan}"
+    restart_sensor && ok "the sensor is back with its own plan" || not_ok "the sensor did not come back with its own plan"
+fi
+
 "${config}" set INJECTION off
 rm -f "${SCRIPT}"
 finish
