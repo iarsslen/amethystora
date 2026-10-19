@@ -40,7 +40,9 @@ const IMAGE = `localhost/amethystora-run:${NAME}`;
 const GUEST_DIR = '/run/amethystora-tests';
 const NEXT_BOOT = '/var/lib/vmlab-tests/next-boot.json';
 // The lab's disk passphrase, and the PIN a suite enrols the TPM with, both handed to systemd-cryptsetup as
-// credentials so that nobody has to type them (next_boot can have one typed instead)
+// credentials so that nobody has to type them (next_boot can have one typed instead). The PIN goes under both of
+// its names: systemd-cryptsetup first tries every LUKS2 token through libcryptsetup, asking "Please enter LUKS2
+// token PIN:" (cryptsetup.luks2-pin), before its own TPM2 path (cryptsetup.tpm2-pin)
 const PASSPHRASE = 'amethystora-lab-passphrase';
 const TPM_PIN = '246813579';
 // Two machines: the one `bootc install to-disk` makes, with blank disks for the pools of disks (50-raid.sh): four
@@ -51,7 +53,7 @@ const MACHINES = {
   default: { vm: NAME, disk: NAME, make: [], spares: [8, 8, 8, 8, 10, 24], absent: [6], credentials: {} },
   installer: {
     vm: `${NAME}-installer`, disk: `${NAME}-installer`, make: ['40G', `--installer=${PASSPHRASE}`], spares: [8, 8, 48, 48],
-    credentials: { 'cryptsetup.passphrase': PASSPHRASE, 'cryptsetup.tpm2-pin': TPM_PIN },
+    credentials: { 'cryptsetup.passphrase': PASSPHRASE, 'cryptsetup.tpm2-pin': TPM_PIN, 'cryptsetup.luks2-pin': TPM_PIN },
   },
 };
 const MAX_PHASES = 16;
