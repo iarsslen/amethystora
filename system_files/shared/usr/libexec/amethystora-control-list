@@ -33,7 +33,7 @@ source gettext.sh
 # would not keep as it is, goes to the gettext program. eval_gettext, from gettext.sh, uses this one too.
 gettext() {
     if [[ "$1" == *[\"\$\`\\]* ]]; then
-        command gettext "$1"
+        command gettext -- "$1"
         return
     fi
     local text
