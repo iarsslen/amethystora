@@ -41,6 +41,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import sqlite3
 import stat
 import struct
@@ -564,7 +565,8 @@ def system_fingerprints():
 
 def signature_notes(repo, remotes, dep, trusted, account):
     """The commit's signature, checked by the fingerprint in its result: ostree trusts every keyring in the
-    repository's folder, whichever is asked for"""
+    repository's folder, whichever is asked for. None when the check itself could not run (gpg had no
+    temporary folder, say), which says nothing of the commit: it is tried again at the next run."""
     facts = {"within": dep.app, "app": dep.app, "ref": dep.ref, "origin": dep.origin, "account": account}
     if remotes.get(dep.origin, True) is False:
         return [{"id": f"unsigned:{account}:{dep.ref}", "level": "normal", "tactic": "Initial Access",
@@ -583,8 +585,18 @@ def signature_notes(repo, remotes, dep, trusted, account):
             if valid and trusted & {fingerprint.upper(), primary.upper()}:
                 return []
             signers.append(primary or fingerprint)
-    except GLib.Error:
-        pass
+    except GLib.Error as error:
+        # No signature is an unsigned commit (older ostree said so as G_IO_ERROR_NOT_FOUND), and ostree's other GPG
+        # errors (a key missing, expired or revoked, a bad signature) one signed by no key it can trust; anything
+        # else is a check that did not run
+        if error.matches(OSTree.gpg_error_quark(), OSTree.GpgError.NO_SIGNATURE) or \
+                error.matches(Gio.io_error_quark(), Gio.IOErrorEnum.NOT_FOUND):
+            pass
+        elif error.domain == GLib.quark_to_string(OSTree.gpg_error_quark()):
+            signers.append("a key it cannot check")
+        else:
+            print(f"{dep.ref}: its signature could not be checked: {error.message}", file=sys.stderr)
+            return None
     if not signers:
         return [{"id": f"unsigned:{account}:{dep.ref}", "level": "normal", "tactic": "Initial Access",
                  "text": f"The Flatpak {dep.what} {dep.app} was installed from a source that does not sign it "
@@ -721,7 +733,9 @@ class Installation:
             if notes is None:
                 notes = signature_notes(self.repo, remotes, dep, self.trusted, self.account)
                 self.first_sight(dep)
-                self.store.put_deploy(dep.path, notes, now)
+                # A signature that could not be checked is kept as no folder at all, so the next run looks again
+                self.store.put_deploy(dep.path, notes or [], now if notes is not None else None)
+                notes = notes or []
             else:
                 self.recheck(dep)
             FINDINGS.extend(notes)
@@ -955,9 +969,19 @@ def account_mode(args):
 
     store = Store(con, emit)
     base = os.path.expanduser("~") + "/.local/share/flatpak"
+    # GLib, and ostree's signature check through it, keep their temporary files in TMPDIR or /tmp. Where neither
+    # lets the account write (a build's /tmp is root's), a folder of its own in its home, taken away at the end.
+    own_tmp = None
+    if not any(d and os.path.isdir(d) and os.access(d, os.W_OK | os.X_OK) for d in (os.environ.get("TMPDIR"), "/tmp")):
+        own_tmp = tempfile.mkdtemp(prefix=".amethystora-integrity-", dir=os.path.expanduser("~"))
+        os.environ["TMPDIR"] = own_tmp
     counts = {}
-    if os.path.isdir(base + "/repo"):
-        counts = Installation(store, base, "account", trusted).check()
+    try:
+        if os.path.isdir(base + "/repo"):
+            counts = Installation(store, base, "account", trusted).check()
+    finally:
+        if own_tmp:
+            shutil.rmtree(own_tmp, ignore_errors=True)
     emit({"op": "counts", "counts": counts})
     for item in FINDINGS:
         emit({"op": "finding", "finding": item})
