@@ -331,12 +331,16 @@ EOF
     set_direct phone on
     set_direct phone off
     [[ "${phone}" != on ]] || set_direct phone on
-    set_direct agent off "[[ -e ${CONFIG}/no-agentic ]]" "! item agent-choice | jq -e .available"
-    set_direct agent on "[[ ! -e ${CONFIG}/no-agentic ]]" "item agent-choice | jq -e .available"
+    # Off as the image ships them, and on while ~/.config/amethystora/agentic is there
+    set_direct agent on "[[ -e ${CONFIG}/agentic ]]" "item agent-choice | jq -e .available"
+    # Which agent is chosen, with them on
     chosen="$(state agent-choice)"
     other="$(item agent-choice | jq -r --arg c "${chosen}" '[.choices[].value | select(. != $c)][0] // ""')"
     set_direct agent-choice "${other}"
     set_direct agent-choice "${chosen:-claude}"
+    set_direct agent off "[[ ! -e ${CONFIG}/agentic ]]" "! item agent-choice | jq -e .available"
+    # As they were: phase 9's agent card needs them on
+    set_direct agent on
     set_direct aur off "[[ ! -e ${CONFIG}/aur ]]"
 
     # Widgets: one made from an example, turned off and on, and moved to the trash, by the list's commands
@@ -416,7 +420,9 @@ EOF
     window_inactive() { ! window_active; }
     # Opened as a person opens it, with its hotkey (custom29), on a keyboard GNOME takes for a person's
     # (keys.py): a window started any other way, without a person's input behind it, GNOME gives no focus to
-    python3 "${SUITE_DIR}/keys.py" super+ctrl+shift+c
+    # The session starts in GNOME's overview, which a person leaves with Escape: a window opened over it does
+    # not get the focus
+    python3 "${SUITE_DIR}/keys.py" esc super+ctrl+shift+c
     if atspi wait 120 "Theme" >/dev/null 2>&1; then
         check "Super+Ctrl+Shift+C opens Control, which has the focus" wait_for 30 window_active
         atspi click "Desktop" >/dev/null 2>&1
