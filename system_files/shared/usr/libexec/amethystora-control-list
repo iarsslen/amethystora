@@ -56,11 +56,10 @@ USAGE=""
 
 # A choice of a setting: its value, its words, whether it opens a terminal, and the command that sets it
 choice() {
-    local value="$1" title="$2" text="$3" terminal="$4"
-    shift 4
-    CHOICES+=("$(jq -nc --arg value "${value}" --arg title "${title}" --arg text "${text}" --argjson terminal "${terminal}" \
-        '{$value, $title, text: (if $text == "" then null else $text end), $terminal, command: $ARGS.positional}' \
-        --args "$@")")
+    local IFS=$'\x1f'
+    # One record for item()'s jq to make the object of, its fields apart by the unit separator: a jq of its
+    # own for every choice made the list slow
+    CHOICES+=("$*")
 }
 
 # An entry of the list, with the choices made for it since the last one. They and the command reach jq
@@ -74,7 +73,8 @@ item() {
         --argjson terminal "${TERMINAL}" --argjson extra "${extra}" \
         'def text: if . == "" then null else . end;
          ($ARGS.positional[0] | tonumber) as $count
-         | ($ARGS.positional[1:$count + 1] | map(fromjson)) as $choices
+         | ($ARGS.positional[1:$count + 1] | map(if startswith("{") then fromjson else split("\u001f")
+             | {value: .[0], title: .[1], text: (.[2] | text), terminal: (.[3] == "true"), command: .[4:]} end)) as $choices
          | $ARGS.positional[$count + 1:] as $command
          | {$page, $id, $kind, group: ($group | text), $title, text: ($text | text), state: ($state | text),
             detail: ($detail | text), available: ($reason == ""), reason: ($reason | text),
@@ -93,14 +93,13 @@ item() {
 }
 
 # The two choices of a switch: the command given, with on or off after it
+ON="$(gettext "On")"
+OFF="$(gettext "Off")"
 switch_choices() {
     local terminal="$1"
-    local -a pair
     shift
-    mapfile -t pair < <(jq -nc --arg on "$(gettext "On")" --arg off "$(gettext "Off")" --argjson terminal "${terminal}" \
-        '{value: "on", title: $on, text: null, $terminal, command: ($ARGS.positional + ["on"])},
-         {value: "off", title: $off, text: null, $terminal, command: ($ARGS.positional + ["off"])}' --args "$@")
-    CHOICES+=("${pair[@]}")
+    choice on "${ON}" "" "${terminal}" "$@" on
+    choice off "${OFF}" "" "${terminal}" "$@" off
 }
 
 # "tokyo-night" as "Tokyo Night": a theme's or a picture's name, which is a name and not translated
@@ -118,9 +117,12 @@ read_in_background() {
 }
 said() { cat "${WORK}/$1" 2>/dev/null; }
 ended() { cat "${WORK}/$1.code" 2>/dev/null || echo 1; }
+# A Flatpak app installed for the machine or the account, as flatpak keeps it: what flatpak info answers,
+# without loading every installation, which took a third of a second with many apps
+installed() {
+    [[ -e "/var/lib/flatpak/app/$1/current/active" || -e "${XDG_DATA_HOME:-${HOME}/.local/share}/flatpak/app/$1/current/active" ]]
+}
 
-read_in_background steam flatpak info com.valvesoftware.Steam
-read_in_background tablet flatpak info net.opentabletdriver.OpenTabletDriver
 read_in_background grub amethystora-grub-theme status
 read_in_background agent amethystora-agent status
 read_in_background agents amethystora-agent list
@@ -298,7 +300,7 @@ GROUP=""
 
 # --- Apps ------------------------------------------------------------------------------------------
 
-if [[ "$(ended steam)" == 0 ]]; then GAMES=on; else GAMES=off; fi
+if installed com.valvesoftware.Steam; then GAMES=on; else GAMES=off; fi
 switch_choices true ame apps gaming
 USAGE="ame apps gaming on|off"
 item apps gaming switch "$(gettext "Games")" \
@@ -346,7 +348,7 @@ if [[ "${ANDROID}" == on ]]; then
     fi
 fi
 
-if [[ "$(ended tablet)" == 0 || -e /etc/udev/rules.d/71-opentabletdriver.rules ]]; then TABLET=on; else TABLET=off; fi
+if installed net.opentabletdriver.OpenTabletDriver || [[ -e /etc/udev/rules.d/71-opentabletdriver.rules ]]; then TABLET=on; else TABLET=off; fi
 switch_choices true ame apps opentabletdriver
 USAGE="ame apps opentabletdriver on|off"
 item apps opentabletdriver switch "$(gettext "Drawing tablets")" \
