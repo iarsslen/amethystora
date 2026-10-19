@@ -55,7 +55,10 @@ measure() {
     local start stop cpu io
     { read -r cpu; read -r io; read -r start; read -r stop; } < <(systemctl show amethystora-integrity.service \
         -p CPUUsageNSec -p IOReadBytes -p ExecMainStartTimestampMonotonic -p ExecMainExitTimestampMonotonic --value)
-    echo "# $1: $(((stop - start) / 1000000)) s, $((cpu / 1000000)) ms of CPU, $((io / 1048576)) MB read"
+    # systemd says "[not set]" for what it did not account
+    [[ "${cpu}" =~ ^[0-9]+$ ]] && cpu="$((cpu / 1000000)) ms of CPU" || cpu="CPU not accounted"
+    [[ "${io}" =~ ^[0-9]+$ ]] && io="$((io / 1048576)) MB read" || io="reads not accounted"
+    echo "# $1: $(((stop - start) / 1000000)) s, ${cpu}, ${io}"
 }
 run_check() {
     systemctl start amethystora-integrity.service || return 1
@@ -140,10 +143,14 @@ else
     not_ok "no object of the system's own repository to change" "${BOOTED} ${SYS_OBJECT}"
 fi
 
-# 6. The initramfs in /boot, one byte longer
+# 6. The initramfs in /boot, one byte longer. Where /boot is on the system's own filesystem, as on this disk,
+# ostree hardlinks it to its object in the repository, and the object is what is found changed; on a /boot of
+# its own, as the installer makes it, the copy no longer matches the deployment's
 INITRAMFS="$(find /boot/ostree -name 'initramfs-*.img' | head -n1)"
+INITRAMFS_OBJECT="$(find /sysroot/ostree/repo/objects -samefile "${INITRAMFS}" 2>/dev/null | head -n1)"
+echo "# the initramfs: ${INITRAMFS}${INITRAMFS_OBJECT:+, the object ${INITRAMFS_OBJECT}}"
 check "the initramfs grows a byte" unshare -m sh -c "mount -o remount,rw /boot; printf x >>'${INITRAMFS}'"
-found "the initramfs changed" "^system:${INITRAMFS} critical"
+found "the initramfs changed" "^system:${INITRAMFS_OBJECT:-${INITRAMFS}} critical"
 check "the initramfs is put back" unshare -m sh -c "mount -o remount,rw /boot; truncate -s -1 '${INITRAMFS}'"
 clean "the initramfs put back"
 
