@@ -47,7 +47,9 @@ def main(steps):
         sys.exit(__doc__)
     fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
     fcntl.ioctl(fd, UI_SET_EVBIT, EV_KEY)
-    for code in set(KEYS.values()):
+    # Every key a keyboard has: udev calls a device a keyboard (ID_INPUT_KEYBOARD), which is what the
+    # compositor reads keys from, only when it has all of the first 31
+    for code in range(1, 256):
         fcntl.ioctl(fd, UI_SET_KEYBIT, code)
     # struct uinput_user_dev: the name, the input_id, ff_effects_max, then the four absolute-axis arrays
     os.write(fd, struct.pack("80sHHHHi", b"vmlab keyboard", 3, 0x1234, 0x5678, 1, 0) + bytes(4 * 64 * 4))

@@ -9,10 +9,11 @@
 #      against every other key of GNOME and its extensions; custom29 in the setup file; every direct card
 #      (theme, wallpaper, transition and its length, layout, widgets, greeting, terminal tools, phone pairing,
 #      the agent and which one, the AUR off, web apps removed, also by names with spaces and a leading dash, the
-#      setup file saved); the window: a switch clicked, a terminal opened and closed, the list read again.
-#   2. The terminal cards: the boot menu, the CPU scheduler, swapped-out memory, the AUR on, a web app added,
-#      the firmware settings declined, the image and the stream offered (declined at the last question), the
-#      developer groups on a developer image.
+#      setup file saved).
+#   2. The window, opened with its hotkey: a switch clicked, a terminal opened and closed, the list read again
+#      when the focus comes back. The terminal cards: the boot menu, the CPU scheduler, swapped-out memory,
+#      the AUR on, a web app added, the firmware settings declined, the image and the stream offered (declined
+#      at the last question), the developer groups on a developer image.
 #   3-4. Android, in one boot, its download being longer than a phase: enabled after on, still after stop and
 #      not after off (drawing in software on an NVIDIA image).
 #   5-6. The first boot's own Flatpaks waited for, as every card after installs or removes Flatpaks; then
@@ -372,7 +373,14 @@ EOF
     echo "# xdg-terminal-exec returned after $(($(date +%s) - started)) s, its command running for 30"
     pkill -u "${TEST_USER}" -f '^sleep 30$'
 
-    # --- The window, through its accessibility tree
+    reboot_and_continue
+fi
+
+# --- Phase 2: the window, and the terminal cards that download little ---------------------------------------
+if [[ "${SUITE_PHASE}" == 2 ]]; then
+    # --- The window, after the first restart: on an account's first login GNOME Shell shows its welcome
+    # dialog, which takes no key, from the lab's keyboard either, and keeps every keybinding from working
+    # until it is clicked away; it shows once
     atspi() { user_bus python3 "${OWN}/atspi.py" "${APP}" "$@"; }
     has() { atspi has "$1"; }
     # The first widget named TEXT, of ROLE, is in STATE (checked, active...)
@@ -465,11 +473,7 @@ EOF
             "$(pgrep -a -u "${TEST_USER}" | grep -i control)"
     fi
     pkill -u "${TEST_USER}" -f "^/usr/lib/amethystora-control/amethystora-control"
-    reboot_and_continue
-fi
 
-# --- Phase 2: the terminal cards that download little -------------------------------------------------------
-if [[ "${SUITE_PHASE}" == 2 ]]; then
     allow_root
     # An installed machine mounts /boot from a partition of its own, read and write; a lab disk keeps it in the
     # system's, which is read-only
