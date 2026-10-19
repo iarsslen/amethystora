@@ -25,6 +25,9 @@ SUDOERS=/etc/sudoers.d/zz-vmlab
 PASS="${VMLAB_PASSPHRASE}"
 PIN="${VMLAB_TPM_PIN}"
 AS_TESTER=(runuser -l "${TEST_USER}" -c)
+# With a terminal of its own, as a person's: runuser -c starts a new session without one, and sudo then runs
+# systemd-cryptenroll without one, which waits for a password agent instead of asking on the terminal
+AS_TESTER_PTY=(runuser -l "${TEST_USER}" --pty -c)
 MIRROR_OUT="${TESTS}/mirror.out"
 
 # shellcheck source=/dev/null
@@ -103,7 +106,7 @@ has_tpm() { cryptsetup luksDump "$1" | grep -q systemd-tpm2; }
 enrol_tpm() {
     in_terminal 600 'current passphrase' "${PASS}"$'\r' 'TPM2 PIN' "${PIN}"$'\r' 'TPM2 PIN' "${PIN}"$'\r' \
         '?current passphrase' "${PASS}"$'\r' '?TPM2 PIN' "${PIN}"$'\r' '?TPM2 PIN' "${PIN}"$'\r' \
-        -- "${AS_TESTER[@]}" 'ame security disk-unlock on-pin'
+        -- "${AS_TESTER_PTY[@]}" 'ame security disk-unlock on-pin'
 }
 
 abandon() {
@@ -329,7 +332,7 @@ second-dead)
         'Type ERASE' $'ERASE\r' 'passphrase of the system' "${PASS}"$'\r' \
         'current passphrase' "${PASS}"$'\r' 'TPM2 PIN' "${PIN}"$'\r' 'TPM2 PIN' "${PIN}"$'\r' \
         '?current passphrase' "${PASS}"$'\r' '?TPM2 PIN' "${PIN}"$'\r' '?TPM2 PIN' "${PIN}"$'\r' \
-        -- "${AS_TESTER[@]}" 'ame system raid replace system'
+        -- "${AS_TESTER_PTY[@]}" 'ame system raid replace system'
     step replacing
     continue_phase
     ;;
