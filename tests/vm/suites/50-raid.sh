@@ -758,8 +758,8 @@ case "${SUITE_PHASE}" in
 
 10)
     # A suspend while every copy is read: the next run resumes it. systemd's suspend and the kernel's, every task
-    # frozen and every device suspended, then woken by the kernel itself after 5 s (pm_test): in the lab's VM a
-    # sleep through the firmware (S3) never came back (2026-10-19), and nothing wakes one in s2idle
+    # frozen and every device suspended, then woken by the kernel itself after 5 s (pm_test): the lab's VM has no
+    # S3 (QEMU's disable_s3), and the RTC's alarm did not wake it from s2idle (2026-10-19)
     if ! grep -qw devices /sys/power/pm_test 2>/dev/null; then
         skip "a suspend during a scrub: this kernel has no test of its suspend (pm_test)"
     else
