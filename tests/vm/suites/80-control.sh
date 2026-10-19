@@ -3,19 +3,19 @@
 # the plan's "Verify" list left open answered on a running machine. A card's command is the one the list the
 # window reads gives it (amethystora-control-list --json), run as the window runs it: a direct one as its
 # argument vector in the account's session, with no terminal; one the list opens in a terminal on a terminal of
-# its own, its questions answered (term.py). Then the list is read again for the state it says. Five starts:
+# its own, its questions answered (term.py). Then the list is read again for the state it says. Six phases, in five starts:
 #   1. The list: its speed, its commands, what it reads without root (the boot menu, sched_ext); the hotkey
 #      against every other key of GNOME and its extensions; custom29 in the setup file; every direct card
 #      (theme, wallpaper, transition and its length, layout, widgets, greeting, terminal tools, phone pairing,
 #      the agent and which one, the AUR off, web apps removed, also by names with spaces and a leading dash, the
 #      setup file saved); the window: a switch clicked, a terminal opened and closed, the list read again.
-#   2. The terminal cards that download little: the boot menu, the CPU scheduler, swapped-out memory, the AUR
-#      on, a web app added, the firmware settings declined, freeing space, the default apps, the image and the
-#      stream offered (declined at the last question), the developer groups on a developer image.
-#   3. Android, enabled after on, still after stop and not after off (drawing in software on an NVIDIA image);
-#      drawing tablets, and the daemon their unit runs.
-#   4. Games: Steam and its layers, X11 for Steam alone, other stores offered, all taken away again.
-#   5. The add-ons: the chosen agent installed, JetBrains Toolbox, the command-line tools, Bold Brew's lists.
+#   2. The terminal cards: the boot menu, the CPU scheduler, swapped-out memory, the AUR on, a web app added,
+#      the firmware settings declined, freeing space, the image and the stream offered (declined at the last
+#      question), the developer groups on a developer image, and last the default apps.
+#   3-4. Android, in one boot, its download being longer than a phase: enabled after on, still after stop and
+#      not after off (drawing in software on an NVIDIA image); drawing tablets, and the daemon their unit runs.
+#   5. Games: Steam and its layers, X11 for Steam alone, other stores offered, all taken away again.
+#   6. The add-ons: the chosen agent installed, JetBrains Toolbox, the command-line tools, Bold Brew's lists.
 # Switching to the developer image and starting over are 90-control-switch.sh's.
 source "$(dirname "$0")/lib.sh"
 
@@ -31,6 +31,9 @@ POLKIT=/etc/polkit-1/rules.d/00-vmlab-control.rules
 IMAGE_INFO=/usr/share/amethystora/image-info.json
 CUSTOM=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings
 CUSTOM29="org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:${CUSTOM}/custom29/"
+TESTS=/var/lib/vmlab-tests
+BREW=/home/linuxbrew/.linuxbrew/bin/brew
+SUITE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 # After a restart, the session comes back by itself (GDM signs the account in)
 if ! wait_for 300 has_session; then
@@ -133,6 +136,32 @@ in_card() {
     fi
     CARD="${argv[*]}"
     at_terminal "${steps[@]}" -- "${argv[@]}"
+}
+# in_card_detached UNIT SECONDS [EXPECT SEND]... -- ID [VALUE]: in_card in a unit of its own, for what takes
+# longer than a phase may; card_ended UNIT SECONDS waits for it, then leaves OUT and STATUS as in_card does
+in_card_detached() {
+    local unit="$1" steps=() argv=() line
+    shift
+    while [[ "$1" != -- ]]; do steps+=("$1"); shift; done
+    shift
+    mapfile -t argv < <(argv_of "$1" "${2:-}")
+    mkdir -p "${TESTS}"
+    rm -f "${TESTS}/${unit}.out" "${TESTS}/${unit}.status"
+    printf -v line '%q ' python3 "${SUITE_DIR}/term.py" "${steps[@]}" -- runuser -u "${TEST_USER}" -- env \
+        XDG_RUNTIME_DIR="/run/user/${TUID}" DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/${TUID}/bus" \
+        systemd-run --user --pty --wait --quiet --collect --setenv=LC_ALL=C.UTF-8 --setenv=LANGUAGE= -- "${argv[@]}"
+    systemd-run --unit="${unit}" --collect --quiet -- \
+        bash -c "${line} >${TESTS}/${unit}.out 2>&1; echo \$? >${TESTS}/${unit}.status"
+}
+card_ended() {
+    if ! wait_for "$2" test -e "${TESTS}/$1.status"; then
+        OUT="$(tail -c 4000 "${TESTS}/$1.out" 2>&1)"
+        STATUS=124
+        return 1
+    fi
+    OUT="$(cat "${TESTS}/$1.out")"
+    STATUS="$(cat "${TESTS}/$1.status")"
+    read_list
 }
 # card_ok WHAT [CHECK...]: ok when the card's command ended well and every CHECK (a command) holds
 card_ok() {
@@ -369,6 +398,11 @@ sys.exit(0 if any(f and f.get_state_set().contains(Atspi.StateType.ACTIVE) for f
 EOF
     }
     SWITCH=switch
+    # Control alone on the screen, so that closing a terminal leaves the focus nowhere else: the Manual's
+    # welcome and the terminal xdg-terminal-exec opened closed first
+    pkill -u "${TEST_USER}" -f "^/usr/lib/amethystora-manual/amethystora-manual"
+    pkill -u "${TEST_USER}" -x ptyxis
+    sleep 3
     WINDOW_UNIT="vmlab-control-${RANDOM}"
     user_bus systemd-run --user --unit="${WINDOW_UNIT}" --collect --quiet --setenv=LC_ALL=en_US.UTF-8 \
         --setenv=LANGUAGE=en -- /usr/bin/amethystora-control desktop
@@ -402,7 +436,12 @@ EOF
         if wait_for 30 window_active; then
             ok "the window has the focus back once the terminal closes"
         else
-            not_ok "the window did not get the focus back after the terminal closed"
+            not_ok "the window did not get the focus back after the terminal closed" \
+                "$(user_bus gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell \
+                    --method org.gnome.Shell.Eval 'global.display.focus_window?.get_wm_class()' 2>&1)"
+            # Clicked on, as a person would, for the next check
+            user_bus gdbus call --session --dest org.amethystora.Control --object-path /org/amethystora/Control \
+                --method org.freedesktop.Application.Activate '{}' >/dev/null 2>&1
         fi
         if wait_for 30 atspi_state "Terminal greeting" "${SWITCH}" checked; then
             ok "and has read the list again: the greeting's switch shows it on"
@@ -489,11 +528,6 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
         '?Proceed with these changes' y -- clean
     card_ok "free disk space, every question answered yes: ${CARD}"
 
-    # An app of the list that Flathub ended in favour of another is offered in its place first, which the
-    # first boot's flatpak preinstall -y accepts
-    in_card 900 '?Replace\? \[Y/n\]|Proceed with these changes' y '?Proceed with these changes' y -- flatpaks
-    card_ok "the apps this image comes with, installed now: ${CARD}"
-
     # The image and the stream: the helper starts on the choice made, and asks before switching; declined there
     image="$(jq -r '."image-name"' "${IMAGE_INFO}")"
     stream="$(jq -r '."image-tag"' "${IMAGE_INFO}")"
@@ -525,16 +559,31 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
         json_holds "developer mode's card says off, on ${image}, and there is no developer groups card" "${LIST_JSON}" \
             '(.items[] | select(.id == "devmode") | .state == "off") and all(.items[]; .id != "dx-group")'
     fi
+
+    # Last, as it may download for long: an app of the list that Flathub ended in favour of another is
+    # offered in its place first, which the first boot's flatpak preinstall -y accepts
+    in_card 1300 '?Replace\? \[Y/n\]|Proceed with these changes' y '?Proceed with these changes' y -- flatpaks
+    card_ok "the apps this image comes with, installed now: ${CARD}"
+    [[ ${STATUS} == 0 ]] || echo "# flatpak then: $(pgrep -a flatpak | cut -c1-150 | paste -sd ';') | $(flatpak list --app --columns=application | grep -i thunderbird | paste -sd ' ')"
     reboot_and_continue
 fi
 
-# --- Phase 3: Android, drawing tablets ---------------------------------------------------------------------
+# --- Phases 3 and 4: Android, drawing tablets --------------------------------------------------------------
+# Setting Android up downloads about a gigabyte from Waydroid's servers, which takes the lab longer than a
+# phase may: it starts in phase 3, and phase 4, in the same boot, waits for it
 if [[ "${SUITE_PHASE}" == 3 ]]; then
+    allow_root
+    in_card_detached vmlab-android 3000 'Set up Android apps\?' y -- android on
+    card_ended vmlab-android 1500
+    continue_phase
+fi
+if [[ "${SUITE_PHASE}" == 4 ]]; then
     allow_root
     nvidia=false
     [[ "$(jq -r '."image-flavor" // ""' "${IMAGE_INFO}")" == nvidia* ]] && nvidia=true
     # Verify: waydroid-container.service enabled after on, still after stop, not after off
-    in_card 1500 'Set up Android apps\?' y -- android on
+    CARD="$(argv_of android on | paste -sd ' ')"
+    card_ended vmlab-android 1600
     card_ok "Android set up in a terminal: ${CARD}" "[[ \"\$(state android)\" == on ]]" \
         "systemctl is-enabled --quiet waydroid-container.service" "[[ -e /var/lib/waydroid/waydroid.cfg ]]"
     if [[ "${nvidia}" == true ]]; then
@@ -580,8 +629,8 @@ if [[ "${SUITE_PHASE}" == 3 ]]; then
     reboot_and_continue
 fi
 
-# --- Phase 4: games ----------------------------------------------------------------------------------------
-if [[ "${SUITE_PHASE}" == 4 ]]; then
+# --- Phase 5: games ----------------------------------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 5 ]]; then
     allow_root
     in_card 1500 'Set up gaming\?' y 'Also install\?' $'\x03' -- gaming on
     card_ok "games set up: ${CARD}" "[[ \"\$(state gaming)\" == on ]]" "flatpak info com.vysp3r.ProtonPlus" \
@@ -595,8 +644,8 @@ if [[ "${SUITE_PHASE}" == 4 ]]; then
     reboot_and_continue
 fi
 
-# --- Phase 5: the add-ons and the agent --------------------------------------------------------------------
-if [[ "${SUITE_PHASE}" == 5 ]]; then
+# --- Phase 6: the add-ons and the agent --------------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 6 ]]; then
     allow_root
     chosen="$(state agent-choice)"
     if [[ -n "$(item agent-install)" ]]; then
@@ -612,13 +661,13 @@ if [[ "${SUITE_PHASE}" == 5 ]]; then
     pkill -u "${TEST_USER}" -f jetbrains-toolbox || true
     in_card 1500 -- cli
     card_ok "the command-line tools installed from Homebrew, the terminal tools on: ${CARD}" "[[ \"\$(state bling)\" == on ]]" \
-        "as_user 'brew list eza'"
-    # Bold Brew installed from its tap, a list picked (ai-tools, the first), its window drawn, then left with
-    # Ctrl+C, whatever it ends with then
-    in_card 900 'would you like to install it\?' y 'Some of these take a while' '' 'full-desktop' $'\r' \
+        "as_user '${BREW} list eza'"
+    # Bold Brew, which the command-line tools install, asked for when they did not; a list picked (ai-tools, the
+    # first), its window drawn, then left with Ctrl+C, whatever it ends with then
+    in_card 900 '?would you like to install it\?|Some of these take a while' y 'full-desktop' $'\r' \
         '(?i)bold brew|homebrew|search|install' $'\x03' -- bbrew
     [[ ${STATUS} == 124 ]] || STATUS=0
-    card_ok "Bold Brew installed, a list picked and shown: ${CARD}" "as_user 'brew list bbrew'"
+    card_ok "Bold Brew there, a list picked and shown: ${CARD}" "as_user '${BREW} list bbrew'"
     in_card 300 '(?i)bold brew|homebrew|search|install' $'\x03' -- cncf
     [[ ${STATUS} == 124 ]] || STATUS=0
     card_ok "the cloud native tools' list opens in Bold Brew: ${CARD}"
