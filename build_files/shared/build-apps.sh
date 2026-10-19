@@ -26,6 +26,23 @@ cd /tmp/apps
 export CARGO_TARGET_DIR=/tmp/target CARGO_HOME=/tmp/cargo CARGO_TERM_COLOR=never
 cargo fetch --locked
 
+# The AI agent's search ranks passages by meaning with potion-base-8M (MIT): its files at one revision of
+# the model's repository, each checked against its SHA-256 (usr/share/licenses/potion-base-8M/SOURCE).
+# The agent tools' tests compare their tokenizer and vectors with it, and their golden questions are asked
+# of an index of the source tree's pages (AMETHYSTORA_ROOT).
+MODEL_REVISION=bf8b056651a2c21b8d2565580b8569da283cab23
+declare -A MODEL=(
+    [config.json]=2a6ac0e9aaa356a68a5688070db78fc3a464fefe85d2f06a1905ce3718687553
+    [model.safetensors]=f65d0f325faadc1e121c319e2faa41170d3fa07d8c89abd48ca5358d9a223de2
+    [tokenizer.json]=e67e803f624fb4d67dea1c730d06e1067e1b14d830e2c2202569e3ef0f70bb50
+)
+mkdir -p /out/model
+for file in "${!MODEL[@]}"; do
+    curl -fsSL --retry 3 -o "/out/model/${file}" "https://huggingface.co/minishlab/potion-base-8M/resolve/${MODEL_REVISION}/${file}"
+    echo "${MODEL[${file}]}  /out/model/${file}" | sha256sum -c -
+done
+export AMETHYSTORA_MODEL=/out/model AMETHYSTORA_ROOT=/ctx/system_files/shared
+
 # The golden tests of the shared crate compare with what Chromium wrote in UTC. One thread: Notes' tests
 # run its timers on GLib's default main context, which only one thread may own
 TZ=UTC cargo test --release --locked --workspace -- --test-threads=1
@@ -33,10 +50,16 @@ cargo build --release --locked -p amethystora-apps
 # The sensor is a binary of its own (no GTK): it loads a BPF object and writes audit records for the
 # security watcher (plans/done/PLAN-audit-cost.md).
 cargo build --release --locked -p amethystora-sensor
+# The agent's tools are two more (no GTK): its MCP server and the helper that runs its root commands
+cargo build --release --locked -p amethystora-agent-tools
 
 mkdir -p /out/licenses
 install -Dpm0755 "${CARGO_TARGET_DIR}/release/amethystora-apps" /out/amethystora-apps
 install -Dpm0755 "${CARGO_TARGET_DIR}/release/amethystora-sensor" /out/amethystora-sensor
+for program in amethystora-agent-tools amethystora-agent-root; do
+    [[ -x "${CARGO_TARGET_DIR}/release/${program}" ]] || continue
+    install -Dpm0755 "${CARGO_TARGET_DIR}/release/${program}" "/out/${program}"
+done
 # It must link the image's own libbpf, not a vendored copy, or the version it was built against travels with
 # it: the image carries libbpf and the apps stage built against the same Fedora release.
 ldd "${CARGO_TARGET_DIR}/release/amethystora-sensor" | grep -q 'libbpf\.so\.1' ||
@@ -45,13 +68,13 @@ ldd "${CARGO_TARGET_DIR}/release/amethystora-sensor" | grep -q 'libbpf\.so\.1' |
 # Every crate built into the program (its normal dependencies: build tools and test-only crates are not in
 # it), with its licence, and the licence and notice files it ships: most are MIT or Apache-2.0, whose
 # terms ask for their notices to travel with the program
-cargo tree --locked -p amethystora-apps -p amethystora-sensor -e normal --prefix none --format '{p}' |
+cargo tree --locked -p amethystora-apps -p amethystora-sensor -p amethystora-agent-tools -e normal --prefix none --format '{p}' |
     sed -n 's/^\([^ ]*\) v\([^ ]*\)\( (\*)\)\{0,1\}$/\1\t\2/p' | sort -u >/tmp/built.tsv
 cargo metadata --locked --format-version 1 >/tmp/metadata.json
 jq -r '.packages[] | select(.source != null)
     | [.name, .version, (.license // "see its licence file"), (.repository // ""), (.manifest_path | sub("/Cargo.toml$"; ""))]
     | @tsv' /tmp/metadata.json | sort -u >/tmp/packages.tsv
-printf '# The Rust crates built into the Amethystora apps and amethystora-sensor: name, version, licence, source\n' \
+printf '# The Rust crates built into the Amethystora apps, amethystora-sensor and the agent tools: name, version, licence, source\n' \
     >/out/licenses/CRATES
 missing=()
 while IFS=$'\t' read -r name version licence repository folder; do

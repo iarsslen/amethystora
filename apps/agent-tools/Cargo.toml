@@ -1,0 +1,25 @@
+# amethystora-agent-tools: the AI agent's own tools, an MCP server over stdio (`mcp`) and the same answers
+# as a command (`search`, `read`, `state`), and the build step that writes their index (`index --write`).
+# amethystora-agent-root, the helper that runs the agent's root commands when an administrator allows them,
+# is the second program of the crate. No GTK: the apps stage builds both on their own, and 13-apps.sh
+# installs them in /usr/libexec. plans/PLAN-agentic-os.md says why it exists.
+[package]
+name = "amethystora-agent-tools"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "amethystora-agent-tools"
+path = "src/main.rs"
+
+[dependencies]
+amethystora-control-core.workspace = true
+serde_json.workspace = true
+libc.workspace = true
+regex.workspace = true
+# The embedding model's tokenizer takes accents off (NFD) and splits at punctuation, as BERT's does: the
+# same ICU4X the apps already build with
+icu_normalizer = { version = "2", default-features = false, features = ["compiled_data"] }
+icu_properties = { version = "2", default-features = false, features = ["compiled_data"] }

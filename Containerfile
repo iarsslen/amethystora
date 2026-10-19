@@ -34,7 +34,7 @@ RUN --mount=type=cache,dst=/var/cache/libdnf5 \
     /ctx/build_files/shared/build-fprintd.sh
 
 ## The Amethystora apps (apps/), built on the base they run on. Rust and the crates stay in this stage:
-## only the program and the crates' licences in /out reach the image (13-apps.sh). Its Node runs the
+## only the programs, the agent's model and the crates' licences in /out reach the image (13-apps.sh). Its Node runs the
 ## checks written in JavaScript (20-tests.sh), so that the image needs none of its own
 FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION}@${BASE_IMAGE_SHA} AS apps
 RUN --mount=type=cache,dst=/var/cache/libdnf5 \

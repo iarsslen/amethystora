@@ -32,6 +32,17 @@ done
 install -Dpm0755 /apps-stage/out/amethystora-sensor /usr/libexec/amethystora-sensor
 install -Dpm0644 /ctx/apps/sensor/src/bpf/COPYING /usr/share/licenses/amethystora-sensor/COPYING
 
+# The AI agent's tools (no GTK either): the MCP server the launcher gives each agent, and the model its search
+# ranks by meaning with, as downloaded and checked in the apps stage. The index itself is written once every
+# name in the image is final (build-agent-index.sh). Off costs nothing: nothing here runs until an agent the
+# user started starts it.
+install -Dpm0755 /apps-stage/out/amethystora-agent-tools /usr/libexec/amethystora-agent-tools
+if [[ -x /apps-stage/out/amethystora-agent-root ]]; then
+    install -Dpm0755 /apps-stage/out/amethystora-agent-root /usr/libexec/amethystora-agent-root
+fi
+install -d /usr/share/amethystora/agents/knowledge/model
+install -pm0644 -t /usr/share/amethystora/agents/knowledge/model /apps-stage/out/model/*
+
 install -Dpm0644 /ctx/branding/fonts/QuicksandVariable.ttf "${APPS_DIR}/fonts/QuicksandVariable.ttf"
 install -Dpm0644 /ctx/branding/fonts/Quicksand-OFL.txt "${LICENSE_DIR}/Quicksand-OFL.txt"
 install -d "${LICENSE_DIR}/crates"

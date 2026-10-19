@@ -53,6 +53,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "amethystora-agent-tools"
+version = "1.0.0"
+dependencies = [
+ "amethystora-control-core",
+ "icu_normalizer",
+ "icu_properties",
+ "libc",
+ "regex",
+ "serde_json",
+]
+
+[[package]]
 name = "amethystora-apps"
 version = "1.0.0"
 dependencies = [

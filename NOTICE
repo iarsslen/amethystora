@@ -137,6 +137,20 @@ the GNU Lesser General Public License, version 2.1, or the BSD 2-Clause License;
 these and its other crates are in the list beside the apps'. It links the libbpf
 the image already carries, nothing of it vendored.
 
+The AI agent's tools in usr/libexec/amethystora-agent-tools and
+usr/libexec/amethystora-agent-root (apps/agent-tools/) are two more programs of
+the same build; their crates are in the same list. Their search ranks passages
+by meaning with potion-base-8M, a static embedding model by MinishLab made with
+Model2Vec, under the MIT License, which ships unchanged in
+usr/share/amethystora/agents/knowledge/model. It is distilled from BAAI's
+bge-base-en-v1.5, under the MIT License, and its vocabulary is BERT's, under the
+Apache License, version 2.0; all three licences ship in
+usr/share/licenses/potion-base-8M, with where the model comes from.
+
+  - potion-base-8M     https://huggingface.co/minishlab/potion-base-8M
+  - bge-base-en-v1.5   https://huggingface.co/BAAI/bge-base-en-v1.5
+  - BERT               https://github.com/google-research/bert
+
 The GTK theme in usr/share/themes/Amethystora is Sweet by Eliver Lara,
 licensed under the GNU General Public License, version 3:
 

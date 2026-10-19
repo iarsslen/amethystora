@@ -1,0 +1,16 @@
+potion-base-8M, the static embedding model the AI agent's search uses to rank passages by meaning, in
+/usr/share/amethystora/agents/knowledge/model.
+
+  Model:        https://huggingface.co/minishlab/potion-base-8M
+  Revision:     bf8b056651a2c21b8d2565580b8569da283cab23
+  Made with:    Model2Vec, https://github.com/MinishLab/model2vec
+  Licence:      MIT (the model card's licence), LICENSE here
+
+It is a distilled version of BAAI's bge-base-en-v1.5
+(https://huggingface.co/BAAI/bge-base-en-v1.5), under the MIT License, in
+LICENSE.bge-base-en-v1.5 here. Its vocabulary, in tokenizer.json, is BERT's
+uncased WordPiece vocabulary (https://github.com/google-research/bert), under
+the Apache License, version 2.0, in LICENSE.bert-vocabulary here.
+
+The files are downloaded by build_files/shared/build-apps.sh from the revision
+above and checked against their SHA-256, unchanged.

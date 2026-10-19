@@ -62,6 +62,9 @@ if [ "${IMAGE_FLAVOR}" == "dx" ] ; then
   /ctx/build_files/shared/build-dx.sh
 fi
 
+# The AI agent's index, of the image as it now is
+/ctx/build_files/shared/build-agent-index.sh
+
 # Where the source of every package in the image is published, for the GPL
 /ctx/build_files/shared/source-manifest.sh
 

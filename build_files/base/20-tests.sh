@@ -2249,6 +2249,39 @@ SKILL_DIR=/usr/share/amethystora/agents/skills/amethystora
 ame --show agent::toggle >/dev/null
 grep -q "^install " /usr/share/amethystora/just/agent.just
 
+# The agent's tools (plans/PLAN-agentic-os.md): an MCP server over stdio that lists nothing for an account
+# with the features off and the five read-only tools once they are on, over an index of the manual, the
+# skills, the knowledge and the image's own reference, written when the image was built
+AGENT_TOOLS=/usr/libexec/amethystora-agent-tools
+KNOWLEDGE=/usr/share/amethystora/agents/knowledge
+test -x "${AGENT_TOOLS}"
+AGENT_HOME="$(mktemp -d)"
+MCP_ASK=$'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}\n{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+HOME="${AGENT_HOME}" XDG_CONFIG_HOME="" "${AGENT_TOOLS}" mcp <<<"${MCP_ASK}" |
+    jq -se '.[0].result.serverInfo.name == "amethystora" and .[1].result.tools == []' >/dev/null
+mkdir -p "${AGENT_HOME}/.config/amethystora"
+touch "${AGENT_HOME}/.config/amethystora/agentic"
+HOME="${AGENT_HOME}" XDG_CONFIG_HOME="" "${AGENT_TOOLS}" mcp <<<"${MCP_ASK}" |
+    jq -se '[.[1].result.tools[].name] == ["search", "read", "state", "logs", "history"]' >/dev/null
+jq -e '.dims == 256 and .kinds.manual > 100 and .kinds.skill > 10 and .kinds.command > 80 and .kinds.helper > 30
+    and .kinds.unit > 20 and .kinds.setting > 30 and .kinds.control > 20' "${KNOWLEDGE}/meta.json" >/dev/null
+[[ "$(stat -c %s "${KNOWLEDGE}/vectors.f16")" == "$(($(jq .passages "${KNOWLEDGE}/meta.json") * 256 * 2))" ]]
+# The model is the one the apps stage pinned, unchanged, and its licences and those of what it was made from ship
+sed -n 's/^    \[\([a-z.]*\)\]=\([0-9a-f]\{64\}\)$/\2  \1/p' /ctx/build_files/shared/build-apps.sh >/tmp/model.sha256
+[[ "$(wc -l </tmp/model.sha256)" == 3 ]]
+(cd "${KNOWLEDGE}/model" && sha256sum -c --quiet /tmp/model.sha256)
+rm -f /tmp/model.sha256
+for licence in LICENSE LICENSE.bge-base-en-v1.5 LICENSE.bert-vocabulary SOURCE; do
+    test -s "/usr/share/licenses/potion-base-8M/${licence}"
+done
+grep -q "potion-base-8M" /usr/share/licenses/amethystora/NOTICE
+# Every passage's file is there, and nothing in the index names the duress feature
+jq -r 'select(.path != null) | .path' "${KNOWLEDGE}/index.jsonl" | sort -u | while read -r path; do test -e "${path}"; done
+grep -qi duress "${KNOWLEDGE}/index.jsonl" && false
+HOME="${AGENT_HOME}" XDG_CONFIG_HOME="" "${AGENT_TOOLS}" search "roll back an update" | grep -q "manual/updates#rolling-back"
+HOME="${AGENT_HOME}" XDG_CONFIG_HOME="" "${AGENT_TOOLS}" read "ame/security/dns" | grep -q "ame security dns"
+rm -rf "${AGENT_HOME}"
+
 # these packages are supposed to be removed
 # and are considered footguns
 UNWANTED_PACKAGES=(
