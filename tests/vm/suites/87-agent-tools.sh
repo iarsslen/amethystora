@@ -20,7 +20,6 @@ OWN=/run/vmlab-agent
 mkdir -p "${OWN}"
 cp "$(dirname "$0")/mcp.py" "$(dirname "$0")/pkagent.py" "${OWN}/"
 chmod -R a+rX "${OWN}"
-TUID="$(id -u "${TEST_USER}")"
 HOME_DIR="/var/home/${TEST_USER}"
 CONFIG="${HOME_DIR}/.config/amethystora"
 TOOLS=/usr/libexec/amethystora-agent-tools
@@ -28,8 +27,13 @@ CONF=/etc/amethystora/agent.conf
 PASSWORD="${TEST_USER}"
 cp -a "${CONF}" "${OWN}/agent.conf.before"
 
-# The client as the account, in its session, as an agent started from a terminal there is
-mcp() { user_bus env WAYLAND_DISPLAY=wayland-0 python3 "${OWN}/mcp.py" "$@" 2>/dev/null; }
+# The client as the account, as an agent started from a terminal is: a process of the account's user manager,
+# which polkit counts as part of its desktop session. runuser's own session has no seat, and polkit refuses
+# such a process outright.
+mcp() {
+    user_bus systemd-run --user --pipe --wait --quiet --collect --setenv=WAYLAND_DISPLAY=wayland-0 \
+        -- /usr/bin/python3 "${OWN}/mcp.py" "$@" </dev/null 2>/dev/null
+}
 # One answer of mcp's: the text of the call named, the Nth of them (default the first)
 answer() { jq -rs --arg c "$2" --argjson n "${3:-0}" '[.[] | select(.call? == $c)][$n].text // ""' <<<"$1"; }
 failed() { jq -es --arg c "$2" --argjson n "${3:-0}" '[.[] | select(.call? == $c)][$n].error' <<<"$1" >/dev/null; }
@@ -40,13 +44,20 @@ tester_ame() { user_bus bash -lc "$*" </dev/null; }
 
 # --- Off as shipped, and the update's notice -----------------------------------------------------------------
 
-if as_tester amethystora-agent status >/dev/null 2>&1; then
+# An account made now has them off; the test account starts this suite off too, whatever an earlier suite
+# (80-control's agent card) left
+useradd -m vmlabfresh 2>/dev/null
+if runuser -u vmlabfresh -- amethystora-agent status >/dev/null 2>&1; then
     not_ok "the agentic features are off for an account as shipped"
 else
     ok "the agentic features are off for an account as shipped"
 fi
-out="$(mcp list)"
-same "with them off, the tools list nothing" "$(listed "${out}")" ""
+same "with them off, the tools list nothing" \
+    "$(runuser -u vmlabfresh -- /usr/libexec/amethystora-agent-tools mcp <<<'{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | jq -r '[.result.tools[].name] | join(" ")')" ""
+userdel -r vmlabfresh 2>/dev/null
+as_tester rm -f "${CONFIG}/agentic" "${CONFIG}/agent-tools"
+tester_ame "amethystora-agent sync" >/dev/null
+same "and for the test account, set back off" "$(listed "$(mcp list)")" ""
 
 # An account that had the agent on under the old image: its skills linked, no marker. The hook that runs before
 # 13-agentic.sh says so once; one that had it off (no-agentic) is only cleaned up.
@@ -128,17 +139,19 @@ failed "${out}" change 0 && failed "${out}" change 1 && ok "change refuses the a
 
 # A small Flatpak, installed and taken away again (its download can take longer than a call)
 APP=org.gnome.Mahjongg
+# In the machine's installation, or the account's own where it has a Flathub of its own
+installed() { flatpak info --system "${APP}" >/dev/null 2>&1 || user_bus flatpak info --user "${APP}" >/dev/null 2>&1; }
 out="$(mcp "software {\"action\": \"install\", \"source\": \"flathub\", \"id\": \"${APP}\"}")"
 job="$(answer "${out}" software | grep -o '[0-9a-f]\{8\}' | head -1)"
 for _ in 1 2 3 4 5 6 7 8 9 10; do
-    flatpak info "${APP}" >/dev/null 2>&1 && break
+    installed && break
     mcp "history {\"id\": \"${job}\", \"wait\": 60}" >/dev/null
 done
-if flatpak info "${APP}" >/dev/null 2>&1; then
+if installed; then
     ok "software installs a Flatpak"
     out="$(mcp "undo {\"id\": \"${job}\"}" 'pause 30')"
-    for _ in 1 2 3 4 5 6; do flatpak info "${APP}" >/dev/null 2>&1 || break; sleep 10; done
-    flatpak info "${APP}" >/dev/null 2>&1 && not_ok "undo removed the Flatpak" "$(answer "${out}" undo)" || ok "undo removes it again"
+    for _ in 1 2 3 4 5 6; do installed || break; sleep 10; done
+    installed && not_ok "undo removed the Flatpak" "$(answer "${out}" undo)" || ok "undo removes it again"
 else
     not_ok "software installs a Flatpak" "$(answer "${out}" software)"
 fi
@@ -231,7 +244,8 @@ sleep 2
 server="$(jq -r 'select(.server_pid?) | .server_pid' "${OWN}/lock.out" 2>/dev/null | head -1)"
 as_tester python3 "${OWN}/pkagent.py" "${server:-1}" "${PASSWORD}" 20 >/dev/null 2>&1 &
 sleep 15
-session="$(loginctl list-sessions --no-legend | awk -v u="${TUID}" '$2 == u { print $1; exit }')"
+# The account's desktop session, not one of the sessions runuser opens
+session="$(loginctl show-user "${TEST_USER}" -p Display --value)"
 if pgrep -f '^/usr/libexec/amethystora-agent-root session' >/dev/null; then
     loginctl lock-session "${session}"
     wait_for 30 '! pgrep -f "^/usr/libexec/amethystora-agent-root session" >/dev/null' &&
@@ -293,7 +307,10 @@ user_bus /usr/libexec/amethystora-doctor --json | jq -e '.findings | any(.id == 
     ok "the doctor finds a unit broken on purpose" || not_ok "the doctor and a failed unit" "$(user_bus /usr/libexec/amethystora-doctor --json | head -c 600)"
 mcp 'state {"topic": "health"}' | grep -q vmlab-broken && ok "state health says it" || not_ok "state health"
 user_systemctl reset-failed vmlab-broken.service 2>/dev/null
-user_bus /usr/libexec/amethystora-doctor --only failed-units >/dev/null && ok "and verifies the fix" || not_ok "doctor --only after the fix"
+# The lab's machine has failed units of its own (an akmods module refused under Secure Boot): the one broken here
+# is what has to be gone
+found="$(user_bus /usr/libexec/amethystora-doctor --json --only failed-units | jq -r '[.findings[].evidence] | join(" ")')"
+[[ "${found}" != *vmlab-broken* ]] && ok "and verifies the fix" || not_ok "doctor --only after the fix" "${found}"
 
 # --- The watcher, and everything off -------------------------------------------------------------------------
 
