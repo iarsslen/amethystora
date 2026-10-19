@@ -2281,6 +2281,44 @@ grep -qi duress "${KNOWLEDGE}/index.jsonl" && false
 HOME="${AGENT_HOME}" XDG_CONFIG_HOME="" "${AGENT_TOOLS}" search "roll back an update" | grep -q "manual/updates#rolling-back"
 HOME="${AGENT_HOME}" XDG_CONFIG_HOME="" "${AGENT_TOOLS}" read "ame/security/dns" | grep -q "ame security dns"
 rm -rf "${AGENT_HOME}"
+# The launcher gives an agent the tools only while the features are on, and with options none of which turns
+# the agent's own checks off (agent-cli-flags, as the watcher matches them). Cursor CLI and Antigravity CLI,
+# which take no such option, have the entry in their settings only while the features are on.
+for skill in amethystora-tools amethystora-widgets; do
+    grep -qx "name: ${skill}" "/usr/share/amethystora/agents/skills/${skill}/SKILL.md"
+done
+(
+    export HOME="$(mktemp -d)" XDG_CONFIG_HOME="" XDG_RUNTIME_DIR="$(mktemp -d)" SHELL=/usr/bin/bash
+    mkdir -p "${HOME}/.cursor"
+    for agent in "${AGENT_IDS[@]}"; do
+        amethystora-agent argv "${agent}" hi | grep -q "amethystora-agent-tools\|amethystora_" && false
+    done
+    ame agent toggle on
+    jq -e '.mcpServers.amethystora == {"command": "/usr/libexec/amethystora-agent-tools", "args": ["mcp"]}' "${HOME}/.cursor/mcp.json" >/dev/null
+    for agent in "${AGENT_IDS[@]}"; do
+        argv="$(amethystora-agent argv "${agent}" hi)"
+        [[ "${agent}" =~ ^(agy|cursor-agent)$ ]] || grep -q "amethystora" <<<"${argv}"
+        words=" $(grep -v '^env:' <<<"${argv}" | sed -E 's/^(--[a-z-]+)=/\1 /' | tr '\n' ' ') "
+        environment="$(sed -n 's/^env://p' <<<"${argv}")"
+        while IFS=$'\t' read -r name flag; do
+            [[ "${name}" == "${agent}" ]] || continue
+            if [[ "${flag}" == env:*=* ]]; then
+                variable="${flag#env:}"
+                glob="${variable#*=}"
+                variable="${variable%%=*}"
+                while IFS= read -r entry; do
+                    # shellcheck disable=SC2053 # the glob is the image's own, from agent-cli-flags
+                    [[ "${entry%%=*}" == "${variable}" && "${entry#*=}" == ${glob} ]] && false
+                done <<<"${environment}"
+            else
+                [[ "${words}" == *" ${flag} "* ]] && false
+            fi
+        done < <(grep -v '^#' /usr/share/amethystora/agent-cli-flags)
+    done
+    ame agent toggle off
+    jq -e '.mcpServers.amethystora == null' "${HOME}/.cursor/mcp.json" >/dev/null
+    rm -rf "${HOME}" "${XDG_RUNTIME_DIR}"
+)
 
 # these packages are supposed to be removed
 # and are considered footguns

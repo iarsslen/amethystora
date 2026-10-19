@@ -23,6 +23,8 @@ and how to undo it.
 
 ## Finding things
 
+- With the `amethystora` tools (the `amethystora-tools` skill), `search` the manual and the image's own
+  reference, and ask `state` for this machine's state, before reading whole files or running commands.
 - The user manual is Markdown in `/usr/share/amethystora/manual` (start at `pages.json`). Point the
   user to a page with `amethystora-manual <page>`.
 - `ame --list --list-submodules` lists every system command, in groups; `ame <group> <command>` runs

@@ -209,12 +209,34 @@ def hooks(path, table):
                         emit(path, f"runs a command on {event}", words(command))
 
 
+OWN_TOOLS = "/usr/libexec/amethystora-agent-tools"
+READ_TOOLS = {"search", "read", "state", "logs", "history"}
+
+
+def own(name, server):
+    # The one entry amethystora-agent writes for Cursor CLI and Antigravity CLI, which take no launch option for
+    # it: exactly it, under its name. Anything more (an environment, an address, a trust flag), or another
+    # command under the same name, is somebody else's and is said like any server.
+    return (name == "amethystora" and set(server) <= {"command", "args", "type", "disabled"}
+            and server.get("command") == OWN_TOOLS and server.get("args") == ["mcp"]
+            and server.get("type", "stdio") in ("stdio", "local") and server.get("disabled", False) is False)
+
+
+def pre_allowed(path, rules, pattern):
+    # A rule that has an agent use one of Amethystora's tools without asking: only the read-only ones are the
+    # image's own; one that changes something must always ask
+    for rule in rules if isinstance(rules, list) else []:
+        found = re.fullmatch(pattern, rule) if isinstance(rule, str) else None
+        if found and found.group(1) not in READ_TOOLS:
+            emit(path, "lets the MCP server amethystora run a tool without asking", rule, tactic="Defense Evasion")
+
+
 def servers(path, table, key="command"):
     # MCP servers: a command the agent starts, or an address it sends to
     if not isinstance(table, dict):
         return
     for name, server in table.items():
-        if not isinstance(server, dict):
+        if not isinstance(server, dict) or own(name, server):
             continue
         command = server.get(key) if key in server else server.get("command")
         if command:
@@ -313,6 +335,8 @@ if isinstance(data, dict):
     if data.get("toolPermission") == "always-proceed":
         off(path, "has Antigravity CLI never ask", "toolPermission always-proceed")
     trusted(path, "trusts", data.get("trustedWorkspaces"))
+    if isinstance(data.get("permissions"), dict):
+        pre_allowed(path, data["permissions"].get("allow"), r"mcp\(amethystora/([^)]*)\)")
 for base in (f"{HOME}/.gemini/config", f"{HOME}/.gemini/antigravity-cli"):
     for path in [f"{base}/hooks.json"] + sorted(glob.glob(f"{base}/plugins/*/hooks.json")):
         data = load(path, "jsonc")
@@ -347,6 +371,8 @@ for path in sorted(glob.glob(f"{HOME}/.config/opencode/plugin*/*") + glob.glob(f
 data = load(f"{HOME}/.cursor/cli-config.json")
 if isinstance(data, dict) and data.get("approvalMode") == "unrestricted":
     off(f"{HOME}/.cursor/cli-config.json", "has Cursor run everything without asking", "approvalMode unrestricted")
+if isinstance(data, dict) and isinstance(data.get("permissions"), dict):
+    pre_allowed(f"{HOME}/.cursor/cli-config.json", data["permissions"].get("allow"), r"Mcp\(amethystora:([^)]*)\)")
 data = load(f"{HOME}/.cursor/mcp.json")
 if isinstance(data, dict):
     servers(f"{HOME}/.cursor/mcp.json", data.get("mcpServers"))

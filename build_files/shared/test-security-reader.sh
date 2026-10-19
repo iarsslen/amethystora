@@ -67,7 +67,13 @@ echo '{"mcpServers": {"remote": {"serverUrl": "https://example.net/mcp"}}}' >"${
 printf '// comment\n{\n  "mcp": {"local": {"type": "local", "command": ["bun", "x.ts"]},},\n  "plugin": ["opencode-evil"],\n  "permission": "allow",\n}\n' \
     >"${H}/.config/opencode/opencode.jsonc"
 echo 'export default {}' >"${H}/.config/opencode/plugin/p.ts"
-echo '{"approvalMode": "unrestricted"}' >"${H}/.cursor/cli-config.json"
+echo '{"approvalMode": "unrestricted", "permissions": {"allow": ["Mcp(amethystora:search)", "Mcp(amethystora:run)"]}}' \
+    >"${H}/.cursor/cli-config.json"
+# The entry amethystora-agent writes for the agent's tools is the image's own; the same name with anything more
+# in it is somebody else's
+echo '{"mcpServers": {"amethystora": {"command": "/usr/libexec/amethystora-agent-tools", "args": ["mcp"]}}}' >"${H}/.cursor/mcp.json"
+echo '{"mcpServers": {"amethystora": {"command": "/usr/libexec/amethystora-agent-tools", "args": ["mcp"], "env": {"X": "1"}}}}' \
+    >"${H}/.gemini/config/mcp_config.json"
 echo '{"version": 1, "hooks": {"preToolUse": [{"type": "command", "bash": "echo from copilot"}]}}' >"${H}/.copilot/hooks/h.json"
 chown -R 4600:4600 "${H}"
 
@@ -80,8 +86,13 @@ for want in 'runs a command on PreToolUse: touch' 'runs a command as apiKeyHelpe
     'loads the plugin: opencode-evil' 'has Opencode never ask' 'is code Opencode loads' 'has Cursor run everything without asking' \
     'runs a command on preToolUse: echo from copilot' 'has Antigravity CLI never ask' 'runs a command as statusLine: agy-status' \
     'runs a command on PreToolUse: from-agy' 'sends to the MCP server remote: https://example.net/mcp' \
-    'is a plugin Antigravity CLI loads: pl'; do
+    'is a plugin Antigravity CLI loads: pl' \
+    'mcp_config.json starts the MCP server amethystora: /usr/libexec/amethystora-agent-tools mcp' \
+    'lets the MCP server amethystora run a tool without asking: Mcp(amethystora:run)'; do
     grep -qF -- "${want}" <<<"${OUT}" || fail "agent-config did not find \"${want}\": ${OUT}"
+done
+for unwanted in '.cursor/mcp.json starts the MCP server amethystora' 'Mcp(amethystora:search)'; do
+    if grep -qF -- "${unwanted}" <<<"${OUT}"; then fail "agent-config said the image's own entry: ${unwanted}"; fi
 done
 jq -se '(map(.id) | unique | length) == length
     and any(.[]; (.text | test("lets Claude Code use tools without asking in /p")) and .level == "quiet")

@@ -16,6 +16,8 @@
 #   amethystora-agent on|off           turn the agentic features on or off (ame agent toggle)
 #   amethystora-agent status           print whether they are on; exits 1 when off
 #   amethystora-agent sync             link or unlink the skills to match, run at every login
+#   amethystora-agent search|read|state|history ...
+#                                      the agent's tools' answers in a terminal (amethystora-agent-tools)
 #
 # The agents are not part of the image: they release far more often than it does. The first launch
 # offers to install the chosen one into your home with its maker's installer, and from there it
@@ -29,6 +31,11 @@
 # every update. The agent starts
 # in its normal permission mode: it asks before it acts. Opencode's own agent does not, so a diagnosis,
 # which reads what anyone can write to the journal, starts Opencode's plan agent, which does.
+#
+# Started from here, each agent is given Amethystora's own tools for that session
+# (/usr/libexec/amethystora-agent-tools, an MCP server that lives as long as the agent): the ones that
+# read are pre-allowed, and every other asks. Cursor CLI and Antigravity CLI take no option for that, so
+# their settings hold one entry for it while the features are on.
 
 set -euo pipefail
 
@@ -45,6 +52,11 @@ SKILLS_LINK_DIRS=("${HOME}/.claude/skills" "${HOME}/.agents/skills" "${HOME}/.ge
 # On while it exists, which no account has until it turns the features on: the image ships them off
 ENABLED="${CONFIG_DIR}/agentic"
 CHOICE="${CONFIG_DIR}/agent"
+# Amethystora's tools, an MCP server each agent starts (plans/PLAN-agentic-os.md), the entry naming it, and the
+# ones that only read, which every agent is told it may use without asking
+TOOLS=/usr/libexec/amethystora-agent-tools
+TOOLS_ENTRY="{\"command\": \"${TOOLS}\", \"args\": [\"mcp\"]}"
+READ_TOOLS=(search read state logs history)
 
 usage() {
     sed -n '3,/^$/p' "$0" | sed 's/^# \?//'
@@ -153,21 +165,131 @@ launch() {
         have "${name}" || die "$(title "${name}") did not install"
     fi
     cd "${HOME}"
+    command_for "${name}" "$@"
+    exec "${COMMAND[@]}"
+}
+
+# The command that starts NAME, into COMMAND, with the first prompt if there is one: each with the prompt
+# sent and the session left open, never in its one-shot mode, and with the tools while the account has them
+command_for() {
+    local name="$1"
+    shift
     # Opencode reads ~/.claude/skills as well as ~/.agents/skills, and a skill's name must be unique
     # across the folders it reads
     [[ ${name} != opencode ]] || export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1
     [[ ${name} != opencode ]] || opencode_asks
-    if [[ $# -eq 0 ]]; then
-        exec "${name}"
-    fi
-    # Each with the prompt sent and the session left open, never in its one-shot mode
-    local -a opencode=(opencode)
-    [[ -z ${DIAGNOSING:-} ]] || opencode+=(--agent plan)
+    tools_options "${name}"
+    COMMAND=("${name}" "${AGENT_OPTIONS[@]}")
+    [[ $# -gt 0 ]] || return 0
     case "${name}" in
-        opencode) exec "${opencode[@]}" --prompt "$*" ;;
-        agy | gemini | copilot) exec "${name}" -i "$*" ;;
-        *) exec "${name}" "$*" ;;
+        opencode)
+            COMMAND=(opencode)
+            [[ -z ${DIAGNOSING:-} ]] || COMMAND+=(--agent plan)
+            COMMAND+=(--prompt "$*")
+            ;;
+        agy | gemini | copilot) COMMAND=("${name}" -i "$*" "${AGENT_OPTIONS[@]}") ;;
+        # Its options take any number of values: the prompt goes first, so that none takes it for one
+        claude) COMMAND=(claude "$*" "${AGENT_OPTIONS[@]}") ;;
+        *) COMMAND=("${name}" "${AGENT_OPTIONS[@]}" "$*") ;;
     esac
+}
+
+# The options that give NAME Amethystora's tools (amethystora-agent-tools mcp) for this session only, into
+# AGENT_OPTIONS, with the read-only ones pre-allowed, so that it asks only before a tool that changes
+# something. Nothing is written into the agent's own settings, except for Cursor CLI and Antigravity CLI,
+# which take no such option (sync_tools). None of these options turns an agent's own checks off: 20-tests.sh
+# holds them to /usr/share/amethystora/agent-cli-flags.
+tools_options() {
+    local name="$1" tool file
+    AGENT_OPTIONS=()
+    tools_on || return 0
+    case "${name}" in
+        claude)
+            file="$(runtime_file claude-mcp.json "$(jq -nc --argjson entry "${TOOLS_ENTRY}" '{mcpServers: {amethystora: $entry}}')")"
+            AGENT_OPTIONS=(--mcp-config "${file}" --allowedTools "$(printf 'mcp__amethystora__%s,' "${READ_TOOLS[@]}" | sed 's/,$//')")
+            ;;
+        copilot)
+            file="$(runtime_file copilot-mcp.json \
+                "$(jq -nc --argjson entry "${TOOLS_ENTRY}" '{mcpServers: {amethystora: ($entry + {type: "local", tools: ["*"]})}}')")"
+            AGENT_OPTIONS=(--additional-mcp-config "@${file}")
+            for tool in "${READ_TOOLS[@]}"; do
+                AGENT_OPTIONS+=("--allow-tool=amethystora(${tool})")
+            done
+            ;;
+        codex)
+            AGENT_OPTIONS=(-c "mcp_servers.amethystora.command=\"${TOOLS}\"" -c 'mcp_servers.amethystora.args=["mcp"]')
+            for tool in "${READ_TOOLS[@]}"; do
+                AGENT_OPTIONS+=(-c "mcp_servers.amethystora.tools.${tool}.approval_mode=\"approve\"")
+            done
+            ;;
+        opencode)
+            # A configuration of the user's own given this way is theirs, and stays as it is
+            if [[ -z ${OPENCODE_CONFIG_CONTENT:-} ]]; then
+                OPENCODE_CONFIG_CONTENT="$(jq -nc --argjson entry "${TOOLS_ENTRY}" '{mcp: {amethystora: {type: "local",
+                    command: ([$entry.command] + $entry.args)}}, permission: ($ARGS.positional | map({key: "amethystora_\(.)",
+                    value: "allow"}) | from_entries)}' --args "${READ_TOOLS[@]}")"
+                export OPENCODE_CONFIG_CONTENT
+            fi
+            ;;
+    esac
+}
+
+# A file only this account can read, for one session's settings, in its runtime folder; prints its path
+runtime_file() {
+    local dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/amethystora"
+    mkdir -p -m 0700 "${dir}"
+    (umask 077 && printf '%s\n' "$2" >"${dir}/$1")
+    echo "${dir}/$1"
+}
+
+# Whether this account has the tools: the features on, and the tools there
+tools_on() {
+    enabled && [[ -x ${TOOLS} ]]
+}
+
+# A JSON file of an agent's, changed by a jq filter, and only when it is plain JSON: one with comments, which
+# jq cannot keep, is left as it is
+edit_json() {
+    local file="$1" filter="$2" new
+    shift 2
+    [[ -f ${file} ]] || return 0
+    new="$(jq "$@" "${filter}" "${file}" 2>/dev/null)" || return 0
+    [[ "${new}" == "$(jq . "${file}")" ]] && return 0
+    printf '%s\n' "${new}" >"${file}.amethystora-new" && mv "${file}.amethystora-new" "${file}"
+}
+
+# Cursor CLI and Antigravity CLI take no option to be given a server: while the tools are on, each of their
+# settings holds the one entry amethystora, with its read-only tools pre-allowed; while off, exactly that comes
+# out again. Only for an agent whose folder is there already. The security watcher accepts exactly this entry.
+sync_tools() {
+    local -a cursor_allow=() agy_allow=()
+    local tool
+    for tool in "${READ_TOOLS[@]}"; do
+        cursor_allow+=("Mcp(amethystora:${tool})")
+        agy_allow+=("mcp(amethystora/${tool})")
+    done
+    if tools_on; then
+        if [[ -d ${HOME}/.cursor ]]; then
+            [[ -e ${HOME}/.cursor/mcp.json ]] || echo '{}' >"${HOME}/.cursor/mcp.json"
+            edit_json "${HOME}/.cursor/mcp.json" '.mcpServers.amethystora = $entry' --argjson entry "${TOOLS_ENTRY}"
+            edit_json "${HOME}/.cursor/cli-config.json" \
+                '.permissions.allow = (((.permissions.allow // []) - $ARGS.positional) + $ARGS.positional)' --args "${cursor_allow[@]}"
+        fi
+        if [[ -d ${HOME}/.gemini ]]; then
+            mkdir -p "${HOME}/.gemini/config"
+            [[ -e ${HOME}/.gemini/config/mcp_config.json ]] || echo '{}' >"${HOME}/.gemini/config/mcp_config.json"
+            edit_json "${HOME}/.gemini/config/mcp_config.json" '.mcpServers.amethystora = $entry' --argjson entry "${TOOLS_ENTRY}"
+            edit_json "${HOME}/.gemini/antigravity-cli/settings.json" \
+                '.permissions.allow = (((.permissions.allow // []) - $ARGS.positional) + $ARGS.positional)' --args "${agy_allow[@]}"
+        fi
+        return 0
+    fi
+    local mine='if .mcpServers.amethystora == $entry then del(.mcpServers.amethystora) else . end'
+    local allowed='if (.permissions.allow | type) == "array" then .permissions.allow -= $ARGS.positional else . end'
+    edit_json "${HOME}/.cursor/mcp.json" "${mine}" --argjson entry "${TOOLS_ENTRY}"
+    edit_json "${HOME}/.cursor/cli-config.json" "${allowed}" --args "${cursor_allow[@]}"
+    edit_json "${HOME}/.gemini/config/mcp_config.json" "${mine}" --argjson entry "${TOOLS_ENTRY}"
+    edit_json "${HOME}/.gemini/antigravity-cli/settings.json" "${allowed}" --args "${agy_allow[@]}"
 }
 
 # Gather the facts about what broke and hand them to the agent with the diagnose skill. The method
@@ -273,11 +395,13 @@ case "${1:-}" in
         mkdir -p "${CONFIG_DIR}"
         touch "${ENABLED}"
         sync_skills
+        sync_tools
         echo "Agentic features on"
         ;;
     off)
         rm -f "${ENABLED}"
         sync_skills
+        sync_tools
         echo "Agentic features off"
         ;;
     install) install_agent "${2:-$(agent)}" ;;
@@ -298,7 +422,26 @@ case "${1:-}" in
             exit 1
         fi
         ;;
-    sync) sync_skills ;;
+    sync)
+        sync_skills
+        sync_tools
+        ;;
+    # The tools' answers in a terminal, for a person or an agent without MCP
+    search | read | state | history)
+        enabled || die "agentic features are off. Turn them on in Control, AI agent, or with: ame agent toggle on"
+        exec "${TOOLS}" "$@"
+        ;;
+    # The command an agent would be started with, one word a line, and what it is given in its environment:
+    # for 20-tests.sh, which holds them to agent-cli-flags
+    argv)
+        [[ -n ${2:-} ]] || die "usage: amethystora-agent argv AGENT [PROMPT]"
+        name="$2"
+        shift 2
+        command_for "${name}" "$@"
+        printf '%s\n' "${COMMAND[@]}"
+        [[ -z ${OPENCODE_CONFIG_CONTENT:-} ]] || printf 'env:OPENCODE_CONFIG_CONTENT=%s\n' "${OPENCODE_CONFIG_CONTENT}"
+        [[ -z ${OPENCODE_PERMISSION:-} ]] || printf 'env:OPENCODE_PERMISSION=%s\n' "${OPENCODE_PERMISSION}"
+        ;;
     -h | --help | help) usage ;;
     *) die "unknown command: $1. Run amethystora-agent --help" ;;
 esac
