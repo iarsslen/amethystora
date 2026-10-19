@@ -2354,7 +2354,7 @@ grep -ohE '\b[a-z0-9][a-z0-9_.@-]*\.(service|timer|socket|path)\b' "${KNOWLEDGE_
     compgen -G "/usr/lib/systemd/system/${template}" >/dev/null || compgen -G "/usr/lib/systemd/user/${template}" >/dev/null ||
         { echo "The agent's knowledge names ${unit}, which is not in the image"; exit 1; }
 done
-for playbook in $(grep -o 'playbook/[a-z-]*' /usr/libexec/amethystora-doctor | sort -u); do
+for playbook in $(grep -oE 'playbook/[a-z][a-z-]+' /usr/libexec/amethystora-doctor | sort -u); do
     test -s "${KNOWLEDGE}/playbooks/${playbook#playbook/}.md"
 done
 # The health check reads only, as an account, and says what it found as JSON a tool reads
