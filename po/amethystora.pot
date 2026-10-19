@@ -2066,6 +2066,10 @@ msgid "Installs them now, rather than waiting for the first start with a network
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "An administrator turned the AI agent off for this account."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Agentic features"
 msgstr ""
 
@@ -2100,6 +2104,90 @@ msgstr ""
 #: usr/libexec/amethystora-control-list
 #, sh-format
 msgid "Install ${name}"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Show"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "What the agent changed"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Every change the agent's tools made, newest first, each with its id for undoing it."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "For every account, set by an administrator"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Once per agent session"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "One password, then until the agent ends, the screen locks or an hour passes"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "For five minutes"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "One password, then five minutes for that agent alone"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Every time"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A password for every command"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "In a terminal"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Each command opens in a terminal, where you read it and type your password for sudo"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Root commands"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "How the agent may run a command as root, once you let it make changes. It asks you first every time, in the agent."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Know and change"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Both levels, as each account chooses"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Only know"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The agent and its read-only tools, but no changes"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "No agent features for anyone"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Lock for every account"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The most any account may turn on; one account can be given its own with ame agent lock ACCOUNT LEVEL. For a child's account, Parental Controls' app filter is the stronger tool."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list

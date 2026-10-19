@@ -84,3 +84,31 @@ installed either way.
 
 No agent does anything until you sign in to it, and what you send it goes to the provider you
 signed in to.
+
+## Root commands
+
+When you let the agent make changes, a command it needs to run as root asks you first in the agent, and
+then as an administrator chose in [Control](control.md)'s **AI agent** page, for every account:
+
+| Mode | What your password gives |
+| --- | --- |
+| **Once per agent session** (`session`, the default) | One password; then root commands run until the agent ends, the screen locks, or an hour passes without one |
+| **For five minutes** (`minutes`) | One password, then five minutes for that agent alone |
+| **Every time** (`each`) | A password for every command |
+| **In a terminal** (`terminal`) | Each command opens in a terminal, where you read it and type your password for `sudo` |
+
+`ame agent root MODE` changes it. Every root command shows a notification and is written to the journal
+(`journalctl -t amethystora-agent-root`).
+
+## The lock
+
+An administrator can cap what any account may turn on, in Control or with `ame agent lock act|know|off`:
+`act` allows both levels, `know` only the agent and its read-only tools, `off` nothing. One account can
+have its own, `ame agent lock ACCOUNT know`, and `ame agent lock ACCOUNT default` puts it back. The lock
+governs Amethystora's agent features; it is not a sandbox, and for a child's account Parental Controls'
+app filter is the stronger tool. Both settings are in `/etc/amethystora/agent.conf`.
+
+## History and undo
+
+Every change the agent's tools make is recorded, with what it was before and how to undo it:
+`ame agent history`, or **What the agent changed** in Control. Ask the agent to undo one by its id.

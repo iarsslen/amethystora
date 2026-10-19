@@ -2248,6 +2248,18 @@ SKILL_DIR=/usr/share/amethystora/agents/skills/amethystora
 (($(stat -c %s "${SKILL_DIR}/SKILL.md") < 7000))
 ame --show agent::toggle >/dev/null
 grep -q "^install " /usr/share/amethystora/just/agent.just
+# The administrator's lock and root mode: shipped as the image's defaults, read by the tools as the one reader,
+# and changed only by their two commands, which the security watcher's drift check accepts
+for recipe in lock root history; do
+    ame --show "agent::${recipe}" >/dev/null
+done
+grep -qx "ALLOW=act" /etc/amethystora/agent.conf
+grep -qx "ROOT=session" /etc/amethystora/agent.conf
+/usr/libexec/amethystora-agent-tools policy --json | jq -e '.allow == "act" and .root == "session" and .allow_for == {}' >/dev/null
+grep -q "amethystora/agent.conf" /usr/libexec/amethystora-security-watch
+[[ "$(jq -r '.items[] | select(.id == "agent-root") | [.choices[].value] | join(" ")' <<<"${CONTROL_LIST}")" == "session minutes each terminal" ]]
+[[ "$(jq -r '.items[] | select(.id == "agent-lock") | [.choices[].value] | join(" ")' <<<"${CONTROL_LIST}")" == "act know off" ]]
+[[ -z "$(jq -c '.items[] | select(.id == "agent-root" or .id == "agent-lock") | .choices[] | select(.terminal != true)' <<<"${CONTROL_LIST}")" ]]
 
 # The agent's tools (plans/PLAN-agentic-os.md): an MCP server over stdio that lists nothing for an account
 # with the features off and the five read-only tools once they are on, over an index of the manual, the

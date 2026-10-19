@@ -169,6 +169,49 @@ impl Conf {
     }
 }
 
+/// Whether an account by this name exists, as the system knows them (a domain's included)
+pub fn account_exists(name: &str) -> bool {
+    let Ok(name) = std::ffi::CString::new(name) else { return false };
+    let mut buffer = vec![0 as libc::c_char; 16384];
+    let mut entry: libc::passwd = unsafe { std::mem::zeroed() };
+    let mut result: *mut libc::passwd = std::ptr::null_mut();
+    let found = unsafe { libc::getpwnam_r(name.as_ptr(), &mut entry, buffer.as_mut_ptr(), buffer.len(), &mut result) };
+    found == 0 && !result.is_null()
+}
+
+/// `amethystora-agent-tools conf ...`, as root: one change to agent.conf, written whole and moved into place.
+///
+///   conf allow act|know|off [ACCOUNT]   the most every account, or one account, may turn on
+///   conf allow default ACCOUNT          that account follows everyone's again
+///   conf root session|minutes|each|terminal
+pub fn change_conf(path: &Path, args: &[String]) -> Result<Conf, String> {
+    if unsafe { libc::geteuid() } != 0 {
+        return Err("the AI agent's lock and root mode are an administrator's: run it with sudo".into());
+    }
+    let mut conf = Conf::read(path);
+    let words: Vec<&str> = args.iter().map(String::as_str).collect();
+    match words.as_slice() {
+        ["allow", "default", account] if account_name(account) => {
+            conf.allow_for.remove(*account);
+        }
+        ["allow", level] => conf.allow = Level::parse(level).ok_or("a level is act, know or off")?,
+        ["allow", level, account] => {
+            let level = Level::parse(level).ok_or("a level is act, know, off or default")?;
+            if !account_name(account) || !account_exists(account) {
+                return Err(format!("there is no account {account}"));
+            }
+            conf.allow_for.insert(account.to_string(), level);
+        }
+        ["root", mode] => conf.root = RootMode::parse(mode).ok_or("a root mode is session, minutes, each or terminal")?,
+        _ => return Err("usage: conf allow act|know|off [ACCOUNT] | conf allow default ACCOUNT | conf root session|minutes|each|terminal".into()),
+    }
+    let next = path.with_extension("conf.new");
+    std::fs::write(&next, conf.render()).map_err(|error| format!("{}: {error}", next.display()))?;
+    std::fs::set_permissions(&next, std::os::unix::fs::PermissionsExt::from_mode(0o644)).map_err(|error| error.to_string())?;
+    std::fs::rename(&next, path).map_err(|error| format!("{}: {error}", path.display()))?;
+    Ok(conf)
+}
+
 /// The account's config folder, ~/.config/amethystora, as the launcher and the theme scripts have it
 pub fn config_dir() -> PathBuf {
     let base = std::env::var_os("XDG_CONFIG_HOME")

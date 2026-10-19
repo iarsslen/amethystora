@@ -15,6 +15,7 @@
 #   amethystora-agent list             each agent, whether it is installed, and its name
 #   amethystora-agent on|off           turn the agentic features on or off (ame agent toggle)
 #   amethystora-agent status           print whether they are on; exits 1 when off
+#   amethystora-agent policy [--json]  what this account may use, the administrator's lock and root mode
 #   amethystora-agent sync             link or unlink the skills to match, run at every login
 #   amethystora-agent search|read|state|history ...
 #                                      the agent's tools' answers in a terminal (amethystora-agent-tools)
@@ -62,8 +63,14 @@ usage() {
     sed -n '3,/^$/p' "$0" | sed 's/^# \?//'
 }
 
+# On for this account, and not locked off by an administrator (/etc/amethystora/agent.conf, ame agent lock)
 enabled() {
-    [[ -e ${ENABLED} ]]
+    [[ -e ${ENABLED} ]] && [[ "$(ceiling)" != off ]]
+}
+
+# The most this account may turn on, as the administrator set it: act, know or off
+ceiling() {
+    "${TOOLS}" policy --ceiling 2>/dev/null || echo act
 }
 
 # The agent's name, for people to read
@@ -392,6 +399,7 @@ case "${1:-}" in
         echo "Agent: $(title "$2")"
         ;;
     on)
+        [[ "$(ceiling)" != off ]] || die "an administrator turned the AI agent off for this account (ame agent lock)"
         mkdir -p "${CONFIG_DIR}"
         touch "${ENABLED}"
         sync_skills
@@ -417,6 +425,9 @@ case "${1:-}" in
             name="$(agent)"
             have "${name}" || name+=", not installed yet"
             echo "Agentic features: on (${name})"
+        elif [[ -e ${ENABLED} ]]; then
+            echo "Agentic features: off (an administrator locked them)"
+            exit 1
         else
             echo "Agentic features: off"
             exit 1
@@ -425,6 +436,11 @@ case "${1:-}" in
     sync)
         sync_skills
         sync_tools
+        ;;
+    # What this account may use, and the administrator's lock and root mode: the one reader of agent.conf
+    policy)
+        shift
+        exec "${TOOLS}" policy "$@"
         ;;
     # The tools' answers in a terminal, for a person or an agent without MCP
     search | read | state | history)

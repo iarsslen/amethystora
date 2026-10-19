@@ -135,6 +135,7 @@ installed() {
 read_in_background grub amethystora-grub-theme status
 read_in_background agent amethystora-agent status
 read_in_background agents amethystora-agent list
+read_in_background policy amethystora-agent policy --json
 read_in_background widgets amethystora-widgets list --json
 read_in_background webapps amethystora-webapp list --json
 read_in_background image /usr/bin/amethystora-rollback-helper --choices
@@ -438,6 +439,11 @@ GROUP=""
 # --- The AI agent ----------------------------------------------------------------------------------
 
 if [[ "${AGENTIC}" == true ]]; then AGENT_STATE=on; else AGENT_STATE=off; fi
+# The account's own level and what the administrator allows it (amethystora-agent policy, agent.conf's one reader)
+POLICY="$(said policy)"
+jq -e 'type == "object"' <<<"${POLICY}" >/dev/null 2>&1 || POLICY='{}'
+[[ "$(jq -r '.ceiling // "act"' <<<"${POLICY}")" != off ]] ||
+    REASON="$(gettext "An administrator turned the AI agent off for this account.")"
 switch_choices false ame agent toggle
 USAGE="ame agent toggle on|off"
 item agent agent switch "$(gettext "Agentic features")" \
@@ -469,6 +475,38 @@ if [[ "${AGENTIC}" == true && -n "${MISSING}" ]]; then
     USAGE="ame agent install"
     item agent agent-install action "$(eval_gettext "Install \${name}")" "${words}" "" ai-agent#installing-and-updating
 fi
+
+COMMAND=(ame agent history)
+TERMINAL=false
+BUTTON="$(gettext "Show")"
+USAGE="ame agent history"
+[[ "${AGENTIC}" == true ]] || REASON="$(gettext "The agentic features are off.")"
+item agent agent-history action "$(gettext "What the agent changed")" \
+    "$(gettext "Every change the agent's tools made, newest first, each with its id for undoing it.")" "" ai-agent#history-and-undo
+
+# What an administrator sets for every account (/etc/amethystora/agent.conf): how the agent's root commands are
+# allowed, and the lock. Here by the maintainer's choice of 2026-10-18, an exception to Security keeping every
+# security setting: these govern the agent, not a security feature, and each opens in a terminal for an
+# administrator's password.
+GROUP="$(gettext "For every account, set by an administrator")"
+choice session "$(gettext "Once per agent session")" \
+    "$(gettext "One password, then until the agent ends, the screen locks or an hour passes")" true ame agent root session
+choice minutes "$(gettext "For five minutes")" "$(gettext "One password, then five minutes for that agent alone")" true ame agent root minutes
+choice each "$(gettext "Every time")" "$(gettext "A password for every command")" true ame agent root each
+choice terminal "$(gettext "In a terminal")" \
+    "$(gettext "Each command opens in a terminal, where you read it and type your password for sudo")" true ame agent root terminal
+USAGE="ame agent root session|minutes|each|terminal"
+item agent agent-root choice "$(gettext "Root commands")" \
+    "$(gettext "How the agent may run a command as root, once you let it make changes. It asks you first every time, in the agent.")" \
+    "$(jq -r '.root // "session"' <<<"${POLICY}")" ai-agent#root-commands
+choice act "$(gettext "Know and change")" "$(gettext "Both levels, as each account chooses")" true ame agent lock act
+choice know "$(gettext "Only know")" "$(gettext "The agent and its read-only tools, but no changes")" true ame agent lock know
+choice off "$(gettext "Off")" "$(gettext "No agent features for anyone")" true ame agent lock off
+USAGE="ame agent lock [ACCOUNT] act|know|off"
+item agent agent-lock choice "$(gettext "Lock for every account")" \
+    "$(gettext "The most any account may turn on; one account can be given its own with ame agent lock ACCOUNT LEVEL. For a child's account, Parental Controls' app filter is the stronger tool.")" \
+    "$(jq -r '.allow // "act"' <<<"${POLICY}")" ai-agent#the-lock
+GROUP=""
 
 # --- System ----------------------------------------------------------------------------------------
 

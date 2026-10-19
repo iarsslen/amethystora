@@ -1262,7 +1262,7 @@ DRIFT_PATHS=(amethystora audit authselect brave/policies chromium/policies clamd
     polkit-1/rules.d profile profile.d rc.d/rc.local security ssh/sshd_config ssh/sshd_config.d sudoers
     sudoers.d sysctl.conf sysctl.d tmpfiles.d udev/rules.d usbguard xdg/autostart)
 # ...less what the image's own recipes and services write there as a matter of course
-EXPECTED_DRIFT=" amethystora/security.conf amethystora/ips-allowed amethystora/browser-extensions \
+EXPECTED_DRIFT=" amethystora/security.conf amethystora/agent.conf amethystora/ips-allowed amethystora/browser-extensions \
 amethystora/hardening-off amethystora/hardening-on amethystora/firewall-home amethystora/vscodium-extensions \
 amethystora/abusech.key \
 audit/audit.rules audit/audit.rules.prev audit/rules.d/60-amethystora.rules audit/rules.d/61-amethystora-home.rules \

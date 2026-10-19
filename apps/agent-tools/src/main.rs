@@ -5,7 +5,10 @@
 //!   amethystora-agent-tools read ID                  without MCP (amethystora-agent search|read|state)
 //!   amethystora-agent-tools state TOPIC [FILTER]
 //!   amethystora-agent-tools history [ID]
-//!   amethystora-agent-tools policy [--json]          what this account may use, and the administrator's settings
+//!   amethystora-agent-tools policy [--json|--level|--ceiling]
+//!                                                    what this account may use, and the administrator's settings
+//!   amethystora-agent-tools conf allow act|know|off|default [ACCOUNT] | conf root MODE
+//!                                                    as root: the administrator's lock and root mode (ame agent lock, root)
 //!   amethystora-agent-tools index --write DIR [--root ROOT] [--sources-only] [--model DIR]
 //!                                                    the index, when the image is built
 //!   amethystora-agent-tools eval GOLDEN [--dir DIR] [--min RECALL]
@@ -18,7 +21,7 @@ use std::process::ExitCode;
 use amethystora_agent_tools::index::build::{self, Sources};
 use amethystora_agent_tools::index::{self, Index, Ranking};
 use amethystora_agent_tools::mcp;
-use amethystora_agent_tools::policy::Policy;
+use amethystora_agent_tools::policy::{self, Policy};
 use amethystora_agent_tools::server::Server;
 use serde_json::{Value, json};
 
@@ -82,10 +85,32 @@ fn main() -> ExitCode {
             let args = rest.first().map(|id| json!({"id": id, "wait": 0})).unwrap_or(json!({}));
             say(Server::default().call("history", &args))
         }
+        "conf" => match policy::change_conf(std::path::Path::new(policy::CONF), rest) {
+            Ok(conf) => {
+                // In the words a note takes: lower case, no spaces
+                let said = format!("allow={}:root={}:accounts={}", conf.allow.word(), conf.root.word(), conf.allow_for.len());
+                // Noted for the security watcher, which then says the change without alarm, as for a switch's own command
+                let _ = std::process::Command::new("/usr/libexec/amethystora-security-config")
+                    .args(["note", "agent-conf", &said])
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .status();
+                println!("{}", conf.render().lines().filter(|line| !line.starts_with('#')).collect::<Vec<_>>().join("\n"));
+                ExitCode::SUCCESS
+            }
+            Err(error) => {
+                eprintln!("{error}");
+                ExitCode::FAILURE
+            }
+        },
         "policy" => {
             let policy = Policy::current();
             if rest.iter().any(|arg| arg == "--json") {
                 println!("{}", policy.json());
+            } else if rest.iter().any(|arg| arg == "--level") {
+                println!("{}", policy.level().word());
+            } else if rest.iter().any(|arg| arg == "--ceiling") {
+                println!("{}", policy.ceiling().word());
             } else {
                 println!(
                     "Level: {} (agentic features {}, changes {}), most allowed: {}, root commands: {}",
