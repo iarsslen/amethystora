@@ -36,10 +36,12 @@ podman exec vmlab-dc dnf -y -q install --setopt=install_weak_deps=False samba-dc
 podman exec vmlab-dc sh -c 'rm -f /etc/samba/smb.conf && samba-tool domain provision --realm=AD.TEST --domain=AD \
     --server-role=dc --dns-backend=SAMBA_INTERNAL --use-rfc2307 --host-name=dc1 --host-ip=${DC_IP} \
     --adminpass=${DC_PASSWORD} >/dev/null'
-podman exec -d vmlab-dc samba --foreground --no-process-group
-for i in \$(seq 40); do podman exec vmlab-dc samba-tool user create alice ${ALICE_PASSWORD} && break; sleep 5; done
+podman exec vmlab-dc samba-tool user create alice ${ALICE_PASSWORD}
 podman exec vmlab-dc samba-tool user setexpiry alice --noexpiry
 touch ${WORK}/dc-ready
+# The server last and in the foreground: systemd stops the unit once its command ends, and a samba left
+# behind by podman exec -d goes with it
+exec podman exec vmlab-dc samba --foreground --no-process-group
 EOF
 systemctl reset-failed vmlab-dc-setup.service 2>/dev/null
 systemd-run --unit=vmlab-dc-setup --collect --quiet -p "StandardOutput=file:${WORK}/dc.log" \
@@ -201,12 +203,19 @@ console_session() { loginctl list-sessions --no-legend | awk -v u="${KID}" '$3 =
 has_console_session() { [[ -n "$(console_session)" ]]; }
 # login's password prompt is up once it has turned the echo off: what is typed before that, it throws away
 password_asked() { stty -F /dev/tty3 -a 2>/dev/null | grep -qw -- -echo; }
+console_in_front() { [[ "$(cat /sys/class/tty/tty0/active)" == tty3 ]]; }
+# The first switch away from GNOME's console in a boot is slow, and what is typed before it lands nowhere:
+# the name again until login asks for the password
 console_login() {
+    local try
     systemctl restart getty@tty3.service
     chvt 3
+    wait_for 20 console_in_front
     sleep 3
-    type_lines "${KID}"
-    wait_for 30 password_asked
+    for try in 1 2 3; do
+        type_lines "${KID}"
+        wait_for 15 password_asked && break
+    done
     type_lines "${KID_PASSWORD}"
     wait_for 20 has_console_session
 }
