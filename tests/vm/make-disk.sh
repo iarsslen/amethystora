@@ -93,10 +93,11 @@ bootc install to-filesystem --generic-image --karg rootflags=subvol=root \
     --karg console=tty0 --karg console=ttyS0,115200 --karg rd.plymouth=0 --karg plymouth.enable=0 "${kargs[@]}" /target
 fs="$(blkid -s UUID -o value "${root}")"
 esp="$(blkid -s UUID -o value "${loop}p1")"
-# What Anaconda writes besides /boot, which bootc wrote
+# What Anaconda writes besides /boot, which bootc wrote; bootc's finalizing left the system read-only
+mount -o remount,rw /target
 deployment="$(ls -d /target/ostree/deploy/default/deploy/*.0)"
 {
-    grep -s . "${deployment}/etc/fstab" | grep -v ' / ' || true
+    grep -s . "${deployment}/etc/fstab" | grep -vE ' /(boot/efi|home)? ' || true
     echo "UUID=${fs} / btrfs subvol=root,compress=zstd:1,x-systemd.device-timeout=0 0 0"
     echo "UUID=${esp} /boot/efi vfat umask=0077,shortname=winnt 0 2"
     echo "UUID=${fs} /home btrfs subvol=home,compress=zstd:1,x-systemd.device-timeout=0 0 0"

@@ -1161,7 +1161,7 @@ put_back() {  # NAME TARGET POOL-JSON
     as_root true || exit 1
     if jq -e '.boot.degraded == true' <<<"${pool}" >/dev/null; then
         for disk in $(jq -r '.devices[] | select(.missing | not) | .disk.path // empty' <<<"${pool}" | sort -u); do
-            part="$(lsblk -nrpo PATH,PARTTYPE "${disk}" | awk -v type="${RAID_TYPE}" 'tolower($2) == type { print $1; exit }')"
+            part="$(boot_half_on "${disk}")"
             [[ -n "${part}" ]] || continue
             grep -qw "${part##*/}" /proc/mdstat && continue
             echo "${part} joins the mirror of /boot again."
@@ -1227,7 +1227,7 @@ replace_system() {  # STATUS POOL-JSON DEVID OLD-KNAME CHOICE
     as_root wipefs -a -q "${lines[@]}" >&2 || die "${disk} could not be erased."
     if [[ "${mirrored}" == true ]]; then
         esp="$(esp_on "${template_disk}")"
-        part="$(lsblk -nrpo PATH,PARTTYPE "${template_disk}" | awk -v type="${RAID_TYPE}" 'tolower($2) == type { print $1; exit }')"
+        part="$(boot_half_on "${template_disk}")"
         [[ -n "${esp}" && -n "${part}" ]] || die "The EFI partition or /boot's half on ${template_disk} could not be found."
         printf 'label: gpt\nsize=%s, type=%s, name="EFI System Partition"\nsize=%s, type=%s, name="boot"\ntype=%s, name="system"\n' \
             "$(($(part_size "${esp}") / 512))" "${ESP_TYPE}" "$(($(part_size "${part}") / 512))" "${RAID_TYPE}" "$(part_type "${template_part}")" |
@@ -1283,6 +1283,7 @@ replace_system() {  # STATUS POOL-JSON DEVID OLD-KNAME CHOICE
             fi
         done
     fi
+    system_crypttab_nofail
     write_boot_entry
     release_updates
     echo "Disk ${devid} of the system is replaced."
@@ -1497,7 +1498,7 @@ with_boot_rw() {
 
 # A kernel argument added to every deployment in place, by ostree, which the next deployment takes its own from
 kargs_add() {  # ARG
-    as_root ostree admin kargs edit-in-place --append-if-missing="$1"
+    with_boot_rw as_root ostree admin kargs edit-in-place --append-if-missing="$1"
 }
 
 # One taken away from every deployment's boot entry, which is what ostree's in-place edit writes too: it has no
@@ -1636,6 +1637,10 @@ part_of() {  # DISK N: the Nth partition of a disk
 }
 # The disk a partition is on
 disk_of_part() { printf '/dev/%s\n' "$(lsblk -ndo PKNAME "$1")"; }
+# A disk's half of /boot's mirror, by its md superblock: the first disk's keeps its old partition type when it joins
+boot_half_on() {  # DISK
+    lsblk -nrpo PATH,TYPE,FSTYPE "$1" | awk '$2 == "part" && $3 == "linux_raid_member" { print $1; exit }'
+}
 # The ESP on a disk
 esp_on() {
     lsblk -nrpo PATH,PARTTYPE,FSTYPE "$1" | awk -v type="${ESP_TYPE}" 'tolower($2) == type && $3 == "vfat" { print $1; exit }'
@@ -1717,6 +1722,20 @@ point_esp_at() {  # ESP BOOT-UUID
 fstab_nofail() {  # MOUNTPOINT
     as_root awk -v mp="$1" '!/^[[:space:]]*#/ && $2 == mp && $4 !~ /(^|,)nofail(,|$)/ { $4 = $4 ",nofail" } { print }' "${FSTAB}" |
         as_root bash -c 'cat >"$1.new" && chmod --reference="$1" "$1.new" && mv -f "$1.new" "$1"' _ "${FSTAB}"
+    as_root systemctl daemon-reload
+}
+
+# The crypttab lines of the system's own LUKS partitions made nofail, as the installer writes them without: with
+# one disk dead the system starts from the others, which a line waiting for the dead one would hold up
+system_crypttab_nofail() {
+    local part uuid
+    for part in $(root_luks); do
+        uuid="$(as_root cryptsetup luksUUID "${part}" 2>/dev/null)" || continue
+        as_root awk -v id="UUID=${uuid}" '!/^[[:space:]]*#/ && $2 == id && $4 !~ /(^|,)nofail(,|$)/ {
+            $4 = (NF < 4 || $4 == "") ? "nofail" : $4 ",nofail" } { print }' "${CRYPTTAB}" |
+            as_root bash -c 'cat >"$1.new" && chmod 0600 "$1.new" && mv -f "$1.new" "$1"' _ "${CRYPTTAB}"
+    done
+    as_root restorecon "${CRYPTTAB}" 2>/dev/null
     as_root systemctl daemon-reload
 }
 
@@ -1822,6 +1841,7 @@ mirror_onto() {  # STATUS [DISK]
     echo "Copying the EFI partition…"
     copy_esp "${esp}" "${new_esp}" "${md_uuid}" || die "The EFI partition could not be copied."
     fstab_nofail /boot/efi
+    system_crypttab_nofail
     entry="$(efi_entry "${new_esp}" "Amethystora (${disk##*/})" "${esp}")" || die "The firmware's boot entry for ${disk} could not be made."
 
     # What the restart from the new disk finishes, which amethystora-raid-boot.service does
@@ -1938,6 +1958,7 @@ mirror_spread() {  # STATUS
     long_run mirror system "Keeping a copy of the system on each of its disks" "${target}" \
         btrfs balance start -dconvert=raid1 -mconvert=raid1,soft "${target}" ||
         die "That did not finish: journalctl -u amethystora-raid-mirror-system says why. Running it again carries on."
+    system_crypttab_nofail
     write_boot_entry
     echo "Done: every file of the system is on each of its disks."
 }

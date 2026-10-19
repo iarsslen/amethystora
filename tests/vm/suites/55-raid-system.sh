@@ -183,6 +183,8 @@ mirroring)
         "(.devices | length) == 2 and .layout == \"raid1\" and .metadata == \"raid1\" and .encrypted
          and any(.devices[]; .disk.serial == \"SPARE-3\") and (.problems | index(\"restart\")) != null"
     remember NEW_ESP "$(lsblk -nrpo PATH "${NEW_DISK}" | sed -n 2p)"
+    # By its partition's UUID too: with SPARE-3 unplugged later, SPARE-4 takes its /dev/sdX name
+    remember NEW_ESP_PARTUUID "$(lsblk -ndo PARTUUID "${NEW_ESP}" | tr '[:upper:]' '[:lower:]')"
     remember NEW_BOOT "$(lsblk -nrpo PATH "${NEW_DISK}" | sed -n 3p)"
     remember NEW_ROOT "$(lsblk -nrpo PATH,TYPE "${NEW_DISK}" | awk '$2 == "part" { p = $1 } END { print p }')"
     remember NEW_LUKS "$(luks_of "${NEW_ROOT}")"
@@ -347,7 +349,7 @@ replacing)
         "! grep -qs '${NEW_LUKS}' /boot/loader/entries/*.conf /etc/crypttab"
     check "SPARE-4's key is in both" sh -c "u=\$(cryptsetup luksUUID ${REPLACED_ROOT}); grep -q \$u /etc/crypttab && grep -q \"rd.luks.uuid=luks-\$u\" /boot/loader/entries/ostree-1.conf"
     check "the firmware's entry for SPARE-3 is gone, SPARE-4 has one" sh -c \
-        "! efibootmgr -v | grep -qi '$(lsblk -ndo PARTUUID "${NEW_ESP}" 2>/dev/null || echo none)' && efibootmgr | grep -q 'Amethystora ($(basename "${REPLACED_DISK}"))'"
+        "! efibootmgr -v | grep -qi '${NEW_ESP_PARTUUID}' && efibootmgr | grep -q 'Amethystora ($(basename "${REPLACED_DISK}"))'"
     has_tpm "${REPLACED_ROOT}" && ok "the TPM holds a key for SPARE-4" || not_ok "no TPM key on SPARE-4"
     step replaced
     next_boot '{"absent": [3], "credentials": {"cryptsetup.passphrase": null}}'
