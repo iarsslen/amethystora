@@ -138,7 +138,7 @@ single)
         continue_phase
     fi
     holds "the system is on one disk again" "$(system_json)" '. == null'
-    systemctl start amethystora-raid-boot.service
+    systemctl restart amethystora-raid-boot.service
     check "and the boot menu's entry for a disk missing went with the second disk" sh -c \
         "! grep -qs amethystora-degraded /boot/grub2/custom.cfg"
     rm -f "${SUDOERS}"
