@@ -508,9 +508,12 @@ case "${SUITE_PHASE}" in
     check "the file written at the start is there" sh -c '[ "$(cat /var/mnt/data/marker)" = data ]'
     check "writing works: ${TEST_USER} writes 512 MiB" as_user 'head -c 512M /dev/urandom >/var/mnt/data/degraded && sync'
     degraded_sum="$(sha256sum /var/mnt/data/degraded | cut -d ' ' -f 1)"
-    holds "the status: a disk missing, still two copies, part of it written with one" "$(pool_json data)" \
-        '.mounted and .missing == 1 and .layout == "raid1" and .degraded
-         and any(.problems[]; . == "missing") and any(.problems[]; . == "degraded")'
+    # What was written went into new chunks of one copy only where the two-copy ones had no room left: the status
+    # says so exactly when there are some
+    echo "# chunks of one copy after the write: $(pool_json data | jq -c .degraded)"
+    holds "the status: a disk missing, still two copies, and says so of what was written with one" "$(pool_json data)" \
+        '.mounted and .missing == 1 and .layout == "raid1" and any(.problems[]; . == "missing")
+         and (.degraded == any(.problems[]; . == "degraded"))'
     run_check
     check "the check tells ${TEST_USER}: A disk of the pool data is missing, naming ${MISSING_SERIAL}" \
         wait_for 60 notified "A disk of the pool data is missing" "${MISSING_SERIAL}"
