@@ -213,7 +213,7 @@ finished)
         not_ok "the passphrase was asked ${VMLAB_PROMPTS:-?} times for the system's two disks"
     [[ "$(started_from)" == "${NEW_ESP_PARTUUID}" ]] && ok "the machine started from the new disk (Boot$(boot_current))" ||
         not_ok "the machine started from Boot$(boot_current), not the new disk's Boot${NEW_ENTRY}"
-    wait_for 300 sh -c '! systemctl is-active --quiet amethystora-raid-boot.service'
+    wait_for 300 sh -c '[ "$(systemctl show -p ActiveState --value amethystora-raid-boot.service)" != activating ]'
     log="$(journalctl -b -u amethystora-raid-boot.service --no-pager -o cat)"
     says "amethystora-raid-boot finished the mirror" "${log}" 'The system is on both disks, and starts from either'
     check "nothing is left to finish" test ! -e /var/lib/amethystora/raid/mirror.json

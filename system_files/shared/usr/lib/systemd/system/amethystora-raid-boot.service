@@ -2,6 +2,8 @@
 Description=Keep the system's disks ready to start, one of them missing or not
 Documentation=file:///usr/share/amethystora/manual/hardware.md
 After=local-fs.target
+# bootupd's own update at each start writes to /boot and the EFI partition, which this may be moving
+After=bootloader-update.service
 Before=amethystora-raid-check.service
 # Stopped after ostree-finalize-staged.service at shutdown, so that the entry is written again from the boot
 # entries an update has just written
