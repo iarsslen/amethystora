@@ -544,9 +544,10 @@ test -L /etc/systemd/user/timers.target.wants/amethystora-pkg-upgrade.timer
 grep -q "^ExecStart=/usr/bin/amethystora-pkg upgrade-all$" /usr/lib/systemd/user/amethystora-pkg-upgrade.service
 jq -e '.modules.distrobox.disable == true' /etc/uupd/config.json >/dev/null
 # Nothing this adds is named after the tools it does the work of. The manual alone may say, once, that
-# importing reads their file format.
+# importing reads their file format; the agent's index leaves that sentence out. The embedding model under
+# agents/knowledge/model is a third party's vocabulary, not text of Amethystora's, and is left out of the search.
 PKG_NAMES='\b(vanilla[ -]?os|apx|vso|sideload)\b'
-grep -rliE "${PKG_NAMES}" /usr/bin/amethystora-pkg /usr/share/amethystora/pkg /usr/share/bash-completion/completions/amepkg \
+grep -rliE --exclude-dir=model "${PKG_NAMES}" /usr/bin/amethystora-pkg /usr/share/amethystora/pkg /usr/share/bash-completion/completions/amepkg \
     /usr/share/bash-completion/completions/amethystora-pkg /usr/share/fish/vendor_completions.d/amepkg.fish \
     /usr/share/fish/vendor_completions.d/amethystora-pkg.fish /usr/share/zsh/site-functions/_amethystora-pkg "${PKG_DESKTOP}" \
     /usr/lib/systemd/user/amethystora-pkg-upgrade.service /usr/lib/systemd/user/amethystora-pkg-upgrade.timer \

@@ -304,6 +304,47 @@ fn kept(passage: &Passage) -> bool {
     !all.contains("duress")
 }
 
+/// The tools amethystora-pkg does the work of, which only the manual's software page names, once (20-tests.sh)
+fn names_other_tools(text: &str) -> bool {
+    static CELL: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    CELL.get_or_init(|| regex::Regex::new(r"(?i)\b(vanilla[ -]?os|apx|vso|sideload)\b").expect("a valid expression")).is_match(text)
+}
+
+/// A passage's text without the sentences that name them; the page itself still says it
+fn unnamed(text: &str) -> String {
+    if !names_other_tools(text) {
+        return text.to_string();
+    }
+    let mut lines = Vec::new();
+    for line in text.lines() {
+        if !names_other_tools(line) {
+            lines.push(line.to_string());
+            continue;
+        }
+        // Its sentences, each ending at a full stop, a question or an exclamation mark before a space
+        let mut kept = String::new();
+        let mut sentence = String::new();
+        let mut chars = line.chars().peekable();
+        while let Some(c) = chars.next() {
+            sentence.push(c);
+            if matches!(c, '.' | '?' | '!') && chars.peek().is_none_or(|next| next.is_whitespace()) {
+                if !names_other_tools(&sentence) {
+                    kept.push_str(&sentence);
+                }
+                sentence.clear();
+            }
+        }
+        if !names_other_tools(&sentence) {
+            kept.push_str(&sentence);
+        }
+        let kept = kept.trim().to_string();
+        if !kept.is_empty() {
+            lines.push(kept);
+        }
+    }
+    lines.join("\n").trim().to_string()
+}
+
 /// Every passage, in the order the index keeps them
 pub fn passages(sources: &Sources) -> Vec<Passage> {
     let mut passages = written(sources);
@@ -315,6 +356,10 @@ pub fn passages(sources: &Sources) -> Vec<Passage> {
         control(sources, &mut passages);
     }
     passages.retain(kept);
+    for passage in &mut passages {
+        passage.text = unnamed(&passage.text);
+    }
+    passages.retain(|passage| !passage.text.is_empty() && !names_other_tools(&passage.title));
     // An id once: a second heading of the same name in a page keeps the first's
     let mut seen = std::collections::HashSet::new();
     passages.retain(|passage| seen.insert(passage.id.clone()));
@@ -442,6 +487,11 @@ mod tests {
         let passage = |text: &str| Passage { id: "x".into(), title: "t".into(), kind: "manual".into(), path: String::new(), text: text.into() };
         assert!(!kept(&passage("A Duress finger")));
         assert!(kept(&passage("A finger")));
+        // The other tools' names leave with their sentence, and nothing else does
+        assert_eq!(unnamed("Templates come first.\n\n`import` also reads the YAML files Apx writes for its stacks.\nThen more."),
+            "Templates come first.\n\nThen more.");
+        assert_eq!(unnamed("One. Like Vanilla OS does. Two."), "One. Two.");
+        assert_eq!(unnamed("Nothing to take out: apex, vsock."), "Nothing to take out: apex, vsock.");
         let set = golden("# q\tids\nno sound\tmanual/hardware#sound|playbook/no-sound\n\n");
         assert_eq!(set.len(), 1);
         assert_eq!(set[0].expected, ["manual/hardware#sound", "playbook/no-sound"]);
