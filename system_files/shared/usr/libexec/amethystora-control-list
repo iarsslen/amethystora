@@ -142,6 +142,14 @@ read_in_background image /usr/bin/amethystora-rollback-helper --choices
 read_in_background bling amethystora-bling status
 read_in_background backgrounds amethystora-theme bg list
 read_in_background raid /usr/libexec/amethystora-raid status --json
+# The quick ones too, which one after another took a fifth of a second in a VM
+read_in_background transitions gsettings list-recursively org.gnome.shell.extensions.amethystora-transitions
+read_in_background animations gsettings get org.gnome.desktop.interface enable-animations
+read_in_background extensions gsettings get org.gnome.shell enabled-extensions
+read_in_background waydroid-enabled systemctl is-enabled waydroid-container.service
+read_in_background waydroid-active systemctl is-active waydroid-container.service
+read_in_background uupd systemctl is-enabled uupd.timer
+read_in_background rpm-ostree systemctl is-enabled rpm-ostreed-automatic.timer
 wait
 
 # --- Appearance ------------------------------------------------------------------------------------
@@ -183,11 +191,10 @@ item appearance wallpaper wallpapers "$(gettext "Wallpaper")" \
     "$(gettext "The pictures of the current theme. Super+Ctrl+Space shows the next one.")" \
     "${CURRENT_PICTURE}" themes#wallpapers
 
-TRANSITIONS=org.gnome.shell.extensions.amethystora-transitions
-if gsettings list-keys "${TRANSITIONS}" >/dev/null 2>&1; then
-    STYLE="$(gsettings get "${TRANSITIONS}" style | tr -d "'")"
-    LENGTH="$(gsettings get "${TRANSITIONS}" duration | sed 's/^uint32 //')"
-    if [[ "$(gsettings get org.gnome.desktop.interface enable-animations 2>/dev/null)" == false ]]; then
+if [[ "$(ended transitions)" == 0 ]]; then
+    STYLE="$(said transitions | sed -n "s/^[^ ]* style '\(.*\)'$/\1/p")"
+    LENGTH="$(said transitions | sed -n 's/^[^ ]* duration \(uint32 \)\{0,1\}//p')"
+    if [[ "$(said animations)" == false ]]; then
         DETAIL="$(gettext "Nothing is shown while animations are off in Settings, under Accessibility.")"
     fi
 else
@@ -300,7 +307,7 @@ item desktop bling switch "$(gettext "Terminal tools")" \
     "$(gettext "Your shell uses eza for ls, bat for cat and ugrep for grep, with zoxide, direnv and mise, wherever they are installed.")" \
     "${BLING}" terminal#command-line-tools
 
-if gsettings get org.gnome.shell enabled-extensions 2>/dev/null | grep -qF "'gsconnect@andyholmes.github.io'"; then PHONE=on; else PHONE=off; fi
+if said extensions | grep -qF "'gsconnect@andyholmes.github.io'"; then PHONE=on; else PHONE=off; fi
 switch_choices false ame desktop phone
 GROUP="$(gettext "Phone")"
 USAGE="ame desktop phone on|off"
@@ -326,9 +333,9 @@ if [[ "${GAMES}" == on ]]; then
 fi
 
 # waydroid-container.service is enabled when Android is set up: the recipe's own test reads root's files
-if [[ "$(systemctl is-enabled waydroid-container.service 2>/dev/null)" == enabled ]]; then
+if [[ "$(said waydroid-enabled)" == enabled ]]; then
     ANDROID=on
-    if systemctl is-active --quiet waydroid-container.service; then
+    if [[ "$(said waydroid-active)" == active ]]; then
         DETAIL="$(gettext "Its container is running.")"
     else
         DETAIL="$(gettext "Its container is stopped.")"
@@ -343,7 +350,7 @@ item apps android switch "$(gettext "Android apps")" \
     "${ANDROID}" games#android-apps
 
 if [[ "${ANDROID}" == on ]]; then
-    if systemctl is-active --quiet waydroid-container.service; then
+    if [[ "$(said waydroid-active)" == active ]]; then
         COMMAND=(ame apps android stop)
         BUTTON="$(gettext "Stop…")"
         USAGE="ame apps android stop"
@@ -879,8 +886,10 @@ fi
 
 # Automatic updates are the Updates window's to switch, and backups the Backups window's, where it is
 # installed: the window links to them, with the first one's state
-if systemctl cat -- uupd.timer &>/dev/null; then TIMER=uupd.timer; else TIMER=rpm-ostreed-automatic.timer; fi
-if systemctl is-enabled --quiet "${TIMER}" 2>/dev/null; then UPDATES=on; else UPDATES=off; fi
+# uupd's timer where the image has it (is-enabled says nothing of a unit there is not), rpm-ostree's otherwise
+TIMER_STATE="$(said uupd)"
+[[ -n "${TIMER_STATE}" ]] || TIMER_STATE="$(said rpm-ostree)"
+if [[ "${TIMER_STATE}" == enabled ]]; then UPDATES=on; else UPDATES=off; fi
 BACKUPS=false
 [[ -x /usr/bin/amethystora-backups ]] && BACKUPS=true
 
