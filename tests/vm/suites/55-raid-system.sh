@@ -56,6 +56,13 @@ says() {
 }
 # The firmware's entry the machine started from, and the entries' numbers by the ESP they name
 boot_current() { efibootmgr | sed -n 's/^BootCurrent: //p'; }
+# The partition UUID of the ESP this start came from, which the BootCurrent entry names: the lab's disk has two
+# entries for its ESP (shim's fallback made one at the first start), so entries are told apart by what they name
+started_from() {
+    efibootmgr -v | awk -v n="Boot$(boot_current)" 'index($0, n) == 1 && match(tolower($0), /hd\([0-9]+,gpt,[0-9a-f-]+/) {
+        split(substr(tolower($0), RSTART, RLENGTH), p, ","); print p[3]; exit }'
+}
+partuuid() { lsblk -ndo PARTUUID "$1" | tr '[:upper:]' '[:lower:]'; }
 entry_of() {  # PARTITION
     local partuuid
     partuuid="$(lsblk -ndo PARTUUID "$1" | tr '[:upper:]' '[:lower:]')"
@@ -141,8 +148,10 @@ setup)
         not_ok "the system is not laid out as the installer does it" "$(lsblk -o NAME,FSTYPE,MOUNTPOINTS)"
     fi
     # The firmware's entry for the system's disk, as Anaconda makes one: first in the boot order
-    efibootmgr --quiet --create --disk "${FIRST_DISK}" --part 1 --label Amethystora --loader '\EFI\fedora\shimx64.efi' >/dev/null
+    [[ -n "$(entry_of "${FIRST_ESP}")" ]] ||
+        efibootmgr --quiet --create --disk "${FIRST_DISK}" --part 1 --label Amethystora --loader '\EFI\fedora\shimx64.efi' >/dev/null
     remember FIRST_ENTRY "$(entry_of "${FIRST_ESP}")"
+    remember FIRST_ESP_PARTUUID "$(partuuid "${FIRST_ESP}")"
     [[ -n "${FIRST_ENTRY}" ]] && ok "the firmware has an entry for the system's disk (Boot${FIRST_ENTRY})" ||
         not_ok "no firmware entry for the system's disk" "$(efibootmgr -v)"
 
@@ -201,7 +210,7 @@ mirroring)
     remember NEW_ENTRY "$(entry_of "${NEW_ESP}")"
     holds "the firmware has an entry for the new disk's shim, after the first, and the next start is from it" \
         "$(efibootmgr | jq -Rsc .)" \
-        "test(\"BootNext: ${NEW_ENTRY}\") and test(\"BootOrder: ${FIRST_ENTRY}[0-9A-F,]*${NEW_ENTRY}\") and test(\"Amethystora \\\\(\")"
+        "test(\"BootNext: ${NEW_ENTRY}\") and test(\"BootOrder: [0-9A-F,]*${FIRST_ENTRY},${NEW_ENTRY}\") and test(\"Amethystora \\\\(\")"
     holds "the new ESP has the boot files, pointed at /boot's mirror" "$(esp_sums "${NEW_ESP}" | jq -Rsc .)" \
         'test("EFI/fedora/shimx64.efi") and test("EFI/fedora/bootuuid.cfg") and test("EFI/BOOT/BOOTX64.EFI")'
     holds "the status: restart to finish" "$(runuser -u "${TEST_USER}" -- "${RAID}" status | jq -Rsc .)" 'test("Restart to finish")'
@@ -214,7 +223,7 @@ mirroring)
 finished)
     [[ "${VMLAB_PROMPTS}" == 1 ]] && ok "the passphrase was asked once for both disks of the system" ||
         not_ok "the passphrase was asked ${VMLAB_PROMPTS:-?} times for the system's two disks"
-    [[ "$(boot_current)" == "${NEW_ENTRY}" ]] && ok "the machine started from the new disk (Boot${NEW_ENTRY})" ||
+    [[ "$(started_from)" == "${NEW_ESP_PARTUUID}" ]] && ok "the machine started from the new disk (Boot$(boot_current))" ||
         not_ok "the machine started from Boot$(boot_current), not the new disk's Boot${NEW_ENTRY}"
     wait_for 300 sh -c '! systemctl is-active --quiet amethystora-raid-boot.service'
     log="$(journalctl -b -u amethystora-raid-boot.service --no-pager -o cat)"
@@ -274,7 +283,7 @@ updated)
     ;;
 
 first-dead)
-    [[ "$(boot_current)" == "${NEW_ENTRY}" ]] && ok "with the first disk gone, the firmware started the second (Boot${NEW_ENTRY})" ||
+    [[ "$(started_from)" == "${NEW_ESP_PARTUUID}" ]] && ok "with the first disk gone, the firmware started the second (Boot$(boot_current))" ||
         not_ok "the machine started from Boot$(boot_current)"
     check "the system is mounted degraded" sh -c 'findmnt -rn -o OPTIONS --mountpoint /sysroot | grep -qw degraded'
     check "/boot is the mirror's half that is left" sh -c "findmnt -rn -o SOURCE --mountpoint /boot | grep -q '^/dev/md'"
@@ -295,7 +304,7 @@ first-dead)
     ;;
 
 first-back)
-    [[ "$(boot_current)" == "${FIRST_ENTRY}" ]] && ok "with the first disk back, the machine starts from it again" ||
+    [[ "$(started_from)" == "${FIRST_ESP_PARTUUID}" ]] && ok "with the first disk back, the machine starts from it again" ||
         not_ok "the machine started from Boot$(boot_current)"
     holds "the status: the first disk is back, not failing" "$(system_json)" \
         '.missing == 0 and any(.devices[]; .returned) and (.problems | index("returned")) != null and (.problems | index("errors")) == null'
@@ -318,7 +327,7 @@ first-back)
     ;;
 
 second-dead)
-    [[ "$(boot_current)" == "${FIRST_ENTRY}" ]] && ok "with SPARE-3 gone, the machine starts from the first disk" ||
+    [[ "$(started_from)" == "${FIRST_ESP_PARTUUID}" ]] && ok "with SPARE-3 gone, the machine starts from the first disk" ||
         not_ok "the machine started from Boot$(boot_current)"
     check "the system is mounted degraded" sh -c 'findmnt -rn -o OPTIONS --mountpoint /sysroot | grep -qw degraded'
     unchoose_degraded

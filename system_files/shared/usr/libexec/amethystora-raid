@@ -1644,6 +1644,16 @@ esp_on() {
     lsblk -nrpo PATH,PARTTYPE,FSTYPE "$1" | awk -v type="${ESP_TYPE}" 'tolower($2) == type && $3 == "vfat" { print $1; exit }'
 }
 
+# The partition UUID of the ESP this start came from, which the firmware's BootCurrent entry names (nothing for an
+# entry that names no partition)
+boot_current_esp() {
+    local current
+    current="$(efibootmgr 2>/dev/null | sed -n 's/^BootCurrent: //p')"
+    [[ -n "${current}" ]] || return 0
+    efibootmgr -v 2>/dev/null | awk -v n="Boot${current}" 'index($0, n) == 1 && match(tolower($0), /hd\([0-9]+,gpt,[0-9a-f-]+/) {
+        split(substr(tolower($0), RSTART, RLENGTH), p, ","); print p[3]; exit }'
+}
+
 # The firmware's entries for an ESP's shim, by the ESP's partition UUID
 efi_entries_of() {  # ESP
     local partuuid
@@ -1873,7 +1883,7 @@ mirror_onto() {  # STATUS [DISK]
 # mirror, its EFI partition points at it, and bootupd updates both. A start from anywhere else changes
 # nothing, and is said.
 mirror_finish() {
-    local state current entry boot_part esp copy reason=""
+    local state current entry boot_part esp copy started reason=""
     state="$(jq -c 'select(type == "object")' "${MIRROR_STATE}" 2>/dev/null)" || return 0
     [[ "$(jq -r .state <<<"${state}")" == pending ]] || return 0
     [[ "$(jq -r .boot_id <<<"${state}")" != "$(cat /proc/sys/kernel/random/boot_id)" ]] || return 0
@@ -1881,7 +1891,10 @@ mirror_finish() {
     current="$(efibootmgr 2>/dev/null | sed -n 's/^BootCurrent: //p')"
     boot_part="$(blkid -t "PARTUUID=$(jq -r .old_boot <<<"${state}")" -o device 2>/dev/null | head -n 1)"
     esp="$(blkid -t "PARTUUID=$(jq -r .old_esp <<<"${state}")" -o device 2>/dev/null | head -n 1)"
-    if [[ "${current}" != "${entry}" ]]; then
+    # Started from the new disk: the ESP the firmware's entry names, whichever entry it was, else that entry
+    started="$(boot_current_esp)"
+    if [[ -n "${started}" && "${started}" != "$(jq -r '.new_esp | ascii_downcase' <<<"${state}")" ]] ||
+        [[ -z "${started}" && "${current}" != "${entry}" ]]; then
         reason="the machine started from Boot${current:-?}, not from the new disk's Boot${entry}; ame system raid mirror tries the restart again"
     elif [[ -z "${boot_part}" || -z "${esp}" ]]; then
         reason="the first disk's /boot or EFI partition is not there"
