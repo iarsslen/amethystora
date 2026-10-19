@@ -108,7 +108,8 @@ notified() {
 
 # Where a copy of a file's first block is, on a disk of the pool: "SPARE-N SECTOR...", its eight 512-byte sectors
 # on that disk, or with "bytes" "SPARE-N OFFSET", its byte offset. btrfs-map-logical gives each copy's device and
-# offset on it; under LUKS the data starts after its header, and the partition where the table says.
+# offset on it; under LUKS the data starts after its header, and the partition where the table says. Never on a disk
+# SKIP names ("SPARE-3 SPARE-5").
 bad_place() {  # FILE [bytes]
     local logical member line device offset part disk serial luks start
     logical="$(filefrag -v "$1" 2>/dev/null | awk '$1 == "0:" { sub(/\.\..*/, "", $4); print $4 * 4096; exit }')"
@@ -129,8 +130,7 @@ bad_place() {  # FILE [bytes]
         disk="$(lsblk -ndo PKNAME "/dev/${part}")"
         serial="$(lsblk -ndo SERIAL "/dev/${disk}")"
         start="$(cat "/sys/class/block/${part}/start")"
-        # Never SPARE-3, which takes the damaged disk's place, nor SPARE-5, larger (10 GiB) than SPARE-3 can replace
-        [[ "${serial}" == SPARE-* && "${serial}" != SPARE-3 && "${serial}" != SPARE-5 ]] || continue
+        [[ "${serial}" == SPARE-* && " ${SKIP:-} " != *" ${serial} "* ]] || continue
         offset=$((start * 512 + luks + offset))
         if [[ "${2:-}" == bytes ]]; then
             echo "${serial} ${offset}"
@@ -663,7 +663,8 @@ case "${SUITE_PHASE}" in
     # that is going does, from the next start (QEMU's blkdebug)
     check "${TEST_USER} writes a file to damage" as_user 'head -c 8M /dev/urandom >/var/mnt/data/damaged && sync'
     remember DAMAGED_SUM "$(sha256sum /var/mnt/data/damaged | cut -d ' ' -f 1)"
-    where="$(bad_place /var/mnt/data/damaged)"
+    # Never on SPARE-3, which takes the damaged disk's place, nor on SPARE-5, larger (10 GiB) than SPARE-3 can replace
+    where="$(SKIP="SPARE-3 SPARE-5" bad_place /var/mnt/data/damaged)"
     if [[ -z "${where}" ]]; then
         not_ok "the damaged file's copies could not be found on the disks" "$(filefrag -v /var/mnt/data/damaged 2>&1 | tail -n 3)"
     else
@@ -742,6 +743,10 @@ case "${SUITE_PHASE}" in
     sum="$(sha256sum /var/mnt/data/corrupted | cut -d ' ' -f 1)"
     where="$(bad_place /var/mnt/data/corrupted bytes)"
     read -r serial offset <<<"${where}"
+    if [[ -z "${serial}" ]]; then
+        not_ok "the file's copies could not be found on the disks" "$(filefrag -v /var/mnt/data/corrupted 2>&1 | tail -n 3)"
+        continue_phase
+    fi
     dd if=/dev/urandom of="$(readlink -f "/dev/disk/by-id/ata-QEMU_HARDDISK_${serial}")" bs=4096 count=16 \
         seek="$((offset / 4096))" oflag=direct conv=notrunc status=none
     echo 3 >/proc/sys/vm/drop_caches
