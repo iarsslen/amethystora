@@ -176,6 +176,11 @@ failed "${out}" run 0 && failed "${out}" run 1 && ok "run refuses shells and loo
 # --- Root, in the session mode: one password for two commands ----------------------------------------------
 
 started="$(date '+%F %T')"
+# The notifications the account's desktop is sent, as its session bus carries them: amethystora-notify-users
+# prints nothing to the journal when its caller keeps what it prints
+user_bus timeout 90 busctl --user monitor org.freedesktop.Notifications >"${OWN}/notify.log" 2>&1 &
+monitor=$!
+sleep 1
 mcp 'pause 6' 'run {"argv": ["id", "-u"], "reason": "the first root command", "root": true}' \
     'run {"argv": ["ls", "/root"], "reason": "the second, same session", "root": true}' 'pause 25' >"${OWN}/session.out" &
 client=$!
@@ -234,8 +239,9 @@ sleep 3
 pgrep -f '^/usr/libexec/amethystora-agent-root' >/dev/null && not_ok "the helper ended with the agent" || ok "the helper ended with the agent"
 journalctl -t amethystora-agent-root --since "${started}" --no-pager -o cat | grep -q "ran as root: id -u" &&
     ok "each root command has its journal line" || not_ok "the journal line" "$(journalctl -t amethystora-agent-root --since "${started}" --no-pager -o cat | tail -5)"
-journalctl --since "${started}" --no-pager -o cat | grep -q "The AI agent ran a command as root" &&
-    ok "and its notification" || not_ok "the notification"
+kill "${monitor}" 2>/dev/null
+grep -q "The AI agent ran a command as root" "${OWN}/notify.log" &&
+    ok "and its notification" || not_ok "the notification" "$(tail -c 600 "${OWN}/notify.log")"
 
 # The screen locked ends the session's helper
 mcp 'pause 4' 'run {"argv": ["true"], "reason": "before the lock", "root": true}' 'pause 40' >"${OWN}/lock.out" &
@@ -246,10 +252,16 @@ as_tester python3 "${OWN}/pkagent.py" "${server:-1}" "${PASSWORD}" 20 >/dev/null
 sleep 15
 # The account's desktop session, not one of the sessions runuser opens
 session="$(loginctl show-user "${TEST_USER}" -p Display --value)"
-if pgrep -f '^/usr/libexec/amethystora-agent-root session' >/dev/null; then
+helper_gone() { ! pgrep -f '^/usr/libexec/amethystora-agent-root session' >/dev/null; }
+if ! helper_gone; then
+    locking="$(date '+%F %T')"
     loginctl lock-session "${session}"
-    wait_for 30 '! pgrep -f "^/usr/libexec/amethystora-agent-root session" >/dev/null' &&
-        ok "the session's helper ends when the screen locks" || not_ok "the helper outlived the lock"
+    if wait_for 30 helper_gone; then
+        ok "the session's helper ends when the screen locks"
+    else
+        not_ok "the helper outlived the lock" "session ${session}: $(loginctl show-session "${session}" -p Type -p LockedHint 2>&1 | paste -sd ' ')" \
+            "$(journalctl -t amethystora-agent-root --since "${locking}" --no-pager -o cat | tail -3)"
+    fi
     loginctl unlock-session "${session}"
 else
     not_ok "a helper to lock out" "$(cat "${OWN}/lock.out" | tail -c 400)"
