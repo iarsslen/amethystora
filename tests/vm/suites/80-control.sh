@@ -368,7 +368,7 @@ frames = [app.get_child_at_index(i) for i in range(app.get_child_count())] if ap
 sys.exit(0 if any(f and f.get_state_set().contains(Atspi.StateType.ACTIVE) for f in frames) else 1)
 EOF
     }
-    SWITCH="toggle button"
+    SWITCH=switch
     WINDOW_UNIT="vmlab-control-${RANDOM}"
     user_bus systemd-run --user --unit="${WINDOW_UNIT}" --collect --quiet --setenv=LC_ALL=en_US.UTF-8 \
         --setenv=LANGUAGE=en -- /usr/bin/amethystora-control desktop
@@ -396,9 +396,9 @@ EOF
         check "the window says it opened in a terminal" atspi wait 20 "It opened in a terminal"
         atspi click "Desktop" >/dev/null 2>&1
         rm -f "${CONFIG}/no-greeting"
+        # The terminal closed as a person closes it: its window, with what runs in it
         pkill -u "${TEST_USER}" -f "amethystora-in-terminal ame system clean"
-        sleep 3
-        pkill -u "${TEST_USER}" -f "amethystora-in-terminal ame system clean"
+        pkill -u "${TEST_USER}" -x ptyxis
         if wait_for 30 window_active; then
             ok "the window has the focus back once the terminal closes"
         else
@@ -409,9 +409,11 @@ EOF
         else
             not_ok "the window did not read the list again after the terminal" "$(atspi tree 2>&1 | grep -iA2 greeting | head -n 12)"
         fi
-        # The keybindings link opens the Manual on its page
-        atspi click "Keybindings" >/dev/null 2>&1
-        check "the Keybindings card opens the Manual on the keybindings" wait_for 60 pgrep -u "${TEST_USER}" -f "amethystora-manual.* keybindings"
+        # The keybindings link, its Open button the page's only one, opens the Manual on its page (or turns the
+        # Manual already open, the welcome, to it)
+        atspi click "Open" button >/dev/null 2>&1
+        check "the Keybindings card opens the Manual on the keybindings" \
+            user_bus python3 "${OWN}/atspi.py" amethystora-manual wait 60 "built to be driven from the keyboard"
         pkill -u "${TEST_USER}" -f "^/usr/lib/amethystora-manual/amethystora-manual" || true
     else
         not_ok "Control did not show its Desktop page" "$(journalctl -b _SYSTEMD_USER_UNIT="${WINDOW_UNIT}.service" --no-pager -o cat | tail -n 15)"
@@ -423,6 +425,9 @@ fi
 # --- Phase 2: the terminal cards that download little -------------------------------------------------------
 if [[ "${SUITE_PHASE}" == 2 ]]; then
     allow_root
+    # An installed machine mounts /boot from a partition of its own, read and write; a lab disk keeps it in the
+    # system's, which is read-only
+    if findmnt -n -o OPTIONS /boot | grep -qw ro; then mount -o remount,rw /boot; fi
     in_card 300 -- boot-menu on
     card_ok "the boot menu artwork turned on in a terminal: ${CARD}" \
         "amethystora-grub-theme status | grep -q '^on:'" "[[ \"\$(state boot-menu)\" == on ]]"
@@ -430,11 +435,26 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     card_ok "and off: ${CARD}" "amethystora-grub-theme status | grep -q '^off:'" "[[ \"\$(state boot-menu)\" == off ]]"
 
     if [[ -d /sys/kernel/sched_ext ]]; then
-        in_card 120 -- scheduler lavd
-        card_ok "the CPU scheduler set to lavd: ${CARD}" "[[ \"\$(state scheduler)\" == lavd ]]" \
-            "systemctl is-enabled --quiet scx_loader.service"
-        # Verify: what the card reads, as the account
-        check "an account reads which sched-ext scheduler runs (root/ops)" as_user "grep -q '^lavd' /sys/kernel/sched_ext/root/ops"
+        # The first of the three the kernel takes; a kernel that takes none gets its own back, as the recipe says
+        took=""
+        for name in lavd bpfland flash; do
+            in_card 120 -- scheduler "${name}"
+            if [[ ${STATUS} == 0 ]]; then took="${name}"; break; fi
+            # The recipe ends with 1 once it has put the kernel's own back
+            [[ ${STATUS} == 1 ]] && STATUS=0
+            card_ok "a scheduler the kernel refuses (${name}) leaves the kernel's own, and says why: ${CARD}" \
+                "[[ \"\$(state scheduler)\" == kernel ]]" "! systemctl is-enabled --quiet scx_loader.service" \
+                "[[ ! -e /etc/scx_loader/config.toml ]]" "grep -q 'did not take scx_${name}' <<<\"\${OUT}\""
+            echo "# the kernel refused scx_${name}: $(grep -m1 -E 'failed to load|Error' <<<"${OUT}" | sed 's/^ *//' | cut -c1-200)"
+        done
+        if [[ -n "${took}" ]]; then
+            card_ok "the CPU scheduler set to ${took}: ${CARD}" "[[ \"\$(state scheduler)\" == ${took} ]]" \
+                "systemctl is-enabled --quiet scx_loader.service"
+            # Verify: what the card reads, as the account
+            check "an account reads which sched-ext scheduler runs (root/ops)" as_user "grep -q '^${took}' /sys/kernel/sched_ext/root/ops"
+        else
+            skip "this kernel ($(uname -r)) takes none of lavd, bpfland and flash, so root/ops cannot be read here"
+        fi
         in_card 120 -- scheduler kernel
         card_ok "and back to the kernel's own: ${CARD}" "[[ \"\$(state scheduler)\" == kernel ]]" \
             "! systemctl is-enabled --quiet scx_loader.service" "[[ ! -e /etc/scx_loader/config.toml ]]"
@@ -465,11 +485,13 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     card_ok "the firmware settings declined at the question, and nothing restarts: ${CARD}" \
         "sleep 5" "[[ \"\$(cat /proc/sys/kernel/random/boot_id)\" == '${boot}' ]]"
 
-    in_card 600 'Prune all Podman images and volumes\?' y '?Docker images and volumes\?' y \
+    in_card 600 'Prune all Podman images and volumes\?' y '?Docker images and volumes\?|Proceed with these changes' y \
         '?Proceed with these changes' y -- clean
     card_ok "free disk space, every question answered yes: ${CARD}"
 
-    in_card 900 '?Proceed with these changes' y -- flatpaks
+    # An app of the list that Flathub ended in favour of another is offered in its place first, which the
+    # first boot's flatpak preinstall -y accepts
+    in_card 900 '?Replace\? \[Y/n\]|Proceed with these changes' y '?Proceed with these changes' y -- flatpaks
     card_ok "the apps this image comes with, installed now: ${CARD}"
 
     # The image and the stream: the helper starts on the choice made, and asks before switching; declined there
@@ -523,12 +545,15 @@ if [[ "${SUITE_PHASE}" == 3 ]]; then
         card_ok "and draws with the machine's own driver here" "! grep -q 'draws in software' <<<\"\${OUT}\"" \
             "! grep -q swiftshader /var/lib/waydroid/waydroid.cfg"
     fi
+    # Set up, its container runs, so the card offers Stop first
+    json_holds "the card offers to stop Android, whose container runs" "$(item android-run)" '.title == "Stop Android"'
     in_card 120 -- android-run
-    card_ok "Android started: ${CARD}" "systemctl is-active --quiet waydroid-container.service" \
+    card_ok "Android stopped, still set up: ${CARD}" "! systemctl is-active --quiet waydroid-container.service" \
+        "systemctl is-enabled --quiet waydroid-container.service" "[[ \"\$(state android)\" == on ]]" \
+        "item android-run | jq -e '.title == \"Start Android\"'"
+    in_card 120 -- android-run
+    card_ok "and started again: ${CARD}" "systemctl is-active --quiet waydroid-container.service" \
         "item android-run | jq -e '.title == \"Stop Android\"'"
-    in_card 120 -- android-run
-    card_ok "and stopped, still set up: ${CARD}" "! systemctl is-active --quiet waydroid-container.service" \
-        "systemctl is-enabled --quiet waydroid-container.service" "[[ \"\$(state android)\" == on ]]"
     in_card 300 'Remove Android, with every app' y -- android off
     card_ok "and taken away: ${CARD}" "[[ \"\$(state android)\" == off ]]" \
         "! systemctl is-enabled --quiet waydroid-container.service" "[[ ! -e /var/lib/waydroid ]]"
@@ -588,9 +613,14 @@ if [[ "${SUITE_PHASE}" == 5 ]]; then
     in_card 1500 -- cli
     card_ok "the command-line tools installed from Homebrew, the terminal tools on: ${CARD}" "[[ \"\$(state bling)\" == on ]]" \
         "as_user 'brew list eza'"
-    in_card 600 'would you like to install it\?' y 'Some of these take a while' '' '?(?i)brewfile|search|filter|package' $'\x03' -- bbrew
-    card_ok "Bold Brew installed, its lists offered: ${CARD}" "as_user 'command -v bbrew'"
-    in_card 300 '(?i)brewfile|search|filter|package|cncf' $'\x03' -- cncf
+    # Bold Brew installed from its tap, a list picked (ai-tools, the first), its window drawn, then left with
+    # Ctrl+C, whatever it ends with then
+    in_card 900 'would you like to install it\?' y 'Some of these take a while' '' 'full-desktop' $'\r' \
+        '(?i)bold brew|homebrew|search|install' $'\x03' -- bbrew
+    [[ ${STATUS} == 124 ]] || STATUS=0
+    card_ok "Bold Brew installed, a list picked and shown: ${CARD}" "as_user 'brew list bbrew'"
+    in_card 300 '(?i)bold brew|homebrew|search|install' $'\x03' -- cncf
+    [[ ${STATUS} == 124 ]] || STATUS=0
     card_ok "the cloud native tools' list opens in Bold Brew: ${CARD}"
     take_root_away
 fi
