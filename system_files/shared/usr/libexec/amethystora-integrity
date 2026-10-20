@@ -137,11 +137,12 @@ class Store:
             (folder,))}
 
     def under(self, path):
-        """Every row of every folder from PATH down, folder by folder, a folder before what is in it"""
+        """Every row of every folder from PATH down, folder by folder, a folder before what is in it. The range
+        alone, before the OR, is what lets SQLite take it from the index on dirs.path rather than scan every row."""
         return self.con.execute(
             "SELECT d.path, e.name, e.kind, e.ino, e.ctime, e.mtime, e.size, e.nlink, e.mode, e.uid, e.gid, e.ref "
-            "FROM dirs d JOIN entries e ON e.dir = d.id WHERE d.path = ? OR (d.path >= ? AND d.path < ?) "
-            "ORDER BY d.path", (path, path + "/", path + "0")).fetchall()
+            "FROM dirs d JOIN entries e ON e.dir = d.id WHERE d.path >= ? AND d.path < ? "
+            "AND (d.path = ? OR d.path >= ?) ORDER BY d.path", (path, path + "0", path, path + "/")).fetchall()
 
     def put(self, path, name, row):
         self.con.execute("INSERT OR REPLACE INTO entries VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -158,8 +159,8 @@ class Store:
 
     def drop_tree(self, path):
         """PATH's own row, and every row from it down"""
-        for (sub,) in self.con.execute("SELECT path FROM dirs WHERE path = ? OR (path >= ? AND path < ?)",
-                                       (path, path + "/", path + "0")).fetchall():
+        for (sub,) in self.con.execute("SELECT path FROM dirs WHERE path >= ? AND path < ? AND (path = ? OR path >= ?)",
+                                       (path, path + "0", path, path + "/")).fetchall():
             folder = self.dir_id(sub, False)
             self.con.execute("DELETE FROM entries WHERE dir = ?", (folder,))
             self.con.execute("DELETE FROM dirs WHERE id = ?", (folder,))
