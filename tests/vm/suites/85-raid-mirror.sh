@@ -48,7 +48,8 @@ boot_rw() { mount -o "remount,bind,$1" /boot; }
 choose_degraded() { boot_rw rw && sed -i '1i set default=amethystora-degraded # vmlab' /boot/grub2/custom.cfg; sync; boot_rw ro; }
 unchoose_degraded() { boot_rw rw && sed -i '/# vmlab$/d' /boot/grub2/custom.cfg; sync; boot_rw ro; }
 
-wait_for 300 has_session || { skip "no session for ${TEST_USER} (10-account.sh)"; finish; }
+# The account only: everything here runs through runuser, with or without a session (83-logins leaves none)
+getent passwd "${TEST_USER}" >/dev/null || { skip "no account ${TEST_USER} (10-account.sh)"; finish; }
 [[ "${SUITE_PHASE}" == 1 ]] && { install -d -m 0700 "${TESTS}"; : >"${ENV_FILE}"; remember STEP plug; }
 printf '%s ALL=(ALL) NOPASSWD: ALL\n' "${TEST_USER}" >"${SUDOERS}"
 chmod 0440 "${SUDOERS}"
