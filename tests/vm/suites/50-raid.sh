@@ -310,6 +310,13 @@ case "${SUITE_PHASE}" in
     echo "# status --json with two pools, as ${TEST_USER}: ${times[*]} ms"
     ((times[1] < 1000)) && ok "status --json answers well inside Control's second (${times[1]} ms)" ||
         not_ok "status --json takes ${times[1]} ms, more than Control's second"
+    if ((times[1] >= 1000)); then
+        # Where the time went: each step of the status traced with its start, the slowest first
+        runuser -u "${TEST_USER}" -- env PS4='+ ${EPOCHREALTIME} ' bash -x "${RAID}" status --json 2>&1 >/dev/null |
+            awk 'match($0, /^\++ [0-9]+\.[0-9]+ /) { split(substr($0, 1, RLENGTH), f, " "); t = f[2]
+                    if (prev != "") printf "%6.0f ms  %s\n", (t - prev) * 1000, substr(line, 1, 140)
+                    prev = t; line = substr($0, RLENGTH + 1) }' | sort -rn | head -n 12 | sed 's/^/# slow: /'
+    fi
 
     # TPM unlock is for the system's disk, and an encrypted pool is not that
     luks="$("${RAID}" root-luks)"
