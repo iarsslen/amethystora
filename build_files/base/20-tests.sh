@@ -2025,6 +2025,10 @@ bash /ctx/build_files/shared/test-security-reader.sh
 test -x /usr/libexec/amethystora-integrity
 systemctl is-enabled amethystora-integrity.timer amethystora-integrity.path >/dev/null
 grep -qx "PathChanged=/var/lib/flatpak/.changed" /usr/lib/systemd/system/amethystora-integrity.path
+# Every line of them one this systemd reads: verify warns of an ignored one (CPUAccounting=, since 258), and
+# exits 0 all the same, while the journal says it at every boot
+[[ -z "$(systemd-analyze verify --man=no --recursive-errors=no \
+    /usr/lib/systemd/system/amethystora-integrity.{service,timer,path} 2>&1)" ]]
 grep -q "^app-integrity " /usr/share/amethystora/just/security.just
 # ...which the person at the machine starts without a password, and nothing more of the unit
 INTEGRITY_RULE=/usr/share/polkit-1/rules.d/50-amethystora-integrity.rules
