@@ -142,6 +142,10 @@ clean "the first run"
 jq -e '.flatpak.apps == 1 and .flatpak.objects > 0 and .flatpak.files > 0 and .system.objects > 0' "${STATE}/last.json" \
     >/dev/null || fail "last.json: $(cat "${STATE}/last.json")"
 clean "nothing changed"
+# Nor does it write a row: each is kept by its stat
+before="$(sha256sum <"${STATE}/system.db")"
+clean "nothing changed, again"
+[[ "$(sha256sum <"${STATE}/system.db")" == "${before}" ]] || fail "a run with nothing new rewrote its rows"
 
 # What must say nothing: a second checkout, which adds a link to every object; a chmod to the same mode; an update
 ostree checkout --repo="${FP}/repo" -U "${COMMIT}" "${T}/second"

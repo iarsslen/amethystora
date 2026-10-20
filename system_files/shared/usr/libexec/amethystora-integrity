@@ -207,8 +207,9 @@ def row_of(st, kind, ref=None, dirty=False):
 
 
 def unchanged(row, st):
-    return row[1:9] == (st.st_ino, st.st_ctime_ns, st.st_mtime_ns, st.st_size, st.st_nlink, st.st_mode,
-                        st.st_uid, st.st_gid)
+    """ROW may be a list (recheck's): a list never equals a tuple"""
+    return tuple(row[1:9]) == (st.st_ino, st.st_ctime_ns, st.st_mtime_ns, st.st_size, st.st_nlink, st.st_mode,
+                               st.st_uid, st.st_gid)
 
 
 def relinked(row, st):
