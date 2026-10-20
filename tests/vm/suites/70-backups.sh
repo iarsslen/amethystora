@@ -534,6 +534,9 @@ check "amethystora-backups --at=POINT FOLDER opens there" shown_at "${S1}" Docum
 
 # --- The window: when the backup goes wrong --------------------------------------------------------------
 
+# The window offers the agent only while the account has the agentic features on, which are off as shipped
+as_tester ame agent toggle on >/dev/null 2>&1
+check "the account turns the agentic features on" as_tester amethystora-agent status
 as_tester sh -c 'date -d "8 days ago" +%s >"$HOME/.local/state/amethystora/backup-last-success"'
 json_check "a week without a good backup is stale" "$(restore status)" '.backup.stale'
 report="$(as_tester /usr/libexec/amethystora-security-status --json 2>/dev/null)"
@@ -584,6 +587,7 @@ else
     not_ok "the failing backup did not end within 5 minutes" "$(says | tail -n 30)"
 fi
 as_tester sh -c "printf '%s' '${REPO_PASSWORD}' >\"\$HOME/.config/amethystora/backup-password\""
+as_tester ame agent toggle off >/dev/null 2>&1
 
 check "Change… opens ame backup setup in a terminal" atspi click "Change…" button
 check "where the recipe runs" wait_for 60 pgrep -u "${TEST_USER}" -f '00-entry.just backup setup'
