@@ -763,6 +763,26 @@ grep -q "polkit.Result.AUTH_ADMIN" "${UUPD_RULE}"
 # Fedora leaves that to GNOME Software, which this image does not have
 command -v fwupdmgr >/dev/null
 [[ "$(systemctl is-enabled fwupd-refresh.timer 2>/dev/null)" == "enabled" ]]
+# An update that leaves the kernel, the initramfs and the kernel arguments alone finishes with a soft reboot
+# (amethystora-soft-reboot, Restart now and `ame update restart`). bootc says when, and only does when two
+# builds of the same packages make the same initramfs (19-initramfs.sh): nothing of the build's version in its
+# os-release, and no out-of-tree driver but NVIDIA's, which akmods builds anew for every image...
+test -x /usr/libexec/amethystora-soft-reboot
+bash -n /usr/libexec/amethystora-soft-reboot
+test -f /usr/lib/systemd/system/soft-reboot.target
+ame --show update >/dev/null
+INITRD_RELEASE="$(lsinitrd -f usr/lib/initrd-release /lib/modules/*/initramfs.img)"
+grep -q '^ID=amethystora' <<<"${INITRD_RELEASE}"
+grep -E '^(OSTREE_VERSION|IMAGE_VERSION|BUILD_ID)=' <<<"${INITRD_RELEASE}" && false
+grep -q "^VERSION=\"$(. /usr/lib/os-release && echo "${VERSION_ID}") dracut-" <<<"${INITRD_RELEASE}"
+grep -E 'lib/modules/[^/]+/(extra|updates)/.*\.ko' <<<"${INITRAMFS_FILES}" | grep -v '/nvidia' && false
+# ...which the system still has, os-release and modules-load.d as they were
+cmp /etc/os-release /usr/lib/os-release
+if compgen -G "/usr/lib/modules/*/extra/v4l2loopback" >/dev/null; then grep -rqsx v4l2loopback /usr/lib/modules-load.d; fi
+# Its status is anyone's to ask, and the update is mounted for the restart only by the person at the machine
+SOFT_RULE=/usr/share/polkit-1/rules.d/50-amethystora-soft-reboot.rules
+grep -q 'command == "/usr/libexec/amethystora-soft-reboot status") {' "${SOFT_RULE}"
+grep -q 'reset") && subject.local && subject.active' "${SOFT_RULE}"
 
 # The Notes app asks a security key for a passkey through libfido2's tools (fido2-tools). Its sealing is the
 # program's own, AES-256-GCM under a key from scrypt, which the apps stage's tests hold to the vaults the
@@ -797,26 +817,6 @@ CONTROL_LIST="$(GSETTINGS_BACKEND=memory /usr/libexec/amethystora-control-list -
 jq -e '.items | length > 20' <<<"${CONTROL_LIST}" >/dev/null
 [[ -z "$(jq -r '.items[].id' <<<"${CONTROL_LIST}" | sort | uniq -d)" ]]
 [[ -z "$(jq -r '.items[].kind' <<<"${CONTROL_LIST}" |
-# An update that leaves the kernel, the initramfs and the kernel arguments alone finishes with a soft reboot
-# (amethystora-soft-reboot, Restart now and `ame update restart`). bootc says when, and only does when two
-# builds of the same packages make the same initramfs (19-initramfs.sh): nothing of the build's version in its
-# os-release, and no out-of-tree driver but NVIDIA's, which akmods builds anew for every image...
-test -x /usr/libexec/amethystora-soft-reboot
-bash -n /usr/libexec/amethystora-soft-reboot
-test -f /usr/lib/systemd/system/soft-reboot.target
-ame --show update >/dev/null
-INITRD_RELEASE="$(lsinitrd -f usr/lib/initrd-release /lib/modules/*/initramfs.img)"
-grep -q '^ID=amethystora' <<<"${INITRD_RELEASE}"
-grep -E '^(OSTREE_VERSION|IMAGE_VERSION|BUILD_ID)=' <<<"${INITRD_RELEASE}" && false
-grep -q "^VERSION=\"$(. /usr/lib/os-release && echo "${VERSION_ID}") dracut-" <<<"${INITRD_RELEASE}"
-grep -E 'lib/modules/[^/]+/(extra|updates)/.*\.ko' <<<"${INITRAMFS_FILES}" | grep -v '/nvidia' && false
-# ...which the system still has, os-release and modules-load.d as they were
-cmp /etc/os-release /usr/lib/os-release
-if compgen -G "/usr/lib/modules/*/extra/v4l2loopback" >/dev/null; then grep -rqsx v4l2loopback /usr/lib/modules-load.d; fi
-# Its status is anyone's to ask, and the update is mounted for the restart only by the person at the machine
-SOFT_RULE=/usr/share/polkit-1/rules.d/50-amethystora-soft-reboot.rules
-grep -q 'command == "/usr/libexec/amethystora-soft-reboot status") {' "${SOFT_RULE}"
-grep -q 'reset") && subject.local && subject.active' "${SOFT_RULE}"
     grep -vxE 'switch|choice|range|action|link|themes|wallpapers|widgets|webapps|trust-image|setup|disks')" ]]
 [[ -z "$(jq -c '.items[] | (.command // empty), (.choices // [] | .[].command), (.commands // {} | .[].command),
     (.disks // [] | .[].actions[].command) | select(.[0] != "ame" or .[1] == "security")' <<<"${CONTROL_LIST}")" ]]
