@@ -297,7 +297,7 @@ takes away the old `no-agentic` marker and tells an account that had them on, on
 accurate when you change a command, path or recipe that it names. The main skill is a short core (under
 7 KB, `20-tests.sh`) and `references/<topic>.md` files it names, read only when needed.
 
-**Two levels, and the tools** (`plans/PLAN-agentic-os.md`). Level 1, "Agentic features", is the agent, its
+**Two levels, and the tools** (`plans/done/PLAN-agentic-os.md`). Level 1, "Agentic features", is the agent, its
 skills and Amethystora's own read-only tools; level 2, "Let the agent make changes" (`ame agent tools on`,
 the marker `~/.config/amethystora/agent-tools`, which needs level 1), adds the tools that change things.
 The tools are one Rust program, `apps/agent-tools` (`/usr/libexec/amethystora-agent-tools`, no GTK): an MCP
@@ -814,7 +814,8 @@ Its manual section is `security.md#backups`. The sidebar draws the same wordmark
 
 `ame system raid` (`/usr/libexec/amethystora-raid`, run as the user, asking sudo for each step that
 needs root) makes btrfs RAID pools from spare disks with one command, `ame system raid create`, and
-replaces, adds, opens and forgets them. Its plan, with what is left to do, is `plans/PLAN-raid.md`.
+replaces, adds, opens and forgets them. Its plan, done and tested in the VM lab on 2026-10-20, is
+`plans/done/PLAN-raid.md`.
 
 - **btrfs's own RAID, nothing installed.** Every layout is offered, each with its cost said first: two
   and three copies, raid10, raid5 and raid6 with btrfs's own warning, and combined. Metadata is raid1 on

@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# The AI agent's tools (plans/PLAN-agentic-os.md), as an account uses them through an agent: an MCP client
+# The AI agent's tools (plans/done/PLAN-agentic-os.md), as an account uses them through an agent: an MCP client
 # (mcp.py) starts /usr/libexec/amethystora-agent-tools as an agent would, and polkit's password prompts are
 # answered as the person at the machine would (pkagent.py, the test account's own password). One phase:
 #   - off as shipped, and the update's one notice to an account that had the agent on

@@ -2319,7 +2319,7 @@ grep -q "amethystora/agent.conf" /usr/libexec/amethystora-security-watch
 [[ "$(jq -r '.items[] | select(.id == "agent-lock") | [.choices[].value] | join(" ")' <<<"${CONTROL_LIST}")" == "act know off" ]]
 [[ -z "$(jq -c '.items[] | select(.id == "agent-root" or .id == "agent-lock") | .choices[] | select(.terminal != true)' <<<"${CONTROL_LIST}")" ]]
 
-# The agent's tools (plans/PLAN-agentic-os.md): an MCP server over stdio that lists nothing for an account
+# The agent's tools (plans/done/PLAN-agentic-os.md): an MCP server over stdio that lists nothing for an account
 # with the features off and the five read-only tools once they are on, over an index of the manual, the
 # skills, the knowledge and the image's own reference, written when the image was built
 AGENT_TOOLS=/usr/libexec/amethystora-agent-tools
