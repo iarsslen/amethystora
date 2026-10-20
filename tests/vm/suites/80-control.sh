@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-# Amethystora Control (plans/PLAN-control.md, step 7): every card tried as the window tries it, and the questions
+# Amethystora Control (plans/done/PLAN-control.md, step 7): every card tried as the window tries it, and the questions
 # the plan's "Verify" list left open answered on a running machine. A card's command is the one the list the
 # window reads gives it (amethystora-control-list --json), run as the window runs it: a direct one as its
 # argument vector in the account's session, with no terminal; one the list opens in a terminal on a terminal of
