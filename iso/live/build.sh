@@ -84,6 +84,20 @@ install -Dpm0644 "${LIVE}/amethystora-install-sealed.desktop" \
 { grep -rlI --null 'Fedora' /usr/share/anaconda/gnome /usr/share/applications/liveinst.desktop 2>/dev/null || true; } |
     xargs -0 -r sed -i 's/\bFedora\b/Amethystora/g'
 
+# liveinst takes a release package whose release starts with 0. for a pre-release, and Fedora's
+# generic-release is one (44-0.2): the web installer would show a "Pre-release" badge on a stable image
+sed -i -E 's/(ANACONDA_ISFINAL=)"?false"?/\1"true"/' /usr/bin/liveinst
+if grep -nE 'ANACONDA_ISFINAL="?false' /usr/bin/liveinst; then
+    echo "liveinst still calls the live system a pre-release" >&2
+    exit 1
+fi
+# ...and its last page, on every release, asks for feedback on Fedora's forum, with a QR code for it
+webui=/usr/share/cockpit/anaconda-webui
+zcat "${webui}/index.js.gz" | grep -c 'className:"feedback-section"' >/dev/null
+{ zcat "${webui}/index.css.gz"; echo '.feedback-section { display: none !important; }'; } |
+    gzip -9n >"${webui}/index.css.gz.new"
+mv "${webui}/index.css.gz.new" "${webui}/index.css.gz"
+
 # --- The live session --------------------------------------------------------------------------------
 
 # Nothing that would download, scan or set up a machine for good runs in a session that ends at
