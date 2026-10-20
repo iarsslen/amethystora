@@ -130,8 +130,19 @@ if [[ "${SUITE_PHASE}" == 4 ]]; then
     check "and none of the old /etc" test ! -e "/etc/${MARK}"
     check "and none of the old /var" test ! -e "/var/lib/${MARK}"
     check "and no home folders" test ! -e "${HOME_DIR}"
-    check "while the old installation's home folders stay on the disk" \
-        test -e "/sysroot/ostree/deploy/${old}/var/home/${TEST_USER}/${MARK}"
+    # In its /var, or in a subvolume of their own at the top of the btrfs, as the installer makes them (and
+    # 70-backups.sh does on a lab disk)
+    homes_kept() {
+        local device kept=1
+        test -e "/sysroot/ostree/deploy/${old}/var/home/${TEST_USER}/${MARK}" && return 0
+        device="$(findmnt -no SOURCE /sysroot | sed 's/\[.*//')"
+        mkdir -p /run/vmlab-top
+        mount -o ro,subvolid=5 "${device}" /run/vmlab-top || return 1
+        test -e "/run/vmlab-top/home/${TEST_USER}/${MARK}" && kept=0
+        umount /run/vmlab-top
+        return "${kept}"
+    }
+    check "while the old installation's home folders stay on the disk" homes_kept
     check "and its /etc" sh -c "ls /sysroot/ostree/deploy/${old}/deploy/*/etc/${MARK}"
     entries="$(ls /boot/loader/entries/ 2>/dev/null | wc -l)"
     old_entries="$(grep -l "/${old}/" /boot/loader/entries/*.conf 2>/dev/null | wc -l)"
