@@ -1,0 +1,10 @@
+# Microsoft's firmware for its wireless adapters for Xbox controllers, which no licence lets the image pass on:
+# `ame apps xbox-adapter on` fetches it from Microsoft's update catalog on the machine. One adapter a line: its
+# USB product ID (vendor 045e), the address of Microsoft's driver package and its SHA-256, the file in it, and
+# that file's SHA-256, which is what xone's own install/firmware.sh checks (OpenGamingCollective/xonedo). The
+# driver asks for xone_dongle_<ID>.bin. The security watcher takes a file in /var/lib/amethystora/firmware only
+# when it is one of these. Microsoft has not changed them since 2017, and Renovate cannot follow them.
+02e6 https://catalog.s.download.windowsupdate.com/d/msdownload/update/driver/drvs/2017/03/2ea9591b-f751-442c-80ce-8f4692cdc67b_6b555a3a288153cf04aec6e03cba360afe2fce34.cab d89a72e8dc10b7c4f16d5c887fe7f54c34c22005ac1f360704d5d9462258ef32 FW_ACC_00U.bin 080ce4091e53a4ef3e5fe29939f51fd91f46d6a88be6d67eb6e99a5723b3a223
+02fe https://catalog.s.download.windowsupdate.com/c/msdownload/update/driver/drvs/2017/07/1cd6a87c-623f-4407-a52d-c31be49e925c_e19f60808bdcbfbd3c3df6be3e71ffc52e43261e.cab 65736a84ff4036645b8f8ec602bed91ab6353019c9cb3233decab9feec0f6f04 FW_ACC_00U.bin 48084d9fa53b9bb04358f3bb127b7495dc8f7bb0b3ca1437bd24ef2b6eabdf66
+02f9 https://catalog.s.download.windowsupdate.com/c/msdownload/update/driver/drvs/2017/06/1dbd7cb4-53bc-4857-a5b0-5955c8acaf71_9081931e7d664429a93ffda0db41b7545b7ac257.cab 90dd91fb67460d387407fd8109c0e7d0f18f4b659be0f62db858a1849ead2ee0 FW_ACC_CL.bin 0023a7bae02974834500c665a281e25b1ba52c9226c84989f9084fa5ce591d9b
+091e https://catalog.s.download.windowsupdate.com/d/msdownload/update/driver/drvs/2017/08/aeff215c-3bc4-4d36-a3ea-e14bfa8fa9d2_e58550c4f74a27e51e5cb6868b10ff633fa77164.cab 5a8fbad9521e58cc697a8734720ca497673098022d61d91a88be433002ccd8f2 FW_ACC_BR.bin e2710daf81e7b36d35985348f68a81d18bc537a2b0c508ffdfde6ac3eae1bad7

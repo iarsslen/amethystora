@@ -515,6 +515,24 @@ if jq -e '.Devices[]? | select(.Plugin == "uefi_dbx" and ((.Releases // []) | le
         "$(gettext "Until the newer list is installed, Secure Boot still starts boot programs known to let an attacker past it. fwupd refuses to install it while a boot program on this machine is one the list refuses.")" \
         "$(gettext "Install it with:")"
 fi
+# The machine's own firmware, from the same answer: its makers' fixes, security holes among them. A device can be
+# listed with no release that passes fwupd's filters, which is nothing to install.
+if ! jq -e '.Devices | type == "array"' <<<"${FIRMWARE_UPDATES}" >/dev/null 2>&1; then
+    report updates firmware info "$(gettext "Firmware updates")" \
+        "$(gettext "fwupd did not answer, so whether firmware updates are waiting is not known")"
+else
+    mapfile -t WAITING < <(jq -r '.Devices[] | select(.Plugin != "uefi_dbx" and ((.Releases // []) | length > 0))
+        | "\(.Name // .DeviceId): \(.Version // "?") → \(.Releases[0].Version // "?")"' <<<"${FIRMWARE_UPDATES}")
+    if [[ ${#WAITING[@]} -gt 0 ]]; then
+        N="${#WAITING[@]}"
+        COMMAND="fwupdmgr update"
+        report updates firmware check "$(gettext "Firmware updates")" \
+            "$(eval_ngettext "\${N} firmware update is waiting" "\${N} firmware updates are waiting" "${N}")" "${WAITING[@]}" \
+            "$(gettext "Install them from System Updates, or with this, which can restart the machine:")"
+    else
+        report updates firmware ok "$(gettext "Firmware updates")" "$(gettext "No firmware update is waiting")"
+    fi
+fi
 
 # DMA: a device on the PCIe bus, a Thunderbolt one included, reads and writes memory by itself unless the
 # IOMMU keeps it to what it was given. The kernel says for each Thunderbolt domain whether that protects it.
@@ -894,23 +912,32 @@ if [[ ${#KARGS_OFF[@]} -gt 0 ]]; then
     turned_off updates kernel-args "$(gettext "Kernel arguments")" "$(eval_gettext "Turned off, from the next restart: \${KARGS}")" \
         "$(gettext "Each one can be turned back on alone.")"
 fi
+MODPROBE_FILES=()
 if hardening_off blocked-modules; then
     COMMAND="ame security blocked-modules on"
     turned_off updates blocked-modules "$(gettext "Blocked kernel modules")" "$(gettext "Rarely used kernel modules are no longer blocked")" \
-        "$(gettext "Old network protocols and filesystems, FireWire and test drivers can load, and a flaw in one of them can be reached.")"
+        "$(gettext "Old network protocols and filesystems and test drivers can load, and a flaw in one of them can be reached.")"
 else
-    SHOWCONFIG="$(modprobe --showconfig 2>/dev/null)"
-    if [[ -n "${SHOWCONFIG}" ]]; then
-        # What modprobe blocks, read in one pass: a grep over the whole configuration for each module took seconds
-        declare -A BLOCKED=()
-        while read -r _ module _; do
-            BLOCKED["${module}"]=1
-        done < <(grep -x 'install [^ ]* /usr/bin/false' <<<"${SHOWCONFIG}")
-        while read -r _ module _; do
-            [[ -n "${BLOCKED[${module//-/_}]-}" ]] ||
-                DIFFERS+=("$(eval_gettext "The kernel module \${module} is no longer blocked")")
-        done < <(grep '^install ' /usr/lib/modprobe.d/60-amethystora-hardening.conf)
-    fi
+    MODPROBE_FILES+=(/usr/lib/modprobe.d/60-amethystora-hardening.conf)
+fi
+if hardening_off firewire; then
+    COMMAND="ame security firewire on"
+    turned_off updates firewire "$(gettext "FireWire")" "$(gettext "FireWire is no longer blocked")" \
+        "$(gettext "A FireWire device plugged in can read and write this machine's memory by itself.")"
+else
+    MODPROBE_FILES+=(/usr/lib/modprobe.d/61-amethystora-firewire.conf)
+fi
+SHOWCONFIG="$([[ ${#MODPROBE_FILES[@]} -gt 0 ]] && modprobe --showconfig 2>/dev/null)"
+if [[ -n "${SHOWCONFIG}" ]]; then
+    # What modprobe blocks, read in one pass: a grep over the whole configuration for each module took seconds
+    declare -A BLOCKED=()
+    while read -r _ module _; do
+        BLOCKED["${module}"]=1
+    done < <(grep -x 'install [^ ]* /usr/bin/false' <<<"${SHOWCONFIG}")
+    while read -r _ module _; do
+        [[ -n "${BLOCKED[${module//-/_}]-}" ]] ||
+            DIFFERS+=("$(eval_gettext "The kernel module \${module} is no longer blocked")")
+    done < <(cat "${MODPROBE_FILES[@]}" | grep '^install ')
 fi
 while IFS=$'\t' read -r change path detail; do
     case "${change}" in

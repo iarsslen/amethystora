@@ -39,7 +39,7 @@ for karg in rw rootflags=compress=zstd:1,subvol=root quiet rhgb systemd.import_c
     proc_mem.force_override=ptrace systemd.tty.term.console=dumb; do
     [[ " ${CMDLINE} " == *" ${karg} "* ]]
 done
-if [[ "$(jq -r '."image-flavor"' "${T}/usr/share/amethystora/image-info.json")" == nvidia-open ]]; then
+if [[ "$(jq -r '."image-flavor"' "${T}/usr/share/amethystora/image-info.json")" == nvidia-* ]]; then
     [[ " ${CMDLINE} " != *" lockdown="* ]]
 else
     [[ " ${CMDLINE} " == *" lockdown=integrity "* ]]

@@ -265,6 +265,76 @@ opentabletdriver ACTION="":
         *) exit 0 ;;
     esac
 
+# Microsoft's wireless adapter for Xbox controllers (ACTION: on or off; without it, you are asked). Its driver is in
+# the image, and its firmware, which the image may not pass on, is downloaded from Microsoft. Wired and Bluetooth
+# controllers need neither.
+[positional-arguments]
+xbox-adapter ACTION="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # One line an adapter: product ID, driver package, its SHA-256, the file in it, that file's SHA-256
+    PINS=/usr/share/amethystora/xone/firmware
+    # Read by the kernel before the image's own firmware, so it is root's, and the security watcher takes no file
+    # in it but the ones pinned above (tmpfiles.d/amethystora-firmware.conf)
+    FIRMWARE=/var/lib/amethystora/firmware
+    KARG="firmware_class.path=${FIRMWARE}"
+    BLACKLIST=/etc/modprobe.d/xone.conf
+    action="${1:-}"
+    if [[ -e "${BLACKLIST}" ]] || compgen -G "${FIRMWARE}/xone_dongle_*.bin" >/dev/null; then
+        echo "The Xbox wireless adapter is set up."
+        [[ -n "${action}" ]] || action="$(gum choose --header "Xbox wireless adapter" "Take it away" "Cancel")"
+    else
+        [[ -n "${action}" ]] || action="$(gum choose --header "Xbox wireless adapter" "Set up" "Cancel")"
+    fi
+    case "${action}" in
+        "Set up" | on)
+            if [[ -e /usr/share/amethystora/sealed ]]; then
+                echo "This machine is sealed: its kernel arguments are inside the signed kernel image, and firmware"
+                echo "kept outside the image would not be covered by its seal. The adapter cannot be set up here;"
+                echo "Xbox controllers still work over Bluetooth or a USB cable."
+                exit 1
+            fi
+            echo "Microsoft's wireless adapter for Xbox controllers, and the one some laptops have built in, needs"
+            echo "Microsoft's firmware, which the image may not pass on. This downloads Microsoft's driver packages"
+            echo "from its update catalog, checks each against the checksum pinned in the image, and keeps the"
+            echo "firmware in ${FIRMWARE}, where the kernel looks first from the next restart. The"
+            echo "firmware is subject to Microsoft's Terms of Use: https://www.microsoft.com/en-us/legal/terms-of-use"
+            echo
+            echo "The adapter is a MediaTek MT7612U chip, and Linux's Wi-Fi driver for that chip (mt76x2u) would take it"
+            echo "first, so this keeps that driver from loading: a USB Wi-Fi stick with the same chip (Netgear A6210 and"
+            echo "many AC1200 sticks) stops working until ame apps xbox-adapter off."
+            gum confirm "Set up the Xbox wireless adapter?" || exit 0
+            TMP="$(mktemp -d)"
+            trap 'rm -rf "${TMP}"' EXIT
+            while read -r id url package file sum; do
+                curl -fL --progress-bar -o "${TMP}/${id}.cab" "${url}"
+                if [[ "$(sha256sum "${TMP}/${id}.cab" | cut -d" " -f1)" != "${package}" ]]; then
+                    echo "Microsoft's driver package for adapter ${id} does not match its pinned checksum. Nothing was installed."
+                    exit 1
+                fi
+                cabextract -q -F "${file}" -d "${TMP}/${id}" "${TMP}/${id}.cab"
+                if [[ "$(sha256sum "${TMP}/${id}/${file}" | cut -d" " -f1)" != "${sum}" ]]; then
+                    echo "The firmware in it does not match its pinned checksum. Nothing was installed."
+                    exit 1
+                fi
+                mv "${TMP}/${id}/${file}" "${TMP}/xone_dongle_${id}.bin"
+            done < <(grep -v '^#' "${PINS}")
+            sudo install -d -m 0755 "${FIRMWARE}"
+            sudo install -m 0644 "${TMP}"/xone_dongle_*.bin "${FIRMWARE}/"
+            sudo restorecon -R "${FIRMWARE}" 2>/dev/null || true
+            sudo install -m 0644 /usr/share/amethystora/xone/xone.conf "${BLACKLIST}"
+            sudo rpm-ostree kargs --append-if-missing="${KARG}" >/dev/null
+            echo
+            echo "Ready from the next restart: restart, then plug the adapter in and pair a controller with it."
+            ;;
+        "Take it away" | off)
+            sudo rm -f "${FIRMWARE}"/xone_dongle_*.bin "${BLACKLIST}"
+            [[ -e /usr/share/amethystora/sealed ]] || sudo rpm-ostree kargs --delete-if-present="${KARG}" >/dev/null
+            echo "Taken away, from the next restart: MT7612U Wi-Fi sticks work again then."
+            ;;
+        *) exit 0 ;;
+    esac
+
 # Install applications from curated Brewfiles (includes full-desktop.Brewfile with GNOME Circle apps)
 bbrew:
     #!/usr/bin/env bash

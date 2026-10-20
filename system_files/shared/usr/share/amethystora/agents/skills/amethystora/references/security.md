@@ -10,7 +10,7 @@
   ones with their values (`/usr/libexec/amethystora-security-config --list`): the watcher and each part
   of it, the virus scanner (`VIRUS_SCAN`, whose daemon holds the signatures in memory), the settings
   audit, the audit log, real-time watching and scanning, notifications. What the image enforces has its
-  own commands: `ame security kernel`, `blocked-modules`, `kernel-args`, `firewall`, `failed-logins`,
+  own commands: `ame security kernel`, `blocked-modules`, `firewire`, `kernel-args`, `firewall`, `failed-logins`,
   `lockout`, `app-sandbox`, `ssh-settings` and `signed-updates` (`/usr/libexec/amethystora-hardening
   status`). `ame security profile off` and `ame security profile default` do all the detection ones, and
   `light`, `balanced` and `thorough` set what looks for new threats (odd processes, secrets read, the

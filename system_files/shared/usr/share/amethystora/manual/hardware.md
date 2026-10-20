@@ -9,8 +9,9 @@ the ones that need a step from you.
 Leave Secure Boot on. With it, the machine only boots a kernel it has checked, and the kernel's
 [lockdown](security.md) has something to stand on.
 
-The kernel modules built into the image, for DisplayLink docks and virtual cameras, are signed with
-Amethystora's own key, and the firmware has to be told to trust it once:
+The kernel modules built into the image, for DisplayLink docks, virtual cameras and Xbox controllers
+over Bluetooth or Microsoft's wireless adapter, and NVIDIA's driver on the NVIDIA images, are signed with
+keys of the image's own, and the firmware has to be told to trust them once:
 
 ```bash
 ame security secure-boot
@@ -32,16 +33,26 @@ does the same, since NVIDIA's driver does not load without the key.
 ## Graphics
 
 - **Intel and AMD** work out of the box. The developer image adds ROCm for GPU compute on AMD.
-- **NVIDIA** needs the `-nvidia-open` images, which carry NVIDIA's open kernel driver ([Installing](installing.md#pick-an-image)).
-  The NVIDIA driver is built for the machine and signed with its own key, which the kernel trusts
-  only with Secure Boot on. So the NVIDIA images turn kernel lockdown on only with Secure Boot, as
-  the kernel itself does, never with an argument of their own.
-- **Installed the image without NVIDIA's driver on a machine with an NVIDIA card?** A few minutes after the
-  first boot a notification offers **Switch images…**, which opens `ame system rebase` on the
-  matching `-nvidia-open` image; it takes signed images only and asks before it switches. An NVIDIA
-  image on a machine without an NVIDIA card offers the image without the driver, which keeps
-  lockdown on. Nothing switches by itself, it is said once for the machine, and **Don't ask again**
-  stops it for good.
+- **NVIDIA** needs one of the NVIDIA images ([Installing](installing.md#pick-an-image)), which carry
+  NVIDIA's driver, and which one depends on the card:
+
+  | Card | Image |
+  | --- | --- |
+  | GeForce 16 and RTX 20 series and newer (Turing on) | `-nvidia-open`, NVIDIA's open driver |
+  | GeForce 900 and 10 series, the GTX 750, Titan V (Maxwell, Pascal, Volta) | `-nvidia-lts`, NVIDIA's closed driver of its 580 branch, the last that drives them |
+  | Older (Kepler and before) | none: the image without NVIDIA's driver, whose open driver nouveau draws on them |
+
+  The NVIDIA driver comes built for the image's kernel and signed with a key of the image's own, which
+  the kernel trusts only with Secure Boot on. So the NVIDIA images turn kernel lockdown on only with
+  Secure Boot, as the kernel itself does, never with an argument of their own. With Secure Boot on,
+  enroll the keys ([above](#secure-boot)) before switching to an NVIDIA image: `ame system rebase`
+  offers to and switches only once they are, since the screen would otherwise stay black.
+- **Installed an image whose driver does not drive the card?** A few minutes after the first boot a
+  notification offers **Switch images…**, which opens `ame system rebase` on the image that does:
+  the `-nvidia-open` or `-nvidia-lts` image on a machine with an NVIDIA card, and on an NVIDIA image
+  with no card NVIDIA's driver drives, the image without it, which keeps lockdown on. It takes signed
+  images only and asks before it switches. Nothing switches by itself, it is said once for the
+  machine, and **Don't ask again** stops it for good.
 
 ## Docks and displays
 
@@ -210,6 +221,56 @@ many Brother and older laser printers are included for the rest. Add a printer i
   then plug it in again.
 - **FIDO2 security keys** can replace your password: [Security](security.md#security-keys).
 
+## Game controllers
+
+Xbox, PlayStation, Nintendo and Steam controllers work over a USB cable or Bluetooth as soon as they
+are connected. Xbox controllers over Bluetooth get rumble, their battery level and the right button
+mappings from xpadneo, which is in the image.
+
+**Microsoft's wireless adapter for Xbox controllers**, and the one some laptops have built in, needs
+Microsoft's firmware, which the image may not pass on. This downloads it from Microsoft, checks it
+against the checksum Amethystora pins, and points the kernel at it from the next restart:
+
+```bash
+ame apps xbox-adapter on
+```
+
+The firmware is subject to Microsoft's terms of use. The adapter is a MediaTek MT7612U chip, so
+Linux's Wi-Fi driver for that chip is kept from loading while it is on: a USB Wi-Fi stick with the
+same chip (the Netgear A6210 and many AC1200 sticks) stops working until `ame apps xbox-adapter off`.
+A [sealed image](updates.md#sealed-images) cannot take firmware from outside the image, so there the
+adapter cannot be set up; controllers still work over Bluetooth or a cable.
+
+## Wi-Fi
+
+Nearly every Wi-Fi card works without anything to install. A few of Broadcom's (the BCM4360, 4352
+and 43142, in older MacBooks and some laptops) have no driver on Amethystora: the only one there is,
+Broadcom's own `wl`, has security holes that anyone in Wi-Fi range can reach (CVE-2019-9501 and
+CVE-2019-9502) and that its licence forbids anyone but Broadcom to fix, and Broadcom stopped
+updating it in 2015. A USB Wi-Fi adapter works instead.
+
+## Sound cards
+
+USB sound cards and audio interfaces work as they are plugged in. FireWire ones need FireWire, which
+is blocked, since a FireWire device can read and write the machine's memory by itself: `ame security
+firewire off` lets it load, for FireWire sound cards, DV cameras and disks, and `on` blocks it again
+([Switches](security.md#switches)).
+
+## When a device does not work
+
+A few minutes after each start, the machine looks for devices whose driver is missing, refused or
+without its firmware, and says each once, with what fixes it where something does. To see what it
+found:
+
+```bash
+ame system drivers          # as the last check found it
+sudo ame system drivers     # looked at now
+```
+
+A module refused while Secure Boot is on means its key is not enrolled ([Secure Boot](#secure-boot)).
+Firmware the image lacks is often a device too new for the image's kernel, which a later update may
+bring. `ame report` puts what the check found in a bug report.
+
 ## Drawing tablets
 
 Most drawing tablets work as soon as they are plugged in, and GNOME's Settings has a page for one once
@@ -233,8 +294,8 @@ away again, and the kernel's drivers come back after a restart. The **Drawing ta
 ## Laptops
 
 Framework laptops get their known fixes at first boot, for suspend, audio and the keyboard, and the
-13-inch model a text size to suit its screen. Keep the firmware current on every machine: **Updates**
-shows what there is, or in a terminal:
+13-inch model a text size to suit its screen. Keep the firmware current on every machine: a
+notification says when an update is waiting, and **Updates** shows what there is, or in a terminal:
 
 ```bash
 fwupdmgr get-updates

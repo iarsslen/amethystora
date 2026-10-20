@@ -35,7 +35,9 @@ In a game's **Properties** in Steam, under **Launch Options**:
 | `gamescope -f -- %command%` | The game in its own compositor, full screen, which helps with games that dislike Wayland |
 
 Game controllers work without anything to set up: Xbox, PlayStation, Nintendo and Steam controllers,
-8BitDo, and the rest that Steam knows of. **Add another launcher** adds Heroic or Lutris later, and
+8BitDo, and the rest that Steam knows of. Microsoft's wireless adapter for Xbox controllers needs
+Microsoft's firmware first, `ame apps xbox-adapter on` ([Hardware](hardware.md#game-controllers)).
+**Add another launcher** adds Heroic or Lutris later, and
 **Take it all away** uninstalls them all, with their games, and takes back what was granted:
 
 ```bash

@@ -908,10 +908,15 @@ allow FEATURE="report" ENTRY="" ACTION="":
 kernel ACTION="":
     @/usr/libexec/amethystora-hardening ask kernel "${1:-}"
 
-# Rarely used kernel modules kept from loading: old network protocols and filesystems, FireWire
+# Rarely used kernel modules kept from loading: old network protocols and filesystems, CAN, the floppy
 [positional-arguments]
 blocked-modules ACTION="":
     @/usr/libexec/amethystora-hardening ask blocked-modules "${1:-}"
+
+# FireWire kept from loading, since its devices read and write memory by themselves; off for FireWire sound cards
+[positional-arguments]
+firewire ACTION="":
+    @/usr/libexec/amethystora-hardening ask firewire "${1:-}"
 
 # Kernel arguments, each on its own: the image's (init_on_alloc, vsyscall=none...) and stricter ones (init_on_free...)
 [positional-arguments]

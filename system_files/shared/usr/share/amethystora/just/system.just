@@ -12,6 +12,12 @@ rebase IMAGE="" STREAM="":
 doctor ID="":
     @/usr/libexec/amethystora-doctor ${1:+--only "$1"}
 
+# Devices whose driver is missing, refused or without its firmware, each with what fixes it: as the last check found
+# them, or looked at now with sudo
+[positional-arguments]
+drivers *ARGS:
+    @/usr/libexec/amethystora-driver-status "$@"
+
 # Take an image of your own from REPOSITORY only when KEY, its cosign.pub, checks its signature
 [no-cd]
 [no-exit-message]

@@ -65,7 +65,7 @@ to the agent, which looks into it in a terminal and changes nothing until you ag
   memory, so a compromise of root ends at the next restart. Programs that only read, such as
   `bpftrace`, keep working. With Secure Boot on, the kernel locks itself down at every start. Without
   it, the image turns lockdown on with a kernel argument, but the modules built into the image, such
-  as DisplayLink's, cannot load then ([Hardware](hardware.md#secure-boot)). On a machine where Secure
+  as DisplayLink's and the Xbox controllers', cannot load then ([Hardware](hardware.md#secure-boot)). On a machine where Secure
   Boot cannot be turned on, `ame security lockdown off` leaves the argument out, and
   `ame security lockdown on` puts it back, from the next restart. The NVIDIA images leave the argument
   out, and on a sealed image it is part of the signed kernel and cannot be changed.
@@ -294,7 +294,8 @@ the Settings page and as a command that says what it changes before it does:
 | Command | What it switches | Turned off |
 | --- | --- | --- |
 | `ame security kernel` | Kernel addresses and messages hidden, programs kept from each other's memory, no unprivileged BPF, a panic after a hundred oopses | From the next restart. `gdb -p`, `strace -p`, `perf` and `dmesg` work without `sudo` |
-| `ame security blocked-modules` | Old network protocols and filesystems, FireWire, test and fault-injection drivers, CAN, GNSS, the floppy and parallel ports kept from loading | At once. FireWire sound cards and cameras, disks from old Macs, SCTP, CAN buses |
+| `ame security blocked-modules` | Old network protocols and filesystems, test and fault-injection drivers, CAN, GNSS, the floppy and parallel ports kept from loading | At once. Disks from old Macs, SCTP, CAN buses |
+| `ame security firewire` | FireWire kept from loading, since a FireWire device reads and writes memory by itself | At once. FireWire sound cards, DV cameras and disks ([Hardware](hardware.md#sound-cards)) |
 | `ame security kernel-args` | `init_on_alloc=1`, `slab_nomerge`, `page_alloc.shuffle=1`, `randomize_kstack_offset=on`, `vsyscall=none`, `proc_mem.force_override=ptrace` (only a program's own debugger writes over its code), each on its own | From the next restart. Not on a sealed image. Older releases of the `rr` debugger need the last one off |
 | `ame security firewall` | The Amethystora firewall zone | At once. Fedora Workstation's zone lets in every port from 1025 up; opening one port is the narrower answer |
 | `ame security failed-logins` | Blocking an address after failed SSH logins | At once |

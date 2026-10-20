@@ -16,10 +16,10 @@ VERSION="${VERSION:-00.00000000}"
 IMAGE_INFO="/usr/share/amethystora/image-info.json"
 IMAGE_REF="ostree-image-signed:docker://ghcr.io/$IMAGE_VENDOR/$IMAGE_NAME"
 
-# Image Flavor
+# Image Flavor: the Justfile's flavor, which ends the image's name (amethystora-dx-nvidia-lts)
 image_flavor="main"
-if [[ "${IMAGE_NAME}" =~ nvidia-open ]]; then
-  image_flavor="nvidia-open"
+if [[ "${IMAGE_NAME}" =~ -(nvidia-open|nvidia-lts)$ ]]; then
+  image_flavor="${BASH_REMATCH[1]}"
 fi
 
 # When the base image was built, in seconds since the epoch: the created date of its image configuration,

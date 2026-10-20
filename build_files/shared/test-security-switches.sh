@@ -192,7 +192,7 @@ export AMETHYSTORA_HARDENING_ROOT="${T}/hardening"
 mkdir -p "${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora"
 "${HARDENING}" is-on firewall || fail "a prevention switch is off by default"
 [[ -z "$("${HARDENING}" managed)" ]] || fail "a switch that is on manages a file"
-printf 'kernel\nfirewall\nkernel-args init_on_alloc=1\n' >"${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-off"
+printf 'kernel\nfirewall\nfirewire\nkernel-args init_on_alloc=1\n' >"${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-off"
 "${HARDENING}" is-on firewall && fail "firewall is off"
 "${HARDENING}" is-on kernel-args init_on_alloc=1 && fail "one kernel argument is off"
 "${HARDENING}" is-on kernel-args slab_nomerge || fail "the other kernel arguments are on"
@@ -201,6 +201,9 @@ printf 'kernel\nfirewall\nkernel-args init_on_alloc=1\n' >"${AMETHYSTORA_HARDENI
 MANAGED="$("${HARDENING}" managed)"
 grep -qxP 'sysctl.d/60-amethystora-hardening.conf\tmask' <<<"${MANAGED}" || fail "managed: the kernel's mask"
 grep -qxP 'firewalld/firewalld.conf\tfile' <<<"${MANAGED}" || fail "managed: the firewall's file"
+# FireWire off masks its own file, and leaves the other blocked modules blocked
+grep -qxP 'modprobe.d/61-amethystora-firewire.conf\tmask' <<<"${MANAGED}" || fail "managed: FireWire's mask"
+grep -q 'modprobe.d/60-amethystora-hardening.conf' <<<"${MANAGED}" && fail "FireWire off unblocked the other modules"
 grep -qx 'deny = 0' <<<"$("${HARDENING}" expected security/faillock.conf)" || fail "lockout off is deny = 0"
 grep -qx 'DefaultZone=FedoraWorkstation' <<<"$("${HARDENING}" expected firewalld/firewalld.conf)" || fail "the zone off"
 grep -qE '^(sockets|devices)=' <<<"$("${HARDENING}" expected flatpak/overrides/global)" && fail "the sandbox off keeps a denial"
@@ -245,7 +248,7 @@ grep -qx 'export UV_EXCLUDE_NEWER="7 days"' <<<"$("${HARDENING}" expected profil
     fail "levels and extra arguments in the status"
 rm "${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-on"
 REPORT="$(/usr/libexec/amethystora-security-status --json)"
-for id in firewall kernel kernel-args; do
+for id in firewall firewire kernel kernel-args; do
     jq -e --arg id "${id}" 'any(.checks[]; .id == $id and .state == "info" and .command != null and .switched_off)' <<<"${REPORT}" >/dev/null ||
         fail "${id} switched off is not shown as turned off"
 done

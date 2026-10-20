@@ -142,9 +142,13 @@ and from the restart after that, an update is only accepted if it carries Amethy
 | `ghcr.io/iarsslen/amethystora-dx` | Developers: adds Docker, Incus, libvirt, VSCodium and more ([Developer mode](developer.md)) |
 | `ghcr.io/iarsslen/amethystora-nvidia-open` | The standard desktop with NVIDIA's open kernel driver |
 | `ghcr.io/iarsslen/amethystora-dx-nvidia-open` | Developer mode with NVIDIA's open kernel driver |
+| `ghcr.io/iarsslen/amethystora-nvidia-lts` | The standard desktop with NVIDIA's driver for the GeForce 900 and 10 series |
+| `ghcr.io/iarsslen/amethystora-dx-nvidia-lts` | Developer mode with NVIDIA's driver for the GeForce 900 and 10 series |
 
-Each has its own ISOs ([Download](#download)). On a computer with an NVIDIA card installed without
-NVIDIA's driver, the first boot offers to switch to the matching NVIDIA image ([Hardware](hardware.md#graphics)).
+Each has its own ISOs ([Download](#download)) except the `-nvidia-lts` ones: on a machine that needs one,
+install the standard desktop or developer mode. On a computer with an NVIDIA card installed without the
+driver that drives it, the first boot offers to switch to the NVIDIA image that does
+([Hardware](hardware.md#graphics)).
 
 ## Pick a stream
 

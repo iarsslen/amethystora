@@ -577,14 +577,48 @@ bash /ctx/build_files/shared/test-setup.sh
 # The image switch it makes goes through the rebase helper, which takes signed images only and offers the
 # image without NVIDIA's driver too
 grep -q "^rebase IMAGE=\"\" STREAM=\"\":" /usr/share/amethystora/just/system.just
-jq -e '.images == ["amethystora", "amethystora-dx", "amethystora-nvidia-open", "amethystora-dx-nvidia-open"]' \
-    <<<"$(/usr/bin/amethystora-rollback-helper --choices)" >/dev/null
+jq -e '.images == ["amethystora", "amethystora-dx", "amethystora-nvidia-open", "amethystora-dx-nvidia-open",
+    "amethystora-nvidia-lts", "amethystora-dx-nvidia-lts"]' <<<"$(/usr/bin/amethystora-rollback-helper --choices)" >/dev/null
+# ...and, with Secure Boot on, switches to an NVIDIA image only once the key NVIDIA's driver is signed with is
+# enrolled: before, the NVIDIA image would start to a black screen
+grep -q 'not-enrolled .\*/akmods-amethystora' /usr/bin/amethystora-rollback-helper
 
 # The NVIDIA check, once per machine, through the rebase helper, never switching by itself
 test -x /usr/libexec/amethystora-gpu-check
 grep -q "^ExecCondition=/usr/libexec/amethystora-gpu-check pending$" /usr/lib/systemd/system/amethystora-gpu-check.service
 grep -q "ame system rebase" /usr/libexec/amethystora-gpu-check
 grep -q "kernel lockdown" /usr/libexec/amethystora-gpu-check
+# ...offering the image whose driver drives the card, by its PCI device ID: the open driver from Turing (0x1E00)
+# on, the 580 branch's closed one from Maxwell (0x1340) to Volta, and nouveau, on the image without NVIDIA's
+# driver, for anything older. Tried against stand-in cards and images.
+GPU_TEST="$(mktemp -d)"
+gpu_offer() {
+    local flavor="$1" card
+    rm -rf "${GPU_TEST}/pci"
+    shift
+    for card in "$@"; do
+        mkdir -p "${GPU_TEST}/pci/${card}"
+        echo 0x030000 >"${GPU_TEST}/pci/${card}/class"
+        echo 0x10de >"${GPU_TEST}/pci/${card}/vendor"
+        echo "${card}" >"${GPU_TEST}/pci/${card}/device"
+    done
+    mkdir -p "${GPU_TEST}/pci"
+    jq -n --arg flavor "${flavor}" '{"image-name": ("amethystora-dx" + (if $flavor == "main" then "" else "-" + $flavor end)),
+        "image-flavor": $flavor, "image-tag": "stable"}' >"${GPU_TEST}/info.json"
+    AMETHYSTORA_PCI_DEVICES="${GPU_TEST}/pci" AMETHYSTORA_IMAGE_INFO="${GPU_TEST}/info.json" /usr/libexec/amethystora-gpu-check offer
+}
+[[ "$(gpu_offer main 0x2684)" == "nvidia-card amethystora-dx-nvidia-open" ]]
+[[ "$(gpu_offer main 0x1b80)" == "nvidia-lts-card amethystora-dx-nvidia-lts" ]]
+[[ "$(gpu_offer nvidia-open 0x1b80)" == "nvidia-lts-card amethystora-dx-nvidia-lts" ]]
+[[ "$(gpu_offer nvidia-open 0x1e02 0x1b80)" == "nvidia-lts-card amethystora-dx-nvidia-lts" ]]
+[[ -z "$(gpu_offer main 0x1180)" ]]
+[[ "$(gpu_offer nvidia-lts 0x1180)" == "old-nvidia-card amethystora-dx" ]]
+[[ "$(gpu_offer nvidia-open)" == "no-nvidia-card amethystora-dx" ]]
+[[ -z "$(gpu_offer nvidia-lts 0x2684)" && -z "$(gpu_offer nvidia-lts 0x1340)" && -z "$(gpu_offer nvidia-open 0x1e00)" ]]
+rm -rf "${GPU_TEST}"
+# The image knows its own flavor, which the check and the doctor read: the last part of its name, or main
+jq -e --arg name "${IMAGE_NAME}" '."image-flavor" == ($name | capture("-(?<f>nvidia-(open|lts))$").f // "main")' \
+    /usr/share/amethystora/image-info.json >/dev/null
 grep -q -- "--action" /usr/libexec/amethystora-notify-users
 
 # Resetting settings, the step before starting over: /etc put back as the image ships it, less what the
@@ -1215,6 +1249,8 @@ grep -qx "    @/usr/libexec/amethystora-security-status" /usr/share/amethystora/
 # And as the security watcher runs it, a service with no HOME: the report stopped there, and the watcher, which
 # then has no report, told nobody of anything
 env -u HOME /usr/libexec/amethystora-security-status --json | jq -e '.checks | length > 0' >/dev/null
+# Waiting firmware updates are said, and where fwupd cannot answer, as in a build, that is only information
+/usr/libexec/amethystora-security-status --json | jq -e 'any(.checks[]; .id == "firmware" and .state == "info")' >/dev/null
 grep -q "secure-boot-notified" /usr/libexec/amethystora-security-alert
 # The recipe that enrolls the signing keys and the report that says whether they are enrolled ask the one
 # helper. They used to check on their own and disagreed, because one of them counted a certificate it
@@ -1273,6 +1309,14 @@ MODPROBE_CONFIG="$(modprobe --showconfig)"
 for module in dccp sctp rds tipc n_hdlc firewire_core firewire_sbp2 cramfs hfs vivid; do
     grep -q "^install ${module} /usr/bin/false$" <<<"${MODPROBE_CONFIG}"
 done
+# FireWire is a switch of its own (ame security firewire), for FireWire sound cards: its three modules in a file
+# of their own, which turning it off masks, and none in the blocked modules' file, which would block it still
+grep -qi firewire /usr/lib/modprobe.d/60-amethystora-hardening.conf && false
+for module in firewire_core firewire_ohci firewire_sbp2; do
+    grep -qx "install ${module} /usr/bin/false" /usr/lib/modprobe.d/61-amethystora-firewire.conf
+done
+jq -e '.[] | select(.name == "firewire") | .state == "on" and .default == "on"' \
+    <<<"$(/usr/libexec/amethystora-hardening status --json)" >/dev/null
 # No passwordless root for users who are not at the machine, and no user-writable directory in root's
 # sudo PATH, and no world-writable USB devices
 grep -q "<allow_any>no</allow_any>" /usr/share/polkit-1/actions/*privileged.user.setup.policy
@@ -2223,6 +2267,105 @@ find /etc/pki/akmods/private -type f 2>/dev/null | grep -q . && false
 # ame security secure-boot enrolls both: the one evdi is signed with and the kernel's
 test -f /etc/pki/akmods/certs/amethystora-modules.der
 test -f /etc/pki/akmods/certs/akmods-amethystora.der
+# ...and every other module the image adds is signed with one of the certificates it enrolls: a module that is not
+# could never load with Secure Boot on. evdi is signed above, with a build's throwaway key where it has no other.
+declare -A SB_SERIALS=()
+for cert in /usr/share/amethystora/secure-boot/*.der; do
+    SB_SERIALS["$(openssl x509 -inform DER -in "${cert}" -noout -serial | cut -d= -f2 | sed 's/^0*//' | tr a-f A-F)"]=1
+done
+while IFS= read -r module; do
+    serial="$(modinfo -F sig_key "${module}" | tr -d ':' | sed 's/^0*//' | tr a-f A-F)"
+    if [[ -z "${serial}" || -z "${SB_SERIALS[${serial}]+set}" ]]; then
+        echo "${module} is not signed with a certificate in /usr/share/amethystora/secure-boot"
+        exit 1
+    fi
+done < <(find "/usr/lib/modules/${KERNEL_VERSION}/extra" -name '*.ko*' ! -path '*/extra/evdi/*')
+
+# Xbox controllers: xpadneo over Bluetooth, xone for Microsoft's wireless adapter, both from Universal Blue's
+# akmods beside v4l2loopback. Microsoft's firmware for the adapter is not in the image, nor the blacklist of
+# mt76x2u that would take MT7612U Wi-Fi sticks away: `ame apps xbox-adapter on` puts both on a machine that asks,
+# the firmware from Microsoft, checked against the hashes pinned here, into a folder the kernel is pointed at
+# for that machine alone (never in kargs.d) and that only root writes.
+rpm -q kmod-xpadneo xpadneo-kmod-common kmod-xone xone-kmod-common >/dev/null
+compgen -G "/usr/lib/modules/${KERNEL_VERSION}/extra/xone/xone_dongle.ko*" >/dev/null
+compgen -G "/usr/lib/modules/${KERNEL_VERSION}/extra/xpadneo/hid-xpadneo.ko*" >/dev/null
+[[ -z "$(find /usr/lib/firmware -name 'xow_dongle*' -o -name 'xone_dongle*')" ]]
+grep -qx "blacklist mt76x2u" <<<"${MODPROBE_CONFIG:-$(modprobe --showconfig)}" && false
+grep -qx "blacklist mt76x2u" /usr/share/amethystora/xone/xone.conf
+compgen -G "/usr/src/amethystora/xone-kmod-common-*" >/dev/null && false
+ame --show apps::xbox-adapter >/dev/null
+[[ "$(grep -cE '^[0-9a-f]{4} https://catalog\.s\.download\.windowsupdate\.com/[^ ]+\.cab [0-9a-f]{64} [A-Za-z0-9_.]+ [0-9a-f]{64}$' \
+    /usr/share/amethystora/xone/firmware)" == 4 ]]
+grep -rq "firmware_class" /usr/lib/bootc/kargs.d && false
+grep -qx "d /var/lib/amethystora/firmware 0755 root root -" /usr/lib/tmpfiles.d/amethystora-firmware.conf
+command -v cabextract >/dev/null
+# Left out, with their reasons in the manual: Broadcom's wl (a licence that makes whoever passes it on answer for
+# it, and security holes nobody may fix) and openrazer (a daemon from a repository the image does not use). Their
+# packages, and wl's blacklist of the kernel's own Broadcom drivers, are nowhere.
+for package in kmod-wl broadcom-wl kmod-openrazer openrazer; do
+    rpm -q "${package}" >/dev/null 2>&1 && { echo "${package} is in the image"; exit 1; }
+done
+grep -rlE '^[[:space:]]*blacklist[[:space:]]+(brcmfmac|brcmsmac|bcma|b43|ssb)$' /usr/lib/modprobe.d && false
+
+# The NVIDIA images: NVIDIA's open module on -nvidia-open, its closed one of the 580 branch on -nvidia-lts
+NVIDIA_KO="$(find "/usr/lib/modules/${KERNEL_VERSION}" -name 'nvidia.ko*' | head -n1)"
+case "${IMAGE_NAME}" in
+    *-nvidia-open) [[ "$(modinfo -F license "${NVIDIA_KO}")" == "Dual MIT/GPL" ]] ;;
+    *-nvidia-lts) [[ "$(modinfo -F license "${NVIDIA_KO}")" == "NVIDIA" ]] ;;
+    *) [[ -z "${NVIDIA_KO}" ]] ;;
+esac
+
+# What keeps a device from working, found by the machine itself (amethystora-driver-status, a few minutes after
+# each start), with what fixes it; tried against a stand-in machine with one of each kind
+test -x /usr/libexec/amethystora-driver-status
+ame --show system::drivers >/dev/null
+/usr/libexec/amethystora-driver-status --json | jq -e '(.findings | type) == "array" and (.checked | type) == "number"' >/dev/null
+DRIVERS_TEST="$(mktemp -d)"
+pci_device() {
+    mkdir -p "${DRIVERS_TEST}/sys/bus/pci/devices/$1"
+    printf '%s\n' "$2" >"${DRIVERS_TEST}/sys/bus/pci/devices/$1/class"
+    printf '%s\n' "$3" >"${DRIVERS_TEST}/sys/bus/pci/devices/$1/vendor"
+    printf '%s\n' "$4" >"${DRIVERS_TEST}/sys/bus/pci/devices/$1/device"
+}
+pci_device 0000:00:02.0 0x030000 0x8086 0x46a6
+mkdir -p "${DRIVERS_TEST}/sys/bus/pci/drivers/i915"
+ln -s ../../../../bus/pci/drivers/i915 "${DRIVERS_TEST}/sys/bus/pci/devices/0000:00:02.0/driver"
+pci_device 0000:00:1f.0 0x060100 0x8086 0x7a84
+pci_device 0000:01:00.0 0x030000 0x10de 0x1b80
+pci_device 0000:02:00.0 0x028000 0x14e4 0x43a0
+pci_device 0000:03:00.0 0x028000 0x8086 0x2725
+pci_device 0000:04:00.0 0x010802 0x1987 0x5018
+mkdir -p "${DRIVERS_TEST}/sys/bus/usb/devices/1-2" "${DRIVERS_TEST}/sys/bus/usb/devices/1-3" "${DRIVERS_TEST}/sys/bus/usb/devices/1-3:1.0"
+printf '045e\n' >"${DRIVERS_TEST}/sys/bus/usb/devices/1-2/idVendor"
+printf '02fe\n' >"${DRIVERS_TEST}/sys/bus/usb/devices/1-2/idProduct"
+printf '0bda\n' >"${DRIVERS_TEST}/sys/bus/usb/devices/1-3/idVendor"
+printf 'b812\n' >"${DRIVERS_TEST}/sys/bus/usb/devices/1-3/idProduct"
+printf 'e0\n' >"${DRIVERS_TEST}/sys/bus/usb/devices/1-3:1.0/bInterfaceClass"
+mkdir -p "${DRIVERS_TEST}/proc" "${DRIVERS_TEST}/usr/share/amethystora"
+echo "BOOT_IMAGE=/vmlinuz root=UUID=0 rw" >"${DRIVERS_TEST}/proc/cmdline"
+echo '{"image-name": "amethystora", "image-flavor": "main", "image-tag": "stable"}' >"${DRIVERS_TEST}/usr/share/amethystora/image-info.json"
+cat >"${DRIVERS_TEST}/kernel.log" <<'EOF'
+iwlwifi 0000:03:00.0: Direct firmware load for iwlwifi-ty-a0-gf-a0-89.ucode failed with error -2
+iwlwifi 0000:03:00.0: Direct firmware load for iwlwifi-ty-a0-gf-a0-88.ucode failed with error -2
+amdgpu 0000:00:02.0: Direct firmware load for amdgpu/optional.bin failed with error -2
+Loading of module with unavailable key is rejected
+Failed to insert module 'v4l2loopback': Key was rejected by service
+EOF
+echo "not-enrolled /usr/share/amethystora/secure-boot/akmods-amethystora.der" >"${DRIVERS_TEST}/mok"
+DRIVERS_FOUND="$(AMETHYSTORA_DRIVERS_ROOT="${DRIVERS_TEST}" AMETHYSTORA_DRIVERS_LOG="${DRIVERS_TEST}/kernel.log" \
+    AMETHYSTORA_DRIVERS_MOK="${DRIVERS_TEST}/mok" /usr/libexec/amethystora-driver-status --json)"
+jq -e '[.findings[] | "\(.kind) \(.id) \(.fix // "")"] | sort == ([
+    "broadcom-wifi broadcom-wifi:0000:02:00.0 ",
+    "firmware firmware:iwlwifi-ty-a0-gf-a0-89.ucode ",
+    "no-driver no-driver:0000:04:00.0:0x5018 ",
+    "no-driver no-driver:usb:0bda:b812 ",
+    "nvidia nvidia:0000:01:00.0 ame system rebase amethystora-nvidia-lts stable",
+    "refused refused:v4l2loopback ",
+    "xbox-adapter xbox-adapter:02fe ame apps xbox-adapter on"] | sort)' <<<"${DRIVERS_FOUND}" >/dev/null ||
+    { echo "amethystora-driver-status found: ${DRIVERS_FOUND}"; exit 1; }
+mapfile -t DRIVERS_MANUAL < <(jq -r '.findings[].manual' <<<"${DRIVERS_FOUND}" | sort -u)
+"${NODE[@]}" /ctx/build_files/shared/check-manual.js /usr/share/amethystora/manual --links "${DRIVERS_MANUAL[@]}"
+rm -rf "${DRIVERS_TEST}"
 
 # Make sure this garbage never makes it to an image
 test -f /usr/lib/systemd/system/flatpak-add-fedora-repos.service && false
@@ -2511,6 +2654,7 @@ IMPORTANT_UNITS=(
     amethystora-system-setup.service
     amethystora-signed-updates.service
     amethystora-gpu-check.timer
+    amethystora-driver-check.timer
     amethystora-raid-check.timer
     amethystora-raid-scrub.timer
     amethystora-raid-boot.service

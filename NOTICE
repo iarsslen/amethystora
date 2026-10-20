@@ -265,8 +265,18 @@ usr/share/licenses:
     that incorporate DisplayLink technology.
   - Device firmware and processor microcode (linux-firmware, the *-firmware
     packages and microcode_ctl), redistributable but not modifiable.
-  - On the nvidia-open images, the user-space part of the NVIDIA driver, under
-    NVIDIA's software licence.
+  - On the nvidia-open and nvidia-lts images, the user-space part of the NVIDIA
+    driver, and on the nvidia-lts images its kernel module too, under NVIDIA's
+    software licence.
+
+Microsoft's firmware for its wireless adapter for Xbox controllers is not in
+any image: no licence lets it be passed on. `ame apps xbox-adapter on`
+downloads it from Microsoft on the machine that asks, under Microsoft's terms
+of use. For the same reason the source package of xone-kmod-common, the
+adapter driver's common package, which holds Microsoft's Windows driver
+packages, is not carried in usr/src/amethystora; its own files are a modprobe
+line, a README and the GPL, at https://github.com/ublue-os/packages
+(akmods/xone) and https://github.com/OpenGamingCollective/xonedo.
 
 Source code
 

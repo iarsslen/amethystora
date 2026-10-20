@@ -547,6 +547,11 @@ while read -r image; do
             ame system rebase "${image}" "${IMAGE_TAG}" ;;
         amethystora-dx-nvidia-open) choice "${image}" "$(gettext "Amethystora DX with NVIDIA")" \
             "$(gettext "The developer tools, and NVIDIA's open driver")" true ame system rebase "${image}" "${IMAGE_TAG}" ;;
+        amethystora-nvidia-lts) choice "${image}" "$(gettext "Amethystora with NVIDIA, older cards")" \
+            "$(gettext "With NVIDIA's driver for the GeForce 900 and 10 series")" true ame system rebase "${image}" "${IMAGE_TAG}" ;;
+        amethystora-dx-nvidia-lts) choice "${image}" "$(gettext "Amethystora DX with NVIDIA, older cards")" \
+            "$(gettext "The developer tools, and NVIDIA's driver for the GeForce 900 and 10 series")" true \
+            ame system rebase "${image}" "${IMAGE_TAG}" ;;
         *) choice "${image}" "${image}" "" true ame system rebase "${image}" "${IMAGE_TAG}" ;;
     esac
 done < <(jq -r '.images[]' <<<"${CHOICES_JSON}")

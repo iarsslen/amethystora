@@ -66,6 +66,10 @@ tablet	drawing tablet opentabletdriver
 webcam	camera video uvcvideo
 camera	webcam video
 nvidia	gpu driver mok secure boot
+xbox	controller gamepad adapter xone xpadneo firmware
+driver missing	drivers firmware device module refused
+broadcom	wi-fi wireless driver
+firewire	sound card audio interface blocked module
 gpu	graphics driver nvidia
 graphics	gpu driver
 backup	backups restic snapshots restore

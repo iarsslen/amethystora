@@ -68,7 +68,9 @@ locked again, shut down.
 The firmware of the machine and of its devices (the UEFI firmware, docks, SSDs, keyboards, the
 fingerprint reader) is updated apart from the system, because a firmware update can need the machine
 plugged in and a restart. Every day, fwupd looks for new firmware on LVFS, where makers publish it, and
-the **Firmware** section of **Updates** lists each device that has some, from which version to which.
+the **Firmware** section of **Updates** lists each device that has some, from which version to which. A
+notification says so once for each new release, and the [security report](security.md#see-where-you-stand)'s
+**Firmware updates** check names them too, since many firmware updates fix security holes.
 **Update firmware…** installs it in a terminal, where fwupd says what it is about to do and asks before
 it restarts the machine. **Check now** asks LVFS again straight away. In a terminal:
 
@@ -129,8 +131,10 @@ To move to another stream or image, switch to it and restart:
 sudo bootc switch --enforce-container-sigpolicy ghcr.io/iarsslen/amethystora:latest
 ```
 
-Replace `amethystora` with `amethystora-dx` for [developer mode](developer.md), and `latest` with the
-stream you want. A [sealed](#sealed-images) machine switches only between the sealed images.
+Replace `amethystora` with `amethystora-dx` for [developer mode](developer.md), add `-nvidia-open` or
+`-nvidia-lts` for NVIDIA's driver ([which one](hardware.md#graphics); with Secure Boot on, enroll the keys
+first), and replace `latest` with the stream you want. A [sealed](#sealed-images) machine switches only
+between the sealed images.
 [Control](control.md)'s **System** page lists the images and streams: choosing one opens `ame system
 rebase` in a terminal with it chosen, which takes signed images only and asks before it switches.
 

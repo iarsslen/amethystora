@@ -35,14 +35,20 @@ list-devices` (root). Change: `ame security usb` lets the user allow it; off as 
 
 ### Rarely used kernel modules do not load
 
-Symptom: FireWire, a floppy, a parallel port, some old network protocols (SCTP, DCCP, TIPC) or filesystems
-(HFS, JFFS2, UFS, minix) do nothing. Confirm: `modprobe -n -v MODULE` prints `install /usr/bin/false`; the list is
+Symptom: a floppy, a parallel port, some old network protocols (SCTP, DCCP, TIPC) or filesystems (HFS, JFFS2,
+UFS, minix) do nothing. Confirm: `modprobe -n -v MODULE` prints `install /usr/bin/false`; the list is
 `/usr/lib/modprobe.d/60-amethystora-hardening.conf`. Change: `ame security blocked-modules off` (the user's).
+
+### FireWire does not load
+
+Symptom: a FireWire sound card, DV camera or disk does nothing; a FireWire device reads and writes memory by
+itself. Confirm: `modprobe -n -v firewire_ohci` prints `install /usr/bin/false`; the file is
+`/usr/lib/modprobe.d/61-amethystora-firewire.conf`. Change: `ame security firewire off` (the user's).
 
 ### Kernel lockdown keeps unsigned modules out
 
 Symptom: a module built outside the image (an out-of-tree driver, VirtualBox) will not load, or DisplayLink's
-`evdi` fails with Secure Boot off. Confirm: `cat /sys/kernel/security/lockdown`; `mokutil --sb-state`.
+`evdi`, `xone` or `hid-xpadneo` fails with Secure Boot off. Confirm: `cat /sys/kernel/security/lockdown`; `mokutil --sb-state`.
 Change: `ame security secure-boot` enrolls the image's key for its own modules; `ame security lockdown off`
 (the user's) for the rest.
 

@@ -45,9 +45,16 @@ argument the image added later does not reach it. `cat /proc/cmdline` shows what
   `amethystora-signed-updates.service` keeps the machine on signed updates at every start).
 - The containers of amethystora-pkg upgrade daily for each account: `amethystora-pkg-upgrade.timer` (user);
   the Updates app shows them as a step of their own.
-- Firmware comes from LVFS through fwupd: `fwupdmgr get-updates`, `fwupdmgr update` (may restart).
-- `ame system rebase IMAGE STREAM` switches image (with or without NVIDIA's driver) or stream (stable,
-  latest, beta); only signed images.
+- Firmware comes from LVFS through fwupd: `fwupdmgr get-updates`, `fwupdmgr update` (may restart). The update
+  alert says once for each release that one waits, and the security report's `firmware` check names them.
+- Drivers: `amethystora-driver-check.timer` (root, a few minutes after each start) saves what keeps a device
+  from working (a missing driver, missing firmware, a refused module, NVIDIA's driver not loaded, a Broadcom
+  Wi-Fi card no driver drives, the Xbox wireless adapter without its firmware) for `ame system drivers`, and
+  says each once. The kmods beside the kernel (v4l2loopback, xone, xpadneo, evdi, NVIDIA's) are signed with
+  keys `ame security secure-boot` enrolls.
+- `ame system rebase IMAGE STREAM` switches image (with or without NVIDIA's driver: `-nvidia-open` for
+  Turing and newer, `-nvidia-lts` for Maxwell to Volta) or stream (stable, latest, beta); only signed images,
+  and to an NVIDIA image with Secure Boot on only once the keys are enrolled.
 
 ## Where software goes
 

@@ -1,10 +1,13 @@
 #!/usr/bin/bash
 # The NVIDIA check (amethystora-gpu-check.timer, a few minutes after boot and every 15 minutes after,
 # until there is somebody logged in to tell), for a machine installed from the ISO of the other kind of
-# image, or whose graphics card changed:
+# image, or whose graphics card changed. It offers the image whose driver drives the card:
 #
-#   - an NVIDIA graphics card on an image without NVIDIA's driver: it offers the image with it
-#   - an image with NVIDIA's driver on a machine with no NVIDIA card: it offers the one without
+#   - Turing and newer on an image without NVIDIA's driver: -nvidia-open, NVIDIA's open driver
+#   - Maxwell, Pascal or Volta on an image without it, or on -nvidia-open, whose driver does not drive
+#     them: -nvidia-lts, NVIDIA's closed driver of its 580 branch, the last that drives them
+#   - an image with NVIDIA's driver on a machine with no NVIDIA card, or with one older than Maxwell,
+#     which no current NVIDIA driver drives: the image without it
 #
 # Either way it only offers. Switching is `ame system rebase`, opened in a terminal on the matching
 # image, which takes signed images only and asks before it switches. Each is said once per machine, with
@@ -12,37 +15,76 @@
 #
 #   amethystora-gpu-check           say it, if there is something to say and someone to say it to
 #   amethystora-gpu-check pending   exit 0 when there is (ExecCondition=)
+#   amethystora-gpu-check offer     print what it would offer, "KIND TARGET", or nothing
+#
+# AMETHYSTORA_PCI_DEVICES and AMETHYSTORA_IMAGE_INFO stand in for /sys/bus/pci/devices and image-info.json:
+# amethystora-driver-status passes its own, and 20-tests.sh tries the cards against them.
 
 set -uo pipefail
 
 STATE=/var/lib/amethystora/gpu-check
-INFO=/usr/share/amethystora/image-info.json
+INFO="${AMETHYSTORA_IMAGE_INFO:-/usr/share/amethystora/image-info.json}"
+PCI="${AMETHYSTORA_PCI_DEVICES:-/sys/bus/pci/devices}"
 
-# A display controller (PCI class 0x03xxxx) made by NVIDIA (vendor 0x10de)
-NVIDIA=false
-for device in /sys/bus/pci/devices/*; do
-    if [[ "$(cat "${device}/class" 2>/dev/null)" == 0x03* && "$(cat "${device}/vendor" 2>/dev/null)" == 0x10de ]]; then
-        NVIDIA=true
+# Which NVIDIA driver drives a card, by its PCI device ID. Both bounds come from NVIDIA's own lists,
+# checked on 2026-10-04:
+#   - NVIDIA/open-gpu-kernel-modules' README, "Compatible GPUs": nothing below 0x1E00 (its lowest is 0x1E02,
+#     TITAN RTX), and every one from there up that the 580 driver supports
+#   - the 580 driver's README, supportedchips.html: "Current NVIDIA GPUs" from 0x1340 (GeForce 830M); the
+#     470 legacy list, Kepler's, ends at 0x12BA
+OPEN_FROM=0x1E00
+LTS_FROM=0x1340
+
+# The oldest display controller (PCI class 0x03xxxx) made by NVIDIA (vendor 0x10de) decides: none, open,
+# lts or older
+CARD=none
+for device in "${PCI}"/*; do
+    [[ "$(cat "${device}/class" 2>/dev/null)" == 0x03* && "$(cat "${device}/vendor" 2>/dev/null)" == 0x10de ]] || continue
+    id="$(cat "${device}/device" 2>/dev/null)"
+    [[ "${id}" =~ ^0x[0-9a-fA-F]{4}$ ]] || continue
+    if ((id >= OPEN_FROM)); then
+        [[ "${CARD}" == none ]] && CARD=open
+    elif ((id >= LTS_FROM)); then
+        [[ "${CARD}" == older ]] || CARD=lts
+    else
+        CARD=older
     fi
 done
 
 FLAVOR="$(jq -r '."image-flavor" // "main"' "${INFO}" 2>/dev/null)"
 IMAGE="$(jq -r '."image-name" // "amethystora"' "${INFO}" 2>/dev/null)"
 STREAM="$(jq -r '."image-tag" // "stable"' "${INFO}" 2>/dev/null)"
+WITHOUT="${IMAGE%-"${FLAVOR}"}"
 LOCKDOWN="Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on."
-if [[ "${NVIDIA}" == true && "${FLAVOR}" == main ]]; then
-    KIND=nvidia-card
-    TARGET="${IMAGE}-nvidia-open"
-    SUMMARY="This machine has an NVIDIA graphics card"
-    BODY="${TARGET} is Amethystora with NVIDIA's driver for it, which this image does not have. ${LOCKDOWN} Nothing changes unless you switch."
-elif [[ "${NVIDIA}" == false && "${FLAVOR}" == nvidia-open ]]; then
-    KIND=no-nvidia-card
-    TARGET="${IMAGE%-nvidia-open}"
-    SUMMARY="This machine has no NVIDIA graphics card"
-    BODY="It runs ${IMAGE}, which carries NVIDIA's driver. ${LOCKDOWN} ${TARGET} has no NVIDIA driver and keeps lockdown on. Nothing changes unless you switch."
-else
-    KIND=""
-fi
+KIND=""
+case "${FLAVOR}:${CARD}" in
+    main:open)
+        KIND=nvidia-card
+        TARGET="${IMAGE}-nvidia-open"
+        SUMMARY="This machine has an NVIDIA graphics card"
+        BODY="${TARGET} is Amethystora with NVIDIA's driver for it, which this image does not have. ${LOCKDOWN} Nothing changes unless you switch."
+        ;;
+    main:lts | nvidia-open:lts)
+        KIND=nvidia-lts-card
+        TARGET="${WITHOUT}-nvidia-lts"
+        SUMMARY="This machine's NVIDIA card needs NVIDIA's older driver"
+        BODY="Its card is a GeForce 900 or 10 series, or as old: ${TARGET} carries the driver that drives it, the last NVIDIA makes for it."
+        [[ "${FLAVOR}" == main ]] && BODY+=" ${LOCKDOWN}"
+        BODY+=" Nothing changes unless you switch."
+        ;;
+    nvidia-*:none)
+        KIND=no-nvidia-card
+        TARGET="${WITHOUT}"
+        SUMMARY="This machine has no NVIDIA graphics card"
+        BODY="It runs ${IMAGE}, which carries NVIDIA's driver. ${LOCKDOWN} ${TARGET} has no NVIDIA driver and keeps lockdown on. Nothing changes unless you switch."
+        ;;
+    nvidia-*:older)
+        KIND=old-nvidia-card
+        TARGET="${WITHOUT}"
+        SUMMARY="This machine's NVIDIA card is older than any NVIDIA driver drives"
+        BODY="It runs ${IMAGE}, whose driver cannot drive it: the open driver nouveau, in ${TARGET}, does. ${LOCKDOWN} ${TARGET} keeps lockdown on. Nothing changes unless you switch."
+        ;;
+esac
 
 # Something to say that has not been said, or been asked never to be, and somebody to say it to
 pending() {
@@ -55,8 +97,9 @@ pending() {
 
 case "${1:-}" in
     pending) pending; exit ;;
+    offer) [[ -z "${KIND}" ]] || echo "${KIND} ${TARGET}"; exit 0 ;;
     "") ;;
-    *) echo "usage: ${0##*/} [pending]" >&2; exit 64 ;;
+    *) echo "usage: ${0##*/} [pending|offer]" >&2; exit 64 ;;
 esac
 pending || exit 0
 

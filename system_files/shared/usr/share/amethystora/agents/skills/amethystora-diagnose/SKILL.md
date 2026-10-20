@@ -59,9 +59,11 @@ Read the `amethystora` skill too: it says what may be changed on this system and
 4. **The desktop.** GNOME Shell and its extensions log to the user journal:
    `journalctl --user -b -g 'JS ERROR|Extension|gnome-shell' --no-pager`. List what is enabled with
    `gnome-extensions list --enabled`; an extension named in the errors is the first suspect.
-5. **Hardware and drivers.** `journalctl -k -b -p warning --no-pager`. On the NVIDIA images,
-   `rpm -qa 'kmod-nvidia*'` and whether the module loaded (`lsmod | grep nvidia`). Secure Boot
-   refusing a module shows as "Key was rejected by service".
+5. **Hardware and drivers.** `ame system drivers` first: what the driver check found missing, refused or
+   without its firmware, each with its fix. Then `journalctl -k -b -p warning --no-pager`. On the NVIDIA
+   images, `rpm -qa 'kmod-nvidia*'` and whether the module loaded (`lsmod | grep nvidia`);
+   `/usr/libexec/amethystora-gpu-check offer` names the image whose driver drives the card when it is not
+   this one. Secure Boot refusing a module shows as "Key was rejected by service".
    When a disk is suspected, `/usr/libexec/amethystora-raid status --json` says, without root, which
    disk of which pool is missing, counting errors (`errors` per disk), failing its SMART check (as of
    the last hourly check), back after it was missing (`returned`, whose errors are the old copies it

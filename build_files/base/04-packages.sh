@@ -30,6 +30,8 @@ FEDORA_PACKAGES=(
     bpftool
     # Ransomware protection's snapshots of /var/home (ame security ransomware)
     btrfs-progs
+    # Microsoft's firmware for the Xbox wireless adapter, out of the driver package it comes in (ame apps xbox-adapter)
+    cabextract
     clamav
     clamav-freshclam
     clamd

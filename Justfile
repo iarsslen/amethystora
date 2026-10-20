@@ -11,6 +11,7 @@ images := '(
 flavors := '(
     [main]=main
     [nvidia-open]=nvidia-open
+    [nvidia-lts]=nvidia-lts
 )'
 tags := '(
     [stable]=stable
@@ -170,10 +171,11 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
         akmods_zfs_sha="$(skopeo inspect --retry-times 3 "docker://ghcr.io/ublue-os/akmods-zfs:${akmods_tag}" | jq -r .Digest)"
         {{ just }} verify-container "akmods-zfs@${akmods_zfs_sha}"
     fi
+    # akmods-nvidia-open or akmods-nvidia-lts, the image the flavor is named after (03-install-kernel-akmods.sh)
     akmods_nvidia_sha=""
-    if [[ "${flavor}" =~ nvidia-open ]]; then
-        akmods_nvidia_sha="$(skopeo inspect --retry-times 3 "docker://ghcr.io/ublue-os/akmods-nvidia-open:${akmods_tag}" | jq -r .Digest)"
-        {{ just }} verify-container "akmods-nvidia-open@${akmods_nvidia_sha}"
+    if [[ "${flavor}" =~ ^nvidia-(open|lts)$ ]]; then
+        akmods_nvidia_sha="$(skopeo inspect --retry-times 3 "docker://ghcr.io/ublue-os/akmods-${flavor}:${akmods_tag}" | jq -r .Digest)"
+        {{ just }} verify-container "akmods-${flavor}@${akmods_nvidia_sha}"
     fi
 
     {{ just }} verify-container "brew:latest@${brew_image_sha}"
@@ -869,6 +871,6 @@ retag-nvidia-on-ghcr working_tag="" stream="" dry_run="1":
         printenv GITHUB_PAT | podman login -u "$GITHUB_USERNAME" --password-stdin ghcr.io
         skopeo="skopeo"
     fi
-    for image in amethystora-nvidia-open amethystora-dx-nvidia-open; do
+    for image in amethystora-nvidia-open amethystora-dx-nvidia-open amethystora-nvidia-lts amethystora-dx-nvidia-lts; do
       $skopeo copy docker://ghcr.io/{{ repo_organization }}/${image}:{{ working_tag }} docker://ghcr.io/{{ repo_organization }}/${image}:{{ stream }}
     done

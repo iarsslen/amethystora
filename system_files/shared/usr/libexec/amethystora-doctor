@@ -139,13 +139,31 @@ SECURE_BOOT="$(t mokutil --sb-state)"
 if wanted secure-boot && [[ "${SECURE_BOOT}" == *disabled* ]]; then
     found secure-boot info manual/hardware#secure-boot "Secure Boot is off"
 fi
+# An NVIDIA display controller on the PCI bus: with nothing driving it, it has no DRM card to look at
+nvidia_card() {
+    local device
+    for device in /sys/bus/pci/devices/*; do
+        [[ "$(cat "${device}/class" 2>/dev/null)" == 0x03* && "$(cat "${device}/vendor" 2>/dev/null)" == 0x10de ]] && return 0
+    done
+    return 1
+}
+NVIDIA_FOUND=false
 if wanted nvidia && [[ "$(jq -r '."image-flavor" // ""' "${IMAGE_INFO}" 2>/dev/null)" == nvidia* ]] &&
-    grep -qi "^0x10de" /sys/class/drm/card*/device/vendor 2>/dev/null && ! grep -q '^nvidia ' /proc/modules; then
+    nvidia_card && ! grep -q '^nvidia ' /proc/modules; then
+    NVIDIA_FOUND=true
     if [[ "${SECURE_BOOT}" == *enabled* ]]; then
         found nvidia problem playbook/nvidia "The NVIDIA driver is not loaded, with Secure Boot on: its key may not be enrolled"
     else
         found nvidia problem playbook/nvidia "The NVIDIA driver is not loaded"
     fi
+fi
+# What the driver check (amethystora-driver-check.timer) found at its last run, which only root can look for, less
+# what the NVIDIA check above said already
+if wanted drivers; then
+    drivers="$(jq -r --argjson said "${NVIDIA_FOUND}" '[.findings[]? | select(.kind != "nvidia" or ($said | not))
+        | "\(.device): \(.text)" + (if .fix then " (fix: \(.fix))" else "" end)] | join("; ")' \
+        /var/lib/amethystora/drivers/status.json 2>/dev/null)"
+    [[ -z "${drivers}" ]] || found drivers warning playbook/device-does-nothing "Devices without a working driver: ${drivers}"
 fi
 if wanted firmware; then
     firmware="$(t fwupdmgr get-updates --json | jq -r '[.Devices[]? | select((.Releases // []) | length > 0) | .Name] | join(", ")' 2>/dev/null)"

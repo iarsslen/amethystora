@@ -13,7 +13,8 @@ IMAGE_TAG="$(jq -r '."image-tag"' < "$IMAGE_INFO")"
 IMAGE_VENDOR="$(jq -r '."image-vendor"' < "$IMAGE_INFO")"
 IMAGE_REGISTRY="ghcr.io/${IMAGE_VENDOR}"
 
-IMAGES=(amethystora amethystora-dx amethystora-nvidia-open amethystora-dx-nvidia-open)
+IMAGES=(amethystora amethystora-dx amethystora-nvidia-open amethystora-dx-nvidia-open amethystora-nvidia-lts
+  amethystora-dx-nvidia-lts)
 if [[ -e /usr/share/amethystora/sealed ]] ; then
   # A sealed machine follows sealed images only: an ostree image cannot start from its disk, and the
   # way back is a reinstall from the ISO (the manual's updates.md, Sealed images)
@@ -36,6 +37,18 @@ PRESET_STREAM="${2:-}"
 echo -ne "Current image: ${IMAGE_NAME}:${IMAGE_TAG}\n"
 IMAGE_NAME="$(gum choose --header="Select your image:" --selected="${PRESET_IMAGE:-${IMAGE_NAME}}" "${IMAGES[@]}" cancel)"
 [[ "$IMAGE_NAME" == "cancel" || "$IMAGE_NAME" == "" ]] && exit 0
+
+# With Secure Boot on, the kernel refuses NVIDIA's driver until the key it is signed with is enrolled, and the
+# NVIDIA images turn off the drivers that would draw the screen without it: switching first would start the
+# machine to a black screen. The key is enrolled at a restart, through the blue MOK manager screen.
+if [[ "${IMAGE_NAME}" == *nvidia* ]] && mokutil --sb-state 2>/dev/null | grep -qi enabled &&
+  /usr/libexec/amethystora-mok-status | grep -q "^not-enrolled .*/akmods-amethystora\.der$" ; then
+  echo "Secure Boot is on, and the key NVIDIA's driver is signed with is not enrolled yet: ${IMAGE_NAME}"
+  echo "would start to a black screen. Enroll it first (ame security secure-boot), restart through the blue"
+  echo "MOK manager screen, then switch."
+  gum confirm "Enroll the keys now?" && ame security secure-boot
+  exit 1
+fi
 
 base_image="${IMAGE_REGISTRY}/${IMAGE_NAME}"
 if [[ -e /usr/share/amethystora/sealed ]] ; then

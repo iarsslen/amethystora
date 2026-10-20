@@ -486,6 +486,29 @@ msgid "Install it with:"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
+msgid "Firmware updates"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "fwupd did not answer, so whether firmware updates are waiting is not known"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+#, sh-format
+msgid "${N} firmware update is waiting"
+msgid_plural "${N} firmware updates are waiting"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Install them from System Updates, or with this, which can restart the machine:"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "No firmware update is waiting"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
 msgid "DMA protection"
 msgstr ""
 
@@ -976,7 +999,19 @@ msgid "Rarely used kernel modules are no longer blocked"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
-msgid "Old network protocols and filesystems, FireWire and test drivers can load, and a flaw in one of them can be reached."
+msgid "Old network protocols and filesystems and test drivers can load, and a flaw in one of them can be reached."
+msgstr ""
+
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-hardening
+msgid "FireWire"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "FireWire is no longer blocked"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "A FireWire device plugged in can read and write this machine's memory by itself."
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -2231,6 +2266,22 @@ msgid "The developer tools, and NVIDIA's open driver"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Amethystora with NVIDIA, older cards"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "With NVIDIA's driver for the GeForce 900 and 10 series"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Amethystora DX with NVIDIA, older cards"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The developer tools, and NVIDIA's driver for the GeForce 900 and 10 series"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "The system"
 msgstr ""
 
@@ -3158,7 +3209,11 @@ msgid "Hides kernel addresses and messages, keeps programs from reading each oth
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
-msgid "Old network protocols and filesystems, FireWire, test and fault-injection drivers, CAN, GNSS, the floppy and parallel ports cannot load. Off, FireWire sound cards and cameras, disks from old Macs, SCTP, CAN buses and amateur radio work."
+msgid "Old network protocols and filesystems, test and fault-injection drivers, CAN, GNSS, the floppy and parallel ports cannot load. Off, disks from old Macs, SCTP, CAN buses and amateur radio work."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "FireWire cannot load: a FireWire device can read and write the machine's memory by itself, whatever is running. Off, FireWire sound cards, DV cameras and disks work."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
@@ -3279,6 +3334,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-hardening
 msgid "At once, for a module that is not loaded yet."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "At once. Turned back on, at once if no FireWire device is in use, otherwise from the next restart."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening

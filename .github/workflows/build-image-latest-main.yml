@@ -31,7 +31,7 @@ jobs:
       matrix:
         brand_name: ["amethystora"]
     with:
-      image_flavors: '["main", "nvidia-open"]'
+      image_flavors: '["main", "nvidia-open", "nvidia-lts"]'
       brand_name: ${{ matrix.brand_name }}
       stream_name: latest
 

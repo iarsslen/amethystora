@@ -434,11 +434,20 @@ gpu_check() {
         shift 3; exec timeout 120 /usr/libexec/amethystora-gpu-check "$@"' gpu-check \
         "${STATE}/pci-${devices}" "${STATE}/image-info.json" "${INFO}" "$@"
 }
-for card in nvidia:0x10de qemu:0x1234; do
-    mkdir -p "${STATE}/pci-${card%%:*}/0000:01:00.0"
-    echo 0x030000 >"${STATE}/pci-${card%%:*}/0000:01:00.0/class"
-    echo "${card#*:}" >"${STATE}/pci-${card%%:*}/0000:01:00.0/vendor"
+# Cards by vendor and device ID: an RTX 4090 (Ada), a GTX 1080 (Pascal), and QEMU's own display
+for card in nvidia:0x10de:0x2684 pascal:0x10de:0x1b80 qemu:0x1234:0x1111; do
+    IFS=: read -r name vendor device <<<"${card}"
+    mkdir -p "${STATE}/pci-${name}/0000:01:00.0"
+    echo 0x030000 >"${STATE}/pci-${name}/0000:01:00.0/class"
+    echo "${vendor}" >"${STATE}/pci-${name}/0000:01:00.0/vendor"
+    echo "${device}" >"${STATE}/pci-${name}/0000:01:00.0/device"
 done
+offered="$(gpu_check pascal main offer)"
+if [[ "${offered}" == "nvidia-lts-card amethystora-nvidia-lts" ]]; then
+    ok "a GeForce 10 card is offered amethystora-nvidia-lts, NVIDIA's driver that still drives it"
+else
+    not_ok "a GeForce 10 card is offered: ${offered:-nothing}"
+fi
 rm -f "${GPU_STATE}"
 check "with an NVIDIA card on the main image, it has something to say" gpu_check nvidia main pending
 offer="notify-send.*This machine has an NVIDIA graphics card"

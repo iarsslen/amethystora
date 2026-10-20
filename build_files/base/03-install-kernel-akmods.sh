@@ -58,6 +58,21 @@ else
     dnf5 -y remove rpmfusion-free-release rpmfusion-nonfree-release
 fi
 
+# Xbox controllers: xpadneo over Bluetooth (rumble, battery, the right mappings), and xone for Microsoft's
+# wireless adapter and the headsets on it; wired ones are the kernel's own xpad. Built for this kernel and
+# signed with Universal Blue's key, like v4l2loopback. The tarball also carries wl and openrazer, which stay
+# out (plans/done/PLAN-driver-compatibility.md, "Not doing").
+dnf5 -y install \
+    /tmp/akmods/kmods/kmod-xpadneo-*.rpm /tmp/akmods/common/xpadneo-kmod-common-*.rpm \
+    /tmp/akmods/kmods/kmod-xone-*.rpm /tmp/akmods/common/xone-kmod-common-*.rpm
+# xone's common package carries Microsoft's firmware for the adapter, which no licence lets anyone pass on, under
+# the names an older xone asked for: `ame apps xbox-adapter on` fetches it from Microsoft on the machine instead.
+# Its blacklist of mt76x2u, which would take Wi-Fi from every MT7612U USB stick, is copied into /etc by the same
+# command only, from here.
+rm -f /usr/lib/firmware/xow_dongle*.bin
+install -Dpm0644 /usr/lib/modprobe.d/xone.conf /usr/share/amethystora/xone/xone.conf
+rm -f /usr/lib/modprobe.d/xone.conf
+
 # DisplayLink (USB docks and adapters): the prebuilt evdi kmod is only published in akmods-extra, which is
 # not built for the main or coreos-stable kernels. Build it here against the image kernel from negativo17's
 # akmod, the same way akmods-extra does, then drop the build tooling.
@@ -108,10 +123,11 @@ done
 # ran on every machine, dock or not.
 systemctl disable displaylink.service
 
-# Nvidia AKMODS
+# Nvidia AKMODS: akmods-nvidia-open for the -nvidia-open images, akmods-nvidia-lts (NVIDIA's closed driver of
+# its 580 branch, for Maxwell, Pascal and Volta) for the -nvidia-lts ones, each with the same layout
 if [[ "${IMAGE_NAME}" =~ nvidia ]]; then
     # Fetch Nvidia RPMs
-    skopeo copy --retry-times 3 docker://ghcr.io/ublue-os/akmods-nvidia-open@"${AKMODS_NVIDIA_DIGEST:?checked by the Justfile}" dir:/tmp/akmods-rpms
+    skopeo copy --retry-times 3 docker://ghcr.io/ublue-os/akmods-nvidia-"${IMAGE_NAME##*-nvidia-}"@"${AKMODS_NVIDIA_DIGEST:?checked by the Justfile}" dir:/tmp/akmods-rpms
     NVIDIA_TARGZ=$(jq -r '.layers[].digest' </tmp/akmods-rpms/manifest.json | cut -d : -f 2)
     tar -xvzf /tmp/akmods-rpms/"$NVIDIA_TARGZ" -C /tmp/
     mv /tmp/rpms/* /tmp/akmods-rpms/

@@ -21,8 +21,14 @@
   driver, firmware waiting). It ends the user's session like any restart: only when they ask for one.
 - Firmware is fwupd's, outside the image: `fwupdmgr get-updates` lists it (the Updates app shows the
   same), `fwupdmgr update` installs it and can need a restart, so leave installing to the user;
-  `fwupdmgr security` explains the HSI rating the security report shows.
-- Switching images or streams: `ame system rebase [IMAGE] [STREAM]` (signed images only).
+  `fwupdmgr security` explains the HSI rating the security report shows. The report's `firmware` check
+  names what waits, and the update alert says it once for each release.
+- `ame system drivers` says what the driver check found at its last run, without root: a device no driver
+  took, firmware it lacks, a module the kernel refused, NVIDIA's driver not loaded, the Xbox wireless adapter
+  without its firmware (`ame apps xbox-adapter on`), each with its fix. `sudo ame system drivers` looks again.
+- Switching images or streams: `ame system rebase [IMAGE] [STREAM]` (signed images only). The NVIDIA
+  images are `-nvidia-open` (Turing and newer) and `-nvidia-lts` (Maxwell, Pascal, Volta);
+  `/usr/libexec/amethystora-gpu-check offer` names the one a machine's card needs.
 
 ## Logs
 

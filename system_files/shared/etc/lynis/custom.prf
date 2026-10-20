@@ -24,7 +24,8 @@ skip-upgrade-test=yes
 # would cost a desktop more than it protects. What is left is worth reading.
 
 # Done already, where the test does not look.
-# dccp, sctp, rds, tipc and FireWire are disabled in /usr/lib/modprobe.d/60-amethystora-hardening.conf.
+# dccp, sctp, rds and tipc are disabled in /usr/lib/modprobe.d/60-amethystora-hardening.conf, and FireWire in
+# 61-amethystora-firewire.conf beside it.
 # These two read only /etc/modprobe.d, and only an `install` line ending in /bin/true or /bin/false.
 skip-test=NETW-3200
 skip-test=STRG-1846

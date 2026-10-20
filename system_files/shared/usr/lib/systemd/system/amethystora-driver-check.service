@@ -1,0 +1,9 @@
+[Unit]
+Description=Find devices whose driver is missing, refused or without its firmware
+Documentation=file:///usr/share/amethystora/manual/hardware.md
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/amethystora-driver-status check
+# It waits for a notification to be answered, which can take as long as a person likes
+TimeoutStartSec=infinity

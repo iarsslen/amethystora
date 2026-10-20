@@ -25,9 +25,12 @@ systemctl --global enable amethystora-update-alert.service
 # With encrypted DNS on (ame security dns), offers to pause it on a network that wants a login first.
 # It does not start while encrypted DNS is off.
 systemctl --global enable amethystora-dns-portal.service
-# Offers the image with NVIDIA's driver on a machine with an NVIDIA card, or the one without it on a
-# machine without one, once, to whoever logs in first
+# Offers the image whose NVIDIA driver drives the machine's card, or the one without it on a machine whose
+# card none drives, once, to whoever logs in first
 systemctl enable amethystora-gpu-check.timer
+# Finds devices whose driver is missing, refused or without its firmware, for ame system drivers, and says each
+# once with what fixes it
+systemctl enable amethystora-driver-check.timer
 # The pools of disks (ame system raid): an hourly health check that tells whoever is logged in, and a
 # monthly scrub that repairs a damaged copy from a good one. Both are skipped on a machine with no pool
 # and no btrfs over several disks; `ame system raid scrub off` turns the scrub off.

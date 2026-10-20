@@ -19,6 +19,8 @@ report:
     failed="$({ systemctl --failed --no-legend --plain; systemctl --user --failed --no-legend --plain; } 2>/dev/null | head -20 || true)"
     # Administrators read the whole machine's log, anyone else their own session's
     errors="$(journalctl -b -p err --no-pager -n 40 -o short-monotonic 2>/dev/null || true)"
+    # Devices whose driver is missing, refused or without its firmware, as the last driver check found them
+    drivers="$(/usr/libexec/amethystora-driver-status 2>&1 || true)"
     context="$(printf '%s\n' \
         "Image: $(. /usr/lib/os-release && echo "${PRETTY_NAME}")" \
         "Kernel: $(uname -r)" \
@@ -28,6 +30,7 @@ report:
         printf '## Deployments\n\n```\n%s\n```\n\n' "${status}"
         printf '## groups\n\n```\n%s\n```\n\n' "${groups}"
         printf '## This machine\n\n```\n%s\n```\n\n' "${context}"
+        printf '## Drivers\n\n```\n%s\n```\n\n' "${drivers}"
         printf '## Errors logged since this boot (the last 40)\n\n```\n%s\n```\n' "${errors:-none}"
     } >"${FILE}")
     cat "${FILE}"

@@ -589,7 +589,7 @@ fn manual_page(id: &str) -> &'static str {
     match id {
         "secure-boot" | "signing-keys" => "hardware#secure-boot",
         "disk-unlock-pin" => "security#unlock-the-disk-with-the-tpm",
-        "firmware-dbx" | "firmware-pk" => "updates#firmware",
+        "firmware" | "firmware-dbx" | "firmware-pk" => "updates#firmware",
         "signed-updates" => "updates#signed-updates",
         "single-build" => "updates",
         "network" | "network-protection" => "security#network-protection",

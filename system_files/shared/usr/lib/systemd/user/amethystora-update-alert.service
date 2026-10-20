@@ -1,5 +1,5 @@
 [Unit]
-Description=Say when the machine started an older version than its default one
+Description=Say when the machine started an older version than its default one, or firmware updates wait
 After=graphical-session.target
 
 [Service]

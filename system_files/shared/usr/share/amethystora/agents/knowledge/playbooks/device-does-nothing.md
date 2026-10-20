@@ -7,6 +7,8 @@ program cannot reach it: a keyboard configurator, Steam Input, a tablet driver, 
 
 ## Look
 
+- `ame system drivers`: what the driver check found at its last run (a missing driver, missing firmware,
+  a module the kernel refused, the Xbox wireless adapter without its firmware), each with its fix.
 - `state security-settings`, with a switch's name as filter (`virtual-input`, `blocked-modules`,
   `block-webcam`, `block-automount`, `block-bluetooth`).
 - `logs` identifier `kernel`, grep `not authorized for usage` (USB protection refused it), then grep `usb`.
@@ -30,13 +32,16 @@ program cannot reach it: a keyboard configurator, Steam Input, a tablet driver, 
    the image's rules (`/usr/lib/udev/rules.d/92-viia.rules`, `/usr/lib/udev/rules.d/50-zsa.rules`, the
    controllers' `71-…-gdu.rules`) use `TAG+="uaccess"`, and other keyboards get none. Tell: VIA, Vial or
    Oryx reach Keychron, Lemokey, ZSA and Vial keyboards at the machine, not over SSH, not another make.
-5. **A blocked kernel module**: FireWire, CAN, floppy, parallel ports, old protocols and filesystems (HFS).
-   Tell: `modprobe -n -v MODULE`; the list is `/usr/lib/modprobe.d/60-amethystora-hardening.conf`.
+5. **A blocked kernel module**: CAN, floppy, parallel ports, old protocols and filesystems (HFS), and FireWire,
+   a switch of its own. Tell: `modprobe -n -v MODULE`; the lists are `/usr/lib/modprobe.d/60-amethystora-hardening.conf`
+   and `/usr/lib/modprobe.d/61-amethystora-firewire.conf`.
 6. **A stricter setting the user turned on**: `block-webcam` (no webcam), `block-automount` (a stick
    mounts only when opened in Files), `block-bluetooth` (no Bluetooth mice or keyboards). Tell:
    `state security-settings`; the report's `stricter` check names them.
 7. **Key remapping is off** (as shipped): Input Remapper opens, but no mapping applies. Tell:
    `input-remapper.service` disabled.
+8. **The Xbox wireless adapter without its firmware.** Its driver is in the image, Microsoft's firmware
+   is not. Tell: `ame system drivers` names it; `/var/lib/amethystora/firmware` has no `xone_dongle_*.bin`.
 
 ## Fix
 
@@ -68,7 +73,8 @@ Never `MODE="0666"`.
 
 ### 5. Blocked module
 
-The user runs `ame security blocked-modules off` (root): every module on the list can load again.
+The user runs `ame security blocked-modules off` (root): every module on the list can load again. For
+FireWire, `ame security firewire off` (root) instead.
 
 ### 6. Stricter settings
 
@@ -79,6 +85,11 @@ mounts by opening it in Files.
 ### 7. Key remapping
 
 The user runs `ame security input-remapper on` (root): a root service that reads every key typed.
+
+### 8. Xbox wireless adapter
+
+The user runs `ame apps xbox-adapter on` (root) (restart): it downloads Microsoft's firmware, and keeps
+Linux's driver for MT7612U Wi-Fi sticks from loading.
 
 ## Verify
 
@@ -96,3 +107,4 @@ The user runs `ame security input-remapper on` (root): a root service that reads
 - A Flatpak app: `flatpak override --user --nodevice=input APP`.
 - The HID rule: `sudo rm /etc/udev/rules.d/70-keyboard.rules` (root), then plug the device in again.
 - Each `ame security` switch above: the same command with `on`; key remapping with `off`.
+- The Xbox wireless adapter: `ame apps xbox-adapter off` (root) (restart).

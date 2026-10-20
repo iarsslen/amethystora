@@ -21,7 +21,8 @@ set -euo pipefail
 
 REGISTRY=ghcr.io/iarsslen
 STREAM=stable-sealed
-IMAGES=(amethystora amethystora-dx amethystora-nvidia-open amethystora-dx-nvidia-open)
+IMAGES=(amethystora amethystora-dx amethystora-nvidia-open amethystora-dx-nvidia-open amethystora-nvidia-lts
+    amethystora-dx-nvidia-lts)
 # The MOK manager's one-time password, the one `ame security secure-boot` uses
 MOK_PASSWORD=amethystora
 # What bootc and the image need, and room for two versions of it
@@ -72,15 +73,15 @@ fi
 
 # --- The image ---------------------------------------------------------------------------------------
 
-# The NVIDIA images for a machine with an NVIDIA graphics card (PCI class 0x03, vendor 0x10de), as
-# amethystora-gpu-check decides
+# The NVIDIA image whose driver drives the machine's NVIDIA graphics card, as amethystora-gpu-check decides for
+# a machine running the image without one: -nvidia-open from Turing on, -nvidia-lts for Maxwell to Volta
 DEFAULT=amethystora
-for device in /sys/bus/pci/devices/*; do
-    if [[ "$(cat "${device}/class" 2>/dev/null)" == 0x03* && "$(cat "${device}/vendor" 2>/dev/null)" == 0x10de ]]; then
-        DEFAULT=amethystora-nvidia-open
-    fi
-done
-IMAGE="$(gum choose --header "Which Amethystora? (-dx adds the developer tools, -nvidia-open the NVIDIA driver)" \
+INFO="$(mktemp)"
+echo '{"image-name": "amethystora", "image-flavor": "main"}' >"${INFO}"
+OFFER="$(AMETHYSTORA_IMAGE_INFO="${INFO}" /usr/libexec/amethystora-gpu-check offer 2>/dev/null || true)"
+rm -f "${INFO}"
+[[ -n "${OFFER}" ]] && DEFAULT="${OFFER#* }"
+IMAGE="$(gum choose --header "Which Amethystora? (-dx adds the developer tools, -nvidia-open and -nvidia-lts NVIDIA's driver)" \
     --selected "${DEFAULT}" "${IMAGES[@]}")"
 [[ -n "${IMAGE}" ]] || exit 0
 REF="${REGISTRY}/${IMAGE}:${STREAM}"

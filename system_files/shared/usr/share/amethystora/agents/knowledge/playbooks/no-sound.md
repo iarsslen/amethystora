@@ -35,7 +35,7 @@ Then:
    Fusion's `pipewire-codec-aptx` adds aptX. A headset that offered LC3plus elsewhere uses another codec
    here. Tell: `wpctl inspect` on the headset's node, `api.bluez5.codec`.
 4. **A FireWire sound card.** The image keeps FireWire from loading
-   (`/usr/lib/modprobe.d/60-amethystora-hardening.conf`), since it gives a device direct access to memory.
+   (`/usr/lib/modprobe.d/61-amethystora-firewire.conf`), since it gives a device direct access to memory.
    Tell: `modprobe -n -v firewire_ohci` prints `install /usr/bin/false`.
 5. **The wrong default.** GNOME moves to the device plugged in last: a monitor, a dock or a USB headset
    takes over. Tell: the `*` in `wpctl status`.
@@ -67,8 +67,8 @@ Nothing to install: pick the codec the headset offers among those above. Never a
 
 ### FireWire
 
-The user runs `ame security blocked-modules off` (root): every module on the list can load again, FireWire's
-memory access included.
+The user runs `ame security firewire off` (root): FireWire loads at once, and with it its devices' direct
+access to memory. `ame security firewire on` blocks it again.
 
 ### Default and volume
 

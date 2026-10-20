@@ -22,12 +22,14 @@ app that needs one back gets it per app and per user, `flatpak override --user -
 after you say what it gives the app; never edit the global file. `/usr/libexec/amethystora-app-permissions
 --json` (or `ame security apps`) shows what each app can reach and what was granted.
 
-Games, Android apps, drawing tablets and the CPU scheduler each have one command, which explains
-itself and asks first: `ame apps gaming` (Steam from Flathub with X11 granted to it alone; `ame apps
-gaming launchers` adds Heroic or Lutris), `ame apps android` (Waydroid; `start`, `stop`, `off`), `ame
-apps opentabletdriver` (`on`, `off`), and `ame system scheduler` (`kernel`, `lavd`, `bpfland`,
-`flash`). Use them rather than installing these by hand, and leave them to the user to run: each asks
-questions, and the last three use `sudo`.
+Games, Android apps, drawing tablets, the Xbox wireless adapter and the CPU scheduler each have one
+command, which explains itself and asks first: `ame apps gaming` (Steam from Flathub with X11 granted to it
+alone; `ame apps gaming launchers` adds Heroic or Lutris), `ame apps android` (Waydroid; `start`, `stop`,
+`off`), `ame apps opentabletdriver` (`on`, `off`), `ame apps xbox-adapter` (`on`, `off`: Microsoft's
+firmware for the adapter, downloaded from Microsoft, and a kernel argument; wired and Bluetooth controllers
+need nothing), and `ame system scheduler` (`kernel`, `lavd`, `bpfland`, `flash`). Use them rather than
+installing these by hand, and leave them to the user to run: each asks questions, and the last four use
+`sudo`.
 
 ## Containers (amepkg)
 

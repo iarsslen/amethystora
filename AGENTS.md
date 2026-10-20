@@ -59,7 +59,7 @@ Homebrew's own setup, is still copied in by the `ctx` stage of the `Containerfil
 
 ### Architecture
 - **Two Build Targets**: `base` (regular users) and `dx` (developer experience)
-- **Image Flavors**: main, nvidia-open
+- **Image Flavors**: main, nvidia-open, nvidia-lts (see Drivers)
 - **Fedora Versions**: resolved per build by `just fedora_version` (see Version Detection); `04-packages.sh` has cases for 42, 43 and 44
 - **Stream Tags**: `stable`, `latest`, `beta`
 - **Build Process**: Sequential shell scripts in build_files/ directory
@@ -201,7 +201,7 @@ The repository uses mandatory pre-commit validation:
 **Workflow Architecture:**
 
 - Stream-specific workflows (stable, latest, beta) call `reusable-build.yml`
-- `reusable-build.yml` builds both base and dx variants for all flavors (main, nvidia-open)
+- `reusable-build.yml` builds both base and dx variants for all flavors (main, nvidia-open, nvidia-lts)
 - Fedora version is dynamically detected based on stream tag
 - Images are signed with cosign and pushed to GHCR, and every tag pushed is checked against `cosign.pub` afterwards
 - Only main publishes: one `PUBLISH` condition in `reusable-build.yml` (main's schedule and dispatches, the merge queue in front of main, and the `beta` branch's own stream) decides every push, signature, attestation and SBOM, and which builds get the real module and Secure Boot keys. Everything else builds with throwaway keys and publishes nothing. No build step gets `GITHUB_TOKEN`, and keys reach the build as files (`AKMODS_PRIVKEY_FILE`, `SECUREBOOT_KEY_FILE`), never on a command line
@@ -244,6 +244,46 @@ the udev rules of its release into `/etc`: the tag and the SHA-256 of the tarbal
 `apps.just`, where Renovate's `github-release-attachments` manager bumps both, so nothing reaches `/etc`
 from an unchecked download. Its daemon runs from the image's own user unit,
 `amethystora-opentabletdriver.service`, which nothing enables for every account.
+
+### Drivers
+
+`plans/done/PLAN-driver-compatibility.md`. The rest of Universal Blue's common kmods come from the
+`akmods` tarball `03-install-kernel-akmods.sh` already downloads, built for the image's kernel and signed
+with Universal Blue's key, which `ame security secure-boot` enrolls; `20-tests.sh` fails on a module under
+`extra` (evdi aside) signed with a certificate the image does not ship.
+- **NVIDIA.** `-nvidia-open` carries NVIDIA's open driver (Turing and newer, PCI device ID 0x1E00 and up),
+  `-nvidia-lts` its closed driver of the 580 branch (`akmods-nvidia-lts`; Maxwell, Pascal and Volta, 0x1340
+  to 0x1DFF), the last NVIDIA makes for them, so that flavor has an end date; nothing NVIDIA makes drives older
+  cards. Both bounds live in `amethystora-gpu-check` alone (`offer` prints its choice, which the driver
+  check and the live ISO's sealed installer ask). `image-info.json`'s `image-flavor` is the flavor that ends
+  the image's name. `amethystora-rollback-helper` refuses an NVIDIA image while Secure Boot is on and
+  `akmods-amethystora.der` is not enrolled, which would start to a black screen. The `-nvidia-lts` images have
+  no ISO; their GPL user space comes from negativo17's `nvidia-580`, which `source-manifest.sh` knows.
+- **Xbox controllers.** xpadneo (Bluetooth) and xone (Microsoft's wireless adapter; wired pads are the
+  kernel's `xpad`). `xone-kmod-common` carries Microsoft's adapter firmware, which no licence lets the
+  image pass on, under names the driver no longer asks for: the build deletes it and moves its `blacklist
+  mt76x2u` (which takes Wi-Fi from MT7612U sticks) to `/usr/share/amethystora/xone`, and
+  `source-manifest.sh` never fetches its source package (`NOT_FETCHED`). `ame apps xbox-adapter on`
+  downloads Microsoft's four driver packages, checks them and their firmware against
+  `/usr/share/amethystora/xone/firmware` (static since 2017, so Renovate does not follow them), installs
+  `xone_dongle_<ID>.bin` into `/var/lib/amethystora/firmware` (tmpfiles, root's), copies the blacklist and
+  appends `firmware_class.path` with `rpm-ostree kargs`, never in `kargs.d`; sealed images refuse it. The
+  kernel reads that folder before the image's firmware, so the watcher's drift check takes no file there but
+  the pinned ones and no other firmware path.
+- **Left out:** Broadcom's `wl` (its licence makes whoever passes it on indemnify Broadcom, and its
+  CVE-2019-9501 and 9502 can never be fixed) and openrazer (its daemon is Terra's). `20-tests.sh` fails on
+  either package, or on a blacklist of the kernel's own Broadcom drivers.
+- **The driver check** (`amethystora-driver-status`, `amethystora-driver-check.timer` as root) saves
+  `/var/lib/amethystora/drivers/status.json` for `ame system drivers`, `ame report` and the doctor, and says each
+  finding once (`said` beside it): a PCI device of a kind a person notices with no driver, firmware asked for
+  by a device left without one, a refused module, NVIDIA's driver not loaded, a Broadcom Wi-Fi card, the
+  adapter without its firmware.
+- **FireWire** is a switch of its own (`ame security firewire`), its modules in
+  `usr/lib/modprobe.d/61-amethystora-firewire.conf`, apart from the blocked modules.
+- **Lockdown** stays as the gaps plan left it (the maintainer's choice of 2026-10-07, over this plan's of
+  2026-10-04): the argument on every image but the NVIDIA ones, and `ame security lockdown`.
+- Kernel modules' source packages are `kmod-NAME`, built by Universal Blue from the akmod their makers publish
+  as `NAME-kmod`: `source-manifest.sh` fetches that one and links the kmod's name to it.
 
 ### The browser
 
@@ -495,7 +535,7 @@ words, group and how it applies (`--list --json`, the app's **Settings** page, `
 every unit that runs one reads its key in `ExecCondition=` (a drop-in for the packages' own: `clamd@`,
 `clamav-freshclam`, `auditd`, `audit-rules`), and a key that is off writes no audit rule, so a line edited
 by hand applies at the next boot. What the image enforces from the start (kernel settings, blocked
-modules, kernel arguments, firewall zone, fail2ban, lockout, the Flatpak override, virtual input, SSH
+modules, FireWire, kernel arguments, firewall zone, fail2ban, lockout, the Flatpak override, virtual input, SSH
 settings, signed updates) is switched by `/usr/libexec/amethystora-hardening`, one `ame security` command each, which keeps
 what is off in `/etc/amethystora/hardening-off` and names the files it writes, which the watcher's drift
 check accepts exactly. A feature switched off is `info` in the report with the command that turns it on,
@@ -708,7 +748,8 @@ update started there, it starts the account's `amethystora-pkg-upgrade.service` 
 container's failure shows there only, never as a failed system update. Its **Firmware** section asks
 fwupd (`fwupdmgr get-updates --json`, no password) and installs in a terminal (`fwupdmgr update`), where
 fwupd asks before a restart; `fwupd-refresh.timer`, which `17-cleanup.sh` enables because Fedora leaves
-it to GNOME Software, fetches what LVFS has. The top bar draws the same wordmark as Security.
+it to GNOME Software, fetches what LVFS has. `amethystora-update-alert` says at login, once for each
+release, that firmware waits, and the security report's `firmware` check names it. The top bar draws the same wordmark as Security.
 
 ### The Logs app
 
@@ -972,9 +1013,9 @@ it.
   in a notification, which only `ame desktop layout classic` acts on. The classic layout is PaperWM
   turned off, remembered in `~/.config/amethystora/layout`, which `15-extensions.sh` reads so that the
   update that turns the image's extensions back on leaves PaperWM off.
-- `amethystora-gpu-check.timer` offers the matching `-nvidia-open` image on a machine with an NVIDIA
-  card (PCI class `0x03`, vendor `0x10de`), or the image without the driver on one without, once per
-  machine, through `amethystora-notify-users --action` and `ame system rebase IMAGE STREAM`. It
+- `amethystora-gpu-check.timer` offers the image whose driver drives the machine's NVIDIA card (PCI class
+  `0x03`, vendor `0x10de`, by device ID, see Drivers), or the image without the driver on one with no card
+  NVIDIA's driver drives, once per machine, through `amethystora-notify-users --action` and `ame system rebase IMAGE STREAM`. It
   never switches by itself; its state is `/var/lib/amethystora/gpu-check`.
 - The hourly snapshots of the home folders are on from the first boot of a machine installed from an
   Amethystora ISO: both kickstarts leave `/var/lib/amethystora/new-installation`, which
@@ -1017,7 +1058,7 @@ trust comes first. `ame system rebase` must keep taking signed images only. The 
 
 ### Sealed images
 
-`:stable-sealed` is each of the four stable images sealed (`Containerfile.sealed`, after Fedora's sealed
+`:stable-sealed` is each of the six stable images sealed (`Containerfile.sealed`, after Fedora's sealed
 test images, https://github.com/travier/fedora-atomic-desktops-sealed, CC0-1.0): a UKI signed with
 Amethystora's Secure Boot key carries the composefs digest of the whole tree in its kernel command
 line, and the initramfs mounts the system only with fs-verity required. Experimental and for new
@@ -1166,7 +1207,7 @@ The `Justfile` is the central build orchestration tool with these key recipes:
 **Image/Tag Definitions:**
 ```bash
 images: amethystora, amethystora-dx
-flavors: main, nvidia-open
+flavors: main, nvidia-open, nvidia-lts
 tags: stable, latest, beta
 ```
 
@@ -1271,7 +1312,7 @@ Fedora's generic ones, as its trademark guidelines ask of a remix: `fedora-logos
 and the `fedora-release` packages for `generic-release` in the package database only, their files
 staying in place.
 1. `00-image-info.sh` - Sets image metadata and os-release info, and takes Fedora's name out of the other release files (`/usr/lib/fedora-release`, the CPE, the software identification tags)
-2. `03-install-kernel-akmods.sh` - Installs kernel and akmod packages
+2. `03-install-kernel-akmods.sh` - Installs the kernel and the kmods beside it: v4l2loopback, xpadneo and xone from Universal Blue's `akmods` image, evdi built here, ZFS on stable, and on the NVIDIA images the driver of `akmods-nvidia-open` or `akmods-nvidia-lts` (see Drivers)
 3. `04-packages.sh` - Installs Fedora and COPR packages
 4. `05-override-install.sh` - Overrides base image packages. Among them the multimedia stack: the base image installs negativo17's FFmpeg, built with `--enable-nonfree` and labelled by FFmpeg itself "nonfree and unredistributable", and its `pipewire-libs-extra`, whose LC3plus plugin links `liblc3plus`, which has no licence to redistribute. Both are replaced with Fedora's `ffmpeg-free` and `fdk-aac-free`, RPM Fusion's `libavcodec-freeworld`, and RPM Fusion's aptX plugin. negativo17's repository is `fedora-multimedia` in the base image and outranks Fedora's, so `17-cleanup.sh` turns it off; do not install FFmpeg, codec or PipeWire packages from it. `20-tests.sh` fails on any FFmpeg library that reports itself unredistributable. The script also deletes `/usr/share/doc`, after moving the licence, copyright and NOTICE files that some 120 packages keep only there into `/usr/share/licenses`, and installs Starship from a pinned release checked against its published checksum (the pin is bumped by Renovate)
 5. `06-branding.sh` - Puts the Amethystora artwork (generated by `node branding/generate.mjs`) where the boot menu, the boot splash, GDM and the Logo Menu look for it: the GRUB font, the Plymouth theme, Fedora's own logo files, which GDM, the Settings About page and the fallback splash look up by fixed path, and the Logo Menu's panel icon, which `07-debrand.sh` would only rename, not redraw. The Logo Menu ships a logo for every distribution and maker it knows of; the script removes them all and cuts the extension's two lists down to the Amethystora entry, index 0, which the dconf defaults select. `20-tests.sh` fails if another logo is left

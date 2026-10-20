@@ -1,0 +1,237 @@
+#!/usr/bin/bash
+# What keeps a device from working that this machine can tell by itself: a device no driver took, firmware the
+# kernel asked for and did not get, a kernel module it refused, and the cases Amethystora knows (NVIDIA's driver
+# not loaded, a Broadcom Wi-Fi card no driver drives, the Xbox wireless adapter without its firmware). Each with
+# the command that fixes it where there is one, or the manual's section. It reads and changes nothing.
+#
+#   amethystora-driver-status [--json]   the findings: asked of the machine now when run as root, who can read
+#                                        the kernel's log, otherwise as the last check saved them
+#   amethystora-driver-status check      as root: ask, save them in /var/lib/amethystora/drivers/status.json for
+#                                        everyone, and say each new one once per machine, with a button that
+#                                        opens its fix in a terminal (amethystora-driver-check.timer)
+#
+# The JSON is {checked, findings: [{id, kind, device, text, fix, manual}]}, kind one of no-driver, firmware,
+# refused, nvidia, broadcom-wifi and xbox-adapter. AMETHYSTORA_DRIVERS_ROOT (a stand-in /sys, /proc/cmdline,
+# image-info.json and firmware folder), AMETHYSTORA_DRIVERS_LOG (the kernel's log) and AMETHYSTORA_DRIVERS_MOK
+# (what amethystora-mok-status says) are for the tests in 20-tests.sh.
+
+set -uo pipefail
+
+ROOT="${AMETHYSTORA_DRIVERS_ROOT:-}"
+STATE=/var/lib/amethystora/drivers
+SAVED="${STATE}/status.json"
+INFO="${ROOT}/usr/share/amethystora/image-info.json"
+FIRMWARE=/var/lib/amethystora/firmware
+PCI="${ROOT}/sys/bus/pci/devices"
+USB="${ROOT}/sys/bus/usb/devices"
+MODE="${1:-}"
+case "${MODE}" in
+    "" | --json | check) ;;
+    *) echo "usage: ${0##*/} [--json|check]" >&2; exit 64 ;;
+esac
+
+print() {
+    if [[ "${MODE}" == --json ]]; then
+        cat
+    else
+        jq -r '(.findings | if length == 0 then "No missing or refused driver found." else .[] |
+            "\(.device): \(.text)" + (if .fix then "\n    Fix: \(.fix)" else "\n    See the manual: \(.manual)" end) end),
+            "(checked \(.checked | todate))"'
+    fi
+}
+
+# Anyone else reads what the last check saved
+if [[ "${EUID}" -ne 0 && -z "${ROOT}" ]]; then
+    [[ "${MODE}" == check ]] && { echo "The check needs root." >&2; exit 77; }
+    if [[ ! -s "${SAVED}" ]]; then
+        echo "No check has run yet: it runs a few minutes after each start, or now with sudo." >&2
+        exit 1
+    fi
+    print <"${SAVED}"
+    [[ "${MODE}" == --json ]] || echo "As the last check found it: sudo ame system drivers looks again."
+    exit 0
+fi
+
+FINDINGS=()
+# found ID KIND DEVICE TEXT FIX MANUAL. A device's name can be what the device itself says (a USB product
+# string), so it is cleaned before it reaches a terminal or a notification.
+found() {
+    local device
+    device="$(/usr/libexec/amethystora-security-text --max 200 "$3" 2>/dev/null || printf '%s' "$3")"
+    FINDINGS+=("$(jq -nc --arg id "$1" --arg kind "$2" --arg device "${device}" --arg text "$4" --arg fix "$5" --arg manual "$6" \
+        '{$id, $kind, $device, $text, fix: (if $fix == "" then null else $fix end), $manual}')")
+}
+
+# A PCI device as lspci names it, or by its IDs where lspci does not know it
+pci_name() {
+    local name
+    [[ -z "${ROOT}" ]] && name="$(lspci -s "$1" 2>/dev/null | sed 's/^[^ ]* //')"
+    echo "${name:-PCI device $(cat "${PCI}/$1/vendor" 2>/dev/null):$(cat "${PCI}/$1/device" 2>/dev/null) at $1}"
+}
+
+if [[ -n "${AMETHYSTORA_DRIVERS_LOG:-}" ]]; then
+    LOG="$(cat "${AMETHYSTORA_DRIVERS_LOG}")"
+else
+    # The kernel's own lines, and systemd's when it could not load a module, this boot
+    LOG="$(timeout 30 journalctl -b -o cat --no-pager --grep 'firmware|rejected|Lockdown|Failed to insert module' \
+        _TRANSPORT=kernel + SYSLOG_IDENTIFIER=systemd-modules-load 2>/dev/null)"
+fi
+if [[ -n "${AMETHYSTORA_DRIVERS_MOK:-}" ]]; then
+    MOK="$(cat "${AMETHYSTORA_DRIVERS_MOK}")"
+else
+    MOK="$(/usr/libexec/amethystora-mok-status 2>/dev/null)"
+fi
+# Secure Boot, from the firmware's own variable: its last byte is 1 when it is on
+SECURE_BOOT=false
+[[ "$(od -An -tu1 -j4 -N1 "${ROOT}"/sys/firmware/efi/efivars/SecureBoot-8be4df61-93ca-11d2-aa0d-00e098032b8c 2>/dev/null | tr -d ' ')" == 1 ]] &&
+    SECURE_BOOT=true
+CMDLINE=" $(cat "${ROOT}/proc/cmdline" 2>/dev/null) "
+FLAVOR="$(jq -r '."image-flavor" // "main"' "${INFO}" 2>/dev/null)"
+STREAM="$(jq -r '."image-tag" // "stable"' "${INFO}" 2>/dev/null)"
+
+# A module the kernel would not load, and why: a key Secure Boot does not trust yet, or lockdown without Secure Boot
+UNTRUSTED=false
+grep -q "^not-enrolled " <<<"${MOK}" && UNTRUSTED=true
+refusal_fix() {
+    if [[ "${SECURE_BOOT}" == true && "${UNTRUSTED}" == true ]]; then
+        echo "ame security secure-boot"
+    elif [[ "${SECURE_BOOT}" != true && "${CMDLINE}" == *" lockdown="* ]]; then
+        echo "ame security lockdown off"
+    fi
+}
+
+# --- Firmware the kernel asked for and did not get ---------------------------------------------------------
+# Drivers ask for optional files too, newest first, so a file counts only when its device was left without a
+# driver, or when the driver says it gave up
+declare -A COVERED=()
+while IFS= read -r line; do
+    if [[ "${line}" =~ ^[^\ ]+\ ([0-9a-f]{4}:[0-9a-f]{2}:[0-9a-f]{2}\.[0-7]):\ Direct\ firmware\ load\ for\ ([^ ]+)\ failed ]]; then
+        address="${BASH_REMATCH[1]}"
+        file="${BASH_REMATCH[2]}"
+        [[ -e "${PCI}/${address}" && ! -e "${PCI}/${address}/driver" && -z "${COVERED[${address}]+set}" ]] || continue
+        COVERED["${address}"]=1
+        found "firmware:${file}" firmware "$(pci_name "${address}")" \
+            "Its driver stopped without the firmware ${file}, which this image does not have." "" hardware#when-a-device-does-not-work
+    elif [[ "${line}" =~ ^([^\ ]+)\ ([^\ ]+):\ no\ suitable\ firmware\ found ]]; then
+        found "firmware:${BASH_REMATCH[1]}:${BASH_REMATCH[2]}" firmware "${BASH_REMATCH[1]} ${BASH_REMATCH[2]}" \
+            "Its driver found no firmware it could use, which this image does not have." "" hardware#when-a-device-does-not-work
+    fi
+done < <(grep -E 'Direct firmware load for|no suitable firmware found' <<<"${LOG}")
+
+# --- Modules the kernel refused ----------------------------------------------------------------------------
+if grep -qE 'Loading of (module with unavailable key|unsigned module) is rejected|Lockdown: [^:]*: unsigned module loading is restricted' <<<"${LOG}"; then
+    modules="$(grep -oE "Failed to insert module '[^']+'" <<<"${LOG}" | cut -d"'" -f2 | sort -u | paste -sd' ')"
+    fix="$(refusal_fix)"
+    if [[ "${SECURE_BOOT}" == true ]]; then
+        why="Secure Boot is on, and the key it is signed with is not one this machine trusts."
+    elif [[ "${CMDLINE}" == *" lockdown="* ]]; then
+        why="Kernel lockdown is on without Secure Boot, so the kernel trusts no key but its own."
+    else
+        why="The kernel takes signed modules only, and does not trust the key it is signed with."
+    fi
+    found "refused:${modules:-module}" refused "${modules:-A kernel module}" "The kernel refused to load it. ${why}" "${fix}" hardware#secure-boot
+fi
+
+# --- NVIDIA ------------------------------------------------------------------------------------------------
+# A display controller of NVIDIA's that nothing drives: the wrong image for it, the key not enrolled, or lockdown
+for device in "${PCI}"/*; do
+    [[ "$(cat "${device}/class" 2>/dev/null)" == 0x03* && "$(cat "${device}/vendor" 2>/dev/null)" == 0x10de &&
+        ! -e "${device}/driver" ]] || continue
+    address="${device##*/}"
+    COVERED["${address}"]=1
+    offer="$(AMETHYSTORA_PCI_DEVICES="${PCI}" AMETHYSTORA_IMAGE_INFO="${INFO}" /usr/libexec/amethystora-gpu-check offer)"
+    fix=""
+    if [[ -n "${offer}" ]]; then
+        text="Nothing drives it on this image: ${offer#* } carries the driver for it."
+        fix="ame system rebase ${offer#* } ${STREAM}"
+    elif [[ "${FLAVOR}" == nvidia-* ]]; then
+        fix="$(refusal_fix)"
+        if [[ "${fix}" == *secure-boot ]]; then
+            text="NVIDIA's driver did not load: Secure Boot is on, and the key it is signed with is not enrolled."
+        elif [[ -n "${fix}" ]]; then
+            text="NVIDIA's driver did not load: kernel lockdown is on without Secure Boot, which refuses it."
+        else
+            text="NVIDIA's driver did not load."
+        fi
+    else
+        text="Nothing drives it."
+    fi
+    found "nvidia:${address}" nvidia "$(pci_name "${address}")" "${text}" "${fix}" hardware#graphics
+    break
+done
+
+# --- Devices no driver took --------------------------------------------------------------------------------
+# Only the kinds a person notices: storage, network, graphics, sound and video, USB controllers and wireless.
+# Bridges, the chipset's own functions and the like never have one.
+for device in "${PCI}"/*; do
+    [[ -e "${device}/class" && ! -e "${device}/driver" ]] || continue
+    address="${device##*/}"
+    [[ -z "${COVERED[${address}]+set}" ]] || continue
+    class="$(cat "${device}/class")"
+    vendor="$(cat "${device}/vendor" 2>/dev/null)"
+    case "${class}" in
+        0x01* | 0x02* | 0x03* | 0x04* | 0x0c03* | 0x0d*) ;;
+        *) continue ;;
+    esac
+    if [[ "${class}" == 0x0280* && "${vendor}" == 0x14e4 ]]; then
+        found "broadcom-wifi:${address}" broadcom-wifi "$(pci_name "${address}")" \
+            "This Broadcom Wi-Fi card has no driver on Amethystora: the only one there is for it has security holes nobody may fix. A USB Wi-Fi adapter works instead." \
+            "" hardware#wi-fi
+    else
+        found "no-driver:${address}:$(cat "${device}/device" 2>/dev/null)" no-driver "$(pci_name "${address}")" \
+            "No driver took this device." "" hardware#when-a-device-does-not-work
+    fi
+done
+# USB: only wireless and network adapters, since a vendor's own devices are often driven from programs instead
+for interface in "${USB}"/*:*; do
+    [[ -e "${interface}/bInterfaceClass" && ! -e "${interface}/driver" ]] || continue
+    case "$(cat "${interface}/bInterfaceClass")" in e0 | 02) ;; *) continue ;; esac
+    parent="${USB}/$(basename "${interface%%:*}")"
+    ids="$(cat "${parent}/idVendor" 2>/dev/null):$(cat "${parent}/idProduct" 2>/dev/null)"
+    found "no-driver:usb:${ids}" no-driver "$(cat "${parent}/product" 2>/dev/null || echo "USB device ${ids}")" \
+        "No driver took this USB adapter." "" hardware#when-a-device-does-not-work
+done
+
+# --- The Xbox wireless adapter -----------------------------------------------------------------------------
+for device in "${USB}"/*; do
+    [[ "$(cat "${device}/idVendor" 2>/dev/null)" == 045e ]] || continue
+    product="$(cat "${device}/idProduct" 2>/dev/null)"
+    [[ " 02e6 02fe 02f9 091e " == *" ${product} "* ]] || continue
+    [[ -s "${ROOT}${FIRMWARE}/xone_dongle_${product}.bin" && "${CMDLINE}" == *" firmware_class.path=${FIRMWARE} "* ]] &&
+        continue
+    found "xbox-adapter:${product}" xbox-adapter "Xbox wireless adapter" \
+        "It needs Microsoft's firmware, which the image may not pass on: setting it up downloads it from Microsoft." \
+        "ame apps xbox-adapter on" hardware#game-controllers
+done
+
+STATUS="$(printf '%s\n' "${FINDINGS[@]}" | jq -sc --argjson checked "$(date +%s)" '{$checked, findings: map(select(. != null))}')"
+[[ "${MODE}" == check ]] || { print <<<"${STATUS}"; exit 0; }
+
+mkdir -p "${STATE}"
+chmod 0755 "${STATE}"
+printf '%s\n' "${STATUS}" >"${SAVED}.new" && chmod 0644 "${SAVED}.new" && mv "${SAVED}.new" "${SAVED}"
+
+# Each new finding is said once per machine, while somebody is logged in to hear it
+SAID="${STATE}/said"
+compgen -G '/run/user/*/bus' >/dev/null || exit 0
+while IFS=$'\t' read -r -u 3 id device text fix manual; do
+    grep -qxF -- "${id}" "${SAID}" 2>/dev/null && continue
+    echo "${id}" >>"${SAID}"
+    if [[ -n "${fix}" ]]; then
+        actions=(--action fix="Fix it…")
+        # One of the commands above, a word at a time
+        # shellcheck disable=SC2206
+        run=(/usr/libexec/amethystora-in-terminal ${fix})
+    else
+        actions=(--action manual="Read more")
+        run=(/usr/bin/amethystora-manual "${manual}")
+    fi
+    ANSWERS="$(/usr/libexec/amethystora-notify-users "${actions[@]}" "A device does not work: ${device}" "${text}")" || continue
+    while read -r user answer; do
+        [[ -n "${answer}" ]] || continue
+        uid="$(id -u "${user}")" || continue
+        runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/${uid}/bus" \
+            "XDG_RUNTIME_DIR=/run/user/${uid}" systemd-run --user --collect --quiet "${run[@]}" || true
+    done <<<"${ANSWERS}"
+done 3< <(jq -r '.findings[] | [.id, .device, .text, (.fix // ""), .manual] | @tsv' <<<"${STATUS}")
+exit 0

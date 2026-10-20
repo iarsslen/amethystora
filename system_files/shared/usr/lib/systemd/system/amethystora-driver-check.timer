@@ -1,0 +1,10 @@
+[Unit]
+Description=Find devices whose driver is missing, refused or without its firmware
+
+[Timer]
+# A few minutes after boot, when the drivers have had their chance, and again for what is plugged in later
+OnBootSec=4min
+OnUnitInactiveSec=30min
+
+[Install]
+WantedBy=timers.target

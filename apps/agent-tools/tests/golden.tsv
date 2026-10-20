@@ -75,3 +75,7 @@ which service runs network protection	unit/amethystora-ips.service|manual/securi
 change the network protection setting	setting/NETWORK|manual/security#network-protection*|knowledge/by-design#network-protection-blocks-a-connection-only-with-network-block|skill/amethystora/security#the-network
 change the window layout setting	control/layout|manual/desktop#classic-windows
 what is amethystora-restore	helper/amethystora-restore|playbook/backups#*|manual/security#backups*|skill/amethystora/updates#earlier-versions-of-the-users-files
+xbox wireless adapter does not work	manual/hardware#game-controllers|playbook/device-does-nothing#*
+broadcom wifi card has no driver	manual/hardware#wi-fi
+firewire audio interface not detected	manual/hardware#sound-cards|knowledge/by-design#firewire-does-not-load|playbook/no-sound#*
+which nvidia image for a gtx 1060	manual/hardware#graphics|playbook/nvidia#*

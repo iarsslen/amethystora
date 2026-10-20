@@ -1350,6 +1350,8 @@ drift() {
             cmp -s "${etc}" "/usr/share/amethystora/ssh-codes/${rel##*/}" && continue
         [[ -n "${files[${rel}]+set}" ]] &&
             cmp -s "${etc}" <(/usr/libexec/amethystora-hardening expected "${rel}") && continue
+        # The Xbox wireless adapter's blacklist of mt76x2u, exactly as ame apps xbox-adapter copies it
+        [[ "${rel}" == modprobe.d/xone.conf ]] && cmp -s "${etc}" /usr/share/amethystora/xone/xone.conf && continue
         if [[ ! -e "${usr}" && ! -L "${usr}" ]]; then
             printf 'added\t%s\t\n' "${etc}"
         elif [[ ! -e "${etc}" && ! -L "${etc}" ]]; then
@@ -1360,6 +1362,26 @@ drift() {
             printf 'changed\t%s\t\n' "${etc}"
         fi
     done
+    firmware_drift
+}
+
+# The kernel loads firmware from the folder firmware_class.path names before the image's own, for any device.
+# The only folder the image points it at is the Xbox wireless adapter's, and the only files it takes there are
+# Microsoft's firmware as pinned in the image, under the names ame apps xbox-adapter gives them.
+FIRMWARE_DIR=/var/lib/amethystora/firmware
+firmware_drift() {
+    local path file id sum
+    local -A pinned=()
+    path="$(cat /sys/module/firmware_class/parameters/path 2>/dev/null)"
+    [[ -z "${path}" || "${path}" == "${FIRMWARE_DIR}" ]] || printf 'replaces\tfirmware_class.path=%s\t/usr/lib/firmware\n' "${path}"
+    while read -r id _ _ _ sum; do
+        pinned["xone_dongle_${id}.bin"]="${sum}"
+    done < <(grep -v '^#' /usr/share/amethystora/xone/firmware 2>/dev/null)
+    while IFS= read -r file; do
+        [[ -n "${pinned[${file#"${FIRMWARE_DIR}"/}]+set}" && ! -L "${file}" ]] &&
+            [[ "$(sha256sum "${file}" | cut -d' ' -f1)" == "${pinned[${file#"${FIRMWARE_DIR}"/}]}" ]] && continue
+        printf 'replaces\t%s\t/usr/lib/firmware/%s\n' "${file}" "${file#"${FIRMWARE_DIR}"/}"
+    done < <(find "${FIRMWARE_DIR}" -mindepth 1 \( -type f -o -type l \) 2>/dev/null)
 }
 
 # --- setuid programs outside the image ----------------------------------------------------------------

@@ -27,10 +27,14 @@ NEGATIVO17=https://negativo17.org/repos
 COPR=https://download.copr.fedorainfracloud.org/results
 # A package built in Copr names only the owner as its vendor, so the projects this image and its base
 # install from are listed here. One that is missing fails the build below, to be added.
-COPR_PROJECTS=(ublue-os/packages ublue-os/staging bieszczaders/kernel-cachyos-addons)
+COPR_PROJECTS=(ublue-os/packages ublue-os/staging ublue-os/akmods bieszczaders/kernel-cachyos-addons)
 # NVIDIA's repository for its container toolkit, on the NVIDIA images, carries no source packages at
 # all: the source of each release is the tag of its version in the repository the package names.
 NO_SOURCE_PACKAGES="NVIDIA CORPORATION"
+# Source packages never fetched: xone's common package is built from Microsoft's Windows driver packages, which
+# its source package carries and no licence lets anyone pass on. What in it is under the GPL, a modprobe line, a
+# README and the licence, is at the address SOURCES names, and the image does not ship the firmware it made.
+NOT_FETCHED='^xone-kmod-common-'
 
 fetch() {
     curl --fail --silent --location --retry 3 --output "${SOURCES_DIR}/$1" "$2/$1" ||
@@ -39,16 +43,28 @@ fetch() {
 
 # fetch_source <vendor> <source package>, from where that vendor publishes its source packages. One
 # with no vendor was built outside any repository, as the kernel modules are, from a source package
-# that RPM Fusion or negativo17 may publish all the same.
+# that RPM Fusion, negativo17 or Copr may publish all the same.
 fetch_source() {
-    local vendor="$1" srpm="$2" letter="${2:0:1}" base project primary location
+    local vendor="$1" srpm="$2" letter="${2:0:1}" base project primary location akmod
+    [[ ${srpm} =~ ${NOT_FETCHED} ]] && return 1
+    # Universal Blue's akmods build kmod-NAME from the akmod its maker publishes, whose source package is
+    # NAME-kmod of the same version: fetched under that name, and named by its kmod's beside it
+    if [[ ${vendor} == "(none)" && ${srpm} =~ ^kmod-(.+)-([^-]+-[^-]+)\.src\.rpm$ ]]; then
+        akmod="${BASH_REMATCH[1]}-kmod-${BASH_REMATCH[2]}.src.rpm"
+        if [[ -s "${SOURCES_DIR}/${akmod}" ]] || fetch_source "Fedora Copr" "${akmod}" ||
+            fetch_source negativo17.org "${akmod}" || fetch_source "RPM Fusion" "${akmod}"; then
+            ln -sf "${akmod}" "${SOURCES_DIR}/${srpm}"
+            return
+        fi
+    fi
     if [[ ${vendor} == "RPM Fusion" || ${vendor} == "(none)" ]]; then
         for base in "${RPMFUSION}"/{free,nonfree}/fedora/{updates/"${FEDORA}"/SRPMS,releases/"${FEDORA}"/Everything/source/SRPMS}; do
             if fetch "${srpm}" "${base}/${letter,,}"; then return; fi
         done
     fi
     if [[ ${vendor} == "negativo17.org" || ${vendor} == "(none)" ]]; then
-        for base in "${NEGATIVO17}"/{multimedia,nvidia}/fedora-"${FEDORA}"/SRPMS; do
+        # nvidia-580 is NVIDIA's long-term branch, which the -nvidia-lts images carry
+        for base in "${NEGATIVO17}"/{multimedia,nvidia,nvidia-580}/fedora-"${FEDORA}"/SRPMS; do
             if fetch "${srpm}" "${base}"; then return; fi
         done
     fi
@@ -82,7 +98,7 @@ while IFS=$'\t' read -r vendor srpm family; do
     if [[ -s "${SOURCES_DIR}/${srpm}" ]] || fetch_source "${vendor}" "${srpm}"; then
         continue
     fi
-    if [[ ${vendor} != "(none)" && ${vendor} != "${NO_SOURCE_PACKAGES}" && ${family} == gpl ]]; then
+    if [[ ${vendor} != "(none)" && ${vendor} != "${NO_SOURCE_PACKAGES}" && ${family} == gpl && ! ${srpm} =~ ${NOT_FETCHED} ]]; then
         echo "::error::${srpm} is under the GPL, and ${vendor} no longer publishes it"
         exit 1
     fi

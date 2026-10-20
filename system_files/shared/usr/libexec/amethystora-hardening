@@ -38,8 +38,8 @@ HOME_NETWORKS="${ROOT}/etc/amethystora/firewall-home"
 SHARE=/usr/share/amethystora/hardening
 KARGS=/usr/lib/bootc/kargs.d/10-amethystora-hardening.toml
 # On until turned off
-NAMES=(kernel blocked-modules kernel-args firewall failed-logins lockout app-sandbox virtual-input ssh-settings
-    signed-updates ipv6-privacy bluetooth-privacy)
+NAMES=(kernel blocked-modules firewire kernel-args firewall failed-logins lockout app-sandbox virtual-input
+    ssh-settings signed-updates ipv6-privacy bluetooth-privacy)
 # Off until turned on
 STRICTER=(time firewall-away network-daemons block-bluetooth block-webcam block-automount block-user-extensions
     block-xwayland flathub-verified flatpak-password noexec-temp no-coredumps package-cooldown brew-attestations
@@ -56,6 +56,7 @@ EXTRA_ORDER=(init_on_free=1 iommu.strict=1 ia32_emulation=0)
 
 SYSCTL=sysctl.d/60-amethystora-hardening.conf
 MODPROBE=modprobe.d/60-amethystora-hardening.conf
+FIREWIRE=modprobe.d/61-amethystora-firewire.conf
 STRICT_SYSCTL=sysctl.d/61-amethystora-strict.conf
 STRICT_MODPROBE=modprobe.d/61-amethystora-strict.conf
 FIREWALLD=firewalld/firewalld.conf
@@ -246,6 +247,7 @@ managed() {
     is_off kernel && printf '%s\tmask\n' "${SYSCTL}"
     is_on kernel strict && printf '%s\tfile\n%s\tfile\n' "${STRICT_SYSCTL}" "${STRICT_MODPROBE}"
     is_off blocked-modules && printf '%s\tmask\n' "${MODPROBE}"
+    is_off firewire && printf '%s\tmask\n' "${FIREWIRE}"
     is_off firewall && printf '%s\tfile\n%s\tfile\n' "${FIREWALLD}" "${JAIL}"
     is_on firewall-away && printf '%s\tfile\n' "${FIREWALLD}"
     is_off lockout && printf '%s\tfile\n' "${FAILLOCK}"
@@ -417,6 +419,16 @@ set_switch() {
             ;;
         blocked-modules)
             mask "${MODPROBE}" "${switched}"
+            ;;
+        firewire)
+            mask "${FIREWIRE}" "${switched}"
+            if [[ "${switched}" == off ]]; then
+                # A FireWire controller (OHCI, PCI class 0x0c0010) that is there gets its driver at once
+                grep -qx 0x0c0010 /sys/bus/pci/devices/*/class 2>/dev/null && modprobe firewire_ohci 2>/dev/null
+            else
+                # What nothing is using goes now, and the rest at the next restart
+                modprobe -r firewire_sbp2 firewire_ohci firewire_core 2>/dev/null
+            fi
             ;;
         kernel-args)
             if sealed; then
@@ -658,6 +670,7 @@ words() {
     declare -gA TITLE=(
         [kernel]="$(gettext "Kernel settings")"
         [blocked-modules]="$(gettext "Blocked kernel modules")"
+        [firewire]="$(gettext "FireWire")"
         [kernel-args]="$(gettext "Kernel arguments")"
         [firewall]="$(gettext "Firewall zone")"
         [failed-logins]="$(gettext "Failed logins over the network")"
@@ -689,7 +702,8 @@ words() {
     )
     declare -gA TEXT=(
         [kernel]="$(gettext "Hides kernel addresses and messages, keeps programs from reading each other's memory, and turns off unprivileged BPF. Off, gdb -p, strace -p, perf and dmesg work without sudo, from the next restart. Strict also turns off io_uring, lets only root attach a debugger, randomises more of each program's memory layout and blocks IPsec; QEMU, Samba and some Node programs lose io_uring, gdb -p and strace -p need sudo, sanitizers stop working and libreswan and strongSwan cannot connect.")"
-        [blocked-modules]="$(gettext "Old network protocols and filesystems, FireWire, test and fault-injection drivers, CAN, GNSS, the floppy and parallel ports cannot load. Off, FireWire sound cards and cameras, disks from old Macs, SCTP, CAN buses and amateur radio work.")"
+        [blocked-modules]="$(gettext "Old network protocols and filesystems, test and fault-injection drivers, CAN, GNSS, the floppy and parallel ports cannot load. Off, disks from old Macs, SCTP, CAN buses and amateur radio work.")"
+        [firewire]="$(gettext "FireWire cannot load: a FireWire device can read and write the machine's memory by itself, whatever is running. Off, FireWire sound cards, DV cameras and disks work.")"
         [kernel-args]="$(gettext "Memory wiped as it is handed out, slab caches kept apart, no vsyscall page, and only a program's own debugger writing over its code. init_on_alloc costs a few percent on work that allocates a lot, vsyscall=none stops very old programs, and proc_mem.force_override=ptrace stops older releases of the rr debugger. Stricter ones are off until turned on: memory wiped as it is freed (slower), the IOMMU checking every device's memory access at once (slower disks and network), and no 32-bit programs (no Steam, no 32-bit Wine). Each one on its own, from the next restart.")"
         [firewall]="$(gettext "The Amethystora zone lets in only what a desktop needs. Off, Fedora Workstation's zone lets in every port from 1025 up. Opening the one port a server needs is the narrower answer.")"
         [failed-logins]="$(gettext "fail2ban blocks an address after repeated failed logins over SSH. Off, nothing runs for an SSH server that is off by default.")"
@@ -723,6 +737,7 @@ words() {
     declare -gA WHEN=(
         [kernel]="$(gettext "From the next restart: a kernel setting keeps its value until then.")"
         [blocked-modules]="$(gettext "At once, for a module that is not loaded yet.")"
+        [firewire]="$(gettext "At once. Turned back on, at once if no FireWire device is in use, otherwise from the next restart.")"
         [kernel-args]="$(gettext "From the next restart.")"
         [firewall]="$(gettext "At once.")"
         [failed-logins]="$(gettext "At once.")"
