@@ -177,7 +177,8 @@ android ACTION="":
             waydroid session stop 2>/dev/null || true
             sudo systemctl disable --now waydroid-container.service
             sudo rm -rf /var/lib/waydroid
-            rm -rf "${XDG_DATA_HOME:-${HOME}/.local/share}/waydroid"
+            # What Android saved in the home belongs to the container's own users, not to you
+            sudo rm -rf -- "${XDG_DATA_HOME:-${HOME}/.local/share}/waydroid"
             rm -f "${XDG_DATA_HOME:-${HOME}/.local/share}"/applications/waydroid.*.desktop
             echo "Removed. Waydroid itself stays in the image, set up only when you ask."
             ;;
