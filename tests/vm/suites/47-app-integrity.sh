@@ -61,13 +61,15 @@ check "${OWN} installs for ${TEST_USER}" as_user "flatpak install --user -y --no
 
 # A check, as the recipe runs one, and what it took, from systemd's own accounting
 measure() {
-    local start stop cpu io
-    { read -r cpu; read -r io; read -r start; read -r stop; } < <(systemctl show amethystora-integrity.service \
-        -p CPUUsageNSec -p IOReadBytes -p ExecMainStartTimestampMonotonic -p ExecMainExitTimestampMonotonic --value)
+    local key value cpu io
+    local -A p=()
+    # By name: systemctl show prints its own order, not the order asked for
+    while IFS='=' read -r key value; do p["${key}"]="${value}"; done < <(systemctl show amethystora-integrity.service \
+        -p CPUUsageNSec -p IOReadBytes -p ExecMainStartTimestampMonotonic -p ExecMainExitTimestampMonotonic)
     # systemd says "[not set]" for what it did not account
-    [[ "${cpu}" =~ ^[0-9]+$ ]] && cpu="$((cpu / 1000000)) ms of CPU" || cpu="CPU not accounted"
-    [[ "${io}" =~ ^[0-9]+$ ]] && io="$((io / 1048576)) MB read" || io="reads not accounted"
-    echo "# $1: $(((stop - start) / 1000000)) s, ${cpu}, ${io}"
+    [[ "${p[CPUUsageNSec]}" =~ ^[0-9]+$ ]] && cpu="$((p[CPUUsageNSec] / 1000000)) ms of CPU" || cpu="CPU not accounted"
+    [[ "${p[IOReadBytes]}" =~ ^[0-9]+$ ]] && io="$((p[IOReadBytes] / 1048576)) MB read" || io="reads not accounted"
+    echo "# $1: $(((p[ExecMainExitTimestampMonotonic] - p[ExecMainStartTimestampMonotonic]) / 1000000)) s, ${cpu}, ${io}"
 }
 run_check() {
     systemctl start amethystora-integrity.service || return 1
