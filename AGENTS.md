@@ -540,7 +540,7 @@ audit fallback, which sees no `/proc/PID/mem`. A program's own business (the sam
 shared folders, one sandbox other than the host's) and `/usr/share/amethystora/debuggers` are recorded only.
 
 **App integrity** (`APP_INTEGRITY`, `/usr/libexec/amethystora-integrity`, Python with the OSTree bindings and
-SQLite; `plans/security/PLAN-app-integrity.md`) checks the system's ostree repository, each deployment's
+SQLite; `plans/done/PLAN-app-integrity.md`) checks the system's ostree repository, each deployment's
 `.ostree.cfs`, the kernels and initramfs images in `/boot`, and every Flatpak installation against what their
 signed updates installed, daily and on `/var/lib/flatpak/.changed` (`amethystora-integrity.timer` and
 `.path`). Updates verify what they write, so root's files are trusted the first time and kept by their stat
