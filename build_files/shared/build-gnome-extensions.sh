@@ -160,6 +160,13 @@ install_ego_extension "tophat@fflewddur.github.io" 24 69837 \
 # Just Perfection: the panel and animation tweaks in zz1-amethystora-modifications
 install_ego_extension "just-perfection-desktop@just-perfection" 37 74466 \
     c54ccd627540d86e6baf06c699f624ba7d5229aedfc8b00b0dc7182c6538eda8
+# Version 37 makes GNOME's Looking Glass a second after the session starts, only to size it when it opens,
+# and making it then takes the keyboard from GNOME's welcome dialog on an account's first login: Enter and
+# Escape did nothing, so without a mouse there was no way past it. It sizes a Looking Glass there is
+# already, and makes none; this image sets no size for it.
+JP_API=/usr/share/gnome-shell/extensions/just-perfection-desktop@just-perfection/lib/API.js
+sed -i 's/^\( *\)let lookingGlass = this\._main\.createLookingGlass();$/\1let lookingGlass = this._main.lookingGlass;\n\1if (!lookingGlass) {\n\1    return;\n\1}/' "${JP_API}"
+grep -qF 'createLookingGlass' "${JP_API}" && false
 
 # Space Bar: the i3-style workspace indicator that makes the six fixed workspaces visible.
 # The only one of these that needs a pin per GNOME: v34 is the last build for GNOME 49 and
