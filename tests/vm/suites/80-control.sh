@@ -383,8 +383,7 @@ fi
 # --- Phase 2: the window, and the terminal cards that download little ---------------------------------------
 if [[ "${SUITE_PHASE}" == 2 ]]; then
     # --- The window, after the first restart: on an account's first login GNOME Shell shows its welcome
-    # dialog, which takes no key, from the lab's keyboard either, and keeps every keybinding from working
-    # until it is clicked away; it shows once
+    # dialog over the overview, which the click below would not put away; it shows once
     atspi() { user_bus python3 "${OWN}/atspi.py" "${APP}" "$@"; }
     has() { atspi has "$1"; }
     # The first widget named TEXT, of ROLE, is in STATE (checked, active...)
@@ -420,8 +419,8 @@ EOF
     window_inactive() { ! window_active; }
     # Opened as a person opens it, with its hotkey (custom29), on a keyboard GNOME takes for a person's
     # (keys.py): a window started any other way, without a person's input behind it, GNOME gives no focus to
-    # A session takes no key until it has had its first click: one in the middle of the screen, the overview's
-    # workspace, which also leaves the overview, then the hotkey
+    # The session starts in GNOME's overview, which takes keys for its search and keeps a window it did not
+    # open behind it: a click in the middle of the screen, its workspace, leaves it, as a person does
     python3 "${SUITE_DIR}/keys.py" click:0.5,0.5 super+ctrl+shift+c
     if atspi wait 120 "Theme" >/dev/null 2>&1; then
         check "Super+Ctrl+Shift+C opens Control, which has the focus" wait_for 30 window_active

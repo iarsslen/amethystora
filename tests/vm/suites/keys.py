@@ -4,7 +4,8 @@ a person does: GNOME takes it for real input, and gives the focus to what it ope
 keeps /dev/uinput root's). A STEP is a key or a chord of keys joined by + (super, ctrl+shift+c, alt+tab,
 return), text: to type, its letters, digits and spaces each pressed in turn, or click:X,Y, the left button at
 X and Y, fractions of the screen's width and height (click:0.5,0.5 is its middle). Waits a moment after each.
-A session takes no key until it has had its first click.
+GNOME's overview, where a session starts, takes keys for its search, and leaves a window it did not open
+behind it: a click on its workspace (the middle of the screen) leaves it, as a person does.
 
     keys.py click:0.5,0.5 super+ctrl+shift+c
 """
@@ -76,8 +77,11 @@ def main(steps):
     os.write(fd, struct.pack("80sHHHHi", b"vmlab keyboard", 3, 0x1234, 0x5678, 1, 0)
              + struct.pack("64i", *absmax) + bytes(3 * 64 * 4))
     fcntl.ioctl(fd, UI_DEV_CREATE)
-    # The compositor finds the new device through udev first
+    # The compositor finds the new device through udev first, and the first key it gets from one may still be
+    # lost: Shift, which does nothing alone, is that key
     time.sleep(2)
+    press(fd, [KEYS["shift"]])
+    time.sleep(1)
     try:
         for step in steps:
             if step.startswith("click:"):

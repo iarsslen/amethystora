@@ -20,6 +20,16 @@ else
 fi
 check "the session is Wayland" sh -c "loginctl show-session \$(loginctl show-user ${TEST_USER} -p Display --value) -p Type --value | grep -qx wayland"
 check "GNOME Shell runs in it" wait_for 120 pgrep -u "${TEST_USER}" -x gnome-shell
+# GNOME's welcome dialog of a first login, left with the keyboard alone (keys.py): Just Perfection once took the
+# keyboard from it, and without a mouse there was no way past it
+shows_welcome() { user_bus python3 "$(dirname "$0")/atspi.py" gnome-shell has "Welcome to"; }
+welcome_gone() { ! shows_welcome; }
+if wait_for 120 shows_welcome; then
+    python3 "$(dirname "$0")/keys.py" esc
+    check "Escape closes GNOME's welcome dialog" wait_for 20 welcome_gone
+else
+    skip "GNOME's welcome dialog did not show"
+fi
 # The per-account setup, then the session settled
 setup_state() { user_systemctl show amethystora-user-setup.service -p ActiveState -p Result --value | paste -sd ' '; }
 setup_done() { [[ "$(setup_state)" == inactive* ]]; }
