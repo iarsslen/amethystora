@@ -2658,15 +2658,27 @@ msgid "The same check, now, in the background. After a power cut, do it for a po
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Reset settings…"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Start over"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Reset settings"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Puts your account's desktop settings, the machine's settings in /etc, or both back as the image ships them. Your files, apps and accounts stay, and so do your language, networks and everything Security sets. Each is saved first, and the same button can undo it."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Not on a sealed machine yet: it has not been tried on one."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "Start over…"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Start over"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list

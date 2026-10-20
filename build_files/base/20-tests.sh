@@ -587,6 +587,12 @@ grep -q "ame system rebase" /usr/libexec/amethystora-gpu-check
 grep -q "kernel lockdown" /usr/libexec/amethystora-gpu-check
 grep -q -- "--action" /usr/libexec/amethystora-notify-users
 
+# Resetting settings, the step before starting over: /etc put back as the image ships it, less what the
+# machine knows and everything Security sets, saved first and undone byte for byte, tried on a stand-in /etc
+test -x /usr/libexec/amethystora-reset-settings
+ame --show system::reset-settings >/dev/null
+bash /ctx/build_files/shared/test-reset-settings.sh
+
 # Pools of disks (ame system raid): one helper, which erases nothing without a terminal and ERASE typed,
 # whose status Control and its own hourly check read, tried against a stand-in machine since the build
 # has no disks to spare. Its two timers run on every image and skip a machine with nothing to watch. The

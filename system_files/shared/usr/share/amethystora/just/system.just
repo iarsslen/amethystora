@@ -201,6 +201,12 @@ dx-group *GROUPS:
     done
     echo "Log out and back in for it to apply."
 
+# Settings back as the image ships them, your files, apps and accounts kept: your account's, the machine's or both, each saved first (WHAT: account, machine, both, or undo with account or machine; without it, asks)
+[no-exit-message]
+[positional-arguments]
+reset-settings WHAT="" PART="":
+    @/usr/libexec/amethystora-reset-settings ask ${1:+"$1"} ${2:+"$2"}
+
 # Factory reset this device (experimental)
 powerwash:
     #!/usr/bin/bash
@@ -209,6 +215,7 @@ powerwash:
         echo "Starting over has not been tried on a sealed machine yet. Install it again from the ISO instead."
         exit 1
     fi
+    echo "To put only the settings back, and keep the accounts and their files: ame system reset-settings"
     FIRST_CONFIRMATION=$(gum choose --header='Warning: This is an experimental feature that will reset this device to its factory state.' "No" "Yes - wipe this machine")
     if [[ "$FIRST_CONFIRMATION" != "Yes - wipe this machine" ]]; then
         echo "Powerwash cancelled."

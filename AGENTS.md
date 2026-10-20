@@ -772,6 +772,11 @@ it for `--json`, so a setting added or changed there reaches both. Never write a
 - **Pools of disks** are the System page's Disks group: a `disks` entry with one row for each pool from
   `amethystora-raid status --json`, each with the actions the list gives it, which `backend.rs` runs with
   `pool(action, id)`. Every one of them is an `ame system raid` command in a terminal (`20-tests.sh`).
+- **Reset settings**, before Start over, is `ame system reset-settings` (`/usr/libexec/amethystora-reset-settings`):
+  the account's dconf, less its language, keyboard and accessibility, and the machine's `/etc` against
+  `/usr/etc`, each saved first for `undo`. It keeps what the machine knows (`KEEP`) and everything Security
+  sets: its `SECURITY` list is the watcher's `DRIFT_PATHS`, which `test-reset-settings.sh` holds it to, and a
+  unit a security switch enables or masks goes in its `KEEP_UNITS`.
 
 Its manual page is `control.md`, and each card links to its own section. The sidebar draws the same
 wordmark as Security, and the app grid's icon is the tile `generate.mjs` draws (`amethystora-control.svg`).

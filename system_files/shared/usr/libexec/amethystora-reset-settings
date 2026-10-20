@@ -1,0 +1,392 @@
+#!/usr/bin/bash
+# Settings back as the image ships them, with files, apps and accounts kept: the step before starting over
+# (`ame system powerwash`), which keeps none of them. Two parts, each saved first, so that undo brings it back:
+#
+#   - The machine's: every file in /etc that differs from the image's own copy in /usr/etc is put back,
+#     taken away or brought back, except what the machine knows rather than how it behaves (KEEP) and
+#     what Security sets (SECURITY, KEEP_UNITS, and the files amethystora-hardening names). As root; what it
+#     replaced goes to /var/lib/amethystora/reset-settings.
+#   - The account's: the desktop's settings in dconf, less the language, keyboard and accessibility, then
+#     the theme and the layout a new account starts with. As the account; what it replaced goes to
+#     ~/.local/state/amethystora/reset-settings.
+#
+#   amethystora-reset-settings ask [account|machine|both|undo [account|machine]]
+#                                                 explain, show, ask and reset: `ame system reset-settings`
+#   amethystora-reset-settings list               what the machine's reset changes, "change<TAB>/etc/PATH"
+#                                                 a line: changed, added (only in /etc) or removed (root)
+#   amethystora-reset-settings machine            reset the machine's settings (root)
+#   amethystora-reset-settings account            reset the account's settings (as the account)
+#   amethystora-reset-settings undo machine|account   bring back what the last reset of it replaced
+#   amethystora-reset-settings saved machine|account  the last reset of it that undo would bring back
+#
+# Nothing is deleted: an undone reset keeps its folder, renamed *.undone.
+
+set -uo pipefail
+
+# AMETHYSTORA_RESET_ROOT is for build_files/shared/test-reset-settings.sh, which resets a stand-in /etc
+ROOT="${AMETHYSTORA_RESET_ROOT:-}"
+ETC="${ROOT}/etc"
+IMAGE_ETC="${ROOT}/usr/etc"
+SAVES="${ROOT}/var/lib/amethystora/reset-settings"
+ACCOUNT_SAVES="${XDG_STATE_HOME:-${HOME}/.local/state}/amethystora/reset-settings"
+CONFIG="${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora"
+HOOKS=/usr/share/amethystora/user-setup.hooks.d
+SETUP_CHECKER_FILE="${HOME}/.local/share/amethystora/setup_versioning.json"
+
+# What the machine knows rather than how it behaves, left as it is: who uses it and how they log in, its
+# disks, name, networks and printers, its language, time and keyboard, what it trusts and where its
+# software comes from, its hardware and virtual machines, and what the system writes there itself
+KEEP=(
+    'passwd*' 'group*' 'shadow*' 'gshadow*' 'subuid*' 'subgid*' 'authselect/*' nsswitch.conf 'sssd/*' krb5.conf
+    'krb5.conf.d/*' krb5.keytab 'samba/*' realmd.conf 'gdm/*'
+    fstab crypttab 'cryptsetup-keys.d/*' mdadm.conf 'lvm/*' 'multipath*' 'iscsi/*' 'nvme/*' 'dracut.conf.d/*'
+    'kernel/*' default/grub
+    hostname machine-info machine-id 'NetworkManager/system-connections/*' 'wireguard/*' 'openvpn/*'
+    'ipsec.*' 'cups/*' printcap
+    locale.conf localtime adjtime vconsole.conf X11/xorg.conf.d/00-keyboard.conf
+    'pki/*' 'ssh/ssh_host_*' 'ostree/*' 'yum.repos.d/*' 'flatpak/remotes.d/*'
+    'udev/*' 'cdi/*' 'libvirt/*'
+    'selinux/*' .updated ld.so.cache aliases.db brlapi.key 'systemd/system.control/*' systemd/system/default.target
+)
+# Where the settings Security watches live: the security watcher's DRIFT_PATHS, which
+# test-reset-settings.sh holds this to. Security changes them, and its report says when something else did.
+SECURITY=(amethystora audit authselect brave/policies chromium/policies clamd.d containers/policy.json
+    containers/registries.d containers/systemd environment fail2ban firefox/policies firewalld
+    flatpak/overrides ld.so.conf ld.so.conf.d opt/chrome/policies opt/edge/policies
+    ld.so.preload modprobe.d modules-load.d pam.d pki/akmods/certs pki/ca-trust/source pki/containers
+    polkit-1/rules.d profile profile.d rc.d/rc.local security ssh/sshd_config ssh/sshd_config.d sudoers
+    sudoers.d sysctl.conf sysctl.d tmpfiles.d udev/rules.d usbguard xdg/autostart)
+# ...the files of the two switches that keep their state in /etc rather than in security.conf
+SECURITY_FILES=(systemd/resolved.conf.d/60-amethystora-dns.conf NetworkManager/conf.d/60-amethystora-dns.conf
+    NetworkManager/conf.d/60-amethystora-mac.conf)
+# ...and the units whose state Security, Updates and a domain's logins set, and Tailscale's network: their
+# links, masks and drop-ins in /etc stay as they are
+KEEP_UNITS='^(amethystora-.*|auditd|audit-rules|avahi-daemon|bluetooth|bootc-.*|clamav-.*|clamd@.*|fail2ban|firewalld|input-remapper|ModemManager|oddjobd|passim|polkit|rpm-ostreed.*|sssd.*|systemd-journald|tailscaled|usbguard|uupd.*|winbind)\.[a-z]+$'
+
+# The account's settings in dconf that stay: how it is read and typed in, and GNOME's welcome dialog already
+# seen, which would otherwise greet it again at the next login
+KEEP_DCONF=(/org/gnome/desktop/input-sources/ /org/gnome/desktop/a11y/ /org/gnome/system/locale/)
+KEEP_KEYS=(/org/gnome/desktop/interface/text-scaling-factor /org/gnome/desktop/interface/cursor-size
+    /org/gnome/desktop/interface/toolkit-accessibility /org/gnome/shell/welcome-dialog-last-shown-version)
+
+usage() {
+    echo "usage: ${0##*/} ask [account|machine|both|undo [account|machine]] | list | machine | account" \
+        "| undo machine|account | saved machine|account" >&2
+    exit 64
+}
+die() {
+    echo "$*" >&2
+    exit 1
+}
+need_root() { [[ "${EUID}" -eq 0 || -n "${ROOT}" ]] || die "Resetting the machine's settings needs root."; }
+# A sealed machine (updates.md#sealed-images) has not been tried yet
+machine_possible() { [[ -n "${ROOT}" || (-d /usr/etc && ! -e /usr/share/amethystora/sealed) ]]; }
+stamp() { date +%Y-%m-%dT%H-%M-%S; }
+# The newest reset in a folder of them that has not been undone
+last() { find "$1" -mindepth 1 -maxdepth 1 -type d -name '????-??-??T??-??-??' 2>/dev/null | sort | tail -n 1 | grep .; }
+
+# --- The machine's --------------------------------------------------------------------------------------
+
+declare -A MANAGED=()
+read_managed() {
+    local rel
+    while IFS=$'\t' read -r rel _; do
+        MANAGED["${rel}"]=1
+    done < <(AMETHYSTORA_HARDENING_ROOT="${ROOT}" /usr/libexec/amethystora-hardening managed 2>/dev/null)
+}
+
+kept() {
+    local rel="$1" pattern unit
+    case "${rel##*/}" in *lock | *LOCK) return 0 ;; esac
+    for pattern in "${KEEP[@]}"; do
+        # shellcheck disable=SC2053 # a pattern
+        [[ "${rel}" == ${pattern} ]] && return 0
+    done
+    for pattern in "${SECURITY[@]}" "${SECURITY_FILES[@]}"; do
+        [[ "${rel}" == "${pattern}" || "${rel}" == "${pattern}"/* ]] && return 0
+    done
+    [[ -n "${MANAGED[${rel}]+set}" ]] && return 0
+    # The databases dconf update compiles from their folders, at every start
+    [[ "${rel}" == dconf/db/* && "${rel}" != dconf/db/*/* ]] && return 0
+    if [[ "${rel}" == systemd/system/* || "${rel}" == systemd/user/* ]]; then
+        unit="${rel#systemd/*/}"
+        unit="${unit%%/*}"
+        # A link that enables a unit is named after the unit, in a folder named after what wants it
+        [[ "${unit}" == *.wants || "${unit}" == *.requires || "${unit}" == *.upholds ]] && unit="${rel##*/}"
+        unit="${unit%.d}"
+        [[ "${unit}" =~ ${KEEP_UNITS} ]] && return 0
+    fi
+    return 1
+}
+
+# A file, or a link, and not a folder
+plain() { [[ -L "$1" || -f "$1" ]]; }
+# In a folder reached through no link: a folder in /etc may be a link out of it
+inside() {
+    local parent="${1%/*}"
+    [[ "${parent}" == "$1" ]] && return 0
+    [[ "$(realpath -m -- "${ETC}/${parent}")" == "$(realpath -m -- "${ETC}")/${parent}" ]]
+}
+
+scan() {
+    local rel etc usr
+    read_managed
+    {
+        find "${ETC}" -xdev \( -type f -o -type l \) -printf '%P\n'
+        find "${IMAGE_ETC}" \( -type f -o -type l \) -printf '%P\n'
+    } 2>/dev/null | LC_ALL=C sort -u | while IFS= read -r rel; do
+        kept "${rel}" && continue
+        etc="${ETC}/${rel}"
+        usr="${IMAGE_ETC}/${rel}"
+        if plain "${etc}"; then
+            if plain "${usr}"; then
+                if [[ -L "${etc}" || -L "${usr}" ]]; then
+                    [[ -L "${etc}" && -L "${usr}" && "$(readlink "${etc}")" == "$(readlink "${usr}")" ]] && continue
+                else
+                    cmp -s "${etc}" "${usr}" && continue
+                fi
+                inside "${rel}" && printf 'changed\t%s\n' "${rel}"
+            elif [[ ! -e "${usr}" ]]; then
+                inside "${rel}" && printf 'added\t%s\n' "${rel}"
+            fi
+        elif [[ ! -e "${etc}" ]] && plain "${usr}" && inside "${rel}"; then
+            printf 'removed\t%s\n' "${rel}"
+        fi
+    done
+}
+
+# /etc/PATH as it is under FROM (the image's copy, or a reset's saved one) in place of what is there, or
+# with FROM "-" taken away
+place() {
+    local from="$1" rel="$2"
+    rm -f -- "${ETC}/${rel}"
+    [[ "${from}" == - ]] || (cd "${from}" && cp -a --parents -- "${rel}" "${ETC}/") || return 1
+    [[ -n "${ROOT}" ]] || restorecon -F "${ETC}/${rel}" 2>/dev/null || true
+}
+
+# What reads /etc once: systemd's units, and the dconf databases compiled from their folders
+settle() {
+    [[ -z "${ROOT}" ]] || return 0
+    systemctl daemon-reload
+    dconf update 2>/dev/null || true
+}
+
+machine() {
+    local save kind rel failed=0
+    need_root
+    machine_possible || die "This machine is sealed, and resetting its settings has not been tried on one yet."
+    save="${SAVES}/$(stamp)"
+    mkdir -p "${SAVES}"
+    chmod 0755 "${SAVES}"
+    mkdir -m 0700 "${save}" || die "Could not make ${save}."
+    scan >"${save}/changes"
+    if [[ ! -s "${save}/changes" ]]; then
+        rm -r "${save}"
+        echo "This machine's settings are already the image's."
+        return 0
+    fi
+    # Everything it replaces is copied first, and nothing changes unless all of it was
+    mkdir "${save}/etc"
+    while IFS=$'\t' read -r kind rel; do
+        [[ "${kind}" == removed ]] && continue
+        (cd "${ETC}" && cp -a --parents -- "${rel}" "${save}/etc/") || die "Could not save /etc/${rel}, so nothing changed."
+    done <"${save}/changes"
+    while IFS=$'\t' read -r kind rel; do
+        case "${kind}" in
+            changed | removed) place "${IMAGE_ETC}" "${rel}" || failed=1 ;;
+            added) place - "${rel}" ;;
+        esac
+    done <"${save}/changes"
+    settle
+    echo "$(wc -l <"${save}/changes") files in /etc are the image's again. What they were is in ${save}."
+    [[ "${failed}" == 0 ]] || die "Some could not be put back: compare /etc with /usr/etc."
+}
+
+undo_machine() {
+    local save kind rel failed=0
+    need_root
+    save="$(last "${SAVES}")" || die "There is no reset of this machine's settings to undo."
+    while IFS=$'\t' read -r kind rel; do
+        case "${kind}" in
+            changed | added) place "${save}/etc" "${rel}" || failed=1 ;;
+            removed) place - "${rel}" ;;
+        esac
+    done <"${save}/changes"
+    mv "${save}" "${save}.undone"
+    settle
+    echo "The machine's settings are as they were before the reset of ${save##*/}."
+    [[ "${failed}" == 0 ]] || die "Some could not be brought back: they are in ${save}.undone/etc."
+}
+
+# --- The account's --------------------------------------------------------------------------------------
+
+account() {
+    local save hook key index
+    local -a values=()
+    [[ "${EUID}" -ne 0 ]] || die "An account's settings are reset as that account, not as root."
+    save="${ACCOUNT_SAVES}/$(stamp)"
+    mkdir -p "${save}" || die "Could not make ${save}."
+    dconf dump / >"${save}/dconf.ini" || die "Could not read your settings, so nothing changed."
+    [[ -d "${CONFIG}/current" ]] && cp -a "${CONFIG}/current" "${save}/current"
+    [[ -e "${CONFIG}/layout" ]] && cp -a "${CONFIG}/layout" "${save}/layout"
+    for index in "${!KEEP_DCONF[@]}"; do
+        dconf dump "${KEEP_DCONF[index]}" >"${save}/kept-${index}.ini"
+    done
+    for key in "${KEEP_KEYS[@]}"; do
+        values+=("$(dconf read "${key}")")
+    done
+
+    dconf reset -f / || die "dconf could not reset your settings."
+    for index in "${!KEEP_DCONF[@]}"; do
+        dconf load "${KEEP_DCONF[index]}" <"${save}/kept-${index}.ini"
+    done
+    for index in "${!KEEP_KEYS[@]}"; do
+        [[ -z "${values[index]}" ]] || dconf write "${KEEP_KEYS[index]}" "${values[index]}"
+    done
+    rm -rf "${CONFIG}/current"
+    rm -f "${CONFIG}/layout"
+    # What the first login set, again: the theme, and a Framework laptop's scrolling and text size
+    if [[ -f "${SETUP_CHECKER_FILE}" ]]; then
+        jq 'del(.version.user.theming, .version.user.theme)' "${SETUP_CHECKER_FILE}" >"${SETUP_CHECKER_FILE}.new" &&
+            mv "${SETUP_CHECKER_FILE}.new" "${SETUP_CHECKER_FILE}"
+    fi
+    for hook in 10-theming 11-theme; do
+        bash "${HOOKS}/${hook}.sh" >/dev/null 2>&1 || echo "${hook} did not finish: amethystora-theme set amethystora sets the theme." >&2
+    done
+    echo "Your account's settings are the image's again. What they were is in ${save}."
+}
+
+undo_account() {
+    local save
+    [[ "${EUID}" -ne 0 ]] || die "An account's settings are brought back as that account, not as root."
+    save="$(last "${ACCOUNT_SAVES}")" || die "There is no reset of your account's settings to undo."
+    dconf reset -f / && dconf load / <"${save}/dconf.ini" || die "dconf could not bring your settings back from ${save}."
+    rm -rf "${CONFIG}/current"
+    [[ -d "${save}/current" ]] && cp -a "${save}/current" "${CONFIG}/current"
+    if [[ -e "${save}/layout" ]]; then
+        cp -a "${save}/layout" "${CONFIG}/layout"
+    else
+        rm -f "${CONFIG}/layout"
+    fi
+    # The theme's files outside dconf, the terminal's and the apps', for the theme it had
+    [[ -d "${CONFIG}/current" ]] && AMETHYSTORA_THEME_QUIET=1 amethystora-theme reload >/dev/null 2>&1
+    mv "${save}" "${save}.undone"
+    echo "Your account's settings are as they were before the reset of ${save##*/}."
+}
+
+# --- Asking ---------------------------------------------------------------------------------------------
+
+saved() {
+    case "$1" in
+        machine) last "${SAVES}" ;;
+        account) last "${ACCOUNT_SAVES}" ;;
+        *) usage ;;
+    esac
+}
+
+ask() {
+    local what="${1:-}" part="${2:-}" choice changes count
+    local -a options=()
+    [[ "${EUID}" -ne 0 ]] || die "Run it as yourself, without sudo: it asks for the password when it needs it."
+    if [[ -z "${what}" ]]; then
+        cat <<'EOF'
+Resetting settings puts them back as the image ships them. Your files, apps, containers and accounts stay.
+
+  Your account   The desktop's settings: the dock, hotkeys, extensions, theme and layout, and what apps
+                 keep in GNOME's settings. Your language, keyboard and accessibility settings stay.
+  This machine   Every file in /etc that differs from the image's copy, for every account. The accounts,
+                 disks, networks, printers, language and time stay, and so does everything Security
+                 sets. It needs an administrator's password, and a restart to finish.
+
+Each is saved first, and undo brings it back.
+EOF
+        echo
+        options=("Your account")
+        machine_possible && options+=("This machine" "Both")
+        { saved account || saved machine; } >/dev/null && options+=("Undo")
+        choice="$(gum choose --header "Reset which settings?" "${options[@]}" Cancel)"
+        case "${choice}" in
+            "Your account") what=account ;;
+            "This machine") what=machine ;;
+            Both) what=both ;;
+            Undo) what=undo ;;
+            *) exit 0 ;;
+        esac
+    fi
+    case "${what}" in
+        undo)
+            if [[ -z "${part}" ]]; then
+                options=()
+                saved account >/dev/null && options+=("Your account's, from $(basename "$(saved account)")")
+                saved machine >/dev/null && options+=("This machine's, from $(basename "$(saved machine)")")
+                [[ ${#options[@]} -gt 0 ]] || die "There is no reset to undo."
+                choice="$(gum choose --header "Undo which reset?" "${options[@]}" Cancel)"
+                case "${choice}" in
+                    "Your account's"*) part=account ;;
+                    "This machine's"*) part=machine ;;
+                    *) exit 0 ;;
+                esac
+            fi
+            case "${part}" in
+                account) undo_account ;;
+                machine) sudo "$0" undo machine && echo "Restart for every program to read them: systemctl reboot" ;;
+                *) usage ;;
+            esac
+            return
+            ;;
+        account | machine | both) ;;
+        *) usage ;;
+    esac
+    if [[ "${what}" != account ]]; then
+        machine_possible || die "This machine is sealed, and resetting its settings has not been tried on one yet."
+        echo "Reading /etc, which needs an administrator's password."
+        changes="$(sudo "$0" list)" || exit 1
+        if [[ -z "${changes}" ]]; then
+            echo "This machine's settings are already the image's."
+            [[ "${what}" == machine ]] && exit 0
+            what=account
+        else
+            count="$(wc -l <<<"${changes}")"
+            echo "In /etc, ${count} files differ from the image's:"
+            sed -e 's/^changed\t/  put back      /' -e 's/^added\t/  taken away    /' -e 's/^removed\t/  brought back  /' <<<"${changes}"
+            echo
+        fi
+    fi
+    case "${what}" in
+        account) gum confirm "Reset your account's settings?" || exit 0 ;;
+        machine) gum confirm "Put these ${count} files back as the image has them?" || exit 0 ;;
+        both) gum confirm "Reset your account's settings, and put these ${count} files back?" || exit 0 ;;
+    esac
+    if [[ "${what}" != machine ]]; then
+        account || exit 1
+        echo "Log out and back in for every app to read them."
+    fi
+    if [[ "${what}" != account ]]; then
+        sudo "$0" machine || exit 1
+        echo "Restart for every program to read them: systemctl reboot"
+    fi
+    echo "ame system reset-settings undo brings back what this replaced."
+}
+
+case "${1:-}" in
+    ask)
+        shift
+        ask "$@"
+        ;;
+    list)
+        need_root
+        machine_possible || die "This machine is sealed, and resetting its settings has not been tried on one yet."
+        scan | sed 's#\t#\t/etc/#'
+        ;;
+    machine) machine ;;
+    account) account ;;
+    undo)
+        case "${2:-}" in
+            machine) undo_machine ;;
+            account) undo_account ;;
+            *) usage ;;
+        esac
+        ;;
+    saved) saved "${2:-}" ;;
+    *) usage ;;
+esac

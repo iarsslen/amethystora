@@ -847,6 +847,15 @@ if [[ "$(ended raid)" == 0 ]] && jq -e '.version == 1' <<<"${RAID}" >/dev/null 2
     fi
 fi
 
+# Settings back as the image ships them, files and accounts kept: the step before starting over
+COMMAND=(ame system reset-settings)
+BUTTON="$(gettext "Reset settings…")"
+GROUP="$(gettext "Start over")"
+USAGE="ame system reset-settings"
+item system reset-settings action "$(gettext "Reset settings")" \
+    "$(gettext "Puts your account's desktop settings, the machine's settings in /etc, or both back as the image ships them. Your files, apps and accounts stay, and so do your language, networks and everything Security sets. Each is saved first, and the same button can undo it.")" \
+    "" troubleshooting#resetting-settings
+
 # A new installation beside this one: nothing is erased, and the old system can still be started. Not
 # on a sealed machine until it has been tried there.
 [[ "${SEALED}" == true ]] && REASON="$(gettext "Not on a sealed machine yet: it has not been tried on one.")"

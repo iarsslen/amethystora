@@ -62,6 +62,7 @@ install command line tools	manual/software#command-line-tools-homebrew
 make a web app for a website	manual/web-apps#install-one|manual/web-apps
 keyboard shortcut to open a terminal	manual/keybindings#launching|manual/terminal#opening-one
 start over with a fresh installation	manual/troubleshooting#starting-over
+reset my settings but keep my files	manual/troubleshooting#resetting-settings|control/reset-settings|ame/system/reset-settings
 notes encryption passphrase	manual/notes#encryption
 gsconnect does not find my phone	knowledge/by-design#phone-pairing-is-open-only-at-home|manual/hardware#phones
 the drawing tablet pen does nothing	manual/hardware#drawing-tablets|knowledge/by-design#dev-uinput-is-roots

@@ -71,15 +71,15 @@ devices. Open **Flatseal**, pick the app, and grant what it needs: a folder unde
 ### An extension misbehaves, or the desktop looks wrong
 
 Turn the extension off in **Extension Manager**, then log out and back in. If the desktop still
-misbehaves, reset GNOME's settings to the image's defaults and reapply your theme:
+misbehaves, put your account's settings back as the image ships them:
 
 ```bash
-dconf reset -f /org/gnome/
-amethystora-theme reload
+ame system reset-settings account
 ```
 
-That resets every GNOME setting of this account, including the dock, your custom hotkeys and your
-extension choices, so keep it for when nothing else helped.
+That resets the dock, your custom hotkeys, your extension choices and the theme, and keeps your
+language, keyboard and accessibility settings. It saves them first, so `ame system reset-settings undo`
+brings them back ([Resetting settings](#resetting-settings)).
 
 ### `Super+Ctrl+Space` changes nothing
 
@@ -126,10 +126,38 @@ on the boot logo, or on "A start job is running for /dev/disk/by-uuid/…". Turn
 again and choose **Start with a disk missing** in the boot menu, then replace the disk
 ([The system's own disks](hardware.md#the-systems-own-disks)).
 
+### Resetting settings
+
+When settings, not files, are what went wrong, put them back as the image ships them and keep
+everything else:
+
+```bash
+ame system reset-settings
+```
+
+It asks which:
+
+- **Your account**: the desktop's settings, the dock, hotkeys, extensions, theme and window layout,
+  and what apps keep in GNOME's settings. Your language, keyboard and accessibility settings stay.
+  Extensions you installed stay installed, and are off until you turn them on again. No password.
+- **This machine**: every file in `/etc` that differs from the image's own copy in `/usr/etc`, for every
+  account. It shows each file first, then asks for an administrator's password. Services you turned on are off again, and the image's own ones you turned
+  off are on. What the machine knows stays as it is: the accounts and how they log in, its disks, name,
+  networks and printers, its language, time and keyboard, what it trusts, its hardware and virtual
+  machines, and every setting [Security](security.md) makes, whose report says when one of those
+  changed. Restart afterwards.
+- **Both**.
+
+Your files, apps and containers stay either way. What a reset replaced is saved first, your account's in
+`~/.local/state/amethystora/reset-settings` and the machine's in `/var/lib/amethystora/reset-settings`,
+and **Undo** brings the last one back: `ame system reset-settings undo`. **Reset settings** on
+[Control](control.md)'s **System** page opens the same command.
+
 ### Starting over
 
-When a machine has collected more changes than are worth undoing one by one, it can start again as a
-new installation of the image it runs:
+When a machine has collected more changes than are worth undoing one by one, and
+[resetting the settings](#resetting-settings) was not enough, it can start again as a new installation
+of the image it runs:
 
 ```bash
 ame system powerwash
