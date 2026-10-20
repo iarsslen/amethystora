@@ -174,6 +174,8 @@ impl Updates {
         let machine = state.status.as_ref().and_then(|s| s.machine.as_ref());
         if state.starting || update.as_ref().is_some_and(|u| u.state == "running") {
             "running"
+        } else if state.confirming {
+            "restart"
         } else if update.as_ref().is_some_and(|u| u.state == "failed") {
             "failed"
         } else if machine.is_some_and(|m| m.latest.is_some()) {
@@ -474,7 +476,7 @@ impl Updates {
                 }
                 actions.push(self.button(&t!("Try again"), Some("refresh"), true, false, false, |this| this.update_now()).upcast());
                 if next.is_some() {
-                    actions.push(self.button(&t!("Restart now"), Some("power"), false, false, false, |_| restart()).upcast());
+                    actions.push(self.button(&t!("Restart now"), Some("power"), false, false, false, |this| this.restart_now()).upcast());
                 }
                 if let Some(agent) = self.ask_agent() {
                     actions.push(agent.upcast());
@@ -508,13 +510,28 @@ impl Updates {
             }
             "ready" => {
                 title = t!("Restart to finish");
-                lead = t!(
-                    "Amethystora {version} is ready next to the system you are running. It takes over when you restart, all at once, and your files and settings stay as they are.",
-                    version = next.as_ref().map(|n| n.version.clone()).unwrap_or_default()
-                );
+                let version = next.as_ref().map(|n| n.version.clone()).unwrap_or_default();
+                lead = if status.machine.as_ref().is_some_and(|m| m.quick) {
+                    t!(
+                        "Amethystora {version} is ready next to the system you are running. It leaves the kernel as it is, so the restart takes seconds: only the system starts again, not the computer, and your files and settings stay as they are.",
+                        version = version
+                    )
+                } else {
+                    t!(
+                        "Amethystora {version} is ready next to the system you are running. It takes over when you restart, all at once, and your files and settings stay as they are.",
+                        version = version
+                    )
+                };
                 notes.push(t!("No hurry: shutting down at the end of the day does it too"));
-                actions.push(self.button(&t!("Restart now"), Some("power"), true, false, false, |_| restart()).upcast());
+                actions.push(self.button(&t!("Restart now"), Some("power"), true, false, false, |this| this.restart_now()).upcast());
                 actions.push(self.button(&t!("Check again"), Some("refresh"), false, false, false, |this| this.update_now()).upcast());
+            }
+            "restart" => {
+                title = t!("Restart now?");
+                lead = t!("Your apps close, and the login screen is back in a few seconds. Save what is open in them first.");
+                let restarting = self.state.borrow().restarting;
+                actions.push(self.button(&t!("Restart"), Some("power"), true, false, restarting, |this| this.restart_quickly()).upcast());
+                actions.push(self.button(&t!("Not now"), None, false, false, restarting, |this| this.not_now()).upcast());
             }
             "done" => {
                 title = t!("Everything is up to date");
@@ -997,6 +1014,50 @@ impl Updates {
         });
     }
 
+    /// GNOME's own restart dialog, unless the update can be finished with a soft reboot, which ends the session
+    /// without it: then the window asks first
+    fn restart_now(self: &Rc<Self>) {
+        if !self.state.borrow().status.as_ref().and_then(|s| s.machine.as_ref()).is_some_and(|m| m.quick) {
+            restart();
+            return;
+        }
+        {
+            let mut state = self.state.borrow_mut();
+            state.confirming = true;
+            state.notice.clear();
+        }
+        self.render();
+    }
+
+    fn not_now(self: &Rc<Self>) {
+        self.state.borrow_mut().confirming = false;
+        self.render();
+    }
+
+    fn restart_quickly(self: &Rc<Self>) {
+        self.state.borrow_mut().restarting = true;
+        self.render();
+        let this = self.clone();
+        gtk::glib::spawn_future_local(async move {
+            let result = backend::restart_quickly().await;
+            if matches!(result, backend::Restart::Started) {
+                return;
+            }
+            {
+                let mut state = this.state.borrow_mut();
+                state.restarting = false;
+                state.confirming = false;
+                if let backend::Restart::Failed(error) = &result {
+                    state.notice = error.clone();
+                }
+            }
+            this.render();
+            if matches!(result, backend::Restart::Full) {
+                restart();
+            }
+        });
+    }
+
     fn set_automatic(self: &Rc<Self>, on: bool) {
         {
             let mut state = self.state.borrow_mut();
@@ -1044,7 +1105,7 @@ impl Updates {
     }
 }
 
-/// GNOME's own restart dialog, which gives open apps the chance to object
+/// GNOME's own restart dialog, which gives open apps the chance to object, and restarts the computer
 fn restart() {
     process::launch("gnome-session-quit", &["--reboot"]);
 }

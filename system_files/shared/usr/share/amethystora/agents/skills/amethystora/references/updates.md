@@ -15,6 +15,10 @@
   `journalctl -u uupd-manual.service`. It needs no password and does not reboot. After it, it starts
   the user's `amethystora-pkg-upgrade.service` for the containers (`journalctl --user -u
   amethystora-pkg-upgrade`); uupd's own distrobox module stays off in `/etc/uupd/config.json`.
+- `ame update restart` finishes a staged update with a soft reboot (only the system's programs start
+  again, in seconds) when `/usr/libexec/amethystora-soft-reboot status` says `"quick":true`, and says why
+  not otherwise (a new kernel, initramfs, kernel arguments or SELinux policy, another version of a loaded
+  driver, firmware waiting). It ends the user's session like any restart: only when they ask for one.
 - Firmware is fwupd's, outside the image: `fwupdmgr get-updates` lists it (the Updates app shows the
   same), `fwupdmgr update` installs it and can need a restart, so leave installing to the user;
   `fwupdmgr security` explains the HSI rating the security report shows.

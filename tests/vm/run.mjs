@@ -18,7 +18,9 @@
 // "# vmlab-vm: installer" runs on a machine of its own installed as the installer lays a disk out, encrypted.
 // Exit status 101 runs the next phase in the same boot, for what takes longer than a phase may (30 minutes).
 // A phase that leaves /var/lib/vmlab-tests/next-boot.json gets a power cycle instead of a reboot, with what it
-// asks for (next_boot in lib.sh): spare disks absent or faulty, other credentials, the passphrase typed.
+// asks for (next_boot in lib.sh): spare disks absent or faulty, other credentials, the passphrase typed; or
+// with {"itself": true} no restart from here at all, only a wait for the one the phase left to happen, a soft
+// reboot included, which keeps the boot id and counts in systemd's SoftRebootsCount.
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -130,6 +132,10 @@ async function bootId(vm) {
   }
 }
 
+// How many soft reboots systemd made since the kernel started, which a soft reboot counts and its boot id does
+// not show
+const softReboots = (vm) => guest(vm, 'systemctl show -P SoftRebootsCount', 10);
+
 async function guest(vm, command, seconds = 20) {
   try {
     return decode((await agent(vm, { op: 'exec', command, timeout: seconds }, seconds)).stdout).trim();
@@ -203,7 +209,12 @@ async function reboot(machine) {
     // None asked for
   }
   const before = await bootId(vm);
-  if (request) {
+  const softBefore = await softReboots(vm);
+  if (request?.itself) {
+    // The phase left something to restart the machine once it ended, as a person would
+    await agent(vm, { op: 'exec', command: `rm -f ${NEXT_BOOT}` }, 10);
+    say('   the machine restarts itself');
+  } else if (request) {
     await agent(vm, { op: 'exec', command: `rm -f ${NEXT_BOOT}` }, 10);
     say(`   power cycle: ${JSON.stringify(request)}`);
     await call('vm_stop', { name: vm });
@@ -215,7 +226,7 @@ async function reboot(machine) {
   for (;;) {
     await sleep(5000);
     const now = await bootId(vm);
-    if (now && now !== before) break;
+    if (now && (now !== before || (await softReboots(vm)) !== softBefore)) break;
     if (Date.now() - began > 900000) throw new Error('the VM did not come back within 15 minutes of a reboot');
   }
   await call('vm_wait', { name: vm, timeout_s: 900 });

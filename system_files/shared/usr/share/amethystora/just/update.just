@@ -1,8 +1,19 @@
 # vim: set ft=make :
 
-# Update system, flatpaks and homebrew packages all at once
-update:
+# Update system, flatpaks and homebrew packages all at once; restart to finish, in seconds when the kernel stays
+[positional-arguments]
+update ACTION="":
     #!/usr/bin/bash
+    # A soft reboot: only the system starts again, not the computer (amethystora-soft-reboot)
+    if [[ "$1" == restart ]]; then
+        /usr/libexec/amethystora-soft-reboot restart && exit 0
+        status=$?
+        [[ ${status} == 1 ]] && echo "To restart as usual: systemctl reboot" >&2
+        exit "${status}"
+    elif [[ -n "$1" ]]; then
+        echo "Usage: ame update [restart]" >&2
+        exit 2
+    fi
     if systemctl cat -- uupd.timer &> /dev/null; then
         SERVICE="uupd.service"
     else

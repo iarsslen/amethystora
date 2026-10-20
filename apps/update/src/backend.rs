@@ -17,6 +17,13 @@
 //! each one. How that goes shows on the Containers step and nowhere else: a container that did not upgrade
 //! never makes the system's update a failed one.
 //!
+//! An update that leaves the kernel, its initramfs and its arguments as they are is finished with a soft
+//! reboot: only the system's programs start again, not the computer. amethystora-soft-reboot says when, has the
+//! update mounted for it and asks logind for the restart, which logind then makes one. GNOME's own restart
+//! dialog, which every other restart here goes through, cannot do that, so the window asks first itself, and
+//! leaves the restart to GNOME's dialog when an app asks not to end the session, which only that dialog lets
+//! it say.
+//!
 //! A machine started from an older version than the one it starts by default, which is what picking the
 //! second entry in the boot menu does, is said so, with the choice of keeping that version, which
 //! `bootc rollback` does after an administrator's password, or restarting into the newest.
@@ -45,6 +52,7 @@ pub const CONTAINERS_UNIT: &str = "amethystora-pkg-upgrade.service";
 pub const CONTAINERS_LOG: &str = "amethystora-pkg-upgrade";
 /// The AI agent, which a failed update can be handed to, unless the account turned it off
 pub const AGENT: &str = "/usr/bin/amethystora-agent";
+pub const SOFT_REBOOT: &str = "/usr/libexec/amethystora-soft-reboot";
 
 /// One version of the system: what it is called, when it was built (seconds) and which image it follows
 #[derive(Debug, Clone, Default)]
@@ -59,6 +67,8 @@ pub struct Machine {
     pub running: Deployment,
     /// The update waiting for a restart
     pub next: Option<Deployment>,
+    /// ...and that it can be finished with a soft reboot
+    pub quick: bool,
     /// The newest, when the machine was started from an older one at the boot menu
     pub latest: Option<Deployment>,
     pub previous: Option<Deployment>,
@@ -240,12 +250,41 @@ pub async fn machine() -> Option<Machine> {
     let stamp = |d: &Value| d.get("timestamp").and_then(Value::as_f64).unwrap_or(0.0);
     let staged = first.get("staged").and_then(Value::as_bool).unwrap_or(false);
     let older = booted > 0 && !staged && stamp(first) > stamp(&deployments[booted]);
+    let next = (booted > 0 && !older).then(|| summary(first));
     Some(Machine {
         running: summary(&deployments[booted]),
-        next: (booted > 0 && !older).then(|| summary(first)),
+        quick: next.is_some() && quick().await,
+        next,
         latest: older.then(|| summary(first)),
         previous: if older { None } else { deployments.get(booted + 1).map(summary) },
     })
+}
+
+/// Whether the update waiting for the restart can be finished with a soft reboot
+async fn quick() -> bool {
+    let Output { stdout, .. } = process::run(SOFT_REBOOT, &["status"]).await;
+    serde_json::from_str::<Value>(&stdout).ok().and_then(|v| v.get("quick").and_then(Value::as_bool)).unwrap_or(false)
+}
+
+/// What came of the soft reboot
+pub enum Restart {
+    /// On its way: the session ends
+    Started,
+    /// Not to be had now, or an app asks not to end the session: GNOME's restart dialog takes over
+    Full,
+    Failed(String),
+}
+
+pub async fn restart_quickly() -> Restart {
+    let output = process::run(SOFT_REBOOT, &["restart"]).await;
+    match output.code {
+        0 => Restart::Started,
+        1 | 3 => Restart::Full,
+        _ => {
+            let line = output.last_error_line();
+            Restart::Failed(if line.is_empty() { t!("The machine could not be restarted.") } else { line })
+        }
+    }
 }
 
 /// "ostree-image-signed:docker://ghcr.io/iarsslen/amethystora:stable" -> "ghcr.io/iarsslen/amethystora:stable"

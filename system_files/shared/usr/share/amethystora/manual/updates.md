@@ -33,6 +33,7 @@ ame update
 | Command | Does |
 | --- | --- |
 | `ame update` | Update everything now |
+| `ame update restart` | Restart to finish the update, in seconds when it can be ([restarting in seconds](#restarting-in-seconds)) |
 | `amepkg upgrade-all` | Upgrade the containers of other distributions now |
 | `ame system auto-updates` | Turn automatic updates off, or on again |
 | `ame changelog` | What changed in the packages since the image you are running |
@@ -41,6 +42,26 @@ ame update
 
 The release notes for every stable build are on
 [GitHub](https://github.com/iarsslen/amethystora/releases).
+
+## Restarting in seconds
+
+Most updates change what runs on top of the kernel, not the kernel itself. When the one waiting for the restart
+keeps the kernel, its initramfs, its settings and the SELinux policy as they are, **Restart now** in System
+Updates finishes it with a *soft reboot*: your apps close, the system starts again from the new version, and
+the login screen is back in a few seconds, without the firmware, the boot menu or the disk's passphrase. System
+Updates says when an update can be finished that way, and asks before it closes your apps. In a terminal:
+
+```bash
+ame update restart
+```
+
+The computer itself still restarts for an update with a new kernel, one that brings another version of a
+driver in use, one a firmware update is waiting behind, and on a [sealed image](#sealed-images):
+`ame update restart` then says why. **Restart** in the system menu always restarts the computer. Either way
+the whole update takes over at once, and the machine starts from it from then on. An app that asks not to end
+the session, for a document not yet saved, still gets its say: the restart is then left to GNOME's own
+dialog, which names it. The disk stays unlocked through a soft reboot, as the kernel keeps running: to have it
+locked again, shut down.
 
 ## Firmware
 

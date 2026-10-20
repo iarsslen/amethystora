@@ -1,0 +1,162 @@
+#!/usr/bin/bash
+# Finishing an update with a soft reboot (systemd-soft-reboot.service(8)): when the update waiting for the
+# restart leaves the kernel as it is, only the system's programs start again, not the computer. The firmware,
+# the boot menu and the disk's passphrase are skipped, and the login screen is back in seconds. System Updates
+# offers it, and `ame update restart` does it in a terminal.
+#
+#   status    whether the staged update can be finished so: {"quick":true}, or {"quick":false,"why":WHY}
+#               none      no update is waiting for the restart
+#               sealed    a sealed image, whose signed kernel image carries the digest of the whole system, so
+#                         that every update brings a new one
+#               kernel    bootc's softRebootCapable says no: the kernel, the initramfs, the kernel arguments or
+#                         the SELinux policy change, and a soft reboot starts none of them anew
+#               driver    a driver the kernel has loaded comes in another version, and a soft reboot would leave
+#                         the old one running
+#               firmware  the firmware waits for the computer to start again: BootNext (fwupd's capsule program,
+#                         a system mirror's first start from its new disk) or OsIndications set
+#   prepare   the update mounted at /run/nextroot for the restart, after the same checks
+#   reset     that undone
+#   restart   prepare, then the restart, asked of logind as whoever asks: logind makes it a soft reboot when
+#             /run/nextroot is there, and still asks for a password while somebody else is signed in. Exits 1
+#             when there is nothing to finish quickly, 3 when an app asks not to end the session, which only
+#             GNOME's own restart dialog lets it say, and 4 when the restart was refused.
+#
+# bootc tells root only, so the first three run themselves through pkexec, which
+# 50-amethystora-soft-reboot.rules lets anyone do for status, and the person at the machine for prepare and
+# reset, without a password.
+
+set -euo pipefail
+
+SELF=/usr/libexec/amethystora-soft-reboot
+EFI_GLOBAL=8be4df61-93ca-11d2-aa0d-00e098032b8c
+
+usage() {
+    echo "usage: ${0##*/} status|prepare|reset|restart" >&2
+    exit 2
+}
+
+# The words for WHY, for a terminal
+say() {
+    case "$1" in
+        none) echo "No update is waiting for a restart." ;;
+        sealed) echo "A sealed image starts every update with a full restart." ;;
+        kernel) echo "This update brings a new kernel, initramfs, kernel arguments or SELinux policy, which only a full restart starts." ;;
+        driver) echo "This update brings another version of a driver the kernel has loaded, which only a full restart replaces." ;;
+        firmware) echo "The firmware is waiting for the computer to start again." ;;
+    esac
+}
+
+# Whether the update brings another version of a driver the kernel has loaded: a soft reboot leaves the loaded
+# one running, and the new one would wait for the next full start. A driver built again from the same source, as
+# akmods builds its drivers for every image, is the same driver: modinfo's srcversion, a digest of the source,
+# says so.
+driver_changed() {
+    local next="$1" release name file new
+    release="$(uname -r)"
+    while read -r name _; do
+        file="$(modinfo -k "${release}" -F filename "${name}" 2>/dev/null)" || continue
+        [[ "${file}" == /* ]] || continue
+        new="${next}/usr/lib/modules/${release}/${file#*/modules/"${release}"/}"
+        cmp -s "${file}" "${new}" && continue
+        [[ -n "$(modinfo -F srcversion "${file}")" &&
+            "$(modinfo -F srcversion "${file}"; modinfo -F version "${file}")" == \
+            "$(modinfo -F srcversion "${new}" 2>/dev/null; modinfo -F version "${new}" 2>/dev/null)" ]] || return 0
+    done </proc/modules
+    return 1
+}
+
+# Whether the firmware was asked for something at the computer's next start, which a soft reboot is not
+firmware_waits() {
+    local indications="/sys/firmware/efi/efivars/OsIndications-${EFI_GLOBAL}"
+    [[ -e "/sys/firmware/efi/efivars/BootNext-${EFI_GLOBAL}" ]] && return 0
+    [[ -e "${indications}" && "$(tail -c +5 "${indications}" | od -An -tu8 | tr -d ' \n')" != 0 ]]
+}
+
+# Why the staged update cannot be finished with a soft reboot, or nothing when it can
+why_not() {
+    local status next
+    if [[ -e /usr/share/amethystora/sealed ]]; then
+        echo sealed
+        return
+    fi
+    status="$(bootc status --format=json)"
+    if [[ "$(jq -r '.status.staged != null and (.status.staged.downloadOnly | not)' <<<"${status}")" != true ]]; then
+        echo none
+    elif [[ "$(jq -r '.status.staged.softRebootCapable' <<<"${status}")" != true ]]; then
+        echo kernel
+    else
+        next="$(jq -r '.status.staged.ostree | "/sysroot/ostree/deploy/\(.stateroot)/deploy/\(.checksum).\(.deploySerial)"' <<<"${status}")"
+        if driver_changed "${next}"; then
+            echo driver
+        elif firmware_waits; then
+            echo firmware
+        fi
+    fi
+}
+
+do_status() {
+    local why
+    why="$(why_not)"
+    if [[ -z "${why}" ]]; then
+        echo '{"quick":true}'
+    else
+        jq -cn --arg why "${why}" '{quick: false, why: $why}'
+    fi
+}
+
+do_prepare() {
+    local why
+    why="$(why_not)"
+    if [[ -n "${why}" ]]; then
+        say "${why}" >&2
+        exit 1
+    fi
+    # The staged deployment is the first in ostree's list
+    ostree admin prepare-soft-reboot 0
+}
+
+do_reset() {
+    ostree admin prepare-soft-reboot --reset
+}
+
+# What GNOME's restart dialog would name: an app that asks not to end the session, for work not saved
+inhibited() {
+    [[ -n "${DBUS_SESSION_BUS_ADDRESS:-}" ]] || return 1
+    [[ "$(gdbus call --session --dest org.gnome.SessionManager --object-path /org/gnome/SessionManager \
+        --method org.gnome.SessionManager.IsInhibited 1 2>/dev/null)" == "(true,)" ]]
+}
+
+as_root() {
+    if [[ "${EUID}" -eq 0 ]]; then "do_$1"; else pkexec "${SELF}" "$1"; fi
+}
+
+do_restart() {
+    local why
+    # Said before anything is asked: the status needs no password from anyone
+    why="$(as_root status | jq -r 'if .quick then "" else .why end')" || why=""
+    if [[ -n "${why}" ]]; then
+        say "${why}" >&2
+        exit 1
+    fi
+    if inhibited; then
+        echo "An app asks not to end the session: restart from the system menu, where it can say why." >&2
+        exit 3
+    fi
+    as_root prepare || exit 1
+    if ! systemctl reboot; then
+        as_root reset || true
+        exit 4
+    fi
+}
+
+[[ $# -eq 1 ]] || usage
+case "$1" in
+    status | prepare | reset)
+        if [[ "${EUID}" -ne 0 ]]; then
+            exec pkexec "${SELF}" "$1"
+        fi
+        "do_$1"
+        ;;
+    restart) do_restart ;;
+    *) usage ;;
+esac

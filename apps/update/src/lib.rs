@@ -45,6 +45,9 @@ struct PageState {
     /// "Keep this version" is waiting for the password, and then has been done
     keeping: bool,
     kept: bool,
+    /// "Restart now" is waiting to be confirmed, for a soft reboot, and then is on its way
+    confirming: bool,
+    restarting: bool,
     /// The updater's log is open
     details: bool,
     /// LVFS is being asked again for firmware

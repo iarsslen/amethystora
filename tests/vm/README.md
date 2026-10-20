@@ -65,8 +65,10 @@ passphrase typed at its prompt rather than handed over (`{"type_passphrase": tru
 many times it was asked in `VMLAB_PROMPTS`), with the boot menu's last entry chosen as it shows on the
 serial console (`{"menu_last": true}`, End and Enter), without its own disk (`{"system_absent": true}`), or with a
 credential left out (`{"credentials": {"cryptsetup.passphrase": null}}`, for the TPM alone). A later plain
-restart keeps the machine as that start left it. Exit status 101 (`continue_phase`) runs the next phase in the
-same boot, for what outlasts a phase's 30 minutes.
+restart keeps the machine as that start left it. `{"itself": true}` is no power cycle: the phase has left
+something to restart the machine once it has ended, as a person would, and `run.mjs` only waits for it, a soft
+reboot too (it keeps the boot id, so systemd's `SoftRebootsCount` is compared as well). Exit status 101
+(`continue_phase`) runs the next phase in the same boot, for what outlasts a phase's 30 minutes.
 
 A suite whose second line is `# vmlab-vm: installer` runs on a second machine, installed as the installer
 lays a disk out: an ESP, an ext4 `/boot`, and btrfs (subvolumes `root` and `home`) on LUKS2, with the fstab and
@@ -107,6 +109,7 @@ reads what it says (`70-backups.sh` shows how).
 | `75-deja-dup.sh` | Déjà Dup from Flathub: where its schedule is kept, what `flatpak preinstall` uninstalls when its list stops naming an app, and the one notice at the next login |
 | `83-logins.sh` | Parental Controls' allowed hours, a child's login typed at the text console and made over SSH; one-time codes for SSH set up and switched in a terminal, a code used twice, a scratch code, a key, fail2ban banning wrong codes from another address, what the watcher accepts; an Active Directory domain (a Samba domain controller in a container) joined with SSSD and with winbind, logged in to and left, the image's PAM setup kept each time |
 | `85-raid-mirror.sh` | the system spread over two disks as the installer leaves it (SPARE-6), mirrored (2a), started with the second disk unplugged from Start with a disk missing, the disk back and its copies put back, then on one disk again |
+| `89-soft-reboot.sh` | on the installer-layout machine: the initramfs without the build's version or an out-of-tree driver; updates made from the running image and staged, which `amethystora-soft-reboot` calls quick (a file added, a loaded driver compressed anew) or not and why (a kernel argument, the driver changed, BootNext set); its status, prepare and reset as the account, an app inhibiting logout; System Updates' Restart now asking first and ending in a soft reboot (same boot id, the update running, `/etc` carried over, the account back), then a full restart into the same update |
 
 A new feature gets its check here with it, and a bug a run found gets the check that would have caught it.
 

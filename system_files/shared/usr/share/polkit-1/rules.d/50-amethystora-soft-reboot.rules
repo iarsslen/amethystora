@@ -1,0 +1,20 @@
+// The quick restart of System Updates and `ame update restart` (/usr/libexec/amethystora-soft-reboot). Whether
+// the update waiting for the restart leaves the kernel as it is, bootc tells root only, so anyone may run the
+// helper's status as root without a password: it changes nothing, and says yes, or why not. The person at the
+// machine may also have that update mounted for the restart, or that undone, which only makes the next restart a
+// soft reboot into the update the next restart starts anyway: whether they may restart at all is still logind's
+// to decide. From anywhere else, those two take an administrator, as pkexec asks.
+polkit.addRule(function (action, subject) {
+    if (action.id == "org.freedesktop.policykit.exec" &&
+        action.lookup("program") == "/usr/libexec/amethystora-soft-reboot") {
+        var command = action.lookup("command_line");
+        if (command == "/usr/libexec/amethystora-soft-reboot status") {
+            return polkit.Result.YES;
+        }
+        if ((command == "/usr/libexec/amethystora-soft-reboot prepare" ||
+             command == "/usr/libexec/amethystora-soft-reboot reset") && subject.local && subject.active) {
+            return polkit.Result.YES;
+        }
+    }
+    return polkit.Result.NOT_HANDLED;
+});

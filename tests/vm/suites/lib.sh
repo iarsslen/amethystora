@@ -30,7 +30,8 @@ continue_phase() { exit 101; }
 # {"cryptsetup.passphrase": null}} leaves a credential out, {"menu_last": true} chooses the boot menu's last entry
 # (End, Enter) as it shows, {"type_passphrase": true} has the disk's passphrase
 # typed at its prompt, which the next phase finds counted in VMLAB_PROMPTS. A later plain restart keeps the
-# machine as that start left it.
+# machine as that start left it. {"itself": true} is no power cycle: run.mjs restarts nothing and waits for the
+# restart the phase left to happen after it, a soft reboot too.
 next_boot() {
     install -d -m 0700 /var/lib/vmlab-tests
     printf '%s\n' "$1" >/var/lib/vmlab-tests/next-boot.json
