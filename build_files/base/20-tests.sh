@@ -781,7 +781,7 @@ rm -rf "${PERMISSIONS_TEST}"
 
 # The Updates app replaces upstream's System Update launcher, while `ame update` stays for the terminal
 test ! -e /usr/share/applications/system-update.desktop
-grep -rqx "update:" /usr/share/amethystora/just/
+grep -rqx 'update ACTION="":' /usr/share/amethystora/just/
 # "Update now" starts uupd's manual unit, which the rule the uupd package ships lets anyone start
 # without a password. Without the rule it would still start, after asking for one. The ublue-os/packages
 # build this image installs puts the rule in /etc, uupd's own spec in /usr/share: either will do.

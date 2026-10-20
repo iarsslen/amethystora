@@ -149,16 +149,23 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     fi
     in_session "${HELPER} reset" >/dev/null 2>&1
     if ! nextroot; then ok "reset, as the account, takes it away"; else not_ok "reset left /run/nextroot mounted"; fi
-    # An app asking not to end the session: the restart is GNOME's dialog's, which names it
+    # An app asking not to end the session: the restart is GNOME's dialog's, which names it. The helper finds a
+    # systemctl here that restarts nothing, should it not see the app and go on.
+    install -d -m 0755 /run/vmlab-soft-reboot/stub
+    printf '#!/bin/sh\nexit 99\n' >/run/vmlab-soft-reboot/stub/systemctl
+    chmod 0755 /run/vmlab-soft-reboot/stub/systemctl
     user_bus systemd-run --user --unit=vmlab-inhibit --collect --quiet -- \
         gnome-session-inhibit --inhibit logout --reason "vmlab: a document not saved" sleep 600
-    sleep 3
-    in_session "${HELPER} restart" >/dev/null 2>&1
+    inhibits() { [[ "$(in_session 'gdbus call --session --dest org.gnome.SessionManager --object-path /org/gnome/SessionManager --method org.gnome.SessionManager.IsInhibited 1')" == "(true,)" ]]; }
+    wait_for 30 inhibits || not_ok "gnome-session does not say anything inhibits logging out" \
+        "$(in_session 'gdbus call --session --dest org.gnome.SessionManager --object-path /org/gnome/SessionManager --method org.gnome.SessionManager.IsInhibited 1' 2>&1)"
+    in_session "PATH=/run/vmlab-soft-reboot/stub:\$PATH ${HELPER} restart" >/dev/null 2>&1
     rc=$?
     if [[ "${rc}" == 3 ]] && ! nextroot; then
         ok "with an app inhibiting logging out, restart leaves it to GNOME's dialog (exit 3) and mounts nothing"
     else
         not_ok "restart with an app inhibiting logging out" "exit ${rc}, /run/nextroot $(nextroot && echo mounted || echo not mounted)"
+        nextroot && "${HELPER}" reset
     fi
     user_systemctl stop vmlab-inhibit.service 2>/dev/null
 
