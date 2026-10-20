@@ -2,7 +2,7 @@
 # as a command (`search`, `read`, `state`), and the build step that writes their index (`index --write`).
 # amethystora-agent-root, the helper that runs the agent's root commands when an administrator allows them,
 # is the second program of the crate. No GTK: the apps stage builds both on their own, and 13-apps.sh
-# installs them in /usr/libexec. plans/PLAN-agentic-os.md says why it exists.
+# installs them in /usr/libexec. plans/done/PLAN-agentic-os.md says why it exists.
 [package]
 name = "amethystora-agent-tools"
 version.workspace = true

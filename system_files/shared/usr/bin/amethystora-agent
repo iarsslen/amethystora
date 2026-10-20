@@ -57,7 +57,7 @@ ENABLED="${CONFIG_DIR}/agentic"
 # Level 2, the tools that change things: on while this exists as well (ame agent tools)
 CHANGES="${CONFIG_DIR}/agent-tools"
 CHOICE="${CONFIG_DIR}/agent"
-# Amethystora's tools, an MCP server each agent starts (plans/PLAN-agentic-os.md), the entry naming it, and the
+# Amethystora's tools, an MCP server each agent starts (plans/done/PLAN-agentic-os.md), the entry naming it, and the
 # ones that only read, which every agent is told it may use without asking
 TOOLS=/usr/libexec/amethystora-agent-tools
 TOOLS_ENTRY="{\"command\": \"${TOOLS}\", \"args\": [\"mcp\"]}"
