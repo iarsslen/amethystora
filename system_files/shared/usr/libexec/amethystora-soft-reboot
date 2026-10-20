@@ -111,7 +111,10 @@ do_prepare() {
         say "${why}" >&2
         exit 1
     fi
-    # The staged deployment is the first in ostree's list
+    # Mounted afresh when an earlier one was left, and the staged deployment is the first in ostree's list
+    if mountpoint -q /run/nextroot; then
+        ostree admin prepare-soft-reboot --reset
+    fi
     ostree admin prepare-soft-reboot 0
 }
 
