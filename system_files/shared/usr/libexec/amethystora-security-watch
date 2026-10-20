@@ -1084,9 +1084,10 @@ read_processes() {
         name="${name##*/}"
         agent_of "${exe}" "${argv[0]:-}" "${argv[1]:-}"
         agent="${AGENT}"
-        # The environment, read only for what it can tell about: an agent, a network tool, a secret scanner
+        # The environment, read only for what it can tell about: an agent, a network tool, a secret scanner. A
+        # kernel thread has no name, which the two lists side by side, with two spaces between them, would match
         environment=""
-        if [[ -n "${agent}" || "${NETWORK_TOOLS}${SECRET_SCANNERS}" == *" ${name} "* ]]; then
+        if [[ -n "${agent}" || ( -n "${name}" && "${NETWORK_TOOLS}${SECRET_SCANNERS}" == *" ${name} "* ) ]]; then
             environment="$(timeout 2 head -c 65536 "/proc/${pid}/environ" 2>/dev/null | tr '\0' '\n')"
         fi
         event=""
