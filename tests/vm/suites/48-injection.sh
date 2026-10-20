@@ -18,6 +18,17 @@ if ! wait_for 300 has_session; then
 fi
 
 if [[ "${SUITE_PHASE}" == 1 ]]; then
+    # What the desktop did by itself since this boot, with INJECTION on as the thorough profile has it (30 turns it
+    # on, and nothing before this suite turns it off): a restart, a login and every suite since, recorded, never said
+    if [[ "$("${config}" INJECTION)" == on ]]; then
+        systemctl start amethystora-security-watch.service
+        said="$(jq -r --argjson boot "$(date -d "$(uptime -s)" +%s)" \
+            'select(.key == "injection" and .level != "quiet" and .time >= $boot) | "\(.level): \(.text)"' "${HISTORY}" 2>/dev/null)"
+        [[ -z "${said}" ]] && ok "with INJECTION on since this boot, nothing the desktop did by itself was said" ||
+            not_ok "INJECTION said what the desktop did by itself" "$(head -n 10 <<<"${said}")"
+    else
+        skip "INJECTION was not on before this suite (30 turns the thorough profile on)"
+    fi
     grep -qw "proc_mem.force_override=ptrace" /proc/cmdline && ok "proc_mem.force_override=ptrace is on the command line" ||
         not_ok "proc_mem.force_override=ptrace is not on the command line" "$(cat /proc/cmdline)"
     # A write over its own code, the same byte as is there: refused without a debugger attached (EIO)
