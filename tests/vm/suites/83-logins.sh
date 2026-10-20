@@ -148,7 +148,11 @@ drift_now() {
 report() { /usr/libexec/amethystora-security-status --json 2>/dev/null | jq -c --arg id "$1" '.checks[] | select(.id == $id)'; }
 
 SSHD_WAS="$(systemctl is-active sshd.service)"
-CONSOLE_WAS="$(fgconsole 2>/dev/null || echo 1)"
+# The console in front when the suite began, from the kernel itself: fgconsole needs a terminal, which the lab's
+# helper has none of, and its fallback, 1, is GDM's own console, so switching back to it left the account's
+# session (on the next console) inactive for every suite after this one
+CONSOLE_WAS="$(sed -n 's/^tty//p' /sys/class/tty/tty0/active 2>/dev/null)"
+[[ "${CONSOLE_WAS}" =~ ^[0-9]+$ ]] || CONSOLE_WAS="$(fgconsole 2>/dev/null || echo 1)"
 SSSD_WAS="$(systemctl is-enabled sssd.service 2>/dev/null)"
 ODDJOBD_WAS="$(systemctl is-enabled oddjobd.service 2>/dev/null)"
 cleanup() {
