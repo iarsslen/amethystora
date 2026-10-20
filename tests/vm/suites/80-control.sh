@@ -610,6 +610,16 @@ if [[ "${SUITE_PHASE}" == 4 ]]; then
     in_card 120 -- android-run
     card_ok "and started again: ${CARD}" "systemctl is-active --quiet waydroid-container.service" \
         "item android-run | jq -e '.title == \"Stop Android\"'"
+    # Android itself, drawing as the image set it up (in software on an NVIDIA image): its session started in
+    # the account's, as Waydroid in the app grid starts it, until Android says it has finished starting
+    user_bus systemd-run --user --unit=vmlab-waydroid --collect --quiet -- waydroid session start
+    android_booted() { [[ "$(timeout 20 waydroid shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == 1 ]]; }
+    if wait_for 600 android_booted; then
+        ok "Android starts and draws$([[ "${nvidia}" == true ]] && echo ', in software')"
+    else
+        not_ok "Android did not finish starting" "$(user_bus waydroid status 2>&1)" "$(tail -n 20 /var/lib/waydroid/waydroid.log 2>&1)"
+    fi
+    user_bus waydroid session stop >/dev/null 2>&1
     in_card 300 'Remove Android, with every app' y -- android off
     card_ok "and taken away: ${CARD}" "[[ \"\$(state android)\" == off ]]" \
         "! systemctl is-enabled --quiet waydroid-container.service" "[[ ! -e /var/lib/waydroid ]]"
