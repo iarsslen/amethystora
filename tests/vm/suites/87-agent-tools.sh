@@ -109,6 +109,11 @@ echo "# tokens, tools vs shell: settings $(($(answer "${out}" state 2 | wc -c) /
 echo "# tokens, tools vs shell: security $(($(answer "${out}" state 3 | wc -c) / 4)) vs $(($(user_bus /usr/libexec/amethystora-security-status 2>/dev/null | wc -c) / 4))"
 echo "# tokens, tools vs shell: rolling back $(($(answer "${out}" search | wc -c) / 4 + $(answer "${out}" read | wc -c) / 4)) vs $(($(wc -c </usr/share/amethystora/manual/updates.md) / 4))"
 echo "# tokens, tools vs shell: logs $(($(answer "${out}" logs | wc -c) / 4)) vs $(($(journalctl -u NetworkManager.service -b -n 40 --no-pager 2>/dev/null | wc -c) / 4))"
+echo "# tokens, tools vs shell: app permissions $(($(answer "${out}" state 5 | wc -c) / 4)) vs $(($(user_bus /usr/libexec/amethystora-app-permissions --json 2>/dev/null | wc -c) / 4))"
+echo "# tokens, tools vs shell: software $(($(answer "${out}" state 6 | wc -c) / 4)) vs $((($(flatpak list 2>/dev/null | wc -c) + $(user_bus /usr/bin/amethystora-pkg containers list --json 2>/dev/null | wc -c)) / 4))"
+echo "# tokens, tools vs shell: updates $(($(answer "${out}" state 7 | wc -c) / 4)) vs $((($(rpm-ostree status 2>/dev/null | wc -c) + $(journalctl -u uupd.service -n 50 --no-pager 2>/dev/null | wc -c) + $(fwupdmgr get-updates 2>/dev/null | wc -c)) / 4))"
+echo "# tokens, tools vs shell: backups $(($(answer "${out}" state 8 | wc -c) / 4)) vs $(($(user_bus /usr/libexec/amethystora-restore status --json 2>/dev/null | wc -c) / 4))"
+echo "# tokens, tools vs shell: disks $(($(answer "${out}" state 9 | wc -c) / 4)) vs $((($(/usr/libexec/amethystora-raid status --json 2>/dev/null | wc -c) + $(df -h 2>/dev/null | wc -c)) / 4))"
 
 # --- Level 2 ---------------------------------------------------------------------------------------------
 
