@@ -1889,3 +1889,43 @@ msgstr "Duplicar el sistema en un disco nuevo"
 #: usr/libexec/amethystora-control-list
 msgid "Copies the system onto a spare disk at least as large as its own, its EFI partition and /boot included, so that the machine starts from either disk and goes on with one dead. It erases that disk once you type ERASE, then restarts once from it."
 msgstr "Copia el sistema, con su partición EFI y /boot, en un disco libre al menos tan grande como el suyo, para que el equipo arranque desde cualquiera de los dos y siga funcionando con uno averiado. Borra ese disco solo cuando escriba ERASE y luego reinicia una vez desde él."
+
+#: usr/libexec/amethystora-control-list
+msgid "The clipboard history's extension is not installed."
+msgstr "La extensión del historial del portapapeles no está instalada."
+
+#: usr/libexec/amethystora-control-list
+msgid "Always"
+msgstr "Siempre"
+
+#: usr/libexec/amethystora-control-list
+msgid "Everything you copied, until you clear it"
+msgstr "Todo lo que ha copiado, hasta que lo borre"
+
+#: usr/libexec/amethystora-control-list
+msgid "Until a restart"
+msgstr "Hasta reiniciar"
+
+#: usr/libexec/amethystora-control-list
+msgid "Pinned items, and the rest until the computer restarts"
+msgstr "Los elementos fijados, y el resto hasta que el equipo se reinicie"
+
+#: usr/libexec/amethystora-control-list
+msgid "Until you log out"
+msgstr "Hasta cerrar la sesión"
+
+#: usr/libexec/amethystora-control-list
+msgid "Pinned items, and the rest until you log out"
+msgstr "Los elementos fijados, y el resto hasta que cierre la sesión"
+
+#: usr/libexec/amethystora-control-list
+msgid "Clipboard"
+msgstr "Portapapeles"
+
+#: usr/libexec/amethystora-control-list
+msgid "Clipboard history"
+msgstr "Historial del portapapeles"
+
+#: usr/libexec/amethystora-control-list
+msgid "How long what you copy is kept, sealed under a key in your login keyring. Super+Shift+V shows it."
+msgstr "Cuánto tiempo se guarda lo que copia, sellado con una clave de su llavero de inicio de sesión. Super+Shift+V lo muestra."

@@ -295,7 +295,7 @@ done
 # GNOME, and has its schema readable system-wide so the defaults in zz1-amethystora-modifications apply
 GNOME_MAJOR="$(gnome-shell --version | grep -oE '[0-9]+' | head -n1)"
 for extension in paperwm@paperwm.github.com tophat@fflewddur.github.io \
-    just-perfection-desktop@just-perfection space-bar@luchrioh clipboard-indicator@tudmotu.com \
+    just-perfection-desktop@just-perfection space-bar@luchrioh \
     gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com; do
     test -f "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
     jq -e --arg shell "${GNOME_MAJOR}" '.["shell-version"] | index($shell)' \
@@ -322,6 +322,18 @@ for example in /usr/share/amethystora/widgets/examples/*/; do
     HOME="${WIDGETS_HOME}" GSETTINGS_BACKEND=memory gjs -m "${WIDGETS_EXTENSION}/check.js" "${example}"
 done
 rm -rf "${WIDGETS_HOME}"
+# Amethystora Clipboard, Clipboard Indicator's copy that seals its history: enabled, claiming this GNOME, its
+# settings where gsettings finds them and Control's command for keep-history there, nothing of Clipboard
+# Indicator left, and the sealing tried with a stand-in for the keyring (test-clipboard.sh)
+CLIPBOARD_EXTENSION=/usr/share/gnome-shell/extensions/amethystora-clipboard@iarsslen.github.io
+jq -e --arg shell "${GNOME_MAJOR}" '.["shell-version"] | index($shell)' "${CLIPBOARD_EXTENSION}/metadata.json"
+grep -q "'amethystora-clipboard@iarsslen.github.io'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
+test ! -e /usr/share/gnome-shell/extensions/clipboard-indicator@tudmotu.com
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-clipboard keep-history)" == "'always'" ]]
+GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-clipboard | grep -qx cache-only-favorites && false
+GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-clipboard excluded-apps | grep -qF "'org.keepassxc.KeePassXC'"
+test -x /usr/libexec/amethystora-clipboard-seal
+bash /ctx/build_files/shared/test-clipboard.sh
 # Space Bar's own menu shortcut defaults to Super+W, which closes a window here, so it has to be cleared
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.space-bar.shortcuts open-menu)" == "@as []" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.space-bar.shortcuts enable-activate-workspace-shortcuts)" == "false" ]]
@@ -334,9 +346,8 @@ test ! -e /usr/share/gnome-shell/extensions/tactile@lundal.io
 # PaperWM leaves the top bar to the theme and the workspaces to Space Bar
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.paperwm disable-topbar-styling)" == "true" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.paperwm show-workspace-indicator)" == "false" ]]
-# Clipboard history stays in memory, and none of its shortcuts take the Ctrl+F keys from applications
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.clipboard-indicator cache-only-favorites)" == "true" ]]
-grep -qi "<Control>F" <<<"$(GSETTINGS_BACKEND=memory gsettings list-recursively org.gnome.shell.extensions.clipboard-indicator)" && false
+# None of the clipboard history's shortcuts take the Ctrl+F keys from applications
+grep -qi "<Control>F" <<<"$(GSETTINGS_BACKEND=memory gsettings list-recursively org.gnome.shell.extensions.amethystora-clipboard)" && false
 # PaperWM takes a colliding GNOME binding for itself while it is on. It cannot see custom keybindings
 # or other extensions' shortcuts, and the GNOME ones listed here are kept on purpose, so no PaperWM
 # binding may share a key with any of them. Modifiers are sorted and lower-cased before comparing.
@@ -351,7 +362,7 @@ grep -qx "<super>left" <<<"${PAPERWM_COMBOS}"
 KEPT_COMBOS="$(
     {
         grep -h -d skip -e "^binding=" -e "^shortcut-search=" /etc/dconf/db/distro.d/*
-        GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.clipboard-indicator toggle-menu
+        GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-clipboard toggle-menu
         for key in close begin-resize switch-applications switch-windows switch-group switch-panels; do
             GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.keybindings "${key}"
         done

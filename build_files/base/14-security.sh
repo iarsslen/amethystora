@@ -28,6 +28,13 @@ for po in /ctx/po/*.po; do
     install -d "/usr/share/locale/${language}/LC_MESSAGES"
     msgfmt --check --output-file="/usr/share/locale/${language}/LC_MESSAGES/amethystora.mo" "${po}"
 done
+# And Amethystora Clipboard's, the GNOME Shell extension's own text domain, which GNOME Shell looks for there
+# when the extension has no locale folder of its own: Clipboard Indicator's catalogs, and what the copy added
+for po in /ctx/po/amethystora-clipboard/*.po; do
+    language="$(basename "${po}" .po)"
+    install -d "/usr/share/locale/${language}/LC_MESSAGES"
+    msgfmt --check --output-file="/usr/share/locale/${language}/LC_MESSAGES/amethystora-clipboard.mo" "${po}"
+done
 if [[ -n "${MSGFMT_INSTALLED:-}" ]]; then
     dnf -y remove gettext
 fi

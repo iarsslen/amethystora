@@ -144,6 +144,7 @@ read_in_background backgrounds amethystora-theme bg list
 read_in_background raid /usr/libexec/amethystora-raid status --json
 # The quick ones too, which one after another took a fifth of a second in a VM
 read_in_background transitions gsettings list-recursively org.gnome.shell.extensions.amethystora-transitions
+read_in_background clipboard gsettings get org.gnome.shell.extensions.amethystora-clipboard keep-history
 read_in_background animations gsettings get org.gnome.desktop.interface enable-animations
 read_in_background extensions gsettings get org.gnome.shell enabled-extensions
 read_in_background waydroid-enabled systemctl is-enabled waydroid-container.service
@@ -259,6 +260,24 @@ GROUP="$(gettext "Windows")"
 EXTRA='{"open": "manual"}'
 item desktop keybindings link "$(gettext "Keybindings")" \
     "$(gettext "Every key the desktop answers to, in the manual.")" "" keybindings
+
+# How long Amethystora Clipboard, the history on Super+Shift+V, keeps what was copied (keep-history)
+KEEP=""
+if [[ "$(ended clipboard)" == 0 ]]; then
+    KEEP="$(said clipboard | tr -d "'")"
+else
+    REASON="$(gettext "The clipboard history's extension is not installed.")"
+fi
+choice always "$(gettext "Always")" "$(gettext "Everything you copied, until you clear it")" false ame desktop clipboard always
+choice restart "$(gettext "Until a restart")" \
+    "$(gettext "Pinned items, and the rest until the computer restarts")" false ame desktop clipboard restart
+choice session "$(gettext "Until you log out")" \
+    "$(gettext "Pinned items, and the rest until you log out")" false ame desktop clipboard session
+GROUP="$(gettext "Clipboard")"
+USAGE="ame desktop clipboard always|restart|session"
+item desktop clipboard choice "$(gettext "Clipboard history")" \
+    "$(gettext "How long what you copy is kept, sealed under a key in your login keyring. Super+Shift+V shows it.")" \
+    "${KEEP}" desktop#the-clipboard
 
 # The widgets, and the commands for each: the window puts a listed widget's id, or a new one it checked
 # against the rule amethystora-widgets has for ids, in the place of {id}

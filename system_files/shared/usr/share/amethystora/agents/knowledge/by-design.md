@@ -59,6 +59,18 @@ Change: `ame security secure-boot` enrolls the image's key for its own modules; 
 Symptom: `chfn`, `chage`, `gpasswd`, `newgrp`, `ksu` or `mount.davfs` fail for a normal account. Confirm: `ls -l
 /usr/bin/chfn`. Change: run them with `sudo`; this is by design.
 
+### The clipboard history is sealed under the login keyring
+
+Symptom: the clipboard history (`Super+Shift+V`) shows only what was copied since login, under a row "Unlock
+to see earlier items" (a login by fingerprint or security key leaves the login keyring locked), or says
+"Not saved" (there is no keyring). Confirm: the history is Amethystora Clipboard's, sealed in
+`~/.local/state/amethystora/clipboard` under a key kept in the login keyring; `busctl --user get-property
+org.freedesktop.secrets /org/freedesktop/secrets/collection/login org.freedesktop.Secret.Collection Locked`
+says whether that keyring is locked (never print the key). Change: click the row and type the login password,
+or log in with the password. How long it is kept: `ame desktop clipboard always|restart|session`. A history
+that did not open with the keyring's key (another machine's, or a keyring made again after a password reset)
+was moved aside to `history.unreadable`, not deleted.
+
 ## The kernel
 
 ### dmesg, ptrace and core dumps are restricted

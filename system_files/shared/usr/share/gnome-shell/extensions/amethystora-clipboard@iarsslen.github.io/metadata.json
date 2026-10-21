@@ -6,10 +6,10 @@
         "49",
         "50"
     ],
-    "uuid": "clipboard-indicator@tudmotu.com",
-    "name": "Clipboard Indicator",
-    "description": "The most popular clipboard manager for GNOME, with over 1M downloads",
-    "url": "https://github.com/Tudmotu/gnome-shell-extension-clipboard-indicator",
-    "gettext-domain": "clipboard-indicator",
-    "settings-schema": "org.gnome.shell.extensions.clipboard-indicator"
+    "uuid": "amethystora-clipboard@iarsslen.github.io",
+    "name": "Amethystora Clipboard",
+    "description": "The clipboard history on Super+Shift+V, sealed on disk under a key in the login keyring. A copy of Clipboard Indicator by Yotam Bar-On and its contributors (MIT).",
+    "url": "https://github.com/iarsslen/amethystora",
+    "gettext-domain": "amethystora-clipboard",
+    "settings-schema": "org.gnome.shell.extensions.amethystora-clipboard"
 }

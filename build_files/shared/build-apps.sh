@@ -52,11 +52,13 @@ cargo build --release --locked -p amethystora-apps
 cargo build --release --locked -p amethystora-sensor
 # The agent's tools are two more (no GTK): its MCP server and the helper that runs its root commands
 cargo build --release --locked -p amethystora-agent-tools
+# And one more for Amethystora Clipboard, the GNOME Shell extension, which seals its history with it
+cargo build --release --locked -p amethystora-clipboard-seal
 
 mkdir -p /out/licenses
 install -Dpm0755 "${CARGO_TARGET_DIR}/release/amethystora-apps" /out/amethystora-apps
 install -Dpm0755 "${CARGO_TARGET_DIR}/release/amethystora-sensor" /out/amethystora-sensor
-for program in amethystora-agent-tools amethystora-agent-root; do
+for program in amethystora-agent-tools amethystora-agent-root amethystora-clipboard-seal; do
     install -Dpm0755 "${CARGO_TARGET_DIR}/release/${program}" "/out/${program}"
 done
 # It must link the image's own libbpf, not a vendored copy, or the version it was built against travels with
@@ -67,13 +69,13 @@ ldd "${CARGO_TARGET_DIR}/release/amethystora-sensor" | grep -q 'libbpf\.so\.1' |
 # Every crate built into the program (its normal dependencies: build tools and test-only crates are not in
 # it), with its licence, and the licence and notice files it ships: most are MIT or Apache-2.0, whose
 # terms ask for their notices to travel with the program
-cargo tree --locked -p amethystora-apps -p amethystora-sensor -p amethystora-agent-tools -e normal --prefix none --format '{p}' |
+cargo tree --locked -p amethystora-apps -p amethystora-sensor -p amethystora-agent-tools -p amethystora-clipboard-seal -e normal --prefix none --format '{p}' |
     sed -n 's/^\([^ ]*\) v\([^ ]*\)\( (\*)\)\{0,1\}$/\1\t\2/p' | sort -u >/tmp/built.tsv
 cargo metadata --locked --format-version 1 >/tmp/metadata.json
 jq -r '.packages[] | select(.source != null)
     | [.name, .version, (.license // "see its licence file"), (.repository // ""), (.manifest_path | sub("/Cargo.toml$"; ""))]
     | @tsv' /tmp/metadata.json | sort -u >/tmp/packages.tsv
-printf '# The Rust crates built into the Amethystora apps, amethystora-sensor and the agent tools: name, version, licence, source\n' \
+printf '# The Rust crates built into the Amethystora apps, amethystora-sensor, the agent tools and the clipboard's sealing: name, version, licence, source\n' \
     >/out/licenses/CRATES
 missing=()
 while IFS=$'\t' read -r name version licence repository folder; do

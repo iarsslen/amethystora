@@ -473,3 +473,13 @@ msgstr "Choisir parmi les applications installées"
 #: prefs.js:533
 msgid "Search applications..."
 msgstr "Rechercher une application..."
+
+#. Added in Amethystora Clipboard
+#: extension.js
+msgid "Unlock to see earlier items"
+msgstr "Déverrouiller pour voir les éléments précédents"
+
+#. Added in Amethystora Clipboard
+#: extension.js
+msgid "Not saved: there is no keyring to keep it in"
+msgstr "Non enregistré : aucun trousseau où le conserver"

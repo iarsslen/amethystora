@@ -1,0 +1,14 @@
+# amethystora-clipboard-seal: seals and opens Amethystora Clipboard's history (the GNOME Shell extension in
+# system_files). It is in the apps workspace, but shares nothing with the GTK apps: no amethystora-ui, no
+# GTK, and only crates Notes already uses. 13-apps.sh installs it as /usr/libexec/amethystora-clipboard-seal.
+[package]
+name = "amethystora-clipboard-seal"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+aes-gcm.workspace = true
+getrandom.workspace = true
+base64.workspace = true

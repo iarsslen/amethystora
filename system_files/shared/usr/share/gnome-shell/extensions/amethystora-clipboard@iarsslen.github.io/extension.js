@@ -1,3 +1,7 @@
+// Modified for Amethystora: Amethystora Clipboard is Clipboard Indicator v71 with its history sealed
+// (registry.js, store.js, keyring.js) instead of written to ~/.cache in plain text, kept as keep-history
+// says, and with nothing recorded that a password manager marks secret.
+
 import Clutter from 'gi://Clutter';
 import Cogl from 'gi://Cogl';
 import GObject from 'gi://GObject';
@@ -22,10 +26,13 @@ const CLIPBOARD_TYPE = St.ClipboardType.CLIPBOARD;
 
 const INDICATOR_ICON = 'edit-paste-symbolic';
 
+// What KeePassXC and KDE's password managers offer beside a password, with "secret", so that clipboard
+// managers keep it out of their history
+const PASSWORD_HINT = 'x-kde-passwordManagerHint';
+
 let DELAYED_SELECTION_TIMEOUT = 750;
 let MAX_REGISTRY_LENGTH       = 15;
 let MAX_ENTRY_LENGTH          = 50;
-let CACHE_ONLY_FAVORITE       = false;
 let DELETE_ENABLED            = true;
 let MOVE_ITEM_FIRST           = false;
 let ENABLE_KEYBINDING         = true;
@@ -72,7 +79,7 @@ export default class ClipboardIndicatorExtension extends Extension {
             uuid: this.uuid
         });
 
-        Main.panel.addToStatusArea('clipboardIndicator', this.clipboardIndicator, 1);
+        Main.panel.addToStatusArea('amethystoraClipboard', this.clipboardIndicator, 1);
     }
 
     disable () {
@@ -82,14 +89,16 @@ export default class ClipboardIndicatorExtension extends Extension {
     }
 }
 
+// A type name of its own, so that Clipboard Indicator installed beside it does not clash
 const ClipboardIndicator = GObject.registerClass({
-    GTypeName: 'ClipboardIndicator'
+    GTypeName: 'AmethystoraClipboardIndicator'
 }, class ClipboardIndicator extends PanelMenu.Button {
     #refreshInProgress = false;
     #_imagePreviewOverlay = null;
 
     destroy () {
         this._destroyed = true;
+        this._keyringUnwatch?.();
         this._disconnectSettings();
         this._unbindShortcuts();
         this._disconnectSelectionListener();
@@ -169,7 +178,61 @@ const ClipboardIndicator = GObject.registerClass({
             this._updateTopbarLayout();
             this._setupListener();
             this._setupHistoryIntervalClearing();
+            this.#watchKeyring();
         });
+    }
+
+    // The history kept from before opens once the keyring is unlocked, by whatever unlocks it
+    #watchKeyring () {
+        this.registry.watch(() => this.#openStored()).then(unwatch => {
+            if (this._destroyed) unwatch();
+            else this._keyringUnwatch = unwatch;
+        }).catch(e => console.warn(`Amethystora Clipboard: ${e.message}`));
+    }
+
+    #updateStoreItems () {
+        if (this._destroyed || !this.lockedMenuItem) return;
+        this.lockedMenuItem.visible = this.registry.state === 'locked';
+        this.unsavedMenuItem.visible = this.registry.state === 'none';
+    }
+
+    async #unlockStored () {
+        try {
+            await this.registry.unlock();
+        } catch (e) {
+            console.warn(`Amethystora Clipboard: the keyring was not unlocked: ${e.message}`);
+        }
+        await this.#openStored();
+    }
+
+    // Once the keyring is unlocked: the history kept from before under what was copied since, and all of it
+    // sealed from then on
+    async #openStored () {
+        if (this.registry.state === 'open' || this._openingStored) return;
+        this._openingStored = true;
+        try {
+            await this.registry.open();
+            if (this._destroyed || this.registry.state !== 'open') return;
+            const stored = await this.registry.read();
+            if (this._destroyed) return;
+
+            const current = this.clipItemsRadioGroup.map(item => [item.entry, item.currentlySelected]);
+            for (const item of [...this.clipItemsRadioGroup]) item.destroy();
+            this.clipItemsRadioGroup.length = 0;
+            for (const entry of stored) {
+                if (!current.some(([other]) => other.equals(entry))) this._addEntry(entry, false, false);
+            }
+            for (const [entry, selected] of current) this._addEntry(entry, selected, false);
+            this._removeOldestEntries();
+            this._updateCache();
+            // The pictures of what keep-history dropped
+            this.registry.prune(this.clipItemsRadioGroup.map(item => item.entry));
+        } catch (e) {
+            console.warn(`Amethystora Clipboard: the history kept from before did not open: ${e.message}`);
+        } finally {
+            this._openingStored = false;
+            this.#updateStoreItems();
+        }
     }
 
     #updateIndicatorContent(entry) {
@@ -253,6 +316,8 @@ const ClipboardIndicator = GObject.registerClass({
         this._entryItem.add_child(this.searchEntry);
 
         this.menu.connect('open-state-changed', (self, open) => {
+            // Asks the keyring again, without a prompt, in case it was unlocked, or made, unseen
+            if (open && ['locked', 'none'].includes(this.registry.state)) this.#openStored();
             this._setFocusOnOpenTimeout = setTimeout(() => {
                 if (!open) return;
 
@@ -383,6 +448,24 @@ const ClipboardIndicator = GObject.registerClass({
             0
         );
         this.settingsMenuItem.connect('activate', this._openSettings.bind(this));
+
+        // While the keyring is locked, a row that asks for it to be unlocked; with no keyring at all, one
+        // that says nothing is kept
+        this.lockedMenuItem = new PopupMenu.PopupMenuItem(_('Unlock to see earlier items'));
+        this.lockedMenuItem.insert_child_at_index(
+            new St.Icon({
+                icon_name: 'changes-prevent-symbolic',
+                style_class: 'clipboard-menu-icon',
+                y_align: Clutter.ActorAlign.CENTER
+            }),
+            0
+        );
+        this.lockedMenuItem.connect('activate', () => this.#unlockStored());
+        this.menu.addMenuItem(this.lockedMenuItem, 0);
+        this.unsavedMenuItem = new PopupMenu.PopupMenuItem(
+            _('Not saved: there is no keyring to keep it in'), { reactive: false });
+        this.menu.addMenuItem(this.unsavedMenuItem, 0);
+        this.#updateStoreItems();
 
         // Empty state section
         this.emptyStateSection = new St.BoxLayout({
@@ -976,24 +1059,23 @@ const ClipboardIndicator = GObject.registerClass({
         menuItem.menu.close();
     }
 
-    _getCache () {
-        return this.registry.read();
+    async _getCache () {
+        await this.registry.open();
+        return this.registry.read({ prune: true });
     }
 
     #addToCache (entry) {
         const entries = this.clipItemsRadioGroup
             .map(menuItem => menuItem.entry)
-            .filter(entry => CACHE_ONLY_FAVORITE == false || entry.isFavorite())
             .concat([entry]);
-        this.registry.write(entries);
+        this.registry.write(entries).catch(e => console.warn(`Amethystora Clipboard: ${e.message}`));
     }
 
     _updateCache () {
         const entries = this.clipItemsRadioGroup
-            .map(menuItem => menuItem.entry)
-            .filter(entry => CACHE_ONLY_FAVORITE == false || entry.isFavorite());
+            .map(menuItem => menuItem.entry);
 
-        this.registry.write(entries);
+        this.registry.write(entries).catch(e => console.warn(`Amethystora Clipboard: ${e.message}`));
     }
 
     async _onSelectionChange (selection, selectionType, selectionSource) {
@@ -1007,8 +1089,11 @@ const ClipboardIndicator = GObject.registerClass({
 
         const focussedWindow = Shell.Global.get().display.focusWindow;
         const wmClass = focussedWindow?.get_wm_class();
+        // A Flatpak's id too, which is what its window class is not always
+        const appId = focussedWindow?.get_sandboxed_app_id();
 
         if (wmClass && EXCLUDED_APPS.includes(wmClass)) return; // Excluded app, do not.
+        if (appId && EXCLUDED_APPS.includes(appId)) return;
 
         if (this.#refreshInProgress) return;
         this.#refreshInProgress = true;
@@ -1044,7 +1129,7 @@ const ClipboardIndicator = GObject.registerClass({
             }
         }
         catch (e) {
-            console.error('Clipboard Indicator: Failed to refresh indicator');
+            console.error('Amethystora Clipboard: Failed to refresh indicator');
             console.error(e);
         }
         finally {
@@ -1241,7 +1326,7 @@ const ClipboardIndicator = GObject.registerClass({
     _initNotifSource () {
         if (!this._notifSource) {
             this._notifSource = new MessageTray.Source({
-                title: 'Clipboard Indicator',
+                title: 'Amethystora Clipboard',
                 'icon-name': INDICATOR_ICON
             });
 
@@ -1377,7 +1462,6 @@ const ClipboardIndicator = GObject.registerClass({
         const { settings } = this.extension;
         MAX_REGISTRY_LENGTH         = settings.get_int(PrefsFields.HISTORY_SIZE);
         MAX_ENTRY_LENGTH            = settings.get_int(PrefsFields.PREVIEW_SIZE);
-        CACHE_ONLY_FAVORITE         = settings.get_boolean(PrefsFields.CACHE_ONLY_FAVORITE);
         DELETE_ENABLED              = settings.get_boolean(PrefsFields.DELETE);
         MOVE_ITEM_FIRST             = settings.get_boolean(PrefsFields.MOVE_ITEM_FIRST);
         NOTIFY_ON_COPY              = settings.get_boolean(PrefsFields.NOTIFY_ON_COPY);
@@ -1453,7 +1537,7 @@ const ClipboardIndicator = GObject.registerClass({
             // Respect UI toggles
             this.#showElements();
         } catch (e) {
-            console.error('Clipboard Indicator: Failed to update registry');
+            console.error('Amethystora Clipboard: Failed to update registry');
             console.error(e);
         }
     }
@@ -1711,32 +1795,16 @@ const ClipboardIndicator = GObject.registerClass({
         }));
         overlay.add_child(bin);
 
-        this.registry.getEntryAsTexture(entry).then(actor => {
+        // From memory: there is no file of the picture in the clear to load at its own size
+        const size = Math.min(maxW, maxH);
+        this.registry.getEntryAsTexture(entry, size).then(actor => {
             if (this.#_imagePreviewOverlay !== overlay) return;
             if (!actor) return;
 
-            let contentHandlerId = actor.connect('notify::content', () => {
-                const [, natW] = actor.get_preferred_width(-1);
-                const [, natH] = actor.get_preferred_height(-1);
-
-                if (natW > 0 && natH > 0) {
-                    actor.disconnect(contentHandlerId);
-                    contentHandlerId = null;
-                    const scale = Math.min(1, maxW / natW, maxH / natH);
-                    bin.set_size(Math.round(natW * scale), Math.round(natH * scale));
-                }
-            });
-
-            actor.connect('destroy', () => {
-                if (contentHandlerId) {
-                    actor.disconnect(contentHandlerId);
-                    contentHandlerId = null;
-                }
-            });
-
+            bin.set_size(size, size);
             bin.set_child(actor);
         }).catch(e => {
-            console.error('Clipboard Indicator: failed to load image preview');
+            console.error('Amethystora Clipboard: failed to load image preview');
             console.error(e);
         });
     }
@@ -1917,6 +1985,13 @@ const ClipboardIndicator = GObject.registerClass({
     }
 
     async #getClipboardContent () {
+        // A password a password manager marks secret is neither recorded nor shown in the top bar
+        if (this.extension.clipboard.get_mimetypes(CLIPBOARD_TYPE).includes(PASSWORD_HINT)) {
+            const hint = await new Promise(resolve => this.extension.clipboard.get_content(CLIPBOARD_TYPE, PASSWORD_HINT,
+                (clipBoard, bytes) => resolve(bytes ? new TextDecoder().decode(bytes.get_data()).trim() : '')));
+            if (hint === 'secret') return null;
+        }
+
         const mimetypes = [
             "text/plain;charset=utf-8",
             "UTF8_STRING",
@@ -1944,10 +2019,8 @@ const ClipboardIndicator = GObject.registerClass({
                     type = "text/plain;charset=utf-8";
                 }
 
+                // A picture is sealed with the history (registry.js), never written as it is
                 const entry = new ClipboardEntry(type, bytes.get_data(), false);
-                if (CACHE_IMAGES && entry.isImage()) {
-                    this.registry.writeEntryFile(entry);
-                }
                 resolve(entry);
             }));
 

@@ -498,3 +498,13 @@ msgstr ""
 
 #~ msgid "Disable cache file"
 #~ msgstr "إلغاء ملف ذاكرة التخزين المؤقت"
+
+#. Added in Amethystora Clipboard
+#: extension.js
+msgid "Unlock to see earlier items"
+msgstr "افتح القفل لرؤية العناصر السابقة"
+
+#. Added in Amethystora Clipboard
+#: extension.js
+msgid "Not saved: there is no keyring to keep it in"
+msgstr "لا يُحفظ: لا توجد حلقة مفاتيح لحفظه فيها"

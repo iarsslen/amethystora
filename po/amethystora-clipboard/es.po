@@ -503,3 +503,13 @@ msgstr ""
 
 #~ msgid "Disable cache file"
 #~ msgstr "Desactivar archivo de antememoria"
+
+#. Added in Amethystora Clipboard
+#: extension.js
+msgid "Unlock to see earlier items"
+msgstr "Desbloquear para ver los elementos anteriores"
+
+#. Added in Amethystora Clipboard
+#: extension.js
+msgid "Not saved: there is no keyring to keep it in"
+msgstr "No se guarda: no hay ningún llavero donde conservarlo"

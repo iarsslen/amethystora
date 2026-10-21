@@ -1913,6 +1913,46 @@ msgid "Every key the desktop answers to, in the manual."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "The clipboard history's extension is not installed."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Always"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Everything you copied, until you clear it"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Until a restart"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Pinned items, and the rest until the computer restarts"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Until you log out"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Pinned items, and the rest until you log out"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Clipboard"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Clipboard history"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "How long what you copy is kept, sealed under a key in your login keyring. Super+Shift+V shows it."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "The bar is not showing widgets: the extension that shows them is off."
 msgstr ""
 

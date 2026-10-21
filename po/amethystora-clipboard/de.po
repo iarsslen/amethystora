@@ -501,3 +501,13 @@ msgstr "Anwendungen suchen..."
 
 #~ msgid "Requires restarting the extension"
 #~ msgstr "Erfordert Neustart der Erweiterung"
+
+#. Added in Amethystora Clipboard
+#: extension.js
+msgid "Unlock to see earlier items"
+msgstr "Entsperren, um frühere Einträge zu sehen"
+
+#. Added in Amethystora Clipboard
+#: extension.js
+msgid "Not saved: there is no keyring to keep it in"
+msgstr "Nicht gespeichert: Es gibt keinen Schlüsselbund, um es aufzubewahren"

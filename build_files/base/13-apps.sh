@@ -39,6 +39,10 @@ install -Dpm0644 /ctx/apps/sensor/src/bpf/COPYING /usr/share/licenses/amethystor
 install -Dpm0755 /apps-stage/out/amethystora-agent-tools /usr/libexec/amethystora-agent-tools
 # The helper that runs the agent's root commands, started with pkexec only (org.amethystora.agent.policy)
 install -Dpm0755 /apps-stage/out/amethystora-agent-root /usr/libexec/amethystora-agent-root
+
+# What Amethystora Clipboard, the GNOME Shell extension, seals its history with: a filter from stdin to stdout
+# with no GTK, the key and the data never on its command line
+install -Dpm0755 /apps-stage/out/amethystora-clipboard-seal /usr/libexec/amethystora-clipboard-seal
 install -d /usr/share/amethystora/agents/knowledge/model
 install -pm0644 -t /usr/share/amethystora/agents/knowledge/model /apps-stage/out/model/*
 

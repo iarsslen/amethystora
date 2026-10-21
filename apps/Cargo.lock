@@ -90,6 +90,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "amethystora-clipboard-seal"
+version = "1.0.0"
+dependencies = [
+ "aes-gcm",
+ "base64",
+ "getrandom 0.3.4",
+]
+
+[[package]]
 name = "amethystora-control"
 version = "1.0.0"
 dependencies = [

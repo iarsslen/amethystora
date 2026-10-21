@@ -12,6 +12,10 @@
 **/.thumbnails
 **/.local/share/Trash
 
+# The clipboard history (Super+Shift+V): sealed, but not something to restore, and a restored login keyring
+# would open it again
+**/.local/state/amethystora/clipboard
+
 # Flatpak: the per-application caches, but not the application data next to them
 **/.var/app/*/cache
 

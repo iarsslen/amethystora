@@ -470,3 +470,13 @@ msgstr ""
 #: prefs.js:533
 msgid "Search applications..."
 msgstr ""
+
+#. Added in Amethystora Clipboard
+#: extension.js
+msgid "Unlock to see earlier items"
+msgstr ""
+
+#. Added in Amethystora Clipboard
+#: extension.js
+msgid "Not saved: there is no keyring to keep it in"
+msgstr ""

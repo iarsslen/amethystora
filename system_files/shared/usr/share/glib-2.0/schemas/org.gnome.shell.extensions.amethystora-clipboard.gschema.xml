@@ -1,6 +1,8 @@
-<schemalist gettext-domain="gnome-shell-extensions">
-    <schema id="org.gnome.shell.extensions.clipboard-indicator"
-        path="/org/gnome/shell/extensions/clipboard-indicator/">
+<!-- Amethystora Clipboard: Clipboard Indicator v71's schema (MIT), renamed, with keep-history in place of
+     cache-only-favorites. The image's defaults are in zz1-amethystora-modifications.gschema.override. -->
+<schemalist gettext-domain="amethystora-clipboard">
+    <schema id="org.gnome.shell.extensions.amethystora-clipboard"
+        path="/org/gnome/shell/extensions/amethystora-clipboard/">
 
     <key name="paste-button" type="b">
         <default>true</default>
@@ -112,13 +114,18 @@
         <range min="1" max="1024"/>
     </key>
 
-    <key name="cache-only-favorites" type="b">
-        <default>false</default>
-        <summary>Disable the registry cache file for favorites and use memory only</summary>
+    <key name="keep-history" type="s">
+        <choices>
+            <choice value="always"/>
+            <choice value="restart"/>
+            <choice value="session"/>
+        </choices>
+        <default>'always'</default>
+        <summary>How long the history is kept</summary>
         <description>
-            Contents which are not favorites are not stored and retrieved from a cache (registry.txt) file.
-            This can avoid writing passwords to a plaintext file, but at the cost of persistant history.
-            Your clipboard history, except favorite items, is lost after a gnome-shell session ends or the extension is reloaded.
+            The history is always kept sealed, under a key in the login keyring. always: until it is cleared.
+            restart: pinned items are kept, the rest until the computer restarts. session: pinned items are
+            kept, the rest until the next login. It survives the screen lock whatever this says.
         </description>
     </key>
 

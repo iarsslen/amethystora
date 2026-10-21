@@ -82,6 +82,36 @@ layout STYLE="":
         *) exit 0 ;;
     esac
 
+# Pick how long the clipboard history (Super+Shift+V) keeps what you copied, sealed: always, restart (until the computer restarts) or session (until you log out); pinned items are always kept
+[positional-arguments]
+clipboard KEEP="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    schema=org.gnome.shell.extensions.amethystora-clipboard
+    keep="${1:-}"
+    if [[ -z "${keep}" ]]; then
+        current="$(gsettings get "${schema}" keep-history | tr -d "'")"
+        echo "always   Everything you copied, until you clear it"
+        echo "restart  Pinned items, and the rest until the computer restarts"
+        echo "session  Pinned items, and the rest until you log out"
+        keep="$(gum choose --header "Keep the clipboard history (current: ${current})" --selected "${current}" \
+            always restart session)"
+    fi
+    case "${keep}" in
+        always | restart | session) ;;
+        *)
+            echo "usage: ame desktop clipboard always|restart|session"
+            exit 64
+            ;;
+    esac
+    gsettings set "${schema}" keep-history "${keep}"
+    case "${keep}" in
+        always) echo "The clipboard history is kept until you clear it." ;;
+        restart) echo "Pinned items are kept, and the rest of the clipboard history until the computer restarts." ;;
+        session) echo "Pinned items are kept, and the rest of the clipboard history until you log out." ;;
+    esac
+    echo "It is sealed on disk, under a key in your login keyring."
+
 # The top bar's widgets, which the AI agent can make: list, make, new, run, fix, on, off, remove (amethystora-widgets)
 [no-cd]
 [no-exit-message]

@@ -1891,3 +1891,43 @@ msgstr "Das System auf eine neue Festplatte spiegeln"
 #: usr/libexec/amethystora-control-list
 msgid "Copies the system onto a spare disk at least as large as its own, its EFI partition and /boot included, so that the machine starts from either disk and goes on with one dead. It erases that disk once you type ERASE, then restarts once from it."
 msgstr "Kopiert das System samt EFI-Partition und /boot auf eine freie Festplatte, die mindestens so groß ist wie seine eigene, sodass der Rechner von jeder der beiden startet und mit einer ausgefallenen weiterläuft. Die Festplatte wird erst gelöscht, wenn Sie ERASE eingeben; danach startet der Rechner einmal von ihr."
+
+#: usr/libexec/amethystora-control-list
+msgid "The clipboard history's extension is not installed."
+msgstr "Die Erweiterung für den Verlauf der Zwischenablage ist nicht installiert."
+
+#: usr/libexec/amethystora-control-list
+msgid "Always"
+msgstr "Immer"
+
+#: usr/libexec/amethystora-control-list
+msgid "Everything you copied, until you clear it"
+msgstr "Alles, was Sie kopiert haben, bis Sie es löschen"
+
+#: usr/libexec/amethystora-control-list
+msgid "Until a restart"
+msgstr "Bis zum Neustart"
+
+#: usr/libexec/amethystora-control-list
+msgid "Pinned items, and the rest until the computer restarts"
+msgstr "Angeheftete Einträge, den Rest bis zum Neustart des Computers"
+
+#: usr/libexec/amethystora-control-list
+msgid "Until you log out"
+msgstr "Bis zur Abmeldung"
+
+#: usr/libexec/amethystora-control-list
+msgid "Pinned items, and the rest until you log out"
+msgstr "Angeheftete Einträge, den Rest bis zu Ihrer Abmeldung"
+
+#: usr/libexec/amethystora-control-list
+msgid "Clipboard"
+msgstr "Zwischenablage"
+
+#: usr/libexec/amethystora-control-list
+msgid "Clipboard history"
+msgstr "Verlauf der Zwischenablage"
+
+#: usr/libexec/amethystora-control-list
+msgid "How long what you copy is kept, sealed under a key in your login keyring. Super+Shift+V shows it."
+msgstr "Wie lange Kopiertes aufbewahrt wird, versiegelt mit einem Schlüssel aus Ihrem Anmeldeschlüsselbund. Super+Shift+V zeigt es."

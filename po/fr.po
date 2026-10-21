@@ -1891,3 +1891,43 @@ msgstr "Copier le système en miroir sur un nouveau disque"
 #: usr/libexec/amethystora-control-list
 msgid "Copies the system onto a spare disk at least as large as its own, its EFI partition and /boot included, so that the machine starts from either disk and goes on with one dead. It erases that disk once you type ERASE, then restarts once from it."
 msgstr "Copie le système, partition EFI et /boot comprises, sur un disque libre au moins aussi grand que le sien, pour que la machine démarre depuis l’un ou l’autre disque et continue avec l’un d’eux hors service. Ce disque n’est effacé qu’une fois ERASE tapé, puis la machine redémarre une fois depuis lui."
+
+#: usr/libexec/amethystora-control-list
+msgid "The clipboard history's extension is not installed."
+msgstr "L’extension de l’historique du presse-papiers n’est pas installée."
+
+#: usr/libexec/amethystora-control-list
+msgid "Always"
+msgstr "Toujours"
+
+#: usr/libexec/amethystora-control-list
+msgid "Everything you copied, until you clear it"
+msgstr "Tout ce que vous avez copié, jusqu’à ce que vous l’effaciez"
+
+#: usr/libexec/amethystora-control-list
+msgid "Until a restart"
+msgstr "Jusqu’au redémarrage"
+
+#: usr/libexec/amethystora-control-list
+msgid "Pinned items, and the rest until the computer restarts"
+msgstr "Les éléments épinglés, et le reste jusqu’au redémarrage de l’ordinateur"
+
+#: usr/libexec/amethystora-control-list
+msgid "Until you log out"
+msgstr "Jusqu’à la déconnexion"
+
+#: usr/libexec/amethystora-control-list
+msgid "Pinned items, and the rest until you log out"
+msgstr "Les éléments épinglés, et le reste jusqu’à votre déconnexion"
+
+#: usr/libexec/amethystora-control-list
+msgid "Clipboard"
+msgstr "Presse-papiers"
+
+#: usr/libexec/amethystora-control-list
+msgid "Clipboard history"
+msgstr "Historique du presse-papiers"
+
+#: usr/libexec/amethystora-control-list
+msgid "How long what you copy is kept, sealed under a key in your login keyring. Super+Shift+V shows it."
+msgstr "Combien de temps ce que vous copiez est conservé, chiffré sous une clé de votre trousseau de connexion. Super+Shift+V l’affiche."

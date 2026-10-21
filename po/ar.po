@@ -1973,3 +1973,43 @@ msgstr "انسخ النظام نسخة مطابقة على قرص جديد"
 #: usr/libexec/amethystora-control-list
 msgid "Copies the system onto a spare disk at least as large as its own, its EFI partition and /boot included, so that the machine starts from either disk and goes on with one dead. It erases that disk once you type ERASE, then restarts once from it."
 msgstr "ينسخ النظام، مع قسم EFI و‎/boot، إلى قرص احتياطي بحجم قرصه على الأقل، فيبدأ الجهاز من أيّ القرصين ويستمر إن تعطّل أحدهما. لا يُمسح ذلك القرص إلا بعد كتابة ERASE، ثم يعيد التشغيل منه مرة واحدة."
+
+#: usr/libexec/amethystora-control-list
+msgid "The clipboard history's extension is not installed."
+msgstr "إضافة سجل الحافظة غير مثبتة."
+
+#: usr/libexec/amethystora-control-list
+msgid "Always"
+msgstr "دائمًا"
+
+#: usr/libexec/amethystora-control-list
+msgid "Everything you copied, until you clear it"
+msgstr "كل ما نسخته، إلى أن تمحوه"
+
+#: usr/libexec/amethystora-control-list
+msgid "Until a restart"
+msgstr "حتى إعادة التشغيل"
+
+#: usr/libexec/amethystora-control-list
+msgid "Pinned items, and the rest until the computer restarts"
+msgstr "العناصر المثبّتة، والباقي حتى يُعاد تشغيل الحاسوب"
+
+#: usr/libexec/amethystora-control-list
+msgid "Until you log out"
+msgstr "حتى تسجيل الخروج"
+
+#: usr/libexec/amethystora-control-list
+msgid "Pinned items, and the rest until you log out"
+msgstr "العناصر المثبّتة، والباقي حتى تسجّل الخروج"
+
+#: usr/libexec/amethystora-control-list
+msgid "Clipboard"
+msgstr "الحافظة"
+
+#: usr/libexec/amethystora-control-list
+msgid "Clipboard history"
+msgstr "سجل الحافظة"
+
+#: usr/libexec/amethystora-control-list
+msgid "How long what you copy is kept, sealed under a key in your login keyring. Super+Shift+V shows it."
+msgstr "مدة الاحتفاظ بما تنسخه، مختومًا بمفتاح من حلقة مفاتيح الدخول. يعرضه Super+Shift+V."

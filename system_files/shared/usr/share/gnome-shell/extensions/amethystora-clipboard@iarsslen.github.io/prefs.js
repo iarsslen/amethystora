@@ -1,3 +1,6 @@
+// Modified for Amethystora: no row for keeping only pinned items. How long the history is kept is
+// keep-history, which Amethystora Control sets (ame desktop clipboard).
+
 import Adw from 'gi://Adw';
 import GObject from 'gi://GObject';
 import Gtk from 'gi://Gtk';
@@ -89,11 +92,6 @@ class Settings {
         this.field_blink_icon_on_copy = new Adw.SwitchRow({
             title: _("Blink icon on copy"),
             subtitle: _("Briefly flash the indicator icon when something is copied")
-        });
-
-        this.field_cache_disable = new Adw.SwitchRow({
-            title: _("Cache only pinned items"),
-            subtitle: _("Only save pinned (favorite) entries to disk")
         });
 
         this.field_copy_notification_toggle = new Adw.SwitchRow({
@@ -292,7 +290,6 @@ class Settings {
 
         this.limits.add(this.field_size);
         this.limits.add(this.field_cache_size);
-        this.limits.add(this.field_cache_disable);
 
         this.topbar.add(this.field_display_mode);
         this.topbar.add(this.field_topbar_preview_size);
@@ -318,7 +315,6 @@ class Settings {
         this.schema.bind(PrefsFields.HISTORY_SIZE, this.field_size, 'value', Gio.SettingsBindFlags.DEFAULT);
         this.schema.bind(PrefsFields.PREVIEW_SIZE, this.field_preview_size, 'value', Gio.SettingsBindFlags.DEFAULT);
         this.schema.bind(PrefsFields.CACHE_FILE_SIZE, this.field_cache_size, 'value', Gio.SettingsBindFlags.DEFAULT);
-        this.schema.bind(PrefsFields.CACHE_ONLY_FAVORITE, this.field_cache_disable, 'active', Gio.SettingsBindFlags.DEFAULT);
         this.schema.bind(PrefsFields.NOTIFY_ON_COPY, this.field_copy_notification_toggle, 'active', Gio.SettingsBindFlags.DEFAULT);
         this.schema.bind(PrefsFields.NOTIFY_ON_CYCLE, this.field_cycle_notification_toggle, 'active', Gio.SettingsBindFlags.DEFAULT);
         this.schema.bind(PrefsFields.NOTIFY_ON_CLEAR, this.field_clear_notification_toggle, 'active', Gio.SettingsBindFlags.DEFAULT);

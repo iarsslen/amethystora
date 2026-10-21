@@ -82,14 +82,21 @@ enable_extension "amethystora-transitions@iarsslen.github.io"
 install -Dpm0644 /usr/share/licenses/amethystora/LICENSE /usr/share/licenses/amethystora-widgets@iarsslen.github.io/LICENSE
 enable_extension "amethystora-widgets@iarsslen.github.io"
 
+# Amethystora Clipboard: the clipboard history on Super+Shift+V. A copy of Clipboard Indicator v71 (MIT, by
+# Yotam Bar-On and its contributors, https://github.com/Tudmotu/gnome-shell-extension-clipboard-indicator at
+# c880c7fb88dc7232a61a5864d125989a4f375daa) that seals its history with /usr/libexec/amethystora-clipboard-seal
+# (built in the apps stage) instead of writing it to ~/.cache in plain text. In system_files with upstream's
+# LICENSE.rst; its schema is system-wide, and 14-security.sh compiles its translations (po/amethystora-clipboard).
+enable_extension "amethystora-clipboard@iarsslen.github.io"
+
 # --- Extensions installed from extensions.gnome.org --------------------------------------------
 #
 # These are not submodules. Space Bar is TypeScript, so building it from source would pull npm and
 # the npm registry into the image build; TopHat and Just Perfection are not in Fedora's repositories
 # at all (only in updates-testing, which this build does not enable). The reviewed builds from
 # extensions.gnome.org are used instead, each pinned to one upload and to the SHA-256 of its zip, which
-# extensions.gnome.org does not sign. PaperWM, Clipboard Indicator and Fuzzy App Search need no build
-# step, but come from there too, pinned and checked the same way.
+# extensions.gnome.org does not sign. PaperWM and Fuzzy App Search need no build step, but come from
+# there too, pinned and checked the same way.
 #
 # To update one: read the new upload id for this GNOME out of
 # https://extensions.gnome.org/extension-info/?uuid=<uuid>, download that upload and change its
@@ -137,16 +144,6 @@ GNOME_MAJOR="$(gnome-shell --version | grep -oE '[0-9]+' | head -n1)"
 # keyboard moves along it. Its keymap is fitted around the image's in zz1-amethystora-modifications.
 install_ego_extension "paperwm@paperwm.github.com" 148 70147 \
     2cef72ed7e31df4962584b52dabda9246c0ae81973b05f8d1202d9dbe9a3f794
-
-# Clipboard Indicator: the clipboard history in the panel, on Super+Shift+V
-install_ego_extension "clipboard-indicator@tudmotu.com" 71 70694 \
-    687cb404f9540958ddb0c1de638970572cef73f22f016e5d6c6d6f5d4cd55f97
-# With cache-only-favorites (zz1-amethystora-modifications), version 71 still writes each item copied to
-# its file in ~/.cache with the pinned ones, until the history is full: a password copied last stayed
-# there in plain text, and in the hourly snapshots. Only what the setting asks for is written now.
-CLIPBOARD_JS=/usr/share/gnome-shell/extensions/clipboard-indicator@tudmotu.com/extension.js
-sed -i 's/^\( *\)\.concat(\[entry\]);$/\1.concat(CACHE_ONLY_FAVORITE \&\& !entry.isFavorite() ? [] : [entry]);/' "${CLIPBOARD_JS}"
-grep -qF '.concat(CACHE_ONLY_FAVORITE && !entry.isFavorite() ? [] : [entry]);' "${CLIPBOARD_JS}"
 
 # GNOME Fuzzy App Search: app search that forgives typos, in the overview and in Search Light
 install_ego_extension "gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com" 28 70194 \

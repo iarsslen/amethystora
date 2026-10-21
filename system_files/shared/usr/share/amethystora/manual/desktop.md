@@ -28,9 +28,28 @@ Both searches forgive typos in app names: `calxu` still finds Calculator.
 again, type to search, and pin the ones you keep coming back to. It is also the clipboard icon in
 the top bar.
 
-The history lives only as long as your session, and of the text you copy only pinned items are saved;
-pictures you copy are kept in `~/.cache` as files. Before copying something secret, turn on **Private
-mode** in the same menu, and nothing is recorded until you turn it off.
+The history is never on disk as you copied it: text and pictures alike are sealed (encrypted) in
+`~/.local/state/amethystora/clipboard`, under a key kept in your login keyring, which your password
+protects. A copy of the disk, a snapshot or a stolen laptop shows nothing of it without that password.
+It is left out of [backups](security.md#backups).
+
+How long it is kept is yours to choose, in [Control](control.md)'s **Clipboard history** or in a terminal.
+Pinned items are always kept, and the history outlasts locking the screen either way.
+
+```bash
+ame desktop clipboard always    # everything, until you clear it (the default)
+ame desktop clipboard restart   # pinned items, and the rest until the computer restarts
+ame desktop clipboard session   # pinned items, and the rest until you log out
+```
+
+Nothing is recorded of what a password manager marks secret, as KeePassXC does, or of what you copy
+in KeePassXC, Secrets, Bitwarden, 1Password or Proton Pass. Before copying anything else secret, turn on
+**Private mode** in the same menu, and nothing is recorded until you turn it off.
+
+After logging in with a fingerprint or a security key, your keyring stays locked, so the menu shows
+what you copy from then on, under **Unlock to see earlier items**. Click it and type your password to
+see the rest. The history is sealed under this machine's keyring: on another machine, or after an
+administrator resets your password, it does not open, and it is kept aside as `history.unreadable`.
 
 ## The dock
 
@@ -180,7 +199,7 @@ These GNOME Shell extensions come with the image:
 | Dash to Dock | The dock |
 | Search Light | The search on `Super+Space` |
 | Fuzzy App Search | App search that forgives typos |
-| Clipboard Indicator | The [clipboard history](#the-clipboard) on `Super+Shift+V` |
+| Amethystora Clipboard | The [clipboard history](#the-clipboard) on `Super+Shift+V`, sealed: a copy of Clipboard Indicator |
 | Blur my Shell | The frosted glass behind the panel, the overview, menus and notifications, and windows you are not using made slightly see-through (**Applications** in its settings) |
 | Just Perfection | Quicker animations, and no popup when you change workspace |
 | AppIndicator | Tray icons for apps that use them |
