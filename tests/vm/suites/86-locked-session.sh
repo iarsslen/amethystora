@@ -75,8 +75,9 @@ notify_watch() {
     pkill -u "${TEST_USER}" -x dbus-monitor 2>/dev/null
     : >/var/tmp/vmlab-86-notifications
     chmod 0666 /var/tmp/vmlab-86-notifications
+    # Nothing of it on the suite's own output, which the lab reads until every holder of it has ended
     user_bus sh -c "exec dbus-monitor --session 'type=method_call,interface=org.freedesktop.Notifications,member=Notify' \
-        >/var/tmp/vmlab-86-notifications 2>&1" &
+        >/var/tmp/vmlab-86-notifications 2>&1" >/dev/null 2>&1 &
     sleep 2
 }
 notified() { grep -qF "$1" /var/tmp/vmlab-86-notifications; }
