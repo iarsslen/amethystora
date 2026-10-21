@@ -19,10 +19,9 @@ sudo bootc switch --enforce-container-sigpolicy ghcr.io/iarsslen/amethystora-dx:
 If you have [layered packages](software.md#layering-the-last-resort), use
 `sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/iarsslen/amethystora-dx:stable` instead,
 which keeps them. Switching back to `amethystora` works the same way. The **Developer mode** switch on
-[Control](control.md)'s **System** page does the first for you, on the stream and driver you are on
-(`ame system devmode on` or `off`; without either it switches to the other). It asks first, uses
-`bootc switch`, so it is not for a machine with layered packages, and on the way in offers extra
-monospace fonts from Homebrew.
+[Control](control.md)'s **System** page does it for you, on the stream and driver you are on, keeping layered packages
+(`ame system devmode on` or `off`; without either it switches to the other). It asks first, and on
+the way in offers extra monospace fonts from Homebrew.
 
 ## Groups
 

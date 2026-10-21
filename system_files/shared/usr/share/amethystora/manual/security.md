@@ -226,8 +226,7 @@ ame security settings virus-scan manual      # change one: its name, then the va
   scanning. Each file is checked again before anything is done to it. `ame security scan quarantine`
   lists what is in quarantine, and `ame security scan restore` puts a file back and can tell the
   scanner to leave that exact file alone from then on. A file stays in quarantine until it is put back
-  or deleted for good, with `sudo /usr/libexec/amethystora-quarantine delete ID` and the id the list
-  gives.
+  or deleted for good with `ame security scan delete`.
 - **Real-time watching** (`realtime`): `off` (the default) or `on`, for both halves at once, which can also be set
   each on its own. `realtime-watch` has the security watcher read each change as the audit log records
   it. `realtime-scan` scans every file written in a home folder as it is closed: it costs some CPU while

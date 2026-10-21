@@ -108,18 +108,28 @@ devmode ACTION="":
             ;;
     esac
 
+    # As ame system rebase does: rpm-ostree keeps the packages layered on this machine, which bootc switch
+    # would drop, and checks the signature the same way. bootc only where layering is locked, or sealed.
+    switch_to() {
+        if [[ -e /usr/share/amethystora/sealed ]] || grep -q "^LockLayering=true" /etc/rpm-ostreed.conf; then
+            pkexec bootc switch --enforce-container-sigpolicy "$1"
+        else
+            rpm-ostree rebase "ostree-image-signed:docker://$1"
+        fi
+    }
+
     if [[ "${DX}" == true ]] ; then
         gum confirm "Would you like to disable developer mode?" || exit 0
         echo "Rebasing to a non developer image"
         NEW_IMAGE="$(sed "s/\-dx//" <<< $CURRENT_IMAGE)"
-        pkexec bootc switch --enforce-container-sigpolicy "${NEW_IMAGE}"
+        switch_to "${NEW_IMAGE}" || exit 1
         exit 0
     fi
 
     gum confirm "Would you like to enable developer mode?" || exit 0
     echo "Rebasing to a developer image"
     NEW_IMAGE="$(sed "s/${IMAGE_BASE_NAME}/${IMAGE_BASE_NAME}-dx/" <<< "${CURRENT_IMAGE}")"
-    pkexec bootc switch --enforce-container-sigpolicy "${NEW_IMAGE}"
+    switch_to "${NEW_IMAGE}" || exit 1
     echo "The development apps install by themselves once the development image has started"
     if gum confirm "Do you want to install extra monospace fonts?" ; then
         brew bundle install --file=/usr/share/amethystora/homebrew/fonts.Brewfile

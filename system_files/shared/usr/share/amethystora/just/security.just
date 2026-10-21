@@ -1750,7 +1750,7 @@ ransomware ACTION="":
         *) exit 0 ;;
     esac
 
-# Show what the virus scans found, run one now, or put back a file from quarantine
+# Show what the virus scans found, run one now, or put back or delete a file in quarantine
 [positional-arguments]
 scan ACTION="":
     #!/usr/bin/bash
@@ -1775,7 +1775,7 @@ scan ACTION="":
     esac
     if [[ -z "${action}" ]]; then
         action="$(gum choose --header "Virus scan (ClamAV)" "Scan now" "Show the quarantine" \
-            "Put a file back" "Show the full log" "Cancel")"
+            "Put a file back" "Delete a file for good" "Show the full log" "Cancel")"
     fi
     case "${action}" in
         "Scan now" | now)
@@ -1794,7 +1794,7 @@ scan ACTION="":
             else
                 echo "In quarantine (id, when, what it matched, where it was):"
                 sed 's/^/  /' <<<"${list}"
-                echo "Put one back with: ame security scan restore"
+                echo "Put one back with: ame security scan restore, or delete it for good with: ame security scan delete"
             fi
             ;;
         "Put a file back" | restore)
@@ -1814,6 +1814,17 @@ scan ACTION="":
                 sudo "${QUARANTINE}" restore "${id}"
                 echo "The next scan will find it again unless you let the scanner leave it alone."
             fi
+            ;;
+        "Delete a file for good" | delete)
+            list="$(sudo "${QUARANTINE}" list)"
+            if [[ -z "${list}" ]]; then
+                echo "The quarantine is empty."
+                exit 0
+            fi
+            choice="$(gum choose --header "Delete which file for good?" <<<"${list}")"
+            id="${choice%%$'\t'*}"
+            gum confirm "Delete ${choice##*$'\t'} for good? Nothing can bring it back." || exit 0
+            sudo "${QUARANTINE}" delete "${id}"
             ;;
         "Show the full log" | log)
             sudo journalctl -u amethystora-clamav-scan.service -u amethystora-clamav-onaccess.service --no-pager
