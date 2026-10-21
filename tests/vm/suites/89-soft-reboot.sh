@@ -226,6 +226,8 @@ if [[ "${SUITE_PHASE}" == 3 ]]; then
     same "nor mounted for another soft reboot" "$(nextroot && echo mounted)" ""
     same "the previous system is the one to roll back to" "$(bootc_json '.status.rollback.ostree.checksum')" "$(recall original)"
     same "the account is signed in again" "$(loginctl show-user "${TEST_USER}" -p State --value)" active
+    # The system's encrypted disk was kept attached, as it has to be for the update's mounts to stay
+    check "the system's LUKS line in /etc/crypttab carries x-initrd.attach" grep -qE '^luks-[^ ]+ [^ ]+ [^ ]+ ([^ ]*,)?x-initrd\.attach' /etc/crypttab
     echo "# soft reboot: $(($(session_started) - $(recall clicked))) s from Restart to the account's new session"
     if lsmod | grep -q "^${DRIVER} "; then ok "${DRIVER} is still loaded"; else not_ok "${DRIVER} is no longer loaded"; fi
     says "after it" none "none"

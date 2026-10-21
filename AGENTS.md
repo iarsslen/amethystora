@@ -736,7 +736,10 @@ kernel, its initramfs, its arguments and the SELinux policy as they are: `/usr/l
 says when (bootc's `softRebootCapable`, then no loaded driver in another version and nothing waiting on the
 firmware; never on a sealed image), mounts the staged deployment at `/run/nextroot` (`ostree admin
 prepare-soft-reboot`) and asks logind for the restart as the user, which logind then makes a soft reboot, with its
-own polkit questions still asked. `50-amethystora-soft-reboot.rules` lets anyone ask its status, and the person at
+own polkit questions still asked. Before that it adds `x-initrd.attach` to the crypttab lines of the LUKS partitions
+the system runs from, which Anaconda leaves out: without it their cryptsetup unit stops at shutdown and takes the
+update's mounts under `/run/nextroot` with it, and the machine comes up in emergency mode (ostreedev/ostree#3503,
+found in the lab). `50-amethystora-soft-reboot.rules` lets anyone ask its status, and the person at
 the machine prepare one, without a password. GNOME's restart dialog only restarts the computer, so the window asks
 first itself, and leaves the restart to that dialog when an app inhibits logging out. `ame update restart` is the
 same in a terminal. An update is only ever quick because `19-initramfs.sh` keeps out of the initramfs what changes

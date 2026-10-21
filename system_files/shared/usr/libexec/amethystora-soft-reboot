@@ -104,6 +104,32 @@ do_status() {
     fi
 }
 
+# The disk the system runs from kept attached through the soft reboot. Without x-initrd.attach its crypttab line
+# makes it a device like any other, whose cryptsetup unit is stopped at shutdown; the update's mounts under
+# /run/nextroot require the device and go with it, and the system comes up without /etc and /var
+# (ostreedev/ostree#3503). systemd-cryptsetup-generator(8) asks for the option on the device the root is on
+# anyway, which is then detached only after the root is unmounted; Anaconda leaves it out. As amethystora-raid
+# makes the same lines nofail.
+attach_root() {
+    local part uuid changed=false
+    [[ -e /etc/crypttab ]] || return 0
+    for part in $(/usr/libexec/amethystora-raid root-luks 2>/dev/null); do
+        uuid="$(cryptsetup luksUUID "${part}" 2>/dev/null)" || continue
+        awk -v id="UUID=${uuid}" '!/^[[:space:]]*#/ && $2 == id && $4 !~ /(^|,)x-initrd\.attach(,|$)/ { found = 1 }
+            END { exit !found }' /etc/crypttab || continue
+        awk -v id="UUID=${uuid}" '!/^[[:space:]]*#/ && $2 == id && $4 !~ /(^|,)x-initrd\.attach(,|$)/ {
+            $4 = (NF < 4 || $4 == "" || $4 == "-") ? "x-initrd.attach" : $4 ",x-initrd.attach" } { print }' \
+            /etc/crypttab >/etc/crypttab.new
+        chmod --reference=/etc/crypttab /etc/crypttab.new
+        mv -f /etc/crypttab.new /etc/crypttab
+        changed=true
+    done
+    if [[ "${changed}" == true ]]; then
+        restorecon /etc/crypttab 2>/dev/null || true
+        systemctl daemon-reload
+    fi
+}
+
 do_prepare() {
     local why
     why="$(why_not)"
@@ -111,6 +137,7 @@ do_prepare() {
         say "${why}" >&2
         exit 1
     fi
+    attach_root
     # Mounted afresh when an earlier one was left, and the staged deployment is the first in ostree's list
     if mountpoint -q /run/nextroot; then
         ostree admin prepare-soft-reboot --reset
