@@ -1988,8 +1988,9 @@ const ClipboardIndicator = GObject.registerClass({
     }
 
     async #getClipboardContent () {
+        const offered = this.extension.clipboard.get_mimetypes(CLIPBOARD_TYPE);
         // A password a password manager marks secret is neither recorded nor shown in the top bar
-        if (this.extension.clipboard.get_mimetypes(CLIPBOARD_TYPE).includes(PASSWORD_HINT)) {
+        if (offered.includes(PASSWORD_HINT)) {
             const hint = await new Promise(resolve => this.extension.clipboard.get_content(CLIPBOARD_TYPE, PASSWORD_HINT,
                 (clipBoard, bytes) => resolve(bytes ? new TextDecoder().decode(bytes.get_data()).trim() : '')));
             if (hint === 'secret') return null;
@@ -2010,6 +2011,9 @@ const ClipboardIndicator = GObject.registerClass({
         ];
 
         for (let type of mimetypes) {
+            // Only what the app offers: asked for a type it did not offer, a Wayland app may send what it has
+            // anyway (a picture's bytes taken for text), or never answer (and nothing is recorded again)
+            if (!offered.includes(type)) continue;
             let result = await new Promise(resolve => this.extension.clipboard.get_content(CLIPBOARD_TYPE, type, (clipBoard, bytes) => {
                 if (bytes === null || bytes.get_size() === 0) {
                     resolve(null);
