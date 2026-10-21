@@ -29,7 +29,7 @@ install -d -m 0700 "${STATE}"
 
 running() { systemctl list-units --type=service --state="$1" --no-legend --plain "${UNITS[@]}" "${PATTERNS[@]}" | awk '{ print $1 }' | sort -u; }
 faults() { jq -r '.checks[] | select(.state == "check" or .state == "off") | .id' <<<"$1" | sort -u; }
-lines() { wc -l <"${HISTORY}" 2>/dev/null || echo 0; }
+lines() { wc -l 2>/dev/null <"${HISTORY}" || echo 0; }
 # The audit rules and the sensor's plan and watch list as they are loaded now
 loaded() {
     auditctl -l 2>&1 | sort

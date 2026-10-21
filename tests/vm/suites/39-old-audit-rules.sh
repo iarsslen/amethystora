@@ -18,7 +18,8 @@ systemctl stop uupd.timer 2>/dev/null
 remember() { printf '%s\n' "$2" >"${STATE}/$1"; }
 recall() { cat "${STATE}/$1" 2>/dev/null; }
 rw() { unshare -m sh -c 'mount -o remount,rw /sysroot && "$@"' sh "$@"; }
-booted() { bootc status --format=json | jq -r '.status.booted.ostree.checksum'; }
+# Not bootc status, which refuses to answer while a commit made here, without an image's manifest, is deployed
+booted() { rpm-ostree status --json | jq -r '.deployments[] | select(.booted) | .checksum'; }
 count() { rpm-ostree status --json | jq '.deployments | length'; }
 # The default deployment's folder, the first that ostree admin status lists
 newest() { ostree admin status | grep -oE '[[:alnum:]_-]+ [0-9a-f]{64}\.[0-9]+' | head -n 1 | sed 's|^\([^ ]*\) |/ostree/deploy/\1/deploy/|'; }
