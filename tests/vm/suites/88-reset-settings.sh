@@ -80,13 +80,13 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     crashed="$(crashes_since "${since}" "COREDUMP_UID=${TUID}")"
     [[ -z "${crashed}" ]] && ok "nothing of the session crashed" || not_ok "something of the session crashed" "${crashed}"
 
-    in_session ame system reset-settings undo account >/dev/null 2>&1
+    out="$(in_session ame system reset-settings undo account 2>&1)"
     if [[ "$(dconf_get /org/gnome/desktop/interface/clock-show-seconds)" == true && "$(theme)" == tokyo-night ]] && ! paperwm_on &&
         [[ -d "${save}.undone" ]]; then
         ok "undo brings the account's settings, theme and layout back, and keeps the save as ${save##*/}.undone"
     else
         not_ok "undo did not bring the account's settings back" "clock-show-seconds $(dconf_get /org/gnome/desktop/interface/clock-show-seconds), theme $(theme), PaperWM $(paperwm_on && echo on || echo off)" \
-            "$(ls -a "${save%/*}")"
+            "${out}" "$(ls -a "${save%/*}")"
     fi
     # The account as the suites after this one expect it
     in_session "${HELPER}" account >/dev/null 2>&1

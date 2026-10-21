@@ -221,28 +221,35 @@ undo_machine() {
 
 # --- The account's --------------------------------------------------------------------------------------
 
+# dconf on the account's own database alone, through the profile a save keeps: through the usual one a
+# dump holds the system's defaults too, among them keys authselect locks, and a load of it is refused whole
+PROFILE=""
+own_dconf() { DCONF_PROFILE="${PROFILE}" dconf "$@"; }
+
 account() {
     local save hook key index
     local -a values=()
     [[ "${EUID}" -ne 0 ]] || die "An account's settings are reset as that account, not as root."
     save="${ACCOUNT_SAVES}/$(stamp)"
     mkdir -p "${save}" || die "Could not make ${save}."
-    dconf dump / >"${save}/dconf.ini" || die "Could not read your settings, so nothing changed."
+    PROFILE="${save}/profile"
+    echo user-db:user >"${PROFILE}"
+    own_dconf dump / >"${save}/dconf.ini" || die "Could not read your settings, so nothing changed."
     [[ -d "${CONFIG}/current" ]] && cp -a "${CONFIG}/current" "${save}/current"
     [[ -e "${CONFIG}/layout" ]] && cp -a "${CONFIG}/layout" "${save}/layout"
     for index in "${!KEEP_DCONF[@]}"; do
-        dconf dump "${KEEP_DCONF[index]}" >"${save}/kept-${index}.ini"
+        own_dconf dump "${KEEP_DCONF[index]}" >"${save}/kept-${index}.ini"
     done
     for key in "${KEEP_KEYS[@]}"; do
-        values+=("$(dconf read "${key}")")
+        values+=("$(own_dconf read "${key}")")
     done
 
-    dconf reset -f / || die "dconf could not reset your settings."
+    own_dconf reset -f / || die "dconf could not reset your settings."
     for index in "${!KEEP_DCONF[@]}"; do
-        dconf load "${KEEP_DCONF[index]}" <"${save}/kept-${index}.ini"
+        own_dconf load "${KEEP_DCONF[index]}" <"${save}/kept-${index}.ini"
     done
     for index in "${!KEEP_KEYS[@]}"; do
-        [[ -z "${values[index]}" ]] || dconf write "${KEEP_KEYS[index]}" "${values[index]}"
+        [[ -z "${values[index]}" ]] || own_dconf write "${KEEP_KEYS[index]}" "${values[index]}"
     done
     rm -rf "${CONFIG}/current"
     rm -f "${CONFIG}/layout"
@@ -261,7 +268,8 @@ undo_account() {
     local save
     [[ "${EUID}" -ne 0 ]] || die "An account's settings are brought back as that account, not as root."
     save="$(last "${ACCOUNT_SAVES}")" || die "There is no reset of your account's settings to undo."
-    dconf reset -f / && dconf load / <"${save}/dconf.ini" || die "dconf could not bring your settings back from ${save}."
+    PROFILE="${save}/profile"
+    own_dconf reset -f / && own_dconf load / <"${save}/dconf.ini" || die "dconf could not bring your settings back from ${save}."
     rm -rf "${CONFIG}/current"
     [[ -d "${save}/current" ]] && cp -a "${save}/current" "${CONFIG}/current"
     if [[ -e "${save}/layout" ]]; then
