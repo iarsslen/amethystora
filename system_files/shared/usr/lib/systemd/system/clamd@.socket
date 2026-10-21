@@ -9,6 +9,9 @@ Documentation=man:clamd(8)
 # itself; an account scans with clamscan instead.
 [Socket]
 ListenStream=/run/clamd.%i/clamd.sock
+# A connection clamd did not take when it stopped, or that came while VIRUS_SCAN=off skips it, is refused:
+# left waiting, it would start clamd again and again, until the socket failed for good (trigger-limit-hit)
+FlushPending=yes
 SocketUser=clamscan
 SocketGroup=virusgroup
 SocketMode=0660

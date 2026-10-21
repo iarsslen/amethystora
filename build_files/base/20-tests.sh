@@ -2197,6 +2197,9 @@ test -L /etc/systemd/user/graphical-session.target.wants/amethystora-security-al
 # clamd runs on demand: the scan wants its socket, which starts clamd as clamdscan connects.
 grep -q "^Wants=clamd@scan.socket$" /usr/lib/systemd/system/amethystora-clamav-scan.service
 grep -qE "^Requires=" /usr/lib/systemd/system/amethystora-clamav-scan.service && false
+# A connection left waiting while clamd is skipped (VIRUS_SCAN=off) would start it again and again until the
+# socket failed (trigger-limit-hit); FlushPending refuses it instead
+grep -qx "FlushPending=yes" /usr/lib/systemd/system/clamd@.socket
 
 # Signature age is what says whether a clean scan means anything; `systemctl is-active` of the freshclam
 # daemon does not, because it stays active whether or not a download ever succeeded. The image ships no
