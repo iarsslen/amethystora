@@ -44,11 +44,13 @@ const GUEST_DIR = '/run/amethystora-tests';
 const NEXT_BOOT = '/var/lib/vmlab-tests/next-boot.json';
 const USB = '/var/lib/vmlab-tests/usb.json';
 // The USB devices a phase can have plugged in, on the VM's xHCI controller: sticks with serials of their own, on
-// drives that read as zeros, and a keyboard and nothing else
+// drives that read as zeros, and a keyboard and nothing else. Each has a port of its own (the tablet has 1):
+// without one, QEMU puts a hub of its own in front of the second, which USB protection blocks as the new
+// device it is.
 const USB_DEVICES = {
-  stick: { driver: 'usb-storage', serial: 'VMLAB-STICK-1' },
-  stick2: { driver: 'usb-storage', serial: 'VMLAB-STICK-2' },
-  keyboard: { driver: 'usb-kbd' },
+  stick: { driver: 'usb-storage', serial: 'VMLAB-STICK-1', port: '2' },
+  keyboard: { driver: 'usb-kbd', port: '3' },
+  stick2: { driver: 'usb-storage', serial: 'VMLAB-STICK-2', port: '4' },
 };
 // The lab's disk passphrase, and the PIN a suite enrols the TPM with, both handed to systemd-cryptsetup as
 // credentials so that nobody has to type them (next_boot can have one typed instead). The PIN goes under both of
@@ -311,7 +313,7 @@ async function usb(vm) {
   for (const name of request.plug || []) {
     const device = USB_DEVICES[name];
     if (!device) throw new Error(`usb_next: no device ${name}`);
-    const args = { driver: device.driver, id: `vmlab-${name}` };
+    const args = { driver: device.driver, id: `vmlab-${name}`, port: device.port };
     if (device.serial) {
       const node = `vmlab-drive-${++drives}`;
       await qmp(vm, 'blockdev-add', { driver: 'null-co', 'node-name': node, size: 64 * 1024 * 1024, 'read-zeroes': true });

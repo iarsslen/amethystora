@@ -162,7 +162,7 @@ def main(argv):
                 fail(f"{rest[0]!r} has nothing to activate, and the pointer could not click it: {error}")
         return
     if command == "type":
-        node = find(app, rest[1], "text") if len(rest) > 1 else next((n for n, _ in walk(app) if n.get_role_name() in ("text", "entry")), None)
+        node = find(app, rest[1], "text") if len(rest) > 1 else next((n for n, _ in walk(app) if n.get_role_name() in ("text", "entry", "password text")), None)
         if node is None:
             fail("no entry to type into")
         Atspi.EditableText.set_text_contents(node, rest[0])

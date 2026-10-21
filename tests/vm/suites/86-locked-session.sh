@@ -112,7 +112,11 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     if wait_for 60 policy_is block; then
         ok "the running session's plugin blocks new devices once the screen locks, with no new login"
     else
-        not_ok "the policy stayed $(policy) with the screen locked" "$(journalctl -b --since -3min --no-pager -o cat | grep -iE 'usb.?protection|usbguard' | tail -n 8)"
+        not_ok "the policy stayed $(policy) with the screen locked" \
+            "plugin: $(pgrep -u "${TEST_USER}" -af gsd-usb-protection || echo none running)" \
+            "screen saver: $(user_bus gdbus call --session --dest org.gnome.ScreenSaver --object-path /org/gnome/ScreenSaver --method org.gnome.ScreenSaver.GetActive 2>&1)" \
+            "$(journalctl -b --since -5min --no-pager -o cat _COMM=gsd-usb-protect 2>&1 | tail -n 8)" \
+            "$(journalctl -b --since -3min --no-pager -o cat | grep -iE 'usb.?protection|usbguard|polkit' | grep -v AVC | tail -n 8)"
     fi
     usb_next '{"plug": ["stick", "keyboard"]}'
     continue_phase
@@ -126,8 +130,9 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     wait_for 30 is_authorized "QEMU USB Keyboard" "" 1
     same "a USB stick plugged in while the screen is locked is blocked" "$(authorized "QEMU USB HARDDRIVE")" 0
     same "a plain keyboard plugged in while the screen is locked works" "$(authorized "QEMU USB Keyboard")" 1
-    check "GNOME says the keyboard was let in" wait_for 30 notified "New device detected"
-    check "GNOME says to plug the stick in again" wait_for 30 notified "Reconnect USB device"
+    # GNOME shows one notice of its own at a time: the keyboard's or the stick's, whichever it decided first
+    told() { notified "New device detected" || notified "Reconnect USB device"; }
+    check "GNOME says what it did with them" wait_for 30 told
     loginctl unlock-session "${SESSION}"
     check "the screen unlocks" wait_for 60 unlocked
     check "new devices are let in again once it is unlocked" wait_for 60 policy_is apply-policy
@@ -220,6 +225,8 @@ uri = Gio.File.new_for_path(folder + '/picture.png').get_uri()
 mtime = int(Gio.File.new_for_uri(uri).query_info('time::modified', 0, None).get_modification_date_time().to_unix())
 pixbuf = factory.generate_thumbnail(uri, 'image/png', None)
 factory.save_thumbnail(pixbuf, uri, mtime, None)
+GLib.set_prgname('vmlab-86')
+GLib.set_application_name('vmlab-86')
 Gtk.init()
 Gtk.RecentManager.get_default().add_item(Gio.File.new_for_path(folder + '/letter.txt').get_uri())
 loop = GLib.MainLoop()
