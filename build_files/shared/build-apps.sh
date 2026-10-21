@@ -75,7 +75,7 @@ cargo metadata --locked --format-version 1 >/tmp/metadata.json
 jq -r '.packages[] | select(.source != null)
     | [.name, .version, (.license // "see its licence file"), (.repository // ""), (.manifest_path | sub("/Cargo.toml$"; ""))]
     | @tsv' /tmp/metadata.json | sort -u >/tmp/packages.tsv
-printf '# The Rust crates built into the Amethystora apps, amethystora-sensor, the agent tools and the clipboard's sealing: name, version, licence, source\n' \
+printf '# The Rust crates built into the Amethystora apps, amethystora-sensor, the agent tools and the clipboard seal: name, version, licence, source\n' \
     >/out/licenses/CRATES
 missing=()
 while IFS=$'\t' read -r name version licence repository folder; do
