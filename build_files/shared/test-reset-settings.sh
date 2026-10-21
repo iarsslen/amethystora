@@ -58,6 +58,11 @@ rm "${E}/localtime"
 link /usr/share/zoneinfo/Europe/Paris "${E}/localtime"
 put "${E}/NetworkManager/system-connections/home.nmconnection" wifi
 put "${E}/NetworkManager/conf.d/60-amethystora-mac.conf" mac
+# ...and what the system writes there itself as it runs: rpm-ostree's stamp, tuned's state, printer hashes
+put "${E}/.rpm-ostree-shadow-mode-fixed2.stamp" ""
+put "${U}/tuned/active_profile" balanced
+put "${E}/tuned/active_profile" balanced-battery
+put "${E}/foomatic/hashes.d/hashes.foomatic-opt-update" hashes
 put "${E}/systemd/resolved.conf.d/60-amethystora-dns.conf" dns
 put "${E}/dconf/db/local" recompiled
 rm "${E}/systemd/system/timers.target.wants/uupd.timer"

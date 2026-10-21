@@ -43,11 +43,12 @@ KEEP=(
     fstab crypttab 'cryptsetup-keys.d/*' mdadm.conf 'lvm/*' 'multipath*' 'iscsi/*' 'nvme/*' 'dracut.conf.d/*'
     'kernel/*' default/grub
     hostname machine-info machine-id 'NetworkManager/system-connections/*' 'wireguard/*' 'openvpn/*'
-    'ipsec.*' 'cups/*' printcap
+    'ipsec.*' 'cups/*' printcap 'foomatic/*'
     locale.conf localtime adjtime vconsole.conf X11/xorg.conf.d/00-keyboard.conf
     'pki/*' 'ssh/ssh_host_*' 'ostree/*' 'yum.repos.d/*' 'flatpak/remotes.d/*'
     'udev/*' 'cdi/*' 'libvirt/*'
-    'selinux/*' .updated ld.so.cache aliases.db brlapi.key 'systemd/system.control/*' systemd/system/default.target
+    'selinux/*' '.*' ld.so.cache aliases.db brlapi.key 'systemd/system.control/*' systemd/system/default.target
+    tuned/active_profile tuned/profile_mode tuned/bootcmdline tuned/ppd_base_profile tuned/post_loaded_profile
 )
 # Where the settings Security watches live: the security watcher's DRIFT_PATHS, which
 # test-reset-settings.sh holds this to. Security changes them, and its report says when something else did.
