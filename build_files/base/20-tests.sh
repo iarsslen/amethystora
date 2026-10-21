@@ -821,7 +821,10 @@ grep -q '^ID=amethystora' <<<"${INITRD_RELEASE}"
 grep -E '^(OSTREE_VERSION|IMAGE_VERSION|BUILD_ID)=' <<<"${INITRD_RELEASE}" && false
 grep -q "^VERSION=\"$(. /usr/lib/os-release && echo "${VERSION_ID}") dracut-" <<<"${INITRD_RELEASE}"
 grep -E 'lib/modules/[^/]+/(extra|updates)/.*\.ko' <<<"${INITRAMFS_FILES}" | grep -v '/nvidia' && false
-# ...which the system still has, os-release and modules-load.d as they were
+# The image's kernel settings are the system's to apply, where ame security kernel off can mask them
+grep -q 'usr/lib/sysctl.d/60-amethystora-hardening.conf' <<<"${INITRAMFS_FILES}" && false
+# ...which the system still has, os-release, modules-load.d and its kernel settings as they were
+test -f /usr/lib/sysctl.d/60-amethystora-hardening.conf
 cmp /etc/os-release /usr/lib/os-release
 if compgen -G "/usr/lib/modules/*/extra/v4l2loopback" >/dev/null; then grep -rqsx v4l2loopback /usr/lib/modules-load.d; fi
 # Its status is anyone's to ask, and the update is mounted for the restart only by the person at the machine

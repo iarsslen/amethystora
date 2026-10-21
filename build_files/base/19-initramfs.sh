@@ -43,6 +43,10 @@ for conf in /usr/lib/modules-load.d/*.conf; do
         fi
     done <"${conf}"
 done
+# The image's kernel settings too, which the system's own systemd-sysctl applies once it is mounted, where
+# `ame security kernel off` masks them in /etc: applied in the initramfs, which has no /etc of the machine's,
+# they could never be turned off, and kexec_load_disabled and unprivileged_bpf_disabled cannot go back
+mv /usr/lib/sysctl.d/60-amethystora-hardening.conf "${HIDDEN}/"
 
 export DRACUT_NO_XATTR=1
 /usr/bin/dracut --no-hostonly --kver "$QUALIFIED_KERNEL" --reproducible -v \
@@ -50,6 +54,7 @@ export DRACUT_NO_XATTR=1
 chmod 0600 "/lib/modules/$QUALIFIED_KERNEL/initramfs.img"
 
 mv -f "${HIDDEN}/os-release" /etc/os-release
+mv "${HIDDEN}/60-amethystora-hardening.conf" /usr/lib/sysctl.d/
 find "${HIDDEN}" -name '*.conf' -exec mv -t /usr/lib/modules-load.d/ {} +
 rmdir "${HIDDEN}"
 

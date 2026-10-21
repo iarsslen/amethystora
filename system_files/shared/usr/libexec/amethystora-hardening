@@ -203,6 +203,7 @@ expected() {
         "${SANDBOX}") cat "${SHARE}/flatpak-global-off" ;;
         "${SSHD}") cat "${SHARE}/${SSHD##*/}" ;;
         "${UINPUT}") cat "${SHARE}/${UINPUT##*/}" ;;
+        "${IP6_PRIVACY}") echo "# Written by ame security ipv6-privacy off, in place of the image's file of this name" ;;
         # Bluetooth as BlueZ ships it, from what 08-hardening.sh set in the image's copy
         "${BLUEZ}")
             sed -E -e 's/^DiscoverableTimeout = 30$/#DiscoverableTimeout = 0/' -e 's/^PairableTimeout = 30$/#PairableTimeout = 0/' \
@@ -260,7 +261,7 @@ managed() {
     is_off app-sandbox && printf '%s\tfile\n' "${SANDBOX}"
     is_off ssh-settings && printf '%s\tfile\n' "${SSHD}"
     is_off virtual-input && printf '%s\tfile\n' "${UINPUT}"
-    is_off ipv6-privacy && printf '%s\tmask\n' "${IP6_PRIVACY}"
+    is_off ipv6-privacy && printf '%s\tfile\n' "${IP6_PRIVACY}"
     is_off bluetooth-privacy && printf '%s\tfile\n' "${BLUEZ}"
     is_on time && printf '%s\tfile\n' "${CHRONY}"
     is_on block-bluetooth && printf '%s\tfile\n' "${NO_BLUETOOTH}"
@@ -533,7 +534,13 @@ set_switch() {
             [[ "${switched}" == on ]] && { record "${name}" on; systemctl start --no-block amethystora-signed-updates.service; return 0; }
             ;;
         ipv6-privacy)
-            mask "${IP6_PRIVACY}" "${switched}"
+            # A file of the same name takes the image's place: NetworkManager refuses to start with a link to
+            # /dev/null among its configuration files, as a mask elsewhere would be
+            if [[ "${switched}" == off ]]; then
+                place "${IP6_PRIVACY}" || return 1
+            else
+                place "${IP6_PRIVACY}" remove
+            fi
             nmcli general reload conf 2>/dev/null
             ;;
         bluetooth-privacy)
