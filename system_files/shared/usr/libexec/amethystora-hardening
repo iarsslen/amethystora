@@ -578,6 +578,9 @@ set_switch() {
             else
                 place "${NO_BLUETOOTH}" remove
                 rfkill unblock bluetooth 2>/dev/null
+                # The adapter's driver at once, which nothing loads again before the next start: bluetooth.service
+                # starts only once there is Bluetooth in the kernel
+                modprobe btusb 2>/dev/null
                 systemctl enable --now bluetooth.service 2>/dev/null
             fi
             ;;
