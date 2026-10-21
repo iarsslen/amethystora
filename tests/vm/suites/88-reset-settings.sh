@@ -97,9 +97,12 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     # The machine, before anything here changes it: what it already differs from the image in, which a reset
     # puts back too, and what failed
     failed_units >"${STATE}/failed.before"
-    "${HELPER}" list >"${STATE}/baseline"
-    echo "# a machine as installed differs in $(wc -l <"${STATE}/baseline") files outside what a reset keeps:"
-    sed 's/^/#   /' "${STATE}/baseline"
+    if "${HELPER}" list >"${STATE}/baseline" 2>"${STATE}/baseline.err"; then
+        echo "# a machine as installed differs in $(wc -l <"${STATE}/baseline") files outside what a reset keeps:"
+        sed 's/^/#   /' "${STATE}/baseline"
+    else
+        not_ok "the list of what a reset changes failed, as root" "$(cat "${STATE}/baseline.err")"
+    fi
     cp -a /etc/passwd "${STATE}/passwd"
     # What it puts back
     echo "10.9.9.9 vmlab-reset" >>/etc/hosts
@@ -166,8 +169,8 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     # The machine as the image ships it, for the suites after this one
     nmcli connection delete "${CONNECTION}" >/dev/null 2>&1
     rm -f "${WATCHED}"
-    "${HELPER}" machine >/dev/null
-    left="$("${HELPER}" list)"
-    [[ -z "${left}" ]] && ok "a second reset leaves nothing to put back" || not_ok "a second reset still finds files" "${left}"
+    out="$("${HELPER}" machine 2>&1)" || not_ok "the reset to leave the machine as the image ships it failed" "${out}"
+    left="$("${HELPER}" list 2>&1)"
+    [[ $? == 0 && -z "${left}" ]] && ok "a second reset leaves nothing to put back" || not_ok "a second reset still finds files" "${left}"
 fi
 finish

@@ -28,10 +28,11 @@ ROOT="${AMETHYSTORA_RESET_ROOT:-}"
 ETC="${ROOT}/etc"
 IMAGE_ETC="${ROOT}/usr/etc"
 SAVES="${ROOT}/var/lib/amethystora/reset-settings"
-ACCOUNT_SAVES="${XDG_STATE_HOME:-${HOME}/.local/state}/amethystora/reset-settings"
-CONFIG="${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora"
+# The account's own, which root, running the machine's half from a service, may have no home for
+ACCOUNT_SAVES="${XDG_STATE_HOME:-${HOME:-}/.local/state}/amethystora/reset-settings"
+CONFIG="${XDG_CONFIG_HOME:-${HOME:-}/.config}/amethystora"
 HOOKS=/usr/share/amethystora/user-setup.hooks.d
-SETUP_CHECKER_FILE="${HOME}/.local/share/amethystora/setup_versioning.json"
+SETUP_CHECKER_FILE="${HOME:-}/.local/share/amethystora/setup_versioning.json"
 
 # What the machine knows rather than how it behaves, left as it is: who uses it and how they log in, its
 # disks, name, networks and printers, its language, time and keyboard, what it trusts and where its

@@ -12,6 +12,8 @@ WATCH="${2:-/usr/libexec/amethystora-security-watch}"
 T="$(mktemp -d)"
 trap 'rm -rf "${T}"' EXIT
 export AMETHYSTORA_RESET_ROOT="${T}"
+# As root runs it from a service: with no home
+unset HOME XDG_STATE_HOME XDG_CONFIG_HOME
 E="${T}/etc"
 U="${T}/usr/etc"
 put() {
