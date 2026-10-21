@@ -772,12 +772,13 @@ words() {
 # Interactive, as the user, for `ame security NAME`: says what the switch does and what it costs, asks,
 # and makes the change with sudo
 # The saved Wi-Fi and wired networks to pick home from, with the ones named home already picked: prints the
-# UUIDs of those picked, and fails when the question is left
+# UUIDs of those picked, and fails when the question is left. NetworkManager cannot tell one wired network
+# from another, so a wired connection is home on every network its cable leads to, and says so.
 pick_homes() {
     local line
     local -a lines=() picked=() args=(--no-limit --header "$1")
     mapfile -t lines < <(nmcli -t -f UUID,TYPE,NAME connection show 2>/dev/null |
-        awk -F: '$2 ~ /wireless|ethernet/ { print $1 "  " substr($0, index($0, $3)) }')
+        awk -F: '$2 ~ /wireless|ethernet/ { print $1 "  " substr($0, index($0, $3)) ($2 ~ /ethernet/ ? "  (wired: every wired network)" : "") }')
     if [[ ${#lines[@]} -eq 0 ]]; then
         echo "There is no saved network yet: connect to yours, then run this again." >&2
         return 1
@@ -795,6 +796,8 @@ ask_home() {
     local -a homes=()
     echo "A network named home is the only kind GSConnect is open on, to pair a phone and for the phone to reach"
     echo "this machine. Every other network, and every new one, is closed to it."
+    echo "A wired connection is used on every wired network the machine is plugged into, so name it home only"
+    echo "if this machine is plugged in nowhere but at home."
     chosen="$(pick_homes "Which of these are home?")" || exit 0
     mapfile -t homes < <(sed '/^$/d' <<<"${chosen}")
     gum confirm "Name ${#homes[@]} network(s) home?" || exit 0

@@ -72,7 +72,7 @@ authorized() { local dev; dev="$(usb_device "$@")" && cat "${dev}/authorized"; }
 is_authorized() { [[ "$(authorized "$1" "${2:-}")" == "$3" ]]; }
 # What GNOME's notifications said to the account since the monitor started (notify_watch)
 notify_watch() {
-    pkill -u "${TEST_USER}" -x dbus-monitor 2>/dev/null
+    pkill -u "${TEST_USER}" -f 'dbus-monitor.*vmlab-86' 2>/dev/null
     : >/var/tmp/vmlab-86-notifications
     chmod 0666 /var/tmp/vmlab-86-notifications
     user_bus sh -c "exec dbus-monitor --session 'type=method_call,interface=org.freedesktop.Notifications,member=Notify' \
@@ -265,9 +265,7 @@ fi
 if [[ "${SUITE_PHASE}" == 6 ]]; then
     atspi() { user_bus python3 /run/vmlab-86/atspi.py "$@"; }
     dialog() { atspi zenity has "$1"; }
-    # The launcher's command, in the session's environment as the app grid starts it, with nothing on its input
-    user_bus systemd-run --user --collect --quiet --unit=vmlab-86-launcher -- \
-        $(sed -n '/^\[Desktop Entry\]/,/^\[Desktop Action/ s/^Exec=//p' /usr/share/applications/amethystora-private-folder.desktop)
+    user_bus gtk-launch amethystora-private-folder >/dev/null 2>&1 &
     if wait_for 60 dialog "Open the private folder"; then
         ok "Private Folder in the app grid asks for its password"
         atspi zenity type "wrongpassword" >/dev/null 2>&1 || python3 /run/vmlab-86/keys.py text:wrongpassword
@@ -315,9 +313,9 @@ if [[ "${SUITE_PHASE}" == 6 ]]; then
             systemctl suspend
             wait_for 180 sh -c "journalctl -b --since @${before} --no-pager -o cat | grep -q 'PM: suspend exit'"
             echo none >/sys/power/pm_test
-            # When the account's manager stopped gocryptfs's scope, against the kernel's suspend
-            closed_at="$(journalctl -b --since "@${before}" -o short-unix --no-pager USER_UNIT=amethystora-private-folder.scope |
-                grep -iE 'stopped|deactivated' | head -n1 | cut -d' ' -f1)"
+            closed_at="$(journalctl -b --since "@${before}" -o short-unix --no-pager _SYSTEMD_USER_UNIT=amethystora-private-folder.scope _COMM=systemd \
+                2>/dev/null | head -n1 | cut -d' ' -f1)"
+            [[ -n "${closed_at}" ]] || closed_at="$(journalctl -b --since "@${before}" -o short-unix --no-pager --user-unit amethystora-private-folder.scope | grep -iE 'stop|deactivat' | head -n1 | cut -d' ' -f1)"
             slept_at="$(journalctl -b --since "@${before}" -k -o short-unix --no-pager | grep 'PM: suspend entry' | head -n1 | cut -d' ' -f1)"
             echo "# closed at ${closed_at:-?}, suspend entry at ${slept_at:-?}"
             if closed && [[ -n "${closed_at}" && -n "${slept_at}" ]] && awk -v a="${closed_at}" -v b="${slept_at}" 'BEGIN { exit !(a <= b) }'; then

@@ -10,15 +10,15 @@ Commit messages follow [Conventional Commits](https://www.conventionalcommits.or
 
 ## Translating
 
-Amethystora's own apps, the security report and the manual are translated on Weblate. Translate there
-rather than in a pull request: Weblate keeps every translation in step with the English, which is the
-only text edited in this repository.
+Amethystora's own apps, the security report and the manual are meant to be translated on Weblate, but
+the project there is not set up yet. Until it is, send a translation as a pull request that adds or
+changes only the files of your language, in the places below.
 
-What there is to translate, and how each is set up on Weblate:
+What there is to translate, and how each is to be set up on Weblate:
 
 | What | Weblate file format | File mask | Base or template file |
 | --- | --- | --- | --- |
-| Each app: `manual`, `security`, `update`, `logs`, `notes` | JSON file (monolingual), with the flag `icu-message-format` | `system_files/shared/usr/lib/amethystora-<app>/resources/app/locale/*.json` | `.../locale/en.json` |
+| Each app: `manual`, `security`, `update`, `logs`, `notes`, `control`, `backups` | JSON file (monolingual), with the flag `icu-message-format` | `system_files/shared/usr/lib/amethystora-<app>/resources/app/locale/*.json` | `.../locale/en.json` |
 | The security report and the app permissions | gettext PO file, with the "Update PO files to match POT (msgmerge)" add-on | `po/*.po` | `po/amethystora.pot` |
 | The manual's pages | Markdown file, one component per page, found by the "Component discovery" add-on with `system_files/shared/usr/share/amethystora/manual/(?P<language>[^/]+)/(?P<component>[^/]+)\.md` | `system_files/shared/usr/share/amethystora/manual/*/<page>.md` | `system_files/shared/usr/share/amethystora/manual/<page>.md` |
 | The hotkeys page, set up by hand because its English is one folder up | Markdown file | `system_files/shared/usr/share/amethystora/manual/*/keybindings.md` | `system_files/shared/usr/share/amethystora/keybindings.md` |

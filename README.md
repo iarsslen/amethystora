@@ -57,7 +57,7 @@ Everything about using Amethystora is in the Amethystora Manual, which ships wit
 
 #### Languages
 
-The Manual, Security, System Updates, Logs, Notes, Control and Backups, the security report and the manual's pages follow the session's language. They are translated into French, Arabic (right to left), Spanish and German, and on Weblate into whatever language people take up; [CONTRIBUTING.md](CONTRIBUTING.md#translating) says how. A message without a translation yet shows in English.
+The Manual, Security, System Updates, Logs, Notes, Control and Backups, the security report and the manual's pages follow the session's language. They are translated into French, Arabic (right to left), Spanish and German, and into any other language people send; [CONTRIBUTING.md](CONTRIBUTING.md#translating) says how. A message without a translation yet shows in English.
 
 #### System commands
 

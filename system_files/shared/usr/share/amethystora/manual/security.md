@@ -41,7 +41,9 @@ to the agent, which looks into it in a terminal and changes nothing until you ag
   ([Stricter settings](#stricter-settings)).
 - **Your phone reaches this machine only at home.** GSConnect, which pairs it, is open only on the
   networks you name home, and closed on every other, a café's or a new one included. Name yours with
-  `ame security home-networks`, which lists the networks this machine has joined.
+  `ame security home-networks`, which lists the networks this machine has joined. A wired connection
+  is used on every wired network the machine is plugged into, so name it home only if the machine is
+  plugged in nowhere else.
 - **Ten wrong passwords in a row** lock an account for ten minutes. Unlock it early from another
   administrator account with `sudo faillock --user <name> --reset`.
 - **Repeated failed logins over the network** get the address blocked: five failures within ten
