@@ -59,8 +59,12 @@ copy_picture() {
     user_bus systemd-run --user --quiet --collect -- bash -c 'exec wl-copy --foreground --type image/png <"$1"' _ "$1"
     sleep 2
 }
-# copy_window MODE TEXT: from clipcopy.py's window, which gets the focus as an app's does
-copy_window() { user_bus systemd-run --user --pipe --wait --quiet --collect -- python3 "${OWN}/clipcopy.py" "$@"; }
+# copy_window MODE TEXT: from clipcopy.py's window, which gets the focus as an app's does; on Wayland, as GTK
+# apps are here (without WAYLAND_DISPLAY in the user manager's environment GTK opened it on XWayland)
+copy_window() {
+    user_bus systemd-run --user --pipe --wait --quiet --collect --setenv=WAYLAND_DISPLAY=wayland-0 \
+        --setenv=GDK_BACKEND=wayland -- python3 "${OWN}/clipcopy.py" "$@"
+}
 
 ext_state() { user_bus gnome-extensions info "${UUID}" 2>/dev/null | sed -n 's/^ *State: *//p'; }
 ext_active() { [[ "$(ext_state)" == ACTIVE ]]; }
@@ -306,10 +310,19 @@ case "${SUITE_PHASE}" in
     check "the copy made while locked is nowhere in the clear" nowhere_in_the_clear "${LOCKED}"
     # The row clicked, and GNOME's own prompt for the keyring answered with the password
     keys super+shift+v
-    shell click "Unlock to see earlier items" >/dev/null
-    sleep 4
-    keys "text:${TEST_USER}" return
-    check "the row's prompt unlocks the keyring" wait_for 30 keyring_open
+    sleep 2
+    clicked="$(shell click "Unlock to see earlier items" 2>&1)"
+    # GNOME's own dialog, its words gnome-keyring's ("An application wants access to the keyring “login”, but it
+    # is locked"): not its Cancel button, which a "Copied to clipboard" notification has too
+    if shell wait 15 "it is locked" >/dev/null; then
+        ok "the row brings up GNOME's prompt for the keyring"
+        keys "text:${TEST_USER}" return
+        check "the row's prompt unlocks the keyring" wait_for 30 keyring_open
+    else
+        not_ok "the row brought up no prompt" "click: ${clicked}" "$(shell text 2>&1 | head -n 30)" "$(said)"
+        keys esc
+        keyring unlock "${TEST_USER}" >/dev/null 2>&1
+    fi
     wait_for 30 in_history "${LOCKED}" && ok "the history is written again, with the copy made while locked" ||
         not_ok "the copy made while locked was not written" "$(said)"
     check "and what was kept before" pinned "${PINNED}"
@@ -332,7 +345,10 @@ case "${SUITE_PHASE}" in
     ;;
 2)
     check "Amethystora Clipboard is on after the restart" wait_for 30 ext_active
-    check "the keyring, with no password, is open after the restart" wait_for 30 keyring_open
+    # GDM's automatic login leaves even a keyring with no password locked: unlocked here, as a password login
+    # does, and the extension, watching it, opens the history by itself
+    keyring unlock "" >/dev/null 2>&1
+    check "the keyring, with no password, opens" wait_for 30 keyring_open
     check "keep-history restart kept the pinned item" wait_for 30 pinned "${PINNED}"
     check "and dropped what was not pinned before the restart" not_in_history "${COPIED}"
     check "the menu shows the pinned item" menu_shows "${PINNED}"
@@ -344,6 +360,8 @@ case "${SUITE_PHASE}" in
     ;;
 3)
     check "Amethystora Clipboard is on after the second restart" wait_for 30 ext_active
+    keyring unlock "" >/dev/null 2>&1
+    check "the keyring opens" wait_for 30 keyring_open
     check "under always, what was copied before the restart is kept" wait_for 30 in_history "${ALWAYS}"
     check "and the pinned item" pinned "${PINNED}"
     check "the menu shows it" menu_shows "${ALWAYS}"
