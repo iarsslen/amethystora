@@ -20,6 +20,13 @@ overlap, as on Windows and macOS, a notification offers them shortly after your 
 If the computer is for a child, [parental controls](security.md#parental-controls) keep their account
 to the apps and the hours you choose.
 
+Three things can be undone, each where you would look for it. An update: choose the previous system
+in the boot menu, and System Updates offers to keep it ([Rolling back](updates.md#rolling-back)). A
+file: **Backups** shows your home folder as the hourly snapshots and the daily backup kept it, and puts
+back what was lost ([Backups](security.md#backups)). Settings: **Reset settings** on Control's System
+page puts yours, the machine's or both back as the image ships them, and keeps your files
+([Resetting settings](troubleshooting.md#resetting-settings)).
+
 ## How this manual works
 
 Read it front to back the first time; each page ends with a link to the next. After that, search:
