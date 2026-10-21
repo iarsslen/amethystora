@@ -148,6 +148,12 @@ if [[ "${IMAGE_NAME}" =~ nvidia ]]; then
     IMAGE_NAME="${BASE_IMAGE_NAME}" AKMODNV_PATH="/tmp/akmods-rpms" MULTILIB=0 /tmp/akmods-rpms/ublue-os/nvidia-install.sh
     rm -f /usr/share/vulkan/icd.d/nouveau_icd.*.json
     ln -sf libnvidia-ml.so.1 /usr/lib64/libnvidia-ml.so
+    # Where NVIDIA's driver is not loaded (no NVIDIA card, a card this flavor's driver does not drive, Secure Boot
+    # refusing the module), these restarted until systemd gave up, and the machine started degraded: skipped then
+    for unit in nvidia-persistenced.service nvidia-cdi-refresh.service; do
+        mkdir -p "/usr/lib/systemd/system/${unit}.d"
+        printf '[Unit]\nConditionPathExists=/sys/module/nvidia\n' >"/usr/lib/systemd/system/${unit}.d/10-amethystora-driver.conf"
+    done
     tee /usr/lib/bootc/kargs.d/00-nvidia.toml <<EOF
 kargs = ["rd.driver.blacklist=nouveau", "modprobe.blacklist=nouveau", "nvidia-drm.modeset=1", "initcall_blacklist=simpledrm_platform_driver_init"]
 EOF

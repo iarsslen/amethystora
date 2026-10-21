@@ -2314,6 +2314,12 @@ case "${IMAGE_NAME}" in
     *-nvidia-lts) [[ "$(modinfo -F license "${NVIDIA_KO}")" == "NVIDIA" ]] ;;
     *) [[ -z "${NVIDIA_KO}" ]] ;;
 esac
+# ...whose services are skipped where the driver is not loaded, rather than restarted until the machine is degraded
+if [[ "${IMAGE_NAME}" =~ nvidia ]]; then
+    for unit in nvidia-persistenced.service nvidia-cdi-refresh.service; do
+        grep -qx "ConditionPathExists=/sys/module/nvidia" "/usr/lib/systemd/system/${unit}.d/10-amethystora-driver.conf"
+    done
+fi
 
 # What keeps a device from working, found by the machine itself (amethystora-driver-status, a few minutes after
 # each start), with what fixes it; tried against a stand-in machine with one of each kind
