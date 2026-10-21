@@ -27,6 +27,10 @@ function enqueue (task) {
     return run;
 }
 
+// A history waiting in the queue to be written, which a newer one replaces rather than queues behind: every copy
+// asks for two or three, and a burst of copies would otherwise keep the queue writing for minutes
+let waiting = null;
+
 function run (argv, input) {
     return new Promise((resolve, reject) => {
         let proc;
@@ -192,8 +196,19 @@ export class Store {
     }
 
     writeHistory (entries) {
-        return enqueue(() => this.#write(HISTORY, 'history',
-            new TextEncoder().encode(JSON.stringify({ version: 1, ...stamp(), entries }))));
+        if (waiting) {
+            waiting.store = this;
+            waiting.entries = entries;
+            return waiting.done;
+        }
+        waiting = { store: this, entries };
+        waiting.done = enqueue(() => {
+            const { store, entries: latest } = waiting;
+            waiting = null;
+            return store.#write(HISTORY, 'history',
+                new TextEncoder().encode(JSON.stringify({ version: 1, ...stamp(), entries: latest })));
+        });
+        return waiting.done;
     }
 
     sealImage (id, bytes) {
@@ -214,11 +229,12 @@ export class Store {
         return enqueue(() => IMAGE_ID.test(id) && remove(this.#file(`image-${id}`)));
     }
 
-    // Every picture but those the history names
+    // Every picture but those the history names, and what a write cut short left (Gio writes beside the file
+    // first): nothing is being written while the queue runs this
     prune (ids) {
         return enqueue(() => {
             for (const name of names(this.dir)) {
-                if (name.startsWith('image-') && !ids.includes(name.slice(6)))
+                if ((name.startsWith('image-') && !ids.includes(name.slice(6))) || name.startsWith('.goutputstream-'))
                     remove(this.#file(name));
             }
         });

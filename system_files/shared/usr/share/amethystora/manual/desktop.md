@@ -33,7 +33,8 @@ the top bar.
 The history is never on disk as you copied it: text and pictures alike are sealed (encrypted) in
 `~/.local/state/amethystora/clipboard`, under a key kept in your login keyring, which your password
 protects. A copy of the disk, a snapshot or a stolen laptop shows nothing of it without that password.
-It is left out of [backups](security.md#backups).
+It is left out of [backups](security.md#backups). A keyring given no password, as some machines that sign
+in by themselves have, keeps its key in the clear, and then the history is only as safe as the disk.
 
 How long it is kept is yours to choose, in [Control](control.md)'s **Clipboard history** or in a terminal.
 Pinned items are always kept, and the history outlasts locking the screen either way.

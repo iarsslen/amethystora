@@ -88,8 +88,19 @@ async function main () {
     check('after a restart: restart and session keep the pinned item only', count(history, 'restart', restarted) === 1 &&
         count(history, 'session', restarted) === 1 && count(history, 'always', restarted) === 3);
 
+    // A burst: every write asked for at once, only the newest waiting one written, the last of them on disk
+    const burst = [];
+    for (let i = 0; i < 50; i++)
+        burst.push(store.writeHistory([{ favorite: false, mimetype: text, contents: `${marker}-burst-${i}` }]));
+    await Promise.all(burst);
+    const last = await store.readHistory();
+    check('a burst of writes leaves the newest history', last?.entries?.[0]?.contents === `${marker}-burst-49`);
+    await store.writeHistory(history.entries);
+
+    GLib.file_set_contents(`${DIR}/.goutputstream-VMLAB1`, 'left by a write cut short');
     await store.prune([]);
     check('a picture the history does not name is taken away', !exists(`${DIR}/image-${id}`));
+    check('and what a write cut short left', !exists(`${DIR}/.goutputstream-VMLAB1`));
 
     const other = new Store();
     await other.open(find);

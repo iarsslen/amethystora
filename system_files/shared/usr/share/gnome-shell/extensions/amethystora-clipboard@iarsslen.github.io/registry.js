@@ -8,7 +8,18 @@ import { PrefsFields } from './constants.js';
 import * as Keyring from './keyring.js';
 import { Store, survivors, readOldCache, forgetOldCache } from './store.js';
 
+// What the journal says when the history's state changes, once each time it does
+const STATES = {
+    open: 'the history is open, sealed under the login keyring',
+    locked: 'the login keyring is locked: what was copied before waits for it to be unlocked',
+    none: 'there is no keyring: the history is kept in memory only',
+};
+// How long the keyring may take to answer before the history is kept in memory and asked again later
+const KEYRING_TIMEOUT = 20000;
+
 export class Registry {
+    #said = null;
+
     constructor ({ settings, uuid }) {
         this.uuid = uuid;
         this.settings = settings;
@@ -21,11 +32,23 @@ export class Registry {
     }
 
     async open () {
+        let timer = 0;
         try {
-            await this.store.open(Keyring.find);
+            await Promise.race([
+                this.store.open(Keyring.find),
+                new Promise((resolve, reject) => {
+                    timer = setTimeout(() => reject(new Error(`no answer in ${KEYRING_TIMEOUT / 1000} s`)), KEYRING_TIMEOUT);
+                }),
+            ]);
         } catch (e) {
             console.warn(`Amethystora Clipboard: the keyring did not answer: ${e.message}`);
-            this.store.state = 'none';
+            if (this.store.state !== 'open') this.store.state = 'none';
+        } finally {
+            clearTimeout(timer);
+        }
+        if (this.store.state !== this.#said && STATES[this.store.state]) {
+            this.#said = this.store.state;
+            console.log(`Amethystora Clipboard: ${STATES[this.store.state]}`);
         }
     }
 

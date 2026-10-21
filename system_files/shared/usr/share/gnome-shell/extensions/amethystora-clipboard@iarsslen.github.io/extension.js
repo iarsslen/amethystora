@@ -208,13 +208,15 @@ const ClipboardIndicator = GObject.registerClass({
     // Once the keyring is unlocked: the history kept from before under what was copied since, and all of it
     // sealed from then on
     async #openStored () {
-        if (this.registry.state === 'open' || this._openingStored) return;
+        // Merged once: an answer from the keyring that came after its time is merged at the next ask
+        if (this._mergedStored || this._openingStored) return;
         this._openingStored = true;
         try {
             await this.registry.open();
             if (this._destroyed || this.registry.state !== 'open') return;
             const stored = await this.registry.read();
             if (this._destroyed) return;
+            this._mergedStored = true;
 
             const current = this.clipItemsRadioGroup.map(item => [item.entry, item.currentlySelected]);
             for (const item of [...this.clipItemsRadioGroup]) item.destroy();
@@ -317,7 +319,7 @@ const ClipboardIndicator = GObject.registerClass({
 
         this.menu.connect('open-state-changed', (self, open) => {
             // Asks the keyring again, without a prompt, in case it was unlocked, or made, unseen
-            if (open && ['locked', 'none'].includes(this.registry.state)) this.#openStored();
+            if (open && !this._mergedStored) this.#openStored();
             this._setFocusOnOpenTimeout = setTimeout(() => {
                 if (!open) return;
 
@@ -1061,6 +1063,7 @@ const ClipboardIndicator = GObject.registerClass({
 
     async _getCache () {
         await this.registry.open();
+        this._mergedStored = this.registry.state === 'open';
         return this.registry.read({ prune: true });
     }
 
