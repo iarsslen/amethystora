@@ -200,7 +200,7 @@ export AMETHYSTORA_HARDENING_ROOT="${T}/hardening"
 mkdir -p "${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora"
 "${HARDENING}" is-on firewall || fail "a prevention switch is off by default"
 [[ -z "$("${HARDENING}" managed)" ]] || fail "a switch that is on manages a file"
-printf 'kernel\nfirewall\nfirewire\nkernel-args init_on_alloc=1\n' >"${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-off"
+printf 'kernel\nfirewall\nfirewire\nkernel-args init_on_alloc=1\nipv6-privacy\n' >"${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-off"
 "${HARDENING}" is-on firewall && fail "firewall is off"
 "${HARDENING}" is-on kernel-args init_on_alloc=1 && fail "one kernel argument is off"
 "${HARDENING}" is-on kernel-args slab_nomerge || fail "the other kernel arguments are on"
@@ -212,6 +212,9 @@ grep -qxP 'firewalld/firewalld.conf\tfile' <<<"${MANAGED}" || fail "managed: the
 # FireWire off masks its own file, and leaves the other blocked modules blocked
 grep -qxP 'modprobe.d/61-amethystora-firewire.conf\tmask' <<<"${MANAGED}" || fail "managed: FireWire's mask"
 grep -q 'modprobe.d/60-amethystora-hardening.conf' <<<"${MANAGED}" && fail "FireWire off unblocked the other modules"
+# NetworkManager refuses to start with a link to /dev/null among its files: temporary IPv6 addresses off is a file
+grep -qxP 'NetworkManager/conf.d/30-amethystora-ip6-privacy.conf\tfile' <<<"${MANAGED}" || fail "managed: IPv6 privacy's file"
+[[ -n "$("${HARDENING}" expected NetworkManager/conf.d/30-amethystora-ip6-privacy.conf)" ]] || fail "nothing expected for IPv6 privacy"
 grep -qx 'deny = 0' <<<"$("${HARDENING}" expected security/faillock.conf)" || fail "lockout off is deny = 0"
 grep -qx 'DefaultZone=FedoraWorkstation' <<<"$("${HARDENING}" expected firewalld/firewalld.conf)" || fail "the zone off"
 grep -qE '^(sockets|devices)=' <<<"$("${HARDENING}" expected flatpak/overrides/global)" && fail "the sandbox off keeps a denial"
