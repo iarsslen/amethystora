@@ -170,20 +170,49 @@ async function start(machine, request = {}, fresh = false) {
   await call('vm_start', { name: m.vm, disk: m.disk, fresh, spares_gb: m.spares,
     absent: request.absent || m.absent || [], system_absent: Boolean(request.system_absent), faulty: request.faulty || {}, credentials });
   if (request.menu_last) await chooseLastEntry(m.vm);
+  if (request.menu_edit) await editEntry(m.vm);
   if (request.type_passphrase) await typePassphrase(m.vm);
+}
+
+// The serial console's text, once the boot menu shows on it, before its countdown ends
+async function bootMenu(vm) {
+  const serial = `/vm/vms/${vm}.serial`;
+  const read = () => (fs.existsSync(serial) ? fs.readFileSync(serial, 'latin1') : '');
+  const began = Date.now();
+  while (!read().includes('will be executed automatically')) {
+    if (Date.now() - began > 300000) throw new Error('no boot menu on the serial console within 5 minutes');
+    await sleep(300);
+  }
+  return read;
+}
+
+// The default entry opened for editing, as a person would, with e. With a boot menu password GRUB asks for a
+// user first, and refuses an empty one ("Press any key to continue"); without one, its editor opens, which
+// Escape leaves. Either way the menu is back, and Enter starts the default entry. What GRUB did goes to the
+// next phase as VMLAB_MENU_EDIT: asked, editor or nothing.
+const menuEdits = new Map();
+async function editEntry(vm) {
+  const read = await bootMenu(vm);
+  const before = read().length;
+  await call('vm_keys', { name: vm, keys: ['e'] });
+  await sleep(4000);
+  const shown = read().slice(before);
+  const asked = shown.includes('Enter username:');
+  menuEdits.set(vm, asked ? 'asked' : /Ctrl-x|ESC to discard/.test(shown) ? 'editor' : 'nothing');
+  await call('vm_keys', { name: vm, keys: ['esc'] });
+  await sleep(2000);
+  if (asked) {
+    await call('vm_keys', { name: vm, keys: ['ret'] });
+    await sleep(2000);
+  }
+  await call('vm_keys', { name: vm, keys: ['ret'] });
 }
 
 // The boot menu's last entry chosen, as a person would, with End and Enter, once the menu shows on the serial
 // console (GRUB writes there through the firmware) and before its countdown ends: on a system over several
 // disks that is "Start with a disk missing" (custom.cfg, after every other entry)
 async function chooseLastEntry(vm) {
-  const serial = `/vm/vms/${vm}.serial`;
-  const shown = () => (fs.existsSync(serial) ? fs.readFileSync(serial, 'latin1') : '').includes('will be executed automatically');
-  const began = Date.now();
-  while (!shown()) {
-    if (Date.now() - began > 300000) throw new Error('no boot menu on the serial console within 5 minutes');
-    await sleep(300);
-  }
+  await bootMenu(vm);
   await call('vm_keys', { name: vm, keys: ['end', 'ret'] });
 }
 
@@ -223,6 +252,15 @@ async function reboot(machine) {
     // The phase left something to restart the machine once it ended, as a person would
     await agent(vm, { op: 'exec', command: `rm -f ${NEXT_BOOT}` }, 10);
     say('   the machine restarts itself');
+  } else if (request?.powers_off) {
+    // ...or to power it off: started again once QEMU has ended, as a person presses the power button
+    await agent(vm, { op: 'exec', command: `rm -f ${NEXT_BOOT}` }, 10);
+    say('   the machine powers itself off');
+    const off = new RegExp(`^${vm}: stopped`, 'm');
+    for (const began = Date.now(); !off.test((await call('vm_list')).content[0].text); await sleep(5000)) {
+      if (Date.now() - began > 900000) throw new Error('the VM did not power itself off within 15 minutes');
+    }
+    await start(machine);
   } else if (request) {
     await agent(vm, { op: 'exec', command: `rm -f ${NEXT_BOOT}` }, 10);
     say(`   power cycle: ${JSON.stringify(request)}`);
@@ -301,8 +339,10 @@ async function suite(machine, name) {
   let rc = 0;
   for (let phase = 1; ; phase++) {
     await install(vm);
-    const env = `SUITE_PHASE=${phase} VMLAB_PASSPHRASE=${PASSPHRASE} VMLAB_TPM_PIN=${TPM_PIN} VMLAB_PROMPTS=${prompts.get(vm) ?? ''}`;
+    const env = `SUITE_PHASE=${phase} VMLAB_PASSPHRASE=${PASSPHRASE} VMLAB_TPM_PIN=${TPM_PIN} VMLAB_PROMPTS=${prompts.get(vm) ?? ''}` +
+      ` VMLAB_MENU_EDIT=${menuEdits.get(vm) ?? ''}`;
     prompts.delete(vm);
+    menuEdits.delete(vm);
     const answer = await agent(vm, { op: 'exec', command: `${env} bash ${GUEST_DIR}/${name}`, timeout: 1800 }, 1800);
     output += decode(answer.stdout);
     const stderr = decode(answer.stderr);
