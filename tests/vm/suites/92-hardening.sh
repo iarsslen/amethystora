@@ -198,7 +198,12 @@ EOF
 blocked() { modprobe -n -v "$1" 2>&1 | tail -n 1 | grep -q '^install /usr/bin/false'; }
 sshd_says() { sshd -T -h "${STATE}/hostkey" 2>/dev/null | grep -E '^(maxauthtries|permitrootlogin|x11forwarding) ' | paste -sd' '; }
 uinput_acl() { getfacl -cp /dev/uinput 2>/dev/null | grep -c "^user:${TEST_USER}:"; }
-ip6_privacy() { NetworkManager --print-config 2>/dev/null | grep -c '^ipv6.ip6-privacy=2$'; }
+# NetworkManager's own reading of its configuration, which it refuses whole for one file it cannot read
+ip6_privacy() {
+    local config
+    config="$(NetworkManager --print-config 2>&1)" || { echo "unreadable: ${config}"; return; }
+    grep -c '^ipv6.ip6-privacy=2$' <<<"${config}"
+}
 sandbox() { flatpak override --show 2>/dev/null | grep -c 'sockets=!x11'; }
 sysctls() { sysctl -n kernel.io_uring_disabled kernel.yama.ptrace_scope vm.mmap_rnd_bits kernel.kexec_load_disabled | paste -sd' '; }
 noexec_mounts() {
@@ -491,8 +496,8 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     same "${LAYERED} is layered on the system this machine started" "$(layered)" "${LAYERED}"
 
     # --- Kernel arguments, on a machine that updates through rpm-ostree
-    set_to kernel-args "${KARG}" off
-    set_to kernel-args "${EXTRA}" on
+    set_to kernel-args off "${KARG}"
+    set_to kernel-args on "${EXTRA}"
     if ! next_has "${KARG}" && next_has "${EXTRA}"; then ok "the next start has ${EXTRA} and not ${KARG}"; else
         not_ok "the next start's arguments" "$(rpm-ostree kargs)"; fi
     same "and keeps ${LAYERED}" "$(staged_layered)" "${LAYERED}"
@@ -614,8 +619,8 @@ if [[ "${SUITE_PHASE}" == 3 ]]; then
     same "amethystora-signed-updates switched nothing at this start" "$(signed_updates_ran)" skipped
 
     # --- Everything back
-    set_to kernel-args "${KARG}" on
-    set_to kernel-args "${EXTRA}" off
+    set_to kernel-args on "${KARG}"
+    set_to kernel-args off "${EXTRA}"
     if next_has "${KARG}" && ! next_has "${EXTRA}"; then ok "the next start has ${KARG} again and not ${EXTRA}"; else
         not_ok "the next start's arguments" "$(rpm-ostree kargs)"; fi
     same "the report no longer says a kernel argument is off" "$(record kernel-args)" null
