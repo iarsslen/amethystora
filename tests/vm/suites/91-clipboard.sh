@@ -1,15 +1,17 @@
 #!/usr/bin/bash
 # Amethystora Clipboard (plans/PLAN-clipboard.md): the clipboard history sealed under a key in the login keyring.
 # Copied to as apps copy (wl-copy, and clipcopy.py's own window), read back as the menu shows it (atspi.py) and as
-# the disk holds it (opened with the keyring's key). The lab signs the account in by itself, which leaves its
-# login keyring locked after a restart, as a fingerprint does: that stands in for one. Three phases:
-#   1. At login no keyring, then one unlocked with the account's password, as a password login unlocks it:
+# the disk holds it (opened with the keyring's key). Three phases:
+#   1. At login no keyring, then one made and unlocked with the account's password, as a password login does:
 #      Clipboard Indicator's plain history and a setting of it taken over; what is copied, pictures too, sealed
 #      and nowhere in the clear; a password manager's copy and an excluded app's not recorded; the history
-#      outlasts the screen lock; a hundred copies in a burst. keep-history set to restart, as Control does.
-#   2. After a restart, the keyring locked: the menu offers to unlock, the earlier items stay sealed, a new copy
-#      is in memory only; the row clicked and the password typed in GNOME's prompt: the two merged, and of the
-#      earlier ones only the pinned item, under restart. keep-history set to always.
+#      outlasts the screen lock and a burst of copies. Then a login with the keyring locked, as a fingerprint
+#      leaves it, stood in for by locking it over D-Bus and enabling the extension again: earlier items held back,
+#      a new copy in memory only, the menu's row and GNOME's prompt unlocking it and merging the two; and once
+#      more, unlocked elsewhere, which the extension notices by itself. The keyring is left with no password, as
+#      on a machine that signs in by itself (one with a password left the lab's GDM login behind its greeter),
+#      and keep-history set to restart, as Control does.
+#   2. After a restart: only the pinned item from before. keep-history set to always.
 #   3. After another restart: everything kept, and nothing the extension threw in the three boots.
 source "$(dirname "$0")/lib.sh"
 
@@ -39,6 +41,7 @@ WINDOW="vmlab-window-${RUN}"
 SECRET="vmlab-secret-${RUN}"
 KEEPASS="vmlab-keepass-${RUN}"
 LOCKED="vmlab-locked-${RUN}"
+WATCHED="vmlab-watched-${RUN}"
 ALWAYS="vmlab-always-${RUN}"
 mapfile -t PNG < <(find /usr/share/icons/hicolor/48x48/apps -name '*.png' -size +1k | sort | head -n 2)
 
@@ -61,6 +64,14 @@ copy_window() { user_bus systemd-run --user --pipe --wait --quiet --collect -- p
 
 ext_state() { user_bus gnome-extensions info "${UUID}" 2>/dev/null | sed -n 's/^ *State: *//p'; }
 ext_active() { [[ "$(ext_state)" == ACTIVE ]]; }
+# The extension disabled and enabled again, as at a new login: its module stays, its menu and store are new
+ext_again() {
+    user_bus gnome-extensions disable "${UUID}"
+    sleep 2
+    user_bus gnome-extensions enable "${UUID}"
+    wait_for 30 ext_active
+    sleep 3
+}
 # The default keyring, which the extension keeps its key in, and whether it is locked
 keyring_path() {
     user_bus busctl --user call org.freedesktop.secrets /org/freedesktop/secrets org.freedesktop.Secret.Service \
@@ -74,11 +85,16 @@ keyring_says() {
 }
 keyring_open() { [[ "$(keyring_says)" == "b false" ]]; }
 keyring_locked() { [[ "$(keyring_says)" == "b true" ]]; }
-# What pam_gnome_keyring does at a password login: the login keyring unlocked with the password, or made with it
-# when there is none, and the default. Through gnome-keyring's own interface for that, which asks nothing
+lock_keyring() {
+    user_bus busctl --user call org.freedesktop.secrets /org/freedesktop/secrets org.freedesktop.Secret.Service \
+        Lock ao 1 "$(keyring_path)" >/dev/null
+}
+# keyring unlock PASSWORD: what pam_gnome_keyring does at a password login, the default keyring unlocked with the
+# password, or the one PAM names login made with it; keyring blank PASSWORD: its password taken away, as on a
+# machine that signs in by itself. Through gnome-keyring's own interface for both, which asks nothing
 # (gnome-keyring-daemon --unlock does not reach the daemon a session already runs)
-unlock_keyring() {
-    user_bus python3 - "${TEST_USER}" <<'EOF'
+keyring() {
+    user_bus python3 - "$@" <<'EOF'
 import sys
 from gi.repository import Gio, GLib
 
@@ -100,19 +116,22 @@ def exists(path):
         return False
 
 
+mode, password = sys.argv[1], sys.argv[2]
 session = call(SERVICE, "org.freedesktop.Secret.Service", "OpenSession",
                GLib.Variant("(sv)", ("plain", GLib.Variant("s", ""))), "(vo)").unpack()[1]
-secret = (session, b"", sys.argv[1].encode(), "text/plain")
-# The default keyring, else the one PAM names login, else a new one of that name
+secret = lambda value: (session, b"", value.encode(), "text/plain")
 keyring = call(SERVICE, "org.freedesktop.Secret.Service", "ReadAlias", GLib.Variant("(s)", ("default",)), "(o)").unpack()[0]
 if keyring == "/":
     keyring = "/org/freedesktop/secrets/collection/login"
-if exists(keyring):
-    call(SERVICE, INTERNAL, "UnlockWithMasterPassword", GLib.Variant("(o(oayays))", (keyring, secret)))
+if mode == "blank":
+    call(SERVICE, INTERNAL, "ChangeWithMasterPassword",
+         GLib.Variant("(o(oayays)(oayays))", (keyring, secret(password), secret(""))))
+elif exists(keyring):
+    call(SERVICE, INTERNAL, "UnlockWithMasterPassword", GLib.Variant("(o(oayays))", (keyring, secret(password))))
 else:
     keyring = call(SERVICE, INTERNAL, "CreateWithMasterPassword",
                    GLib.Variant("(a{sv}(oayays))", ({"org.freedesktop.Secret.Collection.Label": GLib.Variant("s", "login")},
-                                                    secret)), "(o)").unpack()[0]
+                                                    secret(password))), "(o)").unpack()[0]
 call(SERVICE, "org.freedesktop.Secret.Service", "SetAlias", GLib.Variant("(so)", ("default", keyring)))
 EOF
 }
@@ -131,7 +150,8 @@ not_in_history() { history >/dev/null && ! in_history "$1"; }
 pinned() { history | jq -e --arg t "$1" '.entries | any(.contents == $t and .favorite)' >/dev/null; }
 pictures() { history | jq '[.entries[] | select(.mimetype | startswith("image/"))] | length'; }
 pictures_at_least() { [[ "$(pictures)" -ge "$1" ]]; }
-all_kept() { in_history "${ALWAYS}" && in_history "${LOCKED}" && in_history "${PINNED}"; }
+unpinned() { history | jq '[.entries[] | select(.favorite | not)] | length'; }
+settled() { [[ "$(unpinned)" =~ ^[0-9]+$ && "$(unpinned)" -le 15 ]]; }
 # Whether any file in the home holds TEXT as it was copied
 in_the_clear() { grep -rlaF -- "$1" "${HOME_DIR}" 2>/dev/null | grep -q .; }
 nowhere_in_the_clear() { ! in_the_clear "$1"; }
@@ -159,11 +179,11 @@ session_id() { loginctl show-user "${TEST_USER}" -p Display --value; }
 screen_locked() { [[ "$(loginctl show-session "$(session_id)" -p LockedHint --value 2>/dev/null)" == yes ]]; }
 screen_unlocked() { ! screen_locked; }
 keep() { user_bus gsettings get "${SCHEMA}" keep-history 2>/dev/null; }
+said() { user_bus journalctl --user -b --no-pager -o cat 2>/dev/null | grep -F "Amethystora Clipboard" | tail -n 8; }
 
 # A suite before this one may have left the screen locked, and GNOME Shell disables every extension on the lock
-# screen; nor may the screen lock itself after five idle minutes while this runs (put back at the end)
+# screen
 screen_locked && loginctl unlock-session "$(session_id)" && wait_for 30 screen_unlocked
-user_bus gsettings set org.gnome.desktop.session idle-delay 0
 # GNOME's overview, where a session starts, takes keys for its search: a click on its workspace leaves it
 keys click:0.5,0.5
 
@@ -171,8 +191,7 @@ case "${SUITE_PHASE}" in
 1)
     check "Clipboard Indicator is not in the image" test ! -e /usr/share/gnome-shell/extensions/clipboard-indicator@tudmotu.com
     wait_for 30 ext_active && ok "Amethystora Clipboard is on in the session" ||
-        not_ok "Amethystora Clipboard is not on in the session" "$(user_bus gnome-extensions info "${UUID}" 2>&1)" \
-            "$(user_bus journalctl --user -b --no-pager -o cat 2>/dev/null | grep -iF -e "${UUID}" -e "Amethystora Clipboard" | tail -n 10)"
+        not_ok "Amethystora Clipboard is not on in the session" "$(user_bus gnome-extensions info "${UUID}" 2>&1)" "$(said)"
 
     # Signed in by GDM, the account has no login keyring yet: nothing is kept, and the menu says so
     if [[ -z "$(keyring_says)" ]]; then
@@ -203,14 +222,13 @@ case "${SUITE_PHASE}" in
     fi
     user_bus gsettings reset "${SCHEMA}" history-size
 
-    # The login keyring made and unlocked with the password, and the default one, as at a password login
-    out="$(unlock_keyring 2>&1)"
+    # A keyring now, made and unlocked with the password: the menu, opened, asks for it again
+    out="$(keyring unlock "${TEST_USER}" 2>&1)"
     wait_for 20 keyring_open && ok "the login keyring is unlocked with the account's password" ||
         not_ok "the login keyring was not unlocked" "${out}" "default: $(keyring_path) $(keyring_says)"
-
-    # Asked again when the menu opens, the keyring now gives the key: Clipboard Indicator's history is taken over
-    check "the menu shows Clipboard Indicator's pinned item, once the keyring is open" menu_shows "${PINNED}"
-    check "the history is sealed under a key the keyring keeps" wait_for 30 in_history "${PINNED}"
+    check "once there is a keyring, the menu shows Clipboard Indicator's pinned item" menu_shows "${PINNED}"
+    wait_for 30 in_history "${PINNED}" && ok "the history is sealed under a key the keyring keeps" ||
+        not_ok "the history was not sealed" "$(ls -la "${STORE}" 2>&1)" "$(said)"
     check "Clipboard Indicator's item stays pinned" pinned "${PINNED}"
     check "and its picture is kept, sealed" wait_for 20 pictures_at_least 1
     check "its plain history and pictures are gone" wait_for 30 test ! -e "${OLD}"
@@ -247,6 +265,7 @@ case "${SUITE_PHASE}" in
     fi
 
     # The screen lock disables the extension and unlocking enables it: the history is read back, sealed
+    wl_copy -- "${COPIED}"
     loginctl lock-session "$(session_id)"
     if wait_for 30 screen_locked; then
         sleep 3
@@ -264,60 +283,70 @@ case "${SUITE_PHASE}" in
         not_ok "the screen did not lock"
     fi
 
-    # A hundred copies in a burst
+    # A hundred copies in a burst: the shell lives, and the history settles at its size
     shell_pid="$(pgrep -u "${TEST_USER}" -x gnome-shell)"
     for i in $(seq 1 100); do
         user_bus systemd-run --user --quiet --collect -- wl-copy --foreground -- "vmlab-burst-${i}-${RUN}"
         sleep 0.2
     done
-    sleep 5
     check "GNOME Shell outlives a hundred copies in a burst" [ "$(pgrep -u "${TEST_USER}" -x gnome-shell)" == "${shell_pid}" ]
-    unpinned="$(history | jq '[.entries[] | select(.favorite | not)] | length')"
-    [[ "${unpinned}" =~ ^[0-9]+$ && "${unpinned}" -le 15 ]] && ok "the sealed history holds ${unpinned} items not pinned, at most 15" ||
-        not_ok "the sealed history holds ${unpinned:-?} items not pinned"
+    wait_for 60 settled && ok "the sealed history settles at 15 items not pinned" ||
+        not_ok "the sealed history holds $(unpinned) items not pinned a minute after the burst"
+    wl_copy -- "${COPIED}"
 
-    # How long it is kept, as Control sets it
-    user_bus bash -lc 'ame desktop clipboard restart' >/dev/null
-    check "ame desktop clipboard restart sets keep-history" [ "$(keep)" == "'restart'" ]
-    reboot_and_continue
-    ;;
-2)
-    # Signed in by GDM again, with no password: the login keyring is locked, as after a fingerprint
-    check "Amethystora Clipboard is on after the restart" wait_for 30 ext_active
-    check "the sealed history from before the restart is on disk" test -s "${STORE}/history"
-    check "the login keyring is locked after a login without the password" wait_for 30 keyring_locked
-    check "the menu offers to unlock the earlier items" menu_shows "Unlock to see earlier items"
-    check "and does not show them while locked" menu_lacks "${PINNED}"
+    # A login with the keyring locked, as after a fingerprint: earlier items held back, a new copy in memory only
+    lock_keyring
+    ext_again
+    check "with the keyring locked, the menu offers to unlock the earlier items" menu_shows "Unlock to see earlier items"
+    check "and does not show them" menu_lacks "${PINNED}"
     written="$(stat -c %Y "${STORE}/history")"
     wl_copy -- "${LOCKED}"
     check "a copy made while locked is in the menu" menu_shows "${LOCKED}"
     check "and on no disk: the sealed history is untouched" [ "$(stat -c %Y "${STORE}/history")" == "${written}" ]
-    in_the_clear "${LOCKED}" && not_ok "the copy made while locked is in the clear" || ok "the copy made while locked is nowhere in the clear"
-
-    # The row clicked, GNOME's own prompt for the keyring answered with the password
+    check "the copy made while locked is nowhere in the clear" nowhere_in_the_clear "${LOCKED}"
+    # The row clicked, and GNOME's own prompt for the keyring answered with the password
     keys super+shift+v
     shell click "Unlock to see earlier items" >/dev/null
     sleep 4
     keys "text:${TEST_USER}" return
     check "the row's prompt unlocks the keyring" wait_for 30 keyring_open
-    check "the history is written again, with the copy made while locked" wait_for 30 in_history "${LOCKED}"
-    check "and the pinned item from before" pinned "${PINNED}"
-    check "keep-history restart dropped what was not pinned before the restart" not_in_history "${COPIED}"
-    check "the menu shows the pinned item from before" menu_shows "${PINNED}"
+    wait_for 30 in_history "${LOCKED}" && ok "the history is written again, with the copy made while locked" ||
+        not_ok "the copy made while locked was not written" "$(said)"
+    check "and what was kept before" pinned "${PINNED}"
+    check "the menu shows the two together" menu_shows "${PINNED}"
 
+    # Locked again, then unlocked elsewhere: the extension notices by itself, with no menu opened
+    lock_keyring
+    ext_again
+    wl_copy -- "${WATCHED}"
+    keyring unlock "${TEST_USER}" >/dev/null 2>&1
+    wait_for 30 in_history "${WATCHED}" && ok "unlocked elsewhere, the extension writes what was copied meanwhile by itself" ||
+        not_ok "the extension did not notice the keyring unlocked" "$(said)"
+
+    # A machine that signs in by itself has a keyring with no password; and how long it is kept, as Control sets it
+    out="$(keyring blank "${TEST_USER}" 2>&1)"
+    [[ -z "${out}" ]] && ok "the keyring has no password now, for the restarts" || not_ok "the keyring kept its password" "${out}"
+    user_bus bash -lc 'ame desktop clipboard restart' >/dev/null
+    check "ame desktop clipboard restart sets keep-history" [ "$(keep)" == "'restart'" ]
+    reboot_and_continue
+    ;;
+2)
+    check "Amethystora Clipboard is on after the restart" wait_for 30 ext_active
+    check "the keyring, with no password, is open after the restart" wait_for 30 keyring_open
+    check "keep-history restart kept the pinned item" wait_for 30 pinned "${PINNED}"
+    check "and dropped what was not pinned before the restart" not_in_history "${COPIED}"
+    check "the menu shows the pinned item" menu_shows "${PINNED}"
     user_bus bash -lc 'ame desktop clipboard always' >/dev/null
     check "ame desktop clipboard always sets keep-history" [ "$(keep)" == "'always'" ]
     wl_copy -- "${ALWAYS}"
-    check "a copy is sealed at once with the keyring open" wait_for 20 in_history "${ALWAYS}"
+    check "a copy is sealed at once" wait_for 20 in_history "${ALWAYS}"
     reboot_and_continue
     ;;
 3)
     check "Amethystora Clipboard is on after the second restart" wait_for 30 ext_active
-    # As a password login unlocks it; the menu asks the keyring again when it opens
-    out="$(unlock_keyring 2>&1)"
-    wait_for 20 keyring_open && ok "the keyring is unlocked" || not_ok "the keyring was not unlocked" "${out}"
-    check "under always, what was copied before the restart is in the menu" menu_shows "${ALWAYS}"
-    check "and in the sealed history: both copies and the pinned item" all_kept
+    check "under always, what was copied before the restart is kept" wait_for 30 in_history "${ALWAYS}"
+    check "and the pinned item" pinned "${PINNED}"
+    check "the menu shows it" menu_shows "${ALWAYS}"
 
     uid="$(id -u "${TEST_USER}")"
     errors="$(journalctl _UID="${uid}" --since "@${START}" --no-pager -o cat 2>/dev/null |
@@ -327,7 +356,6 @@ case "${SUITE_PHASE}" in
     [[ -z "${crashes}" ]] && ok "GNOME Shell did not crash" || not_ok "GNOME Shell crashed" "${crashes}"
 
     user_bus gsettings reset "${SCHEMA}" keep-history
-    user_bus gsettings reset org.gnome.desktop.session idle-delay
     ;;
 esac
 finish
