@@ -10,12 +10,13 @@
 # and the machine powering itself off once its session has been locked for 18 hours. After every change the
 # security watcher sees no drift but the switches' own files, and nothing it says is louder than a note.
 # A phase has 30 minutes, so the work of one start is split over several (continue_phase):
-#   Phases 1, 2: as the image ships them; noexec-temp on and a package layered; the rest of the first half
-#                switched: what the image enforces off, the stricter settings on
-#   Phases 3-5:  after a restart; kernel arguments on the layered machine; the first half back; the second half on
-#   Phases 6, 7: after a restart; the second half back; the kernel arguments back and the package taken away
-#   Phase 8:     after a restart, all as it was; locked for 18 hours: the machine powers off
-#   Phase 9:     started again; locked-poweroff off; nothing left over
+#   Phases 1, 2:   as the image ships them; noexec-temp on and a package layered; the rest of the first half
+#                  switched: what the image enforces off, the stricter settings on
+#   Phases 3-6:    after a restart; a kernel argument off and another on, on the layered machine (each
+#                  rpm-ostree kargs takes minutes there); the first half back; the second half on
+#   Phases 7-10:   after a restart; the second half back; the kernel arguments back; the package taken away
+#   Phase 11:      after a restart, all as it was; locked for 18 hours: the machine powers off
+#   Phase 12:      started again; locked-poweroff off; nothing left over
 source "$(dirname "$0")/lib.sh"
 
 STATE=/var/lib/vmlab-tests/92-hardening
@@ -511,6 +512,14 @@ if [[ "${SUITE_PHASE}" == 3 ]]; then
 
     # --- Kernel arguments, on a machine that updates through rpm-ostree
     set_to kernel-args off "${KARG}"
+    if next_has "${KARG}"; then not_ok "the next start still has ${KARG}" "$(rpm-ostree kargs)"; else
+        ok "the next start has no ${KARG}"; fi
+    took
+    continue_phase
+fi
+
+# --- Phase 4: an extra kernel argument on, on the layered machine -------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 4 ]]; then
     set_to kernel-args on "${EXTRA}"
     if ! next_has "${KARG}" && next_has "${EXTRA}"; then ok "the next start has ${EXTRA} and not ${KARG}"; else
         not_ok "the next start's arguments" "$(rpm-ostree kargs)"; fi
@@ -525,8 +534,8 @@ if [[ "${SUITE_PHASE}" == 3 ]]; then
     continue_phase
 fi
 
-# --- Phase 4: the first half back as the image ships it -----------------------------------------------------------------
-if [[ "${SUITE_PHASE}" == 4 ]]; then
+# --- Phase 5: the first half back as the image ships it -----------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 5 ]]; then
     set_to noexec-temp off
     same "the temporary folders run programs again at once" "$(runs_from)" "/tmp /var/tmp /dev/shm"
     same "and /etc/fstab has none of its lines" "$(grep -c x-amethystora-noexec /etc/fstab)" 0
@@ -565,7 +574,10 @@ if [[ "${SUITE_PHASE}" == 4 ]]; then
     set_to block-user-extensions off
     same "extensions can be installed again" "$(gsetting org.gnome.shell allow-extension-installation)" "true true"
     set_to block-xwayland off
-    [[ "$(subset)" == verified ]] && { set_to flathub-verified off; same "Flathub offers every app again" "$(subset)" none; }
+    if [[ "$(state_of flathub-verified)" == on ]]; then
+        set_to flathub-verified off
+        same "Flathub offers every app again" "$(subset)" none
+    fi
     set_to flatpak-password off
     same "installing a Flatpak for the machine needs no password again" "$(flatpak_install)" 0
     set_to no-coredumps off
@@ -584,8 +596,8 @@ if [[ "${SUITE_PHASE}" == 4 ]]; then
     continue_phase
 fi
 
-# --- Phase 5: the second half switched ----------------------------------------------------------------------------------
-if [[ "${SUITE_PHASE}" == 5 ]]; then
+# --- Phase 6: the second half switched ----------------------------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 6 ]]; then
     set_to kernel strict
     same "strict: io_uring off, only root attaches a debugger, more address randomisation, at once" \
         "$(sysctls | cut -d' ' -f1-3)" "2 2 32"
@@ -623,8 +635,8 @@ if [[ "${SUITE_PHASE}" == 5 ]]; then
     reboot_and_continue
 fi
 
-# --- Phase 6: after a restart; the second half back ---------------------------------------------------------------------
-if [[ "${SUITE_PHASE}" == 6 ]]; then
+# --- Phase 7: after a restart; the second half back ---------------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 7 ]]; then
     same "with the password gone, e opens the boot menu's editor" "${VMLAB_MENU_EDIT}" editor
     no_new_failed
     same "the temporary folders are as before" "$(noexec_mounts)" ""
@@ -643,7 +655,7 @@ if [[ "${SUITE_PHASE}" == 6 ]]; then
     if modprobe hci_vhci 2>/dev/null; then not_ok "a Bluetooth driver still loads"; else ok "and no Bluetooth driver can"; fi
     same "the audit rules, locked, record in the sensor's place" "$(sensor_watches) $(systemctl is-active amethystora-sensor.service) $(auditctl -s | awk '$1 == "enabled" { print $2 }')" \
         "audit inactive 2"
-    if auditctl -l | grep -q 'key=identity'; then ok "the identity audit rules are loaded"; else not_ok "no identity audit rule" "$(auditctl -l | head -n 5)"; fi
+    if auditctl -l | grep -qE -- '-k identity$|key=identity'; then ok "the identity audit rules are loaded"; else not_ok "no identity audit rule" "$(auditctl -l | head -n 5)"; fi
     same "amethystora-signed-updates switched nothing at this start" "$(signed_updates_ran)" skipped
 
     # --- The second half back
@@ -667,14 +679,27 @@ if [[ "${SUITE_PHASE}" == 6 ]]; then
     continue_phase
 fi
 
-# --- Phase 7: the kernel arguments back; the package taken away ---------------------------------------------------------
-if [[ "${SUITE_PHASE}" == 7 ]]; then
+# --- Phase 8: the kernel argument back --------------------------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 8 ]]; then
     set_to kernel-args on "${KARG}"
+    if next_has "${KARG}"; then ok "the next start has ${KARG} again"; else not_ok "the next start's arguments" "$(rpm-ostree kargs)"; fi
+    took
+    continue_phase
+fi
+
+# --- Phase 9: the extra kernel argument off -----------------------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 9 ]]; then
     set_to kernel-args off "${EXTRA}"
     if next_has "${KARG}" && ! next_has "${EXTRA}"; then ok "the next start has ${KARG} again and not ${EXTRA}"; else
         not_ok "the next start's arguments" "$(rpm-ostree kargs)"; fi
     report_now
     same "the report no longer says a kernel argument is off" "$(record kernel-args)" null
+    took
+    continue_phase
+fi
+
+# --- Phase 10: the package taken away -----------------------------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 10 ]]; then
     out="$(timeout 1200 rpm-ostree uninstall "${LAYERED}" 2>&1)"
     if rpm-ostree status --json | jq -e '.deployments[] | select(.staged) | .["requested-packages"] == []' >/dev/null; then
         ok "${LAYERED} goes from the next start"; else not_ok "rpm-ostree uninstall ${LAYERED}" "$(tail -n 10 <<<"${out}")"; fi
@@ -686,8 +711,8 @@ if [[ "${SUITE_PHASE}" == 7 ]]; then
     reboot_and_continue
 fi
 
-# --- Phase 8: all as it was after a restart; locked for 18 hours --------------------------------------------------------
-if [[ "${SUITE_PHASE}" == 8 ]]; then
+# --- Phase 11: all as it was after a restart; locked for 18 hours --------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 11 ]]; then
     no_new_failed
     same "the kernel's own io_uring and ptrace from this start" "$(sysctls | cut -d' ' -f1-2)" "0 1"
     same "the sensor records in the audit rules' place again" "$(sensor_watches) $(systemctl is-active amethystora-sensor.service)" "sensor active"
@@ -721,7 +746,7 @@ if [[ "${SUITE_PHASE}" == 8 ]]; then
     reboot_and_continue
 fi
 
-# --- Phase 9: started again ---------------------------------------------------------------------------------------
+# --- Phase 12: started again ---------------------------------------------------------------------------------------
 said="$(journalctl -b -1 -u amethystora-locked-poweroff.service --no-pager -o cat | grep 'powering off')"
 if [[ -n "${said}" ]]; then ok "the machine powered itself off: ${said}"; else
     not_ok "locked-poweroff did not power the machine off" "$(journalctl -b -1 -u amethystora-locked-poweroff.service --no-pager -o cat | tail -n 5)"; fi
