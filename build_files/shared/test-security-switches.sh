@@ -159,6 +159,14 @@ grep -qxF -- "-a always,exit -F arch=b64 -F path=${A}/.ssh/id_backup -F perm=r -
 printf 'CREDENTIALS=on\n' >"${T}/keys.conf"
 AMETHYSTORA_SECURITY_CONF="${T}/keys.conf" AMETHYSTORA_AUDIT_ROOT="${R}" bash /usr/libexec/amethystora-audit-home-rules
 [[ ! -e "${A}/.ssh/id_backup" ]] || fail "the decoy stayed with its switch off"
+# The audit log off (profile off) watches nothing: the decoy goes with it, and no rule is written
+printf 'CREDENTIALS=on\nDECOY=on\n' >"${T}/keys.conf"
+AMETHYSTORA_SECURITY_CONF="${T}/keys.conf" AMETHYSTORA_AUDIT_ROOT="${R}" bash /usr/libexec/amethystora-audit-home-rules
+[[ -e "${A}/.ssh/id_backup" ]] || fail "no decoy made with its switch on"
+printf 'AUDIT_LOG=off\nCREDENTIALS=on\nDECOY=on\n' >"${T}/keys.conf"
+AMETHYSTORA_SECURITY_CONF="${T}/keys.conf" AMETHYSTORA_AUDIT_ROOT="${R}" bash /usr/libexec/amethystora-audit-home-rules
+[[ ! -e "${A}/.ssh/id_backup" ]] || fail "the decoy stayed with the audit log off"
+grep -q -- '^-[wa] ' "${HOME_RULES}" && fail "a rule written with the audit log off: $(grep -- '^-[wa] ' "${HOME_RULES}" | head -n 3)"
 echo "a key of alice's own" >"${A}/.ssh/id_backup"
 printf 'DECOY=on\n' >"${T}/keys.conf"
 AMETHYSTORA_SECURITY_CONF="${T}/keys.conf" AMETHYSTORA_AUDIT_ROOT="${R}" bash /usr/libexec/amethystora-audit-home-rules

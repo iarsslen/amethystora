@@ -22,8 +22,9 @@ Wants=auditd.service
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-# Nothing to write while AUDIT_LOG=off in /etc/amethystora/security.conf: auditd and its rules stay off
-ExecCondition=/usr/libexec/amethystora-security-config --is AUDIT_LOG on
+# Nothing to write while AUDIT_LOG=off in /etc/amethystora/security.conf: auditd and its rules stay off. It
+# still runs while a home may hold the decoy key (DECOY), which it takes back then, as it does with DECOY off.
+ExecCondition=/usr/bin/bash -c '/usr/libexec/amethystora-security-config --is AUDIT_LOG on || compgen -G "/var/home/*/.ssh/id_backup" >/dev/null'
 ExecStart=/usr/libexec/amethystora-audit-home-rules
 # auditd and the rules' load wait on this, so it may not sit there: a handful of lines per account takes
 # moments

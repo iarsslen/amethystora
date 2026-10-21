@@ -23,14 +23,15 @@ SHIPPED=/usr/share/amethystora/audit
 
 # Whether an audit key is wanted: anything but off, under its name in security.conf (input-capture is
 # INPUT_CAPTURE). A key the helper does not know is wanted, as one with no switch always was. Every value
-# is read once: asking the helper for each key in turn took most of a second, early in every boot.
+# is read once: asking the helper for each key in turn took most of a second, early in every boot. With
+# the audit log off (AUDIT_LOG) none is: this then runs only to take back a decoy left from before.
 declare -A SETTING=()
 while IFS='=' read -r name value; do
     SETTING["${name}"]="${value}"
 done < <(/usr/libexec/amethystora-security-config --all 2>/dev/null)
 wanted() {
     local name="${1^^}"
-    [[ "${SETTING[${name//-/_}]:-}" != off ]]
+    [[ "${SETTING[AUDIT_LOG]:-}" != off && "${SETTING[${name//-/_}]:-}" != off ]]
 }
 
 # The file-watch sensor (amethystora-sensor, plans/done/PLAN-audit-cost.md): where it covers a key, that
