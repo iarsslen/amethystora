@@ -871,7 +871,7 @@ TRUST_RULE="$(sed -n 's/^\[\[ "\${REPOSITORY}" =~ \(.*\) \]\] ||$/\1/p' /usr/lib
 [[ -n "${TRUST_RULE}" ]]
 grep -qF "r\"${TRUST_RULE}\"" /ctx/apps/control-core/src/lib.rs
 # The helpers it reads: the images and streams the rebase helper offers, the widgets and the web apps
-jq -e '(.images | length) == 4 and (.streams | length) > 0' <<<"$(/usr/bin/amethystora-rollback-helper --choices)" >/dev/null
+jq -e '(.images | length) == 6 and (.streams | length) > 0' <<<"$(/usr/bin/amethystora-rollback-helper --choices)" >/dev/null
 CONTROL_HOME="$(mktemp -d)"
 jq -e '(.bar | type) == "boolean" and .widgets == []' <<<"$(HOME="${CONTROL_HOME}" amethystora-widgets list --json)" >/dev/null
 jq -e '. == []' <<<"$(HOME="${CONTROL_HOME}" amethystora-webapp list --json)" >/dev/null
