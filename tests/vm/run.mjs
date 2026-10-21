@@ -16,7 +16,8 @@
 // "skip - ..." line per check, and exit status 0 only when it passed. Exit status 100 asks for a reboot:
 // the suite runs again after it, with SUITE_PHASE one higher. A suite whose second line is
 // "# vmlab-vm: installer" runs on a machine of its own installed as the installer lays a disk out, encrypted.
-// Exit status 101 runs the next phase in the same boot, for what takes longer than a phase may (30 minutes).
+// Exit status 101 runs the next phase in the same boot, for what takes longer than a phase may (30 minutes),
+// and with /var/lib/vmlab-tests/usb.json left (usb_next in lib.sh) USB devices plugged in or out first.
 // A phase that leaves /var/lib/vmlab-tests/next-boot.json gets a power cycle instead of a reboot, with what it
 // asks for (next_boot in lib.sh): spare disks absent or faulty, other credentials, the passphrase typed; or
 // with {"itself": true} no restart from here at all, only a wait for the one the phase left to happen, a soft
@@ -25,7 +26,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { agent, call, decode, screendump, serialWrite } from './lab.mjs';
+import { agent, call, decode, qmp, screendump, serialWrite } from './lab.mjs';
 
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 const SRC = path.resolve(HERE, '../..');
@@ -41,6 +42,14 @@ const BUILT = `localhost/${BUILD}:latest`;
 const IMAGE = `localhost/amethystora-run:${NAME}`;
 const GUEST_DIR = '/run/amethystora-tests';
 const NEXT_BOOT = '/var/lib/vmlab-tests/next-boot.json';
+const USB = '/var/lib/vmlab-tests/usb.json';
+// The USB devices a phase can have plugged in, on the VM's xHCI controller: sticks with serials of their own, on
+// drives that read as zeros, and a keyboard and nothing else
+const USB_DEVICES = {
+  stick: { driver: 'usb-storage', serial: 'VMLAB-STICK-1' },
+  stick2: { driver: 'usb-storage', serial: 'VMLAB-STICK-2' },
+  keyboard: { driver: 'usb-kbd' },
+};
 // The lab's disk passphrase, and the PIN a suite enrols the TPM with, both handed to systemd-cryptsetup as
 // credentials so that nobody has to type them (next_boot can have one typed instead). The PIN goes under both of
 // its names: systemd-cryptsetup first tries every LUKS2 token through libcryptsetup, asking "Please enter LUKS2
@@ -247,6 +256,34 @@ async function reboot(machine) {
   }
 }
 
+// USB devices plugged out, then in, as a phase that ended with 101 asked (usb_next), before the next one
+let drives = 0;
+async function usb(vm) {
+  let request = null;
+  try {
+    const answer = await agent(vm, { op: 'read', path: USB }, 10);
+    if (answer.rc === 0) request = JSON.parse(decode(answer.data));
+  } catch {
+    // None asked for
+  }
+  if (!request) return;
+  await agent(vm, { op: 'exec', command: `rm -f ${USB}` }, 10);
+  for (const name of request.unplug || []) await qmp(vm, 'device_del', { id: `vmlab-${name}` }).catch(() => {});
+  if (request.unplug?.length) await sleep(5000);
+  for (const name of request.plug || []) {
+    const device = USB_DEVICES[name];
+    if (!device) throw new Error(`usb_next: no device ${name}`);
+    const args = { driver: device.driver, id: `vmlab-${name}` };
+    if (device.serial) {
+      const node = `vmlab-drive-${++drives}`;
+      await qmp(vm, 'blockdev-add', { driver: 'null-co', 'node-name': node, size: 64 * 1024 * 1024, 'read-zeroes': true });
+      Object.assign(args, { drive: node, serial: device.serial });
+    }
+    await qmp(vm, 'device_add', args);
+  }
+  say(`   usb: ${JSON.stringify(request)}`);
+}
+
 // The suites and lib.sh into the guest's /run, which a reboot empties
 async function install(vm) {
   await agent(vm, { op: 'exec', command: `mkdir -p ${GUEST_DIR}` });
@@ -272,8 +309,11 @@ async function suite(machine, name) {
     fs.appendFileSync(`${RUN}/${name}.log`, `--- phase ${phase}, exit ${answer.rc}${answer.error ? ` (${answer.error})` : ''}\n${decode(answer.stdout)}${stderr ? `--- stderr\n${stderr}` : ''}`);
     rc = answer.rc;
     if ((rc !== 100 && rc !== 101) || phase >= MAX_PHASES) break;
-    // 101: the next phase in the same boot, for what takes longer than one phase may
-    if (rc === 101) continue;
+    // 101: the next phase in the same boot, for what takes longer than one phase may, or after USB devices
+    if (rc === 101) {
+      await usb(vm);
+      continue;
+    }
     say(`   ${name}: rebooting for phase ${phase + 1}`);
     await reboot(machine);
   }

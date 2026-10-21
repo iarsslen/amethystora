@@ -89,7 +89,7 @@ function exchange(socketPath, messages, done, timeoutMs) {
 }
 
 // QMP: the greeting, capabilities, then one command
-function qmp(name, execute, args) {
+export function qmp(name, execute, args) {
   return serial(`${name}.qmp`, () => {
     let step = 0;
     return exchange(file(name, 'qmp'), [{ execute: 'qmp_capabilities' }, { execute, arguments: args }], (m) => {

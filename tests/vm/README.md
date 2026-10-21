@@ -68,7 +68,10 @@ credential left out (`{"credentials": {"cryptsetup.passphrase": null}}`, for the
 restart keeps the machine as that start left it. `{"itself": true}` is no power cycle: the phase has left
 something to restart the machine once it has ended, as a person would, and `run.mjs` only waits for it, a soft
 reboot too (it keeps the boot id, so systemd's `SoftRebootsCount` is compared as well). Exit status 101
-(`continue_phase`) runs the next phase in the same boot, for what outlasts a phase's 30 minutes.
+(`continue_phase`) runs the next phase in the same boot, for what outlasts a phase's 30 minutes; a phase that calls
+`usb_next JSON` first has USB devices plugged out and in before it, as a person would (`{"unplug": ["stick"],
+"plug": ["stick", "keyboard"]}`: two USB sticks with serials of their own and a plain keyboard, `USB_DEVICES` in
+`run.mjs`).
 
 A suite whose second line is `# vmlab-vm: installer` runs on a second machine, installed as the installer
 lays a disk out: an ESP, an ext4 `/boot`, and btrfs (subvolumes `root` and `home`) on LUKS2, with the fstab and
@@ -109,6 +112,7 @@ reads what it says (`70-backups.sh` shows how).
 | `75-deja-dup.sh` | Déjà Dup from Flathub: where its schedule is kept, what `flatpak preinstall` uninstalls when its list stops naming an app, and the one notice at the next login |
 | `83-logins.sh` | Parental Controls' allowed hours, a child's login typed at the text console and made over SSH; one-time codes for SSH set up and switched in a terminal, a code used twice, a scratch code, a key, fail2ban banning wrong codes from another address, what the watcher accepts; an Active Directory domain (a Samba domain controller in a container) joined with SSSD and with winbind, logged in to and left, the image's PAM setup kept each time |
 | `85-raid-mirror.sh` | the system spread over two disks as the installer leaves it (SPARE-6), mirrored (2a), started with the second disk unplugged from Start with a disk missing, the disk back and its copies put back, then on one disk again |
+| `86-locked-session.sh` | `ame security usb locked` turned on in the running session: a stick and a keyboard plugged in while the screen is locked (the stick blocked, the keyboard let in, GNOME's notifications), the stick still blocked once unlocked until plugged in again, the login screen of another session counting as unlocked, `on` afterwards (no rule of GNOME's left, a new stick blocked while unlocked) and off; the private folder made in a terminal with its recovery key, closed by the lock with programs holding files in it (named in a notification), its thumbnails and recent files gone, opened from the launcher with a wrong and the right password, Close Now, its watcher stopped or killed, a suspend without the lock, a new password with the old one and with the recovery key, a backup holding only the encrypted copy, logging out, removing |
 | `89-soft-reboot.sh` | on the installer-layout machine: the initramfs without the build's version or an out-of-tree driver; updates made from the running system (a hardlink checkout of its commit) and staged, which `amethystora-soft-reboot` calls quick (a file added, a loaded driver compressed anew) or not and why (a kernel argument, the driver changed, BootNext set); its status, prepare and reset as the account, an app inhibiting logout; System Updates' Restart now asking first and ending in a soft reboot (same boot id, the update running, `/etc` carried over, the account back), then a full restart into the same update |
 
 A new feature gets its check here with it, and a bug a run found gets the check that would have caught it.

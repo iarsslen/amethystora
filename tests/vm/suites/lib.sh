@@ -24,6 +24,12 @@ finish() { exit "${FAILED}"; }
 reboot_and_continue() { exit 100; }
 # The next phase in this same boot, for what outlasts one phase's 30 minutes
 continue_phase() { exit 101; }
+# usb_next JSON: before that next phase, USB devices plugged out and then in, as a person would, by name
+# (run.mjs's USB_DEVICES: stick, stick2, keyboard): {"unplug": ["stick"], "plug": ["stick", "keyboard"]}
+usb_next() {
+    install -d -m 0700 /var/lib/vmlab-tests
+    printf '%s\n' "$1" >/var/lib/vmlab-tests/usb.json
+}
 # next_boot JSON: the restart reboot_and_continue asks for is a power cycle, the machine started again with what
 # JSON says (run.mjs): {"absent": [N]} leaves SPARE-N unplugged, {"faulty": {"N": [sector, ...]}} gives SPARE-N
 # sectors that fail every read, {"system_absent": true} leaves the VM's own disk unplugged, {"credentials":
