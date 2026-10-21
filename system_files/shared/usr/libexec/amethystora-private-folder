@@ -207,19 +207,20 @@ watch() {
 
 # --- Opening ------------------------------------------------------------------------------------------------
 
-# One try: 0 opened, 12 the wrong password, 130 the dialog cancelled, anything else gocryptfs's own failure
+# One try: 0 opened, 12 the wrong password, 130 the dialog cancelled, anything else gocryptfs's own failure.
+# The scope is bound to the watcher: however the watcher ends, killed with its ExecStopPost too, systemd itself
+# stops gocryptfs.
 mount_once() {
-    local -a rc
+    local -a rc scope=(--user --scope --collect --quiet --unit="${SCOPE}" -p TimeoutStopSec=3
+        -p BindsTo="${WATCH}" -p After="${WATCH}")
     systemctl --user reset-failed "${SCOPE}" 2>/dev/null
     chmod 0700 "${PLAIN}"
     if [[ -t 0 ]]; then
-        systemd-run --user --scope --collect --quiet --unit="${SCOPE}" -p TimeoutStopSec=3 -- \
-            gocryptfs -q "${CIPHER}" "${PLAIN}"
+        systemd-run "${scope[@]}" -- gocryptfs -q "${CIPHER}" "${PLAIN}"
         rc=("$?")
     else
         zenity --password --title="$(gettext "Open the private folder")" 2>/dev/null |
-            systemd-run --user --scope --collect --quiet --unit="${SCOPE}" -p TimeoutStopSec=3 -- \
-                gocryptfs -q "${CIPHER}" "${PLAIN}"
+            systemd-run "${scope[@]}" -- gocryptfs -q "${CIPHER}" "${PLAIN}"
         rc=("${PIPESTATUS[1]}" "${PIPESTATUS[0]}")
     fi
     if [[ "${rc[0]}" -ne 0 ]]; then
@@ -256,7 +257,8 @@ $(gettext "Move them somewhere else, open the folder, and move them into it then
         mount_once
         rc=$?
         [[ "${rc}" -eq 0 ]] && break
-        if [[ "${rc}" -eq 12 ]] && ((++tries < 5)); then
+        # 12 a wrong password, 9 an empty one: both are asked again
+        if [[ "${rc}" -eq 12 || "${rc}" -eq 9 ]] && ((++tries < 5)); then
             if [[ -t 0 ]]; then
                 say "$(gettext "Wrong password. Try again.")"
             else
@@ -268,7 +270,7 @@ $(gettext "Move them somewhere else, open the folder, and move them into it then
         systemctl --user is-active --quiet "${WATCH}" || fail "$(gettext "The screen locked, so the private folder stays closed.")"
         systemctl --user stop "${WATCH}" 2>/dev/null
         [[ "${rc}" -eq 130 ]] && return 0
-        [[ "${rc}" -eq 12 ]] && fail "$(gettext "Wrong password.")"
+        [[ "${rc}" -eq 12 || "${rc}" -eq 9 ]] && fail "$(gettext "Wrong password.")"
         fail "$(gettext "The private folder could not be opened.")"
     done
     # The screen locked while it was opening, and the watcher is gone: closed again

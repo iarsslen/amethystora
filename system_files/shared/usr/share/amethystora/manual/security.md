@@ -769,11 +769,14 @@ boot works, and so does what you plug in while the screen is unlocked. While it 
   says so;
 - anything else stays blocked: a USB stick, a network adapter, a keyboard that is also something
   else (many gaming keyboards are). A notification says to plug it in again once you have unlocked,
-  and then it works;
+  and then it works. GNOME shows one such notification at a time, so with two devices you may see
+  only one;
 - a laptop's own built-in devices always work.
 
 The login screen counts as unlocked, and so does another account's unlocked session on the screen:
-a device plugged in there works. GNOME does the blocking, and the USB protection setting under
+a device plugged in there works. Once the login screen has been shown over your locked session, to
+switch user, new devices are let in at your lock screen too, until you unlock and it locks again.
+GNOME does the blocking, and the USB protection setting under
 **Privacy** in Settings shows it, greyed out, since it is switched here for the whole machine. If
 GNOME's part is not running, new devices are let in as when the screen is unlocked. A dock whose
 devices come back as new after sleep may need plugging in again. A program running as you in your
