@@ -9,11 +9,13 @@
 # menu asking for its password to edit an entry, a kernel argument switched on a machine with a layered package,
 # and the machine powering itself off once its session has been locked for 18 hours. After every change the
 # security watcher sees no drift but the switches' own files, and nothing it says is louder than a note.
-#   Phase 1: the first half on: what the image enforces off, the stricter settings on; a package layered
-#   Phase 2: after a restart; kernel arguments on the layered machine; the first half back, the second half on
-#   Phase 3: after a restart; everything back; the package taken away
-#   Phase 4: after a restart, all as it was; locked for 18 hours: the machine powers off
-#   Phase 5: started again; locked-poweroff off; nothing left over
+# A phase has 30 minutes, so the work of one start is split over several (continue_phase):
+#   Phases 1, 2: as the image ships them; noexec-temp on and a package layered; the rest of the first half
+#                switched: what the image enforces off, the stricter settings on
+#   Phases 3-5:  after a restart; kernel arguments on the layered machine; the first half back; the second half on
+#   Phases 6, 7: after a restart; the second half back; the kernel arguments back and the package taken away
+#   Phase 8:     after a restart, all as it was; locked for 18 hours: the machine powers off
+#   Phase 9:     started again; locked-poweroff off; nothing left over
 source "$(dirname "$0")/lib.sh"
 
 STATE=/var/lib/vmlab-tests/92-hardening
@@ -55,7 +57,9 @@ session_terminal() {
         systemd-run --user --pty --wait --quiet --collect -- /usr/bin/bash -lc "$*"
 }
 same() { if [[ "$2" == "$3" ]]; then ok "$1"; else not_ok "$1" "expected: $3" "found: $2"; fi; }
-record() { /usr/libexec/amethystora-security-status --json 2>/dev/null | jq -c --arg id "$1" '[.. | objects | select(.id? == $id)][0]'; }
+# The report, read once for the checks that follow (report_now), and one check of it
+report_now() { REPORT="$(/usr/libexec/amethystora-security-status --json 2>/dev/null)"; }
+record() { jq -c --arg id "$1" '[.. | objects | select(.id? == $id)][0]' <<<"${REPORT}"; }
 state_of() { "${H}" is-on "$@" && echo on || echo off; }
 set_to() {
     local out
@@ -66,8 +70,12 @@ turned_off() {
     same "the report says ${1} is turned off, with ${3}" "$(record "$2" | jq -c '[.state, .switched_off, .command]')" \
         "[\"info\",true,\"${3}\"]"
 }
-title() { "${H}" status --json | jq -r --arg name "$1" '.[] | select(.name == $name) | .title'; }
+SWITCHES="$("${H}" status --json)"
+title() { jq -r --arg name "$1" '.[] | select(.name == $name) | .title' <<<"${SWITCHES}"; }
 stricter_listed() { record stricter | jq -r '.details // [] | .[]'; }
+# How long the phase took, said as a measurement: a phase has 30 minutes
+SUITE_START="$(date +%s)"
+took() { echo "# phase ${SUITE_PHASE} took $(($(date +%s) - SUITE_START)) s"; }
 # The watcher's drift that was not there before this suite, after a run started now
 new_drift() {
     systemctl start amethystora-security-watch.service
@@ -370,11 +378,15 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
         not_ok "sudo bootc status with /tmp noexec" "$(tail -n 5 <<<"${out}")"; fi
     # A package layered meanwhile, which also has rpm-ostree work with /tmp noexec: the kernel arguments are
     # switched on this machine in the next phase, which then updates through rpm-ostree, not bootc
-    if out="$(timeout 1200 rpm-ostree install --idempotent "${LAYERED}" 2>&1)"; then
-        same "rpm-ostree layers ${LAYERED}, for the next start" "$(staged_layered)" "${LAYERED}"
-    else
-        not_ok "rpm-ostree install ${LAYERED}" "$(tail -n 10 <<<"${out}")"
-    fi
+    out="$(timeout 1200 rpm-ostree install --idempotent "${LAYERED}" 2>&1)"
+    if [[ "$(staged_layered)" == "${LAYERED}" ]]; then ok "rpm-ostree layers ${LAYERED}, for the next start"; else
+        not_ok "rpm-ostree install ${LAYERED}" "$(tail -n 10 <<<"${out}")"; fi
+    took
+    continue_phase
+fi
+
+# --- Phase 2: the rest of the first half: what the image enforces off, the stricter settings on -------------------------
+if [[ "${SUITE_PHASE}" == 2 ]]; then
 
     # --- What the image enforces, turned off
     set_to kernel off
@@ -456,6 +468,7 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
         same "/boot stays read-only for everything else" "$(touch /boot/vmlab 2>&1 | grep -c 'Read-only')" 1
 
     # --- What the report and the watcher make of all of it
+    report_now
     turned_off kernel kernel "ame security kernel on"
     turned_off blocked-modules blocked-modules "ame security blocked-modules on"
     turned_off failed-logins fail2ban "ame security failed-logins on"
@@ -474,12 +487,13 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     done
     same "the report names every stricter setting that is on" "${missing[*]}" ""
     watcher_quiet "the first half switched"
+    took
     next_boot '{"menu_edit": true}'
     reboot_and_continue
 fi
 
-# --- Phase 2: after a restart; kernel arguments on the layered machine; the first half back, the second on --------
-if [[ "${SUITE_PHASE}" == 2 ]]; then
+# --- Phase 3: after a restart; kernel arguments on the layered machine --------------------------------------------------
+if [[ "${SUITE_PHASE}" == 3 ]]; then
     same "editing a boot entry asks for the boot menu's password, and the machine starts without it" "${VMLAB_MENU_EDIT}" asked
     no_new_failed
     same "amethystora-signed-updates ran at this start, with /tmp noexec" "$(signed_updates_ran)" success
@@ -501,12 +515,18 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     if ! next_has "${KARG}" && next_has "${EXTRA}"; then ok "the next start has ${EXTRA} and not ${KARG}"; else
         not_ok "the next start's arguments" "$(rpm-ostree kargs)"; fi
     same "and keeps ${LAYERED}" "$(staged_layered)" "${LAYERED}"
+    report_now
     same "the report says ${KARG} is turned off" "$(record kernel-args | jq -c '[.state, .switched_off, .text]')" \
         "[\"info\",true,\"Turned off, from the next restart: ${KARG}\"]"
     if stricter_listed | grep -qxF "${EXTRA}"; then ok "and names ${EXTRA} among the stricter settings"; else
         not_ok "${EXTRA} is not among the stricter settings" "$(stricter_listed)"; fi
 
-    # --- The first half back as the image ships it
+    took
+    continue_phase
+fi
+
+# --- Phase 4: the first half back as the image ships it -----------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 4 ]]; then
     set_to noexec-temp off
     same "the temporary folders run programs again at once" "$(runs_from)" "/tmp /var/tmp /dev/shm"
     same "and /etc/fstab has none of its lines" "$(grep -c x-amethystora-noexec /etc/fstab)" 0
@@ -560,7 +580,12 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     same "the switches have nothing left in /etc" "$("${H}" managed)" ""
     watcher_quiet "the first half back"
 
-    # --- The second half
+    took
+    continue_phase
+fi
+
+# --- Phase 5: the second half switched ----------------------------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 5 ]]; then
     set_to kernel strict
     same "strict: io_uring off, only root attaches a debugger, more address randomisation, at once" \
         "$(sysctls | cut -d' ' -f1-3)" "2 2 32"
@@ -572,6 +597,7 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     echo "${UUID}" >"${STATE}/uuid"
     if out="$("${H}" home "${UUID}" 2>&1)"; then ok "amethystora-hardening home names it home"; else not_ok "amethystora-hardening home" "${out}"; fi
     same "named home, it reaches phone pairing and shares" "$(zone vmlab-fw0) $(probe)" "amethystora-home ${HOMEZONE}"
+    report_now
     same "the report says so" "$(record firewall | jq -r .state) $(record home-networks | jq -r .state)" "ok info"
     set_to block-bluetooth on
     same "Bluetooth's service is off" "$(systemctl is-enabled bluetooth.service)/$(systemctl is-active bluetooth.service)" "disabled/inactive"
@@ -582,6 +608,7 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     systemctl reset-failed amethystora-signed-updates.service 2>/dev/null
     systemctl start amethystora-signed-updates.service 2>/dev/null
     same "amethystora-signed-updates now switches nothing" "$(signed_updates_ran "${started}")" skipped
+    report_now
     turned_off signed-updates signed-updates "ame security signed-updates on"
     listed="$(stricter_listed)"
     missing=()
@@ -591,12 +618,13 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     grep -qxF -- "$(title kernel) (strict)" <<<"${listed}" || missing+=("kernel strict")
     same "the report names every stricter setting that is on" "${missing[*]}" ""
     watcher_quiet "the second half switched"
+    took
     next_boot '{"menu_edit": true}'
     reboot_and_continue
 fi
 
-# --- Phase 3: after a restart; everything back; the package taken away --------------------------------------------
-if [[ "${SUITE_PHASE}" == 3 ]]; then
+# --- Phase 6: after a restart; the second half back ---------------------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 6 ]]; then
     same "with the password gone, e opens the boot menu's editor" "${VMLAB_MENU_EDIT}" editor
     no_new_failed
     same "the temporary folders are as before" "$(noexec_mounts)" ""
@@ -618,12 +646,7 @@ if [[ "${SUITE_PHASE}" == 3 ]]; then
     if auditctl -l | grep -q 'key=identity'; then ok "the identity audit rules are loaded"; else not_ok "no identity audit rule" "$(auditctl -l | head -n 5)"; fi
     same "amethystora-signed-updates switched nothing at this start" "$(signed_updates_ran)" skipped
 
-    # --- Everything back
-    set_to kernel-args on "${KARG}"
-    set_to kernel-args off "${EXTRA}"
-    if next_has "${KARG}" && ! next_has "${EXTRA}"; then ok "the next start has ${KARG} again and not ${EXTRA}"; else
-        not_ok "the next start's arguments" "$(rpm-ostree kargs)"; fi
-    same "the report no longer says a kernel argument is off" "$(record kernel-args)" null
+    # --- The second half back
     set_to kernel standard
     same "kernel standard leaves no file of strict's" "$(ls /etc/sysctl.d /etc/modprobe.d | grep -c 61-amethystora-strict)" 0
     set_to firewall-away off
@@ -640,20 +663,31 @@ if [[ "${SUITE_PHASE}" == 3 ]]; then
     started="$(date +%s)"
     set_to signed-updates on
     same "amethystora-signed-updates runs again" "$(signed_updates_ran "${started}")" success
-    if out="$(timeout 1200 rpm-ostree uninstall "${LAYERED}" 2>&1)"; then
-        same "${LAYERED} goes from the next start" "$(staged_layered)" ""
-    else
-        not_ok "rpm-ostree uninstall ${LAYERED}" "$(tail -n 10 <<<"${out}")"
-    fi
+    took
+    continue_phase
+fi
+
+# --- Phase 7: the kernel arguments back; the package taken away ---------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 7 ]]; then
+    set_to kernel-args on "${KARG}"
+    set_to kernel-args off "${EXTRA}"
+    if next_has "${KARG}" && ! next_has "${EXTRA}"; then ok "the next start has ${KARG} again and not ${EXTRA}"; else
+        not_ok "the next start's arguments" "$(rpm-ostree kargs)"; fi
+    report_now
+    same "the report no longer says a kernel argument is off" "$(record kernel-args)" null
+    out="$(timeout 1200 rpm-ostree uninstall "${LAYERED}" 2>&1)"
+    if rpm-ostree status --json | jq -e '.deployments[] | select(.staged) | .["requested-packages"] == []' >/dev/null; then
+        ok "${LAYERED} goes from the next start"; else not_ok "rpm-ostree uninstall ${LAYERED}" "$(tail -n 10 <<<"${out}")"; fi
     if next_has "${KARG}" && ! next_has "${EXTRA}"; then ok "which keeps the kernel arguments as switched back"; else
         not_ok "the next start's arguments after the uninstall" "$(rpm-ostree kargs)"; fi
     same "the switches have nothing left in /etc" "$("${H}" managed)" ""
     watcher_quiet "everything back"
+    took
     reboot_and_continue
 fi
 
-# --- Phase 4: all as it was after a restart; locked for 18 hours -----------------------------------------------------
-if [[ "${SUITE_PHASE}" == 4 ]]; then
+# --- Phase 8: all as it was after a restart; locked for 18 hours --------------------------------------------------------
+if [[ "${SUITE_PHASE}" == 8 ]]; then
     no_new_failed
     same "the kernel's own io_uring and ptrace from this start" "$(sysctls | cut -d' ' -f1-2)" "0 1"
     same "the sensor records in the audit rules' place again" "$(sensor_watches) $(systemctl is-active amethystora-sensor.service)" "sensor active"
@@ -662,9 +696,10 @@ if [[ "${SUITE_PHASE}" == 4 ]]; then
     same "and nothing layered" "$(layered)" ""
     same "every switch is as the image ships it" \
         "$("${H}" status --json | jq -c '[.[] | select(.state != .default) | .name] + [.[] | .arguments // [] | .[] | select(.state != .default) | .argument]')" "[]"
+    report_now
     same "and the report has no stricter setting to name" "$(record stricter)" null
     same "nothing of what the suite turned off is still said to be off" \
-        "$(/usr/libexec/amethystora-security-status --json | jq -c '[.. | objects | select(.switched_off? == true) | .id]')" \
+        "$(jq -c '[.. | objects | select(.switched_off? == true) | .id]' <<<"${REPORT}")" \
         "$(cat "${STATE}/off.base")"
 
     # --- Power off once every desktop session has stayed locked for 18 hours
@@ -681,11 +716,12 @@ if [[ "${SUITE_PHASE}" == 4 ]]; then
     # 18 hours and a minute ago, as the timer's next run would find it
     echo "$(($(date +%s) - 18 * 3600 - 60))" >/run/amethystora/locked-since
     systemd-run --quiet --unit=vmlab-locked-poweroff --on-active=40s systemctl start amethystora-locked-poweroff.service
+    took
     next_boot '{"powers_off": true}'
     reboot_and_continue
 fi
 
-# --- Phase 5: started again ----------------------------------------------------------------------------------------
+# --- Phase 9: started again ---------------------------------------------------------------------------------------
 said="$(journalctl -b -1 -u amethystora-locked-poweroff.service --no-pager -o cat | grep 'powering off')"
 if [[ -n "${said}" ]]; then ok "the machine powered itself off: ${said}"; else
     not_ok "locked-poweroff did not power the machine off" "$(journalctl -b -1 -u amethystora-locked-poweroff.service --no-pager -o cat | tail -n 5)"; fi
@@ -697,4 +733,5 @@ nmcli connection delete vmlab-fw >/dev/null 2>&1
 systemctl stop vmlab-ports.service 2>/dev/null
 ip netns delete "${NS}" 2>/dev/null
 watcher_quiet "after the power off"
+took
 finish
