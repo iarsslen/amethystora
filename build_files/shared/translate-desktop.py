@@ -18,14 +18,16 @@ import sys
 ROOT = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else "/")
 APPS = ["amethystora-manual", "amethystora-security", "amethystora-update", "amethystora-logs", "amethystora-notes",
         "amethystora-control", "amethystora-backups"]
+# Launchers of no app of their own, with the app whose catalogs hold their words
+OTHERS = {"amethystora-private-folder": "amethystora-security"}
 KEYS = ("Name", "GenericName", "Comment", "Keywords")
 LOCALIZED = re.compile(r"^(Name|GenericName|Comment|Keywords)\[")
 
-for app in APPS:
+for app, owner in [(app, app) for app in APPS] + list(OTHERS.items()):
     desktop = ROOT / "usr/share/applications" / f"{app}.desktop"
     catalogs = {
         catalog.stem: json.loads(catalog.read_text(encoding="utf-8"))
-        for catalog in sorted((ROOT / "usr/lib" / app / "resources/app/locale").glob("*.json"))
+        for catalog in sorted((ROOT / "usr/lib" / owner / "resources/app/locale").glob("*.json"))
         if catalog.stem != "en"
     }
     lines = []

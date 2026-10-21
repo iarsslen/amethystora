@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Private Folder
+Comment=Your encrypted folder, which closes whenever the screen locks
+Exec=/usr/libexec/amethystora-private-folder open --show
+Icon=folder-locked
+Terminal=false
+Categories=System;Security;
+Keywords=private;encrypted;encryption;vault;safe;secret;folder;
+Actions=close;
+
+[Desktop Action close]
+Name=Close Now
+Exec=/usr/libexec/amethystora-private-folder close

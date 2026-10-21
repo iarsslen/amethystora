@@ -1378,10 +1378,28 @@ elif [[ "${TPM_PIN}" == false ]]; then
         "$(gettext "Set it up again with a PIN:")"
 fi
 
-if systemctl is-enabled --quiet usbguard.service 2>/dev/null; then USB=on; else USB=off; fi
+# Two modes. The one that blocks only while the screen is locked is GNOME's, through USBGuard's D-Bus
+# service, and counts whenever that service may run: unmasked by hand under the other mode, it would let
+# every new device through while the screen is unlocked (ame security usb)
+USB_DBUS="$(systemctl is-enabled usbguard-dbus.service 2>/dev/null)"
+if ! systemctl is-enabled --quiet usbguard.service 2>/dev/null; then
+    USB=off
+    USB_TEXT="$(gettext "Blocks new USB devices while the screen is locked, or every new one until you allow it")"
+elif [[ "${USB_DBUS}" == masked* || "${USB_DBUS}" == not-found || -z "${USB_DBUS}" ]]; then
+    USB=on
+    USB_TEXT="$(gettext "Allows what is plugged in now, and blocks any new USB device until you allow it")"
+else
+    USB=on
+    USB_TEXT="$(gettext "Blocks new USB devices while the screen is locked; a plain keyboard or mouse still works, so that you can unlock")"
+fi
 COMMAND="ame security usb"
-report optional usb-protection "${USB}" "$(gettext "USB protection")" \
-    "$(gettext "Allows what is plugged in now, and blocks any new USB device until you allow it")"
+report optional usb-protection "${USB}" "$(gettext "USB protection")" "${USB_TEXT}"
+
+# This account's own, in its home (amethystora-private-folder)
+if [[ -f "${HOME}/.local/share/amethystora/private/gocryptfs.conf" ]]; then PRIVATE=on; else PRIVATE=off; fi
+COMMAND="ame security private-folder"
+report optional private-folder "${PRIVATE}" "$(gettext "Private folder")" \
+    "$(gettext "A folder in your home, Private, encrypted on its own and closed whenever the screen locks")"
 
 COMMAND="ame security browser"
 report optional browser-protection "$(/usr/libexec/amethystora-browser-policy status)" "$(gettext "Browser protection")" \

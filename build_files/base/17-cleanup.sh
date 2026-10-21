@@ -68,6 +68,11 @@ systemctl disable input-remapper.service
 # schedulers, which replace the kernel's own (ame system scheduler)
 systemctl disable waydroid-container.service
 systemctl disable scx_loader.service
+# USBGuard's D-Bus service, masked, not disabled: D-Bus activation would start it, it would start USBGuard
+# with whatever rules are there, and GNOME's plugin in every session would add a rule that allows every new
+# device while the screen is unlocked, which undoes `ame security usb on`. Only `ame security usb locked`
+# unmasks it.
+systemctl mask usbguard-dbus.service
 systemctl enable rpm-ostree-countme.service
 systemctl enable tailscaled.service
 systemctl enable amethystora-system-setup.service

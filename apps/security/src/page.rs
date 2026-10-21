@@ -509,6 +509,7 @@ fn tile_icon(id: &str) -> &'static str {
         "ransomware-protection" => "history",
         "disk-unlock" => "chip",
         "usb-protection" => "plug",
+        "private-folder" => "folder",
         "browser-protection" => "monitor",
         "site-checking" => "scan",
         "key-remapping" => "keyboard",

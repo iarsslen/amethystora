@@ -1827,6 +1827,36 @@ grep -qx 'BindReadOnlyPaths=/usr/lib/amethystora/kconfig:/boot' \
 # Same for USB protection, which blocks every device that was not present when it was set up: useless
 # as a default, because the first boot would block the keyboard nobody had allowed yet
 [[ "$(systemctl is-enabled usbguard.service 2>/dev/null)" == "enabled" ]] && false
+# Its lock-screen mode (ame security usb locked) is GNOME's, through USBGuard's D-Bus service, which stays
+# masked otherwise: D-Bus would start it, and every session's plugin would then allow each new device while
+# the screen is unlocked, under `on` too. The polkit rule grants the plugin its three calls and no other, and
+# the GNOME keys it reads are set and locked, so that no account turns it off from Settings.
+rpm -q usbguard-dbus >/dev/null
+[[ "$(systemctl is-enabled usbguard-dbus.service 2>/dev/null)" == masked ]]
+USB_RULE=/usr/share/polkit-1/rules.d/50-amethystora-usb-lockscreen.rules
+[[ "$(grep -v '^//' "${USB_RULE}" | grep -o 'org\.usbguard[A-Za-z0-9.]*' | sort | paste -sd ' ')" == \
+    "org.usbguard.Devices1.applyDevicePolicy org.usbguard.Policy1.appendRule org.usbguard1.setParameter" ]]
+grep -v '^//' "${USB_RULE}" | grep -q 'subject.local && subject.active'
+grep -qx 'usb-protection=true' /etc/dconf/db/distro.d/07-amethystora-usb-protection
+grep -qx "usb-protection-level='lockscreen'" /etc/dconf/db/distro.d/07-amethystora-usb-protection
+grep -qx /org/gnome/desktop/privacy/usb-protection /etc/dconf/db/distro.d/locks/02-amethystora-usb-protection
+grep -qx /org/gnome/desktop/privacy/usb-protection-level /etc/dconf/db/distro.d/locks/02-amethystora-usb-protection
+/usr/libexec/amethystora-security-status --json |
+    jq -e 'any(.checks[]; .id == "usb-protection" and .state == "off")' >/dev/null
+# The private folder that closes when the screen locks (ame security private-folder), an account's own and
+# none as the image ships: gocryptfs, one helper, and a watcher that nothing enables, which a desktop session's
+# end stops and which closes the folder however it ends
+rpm -q gocryptfs >/dev/null
+test -x /usr/libexec/amethystora-private-folder
+grep -q "^private-folder " /usr/share/amethystora/just/security.just
+PRIVATE_UNIT=/usr/lib/systemd/user/amethystora-private-folder-watch.service
+grep -q '^\[Install\]' "${PRIVATE_UNIT}" && false
+grep -qx 'PartOf=graphical-session.target' "${PRIVATE_UNIT}"
+grep -qx 'ExecStopPost=/usr/libexec/amethystora-private-folder close' "${PRIVATE_UNIT}"
+command -v desktop-file-validate >/dev/null && desktop-file-validate /usr/share/applications/amethystora-private-folder.desktop
+/usr/libexec/amethystora-security-status --json |
+    jq -e 'any(.checks[]; .id == "private-folder" and .state == "off")' >/dev/null
+bash /ctx/build_files/shared/test-private-folder.sh
 # And for browser protection, the extension list and the block on web pages reaching hardware. The
 # image ships Firefox unaltered, so the policy is only data here, and `ame security browser`
 # writes it on the machine that asks: for Chromium-based browsers and for Firefox, each in its own

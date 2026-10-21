@@ -1,0 +1,17 @@
+[Unit]
+Description=Close the private folder when the screen locks
+Documentation=file:///usr/share/amethystora/manual/security.md
+# Started by amethystora-private-folder open, before the folder is mounted, and only in a desktop session,
+# whose lock screen it watches; logging out stops it
+PartOf=graphical-session.target
+Requisite=graphical-session.target
+After=graphical-session.target
+
+# However it ends, closed, crashed or killed, the folder closes with it. It is ready once it listens and has
+# seen the screen unlocked, which systemd-notify, a child of the script, says.
+[Service]
+Type=notify
+NotifyAccess=all
+TimeoutStartSec=30
+ExecStart=/usr/libexec/amethystora-private-folder watch
+ExecStopPost=/usr/libexec/amethystora-private-folder close

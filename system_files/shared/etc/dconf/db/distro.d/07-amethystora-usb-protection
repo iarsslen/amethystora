@@ -1,0 +1,8 @@
+# GNOME's USB protection, as lock-screen USB protection (ame security usb locked) has it: new devices
+# blocked while the screen is locked, and nothing more. It does anything only while USBGuard's D-Bus
+# service runs, which is only in that mode; the keys are locked (locks/02-amethystora-usb-protection), so
+# that no account turns the machine's protection off from Settings and it stays in Security.
+
+[org/gnome/desktop/privacy]
+usb-protection=true
+usb-protection-level='lockscreen'

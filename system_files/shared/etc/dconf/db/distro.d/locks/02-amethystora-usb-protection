@@ -1,0 +1,3 @@
+# Lock-screen USB protection is switched in Security (ame security usb), for the whole machine
+/org/gnome/desktop/privacy/usb-protection
+/org/gnome/desktop/privacy/usb-protection-level

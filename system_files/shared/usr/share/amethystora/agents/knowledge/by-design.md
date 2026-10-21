@@ -31,7 +31,9 @@ in at the screen but not over SSH or for another account. Confirm: the device's 
 ### USB devices plugged in later are refused (only with USBGuard on)
 
 Symptom: a new USB device does nothing. Confirm: `systemctl is-active usbguard.service`, `usbguard
-list-devices` (root). Change: `ame security usb` lets the user allow it; off as the image ships.
+list-devices` (root); with `usbguard-dbus.service` not masked, the mode is `locked`, which blocks only what
+is plugged in while the screen is locked. Change: `ame security usb` lets the user allow it; off as the
+image ships.
 
 ### Rarely used kernel modules do not load
 

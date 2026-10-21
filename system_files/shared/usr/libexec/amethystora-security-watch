@@ -1280,7 +1280,7 @@ SHADOWED=(sysctl.d:/usr/lib/sysctl.d modprobe.d:/usr/lib/modprobe.d modules-load
     tmpfiles.d:/usr/lib/tmpfiles.d udev/rules.d:/usr/lib/udev/rules.d firewalld/zones:/usr/lib/firewalld/zones
     polkit-1/rules.d:/usr/share/polkit-1/rules.d systemd/system:/usr/lib/systemd/system)
 # ...and for systemd, only the units the security of the machine rests on
-SECURITY_UNITS='^(auditd|fail2ban|firewalld|clamd@.*|clamav-.*|amethystora-.*|uupd.*|usbguard|rpm-ostreed.*|bootc-.*|polkit|systemd-journald)\.(service|timer|socket)$'
+SECURITY_UNITS='^(auditd|fail2ban|firewalld|clamd@.*|clamav-.*|amethystora-.*|uupd.*|usbguard(-dbus)?|rpm-ostreed.*|bootc-.*|polkit|systemd-journald)\.(service|timer|socket)$'
 
 # One "change<TAB>path<TAB>detail" a line: added, changed, removed, replaces, overrides or masks
 drift() {

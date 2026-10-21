@@ -1164,24 +1164,63 @@ input-remapper ACTION="":
         *) exit 0 ;;
     esac
 
-# Refuse USB devices that were not plugged in when this was set up, against keyloggers and keystroke injectors
+# Refuse USB devices plugged in while the screen is locked, or any not plugged in at setup, against keyloggers and keystroke injectors
 [positional-arguments]
 usb ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
     action="${1:-}"
-    if systemctl is-enabled --quiet usbguard.service 2>/dev/null; then
-        echo "USB protection is on. Devices allowed so far:"
+    # Locked whenever USBGuard's D-Bus service may run, as the report counts it: unmasked by hand under "on",
+    # GNOME's plugin would let every new device through while the screen is unlocked
+    dbus="$(systemctl is-enabled usbguard-dbus.service 2>/dev/null || true)"
+    if ! systemctl is-enabled --quiet usbguard.service 2>/dev/null; then
+        mode=off
+        echo "USB protection is off: any USB device plugged in is trusted."
+    elif [[ "${dbus}" == masked* || "${dbus}" == not-found || -z "${dbus}" ]]; then
+        mode=on
+        echo "USB protection is on: a new USB device is blocked until you allow it. Devices allowed so far:"
         sudo usbguard list-devices --allowed | sed 's/^/  /'
     else
-        echo "USB protection is off: any USB device plugged in is trusted."
+        mode=locked
+        echo "USB protection is on while the screen is locked: a USB device plugged in then is blocked."
     fi
+    # GNOME's part stopped and masked, so that nothing starts it again (17-cleanup.sh). A masked unit keeps
+    # the links that enabled it, so it is disabled first.
+    dbus_off() {
+        if [[ "$(systemctl is-enabled usbguard-dbus.service 2>/dev/null)" != masked ]]; then
+            sudo systemctl disable --now usbguard-dbus.service
+        fi
+        sudo systemctl mask usbguard-dbus.service
+    }
     if [[ -z "${action}" ]]; then
         action="$(gum choose --header "USB protection (USBGuard)" \
-            "Turn on" "Allow a blocked device" "Turn off" "Cancel")"
+            "Block new devices only while the screen is locked" "Block every new device until I allow it" \
+            "Allow a blocked device" "Turn off" "Cancel")"
     fi
     case "${action}" in
-        "Turn on" | on)
+        "Block new devices only while the screen is locked" | locked)
+            echo
+            echo "A USB device can say it is a keyboard and type by itself. While the screen is locked, a"
+            echo "USB device plugged in is blocked, so that nobody can plug one into a locked machine:"
+            echo "  - a plain keyboard or mouse still works, so that you can unlock, with a notification;"
+            echo "  - anything else is blocked: a USB stick, a network adapter, a keyboard that is also"
+            echo "    something else. Plug it in again once you have unlocked, and it works."
+            echo "What is plugged in at boot, and what you plug in while the screen is unlocked, works as"
+            echo "before. The login screen, and another account's unlocked session, count as unlocked."
+            gum confirm "Block new USB devices while the screen is locked?" || exit 0
+            # One rule, which allows every device: GNOME blocks what is new only while the screen is locked
+            echo 'allow id *:* label "amethystora-usb-locked"' | sudo tee /etc/usbguard/rules.conf >/dev/null
+            sudo chmod 0600 /etc/usbguard/rules.conf
+            sudo sed -i -E 's|^#?IPCAllowedGroups=.*|IPCAllowedGroups=wheel|' /etc/usbguard/usbguard-daemon.conf
+            sudo /usr/libexec/amethystora-security-config note usb-protection locked
+            sudo systemctl unmask usbguard-dbus.service
+            sudo systemctl enable usbguard.service usbguard-dbus.service
+            sudo systemctl restart usbguard.service
+            sudo systemctl start usbguard-dbus.service
+            echo
+            echo "On. A USB device plugged in while the screen is locked is blocked."
+            ;;
+        "Block every new device until I allow it" | on)
             echo
             echo "A USB device can say it is a keyboard and type by itself, and a keylogger can sit"
             echo "between a real keyboard and this machine. USBGuard blocks anything that was not"
@@ -1190,13 +1229,17 @@ usb ACTION="":
             echo "Plug in everything you use first - keyboard, mouse, dock, webcam, headset, security"
             echo "keys. What is connected now is what gets allowed."
             gum confirm "Everything plugged in?" || exit 0
+            # Before the policy, so that no session's plugin adds its rule that allows every new device
+            dbus_off
             # Built from what is connected right now, so the keyboard running this command is allowed
             usbguard generate-policy | sudo tee /etc/usbguard/rules.conf >/dev/null
             sudo chmod 0600 /etc/usbguard/rules.conf
             # Without this only root could list or allow a device, and the prompt below would not work
             sudo sed -i -E 's|^#?IPCAllowedGroups=.*|IPCAllowedGroups=wheel|' /etc/usbguard/usbguard-daemon.conf
             sudo /usr/libexec/amethystora-security-config note usb-protection on
-            sudo systemctl enable --now usbguard.service
+            sudo systemctl enable usbguard.service
+            # Restarted rather than started: a rule a session added while the screen-lock mode was on goes
+            sudo systemctl restart usbguard.service
             echo
             echo "On. A USB device plugged in from now on is blocked until you allow it here."
             ;;
@@ -1205,6 +1248,9 @@ usb ACTION="":
                 echo "USB protection is off, so nothing is being blocked."
                 exit 1
             fi
+            if [[ "${mode}" == locked ]]; then
+                echo "A device blocked while the screen was locked works once you plug it in again."
+            fi
             blocked="$(sudo usbguard list-devices --blocked)"
             if [[ -z "${blocked}" ]]; then
                 echo "Nothing is blocked."
@@ -1212,15 +1258,45 @@ usb ACTION="":
             fi
             choice="$(gum choose --header "Allow which device?" --height 12 <<<"${blocked}")"
             [[ -n "${choice}" ]] || exit 0
-            # -p writes it into the rules, so the device is still allowed after a reboot
-            sudo usbguard allow-device -p "${choice%%:*}"
-            echo "Allowed, now and after a reboot."
+            if [[ "${mode}" == locked ]]; then
+                sudo usbguard allow-device "${choice%%:*}"
+                echo "Allowed."
+            else
+                # -p writes it into the rules, so the device is still allowed after a reboot
+                sudo usbguard allow-device -p "${choice%%:*}"
+                echo "Allowed, now and after a reboot."
+            fi
             ;;
         "Turn off" | off)
             sudo /usr/libexec/amethystora-security-config note usb-protection off
+            dbus_off
             sudo systemctl disable --now usbguard.service
             echo "Off. Every USB device is trusted again."
             ;;
+        *) exit 0 ;;
+    esac
+
+# A folder in your home, Private, encrypted on its own, which closes whenever the screen locks
+[positional-arguments]
+private-folder ACTION="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    helper=/usr/libexec/amethystora-private-folder
+    action="${1:-}"
+    "${helper}" status
+    if [[ -z "${action}" ]]; then
+        case "$("${helper}" status --json | jq -r .state)" in
+            none) action="$(gum choose --header "Private folder" "Make one" "Cancel")" ;;
+            closed) action="$(gum choose --header "Private folder" "Open" "Change its password" "Take it away" "Cancel")" ;;
+            *) action="$(gum choose --header "Private folder" "Close" "Change its password" "Take it away" "Cancel")" ;;
+        esac
+    fi
+    case "${action}" in
+        "Make one" | create) exec "${helper}" create ;;
+        "Open" | open) exec "${helper}" open --show ;;
+        "Close" | close) exec "${helper}" close ;;
+        "Change its password" | password) exec "${helper}" password ;;
+        "Take it away" | remove) exec "${helper}" remove ;;
         *) exit 0 ;;
     esac
 

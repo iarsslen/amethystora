@@ -145,7 +145,8 @@ const DATA = {
         ...JSON.parse(fs.readFileSync(path.join(root, 'usr/share/amethystora/manual/pages.json'), 'utf8')).map((group) => group.section),
         ...launcher('amethystora-manual'),
     ],
-    'amethystora-security': () => launcher('amethystora-security'),
+    // ...and the private folder's, which has no app of its own (translate-desktop.py's OTHERS)
+    'amethystora-security': () => [...launcher('amethystora-security'), ...launcher('amethystora-private-folder')],
     'amethystora-update': () => launcher('amethystora-update'),
     'amethystora-logs': () => launcher('amethystora-logs'),
     'amethystora-notes': () => launcher('amethystora-notes'),
@@ -295,7 +296,7 @@ for (const app of APPS) {
 const SHELL = ['usr/libexec/amethystora-security-status', 'usr/libexec/amethystora-app-permissions', 'usr/libexec/amethystora-layout-offer',
     'usr/libexec/amethystora-control-list', 'usr/libexec/amethystora-security-config', 'usr/libexec/amethystora-hardening',
     'usr/libexec/amethystora-home-networks-notice', 'usr/libexec/amethystora-deja-dup-notice',
-    'usr/libexec/amethystora-agentic-off-notice'];
+    'usr/libexec/amethystora-agentic-off-notice', 'usr/libexec/amethystora-private-folder'];
 
 // A shell word in quotes, as the program it is passed to receives it
 function unshell(word) {

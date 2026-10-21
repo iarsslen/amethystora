@@ -1,0 +1,16 @@
+// Lock-screen USB protection (ame security usb locked) is GNOME's: the USB protection plugin of
+// gnome-settings-daemon, in each session on the screen and at the login screen, tells USBGuard to block new
+// devices when the screen locks and to allow them again when it unlocks, and lets a plain keyboard or mouse
+// through while locked. It asks USBGuard without a password prompt, and USBGuard's own policy wants an
+// administrator for these three calls, so without this rule nothing would happen. They are granted to the
+// person at the machine only, and nothing else is: not removeRule. While USBGuard's D-Bus service is masked,
+// as in every mode but `locked`, there is nothing to call.
+polkit.addRule(function (action, subject) {
+    if ((action.id == "org.usbguard1.setParameter" ||
+         action.id == "org.usbguard.Policy1.appendRule" ||
+         action.id == "org.usbguard.Devices1.applyDevicePolicy") &&
+        subject.local && subject.active) {
+        return polkit.Result.YES;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

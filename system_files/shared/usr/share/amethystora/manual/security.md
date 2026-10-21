@@ -693,9 +693,73 @@ ame security usb
 ```
 
 A USB device can claim to be a keyboard and type by itself, and a hardware keylogger can sit
-between a real keyboard and the machine. USB protection allows what is connected when you set it up
-and blocks anything new until you allow it with `ame security usb allow`. It is off by
-default, because a machine that blocked its own keyboard on first boot would be unusable.
+between a real keyboard and the machine. USB protection has two modes. It is off by default, because
+a machine that blocked its own keyboard on first boot would be unusable.
+
+**While the screen is locked** (`ame security usb locked`). A USB device plugged in while the screen
+is locked is blocked, so that nobody can plug one into a machine left locked. What is plugged in at
+boot works, and so does what you plug in while the screen is unlocked. While it is locked:
+
+- a plain keyboard or mouse still works, so that you can type your password, and a notification
+  says so;
+- anything else stays blocked: a USB stick, a network adapter, a keyboard that is also something
+  else (many gaming keyboards are). A notification says to plug it in again once you have unlocked,
+  and then it works;
+- a laptop's own built-in devices always work.
+
+The login screen counts as unlocked, and so does another account's unlocked session on the screen:
+a device plugged in there works. GNOME does the blocking, and the USB protection setting under
+**Privacy** in Settings shows it, greyed out, since it is switched here for the whole machine. If
+GNOME's part is not running, new devices are let in as when the screen is unlocked. A dock whose
+devices come back as new after sleep may need plugging in again. A program running as you in your
+session could turn this mode off, as it could do anything else you can.
+
+**Every new device** (`ame security usb on`). USB protection allows what is connected when you set
+it up and blocks anything new, locked or not, until you allow it with `ame security usb allow`.
+
+### A private folder that locks with the screen
+
+```bash
+ame security private-folder
+```
+
+A folder in your home, **Private**, whose files are encrypted on their own, with a password of their
+own. It closes whenever the screen locks, before the computer sleeps and when you log out, and its
+key leaves memory then. The rest of your home stays readable to anyone who gets at the computer while
+it is on, locked or not, since the disk's own key has to stay in memory for the system to run; this
+folder, while it is closed, does not.
+
+- **Making it:** `ame security private-folder create` asks for its password twice, then shows a
+  recovery key, once. Write the key down and keep it away from the computer: it is the only way
+  back in without the password.
+- **Opening it:** **Private Folder** in the app grid asks for its password and shows it in Files,
+  whose sidebar has it too; in a terminal, `ame security private-folder open`. While it is closed
+  it is empty, and nothing can be saved in it.
+- **Closing it yourself:** **Close Now**, from the right-click menu of **Private Folder** in the
+  app grid, or `ame security private-folder close`.
+- **A new password:** `ame security private-folder password`, with the old password or with the
+  recovery key. Nothing is copied: only the password that opens the files changes.
+- **Taking it away:** `ame security private-folder remove` takes away an empty folder, once you
+  type `REMOVE`. It never deletes files: move them out first.
+
+What it does not cover:
+
+- **Copies made elsewhere.** A program's own autosaves and backups (LibreOffice's backup folder, an
+  editor's swap files), a download saved straight into Downloads, screenshots and the clipboard are
+  outside it. When it closes, the thumbnails of its pictures and its files' places in the lists of
+  recent files are taken away.
+- **Files open when the screen locks.** It closes without waiting: a program with a file open in it
+  can no longer read or save that file, and keeps what it had not saved in its window. A
+  notification names the programs. Unlock, open the folder and save again.
+- **Flatpak apps.** An app allowed your whole home sees the folder while it is open; the others reach
+  its files only through the file chooser.
+- **What the encrypted copy shows.** The copy in `~/.local/share/amethystora/private` shows how large
+  each file is and how its folders are arranged, but no names and no contents.
+- **Backups and snapshots** hold only that encrypted copy: [the backup](#backups) never copies the
+  open folder, and [the hourly snapshots](#ransomware-protection) hold the same encrypted copy.
+  Putting it back needs the password or the recovery key.
+- **While it is open,** a program running as you can read it, or encrypt it like any other folder;
+  the snapshots keep the copy from before.
 
 ### Browser protection
 

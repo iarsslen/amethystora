@@ -1,0 +1,392 @@
+#!/usr/bin/bash
+# The private folder (ame security private-folder): ~/Private, encrypted on its own by gocryptfs into
+# ~/.local/share/amethystora/private, and closed whenever the screen locks, before the machine sleeps and at
+# logout, so that its key is out of memory then. The one place the folder is handled. It runs as the account
+# itself, never as root.
+#
+#   amethystora-private-folder status [--json]   none, closed or open
+#   amethystora-private-folder create            make it, in a terminal: its password, and its recovery key shown once
+#   amethystora-private-folder open [--show]     open it, asking for its own password (in a terminal, or in a
+#                                                dialog), and with --show show it in Files
+#   amethystora-private-folder close             close it, and take away the thumbnails and recent files of what is in it
+#   amethystora-private-folder password          its password changed, with the old one or the recovery key, in a terminal
+#   amethystora-private-folder remove            an empty folder taken away, in a terminal
+#   amethystora-private-folder watch             amethystora-private-folder-watch.service: closes it when the screen
+#                                                locks or the machine is about to sleep, or when it cannot watch
+#
+# The folder is never open without the watcher: open starts it first and stops at once if it cannot, and the
+# unit closes the folder however it ends (ExecStopPost). The password goes from gocryptfs's own prompt or
+# from the dialog straight into gocryptfs, never into a variable, an argument or a file. gocryptfs runs in a
+# scope of its own, amethystora-private-folder.scope, which closing stops: gocryptfs unmounts as it ends,
+# lazily when something still has a file open, and its key goes with it.
+
+set -uo pipefail
+
+export TEXTDOMAIN=amethystora
+# shellcheck source=/dev/null
+source gettext.sh
+
+PLAIN="${HOME}/Private"
+CIPHER="${HOME}/.local/share/amethystora/private"
+SCOPE=amethystora-private-folder.scope
+WATCH=amethystora-private-folder-watch.service
+BOOKMARKS="${HOME}/.config/gtk-3.0/bookmarks"
+
+# A paragraph on the terminal, folded to its width
+say() { fold -s -w 88 <<<"$1" | sed 's/ *$//'; }
+# What went wrong, on the terminal, or in a dialog when there is none (the launcher)
+fail() {
+    if [[ -t 2 ]]; then
+        printf '%s\n' "$*" >&2
+    else
+        zenity --error --title="$(gettext "Private Folder")" --text="$*" 2>/dev/null
+    fi
+    exit 1
+}
+need_terminal() { [[ -t 0 && -t 1 ]] || fail "$(gettext "This asks questions: run it in a terminal.")"; }
+
+exists() { [[ -f "${CIPHER}/gocryptfs.conf" ]]; }
+mounted() { findmnt -rn -M "${PLAIN}" >/dev/null 2>&1; }
+# Open and answering: a mount whose gocryptfs ended answers "transport endpoint is not connected"
+open_now() { mounted && stat -- "${PLAIN}/." >/dev/null 2>&1 && systemctl --user is-active --quiet "${SCOPE}"; }
+# What is in the mount point while the folder is closed: plain files, not encrypted
+loose() { find "${PLAIN}" -mindepth 1 -maxdepth 1 -printf '  %P\n' 2>/dev/null | head -n 20; }
+uri() { python3 -I -c 'import pathlib, sys; print(pathlib.Path(sys.argv[1]).as_uri())' "$1"; }
+# Closed, the mount point takes nothing, so that no program saves a plain file there believing it encrypted;
+# fusermount3 mounts only on a folder its owner can write to
+seal() { exists && [[ -d "${PLAIN}" ]] && ! mounted && chmod 0500 "${PLAIN}" 2>/dev/null; }
+
+state() {
+    if ! exists; then
+        echo none
+    elif open_now; then
+        echo open
+    else
+        echo closed
+    fi
+}
+
+status() {
+    if [[ "${1:-}" == --json ]]; then
+        jq -nc --arg state "$(state)" --arg folder "${PLAIN}" --arg encrypted "${CIPHER}" '{$state, $folder, $encrypted}'
+        return
+    fi
+    case "$(state)" in
+        none) say "$(gettext "There is no private folder. Make one with: ame security private-folder create")" ;;
+        open) say "$(eval_gettext "The private folder is open, at \${PLAIN}. It closes when the screen locks.")" ;;
+        closed) say "$(gettext "The private folder is closed. Open it with: ame security private-folder open")" ;;
+    esac
+}
+
+# --- Closing ------------------------------------------------------------------------------------------------
+
+# This account's programs with a file, or their working folder, in the folder, by name, one a line. Read from
+# /proc by find alone, since closing has to be quick: the machine waits for it before it sleeps.
+holders() {
+    local real
+    real="$(realpath -m -- "${PLAIN}")"
+    find /proc/[0-9]*/cwd /proc/[0-9]*/fd -maxdepth 1 \( -lname "${real}" -o -lname "${real}/*" \) -print 2>/dev/null |
+        cut -d/ -f3 | sort -un | while read -r pid; do
+            [[ "${pid}" == "$$" ]] || cat "/proc/${pid}/comm" 2>/dev/null
+        done | sort -u
+}
+
+# The pictures of its files that file managers and viewers keep, which would show what was in it: every
+# thumbnail whose Thumb::URI is inside the folder, under /var/home or /home alike, the host's and each
+# Flatpak app's
+forget_thumbnails() {
+    local -a args=(-e "$1/")
+    [[ "$1" == file:///var/home/* ]] && args+=(-e "file:///home/${1#file:///var/home/}/")
+    find "${HOME}/.cache/thumbnails" "${HOME}"/.var/app/*/cache/thumbnails -type f -name '*.png' -print0 2>/dev/null |
+        xargs -0 -r grep -lZ --binary-files=text -F "${args[@]}" -- 2>/dev/null |
+        xargs -0 -r rm -f --
+}
+
+# ...and the entries for its files in the lists of recent files, written back with everything else as it was
+forget_recent() {
+    local list
+    for list in "${HOME}/.local/share/recently-used.xbel" "${HOME}"/.var/app/*/data/recently-used.xbel; do
+        [[ -f "${list}" && ! -L "${list}" ]] || continue
+        python3 -I - "${list}" "$1" <<'PY'
+import os
+import sys
+import xml.etree.ElementTree as ET
+
+path, folder = sys.argv[1], sys.argv[2]
+prefixes = [folder]
+if folder.startswith("file:///var/home/"):
+    prefixes.append("file:///home/" + folder[len("file:///var/home/"):])
+# The file's own namespace prefixes, so that bookmark: and mime: are written back as they were
+for _, (prefix, uri) in ET.iterparse(path, events=["start-ns"]):
+    ET.register_namespace(prefix, uri)
+tree = ET.parse(path)
+root = tree.getroot()
+gone = [b for b in root.findall("bookmark")
+        if any(b.get("href", "") == p or b.get("href", "").startswith(p + "/") for p in prefixes)]
+if not gone:
+    sys.exit(0)
+for bookmark in gone:
+    root.remove(bookmark)
+new = path + ".amethystora-new"
+tree.write(new, encoding="UTF-8", xml_declaration=True)
+os.chmod(new, os.stat(path).st_mode & 0o7777)
+os.replace(new, path)
+PY
+    done
+}
+
+# The folder closed, whatever closes it
+shut() {
+    local programs folder_uri PROGRAMS body
+    if ! mounted && ! systemctl --user is-active --quiet "${SCOPE}"; then
+        seal
+        return 0
+    fi
+    programs="$(holders | paste -sd ',' - | sed 's/,/, /g')"
+    # gocryptfs unmounts as it ends, lazily when something is busy, and is killed three seconds on
+    systemctl --user stop "${SCOPE}" 2>/dev/null
+    if mounted; then
+        fusermount3 -u -z "${PLAIN}" 2>/dev/null || fusermount -u -z "${PLAIN}" 2>/dev/null
+    fi
+    seal
+    folder_uri="$(uri "${PLAIN}")"
+    forget_thumbnails "${folder_uri}"
+    forget_recent "${folder_uri}"
+    if mounted; then
+        notify-send --app-name=Amethystora --icon=folder-locked --urgency=critical \
+            "$(gettext "The private folder could not be closed")" \
+            "$(gettext "Its files can still be read. Log out to close it.")" 2>/dev/null
+        return 1
+    fi
+    [[ -n "${programs}" ]] || return 0
+    # A program names itself, so its name is shown as text and nothing more
+    PROGRAMS="$(/usr/libexec/amethystora-security-text --markup --max 200 "${programs}")"
+    # Translators: PROGRAMS is a list of program names, such as "nautilus, gnome-text-editor"
+    body="$(eval_gettext "These programs had files open in it, and can no longer read them: \${PROGRAMS}. What they had not saved is still in their windows.")"
+
+    notify-send --app-name=Amethystora --icon=folder-locked "$(gettext "The private folder was closed")" "${body}" 2>/dev/null
+    return 0
+}
+
+# Closed by hand or from the launcher: the watcher stops first, and its ExecStopPost, which runs this too,
+# closes the folder; run as that ExecStopPost (systemd sets SERVICE_RESULT), it only closes
+close() {
+    [[ -n "${SERVICE_RESULT:-}" ]] || systemctl --user stop "${WATCH}" 2>/dev/null
+    shut
+}
+
+# --- Watching -----------------------------------------------------------------------------------------------
+
+# Until the screen locks or the machine is about to sleep, holding its sleep back until the folder is closed.
+# A monitor that ends, the screen saver gone or the bus, closes it too: if this cannot watch, the folder closes.
+watch() {
+    local line
+    systemd-inhibit --what=sleep --mode=delay --who="$(gettext "Private Folder")" \
+        --why="$(gettext "Closing the private folder")" sleep infinity &
+    # Read through a process substitution, which nothing waits for: the monitors are still running when the
+    # first lock is read, and end with the unit
+    while IFS= read -r line; do
+        case "${line}" in
+            *"ActiveChanged (true,)"* | *"PrepareForSleep (true,)"* | "(true,)" | ended) break ;;
+            # GNOME Shell gone, or never there: gdbus monitor says so and goes on waiting
+            *"does not have an owner"*) break ;;
+            # Listening, and the screen is unlocked: only now does open mount the folder (Type=notify)
+            "(false,)") systemd-notify --ready ;;
+        esac
+    done < <(
+        { gdbus monitor --session --dest org.gnome.ScreenSaver --object-path /org/gnome/ScreenSaver; echo ended; } &
+        { gdbus monitor --system --dest org.freedesktop.login1 --object-path /org/freedesktop/login1; echo ended; } &
+        # A screen locked already, once both listen
+        sleep 1
+        gdbus call --session --dest org.gnome.ScreenSaver --object-path /org/gnome/ScreenSaver \
+            --method org.gnome.ScreenSaver.GetActive 2>/dev/null || echo ended
+        wait
+    )
+    shut
+}
+
+# --- Opening ------------------------------------------------------------------------------------------------
+
+# One try: 0 opened, 12 the wrong password, 130 the dialog cancelled, anything else gocryptfs's own failure
+mount_once() {
+    local -a rc
+    systemctl --user reset-failed "${SCOPE}" 2>/dev/null
+    chmod 0700 "${PLAIN}"
+    if [[ -t 0 ]]; then
+        systemd-run --user --scope --collect --quiet --unit="${SCOPE}" -p TimeoutStopSec=3 -- \
+            gocryptfs -q "${CIPHER}" "${PLAIN}"
+        rc=("$?")
+    else
+        zenity --password --title="$(gettext "Open the private folder")" 2>/dev/null |
+            systemd-run --user --scope --collect --quiet --unit="${SCOPE}" -p TimeoutStopSec=3 -- \
+                gocryptfs -q "${CIPHER}" "${PLAIN}"
+        rc=("${PIPESTATUS[1]}" "${PIPESTATUS[0]}")
+    fi
+    if [[ "${rc[0]}" -ne 0 ]]; then
+        seal
+        [[ "${rc[1]:-0}" -ne 0 ]] && return 130
+    fi
+    return "${rc[0]}"
+}
+
+open() {
+    local show=false tries=0 rc files
+    [[ "${1:-}" == --show ]] && show=true
+    exists || fail "$(gettext "There is no private folder. Make one with: ame security private-folder create")"
+    if open_now; then
+        if [[ "${show}" == true ]]; then gio open "${PLAIN}"; else status; fi
+        return 0
+    fi
+    # What a gocryptfs that ended left behind
+    if mounted; then
+        fusermount3 -u -z "${PLAIN}" 2>/dev/null || fusermount -u -z "${PLAIN}" 2>/dev/null
+    fi
+    mkdir -p "${PLAIN}"
+    files="$(loose)"
+    if [[ -n "${files}" ]]; then
+        fail "$(gettext "Private has files in it while it is closed, so they are not encrypted:")
+${files}
+$(gettext "Move them somewhere else, open the folder, and move them into it then.")"
+    fi
+    # The watcher first: the folder is never open without it
+    if ! systemctl --user start "${WATCH}" 2>/dev/null || ! systemctl --user is-active --quiet "${WATCH}"; then
+        fail "$(gettext "The private folder cannot be opened now: the screen is locked, or nothing here can watch for it to lock.")"
+    fi
+    while :; do
+        mount_once
+        rc=$?
+        [[ "${rc}" -eq 0 ]] && break
+        if [[ "${rc}" -eq 12 ]] && ((++tries < 5)); then
+            if [[ -t 0 ]]; then
+                say "$(gettext "Wrong password. Try again.")"
+            else
+                zenity --error --title="$(gettext "Private Folder")" --text="$(gettext "Wrong password. Try again.")" 2>/dev/null
+            fi
+            continue
+        fi
+        # The watcher ended while it was asked for, and stopped gocryptfs: the screen locked
+        systemctl --user is-active --quiet "${WATCH}" || fail "$(gettext "The screen locked, so the private folder stays closed.")"
+        systemctl --user stop "${WATCH}" 2>/dev/null
+        [[ "${rc}" -eq 130 ]] && return 0
+        [[ "${rc}" -eq 12 ]] && fail "$(gettext "Wrong password.")"
+        fail "$(gettext "The private folder could not be opened.")"
+    done
+    # The screen locked while it was opening, and the watcher is gone: closed again
+    if ! systemctl --user is-active --quiet "${WATCH}"; then
+        shut
+        return 1
+    fi
+    [[ "${show}" == true ]] && gio open "${PLAIN}"
+    return 0
+}
+
+# --- Making, changing and taking away ------------------------------------------------------------------------
+
+create() {
+    need_terminal
+    exists && fail "$(gettext "There is a private folder already: ame security private-folder open")"
+    if [[ -e "${PLAIN}" && ! -d "${PLAIN}" ]] || [[ -n "$(loose)" ]]; then
+        fail "$(eval_gettext "\${PLAIN} is there already, and not an empty folder. Move what is in it somewhere else first.")"
+    fi
+    say "$(gettext "A folder in your home, Private, whose files are encrypted on their own, with a password of its own. It closes whenever the screen locks, before the computer sleeps and when you log out, and its key leaves memory then: someone who gets at the computer while it is locked, or takes it, cannot read it without the password. Open it again from Private Folder in the app grid.")"
+    echo
+    say "$(gettext "What it does not protect:")"
+    say "$(gettext "  - copies made elsewhere: a program's own autosaves and backups, downloads, screenshots, the clipboard;")"
+    say "$(gettext "  - a file open when the screen locks: the program that had it can no longer read it, and keeps what it had not saved in its window;")"
+    say "$(gettext "  - while it is open, any program running as you can read it, as it can read the rest of your home.")"
+    say "$(gettext "The encrypted copy, which backups and snapshots hold, shows the size of each file and the folders' shape, but no names and no contents.")"
+    echo
+    say "$(gettext "Choose its password next. Then a recovery key is shown, once: it is the only way back in without the password. Write it down and keep it somewhere safe, away from the computer.")"
+    echo
+    gum confirm "$(gettext "Make the private folder?")" || exit 0
+    mkdir -p -m 0700 "${CIPHER}"
+    if ! gocryptfs -init "${CIPHER}"; then
+        rmdir "${CIPHER}" 2>/dev/null
+        fail "$(gettext "The private folder was not made.")"
+    fi
+    echo
+    read -r -p "$(gettext "Press Enter once you have written the recovery key down.") "
+    mkdir -p "${PLAIN}"
+    seal
+    mkdir -p "${BOOKMARKS%/*}"
+    grep -qxF "$(uri "${PLAIN}")" "${BOOKMARKS}" 2>/dev/null || uri "${PLAIN}" >>"${BOOKMARKS}"
+    echo
+    say "$(gettext "Made. Open it now with the password you chose.")"
+    open --show
+}
+
+password() {
+    local how check
+    need_terminal
+    exists || fail "$(gettext "There is no private folder. Make one with: ame security private-folder create")"
+    how="$(gum choose --header "$(gettext "Change the private folder's password")" \
+        "$(gettext "I know the password")" "$(gettext "I have the recovery key")" "$(gettext "Cancel")")"
+    case "${how}" in
+        "$(gettext "I know the password")") gocryptfs -passwd "${CIPHER}" || exit 1 ;;
+        # The key is typed at gocryptfs's own prompt, never on a command line
+        "$(gettext "I have the recovery key")") gocryptfs -passwd -masterkey=stdin "${CIPHER}" || exit 1 ;;
+        *) exit 0 ;;
+    esac
+    # With the recovery key, gocryptfs keeps the file with the old password beside the new one, until the new
+    # one is known to open the folder
+    if [[ -e "${CIPHER}/gocryptfs.conf.bak" ]]; then
+        check="$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/amethystora-private-check.XXXXXX")"
+        echo
+        say "$(gettext "Type the new password once more, to check that it opens the folder:")"
+        if gocryptfs -q -ro "${CIPHER}" "${check}"; then
+            fusermount3 -u "${check}"
+            rmdir "${check}"
+            rm -f "${CIPHER}/gocryptfs.conf.bak"
+        else
+            rmdir "${check}"
+            fail "$(gettext "The new password did not open it. The old one is kept beside it, in gocryptfs.conf.bak, until it does: run this again.")"
+        fi
+    fi
+    say "$(gettext "Changed. The files in it were not copied: only the password that opens them is new.")"
+}
+
+remove() {
+    local typed
+    need_terminal
+    exists || fail "$(gettext "There is no private folder.")"
+    say "$(gettext "It is opened first, to see that it is empty.")"
+    open || exit 1
+    if [[ -n "$(find "${PLAIN}" -mindepth 1 -print -quit 2>/dev/null)" ]]; then
+        close
+        fail "$(gettext "It is not empty. Move what is in it somewhere else first: nothing in it is ever deleted here.")"
+    fi
+    say "$(gettext "This takes the private folder away, with its encrypted copy and its password. Type REMOVE to go on:")"
+    read -r typed
+    if [[ "${typed}" != REMOVE ]]; then
+        close
+        say "$(gettext "Nothing was removed.")"
+        exit 0
+    fi
+    close || exit 1
+    rm -rf -- "${CIPHER}"
+    chmod 0700 "${PLAIN}" 2>/dev/null
+    rmdir -- "${PLAIN}" 2>/dev/null
+    if [[ -f "${BOOKMARKS}" ]]; then
+        grep -vxF "$(uri "${PLAIN}")" "${BOOKMARKS}" >"${BOOKMARKS}.new"
+        mv "${BOOKMARKS}.new" "${BOOKMARKS}"
+    fi
+    say "$(gettext "Removed.")"
+}
+
+[[ "$(id -u)" -ne 0 ]] || fail "$(gettext "The private folder is an account's own: run this as yourself, not as root.")"
+# Out of the folder, so that a closing started from inside it does not count itself among what held it open
+cd / || exit 1
+
+case "${1:-}" in
+    status) status "${2:-}" ;;
+    create) create ;;
+    open) open "${2:-}" ;;
+    close) close ;;
+    password) password ;;
+    remove) remove ;;
+    watch) watch ;;
+    *)
+        echo "usage: amethystora-private-folder status [--json] | create | open [--show] | close | password | remove | watch" >&2
+        exit 2
+        ;;
+esac

@@ -1555,11 +1555,27 @@ msgid "Set it up again with a PIN:"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
-msgid "USB protection"
+msgid "Blocks new USB devices while the screen is locked, or every new one until you allow it"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
 msgid "Allows what is plugged in now, and blocks any new USB device until you allow it"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Blocks new USB devices while the screen is locked; a plain keyboard or mouse still works, so that you can unlock"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "USB protection"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Private folder"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "A folder in your home, Private, encrypted on its own and closed whenever the screen locks"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -3426,4 +3442,188 @@ msgstr ""
 
 #: usr/libexec/amethystora-agentic-off-notice
 msgid "Turn it on in Control, AI agent, or with: ame agent toggle on"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Private Folder"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "This asks questions: run it in a terminal."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "There is no private folder. Make one with: ame security private-folder create"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+#, sh-format
+msgid "The private folder is open, at ${PLAIN}. It closes when the screen locks."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "The private folder is closed. Open it with: ame security private-folder open"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "The private folder could not be closed"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Its files can still be read. Log out to close it."
+msgstr ""
+
+#. Translators: PROGRAMS is a list of program names, such as "nautilus, gnome-text-editor"
+#: usr/libexec/amethystora-private-folder
+#, sh-format
+msgid "These programs had files open in it, and can no longer read them: ${PROGRAMS}. What they had not saved is still in their windows."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "The private folder was closed"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Closing the private folder"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Open the private folder"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Private has files in it while it is closed, so they are not encrypted:"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Move them somewhere else, open the folder, and move them into it then."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "The private folder cannot be opened now: the screen is locked, or nothing here can watch for it to lock."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Wrong password. Try again."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "The screen locked, so the private folder stays closed."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Wrong password."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "The private folder could not be opened."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "There is a private folder already: ame security private-folder open"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+#, sh-format
+msgid "${PLAIN} is there already, and not an empty folder. Move what is in it somewhere else first."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "A folder in your home, Private, whose files are encrypted on their own, with a password of its own. It closes whenever the screen locks, before the computer sleeps and when you log out, and its key leaves memory then: someone who gets at the computer while it is locked, or takes it, cannot read it without the password. Open it again from Private Folder in the app grid."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "What it does not protect:"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "  - copies made elsewhere: a program's own autosaves and backups, downloads, screenshots, the clipboard;"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "  - a file open when the screen locks: the program that had it can no longer read it, and keeps what it had not saved in its window;"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "  - while it is open, any program running as you can read it, as it can read the rest of your home."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "The encrypted copy, which backups and snapshots hold, shows the size of each file and the folders' shape, but no names and no contents."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Choose its password next. Then a recovery key is shown, once: it is the only way back in without the password. Write it down and keep it somewhere safe, away from the computer."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Make the private folder?"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "The private folder was not made."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Press Enter once you have written the recovery key down."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Made. Open it now with the password you chose."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Change the private folder's password"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "I know the password"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "I have the recovery key"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Cancel"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Type the new password once more, to check that it opens the folder:"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "The new password did not open it. The old one is kept beside it, in gocryptfs.conf.bak, until it does: run this again."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Changed. The files in it were not copied: only the password that opens them is new."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "There is no private folder."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "It is opened first, to see that it is empty."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "It is not empty. Move what is in it somewhere else first: nothing in it is ever deleted here."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "This takes the private folder away, with its encrypted copy and its password. Type REMOVE to go on:"
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Nothing was removed."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "Removed."
+msgstr ""
+
+#: usr/libexec/amethystora-private-folder
+msgid "The private folder is an account's own: run this as yourself, not as root."
 msgstr ""

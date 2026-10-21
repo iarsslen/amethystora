@@ -69,6 +69,8 @@ FEDORA_PACKAGES=(
     git-credential-libsecret
     glow
     gnome-tweaks
+    # The private folder that closes when the screen locks (ame security private-folder)
+    gocryptfs
     # One-time codes for password logins over SSH, off until `ame security ssh-codes on`
     google-authenticator
     # grub2-mkfont, which 06-branding.sh uses to build the boot menu font
@@ -131,6 +133,9 @@ FEDORA_PACKAGES=(
     tmux
     tpm2-tools
     usbguard
+    # USBGuard on D-Bus, through which GNOME blocks new USB devices while the screen is locked (ame
+    # security usb locked); masked otherwise (17-cleanup.sh)
+    usbguard-dbus
     usbip
     usbmuxd
     # Android apps in a container (ame apps android): off until set up, as its container service ships

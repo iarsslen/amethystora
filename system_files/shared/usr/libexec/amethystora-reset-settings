@@ -63,7 +63,7 @@ SECURITY_FILES=(systemd/resolved.conf.d/60-amethystora-dns.conf NetworkManager/c
     NetworkManager/conf.d/60-amethystora-mac.conf)
 # ...and the units whose state Security, Updates and a domain's logins set, and Tailscale's network: their
 # links, masks and drop-ins in /etc stay as they are
-KEEP_UNITS='^(amethystora-.*|auditd|audit-rules|avahi-daemon|bluetooth|bootc-.*|clamav-.*|clamd@.*|fail2ban|firewalld|input-remapper|ModemManager|oddjobd|passim|polkit|rpm-ostreed.*|sssd.*|systemd-journald|tailscaled|usbguard|uupd.*|winbind)\.[a-z]+$'
+KEEP_UNITS='^(amethystora-.*|auditd|audit-rules|avahi-daemon|bluetooth|bootc-.*|clamav-.*|clamd@.*|fail2ban|firewalld|input-remapper|ModemManager|oddjobd|passim|polkit|rpm-ostreed.*|sssd.*|systemd-journald|tailscaled|usbguard|usbguard-dbus|dbus-org\.usbguard|uupd.*|winbind)\.[a-z]+$'
 
 # The account's settings in dconf that stay: how it is read and typed in, and GNOME's welcome dialog already
 # seen, which would otherwise greet it again at the next login

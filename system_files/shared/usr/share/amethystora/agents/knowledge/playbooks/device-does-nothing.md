@@ -20,9 +20,11 @@ program cannot reach it: a keyboard configurator, Steam Input, a tablet driver, 
 
 ## Causes on Amethystora
 
-1. **USB protection refuses it** (only after the user turned on `ame security usb`). USBGuard blocks what
-   was not plugged in at setup. Tell: `usbguard.service` enabled, the kernel logs "Device is not authorized
-   for usage", `ame security events` says USB protection blocked a device.
+1. **USB protection refuses it** (only after the user turned on `ame security usb`). In `on`, USBGuard
+   blocks what was not plugged in at setup; in `locked`, what was plugged in while the screen was locked,
+   until it is plugged in again unlocked. Tell: `usbguard.service` enabled (`locked` when
+   `usbguard-dbus.service` is not masked too), the kernel logs "Device is not authorized for usage",
+   `ame security events` says USB protection blocked a device.
 2. **`/dev/uinput` is root's** (as shipped). Steam Input, OpenTabletDriver and key remappers make virtual
    devices through it, and a virtual keyboard types into any window. Tell: no user in
    `getfacl /dev/uinput`; `virtual-input` on.
@@ -48,7 +50,7 @@ program cannot reach it: a keyboard configurator, Steam Input, a tablet driver, 
 ### 1. USB protection
 
 The user runs `ame security usb allow` (root) and picks the device; it stays allowed. Never run it
-yourself.
+yourself. In `locked`, plugging the device in again with the screen unlocked is enough.
 
 ### 2. Virtual input
 
