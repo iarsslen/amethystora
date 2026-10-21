@@ -902,7 +902,8 @@ KARGS_OFF=()
 for karg in $(sed -n 's/^kargs *= *\[\(.*\)\]/\1/p' /usr/lib/bootc/kargs.d/10-amethystora-hardening.toml | tr -d '",'); do
     if hardening_off kernel-args "${karg}"; then
         KARGS_OFF+=("${karg}")
-    elif [[ "${CMDLINE}" != *" ${karg} "* ]]; then
+    # ...unless its switch turned it back on since this start, which the next start then has
+    elif [[ "${CMDLINE}" != *" ${karg} "* ]] && ! grep -qxF -- "${karg}" /run/amethystora/kargs-pending 2>/dev/null; then
         DIFFERS+=("$(eval_gettext "The kernel argument \${karg} is missing")")
     fi
 done

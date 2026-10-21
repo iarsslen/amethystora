@@ -16,6 +16,10 @@ Type=oneshot
 # machine back to the signed origin, and switches nothing the other way either
 ExecCondition=/usr/libexec/amethystora-hardening is-on signed-updates
 ExecStart=/usr/libexec/amethystora-signed-updates
+# As uupd's unit runs: bootc started from here then enters install_t itself. As a system service's
+# unconfined_service_t, it copies itself into /tmp to re-execute, which fails while ame security noexec-temp
+# is on, and so did this unit at every start.
+SELinuxContext=system_u:unconfined_r:unconfined_t:s0
 
 [Install]
 WantedBy=multi-user.target

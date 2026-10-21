@@ -1232,6 +1232,9 @@ test -x /usr/libexec/amethystora-signed-updates
 grep -q "enforce-container-sigpolicy" /usr/libexec/amethystora-signed-updates
 grep -vE "^[[:space:]]*#" /usr/libexec/amethystora-signed-updates | grep -q -- "--mutate-in-place" && false
 grep -q "^After=network-online.target$" /usr/lib/systemd/system/amethystora-signed-updates.service
+# ...and runs as uupd's unit does, so that bootc enters install_t itself: as a system service it copies itself
+# into /tmp to re-execute, which ame security noexec-temp makes fail
+grep -qx "SELinuxContext=system_u:unconfined_r:unconfined_t:s0" /usr/lib/systemd/system/amethystora-signed-updates.service
 test -e /usr/share/amethystora/system-setup.hooks.d/20-signed-updates.sh && false
 # bootc builds the next deployment from the image alone, so switching with it on a machine that has
 # layered packages drops them at the next boot without a word. This unit runs at every boot, so it

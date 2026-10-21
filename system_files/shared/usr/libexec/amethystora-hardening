@@ -37,6 +37,9 @@ ON="${ROOT}/etc/amethystora/hardening-on"
 HOME_NETWORKS="${ROOT}/etc/amethystora/firewall-home"
 SHARE=/usr/share/amethystora/hardening
 KARGS=/usr/lib/bootc/kargs.d/10-amethystora-hardening.toml
+# The image's own kernel arguments turned back on since this start, which the machine has only from the next
+# one: the report says nothing of one missing until then
+KARGS_PENDING=/run/amethystora/kargs-pending
 # On until turned off
 NAMES=(kernel blocked-modules firewire kernel-args firewall failed-logins lockout app-sandbox virtual-input
     ssh-settings signed-updates ipv6-privacy bluetooth-privacy)
@@ -91,6 +94,9 @@ NETWORK_ON_DEMAND=(passim.service)
 # What noexec-temp adds to /etc/fstab, each line marked so that it can be taken out again
 NOEXEC_MARK=x-amethystora-noexec
 GRUB_USER=/boot/grub2/user.cfg
+# A command with /boot writable, in a mount namespace of its own: bootc mounts /boot read-only, and ostree
+# remounts it this way for its own changes, so that it stays read-only for everything else
+BOOT_RW='mount -o remount,rw /boot 2>/dev/null; exec "$@"'
 # The image's own /etc: ostree keeps it in /usr/etc on a machine, and the image itself, as the build sees
 # it, has only /etc
 IMAGE_ETC=/usr/etc
@@ -319,10 +325,19 @@ set_kernel_arg() {
         done
     elif [[ "${switched}" == off ]]; then
         rpm-ostree kargs --delete-if-present="${name}" >/dev/null || return 1
+        mark "${KARGS_PENDING}" "${name}" no
     else
         rpm-ostree kargs --append-if-missing="${name}" >/dev/null || return 1
+        mark "${KARGS_PENDING}" "${name}" yes
     fi
     record kernel-args "${switched}" "${name}"
+}
+
+# The firewall's default zone. firewalld keeps the file it replaces as firewalld.conf.old, which nothing reads: the
+# image's own copy goes back, so that the switch writes firewalld.conf alone, which the watcher accepts
+default_zone() {
+    firewall-cmd --set-default-zone="$1" >/dev/null || return 1
+    place "${FIREWALLD}.old" image
 }
 
 # The networks named home, the saved connections in HOME_NETWORKS, are in the home zone whatever the default
@@ -367,9 +382,9 @@ set_away() {
         fi
         [[ $# -eq 0 ]] || set_home "$@"
         record firewall-away on
-        firewall-cmd --set-default-zone="${AWAY_ZONE}" >/dev/null || { record firewall-away off; return 1; }
+        default_zone "${AWAY_ZONE}" || { record firewall-away off; return 1; }
     else
-        firewall-cmd --set-default-zone=amethystora >/dev/null || return 1
+        default_zone amethystora || return 1
         record firewall-away off
     fi
     return 0
@@ -447,13 +462,13 @@ set_switch() {
         firewall)
             if [[ "${switched}" == off ]]; then
                 is_on firewall-away && { set_away off || return 1; }
-                firewall-cmd --set-default-zone="${FALLBACK_ZONE}" >/dev/null || return 1
+                default_zone "${FALLBACK_ZONE}" || return 1
                 record firewall off
                 place "${JAIL}"
                 # Fedora's zone for every network, the ones named home too: the list stays for later
                 home_zones ""
             else
-                firewall-cmd --set-default-zone=amethystora >/dev/null || return 1
+                default_zone amethystora || return 1
                 record firewall on
                 place "${JAIL}" remove
                 home_zones "${HOME_ZONE}"
@@ -653,9 +668,9 @@ set_switch() {
             fi
             if [[ "${switched}" == on ]]; then
                 grep -q '^GRUB2_PASSWORD=grub.pbkdf2.' "${GRUB_USER}" 2>/dev/null ||
-                    { echo "No GRUB password is set: run grub2-setpassword first." >&2; return 1; }
+                    { echo "No GRUB password is set: ame security boot-password on asks for one." >&2; return 1; }
             else
-                rm -f "${GRUB_USER}"
+                unshare -m sh -c "${BOOT_RW}" sh rm -f "${GRUB_USER}" || return 1
             fi
             ;;
     esac
@@ -890,7 +905,7 @@ ask() {
                     fi
                     gum confirm "Set a boot menu password now?" || exit 0
                     echo "Choose the password. It is asked for only to edit a boot entry, never to start."
-                    sudo grub2-setpassword || exit 1
+                    sudo unshare -m sh -c "${BOOT_RW}" sh grub2-setpassword || exit 1
                     ;;
                 *)
                     stricter "${name}" && { gum confirm "Turn ${TITLE[${name}]}${argument:+ (${argument})} on?" || exit 0; }
