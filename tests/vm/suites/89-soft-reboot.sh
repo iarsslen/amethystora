@@ -4,11 +4,11 @@
 # restart`), on the installer-layout machine, whose /boot keeps a staged deployment through a restart:
 # - the initramfs the image was built with holds nothing that changes with every build: no build version in its
 #   os-release, no out-of-tree driver, which the system still loads itself (19-initramfs.sh);
-# - updates made here from the running image (bootc image copy-to-storage, podman build) and staged with `bootc
-#   switch`: one that adds a file and compresses a loaded driver anew, as akmods builds its drivers anew from the
-#   same source for every image, is quick; one with a kernel argument added and one with that driver changed are
-#   not, and say why, nor is one while the firmware was asked to start something next (BootNext); nothing
-#   staged says none;
+# - updates made here from the running system (a hardlink checkout of its commit, changed and committed back, as
+#   ostree's own soft-reboot test makes them: a copy of the image would not fit) and staged: one that adds a file
+#   and compresses a loaded driver anew, as akmods builds its drivers anew from the same source for every image, is
+#   quick; the same with a kernel argument added and one with that driver changed are not, and say why, nor is one
+#   while the firmware was asked to start something next (BootNext); nothing staged says none;
 # - the status as the account through pkexec without a password, prepare and reset as the account in its
 #   session, and an app inhibiting logging out leaving the restart to GNOME's dialog;
 # - System Updates: Restart now says the restart takes seconds and asks first, and Restart ends the session with a
@@ -52,7 +52,21 @@ status_root() { "${HELPER}" status 2>&1; }
 status_user() { runuser -u "${TEST_USER}" -- "${HELPER}" status 2>&1; }
 why() { jq -r 'if .quick then "quick" else .why end' <<<"$1" 2>/dev/null || echo "not JSON: $1"; }
 says() { same "$1: root reads ${3}" "$(why "$(status_root)")" "$2"; }
-stage() { timeout 1500 bootc switch --quiet --transport containers-storage "localhost/vmlab-$1" 2>&1; }
+REPO=/sysroot/ostree/repo
+rw() { unshare -m sh -c 'mount -o remount,rw /sysroot && "$@"' sh "$@"; }
+# An update of the running system, made as ostree's own soft-reboot test makes one: a checkout of the booted commit
+# of hard links into the repository, CHANGE run in it, and committed back, so that nothing is copied (the machine's
+# 40 GiB hold no second copy of the image). A file CHANGE replaces is written anew, never through its link.
+make_update() {
+    local dir="${REPO}/tmp/vmlab-$1"
+    rw rm -rf "${dir}"
+    rw ostree checkout --repo="${REPO}" -H "$(recall original)" "${dir}" &&
+        rw sh -c "cd '${dir}' && $2" &&
+        rw ostree commit --repo="${REPO}" --parent="$(recall original)" -b "vmlab/$1" -I --consume --bootable \
+            --add-metadata-string=version="vmlab-$1" "${dir}" >/dev/null
+}
+# Staged as an update is: completed at the next shutdown, with the running system's kernel arguments and ARGS
+stage() { timeout 1500 ostree admin deploy --stage "vmlab/$1" "${@:2}" 2>&1; }
 nextroot() { mountpoint -q /run/nextroot; }
 # The account's session start, in seconds
 session_started() {
@@ -91,19 +105,17 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     check "ame update restart with nothing staged says so, and restarts nothing" sh -c \
         "out=\$(runuser -u ${TEST_USER} -- ame update restart 2>&1); [ \$? = 1 ] && echo \"\$out\" | grep -q 'No update is waiting'"
 
-    # Three updates: the image with a file added and the driver compressed anew; that with a kernel argument as well;
-    # the image with the driver changed
+    # Two updates of the running system: a file added and the driver compressed anew, as the kernel's build
+    # compresses modules but with another preset (other bytes, the same driver); and the driver changed
     began=${SECONDS}
     module="$(modinfo -F filename "${DRIVER}")"
-    module="/usr/lib/modules/${module#*/modules/}"
-    # Compressed as the kernel's build compresses modules, with another preset: other bytes, the same driver
-    if out="$({ bootc image copy-to-storage &&
-        printf 'FROM localhost/bootc\nRUN echo vmlab >%s && f=%s && xz -dc "$f" >/tmp/m.ko && xz -C crc32 --lzma2=preset=0,dict=1MiB -c /tmp/m.ko >"$f" && rm /tmp/m.ko\n' \
-            "${MARKER}" "${module}" | podman build --pull=never -q -t localhost/vmlab-quick -f - &&
-        printf 'FROM localhost/vmlab-quick\nRUN echo %s >/usr/lib/bootc/kargs.d/99-vmlab.toml\n' "'kargs = [\"vmlab.soft=1\"]'" |
-            podman build --pull=never -q -t localhost/vmlab-kargs -f - &&
-        printf 'FROM localhost/bootc\nRUN printf vmlab >>%s\n' "${module}" | podman build --pull=never -q -t localhost/vmlab-driver -f -; } 2>&1)"; then
-        echo "# the image copied out and three updates made of it: $((SECONDS - began)) s"
+    module="usr/lib/modules/${module#*/modules/}"
+    replace="chcon --reference=${module} ${module}.new && chmod --reference=${module} ${module}.new && mv -f ${module}.new ${module}"
+    if out="$(make_update quick "echo vmlab >${MARKER#/} && chcon system_u:object_r:usr_t:s0 ${MARKER#/} &&
+            xz -dc ${module} >${module}.ko && xz -C crc32 --lzma2=preset=0,dict=1MiB -c ${module}.ko >${module}.new &&
+            rm ${module}.ko && ${replace}" 2>&1)" &&
+        out="$(make_update driver "cp ${module} ${module}.new && printf vmlab >>${module}.new && ${replace}" 2>&1)"; then
+        echo "# two updates made of the running system: $((SECONDS - began)) s"
         continue_phase
     fi
     not_ok "could not make the updates to stage" "$(tail -n 15 <<<"${out}")"
@@ -113,12 +125,12 @@ fi
 # --- Phase 2: each update staged, what the helper says of it, then the restart from System Updates -------------
 if [[ "${SUITE_PHASE}" == 2 ]]; then
     began=${SECONDS}
-    out="$(stage kargs)" || not_ok "bootc switch to the update with a kernel argument" "${out}"
-    echo "# the first update staged (its image imported into ostree): $((SECONDS - began)) s"
+    out="$(stage quick --karg-append=vmlab.soft=1)" || not_ok "staging the update with a kernel argument added" "${out}"
+    echo "# the first update staged: $((SECONDS - began)) s"
     says "an update that adds a kernel argument" kernel "kernel"
-    out="$(stage driver)" || not_ok "bootc switch to the update with the driver changed" "${out}"
+    out="$(stage driver)" || not_ok "staging the update with the driver changed" "${out}"
     says "an update that changes a loaded driver" driver "driver"
-    out="$(stage quick)" || not_ok "bootc switch to the update with a file added" "${out}"
+    out="$(stage quick)" || not_ok "staging the update with a file added" "${out}"
     same "bootc says the update with a file added can be soft rebooted into" "$(bootc_json '.status.staged.softRebootCapable')" true
     next="$(bootc_json '.status.staged.ostree | "/sysroot/ostree/deploy/\(.stateroot)/deploy/\(.checksum).\(.deploySerial)"')"
     file="$(modinfo -F filename "${DRIVER}")"
@@ -239,16 +251,12 @@ fi
 if [[ "${SUITE_PHASE}" == 5 ]]; then
     same "back on the machine's own image" "$(bootc_json '.status.booted.ostree.checksum')" "$(recall original)"
     rpm-ostree cleanup -r >/dev/null 2>&1
-    for image in quick kargs driver; do
-        unshare -m sh -c 'mount -o remount,rw /sysroot && ostree container image remove --repo /sysroot/ostree/repo "$1"' sh \
-            "ostree-unverified-image:containers-storage:localhost/vmlab-${image}" >/dev/null 2>&1
-    done
-    unshare -m sh -c 'mount -o remount,rw /sysroot && ostree prune --repo /sysroot/ostree/repo --refs-only' >/dev/null 2>&1
-    podman rmi -f localhost/vmlab-driver localhost/vmlab-kargs localhost/vmlab-quick localhost/bootc >/dev/null 2>&1
+    rw ostree refs --repo="${REPO}" --delete vmlab >/dev/null 2>&1
+    rw ostree prune --repo="${REPO}" --refs-only >/dev/null 2>&1
     rm -f "${ETC_MARK}"
     if [[ "$(rpm-ostree status --json | jq '.deployments | length')" == "$(recall deployments)" ]] &&
-        ! podman image exists localhost/bootc; then
-        ok "the machine is left with its deployments as they were, and no image of this suite's"
+        [[ -z "$(ostree refs --repo="${REPO}" vmlab 2>/dev/null)" ]]; then
+        ok "the machine is left with its deployments as they were, and no update of this suite's"
     else
         not_ok "the machine is not as it was" "$(rpm-ostree status 2>&1 | head -n 20)"
     fi
