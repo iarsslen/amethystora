@@ -1396,7 +1396,7 @@ COMMAND="ame security usb"
 report optional usb-protection "${USB}" "$(gettext "USB protection")" "${USB_TEXT}"
 
 # This account's own, in its home (amethystora-private-folder)
-if [[ -f "${HOME}/.local/share/amethystora/private/gocryptfs.conf" ]]; then PRIVATE=on; else PRIVATE=off; fi
+if [[ -f "${HOME:-}/.local/share/amethystora/private/gocryptfs.conf" ]]; then PRIVATE=on; else PRIVATE=off; fi
 COMMAND="ame security private-folder"
 report optional private-folder "${PRIVATE}" "$(gettext "Private folder")" \
     "$(gettext "A folder in your home, Private, encrypted on its own and closed whenever the screen locks")"
