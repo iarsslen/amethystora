@@ -134,12 +134,10 @@ move-to-monitor-right=['<Super><Shift>Right']
 # so there is one place they come from. Its menu keybinding has to go too, because it defaults to
 # Super+W, which closes a window here.
 
-[org.gnome.shell.extensions.space-bar.appearance]
-position='left'
-position-index=0
-system-workspace-indicator=false
-
+# Its place in the left of the panel is its own default, beside the Logo Menu, as it has always shown.
 [org.gnome.shell.extensions.space-bar.behavior]
+position='left'
+system-workspace-indicator=false
 smart-workspace-names=false
 show-empty-workspaces=true
 
@@ -163,12 +161,13 @@ use-system-accent=false
 # idle desktop
 refresh-rate='slow'
 
-# Just Perfection: quicker animations, and no workspace popup, because Space Bar already shows
+# Just Perfection: quicker animations (its 4, "faster", takes 0.6 of the time; 2 is "almost none"),
+# and no workspace popup, because Space Bar already shows
 # which workspace you moved to. Space Bar hides the Activities button once, when it starts, and
 # PaperWM shows it again when it starts after it; this hides the button's container instead, which
 # neither of them touches.
 [org.gnome.shell.extensions.just-perfection]
-animation=2
+animation=4
 workspace-popup=false
 dash-app-running=true
 activities-button=false

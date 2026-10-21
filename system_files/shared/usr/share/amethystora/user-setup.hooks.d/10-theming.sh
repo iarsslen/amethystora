@@ -15,7 +15,11 @@ SYS_ID="$(cat /sys/devices/virtual/dmi/id/product_name)"
 if [[ ":Framework:" =~ :$VEN_ID: ]]; then
 	echo 'Setting touch scroll type'
 	dconf write /org/gnome/desktop/peripherals/mouse/natural-scroll true
-	if [[ $SYS_ID == "Laptop ("* ]]; then
+	# Every Laptop 13 with its first screen, 2256x1504, which GNOME shows at 100%: the 11th to 13th
+	# generation Intel ones are named "Laptop" or "Laptop (...)", every later one "Laptop 13 (...)". Its
+	# 2880x1920 screen, which came later, GNOME already doubles.
+	if [[ $SYS_ID == "Laptop" || $SYS_ID == "Laptop ("* || $SYS_ID == "Laptop 13 ("* ]] &&
+		[[ "$(head -qn1 /sys/class/drm/card*-eDP-*/modes 2>/dev/null)" == *2256x1504* ]]; then
 		echo 'Applying font fix for Framework 13'
 		dconf write /org/gnome/desktop/interface/text-scaling-factor 1.25
 	fi

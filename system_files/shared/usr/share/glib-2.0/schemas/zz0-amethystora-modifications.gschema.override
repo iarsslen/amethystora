@@ -1,7 +1,7 @@
 #-------------- DESKTOP MODIFICATIONS --------------#
 
 [org.gnome.shell]
-favorite-apps = ['com.fyralabs.Readymade.desktop', 'org.mozilla.firefox.desktop', 'org.mozilla.thunderbird_esr.desktop', 'org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'org.gnome.Software.desktop', 'codium.desktop']
+favorite-apps = ['org.mozilla.firefox.desktop', 'org.mozilla.thunderbird_esr.desktop', 'org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'codium.desktop']
 enabled-extensions = ['appindicatorsupport@rgcjonas.gmail.com', 'bazaar-integration@kolunmi.github.io', 'blur-my-shell@aunetx', 'dash-to-dock@micxgx.gmail.com', 'gradia-integration@alexandervanhee.github.io', 'logomenu@aryan_k', 'search-light@icedman.github.com']
 
 [org.gnome.desktop.background]
@@ -58,6 +58,8 @@ max-alpha=0.8
 min-alpha=0.5
 running-indicator-style='DOTS'
 apply-custom-theme=true
+# Its Super+number keys would take the workspaces' (zz1); the dock's apps are on Alt+number instead
+hot-keys=false
 
 [org.gnome.settings-daemon.plugins.power]
 power-button-action='interactive'
@@ -83,42 +85,18 @@ keybindings=''
 new-tab=false
 flatpak='off'
 
-[org.gnome.shell.extensions.Logo-menu]
-symbolic-icon=false
-menu-button-icon-image=0
-menu-button-terminal='xdg-terminal-exec'
-menu-button-system-monitor='/usr/bin/missioncenter-helper'
-menu-button-extensions-app='com.mattjakeman.ExtensionManager.desktop'
-menu-button-software-center='/usr/bin/flatpak run io.github.kolunmi.Bazaar'
-show-activities-button=true
-show-lockscreen=false
-show-power-option=false
-show-gamemode=false
-hide-forcequit=true
-show-distroshelf=true
-
-[org.gnome.shell.extensions.search-light]
-shortcut-search=['<Super>space']
-scale-width=0.10
-scale-height=0.15
-border-thickness=1
-border-radius=1.65
-border-color=(0.23, 0.23, 0.23, 1.0)
-background-color=(0.0, 0.0, 0.0, 0.8)
-
-[org.gnome.shell.extensions.blur-my-shell.dash-to-dock]
-blur=true
+# The Logo Menu's, Search Light's and Blur my Shell's defaults are in /etc/dconf/db/distro.d
 
 #-------------- REMAINING SCHEMAS IN THIS SETTING SECTION ARE LOCATED IN DCONF --------------#
 # Settings bellow are supported with gschema override, but other settings, which are relocatable schemas, are not. Edit dconfs if you need to modify relocatable schemas.
 
 # Folder names & .desktop shortcut content is recognized as a relocatable schema
 [org.gnome.desktop.app-folders]
-folder-children=['Games', 'GamingUtilities', 'Utilities', 'Containers', 'Wine', 'YaST', 'Pardus', 'Development', 'Productivity']
+folder-children=['Games', 'GamingUtilities', 'Utilities', 'Containers', 'Wine', 'Development', 'Productivity']
 
 # Modifying shortcut actions for custom0, custom1, custom2, etc. are recognized as relocatable schemas
 [org.gnome.settings-daemon.plugins.media-keys]
-custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom6/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom20/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom21/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom22/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom23/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom24/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom25/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom26/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom27/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom28/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom29/']
+custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom6/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom20/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom21/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom22/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom23/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom24/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom25/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom26/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom27/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom28/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom29/']
 home=['<Super>e']
 
 # Ptyxis color palette is recognized as a relocatable schema

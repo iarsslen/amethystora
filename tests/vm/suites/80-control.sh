@@ -241,7 +241,9 @@ gsettings list-recursively
 for uuid in $(gsettings get org.gnome.shell enabled-extensions | grep -oE "[A-Za-z0-9._-]+@[A-Za-z0-9._-]+"); do
     dir="$(gnome-extensions info "${uuid}" 2>/dev/null | sed -n 's/^ *Path: //p')/schemas"
     [[ -d "${dir}" ]] || continue
-    for schema in $(grep -ohE '<schema [^>]*id="[^"]+"' "${dir}"/*.gschema.xml 2>/dev/null | sed -E 's/.*id="([^"]+)".*/\1/'); do
+    # Some schema files spread a tag over several lines
+    for schema in $(cat "${dir}"/*.gschema.xml 2>/dev/null | tr -s '[:space:]' ' ' | grep -oE '<schema [^>]*id="[^"]+"' |
+        sed -E 's/.*id="([^"]+)".*/\1/'); do
         gsettings --schemadir "${dir}" list-recursively "${schema}" 2>/dev/null | sed "s|^|${uuid}: |"
     done
 done

@@ -110,6 +110,12 @@ test ! -e /etc/brave
 FAVORITES="$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell favorite-apps)"
 grep -q "'org.mozilla.firefox.desktop'" <<<"${FAVORITES}"
 grep -qi "brave" <<<"${FAVORITES}" && false
+# Every app pinned there is one the image or its first-boot Flatpaks bring (VSCodium on the developer image)
+for favorite in $(grep -oE "[A-Za-z0-9._-]+\.desktop" <<<"${FAVORITES}"); do
+    [[ "${favorite}" == codium.desktop ]] && continue
+    test -f "/usr/share/applications/${favorite}" ||
+        grep -qxF "[Flatpak Preinstall ${favorite%.desktop}]" /usr/share/flatpak/preinstall.d/*.preinstall
+done
 
 # Multimedia (05-override-install.sh): FFmpeg is Fedora's with RPM Fusion's libavcodec-freeworld, and no
 # FFmpeg library in the image is a build FFmpeg itself calls unredistributable. negativo17's LC3plus,
@@ -346,6 +352,26 @@ test ! -e /usr/share/gnome-shell/extensions/tactile@lundal.io
 # PaperWM leaves the top bar to the theme and the workspaces to Space Bar
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.paperwm disable-topbar-styling)" == "true" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.paperwm show-workspace-indicator)" == "false" ]]
+# GNOME Shell's getSettings() reads an extension's own schemas folder before the system's, where an
+# override does not reach by itself: every key zz0 and zz1 set for an extension reads the same through
+# its folder as system-wide (build-gnome-extensions.sh compiles them in)
+for schemas in /usr/share/gnome-shell/extensions/*/schemas; do
+    for schema in $(cat "${schemas}"/*.gschema.xml | tr -s '[:space:]' ' ' | grep -oE '<schema [^>]*id="[^"]+"' |
+        sed -E 's/.*id="([^"]+)".*/\1/'); do
+        for key in $(awk -v section="[${schema}]" '/^\[/ { on = ($0 == section); next } on && /^[a-z]/ { sub(/ *=.*/, ""); print }' \
+            /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override \
+            /usr/share/glib-2.0/schemas/zz1-amethystora-modifications.gschema.override); do
+            [[ "$(GSETTINGS_BACKEND=memory gsettings --schemadir "${schemas}" get "${schema}" "${key}")" == \
+                "$(GSETTINGS_BACKEND=memory gsettings get "${schema}" "${key}")" ]]
+        done
+    done
+done
+# Dash to Dock's own Super+number keys would take the workspaces'; the dock's apps are on Alt+number
+DTD_SCHEMAS=/usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com/schemas
+[[ "$(GSETTINGS_BACKEND=memory gsettings --schemadir "${DTD_SCHEMAS}" get org.gnome.shell.extensions.dash-to-dock hot-keys)" == "false" ]]
+# Just Perfection's quicker animations are its 4, "faster": its 2 is "almost none"
+JP_SCHEMAS=/usr/share/gnome-shell/extensions/just-perfection-desktop@just-perfection/schemas
+[[ "$(GSETTINGS_BACKEND=memory gsettings --schemadir "${JP_SCHEMAS}" get org.gnome.shell.extensions.just-perfection animation)" == "4" ]]
 # None of the clipboard history's shortcuts take the Ctrl+F keys from applications
 grep -qi "<Control>F" <<<"$(GSETTINGS_BACKEND=memory gsettings list-recursively org.gnome.shell.extensions.amethystora-clipboard)" && false
 # PaperWM takes a colliding GNOME binding for itself while it is on. It cannot see custom keybindings

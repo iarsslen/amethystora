@@ -1,4 +1,6 @@
 # This got added on https://github.com/ublue-os/config/pull/154
 # Written by https://github.com/badlydrawnface
 # Makes restarting a jigged switch easier
-SUBSYSTEMS=="usb", ATTRS{manufacturer}=="NVIDIA Corp.", ATTRS{product}=="APX", GROUP="nintendo_switch"
+# Modified by Amethystora: the device goes to whoever is at the machine, as the image's other rules do;
+# the nintendo_switch group it was given to exists on no machine
+SUBSYSTEMS=="usb", ATTRS{manufacturer}=="NVIDIA Corp.", ATTRS{product}=="APX", TAG+="uaccess"

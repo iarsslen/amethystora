@@ -50,6 +50,10 @@ install -Dpm0644 /usr/share/gnome-shell/extensions/tmp/caffeine/COPYING /usr/sha
 # Dash to Dock
 make -C /usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com
 glib-compile-schemas --strict /usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com/schemas
+# Its defaults are the image's, in zz0-amethystora-modifications: installed system-wide too, as for the
+# extensions below, so that gsettings and the tests read what the dock does
+install -Dpm0644 -t /usr/share/glib-2.0/schemas \
+    /usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com/schemas/*.gschema.xml
 
 # Gradia Capture
 bash /usr/share/gnome-shell/extensions/gradia-integration@alexandervanhee.github.io/build.sh
@@ -128,8 +132,8 @@ install_ego_extension() {
     jq -e --arg shell "${GNOME_MAJOR}" '.["shell-version"] | index($shell)' "${directory}/metadata.json"
 
     # The Amethystora defaults for these live in zz1-amethystora-modifications.gschema.override,
-    # and an override only applies to a schema installed system-wide. Fuzzy App Search has no
-    # settings, so no schema.
+    # and an override only applies to a schema installed system-wide (and to the extension's own
+    # copy, below). Fuzzy App Search has no settings, so no schema.
     if [[ -d "${directory}/schemas" ]]; then
         install -Dpm0644 -t /usr/share/glib-2.0/schemas "${directory}"/schemas/*.gschema.xml
         glib-compile-schemas --strict "${directory}/schemas"
@@ -179,6 +183,24 @@ fi
 # source says "License GPL v3", so that is the licence it comes under, and the text goes with it
 install -Dpm0644 /usr/share/licenses/gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com/LICENSE \
     /usr/share/licenses/space-bar@luchrioh/LICENSE
+
+# GNOME Shell's getSettings() reads an extension's own compiled schemas before the system's, and the
+# overrides in /usr/share/glib-2.0/schemas never reach those: without this, every extension above ran
+# on its own defaults. So each one's schemas are compiled again with its sections of zz0- and
+# zz1-amethystora-modifications, strictly, so that a key it no longer has fails the build rather than
+# being dropped without a word.
+for schemas in /usr/share/gnome-shell/extensions/*/schemas; do
+    # Some schema files spread a tag over several lines
+    ids="$(cat "${schemas}"/*.gschema.xml | tr -s '[:space:]' ' ' | grep -oE '<schema [^>]*id="[^"]+"' |
+        sed -E 's/.*id="([^"]+)".*/\1/' | tr '\n' ' ')"
+    awk -v ids="${ids}" 'BEGIN { n = split(ids, list, " "); for (i = 1; i <= n; i++) own["[" list[i] "]"] = 1 }
+        /^\[/ { keep = ($0 in own) } keep' \
+        /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override \
+        /usr/share/glib-2.0/schemas/zz1-amethystora-modifications.gschema.override \
+        >"${schemas}/zz-amethystora-modifications.gschema.override"
+    glib-compile-schemas --strict "${schemas}"
+    rm "${schemas}/zz-amethystora-modifications.gschema.override"
+done
 
 rm /usr/share/glib-2.0/schemas/gschemas.compiled
 glib-compile-schemas /usr/share/glib-2.0/schemas

@@ -309,7 +309,7 @@ away again, and the kernel's drivers come back after a restart. The **Drawing ta
 Framework laptops get their known fixes at first boot: the keyboard on the Intel models, which turns
 the light sensor off too and restarts the machine once by itself; suspend on a Laptop 13 with AMD
 Ryzen 7040 and firmware older than 3.09, whose own keyboard then no longer wakes it; natural scrolling
-for a mouse; and a larger text size on the first Intel Laptop 13s. A Framework 16's keyboard and
+for a mouse; and a larger text size on a Laptop 13 with its original 2256×1504 screen. A Framework 16's keyboard and
 numpad modules cannot wake it. Keep the firmware current on every machine: a
 notification says when an update is waiting, and **Updates** shows what there is, or in a terminal:
 

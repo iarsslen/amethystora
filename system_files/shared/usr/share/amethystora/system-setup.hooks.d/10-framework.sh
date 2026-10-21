@@ -60,7 +60,7 @@ if [[ "$VEN_ID" == "Framework" && "$SYS_ID" == "Laptop 13 ("* ]]; then
 
     # Older versions of this script applied a modprobe flag to fix 3.5 mm jack headset detection
     # which is no longer needed because the kernel applies this automatically.
-    if [[ ! -f /etc/modprobe.d/alsa.conf ]]; then
+    if grep -qs "dell-headset-multi" /etc/modprobe.d/alsa.conf; then
         echo "Removing obsolete 3.5mm audio jack fix"
         rm -f /etc/modprobe.d/alsa.conf
     fi
