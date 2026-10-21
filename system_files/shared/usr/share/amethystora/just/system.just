@@ -256,7 +256,7 @@ bios-info:
     echo "Release Date: $(dmidecode -s bios-release-date)"
     EOF
 
-# Free disk space: unused container images and volumes, Flatpak runtimes, old deployments, Homebrew's cache
+# Free disk space: unused container images and volumes, Flatpak runtimes, rpm-ostree's caches, Homebrew's cache
 clean:
     #!/usr/bin/bash
     # Homebrew's own commands, which a terminal that is not a login shell (one Control opens) does not have

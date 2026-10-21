@@ -4,7 +4,7 @@ The AI agent is off until you turn it on: in [Control](control.md)'s **AI agent*
 `ame agent toggle on`. Until then nothing on this page is there: no hotkey, no menu entries, no
 **Ask the agent** buttons, and no agent is told anything about this system.
 
-Once it is on, `Super+Ctrl+Shift+A` opens an AI agent in a terminal: Claude Code by default, or Opencode, Codex,
+Once it is on, `Super+Ctrl+Shift+A` opens an AI agent in a terminal: the one you chose, else the first one already installed, else Claude Code. You can choose Opencode, Codex,
 Antigravity CLI, Copilot CLI or Cursor CLI if you prefer. It comes with a skill that explains this system
 to it, so it knows which files belong to the image and which are yours to change, how themes and
 hotkeys work, how software is installed on an image-based system, and what to ask you before it
@@ -89,13 +89,20 @@ a fix.
 | `amethystora-agent ask "<question>"` | Open it with a first question |
 | `amethystora-agent diagnose [...]` | Find out why something broke, changing nothing |
 | `amethystora-agent use <agent>` | Choose the agent: `claude`, `opencode`, `codex`, `agy`, `copilot` or `cursor-agent`; also `ame agent use` |
-| `amethystora-agent install` | Install the chosen agent ahead of time; also `ame agent install` |
+| `amethystora-agent install [<agent>]` | Install the chosen agent ahead of time, or the one named without choosing it; also `ame agent install` |
+| `amethystora-agent list` | Each agent, and whether it is installed |
+| `amethystora-agent status` | Whether the agent features are on for your account, and which agent |
 | `ame agent toggle on` | Turn the agent features on for your account, or `off` again |
 | `ame agent tools on` | Let the agent make changes, asking each time, or `off` again |
-| `ame agent history` | What the agent changed |
-| `amethystora-agent search "<question>"` | Search the manual and the image's reference as the agent does; also `read` and `state` |
+| `ame agent history [ID]` | What the agent changed, or one change and how it ended |
+| `ame agent lock`, `ame agent root` | What your account may turn on, the lock and the root mode, changing nothing; also `amethystora-agent policy` |
+| `amethystora-agent search "<question>"` | Search the manual and the image's reference as the agent does; `-k N` gives N passages instead of 4 |
+| `amethystora-agent read ID` | Read a whole passage a search found, by its id |
+| `amethystora-agent state TOPIC` | This machine's state as the agent reads it: `overview`, `health`, `settings`, `security`, `security-settings`, `app-permissions`, `software`, `updates`, `backups`, `disks`, `setup-diff`, `units` or `crashes` |
 
-[Control](control.md)'s **AI agent** page has the same switches and choice, and installs the chosen agent.
+`toggle` and `tools` without `on` or `off` switch to the other. The search, `read`, `state` and the history work
+only while the agent features are on. [Control](control.md)'s **AI agent** page has the same switches and
+choice, and installs the chosen agent.
 
 ## Root commands
 

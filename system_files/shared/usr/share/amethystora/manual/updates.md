@@ -11,18 +11,28 @@ the machine in a state that does not start.
 ## Updating now
 
 Open **System Updates** from the app grid (or **Check for updates** under **System** in the
-Amethystora menu) and press **Update now**. It updates the system, your Flatpak apps and your Homebrew
-tools in one go and shows each of them as it happens, without asking for a password. It is the same
+Amethystora menu, or `amethystora-update`) and press **Update now**. It updates the system, the Flatpak
+apps of the machine and of every account signed in, and your Homebrew tools in one go and shows each of
+them as it happens, without asking for a password, and without the checks for the battery, a busy
+machine and memory that hold the automatic updates back. It is the same
 update the automatic ones run, so if one is already under way the window follows it rather than
 starting another. You can close the window at any time; the update carries on.
 
 A new system still takes over at the next restart. Once one is ready, System Updates says so and
 offers the restart. It also shows the version you are running, the one waiting for the restart and
-the one kept for [rolling back](#rolling-back), and turns automatic updates off or on again.
+the one kept for [rolling back](#rolling-back), and turns automatic updates off or on again, which
+asks for an administrator's password. **Release notes** at the top opens them on GitHub.
 
 If you have [containers](software.md#keeping-them-up-to-date) from `amepkg`, **Update now** upgrades
-them straight after the rest, under **Containers**. One that does not upgrade says so there, and the
-system's update still counts as done.
+them straight after the rest, under **Containers**. One that does not upgrade says so there, with
+`journalctl --user -u amethystora-pkg-upgrade` for what it said, and the system's update still counts
+as done.
+
+An update that does not finish says which part stopped, and the rest is still up to date. **Try again**
+starts it once more; an automatic one also tries again by itself a minute later. When a new system is
+ready all the same, **Restart now** is still offered, and with the [AI agent](ai-agent.md) on, **Ask the
+agent why** has it look into it. **What the updater said** shows the updater's messages to
+administrators, with the `journalctl` command for all of them.
 
 In a terminal, the same in one go:
 
@@ -35,9 +45,9 @@ ame update
 | `ame update` | Update everything now |
 | `ame update restart` | Restart to finish the update, in seconds when it can be ([restarting in seconds](#restarting-in-seconds)) |
 | `amepkg upgrade-all` | Upgrade the containers of other distributions now |
-| `ame system auto-updates` | Turn automatic updates off, or on again |
-| `ame changelog` | What changed in the packages since the image you are running |
-| `rpm-ostree status` | The running system, the staged update and the one to roll back to |
+| `ame system auto-updates on` | Turn automatic updates on, or `off`; without either it asks |
+| `ame changelog` | The release notes of the build you are running, from GitHub (on a stream other than `stable`, the newest release's) |
+| `rpm-ostree status` | The running system, the staged update and the one to roll back to (`sudo bootc status` on a [sealed](#sealed-images) machine) |
 | `fwupdmgr get-updates` | Firmware updates for this machine, from its maker |
 
 The release notes for every stable build are on
@@ -69,7 +79,8 @@ The firmware of the machine and of its devices (the UEFI firmware, docks, SSDs, 
 fingerprint reader) is updated apart from the system, because a firmware update can need the machine
 plugged in and a restart. Every day, fwupd looks for new firmware on LVFS, where makers publish it, and
 the **Firmware** section of **Updates** lists each device that has some, from which version to which. A
-notification says so once for each new release, and the [security report](security.md#see-where-you-stand)'s
+notification says so once for each new release, and opens **Updates** when clicked. A firmware update
+its maker marks as important for security is marked **Important** there. The [security report](security.md#see-where-you-stand)'s
 **Firmware updates** check names them too, since many firmware updates fix security holes.
 **Update firmware…** installs it in a terminal, where fwupd says what it is about to do and asks before
 it restarts the machine. **Check now** asks LVFS again straight away. In a terminal:
@@ -136,7 +147,11 @@ Replace `amethystora` with `amethystora-dx` for [developer mode](developer.md), 
 first), and replace `latest` with the stream you want. A [sealed](#sealed-images) machine switches only
 between the sealed images.
 [Control](control.md)'s **System** page lists the images and streams: choosing one opens `ame system
-rebase` in a terminal with it chosen, which takes signed images only and asks before it switches.
+rebase` in a terminal with it chosen, which takes signed images only and asks before it switches. In a
+terminal, `ame system rebase amethystora-dx latest` starts with that image and stream chosen, and still
+asks. It offers `stable`, `stable-daily` and `latest`; `beta` only `bootc switch` reaches. It keeps
+layered packages, and it refuses an NVIDIA image while Secure Boot is on and the image's keys are not
+enrolled.
 
 If you have [layered packages](software.md#layering-the-last-resort), switch with `rpm-ostree` instead,
 because `bootc switch` builds the new system from the image alone and would drop them:
@@ -149,8 +164,9 @@ sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/iarsslen/amethystora
 
 Every build also has a tag of its own, such as `stable-44.20260922`, from the version in the release
 notes. Switching to it holds the machine on that build, which is useful while you wait for a fix.
-A machine on a single build receives no updates; `ame security status` reminds you, and prints the
-command that goes back to following the stream.
+A machine on a single build receives no updates of the system, while apps and command line tools
+still update; System Updates and `ame security status` remind you, and the second prints the command
+that goes back to following the stream.
 
 ## Signed updates
 

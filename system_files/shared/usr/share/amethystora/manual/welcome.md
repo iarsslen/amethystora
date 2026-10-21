@@ -11,7 +11,7 @@ there is nothing to clean up, no half-finished upgrade to recover from, and no r
 couple of years.
 
 On top of that foundation sits a desktop made to be driven from the keyboard, as beautiful as it is
-fast: windows that tile onto a grid, six workspaces that are always where you left them, a theme
+fast: windows that tile side by side on a strip that scrolls, six workspaces that are always where you left them, a theme
 switch that repaints everything at once, and an AI agent that knows how this system works, for when you turn it on.
 
 Two choices are worth making on the first day. If you would rather have windows that float and

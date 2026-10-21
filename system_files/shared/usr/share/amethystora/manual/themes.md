@@ -16,15 +16,17 @@ tint, so its icons still stand out on a pale wallpaper.
 The same from a terminal:
 
 ```bash
-ame desktop theme                   # pick one from a list
+ame desktop theme                   # pick one from a list, or name it: ame desktop theme Nord
 amethystora-theme list              # the themes, with the current one marked
 amethystora-theme set "Tokyo Night" # apply one by name
 amethystora-theme toggle            # light or dark
 amethystora-theme current           # which one is on
+amethystora-theme reload            # apply the current one again, after editing its files
 ```
 
 Or open [Control](control.md) (`Super+Ctrl+Shift+C`), whose **Appearance** page shows every theme in
-its own colours, and the current theme's wallpapers.
+its own colours, and the current theme's wallpapers. Amethystora's own apps take on the theme's colours
+as it changes.
 
 ## The themes
 
@@ -64,7 +66,8 @@ cp ~/Pictures/mountains.jpg ~/.config/amethystora/backgrounds/amethystora/
 ```
 
 `amethystora-theme bg list` shows what the current theme has to cycle through, and
-`ame desktop background <picture>` sets one directly.
+`ame desktop background <picture>` sets one of those directly; without a picture it shows the next, as
+`Super+Ctrl+Space` does.
 
 ## Transitions
 
@@ -88,8 +91,8 @@ ame desktop transition wave    # or name it
 | `random` | One of the first four, at any angle |
 | `none` | No animation: the wallpaper fades as GNOME fades it |
 
-A transition takes 1.2 seconds. To change that, give it in milliseconds after the transition, or move
-the slider on Control's **Appearance** page:
+A transition takes 1.2 seconds. To change that, give it in milliseconds after the transition, from 200
+to 5000, or move the slider on Control's **Appearance** page:
 
 ```bash
 ame desktop transition grow 800
@@ -160,5 +163,5 @@ lives outside the image:
 ame desktop boot-menu
 ```
 
-Run it again to take the artwork off, or use the switch on Control's **Appearance** page, which opens
-the same in a terminal. Once it is on, image updates keep it up to date.
+It says whether the artwork is on and asks whether to put it on or take it off; `ame desktop boot-menu on`
+and `off` skip the question. The switch on Control's **Appearance** page opens the same in a terminal. Once it is on, image updates keep it up to date.

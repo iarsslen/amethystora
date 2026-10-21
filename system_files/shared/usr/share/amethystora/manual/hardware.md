@@ -22,8 +22,8 @@ Restart, and a blue screen appears before the system starts: the MOK manager. Ch
 a US (QWERTY) keyboard layout whatever your own is, which matters if your keyboard puts the letters
 elsewhere. `ame security status` tells you whether the keys are enrolled.
 
-If Secure Boot is off, a notification says so once. Turn it on in the machine's firmware settings,
-then run the command above.
+If Secure Boot is off, a notification says so once. Turn it on in the machine's firmware settings
+(`ame system bios` restarts into them), then run the command above.
 
 A [sealed image](updates.md#sealed-images) needs Amethystora's key before it can start at all, so its
 installer asks the MOK manager for it, together with the modules' key: the blue screen comes at the
@@ -100,8 +100,10 @@ ame system raid create       # a pool from spare disks
 `create` offers only the disks nothing is using: never the system's own, nor one with anything mounted
 or open on it. Pick the disks, a layout and whether to encrypt, and type `ERASE`: everything on those
 disks is erased, and the list shows what is on each first. Each question has its answer chosen
-already, so it can be Enter, Enter, Enter and `ERASE`. The pool is then at `/var/mnt/data` (or the
-name given with `--name`), belongs to you, and is in the Files sidebar.
+already, so it can be Enter, Enter, Enter and `ERASE`. The pool is then at `/var/mnt/data` (`data2`
+for a second one), belongs to you, and is in the Files sidebar. `ame system raid create --name media
+/dev/sdb /dev/sdc` names the pool and its disks ahead: a name of up to 31 lower-case letters, digits and
+dashes, and two spare disks or more.
 
 | Layout | From | Survives | Worth knowing |
 | --- | --- | --- | --- |
@@ -155,8 +157,10 @@ the pool says what happened and offers what to do:
 
 - **The monthly check** reads every copy, on mains power, and repairs a damaged one from a good one.
   **Check every copy now** (`ame system raid scrub now`) does it straight away: do that after a power
-  cut on a pool with parity. `ame system raid scrub off` turns the monthly check off.
-- **Add a disk** (`ame system raid add NAME`) makes room for more. It asks whether to spread what is
+  cut on a pool with parity. `ame system raid scrub off` turns the monthly check off and `on` back on;
+`ame system raid scrub` says whether it is on and offers to change that.
+- **Add a disk** (`ame system raid add NAME`, or `add NAME DISK` to name it) makes room for more, on an
+  open pool. It asks whether to spread what is
   already there over every disk now, which takes hours on a large pool.
 - **Forget** (`ame system raid forget NAME`) stops mounting a pool and leaves its files on its disks.
   GNOME Disks' **Format** erases them when you want the disks back.
@@ -201,10 +205,11 @@ many Brother and older laser printers are included for the rest. Add a printer i
 
 - **Android:** GSConnect links the phone to the desktop: notifications, file transfer, a shared
   clipboard and texts. It is off until you turn it on, with `ame desktop phone on` or the **Phone pairing**
-  switch on [Control](control.md)'s **Desktop** page, since it keeps a service running in every session.
+  switch on [Control](control.md)'s **Desktop** page, since it keeps a service running in every session; `ame desktop phone off` turns it off again.
   Install KDE Connect on the phone and pair them from the quick settings, on a
   network you have named home: elsewhere the firewall keeps the phone out
-  ([Security](security.md#on-from-the-start)). Name it with `ame security home-networks`.
+  ([Security](security.md#on-from-the-start)). Name it with `ame security home-networks`. A phone
+  paired before that rule came stops connecting until you do, which a notification says once.
 - **iPhone:** plug it in and trust the computer on the phone; its photos and files show up in Files.
 
 ## Keyboards, mice and security keys
@@ -214,7 +219,7 @@ many Brother and older laser printers are included for the rest. Add a printer i
 - **Remapping keys:** `ame security input-remapper` turns on Input Remapper ([Security](security.md#key-remapping)
   explains why it starts off).
 - **Keyboard configurators** (VIA, Vial, Keychron Launcher, ZSA's Oryx and Keymapp) reach Keychron,
-  Lemokey, ZSA and Vial keyboards for whoever is at the machine. Other keyboards are kept from them and
+  Lemokey, ZSA, Vial and Wooting keyboards (Wootility) for whoever is at the machine. Other keyboards are kept from them and
   from every other program, because what a configurator reads is every key typed. To configure another
   one, give it to whoever is at the machine with its vendor ID from `lsusb`:
   `echo 'KERNEL=="hidraw*", ATTRS{idVendor}=="1234", TAG+="uaccess"' | sudo tee /etc/udev/rules.d/70-keyboard.rules`,
@@ -271,6 +276,11 @@ A module refused while Secure Boot is on means its key is not enrolled ([Secure 
 Firmware the image lacks is often a device too new for the image's kernel, which a later update may
 bring. `ame report` puts what the check found in a bug report.
 
+`ame system bios-info` prints the board's maker and model and the firmware's version and date, which
+a question about a device often needs. `ame system benchmark` keeps every processor busy for a minute
+with stress-ng's matrix test and prints what it got through, to compare machines or to see that one
+stays stable under load; it offers to install stress-ng from Homebrew first.
+
 ## Drawing tablets
 
 Most drawing tablets work as soon as they are plugged in, and GNOME's Settings has a page for one once
@@ -293,8 +303,11 @@ away again, and the kernel's drivers come back after a restart. The **Drawing ta
 
 ## Laptops
 
-Framework laptops get their known fixes at first boot, for suspend, audio and the keyboard, and the
-13-inch model a text size to suit its screen. Keep the firmware current on every machine: a
+Framework laptops get their known fixes at first boot: the keyboard on the Intel models, which turns
+the light sensor off too and restarts the machine once by itself; suspend on a Laptop 13 with AMD
+Ryzen 7040 and firmware older than 3.09, whose own keyboard then no longer wakes it; natural scrolling
+for a mouse; and a larger text size on the first Intel Laptop 13s. A Framework 16's keyboard and
+numpad modules cannot wake it. Keep the firmware current on every machine: a
 notification says when an update is waiting, and **Updates** shows what there is, or in a terminal:
 
 ```bash
@@ -303,6 +316,9 @@ fwupdmgr update
 ```
 
 [Firmware](updates.md#firmware) says more.
+
+`ame system power-draw` measures what the machine draws while idle, with powerstat: run it on
+battery, and leave the machine alone for the few minutes it takes.
 
 ## Cameras
 

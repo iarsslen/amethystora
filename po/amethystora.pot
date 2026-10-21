@@ -2483,7 +2483,7 @@ msgid "Free disk space"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
-msgid "Removes container images and Flatpak runtimes nothing uses, old deployments, and Homebrew's cache, asking first."
+msgid "Removes container images and Flatpak runtimes nothing uses, cached update files, and Homebrew's cache, asking first."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list

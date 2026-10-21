@@ -22,6 +22,12 @@ and so does the switch on [Control](control.md)'s **Desktop** page.
 facets before the summary appears; you get the still logo instead over SSH, in the text console, in a
 terminal without full colour, with `NO_COLOR` set, or when **Reduce Animation** is on in
 **Settings → Accessibility**. Anything you add after `fetch` goes to fastfetch, which it runs.
+`fastfetch` itself, and `neofetch`, show the same summary beside a logo picked at random, as
+`/etc/amethystora/fastfetch.json` says.
+
+The image's name in the summary ends with a lock. Closed, 🔐, this machine takes only updates signed
+with Amethystora's key; open and blinking, 🔓, it takes its updates unchecked, and `ame system rebase`
+switches it back ([Signed updates](updates.md#signed-updates)).
 
 ## Shells
 
@@ -67,10 +73,12 @@ Browse what there is at [formulae.brew.sh](https://formulae.brew.sh). Homebrew i
 the system. Never run it with `sudo`: it is yours, not root's.
 
 Already on the image: `just`, `gum`, `glow`, `tmux`, `fastfetch`, `git` and the rest of the usual
-tools. The fonts include Inter, JetBrains Mono and the Nerd Fonts symbols, so prompts and file
+tools, and `open`, which opens a file or a link in its app, as on a Mac. The fonts include Inter, JetBrains Mono and the Nerd Fonts symbols, so prompts and file
 managers in the terminal draw their icons.
 
 `ame apps cli` installs a set of newer tools from Homebrew, eza, bat, ripgrep, zoxide and more, and
 sets your shell up to use them in place of the usual ones: `ls` lists with eza, `cat` shows with bat,
-`grep` searches with ugrep. `ame desktop bling off` takes that out of your shell's settings, and `on`
+`grep` searches with ugrep. It also installs direnv, mise, atuin, gh and more, and the Rust versions of
+the core tools (`cp`, `mv`, `find`, `diff` and the rest), which then come first in your account's
+`PATH`; uninstalling `uutils-coreutils` puts the system's own back. `ame desktop bling off` takes that out of your shell's settings, and `on`
 puts it back; the **Terminal tools** switch on Control's **Desktop** page does the same.

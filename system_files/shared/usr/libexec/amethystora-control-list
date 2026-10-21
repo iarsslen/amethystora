@@ -672,7 +672,7 @@ BUTTON="$(gettext "Free space…")"
 GROUP="$(gettext "Hardware")"
 USAGE="ame system clean"
 item system clean action "$(gettext "Free disk space")" \
-    "$(gettext "Removes container images and Flatpak runtimes nothing uses, old deployments, and Homebrew's cache, asking first.")" \
+    "$(gettext "Removes container images and Flatpak runtimes nothing uses, cached update files, and Homebrew's cache, asking first.")" \
     "" troubleshooting#the-disk-is-filling-up
 
 # The pools of disks, as `amethystora-raid status --json` has them, and the system's disks when it spans

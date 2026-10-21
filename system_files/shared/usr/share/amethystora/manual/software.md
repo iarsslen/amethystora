@@ -24,6 +24,15 @@ flatpak list --app
 flatpak uninstall --delete-data org.gimp.GIMP
 ```
 
+The apps the machine comes with install from Flathub the first time it is online: Firefox is the one
+in the image itself. Mail is Thunderbird; pictures open in Loupe, documents in Papers, videos in
+Showtime and sound in Decibels; Snapshot is the camera, Gradia annotates screenshots and Pinta paints;
+Calculator, Calendar, Clocks, Contacts, Maps, Weather, Characters, Fonts, Text Editor and File Roller
+for archives; Connections for remote desktops, Document Scanner, Disk Usage Analyzer, Firmware, Mission
+Center, Impression to write an ISO to a USB stick, Ignition for what starts at login, Metadata Cleaner,
+Smile for emoji, Refine for GNOME's hidden settings, Extension Manager, DistroShelf and Bazaar itself.
+The [developer image](developer.md#what-it-adds) adds its own.
+
 Two more tools are there for Flatpaks:
 
 - **Flatseal** shows and changes what each app is allowed to reach: folders, devices, the network.
@@ -61,7 +70,15 @@ brew search <name>
 ```
 
 Homebrew installs into its own prefix, without `sudo`, and is updated along with the system. The
-[terminal](terminal.md#command-line-tools) page has more. `ame security brew-attestations on` has it
+[terminal](terminal.md#command-line-tools) page has more.
+
+The image carries sets to pick from, a Brewfile each in `/usr/share/amethystora/homebrew`: AI tools,
+wallpapers, the terminal's tools, CNCF projects, fonts, a full desktop of GNOME Circle and other
+Flathub apps, editors, Kubernetes tools and Swift. `ame apps bbrew` asks which and opens it in Bold
+Brew, where you choose what to install from it, and `ame apps cncf` opens the CNCF one at once. Bold
+Brew comes from its author's own Homebrew tap, which both ask before installing.
+
+`ame security brew-attestations on` has it
 check each bottle's build attestation before installing it, which needs `gh` and `gh auth login` on
 every account. Homebrew's analytics, which it sends unless told not to, are off
 (`/etc/homebrew/brew.env`).
@@ -79,8 +96,8 @@ without a trace. Nothing installed in one touches the system.
 
 ### Packages from other distributions
 
-`amepkg`, short for `amethystora-pkg`, makes containers from templates (Debian, Ubuntu, Fedora, Arch,
-Alpine, openSUSE Tumbleweed and openSUSE Leap) and installs into them with their own package managers:
+`amepkg`, short for `amethystora-pkg` and also `ame pkg`, makes containers from templates (`debian`,
+`ubuntu`, `fedora`, `arch`, `alpine`, `opensuse-tumbleweed` and `opensuse-leap`) and installs into them with their own package managers:
 
 ```bash
 amepkg containers new --template debian
@@ -96,10 +113,10 @@ it installs an app, `amepkg` looks for the same app on Flathub and offers that f
 | Command | Does |
 | --- | --- |
 | `amepkg containers list` | The containers, their templates, when each was last upgraded, their apps |
-| `amepkg containers new` | A new container: it asks for the template and the name |
-| `amepkg containers rm <name>` | Deletes the container and everything installed in it |
+| `amepkg containers new` | A new container: it asks for the template and the name, or takes `--template`, `--name`, `--home <folder>` for a home of its own, and `--init` for one that runs services |
+| `amepkg containers rm <name>` | Deletes the container and everything installed in it, after asking (`--force` outside a terminal); a home folder of its own is deleted only if you say so |
 | `amepkg containers reset <name>` | Deletes it and makes it again from its template; its home folder stays |
-| `amepkg <name> install`, `remove` or `purge <package>` | Installs or removes packages |
+| `amepkg <name> install`, `remove` or `purge <package>` | Installs or removes packages; `--yes` answers the package manager's questions, and `--no-export` keeps the apps out of the app grid |
 | `amepkg <name> search <words>`, `show <package>` or `list` | Looks through its repositories, or what is installed |
 | `amepkg <name> update`, `upgrade`, `autoremove` or `clean` | Refreshes its package lists, upgrades it, tidies up |
 | `amepkg <name> enter` or `run <command>` | A shell in it, or one command |
@@ -125,7 +142,8 @@ version, who made it, whether it is signed, and whether it runs scripts of its o
 `.rpm` can carry a signature; a `.deb` normally does not, because Debian signs its repositories rather
 than each file, so a `.deb` from a website carries no proof of who made it. If the same app is on
 Flathub, or the package is in the container's own repositories, those are offered first: both are
-signed and kept up to date, and a file from a website is neither.
+signed and kept up to date, and a file from a website is neither. With the virus scanner turned off it
+says the file was not scanned, and an `.rpm` whose signature does not check out is refused.
 
 A package installed from a file is upgraded with its container only if its maker's repository comes
 with it, as some vendors' packages set up as they install.
@@ -134,13 +152,15 @@ with it, as some vendors' packages set up as they install.
 
 Every container is upgraded once a day by a timer of your own account
 (`amethystora-pkg-upgrade.timer`). Like the automatic updates of the system, it waits while the
-machine runs on a low battery, is busy, or is short of memory. **Update now** in
+machine runs on a low battery, is busy, or is short of memory, and tries again the next day. Started
+by hand, it never waits. **Update now** in
 [System Updates](updates.md#updating-now) upgrades them too, straight after the system, and shows how
 it went under **Containers**: a container that did not upgrade never makes the system's update a
 failed one. In a terminal:
 
 ```bash
 amepkg upgrade-all
+journalctl --user -t amethystora-pkg-upgrade    # what each container said
 ```
 
 The [security report](security.md#see-where-you-stand) says so when a container has gone two weeks
@@ -163,7 +183,8 @@ A template can give its containers a home folder of their own (`--own-home`), wh
 settings apart from yours, and distrobox's `--unshare` options (`--unshare netns,ipc`), which suit
 command-line tools; an app with a window usually needs what they take away. A home folder of its own
 does not hide your files: they stay reachable by their full path. Yours are kept in
-`~/.local/share/amethystora/pkg`, and the built-in ones cannot be changed or removed. `export` writes
+`~/.local/share/amethystora/pkg`, and the built-in ones cannot be changed or removed: `show`, `update`
+and `rm` work on yours, as in `amepkg templates rm devbox`. `export` writes
 one to a file, and `import` reads it back, here or on another machine. A definition is a program: a
 package manager's commands run in every container made with it, and a template chooses the image they
 start from, so import only what you would run yourself: `import` shows what the file defines and asks
@@ -192,7 +213,8 @@ That adds the `arch-aur` template, whose containers get a home folder of their o
 package manager, which is built from the AUR in the container the first time. Anyone can upload to
 the AUR and nobody reviews what is there, so before anything is built `amepkg` shows what the AUR
 says of it: who maintains it, how many vote for it, when it was submitted and last updated, and
-whether it is flagged out of date, with a warning for one less than 30 days old or with no votes.
+whether it is flagged out of date, with a warning for one less than 30 days old, with no votes, or
+that nobody maintains.
 paru then shows you the PKGBUILD, the script that builds it: read it. What Arch's own repositories
 have comes from them first. The daily upgrade leaves what came from the AUR alone, because each new
 version is a new script to read: `amepkg <name> upgrade`, in a terminal, upgrades those too.
@@ -204,7 +226,8 @@ The lists print JSON whose fields stay put, with `--json`:
 - `amepkg containers list --json`: `name`, `container` (its name in podman), `template`, `manager`,
   `image`, `status`, `home`, `init`, `unshare`, `exported_apps`, `exported_bins`, `packages`,
   `files`, `aur_packages`, `aur_pending`, `created`, `last_upgrade` (both in Unix seconds) and
-  `last_upgrade_result`
+  `last_upgrade_result` (`ok`, `failed` or `null`); `home` is `null` for a container that shares
+  yours, and `exported_apps` a list of `name` and `file`
 - `amepkg templates list --json`: `name`, `description`, `base`, `manager`, `packages`, `own_home`,
   `unshare`, `built_in`, `verified` and `pinned`
 - `amepkg managers list --json`: `name`, `need_sudo`, `noconfirm`, the ten commands and `built_in`
@@ -251,7 +274,8 @@ writable package database.
 ## VPN
 
 - **Tailscale** is installed: `ame system tailscale on` starts it and joins your tailnet, and
-  `ame system tailscale off` stops it. Its service runs only once you turned it on, or where the machine
+  `ame system tailscale off` stops it; anything after `on` goes to `tailscale up`, such as
+  `--accept-routes`, and `ame system tailscale` alone says whether it is on. Its service runs only once you turned it on, or where the machine
   had joined a tailnet before, so a machine that never uses it saves its memory. Turning it on asks for
   your password because
   Tailscale runs as root, and whoever controls it can join the machine to a tailnet somebody else runs

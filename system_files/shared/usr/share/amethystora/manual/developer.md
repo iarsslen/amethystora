@@ -19,7 +19,10 @@ sudo bootc switch --enforce-container-sigpolicy ghcr.io/iarsslen/amethystora-dx:
 If you have [layered packages](software.md#layering-the-last-resort), use
 `sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/iarsslen/amethystora-dx:stable` instead,
 which keeps them. Switching back to `amethystora` works the same way. The **Developer mode** switch on
-[Control](control.md)'s **System** page does either for you (`ame system devmode on` or `off`).
+[Control](control.md)'s **System** page does the first for you, on the stream and driver you are on
+(`ame system devmode on` or `off`; without either it switches to the other). It asks first, uses
+`bootc switch`, so it is not for a machine with layered packages, and on the way in offers extra
+monospace fonts from Homebrew.
 
 ## Groups
 
@@ -31,7 +34,9 @@ ame system dx-group
 ```
 
 It lists each group with what it lets you do, and you pick the ones your account should be in; the
-same command takes you out of one. **Developer groups** on [Control](control.md)'s **System** page
+same command takes you out of one. `ame system dx-group docker dialout` puts your account in exactly
+those and takes it out of the others, and `ame system dx-group none` out of every one; it still asks
+before one of the first three below. **Developer groups** on [Control](control.md)'s **System** page
 opens it. Log out and back in afterwards.
 
 | Group | Lets your account |
@@ -39,7 +44,7 @@ opens it. Log out and back in afterwards.
 | `docker` | Use Docker without `sudo` |
 | `incus-admin` | Use Incus without `sudo` |
 | `libvirt` | Run virtual machines on the system connection (`qemu:///system`) |
-| `dialout` | Use serial devices, such as microcontroller boards |
+| `dialout` | Use serial adapters. Arduino and Raspberry Pi Pico boards work without it |
 | `wireshark` | Capture network traffic in Wireshark |
 
 The first three are root under another name: Docker can start a container that mounts the whole
@@ -53,17 +58,20 @@ default for GNOME Boxes) need no group at all.
 
 | Tool | For |
 | --- | --- |
-| VSCodium | The editor: VS Code built from its open source code, without Microsoft's telemetry or licence. Extensions come from [Open VSX](https://open-vsx.org); Open Remote SSH is installed, as published by its maker. Its colours follow the [theme](themes.md). |
-| Docker Engine | With buildx and compose. The default for dev containers. |
-| Podman | With `podman-compose` and `podman machine`. Always there, rootless, and the Podman socket is on. |
+| VSCodium | The editor: VS Code built from its open source code, without Microsoft's telemetry or licence. Extensions come from [Open VSX](https://open-vsx.org); Open Remote SSH is installed, as published by its maker. Its colours follow the [theme](themes.md). It updates with the system, never by itself. |
+| Docker Engine | With buildx, compose and `docker model` for local AI models. Its socket is on, so it starts when first used. The default for dev containers. |
+| Podman | With `podman-compose`, `podman machine` and `podman-tui`. Always there, rootless, and the Podman socket is on. |
+| qemu-user-static | Containers and programs built for other processors, such as `podman run --platform linux/arm64` |
 | Incus | System containers and virtual machines, managed like cloud instances |
-| libvirt and virt-manager | Virtual machines with QEMU and KVM |
+| libvirt and virt-manager | Virtual machines with QEMU and KVM; virt-v2v converts machines from other hypervisors |
+| Cockpit's bridge | Manage this machine from Cockpit on another one, over SSH |
 | Sysprof, perf, bcc, bpftrace, bpftop, bpftool, trace-cmd | Profiling and tracing, from the whole system down to one function |
 | gdb, strace, ltrace, Valgrind | Debugging: step through a program, watch the calls it makes to the kernel and to its libraries, find memory errors. Attaching gdb to a program it did not start needs `sudo` ([why](security.md#on-from-the-start)). |
 | Wireshark | Capturing and reading network traffic, without `sudo` once you join its [group](#groups) |
 | android-tools | `adb` and `fastboot` |
 | ROCm | GPU compute on AMD graphics |
 | flatpak-builder | Building Flatpaks |
+| Podman Desktop, Builder, Clapgrep, Embellish, DevToolbox | Apps from Flathub, installed with developer mode: containers in a window, GNOME's IDE, searching text across files, Nerd Fonts, and encoders, formatters and generators. Leaving developer mode takes them away again |
 
 Packages published minutes ago are how most poisoned releases reached people:
 `ame security package-cooldown on` has npm, pnpm and uv refuse versions less than 3 days old, and
@@ -108,7 +116,9 @@ brew install kubectl helm k9s kind
 ```
 
 `kind` runs a whole Kubernetes cluster in Docker containers, which is the quickest way to try
-something against a real cluster.
+something against a real cluster. `ame apps cncf`, **Cloud native tools** on [Control](control.md)'s
+**Apps** page, lets you pick from the Cloud Native Computing Foundation's projects
+([Homebrew](software.md#command-line-tools-homebrew)).
 
 ## An image of your own
 

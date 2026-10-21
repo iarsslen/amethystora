@@ -10,25 +10,39 @@ recommends, and the rest of this page assumes you took it.
 
 ## Notes
 
-Notes are written in Markdown and sit in notebooks, which can hold other notebooks. The editor shows
-the text and the formatted note side by side. **Ctrl+E** switches between the text, both, and the
-formatted note alone.
+Notes are written in Markdown and sit in notebooks, which can hold other notebooks: the **+** beside
+**Notebooks** makes one, and a notebook's **More** menu adds a note or a notebook inside it, renames it,
+moves it to the top level, or deletes it, which sends its notes to the trash. The editor shows the text
+and the formatted note side by side, or one above the other in a narrow window. **Ctrl+E**, or the three
+buttons at the top of the note, switch between the text, both, and the formatted note alone. The sort
+button over the list orders the notes by when they last changed, when they were made, or by title.
+
+The toolbar above the text makes a selection bold or italic, a heading, a list, a checklist, a quote,
+code or a link, and takes a heading or list off again. `Tab` and `Shift+Tab` indent and outdent, and
+`Enter` carries a list on, or ends it on an empty item. Links to web pages and mail addresses open in
+their apps.
 
 - **Checklists:** `- [ ] like this`. Tick the boxes in the formatted note.
-- **Attachments:** paste an image, drop a file on the note, or use the paperclip. Pictures show in
-  the note. Click any other attachment to save a copy.
-- **Tags:** type in the tag row under the title and press **Enter**. Tags are listed in the sidebar.
+- **Attachments:** paste an image, drop a file on the note, or use the paperclip, up to 200 MB each.
+  Pictures show in the note. Click any other attachment to save a copy, which is not encrypted.
+- **Tags:** type in the tag row under the title and press **Enter** or a comma; it offers the tags
+  you have, and `Backspace` in the empty row takes the last one off. Tags are listed in the sidebar,
+  where a tag's **More** menu renames it or takes it off every note.
 - **Moving a note:** pick another notebook at the top of the note, or drag the note onto a notebook
   in the sidebar.
 - **Earlier versions:** the clock at the top of a note. A version is kept each time you come back to
   change a note after ten minutes away from it, up to the last 30. Restoring one keeps the text it
   replaces as a version too.
-- **Trash:** a note you delete goes to the trash, where you can restore it or delete it for good.
-- **PDF:** the **⋯** menu of a note exports it as a PDF.
+- **Trash:** **Move to the trash**, in a note's **⋯** menu, can be undone at once. In the trash a note
+  can be restored or deleted for good, with its earlier versions and attachments, and **Empty** deletes
+  them all. Nothing leaves the trash by itself.
+- **PDF:** the **⋯** menu of a note exports it as a PDF, with its pictures.
 
 ## Tasks
 
-**Tasks** at the top of the sidebar switches to your to-do lists:
+**Tasks** at the top of the sidebar switches to your to-do lists, with the number due today or
+overdue; `amethystora-notes tasks`, or **Tasks** in the right-click menu of Notes, opens them
+straight away:
 
 | View | Shows |
 | --- | --- |
@@ -38,27 +52,34 @@ formatted note alone.
 | Pinned | The tasks you pinned |
 | Completed | What you finished, most recent first |
 
-Projects group tasks and can be divided into sections. Labels cut across projects. Click a task to
-set its date and time, repeat, reminder, priority, labels and notes, and to add subtasks.
+Projects group tasks and can be divided into sections. Labels cut across projects. The **+** beside
+**Projects** or **Labels** makes one, and its **More** menu renames it, gives it a colour, adds a section
+to a project, or deletes it. **Deleting a project deletes its tasks**; deleting a section leaves its
+tasks in the project, and deleting a label only takes it off its tasks. Click a task to move it to
+another project or section, set its date and time, repeat, reminder, priority, labels and notes, add
+subtasks, pin it, or delete it, which can be undone at once. Completing a task completes its subtasks
+too, and a project folds its completed tasks away.
 
 The **Add a task** field understands a little plain language. It takes these out of the title:
 
 | Type | For |
 | --- | --- |
-| `today`, `tomorrow`, `friday`, `next week`, `2026-10-31` | The date |
-| `5pm`, `17:30` | The time, with a reminder at that time |
-| `every day`, `every 2 weeks`, `monthly` | A task that repeats |
+| `today`, `tonight`, `tomorrow` (`tmr`), `friday` or `on fri`, `next week` (next Monday), `2026-10-31` | The date |
+| `5pm`, `at 17:30` | The time, with a reminder at that time; on today, or tomorrow once it has passed, when no date is given |
+| `every day`, `every 2 weeks`, `daily`, `weekly`, `monthly`, `yearly` | A task that repeats |
 | `p1` to `p4` | The priority, `p1` the highest |
 | `@errand` | A label, made if it is new |
-| `#Garden` | A project that exists |
+| `#Garden` | A project that exists, its name typed without spaces (`#GardenWork`) |
 
-Completing a repeating task moves it to its next date.
+Completing a repeating task moves it to its next date. The words are English whatever the language of
+the window.
 
 ### Reminders
 
 A task with a time can remind you, from **At the time** to **1 day before**. Reminders appear as
-notifications while Notes is running. When you close the window, Notes keeps running in the background
-until the reminders still to come have gone off. You can turn that off in **Settings**. Your notes are
+notifications while Notes is running, and clicking one opens the task. When you close the window, Notes keeps running in the background
+until the reminders still to come have gone off. **Keep running for reminders**, in **Settings**, turns
+that off. Your notes are
 locked while it runs like that; only the titles and times of the reminders are kept, in memory.
 
 ## Encryption
@@ -78,11 +99,13 @@ NIST and the NSA's CNSA 2.0 keep for the years after quantum computers.
 
 Your notes lock:
 
-- after 10 minutes without using Notes (**Settings**, **Lock when away**),
+- after 10 minutes without using Notes, or 5, 15 or 30 minutes, an hour, or only on the other two
+  (**Settings**, **Lock when away**),
 - when the screen locks, the computer sleeps, or the window closes,
 - when you press **Ctrl+L** or **Lock** in the sidebar.
 
-**Settings** also changes the passphrase, and turns encryption off or on again. Changing the
+A passphrase needs at least 8 characters, typed twice. **Settings** also changes it, and turns
+encryption off or on again. Changing the
 passphrase changes the key too, unless you turn **Change the key as well** off: everything is
 encrypted anew, so that an older copy of the notes folder, from a snapshot or a backup, cannot open
 what you write from now on with the old passphrase. That older copy itself still opens with it.
@@ -124,10 +147,10 @@ copy of your notes' key is encrypted. What is on disk is still encrypted with AE
 Since nothing is synced, keep a copy somewhere else. In **Settings**:
 
 - **Back up to a file** writes one `.amnotes` file with everything in it, attachments included,
-  encrypted like your notes. It opens with the passphrase you had when you made it, on any computer:
-  choose it under **Import**.
-- **Export as Markdown** writes every note as a Markdown file in a folder per notebook, and every
-  project as a checklist. These files are **not** encrypted.
+  encrypted if your notes are. It opens with the passphrase you had when you made it, on any computer:
+  choose it under **Import**, which adds what is in it to the notes already there.
+- **Export as Markdown** writes every note as a Markdown file in a folder per notebook, its attachments
+  beside them, and the inbox and every project as a checklist. These files are **not** encrypted.
 
 Your notes themselves are in `~/.local/share/amethystora-notes`.
 
@@ -155,5 +178,6 @@ Once everything is across, you can remove the old apps in Bazaar, or with
 | **Ctrl+1** / **Ctrl+2** | Notes / Tasks |
 | **Ctrl+E** | Text, both, or the formatted note |
 | **Ctrl+B**, **Ctrl+I**, **Ctrl+K** | Bold, italic, link |
-| **Ctrl+L** | Lock |
+| **Ctrl+L** | Lock, while the notes are encrypted |
+| **Esc** | Close a menu, or the open task |
 | **Ctrl+,** | Settings |

@@ -15,23 +15,37 @@ amethystora-agent diagnose "the second monitor stays black after suspend"
 It reads the logs and crash reports, changes nothing, and comes back with the cause and a fix to
 consider. [The AI agent](ai-agent.md#diagnose-a-problem) has more.
 
+Without the agent, `ame system doctor` runs the same health check it starts from: failed services,
+updates, disk space, memory, crashes, the clock, the driver, backups and pools of disks, each finding
+with what fixes it. It only reads, needs no password, and `ame system doctor ID`, with the id a finding
+named, checks that one again after a fix.
+
 ## The logs
 
 Open **Logs** from the app grid, or run `amethystora-logs`. It opens on **Important**, the errors
-from everything on the machine since it started. The sidebar splits the rest into your session, the
-system, the kernel and hardware, security (sign-ins, `sudo`, what the audit rules or the file-watch
-sensor caught) and **Crashes**, each with a count of what is new since the last boot where it matters.
+from everything on the machine since it started. The sidebar has **All** of it, and splits it into your
+session, the system, the kernel and hardware, security (sign-ins, `sudo`, what the audit rules or the
+file-watch sensor caught) and **Crashes**; Important and Crashes say how many there have been since the
+machine started. `amethystora-logs` followed by `all`, `session`, `system`, `kernel`, `security`,
+`crashes` or `sources` (Apps and services) opens it on that view. Logs takes the place of GNOME Logs,
+which the image no longer installs; Bazaar still has it.
 
-- **Search** looks through what the messages say, as you type. The `.*` button beside it takes the
-  search as a regular expression instead.
+- **Search** (`Ctrl+F` or `/`) looks through what the messages say, as you type, whatever their case.
+  The `.*` button beside it takes the search as a regular expression instead.
+- The newest 400 entries show first, and **Show older** reads further back. `Up` and `Down`, or `j` and
+  `k`, go from entry to entry, and `Esc` empties the search, then closes the open entry. A view with
+  nothing in it offers **Look further back** and **Every level**.
 - **Time** goes back to the previous boot, any boot the journal still keeps, the last hour, day or
   week, or everything. **Level** hides what is less serious than you pick.
 - **Apps and services** lists everything that has written to the journal. Pick an app to read what it
-  said each time it ran, or a service of the system or of your session.
+  said each time it ran, or a service of the system or of your session; the field at the top finds
+  one, and the foot says how much room the journal takes on disk.
 - Click an entry to read all of it, with every field the journal keeps. **Only …** narrows the view to
   where it came from, and **Around this** shows everything logged in the minute before and after it.
-- **Follow** adds new entries as they are written. **Export** saves what is shown to a text or JSON
-  file, and the terminal button opens the same view in `journalctl`. The command for the view is also
+  With the [AI agent](ai-agent.md) on, **Ask the agent** on a crash or on what a service wrote has it
+  find out why, changing nothing.
+- **Follow** adds new entries as they are written, for a time that runs up to now. **Export** saves
+  what is shown, up to 250,000 entries, to a text file or to JSON with one entry a line, and the terminal button opens the same view in `journalctl`. The command for the view is also
   at the bottom of the sidebar.
 
 Administrators, the accounts in `wheel`, see everything. Any other account sees its own session and
@@ -47,6 +61,7 @@ The same in a terminal:
 | `systemctl --failed` | Services that failed to start |
 | `coredumpctl list` | Programs that crashed |
 | `ame system logs-this-boot` | Everything from this boot |
+| `ame system logs-last-boot` | Everything from the previous boot |
 | `ame system local-overrides` | The files in `/etc` you, or something you ran, have changed |
 
 ## An update broke something
@@ -108,8 +123,10 @@ With Secure Boot on, its driver loads only once Amethystora's key is enrolled:
 ame system clean
 ```
 
-Removes unused containers, images and Flatpak runtimes. `flatpak uninstall --unused` and
-`podman system prune` do parts of the same by hand.
+Asks before each step: the container images no container uses and unused volumes, Podman's and
+Docker's; the Flatpak runtimes no app needs; rpm-ostree's temporary files and cached metadata; and what
+Homebrew no longer needs, with its download cache. It removes no container and no deployment: those
+are `podman rm` and [rolling back](updates.md#rolling-back)'s business.
 
 ### A disk of a pool failed
 
@@ -148,9 +165,13 @@ It asks which:
   changed. Restart afterwards.
 - **Both**.
 
+`ame system reset-settings account`, `machine` or `both` skips the question. A [sealed](updates.md#sealed-images)
+machine resets only your account's settings.
+
 Your files, apps and containers stay either way. What a reset replaced is saved first, your account's in
 `~/.local/state/amethystora/reset-settings` and the machine's in `/var/lib/amethystora/reset-settings`,
-and **Undo** brings the last one back: `ame system reset-settings undo`. **Reset settings** on
+and **Undo** brings the last one back: `ame system reset-settings undo`, which asks whose, or
+`undo account` and `undo machine`. **Reset settings** on
 [Control](control.md)'s **System** page opens the same command.
 
 ### Starting over
@@ -174,13 +195,15 @@ machine. To give a machine away, install it again from the ISO instead, which er
 ## Reporting a problem
 
 Report bugs on [GitHub](https://github.com/iarsslen/amethystora/issues), and ask questions in the
-[discussions](https://github.com/iarsslen/amethystora/discussions). `ame report` gathers what a
-report needs into a file in your home folder (the image, your groups, failed services and the errors
-logged since this boot), shows you all of it, and then, if you say so, opens a new issue with all but
+[discussions](https://github.com/iarsslen/amethystora/discussions), which **Community** in the app grid
+opens. `ame report` gathers what a
+report needs into a file in your home folder (the image and its deployments, the kernel, the machine's maker
+and model, what the [driver check](hardware.md#when-a-device-does-not-work) found, your groups, failed
+services and the errors logged since this boot), shows you all of it, and then, if you say so, opens a new issue with all but
 the errors filled in. Nothing is posted until you submit it; drag the file in if the errors help.
 Otherwise, include:
 
-- the output of `rpm-ostree status`, which names the exact image,
+- the output of `rpm-ostree status` (`sudo bootc status` on a sealed machine), which names the exact image,
 - what you did, what you expected, and what happened instead,
 - the relevant lines from the logs above,
 - whether the previous image had the same problem.

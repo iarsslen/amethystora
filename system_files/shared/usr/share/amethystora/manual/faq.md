@@ -44,7 +44,9 @@ needs X11, so grant it to Bottles in Flatseal. For the rest, a Windows virtual m
 
 ## How do I run an AppImage?
 
-Install **Gear Lever** from Bazaar. It puts AppImages in the app grid and keeps them updated.
+Install **Gear Lever** from Bazaar. It puts AppImages in the app grid and keeps them updated. Until
+then, double-clicking one in Files does nothing, on purpose: make it executable and run it from a
+terminal if you trust it.
 
 ## How do I install a `.deb` or an `.rpm`?
 

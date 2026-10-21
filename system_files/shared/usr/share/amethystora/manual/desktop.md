@@ -36,7 +36,9 @@ mode** in the same menu, and nothing is recorded until you turn it off.
 
 The dock at the bottom holds your pinned apps and the ones that are running. `Alt+1` to `Alt+9`
 switch to the app in that slot, and open it if it is not running. Right-click an app to pin or unpin
-it.
+it. Right-clicking one of Amethystora's own apps also offers its pages: **Hotkeys** in the Manual,
+**Tasks** in Notes, **Crashes** and **Apps and Services** in Logs, **Backup Status** in Backups,
+**Virus Scan** in Security, and **Appearance** and **System** in Control.
 
 ## The Amethystora menu
 
@@ -46,8 +48,8 @@ terminal and [`ame`](terminal.md#ame):
 | Entry | Does |
 | --- | --- |
 | Ask an agent | Opens the [AI agent](ai-agent.md), while it is on |
-| Diagnose a problem | Has the agent find out why something broke |
-| Make a widget | Has the agent make a [widget](widgets.md) for the top bar |
+| Diagnose a problem | Has the agent find out why something broke, while it is on |
+| Make a widget | Has the agent make a [widget](widgets.md) for the top bar, while it is on |
 | Theme | The theme picker |
 | Background | The wallpapers of the current theme |
 | Keybindings | The hotkeys, in the terminal |
@@ -55,9 +57,11 @@ terminal and [`ame`](terminal.md#ame):
 | Manual | This manual |
 | Web apps | Install or remove a [web app](web-apps.md) |
 | Apps and system commands | Every `ame` command, in its group |
-| System | Lock, log out, restart, shut down, check for updates, the security report |
+| System | Lock, log out, restart, shut down, check for updates, the security report, the logs and backups |
 
-Move with the arrow keys or type to filter, `Enter` to choose, `Esc` to go back.
+Move with the arrow keys or type to filter, `Enter` to choose, `Esc` to go back. From a terminal,
+`amethystora-menu` opens it, and `amethystora-menu theme`, `background`, `keys`, `webapps` or `system`
+opens that part of it.
 
 ## Tiling windows
 
@@ -74,7 +78,8 @@ you are on, windows never overlap, and the strip scrolls to keep the focused win
 
 Mail and Chat are still open, just off the edge. `Super+Left` scrolls back to Mail. Push the pointer
 against the left or right edge of the screen to see what is beyond it, and click a window there to
-go to it. On a touchpad, swipe with three fingers to slide the strip.
+go to it. On a touchpad, swipe sideways with three fingers to slide the strip, and up or down to change
+workspace.
 
 The keys follow one pattern. `Super` and an arrow moves to another window. Add `Ctrl` and the window
 moves instead. Add `Shift` and you go to another monitor.
@@ -107,7 +112,7 @@ moves instead. Add `Shift` and you go to another monitor.
 | Key | Does |
 | --- | --- |
 | `Super+R` | Step the width through 38%, 50% and 62% of the screen (`Super+Alt+R` steps back) |
-| `Super+Shift+R` | The same for the height of a window in a column |
+| `Super+Shift+R` | The same for the height of a window in a column (`Super+Alt+Shift+R` steps back) |
 | `Super+F` | Fill the width of the screen, and back |
 | `Super+C` | Centre the window on the screen |
 | `Super+Shift+C` | Where the strip scrolls a focused window to: just into view, the centre or the edge |
@@ -152,6 +157,7 @@ offers the same choice, and [Control](control.md)'s **Desktop** page has it any 
 | `Super+Backspace` | Resize with the arrow keys |
 | `Shift+F11` | Full screen, keeping the title bar |
 | `Super+Tab` / `Alt+Tab` | Switch between apps / between windows |
+| `` Super+` `` | Switch between the windows of the app you are in |
 
 The buttons on the right of every title bar minimise, maximise and close.
 
@@ -175,14 +181,16 @@ These GNOME Shell extensions come with the image:
 | Search Light | The search on `Super+Space` |
 | Fuzzy App Search | App search that forgives typos |
 | Clipboard Indicator | The [clipboard history](#the-clipboard) on `Super+Shift+V` |
-| Blur my Shell | The frosted glass behind the panel, the overview and windows |
+| Blur my Shell | The frosted glass behind the panel, the overview, menus and notifications, and windows you are not using made slightly see-through (**Applications** in its settings) |
 | Just Perfection | Quicker animations, and no popup when you change workspace |
 | AppIndicator | Tray icons for apps that use them |
-| Caffeine | A switch in the quick settings that keeps the screen awake |
+| Caffeine | Off until you turn it on in Extension Manager; then a switch in the quick settings keeps the screen awake |
 | GSConnect | Your Android phone, on the [networks you name home](security.md#on-from-the-start): notifications, files, clipboard, texts. Off until you [turn it on](hardware.md#phones) |
 | Logo Menu | The Amethystora logo at the top left: shortcuts to system tools |
-| Gradia | Annotate a screenshot straight after taking it |
+| Gradia | Annotate a screenshot straight after taking it, in the Gradia app |
 | Bazaar integration | Connects the shell to Bazaar, the software centre |
+| Amethystora Transitions | The animation that reveals a new theme or wallpaper ([Transitions](themes.md#transitions)) |
+| Amethystora Widgets | Your own [widgets](widgets.md) in the top bar; nothing until you add one |
 
 Turn any of them off, or change their settings, in **Extension Manager**. One thing to know: after
 every image update the image's own extensions are switched back on, so that one turned off by

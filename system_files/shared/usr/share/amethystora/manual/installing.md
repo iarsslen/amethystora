@@ -67,7 +67,8 @@ A stick made with Ventoy starts the ISO only in Ventoy's GRUB2 mode.
 
 Plug the stick in and start the computer from it: as it starts, press its boot menu key (F12, F11,
 F10, F8 or Esc on most PCs; hold Option on an Intel Mac) and choose the stick. Secure Boot can stay
-on. Choose **Try or install Amethystora**, or the **basic graphics mode** if the screen stays black.
+on. Choose **Try or install Amethystora**, or the **basic graphics mode** if the screen stays black. An
+installed system takes basic graphics off at its first start, and restarts once by itself to do so.
 
 Amethystora starts as it will once installed, already logged in. Wi-Fi, sound, the display and the
 rest of the hardware show whether this computer suits it. Nothing is written to the computer's disk,

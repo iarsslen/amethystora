@@ -27,7 +27,8 @@ amethystora-webapp remove "Proton Mail"
 ```
 
 [Control](control.md)'s **Apps** page lists your web apps, removes them, and adds one in a terminal.
-`amethystora-webapp list` lists them in a terminal.
+`amethystora-webapp list` lists them in a terminal. `ame apps webapps` is the same command, so
+`ame apps webapps list` does too.
 
 To open a site as a web app just once, without installing it: `amethystora-webapp <address>`.
 

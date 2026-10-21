@@ -15,14 +15,17 @@ Both show what the security settings are actually doing right now, with what to 
 that is off, and neither changes anything or asks for a password. In the app, what needs your
 attention comes first, with the command that fixes it and a button that runs it in a terminal, and
 the protections below that are off until you want them are each one button away. For a deeper look,
-`ame security audit` runs Lynis through a few hundred checks and explains each finding.
+`ame security audit` runs Lynis through a few hundred checks and explains each finding. **Check again**
+reads the report anew, and `amethystora-security` followed by `scan`, `network`, `apps`, `containers`,
+`events` or `settings` opens the app on that page.
 
 The app's **Apps** page lists what each Flatpak app can reach beyond its sandbox, and which of it was
 granted on this machine ([App permissions](#app-permissions)).
 
 The app's **Containers** page lists what is installed outside Flatpak: the containers `amepkg` made,
 the apps in your app grid that come from them, and what was built from the AUR, each with when it
-was last upgraded. The report says so when one has gone two weeks without an upgrade.
+was last upgraded. The report says so when one has gone two weeks without an upgrade, and **Upgrade
+them now** upgrades every one in a terminal.
 [Containers](software.md#containers).
 
 When something needs your attention and the [AI agent](ai-agent.md) is on, **Ask the agent** hands it
@@ -44,7 +47,7 @@ to the agent, which looks into it in a terminal and changes nothing until you ag
   `ame security home-networks`, which lists the networks this machine has joined. A wired connection
   is used on every wired network the machine is plugged into, so name it home only if the machine is
   plugged in nowhere else.
-- **Ten wrong passwords in a row** lock an account for ten minutes. Unlock it early from another
+- **Ten wrong passwords within a quarter of an hour** lock an account for ten minutes. Unlock it early from another
   administrator account with `sudo faillock --user <name> --reset`.
 - **Repeated failed logins over the network** get the address blocked: five failures within ten
   minutes cost an hour, and each further ban of the same address lasts longer, up to a day. It
@@ -84,7 +87,7 @@ to the agent, which looks into it in a terminal and changes nothing until you ag
   stop the sensor: that is said too, but what happens while it is down is not recorded, whereas the audit
   log, locked at boot, holds until the next restart. `ame security audit-locked` keeps the audit log doing
   it if you would rather. [The security watcher](#the-security-watcher).
-- **A virus scan runs every week** over your home and temporary folders, and **Lynis audits the
+- **A virus scan runs every week**, on Sunday night, over your home and temporary folders, and **Lynis audits the
   settings every month.** By default neither deletes or moves anything: a false positive that takes
   away a file you wanted is worse than most of what it would remove. `ame security scan` shows what
   the last scan found, and `ame security scan now` runs one. [Scanning for viruses](#scanning-for-viruses)
@@ -111,7 +114,7 @@ The watcher looks at:
 - **`/etc` against the image**: the image keeps its own copy of `/etc` in `/usr/etc`, so a changed
   security setting, or a file in `/etc` that replaces one of the image's in `/usr/lib`, shows as
   **Image settings** in the report.
-- **What should not exist on this system**: a setuid program outside `/usr`, `/etc/ld.so.preload`,
+- **What should not exist on this system**: a setuid program outside `/usr` (searched for once a day), `/etc/ld.so.preload`,
   a plain file in `/dev`, a file or folder in `/etc` or `/usr/local` that belongs to a login account
   rather than to root, a kernel module that did not come with the image or is not signed, and a
   network interface reading every packet. These are **Rootkit checks** in the report.
@@ -137,7 +140,9 @@ What it reads that somebody else wrote, a file name, a program's name, a launche
 from the network, is shown as plain text everywhere: a name cannot write over a terminal or a
 notification, or pretend to be another line of the history. Each finding keeps when it happened, which
 part of the watcher found it, the account it is about and the kind of attack it would belong to, in
-`/var/log/amethystora-security-events.jsonl`, and the last 500 in the Security app's **Events** page.
+`/var/log/amethystora-security-events.jsonl`, and the newest 200 in the Security app's **Events** page,
+which only administrators see. **Mark them read, in a terminal** there does what `ame security events`
+does, and **Open in Backups**, on an event about your own files, opens Backups at the snapshot before it.
 
 Anything new is a notification, and waits in the report until you read it:
 
@@ -167,7 +172,7 @@ by the app itself:
 
 What an app asks for through a portal, such as a file you choose for it, is asked each time and is
 not listed. The security report says when an app can leave its sandbox, and when one was given back
-X11, the input devices or, as the apps the image installs that need it are, the Flatpak service. If you did not mean it to, change it in **Flatseal**, or take back
+X11, the input devices or, as the apps the image installs that need it are, the Flatpak service. If you did not mean it to, change it in **Flatseal** (`ame security apps flatseal` opens it), or take back
 everything you granted one app with **Take back what you granted** on the Apps page, or:
 
 ```bash
@@ -196,33 +201,40 @@ saves a copy without it. Open it from the app grid and add the files before you 
 
 A scan you start runs as you, so it checks what your account can read. By default nothing it finds is
 deleted, quarantined or moved: the result lists each file, with **Show in Files**, and leaves the
-decision to you. A match can be a false positive, so check where a file came from before you delete
+decision to you, with **Copy path** and **Scan again** beside it; **Stop the scan** stops one
+you started. What a scan of yours found stays on the app's overview until a clean scan of the same
+place, or **Dismiss**. A match can be a false positive, so check where a file came from before you delete
 it, then scan again. If you set scans to quarantine or delete, the app asks for your password once
 the scan is done and says what happened to each file. The scans you ran are listed in
-`~/.local/state/amethystora/security-scans.json`.
+`~/.local/state/amethystora/security-scans.json`, and `ame security scan log` shows everything the
+weekly scan and real-time scanning logged. While the virus scanner is off, the page offers
+**Turn it on…** instead.
 
 ## Settings
 
 The **Settings** page of the Security app lists every switch, with what each does and, while it runs,
-what it costs. In a terminal:
+what it costs, and every change there opens in a terminal that says what it changes. In a terminal:
 
 ```bash
-ame security settings
+ame security settings                        # every setting, its value and its name
+ame security settings virus-scan manual      # change one: its name, then the value
 ```
 
-- **What happens to what a virus scan finds**: `report` (the default) leaves it where it is,
+- **What happens to what a virus scan finds** (`on-detection`): `report` (the default) leaves it where it is,
   `quarantine` moves it to `/var/lib/amethystora/quarantine`, where nothing can open or run it, and
   `delete` deletes it. This applies to the weekly scan, the scans you start in the app and real-time
   scanning. Each file is checked again before anything is done to it. `ame security scan quarantine`
   lists what is in quarantine, and `ame security scan restore` puts a file back and can tell the
-  scanner to leave that exact file alone from then on.
-- **Real-time watching**: `off` (the default) or `on`, for both halves at once, which can also be set
+  scanner to leave that exact file alone from then on. A file stays in quarantine until it is put back
+  or deleted for good, with `sudo /usr/libexec/amethystora-quarantine delete ID` and the id the list
+  gives.
+- **Real-time watching** (`realtime`): `off` (the default) or `on`, for both halves at once, which can also be set
   each on its own. `realtime-watch` has the security watcher read each change as the audit log records
   it. `realtime-scan` scans every file written in a home folder as it is closed: it costs some CPU while
   files are being written, and starts once the first virus signatures have downloaded.
-- **Network protection**: `off` (the default), `watch` or `block`.
+- **Network protection** (`network`): `off` (the default), `watch` or `block`.
   [Network protection](#network-protection).
-- **The virus scanner**: `weekly` (the default), `manual`, which scans only when you start a scan, or
+- **The virus scanner** (`virus-scan`): `weekly` (the default), on Sunday night, `manual`, which scans only when you start a scan, or
   `off`, which runs nothing at all and downloads nothing. Either way clamd, which holds the virus
   signatures in memory, over a gigabyte, runs only while something scans: it starts when a scan
   connects, which takes it a moment, and stops within half an hour of the last one. Real-time scanning
@@ -235,15 +247,18 @@ ame security settings
   used. They are downloaded on this machine daily, not on a metered connection, and each rule ClamAV cannot
   load is left out. A match names the rule and its author. The weekly scan, with them or not, waits for
   mains power on a laptop; a scan you start does not.
-- **The settings audit**: Lynis every month, `on` (the default) or `off`. `ame security audit` runs one
+- **The settings audit** (`settings-audit`): Lynis every month, `on` (the default) or `off`. `ame security audit` runs one
   whenever you ask.
-- **The security watcher**: `on` (the default) or `off`, and each part of what it reads on its own: the
-  audit log's kinds of change (accounts, `sudo`, what starts by itself, the security settings, kernel
-  modules, keyboard readers, programs in home folders), the journal, the image's settings, the setuid
-  sweep, open ports, the commands a session finds first, and the report's alerts. Each is `off`,
-  `record`, which keeps what it finds in the history without a notification, or `on`.
-- **The audit log**: `on` (the default) or `off`, from the next restart.
-- **Notifications**: `all` (the default), `critical`, or `none`. Whatever is not said is still in the
+- **The security watcher** (`watcher`): `on` (the default) or `off`, and each part of what it reads on
+  its own: the audit log's kinds of change, accounts (`identity`), `sudo` (`privilege`), what starts by
+  itself (`persistence`), the security settings (`hardening`), kernel modules (`modules`), keyboard
+  readers (`input-capture`) and programs in home folders (`user-programs`); the journal (`journal`), open
+  ports (`listeners`) and the commands a session finds first (`user-paths`). Each is `off`, `record`, which
+  keeps what it finds in the history without a notification, or `on`, the default, apart from programs in
+  home folders, which are recorded. The image's settings (`image-drift`), the daily setuid search
+  (`setuid-sweep`) and the report's alerts (`report-alerts`) are `on` or `off`.
+- **The audit log** (`audit-log`): `on` (the default) or `off`, from the next restart.
+- **Notifications** (`notify`): `all` (the default), `critical`, or `none`. Whatever is not said is still in the
   report and in `ame security events`.
 
 They are kept in `/etc/amethystora/security.conf`. The command and the app apply a change at once,
@@ -258,16 +273,17 @@ once and stops being recorded from the next restart.
 
 - **Everything at once.** `ame security profile off` turns off everything that can be: the watcher, the
   virus scanner, the settings audit, real-time watching, network protection and the audit log.
-  `ame security profile default` puts every switch back as the image ships it. The Settings page has
-  both as buttons.
+  `ame security profile default` puts every switch back as the image ships it, which also turns off the
+  ones that send something away (site checking, asking the agent about events, hash reputation). The
+  Settings page has both as buttons.
 - **A profile for what looks for new threats.** `ame security profile light` records the cheapest of
   [what looks for new threats](#looking-for-new-threats) and says ransomware, agents' settings and apps
-  that gain permissions; `balanced` says all of those, records secrets read, programs run from the
+  that gain permissions, and records what reaches into another program's memory; `balanced` says all of those, records secrets read, programs run from the
   downloads and programs loaded into the kernel, puts the chains of steps together and fetches the
-  command-server lists daily; `thorough` turns all of it on, the decoy key, the YARA rules and the
-  behaviour sensor included, which costs memory, CPU and downloads, and on a developer's machine some
+  command-server lists daily; `thorough` turns all of it on, the decoy key and the YARA rules included,
+  and records what the behaviour sensor, odd DNS names and the hunting rules find, which costs memory, CPU and downloads, and on a developer's machine some
   noise. Each sets every other switch to its default, and none turns on what sends something to somebody
-  else. Every switch can still be changed alone afterwards; the Settings page then says the switches are
+  else. The Settings page offers the three as one choice. Every switch can still be changed alone afterwards; the Settings page then says the switches are
   changed from the profile.
 - **From a text console.** Each service reads its switch as it starts, so a line edited by hand in
   `/etc/amethystora/security.conf`, such as `VIRUS_SCAN=off`, takes effect at the next restart even when
@@ -280,7 +296,7 @@ once and stops being recorded from the next restart.
 - **A warning you cannot fix** on this machine, such as Secure Boot on a computer without it, can be
   accepted with **Accept** on it in the Security app, or `ame security allow report`. It stays in the
   report as information, out of the count, and is never said, until it turns worse.
-  `ame security allow report <check> remove` shows it again.
+  **Show it again** on the accepted check, or `ame security allow report <check> remove`, shows it again.
 - **Something you know is fine.** An event on the **Events** page that names a file or a program has
   **Allow…**: what matches it is recorded from then on, and no longer said. In a terminal,
   `ame security allow persistence '~/.local/share/gnome-shell/extensions/*'` does the same for a path or a
@@ -288,22 +304,36 @@ once and stops being recorded from the next restart.
   allowed. Allow only what you know: whatever matches, malware included, goes unannounced from then on.
   The image allows a few of its own the same way, such as Fedora's sssd and tuned rewriting their settings
   at every start and fwupd's passim listening for nearby machines: `ame security allow hardening` and
-  `ame security allow listeners` list them.
+  `ame security allow listeners` list them. `ame security allow FEATURE ENTRY remove` takes an entry
+  back. Most features take a path or a program, or a glob of them; a few take two parts, in quotes:
+
+  | Feature | An entry |
+  | --- | --- |
+  | `identity`, `privilege`, `persistence`, `hardening`, `modules`, `input-capture`, `user-programs`, `dev-hooks`, `agent-config`, `exec-watch`, `agent-clis`, `decoy`, `snapshot-watch` | A path, or the program that wrote there |
+  | `processes` | The same, or a variable and the path it names: `'LD_LIBRARY_PATH ~/opt/toolchain/lib'` |
+  | `injection` | A program, alone or with the program it reached: `'/usr/bin/x /usr/bin/y'` |
+  | `selinux-denials` | Source and target types, class and permissions: `'xdm_t user_home_t file read,open'` |
+  | `credentials` | A program and the secrets it may read: `'/usr/bin/restic *'` |
+  | `behaviour` | A program and the behaviour sensor's rule it set off |
+  | `dns-names` | A name: `'*.example.net'` |
+  | `bpf-programs` | A BPF program's name and what loaded it, or `unknown` |
+  | `app-permissions` | An app's id and a way out of its sandbox: `'com.valvesoftware.Steam x11'` |
+  | `listeners` | A program and its port, or `ephemeral`: `'syncthing *'` |
 
 What the image enforces from the start has switches of its own, each on until you turn it off, each in
 the Settings page and as a command that says what it changes before it does:
 
 | Command | What it switches | Turned off |
 | --- | --- | --- |
-| `ame security kernel` | Kernel addresses and messages hidden, programs kept from each other's memory, no unprivileged BPF, a panic after a hundred oopses | From the next restart. `gdb -p`, `strace -p`, `perf` and `dmesg` work without `sudo` |
-| `ame security blocked-modules` | Old network protocols and filesystems, test and fault-injection drivers, CAN, GNSS, the floppy and parallel ports kept from loading | At once. Disks from old Macs, SCTP, CAN buses |
+| `ame security kernel` | Kernel addresses and messages hidden, programs kept from each other's memory, no unprivileged BPF, a panic after a hundred oopses; `standard` is this level again after [`strict`](#stricter-settings) | From the next restart. `gdb -p`, `strace -p`, `perf` and `dmesg` work without `sudo` |
+| `ame security blocked-modules` | Old network protocols and filesystems, test and fault-injection drivers, CAN, GNSS, the floppy and parallel ports kept from loading | At once. Disks from old Macs, SCTP, CAN buses, amateur radio |
 | `ame security firewire` | FireWire kept from loading, since a FireWire device reads and writes memory by itself | At once. FireWire sound cards, DV cameras and disks ([Hardware](hardware.md#sound-cards)) |
-| `ame security kernel-args` | `init_on_alloc=1`, `slab_nomerge`, `page_alloc.shuffle=1`, `randomize_kstack_offset=on`, `vsyscall=none`, `proc_mem.force_override=ptrace` (only a program's own debugger writes over its code), each on its own | From the next restart. Not on a sealed image. Older releases of the `rr` debugger need the last one off |
+| `ame security kernel-args` | `init_on_alloc=1`, `slab_nomerge`, `page_alloc.shuffle=1`, `randomize_kstack_offset=on`, `vsyscall=none`, `proc_mem.force_override=ptrace` (only a program's own debugger writes over its code): `off` or `on` alone switches all of them, `ame security kernel-args vsyscall=none off` one | From the next restart. Not on a sealed image. Older releases of the `rr` debugger need the last one off |
 | `ame security firewall` | The Amethystora firewall zone | At once. Fedora Workstation's zone lets in every port from 1025 up; opening one port is the narrower answer |
 | `ame security failed-logins` | Blocking an address after failed SSH logins | At once |
 | `ame security lockout` | Locking an account after ten wrong passwords | At once |
 | `ame security app-sandbox` | Taking X11, the input devices and the Flatpak service from every app | From each app's next start; granting one app X11 in Flatseal is the narrower answer |
-| `ame security virtual-input` | `/dev/uinput`, which makes a virtual keyboard that types into any window, kept from apps | At once. Steam Input and OpenTabletDriver need it off, and their setup turns it off |
+| `ame security virtual-input` | `/dev/uinput`, which makes a virtual keyboard that types into any window, kept from apps | At once, and back on from the next restart. Steam Input and OpenTabletDriver need it off, and their setup turns it off |
 | `ame security ssh-settings` | No root login, three tries and no X11 forwarding for the SSH server, and no SSH over vsock from the host of a virtual machine | At once |
 | `ame security signed-updates` | Switching this machine back to signature-checked updates at every start | From the next start; for an image of your own, `ame system trust-image` is the answer |
 | `ame security ipv6-privacy` | A temporary IPv6 address that changes, on every connection | From each network's next connection |
@@ -316,8 +346,9 @@ audit log, until you turn that off too.
 ## Looking for new threats
 
 New malware has no virus signature yet, so these look for what it does rather than what it is. Each is
-off until you turn it on, in the Settings page or with `ame security settings`, and each can be `record`,
-which keeps what it finds in the history and the Events page without a notification, or `on`. None sends
+off until you turn it on, in the Settings page or with `ame security settings`, and most can be `record`,
+which keeps what it finds in the history and the Events page without a notification, or `on`; the decoy
+key and app integrity are only `on`, the hunting rules only `record`. None sends
 anything anywhere unless its own entry says so.
 
 - **Odd processes** (`processes`): every 15 minutes, what runs. A program whose file was deleted while it
@@ -448,7 +479,7 @@ installed once a day, and again after each change to the apps installed for ever
 Only what changed since the last check is read, so a check with nothing new costs a walk of the files'
 details. `ame security app-integrity` shows what the last check found, `ame security app-integrity check`
 checks now, and `ame security app-integrity repair` puts each app it named back as its update installed it,
-fetching its files again; what the app keeps in `~/.var/app` stays. Homebrew, `~/.local/bin`, the AI agents,
+fetching its files again, or only the app named after it (`repair org.mozilla.firefox`), named or not; what the app keeps in `~/.var/app` stays. Homebrew, `~/.local/bin`, the AI agents,
 editor and browser extensions and containers keep no signed record of what they installed, so they are not
 checked this way: the watcher looks at where they start from instead.
 
@@ -460,25 +491,26 @@ on, in case one is why something stopped working.
 
 | Command | What it does | What it costs |
 | --- | --- | --- |
-| `ame security kernel strict` | No io_uring, debuggers attach only as root, more address randomisation, no IPsec | QEMU, Samba and some Node programs lose io_uring; `gdb -p` needs `sudo`; sanitizers; libreswan and strongSwan |
+| `ame security kernel strict` | No io_uring, debuggers attach only as root, more address randomisation, no IPsec; `ame security kernel standard` goes back | QEMU, Samba and some Node programs lose io_uring; `gdb -p` needs `sudo`; sanitizers; libreswan and strongSwan |
 | `ame security kernel-args <argument> on` | `init_on_free=1`, `iommu.strict=1` (the IOMMU on, and strict), `ia32_emulation=0`, each on its own | Slower; slower disks and network; no Steam or 32-bit Wine |
-| `ame security lockdown strict` | Root cannot read the running kernel either | `bpftrace`, `perf` with kernel data, eBPF security tools |
+| `ame security lockdown strict` | Root cannot read the running kernel either, with Secure Boot on too; `ame security lockdown on` goes back, from the next restart | `bpftrace`, `perf` with kernel data, eBPF security tools |
 | `ame security time` | The clock set only from time servers that prove who they are (NTS), three agreeing, never one a network suggests | Networks that block port 4460 leave the clock unsynced |
-| `ame security firewall-away` | Networks you have not named home answer nothing; `ame security home-networks` names more | Printers and shares only at home, as phone pairing always is |
+| `ame security firewall-away` | Networks you have not named home answer nothing; it asks which are home first, and `ame security home-networks` names more. Not while the firewall zone is off | Printers and shares only at home, as phone pairing always is |
 | `ame security network-daemons` | Avahi, ModemManager and passim (fwupd's sharing of firmware updates with machines nearby) stopped | Printers by address only; no mobile broadband; each machine downloads its own firmware updates |
 | `ame security block-bluetooth` | Bluetooth cannot load | Headphones, mice and keyboards that use it |
-| `ame security block-webcam` | The USB webcam driver cannot load | The webcam |
+| `ame security block-webcam` | The USB webcam driver cannot load, at once unless an app is using it, otherwise from the next restart | The webcam |
 | `ame security block-automount` | USB sticks and disks mounted only when you open them | A click in Files |
 | `ame security block-user-extensions` | No GNOME extensions installed from extensions.gnome.org; the report lists the ones you have | The image's own extensions are not affected |
 | `ame security block-xwayland` | No X11, from your next login | Steam, Wine, Proton and older apps |
 | `ame security flathub-verified` | Only Flathub apps whose makers Flathub verified | Installed apps from anyone else stop updating |
 | `ame security flatpak-password` | Installing or removing an app for the whole machine asks for an administrator's password | A password in Bazaar |
-| `ame security noexec-temp` | Nothing started from `/tmp`, `/var/tmp` or `/dev/shm` | Some installers, build scripts and `go test` |
+| `ame security noexec-temp` | Nothing started from `/tmp`, `/var/tmp` or `/dev/shm`, the first and last at once and all three from the next restart; a script run through its interpreter still runs | Some installers, build scripts and `go test` |
 | `ame security no-coredumps` | No copy of a crashed program's memory on disk | Crashes cannot be diagnosed from one |
-| `ame security package-cooldown` | npm, pnpm and uv refuse versions published in the last 3 days; `strict` waits 7 and runs no install scripts | A fix published today waits too; strict breaks packages that build native code |
+| `ame security package-cooldown` | npm, pnpm and uv refuse versions published in the last 3 days; `strict` waits 7 and runs no install scripts, and `on` goes back to 3. From new terminals, and for apps from your next login | A fix published today waits too; strict breaks packages that build native code |
 | `ame security brew-attestations` | Homebrew checks each bottle's build attestation | `gh` and `gh auth login` on every account, or `brew install` fails |
 | `ame security locked-poweroff` | The machine powers off once every desktop session has stayed locked for 18 hours, so that the disk keys leave memory | Whatever was open and not saved |
-| `ame security boot-password` | A password before anyone edits a boot entry or opens the boot menu's command line | Forget it and only a USB stick changes it. Not on a sealed image |
+| `ame security audit-locked` | The kernel's audit log records what the file-watch sensor would, locked until the next restart, so that stopping the sensor cannot stop them | Every program a little slower. From the next restart |
+| `ame security boot-password` | A password before anyone edits a boot entry or opens the boot menu's command line; `off` takes it away | Forget it and only a USB stick changes it. Not on a sealed image |
 | `ame security vscodium-extensions` | VSCodium updates no extension by itself, and with names in `/etc/amethystora/vscodium-extensions` installs only those | Updates by hand. Developer mode only |
 
 ## Worth turning on
@@ -496,7 +528,8 @@ Choose **Add a fingerprint key** for a fingerprint model, so the key checks your
 only a touch. The key needs a PIN, and a fingerprint model an enrolled finger, first: set them in
 Firefox at `about:webauthn`, or with `ykman fido fingerprints add` on a YubiKey Bio.
 Register a second key as a spare. Your password keeps working whenever no registered key is plugged
-in.
+in. `ame security key add` and `add-fingerprint` skip the menu, and `ame security key remove` forgets
+every key at once, without asking.
 
 ### Fingerprint login
 
@@ -507,7 +540,8 @@ and administrator prompts, and your password keeps working beside it:
 ame security fingerprint
 ```
 
-**Add a finger** enrols one; enrol a second as a spare. **Settings › System › Users** does the same
+**Add a finger** (`ame security fingerprint add`) enrols one; enrol a second as a spare. **Test a finger**
+(`test`) checks that the reader knows it, and **Remove all fingers** (`remove`) forgets every one. **Settings › System › Users** does the same
 under **Fingerprint Login**. Two things still ask for the password: the disk passphrase at boot, and
 the keyring, which a sign-in by finger leaves locked until an app needs it. The readers that work are
 listed at [fprint.freedesktop.org](https://fprint.freedesktop.org/supported-devices.html).
@@ -524,7 +558,8 @@ administrator rights. Either way, an action you chose beforehand runs as root, o
 ame security duress
 ```
 
-**Set up a duress finger** enrols one more finger, has you touch the reader with it and with another
+**Set up a duress finger** needs an ordinary finger enrolled first, and a free place for one more on the
+reader. It enrols one more finger, has you touch the reader with it and with another
 finger to check that the reader tells them apart, and asks what its action should be. **Set up a duress
 password** asks for a second password, only yours and different from the one you log in with, and asks the
 same. The finger and the password **each have their own action**, so each can do something different; you
@@ -535,7 +570,9 @@ know, for example), the disk's key taken out of the TPM so that the next start a
 of your own, which it shows you before it keeps it. None of the examples erases anything, but the action is
 an ordinary root script and yours to write, so it can do whatever root can. **Test my duress finger** says
 which finger a touch matched and never runs the action; **Remove my duress finger** and **Remove my duress
-password** forget yours, and **Turn off for everyone** forgets every account's and both actions.
+password** forget yours (removing the finger asks whether to take it off the reader too, or keep it as an
+ordinary finger), and **Turn off for everyone** forgets every account's and both actions, keeping the
+fingers as ordinary ones.
 
 A duress finger needs a reader that compares a touch with every enrolled finger at once, which most
 readers built into laptops do; the setup says so when yours does not. A duress password needs no reader.
@@ -608,12 +645,30 @@ has simply comes back, and one that changed since comes back beside it, with its
 (`report (2026-10-04 14.00).pdf`), unless you choose **Replace** or **Skip** when it asks. **Look**
 opens a read-only copy, **Versions** lists each time a file changed, and **Put the whole folder back**
 returns a folder as it was, replacing what has the same name. In Files, **Open With** on a folder
-offers Backups too, and `amethystora-backups ~/Documents` opens it there.
+offers Backups too, and `amethystora-backups ~/Documents` opens it there;
+`amethystora-backups --at=2026-10-04_1400 ~/Documents` opens it at that time, by a snapshot's name or a
+backup's id as `ame backup snapshots` lists them.
 
-Its **Status** page shows the last good backup and when the next one runs, with **Back up now**,
-**Change…** (`ame backup setup`, in a terminal) and the daily run's switch. The security report warns
+Beside each file it says whether your folder no longer has it, has changed it since, or has it the
+same. **Show hidden files** shows the ones whose names start with a dot. **Versions** and **Look** are
+there when one item is chosen; each version has **Go there**, which opens its folder at that time. A
+file looked at from the backup is first copied into `~/.cache/amethystora-restore/look`, read-only, and
+removed a day later. `Alt+Up` or `Backspace` goes to the folder above, `Ctrl+A` chooses everything in
+it, and `Esc` closes a question or the versions.
+
+Its **Status** page (`amethystora-backups status`) shows the last good backup and when the next one
+runs, with **Back up now**, **Change…** (`ame backup setup`, in a terminal; **Set up a backup…** before
+there is one) and the daily run's switch (`ame backup on` or `off`,
+which keeps the settings and the repository). The security report warns
 when no backup has succeeded for a week, and **Ask the agent** looks into one that failed. The hourly
 snapshots are switched in Security, which Backups only opens.
+
+Since nothing on this machine deletes from the repository, old snapshots build up there. Thin them out
+from another machine, with credentials this one does not hold, for example:
+`restic -r <repository> forget --keep-daily 14 --keep-weekly 8 --keep-monthly 12 --prune`.
+
+Déjà Dup is no longer installed. An account it backed up on a schedule is told so once; the backups it
+made stay where they are, and Déjà Dup, from Bazaar, still reads them.
 
 Each backup also keeps your setup beside your files: the image and stream you follow, your Flatpak
 apps and where they came from, your Homebrew packages, the containers `amepkg` made with what you
@@ -669,7 +724,10 @@ ame security disk-unlock
 Instead of typing the disk passphrase at every boot, the machine's TPM hands over the key, but only
 while Secure Boot is on and the signing keys are the ones enrolled when you set it up, and only after
 you type a short PIN. Your passphrase keeps working, so a cleared TPM never locks you out. This needs
-a disk that was encrypted when it was installed.
+a TPM and a disk that was encrypted when it was installed, and works from the next start. With Secure
+Boot off it warns first: turn it on, and enroll the image's keys with `ame security secure-boot`
+([Secure Boot](hardware.md#secure-boot)). `ame security disk-unlock off` takes the key out of the TPM
+again, and the passphrase is asked at every start.
 
 The PIN is what keeps the key from someone who takes the machine. On an image that is not sealed, the
 boot menu and the programs that ask for the disk key are plain files: someone holding the machine
@@ -717,7 +775,11 @@ devices come back as new after sleep may need plugging in again. A program runni
 session could turn this mode off, as it could do anything else you can.
 
 **Every new device** (`ame security usb on`). USB protection allows what is connected when you set
-it up and blocks anything new, locked or not, until you allow it with `ame security usb allow`.
+it up and blocks anything new, locked or not, until you allow it with `ame security usb allow`, which
+keeps it allowed after a restart too. Plug in everything you use first: keyboard, mouse, dock, webcam,
+headset and security keys.
+
+`ame security usb off` trusts every USB device again.
 
 ### A private folder that locks with the screen
 
@@ -773,8 +835,10 @@ An extension sees every page you open, and that is how most password stealers ar
 protection on, browsers install only the extensions on a list: the Bitwarden, 1Password, Proton Pass
 and KeePassXC password managers, and the ones you add with
 `ame security browser allow <id>`. Web pages are also kept from USB, serial, HID and
-Bluetooth devices. It covers Firefox, Brave, Chrome, Chromium and Edge, whether installed now or
-later, for every account on the machine. Other browsers are not covered.
+Bluetooth devices. It covers Firefox, Brave, Chrome, Chromium, ungoogled-chromium and Edge, as
+packages or Flatpaks, whether installed now or later, for every account on the machine. Other browsers
+are not covered, nor is Firefox while it has a policy file of somebody else's, which is left alone.
+`ame security browser on` and `off` skip the menu.
 
 Allow the extensions you use before you turn it on. Firefox removes the ones that are not on the
 list, with their settings, the next time it starts; the other browsers turn theirs off. Firefox
@@ -782,7 +846,8 @@ shows each extension's ID in `about:support`, under Add-ons, and the others on t
 with developer mode on. Themes, dictionaries and language packs in Firefox are left alone.
 
 What you allowed is in `/etc/amethystora/browser-extensions`, one ID a line. To take one back,
-`ame security browser disallow <id>`. It is off by default: Firefox comes exactly as Fedora builds it,
+`ame security browser disallow <id>`. Turned off, browsers install any extension again, but the ones
+Firefox removed do not come back by themselves. It is off by default: Firefox comes exactly as Fedora builds it,
 and what it may install is your decision, not the image's.
 
 **Site checking** (`ame security browser osprey`) allows Osprey: Browser Protection, which checks each
@@ -805,7 +870,9 @@ Every site you open and every server an app talks to is first a name looked up w
 default that is whichever one the network hands out, asked in plain text: the network sees every name,
 and can answer with any address it likes. With encrypted DNS on, every lookup goes to one resolver you
 choose, over DNS-over-TLS, and to nobody else: Quad9, Mullvad, Cloudflare, Google, or servers of your
-own (`ame security dns custom 192.0.2.1#dns.example.net`). That resolver then sees every name in the
+own (`ame security dns custom 192.0.2.1#dns.example.net`: an address, not a name, then the name its
+certificate is for; several can be given, separated by spaces). Quad9 also refuses to look up
+sites known for malware, and Google keeps the address each lookup came from for a day or two. That resolver then sees every name in the
 network's place, so choose one you trust; the command says who runs each, and
 `ame security dns quad9` picks one straight away.
 
@@ -881,7 +948,8 @@ Two more sets of rules can join it, each off until you turn it on:
   suspicious but uncertain, which is where new attacks first show. They are recorded, for the
   [chains of steps](#looking-for-new-threats), and never said or blocked.
 
-**Odd names in DNS** (`ame security settings dns-names`) needs none of this. It follows what the system's
+**Odd names in DNS** (`ame security settings dns-names`, `record` or `on`, and off by default) needs none
+of this. It follows what the system's
 resolver is asked, encrypted DNS or not, and keeps only a name that looks made by a program, as malware
 makes the names of its command servers, or one long enough to carry data, as DNS tunnelling does. Every
 name passes through it, and only those are kept, for up to 15 minutes, where only root can read them: it
@@ -893,4 +961,5 @@ already.
 
 Input Remapper runs as root and reads every key typed into every application. That is what
 remapping needs, and a keylogger in every other respect, so it ships switched off. If you remap keys
-or mouse buttons, turn it on with `ame security input-remapper`.
+or mouse buttons, turn it on with `ame security input-remapper`; `ame security input-remapper off`
+turns it off again and keeps your mappings.

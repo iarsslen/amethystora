@@ -8,7 +8,8 @@ logo on it. This list is also what `ame desktop keybindings` shows, and the Amet
 
 PaperWM puts the windows of a workspace side by side on a strip that scrolls to keep the focused one
 in view. `Super` and an arrow moves between windows, adding `Ctrl` moves the window itself, adding
-`Shift` goes to another monitor.
+`Shift` goes to another monitor. These keys, and the monitor keys under Workspaces, are the tiling
+layout's; the classic layout (`ame desktop layout classic`) has GNOME's own.
 
 | Key | Action |
 | --- | --- |
@@ -17,7 +18,7 @@ in view. `Super` and an arrow moves between windows, adding `Ctrl` moves the win
 | `Super+Home` / `Super+End` | The first / last window on the workspace |
 | `Super+[` / `Super+]` | Slide the strip without changing focus |
 | `Super+R` / `Super+Alt+R` | Step the width through 38%, 50% and 62% of the screen / back |
-| `Super+Shift+R` | Step the height of a window in a column |
+| `Super+Shift+R` / `Super+Alt+Shift+R` | Step the height of a window in a column / back |
 | `Super+F` | Fill the width of the screen, and back |
 | `Super+C` | Centre the window |
 | `Super+I` | Pull the window on the right into this column |
@@ -46,8 +47,12 @@ the top bar on the left.
 | `Super+Ctrl+Page Up` / `Page Down` | Take the window to the previous / next workspace |
 | `Super+Shift+Left` / `Right` / `Up` / `Down` | Focus the monitor in that direction |
 | `Super+Shift+Ctrl+Left` / `Right` / `Up` / `Down` | Move the window to that monitor |
+| `Super+Alt+Left` / `Right` / `Up` / `Down` | Swap this monitor's workspace with the one on the monitor in that direction |
+| `Ctrl+Alt+Shift+Left` / `Right` / `Up` / `Down` | Move the whole workspace to the monitor in that direction |
+| `` Super+Ctrl+` `` | Take the window to the workspace you were on before |
 | `Alt+1` … `Alt+9` | Go to the pinned app in that dock slot |
 | `Super+Tab` / `Alt+Tab` | Switch application / window |
+| `` Super+` `` | Switch between the windows of the app you are in |
 
 ## Launching
 
@@ -57,7 +62,7 @@ the top bar on the left.
 | `Super` | The overview: every open window, and search |
 | `Super+A` | Every installed app |
 | `Super+Return` | Terminal |
-| `Ctrl+Alt+T` | Terminal, the way most Linux desktops open it |
+| `Ctrl+Alt+T` or `Ctrl+Alt+Return` | Terminal, the way most Linux desktops open it |
 | `Super+Shift+B` | Browser |
 | `Super+Shift+F` | Files |
 | `Super+E` | Home folder |
@@ -90,3 +95,8 @@ The same from a terminal: `amethystora-theme list`, `amethystora-theme set <name
 | `Print` | Take a screenshot or record the screen |
 | `Ctrl+Shift+Alt+R` | Start or stop a screen recording |
 | `Super+Shift+Space` | Next keyboard layout, when you have more than one |
+| `Super+Escape` | Take the keyboard back from an app that grabbed it, such as a virtual machine |
+
+In every Amethystora app (Security, Updates, Logs, Notes, Backups, Control and this manual), `Ctrl+=`,
+`Ctrl+-` and `Ctrl+0` change the size of everything in the window, and in all but this manual `Ctrl+R`
+or `F5` reads it all again.

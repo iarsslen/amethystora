@@ -17,11 +17,15 @@ connection.
 ```bash
 amethystora-manual                 # open it where you left off
 amethystora-manual updates         # open a page by its file name
+amethystora-manual updates#rolling-back   # or at one of its sections
 amethystora-manual --list          # the pages there are
 ```
 
-Inside the manual: `Ctrl+K` or `/` searches, `Alt+Left` and `Alt+Right` go back and forward,
-`Ctrl+=` and `Ctrl+-` change the text size, and `Ctrl+0` resets it.
+Inside the manual: `Ctrl+K`, `Ctrl+F` or `/` searches for the sections that have every word you type,
+`Up`, `Down` and `Enter` pick one and `Esc` goes back to the page; `Alt+Left` and `Alt+Right` go back
+and forward, `Ctrl+=` and `Ctrl+-` change the text size, and `Ctrl+0` resets it. Every command has a
+**Copy** button. A page shows in the session's language where it has been translated, and in English
+otherwise.
 
 ## Standing on the shoulders of
 

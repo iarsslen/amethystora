@@ -7,7 +7,7 @@ on [Control](control.md)'s **Apps** page open the same commands in a terminal.
 ## Games
 
 ```bash
-ame apps gaming
+ame apps gaming        # asks first; ame apps gaming on sets it up without the menu
 ```
 
 This installs **Steam** from Flathub, with **ProtonPlus**, which adds other versions of Proton, and
@@ -71,7 +71,7 @@ leaves the kernel's own in place.
 ## Android apps
 
 ```bash
-ame apps android
+ame apps android       # asks first; ame apps android on sets it up without the menu
 ```
 
 **Waydroid** runs Android, LineageOS 20, in a container beside your desktop, and the Android apps you
