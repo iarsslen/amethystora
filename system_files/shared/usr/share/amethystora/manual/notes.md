@@ -24,7 +24,8 @@ their apps.
 
 - **Checklists:** `- [ ] like this`. Tick the boxes in the formatted note.
 - **Attachments:** paste an image, drop a file on the note, or use the paperclip, up to 200 MB each.
-  Pictures show in the note. Click any other attachment to save a copy, which is not encrypted.
+  Pictures show in the note, from attachments only, never from a file elsewhere on the computer. Click
+  any other attachment to save a copy, which is not encrypted.
 - **Tags:** type in the tag row under the title and press **Enter** or a comma; it offers the tags
   you have, and `Backspace` in the empty row takes the last one off. Tags are listed in the sidebar,
   where a tag's **More** menu renames it or takes it off every note.

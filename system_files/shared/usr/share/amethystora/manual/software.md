@@ -115,13 +115,13 @@ it installs an app, `amepkg` looks for the same app on Flathub and offers that f
 | `amepkg containers list` | The containers, their templates, when each was last upgraded, their apps |
 | `amepkg containers new` | A new container: it asks for the template and the name, or takes `--template`, `--name`, `--home <folder>` for a home of its own, and `--init` for one that runs services |
 | `amepkg containers rm <name>` | Deletes the container and everything installed in it, after asking (`--force` outside a terminal); a home folder of its own is deleted only if you say so |
-| `amepkg containers reset <name>` | Deletes it and makes it again from its template; its home folder stays |
+| `amepkg containers reset <name>` | Deletes it and makes it again from its template; its home folder stays, and it prints what you had installed with the command that installs it again |
 | `amepkg <name> install`, `remove` or `purge <package>` | Installs or removes packages; `--yes` answers the package manager's questions, and `--no-export` keeps the apps out of the app grid |
 | `amepkg <name> search <words>`, `show <package>` or `list` | Looks through its repositories, or what is installed |
 | `amepkg <name> update`, `upgrade`, `autoremove` or `clean` | Refreshes its package lists, upgrades it, tidies up |
 | `amepkg <name> enter` or `run <command>` | A shell in it, or one command |
 | `amepkg <name> start` or `stop` | Starts or stops it |
-| `amepkg <name> export --app <app>` or `--bin <path>` | Puts an app in the app grid, or a command in `~/.local/bin`; `unexport` takes it back |
+| `amepkg <name> export --app <app>` or `--bin <path>` | Puts an app in the app grid, or a command in `~/.local/bin` (`--bin-output <folder>` for another); `unexport` takes it back |
 
 It lists and touches only the containers it made: Distrobox containers of your own are left alone. On
 Arch, `update` only refreshes the package lists, and Arch does not support installing from lists
@@ -153,7 +153,7 @@ with it, as some vendors' packages set up as they install.
 Every container is upgraded once a day by a timer of your own account
 (`amethystora-pkg-upgrade.timer`). Like the automatic updates of the system, it waits while the
 machine runs on a low battery, is busy, or is short of memory, and tries again the next day. Started
-by hand, it never waits. **Update now** in
+by hand, it never waits. Only one runs at a time, and it ends with an error when any container failed. **Update now** in
 [System Updates](updates.md#updating-now) upgrades them too, straight after the system, and shows how
 it went under **Containers**: a container that did not upgrade never makes the system's update a
 failed one. In a terminal:
@@ -185,7 +185,9 @@ command-line tools; an app with a window usually needs what they take away. A ho
 does not hide your files: they stay reachable by their full path. Yours are kept in
 `~/.local/share/amethystora/pkg`, and the built-in ones cannot be changed or removed: `show`, `update`
 and `rm` work on yours, as in `amepkg templates rm devbox`. `export` writes
-one to a file, and `import` reads it back, here or on another machine. A definition is a program: a
+one to a file, and `import` reads it back, here or on another machine (`--output` names the file, `--name` keeps it
+under another name). `managers` takes the same commands, and `managers new` takes each of the ten
+commands as a flag, `--install` to `--clean`, with `--need-sudo` and `--noconfirm`. A definition is a program: a
 package manager's commands run in every container made with it, and a template chooses the image they
 start from, so import only what you would run yourself: `import` shows what the file defines and asks
 before it keeps it, and `ame restore-setup` does the same for each one a backup brings.

@@ -85,6 +85,7 @@ the quick compression alone, and brought it back sooner than compressing it smal
   passphrase ([Security](security.md#unlock-the-disk-with-the-tpm)).
 - **Several disks** can keep copies of each other: [Pools of disks](#pools-of-disks-raid).
 - **ZFS** is available on the `stable` stream.
+- **Apple's USB SuperDrive** is woken up as it is plugged in, as a Mac would, so that it reads discs.
 
 ## Pools of disks (RAID)
 
@@ -163,6 +164,7 @@ the pool says what happened and offers what to do:
   open pool. It asks whether to spread what is
   already there over every disk now, which takes hours on a large pool.
 - **Forget** (`ame system raid forget NAME`) stops mounting a pool and leaves its files on its disks.
+  Without a `NAME`, each of these takes the only pool, or asks which.
   GNOME Disks' **Format** erases them when you want the disks back.
 
 ### The system's own disks
@@ -259,7 +261,8 @@ updating it in 2015. A USB Wi-Fi adapter works instead.
 USB sound cards and audio interfaces work as they are plugged in. FireWire ones need FireWire, which
 is blocked, since a FireWire device can read and write the machine's memory by itself: `ame security
 firewire off` lets it load, for FireWire sound cards, DV cameras and disks, and `on` blocks it again
-([Switches](security.md#switches)).
+([Switches](security.md#switches)). The Neutron HiFi DAC V1's own settings app reaches it for whoever
+is at the machine.
 
 ## When a device does not work
 

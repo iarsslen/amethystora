@@ -325,7 +325,7 @@ the Settings page and as a command that says what it changes before it does:
 
 | Command | What it switches | Turned off |
 | --- | --- | --- |
-| `ame security kernel` | Kernel addresses and messages hidden, programs kept from each other's memory, no unprivileged BPF, a panic after a hundred oopses; `standard` is this level again after [`strict`](#stricter-settings) | From the next restart. `gdb -p`, `strace -p`, `perf` and `dmesg` work without `sudo` |
+| `ame security kernel` | Kernel addresses and messages hidden, programs kept from each other's memory, no unprivileged BPF, a panic after a hundred oopses, no kexec, a hardened BPF compiler, no unprivileged userfaultfd, files in shared folders such as `/tmp` protected from other accounts, and no ICMP redirects or source routing; `standard` is this level again after [`strict`](#stricter-settings) | From the next restart. `gdb -p`, `strace -p`, `perf` and `dmesg` work without `sudo` |
 | `ame security blocked-modules` | Old network protocols and filesystems, test and fault-injection drivers, CAN, GNSS, the floppy and parallel ports kept from loading | At once. Disks from old Macs, SCTP, CAN buses, amateur radio |
 | `ame security firewire` | FireWire kept from loading, since a FireWire device reads and writes memory by itself | At once. FireWire sound cards, DV cameras and disks ([Hardware](hardware.md#sound-cards)) |
 | `ame security kernel-args` | `init_on_alloc=1`, `slab_nomerge`, `page_alloc.shuffle=1`, `randomize_kstack_offset=on`, `vsyscall=none`, `proc_mem.force_override=ptrace` (only a program's own debugger writes over its code): `off` or `on` alone switches all of them, `ame security kernel-args vsyscall=none off` one | From the next restart. Not on a sealed image. Older releases of the `rr` debugger need the last one off |
@@ -335,7 +335,7 @@ the Settings page and as a command that says what it changes before it does:
 | `ame security app-sandbox` | Taking X11, the input devices and the Flatpak service from every app | From each app's next start; granting one app X11 in Flatseal is the narrower answer |
 | `ame security virtual-input` | `/dev/uinput`, which makes a virtual keyboard that types into any window, kept from apps | At once, and back on from the next restart. Steam Input and OpenTabletDriver need it off, and their setup turns it off |
 | `ame security ssh-settings` | No root login, three tries and no X11 forwarding for the SSH server, and no SSH over vsock from the host of a virtual machine | At once |
-| `ame security signed-updates` | Switching this machine back to signature-checked updates at every start | From the next start; for an image of your own, `ame system trust-image` is the answer |
+| `ame security signed-updates` | Switching this machine back to signature-checked updates at every start | The machine stays on what it follows now; turned on again, from the next start. For an image of your own, `ame system trust-image` is the answer |
 | `ame security ipv6-privacy` | A temporary IPv6 address that changes, on every connection | From each network's next connection |
 | `ame security bluetooth-privacy` | Bluetooth's random address, and visible and pairable for 30 seconds at a time | At once; Bluetooth restarts |
 
@@ -592,7 +592,9 @@ If you turn the SSH server on and log in to this machine with a password, a stol
 to get in. With one-time codes on, a password login over SSH also asks for a six-digit code from an
 authenticator app on your phone, such as Aegis or FreeOTP. A login with an SSH key works as before.
 
-Set up your own codes first, then turn them on:
+Set up your own codes first, then turn them on. `on` refuses until the account running it has codes or
+an SSH key in `~/.ssh/authorized_keys`, so that it cannot lock you out, and keeps the change only if
+the SSH server accepts it:
 
 ```bash
 ame security ssh-codes setup
@@ -654,7 +656,9 @@ same. **Show hidden files** shows the ones whose names start with a dot. **Versi
 there when one item is chosen; each version has **Go there**, which opens its folder at that time. A
 file looked at from the backup is first copied into `~/.cache/amethystora-restore/look`, read-only, and
 removed a day later. `Alt+Up` or `Backspace` goes to the folder above, `Ctrl+A` chooses everything in
-it, and `Esc` closes a question or the versions.
+it, and `Esc` closes a question or the versions. In a script, `/usr/libexec/amethystora-restore` does
+what the window does, each with `--json`: `status`, `points`, `ls`, `versions`, `put-back` (with
+`--keep-both`, `--replace` or `--skip`) and `open`.
 
 Its **Status** page (`amethystora-backups status`) shows the last good backup and when the next one
 runs, with **Back up now**, **Change…** (`ame backup setup`, in a terminal; **Set up a backup…** before
@@ -683,7 +687,8 @@ ame restore-setup
 It shows what it would do first, and does only the parts you pick: switch to the same image, through
 `ame system rebase`, which takes signed images only; install the apps and Homebrew packages; make
 the containers again and install what was in them; turn the extensions back on; set the theme.
-`ame restore-setup <snapshot>` picks an older setup. Your files themselves come back in Backups. To
+`ame restore-setup <snapshot>` picks an older setup, by its id or by the id of a backup of your files,
+for the setup saved next from that machine; without one, it offers the newest few. Your files themselves come back in Backups. To
 keep your setup in a file of your own as well, in git, see [Your setup in a file](setup.md).
 
 ### Ransomware protection
@@ -925,7 +930,8 @@ Open rules, which it downloads every day:
 
 Each blocked connection is a notification. **Network** in the **Security** app lists what was
 blocked and noticed, and so does `ame security connections`. If a connection was yours and wanted,
-**Allow**, or `ame security connections allow <rule>`, leaves that one rule out on this machine, and
+**Allow**, which asks for an administrator's password, or `ame security connections allow <rule>`,
+leaves that one rule out on this machine, and
 `ame security connections block <rule>` puts it back.
 
 Whatever goes wrong with it, your connections keep working: while Suricata starts, restarts, falls

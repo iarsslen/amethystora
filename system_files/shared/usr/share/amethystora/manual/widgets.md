@@ -33,10 +33,11 @@ wrong; **Fix it with the AI agent** hands the problem to the agent.
 | `amethystora-widgets fix <name> ["<what is wrong>"]` | Has the agent find out why it fails, and fix it |
 | `amethystora-widgets off <name>` and `on <name>` | Hides it from the bar, or shows it again |
 | `amethystora-widgets remove <name>` | Moves it to the trash |
-| `amethystora-widgets restart` | Stops and starts every widget |
+| `amethystora-widgets restart` | Stops and starts every widget, and turns the widgets extension back on if it was off |
 
 `ame desktop widgets` runs the same commands. [Control](control.md)'s **Desktop** page lists your
-widgets, turns each on or off, starts one from an example, and has the agent make or fix one.
+widgets, turns each on or off, starts one from an example, and has the agent make or fix one. A
+widget's name is lower-case letters, digits and dashes, up to 40 characters.
 
 ## Making one yourself
 

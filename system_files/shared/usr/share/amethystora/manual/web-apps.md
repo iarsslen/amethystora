@@ -8,7 +8,8 @@ own place in `Alt+Tab`.
 
 From the Amethystora menu (`Super+Alt+Space`), choose **Web apps**, then **Install a web app**, and
 answer three questions: a name, the address, and an icon. Leave the icon empty and the site's own is
-fetched. The same from a terminal:
+fetched. From a terminal, `amethystora-webapp install` alone asks the same three questions, or takes
+the answers:
 
 ```bash
 amethystora-webapp install "Proton Mail" mail.proton.me

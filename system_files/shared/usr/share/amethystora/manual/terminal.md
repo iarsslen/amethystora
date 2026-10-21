@@ -15,7 +15,7 @@ Its colours follow the [theme](themes.md), and so does the prompt.
 
 The first terminal you open in a session says hello with the Amethystora logo, a summary of the machine,
 the image you are running, a few useful commands and a tip; the ones after it just say welcome, so they
-open sooner. `ame desktop greeting off` turns it off, `on` brings it back,
+open sooner. `ame desktop greeting off` turns it off, `on` brings it back, without either it switches,
 and so does the switch on [Control](control.md)'s **Desktop** page.
 
 `fetch` shows the logo and the system summary again whenever you like. A glint crosses the logo's
@@ -73,7 +73,8 @@ Browse what there is at [formulae.brew.sh](https://formulae.brew.sh). Homebrew i
 the system. Never run it with `sudo`: it is yours, not root's.
 
 Already on the image: `just`, `gum`, `glow`, `tmux`, `fastfetch`, `git` and the rest of the usual
-tools, and `open`, which opens a file or a link in its app, as on a Mac. The fonts include Inter, JetBrains Mono and the Nerd Fonts symbols, so prompts and file
+tools, and `open`, which opens a file or a link in its app, as on a Mac. With RamaLama installed from
+Homebrew, `rl` runs it. The fonts include Inter, JetBrains Mono and the Nerd Fonts symbols, so prompts and file
 managers in the terminal draw their icons.
 
 `ame apps cli` installs a set of newer tools from Homebrew, eza, bat, ripgrep, zoxide and more, and

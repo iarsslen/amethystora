@@ -21,7 +21,8 @@ starting another. You can close the window at any time; the update carries on.
 A new system still takes over at the next restart. Once one is ready, System Updates says so and
 offers the restart. It also shows the version you are running, the one waiting for the restart and
 the one kept for [rolling back](#rolling-back), and turns automatic updates off or on again, which
-asks for an administrator's password. **Release notes** at the top opens them on GitHub.
+asks for an administrator's password. **Release notes** at the top opens them on GitHub. When everything is up to date, **Check again** looks
+once more.
 
 If you have [containers](software.md#keeping-them-up-to-date) from `amepkg`, **Update now** upgrades
 them straight after the rest, under **Containers**. One that does not upgrade says so there, with

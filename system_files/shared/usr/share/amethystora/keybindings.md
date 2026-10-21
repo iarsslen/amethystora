@@ -19,6 +19,7 @@ layout's; the classic layout (`ame desktop layout classic`) has GNOME's own.
 | `Super+[` / `Super+]` | Slide the strip without changing focus |
 | `Super+R` / `Super+Alt+R` | Step the width through 38%, 50% and 62% of the screen / back |
 | `Super+Shift+R` / `Super+Alt+Shift+R` | Step the height of a window in a column / back |
+| `Super` and `+` / `-` | Widen / narrow the window a step; with `Shift` as well, its height |
 | `Super+F` | Fill the width of the screen, and back |
 | `Super+C` | Centre the window |
 | `Super+I` | Pull the window on the right into this column |
@@ -33,6 +34,7 @@ layout's; the classic layout (`ame desktop layout classic`) has GNOME's own.
 | `Super+Backspace` | Resize the window with the arrow keys |
 | `Super+W` | Close the window |
 | `Shift+F11` | Full screen, keeping the title bar |
+| `Super+H` | Minimise the window |
 
 ## Workspaces
 
@@ -61,6 +63,7 @@ the top bar on the left.
 | `Super+Space` | Search and launch |
 | `Super` | The overview: every open window, and search |
 | `Super+A` | Every installed app |
+| `Alt+F2` | Run one command |
 | `Super+Return` | Terminal |
 | `Ctrl+Alt+T` or `Ctrl+Alt+Return` | Terminal, the way most Linux desktops open it |
 | `Super+Shift+B` | Browser |
@@ -99,4 +102,5 @@ The same from a terminal: `amethystora-theme list`, `amethystora-theme set <name
 
 In every Amethystora app (Security, Updates, Logs, Notes, Backups, Control and this manual), `Ctrl+=`,
 `Ctrl+-` and `Ctrl+0` change the size of everything in the window, and in all but this manual `Ctrl+R`
-or `F5` reads it all again.
+or `F5` reads it all again. Starting one that is open already brings its window forward, at the page
+asked for.

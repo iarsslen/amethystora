@@ -18,7 +18,9 @@ also show [widgets](widgets.md) of your own, which the AI agent makes for you on
 
 - `Super+Space` searches for apps, files and settings, and launches whatever you pick.
 - `Super` alone opens the overview: every open window at once, with search at the top.
-- `Super+A` shows every installed app.
+- `Super+A` shows every installed app. Some are gathered in folders: **Utilities** (Flatseal, Warehouse,
+  Extension Manager, Firmware, Ignition, Impression, Refine and the like), **Productivity**,
+  **Development**, **Containers**, **Games**, **Gaming Utilities** and **Wine**.
 
 Both searches forgive typos in app names: `calxu` still finds Calculator.
 
@@ -132,6 +134,7 @@ moves instead. Add `Shift` and you go to another monitor.
 | --- | --- |
 | `Super+R` | Step the width through 38%, 50% and 62% of the screen (`Super+Alt+R` steps back) |
 | `Super+Shift+R` | The same for the height of a window in a column (`Super+Alt+Shift+R` steps back) |
+| `Super` and `+` / `-` | Widen / narrow the window a step; with `Shift` as well, its height |
 | `Super+F` | Fill the width of the screen, and back |
 | `Super+C` | Centre the window on the screen |
 | `Super+Shift+C` | Where the strip scrolls a focused window to: just into view, the centre or the edge |
@@ -175,6 +178,7 @@ offers the same choice, and [Control](control.md)'s **Desktop** page has it any 
 | `Super+W` | Close the window |
 | `Super+Backspace` | Resize with the arrow keys |
 | `Shift+F11` | Full screen, keeping the title bar |
+| `Super+H` | Minimise the window |
 | `Super+Tab` / `Alt+Tab` | Switch between apps / between windows |
 | `` Super+` `` | Switch between the windows of the app you are in |
 
@@ -205,7 +209,7 @@ These GNOME Shell extensions come with the image:
 | AppIndicator | Tray icons for apps that use them |
 | Caffeine | Off until you turn it on in Extension Manager; then a switch in the quick settings keeps the screen awake |
 | GSConnect | Your Android phone, on the [networks you name home](security.md#on-from-the-start): notifications, files, clipboard, texts. Off until you [turn it on](hardware.md#phones) |
-| Logo Menu | The Amethystora logo at the top left: shortcuts to system tools |
+| Logo Menu | The Amethystora logo at the top left: the terminal, Mission Center, Extension Manager, Bazaar, DistroShelf and the overview |
 | Gradia | Annotate a screenshot straight after taking it, in the Gradia app |
 | Bazaar integration | Connects the shell to Bazaar, the software centre |
 | Amethystora Transitions | The animation that reveals a new theme or wallpaper ([Transitions](themes.md#transitions)) |

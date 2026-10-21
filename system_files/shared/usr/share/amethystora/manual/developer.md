@@ -65,10 +65,15 @@ default for GNOME Boxes) need no group at all.
 | Incus | System containers and virtual machines, managed like cloud instances |
 | libvirt and virt-manager | Virtual machines with QEMU and KVM; virt-v2v converts machines from other hypervisors |
 | Cockpit's bridge | Manage this machine from Cockpit on another one, over SSH |
+| VFIO | Loaded at the start, so that a graphics card or another PCI device can be handed to a virtual machine once kernel arguments bind it |
 | Sysprof, perf, bcc, bpftrace, bpftop, bpftool, trace-cmd | Profiling and tracing, from the whole system down to one function |
 | gdb, strace, ltrace, Valgrind | Debugging: step through a program, watch the calls it makes to the kernel and to its libraries, find memory errors. Attaching gdb to a program it did not start needs `sudo` ([why](security.md#on-from-the-start)). |
 | Wireshark | Capturing and reading network traffic, without `sudo` once you join its [group](#groups) |
 | android-tools | `adb` and `fastboot` |
+| iotop, tiptop, nicstat, numactl | What the disks, processors and network are doing, and which memory a program runs on |
+| wtype, ydotool | Type and click from a script; ydotool needs `ame security virtual-input off` |
+| udica | SELinux policies made to measure for a container |
+| git-svn, git-subtree, p7zip, genisoimage, virt-viewer | The rest of a workshop: Subversion, subtrees, 7-Zip, ISO images, and the window onto a virtual machine |
 | ROCm | GPU compute on AMD graphics |
 | flatpak-builder | Building Flatpaks |
 | Podman Desktop, Builder, Clapgrep, Embellish, DevToolbox | Apps from Flathub, installed with developer mode: containers in a window, GNOME's IDE, searching text across files, Nerd Fonts, and encoders, formatters and generators. Leaving developer mode takes them away again |
@@ -141,8 +146,9 @@ ame system trust-image ghcr.io/<you>/<your-image> cosign.pub
 sudo bootc switch --enforce-container-sigpolicy ghcr.io/<you>/<your-image>:stable
 ```
 
-[Control](control.md)'s **System** page does the first line for you: type the repository, choose the
-`cosign.pub`, and it opens in a terminal, where it asks for your password.
+[Control](control.md)'s **System** page does the first line for you: type the repository (in lower case, with its registry, without a tag; Amethystora's own are refused),
+choose the `cosign.pub`, and it opens in a terminal, where it asks for your password. Once it is done,
+the card shows the `bootc switch` line to run next.
 
 Without the first line, this machine would take your image whether it is signed or not. Your image
 says the same of itself as it is built, so that its updates are checked against your key once the
