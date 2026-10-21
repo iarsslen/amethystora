@@ -1,11 +1,11 @@
 #!/usr/bin/python3
-"""copy.py MODE VALUE: puts something on the clipboard from a GTK window of its own, as an app does, and serves
+"""clipcopy.py MODE VALUE: puts something on the clipboard from a GTK window of its own, as an app does, and serves
 it for a few seconds. Wayland lets only the window with the keyboard focus set the clipboard, so the window is
 shown first. For 91-clipboard.sh, which runs it in the account's session.
 
-    copy.py text TEXT      plain text
-    copy.py secret TEXT    what a password manager copies: the text, with x-kde-passwordManagerHint "secret"
-    copy.py keepass TEXT   plain text, from a window whose app id (its window class) is KeePassXC's
+    clipcopy.py text TEXT      plain text
+    clipcopy.py secret TEXT    what a password manager copies: the text, with x-kde-passwordManagerHint "secret"
+    clipcopy.py keepass TEXT   plain text, from a window whose app id (its window class) is KeePassXC's
 """
 import sys
 
