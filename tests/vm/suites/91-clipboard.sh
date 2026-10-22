@@ -38,6 +38,8 @@ source "${TESTS}/markers"
 COPIED="vmlab-copied-${RUN}"
 PINNED="vmlab-pinned-${RUN}"
 WINDOW="vmlab-window-${RUN}"
+X11="vmlab-x11-${RUN}"
+GTK_HINT="vmlab-gtk-hint-${RUN}"
 SECRET="vmlab-secret-${RUN}"
 KEEPASS="vmlab-keepass-${RUN}"
 LOCKED="vmlab-locked-${RUN}"
@@ -63,7 +65,7 @@ copy_picture() {
 # does not always give a new window the focus, so a click on it gives it, as a person's would
 copy_window() {
     user_bus systemd-run --user --quiet --collect --unit="vmlab-clipcopy-${RANDOM}" \
-        --setenv=WAYLAND_DISPLAY=wayland-0 --setenv=GDK_BACKEND=wayland -- python3 "${OWN}/clipcopy.py" "$@"
+        --setenv=WAYLAND_DISPLAY=wayland-0 --setenv=DISPLAY=:0 -- python3 "${OWN}/clipcopy.py" "$@"
     sleep 3
     keys click:0.5,0.5
     sleep 7
@@ -274,10 +276,22 @@ case "${SUITE_PHASE}" in
     copy_window text "${WINDOW}"
     if wait_for 20 in_history "${WINDOW}"; then
         ok "a window's copy is recorded (clipcopy.py works here)"
-        copy_window secret "${SECRET}"
+        # The password manager's hint goes through X11 (clipcopy.py says why): an X11 window's copy first
+        copy_window x11 "${X11}"
+        if wait_for 20 in_history "${X11}"; then
+            ok "an X11 window's copy is recorded (through Xwayland)"
+            copy_window secret "${SECRET}"
+            sleep 3
+            check "a copy marked x-kde-passwordManagerHint: secret is not recorded" not_in_history "${SECRET}"
+            check "nor written anywhere" nowhere_in_the_clear "${SECRET}"
+        else
+            not_ok "an X11 window's copy was not recorded, so the password manager's hint cannot be checked" \
+                "$(user_bus journalctl --user -b --since "-60s" --no-pager -o cat 2>/dev/null | grep -v MESA | tail -n 10)"
+        fi
+        # A GTK app that offers the hint sends it empty, which counts as secret
+        copy_window gtk-hint "${GTK_HINT}"
         sleep 3
-        check "a copy marked x-kde-passwordManagerHint: secret is not recorded" not_in_history "${SECRET}"
-        check "nor written anywhere" nowhere_in_the_clear "${SECRET}"
+        check "a copy whose x-kde-passwordManagerHint comes empty (a GTK app's) is not recorded" not_in_history "${GTK_HINT}"
         copy_window keepass "${KEEPASS}"
         sleep 3
         check "a copy made in KeePassXC's window is not recorded (excluded-apps)" not_in_history "${KEEPASS}"
