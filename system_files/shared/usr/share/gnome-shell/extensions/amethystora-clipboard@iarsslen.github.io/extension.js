@@ -1989,21 +1989,22 @@ const ClipboardIndicator = GObject.registerClass({
         this.#updateIndicatorContent(entry);
     }
 
-    // What the clipboard holds as TYPE, or null; given up after a while, since a copy is taken one at a time and an
-    // app that never answers would keep every later copy from being recorded
+    // What the clipboard holds as TYPE, its bytes copied (an empty array for nothing); given up after a while, since a
+    // copy is taken one at a time and an app that never answers would keep every later copy from being recorded.
+    // The GLib.Bytes St hands the callback is freed once it returns: only its data, copied in it, may outlive it
     #read (type) {
         return new Promise(resolve => {
             let answered = false;
             const timer = setTimeout(() => {
                 answered = true;
                 console.warn(`Amethystora Clipboard: the app that copied did not send ${type} in ${CLIPBOARD_READ_TIMEOUT / 1000} s`);
-                resolve(null);
+                resolve(new Uint8Array());
             }, CLIPBOARD_READ_TIMEOUT);
             this.extension.clipboard.get_content(CLIPBOARD_TYPE, type, (clipBoard, bytes) => {
                 if (answered) return;
                 answered = true;
                 clearTimeout(timer);
-                resolve(bytes);
+                resolve(bytes?.get_data() ?? new Uint8Array());
             });
         });
     }
@@ -2012,8 +2013,8 @@ const ClipboardIndicator = GObject.registerClass({
         const offered = this.extension.clipboard.get_mimetypes(CLIPBOARD_TYPE);
         // A password a password manager marks secret is neither recorded nor shown in the top bar
         if (offered.includes(PASSWORD_HINT)) {
-            const bytes = await this.#read(PASSWORD_HINT);
-            if (bytes && new TextDecoder().decode(bytes.get_data()).trim() === 'secret') return null;
+            const hint = await this.#read(PASSWORD_HINT);
+            if (new TextDecoder().decode(hint).trim() === 'secret') return null;
         }
 
         const mimetypes = [
@@ -2034,9 +2035,9 @@ const ClipboardIndicator = GObject.registerClass({
             // Only what the app offers: asked for a type it did not offer, a Wayland app may send what it has
             // anyway (a picture's bytes taken for text), or never answer (and nothing is recorded again)
             if (!offered.includes(type)) continue;
-            const bytes = await this.#read(type);
+            const data = await this.#read(type);
             let result = null;
-            if (bytes !== null && bytes.get_size() !== 0) {
+            if (data.length > 0) {
                 // HACK: workaround for GNOME 2nd+ copy mangling mimetypes https://gitlab.gnome.org/GNOME/gnome-shell/-/issues/8233
                 // In theory GNOME or XWayland should auto-convert this back to UTF8_STRING for legacy apps when it's needed https://gitlab.gnome.org/GNOME/gtk/-/merge_requests/5300
                 if (type === "UTF8_STRING") {
@@ -2044,7 +2045,7 @@ const ClipboardIndicator = GObject.registerClass({
                 }
 
                 // A picture is sealed with the history (registry.js), never written as it is
-                result = new ClipboardEntry(type, bytes.get_data(), false);
+                result = new ClipboardEntry(type, data, false);
             }
 
             if (result) {
