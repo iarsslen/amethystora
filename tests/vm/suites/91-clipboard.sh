@@ -197,6 +197,13 @@ if [[ "$(user_bus gsettings get org.gnome.shell disable-user-extensions 2>/dev/n
     echo "# a suite before this one left every extension off (GNOME Shell crashed): turned back on"
     user_bus gsettings set org.gnome.shell disable-user-extensions false
 fi
+# GNOME's welcome dialog of a first login, which 10-account.sh closes, takes every key and click while it is open:
+# no copy reaches the clipboard
+if shell has "Welcome to" >/dev/null; then
+    echo "# GNOME's welcome dialog was still open: closed with Escape"
+    keys esc
+    sleep 2
+fi
 # GNOME's overview, where a session starts, takes keys for its search: a click on its workspace leaves it
 keys click:0.5,0.5
 

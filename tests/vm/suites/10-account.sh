@@ -25,7 +25,11 @@ check "GNOME Shell runs in it" wait_for 120 pgrep -u "${TEST_USER}" -x gnome-she
 shows_welcome() { user_bus python3 "$(dirname "$0")/atspi.py" gnome-shell has "Welcome to"; }
 welcome_gone() { ! shows_welcome; }
 if wait_for 120 shows_welcome; then
+    # Pressed once the dialog has had time to take the keyboard at the end of its opening, and once more when the
+    # first came before it had (as in one round): a keyboard taken from it fails both
+    sleep 2
     python3 "$(dirname "$0")/keys.py" esc
+    wait_for 10 welcome_gone || python3 "$(dirname "$0")/keys.py" esc
     check "Escape closes GNOME's welcome dialog" wait_for 20 welcome_gone
 else
     skip "GNOME's welcome dialog did not show"
