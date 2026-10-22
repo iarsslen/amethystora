@@ -2023,10 +2023,11 @@ const ClipboardIndicator = GObject.registerClass({
 
     async #getClipboardContent () {
         const offered = this.extension.clipboard.get_mimetypes(CLIPBOARD_TYPE);
-        // A password a password manager marks secret is neither recorded nor shown in the top bar
+        // A password a password manager marks secret is neither recorded nor shown in the top bar; so is one whose
+        // mark comes empty or never comes, as from a GTK app, which offers the type but cannot send it
         if (offered.includes(PASSWORD_HINT)) {
-            const hint = await this.#read(PASSWORD_HINT);
-            if (new TextDecoder().decode(hint).trim() === 'secret') return null;
+            const hint = new TextDecoder().decode(await this.#read(PASSWORD_HINT)).trim();
+            if (hint === 'secret' || hint === '') return null;
         }
 
         const mimetypes = [
