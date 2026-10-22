@@ -164,6 +164,9 @@ cleanup() {
     [[ "${SSHD_WAS}" == active ]] || systemctl stop sshd.service
     faillock --user "${TEST_USER}" --reset
     unlocked || loginctl unlock-session "$(session_id)"
+    # GNOME disables every extension after gnome-shell crashes a few times (our lock/unlock sets it off); put the
+    # switch back so the suites after this one find their extensions on
+    ensure_session && user_bus gsettings set org.gnome.shell disable-user-extensions false 2>/dev/null
     chvt "${CONSOLE_WAS}" 2>/dev/null
 }
 trap cleanup EXIT
@@ -294,13 +297,17 @@ elif shell_crashed_since "${STARTED}"; then
 else
     not_ok "the duress finger did not unlock the lock screen" "LockedHint: $(locked && echo yes || echo no)"
 fi
-# Once until the next start: a second match of the same source runs nothing, which the service's own gate says
-# without another lock cycle
+# Once until the next start: the service's own gate, tested on its own (so it does not depend on whether the
+# lock-screen test above ran or was skipped by a crash). A fresh boot, one run fires the action, a second runs
+# nothing. No lock cycle, so no crash can reach it.
+new_boot
 "${DURESS}" run "$(id -u "${TEST_USER}")" fingerprint
-if [[ "$(ran)" == "fingerprint ${TEST_USER}" ]] && tail -n 1 /var/lib/amethystora/duress/log | grep -q 'ran already'; then
+first_ran="$(ran)"
+"${DURESS}" run "$(id -u "${TEST_USER}")" fingerprint
+if [[ "${first_ran}" == "fingerprint ${TEST_USER}" ]] && tail -n 1 /var/lib/amethystora/duress/log | grep -q 'ran already'; then
     ok "the duress finger's action runs once until the next start"
 else
-    not_ok "the duress finger's action ran again or its gate did not hold" "$(ran)" "$(tail -n 2 /var/lib/amethystora/duress/log 2>&1)"
+    not_ok "the duress finger's action ran again or its gate did not hold" "first: ${first_ran}" "$(tail -n 2 /var/lib/amethystora/duress/log 2>&1)"
 fi
 # The duress password at the lock screen: let in, its action run
 new_boot
