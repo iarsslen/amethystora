@@ -195,8 +195,10 @@ duress ACTION="":
                 echo "Enroll an ordinary finger first, with: ame security fingerprint add"
                 exit 1
             fi
-            # A reader that cannot identify compares a touch with one finger it chose itself, never the duress one
-            if ! "${identify[@]}" --selected | grep -qx "selected=any"; then
+            # A reader that cannot identify compares a touch with one finger it chose itself, never the duress one.
+            # fprintd does that with a single finger enrolled on any reader, so only two or more tell; with one,
+            # the two touches after enrolling decide.
+            if [[ ${#fingers[@]} -gt 1 ]] && ! "${identify[@]}" --selected | grep -qx "selected=any"; then
                 echo "This reader cannot tell one finger from another, so it cannot have a duress finger."
                 exit 1
             fi
