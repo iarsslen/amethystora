@@ -6,6 +6,7 @@
 // here asks to unlock the keyring by itself, so that a login by fingerprint, which leaves it locked, brings
 // up no prompt: only unlock() asks, and only a click on the menu's row calls it.
 
+import Gio from 'gi://Gio';
 import Secret from 'gi://Secret';
 
 const SCHEMA = new Secret.Schema('org.amethystora.Clipboard', Secret.SchemaFlags.NONE, {
@@ -79,12 +80,12 @@ export async function unlock () {
         await call(done => svc.unlock(objects, null, done), (source, result) => source.unlock_finish(result));
 }
 
-// Calls back when the default keyring is locked or unlocked, by whatever unlocked it; gives back the way
-// to stop
+// Calls back when a keyring is made, locked, unlocked or otherwise changed, by whatever changed it; gives back
+// the way to stop. The Secret Service's own signals on the bus (CollectionCreated, CollectionChanged), which need
+// no keyring to be there yet: libsecret's notify::locked of the default keyring never came for an unlock just
+// after the login
 export async function watch (callback) {
-    const collection = await defaultCollection(await service());
-    if (!collection)
-        return () => {};
-    const id = collection.connect('notify::locked', () => callback());
-    return () => collection.disconnect(id);
+    const id = Gio.DBus.session.signal_subscribe('org.freedesktop.secrets', 'org.freedesktop.Secret.Service',
+        null, '/org/freedesktop/secrets', null, Gio.DBusSignalFlags.NONE, () => callback());
+    return () => Gio.DBus.session.signal_unsubscribe(id);
 }

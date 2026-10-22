@@ -187,8 +187,13 @@ const ClipboardIndicator = GObject.registerClass({
     // The history kept from before opens once the keyring is unlocked, by whatever unlocks it
     #watchKeyring () {
         this.registry.watch(() => this.#openStored()).then(unwatch => {
-            if (this._destroyed) unwatch();
-            else this._keyringUnwatch = unwatch;
+            if (this._destroyed) {
+                unwatch();
+                return;
+            }
+            this._keyringUnwatch = unwatch;
+            // Unlocked between the first ask and the watch
+            this.#openStored();
         }).catch(e => console.warn(`Amethystora Clipboard: ${e.message}`));
     }
 
@@ -210,9 +215,15 @@ const ClipboardIndicator = GObject.registerClass({
     // Once the keyring is unlocked: the history kept from before under what was copied since, and all of it
     // sealed from then on
     async #openStored () {
-        // Merged once: an answer from the keyring that came after its time is merged at the next ask
-        if (this._mergedStored || this._openingStored) return;
+        // Merged once: an answer from the keyring that came after its time is merged at the next ask, and an
+        // unlock while the keyring is being asked asks it again after
+        if (this._mergedStored) return;
+        if (this._openingStored) {
+            this._askAgain = true;
+            return;
+        }
         this._openingStored = true;
+        this._askAgain = false;
         try {
             await this.registry.open();
             if (this._destroyed || this.registry.state !== 'open') return;
@@ -237,6 +248,7 @@ const ClipboardIndicator = GObject.registerClass({
             this._openingStored = false;
             this.#updateStoreItems();
         }
+        if (this._askAgain && !this._destroyed) this.#openStored();
     }
 
     #updateIndicatorContent(entry) {
