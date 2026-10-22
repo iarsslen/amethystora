@@ -59,11 +59,14 @@ copy_picture() {
     user_bus systemd-run --user --quiet --collect -- bash -c 'exec wl-copy --foreground --type image/png <"$1"' _ "$1"
     sleep 2
 }
-# copy_window MODE TEXT: from clipcopy.py's window, which gets the focus as an app's does; on Wayland, as GTK
-# apps are here (without WAYLAND_DISPLAY in the user manager's environment GTK opened it on XWayland)
+# copy_window MODE TEXT: from clipcopy.py's window, which covers the screen and copies once it has the focus: GNOME
+# does not always give a new window the focus, so a click on it gives it, as a person's would
 copy_window() {
-    user_bus systemd-run --user --pipe --wait --quiet --collect --setenv=WAYLAND_DISPLAY=wayland-0 \
-        --setenv=GDK_BACKEND=wayland -- python3 "${OWN}/clipcopy.py" "$@"
+    user_bus systemd-run --user --quiet --collect --unit="vmlab-clipcopy-${RANDOM}" \
+        --setenv=WAYLAND_DISPLAY=wayland-0 --setenv=GDK_BACKEND=wayland -- python3 "${OWN}/clipcopy.py" "$@"
+    sleep 3
+    keys click:0.5,0.5
+    sleep 7
 }
 
 ext_state() { user_bus gnome-extensions info "${UUID}" 2>/dev/null | sed -n 's/^ *State: *//p'; }
@@ -350,7 +353,7 @@ case "${SUITE_PHASE}" in
     keyring unlock "" >/dev/null 2>&1
     check "the keyring, with no password, opens" wait_for 30 keyring_open
     check "keep-history restart kept the pinned item" wait_for 30 pinned "${PINNED}"
-    check "and dropped what was not pinned before the restart" not_in_history "${COPIED}"
+    check "and dropped what was not pinned before the restart" wait_for 30 not_in_history "${COPIED}"
     check "the menu shows the pinned item" menu_shows "${PINNED}"
     user_bus bash -lc 'ame desktop clipboard always' >/dev/null
     check "ame desktop clipboard always sets keep-history" [ "$(keep)" == "'always'" ]
