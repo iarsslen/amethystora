@@ -29,6 +29,8 @@ const INDICATOR_ICON = 'edit-paste-symbolic';
 // What KeePassXC and KDE's password managers offer beside a password, with "secret", so that clipboard
 // managers keep it out of their history
 const PASSWORD_HINT = 'x-kde-passwordManagerHint';
+// How long the app that copied may take to send what it copied (a large picture takes a moment)
+const CLIPBOARD_READ_TIMEOUT = 10000;
 
 let DELAYED_SELECTION_TIMEOUT = 750;
 let MAX_REGISTRY_LENGTH       = 15;
@@ -1987,13 +1989,31 @@ const ClipboardIndicator = GObject.registerClass({
         this.#updateIndicatorContent(entry);
     }
 
+    // What the clipboard holds as TYPE, or null; given up after a while, since a copy is taken one at a time and an
+    // app that never answers would keep every later copy from being recorded
+    #read (type) {
+        return new Promise(resolve => {
+            let answered = false;
+            const timer = setTimeout(() => {
+                answered = true;
+                console.warn(`Amethystora Clipboard: the app that copied did not send ${type} in ${CLIPBOARD_READ_TIMEOUT / 1000} s`);
+                resolve(null);
+            }, CLIPBOARD_READ_TIMEOUT);
+            this.extension.clipboard.get_content(CLIPBOARD_TYPE, type, (clipBoard, bytes) => {
+                if (answered) return;
+                answered = true;
+                clearTimeout(timer);
+                resolve(bytes);
+            });
+        });
+    }
+
     async #getClipboardContent () {
         const offered = this.extension.clipboard.get_mimetypes(CLIPBOARD_TYPE);
         // A password a password manager marks secret is neither recorded nor shown in the top bar
         if (offered.includes(PASSWORD_HINT)) {
-            const hint = await new Promise(resolve => this.extension.clipboard.get_content(CLIPBOARD_TYPE, PASSWORD_HINT,
-                (clipBoard, bytes) => resolve(bytes ? new TextDecoder().decode(bytes.get_data()).trim() : '')));
-            if (hint === 'secret') return null;
+            const bytes = await this.#read(PASSWORD_HINT);
+            if (bytes && new TextDecoder().decode(bytes.get_data()).trim() === 'secret') return null;
         }
 
         const mimetypes = [
@@ -2014,12 +2034,9 @@ const ClipboardIndicator = GObject.registerClass({
             // Only what the app offers: asked for a type it did not offer, a Wayland app may send what it has
             // anyway (a picture's bytes taken for text), or never answer (and nothing is recorded again)
             if (!offered.includes(type)) continue;
-            let result = await new Promise(resolve => this.extension.clipboard.get_content(CLIPBOARD_TYPE, type, (clipBoard, bytes) => {
-                if (bytes === null || bytes.get_size() === 0) {
-                    resolve(null);
-                    return;
-                }
-
+            const bytes = await this.#read(type);
+            let result = null;
+            if (bytes !== null && bytes.get_size() !== 0) {
                 // HACK: workaround for GNOME 2nd+ copy mangling mimetypes https://gitlab.gnome.org/GNOME/gnome-shell/-/issues/8233
                 // In theory GNOME or XWayland should auto-convert this back to UTF8_STRING for legacy apps when it's needed https://gitlab.gnome.org/GNOME/gtk/-/merge_requests/5300
                 if (type === "UTF8_STRING") {
@@ -2027,9 +2044,8 @@ const ClipboardIndicator = GObject.registerClass({
                 }
 
                 // A picture is sealed with the history (registry.js), never written as it is
-                const entry = new ClipboardEntry(type, bytes.get_data(), false);
-                resolve(entry);
-            }));
+                result = new ClipboardEntry(type, bytes.get_data(), false);
+            }
 
             if (result) {
                 if (!CACHE_IMAGES && result.isImage()) {

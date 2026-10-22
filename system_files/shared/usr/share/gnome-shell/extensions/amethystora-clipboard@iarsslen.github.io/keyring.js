@@ -63,12 +63,16 @@ export async function find (newKey) {
     await call(
         done => Secret.password_store(SCHEMA, ATTRIBUTES, Secret.COLLECTION_DEFAULT, LABEL, key, null, done),
         (_source, result) => Secret.password_store_finish(result));
+    console.log('Amethystora Clipboard: a new key for the history is in the login keyring');
     return { state: 'open', key };
 }
 
 // GNOME's own prompt for the keyring's password: the items that hold the key, or the default keyring
 export async function unlock () {
     const svc = await service();
+    // gnome-keyring finishes an unlock only for a caller with a session open ("assertion 'client' failed"
+    // otherwise), and a search of a locked keyring opens none
+    await call(done => svc.ensure_session(null, done), (source, result) => source.ensure_session_finish(result));
     const items = await search(svc);
     const objects = items.length > 0 ? items : [await defaultCollection(svc)].filter(Boolean);
     if (objects.length > 0)
