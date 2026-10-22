@@ -182,6 +182,7 @@ menu_lacks() {
     keys esc
     return "${lacks}"
 }
+prompt_up() { shell has "did not get unlocked" >/dev/null || shell has "it is locked" >/dev/null; }
 session_id() { loginctl show-user "${TEST_USER}" -p Display --value; }
 screen_locked() { [[ "$(loginctl show-session "$(session_id)" -p LockedHint --value 2>/dev/null)" == yes ]]; }
 screen_unlocked() { ! screen_locked; }
@@ -260,7 +261,9 @@ case "${SUITE_PHASE}" in
             ok "the picture ${picture##*/} is nowhere in the home as it was copied"
     done
 
-    # A window's copy is recorded; a password manager's marked secret, and KeePassXC's own, are not
+    # A window's copy is recorded; a password manager's marked secret, and KeePassXC's own, are not. The Manual's
+    # welcome, open since the first login, closed first: GNOME gave it the focus back from the new window
+    pkill -u "${TEST_USER}" -f '^/usr/lib/amethystora-manual/' && sleep 2
     copy_window text "${WINDOW}"
     if wait_for 20 in_history "${WINDOW}"; then
         ok "a window's copy is recorded (clipcopy.py works here)"
@@ -316,16 +319,32 @@ case "${SUITE_PHASE}" in
     check "a copy made while locked is in the menu" menu_shows "${LOCKED}"
     check "and on no disk: the sealed history is untouched" [ "$(stat -c %Y "${STORE}/history")" == "${written}" ]
     check "the copy made while locked is nowhere in the clear" nowhere_in_the_clear "${LOCKED}"
-    # The row clicked, and GNOME's own prompt for the keyring answered with the password
+    # The row clicked where it is, with the pointer as a person's (its label has no action, and atspi.py's own
+    # click, through the screen's top left corner, closed the menu first), and GNOME's own prompt for the keyring
+    # answered with the password
     keys super+shift+v
     sleep 2
-    clicked="$(shell click "Unlock to see earlier items" 2>&1)"
-    # GNOME's own dialog, its words gnome-keyring's ("An application wants access to the keyring “login”, but it
-    # is locked"): not its Cancel button, which a "Copied to clipboard" notification has too
-    if shell wait 15 "it is locked" >/dev/null; then
+    clicked="$(shell where "Unlock to see earlier items" 2>&1)" && keys "click:${clicked}"
+    # GNOME's own dialog, its words gnome-keyring's ("The login keyring did not get unlocked when you logged into
+    # your computer", or for a keyring of another name "... but it is locked"): not its Cancel button, which a
+    # "Copied to clipboard" notification has too
+    if wait_for 15 prompt_up; then
         ok "the row brings up GNOME's prompt for the keyring"
+        # Typed once the dialog has taken the keyboard, at the end of its opening, as a person would
+        sleep 2
         keys "text:${TEST_USER}" return
-        check "the row's prompt unlocks the keyring" wait_for 30 keyring_open
+        if ! wait_for 10 keyring_open && prompt_up; then
+            echo "# the prompt was still open 10 s after the password: typed again"
+            keys "text:${TEST_USER}" return
+        fi
+        if wait_for 30 keyring_open; then
+            ok "the row's prompt unlocks the keyring"
+        else
+            not_ok "the row's prompt did not unlock the keyring" "$(shell text 2>&1 | head -n 30)" \
+                "$(user_bus journalctl --user -b --since "-60s" --no-pager -o cat 2>/dev/null | grep -v MESA | tail -n 10)"
+            keys esc
+            keyring unlock "${TEST_USER}" >/dev/null 2>&1
+        fi
     else
         not_ok "the row brought up no prompt" "click: ${clicked}" "$(shell text 2>&1 | head -n 30)" "$(said)"
         keys esc

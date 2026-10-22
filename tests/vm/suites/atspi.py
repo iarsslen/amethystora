@@ -7,6 +7,8 @@ this does for them.
     atspi.py APP wait SECONDS TEXT         ...waiting for it as long as that
     atspi.py APP click TEXT [ROLE]         activates the first widget named TEXT (a button, a link...), or clicks
                                            it with the pointer when it has no action (GNOME Shell's own)
+    atspi.py APP where TEXT [ROLE]         prints the middle of the widget named TEXT as X,Y, fractions of the
+                                           screen, for keys.py's click:X,Y (GNOME Shell's)
     atspi.py APP type TEXT [ENTRY]         puts TEXT in the first entry (or the one named ENTRY)
     atspi.py APP check TEXT [on|off]       sets the check box or switch named TEXT
     atspi.py APP text                      prints everything the window says, one line each
@@ -160,6 +162,19 @@ def main(argv):
                 pointer_click(node)
             except Exception as error:
                 fail(f"{rest[0]!r} has nothing to activate, and the pointer could not click it: {error}")
+        return
+    if command == "where":
+        # The middle of a widget as fractions of the screen, for keys.py's click: a menu's own item, whose label has no
+        # action, which pointer_click's way through the screen's top left corner would close the menu before
+        node = find(app, rest[0], rest[1] if len(rest) > 1 else None)
+        if node is None:
+            fail(f"nothing named {rest[0]!r}")
+        stage = app.get_child_at_index(0)
+        screen = max((Atspi.Component.get_extents(stage.get_child_at_index(i), Atspi.CoordType.SCREEN)
+                      for i in range(stage.get_child_count())),
+                     key=lambda box: box.width * box.height if box.width > 0 and box.height > 0 else 0)
+        box = Atspi.Component.get_extents(node, Atspi.CoordType.SCREEN)
+        print(f"{(box.x + box.width / 2 - screen.x) / screen.width:.4f},{(box.y + box.height / 2 - screen.y) / screen.height:.4f}")
         return
     if command == "type":
         node = find(app, rest[1], "text") if len(rest) > 1 else next((n for n, _ in walk(app) if n.get_role_name() in ("text", "entry", "password text")), None)
