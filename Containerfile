@@ -29,6 +29,10 @@ COPY /apps /apps
 ## fprintd with the duress finger's patches, built on the base it is installed into. Its build tools stay
 ## in this stage: only the packages in /out reach the image (05-override-install.sh)
 FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION}@${BASE_IMAGE_SHA} AS fprintd
+# What the stage builds from, copied in only so that a change to it builds the stage again: the layer cache
+# does not look at what a bind mount holds, and took a stage built from older sources
+COPY --from=ctx /packaging/fprintd /usr/src/amethystora-build/fprintd
+COPY --from=ctx /build_files/shared/build-fprintd.sh /usr/src/amethystora-build/
 RUN --mount=type=cache,dst=/var/cache/libdnf5 \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/build_files/shared/build-fprintd.sh
@@ -37,6 +41,9 @@ RUN --mount=type=cache,dst=/var/cache/libdnf5 \
 ## only the programs, the agent's model and the crates' licences in /out reach the image (13-apps.sh). Its Node runs the
 ## checks written in JavaScript (20-tests.sh), so that the image needs none of its own
 FROM ${BASE_IMAGE}:${FEDORA_MAJOR_VERSION}@${BASE_IMAGE_SHA} AS apps
+# As fprintd's: in the lab the cache took an apps stage built before a crate was added
+COPY --from=ctx /apps /usr/src/amethystora-build/apps
+COPY --from=ctx /build_files/shared/build-apps.sh /usr/src/amethystora-build/
 RUN --mount=type=cache,dst=/var/cache/libdnf5 \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/build_files/shared/build-apps.sh
