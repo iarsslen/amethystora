@@ -47,7 +47,9 @@ function run (argv, input) {
             try {
                 const [, stdout] = source.communicate_finish(result);
                 if (source.get_successful())
-                    resolve(stdout ? stdout.toArray() : new Uint8Array());
+                    // A copy (get_data): toArray() is a view of the GLib.Bytes' own memory, and what is
+                    // returned here is wrapped in a GLib.Bytes again to be written
+                    resolve(stdout?.get_data() ?? new Uint8Array());
                 else
                     reject(new Error(`${argv[1]} ${argv[2] ?? ''} failed`));
             } catch (e) {

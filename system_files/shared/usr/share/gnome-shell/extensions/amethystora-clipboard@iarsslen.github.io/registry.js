@@ -92,7 +92,7 @@ export class Registry {
         entry.imageId ??= Store.newId();
         if (!entry.imageSealed) {
             entry.imageSealed = true;
-            this.store.sealImage(entry.imageId, entry.asBytes().toArray()).catch(() => {
+            this.store.sealImage(entry.imageId, entry.asBytes().get_data() ?? new Uint8Array()).catch(() => {
                 entry.imageSealed = false;
             });
         }
