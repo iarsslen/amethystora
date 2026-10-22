@@ -189,8 +189,13 @@ keep() { user_bus gsettings get "${SCHEMA}" keep-history 2>/dev/null; }
 said() { user_bus journalctl --user -b --no-pager -o cat 2>/dev/null | grep -F "Amethystora Clipboard" | tail -n 8; }
 
 # A suite before this one may have left the screen locked, and GNOME Shell disables every extension on the lock
-# screen
+# screen; or GNOME Shell crashed in it, after which GNOME turns every extension off (this suite checks for crashes
+# of its own at the end)
 screen_locked && loginctl unlock-session "$(session_id)" && wait_for 30 screen_unlocked
+if [[ "$(user_bus gsettings get org.gnome.shell disable-user-extensions 2>/dev/null)" == true ]]; then
+    echo "# a suite before this one left every extension off (GNOME Shell crashed): turned back on"
+    user_bus gsettings set org.gnome.shell disable-user-extensions false
+fi
 # GNOME's overview, where a session starts, takes keys for its search: a click on its workspace leaves it
 keys click:0.5,0.5
 
