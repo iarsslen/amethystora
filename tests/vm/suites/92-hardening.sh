@@ -240,7 +240,8 @@ daemons() {
         printf '%s=%s/%s ' "${unit}" "$(systemctl is-enabled "${unit}" 2>/dev/null)" "$(systemctl is-active "${unit}")"
     done
 }
-subset() { flatpak remotes --system --columns=name,subset 2>/dev/null | awk '$1 == "flathub" { print ($2 == "" ? "none" : $2) }'; }
+# Flathub's subset as flatpak lists it, "-" for none
+subset() { flatpak remotes --system --columns=name,subset 2>/dev/null | awk '$1 == "flathub" { print ($2 == "" || $2 == "-" ? "none" : $2) }'; }
 # pkcheck's answer for the account's session installing a Flatpak for the machine: 0 allowed, 2 a password first
 flatpak_install() { pkcheck --action-id org.freedesktop.Flatpak.app-install --process "$(pgrep -u "${TEST_USER}" -x gnome-shell | head -n 1)" >/dev/null 2>&1; echo $?; }
 # Where systemd-coredump kept the core of a program of the account's that crashed now
