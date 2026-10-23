@@ -98,8 +98,8 @@ sleep 2
 keys ctrl+e
 
 # What the clipboard holds is read as a person reads it, from the clipboard history's menu (Super+Shift+V):
-# wl-paste may wait for a focus that a session with no window of its own does not give: it is tried as well,
-# with a time limit, and only the menu decides.
+# wl-paste says "Nothing is copied" to a session with no window of its own, so it is not used:
+# the menu is what a person sees.
 recognised() {
     local found=1
     keys super+shift+v
@@ -115,14 +115,6 @@ else
         "screen: $(shell text 2>&1 | head -n 30)" \
         "$(user_bus journalctl --user -b --since '-5min' --no-pager -o cat 2>/dev/null | grep -i 'gradia\|ocr\|screenshot' | grep -v Vulkan | tail -n 15)"
 fi
-pasted="$(timeout 10 sudo -u "${TEST_USER}" env XDG_RUNTIME_DIR="/run/user/$(id -u "${TEST_USER}")" wl-paste --no-newline 2>&1 | tr -c '[:alnum:]' ' ' | xargs)"
-echo "# wl-paste: ${pasted:0:120}"
-if [[ "${pasted,,}" == "${SENTENCE,,}" ]]; then
-    ok "and the clipboard holds exactly the sentence"
-else
-    skip "the clipboard itself was not read back as the sentence (wl-paste said: ${pasted:0:80})"
-fi
-
 # The capture is kept like any screenshot
 found="$(find "${HOME_DIR}/Pictures" -type f -newer "${OWN}/screentext.py" 2>/dev/null)"
 if [[ -n "${found}" ]]; then
