@@ -11,7 +11,7 @@ import GObject from 'gi://GObject';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
 
-import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {Extension, gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
@@ -132,8 +132,8 @@ class WidgetButton extends PanelMenu.Button {
             {label: `${this._widget.manifest?.name ?? this._widget.id}: ${message}`},
             {separator: true},
             ...GLib.file_test(AGENTIC, GLib.FileTest.EXISTS)
-                ? [{label: 'Fix it with the AI agent', run: ['amethystora-widgets', 'fix', this._widget.id]}] : [],
-            {label: 'Open its folder', open: this._widget.dir},
+                ? [{label: _('Fix it with the AI agent'), run: ['amethystora-widgets', 'fix', this._widget.id]}] : [],
+            {label: _('Open its folder'), open: this._widget.dir},
         ]);
     }
 

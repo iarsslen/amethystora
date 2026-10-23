@@ -4,11 +4,13 @@
 [positional-arguments]
 update ACTION="":
     #!/usr/bin/bash
+    # shellcheck source=/dev/null
+    source gettext.sh
     # A soft reboot: only the system starts again, not the computer (amethystora-soft-reboot)
     if [[ "$1" == restart ]]; then
         /usr/libexec/amethystora-soft-reboot restart && exit 0
         status=$?
-        [[ ${status} == 1 ]] && echo "To restart as usual: systemctl reboot" >&2
+        [[ ${status} == 1 ]] && echo "$(gettext "To restart as usual: systemctl reboot")" >&2
         exit "${status}"
     elif [[ -n "$1" ]]; then
         echo "Usage: ame update [restart]" >&2
@@ -20,7 +22,7 @@ update ACTION="":
         SERVICE="rpm-ostreed-automatic.service"
     fi
     if systemctl is-active --quiet "$SERVICE"; then
-        echo "automatic updates are currently running, use \`journalctl -fexu $SERVICE\` to see logs"
+        echo "$(eval_gettext "automatic updates are currently running, use \`journalctl -fexu \${SERVICE}\` to see logs")"
         exit 1
     fi
     if grep -q -E -e "LockLayering=false" /etc/rpm-ostreed.conf ; then

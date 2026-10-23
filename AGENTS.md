@@ -481,6 +481,23 @@ The Manual, Security, Updates, Logs, Notes, Control and Backups follow the sessi
 - The security report, the app permissions and Control's list translate with gettext (`gettext`,
   `eval_gettext` and `eval_ngettext`, values as shell variables), and the Security and Control apps show
   their words as they come. Never pass the report's or the helpers' text through `t!`.
+- **The `ame` recipes** (`usr/share/amethystora/just/*.just`, each in `check-translations.js`'s `SHELL`
+  list) say what they say through gettext too: `/usr/bin/ame` exports `TEXTDOMAIN=amethystora`, and a
+  shebang recipe that prints or asks `source gettext.sh` after `set -euo pipefail`. A sentence is one
+  message (a wrapped `echo` is merged), the values the user types (`on`, `off`, ids, `ERASE`), command
+  names, `usage:` lines and anything a program parses stay as they are, and a `case` on what `gum choose`
+  printed compares the translated labels (computed once into variables) as well as the ids.
+- **Notifications are translated per account**, in `amethystora-notify-users`, not by the callers: the
+  callers run as root, which has no session language. A caller marks a message with `N_ '...'` (and
+  `N_n SUMMARY PLURAL '...' '...'` for a plural), exports the `${NAME}` values and passes the
+  unexpanded text with `--msgid` (`--msgid-summary`, `--msgid-body`, `--plural` and `--count`, `--footer`
+  for one more message after text that is not one); the helper takes each account's language from
+  AccountsService (`Language=`, else `/etc/locale.conf`), runs `eval_gettext` under `LC_ALL=C.UTF-8
+  LANGUAGE=...`, and only then cleans the text with `amethystora-security-text`. The label of every
+  `--action` is translated the same way. What the security watcher found, the driver check's finding and
+  the pools of disks' news are text of their own and stay English; only the sentences around them are
+  messages. `check-translations.js` reads `N_`, `N_n` and `_('...')` (a GNOME Shell extension's own, the
+  widgets', in domain `amethystora` through `"gettext-domain"` in its `metadata.json`).
 - `translate-desktop.py` writes each launcher's translated `Name`, `GenericName`, `Comment` and
   `Keywords` from the app's catalogs at build time: edit the English in the `.desktop` file only.
 

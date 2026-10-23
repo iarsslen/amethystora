@@ -44,6 +44,9 @@
 
 set -uo pipefail
 
+# Marks a message for po/amethystora.pot; amethystora-notify-users translates the buttons for each account
+N_() { printf '%s' "$1"; }
+
 # A stand-in tree for build_files/shared/test-raid.sh; empty, and so the machine's own, everywhere else
 R="${AMETHYSTORA_RAID_ROOT:-}"
 SYS="${R}/sys"
@@ -2234,7 +2237,7 @@ cmd_check() {
 cmd_notify() {
     [[ ${EUID} -eq 0 && $# -eq 2 ]] || die "usage: amethystora-raid notify SUMMARY BODY (as root)"
     local answers user answer uid
-    answers="$(/usr/libexec/amethystora-notify-users --action open="Open Control" "$1" "$2" critical)" || exit 0
+    answers="$(/usr/libexec/amethystora-notify-users --action "open=$(N_ 'Open Control')" "$1" "$2" critical)" || exit 0
     while read -r user answer; do
         [[ "${answer}" == open ]] || continue
         # Control on its System page, in that person's session, through the systemd user manager that has

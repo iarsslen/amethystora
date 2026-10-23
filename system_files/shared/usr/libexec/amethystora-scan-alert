@@ -9,52 +9,57 @@ set -uo pipefail
 
 UNIT="${1:?usage: $0 UNIT}"
 
+# Marks a message for po/amethystora.pot. amethystora-notify-users --msgid translates it, in the language of
+# each account it tells, and puts the values (${NAME}, exported) in.
+N_() { printf '%s' "$1"; }
+export UNIT AGE
+
 case "${UNIT}" in
     amethystora-clamav-scan.service)
         if [[ -s /var/log/amethystora-clamav-findings.log ]]; then
             # The one case worth interrupting someone for. Critical notifications stay on screen in
             # GNOME until they are dismissed, which is right for this and wrong for the others.
-            SUMMARY="Virus scan found something"
+            SUMMARY="$(N_ 'Virus scan found something')"
             case "$(/usr/libexec/amethystora-security-config ON_DETECTION)" in
-                quarantine) BODY="It was moved to quarantine. See it, or put it back, with: ame security scan" ;;
-                delete) BODY="It was deleted. See what it was with: ame security scan" ;;
-                *) BODY="Nothing was deleted, quarantined or moved. See it with: ame security scan" ;;
+                quarantine) BODY="$(N_ 'It was moved to quarantine. See it, or put it back, with: ame security scan')" ;;
+                delete) BODY="$(N_ 'It was deleted. See what it was with: ame security scan')" ;;
+                *) BODY="$(N_ 'Nothing was deleted, quarantined or moved. See it with: ame security scan')" ;;
             esac
             URGENCY=critical
         elif AGE="$(/usr/libexec/amethystora-clamav-signature-age)"; then
-            SUMMARY="Virus scan could not run"
-            BODY="This machine has not been scanned. Try it with: ame security scan"
+            SUMMARY="$(N_ 'Virus scan could not run')"
+            BODY="$(N_ 'This machine has not been scanned. Try it with: ame security scan')"
             URGENCY=normal
         elif [[ -n "${AGE}" ]]; then
-            SUMMARY="Virus signatures are ${AGE} days old"
-            BODY="A clean scan proves nothing with signatures this old. Check this machine's network connection."
+            SUMMARY="$(N_ 'Virus signatures are ${AGE} days old')"
+            BODY="$(N_ "A clean scan proves nothing with signatures this old. Check this machine's network connection.")"
             URGENCY=normal
         else
-            SUMMARY="No virus signatures on this machine"
-            BODY="clamav-freshclam.service has never finished a download, so nothing has been scanned yet."
+            SUMMARY="$(N_ 'No virus signatures on this machine')"
+            BODY="$(N_ 'clamav-freshclam.service has never finished a download, so nothing has been scanned yet.')"
             URGENCY=normal
         fi
         ;;
     amethystora-lynis-audit.service)
-        SUMMARY="Security audit could not run"
-        BODY="Run it by hand with: ame security audit"
+        SUMMARY="$(N_ 'Security audit could not run')"
+        BODY="$(N_ 'Run it by hand with: ame security audit')"
         URGENCY=normal
         ;;
     amethystora-security-watch.service)
-        SUMMARY="The security watcher could not run"
-        BODY="Nothing is reading the audit log until it does. See why with: journalctl -u amethystora-security-watch.service"
+        SUMMARY="$(N_ 'The security watcher could not run')"
+        BODY="$(N_ 'Nothing is reading the audit log until it does. See why with: journalctl -u amethystora-security-watch.service')"
         URGENCY=normal
         ;;
     amethystora-ips.service)
-        SUMMARY="Network protection stopped"
-        BODY="Connections work, but nothing inspects them. See why with: journalctl -u amethystora-ips.service"
+        SUMMARY="$(N_ 'Network protection stopped')"
+        BODY="$(N_ 'Connections work, but nothing inspects them. See why with: journalctl -u amethystora-ips.service')"
         URGENCY=normal
         ;;
     *)
-        SUMMARY="${UNIT} failed"
-        BODY="See: systemctl status ${UNIT}"
+        SUMMARY="$(N_ '${UNIT} failed')"
+        BODY="$(N_ 'See: systemctl status ${UNIT}')"
         URGENCY=normal
         ;;
 esac
 
-exec /usr/libexec/amethystora-notify-users --security "${SUMMARY}" "${BODY}" "${URGENCY}"
+exec /usr/libexec/amethystora-notify-users --security --msgid "${SUMMARY}" "${BODY}" "${URGENCY}"

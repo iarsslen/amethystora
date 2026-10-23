@@ -815,6 +815,11 @@ for catalog in /usr/lib/amethystora-*/resources/app/locale/*.json; do
     [[ "${language}" == en ]] && continue
     app="$(basename "$(dirname "$(dirname "$(dirname "$(dirname "${catalog}")")")")")"
     name="$(sed -n 's/^Name=//p' "/usr/share/applications/${app}.desktop" | head -n1)"
+# The notifications are translated per account by the helper, and the recipes by the TEXTDOMAIN `ame` exports
+grep -q '^source gettext.sh' /usr/libexec/amethystora-notify-users
+grep -q '^export TEXTDOMAIN=amethystora$' /usr/bin/ame
+# gettext reads LANGUAGE only outside the C locale, so the helper needs the account's own locale to be there
+locale -a | grep -qix 'fr_FR.utf-\?8'
     if [[ -n "$(jq -r --arg name "${name}" '.[$name] // ""' "${catalog}")" ]]; then
         grep -q "^Name\[${language//-/_}\]=" "/usr/share/applications/${app}.desktop"
     fi

@@ -17,6 +17,9 @@
 
 set -uo pipefail
 
+# Marks a message for po/amethystora.pot; amethystora-notify-users translates it for each account it tells
+N_() { printf '%s' "$1"; }
+
 ROOT="${AMETHYSTORA_DRIVERS_ROOT:-}"
 STATE=/var/lib/amethystora/drivers
 SAVED="${STATE}/status.json"
@@ -218,15 +221,19 @@ while IFS=$'\t' read -r -u 3 id device text fix manual; do
     grep -qxF -- "${id}" "${SAID}" 2>/dev/null && continue
     echo "${id}" >>"${SAID}"
     if [[ -n "${fix}" ]]; then
-        actions=(--action fix="Fix it…")
+        actions=(--action "fix=$(N_ 'Fix it…')")
         # One of the commands above, a word at a time
         # shellcheck disable=SC2206
         run=(/usr/libexec/amethystora-in-terminal ${fix})
     else
-        actions=(--action manual="Read more")
+        actions=(--action "manual=$(N_ 'Read more')")
         run=(/usr/bin/amethystora-manual "${manual}")
     fi
-    ANSWERS="$(/usr/libexec/amethystora-notify-users "${actions[@]}" "A device does not work: ${device}" "${text}")" || continue
+    # The finding's text is what the check found, English; the sentence around the device and the buttons
+    # are translated for each account (amethystora-notify-users)
+    export device
+    ANSWERS="$(/usr/libexec/amethystora-notify-users "${actions[@]}" --msgid-summary \
+        "$(N_ 'A device does not work: ${device}')" "${text}")" || continue
     while read -r user answer; do
         [[ -n "${answer}" ]] || continue
         uid="$(id -u "${user}")" || continue

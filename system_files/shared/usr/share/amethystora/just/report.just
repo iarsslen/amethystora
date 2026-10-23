@@ -4,9 +4,11 @@
 report:
     #!/usr/bin/bash
     set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
     REPO="$(/usr/libexec/amethystora-image-repo)"
     FILE="${HOME}/amethystora-report-$(date +%Y%m%d-%H%M%S).md"
-    echo "Gathering what a bug report needs. It stays on this machine until you choose otherwise."
+    echo "$(gettext "Gathering what a bug report needs. It stays on this machine until you choose otherwise.")"
     echo
     # A sealed image has no rpm-ostree: its deployments come from bootc, through amethystora-deployments
     if [[ -e /usr/share/amethystora/sealed ]]; then
@@ -35,15 +37,14 @@ report:
     } >"${FILE}")
     cat "${FILE}"
     echo
-    echo "That is all of it, kept in ${FILE}. Read it for anything you would rather not post:"
-    echo "lines from the log can name your files, networks and devices."
-    gum confirm "Open a new issue in the browser, with everything but the errors filled in?" || exit 0
+    echo "$(eval_gettext "That is all of it, kept in \${FILE}. Read it for anything you would rather not post: lines from the log can name your files, networks and devices.")"
+    gum confirm "$(gettext "Open a new issue in the browser, with everything but the errors filled in?")" || exit 0
     uri() { jq -rn --arg v "$1" '$v | @uri'; }
     url="https://github.com/${REPO}/issues/new?template=bug-report.yml&groups=$(uri "${groups}")"
     # A link longer than GitHub takes would open nothing: a field that does not fit is left to the file
     for field in "version=$(uri "${status}")" "extra-context=$(uri $'```\n'"${context}"$'\n```')"; do
         if (( ${#url} + ${#field} < 8000 )); then url+="&${field}"; fi
     done
-    echo "The browser sends what it fills in to GitHub. Nothing is posted until you submit the issue."
-    xdg-open "${url}" >/dev/null 2>&1 || echo "Open this link yourself: ${url}"
-    echo "Say what you did and what happened. If the errors help, drag ${FILE} into the issue."
+    echo "$(gettext "The browser sends what it fills in to GitHub. Nothing is posted until you submit the issue.")"
+    xdg-open "${url}" >/dev/null 2>&1 || echo "$(eval_gettext "Open this link yourself: \${url}")"
+    echo "$(eval_gettext "Say what you did and what happened. If the errors help, drag \${FILE} into the issue.")"

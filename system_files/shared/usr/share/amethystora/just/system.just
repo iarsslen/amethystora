@@ -29,6 +29,8 @@ trust-image REPOSITORY KEY:
 [positional-arguments]
 auto-updates ACTION="prompt":
     #!/usr/bin/bash
+    # shellcheck source=/dev/null
+    source gettext.sh
     CURRENT_STATE="disabled"
     if systemctl is-enabled -q rpm-ostreed-automatic.timer; then
         CURRENT_STATE="enabled"
@@ -36,25 +38,36 @@ auto-updates ACTION="prompt":
         CURRENT_STATE="enabled"
     fi
 
-    echo "Automatic updates are currently ${CURRENT_STATE}"
+    if [ "${CURRENT_STATE}" == "enabled" ]; then
+        echo "$(gettext "Automatic updates are currently enabled")"
+    else
+        echo "$(gettext "Automatic updates are currently disabled")"
+    fi
+    # The labels are what gum shows and prints back, so they are computed once and compared as they are
+    # Translators: choices of a menu that turns automatic updates on or off
+    ENABLE_LABEL="$(gettext "Enable")"
+    # Translators: choices of a menu that turns automatic updates on or off
+    DISABLE_LABEL="$(gettext "Disable")"
+    # Translators: choices of a menu that turns automatic updates on or off
+    CANCEL_LABEL="$(gettext "Cancel")"
     case "${1:-}" in
-        on | enable) SELECTED_OPTION="Enable" ;;
-        off | disable) SELECTED_OPTION="Disable" ;;
-        *) SELECTED_OPTION="$(gum choose --header="Toggle automatic updates?" "Enable" "Disable" "Cancel")" ;;
+        on | enable) SELECTED_OPTION="${ENABLE_LABEL}" ;;
+        off | disable) SELECTED_OPTION="${DISABLE_LABEL}" ;;
+        *) SELECTED_OPTION="$(gum choose --header="$(gettext "Toggle automatic updates?")" "${ENABLE_LABEL}" "${DISABLE_LABEL}" "${CANCEL_LABEL}")" ;;
     esac
-    [[ "${SELECTED_OPTION}" == "Cancel" || "${SELECTED_OPTION}" == "" ]] && exit 0
+    [[ "${SELECTED_OPTION}" == "${CANCEL_LABEL}" || "${SELECTED_OPTION}" == "" ]] && exit 0
 
     if systemctl cat -- uupd.timer &> /dev/null; then
         TIMER="uupd.timer"
     else
         TIMER="rpm-ostreed-automatic.timer"
     fi
-    if [ "${SELECTED_OPTION}" == "Enable" ] ; then
+    if [ "${SELECTED_OPTION}" == "${ENABLE_LABEL}" ] ; then
         sudo systemctl enable --now "$TIMER"
-        echo "Updates have been enabled"
-    elif [ "${SELECTED_OPTION}" == "Disable" ] ; then
+        echo "$(gettext "Updates have been enabled")"
+    elif [ "${SELECTED_OPTION}" == "${DISABLE_LABEL}" ] ; then
         sudo systemctl disable --now "$TIMER"
-        echo "Updates have been disabled"
+        echo "$(gettext "Updates have been disabled")"
     fi
 
 # Tailscale, which joins this machine to your tailnet (ACTION: on or off; without it, says which). Its
@@ -63,9 +76,18 @@ auto-updates ACTION="prompt":
 [positional-arguments]
 tailscale ACTION="" *ARGS:
     #!/usr/bin/bash
+    # shellcheck source=/dev/null
+    source gettext.sh
     case "${1:-}" in
         on | off) sudo /usr/libexec/amethystora-tailscale "$@" ;;
-        "") echo "Tailscale is $(/usr/libexec/amethystora-tailscale status)" ;;
+        "")
+            state="$(/usr/libexec/amethystora-tailscale status)"
+            case "${state}" in
+                on) echo "$(gettext "Tailscale is on")" ;;
+                off) echo "$(gettext "Tailscale is off")" ;;
+                *) echo "Tailscale is ${state}" ;;
+            esac
+            ;;
         *) echo "Usage: ame system tailscale on|off [options for tailscale up]" >&2; exit 64 ;;
     esac
 
@@ -76,6 +98,8 @@ devmode ACTION="":
     # Homebrew's own commands, which a terminal that is not a login shell (one Control opens) does not have
     PATH="${PATH}:/home/linuxbrew/.linuxbrew/bin"
     set -e
+    # shellcheck source=/dev/null
+    source gettext.sh
     IMAGE_INFO_FILE="${IMAGE_INFO_FILE:-/usr/share/amethystora/image-info.json}"
     IMAGE_NAME="$(jq -rc '."image-name"' "${IMAGE_INFO_FILE}")"
     IMAGE_REF="$(jq -rc '."image-ref"' "${IMAGE_INFO_FILE}" | sed "s/.*ghcr/ghcr/")"
@@ -91,13 +115,13 @@ devmode ACTION="":
     case "${1:-}" in
         on)
             if [[ "${DX}" == true ]]; then
-                echo "Developer mode is already on: this is ${IMAGE_NAME}."
+                echo "$(eval_gettext 'Developer mode is already on: this is ${IMAGE_NAME}.')"
                 exit 0
             fi
             ;;
         off)
             if [[ "${DX}" != true ]]; then
-                echo "Developer mode is already off: this is ${IMAGE_NAME}."
+                echo "$(eval_gettext 'Developer mode is already off: this is ${IMAGE_NAME}.')"
                 exit 0
             fi
             ;;
@@ -119,36 +143,37 @@ devmode ACTION="":
     }
 
     if [[ "${DX}" == true ]] ; then
-        gum confirm "Would you like to disable developer mode?" || exit 0
-        echo "Rebasing to a non developer image"
+        gum confirm "$(gettext "Would you like to disable developer mode?")" || exit 0
+        echo "$(gettext "Rebasing to a non developer image")"
         NEW_IMAGE="$(sed "s/\-dx//" <<< $CURRENT_IMAGE)"
         switch_to "${NEW_IMAGE}" || exit 1
         exit 0
     fi
 
-    gum confirm "Would you like to enable developer mode?" || exit 0
-    echo "Rebasing to a developer image"
+    gum confirm "$(gettext "Would you like to enable developer mode?")" || exit 0
+    echo "$(gettext "Rebasing to a developer image")"
     NEW_IMAGE="$(sed "s/${IMAGE_BASE_NAME}/${IMAGE_BASE_NAME}-dx/" <<< "${CURRENT_IMAGE}")"
     switch_to "${NEW_IMAGE}" || exit 1
-    echo "The development apps install by themselves once the development image has started"
-    if gum confirm "Do you want to install extra monospace fonts?" ; then
+    echo "$(gettext "The development apps install by themselves once the development image has started")"
+    if gum confirm "$(gettext "Do you want to install extra monospace fonts?")" ; then
         brew bundle install --file=/usr/share/amethystora/homebrew/fonts.Brewfile
     fi
-    echo "After the restart, ame system dx-group lets your account use Docker, Incus and virtual machines"
-    echo "without sudo, and says what that costs."
+    echo "$(gettext "After the restart, ame system dx-group lets your account use Docker, Incus and virtual machines without sudo, and says what that costs.")"
 
 # Choose your account's developer groups (Docker, Incus, libvirt, serial devices); three of them amount to root
 [positional-arguments]
 dx-group *GROUPS:
     #!/usr/bin/bash
     set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
     # One list, which Control and the security report read too: group, "root" or "-", what it allows
     list=/usr/share/amethystora/developer-groups
     user="$(id -un)"
     member() { id -nG "${user}" | tr ' ' '\n' | grep -qx "$1"; }
     names=()
     roots=()
-    echo "Developer groups for ${user} (* = in it):"
+    echo "$(eval_gettext 'Developer groups for ${user} (* = in it):')"
     while read -r group root text; do
         # Only the groups this image has: Docker and Incus come with the developer image
         getent group "${group}" >/dev/null || continue
@@ -158,14 +183,15 @@ dx-group *GROUPS:
         echo " ${mark} ${group}: ${text}"
     done < <(grep -v '^#' "${list}" | awk NF)
     if [[ ${#names[@]} -eq 0 ]]; then
-        echo "   None: they come with developer mode (ame system devmode on)."
+        echo "   $(gettext "None: they come with developer mode (ame system devmode on).")"
         exit 0
     fi
     echo
     if [[ ${#roots[@]} -gt 0 ]]; then
-        echo "In ${roots[*]}, any program running as you can become root without the sudo password."
+        root_groups="${roots[*]}"
+        echo "$(eval_gettext 'In ${root_groups}, any program running as you can become root without the sudo password.')"
     fi
-    echo "Podman, and virtual machines on your own connection (qemu:///session), need no group at all."
+    echo "$(gettext "Podman, and virtual machines on your own connection (qemu:///session), need no group at all.")"
     echo
     if [[ $# -gt 0 ]]; then
         wanted=("$@")
@@ -175,7 +201,7 @@ dx-group *GROUPS:
         for group in "${names[@]}"; do
             if member "${group}"; then selected+="${selected:+,}${group}"; fi
         done
-        choice="$(gum choose --no-limit --header "Which groups should ${user} be in?" \
+        choice="$(gum choose --no-limit --header "$(eval_gettext 'Which groups should ${user} be in?')" \
             --selected "${selected}" "${names[@]}")" || exit 0
         mapfile -t wanted <<<"${choice}"
     fi
@@ -184,7 +210,8 @@ dx-group *GROUPS:
     for group in "${wanted[@]}"; do
         [[ -n "${group}" ]] || continue
         if [[ " ${names[*]} " != *" ${group} "* ]]; then
-            echo "Not a developer group here: ${group}. The ones there are: ${names[*]}"
+            group_list="${names[*]}"
+            echo "$(eval_gettext 'Not a developer group here: ${group}. The ones there are: ${group_list}')"
             exit 64
         fi
         member "${group}" || joins+=("${group}")
@@ -193,7 +220,7 @@ dx-group *GROUPS:
         member "${group}" && [[ " ${wanted[*]} " != *" ${group} "* ]] && leaves+=("${group}")
     done
     if [[ ${#joins[@]} -eq 0 && ${#leaves[@]} -eq 0 ]]; then
-        echo "Nothing to change."
+        echo "$(gettext "Nothing to change.")"
         exit 0
     fi
     risky=()
@@ -201,7 +228,8 @@ dx-group *GROUPS:
         [[ " ${roots[*]} " == *" ${group} "* ]] && risky+=("${group}")
     done
     if [[ ${#risky[@]} -gt 0 ]]; then
-        gum confirm "Join ${risky[*]}, which let any program you run become root without your password?" || exit 0
+        risky_groups="${risky[*]}"
+        gum confirm "$(eval_gettext 'Join ${risky_groups}, which let any program you run become root without your password?')" || exit 0
     fi
     for group in "${joins[@]}"; do
         # The image's own groups are in /usr/lib/group until something copies them into /etc/group, and a
@@ -209,13 +237,13 @@ dx-group *GROUPS:
         grep -q "^${group}:" /etc/group || grep "^${group}:" /usr/lib/group | sudo tee -a /etc/group >/dev/null
         sudo grep -q "^${group}:" /etc/gshadow || echo "${group}:!::" | sudo tee -a /etc/gshadow >/dev/null
         sudo usermod -aG "${group}" "${user}"
-        echo "Joined ${group}."
+        echo "$(eval_gettext 'Joined ${group}.')"
     done
     for group in "${leaves[@]}"; do
         sudo gpasswd -d "${user}" "${group}" >/dev/null
-        echo "Left ${group}."
+        echo "$(eval_gettext 'Left ${group}.')"
     done
-    echo "Log out and back in for it to apply."
+    echo "$(gettext "Log out and back in for it to apply.")"
 
 # Settings back as the image ships them, your files, apps and accounts kept: your account's, the machine's or both, each saved first (WHAT: account, machine, both, or undo with account or machine; without it, asks)
 [no-exit-message]
@@ -226,20 +254,25 @@ reset-settings WHAT="" PART="":
 # Factory reset this device (experimental)
 powerwash:
     #!/usr/bin/bash
+    # shellcheck source=/dev/null
+    source gettext.sh
     # bootc's own test of this skips the composefs backend a sealed machine runs on
     if [[ -e /usr/share/amethystora/sealed ]]; then
-        echo "Starting over has not been tried on a sealed machine yet. Install it again from the ISO instead."
+        echo "$(gettext "Starting over has not been tried on a sealed machine yet. Install it again from the ISO instead.")"
         exit 1
     fi
-    echo "To put only the settings back, and keep the accounts and their files: ame system reset-settings"
-    FIRST_CONFIRMATION=$(gum choose --header='Warning: This is an experimental feature that will reset this device to its factory state.' "No" "Yes - wipe this machine")
-    if [[ "$FIRST_CONFIRMATION" != "Yes - wipe this machine" ]]; then
-        echo "Powerwash cancelled."
+    echo "$(gettext "To put only the settings back, and keep the accounts and their files: ame system reset-settings")"
+    # The labels are what gum shows and prints back, so they are computed once and compared as they are
+    NO_LABEL="$(gettext "No")"
+    YES_LABEL="$(gettext "Yes - wipe this machine")"
+    FIRST_CONFIRMATION=$(gum choose --header="$(gettext "Warning: This is an experimental feature that will reset this device to its factory state.")" "${NO_LABEL}" "${YES_LABEL}")
+    if [[ "$FIRST_CONFIRMATION" != "${YES_LABEL}" ]]; then
+        echo "$(gettext "Powerwash cancelled.")"
         exit 0
     fi
-    SECOND_CONFIRMATION=$(gum choose --header='Are you sure?' "No" "Yes - wipe this machine")
-    if [[ "$SECOND_CONFIRMATION" != "Yes - wipe this machine" ]]; then
-        echo "Powerwash cancelled."
+    SECOND_CONFIRMATION=$(gum choose --header="$(gettext "Are you sure?")" "${NO_LABEL}" "${YES_LABEL}")
+    if [[ "$SECOND_CONFIRMATION" != "${YES_LABEL}" ]]; then
+        echo "$(gettext "Powerwash cancelled.")"
         exit 0
     fi
     sudo bootc install reset --experimental
@@ -247,12 +280,14 @@ powerwash:
 # Boot into this device's BIOS/UEFI screen
 bios:
     #!/usr/bin/bash
+    # shellcheck source=/dev/null
+    source gettext.sh
     if [ ! -d /sys/firmware/efi ]; then
-      echo "Rebooting to legacy BIOS from OS is not supported."
+      echo "$(gettext "Rebooting to legacy BIOS from OS is not supported.")"
       exit 1
     fi
 
-    if gum confirm "Reboot into BIOS?" ; then
+    if gum confirm "$(gettext "Reboot into BIOS?")" ; then
       systemctl reboot --firmware-setup
     fi
 
@@ -271,13 +306,15 @@ clean:
     #!/usr/bin/bash
     # Homebrew's own commands, which a terminal that is not a login shell (one Control opens) does not have
     PATH="${PATH}:/home/linuxbrew/.linuxbrew/bin"
-    if gum confirm "Prune all Podman images and volumes?"; then
+    # shellcheck source=/dev/null
+    source gettext.sh
+    if gum confirm "$(gettext "Prune all Podman images and volumes?")"; then
         podman image prune -af
         podman volume prune -f
     fi
 
     if command -v docker >/dev/null 2>&1; then
-      if gum confirm "Prune all Docker images and volumes?"; then
+      if gum confirm "$(gettext "Prune all Docker images and volumes?")"; then
         docker image prune -af
         docker volume prune -f
       fi
@@ -366,8 +403,10 @@ device-info:
 # Measure Idle Power Draw
 power-draw:
     #!/usr/bin/bash
+    # shellcheck source=/dev/null
+    source gettext.sh
     if ! command -v powerstat ; then
-        echo "Powerstat is not available"
+        echo "$(gettext "Powerstat is not available")"
         exit 1
     fi
     sudo powerstat -a -r
@@ -377,8 +416,10 @@ benchmark:
     #!/usr/bin/env bash
     # Homebrew's own commands, which a terminal that is not a login shell (one Control opens) does not have
     PATH="${PATH}:/home/linuxbrew/.linuxbrew/bin"
+    # shellcheck source=/dev/null
+    source gettext.sh
     if ! command -v "stress-ng" ; then
-        if gum confirm "Stress does not seem to be on your path, do you wish to install it?" ; then
+        if gum confirm "$(gettext "Stress does not seem to be on your path, do you wish to install it?")" ; then
             set -eu
             brew install stress-ng
             brew link stress-ng
@@ -388,7 +429,7 @@ benchmark:
         fi
     fi
 
-    echo "Running a 1 minute benchmark ..."
+    echo "$(gettext "Running a 1 minute benchmark ...")"
     trap popd EXIT
     pushd "$(mktemp -d)"
     stress-ng --matrix 0 -t 1m --times
@@ -398,6 +439,8 @@ benchmark:
 scheduler NAME="":
     #!/usr/bin/bash
     set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
     # scx_loader starts default_sched at boot while it is enabled (17-cleanup.sh ships it disabled)
     config=/etc/scx_loader/config.toml
     # What the kernel itself says runs: "enabled" with the scheduler's name while a sched-ext one does
@@ -405,26 +448,28 @@ scheduler NAME="":
         [[ "$(cat /sys/kernel/sched_ext/state 2>/dev/null)" == enabled ]] && cat /sys/kernel/sched_ext/root/ops 2>/dev/null
     }
     current="$(running || true)"
-    [[ -n "${current}" ]] || current="the kernel's own (EEVDF)"
-    echo "Scheduling the CPU now: ${current}"
+    if [[ -n "${current}" ]]; then
+        echo "$(eval_gettext 'Scheduling the CPU now: ${current}')"
+    else
+        echo "$(gettext "Scheduling the CPU now: the kernel's own (EEVDF)")"
+    fi
     name="${1:-}"
     if [[ -z "${name}" ]]; then
         echo
-        echo "kernel   The kernel's own, which suits nearly everything (the default)"
-        echo "lavd     Keeps games smooth while other work runs, made for gaming handhelds and laptops"
-        echo "bpfland  Keeps the desktop responsive while something heavy builds or renders"
-        echo "flash    Steady timing, for audio and music work"
-        name="$(gum choose --header "CPU scheduler" kernel lavd bpfland flash)"
+        echo "kernel   $(gettext "The kernel's own, which suits nearly everything (the default)")"
+        echo "lavd     $(gettext "Keeps games smooth while other work runs, made for gaming handhelds and laptops")"
+        echo "bpfland  $(gettext "Keeps the desktop responsive while something heavy builds or renders")"
+        echo "flash    $(gettext "Steady timing, for audio and music work")"
+        name="$(gum choose --header "$(gettext "CPU scheduler")" kernel lavd bpfland flash)"
     fi
     case "${name}" in
         kernel | off)
             sudo systemctl disable --now scx_loader.service
             sudo rm -f "${config}"
-            echo "The kernel's own scheduler, now and after every restart."
+            echo "$(gettext "The kernel's own scheduler, now and after every restart.")"
             ;;
         lavd | bpfland | flash)
-            echo "A sched-ext scheduler is a program the kernel hands its scheduling to. If it stops, the"
-            echo "kernel takes over again by itself, so the worst it can do is make things slower."
+            echo "$(gettext "A sched-ext scheduler is a program the kernel hands its scheduling to. If it stops, the kernel takes over again by itself, so the worst it can do is make things slower.")"
             sudo mkdir -p "${config%/*}"
             printf 'default_sched = "scx_%s"\ndefault_mode = "Auto"\n' "${name}" | sudo tee "${config}" >/dev/null
             sudo systemctl enable scx_loader.service
@@ -436,15 +481,15 @@ scheduler NAME="":
             done
             if [[ "$(running || true)" != "${name}"* ]]; then
                 echo
-                echo "The kernel did not take scx_${name}. What the loader said:"
+                echo "$(eval_gettext 'The kernel did not take scx_${name}. What the loader said:')"
                 journalctl -u scx_loader.service -n 15 --no-pager -q || true
                 echo
-                echo "Back to the kernel's own scheduler."
+                echo "$(gettext "Back to the kernel's own scheduler.")"
                 sudo systemctl disable --now scx_loader.service
                 sudo rm -f "${config}"
                 exit 1
             fi
-            echo "scx_${name}, now and after every restart. ame system scheduler kernel puts the kernel's own back."
+            echo "$(eval_gettext "scx_\${name}, now and after every restart. ame system scheduler kernel puts the kernel's own back.")"
             ;;
         *) exit 0 ;;
     esac
@@ -454,24 +499,23 @@ scheduler NAME="":
 zram MODE="":
     #!/usr/bin/bash
     set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
     # The image's own is zram-generator.conf.d/10-amethystora.conf; a choice goes after it, in /etc
     choice=/etc/systemd/zram-generator.conf.d/90-amethystora-choice.conf
     current="$(sed -n 's/^# mode: //p' "${choice}" 2>/dev/null || true)"
-    echo "Swapped-out memory is compressed: ${current:-default}"
+    current="${current:-default}"
+    echo "$(eval_gettext 'Swapped-out memory is compressed: ${current}')"
     mode="${1:-}"
     if [[ -z "${mode}" ]]; then
         echo
-        echo "When RAM runs short, what programs are not using moves into compressed memory, and comes back"
-        echo "when a program needs it. Measured on a 4 GB machine holding 3 GB of program data:"
+        echo "$(gettext "When RAM runs short, what programs are not using moves into compressed memory, and comes back when a program needs it. Measured on a 4 GB machine holding 3 GB of program data:")"
         echo
-        echo "default  Compressed quickly as it leaves RAM, and what stays unused repacked smaller every hour"
-        echo "         on mains power: about 420 MB of RAM for each GB moved out, back at about 310 MB/s."
-        echo "fast     Compressed quickly and left so (Fedora's own): nothing runs in the background, but about"
-        echo "         540 MB of RAM for each GB, back at about 250 MB/s."
-        echo "compact  Compressed small from the start: about 430 MB of RAM for each GB, but moving out and"
-        echo "         back is about half as quick, at about 130 MB/s."
+        echo "default  $(gettext "Compressed quickly as it leaves RAM, and what stays unused repacked smaller every hour on mains power: about 420 MB of RAM for each GB moved out, back at about 310 MB/s.")"
+        echo "fast     $(gettext "Compressed quickly and left so (Fedora's own): nothing runs in the background, but about 540 MB of RAM for each GB, back at about 250 MB/s.")"
+        echo "compact  $(gettext "Compressed small from the start: about 430 MB of RAM for each GB, but moving out and back is about half as quick, at about 130 MB/s.")"
         echo
-        mode="$(gum choose --header "Swapped-out memory" default fast compact)"
+        mode="$(gum choose --header "$(gettext "Swapped-out memory")" default fast compact)"
     fi
     case "${mode}" in
         default) sudo rm -f "${choice}" ;;
@@ -483,4 +527,4 @@ zram MODE="":
             ;;
         *) exit 0 ;;
     esac
-    echo "${mode}, from the next restart."
+    echo "$(eval_gettext '${mode}, from the next restart.')"

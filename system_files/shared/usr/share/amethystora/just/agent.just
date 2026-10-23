@@ -55,6 +55,8 @@ use AGENT:
 lock *ARGS:
     #!/usr/bin/bash
     set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
     usage() { echo "usage: ame agent lock [ACCOUNT] act|know|off, or ame agent lock ACCOUNT default"; exit 64; }
     case "$#" in
         0) exec /usr/libexec/amethystora-agent-tools policy ;;
@@ -62,7 +64,7 @@ lock *ARGS:
         2) [[ "$2" =~ ^(act|know|off|default)$ ]] || usage; set -- allow "$2" "$1" ;;
         *) usage ;;
     esac
-    echo "This is an administrator's setting, and asks for an administrator's password."
+    echo "$(gettext "This is an administrator's setting, and asks for an administrator's password.")"
     sudo /usr/libexec/amethystora-agent-tools conf "$@"
 
 # How the AI agent's root commands are allowed, for every account (an administrator's): session (one password, then until the agent ends, the screen locks or an hour passes), minutes (five minutes), each (every time) or terminal (sudo in a terminal). Without one, says which it is
@@ -70,12 +72,14 @@ lock *ARGS:
 root MODE="":
     #!/usr/bin/bash
     set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
     case "${1:-}" in
         "") exec /usr/libexec/amethystora-agent-tools policy ;;
         session | minutes | each | terminal) ;;
         *) echo "usage: ame agent root session|minutes|each|terminal"; exit 64 ;;
     esac
-    echo "This is an administrator's setting, and asks for an administrator's password."
+    echo "$(gettext "This is an administrator's setting, and asks for an administrator's password.")"
     sudo /usr/libexec/amethystora-agent-tools conf root "$1"
 
 # What the AI agent's tools changed, newest first, each with its id (ID: one change's result)

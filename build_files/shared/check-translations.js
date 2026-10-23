@@ -290,13 +290,21 @@ for (const app of APPS) {
 //
 // What the security report and the app permissions say is translated with gettext, in the text domain
 // amethystora: gettext "...", eval_gettext "..." and eval_ngettext "..." "..." N, with their values as
-// shell variables (${NAME}), which marks the message sh-format. A comment that starts "# Translators:"
-// goes to the translators with every message up to the next empty line.
+// shell variables (${NAME}), which marks the message sh-format. N_ "..." and N_n SUMMARY PLURAL "..." "..." only
+// mark a message for a program that is handed it unexpanded, amethystora-notify-users --msgid, which translates
+// it for each account. A comment that starts "# Translators:" goes to the translators with every message up to
+// the next empty line.
 
 const SHELL = ['usr/libexec/amethystora-security-status', 'usr/libexec/amethystora-app-permissions', 'usr/libexec/amethystora-layout-offer',
     'usr/libexec/amethystora-control-list', 'usr/libexec/amethystora-security-config', 'usr/libexec/amethystora-hardening',
     'usr/libexec/amethystora-home-networks-notice', 'usr/libexec/amethystora-deja-dup-notice',
-    'usr/libexec/amethystora-agentic-off-notice', 'usr/libexec/amethystora-private-folder'];
+    'usr/libexec/amethystora-agentic-off-notice', 'usr/libexec/amethystora-private-folder',
+    // The callers of amethystora-notify-users --msgid, which mark their messages with N_
+    'usr/libexec/amethystora-scan-alert', 'usr/libexec/amethystora-clamav-onaccess', 'usr/libexec/amethystora-lynis-audit',
+    'usr/libexec/amethystora-driver-status', 'usr/libexec/amethystora-gpu-check', 'usr/libexec/amethystora-raid',
+    'usr/libexec/amethystora-security-watch',
+    'usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js',
+    ...['agent', 'apps', 'backup', 'changelog', 'desktop', 'report', 'security', 'system', 'update'].map((group) => `usr/share/amethystora/just/${group}.just`)];
 
 // A shell word in quotes, as the program it is passed to receives it
 function unshell(word) {
@@ -304,7 +312,10 @@ function unshell(word) {
 }
 
 const QUOTED = String.raw`("(?:[^"\\]|\\.)*"|'[^']*')`;
-const CALL = new RegExp(String.raw`(?<![\w-])(eval_ngettext|eval_gettext|gettext)\s+${QUOTED}(?:\s+${QUOTED})?`, 'g');
+const CALL = new RegExp(String.raw`(?<![\w-])(eval_ngettext|eval_gettext|gettext|N_n|N_)(?:(?<=N_n)\s+\w+\s+\w+)?\s+${QUOTED}(?:\s+${QUOTED})?`, 'g');
+
+// A GNOME Shell extension's own: _('...'), the gettext of resource:///org/gnome/shell/extensions/extension.js
+const JS_CALL = new RegExp(String.raw`(?<![\w$.])(_)\(\s*${QUOTED}()`, 'g');
 
 function shellMessages() {
     const found = new Map();
@@ -320,10 +331,10 @@ function shellMessages() {
             if (!line.trim()) {
                 comment = '';
             }
-            for (const match of line.matchAll(CALL)) {
+            for (const match of line.matchAll(script.endsWith('.js') ? JS_CALL : CALL)) {
                 const [, call, first, second] = match;
                 const id = unshell(first);
-                const plural = call === 'eval_ngettext' && second ? unshell(second) : null;
+                const plural = (call === 'eval_ngettext' || call === 'N_n') && second ? unshell(second) : null;
                 const key = `${id}\u0000${plural || ''}`;
                 const entry = found.get(key) || { id, plural, files: new Set(), comment: '' };
                 entry.files.add(script);

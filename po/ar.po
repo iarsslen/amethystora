@@ -2048,3 +2048,231 @@ msgstr "إفراغ سلة المهملات"
 #: usr/libexec/amethystora-control-list
 msgid "What was deleted longer ago than this leaves the trash by itself, checked every hour while you are logged in. The snapshots and the backup still have it."
 msgstr "ما حُذف قبل ذلك يخرج من سلة المهملات من تلقاء نفسه، ويُفحص كل ساعة ما دمت مسجّل الدخول. ولا يزال في اللقطات والنسخة الاحتياطية."
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Virus scan found something"
+msgstr "عثر فحص الفيروسات على شيء"
+
+#: usr/libexec/amethystora-scan-alert
+msgid "It was moved to quarantine. See it, or put it back, with: ame security scan"
+msgstr "نُقل إلى الحجر الصحي. اطّلع عليه أو أعده إلى مكانه بالأمر: ame security scan"
+
+#: usr/libexec/amethystora-scan-alert
+msgid "It was deleted. See what it was with: ame security scan"
+msgstr "حُذف. اطّلع على ما كان بالأمر: ame security scan"
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Nothing was deleted, quarantined or moved. See it with: ame security scan"
+msgstr "لم يُحذف شيء ولم يُنقل إلى الحجر الصحي ولم يُحرَّك. اطّلع عليه بالأمر: ame security scan"
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Virus scan could not run"
+msgstr "تعذّر تشغيل فحص الفيروسات"
+
+#: usr/libexec/amethystora-scan-alert
+msgid "This machine has not been scanned. Try it with: ame security scan"
+msgstr "لم يُفحص هذا الجهاز. جرّب ذلك بالأمر: ame security scan"
+
+#: usr/libexec/amethystora-scan-alert
+#, sh-format
+msgid "Virus signatures are ${AGE} days old"
+msgstr "تواقيع الفيروسات عمرها ${AGE} يومًا"
+
+#: usr/libexec/amethystora-scan-alert
+msgid "A clean scan proves nothing with signatures this old. Check this machine's network connection."
+msgstr "فحصٌ نظيف لا يثبت شيئًا بتواقيع بهذا القِدم. تحقّق من اتصال هذا الجهاز بالشبكة."
+
+#: usr/libexec/amethystora-scan-alert
+msgid "No virus signatures on this machine"
+msgstr "لا توجد تواقيع فيروسات على هذا الجهاز"
+
+#: usr/libexec/amethystora-scan-alert
+msgid "clamav-freshclam.service has never finished a download, so nothing has been scanned yet."
+msgstr "لم تُكمل clamav-freshclam.service أي تنزيل قط، لذا لم يُفحص شيء بعد."
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Security audit could not run"
+msgstr "تعذّر تشغيل تدقيق الأمان"
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Run it by hand with: ame security audit"
+msgstr "شغّله يدويًا بالأمر: ame security audit"
+
+#: usr/libexec/amethystora-scan-alert
+msgid "The security watcher could not run"
+msgstr "تعذّر تشغيل مراقب الأمان"
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Nothing is reading the audit log until it does. See why with: journalctl -u amethystora-security-watch.service"
+msgstr "لا شيء يقرأ سجل التدقيق إلى أن يعمل. اطّلع على السبب بالأمر: journalctl -u amethystora-security-watch.service"
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Network protection stopped"
+msgstr "توقفت حماية الشبكة"
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Connections work, but nothing inspects them. See why with: journalctl -u amethystora-ips.service"
+msgstr "الاتصالات تعمل، لكن لا شيء يفحصها. اطّلع على السبب بالأمر: journalctl -u amethystora-ips.service"
+
+#: usr/libexec/amethystora-scan-alert
+#, sh-format
+msgid "${UNIT} failed"
+msgstr "فشلت ${UNIT}"
+
+#: usr/libexec/amethystora-scan-alert
+#, sh-format
+msgid "See: systemctl status ${UNIT}"
+msgstr "راجع: systemctl status ${UNIT}"
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "${name} was quarantined"
+msgstr "نُقل ${name} إلى الحجر الصحي"
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "It matches ${signature}. Put it back with: ame security scan restore"
+msgstr "يطابق ${signature}. أعده إلى مكانه بالأمر: ame security scan restore"
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "${name} was deleted"
+msgstr "حُذف ${name}"
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "It matched ${signature}. See it with: ame security scan"
+msgstr "كان يطابق ${signature}. اطّلع عليه بالأمر: ame security scan"
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "A virus scan found ${name}, and could not delete it"
+msgstr "عثر فحص الفيروسات على ${name} وتعذّر حذفه"
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "A virus scan found ${name}, and could not quarantine it"
+msgstr "عثر فحص الفيروسات على ${name} وتعذّر نقله إلى الحجر الصحي"
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "It matches ${signature}. See it with: ame security scan"
+msgstr "يطابق ${signature}. اطّلع عليه بالأمر: ame security scan"
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "A virus scan found ${name}"
+msgstr "عثر فحص الفيروسات على ${name}"
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "It matches ${signature}, and was left where it is. See it with: ame security scan"
+msgstr "يطابق ${signature} وتُرك في مكانه. اطّلع عليه بالأمر: ame security scan"
+
+#: usr/libexec/amethystora-lynis-audit
+msgid "Something on this machine has changed since the last audit. See it with: ame security audit"
+msgstr "تغيّر شيء على هذا الجهاز منذ آخر تدقيق. اطّلع عليه بالأمر: ame security audit"
+
+#: usr/libexec/amethystora-driver-status
+msgid "Fix it…"
+msgstr "أصلِحه…"
+
+#: usr/libexec/amethystora-driver-status
+msgid "Read more"
+msgstr "اقرأ المزيد"
+
+#: usr/libexec/amethystora-driver-status
+#, sh-format
+msgid "A device does not work: ${device}"
+msgstr "جهاز لا يعمل: ${device}"
+
+#: usr/libexec/amethystora-gpu-check
+msgid "This machine has an NVIDIA graphics card"
+msgstr "في هذا الجهاز بطاقة رسوميات NVIDIA"
+
+#: usr/libexec/amethystora-gpu-check
+#, sh-format
+msgid "${TARGET} is Amethystora with NVIDIA's driver for it, which this image does not have. Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on. Nothing changes unless you switch."
+msgstr "${TARGET} هو Amethystora مع مشغّل NVIDIA لها، وهو غير موجود في هذه الصورة. من دون Secure Boot، تترك صور NVIDIA قفل النواة (lockdown) معطّلاً: فمشغّلها موقَّع بمفتاح خاص بهذا الجهاز، لا تثق به النواة إلا عند تفعيل Secure Boot. لا يتغيّر شيء ما لم تبدّل الصورة."
+
+#: usr/libexec/amethystora-gpu-check
+msgid "This machine's NVIDIA card needs NVIDIA's older driver"
+msgstr "بطاقة NVIDIA في هذا الجهاز تحتاج إلى مشغّل NVIDIA الأقدم"
+
+#: usr/libexec/amethystora-gpu-check
+#, sh-format
+msgid "Its card is a GeForce 900 or 10 series, or as old: ${TARGET} carries the driver that drives it, the last NVIDIA makes for it. Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on. Nothing changes unless you switch."
+msgstr "بطاقته من سلسلة GeForce 900 أو 10 أو أقدم: تحمل ${TARGET} المشغّل الذي يشغّلها، وهو آخر ما تصدره NVIDIA لها. من دون Secure Boot، تترك صور NVIDIA قفل النواة (lockdown) معطّلاً: فمشغّلها موقَّع بمفتاح خاص بهذا الجهاز، لا تثق به النواة إلا عند تفعيل Secure Boot. لا يتغيّر شيء ما لم تبدّل الصورة."
+
+#: usr/libexec/amethystora-gpu-check
+#, sh-format
+msgid "Its card is a GeForce 900 or 10 series, or as old: ${TARGET} carries the driver that drives it, the last NVIDIA makes for it. Nothing changes unless you switch."
+msgstr "بطاقته من سلسلة GeForce 900 أو 10 أو أقدم: تحمل ${TARGET} المشغّل الذي يشغّلها، وهو آخر ما تصدره NVIDIA لها. لا يتغيّر شيء ما لم تبدّل الصورة."
+
+#: usr/libexec/amethystora-gpu-check
+msgid "This machine has no NVIDIA graphics card"
+msgstr "ليس في هذا الجهاز بطاقة رسوميات NVIDIA"
+
+#: usr/libexec/amethystora-gpu-check
+#, sh-format
+msgid "It runs ${IMAGE}, which carries NVIDIA's driver. Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on. ${TARGET} has no NVIDIA driver and keeps lockdown on. Nothing changes unless you switch."
+msgstr "يعمل عليه ${IMAGE} الذي يحمل مشغّل NVIDIA. من دون Secure Boot، تترك صور NVIDIA قفل النواة (lockdown) معطّلاً: فمشغّلها موقَّع بمفتاح خاص بهذا الجهاز، لا تثق به النواة إلا عند تفعيل Secure Boot. ${TARGET} بلا مشغّل NVIDIA ويُبقي القفل مفعّلاً. لا يتغيّر شيء ما لم تبدّل الصورة."
+
+#: usr/libexec/amethystora-gpu-check
+msgid "This machine's NVIDIA card is older than any NVIDIA driver drives"
+msgstr "بطاقة NVIDIA في هذا الجهاز أقدم من أن يشغّلها أي مشغّل من NVIDIA"
+
+#: usr/libexec/amethystora-gpu-check
+#, sh-format
+msgid "It runs ${IMAGE}, whose driver cannot drive it: the open driver nouveau, in ${TARGET}, does. Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on. ${TARGET} keeps lockdown on. Nothing changes unless you switch."
+msgstr "يعمل عليه ${IMAGE} الذي لا يستطيع مشغّله تشغيلها، أما المشغّل المفتوح nouveau الموجود في ${TARGET} فيستطيع. من دون Secure Boot، تترك صور NVIDIA قفل النواة (lockdown) معطّلاً: فمشغّلها موقَّع بمفتاح خاص بهذا الجهاز، لا تثق به النواة إلا عند تفعيل Secure Boot. ${TARGET} يُبقي القفل مفعّلاً. لا يتغيّر شيء ما لم تبدّل الصورة."
+
+#: usr/libexec/amethystora-gpu-check
+msgid "Switch images…"
+msgstr "تبديل الصورة…"
+
+#: usr/libexec/amethystora-gpu-check
+msgid "Don't ask again"
+msgstr "لا تسأل مجددًا"
+
+#: usr/libexec/amethystora-raid
+msgid "Open Control"
+msgstr "فتح التحكم"
+
+#: usr/libexec/amethystora-security-watch
+msgid "See it with: ame security events"
+msgstr "اطّلع عليه بالأمر: ame security events"
+
+#: usr/libexec/amethystora-security-watch
+msgid "See them all with: ame security events"
+msgstr "اطّلع عليها جميعًا بالأمر: ame security events"
+
+#: usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js
+msgid "Fix it with the AI agent"
+msgstr "أصلِحه بوكيل الذكاء الاصطناعي"
+
+#: usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js
+msgid "Open its folder"
+msgstr "فتح مجلده"
+
+#: usr/libexec/amethystora-lynis-audit
+#, sh-format
+msgid "Security audit: ${COUNT} new warning"
+msgid_plural "Security audit: ${COUNT} new warnings"
+msgstr[0] "تدقيق الأمان: لا تحذيرات جديدة (${COUNT})"
+msgstr[1] "تدقيق الأمان: تحذير جديد واحد (${COUNT})"
+msgstr[2] "تدقيق الأمان: تحذيران جديدان (${COUNT})"
+msgstr[3] "تدقيق الأمان: ${COUNT} تحذيرات جديدة"
+msgstr[4] "تدقيق الأمان: ${COUNT} تحذيرًا جديدًا"
+msgstr[5] "تدقيق الأمان: ${COUNT} تحذير جديد"
+
+#: usr/libexec/amethystora-security-watch
+#, sh-format
+msgid "${COUNT} security change on this machine"
+msgid_plural "${COUNT} security changes on this machine"
+msgstr[0] "لا تغييرات أمنية على هذا الجهاز (${COUNT})"
+msgstr[1] "تغيير أمني واحد على هذا الجهاز (${COUNT})"
+msgstr[2] "تغييران أمنيان على هذا الجهاز (${COUNT})"
+msgstr[3] "${COUNT} تغييرات أمنية على هذا الجهاز"
+msgstr[4] "${COUNT} تغييرًا أمنيًا على هذا الجهاز"
+msgstr[5] "${COUNT} تغيير أمني على هذا الجهاز"

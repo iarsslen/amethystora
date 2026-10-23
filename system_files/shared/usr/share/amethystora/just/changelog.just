@@ -3,6 +3,8 @@
 # Show the changelog
 changelog:
     #!/usr/bin/bash
+    # shellcheck source=/dev/null
+    source gettext.sh
 
     # Get Image Tag
     TAG="$(jq -r '.["image-tag"]' < /usr/share/amethystora/image-info.json)"
@@ -20,6 +22,6 @@ changelog:
     if [[ -n "${CONTENT:-}" ]]; then
         echo "$CONTENT" | glow -p
     else
-        echo "WARN: Could not find a release specific to your image"
+        echo "$(gettext "WARN: Could not find a release specific to your image")"
         curl -Ls "https://api.github.com/repos/${REPO}/releases/latest" | jq -r ".body" | glow -p
     fi

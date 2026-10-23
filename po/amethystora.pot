@@ -406,7 +406,7 @@ msgstr ""
 msgid "mokutil said: ${rest}"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/share/amethystora/just/security.just
 msgid "Kernel lockdown"
 msgstr ""
 
@@ -756,7 +756,7 @@ msgstr ""
 msgid "Suricata inspects every connection and says what it recognises, without blocking"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config usr/share/amethystora/just/security.just
 msgid "Network protection"
 msgstr ""
 
@@ -882,7 +882,7 @@ msgstr ""
 msgid "${UNIT} is not running, though its switch is on"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config usr/share/amethystora/just/security.just
 msgid "Real-time watching"
 msgstr ""
 
@@ -1276,7 +1276,7 @@ msgstr[1] ""
 msgid "Each one sees every key typed and every pixel. Remove one you do not use in Extension Manager, and keep new ones from being installed with:"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/share/amethystora/just/security.just
 msgid "App permissions"
 msgstr ""
 
@@ -1494,7 +1494,7 @@ msgstr ""
 msgid "The duress password would not run its action"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/share/amethystora/just/security.just
 msgid "One-time codes for SSH"
 msgstr ""
 
@@ -1570,7 +1570,7 @@ msgstr ""
 msgid "USB protection"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/share/amethystora/just/security.just
 msgid "Private folder"
 msgstr ""
 
@@ -1578,7 +1578,7 @@ msgstr ""
 msgid "A folder in your home, Private, encrypted on its own and closed whenever the screen locks"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/share/amethystora/just/security.just
 msgid "Browser protection"
 msgstr ""
 
@@ -1612,7 +1612,7 @@ msgstr ""
 msgid "Look up names over DNS-over-TLS with a resolver you choose, so the network cannot see them or answer in its place"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/share/amethystora/just/security.just
 msgid "A different address on each network"
 msgstr ""
 
@@ -2039,7 +2039,7 @@ msgstr ""
 msgid "Notifications, files, the clipboard and texts shared with an Android phone through KDE Connect, on the networks named home."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/apps.just
 msgid "Games"
 msgstr ""
 
@@ -2477,11 +2477,11 @@ msgstr ""
 msgid "Keeps games smooth while other work runs"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/system.just
 msgid "Keeps the desktop responsive while something heavy builds or renders"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/system.just
 msgid "Steady timing, for audio and music work"
 msgstr ""
 
@@ -2489,7 +2489,7 @@ msgstr ""
 msgid "Hardware"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/system.just
 msgid "CPU scheduler"
 msgstr ""
 
@@ -2521,7 +2521,7 @@ msgstr ""
 msgid "Small from the start, but a program that was moved out comes back half as quickly"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/system.just
 msgid "Swapped-out memory"
 msgstr ""
 
@@ -3655,7 +3655,8 @@ msgstr ""
 msgid "I have the recovery key"
 msgstr ""
 
-#: usr/libexec/amethystora-private-folder
+#. Translators: choices of a menu that turns automatic updates on or off
+#: usr/libexec/amethystora-private-folder usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just usr/share/amethystora/just/security.just usr/share/amethystora/just/system.just
 msgid "Cancel"
 msgstr ""
 
@@ -3691,10 +3692,2541 @@ msgstr ""
 msgid "Nothing was removed."
 msgstr ""
 
-#: usr/libexec/amethystora-private-folder
+#: usr/libexec/amethystora-private-folder usr/share/amethystora/just/security.just
 msgid "Removed."
 msgstr ""
 
 #: usr/libexec/amethystora-private-folder
 msgid "The private folder is an account's own: run this as yourself, not as root."
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Virus scan found something"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "It was moved to quarantine. See it, or put it back, with: ame security scan"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "It was deleted. See what it was with: ame security scan"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Nothing was deleted, quarantined or moved. See it with: ame security scan"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Virus scan could not run"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "This machine has not been scanned. Try it with: ame security scan"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+#, sh-format
+msgid "Virus signatures are ${AGE} days old"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "A clean scan proves nothing with signatures this old. Check this machine's network connection."
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "No virus signatures on this machine"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "clamav-freshclam.service has never finished a download, so nothing has been scanned yet."
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Security audit could not run"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Run it by hand with: ame security audit"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "The security watcher could not run"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Nothing is reading the audit log until it does. See why with: journalctl -u amethystora-security-watch.service"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Network protection stopped"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+msgid "Connections work, but nothing inspects them. See why with: journalctl -u amethystora-ips.service"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+#, sh-format
+msgid "${UNIT} failed"
+msgstr ""
+
+#: usr/libexec/amethystora-scan-alert
+#, sh-format
+msgid "See: systemctl status ${UNIT}"
+msgstr ""
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "${name} was quarantined"
+msgstr ""
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "It matches ${signature}. Put it back with: ame security scan restore"
+msgstr ""
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "${name} was deleted"
+msgstr ""
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "It matched ${signature}. See it with: ame security scan"
+msgstr ""
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "A virus scan found ${name}, and could not delete it"
+msgstr ""
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "A virus scan found ${name}, and could not quarantine it"
+msgstr ""
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "It matches ${signature}. See it with: ame security scan"
+msgstr ""
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "A virus scan found ${name}"
+msgstr ""
+
+#: usr/libexec/amethystora-clamav-onaccess
+#, sh-format
+msgid "It matches ${signature}, and was left where it is. See it with: ame security scan"
+msgstr ""
+
+#: usr/libexec/amethystora-lynis-audit
+#, sh-format
+msgid "Security audit: ${COUNT} new warning"
+msgid_plural "Security audit: ${COUNT} new warnings"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-lynis-audit
+msgid "Something on this machine has changed since the last audit. See it with: ame security audit"
+msgstr ""
+
+#: usr/libexec/amethystora-driver-status
+msgid "Fix it…"
+msgstr ""
+
+#: usr/libexec/amethystora-driver-status
+msgid "Read more"
+msgstr ""
+
+#: usr/libexec/amethystora-driver-status
+#, sh-format
+msgid "A device does not work: ${device}"
+msgstr ""
+
+#: usr/libexec/amethystora-gpu-check
+msgid "This machine has an NVIDIA graphics card"
+msgstr ""
+
+#: usr/libexec/amethystora-gpu-check
+#, sh-format
+msgid "${TARGET} is Amethystora with NVIDIA's driver for it, which this image does not have. Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on. Nothing changes unless you switch."
+msgstr ""
+
+#: usr/libexec/amethystora-gpu-check
+msgid "This machine's NVIDIA card needs NVIDIA's older driver"
+msgstr ""
+
+#: usr/libexec/amethystora-gpu-check
+#, sh-format
+msgid "Its card is a GeForce 900 or 10 series, or as old: ${TARGET} carries the driver that drives it, the last NVIDIA makes for it. Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on. Nothing changes unless you switch."
+msgstr ""
+
+#: usr/libexec/amethystora-gpu-check
+#, sh-format
+msgid "Its card is a GeForce 900 or 10 series, or as old: ${TARGET} carries the driver that drives it, the last NVIDIA makes for it. Nothing changes unless you switch."
+msgstr ""
+
+#: usr/libexec/amethystora-gpu-check
+msgid "This machine has no NVIDIA graphics card"
+msgstr ""
+
+#: usr/libexec/amethystora-gpu-check
+#, sh-format
+msgid "It runs ${IMAGE}, which carries NVIDIA's driver. Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on. ${TARGET} has no NVIDIA driver and keeps lockdown on. Nothing changes unless you switch."
+msgstr ""
+
+#: usr/libexec/amethystora-gpu-check
+msgid "This machine's NVIDIA card is older than any NVIDIA driver drives"
+msgstr ""
+
+#: usr/libexec/amethystora-gpu-check
+#, sh-format
+msgid "It runs ${IMAGE}, whose driver cannot drive it: the open driver nouveau, in ${TARGET}, does. Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on. ${TARGET} keeps lockdown on. Nothing changes unless you switch."
+msgstr ""
+
+#: usr/libexec/amethystora-gpu-check
+msgid "Switch images…"
+msgstr ""
+
+#: usr/libexec/amethystora-gpu-check
+msgid "Don't ask again"
+msgstr ""
+
+#: usr/libexec/amethystora-raid
+msgid "Open Control"
+msgstr ""
+
+#: usr/libexec/amethystora-security-watch
+msgid "See it with: ame security events"
+msgstr ""
+
+#: usr/libexec/amethystora-security-watch
+#, sh-format
+msgid "${COUNT} security change on this machine"
+msgid_plural "${COUNT} security changes on this machine"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-security-watch
+msgid "See them all with: ame security events"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js
+msgid "Fix it with the AI agent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js
+msgid "Open its folder"
+msgstr ""
+
+#: usr/share/amethystora/just/agent.just
+msgid "This is an administrator's setting, and asks for an administrator's password."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+#, sh-format
+msgid "JetBrains Toolbox is installed in ${DEST}, and keeps itself up to date."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Install it again?"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+#, sh-format
+msgid "JetBrains makes no Toolbox for ${architecture}."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+#, sh-format
+msgid "Downloading JetBrains Toolbox ${version} from JetBrains"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "The download does not match the checksum JetBrains publishes for it. Nothing was installed."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+#, sh-format
+msgid "Installed in ${DEST}. It opens now, and is in the app grid as JetBrains Toolbox."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Heroic (Epic, GOG and Amazon games)"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Lutris (games from anywhere else)"
+msgstr ""
+
+#. Translators: a choice in a menu: to set gaming up
+#: usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just
+msgid "Set up"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Add another launcher"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Take it all away"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Gaming is set up: Steam is installed."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "This installs from Flathub Steam, ProtonPlus, which adds other versions of Proton, and the MangoHud overlay and gamescope compositor that Steam's games can use."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "The image takes X11 from every app, because an app on X11 can read what you type into other X11 apps. Steam and the Windows games it runs through Proton draw on nothing else, so X11 is granted back to Steam alone, for your account. The Security app's Apps page lists it, and `ame apps gaming off` takes it back with the rest."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Steam Input, which lets every controller work in every game, makes a virtual controller through /dev/uinput, which the image keeps from apps: a virtual keyboard can type into any window. This gives it back to whoever sits at the machine (ame security virtual-input), and so to every app that may reach all of /dev, the Chromium browsers among them."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Set up gaming?"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Also install? (space to pick, enter when done)"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Ready. Open Steam from the app grid. In a game's Properties, under Launch Options:"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "the overlay with frame rate and temperatures"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "the CPU's performance mode while the game runs"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "the game in gamescope, full screen"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Install which?"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Uninstall Steam, ProtonPlus and the launchers added with them, with their games?"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Done. X11 is taken back from them with their overrides, and /dev/uinput at the next restart."
+msgstr ""
+
+#. Translators: a choice in a menu: to start Android
+#: usr/share/amethystora/just/apps.just
+msgid "Start"
+msgstr ""
+
+#. Translators: a choice in a menu: to stop Android
+#: usr/share/amethystora/just/apps.just
+msgid "Stop"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+#, sh-format
+msgid "Android is set up. Its container is ${container_state}."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Android apps (Waydroid)"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Waydroid runs Android, LineageOS 20, in a container beside your desktop, and the Android apps you install appear in the app grid. Setting it up downloads Android from Waydroid's servers, about a gigabyte, without Google's apps: get apps from F-Droid, or install an .apk with waydroid app install <file>. Its container service runs as root while it is on."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Waydroid cannot draw with NVIDIA's driver, so on this image Android draws in software: fine for most apps, slow for games."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Set up Android apps?"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Ready. Open Waydroid from the app grid; the first start takes a minute."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Stopped. It starts again with ame apps android start."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Remove Android, with every app and everything saved in it?"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Removed. Waydroid itself stays in the image, set up only when you ask."
+msgstr ""
+
+#. Translators: a choice in a menu: to uninstall the drawing tablet driver
+#: usr/share/amethystora/just/apps.just usr/share/amethystora/just/security.just
+msgid "Take it away"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "OpenTabletDriver is set up."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Drawing tablets (OpenTabletDriver)"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+#, sh-format
+msgid "OpenTabletDriver drives most drawing tablets, Wacom, Huion, XP-Pen, Gaomon and many more, the same way on every one: pressure, the pen's buttons, and which part of the screen the tablet covers. This installs it from Flathub, and copies its udev rules from its ${OTD_TAG} release into /etc so that it can reach the tablet. It turns off the kernel's own tablet drivers (wacom, hid_uclogic), which would take the tablet first: if one already has, restart."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "It moves the pointer through /dev/uinput, which the image keeps from apps: a virtual keyboard can type into any window. This gives it back to whoever sits at the machine (ame security virtual-input), and so to every app that may reach all of /dev, the Chromium browsers among them."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Set up OpenTabletDriver?"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+#, sh-format
+msgid "The download does not match the checksum pinned for ${OTD_TAG}. Nothing was installed."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Ready. Plug the tablet in, and set it up in OpenTabletDriver, in the app grid."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Uninstall OpenTabletDriver, with its settings and its udev rules?"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Uninstalled. Restart to let the kernel's own tablet drivers load again."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "The Xbox wireless adapter is set up."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Xbox wireless adapter"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "This machine is sealed: its kernel arguments are inside the signed kernel image, and firmware kept outside the image would not be covered by its seal. The adapter cannot be set up here; Xbox controllers still work over Bluetooth or a USB cable."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+#, sh-format
+msgid "Microsoft's wireless adapter for Xbox controllers, and the one some laptops have built in, needs Microsoft's firmware, which the image may not pass on. This downloads Microsoft's driver packages from its update catalog, checks each against the checksum pinned in the image, and keeps the firmware in ${FIRMWARE}, where the kernel looks first from the next restart. The firmware is subject to Microsoft's Terms of Use: https://www.microsoft.com/en-us/legal/terms-of-use"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "The adapter is a MediaTek MT7612U chip, and Linux's Wi-Fi driver for that chip (mt76x2u) would take it first, so this keeps that driver from loading: a USB Wi-Fi stick with the same chip (Netgear A6210 and many AC1200 sticks) stops working until ame apps xbox-adapter off."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Set up the Xbox wireless adapter?"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+#, sh-format
+msgid "Microsoft's driver package for adapter ${id} does not match its pinned checksum. Nothing was installed."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "The firmware in it does not match its pinned checksum. Nothing was installed."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Ready from the next restart: restart, then plug the adapter in and pair a controller with it."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Taken away, from the next restart: MT7612U Wi-Fi sticks work again then."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Bold Brew is not installed, would you like to install it?"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Note: Some of these take a while to load, we'll keep working on it."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "The AUR is already on."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "The AUR is off. Containers made with it keep what they have, and what came from Arch's own repositories in them is still upgraded every day. Nothing more is built from the AUR."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "The Arch User Repository (AUR) is build scripts, PKGBUILDs, that anyone can upload and nobody reviews, and malware has been found in it more than once. What you build from it runs as you, with your files, your display and your session, as anything in a container does."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Turned on, amethystora-pkg offers the arch-aur template, whose containers keep their settings in a home folder of their own, and the paru manager. Before anything is built it shows what the AUR knows of it: who maintains it, how many vote for it, how old it is, whether it is flagged out of date. paru then shows you the PKGBUILD itself: read it. Packages from the AUR are never upgraded unattended."
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "Turn the AUR on?"
+msgstr ""
+
+#: usr/share/amethystora/just/apps.just
+msgid "On. Make a container for it with: amepkg containers new --template arch-aur"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Back up now"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Show snapshots"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Turn on the daily run"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Turn off the daily run"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+#, sh-format
+msgid "Backing up to: ${backing_up_to}"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "The daily run is off."
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "No backup is set up for this account."
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Backups (restic)"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Ransomware encrypts everything it can reach, and a backup this machine can delete from is something it can reach. An append-only repository is one this machine may add snapshots to and read its own back from, and nothing else, so what was backed up before the machine was taken over is still there afterwards. Set that up at the other end:"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "rest-server   run it with --append-only, then use  rest:https://user:pass@host:8000/"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Borg or SSH   set  append_only = yes  in the repository's config on the server"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Object store  turn on object lock or immutability, then use  rclone:remote:path"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "A USB drive   unplug it between backups; unplugged is the oldest append-only there is"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Repository"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Repository password (keep a copy elsewhere: without it the backup cannot be read)"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "What to back up, separated by spaces"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Using the repository that is already there."
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Nothing there yet, creating the repository."
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Set up, and running once a day. Files come back from it in Backups, in the app grid."
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Nothing on this machine ever deletes from the repository, which is the point, so old snapshots build up. Thin them out from somewhere else, with credentials this machine does not hold:"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "No backup is set up. Set one up with: ame backup setup"
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "On, once a day."
+msgstr ""
+
+#: usr/share/amethystora/just/backup.just
+msgid "Off. The settings and the repository itself are left alone."
+msgstr ""
+
+#: usr/share/amethystora/just/changelog.just
+msgid "WARN: Could not find a release specific to your image"
+msgstr ""
+
+#: usr/share/amethystora/just/report.just
+msgid "Gathering what a bug report needs. It stays on this machine until you choose otherwise."
+msgstr ""
+
+#: usr/share/amethystora/just/report.just
+#, sh-format
+msgid "That is all of it, kept in ${FILE}. Read it for anything you would rather not post: lines from the log can name your files, networks and devices."
+msgstr ""
+
+#: usr/share/amethystora/just/report.just
+msgid "Open a new issue in the browser, with everything but the errors filled in?"
+msgstr ""
+
+#: usr/share/amethystora/just/report.just
+msgid "The browser sends what it fills in to GitHub. Nothing is posted until you submit the issue."
+msgstr ""
+
+#: usr/share/amethystora/just/report.just
+#, sh-format
+msgid "Open this link yourself: ${url}"
+msgstr ""
+
+#: usr/share/amethystora/just/report.just
+#, sh-format
+msgid "Say what you did and what happened. If the errors help, drag ${FILE} into the issue."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Add a key"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Add a fingerprint key"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Remove all keys"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Security keys registered for ${USER}: ${count}"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Security key login"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The key needs a PIN and an enrolled fingerprint. Enroll one in Firefox at about:webauthn, or on a YubiKey Bio with: ykman fido fingerprints add <name>"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Security keys removed, sign in with your password"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Insert the key, then touch it when it blinks (fingerprint keys: with an enrolled finger)"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Security key added. Touch it to sign in, to unlock the screen and to approve sudo."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Your password keeps working."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Add a finger"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Test a finger"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Remove all fingers"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "right index finger"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "left index finger"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "right thumb"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "left thumb"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "right middle finger"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "left middle finger"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "right ring finger"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "left ring finger"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "right little finger"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "left little finger"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "This machine has no fingerprint reader that fprintd can use."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The readers it supports: https://fprint.freedesktop.org/supported-devices.html"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Fingers enrolled for ${USER}: ${enrolled}"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "No finger is enrolled for ${USER}."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Fingerprint login"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Which finger?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Touch the reader with your ${name} again and again, a little differently each time, until it says the enrolment is complete."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Enrolled. The login screen, the lock screen, sudo and every password prompt of the desktop now take this finger as well as your password, which keeps working."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Two things still ask for the password: the disk passphrase at boot, and the keyring, which a login by finger leaves locked until an app needs it."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Remove every finger enrolled for ${USER}?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Removed. Sign in with your password."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "A duress finger is gone with the others. Set one up again with: ame security duress"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Set up a duress finger"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Set up a duress password"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Test my duress finger"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Change the duress finger's action"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Change the duress password's action"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Remove my duress finger"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Remove my duress password"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turn off for everyone"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Duress protection is on on this machine."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Duress protection is off on this machine."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Duress finger or password"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "This image's fingerprint service cannot tell one finger from another, which a duress finger needs."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "It cannot stop anyone asking for your password instead, nor help against a copy of the disk made before, and anyone with root on this machine can read how it is set up."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "In many places, destroying data while compelled by the authorities is an offence of its own."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "What the action does is yours to decide: none of the examples destroys anything."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Send an alert to an address of mine"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Take the disk's key out of the TPM"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Power off ten minutes later"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Run a script of my own"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "What should the duress finger do?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Use this as the duress finger's action?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "What should the duress password do?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Use this as the duress password's action?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The address to send it to, such as an ntfy.sh topic only you know"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Not an https:// address."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The script's path"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "No such file."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The action, which runs as root:"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "A duress finger is one more finger, enrolled like the others. At the login screen and the lock screen it unlocks the machine as any finger does. At sudo, at password prompts and at a text console it is refused, as a finger that did not match. Either way the action you choose runs, as root, once until the next start, and nothing about it reaches the journal."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Enroll an ordinary finger first, with: ame security fingerprint add"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "This reader cannot tell one finger from another, so it cannot have a duress finger."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The fingerprint service does not say which finger matched, so it cannot have a duress finger."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Set up a duress finger for ${USER}?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Every finger is enrolled already: remove one first."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Which finger? Pick one you would not use by habit."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Now touch the reader once with your ${name}."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "And once with one of your other fingers."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "The reader did not tell the two apart, so the ${name} stays an ordinary finger."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Remove the ${name} again?"
+msgstr ""
+
+#. Translators: "Test my duress finger" is a choice of the menu of ame security duress; use its translation here.
+#: usr/share/amethystora/just/security.just
+msgid "Set up. Test it with: ame security duress, Test my duress finger, which never runs the action."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "A duress password is a second password, only yours. At the login screen and the lock screen it unlocks the machine like your real one. At sudo, at administrator prompts, at a text console and over SSH it is refused, as a wrong password. Either way the action you choose runs, as root, once until the next start, and nothing about it reaches the journal."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "This image cannot check a duress password."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Set up a duress password for ${USER}?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "A duress password for ${USER}, not your login password"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Type it again"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "They did not match."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Set up. Choose something you would not type by habit, and keep it different from your login password: a duress password the same as your real one never runs the action."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "${USER} has no duress finger."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Touch the reader once, with the duress finger or another."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "That was your duress finger: the login screen would let you in and run the action."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "That was an ordinary finger (${name})."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "That finger did not match any of yours."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "But the action would not run now:"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Delete the ${name} from the reader too? Otherwise it stays as an ordinary finger."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "${USER} has no duress password."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Forget every account's duress finger, password and both actions? The fingers stay, as ordinary ones."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turned off."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Set up my codes"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turn on"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turn off"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "One-time codes for SSH are on: a password login over SSH also asks for a code."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "One-time codes for SSH are off: a password alone logs in over SSH, once the SSH server is on."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "${USER} has codes set up."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "${USER} has no codes set up."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Replace your codes? The entry in your phone's app stops working."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Scan the picture below with an authenticator app on your phone, such as Aegis or FreeOTP, then type the code it shows."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Keep the emergency scratch codes above somewhere safe and away from this machine. Each one logs in once without the phone."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Set up your own codes first, with: ame security ssh-codes setup"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Or add an SSH key to ~/.ssh/authorized_keys. Otherwise you could not log in over SSH yourself."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "A password login over SSH will also ask for a code from the account's own phone app. An account without codes of its own can then log in over SSH only with a key."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turn one-time codes for SSH on?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The SSH server refused the settings, so nothing was changed."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "On. A login with a key works as before."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off. A password alone logs in over SSH again, and your codes stay set up."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "${cert} is waiting for the next boot: finish it in the blue MOK manager screen."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "${cert} is not on this machine, so it can be neither checked nor enrolled."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Could not tell whether ${cert} is enrolled. mokutil said: ${rest}"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The Secure Boot keys are already enrolled."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "At next reboot, the blue MOK manager screen appears (QWERTY keyboard layout)."
+msgstr ""
+
+#. Translators: the quoted words are the blue screen's own buttons, which are not translated.
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Select \"Enroll MOK\", then \"Continue\", \"Yes\", and type \"${ENROLLMENT_PASSWORD}\" as the password."
+msgstr ""
+
+#. Translators: a level of kernel lockdown, the stricter one (confidentiality), as a menu choice.
+#: usr/share/amethystora/just/security.just
+msgid "Strict"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Kernel lockdown is ${mode} now."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Secure Boot is on, so the kernel locks itself down at every start whatever this says."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Secure Boot is off, and the kernel argument lockdown=integrity turns it on."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Secure Boot is off, and no kernel argument turns it on."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "This machine is sealed: its kernel arguments are inside the signed kernel image, and cannot change."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Lockdown refuses what lets root rewrite the running kernel: a module without a signature it trusts, writing to /dev/mem, and BPF that writes into another program's memory. A compromise of root then ends at the next restart."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Without Secure Boot, this machine's key is not trusted, and the NVIDIA driver is signed with it: it will not load, and the screen falls back to a basic driver. Turn Secure Boot on instead, and the kernel locks itself down with the driver working."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Without Secure Boot, the modules built into the image, such as evdi for DisplayLink docks, are signed with a key the kernel does not trust then, and will not load."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turn kernel lockdown on, from the next restart?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "On from the next restart."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Strict lockdown (confidentiality) also refuses what lets root read the running kernel: BPF programs that read kernel memory, kprobes, perf with kernel data and /proc/kcore. bpftrace, perf and eBPF security tools stop working. Unlike the usual level, it applies with Secure Boot on too."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Make kernel lockdown strict, from the next restart?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Strict from the next restart. ame security lockdown on goes back to the usual level."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Secure Boot is on, so the kernel stays locked down. This only matters if it is turned off."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Leave lockdown out of the kernel arguments, from the next restart?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off from the next restart. Updates keep it that way; ame security lockdown on puts it back."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "What each Flatpak app can reach beyond its sandbox without asking you. What was granted on this machine, in Flatseal or with flatpak override, is said beside it."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Take back what I granted an app"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Open Flatseal"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "You have granted no app anything of your own."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Take back from which app?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "This removes every permission you granted ${name}, and leaves what the app asks for itself and what the image allows every app."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Take them back?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Taken back, from the app's next start."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Installed apps are not checked against their updates. Turn it on with:"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Not checked yet. The first check runs within a day, or now with: ame security app-integrity check"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Last checked: ${when}"
+msgstr ""
+
+#. Translators: the number that decides the plural is the one of deployments (the system's installed copies).
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "The system: ${files} files, in ${deployments} deployment"
+msgid_plural "The system: ${files} files, in ${deployments} deployments"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The system: sealed, so it checks every file itself as it is read"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "The system's Flatpaks: ${apps} apps and ${runtimes} runtimes"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Nothing changed outside an update."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "A file of your own app ${own_app} changed outside an update"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Checking. The first check reads every app once, which takes a few minutes; after that, only what changed."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "${app} is not installed."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The last check named no app to put back."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "It found the system's own files changed. Something with administrator rights changed them, so back up your files and reinstall from the installer: see Starting over in the manual."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Each app is put back as its update installed it: its files are fetched again from where it came from and installed again. Its data in ~/.var/app stays as it is."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Put back ${app}?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Put back the apps the last check named?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Auditing this machine. It takes a few minutes and changes nothing."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Settings for the audit are in /etc/lynis/custom.prf."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Full output: /var/log/lynis.log"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Findings, one per line: /var/log/lynis-report.dat"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The monthly audit compares each run with the one before and reports only what is new."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "What it said last time: journalctl -u amethystora-lynis-audit.service"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "What the image enforces, and stricter settings, each changed with ame security NAME:"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Everything off at once, or back as the image ships it: ame security profile"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Change which?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Say so, and leave the file where it is (the default)."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Move it where nothing can open it. ame security scan restore puts it back."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Delete it. A match can be a false positive, and this cannot be undone."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Files a virus scan finds"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Delete what scans find, with no way to get it back?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Files a virus scan finds: ${value}. This applies to the weekly scan, the scans you start in the Security app, and real-time scanning."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Read each change as the audit log records it, and scan every file written in a home folder as it is closed. Costs some CPU while files are being written."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Look every 15 minutes, and scan weekly (the default)."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "On. Real-time scanning starts once clamd has its virus signatures."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Nothing is inspected (the default)."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Suricata inspects every connection this machine makes and receives, and says what it recognises. Nothing is blocked. Start here: a week of it shows what blocking would get in the way of."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "As watch, and connections to known malware, command servers and exploits are cut off. Each one is a notification, and ame security connections allows it again."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Whatever goes wrong with it, connections go on uninspected rather than stop."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off. Nothing is inspected."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Getting the rules for ${value}. The first download takes a minute or two."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The rules could not be downloaded now. They are tried again every day, and until then Suricata inspects with whatever rules it had, or none."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "On: ${value}. See what it blocks and notices with: ame security connections"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "There is no setting called ${setting}. ame security settings lists them."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turning a security switch off, this one included, is then not said, and from the next restart not recorded either."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "From the next restart nothing records changes to accounts, sudo, what starts by itself or the security settings, and the switches that read the audit log have nothing to read."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Nothing then reads the audit log or the journal, or says what changed. The audit log goes on recording, for sudo ausearch, until its own switch is off too."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "No scanning, no signatures downloaded, and nothing holding them in memory. A package file you open is installed without a scan."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "A virus found is not a notification either. Everything still shows in the report and in ame security events."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Turn ${title} on, knowing that?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Make a free key at https://auth.abuse.ch/ (sign in with a GitHub, Google or similar account)."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "abuse.ch key"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "No key, so nothing is looked up."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The audit log's own part of this takes effect at the next restart."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "The switches match the profile: ${current}"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turn off everything that can be: the security watcher, the virus scanner, the settings audit, real-time watching, network protection and the audit log. Nothing of it runs, the audit log from the next restart."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Every switch back as the image ships it: network protection and real-time watching off, what looks for new threats off, the rest on, and found files reported."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "As default, and the cheapest of what looks for new threats: odd processes, SELinux, AI agents and developer tools recorded; ransomware, agents' settings and apps' permissions said."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "As light, all of those said, with secrets read, programs run from downloads and BPF recorded, the chains of steps put together, and the command-server lists daily."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Everything that looks for new threats on: the decoy key, the YARA rules, the behaviour sensor (Falco, a few hundred megabytes) recording, odd DNS names and hunting rules, the command-server lists hourly. Costs memory, CPU and downloads; developers will see noise."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "None of them turns on what sends something to somebody else: site checking, asking the agent about events and hash reputation are each chosen on their own."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Security profile"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turn every detection switch off?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turn on everything that looks for new threats?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Done. The audit log and its rules follow at the next restart."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "A profile leaves alone what the image enforces from the start, each with its own switch:"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "...and what you turned on yourself, such as ame security usb, dns or ransomware. ame security status shows each of them."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "These have an allowlist: ${features}"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Allowed for ${feature} (ame security allow ${feature} ENTRY remove takes one back):"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Said again: ${shown}"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "What ${feature} finds matching this is recorded, and no longer said:"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Allow only what you know: whatever matches, malware included, goes unannounced from now on."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Allow it?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Allowed. To take it back: ame security allow ${feature} ENTRY remove"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "${entry} is not accepted on this machine."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "That check is not accepted on this machine."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Shown again: ${entry} is a warning while it needs your attention."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Accepted on this machine (ame security allow report ID remove shows one again):"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Nothing needs your attention."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Accept which?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "${entry} is not a check that needs your attention now."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "\"${text}\" stays in the report as information, out of the summary and never said, until it turns worse. Whatever causes it stays as it is."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Accept it?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Accepted. ame security allow report ${id} remove shows it again."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The security watcher is turned off, so nothing new is looked for. ame security settings turns it on."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Looking now..."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Each line is something that changed, with the program that changed it. If you did it, or installed something that did, there is nothing to do. The full audit record of one kind:"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "and, for the kinds the file-watch sensor records, -if /var/log/amethystora-sensor/audit.log as well."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Network protection: ${protection} (ame security settings network)"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "If a connection was yours and wanted, allow its rule again with:"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "That leaves the one rule out on this machine; ame security connections block <rule number> puts it back. The rules allowed here are listed in /etc/amethystora/ips-allowed."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Let one back in with: ame security addresses <address>"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Blocking is set up in /etc/fail2ban/jail.d/10-amethystora.conf."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Key remapping is on."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Key remapping is off. Input Remapper's window still opens, but cannot apply a mapping."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Key remapping (Input Remapper)"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The service runs as root and reads every input device on this machine, which is every key typed into every application, password prompts included. That is what remapping a key needs, and it is why this is off unless you ask for it."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turn key remapping on?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "On. Map keys in the Input Remapper application."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off. Saved mappings stay on disk and come back if you turn it on again."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Block new devices only while the screen is locked"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Block every new device until I allow it"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Allow a blocked device"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "USB protection is off: any USB device plugged in is trusted."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "USB protection is on: a new USB device is blocked until you allow it. Devices allowed so far:"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "USB protection is on while the screen is locked: a USB device plugged in then is blocked."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "USB protection (USBGuard)"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "A USB device can say it is a keyboard and type by itself. While the screen is locked, a USB device plugged in is blocked, so that nobody can plug one into a locked machine:"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "a plain keyboard or mouse still works, so that you can unlock, with a notification;"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "anything else is blocked: a USB stick, a network adapter, a keyboard that is also something else. Plug it in again once you have unlocked, and it works."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "What is plugged in at boot, and what you plug in while the screen is unlocked, works as before. The login screen, and another account's unlocked session, count as unlocked."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Block new USB devices while the screen is locked?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "On. A USB device plugged in while the screen is locked is blocked."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "A USB device can say it is a keyboard and type by itself, and a keylogger can sit between a real keyboard and this machine. USBGuard blocks anything that was not already plugged in, until you allow it by hand."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Plug in everything you use first - keyboard, mouse, dock, webcam, headset, security keys. What is connected now is what gets allowed."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Everything plugged in?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "On. A USB device plugged in from now on is blocked until you allow it here."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "USB protection is off, so nothing is being blocked."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "A device blocked while the screen was locked works once you plug it in again."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Nothing is blocked."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Allow which device?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Allowed."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Allowed, now and after a reboot."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off. Every USB device is trusted again."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Make one"
+msgstr ""
+
+#. Translators: a choice about the private folder, which is closed: open it.
+#: usr/share/amethystora/just/security.just
+msgid "Open"
+msgstr ""
+
+#. Translators: a choice about the private folder, which is open: close it.
+#: usr/share/amethystora/just/security.just
+msgid "Close"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Change its password"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Allow an extension"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Take an extension off the list"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Add site checking (Osprey)"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Take site checking away"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Browser protection is on: browsers install only the extensions on the list."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Browser protection is off: a browser installs any extension you let it."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Allowed on this machine, as well as the password managers:"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Site checking (Osprey) is allowed in browsers."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "An extension sees every page you open, which is how most password stealers arrive."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "With this on, browsers install only the Bitwarden, 1Password, Proton Pass and KeePassXC password managers and the extensions you allow here, and web pages are kept from USB, serial, HID and Bluetooth devices."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "It covers Firefox, Brave, Chrome, Chromium and Edge, for every account on this machine."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Extensions that are not on the list go: Firefox removes them, with their settings, the next time it starts, and the others turn theirs off. Allow the ones you use first."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turn browser protection on?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "On. Each browser takes it up the next time it starts."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Firefox lists each extension's ID in about:support, under Add-ons. The others show it on their extensions page with developer mode on."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Extension ID"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Allowed. To take it back: ame security browser disallow ${id}"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "No extension of this machine's own is on the list."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Take which off?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off the list. With protection on, browsers turn it off at their next start, and Firefox removes it."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Site checking is off: browsers turn Osprey off at their next start, and Firefox removes it."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Site checking is off. Browser protection is off too, so remove Osprey yourself where it is installed: Firefox's Add-ons and themes, or the other browsers' extensions page."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Osprey: Browser Protection checks each site you open against more than twenty threat-intelligence providers, and warns you or blocks the site. Amethystora does not make it: Osprey Project LLC does, under the GPL-3.0, and you install it from your browser's own store."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "It sends the address of every site you open to Osprey Project LLC, in California, which passes it on to its providers without the query string and without your address. That is why it is off until you choose it, and why no profile turns it on."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Allow Osprey in your browsers?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Allowed. Install it from your browser's store; nothing installs it for you:"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Its own settings, which providers it asks, are Osprey's: Amethystora sets none of them."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off. Browsers install any extension again; the ones Firefox removed do not come back."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Servers of my own"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Pause for ten minutes"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "End the pause"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Encrypted DNS is on: names are looked up with ${resolver}, over DNS-over-TLS."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "It is paused: the network's own DNS servers answer, in plain text, for up to ten minutes."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Encrypted DNS is off: names are looked up with the DNS servers the network hands out, in plain text, so the network sees each name and can answer what it likes."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "${name}, run by ${who}"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Encrypted DNS: send every lookup to"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off. Names are looked up with the network's own DNS servers again."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "For ten minutes, the network's own DNS servers answer, in plain text, so that a login page can load. It ends by itself, or with: ame security dns resume"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Paused. Log in to the network's page now."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Encrypted again."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Each server as ADDRESS#NAME, NAME being what its certificate is for, separated by spaces."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Servers"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Every name this machine looks up then goes to ${name}, encrypted, and to nobody else."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "${name} is run by ${who}."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "It sees every name, and the network you are on sees none of them and cannot answer in its place."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Names on the network itself, such as a printer's, still go to the network's own servers, and so does the check of whether a network reaches the internet. A VPN's own names keep working, and Tailscale's. Firefox asks this resolver too, unless DNS over HTTPS is turned on in its own settings."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "A network that wants a login first, as in hotels and on trains, cannot show its page while this is on. A notification offers to pause it then: ame security dns pause."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Send every lookup to ${name}?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "On. To go back to the network's own DNS servers: ame security dns off"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "On: each network sees an address of its own for this machine, and not its name."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off: wired networks see this machine's own hardware address, Wi-Fi networks one for each network name, and every network is told the machine's name."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "A wired network knows a computer by its hardware (MAC) address, the same on every network it joins, and every network is told its name, and over IPv6 an identity made from it. With this on, each Wi-Fi and wired network sees an address and an identity of its own for this machine, the same each time it comes back, so a router keeps what it reserved for it and a login page remembers it. No network is told its name."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "A network that lets in only registered devices, as some universities and offices do, then refuses it. For that network, open it in Settings, then Identity, and set Cloned Address to Permanent."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Use a different address on each network?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "On, from the next time each network connects. Turn Wi-Fi off and on to start now."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off, from the next time each network connects."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Set up with a PIN"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Remove the TPM key"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The system is not on an encrypted partition, so there is nothing to unlock."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Disk encryption is chosen while installing and cannot be turned on afterwards."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "This machine has no usable TPM (there is no /dev/tpmrm0), so the key has nowhere to go."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Encrypted partition: ${DEVICE}"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The TPM already holds a key for it. Setting it up again replaces that key."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The TPM holds no key for it: the passphrase is typed at every boot."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "What this does: the TPM hands over the key only while Secure Boot is on and the enrolled signing keys are the ones enrolled now (PCR 7 and 14). Turning Secure Boot off, or adding a key to sign something of your own with, stops the disk opening."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "This machine is sealed: its initramfs is inside the UKI that the enrolled key signs, so it cannot be rewritten without the machine refusing to start it. But neither PCR measures the disk the system starts from, nor /etc on it: someone with a disk of their own made to look like this one starts this same signed system on it, with their own settings, and without a PIN the TPM would hand that system the key. So it is set up only with a PIN here too."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "What it does not do: it does not measure the boot menu or the initramfs, which are plain files on this image and change with every kernel update. Someone who takes the machine could start it into a shell from the boot menu, or with a disk of their own made to look like this one, and neither changes PCR 7 or 14: without a PIN, the TPM would hand them the key. So here it is set up only with a PIN. That does not stop someone who rewrites the initramfs and gives the machine back: theirs can ask for the PIN itself and keep it once you type it."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "TPM disk unlock"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Only with a PIN: ame security disk-unlock on-pin"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Removed. The passphrase is asked for at every boot again."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Secure Boot is off on this machine, and binding to it is the whole of what this protects."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turn Secure Boot on and run `ame security secure-boot` first."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Enrol anyway?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Type the disk passphrase when asked, once for each encrypted disk of the system. It keeps working afterwards: this adds a second way in, not a replacement, so a cleared TPM or a replaced board does not lock you out of your disk."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Done. It takes effect at the next boot."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Put files back"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Ransomware protection is on: ${count} snapshot, the latest ${latest}."
+msgid_plural "Ransomware protection is on: ${count} snapshots, the latest ${latest}."
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Ransomware protection is on: ${count} snapshots, the latest not taken yet."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Ransomware protection is off."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Ransomware protection (snapshots of the home folders)"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The home folders are not on a btrfs subvolume of their own, so they cannot be snapshotted. The installer sets them up that way unless the disk was partitioned by hand."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Every hour, a read-only snapshot of every home folder on this machine. Ransomware running as you can encrypt everything you can write, and a snapshot is not something you can write: changing or deleting one takes root. Kept: every snapshot from the last day, and one a day for two weeks."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The cost is disk space. A snapshot holds on to what was deleted or changed since, so a file you delete to make room frees its space only once the last snapshot that has it is gone, up to two weeks later. Snapshots are never deleted to make room, because ransomware that rewrites every file would then delete the ones from before it."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "What this does not survive is ransomware that gets root. An append-only backup somewhere else does: ame backup"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turn ransomware protection on?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "On. Put files back with: ame security ransomware restore"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Your home folder, ${home}, is not one the snapshots cover."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "There are no snapshots to put files back from."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Backups, in the app grid, shows each folder as it was and puts back single files."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "From which snapshot? (date_time)"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Open it in Files"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Put a folder back"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Your home folder as it was at ${snapshot}"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Read-only: copy what you want back into your home folder."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Which folder, inside your home? (empty for all of it)"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "There is no ${folder} in that snapshot."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Files in ${home}/${folder} with the same name as one in the snapshot are replaced by the snapshot's. Files the snapshot does not have, such as what ransomware renamed, stay."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Put ${folder} back as it was at ${snapshot}?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Put your home folder back as it was at ${snapshot}?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Put back. Delete what ransomware left next to your files, then check they open."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off. No more snapshots are taken."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Delete the ${count} snapshot already taken, and free its space?"
+msgid_plural "Delete the ${count} snapshots already taken, and free their space?"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Scan now"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Show the quarantine"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Put a file back"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Delete a file for good"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Show the full log"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The last scan found something:"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The last scan found nothing."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "On detection: ${mode} (ame security settings on-detection)"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Last run:    ${last_run}"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Signatures:  updated ${AGE} day ago"
+msgid_plural "Signatures:  updated ${AGE} days ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Signatures:  ${AGE} day old. Too old for a clean scan to mean much; check the network."
+msgid_plural "Signatures:  ${AGE} days old. Too old for a clean scan to mean much; check the network."
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Signatures:  none yet. clamav-freshclam.service has not finished its first download."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Virus scan (ClamAV)"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The virus scanner is turned off. Turn it on first with: ame security settings virus-scan"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Scanning the home and temporary directories. This takes a while."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The quarantine is empty."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "In quarantine (id, when, what it matched, where it was):"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Put one back with: ame security scan restore, or delete it for good with: ame security scan delete"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Put which file back?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "A file is only in quarantine because it matched known malware. Put it back only if you are sure that match is wrong."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Put ${path} back?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Tell the scanner to leave this exact file alone from now on?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The next scan will find it again unless you let the scanner leave it alone."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Delete which file for good?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+#, sh-format
+msgid "Delete ${path} for good? Nothing can bring it back."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Automatic updates are currently enabled"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Automatic updates are currently disabled"
+msgstr ""
+
+#. Translators: choices of a menu that turns automatic updates on or off
+#: usr/share/amethystora/just/system.just
+msgid "Enable"
+msgstr ""
+
+#. Translators: choices of a menu that turns automatic updates on or off
+#: usr/share/amethystora/just/system.just
+msgid "Disable"
+msgstr ""
+
+#. Translators: choices of a menu that turns automatic updates on or off
+#: usr/share/amethystora/just/system.just
+msgid "Toggle automatic updates?"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Updates have been enabled"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Updates have been disabled"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Tailscale is on"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Tailscale is off"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+#, sh-format
+msgid "Developer mode is already on: this is ${IMAGE_NAME}."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+#, sh-format
+msgid "Developer mode is already off: this is ${IMAGE_NAME}."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Would you like to disable developer mode?"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Rebasing to a non developer image"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Would you like to enable developer mode?"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Rebasing to a developer image"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "The development apps install by themselves once the development image has started"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Do you want to install extra monospace fonts?"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "After the restart, ame system dx-group lets your account use Docker, Incus and virtual machines without sudo, and says what that costs."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+#, sh-format
+msgid "Developer groups for ${user} (* = in it):"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "None: they come with developer mode (ame system devmode on)."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+#, sh-format
+msgid "In ${root_groups}, any program running as you can become root without the sudo password."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Podman, and virtual machines on your own connection (qemu:///session), need no group at all."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+#, sh-format
+msgid "Which groups should ${user} be in?"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+#, sh-format
+msgid "Not a developer group here: ${group}. The ones there are: ${group_list}"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Nothing to change."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+#, sh-format
+msgid "Join ${risky_groups}, which let any program you run become root without your password?"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+#, sh-format
+msgid "Joined ${group}."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+#, sh-format
+msgid "Left ${group}."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Log out and back in for it to apply."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Starting over has not been tried on a sealed machine yet. Install it again from the ISO instead."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "To put only the settings back, and keep the accounts and their files: ame system reset-settings"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "No"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Yes - wipe this machine"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Warning: This is an experimental feature that will reset this device to its factory state."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Powerwash cancelled."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Are you sure?"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Rebooting to legacy BIOS from OS is not supported."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Reboot into BIOS?"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Prune all Podman images and volumes?"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Prune all Docker images and volumes?"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Powerstat is not available"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Stress does not seem to be on your path, do you wish to install it?"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Running a 1 minute benchmark ..."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+#, sh-format
+msgid "Scheduling the CPU now: ${current}"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Scheduling the CPU now: the kernel's own (EEVDF)"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "The kernel's own, which suits nearly everything (the default)"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Keeps games smooth while other work runs, made for gaming handhelds and laptops"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "The kernel's own scheduler, now and after every restart."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "A sched-ext scheduler is a program the kernel hands its scheduling to. If it stops, the kernel takes over again by itself, so the worst it can do is make things slower."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+#, sh-format
+msgid "The kernel did not take scx_${name}. What the loader said:"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Back to the kernel's own scheduler."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+#, sh-format
+msgid "scx_${name}, now and after every restart. ame system scheduler kernel puts the kernel's own back."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+#, sh-format
+msgid "Swapped-out memory is compressed: ${current}"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "When RAM runs short, what programs are not using moves into compressed memory, and comes back when a program needs it. Measured on a 4 GB machine holding 3 GB of program data:"
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Compressed quickly as it leaves RAM, and what stays unused repacked smaller every hour on mains power: about 420 MB of RAM for each GB moved out, back at about 310 MB/s."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Compressed quickly and left so (Fedora's own): nothing runs in the background, but about 540 MB of RAM for each GB, back at about 250 MB/s."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+msgid "Compressed small from the start: about 430 MB of RAM for each GB, but moving out and back is about half as quick, at about 130 MB/s."
+msgstr ""
+
+#: usr/share/amethystora/just/system.just
+#, sh-format
+msgid "${mode}, from the next restart."
+msgstr ""
+
+#: usr/share/amethystora/just/update.just
+msgid "To restart as usual: systemctl reboot"
+msgstr ""
+
+#: usr/share/amethystora/just/update.just
+#, sh-format
+msgid "automatic updates are currently running, use `journalctl -fexu ${SERVICE}` to see logs"
 msgstr ""

@@ -1,7 +1,9 @@
 #!/usr/bin/bash
 # Show a desktop notification to whoever is logged in at the machine, from a service running as root.
 #
-# Usage: amethystora-notify-users [--security] [--admins | --user NAME] [--action KEY=LABEL]... SUMMARY BODY [URGENCY]
+# Usage: amethystora-notify-users [--security] [--admins | --user NAME] [--action KEY=LABEL]...
+#            [--msgid | --msgid-summary | --msgid-body] [--plural MSGID --count N] [--footer MSGID]
+#            SUMMARY BODY [URGENCY]
 #
 # --security marks a security finding, which NOTIFY in /etc/amethystora/security.conf may quieten: all
 # (the default) says it, critical says only what is critical, none says nothing. Either way it is still
@@ -10,6 +12,14 @@
 # --admins tells only the administrators (wheel) logged in: for what names other accounts' files and
 # programs, which only they may read in the events and the journal too. --user tells that one account's
 # sessions alone, for what is about its own things.
+#
+# Text is English unless it is translated here, for each account in its own language: root has none, and a
+# service is not told whose session it reaches. The label of every --action is looked up in the text
+# domain amethystora as it is. --msgid says that SUMMARY and BODY are messages of that domain too (only
+# SUMMARY with --msgid-summary, only BODY with --msgid-body), the caller's own (po/amethystora.pot, marked
+# N_ in the caller) with their values as ${NAME} that the caller exports; --plural and --count make SUMMARY
+# a message with a plural form; --footer adds one more message, translated, to the end of BODY, for a BODY
+# that is not a message (a finding). The journal line below is the machine's own record and stays English.
 #
 # Best effort by nature: nobody may be logged in when a scheduled scan finds something. What is said
 # here is therefore never the only record of it. The journal line below always happens, the finding
@@ -22,40 +32,104 @@
 
 set -uo pipefail
 
+# shellcheck source=/dev/null
+source gettext.sh
+export TEXTDOMAIN=amethystora
+
+USAGE="usage: $0 [--security] [--admins | --user NAME] [--action KEY=LABEL]... [--msgid | --msgid-summary | --msgid-body] [--plural MSGID --count N] [--footer MSGID] SUMMARY BODY [URGENCY]"
 SECURITY=false
-if [[ "${1:-}" == --security ]]; then
-    SECURITY=true
-    shift
-fi
 ADMINS=false
 ONLY=""
-if [[ "${1:-}" == --admins ]]; then
-    ADMINS=true
-    shift
-elif [[ "${1:-}" == --user ]]; then
-    ONLY="${2:?usage: $0 --user NAME SUMMARY BODY [URGENCY]}"
-    shift 2
-fi
 ACTIONS=()
-while [[ "${1:-}" == --action ]]; do
-    ACTIONS+=("--action=${2:?usage: $0 [--action KEY=LABEL]... SUMMARY BODY [URGENCY]}")
-    shift 2
+MSGID_SUMMARY=false
+MSGID_BODY=false
+PLURAL=""
+COUNT=""
+FOOTER=""
+while true; do
+    case "${1:-}" in
+        --security) SECURITY=true; shift ;;
+        --admins) ADMINS=true; shift ;;
+        --user) ONLY="${2:?${USAGE}}"; shift 2 ;;
+        --action) ACTIONS+=("${2:?${USAGE}}"); shift 2 ;;
+        --msgid) MSGID_SUMMARY=true; MSGID_BODY=true; shift ;;
+        --msgid-summary) MSGID_SUMMARY=true; shift ;;
+        --msgid-body) MSGID_BODY=true; shift ;;
+        --plural) PLURAL="${2:?${USAGE}}"; shift 2 ;;
+        --count) COUNT="${2:?${USAGE}}"; shift 2 ;;
+        --footer) FOOTER="${2:?${USAGE}}"; shift 2 ;;
+        *) break ;;
+    esac
 done
+[[ -z "${PLURAL}" || "${COUNT}" =~ ^[0-9]+$ ]] || { echo "${USAGE}" >&2; exit 64; }
 
-SUMMARY="${1:?usage: $0 [--action KEY=LABEL]... SUMMARY BODY [URGENCY]}"
-BODY="${2:?usage: $0 [--action KEY=LABEL]... SUMMARY BODY [URGENCY]}"
+SUMMARY_IN="${1:?${USAGE}}"
+BODY_IN="${2?${USAGE}}"
 URGENCY="${3:-normal}"
 [[ "${URGENCY}" =~ ^(low|normal|critical)$ ]] || URGENCY=normal
-# What a notification says often holds what somebody else wrote: a file name, a program's, a host's. It can
-# only be read: no control character, no markup (GNOME reads the body as markup), nothing too long.
-SUMMARY="$(/usr/libexec/amethystora-security-text --max 200 "${SUMMARY}")"
-BODY="$(/usr/libexec/amethystora-security-text --lines --max 400 "${BODY}")"
-MARKUP_BODY="$(/usr/libexec/amethystora-security-text --lines --markup --max 400 "${BODY}")"
+
+# The language an account chose (AccountsService, which GNOME's Settings writes), else the machine's
+# (/etc/locale.conf): fr_FR.UTF-8 is fr_FR. Empty when there is none, or it is not a language and a country.
+language_of() { # USER
+    local lang
+    lang="$(sed -n 's/^Language=//p' "/var/lib/AccountsService/users/$1" 2>/dev/null | head -n 1)"
+    [[ -n "${lang}" ]] || lang="$(sed -n 's/^LANG=//p' /etc/locale.conf 2>/dev/null | tail -n 1)"
+    lang="${lang//[\"\']/}"
+    lang="${lang%%[.@]*}"
+    [[ "${lang}" =~ ^[a-z]{2,3}_[A-Z]{2}$ ]] || return 0
+    printf '%s' "${lang}"
+}
+
+# Runs a gettext program in the language LANGS, as the account's own session does: its locale (every language
+# is installed, glibc-all-langpacks), since gettext ignores LANGUAGE under the C locale and C.UTF-8 counts as it
+# there. A language that is not installed is English, as it is for the account's programs.
+in_language() { # COMMAND [ARG]...
+    local -x LC_ALL=C LANGUAGE=""
+    [[ -z "${LANGS}" ]] || { LC_ALL="${LANGS}.UTF-8"; LANGUAGE="${LANGS}:${LANGS%%_*}"; }
+    "$@"
+}
+
+# One message in the language LANGS, its values taken from the environment
+message() { # MESSAGE [PLURAL COUNT]
+    if [[ -n "${2:-}" ]]; then
+        in_language eval_ngettext "$1" "$2" "$3"
+    else
+        in_language eval_gettext "$1"
+    fi
+}
+
+# Sets SUMMARY, BODY, MARKUP_BODY and LABELS for the language list LANGS.
+localize() {
+    local entry
+    SUMMARY="${SUMMARY_IN}"
+    BODY="${BODY_IN}"
+    [[ "${MSGID_SUMMARY}" == false ]] || SUMMARY="$(message "${SUMMARY_IN}" ${PLURAL:+"${PLURAL}" "${COUNT}"})"
+    [[ "${MSGID_BODY}" == false ]] || BODY="$(message "${BODY_IN}")"
+    [[ -z "${FOOTER}" ]] || BODY="${BODY:+${BODY}$'\n'}$(message "${FOOTER}")"
+    LABELS=()
+    for entry in "${ACTIONS[@]}"; do
+        LABELS+=("--action=${entry%%=*}=$(in_language gettext "${entry#*=}")")
+    done
+    # What a notification says often holds what somebody else wrote: a file name, a program's, a host's. It can
+    # only be read: no control character, no markup (GNOME reads the body as markup), nothing too long.
+    SUMMARY="$(/usr/libexec/amethystora-security-text --max 200 "${SUMMARY}")"
+    BODY="$(/usr/libexec/amethystora-security-text --lines --max 400 "${BODY}")"
+    MARKUP_BODY="$(/usr/libexec/amethystora-security-text --lines --markup --max 400 "${BODY}")"
+}
+
+# English first: it is what the journal keeps. Translated text is worked out again for each account
+# below, unless there is nothing to translate.
+LANGS=""
+localize
+SUMMARY_EN="${SUMMARY}"
+BODY_EN="${BODY}"
+TRANSLATE=false
+[[ "${MSGID_SUMMARY}" == true || "${MSGID_BODY}" == true || -n "${FOOTER}" || ${#ACTIONS[@]} -gt 0 ]] && TRANSLATE=true
 
 # The part that cannot be missed: this is what `systemctl status` of the failed unit shows. With
 # actions, stdout is for the answers.
 if [[ ${#ACTIONS[@]} -eq 0 ]]; then
-    printf '%s\n%s\n' "${SUMMARY}" "${BODY}"
+    printf '%s\n%s\n' "${SUMMARY_EN}" "${BODY_EN}"
     command -v notify-send >/dev/null || exit 0
     if [[ "${SECURITY}" == true ]]; then
         case "$(/usr/libexec/amethystora-security-config NOTIFY)" in
@@ -64,7 +138,7 @@ if [[ ${#ACTIONS[@]} -eq 0 ]]; then
         esac
     fi
 else
-    printf '%s\n%s\n' "${SUMMARY}" "${BODY}" >&2
+    printf '%s\n%s\n' "${SUMMARY_EN}" "${BODY_EN}" >&2
     command -v notify-send >/dev/null || exit 1
 fi
 
@@ -82,6 +156,10 @@ for bus in /run/user/*/bus; do
     [[ "${ADMINS}" == false || " $(id -nG "${user}" 2>/dev/null) " == *" wheel "* ]] || continue
     [[ -z "${ONLY}" || "${user}" == "${ONLY}" ]] || continue
     TOLD=$((TOLD + 1))
+    if [[ "${TRANSLATE}" == true ]]; then
+        LANGS="$(language_of "${user}")"
+        localize
+    fi
     if [[ ${#ACTIONS[@]} -eq 0 ]]; then
         runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=${bus}" \
             notify-send --app-name=Amethystora --urgency="${URGENCY}" --icon=dialog-warning \
@@ -92,7 +170,7 @@ for bus in /run/user/*/bus; do
     {
         answer="$(runuser -u "${user}" -- env "DBUS_SESSION_BUS_ADDRESS=unix:path=${bus}" \
             notify-send --app-name=Amethystora --urgency="${URGENCY}" --icon=dialog-information --wait \
-            "${ACTIONS[@]}" -- "${SUMMARY}" "${MARKUP_BODY}" 2>/dev/null)"
+            "${LABELS[@]}" -- "${SUMMARY}" "${MARKUP_BODY}" 2>/dev/null)"
         printf '%s %s\n' "${user}" "${answer}"
     } &
 done

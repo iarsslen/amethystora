@@ -2298,10 +2298,14 @@ fi
 rm -f "${EVENTS}.new"
 printf '%s\n' "${FINDINGS[@]}"
 
+# Marks a message for po/amethystora.pot; amethystora-notify-users translates it for each account it tells
+N_() { printf '%s' "$1"; }
+N_n() { printf -v "$1" '%s' "$3"; printf -v "$2" '%s' "$4"; }
+
 # One notification for a list of findings: the finding itself when there is one, the count and the first two
 # when there are more. say URGENCY OPTION... -- FINDING...
 say() {
-    local urgency="$1" options=()
+    local urgency="$1" options=() SUMMARY PLURAL
     shift
     while [[ $# -gt 0 && "$1" != -- ]]; do
         options+=("$1")
@@ -2309,10 +2313,13 @@ say() {
     done
     shift
     if [[ $# -eq 1 ]]; then
-        "${NOTIFY}" --security "${options[@]}" "$1" "See it with: ame security events" "${urgency}" >/dev/null
+        # The finding is English, what the check saw; the pointer after it is translated for each account
+        "${NOTIFY}" --security "${options[@]}" --footer "$(N_ 'See it with: ame security events')" "$1" "" "${urgency}" >/dev/null
     else
-        "${NOTIFY}" --security "${options[@]}" "$# security changes on this machine" \
-            "$(printf '%s\n' "${@:1:2}")"$'\n'"See them all with: ame security events" "${urgency}" >/dev/null
+        export COUNT=$#
+        N_n SUMMARY PLURAL '${COUNT} security change on this machine' '${COUNT} security changes on this machine'
+        "${NOTIFY}" --security "${options[@]}" --msgid-summary --plural "${PLURAL}" --count "$#" \
+            --footer "$(N_ 'See them all with: ame security events')" "${SUMMARY}" "$(printf '%s\n' "${@:1:2}")" "${urgency}" >/dev/null
     fi
 }
 # Findings about one account's own things go to its sessions alone (amethystora-security-reader)

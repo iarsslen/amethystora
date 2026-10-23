@@ -4,5 +4,7 @@
 # ones in that group, `ame security scan now` runs one, and `ame pkg` is amethystora-pkg. They are the
 # recipes in /usr/share/amethystora/just; ujust runs the same ones.
 
+# The recipes say what they say in the session's language where po/ has it (text domain amethystora)
+export TEXTDOMAIN=amethystora
 export JUST_LIST_HEADING=$'Available commands:\n'
 exec just --justfile /usr/share/amethystora/just/00-entry.just "$@"

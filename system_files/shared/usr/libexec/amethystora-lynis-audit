@@ -10,6 +10,10 @@
 
 set -uo pipefail
 
+# Marks a message for po/amethystora.pot, as the callers of amethystora-notify-users --msgid do
+N_() { printf '%s' "$1"; }
+N_n() { printf -v "$1" '%s' "$3"; printf -v "$2" '%s' "$4"; }
+
 REPORT=/var/log/lynis-report.dat
 BASELINE=/var/log/amethystora-lynis-baseline.dat
 
@@ -35,10 +39,12 @@ else
     if [[ "${COUNT}" -gt 0 ]]; then
         echo "${COUNT} warning(s) that were not there at the last audit:"
         printf '%s\n' "${NEW}"
-        /usr/libexec/amethystora-notify-users --security \
-            "Security audit: ${COUNT} new warning(s)" \
-            "Something on this machine has changed since the last audit. See it with: ame security audit" \
-            normal
+        # Marks the messages for po/amethystora.pot; amethystora-notify-users --msgid translates them
+        export COUNT
+        N_n SUMMARY PLURAL 'Security audit: ${COUNT} new warning' 'Security audit: ${COUNT} new warnings'
+        BODY="$(N_ 'Something on this machine has changed since the last audit. See it with: ame security audit')"
+        /usr/libexec/amethystora-notify-users --security --msgid --plural "${PLURAL}" --count "${COUNT}" \
+            "${SUMMARY}" "${BODY}" normal
     else
         echo "Nothing new since the last audit."
     fi

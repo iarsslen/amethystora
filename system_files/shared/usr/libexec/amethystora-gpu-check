@@ -55,34 +55,37 @@ FLAVOR="$(jq -r '."image-flavor" // "main"' "${INFO}" 2>/dev/null)"
 IMAGE="$(jq -r '."image-name" // "amethystora"' "${INFO}" 2>/dev/null)"
 STREAM="$(jq -r '."image-tag" // "stable"' "${INFO}" 2>/dev/null)"
 WITHOUT="${IMAGE%-"${FLAVOR}"}"
-LOCKDOWN="Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on."
+# Marks a message for po/amethystora.pot; amethystora-notify-users --msgid translates it for each account
+N_() { printf '%s' "$1"; }
 KIND=""
 case "${FLAVOR}:${CARD}" in
     main:open)
         KIND=nvidia-card
         TARGET="${IMAGE}-nvidia-open"
-        SUMMARY="This machine has an NVIDIA graphics card"
-        BODY="${TARGET} is Amethystora with NVIDIA's driver for it, which this image does not have. ${LOCKDOWN} Nothing changes unless you switch."
+        SUMMARY="$(N_ 'This machine has an NVIDIA graphics card')"
+        BODY="$(N_ "\${TARGET} is Amethystora with NVIDIA's driver for it, which this image does not have. Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on. Nothing changes unless you switch.")"
         ;;
     main:lts | nvidia-open:lts)
         KIND=nvidia-lts-card
         TARGET="${WITHOUT}-nvidia-lts"
-        SUMMARY="This machine's NVIDIA card needs NVIDIA's older driver"
-        BODY="Its card is a GeForce 900 or 10 series, or as old: ${TARGET} carries the driver that drives it, the last NVIDIA makes for it."
-        [[ "${FLAVOR}" == main ]] && BODY+=" ${LOCKDOWN}"
-        BODY+=" Nothing changes unless you switch."
+        SUMMARY="$(N_ "This machine's NVIDIA card needs NVIDIA's older driver")"
+        if [[ "${FLAVOR}" == main ]]; then
+            BODY="$(N_ "Its card is a GeForce 900 or 10 series, or as old: \${TARGET} carries the driver that drives it, the last NVIDIA makes for it. Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on. Nothing changes unless you switch.")"
+        else
+            BODY="$(N_ 'Its card is a GeForce 900 or 10 series, or as old: ${TARGET} carries the driver that drives it, the last NVIDIA makes for it. Nothing changes unless you switch.')"
+        fi
         ;;
     nvidia-*:none)
         KIND=no-nvidia-card
         TARGET="${WITHOUT}"
-        SUMMARY="This machine has no NVIDIA graphics card"
-        BODY="It runs ${IMAGE}, which carries NVIDIA's driver. ${LOCKDOWN} ${TARGET} has no NVIDIA driver and keeps lockdown on. Nothing changes unless you switch."
+        SUMMARY="$(N_ 'This machine has no NVIDIA graphics card')"
+        BODY="$(N_ "It runs \${IMAGE}, which carries NVIDIA's driver. Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on. \${TARGET} has no NVIDIA driver and keeps lockdown on. Nothing changes unless you switch.")"
         ;;
     nvidia-*:older)
         KIND=old-nvidia-card
         TARGET="${WITHOUT}"
-        SUMMARY="This machine's NVIDIA card is older than any NVIDIA driver drives"
-        BODY="It runs ${IMAGE}, whose driver cannot drive it: the open driver nouveau, in ${TARGET}, does. ${LOCKDOWN} ${TARGET} keeps lockdown on. Nothing changes unless you switch."
+        SUMMARY="$(N_ "This machine's NVIDIA card is older than any NVIDIA driver drives")"
+        BODY="$(N_ "It runs \${IMAGE}, whose driver cannot drive it: the open driver nouveau, in \${TARGET}, does. Without Secure Boot, the NVIDIA images leave kernel lockdown off: their driver is signed with a key of this machine's own, which the kernel trusts only with Secure Boot on. \${TARGET} keeps lockdown on. Nothing changes unless you switch.")"
         ;;
 esac
 
@@ -104,8 +107,9 @@ esac
 pending || exit 0
 
 mkdir -p "${STATE%/*}"
-ANSWERS="$(/usr/libexec/amethystora-notify-users --action switch="Switch images…" --action never="Don't ask again" \
-    "${SUMMARY}" "${BODY}")" || exit 0
+export TARGET IMAGE
+ANSWERS="$(/usr/libexec/amethystora-notify-users --action "switch=$(N_ 'Switch images…')" --action "never=$(N_ "Don't ask again")" \
+    --msgid "${SUMMARY}" "${BODY}")" || exit 0
 # Once somebody has seen it, it is not said again for this machine
 echo "${KIND}" >"${STATE}"
 while read -r user answer; do

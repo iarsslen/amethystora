@@ -30,8 +30,11 @@ FINDINGS=/var/log/amethystora-clamav-findings.log
 : >"${LOG}"
 chmod 0600 "${LOG}"
 
+# Marks a message for po/amethystora.pot; amethystora-notify-users --msgid translates it for each account
+N_() { printf '%s' "$1"; }
+
 found() {
-    local file="$1" signature="$2" mode outcome summary body shown credit
+    local file="$1" signature="$2" mode outcome summary body shown credit name
     mode="$(/usr/libexec/amethystora-security-config ON_DETECTION)"
     outcome=reported
     [[ "${mode}" == report ]] || outcome="$(/usr/libexec/amethystora-quarantine act "${file}" | cut -f1)"
@@ -52,21 +55,28 @@ found() {
     } >>"${FINDINGS}"
     chmod 0600 "${FINDINGS}"
 
+    # amethystora-notify-users puts these values into the messages, in each account's language
+    name="${file##*/}"
+    export name signature
     case "${outcome}" in
         quarantined)
-            summary="${file##*/} was quarantined"
-            body="It matches ${signature}. Put it back with: ame security scan restore" ;;
+            summary="$(N_ '${name} was quarantined')"
+            body="$(N_ 'It matches ${signature}. Put it back with: ame security scan restore')" ;;
         deleted)
-            summary="${file##*/} was deleted"
-            body="It matched ${signature}. See it with: ame security scan" ;;
+            summary="$(N_ '${name} was deleted')"
+            body="$(N_ 'It matched ${signature}. See it with: ame security scan')" ;;
         failed)
-            summary="A virus scan found ${file##*/}, and could not ${mode} it"
-            body="It matches ${signature}. See it with: ame security scan" ;;
+            if [[ "${mode}" == delete ]]; then
+                summary="$(N_ 'A virus scan found ${name}, and could not delete it')"
+            else
+                summary="$(N_ 'A virus scan found ${name}, and could not quarantine it')"
+            fi
+            body="$(N_ 'It matches ${signature}. See it with: ame security scan')" ;;
         *)
-            summary="A virus scan found ${file##*/}"
-            body="It matches ${signature}, and was left where it is. See it with: ame security scan" ;;
+            summary="$(N_ 'A virus scan found ${name}')"
+            body="$(N_ 'It matches ${signature}, and was left where it is. See it with: ame security scan')" ;;
     esac
-    /usr/libexec/amethystora-notify-users --security "${summary}" "${body}" critical >/dev/null
+    /usr/libexec/amethystora-notify-users --security --msgid "${summary}" "${body}" critical >/dev/null
 }
 
 # Reading before clamonacc starts, so that nothing it logs is missed

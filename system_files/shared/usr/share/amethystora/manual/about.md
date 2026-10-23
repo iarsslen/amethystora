@@ -27,6 +27,8 @@ and forward, `Ctrl+=` and `Ctrl+-` change the text size, and `Ctrl+0` resets it.
 **Copy** button. A page shows in the session's language where it has been translated, and in English
 otherwise.
 
+French, Arabic, Spanish and German were first translated by machine, and no person has read them all yet: until a reader has approved the security report and the welcome page in a language, take a doubtful sentence there as a question and check it against the English. What the `ame` commands say and ask, and the text of a notification, show in your language where there is a translation of it and in English where there is not yet; what the security watcher found, the names of files and programs, and what other programs print stay as they were written. To read, correct or add a language, see [CONTRIBUTING.md](https://github.com/iarsslen/amethystora/blob/main/CONTRIBUTING.md#translating).
+
 ## Standing on the shoulders of
 
 Amethystora is built on [Fedora](https://fedoraproject.org) and [GNOME](https://www.gnome.org), and
