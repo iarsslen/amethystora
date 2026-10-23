@@ -48,7 +48,14 @@ else
         "enabled: $(user_bus gsettings get org.gnome.shell enabled-extensions 2>&1 | cut -c1-600)" \
         "disabled: $(user_bus gsettings get org.gnome.shell disabled-extensions 2>&1)" \
         "disable-user-extensions: $(user_bus gsettings get org.gnome.shell disable-user-extensions 2>&1)" \
+        "all: $(for e in $(user_bus gnome-extensions list 2>/dev/null); do echo "${e%%@*}=$(user_bus gnome-extensions info "${e}" 2>/dev/null | sed -n 's/^ *State: *//p')"; done | paste -sd ' ')" \
+        "shell: $(user_bus journalctl --user -b --no-pager -o cat -t gnome-shell 2>/dev/null | grep -iv 'vulkan\|mesa' | grep -i 'extension\|gradia\|JS ERROR\|screenshot' | tail -n 12)" \
         "$(user_bus journalctl --user -b --no-pager -o cat 2>/dev/null | grep -i 'gradia' | grep -v Vulkan | tail -n 8)"
+    # The rest of the flow is still tried, with the extension turned off and on as at a new login
+    user_bus gnome-extensions disable "${EXTENSION}"
+    sleep 2
+    user_bus gnome-extensions enable "${EXTENSION}"
+    wait_for 30 ext_active && echo "# enabled again by hand: ACTIVE" || echo "# enabled again by hand: $(ext_state)"
 fi
 
 # Where Gradia's own download would come from
