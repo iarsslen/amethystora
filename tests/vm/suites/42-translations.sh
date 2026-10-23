@@ -75,7 +75,7 @@ set_language() { # LANGUAGE: as GNOME's Settings sets it
 }
 
 set_language fr_FR.UTF-8
-if wait_for 20 grep -qx 'Language=fr_FR.UTF-8' "/var/lib/AccountsService/users/${TEST_USER}"; then
+if wait_for 20 grep -qE '^Languages?=fr_FR.UTF-8;?$' "/var/lib/AccountsService/users/${TEST_USER}"; then
     ok "the account's language is saved where the helper reads it"
 else
     not_ok "the account's language is saved where the helper reads it" "$(cat "/var/lib/AccountsService/users/${TEST_USER}" 2>&1)"

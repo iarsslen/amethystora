@@ -68,11 +68,13 @@ BODY_IN="${2?${USAGE}}"
 URGENCY="${3:-normal}"
 [[ "${URGENCY}" =~ ^(low|normal|critical)$ ]] || URGENCY=normal
 
-# The language an account chose (AccountsService, which GNOME's Settings writes), else the machine's
-# (/etc/locale.conf): fr_FR.UTF-8 is fr_FR. Empty when there is none, or it is not a language and a country.
+# The language an account chose (AccountsService, which GNOME's Settings writes: `Languages=`, a list whose
+# first is the one, in accountsservice 23 and later, `Language=` before), else the machine's (/etc/locale.conf):
+# fr_FR.UTF-8 is fr_FR. Empty when there is none, or it is not a language and a country.
 language_of() { # USER
     local lang
-    lang="$(sed -n 's/^Language=//p' "/var/lib/AccountsService/users/$1" 2>/dev/null | head -n 1)"
+    lang="$(sed -n 's/^Languages=//p;s/^Language=//p' "/var/lib/AccountsService/users/$1" 2>/dev/null | head -n 1)"
+    lang="${lang%%;*}"
     [[ -n "${lang}" ]] || lang="$(sed -n 's/^LANG=//p' /etc/locale.conf 2>/dev/null | tail -n 1)"
     lang="${lang//[\"\']/}"
     lang="${lang%%[.@]*}"
