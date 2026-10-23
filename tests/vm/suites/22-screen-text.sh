@@ -41,6 +41,12 @@ chmod -R a+rX "${OWN}"
 
 ext_state() { user_bus gnome-extensions info "${EXTENSION}" 2>/dev/null | sed -n 's/^ *State: *//p'; }
 ext_active() { [[ "$(ext_state)" == ACTIVE ]]; }
+# The first session of a disk made a minute ago, with Flatpaks installing under it, may still be loading its
+# extensions in software rendering; the second boot of it is settled
+if ((SUITE_PHASE < 2)) && ! wait_for 120 ext_active; then
+    echo "# the shell had not enabled Gradia's extension after 2 minutes: on with it after a restart"
+    reboot_and_continue
+fi
 if wait_for 60 ext_active; then
     ok "Gradia's extension is active"
 else
