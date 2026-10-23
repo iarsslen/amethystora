@@ -89,11 +89,20 @@ elif sys.argv[1] == "windows":
             print(app.get_name())
 EOF
 }
+# The session locks itself after five idle minutes, and on a new machine this suite first waits longer than that
+# for the default Flatpaks: nothing in the top bar is shown then. Unlocked before each look at it, as a person would
+wake() {
+    screen_locked || return 0
+    loginctl unlock-session "$(session_id)"
+    wait_for 30 screen_unlocked
+    sleep 3
+}
 menu_items() { tree menu | paste -sd '|'; }
 menu_open() { [[ "$(menu_items)" == *Manual* ]]; }
 windows() { tree windows | sort -u; }
 leftmost() {
     local out logo
+    wake
     out="$(tree panel 2>&1)" || { echo "${out}"; return 1; }
     logo="$(awk '$1 == "logo" { print $2 }' <<<"${out}")"
     awk -v logo="${logo}" '$1 == "other" && $2 < logo { bad = 1; print } END { exit bad }' <<<"${out}"
@@ -112,6 +121,7 @@ screen_unlocked() { ! screen_locked; }
 # VM's processors busy (Bazaar's took 25 s of CPU) can be lost, as on a slow machine: a person clicks again
 open_menu() {
     local at
+    wake
     at="$(tree at "Logo menu" menu)" || return 1
     keys "click:${at}"
     wait_for 10 menu_open && return
@@ -204,7 +214,9 @@ case "${SUITE_PHASE}" in
             continue
         fi
         keys "click:${at}"
-        if wait_for 60 running && wait_for 30 new_window; then
+        # Open, and still open 10 seconds later, as 25-every-app.sh holds the app grid to: an app closed while it
+        # is still starting (Bazaar's first start takes 25 s of CPU here) once left GNOME taking no more clicks
+        if wait_for 60 running && wait_for 30 new_window && sleep 10 && running; then
             ok "${label} opens its app's window"
         elif running; then
             not_ok "${label} started its app, but no window of it showed" \
@@ -236,6 +248,7 @@ EOF
         not_ok "DistroShelf's terminal is not Ptyxis" "${terminal}"
 
     # 4. A middle click shows the overview and opens no menu; a second one hides it
+    wake
     if at="$(tree at "Logo menu" menu)"; then
         keys "middle:${at}"
         if wait_for 10 overview_is true; then
