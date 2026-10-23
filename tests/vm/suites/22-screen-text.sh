@@ -40,7 +40,16 @@ install -m 0644 "$(dirname "$0")/atspi.py" "$(dirname "$0")/screentext.py" "${OW
 chmod -R a+rX "${OWN}"
 
 ext_state() { user_bus gnome-extensions info "${EXTENSION}" 2>/dev/null | sed -n 's/^ *State: *//p'; }
-[[ "$(ext_state)" == ACTIVE ]] && ok "Gradia's extension is active" || not_ok "Gradia's extension is not active" "state: $(ext_state)"
+ext_active() { [[ "$(ext_state)" == ACTIVE ]]; }
+if wait_for 60 ext_active; then
+    ok "Gradia's extension is active"
+else
+    not_ok "Gradia's extension is not active" "$(user_bus gnome-extensions info "${EXTENSION}" 2>&1)" \
+        "enabled: $(user_bus gsettings get org.gnome.shell enabled-extensions 2>&1 | cut -c1-600)" \
+        "disabled: $(user_bus gsettings get org.gnome.shell disabled-extensions 2>&1)" \
+        "disable-user-extensions: $(user_bus gsettings get org.gnome.shell disable-user-extensions 2>&1)" \
+        "$(user_bus journalctl --user -b --no-pager -o cat 2>/dev/null | grep -i 'gradia' | grep -v Vulkan | tail -n 8)"
+fi
 
 # Where Gradia's own download would come from
 code=000
