@@ -161,17 +161,6 @@ use-system-accent=false
 # idle desktop
 refresh-rate='slow'
 
-# Just Perfection: quicker animations (its 4, "faster", takes 0.6 of the time; 2 is "almost none"),
-# and no workspace popup, because Space Bar already shows
-# which workspace you moved to. Space Bar hides the Activities button once, when it starts, and
-# PaperWM shows it again when it starts after it; this hides the button's container instead, which
-# neither of them touches.
-[org.gnome.shell.extensions.just-perfection]
-animation=4
-workspace-popup=false
-dash-app-running=true
-activities-button=false
-
 # Amethystora Clipboard, Clipboard Indicator's copy that seals its history. Clipboard Indicator's own
 # shortcuts are Ctrl+F8 to Ctrl+F12, which IDEs use for building and debugging, so only the menu has a key,
 # on Super+Shift+V (Super+V is the notifications). How long the history is kept is keep-history, which

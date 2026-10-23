@@ -229,7 +229,7 @@ These GNOME Shell extensions come with the image:
 | Fuzzy App Search | App search that forgives typos |
 | Amethystora Clipboard | The [clipboard history](#the-clipboard) on `Super+Shift+V`, sealed: a copy of Clipboard Indicator |
 | Blur my Shell | The frosted glass behind the panel, the overview, menus and notifications, and windows you are not using made slightly see-through (**Applications** in its settings) |
-| Just Perfection | Quicker animations, and no popup when you change workspace |
+| Amethystora UI | Amethystora's own desktop, written for this image: quicker animations, no popup when you change workspace, and no Activities button |
 | AppIndicator | Tray icons for apps that use them |
 | Caffeine | Off until you turn it on in Extension Manager; then a switch in the quick settings keeps the screen awake |
 | GSConnect | Your Android phone, on the [networks you name home](security.md#on-from-the-start): notifications, files, clipboard, texts. Off until you [turn it on](hardware.md#phones) |

@@ -92,10 +92,21 @@ enable_extension "amethystora-clipboard@iarsslen.github.io"
 install -Dpm0644 /usr/share/licenses/amethystora/LICENSE /usr/share/licenses/amethystora-logo-menu@iarsslen.github.io/LICENSE
 enable_extension "amethystora-logo-menu@iarsslen.github.io"
 
+# Amethystora UI: the desktop's own modules, each written for this image in place of a third-party extension
+# (plans/PLAN-amethystora-ui.md), in system_files and under the image's licence. A module's keys are in its own
+# schema in the extension's schemas folder, installed system-wide too so that gsettings, ame and the overrides reach
+# them; the loop below compiles them with the overrides.
+UI_EXTENSION=/usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io
+install -Dpm0644 /usr/share/licenses/amethystora/LICENSE /usr/share/licenses/amethystora-ui@iarsslen.github.io/LICENSE
+if compgen -G "${UI_EXTENSION}/schemas/*.gschema.xml" >/dev/null; then
+    install -Dpm0644 -t /usr/share/glib-2.0/schemas "${UI_EXTENSION}"/schemas/*.gschema.xml
+fi
+enable_extension "amethystora-ui@iarsslen.github.io"
+
 # --- Extensions installed from extensions.gnome.org --------------------------------------------
 #
 # These are not submodules. Space Bar is TypeScript, so building it from source would pull npm and
-# the npm registry into the image build; TopHat and Just Perfection are not in Fedora's repositories
+# the npm registry into the image build; TopHat is not in Fedora's repositories
 # at all (only in updates-testing, which this build does not enable). The reviewed builds from
 # extensions.gnome.org are used instead, each pinned to one upload and to the SHA-256 of its zip, which
 # extensions.gnome.org does not sign. PaperWM and Fuzzy App Search need no build step, but come from
@@ -156,17 +167,6 @@ install_ego_extension "gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.git
 # amethystora-theme.
 install_ego_extension "tophat@fflewddur.github.io" 24 69837 \
     c10c21d6c88c467d2f232bb281af2065ba4feda63e0937c4a14d108e8916ccdd
-
-# Just Perfection: the panel and animation tweaks in zz1-amethystora-modifications
-install_ego_extension "just-perfection-desktop@just-perfection" 37 74466 \
-    c54ccd627540d86e6baf06c699f624ba7d5229aedfc8b00b0dc7182c6538eda8
-# Version 37 makes GNOME's Looking Glass a second after the session starts, only to size it when it opens,
-# and making it then takes the keyboard from GNOME's welcome dialog on an account's first login: Enter and
-# Escape did nothing, so without a mouse there was no way past it. It sizes a Looking Glass there is
-# already, and makes none; this image sets no size for it.
-JP_API=/usr/share/gnome-shell/extensions/just-perfection-desktop@just-perfection/lib/API.js
-sed -i 's/^\( *\)let lookingGlass = this\._main\.createLookingGlass();$/\1let lookingGlass = this._main.lookingGlass;\n\1if (!lookingGlass) {\n\1    return;\n\1}/' "${JP_API}"
-grep -qF 'createLookingGlass' "${JP_API}" && false
 
 # Space Bar: the i3-style workspace indicator that makes the six fixed workspaces visible.
 # The only one of these that needs a pin per GNOME: v34 is the last build for GNOME 49 and

@@ -307,8 +307,7 @@ done
 # Tiling and top bar: each extension from extensions.gnome.org is installed, enabled, supports this
 # GNOME, and has its schema readable system-wide so the defaults in zz1-amethystora-modifications apply
 GNOME_MAJOR="$(gnome-shell --version | grep -oE '[0-9]+' | head -n1)"
-for extension in paperwm@paperwm.github.com tophat@fflewddur.github.io \
-    just-perfection-desktop@just-perfection space-bar@luchrioh \
+for extension in paperwm@paperwm.github.com tophat@fflewddur.github.io space-bar@luchrioh \
     gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com; do
     test -f "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
     jq -e --arg shell "${GNOME_MAJOR}" '.["shell-version"] | index($shell)' \
@@ -374,6 +373,23 @@ catalog = gettext.GNUTranslations(open(sys.argv[1], "rb"))._catalog
 missing = [label for label in sys.argv[2:] if not catalog.get(label)]
 sys.exit(f"{sys.argv[1]} does not translate {missing}" if missing else 0)' "${mo}" "${LOGO_MENU_LABELS[@]}"
 done
+# Amethystora UI, the desktop's own modules (plans/PLAN-amethystora-ui.md): enabled, under the image's licence,
+# claiming this GNOME, and every module it imports is there. The third-party extensions it replaces are gone.
+UI_EXTENSION=/usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io
+jq -e --arg shell "${GNOME_MAJOR}" '.["shell-version"] | index($shell)' "${UI_EXTENSION}/metadata.json"
+grep -q "'amethystora-ui@iarsslen.github.io'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
+test -s /usr/share/licenses/amethystora-ui@iarsslen.github.io/LICENSE
+for module in $(grep -oE "from './modules/[a-z]+\.js'" "${UI_EXTENSION}/extension.js" | cut -d / -f 3 | cut -d . -f 1); do
+    test -s "${UI_EXTENSION}/modules/${module}.js"
+done
+for retired in just-perfection-desktop@just-perfection; do
+    test ! -e "/usr/share/gnome-shell/extensions/${retired}"
+    grep -q "'${retired}'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override && false
+done
+# The tweaks: animations at 0.6 of their time through the shell's slow-down factor alone. GNOME's own switch for
+# animations is the person's (Settings, Accessibility), and nothing here may turn it back on.
+grep -q "^const SPEED = 0.6;$" "${UI_EXTENSION}/modules/tweaks.js"
+grep -rqE "set_boolean\(['\"]enable-animations|enable_animations = " "${UI_EXTENSION}" && false
 # The trash empties itself of what was deleted more than 30 days ago, and ame desktop privacy changes that: a
 # number of days or off, nothing else. Settings in memory, as there is no session here
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.privacy remove-old-trash-files)" == "true" ]]
@@ -389,10 +405,7 @@ GSETTINGS_BACKEND=memory ame desktop privacy clipboard 7 >/dev/null 2>&1 && fals
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.space-bar.shortcuts enable-activate-workspace-shortcuts)" == "false" ]]
 # TopHat's colour comes from the palette, not from GNOME's nine accents
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.tophat use-system-accent)" == "false" ]]
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.just-perfection workspace-popup)" == "false" ]]
 test ! -e /usr/share/gnome-shell/extensions/tactile@lundal.io
-# The Activities button stays hidden with PaperWM on, which shows it again after Space Bar hid it
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.just-perfection activities-button)" == "false" ]]
 # PaperWM leaves the top bar to the theme and the workspaces to Space Bar
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.paperwm disable-topbar-styling)" == "true" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.paperwm show-workspace-indicator)" == "false" ]]
@@ -413,9 +426,6 @@ done
 # Dash to Dock's own Super+number keys would take the workspaces'; the dock's apps are on Alt+number
 DTD_SCHEMAS=/usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com/schemas
 [[ "$(GSETTINGS_BACKEND=memory gsettings --schemadir "${DTD_SCHEMAS}" get org.gnome.shell.extensions.dash-to-dock hot-keys)" == "false" ]]
-# Just Perfection's quicker animations are its 4, "faster": its 2 is "almost none"
-JP_SCHEMAS=/usr/share/gnome-shell/extensions/just-perfection-desktop@just-perfection/schemas
-[[ "$(GSETTINGS_BACKEND=memory gsettings --schemadir "${JP_SCHEMAS}" get org.gnome.shell.extensions.just-perfection animation)" == "4" ]]
 # None of the clipboard history's shortcuts take the Ctrl+F keys from applications
 grep -qi "<Control>F" <<<"$(GSETTINGS_BACKEND=memory gsettings list-recursively org.gnome.shell.extensions.amethystora-clipboard)" && false
 # PaperWM takes a colliding GNOME binding for itself while it is on. It cannot see custom keybindings

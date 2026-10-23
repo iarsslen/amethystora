@@ -7,7 +7,7 @@ This document provides essential information for coding agents working with the 
 **Amethystora** is a cloud-native desktop operating system, based on Universal Blue and maintained by Arsslen Idadi (@iarsslen). It is an OS built on Fedora Linux using container technologies with atomic updates.
 
 - **Type**: Container-based Linux distribution build system
-- **Base**: `ghcr.io/ublue-os/silverblue-main` (Fedora with the GNOME desktop and GDM) + Universal Blue infrastructure; GNOME Shell extensions are git submodules under `system_files/shared/usr/share/gnome-shell/extensions`, built by `build_files/shared/build-gnome-extensions.sh`, except `amethystora-transitions@iarsslen.github.io` (see The transitions) `amethystora-widgets@iarsslen.github.io` (see Widgets) and `amethystora-logo-menu@iarsslen.github.io` (see The logo menu)
+- **Base**: `ghcr.io/ublue-os/silverblue-main` (Fedora with the GNOME desktop and GDM) + Universal Blue infrastructure; GNOME Shell extensions are git submodules under `system_files/shared/usr/share/gnome-shell/extensions`, built by `build_files/shared/build-gnome-extensions.sh`, except `amethystora-transitions@iarsslen.github.io` (see The transitions) `amethystora-widgets@iarsslen.github.io` (see Widgets), `amethystora-logo-menu@iarsslen.github.io` (see The logo menu) and `amethystora-ui@iarsslen.github.io` (see Amethystora UI)
 - **Languages**: Bash scripts, JSON configuration, Python utilities
 - **Build System**: Just (command runner), Podman/Docker containers, GitHub Actions
 - **Target**: desktop OS with two variants (base + developer experience)
@@ -1008,6 +1008,23 @@ never a command line. A middle click toggles the overview. Its labels are gettex
 (`po/`), and `20-tests.sh` fails on an app it names that no machine has, on a label a catalog leaves
 untranslated, and on a GNOME its `shell-version` does not claim. `tests/vm/suites/26-logo-menu.sh` opens
 each entry.
+
+### Amethystora UI
+
+`amethystora-ui@iarsslen.github.io` (Apache-2.0, in `system_files`) is the desktop's own extension, replacing the
+third-party ones one module at a time (`plans/PLAN-amethystora-ui.md`). Each module is `modules/<module>.js`, started
+on its own by `extension.js` so that one that throws leaves the rest running, with its layout in
+`stylesheets/<module>.css`, its keys (if any) in its own schema `org.gnome.shell.extensions.amethystora-ui.<module>`,
+and the colours that follow the theme in `/usr/share/amethystora/themed/shell-<module>.css.tpl`, rendered per theme
+and loaded by the `theme` module. A module carries only what was on in the image: no preferences window, and a key
+only where an `ame` command, Control, the theme or the setup file writes it.
+
+**It is a clean-room rewrite, and must stay one.** The extensions it replaces are GPL. Their behaviour was written down
+as specs by agents who read them (`plans/amethystora-ui/spec-*.md`), and the code is written from those specs and
+GNOME's own API only. Never read, copy or paraphrase an upstream extension's code, CSS, shaders or strings into it,
+and never paste a GNOME Shell function's body into it (wrap the original instead).
+`plans/amethystora-ui/IMPLEMENTERS.md` is the brief. `tweaks` (animations at 0.6 through the shell's slow-down factor,
+never `enable-animations`; no workspace popup; no Activities button) replaced Just Perfection.
 
 ### Packages from other distributions
 
