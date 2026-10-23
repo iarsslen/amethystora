@@ -48,6 +48,13 @@ def shown(node):
         return False
 
 
+# A menu item's own name is empty: what it says is its label's
+def name(node):
+    if node.get_role_name() == "menu item":
+        return next((w for i in range(node.get_child_count()) for w in words(node.get_child_at_index(i))), "")
+    return node.get_name() or ""
+
+
 if sys.argv[1] == "panel":
     logo = next((n for n, _ in walk(shell) if n.get_name() == "Logo menu" and shown(n)), None)
     if logo is None:
@@ -63,10 +70,10 @@ if sys.argv[1] == "panel":
             print(f"other {b.x} {node.get_role_name()} {words(node)[:1]}")
 elif sys.argv[1] == "menu":
     for node, _ in walk(shell):
-        if node.get_role_name() == "menu item" and shown(node):
-            print(node.get_name() or "-")
+        if node.get_role_name() in ("menu item", "separator") and shown(node):
+            print(name(node) if node.get_role_name() == "menu item" else "-")
 elif sys.argv[1] == "at":
-    node = next((n for n, _ in walk(shell) if n.get_name() == sys.argv[2] and n.get_role_name() == sys.argv[3] and shown(n)), None)
+    node = next((n for n, _ in walk(shell) if name(n) == sys.argv[2] and n.get_role_name() == sys.argv[3] and shown(n)), None)
     if node is None:
         sys.exit(f"nothing shown named {sys.argv[2]!r}")
     stage = shell.get_child_at_index(0)
@@ -101,10 +108,14 @@ overview_is() { [[ "$(overview)" == "(<$1>,)" ]]; }
 session_id() { loginctl show-user "${TEST_USER}" -p Display --value; }
 screen_locked() { [[ "$(loginctl show-session "$(session_id)" -p LockedHint --value 2>/dev/null)" == yes ]]; }
 screen_unlocked() { ! screen_locked; }
-# The menu opened with a click on the button, where it is
+# The menu opened with a click on the button, where it is. A click made while an app's first start keeps the
+# VM's processors busy (Bazaar's took 25 s of CPU) can be lost, as on a slow machine: a person clicks again
 open_menu() {
     local at
     at="$(tree at "Logo menu" menu)" || return 1
+    keys "click:${at}"
+    wait_for 10 menu_open && return
+    echo "# a click on the logo opened nothing in 10 s: clicked again"
     keys "click:${at}"
     wait_for 10 menu_open
 }
