@@ -126,7 +126,7 @@
     // alone can't see new tags because tags don't move; this rewrites the
     // `branch =` line and the git-submodules manager then advances the SHA.
     // Uses github-tags (not github-releases) because some upstreams ship
-    // git tags without publishing GitHub Releases (e.g. caffeine).
+    // git tags without publishing GitHub Releases.
     {
       customType: 'regex',
       managerFilePatterns: [

@@ -9,12 +9,13 @@
 #   1  Just Perfection (the tweaks module)
 #   2  Space Bar and TopHat (the workspaces and meters modules)
 #   3  AppIndicator (the tray module)
+#   4  Caffeine (dropped: it was never switched on)
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
 command -v gsettings >/dev/null || exit 0
 
-version-script retire-extensions user 3 || exit 0
+version-script retire-extensions user 4 || exit 0
 
 # uuid, then the dconf folder its settings were in
 RETIRED=(
@@ -22,6 +23,7 @@ RETIRED=(
     "space-bar@luchrioh /org/gnome/shell/extensions/space-bar/"
     "tophat@fflewddur.github.io /org/gnome/shell/extensions/tophat/"
     "appindicatorsupport@rgcjonas.gmail.com /org/gnome/shell/extensions/appindicator/"
+    "caffeine@patapon.info /org/gnome/shell/extensions/caffeine/"
 )
 
 OWN="${XDG_DATA_HOME:-${HOME}/.local/share}/gnome-shell/extensions"

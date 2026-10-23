@@ -36,14 +36,6 @@ rm -rf /usr/share/gnome-shell/extensions/blur-my-shell@aunetx/build
 # something to go and find in Extension Manager
 enable_extension "blur-my-shell@aunetx"
 
-# Caffeine
-# The Caffeine extension is built/packaged into a temporary subdirectory (tmp/caffeine/caffeine@patapon.info).
-# Unlike other extensions, it must be moved to the standard extensions directory so GNOME Shell can detect it.
-mv /usr/share/gnome-shell/extensions/tmp/caffeine/caffeine@patapon.info /usr/share/gnome-shell/extensions/caffeine@patapon.info
-glib-compile-schemas --strict /usr/share/gnome-shell/extensions/caffeine@patapon.info/schemas
-# GPL-2.0: the licence sits at the root of the repository, which the cleanup below removes
-install -Dpm0644 /usr/share/gnome-shell/extensions/tmp/caffeine/COPYING /usr/share/licenses/caffeine@patapon.info/COPYING
-
 # Dash to Dock
 make -C /usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com
 glib-compile-schemas --strict /usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com/schemas

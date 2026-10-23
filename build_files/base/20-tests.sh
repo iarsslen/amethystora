@@ -264,7 +264,7 @@ test ! -e /usr/bin/missioncenter-helper
 test ! -e /usr/bin/distroshelf-helper
 
 # GNOME Shell extensions built from the git submodules (build-gnome-extensions.sh)
-for extension in blur-my-shell@aunetx caffeine@patapon.info \
+for extension in blur-my-shell@aunetx \
     dash-to-dock@micxgx.gmail.com search-light@icedman.github.com; do
     test -f "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
 done
@@ -381,7 +381,7 @@ for module in $(grep -oE "from './modules/[a-z]+\.js'" "${UI_EXTENSION}/extensio
     test -s "${UI_EXTENSION}/modules/${module}.js"
 done
 for retired in just-perfection-desktop@just-perfection space-bar@luchrioh tophat@fflewddur.github.io \
-    appindicatorsupport@rgcjonas.gmail.com; do
+    appindicatorsupport@rgcjonas.gmail.com caffeine@patapon.info; do
     test ! -e "/usr/share/gnome-shell/extensions/${retired}"
     test ! -e "/usr/share/licenses/${retired}"
     grep -q "'${retired}'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override && false

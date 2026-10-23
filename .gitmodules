@@ -6,10 +6,6 @@
 	path = system_files/shared/usr/share/gnome-shell/extensions/blur-my-shell@aunetx
 	url = https://github.com/aunetx/blur-my-shell.git
 	branch = master
-[submodule "system_files/shared/usr/share/gnome-shell/extensions/tmp/caffeine"]
-	path = system_files/shared/usr/share/gnome-shell/extensions/tmp/caffeine
-	url = https://github.com/eonpatapon/gnome-shell-extension-caffeine.git
-	branch = v60
 [submodule "system_files/shared/usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com"]
 	path = system_files/shared/usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com
 	url = https://github.com/micheleg/dash-to-dock.git
