@@ -145,22 +145,6 @@ test ! -e /usr/lib/swidtag/fedoraproject.org
 rpm -q nordvpn >/dev/null && false
 rpm -q nordvpn-gui >/dev/null && false
 
-# The VPNs people are given at work (04-packages.sh): a plugin for each, and PPTP left out for MS-CHAPv2
-for plugin in fortisslvpn l2tp libreswan openconnect openvpn sstp vpnc; do
-    rpm -q "NetworkManager-${plugin}" "NetworkManager-${plugin}-gnome" >/dev/null
-    test -f "/usr/lib/NetworkManager/VPN/nm-${plugin}-service.name"
-done
-rpm -q NetworkManager-pptp pptp >/dev/null && false
-# Nothing runs while no IPsec or L2TP VPN is connected: the plugins start pluto and the L2TP daemon themselves
-for unit in ipsec.service xl2tpd.service; do
-    [[ "$(systemctl is-enabled "${unit}" 2>/dev/null || true)" != enabled ]]
-done
-# L2TP's two modules load on demand (17-cleanup.sh); l2tp_eth, which no VPN uses, stays blacklisted by Fedora's
-# kernel, which proves the folder is where the other two were taken from
-test ! -e /etc/modprobe.d/l2tp_netlink-blacklist.conf
-test ! -e /etc/modprobe.d/l2tp_ppp-blacklist.conf
-grep -qx "blacklist l2tp_eth" /etc/modprobe.d/l2tp_eth-blacklist.conf
-
 # Ptyxis is the terminal: first for xdg-terminal-exec (Super+Return), and kitty is gone
 [[ "$(grep -v '^#' /etc/xdg/xdg-terminals.list | head -1)" == "org.gnome.Ptyxis.desktop" ]]
 [[ "$(grep -v '^#' /etc/xdg/gnome-xdg-terminals.list | head -1)" == "org.gnome.Ptyxis.desktop" ]]
@@ -364,6 +348,16 @@ GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethyst
 GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-clipboard excluded-apps | grep -qF "'org.keepassxc.KeePassXC'"
 test -x /usr/libexec/amethystora-clipboard-seal
 bash /ctx/build_files/shared/test-clipboard.sh
+# The trash empties itself of what was deleted more than 30 days ago, and ame desktop privacy changes that: a
+# number of days or off, nothing else. Settings in memory, as there is no session here
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.privacy remove-old-trash-files)" == "true" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.privacy old-files-age)" == "uint32 30" ]]
+GSETTINGS_BACKEND=memory ame desktop privacy trash 7 >/dev/null
+GSETTINGS_BACKEND=memory ame desktop privacy trash off >/dev/null
+for wrong in 0 3651 -1 7x; do
+    GSETTINGS_BACKEND=memory ame desktop privacy trash "${wrong}" >/dev/null 2>&1 && false
+done
+GSETTINGS_BACKEND=memory ame desktop privacy clipboard 7 >/dev/null 2>&1 && false
 # Space Bar's own menu shortcut defaults to Super+W, which closes a window here, so it has to be cleared
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.space-bar.shortcuts open-menu)" == "@as []" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.space-bar.shortcuts enable-activate-workspace-shortcuts)" == "false" ]]

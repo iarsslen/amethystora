@@ -100,17 +100,6 @@ FEDORA_PACKAGES=(
     mesa-libGLU
     mozc
     nautilus-gsconnect
-    # The VPNs people are given at work: Fortinet, L2TP/IPsec, IPsec (IKEv2) and Microsoft's SSTP. OpenConnect,
-    # OpenVPN and vpnc come with the base image; PPTP is left out on purpose (MS-CHAPv2 breaks offline).
-    # None of them runs a service until a connection comes up (17-cleanup.sh frees the modules L2TP needs).
-    NetworkManager-fortisslvpn
-    NetworkManager-fortisslvpn-gnome
-    NetworkManager-l2tp
-    NetworkManager-l2tp-gnome
-    NetworkManager-libreswan
-    NetworkManager-libreswan-gnome
-    NetworkManager-sstp
-    NetworkManager-sstp-gnome
     oddjob-mkhomedir
     opendyslexic-fonts
     openssh-askpass

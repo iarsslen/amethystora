@@ -112,6 +112,55 @@ clipboard KEEP="":
     esac
     echo "It is sealed on disk, under a key in your login keyring."
 
+# Empty the trash of what was deleted more than DAYS days ago (1 to 3650), checked every hour while you are logged in, or never (off): ame desktop privacy trash DAYS|off
+[positional-arguments]
+privacy WHAT="" VALUE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    schema=org.gnome.desktop.privacy
+    usage() {
+        echo "usage: ame desktop privacy trash DAYS|off"
+        exit 64
+    }
+    [[ "${1:-trash}" == trash ]] || usage
+    value="${2:-}"
+    if [[ -z "${value}" ]]; then
+        current=off
+        if [[ "$(gsettings get "${schema}" remove-old-trash-files)" == true ]]; then
+            current="$(gsettings get "${schema}" old-files-age | sed 's/^uint32 //')"
+        fi
+        value="$(gum choose --header "Empty the trash of what was deleted more than this many days ago (current: ${current})" \
+            --selected "${current}" 7 14 30 60 off)"
+    fi
+    if [[ "${value}" == off ]]; then
+        gsettings set "${schema}" remove-old-trash-files false
+        gsettings set "${schema}" remove-old-temp-files false
+    elif [[ "${value}" =~ ^[0-9]+$ ]] && ((10#${value} >= 1 && 10#${value} <= 3650)); then
+        gsettings set "${schema}" old-files-age "$((10#${value}))"
+        gsettings set "${schema}" remove-old-trash-files true
+        gsettings set "${schema}" remove-old-temp-files true
+    else
+        usage
+    fi
+    # GNOME's housekeeping reads these keys when it starts and when a key of its own schema changes, never
+    # when they do (gnome-settings-daemon 50, gsd-disk-space.c): one of its own keys changed and put back
+    # makes the running session take them now
+    housekeeping=org.gnome.settings-daemon.plugins.housekeeping
+    was="$(dconf read /org/gnome/settings-daemon/plugins/housekeeping/min-notify-period)"
+    period="$(gsettings get "${housekeeping}" min-notify-period | sed 's/^[a-z0-9]* //')"
+    gsettings set "${housekeeping}" min-notify-period "$((period > 1 ? period - 1 : period + 1))"
+    if [[ -n "${was}" ]]; then
+        gsettings set "${housekeeping}" min-notify-period "${was}"
+    else
+        gsettings reset "${housekeeping}" min-notify-period
+    fi
+    if [[ "${value}" == off ]]; then
+        echo "The trash is never emptied by itself."
+    else
+        echo "The trash is emptied of what was deleted more than $((10#${value})) days ago, checked every hour while you are logged in."
+        echo "What it empties stays in the snapshots and the backup, where they are on."
+    fi
+
 # The top bar's widgets, which the AI agent can make: list, make, new, run, fix, on, off, remove (amethystora-widgets)
 [no-cd]
 [no-exit-message]

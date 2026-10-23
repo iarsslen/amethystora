@@ -7,7 +7,7 @@
 # phases, in seven starts:
 #   1. The list: its speed, its commands, what it reads without root (the boot menu, sched_ext); the hotkey
 #      against every other key of GNOME and its extensions; custom29 in the setup file; every direct card
-#      (theme, wallpaper, transition and its length, layout, the clipboard history, widgets, greeting, terminal tools, phone pairing,
+#      (theme, wallpaper, transition and its length, layout, the clipboard history, the trash, widgets, greeting, terminal tools, phone pairing,
 #      the agent and which one, the AUR off, web apps removed, also by names with spaces and a leading dash, the
 #      setup file saved).
 #   2. The window, opened with its hotkey: a switch clicked, a terminal opened and closed, the list read again
@@ -327,6 +327,12 @@ EOF
     set_direct clipboard session \
         "[[ \"\$(runuser -u ${TEST_USER} -- gsettings get org.gnome.shell.extensions.amethystora-clipboard keep-history)\" == \"'session'\" ]]"
     set_direct clipboard "${keep:-always}"
+    trash="$(state trash)"
+    set_direct trash off \
+        "[[ \"\$(runuser -u ${TEST_USER} -- gsettings get org.gnome.desktop.privacy remove-old-trash-files)\" == false ]]"
+    set_direct trash 7 \
+        "[[ \"\$(runuser -u ${TEST_USER} -- gsettings get org.gnome.desktop.privacy old-files-age)\" == 'uint32 7' ]]"
+    set_direct trash "${trash:-30}"
     set_direct greeting off "[[ -e ${CONFIG}/no-greeting ]]"
     set_direct greeting on "[[ ! -e ${CONFIG}/no-greeting ]]"
     bling="$(state bling)"

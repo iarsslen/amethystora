@@ -185,6 +185,15 @@ next-entry=@as []
 private-mode-binding=@as []
 excluded-apps=['org.keepassxc.KeePassXC', 'KeePassXC', 'org.gnome.World.Secrets', 'com.bitwarden.desktop', 'Bitwarden', '1Password', 'com.onepassword.OnePassword', 'me.proton.Pass', 'Proton Pass']
 
+# The trash empties itself of what was deleted more than 30 days ago (GNOME's housekeeping, as the person
+# who turns it on in Settings > Privacy gets; ame desktop privacy trash changes it). What was deleted is
+# still in the snapshots and the backup. remove-old-temp-files does nothing on a systemd system (systemd's
+# tmp.conf ages /tmp and /var/tmp); it is set only so that Settings shows the one switch on
+[org.gnome.desktop.privacy]
+remove-old-trash-files=true
+remove-old-temp-files=true
+old-files-age=uint32 30
+
 [org.gnome.shell.keybindings]
 switch-to-application-1=['<Alt>1']
 switch-to-application-2=['<Alt>2']

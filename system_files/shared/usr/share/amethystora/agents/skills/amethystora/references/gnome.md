@@ -9,6 +9,8 @@
 - Windows tile with PaperWM unless the user chose classic, floating windows: `ame desktop layout
   classic` or `tiling`, remembered in `~/.config/amethystora/layout`. Change the layout with that
   command, not by turning PaperWM off yourself, or the next image update turns it back on.
+- The trash empties itself of what was deleted more than 30 days ago: `ame desktop privacy trash
+  DAYS|off` changes it, not `gsettings set`, which the running session would not read until the next login.
 - Something to show in the top bar (a widget, an indicator, a timer, a status, a switch): follow the
   `amethystora-widgets` skill, which makes it a folder in `~/.config/amethystora/widgets`. Never write
   a GNOME Shell extension for it.

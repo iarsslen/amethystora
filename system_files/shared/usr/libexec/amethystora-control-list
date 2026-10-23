@@ -145,6 +145,7 @@ read_in_background raid /usr/libexec/amethystora-raid status --json
 # The quick ones too, which one after another took a fifth of a second in a VM
 read_in_background transitions gsettings list-recursively org.gnome.shell.extensions.amethystora-transitions
 read_in_background clipboard gsettings get org.gnome.shell.extensions.amethystora-clipboard keep-history
+read_in_background privacy gsettings list-recursively org.gnome.desktop.privacy
 read_in_background animations gsettings get org.gnome.desktop.interface enable-animations
 read_in_background extensions gsettings get org.gnome.shell enabled-extensions
 read_in_background waydroid-enabled systemctl is-enabled waydroid-container.service
@@ -278,6 +279,25 @@ USAGE="ame desktop clipboard always|restart|session"
 item desktop clipboard choice "$(gettext "Clipboard history")" \
     "$(gettext "How long what you copy is kept, sealed under a key in your login keyring. Super+Shift+V shows it.")" \
     "${KEEP}" desktop#the-clipboard
+
+# How old what is in the trash gets before GNOME's housekeeping empties it (org.gnome.desktop.privacy)
+TRASH=""
+if [[ "$(ended privacy)" != 0 ]]; then
+    REASON="$(gettext "GNOME's privacy settings could not be read.")"
+elif said privacy | grep -q '^[^ ]* remove-old-trash-files true$'; then
+    TRASH="$(said privacy | sed -n 's/^[^ ]* old-files-age \(uint32 \)\{0,1\}//p')"
+else
+    TRASH=off
+fi
+for days in 7 14 30 60; do
+    choice "${days}" "$(eval_ngettext "After \${days} day" "After \${days} days" "${days}")" "" false ame desktop privacy trash "${days}"
+done
+choice off "$(gettext "Never")" "$(gettext "Only when you empty it")" false ame desktop privacy trash off
+GROUP="$(gettext "Privacy")"
+USAGE="ame desktop privacy trash DAYS|off"
+item desktop trash choice "$(gettext "Empty the trash")" \
+    "$(gettext "What was deleted longer ago than this leaves the trash by itself, checked every hour while you are logged in. The snapshots and the backup still have it.")" \
+    "${TRASH}" desktop#the-trash
 
 # The widgets, and the commands for each: the window puts a listed widget's id, or a new one it checked
 # against the rule amethystora-widgets has for ids, in the place of {id}

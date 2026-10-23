@@ -81,5 +81,4 @@ firewire audio interface not detected	manual/hardware#sound-cards|knowledge/by-d
 which nvidia image for a gtx 1060	manual/hardware#graphics|playbook/nvidia#*
 an encrypted folder that locks with the screen	manual/security#a-private-folder-that-locks-with-the-screen|helper/amethystora-private-folder#*
 copy text from an image on the screen	manual/desktop#copying-text-from-the-screen|knowledge/desktop#copying-text-out-of-a-picture-on-the-screen
-my work vpn will not connect	playbook/vpn-will-not-connect#*|manual/software#vpn
-l2tp ipsec vpn says ikev1 is not allowed	playbook/vpn-will-not-connect#*|manual/software#vpn
+deleted file gone from the trash	knowledge/by-design#the-trash-empties-itself-after-30-days|manual/desktop#the-trash|control/trash|ame/desktop/privacy

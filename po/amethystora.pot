@@ -1953,6 +1953,37 @@ msgid "How long what you copy is kept, sealed under a key in your login keyring.
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "GNOME's privacy settings could not be read."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "After ${days} day"
+msgid_plural "After ${days} days"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Never"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Only when you empty it"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Privacy"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Empty the trash"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "What was deleted longer ago than this leaves the trash by itself, checked every hour while you are logged in. The snapshots and the backup still have it."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "The bar is not showing widgets: the extension that shows them is off."
 msgstr ""
 

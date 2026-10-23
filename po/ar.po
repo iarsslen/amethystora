@@ -2013,3 +2013,38 @@ msgstr "سجل الحافظة"
 #: usr/libexec/amethystora-control-list
 msgid "How long what you copy is kept, sealed under a key in your login keyring. Super+Shift+V shows it."
 msgstr "مدة الاحتفاظ بما تنسخه، مختومًا بمفتاح من حلقة مفاتيح الدخول. يعرضه Super+Shift+V."
+
+#: usr/libexec/amethystora-control-list
+msgid "GNOME's privacy settings could not be read."
+msgstr "تعذّرت قراءة إعدادات الخصوصية في GNOME."
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "After ${days} day"
+msgid_plural "After ${days} days"
+msgstr[0] "بعد ${days} يوم"
+msgstr[1] "بعد يوم واحد"
+msgstr[2] "بعد يومين"
+msgstr[3] "بعد ${days} أيام"
+msgstr[4] "بعد ${days} يومًا"
+msgstr[5] "بعد ${days} يوم"
+
+#: usr/libexec/amethystora-control-list
+msgid "Never"
+msgstr "أبدًا"
+
+#: usr/libexec/amethystora-control-list
+msgid "Only when you empty it"
+msgstr "فقط عندما تفرغها بنفسك"
+
+#: usr/libexec/amethystora-control-list
+msgid "Privacy"
+msgstr "الخصوصية"
+
+#: usr/libexec/amethystora-control-list
+msgid "Empty the trash"
+msgstr "إفراغ سلة المهملات"
+
+#: usr/libexec/amethystora-control-list
+msgid "What was deleted longer ago than this leaves the trash by itself, checked every hour while you are logged in. The snapshots and the backup still have it."
+msgstr "ما حُذف قبل ذلك يخرج من سلة المهملات من تلقاء نفسه، ويُفحص كل ساعة ما دمت مسجّل الدخول. ولا يزال في اللقطات والنسخة الاحتياطية."

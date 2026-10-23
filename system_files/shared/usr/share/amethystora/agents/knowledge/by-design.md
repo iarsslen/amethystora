@@ -71,6 +71,14 @@ or log in with the password. How long it is kept: `ame desktop clipboard always|
 that did not open with the keyring's key (another machine's, or a keyring made again after a password reset)
 was moved aside to `history.unreadable`, not deleted.
 
+### The trash empties itself after 30 days
+
+Symptom: a file deleted a month or more ago is gone from the trash, on the machine or on a USB disk. Confirm:
+`gsettings get org.gnome.desktop.privacy remove-old-trash-files` (`true` as the image ships it) and `old-files-age`
+(30); GNOME's housekeeping checks every hour of a session. Change: `ame desktop privacy trash DAYS|off` (Control's
+Empty the trash), which applies to the running session at once. Get the file back from the hourly snapshots or the
+backup (`amethystora-backups`), where they are on.
+
 ## The kernel
 
 ### dmesg, ptrace and core dumps are restricted

@@ -246,3 +246,20 @@ exception is PaperWM under the [classic layout](#classic-windows), which stays o
 
 `Super+Shift+F` opens a Files window and `Super+E` your home folder. Folders open on a grid, where
 the icon theme's folders show as the artwork they are.
+
+## The trash
+
+The trash empties itself of what you deleted more than 30 days ago. GNOME checks it every hour while
+you are logged in, and the first check comes an hour after you log in. It does the same to the trash of
+a USB disk or other removable drive that is plugged in at the time. A file emptied from the trash is
+still in the [hourly snapshots and the backup](security.md#backups), where you have them on.
+
+Choose another age, or never, in [Control](control.md)'s **Empty the trash**, in GNOME Settings under
+**Privacy**, or in a terminal:
+
+```bash
+ame desktop privacy trash 7     # what was deleted more than a week ago
+ame desktop privacy trash off   # only when you empty it yourself
+```
+
+**Empty Trash** in Files empties all of it at once, whatever the age.
