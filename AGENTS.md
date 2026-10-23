@@ -1024,7 +1024,9 @@ as specs by agents who read them (`plans/amethystora-ui/spec-*.md`), and the cod
 GNOME's own API only. Never read, copy or paraphrase an upstream extension's code, CSS, shaders or strings into it,
 and never paste a GNOME Shell function's body into it (wrap the original instead).
 `plans/amethystora-ui/IMPLEMENTERS.md` is the brief. `tweaks` (animations at 0.6 through the shell's slow-down factor,
-never `enable-animations`; no workspace popup; no Activities button) replaced Just Perfection.
+never `enable-animations`; no workspace popup; no Activities button) replaced Just Perfection. Each extension a module
+replaces is added to `user-setup.hooks.d/22-retire-extensions.sh`, with its version raised: accounts drop it from their
+extension lists and lose its settings, unless they installed it themselves.
 
 ### Packages from other distributions
 
