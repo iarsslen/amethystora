@@ -10,20 +10,23 @@
 #   2  Space Bar and TopHat (the workspaces and meters modules)
 #   3  AppIndicator (the tray module)
 #   4  Caffeine (dropped: it was never switched on)
+#   5  Search Light and GNOME Fuzzy App Search (the search and fuzzy modules)
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
 command -v gsettings >/dev/null || exit 0
 
-version-script retire-extensions user 4 || exit 0
+version-script retire-extensions user 5 || exit 0
 
-# uuid, then the dconf folder its settings were in
+# uuid, then the dconf folder its settings were in, then any folder it left in ~/.cache
 RETIRED=(
     "just-perfection-desktop@just-perfection /org/gnome/shell/extensions/just-perfection/"
     "space-bar@luchrioh /org/gnome/shell/extensions/space-bar/"
     "tophat@fflewddur.github.io /org/gnome/shell/extensions/tophat/"
     "appindicatorsupport@rgcjonas.gmail.com /org/gnome/shell/extensions/appindicator/"
     "caffeine@patapon.info /org/gnome/shell/extensions/caffeine/"
+    "search-light@icedman.github.com /org/gnome/shell/extensions/search-light/"
+    "gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com /org/gnome/shell/extensions/gnome-fuzzy-app-search/ gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com"
 )
 
 OWN="${XDG_DATA_HOME:-${HOME}/.local/share}/gnome-shell/extensions"
@@ -31,7 +34,7 @@ uuids() { gsettings get org.gnome.shell "$1" | grep -oE "'[^']+'" | tr -d "'" ||
 variant() { (($#)) && printf "'%s'\n" "$@" | paste -sd, | sed 's/^/[/; s/$/]/' || echo '@as []'; }
 
 for entry in "${RETIRED[@]}"; do
-    read -r uuid folder <<<"${entry}"
+    read -r uuid folder cache <<<"${entry}"
     [[ -e "${OWN}/${uuid}" ]] && continue
     for list in enabled-extensions disabled-extensions; do
         mapfile -t current < <(uuids "${list}")
@@ -40,6 +43,7 @@ for entry in "${RETIRED[@]}"; do
         ((${#kept[@]} != ${#current[@]})) && gsettings set org.gnome.shell "${list}" "$(variant "${kept[@]}")"
     done
     command -v dconf >/dev/null && dconf reset -f "${folder}"
+    [[ -n ${cache} ]] && rm -rf "${XDG_CACHE_HOME:-${HOME}/.cache}/${cache}"
 done
 
 exit 0

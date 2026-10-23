@@ -27,13 +27,16 @@ also show [widgets](widgets.md) of your own, which the AI agent makes for you on
 
 ## Finding things
 
-- `Super+Space` searches for apps, files and settings, and launches whatever you pick.
+- `Super+Space` opens a search box over your windows: type, and `Enter` opens the first result.
+  `Escape`, the same keys again or a click elsewhere closes it. Right-click a result for its menu, or
+  drag an app onto the dock to pin it.
 - `Super` alone opens the overview: every open window at once, with search at the top.
 - `Super+A` shows every installed app. Some are gathered in folders: **Utilities** (Flatseal, Warehouse,
   Extension Manager, Firmware, Ignition, Impression, Refine and the like), **Productivity**,
   **Development**, **Containers**, **Games**, **Gaming Utilities** and **Wine**.
 
-Both searches forgive typos in app names: `calxu` still finds Calculator.
+Both searches forgive typos, missing letters and initials in app names: `calxu` still finds
+Calculator, and `mc` finds Mission Center. They find Power Off, Restart and the other actions too.
 
 ## The clipboard
 
@@ -234,11 +237,9 @@ These GNOME Shell extensions come with the image:
 | --- | --- |
 | PaperWM | [Tiling](#tiling-windows): windows side by side on a scrolling strip |
 | Dash to Dock | The dock |
-| Search Light | The search on `Super+Space` |
-| Fuzzy App Search | App search that forgives typos |
 | Amethystora Clipboard | The [clipboard history](#the-clipboard) on `Super+Shift+V`, sealed: a copy of Clipboard Indicator |
 | Blur my Shell | The frosted glass behind the panel, the overview, menus and notifications, and windows you are not using made slightly see-through (**Applications** in its settings) |
-| Amethystora UI | Amethystora's own desktop, written for this image: the workspaces, the meters and the tray icons in the top bar, quicker animations, no popup when you change workspace, and no Activities button |
+| Amethystora UI | Amethystora's own desktop, written for this image: the workspaces, the meters and the tray icons in the top bar, the search on `Super+Space` and app search that forgives typos, quicker animations, no popup when you change workspace, and no Activities button |
 | GSConnect | Your Android phone, on the [networks you name home](security.md#on-from-the-start): notifications, files, clipboard, texts. Off until you [turn it on](hardware.md#phones) |
 | Logo menu | The Amethystora logo at the top left and [its menu](#the-top-bar) of the system's tools |
 | Gradia | Annotate a screenshot straight after taking it, in the Gradia app, and [copy the text out of it](#copying-text-from-the-screen) |

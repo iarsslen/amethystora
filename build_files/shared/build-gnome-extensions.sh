@@ -55,9 +55,6 @@ meson setup --prefix=/usr /usr/share/gnome-shell/extensions/gsconnect@andyholmes
 meson install -C /usr/share/gnome-shell/extensions/gsconnect@andyholmes.github.io/_build --skip-subprojects
 # GSConnect installs schemas to /usr/share/glib-2.0/schemas and meson compiles them automatically
 
-# Search Light
-glib-compile-schemas --strict /usr/share/gnome-shell/extensions/search-light@icedman.github.com/schemas
-
 # Amethystora Transitions: written for this image, so it is in system_files rather than a submodule,
 # and under the image's own licence. Its schema is installed system-wide from there too, so that
 # gsettings and ame desktop transition reach it; the compile at the end picks it up.
@@ -94,9 +91,9 @@ enable_extension "amethystora-ui@iarsslen.github.io"
 
 # --- Extensions installed from extensions.gnome.org --------------------------------------------
 #
-# These are not submodules. PaperWM and Fuzzy App Search need no build step, and come from there: the
-# reviewed builds from extensions.gnome.org, each pinned to one upload and to the SHA-256 of its zip,
-# which extensions.gnome.org does not sign.
+# Not a submodule: PaperWM needs no build step, and comes from there: the reviewed build from
+# extensions.gnome.org, pinned to one upload and to the SHA-256 of its zip, which extensions.gnome.org
+# does not sign.
 #
 # To update one: read the new upload id for this GNOME out of
 # https://extensions.gnome.org/extension-info/?uuid=<uuid>, download that upload and change its
@@ -129,7 +126,7 @@ install_ego_extension() {
 
     # The Amethystora defaults for these live in zz1-amethystora-modifications.gschema.override,
     # and an override only applies to a schema installed system-wide (and to the extension's own
-    # copy, below). Fuzzy App Search has no settings, so no schema.
+    # copy, below).
     if [[ -d "${directory}/schemas" ]]; then
         install -Dpm0644 -t /usr/share/glib-2.0/schemas "${directory}"/schemas/*.gschema.xml
         glib-compile-schemas --strict "${directory}/schemas"
@@ -145,9 +142,6 @@ GNOME_MAJOR="$(gnome-shell --version | grep -oE '[0-9]+' | head -n1)"
 install_ego_extension "paperwm@paperwm.github.com" 148 70147 \
     2cef72ed7e31df4962584b52dabda9246c0ae81973b05f8d1202d9dbe9a3f794
 
-# GNOME Fuzzy App Search: app search that forgives typos, in the overview and in Search Light
-install_ego_extension "gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com" 28 70194 \
-    16403a52ac1faada1ceae77032ff772ec460c3206b0bd48638ba21162549ee9f
 
 # GNOME Shell's getSettings() reads an extension's own compiled schemas before the system's, and the
 # overrides in /usr/share/glib-2.0/schemas never reach those: without this, every extension above ran

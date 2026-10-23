@@ -265,7 +265,7 @@ test ! -e /usr/bin/distroshelf-helper
 
 # GNOME Shell extensions built from the git submodules (build-gnome-extensions.sh)
 for extension in blur-my-shell@aunetx \
-    dash-to-dock@micxgx.gmail.com search-light@icedman.github.com; do
+    dash-to-dock@micxgx.gmail.com; do
     test -f "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
 done
 test -d /usr/share/gnome-shell/extensions/tmp && false
@@ -306,7 +306,7 @@ done
 # Tiling and top bar: each extension from extensions.gnome.org is installed, enabled, supports this
 # GNOME, and has its schema readable system-wide so the defaults in zz1-amethystora-modifications apply
 GNOME_MAJOR="$(gnome-shell --version | grep -oE '[0-9]+' | head -n1)"
-for extension in paperwm@paperwm.github.com gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com; do
+for extension in paperwm@paperwm.github.com; do
     test -f "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
     jq -e --arg shell "${GNOME_MAJOR}" '.["shell-version"] | index($shell)' \
         "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
@@ -381,7 +381,8 @@ for module in $(grep -oE "from './modules/[a-z]+\.js'" "${UI_EXTENSION}/extensio
     test -s "${UI_EXTENSION}/modules/${module}.js"
 done
 for retired in just-perfection-desktop@just-perfection space-bar@luchrioh tophat@fflewddur.github.io \
-    appindicatorsupport@rgcjonas.gmail.com caffeine@patapon.info; do
+    appindicatorsupport@rgcjonas.gmail.com caffeine@patapon.info search-light@icedman.github.com \
+    gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com; do
     test ! -e "/usr/share/gnome-shell/extensions/${retired}"
     test ! -e "/usr/share/licenses/${retired}"
     grep -q "'${retired}'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override && false
@@ -413,6 +414,14 @@ for theme in /usr/share/amethystora/themes/*/; do
     done
 done
 rm -rf "${UI_RENDER}"
+# The search box is on Super+Space alone, which GNOME's input-source switch must not take (zz0 moves it to
+# Shift+Super+Space): on a base without that line the box never opened
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.search)" == "open" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.search open)" == "['<Super>space']" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.keybindings switch-input-source)" == "['<Shift><Super>space']" ]]
+# App search keeps Parental Controls' filter, as GNOME's own does
+grep -q "shouldShowApp" "${UI_EXTENSION}/modules/fuzzy.js"
+test -s "${UI_EXTENSION}/modules/fuzzy/matcher.js"
 # The tweaks: animations at 0.6 of their time through the shell's slow-down factor alone. GNOME's own switch for
 # animations is the person's (Settings, Accessibility), and nothing here may turn it back on.
 grep -q "^const SPEED = 0.6;$" "${UI_EXTENSION}/modules/tweaks.js"

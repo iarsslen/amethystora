@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The key of the search box (modules/search.js). What it searches, and how, is GNOME's own search. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.search" path="/org/gnome/shell/extensions/amethystora-ui/search/">
+    <key name="open" type="as">
+      <default><![CDATA[['<Super>space']]]></default>
+      <summary>Open or close the search box</summary>
+      <description>Search apps, files, settings and everything else GNOME searches, from a box in the middle of the screen, without going to the overview.</description>
+    </key>
+  </schema>
+</schemalist>

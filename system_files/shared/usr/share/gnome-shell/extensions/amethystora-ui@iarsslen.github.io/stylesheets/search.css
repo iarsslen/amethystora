@@ -1,0 +1,86 @@
+/* The search box (modules/search.js). Its colours are fixed, dark with white text, in every theme, so they are here
+   rather than in a themed template. The field and the results are the overview's own while they are lent to the
+   box: every rule below is inside the box, and the overview keeps its own look. */
+
+.amethystora-search-box {
+  background-color: rgba(0, 0, 0, 0.92);
+  border: 1px solid rgb(58, 58, 58);
+  border-radius: 16px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  padding: 2px;
+  color: #ffffff;
+}
+
+/* The field: the box's whole width, no frame of its own, large text */
+.amethystora-search-box .search-entry,
+.amethystora-search-box .search-entry:hover,
+.amethystora-search-box .search-entry:focus,
+.amethystora-search-box .search-entry:focus:hover,
+.amethystora-search-box .search-entry:insensitive {
+  width: auto;
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 8px;
+  padding: 18px;
+  margin: 0;
+  color: #ffffff;
+  font-size: 16pt;
+}
+
+.amethystora-search-box .search-entry .search-entry-icon {
+  color: #ffffff;
+}
+
+.amethystora-search-box .search-entry StLabel.hint-text {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* The results: 20 px below the field, 12 px from the sides */
+.amethystora-search-box #searchController {
+  padding: 20px 12px 12px 12px;
+}
+
+.amethystora-search-box #searchResults {
+  margin: 0;
+}
+
+/* Each list of results (files, settings, the calculator...) on a rounded card */
+.amethystora-search-box .search-section-content {
+  background-color: rgba(100, 100, 100, 0.2);
+  border-radius: 16px;
+  color: #ffffff;
+}
+
+/* App tiles and list rows: clear, lighter where the pointer or the keyboard is, lighter still when selected */
+.amethystora-search-box .overview-tile,
+.amethystora-search-box .grid-search-result,
+.amethystora-search-box .list-search-result,
+.amethystora-search-box .search-provider-icon {
+  background-color: transparent;
+  box-shadow: none;
+  color: #ffffff;
+}
+
+.amethystora-search-box .overview-tile:hover,
+.amethystora-search-box .overview-tile:focus,
+.amethystora-search-box .overview-tile:active,
+.amethystora-search-box .grid-search-result:hover,
+.amethystora-search-box .grid-search-result:focus,
+.amethystora-search-box .grid-search-result:active,
+.amethystora-search-box .list-search-result:hover,
+.amethystora-search-box .list-search-result:focus,
+.amethystora-search-box .list-search-result:active,
+.amethystora-search-box .search-provider-icon:hover,
+.amethystora-search-box .search-provider-icon:focus,
+.amethystora-search-box .search-provider-icon:active {
+  background-color: rgba(100, 100, 100, 0.2);
+  box-shadow: none;
+}
+
+.amethystora-search-box .overview-tile:selected,
+.amethystora-search-box .grid-search-result:selected,
+.amethystora-search-box .list-search-result:selected,
+.amethystora-search-box .search-provider-icon:selected {
+  background-color: rgba(100, 100, 100, 0.4);
+}
