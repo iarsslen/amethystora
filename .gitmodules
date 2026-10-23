@@ -1,7 +1,3 @@
-[submodule "system_files/shared/usr/share/gnome-shell/extensions/appindicatorsupport@rgcjonas.gmail.com"]
-	path = system_files/shared/usr/share/gnome-shell/extensions/appindicatorsupport@rgcjonas.gmail.com
-	url = https://github.com/ubuntu/gnome-shell-extension-appindicator.git
-	branch = v66
 [submodule "system_files/shared/usr/share/gnome-shell/extensions/tmp/bazaar-integration@kolunmi.github.io"]
 	path = system_files/shared/usr/share/gnome-shell/extensions/tmp/bazaar-integration@kolunmi.github.io
 	url = https://github.com/bazaar-org/bazaar-companion.git

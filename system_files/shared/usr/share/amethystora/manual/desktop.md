@@ -13,8 +13,11 @@ the keys are in your fingers you will rarely reach for it.
   the next or previous workspace. Drag a workspace along the row to move it, its windows with it, or
   drop a window from the overview on one to send it there. Right-click a workspace to give it a name.
 - **In the middle**, the clock. Click it, or press `Super+V`, for notifications and the calendar.
-- **On the right**, CPU, memory and network meters, then the system menu: Wi-Fi, sound, power and
-  the rest of the quick settings. Click a meter for the details: each processor, the memory and the
+- **On the right**, CPU, memory and network meters, the icons apps keep in the tray, then the system
+  menu: Wi-Fi, sound, power and the rest of the quick settings. Right-click a tray icon for its app's
+  menu, double-click it to open the app, and middle-click it for the app's second action. A Flatpak app
+  shows its icon only when it may talk to the tray (`org.kde.StatusNotifierWatcher`), and an old X11
+  one only while X11 apps are allowed. Click a meter for the details: each processor, the memory and the
   network over the last few minutes, the busiest processes, and a button that opens Mission Center.
   The network meter counts your Wi-Fi and wired connections only, so a VPN or a container's traffic
   is not counted twice.
@@ -235,8 +238,7 @@ These GNOME Shell extensions come with the image:
 | Fuzzy App Search | App search that forgives typos |
 | Amethystora Clipboard | The [clipboard history](#the-clipboard) on `Super+Shift+V`, sealed: a copy of Clipboard Indicator |
 | Blur my Shell | The frosted glass behind the panel, the overview, menus and notifications, and windows you are not using made slightly see-through (**Applications** in its settings) |
-| Amethystora UI | Amethystora's own desktop, written for this image: the workspaces and the meters in the top bar, quicker animations, no popup when you change workspace, and no Activities button |
-| AppIndicator | Tray icons for apps that use them |
+| Amethystora UI | Amethystora's own desktop, written for this image: the workspaces, the meters and the tray icons in the top bar, quicker animations, no popup when you change workspace, and no Activities button |
 | Caffeine | Off until you turn it on in Extension Manager; then a switch in the quick settings keeps the screen awake |
 | GSConnect | Your Android phone, on the [networks you name home](security.md#on-from-the-start): notifications, files, clipboard, texts. Off until you [turn it on](hardware.md#phones) |
 | Logo menu | The Amethystora logo at the top left and [its menu](#the-top-bar) of the system's tools |

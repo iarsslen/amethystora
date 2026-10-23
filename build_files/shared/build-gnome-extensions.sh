@@ -22,9 +22,6 @@ enable_extension() {
 
 # Build Extensions
 
-# AppIndicator Support
-glib-compile-schemas --strict /usr/share/gnome-shell/extensions/appindicatorsupport@rgcjonas.gmail.com/schemas
-
 # Bazaar Companion
 mv /usr/share/gnome-shell/extensions/tmp/bazaar-integration@kolunmi.github.io/src/ /usr/share/gnome-shell/extensions/bazaar-integration@kolunmi.github.io/
 

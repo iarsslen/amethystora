@@ -12,6 +12,7 @@ import {Theme} from './modules/theme.js';
 import {Tweaks} from './modules/tweaks.js';
 import {Workspaces} from './modules/workspaces.js';
 import {Meters} from './modules/meters.js';
+import {Tray} from './modules/tray.js';
 
 // In the order they start, by the name of their stylesheet; they stop in the opposite order. The glass comes after
 // the dock and the panel's modules, whose actors it draws behind.
@@ -20,6 +21,7 @@ const MODULES = [
     ['tweaks', Tweaks],
     ['workspaces', Workspaces],
     ['meters', Meters],
+    ['tray', Tray],
 ];
 
 export default class AmethystoraUI extends Extension {

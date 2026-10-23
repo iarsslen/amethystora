@@ -167,7 +167,6 @@ system_files/shared/usr/share/gnome-shell/extensions, under the licence given;
 each licence ships in the extension's folder, Caffeine's in
 usr/share/licenses/caffeine@patapon.info:
 
-  - AppIndicator Support  GPL-2.0-or-later  https://github.com/ubuntu/gnome-shell-extension-appindicator
   - Bazaar Integration    GPL-3.0           https://github.com/bazaar-org/bazaar-companion
   - Blur my Shell         GPL-3.0           https://github.com/aunetx/blur-my-shell
   - Caffeine              GPL-2.0           https://github.com/eonpatapon/gnome-shell-extension-caffeine

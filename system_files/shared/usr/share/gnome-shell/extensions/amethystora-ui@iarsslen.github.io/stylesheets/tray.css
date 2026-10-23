@@ -1,0 +1,16 @@
+/* Tray icons: closer together than the panel's own buttons, so that a row of them stays short, with the icon at
+   the panel's icon size and no room of its own around it. Colours are the panel's. */
+
+#panel .panel-button.amethystora-tray-button {
+    -natural-hpadding: 10px;
+}
+
+#panel .panel-button.amethystora-tray-button .amethystora-tray-icon,
+#panel .panel-button.amethystora-tray-button .amethystora-tray-overlay {
+    padding: 0;
+    margin: 0;
+}
+
+.amethystora-tray-box {
+    spacing: 4px;
+}
