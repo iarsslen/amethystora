@@ -58,3 +58,17 @@ these commands in the agent's own shell, as the user. Read before writing, chang
 - The dock's apps: `gsettings get org.gnome.shell favorite-apps`.
 - Windows tile with PaperWM unless the user chose classic windows: `ame desktop layout tiling|classic` (the
   `layout` entry of `state settings`); never turn PaperWM off by hand, or an update turns it on again.
+
+## Copying text out of a picture on the screen
+
+- It is Gradia's, nothing of the image's own: `Print`, drag an area, then **Extract Text** or `Ctrl+E` in
+  GNOME's screenshot UI (the button comes from the `gradia-integration@alexandervanhee.github.io` extension and
+  needs the Flatpak `be.alexandervanhee.gradia`). The text is copied at once. It works on an area only; the
+  button is off in window, screen and recording modes.
+- Offline after one prompted download: the first use opens Gradia's "OCR Language Models" page, and the
+  chosen language's `tessdata_best` file comes from GitHub into
+  `~/.var/app/be.alexandervanhee.gradia/data/tessdata`. Look there to see which languages are installed.
+- The capture is kept in the screenshot folder like any screenshot. There is no `tesseract` command in the
+  image and no `ame` command for this; do not install one for the user.
+- Button missing: `flatpak info be.alexandervanhee.gradia` and `gnome-extensions info
+  gradia-integration@alexandervanhee.github.io` (Extension Manager turns it back on; an image update does too).

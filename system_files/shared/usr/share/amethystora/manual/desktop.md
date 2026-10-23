@@ -54,6 +54,27 @@ what you copy from then on, under **Unlock to see earlier items**. Click it and 
 see the rest. The history is sealed under this machine's keyring: on another machine, or after an
 administrator resets your password, it does not open, and it is kept aside as `history.unreadable`.
 
+## Copying text from the screen
+
+Text in a picture, a video call, an error dialog that cannot be selected, a scanned page: Gradia reads it
+and copies it for you, on your machine.
+
+1. Press `Print` and drag over the text.
+2. Click **Extract Text** in the screenshot bar, or press `Ctrl+E`.
+3. The first time, Gradia asks for a language. Pick it: this is the one download, of that language's
+   data from GitHub, and it is yours to agree to. After it, nothing leaves the machine.
+4. The text is copied at once, and Gradia says **Copied!**. Paste it anywhere; it is in the
+   [clipboard history](#the-clipboard) like anything else you copy.
+
+Good to know:
+
+- The button works on an area only. It is off when you choose a window, the whole screen or a recording.
+- The capture is saved like any screenshot, in your screenshot folder. Delete it there if you do not want it.
+- The language data lives in `~/.var/app/be.alexandervanhee.gradia/data/tessdata`. Open Gradia's
+  preferences to add another language.
+- Gradia is one of the apps every machine comes with; if you removed it, install it again from Bazaar
+  and the button comes back.
+
 ## The dock
 
 The dock at the bottom holds your pinned apps and the ones that are running. `Alt+1` to `Alt+9`
@@ -211,7 +232,7 @@ These GNOME Shell extensions come with the image:
 | Caffeine | Off until you turn it on in Extension Manager; then a switch in the quick settings keeps the screen awake |
 | GSConnect | Your Android phone, on the [networks you name home](security.md#on-from-the-start): notifications, files, clipboard, texts. Off until you [turn it on](hardware.md#phones) |
 | Logo Menu | The Amethystora logo at the top left: the terminal, Mission Center, Extension Manager, Bazaar, DistroShelf and the overview |
-| Gradia | Annotate a screenshot straight after taking it, in the Gradia app |
+| Gradia | Annotate a screenshot straight after taking it, in the Gradia app, and [copy the text out of it](#copying-text-from-the-screen) |
 | Bazaar integration | Connects the shell to Bazaar, the software centre |
 | Amethystora Transitions | The animation that reveals a new theme or wallpaper ([Transitions](themes.md#transitions)) |
 | Amethystora Widgets | Your own [widgets](widgets.md) in the top bar; nothing until you add one |

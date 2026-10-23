@@ -112,3 +112,6 @@ vm	virtual machine libvirt qemu
 virtual machine	libvirt qemu boxes
 steam	games gaming flatpak x11
 android	waydroid
+ocr	screenshot text gradia extract
+text from image	ocr screenshot gradia extract
+copy text from screenshot	ocr gradia extract text

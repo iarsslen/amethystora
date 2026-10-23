@@ -2,8 +2,9 @@
 """keys.py STEP...: types and clicks on a keyboard and pointer of its own, which the kernel's uinput makes, as
 a person does: GNOME takes it for real input, and gives the focus to what it opens. Run as root (the image
 keeps /dev/uinput root's). A STEP is a key or a chord of keys joined by + (super, ctrl+shift+c, alt+tab,
-return), text: to type, its letters, digits and spaces each pressed in turn, or click:X,Y, the left button at
-X and Y, fractions of the screen's width and height (click:0.5,0.5 is its middle). Waits a moment after each.
+return), text: to type, its letters, digits and spaces each pressed in turn, click:X,Y, the left button at
+X and Y, fractions of the screen's width and height (click:0.5,0.5 is its middle), or drag:X1,Y1,X2,Y2, the
+button held down from the first point to the second. Waits a moment after each.
 GNOME's overview, where a session starts, takes keys for its search, and leaves a window it did not open
 behind it: a click on its workspace (the middle of the screen) leaves it, as a person does.
 
@@ -17,7 +18,7 @@ import time
 
 KEYS = {
     "esc": 1, "tab": 15, "return": 28, "enter": 28, "ctrl": 29, "shift": 42, "alt": 56, "space": 57,
-    "super": 125, "backspace": 14, "up": 103, "down": 108, "left": 105, "right": 106, "f4": 62, "w": 17,
+    "super": 125, "print": 99, "backspace": 14, "up": 103, "down": 108, "left": 105, "right": 106, "f4": 62, "w": 17,
 }
 for i, c in enumerate("1234567890"):
     KEYS[c] = 2 + i
@@ -57,6 +58,26 @@ def click(fd, x, y):
     press(fd, [BTN_LEFT])
 
 
+def drag(fd, x1, y1, x2, y2):
+    x1, y1, x2, y2 = float(x1), float(y1), float(x2), float(y2)
+    emit(fd, EV_ABS, ABS_X, round(x1 * ABS_MAX))
+    emit(fd, EV_ABS, ABS_Y, round(y1 * ABS_MAX))
+    emit(fd, EV_SYN, 0, 0)
+    time.sleep(0.5)
+    emit(fd, EV_KEY, BTN_LEFT, 1)
+    emit(fd, EV_SYN, 0, 0)
+    time.sleep(0.3)
+    # In steps, as a hand moves: a selection follows the pointer it sees move
+    for i in range(1, 11):
+        emit(fd, EV_ABS, ABS_X, round((x1 + (x2 - x1) * i / 10) * ABS_MAX))
+        emit(fd, EV_ABS, ABS_Y, round((y1 + (y2 - y1) * i / 10) * ABS_MAX))
+        emit(fd, EV_SYN, 0, 0)
+        time.sleep(0.1)
+    time.sleep(0.3)
+    emit(fd, EV_KEY, BTN_LEFT, 0)
+    emit(fd, EV_SYN, 0, 0)
+
+
 def main(steps):
     if not steps:
         sys.exit(__doc__)
@@ -86,6 +107,8 @@ def main(steps):
         for step in steps:
             if step.startswith("click:"):
                 click(fd, *step[6:].split(","))
+            elif step.startswith("drag:"):
+                drag(fd, *step[5:].split(","))
             elif step.startswith("text:"):
                 for c in step[5:].lower():
                     press(fd, [KEYS["space" if c == " " else c]])

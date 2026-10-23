@@ -101,6 +101,7 @@ reads what it says (`70-backups.sh` shows how).
 | `05-first-run.sh` | GNOME's first-run setup starts on a machine with no account, and no per-account setup runs in it |
 | `10-account.sh` | the test account `tester` signs in on Wayland, and its first login's setup runs |
 | `20-apps.sh` | each Amethystora app opens and stays open |
+| `22-screen-text.sh` | copying text out of the screen: Gradia and its extension are there, Gradia's language download is where it fetches it, and with a language file in its data folder `Print`, an area dragged over a window showing a known sentence and `Ctrl+E` (Extract Text) put the sentence on the clipboard and leave the capture in the screenshot folder |
 | `25-every-app.sh` | every other app in the app grid opens as the grid starts it and stays open, none crashes or is refused what its manifest asks for (Mission Center's gatherer runs), and neither opening them all nor a restart and a login makes the security watcher say anything |
 | `30-detection.sh` | the thorough profile, after a restart, finds a secret read, the decoy read and a program run from Downloads; Falco's memory |
 | `40-setup.sh` | `ame setup` save, diff and apply against real GNOME settings, Flathub and Homebrew; the setup kept with a backup and read back by `ame restore-setup`; `ame system trust-image`, a switch to an unsigned image refused, `amethystora-image-check` |

@@ -80,3 +80,4 @@ broadcom wifi card has no driver	manual/hardware#wi-fi
 firewire audio interface not detected	manual/hardware#sound-cards|knowledge/by-design#firewire-does-not-load|playbook/no-sound#*
 which nvidia image for a gtx 1060	manual/hardware#graphics|playbook/nvidia#*
 an encrypted folder that locks with the screen	manual/security#a-private-folder-that-locks-with-the-screen|helper/amethystora-private-folder#*
+copy text from an image on the screen	manual/desktop#copying-text-from-the-screen|knowledge/desktop#copying-text-out-of-a-picture-on-the-screen

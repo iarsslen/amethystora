@@ -96,6 +96,7 @@ The same from a terminal: `amethystora-theme list`, `amethystora-theme set <name
 | `Super+L` | Lock the screen |
 | `Super+D` | Show the desktop |
 | `Print` | Take a screenshot or record the screen |
+| `Ctrl+E`, in the screenshot bar | Copy the text out of the selected area (Gradia) |
 | `Ctrl+Shift+Alt+R` | Start or stop a screen recording |
 | `Super+Shift+Space` | Next keyboard layout, when you have more than one |
 | `Super+Escape` | Take the keyboard back from an app that grabbed it, such as a virtual machine |

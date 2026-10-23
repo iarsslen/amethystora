@@ -271,6 +271,14 @@ for extension in appindicatorsupport@rgcjonas.gmail.com blur-my-shell@aunetx caf
 done
 test -d /usr/share/gnome-shell/extensions/tmp && false
 
+# Copying text out of a screenshot is Gradia's, reached through its extension's Extract Text button
+# and Ctrl+E in GNOME's screenshot UI (manual: desktop.md#copying-text-from-the-screen): a submodule
+# bump that drops the button must fail here instead of leaving the manual wrong
+GRADIA_EXTENSION=/usr/share/gnome-shell/extensions/gradia-integration@alexandervanhee.github.io
+grep -q "launchGradiaOcrForFile" "${GRADIA_EXTENSION}/extension.js"
+grep -q "KEY_e" "${GRADIA_EXTENSION}/extension.js"
+grep -q -- "--ocr-file=" "${GRADIA_EXTENSION}/gradiaIntegration.js"
+
 # Every extension has to be readable by the account that logs in, not just by the root this build
 # runs as. GNOME Shell reads metadata.json as the user; one it cannot open is not a broken
 # extension, it is no extension at all, missing from the shell and from Extension Manager. The
