@@ -3,7 +3,8 @@
 a person does: GNOME takes it for real input, and gives the focus to what it opens. Run as root (the image
 keeps /dev/uinput root's). A STEP is a key or a chord of keys joined by + (super, ctrl+shift+c, alt+tab,
 return), text: to type, its letters, digits and spaces each pressed in turn, click:X,Y, the left button at
-X and Y, fractions of the screen's width and height (click:0.5,0.5 is its middle), or drag:X1,Y1,X2,Y2, the
+X and Y, fractions of the screen's width and height (click:0.5,0.5 is its middle), middle:X,Y, the middle
+button there, or drag:X1,Y1,X2,Y2, the
 button held down from the first point to the second. Waits a moment after each.
 GNOME's overview, where a session starts, takes keys for its search, and leaves a window it did not open
 behind it: a click on its workspace (the middle of the screen) leaves it, as a person does.
@@ -29,7 +30,7 @@ for row, start in (("qwertyuiop", 16), ("asdfghjkl", 30), ("zxcvbnm", 44)):
 UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_ABSBIT = 0x40045564, 0x40045565, 0x40045567
 UI_DEV_CREATE, UI_DEV_DESTROY = 0x5501, 0x5502
 EV_SYN, EV_KEY, EV_ABS = 0, 1, 3
-ABS_X, ABS_Y, BTN_LEFT = 0, 1, 0x110
+ABS_X, ABS_Y, BTN_LEFT, BTN_MIDDLE = 0, 1, 0x110, 0x112
 # An absolute pointer, as QEMU's tablet is: a relative one's moves are accelerated, so where it lands is a guess
 ABS_MAX = 32767
 
@@ -50,12 +51,12 @@ def press(fd, codes):
         time.sleep(0.03)
 
 
-def click(fd, x, y):
+def click(fd, x, y, button=BTN_LEFT):
     emit(fd, EV_ABS, ABS_X, round(float(x) * ABS_MAX))
     emit(fd, EV_ABS, ABS_Y, round(float(y) * ABS_MAX))
     emit(fd, EV_SYN, 0, 0)
     time.sleep(0.3)
-    press(fd, [BTN_LEFT])
+    press(fd, [button])
 
 
 def drag(fd, x1, y1, x2, y2):
@@ -87,8 +88,9 @@ def main(steps):
     # compositor reads keys from, only when it has all of the first 31
     for code in range(1, 256):
         fcntl.ioctl(fd, UI_SET_KEYBIT, code)
-    # And a pointer's button and axes, for click
+    # And a pointer's buttons and axes, for click
     fcntl.ioctl(fd, UI_SET_KEYBIT, BTN_LEFT)
+    fcntl.ioctl(fd, UI_SET_KEYBIT, BTN_MIDDLE)
     fcntl.ioctl(fd, UI_SET_EVBIT, EV_ABS)
     fcntl.ioctl(fd, UI_SET_ABSBIT, ABS_X)
     fcntl.ioctl(fd, UI_SET_ABSBIT, ABS_Y)
@@ -107,6 +109,8 @@ def main(steps):
         for step in steps:
             if step.startswith("click:"):
                 click(fd, *step[6:].split(","))
+            elif step.startswith("middle:"):
+                click(fd, *step[7:].split(","), BTN_MIDDLE)
             elif step.startswith("drag:"):
                 drag(fd, *step[5:].split(","))
             elif step.startswith("text:"):
