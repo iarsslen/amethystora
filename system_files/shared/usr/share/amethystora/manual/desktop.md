@@ -5,8 +5,10 @@ the keys are in your fingers you will rarely reach for it.
 
 ## The top bar
 
-- **On the left**, the six workspaces. The one you are on is highlighted; click another to go
-  there.
+- **On the left**, the Amethystora logo, a menu of the system's tools: about this computer, this
+  manual, Settings, Bazaar, Extension Manager, Mission Center, the terminal and DistroShelf. A
+  middle click on it opens the overview. Then the six workspaces: the one you are on is
+  highlighted; click another to go there.
 - **In the middle**, the clock. Click it, or press `Super+V`, for notifications and the calendar.
 - **On the right**, CPU, memory and network meters, then the system menu: Wi-Fi, sound, power and
   the rest of the quick settings.
@@ -231,7 +233,7 @@ These GNOME Shell extensions come with the image:
 | AppIndicator | Tray icons for apps that use them |
 | Caffeine | Off until you turn it on in Extension Manager; then a switch in the quick settings keeps the screen awake |
 | GSConnect | Your Android phone, on the [networks you name home](security.md#on-from-the-start): notifications, files, clipboard, texts. Off until you [turn it on](hardware.md#phones) |
-| Logo Menu | The Amethystora logo at the top left: the terminal, Mission Center, Extension Manager, Bazaar, DistroShelf and the overview |
+| Logo menu | The Amethystora logo at the top left and [its menu](#the-top-bar) of the system's tools |
 | Gradia | Annotate a screenshot straight after taking it, in the Gradia app, and [copy the text out of it](#copying-text-from-the-screen) |
 | Bazaar integration | Connects the shell to Bazaar, the software centre |
 | Amethystora Transitions | The animation that reveals a new theme or wallpaper ([Transitions](themes.md#transitions)) |

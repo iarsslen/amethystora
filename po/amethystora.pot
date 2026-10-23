@@ -233,7 +233,7 @@ msgstr ""
 msgid "${name}, last upgraded ${WHEN}"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
 msgid "Containers"
 msgstr ""
 
@@ -2003,7 +2003,7 @@ msgstr ""
 msgid "Small commands whose output the top bar shows. Each runs as you, with everything you have: keep only the ones you have read."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
 msgid "Terminal"
 msgstr ""
 
@@ -3918,6 +3918,34 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js
 msgid "Open its folder"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "About this computer"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Manual"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Settings"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Software centre"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Extensions"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "System monitor"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Logo menu"
 msgstr ""
 
 #: usr/share/amethystora/just/agent.just

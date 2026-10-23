@@ -14,7 +14,7 @@ IsRuntime=false
 Branch=stable
 IsRuntime=false
 
-# The Logo Menu's "Extensions": the image removes GNOME's own Extensions app
+# The logo menu's "Extensions": the image removes GNOME's own Extensions app
 [Flatpak Preinstall com.mattjakeman.ExtensionManager]
 Branch=stable
 IsRuntime=false

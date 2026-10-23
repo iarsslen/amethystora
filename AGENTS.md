@@ -7,7 +7,7 @@ This document provides essential information for coding agents working with the 
 **Amethystora** is a cloud-native desktop operating system, based on Universal Blue and maintained by Arsslen Idadi (@iarsslen). It is an OS built on Fedora Linux using container technologies with atomic updates.
 
 - **Type**: Container-based Linux distribution build system
-- **Base**: `ghcr.io/ublue-os/silverblue-main` (Fedora with the GNOME desktop and GDM) + Universal Blue infrastructure; GNOME Shell extensions are git submodules under `system_files/shared/usr/share/gnome-shell/extensions`, built by `build_files/shared/build-gnome-extensions.sh`, except `amethystora-transitions@iarsslen.github.io` (see The transitions) and `amethystora-widgets@iarsslen.github.io` (see Widgets)
+- **Base**: `ghcr.io/ublue-os/silverblue-main` (Fedora with the GNOME desktop and GDM) + Universal Blue infrastructure; GNOME Shell extensions are git submodules under `system_files/shared/usr/share/gnome-shell/extensions`, built by `build_files/shared/build-gnome-extensions.sh`, except `amethystora-transitions@iarsslen.github.io` (see The transitions) `amethystora-widgets@iarsslen.github.io` (see Widgets) and `amethystora-logo-menu@iarsslen.github.io` (see The logo menu)
 - **Languages**: Bash scripts, JSON configuration, Python utilities
 - **Build System**: Just (command runner), Podman/Docker containers, GitHub Actions
 - **Target**: desktop OS with two variants (base + developer experience)
@@ -997,6 +997,18 @@ run` is, imports both, so what the check passes is what the bar shows. Keep it t
 examples in `/usr/share/amethystora/widgets/examples` pass the check in `20-tests.sh`. Nothing here may
 run as root or ship a widget that is on by default.
 
+### The logo menu
+
+The Amethystora gem at the left of the top bar and its menu of the system's tools is
+`amethystora-logo-menu@iarsslen.github.io`, written for this image in `system_files` (Apache-2.0), in place
+of the Logo Menu submodule, which claimed no GNOME past 50 and shipped sixty-five other makers' logos.
+It has no settings: its entries are one table in `extension.js`, each an app by its launcher's ID
+(`Shell.AppSystem`, hidden while not installed, never installed from the click) or an argument vector,
+never a command line. A middle click toggles the overview. Its labels are gettext in domain `amethystora`
+(`po/`), and `20-tests.sh` fails on an app it names that no machine has, on a label a catalog leaves
+untranslated, and on a GNOME its `shell-version` does not claim. `tests/vm/suites/26-logo-menu.sh` opens
+each entry.
+
 ### Packages from other distributions
 
 `amethystora-pkg` (`/usr/bin/amethystora-pkg`, a bash script; `amepkg` is the link `17-cleanup.sh`
@@ -1204,8 +1216,8 @@ terms. `NOTICE` is where each of those is named, and `20-tests.sh` checks what f
   (`ublue-os/config/pull/...`); `debrand.py` leaves such comment lines alone, and so should an edit.
 - **Licence texts stay in the image.** Do not delete a package's documentation without first moving
   its licence, copyright and NOTICE files, as `05-override-install.sh` does.
-- **Nobody else's logo.** Not in the icon theme (`10-icons.sh`), not in the Logo Menu
-  (`06-branding.sh`), not from a setup hook. Fedora's guidelines ask a remix to carry neither
+- **Nobody else's logo.** Not in the icon theme (`10-icons.sh`), not in the top bar, not from a setup
+  hook. Fedora's guidelines ask a remix to carry neither
   `fedora-logos` nor `fedora-release`, and to describe itself without Fedora's name: say that
   Amethystora is built on Fedora, never that it is a Fedora desktop.
 - **Source travels with what asks for it.** A package from RPM Fusion, negativo17 or Copr under the
@@ -1354,7 +1366,7 @@ staying in place.
 2. `03-install-kernel-akmods.sh` - Installs the kernel and the kmods beside it: v4l2loopback, xpadneo and xone from Universal Blue's `akmods` image, evdi built here, ZFS on stable, and on the NVIDIA images the driver of `akmods-nvidia-open` or `akmods-nvidia-lts` (see Drivers)
 3. `04-packages.sh` - Installs Fedora and COPR packages
 4. `05-override-install.sh` - Overrides base image packages. Among them the multimedia stack: the base image installs negativo17's FFmpeg, built with `--enable-nonfree` and labelled by FFmpeg itself "nonfree and unredistributable", and its `pipewire-libs-extra`, whose LC3plus plugin links `liblc3plus`, which has no licence to redistribute. Both are replaced with Fedora's `ffmpeg-free` and `fdk-aac-free`, RPM Fusion's `libavcodec-freeworld`, and RPM Fusion's aptX plugin. negativo17's repository is `fedora-multimedia` in the base image and outranks Fedora's, so `17-cleanup.sh` turns it off; do not install FFmpeg, codec or PipeWire packages from it. `20-tests.sh` fails on any FFmpeg library that reports itself unredistributable. The script also deletes `/usr/share/doc`, after moving the licence, copyright and NOTICE files that some 120 packages keep only there into `/usr/share/licenses`, and installs Starship from a pinned release checked against its published checksum (the pin is bumped by Renovate)
-5. `06-branding.sh` - Puts the Amethystora artwork (generated by `node branding/generate.mjs`) where the boot menu, the boot splash, GDM and the Logo Menu look for it: the GRUB font, the Plymouth theme, Fedora's own logo files, which GDM, the Settings About page and the fallback splash look up by fixed path, and the Logo Menu's panel icon, which `07-debrand.sh` would only rename, not redraw. The Logo Menu ships a logo for every distribution and maker it knows of; the script removes them all and cuts the extension's two lists down to the Amethystora entry, index 0, which the dconf defaults select. `20-tests.sh` fails if another logo is left
+5. `06-branding.sh` - Puts the Amethystora artwork (generated by `node branding/generate.mjs`) where the boot menu, the boot splash and GDM look for it: the GRUB font, the Plymouth theme, and Fedora's own logo files, which GDM, the Settings About page and the fallback splash look up by fixed path
 6. `build_files/shared/build-gnome-extensions.sh` - Builds the GNOME Shell extensions from the git submodules
 7. `10-icons.sh` - Installs the candy-icons icon theme from a pinned upstream commit (the pin is bumped by Renovate; see `.github/renovate.json5`). Apps the pack has no artwork for are aliased to its nearest icon; where nothing is near enough, the icon is drawn for this image in the pack's style and kept in `build_files/shared/candy-icons`, from where the script installs it into the theme. `NOTICE` names each of those icons with where its outline comes from and its licence, and `20-tests.sh` fails on one it does not name; an icon that reuses the pack's artwork, as the Security shield does, is GPL-3.0 like the pack, not Apache-2.0. The theme redraws nobody's logo: a logo is a trademark, and Mozilla, JetBrains, Anthropic and most others allow theirs unaltered or not at all. Of the pack's application icons only the drawings named in `build_files/shared/candy-icons/keep` stay, the pictograms of a job rather than of a product, and every application whose logo the pack redrew (Firefox, Thunderbird, the JetBrains IDEs and some 700 more) shows the icon it brought with it; the logos on the pack's folder, file type and status icons are removed too. Do not alias an application to another maker's logo, do not draw one for this image (Bazaar's is the one that is, and `NOTICE` says so: its maker publishes no trademark terms, which is what `keep` asks of a logo), and add a name to `keep` only after looking at the drawing; `20-tests.sh` fails on an application icon that is neither on the list nor drawn here. `user-setup.hooks.d/16-retire-jetbrains-icons.sh` takes back the links an earlier image made to the IDE drawings
 8. `11-gtk-theme.sh` - Installs the Amethystora GTK theme: EliverLara's Sweet, by the author of candy-icons, with every cool colour in it rotated onto the amethyst palette by `build_files/shared/recolor.py`. It ships under Amethystora's own name because the palette is no longer Sweet's. Only the `amethystora` and `amethystora-light` themes name it in their `gtk.theme`; the rest stay on adw-gtk3, which follows the GNOME accent colour. libadwaita ignores `gtk-theme` and a Flatpak cannot see `/usr/share/themes` at all, so both are reached by `theme-set.hooks.d/20-gtk-apps.sh`: it mirrors the active theme into `~/.themes`, which `/etc/flatpak/overrides/global` grants every sandbox read-only, and writes the `~/.config/gtk-4.0/gtk.css` that imports from the mirror

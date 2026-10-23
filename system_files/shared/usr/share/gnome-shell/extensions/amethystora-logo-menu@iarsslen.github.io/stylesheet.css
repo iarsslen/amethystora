@@ -1,0 +1,6 @@
+/* The gem stands as close to the button's edge as it always has: GNOME gives every other panel icon 6px of
+   padding and 4px of margin on either side */
+.amethystora-logo-menu-icon {
+  margin: 1px !important;
+  padding: 0 !important;
+}

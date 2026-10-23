@@ -2049,6 +2049,34 @@ msgstr "إفراغ سلة المهملات"
 msgid "What was deleted longer ago than this leaves the trash by itself, checked every hour while you are logged in. The snapshots and the backup still have it."
 msgstr "ما حُذف قبل ذلك يخرج من سلة المهملات من تلقاء نفسه، ويُفحص كل ساعة ما دمت مسجّل الدخول. ولا يزال في اللقطات والنسخة الاحتياطية."
 
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Logo menu"
+msgstr "قائمة الشعار"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "About this computer"
+msgstr "حول هذا الحاسوب"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Manual"
+msgstr "الدليل"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Settings"
+msgstr "الإعدادات"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Software centre"
+msgstr "مركز البرمجيات"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Extensions"
+msgstr "الامتدادات"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "System monitor"
+msgstr "مراقب النظام"
+
 #: usr/libexec/amethystora-scan-alert
 msgid "Virus scan found something"
 msgstr "عثر فحص الفيروسات على شيء"

@@ -254,35 +254,18 @@ done
 # stone is lit, so the logo carries on from the splash rather than restating it cold.
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.login-screen logo)" == "'/usr/share/pixmaps/amethystora-wordmark-glow.png'" ]]
 
-# Top bar: the Logo Menu button draws the coloured Amethystora gem, the one entry 06-branding.sh
-# leaves in the extension's coloured list (index 0). Symbolic icons are off, so the panel shows the
-# gem's own purple instead of a white silhouette. The files keep their upstream names until
-# 07-debrand.sh renames them.
-LOGOMENU=/usr/share/gnome-shell/extensions/logomenu@aryan_k
-LOGOMENU_DCONF=/etc/dconf/db/distro.d/04-amethystora-logomenu-extension
-cmp -s "${LOGOMENU}/Resources/amethystora-logo-symbolic.svg" \
-    /usr/share/icons/hicolor/scalable/actions/amethystora-logo-symbolic.svg
-cmp -s "${LOGOMENU}/Resources/amethystora-logo.svg" \
-    /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg
-grep -q "^symbolic-icon=false$" "${LOGOMENU_DCONF}"
-grep -q "^menu-button-icon-image=0$" "${LOGOMENU_DCONF}"
-[[ "$(sed -n '/ColouredDistroIcons/,/^\];/p' "${LOGOMENU}/constants.js" |
-    grep -oE "PATH: '[^']+'")" == "PATH: '/Resources/amethystora-logo.svg'" ]]
-# The symbolic list is as short: an account switching symbolic icons back on in Extension Manager, or
-# one whose setting names an entry that has gone, lands on the Amethystora silhouette.
-[[ "$(sed -n '/SymbolicDistroIcons/,/^\];/p' "${LOGOMENU}/constants.js" |
-    grep -oE "PATH: '[^']+'")" == "PATH: '/Resources/amethystora-logo-symbolic.svg'" ]]
-# Nobody else's logo comes with the extension: a logo is a trademark, and Fedora's guidelines keep
-# Fedora's out of a system built this way. What is left is the two above and the extension's own
-# picture for its About page.
-[[ -z "$(find "${LOGOMENU}/Resources" -type f ! -name 'amethystora-logo.svg' \
-    ! -name 'amethystora-logo-symbolic.svg' ! -name 'settings-logo-menu-logo.svg')" ]]
-test ! -e "${LOGOMENU}/screenshots"
-grep -q "menu-button-icon-image" /usr/share/amethystora/user-setup.hooks.d/10-theming.sh && false
+# Top bar: the Logo Menu (logomenu@aryan_k), with its sixty-five other makers' logos, its settings and its two
+# helpers that installed an app from a click, is gone for the image's own logo menu (below, beside the
+# extensions written for this image)
+test ! -e /usr/share/gnome-shell/extensions/logomenu@aryan_k
+grep -q "logomenu@aryan_k" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override && false
+test ! -e /etc/dconf/db/distro.d/04-amethystora-logomenu-extension
+test ! -e /usr/bin/missioncenter-helper
+test ! -e /usr/bin/distroshelf-helper
 
 # GNOME Shell extensions built from the git submodules (build-gnome-extensions.sh)
 for extension in appindicatorsupport@rgcjonas.gmail.com blur-my-shell@aunetx caffeine@patapon.info \
-    dash-to-dock@micxgx.gmail.com logomenu@aryan_k search-light@icedman.github.com; do
+    dash-to-dock@micxgx.gmail.com search-light@icedman.github.com; do
     test -f "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
 done
 test -d /usr/share/gnome-shell/extensions/tmp && false
@@ -364,6 +347,33 @@ GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethyst
 GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-clipboard excluded-apps | grep -qF "'org.keepassxc.KeePassXC'"
 test -x /usr/libexec/amethystora-clipboard-seal
 bash /ctx/build_files/shared/test-clipboard.sh
+# Amethystora Logo Menu, the gem at the left of the top bar: enabled, claiming this GNOME (the Logo Menu it
+# replaced claimed none past 50 and would have gone with no failed build), with its licence. It draws the image's
+# own gem; every app it names ships in the image or comes with every machine, and each command is installed.
+# Its labels are translated in every language the image has a catalog for, read from the catalog: "Terminal" is
+# the same word in three of them.
+LOGO_MENU_EXTENSION=/usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io
+jq -e --arg shell "${GNOME_MAJOR}" '.["shell-version"] | index($shell)' "${LOGO_MENU_EXTENSION}/metadata.json"
+grep -q "'amethystora-logo-menu@iarsslen.github.io'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
+test -s /usr/share/licenses/amethystora-logo-menu@iarsslen.github.io/LICENSE
+test -s "$(grep -oE "^const LOGO = '[^']+'" "${LOGO_MENU_EXTENSION}/extension.js" | cut -d "'" -f 2)"
+for app in $(grep -oE "app: '[^']+'" "${LOGO_MENU_EXTENSION}/extension.js" | cut -d "'" -f 2); do
+    test -f "/usr/share/applications/${app}" ||
+        grep -qxF "[Flatpak Preinstall ${app%.desktop}]" /usr/share/flatpak/preinstall.d/*.preinstall ||
+        { echo "The logo menu opens ${app}, which no machine has"; exit 1; }
+done
+for command in $(grep -oE "argv: \['[^']+'" "${LOGO_MENU_EXTENSION}/extension.js" | cut -d "'" -f 2); do
+    command -v "${command}" >/dev/null
+done
+mapfile -t LOGO_MENU_LABELS < <(grep -oE "_\('[^']+'\)" "${LOGO_MENU_EXTENSION}/extension.js" | cut -d "'" -f 2)
+[[ "${#LOGO_MENU_LABELS[@]}" == 9 ]]
+for po in /ctx/po/*.po; do
+    mo="/usr/share/locale/$(basename "${po}" .po)/LC_MESSAGES/amethystora.mo"
+    python3 -c 'import gettext, sys
+catalog = gettext.GNUTranslations(open(sys.argv[1], "rb"))._catalog
+missing = [label for label in sys.argv[2:] if not catalog.get(label)]
+sys.exit(f"{sys.argv[1]} does not translate {missing}" if missing else 0)' "${mo}" "${LOGO_MENU_LABELS[@]}"
+done
 # The trash empties itself of what was deleted more than 30 days ago, and ame desktop privacy changes that: a
 # number of days or off, nothing else. Settings in memory, as there is no session here
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.privacy remove-old-trash-files)" == "true" ]]
@@ -605,10 +615,9 @@ for preinstall in bazaar flatseal distroshelf; do
 done
 grep -q "^\[Flatpak Preinstall com.ranfdev.DistroShelf\]$" /usr/share/flatpak/preinstall.d/distroshelf.preinstall
 grep -q "^\[Flatpak Preinstall com.ranfdev.DistroShelf\]$" "${DEFAULT_FLATPAKS}" && false
-# So does Extension Manager, which the Logo Menu's "Extensions" opens: the image removes GNOME's own
+# So does Extension Manager, which the logo menu's "Extensions" opens: the image removes GNOME's own
 # Extensions app
 grep -q "^\[Flatpak Preinstall com.mattjakeman.ExtensionManager\]$" "${DEFAULT_FLATPAKS}"
-grep -q "^menu-button-extensions-app='com.mattjakeman.ExtensionManager.desktop'$" "${LOGOMENU_DCONF}"
 # Its containers are upgraded by a timer of each account's own. uupd's module for containers stays off:
 # it upgraded every container of everyone, and made manual updates slow.
 test -L /etc/systemd/user/timers.target.wants/amethystora-pkg-upgrade.timer
@@ -806,6 +815,11 @@ grep -q "^command='amethystora-manual'$" /etc/dconf/db/distro.d/06-amethystora-k
 "${NODE[@]}" /ctx/build_files/shared/check-translations.js --po /ctx/po --apps /ctx/apps /
 command -v gettext ngettext envsubst >/dev/null
 test -f /usr/bin/gettext.sh
+# The notifications are translated per account by the helper, and the recipes by the TEXTDOMAIN `ame` exports
+grep -q '^source gettext.sh' /usr/libexec/amethystora-notify-users
+grep -q '^export TEXTDOMAIN=amethystora$' /usr/bin/ame
+# gettext reads LANGUAGE only outside the C locale, so the helper needs the account's own locale to be there
+locale -a | grep -qix 'fr_FR.utf-\?8'
 for po in /ctx/po/*.po; do
     [[ -e "${po}" ]] || continue
     test -s "/usr/share/locale/$(basename "${po}" .po)/LC_MESSAGES/amethystora.mo"
@@ -815,11 +829,6 @@ for catalog in /usr/lib/amethystora-*/resources/app/locale/*.json; do
     [[ "${language}" == en ]] && continue
     app="$(basename "$(dirname "$(dirname "$(dirname "$(dirname "${catalog}")")")")")"
     name="$(sed -n 's/^Name=//p' "/usr/share/applications/${app}.desktop" | head -n1)"
-# The notifications are translated per account by the helper, and the recipes by the TEXTDOMAIN `ame` exports
-grep -q '^source gettext.sh' /usr/libexec/amethystora-notify-users
-grep -q '^export TEXTDOMAIN=amethystora$' /usr/bin/ame
-# gettext reads LANGUAGE only outside the C locale, so the helper needs the account's own locale to be there
-locale -a | grep -qix 'fr_FR.utf-\?8'
     if [[ -n "$(jq -r --arg name "${name}" '.[$name] // ""' "${catalog}")" ]]; then
         grep -q "^Name\[${language//-/_}\]=" "/usr/share/applications/${app}.desktop"
     fi

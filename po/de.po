@@ -1963,6 +1963,34 @@ msgstr "Papierkorb leeren"
 msgid "What was deleted longer ago than this leaves the trash by itself, checked every hour while you are logged in. The snapshots and the backup still have it."
 msgstr "Was früher gelöscht wurde, verlässt den Papierkorb von selbst, stündlich geprüft, solange Sie angemeldet sind. Die Schnappschüsse und die Sicherung haben es noch."
 
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Logo menu"
+msgstr "Logo-Menü"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "About this computer"
+msgstr "Über diesen Computer"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Manual"
+msgstr "Handbuch"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Settings"
+msgstr "Einstellungen"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Software centre"
+msgstr "Software-Center"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Extensions"
+msgstr "Erweiterungen"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "System monitor"
+msgstr "Systemmonitor"
+
 #: usr/libexec/amethystora-scan-alert
 msgid "Virus scan found something"
 msgstr "Der Virenscan hat etwas gefunden"

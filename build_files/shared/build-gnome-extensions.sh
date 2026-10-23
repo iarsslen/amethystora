@@ -66,12 +66,6 @@ meson setup --prefix=/usr /usr/share/gnome-shell/extensions/gsconnect@andyholmes
 meson install -C /usr/share/gnome-shell/extensions/gsconnect@andyholmes.github.io/_build --skip-subprojects
 # GSConnect installs schemas to /usr/share/glib-2.0/schemas and meson compiles them automatically
 
-# Logo Menu
-# xdg-terminal-exec is required for this extension as it opens up terminals using that script
-install -Dpm0755 -t /usr/bin /usr/share/gnome-shell/extensions/logomenu@aryan_k/distroshelf-helper
-install -Dpm0755 -t /usr/bin /usr/share/gnome-shell/extensions/logomenu@aryan_k/missioncenter-helper
-glib-compile-schemas --strict /usr/share/gnome-shell/extensions/logomenu@aryan_k/schemas
-
 # Search Light
 glib-compile-schemas --strict /usr/share/gnome-shell/extensions/search-light@icedman.github.com/schemas
 
@@ -92,6 +86,11 @@ enable_extension "amethystora-widgets@iarsslen.github.io"
 # (built in the apps stage) instead of writing it to ~/.cache in plain text. In system_files with upstream's
 # LICENSE.rst; its schema is system-wide, and 14-security.sh compiles its translations (po/amethystora-clipboard).
 enable_extension "amethystora-clipboard@iarsslen.github.io"
+
+# Amethystora Logo Menu: the gem at the left of the top bar and its menu of the system's tools. Written for this
+# image, in system_files and under the image's licence, with no settings; its labels are in po/ (domain amethystora).
+install -Dpm0644 /usr/share/licenses/amethystora/LICENSE /usr/share/licenses/amethystora-logo-menu@iarsslen.github.io/LICENSE
+enable_extension "amethystora-logo-menu@iarsslen.github.io"
 
 # --- Extensions installed from extensions.gnome.org --------------------------------------------
 #

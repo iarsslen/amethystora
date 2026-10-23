@@ -1963,6 +1963,34 @@ msgstr "Vider la corbeille"
 msgid "What was deleted longer ago than this leaves the trash by itself, checked every hour while you are logged in. The snapshots and the backup still have it."
 msgstr "Ce qui a été supprimé avant cela quitte la corbeille de lui-même, vérifié toutes les heures pendant que vous êtes connecté. Les instantanés et la sauvegarde l'ont encore."
 
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Logo menu"
+msgstr "Menu du logo"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "About this computer"
+msgstr "À propos de cet ordinateur"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Manual"
+msgstr "Manuel"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Settings"
+msgstr "Paramètres"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Software centre"
+msgstr "Logithèque"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Extensions"
+msgstr "Extensions"
+
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "System monitor"
+msgstr "Moniteur système"
+
 #: usr/libexec/amethystora-scan-alert
 msgid "Virus scan found something"
 msgstr "L’analyse antivirus a trouvé quelque chose"

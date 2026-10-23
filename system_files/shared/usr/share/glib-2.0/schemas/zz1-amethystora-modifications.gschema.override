@@ -134,7 +134,7 @@ move-to-monitor-right=['<Super><Shift>Right']
 # so there is one place they come from. Its menu keybinding has to go too, because it defaults to
 # Super+W, which closes a window here.
 
-# Its place in the left of the panel is its own default, beside the Logo Menu, as it has always shown.
+# Its place in the left of the panel is its own default, beside the logo menu, as it has always shown.
 [org.gnome.shell.extensions.space-bar.behavior]
 position='left'
 system-workspace-indicator=false

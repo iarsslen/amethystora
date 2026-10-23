@@ -2,7 +2,7 @@
 
 [org.gnome.shell]
 favorite-apps = ['org.mozilla.firefox.desktop', 'org.mozilla.thunderbird_esr.desktop', 'org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'codium.desktop']
-enabled-extensions = ['appindicatorsupport@rgcjonas.gmail.com', 'bazaar-integration@kolunmi.github.io', 'blur-my-shell@aunetx', 'dash-to-dock@micxgx.gmail.com', 'gradia-integration@alexandervanhee.github.io', 'logomenu@aryan_k', 'search-light@icedman.github.com']
+enabled-extensions = ['appindicatorsupport@rgcjonas.gmail.com', 'bazaar-integration@kolunmi.github.io', 'blur-my-shell@aunetx', 'dash-to-dock@micxgx.gmail.com', 'gradia-integration@alexandervanhee.github.io', 'search-light@icedman.github.com']
 
 [org.gnome.desktop.background]
 picture-options='zoom'
@@ -85,7 +85,7 @@ keybindings=''
 new-tab=false
 flatpak='off'
 
-# The Logo Menu's, Search Light's and Blur my Shell's defaults are in /etc/dconf/db/distro.d
+# Search Light's and Blur my Shell's defaults are in /etc/dconf/db/distro.d
 
 #-------------- REMAINING SCHEMAS IN THIS SETTING SECTION ARE LOCATED IN DCONF --------------#
 # Settings bellow are supported with gschema override, but other settings, which are relocatable schemas, are not. Edit dconfs if you need to modify relocatable schemas.
@@ -107,7 +107,5 @@ restore-window-size=false
 audible-bell=false
 profile-uuids=['2871e8027773ae74d6c87a5f659bbc74']
 default-profile-uuid='2871e8027773ae74d6c87a5f659bbc74'
-
-# LogoMenu extension uses relocatable schemas, so additional settings are in dconf
 
 # SearchLight extension misses gschema XML file, so it's located in dconf

@@ -47,7 +47,7 @@ Then reboot. Replace `amethystora` with any image name from the table above, and
 
 ### Using the desktop
 
-You log in on GDM to a GNOME session with the Amethystora wallpaper and a purple accent. These GNOME Shell extensions are preinstalled: Dash to Dock, Blur my Shell, AppIndicator, Caffeine, GSConnect, Logo Menu, Search Light, PaperWM, Space Bar, TopHat, Just Perfection, Amethystora Clipboard (a copy of Clipboard Indicator that seals its history), Fuzzy App Search, Gradia and Bazaar integration. Turn them on or off in Extension Manager.
+You log in on GDM to a GNOME session with the Amethystora wallpaper and a purple accent. These GNOME Shell extensions are preinstalled: Dash to Dock, Blur my Shell, AppIndicator, Caffeine, GSConnect, Amethystora Logo Menu, Search Light, PaperWM, Space Bar, TopHat, Just Perfection, Amethystora Clipboard (a copy of Clipboard Indicator that seals its history), Fuzzy App Search, Gradia and Bazaar integration. Turn them on or off in Extension Manager.
 
 The top bar carries the six workspaces on the left, where Activities used to be, and CPU, memory and network meters on the right. Both follow the current theme.
 
@@ -195,7 +195,7 @@ The logo, the Amethystora wallpapers, every theme's drawn wallpapers, boot splas
 node branding/generate.mjs
 ```
 
-[build_files/base/06-branding.sh](build_files/base/06-branding.sh) puts the artwork where the boot menu, the boot splash, GDM and the Logo Menu look for it.
+[build_files/base/06-branding.sh](build_files/base/06-branding.sh) puts the artwork where the boot menu, the boot splash and GDM look for it.
 
 ## Contributing
 
