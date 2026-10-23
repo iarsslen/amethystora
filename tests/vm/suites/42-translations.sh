@@ -8,7 +8,7 @@
 # A stand-in notify-send logs what each account would have been shown.
 source "$(dirname "$0")/lib.sh"
 
-T=/var/lib/vmlab-tests/95-translations
+T=/var/lib/vmlab-tests/42-translations
 rm -rf "${T}"
 install -d -m 0755 "${T}/bin" "${T}/locale/fr/LC_MESSAGES"
 UID_TEST="$(id -u "${TEST_USER}")"
