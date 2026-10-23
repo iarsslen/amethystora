@@ -259,6 +259,15 @@ phone ACTION="":
     uuids() { gsettings get org.gnome.shell enabled-extensions | grep -oE "'[^']+'" | tr -d "'" || true; }
     variant() { if (($#)); then printf "'%s'\n" "$@" | paste -sd, | sed 's/^/[/; s/$/]/'; else echo '[]'; fi; }
     on() { uuids | grep -qxF "${UUID}"; }
+    # GNOME Shell answers before the setting it changed reaches dconf, where Control reads it as soon as this ends
+    settle() {
+        local state
+        for _ in {1..30}; do
+            if on; then state=on; else state=off; fi
+            [[ "${state}" == "$1" ]] && return
+            sleep 0.1
+        done
+    }
     action="${1:-}"
     if [[ -z "${action}" ]]; then
         if on; then action=off; else action=on; fi
@@ -269,6 +278,7 @@ phone ACTION="":
                 mapfile -t list < <(uuids)
                 gsettings set org.gnome.shell enabled-extensions "$(variant "${list[@]}" "${UUID}")"
             fi
+            settle on
             echo "$(gettext "Phone pairing is on: install KDE Connect on the phone, and pair them on a network you named home.")"
             ;;
         off)
@@ -276,6 +286,7 @@ phone ACTION="":
                 mapfile -t list < <(uuids | grep -vxF "${UUID}")
                 gsettings set org.gnome.shell enabled-extensions "$(variant "${list[@]}")"
             fi
+            settle off
             echo "$(gettext "Phone pairing is off")"
             ;;
         *)
