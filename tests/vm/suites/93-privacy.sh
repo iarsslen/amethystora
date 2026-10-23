@@ -5,7 +5,8 @@
 # stays. What was deleted is still in a snapshot taken before, and a restic repository beside the trash is not
 # touched. Then off, and Reset settings puts the image's default back.
 # The purge runs an hour after gsd-housekeeping started and every hour after, so the wait outlasts a phase's 30
-# minutes: each phase waits up to 25, then the next one goes on in the same boot (continue_phase).
+# minutes: each phase waits up to 20, then the next one goes on in the same boot (continue_phase). The hour is of
+# time awake, and an idle session suspends after 15 minutes, so the session is kept from suspending meanwhile.
 source "$(dirname "$0")/lib.sh"
 
 STATE=/var/lib/vmlab-tests/93-privacy
@@ -22,8 +23,8 @@ if ! wait_for 300 has_session; then
 fi
 
 privacy() { runuser -u "${TEST_USER}" -- gsettings get org.gnome.desktop.privacy "$1"; }
-uptime_s() { cut -d. -f1 /proc/uptime; }
-started() { user_systemctl show "${SERVICE}" -p ExecMainStartTimestampMonotonic --value; }
+now_s() { date +%s; }
+started() { user_systemctl show "${SERVICE}" -p ExecMainStartTimestamp --value --timestamp=unix | tr -d @; }
 in_trash() { [[ -e "${TRASH}/files/$1" && -e "${TRASH}/info/$1.trashinfo" ]]; }
 gone() { [[ ! -e "${TRASH}/files/$1" && ! -e "${TRASH}/info/$1.trashinfo" ]]; }
 repo_sum() { (cd "${REPO}" && find . -type f -printf '%p %s\n' | sort && find . -type f -exec cat {} + | sha256sum); }
@@ -42,6 +43,8 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     check "the trash empties itself after 30 days, as the image ships it" test \
         "$(privacy remove-old-trash-files) $(privacy old-files-age)" == "true uint32 30"
     check "GNOME's housekeeping runs in the session" wait_for 120 pgrep -u "${TEST_USER}" -x gsd-housekeepin
+    # Its hourly timer stands still while the machine sleeps
+    user_bus gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type nothing
 
     put_in_trash vmlab-forty "-40 days"
     put_in_trash vmlab-ten "-10 days"
@@ -81,15 +84,15 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
         "$(runuser -u "${TEST_USER}" -- dconf read /org/gnome/settings-daemon/plugins/housekeeping/min-notify-period)"
 
     # The purge after next: an hour from when gsd-housekeeping started, and every hour after
-    start=$(($(started) / 1000000))
-    if ((start <= 0)); then
+    start="$(started)"
+    if [[ ! "${start}" =~ ^[0-9]+$ ]]; then
         not_ok "${SERVICE} has no start time" "$(user_systemctl status "${SERVICE}" 2>&1 | head -n 10)"
         finish
     fi
-    now="$(uptime_s)"
+    now="$(now_s)"
     echo "${start}" >"${STATE}/start"
     echo $((start + ((now - start) / 3600 + 1) * 3600 + 30)) >"${STATE}/purge"
-    echo "# gsd-housekeeping started at ${start} s, it is ${now} s, the purge comes at $(cat "${STATE}/purge") s"
+    echo "# gsd-housekeeping started $(date -d "@${start}"), it is $(date -d "@${now}"), the purge comes $(date -d "@$(cat "${STATE}/purge")")"
 fi
 
 # --- Every phase: wait for the purge, 25 minutes at a time ----------------------------------------------------
@@ -100,16 +103,16 @@ if [[ -z "${purge}" ]]; then
 fi
 # Until the purge has come and taken the oldest file, or ten minutes after it was due; never more than 20
 # minutes a phase, so that what was found always gets back to the lab
-while (($(uptime_s) < purge)) || { ! gone vmlab-forty && (($(uptime_s) < purge + 600)); }; do
+while (($(now_s) < purge)) || { ! gone vmlab-forty && (($(now_s) < purge + 600)); }; do
     if ((SECONDS - PHASE_START > 1200)); then
-        echo "# at ${SECONDS} s of phase ${SUITE_PHASE}: $((purge - $(uptime_s))) s to the purge"
+        echo "# at ${SECONDS} s of phase ${SUITE_PHASE}: $((purge - $(now_s))) s to the purge"
         continue_phase
     fi
     sleep 20
 done
 
 # --- The last phase: what the purge took, and what it left ----------------------------------------------------
-if [[ "$(($(started) / 1000000))" != "$(cat "${STATE}/start")" ]]; then
+if [[ "$(started)" != "$(cat "${STATE}/start")" ]]; then
     not_ok "gsd-housekeeping started again while the suite waited, so its purge did not come when it was waited for"
 fi
 if gone vmlab-forty; then
@@ -141,6 +144,7 @@ check "Reset settings puts the image's 30 days back" test \
     "$(privacy remove-old-trash-files) $(privacy old-files-age)" == "true uint32 30"
 
 # As the suites after this one expect the account and the machine
+user_bus gsettings reset org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type
 rm -rf "${REPO}" "${HOME_DIR}/vmlab-backed-up"
 rm -f "${TRASH}/files/vmlab-today" "${TRASH}/info/vmlab-today.trashinfo"
 [[ -z "${snapshot}" ]] || btrfs subvolume delete "${snapshot}" >/dev/null 2>&1
