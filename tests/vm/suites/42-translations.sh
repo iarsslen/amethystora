@@ -8,11 +8,14 @@
 # A stand-in notify-send logs what each account would have been shown.
 source "$(dirname "$0")/lib.sh"
 
-T=/var/lib/vmlab-tests/42-translations
+# World-readable: the stand-in notify-send runs as the account
+T=/var/tmp/vmlab-42-translations
 rm -rf "${T}"
-install -d -m 0755 "${T}/bin" "${T}/locale/fr/LC_MESSAGES"
+install -d -m 0755 "${T}" "${T}/bin" "${T}/locale/fr/LC_MESSAGES"
 UID_TEST="$(id -u "${TEST_USER}")"
 LOG="${T}/shown"
+: >"${LOG}"
+chmod 0666 "${LOG}"
 HELPER=/usr/libexec/amethystora-notify-users
 
 if ! has_session; then
@@ -72,7 +75,11 @@ set_language() { # LANGUAGE: as GNOME's Settings sets it
 }
 
 set_language fr_FR.UTF-8
-check "the account's language is saved where the helper reads it" grep -qx 'Language=fr_FR.UTF-8' "/var/lib/AccountsService/users/${TEST_USER}"
+if wait_for 20 grep -qx 'Language=fr_FR.UTF-8' "/var/lib/AccountsService/users/${TEST_USER}"; then
+    ok "the account's language is saved where the helper reads it"
+else
+    not_ok "the account's language is saved where the helper reads it" "$(cat "/var/lib/AccountsService/users/${TEST_USER}" 2>&1)"
+fi
 
 # 1. A service as the watcher's scan-alert is: its messages, a French account
 : >"${LOG}"
