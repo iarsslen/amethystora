@@ -2121,7 +2121,8 @@ grep -q "clamdscan --fdpass" /usr/libexec/amethystora-quarantine
 bash /ctx/build_files/shared/test-quarantine.sh
 grep -q "^d /var/lib/amethystora/quarantine 0700 root root" /usr/lib/tmpfiles.d/amethystora-security.conf
 grep -q "^settings " /usr/share/amethystora/just/security.just
-grep -q '"Put a file back" | restore)' /usr/share/amethystora/just/security.just
+grep -qF 'put_back="$(gettext "Put a file back")"' /usr/share/amethystora/just/security.just
+grep -qF '"${put_back}" | restore)' /usr/share/amethystora/just/security.just
 
 # Real-time watching and scanning: enabled, but each unit skips itself unless its half of REALTIME is on,
 # the way the setting is meant to switch it rather than a unit somebody has to know about. The watcher's
