@@ -17,14 +17,19 @@ if ! wait_for 300 has_session; then
     skip "no session for ${TEST_USER} (10-account.sh)"
     finish
 fi
-# The default Flatpaks install on the first boots with a network, as in 25-every-app.sh
-preinstalled() { [[ "$(systemctl show flatpak-preinstall.service -p SubState -p Result --value | paste -sd ' ')" == "exited success" ]]; }
-if ! wait_for 600 preinstalled; then
+# The default Flatpaks install on the first boots with a network, retried until there is one (25-every-app.sh):
+# Gradia is waited for itself, and with no network at all there is nothing to check
+gradia_installed() { user_bus flatpak info "${GRADIA}" >/dev/null 2>&1; }
+if ! wait_for 600 gradia_installed; then
+    if ! getent hosts dl.flathub.org >/dev/null; then
+        skip "the machine has no network, so Gradia was not installed from Flathub"
+        finish
+    fi
     if ((SUITE_PHASE < 4)); then
-        echo "# the default Flatpaks were still installing after 10 minutes: on with them after a restart"
+        echo "# Gradia was still not installed after 10 minutes: on with it after a restart"
         reboot_and_continue
     fi
-    not_ok "flatpak-preinstall.service did not finish" "$(systemctl status flatpak-preinstall.service --no-pager 2>&1 | tail -n 8)"
+    not_ok "Gradia was not installed" "$(systemctl status flatpak-preinstall.service --no-pager 2>&1 | tail -n 8)"
     finish
 fi
 
@@ -34,7 +39,6 @@ mkdir -p "${OWN}"
 install -m 0644 "$(dirname "$0")/atspi.py" "$(dirname "$0")/screentext.py" "${OWN}/"
 chmod -R a+rX "${OWN}"
 
-check "Gradia is installed" user_bus flatpak info "${GRADIA}"
 ext_state() { user_bus gnome-extensions info "${EXTENSION}" 2>/dev/null | sed -n 's/^ *State: *//p'; }
 [[ "$(ext_state)" == ACTIVE ]] && ok "Gradia's extension is active" || not_ok "Gradia's extension is not active" "state: $(ext_state)"
 
