@@ -22,9 +22,6 @@ enable_extension() {
 
 # Build Extensions
 
-# Bazaar Companion
-mv /usr/share/gnome-shell/extensions/tmp/bazaar-integration@kolunmi.github.io/src/ /usr/share/gnome-shell/extensions/bazaar-integration@kolunmi.github.io/
-
 # Blur My Shell
 make -C /usr/share/gnome-shell/extensions/blur-my-shell@aunetx
 unzip -o /usr/share/gnome-shell/extensions/blur-my-shell@aunetx/build/blur-my-shell@aunetx.shell-extension.zip -d /usr/share/gnome-shell/extensions/blur-my-shell@aunetx
@@ -43,12 +40,6 @@ glib-compile-schemas --strict /usr/share/gnome-shell/extensions/dash-to-dock@mic
 # extensions below, so that gsettings and the tests read what the dock does
 install -Dpm0644 -t /usr/share/glib-2.0/schemas \
     /usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com/schemas/*.gschema.xml
-
-# Gradia Capture
-bash /usr/share/gnome-shell/extensions/gradia-integration@alexandervanhee.github.io/build.sh
-unzip -o /usr/share/gnome-shell/extensions/gradia-integration@alexandervanhee.github.io/gradia-integration@alexandervanhee.github.io.shell-extension.zip -d /usr/share/gnome-shell/extensions/gradia-integration@alexandervanhee.github.io
-rm -f /usr/share/gnome-shell/extensions/gradia-integration@alexandervanhee.github.io/gradia-integration@alexandervanhee.github.io.shell-extension.zip
-glib-compile-schemas --strict /usr/share/gnome-shell/extensions/gradia-integration@alexandervanhee.github.io/schemas
 
 # GSConnect (commented out until G49 support)
 meson setup --prefix=/usr /usr/share/gnome-shell/extensions/gsconnect@andyholmes.github.io /usr/share/gnome-shell/extensions/gsconnect@andyholmes.github.io/_build

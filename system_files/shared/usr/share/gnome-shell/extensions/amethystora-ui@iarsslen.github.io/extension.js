@@ -15,6 +15,8 @@ import {Meters} from './modules/meters.js';
 import {Tray} from './modules/tray.js';
 import {Search} from './modules/search.js';
 import {Fuzzy} from './modules/fuzzy.js';
+import {Screenshot} from './modules/screenshot.js';
+import {Bazaar} from './modules/bazaar.js';
 
 // In the order they start, by the name of their stylesheet; they stop in the opposite order. The glass comes after
 // the dock and the panel's modules, whose actors it draws behind.
@@ -26,6 +28,8 @@ const MODULES = [
     ['tray', Tray],
     ['search', Search],
     ['fuzzy', Fuzzy],
+    ['screenshot', Screenshot],
+    ['bazaar', Bazaar],
 ];
 
 export default class AmethystoraUI extends Extension {

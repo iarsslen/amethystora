@@ -1,0 +1,129 @@
+/* The uninstall question. It is GNOME Shell's own dialog, which is light or dark with the shell rather than with the
+   theme's palette, so its list follows the shell too: dark by default, and .amethystora-bazaar-light when the shell
+   draws itself light. The checked mark and the focus ring are the shell's accent. */
+
+.amethystora-bazaar-choices {
+  min-width: 300px;
+  margin-top: 6px;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.amethystora-bazaar-choice {
+  max-width: 360px;
+  padding: 10px 14px;
+  border-radius: 0;
+}
+
+.amethystora-bazaar-choice:first-child {
+  border-radius: 12px 12px 0 0;
+}
+
+.amethystora-bazaar-choice:last-child {
+  border-radius: 0 0 12px 12px;
+}
+
+.amethystora-bazaar-choice:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.amethystora-bazaar-choice:active {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+/* St draws an inset ring only over a background of its own */
+.amethystora-bazaar-choice:focus {
+  background-color: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 0 2px -st-accent-color;
+}
+
+.amethystora-bazaar-choice-box {
+  spacing: 12px;
+}
+
+.amethystora-bazaar-choice-title {
+  font-weight: bold;
+}
+
+.amethystora-bazaar-choice-detail {
+  font-size: 0.9em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.amethystora-bazaar-line {
+  height: 1px;
+  background-color: rgba(0, 0, 0, 0.35);
+}
+
+/* The radio mark: a light grey ring, and the accent's ring round a white centre when chosen */
+.amethystora-bazaar-mark {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+}
+
+.amethystora-bazaar-choice:checked .amethystora-bazaar-mark {
+  width: 6px;
+  height: 6px;
+  border: 5px solid -st-accent-color;
+  background-color: #ffffff;
+}
+
+/* Uninstalling cannot be undone: a red button, stronger as the pointer or the keyboard reaches it */
+.modal-dialog .modal-dialog-button-box .modal-dialog-button.amethystora-bazaar-uninstall {
+  color: #ff6b6b;
+  background-color: rgba(224, 27, 36, 0.18);
+}
+
+.modal-dialog .modal-dialog-button-box .modal-dialog-button.amethystora-bazaar-uninstall:hover {
+  background-color: rgba(224, 27, 36, 0.28);
+}
+
+.modal-dialog .modal-dialog-button-box .modal-dialog-button.amethystora-bazaar-uninstall:active {
+  background-color: rgba(224, 27, 36, 0.38);
+}
+
+.modal-dialog .modal-dialog-button-box .modal-dialog-button.amethystora-bazaar-uninstall:focus {
+  background-color: rgba(224, 27, 36, 0.28);
+  box-shadow: inset 0 0 0 2px rgba(224, 27, 36, 0.6);
+}
+
+/* The same in the shell's light style */
+.amethystora-bazaar-light .amethystora-bazaar-choices {
+  background-color: rgba(0, 0, 0, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.amethystora-bazaar-light .amethystora-bazaar-choice:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.amethystora-bazaar-light .amethystora-bazaar-choice:active {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.amethystora-bazaar-light .amethystora-bazaar-choice:focus {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.amethystora-bazaar-light .amethystora-bazaar-choice-detail {
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.amethystora-bazaar-light .amethystora-bazaar-line {
+  background-color: rgba(0, 0, 0, 0.12);
+}
+
+.amethystora-bazaar-light .amethystora-bazaar-mark {
+  border-color: rgba(0, 0, 0, 0.35);
+}
+
+.amethystora-bazaar-light .amethystora-bazaar-choice:checked .amethystora-bazaar-mark {
+  border-color: -st-accent-color;
+}
+
+.modal-dialog.amethystora-bazaar-light .modal-dialog-button-box .modal-dialog-button.amethystora-bazaar-uninstall {
+  color: #c01c28;
+}

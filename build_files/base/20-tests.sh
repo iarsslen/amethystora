@@ -270,14 +270,6 @@ for extension in blur-my-shell@aunetx \
 done
 test -d /usr/share/gnome-shell/extensions/tmp && false
 
-# Copying text out of a screenshot is Gradia's, reached through its extension's Extract Text button
-# and Ctrl+E in GNOME's screenshot UI (manual: desktop.md#copying-text-from-the-screen): a submodule
-# bump that drops the button must fail here instead of leaving the manual wrong
-GRADIA_EXTENSION=/usr/share/gnome-shell/extensions/gradia-integration@alexandervanhee.github.io
-grep -q "launchGradiaOcrForFile" "${GRADIA_EXTENSION}/extension.js"
-grep -q "KEY_e" "${GRADIA_EXTENSION}/extension.js"
-grep -q -- "--ocr-file=" "${GRADIA_EXTENSION}/gradiaIntegration.js"
-
 # Every extension has to be readable by the account that logs in, not just by the root this build
 # runs as. GNOME Shell reads metadata.json as the user; one it cannot open is not a broken
 # extension, it is no extension at all, missing from the shell and from Extension Manager. The
@@ -382,7 +374,8 @@ for module in $(grep -oE "from './modules/[a-z]+\.js'" "${UI_EXTENSION}/extensio
 done
 for retired in just-perfection-desktop@just-perfection space-bar@luchrioh tophat@fflewddur.github.io \
     appindicatorsupport@rgcjonas.gmail.com caffeine@patapon.info search-light@icedman.github.com \
-    gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com; do
+    gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com gradia-integration@alexandervanhee.github.io \
+    bazaar-integration@kolunmi.github.io; do
     test ! -e "/usr/share/gnome-shell/extensions/${retired}"
     test ! -e "/usr/share/licenses/${retired}"
     grep -q "'${retired}'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override && false
@@ -422,6 +415,18 @@ rm -rf "${UI_RENDER}"
 # App search keeps Parental Controls' filter, as GNOME's own does
 grep -q "shouldShowApp" "${UI_EXTENSION}/modules/fuzzy.js"
 test -s "${UI_EXTENSION}/modules/fuzzy/matcher.js"
+# Copying text out of a screenshot is Gradia's, reached through the screenshot module's Extract Text button
+# and Ctrl+E in GNOME's screenshot UI (manual: desktop.md#copying-text-from-the-screen): a change that drops
+# the button, its key or the hand-off to Gradia must fail here instead of leaving the manual wrong
+grep -q "_('Extract Text')" "${UI_EXTENSION}/modules/screenshot/session.js"
+grep -q "Clutter.KEY_e" "${UI_EXTENSION}/modules/screenshot.js"
+grep -q -- "'flatpak', 'run', GRADIA, \`--ocr-file=" "${UI_EXTENSION}/modules/screenshot.js"
+grep -q "^export const GRADIA = 'be.alexandervanhee.gradia';$" "${UI_EXTENSION}/modules/screenshot/capture.js"
+test -s "${UI_EXTENSION}/icons/screenshot/extract-symbolic.svg"
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.screenshot)" == "tool-settings" ]]
+# Uninstalling from an app's menu: Flatpak's own command, as the account, and Bazaar for the details
+grep -qF "['uninstall', user ? '--user' : '--system', '-y', id]" "${UI_EXTENSION}/modules/bazaar.js"
+grep -qF 'appstream:' "${UI_EXTENSION}/modules/bazaar.js"
 # The tweaks: animations at 0.6 of their time through the shell's slow-down factor alone. GNOME's own switch for
 # animations is the person's (Settings, Accessibility), and nothing here may turn it back on.
 grep -q "^const SPEED = 0.6;$" "${UI_EXTENSION}/modules/tweaks.js"

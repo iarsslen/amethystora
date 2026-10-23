@@ -61,9 +61,9 @@ these commands in the agent's own shell, as the user. Read before writing, chang
 
 ## Copying text out of a picture on the screen
 
-- It is Gradia's, nothing of the image's own: `Print`, drag an area, then **Extract Text** or `Ctrl+E` in
-  GNOME's screenshot UI (the button comes from the `gradia-integration@alexandervanhee.github.io` extension and
-  needs the Flatpak `be.alexandervanhee.gradia`). The text is copied at once. It works on an area only; the
+- The reading is Gradia's: `Print`, drag an area, then **Extract Text** or `Ctrl+E` in GNOME's screenshot UI
+  (the button is Amethystora UI's screenshot module, in `amethystora-ui@iarsslen.github.io`, and needs the
+  Flatpak `be.alexandervanhee.gradia`). The text is copied at once. It works on an area only; the
   button is off in window, screen and recording modes.
 - Offline after one prompted download: the first use opens Gradia's "OCR Language Models" page, and the
   chosen language's `tessdata_best` file comes from GitHub into
@@ -71,4 +71,4 @@ these commands in the agent's own shell, as the user. Read before writing, chang
 - The capture is kept in the screenshot folder like any screenshot. There is no `tesseract` command in the
   image and no `ame` command for this; do not install one for the user.
 - Button missing: `flatpak info be.alexandervanhee.gradia` and `gnome-extensions info
-  gradia-integration@alexandervanhee.github.io` (Extension Manager turns it back on; an image update does too).
+  amethystora-ui@iarsslen.github.io` (Extension Manager turns it back on; an image update does too).

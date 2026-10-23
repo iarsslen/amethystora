@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="amethystora">
+  <schema id="org.gnome.shell.extensions.amethystora-ui.screenshot"
+          path="/org/gnome/shell/extensions/amethystora-ui/screenshot/">
+    <key name="tool-settings" type="a{s(sd)}">
+      <default>{'pen': ('#000000', 3.0), 'box': ('#000000', 3.0), 'fill': ('#000000', 3.0), 'arrow': ('#000000', 3.0), 'marker': ('#000000', 3.0), 'highlight': ('#ffdd00', 4.0)}</default>
+      <summary>The colour and line width each drawing tool last had</summary>
+      <description>Written by the screenshot tools as they are used, so that each drawing tool comes back with the colour and width it was left with.</description>
+    </key>
+  </schema>
+</schemalist>

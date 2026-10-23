@@ -502,7 +502,7 @@ on, in case one is why something stopped working.
 | `ame security block-user-extensions` | No GNOME extensions installed from extensions.gnome.org; the report lists the ones you have | The image's own extensions are not affected |
 | `ame security block-xwayland` | No X11, from your next login | Steam, Wine, Proton and older apps |
 | `ame security flathub-verified` | Only Flathub apps whose makers Flathub verified | Installed apps from anyone else stop updating |
-| `ame security flatpak-password` | Installing or removing an app for the whole machine asks for an administrator's password | A password in Bazaar |
+| `ame security flatpak-password` | Installing or removing an app for the whole machine asks for an administrator's password | A password in Bazaar, and when uninstalling from an app's menu |
 | `ame security noexec-temp` | Nothing started from `/tmp`, `/var/tmp` or `/dev/shm`, the first and last at once and all three from the next restart; a script run through its interpreter still runs | Some installers, build scripts and `go test` |
 | `ame security no-coredumps` | No copy of a crashed program's memory on disk | Crashes cannot be diagnosed from one |
 | `ame security package-cooldown` | npm, pnpm and uv refuse versions published in the last 3 days; `strict` waits 7 and runs no install scripts, and `on` goes back to 3. From new terminals, and for apps from your next login | A fix published today waits too; strict breaks packages that build native code |

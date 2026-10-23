@@ -11,12 +11,13 @@
 #   3  AppIndicator (the tray module)
 #   4  Caffeine (dropped: it was never switched on)
 #   5  Search Light and GNOME Fuzzy App Search (the search and fuzzy modules)
+#   6  Gradia's and Bazaar's integrations (the screenshot and bazaar modules)
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
 command -v gsettings >/dev/null || exit 0
 
-version-script retire-extensions user 5 || exit 0
+version-script retire-extensions user 6 || exit 0
 
 # uuid, then the dconf folder its settings were in, then any folder it left in ~/.cache
 RETIRED=(
@@ -27,6 +28,8 @@ RETIRED=(
     "caffeine@patapon.info /org/gnome/shell/extensions/caffeine/"
     "search-light@icedman.github.com /org/gnome/shell/extensions/search-light/"
     "gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com /org/gnome/shell/extensions/gnome-fuzzy-app-search/ gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com"
+    "gradia-integration@alexandervanhee.github.io /org/gnome/shell/extensions/gradia-integration/"
+    "bazaar-integration@kolunmi.github.io /org/gnome/shell/extensions/bazaar-integration/"
 )
 
 OWN="${XDG_DATA_HOME:-${HOME}/.local/share}/gnome-shell/extensions"

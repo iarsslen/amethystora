@@ -1,0 +1,132 @@
+/* The screenshot tools: sizes and shapes. Their colours follow the theme, in the theme's shell-screenshot.css; the
+   ones here stand in before a theme has been applied, and are written less specifically so that the theme's win. */
+
+/* The toolbar at the top of the primary monitor */
+.amethystora-screenshot-toolbar {
+  margin-top: 12px;
+  padding: 6px;
+  spacing: 8px;
+  border-radius: 999px;
+  background-color: rgba(34, 34, 38, 0.95);
+  color: #ffffff;
+}
+
+.amethystora-screenshot-controls {
+  spacing: 8px;
+}
+
+.amethystora-screenshot-separator {
+  width: 1px;
+  margin: 4px;
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.amethystora-screenshot-tool {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 999px;
+  color: #ffffff;
+  background-color: transparent;
+}
+
+.amethystora-screenshot-tool:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.amethystora-screenshot-tool:checked {
+  background-color: rgba(255, 255, 255, 0.24);
+}
+
+.amethystora-screenshot-tool:active {
+  background-color: rgba(255, 255, 255, 0.32);
+}
+
+.amethystora-screenshot-tool:focus,
+.amethystora-screenshot-swatch:focus {
+  box-shadow: inset 0 0 0 2px -st-accent-color;
+}
+
+/* An 18 px disc of the colour in a 24 px ring, which the chosen colour fills with itself */
+.amethystora-screenshot-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 3px solid transparent;
+  border-radius: 999px;
+}
+
+.amethystora-screenshot-swatch-disc {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(128, 128, 128, 0.6);
+}
+
+.amethystora-screenshot-slider {
+  width: 80px;
+}
+
+/* GNOME's own show-pointer toggle, as small as the Extract Text button beside it */
+.amethystora-screenshot-compact {
+  padding: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The delete button of a picked-up mark, and the preview card's buttons */
+.amethystora-screenshot-round {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 999px;
+  color: #ffffff;
+  background-color: #303035;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.amethystora-screenshot-round:hover {
+  background-color: #3b3b41;
+}
+
+.amethystora-screenshot-round:active {
+  background-color: #46464d;
+}
+
+/* The text field, in the colour and size of the text it will become (set as it is opened) */
+.amethystora-screenshot-text {
+  font-family: Sans;
+  padding: 2px 4px;
+  border: 1.5px solid -st-accent-color;
+  border-radius: 3px;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+/* The size of the area being framed, readable over any picture */
+.amethystora-screenshot-readout {
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: bold;
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: #ffffff;
+  background-color: rgba(0, 0, 0, 0.75);
+}
+
+/* The preview card */
+.amethystora-screenshot-card {
+  border: 3.5px solid #1e1e22;
+  border-radius: 12px;
+  background-color: #1e1e22;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.amethystora-screenshot-badge {
+  spacing: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-weight: bold;
+  color: #ffffff;
+  background-color: -st-accent-color;
+}

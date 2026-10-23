@@ -68,6 +68,15 @@ what you copy from then on, under **Unlock to see earlier items**. Click it and 
 see the rest. The history is sealed under this machine's keyring: on another machine, or after an
 administrator resets your password, it does not open, and it is kept aside as `history.unreadable`.
 
+## Screenshots
+
+`Print` opens GNOME's screenshot bar. Above it, for an area or the whole screen, are tools to draw on the
+picture before it is saved: move a mark, a pen, a box, a filled box to hide something, a highlighter, an
+arrow, text and numbered markers, in eight colours and the width the slider (or the mouse wheel) sets.
+`1` to `9` pick the tools, `Ctrl+Z` undoes, `Delete` removes the mark you picked up. `Ctrl+C` copies the
+picture without saving it and `Ctrl+S` saves it where you choose. Once it is taken, a card at the bottom
+right opens it in Gradia, shows it in Files or opens it in your image viewer.
+
 ## Copying text from the screen
 
 Text in a picture, a video call, an error dialog that cannot be selected, a scanned page: Gradia reads it
@@ -82,7 +91,8 @@ and copies it for you, on your machine.
 
 Good to know:
 
-- The button works on an area only. It is off when you choose a window, the whole screen or a recording.
+- The button and `Ctrl+E` work on an area only. They are off when you choose a window, the whole screen or a
+  recording.
 - The capture is saved like any screenshot, in your screenshot folder. Delete it there if you do not want it.
 - The language data lives in `~/.var/app/be.alexandervanhee.gradia/data/tessdata`. Open Gradia's
   preferences to add another language.
@@ -239,11 +249,9 @@ These GNOME Shell extensions come with the image:
 | Dash to Dock | The dock |
 | Amethystora Clipboard | The [clipboard history](#the-clipboard) on `Super+Shift+V`, sealed: a copy of Clipboard Indicator |
 | Blur my Shell | The frosted glass behind the panel, the overview, menus and notifications, and windows you are not using made slightly see-through (**Applications** in its settings) |
-| Amethystora UI | Amethystora's own desktop, written for this image: the workspaces, the meters and the tray icons in the top bar, the search on `Super+Space` and app search that forgives typos, quicker animations, no popup when you change workspace, and no Activities button |
+| Amethystora UI | Amethystora's own desktop, written for this image: the workspaces, the meters and the tray icons in the top bar, the search on `Super+Space` app search that forgives typos, drawing on a screenshot and [copying the text out of it](#copying-text-from-the-screen), and uninstalling an app from its menu, quicker animations, no popup when you change workspace, and no Activities button |
 | GSConnect | Your Android phone, on the [networks you name home](security.md#on-from-the-start): notifications, files, clipboard, texts. Off until you [turn it on](hardware.md#phones) |
 | Logo menu | The Amethystora logo at the top left and [its menu](#the-top-bar) of the system's tools |
-| Gradia | Annotate a screenshot straight after taking it, in the Gradia app, and [copy the text out of it](#copying-text-from-the-screen) |
-| Bazaar integration | Connects the shell to Bazaar, the software centre |
 | Amethystora Transitions | The animation that reveals a new theme or wallpaper ([Transitions](themes.md#transitions)) |
 | Amethystora Widgets | Your own [widgets](widgets.md) in the top bar; nothing until you add one |
 

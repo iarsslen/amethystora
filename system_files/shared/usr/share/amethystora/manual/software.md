@@ -24,6 +24,9 @@ flatpak list --app
 flatpak uninstall --delete-data org.gimp.GIMP
 ```
 
+Or right-click a Flatpak app in the app grid: **Uninstall** asks whether to keep its data, and its
+details open its page in Bazaar.
+
 The apps the machine comes with install from Flathub the first time it is online: Firefox is the one
 in the image itself. Mail is Thunderbird; pictures open in Loupe, documents in Papers, videos in
 Showtime and sound in Decibels; Snapshot is the camera, Gradia annotates screenshots and Pinta paints;

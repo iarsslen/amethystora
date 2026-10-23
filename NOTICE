@@ -166,10 +166,8 @@ These GNOME Shell extensions are built from the git submodules in
 system_files/shared/usr/share/gnome-shell/extensions, under the licence given;
 each licence ships in the extension's folder:
 
-  - Bazaar Integration    GPL-3.0           https://github.com/bazaar-org/bazaar-companion
   - Blur my Shell         GPL-3.0           https://github.com/aunetx/blur-my-shell
   - Dash to Dock          GPL-2.0-or-later  https://github.com/micheleg/dash-to-dock
-  - Gradia Integration    GPL-3.0           https://github.com/AlexanderVanhee/gradia-capture
   - GSConnect             GPL-2.0-or-later  https://github.com/GSConnect/gnome-shell-extension-gsconnect
 
 This GNOME Shell extension is installed from extensions.gnome.org, under the
