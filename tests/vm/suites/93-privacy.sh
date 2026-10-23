@@ -98,9 +98,11 @@ if [[ -z "${purge}" ]]; then
     not_ok "phase 1 left no time to wait for"
     finish
 fi
-while (($(uptime_s) < purge)); do
-    if ((SECONDS - PHASE_START > 1500)); then
-        echo "# $((purge - $(uptime_s))) s still to wait"
+# Until the purge has come and taken the oldest file, or ten minutes after it was due; never more than 20
+# minutes a phase, so that what was found always gets back to the lab
+while (($(uptime_s) < purge)) || { ! gone vmlab-forty && (($(uptime_s) < purge + 600)); }; do
+    if ((SECONDS - PHASE_START > 1200)); then
+        echo "# at ${SECONDS} s of phase ${SUITE_PHASE}: $((purge - $(uptime_s))) s to the purge"
         continue_phase
     fi
     sleep 20
@@ -110,7 +112,7 @@ done
 if [[ "$(($(started) / 1000000))" != "$(cat "${STATE}/start")" ]]; then
     not_ok "gsd-housekeeping started again while the suite waited, so its purge did not come when it was waited for"
 fi
-if wait_for 600 gone vmlab-forty; then
+if gone vmlab-forty; then
     ok "the purge took the file deleted 40 days ago"
 else
     not_ok "the file deleted 40 days ago is still in the trash" "$(ls -la "${TRASH}/files" "${TRASH}/info" 2>&1)" \
