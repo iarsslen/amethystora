@@ -115,3 +115,7 @@ android	waydroid
 ocr	screenshot text gradia extract
 text from image	ocr screenshot gradia extract
 copy text from screenshot	ocr gradia extract text
+work vpn	vpn anyconnect fortinet sstp ipsec l2tp libreswan openconnect globalprotect
+fortinet	vpn fortisslvpn openconnect openfortivpn
+anyconnect	vpn openconnect cisco
+vpn	networkmanager plugin ipsec l2tp sstp openvpn wireguard tailscale

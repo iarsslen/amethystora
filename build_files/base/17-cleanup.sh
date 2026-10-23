@@ -68,6 +68,11 @@ systemctl disable input-remapper.service
 # schedulers, which replace the kernel's own (ame system scheduler)
 systemctl disable waydroid-container.service
 systemctl disable scx_loader.service
+# L2TP/IPsec VPNs (NetworkManager-l2tp, 04-packages.sh): Fedora's kernel blacklists every module of
+# kernel-modules-extra that a net- alias would let any account load, and the plugin's L2TP daemon gets
+# l2tp_netlink and l2tp_ppp by those aliases, which a blacklist stops. They load on demand when a VPN
+# uses them; l2tp_eth (L2TPv3 Ethernet pseudowires, which no VPN plugin uses) stays blacklisted.
+rm -f /etc/modprobe.d/l2tp_netlink-blacklist.conf /etc/modprobe.d/l2tp_ppp-blacklist.conf
 # USBGuard's D-Bus service, masked, not disabled: D-Bus activation would start it, it would start USBGuard
 # with whatever rules are there, and GNOME's plugin in every session would add a rule that allows every new
 # device while the screen is unlocked, which undoes `ame security usb on`. Only `ame security usb locked`

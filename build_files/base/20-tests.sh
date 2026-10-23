@@ -145,6 +145,22 @@ test ! -e /usr/lib/swidtag/fedoraproject.org
 rpm -q nordvpn >/dev/null && false
 rpm -q nordvpn-gui >/dev/null && false
 
+# The VPNs people are given at work (04-packages.sh): a plugin for each, and PPTP left out for MS-CHAPv2
+for plugin in fortisslvpn l2tp libreswan openconnect openvpn sstp vpnc; do
+    rpm -q "NetworkManager-${plugin}" "NetworkManager-${plugin}-gnome" >/dev/null
+    test -f "/usr/lib/NetworkManager/VPN/nm-${plugin}-service.name"
+done
+rpm -q NetworkManager-pptp pptp >/dev/null && false
+# Nothing runs while no IPsec or L2TP VPN is connected: the plugins start pluto and the L2TP daemon themselves
+for unit in ipsec.service xl2tpd.service; do
+    [[ "$(systemctl is-enabled "${unit}" 2>/dev/null || true)" != enabled ]]
+done
+# L2TP's two modules load on demand (17-cleanup.sh); l2tp_eth, which no VPN uses, stays blacklisted by Fedora's
+# kernel, which proves the folder is where the other two were taken from
+test ! -e /etc/modprobe.d/l2tp_netlink-blacklist.conf
+test ! -e /etc/modprobe.d/l2tp_ppp-blacklist.conf
+grep -qx "blacklist l2tp_eth" /etc/modprobe.d/l2tp_eth-blacklist.conf
+
 # Ptyxis is the terminal: first for xdg-terminal-exec (Super+Return), and kitty is gone
 [[ "$(grep -v '^#' /etc/xdg/xdg-terminals.list | head -1)" == "org.gnome.Ptyxis.desktop" ]]
 [[ "$(grep -v '^#' /etc/xdg/gnome-xdg-terminals.list | head -1)" == "org.gnome.Ptyxis.desktop" ]]
