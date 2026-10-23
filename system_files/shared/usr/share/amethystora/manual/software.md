@@ -287,3 +287,24 @@ writable package database.
   `TS_NO_LOGS_NO_SUPPORT=false` in `/etc/default/tailscaled` turns back on.
   The firewall trusts the tailnet, where your tailnet's own access rules apply.
 - **WireGuard** configurations from any provider can be imported in **Settings → Network → VPN**.
+- **A VPN your work or school gave you** is added in **Settings → Network → VPN** (the **+** button, or
+  **Import from file…** for a `.ovpn` or a file your administrator sent). The kinds the image can add:
+  - **OpenVPN**: import the `.ovpn` file.
+  - **OpenConnect** speaks Cisco AnyConnect, Palo Alto GlobalProtect, Pulse and Ivanti, Juniper, F5 and Array,
+    and Fortinet; choose the protocol in the dialog. Upstream calls every one but AnyConnect experimental.
+  - **Fortinet SSL VPN** has a client of its own, **Fortinet SSL VPN (openfortivpn)**, for a FortiGate that
+    OpenConnect's Fortinet protocol cannot reach (a realm, or a certificate to pin).
+  - **SSTP** is Microsoft's VPN over HTTPS.
+  - **IPsec based VPN** is IPsec with IKEv2, certificates included, through Libreswan.
+  - **Layer 2 Tunneling Protocol (L2TP)**, with IPsec, for older servers and routers. Libreswan refuses the
+    old IKEv1 these usually speak ("global ikev1-policy does not allow IKEv1 connections"), as it should by
+    default. If your server offers nothing else, `sudo sed -i 's/^#ikev1-policy=accept/ikev1-policy=accept/' /etc/ipsec.conf`
+    allows it for this machine; undo it by putting the `#` back.
+  - **Cisco** `vpnc` (IPsec, with a `.pcf` file) is there too.
+  - **PPTP is not offered.** Its login (MS-CHAPv2) can be broken from one recorded connection, whatever the
+    password, and Microsoft's own servers are dropping it.
+
+  None of them runs until a connection is up. `ame security kernel strict` stops IPsec and L2TP/IPsec VPNs
+  (it blocks the kernel's IPsec modules, see [Stricter settings](security.md#stricter-settings)); the others,
+  WireGuard and Tailscale included, are not affected. A VPN that will not connect: ask the agent, or see
+  `journalctl --no-hostname _COMM=nm-l2tp-service _COMM=pluto _COMM=kl2tpd _COMM=pppd`.
