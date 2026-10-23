@@ -10,12 +10,16 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {Theme} from './modules/theme.js';
 import {Tweaks} from './modules/tweaks.js';
+import {Workspaces} from './modules/workspaces.js';
+import {Meters} from './modules/meters.js';
 
 // In the order they start, by the name of their stylesheet; they stop in the opposite order. The glass comes after
 // the dock and the panel's modules, whose actors it draws behind.
 const MODULES = [
     ['theme', Theme],
     ['tweaks', Tweaks],
+    ['workspaces', Workspaces],
+    ['meters', Meters],
 ];
 
 export default class AmethystoraUI extends Extension {

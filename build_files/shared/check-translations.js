@@ -305,7 +305,30 @@ const SHELL = ['usr/libexec/amethystora-security-status', 'usr/libexec/amethysto
     'usr/libexec/amethystora-security-watch',
     'usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js',
     'usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js',
-    ...['agent', 'apps', 'backup', 'changelog', 'desktop', 'report', 'security', 'system', 'update'].map((group) => `usr/share/amethystora/just/${group}.just`)];
+    ...['agent', 'apps', 'backup', 'changelog', 'desktop', 'report', 'security', 'system', 'update'].map((group) => `usr/share/amethystora/just/${group}.just`),
+    // Amethystora UI: every module, however deep it is split
+    ...jsFiles('usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io')];
+
+// The .js files under a folder of the root, sorted, so that the template keeps one order
+function jsFiles(folder) {
+    const out = [];
+    const walk = (relative) => {
+        const absolute = path.join(root, relative);
+        if (!fs.existsSync(absolute)) {
+            return;
+        }
+        for (const entry of fs.readdirSync(absolute, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+            const child = `${relative}/${entry.name}`;
+            if (entry.isDirectory()) {
+                walk(child);
+            } else if (entry.name.endsWith('.js')) {
+                out.push(child);
+            }
+        }
+    };
+    walk(folder);
+    return out;
+}
 
 // A shell word in quotes, as the program it is passed to receives it
 function unshell(word) {
@@ -315,8 +338,13 @@ function unshell(word) {
 const QUOTED = String.raw`("(?:[^"\\]|\\.)*"|'[^']*')`;
 const CALL = new RegExp(String.raw`(?<![\w-])(eval_ngettext|eval_gettext|gettext|N_n|N_)(?:(?<=N_n)\s+\w+\s+\w+)?\s+${QUOTED}(?:\s+${QUOTED})?`, 'g');
 
-// A GNOME Shell extension's own: _('...'), the gettext of resource:///org/gnome/shell/extensions/extension.js
-const JS_CALL = new RegExp(String.raw`(?<![\w$.])(_)\(\s*${QUOTED}()`, 'g');
+// A GNOME Shell extension's own: _('...') and ngettext('...', '...', n), the gettext of
+// resource:///org/gnome/shell/extensions/extension.js. A comment that starts "// Translators:" goes with them as "#" does.
+// JavaScript's quotes take backslash escapes in either kind.
+const JS_QUOTED = String.raw`("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')`;
+const JS_CALL = new RegExp(String.raw`(?<![\w$.])(_|ngettext)\(\s*${JS_QUOTED}(?:\s*,\s*${JS_QUOTED})?`, 'g');
+const JS_ESCAPES = { n: '\n', t: '\t', '\\': '\\', "'": "'", '"': '"' };
+const unquoteJs = (word) => word.slice(1, -1).replace(/\\(.)/g, (all, c) => JS_ESCAPES[c] ?? c);
 
 function shellMessages() {
     const found = new Map();
@@ -324,7 +352,7 @@ function shellMessages() {
         const lines = fs.readFileSync(path.join(root, script), 'utf8').split('\n');
         let comment = '';
         lines.forEach((line) => {
-            const note = /^\s*#\s*Translators:\s*(.*)$/.exec(line);
+            const note = (script.endsWith('.js') ? /^\s*\/\/\s*Translators:\s*(.*)$/ : /^\s*#\s*Translators:\s*(.*)$/).exec(line);
             if (note) {
                 comment = note[1];
                 return;
@@ -334,8 +362,9 @@ function shellMessages() {
             }
             for (const match of line.matchAll(script.endsWith('.js') ? JS_CALL : CALL)) {
                 const [, call, first, second] = match;
-                const id = unshell(first);
-                const plural = (call === 'eval_ngettext' || call === 'N_n') && second ? unshell(second) : null;
+                const unquote = script.endsWith('.js') ? unquoteJs : unshell;
+                const id = unquote(first);
+                const plural = ['eval_ngettext', 'N_n', 'ngettext'].includes(call) && second ? unquote(second) : null;
                 const key = `${id}\u0000${plural || ''}`;
                 const entry = found.get(key) || { id, plural, files: new Set(), comment: '' };
                 entry.files.add(script);

@@ -105,12 +105,9 @@ enable_extension "amethystora-ui@iarsslen.github.io"
 
 # --- Extensions installed from extensions.gnome.org --------------------------------------------
 #
-# These are not submodules. Space Bar is TypeScript, so building it from source would pull npm and
-# the npm registry into the image build; TopHat is not in Fedora's repositories
-# at all (only in updates-testing, which this build does not enable). The reviewed builds from
-# extensions.gnome.org are used instead, each pinned to one upload and to the SHA-256 of its zip, which
-# extensions.gnome.org does not sign. PaperWM and Fuzzy App Search need no build step, but come from
-# there too, pinned and checked the same way.
+# These are not submodules. PaperWM and Fuzzy App Search need no build step, and come from there: the
+# reviewed builds from extensions.gnome.org, each pinned to one upload and to the SHA-256 of its zip,
+# which extensions.gnome.org does not sign.
 #
 # To update one: read the new upload id for this GNOME out of
 # https://extensions.gnome.org/extension-info/?uuid=<uuid>, download that upload and change its
@@ -162,26 +159,6 @@ install_ego_extension "paperwm@paperwm.github.com" 148 70147 \
 # GNOME Fuzzy App Search: app search that forgives typos, in the overview and in Search Light
 install_ego_extension "gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com" 28 70194 \
     16403a52ac1faada1ceae77032ff772ec460c3206b0bd48638ba21162549ee9f
-
-# TopHat: CPU, memory and network meters in the panel. Their colour follows the theme, set by
-# amethystora-theme.
-install_ego_extension "tophat@fflewddur.github.io" 24 69837 \
-    c10c21d6c88c467d2f232bb281af2065ba4feda63e0937c4a14d108e8916ccdd
-
-# Space Bar: the i3-style workspace indicator that makes the six fixed workspaces visible.
-# The only one of these that needs a pin per GNOME: v34 is the last build for GNOME 49 and
-# v39 the first for GNOME 50, so there is no single upload that covers both.
-if ((GNOME_MAJOR >= 50)); then
-    install_ego_extension "space-bar@luchrioh" 39 72977 \
-        aca3f49832ac080b7b98855c112e179301d99d35a07eb5455ff40ae5707d751f
-else
-    install_ego_extension "space-bar@luchrioh" 34 65181 \
-        6ade875e4423903e73d006139b28af9e98d85e64e7eb9272d98e640390ee60f1
-fi
-# Its upload carries no licence file. It began as a fork of Workspaces Bar by Francois Thirioux, whose
-# source says "License GPL v3", so that is the licence it comes under, and the text goes with it
-install -Dpm0644 /usr/share/licenses/gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com/LICENSE \
-    /usr/share/licenses/space-bar@luchrioh/LICENSE
 
 # GNOME Shell's getSettings() reads an extension's own compiled schemas before the system's, and the
 # overrides in /usr/share/glib-2.0/schemas never reach those: without this, every extension above ran

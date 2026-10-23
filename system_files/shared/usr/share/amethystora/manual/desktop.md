@@ -8,10 +8,16 @@ the keys are in your fingers you will rarely reach for it.
 - **On the left**, the Amethystora logo, a menu of the system's tools: about this computer, this
   manual, Settings, Bazaar, Extension Manager, Mission Center, the terminal and DistroShelf. A
   middle click on it opens the overview. Then the six workspaces: the one you are on is
-  highlighted; click another to go there.
+  highlighted; click another to go there, or the one you are on to show or hide the overview. An empty
+  one opens the overview, ready to start something. Scroll the mouse wheel anywhere on the bar to go to
+  the next or previous workspace. Drag a workspace along the row to move it, its windows with it, or
+  drop a window from the overview on one to send it there. Right-click a workspace to give it a name.
 - **In the middle**, the clock. Click it, or press `Super+V`, for notifications and the calendar.
 - **On the right**, CPU, memory and network meters, then the system menu: Wi-Fi, sound, power and
-  the rest of the quick settings.
+  the rest of the quick settings. Click a meter for the details: each processor, the memory and the
+  network over the last few minutes, the busiest processes, and a button that opens Mission Center.
+  The network meter counts your Wi-Fi and wired connections only, so a VPN or a container's traffic
+  is not counted twice.
 
 The meters and the workspaces follow the colours of the current [theme](themes.md). The bar can
 also show [widgets](widgets.md) of your own, which the AI agent makes for you once you turn it on.
@@ -214,6 +220,8 @@ There are always six, so `Super+3` always means the same place. A common way to 
 on 1, a terminal on 2, chat on 6. `Super+Shift+3` takes the focused window to workspace 3.
 `Super+Page Up` / `Super+Page Down` go to the previous / next workspace, and
 `Super+Shift+Ctrl+Left` / `Super+Shift+Ctrl+Right` move the window to the next monitor.
+`Super+Ctrl+Alt+Left` / `Super+Ctrl+Alt+Right` swap the workspace you are on with the one beside it,
+windows and name included.
 
 ## Extensions
 
@@ -222,14 +230,12 @@ These GNOME Shell extensions come with the image:
 | Extension | What it does |
 | --- | --- |
 | PaperWM | [Tiling](#tiling-windows): windows side by side on a scrolling strip |
-| Space Bar | The workspaces in the top bar |
-| TopHat | The CPU, memory and network meters |
 | Dash to Dock | The dock |
 | Search Light | The search on `Super+Space` |
 | Fuzzy App Search | App search that forgives typos |
 | Amethystora Clipboard | The [clipboard history](#the-clipboard) on `Super+Shift+V`, sealed: a copy of Clipboard Indicator |
 | Blur my Shell | The frosted glass behind the panel, the overview, menus and notifications, and windows you are not using made slightly see-through (**Applications** in its settings) |
-| Amethystora UI | Amethystora's own desktop, written for this image: quicker animations, no popup when you change workspace, and no Activities button |
+| Amethystora UI | Amethystora's own desktop, written for this image: the workspaces and the meters in the top bar, quicker animations, no popup when you change workspace, and no Activities button |
 | AppIndicator | Tray icons for apps that use them |
 | Caffeine | Off until you turn it on in Extension Manager; then a switch in the quick settings keeps the screen awake |
 | GSConnect | Your Android phone, on the [networks you name home](security.md#on-from-the-start): notifications, files, clipboard, texts. Off until you [turn it on](hardware.md#phones) |

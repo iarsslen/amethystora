@@ -101,29 +101,6 @@ apply_ptyxis() {
     done
 }
 
-# The extensions that draw in the top bar keep their colours in their own settings rather than in
-# a stylesheet, so the panel only follows the theme if they are written on every switch. These are
-# the theme's exact colours, not GNOME's nine accents, which is why TopHat's use-system-accent is
-# off in zz1-amethystora-modifications.
-apply_topbar() {
-    local accent background foreground meter
-
-    accent="$(colors_get "${CURRENT_THEME_DIR}" accent)"
-    background="$(colors_get "${CURRENT_THEME_DIR}" background)"
-    foreground="$(colors_get "${CURRENT_THEME_DIR}" foreground)"
-    [[ -n ${accent} && -n ${background} && -n ${foreground} ]] || return 0
-
-    # A theme can override the meter colour when its accent reads badly as a thin bar
-    meter="$(theme_file tophat.theme)"
-    dconf_write_string /org/gnome/shell/extensions/tophat/meter-fg-color "${meter:-${accent}}"
-
-    local appearance=/org/gnome/shell/extensions/space-bar/appearance
-    dconf_write_string "${appearance}/active-workspace-background-color" "rgba($(hex_to_rgb "${accent}"),1)"
-    dconf_write_string "${appearance}/active-workspace-text-color" "rgba($(hex_to_rgb "${background}"),1)"
-    dconf_write_string "${appearance}/inactive-workspace-text-color" "rgba($(hex_to_rgb "${foreground}"),0.7)"
-    dconf_write_string "${appearance}/inactive-workspace-background-color" "rgba(0,0,0,0)"
-}
-
 # The dock is clear glass, which over a light theme's pale wallpaper turns as pale as the icons on
 # it. Blur my Shell's dark style (2) lays a faint dark tint over the glass there, so the icons stand
 # out again; dark themes go back to the clear default in 05-blur-my-shell-extension.
@@ -202,7 +179,6 @@ theme_set() {
     transition Hold
     trap 'transition Release' EXIT
     apply_gnome
-    apply_topbar
     apply_dock
     apply_ptyxis
     apply_btop

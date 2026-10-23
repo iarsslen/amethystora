@@ -182,7 +182,6 @@ in usr/share/licenses/gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitl
 
   - PaperWM                 GPL-3.0           https://github.com/paperwm/PaperWM
   - GNOME Fuzzy App Search  GPL-3.0           https://gitlab.com/czarlie/gnome-fuzzy-app-search
-  - TopHat                  GPL-3.0           https://github.com/fflewddur/tophat
 
 Amethystora Clipboard, the GNOME Shell extension in
 usr/share/gnome-shell/extensions/amethystora-clipboard@iarsslen.github.io, is a
@@ -195,13 +194,6 @@ usr/share/locale/*/LC_MESSAGES/amethystora-clipboard.mo, are Clipboard
 Indicator's translators', under the same licence.
 
   - Clipboard Indicator  https://github.com/Tudmotu/gnome-shell-extension-clipboard-indicator
-
-Space Bar (https://github.com/christopher-l/space-bar) is installed from the
-same place. Its author has published no licence file for it. It began as a
-fork of Workspaces Bar by Francois Thirioux
-(https://github.com/fthx/workspaces-bar), whose source is marked "License GPL
-v3", so it comes under the GNU General Public License, version 3; the licence
-ships in usr/share/licenses/space-bar@luchrioh.
 
 Starship, the shell prompt in usr/bin/starship, is installed from its upstream
 release by build_files/base/05-override-install.sh, under the ISC License; the

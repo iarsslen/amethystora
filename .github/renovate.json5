@@ -57,8 +57,7 @@
       depTypeTemplate: 'base-image',
     },
     // The extensions.gnome.org uploads build-gnome-extensions.sh installs,
-    // by upload id: the calls at the top of the script, and Space Bar's for
-    // the GNOME the datasource asks for (its build for GNOME 49 was the last)
+    // by upload id
     {
       customType: 'regex',
       managerFilePatterns: [
@@ -66,7 +65,6 @@
       ],
       matchStrings: [
         '\\ninstall_ego_extension "(?<depName>[^"]+)" \\d+ (?<currentValue>\\d+) ',
-        'GNOME_MAJOR >= 50\\)\\); then\\n\\s+install_ego_extension "(?<depName>[^"]+)" \\d+ (?<currentValue>\\d+) ',
       ],
       datasourceTemplate: 'custom.extensions-gnome-org',
       versioningTemplate: 'loose',

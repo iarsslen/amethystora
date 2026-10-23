@@ -6368,3 +6368,86 @@ msgstr ""
 #, sh-format
 msgid "automatic updates are currently running, use `journalctl -fexu ${SERVICE}` to see logs"
 msgstr ""
+
+#. Translators: something smaller than the size or share shown, such as "< 1 kB"
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters/format.js
+msgid "< %s"
+msgstr ""
+
+#. Translators: a processor's speed, such as "3.4 GHz"
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters/format.js
+msgid "%s GHz"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "Processor"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "In use"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "Frequency"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "Temperature"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "Busiest processes"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "Time since start-up"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "Memory"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "Swap in use"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "Largest processes"
+msgstr ""
+
+#. Translators: memory that is free, such as "7.3 GB available of 16 GB"
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "{available} available of {total}"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "Network"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "Sending"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "Receiving"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "Sent in all"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+msgid "Received in all"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
+msgid "Workspace %d"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
+msgid "Workspaces"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
+msgid "Name of this workspace"
+msgstr ""

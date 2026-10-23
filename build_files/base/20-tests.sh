@@ -291,8 +291,7 @@ done
 # Every extension ships its licence, in its own folder or in /usr/share/licenses/<uuid>: the GPL asks
 # for the text to travel with the program. One installed from a Fedora package carries it in the package's
 # licence folder, or, like those of gnome-shell-extensions, in that of a sibling from the same source
-# package (gnome-shell-extension-common). Space Bar's upload has none, so build-gnome-extensions.sh adds
-# the GPL its origin puts it under (NOTICE)
+# package (gnome-shell-extension-common)
 for extension in /usr/share/gnome-shell/extensions/*/; do
     uuid="$(basename "${extension}")"
     srpm="$(rpm -qf --qf '%{SOURCERPM}' "${extension%/}" 2>/dev/null)" || srpm=""
@@ -307,8 +306,7 @@ done
 # Tiling and top bar: each extension from extensions.gnome.org is installed, enabled, supports this
 # GNOME, and has its schema readable system-wide so the defaults in zz1-amethystora-modifications apply
 GNOME_MAJOR="$(gnome-shell --version | grep -oE '[0-9]+' | head -n1)"
-for extension in paperwm@paperwm.github.com tophat@fflewddur.github.io space-bar@luchrioh \
-    gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com; do
+for extension in paperwm@paperwm.github.com gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com; do
     test -f "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
     jq -e --arg shell "${GNOME_MAJOR}" '.["shell-version"] | index($shell)' \
         "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
@@ -382,10 +380,38 @@ test -s /usr/share/licenses/amethystora-ui@iarsslen.github.io/LICENSE
 for module in $(grep -oE "from './modules/[a-z]+\.js'" "${UI_EXTENSION}/extension.js" | cut -d / -f 3 | cut -d . -f 1); do
     test -s "${UI_EXTENSION}/modules/${module}.js"
 done
-for retired in just-perfection-desktop@just-perfection; do
+for retired in just-perfection-desktop@just-perfection space-bar@luchrioh tophat@fflewddur.github.io; do
     test ! -e "/usr/share/gnome-shell/extensions/${retired}"
+    test ! -e "/usr/share/licenses/${retired}"
     grep -q "'${retired}'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override && false
 done
+# A module's keys are only the ones this plan names, each schema system-wide for gsettings and ame. The workspace
+# row's two are the keys that swap a workspace with its neighbour, which collide with nothing GNOME binds.
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.workspaces | sort | paste -sd ' ')" == \
+    "move-workspace-left move-workspace-right" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.workspaces move-workspace-left)" == \
+    "['<Control><Alt><Super>Left']" ]]
+# The colours that follow the theme render whole for every shipped theme, through the theme switcher's own
+# render_templates: a colour a palette lacks would leave a {{ key }} in the shell's stylesheet
+UI_RENDER="$(mktemp -d)"
+for theme in /usr/share/amethystora/themes/*/; do
+    mkdir -p "${UI_RENDER}/$(basename "${theme}")"
+    cp "${theme}colors.toml" "${UI_RENDER}/$(basename "${theme}")/"
+    (
+        HOME="${UI_RENDER}" XDG_CONFIG_HOME="${UI_RENDER}/config"
+        source /usr/lib/amethystora/theme/lib.sh
+        render_templates "${UI_RENDER}/$(basename "${theme}")" "theme_name=$(basename "${theme}")"
+    )
+    for template in /usr/share/amethystora/themed/shell-*.css.tpl; do
+        rendered="${UI_RENDER}/$(basename "${theme}")/$(basename "${template}" .tpl)"
+        test -s "${rendered}"
+        if grep -q '{{' "${rendered}"; then
+            echo "${theme} leaves a value of $(basename "${rendered}") unrendered"
+            exit 1
+        fi
+    done
+done
+rm -rf "${UI_RENDER}"
 # The tweaks: animations at 0.6 of their time through the shell's slow-down factor alone. GNOME's own switch for
 # animations is the person's (Settings, Accessibility), and nothing here may turn it back on.
 grep -q "^const SPEED = 0.6;$" "${UI_EXTENSION}/modules/tweaks.js"
@@ -400,13 +426,8 @@ for wrong in 0 3651 -1 7x; do
     GSETTINGS_BACKEND=memory ame desktop privacy trash "${wrong}" >/dev/null 2>&1 && false
 done
 GSETTINGS_BACKEND=memory ame desktop privacy clipboard 7 >/dev/null 2>&1 && false
-# Space Bar's own menu shortcut defaults to Super+W, which closes a window here, so it has to be cleared
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.space-bar.shortcuts open-menu)" == "@as []" ]]
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.space-bar.shortcuts enable-activate-workspace-shortcuts)" == "false" ]]
-# TopHat's colour comes from the palette, not from GNOME's nine accents
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.tophat use-system-accent)" == "false" ]]
 test ! -e /usr/share/gnome-shell/extensions/tactile@lundal.io
-# PaperWM leaves the top bar to the theme and the workspaces to Space Bar
+# PaperWM leaves the top bar to the theme and the workspaces to Amethystora UI's workspace row
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.paperwm disable-topbar-styling)" == "true" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.paperwm show-workspace-indicator)" == "false" ]]
 # GNOME Shell's getSettings() reads an extension's own schemas folder before the system's, where an
@@ -1133,9 +1154,9 @@ test -s /usr/share/licenses/starship/LICENSE
 compgen -G "/usr/lib/udev/rules.d/71-*-gdu.rules" >/dev/null
 test -s /usr/share/licenses/game-devices-udev/LICENSE
 # The same for what came with the desktop layer and is somebody else's work under another licence
-# (NOTICE names each): Prezto's and zimfw's for the zsh configuration, the GPL of Realtek's driver for
-# its udev rules, and the GPL for Space Bar
-for licence in prezto/LICENSE zimfw/LICENSE realtek-r8152/LICENSE space-bar@luchrioh/LICENSE; do
+# (NOTICE names each): Prezto's and zimfw's for the zsh configuration, and the GPL of Realtek's driver for
+# its udev rules
+for licence in prezto/LICENSE zimfw/LICENSE realtek-r8152/LICENSE; do
     test -s "/usr/share/licenses/${licence}"
 done
 # The licences Fedora's packages keep among their documentation outlive the documentation

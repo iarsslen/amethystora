@@ -1,0 +1,124 @@
+/* The meters in the top bar and their menus: sizes and shapes. Their colours follow the theme, in the theme's
+   shell-meters.css; the ones here stand in before a theme has been applied, and are written with one class fewer so
+   that the theme's always win. */
+
+.amethystora-meters-trough {
+  height: 1.3em;
+  padding: 0;
+  border-radius: 2px;
+  spacing: 1px;
+  background-color: rgba(128, 128, 128, 0.2);
+}
+
+.amethystora-meters-bar {
+  background-color: -st-accent-color;
+}
+
+.amethystora-meters-wide .amethystora-meters-bar {
+  width: 8px;
+}
+
+.amethystora-meters-medium .amethystora-meters-bar {
+  width: 6px;
+}
+
+.amethystora-meters-narrow .amethystora-meters-bar {
+  width: 4px;
+}
+
+/* What is sent over what is received, in small type */
+.amethystora-meters-rates {
+  font-size: 0.7em;
+  min-width: 5em;
+}
+
+.amethystora-meters-rates.amethystora-meters-offline {
+  min-width: 2em;
+}
+
+/* The menus */
+.amethystora-meters-content {
+  min-width: 18em;
+  padding: 0 12px;
+}
+
+.amethystora-meters-heading {
+  font-size: 0.9em;
+  font-weight: 600;
+  margin-top: 1em;
+  margin-bottom: 4px;
+}
+
+.amethystora-meters-heading:first-child {
+  margin-top: 0;
+}
+
+.amethystora-meters-row {
+  spacing: 12px;
+  padding: 2px 0;
+}
+
+.amethystora-meters-value {
+  font-weight: bold;
+}
+
+.amethystora-meters-details {
+  font-size: 0.8em;
+}
+
+.amethystora-meters-capacity {
+  height: 5px;
+  margin: 4px 0;
+  -barlevel-height: 5px;
+  -barlevel-background-color: rgba(128, 128, 128, 0.2);
+  -barlevel-active-background-color: -st-accent-color;
+}
+
+.amethystora-meters-history {
+  margin: 12px 6px;
+}
+
+.amethystora-meters-plot {
+  height: 6em;
+  min-width: 249px;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+.amethystora-meters-mirrored {
+  spacing: 1px;
+}
+
+.amethystora-meters-chart {
+  color: -st-accent-color;
+}
+
+.amethystora-meters-axis {
+  padding: 0 4px;
+}
+
+.amethystora-meters-mark {
+  font-size: 0.7em;
+}
+
+.amethystora-meters-process {
+  width: 160px;
+}
+
+.amethystora-meters-uptime {
+  padding: 2px 0;
+}
+
+.amethystora-meters-actions {
+  spacing: 2em;
+  margin-top: 1em;
+}
+
+/* A long process name, shown whole above its row */
+.amethystora-meters-tip {
+  font-size: 0.8em;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.85);
+  color: #ffffff;
+}

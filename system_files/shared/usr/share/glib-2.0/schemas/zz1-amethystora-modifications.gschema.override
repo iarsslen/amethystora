@@ -45,8 +45,8 @@ default-zoom-level='large'
 
 #-------------- TILING --------------#
 # PaperWM lays each workspace out as a strip of windows, side by side and wider than the screen, and
-# scrolls it to keep the focused one in view. Space Bar already shows the workspaces, and switches
-# them when you scroll on the top bar, and the top bar is the theme's, so PaperWM's own indicator,
+# scrolls it to keep the focused one in view. Amethystora UI's workspace row already shows the
+# workspaces, and switches them when you scroll on the top bar, and the top bar is the theme's, so PaperWM's own indicator,
 # position bar, panel colours and top bar scrolling (which would move to another window on the same
 # scroll) are off.
 
@@ -125,41 +125,6 @@ move-to-workspace-5=['<Super><Shift>5']
 move-to-workspace-6=['<Super><Shift>6']
 move-to-monitor-left=['<Super><Shift>Left']
 move-to-monitor-right=['<Super><Shift>Right']
-
-#-------------- TOP BAR --------------#
-# Space Bar puts the six workspaces in the panel, where Activities used to be, so the workspace
-# you are on is visible without opening the overview.
-#
-# Its own shortcuts are turned off: the workspace keys are set above, in GNOME's own keybindings,
-# so there is one place they come from. Its menu keybinding has to go too, because it defaults to
-# Super+W, which closes a window here.
-
-# Its place in the left of the panel is its own default, beside the logo menu, as it has always shown.
-[org.gnome.shell.extensions.space-bar.behavior]
-position='left'
-system-workspace-indicator=false
-smart-workspace-names=false
-show-empty-workspaces=true
-
-[org.gnome.shell.extensions.space-bar.shortcuts]
-enable-activate-workspace-shortcuts=false
-enable-move-to-workspace-shortcuts=false
-open-menu=@as []
-
-# TopHat's meters. The colour is not set here: amethystora-theme writes it from the palette on
-# every theme switch, which is why use-system-accent is off (that would round it to one of GNOME's
-# nine accents instead of the theme's own).
-[org.gnome.shell.extensions.tophat]
-show-icons=false
-show-cpu=true
-show-mem=true
-show-net=true
-show-disk=false
-show-fs=false
-use-system-accent=false
-# Each refresh redraws the meters: at the default rate the compositor woke six or seven times a second on an
-# idle desktop
-refresh-rate='slow'
 
 # Amethystora Clipboard, Clipboard Indicator's copy that seals its history. Clipboard Indicator's own
 # shortcuts are Ctrl+F8 to Ctrl+F12, which IDEs use for building and debugging, so only the menu has a key,

@@ -7,16 +7,19 @@
 #
 # Each swap adds its extension below and raises the version, so the hook runs once more on every account.
 #   1  Just Perfection (the tweaks module)
+#   2  Space Bar and TopHat (the workspaces and meters modules)
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
 command -v gsettings >/dev/null || exit 0
 
-version-script retire-extensions user 1 || exit 0
+version-script retire-extensions user 2 || exit 0
 
 # uuid, then the dconf folder its settings were in
 RETIRED=(
     "just-perfection-desktop@just-perfection /org/gnome/shell/extensions/just-perfection/"
+    "space-bar@luchrioh /org/gnome/shell/extensions/space-bar/"
+    "tophat@fflewddur.github.io /org/gnome/shell/extensions/tophat/"
 )
 
 OWN="${XDG_DATA_HOME:-${HOME}/.local/share}/gnome-shell/extensions"

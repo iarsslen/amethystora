@@ -125,7 +125,7 @@ A folder with a name of its own is a new theme. Each file is small and optional,
 | `icons.theme` | An icon theme, instead of candy-icons |
 | `cursor.theme` | A cursor theme |
 | `vscode.theme` | The VSCodium colour theme to switch to |
-| `tophat.theme` | The colour of the top bar meters, when the accent reads badly as a thin line |
+| `shell-workspaces.css`, `shell-meters.css` | The top bar's colours for the workspaces and the meters, in GNOME Shell's CSS, instead of the ones drawn from the palette |
 | `backgrounds/` | Wallpapers |
 | `backgrounds.list` | Wallpapers kept elsewhere on the system, one path per line. The first is the one the theme opens on |
 

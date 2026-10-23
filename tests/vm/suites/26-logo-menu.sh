@@ -184,7 +184,7 @@ case "${SUITE_PHASE}" in
         finish
     fi
 
-    # 2. The leftmost thing in the top bar, left of Space Bar's workspaces
+    # 2. The leftmost thing in the top bar, left of the workspace row
     check "the logo menu is the leftmost item in the top bar" leftmost
     echo "# panel: $(tree panel 2>&1 | head -n 6 | paste -sd ';')"
 

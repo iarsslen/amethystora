@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The keys of the workspaces in the top bar (modules/workspaces.js). The workspaces themselves, their names and
+     the keys that switch them are GNOME's own (org.gnome.desktop.wm.preferences, org.gnome.desktop.wm.keybindings). -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.workspaces" path="/org/gnome/shell/extensions/amethystora-ui/workspaces/">
+    <key name="move-workspace-left" type="as">
+      <default><![CDATA[['<Control><Alt><Super>Left']]]></default>
+      <summary>Move the workspace you are on one place to the left</summary>
+      <description>Its windows and its name go with it, and it stops at the first place.</description>
+    </key>
+    <key name="move-workspace-right" type="as">
+      <default><![CDATA[['<Control><Alt><Super>Right']]]></default>
+      <summary>Move the workspace you are on one place to the right</summary>
+      <description>Its windows and its name go with it, and it stops at the last place.</description>
+    </key>
+  </schema>
+</schemalist>
