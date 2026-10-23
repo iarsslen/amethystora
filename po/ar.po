@@ -2019,15 +2019,20 @@ msgid "GNOME's privacy settings could not be read."
 msgstr "تعذّرت قراءة إعدادات الخصوصية في GNOME."
 
 #: usr/libexec/amethystora-control-list
-#, sh-format
-msgid "After ${days} day"
-msgid_plural "After ${days} days"
-msgstr[0] "بعد ${days} يوم"
-msgstr[1] "بعد يوم واحد"
-msgstr[2] "بعد يومين"
-msgstr[3] "بعد ${days} أيام"
-msgstr[4] "بعد ${days} يومًا"
-msgstr[5] "بعد ${days} يوم"
+msgid "After 7 days"
+msgstr "بعد 7 أيام"
+
+#: usr/libexec/amethystora-control-list
+msgid "After 14 days"
+msgstr "بعد 14 يومًا"
+
+#: usr/libexec/amethystora-control-list
+msgid "After 30 days"
+msgstr "بعد 30 يومًا"
+
+#: usr/libexec/amethystora-control-list
+msgid "After 60 days"
+msgstr "بعد 60 يومًا"
 
 #: usr/libexec/amethystora-control-list
 msgid "Never"

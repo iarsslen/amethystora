@@ -1937,11 +1937,20 @@ msgid "GNOME's privacy settings could not be read."
 msgstr "Les réglages de confidentialité de GNOME n'ont pas pu être lus."
 
 #: usr/libexec/amethystora-control-list
-#, sh-format
-msgid "After ${days} day"
-msgid_plural "After ${days} days"
-msgstr[0] "Après ${days} jour"
-msgstr[1] "Après ${days} jours"
+msgid "After 7 days"
+msgstr "Après 7 jours"
+
+#: usr/libexec/amethystora-control-list
+msgid "After 14 days"
+msgstr "Après 14 jours"
+
+#: usr/libexec/amethystora-control-list
+msgid "After 30 days"
+msgstr "Après 30 jours"
+
+#: usr/libexec/amethystora-control-list
+msgid "After 60 days"
+msgstr "Après 60 jours"
 
 #: usr/libexec/amethystora-control-list
 msgid "Never"

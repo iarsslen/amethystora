@@ -282,16 +282,19 @@ item desktop clipboard choice "$(gettext "Clipboard history")" \
 
 # How old what is in the trash gets before GNOME's housekeeping empties it (org.gnome.desktop.privacy)
 TRASH=""
+PRIVACY="$(said privacy)"
 if [[ "$(ended privacy)" != 0 ]]; then
     REASON="$(gettext "GNOME's privacy settings could not be read.")"
-elif said privacy | grep -q '^[^ ]* remove-old-trash-files true$'; then
-    TRASH="$(said privacy | sed -n 's/^[^ ]* old-files-age \(uint32 \)\{0,1\}//p')"
+elif [[ "${PRIVACY}" =~ remove-old-trash-files\ true ]]; then
+    [[ "${PRIVACY}" =~ old-files-age\ (uint32\ )?([0-9]+) ]] && TRASH="${BASH_REMATCH[2]}"
 else
     TRASH=off
 fi
-for days in 7 14 30 60; do
-    choice "${days}" "$(eval_ngettext "After \${days} day" "After \${days} days" "${days}")" "" false ame desktop privacy trash "${days}"
-done
+# A message for each, which gettext() finds without a process of its own: a plural form took four
+choice 7 "$(gettext "After 7 days")" "" false ame desktop privacy trash 7
+choice 14 "$(gettext "After 14 days")" "" false ame desktop privacy trash 14
+choice 30 "$(gettext "After 30 days")" "" false ame desktop privacy trash 30
+choice 60 "$(gettext "After 60 days")" "" false ame desktop privacy trash 60
 choice off "$(gettext "Never")" "$(gettext "Only when you empty it")" false ame desktop privacy trash off
 GROUP="$(gettext "Privacy")"
 USAGE="ame desktop privacy trash DAYS|off"
