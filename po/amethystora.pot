@@ -1888,7 +1888,7 @@ msgstr ""
 msgid "Classic"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
 msgid "Windows float and overlap, and you move and size them, as on Windows and macOS"
 msgstr ""
 
@@ -1920,7 +1920,7 @@ msgstr ""
 msgid "Always"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
 msgid "Everything you copied, until you clear it"
 msgstr ""
 
@@ -1928,7 +1928,7 @@ msgstr ""
 msgid "Until a restart"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
 msgid "Pinned items, and the rest until the computer restarts"
 msgstr ""
 
@@ -1936,7 +1936,7 @@ msgstr ""
 msgid "Until you log out"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
 msgid "Pinned items, and the rest until you log out"
 msgstr ""
 
@@ -3656,7 +3656,7 @@ msgid "I have the recovery key"
 msgstr ""
 
 #. Translators: choices of a menu that turns automatic updates on or off
-#: usr/libexec/amethystora-private-folder usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just usr/share/amethystora/just/security.just usr/share/amethystora/just/system.just
+#: usr/libexec/amethystora-private-folder usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/amethystora/just/system.just
 msgid "Cancel"
 msgstr ""
 
@@ -4314,6 +4314,115 @@ msgstr ""
 msgid "WARN: Could not find a release specific to your image"
 msgstr ""
 
+#: usr/share/amethystora/just/desktop.just
+msgid "none"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Theme (current: ${shown})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Transition (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Transition set to ${style}, taking ${length} ms."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Super+Ctrl+Space changes the wallpaper to show it."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Windows open side by side on a strip that scrolls, arranged for you (PaperWM)"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Layout (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Classic: windows float. Drag one by its title bar, Super+Up maximises it, Super+Down restores it, and Super+Left or Super+Right puts it on that half of the screen."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Tiling: new windows open beside the one you are on, and Super+Left and Super+Right move between them. The keys are in the manual: amethystora-manual desktop#tiling-windows"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Keep the clipboard history (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The clipboard history is kept until you clear it."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Pinned items are kept, and the rest of the clipboard history until the computer restarts."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Pinned items are kept, and the rest of the clipboard history until you log out."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "It is sealed on disk, under a key in your login keyring."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Empty the trash of what was deleted more than this many days ago (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The trash is never emptied by itself."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The trash is emptied of what was deleted more than ${days} days ago, checked every hour while you are logged in."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "What it empties stays in the snapshots and the backup, where they are on."
+msgstr ""
+
+#. Translators: a choice in a menu: to put the artwork on the boot menu
+#: usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just
+msgid "Turn on"
+msgstr ""
+
+#. Translators: a choice in a menu: to take the artwork off the boot menu
+#: usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just
+msgid "Turn off"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Boot menu"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Terminal greeting enabled"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Terminal greeting disabled"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Phone pairing is on: install KDE Connect on the phone, and pair them on a network you named home."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Phone pairing is off"
+msgstr ""
+
 #: usr/share/amethystora/just/report.just
 msgid "Gathering what a bug report needs. It stays on this machine until you choose otherwise."
 msgstr ""
@@ -4727,14 +4836,6 @@ msgstr ""
 
 #: usr/share/amethystora/just/security.just
 msgid "Set up my codes"
-msgstr ""
-
-#: usr/share/amethystora/just/security.just
-msgid "Turn on"
-msgstr ""
-
-#: usr/share/amethystora/just/security.just
-msgid "Turn off"
 msgstr ""
 
 #: usr/share/amethystora/just/security.just

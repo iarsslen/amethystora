@@ -7,13 +7,16 @@ set default-list
 theme THEME="":
     #!/usr/bin/bash
     set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
     if [[ -n "${1:-}" ]]; then
         amethystora-theme set "${1:-}"
         exit 0
     fi
     current="$(amethystora-theme current 2>/dev/null || true)"
+    shown="${current:-$(gettext "none")}"
     choice="$(amethystora-theme list | sed 's/^[*] /  /' | awk '{ print $1 }' |
-        gum choose --header "Theme (current: ${current:-none})" --height 14 --selected "${current}")"
+        gum choose --header "$(eval_gettext "Theme (current: \${shown})")" --height 14 --selected "${current}")"
     amethystora-theme set "${choice}"
 
 # Cycle the wallpaper of the current theme (Super+Ctrl+Space), or show IMAGE, one that amethystora-theme bg list names
@@ -30,6 +33,8 @@ background IMAGE="":
 transition STYLE="" DURATION="":
     #!/usr/bin/bash
     set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
     schema=org.gnome.shell.extensions.amethystora-transitions
     style="${1:-}"
     duration="${2:-}"
@@ -39,7 +44,7 @@ transition STYLE="" DURATION="":
     fi
     if [[ -z "${style}" ]]; then
         current="$(gsettings get "${schema}" style | tr -d "'")"
-        style="$(gum choose --header "Transition (current: ${current})" --selected "${current}" \
+        style="$(gum choose --header "$(eval_gettext "Transition (current: \${current})")" --selected "${current}" \
             grow outer wipe wave fade random none)"
     fi
     gsettings set "${schema}" style "${style}"
@@ -47,37 +52,38 @@ transition STYLE="" DURATION="":
     if [[ -n "${duration}" ]]; then
         gsettings set "${schema}" duration "${duration}"
     fi
-    echo "Transition set to ${style}, taking $(gsettings get "${schema}" duration | sed 's/^uint32 //') ms."
-    echo "Super+Ctrl+Space changes the wallpaper to show it."
+    length="$(gsettings get "${schema}" duration | sed 's/^uint32 //')"
+    echo "$(eval_gettext "Transition set to \${style}, taking \${length} ms.")"
+    echo "$(gettext "Super+Ctrl+Space changes the wallpaper to show it.")"
 
 # Pick how windows are arranged: tiling, side by side on a strip (PaperWM), or classic, floating as on Windows and macOS
 [positional-arguments]
 layout STYLE="":
     #!/usr/bin/bash
     set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
     # Read by user-setup.hooks.d/15-extensions.sh, which turns the image's extensions back on after every
     # update and leaves PaperWM off while this says classic
     flag="${XDG_CONFIG_HOME:-$HOME/.config}/amethystora/layout"
     current="$(cat "${flag}" 2>/dev/null || echo tiling)"
     style="${1:-}"
     if [[ -z "${style}" ]]; then
-        echo "tiling   Windows open side by side on a strip that scrolls, arranged for you (PaperWM)"
-        echo "classic  Windows float and overlap, and you move and size them, as on Windows and macOS"
-        style="$(gum choose --header "Layout (current: ${current})" --selected "${current}" tiling classic)"
+        echo "tiling   $(gettext "Windows open side by side on a strip that scrolls, arranged for you (PaperWM)")"
+        echo "classic  $(gettext "Windows float and overlap, and you move and size them, as on Windows and macOS")"
+        style="$(gum choose --header "$(eval_gettext "Layout (current: \${current})")" --selected "${current}" tiling classic)"
     fi
     case "${style}" in
         classic)
             mkdir -p "$(dirname "${flag}")"
             echo classic >"${flag}"
             gnome-extensions disable paperwm@paperwm.github.com
-            echo "Classic: windows float. Drag one by its title bar, Super+Up maximises it, Super+Down"
-            echo "restores it, and Super+Left or Super+Right puts it on that half of the screen."
+            echo "$(gettext "Classic: windows float. Drag one by its title bar, Super+Up maximises it, Super+Down restores it, and Super+Left or Super+Right puts it on that half of the screen.")"
             ;;
         tiling)
             rm -f "${flag}"
             gnome-extensions enable paperwm@paperwm.github.com
-            echo "Tiling: new windows open beside the one you are on, and Super+Left and Super+Right move"
-            echo "between them. The keys are in the manual: amethystora-manual desktop#tiling-windows"
+            echo "$(gettext "Tiling: new windows open beside the one you are on, and Super+Left and Super+Right move between them. The keys are in the manual: amethystora-manual desktop#tiling-windows")"
             ;;
         *) exit 0 ;;
     esac
@@ -87,14 +93,16 @@ layout STYLE="":
 clipboard KEEP="":
     #!/usr/bin/bash
     set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
     schema=org.gnome.shell.extensions.amethystora-clipboard
     keep="${1:-}"
     if [[ -z "${keep}" ]]; then
         current="$(gsettings get "${schema}" keep-history | tr -d "'")"
-        echo "always   Everything you copied, until you clear it"
-        echo "restart  Pinned items, and the rest until the computer restarts"
-        echo "session  Pinned items, and the rest until you log out"
-        keep="$(gum choose --header "Keep the clipboard history (current: ${current})" --selected "${current}" \
+        echo "always   $(gettext "Everything you copied, until you clear it")"
+        echo "restart  $(gettext "Pinned items, and the rest until the computer restarts")"
+        echo "session  $(gettext "Pinned items, and the rest until you log out")"
+        keep="$(gum choose --header "$(eval_gettext "Keep the clipboard history (current: \${current})")" --selected "${current}" \
             always restart session)"
     fi
     case "${keep}" in
@@ -106,17 +114,19 @@ clipboard KEEP="":
     esac
     gsettings set "${schema}" keep-history "${keep}"
     case "${keep}" in
-        always) echo "The clipboard history is kept until you clear it." ;;
-        restart) echo "Pinned items are kept, and the rest of the clipboard history until the computer restarts." ;;
-        session) echo "Pinned items are kept, and the rest of the clipboard history until you log out." ;;
+        always) echo "$(gettext "The clipboard history is kept until you clear it.")" ;;
+        restart) echo "$(gettext "Pinned items are kept, and the rest of the clipboard history until the computer restarts.")" ;;
+        session) echo "$(gettext "Pinned items are kept, and the rest of the clipboard history until you log out.")" ;;
     esac
-    echo "It is sealed on disk, under a key in your login keyring."
+    echo "$(gettext "It is sealed on disk, under a key in your login keyring.")"
 
 # Empty the trash of what was deleted more than DAYS days ago (1 to 3650), checked every hour while you are logged in, or never (off): ame desktop privacy trash DAYS|off
 [positional-arguments]
 privacy WHAT="" VALUE="":
     #!/usr/bin/bash
     set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
     schema=org.gnome.desktop.privacy
     usage() {
         echo "usage: ame desktop privacy trash DAYS|off"
@@ -129,7 +139,7 @@ privacy WHAT="" VALUE="":
         if [[ "$(gsettings get "${schema}" remove-old-trash-files)" == true ]]; then
             current="$(gsettings get "${schema}" old-files-age | sed 's/^uint32 //')"
         fi
-        value="$(gum choose --header "Empty the trash of what was deleted more than this many days ago (current: ${current})" \
+        value="$(gum choose --header "$(eval_gettext "Empty the trash of what was deleted more than this many days ago (current: \${current})")" \
             --selected "${current}" 7 14 30 60 off)"
     fi
     if [[ "${value}" == off ]]; then
@@ -155,10 +165,11 @@ privacy WHAT="" VALUE="":
         gsettings reset "${housekeeping}" min-notify-period
     fi
     if [[ "${value}" == off ]]; then
-        echo "The trash is never emptied by itself."
+        echo "$(gettext "The trash is never emptied by itself.")"
     else
-        echo "The trash is emptied of what was deleted more than $((10#${value})) days ago, checked every hour while you are logged in."
-        echo "What it empties stays in the snapshots and the backup, where they are on."
+        days=$((10#${value}))
+        echo "$(eval_gettext "The trash is emptied of what was deleted more than \${days} days ago, checked every hour while you are logged in.")"
+        echo "$(gettext "What it empties stays in the snapshots and the backup, where they are on.")"
     fi
 
 # The top bar's widgets, which the AI agent can make: list, make, new, run, fix, on, off, remove (amethystora-widgets)
@@ -189,14 +200,22 @@ keybindings:
 boot-menu ACTION="":
     #!/usr/bin/bash
     set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    # The choices are shown in the session's language, and what gum prints back is matched against the same words
+    # Translators: a choice in a menu: to put the artwork on the boot menu
+    turn_on="$(gettext "Turn on")"
+    # Translators: a choice in a menu: to take the artwork off the boot menu
+    turn_off="$(gettext "Turn off")"
+
     action="${1:-}"
     amethystora-grub-theme status
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "Boot menu" "Turn on" "Turn off" "Cancel")"
+        action="$(gum choose --header "$(gettext "Boot menu")" "${turn_on}" "${turn_off}" "$(gettext "Cancel")")"
     fi
     case "${action}" in
-        "Turn on" | install | on) sudo amethystora-grub-theme install ;;
-        "Turn off" | remove | off) sudo amethystora-grub-theme remove ;;
+        "${turn_on}" | "Turn on" | install | on) sudo amethystora-grub-theme install ;;
+        "${turn_off}" | "Turn off" | remove | off) sudo amethystora-grub-theme remove ;;
         *) exit 0 ;;
     esac
 
@@ -204,6 +223,8 @@ boot-menu ACTION="":
 [positional-arguments]
 greeting ACTION="":
     #!/usr/bin/bash
+    # shellcheck source=/dev/null
+    source gettext.sh
     FLAG="${XDG_CONFIG_HOME:-$HOME/.config}/amethystora/no-greeting"
     action="${1:-}"
     if [[ -z "${action}" ]]; then
@@ -212,12 +233,12 @@ greeting ACTION="":
     case "${action}" in
         on)
             rm -f "${FLAG}"
-            echo "Terminal greeting enabled"
+            echo "$(gettext "Terminal greeting enabled")"
             ;;
         off)
             mkdir -p "$(dirname "${FLAG}")"
             touch "${FLAG}"
-            echo "Terminal greeting disabled"
+            echo "$(gettext "Terminal greeting disabled")"
             ;;
         *)
             echo "usage: ame desktop greeting [on|off]"
@@ -230,6 +251,8 @@ greeting ACTION="":
 [positional-arguments]
 phone ACTION="":
     #!/usr/bin/bash
+    # shellcheck source=/dev/null
+    source gettext.sh
     UUID=gsconnect@andyholmes.github.io
     # One uuid a line, and back to a list, as user-setup.hooks.d/15-extensions.sh does: outside a session,
     # where gnome-extensions cannot reach GNOME Shell, the setting is changed directly
@@ -246,14 +269,14 @@ phone ACTION="":
                 mapfile -t list < <(uuids)
                 gsettings set org.gnome.shell enabled-extensions "$(variant "${list[@]}" "${UUID}")"
             fi
-            echo "Phone pairing is on: install KDE Connect on the phone, and pair them on a network you named home."
+            echo "$(gettext "Phone pairing is on: install KDE Connect on the phone, and pair them on a network you named home.")"
             ;;
         off)
             if ! gnome-extensions disable "${UUID}" 2>/dev/null; then
                 mapfile -t list < <(uuids | grep -vxF "${UUID}")
                 gsettings set org.gnome.shell enabled-extensions "$(variant "${list[@]}")"
             fi
-            echo "Phone pairing is off"
+            echo "$(gettext "Phone pairing is off")"
             ;;
         *)
             echo "usage: ame desktop phone [on|off]"
