@@ -79,6 +79,12 @@ window.narrower .sidebar {
     min-width: 191px;
 }
 
+/* The window's buttons over the top of the sidebar, where the desktop puts them at the start of the title
+   bar: the wordmark moves down out of their way */
+window.controls-start .sidebar {
+    padding-top: 34px;
+}
+
 .sidebar-scroller {
     background: var(--sidebar);
     border-right: 1px solid var(--line);

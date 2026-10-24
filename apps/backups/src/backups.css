@@ -117,6 +117,12 @@ window.narrow .sidebar {
     min-width: 191px;
 }
 
+/* The window's buttons over the top of the sidebar, where the desktop puts them at the start of the title
+   bar: the wordmark moves down out of their way */
+window.controls-start .sidebar {
+    padding-top: 34px;
+}
+
 /* The wordmark of the boot splash and the login screen, as logoHtml in branding/generate.mjs sets it: the
    stone as the "a" of "methystora" in Quicksand Bold, glowing in the three shades the splash lights it
    with, and white. Every size is the generator's, in em, so it is the same mark at any size; the glow

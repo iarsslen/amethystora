@@ -1106,9 +1106,29 @@ test -x "${THEME_HOOK}"
 grep -q 'MIRROR_ROOT="${HOME}/.themes"' "${THEME_HOOK}"
 grep -q "gtk-4.0" "${THEME_HOOK}"
 # The mirror and the stylesheet are only any use to a Flatpak if the sandbox is let at them
-grep -q "^filesystems=~/\.themes:ro;xdg-config/gtk-4\.0:ro;$" /etc/flatpak/overrides/global
-# Window buttons on the right, where the theme draws its three lights
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.preferences button-layout)" == "':minimize,maximize,close'" ]]
+grep -q "^filesystems=~/\.themes:ro;xdg-config/gtk-4\.0:ro;xdg-config/gtk-3\.0:ro;$" /etc/flatpak/overrides/global
+# Window buttons on the left, close first, as on macOS, drawn as the lights of themed/window-controls-gtk*.css.tpl
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.preferences button-layout)" == "'close,minimize,maximize:'" ]]
+# ...which every shipped theme renders whole, through the theme switcher's own render_templates: a colour its
+# palette lacks would leave a {{ key }} in the CSS
+RENDER_HOME="$(mktemp -d)"
+for theme in /usr/share/amethystora/themes/*/; do
+    mkdir -p "${RENDER_HOME}/$(basename "${theme}")"
+    cp "${theme}colors.toml" "${RENDER_HOME}/$(basename "${theme}")/"
+    (
+        HOME="${RENDER_HOME}" XDG_CONFIG_HOME="${RENDER_HOME}/config"
+        source /usr/lib/amethystora/theme/lib.sh
+        render_templates "${RENDER_HOME}/$(basename "${theme}")" "theme_name=$(basename "${theme}")"
+    )
+    for rendered in "${RENDER_HOME}/$(basename "${theme}")"/window-controls-gtk{3,4}.css; do
+        test -s "${rendered}"
+        if grep -q '{{' "${rendered}"; then
+            echo "${theme} leaves a value of $(basename "${rendered}") unrendered"
+            exit 1
+        fi
+    done
+done
+rm -rf "${RENDER_HOME}"
 
 # Icon theme (10-icons.sh): candy-icons, installed from upstream rather than from Fedora's
 # candy-icon-theme, which would pull breeze-icon-theme onto a GNOME image

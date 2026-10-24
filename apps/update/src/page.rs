@@ -8,7 +8,7 @@ use std::rc::Rc;
 use amethystora_ui::gem::{Gem, Motion};
 use amethystora_ui::i18n::{self, DateStyle, Piece};
 use amethystora_ui::ui::{self, Bar};
-use amethystora_ui::{adw, gtk, process, t, t_parts};
+use amethystora_ui::{adw, frame, gtk, process, t, t_parts};
 use gtk::prelude::*;
 
 use crate::backend::{self, Deployment, Device, Step, Update};
@@ -877,6 +877,12 @@ impl Updates {
         brand.update_property(&[gtk::accessible::Property::Label(&t!("Amethystora Updates"))]);
         brand.set_hexpand(true);
         brand.set_halign(gtk::Align::Start);
+        // Level with the window's buttons over the start of the bar, which stay at its top when the links
+        // wrap onto a second line
+        let mark = brand.clone();
+        self.shell.window.connect_notify_local(Some("css-classes"), move |window, _| {
+            mark.set_valign(if window.has_css_class("controls-start") { gtk::Align::Start } else { gtk::Align::Center });
+        });
         top.append(&brand);
         let links = ui::wrap(20, 6, &["top-links"]);
         links.set_align(1.0);
@@ -890,7 +896,7 @@ impl Updates {
         links.append(&releases);
         links.append(&manual);
         top.append(&links);
-        let controls = gtk::WindowControls::new(gtk::PackType::End);
+        let controls = frame::controls();
         controls.set_valign(gtk::Align::Center);
         top.append(&controls);
         let handle = gtk::WindowHandle::builder().child(&top).build();

@@ -70,10 +70,25 @@ scrollbar slider:hover {
     margin-bottom: -6px;
 }
 
-.top {
+/* A box: the window's buttons over its corner are an overlay's child, which GTK gives the class top as well */
+box.top {
     padding: 16px 24px;
     background: var(--top);
     border-bottom: 1px solid var(--line);
+}
+
+/* The window's buttons over the start of the bar, where the desktop puts them at the start of the title bar:
+   level with the wordmark, which moves along out of their way */
+windowcontrols.start {
+    margin: 15px 20px;
+}
+
+window.controls-start box.top:dir(ltr) {
+    padding-left: 106px;
+}
+
+window.controls-start box.top:dir(rtl) {
+    padding-right: 106px;
 }
 
 /* The wordmark of the boot splash and the login screen, as logoHtml in branding/generate.mjs sets it: the

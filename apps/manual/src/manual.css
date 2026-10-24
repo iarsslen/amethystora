@@ -45,6 +45,12 @@ button.brand-button {
     padding: 26px 20px 18px;
 }
 
+/* The window's buttons over the top of the sidebar, where the desktop puts them at the start of the title
+   bar: the wordmark moves down out of their way */
+window.controls-start button.brand-button {
+    padding-top: 38px;
+}
+
 .brand {
     font-family: Quicksand, Inter, sans-serif;
     font-weight: 700;

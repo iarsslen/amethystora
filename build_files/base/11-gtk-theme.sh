@@ -58,7 +58,7 @@ Encoding=UTF-8
 [X-GNOME-Metatheme]
 GtkTheme=Amethystora
 IconTheme=candy-icons
-ButtonLayout=:minimize,maximize,close
+ButtonLayout=close,minimize,maximize:
 EOF
 
 # Recolour. The window buttons are left out on purpose: Sweet draws them as the three coloured

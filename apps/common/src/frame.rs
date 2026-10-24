@@ -4,9 +4,10 @@
 //!
 //! There is no title bar: the window can be moved by any empty part of it (gtk::WindowHandle), and its
 //! buttons are wherever the app puts `controls()`, over the top of the page unless the page has a bar of its
-//! own there.
+//! own there, or over the window's other top corner when the desktop puts them at the start
+//! (`start_controls()`).
 
-use gtk::prelude::*;
+use adw::prelude::*;
 
 use crate::icon::Icon;
 use crate::ui;
@@ -35,11 +36,58 @@ pub fn with_sidebar(sidebar: &impl IsA<gtk::Widget>, main: &impl IsA<gtk::Widget
     gtk::WindowHandle::builder().child(&layout).build().upcast()
 }
 
-/// The window's own buttons, as the desktop has them (close, and whatever else it is set to show)
+/// The window's own buttons, as the desktop has them at the end of the title bar (close, and whatever else it
+/// is set to show), hidden while it puts none there, so that they take no room in the app's row
 pub fn controls() -> gtk::WindowControls {
     let controls = gtk::WindowControls::new(gtk::PackType::End);
     controls.add_css_class("window-controls");
+    controls.bind_property("empty", &controls, "visible").invert_boolean().sync_create().build();
     controls
+}
+
+/// The buttons the desktop puts at the start of the title bar (`button-layout='close,minimize,maximize:'`),
+/// in every window (app.rs), over its top corner at the start of the line (the right in a right-to-left
+/// language), as macOS has them: above the app's content, which goes into an overlay for them, again whenever
+/// the app sets another. While they show, the window has the class `controls-start`, and each app's stylesheet
+/// makes room for them.
+pub(crate) fn start_controls(window: &adw::ApplicationWindow) {
+    let controls = gtk::WindowControls::new(gtk::PackType::Start);
+    controls.add_css_class("window-controls");
+    controls.add_css_class("start");
+    controls.set_halign(gtk::Align::Start);
+    controls.set_valign(gtk::Align::Start);
+    controls.bind_property("empty", &controls, "visible").invert_boolean().sync_create().build();
+    let overlay = gtk::Overlay::new();
+    overlay.add_overlay(&controls);
+    let mark = {
+        let window = window.downgrade();
+        move |controls: &gtk::WindowControls| {
+            if let Some(window) = window.upgrade() {
+                if controls.is_empty() {
+                    window.remove_css_class("controls-start");
+                } else {
+                    window.add_css_class("controls-start");
+                }
+            }
+        }
+    };
+    let wrap = move |window: &adw::ApplicationWindow| {
+        let Some(content) = window.content().filter(|content| content != overlay.upcast_ref::<gtk::Widget>()) else { return };
+        window.set_content(gtk::Widget::NONE);
+        overlay.set_child(Some(&content));
+        window.set_content(Some(&overlay));
+    };
+    wrap(window);
+    let busy = std::cell::Cell::new(false);
+    window.connect_content_notify(move |window| {
+        if !busy.replace(true) {
+            wrap(window);
+            busy.set(false);
+        }
+    });
+    // In the window now, the buttons know the desktop's layout
+    mark(&controls);
+    controls.connect_empty_notify(mark);
 }
 
 /// The column the sidebar is: the wordmark, then whatever the app adds, then its foot at the bottom

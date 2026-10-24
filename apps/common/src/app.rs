@@ -285,6 +285,7 @@ fn open_window<A: App>(app: &adw::Application, spec: Spec, build: &Rc<impl Fn(Rc
     shell.restyle();
     shell.rescale();
     let own_app = build(shell.clone());
+    crate::frame::start_controls(&window);
 
     // With no theme applied, the system's colour scheme decides
     let weak = Rc::downgrade(&shell);

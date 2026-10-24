@@ -1167,8 +1167,10 @@ impl Logs {
         let live = self.live.borrow();
         let detail_open = live.panes.as_ref().is_some_and(|panes| panes.has_css_class("open"));
         let logs = self.state.borrow().page == PageKind::Logs;
-        if let Some(controls) = live.title_row.as_ref().and_then(|row| row.last_child()) {
-            controls.set_visible(!detail_open);
+        // None in the title's row while the desktop puts them all at the start of the title bar, where the row's
+        // spacing would still keep room for them
+        if let Some(controls) = live.title_row.as_ref().and_then(|row| row.last_child()).and_downcast::<gtk::WindowControls>() {
+            controls.set_visible(!detail_open && !controls.is_empty());
         }
         self.parts.floating.set_visible(!logs);
     }
@@ -1505,6 +1507,16 @@ impl Logs {
         let controls = frame::controls();
         controls.set_valign(gtk::Align::Start);
         controls.add_css_class("title-controls");
+        // The desktop's layout changed: placed again, once the change has been made
+        let weak = self.me.clone();
+        controls.connect_empty_notify(move |_| {
+            let weak = weak.clone();
+            glib::idle_add_local_once(move || {
+                if let Some(this) = weak.upgrade() {
+                    this.place_controls();
+                }
+            });
+        });
         title_row.append(&controls);
         head.append(&title_row);
 
