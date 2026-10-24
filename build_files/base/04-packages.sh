@@ -333,6 +333,8 @@ EXCLUDED_PACKAGES=(
     fedora-chromium-config-gnome
     gnome-extensions-app
     gnome-shell-extension-background-logo
+    # The base image's copy of Blur my Shell, which Amethystora UI's glass module replaces (20-tests.sh)
+    gnome-shell-extension-blur-my-shell
     gnome-software
     gnome-software-rpm-ostree
     gnome-terminal-nautilus
