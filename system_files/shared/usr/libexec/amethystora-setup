@@ -24,7 +24,8 @@
 #   settings     {layout, favorites, keybindings}: the window layout, the dock's apps and the keys of
 #                keybindings (the image's custom keybindings by their id, never a command), and no other
 #                GNOME setting. A file from before the tiling replaced PaperWM may still hold its gaps
-#                under paperwm: they are read and ignored, since the gaps are the image's.
+#                under paperwm, which are read and ignored since the gaps are the image's, and its keybindings,
+#                which `diff` lists as keys this machine does not have.
 #
 # A file with any other key is refused, by `save` as well. A list the file leaves out counts as empty,
 # and a setting it leaves out as the machine's. `apply` adds what is missing after showing the list, and
@@ -119,7 +120,9 @@ if type != "object" then "it is not a JSON object" else
             at("layout"; if IN("tiling", "classic") then empty else "settings.layout is tiling or classic" end),
             at("favorites"; each("settings.favorites";
                 type == "string" and test("^[A-Za-z0-9_][A-Za-z0-9._+@-]*[.]desktop$"); "an app's .desktop file")),
-            at("keybindings"; only($schemas + ["custom"]; "settings.keybindings."),
+            # PaperWM's keybindings, which a file from before the tiling replaced it may hold, are tolerated: the diff
+            # lists them as keys this machine does not have, and the rest of the file applies
+            at("keybindings"; only($schemas + ["custom", "org.gnome.shell.extensions.paperwm.keybindings"]; "settings.keybindings."),
                 (if type == "object" then to_entries[] | .key as $s | select($s | IN($schemas[], "custom")) | .value |
                     if type != "object" then "settings.keybindings.\($s) is not an object"
                     elif $s == "custom" then to_entries[] |

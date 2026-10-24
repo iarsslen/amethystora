@@ -18,8 +18,17 @@
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
-[[ -e "${XDG_DATA_HOME:-${HOME}/.local/share}/gnome-shell/extensions/paperwm@paperwm.github.com" ]] && exit 0
 command -v dconf >/dev/null && command -v gsettings >/dev/null && command -v jq >/dev/null || exit 0
+
+# An account running its own copy of PaperWM keeps it, and everything of PaperWM's is its own. Two window managers
+# arranging the same windows would fight, so the tiling is turned off for it, once; the account can turn it on again
+if [[ -e "${XDG_DATA_HOME:-${HOME}/.local/share}/gnome-shell/extensions/paperwm@paperwm.github.com" ]]; then
+    if version-script retire-paperwm-own user 1 &&
+        gsettings get org.gnome.shell enabled-extensions 2>/dev/null | grep -q "'paperwm@paperwm.github.com'"; then
+        gsettings set org.gnome.shell.extensions.amethystora-ui.tiling enabled false
+    fi
+    exit 0
+fi
 
 version-script retire-paperwm user 1 || exit 0
 

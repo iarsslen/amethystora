@@ -56,6 +56,8 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     user_bus dconf write /org/gnome/desktop/interface/text-scaling-factor 1.25
     in_session amethystora-theme set tokyo-night >/dev/null 2>&1
     in_session ame desktop layout classic >/dev/null 2>&1
+    in_session ame desktop icons neon >/dev/null 2>&1
+    icons_flag="/var/home/${TEST_USER}/.config/amethystora/icons"
     welcome="$(dconf_get /org/gnome/shell/welcome-dialog-last-shown-version)"
     if [[ "$(theme)" != tokyo-night ]] || tiling_on; then
         not_ok "the account could not be changed first" "theme $(theme), tiling $(tiling_on && echo on || echo off)"
@@ -71,6 +73,7 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     fi
     check "the theme is the image's again" test "$(theme)" == amethystora
     check "and the layout tiles again, with the tiling on" sh -c "runuser -u ${TEST_USER} -- gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled | grep -qx true"
+    check "the icon pack it chose goes with the other settings" sh -c "[ ! -e ${icons_flag} ] && runuser -u ${TEST_USER} -- gsettings get org.gnome.desktop.interface icon-theme | grep -qx '.amethystora-glass.'"
     check "the keyboards stay" test "$(dconf_get /org/gnome/desktop/input-sources/sources)" == "[('xkb', 'us'), ('xkb', 'fr')]"
     check "the on-screen keyboard and the larger text stay" test \
         "$(dconf_get /org/gnome/desktop/a11y/applications/screen-keyboard-enabled) $(dconf_get /org/gnome/desktop/interface/text-scaling-factor)" == "true 1.25"
@@ -83,6 +86,7 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     out="$(in_session ame system reset-settings undo account 2>&1)"
     if [[ "$(dconf_get /org/gnome/desktop/interface/clock-show-seconds)" == true && "$(theme)" == tokyo-night ]] && ! tiling_on &&
         [[ -d "${save}.undone" ]]; then
+        grep -qx amethystora-neon "${icons_flag}" 2>/dev/null || not_ok "undo did not bring the icon pack it chose back"
         ok "undo brings the account's settings, theme and layout back, and keeps the save as ${save##*/}.undone"
     else
         not_ok "undo did not bring the account's settings back" "clock-show-seconds $(dconf_get /org/gnome/desktop/interface/clock-show-seconds), theme $(theme), tiling $(tiling_on && echo on || echo off)" \

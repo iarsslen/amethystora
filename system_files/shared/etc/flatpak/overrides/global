@@ -29,10 +29,11 @@ devices=!input;
 # ones the theme draws in Files. ~/.themes holds the mirror of the active theme written by
 # /usr/share/amethystora/theme-set.hooks.d/20-gtk-apps.sh, and is the one directory GTK searches by
 # name on both sides of the sandbox; ~/.config/gtk-4.0 holds the user stylesheet the same hook
-# writes, which is the only way into the libadwaita applications, and ~/.config/gtk-3.0 the one that
-# draws the GTK3 applications' window buttons. Read-only, so nothing in a sandbox can rewrite the theme
-# every other application then loads.
-filesystems=~/.themes:ro;xdg-config/gtk-4.0:ro;xdg-config/gtk-3.0:ro;
+# writes, which is the only way into the libadwaita applications, and ~/.config/gtk-3.0/gtk.css the one that
+# draws the GTK3 applications' window buttons: that file alone, since GTK 3 keeps the account's bookmarks (network
+# shares with their user names, and the private folder while it is open) beside it. Read-only, so nothing in a
+# sandbox can rewrite the theme every other application then loads.
+filesystems=~/.themes:ro;xdg-config/gtk-4.0:ro;xdg-config/gtk-3.0/gtk.css:ro;
 
 [Session Bus Policy]
 # Talking to the Flatpak service from inside the sandbox is a full escape: `flatpak-spawn --host`

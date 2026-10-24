@@ -1069,7 +1069,7 @@ Duotone follows a light theme, and `icon_theme()` in `lib.sh` writes the account
 generic pictograms, and **never another maker's logo**: an app of theirs keeps the icon it ships, bare, on no tile (the
 maintainer's choice of 2026-10-23, after a tile behind them was proposed). To add an icon, draw a glyph (two inks: the body, and the
 details over it, never a hole cut into it), add a line to `SET` with its ramp and the names it answers to, and run the script;
-`20-tests.sh` holds the three packs to the same names, no symbolic icons, and every launcher of the image to an icon in each.
+`20-tests.sh` holds the three packs to the same number of icons, no symbolic icons and no links, and the icon of every `amethystora-*.desktop` launcher to a file in each; suite 27 asks GTK itself and counts only the pack's own file.
 
 ### Packages from other distributions
 

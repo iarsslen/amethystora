@@ -79,8 +79,12 @@ icons PACK="":
         glass | neon | duotone) name="amethystora-${pack}" ;;
         theme)
             rm -f "${flag}"
-            # The theme is applied again, which writes the icons it chooses
-            amethystora-theme set "$(amethystora-theme current 2>/dev/null || echo amethystora)"
+            # What the theme chooses, written on its own: applying the whole theme again would hold the screen for a
+            # transition and put another wallpaper up
+            # shellcheck source=/dev/null
+            source /usr/lib/amethystora/theme/lib.sh
+            gsettings set org.gnome.desktop.interface icon-theme "$(icon_theme)"
+            echo "$(eval_gettext "Icons: \${pack}.")"
             exit 0
             ;;
         *)

@@ -4,4 +4,4 @@
 # `ame security app-sandbox on` puts the image's own version back.
 
 [Context]
-filesystems=~/.themes:ro;xdg-config/gtk-4.0:ro;xdg-config/gtk-3.0:ro;
+filesystems=~/.themes:ro;xdg-config/gtk-4.0:ro;xdg-config/gtk-3.0/gtk.css:ro;

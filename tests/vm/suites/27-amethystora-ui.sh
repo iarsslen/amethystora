@@ -129,7 +129,15 @@ for pack in ('glass', 'neon', 'duotone'):
     theme = Gtk.IconTheme()
     theme.set_search_path(['/usr/share/icons'])
     theme.set_theme_name('amethystora-' + pack)
-    missing = sorted(n for n in names if not theme.has_icon(n))
+    own = '/usr/share/icons/amethystora-' + pack + '/'
+    # The pack itself has the file, not Adwaita or hicolor through inheritance: has_icon says yes to a pack with its
+    # icons deleted
+
+    def from_pack(n):
+        icon = theme.lookup_icon(n, None, 48, 1, Gtk.TextDirection.NONE, 0)
+        f = icon.get_file() if icon else None
+        return bool(f and (f.get_path() or '').startswith(own))
+    missing = sorted(n for n in names if not from_pack(n))
     print(pack, 'missing:', missing)
     bad += len(missing)
 sys.exit(1 if bad else 0)

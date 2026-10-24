@@ -28,6 +28,11 @@
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
+# The version the account was at, before version-script writes this one. From 7 on the pictures it was given are
+# still in the image, so an update that only changes the icons must leave the wallpaper as the account has it, one it
+# chose in GNOME Settings included: the theme is applied again without picking a new one.
+PREVIOUS="$(jq -r '.version.user.theme // 0' "${SETUP_CHECKER_FILE}" 2>/dev/null || echo 0)"
+
 version-script theme user 9 || exit 0
 
 [[ "$(cat "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons" 2>/dev/null)" == candy-icons ]] &&
@@ -35,4 +40,7 @@ version-script theme user 9 || exit 0
 
 set -xeuo pipefail
 
+if [[ "${PREVIOUS}" =~ ^[0-9]+$ ]] && ((PREVIOUS >= 7)); then
+    export AMETHYSTORA_THEME_SKIP_BACKGROUND=1
+fi
 AMETHYSTORA_THEME_QUIET=1 /usr/bin/amethystora-theme set "$(/usr/bin/amethystora-theme current 2>/dev/null || echo amethystora)"

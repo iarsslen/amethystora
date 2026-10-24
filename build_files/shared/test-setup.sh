@@ -123,6 +123,12 @@ grep -q "^This machine is as " <<<"$("${SETUP}" diff)"
 jq '.settings.paperwm = {"window-gap": 20}' "${FILE}" >"${T}/old.json"
 grep -q "^Nothing to do" <<<"$("${SETUP}" apply --yes "${T}/old.json")"
 [[ ! -s "${LOG}" ]]
+# ...and its keybindings, which this machine has no such keys for: the file is not refused for them, and what it
+# holds besides still applies
+jq '.settings.keybindings["org.gnome.shell.extensions.paperwm.keybindings"] = {"switch-left": ["<Super>h"]}
+    | .flatpaks.user += [{"app": "org.gnome.Maps", "origin": "flathub"}]' "${FILE}" >"${T}/old-keys.json"
+"${SETUP}" diff --json "${T}/old-keys.json" | jq -e 'any(.area == "keybinding" and .ok == false)
+    and any(.area == "flatpak" and .action == "add")' >/dev/null
 
 # Against a file that names nothing, diff lists everything here, as what apply --remove would take away
 echo '{"version": 1}' >"${T}/empty.json"
