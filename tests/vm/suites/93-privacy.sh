@@ -118,8 +118,11 @@ fi
 if gone vmlab-forty; then
     ok "the purge took the file deleted 40 days ago"
 else
+    # With what says whether the machine slept, and what gsd-housekeeping itself said
     not_ok "the file deleted 40 days ago is still in the trash" "$(ls -la "${TRASH}/files" "${TRASH}/info" 2>&1)" \
-        "$(journalctl _UID="$(id -u "${TEST_USER}")" -b --since -2h --no-pager 2>/dev/null | grep -i housekeeping | tail -n 10)"
+        "$(python3 -c 'import time; print("monotonic", time.clock_gettime(time.CLOCK_MONOTONIC), "boottime", time.clock_gettime(time.CLOCK_BOOTTIME))')" \
+        "$(user_systemctl show "${SERVICE}" -p MainPID -p ExecMainStartTimestamp -p ActiveState 2>&1)" \
+        "$(journalctl -b --no-pager 2>/dev/null | grep -iE 'gsd-housekeeping|Housekeeping|suspend|PM: |sleep' | tail -n 15)"
 fi
 if gone vmlab-ten; then
     ok "and the one deleted 10 days ago: the running session took the 7 days at once"
