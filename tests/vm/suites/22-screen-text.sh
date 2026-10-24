@@ -114,7 +114,8 @@ else
     not_ok "the clipboard history does not hold the sentence" \
         "Gradia: $(user_bus flatpak ps --columns=application,instance 2>&1 | head -n 5)" \
         "screen: $(shell text 2>&1 | head -n 30)" \
-        "$(user_bus journalctl --user -b --since '-5min' --no-pager -o cat 2>/dev/null | grep -i 'gradia\|ocr\|screenshot' | grep -v Vulkan | tail -n 15)"
+        "$(user_bus journalctl --user -b --since '-5min' --no-pager -o cat 2>/dev/null | grep -i 'gradia\|ocr\|screenshot' | grep -v Vulkan | tail -n 15)" \
+        "journal: $(user_bus journalctl --user -b --since '-6min' --no-pager -o cat 2>/dev/null | grep -v 'Vulkan\|libEGL\|MESA\|usb' | tail -n 45)"
 fi
 # The capture is kept like any screenshot
 found="$(find "${HOME_DIR}/Pictures" -type f -newer "${OWN}/screentext.py" 2>/dev/null)"
