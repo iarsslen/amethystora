@@ -32,21 +32,24 @@ const TURN = 1224;
 // What GNOME's app menu has that this changes, given back as they were
 const WRAPPED = ['open', 'setApp', '_updateDetailsVisibility'];
 
-// The app's Flatpak ID: what Flatpak wrote into its launcher, or, for a launcher without it, the launcher's name when
-// it lies where Flatpak exports launchers. Null for any other app.
+// The folders where Flatpak exports the launchers of the apps it installs, for the whole machine and for the account.
+// Any program of the account can write a launcher elsewhere in the account's own folders, with whatever X-Flatpak
+// line it likes, so only these are believed.
+function exportFolders() {
+    return [
+        '/var/lib/flatpak/exports/share/applications/',
+        GLib.build_filenamev([GLib.get_user_data_dir(), 'flatpak/exports/share/applications/']),
+    ];
+}
+
+// The app's Flatpak ID: what Flatpak wrote into its launcher, or, for a launcher without it, the launcher's name.
+// Null for an app whose launcher is not one Flatpak exported.
 function flatpakId(app) {
     const info = app?.get_app_info();
-    if (!info)
+    const file = info?.get_filename() ?? '';
+    if (!exportFolders().some(folder => file.startsWith(folder)))
         return null;
-    const written = info.get_string('X-Flatpak')?.trim();
-    if (written)
-        return APP_ID.test(written) ? written : null;
-    const file = info.get_filename() ?? '';
-    const home = GLib.get_home_dir();
-    if (!file.includes('/flatpak/exports/share/applications/') && !file.includes('/var/lib/flatpak/') &&
-        !file.startsWith(`${home}/.local/share/flatpak/`))
-        return null;
-    const id = app.get_id().replace(/\.desktop$/, '');
+    const id = info.get_string('X-Flatpak')?.trim() || app.get_id().replace(/\.desktop$/, '');
     return APP_ID.test(id) ? id : null;
 }
 
@@ -298,7 +301,7 @@ export class Bazaar {
             return;
         }
 
-        const {dialog, answer} = askToUninstall(name);
+        const {dialog, answer} = askToUninstall(name, id);
         this._track(dialog);
         const deleteData = await answer;
         if (deleteData === null || !this._menus)

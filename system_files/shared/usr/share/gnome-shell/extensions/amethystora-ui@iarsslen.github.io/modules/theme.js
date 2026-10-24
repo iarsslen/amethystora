@@ -12,6 +12,9 @@ const THEME_DIR = GLib.build_filenamev([CURRENT, 'theme']);
 const STYLESHEET = /^shell-[a-z]+\.css$/;
 // Milliseconds for a theme switch (a folder taken away, another moved in, the name written) to settle
 const SETTLE = 300;
+// What a theme switch touches in the current folder: the theme's own folder and the file that names it. A new
+// wallpaper touches others (the `background` link, `backgrounds/`), and none of those changes a stylesheet.
+const SWITCH = ['theme', 'theme.name'];
 
 export class Theme {
     enable() {
@@ -19,7 +22,11 @@ export class Theme {
         this._load();
         try {
             this._monitor = Gio.File.new_for_path(CURRENT).monitor_directory(Gio.FileMonitorFlags.WATCH_MOVES, null);
-            this._monitor.connect('changed', () => this._queue());
+            // A move names both of its ends (the folder it was built in, then the one it became)
+            this._monitor.connect('changed', (monitor, file, other) => {
+                if ([file, other].some(each => SWITCH.includes(each?.get_basename())))
+                    this._queue();
+            });
         } catch (e) {
             // Before the first theme there is no folder to watch: the next login loads what the theme set
             console.warn(`Amethystora UI: ${CURRENT} cannot be watched: ${e.message}`);
@@ -56,7 +63,7 @@ export class Theme {
 
     _load() {
         this._unload();
-        let names = [];
+        const names = [];
         try {
             const children = Gio.File.new_for_path(THEME_DIR).enumerate_children('standard::name',
                 Gio.FileQueryInfoFlags.NONE, null);

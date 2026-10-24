@@ -14,6 +14,11 @@ import {Item} from './item.js';
 // The prefix some programs give their item's own bus name and match on, so that it is called by that name
 const FREEDESKTOP_PREFIX = 'org.freedesktop.StatusNotifierItem-';
 const REFUSED = 'org.freedesktop.DBus.Error.InvalidArgs';
+// A program that registers more items than this, or all programs together, is answered with LIMITS: each item has
+// a button, a menu, a signal subscription and a name watch, and every path of one connection is an item of its own
+const LIMITS = 'org.freedesktop.DBus.Error.LimitsExceeded';
+const MAX_PER_PROGRAM = 16;
+const MAX_ITEMS = 64;
 
 /**
  * Where an item is, from what a program registered.
@@ -154,12 +159,24 @@ export class Watcher {
             known.reregister();
             return;
         }
-        let adding = this._adding.get(target.identity);
+        let adding = this._adding.get(target.identity)?.promise;
         if (!adding) {
+            this._checkLimits(target.owner);
             adding = this._add(target).finally(() => this._adding?.delete(target.identity));
-            this._adding.set(target.identity, adding);
+            this._adding.set(target.identity, {promise: adding, owner: target.owner});
         }
         await adding;
+    }
+
+    // Items shown or on their way, in all and for one program
+    _checkLimits(owner) {
+        const mine = [...this._items.values()].filter(item => item.registeredBy === owner).length +
+            [...this._adding.values()].filter(adding => adding.owner === owner).length;
+        if (this._items.size + this._adding.size >= MAX_ITEMS || mine >= MAX_PER_PROGRAM) {
+            const e = new Error('The tray holds as many items as it takes');
+            e.dbusName = LIMITS;
+            throw e;
+        }
     }
 
     async _registerCall([service], invocation) {
@@ -170,7 +187,7 @@ export class Watcher {
                 invocation.return_value(null);
         } catch (e) {
             // An item that could not be read is refused with what reading it answered
-            const name = remoteError(e);
+            const name = e.dbusName ?? remoteError(e);
             if (this._invocations?.delete(invocation)) {
                 invocation.return_dbus_error(name ?? REFUSED,
                     name ? e.message.replace(/^GDBus\.Error:[^:]+:\s*/, '') : e.message);
@@ -181,6 +198,7 @@ export class Watcher {
     async _add(target) {
         await this._started();
         const item = new Item(target);
+        item.registeredBy = target.owner;
         try {
             await item.init(target.owner);
         } catch (e) {

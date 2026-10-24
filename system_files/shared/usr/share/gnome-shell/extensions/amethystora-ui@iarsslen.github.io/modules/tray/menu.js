@@ -1,11 +1,11 @@
 // A tray item's menu, which its program describes over D-Bus (com.canonical.dbusmenu) and the shell draws as an
 // ordinary panel menu: entries, separators, check and radio marks, icons, and submenus that open in place. Entries
 // that stay when the program changes its menu are kept and moved rather than made again, so that an open menu does
-// not flicker; a long menu is put together a few entries at a time, so that it never holds up the shell.
+// not flicker; a long menu is put together a few entries at a time, submenus included, so that it never holds up the
+// shell. What the program sends is read as untrusted: only the properties below are kept, each in the one type the
+// protocol gives it, and pictures and labels have a ceiling.
 
 import Clutter from 'gi://Clutter';
-import Cogl from 'gi://Cogl';
-import GdkPixbuf from 'gi://GdkPixbuf';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
@@ -13,10 +13,22 @@ import St from 'gi://St';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {MENU_IFACE, call, eventTime, isCancelled} from './dbus.js';
+import {pngContent} from './icons.js';
 
 // Milliseconds of building per turn of the main loop, for a menu of hundreds of entries
 const BUILD_BUDGET = 4;
 const MENU_ICON_SIZE = 16;
+// An entry's picture is a PNG of a few kilobytes: one beyond these is not drawn (the shell would have to unpack it, and
+// a program can give every entry one), and a label is cut to this many characters
+const ICON_BYTES = 64 * 1024;
+const ICON_SIDE = 256;
+const LABEL_LENGTH = 512;
+
+// The layout properties that are read, each with the type string it has in the dbusmenu protocol
+const PROPERTY_TYPES = new Map([
+    ['type', 's'], ['label', 's'], ['enabled', 'b'], ['visible', 'b'], ['icon-name', 's'], ['icon-data', 'ay'],
+    ['toggle-type', 's'], ['toggle-state', 'i'], ['children-display', 's'],
+]);
 
 // What an entry is, by the properties that decide which kind of menu row it needs
 function kindOf(props) {
@@ -28,16 +40,24 @@ function kindOf(props) {
 // The text of a label, by the dbusmenu rules: "__" shows one underscore, any other underscore (an access key's mark)
 // is not shown
 function labelText(label) {
-    return typeof label === 'string' ? label.replace(/__|_/g, mark => mark === '__' ? '_' : '') : '';
+    return typeof label === 'string'
+        ? label.slice(0, LABEL_LENGTH).replace(/__|_/g, mark => mark === '__' ? '_' : '') : '';
 }
 
+// A dictionary of properties as an object. A name the tray does not read, or a value of another type than the
+// protocol gives it, is left out as if the program had not sent it, so that nothing later has to ask what it holds.
 function unpackProps(dict) {
     const props = {};
     for (let i = 0; i < dict.n_children(); i++) {
         const entry = dict.get_child_value(i);
         const name = entry.get_child_value(0).get_string()[0];
         const value = entry.get_child_value(1).get_variant();
-        props[name] = name === 'icon-data' ? value.get_data_as_bytes() : value.recursiveUnpack();
+        if (value.get_type_string() !== PROPERTY_TYPES.get(name))
+            continue;
+        if (name !== 'icon-data')
+            props[name] = value.recursiveUnpack();
+        else if (value.get_size() <= ICON_BYTES)
+            props[name] = value.get_data_as_bytes();
     }
     return props;
 }
@@ -58,22 +78,22 @@ function parseNode(variant) {
     return node;
 }
 
-function entryIcon(props) {
-    if (props['icon-name'])
-        return new Gio.ThemedIcon({name: props['icon-name']});
+// The picture of an entry: its icon's name, else its PNG, which is unpacked at the size it is drawn at and not at all
+// when it says it is bigger than a menu icon could need. A PNG that was unpacked once is kept on the entry for as long
+// as its bytes stay the same, since every layout update goes over every entry again.
+function entryIcon(entry) {
+    const {props} = entry;
+    const name = props['icon-name'];
+    if (typeof name === 'string' && name !== '')
+        return new Gio.ThemedIcon({name});
     const bytes = props['icon-data'];
     if (!bytes || bytes.get_size() === 0)
         return null;
-    try {
-        const pixbuf = GdkPixbuf.Pixbuf.new_from_stream(Gio.MemoryInputStream.new_from_bytes(bytes), null);
-        const content = St.ImageContent.new_with_preferred_size(pixbuf.get_width(), pixbuf.get_height());
-        content.set_bytes(global.stage.context.get_backend().get_cogl_context(), pixbuf.read_pixel_bytes(),
-            pixbuf.get_has_alpha() ? Cogl.PixelFormat.RGBA_8888 : Cogl.PixelFormat.RGB_888,
-            pixbuf.get_width(), pixbuf.get_height(), pixbuf.get_rowstride());
-        return content;
-    } catch {
-        return null;
+    if (!entry.pictured?.bytes.equal(bytes)) {
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        entry.pictured = {bytes, picture: pngContent(bytes, Math.ceil(MENU_ICON_SIZE * scale), ICON_SIDE)};
     }
+    return entry.pictured.picture;
 }
 
 function ornamentOf(props) {
@@ -105,6 +125,8 @@ export class RemoteMenu {
         this._entries = new Map([[0, this._root]]);
         this._aboutToShowWorks = true;
         this._stale = false;
+        // The entries that have no row yet, in the order they are made, and the idle source that makes them
+        this._queued = new Set();
         this._buildId = 0;
 
         this._signalId = Gio.DBus.session.signal_subscribe(this._bus, MENU_IFACE, null, path, null,
@@ -127,6 +149,7 @@ export class RemoteMenu {
         if (this._buildId)
             GLib.source_remove(this._buildId);
         this._buildId = 0;
+        this._queued.clear();
         for (const entry of [...this._root.shown])
             this._unbuild(entry);
         this._entries.clear();
@@ -177,7 +200,7 @@ export class RemoteMenu {
                 this._entries.delete(id);
             }
         }
-        this._realize(this._root, true);
+        this._realize(this._root);
     }
 
     _plan(parent, nodes, seen) {
@@ -205,9 +228,9 @@ export class RemoteMenu {
     }
 
     // Brings a menu's rows in line with its wanted entries: kept rows are updated in place and moved into the
-    // program's order, new top-level rows are made at idle. A submenu that changed place is made again, since its
-    // open part is a second actor that moving the row leaves behind.
-    _realize(parent, defer) {
+    // program's order, new rows, in a submenu as much as in the menu, are queued and made at idle. A submenu that
+    // changed place is made again, since its open part is a second actor that moving the row leaves behind.
+    _realize(parent) {
         let kept = parent.wanted.filter(entry => entry.widget);
         if (kept.some((entry, i) => parent.shown[i] !== entry)) {
             const shown = [...parent.shown];
@@ -222,12 +245,12 @@ export class RemoteMenu {
             if (entry.widget) {
                 this._update(entry);
                 if (entry.kind === 'submenu')
-                    this._realize(entry, false);
-            } else if (!defer) {
-                this._build(entry);
+                    this._realize(entry);
+            } else {
+                this._queued.add(entry);
             }
         }
-        if (defer && parent.wanted.some(entry => !entry.widget))
+        if (this._queued.size > 0)
             this._queueBuild();
     }
 
@@ -237,17 +260,38 @@ export class RemoteMenu {
         // Sooner while somebody is looking at the menu
         const priority = this._menu.isOpen ? GLib.PRIORITY_DEFAULT : GLib.PRIORITY_LOW;
         this._buildId = GLib.idle_add(priority, () => {
-            const until = GLib.get_monotonic_time() + BUILD_BUDGET * 1000;
-            for (const entry of this._root.wanted) {
-                if (entry.widget)
-                    continue;
-                if (GLib.get_monotonic_time() > until)
-                    return GLib.SOURCE_CONTINUE;
-                this._build(entry);
+            let more = false;
+            try {
+                more = this._buildSome();
+            } finally {
+                // A throw ends the source: the next queued entry must be free to start another
+                if (!more)
+                    this._buildId = 0;
             }
-            this._buildId = 0;
-            return GLib.SOURCE_REMOVE;
+            return more ? GLib.SOURCE_CONTINUE : GLib.SOURCE_REMOVE;
         });
+    }
+
+    // Makes queued rows until the turn's time is used up; whether any are left. An entry that went away while it
+    // waited, or whose submenu has no row, is passed over (its submenu queues it again when it is made).
+    _buildSome() {
+        const until = GLib.get_monotonic_time() + BUILD_BUDGET * 1000;
+        while (this._queued.size > 0) {
+            if (GLib.get_monotonic_time() > until)
+                return true;
+            const [entry] = this._queued;
+            this._queued.delete(entry);
+            const placed = entry.parent === this._root || entry.parent.widget;
+            if (entry.widget || this._entries.get(entry.id) !== entry || !placed)
+                continue;
+            // One entry that cannot be drawn costs its own row only
+            try {
+                this._build(entry);
+            } catch (e) {
+                console.debug(`Amethystora UI: a tray menu entry could not be drawn: ${e.message}`);
+            }
+        }
+        return false;
     }
 
     _build(entry) {
@@ -280,7 +324,7 @@ export class RemoteMenu {
         parent.shown.splice(position, 0, entry);
         this._update(entry);
         if (entry.kind === 'submenu')
-            this._realize(entry, false);
+            this._realize(entry);
     }
 
     // Takes an entry's row away, and with a submenu's row every row inside it
@@ -306,7 +350,7 @@ export class RemoteMenu {
             return;
         widget.setSensitive(props.enabled ?? true);
         entry.label.text = labelText(props.label);
-        const gicon = entryIcon(props);
+        const gicon = entryIcon(entry);
         entry.icon.gicon = gicon;
         entry.icon.visible = gicon !== null;
         if (entry.kind === 'entry')
@@ -354,16 +398,19 @@ export class RemoteMenu {
             return;
         }
         this._event(entry.id, 'opened', time);
-        if (entry === this._root) {
-            if (this._buildId) {
-                GLib.source_remove(this._buildId);
-                this._buildId = 0;
-                this._queueBuild();
-            }
-            if (this._stale) {
-                this._stale = false;
-                this._reload();
-            }
+        // What the person is about to see is made first, and sooner than an idle menu would
+        const waiting = entry.wanted.filter(e => !e.widget);
+        if (waiting.length > 0)
+            this._queued = new Set([...waiting, ...this._queued]);
+        if (this._buildId) {
+            GLib.source_remove(this._buildId);
+            this._buildId = 0;
+        }
+        if (this._queued.size > 0)
+            this._queueBuild();
+        if (entry === this._root && this._stale) {
+            this._stale = false;
+            this._reload();
         }
         this._aboutToShow(entry.id).then(update => {
             if (update)

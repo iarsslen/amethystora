@@ -15,6 +15,8 @@ import * as Format from './format.js';
 export const SAMPLES = 50;
 // A process name this long is cut in its column, and shown whole above it under the pointer
 const LONG_NAME = 35;
+// The most of a name the tip shows, in characters
+const TIP_LENGTH = 400;
 
 function scaleFactor() {
     return St.ThemeContext.get_for_stage(global.stage).scale_factor;
@@ -44,6 +46,10 @@ class Bars extends St.BoxLayout {
             this._depth = Math.max(this.get_theme_node().get_height(), 0);
             this._draw();
         });
+    }
+
+    get count() {
+        return this._bars.length;
     }
 
     setValues(values) {
@@ -217,10 +223,23 @@ export class ProcessList {
         this.hideTip();
         if (!actor.hover || actor.text.length <= LONG_NAME)
             return;
-        this._tip = new St.Label({text: actor.text, style_class: 'amethystora-meters-tip amethystora-meters-popup'});
+        // A command line can be megabytes long, and Pango would lay out all of it: the tip shows the start, wrapped
+        // inside the width the stylesheet allows
+        this._tip = new St.Label({
+            text: actor.text.slice(0, TIP_LENGTH),
+            style_class: 'amethystora-meters-tip amethystora-meters-popup',
+        });
+        this._tip.clutter_text.set({
+            line_wrap: true,
+            line_wrap_mode: Pango.WrapMode.WORD_CHAR,
+            ellipsize: Pango.EllipsizeMode.NONE,
+        });
         Main.uiGroup.add_child(this._tip);
         const [x, y] = actor.get_transformed_position();
-        this._tip.set_position(Math.round(x), Math.round(y - this._tip.height - 4 * scaleFactor()));
+        // Its height once wrapped at the width it will have, not the height of a single line
+        const [, width] = this._tip.get_preferred_width(-1);
+        const [, height] = this._tip.get_preferred_height(width);
+        this._tip.set_position(Math.round(x), Math.round(y - height - 4 * scaleFactor()));
     }
 
     hideTip() {

@@ -427,7 +427,8 @@ export class Session {
 
     // The pointer: the primary button or a touch draws, the other buttons do nothing
     _onPress(event) {
-        if (event.get_button() !== Clutter.BUTTON_PRIMARY)
+        // A finger is drawing: a second grab on top of its would never be let go of
+        if (event.get_button() !== Clutter.BUTTON_PRIMARY || this._grab)
             return Clutter.EVENT_STOP;
         return this._begin(event.get_coords(), null);
     }

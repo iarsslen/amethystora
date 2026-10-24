@@ -18,9 +18,10 @@ import {findItems, serviceFor} from './tray/scan.js';
 import {Watcher} from './tray/watcher.js';
 import {isCancelled} from './tray/dbus.js';
 
-// Where the buttons go: the right of the top bar, after its first child, so that a newer icon stands left of an older
+// Where the buttons go: the right of the top bar, straight after the meters (the network's is the last of them), so
+// that a newer icon stands left of an older, and at the start of the box where there are no meters
 const BOX = 'right';
-const INDEX = 1;
+const AFTER = 'amethystora-meters-network';
 // The status area's names for the buttons
 const ROLE = 'amethystora-tray-';
 // Milliseconds after the tray starts before programs that did not register are looked for
@@ -89,9 +90,16 @@ export class Tray {
         this._icons = null;
     }
 
+    // Asked at every placing, not once: the meters may come after the tray, or go, and each puts itself at the start
+    // of the box, so that the buttons placed after them stay behind them
+    _index() {
+        const meters = Main.panel.statusArea[AFTER];
+        return meters ? Main.panel._rightBox.get_children().indexOf(meters.container) + 1 : 0;
+    }
+
     _place(button, item) {
         try {
-            Main.panel.addToStatusArea(`${ROLE}${++serial}`, button, INDEX, BOX);
+            Main.panel.addToStatusArea(`${ROLE}${++serial}`, button, this._index(), BOX);
         } catch (e) {
             button.destroy();
             throw e;

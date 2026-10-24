@@ -114,8 +114,9 @@
   margin-top: 1em;
 }
 
-/* A long process name, shown whole above its row */
+/* A long process name, shown above its row, wrapped inside this width */
 .amethystora-meters-tip {
+  max-width: 420px;
   font-size: 0.8em;
   padding: 4px 8px;
   border-radius: 6px;

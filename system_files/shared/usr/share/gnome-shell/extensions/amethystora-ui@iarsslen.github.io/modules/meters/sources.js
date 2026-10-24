@@ -159,6 +159,9 @@ export function temperature(path) {
     return path && Number.isFinite(value) && value > 0 ? value / 1000 : null;
 }
 
+// How much of a command line is looked at, in characters
+const COMMAND_LENGTH = 1024;
+
 // Interpreters whose program is the file they were given
 const INTERPRETER = /^(python[\d.]*|gjs)$/;
 
@@ -238,8 +241,9 @@ export class Processes {
             this._names.has(key) ? null : readLater(`/proc/${pid}/cmdline`, cancellable),
         ]);
         if (!this._names.has(key)) {
+            // Only the start of a command line is a name: any account's process can have one of megabytes
             this._names.set(key, commandLine === null
-                ? short : displayName(commandLine.replace(/\0/g, ' '), short));
+                ? short : displayName(commandLine.slice(0, COMMAND_LENGTH).replace(/\0/g, ' '), short));
         }
         const pss = /^Pss:\s+(\d+)/m.exec(rollup ?? '');
         return {key, name: this._names.get(key), ticks, pss: pss ? Number(pss[1]) * 1024 : null};

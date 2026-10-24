@@ -18,6 +18,7 @@ import {paintMarks} from './marks.js';
 
 // Idempotent: GNOME's screenshot UI makes the same call when it loads
 Gio._promisify(Shell.Screenshot, 'composite_to_stream');
+Gio._promisify(Gio.File.prototype, 'load_contents_async', 'load_contents_finish');
 
 export const GRADIA = 'be.alexandervanhee.gradia';
 
@@ -46,22 +47,82 @@ function scratchFile() {
         `amethystora-screenshot-${GLib.uuid_string_random()}.png`]));
 }
 
-// The marks painted over a picture whose top-left is the stage point (x, y), at `scale` pixels a logical pixel
-function paintOnto(picture, marks, x, y, scale) {
+// Picture data to and from pixbufs: GdkPixbuf's own worker threads do the decoding and the encoding, and the main
+// loop only waits for the answer
+function decodePng(bytes) {
+    return new Promise((resolve, reject) => {
+        const stream = Gio.MemoryInputStream.new_from_bytes(bytes);
+        GdkPixbuf.Pixbuf.new_from_stream_async(stream, null, (source, result) => {
+            try {
+                resolve(GdkPixbuf.Pixbuf.new_from_stream_finish(result));
+            } catch (e) {
+                reject(e);
+            }
+        });
+    });
+}
+
+// Bytes into a file, written by Gio's worker threads: a folder on a network share, or on one that has stopped
+// answering, holds up the write and not the compositor
+function writeBytes(file, bytes) {
+    return new Promise((resolve, reject) => {
+        file.replace_contents_bytes_async(bytes, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null,
+            (f, result) => {
+                try {
+                    f.replace_contents_finish(result);
+                    resolve();
+                } catch (e) {
+                    reject(e);
+                }
+            });
+    });
+}
+
+function encodePng(pixbuf) {
+    return new Promise((resolve, reject) => {
+        const stream = Gio.MemoryOutputStream.new_resizable();
+        pixbuf.save_to_streamv_async(stream, 'png', [], [], null, (source, result) => {
+            try {
+                GdkPixbuf.Pixbuf.save_to_stream_finish(result);
+                stream.close(null);
+                resolve(stream.steal_as_bytes());
+            } catch (e) {
+                reject(e);
+            }
+        });
+    });
+}
+
+// The marks painted over a picture whose top-left is the stage point (x, y), at `scale` pixels a logical pixel. They
+// are painted on a clear surface of the picture's size, which is then laid over the picture's pixbuf, so that the
+// picture itself is never unpacked and packed again here: its encoding is GdkPixbuf's, in a worker thread.
+async function paintOnto(picture, marks, x, y, scale) {
+    const canvas = picture.pixbuf ?? await decodePng(picture.bytes);
+    const overlay = new Cairo.ImageSurface(Cairo.Format.ARGB32, canvas.get_width(), canvas.get_height());
+    const cr = new Cairo.Context(overlay);
+    paintMarks(cr, marks, x, y, scale);
+    cr.$dispose();
+
+    // The part that stays on the main loop: cairo, in GJS, paints only where it is called and hands its pixels over
+    // only as a PNG written under a file name, so the marks are written out (the surface is clear but for them, so
+    // the PNG is small and quick, and the folder is memory) and read back by a worker thread.
     const file = scratchFile();
+    let layer;
     try {
-        file.replace_contents(picture.bytes.toArray(), null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
-        const surface = Cairo.ImageSurface.createFromPNG(file.get_path());
-        const cr = new Cairo.Context(surface);
-        paintMarks(cr, marks, x, y, scale);
-        cr.$dispose();
-        surface.writeToPNG(file.get_path());
-        surface.finish();
-        const [, contents] = file.load_contents(null);
-        return {...picture, bytes: GLib.Bytes.new(contents), pixbuf: null};
+        overlay.writeToPNG(file.get_path());
+        overlay.finish();
+        const [contents] = await file.load_contents_async(null);
+        layer = await decodePng(GLib.Bytes.new(contents));
     } finally {
-        file.delete(null);
+        file.delete_async(GLib.PRIORITY_DEFAULT, null, (f, result) => {
+            try {
+                f.delete_finish(result);
+            } catch {}
+        });
     }
+    layer.composite(canvas, 0, 0, canvas.get_width(), canvas.get_height(), 0, 0, 1, 1,
+        GdkPixbuf.InterpType.NEAREST, 255);
+    return {...picture, bytes: await encodePng(canvas), pixbuf: canvas};
 }
 
 // The area or the screen chosen in the UI, with the pointer when its toggle is on, and the marks over it
@@ -144,8 +205,7 @@ export async function captureWindow(ui, chosen, metaWindow) {
         place(pixbuf, own.x + point.x, own.y + point.y, ui._cursorScale * scale);
     }
 
-    const [, buffer] = canvas.save_to_bufferv('png', [], []);
-    return {bytes: GLib.Bytes.new(buffer), width, height, pixbuf: canvas};
+    return {bytes: await encodePng(canvas), width, height, pixbuf: canvas};
 }
 
 export function copyToClipboard(picture) {
@@ -242,16 +302,15 @@ export function saveAs(picture, pending) {
                     resolve(null);
                     return;
                 }
-                try {
-                    const file = Gio.File.new_for_uri(uri);
-                    file.replace_contents(picture.bytes.toArray(), null, false,
-                        Gio.FileCreateFlags.REPLACE_DESTINATION, null);
+                // Wherever the person chose, which may be slow to answer
+                const file = Gio.File.new_for_uri(uri);
+                writeBytes(file, picture.bytes).then(() => {
                     addToRecent(file);
                     resolve(file);
-                } catch (e) {
+                }).catch(e => {
                     console.warn(`Amethystora UI: the screenshot was not saved: ${e.message}`);
                     resolve(null);
-                }
+                });
             });
         pending.add(id);
         const png = [_('PNG image'), [[0, '*.png'], [1, 'image/png']]];

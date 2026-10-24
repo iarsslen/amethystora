@@ -105,7 +105,14 @@ class ProcessorMeter {
         content.add_child(this._uptime);
     }
 
+    // One bar for each processor there is now: when one goes offline or comes back, the row is made again
     showBar(loads) {
+        const count = Math.max(loads.length, 1);
+        if (count !== this._bars.count) {
+            this._bars.destroy();
+            this._bars = new Widgets.Bars(count);
+            this.button.add_child(this._bars);
+        }
         this._bars.setValues(loads);
     }
 
@@ -250,10 +257,9 @@ export class Meters {
         this._processes = new Sources.Processes();
         this._history = {load: [], memory: [], sent: [], received: []};
 
-        // As many bars as there are processors at start-up; one that goes offline shows an empty bar
+        // A bar for each processor that is online, found by its number: the numbers need not run from 0 to n - 1
         this._times = Sources.processorTimes();
-        this._count = Math.max(this._times.each.size, 1);
-        this._processor = new ProcessorMeter(this, this._count);
+        this._processor = new ProcessorMeter(this, Math.max(this._times.each.size, 1));
         this._memory = new MemoryMeter(this);
         this._network = new NetworkMeter(this);
         this._meters = [this._processor, this._memory, this._network];
@@ -293,9 +299,7 @@ export class Meters {
     // The bar's reading, every few seconds
     _read() {
         const times = Sources.processorTimes();
-        const loads = [];
-        for (let i = 0; i < this._count; i++)
-            loads.push(Sources.load(this._times.each.get(i), times.each.get(i)));
+        const loads = [...times.each].map(([cpu, now]) => Sources.load(this._times.each.get(cpu), now));
         this._load = Sources.load(this._times.all, times.all);
         this._times = times;
         remember(this._history.load, this._load);

@@ -14,6 +14,7 @@ import {EventEmitter} from 'resource:///org/gnome/shell/misc/signals.js';
 import {
     ITEM_IFACE, busCall, call, clearSources, isCancelled, isGone, isUnknownMethod, remoteError, sleep,
 } from './dbus.js';
+import {hasUsablePixmap} from './icons.js';
 
 const PROPERTIES = 'org.freedesktop.DBus.Properties';
 
@@ -28,6 +29,18 @@ const GROUPS = {
     label: ['XAyatanaLabel', 'XAyatanaLabelGuide'],
 };
 const ICON_GROUPS = ['icon', 'attention', 'overlay'];
+
+// What of an item is kept. The properties of GROUPS and Id are read, as text (paths and object paths are text here
+// too) or, for the pixmaps, as a(iiay); anything else the item sends, and any value of another type, is left out as
+// if the item did not have it, so that nothing the tray does later has to ask what a property holds.
+const PIXMAPS = new Set(['IconPixmap', 'AttentionIconPixmap', 'OverlayIconPixmap']);
+const TEXTS = new Set([...Object.values(GROUPS).flat().filter(name => !PIXMAPS.has(name)), 'Id']);
+// The longest text kept, in characters: a path is no longer, and a label that was is not going to be read
+const TEXT_LENGTH = 4096;
+
+function text(value) {
+    return value.slice(0, TEXT_LENGTH);
+}
 
 // The item's signals and the group each names. NewToolTip is not here: the top bar shows no tooltips.
 const SIGNALS = {
@@ -184,11 +197,10 @@ export class Item extends EventEmitter {
         this._aliveId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, ALIVE_DELAY, () => {
             this._aliveId = 0;
             this._getProperty('Status').then(variant => {
-                const status = variant.recursiveUnpack();
-                if (status !== this.props.Status) {
-                    this.props.Status = status;
+                const before = this.props.Status;
+                this._store('Status', variant);
+                if (this.props.Status !== before)
                     this._emitChanged(new Set(['status']));
-                }
             }).catch(e => {
                 if (isGone(e))
                     this.emit('gone');
@@ -257,10 +269,13 @@ export class Item extends EventEmitter {
     }
 
     _store(name, variant) {
-        if (name.endsWith('Pixmap'))
-            this.props[name] = variant.get_type_string() === 'a(iiay)' && variant.n_children() > 0 ? variant : null;
-        else
-            this.props[name] = variant.recursiveUnpack();
+        const type = variant.get_type_string();
+        if (PIXMAPS.has(name))
+            this.props[name] = type === 'a(iiay)' && hasUsablePixmap(variant) ? variant : null;
+        else if (TEXTS.has(name) && (type === 's' || type === 'o'))
+            this.props[name] = text(variant.get_string()[0]);
+        else if (TEXTS.has(name))
+            delete this.props[name];
     }
 
     _getProperty(name) {
@@ -292,16 +307,16 @@ export class Item extends EventEmitter {
         // The signals that carry their value need no read
         if (signal === 'NewStatus' && params.get_type_string() === '(s)') {
             const wasPassive = this.passive;
-            this.props.Status = params.get_child_value(0).get_string()[0];
+            this.props.Status = text(params.get_child_value(0).get_string()[0]);
             this._changed.add('status');
             if (wasPassive && !this.passive)
                 this._unnote();
         } else if (signal === 'NewIconThemePath' && params.get_type_string() === '(s)') {
-            this.props.IconThemePath = params.get_child_value(0).get_string()[0];
+            this.props.IconThemePath = text(params.get_child_value(0).get_string()[0]);
             this._note(ICON_GROUPS, this._changed);
         } else if (signal === 'XAyatanaNewLabel' && params.get_type_string() === '(ss)') {
-            this.props.XAyatanaLabel = params.get_child_value(0).get_string()[0];
-            this.props.XAyatanaLabelGuide = params.get_child_value(1).get_string()[0];
+            this.props.XAyatanaLabel = text(params.get_child_value(0).get_string()[0]);
+            this.props.XAyatanaLabelGuide = text(params.get_child_value(1).get_string()[0]);
             this._note(['label'], this._changed);
         } else if (group === 'theme-path') {
             this._note(ICON_GROUPS, this._toRead);

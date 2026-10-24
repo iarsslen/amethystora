@@ -50,11 +50,15 @@ function addTitle(dialog, name, description) {
     dialog.contentLayout.add_child(content);
 }
 
-// The dialog, and its answer: null when the person cancels, else whether the app's data goes with it
-export function askToUninstall(name) {
+// The dialog, and its answer: null when the person cancels, else whether the app's data goes with it. It says which
+// Flatpak is removed as well as what the launcher calls itself: a launcher's name is whatever its maker wrote.
+export function askToUninstall(name, id) {
     const dialog = new ModalDialog.ModalDialog({styleClass: styleClass()});
     const answer = new Promise(resolve => {
-        addTitle(dialog, name, _('Once it is uninstalled, the app can no longer be used.'));
+        addTitle(dialog, name, [
+            _('Once it is uninstalled, the app can no longer be used.'),
+            _('Flatpak app ID: %s').format(id),
+        ].join('\n'));
 
         const list = new St.BoxLayout({
             style_class: 'amethystora-bazaar-choices',
