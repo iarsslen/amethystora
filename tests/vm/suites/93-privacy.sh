@@ -1,9 +1,10 @@
 #!/usr/bin/bash
 # The trash emptied after 30 days (plans/done/PLAN-privacy-defaults.md): the image's default in a session, GNOME's
 # housekeeping running, and `ame desktop privacy trash 7` taken by that running session at once. Three items in
-# the trash, deleted 40 days, 10 days and a moment ago, and the hourly purge waited for: the first two go, the third
-# stays. What was deleted is still in a snapshot taken before, and a restic repository beside the trash is not
-# touched. Then off, and Reset settings puts the image's default back.
+# the trash, deleted 40 days, 10 days and a moment ago, put there before a restart as a month's trash would be,
+# and the hourly purge of the next session waited for: the first two go, the third stays. What was deleted is
+# still in a snapshot taken before, and a restic repository beside the trash is not touched. Then off, and Reset
+# settings puts the image's default back.
 # The purge runs an hour after gsd-housekeeping started and every hour after, so the wait outlasts a phase's 30
 # minutes: each phase waits up to 20, then the next one goes on in the same boot (continue_phase). The hour is of
 # time awake, and an idle session suspends after 15 minutes, so the session is kept from suspending meanwhile.
@@ -43,8 +44,6 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     check "the trash empties itself after 30 days, as the image ships it" test \
         "$(privacy remove-old-trash-files) $(privacy old-files-age)" == "true uint32 30"
     check "GNOME's housekeeping runs in the session" wait_for 120 pgrep -u "${TEST_USER}" -x gsd-housekeepin
-    # Its hourly timer stands still while the machine sleeps
-    user_bus gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type nothing
 
     put_in_trash vmlab-forty "-40 days"
     put_in_trash vmlab-ten "-10 days"
@@ -73,7 +72,15 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
         "restic init --repo ${REPO} && restic backup --repo ${REPO} ${HOME_DIR}/vmlab-backed-up" 2>&1)" ||
         not_ok "a restic repository could not be made beside the trash" "${out}"
     repo_sum >"${STATE}/repo"
+    # A trash that holds something a month old was there before this session: the rest in the next one
+    reboot_and_continue
+fi
 
+# --- Phase 2: after a restart, the new age, and the purge's time ---------------------------------------------
+if [[ "${SUITE_PHASE}" == 2 ]]; then
+    check "GNOME's housekeeping runs in the session after the restart" wait_for 120 pgrep -u "${TEST_USER}" -x gsd-housekeepin
+    # Its hourly timer stands still while the machine sleeps
+    user_bus gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type nothing
     out="$(in_session ame desktop privacy trash 7 2>&1)"
     if [[ "$(privacy old-files-age)" == "uint32 7" ]] && grep -q "more than 7 days ago" <<<"${out}"; then
         ok "ame desktop privacy trash 7 sets seven days, and says so"
@@ -98,7 +105,7 @@ fi
 # --- Every phase: wait for the purge, 25 minutes at a time ----------------------------------------------------
 purge="$(cat "${STATE}/purge" 2>/dev/null)"
 if [[ -z "${purge}" ]]; then
-    not_ok "phase 1 left no time to wait for"
+    not_ok "phase 2 left no time to wait for"
     finish
 fi
 # Until the purge has come and taken the oldest file, or ten minutes after it was due; never more than 20
@@ -122,7 +129,8 @@ else
     not_ok "the file deleted 40 days ago is still in the trash" "$(ls -la "${TRASH}/files" "${TRASH}/info" 2>&1)" \
         "$(python3 -c 'import time; print("monotonic", time.clock_gettime(time.CLOCK_MONOTONIC), "boottime", time.clock_gettime(time.CLOCK_BOOTTIME))')" \
         "$(user_systemctl show "${SERVICE}" -p MainPID -p ExecMainStartTimestamp -p ActiveState 2>&1)" \
-        "$(journalctl -b --no-pager 2>/dev/null | grep -iE 'gsd-housekeeping|Housekeeping|suspend|PM: |sleep' | tail -n 15)"
+        "$(journalctl -b --no-pager _UID="$(id -u "${TEST_USER}")" 2>/dev/null | grep -E 'gsd-housekeeping|Housekeeping|gvfsd' | tail -n 15)" \
+        "$(journalctl -b --no-pager 2>/dev/null | grep -iE 'suspend|PM: |sleep' | tail -n 5)"
 fi
 if gone vmlab-ten; then
     ok "and the one deleted 10 days ago: the running session took the 7 days at once"
