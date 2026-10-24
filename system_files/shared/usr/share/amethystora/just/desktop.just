@@ -56,6 +56,45 @@ transition STYLE="" DURATION="":
     echo "$(eval_gettext "Transition set to \${style}, taking \${length} ms.")"
     echo "$(gettext "Super+Ctrl+Space changes the wallpaper to show it.")"
 
+# Pick the icon pack: glass, neon, duotone or candy, or theme to follow the theme (Glass for a dark theme, Duotone for a light one)
+[positional-arguments]
+icons PACK="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    # Read by amethystora-theme, which writes the icon theme at every switch and would otherwise put the
+    # theme's own back
+    flag="${XDG_CONFIG_HOME:-$HOME/.config}/amethystora/icons"
+    current="$(sed -e 's/^amethystora-//' -e 's/^candy-icons$/candy/' "${flag}" 2>/dev/null || echo theme)"
+    pack="${1:-}"
+    if [[ -z "${pack}" ]]; then
+        echo "glass    $(gettext "Each icon in its own gradient, with a glass sheen")"
+        echo "neon     $(gettext "Outlines lit in colours of their own, for a dark desktop")"
+        echo "duotone  $(gettext "Each icon in a gradient, its details in a contrasting one")"
+        echo "candy    $(gettext "candy-icons, the pack the desktop started with")"
+        echo "theme    $(gettext "Whatever the theme chooses: Glass for a dark theme, Duotone for a light one")"
+        pack="$(gum choose --header "$(eval_gettext "Icons (current: \${current})")" --selected "${current}" glass neon duotone candy theme)"
+    fi
+    case "${pack}" in
+        glass | neon | duotone) name="amethystora-${pack}" ;;
+        candy) name=candy-icons ;;
+        theme)
+            rm -f "${flag}"
+            # The theme is applied again, which writes the icons it chooses
+            amethystora-theme set "$(amethystora-theme current 2>/dev/null || echo amethystora)"
+            exit 0
+            ;;
+        *)
+            echo "usage: ame desktop icons glass|neon|duotone|candy|theme"
+            exit 64
+            ;;
+    esac
+    mkdir -p "$(dirname "${flag}")"
+    echo "${name}" >"${flag}"
+    gsettings set org.gnome.desktop.interface icon-theme "${name}"
+    echo "$(eval_gettext "Icons: \${pack}.")"
+
 # Pick how windows are arranged: tiling, side by side on a strip (PaperWM), or classic, floating as on Windows and macOS
 [positional-arguments]
 layout STYLE="":

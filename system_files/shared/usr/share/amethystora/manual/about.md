@@ -34,9 +34,9 @@ French, Arabic, Spanish and German were first translated by machine, and no pers
 Amethystora is built on [Fedora](https://fedoraproject.org) and [GNOME](https://www.gnome.org), and
 on the work of many other projects: the Linux kernel and systemd, bootc and rpm-ostree, Flatpak and
 Flathub, Homebrew, Distrobox and Podman, and every GNOME extension listed in
-[Getting around](desktop.md#extensions). The icons are
-[candy-icons](https://github.com/EliverLara/candy-icons) by Eliver Lara, and the Amethystora GTK
-theme is recoloured from his Sweet. The themes' wallpapers are drawn for Amethystora.
+[Getting around](desktop.md#extensions). The icon packs are drawn for Amethystora, with
+[candy-icons](https://github.com/EliverLara/candy-icons) by Eliver Lara kept beside them as a
+choice, and the Amethystora GTK theme is recoloured from his Sweet. The themes' wallpapers are drawn for Amethystora.
 
 Fedora and the Fedora logo are trademarks of Red Hat, Inc. Amethystora is not provided, supported or
 endorsed by the Fedora Project or by Red Hat. Fedora itself is at

@@ -1853,6 +1853,54 @@ msgid "How long a transition takes, in milliseconds."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Glass"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Each icon in its own gradient, with a glass sheen"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Neon"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Outlines lit in colours of their own, for a dark desktop"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Duotone"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Each icon in a gradient, its details in a contrasting one"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "candy-icons"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The pack the desktop started with"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Follow the theme"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Glass for a dark theme, Duotone for a light one"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Icons"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The pack the apps, folders and files are drawn from. Another maker's app keeps its own icon."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "A sealed machine starts with systemd-boot, which shows no artwork."
 msgstr ""
 
@@ -4344,6 +4392,24 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 msgid "Super+Ctrl+Space changes the wallpaper to show it."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "candy-icons, the pack the desktop started with"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Whatever the theme chooses: Glass for a dark theme, Duotone for a light one"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Icons (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Icons: ${pack}."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just

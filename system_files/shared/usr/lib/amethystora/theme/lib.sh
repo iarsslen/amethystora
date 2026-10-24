@@ -9,7 +9,7 @@
 #   light.mode    present when the theme is light
 #   pair.theme    the name of the light or dark theme this one flips to on Super+Ctrl+D
 #   gtk.theme     a GTK theme name, when adw-gtk3 is not wanted
-#   icons.theme   an icon theme name, when candy-icons is not wanted
+#   icons.theme   an icon theme name, when the image's own is not wanted (Glass, or Duotone for a light theme)
 #   cursor.theme  a cursor theme name, when the desktop's own is not wanted
 #   vscode.theme  the VSCodium colour theme to select
 #   backgrounds.list  wallpapers elsewhere on the system, one path per line; the first is the one
@@ -39,10 +39,12 @@ CURRENT_THEME_NAME="${CURRENT_DIR}/theme.name"
 CURRENT_BACKGROUND="${CURRENT_DIR}/background"
 
 DEFAULT_THEME=amethystora
-# The image's icon theme, installed by build_files/base/10-icons.sh. It is also the default in
-# zz1-amethystora-modifications, for accounts that have not applied a theme yet; the two are
-# checked against each other in 20-tests.sh.
-DEFAULT_ICON_THEME=candy-icons
+# The image's icon packs, drawn by branding/icons.mjs: Glass for a dark theme, Duotone for a light one (Neon and
+# candy-icons, installed by build_files/base/10-icons.sh, are chosen with `ame desktop icons`). Glass is also the
+# default in zz1-amethystora-modifications, for accounts that have not applied a theme yet; the two are checked
+# against each other in 20-tests.sh.
+DEFAULT_ICON_THEME=amethystora-glass
+DEFAULT_LIGHT_ICON_THEME=amethystora-duotone
 
 # GNOME's accent colours, with a representative sRGB value for each, used to pick the closest one
 # for a theme that does not name its own
@@ -98,6 +100,18 @@ theme_file() {
 
 theme_is_light() {
     [[ -f "${CURRENT_THEME_DIR}/light.mode" ]]
+}
+
+# The icon theme to write: the account's own choice (ame desktop icons), else the one the theme names, else the
+# image's, by whether the theme is dark or light
+icon_theme() {
+    local icons
+    icons="$(head -n1 "${CONFIG_DIR}/icons" 2>/dev/null || true)"
+    [[ -n ${icons} ]] || icons="$(theme_file icons.theme)"
+    if [[ -z ${icons} ]]; then
+        if theme_is_light; then icons="${DEFAULT_LIGHT_ICON_THEME}"; else icons="${DEFAULT_ICON_THEME}"; fi
+    fi
+    echo "${icons}"
 }
 
 # A colour from a theme's colors.toml, e.g. colors_get <dir> accent -> #7c3aed

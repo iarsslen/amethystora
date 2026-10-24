@@ -23,6 +23,7 @@ why can't I use dnf install	manual/faq#why-can-i-not-use-dnf-install|manual/soft
 install a deb package	manual/faq#how-do-i-install-a-deb-or-an-rpm|manual/software#a-package-file
 how do I run an appimage	manual/faq#how-do-i-run-an-appimage
 change the theme	manual/themes#switching|manual/themes#change-a-theme-or-make-your-own|manual/themes
+change the icon pack	manual/themes#icons|skill/amethystora/themes#*
 make the text bigger	knowledge/desktop#appearance-and-text
 turn on night light	knowledge/desktop#night-light-and-the-screen
 save battery with a power profile	knowledge/desktop#power|manual/hardware#laptops

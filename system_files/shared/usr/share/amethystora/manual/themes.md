@@ -103,11 +103,19 @@ from the Amethystora Transitions extension, which Extension Manager can turn off
 
 ## Icons
 
-The icons are candy-icons, the same set under every theme: its folders, its file types, and its
-gradient pictograms for the apps that do a plain job, such as Files, Settings or the calculator.
+Three icon packs are drawn for Amethystora, each icon in colours of its own. **Glass** fills each
+one with a gradient and a glass sheen, and is what a dark theme uses. **Duotone** draws the details
+in a contrasting gradient, and is what a light theme uses. **Neon** lights each outline, and is made
+for a dark desktop. They draw Amethystora's apps, GNOME's, the system's, folders, file types,
+devices and the pictograms of a job.
+
 An app with a logo of its own keeps it. Firefox, Thunderbird, a JetBrains IDE and most of what
-you install show the icon their maker drew, not a redrawn one: a logo is a trademark, and how it
-looks is its owner's to decide. That is why the dock mixes the two styles.
+you install show the icon their maker drew, exactly as it ships, with no tile or frame added: a
+logo is a trademark, and how it looks is its owner's to decide. That is why the dock mixes the two.
+
+`ame desktop icons glass`, `neon`, `duotone` or `candy` picks one whatever the theme, and
+`ame desktop icons theme` goes back to what the theme chooses. Control has the same choice under
+Appearance. `candy` is candy-icons, the pack the desktop started with.
 
 ## Change a theme, or make your own
 
@@ -122,7 +130,7 @@ A folder with a name of its own is a new theme. Each file is small and optional,
 | `pair.theme` | The theme `Super+Ctrl+D` flips to |
 | `accent.theme` | GNOME's accent colour: blue, teal, green, yellow, orange, red, pink, purple or slate. Without it the closest one is picked |
 | `gtk.theme` | A GTK theme name, instead of GNOME's own look |
-| `icons.theme` | An icon theme, instead of candy-icons |
+| `icons.theme` | An icon theme, instead of Glass (or Duotone, on a light theme) |
 | `cursor.theme` | A cursor theme |
 | `vscode.theme` | The VSCodium colour theme to switch to |
 | `shell-workspaces.css`, `shell-meters.css` | The top bar's colours for the workspaces and the meters, in GNOME Shell's CSS, instead of the ones drawn from the palette |

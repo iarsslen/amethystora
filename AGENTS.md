@@ -38,7 +38,7 @@ This document provides essential information for coding agents working with the 
   - `dx/` - Developer experience build scripts
   - `sealed/` - The sealing stage of `Containerfile.sealed`: prepare, build the UKI, test
   - `shared/` - Common build utilities and helper scripts
-- `branding/` - Source of the artwork; `node branding/generate.mjs` draws it
+- `branding/` - Source of the artwork; `node branding/generate.mjs` draws it, and `node branding/icons.mjs` the icon packs (see The icon packs)
 - `iso/` - `iso.toml`, the bootc-image-builder configuration of the installer ISO; `product/`, which `build-iso.yml` adds to the ISO as `images/product.img`: the installer's Amethystora look (a stylesheet and artwork drawn by `branding/generate.mjs`), crash reporting (libreport files that send crash reports to Amethystora's issue tracker instead of Fedora's Bugzilla) and the Anaconda profile that keeps Fedora's installer settings although the installer's os-release says `generic`; `installer-packages.py`, which lists what the installer is made of; and `live/`, the live system of the live ISO: a `Containerfile` built `FROM` the published image with `build.sh`, which adds Fedora's live boot, live session and Anaconda's web installer, a copy of the image for an offline install (`installer.ks`), a profile for the image's own os-release ID, and the boot menu Titanoboa reads (`iso.yaml`)
 - `packaging/` - Packages Amethystora rebuilds, each in its folder with a README: `fprintd/` is Fedora's fprintd with the duress finger's patches, built in the Containerfile's `fprintd` stage on every image build. Renovate looks for a new fprintd release every Monday. The `.patch` files are kept byte for byte (`.gitattributes`, and the pre-commit whitespace hooks skip them)
 - `po/` - The gettext catalogs of the shell programs that are translated, the security report and the app permissions (text domain `amethystora`): `amethystora.pot`, which `node build_files/shared/check-translations.js --write --po po system_files/shared` writes from the scripts, and one `<language>.po` each, which `14-security.sh` compiles into `/usr/share/locale`
@@ -1043,6 +1043,20 @@ lose its settings (and a cache folder it left), unless they installed it themsel
   Extract Text's hand-off to Gradia (`--ocr-file`); Uninstall and Bazaar's page in GNOME's app menu.
 - Still upstream: Dash to Dock and Blur my Shell (the `dock` and `glass` modules are being written), PaperWM (`tiling`)
   and GSConnect, which stays (a phone program, off by default). Caffeine, never switched on, was dropped.
+
+### The icon packs
+
+`amethystora-glass`, `amethystora-neon` and `amethystora-duotone` (`system_files/shared/usr/share/icons`, Apache-2.0) are
+drawn in code by `node branding/icons.mjs` from the glyphs in `branding/icons/glyphs.mjs`, each icon in colours of its own
+(the maintainer's choice of 2026-10-23, from the design canvas: Neon, Glass and Duotone). Glass is the default
+(`DEFAULT_ICON_THEME` in `lib.sh`, and `icon-theme` in `zz1-amethystora-modifications`, which `20-tests.sh` compares),
+Duotone follows a light theme, and `icon_theme()` in `lib.sh` writes the account's own `~/.config/amethystora/icons`
+(`ame desktop icons`, Control's Appearance page) before the theme's `icons.theme`. candy-icons stays beside them as a choice,
+built by `10-icons.sh` as before. They cover Amethystora's apps, GNOME's, the system's, folders, file types, devices and
+generic pictograms, and **never another maker's logo**: an app of theirs keeps the icon it ships, bare, on no tile (the
+maintainer's choice of 2026-10-23, after a tile behind them was proposed). To add an icon, draw a glyph (two inks: the body, and the
+details over it, never a hole cut into it), add a line to `SET` with its ramp and the names it answers to, and run the script;
+`20-tests.sh` holds the three packs to the same names, no symbolic icons, and every launcher of the image to an icon in each.
 
 ### Packages from other distributions
 

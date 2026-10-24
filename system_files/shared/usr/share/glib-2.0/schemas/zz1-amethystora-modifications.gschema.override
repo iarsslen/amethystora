@@ -25,15 +25,14 @@ logo='/usr/share/pixmaps/amethystora-wordmark-glow.png'
 
 [org.gnome.desktop.interface]
 accent-color='purple'
-# candy-icons, installed by build_files/base/10-icons.sh. amethystora-theme writes the same value
-# on every theme switch, from DEFAULT_ICON_THEME in /usr/lib/amethystora/theme/lib.sh; this is what
-# an account sees before it has applied a theme. An account that applied one before candy-icons
-# existed holds an explicit value that wins over this default, which is what version 2 of the
-# 11-theme.sh setup hook is for.
-icon-theme='candy-icons'
+# The Glass icon pack, drawn by branding/icons.mjs. amethystora-theme writes the same value on every
+# switch to a dark theme, from DEFAULT_ICON_THEME in /usr/lib/amethystora/theme/lib.sh; this is what an
+# account sees before it has applied a theme. An account that applied one before the pack existed holds
+# an explicit value that wins over this default, which is what the 11-theme.sh setup hook's versions are for.
+icon-theme='amethystora-glass'
 
 #-------------- FILES --------------#
-# The grid, at a size that shows what candy-icons draws: its folders are full-colour artwork, and
+# The grid, at a size that shows what the icon packs draw: their folders are full-colour artwork, and
 # the list view reduces them to a 16px row. The sidebar stays monochrome whatever is set here,
 # because GTK asks for the -symbolic names there.
 

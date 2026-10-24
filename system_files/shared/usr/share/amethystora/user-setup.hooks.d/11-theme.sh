@@ -21,10 +21,12 @@
 #      an account showing it would be left on GNOME's fill colour.
 #   7  the themes' photographs taken out of the image for pictures drawn in their palettes
 #      (branding/generate.mjs): an account showing one would be left on GNOME's fill colour.
+#   8  the Amethystora icon packs (branding/icons.mjs) in place of candy-icons as the default: an account
+#      that applied a theme holds candy-icons in its dconf, which wins over the image's new default.
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
-version-script theme user 7 || exit 0
+version-script theme user 8 || exit 0
 
 set -xeuo pipefail
 

@@ -185,10 +185,13 @@ for entry in "${CANDY_ALIASES[@]}"; do
     fi
 done
 
-# The cache only speeds icon lookups up, so a theme it will not build is a warning, not a failure
+# The cache only speeds icon lookups up, so a theme it will not build is a warning, not a failure. The
+# Amethystora packs (branding/icons.mjs) come with system_files, and have theirs made here too.
 if command -v gtk-update-icon-cache >/dev/null; then
-    gtk-update-icon-cache --force --quiet "${CANDY_DIR}" ||
-        echo "::warning::could not build the icon cache for ${CANDY_DIR}"
+    for pack_dir in "${CANDY_DIR}" /usr/share/icons/amethystora-{glass,neon,duotone}; do
+        gtk-update-icon-cache --force --quiet "${pack_dir}" ||
+            echo "::warning::could not build the icon cache for ${pack_dir}"
+    done
 fi
 
 echo "::endgroup::"

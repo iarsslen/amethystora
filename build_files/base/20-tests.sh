@@ -1255,8 +1255,8 @@ cmp -s /ctx/build_files/shared/candy-icons/amethystora-security-status.svg \
     /usr/share/icons/hicolor/scalable/apps/amethystora-security-status.svg
 # The theme is the default before an account applies a theme of its own, and the value
 # amethystora-theme falls back to afterwards; the two have to name the same theme
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface icon-theme)" == "'candy-icons'" ]]
-grep -q "^DEFAULT_ICON_THEME=candy-icons$" /usr/lib/amethystora/theme/lib.sh
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface icon-theme)" == "'amethystora-glass'" ]]
+grep -q "^DEFAULT_ICON_THEME=amethystora-glass$" /usr/lib/amethystora/theme/lib.sh
 # An account set up before candy-icons holds an explicit icon-theme that beats the default above,
 # so the theme hook has to be past the version that only wrote the desktop's own icons
 [[ "$(sed -n 's/^version-script theme user \([0-9]\+\).*/\1/p' \
@@ -1264,6 +1264,46 @@ grep -q "^DEFAULT_ICON_THEME=candy-icons$" /usr/lib/amethystora/theme/lib.sh
 # ...and past the one that re-applies it after 09-retire-dms.sh, which runs first
 [[ "$(sed -n 's/^version-script theme user \([0-9]\+\).*/\1/p' \
     /usr/share/amethystora/user-setup.hooks.d/11-theme.sh)" -ge 5 ]]
+# ...and past the one that moved the default from candy-icons to the Amethystora packs
+[[ "$(sed -n 's/^version-script theme user \([0-9]\+\).*/\1/p' \
+    /usr/share/amethystora/user-setup.hooks.d/11-theme.sh)" -ge 8 ]]
+# The three icon packs branding/icons.mjs draws: Glass is the default, Duotone follows a light theme, and Neon
+# and candy-icons are chosen with `ame desktop icons`. They draw the same names, no logo of anybody else's and
+# no symbolic icons (the panel keeps Adwaita's), and every launcher of this image finds its icon in each of them.
+grep -q "^DEFAULT_LIGHT_ICON_THEME=amethystora-duotone$" /usr/lib/amethystora/theme/lib.sh
+GLASS_ICONS="$(find /usr/share/icons/amethystora-glass -name '*.svg' | wc -l)"
+((GLASS_ICONS > 150))
+for pack in glass neon duotone; do
+    PACK_DIR="/usr/share/icons/amethystora-${pack}"
+    grep -qx "Name=Amethystora ${pack^}" "${PACK_DIR}/index.theme"
+    grep -qx "Inherits=Adwaita,hicolor" "${PACK_DIR}/index.theme"
+    [[ "$(find "${PACK_DIR}" -name '*.svg' | wc -l)" == "${GLASS_ICONS}" ]]
+    [[ -z "$(find "${PACK_DIR}" -name '*-symbolic.svg' -o -type l)" ]]
+    for launcher in /usr/share/applications/amethystora-*.desktop; do
+        icon="$(sed -n 's/^Icon=//p' "${launcher}" | head -n1)"
+        [[ -z "${icon}" || "${icon}" == /* ]] && continue
+        [[ -n "$(find "${PACK_DIR}" -name "${icon}.svg")" ]] || {
+            echo "${launcher}: ${icon} is not in ${PACK_DIR}"
+            false
+        }
+    done
+done
+# Which pack is written: the account's own choice, else the theme's, else Glass or, for a light theme, Duotone
+(
+    unset XDG_CONFIG_HOME
+    HOME="$(mktemp -d)"
+    # shellcheck source=/dev/null
+    source /usr/lib/amethystora/theme/lib.sh
+    mkdir -p "${CURRENT_THEME_DIR}"
+    [[ "$(icon_theme)" == amethystora-glass ]]
+    touch "${CURRENT_THEME_DIR}/light.mode"
+    [[ "$(icon_theme)" == amethystora-duotone ]]
+    echo some-pack >"${CURRENT_THEME_DIR}/icons.theme"
+    [[ "$(icon_theme)" == some-pack ]]
+    echo amethystora-neon >"${CONFIG_DIR}/icons"
+    [[ "$(icon_theme)" == amethystora-neon ]]
+    rm -rf "${HOME}"
+)
 
 # What the Hyprland era left behind is removed: per account by 09-retire-dms.sh, before 11-theme.sh
 # re-applies the theme, and per machine by 20-retire-dms.sh. The account side keys on the names and
