@@ -11,7 +11,6 @@ CONNECTIONS=(vmlab-vpn-fortisslvpn vmlab-vpn-l2tp vmlab-vpn-libreswan vmlab-vpn-
     vmlab-vpn-openvpn vmlab-vpn-vpnc vmlab-vpn-imported)
 OVPN_DIR="$(mktemp -d)"
 OVPN="${OVPN_DIR}/vmlab.ovpn"
-touch "${OVPN_DIR}/ca.pem"
 cleanup() {
     for connection in "${CONNECTIONS[@]}"; do nmcli connection delete "${connection}" >/dev/null 2>&1 || true; done
     systemctl stop ipsec.service >/dev/null 2>&1 || true
@@ -40,6 +39,7 @@ for plugin in fortisslvpn l2tp libreswan sstp openconnect openvpn vpnc; do
     fi
 done
 
+mkdir -p "${OVPN_DIR}" && touch "${OVPN_DIR}/ca.pem"
 cat >"${OVPN}" <<'OVPN'
 client
 dev tun
