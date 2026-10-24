@@ -97,25 +97,19 @@ sleep 4
 keys drag:0.08,0.3,0.92,0.7
 sleep 2
 keys ctrl+e
-# Gradia reads the picture and copies the text when it is done, and only a window that has the keyboard may set the
-# clipboard on Wayland: the history menu is not opened (it takes the keyboard) until the recognition has had its time
-sleep 45
-
-# What the clipboard holds is read as a person reads it, from the clipboard history's menu (Super+Shift+V):
-# wl-paste says "Nothing is copied" to a session with no window of its own, so it is not used:
-# the menu is what a person sees.
-recognised() {
-    local found=1
-    keys super+shift+v
-    shell wait 10 "harbors" >/dev/null && found=0
-    keys esc
-    return "${found}"
-}
+# Gradia reads the picture, shows the text in its Text Extraction window and copies it itself (its standalone
+# dialog sets auto_copy; a client may set the clipboard on Wayland only while it has the keyboard, so nothing else is
+# allowed to take it meanwhile). What is checked is what a person sees there, through the accessibility bus: the
+# clipboard cannot be read back by a test in this lab (wl-paste says "Nothing is copied" to a session with no window of
+# its own, and the history menu holds nothing without a keyring).
+sleep 20
+recognised() { user_bus python3 "${OWN}/atspi.py" gradia wait 10 "harbors" >/dev/null 2>&1; }
 if wait_for 150 recognised; then
-    ok "Print, an area and Ctrl+E put the sentence in the clipboard history"
+    ok "Print, an area and Ctrl+E have Gradia read the sentence in its Text Extraction window"
 else
-    not_ok "the clipboard history does not hold the sentence" \
+    not_ok "Gradia's Text Extraction window does not show the sentence" \
         "Gradia: $(user_bus flatpak ps --columns=application,instance 2>&1 | head -n 5)" \
+        "Gradia: $(user_bus python3 "${OWN}/atspi.py" gradia text 2>&1 | head -n 20)" \
         "screen: $(shell text 2>&1 | head -n 30)" \
         "$(user_bus journalctl --user -b --since '-5min' --no-pager -o cat 2>/dev/null | grep -i 'gradia\|ocr\|screenshot' | grep -v Vulkan | tail -n 15)" \
         "journal: $(user_bus journalctl --user -b --since '-6min' --no-pager -o cat 2>/dev/null | grep -v 'Vulkan\|libEGL\|MESA\|usb' | tail -n 45)"
