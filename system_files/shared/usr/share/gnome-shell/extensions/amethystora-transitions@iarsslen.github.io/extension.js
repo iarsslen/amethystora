@@ -22,7 +22,6 @@ import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Graphene from 'gi://Graphene';
 import Mtk from 'gi://Mtk';
-import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as Config from 'resource:///org/gnome/shell/misc/config.js';
@@ -61,8 +60,10 @@ const DBUS_INTERFACE = `
 // The frozen picture is drawn where the new desktop has not reached yet. d is how far a pixel is ahead
 // of the edge, in logical pixels: from soft up the old desktop is whole, from 0 down the new one shows,
 // and in between the two blend. A band of the accent colour glows along the edge while it moves. The
-// effect's pipeline blends unpremultiplied, so the colour is divided back out of the alpha.
+// effect's pipeline blends premultiplied, as Cogl does by default, so the colour leaves already
+// multiplied by the alpha.
 const DECLARATIONS = `
+uniform sampler2D picture;
 uniform float progress;
 uniform float style;
 uniform vec2 resolution;
@@ -77,6 +78,7 @@ float reach(vec2 from) {
 `;
 
 const CODE = `
+vec3 frozen = texture2D(picture, cogl_tex_coord_in[0].st).rgb;
 vec2 p = cogl_tex_coord_in[0].st * resolution;
 float soft = max(resolution.x, resolution.y) * 0.03;
 float keep;
@@ -106,22 +108,83 @@ if (style > 3.5) {
 }
 
 float alpha = keep + shine * (1.0 - keep);
-vec3 rgb = (cogl_color_out.rgb * keep * (1.0 - shine) + glow * shine) / max(alpha, 0.001);
-cogl_color_out = vec4(rgb, alpha * cogl_color_out.a);
+cogl_color_out = vec4(frozen * keep * (1.0 - shine) + glow * shine, alpha);
 `;
 
+// Draws the actor's frozen picture, content of the screenTransition, through the shader above, in place of the
+// actor's own paint. A plain Clutter.Effect has no offscreen pass to hand the picture over, so the pipeline
+// samples the content's texture itself. (Shell.GLSLEffect, which did that, is gone from GNOME 51.)
 const RevealEffect = GObject.registerClass(
-class RevealEffect extends Shell.GLSLEffect {
-    vfunc_build_pipeline() {
-        this.add_glsl_snippet(Cogl.SnippetHook.FRAGMENT, DECLARATIONS, CODE, false);
+class RevealEffect extends Clutter.Effect {
+    _init() {
+        super._init();
+        this._uniforms = {};
+        this._locations = new Map();
+        this._context = null;
+        this._pipeline = null;
+        this._texture = null;
     }
 
     setUniforms(uniforms) {
-        for (const [name, value] of Object.entries(uniforms)) {
-            const values = [value].flat();
-            this.set_uniform_float(this.get_uniform_location(name), values.length, values);
+        Object.assign(this._uniforms, uniforms);
+        this.get_actor()?.queue_redraw();
+    }
+
+    // Lets go of the compiled program and the picture, for an effect taken off its actor
+    forget() {
+        this._context = null;
+        this._pipeline = null;
+        this._texture = null;
+        this._locations.clear();
+    }
+
+    _pipelineFor(context) {
+        if (this._context !== context) {
+            this.forget();
+            const pipeline = Cogl.Pipeline.new(context);
+            pipeline.set_layer_null_texture(0);
+            pipeline.set_layer_filters(0, Cogl.PipelineFilter.LINEAR, Cogl.PipelineFilter.LINEAR);
+            pipeline.set_layer_wrap_mode(0, Cogl.PipelineWrapMode.CLAMP_TO_EDGE);
+            pipeline.add_snippet(Cogl.Snippet.new(Cogl.SnippetHook.FRAGMENT, DECLARATIONS, CODE));
+            pipeline.set_uniform_1i(pipeline.get_uniform_location('picture'), 0);
+            this._pipeline = pipeline;
+            this._context = context;
         }
-        this.queue_repaint();
+        return this._pipeline;
+    }
+
+    vfunc_paint_node(node, paintContext, _flags) {
+        const actor = this.get_actor();
+        const texture = actor.content?.get_texture?.();
+        if (!texture) {
+            node.add_child(new Clutter.ActorNode(actor, -1));
+            return;
+        }
+
+        const pipeline = this._pipelineFor(paintContext.get_framebuffer().get_context());
+        if (this._texture !== texture) {
+            pipeline.set_layer_texture(0, texture);
+            this._texture = texture;
+        }
+        for (const [name, value] of Object.entries(this._uniforms)) {
+            let location = this._locations.get(name);
+            if (location === undefined) {
+                location = pipeline.get_uniform_location(name);
+                this._locations.set(name, location);
+            }
+            if (location < 0)
+                continue;
+            const values = [value].flat();
+            if (values.length === 1)
+                pipeline.set_uniform_1f(location, values[0]);
+            else
+                pipeline.set_uniform_float(location, values.length, 1, values);
+        }
+
+        const pipelineNode = new Clutter.PipelineNode(pipeline);
+        node.add_child(pipelineNode);
+        pipelineNode.add_texture_rectangle(
+            new Clutter.ActorBox({x1: 0, y1: 0, x2: actor.width, y2: actor.height}), 0, 0, 1, 1);
     }
 });
 
@@ -166,6 +229,7 @@ export default class TransitionsExtension extends Extension {
             settings.disconnectObject(this);
         if (this._frozen || this._timeline)
             this._finish();
+        this._effect.forget();
 
         this._dbus = null;
         this._injections = null;
@@ -305,6 +369,7 @@ export default class TransitionsExtension extends Extension {
         this._held = false;
         if (this._actor.get_effect(EFFECT_NAME))
             this._actor.remove_effect(this._effect);
+        this._effect.forget();
         this._actor.hide();
     }
 
