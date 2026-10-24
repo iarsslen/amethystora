@@ -318,9 +318,11 @@ done
 
 GNOME_MAJOR="$(gnome-shell --version | grep -oE '[0-9]+' | head -n1)"
 # Amethystora Transitions, written for this image: enabled, its settings where gsettings finds them,
-# and claiming this GNOME. It calls GNOME Shell's paint_to_content, which took a new argument in GNOME
-# 50, so read that call again before adding a version to its shell-version.
+# and claiming this GNOME, 50 and 51 both. It calls GNOME Shell's paint_to_content, which took a new
+# argument in GNOME 50, so read that call again before adding a version to its shell-version.
 jq -e --arg shell "${GNOME_MAJOR}" '.["shell-version"] | index($shell)' \
+    /usr/share/gnome-shell/extensions/amethystora-transitions@iarsslen.github.io/metadata.json
+jq -e '.["shell-version"] | index("50") and index("51")' \
     /usr/share/gnome-shell/extensions/amethystora-transitions@iarsslen.github.io/metadata.json
 grep -q "'amethystora-transitions@iarsslen.github.io'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-transitions style)" == "'grow'" ]]
@@ -509,7 +511,8 @@ grep -qx "<super>return" <<<"${KEPT_COMBOS}"
 test -s "${UI_EXTENSION}/modules/glass/lens.glsl"
 test -s "${UI_EXTENSION}/stylesheets/glass.css"
 test -s "${UI_EXTENSION}/stylesheets/dock.css"
-[[ -z "$(grep -rn GLSLEffect "${UI_EXTENSION}/modules/glass" "${UI_EXTENSION}/modules/glass.js" | grep -v ':[0-9]*: *//')" ]]
+# No extension of the image, ours or another's, may draw with Shell.GLSLEffect: it fails to load on GNOME 51
+[[ -z "$(grep -rn --include='*.js' GLSLEffect /usr/share/gnome-shell/extensions | grep -v ':[0-9]*: *//')" ]]
 test ! -e /etc/dconf/db/distro.d/05-blur-my-shell-extension
 # An account that holds a list of its own never sees the default list of extensions, so the user-setup hook
 # puts it back after every update; the default it reads has to be the one the image compiled

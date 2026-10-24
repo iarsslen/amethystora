@@ -972,13 +972,15 @@ kept in `system_files/shared/usr/share/gnome-shell/extensions`, not a submodule)
 or wallpaper with an animation, as swww does on Hyprland. It freezes the screen in GNOME Shell's own
 `screenTransition` actor, which makes the background manager swap the wallpaper at once instead of
 fading it, and once nothing has changed for 300 ms a GLSL shader opens the picture onto the new
-desktop. `amethystora-theme` calls `Hold` and `Release` on `/org/amethystora/Transitions` (on
+desktop: a `Clutter.Effect` on that actor draws the frozen picture itself through a `Cogl.Pipeline`
+(`vfunc_paint_node`, the actor's content texture as layer 0), never `Shell.GLSLEffect`, which GNOME 51 no
+longer has. `amethystora-theme` calls `Hold` and `Release` on `/org/amethystora/Transitions` (on
 `org.gnome.Shell`) around a theme switch so that it is one transition; a change to a watched
 background or interface key starts one by itself, and the Dark Style toggle reaches it through
 `screenTransition.run()`. The screen is never held for more than five seconds, and nothing is held
 while GNOME's animations are off. Its schema is in `/usr/share/glib-2.0/schemas`, for `ame desktop
-transition`. `stage.paint_to_content` took a colour-state argument in GNOME 50: check that call before
-adding a GNOME to its `shell-version`, which `20-tests.sh` requires.
+transition`. `stage.paint_to_content` took a colour-state argument in GNOME 50 (unchanged in 51): check
+that call before adding a GNOME to its `shell-version`, which `20-tests.sh` requires to claim 50 and 51.
 
 ### Widgets
 
@@ -1055,8 +1057,8 @@ lose its settings (and a cache folder it left), unless they installed it themsel
   bottom (`modules/dock/`), with no setting of its own; the glass is a shader (`modules/glass/lens.glsl`) and a
   stylesheet, with no setting either. Each screen's wallpaper is blurred once into a texture the surfaces share (the top
   bar, the dock, menus, notifications, unfocused windows, the overview), drawn behind a surface by a `Clutter.Effect`
-  with its own shader and never by `Shell.GLSLEffect`, which GNOME 51 no longer has (`20-tests.sh` fails on it; `shader.js`
-  is what the transitions' port off it can use). The glass shows the wallpaper, not the window behind it. A module that
+  with its own shader and never by `Shell.GLSLEffect`, which GNOME 51 no longer has (`20-tests.sh` fails on it in any
+  extension of the image; the transitions draw their reveal the same way). The glass shows the wallpaper, not the window behind it. A module that
   draws a surface of its own tells the glass through `glassSurfaces()` and `surfacesChanged()`.
 - `connect`, GSConnect's top bar part: one icon, with the battery, while a paired phone is connected, and a menu to send
   files, send a link, ping and open the texts; the clipboard bridge. It only watches for the program's bus name, so it
