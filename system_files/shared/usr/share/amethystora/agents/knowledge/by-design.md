@@ -107,9 +107,10 @@ the one port for the user to confirm: `sudo firewall-cmd --permanent --zone=amet
 
 ### Phone pairing is open only at home
 
-Symptom: GSConnect does not find the phone. Confirm: `nmcli -g connection.zone connection show NAME` for the
-network; only the networks named home use `amethystora-home`. Change: `ame security home-networks` names this network home (the
-user's choice).
+Symptom: the phone link does not find the phone, or the KDE Connect app does not find this computer. Confirm:
+`systemctl --user is-enabled amethystora-connect.service` (off until `ame desktop phone on`), then
+`nmcli -g connection.zone connection show NAME` for the network; only the networks named home use `amethystora-home`.
+Change: `ame security home-networks` names this network home (the user's choice).
 
 ### Away from home, nothing answers (only with firewall-away on)
 

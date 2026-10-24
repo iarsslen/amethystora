@@ -251,6 +251,10 @@ export const DRAW = {
     phone: ({ink, soft}) => `<rect x="74" y="36" width="108" height="184" rx="26" fill="${ink}"/>` +
         `<rect x="88" y="60" width="80" height="132" rx="10" fill="${soft}" fill-opacity="0.6"/><rect x="112" y="46" width="32" height="7" rx="3.5" fill="${soft}"/>` +
         `<rect x="108" y="202" width="40" height="7" rx="3.5" fill="${soft}"/>`,
+    // The phone link: a phone, and the waves between it and this computer
+    "phone-link": ({ink, soft}) => `<rect x="58" y="40" width="104" height="176" rx="26" fill="${ink}"/>` +
+        `<rect x="72" y="64" width="76" height="116" rx="10" fill="${soft}" fill-opacity="0.45"/><rect x="92" y="196" width="36" height="7" rx="3.5" fill="${soft}"/>` +
+        line("M184 104a34 34 0 0 1 0 48", soft, 12) + line("M204 84a62 62 0 0 1 0 88", soft, 12),
     usb: ({ink, soft}) => `<rect x="104" y="40" width="48" height="56" rx="6" fill="${soft}"/>` +
         `<rect x="114" y="54" width="10" height="10" rx="2" fill="${ink}"/><rect x="132" y="54" width="10" height="10" rx="2" fill="${ink}"/>` +
         `<rect x="88" y="92" width="80" height="124" rx="20" fill="${ink}"/>` + line('M114 150h28', soft, 9),

@@ -263,9 +263,33 @@ test ! -e /etc/dconf/db/distro.d/04-amethystora-logomenu-extension
 test ! -e /usr/bin/missioncenter-helper
 test ! -e /usr/bin/distroshelf-helper
 
-# GNOME Shell extensions built from the git submodules (build-gnome-extensions.sh): GSConnect alone is left
-test -f /usr/share/gnome-shell/extensions/gsconnect@andyholmes.github.io/metadata.json
+# No GNOME Shell extension is built from a git submodule any more (build-gnome-extensions.sh), and the phone link
+# is Amethystora's own program (plans/PLAN-amethystora-connect.md) in place of GSConnect and its Files extension:
+# a user service nobody has enabled, its app and the module of Amethystora UI that shows it in the top bar
 test -d /usr/share/gnome-shell/extensions/tmp && false
+for package in nautilus-gsconnect gnome-shell-extension-gsconnect; do
+    rpm -q "${package}" >/dev/null 2>&1 && false
+done
+test -x /usr/libexec/amethystora-connect
+test -x /usr/bin/amethystora-phone
+test -f /usr/lib/systemd/user/amethystora-connect.service
+[[ "$(systemctl --global is-enabled amethystora-connect.service 2>/dev/null)" != enabled ]]
+# ...which D-Bus never starts by itself (no activation file): the program listens only while the switch is on
+test ! -e /usr/share/dbus-1/services/org.amethystora.Connect.service
+grep -q '^\[Install\]' /usr/lib/systemd/user/amethystora-connect.service
+grep -q '^WantedBy=graphical-session.target' /usr/lib/systemd/user/amethystora-connect.service
+grep -qE '^(MemoryMax|TasksMax|LimitNOFILE)=' /usr/lib/systemd/user/amethystora-connect.service
+# ...whose only settings are the name phones see and the two ways the clipboard may be shared, both off
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.amethystora.Connect | sort | paste -sd ' ')" == \
+    "clipboard-receive clipboard-send device-name" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.amethystora.Connect clipboard-send)" == false ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.amethystora.Connect clipboard-receive)" == false ]]
+# ame desktop phone turns the service on and off, not an extension
+grep -q "amethystora-connect.service" /usr/share/amethystora/just/desktop.just
+grep -qi "gsconnect" /usr/share/amethystora/just/desktop.just && false
+test -x /usr/share/amethystora/user-setup.hooks.d/21-phone-link.sh
+test -x /usr/libexec/amethystora-phone-link-notice
+test ! -e /usr/share/amethystora/user-setup.hooks.d/18-home-networks.sh
 
 # Every extension has to be readable by the account that logs in, not just by the root this build
 # runs as. GNOME Shell reads metadata.json as the user; one it cannot open is not a broken
@@ -365,7 +389,7 @@ for retired in just-perfection-desktop@just-perfection space-bar@luchrioh tophat
     appindicatorsupport@rgcjonas.gmail.com caffeine@patapon.info search-light@icedman.github.com \
     gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com gradia-integration@alexandervanhee.github.io \
     bazaar-integration@kolunmi.github.io paperwm@paperwm.github.com blur-my-shell@aunetx \
-    dash-to-dock@micxgx.gmail.com; do
+    dash-to-dock@micxgx.gmail.com gsconnect@andyholmes.github.io; do
     test ! -e "/usr/share/gnome-shell/extensions/${retired}"
     test ! -e "/usr/share/licenses/${retired}"
     grep -q "'${retired}'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override && false
@@ -765,7 +789,7 @@ grep -q "paperwm@paperwm.github.com" /usr/share/amethystora/user-setup.hooks.d/1
 # wordmarks, which the program carries, is the logo's own, cropped the way branding/generate.mjs crops it.
 APPS_PROGRAM=/usr/lib/amethystora-apps/amethystora-apps
 test -x "${APPS_PROGRAM}"
-for app in manual security update notes logs backups control; do
+for app in manual security update notes logs backups phone control; do
     test -x "/usr/bin/amethystora-${app}"
     [[ "/usr/lib/amethystora-${app}/amethystora-${app}" -ef "${APPS_PROGRAM}" ]]
     [[ "$(env -u DISPLAY -u WAYLAND_DISPLAY "/usr/lib/amethystora-${app}/amethystora-${app}" --version)" == "amethystora-${app} "* ]]
@@ -1481,8 +1505,8 @@ done
 grep -rlE 'KERNEL=="uinput".*uaccess' /usr/lib/udev/rules.d /etc/udev/rules.d && false
 grep -q 'KERNEL=="uinput".*uaccess' /usr/share/amethystora/hardening/71-amethystora-uinput.rules
 /usr/libexec/amethystora-hardening is-on virtual-input
-# Firewall: the Amethystora zone, without Fedora Workstation's open port range, and phone pairing (GSConnect)
-# open only in the zone of the networks named home
+# Firewall: the Amethystora zone, without Fedora Workstation's open port range, and the phone link's ports (firewalld's
+# kdeconnect service, named for the protocol) open only in the zone of the networks named home
 [[ "$(firewall-offline-cmd --get-default-zone)" == "amethystora" ]]
 [[ -z "$(firewall-offline-cmd --zone=amethystora --list-ports)" ]]
 firewall-offline-cmd --zone=amethystora --query-service=kdeconnect >/dev/null && false

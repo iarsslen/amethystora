@@ -47,7 +47,7 @@ Then reboot. Replace `amethystora` with any image name from the table above, and
 
 ### Using the desktop
 
-You log in on GDM to a GNOME session with the Amethystora wallpaper and a purple accent. These GNOME Shell extensions are preinstalled: GSConnect, Amethystora Logo Menu, Amethystora UI (the desktop's own modules, written for this image, among them the tiling) and Amethystora Clipboard (a copy of Clipboard Indicator that seals its history). Turn them on or off in Extension Manager.
+You log in on GDM to a GNOME session with the Amethystora wallpaper and a purple accent. These GNOME Shell extensions are preinstalled: Amethystora Logo Menu, Amethystora UI (the desktop's own modules, written for this image, among them the tiling and the phone link's top bar icon) and Amethystora Clipboard (a copy of Clipboard Indicator that seals its history). Turn them on or off in Extension Manager.
 
 The top bar carries the six workspaces on the left, where Activities used to be, and CPU, memory and network meters on the right. Both follow the current theme.
 
@@ -147,7 +147,7 @@ just build amethystora-dx latest main
 Amethystora hardens the Fedora defaults:
 
 - **Updates must be signed.** Only images signed with Amethystora's key are accepted, so a tampered or substituted image is refused instead of installed. The first boot after this change switches an existing installation over automatically.
-- **The firewall rejects incoming connections.** Fedora Workstation leaves every port above 1024 open to the local network; Amethystora only allows printer and device discovery (mDNS), Windows file sharing and IPv6 setup, and GSConnect's phone pairing only on the networks you name home (`ame security home-networks`). Tailscale is trusted, where your tailnet's access rules apply. To let something else in, for example a development server you want to open on your phone, use the Firewall app or `sudo firewall-cmd --add-port=8080/tcp` (add `--permanent` to keep it after a reboot).
+- **The firewall rejects incoming connections.** Fedora Workstation leaves every port above 1024 open to the local network; Amethystora only allows printer and device discovery (mDNS), Windows file sharing and IPv6 setup, and phone pairing only on the networks you name home (`ame security home-networks`). Tailscale is trusted, where your tailnet's access rules apply. To let something else in, for example a development server you want to open on your phone, use the Firewall app or `sudo firewall-cmd --add-port=8080/tcp` (add `--permanent` to keep it after a reboot).
 - **Ten wrong passwords in a row** lock an account for ten minutes. Unlock it early from another administrator account with `sudo faillock --user <name> --reset`.
 - **Too many failed logins from one address** and fail2ban has the firewall reject that address: five failures within ten minutes cost an hour, and each further ban of the same address lasts longer than the last, up to a day. It watches the SSH server, the only thing here that can be logged into over the network, and it leaves the tailnet alone. See what is blocked with `ame security addresses`, and let an address back in with `ame security addresses <address>`.
 - **Kernel hardening**: memory is wiped as it is handed out, kernel addresses are hidden, programs cannot read each other's memory, and rarely used modules (old network protocols and filesystems, FireWire) cannot load; FireWire has a switch of its own, `ame security firewire`, for FireWire sound cards. `gdb -p` on a process you did not start now needs `sudo`.

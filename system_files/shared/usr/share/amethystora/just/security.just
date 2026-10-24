@@ -1071,7 +1071,7 @@ time ACTION="":
 firewall-away ACTION="":
     @/usr/libexec/amethystora-hardening ask firewall-away "${1:-}"
 
-# Which saved networks are home: the only ones phone pairing (GSConnect) is open on
+# Which saved networks are home: the only ones phone pairing is open on
 home-networks:
     @/usr/libexec/amethystora-hardening ask-home
 

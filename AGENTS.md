@@ -7,7 +7,7 @@ This document provides essential information for coding agents working with the 
 **Amethystora** is a cloud-native desktop operating system, based on Universal Blue and maintained by Arsslen Idadi (@iarsslen). It is an OS built on Fedora Linux using container technologies with atomic updates.
 
 - **Type**: Container-based Linux distribution build system
-- **Base**: `ghcr.io/ublue-os/silverblue-main` (Fedora with the GNOME desktop and GDM) + Universal Blue infrastructure; GNOME Shell extensions are git submodules under `system_files/shared/usr/share/gnome-shell/extensions`, built by `build_files/shared/build-gnome-extensions.sh`, except `amethystora-transitions@iarsslen.github.io` (see The transitions) `amethystora-widgets@iarsslen.github.io` (see Widgets), `amethystora-logo-menu@iarsslen.github.io` (see The logo menu) and `amethystora-ui@iarsslen.github.io` (see Amethystora UI)
+- **Base**: `ghcr.io/ublue-os/silverblue-main` (Fedora with the GNOME desktop and GDM) + Universal Blue infrastructure; GNOME Shell extensions are kept in `system_files/shared/usr/share/gnome-shell/extensions` and set up by `build_files/shared/build-gnome-extensions.sh`: `amethystora-transitions@iarsslen.github.io` (see The transitions), `amethystora-widgets@iarsslen.github.io` (see Widgets), `amethystora-logo-menu@iarsslen.github.io` (see The logo menu), `amethystora-clipboard@iarsslen.github.io` (a modified copy of Clipboard Indicator, see `NOTICE`) and `amethystora-ui@iarsslen.github.io` (see Amethystora UI); none is a git submodule any more
 - **Languages**: Bash scripts, JSON configuration, Python utilities
 - **Build System**: Just (command runner), Podman/Docker containers, GitHub Actions
 - **Target**: desktop OS with two variants (base + developer experience)
@@ -647,13 +647,13 @@ it costs before it is turned on; the report's `stricter` check names the ones th
 says when one is turned off any other way. `ame security lockdown strict` is lockdown's own third level.
 
 **Phone pairing is open only at home** (the maintainer's choice of 2026-10-08). The firewall has three
-zones: `amethystora`, the default, which every network gets; `amethystora-home`, the same with GSConnect's
-`kdeconnect` service, for the saved connections named home (`ame security home-networks`, kept in
+zones: `amethystora`, the default, which every network gets; `amethystora-home`, the same with firewalld's
+`kdeconnect` service (the phone link's ports, see The phone link), for the saved connections named home (`ame security home-networks`, kept in
 `/etc/amethystora/firewall-home`, applied as each connection's `connection.zone`); and `amethystora-away`,
 the default instead while `firewall-away` is on. With the Amethystora zone off, the home networks go back to
 the default zone and the list stays. fail2ban bans in all three through the image's own
 `action.d/amethystora-zones.conf`, since fail2ban's `firewallcmd-rich-rules` bans in the default zone alone.
-`user-setup.hooks.d/18-home-networks.sh` tells an account with a phone paired, once, why it stopped connecting.
+The phone link listens only on interfaces in `amethystora-home`.
 
 **What an account plants is only ever read.** Text somebody else wrote (a file name, a program's name
 or command line, a launcher's `Exec=`, a host name, a rule's message) goes through
@@ -1058,7 +1058,44 @@ lose its settings (and a cache folder it left), unless they installed it themsel
   with its own shader and never by `Shell.GLSLEffect`, which GNOME 51 no longer has (`20-tests.sh` fails on it; `shader.js`
   is what the transitions' port off it can use). The glass shows the wallpaper, not the window behind it. A module that
   draws a surface of its own tells the glass through `glassSurfaces()` and `surfacesChanged()`.
-- Still upstream: GSConnect, which stays (a phone program, off by default). Caffeine, never switched on, was dropped.
+- `connect`, GSConnect's top bar part: one icon, with the battery, while a paired phone is connected, and a menu to send
+  files, send a link, ping and open the texts; the clipboard bridge. It only watches for the program's bus name, so it
+  costs nothing while the phone link is off (see The phone link). Caffeine, never switched on, was dropped.
+
+### The phone link
+
+`amethystora-connect` (`/usr/libexec/amethystora-connect`, the crate `apps/connect`, a user service
+`amethystora-connect.service` that nobody has enabled) speaks the KDE Connect protocol, so the KDE Connect app on an
+Android phone pairs with it; it replaced GSConnect (GPL, a submodule and `nautilus-gsconnect` before), and keeps nothing
+of its pairings (`user-setup.hooks.d/21-phone-link.sh` turns the service on for an account that had GSConnect on, and
+`amethystora-phone-link-notice` says once to pair again). `plans/PLAN-amethystora-connect.md` has the decisions; the specs
+in `plans/amethystora-connect/` are the protocol, the plugins and the desktop side as facts.
+
+- **Clean room, and it must stay one.** GSConnect, KDE Connect and Valent are GPL. The program is written from the specs
+  (`plans/amethystora-connect/spec-*.md`, by writers who read the upstream and wrote down the protocol and what a person
+  sees, never code) and from GLib's, GIO's and the crates' own documentation. Never open, copy or paraphrase their code,
+  strings or comments into it; wire names (packet types, field names, ports) are the protocol and are used as they are.
+  `plans/amethystora-connect/IMPLEMENTERS.md` is the brief.
+- **Three parts, one contract**: the program (glib and gio, no GTK, owns the session bus name `org.amethystora.Connect`),
+  the app `amethystora-phone` (`apps/phone`, app id `org.amethystora.Phone`: the phones, pairing, the send dialog, texts
+  and the reply dialog) and the `connect` module of Amethystora UI. The contract is `apps/connect/dbus/org.amethystora.Connect.xml`;
+  the app and the module are its clients and work out nothing themselves. The program raises its own notifications
+  (pairing with the verification key, a phone's notifications with Reply, a file received, a call), so that a fault in the
+  shell never loses a pairing prompt.
+- **Off costs nothing and it is home only.** `ame desktop phone on|off` enables or disables the user unit (Control's
+  **Phone pairing**); the program listens only while it runs, announces itself only on interfaces in the `amethystora-home`
+  zone (it asks firewalld, read-only, and counts "cannot ask" as not home), and firewalld's `kdeconnect` service (1714 to
+  1764) is open in that zone alone. `allow.d/listeners` names its ports for the watcher. Nothing runs as root.
+- **What it holds and shows.** Its certificate, key and the paired phones are in `~/.config/amethystora/connect` (0700, files
+  0600); the only way a pairing is ever removed is Unpair. A pairing is never accepted without the person, with the phone's
+  name and the key in front of them. Text from a phone is shown as text, never markup; a file goes to `~/Downloads/Phone/<name>`
+  under a name that cannot leave it and never overwrites; texts live in memory only. Received links are shown, never opened.
+- **The clipboard is two switches, both off** (`org.amethystora.Connect` `clipboard-send` and `clipboard-receive`, `ame
+  desktop phone clipboard send|receive on|off`, two Control entries): a phone pasting into a password field is a risk the
+  person takes on knowingly. Not in the first version: the phone's storage, remote input, media control, run command,
+  sending this computer's notifications, and `tel:`/`sms:` handlers.
+- **Interop** is tested against Fedora's `kdeconnectd` as the phone (`apps/connect/tests/`), and a real phone last; what a
+  real phone does differently goes back into the specs.
 
 ### The icon packs
 
@@ -1431,7 +1468,7 @@ staying in place.
 3. `04-packages.sh` - Installs Fedora and COPR packages
 4. `05-override-install.sh` - Overrides base image packages. Among them the multimedia stack: the base image installs negativo17's FFmpeg, built with `--enable-nonfree` and labelled by FFmpeg itself "nonfree and unredistributable", and its `pipewire-libs-extra`, whose LC3plus plugin links `liblc3plus`, which has no licence to redistribute. Both are replaced with Fedora's `ffmpeg-free` and `fdk-aac-free`, RPM Fusion's `libavcodec-freeworld`, and RPM Fusion's aptX plugin. negativo17's repository is `fedora-multimedia` in the base image and outranks Fedora's, so `17-cleanup.sh` turns it off; do not install FFmpeg, codec or PipeWire packages from it. `20-tests.sh` fails on any FFmpeg library that reports itself unredistributable. The script also deletes `/usr/share/doc`, after moving the licence, copyright and NOTICE files that some 120 packages keep only there into `/usr/share/licenses`, and installs Starship from a pinned release checked against its published checksum (the pin is bumped by Renovate)
 5. `06-branding.sh` - Puts the Amethystora artwork (generated by `node branding/generate.mjs`) where the boot menu, the boot splash and GDM look for it: the GRUB font, the Plymouth theme, and Fedora's own logo files, which GDM, the Settings About page and the fallback splash look up by fixed path
-6. `build_files/shared/build-gnome-extensions.sh` - Builds the GNOME Shell extensions from the git submodules
+6. `build_files/shared/build-gnome-extensions.sh` - Sets up the GNOME Shell extensions written for this image: their licences, schemas and entries in `enabled-extensions` (nothing is built from a git submodule any more)
 7. `10-icons.sh` - Builds the icon caches of the Amethystora icon packs, which come with `system_files` (see The icon packs); nothing is downloaded. candy-icons, the pack the desktop shipped with until 2026-10-23, is gone, with its keep list, its aliases and the Security shield and Notes icon drawn from it (the Glass pack draws those two now, into `hicolor`). Nobody else's logo is drawn: an app of another maker keeps the icon it ships. `user-setup.hooks.d/16-retire-jetbrains-icons.sh` takes back the links an earlier image made to the IDE drawings
 8. `11-gtk-theme.sh` - Installs the Amethystora GTK theme: EliverLara's Sweet, with every cool colour in it rotated onto the amethyst palette by `build_files/shared/recolor.py`. It ships under Amethystora's own name because the palette is no longer Sweet's. Only the `amethystora` and `amethystora-light` themes name it in their `gtk.theme`; the rest stay on adw-gtk3, which follows the GNOME accent colour. libadwaita ignores `gtk-theme` and a Flatpak cannot see `/usr/share/themes` at all, so both are reached by `theme-set.hooks.d/20-gtk-apps.sh`: it mirrors the active theme into `~/.themes`, which `/etc/flatpak/overrides/global` grants every sandbox read-only, and writes the `~/.config/gtk-4.0/gtk.css` that imports from the mirror
 9. `12-login-screen.sh` - Patches the login screen background into GNOME Shell's own stylesheet. GNOME reads it from the `#lockDialogGroup` rule inside `gnome-shell-theme.gresource` and from nowhere else, so the bundle is unpacked, the rule appended and the bundle rebuilt. The picture is the crown the boot splash ends on, as sharp as the splash draws it and without the gem, drawn by `branding/generate.mjs`

@@ -331,7 +331,7 @@ read_audit() {
             # "tester, acting as root, ..." for sudo, "system, acting as root, ..." for a service, "root ..." for root's
             # own login; "tester ..." is a program of the account's own
             [[ "${mark}" == noted && ( "${event}" == *", acting as root, "* || "${event}" == "root "* ) ]] && level=quiet
-            # A write or a removal that failed changed nothing: GNOME Shell's GSConnect takes away copies of its
+            # A write or a removal that failed changed nothing: a program that takes away copies of its own
             # files that are not there at every login. A module the kernel refused, and a try at the locked
             # rules, are still said.
             [[ "${key}" != modules && "${event}" == *" unsuccessfully "* && "${event}" != *" unsuccessfully "*_rule" "* ]] &&

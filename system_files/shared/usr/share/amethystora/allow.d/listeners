@@ -6,6 +6,11 @@
 # fwupd's passim, which offers the firmware metadata fwupd downloaded to the machines nearby; it starts when
 # firmware is looked for, from Updates or GNOME Firmware (P2pPolicy in /etc/fwupd/fwupd.conf)
 passimd 27500
-# GSConnect, for phones, from the first login, which may come after the watcher's first run; the firewall
-# opens it at home only (ame security home-networks)
-gjs 1716
+# The phone link (amethystora-connect, whose name the kernel cuts to fifteen characters), for phones, from the first
+# login, which may come after the watcher's first run: the protocol's port 1716, and one port of 1739 to 1764 for a file
+# in transit. The firewall opens them at home only (ame security home-networks)
+amethystora-con 1716
+amethystora-con 173[9]
+amethystora-con 174[0-9]
+amethystora-con 175[0-9]
+amethystora-con 176[0-4]

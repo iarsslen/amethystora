@@ -42,7 +42,7 @@ to the agent, which looks into it in a terminal and changes nothing until you ag
   `sudo firewall-cmd --add-port=8080/tcp` (add `--permanent` to keep it after a restart).
   `ame security firewall-away on` answers nothing at all on networks you have not named home
   ([Stricter settings](#stricter-settings)).
-- **Your phone reaches this machine only at home.** GSConnect, which pairs it, is open only on the
+- **Your phone reaches this machine only at home.** The phone link, which pairs it, is open only on the
   networks you name home, and closed on every other, a café's or a new one included. Name yours with
   `ame security home-networks`, which lists the networks this machine has joined. A wired connection
   is used on every wired network the machine is plugged into, so name it home only if the machine is

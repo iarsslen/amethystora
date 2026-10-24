@@ -1,0 +1,1119 @@
+/* Amethystora Phone, in the look of the other Amethystora windows (Backups, Logs, Updates). The ten theme colours and
+   --on-accent are palette.rs's; everything else is mixed from them, so any theme reads well here without a
+   stylesheet of its own. Line heights are in pixels, the factor times the font size, as the other apps have them:
+   GTK multiplies a factor by the font's own height, which differs from script to script. Layout (gaps, widths,
+   wrapping) is the Rust code's; this paints. */
+
+:root {
+    --sidebar: color-mix(in oklab, var(--bg) 94%, var(--fg));
+    --card: color-mix(in oklab, var(--surface) 40%, var(--bg));
+    --control: color-mix(in oklab, var(--fg) 5%, transparent);
+    --line: color-mix(in oklab, var(--fg) 10%, transparent);
+    --line-strong: color-mix(in oklab, var(--fg) 15%, transparent);
+    --hairline: color-mix(in oklab, var(--fg) 7%, transparent);
+    --soft: color-mix(in oklab, var(--fg) 64%, var(--bg));
+    --faint: color-mix(in oklab, var(--fg) 56%, var(--bg));
+    --link: color-mix(in oklab, var(--accent) 72%, var(--fg));
+    --tint: color-mix(in oklab, var(--accent) 16%, transparent);
+    --code-bg: color-mix(in oklab, var(--surface) 55%, var(--bg));
+    --hover: color-mix(in oklab, var(--fg) 5%, transparent);
+    --shadow: none;
+    --radius: 16px;
+}
+
+/* On a light theme a card stands out by being lighter than the window, not darker */
+window.light {
+    --card: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --control: color-mix(in oklab, var(--bg) 20%, #ffffff);
+    --faint: color-mix(in oklab, var(--fg) 72%, var(--bg));
+    --shadow: 0 1px 2px color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+window.amethystora {
+    font-family: Inter, "Adwaita Sans", Cantarell, sans-serif;
+    font-size: 14px;
+    line-height: 21px;
+    font-feature-settings: "cv11", "ss01";
+}
+
+.code {
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+}
+
+/* A disabled control is dimmed by the rules below, and not by libadwaita's as well */
+window.amethystora *:disabled {
+    filter: none;
+}
+
+.soft {
+    color: var(--soft);
+}
+
+.faint {
+    color: var(--faint);
+}
+
+.bad {
+    color: var(--bad);
+}
+
+label.small,
+.small label {
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.strong {
+    font-weight: 700;
+}
+
+/* A scrollbar 10 pixels wide, beside what scrolls rather than over it, a rounded thumb and no track */
+scrolledwindow.page-scroll > scrollbar,
+scrolledwindow.page-scroll > scrollbar.vertical {
+    min-width: 10px;
+    padding: 0;
+    border: none;
+    background: none;
+    box-shadow: none;
+    opacity: 1;
+}
+
+scrolledwindow.page-scroll > scrollbar range,
+scrolledwindow.page-scroll > scrollbar trough {
+    min-width: 10px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+}
+
+scrolledwindow.page-scroll > scrollbar slider {
+    min-width: 4px;
+    min-height: 34px;
+    margin: 3px;
+    border: none;
+    border-radius: 10px;
+    background-color: color-mix(in oklab, var(--fg) 22%, transparent);
+}
+
+scrolledwindow.page-scroll > scrollbar slider:hover {
+    background-color: color-mix(in oklab, var(--fg) 38%, transparent);
+}
+
+/* --- Sidebar ------------------------------------------------------------------------------------ */
+
+.sidebar {
+    min-width: 235px;
+    padding: 22px 14px 20px;
+    background: var(--sidebar);
+    border-right: 1px solid var(--line);
+}
+
+.sidebar:dir(rtl) {
+    border-right: none;
+    border-left: 1px solid var(--line);
+}
+
+window.narrow .sidebar {
+    min-width: 191px;
+}
+
+/* The window's buttons over the top of the sidebar, where the desktop puts them at the start of the title bar:
+   the wordmark moves down out of their way */
+window.controls-start .sidebar {
+    padding-top: 34px;
+}
+
+/* The wordmark of the boot splash and the login screen: the stone as the "a" of "methystora" in Quicksand Bold,
+   glowing, and the window's name. Every size is the generator's, in em of its lettering. */
+.brand {
+    padding: 4px 6px;
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 21px;
+    line-height: 21px;
+    letter-spacing: -0.015em;
+}
+
+.wordmark {
+    color: #ffffff;
+}
+
+window.light .wordmark {
+    color: #241f31;
+}
+
+.brand .product {
+    color: var(--soft);
+    font-weight: 600;
+}
+
+.nav-label {
+    padding: 0 12px 4px;
+    color: var(--faint);
+    font-size: 11.5px;
+    line-height: 17.25px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+}
+
+.nav-label.section {
+    padding: 8px 4px 0;
+}
+
+button.nav-button {
+    min-height: 40px;
+    padding: 0 12px;
+    border-radius: 10px;
+    color: var(--fg);
+    font-size: 14.5px;
+    line-height: 21.75px;
+    font-weight: 500;
+}
+
+button.nav-button:hover {
+    background: color-mix(in oklab, var(--fg) 6%, transparent);
+}
+
+button.nav-button.current {
+    background: var(--tint);
+    color: var(--link);
+    font-weight: 600;
+}
+
+.badge {
+    min-width: 20px;
+    min-height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 11.5px;
+    line-height: 17.25px;
+    font-weight: 700;
+}
+
+.sidebar-foot {
+    padding: 0 8px;
+}
+
+.terminal {
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.terminal .code {
+    color: var(--soft);
+    font-size: 12px;
+    line-height: 18.75px;
+}
+
+/* --- The page ----------------------------------------------------------------------------------- */
+
+.topbar {
+    min-height: 28px;
+    padding: 14px 28px 6px;
+}
+
+.topbar windowcontrols {
+    margin-left: 14px;
+    margin-right: -14px;
+    margin-top: -4px;
+    margin-bottom: -4px;
+}
+
+.topbar:dir(rtl) windowcontrols {
+    margin-left: -14px;
+    margin-right: 14px;
+}
+
+.page {
+    padding: 18px 44px 56px;
+}
+
+window.narrow .page {
+    padding-left: 28px;
+    padding-right: 28px;
+}
+
+.page-head {
+    padding-bottom: 18px;
+}
+
+.page-head .h1 {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 30px;
+    line-height: 36px;
+    letter-spacing: -0.01em;
+}
+
+.lead,
+.lead > label {
+    color: var(--soft);
+    font-size: 14.5px;
+    line-height: 21.75px;
+}
+
+.h2 {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    line-height: 26px;
+}
+
+.h3 {
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 700;
+}
+
+.card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--card);
+    box-shadow: var(--shadow);
+}
+
+.loading {
+    color: var(--soft);
+}
+
+@keyframes breathe {
+    0%,
+    100% {
+        opacity: 1;
+        transform: none;
+    }
+
+    50% {
+        opacity: 0.45;
+        transform: scale(0.92);
+    }
+}
+
+.loading gem {
+    animation: breathe 1.6s ease-in-out infinite;
+}
+
+gem {
+    color: var(--accent);
+}
+
+.working {
+    color: var(--soft);
+}
+
+.working-wrap {
+    padding: 28px 24px;
+}
+
+/* --- Buttons ------------------------------------------------------------------------------------ */
+
+button.btn,
+button.link,
+button.plain {
+    background: none;
+    box-shadow: none;
+    border: none;
+    min-height: 0;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    text-shadow: none;
+    -gtk-icon-shadow: none;
+    outline-color: var(--accent);
+    font-weight: inherit;
+}
+
+button.btn:focus-visible,
+button.link:focus-visible,
+button.plain:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+button.btn {
+    min-height: 34px;
+    padding: 0 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--control);
+    color: inherit;
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 600;
+    transition: filter 150ms;
+}
+
+button.btn > box {
+    border-spacing: 8px;
+}
+
+button.btn:hover {
+    filter: brightness(1.15);
+}
+
+window.light button.btn:hover {
+    filter: brightness(0.96);
+}
+
+button.btn.primary {
+    border-color: transparent;
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+button.btn.danger {
+    border-color: transparent;
+    background: var(--bad);
+    color: var(--on-accent);
+}
+
+button.btn.small {
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 9px;
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+button.btn:disabled {
+    opacity: 0.5;
+    filter: none;
+}
+
+.icon-btn {
+    min-width: 30px;
+    min-height: 30px;
+    border-radius: 8px;
+    color: var(--soft);
+}
+
+button.icon-btn:hover {
+    background: var(--hover);
+    color: var(--fg);
+}
+
+button.icon-btn:disabled {
+    opacity: 0.4;
+}
+
+button.link {
+    color: var(--link);
+    font-size: 12.5px;
+    line-height: 18.75px;
+    font-weight: 600;
+}
+
+button.link > box {
+    border-spacing: 6px;
+}
+
+button.link:hover label {
+    text-decoration-line: underline;
+}
+
+button.link:disabled {
+    opacity: 0.5;
+}
+
+button.link.quiet {
+    color: var(--soft);
+    font-size: 13.5px;
+    line-height: 20.25px;
+    font-weight: 500;
+}
+
+/* --- Choices ------------------------------------------------------------------------------------ */
+
+button.option {
+    padding: 11px 13px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--control);
+    color: var(--fg);
+}
+
+button.option:hover {
+    border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+
+button.option.checked {
+    border-color: var(--accent);
+    background: var(--tint);
+}
+
+.option .dot {
+    min-width: 14px;
+    min-height: 14px;
+    border: 2px solid var(--line-strong);
+    border-radius: 9px;
+}
+
+.option.checked .dot {
+    border-color: var(--accent);
+}
+
+.option .dot-fill {
+    min-width: 8px;
+    min-height: 8px;
+    border-radius: 4px;
+    background: var(--accent);
+}
+
+.tabs {
+    border-bottom: 1px solid var(--line);
+}
+
+button.tab {
+    min-height: 36px;
+    padding: 0 14px;
+    border-bottom: 2px solid transparent;
+    color: var(--soft);
+    font-weight: 600;
+}
+
+button.tab:hover {
+    color: var(--fg);
+}
+
+button.tab.current {
+    border-bottom-color: var(--accent);
+    color: var(--link);
+}
+
+/* --- Notices ------------------------------------------------------------------------------------ */
+
+.callout {
+    padding: 12px 14px;
+    border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--accent) 9%, transparent);
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.callout > icon {
+    margin-top: 1px;
+    color: var(--link);
+}
+
+.callout.check {
+    border-color: color-mix(in oklab, var(--warn) 30%, transparent);
+    background: color-mix(in oklab, var(--warn) 6%, transparent);
+}
+
+.callout.check > icon {
+    color: var(--warn);
+}
+
+.callout.failed {
+    border-color: color-mix(in oklab, var(--bad) 35%, transparent);
+    background: color-mix(in oklab, var(--bad) 6%, transparent);
+}
+
+.callout.failed > icon {
+    color: var(--bad);
+}
+
+.callout .p {
+    color: var(--soft);
+}
+
+.banner {
+    padding: 10px 8px 10px 16px;
+    border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--accent) 12%, var(--bg));
+    box-shadow: 0 6px 20px rgb(0 0 0 / 0.22);
+    font-size: 13px;
+    line-height: 19.5px;
+}
+
+.banner:dir(rtl) {
+    padding: 10px 16px 10px 8px;
+}
+
+.banner > icon {
+    color: var(--link);
+}
+
+.banner.failed {
+    border-color: color-mix(in oklab, var(--bad) 40%, transparent);
+    background: color-mix(in oklab, var(--bad) 10%, var(--bg));
+}
+
+.banner.failed > icon {
+    color: var(--bad);
+}
+
+.banner-wrap {
+    padding: 0 44px 8px;
+}
+
+window.narrow .banner-wrap {
+    padding: 0 28px 8px;
+}
+
+.empty {
+    padding: 48px 24px 24px;
+    color: var(--soft);
+}
+
+.empty .h2 {
+    color: var(--fg);
+    font-size: 21px;
+    line-height: 27.3px;
+}
+
+.empty gem {
+    margin-bottom: 6px;
+}
+
+.steps {
+    padding: 4px 0;
+}
+
+.command {
+    padding: 8px 8px 8px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--code-bg);
+}
+
+.command .code {
+    font-size: 13px;
+    color: var(--fg);
+}
+
+.tag {
+    min-height: 22px;
+    padding: 0 8px;
+    border-radius: 11px;
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+    color: var(--soft);
+    font-size: 11.5px;
+    line-height: 17.25px;
+    font-weight: 600;
+}
+
+.tag.check {
+    background: color-mix(in oklab, var(--warn) 14%, transparent);
+    color: var(--warn);
+}
+
+.tag.on {
+    background: color-mix(in oklab, var(--ok) 14%, transparent);
+    color: var(--ok);
+}
+
+/* --- Phones ------------------------------------------------------------------------------------- */
+
+.phone-card {
+    padding: 18px 20px;
+}
+
+.phone-card.away {
+    background: transparent;
+}
+
+.phone-card.away .h3,
+.phone-card.away .device-icon {
+    color: var(--soft);
+}
+
+/* The phone asked for, for a moment, by a command */
+.phone-card.attention {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 30%, transparent);
+}
+
+.device-icon {
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 13px;
+    background: var(--tint);
+    color: var(--link);
+}
+
+.battery {
+    color: var(--soft);
+    font-size: 13px;
+    font-feature-settings: "tnum", "cv11", "ss01";
+}
+
+.battery.low {
+    color: var(--bad);
+}
+
+.battery icon:last-child {
+    color: var(--ok);
+}
+
+.keybox {
+    padding: 14px 16px;
+    border: 1px solid color-mix(in oklab, var(--accent) 35%, transparent);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--accent) 9%, transparent);
+}
+
+.keybox icon {
+    color: var(--link);
+}
+
+.keybox .key {
+    font-size: 30px;
+    line-height: 38px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--fg);
+}
+
+.transfers {
+    padding: 2px 0;
+}
+
+bar {
+    min-height: 6px;
+    border-radius: 3px;
+    background: color-mix(in oklab, var(--fg) 8%, transparent);
+}
+
+bar > .fill {
+    border-radius: 3px;
+    background-image: linear-gradient(90deg, var(--accent), var(--link));
+}
+
+bar.indeterminate > .fill {
+    background-image: linear-gradient(90deg, transparent, var(--accent) 30%, var(--link) 70%, transparent);
+}
+
+.page-foot {
+    padding: 22px 4px 0;
+}
+
+/* --- Avatars ------------------------------------------------------------------------------------ */
+
+.avatar {
+    min-width: 38px;
+    min-height: 38px;
+    border-radius: 19px;
+    background: var(--tint);
+    color: var(--link);
+}
+
+.avatar.big {
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 22px;
+}
+
+.avatar .initials {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.avatar.big .initials {
+    font-size: 16px;
+}
+
+/* --- Messages ----------------------------------------------------------------------------------- */
+
+.messages {
+    background: var(--bg);
+}
+
+.conversations-side {
+    min-width: 290px;
+    border-right: 1px solid var(--line);
+}
+
+.conversations-side:dir(rtl) {
+    border-right: none;
+    border-left: 1px solid var(--line);
+}
+
+window.narrow .conversations-side {
+    min-width: 236px;
+}
+
+.side-head {
+    padding: 16px 16px 8px 22px;
+}
+
+.phone-chips {
+    padding: 0 16px 8px 22px;
+}
+
+button.chip {
+    min-height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--control);
+    color: var(--soft);
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+button.chip:hover {
+    color: var(--fg);
+}
+
+button.chip.current {
+    border-color: color-mix(in oklab, var(--accent) 45%, transparent);
+    background: var(--tint);
+    color: var(--link);
+}
+
+.conversation-list {
+    padding: 4px 10px 14px;
+}
+
+.list-empty {
+    padding: 22px 14px;
+}
+
+button.conversation-button {
+    padding: 9px 12px;
+    border-radius: 12px;
+    color: var(--fg);
+}
+
+button.conversation-button:hover {
+    background: var(--hover);
+}
+
+button.conversation-button.current {
+    background: var(--tint);
+}
+
+.conversation-name {
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 600;
+}
+
+.conversation-name.unread {
+    font-weight: 800;
+}
+
+.conversation-snippet {
+    color: var(--soft);
+    font-size: 13px;
+    line-height: 19px;
+}
+
+.conversation-snippet.unread {
+    color: var(--fg);
+    font-weight: 600;
+}
+
+.stamp {
+    font-feature-settings: "tnum", "cv11", "ss01";
+}
+
+.unread-dot {
+    min-width: 9px;
+    min-height: 9px;
+    border-radius: 5px;
+    background: var(--accent);
+}
+
+.chat-pane {
+    background: var(--bg);
+}
+
+.chat-head {
+    min-height: 46px;
+    padding: 14px 24px 12px;
+    border-bottom: 1px solid var(--line);
+}
+
+window.controls-start .chat-head:dir(ltr) {
+    padding-left: 24px;
+}
+
+.chat-title {
+    font-family: Quicksand, Inter, sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 24px;
+}
+
+.notice-bar {
+    padding: 8px 24px;
+    background: color-mix(in oklab, var(--warn) 9%, transparent);
+    border-bottom: 1px solid color-mix(in oklab, var(--warn) 22%, transparent);
+    color: var(--soft);
+    font-size: 12.5px;
+    line-height: 18.75px;
+}
+
+.notice-bar icon {
+    color: var(--warn);
+}
+
+.chat-inner {
+    padding: 14px 24px 18px;
+}
+
+.older {
+    padding: 4px 0 12px;
+}
+
+.time-head {
+    margin: 12px 0 8px;
+}
+
+.msg-row {
+    margin: 1px 0;
+}
+
+.msg-row.first {
+    margin-top: 6px;
+}
+
+.avatar-slot {
+    min-width: 38px;
+}
+
+.avatar-slot .avatar {
+    min-width: 30px;
+    min-height: 30px;
+    border-radius: 15px;
+}
+
+.avatar-slot .initials {
+    font-size: 12px;
+}
+
+.sender {
+    padding: 0 4px;
+}
+
+.bubble {
+    padding: 8px 13px;
+    border-radius: 17px;
+    font-size: 14px;
+    line-height: 21px;
+}
+
+.msg-row.in .bubble {
+    border: 1px solid var(--line);
+    background: var(--card);
+    color: var(--fg);
+}
+
+.msg-row.out .bubble {
+    border: 1px solid transparent;
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+.msg-row.out.pending .bubble {
+    opacity: 0.6;
+}
+
+/* The tail of a run: its corner at the sender's side is tighter */
+.msg-row.in.last .bubble:dir(ltr) {
+    border-bottom-left-radius: 5px;
+}
+
+.msg-row.in.last .bubble:dir(rtl) {
+    border-bottom-right-radius: 5px;
+}
+
+.msg-row.out.last .bubble:dir(ltr) {
+    border-bottom-right-radius: 5px;
+}
+
+.msg-row.out.last .bubble:dir(rtl) {
+    border-bottom-left-radius: 5px;
+}
+
+.bubble label link,
+.bubble label link:link,
+.bubble label link:visited {
+    color: inherit;
+    text-decoration-line: underline;
+}
+
+.bubble .attachment {
+    font-style: italic;
+}
+
+.msg-row.out .bubble .attachment {
+    color: inherit;
+    opacity: 0.8;
+}
+
+.pending-note {
+    padding: 0 4px;
+}
+
+.new-box {
+    padding: 20px 24px;
+}
+
+entry.field-entry {
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    background: var(--control);
+    box-shadow: none;
+    color: var(--fg);
+}
+
+entry.field-entry:focus-within {
+    border-color: var(--accent);
+    outline: none;
+}
+
+.new-choices {
+    padding: 4px 0;
+}
+
+.compose {
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--line);
+}
+
+scrolledwindow.field {
+    min-height: 40px;
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    background: var(--control);
+}
+
+scrolledwindow.field:focus-within {
+    border-color: var(--accent);
+}
+
+textview.field-text,
+textview.field-text text {
+    background: none;
+    color: var(--fg);
+    padding: 0;
+}
+
+textview.field-text {
+    padding: 9px 14px;
+}
+
+.field-hint {
+    padding: 9px 14px;
+    color: var(--faint);
+}
+
+button.send {
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 20px;
+    background: var(--accent);
+    color: var(--on-accent);
+}
+
+button.send:hover {
+    background: var(--accent);
+    filter: brightness(1.12);
+}
+
+button.send:disabled {
+    background: color-mix(in oklab, var(--fg) 10%, transparent);
+    color: var(--faint);
+    opacity: 1;
+}
+
+.chat-placeholder {
+    padding: 0 24px;
+}
+
+/* --- Dialogs ------------------------------------------------------------------------------------ */
+
+.dialog-back {
+    background: rgb(0 0 0 / 0.5);
+}
+
+.dialog-width {
+    margin: 0 24px;
+}
+
+.dialog {
+    padding: 24px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    background: var(--bg);
+    box-shadow: 0 18px 50px rgb(0 0 0 / 0.4);
+}
+
+.dialog > .h2 {
+    font-size: 20px;
+    line-height: 26px;
+}
+
+.picked {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+}
+
+.picked-row {
+    padding: 9px 14px;
+    border-top: 1px solid var(--hairline);
+}
+
+.picked-row:first-child {
+    border-top: none;
+}
+
+.quote {
+    padding: 12px 14px;
+    border-left: 3px solid color-mix(in oklab, var(--accent) 55%, transparent);
+    border-radius: 6px;
+    background: var(--control);
+}
+
+.quote:dir(rtl) {
+    border-left: none;
+    border-right: 3px solid color-mix(in oklab, var(--accent) 55%, transparent);
+}
+
+.quoted {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--code-bg);
+    font-size: 13px;
+}
+
+.shared-text {
+    padding: 2px 0;
+}
+
+.shared-text label {
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--code-bg);
+}
+
+tooltip {
+    background: color-mix(in oklab, var(--surface) 70%, var(--bg));
+    color: var(--fg);
+    border: 1px solid color-mix(in oklab, var(--fg) 12%, transparent);
+    border-radius: 8px;
+    box-shadow: none;
+}
+
+.step-number {
+    min-width: 24px;
+    min-height: 24px;
+    border-radius: 12px;
+    background: var(--tint);
+    color: var(--link);
+    font-size: 12.5px;
+    font-weight: 700;
+}

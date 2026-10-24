@@ -99,7 +99,6 @@ FEDORA_PACKAGES=(
     malcontent-pam
     mesa-libGLU
     mozc
-    nautilus-gsconnect
     # The VPNs people are given at work: Fortinet, L2TP/IPsec, IPsec (IKEv2) and Microsoft's SSTP. OpenConnect,
     # OpenVPN and vpnc come with the base image; PPTP is left out on purpose (MS-CHAPv2 breaks offline).
     # None of them runs a service until a connection comes up (17-cleanup.sh frees the modules L2TP needs).
@@ -335,6 +334,10 @@ EXCLUDED_PACKAGES=(
     gnome-shell-extension-background-logo
     # The base image's copy of Blur my Shell, which Amethystora UI's glass module replaces (20-tests.sh)
     gnome-shell-extension-blur-my-shell
+    # GSConnect and its Files extension, which the phone link (apps/connect) replaces. A package of the base or a
+    # dependency of another must not bring them back (20-tests.sh)
+    gnome-shell-extension-gsconnect
+    nautilus-gsconnect
     gnome-software
     gnome-software-rpm-ostree
     gnome-terminal-nautilus

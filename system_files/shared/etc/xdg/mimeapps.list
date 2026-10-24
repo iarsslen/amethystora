@@ -1,5 +1,25 @@
 [Default Applications]
-application/pdf=org.gnome.Papers.desktop
+# The viewers of what "Send to Phone" (amethystora-phone-send.desktop) is offered for, with Firefox, which the image
+# has from the start, as their second name: before their Flatpaks come (the first boot with a network) the launcher
+# would otherwise be the only app for these types, and so their default. It is an Open With choice and no more.
+application/pdf=org.gnome.Papers.desktop;org.mozilla.firefox.desktop;
+audio/flac=org.gnome.Decibels.desktop;org.mozilla.firefox.desktop;
+audio/mp4=org.gnome.Decibels.desktop;org.mozilla.firefox.desktop;
+audio/mpeg=org.gnome.Decibels.desktop;org.mozilla.firefox.desktop;
+audio/x-wav=org.gnome.Decibels.desktop;org.mozilla.firefox.desktop;
+image/avif=org.gnome.Loupe.desktop;org.mozilla.firefox.desktop;
+image/bmp=org.gnome.Loupe.desktop;org.mozilla.firefox.desktop;
+image/gif=org.gnome.Loupe.desktop;org.mozilla.firefox.desktop;
+image/heic=org.gnome.Loupe.desktop;org.mozilla.firefox.desktop;
+image/heif=org.gnome.Loupe.desktop;org.mozilla.firefox.desktop;
+image/jpeg=org.gnome.Loupe.desktop;org.mozilla.firefox.desktop;
+image/png=org.gnome.Loupe.desktop;org.mozilla.firefox.desktop;
+image/webp=org.gnome.Loupe.desktop;org.mozilla.firefox.desktop;
+text/plain=org.gnome.TextEditor.desktop;org.mozilla.firefox.desktop;
+video/mp4=org.gnome.Showtime.desktop;org.mozilla.firefox.desktop;
+video/quicktime=org.gnome.Showtime.desktop;org.mozilla.firefox.desktop;
+video/webm=org.gnome.Showtime.desktop;org.mozilla.firefox.desktop;
+video/x-matroska=org.gnome.Showtime.desktop;org.mozilla.firefox.desktop;
 application/vnd.flatpak.ref=io.github.kolunmi.Bazaar.desktop
 application/vnd.appimage=noop.desktop
 application/vnd.debian.binary-package=amethystora-pkg-install.desktop

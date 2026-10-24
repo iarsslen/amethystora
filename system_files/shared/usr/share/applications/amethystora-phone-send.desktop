@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Send to Phone
+Comment=Send these files to your Android phone
+Exec=amethystora-phone send %U
+Icon=amethystora-phone
+Terminal=false
+NoDisplay=true
+Categories=Network;
+MimeType=image/jpeg;image/png;image/gif;image/webp;image/heif;image/heic;image/avif;image/bmp;video/mp4;video/quicktime;video/webm;video/x-matroska;audio/mpeg;audio/flac;audio/x-wav;audio/mp4;application/pdf;application/zip;text/plain;
+StartupNotify=true
+StartupWMClass=org.amethystora.Phone

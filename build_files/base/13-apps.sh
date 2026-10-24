@@ -4,7 +4,7 @@ echo "::group:: ===$(basename "$0")==="
 
 set -eoux pipefail
 
-# The Amethystora apps: the Manual (Super+F1), Security, Updates, Notes, Logs, Backups and Control. They are
+# The Amethystora apps: the Manual (Super+F1), Security, Updates, Notes, Logs, Backups, Control and Phone. They are
 # one program, written in Rust with GTK 4 and libadwaita (apps/), which the Containerfile's apps stage built
 # on this same base, and which picks the app by the name it is started as: each app's own path is a hard
 # link to it, so that /usr/bin/amethystora-<app>, the process names and the launchers stay as they were.
@@ -20,7 +20,7 @@ APPS_DIR=/usr/lib/amethystora-apps
 LICENSE_DIR=/usr/share/licenses/amethystora-apps
 
 install -Dpm0755 /apps-stage/out/amethystora-apps "${APPS_DIR}/amethystora-apps"
-for app in manual security update notes logs backups control; do
+for app in manual security update notes logs backups control phone; do
     install -d "/usr/lib/amethystora-${app}"
     ln -f "${APPS_DIR}/amethystora-apps" "/usr/lib/amethystora-${app}/amethystora-${app}"
 done
@@ -43,6 +43,10 @@ install -Dpm0755 /apps-stage/out/amethystora-agent-root /usr/libexec/amethystora
 # What Amethystora Clipboard, the GNOME Shell extension, seals its history with: a filter from stdin to stdout
 # with no GTK, the key and the data never on its command line
 install -Dpm0755 /apps-stage/out/amethystora-clipboard-seal /usr/libexec/amethystora-clipboard-seal
+
+# The phone link's program (no GTK either), started by the user unit amethystora-connect.service, which nothing
+# enables for anyone: `ame desktop phone on` does. The window it is paired and used from is amethystora-phone.
+install -Dpm0755 /apps-stage/out/amethystora-connect /usr/libexec/amethystora-connect
 install -d /usr/share/amethystora/agents/knowledge/model
 install -pm0644 -t /usr/share/amethystora/agents/knowledge/model /apps-stage/out/model/*
 

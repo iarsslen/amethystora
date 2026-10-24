@@ -14,12 +14,13 @@
 #   6  Gradia's and Bazaar's integrations (the screenshot and bazaar modules)
 #   7  PaperWM (the tiling module), after 21-retire-paperwm.sh has handed over what it kept
 #   8  Dash to Dock and Blur my Shell (the dock and glass modules)
+#   9  GSConnect (the connect module and the amethystora-connect service), after 21-phone-link.sh has read it
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
 command -v gsettings >/dev/null || exit 0
 
-version-script retire-extensions user 8 || exit 0
+version-script retire-extensions user 9 || exit 0
 
 # uuid, then the dconf folder its settings were in, then any folder it left in ~/.cache
 RETIRED=(
@@ -35,6 +36,7 @@ RETIRED=(
     "paperwm@paperwm.github.com /org/gnome/shell/extensions/paperwm/"
     "dash-to-dock@micxgx.gmail.com /org/gnome/shell/extensions/dash-to-dock/"
     "blur-my-shell@aunetx /org/gnome/shell/extensions/blur-my-shell/"
+    "gsconnect@andyholmes.github.io /org/gnome/shell/extensions/gsconnect/"
 )
 
 OWN="${XDG_DATA_HOME:-${HOME}/.local/share}/gnome-shell/extensions"

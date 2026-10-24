@@ -57,6 +57,7 @@ const SET = {
         ['amethystora-logs', 'logs', 'aqua', ['utilities-log-viewer', 'org.gnome.Logs']],
         ['amethystora-notes', 'notes', 'gold', ['accessories-notes']],
         ['amethystora-backups', 'backups', 'royal'],
+        ['amethystora-phone', 'phone-link', 'grape'],
         ['amethystora-community', 'community', 'magenta'],
         ['org.gnome.Nautilus', 'files', 'sunset', ['system-file-manager']],
         ['org.gnome.Settings', 'settings', 'ocean', ['preferences-system', 'preferences-desktop', 'gnome-control-center']],

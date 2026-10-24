@@ -1,0 +1,175 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<!--
+  The phone link on the session bus (plans/PLAN-amethystora-connect.md). The program amethystora-connect owns the name
+  org.amethystora.Connect while Control's phone switch is on; the shell module of Amethystora UI (connect) and the app
+  amethystora-phone are its clients, and `ame desktop phone` reads the user unit, not this interface. This file is
+  the contract between the three: change it only with a line in plans/amethystora-connect/IMPLEMENTERS.md ("Changes").
+
+  Conventions
+   - Every method takes and returns only what is written here. Strings are UTF-8 text somebody else may have written (a
+     phone's name, a notification, a message): clients show them as text, never as markup, and never as a command.
+   - A device's id is the protocol's device id, a string the phone chose. Object paths use it with every character that
+     is not [A-Za-z0-9] replaced by an underscore; clients read the Id property, never the path.
+   - Times are milliseconds since the Unix epoch unless the name says seconds.
+   - A method on a device that is not connected, or not paired, or whose phone does not take the packet, fails with
+     the error org.amethystora.Connect.Error.NotAvailable (its message says why, in English, for a log).
+   - Anything that needs the person (a pairing) is raised by the program as a notification with buttons, and is also
+     driven from here: the app and the module show the same state.
+-->
+<node>
+  <!-- The program: this computer as phones see it, and the list of phones -->
+  <interface name="org.amethystora.Connect">
+    <!-- The name phones show for this computer: the GSettings key device-name of org.amethystora.Connect, or the host name -->
+    <property name="Name" type="s" access="read"/>
+    <!-- The GSettings keys clipboard-send and clipboard-receive, both off as the image ships: this computer's clipboard goes to
+         the phones that take it, and a phone's clipboard is offered to the module to set. A client reads them to know whether to
+         call PushClipboard, and whether ClipboardReceived will come -->
+    <property name="ClipboardSend" type="b" access="read"/>
+    <property name="ClipboardReceive" type="b" access="read"/>
+    <!-- Where files from a phone are put: ~/Downloads/Phone, with a folder for each phone -->
+    <property name="ReceiveFolder" type="s" access="read"/>
+    <!-- Every device the program knows: the paired ones, and any that is asking to pair or that announced itself -->
+    <method name="GetDevices">
+      <arg name="devices" type="ao" direction="out"/>
+    </method>
+    <!-- Announces this computer now, on the networks that are in the amethystora-home zone, and tries the last address of
+         each paired phone (the app's "look again") -->
+    <method name="Announce"/>
+    <!-- Connects to a phone at HOST:PORT (a private or link-local address; any other is refused). For a phone on another
+         network of the home, and for tests -->
+    <method name="ConnectTo">
+      <arg name="address" type="s" direction="in"/>
+    </method>
+    <!-- The module tells the program that this computer's clipboard changed to TEXT. Ignored unless ClipboardSend -->
+    <method name="PushClipboard">
+      <arg name="text" type="s" direction="in"/>
+    </method>
+    <signal name="DeviceAdded">
+      <arg name="device" type="o"/>
+    </signal>
+    <signal name="DeviceRemoved">
+      <arg name="device" type="o"/>
+    </signal>
+    <!-- A paired, connected phone's clipboard changed to TEXT, newer than what was last sent or received. Only when
+         ClipboardReceive: the module sets this computer's clipboard to it, without sending it back -->
+    <signal name="ClipboardReceived">
+      <arg name="device_id" type="s"/>
+      <arg name="text" type="s"/>
+    </signal>
+  </interface>
+
+  <!-- One phone (or tablet, or other computer that speaks the protocol): /org/amethystora/Connect/Device/ID -->
+  <interface name="org.amethystora.Connect.Device">
+    <property name="Id" type="s" access="read"/>
+    <property name="Name" type="s" access="read"/>
+    <!-- "phone", "tablet", "laptop", "desktop" or "tv" -->
+    <property name="Type" type="s" access="read"/>
+    <property name="Paired" type="b" access="read"/>
+    <property name="Connected" type="b" access="read"/>
+    <!-- "none", "incoming" (the phone asked) or "outgoing" (we asked and wait) -->
+    <property name="Pairing" type="s" access="read"/>
+    <!-- While Pairing is not "none": the verification key, to compare with the phone's screen, as the protocol gives it.
+         Otherwise empty -->
+    <property name="PairingKey" type="s" access="read"/>
+    <!-- While Pairing is not "none": when the request lapses, in seconds since the epoch. Otherwise 0 -->
+    <property name="PairingDeadline" type="x" access="read"/>
+    <!-- The address of the connection, "host:port", or empty -->
+    <property name="Address" type="s" access="read"/>
+    <!-- The charge in percent, or -1 when the phone has not said, and whether it is charging -->
+    <property name="BatteryLevel" type="i" access="read"/>
+    <property name="BatteryCharging" type="b" access="read"/>
+    <!-- What can be done now with this phone, from what both sides advertised: any of "ping", "battery", "notifications",
+         "share", "clipboard", "sms", "telephony". Empty while it is not connected and paired -->
+    <property name="Features" type="as" access="read"/>
+
+    <!-- Pairing. Pair asks the phone; AcceptPairing and RejectPairing answer a request of the phone's (the notification's
+         buttons do the same); Unpair ends a pairing, or cancels a pending request, and removes the pinned certificate
+         (the only thing that ever does) -->
+    <method name="Pair"/>
+    <method name="AcceptPairing"/>
+    <method name="RejectPairing"/>
+    <method name="Unpair"/>
+
+    <method name="Ping"/>
+    <!-- Sends files, by URI (file:// only; a folder is refused). Fails at once when the phone cannot take them; progress and
+         the end come as Transfer signals, one id for each file -->
+    <method name="SendFiles">
+      <arg name="uris" type="as" direction="in"/>
+      <arg name="transfer_ids" type="as" direction="out"/>
+    </method>
+    <method name="SendUrl">
+      <arg name="url" type="s" direction="in"/>
+    </method>
+    <method name="SendText">
+      <arg name="text" type="s" direction="in"/>
+    </method>
+    <method name="CancelTransfer">
+      <arg name="transfer_id" type="s" direction="in"/>
+    </method>
+    <!-- state: "started", "progress", "finished", "failed" or "cancelled"; done and total in bytes (total 0 when unknown);
+         name is the file's name, never a path -->
+    <signal name="Transfer">
+      <arg name="transfer_id" type="s"/>
+      <arg name="name" type="s"/>
+      <arg name="incoming" type="b"/>
+      <arg name="done" type="x"/>
+      <arg name="total" type="x"/>
+      <arg name="state" type="s"/>
+    </signal>
+
+    <!-- A phone's notification, by the id the program gave it (the notification's own button calls these too).
+         Reply fails with NotAvailable when the notification has no reply handle -->
+    <method name="ReplyToNotification">
+      <arg name="notification_id" type="s" direction="in"/>
+      <arg name="text" type="s" direction="in"/>
+    </method>
+    <method name="DismissNotification">
+      <arg name="notification_id" type="s" direction="in"/>
+    </method>
+    <!-- The notifications of this phone that can be answered: "id", "app", "title", "text" (a{sv}), newest first -->
+    <method name="GetRepliable">
+      <arg name="notifications" type="aa{sv}" direction="out"/>
+    </method>
+
+    <!-- Texts. RequestConversations asks the phone to send its conversations (the newest thread first), and ListConversations
+         returns what has arrived, newest first, at most LIMIT. A conversation is a{sv}: "thread_id" (x), "addresses" (as),
+         "name" (s, from the contacts, or the number), "snippet" (s), "date" (x), "unread" (b), "group" (b).
+         RequestMessages asks for COUNT messages of THREAD older than BEFORE (0: the newest), and ListMessages returns what has
+         arrived, oldest first, at most LIMIT. A message is a{sv}: "id" (x), "thread_id" (x), "address" (s), "name" (s), "body"
+         (s), "date" (x), "outgoing" (b), "read" (b). Nothing of this is written to disk -->
+    <method name="RequestConversations"/>
+    <method name="ListConversations">
+      <arg name="limit" type="i" direction="in"/>
+      <arg name="conversations" type="aa{sv}" direction="out"/>
+    </method>
+    <method name="RequestMessages">
+      <arg name="thread_id" type="x" direction="in"/>
+      <arg name="before" type="x" direction="in"/>
+      <arg name="count" type="i" direction="in"/>
+    </method>
+    <method name="ListMessages">
+      <arg name="thread_id" type="x" direction="in"/>
+      <arg name="limit" type="i" direction="in"/>
+      <arg name="messages" type="aa{sv}" direction="out"/>
+    </method>
+    <!-- Sends BODY to ADDRESSES (one, or the members of a group the phone knows); THREAD_ID 0 starts a conversation -->
+    <method name="SendMessage">
+      <arg name="addresses" type="as" direction="in"/>
+      <arg name="body" type="s" direction="in"/>
+      <arg name="thread_id" type="x" direction="in"/>
+    </method>
+    <signal name="ConversationsChanged"/>
+    <signal name="MessagesChanged">
+      <arg name="thread_id" type="x"/>
+    </signal>
+
+    <!-- Calls. state: "ringing", "talking", "missed" or "ended"; the program raises its own notification too -->
+    <method name="MuteRinger"/>
+    <signal name="Call">
+      <arg name="state" type="s"/>
+      <arg name="number" type="s"/>
+      <arg name="name" type="s"/>
+    </signal>
+  </interface>
+</node>

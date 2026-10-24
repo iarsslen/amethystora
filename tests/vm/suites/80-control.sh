@@ -343,6 +343,14 @@ EOF
     set_direct phone on
     set_direct phone off
     [[ "${phone}" != on ]] || set_direct phone on
+    # The clipboard shared with a phone, one way at a time, both off as the image ships them
+    for way in send receive; do
+        key="clipboard-${way}"
+        set_direct "phone-${key}" on \
+            "[[ \"\$(runuser -u ${TEST_USER} -- gsettings get org.amethystora.Connect ${key})\" == true ]]"
+        set_direct "phone-${key}" off \
+            "[[ \"\$(runuser -u ${TEST_USER} -- gsettings get org.amethystora.Connect ${key})\" == false ]]"
+    done
     # Off as the image ships them, and on while ~/.config/amethystora/agentic is there
     set_direct agent on "[[ -e ${CONFIG}/agentic ]]" "item agent-choice | jq -e .available"
     # Which agent is chosen, with them on

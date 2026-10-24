@@ -65,6 +65,18 @@ these commands in the agent's own shell, as the user. Read before writing, chang
   (four keys' lists are changed in dconf, and what was taken is in `~/.local/state/amethystora/tiling.json`, with a
   copy `tiling.json.bak` beside it for when the file cannot be read; never edit either by hand).
 
+## The phone
+
+- The phone link is Amethystora's own program, `amethystora-connect` (a user service), speaking KDE Connect's
+  protocol, so the KDE Connect app on an Android phone pairs with it. It starts off: `ame desktop phone on|off`
+  (the `phone` entry of `state settings`), and it is open only on the networks named home.
+- Pairing is the user's: the phone's name and a verification key are on both screens and the user accepts.
+  Never pair, accept or unpair for them.
+- The clipboard is shared only if chosen, one way at a time: `ame desktop phone clipboard send|receive on|off`.
+  Leave these to the user: receiving lets a phone put text where any program can paste it.
+- Files from a phone arrive in `~/Downloads/Phone/NAME`. The phone icon in the top bar is Amethystora UI's
+  `connect` module, and shows only while a paired phone is connected.
+
 ## Copying text out of a picture on the screen
 
 - The reading is Gradia's: `Print`, drag an area, then **Extract Text** or `Ctrl+E` in GNOME's screenshot UI

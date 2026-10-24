@@ -65,7 +65,7 @@ keyboard shortcut to open a terminal	manual/keybindings#launching|manual/termina
 start over with a fresh installation	manual/troubleshooting#starting-over
 reset my settings but keep my files	manual/troubleshooting#resetting-settings|control/reset-settings|ame/system/reset-settings
 notes encryption passphrase	manual/notes#encryption
-gsconnect does not find my phone	knowledge/by-design#phone-pairing-is-open-only-at-home|manual/hardware#phones
+kde connect does not find my phone	knowledge/by-design#phone-pairing-is-open-only-at-home|manual/hardware#phones
 the drawing tablet pen does nothing	manual/hardware#drawing-tablets|knowledge/by-design#dev-uinput-is-roots
 my server is not reachable from another computer	knowledge/by-design#the-firewall-answers-only-what-a-desktop-needs
 rebase refused because the image is not signed	knowledge/by-design#only-signed-images-are-installed|manual/updates#signed-updates|manual/developer#an-image-of-your-own

@@ -146,8 +146,8 @@ PROGRAM_DIRS=(
     .local/bin
     .local/share/applications
 )
-# ...and which app opens what, as everyday: GLib rewrites it whenever an app registers for a type, which
-# GSConnect does at every login, and for each "Open With" a person makes the default
+# ...and which app opens what, as everyday: GLib rewrites it whenever an app registers for a type, which a login
+# may do, and for each "Open With" a person makes the default
 PROGRAM_FILES=(
     .config/mimeapps.list
 )

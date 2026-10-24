@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The settings of Amethystora Connect, the phone link (plans/PLAN-amethystora-connect.md). `ame desktop phone`
+     writes them; amethystora-connect reads them and watches them, and the module of Amethystora UI
+     (connect) reads the two clipboard switches through the program's D-Bus properties. -->
+<schemalist>
+  <schema id="org.amethystora.Connect" path="/org/amethystora/Connect/">
+    <key name="device-name" type="s">
+      <default>''</default>
+      <summary>The name phones show for this computer</summary>
+      <description>Empty means the computer's own name. Phones accept 1 to 32 characters and none of the quotes, commas, colons, full stops, exclamation and question marks, brackets and angle brackets: the program takes those out.</description>
+    </key>
+    <key name="clipboard-send" type="b">
+      <default>false</default>
+      <summary>Send this computer's clipboard to the phones</summary>
+      <description>Text only. Whatever is copied on this computer is sent to every paired phone that is connected and takes it. Off as the image ships, because a copied password would go with it.</description>
+    </key>
+    <key name="clipboard-receive" type="b">
+      <default>false</default>
+      <summary>Take the phones' clipboard</summary>
+      <description>Text only. What a paired phone sends from its clipboard is put on this computer's clipboard. Off as the image ships, because a phone could then paste into any field you paste into.</description>
+    </key>
+  </schema>
+</schemalist>

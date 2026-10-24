@@ -1,0 +1,2 @@
+Steps of the screenshots: tests/run-shot.sh sources steps/NAME.sh once the window is up, with `atspi ...` (tests/vm/suites/atspi.py
+for amethystora-phone: has, wait, click, type, text, tree) and xdotool to hand.

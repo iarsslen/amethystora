@@ -9,7 +9,7 @@ if ! has_session; then
     finish
 fi
 since="$(date '+%F %T')"
-for app in manual security update logs notes backups control; do
+for app in manual security update logs notes backups phone control; do
     unit="test-app-${app}"
     started="$(user_bus systemd-run --user --unit="${unit}" --collect --quiet -- "/usr/bin/amethystora-${app}" 2>&1)"
     sleep 25

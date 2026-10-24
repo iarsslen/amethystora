@@ -735,13 +735,13 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-status
 #, sh-format
-msgid "Phone pairing (GSConnect) is open on the ${HOMES} network named home, and on no other"
-msgid_plural "Phone pairing (GSConnect) is open on the ${HOMES} networks named home, and on no other"
+msgid "Phone pairing is open on the ${HOMES} network named home, and on no other"
+msgid_plural "Phone pairing is open on the ${HOMES} networks named home, and on no other"
 msgstr[0] ""
 msgstr[1] ""
 
 #: usr/libexec/amethystora-security-status
-msgid "No network is named home, so phone pairing (GSConnect) is closed on every one"
+msgid "No network is named home, so phone pairing is closed on every one"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
@@ -2076,7 +2076,7 @@ msgstr ""
 msgid "Your shell uses eza for ls, bat for cat and ugrep for grep, with zoxide, direnv and mise, wherever they are installed."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list apps/connect/src/notify.rs apps/connect/src/text.rs
 msgid "Phone"
 msgstr ""
 
@@ -2085,7 +2085,23 @@ msgid "Phone pairing"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
-msgid "Notifications, files, the clipboard and texts shared with an Android phone through KDE Connect, on the networks named home."
+msgid "Notifications, files, texts and calls shared with an Android phone through KDE Connect, on the networks named home."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Send the clipboard to the phone"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "What you copy here can be pasted on a phone you paired."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Take the phone's clipboard"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "What a paired phone copies is put on this computer's clipboard, where any program can paste it."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list usr/share/amethystora/just/apps.just
@@ -2293,7 +2309,7 @@ msgstr ""
 msgid "Install ${name}"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list apps/connect/src/plugins.rs
 msgid "Show"
 msgstr ""
 
@@ -3540,12 +3556,12 @@ msgstr ""
 msgid "From the next restart, when the audit rules are written."
 msgstr ""
 
-#: usr/libexec/amethystora-home-networks-notice
-msgid "Your phone reaches this machine only at home"
+#: usr/libexec/amethystora-phone-link-notice
+msgid "Pair your phone again"
 msgstr ""
 
-#: usr/libexec/amethystora-home-networks-notice
-msgid "Phone pairing (GSConnect) is open only on the networks you name home, and none is named yet. Name yours with: ame security home-networks"
+#: usr/libexec/amethystora-phone-link-notice
+msgid "The phone link is Amethystora's own now, and keeps its own pairings. Open KDE Connect on the phone and pair it with this computer, on a network you named home."
 msgstr ""
 
 #: usr/libexec/amethystora-deja-dup-notice
@@ -3705,7 +3721,7 @@ msgid "I have the recovery key"
 msgstr ""
 
 #. Translators: choices of a menu that turns automatic updates on or off
-#: usr/libexec/amethystora-private-folder usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/amethystora/just/system.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar/dialog.js
+#: usr/libexec/amethystora-private-folder usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/amethystora/just/system.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar/dialog.js apps/connect/src/service.rs apps/connect/src/transfers.rs
 msgid "Cancel"
 msgstr ""
 
@@ -4472,6 +4488,14 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 msgid "Terminal greeting disabled"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "What you copy here is sent to the phones you paired."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The clipboard is not shared that way"
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
@@ -5610,7 +5634,7 @@ msgid "Make one"
 msgstr ""
 
 #. Translators: a choice about the private folder, which is closed: open it.
-#: usr/share/amethystora/just/security.just
+#: usr/share/amethystora/just/security.just apps/connect/src/plugins.rs apps/connect/src/transfers.rs
 msgid "Open"
 msgstr ""
 
@@ -6428,6 +6452,10 @@ msgid "Once it is uninstalled, the app can no longer be used."
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar/dialog.js
+msgid "Flatpak app ID: %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar/dialog.js
 msgid "Keep its data"
 msgstr ""
 
@@ -6473,6 +6501,34 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar.js
 msgid "Try uninstalling it in Bazaar."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/indicator.js
+msgid "Send files…"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/indicator.js
+msgid "Send a link"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/indicator.js
+msgid "Ping"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/indicator.js
+msgid "Messages"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/indicator.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js
+msgid "Phones"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/indicator.js
+msgid "Phones…"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js
+msgid "Could not reach the phone"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/clicks.js
@@ -6587,6 +6643,7 @@ msgstr ""
 
 #. Translators: memory that is free, such as "7.3 GB available of 16 GB"
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+#, python-brace-format
 msgid "{available} available of {total}"
 msgstr ""
 
@@ -6784,4 +6841,242 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
 msgid "Name of this workspace"
+msgstr ""
+
+#: apps/connect/src/contacts.rs
+msgid "Unknown"
+msgstr ""
+
+#: apps/connect/src/identity.rs
+msgid "Amethystora"
+msgstr ""
+
+#: apps/connect/src/link.rs apps/connect/src/service.rs
+msgid "Unknown device"
+msgstr ""
+
+#: apps/connect/src/plugins.rs
+msgid "Ping!"
+msgstr ""
+
+#: apps/connect/src/plugins.rs
+#, python-brace-format
+msgid "The battery of “{name}” is low"
+msgstr ""
+
+#: apps/connect/src/plugins.rs
+#, python-brace-format
+msgid "{percent}% left"
+msgstr ""
+
+#: apps/connect/src/plugins.rs
+msgid "Reply"
+msgstr ""
+
+#: apps/connect/src/plugins.rs
+msgid "Dismiss"
+msgstr ""
+
+#: apps/connect/src/plugins.rs
+#, python-brace-format
+msgid "Missed call from {caller}"
+msgstr ""
+
+#: apps/connect/src/plugins.rs
+#, python-brace-format
+msgid "On “{name}”"
+msgstr ""
+
+#: apps/connect/src/plugins.rs
+msgid "Incoming call"
+msgstr ""
+
+#: apps/connect/src/plugins.rs
+msgid "Call in progress"
+msgstr ""
+
+#: apps/connect/src/plugins.rs
+msgid "Mute"
+msgstr ""
+
+#: apps/connect/src/plugins.rs
+#, python-brace-format
+msgid "“{name}” sent a link"
+msgstr ""
+
+#: apps/connect/src/plugins.rs
+#, python-brace-format
+msgid "“{name}” sent a text"
+msgstr ""
+
+#: apps/connect/src/service.rs
+msgid "The phone link cannot listen"
+msgstr ""
+
+#: apps/connect/src/service.rs
+msgid "Another program is using the ports the phone link needs. Phones can still be reached from here."
+msgstr ""
+
+#: apps/connect/src/service.rs
+#, python-brace-format
+msgid "Something claimed to be “{name}”"
+msgstr ""
+
+#: apps/connect/src/service.rs
+msgid "It did not have the certificate that phone was paired with, so it was refused. If you reinstalled the app on the phone, remove the phone here and pair it again."
+msgstr ""
+
+#: apps/connect/src/service.rs
+msgid "Pairing failed"
+msgstr ""
+
+#: apps/connect/src/service.rs
+msgid "The pairing could not be saved on this computer."
+msgstr ""
+
+#: apps/connect/src/service.rs
+#, python-brace-format
+msgid "“{name}” did not accept the pairing"
+msgstr ""
+
+#: apps/connect/src/service.rs
+msgid "The clocks of this computer and the phone differ by more than half an hour. Set both to the right time and try again."
+msgstr ""
+
+#: apps/connect/src/service.rs
+#, python-brace-format
+msgid "“{name}” was unpaired"
+msgstr ""
+
+#: apps/connect/src/service.rs
+msgid "The phone ended the pairing."
+msgstr ""
+
+#: apps/connect/src/service.rs
+#, python-brace-format
+msgid "Key {key}. Compare it with the key on the phone, and cancel if they differ."
+msgstr ""
+
+#: apps/connect/src/service.rs
+#, python-brace-format
+msgid "Key {key}. Compare it with the key on the phone, and accept only if they are the same."
+msgstr ""
+
+#: apps/connect/src/service.rs
+msgid "This phone uses an older version of the protocol, which protects the pairing less well."
+msgstr ""
+
+#: apps/connect/src/service.rs
+msgid "Accept"
+msgstr ""
+
+#: apps/connect/src/service.rs
+msgid "Reject"
+msgstr ""
+
+#: apps/connect/src/service.rs
+#, python-brace-format
+msgid "Pairing with “{name}”"
+msgstr ""
+
+#: apps/connect/src/service.rs
+#, python-brace-format
+msgid "“{name}” wants to pair"
+msgstr ""
+
+#: apps/connect/src/share.rs
+msgid "Only files on this computer can be sent."
+msgstr ""
+
+#: apps/connect/src/share.rs
+msgid "A file cannot be read."
+msgstr ""
+
+#: apps/connect/src/share.rs
+msgid "A folder cannot be sent."
+msgstr ""
+
+#: apps/connect/src/sms.rs
+#, python-brace-format
+msgid "{name} and {count} more"
+msgstr ""
+
+#: apps/connect/src/sms.rs
+msgid "Attachment"
+msgstr ""
+
+#: apps/connect/src/telephony.rs
+msgid "Unknown caller"
+msgstr ""
+
+#: apps/connect/src/text.rs
+msgid "unnamed file"
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+msgid "The phone did not say how to fetch the file."
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+#, python-brace-format
+msgid "The folder for files from phones cannot be made: {error}"
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+msgid "There is not enough space for this file."
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+#, python-brace-format
+msgid "Receiving from “{name}”"
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+msgid "The phone is not paired."
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+msgid "The phone stopped sending before the file was whole."
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+#, python-brace-format
+msgid "The transfer failed: {error}"
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+#, python-brace-format
+msgid "A file from “{name}” was not received"
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+#, python-brace-format
+msgid "A file for “{name}” was not sent"
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+msgid "Show in folder"
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+#, python-brace-format
+msgid "Received from “{name}”"
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+#, python-brace-format
+msgid "{count} files"
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+#, python-brace-format
+msgid "{done} of {count} files; {failed} failed"
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+msgid "The phone is not connected."
+msgstr ""
+
+#: apps/connect/src/transfers.rs
+msgid "The file cannot be read."
 msgstr ""

@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Name=Phone
+GenericName=Phone Link
+Comment=See your Android phone's texts, pair it, and send it files and links
+Exec=amethystora-phone
+Icon=amethystora-phone
+Terminal=false
+Categories=Network;Utility;
+Keywords=phone;android;kde connect;texts;sms;messages;notifications;pair;pairing;send;files;links;
+StartupNotify=true
+StartupWMClass=org.amethystora.Phone
+Actions=messages;
+
+[Desktop Action messages]
+Name=Messages
+Exec=amethystora-phone messages

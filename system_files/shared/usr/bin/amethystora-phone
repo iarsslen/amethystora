@@ -1,0 +1,21 @@
+#!/usr/bin/bash
+#
+# Amethystora Phone: the phone link's windows, over what the program amethystora-connect knows of your phones
+# (turn the link on with `ame desktop phone on`).
+#
+#   amethystora-phone                           open it on your phones
+#   amethystora-phone messages [PHONE]          open it on a phone's texts
+#   amethystora-phone send [--device PHONE] FILE_OR_LINK...
+#                                               send files, or one link, to a phone
+#   amethystora-phone reply PHONE NOTIFICATION  answer a notification of a phone
+#   amethystora-phone pair PHONE                show the pairing of a phone
+#   amethystora-phone text PHONE -- TEXT        show text a phone shared
+#
+# The window is a GTK program, one with the other Amethystora apps (apps/, build_files/base/13-apps.sh).
+
+set -euo pipefail
+
+case "${1:-}" in
+    -h | --help | help) sed -n '3,15p' "$0" | sed 's/^# \?//' ;;
+    *) exec /usr/lib/amethystora-phone/amethystora-phone "$@" ;;
+esac

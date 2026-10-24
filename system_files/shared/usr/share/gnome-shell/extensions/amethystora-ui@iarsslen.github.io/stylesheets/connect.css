@@ -1,0 +1,40 @@
+/* The phone in the top bar and its menu: sizes and spacing. The colours are the panel's and the menu's own, which
+   follow the theme, so there are none here. */
+
+#panel .panel-button.amethystora-connect-button {
+  -natural-hpadding: 10px;
+}
+
+/* The icons stand close, as the tray's do: the panel's own room around an icon would spread them */
+#panel .panel-button.amethystora-connect-button .system-status-icon {
+  padding: 0;
+  margin: 0;
+}
+
+.amethystora-connect-box {
+  spacing: 4px;
+}
+
+/* The charging mark is smaller than the phone beside it */
+#panel .panel-button.amethystora-connect-button .amethystora-connect-bolt {
+  icon-size: 12px;
+}
+
+/* A phone's name and charge at the top of its part of the menu. The theme greys what cannot be clicked, which is
+   right for a row that is out of use and wrong for a title: it is read in the colour of the rows. */
+.amethystora-connect-title {
+  spacing: 8px;
+}
+
+.amethystora-connect-menu .amethystora-connect-title:insensitive {
+  color: inherit;
+}
+
+.amethystora-connect-name {
+  font-weight: bold;
+  max-width: 18em;
+}
+
+.amethystora-connect-battery {
+  font-size: 0.9em;
+}

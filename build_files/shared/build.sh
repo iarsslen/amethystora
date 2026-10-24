@@ -18,7 +18,7 @@ export PATH="/tmp/scripts/helpers:$PATH"
 # Amethystora Branding
 /ctx/build_files/base/06-branding.sh
 
-# Build GNOME Extensions from Git Submodules
+# Install the GNOME Shell extensions written for this image
 /ctx/build_files/shared/build-gnome-extensions.sh
 
 # The Amethystora icon packs' caches

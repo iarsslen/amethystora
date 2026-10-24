@@ -139,11 +139,12 @@ and installs it under Amethystora's name. Amethystora has modified it in this
 way since September 2026, and does so again each time an image is built; the
 licence ships with it in usr/share/licenses/amethystora-gtk-theme.
 
-This GNOME Shell extension is built from the git submodule in
-system_files/shared/usr/share/gnome-shell/extensions, under the licence given,
-which ships in the extension's folder:
-
-  - GSConnect             GPL-2.0-or-later  https://github.com/GSConnect/gnome-shell-extension-gsconnect
+The phone link, usr/libexec/amethystora-connect (apps/connect/), the Phone app
+(apps/phone/) and the connect module of Amethystora UI, are Amethystora's own,
+under Apache-2.0, and speak the protocol the KDE Connect app on an Android
+phone speaks, so that phone works with them. They were written from a
+description of that protocol and not from the code of KDE Connect, GSConnect or
+Valent, none of which is in the image.
 
 Amethystora Clipboard, the GNOME Shell extension in
 usr/share/gnome-shell/extensions/amethystora-clipboard@iarsslen.github.io, is a

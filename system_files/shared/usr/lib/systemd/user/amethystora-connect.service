@@ -1,0 +1,46 @@
+[Unit]
+Description=Amethystora Connect, the link to your phone
+Documentation=file:///usr/share/amethystora/manual/hardware.md
+# Not enabled for anyone as the image ships: `ame desktop phone on` enables and starts it for the account that
+# asks, `ame desktop phone off` stops and disables it. It listens (UDP and TCP 1716) only while it runs.
+PartOf=graphical-session.target
+After=graphical-session.target
+
+# As the account, on the session bus: it needs the network, the account's own files (its certificate and the
+# list of paired phones in ~/.config/amethystora/connect, the contacts in ~/.local/state/amethystora/connect and
+# the files from phones in the Download folder) and the notification server. Nothing else, and never root.
+[Service]
+Type=dbus
+BusName=org.amethystora.Connect
+ExecStart=/usr/libexec/amethystora-connect
+Restart=on-failure
+RestartSec=5
+# What a stranger on the network (or a phone that went wrong) can make it use is bounded: processes, memory, files
+TasksMax=128
+MemoryMax=512M
+LimitNOFILE=1024
+# The files and the Download folder are the home's, wherever the language puts them; the runtime folder is the
+# session's own (dconf and the image loaders write in it). Nothing else is written to, and /tmp is the session's: a
+# file the person sends from there is the same file here
+ProtectSystem=strict
+ReadWritePaths=%h %t
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+RestrictRealtime=yes
+LockPersonality=yes
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+UMask=0077
+# No system call filter and no restriction on namespaces: the image libraries that decode a phone's pictures run
+# their loaders in a sandbox of their own (bubblewrap), which needs both. The Phone app, a browser and a viewer that
+# this service starts are started with systemd-run --user, as units of the user's manager of their own: they
+# are not in this service's cgroup, so they outlive it, nor in its sandbox.
+
+[Install]
+WantedBy=graphical-session.target

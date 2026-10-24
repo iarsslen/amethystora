@@ -80,7 +80,7 @@ grep -qxF -- "-w ${A}/.config/amethystora/widgets/ -p wa -k persistence" "${RULE
 grep -qxF -- "-w ${A}/dotfiles/autostart/ -p wa -k persistence" "${RULES}"
 grep -qxF -- "-w ${A}/dotfiles/bashrc -p wa -k persistence" "${RULES}"
 grep -qxF -- "-w ${A}/.local/bin/ -p wa -k user-programs" "${RULES}"
-# Which app opens what is rewritten at every login (GSConnect registers for sms: and tel:): recorded only
+# Which app opens what is rewritten at every login (an app registers for a type at a login): recorded only
 grep -qxF -- "-w ${A}/.config/mimeapps.list -p wa -k user-programs" "${RULES}"
 grep -qF -- "mimeapps.list -p wa -k persistence" "${RULES}" && { echo "mimeapps.list is said as persistence"; false; }
 [[ "$(stat -c %a "${RULES}")" == 600 ]]

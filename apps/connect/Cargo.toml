@@ -1,0 +1,42 @@
+# amethystora-connect: the program behind the phone link (plans/PLAN-amethystora-connect.md). It speaks the
+# KDE Connect protocol, so that the app already on the phone works with it, and has no GTK: it runs as the
+# account, on the session bus, and only while Control's phone switch is on. It is in the apps workspace but
+# shares nothing with the GTK apps. The apps stage builds it on its own (cargo build -p amethystora-connect),
+# and 13-apps.sh installs it as /usr/libexec/amethystora-connect.
+[package]
+name = "amethystora-connect"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "amethystora_connect"
+path = "src/lib.rs"
+
+[[bin]]
+name = "amethystora-connect"
+path = "src/main.rs"
+
+[dependencies]
+# The main loop, the sockets, TLS (glib-networking, which the image carries), D-Bus, GSettings and the file
+# monitor: all of it is GLib's, as the GNOME shell programs use it
+gio = "0.22"
+glib = "0.22"
+# Decodes the picture a phone sends with a notification or a call inside this program, scaled down while it
+# is read, so that the notification server never decodes what a stranger on the network made (gdk-pixbuf is
+# GLib's image library, not GTK)
+gdk-pixbuf = "0.22"
+# What gio's async sockets already use: an unbounded queue for each connection's writes
+futures-channel = "0.3"
+futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
+libc = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+base64 = { workspace = true }
+getrandom = { workspace = true }
+# This computer's certificate: an ECDSA P-256 key and its signature on the certificate (RustCrypto, pure
+# Rust, MIT or Apache-2.0). The certificate itself is a few dozen lines of DER written in x509.rs; rcgen
+# would add ring, a C library with a licence of its own, for the same signature.
+p256 = { version = "0.14", default-features = false, features = ["alloc", "arithmetic", "ecdsa", "pem"] }

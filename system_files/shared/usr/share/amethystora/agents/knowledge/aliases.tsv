@@ -54,8 +54,8 @@ yay	aur arch container
 time is wrong	clock time timezone ntp
 clock	time timedatectl
 timezone	time clock
-phone	gsconnect kde connect pairing home network
-pair	pairing bluetooth gsconnect
+phone	kde connect pairing home network
+pair	pairing bluetooth phone
 bluetooth	bluez pairing rfkill
 headphones	bluetooth audio sound
 printer	print cups avahi discovery

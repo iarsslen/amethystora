@@ -17,6 +17,7 @@ import {Search} from './modules/search.js';
 import {Fuzzy} from './modules/fuzzy.js';
 import {Screenshot} from './modules/screenshot.js';
 import {Bazaar} from './modules/bazaar.js';
+import {Connect} from './modules/connect.js';
 import {Dock} from './modules/dock.js';
 import {Glass} from './modules/glass.js';
 import {Tiling} from './modules/tiling.js';
@@ -33,6 +34,7 @@ const MODULES = [
     ['fuzzy', Fuzzy],
     ['screenshot', Screenshot],
     ['bazaar', Bazaar],
+    ['connect', Connect],
     ['dock', Dock],
     ['glass', Glass],
     ['tiling', Tiling],

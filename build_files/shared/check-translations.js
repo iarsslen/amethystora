@@ -32,7 +32,7 @@ const appsDir = appsAt >= 0 ? args[appsAt + 1] : path.join(__dirname, '..', '..'
 const root = args.find((arg, at) => !arg.startsWith('--') && (poAt < 0 || at !== poAt + 1) && (appsAt < 0 || at !== appsAt + 1)) || '/';
 
 const APPS = ['amethystora-manual', 'amethystora-security', 'amethystora-update', 'amethystora-logs', 'amethystora-notes', 'amethystora-control',
-    'amethystora-backups'];
+    'amethystora-backups', 'amethystora-phone'];
 
 // --- Messages, as common/src/i18n.rs reads them ------------------------------------------------------
 //
@@ -152,6 +152,8 @@ const DATA = {
     'amethystora-notes': () => launcher('amethystora-notes'),
     'amethystora-control': () => launcher('amethystora-control'),
     'amethystora-backups': () => launcher('amethystora-backups'),
+    // ...and the launcher of sending files to it from Files, which has no app of its own
+    'amethystora-phone': () => [...launcher('amethystora-phone'), ...launcher('amethystora-phone-send')],
 };
 
 const problems = [];
@@ -297,7 +299,7 @@ for (const app of APPS) {
 
 const SHELL = ['usr/libexec/amethystora-security-status', 'usr/libexec/amethystora-app-permissions', 'usr/libexec/amethystora-layout-offer',
     'usr/libexec/amethystora-control-list', 'usr/libexec/amethystora-security-config', 'usr/libexec/amethystora-hardening',
-    'usr/libexec/amethystora-home-networks-notice', 'usr/libexec/amethystora-deja-dup-notice',
+    'usr/libexec/amethystora-phone-link-notice', 'usr/libexec/amethystora-deja-dup-notice',
     'usr/libexec/amethystora-agentic-off-notice', 'usr/libexec/amethystora-private-folder',
     // The callers of amethystora-notify-users --msgid, which mark their messages with N_
     'usr/libexec/amethystora-scan-alert', 'usr/libexec/amethystora-clamav-onaccess', 'usr/libexec/amethystora-lynis-audit',
@@ -373,6 +375,20 @@ function shellMessages() {
             }
         });
     }
+    // The phone link's program (apps/connect) is not a shell program but speaks through the same catalogs: tr("...") and
+    // trf("...", &[("name", value)]) of src/text.rs, whose {name} placeholders msgfmt checks as python-brace-format
+    const connect = path.join(appsDir, 'connect', 'src');
+    for (const file of fs.existsSync(connect) ? rustFiles(connect).sort() : []) {
+        const script = `apps/connect/src/${path.relative(connect, file).split(path.sep).join('/')}`;
+        const text = fs.readFileSync(file, 'utf8');
+        for (const match of text.matchAll(/(?<![\w$.])(?:text::)?trf?\(\s*("(?:[^"\\]|\\[\s\S])*")/g)) {
+            const id = unquoteRust(match[1]);
+            const key = `${id}\u0000`;
+            const entry = found.get(key) || { id, plural: null, files: new Set(), comment: '' };
+            entry.files.add(script);
+            found.set(key, entry);
+        }
+    }
     return [...found.values()];
 }
 
@@ -401,6 +417,8 @@ function template(entries) {
         out.push(`#: ${[...entry.files].join(' ')}`);
         if (variables(entry.id).size || (entry.plural && variables(entry.plural).size)) {
             out.push('#, sh-format');
+        } else if (/\{[A-Za-z_][A-Za-z0-9_]*\}/.test(entry.id)) {
+            out.push('#, python-brace-format');
         }
         out.push(`msgid ${poString(entry.id)}`);
         if (entry.plural) {

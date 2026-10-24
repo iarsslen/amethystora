@@ -1,0 +1,5 @@
+# The "phone" of the interop test: Fedora's own KDE Connect for the desktop (kdeconnectd and kdeconnect-cli),
+# which speaks protocol 8 and plays the part of the Android app. It runs with Qt's offscreen platform and a
+# session bus of its own, as run.sh starts it.
+FROM fedora:44
+RUN dnf -y install kdeconnectd kde-connect dbus-daemon procps-ng iproute iputils python3-gobject openssl tcpdump && dnf clean all

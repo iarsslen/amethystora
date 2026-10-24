@@ -5,7 +5,7 @@ set -eoux pipefail
 echo "::group:: ===$(basename "$0")==="
 
 # Install tooling
-dnf5 -y install glib2-devel meson sassc cmake dbus-devel
+dnf5 -y install glib2-devel
 
 # Each extension installed below is added to the enabled-extensions list in zz0-amethystora-modifications,
 # so that installing one is enough to have it on. Adding one that is already in the list would enable
@@ -20,12 +20,7 @@ enable_extension() {
     grep -q "'${uuid}'" "${BASE_OVERRIDE}"
 }
 
-# Build Extensions
-
-# GSConnect (commented out until G49 support)
-meson setup --prefix=/usr /usr/share/gnome-shell/extensions/gsconnect@andyholmes.github.io /usr/share/gnome-shell/extensions/gsconnect@andyholmes.github.io/_build
-meson install -C /usr/share/gnome-shell/extensions/gsconnect@andyholmes.github.io/_build --skip-subprojects
-# GSConnect installs schemas to /usr/share/glib-2.0/schemas and meson compiles them automatically
+# Install Extensions
 
 # Amethystora Transitions: written for this image, so it is in system_files rather than a submodule,
 # and under the image's own licence. Its schema is installed system-wide from there too, so that
@@ -83,7 +78,7 @@ rm /usr/share/glib-2.0/schemas/gschemas.compiled
 glib-compile-schemas /usr/share/glib-2.0/schemas
 
 # Cleanup
-dnf5 -y remove glib2-devel meson sassc cmake dbus-devel
+dnf5 -y remove glib2-devel
 rm -rf /usr/share/gnome-shell/extensions/tmp
 
 echo "::endgroup::"

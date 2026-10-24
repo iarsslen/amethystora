@@ -40,7 +40,7 @@ else
     not_ok "Amethystora UI is not active" "${info}"
 fi
 extensions="$(in_session "gnome-extensions list" 2>&1)"
-left="$(grep -E 'paperwm|dash-to-dock|blur-my-shell|just-perfection|space-bar|tophat|appindicator|search-light|fuzzy-app|gradia-integration|bazaar-integration|caffeine' <<<"${extensions}")"
+left="$(grep -E 'paperwm|dash-to-dock|blur-my-shell|just-perfection|space-bar|tophat|appindicator|search-light|fuzzy-app|gradia-integration|bazaar-integration|caffeine|gsconnect' <<<"${extensions}")"
 if [[ -z "${left}" ]]; then
     ok "none of the extensions it replaced is installed"
 else

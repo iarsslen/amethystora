@@ -110,7 +110,7 @@ function step(name, command, args) {
 }
 
 async function build() {
-  // The submodules are the GNOME extensions the build compiles; a bundle carries none of them
+  // Git submodules, if the repository has any again: a bundle carries none of them
   if (!(await step('submodules', 'git', ['-C', SRC, 'submodule', 'update', '--init', '--recursive']))) return false;
   const flavor = BUILD.match(/-(nvidia-(open|lts))$/)?.[1] || 'main';
   if (!(await step('build', 'just', ['build', BUILD.replace(/-nvidia-(open|lts)$/, ''), 'latest', flavor]))) return false;

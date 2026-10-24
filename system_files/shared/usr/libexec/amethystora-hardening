@@ -19,7 +19,7 @@
 #                                                 "path<TAB>mask|file" a line, for the security watcher
 #   amethystora-hardening expected PATH           what a switch writes at /etc/PATH
 #   amethystora-hardening home [UUID...]          the saved connections named home, in place of the ones
-#                                                 before (root): the only networks GSConnect is open on
+#                                                 before (root): the only networks the phone link is open on
 #   amethystora-hardening ask-home                choose them: `ame security home-networks`
 #
 # What the owner turned off is kept in /etc/amethystora/hardening-off, one switch a line ("kernel-args
@@ -105,7 +105,7 @@ IMAGE_ETC=/usr/etc
 FALLBACK_ZONE=FedoraWorkstation
 # The zone for networks that are not home, with firewall-away on
 AWAY_ZONE=amethystora-away
-# The zone for the networks named home: the Amethystora zone, and GSConnect, which no other network is open to
+# The zone for the networks named home: the Amethystora zone, and the phone link, which no other network is open to
 HOME_ZONE=amethystora-home
 
 usage() {
@@ -819,7 +819,7 @@ pick_homes() {
 ask_home() {
     local chosen
     local -a homes=()
-    echo "A network named home is the only kind GSConnect is open on, to pair a phone and for the phone to reach"
+    echo "A network named home is the only kind the phone link is open on, to pair a phone and for the phone to reach"
     echo "this machine. Every other network, and every new one, is closed to it."
     echo "A wired connection is used on every wired network the machine is plugged into, so name it home only"
     echo "if this machine is plugged in nowhere but at home."

@@ -205,13 +205,14 @@ many Brother and older laser printers are included for the rest. Add a printer i
 
 ## Phones
 
-- **Android:** GSConnect links the phone to the desktop: notifications, file transfer, a shared
-  clipboard and texts. It is off until you turn it on, with `ame desktop phone on` or the **Phone pairing**
-  switch on [Control](control.md)'s **Desktop** page, since it keeps a service running in every session; `ame desktop phone off` turns it off again.
-  Install KDE Connect on the phone and pair them from the quick settings, on a
-  network you have named home: elsewhere the firewall keeps the phone out
-  ([Security](security.md#on-from-the-start)). Name it with `ame security home-networks`. A phone
-  paired before that rule came stops connecting until you do, which a notification says once.
+- **Android:** the phone link works with the KDE Connect app on the phone: its notifications, files and
+  links sent either way, texts and calls, and a clipboard you can share ([Phone](phone.md)). It is off until
+  you turn it on, with `ame desktop phone on` or the **Phone pairing** switch on [Control](control.md)'s
+  **Desktop** page: the program listens only while it is on, and `ame desktop phone off` stops it.
+  Install KDE Connect on the phone and pair them from the **Phone** app, on a network you have named home:
+  elsewhere the firewall keeps the phone out ([Security](security.md#on-from-the-start)). Name it with
+  `ame security home-networks`. A phone paired with GSConnect, which the phone link replaced, has to be
+  paired again, which a notification says once.
 - **iPhone:** plug it in and trust the computer on the phone; its photos and files show up in Files.
 
 ## Keyboards, mice and security keys

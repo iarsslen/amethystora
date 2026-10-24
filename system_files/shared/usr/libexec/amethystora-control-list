@@ -147,7 +147,9 @@ read_in_background transitions gsettings list-recursively org.gnome.shell.extens
 read_in_background clipboard gsettings get org.gnome.shell.extensions.amethystora-clipboard keep-history
 read_in_background privacy gsettings list-recursively org.gnome.desktop.privacy
 read_in_background animations gsettings get org.gnome.desktop.interface enable-animations
-read_in_background extensions gsettings get org.gnome.shell enabled-extensions
+read_in_background phone systemctl --user is-enabled amethystora-connect.service
+read_in_background clipboard-send gsettings get org.amethystora.Connect clipboard-send
+read_in_background clipboard-receive gsettings get org.amethystora.Connect clipboard-receive
 read_in_background waydroid-enabled systemctl is-enabled waydroid-container.service
 read_in_background waydroid-active systemctl is-active waydroid-container.service
 read_in_background uupd systemctl is-enabled uupd.timer
@@ -358,12 +360,27 @@ item desktop bling switch "$(gettext "Terminal tools")" \
     "$(gettext "Your shell uses eza for ls, bat for cat and ugrep for grep, with zoxide, direnv and mise, wherever they are installed.")" \
     "${BLING}" terminal#command-line-tools
 
-if said extensions | grep -qF "'gsconnect@andyholmes.github.io'"; then PHONE=on; else PHONE=off; fi
+if [[ "$(said phone)" == enabled ]]; then PHONE=on; else PHONE=off; fi
 switch_choices false ame desktop phone
 GROUP="$(gettext "Phone")"
 USAGE="ame desktop phone on|off"
 item desktop phone switch "$(gettext "Phone pairing")" \
-    "$(gettext "Notifications, files, the clipboard and texts shared with an Android phone through KDE Connect, on the networks named home.")" "${PHONE}" hardware#phones
+    "$(gettext "Notifications, files, texts and calls shared with an Android phone through KDE Connect, on the networks named home.")" "${PHONE}" hardware#phones
+
+# The clipboard goes between this computer and a phone only when chosen, one way at a time: a phone that can paste
+# into a password field is a risk the person takes on knowingly
+for way in send receive; do
+    if [[ "$(ended clipboard-${way})" == 0 && "$(said clipboard-${way})" == true ]]; then SHARED=on; else SHARED=off; fi
+    switch_choices false ame desktop phone clipboard "${way}"
+    USAGE="ame desktop phone clipboard ${way} on|off"
+    if [[ "${way}" == send ]]; then
+        item desktop phone-clipboard-send switch "$(gettext "Send the clipboard to the phone")" \
+            "$(gettext "What you copy here can be pasted on a phone you paired.")" "${SHARED}" hardware#phones
+    else
+        item desktop phone-clipboard-receive switch "$(gettext "Take the phone's clipboard")" \
+            "$(gettext "What a paired phone copies is put on this computer's clipboard, where any program can paste it.")" "${SHARED}" hardware#phones
+    fi
+done
 GROUP=""
 
 # --- Apps ------------------------------------------------------------------------------------------

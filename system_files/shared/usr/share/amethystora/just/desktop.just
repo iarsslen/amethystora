@@ -283,47 +283,59 @@ greeting ACTION="":
             ;;
     esac
 
-# Your Android phone through GSConnect: notifications, files, clipboard and texts (ACTION: on or off; without
-# it, it flips). Off until turned on, since its service keeps some 30 MB in every session
+# Your Android phone through Amethystora Connect, which speaks KDE Connect's protocol: notifications, files, texts and
+# calls (ACTION: on or off; without it, it flips). Off until turned on: the program listens only while its user
+# service is enabled. `phone clipboard send|receive [on|off]` shares the clipboard one way or the other, both off
 [positional-arguments]
-phone ACTION="":
+phone *ARGS:
     #!/usr/bin/bash
+    set -euo pipefail
     # shellcheck source=/dev/null
     source gettext.sh
-    UUID=gsconnect@andyholmes.github.io
-    # One uuid a line, and back to a list, as user-setup.hooks.d/15-extensions.sh does: outside a session,
-    # where gnome-extensions cannot reach GNOME Shell, the setting is changed directly
-    uuids() { gsettings get org.gnome.shell enabled-extensions | grep -oE "'[^']+'" | tr -d "'" || true; }
-    variant() { if (($#)); then printf "'%s'\n" "$@" | paste -sd, | sed 's/^/[/; s/$/]/'; else echo '[]'; fi; }
-    on() { uuids | grep -qxF "${UUID}"; }
-    # GNOME Shell answers before the setting it changed reaches dconf, where Control reads it as soon as this ends
-    settle() {
-        local state
-        for _ in {1..30}; do
-            if on; then state=on; else state=off; fi
-            [[ "${state}" == "$1" ]] && return
-            sleep 0.1
-        done
-    }
-    action="${1:-}"
-    if [[ -z "${action}" ]]; then
-        if on; then action=off; else action=on; fi
+    UNIT=amethystora-connect.service
+    on() { [[ "$(systemctl --user is-enabled "${UNIT}" 2>/dev/null)" == enabled ]]; }
+    # on or off for a word that may be missing, which flips the current state
+    flip() { if [[ -n "$1" ]]; then echo "$1"; elif [[ "$2" == true ]]; then echo off; else echo on; fi; }
+    if [[ "${1:-}" == clipboard ]]; then
+        case "${2:-}" in
+            send | receive) key="clipboard-$2" ;;
+            *)
+                echo "usage: ame desktop phone clipboard send|receive [on|off]"
+                exit 64
+                ;;
+        esac
+        case "$(flip "${3:-}" "$(gsettings get org.amethystora.Connect "${key}")")" in
+            on)
+                gsettings set org.amethystora.Connect "${key}" true
+                if [[ "$2" == send ]]; then
+                    echo "$(gettext "What you copy here is sent to the phones you paired.")"
+                else
+                    echo "$(gettext "What a paired phone copies is put on this computer's clipboard, where any program can paste it.")"
+                fi
+                ;;
+            off)
+                gsettings set org.amethystora.Connect "${key}" false
+                echo "$(gettext "The clipboard is not shared that way")"
+                ;;
+            *)
+                echo "usage: ame desktop phone clipboard send|receive [on|off]"
+                exit 64
+                ;;
+        esac
+        exit 0
     fi
-    case "${action}" in
+    case "$(flip "${1:-}" "$(on && echo true)")" in
         on)
-            if ! gnome-extensions enable "${UUID}" 2>/dev/null && ! on; then
-                mapfile -t list < <(uuids)
-                gsettings set org.gnome.shell enabled-extensions "$(variant "${list[@]}" "${UUID}")"
+            if ! systemctl --user enable --now "${UNIT}" 2>/dev/null; then
+                # Outside a session there is no manager to start it: the next login does
+                systemctl --user enable "${UNIT}"
             fi
-            settle on
             echo "$(gettext "Phone pairing is on: install KDE Connect on the phone, and pair them on a network you named home.")"
             ;;
         off)
-            if ! gnome-extensions disable "${UUID}" 2>/dev/null; then
-                mapfile -t list < <(uuids | grep -vxF "${UUID}")
-                gsettings set org.gnome.shell enabled-extensions "$(variant "${list[@]}")"
+            if ! systemctl --user disable --now "${UNIT}" 2>/dev/null; then
+                systemctl --user disable "${UNIT}"
             fi
-            settle off
             echo "$(gettext "Phone pairing is off")"
             ;;
         *)

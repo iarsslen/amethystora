@@ -1,0 +1,27 @@
+//! amethystora-connect: the phone link's program. See plans/PLAN-amethystora-connect.md.
+
+pub mod battery;
+pub mod clipboard;
+pub mod contacts;
+pub mod dbus;
+pub mod device;
+pub mod icons;
+pub mod identity;
+pub mod limits;
+pub mod link;
+pub mod net;
+pub mod netinfo;
+pub mod notify;
+pub mod packet;
+pub mod notifications;
+pub mod pairing;
+pub mod plugins;
+pub mod payload;
+pub mod service;
+pub mod share;
+pub mod sms;
+pub mod store;
+pub mod telephony;
+pub mod text;
+pub mod transfers;
+pub mod x509;

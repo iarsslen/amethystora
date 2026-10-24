@@ -5,7 +5,7 @@
 # needs (a Flatpak whose `flatpak-spawn --host` the image's global override denies says so on its output, as
 # Mission Center's gatherer did), and opening them may make the security watcher say nothing: with the image's
 # own settings, using the image's own apps is not news. Then a restart, after which a boot and a login make it
-# say nothing either: loading its own audit rules, Fedora's sssd and tuned, and GSConnect at login once did.
+# say nothing either: loading its own audit rules, Fedora's sssd and tuned, and a program of the login once did.
 # Amethystora's own apps are 20-apps.sh's.
 source "$(dirname "$0")/lib.sh"
 
@@ -18,7 +18,7 @@ if [[ -e "${BOOTED}" ]]; then
         not_ok "no session for ${TEST_USER} after the restart"
         finish
     fi
-    # What the login starts, GSConnect's daemon among it, given time to start
+    # What the login starts, the phone link among it if it is on, given time to start
     sleep 90
     systemctl start amethystora-security-watch.service
     said="$(jq -r --argjson boot "${BOOT}" '.[] | select(.time >= $boot and .level != "quiet") | "\(.level) \(.key): \(.text)"' \

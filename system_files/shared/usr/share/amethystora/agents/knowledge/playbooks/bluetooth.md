@@ -44,7 +44,7 @@ Then:
 8. **The driver or its firmware.** The kernel log names `btusb` or firmware that did not load. Began with
    an update: `rpm-ostree db diff`.
 
-A headset that plays badly: `playbook/no-sound`. GSConnect pairs a phone over the network:
+A headset that plays badly: `playbook/no-sound`. The phone link pairs a phone over the network:
 `playbook/wifi-dns`.
 
 ## Fix

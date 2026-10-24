@@ -1,0 +1,17 @@
+#!/usr/bin/bash
+# Said once, a minute into an account's login, to one that had GSConnect on (user-setup.hooks.d/21-phone-link.sh):
+# the phone link is Amethystora's own now, and keeps pairings of its own, so a phone paired before has to be paired
+# again, on a network named home.
+
+set -uo pipefail
+
+# In the session's language where there is a translation of it (po/, text domain amethystora)
+export TEXTDOMAIN=amethystora
+# shellcheck source=/dev/null
+source gettext.sh
+
+notify-send --app-name=Amethystora --icon=phone \
+    "$(gettext "Pair your phone again")" \
+    "$(gettext "The phone link is Amethystora's own now, and keeps its own pairings. Open KDE Connect on the phone and pair it with this computer, on a network you named home.")" \
+    2>/dev/null
+exit 0

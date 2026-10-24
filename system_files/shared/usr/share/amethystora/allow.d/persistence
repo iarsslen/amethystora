@@ -6,3 +6,7 @@
 # The hosts SSH has met, which it adds to on every new one
 ~/.ssh/known_hosts
 ~/.ssh/known_hosts.old
+# The phone link's switch (ame desktop phone on|off, and the hook that hands an account over from GSConnect) enables and
+# disables a user unit, which writes and removes this link and the folder it is in
+~/.config/systemd/user/graphical-session.target.wants
+~/.config/systemd/user/graphical-session.target.wants/amethystora-connect.service

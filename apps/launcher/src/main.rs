@@ -18,6 +18,7 @@ fn main() -> ExitCode {
         "amethystora-logs" => amethystora_logs::main(),
         "amethystora-manual" => amethystora_manual::main(),
         "amethystora-notes" => amethystora_notes::main(),
+        "amethystora-phone" => amethystora_phone::main(),
         _ => {
             eprintln!("amethystora-apps: started as {name:?}, which is none of the apps; start it as one of /usr/lib/amethystora-*/amethystora-*");
             ExitCode::FAILURE

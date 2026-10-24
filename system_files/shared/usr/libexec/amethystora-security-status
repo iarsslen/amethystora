@@ -679,10 +679,10 @@ if ! hardening_off firewall; then
     COMMAND="ame security home-networks"
     if [[ "${HOMES:-0}" -gt 0 ]]; then
         report watching home-networks info "$(gettext "Home networks")" \
-            "$(eval_ngettext "Phone pairing (GSConnect) is open on the \${HOMES} network named home, and on no other" "Phone pairing (GSConnect) is open on the \${HOMES} networks named home, and on no other" "${HOMES}")"
+            "$(eval_ngettext "Phone pairing is open on the \${HOMES} network named home, and on no other" "Phone pairing is open on the \${HOMES} networks named home, and on no other" "${HOMES}")"
     else
         report watching home-networks info "$(gettext "Home networks")" \
-            "$(gettext "No network is named home, so phone pairing (GSConnect) is closed on every one")" \
+            "$(gettext "No network is named home, so phone pairing is closed on every one")" \
             "$(gettext "Name yours with:")"
     fi
 fi
