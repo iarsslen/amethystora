@@ -2,7 +2,7 @@
 
 [org.gnome.shell]
 favorite-apps = ['org.mozilla.firefox.desktop', 'org.mozilla.thunderbird_esr.desktop', 'org.gnome.Nautilus.desktop', 'io.github.kolunmi.Bazaar.desktop', 'codium.desktop']
-enabled-extensions = ['blur-my-shell@aunetx', 'dash-to-dock@micxgx.gmail.com']
+enabled-extensions = ['amethystora-ui@iarsslen.github.io']
 
 [org.gnome.desktop.background]
 picture-options='zoom'
@@ -43,24 +43,6 @@ unmaximize=['<Super>Down']
 [org.gnome.desktop.peripherals.keyboard]
 numlock-state=true
 
-[org.gnome.shell.extensions.dash-to-dock]
-dock-fixed=true
-force-straight-corner=false
-custom-theme-shrink=true
-disable-overview-on-startup=true
-transparency-mode='DYNAMIC'
-animation-time=0.15
-background-color='rgb(40,40,40)'
-background-opacity=0.8
-custom-background-color=true
-customize-alphas=true
-max-alpha=0.8
-min-alpha=0.5
-running-indicator-style='DOTS'
-apply-custom-theme=true
-# Its Super+number keys would take the workspaces' (zz1); the dock's apps are on Alt+number instead
-hot-keys=false
-
 [org.gnome.settings-daemon.plugins.power]
 power-button-action='interactive'
 
@@ -84,8 +66,6 @@ terminal='ptyxis'
 keybindings=''
 new-tab=false
 flatpak='off'
-
-# Blur my Shell's defaults are in /etc/dconf/db/distro.d
 
 #-------------- REMAINING SCHEMAS IN THIS SETTING SECTION ARE LOCATED IN DCONF --------------#
 # Settings bellow are supported with gschema override, but other settings, which are relocatable schemas, are not. Edit dconfs if you need to modify relocatable schemas.

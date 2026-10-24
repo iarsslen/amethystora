@@ -1,0 +1,151 @@
+// GNOME's popups on glass: every menu, the quick settings and their toggle menus, the calendar and notification
+// drawer, notification banners, the on-screen displays, the window switcher, dialogs, the on-screen keyboard, the
+// screenshot UI's panel and the resize popup. Each is found as GNOME is about to show it, the first time and every
+// time after, so that surfaces made later get their glass before their first frame. Over the glass each has a veil:
+// white with dark text in a light scheme, a faint dark grey with white text in a dark one (stylesheets/glass.css).
+
+import * as BoxPointer from 'resource:///org/gnome/shell/ui/boxpointer.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
+import * as OsdWindow from 'resource:///org/gnome/shell/ui/osdWindow.js';
+import * as SwitcherPopup from 'resource:///org/gnome/shell/ui/switcherPopup.js';
+
+import {Stacks} from './stacks.js';
+
+// The kinds of surface, each with its corners in pixels. A dialog is ringed with a hairline; the toggle menus inside
+// the quick settings lie on the settings' own glass and cast no shadow.
+const KINDS = {
+    menu: {radius: 16},
+    panel: {radius: 28},
+    inner: {radius: 28, flat: true},
+    banner: {radius: 20},
+    osd: {radius: 26},
+    dialog: {radius: 20, ring: 0.05},
+    keyboard: {radius: 20, flat: true},
+};
+
+// The style classes of a box pointer's content that make it a panel rather than a menu
+const PANELS = ['quick-settings', 'datemenu-popover'];
+const MENUS = ['popup-menu-content', 'candidate-popup-content'];
+
+const hasClass = (actor, names) => names.some(name => actor.has_style_class_name?.(name));
+
+export class Popups {
+    constructor(glass) {
+        this._glass = glass;
+    }
+
+    enable() {
+        this._stacks = new Stacks();
+        const glass = this._glass;
+
+        // Every menu opens through its box pointer, which holds its content
+        glass.wrap(BoxPointer.BoxPointer.prototype, 'open', (open, boxPointer, args) => {
+            this._boxPointer(boxPointer);
+            return open.apply(boxPointer, args);
+        });
+        glass.wrap(OsdWindow.OsdWindow.prototype, 'show', (show, osd, args) => {
+            if (osd._hbox)
+                this._attach(osd._hbox, 'osd');
+            return show.apply(osd, args);
+        });
+        // The switcher's list is made as it is shown
+        glass.wrap(SwitcherPopup.SwitcherPopup.prototype, 'show', (show, popup, args) => {
+            const shown = show.apply(popup, args);
+            if (popup._switcherList)
+                this._attach(popup._switcherList, 'osd');
+            return shown;
+        });
+        glass.wrap(ModalDialog.ModalDialog.prototype, 'open', (open, dialog, args) => {
+            const box = dialog.dialogLayout?._dialog;
+            if (box)
+                this._attach(box, 'dialog');
+            return open.apply(dialog, args);
+        });
+
+        // A banner is added to the tray's bin as it slides down from under the top bar
+        const banners = Main.messageTray._bannerBin;
+        banners.connectObject('child-added', (bin, banner) => this._attachBanner(banner), this);
+        banners.get_children().forEach(banner => this._attachBanner(banner));
+
+        const keyboard = Main.layoutManager.keyboardBox;
+        keyboard.connectObject('child-added', (box, child) => this._attachKeyboard(child), this);
+        keyboard.get_children().forEach(child => this._attachKeyboard(child));
+
+        Main.uiGroup.connectObject('child-added', (group, child) => {
+            if (hasClass(child, ['resize-popup']))
+                this._attach(child, 'osd');
+        }, this);
+
+        if (Main.screenshotUI?._panel)
+            this._attach(Main.screenshotUI._panel, 'panel');
+    }
+
+    disable() {
+        Main.messageTray._bannerBin.disconnectObject(this);
+        Main.layoutManager.keyboardBox.disconnectObject(this);
+        Main.uiGroup.disconnectObject(this);
+        this._stacks?.destroy();
+        this._stacks = null;
+    }
+
+    _attach(actor, kind) {
+        const {radius, ring = 0, flat = false} = KINDS[kind];
+        this._glass.attach(actor, {
+            material: 'glass',
+            radius,
+            ring,
+            shadow: flat ? null : this._glass.shadow,
+            inClones: true,
+        }, {classes: ['amethystora-glass-surface', `amethystora-glass-${kind}`], scheme: true});
+    }
+
+    _boxPointer(boxPointer) {
+        const content = boxPointer.bin?.child;
+        if (!content)
+            return;
+        if (hasClass(content, PANELS)) {
+            this._attach(content, 'panel');
+            // The quick settings' toggle menus open over the settings, beside their box pointer; the drawer's
+            // notifications are inside it
+            this._scan(boxPointer.get_parent() === Main.uiGroup ? content : boxPointer.get_parent());
+        } else if (hasClass(content, MENUS)) {
+            this._attach(content, 'menu');
+        }
+    }
+
+    _scan(actor) {
+        for (const child of actor.get_children()) {
+            if (hasClass(child, ['quick-toggle-menu']))
+                this._attach(child, 'inner');
+            else if (hasClass(child, ['message-view']))
+                this._stacks.watch(child);
+            this._scan(child);
+        }
+    }
+
+    _attachBanner(banner) {
+        const {radius} = KINDS.banner;
+        const glass = this._glass;
+        glass.attach(banner, {
+            material: 'glass',
+            radius,
+            shadow: glass.shadow,
+            inClones: true,
+            // Clear while the banner is still under the top bar, full once it is out from under it
+            fade: top => {
+                const panel = Main.panel;
+                if (!panel.mapped)
+                    return 1;
+                const [, barTop] = panel.get_transformed_position();
+                const barBottom = barTop + panel.height;
+                return Math.min(Math.max((top - barTop) / Math.max(1, barBottom - barTop), 0), 1);
+            },
+        }, {classes: ['amethystora-glass-surface', 'amethystora-glass-banner'], scheme: true});
+    }
+
+    _attachKeyboard(child) {
+        if (child.name === 'keyboard' || hasClass(child, ['keyboard']))
+            this._attach(child, 'keyboard');
+    }
+}

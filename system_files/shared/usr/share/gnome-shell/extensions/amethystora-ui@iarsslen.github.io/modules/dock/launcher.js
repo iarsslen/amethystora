@@ -1,0 +1,154 @@
+// What apps say about themselves on their dock icon, through the launcher protocol many of them speak
+// (com.canonical.Unity.LauncherEntry): a count of unread items, a progress bar, a call for attention, that an update
+// is under way, and a short menu of their own. An app only says it when somebody owns the protocol's bus name, so
+// the dock owns it while it runs. What an app said is forgotten when it leaves the bus.
+
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+
+import {EventEmitter} from 'resource:///org/gnome/shell/misc/signals.js';
+
+const BUS_NAME = 'com.canonical.Unity';
+const INTERFACE = 'com.canonical.Unity.LauncherEntry';
+const SCHEME = 'application://';
+
+// The protocol's keys, and what each is called here
+const KEYS = {
+    'count': 'count',
+    'count-visible': 'countVisible',
+    'progress': 'progress',
+    'progress-visible': 'progressVisible',
+    'urgent': 'urgent',
+    'updating': 'updating',
+    'quicklist': 'quicklist',
+};
+
+export class LauncherEntries extends EventEmitter {
+    start() {
+        // By the launcher's ID, without the protocol's scheme
+        this._entries = new Map();
+        this._watches = new Map();
+        this._owner = Gio.bus_own_name(Gio.BusType.SESSION, BUS_NAME,
+            Gio.BusNameOwnerFlags.ALLOW_REPLACEMENT | Gio.BusNameOwnerFlags.REPLACE, null, null, null);
+        this._subscription = Gio.DBus.session.signal_subscribe(null, INTERFACE, 'Update', null, null,
+            Gio.DBusSignalFlags.NONE, (connection, sender, path, iface, signal, parameters) =>
+                this._update(sender, parameters));
+
+        // The apps' own menus need libdbusmenu's bindings; without them the menus are left out and nothing else
+        this._running = true;
+        import('gi://Dbusmenu?version=0.4').then(module => {
+            if (this._running)
+                this._menus = module.default;
+        }).catch(() => {});
+    }
+
+    stop() {
+        this._running = false;
+        if (this._subscription)
+            Gio.DBus.session.signal_unsubscribe(this._subscription);
+        this._subscription = 0;
+        if (this._owner)
+            Gio.bus_unown_name(this._owner);
+        this._owner = 0;
+        for (const id of this._watches?.values() ?? [])
+            Gio.bus_unwatch_name(id);
+        this._watches = null;
+        for (const entry of this._entries?.values() ?? [])
+            this._dropMenu(entry);
+        this._entries = null;
+        this._menus = null;
+    }
+
+    // What the app with this launcher ID last said, or null
+    get(id) {
+        return this._entries?.get(id) ?? null;
+    }
+
+    // The app's own menu entries as they are now: [{label, enabled, separator, activate()}]
+    quicklist(id) {
+        const root = this.get(id)?.client?.get_root();
+        if (!root)
+            return [];
+        const items = [];
+        for (const child of root.get_children()) {
+            if (!child.property_get_bool('visible'))
+                continue;
+            if (child.property_get('type') === 'separator') {
+                items.push({separator: true});
+                continue;
+            }
+            items.push({
+                // A mnemonic's underscore marks a key the dock does not offer
+                label: (child.property_get('label') ?? '').replace(/_(.)/g, '$1'),
+                enabled: child.property_get_bool('enabled'),
+                activate: time => child.handle_event('clicked', GLib.Variant.new_int32(0), time),
+            });
+        }
+        return items;
+    }
+
+    _update(sender, parameters) {
+        if (!this._entries)
+            return;
+        let uri, properties;
+        try {
+            [uri, properties] = parameters.recursiveUnpack();
+        } catch {
+            return;
+        }
+        if (typeof uri !== 'string')
+            return;
+        const id = uri.startsWith(SCHEME) ? uri.slice(SCHEME.length) : uri;
+        const entry = this._entries.get(id) ?? {};
+        entry.sender = sender;
+        for (const [key, name] of Object.entries(KEYS)) {
+            if (key in properties)
+                entry[name] = properties[key];
+        }
+        this._syncMenu(entry);
+        this._entries.set(id, entry);
+        this._watch(sender);
+        this.emit('changed', id);
+    }
+
+    _syncMenu(entry) {
+        const path = this._menus && typeof entry.quicklist === 'string' && entry.quicklist.startsWith('/')
+            ? entry.quicklist : null;
+        if (entry.client && entry.clientPath === path && entry.clientSender === entry.sender)
+            return;
+        this._dropMenu(entry);
+        if (!path)
+            return;
+        entry.client = this._menus.Client.new(entry.sender, path);
+        entry.clientPath = path;
+        entry.clientSender = entry.sender;
+    }
+
+    _dropMenu(entry) {
+        // The client watches the bus until it is disposed, which the garbage collector may do much later
+        entry.client?.run_dispose();
+        entry.client = null;
+    }
+
+    _watch(sender) {
+        if (this._watches.has(sender))
+            return;
+        this._watches.set(sender, Gio.bus_watch_name_on_connection(Gio.DBus.session, sender,
+            Gio.BusNameWatcherFlags.NONE, null, () => this._vanished(sender)));
+    }
+
+    _vanished(sender) {
+        const id = this._watches?.get(sender);
+        if (!id)
+            return;
+        this._watches.delete(sender);
+        Gio.bus_unwatch_name(id);
+        for (const [appId, entry] of [...this._entries]) {
+            if (entry.sender !== sender)
+                continue;
+            this._dropMenu(entry);
+            this._entries.delete(appId);
+            this.emit('changed', appId);
+        }
+    }
+}

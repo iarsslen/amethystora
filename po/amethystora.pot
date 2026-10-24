@@ -6487,6 +6487,70 @@ msgstr ""
 msgid "Try uninstalling it in Bazaar."
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/clicks.js
+msgid "%s is being updated. Try again later."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/dash.js
+msgid "Dock"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/dash.js
+msgid "%s, %d unread"
+msgid_plural "%s, %d unread"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/menus.js
+msgid "Open windows"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/menus.js
+msgid "New window"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/menus.js
+msgid "Close the window"
+msgid_plural "Close %d windows"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js
+msgid "Trash"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js
+msgid "%s could not be opened"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js
+msgid "Empty trash"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js
+msgid "Unmount"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js
+msgid "Eject"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js
+msgid "The trash could not be emptied"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js
+msgid "%s could not be ejected"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js
+msgid "%s could not be unmounted"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock.js
+msgid "Pin to dock"
+msgstr ""
+
 #. Translators: something smaller than the size or share shown, such as "< 1 kB"
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters/format.js
 msgid "< %s"

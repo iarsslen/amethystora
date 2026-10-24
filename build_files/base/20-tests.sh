@@ -263,11 +263,8 @@ test ! -e /etc/dconf/db/distro.d/04-amethystora-logomenu-extension
 test ! -e /usr/bin/missioncenter-helper
 test ! -e /usr/bin/distroshelf-helper
 
-# GNOME Shell extensions built from the git submodules (build-gnome-extensions.sh)
-for extension in blur-my-shell@aunetx \
-    dash-to-dock@micxgx.gmail.com; do
-    test -f "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
-done
+# GNOME Shell extensions built from the git submodules (build-gnome-extensions.sh): GSConnect alone is left
+test -f /usr/share/gnome-shell/extensions/gsconnect@andyholmes.github.io/metadata.json
 test -d /usr/share/gnome-shell/extensions/tmp && false
 
 # Every extension has to be readable by the account that logs in, not just by the root this build
@@ -367,7 +364,8 @@ done
 for retired in just-perfection-desktop@just-perfection space-bar@luchrioh tophat@fflewddur.github.io \
     appindicatorsupport@rgcjonas.gmail.com caffeine@patapon.info search-light@icedman.github.com \
     gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com gradia-integration@alexandervanhee.github.io \
-    bazaar-integration@kolunmi.github.io paperwm@paperwm.github.com; do
+    bazaar-integration@kolunmi.github.io paperwm@paperwm.github.com blur-my-shell@aunetx \
+    dash-to-dock@micxgx.gmail.com; do
     test ! -e "/usr/share/gnome-shell/extensions/${retired}"
     test ! -e "/usr/share/licenses/${retired}"
     grep -q "'${retired}'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override && false
@@ -453,9 +451,6 @@ for schemas in /usr/share/gnome-shell/extensions/*/schemas; do
         done
     done
 done
-# Dash to Dock's own Super+number keys would take the workspaces'; the dock's apps are on Alt+number
-DTD_SCHEMAS=/usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com/schemas
-[[ "$(GSETTINGS_BACKEND=memory gsettings --schemadir "${DTD_SCHEMAS}" get org.gnome.shell.extensions.dash-to-dock hot-keys)" == "false" ]]
 # None of the clipboard history's shortcuts take the Ctrl+F keys from applications
 grep -qi "<Control>F" <<<"$(GSETTINGS_BACKEND=memory gsettings list-recursively org.gnome.shell.extensions.amethystora-clipboard)" && false
 # The tiling takes a colliding GNOME binding for itself while it is on. It cannot see custom keybindings
@@ -484,44 +479,18 @@ KEPT_COMBOS="$(
 grep -qx "<super>return" <<<"${KEPT_COMBOS}"
 [[ -z "$(LC_ALL=C comm -12 <(echo "${TILING_COMBOS}") <(echo "${KEPT_COMBOS}"))" ]]
 
-# Blur my Shell: the Tahoe-style glass in 05-blur-my-shell-extension. Its schema lives in the
-# extension's own directory rather than system-wide, so these are dconf defaults and not a gschema
-# override -- and a dconf default for a key the extension does not have is dropped without a word,
-# which is how a submodule bump would quietly undo the whole file. So every key in it is looked up
-# in the schema it belongs to.
-BMS=/usr/share/gnome-shell/extensions/blur-my-shell@aunetx
-BMS_DCONF=/etc/dconf/db/distro.d/05-blur-my-shell-extension
-bms_schema=""
-while read -r line; do
-    case "${line}" in
-    '#'* | '') continue ;;
-    '['*)
-        bms_schema="${line//\//.}"
-        bms_schema="${bms_schema:1:-1}"
-        continue
-        ;;
-    esac
-    # Capture the keys first rather than piping into grep -q: with pipefail, grep closing the pipe on a
-    # match makes gsettings exit with SIGPIPE (141), which fails the build under load for no real reason.
-    grep -qx "${line%%=*}" <<<"$(gsettings --schemadir "${BMS}/schemas" list-keys "${bms_schema}")"
-done <"${BMS_DCONF}"
-# A component that names a pipeline the pipelines dict does not define falls back to the stock blur
-# without a word, so every pipeline the file selects has to be one the file also defines
-while read -r bms_pipeline; do
-    grep -q "'${bms_pipeline}': {" "${BMS_DCONF}"
-done < <(sed -n "s/^pipeline='\([^']*\)'$/\1/p" "${BMS_DCONF}" | sort -u)
-# The glass is the refraction effect ("Liquid Glass" in the preferences) and it only runs on the
-# static blur path, so the effect has to be packed into the extension and the popups set to static
-test -f "${BMS}/effects/refraction.glsl"
-grep -q "'refraction'" "${BMS_DCONF}"
-grep -q "^static-blur=true$" "${BMS_DCONF}"
-# The whole look is off if the extension is not enabled, and nothing else in the image would say so:
-# every key above would be a perfectly valid default for an extension nobody is running
-grep -q "'blur-my-shell@aunetx'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
-# An account that holds a list of its own never sees that default, so the user-setup hook puts it
-# back after every update; the default it reads has to be the one the image compiled
+# The glass and the dock are Amethystora UI's own modules, in place of Blur my Shell and Dash to Dock. The glass
+# is a stylesheet and a shader (modules/glass/lens.glsl) with no setting of its own, and no Shell.GLSLEffect,
+# which GNOME 51 no longer has. Neither extension nor the glass's old dconf defaults are in the image.
+test -s "${UI_EXTENSION}/modules/glass/lens.glsl"
+test -s "${UI_EXTENSION}/stylesheets/glass.css"
+test -s "${UI_EXTENSION}/stylesheets/dock.css"
+[[ -z "$(grep -rn GLSLEffect "${UI_EXTENSION}/modules/glass" "${UI_EXTENSION}/modules/glass.js" | grep -v ':[0-9]*: *//')" ]]
+test ! -e /etc/dconf/db/distro.d/05-blur-my-shell-extension
+# An account that holds a list of its own never sees the default list of extensions, so the user-setup hook
+# puts it back after every update; the default it reads has to be the one the image compiled
 test -x /usr/share/amethystora/user-setup.hooks.d/15-extensions.sh
-GSETTINGS_BACKEND=memory gsettings get org.gnome.shell enabled-extensions | grep -q "'blur-my-shell@aunetx'"
+GSETTINGS_BACKEND=memory gsettings get org.gnome.shell enabled-extensions | grep -q "'amethystora-ui@iarsslen.github.io'"
 # Xwayland only when an X11 app needs it, ibus-x11 with it (17-cleanup.sh), and no idle input engine
 test ! -e /etc/xdg/autostart/ibus-mozc-launch-xwayland.desktop
 test -x /etc/xdg/Xwayland-session.d/10-ibus-x11
@@ -529,11 +498,6 @@ if rpm -q ibus-typing-booster >/dev/null; then
     echo "ibus-typing-booster is back: IBus starts it in every session"
     exit 1
 fi
-# Application windows are on the glass too, every one of them rather than a named few
-grep -q "^enable-all=true$" "${BMS_DCONF}"
-[[ "$(sed -n '/^\[org\/gnome\/shell\/extensions\/blur-my-shell\/applications\]$/,/^$/p' "${BMS_DCONF}" |
-    grep -c '^blur=true$')" == 1 ]]
-
 # Six fixed workspaces on Super+N, which moves the dash to Alt+N
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.preferences num-workspaces)" == "6" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.mutter dynamic-workspaces)" == "false" ]]

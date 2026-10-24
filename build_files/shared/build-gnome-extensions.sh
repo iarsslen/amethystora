@@ -22,25 +22,6 @@ enable_extension() {
 
 # Build Extensions
 
-# Blur My Shell
-make -C /usr/share/gnome-shell/extensions/blur-my-shell@aunetx
-unzip -o /usr/share/gnome-shell/extensions/blur-my-shell@aunetx/build/blur-my-shell@aunetx.shell-extension.zip -d /usr/share/gnome-shell/extensions/blur-my-shell@aunetx
-glib-compile-schemas --strict /usr/share/gnome-shell/extensions/blur-my-shell@aunetx/schemas
-rm -rf /usr/share/gnome-shell/extensions/blur-my-shell@aunetx/build
-
-# Blur my Shell carries the whole Tahoe glass look (the defaults are in
-# /etc/dconf/db/distro.d/05-blur-my-shell-extension), so it is on out of the box rather than
-# something to go and find in Extension Manager
-enable_extension "blur-my-shell@aunetx"
-
-# Dash to Dock
-make -C /usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com
-glib-compile-schemas --strict /usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com/schemas
-# Its defaults are the image's, in zz0-amethystora-modifications: installed system-wide too, as for the
-# extensions below, so that gsettings and the tests read what the dock does
-install -Dpm0644 -t /usr/share/glib-2.0/schemas \
-    /usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com/schemas/*.gschema.xml
-
 # GSConnect (commented out until G49 support)
 meson setup --prefix=/usr /usr/share/gnome-shell/extensions/gsconnect@andyholmes.github.io /usr/share/gnome-shell/extensions/gsconnect@andyholmes.github.io/_build
 meson install -C /usr/share/gnome-shell/extensions/gsconnect@andyholmes.github.io/_build --skip-subprojects

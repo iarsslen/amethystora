@@ -52,7 +52,7 @@ org.gnome.desktop.wm.keybindings maximize ['<Super>Up']
 org.gnome.shell.keybindings focus-active-notification ['<Super>n']
 org.gnome.shell.extensions.amethystora-ui.tiling.keybindings cycle-width ['<Super>r']"
         values="org.gnome.shell favorite-apps ['org.gnome.Nautilus.desktop', 'firefox.desktop']
-org.gnome.shell enabled-extensions ['dash-to-dock@micxgx.gmail.com']
+org.gnome.shell enabled-extensions ['gsconnect@andyholmes.github.io']
 org.gnome.desktop.wm.keybindings close ['<Super>q']
 org.gnome.shell.keybindings focus-active-notification @as []
 org.gnome.shell.extensions.amethystora-ui.tiling.keybindings cycle-width ['<Super>e']"
@@ -106,7 +106,7 @@ FILE="${XDG_CONFIG_HOME}/amethystora/setup.json"
 jq -e '.version == 1 and .theme == "nord" and .flatpaks.user == [{"app": "org.gimp.GIMP", "origin": "flathub"}]
     and .brew == {"taps": ["someone/tools"], "formulae": ["ripgrep"], "casks": ["font-iosevka"]}
     and .containers == [{"name": "debian", "template": "debian", "init": false, "packages": ["htop"]}]
-    and .extensions == ["dash-to-dock@micxgx.gmail.com"]
+    and .extensions == ["gsconnect@andyholmes.github.io"]
     and .settings == {"layout": "tiling", "favorites": ["org.gnome.Nautilus.desktop", "firefox.desktop"],
         "keybindings": {"org.gnome.desktop.wm.keybindings": {"close": ["<Super>q"]}, "custom": {"custom20": ["<Super>t"]},
             "org.gnome.shell.extensions.amethystora-ui.tiling.keybindings": {"cycle-width": ["<Super>e"]}}}

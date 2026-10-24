@@ -1049,8 +1049,14 @@ lose its settings (and a cache folder it left), unless they installed it themsel
   `rotate-video-lock-static`), by removing the combination in dconf and writing down what it took in
   `~/.local/state/amethystora/tiling.json` (`taken`), which `amethystora-setup-manifest` reads to keep the account's own value
   and the module gives back when it is off. `21-retire-paperwm.sh` hands an account over from PaperWM once.
-- Still upstream: Dash to Dock and Blur my Shell (the `dock` and `glass` modules are being written) and GSConnect,
-  which stays (a phone program, off by default). Caffeine, never switched on, was dropped.
+- `dock` and `glass`, Dash to Dock and Blur my Shell: the dock is GNOME's own list of pinned apps in a row at the
+  bottom (`modules/dock/`), with no setting of its own; the glass is a shader (`modules/glass/lens.glsl`) and a
+  stylesheet, with no setting either. Each screen's wallpaper is blurred once into a texture the surfaces share (the top
+  bar, the dock, menus, notifications, unfocused windows, the overview), drawn behind a surface by a `Clutter.Effect`
+  with its own shader and never by `Shell.GLSLEffect`, which GNOME 51 no longer has (`20-tests.sh` fails on it; `shader.js`
+  is what the transitions' port off it can use). The glass shows the wallpaper, not the window behind it. A module that
+  draws a surface of its own tells the glass through `glassSurfaces()` and `surfacesChanged()`.
+- Still upstream: GSConnect, which stays (a phone program, off by default). Caffeine, never switched on, was dropped.
 
 ### The icon packs
 

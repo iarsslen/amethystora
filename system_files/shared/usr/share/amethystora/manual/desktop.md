@@ -251,10 +251,8 @@ These GNOME Shell extensions come with the image:
 
 | Extension | What it does |
 | --- | --- |
-| Dash to Dock | The dock |
 | Amethystora Clipboard | The [clipboard history](#the-clipboard) on `Super+Shift+V`, sealed: a copy of Clipboard Indicator |
-| Blur my Shell | The frosted glass behind the panel, the overview, menus and notifications, and windows you are not using made slightly see-through (**Applications** in its settings) |
-| Amethystora UI | Amethystora's own desktop, written for this image: [tiling windows](#tiling-windows) side by side on a scrolling strip, the workspaces, the meters and the tray icons in the top bar, the search on `Super+Space` app search that forgives typos, drawing on a screenshot and [copying the text out of it](#copying-text-from-the-screen), and uninstalling an app from its menu, quicker animations, no popup when you change workspace, and no Activities button |
+| Amethystora UI | Amethystora's own desktop, written for this image: [tiling windows](#tiling-windows) side by side on a scrolling strip, the dock, the frosted glass behind the panel, the overview, menus and notifications (windows you are not using are made slightly see-through), the workspaces, the meters and the tray icons in the top bar, the search on `Super+Space` app search that forgives typos, drawing on a screenshot and [copying the text out of it](#copying-text-from-the-screen), and uninstalling an app from its menu, quicker animations, no popup when you change workspace, and no Activities button |
 | GSConnect | Your Android phone, on the [networks you name home](security.md#on-from-the-start): notifications, files, clipboard, texts. Off until you [turn it on](hardware.md#phones) |
 | Logo menu | The Amethystora logo at the top left and [its menu](#the-top-bar) of the system's tools |
 | Amethystora Transitions | The animation that reveals a new theme or wallpaper ([Transitions](themes.md#transitions)) |

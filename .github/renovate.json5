@@ -309,11 +309,6 @@
     },
     {
       "matchDepTypes": ["gnome-extension"],
-      "matchPackageNames": ["micheleg/dash-to-dock"],
-      "versioning": "regex:^extensions\\.gnome\\.org-v(?<major>\\d+)$"
-    },
-    {
-      "matchDepTypes": ["gnome-extension"],
       "groupName": "GNOME extensions"
     },
     // A template follows its tag's digest. Moving it to the next release

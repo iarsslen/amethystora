@@ -100,18 +100,6 @@ apply_ptyxis() {
     done
 }
 
-# The dock is clear glass, which over a light theme's pale wallpaper turns as pale as the icons on
-# it. Blur my Shell's dark style (2) lays a faint dark tint over the glass there, so the icons stand
-# out again; dark themes go back to the clear default in 05-blur-my-shell-extension.
-apply_dock() {
-    local key=/org/gnome/shell/extensions/blur-my-shell/dash-to-dock/style-dash-to-dock
-    if theme_is_light; then
-        dconf write "${key}" 2
-    else
-        dconf reset "${key}"
-    fi
-}
-
 # btop reads its theme from a file next to its config, so the rendered one is linked in and
 # selected. The link is rewritten on every switch; the rest of btop.conf is left as the user has it.
 apply_btop() {
@@ -178,7 +166,6 @@ theme_set() {
     transition Hold
     trap 'transition Release' EXIT
     apply_gnome
-    apply_dock
     apply_ptyxis
     apply_btop
     apply_starship

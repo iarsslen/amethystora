@@ -1,0 +1,86 @@
+/* The dock (modules/dock.js): its sizes and spacing, which never change with the theme. Its background is the glass,
+   which the glass module draws behind the pill; the dock paints none of its own but, on a light theme, a faint dark
+   veil in the glass's own shape. The selectors start from GNOME's dash, whose rules the dock's row inherits. */
+
+#dash.amethystora-dock-dash {
+    padding: 0;
+}
+
+/* The pill: 1 px below the top of the dock's strip and 4 px above the screen's edge. The border is there in every
+   theme, so that the light veil's hairline moves nothing. */
+#dash.amethystora-dock-dash .dash-background {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 32px;
+    padding: 2px 0;
+    margin: 1px 0 4px 0;
+}
+
+#dash.amethystora-dock-dash.amethystora-dock-light .dash-background {
+    background-color: rgba(30, 30, 36, 0.22);
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+/* The tiles sit 3 px inside the pill at its top, bottom and ends, 4 px apart */
+#dash.amethystora-dock-dash .amethystora-dock-row {
+    margin: 4px 1px 7px 1px;
+}
+
+#dash.amethystora-dock-dash .dash-item-container .overview-tile,
+#dash.amethystora-dock-dash .dash-item-container .show-apps {
+    margin: 0 2px;
+    padding: 0;
+}
+
+/* A tile is clear until it is pointed at, reached with the keyboard, or its app has the focus */
+#dash.amethystora-dock-dash .dash-item-container .overview-tile .overview-icon,
+#dash.amethystora-dock-dash .dash-item-container .show-apps .overview-icon {
+    background-color: transparent;
+}
+
+#dash.amethystora-dock-dash .dash-item-container .overview-tile:hover .overview-icon,
+#dash.amethystora-dock-dash .dash-item-container .overview-tile:focus .overview-icon,
+#dash.amethystora-dock-dash .dash-item-container .show-apps:hover .overview-icon,
+#dash.amethystora-dock-dash .dash-item-container .show-apps:focus .overview-icon,
+#dash.amethystora-dock-dash .dash-item-container .amethystora-dock-focused .overview-icon {
+    background-color: rgba(238, 238, 238, 0.2);
+}
+
+#dash.amethystora-dock-dash .dash-separator {
+    margin: 0 1px;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* A row too long for the screen fades out at the ends it is cut at */
+.amethystora-dock-scroll {
+    -st-hfade-offset: 24px;
+}
+
+.dash-label.amethystora-dock-label {
+    -y-offset: 3px;
+}
+
+/* One dot per window, in the tile's bottom padding below the icon; their size is set with the icon's */
+.amethystora-dock-dots {
+    margin-bottom: 1px;
+}
+
+.amethystora-dock-badge {
+    background-color: #ff0000;
+    color: #ffffff;
+    font-weight: bold;
+    border-radius: 999px;
+    padding: 0.2em 0.5em;
+    margin: 2px;
+}
+
+.amethystora-dock-progress {
+    background-color: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(0, 0, 0, 0.7);
+    border-radius: 999px;
+}
+
+.amethystora-dock-progress-fill {
+    background-color: #ffffff;
+    border-radius: 999px;
+}

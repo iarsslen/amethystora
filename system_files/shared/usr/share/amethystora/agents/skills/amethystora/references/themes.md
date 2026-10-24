@@ -19,9 +19,8 @@ one is what the theme opens on), `backgrounds/`.
   `wallpaper*.svg` rendered from the palette are only used by a theme with no pictures at all.
   To make a theme open on a different picture, lay a `backgrounds.list` over it in
   `~/.config/amethystora/themes/<theme>/` with that picture first.
-- A light theme sets Blur my Shell's `dash-to-dock/style-dash-to-dock` to 2 (a dark tint on the
-  dock) and a dark theme resets it, on every switch, so a change made to that key by hand only
-  lasts until the next switch.
+- A light theme gets a faint dark veil over the dock's glass: Amethystora UI's `dock` module draws it because the theme is
+  light, with nothing to set and no key to reset.
 - The animation that reveals a new theme or wallpaper is the extension
   `amethystora-transitions@iarsslen.github.io`: `ame desktop transition
   <grow|outer|wipe|wave|fade|random|none> [milliseconds]`, which sets
