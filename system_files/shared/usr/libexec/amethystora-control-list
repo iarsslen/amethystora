@@ -147,6 +147,8 @@ read_in_background transitions gsettings list-recursively org.gnome.shell.extens
 read_in_background clipboard gsettings get org.gnome.shell.extensions.amethystora-clipboard keep-history
 read_in_background privacy gsettings list-recursively org.gnome.desktop.privacy
 read_in_background animations gsettings get org.gnome.desktop.interface enable-animations
+# The layout switch, which was read here one process late in the list and took the list over a second with many apps
+read_in_background tiling gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled
 read_in_background phone systemctl --user is-enabled amethystora-connect.service
 read_in_background clipboard-send gsettings get org.amethystora.Connect clipboard-send
 read_in_background clipboard-receive gsettings get org.amethystora.Connect clipboard-receive
@@ -224,7 +226,8 @@ USAGE="ame desktop transition STYLE DURATION"
 item appearance transition-length range "$(gettext "Transition length")" \
     "$(gettext "How long a transition takes, in milliseconds.")" "${LENGTH}" themes#transitions
 
-ICONS_SET="$(sed -e 's/^amethystora-//' "${CONFIG_DIR}/icons" 2>/dev/null || echo theme)"
+ICONS_SET=theme
+[[ -r "${CONFIG_DIR}/icons" ]] && { ICONS_SET="$(<"${CONFIG_DIR}/icons")"; ICONS_SET="${ICONS_SET#amethystora-}"; }
 choice glass "$(gettext "Glass")" "$(gettext "Each icon in its own gradient, with a glass sheen")" false ame desktop icons glass
 choice neon "$(gettext "Neon")" "$(gettext "Outlines lit in colours of their own, for a dark desktop")" false ame desktop icons neon
 choice duotone "$(gettext "Duotone")" "$(gettext "Each icon in a gradient, its details in a contrasting one")" false ame desktop icons duotone
@@ -258,7 +261,7 @@ GROUP=""
 
 # --- Desktop ---------------------------------------------------------------------------------------
 
-if [[ "$(gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled 2>/dev/null)" == false ]]; then LAYOUT=classic; else LAYOUT=tiling; fi
+if [[ "$(said tiling)" == false ]]; then LAYOUT=classic; else LAYOUT=tiling; fi
 choice tiling "$(gettext "Tiling")" \
     "$(gettext "Windows open side by side on a strip that scrolls, arranged for you")" false ame desktop layout tiling
 choice classic "$(gettext "Classic")" \
