@@ -753,7 +753,7 @@ grep -q "amethystora-manual welcome$" /usr/share/amethystora/user-setup.hooks.d/
 # on it by turning the tiling off in its own key, which an update leaves as it is
 test -x /usr/libexec/amethystora-layout-offer
 grep -q "/usr/libexec/amethystora-layout-offer$" /usr/share/amethystora/user-setup.hooks.d/17-welcome.sh
-grep -q "amethystora-ui.tiling enabled" /usr/share/amethystora/just/desktop.just
+grep -q "^    schema=org.gnome.shell.extensions.amethystora-ui.tiling$" /usr/share/amethystora/just/desktop.just
 grep -q "paperwm" /usr/share/amethystora/just/desktop.just && false
 grep -q "paperwm@paperwm.github.com" /usr/share/amethystora/user-setup.hooks.d/15-extensions.sh && false
 
