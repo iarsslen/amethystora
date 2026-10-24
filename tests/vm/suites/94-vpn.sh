@@ -9,11 +9,13 @@ source "$(dirname "$0")/lib.sh"
 SINCE="$(date '+%F %T')"
 CONNECTIONS=(vmlab-vpn-fortisslvpn vmlab-vpn-l2tp vmlab-vpn-libreswan vmlab-vpn-sstp vmlab-vpn-openconnect
     vmlab-vpn-openvpn vmlab-vpn-vpnc vmlab-vpn-imported)
-OVPN="$(mktemp --suffix=.ovpn)"
+OVPN_DIR="$(mktemp -d)"
+OVPN="${OVPN_DIR}/vmlab.ovpn"
+touch "${OVPN_DIR}/ca.pem"
 cleanup() {
     for connection in "${CONNECTIONS[@]}"; do nmcli connection delete "${connection}" >/dev/null 2>&1 || true; done
     systemctl stop ipsec.service >/dev/null 2>&1 || true
-    rm -f "${OVPN}"
+    rm -rf "${OVPN_DIR}"
 }
 trap cleanup EXIT
 cleanup
@@ -45,6 +47,7 @@ proto udp
 remote 192.0.2.1 1194
 resolv-retry infinite
 nobind
+ca ca.pem
 OVPN
 if out="$(nmcli connection import type openvpn file "${OVPN}" 2>&1)"; then
     imported="$(sed -n "s/^Connection '\(.*\)' (.*) successfully added\.$/\1/p" <<<"${out}")"
