@@ -55,23 +55,14 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
         not_ok "GIO does not list the files in the trash" "${listed}"
     fi
 
-    if home_subvolume; then
-        if /usr/libexec/amethystora-home-snapshot >/dev/null 2>&1; then
-            snapshot="$(find /var/home/.snapshots -mindepth 1 -maxdepth 1 -type d | sort | tail -n 1)"
-            echo "${snapshot}" >"${STATE}/snapshot"
-            check "a snapshot taken now has the oldest of them" test -e "${snapshot}/${TEST_USER}/.local/share/Trash/files/vmlab-forty"
-        else
-            not_ok "the home folders could not be snapshotted" "$(/usr/libexec/amethystora-home-snapshot 2>&1 | tail -n 5)"
-        fi
-    else
-        skip "the home folders are not a subvolume here, so no snapshot is taken"
-    fi
     runuser -u "${TEST_USER}" -- mkdir -p "${HOME_DIR}/vmlab-backed-up"
     runuser -u "${TEST_USER}" -- sh -c "echo vmlab > ${HOME_DIR}/vmlab-backed-up/file"
     out="$(runuser -u "${TEST_USER}" -- env RESTIC_PASSWORD=vmlab sh -c \
         "restic init --repo ${REPO} && restic backup --repo ${REPO} ${HOME_DIR}/vmlab-backed-up" 2>&1)" ||
         not_ok "a restic repository could not be made beside the trash" "${out}"
     repo_sum >"${STATE}/repo"
+    # The hourly snapshots need the home folders to be a subvolume of their own, as the installer makes them
+    home_subvolume || make_home_subvolume
     # A trash that holds something a month old was there before this session: the rest in the next one
     reboot_and_continue
 fi
@@ -81,6 +72,19 @@ if [[ "${SUITE_PHASE}" == 2 ]]; then
     check "GNOME's housekeeping runs in the session after the restart" wait_for 120 pgrep -u "${TEST_USER}" -x gsd-housekeepin
     # Its hourly timer stands still while the machine sleeps
     user_bus gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type nothing
+
+    if home_subvolume; then
+        if /usr/libexec/amethystora-home-snapshot >/dev/null 2>&1; then
+            snapshot="$(find /var/home/.snapshots -mindepth 1 -maxdepth 1 -type d | sort | tail -n 1)"
+            echo "${snapshot}" >"${STATE}/snapshot"
+            check "a snapshot taken before the purge has the oldest of them" test -e "${snapshot}/${TEST_USER}/.local/share/Trash/files/vmlab-forty"
+        else
+            not_ok "the home folders could not be snapshotted" "$(/usr/libexec/amethystora-home-snapshot 2>&1 | tail -n 5)"
+        fi
+    else
+        skip "the home folders are not a subvolume here, so no snapshot is taken"
+    fi
+
     out="$(in_session ame desktop privacy trash 7 2>&1)"
     if [[ "$(privacy old-files-age)" == "uint32 7" ]] && grep -q "more than 7 days ago" <<<"${out}"; then
         ok "ame desktop privacy trash 7 sets seven days, and says so"
