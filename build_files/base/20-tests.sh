@@ -1130,12 +1130,6 @@ for theme in /usr/share/amethystora/themes/*/; do
 done
 rm -rf "${RENDER_HOME}"
 
-# Icon theme (10-icons.sh): candy-icons, installed from upstream rather than from Fedora's
-# candy-icon-theme, which would pull breeze-icon-theme onto a GNOME image
-CANDY_DIR=/usr/share/icons/candy-icons
-test -f "${CANDY_DIR}/index.theme"
-test -f /usr/share/licenses/candy-icons/LICENSE
-
 # The source of every package is listed (source-manifest.sh), and the written offer it points to ships
 diff <(rpm -qa --queryformat '%{NAME}\n' | grep -vx gpg-pubkey | sort) \
     <(awk -F'\t' 'NF == 4 && $1 != "PACKAGE" { print $1 }' /usr/share/licenses/amethystora/SOURCES | sort)
@@ -1167,77 +1161,25 @@ awk -F'\t' '$4 ~ "^/usr/src/amethystora/" { print $4 }' /usr/share/licenses/amet
     sort -u | xargs -r -n1 test -s
 compgen -G "/usr/src/amethystora/ffmpeg-*.src.rpm" >/dev/null
 rpm -q breeze-icon-theme >/dev/null && false
-# Gaps fall through to Adwaita, not to Plasma's Breeze
-grep -qx "Inherits=Adwaita,hicolor" "${CANDY_DIR}/index.theme"
-# No symbolic name outside places/ may point at the full-colour art: GTK cannot recolour it, so the
-# panel would carry gradient glyphs that ignore the colour amethystora-theme sets on the top bar
-[[ -z "$(find "${CANDY_DIR}"/{apps,devices,mimetypes,preferences,status} -type l -name '*-symbolic.svg')" ]]
-test -e "${CANDY_DIR}/places/16/folder-symbolic.svg"
-# The apps this image ships that upstream has no icon of its own for, each under the pack's
-# pictogram for the job it does or under an icon drawn here
-for icon in org.gnome.Ptyxis io.github.kolunmi.Bazaar \
-    org.gnome.Papers com.mattjakeman.ExtensionManager \
-    be.alexandervanhee.gradia org.freedesktop.MalcontentControl it.mijorus.smile \
-    org.gnome.Decibels org.gnome.Tour io.github.flattool.Warehouse page.tesk.Refine org.gnome.tweaks \
-    io.github.flattool.Ignition io.gitlab.adhami3310.Impression io.gitlab.metadatacleaner.metadatacleaner input-remapper \
-    com.ranfdev.DistroShelf org.gnome.Sysprof \
-    amethystora-docs amethystora-community amethystora-update amethystora-security-status amethystora-logs \
-    amethystora-control amethystora-backups; do
-    test -e "${CANDY_DIR}/apps/scalable/${icon}.svg"
-done
-# Icons drawn for this image, in the pack's style, for what upstream has no artwork for and nothing
-# near enough to alias to. A real file, not the dangling symlink a missing source would leave.
-for icon in /ctx/build_files/shared/candy-icons/*.svg; do
-    test -s "${CANDY_DIR}/apps/scalable/$(basename "${icon}")"
-    cmp -s "${icon}" "${CANDY_DIR}/apps/scalable/$(basename "${icon}")"
-    # glycin decides an icon is SVG from its first 256 bytes alone; a comment ahead of <svg> that
-    # pushes the tag past them leaves the launcher with a blank icon
-    head -c 256 "${icon}" | grep -q "<svg"
-    # Each is named in NOTICE, with where its outline comes from and the licence that came with it
-    grep -qF "$(basename "${icon}")" /usr/share/licenses/amethystora/NOTICE
-done
-# Nobody else's logo is redrawn: a logo is a trademark, and its owner decides how it looks. The only
-# application drawings in the theme are the pictograms on the keep list and the icons drawn for this
-# image, so one that upstream adds, or that is added here, fails the build until somebody has looked
-# at it and put it on the list.
-[[ -z "$(find "${CANDY_DIR}/apps/scalable" -type f -printf '%f\n' |
-    grep -vxFf <(sed -e '/^#/d' -e '/^$/d' -e 's/$/.svg/' /ctx/build_files/shared/candy-icons/keep) |
-    grep -vxFf <(find /ctx/build_files/shared/candy-icons -name '*.svg' -printf '%f\n'))" ]]
-# None of the names that answered for a logo is left, as a drawing or as a link to one, so each of
-# these shows its maker's icon: Firefox's is in its package, and a Flatpak exports its own
-for icon in firefox org.mozilla.firefox thunderbird org.mozilla.Thunderbird org.mozilla.thunderbird_esr jetbrains-toolbox \
-    com.jetbrains.IntelliJ-IDEA-Ultimate code com.visualstudio.code google-chrome com.brave.Browser \
-    claude opencode org.onlyoffice.desktopeditors io.podman_desktop.PodmanDesktop fedora-logo-icon; do
-    [[ ! -e "${CANDY_DIR}/apps/scalable/${icon}.svg" && ! -L "${CANDY_DIR}/apps/scalable/${icon}.svg" ]]
-done
-[[ -z "$(find "${CANDY_DIR}" -xtype l)" ]]
+# The icon packs are the image's own and nothing else is installed as an icon theme: the pack the desktop started
+# with is gone, and Firefox keeps the icon in its package (nobody else's logo is redrawn)
+[[ ! -e /usr/share/icons/candy-icons ]]
 compgen -G "/usr/share/icons/hicolor/*/apps/firefox.*" >/dev/null
-# The logos on folders, file types and status icons went the same way, and a file of one of those
-# types falls to the pack's generic icon of its kind
-for logo in places/48/folder-git mimetypes/scalable/{application-pdf,text-x-python} status/scalable/network-bluetooth; do
-    [[ ! -e "${CANDY_DIR}/${logo}.svg" ]]
-done
-test -e "${CANDY_DIR}/mimetypes/scalable/x-office-document.svg"
-test -e "${CANDY_DIR}/mimetypes/scalable/text-x-script.svg"
 # The links an earlier image made in each account to the IDE drawings, which now point at nothing,
 # are taken back at login (user-setup.hooks.d/16-retire-jetbrains-icons.sh)
 grep -q -- "-xtype l -name 'jetbrains-\*.svg' -delete" /usr/share/amethystora/user-setup.hooks.d/16-retire-jetbrains-icons.sh
-# The Security app's shield: the pack's own shield, from preferences-system-privacy, with report bars
-# instead of that icon's keyhole. Both elements draw from one gradient placed in user space, because a
-# second gradient, or either element left on its own bounding box, would break the diagonal across them.
-SECURITY_ICON="${CANDY_DIR}/apps/scalable/amethystora-security-status.svg"
-grep -q 'fill="url(#_lgradient_security_status)"' "${SECURITY_ICON}"
-grep -q 'stroke="url(#_lgradient_security_status)"' "${SECURITY_ICON}"
-[[ "$(grep -c "<linearGradient" "${SECURITY_ICON}")" == 1 ]]
-grep -q 'gradientUnits="userSpaceOnUse"' "${SECURITY_ICON}"
-# The same drawing in hicolor, so the launcher keeps its icon under any icon theme, not only candy-icons
-cmp -s /ctx/build_files/shared/candy-icons/amethystora-security-status.svg \
-    /usr/share/icons/hicolor/scalable/apps/amethystora-security-status.svg
+# The Security app draws its shield from hicolor as it runs, and the Notes launcher falls back on it under any icon
+# theme: both are the Glass pack's drawings (branding/icons.mjs), as the pack has them. glycin decides an icon is SVG
+# from its first 256 bytes alone, so the tag has to be within them.
+for icon in amethystora-security-status amethystora-notes; do
+    head -c 256 "/usr/share/icons/hicolor/scalable/apps/${icon}.svg" | grep -q "<svg"
+    cmp -s "/usr/share/icons/hicolor/scalable/apps/${icon}.svg" "/usr/share/icons/amethystora-glass/apps/scalable/${icon}.svg"
+done
 # The theme is the default before an account applies a theme of its own, and the value
 # amethystora-theme falls back to afterwards; the two have to name the same theme
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface icon-theme)" == "'amethystora-glass'" ]]
 grep -q "^DEFAULT_ICON_THEME=amethystora-glass$" /usr/lib/amethystora/theme/lib.sh
-# An account set up before candy-icons holds an explicit icon-theme that beats the default above,
+# An account set up before the Amethystora packs holds an explicit icon-theme that beats the default above,
 # so the theme hook has to be past the version that only wrote the desktop's own icons
 [[ "$(sed -n 's/^version-script theme user \([0-9]\+\).*/\1/p' \
     /usr/share/amethystora/user-setup.hooks.d/11-theme.sh)" -ge 2 ]]
@@ -1248,7 +1190,7 @@ grep -q "^DEFAULT_ICON_THEME=amethystora-glass$" /usr/lib/amethystora/theme/lib.
 [[ "$(sed -n 's/^version-script theme user \([0-9]\+\).*/\1/p' \
     /usr/share/amethystora/user-setup.hooks.d/11-theme.sh)" -ge 8 ]]
 # The three icon packs branding/icons.mjs draws: Glass is the default, Duotone follows a light theme, and Neon
-# and candy-icons are chosen with `ame desktop icons`. They draw the same names, no logo of anybody else's and
+# is chosen with `ame desktop icons`. They draw the same names, no logo of anybody else's and
 # no symbolic icons (the panel keeps Adwaita's), and every launcher of this image finds its icon in each of them.
 grep -q "^DEFAULT_LIGHT_ICON_THEME=amethystora-duotone$" /usr/lib/amethystora/theme/lib.sh
 GLASS_ICONS="$(find /usr/share/icons/amethystora-glass -name '*.svg' | wc -l)"
@@ -1270,7 +1212,7 @@ for pack in glass neon duotone; do
 done
 # Which pack is written: the account's own choice, else the theme's, else Glass or, for a light theme, Duotone
 (
-    unset XDG_CONFIG_HOME
+    unset XDG_CONFIG_HOME XDG_DATA_HOME
     HOME="$(mktemp -d)"
     # shellcheck source=/dev/null
     source /usr/lib/amethystora/theme/lib.sh
@@ -1278,7 +1220,14 @@ done
     [[ "$(icon_theme)" == amethystora-glass ]]
     touch "${CURRENT_THEME_DIR}/light.mode"
     [[ "$(icon_theme)" == amethystora-duotone ]]
+    # A name that is not installed is passed over, wherever it comes from, as candy-icons now is
+    echo candy-icons >"${CURRENT_THEME_DIR}/icons.theme"
+    [[ "$(icon_theme)" == amethystora-duotone ]]
+    mkdir -p "${XDG_DATA_HOME:-${HOME}/.local/share}/icons/some-pack"
+    touch "${XDG_DATA_HOME:-${HOME}/.local/share}/icons/some-pack/index.theme"
     echo some-pack >"${CURRENT_THEME_DIR}/icons.theme"
+    [[ "$(icon_theme)" == some-pack ]]
+    echo candy-icons >"${CONFIG_DIR}/icons"
     [[ "$(icon_theme)" == some-pack ]]
     echo amethystora-neon >"${CONFIG_DIR}/icons"
     [[ "$(icon_theme)" == amethystora-neon ]]
@@ -1305,7 +1254,7 @@ grep -q "== /var/lib/greeter" "${SYSTEM_RETIRE}"
 for package in greetd dms dms-greeter quickshell hyprland; do
     rpm -q "${package}" >/dev/null 2>&1 && false
 done
-# Files opens on the grid, where candy-icons' folders are drawn as artwork rather than as a 16px row
+# Files opens on the grid, where the icon packs' folders are drawn as artwork rather than as a 16px row
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.nautilus.preferences default-folder-viewer)" == "'icon-view'" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.nautilus.icon-view default-zoom-level)" == "'large'" ]]
 
@@ -1430,7 +1379,7 @@ test -s "${SECURITY_DESKTOP}"
 command -v desktop-file-validate >/dev/null && desktop-file-validate "${SECURITY_DESKTOP}"
 # An Exec or an Icon that resolves to nothing is a tile in the grid that does nothing, or a blank one
 test -x "$(command -v "$(sed -n 's/^Exec=\([^ ]*\).*/\1/p' "${SECURITY_DESKTOP}" | head -n1)")"
-test -e "/usr/share/icons/candy-icons/apps/scalable/$(sed -n 's/^Icon=//p' "${SECURITY_DESKTOP}").svg"
+test -e "/usr/share/icons/amethystora-glass/apps/scalable/$(sed -n 's/^Icon=//p' "${SECURITY_DESKTOP}").svg"
 # Starting the whole-machine scan is the one thing its polkit rule lets through without a password, and
 # only for the person at the machine
 SCAN_RULE=/usr/share/polkit-1/rules.d/50-amethystora-virus-scan.rules

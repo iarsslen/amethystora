@@ -11,7 +11,7 @@ these commands in the agent's own shell, as the user. Read before writing, chang
   which is better than setting the key alone.
 - Text size: `gsettings set org.gnome.desktop.interface text-scaling-factor 1.25`.
 - Accent colour: `gsettings set org.gnome.desktop.interface accent-color purple` (a theme switch sets it again).
-- Icons: `ame desktop icons glass|neon|duotone|candy|theme`, not `gsettings set ... icon-theme`, which the next theme
+- Icons: `ame desktop icons glass|neon|duotone|theme`, not `gsettings set ... icon-theme`, which the next theme
   switch writes over.
 - Animations: `gsettings set org.gnome.desktop.interface enable-animations false`; the theme transitions stop
   with them.

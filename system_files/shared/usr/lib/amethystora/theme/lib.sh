@@ -39,10 +39,9 @@ CURRENT_THEME_NAME="${CURRENT_DIR}/theme.name"
 CURRENT_BACKGROUND="${CURRENT_DIR}/background"
 
 DEFAULT_THEME=amethystora
-# The image's icon packs, drawn by branding/icons.mjs: Glass for a dark theme, Duotone for a light one (Neon and
-# candy-icons, installed by build_files/base/10-icons.sh, are chosen with `ame desktop icons`). Glass is also the
-# default in zz1-amethystora-modifications, for accounts that have not applied a theme yet; the two are checked
-# against each other in 20-tests.sh.
+# The image's icon packs, drawn by branding/icons.mjs: Glass for a dark theme, Duotone for a light one (Neon is
+# chosen with `ame desktop icons`). Glass is also the default in zz1-amethystora-modifications, for accounts that
+# have not applied a theme yet; the two are checked against each other in 20-tests.sh.
 DEFAULT_ICON_THEME=amethystora-glass
 DEFAULT_LIGHT_ICON_THEME=amethystora-duotone
 
@@ -102,12 +101,26 @@ theme_is_light() {
     [[ -f "${CURRENT_THEME_DIR}/light.mode" ]]
 }
 
+# Whether an icon theme of that name is installed, for the machine or for the account
+icon_theme_installed() {
+    local dir
+    for dir in /usr/share/icons "${XDG_DATA_HOME:-${HOME}/.local/share}/icons" "${HOME}/.icons"; do
+        [[ -f "${dir}/$1/index.theme" ]] && return 0
+    done
+    return 1
+}
+
 # The icon theme to write: the account's own choice (ame desktop icons), else the one the theme names, else the
-# image's, by whether the theme is dark or light
+# image's, by whether the theme is dark or light. A name that is not installed is passed over, whoever wrote it:
+# candy-icons, which an earlier image had, would leave every icon to the fallback.
 icon_theme() {
-    local icons
-    icons="$(head -n1 "${CONFIG_DIR}/icons" 2>/dev/null || true)"
-    [[ -n ${icons} ]] || icons="$(theme_file icons.theme)"
+    local icons="" name
+    for name in "$(head -n1 "${CONFIG_DIR}/icons" 2>/dev/null || true)" "$(theme_file icons.theme)"; do
+        if [[ -n ${name} ]] && icon_theme_installed "${name}"; then
+            icons="${name}"
+            break
+        fi
+    done
     if [[ -z ${icons} ]]; then
         if theme_is_light; then icons="${DEFAULT_LIGHT_ICON_THEME}"; else icons="${DEFAULT_ICON_THEME}"; fi
     fi

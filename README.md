@@ -85,7 +85,7 @@ amethystora-theme list
 
 Amethystora ships Amethystora (light and dark), Tokyo Night, Catppuccin Mocha and Latte, Gruvbox, Nord, Rosé Pine Dawn, Everforest and Matte Black. To add your own, drop a directory into `~/.config/amethystora/themes/` with a `colors.toml` in it; a directory that matches a shipped theme's name is layered over it, so you can change one colour without copying the rest. `/usr/lib/amethystora/theme/lib.sh` documents the other files a theme can hold.
 
-The icons are three packs drawn for Amethystora by `branding/icons.mjs`, each icon in colours of its own: Glass (a dark theme), Duotone (a light theme) and Neon, with [candy-icons](https://github.com/EliverLara/candy-icons) kept beside them as a choice (`ame desktop icons`). The panel keeps GNOME's own monochrome icons so the meters and indicators stay legible. The packs draw Amethystora's apps, GNOME's, folders, file types, devices and generic pictograms; an app with a logo of its own, Firefox for one, keeps the icon its maker drew, as shipped, because a logo is a trademark and not ours to restyle. A theme that wants a different set names it in an `icons.theme` file.
+The icons are three packs drawn for Amethystora by `branding/icons.mjs`, each icon in colours of its own: Glass (a dark theme), Duotone (a light theme) and Neon, chosen with `ame desktop icons`. The panel keeps GNOME's own monochrome icons so the meters and indicators stay legible. The packs draw Amethystora's apps, GNOME's, folders, file types, devices and generic pictograms; an app with a logo of its own, Firefox for one, keeps the icon its maker drew, as shipped, because a logo is a trademark and not ours to restyle. A theme that wants a different set names it in an `icons.theme` file.
 
 #### AI agent
 
@@ -205,7 +205,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Issues and pull requests are welcome at 
 
 Amethystora is based on [Universal Blue](https://universal-blue.org/) and keeps building on its shared infrastructure. Thanks to the Universal Blue contributors for the work this project stands on.
 
-The theme switcher follows the design of [Omakub](https://omakub.org) and its fork [Omabuntu](https://omabuntu.omakasui.org/), and most of the colour palettes are ported from them (MIT). The boot menu follows the theme layout of [grub2-themes](https://github.com/vinceliuice/grub2-themes) by Vince Liuice (GPL-3.0). The icon packs are drawn for Amethystora; [candy-icons](https://github.com/EliverLara/candy-icons), kept beside them, is by Eliver Lara (GPL-3.0). The themes' wallpapers are drawn for Amethystora and listed in [CREDITS.md](system_files/shared/usr/share/backgrounds/amethystora/CREDITS.md).
+The theme switcher follows the design of [Omakub](https://omakub.org) and its fork [Omabuntu](https://omabuntu.omakasui.org/), and most of the colour palettes are ported from them (MIT). The boot menu follows the theme layout of [grub2-themes](https://github.com/vinceliuice/grub2-themes) by Vince Liuice (GPL-3.0). The icon packs are drawn for Amethystora. The themes' wallpapers are drawn for Amethystora and listed in [CREDITS.md](system_files/shared/usr/share/backgrounds/amethystora/CREDITS.md).
 
 ## License
 

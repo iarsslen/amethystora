@@ -11,7 +11,7 @@ one is what the theme opens on), `backgrounds/`.
   differ; they are copied over the shipped ones. A directory that exists only there is a new theme.
 - Change how a config is rendered: copy the template from `/usr/share/amethystora/themed/` to
   `~/.config/amethystora/themed/` and edit the copy.
-- Icons: three packs, `ame desktop icons glass|neon|duotone|candy|theme`. The choice is kept in `~/.config/amethystora/icons`,
+- Icons: three packs, `ame desktop icons glass|neon|duotone|theme`. The choice is kept in `~/.config/amethystora/icons`,
   which wins over the theme's own `icons.theme`; `theme` removes it. Without either, a dark theme gets Glass and a light one Duotone.
 - Run something on every theme switch: an executable in `~/.config/amethystora/hooks/theme-set.d/`.
 - Extra wallpapers: `~/.config/amethystora/backgrounds/<theme>/`, cycled with `Super+Ctrl+Space`

@@ -222,11 +222,10 @@ USAGE="ame desktop transition STYLE DURATION"
 item appearance transition-length range "$(gettext "Transition length")" \
     "$(gettext "How long a transition takes, in milliseconds.")" "${LENGTH}" themes#transitions
 
-ICONS_SET="$(sed -e 's/^amethystora-//' -e 's/^candy-icons$/candy/' "${CONFIG_DIR}/icons" 2>/dev/null || echo theme)"
+ICONS_SET="$(sed -e 's/^amethystora-//' "${CONFIG_DIR}/icons" 2>/dev/null || echo theme)"
 choice glass "$(gettext "Glass")" "$(gettext "Each icon in its own gradient, with a glass sheen")" false ame desktop icons glass
 choice neon "$(gettext "Neon")" "$(gettext "Outlines lit in colours of their own, for a dark desktop")" false ame desktop icons neon
 choice duotone "$(gettext "Duotone")" "$(gettext "Each icon in a gradient, its details in a contrasting one")" false ame desktop icons duotone
-choice candy "$(gettext "candy-icons")" "$(gettext "The pack the desktop started with")" false ame desktop icons candy
 choice theme "$(gettext "Follow the theme")" "$(gettext "Glass for a dark theme, Duotone for a light one")" false ame desktop icons theme
 USAGE="ame desktop icons PACK"
 item appearance icons choice "$(gettext "Icons")" \

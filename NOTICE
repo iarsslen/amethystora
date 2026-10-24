@@ -84,36 +84,9 @@ The icon packs in usr/share/icons/amethystora-glass, amethystora-neon and
 amethystora-duotone are Amethystora's own, drawn in code by branding/icons.mjs,
 and are under the Apache License 2.0 like the rest of the repository.
 
-The icon theme in usr/share/icons/candy-icons is candy-icons by Eliver Lara,
-licensed under the GNU General Public License, version 3:
-
-  - candy-icons  https://github.com/EliverLara/candy-icons
-
-It is not the theme as its author publishes it. Amethystora has modified it
-since September 2026, and makes the changes again each time an image is built:
-build_files/base/10-icons.sh installs it from upstream, changes the theme's
-inheritance, drops the symbolic names outside places/, removes the icons that
-redraw another maker's logo, adds aliases for the applications this image
-ships, and adds the icons kept in build_files/shared/candy-icons, drawn for
-Amethystora in the theme's style. The licence ships with it in
-usr/share/licenses/candy-icons. The icons added are:
-
-  - amethystora-security-status.svg, whose shield is the theme's own, from its
-    preferences-system-privacy.svg. It is a modified part of candy-icons and
-    is licensed, like the theme, under the GNU General Public License, version
-    3, not under the Apache License. So is its copy in usr/share/icons/hicolor,
-    which the window of Amethystora Security draws its shield from as it runs.
-  - io.github.kolunmi.Bazaar.svg, drawn for Amethystora in the theme's style
-    after Bazaar's own icon, a market stall under an awning.
-  - amethystora-notes.svg and amethystora-backups.svg, which are Amethystora's
-    own drawings.
-
-Of the application icons, the theme as Amethystora ships it keeps the
-pictograms of a job, such as a calculator or an envelope, and four logos in
-the theme's style: Bazaar's, drawn here, and Flatseal's, Mission Center's and
-VSCodium's, drawn by the theme. Their makers publish no trademark terms for
-them. An application whose logo the theme redrew shows the icon its maker
-gave it instead. The names and logos of the applications in an image are
+The packs draw Amethystora's own apps, GNOME's and the pictograms of a job, with folders, file
+types and devices. An application with a logo of its own shows the icon its maker gave it, as it
+ships, and nothing here redraws it. The names and logos of the applications in an image are
 trademarks of their owners, who do not sponsor or endorse Amethystora.
 
 The Amethystora apps (the Manual, Security, Updates, Notes, Logs, Backups and

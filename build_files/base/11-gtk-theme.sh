@@ -6,9 +6,8 @@ set -eoux pipefail
 
 # The Amethystora GTK theme: EliverLara's Sweet, recoloured onto the amethyst palette.
 #
-# Sweet is by the author of candy-icons (10-icons.sh), which is why the two sit together without
-# looking assembled. It ships its stylesheets already built, so nothing here needs sass, npm or the
-# gulp pipeline the upstream repository uses.
+# It ships its stylesheets already built, so nothing here needs sass, npm or the gulp pipeline the upstream
+# repository uses.
 #
 # It is installed under Amethystora's own name rather than Sweet's, because what is installed is not
 # Sweet: recolor.py rotates every cool colour in it onto the amethyst, which is most of the theme.
@@ -57,7 +56,7 @@ Encoding=UTF-8
 
 [X-GNOME-Metatheme]
 GtkTheme=Amethystora
-IconTheme=candy-icons
+IconTheme=amethystora-glass
 ButtonLayout=close,minimize,maximize:
 EOF
 

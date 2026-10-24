@@ -21,10 +21,10 @@ export PATH="/tmp/scripts/helpers:$PATH"
 # Build GNOME Extensions from Git Submodules
 /ctx/build_files/shared/build-gnome-extensions.sh
 
-# The candy-icons icon theme
+# The Amethystora icon packs' caches
 /ctx/build_files/base/10-icons.sh
 
-# The Amethystora GTK theme, recoloured from Sweet by the same author as candy-icons
+# The Amethystora GTK theme, recoloured from Sweet
 /ctx/build_files/base/11-gtk-theme.sh
 
 # The login screen background, patched into GNOME Shell's own theme

@@ -113,9 +113,9 @@ An app with a logo of its own keeps it. Firefox, Thunderbird, a JetBrains IDE an
 you install show the icon their maker drew, exactly as it ships, with no tile or frame added: a
 logo is a trademark, and how it looks is its owner's to decide. That is why the dock mixes the two.
 
-`ame desktop icons glass`, `neon`, `duotone` or `candy` picks one whatever the theme, and
+`ame desktop icons glass`, `neon` or `duotone` picks one whatever the theme, and
 `ame desktop icons theme` goes back to what the theme chooses. Control has the same choice under
-Appearance. `candy` is candy-icons, the pack the desktop started with.
+Appearance.
 
 ## Change a theme, or make your own
 

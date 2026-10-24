@@ -239,6 +239,14 @@ for (const [id, pack] of Object.entries(PACKS)) {
     console.log(`wrote ${dir}`);
 }
 
+// The two launchers of Amethystora's own that have no artwork of theirs in hicolor (branding/generate.mjs draws
+// the others), in the Glass style: every icon theme falls back on hicolor, and the Security app draws its shield
+// from this file as it runs
+for (const [name, glyph, ramp] of SET.apps.filter(([name]) => ['amethystora-security-status', 'amethystora-notes'].includes(name))) {
+    mkdirSync(join(ICONS, 'hicolor/scalable/apps'), {recursive: true});
+    writeFileSync(join(ICONS, 'hicolor/scalable/apps', `${name}.svg`), PACKS.glass.draw(DRAW[glyph], RAMPS[ramp]));
+}
+
 if (process.argv.includes('--preview')) {
     const out = join(tmpdir(), 'amethystora-icons');
     mkdirSync(out, {recursive: true});

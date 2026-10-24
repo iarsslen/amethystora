@@ -29,10 +29,9 @@ pub fn choice_glow(choice: &gtk::Box) -> gtk::Widget {
 
 // --- The shield ---------------------------------------------------------------------------------------------
 
-/// The app's own icon, the pack's shield with report bars in it, both drawn from the one gradient: the same
-/// drawing the page had in its index.html. It is a modified part of candy-icons and so under the GNU General
-/// Public License, version 3 (NOTICE), which is why it is read from where the image installs it, at run time,
-/// and never compiled into this program. Without the file there is no shield, and the badge stays.
+/// The app's own icon, the Glass pack's shield (branding/icons.mjs). It is read from where the image installs it,
+/// at run time, as the launcher's icon is: the program carries no drawing of it. Without the file there is no
+/// shield, and the badge stays.
 const SHIELD_FILE: &str = "/usr/share/icons/hicolor/scalable/apps/amethystora-security-status.svg";
 
 mod shield {

@@ -23,10 +23,15 @@
 #      (branding/generate.mjs): an account showing one would be left on GNOME's fill colour.
 #   8  the Amethystora icon packs (branding/icons.mjs) in place of candy-icons as the default: an account
 #      that applied a theme holds candy-icons in its dconf, which wins over the image's new default.
+#   9  candy-icons gone from the image: an account that chose it (~/.config/amethystora/icons) is put back on the
+#      theme's own pack, and the theme applied again writes Glass or Duotone in place of the name it held.
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
-version-script theme user 8 || exit 0
+version-script theme user 9 || exit 0
+
+[[ "$(cat "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons" 2>/dev/null)" == candy-icons ]] &&
+    rm -f "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons"
 
 set -xeuo pipefail
 

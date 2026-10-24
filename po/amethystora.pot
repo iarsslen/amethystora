@@ -1877,14 +1877,6 @@ msgid "Each icon in a gradient, its details in a contrasting one"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
-msgid "candy-icons"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "The pack the desktop started with"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
 msgid "Follow the theme"
 msgstr ""
 
@@ -4392,10 +4384,6 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 msgid "Super+Ctrl+Space changes the wallpaper to show it."
-msgstr ""
-
-#: usr/share/amethystora/just/desktop.just
-msgid "candy-icons, the pack the desktop started with"
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
