@@ -11,9 +11,8 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {ANIMATION} from './engine.js';
 
-// The frame round each card, one colour per workspace in turn
-const COLOURS = ['#314E6C', '#565248', '#445632', '#663822', '#494066', '#826647', '#4B6983', '#807D74', '#5D7555',
-    '#884631', '#625B81', '#B39169', '#7590AE', '#BAB5AB', '#83A67F', '#C1665A', '#887FA3', '#E0C39E'];
+// The frame round each card is one of this many colours of the theme, one per workspace in turn (shell-tiling.css)
+const TONES = 14;
 // The cards in order: their size, and the space between two, as shares of the screen
 const ROW_SCALE = 0.825;
 const ROW_SPACE = 0.04;
@@ -58,7 +57,7 @@ export class WorkspacePreview {
         // The frame is drawn round the workspace, which keeps the size of the screen inside it
         const content = new St.Widget({clip_to_allocation: true, width: m.width, height: m.height});
         const card = new St.Bin({style_class: 'amethystora-tiling-card', child: content});
-        card.set_style(`border-color: ${COLOURS[workspace.index() % COLOURS.length]};`);
+        card.add_style_class_name(`amethystora-tiling-card-${workspace.index() % TONES}`);
         card._background = new Background.BackgroundManager({
             container: content, monitorIndex: this._monitorIndex,
             controlPosition: false,

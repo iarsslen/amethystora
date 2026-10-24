@@ -1,10 +1,15 @@
 /* The glass (modules/glass.js): what GNOME draws on top of the panes. The panes are the frosted wallpaper; over them
-   every popup has a veil, a faint dark grey with white text in a dark scheme and a milky white with near-black text
-   in a light one (amethystora-glass-light), and the controls inside it are translucent too, with GNOME's accent
-   colour kept for what is on. The glass's own corners are given to each surface, so that GNOME's drawing of it
-   matches. These colours are the glass's, the same in every theme. */
+   every popup has a veil and the controls inside it are translucent too, with GNOME's accent colour kept for what
+   is on. The glass's own corners are given to each surface, so that GNOME's drawing of it matches.
+
+   The colours follow the theme, in the theme's shell-glass.css (themed/shell-glass.css.tpl), whose selectors start
+   from the shell's top group, one id more than any here, so that its rules always win; they are the same in the
+   light scheme (amethystora-glass-light), where the theme's palette is the light one. The surfaces' veil here
+   stands in until a theme has been applied. The overview and the app folders keep their own: the frost under them is
+   dark in either scheme, so their text is light in both. */
 
 /* The top bar: clear over its strip of glass until a window touches it, then GNOME's own background */
+
 #panel.amethystora-glass-bar {
   transition-duration: 500ms;
 }
@@ -14,6 +19,7 @@
 }
 
 /* Backdrops: the frost and the glass take the place of GNOME's flat colours */
+
 #overviewGroup.amethystora-glass-overview,
 .workspace-animation.amethystora-glass-slide,
 .screenshot-ui-window-selector.amethystora-glass-backdrop {
@@ -21,6 +27,7 @@
 }
 
 /* The surfaces, with their corners */
+
 .amethystora-glass-surface,
 .amethystora-glass-surface:hover,
 .amethystora-glass-surface:active,
@@ -69,657 +76,34 @@
 }
 
 /* Menu items */
-.amethystora-glass-surface .popup-menu-item:hover,
-.amethystora-glass-surface .popup-menu-item:focus,
-.amethystora-glass-surface .popup-menu-item:selected {
-  background-color: rgba(255, 255, 255, 0.10);
-  color: #ffffff;
-}
-
-.amethystora-glass-surface .popup-menu-item:active,
-.amethystora-glass-surface .popup-menu-item:checked,
-.amethystora-glass-surface .popup-menu-item:active:hover,
-.amethystora-glass-surface .popup-menu-item:checked:hover {
-  background-color: rgba(255, 255, 255, 0.14);
-  color: #ffffff;
-}
-
-.amethystora-glass-surface .popup-sub-menu {
-  background-color: rgba(30, 30, 36, 0.36);
-  border-color: transparent;
-}
-
-.amethystora-glass-surface .popup-sub-menu .popup-menu-item:hover,
-.amethystora-glass-surface .popup-sub-menu .popup-menu-item:focus {
-  background-color: rgba(255, 255, 255, 0.10);
-}
 
 .amethystora-glass-surface .popup-sub-menu .popup-menu-item:last-child {
   border-radius: 0 0 12px 12px;
 }
 
-.amethystora-glass-light .popup-menu-item,
-.amethystora-glass-light .popup-inactive-menu-item {
-  color: #1c1c21;
-}
-
-.amethystora-glass-light .popup-menu-item:insensitive {
-  color: rgba(28, 28, 33, 0.5);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .popup-menu-item:hover,
-.amethystora-glass-surface.amethystora-glass-light .popup-menu-item:focus,
-.amethystora-glass-surface.amethystora-glass-light .popup-menu-item:selected,
-.amethystora-glass-surface.amethystora-glass-light .popup-sub-menu .popup-menu-item:hover,
-.amethystora-glass-surface.amethystora-glass-light .popup-sub-menu .popup-menu-item:focus {
-  background-color: rgba(0, 0, 0, 0.06);
-  color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .popup-menu-item:active,
-.amethystora-glass-surface.amethystora-glass-light .popup-menu-item:checked,
-.amethystora-glass-surface.amethystora-glass-light .popup-menu-item:active:hover,
-.amethystora-glass-surface.amethystora-glass-light .popup-menu-item:checked:hover {
-  background-color: rgba(0, 0, 0, 0.10);
-  color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .popup-sub-menu {
-  background-color: rgba(255, 255, 255, 0.58);
-}
-
-/* Buttons: translucent at rest, a step up when pointed at and another when pressed */
-.amethystora-glass-surface .button,
-.amethystora-glass-surface .icon-button,
-.amethystora-glass-surface .calendar .calendar-month-header .pager-button,
-.amethystora-glass-surface .screenshot-ui-show-pointer-button {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
-}
-
-.amethystora-glass-surface .button:hover,
-.amethystora-glass-surface .icon-button:hover,
-.amethystora-glass-surface .calendar .calendar-month-header .pager-button:hover,
-.amethystora-glass-surface .screenshot-ui-show-pointer-button:hover,
-.amethystora-glass-surface .button:focus,
-.amethystora-glass-surface .icon-button:focus {
-  background-color: rgba(255, 255, 255, 0.13);
-}
-
-.amethystora-glass-surface .button:active,
-.amethystora-glass-surface .icon-button:active,
-.amethystora-glass-surface .calendar .calendar-month-header .pager-button:active,
-.amethystora-glass-surface .screenshot-ui-show-pointer-button:active,
-.amethystora-glass-surface .screenshot-ui-show-pointer-button:checked,
-.amethystora-glass-surface .button:checked,
-.amethystora-glass-surface .icon-button:checked {
-  background-color: rgba(255, 255, 255, 0.18);
-}
-
-.amethystora-glass-surface .button:insensitive,
-.amethystora-glass-surface .icon-button:insensitive {
-  background-color: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .button,
-.amethystora-glass-surface.amethystora-glass-light .icon-button,
-.amethystora-glass-surface.amethystora-glass-light .calendar .calendar-month-header .pager-button,
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-show-pointer-button {
-  background-color: rgba(0, 0, 0, 0.08);
-  color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .button:hover,
-.amethystora-glass-surface.amethystora-glass-light .icon-button:hover,
-.amethystora-glass-surface.amethystora-glass-light .calendar .calendar-month-header .pager-button:hover,
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-show-pointer-button:hover,
-.amethystora-glass-surface.amethystora-glass-light .button:focus,
-.amethystora-glass-surface.amethystora-glass-light .icon-button:focus {
-  background-color: rgba(0, 0, 0, 0.12);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .button:active,
-.amethystora-glass-surface.amethystora-glass-light .icon-button:active,
-.amethystora-glass-surface.amethystora-glass-light .calendar .calendar-month-header .pager-button:active,
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-show-pointer-button:active,
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-show-pointer-button:checked,
-.amethystora-glass-surface.amethystora-glass-light .button:checked,
-.amethystora-glass-surface.amethystora-glass-light .icon-button:checked {
-  background-color: rgba(0, 0, 0, 0.16);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .button:insensitive,
-.amethystora-glass-surface.amethystora-glass-light .icon-button:insensitive {
-  background-color: rgba(0, 0, 0, 0.04);
-  color: rgba(28, 28, 33, 0.5);
-}
-
-/* What is on keeps GNOME's accent colour */
-.amethystora-glass-surface .button.default,
-.amethystora-glass-surface .icon-button.default,
-.amethystora-glass-surface .quick-toggle:checked,
-.amethystora-glass-surface .quick-toggle-has-menu:checked .quick-toggle,
-.amethystora-glass-surface .calendar .calendar-day.calendar-today,
-.amethystora-glass-surface .calendar .calendar-day:selected,
-.amethystora-glass-surface.amethystora-glass-light .button.default,
-.amethystora-glass-surface.amethystora-glass-light .icon-button.default,
-.amethystora-glass-surface.amethystora-glass-light .quick-toggle:checked,
-.amethystora-glass-surface.amethystora-glass-light .calendar .calendar-day.calendar-today,
-.amethystora-glass-surface.amethystora-glass-light .calendar .calendar-day:selected {
-  background-color: -st-accent-color;
-  color: -st-accent-fg-color;
-  border-color: transparent;
-}
-
-.amethystora-glass-surface .button.default:hover,
-.amethystora-glass-surface .quick-toggle:checked:hover {
-  background-color: st-lighten(-st-accent-color, 6%);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .button.default:hover,
-.amethystora-glass-surface.amethystora-glass-light .quick-toggle:checked:hover {
-  background-color: st-darken(-st-accent-color, 6%);
-}
-
 /* The quick settings' toggles */
+
 .amethystora-glass-surface .quick-toggle,
 .amethystora-glass-surface .quick-toggle-has-menu .quick-toggle-menu-button {
-  background-color: rgba(255, 255, 255, 0.11);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.amethystora-glass-surface .quick-toggle:hover,
-.amethystora-glass-surface .quick-toggle-has-menu .quick-toggle-menu-button:hover {
-  background-color: rgba(255, 255, 255, 0.18);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .quick-toggle,
-.amethystora-glass-surface.amethystora-glass-light .quick-toggle-has-menu .quick-toggle-menu-button {
-  background-color: rgba(255, 255, 255, 0.62);
-  border-color: rgba(0, 0, 0, 0.08);
-  color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .quick-toggle:hover,
-.amethystora-glass-surface.amethystora-glass-light .quick-toggle-has-menu .quick-toggle-menu-button:hover {
-  background-color: rgba(255, 255, 255, 0.78);
-}
-
-.amethystora-glass-surface .quick-toggle:checked,
-.amethystora-glass-surface.amethystora-glass-light .quick-toggle:checked {
-  border-color: transparent;
-}
-
-.amethystora-glass-surface .quick-toggle-has-menu .quick-toggle-menu-button:checked,
-.amethystora-glass-surface.amethystora-glass-light .quick-toggle-has-menu .quick-toggle-menu-button:checked {
-  background-color: st-mix(-st-accent-color, #ffffff, 85%);
-  color: -st-accent-fg-color;
-  border-color: transparent;
-}
-
-/* The sliders' rows are clear; their buttons only show when pointed at */
-.amethystora-glass-surface .quick-slider .icon-button {
-  background-color: transparent;
-}
-
-.amethystora-glass-surface .quick-slider .icon-button:hover {
-  background-color: rgba(255, 255, 255, 0.12);
-}
-
-.amethystora-glass-surface .quick-slider .icon-button:active {
-  background-color: rgba(255, 255, 255, 0.18);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .quick-slider .icon-button {
-  background-color: transparent;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .quick-slider .icon-button:hover {
-  background-color: rgba(0, 0, 0, 0.08);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .quick-slider .icon-button:active {
-  background-color: rgba(0, 0, 0, 0.12);
+  border: 1px solid transparent;
 }
 
 /* The calendar */
-.amethystora-glass-surface .calendar,
-.amethystora-glass-surface .calendar .calendar-day,
-.amethystora-glass-surface .calendar .calendar-day-heading,
-.amethystora-glass-surface .calendar .calendar-month-header .calendar-month-label {
-  background-color: transparent;
-  color: #ffffff;
-}
-
-.amethystora-glass-surface .calendar .calendar-day:hover,
-.amethystora-glass-surface .calendar .calendar-day:focus {
-  background-color: rgba(255, 255, 255, 0.10);
-}
-
-.amethystora-glass-surface .calendar .calendar-day-heading,
-.amethystora-glass-surface .calendar .calendar-day.calendar-weekend {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.amethystora-glass-surface .calendar .calendar-day.calendar-other-month,
-.amethystora-glass-surface .calendar .calendar-day.calendar-other-month.calendar-weekend {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.amethystora-glass-surface .datemenu-today-button,
-.amethystora-glass-surface .calendar:hover {
-  background-color: transparent;
-}
-
-.amethystora-glass-surface .datemenu-today-button:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-}
 
 .amethystora-glass-surface .events-button,
 .amethystora-glass-surface .world-clocks-button,
 .amethystora-glass-surface .weather-button {
-  background-color: rgba(255, 255, 255, 0.07);
   box-shadow: none;
-}
-
-.amethystora-glass-surface .events-button:hover,
-.amethystora-glass-surface .world-clocks-button:hover,
-.amethystora-glass-surface .weather-button:hover {
-  background-color: rgba(255, 255, 255, 0.12);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .calendar,
-.amethystora-glass-surface.amethystora-glass-light .calendar .calendar-day,
-.amethystora-glass-surface.amethystora-glass-light .calendar .calendar-day-heading,
-.amethystora-glass-surface.amethystora-glass-light .calendar .calendar-month-header .calendar-month-label {
-  color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .calendar .calendar-day:hover,
-.amethystora-glass-surface.amethystora-glass-light .calendar .calendar-day:focus {
-  background-color: rgba(0, 0, 0, 0.08);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .calendar .calendar-day-heading,
-.amethystora-glass-surface.amethystora-glass-light .calendar .calendar-day.calendar-weekend {
-  color: rgba(28, 28, 33, 0.7);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .calendar .calendar-day.calendar-other-month,
-.amethystora-glass-surface.amethystora-glass-light .calendar .calendar-day.calendar-other-month.calendar-weekend {
-  color: rgba(28, 28, 33, 0.42);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .datemenu-today-button:hover {
-  background-color: rgba(0, 0, 0, 0.06);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .events-button,
-.amethystora-glass-surface.amethystora-glass-light .world-clocks-button,
-.amethystora-glass-surface.amethystora-glass-light .weather-button {
-  background-color: rgba(255, 255, 255, 0.28);
-  color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .events-button:hover,
-.amethystora-glass-surface.amethystora-glass-light .world-clocks-button:hover,
-.amethystora-glass-surface.amethystora-glass-light .weather-button:hover {
-  background-color: rgba(255, 255, 255, 0.40);
 }
 
 /* Notifications in the drawer: cards stacked under another are paler still */
+
 .amethystora-glass-surface .message {
-  background-color: rgba(255, 255, 255, 0.07);
-  border-color: transparent;
   box-shadow: none;
 }
 
-.amethystora-glass-surface .message:hover {
-  background-color: rgba(255, 255, 255, 0.12);
-}
-
-.amethystora-glass-surface .message:focus,
-.amethystora-glass-surface .message:active {
-  background-color: rgba(255, 255, 255, 0.15);
-}
-
-.amethystora-glass-surface .message:second-in-stack {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.amethystora-glass-surface .message:lower-in-stack {
-  background-color: rgba(255, 255, 255, 0.02);
-}
-
-.amethystora-glass-surface .message .message-header,
-.amethystora-glass-surface .message-notification-group .message-group-header {
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.amethystora-glass-surface .message-list {
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .message {
-  background-color: rgba(255, 255, 255, 0.58);
-  color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .message:hover {
-  background-color: rgba(255, 255, 255, 0.40);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .message:focus,
-.amethystora-glass-surface.amethystora-glass-light .message:active {
-  background-color: rgba(255, 255, 255, 0.70);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .message:second-in-stack {
-  background-color: rgba(255, 255, 255, 0.54);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .message:lower-in-stack {
-  background-color: rgba(255, 255, 255, 0.44);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .message .message-header,
-.amethystora-glass-surface.amethystora-glass-light .message-notification-group .message-group-header {
-  color: rgba(28, 28, 33, 0.7);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .message-list {
-  border-color: rgba(0, 0, 0, 0.1);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .notification-button,
-.amethystora-glass-surface.amethystora-glass-light .message .message-header .message-close-button,
-.amethystora-glass-surface.amethystora-glass-light .message .message-header .message-expand-button,
-.amethystora-glass-surface.amethystora-glass-light .message-notification-group .message-collapse-button,
-.amethystora-glass-light.amethystora-glass-banner .notification-button,
-.amethystora-glass-light.amethystora-glass-banner .message-header .message-close-button {
-  background-color: rgba(0, 0, 0, 0.08);
-  color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .notification-button:hover,
-.amethystora-glass-surface.amethystora-glass-light .message .message-header .message-close-button:hover,
-.amethystora-glass-surface.amethystora-glass-light .message .message-header .message-expand-button:hover,
-.amethystora-glass-surface.amethystora-glass-light .message-notification-group .message-collapse-button:hover,
-.amethystora-glass-light.amethystora-glass-banner .notification-button:hover,
-.amethystora-glass-light.amethystora-glass-banner .message-header .message-close-button:hover {
-  background-color: rgba(0, 0, 0, 0.12);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .notification-button:active,
-.amethystora-glass-surface.amethystora-glass-light .message .message-header .message-close-button:active,
-.amethystora-glass-surface.amethystora-glass-light .message .message-header .message-expand-button:active,
-.amethystora-glass-surface.amethystora-glass-light .message-notification-group .message-collapse-button:active,
-.amethystora-glass-light.amethystora-glass-banner .notification-button:active,
-.amethystora-glass-light.amethystora-glass-banner .message-header .message-close-button:active {
-  background-color: rgba(0, 0, 0, 0.16);
-}
-
-.amethystora-glass-light.amethystora-glass-banner .message-header {
-  color: rgba(28, 28, 33, 0.7);
-}
-
-/* Text entries */
-.amethystora-glass-surface StEntry {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.amethystora-glass-surface StEntry:hover {
-  background-color: rgba(255, 255, 255, 0.10);
-}
-
-.amethystora-glass-surface StEntry:focus {
-  background-color: rgba(255, 255, 255, 0.13);
-  color: #ffffff;
-}
-
-.amethystora-glass-surface StEntry StLabel.hint-text {
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.amethystora-glass-surface.amethystora-glass-light StEntry {
-  background-color: rgba(255, 255, 255, 0.42);
-  color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light StEntry:focus {
-  background-color: rgba(255, 255, 255, 0.54);
-  color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light StEntry StLabel.hint-text {
-  color: rgba(28, 28, 33, 0.5);
-}
-
-/* Scroll bars: no trough, and a handle that shows on glass */
-.amethystora-glass-surface StScrollBar > .vhandle,
-.amethystora-glass-surface StScrollBar > .hhandle {
-  background-color: rgba(255, 255, 255, 0.28);
-}
-
-.amethystora-glass-surface StScrollBar > .vhandle:hover,
-.amethystora-glass-surface StScrollBar > .hhandle:hover {
-  background-color: rgba(255, 255, 255, 0.38);
-}
-
-.amethystora-glass-surface StScrollBar > .vhandle:active,
-.amethystora-glass-surface StScrollBar > .hhandle:active {
-  background-color: rgba(255, 255, 255, 0.46);
-}
-
-.amethystora-glass-surface.amethystora-glass-light StScrollBar > .vhandle,
-.amethystora-glass-surface.amethystora-glass-light StScrollBar > .hhandle {
-  background-color: rgba(40, 40, 46, 0.24);
-}
-
-.amethystora-glass-surface.amethystora-glass-light StScrollBar > .vhandle:hover,
-.amethystora-glass-surface.amethystora-glass-light StScrollBar > .hhandle:hover {
-  background-color: rgba(40, 40, 46, 0.34);
-}
-
-.amethystora-glass-surface.amethystora-glass-light StScrollBar > .vhandle:active,
-.amethystora-glass-surface.amethystora-glass-light StScrollBar > .hhandle:active {
-  background-color: rgba(40, 40, 46, 0.42);
-}
-
-/* The level in an on-screen display */
-.amethystora-glass-osd .level {
-  -barlevel-background-color: rgba(255, 255, 255, 0.14);
-  -barlevel-active-background-color: #ffffff;
-  -barlevel-overdrive-color: #ff8a8a;
-}
-
-.amethystora-glass-osd.amethystora-glass-light .level {
-  -barlevel-background-color: rgba(0, 0, 0, 0.12);
-  -barlevel-active-background-color: #1c1c21;
-  -barlevel-overdrive-color: #b0182a;
-}
-
-/* The window switcher */
-.amethystora-glass-surface .item-box:hover {
-  background-color: rgba(255, 255, 255, 0.20);
-}
-
-.amethystora-glass-surface .item-box:selected {
-  background-color: rgba(255, 255, 255, 0.13);
-}
-
-.amethystora-glass-surface .item-box:active {
-  background-color: rgba(255, 255, 255, 0.24);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .item-box {
-  color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .item-box:hover {
-  background-color: rgba(0, 0, 0, 0.20);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .item-box:selected {
-  background-color: rgba(0, 0, 0, 0.12);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .item-box:active {
-  background-color: rgba(0, 0, 0, 0.24);
-}
-
-/* Dialogs' buttons */
-.amethystora-glass-surface.modal-dialog .modal-dialog-button-box .modal-dialog-button {
-  background-color: rgba(255, 255, 255, 0.08);
-}
-
-.amethystora-glass-surface.modal-dialog .modal-dialog-button-box .modal-dialog-button:hover {
-  background-color: rgba(255, 255, 255, 0.13);
-}
-
-.amethystora-glass-surface.modal-dialog .modal-dialog-button-box .modal-dialog-button:active {
-  background-color: rgba(255, 255, 255, 0.18);
-}
-
-.amethystora-glass-surface.modal-dialog .modal-dialog-button-box .modal-dialog-button:insensitive {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.amethystora-glass-surface.modal-dialog.amethystora-glass-light .modal-dialog-button-box .modal-dialog-button {
-  background-color: rgba(255, 255, 255, 0.42);
-  color: #1c1c21;
-}
-
-.amethystora-glass-surface.modal-dialog.amethystora-glass-light .modal-dialog-button-box .modal-dialog-button:hover {
-  background-color: rgba(255, 255, 255, 0.54);
-}
-
-.amethystora-glass-surface.modal-dialog.amethystora-glass-light .modal-dialog-button-box .modal-dialog-button:active {
-  background-color: rgba(0, 0, 0, 0.10);
-}
-
-.amethystora-glass-surface.modal-dialog.amethystora-glass-light .modal-dialog-button-box .modal-dialog-button:insensitive {
-  color: rgba(28, 28, 33, 0.5);
-}
-
-/* The screenshot UI's panel */
-.amethystora-glass-surface .screenshot-ui-type-button {
-  background-color: transparent;
-}
-
-.amethystora-glass-surface .screenshot-ui-type-button:checked,
-.amethystora-glass-surface .screenshot-ui-type-button:focus {
-  background-color: rgba(255, 255, 255, 0.13);
-}
-
-.amethystora-glass-surface .screenshot-ui-type-button:hover {
-  background-color: rgba(255, 255, 255, 0.20);
-}
-
-.amethystora-glass-surface .screenshot-ui-type-button:active {
-  background-color: rgba(255, 255, 255, 0.18);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-type-button {
-  color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-type-button:checked,
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-type-button:focus {
-  background-color: rgba(0, 0, 0, 0.13);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-type-button:hover {
-  background-color: rgba(0, 0, 0, 0.20);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-type-button:active {
-  background-color: rgba(0, 0, 0, 0.18);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-capture-button {
-  border-color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-capture-button .screenshot-ui-capture-button-circle {
-  background-color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-capture-button:cast .screenshot-ui-capture-button-circle {
-  background-color: #c01c28;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-shot-cast-container {
-  background-color: rgba(0, 0, 0, 0.10);
-}
-
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-shot-cast-button {
-  color: #1c1c21;
-}
-
-.amethystora-glass-surface.amethystora-glass-light .screenshot-ui-shot-cast-button:checked {
-  background-color: #1c1c21;
-  color: #ffffff;
-}
-
-/* The on-screen keyboard's keys */
-#keyboard.amethystora-glass-surface .keyboard-key {
-  background-color: rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 -1px 0 0 rgba(0, 0, 0, 0.18);
-  color: #ffffff;
-}
-
-#keyboard.amethystora-glass-surface .keyboard-key:hover {
-  background-color: rgba(255, 255, 255, 0.20);
-}
-
-#keyboard.amethystora-glass-surface .keyboard-key:active {
-  background-color: rgba(255, 255, 255, 0.18);
-}
-
-#keyboard.amethystora-glass-surface .keyboard-key:checked {
-  background-color: rgba(255, 255, 255, 0.13);
-  box-shadow: inset 0 0 0 2px -st-accent-color;
-}
-
-#keyboard.amethystora-glass-surface .keyboard-key.default-key {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-#keyboard.amethystora-glass-surface .keyboard-key:latched,
-#keyboard.amethystora-glass-surface .keyboard-key.default-key:latched {
-  background-color: -st-accent-color;
-  color: -st-accent-fg-color;
-}
-
-#keyboard.amethystora-glass-surface.amethystora-glass-light .keyboard-key {
-  background-color: rgba(0, 0, 0, 0.08);
-  box-shadow: inset 0 -1px 0 0 rgba(0, 0, 0, 0.12);
-  color: #1c1c21;
-}
-
-#keyboard.amethystora-glass-surface.amethystora-glass-light .keyboard-key:hover {
-  background-color: rgba(0, 0, 0, 0.14);
-}
-
-#keyboard.amethystora-glass-surface.amethystora-glass-light .keyboard-key:active {
-  background-color: rgba(0, 0, 0, 0.12);
-}
-
-#keyboard.amethystora-glass-surface.amethystora-glass-light .keyboard-key.default-key {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-#keyboard.amethystora-glass-surface.amethystora-glass-light .keyboard-key:latched,
-#keyboard.amethystora-glass-surface.amethystora-glass-light .keyboard-key.default-key:latched {
-  background-color: -st-accent-color;
-  color: -st-accent-fg-color;
-}
-
 /* The overview: light grey veils on the frost, white text in either scheme */
+
 #overviewGroup.amethystora-glass-overview .search-entry {
   background-color: rgba(200, 200, 210, 0.2);
   color: #ffffff;
@@ -796,6 +180,7 @@
 }
 
 /* An app folder: its icons float on the blurred grid */
+
 .amethystora-glass-folder .app-folder-dialog {
   background-color: transparent;
   border-width: 0;

@@ -3,7 +3,6 @@
 // workspaces where the person hid it (Super+Ctrl+B), which then give its height to their windows.
 
 import Clutter from 'gi://Clutter';
-import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 
@@ -20,7 +19,8 @@ const MODE_ICONS = {
     [Mode.CENTRE]: 'preferences-desktop-multitasking-symbolic',
     [Mode.EDGE]: 'zoom-fit-best-symbolic',
 };
-const MODE_COLOURS = {[Mode.PLAIN]: '#6be67b', [Mode.CENTRE]: '#6be6cb', [Mode.EDGE]: '#abe67b'};
+// The way chosen has a colour in the tooltip, which the theme gives it (shell-tiling.css)
+const MODE_TONES = {[Mode.PLAIN]: 'plain', [Mode.CENTRE]: 'centre', [Mode.EDGE]: 'edge'};
 const OPEN_ICONS = {
     [Open.RIGHT]: 'go-next-symbolic',
     [Open.LEFT]: 'go-previous-symbolic',
@@ -57,8 +57,14 @@ class Icon extends PanelMenu.Button {
             return;
         }
         if (!this._tip) {
-            this._tip = new St.Label({style_class: 'amethystora-tiling-tooltip'});
-            this._tip.clutter_text.use_markup = true;
+            this._tip = new St.BoxLayout({
+                orientation: Clutter.Orientation.VERTICAL, style_class: 'amethystora-tiling-tooltip',
+            });
+            this._lines = ['', 'amethystora-tiling-strong', 'amethystora-tiling-key'].map(styleClass => {
+                const line = new St.Label({style_class: styleClass});
+                this._tip.add_child(line);
+                return line;
+            });
             Main.uiGroup.add_child(this._tip);
         }
         this._fillTip();
@@ -71,8 +77,16 @@ class Icon extends PanelMenu.Button {
         this._tip.set_position(Math.min(left, monitor.x + monitor.width - tipWidth - 4), Math.round(y + height + 4));
     }
 
+    // The tooltip says what the icon is about, the way now chosen (in the colour its tone has, when it has one) and
+    // the key that changes it, a line each
     _fillTip() {
-        this._tip.clutter_text.set_markup(this._describe());
+        const {heading, current, tone, key} = this._describe();
+        const [first, second, third] = this._lines;
+        first.text = heading;
+        second.text = current;
+        second.style_class = tone ? `amethystora-tiling-tone-${tone}` : 'amethystora-tiling-strong';
+        third.text = key ?? '';
+        third.visible = !!key;
     }
 });
 
@@ -146,7 +160,7 @@ export class TopBar {
     }
 
     _key(name) {
-        return GLib.markup_escape_text(keyLabel(this._tiling.keys.first(name)), -1);
+        return keyLabel(this._tiling.keys.first(name));
     }
 
     _describeMode() {
@@ -156,10 +170,10 @@ export class TopBar {
             [Mode.CENTRE]: _('Centre the focused window'),
             [Mode.EDGE]: _('Push to the nearest edge'),
         }[mode];
-        const heading = GLib.markup_escape_text(_('How this workspace scrolls to a window'), -1);
-        const current = `<span foreground="${MODE_COLOURS[mode]}">${GLib.markup_escape_text(name, -1)}</span>`;
-        const key = this._key('switch-focus-mode');
-        return key ? `${heading}\n${current}\n<i>${key}</i>` : `${heading}\n${current}`;
+        return {
+            heading: _('How this workspace scrolls to a window'), current: name, tone: MODE_TONES[mode],
+            key: this._key('switch-focus-mode'),
+        };
     }
 
     _describeOpen() {
@@ -168,10 +182,7 @@ export class TopBar {
             [Open.LEFT]: _('To the left'),
             [Open.DOWN]: _('Below'),
         }[this._tiling.openPosition] ?? _('To the right');
-        const heading = GLib.markup_escape_text(_('Where new windows open'), -1);
-        const key = this._key('switch-open-window-position');
-        const current = `<b>${GLib.markup_escape_text(name, -1)}</b>`;
-        return key ? `${heading}\n${current}\n<i>${key}</i>` : `${heading}\n${current}`;
+        return {heading: _('Where new windows open'), current: name, key: this._key('switch-open-window-position')};
     }
 
     // ---- The top bar per workspace ----

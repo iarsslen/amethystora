@@ -1,5 +1,8 @@
 /* The tiling's shapes and sizes. The focus box and the drop zones take GNOME's own tile-preview colours, and the
-   map GNOME's window-switcher panel, so the theme's accent reaches them without a rule here. */
+   map GNOME's window-switcher panel, so the theme's accent reaches them without a rule here. The tooltip, the hint,
+   the dimmed screen behind the workspace cards and the frames of the cards follow the theme, in the theme's
+   shell-tiling.css, whose selectors start from the shell's top group so that its rules always win. The colours here
+   stand in until a theme has been applied. */
 
 .amethystora-tiling-focus {
     border-radius: 12px 12px 0 0;
@@ -30,6 +33,32 @@
     border-radius: 8px;
     font-weight: 600;
     text-align: center;
+}
+
+/* The tooltip is a line of its own for what the icon is about, the setting now chosen and the key that changes it */
+.amethystora-tiling-tooltip StLabel {
+    text-align: center;
+}
+
+.amethystora-tiling-tooltip .amethystora-tiling-strong {
+    font-weight: bold;
+}
+
+.amethystora-tiling-tooltip .amethystora-tiling-key {
+    font-style: italic;
+}
+
+/* Each way the strip scrolls to a window has a colour of its own in the tooltip */
+.amethystora-tiling-tooltip .amethystora-tiling-tone-plain {
+    color: #6be67b;
+}
+
+.amethystora-tiling-tooltip .amethystora-tiling-tone-centre {
+    color: #6be6cb;
+}
+
+.amethystora-tiling-tooltip .amethystora-tiling-tone-edge {
+    color: #abe67b;
 }
 
 .amethystora-tiling-mode {
@@ -63,4 +92,5 @@
     border-width: 8px;
     border-style: solid;
     border-radius: 8px;
+    border-color: rgba(128, 128, 128, 0.6);
 }

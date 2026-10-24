@@ -408,7 +408,11 @@ done
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled)" == true ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.tiling.keybindings | wc -l)" == 54 ]]
 # The colours that follow the theme render whole for every shipped theme, through the theme switcher's own
-# render_templates: a colour a palette lacks would leave a {{ key }} in the shell's stylesheet
+# render_templates: a colour a palette lacks would leave a {{ key }} in the shell's stylesheet. The dock, the glass
+# and the tiling have theirs (their stylesheets keep only shapes and stand-ins), and the glob below renders each
+for module in dock glass tiling; do
+    test -s "/usr/share/amethystora/themed/shell-${module}.css.tpl"
+done
 UI_RENDER="$(mktemp -d)"
 for theme in /usr/share/amethystora/themes/*/; do
     mkdir -p "${UI_RENDER}/$(basename "${theme}")"

@@ -1,6 +1,10 @@
 /* The dock (modules/dock.js): its sizes and spacing, which never change with the theme. Its background is the glass,
    which the glass module draws behind the pill; the dock paints none of its own but, on a light theme, a faint dark
-   veil in the glass's own shape. The selectors start from GNOME's dash, whose rules the dock's row inherits. */
+   veil in the glass's own shape. The selectors start from GNOME's dash, whose rules the dock's row inherits.
+
+   The colours follow the theme, in the theme's shell-dock.css, whose selectors start one id higher so that its rules
+   always win. The ones here stand in until a theme has been applied. The light theme's veil has none: it stands
+   alone in the theme's file, since the glass's own colours for the dock in the overview must stay above it. */
 
 #dash.amethystora-dock-dash {
     padding: 0;
@@ -14,11 +18,6 @@
     border-radius: 32px;
     padding: 2px 0;
     margin: 1px 0 4px 0;
-}
-
-#dash.amethystora-dock-dash.amethystora-dock-light .dash-background {
-    background-color: rgba(30, 30, 36, 0.22);
-    border-color: rgba(255, 255, 255, 0.05);
 }
 
 /* The tiles sit 3 px inside the pill at its top, bottom and ends, 4 px apart */

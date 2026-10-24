@@ -25,6 +25,8 @@
 #      that applied a theme holds candy-icons in its dconf, which wins over the image's new default.
 #   9  candy-icons gone from the image: an account that chose it (~/.config/amethystora/icons) is put back on the
 #      theme's own pack, and the theme applied again writes Glass or Duotone in place of the name it held.
+#  10  the dock's, the tiling's and the glass's colours (themed/shell-dock|tiling|glass.css.tpl): an account's rendered
+#      theme folder has none of them until the theme is applied again.
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
@@ -33,7 +35,7 @@ source /usr/lib/amethystora/setup-services/libsetup.sh
 # chose in GNOME Settings included: the theme is applied again without picking a new one.
 PREVIOUS="$(jq -r '.version.user.theme // 0' "${SETUP_CHECKER_FILE}" 2>/dev/null || echo 0)"
 
-version-script theme user 9 || exit 0
+version-script theme user 10 || exit 0
 
 [[ "$(cat "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons" 2>/dev/null)" == candy-icons ]] &&
     rm -f "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons"

@@ -1059,7 +1059,13 @@ lose its settings (and a cache folder it left), unless they installed it themsel
   bar, the dock, menus, notifications, unfocused windows, the overview), drawn behind a surface by a `Clutter.Effect`
   with its own shader and never by `Shell.GLSLEffect`, which GNOME 51 no longer has (`20-tests.sh` fails on it in any
   extension of the image; the transitions draw their reveal the same way). The glass shows the wallpaper, not the window behind it. A module that
-  draws a surface of its own tells the glass through `glassSurfaces()` and `surfacesChanged()`.
+  draws a surface of its own tells the glass through `glassSurfaces()` and `surfacesChanged()`. An effect on an actor
+  switches Mutter's culling off for it, so an unfocused window whose whole pane lies under another unfocused glass window
+  loses its effect (`glass/windows.js`, recomputed on stacking, focus and size changes, never per frame). The dock's,
+  the tiling's and the glass's colours are `/usr/share/amethystora/themed/shell-{dock,tiling,glass}.css.tpl`, from the
+  theme's palette like every other module's, with neutral stand-ins in the module's own stylesheet for a theme not yet
+  applied (`11-theme.sh` applies it again at version 10, keeping the account's wallpaper); `20-tests.sh` renders each for
+  every shipped theme.
 - `connect`, GSConnect's top bar part: one icon, with the battery, while a paired phone is connected, and a menu to send
   files, send a link, ping and open the texts; the clipboard bridge. It only watches for the program's bus name, so it
   costs nothing while the phone link is off (see The phone link). Caffeine, never switched on, was dropped.
