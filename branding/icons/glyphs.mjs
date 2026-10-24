@@ -3,7 +3,10 @@
 // Each glyph is drawn in a 256 box, its content kept inside 36..220, with two inks: `ink`, the body, and `soft`, the
 // details on it. The packs render the same glyph twice (branding/icons.mjs): Glass fills the body with a gradient and
 // the details with a lighter one, Neon draws the body's outline lit and the details lit inside it. So a detail is a
-// separate shape over the body, never a hole cut into it, and a body is one silhouette.
+// separate shape over the body, never a hole cut into it, and a body is one silhouette. Neon draws every soft shape
+// over every body shape, so a shape drawn in `ink` on top of a soft one (the dots on a speech bubble) would vanish
+// under it: such a shape is drawn in a third ink, `over` (`over = ink` in the glyph's arguments: Glass and Duotone
+// give it the body's, Neon its own, lit in the details' colour, on top of everything).
 
 const f = n => +n.toFixed(1);
 
@@ -110,10 +113,10 @@ export const DRAW = {
     backups: ({ink, soft}) => `<circle cx="128" cy="128" r="54" fill="${ink}"/>` + arcArrow(128, 128, 78, 160, -100, 15, ink) +
         line('M128 98v32l22 14', soft, 13),
     // Community: two speech bubbles
-    community: ({ink, soft}) =>
+    community: ({ink, soft, over = ink}) =>
         `<path d="M62 52h92a22 22 0 0 1 22 22v50a22 22 0 0 1-22 22h-50l-30 26v-26h-12a22 22 0 0 1-22-22V74a22 22 0 0 1 22-22z" fill="${ink}"/>` +
         `<path d="M122 112h74a22 22 0 0 1 22 22v40a22 22 0 0 1-22 22h-6v24l-28-24h-40a22 22 0 0 1-22-22v-40a22 22 0 0 1 22-22z" fill="${soft}"/>` +
-        [136, 158, 180].map(x => `<circle cx="${x}" cy="154" r="7" fill="${ink}"/>`).join(''),
+        [136, 158, 180].map(x => `<circle cx="${x}" cy="154" r="7" fill="${over}"/>`).join(''),
 
     // ---- The system's apps -------------------------------------------------------------------------------------------
     monitor: ({ink, soft}) => `<rect x="40" y="48" width="176" height="128" rx="20" fill="${ink}"/>` +
@@ -125,9 +128,9 @@ export const DRAW = {
     drive: ({ink, soft}) => `<rect x="36" y="80" width="184" height="96" rx="24" fill="${ink}"/>` +
         line('M64 128h84', soft, 12) + `<circle cx="186" cy="128" r="10" fill="${soft}"/>`,
     // Tour: a compass
-    compass: ({ink, soft}) => `<circle cx="128" cy="128" r="80" fill="${ink}"/>` +
+    compass: ({ink, soft, over = ink}) => `<circle cx="128" cy="128" r="80" fill="${ink}"/>` +
         `<path d="M128 60l24 68-24 68-24-68z" fill="${soft}" stroke="${soft}" stroke-width="6" stroke-linejoin="round"/>` +
-        `<circle cx="128" cy="128" r="9" fill="${ink}"/>`,
+        `<circle cx="128" cy="128" r="9" fill="${over}"/>`,
     // Tweaks: a wrench
     wrench: ({ink}) => {
         const r = 40, hw = 14, y = 80, top = f(y - Math.sqrt(r * r - hw * hw));
@@ -166,9 +169,9 @@ export const DRAW = {
     contact: ({ink, soft}) => `<rect x="36" y="60" width="184" height="136" rx="24" fill="${ink}"/>` +
         `<circle cx="90" cy="112" r="20" fill="${soft}"/><path d="M58 168a32 28 0 0 1 64 0z" fill="${soft}"/>` +
         line('M142 104h52M142 128h52M142 152h34', soft, 11),
-    archive: ({ink, soft}) => `<rect x="56" y="40" width="144" height="176" rx="26" fill="${ink}"/>` +
+    archive: ({ink, soft, over = ink}) => `<rect x="56" y="40" width="144" height="176" rx="26" fill="${ink}"/>` +
         [0, 1, 2, 3, 4].map(i => `<rect x="${i % 2 ? 128 : 114}" y="${54 + i * 16}" width="14" height="10" rx="3" fill="${soft}"/>`).join('') +
-        `<rect x="110" y="138" width="36" height="46" rx="11" fill="${soft}"/><rect x="120" y="150" width="16" height="22" rx="5" fill="${ink}"/>`,
+        `<rect x="110" y="138" width="36" height="46" rx="11" fill="${soft}"/><rect x="120" y="150" width="16" height="22" rx="5" fill="${over}"/>`,
     chip: ({ink, soft}) => [0, 1, 2, 3].map(i => {
         const o = 82 + i * 26;
         return `<rect x="${o}" y="40" width="14" height="28" rx="5" fill="${soft}"/><rect x="${o}" y="188" width="14" height="28" rx="5" fill="${soft}"/>` +
@@ -255,8 +258,8 @@ export const DRAW = {
     "phone-link": ({ink, soft}) => `<rect x="58" y="40" width="104" height="176" rx="26" fill="${ink}"/>` +
         `<rect x="72" y="64" width="76" height="116" rx="10" fill="${soft}" fill-opacity="0.45"/><rect x="92" y="196" width="36" height="7" rx="3.5" fill="${soft}"/>` +
         line("M184 104a34 34 0 0 1 0 48", soft, 12) + line("M204 84a62 62 0 0 1 0 88", soft, 12),
-    usb: ({ink, soft}) => `<rect x="104" y="40" width="48" height="56" rx="6" fill="${soft}"/>` +
-        `<rect x="114" y="54" width="10" height="10" rx="2" fill="${ink}"/><rect x="132" y="54" width="10" height="10" rx="2" fill="${ink}"/>` +
+    usb: ({ink, soft, over = ink}) => `<rect x="104" y="40" width="48" height="56" rx="6" fill="${soft}"/>` +
+        `<rect x="114" y="54" width="10" height="10" rx="2" fill="${over}"/><rect x="132" y="54" width="10" height="10" rx="2" fill="${over}"/>` +
         `<rect x="88" y="92" width="80" height="124" rx="20" fill="${ink}"/>` + line('M114 150h28', soft, 9),
     card: ({ink, soft}) => `<path d="M72 40h84l44 44v116a16 16 0 0 1-16 16H72a16 16 0 0 1-16-16V56a16 16 0 0 1 16-16z" fill="${ink}"/>` +
         [0, 1, 2, 3].map(i => `<rect x="${78 + i * 20}" y="56" width="11" height="34" rx="4" fill="${soft}"/>`).join(''),

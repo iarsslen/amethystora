@@ -197,14 +197,20 @@ const PACKS = {
     neon: {
         name: 'Amethystora Neon',
         comment: 'Amethystora\'s own icons, their outlines lit in colours of their own',
-        draw: (glyph, [, prism]) => svg(gradient('g', prism) +
+        draw: (glyph, [, prism, detail]) => {
+            // What the glyph draws in its third ink, `over` (glyphs/glyphs.mjs): the shapes in the body's ink on top of a
+            // soft one, which the soft layer would paint over. They are lit last, in the details' colour
+            const lit = glyph({ink: 'none', soft: 'none', over: 'url(#d)'}), over = lit.includes('url(#d)') ? lit : '';
+            return svg(gradient('g', prism) + (over ? gradient('d', detail) : '') +
             // The body's outline: its alpha eroded and taken from it leaves a ring, blurred twice under itself
             '<filter id="n" x="-25%" y="-25%" width="150%" height="150%"><feMorphology in="SourceAlpha" operator="erode" radius="6" result="inner"/>' +
             '<feComposite in="SourceGraphic" in2="inner" operator="out" result="ring"/><feGaussianBlur in="ring" stdDeviation="5" result="glow"/>' +
             '<feMerge><feMergeNode in="glow"/><feMergeNode in="glow"/><feMergeNode in="ring"/></feMerge></filter>' +
             '<filter id="l" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="4" result="glow"/>' +
             '<feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>',
-        `<g filter="url(#n)">${glyph({ink: 'url(#g)', soft: 'none'})}</g><g filter="url(#l)">${glyph({ink: 'none', soft: 'url(#g)'})}</g>`),
+        `<g filter="url(#n)">${glyph({ink: 'url(#g)', soft: 'none', over: 'none'})}</g><g filter="url(#l)">${glyph({ink: 'none', soft: 'url(#g)', over: 'none'})}</g>` +
+            (over && `<g filter="url(#l)">${over}</g>`));
+        },
     },
     duotone: {
         name: 'Amethystora Duotone',

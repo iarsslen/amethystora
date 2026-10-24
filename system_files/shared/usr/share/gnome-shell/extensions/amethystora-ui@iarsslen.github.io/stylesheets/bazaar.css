@@ -2,40 +2,42 @@
    theme's palette, so its list follows the shell too: dark by default, and .amethystora-bazaar-light when the shell
    draws itself light. The checked mark and the focus ring are the shell's accent. */
 
+/* The list: two rows on one rounded, slightly raised panel */
 .amethystora-bazaar-choices {
   min-width: 300px;
   margin-top: 6px;
   border-radius: 12px;
-  background-color: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  background-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.22);
 }
 
+/* A row is one target. St does not clip a child to its parent's corners, so the outer rows round their own */
 .amethystora-bazaar-choice {
   max-width: 360px;
-  padding: 10px 14px;
-  border-radius: 0;
+  padding: 11px 14px;
 }
 
-.amethystora-bazaar-choice:first-child {
+.amethystora-bazaar-choices > .amethystora-bazaar-choice:first-child {
   border-radius: 12px 12px 0 0;
 }
 
-.amethystora-bazaar-choice:last-child {
+.amethystora-bazaar-choices > .amethystora-bazaar-choice:last-child {
   border-radius: 0 0 12px 12px;
 }
 
+/* Three steps of light over the panel: the pointer, the keyboard and the press. St draws the inset ring only over a
+   background of its own, so the keyboard's step has one too */
 .amethystora-bazaar-choice:hover {
-  background-color: rgba(255, 255, 255, 0.06);
+  background-color: rgba(255, 255, 255, 0.09);
+}
+
+.amethystora-bazaar-choice:focus {
+  background-color: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 2px -st-accent-color;
 }
 
 .amethystora-bazaar-choice:active {
-  background-color: rgba(255, 255, 255, 0.12);
-}
-
-/* St draws an inset ring only over a background of its own */
-.amethystora-bazaar-choice:focus {
-  background-color: rgba(255, 255, 255, 0.03);
-  box-shadow: inset 0 0 0 2px -st-accent-color;
+  background-color: rgba(255, 255, 255, 0.17);
 }
 
 .amethystora-bazaar-choice-box {
@@ -47,26 +49,27 @@
 }
 
 .amethystora-bazaar-choice-detail {
-  font-size: 0.9em;
-  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.88em;
+  color: rgba(255, 255, 255, 0.68);
 }
 
 .amethystora-bazaar-line {
   height: 1px;
-  background-color: rgba(0, 0, 0, 0.35);
+  background-color: rgba(0, 0, 0, 0.3);
 }
 
-/* The radio mark: a light grey ring, and the accent's ring round a white centre when chosen */
+/* The radio mark, 18 px across whatever it holds: a dim ring round nothing, and, once chosen, a thicker ring in the
+   accent round a white dot. Both are the same circle, so choosing a row does not move the text beside it */
 .amethystora-bazaar-mark {
-  width: 12px;
-  height: 12px;
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  border-radius: 999px;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  border-radius: 9px;
 }
 
 .amethystora-bazaar-choice:checked .amethystora-bazaar-mark {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border: 5px solid -st-accent-color;
   background-color: #ffffff;
 }
@@ -90,34 +93,34 @@
   box-shadow: inset 0 0 0 2px rgba(224, 27, 36, 0.6);
 }
 
-/* The same in the shell's light style */
+/* The same in the shell's light style: the lights become shades */
 .amethystora-bazaar-light .amethystora-bazaar-choices {
-  background-color: rgba(0, 0, 0, 0.04);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  background-color: rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
 }
 
 .amethystora-bazaar-light .amethystora-bazaar-choice:hover {
-  background-color: rgba(0, 0, 0, 0.05);
-}
-
-.amethystora-bazaar-light .amethystora-bazaar-choice:active {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: rgba(0, 0, 0, 0.06);
 }
 
 .amethystora-bazaar-light .amethystora-bazaar-choice:focus {
-  background-color: rgba(0, 0, 0, 0.03);
+  background-color: rgba(0, 0, 0, 0.04);
 }
 
-.amethystora-bazaar-light .amethystora-bazaar-choice-detail {
-  color: rgba(0, 0, 0, 0.65);
-}
-
-.amethystora-bazaar-light .amethystora-bazaar-line {
+.amethystora-bazaar-light .amethystora-bazaar-choice:active {
   background-color: rgba(0, 0, 0, 0.12);
 }
 
+.amethystora-bazaar-light .amethystora-bazaar-choice-detail {
+  color: rgba(0, 0, 0, 0.64);
+}
+
+.amethystora-bazaar-light .amethystora-bazaar-line {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
 .amethystora-bazaar-light .amethystora-bazaar-mark {
-  border-color: rgba(0, 0, 0, 0.35);
+  border-color: rgba(0, 0, 0, 0.38);
 }
 
 .amethystora-bazaar-light .amethystora-bazaar-choice:checked .amethystora-bazaar-mark {
