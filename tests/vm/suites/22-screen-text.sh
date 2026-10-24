@@ -97,6 +97,9 @@ sleep 4
 keys drag:0.08,0.3,0.92,0.7
 sleep 2
 keys ctrl+e
+# Gradia reads the picture and copies the text when it is done, and only a window that has the keyboard may set the
+# clipboard on Wayland: the history menu is not opened (it takes the keyboard) until the recognition has had its time
+sleep 45
 
 # What the clipboard holds is read as a person reads it, from the clipboard history's menu (Super+Shift+V):
 # wl-paste says "Nothing is copied" to a session with no window of its own, so it is not used:
