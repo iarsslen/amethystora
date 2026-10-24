@@ -41,28 +41,29 @@ brew_names() { sed -nE "s/^$1 \"([^\"]+)\".*/\1/p" <<<"${BREWFILE}" | jq -R . | 
 
 # The settings `ame setup` keeps, where the account changed them from the image's own, so that what a
 # later image changes still reaches it: the dock's apps, the keybindings (their keys, never a command),
-# PaperWM's gaps and the window layout. GSETTINGS_BACKEND=memory reads no dconf at all, so it gives the
+# and the window layout. GSETTINGS_BACKEND=memory reads no dconf at all, so it gives the
 # image's value (15-extensions.sh reads it the same way); the image's custom keybindings are in its
 # dconf database, which `dconf read -d` reads.
 KEY_SCHEMAS=(org.gnome.desktop.wm.keybindings org.gnome.shell.keybindings org.gnome.mutter.keybindings
     org.gnome.mutter.wayland.keybindings org.gnome.settings-daemon.plugins.media-keys
-    org.gnome.shell.extensions.paperwm.keybindings)
+    org.gnome.shell.extensions.amethystora-ui.tiling.keybindings)
 CUSTOM=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings
 
-# PaperWM, while it is on, empties GNOME's bindings that collide with its own, and keeps what they were in
-# restore-keybinds (JSON, in a string) to hand back when it is turned off: those are the account's, not the
-# empty ones. As "schema key value" lines, the value as gsettings prints a list.
-PAPERWM_KEPT="$(gsettings get org.gnome.shell.extensions.paperwm restore-keybinds 2>/dev/null |
-    sed -E -e "s/^'(.*)'\$/\\1/" -e 's/\\(.)/\1/g' | jq -r 'to_entries[] | (.value.bind | fromjson) as $keys
-        | "\(.value.schema_id) \(.key) " + if $keys == [] then "@as []"
-            else "[" + ($keys | map(@sh) | join(", ")) + "]" end' 2>/dev/null)"
+# The tiling, while it runs, takes a combination out of four GNOME keys that it cannot wrap in memory, and
+# writes down what it took in its state file, to put back when it is turned off: the account's own value is the
+# shorter list in dconf with those put back. As "schema key value" lines, the value as gsettings prints a list.
+TILING_STATE="${XDG_STATE_HOME:-${HOME}/.local/state}/amethystora/tiling.json"
+TILING_KEPT="$(jq -r '(.taken // [])[] as $t
+    | (reduce $t.removed[] as $r ($t.wrote; .[:$r.index] + [$r.accelerator] + .[$r.index:])) as $keys
+    | "\($t.schema) \($t.key) " + if $keys == [] then "@as []"
+        else "[" + ($keys | map(@sh) | join(", ")) + "]" end' "${TILING_STATE}" 2>/dev/null)"
 
 # The lines "schema key value" of a schema whose value is not the image's
 changed() {
     comm -13 <(GSETTINGS_BACKEND=memory gsettings list-recursively "$1" 2>/dev/null | sort) \
         <(gsettings list-recursively "$1" 2>/dev/null | awk 'NR == FNR { key = $1 " " $2; $1 = $2 = "";
             kept[key] = substr($0, 3); next } ($1 " " $2) in kept { print $1, $2, kept[$1 " " $2]; next } 1' \
-            <(printf '%s\n' "${PAPERWM_KEPT}") - | sort) | awk -v schema="$1" '$1 == schema'
+            <(printf '%s\n' "${TILING_KEPT}") - | sort) | awk -v schema="$1" '$1 == schema'
 }
 
 # A value as GSettings prints it, as JSON: the ones kept are lists of strings, strings and numbers
@@ -76,8 +77,6 @@ settings() {
         for schema in "${KEY_SCHEMAS[@]}"; do
             changed "${schema}" | awk '$2 != "custom-keybindings" && $3 ~ /^(\[|@as$)/'
         done
-        changed org.gnome.shell.extensions.paperwm |
-            awk '$2 ~ /^(window-gap|horizontal-margin|vertical-margin|vertical-margin-bottom)$/'
     } | while read -r schema key value; do
         value="$(as_json <<<"${value}")" && [[ -n "${value}" ]] || continue
         jq -nc --arg s "${schema}" --arg k "${key}" --argjson v "${value}" '{schema: $s, key: $k, value: $v}'
@@ -94,14 +93,13 @@ settings() {
 }
 
 LAYOUT=tiling
-[[ "$(cat "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/layout" 2>/dev/null)" == classic ]] && LAYOUT=classic
+[[ "$(gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled 2>/dev/null)" == false ]] && LAYOUT=classic
 SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" '
     map(if .schema == "custom" then .value |= (if . == "" then [] else [.] end) else . end) as $all
     | {layout: $layout}
     + ([$all[] | select(.schema == "org.gnome.shell")] | if length > 0 then {favorites: .[0].value} else {} end)
-    + {keybindings: (reduce ($all[] | select(.schema | IN("org.gnome.shell", "org.gnome.shell.extensions.paperwm") | not))
-        as $e ({}; .[$e.schema][$e.key] = $e.value))}
-    + {paperwm: (reduce ($all[] | select(.schema == "org.gnome.shell.extensions.paperwm")) as $e ({}; .[$e.key] = $e.value))}')"
+    + {keybindings: (reduce ($all[] | select(.schema != "org.gnome.shell"))
+        as $e ({}; .[$e.schema][$e.key] = $e.value))}')"
 
 # The image the machine runs, which is the one it follows, as rpm-ostree has it (amethystora-deployments
 # asks bootc on a sealed image)

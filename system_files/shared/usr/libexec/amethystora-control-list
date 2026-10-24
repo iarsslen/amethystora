@@ -257,7 +257,7 @@ GROUP=""
 
 # --- Desktop ---------------------------------------------------------------------------------------
 
-LAYOUT="$(cat "${CONFIG_DIR}/layout" 2>/dev/null || echo tiling)"
+if [[ "$(gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled 2>/dev/null)" == false ]]; then LAYOUT=classic; else LAYOUT=tiling; fi
 choice tiling "$(gettext "Tiling")" \
     "$(gettext "Windows open side by side on a strip that scrolls, arranged for you")" false ame desktop layout tiling
 choice classic "$(gettext "Classic")" \

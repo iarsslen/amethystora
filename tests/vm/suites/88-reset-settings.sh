@@ -39,7 +39,7 @@ in_card() {
     STATUS=$?
 }
 dconf_get() { runuser -u "${TEST_USER}" -- dconf read "$1"; }
-paperwm_on() { runuser -u "${TEST_USER}" -- gsettings get org.gnome.shell enabled-extensions | grep -qF "'paperwm@paperwm.github.com'"; }
+tiling_on() { [[ "$(runuser -u "${TEST_USER}" -- gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled)" == true ]]; }
 theme() { as_user amethystora-theme current; }
 failed_units() { systemctl --failed --no-legend --plain | awk '{print $1}' | sort; }
 enabled() { [[ "$(systemctl is-enabled "$1" 2>/dev/null)" == "$2" ]]; }
@@ -57,8 +57,8 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     in_session amethystora-theme set tokyo-night >/dev/null 2>&1
     in_session ame desktop layout classic >/dev/null 2>&1
     welcome="$(dconf_get /org/gnome/shell/welcome-dialog-last-shown-version)"
-    if [[ "$(theme)" != tokyo-night ]] || paperwm_on; then
-        not_ok "the account could not be changed first" "theme $(theme), PaperWM $(paperwm_on && echo on || echo off)"
+    if [[ "$(theme)" != tokyo-night ]] || tiling_on; then
+        not_ok "the account could not be changed first" "theme $(theme), tiling $(tiling_on && echo on || echo off)"
         finish
     fi
 
@@ -70,7 +70,7 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
             "$(tail -n 25 <<<"${OUT}")"
     fi
     check "the theme is the image's again" test "$(theme)" == amethystora
-    check "and the layout tiles again, with PaperWM on" sh -c "test ! -e ${HOME_DIR}/.config/amethystora/layout && runuser -u ${TEST_USER} -- gsettings get org.gnome.shell enabled-extensions | grep -qF paperwm@"
+    check "and the layout tiles again, with the tiling on" sh -c "runuser -u ${TEST_USER} -- gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled | grep -qx true"
     check "the keyboards stay" test "$(dconf_get /org/gnome/desktop/input-sources/sources)" == "[('xkb', 'us'), ('xkb', 'fr')]"
     check "the on-screen keyboard and the larger text stay" test \
         "$(dconf_get /org/gnome/desktop/a11y/applications/screen-keyboard-enabled) $(dconf_get /org/gnome/desktop/interface/text-scaling-factor)" == "true 1.25"
@@ -81,11 +81,11 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     [[ -z "${crashed}" ]] && ok "nothing of the session crashed" || not_ok "something of the session crashed" "${crashed}"
 
     out="$(in_session ame system reset-settings undo account 2>&1)"
-    if [[ "$(dconf_get /org/gnome/desktop/interface/clock-show-seconds)" == true && "$(theme)" == tokyo-night ]] && ! paperwm_on &&
+    if [[ "$(dconf_get /org/gnome/desktop/interface/clock-show-seconds)" == true && "$(theme)" == tokyo-night ]] && ! tiling_on &&
         [[ -d "${save}.undone" ]]; then
         ok "undo brings the account's settings, theme and layout back, and keeps the save as ${save##*/}.undone"
     else
-        not_ok "undo did not bring the account's settings back" "clock-show-seconds $(dconf_get /org/gnome/desktop/interface/clock-show-seconds), theme $(theme), PaperWM $(paperwm_on && echo on || echo off)" \
+        not_ok "undo did not bring the account's settings back" "clock-show-seconds $(dconf_get /org/gnome/desktop/interface/clock-show-seconds), theme $(theme), tiling $(tiling_on && echo on || echo off)" \
             "${out}" "$(ls -a "${save%/*}")"
     fi
     # The account as the suites after this one expect it

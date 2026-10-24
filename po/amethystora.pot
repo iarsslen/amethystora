@@ -1928,7 +1928,7 @@ msgstr ""
 msgid "Tiling"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
 msgid "Windows open side by side on a strip that scrolls, arranged for you"
 msgstr ""
 
@@ -4413,10 +4413,6 @@ msgid "Icons: ${pack}."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
-msgid "Windows open side by side on a strip that scrolls, arranged for you (PaperWM)"
-msgstr ""
-
-#: usr/share/amethystora/just/desktop.just
 #, sh-format
 msgid "Layout (current: ${current})"
 msgstr ""
@@ -6680,6 +6676,50 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
 msgid "Frame the area"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/patches.js
+msgid "Float above the strip"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/session.js
+msgid "Space puts the window down here, Tab goes through the windows you carry, Q closes them"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
+msgid "Focus mode"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
+msgid "Where new windows open"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
+msgid "Keep in view"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
+msgid "Centre the focused window"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
+msgid "Push to the nearest edge"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
+msgid "How this workspace scrolls to a window"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
+msgid "To the right"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
+msgid "To the left"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
+msgid "Below"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js

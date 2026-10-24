@@ -29,17 +29,6 @@
   // instead of hand-merging main into them.
   "rebaseWhen": "behind-base-branch",
 
-  // extensions.gnome.org's answer for an extension: the upload for the GNOME
-  // the image ships (GNOME 50 on Fedora 44; move it with the Fedora version)
-  customDatasources: {
-    'extensions-gnome-org': {
-      defaultRegistryUrlTemplate: 'https://extensions.gnome.org/extension-info/?uuid={{packageName}}&shell_version=50',
-      transformTemplates: [
-        '{"releases": [{"version": $string(version_tag)}]}',
-      ],
-    },
-  },
-
     customManagers: [
     // The base images in image-versions.yml, each pinned by digest under its
     // tag. bump-base-images.yml proposes the same updates daily, verified
@@ -55,20 +44,6 @@
       ],
       datasourceTemplate: 'docker',
       depTypeTemplate: 'base-image',
-    },
-    // The extensions.gnome.org uploads build-gnome-extensions.sh installs,
-    // by upload id
-    {
-      customType: 'regex',
-      managerFilePatterns: [
-        '/^build_files/shared/build-gnome-extensions\\.sh$/',
-      ],
-      matchStrings: [
-        '\\ninstall_ego_extension "(?<depName>[^"]+)" \\d+ (?<currentValue>\\d+) ',
-      ],
-      datasourceTemplate: 'custom.extensions-gnome-org',
-      versioningTemplate: 'loose',
-      depTypeTemplate: 'gnome-extension-upload',
     },
     // The Syft release reusable-build.yml makes the SBOM with, with the
     // SHA-256 of its tarball, which this datasource works out for the new
@@ -322,7 +297,7 @@
       "matchPackageNames": ["sigstore/cosign-installer"],
       "allowedVersions": "<4"
     },
-    // candy-icons, Sweet and the extensions.gnome.org uploads are pinned
+    // candy-icons and Sweet are pinned
     // with the SHA-256 of what is downloaded, which Renovate cannot work out
     // for these. Their updates are listed on the Dependency Dashboard rather
     // than opened as pull requests whose build would fail; the pin and its
@@ -330,10 +305,6 @@
     // the update.
     {
       "matchDepNames": ["EliverLara/candy-icons", "EliverLara/Sweet"],
-      "dependencyDashboardApproval": true
-    },
-    {
-      "matchDepTypes": ["gnome-extension-upload"],
       "dependencyDashboardApproval": true
     },
     {

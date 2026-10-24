@@ -320,9 +320,9 @@ EOF
     mapfile -t argv < <(item transition-length | jq -r --arg v "${length:-1000}" '.command[] | if . == "{value}" then $v else . end')
     run_argv "and back to ${length} ms" "[[ \"\$(state transition-length)\" == '${length}' ]]" -- "${argv[@]}"
 
-    paperwm_on() { runuser -u "${TEST_USER}" -- gsettings get org.gnome.shell enabled-extensions | grep -qF "'paperwm@paperwm.github.com'"; }
-    set_direct layout classic "! paperwm_on" "[[ \$(cat ${CONFIG}/layout) == classic ]]"
-    set_direct layout tiling "paperwm_on" "[[ ! -e ${CONFIG}/layout ]]"
+    tiling_on() { [[ "$(runuser -u "${TEST_USER}" -- gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled)" == true ]]; }
+    set_direct layout classic "! tiling_on"
+    set_direct layout tiling "tiling_on"
     keep="$(state clipboard)"
     set_direct clipboard session \
         "[[ \"\$(runuser -u ${TEST_USER} -- gsettings get org.gnome.shell.extensions.amethystora-clipboard keep-history)\" == \"'session'\" ]]"

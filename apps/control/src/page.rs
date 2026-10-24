@@ -57,7 +57,6 @@ fn area(name: &str) -> Option<String> {
         "layout" => t!("Window layout"),
         "favorites" => t!("The dock's apps"),
         "keybinding" => t!("Keybinding"),
-        "gap" => t!("PaperWM's gaps"),
         _ => return None,
     })
 }
@@ -1488,7 +1487,6 @@ mod tests {
         assert_eq!(change_name(&json!({"area": "keybinding", "schema": "org.gnome.desktop.wm.keybindings", "key": "close"})), "org.gnome.desktop.wm.keybindings close");
         assert_eq!(change_name(&json!({"area": "flatpak", "app": "org.gimp.GIMP"})), "org.gimp.GIMP");
         assert_eq!(change_name(&json!({"area": "theme", "to": "nord", "from": "amethystora"})), "nord");
-        assert_eq!(change_name(&json!({"area": "gap", "key": "window-gap", "from": 12})), "window-gap");
         assert_eq!(change_name(&json!({"area": "image", "name": "amethystora", "to": "amethystora:stable"})), "amethystora");
         assert_eq!(change_kind(&json!({"ok": false, "action": "add"})), "cannot");
         assert_eq!(change_kind(&json!({"ok": true, "action": "set"})), "set");

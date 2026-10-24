@@ -1041,8 +1041,16 @@ lose its settings (and a cache folder it left), unless they installed it themsel
   that forgives typos, with Parental Controls' filter kept and nothing on disk.
 - `screenshot` and `bazaar`, Gradia's and Bazaar's integrations: the drawing tools over GNOME's screenshot bar and
   Extract Text's hand-off to Gradia (`--ocr-file`); Uninstall and Bazaar's page in GNOME's app menu.
-- Still upstream: Dash to Dock and Blur my Shell (the `dock` and `glass` modules are being written), PaperWM (`tiling`)
-  and GSConnect, which stays (a phone program, off by default). Caffeine, never switched on, was dropped.
+- `tiling`, PaperWM: windows side by side on a strip that scrolls to the focused one (`modules/tiling/`, the strip's
+  arithmetic apart in `layout.js`). One setting, `enabled` in `org.gnome.shell.extensions.amethystora-ui.tiling`, which
+  is the classic layout when false (`ame desktop layout`; an update leaves it as it is), and 54 keys in `...tiling.keybindings`
+  whose defaults are the image's. It takes a GNOME shortcut's combination only where one of its own collides with it:
+  in memory for the keys it can wrap, and, for the four it cannot (`focus-active-notification`, `shift-overview-up/down`,
+  `rotate-video-lock-static`), by removing the combination in dconf and writing down what it took in
+  `~/.local/state/amethystora/tiling.json` (`taken`), which `amethystora-setup-manifest` reads to keep the account's own value
+  and the module gives back when it is off. `21-retire-paperwm.sh` hands an account over from PaperWM once.
+- Still upstream: Dash to Dock and Blur my Shell (the `dock` and `glass` modules are being written) and GSConnect,
+  which stays (a phone program, off by default). Caffeine, never switched on, was dropped.
 
 ### The icon packs
 
@@ -1110,9 +1118,8 @@ it.
 - `user-setup.hooks.d/17-welcome.sh` opens `amethystora-manual welcome` once per account, through
   `systemd-run --user`, because the setup service kills what it leaves behind. The Manual itself
   spawns nothing. Ninety seconds later, `/usr/libexec/amethystora-layout-offer` offers classic windows
-  in a notification, which only `ame desktop layout classic` acts on. The classic layout is PaperWM
-  turned off, remembered in `~/.config/amethystora/layout`, which `15-extensions.sh` reads so that the
-  update that turns the image's extensions back on leaves PaperWM off.
+  in a notification, which only `ame desktop layout classic` acts on. The classic layout is the tiling
+  turned off in its own key, which an update leaves as it is.
 - `amethystora-gpu-check.timer` offers the image whose driver drives the machine's NVIDIA card (PCI class
   `0x03`, vendor `0x10de`, by device ID, see Drivers), or the image without the driver on one with no card
   NVIDIA's driver drives, once per machine, through `amethystora-notify-users --action` and `ame system rebase IMAGE STREAM`. It
@@ -1137,7 +1144,7 @@ the machine and everything that is an address or a script (the Flatpak remotes, 
 and package managers of the account's own, the AUR's switch). A file can be shared, so it names things
 only. Its settings are a fixed short list, and only where the account changed them from the image: the
 layout, the dock's apps, keybindings by schema and key (the image's own custom keybindings by id, and
-only their binding) and PaperWM's gaps. Never add a GNOME key that can hold a command, or a field that
+only their binding). Never add a GNOME key that can hold a command, or a field that
 is an address. The script refuses a file with a key or a name it does not know, `save` included;
 `apply` shows what it adds and sets and asks first (`--yes` skips that), and takes nothing away without
 `--remove`, which always asks in a terminal. `build_files/shared/test-setup.sh`, run by `20-tests.sh`

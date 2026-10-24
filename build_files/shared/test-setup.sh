@@ -12,11 +12,18 @@ T="$(mktemp -d)"
 trap 'rm -rf "${T}"' EXIT
 mkdir -p "${T}/bin" "${T}/home"
 export HOME="${T}/home" XDG_CONFIG_HOME="${T}/home/.config" XDG_DATA_HOME="${T}/home/.local/share"
+export XDG_STATE_HOME="${T}/home/.local/state"
 export PATH="${T}/bin:${PATH}" LOG="${T}/log"
 : >"${LOG}"
 
+# The tiling has taken Super+N out of GNOME's focus-active-notification, which is the account's own and was
+# not changed by it, and says so in its state file
+mkdir -p "${XDG_STATE_HOME}/amethystora"
+echo '{"taken": [{"schema": "org.gnome.shell.keybindings", "key": "focus-active-notification",
+    "removed": [{"accelerator": "<Super>n", "index": 0}], "wrote": []}]}' >"${XDG_STATE_HOME}/amethystora/tiling.json"
+
 # A machine with two apps, three things from Homebrew, a container, an extension and a theme, whose
-# dock, close key, terminal key and window gap are not the image's. What would change it is only logged.
+# dock, close key, terminal key and tiling key are not the image's. What would change it is only logged.
 cat >"${T}/bin/stub" <<'EOF'
 #!/usr/bin/bash
 CUSTOM=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings
@@ -42,12 +49,13 @@ case "${0##*/}" in
 org.gnome.shell enabled-extensions @as []
 org.gnome.desktop.wm.keybindings close ['<Super>w']
 org.gnome.desktop.wm.keybindings maximize ['<Super>Up']
-org.gnome.shell.extensions.paperwm window-gap 8
-org.gnome.shell.extensions.paperwm vertical-margin 8"
+org.gnome.shell.keybindings focus-active-notification ['<Super>n']
+org.gnome.shell.extensions.amethystora-ui.tiling.keybindings cycle-width ['<Super>r']"
         values="org.gnome.shell favorite-apps ['org.gnome.Nautilus.desktop', 'firefox.desktop']
 org.gnome.shell enabled-extensions ['dash-to-dock@micxgx.gmail.com']
 org.gnome.desktop.wm.keybindings close ['<Super>q']
-org.gnome.shell.extensions.paperwm window-gap 12"
+org.gnome.shell.keybindings focus-active-notification @as []
+org.gnome.shell.extensions.amethystora-ui.tiling.keybindings cycle-width ['<Super>e']"
         [[ "${GSETTINGS_BACKEND:-}" == memory ]] && values=""
         value() { grep "^$1 $2 " <<<"${values}" || grep "^$1 $2 " <<<"${defaults}"; }
         case "$1" in
@@ -57,7 +65,7 @@ org.gnome.shell.extensions.paperwm window-gap 12"
             get)
                 if [[ "$2" == *custom-keybinding:* ]]; then echo "'<Super>t'"; else value "$2" "$3" | cut -d' ' -f3-; fi
                 ;;
-            range) [[ "$2" == *paperwm ]] && echo "type i" || echo "type as" ;;
+            range) echo "type as" ;;
             *) echo "gsettings $*" >>"${LOG}" ;;
         esac
         ;;
@@ -100,8 +108,8 @@ jq -e '.version == 1 and .theme == "nord" and .flatpaks.user == [{"app": "org.gi
     and .containers == [{"name": "debian", "template": "debian", "init": false, "packages": ["htop"]}]
     and .extensions == ["dash-to-dock@micxgx.gmail.com"]
     and .settings == {"layout": "tiling", "favorites": ["org.gnome.Nautilus.desktop", "firefox.desktop"],
-        "keybindings": {"org.gnome.desktop.wm.keybindings": {"close": ["<Super>q"]}, "custom": {"custom20": ["<Super>t"]}},
-        "paperwm": {"window-gap": 12}}
+        "keybindings": {"org.gnome.desktop.wm.keybindings": {"close": ["<Super>q"]}, "custom": {"custom20": ["<Super>t"]},
+            "org.gnome.shell.extensions.amethystora-ui.tiling.keybindings": {"cycle-width": ["<Super>e"]}}}
     and (keys - ["version", "image", "flatpaks", "brew", "containers", "extensions", "theme", "settings"] == [])' \
     "${FILE}" >/dev/null
 "${SETUP}" save - | cmp -s - "${FILE}"
@@ -109,6 +117,11 @@ jq -e '.version == 1 and .theme == "nord" and .flatpaks.user == [{"app": "org.gi
 # Applying what save just wrote does nothing, and says so
 grep -q "^Nothing to do" <<<"$("${SETUP}" apply --yes)"
 grep -q "^This machine is as " <<<"$("${SETUP}" diff)"
+[[ ! -s "${LOG}" ]]
+
+# A file from before the tiling replaced PaperWM still holds its gaps, which are read and ignored
+jq '.settings.paperwm = {"window-gap": 20}' "${FILE}" >"${T}/old.json"
+grep -q "^Nothing to do" <<<"$("${SETUP}" apply --yes "${T}/old.json")"
 [[ ! -s "${LOG}" ]]
 
 # Against a file that names nothing, diff lists everything here, as what apply --remove would take away

@@ -237,7 +237,6 @@ account() {
     echo user-db:user >"${PROFILE}"
     own_dconf dump / >"${save}/dconf.ini" || die "Could not read your settings, so nothing changed."
     [[ -d "${CONFIG}/current" ]] && cp -a "${CONFIG}/current" "${save}/current"
-    [[ -e "${CONFIG}/layout" ]] && cp -a "${CONFIG}/layout" "${save}/layout"
     for index in "${!KEEP_DCONF[@]}"; do
         own_dconf dump "${KEEP_DCONF[index]}" >"${save}/kept-${index}.ini"
     done
@@ -253,7 +252,6 @@ account() {
         [[ -z "${values[index]}" ]] || own_dconf write "${KEEP_KEYS[index]}" "${values[index]}"
     done
     rm -rf "${CONFIG}/current"
-    rm -f "${CONFIG}/layout"
     # What the first login set, again: the theme, and a Framework laptop's scrolling and text size
     if [[ -f "${SETUP_CHECKER_FILE}" ]]; then
         jq 'del(.version.user.theming, .version.user.theme)' "${SETUP_CHECKER_FILE}" >"${SETUP_CHECKER_FILE}.new" &&
@@ -273,11 +271,6 @@ undo_account() {
     own_dconf reset -f / && own_dconf load / <"${save}/dconf.ini" || die "dconf could not bring your settings back from ${save}."
     rm -rf "${CONFIG}/current"
     [[ -d "${save}/current" ]] && cp -a "${save}/current" "${CONFIG}/current"
-    if [[ -e "${save}/layout" ]]; then
-        cp -a "${save}/layout" "${CONFIG}/layout"
-    else
-        rm -f "${CONFIG}/layout"
-    fi
     # The theme's files outside dconf, the terminal's and the apps', for the theme it had
     [[ -d "${CONFIG}/current" ]] && AMETHYSTORA_THEME_QUIET=1 amethystora-theme reload >/dev/null 2>&1
     mv "${save}" "${save}.undone"

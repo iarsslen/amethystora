@@ -132,9 +132,10 @@ opens that part of it.
 
 ## Tiling windows
 
-PaperWM arranges the windows for you. Each workspace is a strip of windows standing side by side at
+The desktop arranges the windows for you. Each workspace is a strip of windows standing side by side at
 full height, and the strip can be wider than the screen. A new window opens to the right of the one
-you are on, windows never overlap, and the strip scrolls to keep the focused window in view:
+you are on, windows never overlap, and the strip scrolls to keep the focused window in view, which a
+frame around it marks:
 
 ```
   ┌────────┬──────────────┬──────────────────────┬────────┐
@@ -145,8 +146,9 @@ you are on, windows never overlap, and the strip scrolls to keep the focused win
 
 Mail and Chat are still open, just off the edge. `Super+Left` scrolls back to Mail. Push the pointer
 against the left or right edge of the screen to see what is beyond it, and click a window there to
-go to it. On a touchpad, swipe sideways with three fingers to slide the strip, and up or down to change
-workspace.
+go to it. On a touchpad, swipe sideways with three fingers to slide the strip, up to open the overview,
+and down to see the workspaces you have been on as a pile of cards. Drag a window by its title bar and
+drop it where you want it in the strip, or against a screen edge to see where it will go first.
 
 The keys follow one pattern. `Super` and an arrow moves to another window. Add `Ctrl` and the window
 moves instead. Add `Shift` and you go to another monitor.
@@ -158,14 +160,16 @@ moves instead. Add `Shift` and you go to another monitor.
 | `Super+Left` / `Super+Right` | The window to the left / right |
 | `Super+Up` / `Super+Down` | The window above / below, when windows share a column |
 | `Super+Home` / `Super+End` | The first / last window on the workspace |
-| `Super+[` / `Super+]` | Slide the strip without changing the focused window |
+| `Super+[` / `Super+]` | Slide the strip; the window most in view is the one you land on when you let go of `Super` |
+| `Super+Page Up` / `Super+Page Down` | The previous / next workspace, shown as cards in a row |
+| `Super+Alt+Left` / `Right` / `Up` / `Down` | Swap this monitor's windows with the ones on the monitor in that direction |
 | `Super+Shift` and an arrow | The monitor in that direction |
 
 ### Arranging
 
 | Key | Does |
 | --- | --- |
-| `Super+Ctrl+Left` / `Super+Ctrl+Right` | Move the window left / right along the strip |
+| `Super+Ctrl+Left` / `Super+Ctrl+Right` | Move the window, with the whole column it is in, left / right along the strip |
 | `Super+Ctrl+Up` / `Super+Ctrl+Down` | Move it up / down in its column |
 | `Super+I` | Pull the window on the right into this column, below this one |
 | `Super+O` | Push the bottom window of this column out into a column of its own |
@@ -178,10 +182,10 @@ moves instead. Add `Shift` and you go to another monitor.
 
 | Key | Does |
 | --- | --- |
-| `Super+R` | Step the width through 38%, 50% and 62% of the screen (`Super+Alt+R` steps back) |
+| `Super+R` | Step the width through 38%, 50% and 62% of the screen less its margins (`Super+Alt+R` steps back) |
 | `Super+Shift+R` | The same for the height of a window in a column (`Super+Alt+Shift+R` steps back) |
 | `Super` and `+` / `-` | Widen / narrow the window a step; with `Shift` as well, its height |
-| `Super+F` | Fill the width of the screen, and back |
+| `Super+F` | Fill the width of the screen, and back; maximising a window does the same |
 | `Super+C` | Centre the window on the screen |
 | `Super+Shift+C` | Where the strip scrolls a focused window to: just into view, the centre or the edge |
 | `Super+Shift+W` | Where new windows open: to the right, to the left, or below this one |
@@ -189,8 +193,8 @@ moves instead. Add `Shift` and you go to another monitor.
 ### Floating windows
 
 Dialogs float above the strip on their own. `Super+Ctrl+Escape` lifts the focused window out of the
-strip so that it floats as well, and puts it back. `Super+Alt+Escape` hides every window floated
-that way at once, and brings them back.
+strip so that it floats as well, and puts it back; the window's menu has the same as **Float above the
+strip**. `Super+Alt+Escape` hides every window floated that way at once, and brings them back.
 
 ### And the rest
 
@@ -199,8 +203,10 @@ that way at once, and brings them back.
 | `Super+N` | A new window of the app you are in |
 | `Super+Ctrl+B` | Hide or show the top bar on this workspace |
 
-PaperWM's settings are under **PaperWM** in **Extension Manager**. That includes the gaps, the
-widths `Super+R` steps through, and every key, some of which this page leaves out.
+The tiling has no settings window: the gaps and the widths `Super+R` steps through are the image's.
+Every key, some of which this page leaves out, is in the keybindings schema
+`org.gnome.shell.extensions.amethystora-ui.tiling.keybindings`, which `gsettings` changes and
+[the setup file](setup.md) keeps.
 
 ### Classic windows
 
@@ -211,7 +217,7 @@ classic layout:
 ame desktop layout classic
 ```
 
-It turns PaperWM off, and updates leave it off. Windows then open where GNOME puts them and you drag
+It turns the tiling off, and updates leave it off. Windows then open where GNOME puts them and you drag
 them by the title bar. `Super+Up` maximises and `Super+Down` restores, `Super+Left` / `Super+Right` put
 a window on that half of the screen, and `Super+Shift+Left` / `Super+Shift+Right` move it to the next
 monitor. `ame desktop layout tiling` brings the strip back. The first time you log in, a notification
@@ -245,11 +251,10 @@ These GNOME Shell extensions come with the image:
 
 | Extension | What it does |
 | --- | --- |
-| PaperWM | [Tiling](#tiling-windows): windows side by side on a scrolling strip |
 | Dash to Dock | The dock |
 | Amethystora Clipboard | The [clipboard history](#the-clipboard) on `Super+Shift+V`, sealed: a copy of Clipboard Indicator |
 | Blur my Shell | The frosted glass behind the panel, the overview, menus and notifications, and windows you are not using made slightly see-through (**Applications** in its settings) |
-| Amethystora UI | Amethystora's own desktop, written for this image: the workspaces, the meters and the tray icons in the top bar, the search on `Super+Space` app search that forgives typos, drawing on a screenshot and [copying the text out of it](#copying-text-from-the-screen), and uninstalling an app from its menu, quicker animations, no popup when you change workspace, and no Activities button |
+| Amethystora UI | Amethystora's own desktop, written for this image: [tiling windows](#tiling-windows) side by side on a scrolling strip, the workspaces, the meters and the tray icons in the top bar, the search on `Super+Space` app search that forgives typos, drawing on a screenshot and [copying the text out of it](#copying-text-from-the-screen), and uninstalling an app from its menu, quicker animations, no popup when you change workspace, and no Activities button |
 | GSConnect | Your Android phone, on the [networks you name home](security.md#on-from-the-start): notifications, files, clipboard, texts. Off until you [turn it on](hardware.md#phones) |
 | Logo menu | The Amethystora logo at the top left and [its menu](#the-top-bar) of the system's tools |
 | Amethystora Transitions | The animation that reveals a new theme or wallpaper ([Transitions](themes.md#transitions)) |
@@ -258,7 +263,7 @@ These GNOME Shell extensions come with the image:
 Turn any of them off, or change their settings, in **Extension Manager**. One thing to know: after
 every image update the image's own extensions are switched back on, so that one turned off by
 accident, or by a crash, does not stay off for good. Turning one off lasts until the next update. The
-exception is PaperWM under the [classic layout](#classic-windows), which stays off.
+[classic layout](#classic-windows) is not an extension turned off, so it stays as you set it.
 
 ## Files
 

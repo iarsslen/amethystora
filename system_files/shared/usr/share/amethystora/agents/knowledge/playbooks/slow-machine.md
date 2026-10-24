@@ -56,7 +56,7 @@ slows down at certain times (an hour after start, at night, once a week).
 6. The user may run `ame security kernel-args init_on_free=1 off` (or `iommu.strict=1`) (root)
    (restart).
 7. Clean the vents; pick Balanced or Performance in the quick settings.
-8. `gnome-extensions disable UUID`; an image extension comes back with the next update. For PaperWM,
+8. `gnome-extensions disable UUID`; an image extension comes back with the next update. For the tiling,
    `change` the Control entry `layout` to `classic`.
 9. `change` the Control entry `scheduler` to `bpfland` (root); it falls back to the kernel's own if the
    kernel refuses it.

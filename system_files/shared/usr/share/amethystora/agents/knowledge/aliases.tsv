@@ -98,7 +98,7 @@ widget	widgets top bar
 top bar	panel widgets
 dock	dash favourites favorite-apps
 window	windows layout tiling paperwm
-tiling	paperwm layout windows
+tiling	paperwm layout windows scrolling strip
 battery	power profile powerprofilesctl
 fan	performance cpu power thermal
 hot	thermal fan cpu

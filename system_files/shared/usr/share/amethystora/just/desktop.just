@@ -95,33 +95,29 @@ icons PACK="":
     gsettings set org.gnome.desktop.interface icon-theme "${name}"
     echo "$(eval_gettext "Icons: \${pack}.")"
 
-# Pick how windows are arranged: tiling, side by side on a strip (PaperWM), or classic, floating as on Windows and macOS
+# Pick how windows are arranged: tiling, side by side on a strip, or classic, floating as on Windows and macOS
 [positional-arguments]
 layout STYLE="":
     #!/usr/bin/bash
     set -euo pipefail
     # shellcheck source=/dev/null
     source gettext.sh
-    # Read by user-setup.hooks.d/15-extensions.sh, which turns the image's extensions back on after every
-    # update and leaves PaperWM off while this says classic
-    flag="${XDG_CONFIG_HOME:-$HOME/.config}/amethystora/layout"
-    current="$(cat "${flag}" 2>/dev/null || echo tiling)"
+    # The tiling is a module of Amethystora UI with one switch, which an update leaves as the account has it
+    schema=org.gnome.shell.extensions.amethystora-ui.tiling
+    if [[ "$(gsettings get "${schema}" enabled)" == false ]]; then current=classic; else current=tiling; fi
     style="${1:-}"
     if [[ -z "${style}" ]]; then
-        echo "tiling   $(gettext "Windows open side by side on a strip that scrolls, arranged for you (PaperWM)")"
+        echo "tiling   $(gettext "Windows open side by side on a strip that scrolls, arranged for you")"
         echo "classic  $(gettext "Windows float and overlap, and you move and size them, as on Windows and macOS")"
         style="$(gum choose --header "$(eval_gettext "Layout (current: \${current})")" --selected "${current}" tiling classic)"
     fi
     case "${style}" in
         classic)
-            mkdir -p "$(dirname "${flag}")"
-            echo classic >"${flag}"
-            gnome-extensions disable paperwm@paperwm.github.com
+            gsettings set "${schema}" enabled false
             echo "$(gettext "Classic: windows float. Drag one by its title bar, Super+Up maximises it, Super+Down restores it, and Super+Left or Super+Right puts it on that half of the screen.")"
             ;;
         tiling)
-            rm -f "${flag}"
-            gnome-extensions enable paperwm@paperwm.github.com
+            gsettings set "${schema}" enabled true
             echo "$(gettext "Tiling: new windows open beside the one you are on, and Super+Left and Super+Right move between them. The keys are in the manual: amethystora-manual desktop#tiling-windows")"
             ;;
         *) exit 0 ;;

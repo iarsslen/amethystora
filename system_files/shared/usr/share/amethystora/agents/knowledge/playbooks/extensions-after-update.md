@@ -15,7 +15,7 @@ floating ones, a theme change freezes the screen for a moment, or a top-bar widg
   OUT OF DATE)
 - `journalctl --user -b -t gnome-shell -g 'JS ERROR|Extension' --no-pager`
 - `rpm-ostree db diff` (did `gnome-shell` change?)
-- `gsettings get org.gnome.shell disable-user-extensions`, `cat ~/.config/amethystora/layout`
+- `gsettings get org.gnome.shell disable-user-extensions`, `gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled`
 
 ## Causes on Amethystora
 
@@ -26,8 +26,9 @@ floating ones, a theme change freezes the screen for a moment, or a top-bar widg
 2. **The image turned its own extensions back on.** Once per image version,
    `/usr/share/amethystora/user-setup.hooks.d/15-extensions.sh` puts every extension the image ships back
    in the account's list and clears `disable-user-extensions`, so one turned off by hand, or after an
-   error, comes back. PaperWM stays off only under the classic layout. Tell: `~/.config/amethystora/layout`
-   is missing although the user wanted floating windows; the extension back in `list --enabled`.
+   error, comes back. The classic layout is not an extension turned off: it is the `enabled` key of
+   `org.gnome.shell.extensions.amethystora-ui.tiling`, which an update leaves as it is. Tell: that key is
+   `true` although the user wanted floating windows; the extension back in `list --enabled`.
 3. **Amethystora's own extensions.** `amethystora-transitions@iarsslen.github.io` reveals a new theme or
    wallpaper and holds the screen for five seconds at most; `amethystora-widgets@iarsslen.github.io` runs
    the widgets in `~/.config/amethystora/widgets`. Tell: their uuid in the JS errors. A widget whose
@@ -50,8 +51,8 @@ Wayland ends every open app.
 
 ### 2. The image's extensions came back
 
-- Floating windows: `change` `layout` `classic` (`ame desktop layout classic`). PaperWM then stays off
-  through updates; never disable PaperWM by hand instead.
+- Floating windows: `change` `layout` `classic` (`ame desktop layout classic`), which turns the tiling off
+  in its own key and stays through updates; never disable the Amethystora UI extension instead.
 - Another of the image's extensions: turn it off again in Extension Manager, or
   `gnome-extensions disable UUID`; it lasts until the next image update.
 

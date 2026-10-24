@@ -32,7 +32,7 @@ Then:
    that run programs on the host (`flatpak-spawn --host`) fail with an error naming it. Only the image's
    own tools that need it (Mission Center, Bazaar, Warehouse) have it back.
 4. **Input devices taken** (`devices=!input`): it starts but sees no controller, tablet or wheel.
-5. **The window is off the screen.** With the tiling layout (PaperWM) a new window opens past the edge of
+5. **The window is off the screen.** With the tiling layout a new window opens past the edge of
    the strip, or on another workspace. Tell: `flatpak ps` lists it.
 6. **The user's own overrides.** Security's Apps page took its network (it hangs or says offline), or an
    override took a socket or folder it needs. Tell: `state app-permissions` says "network taken away" or

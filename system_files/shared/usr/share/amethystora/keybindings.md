@@ -6,7 +6,7 @@ logo on it. This list is also what `ame desktop keybindings` shows, and the Amet
 
 ## Tiling
 
-PaperWM puts the windows of a workspace side by side on a strip that scrolls to keep the focused one
+The tiling puts the windows of a workspace side by side on a strip that scrolls to keep the focused one
 in view. `Super` and an arrow moves between windows, adding `Ctrl` moves the window itself, adding
 `Shift` goes to another monitor. These keys, and the monitor keys under Workspaces, are the tiling
 layout's; the classic layout (`ame desktop layout classic`) has GNOME's own.
@@ -16,8 +16,8 @@ layout's; the classic layout (`ame desktop layout classic`) has GNOME's own.
 | `Super+Left` / `Right` / `Up` / `Down` | Focus the window in that direction |
 | `Super+Ctrl+Left` / `Right` / `Up` / `Down` | Move the window in that direction |
 | `Super+Home` / `Super+End` | The first / last window on the workspace |
-| `Super+[` / `Super+]` | Slide the strip without changing focus |
-| `Super+R` / `Super+Alt+R` | Step the width through 38%, 50% and 62% of the screen / back |
+| `Super+[` / `Super+]` | Slide the strip; focus goes to the window most in view when you let go of `Super` |
+| `Super+R` / `Super+Alt+R` | Step the width through 38%, 50% and 62% of the screen less its margins / back |
 | `Super+Shift+R` / `Super+Alt+Shift+R` | Step the height of a window in a column / back |
 | `Super` and `+` / `-` | Widen / narrow the window a step; with `Shift` as well, its height |
 | `Super+F` | Fill the width of the screen, and back |
@@ -45,14 +45,14 @@ the top bar on the left.
 | --- | --- |
 | `Super+1` … `Super+6` | Go to that workspace |
 | `Super+Shift+1` … `Super+Shift+6` | Take the window there |
-| `Super+Page Up` / `Page Down` | The previous / next workspace |
+| `Super+Page Up` / `Page Down` | The previous / next workspace, with its card shown in a row |
 | `Super+Ctrl+Page Up` / `Page Down` | Take the window to the previous / next workspace |
 | `Super+Shift+Left` / `Right` / `Up` / `Down` | Focus the monitor in that direction |
 | `Super+Shift+Ctrl+Left` / `Right` / `Up` / `Down` | Move the window to that monitor |
-| `Super+Alt+Left` / `Right` / `Up` / `Down` | Swap this monitor's workspace with the one on the monitor in that direction |
-| `Ctrl+Alt+Shift+Left` / `Right` / `Up` / `Down` | Move the whole workspace to the monitor in that direction |
+| `Super+Alt+Left` / `Right` / `Up` / `Down` | Swap this workspace's windows on this monitor with the ones on the monitor in that direction |
+| `Ctrl+Alt+Shift+Left` / `Right` / `Up` / `Down` | Move this workspace's windows on this monitor to the monitor in that direction |
 | `Super+Ctrl+Alt+Left` / `Right` | Swap this workspace with the one beside it, windows and name included |
-| `` Super+Ctrl+` `` | Take the window to the workspace you were on before |
+| `` Super+Ctrl+` `` | Take the window to the workspace you were on before; each further press goes one more back, round again at the end |
 | `Alt+1` … `Alt+9` | Go to the pinned app in that dock slot |
 | `Super+Tab` / `Alt+Tab` | Switch application / window |
 | `` Super+` `` | Switch between the windows of the app you are in |

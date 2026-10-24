@@ -1,0 +1,66 @@
+/* The tiling's shapes and sizes. The focus box and the drop zones take GNOME's own tile-preview colours, and the
+   map GNOME's window-switcher panel, so the theme's accent reaches them without a rule here. */
+
+.amethystora-tiling-focus {
+    border-radius: 12px 12px 0 0;
+}
+
+.amethystora-tiling-veil {
+    border-radius: 7px 7px 0 0;
+}
+
+.amethystora-tiling-map {
+    spacing: 8px;
+}
+
+.amethystora-tiling-map .item-box {
+    border-radius: 8px;
+}
+
+.amethystora-tiling-map-title {
+    font-weight: bold;
+    text-align: center;
+}
+
+.amethystora-tiling-tooltip,
+.amethystora-tiling-hint {
+    background-color: rgba(0, 0, 0, 0.8);
+    color: #ffffff;
+    padding: 8px;
+    border-radius: 8px;
+    font-weight: 600;
+    text-align: center;
+}
+
+.amethystora-tiling-mode {
+    -natural-hpadding: 18px;
+    -minimum-hpadding: 18px;
+    margin-left: 3px;
+}
+
+.amethystora-tiling-mode .system-status-icon {
+    icon-size: 16px;
+}
+
+.amethystora-tiling-open {
+    -natural-hpadding: 0;
+    -minimum-hpadding: 0;
+}
+
+.amethystora-tiling-open .system-status-icon {
+    icon-size: 22px;
+}
+
+.amethystora-tiling-zone {
+    border-radius: 8px;
+}
+
+.amethystora-tiling-previews {
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+.amethystora-tiling-card {
+    border-width: 8px;
+    border-style: solid;
+    border-radius: 8px;
+}

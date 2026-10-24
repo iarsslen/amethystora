@@ -1,0 +1,541 @@
+// What each of the tiling's keys does. A key that moves around the strip starts a navigation session (session.js)
+// and acts inside it; a key for the window itself acts on the window the session is on, or on the focused one, and
+// starts nothing. The screen keys end a session first.
+
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
+
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
+import * as Layout from './layout.js';
+import {Open, OPEN_CYCLE} from './engine.js';
+
+// Keys that start or act in a navigation session, and whether they show the map of the strip
+const SESSION = {
+    'switch-left': true, 'switch-right': true, 'switch-up': true, 'switch-down': true,
+    'switch-first': true, 'switch-last': true, 'move-left': true, 'move-right': true,
+    'move-up': true, 'move-down': true, 'drift-left': false, 'drift-right': false, 'take-window': false,
+    'switch-up-workspace': false, 'switch-down-workspace': false, 'move-up-workspace': false,
+    'move-down-workspace': false, 'move-previous-workspace': false, 'move-previous-workspace-backward': false,
+};
+
+const DIRECTIONS = {
+    left: Meta.DisplayDirection.LEFT, right: Meta.DisplayDirection.RIGHT,
+    above: Meta.DisplayDirection.UP, below: Meta.DisplayDirection.DOWN,
+};
+
+export class Actions {
+    constructor(tiling) {
+        this.tiling = tiling;
+        this.engine = tiling.engine;
+    }
+
+    // name -> {flags, run(context)}, for keys.js
+    table() {
+        const once = Meta.KeyBindingFlags.IGNORE_AUTOREPEAT;
+        const table = new Map();
+        const add = (name, run, flags = Meta.KeyBindingFlags.NONE) => table.set(name, {run, flags});
+        for (const name of Object.keys(SESSION))
+            add(name, context => this.tiling.sessions.begin(name, context));
+        const perWindow = {
+            'slurp-in': w => this.slurpIn(w),
+            'barf-out': w => this.barfOut(w, false),
+            'barf-out-active': w => this.barfOut(w, true),
+            'cycle-width': w => this.cycleWidth(w, true),
+            'cycle-width-backwards': w => this.cycleWidth(w, false),
+            'cycle-height': w => this.cycleHeight(w, true),
+            'cycle-height-backwards': w => this.cycleHeight(w, false),
+            'resize-w-inc': w => this.stepWidth(w, true),
+            'resize-w-dec': w => this.stepWidth(w, false),
+            'resize-h-inc': w => this.stepHeight(w, true),
+            'resize-h-dec': w => this.stepHeight(w, false),
+            'toggle-maximize-width': w => this.fillWidth(w),
+            'center-horizontally': w => this.centre(w),
+            'new-window': w => this.newWindow(w),
+            'toggle-scratch': w => this.toggleFloating(w),
+        };
+        for (const [name, act] of Object.entries(perWindow)) {
+            add(name, () => {
+                const window = this.engine.current();
+                if (window)
+                    act(window);
+            }, once);
+        }
+        add('toggle-scratch-layer', () => this.toggleFloatingLayer(), once);
+        add('switch-focus-mode', () => this.cycleFocusMode(), once);
+        add('switch-open-window-position', () => this.cycleOpenPosition(), once);
+        add('toggle-top-and-position-bar', () => this.tiling.topBar?.toggle(), once);
+        for (const [side, direction] of Object.entries(DIRECTIONS)) {
+            const monitorKey = (name, act) => add(name, () => {
+                this.tiling.sessions.end();
+                act(direction);
+            }, once);
+            monitorKey(`switch-monitor-${side}`, d => this.focusMonitor(d));
+            monitorKey(`move-monitor-${side}`, d => this.moveToMonitor(d));
+            monitorKey(`swap-monitor-${side}`, d => this.swapMonitor(d));
+            monitorKey(`move-space-monitor-${side}`, d => this.moveSpaceToMonitor(d));
+        }
+        return table;
+    }
+
+    // Runs a key's action as if it was pressed
+    run(name, context = {}) {
+        this._table ??= this.table();
+        this._table.get(name)?.run(context);
+    }
+
+    // The screen keys end a navigation session before they act
+    endsSession(name) {
+        return /^(switch|move|swap|move-space)-monitor-/.test(name);
+    }
+
+    showsMap(name) {
+        return SESSION[name] === true;
+    }
+
+    isSessionKey(name) {
+        return name in SESSION;
+    }
+
+    // ---- Moving around (inside a session) ----
+
+    // The window a movement starts from and where it is
+    _here(strip) {
+        const window = strip.selected;
+        const at = window ? strip.find(window) : null;
+        return {window, at};
+    }
+
+    // Moves a session's selection; returns whether anything changed
+    move(name, strip) {
+        const {window, at} = this._here(strip);
+        if (!at)
+            return false;
+        const [c, r] = at;
+        const columns = strip.columns;
+        let target = null;
+        switch (name) {
+        case 'switch-left':
+        case 'switch-right': {
+            const column = columns[c + (name === 'switch-left' ? -1 : 1)];
+            target = column ? this._recent(column) : null;
+            break;
+        }
+        case 'switch-up':
+            target = columns[c][r - 1] ?? null;
+            break;
+        case 'switch-down':
+            target = columns[c][r + 1] ?? null;
+            break;
+        case 'switch-first':
+            target = columns[0][0];
+            break;
+        case 'switch-last':
+            target = columns[columns.length - 1][0];
+            break;
+        case 'move-left':
+        case 'move-right': {
+            const other = c + (name === 'move-left' ? -1 : 1);
+            if (other < 0 || other >= columns.length)
+                return false;
+            [columns[c], columns[other]] = [columns[other], columns[c]];
+            this.engine.ensureVisible(strip, window, {from: c});
+            return true;
+        }
+        case 'move-up':
+        case 'move-down': {
+            const other = r + (name === 'move-up' ? -1 : 1);
+            const column = columns[c];
+            if (other < 0 || other >= column.length)
+                return false;
+            [column[r], column[other]] = [column[other], column[r]];
+            this.engine.ensureVisible(strip, window);
+            return true;
+        }
+        }
+        if (!target || target === window)
+            return false;
+        strip.selected = target;
+        this.engine.ensureVisible(strip, target, {from: c});
+        return true;
+    }
+
+    // The window of a column used last
+    _recent(column) {
+        let best = column[0], rank = Infinity;
+        const mru = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null);
+        for (const window of column) {
+            const index = mru.indexOf(window);
+            if (index >= 0 && index < rank) {
+                best = window;
+                rank = index;
+            }
+        }
+        return best;
+    }
+
+    // ---- Columns ----
+
+    // The side new windows open on decides where pulling in and pushing out go
+    _towardsOpening() {
+        return this.tiling.openPosition === Open.LEFT ? -1 : 1;
+    }
+
+    slurpIn(window) {
+        const strip = this.engine.stripOf(window);
+        const at = strip?.find(window);
+        if (!at || strip.columns.length < 2)
+            return;
+        const neighbour = strip.columns[at[0] + this._towardsOpening()];
+        if (!neighbour)
+            return;
+        const taken = neighbour.shift();
+        if (taken.is_fullscreen())
+            taken.unmake_fullscreen();
+        if (!neighbour.length)
+            strip.columns.splice(strip.columns.indexOf(neighbour), 1);
+        const column = strip.columns[strip.find(window)[0]];
+        column.push(taken);
+        this._equalHeights(column);
+        this.engine.info(taken).strip = strip;
+        this.engine.ensureVisible(strip, window);
+    }
+
+    barfOut(window, itself) {
+        const strip = this.engine.stripOf(window);
+        const at = strip?.find(window);
+        if (!at)
+            return;
+        const column = strip.columns[at[0]];
+        if (column.length < 2)
+            return;
+        const leaving = itself ? window : column[column.length - 1];
+        column.splice(column.indexOf(leaving), 1);
+        const side = this._towardsOpening();
+        strip.columns.splice(at[0] + (side > 0 ? 1 : 0), 0, [leaving]);
+        this._equalHeights(column);
+        this.engine.ensureVisible(strip, window);
+    }
+
+    _equalHeights(column) {
+        for (const w of column)
+            this.engine.info(w).height = 0;
+    }
+
+    // ---- Sizes ----
+
+    _area(window) {
+        const strip = this.engine.stripOf(window);
+        return this.engine.area(strip ? strip.monitor : window.get_monitor());
+    }
+
+    _unmaximized(window) {
+        if (window.maximized_horizontally || window.maximized_vertically)
+            window.unmaximize();
+    }
+
+    // A floating window gets a new frame, kept on its screen with the least margin
+    _floatingFrame(window, change) {
+        const area = this._area(window);
+        const frame = window.get_frame_rect();
+        const next = {x: frame.x, y: frame.y, width: frame.width, height: frame.height, ...change};
+        next.width = Math.min(next.width, area.width);
+        next.height = Math.min(next.height, area.height);
+        const right = area.x + area.width - Layout.MIN_MARGIN;
+        if (next.x + next.width > right)
+            next.x = Math.max(area.x, right - next.width);
+        this.engine.glideFloating(window, this.engine.visual(window), next);
+    }
+
+    // A tiled window's width is the strip's, whatever the app has drawn yet; a floating one's its frame's
+    _width(window) {
+        const info = this.engine.info(window);
+        if (info?.strip)
+            return Math.min(info.width, Layout.maxWidth(this._area(window)));
+        return window.get_frame_rect().width;
+    }
+
+    _setWidth(window, width) {
+        const info = this.engine.info(window);
+        const strip = info?.strip;
+        if (!strip) {
+            this._floatingFrame(window, {width});
+            return;
+        }
+        info.width = Math.min(width, this._area(window).width);
+        this.engine.ensureVisible(strip, window);
+    }
+
+    cycleWidth(window, forward) {
+        this._unmaximized(window);
+        const now = this._width(window);
+        this._setWidth(window, Layout.nextStep(now, Layout.available(this._area(window)), forward));
+    }
+
+    stepWidth(window, grow) {
+        this._unmaximized(window);
+        const now = this._width(window);
+        this._setWidth(window, Layout.stepSize(now, Layout.available(this._area(window)), grow));
+    }
+
+    cycleHeight(window, forward) {
+        this._unmaximized(window);
+        const info = this.engine.info(window);
+        const strip = info?.strip;
+        const now = window.get_frame_rect().height;
+        if (!strip) {
+            this._floatingFrame(window, {height: Layout.nextStep(now, this._area(window).height, forward)});
+            return;
+        }
+        const column = strip.columns[strip.find(window)[0]];
+        if (column.length < 2)
+            return;
+        const space = Layout.usable(this._area(window)).height - Layout.GAP * (column.length - 1);
+        this._equalHeights(column);
+        info.height = Layout.nextStep(now, space, forward);
+        this.engine.ensureVisible(strip, window);
+    }
+
+    stepHeight(window, grow) {
+        this._unmaximized(window);
+        const info = this.engine.info(window);
+        const strip = info?.strip;
+        const area = this._area(window);
+        const space = Layout.usable(area).height - 2 * Layout.MARGIN - Layout.GAP;
+        const height = Layout.stepSize(window.get_frame_rect().height, space, grow);
+        if (!strip) {
+            this._floatingFrame(window, {height});
+            return;
+        }
+        info.height = height;
+        this.engine.ensureVisible(strip, window);
+    }
+
+    // As wide as the screen allows, and back to the width it had
+    fillWidth(window) {
+        this._unmaximized(window);
+        const area = this._area(window);
+        const full = area.width - 2 * Layout.MARGIN;
+        const info = this.engine.info(window) ?? {};
+        const frame = window.get_frame_rect();
+        const wide = Math.abs(this._width(window) - full) <= Layout.SLACK;
+        if (wide && info.beforeFill) {
+            const before = info.beforeFill;
+            info.beforeFill = null;
+            if (info.strip)
+                this._setWidth(window, before.width);
+            else
+                this._floatingFrame(window, {x: before.x, width: before.width});
+            return;
+        }
+        info.beforeFill = {x: frame.x, width: this._width(window)};
+        if (info.strip)
+            this._setWidth(window, full);
+        else
+            this._floatingFrame(window, {x: area.x + Layout.MARGIN, width: full});
+    }
+
+    centre(window) {
+        const info = this.engine.info(window);
+        const strip = info?.strip;
+        const area = this._area(window);
+        if (!strip) {
+            const frame = window.get_frame_rect();
+            const top = Layout.usable(area).y;
+            this._floatingFrame(window, {
+                x: area.x + Math.round((area.width - frame.width) / 2),
+                y: Math.max(top, frame.y),
+            });
+            return;
+        }
+        const geo = this.engine.geometry(strip);
+        const column = geo.columns[strip.find(window)[0]];
+        if (geo.centred)
+            return;
+        strip.scroll = Math.round((area.width - column.width) / 2) - column.x;
+        this.engine.layout(strip);
+    }
+
+    newWindow(window) {
+        const app = Shell.WindowTracker.get_default().get_window_app(window);
+        if (app?.can_open_new_window())
+            app.open_new_window(-1);
+    }
+
+    // ---- The floating layer ----
+
+    toggleFloating(window) {
+        if (this.engine.floating.has(window))
+            this.engine.unfloat(window);
+        else if (this.engine.isTiled(window))
+            this.engine.float(window);
+    }
+
+    toggleFloatingLayer() {
+        const floating = [...this.engine.floating];
+        const showing = floating.filter(w => !w.minimized);
+        if (showing.length) {
+            for (const window of showing)
+                window.minimize();
+            return;
+        }
+        // The windows minimized out of the strip are floating too while they are minimized
+        const minimized = global.display.list_all_windows().filter(w => w.minimized &&
+            (this.engine.floating.has(w) || this.engine.info(w)?.fromStrip));
+        for (const window of minimized) {
+            window.unminimize();
+            window.raise();
+        }
+        const mru = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null);
+        const first = mru.find(w => minimized.includes(w)) ?? minimized[0];
+        if (first)
+            Main.activateWindow(first);
+    }
+
+    // ---- Per workspace ----
+
+    cycleFocusMode() {
+        const strip = this.engine.session?.strip ?? this.engine.activeStrip();
+        const modes = [Layout.Mode.PLAIN, Layout.Mode.CENTRE, Layout.Mode.EDGE];
+        const next = modes[(modes.indexOf(strip.mode) + 1) % modes.length];
+        if (next === Layout.Mode.CENTRE && strip.selected) {
+            const area = this.engine.area(strip.monitor);
+            const vis = this.engine.visual(strip.selected);
+            strip.side = vis.x + vis.width / 2 < area.x + area.width / 2 ? -1 : 1;
+        }
+        this.setFocusMode(strip, next);
+    }
+
+    setFocusMode(strip, mode) {
+        const leavingCentre = strip.mode === Layout.Mode.CENTRE;
+        strip.mode = mode;
+        const window = strip.selected;
+        if (window) {
+            const geo = this.engine.geometry(strip);
+            const at = strip.find(window);
+            // Out of centring, the window goes back to the side it came from before the edges take over
+            if (leavingCentre && at && !geo.centred) {
+                const column = geo.columns[at[0]];
+                const area = geo.area;
+                const last = at[0] === geo.columns.length - 1;
+                const left = at[0] === 0 || (!last && strip.side < 0);
+                const x = left ? Layout.MARGIN : area.width - Layout.MARGIN - column.width;
+                strip.scroll = x - column.x;
+                this.engine.info(window).lastX = x;
+            }
+            this.engine.ensureVisible(strip, window);
+        }
+        this.tiling.topBar?.sync();
+    }
+
+    cycleOpenPosition() {
+        const next = OPEN_CYCLE[(OPEN_CYCLE.indexOf(this.tiling.openPosition) + 1) % OPEN_CYCLE.length];
+        this.tiling.openPosition = next;
+        this.tiling.topBar?.sync();
+    }
+
+    // ---- Screens ----
+
+    _neighbour(direction) {
+        const from = this.engine.focusMonitor();
+        const to = global.display.get_monitor_neighbor_index(from, direction);
+        return to >= 0 ? [from, to] : [from, -1];
+    }
+
+    // Puts the pointer on another monitor where it was on this one, and shows where it went
+    warpTo(monitor) {
+        const [x, y] = global.get_pointer();
+        const layout = Main.layoutManager.monitors;
+        const from = layout[global.display.get_current_monitor()];
+        const to = layout[monitor];
+        const nx = to.x + Math.round((x - from.x) / from.width * to.width);
+        const ny = to.y + Math.round((y - from.y) / from.height * to.height);
+        const seat = global.stage.context.get_backend().get_default_seat();
+        seat.warp_pointer(nx, ny);
+        Main.locatePointer?.show();
+    }
+
+    focusMonitor(direction) {
+        const [, to] = this._neighbour(direction);
+        if (to < 0)
+            return;
+        const strip = this.engine.activeStrip(to);
+        this.warpTo(to);
+        if (strip.selected)
+            this.engine.focus(strip);
+    }
+
+    moveToMonitor(direction) {
+        const window = global.display.focus_window;
+        const [, to] = this._neighbour(direction);
+        if (!window || to < 0)
+            return;
+        // A dialog takes its parent, and the parent its dialogs
+        const main = window.get_transient_for() ?? window;
+        const target = this.engine.activeStrip(to);
+        // The layout puts a tiled window on its new screen
+        if (this.engine.isTiled(main))
+            this.engine.insert(main, target);
+        else
+            main.move_to_monitor(to);
+
+        main.foreach_transient(dialog => {
+            dialog.move_to_monitor(to);
+            return true;
+        });
+        this.warpTo(to);
+        Main.activateWindow(window);
+    }
+
+    // The two screens exchange the windows they show
+    swapMonitor(direction) {
+        const [from, to] = this._neighbour(direction);
+        if (to < 0)
+            return;
+        const workspace = global.workspace_manager.get_active_workspace();
+        const a = this.engine.strip(workspace, from);
+        const b = this.engine.strip(workspace, to);
+        this._exchange(a, b);
+        this.warpTo(to);
+        if (b.selected)
+            this.engine.focus(b);
+    }
+
+    // This screen's windows join the other screen's strip
+    moveSpaceToMonitor(direction) {
+        const [from, to] = this._neighbour(direction);
+        if (to < 0)
+            return;
+        const workspace = global.workspace_manager.get_active_workspace();
+        const a = this.engine.strip(workspace, from);
+        const b = this.engine.strip(workspace, to);
+        if (!b.columns.length) {
+            this._exchange(a, b);
+        } else {
+            const selected = a.selected;
+            for (const column of a.columns.splice(0)) {
+                for (const window of column)
+                    this.engine.info(window).strip = b;
+                b.columns.push(column);
+            }
+            a.selected = null;
+            b.selected = selected ?? b.selected;
+            this.engine.layout(a);
+            this.engine.layout(b);
+        }
+        this.warpTo(to);
+        if (b.selected)
+            this.engine.focus(b);
+    }
+
+    _exchange(a, b) {
+        for (const key of ['columns', 'scroll', 'mode', 'selected'])
+            [a[key], b[key]] = [b[key], a[key]];
+        // The layout puts each window on its new screen
+        for (const strip of [a, b]) {
+            for (const window of strip.windows)
+                this.engine.info(window).strip = strip;
+            this.engine.layout(strip, {animate: false});
+        }
+    }
+}

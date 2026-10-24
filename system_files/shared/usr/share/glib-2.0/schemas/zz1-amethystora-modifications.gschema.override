@@ -43,52 +43,11 @@ default-folder-viewer='icon-view'
 default-zoom-level='large'
 
 #-------------- TILING --------------#
-# PaperWM lays each workspace out as a strip of windows, side by side and wider than the screen, and
-# scrolls it to keep the focused one in view. Amethystora UI's workspace row already shows the
-# workspaces, and switches them when you scroll on the top bar, and the top bar is the theme's, so PaperWM's own indicator,
-# position bar, panel colours and top bar scrolling (which would move to another window on the same
-# scroll) are off.
-
-[org.gnome.shell.extensions.paperwm]
-window-gap=8
-horizontal-margin=8
-vertical-margin=8
-vertical-margin-bottom=8
-show-workspace-indicator=false
-show-window-position-bar=false
-disable-topbar-styling=true
-topbar-mouse-scroll-enable=false
-
-# While it is on, PaperWM takes any GNOME binding that collides with one of its own and hands it back
-# when it is turned off. That is how Super+arrows, Super+Shift+arrows and Super+Page_Up/Down become
-# its keys, while the maximize and move-to-monitor bindings below keep them for when it is off.
-# The ones cleared here would take a key the image keeps, or collide with a binding PaperWM cannot
-# see at all: custom keybindings and other extensions' shortcuts. 20-tests.sh holds them apart.
-#   new-window               Super+Return is the terminal; Super+N is enough
-#   close-window             Super+W closes, Super+Backspace resizes
-#   live-alt-tab*            Super+Tab, Alt+Tab and Ctrl+Alt+Tab stay GNOME's switchers
-#   previous-workspace*      Super+` switches between the windows of an app
-#   switch-next, -previous   Super+. is the emoji picker, and Super+Left/Right do the same
-#   center-vertically        Super+V is the notifications
-#   paper-toggle-fullscreen  Super+Shift+F is Files, and Shift+F11 is full screen
-#   toggle-scratch-window    Super+Escape takes the keyboard back from an app that grabbed it
-#   toggle-scratch-layer     Super+Shift+Escape ends input capture, so it moves to Super+Alt+Escape
-
-[org.gnome.shell.extensions.paperwm.keybindings]
-new-window=['<Super>n']
-close-window=@as []
-live-alt-tab=@as []
-live-alt-tab-backward=@as []
-live-alt-tab-scratch=@as []
-live-alt-tab-scratch-backward=@as []
-previous-workspace=@as []
-previous-workspace-backward=@as []
-switch-next=@as []
-switch-previous=@as []
-center-vertically=@as []
-paper-toggle-fullscreen=@as []
-toggle-scratch-window=@as []
-toggle-scratch-layer=['<Super><Alt>Escape']
+# The tiling is a module of Amethystora UI (modules/tiling.js): its one setting and its keys are in its own schemas,
+# whose defaults are the image's, so there is nothing to override here. While it runs it takes a GNOME binding's
+# combination only where one of its own collides with it, and gives it back when it is turned off (ame desktop
+# layout classic), so the maximize, move-to-monitor and workspace bindings below stay GNOME's for that case.
+# 20-tests.sh holds its keys apart from the ones the image keeps.
 
 #-------------- WORKSPACES AND WINDOWS --------------#
 # Six fixed workspaces on Super+1..6, so the number keys always mean the same workspace. That takes

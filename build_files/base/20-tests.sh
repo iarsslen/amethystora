@@ -295,15 +295,7 @@ for extension in /usr/share/gnome-shell/extensions/*/; do
         { echo "No licence shipped for the extension ${uuid}"; exit 1; }
 done
 
-# Tiling and top bar: each extension from extensions.gnome.org is installed, enabled, supports this
-# GNOME, and has its schema readable system-wide so the defaults in zz1-amethystora-modifications apply
 GNOME_MAJOR="$(gnome-shell --version | grep -oE '[0-9]+' | head -n1)"
-for extension in paperwm@paperwm.github.com; do
-    test -f "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
-    jq -e --arg shell "${GNOME_MAJOR}" '.["shell-version"] | index($shell)' \
-        "/usr/share/gnome-shell/extensions/${extension}/metadata.json"
-    grep -q "'${extension}'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
-done
 # Amethystora Transitions, written for this image: enabled, its settings where gsettings finds them,
 # and claiming this GNOME. It calls GNOME Shell's paint_to_content, which took a new argument in GNOME
 # 50, so read that call again before adding a version to its shell-version.
@@ -375,7 +367,7 @@ done
 for retired in just-perfection-desktop@just-perfection space-bar@luchrioh tophat@fflewddur.github.io \
     appindicatorsupport@rgcjonas.gmail.com caffeine@patapon.info search-light@icedman.github.com \
     gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com gradia-integration@alexandervanhee.github.io \
-    bazaar-integration@kolunmi.github.io; do
+    bazaar-integration@kolunmi.github.io paperwm@paperwm.github.com; do
     test ! -e "/usr/share/gnome-shell/extensions/${retired}"
     test ! -e "/usr/share/licenses/${retired}"
     grep -q "'${retired}'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override && false
@@ -386,6 +378,11 @@ done
     "move-workspace-left move-workspace-right" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.workspaces move-workspace-left)" == \
     "['<Control><Alt><Super>Left']" ]]
+# The tiling: one switch (the classic layout is it off), and its keys, which are the ones ame setup and the
+# manual's keybindings page name. The switch is on as the image ships.
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.tiling)" == enabled ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled)" == true ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.tiling.keybindings | wc -l)" == 54 ]]
 # The colours that follow the theme render whole for every shipped theme, through the theme switcher's own
 # render_templates: a colour a palette lacks would leave a {{ key }} in the shell's stylesheet
 UI_RENDER="$(mktemp -d)"
@@ -442,9 +439,6 @@ for wrong in 0 3651 -1 7x; do
 done
 GSETTINGS_BACKEND=memory ame desktop privacy clipboard 7 >/dev/null 2>&1 && false
 test ! -e /usr/share/gnome-shell/extensions/tactile@lundal.io
-# PaperWM leaves the top bar to the theme and the workspaces to Amethystora UI's workspace row
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.paperwm disable-topbar-styling)" == "true" ]]
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.paperwm show-workspace-indicator)" == "false" ]]
 # GNOME Shell's getSettings() reads an extension's own schemas folder before the system's, where an
 # override does not reach by itself: every key zz0 and zz1 set for an extension reads the same through
 # its folder as system-wide (build-gnome-extensions.sh compiles them in)
@@ -464,8 +458,8 @@ DTD_SCHEMAS=/usr/share/gnome-shell/extensions/dash-to-dock@micxgx.gmail.com/sche
 [[ "$(GSETTINGS_BACKEND=memory gsettings --schemadir "${DTD_SCHEMAS}" get org.gnome.shell.extensions.dash-to-dock hot-keys)" == "false" ]]
 # None of the clipboard history's shortcuts take the Ctrl+F keys from applications
 grep -qi "<Control>F" <<<"$(GSETTINGS_BACKEND=memory gsettings list-recursively org.gnome.shell.extensions.amethystora-clipboard)" && false
-# PaperWM takes a colliding GNOME binding for itself while it is on. It cannot see custom keybindings
-# or other extensions' shortcuts, and the GNOME ones listed here are kept on purpose, so no PaperWM
+# The tiling takes a colliding GNOME binding for itself while it is on. It cannot see custom keybindings
+# or other extensions' shortcuts, and the GNOME ones listed here are kept on purpose, so no tiling
 # binding may share a key with any of them. Modifiers are sorted and lower-cased before comparing.
 keycombos() {
     grep -oE "'[^']+'" | tr -d "'" | tr '[:upper:]' '[:lower:]' | sed 's/<ctrl>/<control>/g; s/<primary>/<control>/g' |
@@ -473,8 +467,8 @@ keycombos() {
             echo "$(grep -o '<[a-z]*>' <<<"${combo}" | LC_ALL=C sort | tr -d '\n')${combo##*>}"
         done | LC_ALL=C sort -u
 }
-PAPERWM_COMBOS="$(GSETTINGS_BACKEND=memory gsettings list-recursively org.gnome.shell.extensions.paperwm.keybindings | keycombos)"
-grep -qx "<super>left" <<<"${PAPERWM_COMBOS}"
+TILING_COMBOS="$(GSETTINGS_BACKEND=memory gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.tiling.keybindings | keycombos)"
+grep -qx "<super>left" <<<"${TILING_COMBOS}"
 KEPT_COMBOS="$(
     {
         grep -h -d skip -e "^binding=" -e "^shortcut-search=" /etc/dconf/db/distro.d/*
@@ -488,7 +482,7 @@ KEPT_COMBOS="$(
     } | keycombos
 )"
 grep -qx "<super>return" <<<"${KEPT_COMBOS}"
-[[ -z "$(LC_ALL=C comm -12 <(echo "${PAPERWM_COMBOS}") <(echo "${KEPT_COMBOS}"))" ]]
+[[ -z "$(LC_ALL=C comm -12 <(echo "${TILING_COMBOS}") <(echo "${KEPT_COMBOS}"))" ]]
 
 # Blur my Shell: the Tahoe-style glass in 05-blur-my-shell-extension. Its schema lives in the
 # extension's own directory rather than system-wide, so these are dconf defaults and not a gschema
@@ -791,11 +785,13 @@ grep -qF '"pkexec", &["/usr/bin/bootc", "rollback"]' /ctx/apps/update/src/backen
 test -x /usr/share/amethystora/user-setup.hooks.d/17-welcome.sh
 grep -q "^version-script welcome user " /usr/share/amethystora/user-setup.hooks.d/17-welcome.sh
 grep -q "amethystora-manual welcome$" /usr/share/amethystora/user-setup.hooks.d/17-welcome.sh
-# ...with the offer of classic windows a little after it, which only asks, and which the hook that turns
-# the image's extensions back on after an update honours by leaving PaperWM off
+# ...with the offer of classic windows a little after it, which only asks: `ame desktop layout classic` acts
+# on it by turning the tiling off in its own key, which an update leaves as it is
 test -x /usr/libexec/amethystora-layout-offer
 grep -q "/usr/libexec/amethystora-layout-offer$" /usr/share/amethystora/user-setup.hooks.d/17-welcome.sh
-grep -q "paperwm@paperwm.github.com" /usr/share/amethystora/user-setup.hooks.d/15-extensions.sh
+grep -q "amethystora-ui.tiling enabled" /usr/share/amethystora/just/desktop.just
+grep -q "paperwm" /usr/share/amethystora/just/desktop.just && false
+grep -q "paperwm@paperwm.github.com" /usr/share/amethystora/user-setup.hooks.d/15-extensions.sh && false
 
 # The Amethystora apps (13-apps.sh): one program, which each app's own path is a hard link to. It starts as
 # each of them and says which it is, which also proves every library it links against is on the image, and

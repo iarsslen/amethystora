@@ -47,7 +47,7 @@ Then reboot. Replace `amethystora` with any image name from the table above, and
 
 ### Using the desktop
 
-You log in on GDM to a GNOME session with the Amethystora wallpaper and a purple accent. These GNOME Shell extensions are preinstalled: Dash to Dock, Blur my Shell, GSConnect, Amethystora Logo Menu, Amethystora UI (the desktop's own modules, written for this image), PaperWM and Amethystora Clipboard (a copy of Clipboard Indicator that seals its history). Turn them on or off in Extension Manager.
+You log in on GDM to a GNOME session with the Amethystora wallpaper and a purple accent. These GNOME Shell extensions are preinstalled: Dash to Dock, Blur my Shell, GSConnect, Amethystora Logo Menu, Amethystora UI (the desktop's own modules, written for this image, among them the tiling) and Amethystora Clipboard (a copy of Clipboard Indicator that seals its history). Turn them on or off in Extension Manager.
 
 The top bar carries the six workspaces on the left, where Activities used to be, and CPU, memory and network meters on the right. Both follow the current theme.
 
@@ -65,7 +65,7 @@ The Manual, Security, System Updates, Logs, Notes, Control and Backups, the secu
 
 #### Tiling and keyboard navigation
 
-Windows tile on their own with [PaperWM](https://github.com/paperwm/PaperWM): each workspace is a strip of windows side by side that scrolls to keep the focused one in view. `Super` and an arrow moves between windows, `Super+Ctrl` and an arrow moves the window, `Super+R` steps its width and `Super+F` fills the screen. `Super+Shift+V` opens the clipboard history.
+Windows tile on their own: each workspace is a strip of windows side by side that scrolls to keep the focused one in view. `Super` and an arrow moves between windows, `Super+Ctrl` and an arrow moves the window, `Super+R` steps its width and `Super+F` fills the screen. `Super+Shift+V` opens the clipboard history.
 
 There are six fixed workspaces on `Super+1` to `Super+6`, `Super+Shift+N` takes the window with you, and `Alt+1` to `Alt+9` reach the pinned apps in the dock. `Super+Return` opens a terminal (Ptyxis), `Super+W` closes a window, `Super+Space` searches.
 
@@ -205,7 +205,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Issues and pull requests are welcome at 
 
 Amethystora is based on [Universal Blue](https://universal-blue.org/) and keeps building on its shared infrastructure. Thanks to the Universal Blue contributors for the work this project stands on.
 
-The theme switcher follows the design of [Omakub](https://omakub.org) and its fork [Omabuntu](https://omabuntu.omakasui.org/), and most of the colour palettes are ported from them (MIT). Tiling is [PaperWM](https://github.com/paperwm/PaperWM) by the PaperWM contributors (GPL-3.0). The boot menu follows the theme layout of [grub2-themes](https://github.com/vinceliuice/grub2-themes) by Vince Liuice (GPL-3.0). The icon packs are drawn for Amethystora; [candy-icons](https://github.com/EliverLara/candy-icons), kept beside them, is by Eliver Lara (GPL-3.0). The themes' wallpapers are drawn for Amethystora and listed in [CREDITS.md](system_files/shared/usr/share/backgrounds/amethystora/CREDITS.md).
+The theme switcher follows the design of [Omakub](https://omakub.org) and its fork [Omabuntu](https://omabuntu.omakasui.org/), and most of the colour palettes are ported from them (MIT). The boot menu follows the theme layout of [grub2-themes](https://github.com/vinceliuice/grub2-themes) by Vince Liuice (GPL-3.0). The icon packs are drawn for Amethystora; [candy-icons](https://github.com/EliverLara/candy-icons), kept beside them, is by Eliver Lara (GPL-3.0). The themes' wallpapers are drawn for Amethystora and listed in [CREDITS.md](system_files/shared/usr/share/backgrounds/amethystora/CREDITS.md).
 
 ## License
 

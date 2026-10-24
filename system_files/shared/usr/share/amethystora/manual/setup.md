@@ -33,7 +33,7 @@ that git shows only what changed. It holds:
 | `containers` | The containers `amepkg` made, with their templates and the packages you installed in them |
 | `extensions` | The GNOME extensions you have on |
 | `theme` | Your [theme](themes.md) |
-| `settings` | The window layout, the dock's apps, the keybindings you changed and PaperWM's gaps |
+| `settings` | The window layout, the dock's apps and the keybindings you changed |
 
 A setting goes in only where you changed it from what the image has, so that what a later image
 changes still reaches you.
@@ -104,8 +104,7 @@ machine has it.
     "keybindings": {
       "org.gnome.desktop.wm.keybindings": {"close": ["<Super>q"]},
       "custom": {"custom20": ["<Super>t"]}
-    },
-    "paperwm": {"window-gap": 12}
+    }
   }
 }
 ```
@@ -114,8 +113,10 @@ A keybinding is the keys of a GNOME keybinding by its schema and name, as `gsett
 org.gnome.desktop.wm.keybindings close` shows it. `custom` holds the image's own
 [keybindings](../keybindings.md) by their id (`custom20` opens the terminal), and only their keys:
 `dconf dump /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/` lists them. `layout` is
-`tiling` or `classic` ([Classic windows](desktop.md#classic-windows)), and `paperwm` holds
-`window-gap`, `horizontal-margin`, `vertical-margin` and `vertical-margin-bottom`, in pixels.
+`tiling` or `classic` ([Classic windows](desktop.md#classic-windows)). The tiling's own keys are
+keybindings too, under `org.gnome.shell.extensions.amethystora-ui.tiling.keybindings`. A file saved
+before the tiling replaced PaperWM may still have a `paperwm` object of gaps: it is read and ignored,
+since the gaps are the image's.
 
 Everything in the file is checked before anything runs, and `ame setup diff` says what is wrong with
 one it refuses.

@@ -27,11 +27,6 @@ uuids() { gsettings get org.gnome.shell "$1" | grep -oE "'[^']+'" | tr -d "'" ||
 variant() { printf "'%s'\n" "$@" | paste -sd, | sed 's/^/[/; s/$/]/'; }
 
 mapfile -t defaults < <(GSETTINGS_BACKEND=memory uuids enabled-extensions)
-# The classic layout (`ame desktop layout classic`) is PaperWM turned off on purpose, which no update
-# undoes: it is left as the account has it
-if [[ "$(cat "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/layout" 2>/dev/null)" == classic ]]; then
-    mapfile -t defaults < <(printf '%s\n' "${defaults[@]}" | grep -vxF paperwm@paperwm.github.com || true)
-fi
 mapfile -t enabled < <(uuids enabled-extensions)
 mapfile -t disabled < <(uuids disabled-extensions)
 
