@@ -1,13 +1,14 @@
 #!/usr/bin/bash
 # Copying text out of a picture on the screen (plans/PLAN-screen-text.md): it is Gradia's, reached from GNOME's
-# screenshot UI through the image's extension. A window shows a known sentence; Print, an area dragged over it
+# screenshot UI through Amethystora UI's screenshot module. A window shows a known sentence; Print, an area dragged over it
 # and Ctrl+E (keys.py, as a person's hands), with a language file in Gradia's data folder, and the clipboard
 # then holds the sentence. The language file is the image's own English pack, so that this needs no download;
 # the download Gradia offers in its place is only checked to still be where it fetches it.
 source "$(dirname "$0")/lib.sh"
 
 GRADIA=be.alexandervanhee.gradia
-EXTENSION=gradia-integration@alexandervanhee.github.io
+# The screenshot module of Amethystora UI, which took Gradia's integration over (plans/PLAN-amethystora-ui.md)
+EXTENSION=amethystora-ui@iarsslen.github.io
 HOME_DIR="/var/home/${TEST_USER}"
 TESSDATA="${HOME_DIR}/.var/app/${GRADIA}/data/tessdata"
 OWN=/run/vmlab-22
@@ -44,13 +45,13 @@ ext_active() { [[ "$(ext_state)" == ACTIVE ]]; }
 # The first session of a disk made a minute ago, with Flatpaks installing under it, may still be loading its
 # extensions in software rendering; the second boot of it is settled
 if ((SUITE_PHASE < 2)) && ! wait_for 120 ext_active; then
-    echo "# the shell had not enabled Gradia's extension after 2 minutes: on with it after a restart"
+    echo "# the shell had not enabled Amethystora UI after 2 minutes: on with it after a restart"
     reboot_and_continue
 fi
 if wait_for 60 ext_active; then
-    ok "Gradia's extension is active"
+    ok "Amethystora UI is active"
 else
-    not_ok "Gradia's extension is not active" "$(user_bus gnome-extensions info "${EXTENSION}" 2>&1)" \
+    not_ok "Amethystora UI is not active" "$(user_bus gnome-extensions info "${EXTENSION}" 2>&1)" \
         "enabled: $(user_bus gsettings get org.gnome.shell enabled-extensions 2>&1 | cut -c1-600)" \
         "disabled: $(user_bus gsettings get org.gnome.shell disabled-extensions 2>&1)" \
         "disable-user-extensions: $(user_bus gsettings get org.gnome.shell disable-user-extensions 2>&1)" \
