@@ -1023,10 +1023,26 @@ only where an `ame` command, Control, the theme or the setup file writes it.
 as specs by agents who read them (`plans/amethystora-ui/spec-*.md`), and the code is written from those specs and
 GNOME's own API only. Never read, copy or paraphrase an upstream extension's code, CSS, shaders or strings into it,
 and never paste a GNOME Shell function's body into it (wrap the original instead).
-`plans/amethystora-ui/IMPLEMENTERS.md` is the brief. `tweaks` (animations at 0.6 through the shell's slow-down factor,
-never `enable-animations`; no workspace popup; no Activities button) replaced Just Perfection. Each extension a module
-replaces is added to `user-setup.hooks.d/22-retire-extensions.sh`, with its version raised: accounts drop it from their
-extension lists and lose its settings, unless they installed it themselves.
+`plans/amethystora-ui/IMPLEMENTERS.md` is the brief, and `plans/amethystora-ui/similarity-check.mjs` compares the code
+with the upstreams' (it prints numbers only). Each extension a module replaces is added to
+`user-setup.hooks.d/22-retire-extensions.sh`, with its version raised: accounts drop it from their extension lists and
+lose its settings (and a cache folder it left), unless they installed it themselves. The modules, and what each replaced:
+
+- `theme`: the theme's `shell-*.css`, loaded again on every theme switch (what `amethystora-theme` wrote into the
+  extensions' own settings before).
+- `tweaks`, Just Perfection: animations at 0.6 through the shell's slow-down factor (never `enable-animations`), no
+  workspace popup, no Activities button.
+- `workspaces`, Space Bar: the six labels after the logo; rename only in its menu (the six stay six); the keys
+  `Super+Ctrl+Alt+Left/Right` swap a workspace with its neighbour.
+- `meters`, TopHat: a reading every 5 s that redraws only what changed; the process walk only while a menu is open;
+  only interfaces with a device behind them count.
+- `tray`, AppIndicator: the shell is the StatusNotifierWatcher and host, from the public SNI and dbusmenu specs.
+- `search` and `fuzzy`, Search Light and Fuzzy App Search: `Super+Space`'s box over GNOME's own search, and app search
+  that forgives typos, with Parental Controls' filter kept and nothing on disk.
+- `screenshot` and `bazaar`, Gradia's and Bazaar's integrations: the drawing tools over GNOME's screenshot bar and
+  Extract Text's hand-off to Gradia (`--ocr-file`); Uninstall and Bazaar's page in GNOME's app menu.
+- Still upstream: Dash to Dock and Blur my Shell (the `dock` and `glass` modules are being written), PaperWM (`tiling`)
+  and GSConnect, which stays (a phone program, off by default). Caffeine, never switched on, was dropped.
 
 ### Packages from other distributions
 
