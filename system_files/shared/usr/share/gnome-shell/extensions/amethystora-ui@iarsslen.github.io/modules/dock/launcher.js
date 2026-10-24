@@ -5,12 +5,17 @@
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import Shell from 'gi://Shell';
 
 import {EventEmitter} from 'resource:///org/gnome/shell/misc/signals.js';
 
 const BUS_NAME = 'com.canonical.Unity';
 const INTERFACE = 'com.canonical.Unity.LauncherEntry';
 const SCHEME = 'application://';
+// A launcher ID is a desktop file's name; anything else is not looked up
+const LAUNCHER_ID = /^[\w.+-]+\.desktop$/;
+// The most apps that are remembered at once, apart from needing to be ones the system knows
+const MAX_ENTRIES = 128;
 
 // The protocol's keys, and what each is called here
 const KEYS = {
@@ -99,16 +104,29 @@ export class LauncherEntries extends EventEmitter {
         if (typeof uri !== 'string')
             return;
         const id = uri.startsWith(SCHEME) ? uri.slice(SCHEME.length) : uri;
-        const entry = this._entries.get(id) ?? {};
+        // Any program on the bus can say this about any launcher: only the apps this machine has get an entry, and
+        // only so many
+        let entry = this._entries.get(id);
+        if (!entry) {
+            if (this._entries.size >= MAX_ENTRIES || !LAUNCHER_ID.test(id) ||
+                !Shell.AppSystem.get_default().lookup_app(id))
+                return;
+            entry = {};
+        }
+        let changed = entry.sender !== sender;
         entry.sender = sender;
         for (const [key, name] of Object.entries(KEYS)) {
-            if (key in properties)
+            if (key in properties && entry[name] !== properties[key]) {
                 entry[name] = properties[key];
+                changed = true;
+            }
         }
         this._syncMenu(entry);
         this._entries.set(id, entry);
         this._watch(sender);
-        this.emit('changed', id);
+        // The dock redraws every icon for a change, so one that says what it said before costs nothing
+        if (changed)
+            this.emit('changed', id);
     }
 
     _syncMenu(entry) {

@@ -85,25 +85,33 @@ export class ShellPatches {
             });
         }
 
-        // The focus box gives way while GNOME slides from one workspace to the next
+        // The focus box gives way while GNOME slides from one workspace to the next. A slide that another cuts short
+        // never calls its completion, but both end in the same method of GNOME's, so the box comes back there:
+        // counted once when a slide begins, and settled once however it ends.
         const animation = Main.wm._workspaceAnimation;
         if (animation) {
+            let hiding = null;
             this._wrap(animation, 'animateSwitch', (original, controller, from, to, direction, onComplete) => {
                 const e = engine();
-                if (e)
+                if (e && !hiding) {
+                    hiding = e;
                     e.boxHidden++;
-                const done = () => {
+                }
+                e?.strips().forEach(strip => e.updateBox(strip));
+                return original.call(controller, from, to, direction, onComplete);
+            });
+            this._wrap(animation, '_finishWorkspaceSwitch', (original, controller, ...args) => {
+                try {
+                    return original.call(controller, ...args);
+                } finally {
+                    const e = hiding;
+                    hiding = null;
                     if (e?.strips && tiling.engine === e) {
                         e.boxHidden--;
                         for (const strip of e.strips())
                             e.updateBox(strip);
                     }
-                };
-                e?.strips().forEach(strip => e.updateBox(strip));
-                return original.call(controller, from, to, direction, () => {
-                    done();
-                    onComplete();
-                });
+                }
             });
         }
 

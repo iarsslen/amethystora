@@ -76,7 +76,7 @@ export class Windows {
 
     // The look of a copy of a window that has glass, as the workspace switch slides it in
     cloneLook() {
-        return {material: 'glass', radius: RADIUS, areas: frame, content, inClones: false};
+        return {material: 'glass', radius: RADIUS, areas: frame, content, inClones: false, stageOnly: true};
     }
 
     _watch(window) {
@@ -159,6 +159,7 @@ export class Windows {
             areas: frame,
             content,
             inClones: false,
+            stageOnly: true,
         });
     }
 }

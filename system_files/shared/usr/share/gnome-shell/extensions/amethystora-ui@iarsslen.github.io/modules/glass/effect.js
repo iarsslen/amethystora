@@ -52,6 +52,8 @@ function monitorAt(x, y) {
 //   content   (actor) => the opacity to draw the surface itself with over its glass, or -1 for its own
 //   fade      (y) => a share of the glass's opacity for a surface whose top is at y on the stage
 //   inClones  whether the glass is drawn when the surface is painted as a copy elsewhere (as the magnifier does)
+//   stageOnly whether the glass is left out when the surface is painted on its own, as a window is for a screenshot
+//             of it or to be shared: the picture is then the surface bare, at full opacity
 export const GlassEffect = GObject.registerClass(
 class AmethystoraGlassEffect extends Clutter.Effect {
     _init(glass, look) {
@@ -100,10 +102,18 @@ class AmethystoraGlassEffect extends Clutter.Effect {
         return true;
     }
 
+    // Whether this is a paint of the actor by itself and not a part of the screen: the screen is painted with the
+    // region being redrawn, and a paint of one actor into its own picture has none
+    _alone(paintContext) {
+        return !!this.look.stageOnly && typeof paintContext.get_redraw_clip === 'function' &&
+            !paintContext.get_redraw_clip();
+    }
+
     vfunc_paint_node(node, paintContext, _flags) {
         const actor = this.get_actor();
         let content = -1;
-        if ((this.look.inClones || !actor.is_in_clone_paint()) && this._paintGlass(node, paintContext, actor))
+        if (!this._alone(paintContext) && (this.look.inClones || !actor.is_in_clone_paint()) &&
+            this._paintGlass(node, paintContext, actor))
             content = this.look.content?.(actor) ?? -1;
         node.add_child(new Clutter.ActorNode(actor, content));
     }

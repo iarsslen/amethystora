@@ -254,7 +254,8 @@ export class Places extends EventEmitter {
             });
     }
 
-    // Forced, as the drive is going anyway; GNOME's own dialog says which programs still use it
+    // Never forced: a forced unmount skips the check for programs still using the drive, and with it GNOME's own
+    // dialog that names them, so a copy under way would be cut off with the drive reported safe to pull
     _unmount(place, eject) {
         if (place.busy)
             return;
@@ -278,8 +279,8 @@ export class Places extends EventEmitter {
             }
         };
         if (eject)
-            mount.eject_with_operation(Gio.MountUnmountFlags.FORCE, operation.mountOp, null, done);
+            mount.eject_with_operation(Gio.MountUnmountFlags.NONE, operation.mountOp, null, done);
         else
-            mount.unmount_with_operation(Gio.MountUnmountFlags.FORCE, operation.mountOp, null, done);
+            mount.unmount_with_operation(Gio.MountUnmountFlags.NONE, operation.mountOp, null, done);
     }
 }

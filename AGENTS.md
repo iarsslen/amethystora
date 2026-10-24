@@ -1047,7 +1047,10 @@ lose its settings (and a cache folder it left), unless they installed it themsel
   in memory for the keys it can wrap, and, for the four it cannot (`focus-active-notification`, `shift-overview-up/down`,
   `rotate-video-lock-static`), by removing the combination in dconf and writing down what it took in
   `~/.local/state/amethystora/tiling.json` (`taken`), which `amethystora-setup-manifest` reads to keep the account's own value
-  and the module gives back when it is off. `21-retire-paperwm.sh` hands an account over from PaperWM once.
+  and the module gives back when it is off. The file is written with a copy beside it (`tiling.json.bak`) that stands in
+  when it is missing or unreadable, and records that do not fit are dropped on load, so a bad file never keeps the
+  tiling from starting nor a shortcut from coming back. A strip follows its monitor's connector, and one whose screen
+  goes away is merged into the primary's. `21-retire-paperwm.sh` hands an account over from PaperWM once.
 - `dock` and `glass`, Dash to Dock and Blur my Shell: the dock is GNOME's own list of pinned apps in a row at the
   bottom (`modules/dock/`), with no setting of its own; the glass is a shader (`modules/glass/lens.glsl`) and a
   stylesheet, with no setting either. Each screen's wallpaper is blurred once into a texture the surfaces share (the top

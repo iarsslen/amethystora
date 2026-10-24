@@ -39,6 +39,15 @@ const Uncovered = GObject.registerClass(class Uncovered extends Clutter.Effect {
 // it is switched off and on
 const remembered = {strips: [], windows: new WeakMap(), floating: new Set()};
 
+// Which screen each screen number is, by its connector. The numbers shift when a screen other than the last is
+// unplugged, so a strip follows its screen by this and not by its number.
+function connectors() {
+    const list = [];
+    for (const logical of global.backend.get_monitor_manager().get_logical_monitors())
+        list[logical.get_number()] = logical.get_monitors()[0]?.get_connector() ?? null;
+    return list;
+}
+
 export class Strip {
     constructor(workspace, monitor) {
         this.workspace = workspace;
@@ -81,6 +90,7 @@ export class Engine {
         this._glides = new Map();
         this.session = null;
         this.dragging = null;
+        this._connectors = connectors();
         // Something drawn over the strips that the focus box gives way to
         this.boxHidden = 0;
 
@@ -156,8 +166,9 @@ export class Engine {
         return strip;
     }
 
+    // None once the engine has stopped: things that outlive it (the cards zooming at a screen lock) ask all the same
     strips() {
-        return [...this._strips.values()].flatMap(byMonitor => [...byMonitor.values()]);
+        return [...this._strips?.values() ?? []].flatMap(byMonitor => [...byMonitor.values()]);
     }
 
     // The monitor the keyboard is on: the focused window's, or the pointer's
@@ -1062,23 +1073,46 @@ export class Engine {
     // ---- Monitors and workspaces ----
 
     _monitorsChanged() {
+        // A navigation is on a strip that is about to be merged or renumbered: it ends first, and quietly
+        const released = this.tiling.sessions?.end({quiet: true}) ?? [];
         const count = Main.layoutManager.monitors.length;
         const primary = Main.layoutManager.primaryIndex;
+        const before = this._connectors;
+        const after = this._connectors = connectors();
         for (const [workspace, byMonitor] of this._strips) {
-            for (const [monitor, strip] of [...byMonitor]) {
-                if (monitor < count)
+            const strips = [...byMonitor.values()];
+            byMonitor.clear();
+            const gone = [];
+            for (const strip of strips) {
+                // The strip stays with its screen, whatever number the screen has now
+                const connector = before[strip.monitor];
+                const index = connector ? after.indexOf(connector) : strip.monitor;
+                if (index < 0 || index >= count) {
+                    gone.push(strip);
                     continue;
+                }
+                strip.monitor = index;
+                byMonitor.set(index, strip);
+            }
+            for (const strip of gone) {
                 // A monitor that went away: its windows join the primary monitor's strip
-                byMonitor.delete(monitor);
                 const target = this.strip(workspace, primary);
                 for (const column of strip.columns) {
                     for (const window of column)
                         this._info.get(window).strip = target;
                     target.columns.push(column);
                 }
+                target.selected ??= strip.selected;
+                this._glides.get(strip)?.timeline.stop();
+                this._glides.delete(strip);
                 this._boxes.get(strip)?.destroy();
                 this._boxes.delete(strip);
             }
+        }
+        // The windows the navigation was carrying are in no strip: the primary monitor's takes them
+        for (const window of released) {
+            if (this._info.has(window) && this.tileable(window))
+                this.insert(window, this.activeStrip(primary));
         }
         this.tiling.monitorsChanged?.();
         this.layoutAll(false);
@@ -1104,7 +1138,8 @@ export class Engine {
         if (!this._strips)
             return;
         remembered.strips = this.strips().map(strip => ({
-            workspace: strip.workspace, monitor: strip.monitor, columns: strip.columns.map(c => [...c]),
+            workspace: strip.workspace, monitor: strip.monitor, connector: this._connectors?.[strip.monitor],
+            columns: strip.columns.map(c => [...c]),
             scroll: strip.scroll, mode: strip.mode, selected: strip.selected,
         }));
         remembered.windows = new WeakMap();
@@ -1129,9 +1164,11 @@ export class Engine {
         const workspaces = new Set(Array.from({length: global.workspace_manager.n_workspaces},
             (_, i) => global.workspace_manager.get_workspace_by_index(i)));
         for (const saved of remembered.strips) {
-            if (!workspaces.has(saved.workspace) || saved.monitor >= Main.layoutManager.monitors.length)
+            // The screen it was on, by its connector, whatever number it has now
+            const monitor = saved.connector ? this._connectors.indexOf(saved.connector) : saved.monitor;
+            if (!workspaces.has(saved.workspace) || monitor < 0 || monitor >= Main.layoutManager.monitors.length)
                 continue;
-            const strip = this.strip(saved.workspace, saved.monitor);
+            const strip = this.strip(saved.workspace, monitor);
             Object.assign(strip, {scroll: saved.scroll, mode: saved.mode});
             for (const column of saved.columns) {
                 const kept = column.filter(w => alive.has(w) && this.tileable(w) && !w.minimized &&

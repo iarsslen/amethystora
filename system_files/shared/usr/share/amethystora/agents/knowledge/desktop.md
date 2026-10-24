@@ -62,7 +62,8 @@ these commands in the agent's own shell, as the user. Read before writing, chang
   tiling|classic` (the `layout` entry of `state settings`), which sets `enabled` in
   `org.gnome.shell.extensions.amethystora-ui.tiling`. Its keys are in `...tiling.keybindings`; a combination
   it shares with a GNOME shortcut is taken from it while the tiling runs and given back when it is off
-  (four keys' lists are changed in dconf, and what was taken is in `~/.local/state/amethystora/tiling.json`).
+  (four keys' lists are changed in dconf, and what was taken is in `~/.local/state/amethystora/tiling.json`, with a
+  copy `tiling.json.bak` beside it for when the file cannot be read; never edit either by hand).
 
 ## Copying text out of a picture on the screen
 

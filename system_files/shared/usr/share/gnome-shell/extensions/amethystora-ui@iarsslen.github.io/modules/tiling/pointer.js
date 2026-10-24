@@ -119,7 +119,9 @@ export class Pointer {
                     'leave-event', () => this._edgeLeft(),
                     'button-press-event', () => this._edgeClicked(index, side),
                     this);
-                Main.layoutManager.addTopChrome(edge);
+                // Top chrome sits over fullscreen windows too, and takes the pointer and the clicks of the pixel
+                // column it covers; tracked, it is hidden while a fullscreen window covers its screen
+                Main.layoutManager.addTopChrome(edge, {trackFullscreen: true});
                 this._edges.push(edge);
             }
         });
@@ -492,12 +494,22 @@ export class Pointer {
     }
 
     _touchpad(event) {
-        if (event.type() !== Clutter.EventType.TOUCHPAD_SWIPE || Main.overview.visible ||
-            event.get_touchpad_gesture_finger_count() !== FINGERS || this._engine.session)
+        if (event.type() !== Clutter.EventType.TOUCHPAD_SWIPE ||
+            event.get_touchpad_gesture_finger_count() !== FINGERS)
             return Clutter.EVENT_PROPAGATE;
         const phase = event.get_gesture_phase();
+        if (Main.overview.visible || this._engine.session) {
+            // The overview or a navigation began under fingers already down: the pile of workspaces they opened
+            // still has to be shown or taken away when they lift, or it would stay over the windows
+            if (this._swipe?.state === 'pile' && phase !== Clutter.TouchpadGesturePhase.UPDATE &&
+                phase !== Clutter.TouchpadGesturePhase.BEGIN)
+                return this._pileSwipe(this._swipe, event, 0);
+            return Clutter.EVENT_PROPAGATE;
+        }
         const [dx, dy] = event.get_gesture_motion_delta_unaccelerated();
         if (phase === Clutter.TouchpadGesturePhase.BEGIN) {
+            // A pile left over from a swipe whose end never came goes with it
+            this._swipe?.pile?.destroy();
             this._swipe?.timeline?.stop();
             const [x] = event.get_coords();
             const monitor = global.display.get_monitor_index_for_rect(new Mtk.Rectangle({
@@ -565,6 +577,9 @@ export class Pointer {
         }
         this._swipe = null;
         swipe.pile.finish(workspace => {
+            // The tiling stopped while the cards zoomed (the screen locked): there is nothing to hand the keyboard to
+            if (this._tiling.engine !== this._engine)
+                return;
             activateQuietly(workspace);
             const strip = this._engine.activeStrip(swipe.monitor);
             if (strip.selected)

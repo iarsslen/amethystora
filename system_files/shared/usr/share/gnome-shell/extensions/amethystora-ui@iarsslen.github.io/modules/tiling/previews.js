@@ -149,8 +149,12 @@ export class WorkspacePreview {
         card.ease({
             x: -FRAME, y: -FRAME, scale_x: 1, scale_y: 1, duration: ANIMATION, mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             onStopped: () => {
-                done(this.workspace);
-                this.destroy();
+                // The cards go whatever `done` does: the tiling may have stopped during the zoom (the screen locked)
+                try {
+                    done(this.workspace);
+                } finally {
+                    this.destroy();
+                }
             },
         });
     }

@@ -37,6 +37,7 @@ const SHELL_HANDLERS = [
     [/^(switch|move)-to-workspace-(left|right|up|down|last|\d+)$/, '_showWorkspaceSwitcher'],
     [/^(switch-(applications|group|windows)|cycle-(windows|group))(-backward)?$/, '_startSwitcher'],
     [/^switch-monitor$/, '_startSwitcher'],
+    [/^switch-panels(-backward)?$/, '_startA11ySwitcher'],
 ];
 
 const MODIFIERS = [
@@ -326,8 +327,13 @@ export class Keys {
     _canWrap(id, key, whole) {
         if (!MUTTER_SCHEMAS.has(id))
             return false;
-        return whole || SHELL_HANDLERS.some(([pattern, method]) => pattern.test(key) &&
+        const handled = SHELL_HANDLERS.some(([pattern, method]) => pattern.test(key) &&
             typeof Main.wm[method] === 'function');
+        // A key GNOME Shell has given a handler that is not listed above (the Run dialog's) cannot be put back once
+        // wrapped: taking the handler away restores Mutter's own, not the shell's
+        if (!handled && key in (Main.wm._allowedKeybindings ?? {}))
+            return false;
+        return whole || handled;
     }
 
     _wrap(name, entries) {
@@ -377,14 +383,20 @@ export class Keys {
             settings.set_strv(key, value);
     }
 
+    // A record that cannot be given back is dropped, with a word in the log: it would fail the same way every time
     _giveBack(id, key) {
         if (!this._record(id, key))
             return;
-        const value = this._real(id, key);
-        this._forget(id, key);
-        const settings = this._gnome.get(id);
-        if (JSON.stringify(settings.get_strv(key)) !== JSON.stringify(value))
-            settings.set_strv(key, value);
+        try {
+            const value = this._real(id, key);
+            this._forget(id, key);
+            const settings = this._gnome.get(id);
+            if (JSON.stringify(settings.get_strv(key)) !== JSON.stringify(value))
+                settings.set_strv(key, value);
+        } catch (e) {
+            console.warn(`Amethystora UI: ${id} ${key} was not put back: ${e.message}`);
+            this._forget(id, key);
+        }
     }
 
     _giveBackAll() {
@@ -403,15 +415,20 @@ export function giveBackLeftovers(state) {
         giveBackWithoutRunning(state, record);
 }
 
+// One record at a time, and the others whatever becomes of it: a key a later GNOME no longer has throws here
 function giveBackWithoutRunning(state, record) {
-    if (Gio.SettingsSchemaSource.get_default().lookup(record.schema, true)) {
-        const settings = new Gio.Settings({schema_id: record.schema});
-        const value = settings.get_strv(record.key);
-        for (const {accelerator, index} of record.removed) {
-            if (!value.some(a => same(parse(a), parse(accelerator))))
-                value.splice(Math.min(index, value.length), 0, accelerator);
+    try {
+        if (Gio.SettingsSchemaSource.get_default().lookup(record.schema, true)) {
+            const settings = new Gio.Settings({schema_id: record.schema});
+            const value = settings.get_strv(record.key);
+            for (const {accelerator, index} of record.removed) {
+                if (!value.some(a => same(parse(a), parse(accelerator))))
+                    value.splice(Math.min(index, value.length), 0, accelerator);
+            }
+            settings.set_strv(record.key, value);
         }
-        settings.set_strv(record.key, value);
+    } catch (e) {
+        console.warn(`Amethystora UI: ${record.schema} ${record.key} was not put back: ${e.message}`);
     }
     state.set('taken', (state.get('taken') ?? []).filter(r => r !== record &&
         (r.schema !== record.schema || r.key !== record.key)));

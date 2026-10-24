@@ -54,8 +54,11 @@ export class Sessions {
         this.current.act(name, event);
     }
 
-    end() {
-        this.current?.end();
+    // Returns the windows a quiet end let go, which no strip holds any more
+    end(options) {
+        const session = this.current;
+        session?.end(options);
+        return session?.released ?? [];
     }
 
     destroy() {
@@ -78,6 +81,8 @@ class Session {
         this._mask = mask;
         this.strip = this._engine.activeStrip();
         this._carried = [];
+        // What a quiet end let go of, for whoever cut the session short and keeps tiling
+        this.released = [];
         this._veils = new Map();
     }
 
@@ -293,10 +298,11 @@ class Session {
         }
     }
 
-    _stopDrift() {
+    // `quiet`: the session is being cut short, and the strip is not to be laid out again
+    _stopDrift(quiet = false) {
         this._drifting?.timeline.stop();
         this._drifting = null;
-        if (this.strip.selected)
+        if (!quiet && this.strip.selected)
             this._engine.ensureVisible(this.strip, this.strip.selected);
     }
 
@@ -425,16 +431,29 @@ class Session {
         if (this._ended)
             return;
         this._ended = true;
+        // The grab goes first, before anything that reads the strip or the screens, which may have changed under
+        // the session (a monitor unplugged): a throw with the grab still held would leave every key and click going
+        // to an actor nobody sees, and the ended flag keeps the session from trying again
+        Main.overview.disconnectObject(this);
+        this._grabActor.disconnectObject(this);
+        try {
+            Main.popModal(this._grab);
+        } catch (e) {
+            // Already let go by someone else: the rest of the end is still due
+            console.warn(`Amethystora UI: the navigation's grab was not released: ${e.message}`);
+        }
+        this._grabActor.destroy();
         if (this._check)
             GLib.source_remove(this._check);
         this._check = 0;
-        this._stopDrift();
-        this._closeMap();
-        Main.overview.disconnectObject(this);
-        this._grabActor.disconnectObject(this);
-        Main.popModal(this._grab);
-        this._grabActor.destroy();
-        this._syncVeils();
+        // One step failing does not keep the others from running
+        for (const step of [() => this._stopDrift(quiet), () => this._closeMap(), () => this._syncVeils()]) {
+            try {
+                step();
+            } catch (e) {
+                console.error(`Amethystora UI: the tiling's navigation did not end cleanly: ${e.message}\n${e.stack}`);
+            }
+        }
         this._sessions.ended(this);
         const preview = this._preview;
         this._preview = null;
@@ -449,6 +468,9 @@ class Session {
     // The workspace chosen is shown, what is carried is put down on it side by side, and the window chosen (or the
     // first put down) gets the keyboard
     _finish(workspace, quiet) {
+        // The cards zoomed after the tiling stopped (the screen locked): there is no strip left to put anything in
+        if (this._tiling.engine !== this._engine)
+            quiet = true;
         const active = global.workspace_manager.get_active_workspace();
         if (workspace !== active && !quiet)
             activateQuietly(workspace);
@@ -459,6 +481,7 @@ class Session {
             if (quiet) {
                 window.unmake_above();
                 window.unstick();
+                this.released.push(window);
                 continue;
             }
             this._putDown(window);
