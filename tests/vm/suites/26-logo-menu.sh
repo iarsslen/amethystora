@@ -99,7 +99,9 @@ wake() {
 }
 menu_items() { tree menu | paste -sd '|'; }
 menu_open() { [[ "$(menu_items)" == *Manual* ]]; }
-windows() { tree windows | sort -u; }
+# The windows AT-SPI lists, and kitty's: kitty draws with OpenGL, not GTK, so nothing of its windows is on the accessibility
+# bus. It exits at once when it cannot open a window, so a kitty that is running has one (the 10 seconds below hold it to that)
+windows() { { tree windows; pgrep -u "${TEST_USER}" -x kitty | sed 's/^/kitty-/'; } | sort -u; }
 leftmost() {
     local out logo
     wake
