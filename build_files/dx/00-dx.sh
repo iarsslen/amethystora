@@ -138,8 +138,6 @@ systemctl enable docker.socket
 systemctl enable podman.socket
 systemctl enable libvirt-workaround.service
 
-sed -i 's@enabled=1@enabled=0@g' /etc/yum.repos.d/fedora-cisco-openh264.repo
-
 # Disable RPM Fusion repos
 for i in /etc/yum.repos.d/rpmfusion-*.repo; do
     if [[ -f "$i" ]]; then
