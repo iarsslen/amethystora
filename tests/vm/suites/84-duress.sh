@@ -147,11 +147,12 @@ ame_duress() {
     shift
     session_terminal 180 "$@" -- "cd; ame security duress ${action}"
 }
-# Fedora 45's policy lets systemd-userdbd's workers ask systemd-nsresourced (new in systemd 262) nothing; any
-# account lookup now and then shows it, which is Fedora's to fix and nothing the duress features do
+# Fedora 45's policy lets neither systemd-userdbd's workers nor accounts-daemon read systemd-nsresourced's socket
+# (new in systemd 262); account lookups now and then show it, which is Fedora's to fix and nothing the duress
+# features do
 denials_since() {
     journalctl --since "@$1" _TRANSPORT=audit -o cat --no-pager | grep -E "avc: +denied" | grep -v vmlab |
-        grep -v 'scontext=system_u:system_r:systemd_userdbd_t:s0 tcontext=system_u:object_r:systemd_nsresourced_runtime_t:s0'
+        grep -vE 'name="io\.systemd\.NamespaceResource" .*scontext=system_u:system_r:(systemd_userdbd|accountsd)_t:s0 tcontext=system_u:object_r:systemd_nsresourced_runtime_t:s0 tclass=sock_file'
 }
 CONSOLE_WAS="$(sed -n 's/^tty//p' /sys/class/tty/tty0/active 2>/dev/null)"
 [[ "${CONSOLE_WAS}" =~ ^[0-9]+$ ]] || CONSOLE_WAS=1
