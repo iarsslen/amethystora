@@ -2199,6 +2199,25 @@ AMETHYSTORA_SECURITY_CONF="${OSPREY_CONF}" "${BROWSER_POLICY}" show chromium |
 AMETHYSTORA_SECURITY_CONF="${OSPREY_CONF}" "${BROWSER_POLICY}" show firefox |
     jq -e '.policies.ExtensionSettings["osprey@foulest.net"].installation_mode == "allowed"' >/dev/null
 rm -f "${OSPREY_CONF}"
+# Data collection off is a part of its own: off as the image ships, the report says so, it installs and sets
+# nothing, and the image carries none of the files it writes
+[[ "$("${BROWSER_POLICY}" status privacy)" == off ]]
+/usr/libexec/amethystora-security-status --json |
+    jq -e 'any(.checks[]; .id == "browser-privacy" and .state == "off")' >/dev/null
+test ! -e /etc/amethystora/browser-privacy
+find /etc -name '11-amethystora-privacy.json' | grep -q . && false
+"${BROWSER_POLICY}" show chromium-privacy |
+    jq -e '.MetricsReportingEnabled == false and .DiagnosticData == 1 and .BraveP3AEnabled == false
+        and (has("ExtensionInstallForcelist") or has("ExtensionInstallAllowlist") or has("HomepageLocation") | not)' >/dev/null
+"${BROWSER_POLICY}" show firefox-privacy |
+    jq -e '.policies.DisableTelemetry == true and .policies.DisableFirefoxStudies == true
+        and .policies.FirefoxHome.Locked == false and .policies.FirefoxSuggest.Locked == false
+        and (.policies | has("Extensions") or has("ExtensionSettings") or has("Homepage") or has("NewTabPage")
+            or has("OverrideFirstRunPage") | not)' >/dev/null
+# ...together with protection's, in the one file Firefox reads
+AMETHYSTORA_BROWSER_PRIVACY=/dev/null "${BROWSER_POLICY}" show firefox |
+    jq -e '.policies | has("ExtensionSettings") and .DisableTelemetry == true and (has("Homepage") | not)' >/dev/null
+bash /ctx/build_files/shared/test-browser-policy.sh
 
 # Audit rules: the watches that ship with the image, one file per key, which the boot-time generator writes
 # into /etc/audit/rules.d for each key not switched off, with the per-user ones, which can only be written

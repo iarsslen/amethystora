@@ -79,6 +79,15 @@ Symptom: a file deleted a month or more ago is gone from the trash, on the machi
 Empty the trash), which applies to the running session at once. Get the file back from the hourly snapshots or the
 backup (`amethystora-backups`), where they are on.
 
+### Firefox says it is managed by your organization, and some data settings are greyed out
+
+Symptom: Firefox's menu shows "Your browser is being managed by your organization", Telemetry, studies or
+installing extensions cannot be changed in its settings, or an extension is refused. Confirm:
+`about:policies` in Firefox, `/usr/libexec/amethystora-browser-policy status` (protection: the extension
+list) and `status privacy` (data collection off), and `/etc/firefox/policies/policies.json`, which holds
+either part's policies. The image ships none: the user turned one on. Change: `ame security browser` for
+the extension list, `ame security browser privacy off` to let browsers send data again (the user's).
+
 ## The kernel
 
 ### dmesg, ptrace and core dumps are restricted

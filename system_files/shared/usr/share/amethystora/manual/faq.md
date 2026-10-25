@@ -10,7 +10,7 @@ from a container; [Installing software](software.md) shows which is which. In a 
 ## Can I use another browser?
 
 The browser is Firefox, exactly as Fedora builds it: Amethystora adds no settings or extensions to
-it. Chrome, Brave and every other browser are in Bazaar. To make one the default, open
+it. You can ask it, and the other browsers, to stop [sending data to their makers](security.md#browser-protection). Chrome, Brave and every other browser are in Bazaar. To make one the default, open
 **Settings → Apps → Default Apps**; [web apps](web-apps.md#which-browser-runs-them) then open in it
 too.
 

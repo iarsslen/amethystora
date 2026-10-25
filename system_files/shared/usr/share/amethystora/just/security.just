@@ -1415,7 +1415,7 @@ private-folder ACTION="":
         *) exit 0 ;;
     esac
 
-# Let browsers install only the extensions on a list, and keep web pages from USB, serial, HID and Bluetooth devices
+# Let browsers install only the extensions on a list, keep web pages from USB, serial, HID and Bluetooth devices, and turn off what browsers send to their makers
 [positional-arguments]
 browser ACTION="" ID="":
     #!/usr/bin/bash
@@ -1429,12 +1429,19 @@ browser ACTION="" ID="":
     disallow_extension="$(gettext "Take an extension off the list")"
     add_osprey="$(gettext "Add site checking (Osprey)")"
     take_osprey="$(gettext "Take site checking away")"
+    stop_data="$(gettext "Turn data collection off")"
+    allow_data="$(gettext "Let browsers collect data again")"
     turn_off="$(gettext "Turn off")"
     cancel="$(gettext "Cancel")"
     if [[ "$("${policy}" status)" == on ]]; then
         echo "$(gettext "Browser protection is on: browsers install only the extensions on the list.")"
     else
         echo "$(gettext "Browser protection is off: a browser installs any extension you let it.")"
+    fi
+    if [[ "$("${policy}" status privacy)" == on ]]; then
+        echo "$(gettext "Data collection is off: browsers do not send usage data, studies or sponsored-content pings to their makers.")"
+    else
+        echo "$(gettext "Data collection is on, as each browser ships it.")"
     fi
     allowed="$("${policy}" allowed)"
     if [[ -n "${allowed}" ]]; then
@@ -1447,7 +1454,7 @@ browser ACTION="" ID="":
     if [[ -z "${action}" ]]; then
         action="$(gum choose --header "$(gettext "Browser protection")" \
             "${turn_on}" "${allow_extension}" "${disallow_extension}" "${add_osprey}" \
-            "${take_osprey}" "${turn_off}" "${cancel}")"
+            "${take_osprey}" "${stop_data}" "${allow_data}" "${turn_off}" "${cancel}")"
     fi
     case "${action}" in
         "${turn_on}" | on)
@@ -1513,6 +1520,26 @@ browser ACTION="" ID="":
             ;;
         "${take_osprey}")
             exec ame security browser osprey off
+            ;;
+        "${stop_data}" | privacy)
+            if [[ "${2:-on}" == off ]]; then
+                sudo /usr/libexec/amethystora-security-config note browser-privacy off
+                sudo "${policy}" privacy off
+                echo "$(gettext "Data collection is back as each browser ships it, from its next start.")"
+                exit 0
+            fi
+            echo
+            echo "$(gettext "Firefox, as Fedora builds it, sends Mozilla usage data, takes part in studies and shows sponsored shortcuts and stories on its new tab page. Chrome, Chromium, Brave and Edge send their makers usage and crash reports too.")"
+            echo "$(gettext "With this on, they stop: Firefox's telemetry and studies, sponsored shortcuts, stories and suggestions, and the usage, survey and personalisation reports of the others. Nothing is installed, no page is changed, and what you search for goes where it went.")"
+            echo
+            echo "$(gettext "Firefox then says it is managed by your organization and greys out its data settings. It covers Firefox, Brave, Chrome, Chromium and Edge, for every account on this machine, from their next start.")"
+            gum confirm "$(gettext "Turn browsers' data collection off?")" || exit 0
+            sudo /usr/libexec/amethystora-security-config note browser-privacy on
+            sudo "${policy}" privacy on
+            echo "$(gettext "Off. Each browser takes it up the next time it starts.")"
+            ;;
+        "${allow_data}")
+            exec ame security browser privacy off
             ;;
         "${turn_off}" | off)
             sudo /usr/libexec/amethystora-security-config note browser-protection off

@@ -140,6 +140,7 @@ mod tests {
             "ame agent tools on",
             "ame apps aur on",
             "ame security firewall off",
+            "ame security browser privacy on",
             "ame security settings osprey on",
             "ame security settings triage on",
             "ame security allow report",

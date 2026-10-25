@@ -1586,6 +1586,14 @@ msgstr ""
 msgid "Browsers install only the extensions on a list, and web pages cannot reach USB, serial, HID or Bluetooth devices"
 msgstr ""
 
+#: usr/libexec/amethystora-security-status
+msgid "Browser data collection"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
+msgid "Firefox and the other browsers do not send usage data, studies or sponsored-content pings to their makers"
+msgstr ""
+
 #: usr/libexec/amethystora-security-status usr/libexec/amethystora-security-config
 msgid "Site checking (Osprey)"
 msgstr ""
@@ -3426,6 +3434,18 @@ msgid "Failed logins over the network"
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
+msgid "Fedora's count of its machines"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Network connectivity check"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Firmware catalogue"
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
 msgid "Authenticated time"
 msgstr ""
 
@@ -3550,6 +3570,18 @@ msgid "Bluetooth uses a random address that changes, and stops being visible and
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
+msgid "Once a week at most, this machine asks Fedora's mirror list for its software, and says it is Amethystora, which Fedora version and which image, and how many weeks it has counted: Fedora's only measure of how many machines run its packages. No identifier is sent, but Fedora sees the address. Off, Fedora counts one machine fewer and nothing on this machine changes."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "NetworkManager fetches http://fedoraproject.org/static/hotspot.txt, in plain text, at each connection and every five minutes, to learn whether the network reaches the internet or wants a login first. Every network on the way sees it. Off, the login page of a hotel or train network is not offered by itself, and GNOME shows no warning when a network has no internet."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "Once a day at most, this machine fetches the catalogue of firmware updates from the Linux Vendor Firmware Service, and says nothing else about itself. Off, no firmware is offered in Updates; fwupdmgr refresh still fetches it when you ask."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
 msgid "The clock decides whether certificates and signatures are valid. On, it is set only from time servers that prove who they are (NTS), three of which must agree, and never from one a network suggests. Networks that block port 4460 then leave the clock unsynced."
 msgstr ""
 
@@ -3663,6 +3695,14 @@ msgstr ""
 
 #: usr/libexec/amethystora-hardening
 msgid "At once: Bluetooth restarts, and connected devices reconnect."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "At once: NetworkManager reloads its settings."
+msgstr ""
+
+#: usr/libexec/amethystora-hardening
+msgid "At once. The catalogue already fetched stays."
 msgstr ""
 
 #: usr/libexec/amethystora-hardening
@@ -4649,12 +4689,10 @@ msgstr ""
 msgid "What it empties stays in the snapshots and the backup, where they are on."
 msgstr ""
 
-#. Translators: a choice in a menu: to put the artwork on the boot menu
 #: usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just
 msgid "Turn on"
 msgstr ""
 
-#. Translators: a choice in a menu: to take the artwork off the boot menu
 #: usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just
 msgid "Turn off"
 msgstr ""
@@ -5845,11 +5883,27 @@ msgid "Take site checking away"
 msgstr ""
 
 #: usr/share/amethystora/just/security.just
+msgid "Turn data collection off"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Let browsers collect data again"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
 msgid "Browser protection is on: browsers install only the extensions on the list."
 msgstr ""
 
 #: usr/share/amethystora/just/security.just
 msgid "Browser protection is off: a browser installs any extension you let it."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Data collection is off: browsers do not send usage data, studies or sponsored-content pings to their makers."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Data collection is on, as each browser ships it."
 msgstr ""
 
 #: usr/share/amethystora/just/security.just
@@ -5935,6 +5989,30 @@ msgstr ""
 
 #: usr/share/amethystora/just/security.just
 msgid "Its own settings, which providers it asks, are Osprey's: Amethystora sets none of them."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Data collection is back as each browser ships it, from its next start."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Firefox, as Fedora builds it, sends Mozilla usage data, takes part in studies and shows sponsored shortcuts and stories on its new tab page. Chrome, Chromium, Brave and Edge send their makers usage and crash reports too."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "With this on, they stop: Firefox's telemetry and studies, sponsored shortcuts, stories and suggestions, and the usage, survey and personalisation reports of the others. Nothing is installed, no page is changed, and what you search for goes where it went."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Firefox then says it is managed by your organization and greys out its data settings. It covers Firefox, Brave, Chrome, Chromium and Edge, for every account on this machine, from their next start."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Turn browsers' data collection off?"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off. Each browser takes it up the next time it starts."
 msgstr ""
 
 #: usr/share/amethystora/just/security.just
@@ -6059,6 +6137,10 @@ msgid "A wired network knows a computer by its hardware (MAC) address, the same 
 msgstr ""
 
 #: usr/share/amethystora/just/security.just
+msgid "Wi-Fi networks already see an address of their own for each network name without this. A wired network cannot be told apart before it connects, so every wired network without a saved connection of its own sees the same made-up address: not the hardware's, but the same in an office and in a hotel."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
 msgid "A network that lets in only registered devices, as some universities and offices do, then refuses it. For that network, open it in Settings, then Identity, and set Cloned Address to Permanent."
 msgstr ""
 
@@ -6096,10 +6178,6 @@ msgstr ""
 
 #: usr/share/amethystora/just/security.just
 msgid "Remove the TPM key"
-msgstr ""
-
-#: usr/share/amethystora/just/security.just
-msgid "Wi-Fi networks already see an address of their own for each network name without this. A wired network cannot be told apart before it connects, so every wired network without a saved connection of its own sees the same made-up address: not the hardware's, but the same in an office and in a hotel."
 msgstr ""
 
 #: usr/share/amethystora/just/security.just

@@ -4,30 +4,40 @@
 # only be redistributed unaltered, so the image ships no policy for any browser: this writes one on the
 # machine whose owner asked for it, where each browser reads its administrator's policy.
 #
-#   amethystora-browser-policy status        on or off
-#   amethystora-browser-policy show ENGINE   the policy as it would be written: chromium or firefox
+#   amethystora-browser-policy status [privacy]   on or off: protection, or data collection off
+#   amethystora-browser-policy show PART     the policy as it would be written: chromium, firefox,
+#                                            chromium-privacy or firefox-privacy
 #   amethystora-browser-policy allowed       the extensions this machine added to the list
 #   amethystora-browser-policy on            write the policy for every browser below (root)
 #   amethystora-browser-policy off           remove it (root)
 #   amethystora-browser-policy allow ID      add an extension to the list (root)
 #   amethystora-browser-policy disallow ID   take one off it again (root)
 #   amethystora-browser-policy refresh       write the policies again while it is on (root)
+#   amethystora-browser-policy privacy on|off   turn off what browsers send to their makers, or let them (root)
 #
 # Site checking (OSPREY=on in /etc/amethystora/security.conf, `ame security browser osprey`) adds Osprey's
 # extension to the list: it is only ever allowed, never installed, and the browser's own store installs it.
+# Data collection off is a part of its own: it never touches the extension list and the list never touches it.
 
 set -euo pipefail
 
+# A folder to write below instead of /, for the tests
+ROOT="${AMETHYSTORA_BROWSER_ROOT:-}"
+
 # The policies as shipped, one for each engine, with the password managers allowed
-SHARE=/usr/share/amethystora/browser-policy
+SHARE="${AMETHYSTORA_BROWSER_SHARE:-/usr/share/amethystora/browser-policy}"
+# Data collection off is on while this file is there (AMETHYSTORA_BROWSER_PRIVACY is for the tests)
+PRIVACY="${AMETHYSTORA_BROWSER_PRIVACY:-${ROOT}/etc/amethystora/browser-privacy}"
 # This machine's additions, one extension ID a line
-ALLOWED=/etc/amethystora/browser-extensions
+ALLOWED="${ROOT}/etc/amethystora/browser-extensions"
 # Chromium's IDs are 32 letters from a to p. Firefox's are a GUID in braces or look like an address
 CHROMIUM_ID='^[a-p]{32}$'
 FIREFOX_ID='^(\{[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\}|[A-Za-z0-9._+-]*@[A-Za-z0-9._-]+)$'
 
 NAME=10-amethystora.json
-EXTENSIONS=/var/lib/flatpak/extension
+# Chromium's engines read every .json in the directory and merge them, so data collection off has a file of its own
+PRIVACY_NAME=11-amethystora-privacy.json
+EXTENSIONS="${ROOT}/var/lib/flatpak/extension"
 ARCH="$(uname -m)"
 
 # Where each browser reads policy, as "engine|directory that is there anyway|file below it". All of
@@ -37,17 +47,17 @@ ARCH="$(uname -m)"
 TARGETS=(
     # Brave, Chrome and Edge read every .json in the directory, so this one sits beside an
     # administrator's own. Their Flatpaks are given the host's /etc and link the same files in
-    "chromium|/etc|brave/policies/managed/${NAME}"
-    "chromium|/etc/opt|chrome/policies/managed/${NAME}"
-    "chromium|/etc/opt|edge/policies/managed/${NAME}"
+    "chromium|${ROOT}/etc|brave/policies/managed/${NAME}"
+    "chromium|${ROOT}/etc/opt|chrome/policies/managed/${NAME}"
+    "chromium|${ROOT}/etc/opt|edge/policies/managed/${NAME}"
     # Chromium as a package...
-    "chromium|/etc|chromium/policies/managed/${NAME}"
+    "chromium|${ROOT}/etc|chromium/policies/managed/${NAME}"
     # ...and as a Flatpak, which takes policy from an extension directory instead. It has to hold the
     # file itself: Flatpak cannot follow a link out of it
     "chromium|${EXTENSIONS}|org.chromium.Chromium.Extension.amethystora/${ARCH}/1/policies/managed/${NAME}"
     "chromium|${EXTENSIONS}|io.github.ungoogled_software.ungoogled_chromium.Extension.amethystora/${ARCH}/1/policies/managed/${NAME}"
     # Firefox reads one file and no other, so one that is already there and not ours is left alone
-    "firefox|/etc/firefox|policies/policies.json"
+    "firefox|${ROOT}/etc/firefox|policies/policies.json"
     # The Flatpak's takes the place of any policy the Flatpak carries itself, so it also says what a
     # Flatpak's has to: Firefox does not update itself there
     "firefox-flatpak|${EXTENSIONS}|org.mozilla.firefox.systemconfig/${ARCH}/stable/policies/policies.json"
@@ -68,13 +78,25 @@ ours() {
     [[ "$1" == chromium ]] || jq -e 'has("amethystora")' "$2" >/dev/null 2>&1
 }
 
+# Whether protection is on: a Chromium-form file of the extension list, or a Firefox file that holds it
+# (data collection off writes a Firefox file too)
 is_on() {
     local target engine base rel
     for target in "${TARGETS[@]}"; do
         IFS='|' read -r engine base rel <<<"${target}"
-        ours "${engine}" "${base}/${rel}" && return 0
+        if [[ "${engine}" == chromium ]]; then
+            ours "${engine}" "${base}/${rel}" && return 0
+        else
+            ours "${engine}" "${base}/${rel}" &&
+                jq -e '.policies | has("ExtensionSettings")' "${base}/${rel}" >/dev/null 2>&1 && return 0
+        fi
     done
     return 1
+}
+
+# Whether data collection off is on: its marker, which the files follow
+privacy_on() {
+    [[ -e "${PRIVACY}" ]]
 }
 
 # Osprey: Browser Protection (Osprey Project LLC, GPL-3.0), as the stores name it: Chrome's, which Chromium and
@@ -88,7 +110,28 @@ allowed_ids() {
     return 0
 }
 
-# The shipped policy with this machine's extensions added, each engine taking the IDs in its own form
+# The Firefox policy of the parts that are on, the shipped files merged under one "policies" with the
+# extensions this machine allowed added to protection's. The parts share no key; if they ever do, this fails
+# rather than let one take the other's
+firefox_policy() {
+    local engine="$1" protection="$2" privacy="$3"
+    local -a ids files=()
+    [[ "${protection}" == true ]] && files+=("${SHARE}/firefox.json")
+    [[ "${privacy}" == true ]] && files+=("${SHARE}/firefox-privacy.json")
+    mapfile -t ids < <(allowed_ids | grep -E "${FIREFOX_ID}" | sort -u || true)
+    jq -s --arg engine "${engine}" --argjson protection "${protection}" '
+        ([.[].policies | keys[]] | group_by(.) | map(select(length > 1))) as $shared
+        | if ($shared | length) > 0 then error("both parts set " + $shared[0][0]) else . end
+        | {amethystora: .[0].amethystora, policies: (map(.policies) | add)}
+        | if $protection then
+              .policies.ExtensionSettings +=
+                  ($ARGS.positional | map({(.): {installation_mode: "allowed"}}) | add // {})
+          else . end
+        | if $engine == "firefox-flatpak" then .policies.DisableAppUpdate = true else . end' \
+        "${files[@]}" --args "${ids[@]}"
+}
+
+# The policy of one part for one engine, as it would be written
 policy() {
     local -a ids
     case "$1" in
@@ -96,48 +139,64 @@ policy() {
             mapfile -t ids < <(allowed_ids | grep -E "${CHROMIUM_ID}" | sort -u || true)
             jq '.ExtensionInstallAllowlist += $ARGS.positional' "${SHARE}/chromium.json" --args "${ids[@]}"
             ;;
-        firefox | firefox-flatpak)
-            mapfile -t ids < <(allowed_ids | grep -E "${FIREFOX_ID}" | sort -u || true)
-            jq --arg engine "$1" '
-                .policies.ExtensionSettings +=
-                    ($ARGS.positional | map({(.): {installation_mode: "allowed"}}) | add // {})
-                | if $engine == "firefox-flatpak" then .policies.DisableAppUpdate = true else . end' \
-                "${SHARE}/firefox.json" --args "${ids[@]}"
-            ;;
-        *) die "show chromium or firefox" ;;
+        chromium-privacy) jq . "${SHARE}/chromium-privacy.json" ;;
+        firefox | firefox-flatpak) firefox_policy "$1" true "$(privacy_on && echo true || echo false)" ;;
+        firefox-privacy) firefox_policy firefox false true ;;
+        *) die "show chromium, firefox, chromium-privacy or firefox-privacy" ;;
     esac
 }
 
-turn_on() {
-    local target engine base rel file content
-    for target in "${TARGETS[@]}"; do
-        IFS='|' read -r engine base rel <<<"${target}"
-        file="${base}/${rel}"
+# Puts one policy file where a browser reads it, or takes ours away: ENGINE BASE FILE WANTED COMMAND...
+place() {
+    local engine="$1" base="$2" rel="$3" wanted="$4" content
+    local file="${base}/${rel}"
+    shift 4
+    if [[ "${wanted}" == true ]]; then
         if [[ -e "${file}" ]] && ! ours "${engine}" "${file}"; then
             echo "Left alone, because it is not Amethystora's: ${file}" >&2
-            continue
+            return 0
         fi
-        content="$(policy "${engine}")"
+        content="$("$@")"
         install -D -m 0644 /dev/stdin "${file}" <<<"${content}"
         echo "  ${file}"
-    done
-}
-
-turn_off() {
-    local target engine base rel file
-    for target in "${TARGETS[@]}"; do
-        IFS='|' read -r engine base rel <<<"${target}"
-        file="${base}/${rel}"
-        ours "${engine}" "${file}" || continue
+    elif ours "${engine}" "${file}"; then
         rm -f "${file}"
         # ...and the directories made for it, as far as they are empty
         (cd "${base}" && rmdir -p --ignore-fail-on-non-empty "$(dirname "${rel}")") 2>/dev/null || true
+    fi
+}
+
+# Rewrites every browser's policy from the whole state, PROTECTION and PRIVACY each true or false, so that
+# no command drops the other part. Chromium-form files are one for each part, Firefox's is the two merged
+write_all() {
+    local protection="$1" privacy="$2" target engine base rel
+    for target in "${TARGETS[@]}"; do
+        IFS='|' read -r engine base rel <<<"${target}"
+        if [[ "${engine}" == chromium ]]; then
+            place "${engine}" "${base}" "${rel}" "${protection}" policy chromium
+            place "${engine}" "${base}" "${rel/%${NAME}/${PRIVACY_NAME}}" "${privacy}" policy chromium-privacy
+        elif [[ "${protection}" == true || "${privacy}" == true ]]; then
+            place "${engine}" "${base}" "${rel}" true firefox_policy "${engine}" "${protection}" "${privacy}"
+        else
+            place "${engine}" "${base}" "${rel}" false
+        fi
     done
+}
+
+# The state as it is, with protection set to $1 when given
+rewrite() {
+    local protection="${1:-}"
+    [[ -n "${protection}" ]] || { is_on && protection=true || protection=false; }
+    write_all "${protection}" "$(privacy_on && echo true || echo false)"
 }
 
 case "${1:-}" in
     status)
-        if is_on; then echo on; else echo off; fi
+        case "${2:-}" in
+            "") if is_on; then echo on; else echo off; fi ;;
+            privacy) if privacy_on; then echo on; else echo off; fi ;;
+            *) die "status or status privacy" ;;
+        esac
         ;;
     show)
         policy "${2:-}"
@@ -147,11 +206,11 @@ case "${1:-}" in
         ;;
     on)
         need_root "$@"
-        turn_on
+        rewrite true
         ;;
     off)
         need_root "$@"
-        turn_off
+        rewrite false
         ;;
     allow)
         need_root "$@"
@@ -163,7 +222,7 @@ case "${1:-}" in
             echo "${id}" >>"${ALLOWED}"
             chmod 0644 "${ALLOWED}"
         fi
-        if is_on; then turn_on >/dev/null; fi
+        if is_on; then rewrite true >/dev/null; fi
         ;;
     disallow)
         need_root "$@"
@@ -172,15 +231,24 @@ case "${1:-}" in
         [[ -f "${ALLOWED}" ]] && grep -vxF -- "${id}" "${ALLOWED}" >"${ALLOWED}.new" || true
         [[ -f "${ALLOWED}.new" ]] && mv "${ALLOWED}.new" "${ALLOWED}" && chmod 0644 "${ALLOWED}"
         # Browsers turn off, and Firefox removes, an extension the list no longer has at their next start
-        if is_on; then turn_on >/dev/null; fi
+        if is_on; then rewrite true >/dev/null; fi
         ;;
     # Rewrites the policies after site checking was turned on or off, while protection is on
     refresh)
         need_root "$@"
-        if is_on; then turn_on >/dev/null; fi
+        if is_on; then rewrite true >/dev/null; fi
+        ;;
+    privacy)
+        need_root "$@"
+        case "${2:-}" in
+            on) install -D -m 0644 /dev/null "${PRIVACY}" ;;
+            off) rm -f "${PRIVACY}" ;;
+            *) die "privacy on or privacy off" ;;
+        esac
+        rewrite
         ;;
     *)
-        sed -n '2,17p' "$0" | sed 's/^# \?//' >&2
+        sed -n '2,19p' "$0" | sed 's/^# \?//' >&2
         exit 64
         ;;
 esac

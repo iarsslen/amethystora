@@ -1,0 +1,17 @@
+{
+    "amethystora": "Written by `ame security browser`, which rewrites it and removes it. Turn data collection off or on with `ame security browser privacy`, not here.",
+    "policies": {
+        "DisableTelemetry": true,
+        "DisableFirefoxStudies": true,
+        "FirefoxHome": {
+            "SponsoredTopSites": false,
+            "SponsoredStories": false,
+            "Locked": false
+        },
+        "FirefoxSuggest": {
+            "SponsoredSuggestions": false,
+            "OnlineEnabled": false,
+            "Locked": false
+        }
+    }
+}

@@ -1405,6 +1405,9 @@ report optional private-folder "${PRIVATE}" "$(gettext "Private folder")" \
 COMMAND="ame security browser"
 report optional browser-protection "$(/usr/libexec/amethystora-browser-policy status)" "$(gettext "Browser protection")" \
     "$(gettext "Browsers install only the extensions on a list, and web pages cannot reach USB, serial, HID or Bluetooth devices")"
+COMMAND="ame security browser privacy"
+report optional browser-privacy "$(/usr/libexec/amethystora-browser-policy status privacy)" "$(gettext "Browser data collection")" \
+    "$(gettext "Firefox and the other browsers do not send usage data, studies or sponsored-content pings to their makers")"
 
 # Site checking: Osprey allowed in browsers (OSPREY), and which of this account's own browsers have it, read
 # from their profiles: Firefox's list of extensions, the others' folder for its ID

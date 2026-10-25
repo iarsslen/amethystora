@@ -311,6 +311,12 @@ checking (`ame security browser osprey`, `OSPREY` in `security.conf`) adds Ospre
 allowlists while chosen, after its explanation: it sends every site's address to Osprey Project LLC, so it
 is offered only, in no profile, never in the built-in list and never installed, and Osprey's own settings
 are left to the user.
+**Data collection off** (`ame security browser privacy`, the marker `/etc/amethystora/browser-privacy`, no key in `security.conf`) is a second,
+independent part of the same helper (`plans/done/PLAN-browser-telemetry.md`): Firefox's `DisableTelemetry`, `DisableFirefoxStudies`, and no sponsored
+shortcuts, stories or suggestions (`firefox-privacy.json`), and each Chromium-family maker's own reporting keys (`chromium-privacy.json`, its own
+`11-amethystora-privacy.json` beside protection's file; Firefox's single `policies.json` is the two merged by one write function, which
+`build_files/shared/test-browser-policy.sh` runs against a stand-in root). It is off by default and in no profile, it never installs an extension or touches
+a home page, and it is the owner's command, never the image's: keep it so.
 
 ### The terminal and the prompt
 

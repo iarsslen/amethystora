@@ -510,7 +510,7 @@ fn tile_icon(id: &str) -> &'static str {
         "disk-unlock" => "chip",
         "usb-protection" => "plug",
         "private-folder" => "folder",
-        "browser-protection" => "monitor",
+        "browser-protection" | "browser-privacy" => "monitor",
         "site-checking" => "scan",
         "key-remapping" => "keyboard",
         "on-detection" => "file-alert",

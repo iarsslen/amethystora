@@ -1,0 +1,11 @@
+{
+    "MetricsReportingEnabled": false,
+    "UrlKeyedAnonymizedDataCollectionEnabled": false,
+    "FeedbackSurveysEnabled": false,
+    "UserFeedbackAllowed": false,
+    "DiagnosticData": 1,
+    "PersonalizationReportingEnabled": false,
+    "BraveP3AEnabled": false,
+    "BraveStatsPingEnabled": false,
+    "BraveWebDiscoveryEnabled": false
+}

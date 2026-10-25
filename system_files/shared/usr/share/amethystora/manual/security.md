@@ -868,6 +868,21 @@ on. Which providers it asks is set in Osprey's own settings, and Amethystora set
 `ame security browser osprey off` takes it off the list again: with browser protection on, browsers then
 turn it off, and Firefox removes it; with protection off, remove it yourself.
 
+**Data collection off** (`ame security browser privacy`) is a part of its own, independent of the
+extension list: either can be on without the other. Firefox, as Fedora builds it, sends Mozilla usage data
+(Telemetry and its usage ping), takes part in studies, and shows sponsored shortcuts and stories on its new tab
+page; where Firefox Suggest exists, it can send what you type in the address bar. Chrome, Chromium, Brave and
+Edge send their makers usage and crash reports, URLs, survey answers and personalisation data; Brave adds its
+own usage statistics. With this on, each of them is told not to, through the same policy files. It installs
+nothing, sets no home page and changes nothing about what a site can do, and what you search for still goes to
+the search engine you chose. Firefox then says it is managed by your organization, and greys out its Telemetry
+and studies settings; the sponsored shortcuts, stories and suggestions are off but not locked, so you can turn
+them back on in Firefox's settings. Edge sends only the data it needs to work (`DiagnosticData` is set to
+required data, not off), and whether Edge on Linux honours its two policies is Microsoft's to say: it
+documents them for Windows and macOS. `ame security browser privacy off` lets the browsers send data again, from
+their next start. It is off by default for the same reason as protection: Firefox comes as Fedora builds it,
+and what the browser sends is your decision, not the image's. No security profile turns it on.
+
 ### Encrypted DNS
 
 ```bash
