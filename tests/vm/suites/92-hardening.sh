@@ -205,7 +205,7 @@ EOF
 
 # --- What each switch does, as it works -------------------------------------------------------------------------
 blocked() { modprobe -n -v "$1" 2>&1 | tail -n 1 | grep -q '^install /usr/bin/false'; }
-sshd_says() { sshd -T -h "${STATE}/hostkey" 2>/dev/null | grep -E '^(maxauthtries|permitrootlogin|x11forwarding) ' | paste -sd' '; }
+sshd_says() { sshd -T -h "${STATE}/hostkey" 2>/dev/null | awk '{ $1 = tolower($1) } 1' | grep -E '^(maxauthtries|permitrootlogin|x11forwarding) ' | paste -sd' '; }
 uinput_acl() { getfacl -cp /dev/uinput 2>/dev/null | grep -c "^user:${TEST_USER}:"; }
 # NetworkManager's own reading of its configuration, which it refuses whole for one file it cannot read
 ip6_privacy() {

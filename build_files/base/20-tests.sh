@@ -1722,7 +1722,8 @@ grep -A1 -E "^auth[[:space:]]+substack[[:space:]]+password-auth" /etc/pam.d/sshd
 cmp -s /etc/pam.d/sshd <("${SSH_CODES}" pam <"${SSH_TEST}/sshd.pam")
 # The build has no host key of its own; sshd keeps the first value it reads, so the drop-in's are the ones
 ssh-keygen -q -t ed25519 -N '' -f "${SSH_TEST}/host_key"
-SSHD_SETTINGS="$(sshd -T -h "${SSH_TEST}/host_key")"
+# Keywords in lower case, as OpenSSH printed them before 10.6 (Fedora 45), which prints them as written
+SSHD_SETTINGS="$(sshd -T -h "${SSH_TEST}/host_key" | awk '{ $1 = tolower($1) } 1')"
 for setting in "usepam yes" "kbdinteractiveauthentication yes" "passwordauthentication no" \
     "authenticationmethods publickey keyboard-interactive" "permitrootlogin no"; do
     grep -qx "${setting}" <<<"${SSHD_SETTINGS}"

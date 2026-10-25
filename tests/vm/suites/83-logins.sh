@@ -294,7 +294,7 @@ else
 fi
 out="$(in_terminal 120 'Turn one-time codes for SSH on\?' y '\[sudo\] password for' "${TEST_USER}"$'\r' \
     -- runuser -u "${TEST_USER}" -- bash -lc 'cd; ame security ssh-codes on')"
-settings="$(sshd -T 2>/dev/null | grep -E '^(kbdinteractiveauthentication|passwordauthentication|authenticationmethods) ' | sort | paste -sd ' ')"
+settings="$(sshd -T 2>/dev/null | awk '{ $1 = tolower($1) } 1' | grep -E '^(kbdinteractiveauthentication|passwordauthentication|authenticationmethods) ' | sort | paste -sd ' ')"
 if [[ "$(/usr/libexec/amethystora-ssh-codes status)" == on &&
     "${settings}" == "authenticationmethods publickey keyboard-interactive kbdinteractiveauthentication yes passwordauthentication no" ]]; then
     ok "ame security ssh-codes on"
