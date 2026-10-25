@@ -1212,8 +1212,9 @@ implementation of its own. A palette whose slots 2, 3 and 1 are not a green, a y
 Dawn's) adds `success`, `warning` and `error` to its `colors.toml`. Where the values go:
 
 - **libadwaita and GTK 4** (`themed/palette-gtk4.css.tpl`): libadwaita's colour variables on `:root`, written at the top of
-  `~/.config/gtk-4.0/gtk.css` by `20-gtk-apps.sh` and wrapped in `@media not (prefers-contrast: more)`, which GTK 4.22
-  honours in a user stylesheet and switches live, so High Contrast keeps libadwaita's own colours. It replaces the import of
+  `~/.config/gtk-4.0/gtk.css` by `20-gtk-apps.sh` and wrapped in `@media (prefers-color-scheme: <the theme's>) and (not (prefers-contrast: more))`,
+  which GTK 4.22 honours in a user stylesheet and switches live, so High Contrast keeps libadwaita's own colours, and an
+  app drawn in the other scheme than the theme's (the Dark Style switch) keeps them too. It replaces the import of
   the Sweet GTK 4 stylesheet the two Amethystora themes had (Sweet stays their GTK 3 theme). GTK does not reload `gtk.css`
   while an app runs: open apps take a new theme or style at their next start (the notification says so), the shell, the
   Amethystora apps and kitty at once. **GTK 3** (`palette-gtk3.css.tpl`) takes adw-gtk3's named colours, which GTK 3 cannot

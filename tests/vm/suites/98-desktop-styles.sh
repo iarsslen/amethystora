@@ -105,10 +105,13 @@ for dir in "${THEMES_DIR}"/*/; do
     else
         not_ok "${theme} did not write its monospace font and pointer" "$(mono_now) (want ${mono} 11), $(cursor_now) (want ${cursor})"
     fi
+    # The palette for libadwaita is limited to the scheme the theme is drawn in, and not to High Contrast
+    scheme=dark
+    [[ -e "${dir}light.mode" ]] && scheme=light
     accent_bg="$(sed -n 's/^accent_bg = "\(#[0-9a-f]*\)"$/\1/p' "${CONFIG}/current/theme/palette.toml")"
     if [[ -n "${accent_bg}" ]] &&
         grep -qi -- "--accent-bg-color: ${accent_bg};" "${gtk4}" &&
-        grep -q '@media not (prefers-contrast: more)' "${gtk4}" &&
+        grep -q "@media (prefers-color-scheme: ${scheme}) and (not (prefers-contrast: more))" "${gtk4}" &&
         grep -qi -- "@define-color accent_bg_color ${accent_bg};" "${gtk3}" &&
         grep -q '^\[Colors:View\]' "${HOME_DIR}/.config/kdeglobals" &&
         [[ "$(cat "${CONFIG}/current/style.name")" == "${style}" ]] &&
