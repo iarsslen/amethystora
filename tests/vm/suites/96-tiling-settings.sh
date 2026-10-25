@@ -126,23 +126,35 @@ if [[ -n "${app}" ]]; then
         not_ok "the keyboard page does not list the shortcuts" "$(atspi text 2>&1 | head -n 20)"
     fi
     atspi click Windows "page tab" >/dev/null 2>&1
+    # Read again at every try: the switch's change reaches dconf a moment after it is pressed
+    tiling_is() { [[ "$(gsettings_get "${TILING}" enabled)" == "$1" ]]; }
     atspi check "Tile windows" off >/dev/null 2>&1
-    if wait_for 10 test "$(gsettings_get "${TILING}" enabled)" == false; then
+    if wait_for 10 tiling_is false; then
         ok "its switch turns the tiling off"
     else
-        not_ok "its switch did not turn the tiling off" "enabled: $(gsettings_get "${TILING}" enabled)"
+        not_ok "its switch did not turn the tiling off" "enabled: $(gsettings_get "${TILING}" enabled)" \
+            "$(atspi tree 2>&1 | grep -F "Tile windows" | head -n 4)"
     fi
     atspi check "Tile windows" on >/dev/null 2>&1
-    if wait_for 10 test "$(gsettings_get "${TILING}" enabled)" == true; then
+    if wait_for 10 tiling_is true; then
         ok "and on again"
     else
         not_ok "its switch did not turn the tiling on again" "enabled: $(gsettings_get "${TILING}" enabled)"
         in_session "ame desktop layout tiling" >/dev/null 2>&1
     fi
+    # Closed as a person closes it, by its close button: killing an app's window is what suite 26 found leaves GNOME
+    # taking no more input
+    atspi click Close button >/dev/null 2>&1
+    gone() { ! user_bus python3 "${OWN}/find.py" "Tile windows" >/dev/null 2>&1; }
+    if wait_for 10 gone; then
+        ok "its close button closes it"
+    else
+        not_ok "its close button did not close it; it was killed instead"
+        pkill -u "${TEST_USER}" -f org.gnome.Shell.Extensions >/dev/null 2>&1 || true
+    fi
 else
     not_ok "ame desktop tiling-settings opened no settings window" "$(in_session "ame desktop tiling-settings" 2>&1 | tail -n 5)"
 fi
-pkill -u "${TEST_USER}" -f org.gnome.Shell.Extensions >/dev/null 2>&1 || true
 sleep 2
 
 # --- A shortcut bound while the tiling runs -------------------------------------------------------------------------------
