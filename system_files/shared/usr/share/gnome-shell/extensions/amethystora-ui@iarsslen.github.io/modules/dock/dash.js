@@ -139,11 +139,16 @@ class AmethystoraDockDash extends Dash.Dash {
     }
 
     // The widest the row may be. GNOME picks the largest of its icon sizes that fits both ways; the height given
-    // here leaves 48 px the largest, whatever padding the theme puts around an icon.
+    // here leaves 48 px the largest, whatever padding the theme puts around an icon. What is around the icon is
+    // measured against the icon as drawn, not this.iconSize: in the overview GNOME eases an icon to its new size,
+    // and every frame of that changes the dock's height and comes back here, which against this.iconSize gave a
+    // new limit, a new size and a new ease, for ever.
     fitTo(width) {
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
         const [, height] = this.get_preferred_height(-1);
-        const around = Math.max(0, height - this.iconSize * scale);
+        const icon = this._showAppsIcon.icon?.icon;
+        const [, drawn] = icon ? icon.get_preferred_height(-1) : [0, this.iconSize * scale];
+        const around = Math.max(0, height - drawn);
         // What GNOME does not count: the pill's own ends and the line after the pinned apps
         const pill = this._background.get_theme_node();
         const ends = pill.get_horizontal_padding() + pill.get_border_width(St.Side.LEFT) * 2 + 8 * scale;
