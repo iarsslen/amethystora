@@ -1445,8 +1445,14 @@ COMMAND="ame security dns"
 report optional encrypted-dns "${DNS_STATE}" "$(gettext "Encrypted DNS")" "${DNS_TEXT}"
 
 COMMAND="ame security mac"
-report optional network-address "$(/usr/libexec/amethystora-mac status)" "$(gettext "A different address on each network")" \
-    "$(gettext "Each network sees an address of its own for this machine and is not told its name, so networks cannot recognise it wherever it goes")"
+MAC_ADDRESS="$(/usr/libexec/amethystora-mac status)"
+if [[ "${MAC_ADDRESS}" == away ]]; then
+    report optional network-address on "$(gettext "A different address on each network")" \
+        "$(gettext "Networks you have not named home see an address of their own for this machine and are not told its name, so they cannot recognise it wherever it goes")"
+else
+    report optional network-address "${MAC_ADDRESS}" "$(gettext "A different address on each network")" \
+        "$(gettext "Each network sees an address of its own for this machine and is not told its name, so networks cannot recognise it wherever it goes")"
+fi
 
 if systemctl is-enabled --quiet input-remapper.service 2>/dev/null; then REMAP=on; else REMAP=off; fi
 COMMAND="ame security input-remapper"

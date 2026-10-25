@@ -382,6 +382,8 @@ set_away() {
             return 1
         fi
         [[ $# -eq 0 ]] || set_home "$@"
+    # ame security mac away leaves them out, so what it gave the old and the new home networks follows the list
+    AMETHYSTORA_MAC_ROOT="${ROOT}" /usr/libexec/amethystora-mac home
         record firewall-away on
         default_zone "${AWAY_ZONE}" || { record firewall-away off; return 1; }
     else

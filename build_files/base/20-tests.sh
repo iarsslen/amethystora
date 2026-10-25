@@ -1972,9 +1972,24 @@ grep -qx "ipv4.dhcp-send-hostname=0" <<<"${NETWORKMANAGER_CONFIG}"
 grep -qx "ipv6.dhcp-duid=stable-uuid" <<<"${NETWORKMANAGER_CONFIG}"
 # ...and temporary IPv6 addresses are ame security ipv6-privacy's alone, which this must not turn back on
 grep -q "ip6-privacy" /usr/share/amethystora/network/60-amethystora-mac.conf && false
+grep -qx "connection.llmnr=0" <<<"${NETWORKMANAGER_CONFIG}" && false
+# Away from home only: the same, and no LLMNR lookups, in the file that takes the one place of the other's;
+# the networks named home are given their own values by `home`, which the home networks' list calls
+MAC_NETWORK=/usr/share/amethystora/network
+[[ "$(diff <(grep -v '^#' "${MAC_NETWORK}/60-amethystora-mac.conf") <(grep -v '^#' "${MAC_NETWORK}/60-amethystora-mac-away.conf") |
+    grep '^[<>]')" == "> connection.llmnr=0" ]]
+grep -q "status|on|away|off|home" "${MAC}"
+grep -q "amethystora-mac home" /usr/libexec/amethystora-hardening
+"${MAC}" away
+[[ "$("${MAC}" status)" == away ]]
+/usr/sbin/NetworkManager --print-config | grep -qx "connection.llmnr=0"
+/usr/sbin/NetworkManager --print-config | grep -qx "ethernet.cloned-mac-address=stable"
+"${MAC}" on
+[[ "$("${MAC}" status)" == on ]]
 "${MAC}" off
 [[ "$("${MAC}" status)" == off ]]
 test ! -e /etc/NetworkManager/conf.d/60-amethystora-mac.conf
+test ! -e /var/lib/amethystora/mac-home
 
 # Developer groups: one list, which the recipe, Control and the report read, and nothing joins anyone to
 # them by itself. Docker, Incus and libvirt are root under another name, which the report says.

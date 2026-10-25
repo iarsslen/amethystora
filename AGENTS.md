@@ -703,7 +703,7 @@ It takes X11, the input devices and the Flatpak service from every app, and leav
 apps that ask for it.
 
 Encrypted DNS (`ame security dns`, `/usr/libexec/amethystora-dns`) and a different address on each
-network (`ame security mac`, `/usr/libexec/amethystora-mac`) are switched by the files their helpers write,
+network (`ame security mac [off|away|on]`, `/usr/libexec/amethystora-mac`) are switched by the files their helpers write,
 not by `security.conf`: a resolved drop-in with the resolver, `DNSOverTLS=yes` and `Domains=~.`, and
 NetworkManager drop-ins copied from `/usr/share/amethystora/network`. The DNS one sets each network's own
 servers to plain text, for its own names and the connectivity check, which would otherwise find every

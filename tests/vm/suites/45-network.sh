@@ -7,7 +7,9 @@
 # - A different address on each network (ame security mac): a wired network sees an address of its own, the
 #   same each time, another network another one, a default for one port in an earlier file does not win over
 #   it (as Fedora's for Wi-Fi does not), no network is told the machine's name or its DHCPv6 identity, and
-#   off gives everything back.
+#   off gives everything back. Away from home only (`away`): the network named home keeps the port's own
+#   address, the name and LLMNR lookups, any other network gets none of them, and a network no longer named
+#   home, or off, gives the connection's defaults back.
 # - Encrypted DNS (ame security dns): every name over DNS-over-TLS to the resolver chosen and to nobody else,
 #   the network's own names and the connectivity check still on the network's servers, a VPN's settings kept
 #   through every change.
@@ -262,6 +264,79 @@ same "off, the network sees the port's own address again" "$(mac_of "${WAN}")" "
 same "and is told the machine's name again" "$(lease4_name "${MAC0}")" "${NAME}"
 up "${MAIN_UUID}"
 same "${MAIN} has its own address again" "$(ip -j link show "${MAIN}" | jq -r '.[0].permaddr // "its own"')" "its own"
+
+# --- The same, except at home (ame security mac away, ame security home-networks) -----------------------------
+# systemd-resolved asks the link for a single-label name by LLMNR (UDP 5355) unless the connection says no; the
+# network made here answers every DNS name, so a lookup shows whether the question went out as well
+llmnr_asked() {
+    tcpdump -nn -l -i "${WAN}" 'udp port 5355' >"${DIR}/llmnr" 2>/dev/null &
+    local pid=$!
+    sleep 2
+    query vmlab-single >/dev/null
+    sleep 2
+    kill -INT "${pid}" 2>/dev/null
+    wait "${pid}" 2>/dev/null
+    [[ -s "${DIR}/llmnr" ]]
+}
+LAN_UUID="$(nmcli -g connection.uuid connection show "${LAN}")"
+prop_of() { nmcli -g "$2" connection show "$1" 2>/dev/null; }
+default_props() {
+    [[ -z "$(prop_of "$1" 802-3-ethernet.cloned-mac-address)" && "$(prop_of "$1" ipv4.dhcp-send-hostname)" == default* &&
+        "$(prop_of "$1" ipv6.dhcp-send-hostname)" == default* && "$(prop_of "$1" connection.llmnr)" == default* ]]
+}
+up "${LAN}" && wait_for 60 leased
+if llmnr_asked; then
+    ok "off, a single-label name is looked up over LLMNR on the network as well (the control for the next check)"
+    LLMNR_CONTROL=true
+else
+    skip "LLMNR lookups do not go out on this link even off, so the next check shows nothing"
+    LLMNR_CONTROL=false
+fi
+named="$(/usr/libexec/amethystora-hardening home "${LAN_UUID}" 2>&1)" || not_ok "naming ${LAN} home" "${named}"
+out="$(session_terminal 120 'except at home\?' y '[Pp]assword' "${TEST_USER}"$'\r' -- "ame security mac away")"
+status=$?
+same "ame security mac away turns it on, after a yes and the password (exit status, then the switch)" \
+    "${status} $(/usr/libexec/amethystora-mac status)" "0 away"
+[[ "${status}" == 0 ]] || not_ok "ame security mac away said" "$(tail -n 15 <<<"${out}")"
+same "the report calls it on" "$(report_json | jq -r '[.checks[] | select(.id == "network-address")][0].state')" on
+same "the network named home keeps the port's own address setting (permanent)" \
+    "$(prop_of "${LAN_UUID}" 802-3-ethernet.cloned-mac-address)" permanent
+start_dnsmasq
+up "${LAN}" && wait_for 60 leased
+same "the network named home sees the port's own address" "$(mac_of "${WAN}")" "${MAC0}"
+same "and is told the machine's name" "$(lease4_name "${MAC0}")" "${NAME}"
+start_dnsmasq
+up "${LAN2}" && wait_for 60 leased
+MAC3="$(mac_of "${WAN}")"
+if [[ "${MAC3}" != "${MAC0}" ]] && made_up "${MAC3}"; then
+    ok "a network not named home sees an address made up for it (${MAC3})"
+else
+    not_ok "the network not named home sees ${MAC3}" "the port's: ${MAC0}"
+fi
+same "and is not told the machine's name (DHCPv4)" "$(lease4_name "${MAC3}")" "*"
+same "nor over DHCPv6" "$(lease6_name)" "*"
+if [[ "${LLMNR_CONTROL}" == true ]]; then
+    if llmnr_asked; then not_ok "a single-label name was looked up over LLMNR on a network not named home" "$(cat "${DIR}/llmnr")"; else ok "no LLMNR lookup goes out on a network not named home"; fi
+fi
+start_dnsmasq
+up "${LAN}" && wait_for 60 leased
+if [[ "${LLMNR_CONTROL}" == true ]]; then
+    if llmnr_asked; then ok "the network named home keeps LLMNR lookups"; else not_ok "no LLMNR lookup on the network named home"; fi
+fi
+/usr/libexec/amethystora-hardening home
+check "naming no network home gives the connection back its defaults" default_props "${LAN_UUID}"
+start_dnsmasq
+up "${LAN}" && wait_for 60 leased
+if [[ "$(mac_of "${WAN}")" != "${MAC0}" ]] && [[ -z "$(lease4_name "$(mac_of "${WAN}")")" || "$(lease4_name "$(mac_of "${WAN}")")" == "*" ]]; then
+    ok "and away it is another network like the rest: another address, no name"
+else
+    not_ok "the network no longer named home still sees $(mac_of "${WAN}")" "$(lease4_name "$(mac_of "${WAN}")")"
+fi
+/usr/libexec/amethystora-hardening home "${LAN_UUID}"
+/usr/libexec/amethystora-mac off
+check "off, the network that was named home has its defaults back" default_props "${LAN_UUID}"
+/usr/libexec/amethystora-hardening home
+up "${MAIN_UUID}"
 
 # --- Encrypted DNS ---------------------------------------------------------------------------------------------
 # A VPN's DNS, set on its own link over D-Bus as Tailscale sets it: its domain, its server, no DNS-over-TLS

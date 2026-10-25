@@ -1617,6 +1617,10 @@ msgid "A different address on each network"
 msgstr ""
 
 #: usr/libexec/amethystora-security-status
+msgid "Networks you have not named home see an address of their own for this machine and are not told its name, so they cannot recognise it wherever it goes"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status
 msgid "Each network sees an address of its own for this machine and is not told its name, so networks cannot recognise it wherever it goes"
 msgstr ""
 
@@ -6027,6 +6031,22 @@ msgid "On. To go back to the network's own DNS servers: ame security dns off"
 msgstr ""
 
 #: usr/share/amethystora/just/security.just
+msgid "Only away from home"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Every network"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Choose home networks"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "On away from home: the networks you named home see this machine's own hardware address and its name, every other network an address of its own and not its name."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
 msgid "On: each network sees an address of its own for this machine, and not its name."
 msgstr ""
 
@@ -6040,6 +6060,22 @@ msgstr ""
 
 #: usr/share/amethystora/just/security.just
 msgid "A network that lets in only registered devices, as some universities and offices do, then refuses it. For that network, open it in Settings, then Identity, and set Cloned Address to Permanent."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Avahi still announces this machine's name on every network, as it can be told about interfaces and not networks. ame security network-daemons turns it off."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "No network is named home yet, so this would be the same as every network. Name yours first, to keep your router's reservation for this machine:"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "The networks you named home, with ame security home-networks, keep this machine's own hardware address and are told its name, so that a router's reservation and Wake-on-LAN keep working. A wired connection named home is the one used on every wired network."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Use a different address on each network, except at home?"
 msgstr ""
 
 #: usr/share/amethystora/just/security.just
@@ -6060,6 +6096,10 @@ msgstr ""
 
 #: usr/share/amethystora/just/security.just
 msgid "Remove the TPM key"
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Wi-Fi networks already see an address of their own for each network name without this. A wired network cannot be told apart before it connects, so every wired network without a saved connection of its own sees the same made-up address: not the hardware's, but the same in an office and in a hotel."
 msgstr ""
 
 #: usr/share/amethystora/just/security.just

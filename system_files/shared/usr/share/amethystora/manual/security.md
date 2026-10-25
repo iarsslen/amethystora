@@ -46,7 +46,8 @@ to the agent, which looks into it in a terminal and changes nothing until you ag
   networks you name home, and closed on every other, a café's or a new one included. Name yours with
   `ame security home-networks`, which lists the networks this machine has joined. A wired connection
   is used on every wired network the machine is plugged into, so name it home only if the machine is
-  plugged in nowhere else.
+  plugged in nowhere else. The same networks keep the machine's real address when
+  `ame security mac away` is on ([A different address on each network](#a-different-address-on-each-network)).
 - **Ten wrong passwords within a quarter of an hour** lock an account for ten minutes. Unlock it early from another
   administrator account with `sudo faillock --user <name> --reset`.
 - **Repeated failed logins over the network** get the address blocked: five failures within ten
@@ -905,15 +906,31 @@ ame security mac
 A wired network knows a computer by its hardware (MAC) address, which is the same on every network,
 and every network is told the machine's name, and over IPv6 an identity made from it, so a café, an
 office and an airport can each tell it is the same machine. Wi-Fi networks already see an address of
-their own, one for each network name. With this on, each Wi-Fi and wired network sees an address and
-an identity of its own for this machine, the same each time it comes back, so your router keeps what
-it reserved for it and a login page remembers it, and no network is told the machine's name. It
-applies from the next time each network connects. Temporary IPv6 addresses, which change over time,
-are on already (`ame security ipv6-privacy`).
+their own, one for each network name, without this. With this on, each Wi-Fi and wired network sees
+an address and an identity of its own for this machine, the same each time it comes back, so your
+router keeps what it reserved for it and a login page remembers it, and no network is told the
+machine's name. A wired network cannot be told apart before it connects, so every wired network
+without a saved connection of its own sees the same made-up address: not the hardware's, but the same
+in an office and in a hotel. It applies from the next time each network connects. Temporary IPv6
+addresses, which change over time, are on already (`ame security ipv6-privacy`).
+
+The command offers two ways. **Every network** (`ame security mac on`) is the whole of it. **Only
+away from home** (`ame security mac away`) leaves out the networks you named home with
+`ame security home-networks`: they keep the machine's own hardware address and are told its name, so
+that your router's reservation and Wake-on-LAN keep working, and every other network, a new one
+included, sees none of it. A wired connection named home is the one used on every wired network.
+Away from home, the machine also stops asking networks about single-word names over LLMNR. Naming a
+network home, or taking it off the list, changes the connection's own settings, and only the ones
+this command set: an address you set to Permanent by hand stays.
 
 A network that lets in only devices it has registered, as some universities and offices do, then
 refuses the machine. For that one network, open it in **Settings**, then **Identity**, and set
-**Cloned Address** to **Permanent**. `ame security mac off` turns it off everywhere.
+**Cloned Address** to **Permanent**, or name it home with `away`. `ame security mac off` turns it off
+everywhere.
+
+Avahi, which lets printers and other devices find this machine by name, still announces the machine's
+name on every network, as it can be told about interfaces and not networks. `ame security
+network-daemons` turns it off ([Stricter settings](#stricter-settings)).
 
 ### Network protection
 

@@ -128,10 +128,12 @@ Symptom: a hotel or café network's login page will not load, or names do not re
 `/usr/libexec/amethystora-dns status`, `resolvectl status`. Change: `ame security dns pause` (ten minutes, a
 password); never pause or turn it off for the user.
 
-### A new hardware address on each network (only with it on)
+### A new hardware address on each network (only with it on or away)
 
 Symptom: a network that registers devices by address refuses the machine, or a router's reservation stops
-working. Confirm: `/usr/libexec/amethystora-mac status`. Change: `ame security mac off` (the user's).
+working. Confirm: `/usr/libexec/amethystora-mac status` (`on`, `away` or `off`). `away` leaves the networks
+named home (`ame security home-networks`) their real address and the machine's name, so a reservation
+returns once its network is named home. Change: `ame security mac off` or `away` (the user's).
 
 ### Network protection blocks a connection (only with NETWORK=block)
 

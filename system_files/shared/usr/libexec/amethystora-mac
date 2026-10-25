@@ -1,40 +1,134 @@
 #!/usr/bin/bash
 # A different address on each network (ame security mac): each Wi-Fi and wired network sees a hardware
 # address and a DHCP identity of its own for this machine, kept for that network, and is not told the
-# machine's name.
+# machine's name. With `away`, the networks named home (ame security home-networks) are left out: they keep
+# the hardware address and are told the name, so that a router's reservation and Wake-on-LAN keep working.
 #
-#   amethystora-mac status   on or off
-#   amethystora-mac on       as root
+#   amethystora-mac status   on, away or off
+#   amethystora-mac on       as root: every network
+#   amethystora-mac away     as root: every network but the ones named home
 #   amethystora-mac off      as root
+#   amethystora-mac home     as root: give the networks named home their own values (in away), or take
+#                            them back (in on and off); ame security home-networks calls it
 #
 # The switch is one file, the shipped one copied into /etc/NetworkManager/conf.d, and nothing in
 # /etc/amethystora/security.conf. NetworkManager reads it at once and uses it from the next time each
-# network connects, which is when an address can change.
+# network connects, which is when an address can change. A default there cannot be limited to some
+# connections, so a home connection carries the values itself, and only the ones it had not set: what this
+# helper set is kept in /var/lib/amethystora/mac-home ("UUID property" a line) and taken back from a
+# connection that stops being home, or when the switch is no longer away, only where the value is still ours.
 
 set -euo pipefail
 
-SHIPPED=/usr/share/amethystora/network/60-amethystora-mac.conf
-DROP_IN=/etc/NetworkManager/conf.d/60-amethystora-mac.conf
+# AMETHYSTORA_MAC_ROOT is for the tests in build_files/shared, which read a stand-in /etc and /var
+ROOT="${AMETHYSTORA_MAC_ROOT:-}"
+SHIPPED_ON=/usr/share/amethystora/network/60-amethystora-mac.conf
+SHIPPED_AWAY=/usr/share/amethystora/network/60-amethystora-mac-away.conf
+DROP_IN="${ROOT}/etc/NetworkManager/conf.d/60-amethystora-mac.conf"
+HOME_NETWORKS="${ROOT}/etc/amethystora/firewall-home"
+KEPT="${ROOT}/var/lib/amethystora/mac-home"
+
+# What a home connection is given, apart from the hardware address of its type, which follows
+declare -A GIVEN=([ipv4.dhcp-send-hostname]=yes [ipv6.dhcp-send-hostname]=yes [connection.llmnr]=resolve)
 
 reload() {
     systemctl is-active --quiet NetworkManager.service || return 0
     nmcli general reload conf
 }
 
+status() {
+    if cmp -s "${SHIPPED_ON}" "${DROP_IN}"; then
+        echo on
+    elif cmp -s "${SHIPPED_AWAY}" "${DROP_IN}"; then
+        echo away
+    else
+        echo off
+    fi
+}
+
+is_default() {
+    case "$1" in "" | default* | -1*) return 0 ;; *) return 1 ;; esac
+}
+
+# Whether nmcli printed this value ($1) for the word ($2): an enumeration is "word (number)" or the reverse
+is_value() {
+    [[ "$1" == "$2" || "$1" == "$2 "* || "$1" == *"($2)"* ]]
+}
+
+# The properties a home connection is given: its type's hardware address and the rest
+home_properties() {
+    local uuid="$1" type
+    type="$(nmcli -g connection.type connection show "${uuid}" 2>/dev/null)" || return 1
+    case "${type}" in
+        802-11-wireless | 802-3-ethernet) echo "${type}.cloned-mac-address permanent" ;;
+        *) return 1 ;;
+    esac
+    local property
+    for property in "${!GIVEN[@]}"; do echo "${property} ${GIVEN[${property}]}"; done
+}
+
+# What was set before and is still the value set, goes back to the default; what a person changed since, stays
+take_back() {
+    local uuid="$1" property value current
+    while read -r property; do
+        case "${property}" in
+            *.cloned-mac-address) value=permanent ;;
+            *) value="${GIVEN[${property}]:-}" ;;
+        esac
+        current="$(nmcli -g "${property}" connection show "${uuid}" 2>/dev/null)" || continue
+        if [[ -n "${value}" ]] && is_value "${current}" "${value}"; then
+            nmcli connection modify "${uuid}" "${property}" ""
+        fi
+    done < <(sed -n "s/^${uuid} //p" "${KEPT}")
+    sed -i "/^${uuid} /d" "${KEPT}"
+}
+
+# The networks named home are given the hardware address and the name in away, and in the other states
+# everything this helper gave is taken back
+home() {
+    local uuid property value current
+    local -a homes=()
+    if [[ "$(status)" == away ]]; then
+        while read -r uuid; do
+            [[ "${uuid}" =~ ^[0-9a-fA-F-]{36}$ ]] && homes+=("${uuid}")
+        done < <(cat "${HOME_NETWORKS}" 2>/dev/null)
+    fi
+    [[ ${#homes[@]} -gt 0 || -e "${KEPT}" ]] || return 0
+    mkdir -p "${KEPT%/*}"
+    touch "${KEPT}"
+    while read -r uuid; do
+        [[ " ${homes[*]:-} " == *" ${uuid} "* ]] || take_back "${uuid}"
+    done < <(cut -d' ' -f1 "${KEPT}" | sort -u)
+    for uuid in "${homes[@]}"; do
+        while read -r property value; do
+            current="$(nmcli -g "${property}" connection show "${uuid}" 2>/dev/null)" || continue
+            is_default "${current}" || continue
+            nmcli connection modify "${uuid}" "${property}" "${value}" && echo "${uuid} ${property}" >>"${KEPT}"
+        done < <(home_properties "${uuid}")
+    done
+    [[ -s "${KEPT}" ]] || rm -f "${KEPT}"
+}
+
 case "${1:-}" in
     status)
-        if cmp -s "${SHIPPED}" "${DROP_IN}"; then echo on; else echo off; fi
+        status
         ;;
-    on)
+    on | away)
+        if [[ "$1" == on ]]; then SHIPPED="${SHIPPED_ON}"; else SHIPPED="${SHIPPED_AWAY}"; fi
         install -Dpm0644 "${SHIPPED}" "${DROP_IN}"
         reload
+        home
         ;;
     off)
         rm -f "${DROP_IN}"
         reload
+        home
+        ;;
+    home)
+        home
         ;;
     *)
-        echo "usage: ${0##*/} status|on|off" >&2
+        echo "usage: ${0##*/} status|on|away|off|home" >&2
         exit 64
         ;;
 esac

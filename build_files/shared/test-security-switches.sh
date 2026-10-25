@@ -327,4 +327,89 @@ PATH="${T}/stubs:${PATH}" "${HARDENING}" home || fail "naming no home network"
 firewall-offline-cmd --zone=amethystora --query-service=kdeconnect >/dev/null && fail "the default zone is open to phone pairing"
 firewall-offline-cmd --zone=amethystora-home --query-service=kdeconnect >/dev/null || fail "the home zone is closed to phone pairing"
 
+# A different address on each network, away from home only: the networks named home, and only those, are given
+# the hardware address and the name, only where the connection had not set them, and only what was given is
+# taken back, from a connection that stops being home or when the switch is no longer away
+mkdir -p "${T}/stubs-mac"
+cat >"${T}/stubs-mac/nmcli" <<'EOF'
+#!/usr/bin/bash
+# Values as "UUID PROPERTY VALUE" lines, printed as nmcli prints them: an enumeration with its number, and
+# the default of a ternary or an enumeration by its name
+case "$1 $2" in
+    "-g connection.type") sed -n "s/^$5 connection.type //p" "${NMCLI_PROPS}" ;;
+    "-g "*)
+        value="$(sed -n "s/^$5 $2 //p" "${NMCLI_PROPS}")"
+        case "$2:${value}" in
+            connection.llmnr:resolve) echo "resolve (1)" ;;
+            connection.llmnr:no) echo "no (0)" ;;
+            connection.llmnr:) echo "default (-1)" ;;
+            *.dhcp-send-hostname:) echo default ;;
+            *) echo "${value}" ;;
+        esac
+        ;;
+    "connection modify")
+        sed -i "/^$3 $4 /d" "${NMCLI_PROPS}"
+        [[ -z "$5" ]] || echo "$3 $4 $5" >>"${NMCLI_PROPS}"
+        ;;
+esac
+EOF
+chmod 0755 "${T}/stubs-mac/nmcli"
+export NMCLI_PROPS="${T}/props"
+THREE=33333333-3333-3333-3333-333333333333
+printf '%s connection.type 802-3-ethernet\n%s connection.type 802-11-wireless\n%s connection.type 802-11-wireless\n' \
+    "${ONE}" "${TWO}" "${THREE}" >"${NMCLI_PROPS}"
+export AMETHYSTORA_MAC_ROOT="${T}/mac"
+MAC=/usr/libexec/amethystora-mac
+MAC_HOMES="${AMETHYSTORA_MAC_ROOT}/etc/amethystora/firewall-home"
+MAC_KEPT="${AMETHYSTORA_MAC_ROOT}/var/lib/amethystora/mac-home"
+mkdir -p "${AMETHYSTORA_MAC_ROOT}/etc/amethystora"
+prop() { sed -n "s/^$1 $2 //p" "${NMCLI_PROPS}"; }
+mac_run() { PATH="${T}/stubs-mac:${PATH}" "${MAC}" "$@"; }
+[[ "$(mac_run status)" == off ]] || fail "the address switch is not off with no file"
+printf '%s\n%s\n' "${ONE}" "${TWO}" >"${MAC_HOMES}"
+mac_run home || fail "giving home networks their values while off"
+[[ ! -e "${MAC_KEPT}" && -z "$(prop "${ONE}" ipv4.dhcp-send-hostname)" ]] || fail "a home network was given values while the switch is off"
+# A Wi-Fi network the person already set to Permanent by hand
+echo "${TWO} 802-11-wireless.cloned-mac-address permanent" >>"${NMCLI_PROPS}"
+mac_run away || fail "turning the address switch to away"
+[[ "$(mac_run status)" == away ]] || fail "the switch is not away: $(mac_run status)"
+cmp -s /usr/share/amethystora/network/60-amethystora-mac-away.conf "${AMETHYSTORA_MAC_ROOT}/etc/NetworkManager/conf.d/60-amethystora-mac.conf" ||
+    fail "away did not write its file"
+for name in ipv4.dhcp-send-hostname ipv6.dhcp-send-hostname; do
+    [[ "$(prop "${ONE}" "${name}")" == yes && "$(prop "${TWO}" "${name}")" == yes ]] || fail "a home network is not told the name over ${name}"
+done
+[[ "$(prop "${ONE}" 802-3-ethernet.cloned-mac-address)" == permanent ]] || fail "the wired home network has not the hardware address"
+[[ "$(prop "${TWO}" 802-11-wireless.cloned-mac-address)" == permanent ]] || fail "the Wi-Fi home network has not the hardware address"
+[[ "$(prop "${ONE}" connection.llmnr)" == resolve ]] || fail "a home network does not keep LLMNR lookups"
+[[ -z "$(grep "^${THREE} " "${NMCLI_PROPS}" | grep -v connection.type)" ]] || fail "a network that is not home was given values"
+grep -qx "${TWO} 802-11-wireless.cloned-mac-address" "${MAC_KEPT}" && fail "a Permanent set by hand is counted as given"
+grep -qx "${ONE} 802-3-ethernet.cloned-mac-address" "${MAC_KEPT}" || fail "what was given to a home network is not kept: $(cat "${MAC_KEPT}")"
+# Again: nothing is given twice
+mac_run home
+[[ "$(wc -l <"${MAC_KEPT}")" == 7 ]] || fail "giving again changed what was kept: $(cat "${MAC_KEPT}")"
+# One network stops being home
+printf '%s\n' "${ONE}" >"${MAC_HOMES}"
+mac_run home
+[[ -z "$(prop "${TWO}" ipv4.dhcp-send-hostname)$(prop "${TWO}" connection.llmnr)" ]] || fail "a network no longer home kept what was given"
+[[ "$(prop "${TWO}" 802-11-wireless.cloned-mac-address)" == permanent ]] || fail "a Permanent set by hand was taken back"
+[[ "$(prop "${ONE}" ipv4.dhcp-send-hostname)" == yes ]] || fail "a network still home lost what was given"
+# Every network, then off: everything given is taken back, and what a person set since stays
+sed -i "s/^${ONE} connection.llmnr resolve/${ONE} connection.llmnr no/" "${NMCLI_PROPS}"
+mac_run on
+[[ "$(mac_run status)" == on ]] || fail "the switch is not on"
+[[ -z "$(prop "${ONE}" ipv4.dhcp-send-hostname)$(prop "${ONE}" 802-3-ethernet.cloned-mac-address)" ]] || fail "on left the home network its values"
+[[ "$(prop "${ONE}" connection.llmnr)" == no ]] || fail "a value a person set since was taken back"
+[[ ! -e "${MAC_KEPT}" ]] || fail "a list of what was given is left"
+mac_run off
+[[ "$(mac_run status)" == off ]] || fail "the switch is not off"
+[[ ! -e "${AMETHYSTORA_MAC_ROOT}/etc/NetworkManager/conf.d/60-amethystora-mac.conf" ]] || fail "off left the file"
+# Naming home networks calls it, the way ame security home-networks does
+mac_run away
+PATH="${T}/stubs-mac:${PATH}" AMETHYSTORA_MAC_ROOT="${AMETHYSTORA_MAC_ROOT}" AMETHYSTORA_HARDENING_ROOT="${AMETHYSTORA_MAC_ROOT}" \
+    "${HARDENING}" home "${THREE}" || fail "naming a home network while away"
+[[ "$(prop "${THREE}" 802-11-wireless.cloned-mac-address)" == permanent ]] || fail "naming a network home did not give it the hardware address"
+[[ -z "$(prop "${ONE}" ipv4.dhcp-send-hostname)" ]] || fail "a network no longer named home kept what was given"
+mac_run off
+unset AMETHYSTORA_MAC_ROOT NMCLI_PROPS
+
 echo "test-security-switches: every switch, off and on"

@@ -58,8 +58,9 @@
   `/etc/systemd/resolved.conf.d` and one in `/etc/NetworkManager/conf.d`; `resolvectl status` shows it.
   A network whose login page will not load may need it paused, which asks for a password:
   `ame security dns pause` (ten minutes). A different address on each network (`ame security mac`,
-  off by default; `/usr/libexec/amethystora-mac status`) gives each network its own hardware address,
-  and a network that registers devices by address then refuses the machine.
+  off by default; `/usr/libexec/amethystora-mac status` says `on`, `away` or `off`) gives each network its own
+  hardware address, and a network that registers devices by address then refuses the machine; `away` leaves
+  out the networks named home (`ame security home-networks`).
 
 ## Logins
 

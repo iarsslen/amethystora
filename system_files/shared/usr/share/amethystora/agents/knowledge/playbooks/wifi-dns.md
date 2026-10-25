@@ -29,9 +29,10 @@ Then:
    says `on`, `ping 9.9.9.9` answers, `resolvectl query` fails.
 2. **A login page behind encrypted DNS.** The page cannot load. Tell: the connectivity check says
    `portal`; the session's `amethystora-dns-portal.service` should have offered a pause.
-3. **A new address on each network.** With `ame security mac` on, a network that admits only registered
-   devices, or a router's reservation, refuses the machine: it connects but gets no address or no
-   internet, on that network only. Tell: the helper says `on`.
+3. **A new address on each network.** With `ame security mac` on or away, a network that admits only
+   registered devices, or a router's reservation, refuses the machine: it connects but gets no address or no
+   internet, on that network only. Tell: the helper says `on` or `away`; with `away`, a network named home
+   (`/etc/amethystora/firewall-home`) is not affected.
 4. **Network protection blocked it.** With `NETWORK` at `block`, Suricata cuts connections its rules call
    malware, phishing or block-listed: one site or app fails. Tell: the host and rule number in
    `ame security connections`. It fails open: a stopped `amethystora-ips.service` never cuts the network.
@@ -56,7 +57,9 @@ Where it is always blocked, the user may choose `ame security dns off` (root). N
 
 For that network only, the user sets **Cloned Address** to **Permanent** under **Identity** in its
 Settings, or, with a yes, `nmcli connection modify NAME 802-11-wireless.cloned-mac-address permanent`
-(`ethernet.cloned-mac-address` when wired), then reconnects. `ame security mac off` (root) is theirs.
+(`ethernet.cloned-mac-address` when wired), then reconnects. For a network that is the user's own, naming it
+home (`ame security home-networks`) does the same under `ame security mac away`, before `ame security mac
+off` (root), which is theirs.
 
 ### Network protection
 

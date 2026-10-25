@@ -1640,26 +1640,47 @@ mac ACTION="":
     action="${1:-}"
     # The switch is the one file this helper copies into /etc/NetworkManager/conf.d
     helper=/usr/libexec/amethystora-mac
-    turn_on="$(gettext "Turn on")"
+    turn_away="$(gettext "Only away from home")"
+    turn_on="$(gettext "Every network")"
+    choose_home="$(gettext "Choose home networks")"
     turn_off="$(gettext "Turn off")"
     cancel="$(gettext "Cancel")"
-    if [[ "$("${helper}" status)" == on ]]; then
-        echo "$(gettext "On: each network sees an address of its own for this machine, and not its name.")"
-    else
-        echo "$(gettext "Off: wired networks see this machine's own hardware address, Wi-Fi networks one for each network name, and every network is told the machine's name.")"
-    fi
+    case "$("${helper}" status)" in
+        away) echo "$(gettext "On away from home: the networks you named home see this machine's own hardware address and its name, every other network an address of its own and not its name.")" ;;
+        on) echo "$(gettext "On: each network sees an address of its own for this machine, and not its name.")" ;;
+        *) echo "$(gettext "Off: wired networks see this machine's own hardware address, Wi-Fi networks one for each network name, and every network is told the machine's name.")" ;;
+    esac
     if [[ -z "${action}" ]]; then
-        action="$(gum choose --header "$(gettext "A different address on each network")" "${turn_on}" "${turn_off}" "${cancel}")"
+        action="$(gum choose --header "$(gettext "A different address on each network")" "${turn_away}" "${turn_on}" "${choose_home}" "${turn_off}" "${cancel}")"
     fi
     case "${action}" in
-        "${turn_on}" | on)
+        "${choose_home}" | home)
+            /usr/libexec/amethystora-hardening ask-home
+            ;;
+        "${turn_away}" | "${turn_on}" | away | on)
+            mode=on
+            [[ "${action}" == "${turn_away}" || "${action}" == away ]] && mode=away
             echo
             echo "$(gettext "A wired network knows a computer by its hardware (MAC) address, the same on every network it joins, and every network is told its name, and over IPv6 an identity made from it. With this on, each Wi-Fi and wired network sees an address and an identity of its own for this machine, the same each time it comes back, so a router keeps what it reserved for it and a login page remembers it. No network is told its name.")"
             echo
             echo "$(gettext "A network that lets in only registered devices, as some universities and offices do, then refuses it. For that network, open it in Settings, then Identity, and set Cloned Address to Permanent.")"
-            gum confirm "$(gettext "Use a different address on each network?")" || exit 0
-            sudo /usr/libexec/amethystora-security-config note network-address on
-            sudo "${helper}" on
+            echo
+            echo "$(gettext "Avahi still announces this machine's name on every network, as it can be told about interfaces and not networks. ame security network-daemons turns it off.")"
+            if [[ "${mode}" == away ]]; then
+                if [[ ! -s /etc/amethystora/firewall-home ]]; then
+                    echo
+                    echo "$(gettext "No network is named home yet, so this would be the same as every network. Name yours first, to keep your router's reservation for this machine:")"
+                    /usr/libexec/amethystora-hardening ask-home
+                    [[ -s /etc/amethystora/firewall-home ]] || exit 0
+                fi
+                echo
+                echo "$(gettext "The networks you named home, with ame security home-networks, keep this machine's own hardware address and are told its name, so that a router's reservation and Wake-on-LAN keep working. A wired connection named home is the one used on every wired network.")"
+                gum confirm "$(gettext "Use a different address on each network, except at home?")" || exit 0
+            else
+                gum confirm "$(gettext "Use a different address on each network?")" || exit 0
+            fi
+            sudo /usr/libexec/amethystora-security-config note network-address "${mode}"
+            sudo "${helper}" "${mode}"
             echo "$(gettext "On, from the next time each network connects. Turn Wi-Fi off and on to start now.")"
             ;;
         "${turn_off}" | off)
@@ -1683,6 +1704,8 @@ disk-unlock ACTION="":
     cancel="$(gettext "Cancel")"
     # The encrypted partitions this system runs from: every disk under its own filesystem, and never a
     # pool's, whose disks open with a key file of their own
+            echo "$(gettext "Wi-Fi networks already see an address of their own for each network name without this. A wired network cannot be told apart before it connects, so every wired network without a saved connection of its own sees the same made-up address: not the hardware's, but the same in an office and in a hotel.")"
+            echo
     mapfile -t DEVICES < <(/usr/libexec/amethystora-raid root-luks)
     if [[ ${#DEVICES[@]} -eq 0 ]]; then
         echo "$(gettext "The system is not on an encrypted partition, so there is nothing to unlock.")"
