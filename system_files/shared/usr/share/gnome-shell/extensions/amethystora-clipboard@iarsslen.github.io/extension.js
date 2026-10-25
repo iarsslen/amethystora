@@ -508,18 +508,23 @@ const ClipboardIndicator = GObject.registerClass({
         this.#showElements();
     }
 
+    // Whether the menu holds CHILD: GNOME 51's Clutter takes no undefined actor, which one not made yet is
+    #holds(child) {
+        return !!child && this.menu.box.contains(child);
+    }
+
     #hideElements() {
         if (this._destroyed) {
             return;
         }
-        if (this.menu.box.contains(this._entryItem)) this.menu.box.remove_child(this._entryItem);
-        if (this.menu.box.contains(this.favoritesSeparator)) this.menu.box.remove_child(this.favoritesSeparator);
-        if (this.menu.box.contains(this.historySeparator)) this.menu.box.remove_child(this.historySeparator);
-        if (this.clearMenuItem?.actor && this.menu.box.contains(this.clearMenuItem.actor))
+        if (this.#holds(this._entryItem)) this.menu.box.remove_child(this._entryItem);
+        if (this.#holds(this.favoritesSeparator)) this.menu.box.remove_child(this.favoritesSeparator);
+        if (this.#holds(this.historySeparator)) this.menu.box.remove_child(this.historySeparator);
+        if (this.clearMenuItem?.actor && this.#holds(this.clearMenuItem.actor))
             this.menu.box.remove_child(this.clearMenuItem.actor);
-        if (this.settingsMenuItem?.actor && this.menu.box.contains(this.settingsMenuItem.actor))
+        if (this.settingsMenuItem?.actor && this.#holds(this.settingsMenuItem.actor))
             this.menu.box.remove_child(this.settingsMenuItem.actor);
-        if (this.menu.box.contains(this.emptyStateSection)) this.menu.box.remove_child(this.emptyStateSection);
+        if (this.#holds(this.emptyStateSection)) this.menu.box.remove_child(this.emptyStateSection);
     }
 
     #showElements() {
@@ -529,16 +534,16 @@ const ClipboardIndicator = GObject.registerClass({
 
         // Remove empty-state if items exist
         if (this.clipItemsRadioGroup.length > 0 &&
-            this.menu.box.contains(this.emptyStateSection)) {
+            this.#holds(this.emptyStateSection)) {
             this.menu.box.remove_child(this.emptyStateSection);
         }
 
         // Search bar
         if (SHOW_SEARCH_BAR && !PRIVATEMODE) {
-            if (!this.menu.box.contains(this._entryItem))
+            if (!this.#holds(this._entryItem))
                 this.menu.box.insert_child_at_index(this._entryItem, 0);
         } else {
-            if (this.menu.box.contains(this._entryItem))
+            if (this.#holds(this._entryItem))
                 this.menu.box.remove_child(this._entryItem);
         }
 
@@ -550,11 +555,11 @@ const ClipboardIndicator = GObject.registerClass({
         // Favorites separator (only when there are favorites and any items at all)
         if (this.clipItemsRadioGroup.length > 0) {
             if (this.favoritesSection._getMenuItems().length > 0 && !PRIVATEMODE) {
-                if (this.menu.box.contains(this.favoritesSeparator) === false) {
+                if (this.#holds(this.favoritesSeparator) === false) {
                     this.menu.box.insert_child_above(this.favoritesSeparator, this.scrollViewFavoritesMenuSection.actor);
                 }
             }
-            else if (this.menu.box.contains(this.favoritesSeparator) === true) {
+            else if (this.#holds(this.favoritesSeparator) === true) {
                 this.menu.box.remove_child(this.favoritesSeparator);
             }
         }
@@ -563,18 +568,18 @@ const ClipboardIndicator = GObject.registerClass({
         if (this.clipItemsRadioGroup.length > 0 &&
             this.historySection._getMenuItems().length > 0 && !PRIVATEMODE &&
             (SHOW_PRIVATE_MODE || SHOW_SETTINGS_BUTTON || SHOW_CLEAR_HISTORY_BUTTON)) {
-            if (!this.menu.box.contains(this.historySeparator))
+            if (!this.#holds(this.historySeparator))
                 this.menu.box.insert_child_above(this.historySeparator, this.scrollViewMenuSection.actor);
-        } else if (this.menu.box.contains(this.historySeparator)) {
+        } else if (this.#holds(this.historySeparator)) {
             this.menu.box.remove_child(this.historySeparator);
         }
 
         // If no items, render empty state and (if toggled on) only show Private/Settings
         if (this.clipItemsRadioGroup.length === 0) {
-            if (!this.menu.box.contains(this.emptyStateSection))
+            if (!this.#holds(this.emptyStateSection))
                 this.#renderEmptyState();
             // Re-append toggled buttons after the empty state
-            if (this.menu.box.contains(this.settingsMenuItem?.actor))
+            if (this.#holds(this.settingsMenuItem?.actor))
                 this.menu.box.remove_child(this.settingsMenuItem.actor);
 
             let index = this.menu.box.get_n_children(); // append after empty state
@@ -584,9 +589,9 @@ const ClipboardIndicator = GObject.registerClass({
         }
 
         // Re-append toggled buttons at end in fixed order
-        if (this.menu.box.contains(this.settingsMenuItem?.actor))
+        if (this.#holds(this.settingsMenuItem?.actor))
             this.menu.box.remove_child(this.settingsMenuItem.actor);
-        if (this.menu.box.contains(this.clearMenuItem?.actor))
+        if (this.#holds(this.clearMenuItem?.actor))
             this.menu.box.remove_child(this.clearMenuItem.actor);
 
         let index = this.menu.box.get_n_children(); // append
