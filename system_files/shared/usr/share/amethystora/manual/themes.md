@@ -2,7 +2,8 @@
 
 A theme is one palette, and everything is painted from it. Switch themes and the whole desktop
 changes together: GNOME's light or dark style and accent colour, the terminal, the shell prompt, the
-top bar, the dock, the wallpaper, VSCodium, and this manual. A light theme gives the dock a faint dark
+top bar, the dock, the wallpaper, VSCodium, and this manual. Each theme also has its own
+[style](#styles), [font](#fonts) and [icons](#icons), and you can keep any of them whatever the theme. A light theme gives the dock a faint dark
 tint, so its icons still stand out on a pale wallpaper.
 
 ## Switching
@@ -101,12 +102,53 @@ ame desktop transition grow 800
 There are no transitions while animations are turned off in Settings, under Accessibility. They come
 from the Amethystora Transitions extension, which Extension Manager can turn off.
 
+## Styles
+
+Each theme comes with a style: the shape the whole desktop is drawn in, from the top bar to the
+menus, quick settings, notifications, password prompts and other dialogs, volume and brightness
+alerts, buttons, switches and entries, the dock, and the applications' windows.
+
+| Style | Looks like | The theme it comes with |
+| --- | --- | --- |
+| `islands` | A floating pill for each part of the top bar, the workspaces as dots, soft corners everywhere | Amethystora Light, Catppuccin Latte, Nord |
+| `floating` | One rounded top bar held off the edge of the screen | Amethystora, Everforest |
+| `hairline` | A thin, solid top bar, crisp corners and fine lines | Matte Black |
+| `capsule` | The clock in a dark capsule, the rest of the top bar bare over the wallpaper, everything else a pill | Rosé Pine Dawn |
+| `terminal` | Monospace, square corners and lined edges, like a terminal | Gruvbox |
+| `segments` | The top bar in blocks of the theme's colours | Catppuccin Mocha |
+| `neon` | Dark glass outlined and glowing in the theme's accent colour | Tokyo Night |
+
+Any style goes with any theme. `ame desktop style neon` keeps neon whatever the theme, and
+`ame desktop style theme` goes back to the theme's own. Run `ame desktop style` alone to pick from a list,
+or use the **Style** choice on Control's **Appearance** page. The desktop changes at once. An application
+that is already open takes the new shape the next time it starts.
+
+## Fonts
+
+Each theme is written in a font of its own, used by the desktop and the applications:
+
+| Theme | Font |
+| --- | --- |
+| Amethystora, Amethystora Light | Quicksand |
+| Catppuccin Mocha, Catppuccin Latte | Nunito |
+| Everforest | Manrope |
+| Gruvbox | JetBrains Mono |
+| Matte Black | Geist |
+| Nord | Inter |
+| Rosé Pine Dawn | Figtree |
+| Tokyo Night | Space Grotesk |
+
+`ame desktop font "Space Grotesk"` keeps a font whatever the theme. Any font installed on the computer
+works, by its name as Fonts shows it. `ame desktop font theme` goes back to the theme's own, and
+`ame desktop font` alone offers the fonts the themes use, with Adwaita Sans, GNOME's own. Control has the
+same choice under **Appearance**.
+
 ## Icons
 
 Three icon packs are drawn for Amethystora, each icon in colours of its own. **Glass** fills each
-one with a gradient and a glass sheen, and is what a dark theme uses. **Duotone** draws the details
-in a contrasting gradient, and is what a light theme uses. **Neon** lights each outline, and is made
-for a dark desktop. They draw Amethystora's apps, GNOME's, the system's, folders, file types,
+one with a gradient and a glass sheen, and is what most dark themes use. **Duotone** draws the details
+in a contrasting gradient, and is what the light themes and Gruvbox use. **Neon** lights each outline,
+and is what Matte Black and Tokyo Night use. They draw Amethystora's apps, GNOME's, the system's, folders, file types,
 devices, dialogs and the pictograms of a job, and the apps of other makers by what each one does:
 a terminal as a terminal, a mail app as an envelope, a music player as a note.
 
@@ -132,6 +174,8 @@ A folder with a name of its own is a new theme. Each file is small and optional,
 | `accent.theme` | GNOME's accent colour: blue, teal, green, yellow, orange, red, pink, purple or slate. Without it the closest one is picked |
 | `gtk.theme` | A GTK theme name, instead of GNOME's own look |
 | `icons.theme` | An icon theme, instead of Glass (or Duotone, on a light theme) |
+| `style.theme` | The style: `islands`, `floating`, `hairline`, `capsule`, `terminal`, `segments` or `neon`. Without it, floating |
+| `font.theme` | The font's name, instead of Adwaita Sans |
 | `cursor.theme` | A cursor theme |
 | `vscode.theme` | The VSCodium colour theme to switch to |
 | `shell-workspaces.css`, `shell-meters.css` | The top bar's colours for the workspaces and the meters, in GNOME Shell's CSS, instead of the ones drawn from the palette |

@@ -17,6 +17,10 @@ source /ctx/build_files/shared/copr-helpers.sh
 
 # Base packages from Fedora repos - common to all versions
 FEDORA_PACKAGES=(
+    # The interface fonts of the themes that Fedora packages (each theme's font.theme, ame desktop font):
+    # Comfortaa, Rubik, IBM Plex Mono and Sans, Geist, Nunito and Work Sans here, Inter and JetBrains Mono
+    # below. The others come from Google Fonts, pinned, in 09-fonts.sh.
+    aajohan-comfortaa-fonts
     adcli
     adw-gtk3-theme
     adwaita-fonts-all
@@ -76,10 +80,13 @@ FEDORA_PACKAGES=(
     gocryptfs
     # One-time codes for password logins over SSH, off until `ame security ssh-codes on`
     google-authenticator
+    google-rubik-fonts
     # grub2-mkfont, which 06-branding.sh uses to build the boot menu font
     grub2-tools-extra
     gum
     hplip
+    ibm-plex-mono-fonts
+    ibm-plex-sans-fonts
     ibus-mozc
     ifuse
     igt-gpu-tools
@@ -154,11 +161,14 @@ FEDORA_PACKAGES=(
     usbguard-dbus
     usbip
     usbmuxd
+    vercel-geist-fonts
+    vernnobile-nunito-fonts
     # Android apps in a container (ame apps android): off until set up, as its container service ships
     # disabled (17-cleanup.sh). Binder is built into Fedora's kernel, and the package brings its own
     # SELinux policy. The Android images are downloaded on the machine that asks for them.
     waydroid
     waypipe
+    weiweihuanghuang-work-sans-fonts
     wireguard-tools
     wl-clipboard
     xdg-terminal-exec

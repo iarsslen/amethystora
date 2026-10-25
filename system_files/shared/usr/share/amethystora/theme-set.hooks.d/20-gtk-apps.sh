@@ -91,7 +91,7 @@ if [[ -z ${THEME_NAME} ]] || [[ ! -f ${STYLESHEET} ]]; then
 fi
 
 # Write one user stylesheet: the import, when there is one, then the window buttons rendered from the
-# theme's palette (themed/window-controls-gtk*.css.tpl). The buttons are copied in rather than
+# theme's palette (themed/window-controls-gtk*.css.tpl), then the desktop style. The buttons are copied in rather than
 # imported, because a Flatpak sees no more of the home than ~/.themes and these two folders.
 #
 # A stylesheet of the user's own is theirs. Only the one this hook wrote is ever replaced or
@@ -103,7 +103,8 @@ write_stylesheet() {
         return 0
     fi
     [[ -f ${controls} ]] || controls=""
-    if [[ -z ${import} && -z ${controls} ]]; then
+    [[ -f ${STYLE_SHEET} ]] || STYLE_SHEET=""
+    if [[ -z ${import} && -z ${controls} && -z ${STYLE_SHEET} ]]; then
         rm -f "${file}"
         return 0
     fi
@@ -117,9 +118,16 @@ write_stylesheet() {
         # home directory, and so that the light and dark stylesheets are never allowed to drift apart
         [[ -n ${import} ]] && echo "@import url(\"file://${import}\");"
         [[ -n ${controls} ]] && cat "${controls}"
+        [[ -n ${STYLE_SHEET} ]] && cat "${STYLE_SHEET}"
     } >"${file}.new"
     mv "${file}.new" "${file}"
 }
+
+# The desktop style's half in the applications (themed/style-<style>.gtk.css.tpl), after the window buttons: the
+# style apply_gnome has just written, read back as the GTK theme is. GTK 3 and 4 share it; a selector one of them
+# does not have matches nothing there.
+STYLE="$(gsettings get org.gnome.shell.extensions.amethystora-ui.style style 2>/dev/null | tr -d "'" || true)"
+STYLE_SHEET="${AMETHYSTORA_THEME_DIR}/style-${STYLE:-floating}.gtk.css"
 
 write_stylesheet "${USER_STYLESHEET}" "${STYLESHEET}" "${AMETHYSTORA_THEME_DIR}/window-controls-gtk4.css"
 write_stylesheet "${XDG_CONFIG_HOME:-${HOME}/.config}/gtk-3.0/gtk.css" "" \

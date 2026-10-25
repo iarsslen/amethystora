@@ -231,10 +231,35 @@ ICONS_SET=theme
 choice glass "$(gettext "Glass")" "$(gettext "Each icon in its own gradient, with a glass sheen")" false ame desktop icons glass
 choice neon "$(gettext "Neon")" "$(gettext "Outlines lit in colours of their own, for a dark desktop")" false ame desktop icons neon
 choice duotone "$(gettext "Duotone")" "$(gettext "Each icon in a gradient, its details in a contrasting one")" false ame desktop icons duotone
-choice theme "$(gettext "Follow the theme")" "$(gettext "Glass for a dark theme, Duotone for a light one")" false ame desktop icons theme
+choice theme "$(gettext "Follow the theme")" "$(gettext "The pack the theme chooses")" false ame desktop icons theme
 USAGE="ame desktop icons PACK"
 item appearance icons choice "$(gettext "Icons")" \
     "$(gettext "The pack the apps, folders and files are drawn from. Another maker's app keeps its own icon.")" "${ICONS_SET}" themes#icons
+
+STYLE_SET=theme
+[[ -r "${CONFIG_DIR}/style" ]] && STYLE_SET="$(head -n1 "${CONFIG_DIR}/style")"
+choice islands "$(gettext "Islands")" "$(gettext "A floating pill for each part of the top bar, soft corners everywhere")" false ame desktop style islands
+choice floating "$(gettext "Floating")" "$(gettext "One rounded top bar held off the edge of the screen")" false ame desktop style floating
+choice hairline "$(gettext "Hairline")" "$(gettext "A thin, solid top bar, crisp corners and fine lines")" false ame desktop style hairline
+choice capsule "$(gettext "Capsule")" "$(gettext "The clock in a dark capsule, and everything else a pill")" false ame desktop style capsule
+choice terminal "$(gettext "Terminal")" "$(gettext "Monospace, square and lined, like a terminal")" false ame desktop style terminal
+choice segments "$(gettext "Segments")" "$(gettext "The top bar in blocks of the theme's colours")" false ame desktop style segments
+choice neon "$(gettext "Neon")" "$(gettext "Dark glass outlined and glowing in the theme's accent")" false ame desktop style neon
+choice theme "$(gettext "Follow the theme")" "$(gettext "The style the theme chooses")" false ame desktop style theme
+USAGE="ame desktop style STYLE"
+item appearance style choice "$(gettext "Style")" \
+    "$(gettext "The shape of the top bar, menus, notifications, dialogs, buttons and windows.")" "${STYLE_SET}" themes#styles
+
+FONT_SET=theme
+[[ -r "${CONFIG_DIR}/font" ]] && FONT_SET="$(head -n1 "${CONFIG_DIR}/font")"
+for family in "${UI_FONTS[@]}"; do
+    # A family's name is the same in every language
+    choice "${family}" "${family}" "" false ame desktop font "${family}"
+done
+choice theme "$(gettext "Follow the theme")" "$(gettext "The font the theme is written in")" false ame desktop font theme
+USAGE="ame desktop font FAMILY"
+item appearance font choice "$(gettext "Font")" \
+    "$(gettext "The font of the desktop and the applications.")" "${FONT_SET}" themes#fonts
 
 # GRUB keeps its menu in /boot, which a sealed machine, starting with systemd-boot, does not use. Where
 # /boot/grub2 is root's alone, only root can tell whether the artwork is there.

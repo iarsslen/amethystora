@@ -12,16 +12,17 @@ import * as SwitcherPopup from 'resource:///org/gnome/shell/ui/switcherPopup.js'
 
 import {Stacks} from './stacks.js';
 
-// The kinds of surface, each with its corners in pixels. A dialog is ringed with a hairline; the toggle menus inside
-// the quick settings lie on the settings' own glass and cast no shadow.
+// The kinds of surface. Each pane has the corners its surface is drawn with (glass.css, and the desktop style's
+// shell-styles.css). A dialog is ringed with a hairline; the toggle menus inside the quick settings lie on the
+// settings' own glass and cast no shadow.
 const KINDS = {
-    menu: {radius: 16},
-    panel: {radius: 28},
-    inner: {radius: 28, flat: true},
-    banner: {radius: 20},
-    osd: {radius: 26},
-    dialog: {radius: 20, ring: 0.05},
-    keyboard: {radius: 20, flat: true},
+    menu: {},
+    panel: {},
+    inner: {flat: true},
+    banner: {},
+    osd: {},
+    dialog: {ring: 0.05},
+    keyboard: {flat: true},
 };
 
 // The style classes of a box pointer's content that make it a panel rather than a menu
@@ -90,10 +91,10 @@ export class Popups {
     }
 
     _attach(actor, kind) {
-        const {radius, ring = 0, flat = false} = KINDS[kind];
+        const {ring = 0, flat = false} = KINDS[kind];
         this._glass.attach(actor, {
             material: 'glass',
-            radius,
+            radius: null,
             ring,
             shadow: flat ? null : this._glass.shadow,
             inClones: true,
@@ -125,11 +126,10 @@ export class Popups {
     }
 
     _attachBanner(banner) {
-        const {radius} = KINDS.banner;
         const glass = this._glass;
         glass.attach(banner, {
             material: 'glass',
-            radius,
+            radius: null,
             shadow: glass.shadow,
             inClones: true,
             // Clear while the banner is still under the top bar, full once it is out from under it

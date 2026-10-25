@@ -44,7 +44,9 @@ function monitorAt(x, y) {
 
 // A look is what a surface asks of its glass:
 //   material  one of MATERIALS
-//   radius    the corners, in the stylesheet's pixels
+//   radius    the corners, in the stylesheet's pixels, or null for the surface's own border-radius, as the desktop
+//             style's stylesheet gives it (themed/shell-styles.css.tpl): the pane then always has the corners
+//             GNOME draws the surface with
 //   shadow    {alpha, blur, offset} of a drop shadow outside the outline, in stylesheet pixels, or null
 //   ring      the strength of a hairline just outside the outline, or 0
 //   areas     (actor) => [[x, y, width, height], ...] in the actor's own pixels, where the glass goes when that is
@@ -136,6 +138,8 @@ class AmethystoraGlassEffect extends Clutter.Effect {
         const scale = this._scale();
         const margin = this._margin();
         const areas = look.areas?.(actor) ?? [[0, 0, width, height]];
+        // The theme node's lengths are already in device pixels
+        const radius = look.radius ?? (actor.get_theme_node?.()?.get_border_radius(St.Corner.TOPLEFT) ?? 0) / scale;
         let drawn = false;
         areas.forEach(([x, y, w, h], i) => {
             if (w < 1 || h < 1)
@@ -171,7 +175,8 @@ class AmethystoraGlassEffect extends Clutter.Effect {
             shader.set(pipeline, 'u_origin', (left - monitor.x) * ux, (top - monitor.y) * uy);
             shader.set(pipeline, 'u_pixel', ux, uy);
             shader.set(pipeline, 'u_size', w * sx, h * sy);
-            shader.set(pipeline, 'u_radius', look.radius * scale * sx);
+            // No rounder than half the shorter side, as St draws a pill
+            shader.set(pipeline, 'u_radius', Math.min(radius * scale * sx, w * sx / 2, h * sy / 2));
             shader.set(pipeline, 'u_opacity', opacity * fade);
             shader.set(pipeline, 'u_dim', material.dim);
             shader.set(pipeline, 'u_tint', material.tint);

@@ -21,6 +21,9 @@ export PATH="/tmp/scripts/helpers:$PATH"
 # Install the GNOME Shell extensions written for this image
 /ctx/build_files/shared/build-gnome-extensions.sh
 
+# The themes' interface fonts that Fedora does not package
+/ctx/build_files/base/09-fonts.sh
+
 # The Amethystora icon packs' caches
 /ctx/build_files/base/10-icons.sh
 

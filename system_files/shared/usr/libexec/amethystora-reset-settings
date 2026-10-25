@@ -31,6 +31,8 @@ SAVES="${ROOT}/var/lib/amethystora/reset-settings"
 # The account's own, which root, running the machine's half from a service, may have no home for
 ACCOUNT_SAVES="${XDG_STATE_HOME:-${HOME:-}/.local/state}/amethystora/reset-settings"
 CONFIG="${XDG_CONFIG_HOME:-${HOME:-}/.config}/amethystora"
+# The account's own choices over its theme's, each a file in CONFIG (ame desktop icons, style, font)
+CHOICES=(icons style font)
 HOOKS=/usr/share/amethystora/user-setup.hooks.d
 SETUP_CHECKER_FILE="${HOME:-}/.local/share/amethystora/setup_versioning.json"
 
@@ -228,7 +230,7 @@ PROFILE=""
 own_dconf() { DCONF_PROFILE="${PROFILE}" dconf "$@"; }
 
 account() {
-    local save hook key index
+    local save hook key index choice
     local -a values=()
     [[ "${EUID}" -ne 0 ]] || die "An account's settings are reset as that account, not as root."
     save="${ACCOUNT_SAVES}/$(stamp)"
@@ -237,7 +239,9 @@ account() {
     echo user-db:user >"${PROFILE}"
     own_dconf dump / >"${save}/dconf.ini" || die "Could not read your settings, so nothing changed."
     [[ -d "${CONFIG}/current" ]] && cp -a "${CONFIG}/current" "${save}/current"
-    [[ -e "${CONFIG}/icons" ]] && cp -a "${CONFIG}/icons" "${save}/icons"
+    for choice in "${CHOICES[@]}"; do
+        [[ -e "${CONFIG}/${choice}" ]] && cp -a "${CONFIG}/${choice}" "${save}/${choice}"
+    done
     for index in "${!KEEP_DCONF[@]}"; do
         own_dconf dump "${KEEP_DCONF[index]}" >"${save}/kept-${index}.ini"
     done
@@ -253,8 +257,11 @@ account() {
         [[ -z "${values[index]}" ]] || own_dconf write "${KEEP_KEYS[index]}" "${values[index]}"
     done
     rm -rf "${CONFIG}/current"
-    # The icon pack the account chose is a setting like the others: the theme's own comes back with the theme
-    rm -f "${CONFIG}/icons"
+    # The icon pack, style and font the account chose are settings like the others: the theme's own come back with
+    # the theme
+    for choice in "${CHOICES[@]}"; do
+        rm -f "${CONFIG:?}/${choice}"
+    done
     # What the first login set, again: the theme, and a Framework laptop's scrolling and text size
     if [[ -f "${SETUP_CHECKER_FILE}" ]]; then
         jq 'del(.version.user.theming, .version.user.theme)' "${SETUP_CHECKER_FILE}" >"${SETUP_CHECKER_FILE}.new" &&
@@ -267,18 +274,20 @@ account() {
 }
 
 undo_account() {
-    local save
+    local save choice
     [[ "${EUID}" -ne 0 ]] || die "An account's settings are brought back as that account, not as root."
     save="$(last "${ACCOUNT_SAVES}")" || die "There is no reset of your account's settings to undo."
     PROFILE="${save}/profile"
     own_dconf reset -f / && own_dconf load / <"${save}/dconf.ini" || die "dconf could not bring your settings back from ${save}."
     rm -rf "${CONFIG}/current"
     [[ -d "${save}/current" ]] && cp -a "${save}/current" "${CONFIG}/current"
-    if [[ -e "${save}/icons" ]]; then
-        cp -a "${save}/icons" "${CONFIG}/icons"
-    else
-        rm -f "${CONFIG}/icons"
-    fi
+    for choice in "${CHOICES[@]}"; do
+        if [[ -e "${save}/${choice}" ]]; then
+            cp -a "${save}/${choice}" "${CONFIG}/${choice}"
+        else
+            rm -f "${CONFIG:?}/${choice}"
+        fi
+    done
     # The theme's files outside dconf, the terminal's and the apps', for the theme it had
     [[ -d "${CONFIG}/current" ]] && AMETHYSTORA_THEME_QUIET=1 amethystora-theme reload >/dev/null 2>&1
     mv "${save}" "${save}.undone"

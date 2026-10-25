@@ -103,6 +103,16 @@ windows draw the wordmark in Quicksand, under the SIL Open Font License, version
   - ICU4X      https://github.com/unicode-org/icu4x
   - Quicksand  https://github.com/andrew-paglinawan/QuicksandFamily
 
+The themes write the desktop in fonts of their own, each under the SIL Open Font
+License, version 1.1. Those Fedora packages come with their packages: Comfortaa,
+Geist, IBM Plex Mono and Sans, Inter, JetBrains Mono, Nunito, Rubik and Work Sans.
+The others are copied unchanged from Google Fonts' repository
+(https://github.com/google/fonts) into usr/share/fonts/amethystora, each with
+its licence in usr/share/licenses/google-fonts: DM Sans, Figtree, Fira Sans,
+Karla, Lexend, Manrope, Outfit, Plus Jakarta Sans, Quicksand, Sora, Space
+Grotesk and Space Mono. Their names are their authors' Reserved Font Names
+where they have one.
+
 The file-watch sensor in usr/libexec/amethystora-sensor (apps/sensor/) is one
 more program of the same build, which watches the files the audit rules watch
 without their per-system-call cost (plans/done/PLAN-audit-cost.md). Its BPF

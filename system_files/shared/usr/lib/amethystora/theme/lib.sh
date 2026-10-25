@@ -10,6 +10,9 @@
 #   pair.theme    the name of the light or dark theme this one flips to on Super+Ctrl+D
 #   gtk.theme     a GTK theme name, when adw-gtk3 is not wanted
 #   icons.theme   an icon theme name, when the image's own is not wanted (Glass, or Duotone for a light theme)
+#   style.theme   the desktop style: one of STYLES below, the shape of the top bar, menus, notifications,
+#                 dialogs, buttons and windows (floating when the theme names none)
+#   font.theme    the interface font's family, when the desktop's own (Adwaita Sans) is not wanted
 #   cursor.theme  a cursor theme name, when the desktop's own is not wanted
 #   vscode.theme  the VSCodium colour theme to select
 #   backgrounds.list  wallpapers elsewhere on the system, one path per line; the first is the one
@@ -44,6 +47,21 @@ DEFAULT_THEME=amethystora
 # have not applied a theme yet; the two are checked against each other in 20-tests.sh.
 DEFAULT_ICON_THEME=amethystora-glass
 DEFAULT_LIGHT_ICON_THEME=amethystora-duotone
+
+# The desktop styles, each drawn by Amethystora UI (themed/shell-styles.css.tpl) and in the applications
+# (themed/style-<style>.gtk.css.tpl): the shape of the top bar, menus, notifications, dialogs, on-screen alerts,
+# buttons, controls and windows. Floating is the desktop as it was before there were styles, and the schema's
+# default, for accounts that have not applied a theme yet.
+STYLES=(islands floating hairline capsule terminal segments neon)
+DEFAULT_STYLE=floating
+# The interface font when neither the account nor the theme names one: zz0-amethystora-modifications' own
+DEFAULT_FONT="Adwaita Sans"
+FONT_SIZE=11
+# The families offered for the interface (ame desktop font, Control): the desktop's own and the ones the themes are
+# written in, each installed by 04-packages.sh or 09-fonts.sh. Any other installed family can be typed.
+UI_FONTS=("Adwaita Sans" Comfortaa "DM Sans" Figtree "Fira Sans" Geist "IBM Plex Mono" "IBM Plex Sans" Inter
+    "JetBrains Mono" Karla Lexend Manrope Nunito Outfit "Plus Jakarta Sans" Quicksand Rubik Sora "Space Grotesk"
+    "Space Mono" "Work Sans")
 
 # GNOME's accent colours, with a representative sRGB value for each, used to pick the closest one
 # for a theme that does not name its own
@@ -125,6 +143,46 @@ icon_theme() {
         if theme_is_light; then icons="${DEFAULT_LIGHT_ICON_THEME}"; else icons="${DEFAULT_ICON_THEME}"; fi
     fi
     echo "${icons}"
+}
+
+is_style() {
+    local style
+    for style in "${STYLES[@]}"; do
+        [[ $1 == "${style}" ]] && return 0
+    done
+    return 1
+}
+
+# The desktop style to write: the account's own choice (ame desktop style), else the theme's, else the default.
+# A name that is no style, whoever wrote it, is passed over.
+desktop_style() {
+    local name
+    for name in "$(head -n1 "${CONFIG_DIR}/style" 2>/dev/null || true)" "$(theme_file style.theme)"; do
+        if [[ -n ${name} ]] && is_style "${name}"; then
+            echo "${name}"
+            return 0
+        fi
+    done
+    echo "${DEFAULT_STYLE}"
+}
+
+# Whether fontconfig knows a family of exactly that name. The list is read to its end, never with grep -q, which
+# would stop fc-list mid-write and, under pipefail, fail the whole pipe now and then.
+font_installed() {
+    [[ -n $1 ]] && fc-list : family 2>/dev/null | tr ',' '\n' | grep -Fx -- "$1" >/dev/null
+}
+
+# The interface font's family: the account's own choice (ame desktop font), else the theme's, else the desktop's.
+# A family that is not installed is passed over, as an icon theme is.
+ui_font() {
+    local name
+    for name in "$(head -n1 "${CONFIG_DIR}/font" 2>/dev/null || true)" "$(theme_file font.theme)"; do
+        if font_installed "${name}"; then
+            echo "${name}"
+            return 0
+        fi
+    done
+    echo "${DEFAULT_FONT}"
 }
 
 # A colour from a theme's colors.toml, e.g. colors_get <dir> accent -> #7c3aed

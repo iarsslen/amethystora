@@ -45,12 +45,31 @@ export class Glass {
 
         // The windows first: the top bar and the workspace slide ask them
         this.windows = new Windows(this);
-        for (const part of [this.windows, new Popups(this), new TopBar(this), new Backdrops(this)]) {
+        this._topBar = new TopBar(this);
+        for (const part of [this.windows, new Popups(this), this._topBar, new Backdrops(this)]) {
             this._parts.push(part);
             part.enable();
         }
         this._running = true;
+        // A new desktop style, or new buttons on a bar whose buttons each have glass. The menus, banners, dialogs
+        // and the dock take their corners from the stylesheet as they are drawn, and need nothing.
+        this.style?.onChange(() => {
+            if (!this._running)
+                return;
+            this.windows.restyle();
+            this._topBar.restyle();
+        });
         this.surfacesChanged();
+    }
+
+    // The desktop style module, when it runs
+    get style() {
+        return this._ext.modules.get('style') ?? null;
+    }
+
+    // The corners of a window's pane: the desktop style's, which its GTK stylesheet gives the windows too
+    get windowRadius() {
+        return this.style?.look.window ?? 16;
     }
 
     disable() {
@@ -60,6 +79,7 @@ export class Glass {
             part.disable();
         this._parts = [];
         this.windows = null;
+        this._topBar = null;
         // GNOME's methods back as they were, the last wrapped first
         for (const [proto, name, descriptor] of [...this._wrapped ?? []].reverse()) {
             if (descriptor)

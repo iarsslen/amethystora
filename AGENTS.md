@@ -1054,6 +1054,18 @@ lose its settings (and a cache folder it left), unless they installed it themsel
 
 - `theme`: the theme's `shell-*.css`, loaded again on every theme switch (what `amethystora-theme` wrote into the
   extensions' own settings before).
+- `style`, the desktop styles (the maintainer's choice of 2026-10-24, from the design canvas of Hyprland-inspired
+  looks: every variant, each theme's suggestion as its default, the account free to change it): `islands`, `floating`,
+  `hairline`, `capsule`, `terminal`, `segments` and `neon`, the shape of the top bar, menus, quick settings,
+  notifications, dialogs and prompts, OSDs, the switcher, buttons, controls, the dock and the windows. Its one key
+  (`...amethystora-ui.style` `style`) is written by `amethystora-theme` from `~/.config/amethystora/style` (`ame desktop
+  style`, Control) or the theme's `style.theme`; the module only puts `amethystora-style-<style>` on the shell's top
+  group and marks the bar's buttons by place. Every rule is in `themed/shell-styles.css.tpl`, the applications' half in
+  `themed/style-<style>.gtk.css.tpl` (appended by `20-gtk-apps.sh`). The glass takes each pane's corners from the
+  surface's own `border-radius` (`radius: null`), so the stylesheet alone shapes a style; only the windows' corners and
+  how the bar is glazed (`pane`, `pills`, `solid`, `bare`) are in the module's `STYLES`, which `20-tests.sh` holds to the
+  GTK files. Floating is the desktop as it was. Each theme also names a font (`font.theme`, `ame desktop font`), Fedora's
+  packages or `09-fonts.sh`'s pinned copies from Google Fonts.
 - `tweaks`, Just Perfection: animations at 0.6 through the shell's slow-down factor (never `enable-animations`), no
   workspace popup, no Activities button.
 - `workspaces`, Space Bar: the six labels after the logo; rename only in its menu (the six stay six); the keys
@@ -1141,7 +1153,8 @@ in `plans/amethystora-connect/` are the protocol, the plugins and the desktop si
 drawn in code by `node branding/icons.mjs` from the glyphs in `branding/icons/glyphs.mjs`, each icon in colours of its own
 (the maintainer's choice of 2026-10-23, from the design canvas: Neon, Glass and Duotone). Glass is the default
 (`DEFAULT_ICON_THEME` in `lib.sh`, and `icon-theme` in `zz1-amethystora-modifications`, which `20-tests.sh` compares),
-Duotone follows a light theme, and `icon_theme()` in `lib.sh` writes the account's own `~/.config/amethystora/icons`
+Duotone follows a light theme (and Gruvbox; Matte Black and Tokyo Night name Neon in their `icons.theme`), and
+`icon_theme()` in `lib.sh` writes the account's own `~/.config/amethystora/icons`
 (`ame desktop icons`, Control's Appearance page) before the theme's `icons.theme`, passing over a name that is not installed
 (candy-icons, which an update removed, so no account is left on a theme the image lacks). They cover Amethystora's apps, GNOME's, the system's, folders, file types (a language's by its letters, `label-PY`),
 devices, dialogs and generic pictograms, and other makers' apps by what each does, as candy-icons covered them (the
@@ -1345,7 +1358,8 @@ This function:
 - COPR packages are installed individually with isolated repo enablement
 - Every third-party repository's signing key is pinned by fingerprint: `pin_repo_key` (`copr-helpers.sh`, with the Copr projects' fingerprints in its table) fetches the key a repository file names, refuses any other, keeps it in `/etc/pki/rpm-gpg` and points the file at that copy, so that dnf never takes a key from the server; `20-tests.sh` fails on a pinned repository that still names one. A new repository or Copr project gets its fingerprint there
 - RPM Fusion's release packages come from volunteer mirrors, and dnf checks no signature on a package given as a file or URL: `rpmfusion_release_install` takes RPM Fusion's keys from Fedora's signed `distribution-gpg-keys` and installs the release packages only with a valid signature
-- Downloads outside a package manager are pinned by SHA-256 in the script that fetches them (Starship, Sweet), the apps' crates by `apps/Cargo.lock`'s checksums, the agent's embedding model by its revision and SHA-256 in `build-apps.sh` (its licences in `usr/share/licenses/potion-base-8M`, named in `NOTICE`), and Flathub is added from the base image's own `flathub.flatpakrepo` after its key is checked
+- Downloads outside a package manager are pinned by SHA-256 in the script that fetches them (Starship, Sweet, the
+  themes' fonts from Google Fonts at one commit in `09-fonts.sh`), the apps' crates by `apps/Cargo.lock`'s checksums, the agent's embedding model by its revision and SHA-256 in `build-apps.sh` (its licences in `usr/share/licenses/potion-base-8M`, named in `NOTICE`), and Flathub is added from the base image's own `flathub.flatpakrepo` after its key is checked
 
 ### Licences and trademarks
 
@@ -1511,6 +1525,7 @@ staying in place.
 4. `05-override-install.sh` - Overrides base image packages. Among them the multimedia stack: the base image installs negativo17's FFmpeg, built with `--enable-nonfree` and labelled by FFmpeg itself "nonfree and unredistributable", and its `pipewire-libs-extra`, whose LC3plus plugin links `liblc3plus`, which has no licence to redistribute. Both are replaced with Fedora's `ffmpeg-free` and `fdk-aac-free`, RPM Fusion's `libavcodec-freeworld`, and RPM Fusion's aptX plugin. negativo17's repository is `fedora-multimedia` in the base image and outranks Fedora's, so `17-cleanup.sh` turns it off; do not install FFmpeg, codec or PipeWire packages from it. `20-tests.sh` fails on any FFmpeg library that reports itself unredistributable. The script also deletes `/usr/share/doc`, after moving the licence, copyright and NOTICE files that some 120 packages keep only there into `/usr/share/licenses`, and installs Starship from a pinned release checked against its published checksum (the pin is bumped by Renovate)
 5. `06-branding.sh` - Puts the Amethystora artwork (generated by `node branding/generate.mjs`) where the boot menu, the boot splash and GDM look for it: the GRUB font, the Plymouth theme, and Fedora's own logo files, which GDM, the Settings About page and the fallback splash look up by fixed path
 6. `build_files/shared/build-gnome-extensions.sh` - Sets up the GNOME Shell extensions written for this image: their licences, schemas and entries in `enabled-extensions` (nothing is built from a git submodule any more)
+6a. `09-fonts.sh` - The themes' interface fonts Fedora does not package, from Google Fonts' repository at one pinned commit, each file checked by SHA-256, into `/usr/share/fonts/amethystora` with their OFL texts in `/usr/share/licenses/google-fonts`, and Quicksand from `branding/fonts`; it fails when a theme's `font.theme` names a family that is not installed. The packaged ones are in `04-packages.sh`
 7. `10-icons.sh` - Builds the icon caches of the Amethystora icon packs, which come with `system_files` (see The icon packs); nothing is downloaded. candy-icons, the pack the desktop shipped with until 2026-10-23, is gone, with its keep list, its aliases and the Security shield and Notes icon drawn from it (the Glass pack draws those two now, into `hicolor`). Nobody else's logo is drawn: an app of another maker keeps the icon it ships. `user-setup.hooks.d/16-retire-jetbrains-icons.sh` takes back the links an earlier image made to the IDE drawings
 8. `11-gtk-theme.sh` - Installs the Amethystora GTK theme: EliverLara's Sweet, with every cool colour in it rotated onto the amethyst palette by `build_files/shared/recolor.py`. It ships under Amethystora's own name because the palette is no longer Sweet's. Only the `amethystora` and `amethystora-light` themes name it in their `gtk.theme`; the rest stay on adw-gtk3, which follows the GNOME accent colour. libadwaita ignores `gtk-theme` and a Flatpak cannot see `/usr/share/themes` at all, so both are reached by `theme-set.hooks.d/20-gtk-apps.sh`: it mirrors the active theme into `~/.themes`, which `/etc/flatpak/overrides/global` grants every sandbox read-only, and writes the `~/.config/gtk-4.0/gtk.css` that imports from the mirror
 9. `12-login-screen.sh` - Patches the login screen background into GNOME Shell's own stylesheet. GNOME reads it from the `#lockDialogGroup` rule inside `gnome-shell-theme.gresource` and from nowhere else, so the bundle is unpacked, the rule appended and the bundle rebuilt. The picture is the crown the boot splash ends on, as sharp as the splash draws it and without the gem, drawn by `branding/generate.mjs`

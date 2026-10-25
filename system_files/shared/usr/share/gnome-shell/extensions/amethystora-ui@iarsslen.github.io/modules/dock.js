@@ -18,8 +18,6 @@ import {Places} from './dock/places.js';
 
 // The widest the dock grows, as a share of the screen's free width
 const WIDTH = 0.9;
-// The glass's corners, which the light veil follows exactly
-const RADIUS = 32;
 
 export class Dock {
     constructor(ext) {
@@ -76,9 +74,10 @@ export class Dock {
         this._ext.modules?.get('glass')?.surfacesChanged?.();
     }
 
-    // For the glass: the pill, with the glass's own corners
+    // For the glass: the pill, with the corners its stylesheet gives it (the desktop style's), which the light veil
+    // follows exactly
     glassSurfaces() {
-        return this._dash ? [{actor: this._dash.pill, material: 'dock', radius: RADIUS}] : [];
+        return this._dash ? [{actor: this._dash.pill, material: 'dock', radius: null}] : [];
     }
 
     _build() {

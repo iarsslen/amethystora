@@ -7,7 +7,8 @@
 #   amethystora-theme set "Tokyo Night"    apply a theme
 #   amethystora-theme toggle               flip between a theme and its light or dark counterpart
 #   amethystora-theme current              print the current theme
-#   amethystora-theme reload               apply the current theme again, after an image update
+#   amethystora-theme reload               apply the current theme again, after an image update or a new
+#                                          style, font or icon pack
 #   amethystora-theme bg next|list|set     cycle, list or choose the theme's wallpaper
 #
 # See /usr/lib/amethystora/theme/lib.sh for what a theme directory holds.
@@ -18,7 +19,7 @@ set -euo pipefail
 source /usr/lib/amethystora/theme/lib.sh
 
 usage() {
-    sed -n '3,13p' "$0" | sed 's/^# \?//'
+    sed -n '3,14p' "$0" | sed 's/^# \?//'
 }
 
 # --- Applying a theme -------------------------------------------------------------------------
@@ -72,6 +73,12 @@ apply_gnome() {
     # the themes that name one, switching from such a theme to one that does not would leave its
     # icons behind, with nothing in the CLI to get back.
     dconf_write_string /org/gnome/desktop/interface/icon-theme "$(icon_theme)"
+
+    # The desktop style and the interface font, the same way: the account's choice, else the theme's. Amethystora
+    # UI draws the style in the shell; the applications' half is in themed/style-*.gtk.css, which 20-gtk-apps.sh
+    # adds to their stylesheets.
+    dconf_write_string /org/gnome/shell/extensions/amethystora-ui/style/style "$(desktop_style)"
+    dconf_write_string /org/gnome/desktop/interface/font-name "$(ui_font) ${FONT_SIZE}"
 
     # The cursor is the desktop's own unless a theme names one, so there is no default to restore
     cursor="$(theme_file cursor.theme)"

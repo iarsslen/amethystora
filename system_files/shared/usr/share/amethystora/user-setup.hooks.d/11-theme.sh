@@ -29,6 +29,8 @@
 #      theme folder has none of them until the theme is applied again.
 #  11  kitty as the terminal (themed/kitty-theme.conf.tpl, which /etc/xdg/kitty/kitty.conf includes) and the prompt
 #      drawn as a powerline (themed/starship.toml.tpl): neither is in the folder of an account set up before.
+#  12  the desktop styles (themed/shell-styles.css.tpl, themed/style-*.gtk.css.tpl), the themes' fonts and their icon
+#      packs (style.theme, font.theme, icons.theme): written only when the theme is applied again.
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
@@ -37,7 +39,7 @@ source /usr/lib/amethystora/setup-services/libsetup.sh
 # chose in GNOME Settings included: the theme is applied again without picking a new one.
 PREVIOUS="$(jq -r '.version.user.theme // 0' "${SETUP_CHECKER_FILE}" 2>/dev/null || echo 0)"
 
-version-script theme user 11 || exit 0
+version-script theme user 12 || exit 0
 
 [[ "$(cat "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons" 2>/dev/null)" == candy-icons ]] &&
     rm -f "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons"

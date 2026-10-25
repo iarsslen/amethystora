@@ -21,7 +21,6 @@ export const TYPES = new Set([Meta.WindowType.NORMAL, Meta.WindowType.DIALOG, Me
 const LEFT_ALONE = new Set(['plank', 'com.desktop.ding', 'conky']);
 // The window over its glass, out of 255
 const OPACITY = 215;
-const RADIUS = 16;
 // How long a window has to stay covered before its glass is taken off, in milliseconds. Giving it back is never
 // waited for.
 const COVER_DELAY = 300;
@@ -93,6 +92,12 @@ export class Windows {
         this._windows = this._actors = this._queued = this._listeners = this._covered = null;
     }
 
+    // The desktop style changed the windows' corners
+    restyle() {
+        for (const window of this._windows ?? [])
+            this._sync(window);
+    }
+
     // Called whenever a window is added, goes, moves, changes size, shows or hides, or the workspace changes
     onChange(listener) {
         this._listeners.add(listener);
@@ -109,7 +114,8 @@ export class Windows {
 
     // The look of a copy of a window that has glass, as the workspace switch slides it in
     cloneLook() {
-        return {material: 'glass', radius: RADIUS, areas: frame, content, inClones: false, stageOnly: true};
+        return {material: 'glass', radius: this._glass.windowRadius, areas: frame, content, inClones: false,
+            stageOnly: true};
     }
 
     _watch(window) {
@@ -203,7 +209,7 @@ export class Windows {
             f.y + f.height > monitor.y + monitor.height)
             return null;
         const [x, y] = actor.get_transformed_position();
-        const radius = (window.maximized_horizontally || window.maximized_vertically ? 0 : RADIUS) *
+        const radius = (window.maximized_horizontally || window.maximized_vertically ? 0 : this._glass.windowRadius) *
             St.ThemeContext.get_for_stage(global.stage).scale_factor;
         const edge = inset(radius);
         const left = x + f.x - b.x + edge;
@@ -320,7 +326,7 @@ export class Windows {
         const square = window.maximized_horizontally || window.maximized_vertically;
         this._glass.attach(actor, {
             material: 'glass',
-            radius: square ? 0 : RADIUS,
+            radius: square ? 0 : this._glass.windowRadius,
             areas: frame,
             content,
             inClones: false,

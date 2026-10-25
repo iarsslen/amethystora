@@ -9,6 +9,7 @@ import St from 'gi://St';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {Theme} from './modules/theme.js';
+import {Style} from './modules/style.js';
 import {Tweaks} from './modules/tweaks.js';
 import {Workspaces} from './modules/workspaces.js';
 import {Meters} from './modules/meters.js';
@@ -22,10 +23,12 @@ import {Dock} from './modules/dock.js';
 import {Glass} from './modules/glass.js';
 import {Tiling} from './modules/tiling.js';
 
-// In the order they start, by the name of their stylesheet; they stop in the opposite order. The glass comes after
-// the dock and the panel's modules, whose actors it draws behind.
+// In the order they start, by the name of their stylesheet; they stop in the opposite order. The desktop style comes
+// first after the theme, since the glass asks it; the glass comes after the dock and the panel's modules, whose actors
+// it draws behind.
 const MODULES = [
     ['theme', Theme],
+    ['style', Style],
     ['tweaks', Tweaks],
     ['workspaces', Workspaces],
     ['meters', Meters],

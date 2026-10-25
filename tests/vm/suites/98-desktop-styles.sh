@@ -1,0 +1,188 @@
+#!/usr/bin/bash
+# The desktop styles, fonts and icon packs each theme brings (manual: themes.md#styles), as a person's session has them:
+#   - every theme, applied, writes its own style, font and icon pack, renders the shell's half of the style and puts
+#     the applications' half in both GTK stylesheets, and the shell's style module started and threw nothing;
+#   - the shell draws what the style says: the top bar is held off the screen's edge in the floating, islands, capsule,
+#     segments and neon styles and lies against it in the hairline and terminal ones, by where the shell's
+#     accessibility tree puts the bar's buttons;
+#   - ame desktop style and ame desktop font keep a choice over every theme, refuse what is not a style or not
+#     installed, and `theme` goes back to the theme's own; Control lists both;
+#   - every font the themes and Control name is installed.
+# The account is left on Tokyo Night, the neon style, with a Files window and the quick settings open, for the
+# screenshot run.mjs takes after the suite.
+source "$(dirname "$0")/lib.sh"
+
+UUID=amethystora-ui@iarsslen.github.io
+OWN=/run/vmlab-98
+HOME_DIR="/var/home/${TEST_USER}"
+CONFIG="${HOME_DIR}/.config/amethystora"
+STYLE_SCHEMA=org.gnome.shell.extensions.amethystora-ui.style
+THEMES_DIR=/usr/share/amethystora/themes
+
+if ! wait_for 300 has_session; then
+    skip "no session for ${TEST_USER} (10-account.sh)"
+    finish
+fi
+
+gsettings_get() { in_session "gsettings get $1 $2" 2>/dev/null; }
+set_theme() { in_session "AMETHYSTORA_THEME_QUIET=1 amethystora-theme set '$1'" >/dev/null 2>&1; }
+style_now() { gsettings_get "${STYLE_SCHEMA}" style | tr -d "'"; }
+font_now() { gsettings_get org.gnome.desktop.interface font-name | tr -d "'"; }
+icons_now() { gsettings_get org.gnome.desktop.interface icon-theme | tr -d "'"; }
+# The pack a theme writes: its own icons.theme, else Glass for a dark theme and Duotone for a light one
+icons_of() {
+    if [[ -f "${THEMES_DIR}/$1/icons.theme" ]]; then
+        head -n1 "${THEMES_DIR}/$1/icons.theme"
+    elif [[ -f "${THEMES_DIR}/$1/light.mode" ]]; then
+        echo amethystora-duotone
+    else
+        echo amethystora-glass
+    fi
+}
+
+# --- The module --------------------------------------------------------------------------------------------------------
+info="$(in_session "gnome-extensions info ${UUID}" 2>&1)"
+if grep -qE 'State: *(ACTIVE|ENABLED)' <<<"${info}"; then
+    ok "Amethystora UI is active"
+else
+    not_ok "Amethystora UI is not active" "${info}"
+fi
+
+# --- Every theme's style, font and icons -------------------------------------------------------------------------------
+rm -f "${CONFIG}/style" "${CONFIG}/font" "${CONFIG}/icons"
+for dir in "${THEMES_DIR}"/*/; do
+    theme="$(basename "${dir}")"
+    style="$(head -n1 "${dir}style.theme")"
+    font="$(head -n1 "${dir}font.theme")"
+    icons="$(icons_of "${theme}")"
+    set_theme "${theme}"
+    got_style="$(style_now)" got_font="$(font_now)" got_icons="$(icons_now)"
+    if [[ "${got_style}" == "${style}" && "${got_font}" == "${font} 11" && "${got_icons}" == "${icons}" ]]; then
+        ok "${theme}: the ${style} style, ${font} and ${icons#amethystora-}"
+    else
+        not_ok "${theme} did not write its style, font and icons" \
+            "style ${got_style} (want ${style}), font ${got_font} (want ${font} 11), icons ${got_icons} (want ${icons})"
+    fi
+    rendered="${CONFIG}/current/theme/shell-styles.css"
+    gtk4="${HOME_DIR}/.config/gtk-4.0/gtk.css"
+    gtk3="${HOME_DIR}/.config/gtk-3.0/gtk.css"
+    if [[ -s "${rendered}" ]] && ! grep -q '{{' "${rendered}" &&
+        grep -q "The ${style} desktop style in the applications" "${gtk4}" "${gtk3}" 2>/dev/null &&
+        [[ "$(grep -l "The ${style} desktop style in the applications" "${gtk4}" "${gtk3}" 2>/dev/null | wc -l)" == 2 ]]; then
+        ok "${theme}: the shell's stylesheet is rendered, and both GTK stylesheets carry the ${style} style"
+    else
+        not_ok "${theme}: a half of the style is missing" "$(ls "${CONFIG}/current/theme" 2>&1 | paste -sd ' ')" \
+            "$(grep -h 'desktop style in the applications' "${gtk4}" "${gtk3}" 2>&1)"
+    fi
+done
+
+log="$(journalctl -b "_UID=$(id -u "${TEST_USER}")" _COMM=gnome-shell --no-pager -o cat 2>/dev/null)"
+failed="$(grep -E 'Amethystora UI: the (style|glass) module did not' <<<"${log}")"
+errors="$(grep -E 'JS ERROR' <<<"${log}" | grep -E 'amethystora-ui@.*(style|glass)' | head -n 10)"
+if [[ -z "${failed}${errors}" ]]; then
+    ok "the style and glass modules ran through every theme without a fault in the shell's log"
+else
+    not_ok "the style or glass module failed" "${failed}" "${errors}"
+fi
+
+# --- Where the shell draws the bar ---------------------------------------------------------------------------------------
+# The top of the highest thing the shell shows near the top of the screen, through its accessibility tree: the bar or
+# its buttons. A bar held off the edge starts below it.
+mkdir -p "${OWN}"
+install -m 0644 "$(dirname "$0")/atspi.py" "${OWN}/"
+cat >"${OWN}/bar.py" <<'EOF'
+import sys
+sys.path.insert(0, "/run/vmlab-98")
+from atspi import Atspi, application, walk
+
+shell = application("gnome-shell")
+tops = []
+for node, _ in walk(shell):
+    try:
+        if not node.get_state_set().contains(Atspi.StateType.SHOWING):
+            continue
+        box = Atspi.Component.get_extents(node, Atspi.CoordType.SCREEN)
+    except Exception:
+        continue
+    # The bar's own row: shown, small, at the top, and not the whole screen
+    if 0 <= box.y < 60 and 0 < box.height < 60 and box.width > 0:
+        tops.append(box.y)
+print(min(tops) if tops else -1)
+EOF
+chmod -R a+rX "${OWN}"
+bar_top() { user_bus python3 "${OWN}/bar.py" 2>/dev/null | tail -n 1; }
+# Each style on the Amethystora theme, by the account's choice
+set_theme amethystora
+for entry in floating:off islands:off capsule:off segments:off neon:off hairline:on terminal:on; do
+    style="${entry%%:*}" edge="${entry##*:}"
+    in_session "ame desktop style ${style}" >/dev/null 2>&1
+    sleep 2
+    top="$(bar_top)"
+    if [[ ! "${top}" =~ ^[0-9]+$ ]]; then
+        not_ok "${style}: the shell's accessibility tree shows no top bar" "${top}"
+    elif [[ "${edge}" == on && "${top}" -le 3 ]] || [[ "${edge}" == off && "${top}" -ge 5 ]]; then
+        ok "${style}: the top bar is drawn $([[ ${edge} == on ]] && echo "against the edge" || echo "off the edge") (top at ${top})"
+    else
+        not_ok "${style}: the top bar is not where the style puts it" "top at ${top}, want $([[ ${edge} == on ]] && echo "0 to 3" || echo "5 or more")"
+    fi
+done
+
+# --- The account's own style and font ------------------------------------------------------------------------------------
+set_theme nord
+in_session "ame desktop style neon" >/dev/null 2>&1
+check "ame desktop style neon writes neon over Nord's islands" test "$(style_now)" == neon
+set_theme gruvbox
+check "and a theme switch keeps it" test "$(style_now)" == neon
+in_session "ame desktop style theme" >/dev/null 2>&1
+check "ame desktop style theme goes back to Gruvbox's terminal" test "$(style_now)" == terminal
+if in_session "ame desktop style bubbles" >/dev/null 2>&1; then
+    not_ok "ame desktop style took a style that does not exist"
+else
+    ok "ame desktop style refuses a style that does not exist"
+fi
+in_session "ame desktop font 'Space Mono'" >/dev/null 2>&1
+check "ame desktop font 'Space Mono' writes it over Gruvbox's JetBrains Mono" test "$(font_now)" == "Space Mono 11"
+set_theme catppuccin
+check "and a theme switch keeps it" test "$(font_now)" == "Space Mono 11"
+in_session "ame desktop font theme" >/dev/null 2>&1
+check "ame desktop font theme goes back to Catppuccin's Nunito" test "$(font_now)" == "Nunito 11"
+if in_session "ame desktop font 'No Such Font'" >/dev/null 2>&1; then
+    not_ok "ame desktop font took a font that is not installed"
+else
+    ok "ame desktop font refuses a font that is not installed"
+fi
+check "a refused font leaves the theme's" test "$(font_now)" == "Nunito 11"
+
+# --- The fonts --------------------------------------------------------------------------------------------------------
+missing="$(
+    # shellcheck source=/dev/null
+    source /usr/lib/amethystora/theme/lib.sh
+    for family in "${UI_FONTS[@]}"; do
+        font_installed "${family}" || echo "${family}"
+    done
+)"
+if [[ -z "${missing}" ]]; then
+    ok "every font the themes and Control offer is installed"
+else
+    not_ok "a font offered is not installed" "${missing}"
+fi
+
+# --- Control ----------------------------------------------------------------------------------------------------------
+list="$(user_bus systemd-run --user --pipe --wait --quiet --collect --setenv=LC_ALL=C.UTF-8 --setenv=LANGUAGE= \
+    -- /usr/libexec/amethystora-control-list --json </dev/null 2>/dev/null)"
+if jq -e '
+    ([.items[] | select(.id == "style") | .choices[].value] | sort == (["capsule","floating","hairline","islands","neon","segments","terminal","theme"]))
+    and ([.items[] | select(.id == "font") | .choices[] | select(.value == "Space Grotesk") | .command] == [["ame","desktop","font","Space Grotesk"]])
+    and ([.items[] | select(.id == "font") | .state] == ["theme"])' <<<"${list}" >/dev/null 2>&1; then
+    ok "Control lists the style and the font, each with its ame command"
+else
+    not_ok "Control's style or font entry is wrong" "$(jq -c '.items[] | select(.id == "style" or .id == "font")' <<<"${list}" 2>&1 | head -c 800)"
+fi
+
+# --- Left open for the screenshot ----------------------------------------------------------------------------------------
+set_theme tokyo-night
+user_bus systemd-run --user --quiet --collect --unit=vmlab-98-files -- nautilus --new-window "${HOME_DIR}" >/dev/null 2>&1 || true
+sleep 3
+python3 "$(dirname "$0")/keys.py" super+s >/dev/null 2>&1 || true
+sleep 2
+finish

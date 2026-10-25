@@ -4,8 +4,8 @@
 
 A theme is a directory of small files (see `/usr/lib/amethystora/theme/lib.sh` for the full list):
 `colors.toml` (the palette), `accent.theme`, `light.mode`, `pair.theme`, `gtk.theme`,
-`icons.theme`, `vscode.theme`, `backgrounds.list` (wallpapers elsewhere on the system, the first
-one is what the theme opens on), `backgrounds/`.
+`icons.theme`, `style.theme`, `font.theme`, `vscode.theme`, `backgrounds.list` (wallpapers elsewhere on the
+system, the first one is what the theme opens on), `backgrounds/`.
 
 - Tweak a shipped theme: create `~/.config/amethystora/themes/<name>/` holding only the files that
   differ; they are copied over the shipped ones. A directory that exists only there is a new theme.
@@ -13,6 +13,14 @@ one is what the theme opens on), `backgrounds/`.
   `~/.config/amethystora/themed/` and edit the copy.
 - Icons: three packs, `ame desktop icons glass|neon|duotone|theme`. The choice is kept in `~/.config/amethystora/icons`,
   which wins over the theme's own `icons.theme`; `theme` removes it. Without either, a dark theme gets Glass and a light one Duotone.
+- Style, the shape of the whole desktop (top bar, menus, notifications, dialogs, OSDs, buttons, the applications'
+  windows and controls): `ame desktop style islands|floating|hairline|capsule|terminal|segments|neon|theme`, kept in
+  `~/.config/amethystora/style` over the theme's `style.theme`. The shell draws it from
+  `/usr/share/amethystora/themed/shell-styles.css.tpl`, the applications from `style-<style>.gtk.css.tpl`; it is the
+  key `org.gnome.shell.extensions.amethystora-ui.style` `style`, which a theme switch writes, so never set that key
+  alone.
+- Font: `ame desktop font "<family>"|theme`, kept in `~/.config/amethystora/font` over the theme's `font.theme`; any
+  installed family works (`fc-list : family`).
 - Run something on every theme switch: an executable in `~/.config/amethystora/hooks/theme-set.d/`.
 - Extra wallpapers: `~/.config/amethystora/backgrounds/<theme>/`, cycled with `Super+Ctrl+Space`
   after the theme's own pictures (`amethystora-theme bg list` shows the order). The

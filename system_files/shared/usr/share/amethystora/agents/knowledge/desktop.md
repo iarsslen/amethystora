@@ -13,6 +13,9 @@ these commands in the agent's own shell, as the user. Read before writing, chang
 - Accent colour: `gsettings set org.gnome.desktop.interface accent-color purple` (a theme switch sets it again).
 - Icons: `ame desktop icons glass|neon|duotone|theme`, not `gsettings set ... icon-theme`, which the next theme
   switch writes over.
+- Font: `ame desktop font "<family>"|theme`, not `gsettings set ... font-name`, which the next theme switch writes over.
+- The shape of the top bar, menus, notifications, dialogs, buttons and windows: `ame desktop style
+  islands|floating|hairline|capsule|terminal|segments|neon|theme`.
 - Animations: `gsettings set org.gnome.desktop.interface enable-animations false`; the theme transitions stop
   with them.
 

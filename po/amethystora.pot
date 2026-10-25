@@ -1881,7 +1881,7 @@ msgid "Follow the theme"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
-msgid "Glass for a dark theme, Duotone for a light one"
+msgid "The pack the theme chooses"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -1890,6 +1890,82 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "The pack the apps, folders and files are drawn from. Another maker's app keeps its own icon."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Islands"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "A floating pill for each part of the top bar, soft corners everywhere"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Floating"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "One rounded top bar held off the edge of the screen"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Hairline"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "A thin, solid top bar, crisp corners and fine lines"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Capsule"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The clock in a dark capsule, and everything else a pill"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Terminal"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Monospace, square and lined, like a terminal"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Segments"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The top bar in blocks of the theme's colours"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Dark glass outlined and glowing in the theme's accent"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The style the theme chooses"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Style"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The shape of the top bar, menus, notifications, dialogs, buttons and windows."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The font the theme is written in"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Font"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The font of the desktop and the applications."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -2066,10 +2142,6 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "Small commands whose output the top bar shows. Each runs as you, with everything you have: keep only the ones you have read."
-msgstr ""
-
-#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
-msgid "Terminal"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -4419,7 +4491,7 @@ msgid "Super+Ctrl+Space changes the wallpaper to show it."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
-msgid "Whatever the theme chooses: Glass for a dark theme, Duotone for a light one"
+msgid "Whatever the theme chooses"
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
@@ -4430,6 +4502,31 @@ msgstr ""
 #: usr/share/amethystora/just/desktop.just
 #, sh-format
 msgid "Icons: ${pack}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Style (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Style: ${style}. Applications that are open take it when they next start."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Font (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "No font called ${family} is installed. The fonts offered: ame desktop font"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Font: ${family}."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just

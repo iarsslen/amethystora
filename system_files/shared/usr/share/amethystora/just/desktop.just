@@ -72,7 +72,7 @@ icons PACK="":
         echo "glass    $(gettext "Each icon in its own gradient, with a glass sheen")"
         echo "neon     $(gettext "Outlines lit in colours of their own, for a dark desktop")"
         echo "duotone  $(gettext "Each icon in a gradient, its details in a contrasting one")"
-        echo "theme    $(gettext "Whatever the theme chooses: Glass for a dark theme, Duotone for a light one")"
+        echo "theme    $(gettext "Whatever the theme chooses")"
         pack="$(gum choose --header "$(eval_gettext "Icons (current: \${current})")" --selected "${current}" glass neon duotone theme)"
     fi
     case "${pack}" in
@@ -96,6 +96,76 @@ icons PACK="":
     echo "${name}" >"${flag}"
     gsettings set org.gnome.desktop.interface icon-theme "${name}"
     echo "$(eval_gettext "Icons: \${pack}.")"
+
+# Pick the desktop style: the shape of the top bar, menus, notifications, dialogs, buttons and windows
+[positional-arguments]
+style STYLE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    # shellcheck source=/dev/null
+    source /usr/lib/amethystora/theme/lib.sh
+    # Read by amethystora-theme, which writes the style at every switch and would otherwise put the theme's own back
+    flag="${CONFIG_DIR}/style"
+    current="$(head -n1 "${flag}" 2>/dev/null || echo theme)"
+    style="${1:-}"
+    if [[ -z "${style}" ]]; then
+        echo "islands   $(gettext "A floating pill for each part of the top bar, soft corners everywhere")"
+        echo "floating  $(gettext "One rounded top bar held off the edge of the screen")"
+        echo "hairline  $(gettext "A thin, solid top bar, crisp corners and fine lines")"
+        echo "capsule   $(gettext "The clock in a dark capsule, and everything else a pill")"
+        echo "terminal  $(gettext "Monospace, square and lined, like a terminal")"
+        echo "segments  $(gettext "The top bar in blocks of the theme's colours")"
+        echo "neon      $(gettext "Dark glass outlined and glowing in the theme's accent")"
+        echo "theme     $(gettext "Whatever the theme chooses")"
+        style="$(gum choose --header "$(eval_gettext "Style (current: \${current})")" --selected "${current}" \
+            islands floating hairline capsule terminal segments neon theme)"
+    fi
+    if [[ "${style}" == theme ]]; then
+        rm -f "${flag}"
+    elif is_style "${style}"; then
+        mkdir -p "${CONFIG_DIR}"
+        echo "${style}" >"${flag}"
+    else
+        echo "usage: ame desktop style islands|floating|hairline|capsule|terminal|segments|neon|theme"
+        exit 64
+    fi
+    # The whole theme again, with its transition, for the applications' half of the style too; the wallpaper stays
+    AMETHYSTORA_THEME_QUIET=1 amethystora-theme reload >/dev/null
+    style="$(desktop_style)"
+    echo "$(eval_gettext "Style: \${style}. Applications that are open take it when they next start.")"
+
+# Pick the interface font, or go back to the theme's
+[positional-arguments]
+font FAMILY="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    # shellcheck source=/dev/null
+    source /usr/lib/amethystora/theme/lib.sh
+    flag="${CONFIG_DIR}/font"
+    current="$(head -n1 "${flag}" 2>/dev/null || echo theme)"
+    family="${1:-}"
+    if [[ -z "${family}" ]]; then
+        family="$(gum choose --header "$(eval_gettext "Font (current: \${current})")" --selected "${current}" \
+            theme "${UI_FONTS[@]}")"
+    fi
+    if [[ "${family}" == theme ]]; then
+        rm -f "${flag}"
+    elif font_installed "${family}"; then
+        mkdir -p "${CONFIG_DIR}"
+        echo "${family}" >"${flag}"
+    else
+        echo "$(eval_gettext "No font called \${family} is installed. The fonts offered: ame desktop font")" >&2
+        echo "usage: ame desktop font FAMILY|theme"
+        exit 64
+    fi
+    # Written on its own: the font needs no transition, and applying the whole theme again would hold the screen
+    gsettings set org.gnome.desktop.interface font-name "$(ui_font) ${FONT_SIZE}"
+    family="$(ui_font)"
+    echo "$(eval_gettext "Font: \${family}.")"
 
 # Pick how windows are arranged: tiling, side by side on a strip, or classic, floating as on Windows and macOS
 [positional-arguments]

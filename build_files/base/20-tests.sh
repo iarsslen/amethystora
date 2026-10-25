@@ -1177,7 +1177,8 @@ for theme in /usr/share/amethystora/themes/*/; do
         source /usr/lib/amethystora/theme/lib.sh
         render_templates "${RENDER_HOME}/$(basename "${theme}")" "theme_name=$(basename "${theme}")"
     )
-    for rendered in "${RENDER_HOME}/$(basename "${theme}")"/window-controls-gtk{3,4}.css; do
+    for rendered in "${RENDER_HOME}/$(basename "${theme}")"/window-controls-gtk{3,4}.css \
+        "${RENDER_HOME}/$(basename "${theme}")"/style-*.gtk.css; do
         test -s "${rendered}"
         if grep -q '{{' "${rendered}"; then
             echo "${theme} leaves a value of $(basename "${rendered}") unrendered"
@@ -1293,6 +1294,75 @@ done
     [[ "$(icon_theme)" == amethystora-neon ]]
     rm -rf "${HOME}"
 )
+
+# The desktop styles (manual: themes.md#styles). The seven are the same in the theme library, the schema, the style
+# module, the shell's stylesheet and the applications' files; floating is the default before a theme is applied
+STYLE_JS="${UI_EXTENSION}/modules/style.js"
+STYLE_SCHEMA="${UI_EXTENSION}/schemas/org.gnome.shell.extensions.amethystora-ui.style.gschema.xml"
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.style style)" == "'floating'" ]]
+grep -q '^DEFAULT_STYLE=floating$' /usr/lib/amethystora/theme/lib.sh
+# shellcheck source=/dev/null
+STYLE_NAMES="$(source /usr/lib/amethystora/theme/lib.sh && echo "${STYLES[*]}")"
+[[ "$(grep -c '^    [a-z]*: {bar: ' "${STYLE_JS}")" == "$(wc -w <<<"${STYLE_NAMES}")" ]]
+[[ "$(grep -c '<choice value=' "${STYLE_SCHEMA}")" == "$(wc -w <<<"${STYLE_NAMES}")" ]]
+for style in ${STYLE_NAMES}; do
+    grep -q "<choice value=\"${style}\"/>" "${STYLE_SCHEMA}"
+    grep -q "#uiGroup\.amethystora-style-${style} " /usr/share/amethystora/themed/shell-styles.css.tpl
+    test -s "/usr/share/amethystora/themed/style-${style}.gtk.css.tpl"
+    # The corners the glass gives a window's pane are the ones the style's GTK stylesheet gives the window
+    radius="$(sed -n "s/^    ${style}: {bar: '\(pane\|pills\|solid\|bare\)', window: \([0-9]*\)},$/\2/p" "${STYLE_JS}")"
+    [[ -n "${radius}" ]]
+    case "${style}" in
+        # The applications' own corners, and all of them square
+        floating) ;;
+        terminal)
+            [[ "${radius}" == 0 ]]
+            grep -q '^\* {$' /usr/share/amethystora/themed/style-terminal.gtk.css.tpl
+            ;;
+        *)
+            grep -A3 '^window\.csd,$' "/usr/share/amethystora/themed/style-${style}.gtk.css.tpl" |
+                grep "border-radius: ${radius}px;" >/dev/null
+            ;;
+    esac
+done
+# Every shipped theme names a style and a font that are there, and every font offered is installed
+(
+    # shellcheck source=/dev/null
+    source /usr/lib/amethystora/theme/lib.sh
+    for theme in /usr/share/amethystora/themes/*/; do
+        is_style "$(head -n1 "${theme}style.theme")" || { echo "${theme}style.theme names no style"; exit 1; }
+        font_installed "$(head -n1 "${theme}font.theme")" || { echo "${theme}font.theme is not installed"; exit 1; }
+    done
+    for family in "${UI_FONTS[@]}"; do
+        font_installed "${family}" || { echo "ame desktop font offers ${family}, which is not installed"; exit 1; }
+    done
+)
+# The licences of the fonts copied from Google Fonts (09-fonts.sh) ship with them
+for family_dir in /usr/share/fonts/amethystora/*/; do
+    test -s "/usr/share/licenses/google-fonts/$(basename "${family_dir}")/OFL.txt"
+done
+# Which style and font are written: the account's own choice, else the theme's, else floating and Adwaita Sans
+(
+    unset XDG_CONFIG_HOME
+    HOME="$(mktemp -d)"
+    # shellcheck source=/dev/null
+    source /usr/lib/amethystora/theme/lib.sh
+    mkdir -p "${CURRENT_THEME_DIR}"
+    [[ "$(desktop_style)" == floating && "$(ui_font)" == "Adwaita Sans" ]]
+    echo neon >"${CURRENT_THEME_DIR}/style.theme"
+    echo Inter >"${CURRENT_THEME_DIR}/font.theme"
+    [[ "$(desktop_style)" == neon && "$(ui_font)" == Inter ]]
+    echo bubbles >"${CONFIG_DIR}/style"
+    echo "No Such Font" >"${CONFIG_DIR}/font"
+    [[ "$(desktop_style)" == neon && "$(ui_font)" == Inter ]]
+    echo terminal >"${CONFIG_DIR}/style"
+    echo "JetBrains Mono" >"${CONFIG_DIR}/font"
+    [[ "$(desktop_style)" == terminal && "$(ui_font)" == "JetBrains Mono" ]]
+    rm -rf "${HOME}"
+)
+# The theme hook is past the version that brought the styles and fonts, so that an account set up before gets them
+[[ "$(sed -n 's/^version-script theme user \([0-9]\+\).*/\1/p' \
+    /usr/share/amethystora/user-setup.hooks.d/11-theme.sh)" -ge 12 ]]
 
 # What the Hyprland era left behind is removed: per account by 09-retire-dms.sh, before 11-theme.sh
 # re-applies the theme, and per machine by 20-retire-dms.sh. The account side keys on the names and

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The desktop style (modules/style.js). amethystora-theme writes it on every theme switch, from the account's
+     choice (ame desktop style) or the theme's style.theme; the default is for an account before its first theme. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.style" path="/org/gnome/shell/extensions/amethystora-ui/style/">
+    <key name="style" type="s">
+      <choices>
+        <choice value="islands"/>
+        <choice value="floating"/>
+        <choice value="hairline"/>
+        <choice value="capsule"/>
+        <choice value="terminal"/>
+        <choice value="segments"/>
+        <choice value="neon"/>
+      </choices>
+      <default>'floating'</default>
+      <summary>The desktop style</summary>
+      <description>The shape of the top bar, the menus, notifications, dialogs, on-screen alerts, buttons, controls and windows.</description>
+    </key>
+  </schema>
+</schemalist>
