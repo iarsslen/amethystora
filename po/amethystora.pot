@@ -1761,6 +1761,115 @@ msgid "The colours of the desktop, the terminal and the apps that follow it, wit
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Glass"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Each icon in its own gradient, with a glass sheen"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Neon"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Outlines lit in colours of their own, for a dark desktop"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Duotone"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Each icon in a gradient, its details in a contrasting one"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Follow the theme"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "The theme's own: ${own}"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Icons"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The pack the apps, folders and files are drawn from. Another maker's app keeps its own icon."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Islands"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "A floating pill for each part of the top bar, soft corners everywhere"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Floating"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "One rounded top bar held off the edge of the screen"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Hairline"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "A thin, solid top bar, crisp corners and fine lines"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Capsule"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The clock in a dark capsule, and everything else a pill"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+msgid "Terminal"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Monospace, square and lined, like a terminal"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Segments"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The top bar in blocks of the theme's colours"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Dark glass outlined and glowing in the theme's accent"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Style"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The shape of the top bar, menus, notifications, dialogs, buttons and windows."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Font"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The font of the desktop and the applications."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Pick a theme first: each theme has wallpapers of its own."
 msgstr ""
 
@@ -1850,122 +1959,6 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "How long a transition takes, in milliseconds."
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Glass"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
-msgid "Each icon in its own gradient, with a glass sheen"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Neon"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
-msgid "Outlines lit in colours of their own, for a dark desktop"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Duotone"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
-msgid "Each icon in a gradient, its details in a contrasting one"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Follow the theme"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "The pack the theme chooses"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Icons"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "The pack the apps, folders and files are drawn from. Another maker's app keeps its own icon."
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Islands"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
-msgid "A floating pill for each part of the top bar, soft corners everywhere"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Floating"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
-msgid "One rounded top bar held off the edge of the screen"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Hairline"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
-msgid "A thin, solid top bar, crisp corners and fine lines"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Capsule"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
-msgid "The clock in a dark capsule, and everything else a pill"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
-msgid "Terminal"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
-msgid "Monospace, square and lined, like a terminal"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Segments"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
-msgid "The top bar in blocks of the theme's colours"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
-msgid "Dark glass outlined and glowing in the theme's accent"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "The style the theme chooses"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Style"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "The shape of the top bar, menus, notifications, dialogs, buttons and windows."
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "The font the theme is written in"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Font"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "The font of the desktop and the applications."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list

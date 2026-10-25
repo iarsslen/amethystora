@@ -576,7 +576,14 @@ impl Control {
             content.append(&dot);
             let words = ui::vbox(1, &["option-words"]);
             words.set_hexpand(true);
-            words.append(&ui::label(&choice.title, &["strong"]));
+            let title = ui::label(&choice.title, &["strong"]);
+            // A font is shown in itself
+            if let Some(font) = &choice.font {
+                let attributes = gtk::pango::AttrList::new();
+                attributes.insert(gtk::pango::AttrString::new_family(font));
+                title.set_attributes(Some(&attributes));
+            }
+            words.append(&title);
             if let Some(text) = &choice.text {
                 words.append(&pretty(text, &["small"]));
             }

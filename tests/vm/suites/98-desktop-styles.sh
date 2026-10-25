@@ -170,11 +170,17 @@ fi
 # --- Control ----------------------------------------------------------------------------------------------------------
 list="$(user_bus systemd-run --user --pipe --wait --quiet --collect --setenv=LC_ALL=C.UTF-8 --setenv=LANGUAGE= \
     -- /usr/libexec/amethystora-control-list --json </dev/null 2>/dev/null)"
+# On Catppuccin (set above) with no choice of the account's: "Follow the theme" says what the theme gives, each font
+# is drawn in itself, and the four that make a look sit together, the theme first
 if jq -e '
     ([.items[] | select(.id == "style") | .choices[].value] | sort == (["capsule","floating","hairline","islands","neon","segments","terminal","theme"]))
-    and ([.items[] | select(.id == "font") | .choices[] | select(.value == "Space Grotesk") | .command] == [["ame","desktop","font","Space Grotesk"]])
-    and ([.items[] | select(.id == "font") | .state] == ["theme"])' <<<"${list}" >/dev/null 2>&1; then
-    ok "Control lists the style and the font, each with its ame command"
+    and ([.items[] | select(.id == "font") | .choices[] | select(.value == "Space Grotesk") | [.command, .font]]
+         == [[["ame","desktop","font","Space Grotesk"], "Space Grotesk"]])
+    and ([.items[] | select(.id == "font") | .state] == ["theme"])
+    and ([.items[] | select(.id == "font") | .choices[] | select(.value == "theme") | .text] == ["The theme'"'"'s own: Nunito"])
+    and ([.items[] | select(.id == "style") | .choices[] | select(.value == "theme") | .text] == ["The theme'"'"'s own: Segments"])
+    and ([.items[] | select(.page == "appearance") | .id][0:4] == ["theme","icons","style","font"])' <<<"${list}" >/dev/null 2>&1; then
+    ok "Control lists the theme, icons, style and font together, says what the theme gives, and draws each font in itself"
 else
     not_ok "Control's style or font entry is wrong" "$(jq -c '.items[] | select(.id == "style" or .id == "font")' <<<"${list}" 2>&1 | head -c 800)"
 fi

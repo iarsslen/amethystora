@@ -44,6 +44,8 @@ pub struct Choice {
     pub command: Option<Vec<String>>,
     /// A theme's palette, which its swatch is drawn in
     pub colors: BTreeMap<String, String>,
+    /// A font's family, which its name is drawn in
+    pub font: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -186,6 +188,7 @@ fn choice(value: &Value) -> Choice {
         terminal: truthy(value.get("terminal")),
         command: words(value.get("command")),
         colors,
+        font: text(value.get("font")),
     }
 }
 
