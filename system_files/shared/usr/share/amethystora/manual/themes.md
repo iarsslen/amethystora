@@ -164,8 +164,9 @@ Edit the colours, run `amethystora-theme set sunset` again, and look at the resu
 
 ## The boot menu
 
-The boot menu can carry the Amethystora artwork too. It is off by default, because the boot menu
-lives outside the image:
+The boot menu carries the Amethystora artwork too. The boot menu lives outside the image, so the
+artwork is put on once, as the machine first starts with it, and shows from the restart after;
+once taken off, it stays off:
 
 ```bash
 ame desktop boot-menu

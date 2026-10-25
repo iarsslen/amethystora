@@ -224,8 +224,9 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
         not_ok "amethystora-grub-theme status says another thing without root" "as ${TEST_USER}: ${said}" \
             "as root: $(amethystora-grub-theme status 2>&1)" "$(ls -ld /boot/grub2 /boot/grub2/user.cfg 2>&1)"
     fi
-    json_holds "the boot menu's card says off, as amethystora-grub-theme does" "$(item boot-menu)" \
-        '.available and .state == "off"'
+    # On by default, but a lab disk keeps /boot read-only, so the setup hook could not put it on there
+    json_holds "the boot menu's card says what amethystora-grub-theme does" "$(item boot-menu)" \
+        ".available and .state == \"$(amethystora-grub-theme status | grep -q '^on:' && echo on || echo off)\""
     # Verify: sched_ext's state, which the scheduler's card reads as the account (root/ops in phase 2)
     if [[ -d /sys/kernel/sched_ext ]]; then
         check "an account reads the kernel's sched_ext state" as_user "cat /sys/kernel/sched_ext/state"
