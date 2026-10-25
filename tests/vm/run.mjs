@@ -4,13 +4,14 @@
 // (/vm/runs/last): run.log, one log per stage and per suite, a screenshot after each suite, the guest's
 // journal, results.json, and summary.md, which it prints last.
 //
-//   node run.mjs [all | build | disk | test] [--keep] [--image IMAGE] [--suites NN,NN...]
+//   node run.mjs [all | build | disk | test] [--keep] [--image IMAGE] [--tag TAG] [--suites NN,NN...]
 //
 // all (the default) does the three in turn and stops at the first that fails; the others do one, from what
 // the last run left. --keep leaves the VMs running afterwards, for a closer look over MCP. The exit status is
 // 0 only when everything that ran passed. VMLAB_NAME (default test) names the run's image tag, disks and VMs,
 // so that two sessions' runs do not take each other's. --image builds amethystora-dx, or either with -nvidia-open or
-// -nvidia-lts, instead of amethystora; --suites runs only the suites with those numbers.
+// -nvidia-lts, instead of amethystora; --tag builds that stream (beta, which can be on the next Fedora) instead of
+// latest; --suites runs only the suites with those numbers.
 //
 // A suite is a bash script run as root in the guest, beside lib.sh: one "ok - ...", "not ok - ..." or
 // "skip - ..." line per check, and exit status 0 only when it passed. Exit status 100 asks for a reboot:
@@ -36,8 +37,10 @@ if (!/^[a-z0-9][a-z0-9-]{0,20}$/.test(NAME)) throw new Error(`VMLAB_NAME must be
 const option = (flag) => (process.argv.includes(flag) ? process.argv[process.argv.indexOf(flag) + 1] : undefined);
 const BUILD = option('--image') || 'amethystora';
 if (!/^amethystora(-dx)?(-nvidia-(open|lts))?$/.test(BUILD)) throw new Error(`run.mjs: no image ${BUILD}`);
+const TAG = option('--tag') || 'latest';
+if (!/^(latest|beta|stable)$/.test(TAG)) throw new Error(`run.mjs: no stream ${TAG}`);
 const ONLY = option('--suites')?.split(',');
-const BUILT = `localhost/${BUILD}:latest`;
+const BUILT = `localhost/${BUILD}:${TAG}`;
 // What `just build` tags, kept under the run's own name at once, which the disks are made from
 const IMAGE = `localhost/amethystora-run:${NAME}`;
 const GUEST_DIR = '/run/amethystora-tests';
@@ -113,7 +116,7 @@ async function build() {
   // Git submodules, if the repository has any again: a bundle carries none of them
   if (!(await step('submodules', 'git', ['-C', SRC, 'submodule', 'update', '--init', '--recursive']))) return false;
   const flavor = BUILD.match(/-(nvidia-(open|lts))$/)?.[1] || 'main';
-  if (!(await step('build', 'just', ['build', BUILD.replace(/-nvidia-(open|lts)$/, ''), 'latest', flavor]))) return false;
+  if (!(await step('build', 'just', ['build', BUILD.replace(/-nvidia-(open|lts)$/, ''), TAG, flavor]))) return false;
   if (!(await step('tag', 'podman', ['tag', BUILT, IMAGE]))) return false;
   // What earlier builds left, no longer tagged
   await step('prune', 'podman', ['image', 'prune', '-f']);
