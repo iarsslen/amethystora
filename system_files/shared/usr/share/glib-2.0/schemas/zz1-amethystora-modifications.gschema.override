@@ -58,10 +58,10 @@ dynamic-workspaces=false
 
 [org.gnome.desktop.wm.preferences]
 num-workspaces=6
-# Close, minimise and maximise, on the left, as on macOS: the three lights that
+# Minimise, maximise and close, on the right, close last: the three lights that
 # themed/window-controls-gtk*.css.tpl draws. Stated here rather than left to the base image, so that the
 # theme's own index.theme is not the only thing asking for it.
-button-layout='close,minimize,maximize:'
+button-layout=':minimize,maximize,close'
 
 [org.gnome.desktop.wm.keybindings]
 close=['<Super>w']

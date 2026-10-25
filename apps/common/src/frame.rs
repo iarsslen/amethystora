@@ -45,7 +45,7 @@ pub fn controls() -> gtk::WindowControls {
     controls
 }
 
-/// The buttons the desktop puts at the start of the title bar (`button-layout='close,minimize,maximize:'`),
+/// The buttons the desktop puts at the start of the title bar, when its layout is `close,minimize,maximize:`,
 /// in every window (app.rs), over its top corner at the start of the line (the right in a right-to-left
 /// language), as macOS has them: above the app's content, which goes into an overlay for them, again whenever
 /// the app sets another. While they show, the window has the class `controls-start`, and each app's stylesheet

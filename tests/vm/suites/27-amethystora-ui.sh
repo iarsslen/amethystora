@@ -160,8 +160,8 @@ for entry in "gtk-4.0/gtk.css windowcontrols" "gtk-3.0/gtk.css titlebutton.close
         not_ok "the account's ${file} does not draw the window lights" "$(head -c 400 "${HOME_DIR}/.config/${file}" 2>&1)"
     fi
 done
-check "the buttons are on the left, close first" \
-    test "$(gsettings_get org.gnome.desktop.wm.preferences button-layout)" == "'close,minimize,maximize:'"
+check "the buttons are on the right, close last" \
+    test "$(gsettings_get org.gnome.desktop.wm.preferences button-layout)" == "':minimize,maximize,close'"
 
 # --- The dock ------------------------------------------------------------------------------------------------------------
 install -m 0644 "$(dirname "$0")/atspi.py" "${OWN}/"

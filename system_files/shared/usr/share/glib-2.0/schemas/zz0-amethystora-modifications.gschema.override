@@ -26,7 +26,7 @@ allow-volume-above-100-percent=false
 theme-name="freedesktop"
 
 [org.gnome.desktop.wm.preferences]
-button-layout="close,minimize,maximize:"
+button-layout=":minimize,maximize,close"
 num-workspaces=4
 titlebar-font="Adwaita Sans Bold 12 @wght=700"
 

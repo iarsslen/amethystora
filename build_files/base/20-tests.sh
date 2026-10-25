@@ -1145,8 +1145,8 @@ grep -q 'MIRROR_ROOT="${HOME}/.themes"' "${THEME_HOOK}"
 grep -q "gtk-4.0" "${THEME_HOOK}"
 # The mirror and the stylesheet are only any use to a Flatpak if the sandbox is let at them
 grep -q "^filesystems=~/\.themes:ro;xdg-config/gtk-4\.0:ro;xdg-config/gtk-3\.0/gtk\.css:ro;$" /etc/flatpak/overrides/global
-# Window buttons on the left, close first, as on macOS, drawn as the lights of themed/window-controls-gtk*.css.tpl
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.preferences button-layout)" == "'close,minimize,maximize:'" ]]
+# Window buttons on the right, close last, drawn as the lights of themed/window-controls-gtk*.css.tpl
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.preferences button-layout)" == "':minimize,maximize,close'" ]]
 # ...which every shipped theme renders whole, through the theme switcher's own render_templates: a colour its
 # palette lacks would leave a {{ key }} in the CSS
 RENDER_HOME="$(mktemp -d)"

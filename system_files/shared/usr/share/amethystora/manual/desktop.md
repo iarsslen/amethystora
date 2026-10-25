@@ -234,8 +234,8 @@ offers the same choice, and [Control](control.md)'s **Desktop** page has it any 
 | `Super+Tab` / `Alt+Tab` | Switch between apps / between windows |
 | `` Super+` `` | Switch between the windows of the app you are in |
 
-The three lights on the left of every title bar close, minimise and maximise the window, red, amber and
-green in every theme, and grey while the window is not the one you are using. Move the pointer over them and
+The three lights on the right of every title bar minimise, maximise and close the window, amber, green and
+red in every theme, and grey while the window is not the one you are using. Move the pointer over them and
 each shows its sign.
 
 ## Workspaces
