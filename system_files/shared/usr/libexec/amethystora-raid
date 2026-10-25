@@ -1414,10 +1414,11 @@ cmd_replace() {
         die "The replace did not finish: journalctl -u amethystora-raid-replace-${name} says why."
     fi
     # systemd (262, Fedora 45) takes an encrypted disk with nothing left on it for one not ready, and stops the pool's
-    # mount, which requires the disk it was mounted from, when that was the disk replaced: it is mounted again
+    # mount, which requires the disk it was mounted from, when that was the disk replaced: it is mounted again from
+    # its fstab line, as the unit would still wait for that disk
     as_root udevadm settle
     for _ in {1..50}; do systemctl list-jobs --no-legend "$(mount_unit "${name}")" 2>/dev/null | grep -q . || break; sleep 0.2; done
-    findmnt -rn --mountpoint "${target}" >/dev/null || as_root systemctl start "$(mount_unit "${name}")" ||
+    findmnt -rn --mountpoint "${target}" >/dev/null || as_root mount "${target}" ||
         die "The replace finished, but ${name} could not be mounted again: ame system raid mount ${name}."
     # A larger disk gives what it can; and what was written as single while a disk was missing, which a
     # replace leaves as it is, gets its copies back
