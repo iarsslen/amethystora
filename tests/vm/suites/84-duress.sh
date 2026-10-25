@@ -147,7 +147,12 @@ ame_duress() {
     shift
     session_terminal 180 "$@" -- "cd; ame security duress ${action}"
 }
-denials_since() { journalctl --since "@$1" _TRANSPORT=audit -o cat --no-pager | grep -E "avc: +denied" | grep -v vmlab; }
+# Fedora 45's policy lets systemd-userdbd's workers ask systemd-nsresourced (new in systemd 262) nothing; any
+# account lookup now and then shows it, which is Fedora's to fix and nothing the duress features do
+denials_since() {
+    journalctl --since "@$1" _TRANSPORT=audit -o cat --no-pager | grep -E "avc: +denied" | grep -v vmlab |
+        grep -v 'scontext=system_u:system_r:systemd_userdbd_t:s0 tcontext=system_u:object_r:systemd_nsresourced_runtime_t:s0'
+}
 CONSOLE_WAS="$(sed -n 's/^tty//p' /sys/class/tty/tty0/active 2>/dev/null)"
 [[ "${CONSOLE_WAS}" =~ ^[0-9]+$ ]] || CONSOLE_WAS=1
 SSHD_WAS="$(systemctl is-active sshd.service)"
