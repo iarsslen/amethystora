@@ -331,6 +331,14 @@ EXCLUDED_PACKAGES=(
     fedora-chromium-config
     fedora-chromium-config-gnome
     gnome-extensions-app
+    # The GNOME Classic session and the four extensions only it turns on (Apps Menu, Places Status Indicator,
+    # Window List, Launch New Instance), which sat off in every other session (20-tests.sh)
+    gnome-classic-session
+    gnome-shell-extension-apps-menu
+    gnome-shell-extension-common
+    gnome-shell-extension-launch-new-instance
+    gnome-shell-extension-places-menu
+    gnome-shell-extension-window-list
     gnome-shell-extension-background-logo
     # The base image's copy of Blur my Shell, which Amethystora UI's glass module replaces (20-tests.sh)
     gnome-shell-extension-blur-my-shell

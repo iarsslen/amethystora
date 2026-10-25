@@ -291,6 +291,12 @@ test -x /usr/share/amethystora/user-setup.hooks.d/21-phone-link.sh
 test -x /usr/libexec/amethystora-phone-link-notice
 test ! -e /usr/share/amethystora/user-setup.hooks.d/18-home-networks.sh
 
+# No extension ships turned off: GNOME Classic and the four it alone turned on are gone
+test ! -e /usr/share/wayland-sessions/gnome-classic.desktop
+for uuid in apps-menu places-menu window-list launch-new-instance; do
+    test ! -e "/usr/share/gnome-shell/extensions/${uuid}@gnome-shell-extensions.gcampax.github.com"
+done
+
 # Every extension has to be readable by the account that logs in, not just by the root this build
 # runs as. GNOME Shell reads metadata.json as the user; one it cannot open is not a broken
 # extension, it is no extension at all, missing from the shell and from Extension Manager. The
