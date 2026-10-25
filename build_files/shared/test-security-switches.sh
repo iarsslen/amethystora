@@ -333,17 +333,16 @@ firewall-offline-cmd --zone=amethystora-home --query-service=kdeconnect >/dev/nu
 mkdir -p "${T}/stubs-mac"
 cat >"${T}/stubs-mac/nmcli" <<'EOF'
 #!/usr/bin/bash
-# Values as "UUID PROPERTY VALUE" lines, printed as nmcli prints them: an enumeration with its number, and
-# the default of a ternary or an enumeration by its name
+# Values as "UUID PROPERTY VALUE" lines, printed as nmcli does (checked against NetworkManager 1.56): an
+# enumeration or a ternary by its number, -1 when it is not set
 case "$1 $2" in
     "-g connection.type") sed -n "s/^$5 connection.type //p" "${NMCLI_PROPS}" ;;
     "-g "*)
         value="$(sed -n "s/^$5 $2 //p" "${NMCLI_PROPS}")"
         case "$2:${value}" in
-            connection.llmnr:resolve) echo "resolve (1)" ;;
-            connection.llmnr:no) echo "no (0)" ;;
-            connection.llmnr:) echo "default (-1)" ;;
-            *.dhcp-send-hostname:) echo default ;;
+            connection.llmnr:resolve | *.dhcp-send-hostname:yes) echo 1 ;;
+            connection.llmnr:no) echo 0 ;;
+            connection.llmnr: | *.dhcp-send-hostname:) echo -1 ;;
             *) echo "${value}" ;;
         esac
         ;;

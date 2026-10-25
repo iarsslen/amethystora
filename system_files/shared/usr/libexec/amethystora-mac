@@ -30,6 +30,7 @@ KEPT="${ROOT}/var/lib/amethystora/mac-home"
 
 # What a home connection is given, apart from the hardware address of its type, which follows
 declare -A GIVEN=([ipv4.dhcp-send-hostname]=yes [ipv6.dhcp-send-hostname]=yes [connection.llmnr]=resolve)
+declare -A NUMBER=([yes]=1 [resolve]=1)
 
 reload() {
     systemctl is-active --quiet NetworkManager.service || return 0
@@ -47,12 +48,12 @@ status() {
 }
 
 is_default() {
-    case "$1" in "" | default* | -1*) return 0 ;; *) return 1 ;; esac
+    [[ -z "$1" || "$1" == -1 ]]
 }
 
-# Whether nmcli printed this value ($1) for the word ($2): an enumeration is "word (number)" or the reverse
+# Whether nmcli printed this value ($1) for the word ($2): it prints an enumeration by its number
 is_value() {
-    [[ "$1" == "$2" || "$1" == "$2 "* || "$1" == *"($2)"* ]]
+    [[ "$1" == "$2" || "$1" == "${NUMBER[$2]:-$2}" ]]
 }
 
 # The properties a home connection is given: its type's hardware address and the rest

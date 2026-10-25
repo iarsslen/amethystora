@@ -281,8 +281,8 @@ llmnr_asked() {
 LAN_UUID="$(nmcli -g connection.uuid connection show "${LAN}")"
 prop_of() { nmcli -g "$2" connection show "$1" 2>/dev/null; }
 default_props() {
-    [[ -z "$(prop_of "$1" 802-3-ethernet.cloned-mac-address)" && "$(prop_of "$1" ipv4.dhcp-send-hostname)" == default* &&
-        "$(prop_of "$1" ipv6.dhcp-send-hostname)" == default* && "$(prop_of "$1" connection.llmnr)" == default* ]]
+    [[ -z "$(prop_of "$1" 802-3-ethernet.cloned-mac-address)" && "$(prop_of "$1" ipv4.dhcp-send-hostname)" == -1 &&
+        "$(prop_of "$1" ipv6.dhcp-send-hostname)" == -1 && "$(prop_of "$1" connection.llmnr)" == -1 ]]
 }
 up "${LAN}" && wait_for 60 leased
 if llmnr_asked; then
