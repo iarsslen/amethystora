@@ -95,13 +95,19 @@ if ! command -v magick >/dev/null; then
     IMAGEMAGICK_ADDED=true
 fi
 ACCENT_ASSETS=(checkbox-checked radio-checked radio-selected selected- menuitem- calendar-selected
-    grid-selection-checked qcheckbox-checked switch-slider-on switch-on scale-slider)
+    grid-selection-checked qcheckbox-checked switch-slider-on switch-on scale-slider
+    checkbox-mixed radio-mixed checkbox-unchecked-active checkbox-unchecked-hover radio-unchecked-active
+    radio-unchecked-hover radio-unselected-hover)
 for prefix in "${ACCENT_ASSETS[@]}"; do
     for asset in "${THEME_DIR}/assets/${prefix}"*.png; do
         [[ -f "${asset}" ]] || continue
         magick "${asset}" -modulate 100,100,"${ACCENT_ROTATION}" "${asset}"
     done
 done
+# The list is Sweet's, written by hand, and a newer Sweet may draw its teal in a bitmap it does not name: the
+# mixed-state boxes and the hover and pressed rims of the unchecked ones stayed teal in the image until this
+# check was added. A bitmap still drawing a vivid colour in the band fails the build, while ImageMagick is here.
+python3 /ctx/build_files/shared/recolor.py --check-bitmaps "${THEME_DIR}"/assets/*.png
 # Only taken back out if this brought it in: removing something the image wanted would be worse
 # than leaving a build tool behind
 if [[ "${IMAGEMAGICK_ADDED}" == true ]]; then

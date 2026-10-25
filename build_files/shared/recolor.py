@@ -20,6 +20,7 @@ neighbours and would be pushed away from it.
     recolor.py FILE...             rewrite each file in place
     recolor.py --check FILE..      report what is left in the band and fail if anything is
     recolor.py --band LOW:HIGH ..  rotate a different band, in degrees, onto the same amethyst
+    recolor.py --check-bitmaps PNG..  fail on a bitmap that still draws a vivid colour in the band (needs ImageMagick)
 
 --band is for the handful of files Sweet draws in a colour the default band deliberately spares.
 The switch, whose filled half is amber, is the one that matters: amber means the same thing as the
@@ -28,6 +29,7 @@ default band's teal there, an accent, and not the warning it means everywhere el
 
 import colorsys
 import re
+import subprocess
 import sys
 
 # Degrees on the colour wheel. The band runs from the yellow-greens, through teal and cyan, to the
@@ -50,8 +52,15 @@ LIFT = 0.34
 # own chrome sits well above it: its body text is at 0.11 and the window background at 0.27.
 FAINT = 0.08
 
+# What --check-bitmaps counts: a pixel that shows (alpha from 16) and is as vivid as the accent it was
+# drawn in, which is half of what lifts a colour in rotate(). Antialiasing leaves fainter teal on an
+# edge, and those pixels turn with the rest of the file.
+BITMAP_SATURATION = VIVID / 2
+
 HEX = re.compile(r"#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b")
 RGB = re.compile(r"(rgba?\(\s*)(\d{1,3})(\s*,\s*)(\d{1,3})(\s*,\s*)(\d{1,3})")
+# One pixel of ImageMagick's text output: "0,0: (r,g,b,a)  #RRGGBBAA  srgba(...)"
+PIXEL = re.compile(r"#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})?\b")
 
 
 def in_band(hue):
@@ -114,16 +123,37 @@ def rewrite(text, found, only_unmapped=False):
     return RGB.sub(rgb_colour, HEX.sub(hex_colour, text))
 
 
+def cool_pixels(path):
+    """How many pixels of a bitmap are still a vivid colour in the cool band, read with `magick PNG txt:-`."""
+    text = subprocess.run(["magick", path, "txt:-"], capture_output=True, text=True, check=True).stdout
+    seen = left = 0
+    for match in PIXEL.finditer(text):
+        red, green, blue, alpha = (int(digits, 16) if digits else 255 for digits in match.groups())
+        seen += 1
+        if alpha < 16:
+            continue
+        hue, _, saturation = colorsys.rgb_to_hls(red / 255, green / 255, blue / 255)
+        if saturation > BITMAP_SATURATION and unmapped(hue * 360):
+            left += 1
+    # A format of ImageMagick's that prints no eight-bit pixels would pass every file
+    if not seen:
+        raise SystemExit(f"::error::{path}: no pixels could be read")
+    return left
+
+
 def main(argv):
     global COOL_LOW, COOL_HIGH
 
     check = False
+    bitmaps = False
     paths = []
     argv = list(argv)
     while argv:
         argument = argv.pop(0)
         if argument == "--check":
             check = True
+        elif argument == "--check-bitmaps":
+            bitmaps = True
         elif argument == "--band":
             low, _, high = argv.pop(0).partition(":")
             COOL_LOW, COOL_HIGH = float(low), float(high)
@@ -133,6 +163,15 @@ def main(argv):
     if not paths:
         print(__doc__, file=sys.stderr)
         return 2
+
+    if bitmaps:
+        left = 0
+        for path in paths:
+            count = cool_pixels(path)
+            left += count
+            if count:
+                print(f"::error::{path} still draws {count} pixels in the cool band", flush=True)
+        return 1 if left else 0
 
     total = 0
     for path in paths:
