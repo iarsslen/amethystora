@@ -31,7 +31,7 @@ Each image is published in the `stable`, `latest` and `beta` streams.
 
 Each stable image also comes sealed, as `stable-sealed` (experimental): its kernel, the kernel's settings and the digest of every file of the system are one image signed for Secure Boot, and a file changed on the disk cannot be read at all. A sealed system can only be installed fresh, from the live ISO's **Install Amethystora, sealed** launcher, never switched to; the manual's Installing page says what it changes.
 
-Each image but the two `-nvidia-lts` ones has its ISOs, named after it (`amethystora-dx.iso`, `amethystora-nvidia-open-non-uefi.iso`). On a machine with an NVIDIA card installed without the driver that drives it, a notification a few minutes after the first boot offers to switch to the matching `-nvidia-open` image (Turing and newer) or `-nvidia-lts` image (Maxwell, Pascal and Volta) through `ame system rebase`, which takes signed images only, and with Secure Boot on only once the keys are enrolled; it never switches by itself. Without Secure Boot, the NVIDIA images run without kernel lockdown (see [Security](#security)).
+Each image has its ISOs, named after it (`amethystora-dx.iso`, `amethystora-nvidia-lts-non-uefi.iso`). On a machine with an NVIDIA card installed without the driver that drives it, a notification a few minutes after the first boot offers to switch to the matching `-nvidia-open` image (Turing and newer) or `-nvidia-lts` image (Maxwell, Pascal and Volta) through `ame system rebase`, which takes signed images only, and with Secure Boot on only once the keys are enrolled; it never switches by itself. Without Secure Boot, the NVIDIA images run without kernel lockdown (see [Security](#security)).
 
 ## Getting Started
 

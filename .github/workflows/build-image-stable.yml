@@ -47,7 +47,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: ["amethystora", "amethystora-dx", "amethystora-nvidia-open", "amethystora-dx-nvidia-open"]
+        image: ["amethystora", "amethystora-dx", "amethystora-nvidia-open", "amethystora-dx-nvidia-open", "amethystora-nvidia-lts", "amethystora-dx-nvidia-lts"]
     uses: ./.github/workflows/build-iso.yml
     with:
       image: ${{ matrix.image }}

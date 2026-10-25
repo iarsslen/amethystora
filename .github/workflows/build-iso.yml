@@ -9,7 +9,7 @@ on:
   workflow_call:
     inputs:
       image:
-        description: "The image the ISO installs: amethystora, amethystora-dx, amethystora-nvidia-open or amethystora-dx-nvidia-open"
+        description: "The image the ISO installs: amethystora, amethystora-dx, amethystora-nvidia-open, amethystora-dx-nvidia-open, amethystora-nvidia-lts or amethystora-dx-nvidia-lts"
         type: string
         default: amethystora
   workflow_dispatch:
@@ -23,10 +23,12 @@ on:
           - amethystora-dx
           - amethystora-nvidia-open
           - amethystora-dx-nvidia-open
+          - amethystora-nvidia-lts
+          - amethystora-dx-nvidia-lts
 
 # The installer ISO of a published stable image, built with bootc-image-builder and uploaded to
 # Cloudflare R2, which GitHub cannot host: a Release asset is limited to 2 GiB. Each upload replaces
-# the last one under the same name, so the download link never changes. Each of the four stable images
+# the last one under the same name, so the download link never changes. Each of the six stable images
 # has its ISOs.
 #
 # Each also gets a live ISO (the live-iso job), the one the website offers first: it boots into
@@ -76,8 +78,8 @@ jobs:
         id: verify
         run: |
           case "${IMAGE}" in
-            amethystora | amethystora-dx | amethystora-nvidia-open | amethystora-dx-nvidia-open) ;;
-            *) echo "::error::${IMAGE} has no ISO: it is not one of the four stable images"; exit 1 ;;
+            amethystora | amethystora-dx | amethystora-nvidia-open | amethystora-dx-nvidia-open | amethystora-nvidia-lts | amethystora-dx-nvidia-lts) ;;
+            *) echo "::error::${IMAGE} has no ISO: it is not one of the six stable images"; exit 1 ;;
           esac
           digest="$(skopeo inspect --retry-times 3 "docker://ghcr.io/iarsslen/${IMAGE}:stable" | jq -r .Digest)"
           [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
@@ -109,8 +111,8 @@ jobs:
       - name: Prepare the installer configuration
         run: |
           case "${IMAGE}" in
-            amethystora | amethystora-dx | amethystora-nvidia-open | amethystora-dx-nvidia-open) ;;
-            *) echo "::error::${IMAGE} has no ISO: it is not one of the four stable images"; exit 1 ;;
+            amethystora | amethystora-dx | amethystora-nvidia-open | amethystora-dx-nvidia-open | amethystora-nvidia-lts | amethystora-dx-nvidia-lts) ;;
+            *) echo "::error::${IMAGE} has no ISO: it is not one of the six stable images"; exit 1 ;;
           esac
           sed -i "s|@IMAGE@|${IMAGE}|" iso/iso.toml
           # The machine it installs takes updates signature-checked from the first one

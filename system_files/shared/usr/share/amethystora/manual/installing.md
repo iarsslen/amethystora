@@ -16,6 +16,8 @@ old for UEFI.
 | [Developer mode](developer.md) | [amethystora-dx.iso](https://download.amethystora.org/amethystora-dx.iso) | [amethystora-dx-non-uefi.iso](https://download.amethystora.org/amethystora-dx-non-uefi.iso) |
 | The standard desktop with NVIDIA's driver | [amethystora-nvidia-open.iso](https://download.amethystora.org/amethystora-nvidia-open.iso) | [amethystora-nvidia-open-non-uefi.iso](https://download.amethystora.org/amethystora-nvidia-open-non-uefi.iso) |
 | Developer mode with NVIDIA's driver | [amethystora-dx-nvidia-open.iso](https://download.amethystora.org/amethystora-dx-nvidia-open.iso) | [amethystora-dx-nvidia-open-non-uefi.iso](https://download.amethystora.org/amethystora-dx-nvidia-open-non-uefi.iso) |
+| The standard desktop with NVIDIA's driver for the GeForce 900 and 10 series | [amethystora-nvidia-lts.iso](https://download.amethystora.org/amethystora-nvidia-lts.iso) | [amethystora-nvidia-lts-non-uefi.iso](https://download.amethystora.org/amethystora-nvidia-lts-non-uefi.iso) |
+| Developer mode with NVIDIA's driver for the GeForce 900 and 10 series | [amethystora-dx-nvidia-lts.iso](https://download.amethystora.org/amethystora-dx-nvidia-lts.iso) | [amethystora-dx-nvidia-lts-non-uefi.iso](https://download.amethystora.org/amethystora-dx-nvidia-lts-non-uefi.iso) |
 
 Each is several gigabytes. Beside each ISO is its checksum, `.sha256`, signed with the key every
 update is checked against. To check that what you downloaded is what was built (for another ISO, put
@@ -146,8 +148,7 @@ and from the restart after that, an update is only accepted if it carries Amethy
 | `ghcr.io/iarsslen/amethystora-nvidia-lts` | The standard desktop with NVIDIA's driver for the GeForce 900 and 10 series |
 | `ghcr.io/iarsslen/amethystora-dx-nvidia-lts` | Developer mode with NVIDIA's driver for the GeForce 900 and 10 series |
 
-Each has its own ISOs ([Download](#download)) except the `-nvidia-lts` ones: on a machine that needs one,
-install the standard desktop or developer mode. On a computer with an NVIDIA card installed without the
+Each has its own ISOs ([Download](#download)). On a computer with an NVIDIA card installed without the
 driver that drives it, the first boot offers to switch to the NVIDIA image that does
 ([Hardware](hardware.md#graphics)).
 
