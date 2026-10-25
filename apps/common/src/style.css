@@ -29,7 +29,7 @@
     --accent-color: var(--accent-text);
     --destructive-bg-color: var(--destructive);
     --destructive-fg-color: var(--on-destructive);
-    --destructive-color: var(--bad);
+    --destructive-color: var(--destructive-text);
     --error-bg-color: var(--bad);
     --error-color: var(--bad);
     --success-bg-color: var(--ok);

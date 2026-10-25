@@ -1116,6 +1116,9 @@ bash /ctx/build_files/shared/test-theme-render.sh
 # ...and every colour the interface takes from a theme (the palette layer, themed/palette-gtk*.css.tpl, the shell's
 # status colours and the segments of the top bar) reads at the contrast WCAG asks, on every surface it is drawn on
 bash /ctx/build_files/shared/test-theme-palette.sh
+# ...and the hooks that write into other programs' settings (kdeglobals, VSCodium) keep the account's own, take only what a theme
+# may give, and are the same on a run again
+bash /ctx/build_files/shared/test-theme-hooks.sh
 # Every theme needs a palette; the default one is what 11-theme.sh applies at first login
 test -f /usr/share/amethystora/themes/amethystora/colors.toml
 for theme in /usr/share/amethystora/themes/*/; do

@@ -367,8 +367,8 @@ button.btn.primary {
 
 button.btn.danger {
     border-color: transparent;
-    background: var(--bad);
-    color: var(--on-accent);
+    background: var(--destructive);
+    color: var(--on-destructive);
 }
 
 button.btn.small {

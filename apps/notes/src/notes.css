@@ -490,8 +490,8 @@ button.btn.danger {
 }
 
 button.btn.primary.danger {
-    background: var(--bad);
-    color: #ffffff;
+    background: var(--destructive);
+    color: var(--on-destructive);
 }
 
 button.btn.small {

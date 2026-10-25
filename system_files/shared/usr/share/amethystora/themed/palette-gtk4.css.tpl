@@ -4,9 +4,11 @@
    control is drawn with at 3:1 (palette.awk works them out from colors.toml); the surfaces are the ground mixed
    toward the text colour (or toward white, on a light theme). 20-gtk-apps.sh puts this file at the top of
    ~/.config/gtk-4.0/gtk.css, which GTK reads above every theme. It does not apply while High Contrast is on, which
-   has its own colours that a palette over them would undo: the query says so, and switches live. */
+   has its own colours that a palette over them would undo, and not in an app that is drawn in the other scheme than
+   the theme's (the Dark Style switch, an app that forces light or dark), whose libadwaita colours are drawn for that
+   scheme: the query says both, and switches live. */
 
-@media not (prefers-contrast: more) {
+@media (prefers-color-scheme: {{ scheme }}) and (not (prefers-contrast: more)) {
     :root {
         --window-bg-color: {{ window_bg }};
         --window-fg-color: {{ foreground }};

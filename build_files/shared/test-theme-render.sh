@@ -26,6 +26,25 @@ fi
 grep -q "refused" "${T}/evil.err" || fail "the refusal does not say so"
 compgen -G "${T}/evil/*" | grep -vx "${T}/evil/colors.toml" && fail "a refused theme left rendered files"
 
+# A palette with no ground or no text has nothing to work its colours from, and is refused
+mkdir -p "${T}/bare"
+printf 'accent = "#9148f0"\n' >"${T}/bare/colors.toml"
+if render_templates "${T}/bare" "theme_name=bare" 2>"${T}/bare.err"; then
+    fail "a theme with no background was rendered"
+fi
+grep -q "refused" "${T}/bare.err" || fail "the refusal of a theme with no background does not say so"
+# ...and one too close to its own ground still renders, saying which colours could not reach the contrast WCAG asks
+mkdir -p "${T}/grey"
+{
+    echo 'accent = "#808080"'
+    echo 'background = "#808080"'
+    echo 'foreground = "#858585"'
+    for n in 1 2 3 4 5 6; do echo "color${n} = \"#808080\""; done
+} >"${T}/grey/colors.toml"
+render_templates "${T}/grey" "theme_name=grey" 2>"${T}/grey.err" || fail "a theme too close to its ground was refused"
+grep -q "cannot give every colour the contrast WCAG asks" "${T}/grey.err" || fail "a palette that cannot reach its contrast was not said to"
+[[ -s "${T}/grey/palette-gtk4.css" ]] || fail "such a palette was not rendered"
+
 # Every shipped theme renders every template, with nothing left to fill
 for theme in "${SYSTEM_THEMES_DIR}"/*/; do
     slug="$(basename "${theme}")"

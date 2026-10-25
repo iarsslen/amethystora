@@ -1216,7 +1216,8 @@ Dawn's) adds `success`, `warning` and `error` to its `colors.toml`. Where the va
 - **The Amethystora apps** read neither GTK stylesheet of the desktop: `palette.rs` reads `theme/palette.toml` (the colours
   above, from `themed/palette.toml.tpl`), `current/style.name` and `theme/shapes.conf` (every style's radii, written by
   `render_templates`), and `shape.rs` scales every `border-radius` of their stylesheets by the style's card radius over the
-  12 px the Electron pages drew (a pill stays a pill, except in the terminal style).
+  16 px of their own cards (`--radius`): a pill stays a pill except in the terminal style, and a square box drawn round (an
+  avatar, a dot, a knob: a radius of half its side) stays a circle in every style.
 - **Fonts**: `font.theme` for the interface and documents (a size up), `mono.theme` for `monospace-font-name`, kitty
   (`font_family` in the rendered `kitty-theme.conf`) and the terminal style's top bar. Fira Code and Geist Mono are Fedora's
   packages (Fira Code's carries no licence file, so `09-fonts.sh` pins its OFL.txt), DM Mono and Victor Mono are pinned copies.

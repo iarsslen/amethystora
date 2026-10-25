@@ -44,6 +44,7 @@ const DARK: &[(&str, &str)] = &[
     ("accent-text", "#ac67ff"),
     ("destructive", "#ef6b7d"),
     ("on-destructive", "#110c18"),
+    ("destructive-text", "#ef6b7d"),
 ];
 
 /// ...and light
@@ -62,6 +63,7 @@ const LIGHT: &[(&str, &str)] = &[
     ("accent-text", "#5d1ac4"),
     ("destructive", "#b3261e"),
     ("on-destructive", "#ffffff"),
+    ("destructive-text", "#b3261e"),
 ];
 
 /// The colours of theme/palette.toml, and the window colours they become, over the ten above
@@ -71,6 +73,7 @@ const DERIVED: &[(&str, &str)] = &[
     ("accent_text", "accent-text"),
     ("destructive_bg", "destructive"),
     ("destructive_fg", "on-destructive"),
+    ("destructive_text", "destructive-text"),
     ("success_text", "ok"),
     ("warning_text", "warn"),
     ("error_text", "bad"),
@@ -173,7 +176,8 @@ pub fn css(palette: Option<&Palette>, light: bool) -> String {
         }
         if let Some(bad) = palette.colors.get("color1") {
             values.insert("destructive", bad.clone());
-            values.insert("on-destructive", values["on-accent"].clone());
+            values.insert("destructive-text", bad.clone());
+            values.insert("on-destructive", if luminance(bad) > 0.18 { "#000000" } else { "#ffffff" }.into());
         }
         for (key, name) in DERIVED {
             if let Some(value) = palette.colors.get(*key) {

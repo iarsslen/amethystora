@@ -58,7 +58,7 @@ else
 fi
 
 # --- Every theme's style, font and icons -------------------------------------------------------------------------------
-rm -f "${CONFIG}/style" "${CONFIG}/font" "${CONFIG}/icons"
+rm -f "${CONFIG}/style" "${CONFIG}/font" "${CONFIG}/mono-font" "${CONFIG}/icons"
 for dir in "${THEMES_DIR}"/*/; do
     theme="$(basename "${dir}")"
     style="$(head -n1 "${dir}style.theme")"
@@ -98,7 +98,8 @@ for dir in "${THEMES_DIR}"/*/; do
         grep -qi -- "@define-color accent_bg_color ${accent_bg};" "${gtk3}" &&
         grep -q '^\[Colors:View\]' "${HOME_DIR}/.config/kdeglobals" &&
         [[ "$(cat "${CONFIG}/current/style.name")" == "${style}" ]] &&
-        grep -q "^${style}.card = " "${CONFIG}/current/theme/shapes.conf"; then
+        # Floating has no shape: the applications keep their own corners, and shapes.conf says nothing of it
+        { [[ "${style}" == floating ]] || grep -q "^${style}.card = " "${CONFIG}/current/theme/shapes.conf"; }; then
         ok "${theme}: the palette layer is in both GTK stylesheets (accent ${accent_bg}), kdeglobals, and the apps' palette.toml and style"
     else
         not_ok "${theme}: a place the palette goes is missing" "accent ${accent_bg}" "$(head -c 300 "${gtk4}" 2>&1)"

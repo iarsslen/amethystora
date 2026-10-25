@@ -89,9 +89,14 @@ apply_gnome() {
     dconf_write_string /org/gnome/desktop/interface/monospace-font-name "$(mono_font) ${MONO_FONT_SIZE}"
 
     # The pointer is the theme's (Breeze Light for a dark theme, Breeze for a light one) or, for a theme that names none, the
-    # desktop's own, which the one before it must not leave behind
+    # desktop's own, which the one before it must not leave behind. A pointer the account chose itself (Settings, Tweaks) is
+    # left as it is: only one of those, or none, is written over; `gsettings reset` on the key hands it back to the theme.
     cursor="$(theme_file cursor.theme)"
-    dconf_write_string /org/gnome/desktop/interface/cursor-theme "${cursor:-Adwaita}"
+    case "$(dconf read /org/gnome/desktop/interface/cursor-theme 2>/dev/null | tr -d "'")" in
+        "" | Adwaita | Breeze_Light | breeze_cursors | "${cursor}")
+            dconf_write_string /org/gnome/desktop/interface/cursor-theme "${cursor:-Adwaita}"
+            ;;
+    esac
     return 0
 }
 

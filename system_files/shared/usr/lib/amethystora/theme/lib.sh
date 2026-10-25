@@ -332,10 +332,20 @@ render_templates() {
         values["${key}_rgb"]="$(hex_to_rgb "${value}")"
     done <"${dest}/colors.toml"
 
+    # A palette needs its ground and its text to be worked from
+    [[ -n ${values[background]:-} && -n ${values[foreground]:-} ]] ||
+        { echo "The theme in ${dest##*/} is refused: its colors.toml has no background or no foreground." >&2; return 1; }
+
     # What the palette does not hold but an interface needs (derive_palette), in the same three forms, and the monospace
     # font, so that no caller has to pass them
     while IFS='=' read -r key value; do
         [[ -n ${key} ]] || continue
+        # Every colour an interface takes from the palette is one, or the theme is refused: an empty one would be written
+        # into a stylesheet as `--accent-bg-color: ;`
+        if [[ ${key} =~ (_bg|_fg|_text)$|^outline$ && ! ${value} =~ ^#[0-9a-f]{6}$ ]]; then
+            echo "The theme in ${dest##*/} is refused: its palette gives no colour for ${key}." >&2
+            return 1
+        fi
         values["${key}"]="${value}"
         if [[ ${value} =~ ^#[0-9a-fA-F]{6}$ ]]; then
             values["${key}_strip"]="${value#\#}"
@@ -343,7 +353,14 @@ render_templates() {
         fi
     done < <(derive_palette "${dest}")
     [[ -n ${values[accent_fg]:-} ]] || { echo "The theme in ${dest##*/} is refused: its palette could not be worked out." >&2; return 1; }
+    # A palette too close to its own ground has colours that no lightness brings to the ratio WCAG asks: it is applied as it is,
+    # and says which
+    if [[ -n ${values[unmet]:-} ]]; then
+        echo "The palette of ${dest##*/} cannot give every colour the contrast WCAG asks (${values[unmet]}); it is applied as it is." >&2
+    fi
     values[mono_font]="$(mono_font "${dest}")"
+    # The scheme the theme is drawn in, which the palette for libadwaita is limited to
+    if [[ -f "${dest}/light.mode" ]]; then values[scheme]=light; else values[scheme]=dark; fi
 
     # A file the theme ships itself is left alone, and so is a style's, which would otherwise be given its shape twice
     local -a own_styles=()

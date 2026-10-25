@@ -67,11 +67,13 @@ toggle-group > toggle {
 .linked:not(.vertical) > entry:not(:first-child):not(:last-child),
 .linked:not(.vertical) > spinbutton:not(:first-child):not(:last-child),
 .linked:not(.vertical) > menubutton:not(:first-child):not(:last-child) > button,
+.linked:not(.vertical) > combobox:not(:first-child):not(:last-child) > box > button,
 .linked:not(.vertical) > dropdown:not(:first-child):not(:last-child) > button,
 .linked.vertical > button:not(:first-child):not(:last-child),
 .linked.vertical > entry:not(:first-child):not(:last-child),
 .linked.vertical > spinbutton:not(:first-child):not(:last-child),
 .linked.vertical > menubutton:not(:first-child):not(:last-child) > button,
+.linked.vertical > combobox:not(:first-child):not(:last-child) > box > button,
 .linked.vertical > dropdown:not(:first-child):not(:last-child) > button {
     border-radius: 0;
 }
@@ -80,11 +82,13 @@ toggle-group > toggle {
 .linked:not(.vertical) > entry:first-child:not(:last-child):dir(ltr),
 .linked:not(.vertical) > spinbutton:first-child:not(:last-child):dir(ltr),
 .linked:not(.vertical) > menubutton:first-child:not(:last-child):dir(ltr) > button,
+.linked:not(.vertical) > combobox:first-child:not(:last-child):dir(ltr) > box > button,
 .linked:not(.vertical) > dropdown:first-child:not(:last-child):dir(ltr) > button,
 .linked:not(.vertical) > button:last-child:not(:first-child):dir(rtl),
 .linked:not(.vertical) > entry:last-child:not(:first-child):dir(rtl),
 .linked:not(.vertical) > spinbutton:last-child:not(:first-child):dir(rtl),
 .linked:not(.vertical) > menubutton:last-child:not(:first-child):dir(rtl) > button,
+.linked:not(.vertical) > combobox:last-child:not(:first-child):dir(rtl) > box > button,
 .linked:not(.vertical) > dropdown:last-child:not(:first-child):dir(rtl) > button {
     border-radius: {{ s_control }}px 0 0 {{ s_control }}px;
 }
@@ -93,11 +97,13 @@ toggle-group > toggle {
 .linked:not(.vertical) > entry:last-child:not(:first-child):dir(ltr),
 .linked:not(.vertical) > spinbutton:last-child:not(:first-child):dir(ltr),
 .linked:not(.vertical) > menubutton:last-child:not(:first-child):dir(ltr) > button,
+.linked:not(.vertical) > combobox:last-child:not(:first-child):dir(ltr) > box > button,
 .linked:not(.vertical) > dropdown:last-child:not(:first-child):dir(ltr) > button,
 .linked:not(.vertical) > button:first-child:not(:last-child):dir(rtl),
 .linked:not(.vertical) > entry:first-child:not(:last-child):dir(rtl),
 .linked:not(.vertical) > spinbutton:first-child:not(:last-child):dir(rtl),
 .linked:not(.vertical) > menubutton:first-child:not(:last-child):dir(rtl) > button,
+.linked:not(.vertical) > combobox:first-child:not(:last-child):dir(rtl) > box > button,
 .linked:not(.vertical) > dropdown:first-child:not(:last-child):dir(rtl) > button {
     border-radius: 0 {{ s_control }}px {{ s_control }}px 0;
 }
@@ -106,6 +112,7 @@ toggle-group > toggle {
 .linked.vertical > entry:first-child:not(:last-child),
 .linked.vertical > spinbutton:first-child:not(:last-child),
 .linked.vertical > menubutton:first-child:not(:last-child) > button,
+.linked.vertical > combobox:first-child:not(:last-child) > box > button,
 .linked.vertical > dropdown:first-child:not(:last-child) > button {
     border-radius: {{ s_control }}px {{ s_control }}px 0 0;
 }
@@ -114,6 +121,7 @@ toggle-group > toggle {
 .linked.vertical > entry:last-child:not(:first-child),
 .linked.vertical > spinbutton:last-child:not(:first-child),
 .linked.vertical > menubutton:last-child:not(:first-child) > button,
+.linked.vertical > combobox:last-child:not(:first-child) > box > button,
 .linked.vertical > dropdown:last-child:not(:first-child) > button {
     border-radius: 0 0 {{ s_control }}px {{ s_control }}px;
 }
@@ -152,7 +160,7 @@ progressbar progress,
 scale trough,
 scale highlight,
 scale fill,
-levelbar block,
+levelbar:not(.discrete) block,
 scrollbar > range > trough,
 scrollbar > range > trough > slider {
     border-radius: {{ s_bar }}px;
@@ -194,8 +202,7 @@ menubar > item popover.menu popover.menu > contents {
 flowbox > flowboxchild,
 gridview > child,
 filechooser gridview > child,
-.view:selected,
-textview > text:selected {
+iconview:selected {
     border-radius: {{ s_tile }}px;
 }
 

@@ -25,9 +25,11 @@ for theme in "${SYSTEM_THEMES_DIR}"/*/; do
         END {
             n = split("window_bg view_bg headerbar_bg sidebar_bg card_bg popover_bg dialog_bg", G, " ")
             m = split("accent_text destructive_text success_text warning_text error_text", T, " ")
+            if (P["unmet"] != "") { printf "%s: %s could not be brought to its ratio\n", slug, P["unmet"]; bad = 1 }
             for (k = 1; k <= n; k++) {
                 if (P[G[k]] !~ /^#[0-9a-f]{6}$/) { printf "%s: %s is not a colour\n", slug, G[k]; bad = 1; continue }
                 for (i = 1; i <= m; i++) need(T[i] " on " G[k], ratio(P[T[i]], P[G[k]]), 4.5)
+                need("the text on " G[k], ratio(fg, P[G[k]]), 4.5)
                 need("outline on " G[k], ratio(P["outline"], P[G[k]]), 3)
                 need("dimmed text on " G[k], ratio(blend(P[G[k]], fg, P["dim_alpha"]), P[G[k]]), 4.5)
             }

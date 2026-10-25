@@ -3,7 +3,8 @@
 A theme is one palette, and everything is painted from it. Switch themes and the whole desktop
 changes together: GNOME's light or dark style and accent colour, the terminal, the shell prompt, the
 top bar, the dock, the wallpaper, VSCodium, and this manual. Each theme also has its own
-[style](#styles), [font](#fonts), [icons](#icons) and pointer, and you can keep any of them whatever the theme. A light theme gives the dock a faint dark
+[style](#styles), [font](#fonts), [icons](#icons) and pointer, and you can keep the first three whatever the theme (a pointer you
+choose yourself in Settings stays too). A light theme gives the dock a faint dark
 tint, so its icons still stand out on a pale wallpaper. The colours reach the applications too, at a contrast
 that reads: see [Colours in applications](#colours-in-applications).
 
