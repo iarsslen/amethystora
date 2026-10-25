@@ -1035,7 +1035,7 @@ each entry.
 ### Amethystora UI
 
 `amethystora-ui@iarsslen.github.io` (Apache-2.0, in `system_files`) is the desktop's own extension, replacing the
-third-party ones one module at a time (`plans/PLAN-amethystora-ui.md`). Each module is `modules/<module>.js`, started
+third-party ones one module at a time (`plans/done/PLAN-amethystora-ui.md`). Each module is `modules/<module>.js`, started
 on its own by `extension.js` so that one that throws leaves the rest running, with its layout in
 `stylesheets/<module>.css`, its keys (if any) in its own schema `org.gnome.shell.extensions.amethystora-ui.<module>`,
 and the colours that follow the theme in `/usr/share/amethystora/themed/shell-<module>.css.tpl`, rendered per theme
@@ -1129,7 +1129,7 @@ lose its settings (and a cache folder it left), unless they installed it themsel
 `amethystora-connect.service` that nobody has enabled) speaks the KDE Connect protocol, so the KDE Connect app on an
 Android phone pairs with it; it replaced GSConnect (GPL, a submodule and `nautilus-gsconnect` before), and keeps nothing
 of its pairings (`user-setup.hooks.d/21-phone-link.sh` turns the service on for an account that had GSConnect on, and
-`amethystora-phone-link-notice` says once to pair again). `plans/PLAN-amethystora-connect.md` has the decisions; the specs
+`amethystora-phone-link-notice` says once to pair again). `plans/done/PLAN-amethystora-connect.md` has the decisions; the specs
 in `plans/amethystora-connect/` are the protocol, the plugins and the desktop side as facts.
 
 - **Clean room, and it must stay one.** GSConnect, KDE Connect and Valent are GPL. The program is written from the specs
