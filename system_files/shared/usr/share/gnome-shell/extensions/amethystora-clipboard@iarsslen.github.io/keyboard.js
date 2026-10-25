@@ -6,7 +6,8 @@ export class Keyboard {
     #contentPurpose;
 
     constructor () {
-        let seat = Clutter.get_default_backend().get_default_seat();
+        // The stage's context from GNOME 47, the only way there is in GNOME 51, which has no default backend
+        let seat = (global.stage.context?.get_backend() ?? Clutter.get_default_backend()).get_default_seat();
         this.#device = seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
 
         Main.inputMethod.connectObject('notify::content-purpose', (method) => {
