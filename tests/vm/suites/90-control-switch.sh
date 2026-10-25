@@ -61,6 +61,13 @@ staged() { bootc status --json 2>/dev/null | jq -c '.status.staged // empty'; }
 
 # --- Phase 1 ------------------------------------------------------------------------------------------------
 if [[ "${SUITE_PHASE}" == 1 ]]; then
+    # Developer mode switches to the published developer image of the stream followed, which a build of a stream
+    # nothing is published for (beta, on the next Fedora) has not got
+    stream="$(jq -r '."image-tag"' "${IMAGE_INFO}")"
+    if skopeo inspect --raw "docker://ghcr.io/iarsslen/amethystora-dx:${stream}" 2>&1 | grep -q 'manifest unknown'; then
+        skip "developer mode and starting over need a published amethystora-dx:${stream}, and there is none"
+        finish
+    fi
     ln -sf /dev/null /etc/systemd/system/boot.automount
     reboot_and_continue
 fi
