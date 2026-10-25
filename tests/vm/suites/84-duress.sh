@@ -349,10 +349,12 @@ if [[ ${rc} -ne 0 && "$(ran)" == "password ${TEST_USER}" ]]; then
 else
     not_ok "the duress password at sudo (${rc}): ran '$(ran)'" "$(tail -n 8 <<<"${out}")"
 fi
-# polkit, as an administrator's prompt in a terminal
+# polkit, as an administrator's prompt in a terminal. pkexec registers its textual agent for its parent process: in a
+# terminal that is the shell, so the shell stays its parent here (`bash -c "pkexec true"` execs pkexec, whose parent
+# is then the account's user manager, which Fedora 45's polkit may answer with GNOME Shell's dialog instead)
 new_boot
 lt="$(date +%s)"
-out="$(session_terminal 90 'Swipe your' $'\x03' 'Password' "${DURESS_PASSWORD}"$'\r' -- pkexec true)"
+out="$(session_terminal 90 'Swipe your' $'\x03' 'Password' "${DURESS_PASSWORD}"$'\r' -- 'pkexec true; exit $?')"
 rc=$?
 sleep 2
 if [[ ${rc} -ne 0 && "$(ran)" == "password ${TEST_USER}" ]]; then
