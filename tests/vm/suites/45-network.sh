@@ -316,7 +316,14 @@ fi
 same "and is not told the machine's name (DHCPv4)" "$(lease4_name "${MAC3}")" "*"
 same "nor over DHCPv6" "$(lease6_name)" "*"
 if [[ "${LLMNR_CONTROL}" == true ]]; then
-    if llmnr_asked; then not_ok "a single-label name was looked up over LLMNR on a network not named home" "$(cat "${DIR}/llmnr")"; else ok "no LLMNR lookup goes out on a network not named home"; fi
+    # The setting NetworkManager gave resolved for the link is what the connection's default asks for; the packets
+    # are what resolved did with it
+    same "resolved's LLMNR setting on a network not named home is off" "$(resolvectl llmnr "${WAN}" 2>&1 | sed 's/.*: //')" no
+    if llmnr_asked; then
+        not_ok "a single-label name was looked up over LLMNR on a network not named home" "$(cat "${DIR}/llmnr")"             "$(resolvectl status "${WAN}" 2>&1)" "$(nmcli -g connection.llmnr connection show "${LAN2}")"             "$(/usr/sbin/NetworkManager --print-config 2>&1 | grep -i llmnr)"
+    else
+        ok "no LLMNR lookup goes out on a network not named home"
+    fi
 fi
 start_dnsmasq
 up "${LAN}" && wait_for 60 leased
