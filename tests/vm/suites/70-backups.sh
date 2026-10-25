@@ -550,14 +550,21 @@ if wait_for 120 stale_said; then
 else
     not_ok "the window does not say the backup is stale" "$(says | tail -n 30)"
 fi
-# The terminal the agent reopens itself in is a scope the account's manager logs with its command: the agent
-# itself may end within a second (35-detection-coverage.sh leaves a claude that exits at once), too soon for
-# pgrep to see it
+# The terminal the agent reopens itself in is kitty's, which logs nothing of its command (Ptyxis made a scope the
+# account's manager logged it with): the command is looked for in the account's processes, polled fast because the agent
+# itself may end within a second (35-detection-coverage.sh leaves a claude that exits at once), and in the journal in
+# case something logs it
 agent_asked() {
-    journalctl --since "${asked:-now}" --no-pager -o cat _UID="$(id -u "${TEST_USER}")" |
-        grep -qF 'amethystora-agent diagnose amethystora-backup.service'
+    local end=$((SECONDS + 60))
+    while ((SECONDS < end)); do
+        pgrep -u "${TEST_USER}" -f 'amethystora-agent diagnose amethystora-backup.service' >/dev/null && return 0
+        journalctl --since "${asked:-now}" --no-pager -o cat _UID="$(id -u "${TEST_USER}")" |
+            grep -qF 'amethystora-agent diagnose amethystora-backup.service' && return 0
+        sleep 0.2
+    done
+    return 1
 }
-check "Ask the agent hands it the backup's unit" wait_for 60 agent_asked
+check "Ask the agent hands it the backup's unit" agent_asked
 pkill -u "${TEST_USER}" -f 'amethystora-agent diagnose' 2>/dev/null
 as_tester sh -c 'date +%s >"$HOME/.local/state/amethystora/backup-last-success"'
 report="$(as_tester /usr/libexec/amethystora-security-status --json 2>/dev/null)"
