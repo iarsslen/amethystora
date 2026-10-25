@@ -7,8 +7,10 @@
 #   - the icon packs: Glass on a dark theme, Duotone on a light one, Neon by choice, candy-icons refused, every launcher's
 #     icon and other makers' apps found in each pack by GTK itself, and Firefox keeping its own;
 #   - the window lights are in the account's GTK 4 and GTK 3 stylesheets;
-#   - the dock is on the bottom of the screen, in the shell's accessibility tree.
-# Two Files windows are left open for the screenshot run.mjs takes after the suite: the strip, the glass and the lights.
+#   - the dock is on the bottom of the screen, in the shell's accessibility tree;
+#   - the glass has its picture of the screen and the theme's colours.
+# Two Files windows and the quick settings are left open for the screenshot run.mjs takes after the suite: the strip,
+# the glass of the top bar and a menu, and the lights.
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io
@@ -201,9 +203,28 @@ else
     not_ok "no dock at the bottom of the screen in the shell's accessibility tree" "${dock}"
 fi
 
+# --- The glass ------------------------------------------------------------------------------------------------------------
+# Its veils and text are the theme's (shell-glass.css), and it says in the log when the GPU gave it no picture to cut
+# the panes from, which leaves every surface a bare veil over whatever is behind it
+glass_css="${HOME_DIR}/.config/amethystora/current/theme/shell-glass.css"
+if [[ -s "${glass_css}" ]] && ! grep -q '{{' "${glass_css}"; then
+    ok "the theme has the glass's colours"
+else
+    not_ok "the theme has no rendered shell-glass.css" "$(ls "$(dirname "${glass_css}")" 2>&1 | paste -sd ' ')"
+fi
+log="$(journalctl -b "_UID=$(id -u "${TEST_USER}")" _COMM=gnome-shell --no-pager -o cat 2>/dev/null)"
+if grep -q 'the glass has no picture' <<<"${log}"; then
+    not_ok "the glass had no picture of a screen" "$(grep 'the glass has no picture' <<<"${log}" | head -n 3)"
+else
+    ok "the glass has its picture of the screen"
+fi
+
 # --- Left open for the screenshot ----------------------------------------------------------------------------------------
 for unit in vmlab-27-one vmlab-27-two; do
     user_bus systemd-run --user --quiet --collect --unit="${unit}" -- nautilus --new-window "${HOME_DIR}" >/dev/null 2>&1 || true
     sleep 3
 done
+# GNOME's Super+S: the quick settings, on glass over the windows
+python3 "$(dirname "$0")/keys.py" super+s >/dev/null 2>&1 || true
+sleep 2
 finish
