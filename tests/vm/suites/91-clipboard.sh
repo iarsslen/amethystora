@@ -384,9 +384,20 @@ case "${SUITE_PHASE}" in
     wait_for 30 in_history "${WATCHED}" && ok "unlocked elsewhere, the extension writes what was copied meanwhile by itself" ||
         not_ok "the extension did not notice the keyring unlocked" "$(said)"
 
-    # A machine that signs in by itself has a keyring with no password; and how long it is kept, as Control sets it
+    # A machine that signs in by itself has a keyring with no password; and how long it is kept, as Control sets it.
+    # oo7 (Fedora 45) refuses a keyring with no password, so there it keeps the account's, which each restart below
+    # unlocks it with, as a password login does
+    install -d -m 0700 /var/lib/vmlab-tests
     out="$(keyring blank "${TEST_USER}" 2>&1)"
-    [[ -z "${out}" ]] && ok "the keyring has no password now, for the restarts" || not_ok "the keyring kept its password" "${out}"
+    if [[ -z "${out}" ]]; then
+        ok "the keyring has no password now, for the restarts"
+        : >/var/lib/vmlab-tests/91-keyring
+    elif grep -q "Password too short" <<<"${out}"; then
+        ok "oo7 keeps the keyring's password, which each restart unlocks it with"
+        printf '%s' "${TEST_USER}" >/var/lib/vmlab-tests/91-keyring
+    else
+        not_ok "the keyring kept its password" "${out}"
+    fi
     user_bus bash -lc 'ame desktop clipboard restart' >/dev/null
     check "ame desktop clipboard restart sets keep-history" [ "$(keep)" == "'restart'" ]
     reboot_and_continue
@@ -395,8 +406,8 @@ case "${SUITE_PHASE}" in
     check "Amethystora Clipboard is on after the restart" wait_for 30 ext_active
     # GDM's automatic login leaves even a keyring with no password locked: unlocked here, as a password login
     # does, and the extension, watching it, opens the history by itself
-    keyring unlock "" >/dev/null 2>&1
-    check "the keyring, with no password, opens" wait_for 30 keyring_open
+    keyring unlock "$(cat /var/lib/vmlab-tests/91-keyring 2>/dev/null)" >/dev/null 2>&1
+    check "the keyring opens, with no password or the account's" wait_for 30 keyring_open
     check "keep-history restart kept the pinned item" wait_for 30 pinned "${PINNED}"
     check "and dropped what was not pinned before the restart" wait_for 30 not_in_history "${COPIED}"
     check "the menu shows the pinned item" menu_shows "${PINNED}"
@@ -408,7 +419,7 @@ case "${SUITE_PHASE}" in
     ;;
 3)
     check "Amethystora Clipboard is on after the second restart" wait_for 30 ext_active
-    keyring unlock "" >/dev/null 2>&1
+    keyring unlock "$(cat /var/lib/vmlab-tests/91-keyring 2>/dev/null)" >/dev/null 2>&1
     check "the keyring opens" wait_for 30 keyring_open
     check "under always, what was copied before the restart is kept" wait_for 30 in_history "${ALWAYS}"
     check "and the pinned item" pinned "${PINNED}"
