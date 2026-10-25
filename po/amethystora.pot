@@ -1828,7 +1828,7 @@ msgstr ""
 msgid "One of the first four, at a random angle"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "None"
 msgstr ""
 
@@ -1916,7 +1916,7 @@ msgstr ""
 msgid "The Amethystora artwork on the menu the machine shows as it starts."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Tiling"
 msgstr ""
 
@@ -1932,7 +1932,7 @@ msgstr ""
 msgid "Windows float and overlap, and you move and size them, as on Windows and macOS"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Windows"
 msgstr ""
 
@@ -1942,6 +1942,22 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "How windows are arranged."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Change…"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "They apply once the layout is tiling again."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Tiling settings"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The gaps, the sizes windows step through, how the strip moves, every shortcut and the window rules."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -2040,7 +2056,7 @@ msgstr ""
 msgid "The widgets could not be listed."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Top bar"
 msgstr ""
 
@@ -3721,7 +3737,7 @@ msgid "I have the recovery key"
 msgstr ""
 
 #. Translators: choices of a menu that turns automatic updates on or off
-#: usr/libexec/amethystora-private-folder usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/amethystora/just/system.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar/dialog.js apps/connect/src/service.rs apps/connect/src/transfers.rs
+#: usr/libexec/amethystora-private-folder usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/amethystora/just/system.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar/dialog.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js apps/connect/src/service.rs apps/connect/src/transfers.rs
 msgid "Cancel"
 msgstr ""
 
@@ -6787,7 +6803,15 @@ msgstr ""
 msgid "Frame the area"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/patches.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/engine.js
+msgid "A window rule names a workspace there is not"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/engine.js
+msgid "The window opened on this workspace instead of workspace %d."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/patches.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Float above the strip"
 msgstr ""
 
@@ -6827,20 +6851,828 @@ msgstr ""
 msgid "To the left"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "At the start of the strip"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "At the end of the strip"
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
 msgid "Below"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
+msgid "Above"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
 msgid "Workspace %d"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Workspaces"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
 msgid "Name of this workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Window tiling"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Back to the default"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Tile windows"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Off is the classic layout: windows float and overlap, as on Windows and macOS"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Gaps"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "In pixels."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Between windows"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "At the left and right of the screen"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "How far from the edge a window stops when the strip scrolls to it"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Below the top bar"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "At the bottom of the screen"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Focus frame"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "The frame around the window you are on."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "How far it stands out"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Never further than the gap between windows; 0 draws no frame"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Roundness of the upper corners"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Roundness of the lower corners"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "New windows"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "To the right of the window you are on"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "To its left"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Below it, in its column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Above it, in its column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Open new windows"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Places the key goes through"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Super+Shift+W and the arrow in the top bar change where new windows open, among these"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Scroll to the window you go to"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Just into view"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "To the centre of the screen"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "To the nearest edge"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Super+Shift+C changes it for one workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Sizes"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Widths Super+R steps through"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Heights Super+Shift+R steps through"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "For a window that shares its column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Width Super+F gives a window"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "In percent of the screen, less its margins"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Maximizing fills the width"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Off, a maximized window covers the whole screen until it is restored"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Motion"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Animation"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Seconds a window takes to glide"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Before GNOME’s own speed, which the desktop sets a little quicker"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Speed of Super+[ and Super+]"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Pixels a millisecond the strip slides while the key is held"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Speed of a window dragged against a side"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Pixels a millisecond the strip slides under it"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Moving around"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "While Super is held after a key that moves."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Size of the map of the strip"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "In percent of the windows’ size; 0 shows no map"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Darkening of the other windows"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "0 leaves them as they are"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Screen edges"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "The pointer pushed against the left or right side of the screen."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Show the window beyond the edge"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Its size"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "In percent of the window"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "A click goes to it"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Staying there goes to it"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "After this many milliseconds"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "And on to the next, while the pointer stays"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Touchpad"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Swipes move the strip"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Sideways slides the strip, down opens the workspaces you were on, up opens the overview"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Three fingers"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Four fingers"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Sliding the strip"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Opening the workspaces"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "How far the strip goes for the fingers’ travel"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "How far the workspaces go for it"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "How soon the strip stops after the fingers let go"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "More stops sooner"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Show how the workspace scrolls to a window"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Show where new windows open"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Show the top bar on every workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Super+Ctrl+B hides or shows it on one workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "The mouse wheel over it moves between windows"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "The workspaces in the top bar use the wheel otherwise"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Size of the windows in Alt+Tab"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "In percent of the screen’s height"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the second column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the third column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the fourth column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the fifth column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the sixth column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the seventh column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the eighth column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the ninth column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the tenth column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the eleventh column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the column on the left"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the column on the right"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the window above"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the window below"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the first column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the last column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the next window, column after column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the previous window, column after column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the next window, from the last round to the first"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the previous window, from the first round to the last"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the column on the left, from the first round to the last"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the column on the right, from the last round to the first"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the window above, from the top round to the bottom"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the window below, from the bottom round to the top"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Slide the strip to the left while the key is held"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Slide the strip to the right while the key is held"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the window under the pointer"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Arranging"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Move the column to the left"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Move the column to the right"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Move the window up its column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Move the window down its column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Take the next column’s window into this column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Give the column’s bottom window a column of its own"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Give this window a column of its own"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Carry the window while Super is held"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Sizing"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Next width"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Previous width"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Next height in a column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Previous height in a column"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Wider by a step"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Narrower by a step"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Taller by a step"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Shorter by a step"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Fill the width of the screen, and back"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Centre the window from side to side"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Centre a floating window from top to bottom"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Centre the window both ways"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Make the window full screen, and back"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Floating windows"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Float the window, or put it back in the strip"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Hide or show the floating windows"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Hide or show the floating window used last"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the previous workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the next workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Take the window to the previous workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Take the window to the next workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go back through the workspaces you were on"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go forward through the workspaces you were on"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Take the window back through the workspaces you were on"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Take the window forward through the workspaces you were on"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the window above, or at the top to the previous workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the window below, or at the bottom to the next workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the previous workspace, from among all of them"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the next workspace, from among all of them"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Screens"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the screen on the left"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the screen on the right"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the screen above"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the screen below"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the column on the left, or past the strip to the screen on the left"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the column on the right, or past the strip to the screen on the right"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the window above, or past the top to the screen above"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to the window below, or past the bottom to the screen below"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Move the window to the screen on the left"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Move the window to the screen on the right"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Move the window to the screen above"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Move the window to the screen below"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Swap windows with the screen on the left"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Swap windows with the screen on the right"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Swap windows with the screen above"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Swap windows with the screen below"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Move this screen’s windows to the screen on the left"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Move this screen’s windows to the screen on the right"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Move this screen’s windows to the screen above"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Move this screen’s windows to the screen below"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "The rest"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Open a new window of the same app"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Close the window"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Change how this workspace scrolls to a window"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Change where new windows open"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Open new windows to the right"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Open new windows to the left"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Open new windows at the start of the strip"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Open new windows at the end of the strip"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Open new windows below the window you are on"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Open new windows above the window you are on"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Hide or show the top bar on this workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Hide or show the top bar on this workspace (a second key for it)"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Keyboard"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Shortcuts"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Click a shortcut to change it. GNOME’s own shortcut on the same keys gives way while the tiling runs, and comes back when it is off."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Reset all"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Also used by: %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Press the new keys. Backspace leaves the shortcut without any, Escape keeps it as it is."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Window rules"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "A rule picks windows by their class or their title as they open, and says what to do with them. A pattern is written /like this/, and * is any window no other rule picks."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Add a rule"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "A new rule"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Window class"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Title"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Width, as 50% or 800px"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Workspace to open on"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "0 opens it where you are"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go to it when it opens on another workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Only once"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "The rule is forgotten once a window has opened under it"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Remove this rule"
 msgstr ""
 
 #: apps/connect/src/contacts.rs

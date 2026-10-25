@@ -408,11 +408,20 @@ done
     "move-workspace-left move-workspace-right" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.workspaces move-workspace-left)" == \
     "['<Control><Alt><Super>Left']" ]]
-# The tiling: one switch (the classic layout is it off), and its keys, which are the ones ame setup and the
-# manual's keybindings page name. The switch is on as the image ships.
-[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.tiling)" == enabled ]]
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled)" == true ]]
-[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.tiling.keybindings | wc -l)" == 54 ]]
+# The tiling: a switch (the classic layout is it off) and the settings its preferences window changes, under the
+# names scrollable tiling always had them, with the image's values; and its keys, which are the ones ame setup and
+# the manual's keybindings page name, 54 bound and the rest left for whoever wants them. The switch is on as the
+# image ships.
+TILING=org.gnome.shell.extensions.amethystora-ui.tiling
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${TILING}" enabled)" == true ]]
+for key in window-gap horizontal-margin vertical-margin vertical-margin-bottom; do
+    [[ "$(GSETTINGS_BACKEND=memory gsettings get "${TILING}" "${key}")" == 8 ]]
+done
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${TILING}" cycle-width-steps)" == "[0.38195"*", 0.5, 0.61804"*"]" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${TILING}" winprops)" == "@as []" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${TILING}.keybindings" | wc -l)" == 95 ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-recursively "${TILING}.keybindings" | grep -vc '@as \[\]$')" == 54 ]]
+test -s "${UI_EXTENSION}/prefs.js"
 # The colours that follow the theme render whole for every shipped theme, through the theme switcher's own
 # render_templates: a colour a palette lacks would leave a {{ key }} in the shell's stylesheet. The dock, the glass
 # and the tiling have theirs (their stylesheets keep only shapes and stand-ins), and the glob below renders each

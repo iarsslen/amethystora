@@ -11,6 +11,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 
 import {Mode} from './layout.js';
+import {config} from './config.js';
 import {Open} from './engine.js';
 import {label as keyLabel} from './keys.js';
 
@@ -24,7 +25,10 @@ const MODE_TONES = {[Mode.PLAIN]: 'plain', [Mode.CENTRE]: 'centre', [Mode.EDGE]:
 const OPEN_ICONS = {
     [Open.RIGHT]: 'go-next-symbolic',
     [Open.LEFT]: 'go-previous-symbolic',
+    [Open.START]: 'go-first-symbolic',
+    [Open.END]: 'go-last-symbolic',
     [Open.DOWN]: 'go-down-symbolic',
+    [Open.UP]: 'go-up-symbolic',
 };
 
 const Icon = GObject.registerClass(
@@ -104,7 +108,7 @@ export class TopBar {
         Main.panel.addToStatusArea('amethystora-tiling-open', this._open, 3, 'left');
         global.workspace_manager.connectObject('active-workspace-changed', () => {
             this.sync();
-            this._applyTopBar();
+            this.applyTopBar();
         }, this);
 
         // GNOME hides the top bar (and whatever else gives way to fullscreen windows) while a fullscreen window is
@@ -129,7 +133,7 @@ export class TopBar {
             this._patched = true;
         }
         this.sync();
-        this._applyTopBar();
+        this.applyTopBar();
     }
 
     disable() {
@@ -141,7 +145,7 @@ export class TopBar {
                 delete Main.layoutManager._updateActorVisibility;
             this._patched = false;
         }
-        this._applyTopBar(false);
+        this.applyTopBar(false);
         this._mode?.destroy();
         this._open?.destroy();
         this._mode = null;
@@ -157,6 +161,8 @@ export class TopBar {
             return;
         this._mode.iconName = MODE_ICONS[this._primaryStrip().mode];
         this._open.iconName = OPEN_ICONS[this._tiling.openPosition] ?? OPEN_ICONS[Open.RIGHT];
+        this._mode.visible = config.modeIcon;
+        this._open.visible = config.openIcon;
     }
 
     _key(name) {
@@ -180,7 +186,10 @@ export class TopBar {
         const name = {
             [Open.RIGHT]: _('To the right'),
             [Open.LEFT]: _('To the left'),
+            [Open.START]: _('At the start of the strip'),
+            [Open.END]: _('At the end of the strip'),
             [Open.DOWN]: _('Below'),
+            [Open.UP]: _('Above'),
         }[this._tiling.openPosition] ?? _('To the right');
         return {heading: _('Where new windows open'), current: name, key: this._key('switch-open-window-position')};
     }
@@ -191,8 +200,10 @@ export class TopBar {
         return this.hiddenOn(global.workspace_manager.get_active_workspace());
     }
 
+    // The workspaces in the list are the ones the person turned the other way from the setting's default
     hiddenOn(workspace) {
-        return (this._tiling.state?.get('hiddenTopBar') ?? []).includes(workspace.index());
+        const turned = (this._tiling.state?.get('hiddenTopBar') ?? []).includes(workspace.index());
+        return config.topBarDefault ? turned : !turned;
     }
 
     toggle() {
@@ -203,11 +214,11 @@ export class TopBar {
         else
             list.add(index);
         this._tiling.state.set('hiddenTopBar', [...list].sort((a, b) => a - b));
-        this._applyTopBar();
+        this.applyTopBar();
     }
 
     // The bar hidden takes its space on the screen with it, so that the windows can have it
-    _applyTopBar(hidden = this.hidden()) {
+    applyTopBar(hidden = this.hidden()) {
         const layout = Main.layoutManager;
         const data = layout._trackedActors?.find(a => a.actor === layout.panelBox);
         if (data && data.affectsStruts === hidden) {

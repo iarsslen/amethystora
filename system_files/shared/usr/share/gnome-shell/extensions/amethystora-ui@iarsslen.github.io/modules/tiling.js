@@ -1,14 +1,18 @@
 // Windows tiled in a strip per workspace, wider than the screen: each new window opens beside the focused one,
 // none overlaps another, and the strip scrolls to keep the focused one in view. Super and the arrows move
 // around it, Super+Ctrl and the arrows move windows along it, and the windows that should not tile (dialogs, and
-// those lifted out with Super+Ctrl+Escape) float above it. Its one setting, "enabled", is the classic layout's
-// switch (ame desktop layout): off, every window is GNOME's own again and every GNOME shortcut the tiling took
-// is given back, at once, with no logging out.
+// those lifted out with Super+Ctrl+Escape) float above it. "enabled" is the classic layout's switch (ame desktop
+// layout): off, every window is GNOME's own again and every GNOME shortcut the tiling took is given back, at once,
+// with no logging out. Its other settings (the gaps, the steps, the speeds, the gestures, the window rules) are in
+// the preferences window (prefs.js), and each applies as soon as it is changed.
+
+import GLib from 'gi://GLib';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {Actions} from './tiling/actions.js';
-import {Engine, Open, OPEN_CYCLE} from './tiling/engine.js';
+import {Config, config} from './tiling/config.js';
+import {Engine, Open} from './tiling/engine.js';
 import {Keys, giveBackLeftovers} from './tiling/keys.js';
 import {Sessions} from './tiling/session.js';
 import {State} from './tiling/state.js';
@@ -27,17 +31,60 @@ export class Tiling {
         this._settings = this._ext.getSettings('org.gnome.shell.extensions.amethystora-ui.tiling');
         this._keySettings = this._ext.getSettings('org.gnome.shell.extensions.amethystora-ui.tiling.keybindings');
         this._settings.connectObject('changed::enabled', () => this._sync(), this);
+        this._config = new Config(this._settings);
+        this._config.enable(key => this._configChanged(key));
+        // Where new windows open was kept in the state file before it was a setting
+        const kept = this.state.get('openPosition');
+        if (kept !== undefined) {
+            if (Number.isInteger(kept) && this._settings.get_user_value('open-window-position') === null)
+                this._settings.set_int('open-window-position', kept);
+            this.state.set('openPosition', undefined);
+        }
         this._history = [];
         this._sync();
     }
 
     disable() {
         this._settings?.disconnectObject(this);
+        this._config?.disable();
+        this._config = null;
+        if (this._gapsTimer)
+            GLib.source_remove(this._gapsTimer);
+        this._gapsTimer = 0;
         // At a screen lock the tiling comes back as it was at unlock
         this._stop(Main.sessionMode.isLocked);
         this._settings = null;
         this._keySettings = null;
         this.state = null;
+    }
+
+    get settings() {
+        return this._settings;
+    }
+
+    // A setting changed: what is on the screen follows it. The gaps wait for a moment of quiet, so that a slider
+    // dragged across lays the windows out once and not at every step.
+    _configChanged(key) {
+        if (!this.engine)
+            return;
+        if (/margin|gap|steps|selection-border|maximize/.test(key)) {
+            if (this._gapsTimer)
+                GLib.source_remove(this._gapsTimer);
+            this._gapsTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+                this._gapsTimer = 0;
+                this.engine?.layoutAll();
+                this.pointer?.rebuild();
+                return GLib.SOURCE_REMOVE;
+            });
+        } else if (key === 'default-focus-mode') {
+            for (const strip of this.engine.strips())
+                this.actions.setFocusMode(strip, config.defaultMode);
+        } else if (/^(show-|open-window-position|default-show-top-bar)/.test(key)) {
+            this.topBar?.sync();
+            this.topBar?.applyTopBar();
+        } else if (/^(gesture|edge-preview|topbar-mouse)/.test(key)) {
+            this.pointer?.rebuild();
+        }
     }
 
     _sync() {
@@ -57,12 +104,11 @@ export class Tiling {
 
     // Where new windows open, the person's choice, kept across log-outs
     get openPosition() {
-        const value = this.state?.get('openPosition');
-        return OPEN_CYCLE.includes(value) ? value : Open.RIGHT;
+        return Object.values(Open).includes(config.openPosition) ? config.openPosition : Open.RIGHT;
     }
 
     set openPosition(value) {
-        this.state.set('openPosition', value === Open.RIGHT ? undefined : value);
+        this._settings.set_int('open-window-position', value);
     }
 
     _start() {

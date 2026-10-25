@@ -15,8 +15,8 @@ import * as WindowPreview from 'resource:///org/gnome/shell/ui/windowPreview.js'
 import * as WorkspaceAnimation from 'resource:///org/gnome/shell/ui/workspaceAnimation.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-// The window switcher's thumbnails, as a share of the screen's height
-const SWITCHER_SHARE = 0.15;
+import {config} from './config.js';
+
 // GNOME's size for the app icon over a thumbnail, and the switcher's modes (altTab.js keeps them to itself)
 const SWITCHER_APP_ICON = 48;
 const APP_ICON_ONLY = 2;
@@ -136,7 +136,7 @@ export class ShellPatches {
                 if (!actor || !monitor)
                     return;
                 const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-                const size = Math.round(monitor.height * SWITCHER_SHARE);
+                const size = Math.round(monitor.height * config.switcherShare);
                 const [width, height] = actor.get_size();
                 const fit = Math.min(1, size * scale / width, size * scale / height);
                 icon._icon.destroy_all_children();

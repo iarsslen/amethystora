@@ -271,6 +271,15 @@ USAGE="ame desktop layout tiling|classic"
 item desktop layout choice "$(gettext "Window layout")" "$(gettext "How windows are arranged.")" "${LAYOUT}" \
     desktop#tiling-windows
 
+COMMAND=(ame desktop tiling-settings)
+TERMINAL=false
+BUTTON="$(gettext "Change…")"
+USAGE="ame desktop tiling-settings"
+[[ "${LAYOUT}" == tiling ]] || DETAIL="$(gettext "They apply once the layout is tiling again.")"
+item desktop tiling-settings action "$(gettext "Tiling settings")" \
+    "$(gettext "The gaps, the sizes windows step through, how the strip moves, every shortcut and the window rules.")" "" \
+    desktop#tiling-settings
+
 GROUP="$(gettext "Windows")"
 EXTRA='{"open": "manual"}'
 item desktop keybindings link "$(gettext "Keybindings")" \

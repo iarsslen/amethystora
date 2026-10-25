@@ -1,19 +1,31 @@
 // The arithmetic of a strip, with no GNOME in it: where each window of a workspace goes, how far the strip
 // scrolls to show one, and the steps the sizing keys go through. Every size is in pixels of the screen.
 
-// The space between two windows, and between the windows and the edges of the screen
-export const GAP = 8;
-export const MARGIN = 8;
-export const MARGIN_TOP = 8;
-export const MARGIN_BOTTOM = 8;
+// The space between two windows, and between the windows and the edges of the screen: the settings' (config.js
+// sets them through configure), the image's until then
+export let GAP = 8;
+export let MARGIN = 8;
+export let MARGIN_TOP = 8;
+export let MARGIN_BOTTOM = 8;
 // A column never comes closer than this to both edges at once
-export const MIN_MARGIN = Math.min(15, MARGIN);
+export let MIN_MARGIN = Math.min(15, MARGIN);
 // The least a window in a column of several keeps of its height
 export const MIN_HEIGHT = 50;
 // How much wider or narrower a window has to get for a step to count, for apps that size in increments
 export const SLACK = 30;
-// The widths and heights the cycle keys step through, as shares of what is available
-export const STEPS = [0.38195, 0.5, 0.61804];
+// The widths and heights the cycle keys step through, as shares of what is available (above 1, in pixels)
+export const DEFAULT_STEPS = [0.38195, 0.5, 0.61804];
+export let WIDTH_STEPS = DEFAULT_STEPS;
+export let HEIGHT_STEPS = DEFAULT_STEPS;
+
+export function configure(values) {
+    ({gap: GAP, margin: MARGIN, marginTop: MARGIN_TOP, marginBottom: MARGIN_BOTTOM} = values);
+    MIN_MARGIN = Math.min(15, MARGIN);
+    WIDTH_STEPS = values.widthSteps;
+    HEIGHT_STEPS = values.heightSteps;
+}
+
+const pixels = (step, space) => step <= 1 ? Math.floor(step * space) : Math.round(step);
 
 export const Mode = {PLAIN: 0, CENTRE: 1, EDGE: 2};
 
@@ -128,8 +140,8 @@ export function placeFocused(area, column, from, mode, index, count) {
 
 // The next width or height in the cycle: forward the smallest step more than SLACK beyond `now`, back the
 // largest step more than SLACK below it, going round at either end
-export function nextStep(now, space, forward) {
-    const sizes = STEPS.map(step => step <= 1 ? Math.floor(step * space) : step);
+export function nextStep(now, space, forward, steps = WIDTH_STEPS) {
+    const sizes = steps.map(step => pixels(step, space)).sort((a, b) => a - b);
     if (forward)
         return sizes.find(size => size > now + SLACK) ?? sizes[0];
     return [...sizes].reverse().find(size => size < now - SLACK) ?? sizes[sizes.length - 1];

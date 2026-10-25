@@ -8,7 +8,11 @@ import Shell from 'gi://Shell';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import * as Layout from './layout.js';
-import {Open, OPEN_CYCLE} from './engine.js';
+import {config} from './config.js';
+import {Open} from './engine.js';
+
+// The columns the numbered keys go to
+const ORDINALS = ['second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth', 'eleventh'];
 
 // Keys that start or act in a navigation session, and whether they show the map of the strip
 const SESSION = {
@@ -17,6 +21,20 @@ const SESSION = {
     'move-up': true, 'move-down': true, 'drift-left': false, 'drift-right': false, 'take-window': false,
     'switch-up-workspace': false, 'switch-down-workspace': false, 'move-up-workspace': false,
     'move-down-workspace': false, 'move-previous-workspace': false, 'move-previous-workspace-backward': false,
+    'switch-next': true, 'switch-previous': true, 'switch-next-loop': true, 'switch-previous-loop': true,
+    'switch-left-loop': true, 'switch-right-loop': true, 'switch-up-loop': true, 'switch-down-loop': true,
+    'switch-global-left': true, 'switch-global-right': true, 'switch-global-up': true, 'switch-global-down': true,
+    'switch-up-or-else-workspace': true, 'switch-down-or-else-workspace': true,
+    'previous-workspace': false, 'previous-workspace-backward': false,
+    'switch-up-workspace-from-all-monitors': false, 'switch-down-workspace-from-all-monitors': false,
+    ...Object.fromEntries(ORDINALS.map(n => [`switch-${n}`, true])),
+};
+
+// Where a key that goes on past the strip goes once there is no window that way
+const BEYOND = {
+    'switch-global-left': 'monitor-left', 'switch-global-right': 'monitor-right',
+    'switch-global-up': 'monitor-above', 'switch-global-down': 'monitor-below',
+    'switch-up-or-else-workspace': 'workspace-up', 'switch-down-or-else-workspace': 'workspace-down',
 };
 
 const DIRECTIONS = {
@@ -53,6 +71,10 @@ export class Actions {
             'center-horizontally': w => this.centre(w),
             'new-window': w => this.newWindow(w),
             'toggle-scratch': w => this.toggleFloating(w),
+            'center-vertically': w => this.centreVertically(w),
+            'center': w => this.centreBoth(w),
+            'paper-toggle-fullscreen': w => this.toggleFullscreen(w),
+            'close-window': w => w.delete(global.get_current_time()),
         };
         for (const [name, act] of Object.entries(perWindow)) {
             add(name, () => {
@@ -62,9 +84,14 @@ export class Actions {
             }, once);
         }
         add('toggle-scratch-layer', () => this.toggleFloatingLayer(), once);
+        add('toggle-scratch-window', () => this.toggleLastFloating(), once);
         add('switch-focus-mode', () => this.cycleFocusMode(), once);
         add('switch-open-window-position', () => this.cycleOpenPosition(), once);
+        for (const [name, value] of Object.entries(Open))
+            add(`open-window-position-${name.toLowerCase()}`, () => this.setOpenPosition(value), once);
         add('toggle-top-and-position-bar', () => this.tiling.topBar?.toggle(), once);
+        add('toggle-top-bar', () => this.tiling.topBar?.toggle(), once);
+        add('activate-window-under-cursor', () => this.activateUnderPointer(), once);
         for (const [side, direction] of Object.entries(DIRECTIONS)) {
             const monitorKey = (name, act) => add(name, () => {
                 this.tiling.sessions.end();
@@ -106,6 +133,12 @@ export class Actions {
         return {window, at};
     }
 
+    // Where a key that goes on past the strip goes ('monitor-left', 'workspace-up'...) once it has nowhere to go
+    // in it, for the session to take it there
+    beyond(name) {
+        return BEYOND[name] ?? null;
+    }
+
     // Moves a session's selection; returns whether anything changed
     move(name, strip) {
         const {window, at} = this._here(strip);
@@ -113,19 +146,49 @@ export class Actions {
             return false;
         const [c, r] = at;
         const columns = strip.columns;
+        const wrap = (index, length) => (index + length) % length;
+        const order = strip.windows;
         let target = null;
+        const ordinal = ORDINALS.indexOf(name.replace(/^switch-/, ''));
+        if (ordinal >= 0)
+            name = 'switch-nth';
         switch (name) {
         case 'switch-left':
-        case 'switch-right': {
-            const column = columns[c + (name === 'switch-left' ? -1 : 1)];
+        case 'switch-right':
+        case 'switch-global-left':
+        case 'switch-global-right': {
+            const column = columns[c + (/left/.test(name) ? -1 : 1)];
             target = column ? this._recent(column) : null;
             break;
         }
+        case 'switch-left-loop':
+        case 'switch-right-loop':
+            target = this._recent(columns[wrap(c + (name === 'switch-left-loop' ? -1 : 1), columns.length)]);
+            break;
         case 'switch-up':
+        case 'switch-global-up':
+        case 'switch-up-or-else-workspace':
             target = columns[c][r - 1] ?? null;
             break;
         case 'switch-down':
+        case 'switch-global-down':
+        case 'switch-down-or-else-workspace':
             target = columns[c][r + 1] ?? null;
+            break;
+        case 'switch-up-loop':
+        case 'switch-down-loop':
+            target = columns[c][wrap(r + (name === 'switch-up-loop' ? -1 : 1), columns[c].length)];
+            break;
+        case 'switch-next':
+        case 'switch-previous':
+            target = order[order.indexOf(window) + (name === 'switch-next' ? 1 : -1)] ?? null;
+            break;
+        case 'switch-next-loop':
+        case 'switch-previous-loop':
+            target = order[wrap(order.indexOf(window) + (name === 'switch-next-loop' ? 1 : -1), order.length)];
+            break;
+        case 'switch-nth':
+            target = columns[ordinal + 1] ? this._recent(columns[ordinal + 1]) : null;
             break;
         case 'switch-first':
             target = columns[0][0];
@@ -178,7 +241,7 @@ export class Actions {
 
     // The side new windows open on decides where pulling in and pushing out go
     _towardsOpening() {
-        return this.tiling.openPosition === Open.LEFT ? -1 : 1;
+        return [Open.LEFT, Open.START].includes(this.tiling.openPosition) ? -1 : 1;
     }
 
     slurpIn(window) {
@@ -284,7 +347,7 @@ export class Actions {
         const strip = info?.strip;
         const now = window.get_frame_rect().height;
         if (!strip) {
-            this._floatingFrame(window, {height: Layout.nextStep(now, this._area(window).height, forward)});
+            this._floatingFrame(window, {height: Layout.nextStep(now, this._area(window).height, forward, Layout.HEIGHT_STEPS)});
             return;
         }
         const column = strip.columns[strip.find(window)[0]];
@@ -292,7 +355,7 @@ export class Actions {
             return;
         const space = Layout.usable(this._area(window)).height - Layout.GAP * (column.length - 1);
         this._equalHeights(column);
-        info.height = Layout.nextStep(now, space, forward);
+        info.height = Layout.nextStep(now, space, forward, Layout.HEIGHT_STEPS);
         this.engine.ensureVisible(strip, window);
     }
 
@@ -315,7 +378,7 @@ export class Actions {
     fillWidth(window) {
         this._unmaximized(window);
         const area = this._area(window);
-        const full = area.width - 2 * Layout.MARGIN;
+        const full = Math.round((area.width - 2 * Layout.MARGIN) * config.fillShare);
         const info = this.engine.info(window) ?? {};
         const frame = window.get_frame_rect();
         const wide = Math.abs(this._width(window) - full) <= Layout.SLACK;
@@ -356,6 +419,27 @@ export class Actions {
         this.engine.layout(strip);
     }
 
+    // A floating window halfway down its screen's usable height; a tiled one already is
+    centreVertically(window) {
+        if (this.engine.isTiled(window))
+            return;
+        const area = Layout.usable(this._area(window));
+        const frame = window.get_frame_rect();
+        this._floatingFrame(window, {y: area.y + Math.max(0, Math.round((area.height - frame.height) / 2))});
+    }
+
+    centreBoth(window) {
+        this.centre(window);
+        this.centreVertically(window);
+    }
+
+    toggleFullscreen(window) {
+        if (window.is_fullscreen())
+            window.unmake_fullscreen();
+        else
+            window.make_fullscreen();
+    }
+
     newWindow(window) {
         const app = Shell.WindowTracker.get_default().get_window_app(window);
         if (app?.can_open_new_window())
@@ -390,6 +474,37 @@ export class Actions {
         const first = mru.find(w => minimized.includes(w)) ?? minimized[0];
         if (first)
             Main.activateWindow(first);
+    }
+
+    // The floating window used last goes away, or comes back
+    toggleLastFloating() {
+        const mru = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null);
+        const floating = [...this.engine.floating];
+        const last = mru.find(w => floating.includes(w)) ?? floating.find(w => w.minimized);
+        if (!last)
+            return;
+        if (last.minimized) {
+            last.unminimize();
+            Main.activateWindow(last);
+        } else if (last.has_focus()) {
+            last.minimize();
+        } else {
+            Main.activateWindow(last);
+        }
+    }
+
+    // The keyboard to the window under the pointer
+    activateUnderPointer() {
+        const [x, y] = global.get_pointer();
+        const workspace = global.workspace_manager.get_active_workspace();
+        const windows = global.display.sort_windows_by_stacking(workspace.list_windows()).reverse();
+        const hit = windows.find(window => {
+            const vis = this.engine.info(window)?.vis ?? window.get_frame_rect();
+            return window.showing_on_its_workspace() && !this.engine.info(window)?.hidden &&
+                x >= vis.x && x < vis.x + vis.width && y >= vis.y && y < vis.y + vis.height;
+        });
+        if (hit)
+            Main.activateWindow(hit);
     }
 
     // ---- Per workspace ----
@@ -428,9 +543,16 @@ export class Actions {
         this.tiling.topBar?.sync();
     }
 
+    // Through the positions the settings offer; none offered leaves it as it is
     cycleOpenPosition() {
-        const next = OPEN_CYCLE[(OPEN_CYCLE.indexOf(this.tiling.openPosition) + 1) % OPEN_CYCLE.length];
-        this.tiling.openPosition = next;
+        const offered = config.openOffered;
+        if (!offered.length)
+            return;
+        this.setOpenPosition(offered[(offered.indexOf(this.tiling.openPosition) + 1) % offered.length]);
+    }
+
+    setOpenPosition(value) {
+        this.tiling.openPosition = value;
         this.tiling.topBar?.sync();
     }
 

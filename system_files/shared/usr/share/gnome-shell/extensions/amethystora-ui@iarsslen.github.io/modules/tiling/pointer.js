@@ -13,10 +13,11 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import * as Layout from './layout.js';
-import {ANIMATION} from './engine.js';
+import {config} from './config.js';
 import {WorkspacePreview, activateQuietly} from './previews.js';
 
-const PREVIEW_SCALE = 0.15;
+// The preview's size, the speed of a drag's drift and the gestures' fingers, speed and friction are the settings'
+// (config.js)
 const PREVIEW_DELAY = 100;
 const PREVIEW_POLL = 200;
 // How far the pointer may leave the edge before the preview goes
@@ -30,15 +31,10 @@ const CARRIED_SCALE = 0.5;
 const BETWEEN = 100;
 // How far from the boundary between two windows of a column a drop still stacks there, past half a gap
 const STACK = 250;
-// The strip drifts at this many pixels a millisecond while a dragged window is near a side of the screen
-const DRAG_DRIFT = 2;
+// The strip drifts while a dragged window is this near a side of the screen
 const DRAG_EDGE = 12;
-// Three fingers on a touchpad, and how far they move before the direction counts
-const FINGERS = 3;
+// How far the fingers move before the direction counts
 const DECIDE = 16;
-// The strip follows the fingers at twice their distance, and keeps going after them, slowing down
-const SWIPE_SPEED = 2;
-const SWIPE_FRICTION = 0.3 / 16;
 // With several screens: how often the pointer's screen is looked at
 const MONITOR_POLL = 100;
 
@@ -71,6 +67,7 @@ export class Pointer {
         Main.overview.connectObject('showing', () => this._syncTrackers(), 'hidden', () => this._syncTrackers(), this);
         this._syncTrackers();
         this._syncMonitorPoll();
+        this._syncBarScroll();
     }
 
     disable() {
@@ -85,13 +82,16 @@ export class Pointer {
         if (this._pan)
             Main.panel.remove_action(this._pan);
         this._pan = null;
+        if (this._barScroll)
+            Main.panel.disconnect(this._barScroll);
+        this._barScroll = 0;
         Main.overview.disconnectObject(this);
         for (const tracker of this._trackers ?? []) {
             tracker.disconnectObject(this);
             tracker.enabled = true;
         }
         this._trackers = null;
-        for (const id of ['_monitorTimer', '_previewTimer', '_pollTimer', '_retryTimer', '_settleTimer']) {
+        for (const id of ['_monitorTimer', '_previewTimer', '_pollTimer', '_retryTimer', '_settleTimer', '_hoverTimer']) {
             if (this[id])
                 GLib.source_remove(this[id]);
             this[id] = 0;
@@ -102,10 +102,19 @@ export class Pointer {
 
     // ---- The edges of the screens ----
 
+    // The settings changed: the edges, the top bar's wheel and the gestures are made again as they now say
+    rebuild() {
+        this._hidePreview();
+        this._buildEdges();
+        this._syncBarScroll();
+    }
+
     _buildEdges() {
         for (const edge of this._edges)
             edge.destroy();
         this._edges = [];
+        if (!config.edgePreview && !config.edgeClick && !config.edgeHover)
+            return;
         Main.layoutManager.monitors.forEach((monitor, index) => {
             const area = this._engine.area(index);
             const top = area.y + Layout.MARGIN_TOP;
@@ -161,6 +170,23 @@ export class Pointer {
             this._showPreview();
             return GLib.SOURCE_REMOVE;
         });
+        this._armHover();
+    }
+
+    // Staying at the edge goes to the window beyond it, when the settings ask for that
+    _armHover() {
+        if (this._hoverTimer)
+            GLib.source_remove(this._hoverTimer);
+        this._hoverTimer = 0;
+        if (!config.edgeHover || !this._edge)
+            return;
+        const {monitor, side} = this._edge;
+        this._hoverTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, config.edgeHoverTime, () => {
+            this._hoverTimer = 0;
+            if (this._nearEdge())
+                this._goBeyond(monitor, side, config.edgeHoverRepeat);
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _edgeLeft() {
@@ -173,23 +199,34 @@ export class Pointer {
     }
 
     _edgeClicked(monitor, side) {
+        if (!config.edgeClick)
+            return Clutter.EVENT_PROPAGATE;
+        return this._goBeyond(monitor, side, false) ? Clutter.EVENT_STOP : Clutter.EVENT_PROPAGATE;
+    }
+
+    // The window beyond an edge gets the keyboard, and the strip brings it in; `again` keeps going while the pointer
+    // stays there
+    _goBeyond(monitor, side, again) {
         if (!this._edgesActive(monitor))
-            return Clutter.EVENT_PROPAGATE;
+            return false;
         const target = this._target(monitor, side);
-        this._hidePreview();
+        this._hidePreview(false);
         if (!target)
-            return Clutter.EVENT_PROPAGATE;
+            return false;
         Main.activateWindow(target);
         // Still at the edge once the strip has moved: the next window beyond it
         if (this._retryTimer)
             GLib.source_remove(this._retryTimer);
-        this._retryTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, ANIMATION + 50, () => {
+        this._retryTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, config.animation + 50, () => {
             this._retryTimer = 0;
-            if (this._nearEdge())
+            if (this._nearEdge()) {
                 this._showPreview();
+                if (again)
+                    this._armHover();
+            }
             return GLib.SOURCE_REMOVE;
         });
-        return Clutter.EVENT_STOP;
+        return true;
     }
 
     _nearEdge() {
@@ -206,7 +243,7 @@ export class Pointer {
     _showPreview() {
         this._hidePreview(false);
         const {monitor, side} = this._edge ?? {};
-        if (monitor === undefined || !this._edgesActive(monitor))
+        if (monitor === undefined || !config.edgePreview || !this._edgesActive(monitor))
             return;
         const target = this._target(monitor, side);
         const actor = target?.get_compositor_private();
@@ -214,17 +251,17 @@ export class Pointer {
             return;
         const frame = target.get_frame_rect();
         const buffer = target.get_buffer_rect();
-        const width = Math.round(frame.width * PREVIEW_SCALE);
-        const height = Math.round(frame.height * PREVIEW_SCALE);
+        const width = Math.round(frame.width * config.edgeScale);
+        const height = Math.round(frame.height * config.edgeScale);
         const screen = Main.layoutManager.monitors[monitor];
         const area = this._engine.area(monitor);
         const [, y] = global.get_pointer();
         const top = Math.max(area.y, Math.min(Math.round(y - height / 2), area.y + area.height - height));
         const x = side < 0 ? screen.x : screen.x + screen.width - width;
         const clone = new Clutter.Clone({source: actor, opacity: 242, reactive: false});
-        clone.set_scale(PREVIEW_SCALE, PREVIEW_SCALE);
-        clone.set_position(Math.round(x + (buffer.x - frame.x) * PREVIEW_SCALE),
-            Math.round(top + (buffer.y - frame.y) * PREVIEW_SCALE));
+        clone.set_scale(config.edgeScale, config.edgeScale);
+        clone.set_position(Math.round(x + (buffer.x - frame.x) * config.edgeScale),
+            Math.round(top + (buffer.y - frame.y) * config.edgeScale));
         Main.layoutManager.uiGroup.add_child(clone);
         this._preview = clone;
         this._pollTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, PREVIEW_POLL, () => {
@@ -242,8 +279,12 @@ export class Pointer {
         this._pollTimer = 0;
         this._preview?.destroy();
         this._preview = null;
-        if (forget)
+        if (forget) {
             this._edge = null;
+            if (this._hoverTimer)
+                GLib.source_remove(this._hoverTimer);
+            this._hoverTimer = 0;
+        }
     }
 
     // ---- Dragging a tiled window ----
@@ -316,7 +357,7 @@ export class Pointer {
         this._engine.layout(strip);
         const actor = drag.window.get_compositor_private();
         actor?.set_pivot_point(0.5, 0.5);
-        actor?.ease({scale_x: CARRIED_SCALE, scale_y: CARRIED_SCALE, duration: ANIMATION});
+        actor?.ease({scale_x: CARRIED_SCALE, scale_y: CARRIED_SCALE, duration: config.animation});
     }
 
     // The place under the pointer a carried window would go, shown in GNOME's tile-preview look
@@ -391,7 +432,7 @@ export class Pointer {
     _drawZone(rect) {
         const old = this._zoneActor;
         if (old)
-            old.ease({scale_x: 0, scale_y: 0, opacity: 0, duration: ANIMATION, onStopped: () => old.destroy()});
+            old.ease({scale_x: 0, scale_y: 0, opacity: 0, duration: config.animation, onStopped: () => old.destroy()});
         const actor = new St.Widget({
             style_class: 'tile-preview amethystora-tiling-zone', reactive: false,
             x: rect.x, y: rect.y, width: rect.width, height: rect.height, scale_x: 0, scale_y: 0,
@@ -401,7 +442,7 @@ export class Pointer {
         const carried = this._drag.window.get_compositor_private();
         if (carried && carried.get_parent() === global.window_group)
             global.window_group.set_child_below_sibling(actor, carried);
-        actor.ease({scale_x: 1, scale_y: 1, duration: ANIMATION});
+        actor.ease({scale_x: 1, scale_y: 1, duration: config.animation});
         this._zoneActor = actor;
         this._engine.boxHidden++;
         this._engine.updateBox(this._drag.zone.strip);
@@ -428,7 +469,7 @@ export class Pointer {
         const timeline = new Clutter.Timeline({actor: global.stage, duration: 1000, repeat_count: -1});
         let last = 0;
         timeline.connect('new-frame', (t, elapsed) => {
-            const step = side * DRAG_DRIFT * (elapsed >= last ? elapsed - last : elapsed);
+            const step = side * config.dragDriftSpeed * (elapsed >= last ? elapsed - last : elapsed);
             last = elapsed;
             if (drag.carried) {
                 this._engine.scrollTo(strip, strip.scroll + step);
@@ -457,9 +498,9 @@ export class Pointer {
         drag.window.disconnectObject(this);
         const zone = this._zoneActor;
         this._zoneActor = null;
-        zone?.ease({opacity: 0, duration: ANIMATION, onStopped: () => zone.destroy()});
+        zone?.ease({opacity: 0, duration: config.animation, onStopped: () => zone.destroy()});
         const actor = drag.window.get_compositor_private();
-        actor?.ease({scale_x: 1, scale_y: 1, duration: ANIMATION, onStopped: () => actor.set_pivot_point(0, 0)});
+        actor?.ease({scale_x: 1, scale_y: 1, duration: config.animation, onStopped: () => actor.set_pivot_point(0, 0)});
         if (cancelled || !this._engine.info(drag.window))
             return;
         const window = drag.window;
@@ -494,8 +535,12 @@ export class Pointer {
     }
 
     _touchpad(event) {
-        if (event.type() !== Clutter.EventType.TOUCHPAD_SWIPE ||
-            event.get_touchpad_gesture_finger_count() !== FINGERS)
+        if (event.type() !== Clutter.EventType.TOUCHPAD_SWIPE || !config.gestures)
+            return Clutter.EVENT_PROPAGATE;
+        // The fingers the settings give the strip's swipe and the workspaces'; another count is GNOME's
+        const fingers = event.get_touchpad_gesture_finger_count();
+        const forStrip = fingers === config.stripFingers, forPile = fingers === config.pileFingers;
+        if (!forStrip && !forPile)
             return Clutter.EVENT_PROPAGATE;
         const phase = event.get_gesture_phase();
         if (Main.overview.visible || this._engine.session) {
@@ -531,9 +576,16 @@ export class Pointer {
             const down = (natural ? 1 : -1) * swipe.y > 0;
             // Sideways slides the strip; down opens the pile of recent workspaces; up opens the overview
             if (Math.abs(swipe.x) > Math.abs(swipe.y)) {
+                if (!forStrip) {
+                    this._swipe = null;
+                    return Clutter.EVENT_PROPAGATE;
+                }
                 swipe.state = 'strip';
                 swipe.strip = this._engine.activeStrip(swipe.monitor);
                 swipe.scroll = this._engine.geometry(swipe.strip).scroll;
+            } else if (down && !forPile) {
+                this._swipe = null;
+                return Clutter.EVENT_PROPAGATE;
             } else if (down) {
                 swipe.state = 'pile';
                 const list = this._tiling.workspaceHistory();
@@ -549,7 +601,7 @@ export class Pointer {
         if (swipe.state !== 'strip')
             return Clutter.EVENT_STOP;
         const natural = this._touchpadSettings.get_boolean('natural-scroll');
-        const delta = (natural ? 1 : -1) * dx * SWIPE_SPEED;
+        const delta = (natural ? 1 : -1) * dx * config.swipeSpeed[0];
         if (phase === Clutter.TouchpadGesturePhase.UPDATE) {
             swipe.scroll += delta;
             swipe.history.push([event.get_time(), delta]);
@@ -567,7 +619,7 @@ export class Pointer {
         const natural = this._touchpadSettings.get_boolean('natural-scroll');
         const height = Main.layoutManager.monitors[swipe.monitor].height;
         if (event.get_gesture_phase() === Clutter.TouchpadGesturePhase.UPDATE) {
-            swipe.travel += (natural ? 1 : -1) * dy * SWIPE_SPEED;
+            swipe.travel += (natural ? 1 : -1) * dy * config.swipeSpeed[1];
             const wanted = Math.max(0, Math.min(swipe.pile.workspaces.length - 1, Math.floor(swipe.travel / (height / 5))));
             while (swipe.pile.selected < wanted && swipe.pile.step(1))
                 ;
@@ -621,8 +673,9 @@ export class Pointer {
         const span = times.length > 1 ? times.at(-1) - times[0] : 0;
         const velocity = swipe.velocity ??
             (span > 0 ? swipe.history.slice(1).reduce((sum, [, d]) => sum + d, 0) / span : 0);
-        const time = Math.abs(velocity) / SWIPE_FRICTION * pace;
-        const travel = Math.sign(velocity) * velocity * velocity / (2 * SWIPE_FRICTION);
+        const friction = config.swipeFriction[0] / 16;
+        const time = Math.abs(velocity) / friction * pace;
+        const travel = Math.sign(velocity) * velocity * velocity / (2 * friction);
         strip.scroll = swipe.scroll + travel;
         const geo = this._engine.geometry(strip);
         const window = this._mostVisible(strip, geo, velocity || 1);
@@ -638,11 +691,14 @@ export class Pointer {
         const settled = Math.round(x - column.x);
         const adjusted = Math.abs(settled - strip.scroll) > 1;
         strip.scroll = settled;
+        // Past either end the strip overshoots and comes back; anywhere else it carries on at the fingers' speed
+        // and comes to rest on the window
         const end = at[0] === 0 || at[0] === strip.columns.length - 1;
+        const overshoot = end && Math.abs(travel) > geo.area.width;
         this._engine.layout(strip, {
-            time: Math.max(adjusted ? 200 : 0, Math.round(time)) || ANIMATION,
-            mode: end && Math.abs(travel) > geo.area.width ? Clutter.AnimationMode.EASE_OUT_BACK
-                : Clutter.AnimationMode.EASE_OUT_QUAD,
+            time: Math.max(adjusted ? 200 : 0, Math.round(time)) || config.animation,
+            mode: overshoot ? Clutter.AnimationMode.EASE_OUT_BACK : null,
+            velocity: overshoot ? null : velocity,
         });
         if (this._settleTimer)
             GLib.source_remove(this._settleTimer);
@@ -652,6 +708,44 @@ export class Pointer {
                 Main.activateWindow(window);
             return GLib.SOURCE_REMOVE;
         });
+    }
+
+    // ---- The mouse wheel over the top bar ----
+
+    // Only while the settings ask for it: the workspaces in the top bar have the wheel otherwise
+    _syncBarScroll() {
+        if (config.barScroll && !this._barScroll) {
+            this._barScroll = Main.panel.connect('captured-event', (actor, event) => this._barWheel(event));
+            this._wheel = 0;
+        } else if (!config.barScroll && this._barScroll) {
+            Main.panel.disconnect(this._barScroll);
+            this._barScroll = 0;
+        }
+    }
+
+    _barWheel(event) {
+        if (event.type() !== Clutter.EventType.SCROLL || Main.overview.visible)
+            return Clutter.EVENT_PROPAGATE;
+        let step = 0;
+        const direction = event.get_scroll_direction();
+        if (direction === Clutter.ScrollDirection.SMOOTH) {
+            const [dx, dy] = event.get_scroll_delta();
+            this._wheel += Math.abs(dx) > Math.abs(dy) ? dx : dy;
+            if (Math.abs(this._wheel) >= 1) {
+                step = Math.sign(this._wheel);
+                this._wheel = 0;
+            }
+        } else if (direction === Clutter.ScrollDirection.UP || direction === Clutter.ScrollDirection.LEFT) {
+            step = -1;
+        } else if (direction === Clutter.ScrollDirection.DOWN || direction === Clutter.ScrollDirection.RIGHT) {
+            step = 1;
+        }
+        if (step) {
+            const strip = this._engine.activeStrip(Main.layoutManager.primaryIndex);
+            if (this._tiling.actions.move(step < 0 ? 'switch-left' : 'switch-right', strip))
+                this._engine.focus(strip);
+        }
+        return Clutter.EVENT_STOP;
     }
 
     // ---- A finger along the top bar ----

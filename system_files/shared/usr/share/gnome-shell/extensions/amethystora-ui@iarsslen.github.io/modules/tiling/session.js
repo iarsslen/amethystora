@@ -12,21 +12,25 @@ import St from 'gi://St';
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {ANIMATION, Open} from './engine.js';
+import {config} from './config.js';
+import {Open} from './engine.js';
 import {lower} from './keys.js';
 import {WorkspacePreview, activateQuietly} from './previews.js';
 
-// The map waits this long after the first key that moves, so that a quick press does not flash it
+// The map waits this long after the first key that moves, so that a quick press does not flash it; its size and
+// the dimming of the windows not chosen are the settings' (config.js), as is the speed of a drift
 const MAP_DELAY = 200;
-const MAP_SCALE = 0.15;
 // The space between the windows in the map
 const MAP_GAP = 8;
 // How much of the strip the map keeps in view past the selection when it is wider than the screen
 const MAP_CONTEXT = 500;
-// The dimming over the windows not chosen: black, at this share
-const DIM = 0.7 * 160 / 255;
-// The strip slides this many pixels each millisecond while a drift key is held
-const DRIFT_SPEED = 2;
+// The highlight in the map, and the map itself, glide this long to the window chosen
+const MAP_GLIDE = 150;
+// The screens a key that goes on past the strip goes to
+const SIDES = {
+    left: Meta.DisplayDirection.LEFT, right: Meta.DisplayDirection.RIGHT,
+    above: Meta.DisplayDirection.UP, below: Meta.DisplayDirection.DOWN,
+};
 // The order modifiers rank in, for the one that ends a session
 const RANKED = [Clutter.ModifierType.SUPER_MASK, Clutter.ModifierType.CONTROL_MASK,
     Clutter.ModifierType.MOD1_MASK, Clutter.ModifierType.SHIFT_MASK];
@@ -128,8 +132,10 @@ class Session {
         }
         const workspaceKey = {
             'switch-up-workspace': [-1, false], 'switch-down-workspace': [1, false],
+            'switch-up-workspace-from-all-monitors': [-1, false], 'switch-down-workspace-from-all-monitors': [1, false],
             'move-up-workspace': [-1, true], 'move-down-workspace': [1, true],
             'move-previous-workspace': ['back', true], 'move-previous-workspace-backward': ['forward', true],
+            'previous-workspace': ['back', false], 'previous-workspace-backward': ['forward', false],
         }[name];
         if (workspaceKey) {
             this._workspace(...workspaceKey);
@@ -138,7 +144,9 @@ class Session {
         if (actions.isSessionKey(name)) {
             if (actions.move(name, this.strip))
                 this._moved();
-            if (actions.showsMap(name))
+            else if (this._beyond(actions.beyond(name)))
+                return;
+            if (actions.showsMap(name) && !this._preview)
                 this._wantMap();
             return;
         }
@@ -207,16 +215,47 @@ class Session {
         return Clutter.EVENT_STOP;
     }
 
+    // A key with nowhere to go in the strip goes on to the next screen, or the next workspace; returns whether it did
+    _beyond(where) {
+        const [kind, side] = where?.split('-') ?? [];
+        if (kind === 'workspace') {
+            this._workspace(side === 'up' ? -1 : 1, false);
+            return true;
+        }
+        if (kind === 'monitor') {
+            const direction = SIDES[side];
+            if (global.display.get_monitor_neighbor_index(this.strip.monitor, direction) < 0)
+                return false;
+            this.end();
+            this._tiling.actions.focusMonitor(direction);
+            return true;
+        }
+        return false;
+    }
+
     _moved() {
         this._engine.updateBox(this.strip);
         this._map?.update();
         this._syncVeils();
     }
 
+    // The strip moved under the session: the dimming moves with its windows, frame by frame
+    follow(strip) {
+        if (strip !== this.strip || !this._veils.size)
+            return;
+        for (const [window, veil] of this._veils) {
+            const vis = this._engine.info(window)?.vis;
+            if (vis) {
+                veil.set_position(vis.x, vis.y);
+                veil.set_size(vis.width, vis.height);
+            }
+        }
+    }
+
     // ---- The map ----
 
     _wantMap() {
-        if (this._map || this._mapTimer)
+        if (this._map || this._mapTimer || config.mapScale <= 0)
             return;
         this._mapTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, MAP_DELAY, () => {
             this._mapTimer = 0;
@@ -236,22 +275,22 @@ class Session {
 
     // Every window of the strip on screen but the chosen one goes dark while the map is up
     _syncVeils() {
-        const wanted = new Set(this._map ? this.strip.windows.filter(w => w !== this.strip.selected &&
-            !this._engine.info(w)?.hidden) : []);
+        const wanted = new Set(this._map && config.mapShade > 0 ? this.strip.windows.filter(w =>
+            w !== this.strip.selected && !this._engine.info(w)?.hidden) : []);
         for (const [window, veil] of this._veils) {
             if (!wanted.has(window)) {
                 this._veils.delete(window);
-                veil.ease({opacity: 0, duration: ANIMATION, onStopped: () => veil.destroy()});
+                veil.ease({opacity: 0, duration: config.animation, onStopped: () => veil.destroy()});
             }
         }
         for (const window of wanted) {
             let veil = this._veils.get(window);
             if (!veil) {
                 veil = new St.Widget({style_class: 'amethystora-tiling-veil', opacity: 0, reactive: false});
-                veil.set_style(`background-color: rgba(0, 0, 0, ${DIM.toFixed(3)});`);
+                veil.set_style(`background-color: rgba(0, 0, 0, ${(0.7 * config.mapShade / 255).toFixed(3)});`);
                 global.window_group.add_child(veil);
                 this._veils.set(window, veil);
-                veil.ease({opacity: 255, duration: ANIMATION});
+                veil.ease({opacity: 255, duration: config.animation});
             }
             const vis = this._engine.info(window).vis;
             const actor = window.get_compositor_private();
@@ -273,7 +312,7 @@ class Session {
         timeline.connect('new-frame', (t, elapsed) => {
             const ms = elapsed >= last ? elapsed - last : elapsed;
             last = elapsed;
-            const geo = this._engine.scrollTo(this.strip, this.strip.scroll + direction * DRIFT_SPEED * ms);
+            const geo = this._engine.scrollTo(this.strip, this.strip.scroll + direction * config.driftSpeed * ms);
             this._followDrift(geo, direction);
         });
         this._drifting = {timeline, key};
@@ -370,7 +409,7 @@ class Session {
         if (!this._carried.length) {
             const hint = this._hintLabel;
             this._hintLabel = null;
-            hint?.ease({opacity: 0, duration: ANIMATION, onStopped: () => hint.destroy()});
+            hint?.ease({opacity: 0, duration: config.animation, onStopped: () => hint.destroy()});
             return;
         }
         if (this._hintLabel)
@@ -385,7 +424,7 @@ class Session {
         Main.uiGroup.add_child(label);
         label.set_position(monitor.x + monitor.width - 402, monitor.y + monitor.height - 100);
         label.width = 380;
-        label.ease({opacity: 255, duration: ANIMATION});
+        label.ease({opacity: 255, duration: config.animation});
         this._hintLabel = label;
     }
 
@@ -519,7 +558,7 @@ class StripMap {
         Main.uiGroup.add_child(this.actor);
         this._clones = new Map();
         this.update();
-        this.actor.ease({opacity: 255, duration: ANIMATION, mode: Clutter.AnimationMode.EASE_OUT_EXPO});
+        this.actor.ease({opacity: 255, duration: config.animation, mode: Clutter.AnimationMode.EASE_OUT_EXPO});
         global.display.connectObject('restacked', () => this.update(), this);
     }
 
@@ -530,10 +569,10 @@ class StripMap {
         let x = MAP_GAP;
         let bottom = 0;
         this._strip.columns.forEach((column, c) => {
-            const width = Math.round(geo.columns[c].width * MAP_SCALE);
+            const width = Math.round(geo.columns[c].width * config.mapScale);
             let y = MAP_GAP;
             for (const window of column) {
-                const height = Math.round(geo.rects.get(window).height * MAP_SCALE);
+                const height = Math.round(geo.rects.get(window).height * config.mapScale);
                 places.set(window, {x, y, width, height});
                 y += height + MAP_GAP;
             }
@@ -586,15 +625,23 @@ class StripMap {
         const selected = strip.selected ? places.get(strip.selected) : null;
         if (selected) {
             const pad = MAP_GAP / 2;
-            highlight.set_position(selected.x - pad, selected.y - pad);
-            highlight.set_size(selected.width + 2 * pad, selected.height + 2 * pad);
+            // The highlight glides from the window it was on to the one chosen, once it is shown
+            const box = {
+                x: selected.x - pad, y: selected.y - pad,
+                width: selected.width + 2 * pad, height: selected.height + 2 * pad,
+            };
+            if (highlight.visible && this._placed)
+                highlight.ease({...box, duration: MAP_GLIDE, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+            else
+                highlight.set({...box});
+            this._placed = true;
             highlight.show();
             this._content.set_child_below_sibling(highlight, null);
             this._label.text = strip.selected.get_title() ?? '';
             // A map wider than the screen keeps some of the strip beyond the selection in view
-            let offset = -this._content.translation_x;
+            let offset = this._offset ?? 0;
             if (width > viewWidth) {
-                const context = Math.round(MAP_CONTEXT * MAP_SCALE);
+                const context = Math.round(MAP_CONTEXT * config.mapScale);
                 if (selected.x + selected.width + context > offset + viewWidth)
                     offset = selected.x + selected.width + context - viewWidth;
                 if (selected.x - context < offset)
@@ -603,7 +650,13 @@ class StripMap {
             } else {
                 offset = 0;
             }
-            this._content.translation_x = -Math.round(offset);
+            if (Math.round(offset) !== this._offset) {
+                this._content.ease({
+                    translation_x: -Math.round(offset), duration: this._offset === undefined ? 0 : MAP_GLIDE,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                });
+                this._offset = Math.round(offset);
+            }
         } else {
             highlight.hide();
             this._label.text = '';

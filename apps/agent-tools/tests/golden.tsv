@@ -85,3 +85,4 @@ copy text from an image on the screen	manual/desktop#copying-text-from-the-scree
 my work vpn will not connect	playbook/vpn-will-not-connect#*|manual/software#vpn
 l2tp ipsec vpn says ikev1 is not allowed	playbook/vpn-will-not-connect#*|manual/software#vpn
 deleted file gone from the trash	knowledge/by-design#the-trash-empties-itself-after-30-days|manual/desktop#the-trash|control/trash|ame/desktop/privacy
+change the gap between tiled windows	manual/desktop#tiling-settings|manual/desktop#tiling-settings~2|control/tiling-settings|ame/desktop/tiling-settings

@@ -1018,7 +1018,8 @@ on its own by `extension.js` so that one that throws leaves the rest running, wi
 `stylesheets/<module>.css`, its keys (if any) in its own schema `org.gnome.shell.extensions.amethystora-ui.<module>`,
 and the colours that follow the theme in `/usr/share/amethystora/themed/shell-<module>.css.tpl`, rendered per theme
 and loaded by the `theme` module. A module carries only what was on in the image: no preferences window, and a key
-only where an `ame` command, Control, the theme or the setup file writes it.
+only where an `ame` command, Control, the theme or the setup file writes it. The tiling is the exception, by the
+maintainer's choice of 2026-10-24: it is to be as customizable as PaperWM was (below).
 
 **It is a clean-room rewrite, and must stay one.** The extensions it replaces are GPL. Their behaviour was written down
 as specs by agents who read them (`plans/amethystora-ui/spec-*.md`), and the code is written from those specs and
@@ -1043,9 +1044,16 @@ lose its settings (and a cache folder it left), unless they installed it themsel
 - `screenshot` and `bazaar`, Gradia's and Bazaar's integrations: the drawing tools over GNOME's screenshot bar and
   Extract Text's hand-off to Gradia (`--ocr-file`); Uninstall and Bazaar's page in GNOME's app menu.
 - `tiling`, PaperWM: windows side by side on a strip that scrolls to the focused one (`modules/tiling/`, the strip's
-  arithmetic apart in `layout.js`). One setting, `enabled` in `org.gnome.shell.extensions.amethystora-ui.tiling`, which
-  is the classic layout when false (`ame desktop layout`; an update leaves it as it is), and 54 keys in `...tiling.keybindings`
-  whose defaults are the image's. It takes a GNOME shortcut's combination only where one of its own collides with it:
+  arithmetic apart in `layout.js`). `enabled` in `org.gnome.shell.extensions.amethystora-ui.tiling` is the classic layout
+  when false (`ame desktop layout`; an update leaves it as it is). Every other setting the spec names (gaps, focus
+  frame, steps, open positions, focus mode, animation time, drift speeds, map, edges, gestures, top-bar icons, window
+  rules in `winprops`) is a key of the same schema under PaperWM's own key name and the image's value, read by
+  `modules/tiling/config.js` and applied live, and the extension's `prefs.js` (`ame desktop tiling-settings`, Control's
+  **Tiling settings**) is the window for them, written fresh from the spec's description of the pages. The 95 keys
+  in `...tiling.keybindings` are the spec's, 54 bound as the image ships and the rest empty for whoever wants them.
+  A glide carries the speed the strip already has into the next one (a cubic from the place and speed it starts with,
+  timed from the frame last drawn), so that keys pressed in a row and fingers let go never stop and start the strip;
+  keep that when touching `engine.js`'s `layout()`. It takes a GNOME shortcut's combination only where one of its own collides with it:
   in memory for the keys it can wrap, and, for the four it cannot (`focus-active-notification`, `shift-overview-up/down`,
   `rotate-video-lock-static`), by removing the combination in dconf and writing down what it took in
   `~/.local/state/amethystora/tiling.json` (`taken`), which `amethystora-setup-manifest` reads to keep the account's own value

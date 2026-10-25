@@ -9,7 +9,7 @@ import St from 'gi://St';
 import * as Background from 'resource:///org/gnome/shell/ui/background.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-import {ANIMATION} from './engine.js';
+import {config} from './config.js';
 
 // The frame round each card is one of this many colours of the theme, one per workspace in turn (shell-tiling.css)
 const TONES = 14;
@@ -115,7 +115,7 @@ export class WorkspacePreview {
             const x = Math.round((m.width - (m.width + 2 * FRAME) * scale) / 2);
             const params = {x, y: Math.round(top), scale_x: scale, scale_y: scale, opacity: visible ? 255 : 0};
             if (animate)
-                card.ease({...params, duration: ANIMATION, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+                card.ease({...params, duration: config.animation, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
             else
                 card.set(params);
         });
@@ -143,10 +143,10 @@ export class WorkspacePreview {
         this.actor.set_child_above_sibling(card, null);
         this._cards.forEach((other, i) => {
             if (other !== card && this._kind === 'pile' && i > this.selected)
-                other.ease({y: this._monitor.height * PILE_PASSED.at(-1), duration: ANIMATION});
+                other.ease({y: this._monitor.height * PILE_PASSED.at(-1), duration: config.animation});
         });
         card.ease({
-            x: -FRAME, y: -FRAME, scale_x: 1, scale_y: 1, duration: ANIMATION, mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            x: -FRAME, y: -FRAME, scale_x: 1, scale_y: 1, duration: config.animation, mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             onStopped: () => {
                 // The cards go whatever `done` does: the tiling may have stopped during the zoom (the screen locked)
                 try {

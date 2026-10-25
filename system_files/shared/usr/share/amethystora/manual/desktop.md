@@ -203,9 +203,30 @@ strip**. `Super+Alt+Escape` hides every window floated that way at once, and bri
 | `Super+N` | A new window of the app you are in |
 | `Super+Ctrl+B` | Hide or show the top bar on this workspace |
 
-The tiling has no settings window: the gaps and the widths `Super+R` steps through are the image's.
-Every key, some of which this page leaves out, is in the keybindings schema
-`org.gnome.shell.extensions.amethystora-ui.tiling.keybindings`, which `gsettings` changes and
+### Tiling settings
+
+**Tiling settings** on [Control](control.md)'s **Desktop** page, or `ame desktop tiling-settings`,
+opens the tiling's settings window. Every change in it applies at once.
+
+- **Windows**: the gaps between windows and around the screen, the frame around the window you are on,
+  where new windows open and which places `Super+Shift+W` goes through, how a workspace scrolls to the
+  window you go to, the widths `Super+R` and the heights `Super+Shift+R` step through (shares like
+  `38%, 50%, 62%`, or widths like `800px`), the width `Super+F` gives, and whether maximizing a window
+  fills the width or the whole screen.
+- **Motion**: how long a window takes to glide, the speed of `Super+[` and `Super+]`, the map of the
+  strip and the darkening of the other windows while you move around, what the screen edges do (show the
+  window beyond, go to it on a click, or after the pointer stays there), the touchpad's swipes and their
+  fingers, speed and friction, the two icons in the top bar, and the size of the windows in `Alt+Tab`.
+- **Keyboard**: every shortcut, including the ones the image leaves unbound (the next window, the n-th
+  column, the window above or else the previous workspace, centring both ways, closing). Click one and
+  press the new keys. The first time, GNOME asks whether the window may have the keys the desktop uses
+  while you press them: allow it. A shortcut another one uses as well is marked.
+- **Window rules**: a window picked by its class or its title as it opens can float, open at a width,
+  or open on a workspace, once or every time. `/a pattern/` matches part of a name, and `*` any window
+  no other rule picks.
+
+`gsettings` changes them too: the settings are in `org.gnome.shell.extensions.amethystora-ui.tiling`,
+and the shortcuts in `org.gnome.shell.extensions.amethystora-ui.tiling.keybindings`, which
 [the setup file](setup.md) keeps.
 
 ### Classic windows

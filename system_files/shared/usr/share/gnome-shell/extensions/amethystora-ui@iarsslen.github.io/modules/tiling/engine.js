@@ -12,24 +12,22 @@ import GObject from 'gi://GObject';
 import Meta from 'gi://Meta';
 import St from 'gi://St';
 
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {adjustAnimationTime} from 'resource:///org/gnome/shell/misc/animationUtils.js';
 
 import * as Layout from './layout.js';
+import {config, forget, preferredWidth, ruleFor} from './config.js';
 
-// Milliseconds of a glide, before GNOME's own speed setting
-export const ANIMATION = 250;
-// How long an app's size has to stay for the strip to take it
-const SIZE_SETTLE = 300;
+// How long an app has to answer a new size: a size it reports later than that is its own choice, which the strip
+// takes at once; one sooner may be its answer to an older request
+const ANSWER = 120;
 // The least of a window GNOME keeps on screen, with a little room
 const ONSCREEN = 80;
-// How far the focus box stands out around its window
-const OUTLINE = 8;
 // The focus box's opacity while its window does not have the keyboard
 const INACTIVE = 140;
-// The open positions the key and the icon cycle through
-export const Open = {RIGHT: 0, LEFT: 1, DOWN: 4};
-export const OPEN_CYCLE = [Open.RIGHT, Open.LEFT, Open.DOWN];
+// Where new windows open, the values of open-window-position
+export const Open = {RIGHT: 0, LEFT: 1, START: 2, END: 3, DOWN: 4, UP: 5};
 
 // The effect a window cut at its screen's edge carries; it draws nothing of its own
 const CUT = 'amethystora-tiling-cut';
@@ -56,7 +54,7 @@ export class Strip {
         this.columns = [];
         // The screen x of the strip's left end, from the left of the work area
         this.scroll = 0;
-        this.mode = Layout.Mode.PLAIN;
+        this.mode = config.defaultMode;
         // The window the strip shows as focused, the keyboard's or the one a navigation is on
         this.selected = null;
         // While centring: which half the window was in before, to put it back there
@@ -204,7 +202,7 @@ export class Engine {
             return false;
         if (window.get_transient_for() || window.is_on_all_workspaces() || this.floating.has(window))
             return false;
-        return !floatsByRule(window);
+        return true;
     }
 
     // ---- Windows coming and going ----
@@ -212,28 +210,19 @@ export class Engine {
     _created(window) {
         if (window.get_window_type() !== Meta.WindowType.NORMAL)
             return;
-        this._track(window);
-        if (floatsByRule(window)) {
-            this.float(window, {glide: false});
-            window.get_compositor_private()?.connectObject('first-frame', () => activate(window), this);
-            return;
-        }
+        const info = this._track(window);
         if (!this.tileable(window))
             return;
-        // A new window goes where the person is looking, not where its app asked
-        const active = global.workspace_manager.get_active_workspace();
-        if (window.get_workspace() !== active)
-            window.change_workspace(active);
-        const info = this._info.get(window);
         info.fresh = true;
-        // Every new tiled window gets the keyboard once it is drawn, whatever GNOME thought of its asking
+        // Every new tiled window gets the keyboard once it is drawn, whatever GNOME thought of its asking, unless
+        // a rule opened it on another workspace without going there
         let drawn = false;
         window.get_compositor_private()?.connectObject('first-frame', () => {
             drawn = true;
-            if (!info.fresh && this.isTiled(window))
+            if (!info.fresh && !info.elsewhere && (this.isTiled(window) || this.floating.has(window)))
                 activate(window);
         }, this);
-        // The app chooses its width when it first draws: the strip takes it in then
+        // The app chooses its width, and says its title, when it first draws: the strip takes it in then
         const settle = () => {
             if (!info.fresh || !this._info?.has(window))
                 return;
@@ -241,8 +230,30 @@ export class Engine {
             // A dialog says whose it is after it is made: it floats, as GNOME has it
             if (!this.tileable(window))
                 return;
-            this.insert(window, this.activeStrip(), {appear: true});
-            if (drawn)
+            const entry = ruleFor(window);
+            const rule = info.rule = entry?.rule ?? {};
+            forget(entry, this.tiling.settings);
+            if (rule.scratch_layer) {
+                this.float(window, {glide: false});
+                if (drawn)
+                    activate(window);
+                return;
+            }
+            // A new window goes where the person is looking, not where its app asked, unless a rule names a
+            // workspace; and it takes the keyboard there only when the rule says so
+            const active = global.workspace_manager.get_active_workspace();
+            const target = this._ruleWorkspace(rule) ?? active;
+            if (window.get_workspace() !== target)
+                window.change_workspace(target);
+            info.elsewhere = target !== active && !rule.focus;
+            const monitor = this.focusMonitor();
+            const width = preferredWidth(rule, Layout.available(this.area(monitor)));
+            if (width)
+                info.width = width;
+            this.insert(window, this.strip(target, monitor), {appear: true});
+            if (target !== active && rule.focus)
+                target.activate_with_focus(window, global.get_current_time());
+            else if (drawn && !info.elsewhere)
                 activate(window);
         };
         if (window.get_frame_rect().width > 0)
@@ -277,6 +288,18 @@ export class Engine {
                 actor.hide();
         }, this);
         return info;
+    }
+
+    // The workspace a window rule opens a window on: null for none, and for one that is not there, which is said
+    _ruleWorkspace(rule) {
+        if (!Number.isInteger(rule.spaceIndex))
+            return null;
+        const manager = global.workspace_manager;
+        if (rule.spaceIndex >= 0 && rule.spaceIndex < manager.n_workspaces)
+            return manager.get_workspace_by_index(rule.spaceIndex);
+        Main.notify(_('A window rule names a workspace there is not'),
+            _('The window opened on this workspace instead of workspace %d.').format(rule.spaceIndex + 1));
+        return null;
     }
 
     _untrack(window) {
@@ -362,7 +385,7 @@ export class Engine {
         const near = 'near' in options ? options.near : strip.selected;
         if (window.is_above())
             window.unmake_above();
-        if (window.maximized_horizontally || window.maximized_vertically) {
+        if (config.maximizeFills && maximized(window)) {
             window.unmaximize();
             info.width = Layout.maxWidth(this.area(strip.monitor)) - 2 * (Layout.MARGIN - Layout.MIN_MARGIN);
         }
@@ -381,11 +404,13 @@ export class Engine {
                 this._info.get(w).height = 0;
         } else if (place) {
             strip.columns.splice(Math.min(place.column, strip.columns.length), 0, [window]);
-        } else if (!at) {
+        } else if (position === Open.START) {
+            strip.columns.unshift([window]);
+        } else if (!at || position === Open.END) {
             strip.columns.push([window]);
-        } else if (position === Open.DOWN) {
+        } else if (position === Open.DOWN || position === Open.UP) {
             const column = strip.columns[at[0]];
-            column.splice(at[1] + 1, 0, window);
+            column.splice(at[1] + (position === Open.DOWN ? 1 : 0), 0, window);
             for (const w of column)
                 this._info.get(w).height = 0;
         } else {
@@ -514,7 +539,7 @@ export class Engine {
         actor.ease({
             translation_x: 0,
             translation_y: 0,
-            duration: ANIMATION,
+            duration: config.animation,
             mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
             onStopped: () => window.activate(global.get_current_time()),
         });
@@ -541,6 +566,8 @@ export class Engine {
         const widths = strip.columns.map(column => {
             if (column.some(w => w.is_fullscreen()))
                 return monitor.width;
+            if (!config.maximizeFills && column.some(maximized))
+                return area.width;
             const holder = column.includes(strip.selected) ? strip.selected : null;
             const width = holder ? this._info.get(holder).width
                 : Math.max(...column.map(w => this._info.get(w).width));
@@ -555,6 +582,11 @@ export class Engine {
             const width = placed.columns[c].width;
             if (column.length === 1 && column[0].is_fullscreen()) {
                 rects.set(column[0], {x, y: monitor.y, width, height: monitor.height});
+                return;
+            }
+            // A window maximized as GNOME has it covers the work area, the strip only scrolling it
+            if (column.length === 1 && !config.maximizeFills && maximized(column[0])) {
+                rects.set(column[0], {x, y: area.y, width, height: area.height});
                 return;
             }
             const keep = column.indexOf(strip.selected);
@@ -581,6 +613,8 @@ export class Engine {
         if (window.is_fullscreen()) {
             const monitor = Main.layoutManager.monitors[strip.monitor];
             strip.scroll = monitor.x - geo.area.x - column.x;
+        } else if (!config.maximizeFills && maximized(window)) {
+            strip.scroll = -column.x;
         } else if (!geo.centred) {
             const now = geo.scroll + column.x;
             const shown = now < geo.area.width && now + column.width > 0;
@@ -598,12 +632,14 @@ export class Engine {
             this.layout(strip, {animate});
     }
 
-    // Puts every window of a strip in its place, gliding unless `animate` is false
-    // `time` and `mode` are for a glide a gesture asks for: as long as its momentum, in its own curve
-    layout(strip, {
-        animate = true, appear = null, time = ANIMATION,
-        mode = Clutter.AnimationMode.EASE_IN_OUT_QUAD,
-    } = {}) {
+    // Puts every window of a strip in its place, gliding unless `animate` is false.
+    //
+    // A glide starts from where each window is drawn and at the speed it already has: a key pressed again while the
+    // strip still moves, or fingers let go of it, carry on the motion instead of stopping it and starting it again,
+    // and every glide comes to rest gently. `velocity` (pixels a millisecond, sideways) is the speed a gesture let
+    // go at, `time` how long its momentum lasts; `mode` a curve of GNOME's for a glide that is not to follow the
+    // motion (the overshoot at the end of a strip).
+    layout(strip, {animate = true, appear = null, time = config.animation, mode = null, velocity = null} = {}) {
         if (!this._strips)
             return;
         const geo = this.geometry(strip);
@@ -615,33 +651,53 @@ export class Engine {
             info.target = rect;
             this._request(window, rect, strip);
             const start = window === appear || !info.vis ? rect : {...info.vis};
-            moving.push([window, start, rect]);
+            const speed = velocity !== null ? {x: velocity, y: 0} : info.speed ?? {x: 0, y: 0};
+            moving.push([window, start, rect, speed]);
         }
-        this._glides.get(strip)?.timeline.stop();
+        const running = this._glides.get(strip);
+        running?.timeline.stop();
         this._glides.delete(strip);
         // Nothing to glide: no frame is drawn for it
         const still = moving.every(([, from, to]) => from.x === to.x && from.y === to.y);
         if (!duration || still || this.dragging?.strip === strip) {
-            for (const [window, , rect] of moving)
+            for (const [window, , rect] of moving) {
+                this._info.get(window).speed = null;
                 this._show(window, rect, strip);
+            }
             this._settled(strip);
             return;
         }
-        const timeline = new Clutter.Timeline({actor: global.stage, duration});
-        timeline.set_progress_mode(mode);
-        const glide = {timeline, windows: new Map(moving.map(([w, from, to]) => [w, {from, to}]))};
-        const step = progress => {
-            for (const [window, {from, to}] of glide.windows) {
-                this._show(window, {
-                    x: Math.round(from.x + (to.x - from.x) * progress),
-                    y: Math.round(from.y + (to.y - from.y) * progress),
-                    width: to.width,
-                    height: to.height,
-                }, strip);
+        // A glide that takes over from one still running starts from the moment that one last drew the windows, so
+        // that the next frame already moves them on: started from now, it would draw them once more where they are
+        const now = GLib.get_monotonic_time() / 1000;
+        const start = mode === null && running?.drawn ? Math.max(now - 50, running.drawn) : now;
+        const timeline = new Clutter.Timeline({actor: global.stage, duration: Math.max(1, Math.round(duration - (now - start)))});
+        timeline.set_progress_mode(mode ?? Clutter.AnimationMode.LINEAR);
+        const glide = {
+            timeline,
+            windows: new Map(moving.map(([w, from, to, speed]) => [w, {
+                from, to, vx: carried(speed.x, to.x - from.x, duration), vy: carried(speed.y, to.y - from.y, duration),
+            }])),
+        };
+        // How far along the glide is: by the clock for one that follows the motion, by GNOME's curve for another
+        const progress = () => mode === null
+            ? Math.min(1, (GLib.get_monotonic_time() / 1000 - start) / duration) : timeline.get_progress();
+        const step = at => {
+            glide.drawn = GLib.get_monotonic_time() / 1000;
+            for (const [window, path] of glide.windows) {
+                const info = this._info.get(window);
+                const [x, vx] = mode === null ? hermite(path.from.x, path.to.x, path.vx, duration, at)
+                    : [path.from.x + (path.to.x - path.from.x) * at, 0];
+                const [y, vy] = mode === null ? hermite(path.from.y, path.to.y, path.vy, duration, at)
+                    : [path.from.y + (path.to.y - path.from.y) * at, 0];
+                if (info)
+                    info.speed = at < 1 ? {x: vx, y: vy} : null;
+                this._show(window, {x: Math.round(x), y: Math.round(y), width: path.to.width, height: path.to.height},
+                    strip);
             }
             this.updateBox(strip);
         };
-        timeline.connect('new-frame', () => step(timeline.get_progress()));
+        timeline.connect('new-frame', () => step(progress()));
         timeline.connect('stopped', (t, finished) => {
             if (!finished)
                 return;
@@ -651,16 +707,20 @@ export class Engine {
             this._settled(strip);
         });
         this._glides.set(strip, glide);
-        step(0);
+        step(progress());
         timeline.start();
     }
 
     // Sets how far a strip has scrolled and draws it there at once: for gestures that follow a finger
     scrollTo(strip, scroll) {
+        this._glides.get(strip)?.timeline.stop();
+        this._glides.delete(strip);
         strip.scroll = Math.round(scroll);
         const geo = this.geometry(strip);
         for (const [window, rect] of geo.rects) {
-            this._info.get(window).target = rect;
+            const info = this._info.get(window);
+            info.target = rect;
+            info.speed = null;
             this._show(window, rect, strip);
         }
         this.updateBox(strip);
@@ -698,7 +758,7 @@ export class Engine {
 
     // Asks GNOME for a window's frame as close to its place as it allows
     _request(window, rect, strip) {
-        if (window.is_fullscreen() || this.dragging?.window === window)
+        if (window.is_fullscreen() || this.dragging?.window === window || (!config.maximizeFills && maximized(window)))
             return;
         const monitor = Main.layoutManager.monitors[strip.monitor];
         const several = Main.layoutManager.monitors.length > 1;
@@ -711,6 +771,9 @@ export class Engine {
         }
         const frame = window.get_frame_rect();
         const info = this._info.get(window);
+        // A new size is an answer the app owes: when it was asked, for telling its answer from its own choice
+        if (!info.asked || info.asked.width !== rect.width || info.asked.height !== rect.height)
+            info.askedAt = GLib.get_monotonic_time() / 1000;
         info.asked = {x, y: rect.y, width: rect.width, height: rect.height};
         if (frame.x !== x || frame.y !== rect.y || frame.width !== rect.width || frame.height !== rect.height)
             window.move_resize_frame(false, x, rect.y, rect.width, rect.height);
@@ -792,18 +855,25 @@ export class Engine {
         }
         if (info.vis)
             this._show(window, info.vis, info.strip);
-        // So did the app, if its width still is not the one asked for a moment later: an app answers several
-        // requests in turn, and only the last answer is its choice
+        // So did the app, if its width is not the one last asked for: an app answers several requests in turn, and
+        // only what it says once it has had the time to answer the last one is its choice, which the strip takes then
         if (info.asked && frame.width !== info.asked.width && !info.sizeCheck) {
-            info.sizeCheck = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SIZE_SETTLE, () => {
-                info.sizeCheck = 0;
+            const take = () => {
                 const now = window.get_frame_rect();
                 if (this._info?.get(window) === info && info.strip && info.asked && !window.is_fullscreen() &&
-                    !window.maximized_horizontally && !window.maximized_vertically &&
-                    now.width !== info.asked.width) {
+                    !maximized(window) && now.width !== info.asked.width) {
                     info.width = now.width;
                     this.layout(info.strip);
                 }
+            };
+            const wait = Math.ceil((info.askedAt ?? 0) + ANSWER - GLib.get_monotonic_time() / 1000);
+            if (wait <= 0) {
+                take();
+                return;
+            }
+            info.sizeCheck = GLib.timeout_add(GLib.PRIORITY_DEFAULT, wait, () => {
+                info.sizeCheck = 0;
+                take();
                 return GLib.SOURCE_REMOVE;
             });
         }
@@ -994,7 +1064,12 @@ export class Engine {
 
     _maximizedChanged(window) {
         const info = this._info?.get(window);
-        if (!info?.strip || !(window.maximized_horizontally || window.maximized_vertically) || info.unmaximizing)
+        // Maximized as GNOME has it, the window covers the screen in its place in the strip until it is restored
+        if (info?.strip && !config.maximizeFills) {
+            this.ensureVisible(info.strip, window);
+            return;
+        }
+        if (!info?.strip || !maximized(window) || info.unmaximizing)
             return;
         // Maximizing a tiled window fills the width instead, and maximizing again goes back. Done once GNOME has
         // finished maximizing it, before anything is drawn.
@@ -1038,15 +1113,23 @@ export class Engine {
         const window = strip.selected;
         const info = window ? this._info.get(window) : null;
         const showing = strip.workspace === global.workspace_manager.get_active_workspace();
+        // What else follows the windows as they glide (the dimming of a navigation)
+        this.session?.follow?.(strip);
         if (!info?.vis || !showing || window.is_fullscreen() || this.boxHidden > 0 || info.hidden ||
-            this.dragging?.window === window) {
+            this.dragging?.window === window || config.border <= 0) {
             this._boxes.get(strip)?.hide();
             return;
         }
         const box = this._box(strip);
         const {x, y, width, height} = info.vis;
-        box.set_position(x - OUTLINE, y - OUTLINE);
-        box.set_size(width + 2 * OUTLINE, height + 2 * OUTLINE);
+        // It stands out on no side where the window reaches the screen's edge, maximized that way
+        const outX = window.maximized_horizontally ? 0 : config.border;
+        const outY = window.maximized_vertically ? 0 : config.border;
+        box.set_position(x - outX, y - outY);
+        box.set_size(width + 2 * outX, height + 2 * outY);
+        const style = `border-radius: ${config.radiusTop}px ${config.radiusTop}px ${config.radiusBottom}px ${config.radiusBottom}px;`;
+        if (box.style !== style)
+            box.style = style;
         const focus = global.display.focus_window;
         const active = this.session ? this.session.strip === strip : focus === window;
         box.opacity = active ? 255 : INACTIVE;
@@ -1120,7 +1203,7 @@ export class Engine {
 
     _prune() {
         const workspaces = new Set(Array.from({length: global.workspace_manager.n_workspaces},
-            (_, i) => global.workspace_manager.get_workspace_by_index(i)));
+            (unused, i) => global.workspace_manager.get_workspace_by_index(i)));
         for (const [workspace, byMonitor] of [...this._strips]) {
             if (workspaces.has(workspace))
                 continue;
@@ -1162,7 +1245,7 @@ export class Engine {
         }
         const placed = new Set();
         const workspaces = new Set(Array.from({length: global.workspace_manager.n_workspaces},
-            (_, i) => global.workspace_manager.get_workspace_by_index(i)));
+            (unused, i) => global.workspace_manager.get_workspace_by_index(i)));
         for (const saved of remembered.strips) {
             // The screen it was on, by its connector, whatever number it has now
             const monitor = saved.connector ? this._connectors.indexOf(saved.connector) : saved.monitor;
@@ -1200,7 +1283,7 @@ export class Engine {
                 continue;
             const strip = this.strip(workspace, window.get_monitor());
             const info = this._track(window);
-            if (window.maximized_horizontally || window.maximized_vertically) {
+            if (config.maximizeFills && maximized(window)) {
                 window.unmaximize();
                 info.width = Layout.maxWidth(this.area(strip.monitor)) - 2 * (Layout.MARGIN - Layout.MIN_MARGIN);
             }
@@ -1229,10 +1312,28 @@ function activate(window) {
     window.activate(global.get_current_time());
 }
 
-// GNOME's extension preferences and its screenshot tool float, and take the keyboard when they open
-function floatsByRule(window) {
-    const wmClass = window.get_wm_class() ?? '';
-    return wmClass === 'Gnome-shell-extension-prefs' || /gnome-screenshot/i.test(wmClass);
+function maximized(window) {
+    return window.maximized_horizontally || window.maximized_vertically;
+}
+
+// Where a glide is at `s` (0 to 1) of its `time`, and how fast it goes there, in pixels a millisecond: from `from`
+// at speed `v` to `to` at rest, along the cubic that keeps both the place and the speed it started with. With no
+// speed to start with it is an ease in and out.
+function hermite(from, to, v, time, s) {
+    const s2 = s * s, s3 = s2 * s;
+    const place = (2 * s3 - 3 * s2 + 1) * from + (s3 - 2 * s2 + s) * time * v + (3 * s2 - 2 * s3) * to;
+    const speed = ((6 * s2 - 6 * s) * (from - to)) / time + (3 * s2 - 4 * s + 1) * v;
+    return [place, speed];
+}
+
+// The speed a glide starts with: the one a window already has, as long as it carries the window no further than
+// its new place (more would overshoot it and come back). A window sent back the way it came turns at once rather
+// than coasting on, and one that does not move that way has none.
+function carried(v, distance, time) {
+    if (!v || Math.abs(distance) < 1 || Math.sign(v) !== Math.sign(distance))
+        return 0;
+    const most = 2.5 * Math.abs(distance) / time;
+    return Math.sign(v) * Math.min(Math.abs(v), most);
 }
 
 // A grab that changes a window's size, by the mouse or the keyboard (the unconstrained flag aside)

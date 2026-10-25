@@ -116,7 +116,7 @@ org.gnome.desktop.wm.keybindings close` shows it. `custom` holds the image's own
 `tiling` or `classic` ([Classic windows](desktop.md#classic-windows)). The tiling's own keys are
 keybindings too, under `org.gnome.shell.extensions.amethystora-ui.tiling.keybindings`. A file saved
 before the tiling replaced PaperWM may still have a `paperwm` object of gaps: it is read and ignored,
-since the gaps are the image's.
+since the file does not keep the [tiling's settings](desktop.md#tiling-settings).
 
 Everything in the file is checked before anything runs, and `ame setup diff` says what is wrong with
 one it refuses.

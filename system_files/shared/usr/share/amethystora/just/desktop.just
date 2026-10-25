@@ -125,6 +125,12 @@ layout STYLE="":
         *) exit 0 ;;
     esac
 
+# Open the tiling's settings: the gaps, the sizes windows step through, how the strip moves, every shortcut and the window rules
+tiling-settings:
+    #!/usr/bin/bash
+    set -euo pipefail
+    gnome-extensions prefs amethystora-ui@iarsslen.github.io
+
 # Pick how long the clipboard history (Super+Shift+V) keeps what you copied, sealed: always, restart (until the computer restarts) or session (until you log out); pinned items are always kept
 [positional-arguments]
 clipboard KEEP="":

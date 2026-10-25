@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- The tiling module of Amethystora UI (modules/tiling.js). "enabled" is what the classic layout switches
-     (ame desktop layout classic|tiling); everything else the tiling does is fixed in the module. The keys of the
-     second schema are its keyboard shortcuts, by the names ame setup saves them under. -->
+     (ame desktop layout classic|tiling). The other keys are the tiling's settings, which its preferences window
+     (prefs.js) changes, each applied at once; they keep the names scrollable tiling has always had them under, and
+     their defaults are the image's. The keys of the second schema are its keyboard shortcuts, by the names ame setup
+     saves them under; the ones that are empty are there for whoever wants them. -->
 <schemalist>
   <schema id="org.gnome.shell.extensions.amethystora-ui.tiling"
           path="/org/gnome/shell/extensions/amethystora-ui/tiling/">
@@ -9,6 +11,206 @@
       <default>true</default>
       <summary>Tile windows</summary>
       <description>Lay each workspace out as a strip of windows side by side. Off gives GNOME's own floating windows back.</description>
+    </key>
+
+    <key name="window-gap" type="i">
+      <range min="0" max="200"/>
+      <default>8</default>
+      <summary>The space between two windows, in pixels</summary>
+    </key>
+    <key name="horizontal-margin" type="i">
+      <range min="0" max="400"/>
+      <default>8</default>
+      <summary>The space a window keeps from the left and right of the screen when it is scrolled to</summary>
+    </key>
+    <key name="vertical-margin" type="i">
+      <range min="0" max="400"/>
+      <default>8</default>
+      <summary>The space between the top bar and the windows</summary>
+    </key>
+    <key name="vertical-margin-bottom" type="i">
+      <range min="0" max="400"/>
+      <default>8</default>
+      <summary>The space between the windows and the bottom of the screen</summary>
+    </key>
+    <key name="selection-border-size" type="i">
+      <range min="0" max="100"/>
+      <default>10</default>
+      <summary>How far the frame around the focused window stands out, at most; 0 draws none</summary>
+      <description>The frame never stands out further than the gap between windows or the space below the top bar.</description>
+    </key>
+    <key name="selection-border-radius-top" type="i">
+      <range min="0" max="100"/>
+      <default>12</default>
+      <summary>The roundness of the focus frame's upper corners</summary>
+    </key>
+    <key name="selection-border-radius-bottom" type="i">
+      <range min="0" max="100"/>
+      <default>0</default>
+      <summary>The roundness of the focus frame's lower corners</summary>
+    </key>
+
+    <key name="cycle-width-steps" type="ad">
+      <default>[0.38195, 0.5, 0.61804]</default>
+      <summary>The widths the width key steps through</summary>
+      <description>Each up to 1 is a share of the screen's width less its margins and one gap, so that two windows of shares adding up to 1 fit side by side; above 1 it is a width in pixels.</description>
+    </key>
+    <key name="cycle-height-steps" type="ad">
+      <default>[0.38195, 0.5, 0.61804]</default>
+      <summary>The heights the height key steps through, for a window that shares its column</summary>
+    </key>
+    <key name="maximize-width-percent" type="d">
+      <range min="0.5" max="1.0"/>
+      <default>1.0</default>
+      <summary>How much of the screen's width less its margins "fill the width" gives a window</summary>
+    </key>
+    <key name="maximize-within-tiling" type="b">
+      <default>true</default>
+      <summary>Maximizing a tiled window fills the width instead</summary>
+      <description>Off, a tiled window maximizes as GNOME has it and covers the screen until it is restored.</description>
+    </key>
+
+    <key name="default-focus-mode" type="i">
+      <range min="0" max="2"/>
+      <default>0</default>
+      <summary>How a workspace scrolls to the focused window to begin with</summary>
+      <description>0 just into view, 1 to the centre, 2 to the nearest edge. Changing it puts every workspace back to it.</description>
+    </key>
+    <key name="open-window-position" type="i">
+      <range min="0" max="5"/>
+      <default>0</default>
+      <summary>Where new windows open</summary>
+      <description>0 to the right of the focused window, 1 to its left, 2 at the start of the strip, 3 at its end, 4 below it, 5 above it.</description>
+    </key>
+    <key name="open-window-position-option-right" type="b">
+      <default>true</default>
+      <summary>The key for where new windows open offers "to the right"</summary>
+    </key>
+    <key name="open-window-position-option-left" type="b">
+      <default>true</default>
+      <summary>The key for where new windows open offers "to the left"</summary>
+    </key>
+    <key name="open-window-position-option-start" type="b">
+      <default>false</default>
+      <summary>The key for where new windows open offers "at the start"</summary>
+    </key>
+    <key name="open-window-position-option-end" type="b">
+      <default>false</default>
+      <summary>The key for where new windows open offers "at the end"</summary>
+    </key>
+    <key name="open-window-position-option-down" type="b">
+      <default>true</default>
+      <summary>The key for where new windows open offers "below"</summary>
+    </key>
+    <key name="open-window-position-option-up" type="b">
+      <default>false</default>
+      <summary>The key for where new windows open offers "above"</summary>
+    </key>
+
+    <key name="animation-time" type="d">
+      <range min="0.0" max="2.0"/>
+      <default>0.25</default>
+      <summary>Seconds a window takes to glide to its place, before GNOME's own animation speed</summary>
+    </key>
+    <key name="drift-speed" type="i">
+      <range min="1" max="20"/>
+      <default>2</default>
+      <summary>Pixels a millisecond the strip slides while a slide key is held</summary>
+    </key>
+    <key name="drag-drift-speed" type="i">
+      <range min="1" max="20"/>
+      <default>2</default>
+      <summary>Pixels a millisecond the strip slides while a window is dragged against a side of the screen</summary>
+    </key>
+    <key name="minimap-scale" type="d">
+      <range min="0.0" max="0.5"/>
+      <default>0.15</default>
+      <summary>The size of the map of the strip shown while moving around; 0 shows none</summary>
+    </key>
+    <key name="minimap-shade-opacity" type="i">
+      <range min="0" max="255"/>
+      <default>160</default>
+      <summary>How dark the windows not chosen get while the map is shown; 0 leaves them as they are</summary>
+    </key>
+
+    <key name="edge-preview-enable" type="b">
+      <default>true</default>
+      <summary>Pushing the pointer against a side of the screen shows the window beyond it</summary>
+    </key>
+    <key name="edge-preview-scale" type="d">
+      <range min="0.05" max="0.5"/>
+      <default>0.15</default>
+      <summary>The size of the window shown at a side of the screen</summary>
+    </key>
+    <key name="edge-preview-click-enable" type="b">
+      <default>true</default>
+      <summary>A click at a side of the screen goes to the window beyond it</summary>
+    </key>
+    <key name="edge-preview-timeout-enable" type="b">
+      <default>false</default>
+      <summary>Keeping the pointer at a side of the screen goes to the window beyond it</summary>
+    </key>
+    <key name="edge-preview-timeout" type="i">
+      <range min="100" max="5000"/>
+      <default>800</default>
+      <summary>Milliseconds the pointer stays at a side of the screen before it goes to the window beyond it</summary>
+    </key>
+    <key name="edge-preview-timeout-continual" type="b">
+      <default>false</default>
+      <summary>Keeping the pointer there goes on to the next window, and the next</summary>
+    </key>
+
+    <key name="gesture-enabled" type="b">
+      <default>true</default>
+      <summary>Touchpad swipes move the strip and open the workspaces</summary>
+    </key>
+    <key name="gesture-horizontal-fingers" type="i">
+      <range min="0" max="4"/>
+      <default>3</default>
+      <summary>The fingers a sideways swipe that slides the strip takes; 0 for none</summary>
+    </key>
+    <key name="gesture-workspace-fingers" type="i">
+      <range min="0" max="4"/>
+      <default>3</default>
+      <summary>The fingers a downward swipe that opens the recent workspaces takes; 0 for none</summary>
+    </key>
+    <key name="swipe-sensitivity" type="ad">
+      <default>[2.0, 2.0]</default>
+      <summary>How far the strip and the workspaces move for each pixel the fingers do</summary>
+    </key>
+    <key name="swipe-friction" type="ad">
+      <default>[0.3, 0.1]</default>
+      <summary>How soon the strip and the workspaces stop after the fingers let go; more stops sooner</summary>
+    </key>
+
+    <key name="show-focus-mode-icon" type="b">
+      <default>true</default>
+      <summary>The top bar shows how the workspace scrolls to a window</summary>
+    </key>
+    <key name="show-open-position-icon" type="b">
+      <default>true</default>
+      <summary>The top bar shows where new windows open</summary>
+    </key>
+    <key name="default-show-top-bar" type="b">
+      <default>true</default>
+      <summary>The top bar is shown on every workspace unless it is hidden there</summary>
+      <description>Off, it is hidden on every workspace unless it is shown there.</description>
+    </key>
+    <key name="topbar-mouse-scroll-enable" type="b">
+      <default>false</default>
+      <summary>The mouse wheel over the top bar moves to the window on the left or right</summary>
+      <description>The workspaces in the top bar use the wheel to change workspace, which this takes from them.</description>
+    </key>
+    <key name="window-switcher-preview-scale" type="d">
+      <range min="0.05" max="0.5"/>
+      <default>0.15</default>
+      <summary>The size of the windows in the window switcher (Alt+Tab), a share of the screen's height</summary>
+    </key>
+
+    <key name="winprops" type="as">
+      <default>[]</default>
+      <summary>Window rules</summary>
+      <description>Each a JSON object: "wm_class" and/or "title" (a string, "/a pattern/flags", or "*" for every window nothing else matches), and what to do: "scratch_layer" (float it), "preferredWidth" ("50%" or "800px"), "spaceIndex" (the workspace to open on, from 0), "focus" (go to it when it opens there), "oneshot" (forget the rule once it is used).</description>
     </key>
   </schema>
 
@@ -229,6 +431,172 @@
     <key name="move-space-monitor-below" type="as">
       <default><![CDATA[['<Ctrl><Alt><Shift>Down']]]></default>
       <summary>Move this screen's windows to the screen below</summary>
+    </key>
+
+    <!-- Unbound in the image, for whoever wants them -->
+    <key name="switch-next" type="as">
+      <default>[]</default>
+      <summary>Go to the next window along the strip, column after column</summary>
+    </key>
+    <key name="switch-previous" type="as">
+      <default>[]</default>
+      <summary>Go to the previous window along the strip</summary>
+    </key>
+    <key name="switch-next-loop" type="as">
+      <default>[]</default>
+      <summary>Go to the next window along the strip, from the last back to the first</summary>
+    </key>
+    <key name="switch-previous-loop" type="as">
+      <default>[]</default>
+      <summary>Go to the previous window along the strip, from the first round to the last</summary>
+    </key>
+    <key name="switch-left-loop" type="as">
+      <default>[]</default>
+      <summary>Go to the column on the left, from the first round to the last</summary>
+    </key>
+    <key name="switch-right-loop" type="as">
+      <default>[]</default>
+      <summary>Go to the column on the right, from the last round to the first</summary>
+    </key>
+    <key name="switch-up-loop" type="as">
+      <default>[]</default>
+      <summary>Go to the window above in the column, from the top round to the bottom</summary>
+    </key>
+    <key name="switch-down-loop" type="as">
+      <default>[]</default>
+      <summary>Go to the window below in the column, from the bottom round to the top</summary>
+    </key>
+    <key name="switch-global-left" type="as">
+      <default>[]</default>
+      <summary>Go to the column on the left, or at the start of the strip to the screen on the left</summary>
+    </key>
+    <key name="switch-global-right" type="as">
+      <default>[]</default>
+      <summary>Go to the column on the right, or at the end of the strip to the screen on the right</summary>
+    </key>
+    <key name="switch-global-up" type="as">
+      <default>[]</default>
+      <summary>Go to the window above, or at the top to the screen above</summary>
+    </key>
+    <key name="switch-global-down" type="as">
+      <default>[]</default>
+      <summary>Go to the window below, or at the bottom to the screen below</summary>
+    </key>
+    <key name="switch-up-or-else-workspace" type="as">
+      <default>[]</default>
+      <summary>Go to the window above, or at the top to the previous workspace</summary>
+    </key>
+    <key name="switch-down-or-else-workspace" type="as">
+      <default>[]</default>
+      <summary>Go to the window below, or at the bottom to the next workspace</summary>
+    </key>
+    <key name="switch-second" type="as">
+      <default>[]</default>
+      <summary>Go to the second column</summary>
+    </key>
+    <key name="switch-third" type="as">
+      <default>[]</default>
+      <summary>Go to the third column</summary>
+    </key>
+    <key name="switch-fourth" type="as">
+      <default>[]</default>
+      <summary>Go to the fourth column</summary>
+    </key>
+    <key name="switch-fifth" type="as">
+      <default>[]</default>
+      <summary>Go to the fifth column</summary>
+    </key>
+    <key name="switch-sixth" type="as">
+      <default>[]</default>
+      <summary>Go to the sixth column</summary>
+    </key>
+    <key name="switch-seventh" type="as">
+      <default>[]</default>
+      <summary>Go to the seventh column</summary>
+    </key>
+    <key name="switch-eighth" type="as">
+      <default>[]</default>
+      <summary>Go to the eighth column</summary>
+    </key>
+    <key name="switch-ninth" type="as">
+      <default>[]</default>
+      <summary>Go to the ninth column</summary>
+    </key>
+    <key name="switch-tenth" type="as">
+      <default>[]</default>
+      <summary>Go to the tenth column</summary>
+    </key>
+    <key name="switch-eleventh" type="as">
+      <default>[]</default>
+      <summary>Go to the eleventh column</summary>
+    </key>
+    <key name="previous-workspace" type="as">
+      <default>[]</default>
+      <summary>Go back through the workspaces you were on</summary>
+    </key>
+    <key name="previous-workspace-backward" type="as">
+      <default>[]</default>
+      <summary>Go forward through the workspaces you were on</summary>
+    </key>
+    <key name="switch-up-workspace-from-all-monitors" type="as">
+      <default>[]</default>
+      <summary>Go to the previous workspace, from among all of them</summary>
+    </key>
+    <key name="switch-down-workspace-from-all-monitors" type="as">
+      <default>[]</default>
+      <summary>Go to the next workspace, from among all of them</summary>
+    </key>
+    <key name="toggle-top-bar" type="as">
+      <default>[]</default>
+      <summary>Hide or show the top bar on this workspace</summary>
+    </key>
+    <key name="toggle-scratch-window" type="as">
+      <default>[]</default>
+      <summary>Hide or show the floating window used last</summary>
+    </key>
+    <key name="open-window-position-right" type="as">
+      <default>[]</default>
+      <summary>Open new windows to the right</summary>
+    </key>
+    <key name="open-window-position-left" type="as">
+      <default>[]</default>
+      <summary>Open new windows to the left</summary>
+    </key>
+    <key name="open-window-position-start" type="as">
+      <default>[]</default>
+      <summary>Open new windows at the start of the strip</summary>
+    </key>
+    <key name="open-window-position-end" type="as">
+      <default>[]</default>
+      <summary>Open new windows at the end of the strip</summary>
+    </key>
+    <key name="open-window-position-down" type="as">
+      <default>[]</default>
+      <summary>Open new windows below the focused one</summary>
+    </key>
+    <key name="open-window-position-up" type="as">
+      <default>[]</default>
+      <summary>Open new windows above the focused one</summary>
+    </key>
+    <key name="center-vertically" type="as">
+      <default>[]</default>
+      <summary>Centre a floating window from top to bottom</summary>
+    </key>
+    <key name="center" type="as">
+      <default>[]</default>
+      <summary>Centre the window both ways</summary>
+    </key>
+    <key name="paper-toggle-fullscreen" type="as">
+      <default>[]</default>
+      <summary>Make the window full screen, and back</summary>
+    </key>
+    <key name="activate-window-under-cursor" type="as">
+      <default>[]</default>
+      <summary>Go to the window under the pointer</summary>
+    </key>
+    <key name="close-window" type="as">
+      <default>[]</default>
+      <summary>Close the window</summary>
     </key>
   </schema>
 </schemalist>
