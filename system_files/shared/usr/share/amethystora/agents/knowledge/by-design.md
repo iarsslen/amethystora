@@ -149,6 +149,16 @@ returns once its network is named home. Change: `ame security mac off` or `away`
 Symptom: one site or app suddenly cannot connect. Confirm: `ame security connections`. Change: `ame security
 connections allow RULE` leaves one rule out (the user's).
 
+### No login page on a hotel or train network, or no firmware offered (only with a sending switch off)
+
+Symptom: a network's login page does not open by itself and GNOME shows no "no internet" warning; or Updates lists
+no firmware. Confirm: `ame security sends` (the connectivity check and the firmware catalogue rows say `not sent`;
+the first reads what NetworkManager does, so GNOME's own Connectivity switch counts too), `ame security
+connectivity-check`, `ame security firmware-metadata`. Change: `ame security connectivity-check on` or `ame
+security firmware-metadata on` (the user's: each sends a request to Fedora or LVFS). Opening any plain web page still
+reaches a login page by hand. `ame security countme` is Fedora's weekly count of its machines and changes nothing
+on the machine.
+
 ### Temporary IPv6 addresses and Bluetooth privacy
 
 Symptom: a server that allows by IPv6 address sees a new one; a Bluetooth device is visible for 30 seconds

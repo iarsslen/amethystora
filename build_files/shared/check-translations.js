@@ -304,7 +304,7 @@ const SHELL = ['usr/libexec/amethystora-security-status', 'usr/libexec/amethysto
     // The callers of amethystora-notify-users --msgid, which mark their messages with N_
     'usr/libexec/amethystora-scan-alert', 'usr/libexec/amethystora-clamav-onaccess', 'usr/libexec/amethystora-lynis-audit',
     'usr/libexec/amethystora-driver-status', 'usr/libexec/amethystora-gpu-check', 'usr/libexec/amethystora-raid',
-    'usr/libexec/amethystora-security-watch',
+    'usr/libexec/amethystora-security-watch', 'usr/libexec/amethystora-sends',
     'usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js',
     'usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js',
     ...['agent', 'apps', 'backup', 'changelog', 'desktop', 'report', 'security', 'system', 'update'].map((group) => `usr/share/amethystora/just/${group}.just`),

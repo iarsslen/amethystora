@@ -86,3 +86,5 @@ my work vpn will not connect	playbook/vpn-will-not-connect#*|manual/software#vpn
 l2tp ipsec vpn says ikev1 is not allowed	playbook/vpn-will-not-connect#*|manual/software#vpn
 deleted file gone from the trash	knowledge/by-design#the-trash-empties-itself-after-30-days|manual/desktop#the-trash|control/trash|ame/desktop/privacy
 change the gap between tiled windows	manual/desktop#tiling-settings|manual/desktop#tiling-settings~2|control/tiling-settings|ame/desktop/tiling-settings
+what does this computer send to fedora by itself	manual/security#what-this-machine-sends|manual/security#what-this-machine-sends~2|manual/security#what-this-machine-sends~3
+hotel wifi login page does not open	knowledge/by-design#no-login-page-on-a-hotel-or-train-network-or-no-firmware-offered-only-with-a-sending-switch-off|manual/security#what-this-machine-sends~2

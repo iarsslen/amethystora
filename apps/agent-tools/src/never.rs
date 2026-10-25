@@ -7,7 +7,7 @@
 
 /// Commands of `ame security` the agent may hand over: those that read, and those that turn protection on.
 /// Anything that loosens it or sends something away is the user's to run.
-const SECURITY_READS: &[&str] = &["status", "events", "apps", "connections", "addresses", "audit", "home-networks"];
+const SECURITY_READS: &[&str] = &["status", "events", "apps", "connections", "addresses", "audit", "home-networks", "sends"];
 /// Switches whose `on` tightens what the image enforces or adds a watch
 const SECURITY_ON: &[&str] = &[
     "app-sandbox", "audit-locked", "block-automount", "block-bluetooth", "block-user-extensions", "block-webcam",
@@ -140,6 +140,10 @@ mod tests {
             "ame agent tools on",
             "ame apps aur on",
             "ame security firewall off",
+            "ame security countme on",
+            "ame security connectivity-check on",
+            "ame security firmware-metadata on",
+            "ame security location on",
             "ame security browser privacy on",
             "ame security settings osprey on",
             "ame security settings triage on",
@@ -173,6 +177,7 @@ mod tests {
             "systemctl restart NetworkManager.service",
             "ame security firewall on",
             "ame security status",
+            "ame security sends",
             "ame security scan now",
             "ame security kernel strict",
             "ame security lockdown on",

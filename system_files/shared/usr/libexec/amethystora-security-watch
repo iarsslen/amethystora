@@ -1669,7 +1669,7 @@ noted() {
 read_report() {
     local report now before tiles was id state title level
     report="$(/usr/libexec/amethystora-security-status --json 2>/dev/null)" || return
-    now="$(jq -c '[.checks[] | select(.group != "optional") | {id, state, text, details}]' <<<"${report}" 2>/dev/null)"
+    now="$(jq -c '[.checks[] | select(.group != "optional" and .group != "sends") | {id, state, text, details}]' <<<"${report}" 2>/dev/null)"
     tiles="$(jq -c '[.checks[] | select(.group == "optional") | {id, state, title}]' <<<"${report}" 2>/dev/null)"
     [[ -n "${now}" ]] || return
     # A protection turned off with no switch of the image's own, such as encrypted DNS or USB protection, is

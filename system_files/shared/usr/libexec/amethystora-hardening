@@ -42,7 +42,11 @@ KARGS=/usr/lib/bootc/kargs.d/10-amethystora-hardening.toml
 KARGS_PENDING=/run/amethystora/kargs-pending
 # On until turned off
 NAMES=(kernel blocked-modules firewire kernel-args firewall failed-logins lockout app-sandbox virtual-input
-    ssh-settings signed-updates ipv6-privacy bluetooth-privacy)
+    ssh-settings signed-updates ipv6-privacy bluetooth-privacy countme connectivity-check firmware-metadata)
+# What a switch governs that sends something off the machine by itself: to whom. The report's "What this machine
+# sends" group says the rest (when, what stops working) beside the switch's command.
+declare -A SENDS=([countme]="Fedora" [connectivity-check]="Fedora" [firmware-metadata]="LVFS" [time]="time servers"
+    [network-daemons]="the local network")
 # Off until turned on
 STRICTER=(time firewall-away network-daemons block-bluetooth block-webcam block-automount block-user-extensions
     block-xwayland flathub-verified flatpak-password noexec-temp no-coredumps package-cooldown brew-attestations
@@ -71,6 +75,7 @@ SSH_GENERATOR=systemd/system-generators/systemd-ssh-generator
 UINPUT=udev/rules.d/71-amethystora-uinput.rules
 IP6_PRIVACY=NetworkManager/conf.d/30-amethystora-ip6-privacy.conf
 BLUEZ=bluetooth/main.conf
+CONNECTIVITY=NetworkManager/conf.d/60-amethystora-connectivity.conf
 CHRONY=chrony.conf
 NO_BLUETOOTH=modprobe.d/61-amethystora-no-bluetooth.conf
 NO_WEBCAM=modprobe.d/61-amethystora-no-webcam.conf
@@ -87,6 +92,9 @@ BREW_ENV=environment.d/60-amethystora-brew-attestations.conf
 BREW_PROFILE=profile.d/amethystora-brew-attestations.sh
 VSCODIUM=vscodium/policy.json
 VSCODIUM_ALLOWED="${ROOT}/etc/amethystora/vscodium-extensions"
+# Fedora's count of its machines (rpm-ostree's, weekly) and the fetch of the firmware catalogue (fwupd's, hourly timer)
+COUNTME_UNITS=(rpm-ostree-countme.timer rpm-ostree-countme.service)
+FIRMWARE_UNITS=(fwupd-refresh.timer fwupd-refresh.service)
 NETWORK_DAEMONS=(avahi-daemon.socket avahi-daemon.service ModemManager.service)
 # ...and fwupd's passim, which offers the firmware metadata fwupd downloaded to the machines nearby: fwupd starts it
 # over D-Bus when firmware is looked for, it is never enabled, so it is only stopped and masked, then unmasked
@@ -211,6 +219,7 @@ expected() {
         "${STRICT_SYSCTL}") cat "${SHARE}/61-amethystora-strict-sysctl.conf" ;;
         "${STRICT_MODPROBE}") cat "${SHARE}/61-amethystora-strict-modprobe.conf" ;;
         "${CHRONY}") cat "${SHARE}/chrony.conf" ;;
+        "${CONNECTIVITY}") cat "${SHARE}/${CONNECTIVITY##*/}" ;;
         "${NO_BLUETOOTH}") cat "${SHARE}/${NO_BLUETOOTH##*/}" ;;
         "${NO_WEBCAM}") cat "${SHARE}/${NO_WEBCAM##*/}" ;;
         "${AUTOMOUNT}") cat "${SHARE}/dconf-automount" ;;
@@ -263,6 +272,10 @@ managed() {
     is_off virtual-input && printf '%s\tfile\n' "${UINPUT}"
     is_off ipv6-privacy && printf '%s\tfile\n' "${IP6_PRIVACY}"
     is_off bluetooth-privacy && printf '%s\tfile\n' "${BLUEZ}"
+    is_off connectivity-check && printf '%s\tfile\n' "${CONNECTIVITY}"
+    local unit
+    if is_off countme; then for unit in "${COUNTME_UNITS[@]}"; do printf 'systemd/system/%s\tmask\n' "${unit}"; done; fi
+    if is_off firmware-metadata; then for unit in "${FIRMWARE_UNITS[@]}"; do printf 'systemd/system/%s\tmask\n' "${unit}"; done; fi
     is_on time && printf '%s\tfile\n' "${CHRONY}"
     is_on block-bluetooth && printf '%s\tfile\n' "${NO_BLUETOOTH}"
     is_on block-webcam && printf '%s\tfile\n' "${NO_WEBCAM}"
@@ -369,6 +382,8 @@ set_home() {
     printf '%s\n' "${homes[@]}" | sed '/^$/d' | sort -u >"${HOME_NETWORKS}.new" && mv "${HOME_NETWORKS}.new" "${HOME_NETWORKS}"
     [[ -s "${HOME_NETWORKS}" ]] || rm -f "${HOME_NETWORKS}"
     is_off firewall || home_zones "${HOME_ZONE}"
+    # ame security mac away leaves them out, so what it gave the old and the new home networks follows the list
+    AMETHYSTORA_MAC_ROOT="${ROOT}" /usr/libexec/amethystora-mac home
 }
 
 # Networks that are not home get the stricter zone: it becomes the default, while the networks named home
@@ -382,8 +397,6 @@ set_away() {
             return 1
         fi
         [[ $# -eq 0 ]] || set_home "$@"
-    # ame security mac away leaves them out, so what it gave the old and the new home networks follows the list
-    AMETHYSTORA_MAC_ROOT="${ROOT}" /usr/libexec/amethystora-mac home
         record firewall-away on
         default_zone "${AWAY_ZONE}" || { record firewall-away off; return 1; }
     else
@@ -553,6 +566,40 @@ set_switch() {
             fi
             systemctl try-restart bluetooth.service 2>/dev/null
             ;;
+        countme | firmware-metadata)
+            if [[ "${name}" == countme && "${switched}" == on ]] && sealed; then
+                echo "This machine is sealed: the count of Fedora's machines is off in the signed image." >&2
+                return 1
+            fi
+            # Masked in /etc, so that nothing starts them, by hand or by a timer: off costs nothing at all
+            local -a units=("${COUNTME_UNITS[@]}")
+            local unit
+            [[ "${name}" == firmware-metadata ]] && units=("${FIRMWARE_UNITS[@]}")
+            for unit in "${units[@]}"; do mask "systemd/system/${unit}" "${switched}"; done
+            systemctl daemon-reload
+            if [[ "${switched}" == on ]]; then
+                systemctl start "${units[0]}" 2>/dev/null
+            else
+                systemctl stop "${units[@]}" 2>/dev/null
+            fi
+            ;;
+        connectivity-check)
+            if [[ "${switched}" == off ]]; then
+                place "${CONNECTIVITY}" || return 1
+            else
+                place "${CONNECTIVITY}" remove
+            fi
+            nmcli general reload conf 2>/dev/null
+            # GNOME Settings' own switch is kept by NetworkManager apart from /etc and read after it, so it may still say
+            # the other thing: set what was asked
+            local want=true current
+            [[ "${switched}" == off ]] && want=false
+            current="$(busctl get-property org.freedesktop.NetworkManager /org/freedesktop/NetworkManager \
+                org.freedesktop.NetworkManager ConnectivityCheckEnabled 2>/dev/null | awk '{ print $2 }')"
+            [[ -z "${current}" || "${current}" == "${want}" ]] ||
+                busctl set-property org.freedesktop.NetworkManager /org/freedesktop/NetworkManager \
+                    org.freedesktop.NetworkManager ConnectivityCheckEnabled b "${want}" 2>/dev/null
+            ;;
         time)
             if [[ "${switched}" == on ]]; then
                 place "${CHRONY}" || return 1
@@ -708,6 +755,9 @@ words() {
         [signed-updates]="$(gettext "Signed updates")"
         [ipv6-privacy]="$(gettext "Temporary IPv6 addresses")"
         [bluetooth-privacy]="$(gettext "Bluetooth privacy")"
+        [countme]="$(gettext "Fedora's count of its machines")"
+        [connectivity-check]="$(gettext "Network connectivity check")"
+        [firmware-metadata]="$(gettext "Firmware catalogue")"
         [time]="$(gettext "Authenticated time")"
         [firewall-away]="$(gettext "Stricter firewall away from home")"
         [network-daemons]="$(gettext "Network discovery, mobile broadband and firmware sharing")"
@@ -741,6 +791,9 @@ words() {
         [signed-updates]="$(gettext "Switches this machine back to updates that must carry this image's signature at every start. Off, it switches nothing either way. ame system trust-image is the answer for an image of your own.")"
         [ipv6-privacy]="$(gettext "Each network sees a temporary IPv6 address that changes, as well as the one it hands out, so that websites cannot follow this machine by its address. Off, every connection uses one address.")"
         [bluetooth-privacy]="$(gettext "Bluetooth uses a random address that changes, and stops being visible and accepting pairing 30 seconds after you ask for it. Off, BlueZ's own settings apply.")"
+        [countme]="$(gettext "Once a week at most, this machine asks Fedora's mirror list for its software, and says it is Amethystora, which Fedora version and which image, and how many weeks it has counted: Fedora's only measure of how many machines run its packages. No identifier is sent, but Fedora sees the address. Off, Fedora counts one machine fewer and nothing on this machine changes.")"
+        [connectivity-check]="$(gettext "NetworkManager fetches http://fedoraproject.org/static/hotspot.txt, in plain text, at each connection and every five minutes, to learn whether the network reaches the internet or wants a login first. Every network on the way sees it. Off, the login page of a hotel or train network is not offered by itself, and GNOME shows no warning when a network has no internet.")"
+        [firmware-metadata]="$(gettext "Once a day at most, this machine fetches the catalogue of firmware updates from the Linux Vendor Firmware Service, and says nothing else about itself. Off, no firmware is offered in Updates; fwupdmgr refresh still fetches it when you ask.")"
         [time]="$(gettext "The clock decides whether certificates and signatures are valid. On, it is set only from time servers that prove who they are (NTS), three of which must agree, and never from one a network suggests. Networks that block port 4460 then leave the clock unsynced.")"
         [firewall-away]="$(gettext "Networks you have not named home get a zone that answers nothing: no printer or device discovery and no Windows shares. The networks you name home keep theirs, the only one open to phone pairing, and any new network is away until you say otherwise.")"
         [network-daemons]="$(gettext "Stops Avahi, which finds printers and devices on the network, ModemManager, which runs mobile broadband modems, and passim, which offers the firmware updates this machine downloaded to the machines nearby. All three answer the network. On, printers have to be added by address, a mobile broadband modem does not work, and each machine downloads its own firmware updates.")"
@@ -775,6 +828,9 @@ words() {
         [signed-updates]="$(gettext "From the next start. This machine stays on the updates it follows now.")"
         [ipv6-privacy]="$(gettext "From each network's next connection.")"
         [bluetooth-privacy]="$(gettext "At once: Bluetooth restarts, and connected devices reconnect.")"
+        [countme]="$(gettext "At once.")"
+        [connectivity-check]="$(gettext "At once: NetworkManager reloads its settings.")"
+        [firmware-metadata]="$(gettext "At once. The catalogue already fetched stays.")"
         [time]="$(gettext "At once.")"
         [firewall-away]="$(gettext "At once.")"
         [network-daemons]="$(gettext "At once.")"
@@ -940,12 +996,12 @@ status() {
         is_on "${name}" && state=on
         if [[ "${json}" == true ]]; then
             fixed=false
-            { [[ "${name}" == kernel-args || "${name}" == boot-password ]] && sealed; } && fixed=true
+            { [[ "${name}" == kernel-args || "${name}" == boot-password || "${name}" == countme ]] && sealed; } && fixed=true
             jq -nc --arg name "${name}" --arg state "${state}" --arg title "${TITLE[${name}]}" \
                 --arg text "${TEXT[${name}]}" --argjson fixed "${fixed}" \
                 --arg default "$(stricter "${name}" && echo off || echo on)" \
                 --arg level "$([[ -n "${LEVELS[${name}]+set}" ]] && level "${name}")" \
-                --arg levels "${LEVELS[${name}]:-}" \
+                --arg levels "${LEVELS[${name}]:-}" --arg sends "${SENDS[${name}]:-}" \
                 --argjson arguments "$(if [[ "${name}" == kernel-args ]]; then
                     for arg in $(arguments) "${EXTRA_ORDER[@]}"; do
                         jq -nc --arg argument "${arg}" --arg state "$(is_on kernel-args "${arg}" && echo on || echo off)" \
@@ -954,6 +1010,7 @@ status() {
                     done | jq -sc .
                 else echo null; fi)" \
                 '{$name, $state, $title, $text, command: ("ame security " + $name), $fixed, $default,
+                  sends: (if $sends == "" then null else $sends end),
                   level: (if $level == "" then null else $level end),
                   levels: (if $levels == "" then null else ($levels | split(" ")) end),
                   arguments: (if $arguments == null then null else $arguments end)}'

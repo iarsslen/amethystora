@@ -1,0 +1,167 @@
+#!/usr/bin/bash
+# What this machine sends by itself, outside the features the owner chose in security.conf: to whom, when and
+# what stops working without it, each with the command that switches it. The security report's "What this
+# machine sends" group (amethystora-security-status), the Security app and `ame security sends` read it.
+#
+#   amethystora-sends            the list, for a terminal
+#   amethystora-sends --json     the same as records: id, state (on while it sends, off while it does not),
+#                                title, text, details and command
+#
+# Run as the user: the location setting is the account's own. Nothing here changes anything.
+
+set -uo pipefail
+
+export TEXTDOMAIN=amethystora
+# shellcheck source=/dev/null
+source gettext.sh
+
+JSON=false
+[[ "${1:-}" == "--json" ]] && JSON=true
+
+HARDENING=/usr/libexec/amethystora-hardening
+RECORDS=()
+
+# row ID STATE TITLE TEXT COMMAND [DETAIL...]
+row() {
+    local id="$1" state="$2" title="$3" text="$4" command="$5"
+    shift 5
+    RECORDS+=("$(jq -nc --arg id "sends-${id}" --arg state "${state}" --arg title "${title}" --arg text "${text}" \
+        --arg command "${command}" '{$id, $state, $title, $text, details: $ARGS.positional,
+        command: (if $command == "" then null else $command end)}' --args "$@")")
+}
+
+sealed() { [[ -e /usr/share/amethystora/sealed ]]; }
+# A switch of amethystora-hardening that is on, as the machine's owner left it
+switch_on() { "${HARDENING}" is-on "$1" 2>/dev/null; }
+
+# --- Fedora's count of its machines -----------------------------------------------------------------------
+
+if systemctl is-enabled --quiet rpm-ostree-countme.timer 2>/dev/null; then COUNTME=on; else COUNTME=off; fi
+COUNTME_DETAIL="$(gettext "Without it, Fedora counts one machine fewer and nothing on this machine changes.")"
+sealed && COUNTME_DETAIL="$(gettext "This machine is sealed, and its image does not send it.")"
+row countme "${COUNTME}" "$(gettext "Fedora's count of its machines")" \
+    "$(gettext "Once a week at most, Fedora's mirror list is told this is Amethystora, which Fedora version and image it runs, and how many weeks it has been counted. No identifier is sent, but Fedora sees the address.")" \
+    "ame security countme" "${COUNTME_DETAIL}"
+
+# --- The connectivity check ---------------------------------------------------------------------------------
+
+# The setting NetworkManager really uses: GNOME Settings changes it too, and its choice is kept apart from the
+# files of /etc, so the switch alone does not say
+CHECK="$(busctl get-property org.freedesktop.NetworkManager /org/freedesktop/NetworkManager \
+    org.freedesktop.NetworkManager ConnectivityCheckEnabled 2>/dev/null | awk '{ print $2 }')"
+case "${CHECK}" in
+    true) CONNECTIVITY=on ;;
+    false) CONNECTIVITY=off ;;
+    *) if switch_on connectivity-check; then CONNECTIVITY=on; else CONNECTIVITY=off; fi ;;
+esac
+row connectivity-check "${CONNECTIVITY}" "$(gettext "Network connectivity check")" \
+    "$(gettext "At each connection and every five minutes, NetworkManager fetches fedoraproject.org/static/hotspot.txt over plain HTTP, which every network on the way sees, to learn whether the network reaches the internet or wants a login.")" \
+    "ame security connectivity-check" \
+    "$(gettext "Without it, the login page of a hotel or train network is not offered by itself, and GNOME does not warn when a network has no internet.")"
+
+# --- Location ---------------------------------------------------------------------------------------------
+
+LOCATION="$(gsettings get org.gnome.system.location enabled 2>/dev/null || true)"
+if [[ "${LOCATION}" == true || "${LOCATION}" == false ]]; then
+    row location "$([[ "${LOCATION}" == true ]] && echo on || echo off)" "$(gettext "Location services")" \
+        "$(gettext "When an app such as Weather, Maps or the automatic time zone asks where you are, the Wi-Fi networks in reach and their signal go to BeaconDB (api.beacondb.net), and the address alone when none is in reach.")" \
+        "ame security location" \
+        "$(gettext "Without it, those apps guess or ask you.")"
+fi
+
+# --- The features of security.conf that fetch or send, once they are on --------------------------------------
+
+CONFIG=/usr/libexec/amethystora-security-config
+SETTINGS="$("${CONFIG}" --list --json 2>/dev/null || echo '{"settings":[]}')"
+while IFS=$'\t' read -r setting key title sends explain; do
+    [[ -n "${key}" ]] || continue
+    if [[ "${sends}" == downloads ]]; then
+        row "${setting}" on "${title}" "$(gettext "Fetches its signatures, rules or lists from the internet. Nothing about this machine is sent.")" \
+            "ame security settings ${setting}"
+    else
+        row "${setting}" on "${title}" "$(gettext "Sends something away to a service you chose, which its explanation says.")" \
+            "ame security settings ${setting}" "${explain}"
+    fi
+done < <(jq -r '.settings[] | select(.sends != "none" and .value != "off") | [.setting, .key, .title, .sends, (.explain // "")] | @tsv' <<<"${SETTINGS}")
+
+# --- Updates ------------------------------------------------------------------------------------------------
+
+if systemctl is-enabled --quiet uupd.timer 2>/dev/null || systemctl is-enabled --quiet rpm-ostreed-automatic.timer 2>/dev/null; then
+    UPDATES=on
+else
+    UPDATES=off
+fi
+row auto-updates "${UPDATES}" "$(gettext "Automatic updates")" \
+    "$(gettext "Every day, this machine asks ghcr.io for its image and its signature, and Flathub, Homebrew and the containers' registries for what is installed from them.")" \
+    "ame system auto-updates" \
+    "$(gettext "Without them, nothing is updated until you start it in Updates.")"
+
+if command -v flatpak >/dev/null; then
+    # shellcheck source=/dev/null
+    OS_INFO="$(. /etc/os-release && echo "${ID};${VERSION_ID};$(uname -m)")"
+    FLATPAK_DETAIL="$(eval_gettext "Flathub is told which app is installed or updated and its version, and the system as \${OS_INFO}. Taking the system out is a file: /etc/flatpak/no-report-os-info.")"
+    row flatpak on "$(gettext "Flatpak installs and updates")" \
+        "$(gettext "When an app is installed or updated, which is on the first start with a network and then with updates, Flathub counts it.")" \
+        "" "${FLATPAK_DETAIL}"
+fi
+
+if command -v fwupdmgr >/dev/null; then
+    if switch_on firmware-metadata; then FIRMWARE=on; else FIRMWARE=off; fi
+    row firmware-metadata "${FIRMWARE}" "$(gettext "Firmware catalogue")" \
+        "$(gettext "Once a day at most, the list of firmware updates is fetched from the Linux Vendor Firmware Service. Nothing about this machine is sent.")" \
+        "ame security firmware-metadata" \
+        "$(gettext "Without it, Updates offers no firmware.")"
+    if switch_on network-daemons; then SHARING=off; else SHARING=on; fi
+    row firmware-sharing "${SHARING}" "$(gettext "Firmware sharing")" \
+        "$(gettext "Machines on the same network are offered the firmware updates this machine downloaded, which are the same for every machine.")" \
+        "ame security network-daemons" \
+        "$(gettext "Turning it off also stops Avahi and ModemManager. Without it, each machine downloads its own firmware updates.")"
+fi
+
+# --- The clock ----------------------------------------------------------------------------------------------
+
+if switch_on time; then
+    CLOCK="$(gettext "The clock is set from time servers that prove who they are (NTS), and from no server a network suggests.")"
+else
+    CLOCK="$(gettext "The clock is set from 2.fedora.pool.ntp.org and from the time servers each network names, in plain NTP.")"
+fi
+row clock on "$(gettext "The clock")" "${CLOCK}" "ame security time" \
+    "$(gettext "Without a time server, the clock drifts.")"
+
+# --- What is off already, and what runs only once it was set up ------------------------------------------------
+
+if grep -qx 'HOMEBREW_NO_ANALYTICS=1' /etc/homebrew/brew.env 2>/dev/null; then BREW=off; else BREW=on; fi
+row homebrew-analytics "${BREW}" "$(gettext "Homebrew's analytics")" \
+    "$(gettext "Homebrew would send the commands you run and the packages you install to analytics.brew.sh. They are off for every account.")" ""
+
+# Only where Tailscale was turned on or the machine had joined a tailnet
+if /usr/libexec/amethystora-tailscale wanted 2>/dev/null; then
+    row tailscale on "$(gettext "Tailscale")" \
+        "$(gettext "Tailscale's coordination server and relays, and the machines of your tailnet, are in touch with this machine. Its log upload is off.")" \
+        "ame system tailscale"
+fi
+
+# Only for an account with containers
+if [[ -d "${XDG_STATE_HOME:-${HOME:-/nonexistent}/.local/state}/amethystora/pkg/containers" ]]; then
+    if systemctl --user is-enabled --quiet amethystora-pkg-upgrade.timer 2>/dev/null; then CONTAINERS=on; else CONTAINERS=off; fi
+    row containers "${CONTAINERS}" "$(gettext "Containers' upgrades")" \
+        "$(gettext "Every day, each container asks its distribution's mirrors for its package list.")" ""
+fi
+
+if command -v firefox >/dev/null; then
+    row firefox on "$(gettext "Firefox")" \
+        "$(gettext "Firefox has its own settings for what it sends, under Privacy & Security in its settings.")" \
+        "ame security browser"
+fi
+
+if [[ "${JSON}" == true ]]; then
+    printf '%s\n' "${RECORDS[@]}" | jq -s .
+else
+    echo
+    printf '  %s\n' "$(gettext "What this machine sends by itself")"
+    for record in "${RECORDS[@]}"; do
+        jq -r --arg on "$(gettext "sends")" --arg off "$(gettext "not sent")" \
+            '"   \(.title): \(if .state == "on" then $on else $off end)\n      \(.text)\(.details | map("\n      " + .) | join(""))\(if .command then "\n      " + .command else "" end)"' <<<"${record}"
+    done
+    echo
+fi

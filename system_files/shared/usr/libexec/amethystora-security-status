@@ -41,6 +41,7 @@ declare -A HEADINGS=(
     [apps]="$(gettext "Apps")"
     [scans]="$(gettext "Scans")"
     [optional]="$(gettext "Off unless you turned it on")"
+    [sends]="$(gettext "What this machine sends by itself")"
 )
 
 # A check as the terminal shows it: its state, what it says, and what explains it, with the command
@@ -52,6 +53,14 @@ print_record() {
     if [[ "${group}" != "${PRINTED_GROUP}" ]]; then
         PRINTED_GROUP="${group}"
         printf '\n  %s\n' "${HEADINGS[${group}]}"
+    fi
+    if [[ "${group}" == sends ]]; then
+        # What the helper says is already in the session's language: the title, what it sends, what stops working without it
+        printf '   %s: %s\n' "${title}" "$([[ "${state}" == on ]] && gettext "sends" || gettext "not sent")"
+        for line in "${text}" "${lines[@]}" "${COMMAND}"; do
+            [[ -z "${line}" ]] || fold -s -w 88 <<<"${line}" | sed 's/ *$//; s/^/      /'
+        done
+        return
     fi
     if [[ "${group}" == optional ]]; then
         reason="${lines[0]:-}"
@@ -94,7 +103,7 @@ report() {
     shift 5
     # A check the machine's owner accepted in this state (ame security allow report) is information from
     # then on, never a warning, until its state changes
-    if [[ "${group}" != optional && -n "${ACCEPTED["${id} ${state}"]+set}" ]]; then
+    if [[ "${group}" != optional && "${group}" != sends && -n "${ACCEPTED["${id} ${state}"]+set}" ]]; then
         accepted="${state}"
         state=info
     fi
@@ -1486,6 +1495,14 @@ case "${NETWORK}" in
 esac
 COMMAND="ame security settings network"
 report optional network-protection "${NETWORK_STATE}" "$(gettext "Network protection")" "${NETWORK_TILE}"
+
+# What the machine sends by itself, a record each: amethystora-sends says what, to whom and what stops working
+while IFS= read -r record; do
+    COMMAND="$(jq -r '.command // ""' <<<"${record}")"
+    mapfile -t SENDS_DETAILS < <(jq -r '.details[]' <<<"${record}")
+    report sends "$(jq -r .id <<<"${record}")" "$(jq -r .state <<<"${record}")" "$(jq -r .title <<<"${record}")" \
+        "$(jq -r .text <<<"${record}")" "${SENDS_DETAILS[@]}"
+done < <(timeout 30 /usr/libexec/amethystora-sends --json 2>/dev/null | jq -c '.[]')
 
 if [[ "${JSON}" == true ]]; then
     printf '%s\n' "${RECORDS[@]}" | jq -s --arg image "${IMAGE}" --arg detection "${ON_DETECTION}" \

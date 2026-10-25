@@ -1612,6 +1612,27 @@ for module in firewire_core firewire_ohci firewire_sbp2; do
 done
 jq -e '.[] | select(.name == "firewire") | .state == "on" and .default == "on"' \
     <<<"$(/usr/libexec/amethystora-hardening status --json)" >/dev/null
+# What the machine sends by itself (ame security sends): every name in the helper's SENDS table is a switch it knows,
+# and the three that stop Fedora's count, its connectivity check and the firmware catalogue are on
+for switch in $(sed -n '/^declare -A SENDS=/,/)$/p' /usr/libexec/amethystora-hardening | grep -o '\[[a-z-]*\]=' | tr -d '[]='); do
+    jq -e --arg name "${switch}" 'any(.[]; .name == $name and .sends != null)' <<<"$(/usr/libexec/amethystora-hardening status --json)" >/dev/null
+done
+for switch in countme connectivity-check firmware-metadata; do
+    jq -e --arg name "${switch}" 'any(.[]; .name == $name and .state == "on" and .default == "on")' \
+        <<<"$(/usr/libexec/amethystora-hardening status --json)" >/dev/null
+done
+# ...Fedora's count is the timer its preset enables, and the check is the file and address the manual names, so that a
+# change of Fedora's fails the build rather than leaving the manual wrong
+test -e /usr/lib/systemd/system/rpm-ostree-countme.timer
+grep -qx 'uri=http://fedoraproject.org/static/hotspot.txt' /usr/lib/NetworkManager/conf.d/20-connectivity-fedora.conf
+grep -q 'fedoraproject.org/static/hotspot.txt' /usr/share/amethystora/manual/security.md
+grep -qx 'enabled=false' /usr/share/amethystora/hardening/60-amethystora-connectivity.conf
+grep -qx 'HOMEBREW_NO_ANALYTICS=1' /etc/homebrew/brew.env
+grep -q "^sends:" /usr/share/amethystora/just/security.just
+grep -q "^location " /usr/share/amethystora/just/security.just
+test -x /usr/libexec/amethystora-sends
+/usr/libexec/amethystora-sends --json | jq -e 'length >= 6 and all(.[]; (.id | startswith("sends-")) and (.state | IN("on", "off")) and
+    (.title | length > 0) and (.text | length > 0) and (.details | type == "array"))' >/dev/null
 # No passwordless root for users who are not at the machine, and no user-writable directory in root's
 # sudo PATH, and no world-writable USB devices
 grep -q "<allow_any>no</allow_any>" /usr/share/polkit-1/actions/*privileged.user.setup.policy

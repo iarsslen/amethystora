@@ -84,7 +84,7 @@ notification says so once for each new release, and opens **Updates** when click
 its maker marks as important for security is marked **Important** there. The [security report](security.md#see-where-you-stand)'s
 **Firmware updates** check names them too, since many firmware updates fix security holes.
 **Update firmware…** installs it in a terminal, where fwupd says what it is about to do and asks before
-it restarts the machine. **Check now** asks LVFS again straight away. In a terminal:
+it restarts the machine. **Check now** asks LVFS again straight away. `ame security firmware-metadata off` stops the daily fetch (LVFS is asked once a day at most, and nothing about this machine is sent); Updates then lists no firmware, but **Check now** still asks. In a terminal:
 
 ```bash
 fwupdmgr get-updates      # what there is

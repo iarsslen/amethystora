@@ -974,7 +974,7 @@ allow FEATURE="report" ENTRY="" ACTION="":
     fi
     # The checks that need attention now, as the report gives them to this account
     open="$(/usr/libexec/amethystora-security-status --json |
-        jq -r '.checks[] | select(.group != "optional" and (.state == "check" or .state == "off")) | "\(.id)\t\(.state)\t\(.text)"')"
+        jq -r '.checks[] | select(.group != "optional" and .group != "sends" and (.state == "check" or .state == "off")) | "\(.id)\t\(.state)\t\(.text)"')"
     if [[ -z "${entry}" ]]; then
         if [[ -z "${open}" ]]; then
             echo "$(gettext "Nothing needs your attention.")"
@@ -1079,6 +1079,57 @@ home-networks:
 [positional-arguments]
 network-daemons ACTION="":
     @/usr/libexec/amethystora-hardening ask network-daemons "${1:-}"
+
+# Everything this machine sends by itself, to whom, and what stops working without it
+sends:
+    @/usr/libexec/amethystora-sends
+
+# Fedora's count of its machines: once a week, no identifier
+[positional-arguments]
+countme ACTION="":
+    @/usr/libexec/amethystora-hardening ask countme "${1:-}"
+
+# NetworkManager's check of whether a network reaches the internet, which fetches a page of Fedora's
+[positional-arguments]
+connectivity-check ACTION="":
+    @/usr/libexec/amethystora-hardening ask connectivity-check "${1:-}"
+
+# The fetch of the firmware catalogue, once a day at most
+[positional-arguments]
+firmware-metadata ACTION="":
+    @/usr/libexec/amethystora-hardening ask firmware-metadata "${1:-}"
+
+# Whether apps may ask where this computer is (for this account)
+[positional-arguments]
+location ACTION="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    action="${1:-}"
+    turn_on="$(gettext "Turn on")"
+    turn_off="$(gettext "Turn off")"
+    cancel="$(gettext "Cancel")"
+    if [[ "$(gsettings get org.gnome.system.location enabled)" == true ]]; then
+        echo "$(gettext "On: apps such as Weather, Maps and the automatic time zone may ask where this computer is.")"
+    else
+        echo "$(gettext "Off: no app can ask where this computer is.")"
+    fi
+    echo "$(gettext "When one asks, the Wi-Fi networks in reach and their signal go to BeaconDB (api.beacondb.net), and the address alone when none is in reach. Nothing is sent back to improve its map. This setting is this account's.")"
+    if [[ -z "${action}" ]]; then
+        action="$(gum choose --header "$(gettext "Location services")" "${turn_on}" "${turn_off}" "${cancel}")"
+    fi
+    case "${action}" in
+        "${turn_on}" | on)
+            gsettings set org.gnome.system.location enabled true
+            echo "$(gettext "On.")"
+            ;;
+        "${turn_off}" | off)
+            gsettings set org.gnome.system.location enabled false
+            echo "$(gettext "Off. Apps that need a place guess or ask you.")"
+            ;;
+        *) exit 0 ;;
+    esac
 
 # Bluetooth kept from loading at all
 [positional-arguments]
@@ -1690,6 +1741,8 @@ mac ACTION="":
             echo
             echo "$(gettext "A wired network knows a computer by its hardware (MAC) address, the same on every network it joins, and every network is told its name, and over IPv6 an identity made from it. With this on, each Wi-Fi and wired network sees an address and an identity of its own for this machine, the same each time it comes back, so a router keeps what it reserved for it and a login page remembers it. No network is told its name.")"
             echo
+            echo "$(gettext "Wi-Fi networks already see an address of their own for each network name without this. A wired network cannot be told apart before it connects, so every wired network without a saved connection of its own sees the same made-up address: not the hardware's, but the same in an office and in a hotel.")"
+            echo
             echo "$(gettext "A network that lets in only registered devices, as some universities and offices do, then refuses it. For that network, open it in Settings, then Identity, and set Cloned Address to Permanent.")"
             echo
             echo "$(gettext "Avahi still announces this machine's name on every network, as it can be told about interfaces and not networks. ame security network-daemons turns it off.")"
@@ -1731,8 +1784,6 @@ disk-unlock ACTION="":
     cancel="$(gettext "Cancel")"
     # The encrypted partitions this system runs from: every disk under its own filesystem, and never a
     # pool's, whose disks open with a key file of their own
-            echo "$(gettext "Wi-Fi networks already see an address of their own for each network name without this. A wired network cannot be told apart before it connects, so every wired network without a saved connection of its own sees the same made-up address: not the hardware's, but the same in an office and in a hotel.")"
-            echo
     mapfile -t DEVICES < <(/usr/libexec/amethystora-raid root-luks)
     if [[ ${#DEVICES[@]} -eq 0 ]]; then
         echo "$(gettext "The system is not on an encrypted partition, so there is nothing to unlock.")"

@@ -29,6 +29,18 @@ msgstr ""
 msgid "Off unless you turned it on"
 msgstr ""
 
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-sends
+msgid "What this machine sends by itself"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-sends
+msgid "sends"
+msgstr ""
+
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-sends
+msgid "not sent"
+msgstr ""
+
 #: usr/libexec/amethystora-security-status
 #, sh-format
 msgid "${title} is on (${COMMAND})"
@@ -191,7 +203,7 @@ msgstr ""
 msgid "Update now with:"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-sends
 msgid "Automatic updates"
 msgstr ""
 
@@ -3433,15 +3445,15 @@ msgstr ""
 msgid "Failed logins over the network"
 msgstr ""
 
-#: usr/libexec/amethystora-hardening
+#: usr/libexec/amethystora-hardening usr/libexec/amethystora-sends
 msgid "Fedora's count of its machines"
 msgstr ""
 
-#: usr/libexec/amethystora-hardening
+#: usr/libexec/amethystora-hardening usr/libexec/amethystora-sends
 msgid "Network connectivity check"
 msgstr ""
 
-#: usr/libexec/amethystora-hardening
+#: usr/libexec/amethystora-hardening usr/libexec/amethystora-sends
 msgid "Firmware catalogue"
 msgstr ""
 
@@ -4156,6 +4168,135 @@ msgstr[1] ""
 
 #: usr/libexec/amethystora-security-watch
 msgid "See them all with: ame security events"
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Without it, Fedora counts one machine fewer and nothing on this machine changes."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "This machine is sealed, and its image does not send it."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Once a week at most, Fedora's mirror list is told this is Amethystora, which Fedora version and image it runs, and how many weeks it has been counted. No identifier is sent, but Fedora sees the address."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "At each connection and every five minutes, NetworkManager fetches fedoraproject.org/static/hotspot.txt over plain HTTP, which every network on the way sees, to learn whether the network reaches the internet or wants a login."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Without it, the login page of a hotel or train network is not offered by itself, and GNOME does not warn when a network has no internet."
+msgstr ""
+
+#: usr/libexec/amethystora-sends usr/share/amethystora/just/security.just
+msgid "Location services"
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "When an app such as Weather, Maps or the automatic time zone asks where you are, the Wi-Fi networks in reach and their signal go to BeaconDB (api.beacondb.net), and the address alone when none is in reach."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Without it, those apps guess or ask you."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Fetches its signatures, rules or lists from the internet. Nothing about this machine is sent."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Sends something away to a service you chose, which its explanation says."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Every day, this machine asks ghcr.io for its image and its signature, and Flathub, Homebrew and the containers' registries for what is installed from them."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Without them, nothing is updated until you start it in Updates."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+#, sh-format
+msgid "Flathub is told which app is installed or updated and its version, and the system as ${OS_INFO}. Taking the system out is a file: /etc/flatpak/no-report-os-info."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Flatpak installs and updates"
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "When an app is installed or updated, which is on the first start with a network and then with updates, Flathub counts it."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Once a day at most, the list of firmware updates is fetched from the Linux Vendor Firmware Service. Nothing about this machine is sent."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Without it, Updates offers no firmware."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Firmware sharing"
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Machines on the same network are offered the firmware updates this machine downloaded, which are the same for every machine."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Turning it off also stops Avahi and ModemManager. Without it, each machine downloads its own firmware updates."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "The clock is set from time servers that prove who they are (NTS), and from no server a network suggests."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "The clock is set from 2.fedora.pool.ntp.org and from the time servers each network names, in plain NTP."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "The clock"
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Without a time server, the clock drifts."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Homebrew's analytics"
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Homebrew would send the commands you run and the packages you install to analytics.brew.sh. They are off for every account."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Tailscale"
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Tailscale's coordination server and relays, and the machines of your tailnet, are in touch with this machine. Its log upload is off."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Containers' upgrades"
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Every day, each container asks its distribution's mirrors for its package list."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Firefox"
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Firefox has its own settings for what it sends, under Privacy & Security in its settings."
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js
@@ -5685,6 +5826,26 @@ msgstr ""
 #: usr/share/amethystora/just/security.just
 #, sh-format
 msgid "Accepted. ame security allow report ${id} remove shows it again."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "On: apps such as Weather, Maps and the automatic time zone may ask where this computer is."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off: no app can ask where this computer is."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "When one asks, the Wi-Fi networks in reach and their signal go to BeaconDB (api.beacondb.net), and the address alone when none is in reach. Nothing is sent back to improve its map. This setting is this account's."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "On."
+msgstr ""
+
+#: usr/share/amethystora/just/security.just
+msgid "Off. Apps that need a place guess or ask you."
 msgstr ""
 
 #: usr/share/amethystora/just/security.just

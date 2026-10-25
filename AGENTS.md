@@ -674,6 +674,17 @@ zone by default, the networks named home keeping theirs), `network-daemons`, `bl
 it costs before it is turned on; the report's `stricter` check names the ones that are on, and the watcher
 says when one is turned off any other way. `ame security lockdown strict` is lockdown's own third level.
 
+**What the machine sends by itself** (`plans/done/PLAN-what-leaves.md`) is said by `/usr/libexec/amethystora-sends`
+(`ame security sends`; its records are the report's `sends` group and the Security app's last card, information
+whatever their state, so every reader of "state off" filters the group out as it does `optional`). Three of them
+are `amethystora-hardening` switches, on until turned off, with a `SENDS` table of what each governs: `countme`
+(masks rpm-ostree's weekly count of Fedora's machines, a timer Fedora's preset enables; sealed images never send it),
+`connectivity-check` (a NetworkManager drop-in with `enabled=false`; the row reads what NetworkManager does, since
+GNOME's own switch is kept apart from `/etc`) and `firmware-metadata` (masks `fwupd-refresh`); location is the
+account's `ame security location`. Nothing is turned off for the owner, no profile touches them, and a new thing that
+contacts the outside by itself goes in the helper with its switch. `tests/vm/suites/44-what-leaves.sh` watches
+the network for a host the list does not name.
+
 **Phone pairing is open only at home** (the maintainer's choice of 2026-10-08). The firewall has three
 zones: `amethystora`, the default, which every network gets; `amethystora-home`, the same with firewalld's
 `kdeconnect` service (the phone link's ports, see The phone link), for the saved connections named home (`ame security home-networks`, kept in

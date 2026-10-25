@@ -258,7 +258,31 @@ grep -qx 'export UV_EXCLUDE_NEWER="7 days"' <<<"$("${HARDENING}" expected profil
     any(.[]; .name == "kernel-args" and any(.arguments[]; .argument == "init_on_free=1" and .state == "on" and .default == "off"))' >/dev/null ||
     fail "levels and extra arguments in the status"
 rm "${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-on"
+# What the machine sends by itself: Fedora's count, the connectivity check and the firmware catalogue are on until
+# turned off, and off each writes exactly what managed names: two units masked, a file, two units masked
+for name in countme connectivity-check firmware-metadata; do
+    "${HARDENING}" is-on "${name}" || fail "${name} is not on by default"
+done
+printf 'countme\nconnectivity-check\nfirmware-metadata\n' >>"${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-off"
+for name in countme connectivity-check firmware-metadata; do
+    "${HARDENING}" is-on "${name}" && fail "${name} is off"
+done
+MANAGED="$("${HARDENING}" managed)"
+for rel in rpm-ostree-countme.timer rpm-ostree-countme.service fwupd-refresh.timer fwupd-refresh.service; do
+    grep -qxP "systemd/system/${rel}\tmask" <<<"${MANAGED}" || fail "managed: the mask of ${rel}"
+done
+grep -qxP 'NetworkManager/conf.d/60-amethystora-connectivity.conf\tfile' <<<"${MANAGED}" || fail "managed: the connectivity check's file"
+grep -qx 'enabled=false' <<<"$("${HARDENING}" expected NetworkManager/conf.d/60-amethystora-connectivity.conf)" ||
+    fail "connectivity-check off does not turn the check off"
+"${HARDENING}" status --json | jq -e 'all(.[] | select(.name | IN("countme", "connectivity-check", "firmware-metadata")); .state == "off" and .sends != null)' >/dev/null ||
+    fail "the status of the switches that stop what is sent"
+sed -i '/^\(countme\|connectivity-check\|firmware-metadata\)$/d' "${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-off"
 REPORT="$(/usr/libexec/amethystora-security-status --json)"
+# ...and the report says what is sent: a record for each, and none of them a thing to look at
+jq -e 'any(.checks[]; .group == "sends" and .id == "sends-countme" and (.state | IN("on", "off")) and .command == "ame security countme")
+    and any(.checks[]; .group == "sends" and .id == "sends-connectivity-check")
+    and all(.checks[] | select(.group == "sends"); .accepted == null and .switched_off == false)' <<<"${REPORT}" >/dev/null ||
+    fail "the report does not say what the machine sends"
 for id in firewall firewire kernel kernel-args; do
     jq -e --arg id "${id}" 'any(.checks[]; .id == $id and .state == "info" and .command != null and .switched_off)' <<<"${REPORT}" >/dev/null ||
         fail "${id} switched off is not shown as turned off"
@@ -288,7 +312,7 @@ done
 grep -qxF "${GLOB}" <<<"$("${ALLOW}" list persistence)" && fail "removing a path from the allowlist"
 "${CONFIG}" profile default
 OPEN="$(/usr/libexec/amethystora-security-status --json |
-    jq -r 'first(.checks[] | select(.group != "optional" and (.state == "check" or .state == "off")) | "\(.id) \(.state)")')"
+    jq -r 'first(.checks[] | select(.group != "optional" and .group != "sends" and (.state == "check" or .state == "off")) | "\(.id) \(.state)")')"
 if [[ -n "${OPEN}" ]]; then
     "${ALLOW}" add report "${OPEN}"
     grep -qxF "${OPEN}" <<<"$("${ALLOW}" list report)" || fail "the allowlist did not keep ${OPEN}"

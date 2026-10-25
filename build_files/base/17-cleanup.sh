@@ -78,7 +78,7 @@ rm -f /etc/modprobe.d/l2tp_netlink-blacklist.conf /etc/modprobe.d/l2tp_ppp-black
 # device while the screen is unlocked, which undoes `ame security usb on`. Only `ame security usb locked`
 # unmasks it.
 systemctl mask usbguard-dbus.service
-systemctl enable rpm-ostree-countme.service
+systemctl enable rpm-ostree-countme.timer
 systemctl enable tailscaled.service
 systemctl enable amethystora-system-setup.service
 # Keeps updates signature-checked (/usr/libexec/amethystora-signed-updates)

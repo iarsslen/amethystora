@@ -324,9 +324,9 @@ pub async fn report() -> Report {
 }
 
 impl Report {
-    /// A check that needs attention, by its id: never one of the optional protections
+    /// A check that needs attention, by its id: never one of the optional protections, nor what the machine sends
     pub fn attention_check(&self, id: &str) -> Option<&Check> {
-        self.checks.iter().find(|check| check.id == id && check.group != "optional")
+        self.checks.iter().find(|check| check.id == id && check.group != "optional" && check.group != "sends")
     }
 }
 
@@ -1355,19 +1355,22 @@ mod tests {
         let report = parse_report(
             r#"{"image":"ghcr.io/iarsslen/amethystora:stable","settings":{"on_detection":"quarantine","realtime":"off","network":"watch","virus_scan":"weekly","profile":"default"},
             "checks":[{"group":"updates","id":"signed-updates","state":"ok","title":"Signed updates","text":"Updates are checked","details":["a","Run:"],"command":"ame security signed-updates","accepted":null,"switched_off":false},
-            {"group":"optional","id":"usb-protection","state":"off","title":"USB","text":"x","details":[],"command":null,"accepted":"check","switched_off":true}]}"#,
+            {"group":"optional","id":"usb-protection","state":"off","title":"USB","text":"x","details":[],"command":null,"accepted":"check","switched_off":true},
+            {"group":"sends","id":"sends-countme","state":"off","title":"Count","text":"x","details":[],"command":"ame security countme","accepted":null,"switched_off":false}]}"#,
         )
         .unwrap();
         assert_eq!(report.image, "ghcr.io/iarsslen/amethystora:stable");
         assert_eq!(report.settings.on_detection, "quarantine");
         assert_eq!(report.settings.network, "watch");
-        assert_eq!(report.checks.len(), 2);
+        assert_eq!(report.checks.len(), 3);
         assert_eq!(report.checks[0].command.as_deref(), Some("ame security signed-updates"));
         assert_eq!(report.checks[0].details, vec!["a", "Run:"]);
         assert!(!report.checks[0].accepted);
         assert!(report.checks[1].accepted && report.checks[1].switched_off);
         assert_eq!(report.checks[1].command, None);
         assert!(report.attention_check("usb-protection").is_none());
+        // What the machine sends is information whatever its state: switched off, it is no problem
+        assert!(report.attention_check("sends-countme").is_none());
         assert!(parse_report(r#"{"image":"x"}"#).is_none());
         assert!(parse_report("not json").is_none());
     }

@@ -496,8 +496,14 @@ fn scanning_title(label: &Label) -> String {
 
 // --- The report ---------------------------------------------------------------------------------------------------
 
-fn groups() -> [(&'static str, String); 4] {
-    [("updates", t!("Updates and boot")), ("watching", t!("Watching")), ("apps", t!("Apps")), ("scans", t!("Scans"))]
+fn groups() -> [(&'static str, String); 5] {
+    [
+        ("updates", t!("Updates and boot")),
+        ("watching", t!("Watching")),
+        ("apps", t!("Apps")),
+        ("scans", t!("Scans")),
+        ("sends", t!("What this machine sends by itself")),
+    ]
 }
 
 fn tile_icon(id: &str) -> &'static str {
@@ -604,7 +610,7 @@ fn manual_page(id: &str) -> &'static str {
 }
 
 fn needs_attention(check: &Check) -> bool {
-    check.group != "optional" && (check.state == "check" || check.state == "off")
+    check.group != "optional" && check.group != "sends" && (check.state == "check" || check.state == "off")
 }
 
 /// A check's details, and apart from them the one ending in a colon that introduces its command
@@ -1306,7 +1312,13 @@ impl Security {
         }
         if check.command.is_some() {
             let id = check.id.clone();
-            let label = if check.switched_off { t!("Turn it back on") } else { t!("Run it now") };
+            let label = if check.switched_off {
+                t!("Turn it back on")
+            } else if check.group == "sends" {
+                t!("Change it")
+            } else {
+                t!("Run it now")
+            };
             text.append(&self.link_button(&label, None, false, true, move |this| backend::run_check(this.state.borrow().report.as_ref(), &id)));
         }
         if check.accepted {
@@ -1345,7 +1357,8 @@ impl Security {
         if cards.is_empty() {
             return None;
         }
-        let all_on = groups().iter().all(|(group, _)| rows_of(group).iter().all(|c| c.state == "ok"));
+        // What the machine sends is information, on or off, so it does not count against "everything else is on"
+        let all_on = groups().iter().filter(|(group, _)| *group != "sends").all(|(group, _)| rows_of(group).iter().all(|c| c.state == "ok"));
         let title = if attention {
             if all_on { t!("Everything else is on") } else { t!("Everything else") }
         } else {
