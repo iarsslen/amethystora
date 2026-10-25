@@ -161,23 +161,30 @@ wait
 # --- Appearance ------------------------------------------------------------------------------------
 
 THEME="$(theme_current 2>/dev/null || true)"
-while read -r slug; do
-    [[ -n "${slug}" ]] || continue
-    dir="${SYSTEM_THEMES_DIR}/${slug}"
-    [[ -f "${USER_THEMES_DIR}/${slug}/colors.toml" ]] && dir="${USER_THEMES_DIR}/${slug}"
-    light=false
-    if [[ -f "${SYSTEM_THEMES_DIR}/${slug}/light.mode" || -f "${USER_THEMES_DIR}/${slug}/light.mode" ]]; then
-        light=true
-    fi
-    # With the palette the window draws the theme's swatch from
-    CHOICES+=("$(sed -nE 's/^[[:space:]]*([a-z0-9_]+)[[:space:]]*=[[:space:]]*"(#[0-9a-fA-F]{6})".*/\1 \2/p' \
-        "${dir}/colors.toml" 2>/dev/null |
-        jq -Rnc --arg value "${slug}" --arg title "$(pretty "${slug}")" --argjson light "${light}" \
-            '{$value, $title, text: null, terminal: false, command: ($ARGS.positional + [$value]), $light,
-              colors: ([inputs | split(" ") | {key: .[0], value: .[1]}] | from_entries
-                | {background, foreground, accent, color1, color2, color3, color4, color5, color6})}' \
-            --args ame desktop theme)")
-done < <(theme_list)
+# With the palette the window draws each theme's swatch from. One jq for all the themes, each a line of its slug,
+# title and light or dark by the record separator and then its colours: a jq of its own for each was the biggest
+# part of the list's time
+mapfile -t -O "${#CHOICES[@]}" CHOICES < <(
+    while read -r slug; do
+        [[ -n "${slug}" ]] || continue
+        dir="${SYSTEM_THEMES_DIR}/${slug}"
+        [[ -f "${USER_THEMES_DIR}/${slug}/colors.toml" ]] && dir="${USER_THEMES_DIR}/${slug}"
+        light=false
+        if [[ -f "${SYSTEM_THEMES_DIR}/${slug}/light.mode" || -f "${USER_THEMES_DIR}/${slug}/light.mode" ]]; then
+            light=true
+        fi
+        printf '\x1e%s\x1e%s\x1e%s\n' "${slug}" "$(pretty "${slug}")" "${light}"
+        sed -nE 's/^[[:space:]]*([a-z0-9_]+)[[:space:]]*=[[:space:]]*"(#[0-9a-fA-F]{6})".*/\1 \2/p' "${dir}/colors.toml" 2>/dev/null
+    done < <(theme_list) |
+        jq -Rnc '[inputs] | reduce .[] as $line ([];
+                if ($line | startswith("\u001e")) then
+                    ($line[1:] | split("\u001e")) as $head
+                    | . + [{value: $head[0], title: $head[1], light: ($head[2] == "true"), swatch: []}]
+                else .[-1].swatch += [$line] end)
+            | .[] | {value, title, text: null, terminal: false, command: ["ame", "desktop", "theme", .value], light,
+                colors: (.swatch | map(split(" ") | {key: .[0], value: .[1]}) | from_entries
+                    | {background, foreground, accent, color1, color2, color3, color4, color5, color6})}'
+)
 USAGE="ame desktop theme NAME"
 item appearance theme themes "$(gettext "Theme")" \
     "$(gettext "The colours of the desktop, the terminal and the apps that follow it, with the theme's own wallpapers.")" \
