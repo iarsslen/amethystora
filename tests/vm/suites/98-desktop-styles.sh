@@ -50,11 +50,25 @@ mono_of() {
 }
 
 # --- The module --------------------------------------------------------------------------------------------------------
-info="$(in_session "gnome-extensions info ${UUID}" 2>&1)"
-if grep -qE 'State: *(ACTIVE|ENABLED)' <<<"${info}"; then
+# The lock screen turns every extension off (INACTIVE), and an earlier suite may leave the screen locked: unlocked first,
+# so that what follows is about the styles. One still off after that was turned off by somebody, which is said apart.
+session_id() { loginctl show-user "${TEST_USER}" -p Display --value; }
+screen_locked() { [[ "$(loginctl show-session "$(session_id)" -p LockedHint --value 2>/dev/null)" == yes ]]; }
+screen_unlocked() { ! screen_locked; }
+active() { in_session "gnome-extensions info ${UUID}" 2>&1 | grep -qE 'State: *(ACTIVE|ENABLED)'; }
+if screen_locked; then
+    echo "# the screen was locked: unlocking it"
+    loginctl unlock-session "$(session_id)"
+    wait_for 30 screen_unlocked || true
+fi
+if wait_for 30 active; then
     ok "Amethystora UI is active"
 else
-    not_ok "Amethystora UI is not active" "${info}"
+    info="$(in_session "gnome-extensions info ${UUID}" 2>&1)"
+    not_ok "Amethystora UI is not active with the screen unlocked" "${info}" \
+        "enabled-extensions: $(in_session 'gsettings get org.gnome.shell enabled-extensions' 2>&1)"
+    in_session "gnome-extensions enable ${UUID}" >/dev/null 2>&1
+    wait_for 30 active || { not_ok "and it did not come back when enabled again"; finish; }
 fi
 
 # --- Every theme's style, font and icons -------------------------------------------------------------------------------
