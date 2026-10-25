@@ -10,14 +10,14 @@
                 {
                     "type": "signedBy",
                     "keyType": "GPGKeys",
-                    "keyPath": "/etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release"
+                    "keyPath": "/usr/lib/pki/containers/redhat-release.gpg"
                 }
             ],
             "registry.redhat.io": [
                 {
                     "type": "signedBy",
                     "keyType": "GPGKeys",
-                    "keyPath": "/etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release"
+                    "keyPath": "/usr/lib/pki/containers/redhat-release.gpg"
                 }
             ],
             "quay.io/toolbx-images": [

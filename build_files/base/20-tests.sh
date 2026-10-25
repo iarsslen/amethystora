@@ -1317,6 +1317,10 @@ jq -r '.transports.docker["registry.opensuse.org/opensuse/leap"][0].keyPaths[]' 
 jq -e '.transports.docker | has("registry.opensuse.org") or has("registry.opensuse.org/opensuse") | not' \
     /etc/containers/policy.json >/dev/null
 grep -q "use-sigstore-attachments: true" /etc/containers/registries.d/registry.opensuse.org-opensuse-leap.yaml
+# Every key the policy names is in the image: containers-common took Red Hat's from /etc/pki/rpm-gpg in 45,
+# which would have refused every pull from Red Hat's registries
+jq -r '.. | objects | (.keyPath // empty), (.keyPaths // empty | .[])' /etc/containers/policy.json |
+    xargs -r -n1 test -s
 # The policy is the one every update is verified against, so it has to be one this containers/image
 # accepts, unknown keys and all: loading it is the first thing a copy does, before it opens anything
 command -v skopeo >/dev/null
@@ -1539,7 +1543,9 @@ for service in login sshd; do
         /^account[[:space:]]+include[[:space:]]/ && !include { include = NR }
         END { exit !(skip && line == skip + 1 && include == line + 1) }' "/etc/pam.d/${service}"
 done
-grep -q pam_malcontent /etc/pam.d/gdm-* && false
+# GDM's own services, which are in /usr/lib/pam.d from GDM 51 (Fedora 45)
+test -f /etc/pam.d/gdm-password || test -f /usr/lib/pam.d/gdm-password
+grep -qs pam_malcontent /etc/pam.d/gdm-* /usr/lib/pam.d/gdm-* && false
 
 # Domain login (Settings' Enterprise Login, `realm join`): every SSSD back end, among them the file realmd
 # looks for before an Active Directory join, and no PackageKit for realmd to look for one through

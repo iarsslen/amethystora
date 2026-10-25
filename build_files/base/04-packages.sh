@@ -174,7 +174,7 @@ case "$FEDORA_MAJOR_VERSION" in
             gnupg2-scdaemon
         )
         ;;
-    44)
+    44 | 45)
         FEDORA_PACKAGES+=(
             gnupg2-scdaemon
         )

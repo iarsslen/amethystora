@@ -60,7 +60,7 @@ Homebrew's own setup, is still copied in by the `ctx` stage of the `Containerfil
 ### Architecture
 - **Two Build Targets**: `base` (regular users) and `dx` (developer experience)
 - **Image Flavors**: main, nvidia-open, nvidia-lts (see Drivers)
-- **Fedora Versions**: resolved per build by `just fedora_version` (see Version Detection); `04-packages.sh` has cases for 42, 43 and 44
+- **Fedora Versions**: resolved per build by `just fedora_version` (see Version Detection); `04-packages.sh` has cases for 42 to 45
 - **Stream Tags**: `stable`, `latest`, `beta`
 - **Build Process**: Sequential shell scripts in build_files/ directory
 - **Base Images**: Uses `ghcr.io/ublue-os/silverblue-main` as foundation from Universal Blue

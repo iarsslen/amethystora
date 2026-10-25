@@ -33,12 +33,13 @@ rpm --erase --nodeps kernel-devel
 # no licence to redistribute it. aptX comes from RPM Fusion instead, and Fedora's own PipeWire carries
 # the other Bluetooth codecs (AAC, LDAC, LC3, Opus). negativo17's packages claim Fedora's names at the
 # same or higher versions, so they are taken out first, and the replacements come only from the
-# repositories named, never from negativo17's (fedora-multimedia, which outranks Fedora's).
+# repositories named, never from negativo17's (fedora-multimedia, which outranks Fedora's). From 45 its
+# libheif, which links x264, x265 and kvazaar, takes the place of Fedora's as well.
 NEGATIVO17_MULTIMEDIA=(
     ffmpeg ffmpeg-libs libavcodec libavdevice libavfilter libavformat libavutil libswresample libswscale
     libfdk-aac mpeghdec liblc3plus libfreeaptx pipewire-libs-extra
     davs2-libs kvazaar-libs LCEVCdec libquirc librtmp libxavs svt-jpeg-xs uavs3d-libs vvenc-libs
-    x264-libs x265-libs xavs2-libs xevd-libs xeve-libs
+    x264-libs x265-libs xavs2-libs xevd-libs xeve-libs libheif libde265 uvg266-libs vvdec-libs
 )
 readarray -t NEGATIVO17_INSTALLED < <(rpm -qa --queryformat '%{NAME}\t%{VENDOR}\n' "${NEGATIVO17_MULTIMEDIA[@]}" |
     awk -F'\t' '$2 == "negativo17.org" { print $1 }')
@@ -52,7 +53,7 @@ if ((${#NEGATIVO17_INSTALLED[@]})); then
 fi
 dnf -y install --repo=fedora --repo=updates \
     ffmpeg-free fdk-aac-free libavcodec-free libavfilter-free libavformat-free libavutil-free \
-    libswresample-free libswscale-free
+    libswresample-free libswscale-free libheif libheif-ffmpeg
 rpmfusion_release_install free
 sed -i 's@^enabled=1@enabled=0@' /etc/yum.repos.d/rpmfusion-free*.repo
 dnf -y install --repo=fedora --repo=updates --repo=rpmfusion-free --repo=rpmfusion-free-updates \
@@ -100,13 +101,6 @@ if [[ -f /usr/share/applications/gnome-system-monitor.desktop ]]; then
 fi
 if [[ -f /usr/share/applications/org.gnome.SystemMonitor.desktop ]]; then
     sed -i 's@\[Desktop Entry\]@\[Desktop Entry\]\nHidden=true@g' /usr/share/applications/org.gnome.SystemMonitor.desktop
-fi
-
-# Add Mutter experimental-features
-if [[ "${IMAGE_NAME}" =~ nvidia ]]; then
-    sed -i "/experimental-features/ s/\]/, 'kms-modifiers'&/" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
-    echo "Compiling gschema to include the kms-modifiers override"
-    glib-compile-schemas /usr/share/glib-2.0/schemas
 fi
 
 echo "::endgroup::"

@@ -10,6 +10,7 @@ source /ctx/build_files/shared/copr-helpers.sh
 
 # DX packages from Fedora repos - common to all versions
 FEDORA_PACKAGES=(
+    7zip
     android-tools
     bcc
     bpftop
@@ -30,15 +31,13 @@ FEDORA_PACKAGES=(
     genisoimage
     git-subtree
     git-svn
-    iotop
+    iotop-c
     libvirt
     libvirt-nss
     ltrace
     nicstat
     numactl
     osbuild-selinux
-    p7zip
-    p7zip-plugins
     perf
     podman-compose
     podman-machine

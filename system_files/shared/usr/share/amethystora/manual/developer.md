@@ -72,7 +72,7 @@ default for GNOME Boxes) need no group at all.
 | iotop, tiptop, nicstat, numactl | What the disks, processors and network are doing, and which memory a program runs on |
 | wtype, ydotool | Type and click from a script; ydotool needs `ame security virtual-input off` |
 | udica | SELinux policies made to measure for a container |
-| git-svn, git-subtree, p7zip, genisoimage, virt-viewer | The rest of a workshop: Subversion, subtrees, 7-Zip, ISO images, and the window onto a virtual machine |
+| git-svn, git-subtree, 7zip, genisoimage, virt-viewer | The rest of a workshop: Subversion, subtrees, 7-Zip, ISO images, and the window onto a virtual machine |
 | ROCm | GPU compute on AMD graphics |
 | flatpak-builder | Building Flatpaks |
 | Podman Desktop, Builder, Clapgrep, Embellish, DevToolbox | Apps from Flathub, installed with developer mode: containers in a window, GNOME's IDE, searching text across files, Nerd Fonts, and encoders, formatters and generators. Leaving developer mode takes them away again |
