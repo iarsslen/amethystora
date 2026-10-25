@@ -170,19 +170,19 @@
 #uiGroup .amethystora-glass-surface.amethystora-glass-light .quick-toggle:checked,
 #uiGroup .amethystora-glass-surface.amethystora-glass-light .calendar .calendar-day.calendar-today,
 #uiGroup .amethystora-glass-surface.amethystora-glass-light .calendar .calendar-day:selected {
-  background-color: -st-accent-color;
-  color: -st-accent-fg-color;
+  background-color: {{ accent_bg }};
+  color: {{ accent_fg }};
   border-color: transparent;
 }
 
 #uiGroup .amethystora-glass-surface .button.default:hover,
 #uiGroup .amethystora-glass-surface .quick-toggle:checked:hover {
-  background-color: st-lighten(-st-accent-color, 6%);
+  background-color: st-lighten({{ accent_bg }}, 6%);
 }
 
 #uiGroup .amethystora-glass-surface.amethystora-glass-light .button.default:hover,
 #uiGroup .amethystora-glass-surface.amethystora-glass-light .quick-toggle:checked:hover {
-  background-color: st-darken(-st-accent-color, 6%);
+  background-color: st-darken({{ accent_bg }}, 6%);
 }
 
 /* The quick settings' toggles */
@@ -216,14 +216,14 @@
 }
 
 #uiGroup .amethystora-glass-surface .quick-toggle-has-menu .quick-toggle-menu-button:checked {
-  background-color: st-mix(-st-accent-color, {{ foreground }}, 85%);
-  color: -st-accent-fg-color;
+  background-color: st-mix({{ accent_bg }}, {{ foreground }}, 85%);
+  color: {{ accent_fg }};
   border-color: transparent;
 }
 
 #uiGroup .amethystora-glass-surface.amethystora-glass-light .quick-toggle-has-menu .quick-toggle-menu-button:checked {
-  background-color: st-mix(-st-accent-color, {{ background }}, 85%);
-  color: -st-accent-fg-color;
+  background-color: st-mix({{ accent_bg }}, {{ background }}, 85%);
+  color: {{ accent_fg }};
   border-color: transparent;
 }
 
@@ -663,7 +663,7 @@
 
 #uiGroup #keyboard.amethystora-glass-surface .keyboard-key:checked {
   background-color: rgba({{ foreground_rgb }}, 0.13);
-  box-shadow: inset 0 0 0 2px -st-accent-color;
+  box-shadow: inset 0 0 0 2px {{ accent_bg }};
 }
 
 #uiGroup #keyboard.amethystora-glass-surface .keyboard-key.default-key {
@@ -672,8 +672,8 @@
 
 #uiGroup #keyboard.amethystora-glass-surface .keyboard-key:latched,
 #uiGroup #keyboard.amethystora-glass-surface .keyboard-key.default-key:latched {
-  background-color: -st-accent-color;
-  color: -st-accent-fg-color;
+  background-color: {{ accent_bg }};
+  color: {{ accent_fg }};
 }
 
 #uiGroup #keyboard.amethystora-glass-surface.amethystora-glass-light .keyboard-key {
@@ -696,6 +696,6 @@
 
 #uiGroup #keyboard.amethystora-glass-surface.amethystora-glass-light .keyboard-key:latched,
 #uiGroup #keyboard.amethystora-glass-surface.amethystora-glass-light .keyboard-key.default-key:latched {
-  background-color: -st-accent-color;
-  color: -st-accent-fg-color;
+  background-color: {{ accent_bg }};
+  color: {{ accent_fg }};
 }

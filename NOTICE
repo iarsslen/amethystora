@@ -105,13 +105,19 @@ windows draw the wordmark in Quicksand, under the SIL Open Font License, version
 
 The themes write the desktop in fonts of their own, each under the SIL Open Font
 License, version 1.1. Those Fedora packages come with their packages: Comfortaa,
-Geist, IBM Plex Mono and Sans, Inter, JetBrains Mono, Nunito, Rubik and Work Sans.
+Fira Code, Geist and Geist Mono, IBM Plex Mono and Sans, Inter, JetBrains Mono,
+Nunito, Rubik and Work Sans (Fira Code's package carries no licence file, and
+its licence is in usr/share/licenses/google-fonts/firacode).
 The others are copied unchanged from Google Fonts' repository
 (https://github.com/google/fonts) into usr/share/fonts/amethystora, each with
-its licence in usr/share/licenses/google-fonts: DM Sans, Figtree, Fira Sans,
-Karla, Lexend, Manrope, Outfit, Plus Jakarta Sans, Quicksand, Sora, Space
-Grotesk and Space Mono. Their names are their authors' Reserved Font Names
+its licence in usr/share/licenses/google-fonts: DM Mono, DM Sans, Figtree, Fira
+Sans, Karla, Lexend, Manrope, Outfit, Plus Jakarta Sans, Quicksand, Sora, Space
+Grotesk, Space Mono and Victor Mono. Their names are their authors' Reserved Font Names
 where they have one.
+
+The themes' pointers are the Breeze cursor themes of the KDE Visual Design Group,
+Fedora's breeze-cursor-theme, under the licences its package names (the source of
+every package is listed in usr/share/licenses/amethystora/SOURCES).
 
 The file-watch sensor in usr/libexec/amethystora-sensor (apps/sensor/) is one
 more program of the same build, which watches the files the audit rules watch

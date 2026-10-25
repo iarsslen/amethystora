@@ -56,45 +56,47 @@ transition STYLE="" DURATION="":
     echo "$(eval_gettext "Transition set to \${style}, taking \${length} ms.")"
     echo "$(gettext "Super+Ctrl+Space changes the wallpaper to show it.")"
 
-# Pick the icon pack: glass, neon or duotone, or theme to follow the theme (Glass for a dark theme, Duotone for a light one)
+# Pick the icon pack (glass, glass-light, neon, neon-light, duotone, line, clay, muted or pixel), or theme to follow the theme's own
 [positional-arguments]
 icons PACK="":
     #!/usr/bin/bash
     set -euo pipefail
     # shellcheck source=/dev/null
     source gettext.sh
+    # shellcheck source=/dev/null
+    source /usr/lib/amethystora/theme/lib.sh
     # Read by amethystora-theme, which writes the icon theme at every switch and would otherwise put the
     # theme's own back
-    flag="${XDG_CONFIG_HOME:-$HOME/.config}/amethystora/icons"
+    flag="${CONFIG_DIR}/icons"
     current="$(sed -e 's/^amethystora-//' "${flag}" 2>/dev/null || echo theme)"
     pack="${1:-}"
     if [[ -z "${pack}" ]]; then
-        echo "glass    $(gettext "Each icon in its own gradient, with a glass sheen")"
-        echo "neon     $(gettext "Outlines lit in colours of their own, for a dark desktop")"
-        echo "duotone  $(gettext "Each icon in a gradient, its details in a contrasting one")"
-        echo "theme    $(gettext "Whatever the theme chooses")"
-        pack="$(gum choose --header "$(eval_gettext "Icons (current: \${current})")" --selected "${current}" glass neon duotone theme)"
+        echo "glass        $(gettext "Each icon in its own gradient, with a glass sheen")"
+        echo "glass-light  $(gettext "Glass with its colours deepened to read on a light desktop")"
+        echo "neon         $(gettext "Outlines lit in colours of their own, for a dark desktop")"
+        echo "neon-light   $(gettext "Neon with its colours deepened to read on a light desktop")"
+        echo "duotone      $(gettext "Each icon in a gradient, its details in a contrasting one")"
+        echo "line         $(gettext "One even outline, in colours that read on every theme")"
+        echo "clay         $(gettext "Soft matte volumes, a highlight above and a shade below")"
+        echo "muted        $(gettext "Glass in quieter colours, for themes of low chroma")"
+        echo "pixel        $(gettext "Duotone on a grid of 16 pixels")"
+        echo "theme        $(gettext "Whatever the theme chooses")"
+        pack="$(gum choose --header "$(eval_gettext "Icons (current: \${current})")" --selected "${current}" "${ICON_PACKS[@]}" theme)"
     fi
-    case "${pack}" in
-        glass | neon | duotone) name="amethystora-${pack}" ;;
-        theme)
-            rm -f "${flag}"
-            # What the theme chooses, written on its own: applying the whole theme again would hold the screen for a
-            # transition and put another wallpaper up
-            # shellcheck source=/dev/null
-            source /usr/lib/amethystora/theme/lib.sh
-            gsettings set org.gnome.desktop.interface icon-theme "$(icon_theme)"
-            echo "$(eval_gettext "Icons: \${pack}.")"
-            exit 0
-            ;;
-        *)
-            echo "usage: ame desktop icons glass|neon|duotone|theme"
-            exit 64
-            ;;
-    esac
-    mkdir -p "$(dirname "${flag}")"
-    echo "${name}" >"${flag}"
-    gsettings set org.gnome.desktop.interface icon-theme "${name}"
+    if [[ "${pack}" == theme ]]; then
+        rm -f "${flag}"
+        # What the theme chooses, written on its own: applying the whole theme again would hold the screen for a
+        # transition and put another wallpaper up
+        gsettings set org.gnome.desktop.interface icon-theme "$(icon_theme)"
+        echo "$(eval_gettext "Icons: \${pack}.")"
+        exit 0
+    elif ! is_icon_pack "${pack}"; then
+        echo "usage: ame desktop icons $(IFS='|'; echo "${ICON_PACKS[*]}")|theme"
+        exit 64
+    fi
+    mkdir -p "${CONFIG_DIR}"
+    echo "amethystora-${pack}" >"${flag}"
+    gsettings set org.gnome.desktop.interface icon-theme "amethystora-${pack}"
     echo "$(eval_gettext "Icons: \${pack}.")"
 
 # Pick the desktop style: the shape of the top bar, menus, notifications, dialogs, buttons and windows
@@ -164,8 +166,42 @@ font FAMILY="":
     fi
     # Written on its own: the font needs no transition, and applying the whole theme again would hold the screen
     gsettings set org.gnome.desktop.interface font-name "$(ui_font) ${FONT_SIZE}"
+    gsettings set org.gnome.desktop.interface document-font-name "$(ui_font) $((FONT_SIZE + 1))"
     family="$(ui_font)"
     echo "$(eval_gettext "Font: \${family}.")"
+
+# Pick the monospace font of the terminal, code and Text Editor, or go back to the theme's
+[positional-arguments]
+mono-font FAMILY="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    # shellcheck source=/dev/null
+    source /usr/lib/amethystora/theme/lib.sh
+    flag="${CONFIG_DIR}/mono-font"
+    current="$(head -n1 "${flag}" 2>/dev/null || echo theme)"
+    family="${1:-}"
+    if [[ -z "${family}" ]]; then
+        family="$(gum choose --header "$(eval_gettext "Monospace font (current: \${current})")" --selected "${current}" \
+            theme "${MONO_FONTS[@]}")"
+    fi
+    if [[ "${family}" == theme ]]; then
+        rm -f "${flag}"
+    elif font_installed "${family}"; then
+        mkdir -p "${CONFIG_DIR}"
+        echo "${family}" >"${flag}"
+    else
+        echo "$(eval_gettext "No font called \${family} is installed. The fonts offered: ame desktop mono-font")" >&2
+        echo "usage: ame desktop mono-font FAMILY|theme"
+        exit 64
+    fi
+    gsettings set org.gnome.desktop.interface monospace-font-name "$(mono_font) ${MONO_FONT_SIZE}"
+    # kitty's is in the rendered theme, which the theme renders again (the wallpaper stays); a window that is open
+    # takes it at once
+    AMETHYSTORA_THEME_QUIET=1 amethystora-theme reload >/dev/null
+    family="$(mono_font)"
+    echo "$(eval_gettext "Monospace font: \${family}.")"
 
 # Pick how windows are arranged: tiling, side by side on a strip, or classic, floating as on Windows and macOS
 [positional-arguments]

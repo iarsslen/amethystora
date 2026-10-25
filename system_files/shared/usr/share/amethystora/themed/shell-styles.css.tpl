@@ -116,7 +116,7 @@
 }
 
 #uiGroup.amethystora-style-hairline .amethystora-workspaces-label.amethystora-workspaces-active {
-  color: {{ accent }};
+  color: {{ accent_text }};
   border-color: {{ accent }};
 }
 
@@ -208,7 +208,7 @@
 /* ---- Terminal: monospace, square, lined, solid ---------------------------------------------------------------- */
 
 #uiGroup.amethystora-style-terminal {
-  font-family: "JetBrains Mono", monospace;
+  font-family: "{{ mono_font }}", monospace;
 }
 
 #uiGroup.amethystora-style-terminal #panel,
@@ -243,7 +243,7 @@
 }
 
 #uiGroup.amethystora-style-terminal .amethystora-workspaces-label.amethystora-workspaces-active {
-  color: {{ accent }};
+  color: {{ accent_text }};
   border-color: {{ accent }};
 }
 
@@ -308,12 +308,13 @@
   -natural-hpadding: 14px;
 }
 
-#uiGroup.amethystora-style-segments #panel .panel-button.amethystora-style-colour1 { background-color: {{ accent }}; }
-#uiGroup.amethystora-style-segments #panel .panel-button.amethystora-style-colour2 { background-color: {{ color5 }}; }
-#uiGroup.amethystora-style-segments #panel .panel-button.amethystora-style-colour3 { background-color: {{ color2 }}; }
-#uiGroup.amethystora-style-segments #panel .panel-button.amethystora-style-colour4 { background-color: {{ color3 }}; }
-#uiGroup.amethystora-style-segments #panel .panel-button.amethystora-style-colour5 { background-color: {{ color6 }}; }
-#uiGroup.amethystora-style-segments #panel .panel-button.amethystora-style-colour6 { background-color: {{ color1 }}; }
+/* Each block is a colour of the palette, moved in lightness only as far as its label reads on it (4.5:1) */
+#uiGroup.amethystora-style-segments #panel .panel-button.amethystora-style-colour1 { background-color: {{ segment1_bg }}; color: {{ segment1_fg }}; }
+#uiGroup.amethystora-style-segments #panel .panel-button.amethystora-style-colour2 { background-color: {{ segment2_bg }}; color: {{ segment2_fg }}; }
+#uiGroup.amethystora-style-segments #panel .panel-button.amethystora-style-colour3 { background-color: {{ segment3_bg }}; color: {{ segment3_fg }}; }
+#uiGroup.amethystora-style-segments #panel .panel-button.amethystora-style-colour4 { background-color: {{ segment4_bg }}; color: {{ segment4_fg }}; }
+#uiGroup.amethystora-style-segments #panel .panel-button.amethystora-style-colour5 { background-color: {{ segment5_bg }}; color: {{ segment5_fg }}; }
+#uiGroup.amethystora-style-segments #panel .panel-button.amethystora-style-colour6 { background-color: {{ segment6_bg }}; color: {{ segment6_fg }}; }
 
 #uiGroup.amethystora-style-segments #panel .panel-button.amethystora-style-first:ltr,
 #uiGroup.amethystora-style-segments #panel .panel-button.amethystora-style-last:rtl {
@@ -402,7 +403,7 @@
 
 #uiGroup.amethystora-style-neon #panel .panel-button.clock-display,
 #uiGroup.amethystora-style-neon #panel .clock-display .clock {
-  color: {{ accent }};
+  color: {{ accent_text }};
   text-shadow: 0 0 8px rgba({{ accent_rgb }}, 0.9);
 }
 
@@ -414,7 +415,7 @@
 }
 
 #uiGroup.amethystora-style-neon .amethystora-workspaces-label.amethystora-workspaces-active {
-  color: {{ accent }};
+  color: {{ accent_text }};
   border-color: {{ accent }};
   box-shadow: 0 0 10px rgba({{ accent_rgb }}, 0.6);
   text-shadow: 0 0 8px {{ accent }};

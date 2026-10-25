@@ -1,70 +1,25 @@
-/* The hairline desktop style in the applications, for {{ theme_name }}: crisp corners and thin lines on the windows,
-   buttons, entries, popovers, cards and controls. 20-gtk-apps.sh adds the current style's file to
-   ~/.config/gtk-4.0/gtk.css and ~/.config/gtk-3.0/gtk.css, which GTK reads above every theme, so every rule here wins
-   over the applications' own; the shell's half is shell-styles.css. The windows' corners are the glass's too
-   (modules/style.js). */
+/* What the hairline style adds to its shape: thin lines. A control is drawn with a line that reads (3:1 on every surface,
+   the theme's outline colour), a card and a popover with a quieter one, since they hold their content rather than being
+   found by it. */
 
-window.csd,
-window.csd > decoration {
-    border-radius: 6px;
-}
-
-window.csd > .titlebar,
-window.csd > headerbar {
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
-}
-
-window.csd.maximized, window.csd.fullscreen, window.csd.tiled, window.csd.tiled-top, window.csd.tiled-bottom,
-window.csd.tiled-left, window.csd.tiled-right,
-window.csd.maximized > decoration, window.csd.fullscreen > decoration, window.csd.tiled > decoration,
-window.csd.maximized > .titlebar, window.csd.fullscreen > .titlebar, window.csd.tiled > .titlebar,
-window.csd.maximized > headerbar, window.csd.tiled > headerbar {
-    border-radius: 0;
-}
-
-button:not(.circular):not(.pill):not(.titlebutton),
+button:not(.flat):not(.suggested-action):not(.destructive-action):not(.circular):not(.titlebutton):not(.pill),
 spinbutton,
 entry,
 dropdown > button,
-combobox > box > button,
-switch {
-    border-radius: 4px;
-}
-
-switch > slider,
-switch slider {
-    border-radius: 3px;
+combobox > box > button {
+    box-shadow: inset 0 0 0 1px {{ outline }};
 }
 
 popover > contents,
 popover.background,
 popover.menu > contents {
-    border-radius: 6px;
-    box-shadow: 0 0 0 1px rgba({{ foreground_rgb }}, 0.14), 0 4px 12px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 0 0 1px rgba({{ foreground_rgb }}, 0.2), 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
 .card,
 list.boxed-list,
+list.content,
 .boxed-list,
 frame > border {
-    border-radius: 6px;
-    box-shadow: 0 0 0 1px rgba({{ foreground_rgb }}, 0.12);
-}
-
-check {
-    border-radius: 3px;
-}
-
-progressbar trough,
-progressbar progress,
-scale trough,
-scale highlight,
-levelbar block {
-    border-radius: 2px;
-}
-
-tooltip,
-tooltip.background {
-    border-radius: 4px;
+    box-shadow: 0 0 0 1px rgba({{ foreground_rgb }}, 0.14);
 }

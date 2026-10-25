@@ -13,6 +13,7 @@ pub mod markdown;
 pub mod palette;
 pub mod process;
 pub mod rich;
+pub mod shape;
 pub mod store;
 pub mod ui;
 mod units;

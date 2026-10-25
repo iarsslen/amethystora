@@ -31,8 +31,8 @@ SAVES="${ROOT}/var/lib/amethystora/reset-settings"
 # The account's own, which root, running the machine's half from a service, may have no home for
 ACCOUNT_SAVES="${XDG_STATE_HOME:-${HOME:-}/.local/state}/amethystora/reset-settings"
 CONFIG="${XDG_CONFIG_HOME:-${HOME:-}/.config}/amethystora"
-# The account's own choices over its theme's, each a file in CONFIG (ame desktop icons, style, font)
-CHOICES=(icons style font)
+# The account's own choices over its theme's, each a file in CONFIG (ame desktop icons, style, font, mono-font)
+CHOICES=(icons style font mono-font)
 HOOKS=/usr/share/amethystora/user-setup.hooks.d
 SETUP_CHECKER_FILE="${HOME:-}/.local/share/amethystora/setup_versioning.json"
 

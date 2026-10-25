@@ -34,12 +34,27 @@ for theme in "${SYSTEM_THEMES_DIR}"/*/; do
     render_templates "${T}/stage" "theme_name=${slug}" "ptyxis_palette_name=Amethystora ${slug} & co" ||
         fail "${slug} does not render"
     for template in "${SYSTEM_TEMPLATES_DIR}"/*.tpl; do
+        # The shape of every style is one template, filled for each style into that style's own file (below)
+        [[ "${template##*/}" == style-base.gtk.css.tpl ]] && continue
         output="${T}/stage/$(basename "${template}" .tpl)"
         [[ -f "${output}" ]] || fail "${slug}: $(basename "${template}") was not rendered"
         grep -q '{{ [A-Za-z0-9_]* }}' "${output}" && fail "${slug}: $(basename "${output}") has a value left unfilled"
         # The last newline is kept, as sed kept it
         [[ "$(tail -c1 "${template}" | od -An -tx1 | tr -d ' ')" == "$(tail -c1 "${output}" | od -An -tx1 | tr -d ' ')" ]] ||
             fail "${slug}: $(basename "${output}") lost its last newline"
+    done
+    # Each style but floating, which leaves the applications their own corners, has its shape, with the style's radii
+    for style in "${STYLES[@]}"; do
+        [[ "${style}" == floating ]] && continue
+        shape="${T}/stage/style-${style}.gtk.css"
+        grep -q "^/\* The ${style} desktop style in the applications, for ${slug}" "${shape}" || fail "${slug}: ${style} has no shape"
+        grep -q "window.csd,$" "${shape}" || fail "${slug}: ${style} has no window"
+        for token in ${STYLE_SHAPE[${style}]}; do
+            [[ "${token}" == window=* ]] || continue
+            grep -q "border-radius: ${token#window=}px;" "${shape}" || fail "${slug}: ${style}'s windows are not ${token#window=}px"
+        done
+        # A style's own lines and glows come after its shape, in the same file
+        [[ "${style}" == segments ]] && ! grep -q "^row:selected," "${shape}" && fail "${slug}: segments lost its own rules"
     done
     # What the terminal and the prompt read has to be accepted by the programs that read it: a key either does not
     # know would be a warning at the top of every new terminal, or colours that are not applied

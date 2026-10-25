@@ -23,3 +23,8 @@ color12 = "#f59e0b"
 color13 = "#B91C1C"
 color14 = "#eaeaea"
 color15 = "#ffffff"
+
+# This palette's slots 2 and 3 are an amber and a red, not a green and a yellow: the interface's status colours
+success = "#5fa86a"
+warning = "#FFC107"
+error = "#D35F5F"

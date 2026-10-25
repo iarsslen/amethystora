@@ -8,7 +8,11 @@
 #
 # libadwaita ignores gtk-theme. It always loads its own stylesheet, and the one opening left is the
 # user stylesheet at ~/.config/gtk-4.0/gtk.css, which GTK reads last and so on top of everything
-# else. Files, Settings, Text Editor and most of GNOME are libadwaita.
+# else. Files, Settings, Text Editor and most of GNOME are libadwaita. What that stylesheet holds is
+# the theme's palette as libadwaita's own colour variables (themed/palette-gtk4.css.tpl), so that every
+# surface, accent and status colour of such an application is the theme's, at the contrast WCAG asks
+# for. GTK 4 leaves the palette out while High Contrast is on, which has its own colours, as the media query round it
+# says; GTK 3 has no such query, so its palette is left out here, and applying the theme again puts it back.
 #
 # A Flatpak is told the theme's name by the settings portal but cannot see the theme: /usr inside
 # the sandbox belongs to the runtime, and Flatpak refuses to bind anything under the host's /usr
@@ -18,9 +22,8 @@
 #
 # So the theme is mirrored into ~/.themes, the one directory GTK searches by name on both sides of
 # the sandbox and which /etc/flatpak/overrides/global grants every application read-only. GTK3
-# applications find it there by the name the portal gives them; the user stylesheet below imports
-# from the mirror rather than from /usr/share/themes, so the same one file resolves inside a sandbox
-# and outside it, assets and all.
+# applications find it there by the name the portal gives them, and the GTK 3 stylesheet carries the
+# palette in the named colours adw-gtk3 shares with libadwaita.
 #
 # This is the unsupported half of GTK theming: the user stylesheet overrides libadwaita's own, and a
 # GNOME major release can change what it is overriding. Nothing here can break an application's
@@ -79,32 +82,23 @@ fi
 
 # --- User stylesheets ---------------------------------------------------------------------------
 
-STYLESHEET="${MIRROR}/gtk-4.0/gtk.css"
-[[ -f "${AMETHYSTORA_THEME_DIR}/light.mode" ]] ||
-    STYLESHEET="${MIRROR}/gtk-4.0/gtk-dark.css"
-
-# A theme that names no GTK theme, or names one without a GTK4 stylesheet (adw-gtk3 is GTK3 only),
-# gets the libadwaita applications back the way GNOME ships them instead of keeping the last theme's
-# colours: no import, only the window buttons
-if [[ -z ${THEME_NAME} ]] || [[ ! -f ${STYLESHEET} ]]; then
-    STYLESHEET=""
-fi
-
-# Write one user stylesheet: the import, when there is one, then the window buttons rendered from the
-# theme's palette (themed/window-controls-gtk*.css.tpl), then the desktop style. The buttons are copied in rather than
-# imported, because a Flatpak sees no more of the home than ~/.themes and these two folders.
+# Write one user stylesheet: the palette, then the window buttons rendered from the theme's palette
+# (themed/window-controls-gtk*.css.tpl), then the desktop style. They are copied in rather than imported, because a
+# Flatpak sees no more of the home than ~/.themes and these two folders. The palette comes first so that what follows
+# can use its variables.
 #
 # A stylesheet of the user's own is theirs. Only the one this hook wrote is ever replaced or
 # removed, which is what the marker is for.
 write_stylesheet() {
-    local file="$1" import="$2" controls="$3"
+    local file="$1" palette="$2" controls="$3" part
 
     if [[ -e ${file} ]] && ! grep -qF "${CSS_MARKER}" "${file}"; then
         return 0
     fi
+    [[ -f ${palette} ]] || palette=""
     [[ -f ${controls} ]] || controls=""
     [[ -f ${STYLE_SHEET} ]] || STYLE_SHEET=""
-    if [[ -z ${import} && -z ${controls} && -z ${STYLE_SHEET} ]]; then
+    if [[ -z ${palette} && -z ${controls} && -z ${STYLE_SHEET} ]]; then
         rm -f "${file}"
         return 0
     fi
@@ -113,12 +107,9 @@ write_stylesheet() {
     {
         echo "${CSS_MARKER} for the ${AMETHYSTORA_THEME} theme, and rewritten on every theme switch."
         echo "   Delete this file to put the applications back to their own stylesheet. */"
-        # A one-line import rather than a copy of the stylesheet, so that the relative
-        # url(../assets/...) in it keeps resolving against the theme directory rather than against the
-        # home directory, and so that the light and dark stylesheets are never allowed to drift apart
-        [[ -n ${import} ]] && echo "@import url(\"file://${import}\");"
-        [[ -n ${controls} ]] && cat "${controls}"
-        [[ -n ${STYLE_SHEET} ]] && cat "${STYLE_SHEET}"
+        for part in "${palette}" "${controls}" "${STYLE_SHEET}"; do
+            [[ -z ${part} ]] || cat "${part}"
+        done
     } >"${file}.new"
     mv "${file}.new" "${file}"
 }
@@ -128,7 +119,11 @@ write_stylesheet() {
 # does not have matches nothing there.
 STYLE="$(gsettings get org.gnome.shell.extensions.amethystora-ui.style style 2>/dev/null | tr -d "'" || true)"
 STYLE_SHEET="${AMETHYSTORA_THEME_DIR}/style-${STYLE:-floating}.gtk.css"
+HIGH_CONTRAST="$(gsettings get org.gnome.desktop.a11y.interface high-contrast 2>/dev/null || true)"
 
-write_stylesheet "${USER_STYLESHEET}" "${STYLESHEET}" "${AMETHYSTORA_THEME_DIR}/window-controls-gtk4.css"
-write_stylesheet "${XDG_CONFIG_HOME:-${HOME}/.config}/gtk-3.0/gtk.css" "" \
+write_stylesheet "${USER_STYLESHEET}" "${AMETHYSTORA_THEME_DIR}/palette-gtk4.css" "${AMETHYSTORA_THEME_DIR}/window-controls-gtk4.css"
+# With High Contrast on, GTK 3 draws what adw-gtk3 draws for it, and a palette over that would undo it
+GTK3_PALETTE="${AMETHYSTORA_THEME_DIR}/palette-gtk3.css"
+[[ ${HIGH_CONTRAST} != true ]] || GTK3_PALETTE=""
+write_stylesheet "${XDG_CONFIG_HOME:-${HOME}/.config}/gtk-3.0/gtk.css" "${GTK3_PALETTE}" \
     "${AMETHYSTORA_THEME_DIR}/window-controls-gtk3.css"

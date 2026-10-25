@@ -7,12 +7,16 @@
 #   accent.theme  the GNOME accent name to pair with it (blue teal green yellow orange red pink
 #                 purple slate); without it the palette's accent is matched to the closest one
 #   light.mode    present when the theme is light
+#
+# colors.toml may also carry success, warning and error, for a theme whose palette slots color2, color3 and color1 are
+# not a green, a yellow and a red (Matte Black's, Rose Pine Dawn's): the interface's status colours come from them.
 #   pair.theme    the name of the light or dark theme this one flips to on Super+Ctrl+D
 #   gtk.theme     a GTK theme name, when adw-gtk3 is not wanted
-#   icons.theme   an icon theme name, when the image's own is not wanted (Glass, or Duotone for a light theme)
+#   icons.theme   an icon theme name, when the image's own is not wanted (Glass, or Glass for light for a light theme)
 #   style.theme   the desktop style: one of STYLES below, the shape of the top bar, menus, notifications,
 #                 dialogs, buttons and windows (floating when the theme names none)
 #   font.theme    the interface font's family, when the desktop's own (Adwaita Sans) is not wanted
+#   mono.theme    the monospace font's family (terminals, code, Text Editor), when JetBrains Mono is not wanted
 #   cursor.theme  a cursor theme name, when the desktop's own is not wanted
 #   vscode.theme  the VSCodium colour theme to select
 #   backgrounds.list  wallpapers elsewhere on the system, one path per line; the first is the one
@@ -42,11 +46,14 @@ CURRENT_THEME_NAME="${CURRENT_DIR}/theme.name"
 CURRENT_BACKGROUND="${CURRENT_DIR}/background"
 
 DEFAULT_THEME=amethystora
-# The image's icon packs, drawn by branding/icons.mjs: Glass for a dark theme, Duotone for a light one (Neon is
-# chosen with `ame desktop icons`). Glass is also the default in zz1-amethystora-modifications, for accounts that
-# have not applied a theme yet; the two are checked against each other in 20-tests.sh.
+# The image's icon packs, drawn by branding/icons.mjs, each /usr/share/icons/amethystora-<pack>. Each theme names the
+# one that suits its colours and its style (icons.theme); when it names none, Glass is the pack of a dark theme and
+# Glass for light of a light one, whose colours are deepened to read on a light ground. Glass is also the default in
+# zz1-amethystora-modifications, for accounts that have not applied a theme yet; the two are checked against each
+# other in 20-tests.sh.
 DEFAULT_ICON_THEME=amethystora-glass
-DEFAULT_LIGHT_ICON_THEME=amethystora-duotone
+DEFAULT_LIGHT_ICON_THEME=amethystora-glass-light
+ICON_PACKS=(glass glass-light neon neon-light duotone line clay muted pixel)
 
 # The desktop styles, each drawn by Amethystora UI (themed/shell-styles.css.tpl) and in the applications
 # (themed/style-<style>.gtk.css.tpl): the shape of the top bar, menus, notifications, dialogs, on-screen alerts,
@@ -54,6 +61,19 @@ DEFAULT_LIGHT_ICON_THEME=amethystora-duotone
 # default, for accounts that have not applied a theme yet.
 STYLES=(islands floating hairline capsule terminal segments neon)
 DEFAULT_STYLE=floating
+# What each style makes of the applications, in pixels (themed/style-base.gtk.css.tpl): the corners of a window, a dialog,
+# a control (button, entry, tab, menu row), a card or list, a popover, a tile (an item of a grid or a selection), a check
+# box, a switch and its knob, a tooltip, a toast, and the trough of a slider or a progress bar. A window's corners are the
+# glass's too (modules/style.js), and 20-tests.sh holds the two to each other. Floating has none: the applications
+# keep their own corners.
+declare -gA STYLE_SHAPE=(
+    [islands]="window=16 dialog=19 control=12 card=16 popover=18 tile=12 check=7 switch=999 knob=999 tooltip=10 toast=999 bar=999"
+    [hairline]="window=6 dialog=8 control=4 card=6 popover=6 tile=4 check=3 switch=4 knob=3 tooltip=4 toast=6 bar=2"
+    [capsule]="window=18 dialog=21 control=999 card=20 popover=24 tile=20 check=8 switch=999 knob=999 tooltip=16 toast=999 bar=999"
+    [terminal]="window=0 dialog=0 control=0 card=0 popover=0 tile=0 check=0 switch=0 knob=0 tooltip=0 toast=0 bar=0"
+    [segments]="window=12 dialog=15 control=8 card=12 popover=12 tile=8 check=6 switch=999 knob=999 tooltip=8 toast=10 bar=999"
+    [neon]="window=10 dialog=13 control=8 card=10 popover=10 tile=8 check=6 switch=999 knob=999 tooltip=8 toast=10 bar=999"
+)
 # The interface font when neither the account nor the theme names one: zz0-amethystora-modifications' own
 DEFAULT_FONT="Adwaita Sans"
 FONT_SIZE=11
@@ -62,6 +82,12 @@ FONT_SIZE=11
 UI_FONTS=("Adwaita Sans" Comfortaa "DM Sans" Figtree "Fira Sans" Geist "IBM Plex Mono" "IBM Plex Sans" Inter
     "JetBrains Mono" Karla Lexend Manrope Nunito Outfit "Plus Jakarta Sans" Quicksand Rubik Sora "Space Grotesk"
     "Space Mono" "Work Sans")
+# The monospace font (terminals, code, Text Editor, anything asking GNOME for the system's fixed-width face) when neither
+# the account nor the theme names one, and the families `ame desktop mono-font` and Control offer: each installed by
+# 04-packages.sh or 09-fonts.sh. Any other installed family can be typed.
+DEFAULT_MONO_FONT="JetBrains Mono"
+MONO_FONT_SIZE=11
+MONO_FONTS=("Adwaita Mono" "DM Mono" "Fira Code" "Geist Mono" "IBM Plex Mono" "JetBrains Mono" "Space Mono" "Victor Mono")
 
 # GNOME's accent colours, with a representative sRGB value for each, used to pick the closest one
 # for a theme that does not name its own
@@ -145,6 +171,14 @@ icon_theme() {
     echo "${icons}"
 }
 
+is_icon_pack() {
+    local pack
+    for pack in "${ICON_PACKS[@]}"; do
+        [[ $1 == "${pack}" ]] && return 0
+    done
+    return 1
+}
+
 is_style() {
     local style
     for style in "${STYLES[@]}"; do
@@ -185,11 +219,39 @@ ui_font() {
     echo "${DEFAULT_FONT}"
 }
 
+# The monospace font's family: the account's own choice (ame desktop mono-font), else the theme's (mono.theme in the
+# folder given, the current theme's when none is), else JetBrains Mono. A family that is not installed is passed over.
+mono_font() {
+    local dir="${1:-${CURRENT_THEME_DIR}}" name
+    for name in "$(head -n1 "${CONFIG_DIR}/mono-font" 2>/dev/null || true)" "$(head -n1 "${dir}/mono.theme" 2>/dev/null || true)"; do
+        if font_installed "${name}"; then
+            echo "${name}"
+            return 0
+        fi
+    done
+    echo "${DEFAULT_MONO_FONT}"
+}
+
 # A colour from a theme's colors.toml, e.g. colors_get <dir> accent -> #7c3aed
 colors_get() {
     local dir="$1" key="$2"
     sed -nE "s/^[[:space:]]*['\"]?${key}['\"]?[[:space:]]*=[[:space:]]*['\"]([^'\"]+)['\"].*/\1/p" \
         "${dir}/colors.toml" 2>/dev/null | head -n1
+}
+
+# The colours an interface needs beyond a palette's, as key=value lines: the surfaces, an accent and a label that can be
+# read on it, status colours, the line a control is drawn with and how much of the text a dimmed label keeps, each at
+# the ratio WCAG asks (palette.awk, which says which). A theme's folder holds colors.toml, and light.mode when it is light.
+derive_palette() {
+    local dir="$1" key
+    {
+        for key in background foreground accent color1 color2 color3 color5 color6 success warning error; do
+            echo "${key}=$(colors_get "${dir}" "${key}")"
+        done
+        if [[ -f "${dir}/light.mode" ]]; then
+            echo "light=1"
+        fi
+    } | awk -f "$(dirname "${BASH_SOURCE[0]}")/palette.awk"
 }
 
 hex_to_rgb() {
@@ -223,6 +285,19 @@ closest_gnome_accent() {
     echo "${best}"
 }
 
+# The template with each {{ key }} replaced by the value of that key in an associative array of the caller's, named by the
+# first argument: the whole file, its last newline included, each value put in as text, the replacement quoted so that
+# bash 5.2 reads no & in it
+fill_template() {
+    local -n table="$1"
+    local text key
+    IFS= read -r -d '' text <"$2" || true
+    for key in "${!table[@]}"; do
+        text="${text//"{{ ${key} }}"/"${table[${key}]}"}"
+    done
+    printf '%s' "${text}"
+}
+
 # Render every *.tpl into dest, substituting {{ key }}, {{ key_strip }} (no leading #) and
 # {{ key_rgb }} (decimal r,g,b) from colors.toml. A file the theme ships itself is left alone, so a
 # theme can hand-write any config a template would otherwise generate. Any further key=value pairs
@@ -232,7 +307,7 @@ closest_gnome_accent() {
 # value holding | could end it and run anything, at every login.) A value that is not #rrggbb refuses the
 # whole theme, with its name, rather than render half of it.
 render_templates() {
-    local dest="$1" key value template output text
+    local dest="$1" key value template output text style
     local -A values=()
     shift
 
@@ -257,19 +332,73 @@ render_templates() {
         values["${key}_rgb"]="$(hex_to_rgb "${value}")"
     done <"${dest}/colors.toml"
 
+    # What the palette does not hold but an interface needs (derive_palette), in the same three forms, and the monospace
+    # font, so that no caller has to pass them
+    while IFS='=' read -r key value; do
+        [[ -n ${key} ]] || continue
+        values["${key}"]="${value}"
+        if [[ ${value} =~ ^#[0-9a-fA-F]{6}$ ]]; then
+            values["${key}_strip"]="${value#\#}"
+            values["${key}_rgb"]="$(hex_to_rgb "${value}")"
+        fi
+    done < <(derive_palette "${dest}")
+    [[ -n ${values[accent_fg]:-} ]] || { echo "The theme in ${dest##*/} is refused: its palette could not be worked out." >&2; return 1; }
+    values[mono_font]="$(mono_font "${dest}")"
+
+    # A file the theme ships itself is left alone, and so is a style's, which would otherwise be given its shape twice
+    local -a own_styles=()
+    for style in "${STYLES[@]}"; do
+        [[ -f "${dest}/style-${style}.gtk.css" ]] && own_styles+=("${style}")
+    done
+
     shopt -s nullglob
     for template in "${USER_TEMPLATES_DIR}"/*.tpl "${SYSTEM_TEMPLATES_DIR}"/*.tpl; do
+        # The shape every style is drawn in is a template of its own, filled once for each style below
+        [[ ${template##*/} == style-base.gtk.css.tpl ]] && continue
         output="${dest}/$(basename "${template}" .tpl)"
         [[ -f ${output} ]] && continue
-        # The whole file, its last newline included; each {{ key }} replaced as text, the replacement
-        # quoted so that bash 5.2 reads no & in it
-        IFS= read -r -d '' text <"${template}" || true
-        for key in "${!values[@]}"; do
-            text="${text//"{{ ${key} }}"/"${values[${key}]}"}"
-        done
-        printf '%s' "${text}" >"${output}"
+        fill_template values "${template}" >"${output}"
     done
     shopt -u nullglob
+
+    # Each style's file in the applications: the shape, filled with the style's radii, and then the style's own (lines,
+    # glow and colours), which the loop above has rendered
+    local base="" shaped_text control token
+    for template in "${USER_TEMPLATES_DIR}/style-base.gtk.css.tpl" "${SYSTEM_TEMPLATES_DIR}/style-base.gtk.css.tpl"; do
+        if [[ -f ${template} ]]; then
+            base="${template}"
+            break
+        fi
+    done
+    for style in "${STYLES[@]}"; do
+        [[ -n ${base} && -n ${STYLE_SHAPE[${style}]:-} && " ${own_styles[*]} " != *" ${style} "* ]] || continue
+        local -A shaped=()
+        for key in "${!values[@]}"; do
+            shaped["${key}"]="${values[${key}]}"
+        done
+        shaped[style_name]="${style}"
+        for token in ${STYLE_SHAPE[${style}]}; do
+            shaped["s_${token%%=*}"]="${token#*=}"
+        done
+        # The inner corners of a toggle group are the group's less its padding
+        control="${shaped[s_control]}"
+        shaped[s_toggle]="$((control > 3 ? control - 3 : 0))"
+        output="${dest}/style-${style}.gtk.css"
+        shaped_text="$(fill_template shaped "${base}")"
+        { printf '%s\n' "${shaped_text}"; cat "${output}" 2>/dev/null || true; } >"${output}.new"
+        mv "${output}.new" "${output}"
+        unset shaped
+    done
+
+    # Every style's radii, one `style.token = px` line each, for the apps that draw the style in their own stylesheets
+    # (apps/common/src/palette.rs); a theme may ship its own
+    if [[ ! -f "${dest}/shapes.conf" ]]; then
+        for style in "${STYLES[@]}"; do
+            for token in ${STYLE_SHAPE[${style}]:-}; do
+                echo "${style}.${token%%=*} = ${token#*=}"
+            done
+        done >"${dest}/shapes.conf"
+    fi
 }
 
 # Settings are written with dconf rather than gsettings: it needs no schema, so it also reaches the

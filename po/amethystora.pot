@@ -1769,6 +1769,14 @@ msgid "Each icon in its own gradient, with a glass sheen"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Glass for light"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Glass with its colours deepened to read on a light desktop"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Neon"
 msgstr ""
 
@@ -1777,11 +1785,51 @@ msgid "Outlines lit in colours of their own, for a dark desktop"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Neon for light"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Neon with its colours deepened to read on a light desktop"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Duotone"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
 msgid "Each icon in a gradient, its details in a contrasting one"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Line"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "One even outline, in colours that read on every theme"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Clay"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Soft matte volumes, a highlight above and a shade below"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Muted"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Glass in quieter colours, for themes of low chroma"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Pixel"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Duotone on a grid of 16 pixels"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -1867,6 +1915,14 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "The font of the desktop and the applications."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Monospace font"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The font of the terminal, of code and of Text Editor."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -4520,6 +4576,21 @@ msgstr ""
 #: usr/share/amethystora/just/desktop.just
 #, sh-format
 msgid "Font: ${family}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Monospace font (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "No font called ${family} is installed. The fonts offered: ame desktop mono-font"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Monospace font: ${family}."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just

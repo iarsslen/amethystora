@@ -16,6 +16,7 @@ use gtk::glib;
 
 use crate::i18n::{self, I18n};
 use crate::palette::{self, Palette};
+use crate::shape::shape_css;
 
 /// What an app does with the window
 pub trait App: 'static {
@@ -95,13 +96,16 @@ impl Shell {
         } else {
             self.window.remove_css_class("light");
         }
+        // The desktop style's corners are in the stylesheets as much as the colours are
+        self.rescale();
     }
 
     fn rescale(&self) {
         let factor = 1.2f64.powf(self.zoom_level.get());
         crate::icon::set_zoom(factor);
-        self.base.load_from_string(&scale_css(BASE_CSS, factor));
-        self.own.load_from_string(&scale_css(self.spec.css, factor));
+        let shape = self.palette.borrow().as_ref().and_then(|palette| palette.shape);
+        self.base.load_from_string(&scale_css(&shape_css(BASE_CSS, shape), factor));
+        self.own.load_from_string(&scale_css(&shape_css(self.spec.css, shape), factor));
         self.window.queue_resize();
     }
 
@@ -283,7 +287,6 @@ fn open_window<A: App>(app: &adw::Application, spec: Spec, build: &Rc<impl Fn(Rc
         monitor: RefCell::new(None),
     });
     shell.restyle();
-    shell.rescale();
     let own_app = build(shell.clone());
     crate::frame::start_controls(&window);
 

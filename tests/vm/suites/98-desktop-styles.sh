@@ -5,8 +5,11 @@
 #   - the shell draws what the style says: the top bar is held off the screen's edge in the floating, islands, capsule,
 #     segments and neon styles and lies against it in the hairline and terminal ones, by where the shell's
 #     accessibility tree puts the bar's buttons;
-#   - ame desktop style and ame desktop font keep a choice over every theme, refuse what is not a style or not
-#     installed, and `theme` goes back to the theme's own; Control lists both;
+#   - every theme, applied, also writes its monospace font and its pointer, puts the palette layer (libadwaita's colour
+#     variables, behind the query that leaves High Contrast alone, and adw-gtk3's named colours) in the GTK stylesheets, the
+#     colours of the KDE applications in kdeglobals and the apps' palette.toml and style in the theme's folder;
+#   - ame desktop style, font, mono-font and icons keep a choice over every theme, refuse what is not a style, not
+#     installed or not a pack, and `theme` goes back to the theme's own; Control lists them;
 #   - every font the themes and Control name is installed.
 # The account is left on Tokyo Night, the neon style, with a Files window and the quick settings open, for the
 # screenshot run.mjs takes after the suite.
@@ -29,15 +32,21 @@ set_theme() { in_session "AMETHYSTORA_THEME_QUIET=1 amethystora-theme set '$1'" 
 style_now() { gsettings_get "${STYLE_SCHEMA}" style | tr -d "'"; }
 font_now() { gsettings_get org.gnome.desktop.interface font-name | tr -d "'"; }
 icons_now() { gsettings_get org.gnome.desktop.interface icon-theme | tr -d "'"; }
-# The pack a theme writes: its own icons.theme, else Glass for a dark theme and Duotone for a light one
+mono_now() { gsettings_get org.gnome.desktop.interface monospace-font-name | tr -d "'"; }
+cursor_now() { gsettings_get org.gnome.desktop.interface cursor-theme | tr -d "'"; }
+# The pack a theme writes: its own icons.theme, else Glass for a dark theme and Glass for light for a light one
 icons_of() {
     if [[ -f "${THEMES_DIR}/$1/icons.theme" ]]; then
         head -n1 "${THEMES_DIR}/$1/icons.theme"
     elif [[ -f "${THEMES_DIR}/$1/light.mode" ]]; then
-        echo amethystora-duotone
+        echo amethystora-glass-light
     else
         echo amethystora-glass
     fi
+}
+# The monospace font a theme writes: its own mono.theme, else JetBrains Mono
+mono_of() {
+    if [[ -f "${THEMES_DIR}/$1/mono.theme" ]]; then head -n1 "${THEMES_DIR}/$1/mono.theme"; else echo "JetBrains Mono"; fi
 }
 
 # --- The module --------------------------------------------------------------------------------------------------------
@@ -73,6 +82,26 @@ for dir in "${THEMES_DIR}"/*/; do
     else
         not_ok "${theme}: a half of the style is missing" "$(ls "${CONFIG}/current/theme" 2>&1 | paste -sd ' ')" \
             "$(grep -h 'desktop style in the applications' "${gtk4}" "${gtk3}" 2>&1)"
+    fi
+    # The monospace font and the pointer of the theme, and its colours in every place an application takes them from
+    mono="$(mono_of "${theme}")"
+    cursor="$(head -n1 "${dir}cursor.theme")"
+    if [[ "$(mono_now)" == "${mono} 11" && "$(cursor_now)" == "${cursor}" ]]; then
+        ok "${theme}: ${mono} for the monospace font and ${cursor} for the pointer"
+    else
+        not_ok "${theme} did not write its monospace font and pointer" "$(mono_now) (want ${mono} 11), $(cursor_now) (want ${cursor})"
+    fi
+    accent_bg="$(sed -n 's/^accent_bg = "\(#[0-9a-f]*\)"$/\1/p' "${CONFIG}/current/theme/palette.toml")"
+    if [[ -n "${accent_bg}" ]] &&
+        grep -qi -- "--accent-bg-color: ${accent_bg};" "${gtk4}" &&
+        grep -q '@media not (prefers-contrast: more)' "${gtk4}" &&
+        grep -qi -- "@define-color accent_bg_color ${accent_bg};" "${gtk3}" &&
+        grep -q '^\[Colors:View\]' "${HOME_DIR}/.config/kdeglobals" &&
+        [[ "$(cat "${CONFIG}/current/style.name")" == "${style}" ]] &&
+        grep -q "^${style}.card = " "${CONFIG}/current/theme/shapes.conf"; then
+        ok "${theme}: the palette layer is in both GTK stylesheets (accent ${accent_bg}), kdeglobals, and the apps' palette.toml and style"
+    else
+        not_ok "${theme}: a place the palette goes is missing" "accent ${accent_bg}" "$(head -c 300 "${gtk4}" 2>&1)"
     fi
 done
 
@@ -152,6 +181,34 @@ else
     ok "ame desktop font refuses a font that is not installed"
 fi
 check "a refused font leaves the theme's" test "$(font_now)" == "Nunito 11"
+# The monospace font, as the interface font is
+check "Catppuccin's monospace font is Fira Code" test "$(mono_now)" == "Fira Code 11"
+in_session "ame desktop mono-font 'Space Mono'" >/dev/null 2>&1
+check "ame desktop mono-font 'Space Mono' writes it over Catppuccin's Fira Code" test "$(mono_now)" == "Space Mono 11"
+check "...and kitty's theme takes it" grep -q '^font_family Space Mono$' "${CONFIG}/current/theme/kitty-theme.conf"
+set_theme gruvbox
+check "and a theme switch keeps it" test "$(mono_now)" == "Space Mono 11"
+in_session "ame desktop mono-font theme" >/dev/null 2>&1
+check "ame desktop mono-font theme goes back to Gruvbox's JetBrains Mono" test "$(mono_now)" == "JetBrains Mono 11"
+if in_session "ame desktop mono-font 'No Such Font'" >/dev/null 2>&1; then
+    not_ok "ame desktop mono-font took a font that is not installed"
+else
+    ok "ame desktop mono-font refuses a font that is not installed"
+fi
+set_theme catppuccin
+# The icon packs, the account's own choice over the theme's
+in_session "ame desktop icons clay" >/dev/null 2>&1
+check "ame desktop icons clay writes the Clay pack over Catppuccin's Duotone" test "$(icons_now)" == amethystora-clay
+set_theme nord
+check "and a theme switch keeps it" test "$(icons_now)" == amethystora-clay
+in_session "ame desktop icons theme" >/dev/null 2>&1
+check "ame desktop icons theme goes back to Nord's Muted" test "$(icons_now)" == amethystora-muted
+if in_session "ame desktop icons sparkle" >/dev/null 2>&1; then
+    not_ok "ame desktop icons took a pack that does not exist"
+else
+    ok "ame desktop icons refuses a pack that does not exist"
+fi
+set_theme catppuccin
 
 # --- The fonts --------------------------------------------------------------------------------------------------------
 missing="$(
@@ -174,6 +231,10 @@ list="$(user_bus systemd-run --user --pipe --wait --quiet --collect --setenv=LC_
 # is drawn in itself, and the four that make a look sit together, the theme first
 if jq -e '
     ([.items[] | select(.id == "style") | .choices[].value] | sort == (["capsule","floating","hairline","islands","neon","segments","terminal","theme"]))
+    and ([.items[] | select(.id == "icons") | .choices[].value] | sort == (["clay","duotone","glass","glass-light","line","muted","neon","neon-light","pixel","theme"]))
+    and ([.items[] | select(.id == "mono-font") | .choices[] | select(.value == "Fira Code") | [.command, .font]]
+         == [[["ame","desktop","mono-font","Fira Code"], "Fira Code"]])
+    and ([.items[] | select(.id == "mono-font") | .choices[] | select(.value == "theme") | .text] == ["The theme'"'"'s own: Fira Code"])
     and ([.items[] | select(.id == "font") | .choices[] | select(.value == "Space Grotesk") | [.command, .font]]
          == [[["ame","desktop","font","Space Grotesk"], "Space Grotesk"]])
     and ([.items[] | select(.id == "font") | .state] == ["theme"])

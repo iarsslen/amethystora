@@ -193,8 +193,14 @@ own="$(pretty "${OWN_ICONS#amethystora-}")"
 ICONS_SET=theme
 [[ -r "${CONFIG_DIR}/icons" ]] && { ICONS_SET="$(<"${CONFIG_DIR}/icons")"; ICONS_SET="${ICONS_SET#amethystora-}"; }
 choice glass "$(gettext "Glass")" "$(gettext "Each icon in its own gradient, with a glass sheen")" false ame desktop icons glass
+choice glass-light "$(gettext "Glass for light")" "$(gettext "Glass with its colours deepened to read on a light desktop")" false ame desktop icons glass-light
 choice neon "$(gettext "Neon")" "$(gettext "Outlines lit in colours of their own, for a dark desktop")" false ame desktop icons neon
+choice neon-light "$(gettext "Neon for light")" "$(gettext "Neon with its colours deepened to read on a light desktop")" false ame desktop icons neon-light
 choice duotone "$(gettext "Duotone")" "$(gettext "Each icon in a gradient, its details in a contrasting one")" false ame desktop icons duotone
+choice line "$(gettext "Line")" "$(gettext "One even outline, in colours that read on every theme")" false ame desktop icons line
+choice clay "$(gettext "Clay")" "$(gettext "Soft matte volumes, a highlight above and a shade below")" false ame desktop icons clay
+choice muted "$(gettext "Muted")" "$(gettext "Glass in quieter colours, for themes of low chroma")" false ame desktop icons muted
+choice pixel "$(gettext "Pixel")" "$(gettext "Duotone on a grid of 16 pixels")" false ame desktop icons pixel
 choice theme "$(gettext "Follow the theme")" "$(eval_gettext "The theme's own: \${own}")" false ame desktop icons theme
 USAGE="ame desktop icons PACK"
 item appearance icons choice "$(gettext "Icons")" \
@@ -226,6 +232,17 @@ choice theme "$(gettext "Follow the theme")" "$(eval_gettext "The theme's own: \
 USAGE="ame desktop font FAMILY"
 item appearance font choice "$(gettext "Font")" \
     "$(gettext "The font of the desktop and the applications.")" "${FONT_SET}" themes#fonts
+
+MONO_SET=theme
+[[ -r "${CONFIG_DIR}/mono-font" ]] && MONO_SET="$(head -n1 "${CONFIG_DIR}/mono-font")"
+mapfile -t -O "${#CHOICES[@]}" CHOICES < <(jq -nc '$ARGS.positional[]
+    | {value: ., title: ., text: null, terminal: false, command: ["ame", "desktop", "mono-font", .], font: .}' \
+    --args "${MONO_FONTS[@]}")
+own="$(CONFIG_DIR=/nonexistent mono_font)"
+choice theme "$(gettext "Follow the theme")" "$(eval_gettext "The theme's own: \${own}")" false ame desktop mono-font theme
+USAGE="ame desktop mono-font FAMILY"
+item appearance mono-font choice "$(gettext "Monospace font")" \
+    "$(gettext "The font of the terminal, of code and of Text Editor.")" "${MONO_SET}" themes#fonts
 
 if [[ -z "${THEME}" ]]; then
     REASON="$(gettext "Pick a theme first: each theme has wallpapers of its own.")"

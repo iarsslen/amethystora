@@ -1,19 +1,31 @@
-/* The terminal desktop style in the applications, for {{ theme_name }}: square everything, and thin lines round the
-   entries, popovers and cards. 20-gtk-apps.sh adds the current style's file to ~/.config/gtk-4.0/gtk.css and
-   ~/.config/gtk-3.0/gtk.css, which GTK reads above every theme, so every rule here wins over the applications' own,
-   whatever its selector; the window buttons' lights stay round, their own rules being more particular. The shell's
-   half is shell-styles.css. */
+/* What the terminal style adds to its shape: everything square, every control and card lined, and the control that has
+   the keyboard lined in the accent. 20-gtk-apps.sh puts this file in both user stylesheets, after the window buttons,
+   whose lights stay round, their own rules being more particular than a star. */
 
 * {
     border-radius: 0;
 }
 
-entry,
+/* What is round by what it is stays round: a radio button, a face */
+radio,
+avatar {
+    border-radius: 100%;
+}
+
+button:not(.flat):not(.suggested-action):not(.destructive-action):not(.circular):not(.titlebutton):not(.pill),
 spinbutton,
+entry,
+dropdown > button,
+combobox > box > button {
+    box-shadow: inset 0 0 0 1px {{ outline }};
+}
+
 popover > contents,
 popover.background,
+popover.menu > contents,
 .card,
 list.boxed-list,
+list.content,
 .boxed-list,
 frame > border {
     box-shadow: 0 0 0 1px rgba({{ foreground_rgb }}, 0.3);
@@ -21,7 +33,7 @@ frame > border {
 
 entry:focus-within,
 spinbutton:focus-within {
-    box-shadow: 0 0 0 1px {{ accent }};
+    box-shadow: inset 0 0 0 1px {{ accent_text }};
 }
 
 window.csd:not(.maximized):not(.fullscreen):not(.tiled),

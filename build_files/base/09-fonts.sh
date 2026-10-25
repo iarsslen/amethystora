@@ -4,21 +4,29 @@ echo "::group:: ===$(basename "$0")==="
 
 set -eoux pipefail
 
-# The themes' interface fonts that Fedora does not package (each theme's font.theme, `ame desktop font`), from
-# Google Fonts' own repository at one commit, each file checked against the SHA-256 pinned beside it. Every one is
-# under the SIL Open Font License 1.1, whose text ships with it in /usr/share/licenses/<family>. The ones Fedora
-# packages are in 04-packages.sh. A new commit is pinned by hand, with every sum again.
+# The themes' interface and monospace fonts that Fedora does not package (each theme's font.theme and mono.theme,
+# `ame desktop font` and `mono-font`), from Google Fonts' own repository at one commit, each file checked against the
+# SHA-256 pinned beside it. Every one is under the SIL Open Font License 1.1, whose text ships with it in
+# /usr/share/licenses/google-fonts/<family>. The ones Fedora packages are in 04-packages.sh; Fira Code's package ships
+# no licence file, so its OFL.txt is pinned here without the font. A new commit is pinned by hand, with every sum
+# again.
 GOOGLE_FONTS_COMMIT="e7db6ca603fd4862010383ff17ffd6cc4ffac1c0"
 GOOGLE_FONTS_URL="https://raw.githubusercontent.com/google/fonts/${GOOGLE_FONTS_COMMIT}/ofl"
 
 # folder/file in the repository's ofl/, and its SHA-256; a folder's OFL.txt is its licence
 FONTS=(
+    "dmmono/DMMono-Regular.ttf 55b4c98f123daebb3ed27947ba47b2af00554fc6284d639a540bcef5e6258ad2"
+    "dmmono/DMMono-Italic.ttf 32b5bad9cbce64eac6d05c8abbeb619317f7e4cb354e1c33db761adbfaae1b16"
+    "dmmono/DMMono-Medium.ttf fd327daf461db87b44a87def475d251bf03b997f7c07d9680592d75dbbfaad0b"
+    "dmmono/DMMono-MediumItalic.ttf a3b2211bb9cf5c4fc1a0b487553e673a737c2270c59b86bf1e0b48c77e587aa2"
+    "dmmono/OFL.txt 2bada5ea45c3c63b7f1ea1f88ce9672c9e4f0c42b2c3b7378949084fe55a3066"
     "dmsans/DMSans[opsz,wght].ttf 8cd08d97e89c24d0aa92edd2f0f4c8ee6195eee9b7c9f154865a58b02f0c1c0d"
     "dmsans/DMSans-Italic[opsz,wght].ttf 22259c0cc8237221b80f44c76ba8d36e6bce3cda72779f5b2773643d499720ae"
     "dmsans/OFL.txt 9af36190332437f5ecd09974de43c1f7c77a310a996cdd8ceb25628b458840e1"
     "figtree/Figtree[wght].ttf 26ad3db9b31ff7dde67a91ff515d022d2f495cd506590699cf264f0bfe6fb714"
     "figtree/Figtree-Italic[wght].ttf 94dec1f18b9275d69e8b4a91b6514bdc18199048347e1c36e1285b11b0b87653"
     "figtree/OFL.txt 140d37233e7f3ce7313798befa9600893bcceaf41a55fa0fa5ad52f7f657a268"
+    "firacode/OFL.txt 926041dac670e6922505e35ac1661a4e8d20f1ffeabbbcb5edb5544370702369"
     "firasans/FiraSans-Regular.ttf c29556a2719bf613ef3d5e070e40d903a8965d9c081beca1375dc1e6e0f93c23"
     "firasans/FiraSans-Italic.ttf a4204f9a8029c1c55daa5385ac95936f74abea3e232770f1fb2862a19d1dfa13"
     "firasans/FiraSans-Medium.ttf cbc1842cbed8c1d1146ba7c9db97d8f28c9bedfd25f41c5b0e1259ca48622328"
@@ -47,6 +55,9 @@ FONTS=(
     "spacemono/SpaceMono-Bold.ttf 405e73d41afb7e5906efce206a326af5c956f38e255f35421c260e861e599c59"
     "spacemono/SpaceMono-BoldItalic.ttf cdcc95eddee312879a9728494e595f591cb159f3f276d79bc58673dec7e57138"
     "spacemono/OFL.txt 8e4ee42b2553e1e01504e61cb0d46d148cd8c9e5eacaa3622a7df2d4f2955b9f"
+    "victormono/VictorMono[wght].ttf 6fab3abe37b456f56d180987e04a3a0c326bace2cb825bc638b6be1eb03edf8f"
+    "victormono/VictorMono-Italic[wght].ttf e393afee873d56e052c10bdfcbf67053c429895bd73a4f8e59100a09ffb9d8ec"
+    "victormono/OFL.txt 493589852331b4ea83f1d6b0cbdc157b002ffdb995cf2429acf0c9863bc8f3df"
 )
 
 WORK="$(mktemp -d)"
@@ -73,8 +84,8 @@ install -Dpm0644 /ctx/branding/fonts/Quicksand-OFL.txt /usr/share/licenses/googl
 
 fc-cache --force /usr/share/fonts/amethystora
 
-# Every family a theme names is installed, the packaged ones included
-for font_theme in /ctx/system_files/shared/usr/share/amethystora/themes/*/font.theme; do
+# Every family a theme names is installed, the packaged ones included, its monospace font among them
+for font_theme in /ctx/system_files/shared/usr/share/amethystora/themes/*/font.theme /ctx/system_files/shared/usr/share/amethystora/themes/*/mono.theme; do
     family="$(head -n1 "${font_theme}")"
     # Read to its end: grep -q would stop fc-list mid-write, which pipefail counts as a failure
     fc-list : family | tr ',' '\n' | grep -Fx -- "${family}" >/dev/null ||

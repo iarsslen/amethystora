@@ -2,6 +2,8 @@
 # kitty-theme.conf of your own into the theme directory (~/.config/amethystora/themes/<theme>/) to
 # replace it. A running kitty takes the new colours when the theme is switched.
 
+font_family {{ mono_font }}
+
 foreground {{ foreground }}
 background {{ background }}
 selection_foreground {{ selection_foreground }}

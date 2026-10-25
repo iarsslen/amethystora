@@ -17,9 +17,10 @@ source /ctx/build_files/shared/copr-helpers.sh
 
 # Base packages from Fedora repos - common to all versions
 FEDORA_PACKAGES=(
-    # The interface fonts of the themes that Fedora packages (each theme's font.theme, ame desktop font):
-    # Comfortaa, Rubik, IBM Plex Mono and Sans, Geist, Nunito and Work Sans here, Inter and JetBrains Mono
-    # below. The others come from Google Fonts, pinned, in 09-fonts.sh.
+    # The interface and monospace fonts of the themes that Fedora packages (each theme's font.theme and mono.theme,
+    # ame desktop font and mono-font): Comfortaa, Rubik, IBM Plex Mono and Sans, Geist and Geist Mono, Fira Code,
+    # Nunito and Work Sans here, Inter and JetBrains Mono below. The others come from Google Fonts, pinned, in
+    # 09-fonts.sh.
     aajohan-comfortaa-fonts
     adcli
     adw-gtk3-theme
@@ -32,6 +33,9 @@ FEDORA_PACKAGES=(
     borgbackup
     # What the kernel's BPF runs, for the security watcher (BPF_PROGRAMS)
     bpftool
+    # The pointers of the themes (themes/*/cursor.theme): Breeze Light, white, for a dark theme, and Breeze, dark, for a
+    # light one. Flatpak applications find them through the host's /usr/share/icons, which it binds into the sandbox.
+    breeze-cursor-theme
     # Ransomware protection's snapshots of /var/home (ame security ransomware)
     btrfs-progs
     # Microsoft's firmware for the Xbox wireless adapter, out of the driver package it comes in (ame apps xbox-adapter)
@@ -52,6 +56,8 @@ FEDORA_PACKAGES=(
     # fido2-token, fido2-cred and fido2-assert, through which the Notes app speaks to a security key
     # for its passkeys; libfido2 itself is already in the base image
     fido2-tools
+    # Catppuccin's monospace font (themes/*/mono.theme)
+    fira-code-fonts
     # The browser, in the image so that a machine has one before it is online. It ships as Fedora
     # builds it, but for Fedora's start page, taken out below: Mozilla lets Firefox be redistributed
     # only unaltered, so nothing here or in system_files adds a policy, an extension, a preference
@@ -161,6 +167,9 @@ FEDORA_PACKAGES=(
     usbip
     usbmuxd
     vercel-geist-fonts
+    # Matte Black's monospace font (themes/*/mono.theme); the static files, not the variable ones, which carry the
+    # same family name
+    vercel-geist-mono-fonts
     vernnobile-nunito-fonts
     # Android apps in a container (ame apps android): off until set up, as its container service ships
     # disabled (17-cleanup.sh). Binder is built into Fedora's kernel, and the package brings its own

@@ -1060,12 +1060,15 @@ lose its settings (and a cache folder it left), unless they installed it themsel
   notifications, dialogs and prompts, OSDs, the switcher, buttons, controls, the dock and the windows. Its one key
   (`...amethystora-ui.style` `style`) is written by `amethystora-theme` from `~/.config/amethystora/style` (`ame desktop
   style`, Control) or the theme's `style.theme`; the module only puts `amethystora-style-<style>` on the shell's top
-  group and marks the bar's buttons by place. Every rule is in `themed/shell-styles.css.tpl`, the applications' half in
-  `themed/style-<style>.gtk.css.tpl` (appended by `20-gtk-apps.sh`). The glass takes each pane's corners from the
+  group and marks the bar's buttons by place. Every rule is in `themed/shell-styles.css.tpl`, the applications' half is the
+  shape of every control in one template, `themed/style-base.gtk.css.tpl`, filled by `render_templates` with each style's radii
+  (`STYLE_SHAPE` in `lib.sh`) and followed by the style's own lines and glow (`style-<style>.gtk.css.tpl`; floating has none
+  and leaves the applications their own corners), which `20-gtk-apps.sh` appends to both stylesheets. The glass takes each pane's corners from the
   surface's own `border-radius` (`radius: null`), so the stylesheet alone shapes a style; only the windows' corners and
   how the bar is glazed (`pane`, `pills`, `solid`, `bare`) are in the module's `STYLES`, which `20-tests.sh` holds to the
-  GTK files. Floating is the desktop as it was. Each theme also names a font (`font.theme`, `ame desktop font`), Fedora's
-  packages or `09-fonts.sh`'s pinned copies from Google Fonts.
+  `STYLE_SHAPE`. Floating is the desktop as it was. Each theme also names a font (`font.theme`, `ame desktop font`) and a
+  monospace font (`mono.theme`, `ame desktop mono-font`), Fedora's packages or `09-fonts.sh`'s pinned copies from Google
+  Fonts. See Colours in applications.
 - `tweaks`, Just Perfection: animations at 0.6 through the shell's slow-down factor (never `enable-animations`), no
   workspace popup, no Activities button.
 - `workspaces`, Space Bar: the six labels after the logo; rename only in its menu (the six stay six); the keys
@@ -1157,11 +1160,16 @@ in `plans/amethystora-connect/` are the protocol, the plugins and the desktop si
 
 ### The icon packs
 
-`amethystora-glass`, `amethystora-neon` and `amethystora-duotone` (`system_files/shared/usr/share/icons`, Apache-2.0) are
-drawn in code by `node branding/icons.mjs` from the glyphs in `branding/icons/glyphs.mjs`, each icon in colours of its own
-(the maintainer's choice of 2026-10-23, from the design canvas: Neon, Glass and Duotone). Glass is the default
-(`DEFAULT_ICON_THEME` in `lib.sh`, and `icon-theme` in `zz1-amethystora-modifications`, which `20-tests.sh` compares),
-Duotone follows a light theme (and Gruvbox; Matte Black and Tokyo Night name Neon in their `icons.theme`), and
+`amethystora-glass`, `-glass-light`, `-neon`, `-neon-light`, `-duotone`, `-line`, `-clay`, `-muted` and `-pixel`
+(`system_files/shared/usr/share/icons`, Apache-2.0) are drawn in code by `node branding/icons.mjs` from the glyphs in `branding/icons/glyphs.mjs`, each icon in colours of its own
+(the maintainer's choice of 2026-10-23, from the design canvas: Neon, Glass and Duotone; the other six are the choice of
+2026-10-25, from the theming board: packs that read on every ground a theme can have, and one for each style). Glass is
+the default (`DEFAULT_ICON_THEME` in `lib.sh`, and `icon-theme` in `zz1-amethystora-modifications`, which `20-tests.sh`
+compares), Glass for light follows a light theme, and each theme names the pack that suits its colours and style in its
+`icons.theme` (Catppuccin Mocha Duotone, Latte and Rosé Pine Dawn Clay, Everforest and Nord Muted, Gruvbox Pixel, Matte Black
+Line, Tokyo Night Neon). The "for light" packs deepen every colour of a ramp in OKLab lightness until it reads at 3:1 on a
+light ground, Line and Clay hold theirs in a band that reads on the grounds of all ten themes (`band()` in `icons.mjs`:
+measure a pack's ramps, never judge them by eye), and
 `icon_theme()` in `lib.sh` writes the account's own `~/.config/amethystora/icons`
 (`ame desktop icons`, Control's Appearance page) before the theme's `icons.theme`, passing over a name that is not installed
 (candy-icons, which an update removed, so no account is left on a theme the image lacks). They cover Amethystora's apps, GNOME's, the system's, folders, file types (a language's by its letters, `label-PY`),
@@ -1172,7 +1180,54 @@ Thunderbird, Steam, VSCodium, LibreOffice...) keeps the icon it ships, bare, on 
 app's glyph its own: another maker's backup or notes app gets a glyph of its own. To add an icon, draw a glyph (two inks:
 the body, and the details over it, never a hole cut into it; `line()` draws a straight line along an axis as a bar, since
 a box with no width takes no gradient), add a line to `SET` with its ramp and the names it answers to, and run the script;
-`20-tests.sh` holds the three packs to the same number of icons, no symbolic icons and no links, and the icon of every `amethystora-*.desktop` launcher to a file in each; suite 27 asks GTK itself and counts only the pack's own file.
+`20-tests.sh` holds the nine packs to the same number of icons, no symbolic icons and no links, and the icon of every `amethystora-*.desktop` launcher to a file in each; suite 27 asks GTK itself and counts only the pack's own file.
+
+### Colours in applications
+
+`/usr/lib/amethystora/theme/palette.awk` (called through `derive_palette` in `lib.sh`, from `render_templates`, so that every
+template has its keys) works out of a theme's `colors.toml` the colours an interface needs: the surfaces (`window_bg`,
+`view_bg`, `headerbar_bg`, `sidebar_bg`, `card_bg`, `popover_bg`, `dialog_bg`), the accent as a fill with a label on it
+(`accent_bg`, `accent_fg`) and as text (`accent_text`), the same for a destructive button and the status colours
+(`success|warning|error_text`, `_bg`, `_fg`), the line a control is drawn with (`outline`, 3:1), the dimmed label's strength
+(`dim_opacity`, `dim_alpha`, 4.5:1) and six blocks for the segments style, each moved in OKLab lightness only, so the hue
+stays the theme's. `test-theme-palette.sh` (run by `20-tests.sh`) measures every one of them, on every surface, by an
+implementation of its own. A palette whose slots 2, 3 and 1 are not a green, a yellow and a red (Matte Black's, Rosé Pine
+Dawn's) adds `success`, `warning` and `error` to its `colors.toml`. Where the values go:
+
+- **libadwaita and GTK 4** (`themed/palette-gtk4.css.tpl`): libadwaita's colour variables on `:root`, written at the top of
+  `~/.config/gtk-4.0/gtk.css` by `20-gtk-apps.sh` and wrapped in `@media not (prefers-contrast: more)`, which GTK 4.22
+  honours in a user stylesheet and switches live, so High Contrast keeps libadwaita's own colours. It replaces the import of
+  the Sweet GTK 4 stylesheet the two Amethystora themes had (Sweet stays their GTK 3 theme). GTK does not reload `gtk.css`
+  while an app runs: open apps take a new theme or style at their next start (the notification says so), the shell, the
+  Amethystora apps and kitty at once. **GTK 3** (`palette-gtk3.css.tpl`) takes adw-gtk3's named colours, which GTK 3 cannot
+  put behind a query, so the hook leaves them out while `high-contrast` is on; `:root` and `var()` are GTK 4 only and
+  GTK 3 rejects them, which is why the style files have none.
+- **The shell**: `shell-glass.css.tpl` and the styles draw the accent as `accent_bg`/`accent_fg`, never `-st-accent-color`
+  (GNOME's nearest of nine), so that apps and shell agree; the search box, Bazaar's Uninstall choices and the clipboard menu
+  have templates of their own (`shell-search|bazaar|clipboard.css.tpl`, a `#uiGroup` more specific than the extensions' own
+  stylesheets). The lock screen is the shell's, which runs no extension by design, and stays Amethystora's brand like the login.
+- **The styles' shapes in the applications**: `style-base.gtk.css.tpl` (windows, dialogs, controls, a linked group rounded at
+  its ends, split buttons, cards, the end rows of a list, popovers, tiles, switches, tooltips, toasts, troughs). A selector
+  in it must beat the generic `button:not(.circular)…` rule (0,3,1) of the same file, which is why a split button's names
+  `:not(.circular)`; GTK takes a value from the highest-priority provider whatever the selector, so only this file's own
+  specificity matters. The hairline and terminal files draw controls with `outline`, and the terminal keeps a radio button
+  round. To see a style's look, render a libadwaita app with the rendered stylesheet (the board of 2026-10-25 did, in a Fedora
+  container with `adwaita-1-demo` under Xvfb); the build only checks that the files render whole.
+- **The Amethystora apps** read neither GTK stylesheet of the desktop: `palette.rs` reads `theme/palette.toml` (the colours
+  above, from `themed/palette.toml.tpl`), `current/style.name` and `theme/shapes.conf` (every style's radii, written by
+  `render_templates`), and `shape.rs` scales every `border-radius` of their stylesheets by the style's card radius over the
+  12 px the Electron pages drew (a pill stays a pill, except in the terminal style).
+- **Fonts**: `font.theme` for the interface and documents (a size up), `mono.theme` for `monospace-font-name`, kitty
+  (`font_family` in the rendered `kitty-theme.conf`) and the terminal style's top bar. Fira Code and Geist Mono are Fedora's
+  packages (Fira Code's carries no licence file, so `09-fonts.sh` pins its OFL.txt), DM Mono and Victor Mono are pinned copies.
+- **The pointer**: `cursor.theme` names Breeze Light (white) on a dark theme and Breeze (dark) on a light one, Fedora's
+  `breeze-cursor-theme`; Flatpak binds the host's `/usr/share/icons` into every sandbox, so they follow there. `apply_gnome`
+  writes the pointer on every switch, Adwaita for a theme that names none.
+- **Other programs**: `10-vscodium.sh` merges `themed/vscodium.json.tpl` into VSCodium's settings over Default Dark or Light
+  Modern (a `vscode.theme` still selects a theme of its own; a theme extension copied into the extensions folder is not read
+  by current VSCodium without an entry of its own, which is why the colours are settings); `30-qt-colors.sh` writes
+  `themed/kdeglobals.tpl`'s groups into `~/.config/kdeglobals` unless the file's colours are somebody else's (no
+  `AmethystoraTheme` key). GtkSourceView schemes are not written: the Flatpak Text Editor cannot see the host's.
 
 ### Packages from other distributions
 
@@ -1537,7 +1592,7 @@ staying in place.
 6. `build_files/shared/build-gnome-extensions.sh` - Sets up the GNOME Shell extensions written for this image: their licences, schemas and entries in `enabled-extensions` (nothing is built from a git submodule any more)
 6a. `09-fonts.sh` - The themes' interface fonts Fedora does not package, from Google Fonts' repository at one pinned commit, each file checked by SHA-256, into `/usr/share/fonts/amethystora` with their OFL texts in `/usr/share/licenses/google-fonts`, and Quicksand from `branding/fonts`; it fails when a theme's `font.theme` names a family that is not installed. The packaged ones are in `04-packages.sh`
 7. `10-icons.sh` - Builds the icon caches of the Amethystora icon packs, which come with `system_files` (see The icon packs); nothing is downloaded. candy-icons, the pack the desktop shipped with until 2026-10-23, is gone, with its keep list, its aliases and the Security shield and Notes icon drawn from it (the Glass pack draws those two now, into `hicolor`). Nobody else's logo is drawn: an app of another maker keeps the icon it ships. `user-setup.hooks.d/16-retire-jetbrains-icons.sh` takes back the links an earlier image made to the IDE drawings
-8. `11-gtk-theme.sh` - Installs the Amethystora GTK theme: EliverLara's Sweet, with every cool colour in it rotated onto the amethyst palette by `build_files/shared/recolor.py`. It ships under Amethystora's own name because the palette is no longer Sweet's. Only the `amethystora` and `amethystora-light` themes name it in their `gtk.theme`; the rest stay on adw-gtk3, which follows the GNOME accent colour. libadwaita ignores `gtk-theme` and a Flatpak cannot see `/usr/share/themes` at all, so both are reached by `theme-set.hooks.d/20-gtk-apps.sh`: it mirrors the active theme into `~/.themes`, which `/etc/flatpak/overrides/global` grants every sandbox read-only, and writes the `~/.config/gtk-4.0/gtk.css` that imports from the mirror
+8. `11-gtk-theme.sh` - Installs the Amethystora GTK theme: EliverLara's Sweet, with every cool colour in it rotated onto the amethyst palette by `build_files/shared/recolor.py`. It ships under Amethystora's own name because the palette is no longer Sweet's. Only the `amethystora` and `amethystora-light` themes name it in their `gtk.theme`, for GTK 3; the rest stay on adw-gtk3. libadwaita ignores `gtk-theme` and a Flatpak cannot see `/usr/share/themes` at all, so the theme reaches them through `theme-set.hooks.d/20-gtk-apps.sh`: it mirrors the active theme into `~/.themes`, which `/etc/flatpak/overrides/global` grants every sandbox read-only, and writes the `~/.config/gtk-4.0/gtk.css` with the palette layer (see Colours in applications)
 9. `12-login-screen.sh` - Patches the login screen background into GNOME Shell's own stylesheet. GNOME reads it from the `#lockDialogGroup` rule inside `gnome-shell-theme.gresource` and from nowhere else, so the bundle is unpacked, the rule appended and the bundle rebuilt. The picture is the crown the boot splash ends on, as sharp as the splash draws it and without the gem, drawn by `branding/generate.mjs`
 10. `12-tour.sh` - Swaps the picture on GNOME Tour's first page, which Fedora builds with Fedora's logo on it, for Amethystora's, in the resource bundle the Tour reads its pictures from (`/usr/share/gnome-tour/resources.gresource`), unpacked and rebuilt as `12-login-screen.sh` does. The picture is the boot splash at the top of its glow, drawn by `branding/generate.mjs` into `/usr/share/amethystora/tour/welcome.svg`
 11. `13-apps.sh` - Installs the Amethystora apps (the Manual, `Super+F1`; Security; Updates; Notes; Logs; Backups; Control): the one program the Containerfile's `apps` stage built from `apps/` (`build_files/shared/build-apps.sh`, see The Amethystora apps), hard-linked to each app's own path in `/usr/lib/amethystora-<app>`, Quicksand for the wordmark from `branding/fonts`, which the `ctx` stage copies in, and the licences of the crates built into it. It also writes the apps' launchers in the languages the apps are translated into (`translate-desktop.py`). Each app's translations stay in `system_files/shared/usr/lib/amethystora-<app>/resources/app/locale`

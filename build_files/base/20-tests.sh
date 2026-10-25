@@ -1113,6 +1113,9 @@ done
 # and one that is not a colour refuses the theme. Every shipped theme renders completely.
 grep -q "sed -f" /usr/lib/amethystora/theme/lib.sh && false
 bash /ctx/build_files/shared/test-theme-render.sh
+# ...and every colour the interface takes from a theme (the palette layer, themed/palette-gtk*.css.tpl, the shell's
+# status colours and the segments of the top bar) reads at the contrast WCAG asks, on every surface it is drawn on
+bash /ctx/build_files/shared/test-theme-palette.sh
 # Every theme needs a palette; the default one is what 11-theme.sh applies at first login
 test -f /usr/share/amethystora/themes/amethystora/colors.toml
 for theme in /usr/share/amethystora/themes/*/; do
@@ -1175,12 +1178,14 @@ RENDER_HOME="$(mktemp -d)"
 for theme in /usr/share/amethystora/themes/*/; do
     mkdir -p "${RENDER_HOME}/$(basename "${theme}")"
     cp "${theme}colors.toml" "${RENDER_HOME}/$(basename "${theme}")/"
+    [[ -f "${theme}light.mode" ]] && cp "${theme}light.mode" "${RENDER_HOME}/$(basename "${theme}")/"
     (
         HOME="${RENDER_HOME}" XDG_CONFIG_HOME="${RENDER_HOME}/config"
         source /usr/lib/amethystora/theme/lib.sh
         render_templates "${RENDER_HOME}/$(basename "${theme}")" "theme_name=$(basename "${theme}")"
     )
     for rendered in "${RENDER_HOME}/$(basename "${theme}")"/window-controls-gtk{3,4}.css \
+        "${RENDER_HOME}/$(basename "${theme}")"/palette-gtk{3,4}.css \
         "${RENDER_HOME}/$(basename "${theme}")"/style-*.gtk.css; do
         test -s "${rendered}"
         if grep -q '{{' "${rendered}"; then
@@ -1250,18 +1255,22 @@ grep -q "^DEFAULT_ICON_THEME=amethystora-glass$" /usr/lib/amethystora/theme/lib.
 # ...and past the one that moved the default from candy-icons to the Amethystora packs
 [[ "$(sed -n 's/^version-script theme user \([0-9]\+\).*/\1/p' \
     /usr/share/amethystora/user-setup.hooks.d/11-theme.sh)" -ge 8 ]]
-# The three icon packs branding/icons.mjs draws: Glass is the default, Duotone follows a light theme, and Neon
-# is chosen with `ame desktop icons`. They draw the same names, no logo of anybody else's and
-# no symbolic icons (the panel keeps Adwaita's), and every launcher of this image finds its icon in each of them.
-grep -q "^DEFAULT_LIGHT_ICON_THEME=amethystora-duotone$" /usr/lib/amethystora/theme/lib.sh
+# The nine icon packs branding/icons.mjs draws: Glass is the default and Glass for light follows a light theme, each theme
+# names the one that suits its colours and style (icons.theme), and every one is chosen with `ame desktop icons`. They
+# draw the same names, no logo of anybody else's and no symbolic icons (the panel keeps Adwaita's), and every launcher
+# of this image finds its icon in each of them.
+grep -q "^DEFAULT_LIGHT_ICON_THEME=amethystora-glass-light$" /usr/lib/amethystora/theme/lib.sh
 GLASS_ICONS="$(find /usr/share/icons/amethystora-glass -name '*.svg' | wc -l)"
 ((GLASS_ICONS > 600))
 # Other makers' apps are drawn by what they do, a maker's logo never: Firefox and Thunderbird keep theirs
 [[ -s /usr/share/icons/amethystora-glass/apps/scalable/org.kde.konsole.svg ]]
 [[ -z "$(find /usr/share/icons/amethystora-glass -name 'firefox.svg' -o -name 'org.mozilla.*')" ]]
-for pack in glass neon duotone; do
+ICON_PACK_NAMES="$(source /usr/lib/amethystora/theme/lib.sh && echo "${ICON_PACKS[*]}")"
+[[ "$(wc -w <<<"${ICON_PACK_NAMES}")" == 9 ]]
+[[ "$(find /usr/share/icons -maxdepth 1 -name 'amethystora-*' | wc -l)" == 9 ]]
+for pack in ${ICON_PACK_NAMES}; do
     PACK_DIR="/usr/share/icons/amethystora-${pack}"
-    grep -qx "Name=Amethystora ${pack^}" "${PACK_DIR}/index.theme"
+    grep -q "^Name=Amethystora " "${PACK_DIR}/index.theme"
     grep -qx "Inherits=Adwaita,hicolor" "${PACK_DIR}/index.theme"
     [[ "$(find "${PACK_DIR}" -name '*.svg' | wc -l)" == "${GLASS_ICONS}" ]]
     [[ -z "$(find "${PACK_DIR}" -name '*-symbolic.svg' -o -type l)" ]]
@@ -1274,7 +1283,7 @@ for pack in glass neon duotone; do
         }
     done
 done
-# Which pack is written: the account's own choice, else the theme's, else Glass or, for a light theme, Duotone
+# Which pack is written: the account's own choice, else the theme's, else Glass or, for a light theme, Glass for light
 (
     unset XDG_CONFIG_HOME XDG_DATA_HOME
     HOME="$(mktemp -d)"
@@ -1283,10 +1292,10 @@ done
     mkdir -p "${CURRENT_THEME_DIR}"
     [[ "$(icon_theme)" == amethystora-glass ]]
     touch "${CURRENT_THEME_DIR}/light.mode"
-    [[ "$(icon_theme)" == amethystora-duotone ]]
+    [[ "$(icon_theme)" == amethystora-glass-light ]]
     # A name that is not installed is passed over, wherever it comes from, as candy-icons now is
     echo candy-icons >"${CURRENT_THEME_DIR}/icons.theme"
-    [[ "$(icon_theme)" == amethystora-duotone ]]
+    [[ "$(icon_theme)" == amethystora-glass-light ]]
     mkdir -p "${XDG_DATA_HOME:-${HOME}/.local/share}/icons/some-pack"
     touch "${XDG_DATA_HOME:-${HOME}/.local/share}/icons/some-pack/index.theme"
     echo some-pack >"${CURRENT_THEME_DIR}/icons.theme"
@@ -1308,26 +1317,34 @@ grep -q '^DEFAULT_STYLE=floating$' /usr/lib/amethystora/theme/lib.sh
 STYLE_NAMES="$(source /usr/lib/amethystora/theme/lib.sh && echo "${STYLES[*]}")"
 [[ "$(grep -c '^    [a-z]*: {bar: ' "${STYLE_JS}")" == "$(wc -w <<<"${STYLE_NAMES}")" ]]
 [[ "$(grep -c '<choice value=' "${STYLE_SCHEMA}")" == "$(wc -w <<<"${STYLE_NAMES}")" ]]
+# The shape every style draws the applications in is one template, filled with the style's radii (STYLE_SHAPE in the
+# library); floating has none and keeps the applications' own corners
+test -s /usr/share/amethystora/themed/style-base.gtk.css.tpl
+test -s /usr/share/amethystora/themed/style-floating.gtk.css.tpl
 for style in ${STYLE_NAMES}; do
     grep -q "<choice value=\"${style}\"/>" "${STYLE_SCHEMA}"
     grep -q "#uiGroup\.amethystora-style-${style} " /usr/share/amethystora/themed/shell-styles.css.tpl
-    test -s "/usr/share/amethystora/themed/style-${style}.gtk.css.tpl"
     # The corners the glass gives a window's pane are the ones the style's GTK stylesheet gives the window
     radius="$(sed -n "s/^    ${style}: {bar: '\(pane\|pills\|solid\|bare\)', window: \([0-9]*\)},$/\2/p" "${STYLE_JS}")"
     [[ -n "${radius}" ]]
-    case "${style}" in
-        # The applications' own corners, and all of them square
-        floating) ;;
-        terminal)
-            [[ "${radius}" == 0 ]]
-            grep -q '^\* {$' /usr/share/amethystora/themed/style-terminal.gtk.css.tpl
-            ;;
-        *)
-            grep -A3 '^window\.csd,$' "/usr/share/amethystora/themed/style-${style}.gtk.css.tpl" |
-                grep "border-radius: ${radius}px;" >/dev/null
-            ;;
-    esac
+    [[ "${style}" == floating ]] && continue
+    shape="$(source /usr/lib/amethystora/theme/lib.sh && echo "${STYLE_SHAPE[${style}]}")"
+    [[ " ${shape} " == *" window=${radius} "* ]]
 done
+# The terminal's own file is square and lined, and keeps a radio button and a face round
+grep -q '^\* {$' /usr/share/amethystora/themed/style-terminal.gtk.css.tpl
+grep -q '^radio,$' /usr/share/amethystora/themed/style-terminal.gtk.css.tpl
+# Every value the shape template names, a style gives (s_toggle is the control's less the toggle group's padding)
+(
+    # shellcheck source=/dev/null
+    source /usr/lib/amethystora/theme/lib.sh
+    for key in $(grep -o '{{ s_[a-z]* }}' /usr/share/amethystora/themed/style-base.gtk.css.tpl | tr -d '{} ' | sort -u); do
+        [[ "${key}" == s_toggle ]] && continue
+        for style in "${!STYLE_SHAPE[@]}"; do
+            [[ " ${STYLE_SHAPE[${style}]} " == *" ${key#s_}="* ]] || { echo "${style} gives no ${key}"; exit 1; }
+        done
+    done
+)
 # Every shipped theme names a style and a font that are there, and every font offered is installed
 (
     # shellcheck source=/dev/null
@@ -1335,9 +1352,32 @@ done
     for theme in /usr/share/amethystora/themes/*/; do
         is_style "$(head -n1 "${theme}style.theme")" || { echo "${theme}style.theme names no style"; exit 1; }
         font_installed "$(head -n1 "${theme}font.theme")" || { echo "${theme}font.theme is not installed"; exit 1; }
+        # A theme's monospace font is optional (JetBrains Mono is the default), and installed when it names one
+        if [[ -f "${theme}mono.theme" ]]; then
+            font_installed "$(head -n1 "${theme}mono.theme")" || { echo "${theme}mono.theme is not installed"; exit 1; }
+        fi
+        # ...and so is the icon pack it names
+        if [[ -f "${theme}icons.theme" ]]; then
+            is_icon_pack "$(sed -e 's/^amethystora-//' "${theme}icons.theme")" || { echo "${theme}icons.theme names no pack"; exit 1; }
+        fi
+        # Every theme names its pointer, an installed cursor theme: the white Breeze Light for a dark theme, the dark
+        # Breeze for a light one, so that the pointer is seen on its ground
+        cursor="$(head -n1 "${theme}cursor.theme")"
+        [[ -d "/usr/share/icons/${cursor}/cursors" ]] || { echo "${theme}cursor.theme names ${cursor}, which is not installed"; exit 1; }
+        if [[ -f "${theme}light.mode" ]]; then
+            [[ "${cursor}" == breeze_cursors ]] || { echo "${theme} is light and has a ${cursor} pointer"; exit 1; }
+        else
+            [[ "${cursor}" == Breeze_Light ]] || { echo "${theme} is dark and has a ${cursor} pointer"; exit 1; }
+        fi
     done
     for family in "${UI_FONTS[@]}"; do
         font_installed "${family}" || { echo "ame desktop font offers ${family}, which is not installed"; exit 1; }
+    done
+    for family in "${MONO_FONTS[@]}"; do
+        font_installed "${family}" || { echo "ame desktop mono-font offers ${family}, which is not installed"; exit 1; }
+        # A fixed-width face: a terminal draws cells of one width, and a proportional one would blur them
+        [[ "$(fc-list "${family}" spacing 2>/dev/null | grep -c 'spacing=100')" -gt 0 ]] ||
+            { echo "${family} is not monospaced"; exit 1; }
     done
 )
 # The licences of the fonts copied from Google Fonts (09-fonts.sh) ship with them
@@ -1361,11 +1401,20 @@ done
     echo terminal >"${CONFIG_DIR}/style"
     echo "JetBrains Mono" >"${CONFIG_DIR}/font"
     [[ "$(desktop_style)" == terminal && "$(ui_font)" == "JetBrains Mono" ]]
+    # The monospace font: the account's, else the theme's, else JetBrains Mono; one that is not installed is passed over
+    [[ "$(mono_font)" == "JetBrains Mono" ]]
+    echo "Fira Code" >"${CURRENT_THEME_DIR}/mono.theme"
+    [[ "$(mono_font)" == "Fira Code" ]]
+    echo "No Such Font" >"${CONFIG_DIR}/mono-font"
+    [[ "$(mono_font)" == "Fira Code" ]]
+    echo "Space Mono" >"${CONFIG_DIR}/mono-font"
+    [[ "$(mono_font)" == "Space Mono" ]]
     rm -rf "${HOME}"
 )
-# The theme hook is past the version that brought the styles and fonts, so that an account set up before gets them
+# The theme hook is past the version that brought the styles and fonts, and the palette layer, the monospace fonts and
+# the icon packs after them, so that an account set up before gets them
 [[ "$(sed -n 's/^version-script theme user \([0-9]\+\).*/\1/p' \
-    /usr/share/amethystora/user-setup.hooks.d/11-theme.sh)" -ge 12 ]]
+    /usr/share/amethystora/user-setup.hooks.d/11-theme.sh)" -ge 13 ]]
 
 # What the Hyprland era left behind is removed: per account by 09-retire-dms.sh, before 11-theme.sh
 # re-applies the theme, and per machine by 20-retire-dms.sh. The account side keys on the names and

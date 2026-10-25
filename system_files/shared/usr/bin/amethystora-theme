@@ -53,7 +53,7 @@ stage_theme() {
 }
 
 apply_gnome() {
-    local gtk_theme accent cursor
+    local gtk_theme accent cursor style
 
     gtk_theme="$(theme_file gtk.theme)"
     if theme_is_light; then
@@ -77,14 +77,21 @@ apply_gnome() {
     # The desktop style and the interface font, the same way: the account's choice, else the theme's. Amethystora
     # UI draws the style in the shell; the applications' half is in themed/style-*.gtk.css, which 20-gtk-apps.sh
     # adds to their stylesheets.
-    dconf_write_string /org/gnome/shell/extensions/amethystora-ui/style/style "$(desktop_style)"
+    style="$(desktop_style)"
+    dconf_write_string /org/gnome/shell/extensions/amethystora-ui/style/style "${style}"
+    # ...and which it is, for the Amethystora apps, which draw the style's corners in their own stylesheets (they read
+    # no GTK stylesheet of the desktop's, and the style is a key of the shell's)
+    echo "${style}" >"${CURRENT_DIR}/style.name"
     dconf_write_string /org/gnome/desktop/interface/font-name "$(ui_font) ${FONT_SIZE}"
+    # Documents in the interface font, a size up; the monospace font is what Text Editor, code and the apps ask GNOME
+    # for (kitty's is in the rendered theme)
+    dconf_write_string /org/gnome/desktop/interface/document-font-name "$(ui_font) $((FONT_SIZE + 1))"
+    dconf_write_string /org/gnome/desktop/interface/monospace-font-name "$(mono_font) ${MONO_FONT_SIZE}"
 
-    # The cursor is the desktop's own unless a theme names one, so there is no default to restore
+    # The pointer is the theme's (Breeze Light for a dark theme, Breeze for a light one) or, for a theme that names none, the
+    # desktop's own, which the one before it must not leave behind
     cursor="$(theme_file cursor.theme)"
-    if [[ -n ${cursor} ]]; then
-        dconf_write_string /org/gnome/desktop/interface/cursor-theme "${cursor}"
-    fi
+    dconf_write_string /org/gnome/desktop/interface/cursor-theme "${cursor:-Adwaita}"
     return 0
 }
 
@@ -194,7 +201,7 @@ theme_set() {
 
     # The notification answers a key or a menu; the login hook that applies the theme asked for none
     if [[ ${AMETHYSTORA_THEME_QUIET:-0} != 1 ]]; then
-        notify "Theme" "${slug}"
+        notify "Theme" "${slug}. The apps that are open take its colours when they next start."
     fi
     echo "Theme set to ${slug}"
 }

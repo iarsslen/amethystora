@@ -10,10 +10,14 @@ these commands in the agent's own shell, as the user. Read before writing, chang
   Amethystora the theme decides it: `amethystora-theme toggle` switches to the theme's light or dark pair,
   which is better than setting the key alone.
 - Text size: `gsettings set org.gnome.desktop.interface text-scaling-factor 1.25`.
-- Accent colour: `gsettings set org.gnome.desktop.interface accent-color purple` (a theme switch sets it again).
-- Icons: `ame desktop icons glass|neon|duotone|theme`, not `gsettings set ... icon-theme`, which the next theme
-  switch writes over.
+- Accent colour: the theme's own (the apps' palette layer, `~/.config/gtk-4.0/gtk.css`, written by a theme switch);
+  `gsettings set org.gnome.desktop.interface accent-color purple` only moves GNOME's nearest of nine, which the shell
+  and the apps no longer take.
+- Icons: `ame desktop icons glass|glass-light|neon|neon-light|duotone|line|clay|muted|pixel|theme`, not
+  `gsettings set ... icon-theme`, which the next theme switch writes over.
 - Font: `ame desktop font "<family>"|theme`, not `gsettings set ... font-name`, which the next theme switch writes over.
+  The monospace font (terminal, code, Text Editor) is `ame desktop mono-font "<family>"|theme`, not
+  `monospace-font-name`.
 - The shape of the top bar, menus, notifications, dialogs, buttons and windows: `ame desktop style
   islands|floating|hairline|capsule|terminal|segments|neon|theme`.
 - Animations: `gsettings set org.gnome.desktop.interface enable-animations false`; the theme transitions stop
