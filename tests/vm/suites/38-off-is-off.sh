@@ -156,6 +156,12 @@ check_back() {
 
 case "${SUITE_PHASE}" in
     1)
+        # What earlier suites left the watcher noticing and nobody has read would be said at every login below: it is
+        # shown here and marked read, as `ame security events` does
+        if [[ -s /var/log/amethystora-security-events.new ]]; then
+            sed 's/^/# unread before this suite: /' /var/log/amethystora-security-events.new | tail -n 10
+            /usr/libexec/amethystora-security-watch --seen
+        fi
         # The machine's own file, put back at the end; a folder for the decoy, there from the baseline's boot on,
         # so that its watch is in the rules compared
         if [[ -e "${CONF}" ]]; then cp -a "${CONF}" "${STATE}/original.conf"; else rm -f "${STATE}/original.conf"; fi
