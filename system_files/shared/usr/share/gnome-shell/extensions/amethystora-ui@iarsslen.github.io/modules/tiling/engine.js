@@ -410,12 +410,11 @@ export class Engine {
             const wasSelected = strip.selected === window;
             this.remove(window, {layout: false});
             if (wasSelected) {
-                // The neighbour in strip order used most recently
+                // The neighbour in strip order used most recently, by the last time each was used: GNOME's list of the
+                // windows used last cannot be asked for while a window is going, which it still counts
                 const before = order[index - 1], after = order[index + 1];
-                const mru = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, strip.workspace);
-                const rank = w => w ? mru.indexOf(w) : -1;
                 let next = before ?? after ?? null;
-                if (before && after && rank(after) >= 0 && (rank(before) < 0 || rank(after) < rank(before)))
+                if (before && after && after.get_user_time() > before.get_user_time())
                     next = after;
                 strip.selected = next;
                 if (next && window.has_focus())
@@ -592,7 +591,11 @@ export class Engine {
             translation_y: 0,
             duration: config.animation,
             mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
-            onStopped: () => window.activate(global.get_current_time()),
+            // Only a window still there: it may have closed during the glide
+            onStopped: () => {
+                if (this._info?.has(window))
+                    window.activate(global.get_current_time());
+            },
         });
     }
 
@@ -1010,9 +1013,10 @@ export class Engine {
     restack(strip, window) {
         const order = strip.windows;
         const index = order.indexOf(window);
+        // The one used last raised last, by the last time each was used: this runs while GNOME hands the keyboard on
+        // from a window that is going, when its list of the windows used last cannot be asked for
         const neighbours = [order[index - 1], order[index + 1]].filter(Boolean);
-        const mru = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, strip.workspace);
-        neighbours.sort((a, b) => mru.indexOf(b) - mru.indexOf(a));
+        neighbours.sort((a, b) => a.get_user_time() - b.get_user_time());
         for (const w of neighbours)
             w.raise();
         window.raise();
