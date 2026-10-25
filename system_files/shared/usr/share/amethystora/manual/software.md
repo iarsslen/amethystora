@@ -296,14 +296,15 @@ writable package database.
   - **OpenConnect** speaks Cisco AnyConnect, Palo Alto GlobalProtect, Pulse and Ivanti, Juniper, F5 and Array,
     and Fortinet; choose the protocol in the dialog. Upstream calls every one but AnyConnect experimental.
   - **Fortinet SSL VPN** has a client of its own, **Fortinet SSL VPN (openfortivpn)**, for a FortiGate that
-    OpenConnect's Fortinet protocol cannot reach (a realm, or a certificate to pin).
+    OpenConnect's Fortinet protocol cannot reach (a realm, or a certificate to pin). Fedora 45 retired it, so
+    an image built on 45 reaches a FortiGate through OpenConnect only.
   - **SSTP** is Microsoft's VPN over HTTPS.
   - **IPsec based VPN** is IPsec with IKEv2, certificates included, through Libreswan.
   - **Layer 2 Tunneling Protocol (L2TP)**, with IPsec, for older servers and routers. Libreswan refuses the
     old IKEv1 these usually speak ("global ikev1-policy does not allow IKEv1 connections"), as it should by
     default. If your server offers nothing else, `sudo sed -i 's/^#ikev1-policy=accept/ikev1-policy=accept/' /etc/ipsec.conf`
     allows it for this machine; undo it by putting the `#` back.
-  - **Cisco** `vpnc` (IPsec, with a `.pcf` file) is there too.
+  - **Cisco** `vpnc` (IPsec, with a `.pcf` file) is there too, up to Fedora 44, which is the last to have it.
   - **PPTP is not offered.** Its login (MS-CHAPv2) can be broken from one recorded connection, whatever the
     password, and Microsoft's own servers are dropping it.
 

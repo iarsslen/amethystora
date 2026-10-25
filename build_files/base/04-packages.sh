@@ -112,11 +112,10 @@ FEDORA_PACKAGES=(
     malcontent-pam
     mesa-libGLU
     mozc
-    # The VPNs people are given at work: Fortinet, L2TP/IPsec, IPsec (IKEv2) and Microsoft's SSTP. OpenConnect,
-    # OpenVPN and vpnc come with the base image; PPTP is left out on purpose (MS-CHAPv2 breaks offline).
-    # None of them runs a service until a connection comes up (17-cleanup.sh frees the modules L2TP needs).
-    NetworkManager-fortisslvpn
-    NetworkManager-fortisslvpn-gnome
+    # The VPNs people are given at work: L2TP/IPsec, IPsec (IKEv2), Microsoft's SSTP and, up to Fedora 44,
+    # Fortinet (below). OpenConnect, OpenVPN and up to 44 vpnc come with the base image; PPTP is left out on
+    # purpose (MS-CHAPv2 breaks offline). None of them runs a service until a connection comes up (17-cleanup.sh
+    # frees the modules L2TP needs).
     NetworkManager-l2tp
     NetworkManager-l2tp-gnome
     NetworkManager-libreswan
@@ -176,7 +175,11 @@ FEDORA_PACKAGES=(
     zenity
     zsh
 )
-# Version-specific Fedora package additions
+# Version-specific Fedora package additions. Fedora 45 retired the Fortinet and vpnc plugins (its
+# NetworkManager obsoletes them); OpenConnect's Fortinet protocol is left for a FortiGate there
+if ((FEDORA_MAJOR_VERSION < 45)); then
+    FEDORA_PACKAGES+=(NetworkManager-fortisslvpn NetworkManager-fortisslvpn-gnome)
+fi
 case "$FEDORA_MAJOR_VERSION" in
     42)
         FEDORA_PACKAGES+=(

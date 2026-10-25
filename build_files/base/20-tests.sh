@@ -145,8 +145,11 @@ test ! -e /usr/lib/swidtag/fedoraproject.org
 rpm -q nordvpn >/dev/null && false
 rpm -q nordvpn-gui >/dev/null && false
 
-# The VPNs people are given at work (04-packages.sh): a plugin for each, and PPTP left out for MS-CHAPv2
-for plugin in fortisslvpn l2tp libreswan openconnect openvpn sstp vpnc; do
+# The VPNs people are given at work (04-packages.sh): a plugin for each, and PPTP left out for MS-CHAPv2.
+# Fedora 45 retired the Fortinet and vpnc plugins
+VPN_PLUGINS=(l2tp libreswan openconnect openvpn sstp)
+((FEDORA_MAJOR_VERSION < 45)) && VPN_PLUGINS+=(fortisslvpn vpnc)
+for plugin in "${VPN_PLUGINS[@]}"; do
     rpm -q "NetworkManager-${plugin}" "NetworkManager-${plugin}-gnome" >/dev/null
     test -f "/usr/lib/NetworkManager/VPN/nm-${plugin}-service.name"
 done

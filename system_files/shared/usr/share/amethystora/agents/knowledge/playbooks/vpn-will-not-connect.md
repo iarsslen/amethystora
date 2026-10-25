@@ -12,7 +12,7 @@ says the connection failed, or connects and then no site or company name loads.
 - `logs` unit `NetworkManager.service`; then, for the plugin that failed:
   `journalctl --no-hostname _COMM=nm-l2tp-service _COMM=ipsec _COMM=pluto _COMM=charon _COMM=kl2tpd _COMM=xl2tpd _COMM=pppd`
   (the L2TP/IPsec plugins' own advice), or `logs` identifier `nm-sstp-service`, `nm-openconnect-service`,
-  `nm-fortisslvpn-service`.
+  `nm-fortisslvpn-service` (up to Fedora 44: Fedora 45 retired the Fortinet and vpnc plugins).
 - `nmcli connection show --active`, `nmcli -f NAME,TYPE,VPN.VPN-TYPE connection show`
 - `lsmod | grep -E 'l2tp|esp4|ppp'`, `modprobe -n -v net-pf-16-proto-16-family-l2tp`
 - `resolvectl status`, `/usr/libexec/amethystora-dns status`

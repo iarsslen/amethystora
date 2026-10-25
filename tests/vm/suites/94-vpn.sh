@@ -1,14 +1,15 @@
 #!/usr/bin/bash
-# The VPNs people are given at work (NetworkManager's fortisslvpn, l2tp, libreswan and sstp plugins beside the
-# image's openconnect, openvpn and vpnc): each plugin accepts a connection, an OpenVPN file imports, L2TP's two
-# kernel modules load the way its daemon gets them (by alias, which Fedora's blacklist would stop) while l2tp_eth
-# stays blocked, strict kernel mode is the one thing that takes IPsec away, and libreswan starts and stops
-# without a denial. No server is run here; connecting to one is not tested.
+# The VPNs people are given at work (NetworkManager's l2tp, libreswan and sstp plugins, up to Fedora 44 its
+# fortisslvpn, beside the image's openconnect, openvpn and up to 44 vpnc): each plugin accepts a connection,
+# OpenConnect a Fortinet one, an OpenVPN file imports, L2TP's two kernel modules load the way its daemon gets them
+# (by alias, which Fedora's blacklist would stop) while l2tp_eth stays blocked, strict kernel mode is the one thing
+# that takes IPsec away, and libreswan starts and stops without a denial. No server is run here; connecting to one
+# is not tested.
 source "$(dirname "$0")/lib.sh"
 
 SINCE="$(date '+%F %T')"
 CONNECTIONS=(vmlab-vpn-fortisslvpn vmlab-vpn-l2tp vmlab-vpn-libreswan vmlab-vpn-sstp vmlab-vpn-openconnect
-    vmlab-vpn-openvpn vmlab-vpn-vpnc vmlab-vpn-imported)
+    vmlab-vpn-openvpn vmlab-vpn-vpnc vmlab-vpn-fortinet vmlab-vpn-imported)
 OVPN_DIR="$(mktemp -d)"
 OVPN="${OVPN_DIR}/vmlab.ovpn"
 cleanup() {
@@ -29,7 +30,10 @@ declare -A DATA=(
     [openvpn]="remote = 192.0.2.1, connection-type = password, username = tester"
     [vpnc]="IPSec gateway = 192.0.2.1, IPSec ID = vmlab, Xauth username = tester"
 )
-for plugin in fortisslvpn l2tp libreswan sstp openconnect openvpn vpnc; do
+# Fedora 45 retired the Fortinet and vpnc plugins (its NetworkManager obsoletes them)
+PLUGINS=(l2tp libreswan sstp openconnect openvpn)
+(($(rpm -E %fedora) < 45)) && PLUGINS+=(fortisslvpn vpnc)
+for plugin in "${PLUGINS[@]}"; do
     if out="$(nmcli connection add type vpn vpn-type "${plugin}" con-name "vmlab-vpn-${plugin}" ifname -- \
         vpn.data "${DATA[${plugin}]}" 2>&1)" &&
         [[ "$(nmcli -g vpn.service-type connection show "vmlab-vpn-${plugin}")" == "org.freedesktop.NetworkManager.${plugin}" ]]; then
@@ -38,6 +42,14 @@ for plugin in fortisslvpn l2tp libreswan sstp openconnect openvpn vpnc; do
         not_ok "NetworkManager did not keep a ${plugin} VPN" "${out}"
     fi
 done
+# A FortiGate through OpenConnect, the one way there is from Fedora 45
+if out="$(nmcli connection add type vpn vpn-type openconnect con-name vmlab-vpn-fortinet ifname -- \
+    vpn.data "gateway = vpn.example.org, protocol = fortinet" 2>&1)" &&
+    [[ "$(nmcli -g vpn.data connection show vmlab-vpn-fortinet)" == *"protocol = fortinet"* ]]; then
+    ok "NetworkManager keeps a Fortinet VPN through OpenConnect"
+else
+    not_ok "NetworkManager did not keep a Fortinet VPN through OpenConnect" "${out}"
+fi
 
 mkdir -p "${OVPN_DIR}" && touch "${OVPN_DIR}/ca.pem"
 cat >"${OVPN}" <<'OVPN'
