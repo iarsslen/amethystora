@@ -22,6 +22,9 @@ if [[ -e /usr/share/amethystora/sealed ]] ; then
 else
   CHANNELS=(stable stable-daily latest)
 fi
+# A machine on a stream not offered here (beta) keeps it on offer, so that a change of image does not move it
+# to stable unasked
+[[ -z "${IMAGE_TAG}" || " ${CHANNELS[*]} " == *" ${IMAGE_TAG} "* ]] || CHANNELS+=("${IMAGE_TAG}")
 
 if [[ "${1:-}" == --choices ]] ; then
   jq -n --arg image "${IMAGE_NAME}" --arg stream "${IMAGE_TAG}" \
