@@ -581,6 +581,8 @@ set_switch() {
                 systemctl start "${units[0]}" 2>/dev/null
             else
                 systemctl stop "${units[@]}" 2>/dev/null
+                # systemd 262 leaves a timer stopped under a mask in "failed", which the unit lists show as a fault
+                systemctl reset-failed "${units[@]}" 2>/dev/null
             fi
             ;;
         connectivity-check)
