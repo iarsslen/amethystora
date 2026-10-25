@@ -5,7 +5,7 @@
 #   - the extension is active, no module said it did not start, none threw, and none of what it replaced is installed;
 #   - the tiling is one switch: classic gives GNOME's Super+N back, tiling takes it again, and the state file says so;
 #   - the icon packs: Glass on a dark theme, Duotone on a light one, Neon by choice, candy-icons refused, every launcher's
-#     icon found in each pack by GTK itself;
+#     icon and other makers' apps found in each pack by GTK itself, and Firefox keeping its own;
 #   - the window lights are in the account's GTK 4 and GTK 3 stylesheets;
 #   - the dock is on the bottom of the screen, in the shell's accessibility tree.
 # Two Files windows are left open for the screenshot run.mjs takes after the suite: the strip, the glass and the lights.
@@ -124,6 +124,9 @@ for path in glob.glob('/usr/share/applications/amethystora-*.desktop'):
         if m and not m.group(1).startswith('/'):
             names.add(m.group(1))
 names |= {'folder', 'text-x-generic', 'application-pdf', 'user-trash', 'org.gnome.Nautilus', 'org.gnome.Settings'}
+# Other makers' apps, by what they do, and the file types and dialogs drawn since 2026-10-24
+names |= {'htop', 'nvtop', 'org.gnome.Shell.Extensions', 'org.kde.konsole', 'org.gnome.Geary', 'text-x-python',
+          'application-zip', 'dialog-warning', 'network-wireless'}
 bad = 0
 for pack in ('glass', 'neon', 'duotone'):
     theme = Gtk.IconTheme()
@@ -140,13 +143,17 @@ for pack in ('glass', 'neon', 'duotone'):
     missing = sorted(n for n in names if not from_pack(n))
     print(pack, 'missing:', missing)
     bad += len(missing)
+    # A maker's logo is never drawn: Firefox keeps the icon in its package
+    if from_pack('firefox') or from_pack('org.mozilla.firefox'):
+        print(pack, 'draws Firefox')
+        bad += 1
 sys.exit(1 if bad else 0)
 EOF
 chmod -R a+rX "${OWN}"
 out="$(user_bus python3 "${OWN}/icons.py" 2>&1)"
 status=$?
 if [[ ${status} == 0 ]]; then
-    ok "GTK finds every launcher's icon, and the common ones, in Glass, Neon and Duotone"
+    ok "GTK finds every launcher's icon, and the common ones, in Glass, Neon and Duotone, and Firefox keeps its own"
 else
     not_ok "GTK cannot find an icon in a pack" "${out}"
 fi

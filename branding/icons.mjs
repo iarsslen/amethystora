@@ -4,9 +4,9 @@
 //   Neon     the glyph's outline and its details lit in a three-colour prism, glowing
 //   Duotone  the glyph in its gradient and its details in a contrasting one
 //
-// They cover Amethystora's apps, GNOME's and the system's, folders, file types, devices and categories. Every other
-// maker's app keeps the icon it ships with, which the packs reach through Inherits (hicolor), and the symbolic icons
-// of the top bar and the menus are Adwaita's.
+// They cover Amethystora's apps, GNOME's, the system's and other makers' apps, each drawn by what it does, folders,
+// file types, devices, dialogs and categories. An app whose icon is its maker's mark (LOGOS) keeps the one it ships,
+// which the packs reach through Inherits (hicolor), and the symbolic icons of the top bar and the menus are Adwaita's.
 //
 //   node branding/icons.mjs            writes the packs into system_files/shared/usr/share/icons
 //   node branding/icons.mjs --preview  also writes a sheet of every icon in every pack, and prints where
@@ -93,9 +93,100 @@ const SET = {
         ['org.gnome.font-viewer', 'letter', 'dusk', ['preferences-desktop-font']],
         ['org.gnome.Builder', 'code', 'royal'],
         ['application-default-icon', 'app', 'royal'],
+
+        // Other makers' apps, each drawn by what it does
+        ['org.kde.dolphin', 'files', 'sunset', ['thunar', 'org.xfce.thunar', 'nemo', 'caja', 'pcmanfm', 'pcmanfm-qt']],
+        ['org.kde.konsole', 'terminal', 'mint', ['konsole', 'xfce4-terminal', 'org.xfce.terminal', 'com.gexperts.Tilix', 'tilix',
+            'com.raggesilver.BlackBox', 'app.devsuite.Prompt', 'gnome-terminal', 'mate-terminal', 'lxterminal', 'qterminal']],
+        ['org.kde.kwrite', 'editor', 'orchid', ['kwrite', 'org.xfce.mousepad', 'mousepad', 'pluma', 'xed', 'org.x.editor', 'gedit',
+            'org.gnome.gitlab.somas.Apostrophe', 'com.github.fabiocolacio.marker']],
+        ['org.kde.kcalc', 'calculator', 'amber', ['kcalc', 'galculator', 'qalculate', 'qalculate-gtk', 'io.github.Qalculate', 'mate-calc']],
+        ['io.missioncenter.MissionCenter', 'monitor', 'cherry', ['net.nokyan.Resources', 'org.kde.plasma-systemmonitor', 'ksysguard', 'htop',
+            'btop', 'nvtop', 'org.xfce.taskmanager', 'xfce4-taskmanager']],
+        ['org.kde.systemsettings', 'settings', 'ocean', ['systemsettings', 'org.xfce.settings.manager', 'xfce4-settings-manager',
+            'ca.desrt.dconf-editor', 'dconf-editor']],
+        ['org.gnome.Software', 'store', 'peach', ['gnome-software', 'io.github.kolunmi.Bazaar', 'org.kde.discover', 'plasmadiscover']],
+        ['io.github.flattool.Warehouse', 'package', 'gold'],
+        ['com.github.tchx84.Flatseal', 'toggles', 'emerald'],
+        ['io.github.flattool.Ignition', 'rocket', 'coral'],
+        ['gparted', 'drive', 'indigo', ['org.gnome.GParted', 'org.kde.partitionmanager', 'partitionmanager']],
+        ['org.gnome.DejaDup', 'drive', 'emerald', ['deja-dup', 'org.gnome.World.PikaBackup', 'timeshift', 'com.borgbase.Vorta']],
+        ['io.gitlab.adhami3310.Impression', 'usb', 'gold'],
+        ['io.gitlab.metadatacleaner.metadatacleaner', 'broom', 'lime', ['org.bleachbit.BleachBit', 'bleachbit', 'org.kde.sweeper']],
+        ['de.leopoldluley.Clapgrep', 'search', 'sky', ['catfish', 'org.xfce.catfish', 'org.kde.kfind', 'io.github.cboxdoerfer.FSearch', 'system-search']],
+        ['io.github.getnf.embellish', 'letter', 'dusk', ['org.gnome.FontManager', 'font-manager']],
+        ['me.iepure.devtoolbox', 'toolbox', 'gold'],
+        ['com.mattjakeman.ExtensionManager', 'addon', 'lime', ['org.gnome.Shell.Extensions', 'org.gnome.Extensions']],
+        ['it.mijorus.smile', 'smile', 'peach', ['com.tomjwatson.Emote']],
+        ['page.tesk.Refine', 'wrench', 'lime'],
+        ['com.ranfdev.DistroShelf', 'containers', 'ocean', ['io.github.dvlv.boxbuddyrs', 'distrobox']],
+        ['org.gnome.Boxes', 'vm', 'indigo', ['gnome-boxes', 'virt-manager', 'org.virt_manager.virt-manager']],
+        ['re.sonny.Workbench', 'code', 'royal', ['org.gnome.Meld', 'meld', 'org.gnome.GHex', 'ghex']],
+        ['org.gnome.gitg', 'branch', 'coral', ['gitg', 'org.kde.kommit']],
+        ['org.gnome.Geary', 'mail', 'lagoon', ['geary', 'org.gnome.Evolution', 'evolution', 'org.kde.kmail2', 'kmail', 'internet-mail']],
+        ['org.gnome.Fractal', 'chat', 'aqua', ['org.gnome.Polari', 'polari', 'dev.geopjr.Tuba', 'org.kde.tokodon', 'org.kde.neochat',
+            'internet-chat', 'internet-group-chat', 'empathy']],
+        ['io.gitlab.news_flash.NewsFlash', 'feed', 'amber', ['com.gitlab.newsflash', 'org.gabmus.gfeeds', 'org.kde.akregator', 'akregator',
+            'liferea', 'net.sourceforge.liferea', 'internet-news-reader']],
+        ['de.haeckerfelix.Fragments', 'download', 'emerald', ['com.transmissionbt.Transmission', 'transmission', 'transmission-gtk',
+            'transmission-qt', 'org.kde.ktorrent', 'ktorrent', 'io.github.giantpinkrobots.varia', 'org.nickvision.tubeconverter']],
+        ['org.gnome.seahorse.Application', 'key', 'gold', ['seahorse', 'org.gnome.World.Secrets', 'com.belmoussaoui.Authenticator',
+            'kwalletmanager', 'org.kde.kwalletmanager5']],
+        ['com.github.johnfactotum.Foliate', 'book', 'peach', ['info.febvre.Komikku', 'com.calibre_ebook.calibre', 'calibre-gui',
+            'com.github.babluboy.bookworm', 'org.kde.arianna', 'accessories-dictionary', 'org.gnome.Dictionary']],
+        ['com.github.PintaProject.Pinta', 'brush', 'blossom', ['com.github.maoschanz.drawing', 'org.kde.kolourpaint', 'kolourpaint', 'com.github.flxzt.rnote']],
+        ['be.alexandervanhee.gradia', 'screenshot', 'flame', ['org.gnome.Screenshot', 'gnome-screenshot', 'org.kde.spectacle', 'spectacle',
+            'org.ksnip.ksnip', 'applets-screenshooter']],
+        ['io.github.seadve.Kooha', 'record', 'cherry'],
+        ['org.gnome.SoundRecorder', 'microphone', 'cherry', ['gnome-sound-recorder']],
+        ['com.github.finefindus.eyedropper', 'eyedropper', 'magenta', ['nl.hjdskes.gcolor3', 'gcolor3', 'org.kde.kcolorchooser']],
+        ['io.github.nate_xyz.Paleta', 'palette', 'blossom'],
+        ['app.drey.Dialect', 'translate', 'sky'],
+        ['org.gnome.Music', 'notes2', 'blossom', ['gnome-music', 'org.gnome.Rhythmbox3', 'rhythmbox', 'org.gnome.Lollypop', 'lollypop',
+            'io.bassi.Amberol', 'org.kde.elisa', 'elisa', 'com.github.neithern.g4music']],
+        ['de.haeckerfelix.Shortwave', 'radio', 'coral'],
+        ['org.gnome.Podcasts', 'broadcast', 'lagoon', ['org.kde.kasts', 'kasts']],
+        ['io.github.celluloid_player.Celluloid', 'play', 'grape', ['celluloid', 'org.kde.haruna', 'haruna', 'com.github.rafostar.Clapper',
+            'org.kde.dragonplayer', 'org.xfce.Parole', 'parole']],
+        ['org.pitivi.Pitivi', 'film', 'flame', ['pitivi', 'org.gnome.gitlab.YaLTeR.VideoTrimmer', 'io.github.jliljebl.Flowblade']],
+        ['org.gnome.eog', 'photo', 'magenta', ['eog', 'org.gnome.gThumb', 'gthumb', 'org.kde.gwenview', 'gwenview', 'org.xfce.ristretto',
+            'ristretto', 'org.gnome.Shotwell', 'shotwell', 'org.gnome.Photos', 'gnome-photos', 'com.github.huluti.Curtail',
+            'io.gitlab.theevilskeleton.Upscaler', 'io.gitlab.adhami3310.Converter']],
+        ['org.kde.okular', 'pages', 'flame', ['okular', 'evince', 'atril', 'org.x.reader', 'xreader']],
+        ['org.gnome.Cheese', 'camera', 'indigo', ['cheese', 'org.kde.kamoso']],
+        ['org.kde.korganizer', 'calendar', 'cherry', ['korganizer']],
+        ['org.kde.kaddressbook', 'contact', 'coral', ['kaddressbook']],
+        ['org.gnome.Notes', 'notepad', 'amber', ['bijiben', 'org.gnome.Gnote', 'gnote', 'org.gnome.World.Iotas', 'com.toolstack.Folio']],
+        ['io.github.alainm23.planify', 'tasks', 'emerald', ['io.github.mrvladus.List', 'org.gnome.Todo', 'org.gnome.Endeavour']],
+        ['org.gnome.Solanum', 'alarm', 'lagoon', ['io.gitlab.idevecore.Pomodoro']],
+        ['org.kde.ark', 'archive', 'gold', ['ark', 'xarchiver', 'engrampa']],
+        ['org.gnome.Mines', 'gamepad', 'flame', ['gnome-mines', 'org.gnome.Sudoku', 'gnome-sudoku', 'org.gnome.Quadrapassel', 'org.gnome.Tali',
+            'org.gnome.SwellFoop', 'org.gnome.TwentyFortyEight', 'org.gnome.Nibbles', 'org.gnome.Robots', 'org.gnome.Klotski',
+            'org.gnome.Reversi', 'org.gnome.Taquin', 'org.gnome.Tetravex', 'org.gnome.LightsOff', 'org.gnome.Atomix', 'org.gnome.Hitori',
+            'org.gnome.five-or-more', 'org.gnome.Four-in-a-row']],
+        ['org.gnome.Aisleriot', 'cards', 'cherry', ['gnome-aisleriot', 'sol', 'org.gnome.Mahjongg', 'gnome-mahjongg', 'org.kde.kpat', 'kpat']],
+        ['org.gnome.Chess', 'chess', 'dusk', ['gnome-chess', 'org.kde.knights']],
+        ['com.usebottles.bottles', 'bottle', 'magenta'],
+        ['orca', 'access', 'ocean', ['org.gnome.Orca', 'preferences-desktop-accessibility']],
+        ['ibus', 'keyboard', 'indigo', ['ibus-setup', 'org.freedesktop.IBus.Setup', 'org.gnome.Tecla', 'preferences-desktop-keyboard']],
+        ['org.freedesktop.Piper', 'mouse', 'sky', ['piper', 'preferences-desktop-peripherals']],
+        ['org.pulseaudio.pavucontrol', 'speaker', 'sunset', ['pavucontrol', 'multimedia-volume-control', 'com.saivert.pwvucontrol', 'com.rafaelmardojai.Blanket']],
+        ['com.github.wwmm.easyeffects', 'equalizer', 'grape', ['easyeffects']],
+        ['nm-connection-editor', 'wifi', 'lagoon', ['preferences-system-network']],
+        ['system-config-printer', 'printer', 'coral'],
+        ['org.gnome.PowerStats', 'battery', 'lime', ['gnome-power-statistics', 'preferences-system-power']],
+        ['org.gnome.Epiphany', 'globe', 'lagoon', ['epiphany', 'internet-web-browser', 'web-browser', 'org.gnome.Shell.CaptivePortal']],
+        ['org.kde.krdc', 'remote', 'royal', ['krdc']],
+        ['org.kde.skanpage', 'scanner', 'ice', ['skanlite', 'xsane']],
+        ['abiword', 'document', 'ocean'],
+        ['gnumeric', 'spreadsheet', 'emerald', ['org.gnome.Gnumeric']],
+        ['preferences-desktop-display', 'computer', 'ocean'],
+        ['preferences-desktop-wallpaper', 'photo', 'sunset'],
+        ['preferences-desktop-theme', 'palette', 'orchid'],
+        ['preferences-desktop-locale', 'globe', 'emerald'],
     ],
     places: [
-        ['folder', 'folder', 'sky', ['inode-directory']],
+        ['folder', 'folder', 'sky', ['inode-directory', 'folder-open', 'folder-drag-accept', 'folder-visiting']],
         ['folder-documents', 'folder-documents', 'sky'],
         ['folder-download', 'folder-download', 'sky'],
         ['folder-music', 'folder-music', 'sky'],
@@ -104,14 +195,15 @@ const SET = {
         ['folder-templates', 'folder-templates', 'sky'],
         ['folder-publicshare', 'folder-publicshare', 'sky'],
         ['user-desktop', 'folder-desktop', 'sky', ['folder-desktop']],
-        ['folder-remote', 'folder-remote', 'sky'],
+        ['folder-remote', 'folder-remote', 'sky', ['folder-network']],
+        ['folder-saved-search', 'search', 'sky'],
         ['folder-locked', 'folder-locked', 'sky'],
         ['user-home', 'home', 'peach', ['folder-home']],
         ['user-trash', 'trash', 'ice'],
         ['user-trash-full', 'trash-full', 'ice'],
         ['network-server', 'server', 'indigo', ['network-workgroup']],
         ['user-bookmarks', 'bookmark', 'gold'],
-        ['avatar-default', 'avatar', 'orchid'],
+        ['avatar-default', 'avatar', 'orchid', ['system-users']],
     ],
     mimetypes: [
         ['text-x-generic', 'text', 'blossom'],
@@ -133,7 +225,67 @@ const SET = {
         ['text-x-generic-template', 'template', 'ice'],
         ['application-x-addon', 'addon', 'lime'],
         ['application-x-firmware', 'chip', 'lime'],
-        ['application-x-cd-image', 'disc', 'indigo'],
+        ['application-x-cd-image', 'disc', 'indigo', ['application-x-iso9660-image', 'application-x-raw-disk-image',
+            'application-x-raw-disk-image-xz-compressed', 'application-x-qemu-disk', 'application-vnd.efi.iso', 'application-x-apple-diskimage']],
+        ['application-zip', 'zip', 'gold', ['application-x-zip', 'application-x-tar', 'application-x-compressed-tar', 'application-x-bzip',
+            'application-x-bzip-compressed-tar', 'application-gzip', 'application-x-gzip', 'application-x-xz', 'application-x-xz-compressed-tar',
+            'application-x-7z-compressed', 'application-vnd.rar', 'application-x-rar', 'application-zstd', 'application-x-zstd-compressed-tar',
+            'application-x-lzma', 'application-x-archive', 'application-x-cpio']],
+        ['application-x-rpm', 'package', 'amber', ['application-vnd.debian.binary-package', 'application-vnd.flatpak', 'application-vnd.flatpak.ref',
+            'application-vnd.flatpak.repo', 'application-x-java-archive']],
+        ['application-vnd.appimage', 'app', 'lagoon', ['application-x-ms-dos-executable', 'application-x-msdownload', 'application-x-msi',
+            'application-x-sharedlib', 'application-x-desktop']],
+        ['application-pgp-keys', 'key-file', 'gold', ['application-pgp-encrypted', 'application-pgp-signature', 'application-x-keepass2', 'application-x-pem-key']],
+        ['application-x-x509-ca-cert', 'certificate', 'emerald', ['application-pkcs12', 'application-x-pkcs12', 'application-pkix-cert',
+            'application-x-pkcs7-certificates']],
+        ['application-x-bittorrent', 'download-file', 'emerald'],
+        ['application-epub+zip', 'book-file', 'peach', ['application-x-mobipocket-ebook', 'application-vnd.comicbook+zip',
+            'application-vnd.comicbook-rar', 'application-x-fictionbook+xml']],
+        ['font-ttf', 'font', 'dusk', ['font-otf', 'font-woff', 'font-woff2', 'font-collection', 'application-x-font-ttf']],
+        ['application-vnd.oasis.opendocument.text', 'document', 'ocean', ['application-vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application-msword', 'application-rtf']],
+        ['application-vnd.oasis.opendocument.spreadsheet', 'spreadsheet', 'emerald', ['application-vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application-vnd.ms-excel']],
+        ['application-vnd.oasis.opendocument.presentation', 'presentation', 'coral', ['application-vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application-vnd.ms-powerpoint']],
+        ['application-vnd.oasis.opendocument.graphics', 'drawing', 'magenta'],
+        ['image-png', 'image', 'sunset', ['image-jpeg', 'image-gif', 'image-webp', 'image-tiff', 'image-bmp', 'image-avif', 'image-heif', 'image-jxl', 'image-x-icon']],
+        ['image-svg+xml', 'label-SVG', 'orchid'],
+        ['audio-mpeg', 'audio', 'orchid', ['audio-flac', 'audio-x-wav', 'audio-ogg', 'audio-x-vorbis+ogg', 'audio-x-opus+ogg', 'audio-mp4', 'audio-aac', 'audio-x-m4a']],
+        ['video-mp4', 'video', 'grape', ['video-x-matroska', 'video-webm', 'video-quicktime', 'video-x-msvideo', 'video-mpeg', 'video-ogg']],
+        ['text-plain', 'text', 'blossom', ['application-x-subrip', 'text-vtt', 'text-x-readme', 'text-x-changelog', 'text-x-copying', 'text-x-log']],
+        ['message-rfc822', 'mail-file', 'lagoon', ['application-mbox']],
+        ['text-vcard', 'contact', 'coral', ['text-x-vcard']],
+        ['application-x-shellscript', 'script', 'mint', ['text-x-makefile', 'text-x-cmake', 'text-x-meson']],
+        ['text-x-csrc', 'label-C', 'ocean', ['text-x-c']],
+        ['text-x-chdr', 'label-H', 'ice'],
+        ['text-x-c++src', 'label-C++', 'royal', ['text-x-c++hdr']],
+        ['text-x-csharp', 'label-C#', 'grape'],
+        ['text-x-go', 'label-GO', 'aqua'],
+        ['text-rust', 'label-RS', 'coral', ['text-x-rust']],
+        ['text-x-python', 'label-PY', 'amber', ['text-x-python3', 'application-x-python-bytecode']],
+        ['application-javascript', 'label-JS', 'gold', ['text-javascript', 'application-x-javascript']],
+        ['application-x-typescript', 'label-TS', 'lagoon', ['text-x-typescript']],
+        ['text-css', 'label-CSS', 'sky'],
+        ['application-x-php', 'label-PHP', 'indigo', ['text-x-php']],
+        ['application-x-ruby', 'label-RB', 'cherry', ['text-x-ruby']],
+        ['text-x-lua', 'label-LUA', 'royal'],
+        ['text-x-kotlin', 'label-KT', 'dusk'],
+        ['text-x-java', 'label-JAVA', 'sunset'],
+        ['application-sql', 'label-SQL', 'emerald', ['text-x-sql']],
+        ['text-markdown', 'label-MD', 'ice', ['text-x-markdown']],
+        ['application-x-yaml', 'label-YML', 'lime', ['application-yaml', 'text-x-yaml']],
+        ['application-toml', 'label-TOML', 'peach', ['text-x-toml']],
+        ['application-xml', 'label-XML', 'flame', ['text-xml']],
+        ['text-x-tex', 'label-TEX', 'mint'],
+        ['text-x-haskell', 'label-HS', 'orchid'],
+        ['application-x-perl', 'label-PL', 'blossom', ['text-x-perl']],
+        ['text-csv', 'label-CSV', 'emerald'],
+        ['application-octet-stream', 'label-01', 'indigo'],
+        ['application-json', 'json', 'lime', ['application-x-ipynb+json', 'application-schema+json']],
+        ['text-x-patch', 'diff', 'coral', ['text-x-diff']],
+        ['application-x-sqlite3', 'database', 'emerald', ['application-vnd.sqlite3', 'application-x-sqlite2']],
+        ['application-x-trash', 'trash', 'ice'],
     ],
     devices: [
         ['computer', 'computer', 'ocean', ['video-display']],
@@ -155,6 +307,22 @@ const SET = {
         ['audio-speakers', 'speaker', 'sunset', ['audio-card']],
         ['audio-input-microphone', 'microphone', 'cherry'],
         ['network-wired', 'plug', 'mint'],
+        ['network-wireless', 'wifi', 'lagoon'],
+        ['battery', 'battery', 'lime', ['uninterruptible-power-supply']],
+        ['input-touchpad', 'touchpad', 'sky'],
+        ['media-floppy', 'floppy', 'indigo'],
+        ['multimedia-player', 'player', 'magenta'],
+        ['camera-video', 'webcam', 'lagoon'],
+        ['printer-network', 'printer', 'coral'],
+    ],
+    status: [
+        ['dialog-information', 'info', 'sky'],
+        ['dialog-warning', 'warning', 'amber'],
+        ['dialog-error', 'error', 'cherry'],
+        ['dialog-question', 'question', 'royal'],
+        ['dialog-password', 'key', 'gold'],
+        ['security-medium', 'shield-alert', 'amber'],
+        ['security-low', 'shield-alert', 'cherry'],
     ],
     categories: [
         ['applications-system', 'settings', 'ocean'],
@@ -168,10 +336,16 @@ const SET = {
         ['applications-science', 'flask', 'aqua'],
         ['applications-education', 'cap', 'peach'],
         ['applications-other', 'app', 'royal'],
+        ['applications-fonts', 'letter', 'dusk'],
     ],
 };
 
-const CONTEXTS = {apps: 'Applications', places: 'Places', mimetypes: 'MimeTypes', devices: 'Devices', categories: 'Categories'};
+// Apps whose icon is their maker's mark (a logo, a mascot, a letter of theirs) keep the one they ship: redrawn in the
+// packs' style it would be a changed trademark, and drawn as a pictogram it would no longer say whose app it is. The
+// packs refuse to draw any of these names
+const LOGOS = /^(firefox|org\.mozilla\..*|thunderbird|waydroid|io\.podman_desktop\..*|steam|com\.valvesoftware\..*|codium|vscodium|com\.vscodium\..*|code|com\.visualstudio\..*|google-chrome|com\.google\..*|chromium.*|org\.chromium\..*|brave.*|com\.brave\..*|com\.microsoft\..*|discord|com\.discordapp\..*|spotify.*|com\.spotify\..*|telegram.*|org\.telegram\..*|signal.*|org\.signal\..*|com\.slack\..*|us\.zoom\..*|libreoffice.*|org\.libreoffice\..*|vlc|org\.videolan\..*|obs|com\.obsproject\..*|blender|org\.blender\..*|gimp|org\.gimp\..*|inkscape|org\.inkscape\..*|krita|org\.kde\.krita|kdenlive|org\.kde\.kdenlive|kate|org\.kde\.kate|audacity|org\.audacityteam\..*|net\.lutris\..*|com\.heroicgameslauncher\..*|kitty|alacritty|org\.wezfurlong\..*|com\.mitchellh\..*|org\.qbittorrent\..*|org\.mozilla|com\.jetbrains\..*|jetbrains-.*|net\.opentabletdriver\..*|solaar|org\.fedoraproject\..*|fedora.*)$/i;
+
+const CONTEXTS = {apps: 'Applications', places: 'Places', mimetypes: 'MimeTypes', devices: 'Devices', status: 'Status', categories: 'Categories'};
 
 const mixWhite = (hex, s) => '#' + [1, 3, 5].map(i => Math.round(parseInt(hex.slice(i, i + 2), 16) * (1 - s) + 255 * s)
     .toString(16).padStart(2, '0')).join('');
@@ -225,6 +399,15 @@ function indexTheme(pack) {
     return `[Icon Theme]\nName=${pack.name}\nComment=${pack.comment}\nInherits=Adwaita,hicolor\nExample=folder\n` +
         `Directories=${dirs.join(',')}\n` + Object.entries(CONTEXTS).map(([dir, context]) =>
         `\n[${dir}/scalable]\nContext=${context}\nSize=128\nMinSize=8\nMaxSize=512\nType=Scalable\n`).join('');
+}
+
+// A name is drawn once, and never one of a maker's mark
+const names = Object.values(SET).flat().flatMap(([name, , , also = []]) => [name, ...also]);
+for (const name of names) {
+    if (LOGOS.test(name))
+        throw new Error(`${name}: its icon is its maker's mark, which the packs leave as it ships`);
+    if (names.indexOf(name) !== names.lastIndexOf(name))
+        throw new Error(`${name}: drawn twice`);
 }
 
 // Each name an icon answers to is a file of its own rather than a link, since the image build's rsync of

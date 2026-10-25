@@ -1121,10 +1121,14 @@ drawn in code by `node branding/icons.mjs` from the glyphs in `branding/icons/gl
 (`DEFAULT_ICON_THEME` in `lib.sh`, and `icon-theme` in `zz1-amethystora-modifications`, which `20-tests.sh` compares),
 Duotone follows a light theme, and `icon_theme()` in `lib.sh` writes the account's own `~/.config/amethystora/icons`
 (`ame desktop icons`, Control's Appearance page) before the theme's `icons.theme`, passing over a name that is not installed
-(candy-icons, which an update removed, so no account is left on a theme the image lacks). They cover Amethystora's apps, GNOME's, the system's, folders, file types, devices and
-generic pictograms, and **never another maker's logo**: an app of theirs keeps the icon it ships, bare, on no tile (the
-maintainer's choice of 2026-10-23, after a tile behind them was proposed). To add an icon, draw a glyph (two inks: the body, and the
-details over it, never a hole cut into it), add a line to `SET` with its ramp and the names it answers to, and run the script;
+(candy-icons, which an update removed, so no account is left on a theme the image lacks). They cover Amethystora's apps, GNOME's, the system's, folders, file types (a language's by its letters, `label-PY`),
+devices, dialogs and generic pictograms, and other makers' apps by what each does, as candy-icons covered them (the
+maintainer's choice of 2026-10-24), but **never another maker's logo**: an app whose icon is its maker's mark (Firefox,
+Thunderbird, Steam, VSCodium, LibreOffice...) keeps the icon it ships, bare, on no tile (the maintainer's choice of
+2026-10-23, after a tile behind them was proposed), and the script refuses a name `LOGOS` matches. Keep an Amethystora
+app's glyph its own: another maker's backup or notes app gets a glyph of its own. To add an icon, draw a glyph (two inks:
+the body, and the details over it, never a hole cut into it; `line()` draws a straight line along an axis as a bar, since
+a box with no width takes no gradient), add a line to `SET` with its ramp and the names it answers to, and run the script;
 `20-tests.sh` holds the three packs to the same number of icons, no symbolic icons and no links, and the icon of every `amethystora-*.desktop` launcher to a file in each; suite 27 asks GTK itself and counts only the pack's own file.
 
 ### Packages from other distributions

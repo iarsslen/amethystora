@@ -107,11 +107,12 @@ Three icon packs are drawn for Amethystora, each icon in colours of its own. **G
 one with a gradient and a glass sheen, and is what a dark theme uses. **Duotone** draws the details
 in a contrasting gradient, and is what a light theme uses. **Neon** lights each outline, and is made
 for a dark desktop. They draw Amethystora's apps, GNOME's, the system's, folders, file types,
-devices and the pictograms of a job.
+devices, dialogs and the pictograms of a job, and the apps of other makers by what each one does:
+a terminal as a terminal, a mail app as an envelope, a music player as a note.
 
-An app with a logo of its own keeps it. Firefox, Thunderbird, a JetBrains IDE and most of what
-you install show the icon their maker drew, exactly as it ships, with no tile or frame added: a
-logo is a trademark, and how it looks is its owner's to decide. That is why the dock mixes the two.
+An app whose icon is its maker's logo keeps it. Firefox, Thunderbird, Steam, a JetBrains IDE and
+others like them show the icon their maker drew, exactly as it ships, with no tile or frame added:
+a logo is a trademark, and how it looks is its owner's to decide. That is why the dock can mix the two.
 
 `ame desktop icons glass`, `neon` or `duotone` picks one whatever the theme, and
 `ame desktop icons theme` goes back to what the theme chooses. Control has the same choice under

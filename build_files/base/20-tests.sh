@@ -1241,7 +1241,10 @@ grep -q "^DEFAULT_ICON_THEME=amethystora-glass$" /usr/lib/amethystora/theme/lib.
 # no symbolic icons (the panel keeps Adwaita's), and every launcher of this image finds its icon in each of them.
 grep -q "^DEFAULT_LIGHT_ICON_THEME=amethystora-duotone$" /usr/lib/amethystora/theme/lib.sh
 GLASS_ICONS="$(find /usr/share/icons/amethystora-glass -name '*.svg' | wc -l)"
-((GLASS_ICONS > 150))
+((GLASS_ICONS > 600))
+# Other makers' apps are drawn by what they do, a maker's logo never: Firefox and Thunderbird keep theirs
+[[ -s /usr/share/icons/amethystora-glass/apps/scalable/org.kde.konsole.svg ]]
+[[ -z "$(find /usr/share/icons/amethystora-glass -name 'firefox.svg' -o -name 'org.mozilla.*')" ]]
 for pack in glass neon duotone; do
     PACK_DIR="/usr/share/icons/amethystora-${pack}"
     grep -qx "Name=Amethystora ${pack^}" "${PACK_DIR}/index.theme"
