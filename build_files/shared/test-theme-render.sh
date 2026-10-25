@@ -41,6 +41,20 @@ for theme in "${SYSTEM_THEMES_DIR}"/*/; do
         [[ "$(tail -c1 "${template}" | od -An -tx1 | tr -d ' ')" == "$(tail -c1 "${output}" | od -An -tx1 | tr -d ' ')" ]] ||
             fail "${slug}: $(basename "${output}") lost its last newline"
     done
+    # What the terminal and the prompt read has to be accepted by the programs that read it: a key either does not
+    # know would be a warning at the top of every new terminal, or colours that are not applied
+    if command -v starship >/dev/null; then
+        [[ -z "$(STARSHIP_CONFIG="${T}/stage/starship.toml" starship prompt 2>&1 >/dev/null)" ]] ||
+            fail "${slug}: starship does not accept its prompt"
+    fi
+    if command -v kitty >/dev/null; then
+        KITTY_THEME="${T}/stage/kitty-theme.conf" kitty +runpy '
+import os
+from kitty.config import load_config
+bad = []
+load_config(os.environ["KITTY_THEME"], accumulate_bad_lines=bad)
+assert not bad, bad' || fail "${slug}: kitty does not accept its theme"
+    fi
 done
 # A value is text: & is not the matched pattern, \ is not an escape
 grep -rqF "Amethystora ${slug} & co" "${T}/stage" 2>/dev/null ||

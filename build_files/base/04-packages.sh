@@ -87,6 +87,9 @@ FEDORA_PACKAGES=(
     iwd
     jetbrains-mono-fonts-all
     just
+    # The terminal (xdg-terminal-exec's first choice, /etc/xdg/kitty/kitty.conf). Ptyxis, the base image's, stays
+    # behind it for the container menu it has.
+    kitty
     krb5-workstation
     libappindicator-gtk3
     libayatana-appindicator-gtk3

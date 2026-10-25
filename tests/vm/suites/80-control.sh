@@ -435,7 +435,7 @@ EOF
     # Control alone on the screen, so that closing a terminal leaves the focus nowhere else: the Manual's
     # welcome and the terminal xdg-terminal-exec opened closed first
     pkill -u "${TEST_USER}" -f "^/usr/lib/amethystora-manual/amethystora-manual"
-    pkill -u "${TEST_USER}" -x ptyxis
+    pkill -u "${TEST_USER}" -x kitty
     sleep 3
     window_inactive() { ! window_active; }
     # Opened as a person opens it, with its hotkey (custom29), on a keyboard GNOME takes for a person's
@@ -477,7 +477,7 @@ EOF
         rm -f "${CONFIG}/no-greeting"
         # The terminal closed as a person closes it: its window, with what runs in it
         pkill -u "${TEST_USER}" -f "amethystora-in-terminal ame system clean"
-        pkill -u "${TEST_USER}" -x ptyxis
+        pkill -u "${TEST_USER}" -x kitty
         if wait_for 30 window_active; then
             ok "the window has the focus back once the terminal closes"
         else

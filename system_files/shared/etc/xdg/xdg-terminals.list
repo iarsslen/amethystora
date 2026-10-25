@@ -1,3 +1,4 @@
 # The terminal xdg-terminal-exec opens (Super+Return, Terminal=true launchers, amethystora-menu),
 # first one installed wins.
+kitty.desktop
 org.gnome.Ptyxis.desktop

@@ -312,6 +312,28 @@ allowlists while chosen, after its explanation: it sends every site's address to
 is offered only, in no profile, never in the built-in list and never installed, and Osprey's own settings
 are left to the user.
 
+### The terminal and the prompt
+
+The terminal is kitty (the maintainer's choice of 2026-10-24, over Ptyxis, which the image had used since the
+Hyprland era's kitty went): Fedora's package, first in `xdg-terminal-exec`'s three lists (`/etc/xdg/xdg-terminals.list`,
+`gnome-xdg-terminals.list`, `usr/share/xdg-terminal-exec/gnome-xdg-terminals.list`: 20-tests.sh holds all three), so
+`Super+Return`, `amethystora-in-terminal`, the logo menu and every `Terminal=true` launcher open it; its launcher's
+`X-TerminalArg*` keys say how. Ptyxis, the base image's, stays installed and second, for its container menu.
+- **Settings are the image's `/etc/xdg/kitty/kitty.conf`**, which kitty reads under the account's own
+  `~/.config/kitty/kitty.conf` (a line of the account's wins; checked against kitty 0.47). Keep the title bar
+  (`hide_window_decorations no`: the Hyprland era's config hid it and left GNOME windows without a close button), keep
+  `update_check_interval 0` and `allow_remote_control no`.
+- **Its colours are the theme's**: `themed/kitty-theme.conf.tpl`, rendered into `~/.config/amethystora/current/theme`
+  and included by the image's config from there; `apply_kitty` in `amethystora-theme` sends SIGUSR1 to the account's
+  own open kitty windows so that they take a new theme at once. `test-theme-render.sh` has kitty and starship load
+  every shipped theme's rendering. The Ptyxis palette is still rendered, for the second choice.
+- **The prompt is Starship as a powerline**, `themed/starship.toml.tpl`: user@host, the folder and, in a git
+  repository, the branch, each on a background of the theme's colours (`surface`, `accent`, `repo` in its palette,
+  text in the theme's `background`), the arrows Nerd Fonts' U+E0B0, then the command on a line of its own after `▶`.
+  The folder's `repo_root_format` carries the arrow into the branch and the branch's `( )` group ends the line, so
+  an arrow never points at nothing; keep both when changing it. Write glyphs as `\uXXXX` escapes: the private-use
+  ones do not survive an editor or a tool. `tests/vm/suites/97-terminal.sh` is its check.
+
 ### Agentic features
 
 Every image, base and dx, ships `amethystora-agent`, the launcher behind `Super+Ctrl+Shift+A` and

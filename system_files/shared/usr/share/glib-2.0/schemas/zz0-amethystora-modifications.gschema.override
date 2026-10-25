@@ -62,7 +62,7 @@ center-new-windows=true
 check-alive-timeout=uint32 20000
 
 [com.github.stunkymonkey.nautilus-open-any-terminal]
-terminal='ptyxis'
+terminal='kitty'
 keybindings=''
 new-tab=false
 flatpak='off'

@@ -237,15 +237,15 @@ Settings|-|gnome-control-center
 Software centre|io.github.kolunmi.Bazaar|
 Extensions|-|gnome-extensions-app
 System monitor|io.missioncenter.MissionCenter|
-Terminal|-|ptyxis
+Terminal|-|kitty
 Containers|com.ranfdev.DistroShelf|
 EOF
-    # DistroShelf opens a container's terminal in the one it was set to, or else the one it finds: Ptyxis here. The
+    # DistroShelf opens a container's terminal in the one it was set to, or else the one it finds: kitty or Ptyxis here. The
     # Logo Menu's helper set it only when it installed DistroShelf itself, so the setting was never the image's.
     terminal="$(user_bus flatpak run --command=gsettings com.ranfdev.DistroShelf get com.ranfdev.DistroShelf selected-terminal 2>&1)"
     echo "# DistroShelf's selected-terminal: ${terminal}"
-    [[ "${terminal}" == *tyxis* || "${terminal}" == "''" ]] && ok "DistroShelf's terminal is Ptyxis, or the one it finds" ||
-        not_ok "DistroShelf's terminal is not Ptyxis" "${terminal}"
+    [[ "${terminal}" == *kitty* || "${terminal}" == *tyxis* || "${terminal}" == "''" ]] && ok "DistroShelf's terminal is kitty, Ptyxis, or the one it finds" ||
+        not_ok "DistroShelf's terminal is neither kitty nor Ptyxis" "${terminal}"
 
     # 4. A middle click shows the overview and opens no menu; a second one hides it
     wake

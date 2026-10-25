@@ -161,10 +161,20 @@ test ! -e /etc/modprobe.d/l2tp_netlink-blacklist.conf
 test ! -e /etc/modprobe.d/l2tp_ppp-blacklist.conf
 grep -qx "blacklist l2tp_eth" /etc/modprobe.d/l2tp_eth-blacklist.conf
 
-# Ptyxis is the terminal: first for xdg-terminal-exec (Super+Return), and kitty is gone
-[[ "$(grep -v '^#' /etc/xdg/xdg-terminals.list | head -1)" == "org.gnome.Ptyxis.desktop" ]]
-[[ "$(grep -v '^#' /etc/xdg/gnome-xdg-terminals.list | head -1)" == "org.gnome.Ptyxis.desktop" ]]
-rpm -q kitty >/dev/null && false
+# kitty is the terminal: first for xdg-terminal-exec (Super+Return) in each of its lists, with Ptyxis behind it, and
+# its launcher says how xdg-terminal-exec runs a command in it
+for list in /etc/xdg/xdg-terminals.list /etc/xdg/gnome-xdg-terminals.list /usr/share/xdg-terminal-exec/gnome-xdg-terminals.list; do
+    [[ "$(grep -v '^#' "${list}" | head -1)" == "kitty.desktop" ]]
+done
+rpm -q kitty >/dev/null
+grep -q "^X-TerminalArgExec=--$" /usr/share/applications/kitty.desktop
+grep -qx "terminal='kitty'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override
+# The image's kitty.conf loads, and takes the theme's colours from the account's own folder
+grep -q "^include ~/.config/amethystora/current/theme/kitty-theme.conf$" /etc/xdg/kitty/kitty.conf
+kitty +runpy '
+from kitty.cli import create_default_opts
+o = create_default_opts()
+assert o.font_size == 11.0 and o.update_check_interval == 0, (o.font_size, o.update_check_interval)'
 
 # Animated boot splash: the script theme, the images it loads, and both in the initramfs, which shows the
 # splash up to and including the LUKS password prompt
@@ -1086,7 +1096,7 @@ test -f /usr/lib/amethystora/theme/lib.sh
 test -f /usr/share/amethystora/keybindings.md
 test -x /usr/share/amethystora/theme-set.hooks.d/10-vscodium.sh
 test -x /usr/share/amethystora/user-setup.hooks.d/11-theme.sh
-for template in btop.theme ptyxis.palette starship.toml wallpaper.svg wallpaper-contours.svg wallpaper-ridges.svg wallpaper-waves.svg; do
+for template in btop.theme kitty-theme.conf ptyxis.palette starship.toml wallpaper.svg wallpaper-contours.svg wallpaper-ridges.svg wallpaper-waves.svg; do
     test -f "/usr/share/amethystora/themed/${template}.tpl"
 done
 # A wallpaper template draws with colours from the palette, and one a theme lacks would be left in

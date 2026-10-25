@@ -12,7 +12,7 @@
 #   3  the theme mirror in ~/.themes and the libadwaita user stylesheet that imports from it
 #      (theme-set.hooks.d/20-gtk-apps.sh). Accounts set up before it existed have neither, so every
 #      Flatpak application on them keeps the runtime's stock Adwaita until the theme is applied again.
-#   4  the kitty palette, for as long as kitty was the terminal.
+#   4  the kitty palette, for as long as kitty was the terminal (see 11).
 #   5  the account after user-setup.hooks.d/09-retire-dms.sh, which runs just before this and removes
 #      what DankMaterialShell left from the Hyprland era. Its gtk.css carried no amethystora-theme
 #      marker, so 20-gtk-apps.sh had taken it for the user's own and never written the theme's.
@@ -27,6 +27,8 @@
 #      theme's own pack, and the theme applied again writes Glass or Duotone in place of the name it held.
 #  10  the dock's, the tiling's and the glass's colours (themed/shell-dock|tiling|glass.css.tpl): an account's rendered
 #      theme folder has none of them until the theme is applied again.
+#  11  kitty as the terminal (themed/kitty-theme.conf.tpl, which /etc/xdg/kitty/kitty.conf includes) and the prompt
+#      drawn as a powerline (themed/starship.toml.tpl): neither is in the folder of an account set up before.
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
@@ -35,7 +37,7 @@ source /usr/lib/amethystora/setup-services/libsetup.sh
 # chose in GNOME Settings included: the theme is applied again without picking a new one.
 PREVIOUS="$(jq -r '.version.user.theme // 0' "${SETUP_CHECKER_FILE}" 2>/dev/null || echo 0)"
 
-version-script theme user 10 || exit 0
+version-script theme user 11 || exit 0
 
 [[ "$(cat "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons" 2>/dev/null)" == candy-icons ]] &&
     rm -f "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons"

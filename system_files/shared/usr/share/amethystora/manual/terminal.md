@@ -6,10 +6,15 @@ When you do, it is ready for you.
 ## Opening one
 
 `Super+Return` opens a terminal, and so do `Ctrl+Alt+T` and `Ctrl+Alt+Return`. The terminal is
-Ptyxis. It knows about containers: the menu next to the new tab button opens a tab on the host or
-inside any of your [Distrobox and Toolbox containers](software.md#containers).
+kitty, a fast terminal that draws on the graphics card. Its settings are the image's, in
+`/etc/xdg/kitty/kitty.conf`: put a line of your own in `~/.config/kitty/kitty.conf` and yours wins, the rest
+stays as the image has it. Ptyxis is still installed: it is the one with a menu that opens a tab inside any of your
+[Distrobox and Toolbox containers](software.md#containers), and the second choice when kitty is missing.
 
-Its colours follow the [theme](themes.md), and so does the prompt.
+Its colours follow the [theme](themes.md), open windows included when you switch, and so does the prompt: your
+name and machine, the folder, and in a git repository its branch, each on a background of the theme's
+colours, then the command on a line of its own. The arrows and icons are Nerd Fonts symbols, which kitty carries
+and Ptyxis finds among the image's fonts.
 
 ## The greeting
 

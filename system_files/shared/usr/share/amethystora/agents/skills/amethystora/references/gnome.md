@@ -15,6 +15,8 @@
 - Something to show in the top bar (a widget, an indicator, a timer, a status, a switch): follow the
   `amethystora-widgets` skill, which makes it a folder in `~/.config/amethystora/widgets`. Never write
   a GNOME Shell extension for it.
-- The terminal is Ptyxis. `amethystora-theme` sets its palette on every theme switch.
+- The terminal is kitty (Ptyxis is the second choice). Its settings are `/etc/xdg/kitty/kitty.conf`, over which the
+  account's `~/.config/kitty/kitty.conf` wins; `amethystora-theme` renders its colours on every theme switch and
+  asks the open windows to read them again.
 - Amethystora Control (`amethystora-control [page]`, `Super+Ctrl+Shift+C`) is the window over
   `/usr/libexec/amethystora-control-list`.

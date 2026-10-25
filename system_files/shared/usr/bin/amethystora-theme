@@ -100,6 +100,13 @@ apply_ptyxis() {
     done
 }
 
+# kitty includes the rendered theme from /etc/xdg/kitty/kitty.conf, so a new theme only needs the windows that
+# are open to read it again, which SIGUSR1 asks of kitty. Only this account's: a signal to another's would
+# be none of this script's business.
+apply_kitty() {
+    pkill -USR1 -U "$(id -u)" -x kitty 2>/dev/null || true
+}
+
 # btop reads its theme from a file next to its config, so the rendered one is linked in and
 # selected. The link is rewritten on every switch; the rest of btop.conf is left as the user has it.
 apply_btop() {
@@ -167,6 +174,7 @@ theme_set() {
     trap 'transition Release' EXIT
     apply_gnome
     apply_ptyxis
+    apply_kitty
     apply_btop
     apply_starship
     # A wallpaper that cannot be set is worth a warning, not a half-applied theme
