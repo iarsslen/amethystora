@@ -91,12 +91,32 @@ def find(app, text, role=None):
     return None
 
 
+PRESSES = ("click", "activate", "press", "toggle")
+
+
+def actionable(node):
+    try:
+        return node.get_action_iface() is not None and any(
+            Atspi.Action.get_action_name(node, i) in PRESSES for i in range(Atspi.Action.get_n_actions(node)))
+    except Exception:
+        return False
+
+
+def find_pressable(app, text):
+    """The first widget named TEXT that can be pressed or toggled: a libadwaita switch row carries its title
+    itself and in its label, but only the switch inside it toggles"""
+    for node, _ in walk(app):
+        if showing(node) and any(text in word for word in words(node)) and actionable(node):
+            return node
+    return None
+
+
 def activate(node):
     if node.get_action_iface() is None:
         return False
     count = Atspi.Action.get_n_actions(node)
     for i in range(count):
-        if Atspi.Action.get_action_name(node, i) in ("click", "activate", "press", "toggle"):
+        if Atspi.Action.get_action_name(node, i) in PRESSES:
             return Atspi.Action.do_action(node, i)
     return count > 0 and Atspi.Action.do_action(node, 0)
 
@@ -183,7 +203,7 @@ def main(argv):
         Atspi.EditableText.set_text_contents(node, rest[0])
         return
     if command == "check":
-        node = find(app, rest[0])
+        node = find_pressable(app, rest[0]) or find(app, rest[0])
         if node is None:
             fail(f"nothing named {rest[0]!r}")
         want = (rest[1] if len(rest) > 1 else "on") == "on"

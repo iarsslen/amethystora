@@ -3,11 +3,10 @@
 # sees no window's place on Wayland, so it asks what the session can say for sure:
 #   - every setting has the image's value, and the shortcuts are the 99 of the schema, 54 of them bound;
 #   - every setting changed while the tiling runs, and put back, leaves nothing thrown in the shell's log;
-#   - ame desktop tiling-settings opens the settings window, with its four pages, and its switch turns the tiling off
+#   - ame desktop tiling-settings opens the settings window, with its five pages, and its switch turns the tiling off
 #     and on again, as ame desktop layout does;
 #   - a shortcut bound while the tiling runs works at once: on a real keyboard (uinput), Super+Left, the new
-#     "next window" key and the live switcher move the keyboard between two Files windows, which the
-#     accessibility tree shows.
+#     "previous window" key and the live switcher move the keyboard between Files windows, which Ctrl+W then closes.
 # The lab's machine has one screen, so a workspace on each screen (screens.js) is checked in the headless shell only.
 source "$(dirname "$0")/lib.sh"
 
@@ -115,17 +114,18 @@ atspi() { user_bus python3 "${OWN}/atspi.py" "${app}" "$@"; }
 if [[ -n "${app}" ]]; then
     ok "ame desktop tiling-settings opens the settings window (${app})"
     pages=true
-    for page in Windows Motion Keyboard "Window rules"; do
+    for page in Windows Motion Workspaces Keyboard "Window rules"; do
         atspi has "${page}" >/dev/null 2>&1 || { pages=false; not_ok "the settings window has no ${page} page"; }
     done
-    ${pages} && ok "it has its four pages"
-    atspi click Keyboard >/dev/null 2>&1
+    ${pages} && ok "it has its five pages"
+    # The page's tab, not the page itself, which carries the same name and cannot be pressed
+    atspi click Keyboard "page tab" >/dev/null 2>&1
     if atspi wait 5 "Go to the column on the left" >/dev/null 2>&1; then
         ok "the keyboard page lists the shortcuts"
     else
         not_ok "the keyboard page does not list the shortcuts" "$(atspi text 2>&1 | head -n 20)"
     fi
-    atspi click Windows >/dev/null 2>&1
+    atspi click Windows "page tab" >/dev/null 2>&1
     atspi check "Tile windows" off >/dev/null 2>&1
     if wait_for 10 test "$(gsettings_get "${TILING}" enabled)" == false; then
         ok "its switch turns the tiling off"
@@ -146,75 +146,84 @@ pkill -u "${TEST_USER}" -f org.gnome.Shell.Extensions >/dev/null 2>&1 || true
 sleep 2
 
 # --- A shortcut bound while the tiling runs -------------------------------------------------------------------------------
-# Two Files windows side by side; the one opened last has the keyboard, and the accessibility tree says which is active
-cat >"${OWN}/active.py" <<'EOF'
+# Files windows side by side, each on a folder of its own. GTK 4 tells the accessibility tree no window is active, so the
+# window that has the keyboard is the one Ctrl+W closes: each key below is pressed, then Ctrl+W, and the window it
+# should have gone to has to be the one gone, the other still there.
+cat >"${OWN}/frames.py" <<'EOF'
 import sys
 sys.path.insert(0, "/run/vmlab-96")
-from atspi import Atspi
+from atspi import application
 
-desktop = Atspi.get_desktop(0)
-for i in range(desktop.get_child_count()):
-    app = desktop.get_child_at_index(i)
-    if app is None:
-        continue
-    for j in range(app.get_child_count()):
-        frame = app.get_child_at_index(j)
-        try:
-            if frame.get_state_set().contains(Atspi.StateType.ACTIVE):
-                print(frame.get_name())
-        except Exception:
-            continue
+app = application("org.gnome.Nautilus")
+for i in range(app.get_child_count() if app is not None else 0):
+    print(app.get_child_at_index(i).get_name())
 EOF
 chmod -R a+rX "${OWN}"
-mkdir -p "${HOME_DIR}/vmlab-96-left" "${HOME_DIR}/vmlab-96-right"
-chown "${TEST_USER}:" "${HOME_DIR}/vmlab-96-left" "${HOME_DIR}/vmlab-96-right"
-active() { user_bus python3 "${OWN}/active.py" 2>/dev/null; }
-for side in left right; do
-    user_bus systemd-run --user --quiet --collect --unit="vmlab-96-${side}" -- \
-        nautilus --new-window "${HOME_DIR}/vmlab-96-${side}" >/dev/null 2>&1 || true
+frames() { user_bus python3 "${OWN}/frames.py" 2>/dev/null; }
+# A Files window on a folder of its own, which has the keyboard once it is open
+open_files() {
+    mkdir -p "${HOME_DIR}/vmlab-96-$1"
+    chown "${TEST_USER}:" "${HOME_DIR}/vmlab-96-$1"
+    user_bus systemd-run --user --quiet --collect --unit="vmlab-96-$1" -- \
+        nautilus --new-window "${HOME_DIR}/vmlab-96-$1" >/dev/null 2>&1 || true
     for _ in $(seq 1 20); do
-        active | grep -q "vmlab-96-${side}" && break
+        frames | grep -qx "vmlab-96-$1" && break
         sleep 1
     done
-done
-if active | grep -q vmlab-96-right; then
-    ok "the Files window opened last has the keyboard"
+    sleep 2
+}
+# Ctrl+W, and whether it closed window $1 and left window $2 open
+closed() {
+    keys ctrl+w >/dev/null 2>&1
+    for _ in $(seq 1 10); do
+        frames | grep -qx "vmlab-96-$1" || break
+        sleep 1
+    done
+    ! frames | grep -qx "vmlab-96-$1" && frames | grep -qx "vmlab-96-$2"
+}
+open_files a
+open_files b
+if frames | grep -qx vmlab-96-b; then
     keys super+left >/dev/null 2>&1
     sleep 2
-    if active | grep -q vmlab-96-left; then
-        ok "Super+Left gives it to the window on its left"
+    if closed a b; then
+        ok "Super+Left gives the keyboard to the window on the left"
     else
-        not_ok "Super+Left did not move the keyboard" "active: $(active)"
+        not_ok "Super+Left did not move the keyboard" "Files' windows: $(frames | paste -sd ' ')"
     fi
-    # Next window, unbound in the image: bound now, it works at once
-    user_bus gsettings set "${TILING}.keybindings" switch-next "['<Super><Control><Shift>j']" >/dev/null 2>&1
+    # Previous window, unbound in the image: bound now, it works at once
+    open_files c
+    user_bus gsettings set "${TILING}.keybindings" switch-previous "['<Super><Control><Shift>j']" >/dev/null 2>&1
     sleep 2
     keys super+ctrl+shift+j >/dev/null 2>&1
     sleep 2
-    if active | grep -q vmlab-96-right; then
-        ok "a shortcut bound while the tiling runs (the next window, Super+Ctrl+Shift+J) works at once"
+    if closed b c; then
+        ok "a shortcut bound while the tiling runs (the previous window, Super+Ctrl+Shift+J) works at once"
     else
-        not_ok "the shortcut bound for the next window did nothing" "active: $(active)"
+        not_ok "the shortcut bound for the previous window did nothing" "Files' windows: $(frames | paste -sd ' ')"
     fi
-    user_bus gsettings reset "${TILING}.keybindings" switch-next >/dev/null 2>&1
-    # The live switcher, unbound too: one press goes to the window used before, the left one
+    user_bus gsettings reset "${TILING}.keybindings" switch-previous >/dev/null 2>&1
+    # The live switcher, unbound too: one press goes to the window used before
+    open_files d
     user_bus gsettings set "${TILING}.keybindings" live-alt-tab "['<Super><Control><Shift>k']" >/dev/null 2>&1
     sleep 2
     keys super+ctrl+shift+k >/dev/null 2>&1
     sleep 2
-    if active | grep -q vmlab-96-left; then
+    if closed c d; then
         ok "the live switcher (Super+Ctrl+Shift+K) goes to the window used before"
     else
-        not_ok "the live switcher did not go to the window used before" "active: $(active)"
+        not_ok "the live switcher did not go to the window used before" "Files' windows: $(frames | paste -sd ' ')"
     fi
     user_bus gsettings reset "${TILING}.keybindings" live-alt-tab >/dev/null 2>&1
+    # The last one, d, has the keyboard now
+    frames | grep -qx vmlab-96-d && keys ctrl+w >/dev/null 2>&1
 else
-    not_ok "the second Files window does not have the keyboard" "active: $(active)"
+    not_ok "no Files window opened" "Files' windows: $(frames | paste -sd ' ')"
 fi
-for side in left right; do
+for side in a b c d; do
     user_bus systemctl --user stop "vmlab-96-${side}" >/dev/null 2>&1 || true
+    rm -rf "${HOME_DIR}/vmlab-96-${side}"
 done
-rm -rf "${HOME_DIR}/vmlab-96-left" "${HOME_DIR}/vmlab-96-right"
 
 errors="$(shell_errors)"
 if [[ -z "${errors}" ]]; then
