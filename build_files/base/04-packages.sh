@@ -68,6 +68,9 @@ FEDORA_PACKAGES=(
     gettext-runtime
     git-credential-libsecret
     glow
+    # GNOME's Extensions app, the logo menu's "Extensions": it reads each extension's details from the
+    # extension itself, where Extension Manager asks extensions.gnome.org, which has none of the image's own
+    gnome-extensions-app
     gnome-tweaks
     # The private folder that closes when the screen locks (ame security private-folder)
     gocryptfs
@@ -330,7 +333,6 @@ EXCLUDED_PACKAGES=(
     fedora-bookmarks
     fedora-chromium-config
     fedora-chromium-config-gnome
-    gnome-extensions-app
     # The GNOME Classic session and the four extensions only it turns on (Apps Menu, Places Status Indicator,
     # Window List, Launch New Instance), which sat off in every other session (20-tests.sh)
     gnome-classic-session

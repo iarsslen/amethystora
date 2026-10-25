@@ -27,7 +27,9 @@ const entries = () => [
     {label: _('Settings'), app: 'org.gnome.Settings.desktop'},
     {label: _('Software centre'), app: 'io.github.kolunmi.Bazaar.desktop'},
     null,
-    {label: _('Extensions'), app: 'com.mattjakeman.ExtensionManager.desktop'},
+    // GNOME's own, which reads an extension's details from the extension: Extension Manager asks
+    // extensions.gnome.org, which has none of the image's own
+    {label: _('Extensions'), app: 'org.gnome.Extensions.desktop'},
     {label: _('System monitor'), app: 'io.missioncenter.MissionCenter.desktop'},
     {label: _('Terminal'), argv: ['xdg-terminal-exec']},
     null,

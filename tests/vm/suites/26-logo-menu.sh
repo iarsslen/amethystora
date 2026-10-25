@@ -177,7 +177,7 @@ case "${SUITE_PHASE}" in
     said="$(user_bus journalctl --user -b --no-pager -o cat 2>/dev/null | grep -F "${UUID}" | tail -n 5)"
     [[ -z "${said}" ]] && ok "GNOME Shell logged nothing about it" || not_ok "GNOME Shell logged about it" "${said}"
 
-    # The default Flatpaks, which four entries open, install on the first boots with a network (25-every-app.sh)
+    # The default Flatpaks, which three entries open, install on the first boots with a network (25-every-app.sh)
     preinstalled() { [[ "$(systemctl show flatpak-preinstall.service -p SubState -p Result --value | paste -sd ' ')" == "exited success" ]]; }
     if ! wait_for 600 preinstalled; then
         not_ok "flatpak-preinstall.service did not finish" "$(systemctl status flatpak-preinstall.service --no-pager 2>&1 | tail -n 8)"
@@ -235,7 +235,7 @@ About this computer|-|gnome-control-center
 Manual|-|amethystora-manual
 Settings|-|gnome-control-center
 Software centre|io.github.kolunmi.Bazaar|
-Extensions|com.mattjakeman.ExtensionManager|
+Extensions|-|gnome-extensions-app
 System monitor|io.missioncenter.MissionCenter|
 Terminal|-|ptyxis
 Containers|com.ranfdev.DistroShelf|

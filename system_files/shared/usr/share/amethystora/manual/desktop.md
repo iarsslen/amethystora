@@ -6,7 +6,7 @@ the keys are in your fingers you will rarely reach for it.
 ## The top bar
 
 - **On the left**, the Amethystora logo, a menu of the system's tools: about this computer, this
-  manual, Settings, Bazaar, Extension Manager, Mission Center, the terminal and DistroShelf. A
+  manual, Settings, Bazaar, Extensions, Mission Center, the terminal and DistroShelf. A
   middle click on it opens the overview. Then the six workspaces: the one you are on is
   highlighted; click another to go there, or the one you are on to show or hide the overview. An empty
   one opens the overview, ready to start something. Scroll the mouse wheel anywhere on the bar to go to
@@ -259,7 +259,8 @@ These GNOME Shell extensions come with the image:
 | Amethystora Transitions | The animation that reveals a new theme or wallpaper ([Transitions](themes.md#transitions)) |
 | Amethystora Widgets | Your own [widgets](widgets.md) in the top bar; nothing until you add one |
 
-Turn any of them off, or change their settings, in **Extension Manager**. One thing to know: after
+Turn any of them off, or change their settings, in **Extensions** (Extension Manager is for finding
+new ones on extensions.gnome.org, which has none of these). One thing to know: after
 every image update the image's own extensions are switched back on, so that one turned off by
 accident, or by a crash, does not stay off for good. Turning one off lasts until the next update. The
 [classic layout](#classic-windows) is not an extension turned off, so it stays as you set it.

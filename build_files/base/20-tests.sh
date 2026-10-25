@@ -656,9 +656,10 @@ for preinstall in bazaar flatseal distroshelf; do
 done
 grep -q "^\[Flatpak Preinstall com.ranfdev.DistroShelf\]$" /usr/share/flatpak/preinstall.d/distroshelf.preinstall
 grep -q "^\[Flatpak Preinstall com.ranfdev.DistroShelf\]$" "${DEFAULT_FLATPAKS}" && false
-# So does Extension Manager, which the logo menu's "Extensions" opens: the image removes GNOME's own
-# Extensions app
+# So does Extension Manager, for extensions.gnome.org. The logo menu's "Extensions" opens GNOME's own app,
+# since Extension Manager shows no details of an extension extensions.gnome.org lacks, the image's own
 grep -q "^\[Flatpak Preinstall com.mattjakeman.ExtensionManager\]$" "${DEFAULT_FLATPAKS}"
+grep -q "app: 'org.gnome.Extensions.desktop'" "${LOGO_MENU_EXTENSION}/extension.js"
 # Its containers are upgraded by a timer of each account's own. uupd's module for containers stays off:
 # it upgraded every container of everyone, and made manual updates slow.
 test -L /etc/systemd/user/timers.target.wants/amethystora-pkg-upgrade.timer
