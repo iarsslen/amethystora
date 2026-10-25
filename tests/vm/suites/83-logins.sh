@@ -68,10 +68,12 @@ SSH_FROM=()
 SSH_TO=127.0.0.1
 ssh_once() {
     : >"${WORK}/asked"
+    # The login by a configuration file: OpenSSH 10.6 (Fedora 45) refuses a domain's AD\alice given with -l or -o
+    printf 'User "%s"\n' "$1" >"${WORK}/ssh.conf"
     "${SSH_FROM[@]}" env ASK_PASSWORD="$2" ASK_CODE="${3:-}" ASK_LOG="${WORK}/asked" SSH_ASKPASS="${WORK}/askpass" \
-        SSH_ASKPASS_REQUIRE=force DISPLAY=:0 setsid -w ssh -F none -o StrictHostKeyChecking=no \
+        SSH_ASKPASS_REQUIRE=force DISPLAY=:0 setsid -w ssh -F "${WORK}/ssh.conf" -o StrictHostKeyChecking=no \
         -o UserKnownHostsFile=/dev/null -o PubkeyAuthentication=no -o LogLevel=ERROR -o ConnectTimeout=20 \
-        -o NumberOfPasswordPrompts="${PROMPTS:-1}" -l "$1" "${SSH_TO}" id -un </dev/null 2>>"${WORK}/ssh.err"
+        -o NumberOfPasswordPrompts="${PROMPTS:-1}" "${SSH_TO}" id -un </dev/null 2>>"${WORK}/ssh.err"
 }
 # ssh_in LOGIN PASSWORD [CODE]: the same, tried again when sshd turned it away before asking anything, as it
 # does for a while after failed logins from one address (PerSourcePenalties)
