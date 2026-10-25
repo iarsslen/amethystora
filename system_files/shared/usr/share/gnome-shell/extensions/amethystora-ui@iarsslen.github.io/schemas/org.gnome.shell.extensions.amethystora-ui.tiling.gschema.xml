@@ -207,6 +207,21 @@
       <summary>The size of the windows in the window switcher (Alt+Tab), a share of the screen's height</summary>
     </key>
 
+    <key name="workspace-colors" type="as">
+      <default>[]</default>
+      <summary>Each workspace's colour, by its number from the first; empty for the theme's</summary>
+      <description>As #rrggbb. It frames the workspace's card while you go through the workspaces, and fills what its own picture leaves.</description>
+    </key>
+    <key name="workspace-backgrounds" type="as">
+      <default>[]</default>
+      <summary>Each workspace's own picture, by its number from the first; empty for the default</summary>
+      <description>A file's path or address. A workspace without one shows default-background, or else GNOME's own wallpaper.</description>
+    </key>
+    <key name="default-background" type="s">
+      <default>''</default>
+      <summary>The picture of every workspace without one of its own; empty for GNOME's own wallpaper</summary>
+    </key>
+
     <key name="winprops" type="as">
       <default>[]</default>
       <summary>Window rules</summary>
@@ -597,6 +612,22 @@
     <key name="close-window" type="as">
       <default>[]</default>
       <summary>Close the window</summary>
+    </key>
+    <key name="live-alt-tab" type="as">
+      <default>[]</default>
+      <summary>Go through this workspace's windows, used last first, the strip showing each in its place</summary>
+    </key>
+    <key name="live-alt-tab-backward" type="as">
+      <default>[]</default>
+      <summary>The same, the other way</summary>
+    </key>
+    <key name="live-alt-tab-scratch" type="as">
+      <default>[]</default>
+      <summary>Go through the floating windows, used last first</summary>
+    </key>
+    <key name="live-alt-tab-scratch-backward" type="as">
+      <default>[]</default>
+      <summary>The same, the other way</summary>
     </key>
   </schema>
 </schemalist>

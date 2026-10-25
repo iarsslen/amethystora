@@ -588,7 +588,7 @@ export class Pointer {
                 return Clutter.EVENT_PROPAGATE;
             } else if (down) {
                 swipe.state = 'pile';
-                const list = this._tiling.workspaceHistory();
+                const list = this._engine.screens.workspacesFor(swipe.monitor, true, this._tiling.workspaceHistory());
                 swipe.pile = new WorkspacePreview(this._engine, swipe.monitor, 'pile', list, 0);
                 swipe.travel = 0;
             } else {
@@ -632,7 +632,7 @@ export class Pointer {
             // The tiling stopped while the cards zoomed (the screen locked): there is nothing to hand the keyboard to
             if (this._tiling.engine !== this._engine)
                 return;
-            activateQuietly(workspace);
+            activateQuietly(this._engine, workspace, swipe.monitor);
             const strip = this._engine.activeStrip(swipe.monitor);
             if (strip.selected)
                 this._engine.focus(strip);
@@ -808,6 +808,15 @@ export class Pointer {
         if (monitor === this._lastMonitor || Main.overview.visible || this._engine.session || Main.modalCount > 0)
             return;
         this._lastMonitor = monitor;
+        const screens = this._engine.screens;
+        // With a workspace on each screen, the one under the pointer becomes GNOME's, even while a window is dragged
+        // (it is dropped on that workspace)
+        if (screens.separate) {
+            const workspace = screens.shownOn(monitor);
+            if (workspace !== global.workspace_manager.get_active_workspace())
+                screens.bring(workspace, monitor);
+            return;
+        }
         if (this._drag)
             return;
         const focus = global.display.focus_window;

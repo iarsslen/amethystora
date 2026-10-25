@@ -21,11 +21,13 @@
 #                has (the built-in ones pinned by digest in the image), packages from its repositories
 #   extensions   the GNOME extensions turned on, of those installed here
 #   theme        the desktop theme
-#   settings     {layout, favorites, keybindings}: the window layout, the dock's apps and the keys of
-#                keybindings (the image's custom keybindings by their id, never a command), and no other
-#                GNOME setting. A file from before the tiling replaced PaperWM may still hold its gaps
-#                under paperwm, which are read and ignored since the gaps are the image's, and its keybindings,
-#                which `diff` lists as keys this machine does not have.
+#   settings     {layout, favorites, keybindings, tiling}: the window layout, the dock's apps, the keys of
+#                keybindings (the image's custom keybindings by their id, never a command), and the tiling's
+#                settings by their key in its schema (TILING_KEYS: numbers, switches and lists, never its
+#                window rules, which hold patterns, or a picture's path), and no other GNOME setting. A file
+#                from before the tiling replaced PaperWM may still hold its gaps under paperwm, which are read
+#                as the tiling's when the file has no tiling of its own (a gap the tiling cannot take is left
+#                out), and its keybindings, which `diff` lists as keys this machine does not have.
 #
 # A file with any other key is refused, by `save` as well. A list the file leaves out counts as empty,
 # and a setting it leaves out as the machine's. `apply` adds what is missing after showing the list, and
@@ -42,6 +44,58 @@ RELOCATABLE=org.gnome.settings-daemon.plugins.media-keys.custom-keybinding
 KEY_SCHEMAS='["org.gnome.desktop.wm.keybindings", "org.gnome.shell.keybindings", "org.gnome.mutter.keybindings",
     "org.gnome.mutter.wayland.keybindings", "org.gnome.settings-daemon.plugins.media-keys",
     "org.gnome.shell.extensions.amethystora-ui.tiling.keybindings"]'
+TILING=org.gnome.shell.extensions.amethystora-ui.tiling
+# The tiling's settings a file may hold, each with its type and, for a number, the range its schema gives it,
+# so that a file is checked before anything is set rather than half applied; test-setup.sh holds this to the
+# schema. A step is a share of the screen or a width in pixels, so above 0; a workspace's colour is "" or #rrggbb.
+# Never `enabled`, which is the layout, nor the window rules or a picture, which hold patterns and paths.
+TILING_KEYS='{
+    "window-gap": ["i", 0, 200], "horizontal-margin": ["i", 0, 400], "vertical-margin": ["i", 0, 400],
+    "vertical-margin-bottom": ["i", 0, 400], "selection-border-size": ["i", 0, 100],
+    "selection-border-radius-top": ["i", 0, 100], "selection-border-radius-bottom": ["i", 0, 100],
+    "cycle-width-steps": ["ad", "steps"], "cycle-height-steps": ["ad", "steps"],
+    "maximize-width-percent": ["d", 0.5, 1], "maximize-within-tiling": ["b"],
+    "default-focus-mode": ["i", 0, 2], "open-window-position": ["i", 0, 5],
+    "open-window-position-option-right": ["b"], "open-window-position-option-left": ["b"],
+    "open-window-position-option-start": ["b"], "open-window-position-option-end": ["b"],
+    "open-window-position-option-down": ["b"], "open-window-position-option-up": ["b"],
+    "animation-time": ["d", 0, 2], "drift-speed": ["i", 1, 20], "drag-drift-speed": ["i", 1, 20],
+    "minimap-scale": ["d", 0, 0.5], "minimap-shade-opacity": ["i", 0, 255],
+    "edge-preview-enable": ["b"], "edge-preview-scale": ["d", 0.05, 0.5], "edge-preview-click-enable": ["b"],
+    "edge-preview-timeout-enable": ["b"], "edge-preview-timeout": ["i", 100, 5000], "edge-preview-timeout-continual": ["b"],
+    "gesture-enabled": ["b"], "gesture-horizontal-fingers": ["i", 0, 4], "gesture-workspace-fingers": ["i", 0, 4],
+    "swipe-sensitivity": ["ad"], "swipe-friction": ["ad"],
+    "show-focus-mode-icon": ["b"], "show-open-position-icon": ["b"], "default-show-top-bar": ["b"],
+    "topbar-mouse-scroll-enable": ["b"], "window-switcher-preview-scale": ["d", 0.05, 0.5],
+    "workspace-colors": ["as", "colours"]
+}'
+# What a value of each kind has to be, for the check and for reading an old file's gaps
+TILING_JQ="$(
+    cat <<'EOF'
+def valid($spec): $spec as [$t, $a, $b] |
+    if $t == "b" then type == "boolean"
+    elif $t == "i" then type == "number" and . == floor and . >= $a and . <= $b
+    elif $t == "d" then type == "number" and . >= $a and . <= $b
+    elif $t == "ad" then type == "array" and all(.[]; type == "number" and ($a != "steps" or . > 0))
+    elif $t == "as" and $a == "colours" then type == "array" and all(.[]; type == "string" and test("^(#[0-9A-Fa-f]{6})?$"))
+    else false end;
+def wanted($spec): $spec as [$t, $a, $b] |
+    if $t == "b" then "true or false"
+    elif $t == "i" then "a whole number from \($a) to \($b)"
+    elif $t == "d" then "a number from \($a) to \($b)"
+    elif $a == "steps" then "a list of numbers above 0"
+    elif $t == "ad" then "a list of numbers"
+    else "a list of colours, each \"\" or one such as \"#314e6c\"" end;
+# A file from before the tiling replaced PaperWM: its gaps are the tiling's, unless the file has a tiling of its
+# own, and one the tiling cannot take (PaperWM took up to 1000 pixels) is left out rather than the file refused
+def from_paperwm:
+    if (.settings | type) == "object" and (.settings | has("tiling") | not) and (.settings.paperwm | type) == "object" then
+        (.settings.paperwm | with_entries(select(.key | IN("window-gap", "horizontal-margin", "vertical-margin",
+            "vertical-margin-bottom")) | select($tiling[.key] as $spec | .value | valid($spec)))) as $gaps
+        | if $gaps == {} then . else .settings.tiling = $gaps end
+    else . end;
+EOF
+)"
 
 die() {
     printf '%s\n' "$*" >&2
@@ -115,7 +169,7 @@ if type != "object" then "it is not a JSON object" else
         end end),
     at("extensions"; each("extensions"; name; "an extension's id")),
     at("theme"; if type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]*$") then empty else "theme is not a theme's name" end),
-    at("settings"; only(["layout", "favorites", "keybindings", "paperwm"]; "settings."),
+    at("settings"; only(["layout", "favorites", "keybindings", "tiling", "paperwm"]; "settings."),
         (if type == "object" then
             at("layout"; if IN("tiling", "classic") then empty else "settings.layout is tiling or classic" end),
             at("favorites"; each("settings.favorites";
@@ -131,7 +185,11 @@ if type != "object" then "it is not a JSON object" else
                     else to_entries[] |
                         if (.key | test("^[a-z0-9][a-z0-9-]*$")) and .key != "custom-keybindings" and (.value | accels) then empty
                         else "settings.keybindings.\($s).\(.key) is not a keybinding set to a list of keys" end
-                    end else empty end))
+                    end else empty end)),
+            at("tiling"; only($tiling | keys; "settings.tiling."),
+                (if type == "object" then to_entries[] | select(.key | IN($tiling | keys[])) | $tiling[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.tiling.\(.key) is \(wanted($spec))" end
+                 else empty end))
         else empty end))
 end
 EOF
@@ -140,7 +198,7 @@ EOF
 # Exits, saying why, unless the JSON on stdin is a setup file
 check() {
     local problems
-    problems="$(jq -r --argjson schemas "${KEY_SCHEMAS}" "${CHECK}" 2>&1)" ||
+    problems="$(jq -r --argjson schemas "${KEY_SCHEMAS}" --argjson tiling "${TILING_KEYS}" "${TILING_JQ} ${CHECK}" 2>&1)" ||
         die "$1 is not JSON."
     [[ -z "${problems}" ]] ||
         die "$1 is not a setup file this version of Amethystora reads:"$'\n'"$(sed 's/^/  /' <<<"${problems}")"
@@ -178,19 +236,20 @@ machine() {
 
 # --- What the machine has -----------------------------------------------------------------------
 
-# A value as GSettings prints it, as JSON: lists of strings, strings and numbers
-as_json() { sed -E "s/^@as //; s/'/\"/g" | jq -c . 2>/dev/null; }
+# A value as GSettings prints it, as JSON: lists of strings or numbers, strings, numbers and switches. A
+# number is written as JSON writes it, 0.15 where GSettings prints 0.14999999999999999.
+as_json() { sed -E "s/^@[a-z]+ //; s/'/\"/g" | jq -c 'walk(if type == "number" then . + 0 else . end)' 2>/dev/null; }
 
 # A list of names as GSettings takes it: the format keeps quotes out of every one, so @sh quotes each
 # the way GVariant does
 as_variant() { jq -r 'if length == 0 then "@as []" else "[" + (map(@sh) | join(", ")) + "]" end'; }
 
-# The value each setting the file names has here now, in the file's shape, or null where this machine
-# has no such setting. The manifest leaves out a setting that is the image's, so it has to be read.
+# The value each setting the file (its JSON in $1) names has here now, in the file's shape, or null where
+# this machine has no such setting. The manifest leaves out a setting that is the image's, so it has to be read.
 current() {
     local schema key value
     {
-        if jq -e '.settings // {} | has("favorites")' "$1" >/dev/null; then
+        if jq -e '.settings // {} | has("favorites")' <<<"$1" >/dev/null; then
             value="$(gsettings get org.gnome.shell favorite-apps 2>/dev/null | as_json)"
             jq -nc --argjson v "${value:-null}" '{favorites: $v}'
         fi
@@ -206,8 +265,12 @@ current() {
                 value="$(gsettings get "${schema}" "${key}" 2>/dev/null | as_json)"
             fi
             jq -nc --arg s "${schema}" --arg k "${key}" --argjson v "${value:-null}" '{keybindings: {($s): {($k): $v}}}'
-        done < <(jq -r '.settings.keybindings // {} | to_entries[] | .key as $s | .value | keys[] | [$s, .] | @tsv' "$1")
-    } | jq -sc 'reduce .[] as $x ({favorites: null, keybindings: {}}; . * $x)'
+        done < <(jq -r '.settings.keybindings // {} | to_entries[] | .key as $s | .value | keys[] | [$s, .] | @tsv' <<<"$1")
+        while read -r key; do
+            value="$(gsettings get "${TILING}" "${key}" 2>/dev/null | as_json)"
+            jq -nc --arg k "${key}" --argjson v "${value:-null}" '{tiling: {($k): $v}}'
+        done < <(jq -r '.settings.tiling // {} | keys[]' <<<"$1")
+    } | jq -sc 'reduce .[] as $x ({favorites: null, keybindings: {}, tiling: {}}; . * $x)'
 }
 
 # Where this machine can install from, and what it can turn on
@@ -278,16 +341,22 @@ def brew($x; $k): $x.brew[$k] // [];
         + if $v == null then {ok: false, why: "this machine has no such keybinding"} else {} end),
     ($hs.keybindings // {} | to_entries[] | .key as $s | .value | to_entries[] | .key as $k
         | select($fs.keybindings[$s] // {} | has($k) | not)
-        | {area: "keybinding", action: "remove", schema: $s, key: $k, from: .value})
+        | {area: "keybinding", action: "remove", schema: $s, key: $k, from: .value}),
+    ($fs.tiling // {} | to_entries[] | .key as $k | $now.tiling[$k] as $v
+        | select(.value != $v) | {area: "tiling", action: "set", key: $k, to: .value, from: $v}
+        + if $v == null then {ok: false, why: "this machine's tiling has no such setting"} else {} end),
+    ($hs.tiling // {} | to_entries[] | .key as $k | select($fs.tiling // {} | has($k) | not)
+        | {area: "tiling", action: "remove", key: $k, from: .value})
   ]
 | map({ok: true, why: null} + .)
 EOF
 )"
 
 changes() {
-    local here
+    local here file
     here="$(machine)" && [[ -n "${here}" ]] || die "This machine's setup could not be read."
-    jq -nc --argjson file "$(<"$1")" --argjson here "${here}" --argjson now "$(current "$1")" \
+    file="$(jq -c --argjson tiling "${TILING_KEYS}" "${TILING_JQ} from_paperwm" "$1")" || die "$1 could not be read."
+    jq -nc --argjson file "${file}" --argjson here "${here}" --argjson now "$(current "${file}")" \
         --argjson can "$(abilities)" "${CHANGES}"
 }
 
@@ -315,6 +384,9 @@ def text:
     elif .area == "keybinding" then "the keybinding " + if .schema == "custom" then .key else "\(.schema) \(.key)" end
         + if .action == "set" then ": \(.to | accels)" + if .from == null then "" else ", in place of \(.from | accels)" end
           else ", \(.from | accels) here, back to the image's" end
+    elif .area == "tiling" then "the tiling's \(.key)"
+        + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
+          else ", \(.from | tojson) here, back to the image's" end
     else tojson end;
 EOF
 )"
@@ -346,7 +418,8 @@ save() {
     jq -r 'def n($count; $what): "\($count) \($what)\(if $count == 1 then "" else "s" end)";
         "\(n(.flatpaks.system + .flatpaks.user | length; "app")), \(.brew.formulae + .brew.casks | length) from Homebrew, "
         + "\(n(.containers | length; "container")), \(n(.extensions | length; "extension")), the theme \(.theme // "none"), "
-        + "and \(n(.settings.keybindings // {} | map(length) | add // 0; "keybinding")) of your own."' <<<"${setup}"
+        + "\(n(.settings.keybindings // {} | map(length) | add // 0; "keybinding")) "
+        + "and \(n(.settings.tiling // {} | length; "tiling setting")) of your own."' <<<"${setup}"
     if ! git -C "$(dirname "${target}")" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
         echo "To keep it in git, see: amethystora-manual setup#keeping-it-in-git"
     fi
@@ -502,6 +575,13 @@ add_all() {
             gsettings set "$(jq -r .schema <<<"${change}")" "${name}" "$(jq -c .to <<<"${change}" | as_variant)"
         fi || FAILED+=("the keybinding ${name}")
     done
+    # The check let through only numbers, switches and lists of numbers or of colours, which GSettings reads
+    # as JSON writes them
+    mapfile -t changes < <(of "${todo}" tiling)
+    for change in "${changes[@]}"; do
+        name="$(jq -r .key <<<"${change}")"
+        gsettings set "${TILING}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the tiling's ${name}")
+    done
 
     # Last, since it downloads a whole system, which only takes over at the next restart
     mapfile -t changes < <(of "${todo}" image | jq -r '[.name, .stream] | @tsv')
@@ -551,6 +631,10 @@ remove_all() {
         else
             gsettings reset "${schema}" "${name}"
         fi || FAILED+=("the keybinding ${name}")
+    done
+    mapfile -t names < <(of "${gone}" tiling | jq -r .key)
+    for name in "${names[@]}"; do
+        gsettings reset "${TILING}" "${name}" || FAILED+=("the tiling's ${name}")
     done
 }
 

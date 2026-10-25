@@ -18,6 +18,8 @@ import {adjustAnimationTime} from 'resource:///org/gnome/shell/misc/animationUti
 
 import * as Layout from './layout.js';
 import {config, forget, preferredWidth, ruleFor} from './config.js';
+import {Screens} from './screens.js';
+import {WorkspaceBackgrounds} from './backgrounds.js';
 
 // How long an app has to answer a new size: a size it reports later than that is its own choice, which the strip
 // takes at once; one sooner may be its answer to an older request
@@ -108,7 +110,14 @@ export class Engine {
         Main.layoutManager.connectObject('monitors-changed', () => this._monitorsChanged(), this);
         Main.overview.connectObject('hidden', () => this._overviewHidden(), this);
 
+        // Which workspace each screen shows, when there are several (screens.js)
+        this.screens = new Screens(this);
+        this.screens.enable();
+        // Each workspace's own picture, on the screen that shows it (backgrounds.js)
+        this.backgrounds = new WorkspaceBackgrounds(this);
+        this.backgrounds.enable();
         this._restore();
+        this.screens.assign(this.tiling.workspaceHistory?.() ?? []);
     }
 
     // suspend: the screen is locking. What the strips are is kept for unlock, and everything drawn is put back.
@@ -117,6 +126,10 @@ export class Engine {
         global.workspace_manager.disconnectObject(this);
         Main.layoutManager.disconnectObject(this);
         Main.overview.disconnectObject(this);
+        this.screens?.disable();
+        this.screens = null;
+        this.backgrounds?.disable();
+        this.backgrounds = null;
         for (const glide of this._glides?.values() ?? [])
             glide.timeline.stop();
         this._glides = null;
@@ -150,11 +163,19 @@ export class Engine {
         return this._info.get(window)?.strip ?? null;
     }
 
+    // A workspace's strip on a screen. With one screen a workspace has one strip; with several, each screen showing a
+    // workspace of its own, a workspace still has one, on the screen it is shown on or was last shown on.
     strip(workspace, monitor) {
         let byMonitor = this._strips.get(workspace);
         if (!byMonitor) {
             byMonitor = new Map();
             this._strips.set(workspace, byMonitor);
+        }
+        if (this.screens?.separate) {
+            const own = byMonitor.values().next().value;
+            if (own)
+                return own;
+            monitor = this.screens.placeOf(workspace, monitor);
         }
         let strip = byMonitor.get(monitor);
         if (!strip) {
@@ -164,21 +185,51 @@ export class Engine {
         return strip;
     }
 
+    // A strip taken to another screen with its workspace; its windows go there at the next layout
+    moveStrip(strip, monitor) {
+        const byMonitor = this._strips.get(strip.workspace);
+        if (!byMonitor || strip.monitor === monitor)
+            return;
+        byMonitor.delete(strip.monitor);
+        strip.monitor = monitor;
+        byMonitor.set(monitor, strip);
+        this._glides.get(strip)?.timeline.stop();
+        this._glides.delete(strip);
+        this._boxes.get(strip)?.destroy();
+        this._boxes.delete(strip);
+    }
+
     // None once the engine has stopped: things that outlive it (the cards zooming at a screen lock) ask all the same
     strips() {
         return [...this._strips?.values() ?? []].flatMap(byMonitor => [...byMonitor.values()]);
     }
 
-    // The monitor the keyboard is on: the focused window's, or the pointer's
+    connectorOf(monitor) {
+        return this._connectors?.[monitor] ?? null;
+    }
+
+    indexOf(connector) {
+        return connector ? this._connectors?.indexOf(connector) ?? -1 : -1;
+    }
+
+    // The monitor the keyboard is on: with several screens the one showing GNOME's workspace, else the focused
+    // window's, or the pointer's
     focusMonitor() {
+        if (this.screens?.separate) {
+            const showing = this.screens.monitorShowing(global.workspace_manager.get_active_workspace());
+            if (showing >= 0)
+                return showing;
+        }
         const focus = global.display.focus_window;
         if (focus && !focus.is_override_redirect())
             return this.stripOf(focus)?.monitor ?? focus.get_monitor();
         return global.display.get_current_monitor();
     }
 
+    // The strip a screen shows
     activeStrip(monitor = this.focusMonitor()) {
-        return this.strip(global.workspace_manager.get_active_workspace(), monitor);
+        const workspace = this.screens?.shownOn(monitor) ?? global.workspace_manager.get_active_workspace();
+        return this.strip(workspace, monitor);
     }
 
     area(monitor) {
@@ -739,6 +790,9 @@ export class Engine {
         // A fullscreen window scrolled away, or back: the top bar follows (topbar.js)
         if (strip.windows.some(w => w.is_fullscreen()))
             Main.layoutManager._updateVisibility();
+        // The picture of a workspace another screen shows follows its strip
+        if (strip.workspace !== global.workspace_manager.get_active_workspace())
+            this.screens?.queueMirrors();
     }
 
     // Whether a fullscreen window really covers a monitor: GNOME counts one the strip has scrolled away too
@@ -978,12 +1032,14 @@ export class Engine {
 
     _workspaceChanged() {
         const workspace = global.workspace_manager.get_active_workspace();
+        // With several screens the workspace is shown where it belongs first (screens.js)
+        const monitor = this.screens?.switched(workspace) ?? -1;
         for (const strip of this.strips()) {
             if (strip.workspace === workspace)
                 this.layout(strip, {animate: false});
         }
         // The strip's own focused window, rather than whatever GNOME found on that workspace
-        const strip = this.activeStrip();
+        const strip = monitor >= 0 ? this.strip(workspace, monitor) : this.activeStrip();
         if (strip.selected && !this.session && !this.dragging)
             this.focus(strip);
         this._syncBoxes();
@@ -1121,15 +1177,7 @@ export class Engine {
             return;
         }
         const box = this._box(strip);
-        const {x, y, width, height} = info.vis;
-        // It stands out on no side where the window reaches the screen's edge, maximized that way
-        const outX = window.maximized_horizontally ? 0 : config.border;
-        const outY = window.maximized_vertically ? 0 : config.border;
-        box.set_position(x - outX, y - outY);
-        box.set_size(width + 2 * outX, height + 2 * outY);
-        const style = `border-radius: ${config.radiusTop}px ${config.radiusTop}px ${config.radiusBottom}px ${config.radiusBottom}px;`;
-        if (box.style !== style)
-            box.style = style;
+        this._shapeBox(box, window, info.vis);
         const focus = global.display.focus_window;
         const active = this.session ? this.session.strip === strip : focus === window;
         box.opacity = active ? 255 : INACTIVE;
@@ -1137,6 +1185,31 @@ export class Engine {
         const actor = window.get_compositor_private();
         if (actor && box.get_parent() === actor.get_parent())
             global.window_group.set_child_below_sibling(box, actor);
+    }
+
+    // Where the frame goes round a window drawn at `vis`: it stands out on no side where the window reaches the
+    // screen's edge, maximized that way
+    _shapeBox(box, window, vis) {
+        const outX = window.maximized_horizontally ? 0 : config.border;
+        const outY = window.maximized_vertically ? 0 : config.border;
+        box.set_position(vis.x - outX, vis.y - outY);
+        box.set_size(vis.width + 2 * outX, vis.height + 2 * outY);
+        const style = `border-radius: ${config.radiusTop}px ${config.radiusTop}px ${config.radiusBottom}px ${config.radiusBottom}px;`;
+        if (box.style !== style)
+            box.style = style;
+    }
+
+    // A frame of its own for a strip drawn elsewhere (the picture of another screen's workspace), as it is when the
+    // keyboard is not there; null when the strip shows none
+    boxFor(strip) {
+        const window = strip.selected;
+        const info = window ? this._info.get(window) : null;
+        if (!info?.vis || info.hidden || window.is_fullscreen() || config.border <= 0)
+            return null;
+        const box = new St.Widget({style_class: 'tile-preview amethystora-tiling-focus', reactive: false});
+        this._shapeBox(box, window, info.vis);
+        box.opacity = INACTIVE;
+        return box;
     }
 
     _syncBoxes() {
@@ -1178,7 +1251,15 @@ export class Engine {
                 byMonitor.set(index, strip);
             }
             for (const strip of gone) {
-                // A monitor that went away: its windows join the primary monitor's strip
+                // A monitor that went away: with screens still showing a workspace each, its workspace's strip goes to
+                // the primary screen whole; else its windows join the primary screen's strip of the same workspace
+                if (this.screens?.separate && !byMonitor.size) {
+                    this._glides.get(strip)?.timeline.stop();
+                    this._glides.delete(strip);
+                    strip.monitor = primary;
+                    byMonitor.set(primary, strip);
+                    continue;
+                }
                 const target = this.strip(workspace, primary);
                 for (const column of strip.columns) {
                     for (const window of column)
@@ -1198,6 +1279,8 @@ export class Engine {
                 this.insert(window, this.activeStrip(primary));
         }
         this.tiling.monitorsChanged?.();
+        // Every screen shows a workspace of its own again, the one it showed before when it did
+        this.screens?.assign(this.tiling.workspaceHistory?.() ?? []);
         this.layoutAll(false);
     }
 

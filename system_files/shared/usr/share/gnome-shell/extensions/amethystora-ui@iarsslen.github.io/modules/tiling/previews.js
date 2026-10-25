@@ -10,6 +10,7 @@ import * as Background from 'resource:///org/gnome/shell/ui/background.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {config} from './config.js';
+import {backgroundActor, colourOf} from './backgrounds.js';
 
 // The frame round each card is one of this many colours of the theme, one per workspace in turn (shell-tiling.css)
 const TONES = 14;
@@ -62,14 +63,28 @@ export class WorkspacePreview {
             container: content, monitorIndex: this._monitorIndex,
             controlPosition: false,
         });
-        // The floating windows are on every workspace, and shown on the one they are seen on
+        // The workspace's own picture over GNOME's, and its own colour round it, when the settings give it them
+        const own = backgroundActor(workspace);
+        if (own) {
+            own.set_size(m.width, m.height);
+            content.add_child(own);
+        }
+        const colour = colourOf(workspace);
+        if (colour)
+            card.set_style(`border-color: ${colour};`);
+        // The floating windows are on every workspace, and shown on the one they are seen on. With a workspace on
+        // each screen, a workspace's windows are on the screen its strip is on, which may be another than this one.
         const active = global.workspace_manager.get_active_workspace();
+        const home = this._engine.screens.separate ? this._engine.strip(workspace, this._monitorIndex).monitor
+            : this._monitorIndex;
+        const origin = Main.layoutManager.monitors[home] ?? m;
         const actors = global.get_window_actors().filter(actor => {
             const window = actor.meta_window;
             if (this._carried.has(window) || (window.is_on_all_workspaces() && workspace !== active))
                 return false;
+            const monitor = window.is_on_all_workspaces() ? this._monitorIndex : home;
             return window.located_on_workspace(workspace) && !window.minimized &&
-                window.get_monitor() === this._monitorIndex && !window.is_override_redirect();
+                window.get_monitor() === monitor && !window.is_override_redirect();
         });
         for (const actor of actors) {
             const window = actor.meta_window;
@@ -79,8 +94,9 @@ export class WorkspacePreview {
             const frame = window.get_frame_rect();
             const buffer = window.get_buffer_rect();
             const at = info?.strip && info.vis ? info.vis : frame;
+            const from = window.is_on_all_workspaces() ? m : origin;
             const clone = new Clutter.Clone({source: actor});
-            clone.set_position(at.x + buffer.x - frame.x - m.x, at.y + buffer.y - frame.y - m.y);
+            clone.set_position(at.x + buffer.x - frame.x - from.x, at.y + buffer.y - frame.y - from.y);
             content.add_child(clone);
         }
         this.actor.add_child(card);
@@ -171,18 +187,7 @@ export class WorkspacePreview {
     }
 }
 
-// Shows a workspace without GNOME's own sliding animation: the preview has already shown the way there
-export function activateQuietly(workspace) {
-    const wm = Main.wm;
-    const had = Object.prototype.hasOwnProperty.call(wm, '_shouldAnimate');
-    const own = wm._shouldAnimate;
-    wm._shouldAnimate = () => false;
-    try {
-        workspace.activate(global.get_current_time());
-    } finally {
-        if (had)
-            wm._shouldAnimate = own;
-        else
-            delete wm._shouldAnimate;
-    }
+// Shows a workspace on a screen without GNOME's own sliding animation: the preview has already shown the way there
+export function activateQuietly(engine, workspace, monitor) {
+    engine.screens.bring(workspace, monitor);
 }

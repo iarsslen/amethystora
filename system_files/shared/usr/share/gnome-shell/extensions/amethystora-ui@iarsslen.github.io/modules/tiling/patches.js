@@ -93,6 +93,9 @@ export class ShellPatches {
             let hiding = null;
             this._wrap(animation, 'animateSwitch', (original, controller, from, to, direction, onComplete) => {
                 const e = engine();
+                // With a workspace on each screen GNOME's slide would move every screen: the switch is at once
+                if (e?.screens?.separate)
+                    return onComplete();
                 if (e && !hiding) {
                     hiding = e;
                     e.boxHidden++;

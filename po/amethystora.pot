@@ -2305,7 +2305,7 @@ msgstr ""
 msgid "eza, bat, ripgrep, zoxide, starship and more from Homebrew, with your shell set up to use them."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Choose…"
 msgstr ""
 
@@ -6905,6 +6905,22 @@ msgstr ""
 msgid "Float above the strip"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/screens.js
+msgid "Not enough workspaces"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/screens.js
+msgid "Moving workspaces between screens needs %d workspace."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/screens.js
+msgid "Workspaces added"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/screens.js
+msgid "%d workspace was added, so that each screen shows a workspace of its own."
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/session.js
 msgid "Space puts the window down here, Tab goes through the windows you carry, Q closes them"
 msgstr ""
@@ -6957,7 +6973,7 @@ msgstr ""
 msgid "Above"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Workspace %d"
 msgstr ""
 
@@ -7290,6 +7306,42 @@ msgid "In percent of the screen’s height"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Pictures"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Every workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Picture of every workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "GNOME’s own wallpaper, which the theme sets"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Each workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "A colour frames the workspace while you go through the workspaces with Super+Page Up and Page Down, and fills what its picture leaves. Without its own picture a workspace shows the one above."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "The picture of every workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Its colour"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "The theme’s colour"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Go to the second column"
 msgstr ""
 
@@ -7395,6 +7447,22 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Go to the window under the pointer"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go through the windows used last, the strip showing each in its place"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go through the windows used last, the other way"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go through the floating windows used last"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Go through the floating windows used last, the other way"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js

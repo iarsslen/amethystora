@@ -84,6 +84,8 @@ export class Tiling {
             this.topBar?.applyTopBar();
         } else if (/^(gesture|edge-preview|topbar-mouse)/.test(key)) {
             this.pointer?.rebuild();
+        } else if (/^(workspace-|default-background)/.test(key)) {
+            this.engine.backgrounds?.sync();
         }
     }
 

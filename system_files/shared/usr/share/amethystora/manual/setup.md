@@ -33,7 +33,7 @@ that git shows only what changed. It holds:
 | `containers` | The containers `amepkg` made, with their templates and the packages you installed in them |
 | `extensions` | The GNOME extensions you have on |
 | `theme` | Your [theme](themes.md) |
-| `settings` | The window layout, the dock's apps and the keybindings you changed |
+| `settings` | The window layout, the dock's apps, the keybindings and the [tiling's settings](desktop.md#tiling-settings) you changed |
 
 A setting goes in only where you changed it from what the image has, so that what a later image
 changes still reaches you.
@@ -104,7 +104,8 @@ machine has it.
     "keybindings": {
       "org.gnome.desktop.wm.keybindings": {"close": ["<Super>q"]},
       "custom": {"custom20": ["<Super>t"]}
-    }
+    },
+    "tiling": {"window-gap": 12, "cycle-width-steps": [0.5, 0.75, 1]}
   }
 }
 ```
@@ -114,9 +115,17 @@ org.gnome.desktop.wm.keybindings close` shows it. `custom` holds the image's own
 [keybindings](../keybindings.md) by their id (`custom20` opens the terminal), and only their keys:
 `dconf dump /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/` lists them. `layout` is
 `tiling` or `classic` ([Classic windows](desktop.md#classic-windows)). The tiling's own keys are
-keybindings too, under `org.gnome.shell.extensions.amethystora-ui.tiling.keybindings`. A file saved
-before the tiling replaced PaperWM may still have a `paperwm` object of gaps: it is read and ignored,
-since the file does not keep the [tiling's settings](desktop.md#tiling-settings).
+keybindings too, under `org.gnome.shell.extensions.amethystora-ui.tiling.keybindings`.
+
+`tiling` holds the [tiling's settings](desktop.md#tiling-settings) by their names in
+`org.gnome.shell.extensions.amethystora-ui.tiling`, as `gsettings list-recursively` shows them: a number
+as a number, on or off as `true` or `false`, and a list as a list (the widths and heights `Super+R` and
+`Super+Shift+R` step through, the swipes' speed and friction, the workspaces' colours, each `""` or one
+such as `"#314e6c"`). A number outside the range the setting takes is refused. It never holds whether the
+tiling is on, which is `layout`, nor the window rules, which match windows by patterns. A file saved
+before the tiling replaced PaperWM may still have a `paperwm` object of gaps: when the file has no
+`tiling`, they are read as the tiling's gaps (`window-gap`, `horizontal-margin`, `vertical-margin` and
+`vertical-margin-bottom`), less one larger than the tiling takes.
 
 Everything in the file is checked before anything runs, and `ame setup diff` says what is wrong with
 one it refuses.

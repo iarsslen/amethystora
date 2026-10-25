@@ -1,12 +1,14 @@
 #!/usr/bin/bash
 # The tiling's settings (modules/tiling/config.js, the extension's prefs.js), as a person's session has them. The lab
 # sees no window's place on Wayland, so it asks what the session can say for sure:
-#   - every setting has the image's value, and the shortcuts are the 95 of the schema, 54 of them bound;
+#   - every setting has the image's value, and the shortcuts are the 99 of the schema, 54 of them bound;
 #   - every setting changed while the tiling runs, and put back, leaves nothing thrown in the shell's log;
 #   - ame desktop tiling-settings opens the settings window, with its four pages, and its switch turns the tiling off
 #     and on again, as ame desktop layout does;
-#   - a shortcut bound while the tiling runs works at once: on a real keyboard (uinput), Super+Left and the new
-#     "next window" key move the keyboard between two Files windows, which the accessibility tree shows.
+#   - a shortcut bound while the tiling runs works at once: on a real keyboard (uinput), Super+Left, the new
+#     "next window" key and the live switcher move the keyboard between two Files windows, which the
+#     accessibility tree shows.
+# The lab's machine has one screen, so a workspace on each screen (screens.js) is checked in the headless shell only.
 source "$(dirname "$0")/lib.sh"
 
 OWN=/run/vmlab-96
@@ -40,7 +42,7 @@ for entry in window-gap=8 horizontal-margin=8 vertical-margin=8 vertical-margin-
     [[ "${got}" == "${want}" ]] || { defaults_ok=false; not_ok "${key} is ${got}, not the image's ${want}"; }
 done
 ${defaults_ok} && ok "the tiling's settings have the image's values"
-check "the schema has the 95 shortcuts" test "$(user_bus gsettings list-keys "${TILING}.keybindings" | wc -l)" == 95
+check "the schema has the 99 shortcuts" test "$(user_bus gsettings list-keys "${TILING}.keybindings" | wc -l)" == 99
 check "54 of them are bound" \
     test "$(user_bus gsettings list-recursively "${TILING}.keybindings" | grep -vc '@as \[\]$')" == 54
 
@@ -59,6 +61,8 @@ changes=(
     show-focus-mode-icon false show-open-position-icon false default-show-top-bar false
     topbar-mouse-scroll-enable true window-switcher-preview-scale 0.3
     winprops "['{\"wm_class\": \"org.gnome.Nautilus\", \"preferredWidth\": \"50%\"}', 'not json']"
+    workspace-colors "['#314e6c', 'not a colour']"
+    workspace-backgrounds "['/usr/share/backgrounds/no-such-picture.png', '']" default-background "/nowhere.jpg"
 )
 for ((i = 0; i < ${#changes[@]}; i += 2)); do
     user_bus gsettings set "${TILING}" "${changes[i]}" "${changes[i + 1]}" >/dev/null 2>&1 ||
@@ -193,6 +197,17 @@ if active | grep -q vmlab-96-right; then
         not_ok "the shortcut bound for the next window did nothing" "active: $(active)"
     fi
     user_bus gsettings reset "${TILING}.keybindings" switch-next >/dev/null 2>&1
+    # The live switcher, unbound too: one press goes to the window used before, the left one
+    user_bus gsettings set "${TILING}.keybindings" live-alt-tab "['<Super><Control><Shift>k']" >/dev/null 2>&1
+    sleep 2
+    keys super+ctrl+shift+k >/dev/null 2>&1
+    sleep 2
+    if active | grep -q vmlab-96-left; then
+        ok "the live switcher (Super+Ctrl+Shift+K) goes to the window used before"
+    else
+        not_ok "the live switcher did not go to the window used before" "active: $(active)"
+    fi
+    user_bus gsettings reset "${TILING}.keybindings" live-alt-tab >/dev/null 2>&1
 else
     not_ok "the second Files window does not have the keyboard" "active: $(active)"
 fi

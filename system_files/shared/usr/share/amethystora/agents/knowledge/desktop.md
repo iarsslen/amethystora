@@ -66,6 +66,8 @@ these commands in the agent's own shell, as the user. Read before writing, chang
   `org.gnome.shell.extensions.amethystora-ui.tiling`. Its other settings (`window-gap`, the margins,
   `cycle-width-steps`, `open-window-position`, `animation-time`, the edge and gesture keys, the window rules in
   `winprops`) are keys of the same schema, applied at once; `ame desktop tiling-settings` opens their window.
+  With two screens or more each screen shows a workspace of its own, and the one under the pointer is GNOME's
+  active workspace; the others are drawn from live pictures of their windows.
   Its keys are in `...tiling.keybindings`; a combination
   it shares with a GNOME shortcut is taken from it while the tiling runs and given back when it is off
   (four keys' lists are changed in dconf, and what was taken is in `~/.local/state/amethystora/tiling.json`, with a

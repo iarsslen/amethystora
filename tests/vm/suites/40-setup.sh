@@ -17,6 +17,7 @@ CUSTOM20="org.gnome.settings-daemon.plugins.media-keys.custom-keybinding:${CUSTO
 WM=org.gnome.desktop.wm.keybindings
 TILING=org.gnome.shell.extensions.amethystora-ui.tiling.keybindings
 TILING_KEY='.settings.keybindings["org.gnome.shell.extensions.amethystora-ui.tiling.keybindings"]["cycle-width"]'
+TILING_SETTINGS=org.gnome.shell.extensions.amethystora-ui.tiling
 BREW=/home/linuxbrew/.linuxbrew/bin/brew
 mkdir -p "${STATE}"
 
@@ -148,11 +149,13 @@ else
 fi
 
 # Changed as a person would in Settings: the close key, the image's terminal key (custom20), the dock, the
-# tiling's width key, the theme; and a keybinding of the account's own (custom90), whose command no file may carry
+# tiling's width key and the gap between its windows, the theme; and a keybinding of the account's own (custom90),
+# whose command no file may carry
 in_session "gsettings set ${WM} close \"['<Super>q']\"
     gsettings set ${CUSTOM20} binding \"'<Super><Alt>Return'\"
     gsettings set org.gnome.shell favorite-apps \"['org.gnome.Nautilus.desktop', 'org.gnome.Calculator.desktop']\"
     gsettings set ${TILING} cycle-width \"['<Super>F10']\"
+    gsettings set ${TILING_SETTINGS} window-gap 12
     dconf write ${CUSTOM}/custom90/command \"'touch /tmp/vmlab-custom90'\"
     dconf write ${CUSTOM}/custom90/binding \"'<Super>F12'\"
     amethystora-theme set ${OTHER}" >/dev/null 2>&1
@@ -162,11 +165,12 @@ status=$?
 echo "# ame setup save took $((SECONDS - start)) s"
 verdict "ame setup save writes ~/.config/amethystora/setup.json" "${status}" \
     "$(grep -qF "Saved this machine's setup to ${FILE}:" <<<"${out}" && test -s "${FILE}" || echo "no file at ${FILE}")" "${out}"
-holds "its settings are the dock, the close key, custom20's key and the tiling's width key as changed, and nothing else" \
+holds "its settings are the dock, the close key, custom20's key, the tiling's width key and its gap as changed, and nothing else" \
     '.settings == ($base * $want)' --argjson base "${BASE}" --argjson want '{
         "favorites": ["org.gnome.Nautilus.desktop", "org.gnome.Calculator.desktop"],
         "keybindings": {"org.gnome.desktop.wm.keybindings": {"close": ["<Super>q"]}, "custom": {"custom20": ["<Super><Alt>Return"]},
-            "org.gnome.shell.extensions.amethystora-ui.tiling.keybindings": {"cycle-width": ["<Super>F10"]}}}'
+            "org.gnome.shell.extensions.amethystora-ui.tiling.keybindings": {"cycle-width": ["<Super>F10"]}},
+        "tiling": {"window-gap": 12}}'
 holds "it holds the theme set and the default apps as flatpak lists them" \
     '.theme == $theme and any(.flatpaks.system[]; . == {app: "org.gnome.Calculator", origin: "flathub"})' --arg theme "${OTHER}"
 holds "it holds no address and no command: no remote, Brewfile or template, not the account's own keybinding" '
@@ -202,13 +206,15 @@ done
 [[ -n "${APP}" ]] || { APP=org.gnome.Sudoku; echo "# no candidate shares a runtime installed here: ${APP} brings its own"; }
 echo "# the app added: ${APP}, and Homebrew's hello"
 
-# The file gains the app and hello, and its close key and theme change: diff names them, apply lists them, asks,
-# does them, and run again has nothing to do
+# The file gains the app and hello, and its close key, the tiling's gap and the theme change: diff names them,
+# apply lists them, asks, does them, and run again has nothing to do
 edit '.flatpaks.system += [{app: $app, origin: "flathub"}] | .brew.formulae += ["hello"]
-    | .settings.keybindings["org.gnome.desktop.wm.keybindings"].close = ["<Super><Shift>q"] | .theme = $theme' \
+    | .settings.keybindings["org.gnome.desktop.wm.keybindings"].close = ["<Super><Shift>q"]
+    | .settings.tiling["window-gap"] = 16 | .theme = $theme' \
     --arg app "${APP}" --arg theme "${THEME}"
 CHANGES=("  + the app ${APP}, from flathub" "  + the Homebrew formula hello"
-    "  ~ the keybinding ${WM} close: <Super><Shift>q, in place of <Super>q" "  ~ the theme: ${THEME}, in place of ${OTHER}")
+    "  ~ the keybinding ${WM} close: <Super><Shift>q, in place of <Super>q" "  ~ the tiling's window-gap: 16, in place of 12"
+    "  ~ the theme: ${THEME}, in place of ${OTHER}")
 out="$(in_session "ame setup diff" 2>&1)"
 status=$?
 verdict "ame setup diff names the app and formula added to the file, and its key and theme" "${status}" \
@@ -221,6 +227,7 @@ verdict "ame setup apply lists them, asks, and does them" "${status}" "$(lacking
 check "${APP} is installed for the machine, from flathub" flatpak info --system "${APP}"
 check "hello is installed from Homebrew" has_hello
 same "the close key is the file's" "$(setting "${WM}" close)" "['<Super><Shift>q']"
+same "the tiling's gap is the file's" "$(setting "${TILING_SETTINGS}" window-gap)" "16"
 same "the theme is the file's" "$(in_session "amethystora-theme current")" "${THEME}"
 out="$(in_session "ame setup apply" 2>&1)"
 status=$?
@@ -243,11 +250,12 @@ gap="$(setting "${TILING}" cycle-width)"
 verdict "ame setup apply --yes needs no terminal: the tiling's width key is the file's" "${status}" \
     "$([[ "${gap}" == "['<Super>F11']" ]] || echo "cycle-width is ${gap}")" "${out}"
 
-# A file from before the tiling replaced PaperWM, with its gaps in it, is read and its gaps ignored
+# A file from before the tiling replaced PaperWM, with its gaps in it, is read and its gaps ignored beside the
+# tiling's own
 derive "${HOME_DIR}/vmlab-old.json" '.settings.paperwm = {"window-gap": 20}'
 out="$(in_session "ame setup apply --yes ~/vmlab-old.json" 2>&1)"
 status=$?
-verdict "a file that still has PaperWM's gaps is accepted, and they are ignored" "${status}" \
+verdict "a file that still has PaperWM's gaps beside the tiling's settings is accepted, and they are ignored" "${status}" \
     "$(grep -q "^Nothing to do" <<<"${out}" || echo "it found something to do")" "${out}"
 
 # A file somebody shared, with an address or a command in it, and the width key set to something else: refused,
@@ -265,6 +273,8 @@ refused() {
 }
 refused "a Flatpak remote's address" '.remotes = {system: [{name: "elsewhere", url: "https://example.com/repo"}]}'
 refused "a custom keybinding's command" '.settings.keybindings.custom.custom20 = {command: "touch /tmp/vmlab-ran"}'
+refused "the tiling's gap outside its range" '.settings.tiling["window-gap"] = 500'
+refused "the tiling's window rules" '.settings.tiling.winprops = ["{\"wm_class\": \"x\", \"scratch_layer\": true}"]'
 
 # A file with less in it: --remove lists what it would take away and asks again; told no, it takes nothing
 derive "${HOME_DIR}/vmlab-less.json" '.flatpaks.system -= [{app: $app, origin: "flathub"}] | .brew.formulae -= ["hello"]' \
@@ -307,7 +317,8 @@ restic_as() { as_user "set -a && . ~/.config/amethystora/backup.env && set +a &&
 manifest="$(restic_as "dump --tag amethystora-setup latest /amethystora-setup.json" 2>&1)"
 if jq -e --arg app "${APP}" '.version == 1 and any(.brew.formulae[]; . == "hello") and any(.flatpaks.system[]; .app == $app)
     and .settings.keybindings["org.gnome.shell.extensions.amethystora-ui.tiling.keybindings"]["cycle-width"] == ["<Super>F11"]
-    and .settings.keybindings["org.gnome.desktop.wm.keybindings"].close == ["<Super><Shift>q"]' <<<"${manifest}" >/dev/null 2>&1; then
+    and .settings.keybindings["org.gnome.desktop.wm.keybindings"].close == ["<Super><Shift>q"]
+    and .settings.tiling["window-gap"] == 16' <<<"${manifest}" >/dev/null 2>&1; then
     ok "the backup stored the setup, tagged amethystora-setup, with its Homebrew formulae and settings"
 else
     not_ok "the backup has no setup as the machine has it" "$(restic_as "snapshots --compact" 2>&1)" "$(cut -c1-2000 <<<"${manifest}")"
@@ -327,7 +338,7 @@ verdict "ame restore-setup reads the setup in the backup, lists its steps, and w
 
 # --- Back as it was, for the suites after this one ------------------------------------------------------------
 in_session "gsettings reset ${WM} close; gsettings reset ${CUSTOM20} binding; gsettings reset org.gnome.shell favorite-apps
-    gsettings reset ${TILING} cycle-width; dconf reset -f ${CUSTOM}/custom90/
+    gsettings reset ${TILING} cycle-width; gsettings reset ${TILING_SETTINGS} window-gap; dconf reset -f ${CUSTOM}/custom90/
     [[ \"\$(amethystora-theme current)\" == ${THEME} ]] || amethystora-theme set ${THEME}
     ame backup off; ${BREW} uninstall --formula hello; rm -rf ~/.cache/restic" >/dev/null 2>&1
 # Whatever ame backup setup wrote goes, for the suites that set up a backup of their own: the timer, the settings

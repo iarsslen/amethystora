@@ -27,6 +27,8 @@ const SESSION = {
     'switch-up-or-else-workspace': true, 'switch-down-or-else-workspace': true,
     'previous-workspace': false, 'previous-workspace-backward': false,
     'switch-up-workspace-from-all-monitors': false, 'switch-down-workspace-from-all-monitors': false,
+    'live-alt-tab': false, 'live-alt-tab-backward': false, 'live-alt-tab-scratch': false,
+    'live-alt-tab-scratch-backward': false,
     ...Object.fromEntries(ORDINALS.map(n => [`switch-${n}`, true])),
 };
 
@@ -577,16 +579,16 @@ export class Actions {
         Main.locatePointer?.show();
     }
 
+    // The screen that way gets the keyboard, and its workspace is GNOME's
     focusMonitor(direction) {
         const [, to] = this._neighbour(direction);
         if (to < 0)
             return;
-        const strip = this.engine.activeStrip(to);
         this.warpTo(to);
-        if (strip.selected)
-            this.engine.focus(strip);
+        this.engine.screens.bring(this.engine.screens.shownOn(to), to);
     }
 
+    // The window, with its dialogs, joins the workspace the screen that way shows, and keeps the keyboard there
     moveToMonitor(direction) {
         const window = global.display.focus_window;
         const [, to] = this._neighbour(direction);
@@ -596,68 +598,41 @@ export class Actions {
         const main = window.get_transient_for() ?? window;
         const target = this.engine.activeStrip(to);
         // The layout puts a tiled window on its new screen
-        if (this.engine.isTiled(main))
+        if (this.engine.isTiled(main)) {
             this.engine.insert(main, target);
-        else
+        } else {
             main.move_to_monitor(to);
-
+            if (!main.is_on_all_workspaces())
+                main.change_workspace(target.workspace);
+        }
         main.foreach_transient(dialog => {
             dialog.move_to_monitor(to);
+            dialog.change_workspace(target.workspace);
             return true;
         });
         this.warpTo(to);
         Main.activateWindow(window);
     }
 
-    // The two screens exchange the windows they show
+    // The two screens exchange the workspaces they show; the keyboard and the pointer end on the screen that way
     swapMonitor(direction) {
         const [from, to] = this._neighbour(direction);
-        if (to < 0)
+        if (to < 0 || !this.engine.screens.swap(from, to))
             return;
-        const workspace = global.workspace_manager.get_active_workspace();
-        const a = this.engine.strip(workspace, from);
-        const b = this.engine.strip(workspace, to);
-        this._exchange(a, b);
         this.warpTo(to);
-        if (b.selected)
-            this.engine.focus(b);
+        const strip = this.engine.activeStrip(to);
+        if (strip.selected)
+            this.engine.focus(strip);
     }
 
-    // This screen's windows join the other screen's strip
+    // This screen's workspace goes to the screen that way, and this one shows another
     moveSpaceToMonitor(direction) {
         const [from, to] = this._neighbour(direction);
-        if (to < 0)
+        if (to < 0 || !this.engine.screens.moveSpace(from, to, this.tiling.workspaceHistory()))
             return;
-        const workspace = global.workspace_manager.get_active_workspace();
-        const a = this.engine.strip(workspace, from);
-        const b = this.engine.strip(workspace, to);
-        if (!b.columns.length) {
-            this._exchange(a, b);
-        } else {
-            const selected = a.selected;
-            for (const column of a.columns.splice(0)) {
-                for (const window of column)
-                    this.engine.info(window).strip = b;
-                b.columns.push(column);
-            }
-            a.selected = null;
-            b.selected = selected ?? b.selected;
-            this.engine.layout(a);
-            this.engine.layout(b);
-        }
         this.warpTo(to);
-        if (b.selected)
-            this.engine.focus(b);
-    }
-
-    _exchange(a, b) {
-        for (const key of ['columns', 'scroll', 'mode', 'selected'])
-            [a[key], b[key]] = [b[key], a[key]];
-        // The layout puts each window on its new screen
-        for (const strip of [a, b]) {
-            for (const window of strip.windows)
-                this.engine.info(window).strip = strip;
-            this.engine.layout(strip, {animate: false});
-        }
+        const strip = this.engine.activeStrip(to);
+        if (strip.selected)
+            this.engine.focus(strip);
     }
 }

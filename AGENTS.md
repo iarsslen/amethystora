@@ -1083,8 +1083,16 @@ lose its settings (and a cache folder it left), unless they installed it themsel
   frame, steps, open positions, focus mode, animation time, drift speeds, map, edges, gestures, top-bar icons, window
   rules in `winprops`) is a key of the same schema under PaperWM's own key name and the image's value, read by
   `modules/tiling/config.js` and applied live, and the extension's `prefs.js` (`ame desktop tiling-settings`, Control's
-  **Tiling settings**) is the window for them, written fresh from the spec's description of the pages. The 95 keys
-  in `...tiling.keybindings` are the spec's, 54 bound as the image ships and the rest empty for whoever wants them.
+  **Tiling settings**) is the window for them, written fresh from the spec's description of the pages. The 99 keys
+  in `...tiling.keybindings` are the spec's, 54 bound as the image ships and the rest empty for whoever wants them,
+  the live switcher among them (`live-alt-tab*`, a navigation session through the workspace's windows most recent
+  first). With two screens or more each shows a workspace of its own (`modules/tiling/screens.js`): GNOME's active
+  workspace is the screen with the keyboard's, the others are drawn as live clones of their windows in a layer over
+  the background, the pointer moving to a screen makes its workspace GNOME's, GNOME's slide is skipped, and a
+  workspace keeps its screen by connector; a workspace has one strip, on the screen showing it (`engine.strip()`
+  ignores the monitor there). With one screen none of it runs. `workspace-colors`, `workspace-backgrounds` and
+  `default-background` give a workspace a frame colour and a picture of its own (`backgrounds.js`, St widgets over
+  GNOME's background that take no clicks); the glass still blurs GNOME's own wallpaper.
   A glide carries the speed the strip already has into the next one (a cubic from the place and speed it starts with,
   timed from the frame last drawn), so that keys pressed in a row and fingers let go never stop and start the strip;
   keep that when touching `engine.js`'s `layout()`. It takes a GNOME shortcut's combination only where one of its own collides with it:
@@ -1244,7 +1252,9 @@ the machine and everything that is an address or a script (the Flatpak remotes, 
 and package managers of the account's own, the AUR's switch). A file can be shared, so it names things
 only. Its settings are a fixed short list, and only where the account changed them from the image: the
 layout, the dock's apps, keybindings by schema and key (the image's own custom keybindings by id, and
-only their binding). Never add a GNOME key that can hold a command, or a field that
+only their binding), and the tiling's settings in `tiling` (the script's `TILING_KEYS`, each checked against its
+type and range; never `enabled`, the window rules or a picture's path; test-setup.sh holds the table to the
+schema). Never add a GNOME key that can hold a command, or a field that
 is an address. The script refuses a file with a key or a name it does not know, `save` included;
 `apply` shows what it adds and sets and asks first (`--yes` skips that), and takes nothing away without
 `--remove`, which always asks in a terminal. `build_files/shared/test-setup.sh`, run by `20-tests.sh`

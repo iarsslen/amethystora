@@ -84,6 +84,8 @@ class Session {
         this._engine = this._tiling.engine;
         this._mask = mask;
         this.strip = this._engine.activeStrip();
+        // The screen the session is on, which the workspace it ends on is shown on
+        this._monitor = this.strip.monitor;
         this._carried = [];
         // What a quiet end let go of, for whoever cut the session short and keeps tiling
         this.released = [];
@@ -128,6 +130,15 @@ class Session {
         }
         if (name === 'drift-left' || name === 'drift-right') {
             this._drift(name === 'drift-left' ? 1 : -1, event);
+            return;
+        }
+        // The live switcher: forward or back, and the floating windows only
+        const tab = {
+            'live-alt-tab': [1, false], 'live-alt-tab-backward': [-1, false],
+            'live-alt-tab-scratch': [1, true], 'live-alt-tab-scratch-backward': [-1, true],
+        }[name];
+        if (tab) {
+            this._altTab(...tab);
             return;
         }
         const workspaceKey = {
@@ -345,6 +356,52 @@ class Session {
             this._engine.ensureVisible(this.strip, this.strip.selected);
     }
 
+    // ---- The live switcher ----
+
+    // Through this workspace's windows, the one used last first: each is shown where it is, the strip scrolling to a
+    // tiled one and a floating one raised, its title under it, and the keyboard goes to it when the session ends
+    _altTab(step, floatingOnly) {
+        if (!this._tab) {
+            const workspace = global.workspace_manager.get_active_workspace();
+            const list = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, workspace).filter(window =>
+                floatingOnly ? this._engine.floating.has(window) : true);
+            if (!list.length)
+                return;
+            this._tab = {list, index: list.indexOf(global.display.focus_window)};
+        }
+        const {list} = this._tab;
+        this._tab.index = ((this._tab.index + step) % list.length + list.length) % list.length;
+        const window = list[this._tab.index];
+        this._tab.chosen = window;
+        const strip = this._engine.stripOf(window);
+        if (strip) {
+            this.strip = strip;
+            strip.selected = window;
+            this._engine.ensureVisible(strip, window);
+        } else if (!window.minimized) {
+            window.raise();
+        }
+        this._moved();
+        this._tabTitle(window);
+    }
+
+    _tabTitle(window) {
+        if (!this._tabLabel) {
+            this._tabLabel = new St.Label({style_class: 'amethystora-tiling-hint', opacity: 0});
+            this._tabLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+            Main.uiGroup.add_child(this._tabLabel);
+            this._tabLabel.ease({opacity: 255, duration: config.animation});
+        }
+        const label = this._tabLabel;
+        label.text = window.get_title() ?? '';
+        const monitor = Main.layoutManager.monitors[this._engine.stripOf(window)?.monitor ?? window.get_monitor()] ??
+            Main.layoutManager.primaryMonitor;
+        const [, width] = label.get_preferred_width(-1);
+        label.width = Math.min(width, monitor.width - 64);
+        label.set_position(Math.round(monitor.x + (monitor.width - label.width) / 2),
+            monitor.y + monitor.height - 100);
+    }
+
     // ---- Workspaces ----
 
     // The workspace keys open the cards of the workspaces (previews.js) and move along them; the one chosen is
@@ -354,18 +411,17 @@ class Session {
             this._take();
         const pile = step === 'back' || step === 'forward';
         if (!this._preview) {
-            const manager = global.workspace_manager;
-            const list = pile ? this._tiling.workspaceHistory()
-                : Array.from({length: manager.n_workspaces}, (unused, i) => manager.get_workspace_by_index(i));
+            // With a workspace on each screen, the cards are the ones of this screen and those shown nowhere
+            const list = this._engine.screens.workspacesFor(this._monitor, pile, this._tiling.workspaceHistory());
             this._closeMap();
-            this._preview = new WorkspacePreview(this._engine, this.strip.monitor, pile ? 'pile' : 'row', list,
+            this._preview = new WorkspacePreview(this._engine, this._monitor, pile ? 'pile' : 'row', list,
                 Math.max(0, list.indexOf(this.strip.workspace)), this._carried);
         }
         let direction = step;
         if (pile)
             direction = step === 'back' ? 1 : -1;
         this._preview.step(direction);
-        this.strip = this._engine.strip(this._preview.workspace, this.strip.monitor);
+        this.strip = this._engine.strip(this._preview.workspace, this._monitor);
         this._syncVeils();
     }
 
@@ -486,7 +542,12 @@ class Session {
             GLib.source_remove(this._check);
         this._check = 0;
         // One step failing does not keep the others from running
-        for (const step of [() => this._stopDrift(quiet), () => this._closeMap(), () => this._syncVeils()]) {
+        const steps = [() => this._stopDrift(quiet), () => this._closeMap(), () => this._syncVeils(), () => {
+            const label = this._tabLabel;
+            this._tabLabel = null;
+            label?.ease({opacity: 0, duration: config.animation, onStopped: () => label.destroy()});
+        }];
+        for (const step of steps) {
             try {
                 step();
             } catch (e) {
@@ -510,9 +571,8 @@ class Session {
         // The cards zoomed after the tiling stopped (the screen locked): there is no strip left to put anything in
         if (this._tiling.engine !== this._engine)
             quiet = true;
-        const active = global.workspace_manager.get_active_workspace();
-        if (workspace !== active && !quiet)
-            activateQuietly(workspace);
+        if (!quiet)
+            activateQuietly(this._engine, workspace, this._monitor);
         const carried = this._carried.splice(0);
         let first = null;
         for (const window of carried.reverse()) {
@@ -531,7 +591,12 @@ class Session {
             return;
         if (first)
             this.strip.selected = first;
-        this._engine.focus(this.strip);
+        // The live switcher chose a floating window (or one minimized): it gets the keyboard itself
+        const chosen = this._tab?.chosen;
+        if (!first && chosen && !this._engine.isTiled(chosen))
+            Main.activateWindow(chosen);
+        else
+            this._engine.focus(this.strip);
         this._engine.updateBox(this.strip);
         this._tiling.noteWorkspace(this.strip.workspace);
     }

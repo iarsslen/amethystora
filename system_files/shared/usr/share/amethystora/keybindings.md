@@ -49,8 +49,8 @@ the top bar on the left.
 | `Super+Ctrl+Page Up` / `Page Down` | Take the window to the previous / next workspace |
 | `Super+Shift+Left` / `Right` / `Up` / `Down` | Focus the monitor in that direction |
 | `Super+Shift+Ctrl+Left` / `Right` / `Up` / `Down` | Move the window to that monitor |
-| `Super+Alt+Left` / `Right` / `Up` / `Down` | Swap this workspace's windows on this monitor with the ones on the monitor in that direction |
-| `Ctrl+Alt+Shift+Left` / `Right` / `Up` / `Down` | Move this workspace's windows on this monitor to the monitor in that direction |
+| `Super+Alt+Left` / `Right` / `Up` / `Down` | Swap this monitor's workspace with the one the monitor in that direction shows |
+| `Ctrl+Alt+Shift+Left` / `Right` / `Up` / `Down` | Move this monitor's workspace to the monitor in that direction |
 | `Super+Ctrl+Alt+Left` / `Right` | Swap this workspace with the one beside it, windows and name included |
 | `` Super+Ctrl+` `` | Take the window to the workspace you were on before; each further press goes one more back, round again at the end |
 | `Alt+1` … `Alt+9` | Go to the pinned app in that dock slot |

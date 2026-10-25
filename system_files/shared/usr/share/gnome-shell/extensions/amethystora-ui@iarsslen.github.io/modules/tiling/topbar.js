@@ -196,8 +196,11 @@ export class TopBar {
 
     // ---- The top bar per workspace ----
 
+    // The top bar is on the primary screen, so the workspace that screen shows decides
     hidden() {
-        return this.hiddenOn(global.workspace_manager.get_active_workspace());
+        const primary = Main.layoutManager.primaryIndex;
+        return this.hiddenOn(this._tiling.engine?.screens?.shownOn(primary) ??
+            global.workspace_manager.get_active_workspace());
     }
 
     // The workspaces in the list are the ones the person turned the other way from the setting's default

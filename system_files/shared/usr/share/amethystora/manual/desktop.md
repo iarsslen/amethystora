@@ -162,8 +162,19 @@ moves instead. Add `Shift` and you go to another monitor.
 | `Super+Home` / `Super+End` | The first / last window on the workspace |
 | `Super+[` / `Super+]` | Slide the strip; the window most in view is the one you land on when you let go of `Super` |
 | `Super+Page Up` / `Super+Page Down` | The previous / next workspace, shown as cards in a row |
-| `Super+Alt+Left` / `Right` / `Up` / `Down` | Swap this monitor's windows with the ones on the monitor in that direction |
+| `Super+Alt+Left` / `Right` / `Up` / `Down` | Swap this monitor's workspace with the one the monitor in that direction shows |
+| `Ctrl+Alt+Shift` and an arrow | Move this monitor's workspace to the monitor in that direction |
 | `Super+Shift` and an arrow | The monitor in that direction |
+
+### Several monitors
+
+With two monitors or more, each shows a workspace of its own, and a workspace is on one monitor at a
+time. The monitor the pointer is on is the one you work on: move the pointer to the other monitor and
+its workspace is the current one, with no animation. `Super+Page Up` and `Super+Page Down` go
+through the workspaces of the monitor you are on and the empty ones, and the one you choose stays on
+that monitor. A workspace chosen another way (`Super` and a number, the workspaces in the top bar, an
+app's window) comes up on the monitor it was last on, and the pointer goes there. Swapping or moving a
+workspace between monitors needs one workspace more than you have monitors.
 
 ### Arranging
 
@@ -217,8 +228,12 @@ opens the tiling's settings window. Every change in it applies at once.
   strip and the darkening of the other windows while you move around, what the screen edges do (show the
   window beyond, go to it on a click, or after the pointer stays there), the touchpad's swipes and their
   fingers, speed and friction, the two icons in the top bar, and the size of the windows in `Alt+Tab`.
+- **Workspaces**: a picture for every workspace in place of the theme's wallpaper, and for each
+  workspace a picture and a colour of its own. The colour frames the workspace's card while you go
+  through the workspaces.
 - **Keyboard**: every shortcut, including the ones the image leaves unbound (the next window, the n-th
-  column, the window above or else the previous workspace, centring both ways, closing). Click one and
+  column, the window above or else the previous workspace, centring both ways, closing, and a switcher
+  that goes through the windows used last with the strip showing each in its place). Click one and
   press the new keys. The first time, GNOME asks whether the window may have the keys the desktop uses
   while you press them: allow it. A shortcut another one uses as well is marked.
 - **Window rules**: a window picked by its class or its title as it opens can float, open at a width,

@@ -17,10 +17,12 @@ export default class AmethystoraUiPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings(TILING);
         const keys = this.getSettings(`${TILING}.keybindings`);
-        window.set_default_size(760, 820);
+        window.set_default_size(900, 820);
         window.search_enabled = true;
         window.title = _('Window tiling');
-        for (const page of [windowsPage(settings), motionPage(settings), keyboardPage(window, keys), rulesPage(settings)])
+        const pages = [windowsPage(settings), motionPage(settings), workspacesPage(settings), keyboardPage(window, keys),
+            rulesPage(settings)];
+        for (const page of pages)
             window.add(page);
         // The windows of the pages keep the settings for as long as the window is open
         window._tilingSettings = [settings, keys];
@@ -285,6 +287,127 @@ function pairRow(settings, key, index, title, min, max, step, subtitle = null) {
     return row;
 }
 
+// ---- Workspaces ----
+
+// GNOME's number of workspaces, at least six (the image has six)
+function workspaceCount() {
+    const settings = new Gio.Settings({schema_id: 'org.gnome.desktop.wm.preferences'});
+    return Math.max(6, settings.get_int('num-workspaces'));
+}
+
+// One entry of a list kept by workspace number, '' for none
+function setEntry(settings, key, index, value) {
+    const list = settings.get_strv(key);
+    while (list.length <= index)
+        list.push('');
+    list[index] = value;
+    while (list.length && !list.at(-1))
+        list.pop();
+    settings.set_strv(key, list);
+}
+
+function hexOf(rgba) {
+    const byte = v => Math.round(v * 255).toString(16).padStart(2, '0');
+    return `#${byte(rgba.red)}${byte(rgba.green)}${byte(rgba.blue)}`;
+}
+
+// A picture chosen in GNOME's file dialog: `done` gets its address
+function choosePicture(widget, title, done) {
+    const filter = new Gtk.FileFilter({name: _('Pictures')});
+    filter.add_mime_type('image/*');
+    const filters = new Gio.ListStore({item_type: Gtk.FileFilter});
+    filters.append(filter);
+    const dialog = new Gtk.FileDialog({title, filters, modal: true});
+    dialog.open(widget.get_root(), null, (d, result) => {
+        try {
+            const file = d.open_finish(result);
+            if (file)
+                done(file.get_uri());
+        } catch {
+            // Closed without a choice
+        }
+    });
+}
+
+// The row of a picture setting: its file's name under the title, a button to choose one and one to go back to none
+function pictureRow(title, read, write, noneText) {
+    const row = new Adw.ActionRow({title});
+    const choose = new Gtk.Button({label: _('Choose…'), valign: Gtk.Align.CENTER});
+    const clear = new Gtk.Button({
+        icon_name: 'edit-undo-symbolic', valign: Gtk.Align.CENTER, tooltip_text: _('Back to the default'),
+        css_classes: ['flat'],
+    });
+    row.add_suffix(choose);
+    row.add_suffix(clear);
+    const show = () => {
+        // A path or an address, as the setting may hold either
+        const uri = read();
+        const file = uri && (uri.includes('://') ? Gio.File.new_for_uri(uri) : Gio.File.new_for_path(uri));
+        row.subtitle = GLib.markup_escape_text(file ? file.get_basename() ?? uri : noneText, -1);
+        clear.sensitive = !!uri;
+    };
+    choose.connect('clicked', () => choosePicture(row, title, uri => {
+        write(uri);
+        show();
+    }));
+    clear.connect('clicked', () => {
+        write('');
+        show();
+    });
+    show();
+    return {row, show};
+}
+
+function workspacesPage(settings) {
+    const page = new Adw.PreferencesPage({title: _('Workspaces'), icon_name: 'preferences-desktop-wallpaper-symbolic'});
+    const all = group(page, _('Every workspace'));
+    const fallback = pictureRow(_('Picture of every workspace'), () => settings.get_string('default-background'),
+        uri => settings.set_string('default-background', uri), _('GNOME’s own wallpaper, which the theme sets'));
+    all.add(fallback.row);
+    settings.connect('changed::default-background', fallback.show);
+
+    const each = group(page, _('Each workspace'),
+        _('A colour frames the workspace while you go through the workspaces with Super+Page Up and Page Down, and fills what its picture leaves. Without its own picture a workspace shows the one above.'));
+    const shows = [];
+    for (let i = 0; i < workspaceCount(); i++) {
+        const title = _('Workspace %d').replace('%d', String(i + 1));
+        const picture = pictureRow(title, () => settings.get_strv('workspace-backgrounds')[i] ?? '',
+            uri => setEntry(settings, 'workspace-backgrounds', i, uri), _('The picture of every workspace'));
+        const colour = new Gtk.ColorDialogButton({
+            dialog: new Gtk.ColorDialog({with_alpha: false, title}), valign: Gtk.Align.CENTER,
+            tooltip_text: _('Its colour'),
+        });
+        const noColour = new Gtk.Button({
+            icon_name: 'edit-clear-symbolic', valign: Gtk.Align.CENTER, tooltip_text: _('The theme’s colour'),
+            css_classes: ['flat'],
+        });
+        let reading = false;
+        const showColour = () => {
+            const hex = settings.get_strv('workspace-colors')[i] ?? '';
+            const rgba = new Gdk.RGBA();
+            rgba.parse(/^#[0-9a-f]{6}$/i.test(hex) ? hex : '#808080');
+            reading = true;
+            colour.rgba = rgba;
+            reading = false;
+            noColour.sensitive = !!hex;
+        };
+        colour.connect('notify::rgba', () => {
+            if (!reading)
+                setEntry(settings, 'workspace-colors', i, hexOf(colour.rgba));
+            noColour.sensitive = true;
+        });
+        noColour.connect('clicked', () => setEntry(settings, 'workspace-colors', i, ''));
+        picture.row.add_prefix(colour);
+        picture.row.add_suffix(noColour);
+        each.add(picture.row);
+        showColour();
+        shows.push(picture.show, showColour);
+    }
+    for (const key of ['workspace-colors', 'workspace-backgrounds'])
+        settings.connect(`changed::${key}`, () => shows.forEach(show => show()));
+    return page;
+}
+
 // ---- Keyboard ----
 
 // The shortcuts in the groups the page shows them in, each with what it does
@@ -313,6 +436,10 @@ function shortcutGroups() {
             ['drift-left', _('Slide the strip to the left while the key is held')],
             ['drift-right', _('Slide the strip to the right while the key is held')],
             ['activate-window-under-cursor', _('Go to the window under the pointer')],
+            ['live-alt-tab', _('Go through the windows used last, the strip showing each in its place')],
+            ['live-alt-tab-backward', _('Go through the windows used last, the other way')],
+            ['live-alt-tab-scratch', _('Go through the floating windows used last')],
+            ['live-alt-tab-scratch-backward', _('Go through the floating windows used last, the other way')],
         ]],
         [_('Arranging'), [
             ['move-left', _('Move the column to the left')],

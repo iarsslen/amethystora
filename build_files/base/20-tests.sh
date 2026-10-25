@@ -429,7 +429,7 @@ for key in window-gap horizontal-margin vertical-margin vertical-margin-bottom; 
 done
 [[ "$(GSETTINGS_BACKEND=memory gsettings get "${TILING}" cycle-width-steps)" == "[0.38195"*", 0.5, 0.61804"*"]" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get "${TILING}" winprops)" == "@as []" ]]
-[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${TILING}.keybindings" | wc -l)" == 95 ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${TILING}.keybindings" | wc -l)" == 99 ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings list-recursively "${TILING}.keybindings" | grep -vc '@as \[\]$')" == 54 ]]
 test -s "${UI_EXTENSION}/prefs.js"
 # The colours that follow the theme render whole for every shipped theme, through the theme switcher's own

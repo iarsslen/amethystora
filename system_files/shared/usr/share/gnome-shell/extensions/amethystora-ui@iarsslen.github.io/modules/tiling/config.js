@@ -16,6 +16,7 @@ export const config = {
     gestures: true, stripFingers: 3, pileFingers: 3, swipeSpeed: [2, 2], swipeFriction: [0.3, 0.1],
     modeIcon: true, openIcon: true, topBarDefault: true, barScroll: false,
     switcherShare: 0.15,
+    workspaceColors: [], workspaceBackgrounds: [], defaultBackground: '',
     rules: [],
 };
 
@@ -87,6 +88,10 @@ export class Config {
             topBarDefault: bool('default-show-top-bar'),
             barScroll: bool('topbar-mouse-scroll-enable'),
             switcherShare: double('window-switcher-preview-scale'),
+            // A colour that is not #rrggbb counts as none, the theme's
+            workspaceColors: s.get_strv('workspace-colors').map(c => /^#[0-9a-f]{6}$/i.test(c) ? c : ''),
+            workspaceBackgrounds: s.get_strv('workspace-backgrounds'),
+            defaultBackground: s.get_string('default-background'),
             rules: rules(s.get_strv('winprops')),
         });
     }

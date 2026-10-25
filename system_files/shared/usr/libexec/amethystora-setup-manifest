@@ -41,13 +41,26 @@ brew_names() { sed -nE "s/^$1 \"([^\"]+)\".*/\1/p" <<<"${BREWFILE}" | jq -R . | 
 
 # The settings `ame setup` keeps, where the account changed them from the image's own, so that what a
 # later image changes still reaches it: the dock's apps, the keybindings (their keys, never a command),
-# and the window layout. GSETTINGS_BACKEND=memory reads no dconf at all, so it gives the
+# the window layout and the tiling's settings. GSETTINGS_BACKEND=memory reads no dconf at all, so it gives the
 # image's value (15-extensions.sh reads it the same way); the image's custom keybindings are in its
 # dconf database, which `dconf read -d` reads.
 KEY_SCHEMAS=(org.gnome.desktop.wm.keybindings org.gnome.shell.keybindings org.gnome.mutter.keybindings
     org.gnome.mutter.wayland.keybindings org.gnome.settings-daemon.plugins.media-keys
     org.gnome.shell.extensions.amethystora-ui.tiling.keybindings)
 CUSTOM=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings
+# The tiling's settings amethystora-setup's TILING_KEYS takes, which test-setup.sh holds this list to: never
+# `enabled`, which is the layout, nor the window rules or a picture, which hold patterns and paths
+TILING=org.gnome.shell.extensions.amethystora-ui.tiling
+TILING_KEYS=(window-gap horizontal-margin vertical-margin vertical-margin-bottom selection-border-size
+    selection-border-radius-top selection-border-radius-bottom cycle-width-steps cycle-height-steps
+    maximize-width-percent maximize-within-tiling default-focus-mode open-window-position
+    open-window-position-option-right open-window-position-option-left open-window-position-option-start
+    open-window-position-option-end open-window-position-option-down open-window-position-option-up
+    animation-time drift-speed drag-drift-speed minimap-scale minimap-shade-opacity edge-preview-enable
+    edge-preview-scale edge-preview-click-enable edge-preview-timeout-enable edge-preview-timeout
+    edge-preview-timeout-continual gesture-enabled gesture-horizontal-fingers gesture-workspace-fingers
+    swipe-sensitivity swipe-friction show-focus-mode-icon show-open-position-icon default-show-top-bar
+    topbar-mouse-scroll-enable window-switcher-preview-scale workspace-colors)
 
 # The tiling, while it runs, takes a combination out of four GNOME keys that it cannot wrap in memory, and
 # writes down what it took in its state file, to put back when it is turned off: the account's own value is the
@@ -66,8 +79,9 @@ changed() {
             <(printf '%s\n' "${TILING_KEPT}") - | sort) | awk -v schema="$1" '$1 == schema'
 }
 
-# A value as GSettings prints it, as JSON: the ones kept are lists of strings, strings and numbers
-as_json() { sed -E "s/^@as //; s/'/\"/g" | jq -c . 2>/dev/null; }
+# A value as GSettings prints it, as JSON: the ones kept are lists of strings or numbers, strings, numbers
+# and switches. A number is written as JSON writes it, 0.15 where GSettings prints 0.14999999999999999.
+as_json() { sed -E "s/^@[a-z]+ //; s/'/\"/g" | jq -c 'walk(if type == "number" then . + 0 else . end)' 2>/dev/null; }
 
 settings() {
     local schema key value dir id
@@ -77,6 +91,7 @@ settings() {
         for schema in "${KEY_SCHEMAS[@]}"; do
             changed "${schema}" | awk '$2 != "custom-keybindings" && $3 ~ /^(\[|@as$)/'
         done
+        changed "${TILING}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${TILING_KEYS[@]}") -
     } | while read -r schema key value; do
         value="$(as_json <<<"${value}")" && [[ -n "${value}" ]] || continue
         jq -nc --arg s "${schema}" --arg k "${key}" --argjson v "${value}" '{schema: $s, key: $k, value: $v}'
@@ -94,12 +109,13 @@ settings() {
 
 LAYOUT=tiling
 [[ "$(gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled 2>/dev/null)" == false ]] && LAYOUT=classic
-SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" '
+SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" '
     map(if .schema == "custom" then .value |= (if . == "" then [] else [.] end) else . end) as $all
     | {layout: $layout}
     + ([$all[] | select(.schema == "org.gnome.shell")] | if length > 0 then {favorites: .[0].value} else {} end)
-    + {keybindings: (reduce ($all[] | select(.schema != "org.gnome.shell"))
-        as $e ({}; .[$e.schema][$e.key] = $e.value))}')"
+    + {keybindings: (reduce ($all[] | select(.schema | IN("org.gnome.shell", $tiling) | not))
+        as $e ({}; .[$e.schema][$e.key] = $e.value))}
+    + ([$all[] | select(.schema == $tiling)] | if length > 0 then {tiling: (map({(.key): .value}) | add)} else {} end)')"
 
 # The image the machine runs, which is the one it follows, as rpm-ostree has it (amethystora-deployments
 # asks bootc on a sealed image)
