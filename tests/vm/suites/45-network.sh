@@ -276,7 +276,8 @@ llmnr_asked() {
     sleep 2
     kill -INT "${pid}" 2>/dev/null
     wait "${pid}" 2>/dev/null
-    [[ -s "${DIR}/llmnr" ]]
+    # A packet line names the port; round 7 found the file non-empty with nothing in it that cat showed
+    grep -q '\.5355' "${DIR}/llmnr"
 }
 LAN_UUID="$(nmcli -g connection.uuid connection show "${LAN}")"
 prop_of() { nmcli -g "$2" connection show "$1" 2>/dev/null; }
@@ -320,7 +321,9 @@ if [[ "${LLMNR_CONTROL}" == true ]]; then
     # are what resolved did with it
     same "resolved's LLMNR setting on a network not named home is off" "$(resolvectl llmnr "${WAN}" 2>&1 | sed 's/.*: //')" no
     if llmnr_asked; then
-        not_ok "a single-label name was looked up over LLMNR on a network not named home" "$(cat "${DIR}/llmnr")"             "$(resolvectl status "${WAN}" 2>&1)" "$(nmcli -g connection.llmnr connection show "${LAN2}")"             "$(/usr/sbin/NetworkManager --print-config 2>&1 | grep -i llmnr)"
+        not_ok "a single-label name was looked up over LLMNR on a network not named home" "$(od -c "${DIR}/llmnr" | head -n 5)" \
+            "$(resolvectl status "${WAN}" 2>&1)" "$(nmcli -g connection.llmnr connection show "${LAN2}")" \
+            "$(/usr/sbin/NetworkManager --print-config 2>&1 | grep -i llmnr)"
     else
         ok "no LLMNR lookup goes out on a network not named home"
     fi
