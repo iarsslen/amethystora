@@ -58,7 +58,8 @@ fetch_source() {
         fi
     fi
     if [[ ${vendor} == "RPM Fusion" || ${vendor} == "(none)" ]]; then
-        for base in "${RPMFUSION}"/{free,nonfree}/fedora/{updates/"${FEDORA}"/SRPMS,releases/"${FEDORA}"/Everything/source/SRPMS}; do
+        # A Fedora not yet released (beta) is under development/ until its release
+        for base in "${RPMFUSION}"/{free,nonfree}/fedora/{updates/"${FEDORA}"/SRPMS,{releases,development}/"${FEDORA}"/Everything/source/SRPMS}; do
             if fetch "${srpm}" "${base}/${letter,,}"; then return; fi
         done
     fi
