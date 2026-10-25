@@ -1,8 +1,16 @@
-// The Amethystora icon packs: one set of glyphs (icons/glyphs.mjs), each icon in colours of its own, drawn three ways.
+// The Amethystora icon packs: one set of glyphs (icons/glyphs.mjs), each icon in colours of its own, drawn nine ways.
 //
 //   Glass    the glyph filled with its gradient, its details lighter, a glass sheen inside and a shadow below
 //   Neon     the glyph's outline and its details lit in a three-colour prism, glowing
 //   Duotone  the glyph in its gradient and its details in a contrasting one
+//   Line     one even outline, in colours that read on every theme's ground
+//   Clay     soft matte volumes: a highlight above, a shade below, a soft shadow
+//   Muted    Glass in quieter colours with half the sheen, for the themes of low chroma
+//   Pixel    Duotone snapped to a grid of 16 pixels
+//   Glass for light, Neon for light   the same drawings with every colour deepened, to read on a light ground
+//
+// Each theme names the pack that suits its colours and style (themes/*/icons.theme); every pack's colours are held to
+// 3:1 against the grounds it is meant for, which the board of 2026-10-25 measured (22 ramps, 10 grounds).
 //
 // They cover Amethystora's apps, GNOME's, the system's and other makers' apps, each drawn by what it does, folders,
 // file types, devices, dialogs and categories. An app whose icon is its maker's mark (LOGOS) keeps the one it ships,
@@ -355,44 +363,153 @@ const shadow = (id, colour, opacity, dy, blur) => `<filter id="${id}" x="-25%" y
     `<feDropShadow dx="0" dy="${dy}" stdDeviation="${blur}" flood-color="${colour}" flood-opacity="${opacity}"/></filter>`;
 const svg = (defs, body) => `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 256 256"><defs>${defs}</defs>${body}</svg>\n`;
 
+// A colour moved in OKLab lightness (its hue kept, its chroma eased where the gamut clips) until its luminance, as WCAG
+// computes it, lies in [lo, hi]: the packs for a ground that is not dark use it to deepen the ramps, and Line to hold
+// every colour in the band that reads on all ten themes' grounds
+const toLinear = v => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+const toSrgb = v => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055);
+const channels = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+const luminance = hex => { const [r, g, b] = channels(hex).map(toLinear); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+function toOklab(hex) {
+    const [r, g, b] = channels(hex).map(toLinear);
+    const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+    const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+    const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+    return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+        0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s];
+}
+function fromOklab([L, a, b]) {
+    const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3, m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+    const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
+    return '#' + [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+        -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s].map(v => Math.round(Math.min(1, Math.max(0, toSrgb(v))) * 255)
+        .toString(16).padStart(2, '0')).join('');
+}
+function band(hex, lo, hi) {
+    let [L, a, b] = toOklab(hex);
+    for (let i = 0; i < 60; i++) {
+        const y = luminance(fromOklab([L, a, b]));
+        if (y < lo) L += 0.01; else if (y > hi) L -= 0.01; else break;
+        a *= 0.995; b *= 0.995;
+    }
+    return fromOklab([L, a, b]);
+}
+// Chroma taken down and lightness a touch, for the quiet pack
+const mute = (hex, k, dl = -0.04) => { const [L, a, b] = toOklab(hex); return fromOklab([L + dl, a * k, b * k]); };
+const mapRamp = (ramp, f) => ramp.map(stops => stops.map(f));
+
+// How each pack draws a glyph in a ramp: Glass fills it with the gradient and its details with a lighter one, under a
+// glass sheen and a shadow; Neon lights the outline and the details in the prism; Duotone fills it with the gradient and
+// draws its details in the contrasting one. The other packs are these, or a new drawing, in other colours.
+const GLASS = {white: 0.55, shade: '#1a0b2e', opacity: 0.55, dy: 10, blur: 9, sheen: 0.55};
+const drawGlass = o => (glyph, [fill]) => {
+    const soft = fill.map(c => mixWhite(c, o.white));
+    return svg(gradient('g', fill) + gradient('h', soft) +
+        '<linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="0.55" stop-color="#fff" stop-opacity="0"/></linearGradient>' +
+        `<mask id="m">${glyph({ink: '#fff', soft: '#fff'})}</mask>` + shadow('f', o.shade, o.opacity, o.dy, o.blur),
+    `<g filter="url(#f)">${glyph({ink: 'url(#g)', soft: 'url(#h)'})}</g>` +
+        `<rect width="256" height="150" fill="url(#s)" fill-opacity="${o.sheen}" mask="url(#m)"/>`);
+};
+const drawNeon = (glyph, [, prism, detail]) => {
+    // What the glyph draws in its third ink, `over` (glyphs/glyphs.mjs): the shapes in the body's ink on top of a
+    // soft one, which the soft layer would paint over. They are lit last, in the details' colour
+    const lit = glyph({ink: 'none', soft: 'none', over: 'url(#d)'}), over = lit.includes('url(#d)') ? lit : '';
+    return svg(gradient('g', prism) + (over ? gradient('d', detail) : '') +
+        // The body's outline: its alpha eroded and taken from it leaves a ring, blurred twice under itself
+        '<filter id="n" x="-25%" y="-25%" width="150%" height="150%"><feMorphology in="SourceAlpha" operator="erode" radius="6" result="inner"/>' +
+        '<feComposite in="SourceGraphic" in2="inner" operator="out" result="ring"/><feGaussianBlur in="ring" stdDeviation="5" result="glow"/>' +
+        '<feMerge><feMergeNode in="glow"/><feMergeNode in="glow"/><feMergeNode in="ring"/></feMerge></filter>' +
+        '<filter id="l" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="4" result="glow"/>' +
+        '<feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>',
+    `<g filter="url(#n)">${glyph({ink: 'url(#g)', soft: 'none', over: 'none'})}</g><g filter="url(#l)">${glyph({ink: 'none', soft: 'url(#g)', over: 'none'})}</g>` +
+        (over && `<g filter="url(#l)">${over}</g>`));
+};
+const drawDuotone = (glyph, [fill, , contrast]) => svg(gradient('g', fill) + gradient('h', contrast) + shadow('f', fill[1], 0.45, 6, 7),
+    `<g filter="url(#f)">${glyph({ink: 'url(#g)', soft: 'url(#h)'})}</g>`);
+
+// Every pack: its name, what it is, how its ramps are changed for it (the glyph's own gradients when it says nothing),
+// and how it draws. Each theme names the pack that suits its colours and its style (themes/*/icons.theme).
 const PACKS = {
     glass: {
         name: 'Amethystora Glass',
         comment: 'Amethystora\'s own icons, each in its own gradient with a glass sheen',
-        draw: (glyph, [fill]) => {
-            const soft = fill.map(c => mixWhite(c, 0.55));
-            return svg(gradient('g', fill) + gradient('h', soft) +
-                '<linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="0.55" stop-color="#fff" stop-opacity="0"/></linearGradient>' +
-                `<mask id="m">${glyph({ink: '#fff', soft: '#fff'})}</mask>` + shadow('f', '#1a0b2e', 0.55, 10, 9),
-            `<g filter="url(#f)">${glyph({ink: 'url(#g)', soft: 'url(#h)'})}</g>` +
-                '<rect width="256" height="150" fill="url(#s)" fill-opacity="0.55" mask="url(#m)"/>');
-        },
+        draw: drawGlass(GLASS),
+    },
+    'glass-light': {
+        name: 'Amethystora Glass for light',
+        comment: 'Glass with every colour deepened until it reads on a light ground',
+        // Luminance 0.06 to 0.24 is 3:1 or better against the lightest ground of the three light themes
+        ramp: ramp => mapRamp(ramp, hex => band(hex, 0.06, 0.24)),
+        draw: drawGlass(GLASS),
     },
     neon: {
         name: 'Amethystora Neon',
         comment: 'Amethystora\'s own icons, their outlines lit in colours of their own',
-        draw: (glyph, [, prism, detail]) => {
-            // What the glyph draws in its third ink, `over` (glyphs/glyphs.mjs): the shapes in the body's ink on top of a
-            // soft one, which the soft layer would paint over. They are lit last, in the details' colour
-            const lit = glyph({ink: 'none', soft: 'none', over: 'url(#d)'}), over = lit.includes('url(#d)') ? lit : '';
-            return svg(gradient('g', prism) + (over ? gradient('d', detail) : '') +
-            // The body's outline: its alpha eroded and taken from it leaves a ring, blurred twice under itself
-            '<filter id="n" x="-25%" y="-25%" width="150%" height="150%"><feMorphology in="SourceAlpha" operator="erode" radius="6" result="inner"/>' +
-            '<feComposite in="SourceGraphic" in2="inner" operator="out" result="ring"/><feGaussianBlur in="ring" stdDeviation="5" result="glow"/>' +
-            '<feMerge><feMergeNode in="glow"/><feMergeNode in="glow"/><feMergeNode in="ring"/></feMerge></filter>' +
-            '<filter id="l" x="-25%" y="-25%" width="150%" height="150%"><feGaussianBlur stdDeviation="4" result="glow"/>' +
-            '<feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge></filter>',
-        `<g filter="url(#n)">${glyph({ink: 'url(#g)', soft: 'none', over: 'none'})}</g><g filter="url(#l)">${glyph({ink: 'none', soft: 'url(#g)', over: 'none'})}</g>` +
-            (over && `<g filter="url(#l)">${over}</g>`));
-        },
+        draw: drawNeon,
+    },
+    'neon-light': {
+        name: 'Amethystora Neon for light',
+        comment: 'Neon with every colour deepened until it reads on a light ground',
+        ramp: ramp => mapRamp(ramp, hex => band(hex, 0.06, 0.24)),
+        draw: drawNeon,
     },
     duotone: {
         name: 'Amethystora Duotone',
         comment: 'Amethystora\'s own icons, each in its own gradient with its details in a contrasting one',
-        draw: (glyph, [fill, , contrast]) => svg(gradient('g', fill) + gradient('h', contrast) + shadow('f', fill[1], 0.45, 6, 7),
-            `<g filter="url(#f)">${glyph({ink: 'url(#g)', soft: 'url(#h)'})}</g>`),
+        draw: drawDuotone,
+    },
+    line: {
+        name: 'Amethystora Line',
+        comment: 'Amethystora\'s own icons as one even outline, in colours that read on every theme',
+        // Luminance 0.2 to 0.25 is 3:1 or better against all ten themes' grounds, the lightest and the darkest
+        ramp: ramp => mapRamp(ramp, hex => band(hex, 0.2, 0.25)),
+        // The body's outline as an even ring and the details solid, in the same gradient: no fill, no glow
+        draw: (glyph, [fill]) => svg(gradient('g', fill) +
+            '<filter id="r" x="-10%" y="-10%" width="120%" height="120%"><feMorphology in="SourceAlpha" operator="erode" radius="9" result="in"/>' +
+            '<feComposite in="SourceGraphic" in2="in" operator="out"/></filter>',
+        `<g filter="url(#r)">${glyph({ink: 'url(#g)', soft: 'none', over: 'none'})}</g>` +
+            `<g>${glyph({ink: 'none', soft: 'url(#g)', over: 'url(#g)'})}</g>`),
+    },
+    clay: {
+        name: 'Amethystora Clay',
+        comment: 'Amethystora\'s own icons as soft matte volumes, a highlight above and a shade below',
+        ramp: ramp => mapRamp(ramp, hex => band(hex, 0.13, 0.26)),
+        // A highlight from the top left and a shade at the bottom right cut from the body's own alpha, a soft shadow
+        // under it, and the details in a pale tint of the body
+        draw: (glyph, [fill]) => svg(gradient('g', fill) + gradient('h', fill.map(c => mixWhite(c, 0.78))) +
+            '<filter id="c" x="-25%" y="-25%" width="150%" height="150%">' +
+            '<feGaussianBlur in="SourceAlpha" stdDeviation="5" result="b"/>' +
+            '<feOffset in="b" dx="5" dy="7" result="o1"/><feComposite in="SourceAlpha" in2="o1" operator="out" result="hi"/>' +
+            '<feFlood flood-color="#ffffff" flood-opacity="0.55"/><feComposite in2="hi" operator="in" result="hiC"/>' +
+            '<feOffset in="b" dx="-5" dy="-7" result="o2"/><feComposite in="SourceAlpha" in2="o2" operator="out" result="sh"/>' +
+            '<feFlood flood-color="#1b1030" flood-opacity="0.32"/><feComposite in2="sh" operator="in" result="shC"/>' +
+            '<feMerge result="lit"><feMergeNode in="SourceGraphic"/><feMergeNode in="hiC"/><feMergeNode in="shC"/></feMerge>' +
+            '<feComposite in="lit" in2="SourceAlpha" operator="in" result="body"/>' +
+            '<feGaussianBlur in="SourceAlpha" stdDeviation="5" result="d"/><feOffset in="d" dy="6" result="dd"/>' +
+            '<feFlood flood-color="#1b1030" flood-opacity="0.2"/><feComposite in2="dd" operator="in" result="drop"/>' +
+            '<feMerge><feMergeNode in="drop"/><feMergeNode in="body"/></feMerge></filter>',
+        `<g filter="url(#c)">${glyph({ink: 'url(#g)', soft: 'url(#h)'})}</g>`),
+    },
+    muted: {
+        name: 'Amethystora Muted',
+        comment: 'Glass in quieter colours with half the sheen, for the themes of low chroma',
+        ramp: ([fill, prism, contrast]) => [fill.map(hex => band(mute(hex, 0.42), 0.22, 0.75)), prism.map(hex => band(mute(hex, 0.42), 0.22, 0.75)),
+            contrast.map(hex => mute(hex, 0.5, 0.02))],
+        draw: drawGlass({white: 0.5, shade: '#0b0f14', opacity: 0.4, dy: 8, blur: 8, sheen: 0.25}),
+    },
+    pixel: {
+        name: 'Amethystora Pixel',
+        comment: 'Duotone snapped to a grid of 16 pixels',
+        // Each tile of the grid is one flat colour: the glyph's centre sampled by a one-pixel flood tiled over the
+        // canvas, and every sample grown to the tile
+        draw: (glyph, [fill, , contrast]) => svg(gradient('g', fill) + gradient('h', contrast) +
+            '<filter id="p" x="0" y="0" width="100%" height="100%" filterUnits="userSpaceOnUse">' +
+            '<feFlood x="8" y="8" width="1" height="1" flood-color="#000"/><feComposite width="16" height="16"/><feTile result="dots"/>' +
+            '<feComposite in="SourceGraphic" in2="dots" operator="in"/><feMorphology operator="dilate" radius="8"/></filter>',
+        `<g filter="url(#p)">${glyph({ink: 'url(#g)', soft: 'url(#h)'})}</g>`),
     },
 };
+const drawn = (id, glyph, ramp) => PACKS[id].draw(DRAW[glyph], (PACKS[id].ramp ?? (r => r))(RAMPS[ramp]));
 
 function indexTheme(pack) {
     const dirs = Object.keys(SET).map(context => `${context}/scalable`);
@@ -420,7 +537,7 @@ for (const [id, pack] of Object.entries(PACKS)) {
         for (const [name, glyph, ramp, also = []] of icons) {
             if (!DRAW[glyph] || !RAMPS[ramp])
                 throw new Error(`${name}: no glyph ${glyph} or ramp ${ramp}`);
-            const file = pack.draw(DRAW[glyph], RAMPS[ramp]);
+            const file = drawn(id, glyph, ramp);
             for (const each of [name, ...also])
                 writeFileSync(join(dir, context, 'scalable', `${each}.svg`), file);
         }
@@ -434,7 +551,7 @@ for (const [id, pack] of Object.entries(PACKS)) {
 // from this file as it runs
 for (const [name, glyph, ramp] of SET.apps.filter(([name]) => ['amethystora-security-status', 'amethystora-notes'].includes(name))) {
     mkdirSync(join(ICONS, 'hicolor/scalable/apps'), {recursive: true});
-    writeFileSync(join(ICONS, 'hicolor/scalable/apps', `${name}.svg`), PACKS.glass.draw(DRAW[glyph], RAMPS[ramp]));
+    writeFileSync(join(ICONS, 'hicolor/scalable/apps', `${name}.svg`), drawn('glass', glyph, ramp));
 }
 
 if (process.argv.includes('--preview')) {
@@ -442,7 +559,7 @@ if (process.argv.includes('--preview')) {
     mkdirSync(out, {recursive: true});
     const all = Object.values(SET).flat();
     const rows = (id, size) => all.map(([name, glyph, ramp]) =>
-        `<img title="${name}" width="${size}" height="${size}" src="data:image/svg+xml;base64,${Buffer.from(PACKS[id].draw(DRAW[glyph], RAMPS[ramp])).toString('base64')}">`).join('');
+        `<img title="${name}" width="${size}" height="${size}" src="data:image/svg+xml;base64,${Buffer.from(drawn(id, glyph, ramp)).toString('base64')}">`).join('');
     const ground = (bg, ink) => Object.keys(PACKS).map(id =>
         `<section style="background:${bg};color:${ink};padding:18px 24px"><h2 style="margin:0 0 10px;font:600 18px sans-serif">${PACKS[id].name}</h2>` +
         `<div style="display:flex;flex-wrap:wrap;gap:10px">${rows(id, 64)}</div>` +
