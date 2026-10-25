@@ -139,21 +139,29 @@ import sys
 sys.path.insert(0, "/run/vmlab-98")
 from atspi import Atspi, application, walk
 
+# The bar's buttons only: the box GNOME holds the bar in is in the tree too, and it starts at the screen's edge
+# whatever margin the bar has inside it (round 6 of the combined run read 0 from it with the neon bar plainly 8 px down)
+BUTTONS = {Atspi.Role.MENU, Atspi.Role.PUSH_BUTTON, Atspi.Role.TOGGLE_BUTTON}
 shell = application("gnome-shell")
 tops = []
 for node, _ in walk(shell):
     try:
-        if not node.get_state_set().contains(Atspi.StateType.SHOWING):
+        if not node.get_state_set().contains(Atspi.StateType.SHOWING) or node.get_role() not in BUTTONS:
             continue
         box = Atspi.Component.get_extents(node, Atspi.CoordType.SCREEN)
     except Exception:
         continue
-    # The bar's own row: shown, small, at the top, and not the whole screen
+    # The bar's own row: shown, small, at the top
     if 0 <= box.y < 60 and 0 < box.height < 60 and box.width > 0:
-        tops.append(box.y)
-print(min(tops) if tops else -1)
+        tops.append((box.y, node.get_role_name(), node.get_name() or ""))
+if tops:
+    top = min(tops)
+    print(f"{top[0]} {top[1]} '{top[2]}'")
+else:
+    print(-1)
 EOF
 chmod -R a+rX "${OWN}"
+# The top of the highest button, then what it is, for the log
 bar_top() { user_bus python3 "${OWN}/bar.py" 2>/dev/null | tail -n 1; }
 # Each style on the Amethystora theme, by the account's choice
 set_theme amethystora
@@ -161,13 +169,16 @@ for entry in floating:off islands:off capsule:off segments:off neon:off hairline
     style="${entry%%:*}" edge="${entry##*:}"
     in_session "ame desktop style ${style}" >/dev/null 2>&1
     sleep 2
-    top="$(bar_top)"
+    measured="$(bar_top)"
+    top="${measured%% *}"
+    echo "# ${style}: the highest of the bar's buttons: ${measured}"
     if [[ ! "${top}" =~ ^[0-9]+$ ]]; then
-        not_ok "${style}: the shell's accessibility tree shows no top bar" "${top}"
-    elif [[ "${edge}" == on && "${top}" -le 3 ]] || [[ "${edge}" == off && "${top}" -ge 5 ]]; then
+        not_ok "${style}: the shell's accessibility tree shows no button on the top bar" "${measured}"
+    # A style's margin is 6 px or more; a button against the edge may still have a pixel or two of its own
+    elif [[ "${edge}" == on && "${top}" -le 4 ]] || [[ "${edge}" == off && "${top}" -ge 6 ]]; then
         ok "${style}: the top bar is drawn $([[ ${edge} == on ]] && echo "against the edge" || echo "off the edge") (top at ${top})"
     else
-        not_ok "${style}: the top bar is not where the style puts it" "top at ${top}, want $([[ ${edge} == on ]] && echo "0 to 3" || echo "5 or more")"
+        not_ok "${style}: the top bar is not where the style puts it" "top at ${top}, want $([[ ${edge} == on ]] && echo "0 to 4" || echo "6 or more")"
     fi
 done
 
