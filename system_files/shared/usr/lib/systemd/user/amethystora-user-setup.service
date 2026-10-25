@@ -3,12 +3,12 @@ Description=Configure system for current user
 Wants=network-online.target
 After=network-online.target
 ConditionUser=!@system
-# GNOME's first-run setup runs as an account of its own, numbered above the system's range: the manual's
-# welcome page opened behind it
-ConditionUser=!gnome-initial-setup
 
 [Service]
 Type=simple
+# GNOME's first-run setup runs as an account of its own, numbered above the system's range, and from GNOME 51
+# (Fedora 45) numbered in its name as well (gnome-initial-setup-2): the manual's welcome page opened behind it
+ExecCondition=/usr/bin/sh -c 'case %u in gnome-initial-setup|gnome-initial-setup-*) exit 1;; esac'
 ExecStart=/usr/bin/amethystora-user-setup
 
 [Install]
