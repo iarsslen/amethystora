@@ -186,7 +186,7 @@ EOF
         check "the company's Flatpak remote is one of the machine's" sh -c "flatpak remotes --system --columns=name,url | grep -q '^vmlab[[:space:]]*https://flatpak.vmlab.example/repo/'"
         same "the VPN is one of NetworkManager's connections" "$(nmcli -g connection.id connection show 5d6e2b1c-7f3a-4c8e-9a0b-1c2d3e4f5a6b 2>&1)" "Vmlab VPN"
         same "...of root's alone, asking for its password" \
-            "$(stat -c %a /etc/NetworkManager/system-connections/vmlab.nmconnection)|$(nmcli -g vpn.secrets connection show 5d6e2b1c-7f3a-4c8e-9a0b-1c2d3e4f5a6b 2>&1)" "600|"
+            "$(stat -c %a /etc/NetworkManager/system-connections/vmlab.nmconnection)|$(nmcli --show-secrets -g vpn.secrets connection show 5d6e2b1c-7f3a-4c8e-9a0b-1c2d3e4f5a6b 2>&1)" "600|"
         [[ "${FAILED}" == 0 ]] || echo "# the theme hook said: $(tail -n 5 <<<"${out}")"
 
         # The Brewfile, installed once for an account that logs in
