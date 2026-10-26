@@ -38,9 +38,10 @@ Yes, in Waydroid: `ame apps android` sets it up. [Games and Android apps](games.
 
 ## Can I run Windows software?
 
-Often. Install **Bottles** from Bazaar, which runs Windows programs in their own prefixes. Wine
-needs X11, so grant it to Bottles in Flatseal. For the rest, a Windows virtual machine in the
-[developer image](developer.md) works for nearly everything.
+Often. Double-click the program in Files: it is scanned, and the same app for Linux, its web version or an
+app that does the same job is offered first; otherwise it runs with **Bottles**, from Flathub, which it sets up
+for you. For the rest, a Windows virtual machine in the [developer image](developer.md) works for nearly
+everything. [Windows programs](software.md#windows-programs) says what happens and what will not run.
 
 ## How do I run an AppImage?
 

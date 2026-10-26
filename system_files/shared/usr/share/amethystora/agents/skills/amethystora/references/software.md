@@ -42,6 +42,11 @@ installing these by hand, and leave them to the user to run: each asks questions
   `amepkg <n> run <cmd>` runs one command inside; `enter` is a shell for the user, not for you.
 - A `.deb`, `.rpm` or `.pkg.tar.zst`: `amepkg install <file>`. It scans the file, shows where it comes
   from and offers Flathub or the container's repositories first; let the user answer those questions.
+- A Windows program (`.exe`, `.msi`, `.lnk`, `.bat`, a Microsoft Store package) opens in
+  `/usr/libexec/amethystora-windows-program FILE`, in a terminal: it scans it, says who signed it, and offers
+  the same app from Flathub, its web version or an alternative (the map is
+  `/usr/share/amethystora/windows-programs.json`) before running it with Bottles, which it grants X11 to for
+  the account. It asks, so the user runs it; suggest the Flathub app first.
 - Only containers it made are listed (labels `amethystora.pkg.*`, real names `pkg-<name>`); leave the
   user's other distrobox containers alone. `containers rm` and `reset` delete what is installed:
   ask first.

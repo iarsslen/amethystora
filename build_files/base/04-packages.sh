@@ -131,6 +131,8 @@ FEDORA_PACKAGES=(
     oddjob-mkhomedir
     opendyslexic-fonts
     openssh-askpass
+    # Who signed a Windows program, read before it is run (amethystora-windows-program)
+    osslsigncode
     pam-u2f
     pamu2fcfg
     plymouth-plugin-label

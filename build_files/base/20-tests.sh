@@ -672,6 +672,34 @@ grep -q "^Exec=/usr/libexec/amethystora-in-terminal amethystora-pkg install %f$"
 for type in application/vnd.debian.binary-package application/x-rpm; do
     grep -qx "${type}=amethystora-pkg-install.desktop" /etc/xdg/mimeapps.list
 done
+# A Windows program opens in a handler of its own, in a terminal, for every type shared-mime-info gives one: scanned,
+# its signer said, and the same app for Linux, its web version or an alternative offered before Bottles
+WIN_DESKTOP=/usr/share/applications/amethystora-windows-program.desktop
+test -x /usr/libexec/amethystora-windows-program
+command -v osslsigncode >/dev/null
+command -v desktop-file-validate >/dev/null && desktop-file-validate "${WIN_DESKTOP}"
+grep -q "^Exec=/usr/libexec/amethystora-in-terminal /usr/libexec/amethystora-windows-program %f$" "${WIN_DESKTOP}"
+for type in vnd.microsoft.portable-executable x-msdownload x-ms-dos-executable x-dosexec x-ms-ne-executable x-msi \
+    x-ms-shortcut msix appx msixbundle appxbundle x-bat; do
+    grep -q "^MimeType=\(.*;\)\?application/${type};" "${WIN_DESKTOP}"
+    grep -qx "application/${type}=amethystora-windows-program.desktop" /etc/xdg/mimeapps.list
+done
+# Its map: known fields only, every pattern compiles, every Flatpak ID has an ID's shape, and no entry names one twice
+WIN_MAP=/usr/share/amethystora/windows-programs.json
+jq -e 'length >= 30 and all(.[]; .match as $m |
+    (.name | type == "string") and (keys - ["name", "match", "flatpak", "web", "launcher", "ame", "alternatives", "wine", "driver"] == [])
+    and ("x" | test($m; "i") | type == "boolean")
+    and ([.flatpak // empty, .alternatives[]?.flatpak] | all(test("^[A-Za-z][A-Za-z0-9_-]*(\\.[A-Za-z0-9_-]+)+$")) and length == (unique | length))
+    and ((.web // "https://") | startswith("https://")))' "${WIN_MAP}" >/dev/null
+for launcher in $(jq -r '.[].launcher // empty' "${WIN_MAP}"); do
+    test -f "/usr/share/applications/${launcher}"
+done
+jq -r '.[].ame // empty' "${WIN_MAP}" | while read -r first second; do
+    ame --show "${first}::${second}" >/dev/null
+done
+[[ "$(/usr/libexec/amethystora-windows-program --match 'SpotifySetup (1).exe' | jq -r .flatpak)" == com.spotify.Client ]]
+[[ "$(/usr/libexec/amethystora-windows-program --match 'Firefox Installer.exe' | jq -r .launcher)" == org.mozilla.firefox.desktop ]]
+[[ -z "$(/usr/libexec/amethystora-windows-program --match 'something-else.exe')" ]]
 # DistroShelf, the window onto the containers, comes with every machine, as Bazaar and Flatseal do
 for preinstall in bazaar flatseal distroshelf; do
     test -f "/usr/share/flatpak/preinstall.d/${preinstall}.preinstall"

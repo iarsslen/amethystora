@@ -3914,7 +3914,7 @@ msgid "I have the recovery key"
 msgstr ""
 
 #. Translators: choices of a menu that turns automatic updates on or off
-#: usr/libexec/amethystora-private-folder usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/amethystora/just/system.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar/dialog.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js apps/connect/src/service.rs apps/connect/src/transfers.rs
+#: usr/libexec/amethystora-private-folder usr/libexec/amethystora-windows-program usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/amethystora/just/system.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar/dialog.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js apps/connect/src/service.rs apps/connect/src/transfers.rs
 msgid "Cancel"
 msgstr ""
 
@@ -3956,6 +3956,157 @@ msgstr ""
 
 #: usr/libexec/amethystora-private-folder
 msgid "The private folder is an account's own: run this as yourself, not as root."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "There is no file ${shown}."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "This needs a terminal to ask in."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Signature: it does NOT match the program: the file was changed after it was signed."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Signature: none. Nothing says who made it."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Signature: it could not be read, so nothing here says who made it."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "Signed by: ${publisher}. The signature checks out."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "Signed in the name of ${publisher}, which this machine cannot confirm: the certificate is not from an authority it trusts, or has expired."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "${shown} is not a program you can run. It is a part of Windows, or of a Windows program: a library, a driver or a firmware program, which only works inside it."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "${shown} is a program for Windows."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Viruses: no known malware in it."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Viruses: not scanned, since the virus scanner is turned off on this machine."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "Viruses: it matches known malware (${found}). Do not run it: delete it."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Viruses: it could not be scanned, since the virus scanner has no signatures yet, or is not running."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Go on without a scan?"
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Do not run it: delete it, and download it again from its maker."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "Open ${app}, which is already installed"
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "Install ${app} for Linux, from Flathub"
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "Install ${app} from Flathub, which does the same job"
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "This is the ${name}. Linux brings its own drivers, and this system comes with them: a Windows driver cannot work here. ame system drivers says which driver each device uses, and what is missing."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "This is ${name}, which is known not to run with Wine on Linux, usually because of its anti-cheat, its licence checks or a driver of its own. A Windows virtual machine is what runs it: the developer image comes with virtual machines (amethystora-manual developer)."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "This is ${name}. There are better ways to it on Linux than the Windows program:"
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "Open ${app}, which is part of this system"
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "Set it up with: ame ${command}"
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+#, sh-format
+msgid "Use ${name} on the web, as a web app (${web})"
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "It is a package from the Microsoft Store, which Wine cannot install."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Run the Windows program, with Bottles"
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "What would you like to do?"
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Bottles runs Windows programs with Wine, each kind in a bottle of its own. Many run well; some do not run at all."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Wine draws through X11, which the image takes from every app, since an app on X11 can read what you type into other X11 apps. X11 is granted back to Bottles alone, for your account: the Security app's Apps page lists it, and flatpak override --user --reset com.usebottles.bottles takes it back."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Run it with Bottles?"
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Bottles could not be installed."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Making a bottle named Windows for programs, which downloads Wine the first time. This takes a few minutes."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Bottles could not make the bottle. Open Bottles to make one, then open the program again."
+msgstr ""
+
+#: usr/libexec/amethystora-windows-program
+msgid "Bottles asks which bottle to run it in."
 msgstr ""
 
 #: usr/libexec/amethystora-scan-alert

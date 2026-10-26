@@ -69,6 +69,9 @@ stops kargs.d from applying. There is no `dnf install` on the host. Sealed image
   session bus, so they are not a sandbox.
 - A `.deb`, `.rpm` or `.pkg.tar.zst` file: `amepkg install FILE` scans it and puts it in the container it
   fits, offering Flathub first; it asks in a terminal, so the user runs it.
+- A Windows program: `/usr/libexec/amethystora-windows-program FILE` (what Files opens one with) scans it, says
+  who signed it and offers the same app for Linux from `/usr/share/amethystora/windows-programs.json` before
+  Bottles, from Flathub, granted X11 for the account alone; it asks in a terminal, so the user runs it.
 
 ## User and system scope
 

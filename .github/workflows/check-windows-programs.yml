@@ -1,0 +1,43 @@
+name: Check Windows Programs
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - system_files/shared/usr/share/amethystora/windows-programs.json
+      - .github/workflows/check-windows-programs.yml
+
+# What opening a Windows program offers instead (amethystora-windows-program) names apps on Flathub by their IDs, in
+# system_files/shared/usr/share/amethystora/windows-programs.json. An app can leave Flathub or change its ID, and the
+# offer would then fail as it installed: this asks Flathub's API for each ID, weekly and whenever the map changes, and
+# fails on one Flathub no longer has. The image build only checks the map's shape (20-tests.sh).
+
+permissions: {}
+
+jobs:
+  flathub:
+    name: Flathub IDs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Ask Flathub
+        run: |
+          set -euo pipefail
+          missing=0
+          for id in $(jq -r '[.[] | .flatpak // empty, .alternatives[]?.flatpak] | unique[]' \
+              system_files/shared/usr/share/amethystora/windows-programs.json); do
+            status="$(curl -s -o /dev/null -w '%{http_code}' --retry 3 "https://flathub.org/api/v2/appstream/${id}")"
+            if [[ "${status}" != 200 ]]; then
+              echo "::error::${id} is not on Flathub (HTTP ${status})"
+              missing=$((missing + 1))
+            fi
+          done
+          [[ "${missing}" == 0 ]]

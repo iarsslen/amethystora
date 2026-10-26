@@ -194,6 +194,7 @@ The repository uses mandatory pre-commit validation:
 - `bump-base-images.yml` - Daily on main: resolves every tag in `image-versions.yml` to its digest, checks each against `keys/ublue-os-cosign.pub`, and proposes the changed digests in one pull request from `automation/base-images`. Its pull requests start their checks only with a `BASE_BUMP_TOKEN` secret (a token with Contents and Pull requests write on this repository); `20-tests.sh` warns when the base is more than 10 days older than the build
 - `security-rebuild.yml` - Daily on main, read-only but for the dispatch: compares the published stable image's source packages (its SBOM) with Fedora's security updates in Bodhi, and starts `Stable Images` when one was pushed after the published image's base was built and before the pinned base was. The kernel is left to the weekly build. Images carry `org.amethystora.base-created` for it
 - `validate-renovate.yml` - Validates the Renovate configuration on pull requests
+- `check-windows-programs.yml` - Weekly, and on a change to the map: every Flatpak ID in `windows-programs.json` is still on Flathub (see Windows programs)
 - `scorecard.yml` - OpenSSF Scorecard supply-chain checks (weekly)
 - `clean.yml` - Cleanup old images and artifacts
 - `moderator.yml` - Repository moderation tasks
@@ -1294,6 +1295,27 @@ the command over Amethystora's own; `amy` is a Homebrew formula, so nothing may 
 Everything it installs is fetched on the user's machine from its source (DistroShelf from Flathub,
 images from their registries, packages inside containers), so `NOTICE` and `SOURCES` do not change for
 it.
+
+### Windows programs
+
+An `.exe`, `.msi`, `.lnk`, `.bat` or Microsoft Store package opens in `amethystora-windows-program.desktop`, the
+default in `/etc/xdg/mimeapps.list` for every type shared-mime-info gives one (a modern `.exe` is
+`application/vnd.microsoft.portable-executable`): `/usr/libexec/amethystora-windows-program`, in a terminal, scans it
+as `amepkg install` does, names the signer from its Authenticode signature (`osslsigncode verify`) only when the
+signature checks out, refuses a file changed after signing, and offers what
+`/usr/share/amethystora/windows-programs.json` names for its file name before the Windows program: the app from
+Flathub, a launcher in the image, an `ame` command (Steam's), alternatives, the web version as a web app. Last,
+Bottles from Flathub, granted X11 for the account alone (`flatpak override --user`), the file handed over through
+the document portal (`--file-forwarding`), and a first bottle made with `bottles-cli new`. `.dll`, `.sys`, `.efi`
+and the like share the PE type and are said not to be programs.
+
+- **The map is written here** (Apache-2.0), from public sources: never copy Zorin's `zorin-exec-guard` or its
+  `app_db.json` (GPL-3.0). An entry's fields are `name`, `match` (a regular expression for the file name, matched
+  without regard to case), `flatpak`, `launcher`, `ame`, `alternatives`, `web`, `wine: false` (known not to run)
+  and `driver: true`. `20-tests.sh` holds it to those fields and compiles every pattern, and
+  `check-windows-programs.yml` asks Flathub's API for every ID, weekly and when the map changes.
+- Not taken: WinApps (AGPL, and files with no licence at all), WinBoat (the manual names it as something to
+  install) and Wine in the image (Bottles brings its own runners).
 
 ### New machines
 

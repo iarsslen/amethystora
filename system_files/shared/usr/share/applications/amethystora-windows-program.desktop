@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Windows Programs
+GenericName=Windows Program Opener
+Comment=Scan a Windows program, say who made it, and offer the same app for Linux before running it with Bottles
+Exec=/usr/libexec/amethystora-in-terminal /usr/libexec/amethystora-windows-program %f
+Icon=application-x-ms-dos-executable
+Terminal=false
+NoDisplay=true
+MimeType=application/vnd.microsoft.portable-executable;application/x-msdownload;application/x-ms-dos-executable;application/x-dosexec;application/x-ms-ne-executable;application/x-msi;application/x-ms-shortcut;application/msix;application/appx;application/msixbundle;application/appxbundle;application/x-bat;
+Categories=System;
+Keywords=exe;msi;windows;wine;bottles;

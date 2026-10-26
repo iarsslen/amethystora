@@ -20,6 +20,7 @@ my distrobox container is broken	playbook/containers#*|manual/software#container
 the backup failed	playbook/backups#*|manual/security#backups
 gnome extension broke after an update	playbook/extensions-after-update#*|manual/troubleshooting#an-extension-misbehaves-or-the-desktop-looks-wrong
 why can't I use dnf install	manual/faq#why-can-i-not-use-dnf-install|manual/software#layering-the-last-resort
+run a windows exe file	manual/software#windows-programs|manual/software#windows-programs~2|manual/faq#can-i-run-windows-software
 install a deb package	manual/faq#how-do-i-install-a-deb-or-an-rpm|manual/software#a-package-file
 how do I run an appimage	manual/faq#how-do-i-run-an-appimage
 change the theme	manual/themes#switching|manual/themes#change-a-theme-or-make-your-own|manual/themes

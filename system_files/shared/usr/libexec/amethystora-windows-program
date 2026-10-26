@@ -1,0 +1,220 @@
+#!/usr/bin/bash
+#
+# What opening a Windows program in Files does (amethystora-windows-program.desktop, the default for .exe, .msi,
+# .lnk, .bat and Microsoft Store packages in /etc/xdg/mimeapps.list), in a terminal: scan it, say what it is and who
+# signed it, offer the same app for Linux, its web version or an app that does the same job, and only then run the
+# Windows program itself, in Bottles.
+#
+#   amethystora-windows-program FILE           what Files runs, through amethystora-in-terminal
+#   amethystora-windows-program --match NAME   the map's entry for a file name, as JSON, or nothing
+#
+# The map is /usr/share/amethystora/windows-programs.json, written for Amethystora from public sources: one entry per
+# program, its file names as a regular expression (matched without regard to case) and what to offer instead. Bottles
+# comes from Flathub and runs the program with Wine, which draws through X11: the image takes X11 from every app, so it
+# is granted back to Bottles alone, for this account, as `ame apps gaming` does for Steam. The file reaches Bottles
+# through the document portal, so that Bottles needs no access to the home folder.
+
+set -uo pipefail
+
+# In the session's language where there is a translation of it (po/, text domain amethystora)
+export TEXTDOMAIN=amethystora
+# shellcheck source=/dev/null
+source gettext.sh
+
+# AMETHYSTORA_WINDOWS_PROGRAMS stands in for the map when testing
+MAP="${AMETHYSTORA_WINDOWS_PROGRAMS:-/usr/share/amethystora/windows-programs.json}"
+BOTTLES=com.usebottles.bottles
+
+say() { printf '%s\n' "$*"; }
+die() {
+    printf '%s\n' "$*" >&2
+    exit 1
+}
+
+lookup() {
+    jq -c --arg f "$1" 'first(.[] | select(.match as $m | $f | test($m; "i")))' "${MAP}"
+}
+
+if [[ "${1:-}" == --match ]]; then
+    lookup "$(basename -- "${2:?usage: amethystora-windows-program --match NAME}")"
+    exit
+fi
+
+file="${1:?usage: amethystora-windows-program FILE}"
+base="$(basename -- "${file}")"
+# Whoever named the file chose these characters: an escape sequence in a name could rewrite the lines below it
+shown="$(/usr/libexec/amethystora-security-text --max 200 -- "${base}")"
+[[ -f "${file}" ]] || die "$(eval_gettext 'There is no file ${shown}.')"
+[[ -t 0 && -t 1 ]] || die "$(gettext "This needs a terminal to ask in.")"
+
+# The same scan as a package file's (amethystora-pkg): clamd when its socket lets this account in, clamscan when it
+# does not. 0 clean, 1 found (the signature is printed), 2 could not tell, 3 the owner turned the virus scanner off.
+scan_file() {
+    local output status
+    /usr/libexec/amethystora-security-config --is VIRUS_SCAN off 2>/dev/null && return 3
+    if command -v clamdscan >/dev/null 2>&1; then
+        output="$(clamdscan --no-summary - <"$1" 2>&1)"
+        status=$?
+        [[ ${status} -le 1 ]] && { sed -n 's/^.*: \(.*\) FOUND$/\1/p' <<<"${output}"; return "${status}"; }
+    fi
+    command -v clamscan >/dev/null 2>&1 || return 2
+    output="$(clamscan --no-summary -- "$1" 2>&1)"
+    status=$?
+    [[ ${status} -le 1 ]] || return 2
+    sed -n 's/^.*: \(.*\) FOUND$/\1/p' <<<"${output}"
+    return "${status}"
+}
+
+# Who signed it, from its Authenticode signature, read by osslsigncode against the certificate authorities the
+# machine trusts. Anyone can sign a program with a certificate of their own in any name, so a name is said as the
+# publisher's only when the signature checks out. Returns 1 for a file changed after it was signed.
+signature() {
+    local output subject publisher
+    output="$(osslsigncode verify -in "$1" 2>&1)"
+    # Its words for each kind of file: a PE's, an MSI's and an APPX's
+    if grep -q "MISMATCH\|Signature verification: failed\|Signature hash verification failed\|Hash signature does not match" <<<"${output}" &&
+        ! grep -q "^Signer's certificate:" <<<"${output}"; then
+        say "$(gettext "Signature: it does NOT match the program: the file was changed after it was signed.")"
+        return 1
+    fi
+    if grep -q "^No signature found\|^MSI file has no signature\|AppxSignature.p7x does not exist" <<<"${output}"; then
+        say "$(gettext "Signature: none. Nothing says who made it.")"
+        return 0
+    fi
+    if ! grep -q "^Signer's certificate:" <<<"${output}"; then
+        say "$(gettext "Signature: it could not be read, so nothing here says who made it.")"
+        return 0
+    fi
+    subject="$(sed -n "/^Signer's certificate:/,\$ s/^[[:space:]]*Subject: //p" <<<"${output}" | head -n1)"
+    # The subject is RFC 2253's order, the most specific first: the organisation, else the common name
+    if [[ ",${subject}" =~ ,O=([^,]*) || ",${subject}" =~ ,CN=([^,]*) ]]; then
+        publisher="${BASH_REMATCH[1]}"
+    fi
+    publisher="$(/usr/libexec/amethystora-security-text --max 120 -- "${publisher:-?}")"
+    if grep -qx "Succeeded" <<<"${output}"; then
+        say "$(eval_gettext 'Signed by: ${publisher}. The signature checks out.')"
+    else
+        say "$(eval_gettext 'Signed in the name of ${publisher}, which this machine cannot confirm: the certificate is not from an authority it trusts, or has expired.')"
+    fi
+}
+
+lower="${base,,}"
+case "${lower}" in
+    *.dll | *.sys | *.efi | *.ocx | *.drv | *.cpl | *.mui)
+        say "$(eval_gettext '${shown} is not a program you can run. It is a part of Windows, or of a Windows program: a library, a driver or a firmware program, which only works inside it.')"
+        exit 0
+        ;;
+esac
+store=false
+[[ "${lower}" =~ \.(msix|appx|msixbundle|appxbundle)$ ]] && store=true
+
+say "$(eval_gettext '${shown} is a program for Windows.')"
+say ""
+found="$(scan_file "${file}")"
+case $? in
+    0) say "$(gettext "Viruses: no known malware in it.")" ;;
+    3) say "$(gettext "Viruses: not scanned, since the virus scanner is turned off on this machine.")" ;;
+    1)
+        found="$(/usr/libexec/amethystora-security-text --max 200 -- "${found:-ClamAV}")"
+        die "$(eval_gettext 'Viruses: it matches known malware (${found}). Do not run it: delete it.')"
+        ;;
+    *)
+        say "$(gettext "Viruses: it could not be scanned, since the virus scanner has no signatures yet, or is not running.")"
+        gum confirm "$(gettext "Go on without a scan?")" || exit 1
+        ;;
+esac
+if [[ "${lower}" =~ \.(exe|msi|msix|appx|msixbundle|appxbundle)$ ]] && command -v osslsigncode >/dev/null 2>&1; then
+    signature "${file}" || die "$(gettext "Do not run it: delete it, and download it again from its maker.")"
+fi
+say ""
+
+entry="$(lookup "${base}")"
+field() { jq -r --arg k "$1" '.[$k] // empty' <<<"${entry}"; }
+name="$(field name)"
+# What is offered, as the words shown and, beside them, what each does
+labels=() actions=()
+offer() {
+    labels+=("$1")
+    actions+=("$2")
+}
+# A Flatpak: opened when it is installed, installed from Flathub when it is not
+offer_flatpak() {
+    local id="$1" app="$2" kind="$3"
+    if flatpak info "${id}" >/dev/null 2>&1; then
+        offer "$(eval_gettext 'Open ${app}, which is already installed')" "open ${id}"
+    elif [[ "${kind}" == same ]]; then
+        offer "$(eval_gettext 'Install ${app} for Linux, from Flathub')" "install ${id}"
+    else
+        offer "$(eval_gettext 'Install ${app} from Flathub, which does the same job')" "install ${id}"
+    fi
+}
+
+if [[ -n "${entry}" ]]; then
+    if [[ "$(field driver)" == true ]]; then
+        say "$(eval_gettext 'This is the ${name}. Linux brings its own drivers, and this system comes with them: a Windows driver cannot work here. ame system drivers says which driver each device uses, and what is missing.')"
+        exit 0
+    fi
+    if [[ "$(field wine)" == false ]]; then
+        say "$(eval_gettext 'This is ${name}, which is known not to run with Wine on Linux, usually because of its anti-cheat, its licence checks or a driver of its own. A Windows virtual machine is what runs it: the developer image comes with virtual machines (amethystora-manual developer).')"
+    else
+        say "$(eval_gettext 'This is ${name}. There are better ways to it on Linux than the Windows program:')"
+    fi
+    launcher="$(field launcher)"
+    if [[ -n "${launcher}" ]]; then
+        app="$(sed -n 's/^Name=//p' "/usr/share/applications/${launcher}" | head -n1)"
+        offer "$(eval_gettext 'Open ${app}, which is part of this system')" "launch ${launcher}"
+    fi
+    command="$(field ame)"
+    [[ -n "${command}" ]] && offer "$(eval_gettext 'Set it up with: ame ${command}')" "ame ${command}"
+    id="$(field flatpak)"
+    [[ -n "${id}" ]] && offer_flatpak "${id}" "${name}" same
+    while IFS=$'\t' read -r other id; do
+        [[ -n "${id}" ]] && offer_flatpak "${id}" "${other}" other
+    done < <(jq -r '.alternatives[]? | [.name, .flatpak] | @tsv' <<<"${entry}")
+    web="$(field web)"
+    [[ -n "${web}" ]] && offer "$(eval_gettext 'Use ${name} on the web, as a web app (${web})')" "web ${web}"
+fi
+if [[ "${store}" == true ]]; then
+    say "$(gettext "It is a package from the Microsoft Store, which Wine cannot install.")"
+elif [[ "$(field wine)" != false ]]; then
+    offer "$(gettext "Run the Windows program, with Bottles")" bottles
+fi
+[[ ${#labels[@]} -gt 0 ]] || exit 0
+offer "$(gettext "Cancel")" cancel
+
+choice="$(gum choose --header "$(gettext "What would you like to do?")" "${labels[@]}")" || exit 0
+for i in "${!labels[@]}"; do
+    [[ "${labels[i]}" == "${choice}" ]] && action="${actions[i]}"
+done
+
+case "${action:-cancel}" in
+    open\ *) setsid -f flatpak run "${action#open }" >/dev/null 2>&1 ;;
+    launch\ *) setsid -f gio launch "/usr/share/applications/${action#launch }" >/dev/null 2>&1 ;;
+    install\ *)
+        id="${action#install }"
+        flatpak install flathub "${id}" && setsid -f flatpak run "${id}" >/dev/null 2>&1
+        ;;
+    ame\ *)
+        read -ra words <<<"${action#ame }"
+        exec /usr/bin/ame "${words[@]}"
+        ;;
+    web\ *) amethystora-webapp install "${name}" "${action#web }" && setsid -f amethystora-webapp "${action#web }" >/dev/null 2>&1 ;;
+    bottles)
+        say "$(gettext "Bottles runs Windows programs with Wine, each kind in a bottle of its own. Many run well; some do not run at all.")"
+        say "$(gettext "Wine draws through X11, which the image takes from every app, since an app on X11 can read what you type into other X11 apps. X11 is granted back to Bottles alone, for your account: the Security app's Apps page lists it, and flatpak override --user --reset com.usebottles.bottles takes it back.")"
+        gum confirm "$(gettext "Run it with Bottles?")" || exit 0
+        if ! flatpak info "${BOTTLES}" >/dev/null 2>&1; then
+            flatpak install flathub "${BOTTLES}" || die "$(gettext "Bottles could not be installed.")"
+        fi
+        flatpak override --user --socket=x11 "${BOTTLES}"
+        # The first bottle: one made for applications, which Bottles otherwise asks for in a window of its own
+        if ! compgen -G "${HOME}/.var/app/${BOTTLES}/data/bottles/bottles/*/bottle.yml" >/dev/null; then
+            say "$(gettext "Making a bottle named Windows for programs, which downloads Wine the first time. This takes a few minutes.")"
+            flatpak run --command=bottles-cli "${BOTTLES}" new --bottle-name Windows --environment application ||
+                die "$(gettext "Bottles could not make the bottle. Open Bottles to make one, then open the program again.")"
+        fi
+        say "$(gettext "Bottles asks which bottle to run it in.")"
+        setsid -f flatpak run --file-forwarding "${BOTTLES}" -e @@ "${file}" @@ >/dev/null 2>&1
+        ;;
+esac
+exit 0
