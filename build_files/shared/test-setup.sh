@@ -277,6 +277,15 @@ printf 'file-db:%s\n' "${ROOT}/etc/dconf/db/distro" >"${T}/dconf-profile"
 diff <(printf '%s\n' 'tap "someone/tools"' 'brew "fd"' 'brew "someone/tools/lint"' 'cask "font-iosevka"') \
     "${ROOT}/usr/share/amethystora/image-setup/Brewfile"
 cmp -s "${T}/image.json" "${ROOT}/usr/share/amethystora/image-setup/setup.json"
+# An app from a remote the image declares (amethystora-image-policy --only flatpak-remotes, before bake) is baked in
+bake_root
+mkdir -p "${ROOT}/etc/flatpak/remotes.d"
+printf '[Flatpak Repo]\nUrl=https://flatpak.acme.example/repo/\n' >"${ROOT}/etc/flatpak/remotes.d/acme.flatpakrepo"
+echo '{"version": 1, "flatpaks": {"system": [{"app": "com.acme.Tool", "origin": "acme"}]}}' >"${T}/acme.json"
+bake "${T}/acme.json" >/dev/null
+grep -qxF "[Flatpak Preinstall com.acme.Tool]" "${ROOT}/usr/share/flatpak/preinstall.d/image-setup.preinstall"
+bake_root
+
 # The theme hook falls back on the baked theme, and the Brewfile hook installs once per version of the file
 grep -qF /usr/share/amethystora/image-setup/theme /usr/share/amethystora/user-setup.hooks.d/11-theme.sh
 grep -qF /usr/share/amethystora/image-setup/Brewfile /usr/share/amethystora/user-setup.hooks.d/18-image-brewfile.sh

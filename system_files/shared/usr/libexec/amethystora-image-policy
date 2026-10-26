@@ -1,0 +1,539 @@
+#!/usr/bin/bash
+# The policy of an image of one's own, while it is built FROM Amethystora (the image template's build runs it as
+# root on its policy/ folder; never on a machine):
+#
+#   amethystora-image-policy DIR [--root ROOT] [--only flatpak-remotes]
+#
+# (--only flatpak-remotes adds the remotes alone, which the template's build does before `amethystora-setup bake`,
+# so that its apps may come from them.) DIR may hold any of these, and nothing else but Markdown:
+#
+#   agent.conf     how far the AI agent may go: ALLOW, ALLOW_FOR and ROOT lines, as /etc/amethystora/agent.conf
+#   security       a security profile (off, default, light, balanced, thorough) on its own line, and KEY=VALUE lines
+#                  for single switches after it, each as amethystora-security-config takes it
+#   hardening      NAME VALUE lines: a stricter setting on (or package-cooldown and kernel strict), or one of what
+#                  the machine sends by itself off; only those BUILD_SAFE names, which a build can apply
+#   desktop.json   GNOME's settings of the image, each a default every account starts with or locked for all of
+#                  them: {"version": 1, "set": {NAME: VALUE}, "lock": [NAME...], "extensions-off": [UUID...]}, NAME
+#                  one of DESKTOP_KEYS below
+#   updates        automatic=on|off, and when=CALENDAR, a systemd calendar for the automatic updates
+#   proxy          http=HOST:PORT, https=HOST:PORT, ignore=HOST,..., lock=yes|no: GNOME's proxy settings, which
+#                  GNOME's apps follow, and the session's http_proxy variables, which terminal tools follow. No
+#                  login in it: the image can be read by anyone who can download it
+#   dns            servers=ADDRESS#NAME ...: every lookup over DNS-over-TLS to the company's resolvers, as
+#                  `ame security dns on custom` does it
+#   flatpak-remotes/NAME.flatpakrepo, with NAME.fingerprint beside it: a system Flatpak remote of the company's,
+#                  https only, whose key has to be the fingerprint given; setup.json may then name its apps
+#   vpn/NAME.nmconnection, and the CA certificates it names in /etc/pki/amethystora-vpn: a NetworkManager VPN or
+#                  WireGuard connection without a secret in it, a password, a key or a key's file, each of which
+#                  NetworkManager asks the person for as they connect
+#
+# Each is read strictly and the build stops on what it cannot take, all reasons at once, before anything is written.
+# What it writes is what a machine's own switches write, so that the report, Security and Control show it as theirs:
+# the image's /etc becomes every machine's, which the security watcher compares nothing against. With --root (a
+# test's stand-in) the hardening, the updates and the DNS are left to a build, which they need.
+
+set -uo pipefail
+
+die() {
+    printf 'amethystora-image-policy: %s\n' "$*" >&2
+    exit 1
+}
+
+# The stricter settings a build can turn on, and what the machine sends by itself that it can turn off: the rest need
+# a running machine (a firewall daemon, Flathub's remote, the boot menu, kernel arguments) or a person
+BUILD_SAFE_ON=(kernel time network-daemons block-bluetooth block-webcam block-automount block-user-extensions
+    block-xwayland flatpak-password noexec-temp no-coredumps package-cooldown brew-attestations audit-locked
+    vscodium-extensions)
+BUILD_SAFE_OFF=(countme connectivity-check firmware-metadata)
+
+# GNOME's settings an image may set: each name's schema, key, GVariant type and what a value has to be. A name in
+# "lock" is locked for every account through dconf; the login screen's are GDM's and are not locked. A whole number
+# is in seconds where the key is.
+DESKTOP_KEYS='{
+    "screen-lock": {"schema": "org.gnome.desktop.screensaver", "key": "lock-enabled", "type": "b"},
+    "lock-delay": {"schema": "org.gnome.desktop.screensaver", "key": "lock-delay", "type": "u", "min": 0, "max": 3600},
+    "idle-delay": {"schema": "org.gnome.desktop.session", "key": "idle-delay", "type": "u", "min": 0, "max": 7200},
+    "sleep-on-mains": {"schema": "org.gnome.settings-daemon.plugins.power", "key": "sleep-inactive-ac-timeout", "type": "i", "min": 0, "max": 86400},
+    "sleep-on-battery": {"schema": "org.gnome.settings-daemon.plugins.power", "key": "sleep-inactive-battery-timeout", "type": "i", "min": 0, "max": 86400},
+    "lock-screen-notifications": {"schema": "org.gnome.desktop.notifications", "key": "show-in-lock-screen", "type": "b"},
+    "user-switching-off": {"schema": "org.gnome.desktop.lockdown", "key": "disable-user-switching", "type": "b"},
+    "printing-off": {"schema": "org.gnome.desktop.lockdown", "key": "disable-printing", "type": "b"},
+    "print-setup-off": {"schema": "org.gnome.desktop.lockdown", "key": "disable-print-setup", "type": "b"},
+    "camera-off": {"schema": "org.gnome.desktop.privacy", "key": "disable-camera", "type": "b"},
+    "microphone-off": {"schema": "org.gnome.desktop.privacy", "key": "disable-microphone", "type": "b"},
+    "recent-files": {"schema": "org.gnome.desktop.privacy", "key": "remember-recent-files", "type": "b"},
+    "location": {"schema": "org.gnome.system.location", "key": "enabled", "type": "b"},
+    "automatic-timezone": {"schema": "org.gnome.desktop.datetime", "key": "automatic-timezone", "type": "b"},
+    "clock-format": {"schema": "org.gnome.desktop.interface", "key": "clock-format", "type": "s", "one-of": ["24h", "12h"]},
+    "hot-corners": {"schema": "org.gnome.desktop.interface", "key": "enable-hot-corners", "type": "b"},
+    "keyboard-layouts": {"schema": "org.gnome.desktop.input-sources", "key": "sources", "type": "layouts"},
+    "login-user-list-off": {"schema": "org.gnome.login-screen", "key": "disable-user-list", "type": "b", "gdm": true},
+    "login-banner": {"schema": "org.gnome.login-screen", "key": "banner-message-text", "type": "banner", "gdm": true}
+}'
+
+# Every reason desktop.json cannot be taken, one a line
+DESKTOP_CHECK="$(
+    cat <<'EOF'
+def value_ok($spec): $spec.type as $t |
+    if $t == "b" then type == "boolean"
+    elif $t == "u" or $t == "i" then type == "number" and . == floor and . >= $spec.min and . <= $spec.max
+    elif $t == "s" then type == "string" and IN($spec["one-of"][])
+    elif $t == "layouts" then type == "array" and length >= 1 and length <= 8
+        and all(.[]; type == "string" and test("^[a-z]{2,3}(\\+[a-z0-9_-]{1,32})?$"))
+    elif $t == "banner" then type == "string" and length <= 1000 and (explode | all(. == 10 or (. >= 32 and . != 127)))
+    else false end;
+if type != "object" then "it is not a JSON object" else
+    ((keys - ["version", "set", "lock", "extensions-off"])[] | "\(.) is not part of desktop.json"),
+    (if .version == 1 then empty else "its version is not 1" end),
+    (.set // {} | if type != "object" then "set is not an object" else to_entries[] | .key as $name
+        | if $keys[$name] == null then "set: \($name) is not one of the settings an image can set"
+          elif .value | value_ok($keys[$name]) then empty
+          else "set: \($name) is not a value it takes" end end),
+    (.lock // [] | if type != "array" then "lock is not a list" else .[]
+        | if type != "string" or $keys[.] == null then "lock: \(tojson) is not one of the settings"
+          elif $keys[.].gdm then "lock: \(.) is the login screen's, which no account can change anyway"
+          else empty end end),
+    (. as $doc | .lock // [] | arrays | .[] | strings | . as $name
+        | select($keys[$name] != null and (($doc.set // {}) | type == "object" and has($name) | not))
+        | "lock: \(.) is locked without a value in set"),
+    (.["extensions-off"] // [] | if type != "array" then "extensions-off is not a list" else .[]
+        | if type != "string" or (test("^[A-Za-z0-9][A-Za-z0-9._+@-]*$") | not) then "extensions-off: \(tojson) is not an extension"
+          elif . == "amethystora-ui@iarsslen.github.io" then "extensions-off: Amethystora UI is the desktop itself"
+          else empty end end)
+end
+EOF
+)"
+
+# GVariant text of a value desktop.json took, by its type: a string's escapes are JSON's, which GVariant reads too
+GVARIANT="$(
+    cat <<'EOF'
+def gv($t): if $t == "layouts" then "[" + (map("(\("xkb" | tojson), \(tojson))") | join(", ")) + "]"
+    elif $t == "u" then "uint32 \(.)" else tojson end;
+EOF
+)"
+
+USAGE="usage: amethystora-image-policy DIR [--root ROOT] [--only flatpak-remotes]"
+DIR="" ROOT="" ONLY=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --root) [[ $# -ge 2 ]] || die "${USAGE}"; ROOT="${2%/}"; shift ;;
+        --only) [[ "${2:-}" == flatpak-remotes ]] || die "${USAGE}"; ONLY="$2"; shift ;;
+        -*) die "${USAGE}" ;;
+        *) [[ -z "${DIR}" ]] || die "${USAGE}"; DIR="$1" ;;
+    esac
+    shift
+done
+[[ -d "${DIR}" ]] || die "${USAGE}"
+SCHEMAS="${ROOT}/usr/share/glib-2.0/schemas"
+[[ -d "${SCHEMAS}" ]] || die "${ROOT:-/} is not an Amethystora image."
+# The notes a switch keeps of who changed what are a machine's, never the image's; they and the scratch copy of
+# security.conf go with the folder, which `bootc container lint` wants empty
+SCRATCH="$(mktemp -d)"
+trap 'rm -rf "${SCRATCH}"' EXIT
+export AMETHYSTORA_SECURITY_NOTES="${SCRATCH}/notes" AMETHYSTORA_SECURITY_CONF="${ROOT}/etc/amethystora/security.conf"
+in_list() { local x; for x in "${@:2}"; do [[ "$1" == "${x}" ]] && return 0; done; return 1; }
+
+# --- Reading, every reason at once -----------------------------------------------------------------------------
+problems=()
+for file in "${DIR}"/* "${DIR}"/.[!.]*; do
+    [[ -e "${file}" ]] || continue
+    case "${file##*/}" in
+        agent.conf | security | hardening | desktop.json | updates | proxy | dns | *.md | .gitkeep)
+            [[ "${file##*/}" == *.md || "${file##*/}" == .gitkeep || (-f "${file}" && ! -L "${file}") ]] ||
+                problems+=("${file##*/} is not a plain file")
+            ;;
+        flatpak-remotes | vpn) [[ -d "${file}" && ! -L "${file}" ]] || problems+=("${file##*/} is not a folder") ;;
+        *) problems+=("${file##*/} is not one of agent.conf, security, hardening, desktop.json, updates, proxy, dns, flatpak-remotes and vpn") ;;
+    esac
+done
+lines() { grep -vE '^[[:space:]]*(#|$)' "$1" | tr -d '\r'; }
+HOSTNAME_RE='^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$'
+# A host as a proxy names it: a name, an IPv4 address or an IPv6 one in brackets, and a port; never a login
+host_port() {
+    local host="${1%:*}" port="${1##*:}"
+    [[ "$1" == *:* && "${port}" =~ ^[0-9]{1,5}$ ]] && ((10#${port} >= 1 && 10#${port} <= 65535)) || return 1
+    [[ "${host}" =~ ${HOSTNAME_RE} || "${host}" =~ ^\[[0-9a-fA-F:]+\]$ ]]
+}
+
+if [[ -f "${DIR}/agent.conf" ]]; then
+    # Read strictly, as the agent reads it: a line it cannot read would count as the strictest there is, which is
+    # safe but not what was meant
+    re='^(ALLOW=(act|know|off)|ALLOW_FOR=[A-Za-z0-9_.@$\-]+:(act|know|off)|ROOT=(session|minutes|each|terminal))$'
+    while read -r line; do
+        [[ "${line}" =~ ${re} ]] ||
+            problems+=("agent.conf: ${line} is not a line the agent reads")
+    done < <(lines "${DIR}/agent.conf")
+fi
+
+PROFILE=""
+declare -a SECURITY=()
+if [[ -f "${DIR}/security" ]]; then
+    while read -r line; do
+        if [[ "${line}" =~ ^(off|default|light|balanced|thorough)$ && -z "${PROFILE}" && ${#SECURITY[@]} -eq 0 ]]; then
+            PROFILE="${line}"
+        # Tried on a scratch copy, so that the switch's own check says what it takes
+        elif [[ "${line}" =~ ^[A-Z_]+=[a-z]+$ ]] && AMETHYSTORA_SECURITY_CONF="${SCRATCH}/security.conf" \
+            /usr/libexec/amethystora-security-config set "${line%%=*}" "${line#*=}" >/dev/null 2>&1; then
+            SECURITY+=("${line}")
+        else
+            problems+=("security: ${line} is neither a profile, first, nor a switch set to a value it takes")
+        fi
+    done < <(lines "${DIR}/security")
+fi
+
+declare -a HARDENING=()
+if [[ -f "${DIR}/hardening" ]]; then
+    while read -r name value rest; do
+        if [[ -n "${rest}" ]]; then
+            problems+=("hardening: ${name} ${value} ${rest} is one name and its value")
+        elif [[ "${value}" == on ]] && in_list "${name}" "${BUILD_SAFE_ON[@]}" && [[ "${name}" != kernel ]]; then
+            HARDENING+=("${name} on")
+        elif [[ "${value}" == strict ]] && in_list "${name}" kernel package-cooldown; then
+            HARDENING+=("${name} strict")
+        elif [[ "${value}" == off ]] && in_list "${name}" "${BUILD_SAFE_OFF[@]}"; then
+            HARDENING+=("${name} off")
+        else
+            problems+=("hardening: ${name} ${value} is not one a build can set (on: ${BUILD_SAFE_ON[*]/kernel/kernel strict}; off: ${BUILD_SAFE_OFF[*]})")
+        fi
+        [[ "${name}" != vscodium-extensions || -x "${ROOT}/usr/bin/codium" ]] ||
+            problems+=("hardening: vscodium-extensions is for the developer images, which carry VSCodium")
+    done < <(lines "${DIR}/hardening")
+fi
+
+DESKTOP=""
+if [[ -f "${DIR}/desktop.json" ]]; then
+    if ! DESKTOP="$(jq -c . "${DIR}/desktop.json" 2>/dev/null)"; then
+        problems+=("desktop.json is not JSON")
+        DESKTOP=""
+    else
+        # A check that cannot run refuses, rather than let everything through
+        if checked="$(jq -r --argjson keys "${DESKTOP_KEYS}" "${DESKTOP_CHECK}" <<<"${DESKTOP}" 2>&1)"; then
+            while read -r line; do
+                [[ -n "${line}" ]] && problems+=("desktop.json: ${line}")
+            done <<<"${checked}"
+        else
+            problems+=("desktop.json could not be checked: ${checked}")
+        fi
+        for uuid in $(jq -r '.["extensions-off"] // [] | .[] | strings' <<<"${DESKTOP}"); do
+            [[ -d "${ROOT}/usr/share/gnome-shell/extensions/${uuid}" ]] || problems+=("desktop.json: the image has no extension ${uuid}")
+        done
+        # Each setting is checked against the image's own schemas, which may have dropped a key since
+        while IFS=$'\t' read -r schema key; do
+            GSETTINGS_SCHEMA_DIR="${SCHEMAS}" GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${schema}" "${key}" >/dev/null 2>&1 ||
+                problems+=("desktop.json: the image has no ${key} in ${schema}")
+        done < <(jq -r --argjson keys "${DESKTOP_KEYS}" '.set // {} | keys[] | $keys[.] // empty | [.schema, .key] | @tsv' <<<"${DESKTOP}")
+    fi
+fi
+
+AUTOMATIC="" WHEN=""
+if [[ -f "${DIR}/updates" ]]; then
+    while read -r line; do
+        case "${line}" in
+            automatic=on | automatic=off) AUTOMATIC="${line#*=}" ;;
+            when=*)
+                WHEN="${line#when=}"
+                re='^[A-Za-z0-9*:,./~ -]{1,64}$'
+                [[ "${WHEN}" =~ ${re} ]] && systemd-analyze calendar "${WHEN}" >/dev/null 2>&1 ||
+                    problems+=("updates: ${WHEN} is not a time systemd reads, such as \"Sat 03:00\" or \"daily\"")
+                ;;
+            *) problems+=("updates: ${line} is not automatic=on|off or when=TIME") ;;
+        esac
+    done < <(lines "${DIR}/updates")
+fi
+PROXY_HTTP="" PROXY_HTTPS="" PROXY_IGNORE="" PROXY_LOCK=no
+if [[ -f "${DIR}/proxy" ]]; then
+    while read -r line; do
+        case "${line}" in
+            http=* | https=*)
+                host_port "${line#*=}" || problems+=("proxy: ${line} is not HOST:PORT, with no login in it")
+                [[ "${line}" == http=* ]] && PROXY_HTTP="${line#*=}" || PROXY_HTTPS="${line#*=}"
+                ;;
+            ignore=*)
+                PROXY_IGNORE="${line#ignore=}"
+                re='^[A-Za-z0-9*.:/_-]{1,253}$'
+                for host in ${PROXY_IGNORE//,/ }; do
+                    [[ "${host}" =~ ${re} ]] || problems+=("proxy: ignore holds ${host}, which is not a host, a domain or an address range")
+                done
+                ;;
+            lock=yes | lock=no) PROXY_LOCK="${line#lock=}" ;;
+            *) problems+=("proxy: ${line} is not http=, https=, ignore= or lock=") ;;
+        esac
+    done < <(lines "${DIR}/proxy")
+    [[ -n "${PROXY_HTTP}${PROXY_HTTPS}" ]] || problems+=("proxy names no http= or https= proxy")
+fi
+
+declare -a DNS=()
+if [[ -f "${DIR}/dns" ]]; then
+    while read -r line; do
+        if [[ "${line}" == servers=* ]]; then
+            for server in ${line#servers=}; do
+                address="${server%%#*}" name="${server#*#}"
+                if [[ "${server}" == *#* && "${name}" =~ ${HOSTNAME_RE} && "${name}" == *.* &&
+                    ("${address}" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ || ("${address}" =~ ^[0-9a-fA-F:]+$ && "${address}" == *:*:*)) ]]; then
+                    DNS+=("${server}")
+                else
+                    problems+=("dns: ${server} is not ADDRESS#NAME, the name being the one its certificate is for")
+                fi
+            done
+        else
+            problems+=("dns: ${line} is not servers=ADDRESS#NAME ...")
+        fi
+    done < <(lines "${DIR}/dns")
+    [[ ${#DNS[@]} -gt 0 ]] || problems+=("dns names no server")
+fi
+
+# A remote's key is the one its fingerprint says: the build pins every repository's key so
+declare -a REMOTES=()
+if [[ -d "${DIR}/flatpak-remotes" ]]; then
+    gpghome="$(mktemp -d)"
+    for file in "${DIR}/flatpak-remotes"/*; do
+        [[ -e "${file}" ]] || continue
+        name="${file##*/}"
+        case "${name}" in
+            *.flatpakrepo)
+                name="${name%.flatpakrepo}"
+                if [[ ! "${name}" =~ ^[a-z][a-z0-9-]{0,31}$ || "${name}" == flathub ]]; then
+                    problems+=("flatpak-remotes: ${name} is not a remote's name (lower case, and not flathub)")
+                    continue
+                fi
+                [[ -f "${file}" && ! -L "${file}" ]] || { problems+=("flatpak-remotes: ${name} is not a plain file"); continue; }
+                bad="$(tr -d '\r' <"${file}" | grep -vE '^(\[Flatpak Repo\]|(Title|Comment|Description|Homepage|Icon)=.*|Url=https://[^[:space:]]+|GPGKey=[A-Za-z0-9+/=]+|)$' || true)"
+                [[ -z "${bad}" ]] || problems+=("flatpak-remotes: ${name} holds what a remote of the image may not: ${bad%%$'\n'*}")
+                grep -q '^Url=https://' "${file}" || problems+=("flatpak-remotes: ${name} has no https Url")
+                key="$(sed -n 's/^GPGKey=//p' "${file}" | tr -d '\r')"
+                fingerprint="$(tr -d ' \r\n' <"${file%.flatpakrepo}.fingerprint" 2>/dev/null | tr '[:lower:]' '[:upper:]')"
+                got="$(base64 -d <<<"${key}" 2>/dev/null | GNUPGHOME="${gpghome}" gpg --batch --with-colons --show-keys 2>/dev/null |
+                    awk -F: '$1 == "fpr" { print $10; exit }')"
+                if [[ -z "${got}" ]]; then
+                    problems+=("flatpak-remotes: ${name} has no key Flatpak can check its apps with (GPGKey)")
+                elif [[ ! "${fingerprint}" =~ ^[0-9A-F]{40}$ || "${got}" != "${fingerprint}" ]]; then
+                    problems+=("flatpak-remotes: the key of ${name} is ${got}, not the one ${name}.fingerprint pins")
+                else
+                    REMOTES+=("${name}")
+                fi
+                ;;
+            *.fingerprint) [[ -f "${file%.fingerprint}.flatpakrepo" ]] || problems+=("flatpak-remotes: ${name} has no remote beside it") ;;
+            *.md | .gitkeep) ;;
+            *) problems+=("flatpak-remotes: ${name} is not NAME.flatpakrepo or NAME.fingerprint") ;;
+        esac
+    done
+    rm -rf "${gpghome}"
+fi
+
+# A connection's secrets are each person's: NetworkManager asks for them as they connect, and the image holds none
+SECRET_KEY='^(.*password|.*secret|.*psk|private-key|preshared-key|key|static-key|tls-auth|tls-crypt|tls-crypt-v2|cert-pass|key-pass|pin|token|ta)$'
+declare -a VPNS=() CERTS=()
+if [[ -d "${DIR}/vpn" ]]; then
+    services=" $(cat "${ROOT}"/usr/lib/NetworkManager/VPN/*.name 2>/dev/null | sed -n 's/^service=//p' | tr '\n' ' ') "
+    for file in "${DIR}/vpn"/*; do
+        [[ -e "${file}" ]] || continue
+        name="${file##*/}"
+        [[ "${name}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$ && -f "${file}" && ! -L "${file}" ]] ||
+            { [[ "${name}" == *.md ]] || problems+=("vpn: ${name} is not a plain file with a plain name"); continue; }
+        case "${name}" in
+            *.crt | *.pem)
+                if grep -q 'PRIVATE KEY' "${file}" || ! openssl x509 -noout -in "${file}" 2>/dev/null; then
+                    problems+=("vpn: ${name} is not a certificate alone: a private key is each person's, never the image's")
+                else
+                    CERTS+=("${name}")
+                fi
+                ;;
+            *.nmconnection)
+                section="" type="" service="" uuid=""
+                while IFS= read -r line; do
+                    line="${line%$'\r'}"
+                    [[ "${line}" =~ ^[[:space:]]*(#|$) ]] && continue
+                    if [[ "${line}" =~ ^\[([A-Za-z0-9._+/=-]+)\]$ ]]; then
+                        section="${BASH_REMATCH[1]}"
+                        [[ "${section}" =~ ^(connection|vpn|wireguard|wireguard-peer\..+|ipv4|ipv6|proxy)$ ]] ||
+                            problems+=("vpn: ${name} has a section [${section}], which an image's connection may not")
+                        continue
+                    fi
+                    key="${line%%=*}" value="${line#*=}"
+                    [[ "${line}" == *=* && "${key}" =~ ^[A-Za-z0-9._-]+$ ]] || { problems+=("vpn: ${name}: ${line} is not KEY=VALUE"); continue; }
+                    key="${key,,}"
+                    if [[ "${key}" =~ ${SECRET_KEY} && -n "${value}" ]]; then
+                        problems+=("vpn: ${name} holds a secret ([${section}] ${key}): each person gives it as they connect")
+                    fi
+                    # A file it names is one of the image's certificates, never a key's or anyone's own
+                    if [[ "${value}" == /* || "${value}" == file://* ]]; then
+                        path="${value#file://}"
+                        [[ "${path}" == /etc/pki/amethystora-vpn/* && -f "${DIR}/vpn/${path##*/}" &&
+                            "${path##*/}" =~ \.(crt|pem)$ ]] ||
+                            problems+=("vpn: ${name} names ${path}, which is not one of this folder's certificates in /etc/pki/amethystora-vpn")
+                    fi
+                    case "${section}:${key}" in
+                        connection:type) type="${value}" ;;
+                        connection:uuid) uuid="${value}" ;;
+                        vpn:service-type) service="${value}" ;;
+                    esac
+                done <"${file}"
+                [[ "${uuid}" =~ ^[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}$ ]] || problems+=("vpn: ${name} has no uuid")
+                if [[ "${type}" == vpn ]]; then
+                    [[ "${services}" == *" ${service} "* ]] ||
+                        problems+=("vpn: ${name} needs ${service:-a VPN plugin}, which the image does not carry (it has:${services})")
+                elif [[ "${type}" != wireguard ]]; then
+                    problems+=("vpn: ${name} is a ${type:-connection of no type}, not a VPN or WireGuard")
+                fi
+                VPNS+=("${name}")
+                ;;
+            *.md) ;;
+            *) problems+=("vpn: ${name} is not a .nmconnection or a certificate (.crt, .pem)") ;;
+        esac
+    done
+fi
+
+[[ -z "${ROOT}" || (${#HARDENING[@]} -eq 0 && ${#DNS[@]} -eq 0 && -z "${AUTOMATIC}${WHEN}") ]] ||
+    problems+=("hardening, updates and dns change what only a build changes, and are left out with --root")
+
+if [[ ${#problems[@]} -gt 0 ]]; then
+    die "${DIR} cannot be this image's policy:"$'\n'"$(printf '  %s\n' "${problems[@]}")"
+fi
+
+# --- Writing ---------------------------------------------------------------------------------------------------
+said=()
+
+# Flatpak reads its system remotes from /etc/flatpak/remotes.d as Flathub's is: the key travels in the file
+for name in "${REMOTES[@]}"; do
+    install -Dm0644 "${DIR}/flatpak-remotes/${name}.flatpakrepo" "${ROOT}/etc/flatpak/remotes.d/${name}.flatpakrepo"
+done
+[[ ${#REMOTES[@]} -eq 0 ]] || said+=("the Flatpak remotes ${REMOTES[*]}")
+if [[ "${ONLY}" == flatpak-remotes ]]; then
+    echo "The image's Flatpak remotes: ${REMOTES[*]:-none}."
+    exit 0
+fi
+
+# NetworkManager takes a connection only from a file of root's alone
+for cert in "${CERTS[@]}"; do
+    install -Dm0644 "${DIR}/vpn/${cert}" "${ROOT}/etc/pki/amethystora-vpn/${cert}"
+done
+for name in "${VPNS[@]}"; do
+    install -Dm0600 "${DIR}/vpn/${name}" "${ROOT}/etc/NetworkManager/system-connections/${name}"
+done
+[[ ${#VPNS[@]} -eq 0 ]] || said+=("${#VPNS[@]} VPN connections")
+
+if [[ ${#DNS[@]} -gt 0 ]]; then
+    /usr/libexec/amethystora-dns on custom "${DNS[@]}" >/dev/null || die "The DNS servers could not be set."
+    said+=("encrypted DNS to ${DNS[*]%%#*}")
+fi
+
+if [[ -f "${DIR}/agent.conf" ]]; then
+    install -Dm0644 "${DIR}/agent.conf" "${ROOT}/etc/amethystora/agent.conf"
+    said+=("the AI agent's limits")
+fi
+
+if [[ -n "${PROFILE}" ]]; then
+    /usr/libexec/amethystora-security-config profile "${PROFILE}" || die "The security profile ${PROFILE} could not be set."
+    said+=("the security profile ${PROFILE}")
+fi
+for line in "${SECURITY[@]}"; do
+    /usr/libexec/amethystora-security-config set "${line%%=*}" "${line#*=}" || die "Security's ${line} could not be set."
+done
+[[ ${#SECURITY[@]} -eq 0 ]] || said+=("${#SECURITY[@]} security switches")
+
+for line in "${HARDENING[@]}"; do
+    # shellcheck disable=SC2086
+    /usr/libexec/amethystora-hardening set ${line} >/dev/null 2>&1
+    # shellcheck disable=SC2086
+    set -- ${line}
+    if [[ "$2" == off ]]; then
+        /usr/libexec/amethystora-hardening is-on "$1" && die "The hardening switch $1 could not be turned off."
+    else
+        /usr/libexec/amethystora-hardening is-on "$1" "$([[ "$2" == strict ]] && echo strict)" ||
+            die "The hardening switch $1 could not be turned $2."
+    fi
+done
+[[ ${#HARDENING[@]} -eq 0 ]] || said+=("${#HARDENING[@]} hardening switches")
+
+OVERRIDE="${SCHEMAS}/zz4-image-policy.gschema.override"
+DCONF="${ROOT}/etc/dconf/db/distro.d/zz4-image-policy"
+LOCKS="${ROOT}/etc/dconf/db/distro.d/locks/zz4-image-policy"
+rm -f "${OVERRIDE}" "${DCONF}" "${LOCKS}"
+if [[ -n "${DESKTOP}" ]]; then
+    # The extensions on are the image's, and its setup.json's (zz2), less those turned off
+    enabled="$(GSETTINGS_SCHEMA_DIR="${SCHEMAS}" GSETTINGS_BACKEND=memory /usr/bin/gsettings get org.gnome.shell \
+        enabled-extensions | sed "s/^@as //; s/'/\"/g")" || die "Could not read the image's extensions."
+    jq -r --argjson keys "${DESKTOP_KEYS}" --argjson enabled "${enabled}" "${GVARIANT}"'
+        # Each setting as schema, key and value; the banner is its text and its switch
+        [(.set // {} | to_entries[] | $keys[.key] as $k
+            | if $k.type == "banner" then {schema: $k.schema, key: "banner-message-enable", value: (.value != "" | tostring)},
+                  {schema: $k.schema, key: $k.key, value: (.value | tojson)}
+              else {schema: $k.schema, key: $k.key, value: (.value | gv($k.type))} end),
+         (.["extensions-off"] // [] | select(length > 0) as $off
+            | {schema: "org.gnome.shell", key: "enabled-extensions",
+               value: ($enabled - $off | if length == 0 then "@as []" else gv("as") end)})]
+        | group_by(.schema)[]
+        | "", "[\(.[0].schema)]", (.[] | "\(.key)=\(.value)")' <<<"${DESKTOP}" >"${OVERRIDE}.body" ||
+        die "Could not write the desktop's settings."
+    { echo "# The policy of this image (amethystora-image-policy), after the image's own and its setup's"; cat "${OVERRIDE}.body"; } >"${OVERRIDE}"
+    rm -f "${OVERRIDE}.body"
+    # The locked ones in dconf too, value and lock, for every account (GDM reads its own database, and the login
+    # screen's settings are not locked)
+    if [[ "$(jq '.lock // [] | length' <<<"${DESKTOP}")" -gt 0 ]]; then
+        mkdir -p "${DCONF%/*}/locks"
+        jq -r --argjson keys "${DESKTOP_KEYS}" "${GVARIANT}"'
+            .set as $set | [.lock[] | $keys[.] as $k | {path: ("/" + ($k.schema | gsub("\\."; "/"))), key: $k.key,
+                value: ($set[.] | gv($k.type))}] | group_by(.path)[]
+            | "[\(.[0].path | ltrimstr("/"))]", (.[] | "\(.key)=\(.value)"), ""' <<<"${DESKTOP}" >"${DCONF}"
+        jq -r --argjson keys "${DESKTOP_KEYS}" '.lock[] | $keys[.] | "/\(.schema | gsub("\\."; "/"))/\(.key)"' <<<"${DESKTOP}" >"${LOCKS}"
+    fi
+    said+=("$(jq '.set // {} | length' <<<"${DESKTOP}") desktop settings, $(jq '.lock // [] | length' <<<"${DESKTOP}") of them locked")
+fi
+
+# The proxy: GNOME's settings, whose schema keeps them under /system/proxy, and the session's variables
+ENVIRONMENT="${ROOT}/etc/environment.d/60-image-proxy.conf"
+rm -f "${ENVIRONMENT}"
+if [[ -n "${PROXY_HTTP}${PROXY_HTTPS}" ]]; then
+    ignore="$(tr ',' '\n' <<<"${PROXY_IGNORE}" | sed '/^$/d' | jq -R . | jq -sc 'if length == 0 then "@as []" else tojson end' -r)"
+    {
+        [[ -s "${OVERRIDE}" ]] || echo "# The policy of this image (amethystora-image-policy), after the image's own and its setup's"
+        printf '\n[org.gnome.system.proxy]\nmode=%s\nignore-hosts=%s\n' "'manual'" "${ignore}"
+        [[ -z "${PROXY_HTTP}" ]] || printf '\n[org.gnome.system.proxy.http]\nhost=%s\nport=%s\n' \
+            "$(jq -Rn --arg h "${PROXY_HTTP%:*}" '$h')" "${PROXY_HTTP##*:}"
+        [[ -z "${PROXY_HTTPS}" ]] || printf '\n[org.gnome.system.proxy.https]\nhost=%s\nport=%s\n' \
+            "$(jq -Rn --arg h "${PROXY_HTTPS%:*}" '$h')" "${PROXY_HTTPS##*:}"
+    } >>"${OVERRIDE}"
+    if [[ "${PROXY_LOCK}" == yes ]]; then
+        mkdir -p "${DCONF%/*}/locks"
+        {
+            printf '[system/proxy]\nmode=%s\nignore-hosts=%s\n\n' "'manual'" "${ignore}"
+            [[ -z "${PROXY_HTTP}" ]] || printf '[system/proxy/http]\nhost=%s\nport=%s\n\n' "$(jq -Rn --arg h "${PROXY_HTTP%:*}" '$h')" "${PROXY_HTTP##*:}"
+            [[ -z "${PROXY_HTTPS}" ]] || printf '[system/proxy/https]\nhost=%s\nport=%s\n\n' "$(jq -Rn --arg h "${PROXY_HTTPS%:*}" '$h')" "${PROXY_HTTPS##*:}"
+        } >>"${DCONF}"
+        printf '%s\n' /system/proxy/mode /system/proxy/ignore-hosts /system/proxy/http/host /system/proxy/http/port \
+            /system/proxy/https/host /system/proxy/https/port >>"${LOCKS}"
+    fi
+    mkdir -p "${ENVIRONMENT%/*}"
+    {
+        echo "# The proxy of this image (amethystora-image-policy), for what a session starts"
+        [[ -z "${PROXY_HTTP}" ]] || printf 'http_proxy=http://%s\nHTTP_PROXY=http://%s\n' "${PROXY_HTTP}" "${PROXY_HTTP}"
+        [[ -z "${PROXY_HTTPS}" ]] || printf 'https_proxy=http://%s\nHTTPS_PROXY=http://%s\n' "${PROXY_HTTPS}" "${PROXY_HTTPS}"
+        [[ -z "${PROXY_IGNORE}" ]] || printf 'no_proxy=%s\nNO_PROXY=%s\n' "${PROXY_IGNORE}" "${PROXY_IGNORE}"
+    } >"${ENVIRONMENT}"
+    said+=("the proxy${PROXY_HTTP:+ ${PROXY_HTTP}}${PROXY_HTTPS:+ ${PROXY_HTTPS}}$([[ "${PROXY_LOCK}" == yes ]] && echo ", locked")")
+fi
+glib-compile-schemas "${SCHEMAS}" || die "The image's schemas do not take the desktop's settings."
+# GNOME Shell reads an extension's own compiled schemas first (build-gnome-extensions.sh): none of the settings above
+# is an extension's, so only the system's are compiled
+rm -f "${ROOT}/etc/dconf/db/distro"
+dconf update "${ROOT}/etc/dconf/db" || die "dconf could not compile ${ROOT}/etc/dconf/db/distro.d."
+
+if [[ "${AUTOMATIC}" == off ]]; then
+    systemctl disable uupd.timer >/dev/null 2>&1
+    ! systemctl is-enabled -q uupd.timer 2>/dev/null || die "Automatic updates could not be turned off."
+    said+=("automatic updates off")
+elif [[ "${AUTOMATIC}" == on ]]; then
+    systemctl enable uupd.timer >/dev/null 2>&1 || die "Automatic updates could not be turned on."
+fi
+if [[ -n "${WHEN}" ]]; then
+    mkdir -p /etc/systemd/system/uupd.timer.d
+    printf '# When this image updates itself (amethystora-image-policy)\n[Timer]\nOnCalendar=\nOnCalendar=%s\n' "${WHEN}" \
+        >/etc/systemd/system/uupd.timer.d/50-image-policy.conf
+    said+=("updates at ${WHEN}")
+fi
+
+if [[ ${#said[@]} -eq 0 ]]; then
+    echo "The image's policy: nothing in ${DIR}."
+else
+    echo "The image's policy: $(printf '%s, ' "${said[@]}" | sed 's/, $//')."
+fi

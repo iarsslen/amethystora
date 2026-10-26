@@ -39,8 +39,8 @@
 #
 #     /usr/libexec/amethystora-setup bake FILE [--root DIR]
 #
-# It writes what the image already reads: the apps into a preinstall.d file (Flathub's only, the one remote an
-# image has), the dock, the extensions (the image's own and the file's, each installed in the image), the
+# It writes what the image already reads: the apps into a preinstall.d file (Flathub's, or a remote the image's policy
+# adds, amethystora-image-policy --only flatpak-remotes), the dock, the extensions (the image's own and the file's, each installed in the image), the
 # keybindings, the layout and the tiling's settings into a zz2 schema override after the image's zz0 and zz1, an
 # image custom keybinding's key into a dconf file, and the theme and Homebrew's names under
 # /usr/share/amethystora/image-setup, which user-setup.hooks.d/11-theme.sh and 18-image-brewfile.sh read for each
@@ -678,8 +678,12 @@ bake() {
 
     # What the image cannot have stops the build, every reason at once
     problems="$(
-        jq -r '.flatpaks // {} | (.system // []) + (.user // []) | .[] | select(.origin != "flathub")
-            | "the app \(.app) comes from \(.origin), and an image installs apps from Flathub only"' <<<"${setup}"
+        # Flathub, or a remote the image declares (amethystora-image-policy's flatpak-remotes, added before this)
+        jq -r '.flatpaks // {} | (.system // []) + (.user // []) | .[] | select(.origin != "flathub") | [.app, .origin] | @tsv' \
+            <<<"${setup}" | while IFS=$'\t' read -r id key; do
+            [[ -f "${root}/etc/flatpak/remotes.d/${key}.flatpakrepo" ]] ||
+                echo "the app ${id} comes from ${key}, which the image has no remote for: Flathub, or one of policy/flatpak-remotes"
+        done
         for uuid in $(jq -r '.extensions // [] | .[]' <<<"${setup}"); do
             [[ -d "${root}/usr/share/gnome-shell/extensions/${uuid}" ]] ||
                 echo "the extension ${uuid} is not installed in the image: build.sh installs it first"
@@ -707,7 +711,7 @@ bake() {
 
     # Every app, the account's own as well: an image has one installation for every account
     jq -r '[.flatpaks // {} | (.system // []) + (.user // []) | .[].app] | unique
-        | "# The apps of this image'"'"'s setup.json (amethystora-setup bake), from Flathub on the first boot with a network",
+        | "# The apps of this image'"'"'s setup.json (amethystora-setup bake), from Flathub or the image'"'"'s own remotes on the first boot with a network",
           (.[] | "", "[Flatpak Preinstall \(.)]", "Branch=stable", "IsRuntime=false")' <<<"${setup}" \
         >"${root}/usr/share/flatpak/preinstall.d/image-setup.preinstall"
 
@@ -758,7 +762,7 @@ bake() {
 
     echo "Baked ${file} into the image:"
     jq -r 'def n($count; $what): "\($count) \($what)\(if $count == 1 then "" else "s" end)";
-        "  \(n([.flatpaks // {} | (.system // []) + (.user // []) | .[].app] | unique | length; "app")) from Flathub, "
+        "  \(n([.flatpaks // {} | (.system // []) + (.user // []) | .[].app] | unique | length; "app")) to preinstall, "
         + "\(n(.brew // {} | (.taps // []) + (.formulae // []) + (.casks // []) | length; "name")) from Homebrew, "
         + "\(n(.extensions // [] | length; "extension")), the theme \(.theme // "of the image")",
         if (.containers // []) != [] then "  Left out: the containers, which each account makes (ame setup apply)" else empty end,

@@ -10,6 +10,13 @@
 #   wallpaper.png|jpg|webp|svg every account's first wallpaper, whichever theme it picks, and the lock screen's
 #   logo.png                   square: About's picture and the logo under the login screen's list of accounts
 #   login.png|jpg              the login screen's background (amethystora-login-background; not with --root)
+#   style                      the desktop style every account starts with, whichever theme it picks: one of the
+#                              theme library's STYLES
+#   icons                      the icon theme, likewise: one installed in the image
+#   font, mono-font            the interface and the monospace font's family, likewise: one fontconfig knows
+#
+# An account's own choice (ame desktop style, icons, font, mono-font) still comes first, and the theme's own
+# suggestion after the image's (/usr/share/amethystora/image-setup/{style,icons,font,mono-font}, theme/lib.sh).
 #
 # os-release keeps ID=amethystora, which the installers and bootc-image-builder go by; only PRETTY_NAME, VARIANT and
 # VARIANT_ID change. Everything is copied to /usr/share/amethystora/image-setup/branding, which
@@ -48,6 +55,27 @@ picture() {
 }
 
 NAME="" WALLPAPER="" LOGO="" LOGIN=""
+declare -A LOOK=()
+STYLES="$(sed -n 's/^STYLES=(\(.*\))$/\1/p' "${ROOT}/usr/lib/amethystora/theme/lib.sh" 2>/dev/null || true)"
+# One line of a look file, checked by what it has to be
+look() {
+    local file="$1" value
+    value="$(head -n1 "${file}" | tr -d '\r')"
+    [[ "$(wc -l <"${file}")" -le 1 && -n "${value}" ]] || die "${file##*/} is one line."
+    case "${file##*/}" in
+        style) [[ " ${STYLES} " == *" ${value} "* ]] || die "style is one of: ${STYLES}." ;;
+        icons)
+            [[ "${value}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ && -f "${ROOT}/usr/share/icons/${value}/index.theme" ]] ||
+                die "icons names no icon theme in the image."
+            ;;
+        *)
+            re='^[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}$'
+            [[ "${value}" =~ ${re} ]] && fc-list : family 2>/dev/null | tr ',' '\n' | grep -Fx -- "${value}" >/dev/null ||
+                die "${file##*/} names no font family the image has: fc-list : family lists them."
+            ;;
+    esac
+    LOOK["${file##*/}"]="${value}"
+}
 for file in "${DIR}"/* "${DIR}"/.[!.]*; do
     [[ -e "${file}" ]] || continue
     case "${file##*/}" in
@@ -72,13 +100,18 @@ for file in "${DIR}"/* "${DIR}"/.[!.]*; do
             [[ -z "${ROOT}" ]] || die "the login picture goes into GNOME Shell's own files, which only a build can rebuild."
             LOGIN="${file}"
             ;;
+        style | icons | font | mono-font) look "${file}" ;;
         *.md | .gitkeep) ;;
-        *) die "${file##*/} is not one of name, wallpaper.png|jpg|webp|svg, logo.png and login.png|jpg." ;;
+        *) die "${file##*/} is not one of name, wallpaper.png|jpg|webp|svg, logo.png, login.png|jpg, style, icons, font and mono-font." ;;
     esac
 done
 
 rm -rf "${OUT}" "${OUT%/branding}/backgrounds"
+rm -f "${OUT%/branding}"/{style,icons,font,mono-font}
 mkdir -p "${OUT}"
+for key in "${!LOOK[@]}"; do
+    printf '%s\n' "${LOOK[${key}]}" >"${OUT%/branding}/${key}"
+done
 OVERRIDES=""
 
 if [[ -n "${NAME}" ]]; then
@@ -132,5 +165,5 @@ if [[ -n "${LOGIN}" ]]; then
     /usr/libexec/amethystora-login-background "${LOGIN}"
 fi
 
-echo "Branded the image:${NAME:+ named ${NAME},}${WALLPAPER:+ its wallpaper,}${LOGO:+ its logo,}${LOGIN:+ its login screen,}" |
+echo "Branded the image:${NAME:+ named ${NAME},}${WALLPAPER:+ its wallpaper,}${LOGO:+ its logo,}${LOGIN:+ its login screen,}${LOOK[*]:+ its look (${!LOOK[*]}),}" |
     sed 's/,$/./; s/image:$/image: nothing in the folder./'

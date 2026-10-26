@@ -48,6 +48,8 @@ CURRENT_BACKGROUND="${CURRENT_DIR}/background"
 DEFAULT_THEME=amethystora
 # The wallpaper of an image of one's own built on Amethystora (amethystora-brand), every theme's first
 IMAGE_BACKGROUNDS_DIR=/usr/share/amethystora/image-setup/backgrounds
+# ...and its look, which every account starts with before its theme's suggestion: style, icons, font, mono-font
+IMAGE_SETUP_DIR=/usr/share/amethystora/image-setup
 # The image's icon packs, drawn by branding/icons.mjs, each /usr/share/icons/amethystora-<pack>. Each theme names the
 # one that suits its colours and its style (icons.theme); when it names none, Glass is the pack of a dark theme and
 # Glass for light of a light one, whose colours are deepened to read on a light ground. Glass is also the default in
@@ -156,12 +158,13 @@ icon_theme_installed() {
     return 1
 }
 
-# The icon theme to write: the account's own choice (ame desktop icons), else the one the theme names, else the
+# The icon theme to write: the account's own choice (ame desktop icons), else its image's (amethystora-brand), else the
+# one the theme names, else the
 # image's, by whether the theme is dark or light. A name that is not installed is passed over, whoever wrote it:
 # candy-icons, which an earlier image had, would leave every icon to the fallback.
 icon_theme() {
     local icons="" name
-    for name in "$(head -n1 "${CONFIG_DIR}/icons" 2>/dev/null || true)" "$(theme_file icons.theme)"; do
+    for name in "$(head -n1 "${CONFIG_DIR}/icons" 2>/dev/null || true)" "$(head -n1 "${IMAGE_SETUP_DIR}/icons" 2>/dev/null || true)" \n        "$(theme_file icons.theme)"; do
         if [[ -n ${name} ]] && icon_theme_installed "${name}"; then
             icons="${name}"
             break
@@ -189,11 +192,12 @@ is_style() {
     return 1
 }
 
-# The desktop style to write: the account's own choice (ame desktop style), else the theme's, else the default.
+# The desktop style to write: the account's own choice (ame desktop style), else its image's, else the theme's, else the
+# default.
 # A name that is no style, whoever wrote it, is passed over.
 desktop_style() {
     local name
-    for name in "$(head -n1 "${CONFIG_DIR}/style" 2>/dev/null || true)" "$(theme_file style.theme)"; do
+    for name in "$(head -n1 "${CONFIG_DIR}/style" 2>/dev/null || true)" "$(head -n1 "${IMAGE_SETUP_DIR}/style" 2>/dev/null || true)" \n        "$(theme_file style.theme)"; do
         if [[ -n ${name} ]] && is_style "${name}"; then
             echo "${name}"
             return 0
@@ -208,11 +212,12 @@ font_installed() {
     [[ -n $1 ]] && fc-list : family 2>/dev/null | tr ',' '\n' | grep -Fx -- "$1" >/dev/null
 }
 
-# The interface font's family: the account's own choice (ame desktop font), else the theme's, else the desktop's.
+# The interface font's family: the account's own choice (ame desktop font), else its image's, else the theme's, else the
+# desktop's.
 # A family that is not installed is passed over, as an icon theme is.
 ui_font() {
     local name
-    for name in "$(head -n1 "${CONFIG_DIR}/font" 2>/dev/null || true)" "$(theme_file font.theme)"; do
+    for name in "$(head -n1 "${CONFIG_DIR}/font" 2>/dev/null || true)" "$(head -n1 "${IMAGE_SETUP_DIR}/font" 2>/dev/null || true)" \n        "$(theme_file font.theme)"; do
         if font_installed "${name}"; then
             echo "${name}"
             return 0
@@ -221,11 +226,11 @@ ui_font() {
     echo "${DEFAULT_FONT}"
 }
 
-# The monospace font's family: the account's own choice (ame desktop mono-font), else the theme's (mono.theme in the
+# The monospace font's family: the account's own choice (ame desktop mono-font), else its image's, else the theme's (mono.theme in the
 # folder given, the current theme's when none is), else JetBrains Mono. A family that is not installed is passed over.
 mono_font() {
     local dir="${1:-${CURRENT_THEME_DIR}}" name
-    for name in "$(head -n1 "${CONFIG_DIR}/mono-font" 2>/dev/null || true)" "$(head -n1 "${dir}/mono.theme" 2>/dev/null || true)"; do
+    for name in "$(head -n1 "${CONFIG_DIR}/mono-font" 2>/dev/null || true)" "$(head -n1 "${IMAGE_SETUP_DIR}/mono-font" 2>/dev/null || true)" \n        "$(head -n1 "${dir}/mono.theme" 2>/dev/null || true)"; do
         if font_installed "${name}"; then
             echo "${name}"
             return 0

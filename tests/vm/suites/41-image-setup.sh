@@ -1,12 +1,15 @@
 #!/usr/bin/bash
-# An image of your own, the image's side: what the image template's build does with setup.json and branding/
-# (amethystora-setup bake, amethystora-brand), done to the running system as that build would, and the machine
+# An image of your own, the image's side: what the image template's build does with setup.json, branding/ and policy/
+# (amethystora-setup bake, amethystora-brand, amethystora-image-policy), done to the running system as that build would
+# (the hardening and the updates, which need a build, aside), and the machine
 # started on the result. The derived image is the running one, checked out in hard links into the repository,
 # baked and branded with --root, and committed with its SELinux labels from its own policy, as 39-old-audit-rules.sh
 # makes its older image, deployed unstaged. On it: amethystora-image-check passes; About's name, the login screen's
 # logo and the wallpaper are the owner's; an account new to the machine starts with the file's dock, layout,
 # tiling gap, keybindings and theme, and its wallpaper is the image's; the extension's own compiled schemas carry the
-# file's tiling settings too; the Brewfile hook installs the file's formula once. The machine is left with its
+# file's tiling settings too; the image's desktop style comes before the theme's; the policy's settings are its
+# defaults, the locked ones not writable, the login screen's notice shown, an extension turned off off, the agent's
+# limits and a Security switch the image's; the Brewfile hook installs the file's formula once. The machine is left with its
 # deployments as they were.
 source "$(dirname "$0")/lib.sh"
 
@@ -60,6 +63,42 @@ EOF
         printf '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="40"><rect width="64" height="40" fill="#0b6e4f"/></svg>\n' \
             >"${files}/branding/wallpaper.svg"
         base64 -d >"${files}/branding/logo.png" <<<"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+        echo islands >"${files}/branding/style"
+        # The policy a company would set: the agent, a Security switch, GNOME's settings locked and not, an extension off
+        mkdir -p "${files}/policy"
+        printf 'ALLOW=know\nROOT=each\n' >"${files}/policy/agent.conf"
+        echo "PROCESSES=on" >"${files}/policy/security"
+        # ...and its network: a locked proxy, a Flatpak remote (Flathub's own key, pinned by its fingerprint), a VPN
+        printf 'http=proxy.vmlab.example:3128\nignore=localhost\nlock=yes\n' >"${files}/policy/proxy"
+        mkdir -p "${files}/policy/flatpak-remotes" "${files}/policy/vpn"
+        key="$(sed -n 's/^GPGKey=//p' /etc/flatpak/remotes.d/flathub.flatpakrepo)"
+        printf '[Flatpak Repo]\nTitle=Vmlab apps\nUrl=https://flatpak.vmlab.example/repo/\nGPGKey=%s\n' "${key}" \
+            >"${files}/policy/flatpak-remotes/vmlab.flatpakrepo"
+        base64 -d <<<"${key}" | GNUPGHOME="$(mktemp -d)" gpg --batch --with-colons --show-keys 2>/dev/null |
+            awk -F: '$1 == "fpr" { print $10; exit }' >"${files}/policy/flatpak-remotes/vmlab.fingerprint"
+        openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 -nodes -keyout "${STATE}/ca.key" \
+            -out "${files}/policy/vpn/vmlab-ca.crt" -subj /CN=Vmlab -days 2 2>/dev/null
+        cat >"${files}/policy/vpn/vmlab.nmconnection" <<'EOF'
+[connection]
+id=Vmlab VPN
+uuid=5d6e2b1c-7f3a-4c8e-9a0b-1c2d3e4f5a6b
+type=vpn
+autoconnect=false
+
+[vpn]
+service-type=org.freedesktop.NetworkManager.openvpn
+connection-type=password
+remote=vpn.vmlab.example
+password-flags=2
+ca=/etc/pki/amethystora-vpn/vmlab-ca.crt
+
+[ipv4]
+method=auto
+EOF
+        cat >"${files}/policy/desktop.json" <<'EOF'
+{"version": 1, "set": {"idle-delay": 600, "camera-off": true, "clock-format": "24h", "login-banner": "Vmlab only."},
+ "lock": ["idle-delay", "camera-off"], "extensions-off": ["amethystora-widgets@iarsslen.github.io"]}
+EOF
 
         dir="${REPO}/tmp/vmlab-image-setup"
         rw rm -rf "${dir}"
@@ -68,6 +107,7 @@ EOF
             rw ln -s usr/etc "${dir}/etc" &&
             rw /usr/libexec/amethystora-setup bake "${files}/setup.json" --root "${dir}" &&
             rw /usr/libexec/amethystora-brand "${files}/branding" --root "${dir}" &&
+            rw /usr/libexec/amethystora-image-policy "${files}/policy" --root "${dir}" &&
             rw rm "${dir}/etc" &&
             rw ostree commit --repo="${REPO}" --parent="$(recall original)" -b vmlab/image-setup -I --consume --bootable \
                 --selinux-policy="${dir}" --add-metadata-string=version=vmlab-image-setup "${dir}" >/dev/null &&
@@ -119,6 +159,34 @@ EOF
 
         same "its wallpaper is the image's" "$(fresh gsettings get org.gnome.desktop.background picture-uri)" "${WALLPAPER}"
         same "...and its lock screen's" "$(fresh gsettings get org.gnome.desktop.screensaver picture-uri)" "${WALLPAPER}"
+        same "its desktop style is the image's, over the theme's own" "$(cat "/var/home/${ACCOUNT}/.config/amethystora/current/style.name" 2>/dev/null)" islands
+
+        # The image's policy
+        same "the screen blanks after the image's ten minutes" "$(fresh gsettings get org.gnome.desktop.session idle-delay)" "uint32 600"
+        same "...which the account cannot change" "$(fresh gsettings writable org.gnome.desktop.session idle-delay)" false
+        same "the camera is off for every app, locked" "$(fresh gsettings get org.gnome.desktop.privacy disable-camera)|$(fresh gsettings writable org.gnome.desktop.privacy disable-camera)" "true|false"
+        same "the clock is the image's 24-hour one, which the account may change" \
+            "$(fresh gsettings get org.gnome.desktop.interface clock-format)|$(fresh gsettings writable org.gnome.desktop.interface clock-format)" "'24h'|true"
+        same "the login screen shows the image's notice" \
+            "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.login-screen banner-message-enable) $(GSETTINGS_BACKEND=memory gsettings get org.gnome.login-screen banner-message-text)" \
+            "true 'Vmlab only.'"
+        extensions="$(fresh gsettings get org.gnome.shell enabled-extensions)"
+        grep -qF widgets <<<"${extensions}" && not_ok "the widgets the image turned off are on" "${extensions}" ||
+            ok "the extension the image turned off is off"
+        # The image's own /etc, which a machine's own changes of earlier suites would win over in /etc
+        check "the agent's limits are the image's" grep -qx "ALLOW=know" /usr/etc/amethystora/agent.conf
+        same "Security's switch is the image's" "$(AMETHYSTORA_SECURITY_CONF=/usr/etc/amethystora/security.conf /usr/libexec/amethystora-security-config PROCESSES)" on
+
+        # The company's network
+        same "the proxy is the image's, locked" \
+            "$(fresh gsettings get org.gnome.system.proxy mode)|$(fresh gsettings get org.gnome.system.proxy.http host)|$(fresh gsettings writable org.gnome.system.proxy.http host)" \
+            "'manual'|'proxy.vmlab.example'|false"
+        same "...and the session's variables" "$(user_bus systemctl --user show-environment 2>/dev/null | sed -n 's/^http_proxy=//p')" \
+            "http://proxy.vmlab.example:3128"
+        check "the company's Flatpak remote is one of the machine's" sh -c "flatpak remotes --system --columns=name,url | grep -q '^vmlab[[:space:]]*https://flatpak.vmlab.example/repo/'"
+        same "the VPN is one of NetworkManager's connections" "$(nmcli -g connection.id connection show 5d6e2b1c-7f3a-4c8e-9a0b-1c2d3e4f5a6b 2>&1)" "Vmlab VPN"
+        same "...of root's alone, asking for its password" \
+            "$(stat -c %a /etc/NetworkManager/system-connections/vmlab.nmconnection)|$(nmcli -g vpn.secrets connection show 5d6e2b1c-7f3a-4c8e-9a0b-1c2d3e4f5a6b 2>&1)" "600|"
         [[ "${FAILED}" == 0 ]] || echo "# the theme hook said: $(tail -n 5 <<<"${out}")"
 
         # The Brewfile, installed once for an account that logs in

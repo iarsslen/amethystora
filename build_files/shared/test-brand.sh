@@ -17,8 +17,11 @@ JPEG=/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP/////////////////////////////////////////
 
 stand_in() {
     rm -rf "${ROOT}" "${DIR}"
-    mkdir -p "${ROOT}/usr/lib" "${ROOT}/usr/share/glib-2.0" "${ROOT}/usr/share/pixmaps" "${DIR}"
+    mkdir -p "${ROOT}/usr/lib/amethystora/theme" "${ROOT}/usr/share/glib-2.0" "${ROOT}/usr/share/pixmaps" "${DIR}" \
+        "${ROOT}/usr/share/icons/amethystora-neon"
     cp /usr/lib/os-release "${ROOT}/usr/lib/"
+    cp /usr/lib/amethystora/theme/lib.sh "${ROOT}/usr/lib/amethystora/theme/"
+    touch "${ROOT}/usr/share/icons/amethystora-neon/index.theme"
     cp -r /usr/share/glib-2.0/schemas "${ROOT}/usr/share/glib-2.0/"
     echo "Acme OS" >"${DIR}/name"
     printf '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"/>\n' >"${DIR}/wallpaper.svg"
@@ -47,6 +50,21 @@ for logo in fedora-logo-icon fedora-gdm-logo; do
     cmp -s "${DIR}/logo.png" "${ROOT}/usr/share/pixmaps/${logo}.png"
 done
 cmp -s "${DIR}/logo.png" "${ROOT}/usr/share/amethystora/image-setup/branding/logo.png"
+# The look every account starts with, read between the account's own choice and the theme's
+stand_in
+FONT="$(fc-list : family | tr ',' '\n' | sort -u | grep -m1 -x 'JetBrains Mono\|Inter\|Adwaita Sans\|Cantarell' || true)"
+echo islands >"${DIR}/style"
+echo amethystora-neon >"${DIR}/icons"
+[[ -z "${FONT}" ]] || echo "${FONT}" >"${DIR}/font"
+"${BRAND}" "${DIR}" --root "${ROOT}" >/dev/null
+[[ "$(cat "${ROOT}/usr/share/amethystora/image-setup/style")" == islands ]]
+[[ "$(cat "${ROOT}/usr/share/amethystora/image-setup/icons")" == amethystora-neon ]]
+[[ -z "${FONT}" || "$(cat "${ROOT}/usr/share/amethystora/image-setup/font")" == "${FONT}" ]]
+for look in style icons font mono-font; do
+    grep -q "IMAGE_SETUP_DIR}/${look}" /usr/lib/amethystora/theme/lib.sh
+done
+rm "${DIR}/style" "${DIR}/icons" "${DIR}/font" 2>/dev/null || true
+
 # Run again with the name alone, it leaves no wallpaper or logo setting behind
 rm "${DIR}/wallpaper.svg" "${DIR}/logo.png"
 "${BRAND}" "${DIR}" --root "${ROOT}" >/dev/null
@@ -75,4 +93,8 @@ stand_in; base64 -d <<<"${PNG}" >"${DIR}/wallpaper.jpg"; cp "${DIR}/wallpaper.jp
 stand_in; rm "${DIR}/logo.png"; ln -s /usr/share/pixmaps/amethystora-logo-512.png "${DIR}/logo.png"; refused "a link"
 stand_in; echo x >"${DIR}/build.sh"; refused "a script"
 stand_in; base64 -d <<<"${PNG}" >"${DIR}/login.png"; refused "a login picture outside a build"
+stand_in; echo glossy >"${DIR}/style"; refused "a style that does not exist"
+stand_in; echo no-such-icons >"${DIR}/icons"; refused "an icon theme the image lacks"
+stand_in; echo "No Such Font Family" >"${DIR}/font"; refused "a font the image lacks"
+stand_in; echo '$(reboot)' >"${DIR}/mono-font"; refused "a font name that is a command"
 echo "amethystora-brand: ok"

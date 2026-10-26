@@ -1534,6 +1534,11 @@ rm -rf "${TRUST_ROOT}"
 test -x /usr/libexec/amethystora-login-background
 command -v file >/dev/null
 bash /ctx/build_files/shared/test-brand.sh
+# ...and its policy: the agent's limits, Security's switches, GNOME's settings default or locked, the hardening a
+# build can turn on and when it updates (amethystora-image-policy)
+test -x /usr/libexec/amethystora-image-policy
+systemctl cat uupd.timer | grep -q '^OnCalendar='
+bash /ctx/build_files/shared/test-image-policy.sh
 # The copy opens root's blob info cache before it fails, in /var/lib/containers/cache, and makes every
 # directory on the way with the cache's own 0700, /var/lib too: see the check on /var/lib at the end
 rm -rf /var/lib/containers

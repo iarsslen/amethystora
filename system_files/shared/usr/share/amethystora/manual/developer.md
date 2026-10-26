@@ -139,9 +139,13 @@ Fedora's logo and release packages.
 
 The same repository takes the apps, look and policy every machine and account of yours starts with,
 with no script: a [setup file](setup.md) (`ame setup save setup.json` writes this machine's) becomes the
-image's defaults, a `branding/` folder gives it your name, wallpaper, logo and login screen (About says
-"*your name*, built on Amethystora"), and a `policy/` folder sets how far the AI agent may go and the
-security profile. The [image editor](https://amethystora.org/build) on Amethystora's website writes these
+image's defaults, a `branding/` folder gives it your name, wallpaper, logo, login screen, desktop style,
+icons and fonts (About says "*your name*, built on Amethystora"), a `policy/` folder sets how far the AI agent
+may go, Security's switches, the stricter hardening, GNOME's settings by default or locked for everyone (the
+screen lock, a notice on the login screen, the camera, printing, keyboard layouts and more), when machines
+update, and the company's proxy, DNS servers, VPN connections and Flatpak remotes, never with a password or a
+key in them (each person gives those as they connect), and a `packages` file adds Fedora's packages the system
+itself needs. The [image editor](https://amethystora.org/build) on Amethystora's website writes these
 files for you. A **Build ISO** workflow in the repository makes the two ISOs of your image, with
 Amethystora's own installer files: the one that starts from a USB stick to try it, and the installer.
 

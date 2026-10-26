@@ -1380,11 +1380,24 @@ three more scripts shipped here, so keep their arguments too (`plans/PLAN-image-
 - `amethystora-brand DIR [--root ROOT]` sets the name (`PRETTY_NAME` "NAME, built on Amethystora", `VARIANT`;
   `ID=amethystora` stays, which bootc-image-builder and the installers go by), the wallpaper
   (`image-setup/backgrounds`, which `amethystora-theme` lists before every theme's own, and `zz3-image-branding`),
-  the logo (About's and GDM's Fedora-named files) and the login picture, through
-  `/usr/libexec/amethystora-login-background`, which `12-login-screen.sh` uses for Amethystora's own.
-  `amethystora-image-check` takes a Fedora-named logo only as Amethystora's picture or the owner's.
-- `policy/agent.conf` and `policy/security` are written by `files.sh` itself, through `amethystora-security-config profile`.
-`test-setup.sh` and `test-brand.sh` check both against stand-ins in `20-tests.sh`. The template's `build-iso.yml` builds
+  the logo (About's and GDM's Fedora-named files), the login picture, through
+  `/usr/libexec/amethystora-login-background`, which `12-login-screen.sh` uses for Amethystora's own, and the look
+  (`image-setup/{style,icons,font,mono-font}`, which `theme/lib.sh` reads after the account's own choice and before
+  the theme's). `amethystora-image-check` takes a Fedora-named logo only as Amethystora's picture or the owner's.
+- `amethystora-image-policy DIR [--root ROOT]` takes `policy/`: `agent.conf`, `security` (a profile, then
+  `KEY=VALUE` switches through `amethystora-security-config`), `hardening` (only its `BUILD_SAFE_ON` and
+  `BUILD_SAFE_OFF` switches, through `amethystora-hardening set`, which a build can apply), `desktop.json` (its
+  `DESKTOP_KEYS` table of GNOME settings into `zz4-image-policy`, each lockable through a dconf file and lock, and
+  image extensions turned off), `updates` (`uupd.timer` on or off and a drop-in for when), and the company's
+  network, none of which may hold a secret, since an image can be read by anyone who can pull it: `proxy` (GNOME's
+  proxy, lockable, and `environment.d`; host and port, never a login), `dns` (`amethystora-dns on custom`, at
+  build only), `flatpak-remotes/` (`/etc/flatpak/remotes.d`, https, the key checked against `NAME.fingerprint`;
+  `--only flatpak-remotes` runs before `bake`, which then takes apps from them) and `vpn/` (NetworkManager
+  keyfiles of an installed plugin or WireGuard, 0600, without a password, key, key file or `[vpn-secrets]`, and
+  their CA certificates in `/etc/pki/amethystora-vpn`). The website's editor
+  reads `DESKTOP_KEYS`, `BUILD_SAFE_*`, the hardening and security helpers' tables of words and `TILING_KEYS` out of
+  the scripts (`npm run sync:image-editor`): keep their shapes, or change the reader with them.
+`test-setup.sh`, `test-brand.sh` and `test-image-policy.sh` check all three against stand-ins in `20-tests.sh`. The template's `build-iso.yml` builds
 an owner's two ISOs from this repository's `iso/` at a pinned commit: keep `@IMAGE@` in `iso.toml` the image's whole
 repository, and the live ISO's sealed installer for `ghcr.io/iarsslen` images only. The editor that writes the files
 is `/build` on the website (`../amethystora-website`, `src/lib/image-editor.mjs`).
