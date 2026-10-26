@@ -181,20 +181,20 @@ EOF
         same "the proxy is the image's, locked" \
             "$(fresh gsettings get org.gnome.system.proxy mode)|$(fresh gsettings get org.gnome.system.proxy.http host)|$(fresh gsettings writable org.gnome.system.proxy.http host)" \
             "'manual'|'proxy.vmlab.example'|false"
-        same "...and the session's variables" "$(user_bus systemctl --user show-environment 2>/dev/null | sed -n 's/^http_proxy=//p')" \
-            "http://proxy.vmlab.example:3128"
         check "the company's Flatpak remote is one of the machine's" sh -c "flatpak remotes --system --columns=name,url | grep -q '^vmlab[[:space:]]*https://flatpak.vmlab.example/repo/'"
         same "the VPN is one of NetworkManager's connections" "$(nmcli -g connection.id connection show 5d6e2b1c-7f3a-4c8e-9a0b-1c2d3e4f5a6b 2>&1)" "Vmlab VPN"
         same "...of root's alone, asking for its password" \
             "$(stat -c %a /etc/NetworkManager/system-connections/vmlab.nmconnection)|$(nmcli --show-secrets -g vpn.secrets connection show 5d6e2b1c-7f3a-4c8e-9a0b-1c2d3e4f5a6b 2>&1)" "600|"
         [[ "${FAILED}" == 0 ]] || echo "# the theme hook said: $(tail -n 5 <<<"${out}")"
 
-        # The Brewfile, installed once for an account that logs in
+        # The proxy in a session, and the Brewfile, installed once for an account that logs in
         stamp="$(realpath "$(getent passwd "${TEST_USER}" | cut -d: -f6)")/.local/state/amethystora/image-brewfile"
         rm -f "${stamp}"
         if ! has_session && ! wait_for 300 has_session; then
-            skip "the Brewfile: no session for ${TEST_USER}"
+            skip "the proxy in a session and the Brewfile: no session for ${TEST_USER}"
         else
+            same "the session has the proxy's variables" "$(user_bus systemctl --user show-environment 2>/dev/null | sed -n 's/^http_proxy=//p')" \
+                "http://proxy.vmlab.example:3128"
             in_session /usr/share/amethystora/user-setup.hooks.d/18-image-brewfile.sh >/dev/null 2>&1
             stamped() { [[ -s "${stamp}" ]]; }
             if wait_for 900 stamped; then
