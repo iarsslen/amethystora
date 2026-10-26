@@ -74,6 +74,11 @@ stays unused is repacked smaller every hour while the machine is on mains power.
 holding 3 GB of program data, that took about 420 MB of RAM for each GB moved out, against 540 MB with
 the quick compression alone, and brought it back sooner than compressing it small from the start.
 
+The kernel's own memory settings are left as they are. The values often suggested for zram
+(`vm.swappiness` at 180, `vm.page-cluster` at 0, and the two watermark settings) were measured on 4 GB
+and 8 GB machines, together and one at a time: none made the desktop quicker, and a swappiness of 180
+made it slower. Performance mode in the quick settings swaps less (a swappiness of 10), which did no harm.
+
 `ame system zram` explains the choices and asks, and so does **Swapped-out memory** on
 [Control](control.md)'s **System** page: `default`, `fast` (no repacking, Fedora's own) or `compact`
 (small from the start, slower to come back). A choice takes effect from the next restart.

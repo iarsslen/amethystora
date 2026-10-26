@@ -52,7 +52,8 @@ slows down at certain times (an hour after start, at night, once a week).
    stop. A kernel that will not run the sensor: `ame report`.
 4. Wait for it to finish; uupd itself skips a run while the machine is busy or on low battery.
 5. `change` the Control entry `zram` to `fast` (no hourly repacking, more memory used) (root) (restart).
-   Close what holds memory.
+   Close what holds memory. Do not raise `vm.swappiness` or change `vm.page-cluster` or the watermarks
+   for zram: measured on this image, swappiness 180 made the desktop slower and none of them helped.
 6. The user may run `ame security kernel-args init_on_free=1 off` (or `iommu.strict=1`) (root)
    (restart).
 7. Clean the vents; pick Balanced or Performance in the quick settings.
