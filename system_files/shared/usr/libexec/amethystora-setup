@@ -49,7 +49,8 @@
 
 set -uo pipefail
 
-CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora"
+# A build (bake) may run with no HOME at all: then the account's own folder, which bake never reads
+CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME:-$(getent passwd "$(id -u)" | cut -d: -f6)}/.config}/amethystora"
 DEFAULT_FILE="${CONFIG_DIR}/setup.json"
 BREW="$(command -v brew 2>/dev/null || echo /home/linuxbrew/.linuxbrew/bin/brew)"
 CUSTOM=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings

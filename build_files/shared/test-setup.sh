@@ -245,7 +245,8 @@ bake_root() {
     cp -r "/${UI}/schemas" "${ROOT}/${UI}/"
     cp -r /etc/dconf/db/distro.d "${ROOT}/etc/dconf/db/"
 }
-bake() { env PATH=/usr/bin:/usr/sbin "${SETUP}" bake "$@" --root "${ROOT}"; }
+# ...and without HOME, which a build need not set
+bake() { env -u HOME PATH=/usr/bin:/usr/sbin "${SETUP}" bake "$@" --root "${ROOT}"; }
 image() { GSETTINGS_SCHEMA_DIR="${ROOT}/usr/share/glib-2.0/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get "$@"; }
 bake_root
 jq '.image = {"name": "amethystora", "stream": "stable"}
