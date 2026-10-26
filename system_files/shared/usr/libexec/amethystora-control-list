@@ -192,10 +192,15 @@ item appearance theme themes "$(gettext "Theme")" \
 
 # The theme's own icons, style and font, which "Follow the theme" gives: each of the three is the account's to keep
 # whatever the theme, so that any theme, style, font and icons go together. Read from the current theme's files as
-# amethystora-theme reads them, without the account's choice.
+# amethystora-theme reads them, without the account's choice. The fonts are the theme's files as they are, not asked of
+# fontconfig, whose list of every family cost the list a second in the lab (20-tests.sh holds every theme's to one that
+# is installed).
 OWN_ICONS="$(CONFIG_DIR=/nonexistent icon_theme)"
 OWN_STYLE="$(CONFIG_DIR=/nonexistent desktop_style)"
-OWN_FONT="$(CONFIG_DIR=/nonexistent ui_font)"
+OWN_FONT="$(theme_file font.theme)"
+OWN_FONT="${OWN_FONT:-${DEFAULT_FONT}}"
+OWN_MONO="$(theme_file mono.theme)"
+OWN_MONO="${OWN_MONO:-${DEFAULT_MONO_FONT}}"
 own="$(pretty "${OWN_ICONS#amethystora-}")"
 ICONS_SET=theme
 [[ -r "${CONFIG_DIR}/icons" ]] && { ICONS_SET="$(<"${CONFIG_DIR}/icons")"; ICONS_SET="${ICONS_SET#amethystora-}"; }
@@ -245,7 +250,7 @@ MONO_SET=theme
 mapfile -t -O "${#CHOICES[@]}" CHOICES < <(jq -nc '$ARGS.positional[]
     | {value: ., title: ., text: null, terminal: false, command: ["ame", "desktop", "mono-font", .], font: .}' \
     --args "${MONO_FONTS[@]}")
-own="$(CONFIG_DIR=/nonexistent mono_font)"
+own="${OWN_MONO}"
 choice theme "$(gettext "Follow the theme")" "$(eval_gettext "The theme's own: \${own}")" false ame desktop mono-font theme
 USAGE="ame desktop mono-font FAMILY"
 item appearance mono-font choice "$(gettext "Monospace font")" \
