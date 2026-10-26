@@ -1370,7 +1370,7 @@ trust comes first. `ame system rebase` must keep taking signed images only. The 
 `developer.md#an-image-of-your-own`.
 
 The template's `build_files/files.sh` makes its `setup.json`, `branding/` and `policy/` part of the image with
-three more scripts shipped here, so keep their arguments too (`plans/PLAN-image-editor.md`):
+three more scripts shipped here, so keep their arguments too (`plans/done/PLAN-image-editor.md`):
 - `amethystora-setup bake FILE [--root DIR]` takes the file `ame setup save` writes as every machine's and
   account's defaults, through what the image already reads: `preinstall.d/image-setup.preinstall` (Flathub's
   apps only), `zz2-image-setup.gschema.override` (the dock, the extensions, keybindings, layout and tiling, the
