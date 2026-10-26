@@ -129,7 +129,8 @@ fi
 say ""
 
 entry="$(lookup "${base}")"
-field() { jq -r --arg k "$1" '.[$k] // empty' <<<"${entry}"; }
+# .[$k] // empty would drop a false, "wine": false among them
+field() { jq -r --arg k "$1" '.[$k] | values' <<<"${entry}"; }
 name="$(field name)"
 # What is offered, as the words shown and, beside them, what each does
 labels=() actions=()
@@ -157,7 +158,7 @@ if [[ -n "${entry}" ]]; then
     if [[ "$(field wine)" == false ]]; then
         say "$(eval_gettext 'This is ${name}, which is known not to run with Wine on Linux, usually because of its anti-cheat, its licence checks or a driver of its own. A Windows virtual machine is what runs it: the developer image comes with virtual machines (amethystora-manual developer).')"
     else
-        say "$(eval_gettext 'This is ${name}. There are better ways to it on Linux than the Windows program:')"
+        say "$(eval_gettext 'This is ${name}. There are better ways to have it on Linux than the Windows program:')"
     fi
     launcher="$(field launcher)"
     if [[ -n "${launcher}" ]]; then
@@ -188,17 +189,17 @@ for i in "${!labels[@]}"; do
 done
 
 case "${action:-cancel}" in
-    open\ *) setsid -f flatpak run "${action#open }" >/dev/null 2>&1 ;;
-    launch\ *) setsid -f gio launch "/usr/share/applications/${action#launch }" >/dev/null 2>&1 ;;
+    open\ *) setsid -f flatpak run "${action#open }" </dev/null >/dev/null 2>&1 ;;
+    launch\ *) setsid -f gio launch "/usr/share/applications/${action#launch }" </dev/null >/dev/null 2>&1 ;;
     install\ *)
         id="${action#install }"
-        flatpak install flathub "${id}" && setsid -f flatpak run "${id}" >/dev/null 2>&1
+        flatpak install flathub "${id}" && setsid -f flatpak run "${id}" </dev/null >/dev/null 2>&1
         ;;
     ame\ *)
         read -ra words <<<"${action#ame }"
         exec /usr/bin/ame "${words[@]}"
         ;;
-    web\ *) amethystora-webapp install "${name}" "${action#web }" && setsid -f amethystora-webapp "${action#web }" >/dev/null 2>&1 ;;
+    web\ *) amethystora-webapp install "${name}" "${action#web }" && setsid -f amethystora-webapp "${action#web }" </dev/null >/dev/null 2>&1 ;;
     bottles)
         say "$(gettext "Bottles runs Windows programs with Wine, each kind in a bottle of its own. Many run well; some do not run at all.")"
         say "$(gettext "Wine draws through X11, which the image takes from every app, since an app on X11 can read what you type into other X11 apps. X11 is granted back to Bottles alone, for your account: the Security app's Apps page lists it, and flatpak override --user --reset com.usebottles.bottles takes it back.")"
@@ -214,7 +215,7 @@ case "${action:-cancel}" in
                 die "$(gettext "Bottles could not make the bottle. Open Bottles to make one, then open the program again.")"
         fi
         say "$(gettext "Bottles asks which bottle to run it in.")"
-        setsid -f flatpak run --file-forwarding "${BOTTLES}" -e @@ "${file}" @@ >/dev/null 2>&1
+        setsid -f flatpak run --file-forwarding "${BOTTLES}" -e @@ "${file}" @@ </dev/null >/dev/null 2>&1
         ;;
 esac
 exit 0

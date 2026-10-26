@@ -4051,7 +4051,7 @@ msgstr ""
 
 #: usr/libexec/amethystora-windows-program
 #, sh-format
-msgid "This is ${name}. There are better ways to it on Linux than the Windows program:"
+msgid "This is ${name}. There are better ways to have it on Linux than the Windows program:"
 msgstr ""
 
 #: usr/libexec/amethystora-windows-program

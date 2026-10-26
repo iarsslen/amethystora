@@ -163,8 +163,9 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     fi
     pkill -u "${TEST_USER}" -x amethystora-sec
 
-    # Opened from Files: the default application starts the handler in a terminal of the session
-    in_session "gio open ~/${FOLDER}/vmlab-tool.exe" >/dev/null 2>&1
+    # Opened from Files: the default application starts the handler in a terminal of the session. In a unit that
+    # leaves it running when gio ends (in_session's would stop the terminal with it)
+    user_bus systemd-run --user --collect --quiet -p KillMode=process -- gio open "${HOME_DIR}/${FOLDER}/vmlab-tool.exe"
     if wait_for 60 pgrep -u "${TEST_USER}" -f "${HANDLER} .*vmlab-tool.exe"; then
         ok "opening an .exe in the session starts the handler in a terminal"
     else
