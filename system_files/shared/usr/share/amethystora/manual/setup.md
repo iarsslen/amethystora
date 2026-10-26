@@ -14,6 +14,8 @@ ame setup apply     # add what the file names and this machine lacks
 [Backups](security.md#backups) keep the same setup beside your files, and `ame restore-setup` makes it
 again from there. `ame setup` is for a file you keep, read and edit yourself. [Control](control.md)'s
 **Your setup** page shows what `ame setup diff` says, saves the file, and applies it in a terminal.
+An [image of your own](developer.md#an-image-of-your-own) takes the same file as what every machine and
+account starts with.
 
 ## Saving it
 

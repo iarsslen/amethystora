@@ -74,10 +74,13 @@ if grep "bootc switch" /usr/share/anaconda/interactive-defaults.ks | grep -v -- 
 fi
 
 # The sealed images (:stable-sealed), which Anaconda cannot install yet, have an installer of their own:
-# a whole disk, the image downloaded from the registry, shim placed in front of systemd-boot
-install -Dpm0755 "${LIVE}/amethystora-install-sealed" /usr/bin/amethystora-install-sealed
-install -Dpm0644 "${LIVE}/amethystora-install-sealed.desktop" \
-    /usr/share/applications/amethystora-install-sealed.desktop
+# a whole disk, the image downloaded from the registry, shim placed in front of systemd-boot. Amethystora's
+# own images only: an image of one's own built on one (its template runs this too) has no sealed variant
+if [[ "${BASE_IMAGE}" == ghcr.io/iarsslen/* ]]; then
+    install -Dpm0755 "${LIVE}/amethystora-install-sealed" /usr/bin/amethystora-install-sealed
+    install -Dpm0644 "${LIVE}/amethystora-install-sealed.desktop" \
+        /usr/share/applications/amethystora-install-sealed.desktop
+fi
 
 # Anaconda's welcome window for the live session names Fedora, as its desktop entries do: this is a
 # system built on Fedora, not Fedora, and its trademark guidelines ask for its name to stay off it

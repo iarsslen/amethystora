@@ -2,7 +2,8 @@
 #
 # The image is carried on the ISO, so installing needs no network. Anaconda asks only for the disk,
 # where it offers encryption; GNOME Initial Setup creates the user on first boot, as on Silverblue.
-# The workflow replaces @IMAGE@ with the image the ISO carries.
+# The workflow replaces @IMAGE@ with the repository of the image the ISO carries (ghcr.io/iarsslen/amethystora,
+# or an image of one's own, whose template runs the same steps).
 
 [customizations.iso]
 volume_id = "Amethystora"
@@ -26,7 +27,7 @@ publisher = "Amethystora"
 contents = """
 %post --erroronfail
 set -e
-bootc switch --mutate-in-place --enforce-container-sigpolicy --transport registry ghcr.io/iarsslen/@IMAGE@:stable
+bootc switch --mutate-in-place --enforce-container-sigpolicy --transport registry @IMAGE@:stable
 mkdir -p /var/lib/amethystora && touch /var/lib/amethystora/new-installation
 if [ -e /usr/lib/bootc/kargs.d/00-nvidia.toml ] && mokutil --sb-state 2>/dev/null | grep -qi enabled; then
     mokutil --timeout -1 || :

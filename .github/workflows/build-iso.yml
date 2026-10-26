@@ -114,7 +114,7 @@ jobs:
             amethystora | amethystora-dx | amethystora-nvidia-open | amethystora-dx-nvidia-open | amethystora-nvidia-lts | amethystora-dx-nvidia-lts) ;;
             *) echo "::error::${IMAGE} has no ISO: it is not one of the six stable images"; exit 1 ;;
           esac
-          sed -i "s|@IMAGE@|${IMAGE}|" iso/iso.toml
+          sed -i "s|@IMAGE@|ghcr.io/iarsslen/${IMAGE}|" iso/iso.toml
           # The machine it installs takes updates signature-checked from the first one
           grep -q -- "--enforce-container-sigpolicy" iso/iso.toml
           if grep -E "^[^#]*bootc switch" iso/iso.toml | grep -v -- "--enforce-container-sigpolicy"; then

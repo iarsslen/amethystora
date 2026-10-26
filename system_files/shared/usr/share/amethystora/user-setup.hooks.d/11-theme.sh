@@ -52,4 +52,6 @@ set -xeuo pipefail
 if [[ "${PREVIOUS}" =~ ^[0-9]+$ ]] && ((PREVIOUS >= 7)); then
     export AMETHYSTORA_THEME_SKIP_BACKGROUND=1
 fi
-AMETHYSTORA_THEME_QUIET=1 /usr/bin/amethystora-theme set "$(/usr/bin/amethystora-theme current 2>/dev/null || echo amethystora)"
+# A new account starts on the theme an image of one's own baked in (amethystora-setup bake), else Amethystora's
+AMETHYSTORA_THEME_QUIET=1 /usr/bin/amethystora-theme set "$(/usr/bin/amethystora-theme current 2>/dev/null ||
+    head -n1 /usr/share/amethystora/image-setup/theme 2>/dev/null || echo amethystora)"

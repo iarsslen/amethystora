@@ -137,6 +137,14 @@ Its build ends with `/usr/libexec/amethystora-image-check`, which fails it if a 
 something Amethystora relies on: the checking of updates, the `ame` commands, or the absence of
 Fedora's logo and release packages.
 
+The same repository takes the apps, look and policy every machine and account of yours starts with,
+with no script: a [setup file](setup.md) (`ame setup save setup.json` writes this machine's) becomes the
+image's defaults, a `branding/` folder gives it your name, wallpaper, logo and login screen (About says
+"*your name*, built on Amethystora"), and a `policy/` folder sets how far the AI agent may go and the
+security profile. The [image editor](https://amethystora.org/build) on Amethystora's website writes these
+files for you. A **Build ISO** workflow in the repository makes the two ISOs of your image, with
+Amethystora's own installer files: the one that starts from a USB stick to try it, and the installer.
+
 Your image is signed with your key, not Amethystora's, so tell this machine to take it only with your
 signature before you switch to it. `cosign.pub`, from your repository, is the public half of the key:
 

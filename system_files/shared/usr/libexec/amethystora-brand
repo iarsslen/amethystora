@@ -1,0 +1,136 @@
+#!/usr/bin/bash
+# The light branding of an image of one's own, while it is built FROM Amethystora (the image template's build runs
+# it as root on its branding/ folder; never on a machine):
+#
+#   amethystora-brand DIR [--root ROOT]
+#
+# DIR may hold any of these, and nothing else but Markdown:
+#
+#   name                       the system's name, one line: Settings' About says "NAME, built on Amethystora"
+#   wallpaper.png|jpg|webp|svg every account's first wallpaper, whichever theme it picks, and the lock screen's
+#   logo.png                   square: About's picture and the logo under the login screen's list of accounts
+#   login.png|jpg              the login screen's background (amethystora-login-background; not with --root)
+#
+# os-release keeps ID=amethystora, which the installers and bootc-image-builder go by; only PRETTY_NAME, VARIANT and
+# VARIANT_ID change. Everything is copied to /usr/share/amethystora/image-setup/branding, which
+# amethystora-image-check takes as the owner's own pictures. Nobody else's logo, Fedora's included: the image's
+# trademark rule is the owner's too. The boot menu, the boot splash and the apps' wordmark stay Amethystora's.
+
+set -euo pipefail
+
+die() {
+    printf 'amethystora-brand: %s\n' "$*" >&2
+    exit 1
+}
+
+DIR="" ROOT=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --root) [[ $# -ge 2 ]] || die "usage: amethystora-brand DIR [--root ROOT]"; ROOT="${2%/}"; shift ;;
+        -*) die "usage: amethystora-brand DIR [--root ROOT]" ;;
+        *) [[ -z "${DIR}" ]] || die "usage: amethystora-brand DIR [--root ROOT]"; DIR="$1" ;;
+    esac
+    shift
+done
+[[ -d "${DIR}" ]] || die "usage: amethystora-brand DIR [--root ROOT]"
+OUT="${ROOT}/usr/share/amethystora/image-setup/branding"
+SCHEMAS="${ROOT}/usr/share/glib-2.0/schemas"
+OVERRIDE="${SCHEMAS}/zz3-image-branding.gschema.override"
+[[ -f "${ROOT}/usr/lib/os-release" && -d "${SCHEMAS}" ]] || die "${ROOT:-/} is not an Amethystora image."
+
+# What each file has to be, by what it holds rather than its name; nothing larger than 30 MB
+picture() {
+    local file="$1" types="$2" type
+    [[ -f "${file}" && ! -L "${file}" ]] || die "${file##*/} is not a plain file."
+    (($(stat -c %s "${file}") <= 30 * 1024 * 1024)) || die "${file##*/} is larger than 30 MB."
+    type="$(file -b --mime-type "${file}")"
+    [[ " ${types} " == *" ${type} "* ]] || die "${file##*/} is ${type}, not one of: ${types}."
+}
+
+NAME="" WALLPAPER="" LOGO="" LOGIN=""
+for file in "${DIR}"/* "${DIR}"/.[!.]*; do
+    [[ -e "${file}" ]] || continue
+    case "${file##*/}" in
+        name)
+            NAME="$(head -n1 "${file}" | tr -d '\r')"
+            [[ "$(wc -l <"${file}")" -le 1 && -n "${NAME}" ]] || die "name is one line."
+            # Spelled out rather than [[:alnum:]], which follows the build's locale
+            re="^[A-Za-z0-9][A-Za-z0-9 .+'-]{0,39}\$"
+            [[ "${NAME}" =~ ${re} ]] ||
+                die "name is up to 40 of A to Z, a to z, 0 to 9, spaces and . + ' -, starting with a letter or digit."
+            [[ "${NAME,,}" != *fedora* ]] || die "name may not carry Fedora's: Fedora's trademark guidelines keep it for Fedora."
+            ;;
+        wallpaper.png | wallpaper.jpg | wallpaper.jpeg | wallpaper.webp | wallpaper.svg)
+            [[ -z "${WALLPAPER}" ]] || die "there is more than one wallpaper."
+            picture "${file}" "image/png image/jpeg image/webp image/svg+xml"
+            WALLPAPER="${file}"
+            ;;
+        logo.png) picture "${file}" "image/png"; LOGO="${file}" ;;
+        login.png | login.jpg | login.jpeg)
+            [[ -z "${LOGIN}" ]] || die "there is more than one login picture."
+            picture "${file}" "image/png image/jpeg"
+            [[ -z "${ROOT}" ]] || die "the login picture goes into GNOME Shell's own files, which only a build can rebuild."
+            LOGIN="${file}"
+            ;;
+        *.md | .gitkeep) ;;
+        *) die "${file##*/} is not one of name, wallpaper.png|jpg|webp|svg, logo.png and login.png|jpg." ;;
+    esac
+done
+
+rm -rf "${OUT}" "${OUT%/branding}/backgrounds"
+mkdir -p "${OUT}"
+OVERRIDES=""
+
+if [[ -n "${NAME}" ]]; then
+    printf '%s\n' "${NAME}" >"${OUT}/name"
+    slug="$(tr '[:upper:]' '[:lower:]' <<<"${NAME}" | tr -c 'a-z0-9\n' '-' | sed -E 's/-+/-/g; s/^-//; s/-$//')"
+    # Line by line rather than sed, whose replacement would read & in the name. A name holds no " $ ` or \.
+    while IFS= read -r line; do
+        case "${line}" in
+            PRETTY_NAME=*)
+                version="$(sed -nE 's/.*\((Version: [^)]*)\).*/\1/p' <<<"${line}")"
+                printf 'PRETTY_NAME="%s, built on Amethystora%s"\n' "${NAME}" "${version:+ (${version})}"
+                ;;
+            VARIANT=* | VARIANT_ID=*) ;;
+            *) printf '%s\n' "${line}" ;;
+        esac
+    done <"${ROOT}/usr/lib/os-release" >"${OUT}/os-release"
+    printf 'VARIANT="%s"\nVARIANT_ID=%s\n' "${NAME}" "${slug:-image}" >>"${OUT}/os-release"
+    grep -qx "ID=amethystora" "${OUT}/os-release" || die "os-release has lost ID=amethystora."
+    install -m0644 "${OUT}/os-release" "${ROOT}/usr/lib/os-release"
+    rm "${OUT}/os-release"
+fi
+
+if [[ -n "${WALLPAPER}" ]]; then
+    install -m0644 "${WALLPAPER}" "${OUT}/${WALLPAPER##*/}"
+    # amethystora-theme puts the pictures of image-setup/backgrounds before every theme's own
+    mkdir -p "${OUT%/branding}/backgrounds"
+    install -m0644 "${WALLPAPER}" "${OUT%/branding}/backgrounds/${WALLPAPER##*/}"
+    uri="file:///usr/share/amethystora/image-setup/backgrounds/${WALLPAPER##*/}"
+    OVERRIDES+=$'\n'"[org.gnome.desktop.background]"$'\n'"picture-uri='${uri}'"$'\n'"picture-uri-dark='${uri}'"
+    OVERRIDES+=$'\n\n'"[org.gnome.desktop.screensaver]"$'\n'"picture-uri='${uri}'"$'\n'
+fi
+
+if [[ -n "${LOGO}" ]]; then
+    install -m0644 "${LOGO}" "${OUT}/logo.png"
+    # Under the Fedora names GDM and Settings' About look for (06-branding.sh), and for the greeter by name too
+    install -m0644 "${LOGO}" "${ROOT}/usr/share/pixmaps/fedora-logo-icon.png"
+    install -m0644 "${LOGO}" "${ROOT}/usr/share/pixmaps/fedora-gdm-logo.png"
+    OVERRIDES+=$'\n'"[org.gnome.login-screen]"$'\n'"logo='/usr/share/amethystora/image-setup/branding/logo.png'"$'\n'
+fi
+
+if [[ -n "${OVERRIDES}" ]]; then
+    printf '# The branding of this image (amethystora-brand), after the image'"'"'s own and its setup.json'"'"'s\n%s' \
+        "${OVERRIDES}" >"${OVERRIDE}"
+else
+    rm -f "${OVERRIDE}"
+fi
+glib-compile-schemas "${SCHEMAS}"
+
+if [[ -n "${LOGIN}" ]]; then
+    install -m0644 "${LOGIN}" "${OUT}/${LOGIN##*/}"
+    /usr/libexec/amethystora-login-background "${LOGIN}"
+fi
+
+echo "Branded the image:${NAME:+ named ${NAME},}${WALLPAPER:+ its wallpaper,}${LOGO:+ its logo,}${LOGIN:+ its login screen,}" |
+    sed 's/,$/./; s/image:$/image: nothing in the folder./'

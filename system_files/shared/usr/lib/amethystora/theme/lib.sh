@@ -46,6 +46,8 @@ CURRENT_THEME_NAME="${CURRENT_DIR}/theme.name"
 CURRENT_BACKGROUND="${CURRENT_DIR}/background"
 
 DEFAULT_THEME=amethystora
+# The wallpaper of an image of one's own built on Amethystora (amethystora-brand), every theme's first
+IMAGE_BACKGROUNDS_DIR=/usr/share/amethystora/image-setup/backgrounds
 # The image's icon packs, drawn by branding/icons.mjs, each /usr/share/icons/amethystora-<pack>. Each theme names the
 # one that suits its colours and its style (icons.theme); when it names none, Glass is the pack of a dark theme and
 # Glass for light of a light one, whose colours are deepened to read on a light ground. Glass is also the default in

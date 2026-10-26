@@ -239,6 +239,8 @@ background_list() {
     local slug pictures
     slug="$(theme_current)" || return 0
     pictures="$({
+        # An image of one's own built on Amethystora opens every theme on its own wallpaper (amethystora-brand)
+        find "${IMAGE_BACKGROUNDS_DIR}" -maxdepth 1 -type f 2>/dev/null | sort || true
         # A backgrounds.list entry can point anywhere on the system, so it may name a wallpaper that
         # a later image no longer ships; entries that are not there are skipped, not an error.
         if [[ -f "${CURRENT_THEME_DIR}/backgrounds.list" ]]; then

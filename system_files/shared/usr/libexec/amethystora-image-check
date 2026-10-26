@@ -40,6 +40,18 @@ signed "ghcr.io/$(jq -r '."image-vendor"' /usr/share/amethystora/image-info.json
 # nor its release package, which generic-logos and generic-release stand in for
 FEDORA="$(rpm -qa 'fedora-logos*' 'fedora-release*' 2>/dev/null)"
 [[ -z "${FEDORA}" ]] || fail "it carries $(paste -sd ' ' <<<"${FEDORA}"), which a remix of Fedora may not."
+# ...nor its logo under the names GDM, Settings and the fallback splash read it by (06-branding.sh): each is one of
+# Amethystora's pictures, or the owner's own (amethystora-brand)
+mapfile -t OURS < <(find /usr/share/pixmaps -maxdepth 1 -name 'amethystora-*' -type f; find /usr/share/amethystora/image-setup/branding \
+    -maxdepth 1 -type f 2>/dev/null; printf '%s\n' /usr/share/icons/hicolor/scalable/apps/amethystora-logo.svg \
+    /usr/share/plymouth/themes/spinner/watermark.png)
+for logo in /usr/share/pixmaps/{fedora-gdm-logo,fedora-logo-small,fedora-logo,fedora_logo_med,fedora_whitelogo_med,fedora-logo-icon,fedora-logo-sprite,system-logo-white}.png \
+    /usr/share/icons/hicolor/scalable/places/{fedora-logo-sprite,fedora_white_logo,fedora_whitelogo}.svg \
+    /usr/share/plymouth/themes/spinner/silverblue-watermark.png; do
+    [[ -e "${logo}" ]] || continue
+    for ours in "${OURS[@]}"; do cmp -s "${logo}" "${ours}" && continue 2; done
+    fail "${logo} is not Amethystora's picture or the image's own (amethystora-brand), and Fedora's may not be there."
+done
 
 # The commands the manual and the image tell people to run
 ame --summary >/dev/null 2>&1 || fail "\`ame\` does not run."

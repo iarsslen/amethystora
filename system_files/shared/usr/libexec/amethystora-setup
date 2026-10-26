@@ -33,6 +33,19 @@
 # and a setting it leaves out as the machine's. `apply` adds what is missing after showing the list, and
 # takes nothing away unless --remove is given, and then only after asking; run twice, the second run
 # finds nothing to do.
+#
+# An image of one's own takes the same file as the defaults of every machine and account, while it is built
+# (the image template's build runs it as root; never on a machine):
+#
+#     /usr/libexec/amethystora-setup bake FILE [--root DIR]
+#
+# It writes what the image already reads: the apps into a preinstall.d file (Flathub's only, the one remote an
+# image has), the dock, the extensions (the image's own and the file's, each installed in the image), the
+# keybindings, the layout and the tiling's settings into a zz2 schema override after the image's zz0 and zz1, an
+# image custom keybinding's key into a dconf file, and the theme and Homebrew's names under
+# /usr/share/amethystora/image-setup, which user-setup.hooks.d/11-theme.sh and 18-image-brewfile.sh read for each
+# new account. Containers are made per account and the image is the build itself: both are left out, and said so.
+# It fails on what the image cannot have, so that a build stops rather than ship half of it.
 
 set -uo pipefail
 
@@ -638,8 +651,122 @@ remove_all() {
     done
 }
 
+# --- An image's defaults ---------------------------------------------------------------------------
+
+# GVariant text of a JSON value the check let through: names, keys and colours hold no quote or backslash
+GVARIANT='def gv: if type == "array" then "[" + (map(gv) | join(", ")) + "]"
+    elif type == "string" then ([39] | implode) as $q | $q + . + $q else tojson end;'
+
+bake() {
+    local file="" root=/ setup out problems schemas ids defaults uuid id key
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --root) [[ $# -ge 2 ]] || die "usage: amethystora-setup bake FILE [--root DIR]"; root="$2"; shift ;;
+            -*) die "usage: amethystora-setup bake FILE [--root DIR]" ;;
+            *) [[ -z "${file}" ]] || die "usage: amethystora-setup bake FILE [--root DIR]"; file="$1" ;;
+        esac
+        shift
+    done
+    [[ -n "${file}" ]] || die "usage: amethystora-setup bake FILE [--root DIR]"
+    load "${file}"
+    setup="$(jq -c --argjson tiling "${TILING_KEYS}" "${TILING_JQ} from_paperwm" "${file}")" || die "${file} could not be read."
+    root="${root%/}"
+    schemas="${root}/usr/share/glib-2.0/schemas"
+    out="${root}/usr/share/amethystora/image-setup"
+    [[ -d "${schemas}" ]] || die "${root:-/} has no ${schemas#"${root}"}: bake runs on an Amethystora image."
+
+    # What the image cannot have stops the build, every reason at once
+    problems="$(
+        jq -r '.flatpaks // {} | (.system // []) + (.user // []) | .[] | select(.origin != "flathub")
+            | "the app \(.app) comes from \(.origin), and an image installs apps from Flathub only"' <<<"${setup}"
+        for uuid in $(jq -r '.extensions // [] | .[]' <<<"${setup}"); do
+            [[ -d "${root}/usr/share/gnome-shell/extensions/${uuid}" ]] ||
+                echo "the extension ${uuid} is not installed in the image: build.sh installs it first"
+        done
+        id="$(jq -r '.theme // empty' <<<"${setup}")"
+        [[ -z "${id}" || -d "${root}/usr/share/amethystora/themes/${id}" ]] || echo "the image has no theme called ${id}"
+        for id in $(jq -r '.settings.keybindings.custom // {} | keys[]' <<<"${setup}"); do
+            grep -qsxF "[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/${id}]" \
+                "${root}"/etc/dconf/db/distro.d/* || echo "the image has no custom keybinding ${id}"
+        done
+        # PaperWM's, which a file from before the tiling may hold, belong to no extension the image runs
+        jq -r '.settings.keybindings // {} | keys[] | select(. == "org.gnome.shell.extensions.paperwm.keybindings")
+            | "\(.) belong to PaperWM, which the image no longer has"' <<<"${setup}"
+        # A key the image's schemas do not have would be dropped by glib-compile-schemas without a word
+        while IFS=$'\t' read -r id key; do
+            GSETTINGS_SCHEMA_DIR="${schemas}" GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${id}" "${key}" >/dev/null 2>&1 ||
+                echo "the image has no keybinding ${key} in ${id}"
+        done < <(jq -r '.settings.keybindings // {} | to_entries[] | select(.key != "custom") | .key as $s | .value | keys[]
+            | [$s, .] | @tsv' <<<"${setup}")
+    )"
+    [[ -z "${problems}" ]] || die "${file} cannot be baked into this image:"$'\n'"$(sed 's/^/  /' <<<"${problems}")"
+
+    mkdir -p "${out}" "${root}/usr/share/flatpak/preinstall.d" "${root}/etc/dconf/db/distro.d" || die "Could not write into ${root:-/}."
+    install -m0644 "${file}" "${out}/setup.json"
+
+    # Every app, the account's own as well: an image has one installation for every account
+    jq -r '[.flatpaks // {} | (.system // []) + (.user // []) | .[].app] | unique
+        | "# The apps of this image'"'"'s setup.json (amethystora-setup bake), from Flathub on the first boot with a network",
+          (.[] | "", "[Flatpak Preinstall \(.)]", "Branch=stable", "IsRuntime=false")' <<<"${setup}" \
+        >"${root}/usr/share/flatpak/preinstall.d/image-setup.preinstall"
+
+    # The image's extensions stay on whatever the file says: they are what the desktop is made of
+    defaults="$(GSETTINGS_SCHEMA_DIR="${schemas}" GSETTINGS_BACKEND=memory /usr/bin/gsettings get org.gnome.shell \
+        enabled-extensions | sed "s/^@as //; s/'/\"/g")" || die "Could not read the image's extensions."
+    jq -r --argjson image "${defaults}" --argjson tiling "${TILING_KEYS}" "${GVARIANT}"'
+        def section($schema; $values): select($values != {}) | "", "[\($schema)]", ($values | to_entries[] | "\(.key)=\(.value | gv)");
+        (.settings // {}) as $s
+        | "# This image'"'"'s setup.json (amethystora-setup bake), after the image'"'"'s own zz0 and zz1",
+          section("org.gnome.shell"; {}
+            + if has("extensions") then {"enabled-extensions": ($image + (.extensions - $image))} else {} end
+            + if $s | has("favorites") then {"favorite-apps": $s.favorites} else {} end),
+          ($s.keybindings // {} | to_entries[] | select(.key != "custom") | section(.key; .value)),
+          section("org.gnome.shell.extensions.amethystora-ui.tiling"; ($s.tiling // {})
+            + if $s.layout == null then {} else {enabled: ($s.layout == "tiling")} end)' <<<"${setup}" \
+        >"${schemas}/zz2-image-setup.gschema.override"
+
+    # The image's custom keybindings are relocatable, so their keys are dconf's
+    jq -r "${GVARIANT}"'.settings.keybindings.custom // {} | to_entries[]
+        | "[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/\(.key)]", "binding=\(.value[0] // "" | gv)", ""' \
+        <<<"${setup}" >"${root}/etc/dconf/db/distro.d/zz2-image-setup"
+    [[ -s "${root}/etc/dconf/db/distro.d/zz2-image-setup" ]] || rm -f "${root}/etc/dconf/db/distro.d/zz2-image-setup"
+
+    rm -f "${out}/theme" "${out}/Brewfile"
+    jq -r '.theme // empty' <<<"${setup}" | sed '/^$/d' >"${out}/theme"
+    [[ -s "${out}/theme" ]] || rm -f "${out}/theme"
+    # Names only, each in quotes the check keeps out of it: Homebrew reads a Brewfile as Ruby
+    jq -r '.brew // {} | (.taps // [] | .[] | "tap \"\(.)\""), (.formulae // [] | .[] | "brew \"\(.)\""),
+        (.casks // [] | .[] | "cask \"\(.)\"")' <<<"${setup}" >"${out}/Brewfile"
+    [[ -s "${out}/Brewfile" ]] || rm -f "${out}/Brewfile"
+
+    # Compiled where GNOME reads them: the system's schemas, and each extension's own, which GNOME Shell reads
+    # first (build-gnome-extensions.sh), with its sections of every override
+    for id in "${root}"/usr/share/gnome-shell/extensions/*/schemas; do
+        [[ -d "${id}" ]] || continue
+        ids="$(cat "${id}"/*.gschema.xml | tr -s '[:space:]' ' ' | grep -oE '<schema [^>]*id="[^"]+"' |
+            sed -E 's/.*id="([^"]+)".*/\1/' | tr '\n' ' ')"
+        awk -v ids="${ids}" 'BEGIN { n = split(ids, list, " "); for (i = 1; i <= n; i++) own["[" list[i] "]"] = 1 }
+            /^\[/ { keep = ($0 in own) } keep' "${schemas}"/zz[0-9]-*.gschema.override >"${id}/zz-amethystora-modifications.gschema.override"
+        glib-compile-schemas --strict "${id}" || die "The schemas of ${id%/schemas} do not take this setup."
+        rm "${id}/zz-amethystora-modifications.gschema.override"
+    done
+    glib-compile-schemas "${schemas}" || die "The image's schemas do not take this setup."
+    # Built anew, locks and all: an image's files all carry one time, so dconf could take the old one for current
+    rm -f "${root}/etc/dconf/db/distro"
+    dconf update "${root}/etc/dconf/db" || die "dconf could not compile ${root}/etc/dconf/db/distro.d."
+
+    echo "Baked ${file} into the image:"
+    jq -r 'def n($count; $what): "\($count) \($what)\(if $count == 1 then "" else "s" end)";
+        "  \(n([.flatpaks // {} | (.system // []) + (.user // []) | .[].app] | unique | length; "app")) from Flathub, "
+        + "\(n(.brew // {} | (.taps // []) + (.formulae // []) + (.casks // []) | length; "name")) from Homebrew, "
+        + "\(n(.extensions // [] | length; "extension")), the theme \(.theme // "of the image")",
+        if (.containers // []) != [] then "  Left out: the containers, which each account makes (ame setup apply)" else empty end,
+        if .image then "  Left out: image, which is this build itself" else empty end' <<<"${setup}"
+}
+
 case "${1:-}" in
     save) shift; save "$@" ;;
+    bake) shift; bake "$@" ;;
     diff) shift; diff_setup "$@" ;;
     apply) shift; apply "$@" ;;
     -h | --help | help) usage ;;

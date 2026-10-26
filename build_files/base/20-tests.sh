@@ -1528,6 +1528,12 @@ grep -qxF "  ghcr.io/someone/my-image:" "${TRUST_ROOT}/etc/containers/registries
 /usr/libexec/amethystora-trust-image --root "${TRUST_ROOT}" ghcr.io/iarsslen/amethystora "${TRUST_ROOT}/cosign.pub" && false
 /usr/libexec/amethystora-trust-image --root "${TRUST_ROOT}" ghcr.io/someone/other "${TRUST_ROOT}/cosign.key" && false
 rm -rf "${TRUST_ROOT}"
+# The rest of an image of your own, while it builds: its setup.json as every account's defaults (amethystora-setup
+# bake, in test-setup.sh above) and its branding, whose login picture goes in with the helper 12-login-screen.sh
+# put this image's in with. `file` tells its pictures apart.
+test -x /usr/libexec/amethystora-login-background
+command -v file >/dev/null
+bash /ctx/build_files/shared/test-brand.sh
 # The copy opens root's blob info cache before it fails, in /var/lib/containers/cache, and makes every
 # directory on the way with the cache's own 0700, /var/lib too: see the check on /var/lib at the end
 rm -rf /var/lib/containers

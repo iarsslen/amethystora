@@ -4,7 +4,8 @@
 # `apply` finds nothing to do for, `diff` lists everything against a file that names nothing, `apply`
 # installs what is missing and takes nothing away unless asked, the tiling's settings are kept as the schema
 # types them, and a file that names a command, an address, a key the format does not know or a setting out
-# of its range is refused before anything runs.
+# of its range is refused before anything runs. `bake` writes the same file as an image's defaults, which GNOME
+# reads back as the file has them, and refuses what the image cannot have.
 
 set -euo pipefail
 
@@ -230,4 +231,68 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     "${SETUP}" apply --yes "${T}/bad.json" >/dev/null 2>&1 && { echo "applied: ${bad}"; false; }
 done
 [[ ! -s "${LOG}" ]]
+
+# bake: the same file as an image's defaults, into a stand-in for the image made of its own schemas, extensions'
+# schemas and dconf files, with the real tools (no stand-ins on the PATH). What it writes is read back as GNOME
+# reads it: the system's schemas, the tiling's own compiled copy, which GNOME Shell reads first, and dconf's database.
+ROOT="${T}/root"
+UI=usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io
+bake_root() {
+    rm -rf "${ROOT}"
+    mkdir -p "${ROOT}/usr/share/glib-2.0" "${ROOT}/${UI}" "${ROOT}/etc/dconf/db" "${ROOT}/usr/share/amethystora/themes/nord" \
+        "${ROOT}/usr/share/gnome-shell/extensions/amethystora-clipboard@iarsslen.github.io"
+    cp -r /usr/share/glib-2.0/schemas "${ROOT}/usr/share/glib-2.0/"
+    cp -r "/${UI}/schemas" "${ROOT}/${UI}/"
+    cp -r /etc/dconf/db/distro.d "${ROOT}/etc/dconf/db/"
+}
+bake() { env PATH=/usr/bin:/usr/sbin "${SETUP}" bake "$@" --root "${ROOT}"; }
+image() { GSETTINGS_SCHEMA_DIR="${ROOT}/usr/share/glib-2.0/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get "$@"; }
+bake_root
+jq '.image = {"name": "amethystora", "stream": "stable"}
+    | .flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .extensions = ["amethystora-clipboard@iarsslen.github.io"]
+    | .settings.layout = "classic" | .brew.taps = ["someone/tools"] | .brew.formulae = ["fd", "someone/tools/lint"]' \
+    "${FILE}" >"${T}/image.json"
+out="$(bake "${T}/image.json")"
+grep -qF "Left out: the containers" <<<"${out}"
+grep -qF "Left out: image" <<<"${out}"
+PRE="${ROOT}/usr/share/flatpak/preinstall.d/image-setup.preinstall"
+[[ "$(grep -c '^\[Flatpak Preinstall ' "${PRE}")" == 3 && "$(grep -c '^Branch=stable$' "${PRE}")" == 3 ]]
+grep -qxF "[Flatpak Preinstall org.gimp.GIMP]" "${PRE}"
+[[ "$(image org.gnome.shell favorite-apps)" == "['org.gnome.Nautilus.desktop', 'firefox.desktop']" ]]
+# ...the image's extensions kept, the file's added
+extensions="$(image org.gnome.shell enabled-extensions)"
+grep -qF "'amethystora-ui@iarsslen.github.io'" <<<"${extensions}"
+grep -qF "'amethystora-clipboard@iarsslen.github.io'" <<<"${extensions}"
+[[ "$(image org.gnome.desktop.wm.keybindings close)" == "['<Super>q']" ]]
+[[ "$(image "${TILING}.keybindings" cycle-width)" == "['<Super>e']" ]]
+[[ "$(image "${TILING}" enabled)" == false && "$(image "${TILING}" window-gap)" == 12 ]]
+[[ "$(GSETTINGS_SCHEMA_DIR="${ROOT}/${UI}/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get "${TILING}" window-gap)" == 12 ]]
+[[ "$(GSETTINGS_SCHEMA_DIR="${ROOT}/${UI}/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get "${TILING}" enabled)" == false ]]
+printf 'file-db:%s\n' "${ROOT}/etc/dconf/db/distro" >"${T}/dconf-profile"
+[[ "$(DCONF_PROFILE="${T}/dconf-profile" /usr/bin/dconf read /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom20/binding)" == "'<Super>t'" ]]
+# ...the image's command for it left as it was
+[[ -n "$(DCONF_PROFILE="${T}/dconf-profile" /usr/bin/dconf read /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom20/command)" ]]
+[[ "$(cat "${ROOT}/usr/share/amethystora/image-setup/theme")" == nord ]]
+diff <(printf '%s\n' 'tap "someone/tools"' 'brew "fd"' 'brew "someone/tools/lint"' 'cask "font-iosevka"') \
+    "${ROOT}/usr/share/amethystora/image-setup/Brewfile"
+cmp -s "${T}/image.json" "${ROOT}/usr/share/amethystora/image-setup/setup.json"
+# The theme hook falls back on the baked theme, and the Brewfile hook installs once per version of the file
+grep -qF /usr/share/amethystora/image-setup/theme /usr/share/amethystora/user-setup.hooks.d/11-theme.sh
+grep -qF /usr/share/amethystora/image-setup/Brewfile /usr/share/amethystora/user-setup.hooks.d/18-image-brewfile.sh
+
+# ...and refuses, writing nothing, what the image cannot have: an app from another remote, an extension or a theme
+# it does not ship, a custom keybinding or a keybinding it does not have, PaperWM's, and all that the format refuses
+for bad in '{"version": 1, "flatpaks": {"user": [{"app": "org.gimp.GIMP", "origin": "gnome-nightly"}]}}' \
+    '{"version": 1, "extensions": ["someone@example.com"]}' \
+    '{"version": 1, "theme": "no-such-theme"}' \
+    '{"version": 1, "settings": {"keybindings": {"custom": {"custom99": ["<Super>t"]}}}}' \
+    '{"version": 1, "settings": {"keybindings": {"org.gnome.desktop.wm.keybindings": {"no-such-key": ["<Super>t"]}}}}' \
+    '{"version": 1, "settings": {"keybindings": {"org.gnome.shell.extensions.paperwm.keybindings": {"switch-left": ["<Super>h"]}}}}' \
+    '{"version": 1, "settings": {"tiling": {"winprops": ["{\"wm_class\": \"x\"}"]}}}' \
+    '{"version": 1, "brew": {"taps": ["https://example.com/tap.git"]}}'; do
+    bake_root
+    printf '%s\n' "${bad}" >"${T}/bad.json"
+    bake "${T}/bad.json" >/dev/null 2>&1 && { echo "baked: ${bad}"; false; }
+    [[ ! -e "${ROOT}/usr/share/amethystora/image-setup" && ! -e "${ROOT}/usr/share/glib-2.0/schemas/zz2-image-setup.gschema.override" ]]
+done
 echo "ame setup: ok"

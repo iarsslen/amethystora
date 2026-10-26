@@ -1369,6 +1369,26 @@ repository it does not name unsigned (Fedora's `insecureAcceptAnything` for `doc
 trust comes first. `ame system rebase` must keep taking signed images only. The manual's section is
 `developer.md#an-image-of-your-own`.
 
+The template's `build_files/files.sh` makes its `setup.json`, `branding/` and `policy/` part of the image with
+three more scripts shipped here, so keep their arguments too (`plans/PLAN-image-editor.md`):
+- `amethystora-setup bake FILE [--root DIR]` takes the file `ame setup save` writes as every machine's and
+  account's defaults, through what the image already reads: `preinstall.d/image-setup.preinstall` (Flathub's
+  apps only), `zz2-image-setup.gschema.override` (the dock, the extensions, keybindings, layout and tiling, the
+  image's own extensions always kept on), compiled into each extension's own schemas as `build-gnome-extensions.sh`
+  does, a dconf file for the image's custom keybindings, and `/usr/share/amethystora/image-setup/{theme,Brewfile}`,
+  which `11-theme.sh` and `18-image-brewfile.sh` read for a new account. It fails on what the image lacks.
+- `amethystora-brand DIR [--root ROOT]` sets the name (`PRETTY_NAME` "NAME, built on Amethystora", `VARIANT`;
+  `ID=amethystora` stays, which bootc-image-builder and the installers go by), the wallpaper
+  (`image-setup/backgrounds`, which `amethystora-theme` lists before every theme's own, and `zz3-image-branding`),
+  the logo (About's and GDM's Fedora-named files) and the login picture, through
+  `/usr/libexec/amethystora-login-background`, which `12-login-screen.sh` uses for Amethystora's own.
+  `amethystora-image-check` takes a Fedora-named logo only as Amethystora's picture or the owner's.
+- `policy/agent.conf` and `policy/security` are written by `files.sh` itself, through `amethystora-security-config profile`.
+`test-setup.sh` and `test-brand.sh` check both against stand-ins in `20-tests.sh`. The template's `build-iso.yml` builds
+an owner's two ISOs from this repository's `iso/` at a pinned commit: keep `@IMAGE@` in `iso.toml` the image's whole
+repository, and the live ISO's sealed installer for `ghcr.io/iarsslen` images only. The editor that writes the files
+is `/build` on the website (`../amethystora-website`, `src/lib/image-editor.mjs`).
+
 ### Sealed images
 
 `:stable-sealed` is each of the six stable images sealed (`Containerfile.sealed`, after Fedora's sealed
