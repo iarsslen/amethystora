@@ -34,6 +34,26 @@ opened() {
 }
 # line_of TEXT STRING: the number of the first line of TEXT holding STRING
 line_of() { grep -n -m1 -F -- "$2" <<<"$1" | cut -d: -f1; }
+# make_pe FILE: a Windows program of the smallest kind, a PE32+ header and one section that returns at once. The
+# image's own signed PE files (shim, the kernel) are signed in a way osslsigncode cannot read, so the suite makes and
+# signs one as a Windows maker's signtool would
+make_pe() {
+    python3 - "$1" <<'PY'
+import struct
+import sys
+
+dos = b'MZ' + bytes(0x3a) + struct.pack('<I', 0x40)
+coff = struct.pack('<HHIIIHH', 0x8664, 1, 0, 0, 0, 240, 0x0022)
+optional = (struct.pack('<HBBIIIII', 0x20b, 14, 0, 0x200, 0, 0, 0x1000, 0x1000) + struct.pack('<Q', 0x140000000)
+            + struct.pack('<II', 0x1000, 0x200) + struct.pack('<HHHHHH', 6, 0, 0, 0, 6, 0) + struct.pack('<I', 0)
+            + struct.pack('<III', 0x2000, 0x200, 0) + struct.pack('<HH', 3, 0x8160)
+            + struct.pack('<QQQQ', 0x100000, 0x1000, 0x100000, 0x1000) + struct.pack('<II', 0, 16) + bytes(16 * 8))
+section = b'.text\0\0\0' + struct.pack('<IIIIIIHHI', 0x10, 0x1000, 0x200, 0x200, 0, 0, 0, 0, 0x60000020)
+headers = dos + b'PE\0\0' + coff + optional + section
+with open(sys.argv[1], 'wb') as out:
+    out.write(headers + bytes(0x200 - len(headers)) + b'\xc3' + b'vmlab windows program'.ljust(0x1ff, b'\0'))
+PY
+}
 
 if [[ "${SUITE_PHASE}" == 1 ]]; then
     # Every type shared-mime-info gives a Windows program opens in the handler
@@ -44,8 +64,15 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     done
     if [[ -z "${wrong}" ]]; then ok "all ${#TYPES[@]} Windows program types open in amethystora-windows-program.desktop"; else not_ok "types with another default:${wrong}"; fi
 
-    # A signed program: the kernel's EFI stub, an Authenticode-signed PE that osslsigncode reads, under an installer's name
-    SIGNED="/usr/lib/modules/$(uname -r)/vmlinuz"
+    # A program unsigned, and the same signed with a certificate of its own, under an installer's name
+    WORK="$(mktemp -d)"
+    make_pe "${WORK}/vmlab-tool.exe"
+    openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj "/O=VMLab Publisher/CN=VMLab Publisher" \
+        -keyout "${WORK}/key.pem" -out "${WORK}/cert.pem" >/dev/null 2>&1
+    check "a test program is made and signed" osslsigncode sign -certs "${WORK}/cert.pem" -key "${WORK}/key.pem" -n vmlab \
+        -in "${WORK}/vmlab-tool.exe" -out "${WORK}/signed.exe"
+    SIGNED="${WORK}/signed.exe"
+    put vmlab-tool.exe <"${WORK}/vmlab-tool.exe"
     put SpotifySetup.exe <"${SIGNED}"
     type="$(in_session "gio info -a standard::content-type ~/${FOLDER}/SpotifySetup.exe" 2>/dev/null | sed -n 's/^ *standard::content-type: //p')"
     check "a modern .exe is application/vnd.microsoft.portable-executable (${type})" test "${type}" = application/vnd.microsoft.portable-executable
@@ -54,7 +81,7 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     out="$(opened SpotifySetup.exe 'What would you like to do' $'\x03')"
     echo "# SpotifySetup.exe, from opening to the choice (with clamscan's load): $((SECONDS - began)) s"
     scanned="$(line_of "${out}" 'Viruses: no known malware in it.')"
-    signed="$(grep -n -m1 -E 'Signed by: .+\. The signature checks out\.|Signed in the name of .+, which this machine cannot confirm' <<<"${out}" | cut -d: -f1)"
+    signed="$(line_of "${out}" 'Signed in the name of VMLab Publisher, which this machine cannot confirm')"
     known="$(line_of "${out}" 'This is Spotify.')"
     if [[ -n "${scanned}" && -n "${signed}" && -n "${known}" ]] && ((scanned < signed && signed < known)); then
         ok "it is scanned, then its signer is said, then what it is: $(grep -m1 -o 'Signed [^.]*' <<<"${out}")"
@@ -71,7 +98,7 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
 
     # Changed after it was signed: refused before anything is offered
     put tampered.exe <"${SIGNED}"
-    printf 'vmlab' | runuser -u "${TEST_USER}" -- dd of="${HOME_DIR}/${FOLDER}/tampered.exe" bs=1 seek=40000 conv=notrunc status=none
+    printf 'vmlab' | runuser -u "${TEST_USER}" -- dd of="${HOME_DIR}/${FOLDER}/tampered.exe" bs=1 seek=$((0x210)) conv=notrunc status=none
     out="$(opened tampered.exe)"
     status=$?
     if [[ ${status} -ne 0 ]] && grep -qF 'Signature: it does NOT match the program' <<<"${out}" && ! grep -qF 'What would you like to do' <<<"${out}"; then
@@ -81,7 +108,6 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     fi
 
     # Unsigned and unknown: only Bottles
-    runuser -u "${TEST_USER}" -- osslsigncode remove-signature -in "${SIGNED}" -out "${HOME_DIR}/${FOLDER}/vmlab-tool.exe" >/dev/null 2>&1
     out="$(opened vmlab-tool.exe 'What would you like to do' $'\x03')"
     if grep -qF 'Signature: none. Nothing says who made it.' <<<"${out}" && grep -qF 'Run the Windows program, with Bottles' <<<"${out}" &&
         ! grep -qF 'Flathub' <<<"${out}"; then
@@ -121,7 +147,7 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
     printf '%s%s' 'X5O!P%@AP[4\PZX54(P^)7CC)7}$EICAR' '-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*' | put vmlab-eicar.exe
     out="$(opened vmlab-eicar.exe)"
     status=$?
-    if [[ ${status} -ne 0 ]] && grep -qF 'Viruses: it matches known malware' <<<"${out}" && ! grep -qF 'Signature' <<<"${out}"; then
+    if [[ ${status} -ne 0 ]] && grep -qF 'Viruses: it matches known malware' <<<"${out}" && ! grep -q '^Sign' <<<"${out}"; then
         ok "a file that matches known malware is refused, before its signature is read"
     else
         not_ok "the EICAR file (exit ${status})" "$(tail -n 8 <<<"${out}")"
@@ -145,6 +171,7 @@ if [[ "${SUITE_PHASE}" == 1 ]]; then
         not_ok "gio open of an .exe started no handler" "$(pgrep -a -u "${TEST_USER}" | tail -n 15)"
     fi
     pkill -u "${TEST_USER}" -f "${HANDLER} .*vmlab-tool.exe"
+    rm -rf "${WORK}"
     continue_phase
 fi
 
