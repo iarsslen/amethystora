@@ -355,7 +355,12 @@ export class Pointer {
         else if (!geo.centred && geo.columns.length)
             strip.scroll = x - Layout.GAP / 2 - geo.area.x - geo.columns.at(-1).x - geo.columns.at(-1).width;
         this._engine.layout(strip);
+        // Drawn where its frame is, under the pointer, rather than where the strip had it
         const actor = drag.window.get_compositor_private();
+        if (actor) {
+            actor.translation_x = 0;
+            actor.translation_y = 0;
+        }
         actor?.set_pivot_point(0.5, 0.5);
         actor?.ease({scale_x: CARRIED_SCALE, scale_y: CARRIED_SCALE, duration: config.animation});
     }
@@ -449,7 +454,8 @@ export class Pointer {
         this._engine.boxHidden--;
     }
 
-    // Near a side of the screen the strip under a dragged window drifts that way
+    // Near a side of the screen the strip under a dragged window drifts that way; not at a side another screen is on,
+    // which the pointer only passes through on its way there
     _driftNear(x) {
         const drag = this._drag;
         const strip = drag.carried ? drag.dropStrip ?? drag.strip : drag.strip;
@@ -459,6 +465,9 @@ export class Pointer {
             side = 1;
         else if (x >= screen.x + screen.width - DRAG_EDGE)
             side = -1;
+        const beyond = side > 0 ? Meta.DisplayDirection.LEFT : Meta.DisplayDirection.RIGHT;
+        if (side && global.display.get_monitor_neighbor_index(strip.monitor, beyond) >= 0)
+            side = 0;
         if (!side || !strip.columns.length) {
             drag.drift?.stop();
             drag.drift = null;

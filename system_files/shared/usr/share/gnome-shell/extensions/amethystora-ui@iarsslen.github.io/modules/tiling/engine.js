@@ -498,6 +498,12 @@ export class Engine {
         info.target = null;
         const actor = window.get_compositor_private();
         this._glides.get(strip)?.windows.delete(window);
+        // Out of the strip it is no longer cut at its screen's edge
+        if (info.clipped) {
+            actor?.remove_clip();
+            actor?.remove_effect_by_name(CUT);
+            info.clipped = false;
+        }
         if (info.hidden) {
             info.hidden = false;
             if (window.showing_on_its_workspace())
