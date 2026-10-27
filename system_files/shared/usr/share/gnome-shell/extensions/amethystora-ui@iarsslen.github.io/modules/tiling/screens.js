@@ -31,7 +31,17 @@ export class Screens {
         this._last = global.workspace_manager.get_active_workspace();
         this._bringing = null;
         global.display.connectObject('restacked', () => this.queueMirrors(), this);
-        global.workspace_manager.connectObject('workspace-removed', () => this._prune(), this);
+        global.workspace_manager.connectObject(
+            'workspace-removed', () => this._prune(),
+            // Mutter makes the workspaces of a fixed number later than the setting changes (the tiling's own,
+            // settings.js): a screen left without one gets it then
+            'workspace-added', () => {
+                // Not for the ones assign() adds itself (mutter says so before append_new_workspace returns)
+                if (!this._assigning && this.separate &&
+                    Main.layoutManager.monitors.some((m, i) => !this._shown.has(this._connector(i))))
+                    this.assign(this._engine.tiling.workspaceHistory?.() ?? []);
+            },
+            this);
     }
 
     disable() {
@@ -257,7 +267,12 @@ export class Screens {
             this.queueMirrors();
             return;
         }
-        this._enoughForScreens();
+        this._assigning = true;
+        try {
+            this._enoughForScreens();
+        } finally {
+            this._assigning = false;
+        }
         const monitors = Main.layoutManager.monitors;
         const manager = global.workspace_manager;
         const all = new Set(Array.from({length: manager.n_workspaces}, (unused, i) => manager.get_workspace_by_index(i)));
@@ -304,7 +319,8 @@ export class Screens {
     // Fewer workspaces than screens: workspaces are added, and said
     _enoughForScreens() {
         const manager = global.workspace_manager;
-        const missing = Main.layoutManager.monitors.length - manager.n_workspaces;
+        // Counting the ones mutter is still to make for its fixed number
+        const missing = Main.layoutManager.monitors.length - Math.max(manager.n_workspaces, Meta.prefs_get_num_workspaces());
         if (missing <= 0 || Meta.prefs_get_dynamic_workspaces())
             return;
         for (let i = 0; i < missing; i++)
@@ -403,6 +419,7 @@ class Mirror {
         // The focus frame, as it is when the keyboard is elsewhere, right under its window
         const box = engine.boxFor(strip);
         box?.set_position(box.x - m.x, box.y - m.y);
+        const glass = engine.tiling._ext.modules?.get('glass');
         for (const window of windows) {
             const actor = window.get_compositor_private();
             const info = engine.info(window);
@@ -415,9 +432,16 @@ class Mirror {
                 this.actor.add_child(box);
             const frame = window.get_frame_rect();
             const buffer = window.get_buffer_rect();
-            this.actor.add_child(new Clutter.Clone({
+            const clone = new Clutter.Clone({
                 source: actor, x: at.x + buffer.x - frame.x - m.x, y: at.y + buffer.y - frame.y - m.y,
-            }));
+            });
+            this.actor.add_child(clone);
+            // A window on glass when unfocused (glass/windows.js) is on glass here too: its own pane is not drawn in
+            // a copy
+            if (glass?.windows?.glassWithoutFocus(window)) {
+                const square = window.maximized_horizontally || window.maximized_vertically;
+                glass.attach(clone, {...glass.windows.cloneLook(), radius: square ? 0 : glass.windowRadius});
+            }
         }
         if (box && !box.get_parent())
             box.destroy();

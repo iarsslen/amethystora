@@ -114,13 +114,20 @@ export class TopBar {
         const [, top] = panel.get_transformed_position();
         const limit = top + panel.height + NEAR * St.ThemeContext.get_for_stage(global.stage).scale_factor;
         const monitor = Main.layoutManager.primaryIndex;
-        const workspace = global.workspace_manager.get_active_workspace();
+        const active = global.workspace_manager.get_active_workspace();
+        // With the tiling on several screens the bar's screen may show a workspace GNOME does not have, whose windows
+        // are drawn as pictures (tiling/screens.js) while their own actors are hidden
+        const engine = this._glass._ext.modules.get('tiling')?.engine;
+        const workspace = engine?.screens?.shownOn(monitor) ?? active;
         for (const window of this._glass.windows.windows) {
             if (!TYPES.has(window.get_window_type()) || window.is_override_redirect() || window.minimized ||
                 !window.located_on_workspace(workspace) || window.get_monitor() !== monitor ||
                 (window.get_wm_class() && leftAlone(window)))
                 continue;
-            if (!window.get_compositor_private()?.visible || !window.showing_on_its_workspace())
+            // A picture leaves out what the tiling hides (a window scrolled off the strip), as the window's own actor
+            // would be
+            const seen = workspace === active ? window.get_compositor_private()?.visible : !engine?.info(window)?.hidden;
+            if (!seen || !window.showing_on_its_workspace())
                 continue;
             if (window.get_frame_rect().y < limit)
                 return true;

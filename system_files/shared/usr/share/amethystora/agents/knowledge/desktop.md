@@ -71,7 +71,11 @@ these commands in the agent's own shell, as the user. Read before writing, chang
   `cycle-width-steps`, `open-window-position`, `animation-time`, the edge and gesture keys, the window rules in
   `winprops`) are keys of the same schema, applied at once; `ame desktop tiling-settings` opens their window.
   With two screens or more each screen shows a workspace of its own, and the one under the pointer is GNOME's
-  active workspace; the others are drawn from live pictures of their windows.
+  active workspace; the others are drawn from live pictures of their windows. Meanwhile the tiling sets
+  `org.gnome.mutter dynamic-workspaces` false (and `workspaces-only-on-primary` false), putting the account's value
+  back with one screen or classic windows; the image's six fixed workspaces are under `[org.gnome.mutter:GNOME]` in
+  `zz1-amethystora-modifications.gschema.override`, since GNOME Shell sets that key for the GNOME desktop alone. Read
+  a session's value with `XDG_CURRENT_DESKTOP=GNOME gsettings get ...`.
   Its keys are in `...tiling.keybindings`; a combination
   it shares with a GNOME shortcut is taken from it while the tiling runs and given back when it is off
   (four keys' lists are changed in dconf, and what was taken is in `~/.local/state/amethystora/tiling.json`, with a

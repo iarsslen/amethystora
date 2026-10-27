@@ -174,7 +174,10 @@ its workspace is the current one, with no animation. `Super+Page Up` and `Super+
 through the workspaces of the monitor you are on and the empty ones, and the one you choose stays on
 that monitor. A workspace chosen another way (`Super` and a number, the workspaces in the top bar, an
 app's window) comes up on the monitor it was last on, and the pointer goes there. Swapping or moving a
-workspace between monitors needs one workspace more than you have monitors.
+workspace between monitors needs one workspace more than you have monitors. The number of workspaces
+stays fixed while there are several monitors, even if you chose dynamic workspaces in Settings
+(Multitasking), which would leave a third monitor with none; your choice is back with one monitor or
+with [classic windows](#classic-windows).
 
 ### Arranging
 

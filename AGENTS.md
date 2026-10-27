@@ -1110,7 +1110,11 @@ lose its settings (and a cache folder it left), unless they installed it themsel
   **Tiling settings**) is the window for them, written fresh from the spec's description of the pages. The 99 keys
   in `...tiling.keybindings` are the spec's, 54 bound as the image ships and the rest empty for whoever wants them,
   the live switcher among them (`live-alt-tab*`, a navigation session through the workspace's windows most recent
-  first). With two screens or more each shows a workspace of its own (`modules/tiling/screens.js`): GNOME's active
+  first). With two screens or more each shows a workspace of its own (`modules/tiling/screens.js`, with fixed
+  workspaces: `settings.js` turns `dynamic-workspaces` off meanwhile, beside `workspaces-only-on-primary`,
+  `edge-tiling` and `attach-modal-dialogs`; GNOME Shell's own override sets dynamic ones under `[org.gnome.mutter:GNOME]`,
+  which beats a plain section in a session, so the image's are in that section of zz1 too, and `20-tests.sh` reads
+  them with `XDG_CURRENT_DESKTOP=GNOME`; `tests/vm/suites/29-screens.sh` runs on four screens): GNOME's active
   workspace is the screen with the keyboard's, the others are drawn as live clones of their windows in a layer over
   the background, the pointer moving to a screen makes its workspace GNOME's, GNOME's slide is skipped, and a
   workspace keeps its screen by connector; a workspace has one strip, on the screen showing it (`engine.strip()`

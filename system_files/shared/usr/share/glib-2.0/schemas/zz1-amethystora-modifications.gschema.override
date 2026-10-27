@@ -56,6 +56,11 @@ default-zoom-level='large'
 [org.gnome.mutter]
 dynamic-workspaces=false
 
+# GNOME Shell's own override sets dynamic workspaces for the GNOME desktop alone ([org.gnome.mutter:GNOME]), which
+# wins over the plain section in every session: without this, GNOME had two workspaces, and a third screen none
+[org.gnome.mutter:GNOME]
+dynamic-workspaces=false
+
 [org.gnome.desktop.wm.preferences]
 num-workspaces=6
 # Minimise, maximise and close, on the right, close last: the three lights that

@@ -559,7 +559,8 @@ if rpm -q ibus-typing-booster >/dev/null; then
 fi
 # Six fixed workspaces on Super+N, which moves the dash to Alt+N
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.preferences num-workspaces)" == "6" ]]
-[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.mutter dynamic-workspaces)" == "false" ]]
+# As a GNOME session reads it: GNOME Shell's override has a section for that desktop alone
+[[ "$(XDG_CURRENT_DESKTOP=GNOME GSETTINGS_BACKEND=memory gsettings get org.gnome.mutter dynamic-workspaces)" == "false" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.keybindings switch-to-workspace-6)" == "['<Super>6']" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.keybindings switch-to-application-1)" == "['<Alt>1']" ]]
 # custom-keybindings in zz0-amethystora-modifications lists every custom keybinding GNOME reads, the

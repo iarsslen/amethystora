@@ -296,9 +296,14 @@ export class Windows {
     }
 
     _wantsGlass(window) {
+        return this.glassWithoutFocus(window) && window !== global.display.focus_window;
+    }
+
+    // Whether the window is on glass whenever it does not have the keyboard, as in the tiling's pictures of the
+    // workspaces of the other screens (tiling/screens.js), which never have it
+    glassWithoutFocus(window) {
         return TYPES.has(window.get_window_type()) && !window.is_override_redirect() &&
-            !window.is_attached_dialog() && !window.is_fullscreen() && !leftAlone(window) &&
-            window !== global.display.focus_window;
+            !window.is_attached_dialog() && !window.is_fullscreen() && !leftAlone(window);
     }
 
     _sync(window) {
