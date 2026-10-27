@@ -78,12 +78,15 @@ export class Actions {
             'paper-toggle-fullscreen': w => this.toggleFullscreen(w),
             'close-window': w => w.delete(global.get_current_time()),
         };
+        // Held down, these go on as the key repeats; the rest act once a press
+        const repeats = new Set(['barf-out', 'barf-out-active', 'cycle-width', 'cycle-width-backwards', 'cycle-height',
+            'cycle-height-backwards', 'resize-w-inc', 'resize-w-dec', 'resize-h-inc', 'resize-h-dec']);
         for (const [name, act] of Object.entries(perWindow)) {
             add(name, () => {
                 const window = this.engine.current();
                 if (window)
                     act(window);
-            }, once);
+            }, repeats.has(name) ? Meta.KeyBindingFlags.NONE : once);
         }
         add('toggle-scratch-layer', () => this.toggleFloatingLayer(), once);
         add('toggle-scratch-window', () => this.toggleLastFloating(), once);
@@ -95,14 +98,16 @@ export class Actions {
         add('toggle-top-bar', () => this.tiling.topBar?.toggle(), once);
         add('activate-window-under-cursor', () => this.activateUnderPointer(), once);
         for (const [side, direction] of Object.entries(DIRECTIONS)) {
-            const monitorKey = (name, act) => add(name, () => {
+            // Going to a screen, or taking a window there, goes on while held; swapping or moving a workspace acts
+            // once, or a held key would flip it back and forth
+            const monitorKey = (name, act, flags) => add(name, () => {
                 this.tiling.sessions.end();
                 act(direction);
-            }, once);
+            }, flags);
             monitorKey(`switch-monitor-${side}`, d => this.focusMonitor(d));
             monitorKey(`move-monitor-${side}`, d => this.moveToMonitor(d));
-            monitorKey(`swap-monitor-${side}`, d => this.swapMonitor(d));
-            monitorKey(`move-space-monitor-${side}`, d => this.moveSpaceToMonitor(d));
+            monitorKey(`swap-monitor-${side}`, d => this.swapMonitor(d), once);
+            monitorKey(`move-space-monitor-${side}`, d => this.moveSpaceToMonitor(d), once);
         }
         return table;
     }
@@ -328,6 +333,7 @@ export class Actions {
             return;
         }
         info.width = Math.min(width, this._area(window).width);
+        this.engine.endAtEdge(strip);
         this.engine.ensureVisible(strip, window);
     }
 

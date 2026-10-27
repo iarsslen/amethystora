@@ -25,8 +25,9 @@ const PREVIEW_REACH = 2;
 // A drag this far up or down lifts the window out of the strip; until then it shrinks as it goes
 const LIFT = 300;
 const SHRINK = 500;
-// A window being carried is drawn at this size
+// A window being carried is drawn at this size and opacity (out of 255)
 const CARRIED_SCALE = 0.5;
+const CARRIED_OPACITY = 240;
 // Half the width of the place between two columns a window can be dropped into, past half a gap
 const BETWEEN = 100;
 // How far from the boundary between two windows of a column a drop still stacks there, past half a gap
@@ -292,6 +293,9 @@ export class Pointer {
     _grabBegan(window, op) {
         const plain = op & ~0x400;
         const moving = plain === Meta.GrabOp.MOVING || plain === Meta.GrabOp.KEYBOARD_MOVING;
+        // A window being resized keeps its workspace: the pointer crossing onto another screen on the way does not
+        // bring that screen's (_followPointer)
+        this._resizing = moving ? null : window;
         if (!moving || !this._engine.isTiled(window))
             return;
         const strip = this._engine.stripOf(window);
@@ -303,7 +307,8 @@ export class Pointer {
         this._engine.dragging = this._drag;
         this._engine.updateBox(strip);
         const actor = window.get_compositor_private();
-        actor?.set_pivot_point(0.5, 0);
+        // It shrinks towards the place it was taken by, which stays under the pointer
+        this._pivotAtPointer(window, actor);
         // The frame is GNOME's to move from here; the window is drawn where its frame is
         if (actor) {
             actor.translation_x = 0;
@@ -361,8 +366,17 @@ export class Pointer {
             actor.translation_x = 0;
             actor.translation_y = 0;
         }
-        actor?.set_pivot_point(0.5, 0.5);
-        actor?.ease({scale_x: CARRIED_SCALE, scale_y: CARRIED_SCALE, duration: config.animation});
+        this._pivotAtPointer(drag.window, actor);
+        actor?.ease({scale_x: CARRIED_SCALE, scale_y: CARRIED_SCALE, opacity: CARRIED_OPACITY, duration: config.animation});
+    }
+
+    _pivotAtPointer(window, actor) {
+        if (!actor)
+            return;
+        const [x, y] = global.get_pointer();
+        const b = window.get_buffer_rect();
+        const share = (at, from, size) => size > 0 ? Math.min(1, Math.max(0, (at - from) / size)) : 0.5;
+        actor.set_pivot_point(share(x, b.x, b.width), share(y, b.y, b.height));
     }
 
     // The place under the pointer a carried window would go, shown in GNOME's tile-preview look
@@ -508,6 +522,8 @@ export class Pointer {
     }
 
     _grabEnded(window) {
+        if (this._resizing === window)
+            this._resizing = null;
         if (this._drag?.window === window)
             this._endDrag(false);
     }
@@ -524,7 +540,8 @@ export class Pointer {
         this._zoneActor = null;
         zone?.ease({opacity: 0, duration: config.animation, onStopped: () => zone.destroy()});
         const actor = drag.window.get_compositor_private();
-        actor?.ease({scale_x: 1, scale_y: 1, duration: config.animation, onStopped: () => actor.set_pivot_point(0, 0)});
+        actor?.ease({scale_x: 1, scale_y: 1, opacity: 255, duration: config.animation,
+            onStopped: () => actor.set_pivot_point(0, 0)});
         if (cancelled || !this._engine.info(drag.window))
             return;
         const window = drag.window;
@@ -537,7 +554,8 @@ export class Pointer {
         if (target)
             this._putInto(window, target);
         else
-            this._engine.insert(window, this._engine.activeStrip(global.display.get_current_monitor()));
+            this._engine.insert(window, this._engine.activeStrip(global.display.get_current_monitor()),
+                {position: this._tiling.openPosition});
 
         Main.activateWindow(window);
     }
@@ -580,9 +598,9 @@ export class Pointer {
             // A pile left over from a swipe whose end never came goes with it
             this._swipe?.pile?.destroy();
             this._swipe?.timeline?.stop();
-            const [x] = event.get_coords();
+            const [x, y] = event.get_coords();
             const monitor = global.display.get_monitor_index_for_rect(new Mtk.Rectangle({
-                x, y: 1,
+                x: Math.round(x), y: Math.round(y),
                 width: 1, height: 1,
             }));
             this._swipe = {state: 'pending', x: 0, y: 0, monitor: Math.max(0, monitor), history: []};
@@ -829,7 +847,10 @@ export class Pointer {
     // The pointer went to another screen: its strip's window gets the keyboard
     _followPointer() {
         const monitor = global.display.get_current_monitor();
-        if (monitor === this._lastMonitor || Main.overview.visible || this._engine.session || Main.modalCount > 0)
+        // The search box (search.js) is not modal, and a window on a screen the pointer crosses on its way there
+        // would take the keyboard from it and close it: the screen is followed once the box is gone
+        if (monitor === this._lastMonitor || Main.overview.visible || this._engine.session || Main.modalCount > 0 ||
+            this._resizing || this._tiling._ext.modules?.get('search')?.open)
             return;
         this._lastMonitor = monitor;
         const screens = this._engine.screens;

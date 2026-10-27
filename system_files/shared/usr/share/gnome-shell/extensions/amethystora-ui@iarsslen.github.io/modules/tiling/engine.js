@@ -425,9 +425,14 @@ export class Engine {
         this._untrack(window);
     }
 
-    // `place` puts it at a given column, or into it at a given row, rather than beside a window
+    // `place` puts it at a given column, or into it at a given row, rather than beside a window. Stacked under or over
+    // the selected window, as the open position may say, go only a new window and one put down by the pointer
+    // (`position` given); any other (from another workspace or screen, back from floating or minimized) goes beside it.
     insert(window, strip, options = {}) {
-        const {position = this.tiling.openPosition, appear = false, place = null} = options;
+        const {appear = false, place = null} = options;
+        let position = options.position ?? this.tiling.openPosition;
+        if (options.position === undefined && !appear && (position === Open.DOWN || position === Open.UP))
+            position = Open.RIGHT;
         const info = this._track(window);
         const old = info.strip;
         if (old)
@@ -515,10 +520,23 @@ export class Engine {
 
     // The strip after a window left it: closed up, and still showing the window it shows as focused
     closeUp(strip) {
+        this.endAtEdge(strip);
         if (strip.selected)
             this.ensureVisible(strip, strip.selected);
         else
             this.layout(strip);
+    }
+
+    // A strip still wider than its screen leaves no room after its last column once one went or got narrower: its
+    // right end comes to the screen's edge, at the margin
+    endAtEdge(strip) {
+        const geo = this.geometry(strip);
+        if (geo.centred || !geo.columns.length)
+            return;
+        const last = geo.columns.at(-1);
+        const room = geo.area.width - Layout.MARGIN - (geo.scroll + last.x + last.width);
+        if (room > 0)
+            strip.scroll += room;
     }
 
     // ---- Floating ----
