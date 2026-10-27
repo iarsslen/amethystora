@@ -14,9 +14,10 @@ export const config = {
     mapScale: 0.15, mapShade: 160,
     edgePreview: true, edgeScale: 0.15, edgeClick: true, edgeHover: false, edgeHoverTime: 800, edgeHoverRepeat: false,
     gestures: true, stripFingers: 3, pileFingers: 3, swipeSpeed: [2, 2], swipeFriction: [0.3, 0.1],
-    modeIcon: true, openIcon: true, topBarDefault: true, barScroll: false,
-    switcherShare: 0.15,
-    workspaceColors: [], workspaceBackgrounds: [], defaultBackground: '',
+    modeIcon: true, openIcon: true, topBarDefault: true, barScroll: false, indicator: false, positionBar: false,
+    switcherShare: 0.15, overviewFloating: 'both', overviewExit: 1,
+    workspaceColors: [], workspaceBackgrounds: [], defaultBackground: '', gnomeBackground: true,
+    workspaceNames: [], workspaceFolders: [],
     rules: [],
 };
 
@@ -87,11 +88,21 @@ export class Config {
             openIcon: bool('show-open-position-icon'),
             topBarDefault: bool('default-show-top-bar'),
             barScroll: bool('topbar-mouse-scroll-enable'),
+            indicator: bool('show-workspace-indicator'),
+            positionBar: bool('show-window-position-bar'),
             switcherShare: double('window-switcher-preview-scale'),
+            // Which windows the overview shows: 'only' the floating ones, 'none' of them, or 'both' kinds
+            overviewFloating: bool('only-scratch-in-overview') ? 'only'
+                : bool('disable-scratch-in-overview') ? 'none' : 'both',
+            // Leaving the overview, the strip comes to the focused window at once (0), gliding (1) or fading in (2)
+            overviewExit: int('overview-ensure-viewport-animation'),
             // A colour that is not #rrggbb counts as none, the theme's
             workspaceColors: s.get_strv('workspace-colors').map(c => /^#[0-9a-f]{6}$/i.test(c) ? c : ''),
             workspaceBackgrounds: s.get_strv('workspace-backgrounds'),
             defaultBackground: s.get_string('default-background'),
+            gnomeBackground: bool('use-default-background'),
+            workspaceNames: s.get_strv('workspace-names'),
+            workspaceFolders: s.get_strv('workspace-directories'),
             rules: rules(s.get_strv('winprops')),
         });
     }

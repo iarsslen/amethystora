@@ -25,12 +25,13 @@ echo '{"taken": [{"schema": "org.gnome.shell.keybindings", "key": "focus-active-
     "removed": [{"accelerator": "<Super>n", "index": 0}], "wrote": []}]}' >"${XDG_STATE_HOME}/amethystora/tiling.json"
 
 # The tiling's settings a file may hold are amethystora-setup's fixed list, with the type and range of each: they
-# are the schema's own (the tiling's on/off, window rules and pictures aside), and the manifest saves the same keys
+# are the schema's own (the tiling's on/off, window rules, pictures, workspace names and folders aside), and the
+# manifest saves the same keys
 TILING=org.gnome.shell.extensions.amethystora-ui.tiling
 TABLE="$(sed -n "/^TILING_KEYS='{\$/,/^}'\$/{s/^TILING_KEYS='//; s/^}'\$/}/; p}" "${SETUP}")"
 listed="$(jq -r 'keys[]' <<<"${TABLE}" | sort)"
 schema="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${TILING}" |
-    grep -vxE 'enabled|winprops|workspace-backgrounds|default-background' | sort)"
+    grep -vxE 'enabled|winprops|workspace-backgrounds|default-background|workspace-names|workspace-directories' | sort)"
 [[ -n "${listed}" && "${listed}" == "${schema}" ]] ||
     { echo "the tiling's keys in TILING_KEYS and in its schema differ:"; diff <(echo "${listed}") <(echo "${schema}"); false; }
 saved="$(sed -n '/^TILING_KEYS=(/,/)$/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" |

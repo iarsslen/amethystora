@@ -10,7 +10,7 @@ import * as Background from 'resource:///org/gnome/shell/ui/background.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {config} from './config.js';
-import {backgroundActor, colourOf} from './backgrounds.js';
+import {backgroundActor, colourOf, nameOf} from './backgrounds.js';
 
 // The frame round each card is one of this many colours of the theme, one per workspace in turn (shell-tiling.css)
 const TONES = 14;
@@ -25,6 +25,13 @@ const PILE_PASSED = [0.95, 1.10];
 const PILE_SHRINK = 0.99;
 // The frame's width, as the stylesheet has it
 const FRAME = 8;
+
+// How many sets of cards are up: the top bar is shown meanwhile, and its icons take no clicks
+let open = 0;
+
+export function cardsShown() {
+    return open > 0;
+}
 
 export class WorkspacePreview {
     // kind: 'row' or 'pile'; workspaces in the order the cards go; selected: the index of the chosen one;
@@ -46,6 +53,8 @@ export class WorkspacePreview {
         Main.layoutManager.uiGroup.insert_child_below(this.actor, Main.layoutManager.panelBox);
         this._cards = workspaces.map(workspace => this._card(workspace));
         engine.boxHidden++;
+        open++;
+        engine.tiling.topBar?.applyTopBar();
         this._place(false);
     }
 
@@ -99,6 +108,12 @@ export class WorkspacePreview {
             clone.set_position(at.x + buffer.x - frame.x - from.x, at.y + buffer.y - frame.y - from.y);
             content.add_child(clone);
         }
+        // With the workspace's name shown in the top bar, its card has it too, over its windows
+        if (config.indicator) {
+            content.add_child(new St.Label({
+                style_class: 'amethystora-tiling-card-name', text: nameOf(workspace), x: 24, y: 24,
+            }));
+        }
         this.actor.add_child(card);
         return card;
     }
@@ -114,8 +129,12 @@ export class WorkspacePreview {
                 scale = ROW_SCALE;
                 const height = m.height * scale;
                 const space = m.height * ROW_SPACE;
-                // The first card near the top, the last near the bottom, any other in the middle
-                const share = n > 1 ? s / (n - 1) : 0.5;
+                // The first card at the top, the last at the bottom, any other in the middle
+                let share = 0.5;
+                if (s === 0)
+                    share = 0;
+                else if (s === n - 1)
+                    share = 1;
                 const chosenTop = space + (m.height - height - 2 * space) * share;
                 top = chosenTop + (i - s) * (height + space);
             } else {
@@ -182,6 +201,8 @@ export class WorkspacePreview {
         this.actor.destroy();
         this.actor = null;
         this._engine.boxHidden--;
+        open--;
+        this._engine.tiling?.topBar?.applyTopBar();
         for (const strip of this._engine.strips?.() ?? [])
             this._engine.updateBox(strip);
     }

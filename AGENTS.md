@@ -1107,17 +1107,20 @@ lose its settings (and a cache folder it left), unless they installed it themsel
   frame, steps, open positions, focus mode, animation time, drift speeds, map, edges, gestures, top-bar icons, window
   rules in `winprops`) is a key of the same schema under PaperWM's own key name and the image's value, read by
   `modules/tiling/config.js` and applied live, and the extension's `prefs.js` (`ame desktop tiling-settings`, Control's
-  **Tiling settings**) is the window for them, written fresh from the spec's description of the pages. The 99 keys
+  **Tiling settings**) is the window for them, written fresh from the spec's description of the pages. The 100 keys
   in `...tiling.keybindings` are the spec's, 54 bound as the image ships and the rest empty for whoever wants them,
-  the live switcher among them (`live-alt-tab*`, a navigation session through the workspace's windows most recent
-  first). With two screens or more each shows a workspace of its own (`modules/tiling/screens.js`, with fixed
-  workspaces: `settings.js` turns `dynamic-workspaces` off meanwhile, beside `workspaces-only-on-primary`,
-  `edge-tiling` and `attach-modal-dialogs`; GNOME Shell's own override sets dynamic ones under `[org.gnome.mutter:GNOME]`,
-  which beats a plain section in a session, so the image's are in that section of zz1 too, and `20-tests.sh` reads
-  them with `XDG_CURRENT_DESKTOP=GNOME`; `tests/vm/suites/29-screens.sh` runs on four screens): GNOME's active
+  the live switcher among them (`live-alt-tab*`, GNOME's window switcher with the window chosen drawn where its strip
+  would scroll it, over a fog). With two screens or more each shows a workspace of its own (`modules/tiling/screens.js`; `settings.js`
+  turns `workspaces-only-on-primary` off meanwhile, beside `edge-tiling` and `attach-modal-dialogs`, and leaves
+  `dynamic-workspaces` the account's: with it on, `screens.js` wraps GNOME's workspace tracker's check so that a
+  workspace a screen shows counts as kept alive, which leaves one to spare beyond the screens'. The image's are fixed:
+  GNOME Shell's own override sets dynamic ones under `[org.gnome.mutter:GNOME]`, which beats a plain section in a
+  session, so the image's are in that section of zz1 too, and `20-tests.sh` reads them with
+  `XDG_CURRENT_DESKTOP=GNOME`; `tests/vm/suites/29-screens.sh` runs on four screens): GNOME's active
   workspace is the screen with the keyboard's, the others are drawn as live clones of their windows in a layer over
-  the background, the pointer moving to a screen makes its workspace GNOME's, GNOME's slide is skipped, and a
-  workspace keeps its screen by connector; a workspace has one strip, on the screen showing it (`engine.strip()`
+  the background, the pointer moving to a screen makes its workspace GNOME's, GNOME's slide is skipped but for a
+  workspace no screen showed, and a workspace keeps its screen by connector (the screen of GNOME's workspace unplugged,
+  the most recent one still shown becomes GNOME's); a workspace has one strip, on the screen showing it (`engine.strip()`
   ignores the monitor there). With one screen none of it runs. `workspace-colors`, `workspace-backgrounds` and
   `default-background` give a workspace a frame colour and a picture of its own (`backgrounds.js`, St widgets over
   GNOME's background that take no clicks); the glass still blurs GNOME's own wallpaper.
@@ -1356,7 +1359,7 @@ and package managers of the account's own, the AUR's switch). A file can be shar
 only. Its settings are a fixed short list, and only where the account changed them from the image: the
 layout, the dock's apps, keybindings by schema and key (the image's own custom keybindings by id, and
 only their binding), and the tiling's settings in `tiling` (the script's `TILING_KEYS`, each checked against its
-type and range; never `enabled`, the window rules or a picture's path; test-setup.sh holds the table to the
+type and range; never `enabled`, the window rules, a picture's path or a workspace's name or folder; test-setup.sh holds the table to the
 schema). Never add a GNOME key that can hold a command, or a field that
 is an address. The script refuses a file with a key or a name it does not know, `save` included;
 `apply` shows what it adds and sets and asks first (`--yes` skips that), and takes nothing away without

@@ -1,13 +1,17 @@
-// A workspace's own wallpaper and colour, from the settings (workspace-backgrounds, workspace-colors and
-// default-background): each screen draws the picture of the workspace it shows over GNOME's own wallpaper, with the
-// workspace's colour under it where the picture leaves room. A workspace with no picture of its own, and no default
-// one, shows GNOME's wallpaper as it is, so that the theme's wallpaper and its transitions are what one sees. The
-// pictures take no clicks: GNOME's background menu stays where it is.
+// What a workspace has of its own, from the settings: its wallpaper and colour (workspace-backgrounds,
+// workspace-colors, default-background and use-default-background), its name (workspace-names) and the folder apps
+// start in while it is shown (workspace-directories). Each screen draws the picture of the workspace it shows over
+// GNOME's own wallpaper, with the workspace's colour under it where the picture leaves room. A workspace with no
+// picture of its own, and no default one, shows GNOME's wallpaper as it is, so that the theme's wallpaper and its
+// transitions are what one sees (or only its colour, when use-default-background is off). The pictures take no
+// clicks: GNOME's background menu stays where it is.
 
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import St from 'gi://St';
 
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {config} from './config.js';
@@ -29,20 +33,35 @@ export function colourOf(workspace) {
     return config.workspaceColors[workspace.index()] || null;
 }
 
+// A workspace's name, the person's or "Workspace N"
+export function nameOf(workspace) {
+    const index = workspace.index();
+    return config.workspaceNames[index]?.trim() || _('Workspace %d').replace('%d', String(index + 1));
+}
+
 // A screen's background with a workspace's picture over its colour, the picture filling the screen as GNOME's zoom
-// does, or null when it has none. Drawn by the shell's own stylesheet machinery, which loads the picture the way
-// the shell loads every image, on GNOME 50 and 51 alike (Mutter's own background loading changed between them).
+// does; its colour alone when it has no picture and GNOME's wallpaper is not wanted; or null for GNOME's wallpaper.
+// Drawn by the shell's own stylesheet machinery, which loads the picture the way the shell loads every image, on
+// GNOME 50 and 51 alike (Mutter's own background loading changed between them).
 export function backgroundActor(workspace) {
     const file = pictureOf(workspace);
+    const colour = `background-color: ${colourOf(workspace) ?? NEUTRAL};`;
     if (!file)
-        return null;
+        return config.gnomeBackground ? null : new St.Widget({reactive: false, style: colour});
     const uri = file.get_uri().replace(/["\\]/g, c => `\\${c}`);
     return new St.Widget({
         reactive: false,
         // Covering, which St centres
-        style: `background-color: ${colourOf(workspace) ?? NEUTRAL}; background-image: url("${uri}");` +
-            ' background-size: cover;',
+        style: `${colour} background-image: url("${uri}"); background-size: cover;`,
     });
+}
+
+// The folder a workspace's apps start in, or null for none (or one that is not there)
+function folderOf(workspace) {
+    let folder = config.workspaceFolders[workspace.index()]?.trim() ?? '';
+    if (folder === '~' || folder.startsWith('~/'))
+        folder = GLib.get_home_dir() + folder.slice(1);
+    return folder && GLib.file_test(folder, GLib.FileTest.IS_DIR) ? folder : null;
 }
 
 export class WorkspaceBackgrounds {
@@ -60,17 +79,24 @@ export class WorkspaceBackgrounds {
         else
             global.window_group.insert_child_at_index(this.layer, 0);
         this._shown = new Map();
+        // The shell's own folder, which every app it starts begins in; changed only while a workspace has a folder
+        this._startedIn = GLib.get_current_dir();
+        this._folder = this._startedIn;
         global.workspace_manager.connectObject('active-workspace-changed', () => this.sync(), this);
         Main.layoutManager.connectObject('monitors-changed', () => this.sync(), this);
+        // The tiling passes on the changes of the workspace- keys; this one is read here
+        this._engine.tiling.settings?.connectObject('changed::use-default-background', () => this.sync(), this);
         this.sync();
     }
 
     disable() {
         global.workspace_manager.disconnectObject(this);
         Main.layoutManager.disconnectObject(this);
+        this._engine.tiling.settings?.disconnectObject(this);
         this.layer?.destroy();
         this.layer = null;
         this._shown = null;
+        this._chdir(this._startedIn);
     }
 
     // Each screen with its workspace's picture, made again only where the workspace or its picture changed
@@ -87,7 +113,7 @@ export class WorkspaceBackgrounds {
         monitors.forEach((monitor, index) => {
             const workspace = this._engine.screens?.shownOn(index) ?? global.workspace_manager.get_active_workspace();
             const key = `${workspace.index()}|${pictureOf(workspace)?.get_uri() ?? ''}|${colourOf(workspace) ?? ''}|` +
-                `${monitor.x},${monitor.y},${monitor.width},${monitor.height}`;
+                `${config.gnomeBackground}|${monitor.x},${monitor.y},${monitor.width},${monitor.height}`;
             const shown = this._shown.get(index);
             if (shown?.key === key)
                 return;
@@ -100,5 +126,15 @@ export class WorkspaceBackgrounds {
             }
             this._shown.set(index, {key, actor});
         });
+        // Apps started now begin in the folder of the workspace the keyboard is on, or where the shell began
+        this._chdir(folderOf(global.workspace_manager.get_active_workspace()) ?? this._startedIn);
+    }
+
+    // The shell's working folder, which the apps it starts inherit; GLib's own call, where it has one
+    _chdir(folder) {
+        if (!folder || folder === this._folder || typeof GLib.chdir !== 'function')
+            return;
+        if (GLib.chdir(folder) === 0)
+            this._folder = folder;
     }
 }

@@ -81,3 +81,21 @@
 #uiGroup .amethystora-tiling-card-13 {
   border-color: st-mix({{ color8 }}, {{ background }}, 70%);
 }
+
+#uiGroup .amethystora-tiling-tooltip .amethystora-tiling-note {
+  color: rgba({{ foreground_rgb }}, 0.6);
+}
+
+#uiGroup .amethystora-tiling-screen-name,
+#uiGroup .amethystora-tiling-card-name {
+  background-color: rgba({{ background_rgb }}, 0.8);
+  color: {{ foreground }};
+}
+
+#uiGroup .amethystora-tiling-position {
+  background-color: rgba({{ foreground_rgb }}, 0.15);
+}
+
+#uiGroup .amethystora-tiling-position-mark {
+  background-color: {{ accent }};
+}

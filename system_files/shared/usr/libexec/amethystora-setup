@@ -62,7 +62,8 @@ TILING=org.gnome.shell.extensions.amethystora-ui.tiling
 # The tiling's settings a file may hold, each with its type and, for a number, the range its schema gives it,
 # so that a file is checked before anything is set rather than half applied; test-setup.sh holds this to the
 # schema. A step is a share of the screen or a width in pixels, so above 0; a workspace's colour is "" or #rrggbb.
-# Never `enabled`, which is the layout, nor the window rules or a picture, which hold patterns and paths.
+# Never `enabled`, which is the layout, nor the window rules, a picture or a workspace's name or folder, which
+# hold patterns, paths and text.
 TILING_KEYS='{
     "window-gap": ["i", 0, 200], "horizontal-margin": ["i", 0, 400], "vertical-margin": ["i", 0, 400],
     "vertical-margin-bottom": ["i", 0, 400], "selection-border-size": ["i", 0, 100],
@@ -81,7 +82,9 @@ TILING_KEYS='{
     "swipe-sensitivity": ["ad"], "swipe-friction": ["ad"],
     "show-focus-mode-icon": ["b"], "show-open-position-icon": ["b"], "default-show-top-bar": ["b"],
     "topbar-mouse-scroll-enable": ["b"], "window-switcher-preview-scale": ["d", 0.05, 0.5],
-    "workspace-colors": ["as", "colours"]
+    "show-workspace-indicator": ["b"], "show-window-position-bar": ["b"], "only-scratch-in-overview": ["b"],
+    "disable-scratch-in-overview": ["b"], "overview-ensure-viewport-animation": ["i", 0, 2],
+    "use-default-background": ["b"], "workspace-colors": ["as", "colours"]
 }'
 # What a value of each kind has to be, for the check and for reading an old file's gaps
 TILING_JQ="$(

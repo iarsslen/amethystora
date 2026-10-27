@@ -1,9 +1,9 @@
 // The GNOME settings the tiling cannot do without, set while it runs and put back as they were when it stops:
 // dragging a window to an edge of the screen does not snap it to half the screen (GNOME's edge tiling would fight
 // the strip), modal dialogs are not attached to their parent, and with more than one screen every screen has
-// workspaces, fixed ones, so that each screen shows one of its own (dynamic workspaces keep one empty workspace at
-// most, which leaves a third screen without any); those two are given back when one screen is left. What they were
-// is written down first (state.js), so that a crash cannot lose it.
+// workspaces, so that each screen shows one of its own, given back when one screen is left. Dynamic or fixed
+// workspaces stay the person's choice: screens.js keeps the ones the screens show. What these were is written down
+// first (state.js), so that a crash cannot lose it.
 
 import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -22,6 +22,15 @@ export class GnomeSettings {
         // A modal dialog is a window of its own: glued to a parent the strip moves, it would be left where the parent
         // was
         this._force('attach-modal-dialogs', false);
+        // An earlier version made the workspaces fixed while there were several screens, and wrote down as what was
+        // there before GNOME's dynamic ones, which beat the image's fixed six until the image set them for GNOME's
+        // own session too: the key goes back to its default, once, rather than to that
+        const old = this._records().find(r => r.key === 'dynamic-workspaces');
+        if (old) {
+            this._state.set('forced', this._records().filter(r => r !== old));
+            if (this._settings.get_boolean('dynamic-workspaces') === old.wrote)
+                this._settings.reset('dynamic-workspaces');
+        }
         this.monitorsChanged();
     }
 
@@ -36,19 +45,10 @@ export class GnomeSettings {
     monitorsChanged() {
         if (!this._settings)
             return;
-        if (Main.layoutManager.monitors.length > 1) {
+        if (Main.layoutManager.monitors.length > 1)
             this._force('workspaces-only-on-primary', false);
-            // As many fixed workspaces as there are now at least: mutter would put the windows of the ones past the
-            // fixed number on the last one
-            const count = global.workspace_manager.n_workspaces;
-            const wm = new Gio.Settings({schema_id: 'org.gnome.desktop.wm.preferences'});
-            if (this._settings.get_boolean('dynamic-workspaces') && wm.get_int('num-workspaces') < count)
-                wm.set_int('num-workspaces', count);
-            this._force('dynamic-workspaces', false);
-        } else {
+        else
             this._giveBack('workspaces-only-on-primary');
-            this._giveBack('dynamic-workspaces');
-        }
     }
 
     _giveBack(key) {

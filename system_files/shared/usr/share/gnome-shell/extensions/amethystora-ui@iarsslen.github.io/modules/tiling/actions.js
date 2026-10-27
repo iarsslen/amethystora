@@ -95,7 +95,8 @@ export class Actions {
         for (const [name, value] of Object.entries(Open))
             add(`open-window-position-${name.toLowerCase()}`, () => this.setOpenPosition(value), once);
         add('toggle-top-and-position-bar', () => this.tiling.topBar?.toggle(), once);
-        add('toggle-top-bar', () => this.tiling.topBar?.toggle(), once);
+        add('toggle-top-bar', () => this.tiling.topBar?.toggle('top'), once);
+        add('toggle-position-bar', () => this.tiling.topBar?.toggle('position'), once);
         add('activate-window-under-cursor', () => this.activateUnderPointer(), once);
         for (const [side, direction] of Object.entries(DIRECTIONS)) {
             // Going to a screen, or taking a window there, goes on while held; swapping or moving a workspace acts
@@ -421,9 +422,9 @@ export class Actions {
         }
         const geo = this.engine.geometry(strip);
         const column = geo.columns[strip.find(window)[0]];
-        if (geo.centred)
-            return;
+        // A strip narrower than the screen leaves the middle for it, and stays there (engine.js, geometry)
         strip.scroll = Math.round((area.width - column.width) / 2) - column.x;
+        strip.loose = true;
         this.engine.layout(strip);
     }
 
@@ -448,18 +449,21 @@ export class Actions {
             window.make_fullscreen();
     }
 
+    // On the window's own workspace, which is not always the one GNOME counts as current
     newWindow(window) {
         const app = Shell.WindowTracker.get_default().get_window_app(window);
+        const workspace = window.is_on_all_workspaces() ? null : window.get_workspace();
         if (app?.can_open_new_window())
-            app.open_new_window(-1);
+            app.open_new_window(workspace?.index() ?? -1);
     }
 
     // ---- The floating layer ----
 
+    // Any window can float, a dialog too; one that does not tile just leaves the layer again
     toggleFloating(window) {
         if (this.engine.floating.has(window))
             this.engine.unfloat(window);
-        else if (this.engine.isTiled(window))
+        else
             this.engine.float(window);
     }
 
@@ -484,21 +488,21 @@ export class Actions {
             Main.activateWindow(first);
     }
 
-    // The floating window used last goes away, or comes back
+    // From a floating window every floating window goes away; from anywhere else the one used last comes back
     toggleLastFloating() {
-        const mru = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null);
         const floating = [...this.engine.floating];
+        if (floating.includes(global.display.focus_window)) {
+            for (const window of floating.filter(w => !w.minimized))
+                window.minimize();
+            return;
+        }
+        const mru = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null);
         const last = mru.find(w => floating.includes(w)) ?? floating.find(w => w.minimized);
         if (!last)
             return;
-        if (last.minimized) {
+        if (last.minimized)
             last.unminimize();
-            Main.activateWindow(last);
-        } else if (last.has_focus()) {
-            last.minimize();
-        } else {
-            Main.activateWindow(last);
-        }
+        Main.activateWindow(last);
     }
 
     // The keyboard to the window under the pointer

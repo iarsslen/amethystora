@@ -1,17 +1,21 @@
 // A navigation session: from the first tiling key until Super (the key's main modifier) is let go, the keyboard
 // is the tiling's. The selection moves and the strip scrolls with every key, a map of the strip shows the way, and
 // the window chosen gets the keyboard at the end. Windows can be carried along meanwhile (Super+T) and put down
-// on the workspace the session ends on.
+// on the workspace the session ends on. The live switcher is GNOME's window switcher, with the window chosen drawn
+// where its strip would show it.
 
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
 import Meta from 'gi://Meta';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
 
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+import * as AltTab from 'resource:///org/gnome/shell/ui/altTab.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+import * as Layout from './layout.js';
 import {config} from './config.js';
 import {Open} from './engine.js';
 import {lower} from './keys.js';
@@ -34,6 +38,26 @@ const SIDES = {
 // The order modifiers rank in, for the one that ends a session
 const RANKED = [Clutter.ModifierType.SUPER_MASK, Clutter.ModifierType.CONTROL_MASK,
     Clutter.ModifierType.MOD1_MASK, Clutter.ModifierType.SHIFT_MASK];
+// The live switcher's keys: [backward, the floating windows only]
+const LIVE_TAB = {
+    'live-alt-tab': [false, false], 'live-alt-tab-backward': [true, false],
+    'live-alt-tab-scratch': [false, true], 'live-alt-tab-scratch-backward': [true, true],
+};
+
+// The modifiers a key was pressed with, Super under its one name
+function maskOf(binding, event) {
+    let mask = binding?.get_mask?.() ?? 0;
+    if (!mask && event)
+        mask = event.get_state();
+    return mask & Clutter.ModifierType.MOD4_MASK ? mask | Clutter.ModifierType.SUPER_MASK : mask;
+}
+
+// A column's window used last
+function recent(column) {
+    const mru = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null);
+    const rank = window => mru.includes(window) ? mru.indexOf(window) : Infinity;
+    return column.reduce((best, window) => rank(window) < rank(best) ? window : best, column[0]);
+}
 
 export class Sessions {
     constructor(tiling) {
@@ -43,11 +67,21 @@ export class Sessions {
 
     begin(name, {event, binding} = {}) {
         const engine = this.tiling.engine;
+        // The live switcher is a window switcher of its own, which holds the keyboard itself
+        if (LIVE_TAB[name]) {
+            this.end();
+            const [backward, floatingOnly] = LIVE_TAB[name];
+            const popup = new LiveSwitcher(this.tiling, floatingOnly);
+            // GNOME's switcher ends when the highest of these is let go, as it does for its own keys
+            const real = Clutter.ModifierType.SHIFT_MASK | Clutter.ModifierType.CONTROL_MASK |
+                Clutter.ModifierType.MOD1_MASK | Clutter.ModifierType.MOD4_MASK;
+            const mask = binding?.get_mask?.() || (event?.get_state() ?? 0) & real;
+            if (!popup.show(backward, name, mask))
+                popup.destroy();
+            return;
+        }
         if (!this.current) {
-            let mask = binding?.get_mask?.() ?? 0;
-            if (!mask && event)
-                mask = event.get_state();
-            mask = mask & Clutter.ModifierType.MOD4_MASK ? mask | Clutter.ModifierType.SUPER_MASK : mask;
+            const mask = maskOf(binding, event);
             const principal = RANKED.find(bit => mask & bit) ?? 0;
             const session = new Session(this, principal);
             if (!session.start())
@@ -103,6 +137,7 @@ class Session {
             'scroll-event', (actor, event) => this._scroll(event),
             this);
         Main.overview.connectObject('showing', () => this.end(), 'hiding', () => this.end(), this);
+        this._pauseAnimations();
         this._engine.updateBox(this.strip);
         // A key let go before the grab began: the session is over as soon as it starts
         this._check = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
@@ -113,6 +148,20 @@ class Session {
             return GLib.SOURCE_REMOVE;
         });
         return true;
+    }
+
+    // GNOME's own window animations (a window minimized, closed or opened) wait until the session is over, so that
+    // nothing moves on the screen but what the keys move. GNOME's check is still asked, for what it keeps track of.
+    _pauseAnimations() {
+        const wm = Main.wm;
+        const original = wm._shouldAnimateActor;
+        if (typeof original !== 'function' || Object.prototype.hasOwnProperty.call(wm, '_shouldAnimateActor'))
+            return;
+        wm._shouldAnimateActor = function (...args) {
+            original.apply(this, args);
+            return false;
+        };
+        this._resumeAnimations = () => delete wm._shouldAnimateActor;
     }
 
     _held(mods) {
@@ -132,13 +181,10 @@ class Session {
             this._drift(name === 'drift-left' ? 1 : -1, event);
             return;
         }
-        // The live switcher: forward or back, and the floating windows only
-        const tab = {
-            'live-alt-tab': [1, false], 'live-alt-tab-backward': [-1, false],
-            'live-alt-tab-scratch': [1, true], 'live-alt-tab-scratch-backward': [-1, true],
-        }[name];
-        if (tab) {
-            this._altTab(...tab);
+        // The live switcher takes over from the session
+        if (LIVE_TAB[name]) {
+            this.end();
+            this._sessions.begin(name, {event});
             return;
         }
         const workspaceKey = {
@@ -234,20 +280,58 @@ class Session {
             return true;
         }
         if (kind === 'monitor') {
-            const direction = SIDES[side];
-            if (global.display.get_monitor_neighbor_index(this.strip.monitor, direction) < 0)
+            const to = global.display.get_monitor_neighbor_index(this.strip.monitor, SIDES[side]);
+            if (to < 0)
                 return false;
-            this.end();
-            this._tiling.actions.focusMonitor(direction);
+            this._toScreen(to, side);
             return true;
         }
         return false;
+    }
+
+    // The session goes on in the strip of the screen that way: at its first column going right, its last going
+    // left, and up or down at the bottom or the top of the column in the same place. The pointer goes along, and
+    // the map is drawn there.
+    _toScreen(to, side) {
+        const from = this.strip;
+        const at = from.selected ? from.find(from.selected) : null;
+        const strip = this._engine.activeStrip(to);
+        const columns = strip.columns;
+        let target = null;
+        if (columns.length && side === 'right') {
+            target = recent(columns[0]);
+        } else if (columns.length && side === 'left') {
+            target = recent(columns.at(-1));
+        } else if (columns.length) {
+            const column = columns[Math.min(at?.[0] ?? 0, columns.length - 1)];
+            target = side === 'above' ? column.at(-1) : column[0];
+        }
+        const mapShown = !!this._map;
+        this._closeMap();
+        this.strip = strip;
+        this._monitor = to;
+        if (target) {
+            strip.selected = target;
+            this._engine.ensureVisible(strip, target);
+        }
+        this._engine.updateBox(from);
+        this._tiling.actions.warpTo(to);
+        if (this._carried.length)
+            this._pile();
+        this._moved();
+        if (this._preview)
+            return;
+        if (mapShown)
+            this._showMap();
+        else
+            this._wantMap();
     }
 
     _moved() {
         this._engine.updateBox(this.strip);
         this._map?.update();
         this._syncVeils();
+        this._tiling.topBar?.positionsChanged();
     }
 
     // The strip moved under the session: the dimming moves with its windows, frame by frame
@@ -270,10 +354,16 @@ class Session {
             return;
         this._mapTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, MAP_DELAY, () => {
             this._mapTimer = 0;
-            this._map = new StripMap(this._engine, this.strip);
-            this._syncVeils();
+            this._showMap();
             return GLib.SOURCE_REMOVE;
         });
+    }
+
+    _showMap() {
+        if (config.mapScale <= 0)
+            return;
+        this._map = new StripMap(this._engine, this.strip);
+        this._syncVeils();
     }
 
     _closeMap() {
@@ -354,52 +444,6 @@ class Session {
         this._drifting = null;
         if (!quiet && this.strip.selected)
             this._engine.ensureVisible(this.strip, this.strip.selected);
-    }
-
-    // ---- The live switcher ----
-
-    // Through this workspace's windows, the one used last first: each is shown where it is, the strip scrolling to a
-    // tiled one and a floating one raised, its title under it, and the keyboard goes to it when the session ends
-    _altTab(step, floatingOnly) {
-        if (!this._tab) {
-            const workspace = global.workspace_manager.get_active_workspace();
-            const list = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, workspace).filter(window =>
-                floatingOnly ? this._engine.floating.has(window) : true);
-            if (!list.length)
-                return;
-            this._tab = {list, index: list.indexOf(global.display.focus_window)};
-        }
-        const {list} = this._tab;
-        this._tab.index = ((this._tab.index + step) % list.length + list.length) % list.length;
-        const window = list[this._tab.index];
-        this._tab.chosen = window;
-        const strip = this._engine.stripOf(window);
-        if (strip) {
-            this.strip = strip;
-            strip.selected = window;
-            this._engine.ensureVisible(strip, window);
-        } else if (!window.minimized) {
-            window.raise();
-        }
-        this._moved();
-        this._tabTitle(window);
-    }
-
-    _tabTitle(window) {
-        if (!this._tabLabel) {
-            this._tabLabel = new St.Label({style_class: 'amethystora-tiling-hint', opacity: 0});
-            this._tabLabel.clutter_text.ellipsize = Pango.EllipsizeMode.END;
-            Main.uiGroup.add_child(this._tabLabel);
-            this._tabLabel.ease({opacity: 255, duration: config.animation});
-        }
-        const label = this._tabLabel;
-        label.text = window.get_title() ?? '';
-        const monitor = Main.layoutManager.monitors[this._engine.stripOf(window)?.monitor ?? window.get_monitor()] ??
-            Main.layoutManager.primaryMonitor;
-        const [, width] = label.get_preferred_width(-1);
-        label.width = Math.min(width, monitor.width - 64);
-        label.set_position(Math.round(monitor.x + (monitor.width - label.width) / 2),
-            monitor.y + monitor.height - 100);
     }
 
     // ---- Workspaces ----
@@ -541,12 +585,10 @@ class Session {
         if (this._check)
             GLib.source_remove(this._check);
         this._check = 0;
+        this._resumeAnimations?.();
+        this._resumeAnimations = null;
         // One step failing does not keep the others from running
-        const steps = [() => this._stopDrift(quiet), () => this._closeMap(), () => this._syncVeils(), () => {
-            const label = this._tabLabel;
-            this._tabLabel = null;
-            label?.ease({opacity: 0, duration: config.animation, onStopped: () => label.destroy()});
-        }];
+        const steps = [() => this._stopDrift(quiet), () => this._closeMap(), () => this._syncVeils()];
         for (const step of steps) {
             try {
                 step();
@@ -591,12 +633,7 @@ class Session {
             return;
         if (first)
             this.strip.selected = first;
-        // The live switcher chose a floating window (or one minimized): it gets the keyboard itself
-        const chosen = this._tab?.chosen;
-        if (!first && chosen && !this._engine.isTiled(chosen))
-            Main.activateWindow(chosen);
-        else
-            this._engine.focus(this.strip);
+        this._engine.focus(this.strip);
         this._engine.updateBox(this.strip);
         this._tiling.noteWorkspace(this.strip.workspace);
     }
@@ -616,7 +653,8 @@ class StripMap {
         this._view = new St.Widget({clip_to_allocation: true});
         this._content = new St.Widget();
         this._view.add_child(this._content);
-        this._label = new St.Label({style_class: 'amethystora-tiling-map-title', x_align: Clutter.ActorAlign.CENTER});
+        // The title of the window chosen, under its picture
+        this._label = new St.Label({style_class: 'amethystora-tiling-map-title', x_align: Clutter.ActorAlign.START});
         this._label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
         this.actor.add_child(this._view);
         this.actor.add_child(this._label);
@@ -715,18 +753,26 @@ class StripMap {
             } else {
                 offset = 0;
             }
+            const first = this._offset === undefined;
             if (Math.round(offset) !== this._offset) {
                 this._content.ease({
-                    translation_x: -Math.round(offset), duration: this._offset === undefined ? 0 : MAP_GLIDE,
+                    translation_x: -Math.round(offset), duration: first ? 0 : MAP_GLIDE,
                     mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                 });
                 this._offset = Math.round(offset);
             }
+            // Centred under the picture of the window, and kept inside the map
+            this._label.width = -1;
+            const [, natural] = this._label.get_preferred_width(-1);
+            const shown = Math.min(natural, viewWidth);
+            this._label.width = shown;
+            const middle = selected.x + selected.width / 2 - this._offset;
+            const x = Math.round(Math.max(0, Math.min(viewWidth - shown, middle - shown / 2)));
+            this._label.ease({translation_x: x, duration: first ? 0 : MAP_GLIDE, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
         } else {
             highlight.hide();
             this._label.text = '';
         }
-        this._label.width = viewWidth;
         const [, natWidth] = this.actor.get_preferred_width(-1);
         const [, natHeight] = this.actor.get_preferred_height(natWidth);
         this.actor.set_position(Math.round(this._monitor.x + (this._monitor.width - natWidth) / 2),
@@ -739,3 +785,107 @@ class StripMap {
         this._clones.clear();
     }
 }
+
+// Where a tiled window would be drawn once its strip has scrolled to it, by the workspace's focus mode, without
+// scrolling the strip
+function scrolledTo(engine, strip, window) {
+    // geometry() may centre the strip for the window asked about: it is left as it was
+    const {selected, scroll, loose} = strip;
+    strip.selected = window;
+    try {
+        const geo = engine.geometry(strip);
+        const rect = geo.rects.get(window);
+        const at = strip.find(window);
+        if (!rect || !at || geo.centred || window.is_fullscreen())
+            return rect ?? null;
+        const column = geo.columns[at[0]];
+        const now = geo.scroll + column.x;
+        const x = Layout.placeFocused(geo.area, column, now, strip.mode, at[0], geo.columns.length);
+        return {...rect, x: rect.x + Math.round(x - now)};
+    } finally {
+        Object.assign(strip, {selected, scroll, loose});
+    }
+}
+
+// GNOME's window switcher over the windows of every workspace (or of this one, when GNOME's switcher is set to the
+// current workspace only), the tiled ones first and the floating ones after them, or before them when a floating
+// one has the keyboard; or the floating ones alone. The window chosen is drawn live where its strip would scroll it,
+// over a fog on the rest of the screen, and gets the keyboard when the keys are let go; Escape leaves everything
+// as it was.
+const LiveSwitcher = GObject.registerClass(
+class LiveSwitcher extends AltTab.WindowSwitcherPopup {
+    _init(tiling, floatingOnly) {
+        // GNOME's switcher asks for its list of windows while it is made
+        this._tiling = tiling;
+        this._floatingOnly = floatingOnly;
+        super._init();
+        this.connect('destroy', () => this._unlive());
+    }
+
+    _getWindowList() {
+        const windows = super._getWindowList();
+        const floating = this._tiling.engine?.floating ?? new Set();
+        const above = windows.filter(window => floating.has(window));
+        if (this._floatingOnly)
+            return above;
+        const tiled = windows.filter(window => !floating.has(window));
+        return floating.has(global.display.focus_window) ? [...above, ...tiled] : [...tiled, ...above];
+    }
+
+    // The live switcher's own keys go on through the windows, as GNOME's go through its own
+    vfunc_key_press_event(event) {
+        const name = this._tiling.keys?.actionFor(event);
+        const tab = LIVE_TAB[name];
+        if (!tab)
+            return super.vfunc_key_press_event(event);
+        this._disableHover();
+        this._select(tab[0] ? this._previous() : this._next());
+        this._showImmediately();
+        return Clutter.EVENT_STOP;
+    }
+
+    _select(num) {
+        super._select(num);
+        if (this._live)
+            this._draw(this._items[num]?.window);
+    }
+
+    // Drawn only once the switcher shows, so that a quick press and release does not flash the screen
+    _showImmediately() {
+        super._showImmediately();
+        if (!this._live) {
+            this._live = true;
+            this._draw(this._items[this._selectedIndex]?.window);
+        }
+    }
+
+    _draw(window) {
+        this._clone?.destroy();
+        this._clone = null;
+        const engine = this._tiling.engine;
+        const actor = window?.get_compositor_private();
+        if (!engine || !actor)
+            return;
+        const strip = engine.stripOf(window);
+        const area = engine.area(strip?.monitor ?? window.get_monitor());
+        if (!this._fog) {
+            this._fog = new St.Widget({style_class: 'amethystora-tiling-fog', reactive: false});
+            Main.uiGroup.insert_child_below(this._fog, this);
+        }
+        this._fog.set_position(area.x, area.y);
+        this._fog.set_size(area.width, area.height);
+        const rect = (strip && scrolledTo(engine, strip, window)) ?? engine.visual(window);
+        const frame = window.get_frame_rect();
+        const buffer = window.get_buffer_rect();
+        this._clone = new Clutter.Clone({source: actor, reactive: false});
+        this._clone.set_position(rect.x + buffer.x - frame.x, rect.y + buffer.y - frame.y);
+        Main.uiGroup.insert_child_above(this._clone, this._fog);
+    }
+
+    _unlive() {
+        this._clone?.destroy();
+        this._fog?.destroy();
+        this._clone = null;
+        this._fog = null;
+    }
+});

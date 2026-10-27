@@ -2093,7 +2093,7 @@ msgstr ""
 msgid "They apply once the layout is tiling again."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
 msgid "Tiling settings"
 msgstr ""
 
@@ -4973,12 +4973,10 @@ msgstr ""
 msgid "What it empties stays in the snapshots and the backup, where they are on."
 msgstr ""
 
-#. Translators: a choice in a menu: to put the artwork on the boot menu
 #: usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just
 msgid "Turn on"
 msgstr ""
 
-#. Translators: a choice in a menu: to take the artwork off the boot menu
 #: usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just
 msgid "Turn off"
 msgstr ""
@@ -7097,6 +7095,14 @@ msgid "%s is uninstalled"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar.js
+msgid "Its data was deleted too."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar.js
+msgid "Its data was kept."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar.js
 msgid "%s could not be uninstalled"
 msgstr ""
 
@@ -7132,19 +7138,19 @@ msgstr ""
 msgid "Could not reach the phone"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/clicks.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/badges.js
 msgid "%s is being updated. Try again later."
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/dash.js
-msgid "Dock"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/dash.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/badges.js
 msgid "%s, %d unread"
 msgid_plural "%s, %d unread"
 msgstr[0] ""
 msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/dash.js
+msgid "Dock"
+msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/menus.js
 msgid "Open windows"
@@ -7159,6 +7165,20 @@ msgid "Close the window"
 msgid_plural "Close %d windows"
 msgstr[0] ""
 msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/menus.js
+msgid "Pin to dock"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/menus.js
+msgid "Quit %d window"
+msgid_plural "Quit %d windows"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/menus.js
+msgid "%s is being updated"
+msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js
 msgid "Trash"
@@ -7185,15 +7205,19 @@ msgid "The trash could not be emptied"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js
+msgid "%s is already being ejected"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js
+msgid "%s is already being unmounted"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js
 msgid "%s could not be ejected"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js
 msgid "%s could not be unmounted"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock.js
-msgid "Pin to dock"
 msgstr ""
 
 #. Translators: something smaller than the size or share shown, such as "< 1 kB"
@@ -7388,12 +7412,24 @@ msgstr ""
 msgid "Frame the area"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/backgrounds.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Workspace %d"
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/engine.js
 msgid "A window rule names a workspace there is not"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/engine.js
 msgid "The window opened on this workspace instead of workspace %d."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/keys.js
+msgid "%s is a shortcut of the tiling"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/keys.js
+msgid "The tiling keeps it, so “%s” does not answer to it until the tiling is turned off."
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/patches.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
@@ -7418,6 +7454,14 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/session.js
 msgid "Space puts the window down here, Tab goes through the windows you carry, Q closes them"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
+msgid "Workspace name"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
+msgid "Name of this workspace"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
@@ -7468,16 +7512,12 @@ msgstr ""
 msgid "Above"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
-msgid "Workspace %d"
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
+msgid "The places a click goes through are chosen in the tiling settings"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Workspaces"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
-msgid "Name of this workspace"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
@@ -7769,11 +7809,31 @@ msgid "More stops sooner"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "How soon the workspaces stop after the fingers let go"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Show how the workspace scrolls to a window"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Show where new windows open"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Show the name of the workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "A click opens the overview, the other button renames it, the wheel goes to the next. Each other screen shows its own at its top."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Show where the window is in the strip"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "A line along the bottom of the top bar, and at the top of each other screen"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
@@ -7801,6 +7861,38 @@ msgid "In percent of the screen’s height"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Overview"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Show only the floating windows"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Leave the floating windows out"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Coming back to the focused window"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "At once"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Gliding"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Fading in"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "How the strip shows the window when the overview closes"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Pictures"
 msgstr ""
 
@@ -7817,15 +7909,39 @@ msgid "GNOME’s own wallpaper, which the theme sets"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Without a picture, show GNOME’s wallpaper"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Off, a workspace without a picture of its own shows its colour alone"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Each workspace"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
-msgid "A colour frames the workspace while you go through the workspaces with Super+Page Up and Page Down, and fills what its picture leaves. Without its own picture a workspace shows the one above."
+msgid "A colour frames the workspace while you go through the workspaces with Super+Page Up and Page Down, and fills what its picture leaves. Without its own picture a workspace shows the one above. Apps started while a workspace is shown start in its folder."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Name"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Picture"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "The picture of every workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Folder"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "None: apps start where they always do"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
@@ -8249,7 +8365,11 @@ msgid "Hide or show the top bar on this workspace"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
-msgid "Hide or show the top bar on this workspace (a second key for it)"
+msgid "Hide or show the top bar alone on this workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Hide or show where the window is in the strip, on this workspace"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js

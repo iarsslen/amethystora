@@ -1,8 +1,8 @@
 // What the tiling changes in GNOME Shell's own windows and views while it runs: the window menu offers to float a
 // window; the overview and GNOME's workspace-switch animation draw each window where the strip draws it (its
-// frame and the translation that makes up the rest), and leave out the ones scrolled off the screen; and the
-// window switcher (Alt+Tab) shows its thumbnails larger. Each is a wrapper around GNOME's own method, taken
-// away when the tiling stops.
+// frame and the translation that makes up the rest), and leave out the ones scrolled off the screen (and, when the
+// settings say so, the floating windows or all but them); and the window switcher (Alt+Tab) shows its thumbnails
+// larger. Each is a wrapper around GNOME's own method, taken away when the tiling stops.
 
 import Clutter from 'gi://Clutter';
 import St from 'gi://St';
@@ -12,6 +12,8 @@ import * as AltTab from 'resource:///org/gnome/shell/ui/altTab.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as WindowMenu from 'resource:///org/gnome/shell/ui/windowMenu.js';
 import * as WindowPreview from 'resource:///org/gnome/shell/ui/windowPreview.js';
+import * as Workspace from 'resource:///org/gnome/shell/ui/workspace.js';
+import * as WorkspaceThumbnail from 'resource:///org/gnome/shell/ui/workspaceThumbnail.js';
 import * as WorkspaceAnimation from 'resource:///org/gnome/shell/ui/workspaceAnimation.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -35,14 +37,25 @@ export class ShellPatches {
         // The window menu: one more entry at its top
         this._wrap(WindowMenu.WindowMenu.prototype, '_buildMenu', (original, menu, window) => {
             original.call(menu, window);
+            // Every window's, a dialog's too: it then joins the floating layer
             const e = engine();
-            if (!e || !(e.isTiled(window) || e.floating.has(window)))
+            if (!e)
                 return;
             const item = new PopupMenu.PopupMenuItem(_('Float above the strip'));
             item.setOrnament(e.floating.has(window) ? PopupMenu.Ornament.CHECK : PopupMenu.Ornament.NONE);
             item.connect('activate', () => tiling.actions?.toggleFloating(window));
             menu.addMenuItem(item, 0);
         });
+
+        // The overview shows only the floating windows, or leaves them out, when the settings say so
+        const shown = window => {
+            const floating = engine()?.floating?.has(window) ?? false;
+            return config.overviewFloating === 'only' ? floating : config.overviewFloating !== 'none' || !floating;
+        };
+        this._wrap(Workspace.Workspace.prototype, '_isOverviewWindow', (original, workspace, window) =>
+            original.call(workspace, window) && shown(window));
+        this._wrap(WorkspaceThumbnail.WorkspaceThumbnail.prototype, '_isOverviewWindow', (original, thumbnail, actor) =>
+            original.call(thumbnail, actor) && shown(actor.get_meta_window()));
 
         // The overview and the workspace switch see a window where it is drawn
         const visual = window => {
@@ -93,8 +106,10 @@ export class ShellPatches {
             let hiding = null;
             this._wrap(animation, 'animateSwitch', (original, controller, from, to, direction, onComplete) => {
                 const e = engine();
-                // With a workspace on each screen GNOME's slide would move every screen: the switch is at once
-                if (e?.screens?.separate)
+                // With a workspace on each screen, one that another screen shows already is there to see: the
+                // switch is at once. To one shown nowhere GNOME slides, every screen, as it does without the tiling.
+                if (e?.screens?.separate &&
+                    e.screens.wasShown(global.workspace_manager.get_workspace_by_index(to)))
                     return onComplete();
                 if (e && !hiding) {
                     hiding = e;

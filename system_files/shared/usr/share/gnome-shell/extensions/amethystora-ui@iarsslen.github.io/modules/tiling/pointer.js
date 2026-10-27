@@ -34,10 +34,12 @@ const BETWEEN = 100;
 const STACK = 250;
 // The strip drifts while a dragged window is this near a side of the screen
 const DRAG_EDGE = 12;
-// How far the fingers move before the direction counts
+// How far a finger moves along the top bar before the strip follows it
 const DECIDE = 16;
 // With several screens: how often the pointer's screen is looked at
 const MONITOR_POLL = 100;
+// Where the pointer is put, off the edge, once staying there went to the window beyond it
+const NUDGE = 3;
 
 export class Pointer {
     constructor(tiling) {
@@ -56,7 +58,10 @@ export class Pointer {
             'grab-op-begin', (d, window, op) => this._grabBegan(window, op),
             'grab-op-end', (d, window) => this._grabEnded(window),
             this);
-        global.stage.connectObject('captured-event::touchpad', (actor, event) => this._touchpad(event), this);
+        global.stage.connectObject(
+            'captured-event::touchpad', (actor, event) => this._touchpad(event),
+            'captured-event::touch', (actor, event) => this._touched(event),
+            this);
         this._panelPan();
         this._touchpadSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.peripherals.touchpad'});
         // GNOME's own swipes give way to the strip's outside the overview: sideways between workspaces never, up
@@ -92,7 +97,8 @@ export class Pointer {
             tracker.enabled = true;
         }
         this._trackers = null;
-        for (const id of ['_monitorTimer', '_previewTimer', '_pollTimer', '_retryTimer', '_settleTimer', '_hoverTimer']) {
+        for (const id of ['_monitorTimer', '_previewTimer', '_pollTimer', '_retryTimer', '_settleTimer', '_hoverTimer',
+            '_dropTimer', '_trackerIdle']) {
             if (this[id])
                 GLib.source_remove(this[id]);
             this[id] = 0;
@@ -184,10 +190,20 @@ export class Pointer {
         const {monitor, side} = this._edge;
         this._hoverTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, config.edgeHoverTime, () => {
             this._hoverTimer = 0;
-            if (this._nearEdge())
-                this._goBeyond(monitor, side, config.edgeHoverRepeat);
+            // Once only: the pointer is put just off the edge, so that it does not go on to the next window
+            if (this._nearEdge() && this._goBeyond(monitor, side, config.edgeHoverRepeat) && !config.edgeHoverRepeat)
+                this._nudge(monitor, side);
             return GLib.SOURCE_REMOVE;
         });
+    }
+
+    _nudge(monitor, side) {
+        const screen = Main.layoutManager.monitors[monitor];
+        if (!screen)
+            return;
+        const [, y] = global.get_pointer();
+        const x = side < 0 ? screen.x + NUDGE : screen.x + screen.width - 1 - NUDGE;
+        global.stage.context.get_backend().get_default_seat().warp_pointer(x, y);
     }
 
     _edgeLeft() {
@@ -315,14 +331,45 @@ export class Pointer {
             actor.translation_y = 0;
         }
         window.connectObject('position-changed', () => this._dragged(), this);
+        this._hookGrab(this._drag);
         if (plain === Meta.GrabOp.KEYBOARD_MOVING || mods & Clutter.ModifierType.CONTROL_MASK)
             this._lift();
+    }
+
+    // GNOME's drag holds every event of the pointer for itself, on an actor of its own: the wheel is taken there, and
+    // the pointer drawn there
+    _hookGrab(drag) {
+        if (drag.grab)
+            return;
+        const grab = global.stage.get_grab_actor();
+        if (!grab || grab === global.stage)
+            return;
+        drag.grab = grab;
+        grab.connectObject('captured-event::scroll', (actor, event) => this._dragWheel(event), this);
+        if (drag.carried)
+            grab.set_cursor_type(Clutter.CursorType.GRABBING);
+    }
+
+    // The wheel moves the strip's selection left or right while a window is dragged, as it does in a navigation
+    _dragWheel(event) {
+        const drag = this._drag;
+        const step = drag ? this._wheelStep(event) : 0;
+        if (!step)
+            return Clutter.EVENT_PROPAGATE;
+        const strip = drag.carried ? this._engine.activeStrip(global.display.get_current_monitor()) : drag.strip;
+        // Not yet lifted, the strip follows the pointer from where the wheel put it
+        if (this._tiling.actions.move(step < 0 ? 'switch-left' : 'switch-right', strip) && !drag.carried) {
+            const [x] = global.get_pointer();
+            drag.scroll = this._engine.geometry(strip).scroll - (x - drag.x);
+        }
+        return Clutter.EVENT_STOP;
     }
 
     _dragged() {
         const drag = this._drag;
         if (!drag)
             return;
+        this._hookGrab(drag);
         const [x, y, mods] = global.get_pointer();
         const dx = x - drag.x, dy = y - drag.y;
         const monitor = global.display.get_current_monitor();
@@ -343,21 +390,25 @@ export class Pointer {
         this._driftNear(x);
     }
 
-    // The window leaves the strip, which closes up around the pointer, and is carried until it is dropped
+    // The window leaves the strip, which closes up around the pointer if the window had a column of its own, and is
+    // carried until it is dropped
     _lift() {
         const drag = this._drag;
         if (!drag || drag.carried)
             return;
         drag.carried = true;
+        drag.grab?.set_cursor_type(Clutter.CursorType.GRABBING);
         const strip = drag.strip;
+        const at = strip.find(drag.window);
+        const alone = at && strip.columns[at[0]].length === 1;
         this._engine.remove(drag.window, {layout: false});
         const [x] = global.get_pointer();
         const geo = this._engine.geometry(strip);
         // The gap the window left is put under the pointer
         const after = geo.columns.findIndex(c => geo.area.x + geo.scroll + c.x > x);
-        if (!geo.centred && after >= 0)
+        if (alone && !geo.centred && after >= 0)
             strip.scroll = x + Layout.GAP / 2 - geo.area.x - geo.columns[after].x;
-        else if (!geo.centred && geo.columns.length)
+        else if (alone && !geo.centred && geo.columns.length)
             strip.scroll = x - Layout.GAP / 2 - geo.area.x - geo.columns.at(-1).x - geo.columns.at(-1).width;
         this._engine.layout(strip);
         // Drawn where its frame is, under the pointer, rather than where the strip had it
@@ -383,7 +434,6 @@ export class Pointer {
     _showZone(x, y) {
         const drag = this._drag;
         const strip = this._engine.activeStrip(global.display.get_current_monitor());
-        drag.dropStrip = strip;
         const geo = this._engine.geometry(strip);
         const screen = Main.layoutManager.monitors[strip.monitor];
         const top = geo.area.y;
@@ -439,18 +489,22 @@ export class Pointer {
                 }
             }
         }
-        // The last place shown stays the target until another one is reached, on its own screen only: one shown on a
-        // screen the pointer passed through on its way further would take the window back there
-        if (!zone) {
-            if (drag.zone && drag.zone.strip !== strip)
-                this._clearZone();
+        // The last place shown stays the target until another one is reached, on whichever screen it is
+        if (!zone)
             return;
-        }
         if (drag.zone && drag.zone.strip === strip && zone.column === drag.zone.column && zone.row === drag.zone.row)
             return;
         zone.strip = strip;
+        zone.scroll = geo.scroll;
         drag.zone = zone;
         this._drawZone(zone.rect);
+    }
+
+    // A place shown in a strip that drifts moves with it
+    _followZone(strip, geo) {
+        const zone = this._drag?.zone;
+        if (this._zoneActor && zone?.strip === strip)
+            this._zoneActor.translation_x = geo.scroll - zone.scroll;
     }
 
     _drawZone(rect) {
@@ -473,21 +527,11 @@ export class Pointer {
         this._engine.boxHidden--;
     }
 
-    // No place is the target any more: the drop goes to the strip of the screen under the pointer
-    _clearZone() {
-        const old = this._zoneActor;
-        this._zoneActor = null;
-        old?.ease({scale_x: 0, scale_y: 0, opacity: 0, duration: config.animation, onStopped: () => old.destroy()});
-        const strip = this._drag.zone.strip;
-        this._drag.zone = null;
-        this._engine.updateBox(strip);
-    }
-
-    // Near a side of the screen the strip under a dragged window drifts that way; not at a side another screen is on,
-    // which the pointer only passes through on its way there
+    // Near a side of the screen the strip a window is dragged from drifts that way, a carried window's only while its
+    // workspace is GNOME's; not at a side another screen is on, which the pointer only passes through on its way there
     _driftNear(x) {
         const drag = this._drag;
-        const strip = drag.carried ? drag.dropStrip ?? drag.strip : drag.strip;
+        const strip = drag.strip;
         const screen = Main.layoutManager.monitors[strip.monitor];
         let side = 0;
         if (x <= screen.x + DRAG_EDGE)
@@ -510,7 +554,8 @@ export class Pointer {
             const step = side * config.dragDriftSpeed * (elapsed >= last ? elapsed - last : elapsed);
             last = elapsed;
             if (drag.carried) {
-                this._engine.scrollTo(strip, strip.scroll + step);
+                if (strip.workspace === global.workspace_manager.get_active_workspace())
+                    this._followZone(strip, this._engine.scrollTo(strip, strip.scroll + step));
             } else {
                 drag.scroll += step;
                 const [px] = global.get_pointer();
@@ -536,28 +581,52 @@ export class Pointer {
         this._engine.dragging = null;
         drag.drift?.stop();
         drag.window.disconnectObject(this);
+        drag.grab?.disconnectObject(this);
+        // Taken away while still held (the tiling stopped): GNOME's own pointer for the rest of the drag
+        if (cancelled && drag.carried)
+            drag.grab?.set_cursor_type(Clutter.CursorType.MOVE);
         const zone = this._zoneActor;
         this._zoneActor = null;
         zone?.ease({opacity: 0, duration: config.animation, onStopped: () => zone.destroy()});
-        const actor = drag.window.get_compositor_private();
-        actor?.ease({scale_x: 1, scale_y: 1, opacity: 255, duration: config.animation,
-            onStopped: () => actor.set_pivot_point(0, 0)});
-        if (cancelled || !this._engine.info(drag.window))
-            return;
         const window = drag.window;
+        const kept = !cancelled && !!this._engine.info(window);
+        // Dropped where no place was ever shown, it is set down there as a floating window for an instant, in half the
+        // time, and goes into the strip once the other half has passed
+        const setDown = kept && drag.carried && !drag.zone;
+        const actor = window.get_compositor_private();
+        actor?.ease({scale_x: 1, scale_y: 1, opacity: 255, duration: setDown ? config.animation / 2 : config.animation,
+            onStopped: () => actor.set_pivot_point(0, 0)});
+        if (!kept)
+            return;
         if (!drag.carried) {
             // Back in its column, the strip settling on it
+            drag.strip.selected = window;
             this._engine.ensureVisible(drag.strip, window);
             return;
         }
-        const target = drag.zone;
-        if (target)
-            this._putInto(window, target);
-        else
-            this._engine.insert(window, this._engine.activeStrip(global.display.get_current_monitor()),
-                {position: this._tiling.openPosition});
-
+        if (setDown) {
+            this._setDown(window, global.display.get_current_monitor());
+            return;
+        }
+        this._putInto(window, drag.zone);
         Main.activateWindow(window);
+    }
+
+    _setDown(window, monitor) {
+        if (this._dropTimer)
+            GLib.source_remove(this._dropTimer);
+        this._dropTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, Math.max(1, config.animation), () => {
+            this._dropTimer = 0;
+            const info = this._engine.info(window);
+            // Lifted into the floating layer, closed, or put somewhere by a key meanwhile: it stays where it went
+            if (!info || info.strip || this._engine.floating.has(window) || this._tiling.engine !== this._engine)
+                return GLib.SOURCE_REMOVE;
+            info.vis = this._engine.visual(window);
+            // Beside the focused window, never stacked under it (engine.js, insert)
+            this._engine.insert(window, this._engine.activeStrip(monitor));
+            Main.activateWindow(window);
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _putInto(window, {strip, column, row}) {
@@ -571,7 +640,8 @@ export class Pointer {
         const [workspaces, overview] = [Main.wm._workspaceAnimation?._swipeTracker, Main.overview._swipeTracker];
         if (workspaces?.enabled)
             workspaces.enabled = false;
-        const wanted = Main.overview.visible;
+        // GNOME's overview swipe is on in the overview, and for fingers that went up on the desktop (_touchpad)
+        const wanted = Main.overview.visible || this._swipe?.state === 'overview';
         if (overview && overview.enabled !== wanted)
             overview.enabled = wanted;
     }
@@ -588,12 +658,16 @@ export class Pointer {
         if (Main.overview.visible || this._engine.session) {
             // The overview or a navigation began under fingers already down: the pile of workspaces they opened
             // still has to be shown or taken away when they lift, or it would stay over the windows
-            if (this._swipe?.state === 'pile' && phase !== Clutter.TouchpadGesturePhase.UPDATE &&
-                phase !== Clutter.TouchpadGesturePhase.BEGIN)
+            const ended = phase !== Clutter.TouchpadGesturePhase.UPDATE && phase !== Clutter.TouchpadGesturePhase.BEGIN;
+            if (this._swipe?.state === 'pile' && ended)
                 return this._pileSwipe(this._swipe, event, 0);
+            // The overview the fingers pulled up is GNOME's from here
+            if (this._swipe?.state === 'overview' && ended)
+                this._swipe = null;
             return Clutter.EVENT_PROPAGATE;
         }
-        const [dx, dy] = event.get_gesture_motion_delta_unaccelerated();
+        // The touchpad's own acceleration counts, as it does for the pointer: a quick flick takes the strip further
+        const [dx, dy] = event.get_gesture_motion_delta();
         if (phase === Clutter.TouchpadGesturePhase.BEGIN) {
             // A pile left over from a swipe whose end never came goes with it
             this._swipe?.pile?.destroy();
@@ -603,21 +677,39 @@ export class Pointer {
                 x: Math.round(x), y: Math.round(y),
                 width: 1, height: 1,
             }));
-            this._swipe = {state: 'pending', x: 0, y: 0, monitor: Math.max(0, monitor), history: []};
+            this._swipe = {state: 'pending', monitor: Math.max(0, monitor), history: []};
+            // GNOME's overview swipe waits until these fingers have said which way they go
+            this._syncTrackers();
             return Clutter.EVENT_PROPAGATE;
         }
         const swipe = this._swipe;
         if (!swipe)
             return Clutter.EVENT_PROPAGATE;
+        // Up is GNOME's from the first movement on: its overview follows the fingers, and goes back if they do
+        if (swipe.state === 'overview') {
+            if (phase !== Clutter.TouchpadGesturePhase.UPDATE) {
+                this._swipe = null;
+                // Off again once GNOME has had the end too, unless the overview opened
+                this._trackerIdle ||= GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                    this._trackerIdle = 0;
+                    this._syncTrackers();
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
+            return Clutter.EVENT_PROPAGATE;
+        }
         if (swipe.state === 'pending') {
-            swipe.x += dx;
-            swipe.y += dy;
-            if (Math.hypot(swipe.x, swipe.y) < DECIDE)
+            if (phase !== Clutter.TouchpadGesturePhase.UPDATE) {
+                this._swipe = null;
+                return Clutter.EVENT_PROPAGATE;
+            }
+            // The first movement decides the direction
+            if (!dx && !dy)
                 return Clutter.EVENT_PROPAGATE;
             const natural = this._touchpadSettings.get_boolean('natural-scroll');
-            const down = (natural ? 1 : -1) * swipe.y > 0;
+            const down = (natural ? 1 : -1) * dy > 0;
             // Sideways slides the strip; down opens the pile of recent workspaces; up opens the overview
-            if (Math.abs(swipe.x) > Math.abs(swipe.y)) {
+            if (Math.abs(dx) > Math.abs(dy)) {
                 if (!forStrip) {
                     this._swipe = null;
                     return Clutter.EVENT_PROPAGATE;
@@ -634,14 +726,13 @@ export class Pointer {
                 swipe.pile = new WorkspacePreview(this._engine, swipe.monitor, 'pile', list, 0);
                 swipe.travel = 0;
             } else {
-                swipe.state = 'done';
-                Main.overview.show();
+                swipe.state = 'overview';
+                this._syncTrackers();
+                return Clutter.EVENT_PROPAGATE;
             }
         }
         if (swipe.state === 'pile')
             return this._pileSwipe(swipe, event, dy);
-        if (swipe.state !== 'strip')
-            return Clutter.EVENT_STOP;
         const natural = this._touchpadSettings.get_boolean('natural-scroll');
         const delta = (natural ? 1 : -1) * dx * config.swipeSpeed[0];
         if (phase === Clutter.TouchpadGesturePhase.UPDATE) {
@@ -684,26 +775,55 @@ export class Pointer {
 
     // The window the strip will settle on is the one shown as focused while the fingers move
     _followSwipe(swipe, geo, direction) {
-        const window = this._mostVisible(swipe.strip, geo, direction);
+        const window = this._landing(swipe.strip, geo, direction);
         if (window && window !== swipe.strip.selected) {
             swipe.strip.selected = window;
             this._engine.updateBox(swipe.strip);
         }
     }
 
-    _mostVisible(strip, geo, direction) {
+    // The window a strip moved by hand lands on, `direction` being the way its scroll goes: the one shown as focused
+    // while it is wholly on screen, else the first wholly on screen the way the strip travels, else the nearer to the
+    // middle of the screen of the ones partly on it. A column counts by the window used last in it.
+    _landing(strip, geo, direction) {
         const area = geo.area;
-        let best = null, shown = 0;
-        const order = direction < 0 ? strip.windows : [...strip.windows].reverse();
-        for (const window of order) {
+        const representative = column => column.includes(strip.selected) ? strip.selected
+            : this._tiling.actions._recent(column);
+        const order = direction < 0 ? [...strip.columns] : [...strip.columns].reverse();
+        const whole = rect => rect.x >= area.x - 1 && rect.x + rect.width <= area.x + area.width + 1;
+        const current = strip.selected && geo.rects.get(strip.selected);
+        if (current && whole(current))
+            return strip.selected;
+        let nearest = null, distance = Infinity;
+        for (const column of order) {
+            const window = representative(column);
             const rect = geo.rects.get(window);
-            const visible = Math.min(rect.x + rect.width, area.x + area.width) - Math.max(rect.x, area.x);
-            if (visible > shown) {
-                best = window;
-                shown = visible;
+            if (whole(rect))
+                return window;
+            const middle = Math.abs(rect.x + rect.width / 2 - (area.x + area.width / 2));
+            if (rect.x < area.x + area.width && rect.x + rect.width > area.x && middle < distance) {
+                nearest = window;
+                distance = middle;
             }
         }
-        return best;
+        return nearest;
+    }
+
+    // The column a glide that would carry the strip past its first or last column stops at instead, or -1: while the
+    // strip covers the screen, or when it would go more than two screens' widths past
+    _pastEnd(strip, geo) {
+        const n = geo.columns.length;
+        if (!n)
+            return -1;
+        const first = geo.scroll + geo.columns[0].x - Layout.MARGIN;
+        const last = geo.area.width - Layout.MARGIN - (geo.scroll + geo.columns[n - 1].x + geo.columns[n - 1].width);
+        const covers = geo.width > geo.area.width;
+        const far = 2 * geo.area.width;
+        if (first > 0 && (covers || first > far))
+            return 0;
+        if (last > 0 && (covers || last > far))
+            return n - 1;
+        return -1;
     }
 
     // The fingers are off: the strip keeps going, slowing down, and settles on a window
@@ -720,7 +840,12 @@ export class Pointer {
         const travel = Math.sign(velocity) * velocity * velocity / (2 * friction);
         strip.scroll = swipe.scroll + travel;
         const geo = this._engine.geometry(strip);
-        const window = this._mostVisible(strip, geo, velocity || 1);
+        // Past either end the strip snaps to that end, overshooting and coming back; anywhere else it carries on at
+        // the fingers' speed and comes to rest on a window
+        const end = this._pastEnd(strip, geo);
+        const overshoot = end >= 0;
+        const window = overshoot ? this._tiling.actions._recent(strip.columns[end])
+            : this._landing(strip, geo, velocity || 1);
         if (!window) {
             this._engine.layout(strip);
             return;
@@ -728,15 +853,13 @@ export class Pointer {
         strip.selected = window;
         const at = strip.find(window);
         const column = geo.columns[at[0]];
-        const x = Layout.placeFocused(geo.area, column, strip.scroll + column.x, strip.mode, at[0],
-            geo.columns.length);
+        // At an end the column is placed as if it were already there
+        const from = !overshoot ? strip.scroll + column.x
+            : at[0] === 0 ? Layout.MARGIN : geo.area.width - Layout.MARGIN - column.width;
+        const x = Layout.placeFocused(geo.area, column, from, strip.mode, at[0], geo.columns.length);
         const settled = Math.round(x - column.x);
         const adjusted = Math.abs(settled - strip.scroll) > 1;
         strip.scroll = settled;
-        // Past either end the strip overshoots and comes back; anywhere else it carries on at the fingers' speed
-        // and comes to rest on the window
-        const end = at[0] === 0 || at[0] === strip.columns.length - 1;
-        const overshoot = end && Math.abs(travel) > geo.area.width;
         this._engine.layout(strip, {
             time: Math.max(adjusted ? 200 : 0, Math.round(time)) || config.animation,
             mode: overshoot ? Clutter.AnimationMode.EASE_OUT_BACK : null,
@@ -765,23 +888,29 @@ export class Pointer {
         }
     }
 
-    _barWheel(event) {
-        if (event.type() !== Clutter.EventType.SCROLL || Main.overview.visible)
-            return Clutter.EVENT_PROPAGATE;
-        let step = 0;
+    // A turn of the wheel as a step left (-1) or right (1), or 0 while a smooth scroll has not made one yet
+    _wheelStep(event) {
         const direction = event.get_scroll_direction();
         if (direction === Clutter.ScrollDirection.SMOOTH) {
             const [dx, dy] = event.get_scroll_delta();
-            this._wheel += Math.abs(dx) > Math.abs(dy) ? dx : dy;
-            if (Math.abs(this._wheel) >= 1) {
-                step = Math.sign(this._wheel);
-                this._wheel = 0;
-            }
-        } else if (direction === Clutter.ScrollDirection.UP || direction === Clutter.ScrollDirection.LEFT) {
-            step = -1;
-        } else if (direction === Clutter.ScrollDirection.DOWN || direction === Clutter.ScrollDirection.RIGHT) {
-            step = 1;
+            this._wheel = (this._wheel ?? 0) + (Math.abs(dx) > Math.abs(dy) ? dx : dy);
+            if (Math.abs(this._wheel) < 1)
+                return 0;
+            const step = Math.sign(this._wheel);
+            this._wheel = 0;
+            return step;
         }
+        if (direction === Clutter.ScrollDirection.UP || direction === Clutter.ScrollDirection.LEFT)
+            return -1;
+        if (direction === Clutter.ScrollDirection.DOWN || direction === Clutter.ScrollDirection.RIGHT)
+            return 1;
+        return 0;
+    }
+
+    _barWheel(event) {
+        if (event.type() !== Clutter.EventType.SCROLL || Main.overview.visible)
+            return Clutter.EVENT_PROPAGATE;
+        const step = this._wheelStep(event);
         if (step) {
             const strip = this._engine.activeStrip(Main.layoutManager.primaryIndex);
             if (this._tiling.actions.move(step < 0 ? 'switch-left' : 'switch-right', strip))
@@ -797,8 +926,9 @@ export class Pointer {
     _panelPan() {
         const pan = new Clutter.PanGesture({pan_axis: Clutter.PanAxis.X, begin_threshold: DECIDE});
         pan.connect('should-handle-sequence', (gesture, event) => event.type() === Clutter.EventType.TOUCH_BEGIN);
+        // The strip of GNOME's workspace, on whichever screen it is shown
         pan.connect('recognize', () => {
-            const strip = this._engine.activeStrip(Main.layoutManager.primaryIndex);
+            const strip = this._engine.activeStrip();
             this._touch = {strip, scroll: this._engine.geometry(strip).scroll, last: 0};
         });
         pan.connect('pan-update', () => {
@@ -828,6 +958,37 @@ export class Pointer {
         this._pan = pan;
     }
 
+    // A finger on a workspace's background makes that workspace GNOME's, with its focused window. The touch goes on
+    // to GNOME, whose long press there opens the background menu.
+    _touched(event) {
+        if (event.type() !== Clutter.EventType.TOUCH_BEGIN || Main.overview.visible || this._engine.session ||
+            Main.modalCount > 0)
+            return Clutter.EVENT_PROPAGATE;
+        const target = global.stage.get_event_actor(event);
+        if (!target || !Main.layoutManager._backgroundGroup?.contains(target))
+            return Clutter.EVENT_PROPAGATE;
+        const [x, y] = event.get_coords();
+        const monitor = global.display.get_monitor_index_for_rect(new Mtk.Rectangle({
+            x: Math.round(x), y: Math.round(y), width: 1, height: 1,
+        }));
+        if (monitor < 0)
+            return Clutter.EVENT_PROPAGATE;
+        const screens = this._engine.screens;
+        const workspace = screens.shownOn(monitor);
+        // A finger does not move the pointer: it is put where the finger is, or the pointer's screen would be
+        // followed back (_followPointer)
+        if (monitor !== global.display.get_current_monitor())
+            global.stage.context.get_backend().get_default_seat().warp_pointer(Math.round(x), Math.round(y));
+        if (workspace !== global.workspace_manager.get_active_workspace()) {
+            screens.bring(workspace, monitor);
+        } else {
+            const strip = this._engine.activeStrip(monitor);
+            if (strip.selected && global.display.focus_window !== strip.selected)
+                this._engine.focus(strip);
+        }
+        return Clutter.EVENT_PROPAGATE;
+    }
+
     // ---- Several screens ----
 
     _syncMonitorPoll() {
@@ -844,15 +1005,23 @@ export class Pointer {
         }
     }
 
-    // The pointer went to another screen: its strip's window gets the keyboard
+    // The pointer is on another screen than the keyboard: that screen's strip's window gets it. Looked at every time,
+    // not only as the pointer crosses, so that a screen left while following was held off is followed after.
     _followPointer() {
         const monitor = global.display.get_current_monitor();
+        // A tiled window resized by its edge onto another screen leaves the strip for the floating layer, and keeps
+        // its workspace: the screen is followed once the resize is over
+        if (this._resizing) {
+            const strip = this._engine.stripOf(this._resizing);
+            if (strip && strip.monitor !== monitor)
+                this._engine.float(this._resizing, {glide: false});
+            return;
+        }
         // The search box (search.js) is not modal, and a window on a screen the pointer crosses on its way there
         // would take the keyboard from it and close it: the screen is followed once the box is gone
-        if (monitor === this._lastMonitor || Main.overview.visible || this._engine.session || Main.modalCount > 0 ||
-            this._resizing || this._tiling._ext.modules?.get('search')?.open)
+        if (Main.overview.visible || this._engine.session || Main.modalCount > 0 ||
+            this._tiling._ext.modules?.get('search')?.open)
             return;
-        this._lastMonitor = monitor;
         const screens = this._engine.screens;
         // With a workspace on each screen, the one under the pointer becomes GNOME's, even while a window is dragged
         // (it is dropped on that workspace)
@@ -862,8 +1031,9 @@ export class Pointer {
                 screens.bring(workspace, monitor);
             return;
         }
-        if (this._drag)
+        if (monitor === this._lastMonitor || this._drag)
             return;
+        this._lastMonitor = monitor;
         const focus = global.display.focus_window;
         if (focus && this._engine.focusMonitor() === monitor)
             return;

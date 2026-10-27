@@ -94,3 +94,50 @@
     border-radius: 8px;
     border-color: rgba(128, 128, 128, 0.6);
 }
+
+/* The note under the open position's tooltip */
+.amethystora-tiling-tooltip .amethystora-tiling-note {
+    font-size: 10pt;
+    font-style: italic;
+    font-weight: normal;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Behind the window the live switcher has chosen */
+.amethystora-tiling-fog {
+    background-color: rgba(0, 0, 0, 0.392);
+}
+
+/* The workspace's name: in the top bar, at the top of each other screen, and on its card */
+.amethystora-tiling-indicator {
+    -natural-hpadding: 12px;
+    -minimum-hpadding: 12px;
+}
+
+.amethystora-tiling-rename {
+    min-width: 200px;
+}
+
+.amethystora-tiling-screen-name,
+.amethystora-tiling-card-name {
+    background-color: rgba(0, 0, 0, 0.6);
+    color: #ffffff;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-weight: bold;
+}
+
+.amethystora-tiling-card-name {
+    font-size: 24pt;
+    padding: 8px 16px;
+    border-radius: 12px;
+}
+
+/* The line marking where the focused window is in its strip */
+.amethystora-tiling-position {
+    background-color: rgba(255, 255, 255, 0.15);
+}
+
+.amethystora-tiling-position-mark {
+    background-color: rgba(255, 255, 255, 0.8);
+}

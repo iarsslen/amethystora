@@ -9,8 +9,8 @@ the keys are in your fingers you will rarely reach for it.
   manual, Settings, Bazaar, Extensions, Mission Center, the terminal and DistroShelf. A
   middle click on it opens the overview. Then the six workspaces: the one you are on is
   highlighted; click another to go there, or the one you are on to show or hide the overview. An empty
-  one opens the overview, ready to start something. Scroll the mouse wheel anywhere on the bar to go to
-  the next or previous workspace. Drag a workspace along the row to move it, its windows with it, or
+  one opens the overview, ready to start something. Scroll the mouse wheel, or two fingers on a
+  touchpad, anywhere on the bar to go to the next or previous workspace. Drag a workspace along the row to move it, its windows with it, or
   drop a window from the overview on one to send it there. Right-click a workspace to give it a name.
 - **In the middle**, the clock. Click it, or press `Super+V`, for notifications and the calendar.
 - **On the right**, CPU, memory and network meters, the icons apps keep in the tray, then the system
@@ -107,6 +107,10 @@ it. Right-clicking one of Amethystora's own apps also offers its pages: **Hotkey
 **Tasks** in Notes, **Crashes** and **Apps and Services** in Logs, **Backup Status** in Backups,
 **Virus Scan** in Security, and **Appearance** and **System** in Control.
 
+An app's icon, on the dock and in the app grid alike, shows how many notifications it has waiting,
+a bar while it is busy with something long, and is greyed out while the app is being updated. Do
+Not Disturb hides all of that.
+
 ## The Amethystora menu
 
 `Super+Alt+Space` opens one menu for the things that are otherwise scattered over Settings, the
@@ -148,7 +152,9 @@ Mail and Chat are still open, just off the edge. `Super+Left` scrolls back to Ma
 against the left or right edge of the screen to see what is beyond it, and click a window there to
 go to it. On a touchpad, swipe sideways with three fingers to slide the strip, up to open the overview,
 and down to see the workspaces you have been on as a pile of cards. Drag a window by its title bar and
-drop it where you want it in the strip, or against a screen edge to see where it will go first.
+drop it where you want it in the strip, or against a screen edge to see where it will go first; the
+mouse wheel moves along the strip while you hold it. A window you resize by its edge onto another
+screen floats.
 
 The keys follow one pattern. `Super` and an arrow moves to another window. Add `Ctrl` and the window
 moves instead. Add `Shift` and you go to another monitor.
@@ -173,11 +179,13 @@ time. The monitor the pointer is on is the one you work on: move the pointer to 
 its workspace is the current one, with no animation. `Super+Page Up` and `Super+Page Down` go
 through the workspaces of the monitor you are on and the empty ones, and the one you choose stays on
 that monitor. A workspace chosen another way (`Super` and a number, the workspaces in the top bar, an
-app's window) comes up on the monitor it was last on, and the pointer goes there. Swapping or moving a
-workspace between monitors needs one workspace more than you have monitors. The number of workspaces
-stays fixed while there are several monitors, even if you chose dynamic workspaces in Settings
-(Multitasking), which would leave a third monitor with none; your choice is back with one monitor or
-with [classic windows](#classic-windows).
+app's window) comes up on the monitor it was last on, and the pointer goes there; when no monitor showed
+it, the monitors slide to it as GNOME's do. Swapping or moving a workspace between monitors needs one
+workspace more than you have monitors. If you chose dynamic workspaces in Settings (Multitasking), they
+stay dynamic: a workspace a monitor shows is kept even when it is empty, and there is always one
+more than you have monitors. When you unplug the monitor you are working on, the most recent workspace
+of the other monitors becomes the current one, and a monitor plugged back in shows the workspace it had,
+if it is still there.
 
 ### Arranging
 
@@ -207,8 +215,10 @@ with [classic windows](#classic-windows).
 ### Floating windows
 
 Dialogs float above the strip on their own. `Super+Ctrl+Escape` lifts the focused window out of the
-strip so that it floats as well, and puts it back; the window's menu has the same as **Float above the
-strip**. `Super+Alt+Escape` hides every window floated that way at once, and brings them back.
+strip so that it floats as well, and puts it back; every window's menu has the same as **Float above the
+strip**, a dialog's too. `Super+Alt+Escape` hides every window floated that way at once, and brings them back.
+A window you put on every workspace (**Always on Visible Workspace** in its menu) leaves the strip and
+stays where it is.
 
 ### And the rest
 
@@ -231,12 +241,16 @@ opens the tiling's settings window. Every change in it applies at once.
   strip and the darkening of the other windows while you move around, what the screen edges do (show the
   window beyond, go to it on a click, or after the pointer stays there), the touchpad's swipes and their
   fingers, speed and friction, the two icons in the top bar, and the size of the windows in `Alt+Tab`.
-- **Workspaces**: a picture for every workspace in place of the theme's wallpaper, and for each
-  workspace a picture and a colour of its own. The colour frames the workspace's card while you go
-  through the workspaces.
+  Off as the desktop comes, for whoever wants them: the workspace's name in the top bar (a click opens
+  the overview, the other button renames it), a line under the top bar marking where the window is in
+  the strip, and an overview with only the floating windows or without them.
+- **Workspaces**: a picture for every workspace in place of the theme's wallpaper (or none, only each
+  workspace's colour), and for each workspace a name, a picture, a colour and a folder of its own. The
+  colour frames the workspace's card while you go through the workspaces, and apps started while the
+  workspace is shown start in its folder.
 - **Keyboard**: every shortcut, including the ones the image leaves unbound (the next window, the n-th
   column, the window above or else the previous workspace, centring both ways, closing, and a switcher
-  that goes through the windows used last with the strip showing each in its place). Click one and
+  that goes through the windows used last, drawing each where its strip would show it). Click one and
   press the new keys. The first time, GNOME asks whether the window may have the keys the desktop uses
   while you press them: allow it. A shortcut another one uses as well is marked.
 - **Window rules**: a window picked by its class or its title as it opens can float, open at a width,

@@ -60,7 +60,9 @@ TILING_KEYS=(window-gap horizontal-margin vertical-margin vertical-margin-bottom
     edge-preview-scale edge-preview-click-enable edge-preview-timeout-enable edge-preview-timeout
     edge-preview-timeout-continual gesture-enabled gesture-horizontal-fingers gesture-workspace-fingers
     swipe-sensitivity swipe-friction show-focus-mode-icon show-open-position-icon default-show-top-bar
-    topbar-mouse-scroll-enable window-switcher-preview-scale workspace-colors)
+    topbar-mouse-scroll-enable window-switcher-preview-scale show-workspace-indicator show-window-position-bar
+    only-scratch-in-overview disable-scratch-in-overview overview-ensure-viewport-animation use-default-background
+    workspace-colors)
 
 # The tiling, while it runs, takes a combination out of four GNOME keys that it cannot wrap in memory, and
 # writes down what it took in its state file, to put back when it is turned off: the account's own value is the

@@ -2,9 +2,10 @@
 # vmlab-vm: screens
 # Four screens side by side, as the tiling has them (modules/tiling/screens.js), asked of the session itself through
 # GNOME Shell's Eval, which a lab-only extension of the test account opens (never in the image):
-#   - GNOME has the image's six fixed workspaces, also for an account that set dynamic ones (GNOME Shell's own
-#     override sets them for the GNOME desktop alone, which once left two workspaces and no third screen any);
-#   - each screen shows a workspace of its own;
+#   - GNOME has the image's six fixed workspaces (GNOME Shell's own override sets dynamic ones for the GNOME desktop
+#     alone, which once left two workspaces and no third screen any);
+#   - each screen shows a workspace of its own, also for an account that set dynamic workspaces, which stay dynamic:
+#     there is one more than screens, and a workspace a screen shows is kept when its last window leaves;
 #   - a Files window goes from screen to screen with Super+Shift+Ctrl+Right and Left, and dragged by its title bar
 #     across a screen to the next, onto the workspace each shows;
 #   - the search box stays open while the pointer crosses a screen with a window;
@@ -124,13 +125,39 @@ else
     not_ok "zenity's window did not come"
 fi
 
-# An account that set dynamic workspaces itself: the tiling makes them fixed while it runs on several screens
+# An account that set dynamic workspaces itself: they stay dynamic, and GNOME takes away no workspace a screen shows,
+# empty ones included (a new session's are)
 user_bus gsettings set org.gnome.mutter dynamic-workspaces true
 restart_session
-check "with dynamic workspaces set by the account, the session still has six fixed ones" test \
-    "$(ev "imports.gi.Meta.prefs_get_dynamic_workspaces() + ' ' + global.workspace_manager.n_workspaces")" == "false 6"
-check "and each screen still shows a workspace of its own" test "$(shown | tr ' ' '\n' | sort -u | wc -l)" == 4
-check "no workspace had to be added" test "$(ev "Main.messageTray.getSources().flatMap(s => s.notifications).filter(n => n.title === 'Workspaces added').length")" == 0
+check "with dynamic workspaces set by the account, they stay dynamic" test \
+    "$(ev "imports.gi.Meta.prefs_get_dynamic_workspaces()")" == true
+# A new session's workspaces come with its screens, a moment after it starts
+four_shown() { [[ "$(shown | tr ' ' '\n' | sort -u | wc -l)" == 4 ]]; }
+five_or_more() { (($(ev 'global.workspace_manager.n_workspaces') >= 5)); }
+check "and each screen still shows a workspace of its own" wait_for 20 four_shown
+check "and there is one workspace more than screens at least" wait_for 20 five_or_more
+check "no workspace had to be added with a word" test "$(ev "Main.messageTray.getSources().flatMap(s => s.notifications).filter(n => n.title === 'Workspaces added').length")" == 0
+# A window opened on screen 2's workspace and taken to screen 3's: screen 2's, empty again, stays
+# The session starts in the overview, where the keyboard does not follow the pointer; two moves, since the lab's
+# tablet drops a position the same as the last it sent
+ev "Main.overview.hide(); 'hidden'" >/dev/null
+no_overview() { [[ "$(ev 'Main.overview.visible')" == false ]]; }
+wait_for 10 no_overview
+keys move:0.36,0.45 move:0.375,0.5
+on_screen_2() { [[ "$(ev "global.workspace_manager.get_active_workspace() === ${UI}.get('tiling').engine.screens.shownOn(1)")" == true ]]; }
+wait_for 10 on_screen_2
+user_bus systemd-run --user --collect --unit="vmlab-files2-$$" nautilus --new-window >/dev/null
+wait_for 60 files_open
+ev "Main.activateWindow(global.get_window_actors().map(a => a.meta_window).find(w => w.get_wm_class() === 'org.gnome.Nautilus'))" >/dev/null
+check "a window opens on screen 2's workspace" wait_for 10 files_on 1
+ev "globalThis.vmlabShown = ${UI}.get('tiling').engine.screens.shownOn(1); 'kept'" >/dev/null
+keys super+shift+ctrl+right
+check "it goes to screen 3 with Super+Shift+Ctrl+Right" wait_for 10 files_on 2
+sleep 3
+check "screen 2 still shows its workspace, empty now" test "$(ev "(() => { const m = global.workspace_manager; return Array.from({length: m.n_workspaces}, (u, i) => m.get_workspace_by_index(i)).includes(globalThis.vmlabShown) && ${UI}.get('tiling').engine.screens.shownOn(1) === globalThis.vmlabShown; })()")" == true
+check "and every screen still shows a workspace of its own" test "$(shown | tr ' ' '\n' | sort -u | wc -l)" == 4
+user_systemctl stop "vmlab-files2-$$"
+user_bus gsettings reset org.gnome.mutter dynamic-workspaces
 
 # A JS error whose stack goes through the extension, or the extension's own word that a module failed (GNOME's own
 # errors while the session is ended for a restart are not its)

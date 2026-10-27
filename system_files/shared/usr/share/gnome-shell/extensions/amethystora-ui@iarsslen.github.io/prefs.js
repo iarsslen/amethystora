@@ -247,16 +247,29 @@ function motionPage(settings) {
     touchpad.add(pairRow(settings, 'swipe-sensitivity', 1, _('How far the workspaces go for it'), 0.5, 6, 0.1));
     touchpad.add(pairRow(settings, 'swipe-friction', 0, _('How soon the strip stops after the fingers let go'),
         0.05, 3, 0.05, _('More stops sooner')));
+    touchpad.add(pairRow(settings, 'swipe-friction', 1, _('How soon the workspaces stop after the fingers let go'),
+        0.05, 3, 0.05, _('More stops sooner')));
 
     const bar = group(page, _('Top bar'));
     bar.add(switchRow(settings, 'show-focus-mode-icon', _('Show how the workspace scrolls to a window')));
     bar.add(switchRow(settings, 'show-open-position-icon', _('Show where new windows open')));
+    bar.add(switchRow(settings, 'show-workspace-indicator', _('Show the name of the workspace'),
+        _('A click opens the overview, the other button renames it, the wheel goes to the next. Each other screen shows its own at its top.')));
+    bar.add(switchRow(settings, 'show-window-position-bar', _('Show where the window is in the strip'),
+        _('A line along the bottom of the top bar, and at the top of each other screen')));
     bar.add(switchRow(settings, 'default-show-top-bar', _('Show the top bar on every workspace'),
         _('Super+Ctrl+B hides or shows it on one workspace')));
     bar.add(switchRow(settings, 'topbar-mouse-scroll-enable', _('The mouse wheel over it moves between windows'),
         _('The workspaces in the top bar use the wheel otherwise')));
     bar.add(percentRow(settings, 'window-switcher-preview-scale', _('Size of the windows in Alt+Tab'), 5, 50,
         _('In percent of the screen’s height')));
+
+    const overview = group(page, _('Overview'));
+    overview.add(switchRow(settings, 'only-scratch-in-overview', _('Show only the floating windows')));
+    overview.add(switchRow(settings, 'disable-scratch-in-overview', _('Leave the floating windows out')));
+    overview.add(comboRow(settings, 'overview-ensure-viewport-animation', _('Coming back to the focused window'), [
+        [0, _('At once')], [1, _('Gliding')], [2, _('Fading in')],
+    ], _('How the strip shows the window when the overview closes')));
     return page;
 }
 
@@ -329,15 +342,30 @@ function choosePicture(widget, title, done) {
     });
 }
 
-// The row of a picture setting: its file's name under the title, a button to choose one and one to go back to none
-function pictureRow(title, read, write, noneText) {
+// A folder chosen in GNOME's file dialog: `done` gets its path
+function chooseFolder(widget, title, done) {
+    const dialog = new Gtk.FileDialog({title, modal: true});
+    dialog.select_folder(widget.get_root(), null, (d, result) => {
+        try {
+            const file = d.select_folder_finish(result);
+            if (file?.get_path())
+                done(file.get_path());
+        } catch {
+            // Closed without a choice
+        }
+    });
+}
+
+// The row of a picture setting (or a folder's): its file's name under the title, a button to choose one and one to
+// go back to none
+function pictureRow(title, read, write, noneText, choose = choosePicture) {
     const row = new Adw.ActionRow({title});
-    const choose = new Gtk.Button({label: _('Choose…'), valign: Gtk.Align.CENTER});
+    const button = new Gtk.Button({label: _('Choose…'), valign: Gtk.Align.CENTER});
     const clear = new Gtk.Button({
         icon_name: 'edit-undo-symbolic', valign: Gtk.Align.CENTER, tooltip_text: _('Back to the default'),
         css_classes: ['flat'],
     });
-    row.add_suffix(choose);
+    row.add_suffix(button);
     row.add_suffix(clear);
     const show = () => {
         // A path or an address, as the setting may hold either
@@ -346,7 +374,7 @@ function pictureRow(title, read, write, noneText) {
         row.subtitle = GLib.markup_escape_text(file ? file.get_basename() ?? uri : noneText, -1);
         clear.sensitive = !!uri;
     };
-    choose.connect('clicked', () => choosePicture(row, title, uri => {
+    button.connect('clicked', () => choose(row, title, uri => {
         write(uri);
         show();
     }));
@@ -365,14 +393,29 @@ function workspacesPage(settings) {
         uri => settings.set_string('default-background', uri), _('GNOME’s own wallpaper, which the theme sets'));
     all.add(fallback.row);
     settings.connect('changed::default-background', fallback.show);
+    all.add(switchRow(settings, 'use-default-background', _('Without a picture, show GNOME’s wallpaper'),
+        _('Off, a workspace without a picture of its own shows its colour alone')));
 
     const each = group(page, _('Each workspace'),
-        _('A colour frames the workspace while you go through the workspaces with Super+Page Up and Page Down, and fills what its picture leaves. Without its own picture a workspace shows the one above.'));
+        _('A colour frames the workspace while you go through the workspaces with Super+Page Up and Page Down, and fills what its picture leaves. Without its own picture a workspace shows the one above. Apps started while a workspace is shown start in its folder.'));
     const shows = [];
     for (let i = 0; i < workspaceCount(); i++) {
         const title = _('Workspace %d').replace('%d', String(i + 1));
-        const picture = pictureRow(title, () => settings.get_strv('workspace-backgrounds')[i] ?? '',
+        const workspace = new Adw.ExpanderRow();
+        const name = new Adw.EntryRow({title: _('Name'), show_apply_button: true});
+        name.connect('apply', () => setEntry(settings, 'workspace-names', i, name.text.trim()));
+        const showName = () => {
+            const text = settings.get_strv('workspace-names')[i] ?? '';
+            workspace.title = GLib.markup_escape_text(text || title, -1);
+            if (name.text !== text)
+                name.text = text;
+        };
+        workspace.add_row(name);
+        const picture = pictureRow(_('Picture'), () => settings.get_strv('workspace-backgrounds')[i] ?? '',
             uri => setEntry(settings, 'workspace-backgrounds', i, uri), _('The picture of every workspace'));
+        const folder = pictureRow(_('Folder'), () => settings.get_strv('workspace-directories')[i] ?? '',
+            path => setEntry(settings, 'workspace-directories', i, path), _('None: apps start where they always do'),
+            chooseFolder);
         const colour = new Gtk.ColorDialogButton({
             dialog: new Gtk.ColorDialog({with_alpha: false, title}), valign: Gtk.Align.CENTER,
             tooltip_text: _('Its colour'),
@@ -399,11 +442,14 @@ function workspacesPage(settings) {
         noColour.connect('clicked', () => setEntry(settings, 'workspace-colors', i, ''));
         picture.row.add_prefix(colour);
         picture.row.add_suffix(noColour);
-        each.add(picture.row);
+        workspace.add_row(picture.row);
+        workspace.add_row(folder.row);
+        each.add(workspace);
         showColour();
-        shows.push(picture.show, showColour);
+        showName();
+        shows.push(picture.show, showColour, folder.show, showName);
     }
-    for (const key of ['workspace-colors', 'workspace-backgrounds'])
+    for (const key of ['workspace-colors', 'workspace-backgrounds', 'workspace-names', 'workspace-directories'])
         settings.connect(`changed::${key}`, () => shows.forEach(show => show()));
     return page;
 }
@@ -519,7 +565,8 @@ function shortcutGroups() {
             ['open-window-position-down', _('Open new windows below the window you are on')],
             ['open-window-position-up', _('Open new windows above the window you are on')],
             ['toggle-top-and-position-bar', _('Hide or show the top bar on this workspace')],
-            ['toggle-top-bar', _('Hide or show the top bar on this workspace (a second key for it)')],
+            ['toggle-top-bar', _('Hide or show the top bar alone on this workspace')],
+            ['toggle-position-bar', _('Hide or show where the window is in the strip, on this workspace')],
         ]],
     ];
 }

@@ -4,7 +4,8 @@
 // elsewhere. The pointer moving to a screen makes its workspace GNOME's, with no animation. GNOME's own ways to another
 // workspace show it on the screen it was last on; the tiling's keys and gestures show it on the screen with the
 // keyboard; a workspace already shown on another screen comes with a swap. A workspace keeps its screen by the
-// screen's connector, so that it goes back there when the screen is plugged in again. With one screen, nothing here
+// screen's connector, so that it goes back there when the screen is plugged in again. With dynamic workspaces, GNOME
+// takes away no workspace a screen shows, and there is one to spare beyond the screens'. With one screen, nothing here
 // does anything.
 
 import Clutter from 'gi://Clutter';
@@ -17,6 +18,12 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 // What survives the tiling being stopped and started in the same session (a screen lock): which workspace each
 // screen showed, by its connector
 const remembered = {shown: new Map(), homes: new Map()};
+
+// How long, with dynamic workspaces, the workspace of a screen that went away is kept although it is empty: screens
+// waking from sleep come back one at a time, and each finds its own workspace again
+const GONE_KEPT_MS = 15000;
+// What GNOME's tracker sees as a workspace kept alive while it checks (any true value: it only tests it)
+const KEPT = -1;
 
 export class Screens {
     constructor(engine) {
@@ -32,24 +39,80 @@ export class Screens {
         this._bringing = null;
         global.display.connectObject('restacked', () => this.queueMirrors(), this);
         global.workspace_manager.connectObject(
-            'workspace-removed', () => this._prune(),
+            // A check of GNOME's dynamic workspaces queued before its tracker was wrapped runs unwrapped, once, and may
+            // take a screen's empty workspace away: the screen gets another once the check is over
+            'workspace-removed', () => {
+                this._prune();
+                if (!this._fillLater) {
+                    this._fillLater = global.compositor.get_laters().add(Meta.LaterType.BEFORE_REDRAW, () => {
+                        this._fillLater = 0;
+                        this._fillScreens();
+                        return false;
+                    });
+                }
+            },
             // Mutter makes the workspaces of a fixed number later than the setting changes (the tiling's own,
             // settings.js): a screen left without one gets it then
-            'workspace-added', () => {
-                // Not for the ones assign() adds itself (mutter says so before append_new_workspace returns)
-                if (!this._assigning && this.separate &&
-                    Main.layoutManager.monitors.some((m, i) => !this._shown.has(this._connector(i))))
-                    this.assign(this._engine.tiling.workspaceHistory?.() ?? []);
-            },
+            'workspace-added', () => this._fillScreens(),
             this);
+        this._keepShown();
+    }
+
+    _fillScreens() {
+        // Not for the workspaces assign() adds itself (mutter says so before append_new_workspace returns)
+        if (!this._assigning && this.separate &&
+            Main.layoutManager.monitors.some((m, i) => !this._shown.has(this._connector(i))))
+            this.assign(this._engine.tiling.workspaceHistory?.() ?? []);
+    }
+
+    // GNOME's dynamic workspaces take away every empty workspace but the last one and GNOME's own: its check is
+    // wrapped so that, while it looks, a workspace a screen shows counts as kept alive, the way GNOME keeps one for a
+    // moment itself. Then no screen loses its workspace, and the empty one GNOME keeps last is one to spare.
+    _keepShown() {
+        const tracker = Main.wm._workspaceTracker;
+        const original = tracker?._checkWorkspaces;
+        if (typeof original !== 'function') {
+            console.warn('Amethystora UI: GNOME\'s workspace tracker was not found; with dynamic workspaces a screen ' +
+                'may lose its workspace');
+            return;
+        }
+        const own = Object.prototype.hasOwnProperty.call(tracker, '_checkWorkspaces');
+        const screens = this;
+        tracker._checkWorkspaces = function (...args) {
+            const marked = screens.separate
+                ? [...new Set(screens._shown.values())].filter(w => !w._keepAliveId) : [];
+            for (const workspace of marked)
+                workspace._keepAliveId = KEPT;
+            try {
+                return original.apply(this, args);
+            } finally {
+                for (const workspace of marked) {
+                    if (workspace._keepAliveId === KEPT)
+                        workspace._keepAliveId = 0;
+                }
+            }
+        };
+        this._untrack = () => {
+            if (own)
+                tracker._checkWorkspaces = original;
+            else
+                delete tracker._checkWorkspaces;
+            // GNOME tidies its workspaces up as it would have without the screens
+            tracker._queueCheckWorkspaces?.();
+        };
     }
 
     disable() {
+        this._untrack?.();
+        this._untrack = null;
         global.display.disconnectObject(this);
         global.workspace_manager.disconnectObject(this);
         if (this._mirrorLater)
             global.compositor.get_laters().remove(this._mirrorLater);
         this._mirrorLater = 0;
+        if (this._fillLater)
+            global.compositor.get_laters().remove(this._fillLater);
+        this._fillLater = 0;
         for (const mirror of this._mirrors?.values() ?? [])
             mirror.destroy();
         this._mirrors = null;
@@ -174,7 +237,8 @@ export class Screens {
         }
         this._bringing = monitor;
         try {
-            const window = engine.strip(workspace, monitor).selected;
+            // A window dragged across keeps the keyboard: mutter takes it along to the workspace
+            const window = engine.dragging ? null : engine.strip(workspace, monitor).selected;
             quietly(() => {
                 if (window)
                     workspace.activate_with_focus(window, global.get_current_time());
@@ -190,6 +254,8 @@ export class Screens {
     switched(to) {
         const from = this._last;
         this._last = to;
+        // Whether it was on a screen already, for GNOME's slide (patches.js), which may come before this or after
+        this._arrival = {workspace: to, shown: this.monitorShowing(to) >= 0};
         if (!this.separate)
             return -1;
         if (this._bringing !== null) {
@@ -209,6 +275,11 @@ export class Screens {
         if (global.display.get_current_monitor() !== target)
             this._engine.tiling.actions?.warpTo(target);
         return target;
+    }
+
+    // Whether the workspace GNOME is switching to was on a screen before the switch
+    wasShown(workspace) {
+        return this._arrival?.workspace === workspace ? this._arrival.shown : this.monitorShowing(workspace) >= 0;
     }
 
     // Two screens exchange the workspaces they show; true when they did
@@ -258,13 +329,23 @@ export class Screens {
 
     // ---- Screens plugged in and out ----
 
-    // After the screens changed (and at the start): every screen shows a workspace, each its own. The screen a
-    // workspace was shown on shows it again; the one GNOME has is on a screen, the primary one if its own is gone;
-    // the rest show the most recent workspaces not shown yet.
+    // After the screens changed (and at the start): every screen shows a workspace, each its own. A screen shows again
+    // the workspace it showed, else one last shown there, else the most recent one not shown yet. When the screen of
+    // GNOME's workspace is gone, the most recent workspace still on a screen becomes GNOME's, and the other is shown
+    // nowhere; else GNOME's is on a screen, the one with the keyboard if it was on none.
     assign(history) {
+        const before = new Map(this._shown);
+        const active = global.workspace_manager.get_active_workspace();
+        const stays = new Set([...before].filter(([connector]) => this._index(connector) >= 0).map(([, w]) => w));
+        const lost = !stays.has(active) &&
+            [...before].some(([connector, workspace]) => workspace === active && this._index(connector) < 0);
         if (!this.separate) {
             this._shown.clear();
+            this._keepGone(before);
             this.queueMirrors();
+            const next = lost && history.find(w => stays.has(w));
+            if (next)
+                quietly(() => next.activate(global.get_current_time()));
             return;
         }
         this._assigning = true;
@@ -276,7 +357,6 @@ export class Screens {
         const monitors = Main.layoutManager.monitors;
         const manager = global.workspace_manager;
         const all = new Set(Array.from({length: manager.n_workspaces}, (unused, i) => manager.get_workspace_by_index(i)));
-        const before = new Map(this._shown);
         this._shown.clear();
         const taken = new Set();
         monitors.forEach((m, index) => {
@@ -287,8 +367,7 @@ export class Screens {
                 taken.add(workspace);
             }
         });
-        const active = manager.get_active_workspace();
-        if (!taken.has(active)) {
+        if (!taken.has(active) && !(lost && taken.size)) {
             const index = this._engine.focusMonitor();
             const connector = this._connector(index >= 0 && index < monitors.length ? index
                 : Main.layoutManager.primaryIndex);
@@ -303,7 +382,8 @@ export class Screens {
             const connector = this._connector(index);
             if (!connector || this._shown.has(connector))
                 return;
-            const workspace = order.find(w => all.has(w) && !taken.has(w));
+            const free = w => all.has(w) && !taken.has(w);
+            const workspace = order.find(w => free(w) && this._homes.get(w) === connector) ?? order.find(free);
             if (workspace) {
                 this._shown.set(connector, workspace);
                 taken.add(workspace);
@@ -313,15 +393,41 @@ export class Screens {
             this._homes.set(workspace, connector);
             this._moveStrip(workspace, this._index(connector));
         }
+        this._keepGone(before);
         this._changed();
+        if (lost && !taken.has(active)) {
+            const next = history.find(w => taken.has(w));
+            if (next)
+                quietly(() => next.activate(global.get_current_time()));
+        }
     }
 
-    // Fewer workspaces than screens: workspaces are added, and said
+    // With dynamic workspaces, the ones whose screen went away are kept a while, empty or not
+    _keepGone(before) {
+        if (!Meta.prefs_get_dynamic_workspaces())
+            return;
+        const manager = global.workspace_manager;
+        const shown = new Set(this._shown.values());
+        for (let i = 0; i < manager.n_workspaces; i++) {
+            const workspace = manager.get_workspace_by_index(i);
+            if (!shown.has(workspace) && [...before.values()].includes(workspace))
+                Main.wm.keepWorkspaceAlive?.(workspace, GONE_KEPT_MS);
+        }
+    }
+
+    // Fewer workspaces than screens: workspaces are added, and said. Dynamic ones are GNOME's to come and go: as many
+    // as the screens and one to spare are made, without a word.
     _enoughForScreens() {
         const manager = global.workspace_manager;
+        const screens = Main.layoutManager.monitors.length;
+        if (Meta.prefs_get_dynamic_workspaces()) {
+            for (let i = manager.n_workspaces; i <= screens; i++)
+                manager.append_new_workspace(false, global.get_current_time());
+            return;
+        }
         // Counting the ones mutter is still to make for its fixed number
-        const missing = Main.layoutManager.monitors.length - Math.max(manager.n_workspaces, Meta.prefs_get_num_workspaces());
-        if (missing <= 0 || Meta.prefs_get_dynamic_workspaces())
+        const missing = screens - Math.max(manager.n_workspaces, Meta.prefs_get_num_workspaces());
+        if (missing <= 0)
             return;
         for (let i = 0; i < missing; i++)
             manager.append_new_workspace(false, global.get_current_time());

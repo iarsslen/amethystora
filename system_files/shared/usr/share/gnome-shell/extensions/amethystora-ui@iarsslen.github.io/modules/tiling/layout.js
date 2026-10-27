@@ -99,8 +99,8 @@ export function columns(widths) {
     return {columns: out, width: x};
 }
 
-// The strip's scroll (the screen x of its left end, from the work area's left edge) when it is narrower than the
-// screen or has a single column, which is centred; null when the strip scrolls freely
+// The strip's scroll (the screen x of its left end, from the work area's left edge) that centres it when it is
+// narrower than the screen or has a single column; null when it covers the screen and scrolls freely
 export function centred(area, strip) {
     if (!strip.columns.length)
         return 0;

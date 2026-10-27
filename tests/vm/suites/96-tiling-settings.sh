@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 # The tiling's settings (modules/tiling/config.js, the extension's prefs.js), as a person's session has them. The lab
 # sees no window's place on Wayland, so it asks what the session can say for sure:
-#   - every setting has the image's value, and the shortcuts are the 99 of the schema, 54 of them bound;
+#   - every setting has the image's value, and the shortcuts are the 100 of the schema, 54 of them bound;
 #   - every setting changed while the tiling runs, and put back, leaves nothing thrown in the shell's log;
 #   - ame desktop tiling-settings opens the settings window, with its five pages, and its switch turns the tiling off
 #     and on again, as ame desktop layout does;
@@ -35,13 +35,14 @@ user_bus gsettings set "${TILING}" enabled true >/dev/null 2>&1
 defaults_ok=true
 for entry in window-gap=8 horizontal-margin=8 vertical-margin=8 vertical-margin-bottom=8 selection-border-size=10 \
     animation-time=0.25 default-focus-mode=0 open-window-position=0 edge-preview-enable=true gesture-enabled=true \
-    gesture-horizontal-fingers=3 maximize-within-tiling=true "winprops=@as []"; do
+    gesture-horizontal-fingers=3 maximize-within-tiling=true "winprops=@as []" show-workspace-indicator=false \
+    show-window-position-bar=false use-default-background=true overview-ensure-viewport-animation=1; do
     key="${entry%%=*}" want="${entry#*=}"
     got="$(gsettings_get "${TILING}" "${key}")"
     [[ "${got}" == "${want}" ]] || { defaults_ok=false; not_ok "${key} is ${got}, not the image's ${want}"; }
 done
 ${defaults_ok} && ok "the tiling's settings have the image's values"
-check "the schema has the 99 shortcuts" test "$(user_bus gsettings list-keys "${TILING}.keybindings" | wc -l)" == 99
+check "the schema has the 100 shortcuts" test "$(user_bus gsettings list-keys "${TILING}.keybindings" | wc -l)" == 100
 check "54 of them are bound" \
     test "$(user_bus gsettings list-recursively "${TILING}.keybindings" | grep -vc '@as \[\]$')" == 54
 

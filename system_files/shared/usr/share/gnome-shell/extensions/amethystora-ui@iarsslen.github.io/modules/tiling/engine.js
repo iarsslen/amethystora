@@ -28,6 +28,10 @@ const ANSWER = 120;
 const ONSCREEN = 80;
 // The focus box's opacity while its window does not have the keyboard
 const INACTIVE = 140;
+// How long a new window waits beside the focused one before it is stacked under it, and a window that opens
+// fullscreen before it takes the screen again, in milliseconds
+const PULL_IN = 100;
+const REFULLSCREEN = 100;
 // Where new windows open, the values of open-window-position
 export const Open = {RIGHT: 0, LEFT: 1, START: 2, END: 3, DOWN: 4, UP: 5};
 
@@ -56,6 +60,8 @@ export class Strip {
         this.columns = [];
         // The screen x of the strip's left end, from the left of the work area
         this.scroll = 0;
+        // Moved aside from the middle while narrower than the screen (geometry)
+        this.loose = false;
         this.mode = config.defaultMode;
         // The window the strip shows as focused, the keyboard's or the one a navigation is on
         this.selected = null;
@@ -272,6 +278,8 @@ export class Engine {
             drawn = true;
             if (!info.fresh && !info.elsewhere && (this.isTiled(window) || this.floating.has(window)))
                 activate(window);
+            if (info.refullscreen)
+                this._refullscreen(window, info);
         }, this);
         // The app chooses its width, and says its title, when it first draws: the strip takes it in then
         const settle = () => {
@@ -301,7 +309,27 @@ export class Engine {
             const width = preferredWidth(rule, Layout.available(this.area(monitor)));
             if (width)
                 info.width = width;
-            this.insert(window, this.strip(target, monitor), {appear: true});
+            // Opening below (or above) the focused window, it is shown to its right first and pulled in a moment
+            // later, so that it is seen arriving
+            const strip = this.strip(target, monitor);
+            const position = this.tiling.openPosition;
+            const near = strip.selected;
+            const stacked = near && (position === Open.DOWN || position === Open.UP);
+            this.insert(window, strip, stacked ? {appear: true, position: Open.RIGHT} : {appear: true});
+            if (stacked) {
+                this._after(window, info, PULL_IN, () => {
+                    if (this.stripOf(window) === strip && this.stripOf(near) === strip && !window.is_fullscreen())
+                        this.insert(window, strip, {position, near});
+                });
+            }
+            // A window that opens fullscreen (a game) has been put in the strip as a normal window: it leaves
+            // fullscreen and takes it again from its place there, a moment after it is first drawn
+            if (window.is_fullscreen()) {
+                if (drawn)
+                    this._refullscreen(window, info);
+                else
+                    info.refullscreen = true;
+            }
             if (target !== active && rule.focus)
                 target.activate_with_focus(window, global.get_current_time());
             else if (drawn && !info.elsewhere)
@@ -353,10 +381,34 @@ export class Engine {
         return null;
     }
 
+    // Runs `fn` once after `ms`, if the window is still the tiling's then
+    _after(window, info, ms, fn) {
+        info.timers ??= new Set();
+        const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
+            info.timers.delete(id);
+            if (this._info?.get(window) === info)
+                fn();
+            return GLib.SOURCE_REMOVE;
+        });
+        info.timers.add(id);
+    }
+
+    _refullscreen(window, info) {
+        info.refullscreen = false;
+        this._after(window, info, REFULLSCREEN, () => {
+            if (window.is_fullscreen()) {
+                window.unmake_fullscreen();
+                window.make_fullscreen();
+            }
+        });
+    }
+
     _untrack(window) {
         const info = this._info.get(window);
         if (info?.sizeCheck)
             GLib.source_remove(info.sizeCheck);
+        for (const id of info?.timers ?? [])
+            GLib.source_remove(id);
         window.disconnectObject(this);
         const actor = window.get_compositor_private();
         actor?.disconnectObject(this);
@@ -426,8 +478,9 @@ export class Engine {
     }
 
     // `place` puts it at a given column, or into it at a given row, rather than beside a window. Stacked under or over
-    // the selected window, as the open position may say, go only a new window and one put down by the pointer
-    // (`position` given); any other (from another workspace or screen, back from floating or minimized) goes beside it.
+    // the selected window, as the open position may say, go only a new window and one put down after carrying it
+    // (`position` given); any other (from another workspace or screen, back from floating or minimized, dropped
+    // outside a zone) goes beside it.
     insert(window, strip, options = {}) {
         const {appear = false, place = null} = options;
         let position = options.position ?? this.tiling.openPosition;
@@ -437,7 +490,7 @@ export class Engine {
         const old = info.strip;
         if (old)
             this.remove(window, {layout: false});
-        const near = 'near' in options ? options.near : strip.selected;
+        const near = options.near ?? strip.selected;
         if (window.is_above())
             window.unmake_above();
         if (config.maximizeFills && maximized(window)) {
@@ -531,7 +584,7 @@ export class Engine {
     // right end comes to the screen's edge, at the margin
     endAtEdge(strip) {
         const geo = this.geometry(strip);
-        if (geo.centred || !geo.columns.length)
+        if (geo.narrow || !geo.columns.length)
             return;
         const last = geo.columns.at(-1);
         const room = geo.area.width - Layout.MARGIN - (geo.scroll + last.x + last.width);
@@ -562,7 +615,8 @@ export class Engine {
             actor.translation_x = 0;
             actor.translation_y = 0;
         }
-        if (!glide)
+        // A window that was not in a strip (a dialog) stays where it is
+        if (!glide || !strip)
             return;
         const monitor = window.get_monitor();
         let frame = info.floatFrame?.monitor === monitor ? {...info.floatFrame} : null;
@@ -586,6 +640,9 @@ export class Engine {
         };
         this.floating.delete(window);
         this._unfloatFlags(window);
+        // A dialog, or a window on every workspace, has no strip to go back to
+        if (!this.tileable(window))
+            return;
         const strip = this.activeStrip(window.get_monitor());
         info.width = frame.width;
         this.insert(window, strip, {position, near});
@@ -652,14 +709,23 @@ export class Engine {
             return Math.max(1, Math.min(width, Layout.maxWidth(area)));
         });
         const placed = Layout.columns(widths);
-        const centred = Layout.centred(area, placed);
-        const scroll = centred ?? strip.scroll;
+        // A strip narrower than the screen stays in the middle, unless a swipe, a drift or the centre key moved it
+        // aside (`loose`): then it stays where it was put, until it is wide enough to cover the screen again
+        const middle = Layout.centred(area, placed);
+        if (middle === null || strip.scroll === middle)
+            strip.loose = false;
+        const centred = middle !== null && !strip.loose;
+        if (centred)
+            strip.scroll = middle;
+        const scroll = strip.scroll;
         const rects = new Map();
         strip.columns.forEach((column, c) => {
             const x = area.x + scroll + placed.columns[c].x;
             const width = placed.columns[c].width;
             if (column.length === 1 && column[0].is_fullscreen()) {
-                rects.set(column[0], {x, y: monitor.y, width, height: monitor.height});
+                // Without the keyboard it slides down under the top bar, which comes back above it
+                const y = column[0] === strip.selected ? monitor.y : use.y;
+                rects.set(column[0], {x, y, width, height: monitor.height});
                 return;
             }
             // A window maximized as GNOME has it covers the work area, the strip only scrolling it
@@ -675,7 +741,7 @@ export class Engine {
                 y += hs[r] + Layout.GAP;
             });
         });
-        return {area, rects, columns: placed.columns, width: placed.width, scroll, centred: centred !== null};
+        return {area, rects, columns: placed.columns, width: placed.width, scroll, centred, narrow: middle !== null};
     }
 
     // Scrolls a strip so that a window is shown by the workspace's focus mode, then lays it out
@@ -794,6 +860,8 @@ export class Engine {
         this._glides.get(strip)?.timeline.stop();
         this._glides.delete(strip);
         strip.scroll = Math.round(scroll);
+        // A narrow strip moved by hand stays where it is put
+        strip.loose = true;
         const geo = this.geometry(strip);
         for (const [window, rect] of geo.rects) {
             const info = this._info.get(window);
@@ -822,7 +890,8 @@ export class Engine {
             this.screens?.queueMirrors();
     }
 
-    // Whether a fullscreen window really covers a monitor: GNOME counts one the strip has scrolled away too
+    // Whether a fullscreen window really covers a monitor: GNOME counts one the strip has scrolled away, or slid down
+    // under the top bar, too
     coversMonitor(index) {
         const monitor = Main.layoutManager.monitors[index];
         if (!monitor)
@@ -833,7 +902,8 @@ export class Engine {
             const info = this._info.get(window);
             if (!info?.strip)
                 return true;
-            return !info.hidden && info.vis && Math.abs(info.vis.x - monitor.x) < monitor.width / 2;
+            return !info.hidden && info.vis && Math.abs(info.vis.x - monitor.x) < monitor.width / 2 &&
+                info.vis.y <= monitor.y;
         });
     }
 
@@ -888,7 +958,9 @@ export class Engine {
     // With several screens a window that reaches past its own is cut at its edge, so that none of it shows on the
     // next screen; never while GNOME takes a screenshot, which takes windows whole
     _clip(actor, info, vis, monitor) {
-        const past = vis.x < monitor.x || vis.x + vis.width > monitor.x + monitor.width;
+        // A fullscreen window slid down reaches past the bottom
+        const past = vis.x < monitor.x || vis.x + vis.width > monitor.x + monitor.width ||
+            vis.y + vis.height > monitor.y + monitor.height;
         const wanted = past && !this.unclipped && Main.layoutManager.monitors.length > 1;
         if (wanted) {
             const left = actor.x + actor.translation_x;
@@ -1092,10 +1164,20 @@ export class Engine {
             this.remove(window);
     }
 
+    // A window put on every workspace belongs to no strip and is left where it is; put back on one, it joins the
+    // strip shown
     _stickyChanged(window) {
         const info = this._info?.get(window);
-        if (info?.strip && window.is_on_all_workspaces() && !this.floating.has(window))
-            this.float(window, {glide: false});
+        if (!info || this.floating.has(window))
+            return;
+        if (info.strip && window.is_on_all_workspaces()) {
+            info.stuck = true;
+            this.remove(window);
+        } else if (info.stuck && !window.is_on_all_workspaces()) {
+            info.stuck = false;
+            if (this.tileable(window) && !window.minimized)
+                this.insert(window, this.activeStrip());
+        }
     }
 
     _minimizedChanged(window) {
@@ -1109,8 +1191,9 @@ export class Engine {
             info.fromStrip = false;
             if (!this.tileable(window))
                 return;
-            // Back beside the focused window, which stays the one shown as focused until the keyboard moves
-            const strip = this.activeStrip(window.get_monitor());
+            // Back beside the focused window of the workspace shown where the keyboard is, not of the screen it was
+            // minimized on; that window stays the one shown as focused until the keyboard moves
+            const strip = this.activeStrip();
             const focused = strip.selected;
             this.insert(window, strip);
             if (focused && !window.has_focus() && global.display.focus_window === focused) {
@@ -1170,13 +1253,24 @@ export class Engine {
         });
     }
 
+    // The strip comes to the focused window gliding, at once, or at once and fading in, as the settings say
     _overviewHidden() {
-        const strip = this.activeStrip(global.display.get_current_monitor());
+        let strip = this.activeStrip(global.display.get_current_monitor());
         const focus = global.display.focus_window;
-        if (focus && this.stripOf(focus))
-            this.ensureVisible(this.stripOf(focus), focus);
-        else if (strip.selected)
-            this.layout(strip);
+        const animate = config.overviewExit === 1;
+        if (focus && this.stripOf(focus)) {
+            strip = this.stripOf(focus);
+            this.ensureVisible(strip, focus, {animate});
+        } else if (strip.selected) {
+            this.layout(strip, {animate});
+        }
+        if (config.overviewExit !== 2)
+            return;
+        for (const window of strip.windows) {
+            const actor = window.get_compositor_private();
+            actor?.set_opacity(0);
+            actor?.ease({opacity: 255, duration: config.animation, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+        }
     }
 
     // ---- The focus box ----
@@ -1334,14 +1428,14 @@ export class Engine {
         remembered.strips = this.strips().map(strip => ({
             workspace: strip.workspace, monitor: strip.monitor, connector: this._connectors?.[strip.monitor],
             columns: strip.columns.map(c => [...c]),
-            scroll: strip.scroll, mode: strip.mode, selected: strip.selected,
+            scroll: strip.scroll, loose: strip.loose, mode: strip.mode, selected: strip.selected,
         }));
         remembered.windows = new WeakMap();
         for (const [window, info] of this._info) {
-            const {width, height, lastX, everFocused, floatFrame, madeAbove, madeSticky, fromStrip} = info;
+            const {width, height, lastX, everFocused, floatFrame, madeAbove, madeSticky, fromStrip, stuck} = info;
             remembered.windows.set(window, {
                 width, height, lastX, everFocused, floatFrame, madeAbove, madeSticky,
-                fromStrip,
+                fromStrip, stuck,
             });
         }
         remembered.floating = new Set(this.floating);
@@ -1363,7 +1457,7 @@ export class Engine {
             if (!workspaces.has(saved.workspace) || monitor < 0 || monitor >= Main.layoutManager.monitors.length)
                 continue;
             const strip = this.strip(saved.workspace, monitor);
-            Object.assign(strip, {scroll: saved.scroll, mode: saved.mode});
+            Object.assign(strip, {scroll: saved.scroll, loose: saved.loose, mode: saved.mode});
             for (const column of saved.columns) {
                 const kept = column.filter(w => alive.has(w) && this.tileable(w) && !w.minimized &&
                     w.located_on_workspace(saved.workspace));
@@ -1378,7 +1472,8 @@ export class Engine {
             strip.selected = alive.has(saved.selected) && placed.has(saved.selected) ? saved.selected
                 : strip.windows[0] ?? null;
         }
-        // Windows the tiling has not seen: from the left of the screen, the stacking breaking ties
+        // Windows the tiling has not seen: from the left of the screen, the stacking breaking ties. Those at its left
+        // edge or past it (a strip pushed them there) come first, in their stacking.
         const stacked = global.display.sort_windows_by_stacking(global.display.list_all_windows());
         const others = stacked.filter(w => !placed.has(w) && w.get_window_type() === Meta.WindowType.NORMAL);
         for (const window of others) {
@@ -1386,8 +1481,14 @@ export class Engine {
             if (window.is_above() && this.tileable(window) && !window.minimized)
                 this.floating.add(window);
         }
+        const left = window => {
+            const x = window.get_frame_rect().x;
+            return x <= this.area(window.get_monitor()).x ? -Infinity : x;
+        };
         const fresh = others.filter(w => this.tileable(w) && !w.minimized)
-            .sort((a, b) => a.get_frame_rect().x - b.get_frame_rect().x);
+            .map(window => [window, left(window)])
+            .sort(([, a], [, b]) => a === b ? 0 : a - b)
+            .map(([window]) => window);
         for (const window of fresh) {
             const workspace = window.get_workspace();
             if (!workspace)

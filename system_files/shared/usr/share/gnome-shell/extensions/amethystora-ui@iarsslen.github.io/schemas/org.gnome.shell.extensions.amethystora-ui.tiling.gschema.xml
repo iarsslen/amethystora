@@ -206,7 +206,40 @@
       <default>0.15</default>
       <summary>The size of the windows in the window switcher (Alt+Tab), a share of the screen's height</summary>
     </key>
+    <key name="show-workspace-indicator" type="b">
+      <default>false</default>
+      <summary>The top bar shows the name of the workspace, and each other screen the name of its own</summary>
+      <description>A click opens the overview, the right button a menu to rename it, and the wheel goes to the workspace before or after it. The workspaces in the top bar stay as they are.</description>
+    </key>
+    <key name="show-window-position-bar" type="b">
+      <default>false</default>
+      <summary>A line under the top bar shows where the focused window is in the strip</summary>
+      <description>Each other screen has one at its top for its own workspace.</description>
+    </key>
+    <key name="only-scratch-in-overview" type="b">
+      <default>false</default>
+      <summary>The overview shows only the floating windows</summary>
+    </key>
+    <key name="disable-scratch-in-overview" type="b">
+      <default>false</default>
+      <summary>The overview leaves the floating windows out</summary>
+    </key>
+    <key name="overview-ensure-viewport-animation" type="i">
+      <range min="0" max="2"/>
+      <default>1</default>
+      <summary>How the strip comes to the focused window when the overview closes: 0 at once, 1 gliding, 2 fading in</summary>
+    </key>
 
+    <key name="workspace-names" type="as">
+      <default>[]</default>
+      <summary>Each workspace's name, by its number from the first; empty for "Workspace N"</summary>
+      <description>Shown by the workspace name in the top bar and on the workspace cards. GNOME's own workspace names are left as they are.</description>
+    </key>
+    <key name="workspace-directories" type="as">
+      <default>[]</default>
+      <summary>Each workspace's folder, by its number from the first; empty for none</summary>
+      <description>Apps started while the workspace is shown start in its folder. A path, ~ for the home folder.</description>
+    </key>
     <key name="workspace-colors" type="as">
       <default>[]</default>
       <summary>Each workspace's colour, by its number from the first; empty for the theme's</summary>
@@ -215,11 +248,16 @@
     <key name="workspace-backgrounds" type="as">
       <default>[]</default>
       <summary>Each workspace's own picture, by its number from the first; empty for the default</summary>
-      <description>A file's path or address. A workspace without one shows default-background, or else GNOME's own wallpaper.</description>
+      <description>A file's path or address. A workspace without one shows default-background, or else GNOME's own wallpaper (unless use-default-background is off).</description>
     </key>
     <key name="default-background" type="s">
       <default>''</default>
       <summary>The picture of every workspace without one of its own; empty for GNOME's own wallpaper</summary>
+    </key>
+    <key name="use-default-background" type="b">
+      <default>true</default>
+      <summary>A workspace without a picture of its own shows GNOME's wallpaper</summary>
+      <description>Off, it shows its colour alone.</description>
     </key>
 
     <key name="winprops" type="as">
@@ -565,6 +603,10 @@
       <default>[]</default>
       <summary>Hide or show the top bar on this workspace</summary>
     </key>
+    <key name="toggle-position-bar" type="as">
+      <default>[]</default>
+      <summary>Hide or show the line showing where the focused window is in the strip, on this workspace</summary>
+    </key>
     <key name="toggle-scratch-window" type="as">
       <default>[]</default>
       <summary>Hide or show the floating window used last</summary>
@@ -615,7 +657,7 @@
     </key>
     <key name="live-alt-tab" type="as">
       <default>[]</default>
-      <summary>Go through this workspace's windows, used last first, the strip showing each in its place</summary>
+      <summary>Go through the windows in GNOME's window switcher, used last first, each drawn where its strip would show it</summary>
     </key>
     <key name="live-alt-tab-backward" type="as">
       <default>[]</default>

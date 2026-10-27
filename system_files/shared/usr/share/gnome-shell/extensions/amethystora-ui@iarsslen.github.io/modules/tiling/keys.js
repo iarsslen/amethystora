@@ -17,6 +17,7 @@ import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 // GNOME's schemas of shortcuts the tiling's could collide with
@@ -238,7 +239,24 @@ export class Keys {
         // The person changed a GNOME shortcut we had taken a combination from: what they set is theirs now
         if (record)
             this._forget(id, key);
+        this._sayTaken(id, key);
         this._queue();
+    }
+
+    // The person set a GNOME shortcut to a combination the tiling has: the tiling keeps it, and says so
+    _sayTaken(id, key) {
+        const settings = this._gnome.get(id);
+        const schemaKey = settings.settings_schema.get_key(key);
+        // GNOME's own value, which a reset brings back to every key at once, collides by design and is taken quietly
+        if (schemaKey.get_value_type().dup_string() !== 'as' || settings.get_user_value(key) === null)
+            return;
+        const mine = this._mine();
+        const taken = settings.get_strv(key).find(a => mine.some(m => same(m.combo, parse(a))));
+        if (!taken)
+            return;
+        Main.notifyError(_('%s is a shortcut of the tiling').format(label(taken)),
+            _('The tiling keeps it, so “%s” does not answer to it until the tiling is turned off.')
+                .format(schemaKey.get_summary() || key));
     }
 
     // Every combination of the tiling's shortcuts, with the action it starts
