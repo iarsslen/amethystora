@@ -23,7 +23,8 @@ check "GNOME Shell runs in it" wait_for 120 pgrep -u "${TEST_USER}" -x gnome-she
 # GNOME's welcome dialog of a first login, left with the keyboard alone (keys.py): Just Perfection once took the
 # keyboard from it, and without a mouse there was no way past it
 shows_welcome() { user_bus python3 "$(dirname "$0")/atspi.py" gnome-shell has "Welcome to"; }
-welcome_gone() { ! shows_welcome; }
+# By its own button: the overview behind it shows the Manual's window, whose caption is "Welcome to Amethystora" too
+welcome_gone() { ! user_bus python3 "$(dirname "$0")/atspi.py" gnome-shell has "Take Tour"; }
 if wait_for 120 shows_welcome; then
     # Pressed once the dialog has had time to take the keyboard at the end of its opening, and once more when the
     # first came before it had (as in one round): a keyboard taken from it fails both
