@@ -161,9 +161,10 @@ function typed(character) {
 function pngSize(png) {
   return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
 }
-export async function screendump(name) {
+// Each screen after the first of a VM started with screens is its own display device
+export async function screendump(name, screen = 1) {
   const target = file(name, 'png');
-  await qmp(name, 'screendump', { filename: target, format: 'png' });
+  await qmp(name, 'screendump', { filename: target, format: 'png', ...(screen > 1 ? { device: `vga${screen}` } : {}) });
   return fs.readFileSync(target);
 }
 
@@ -221,15 +222,17 @@ export const tools = [
       system_absent: { type: 'boolean', description: 'the disk the VM was made from left unplugged this time, for a system mirrored onto a spare one' },
       faulty: { type: 'object', description: 'spare disks with bad sectors this time: {"3": [sector, ...]}, each 512-byte sector failing every read with an I/O error' },
       credentials: { type: 'object', description: 'systemd credentials for the guest, {"cryptsetup.passphrase": "..."}' },
+      screens: { type: 'integer', description: 'screens of 1280x800 side by side, 1 to 4, default 1' },
     },
     required: ['name'],
     async call({ name, disk = 'latest', memory_mb = 4096, cpus = 4, secure_boot = true, tpm = true, fresh = false, spares_gb = [],
-      absent = [], system_absent = false, faulty = {}, credentials: extra = {} }) {
+      absent = [], system_absent = false, faulty = {}, credentials: extra = {}, screens = 1 }) {
       checkName(name);
       checkName(disk, 'disk');
       if (running(name)) throw new Error(`VM ${name} is running already`);
       const base = `${DISKS}/${disk}.qcow2`;
       if (!fs.existsSync(base)) throw new Error(`no disk ${disk}: disk_build makes it`);
+      if (![1, 2, 3, 4].includes(screens)) throw new Error('screens is 1 to 4');
       if (spares_gb.length > 6) throw new Error('at most 6 spare disks: the machine has six SATA ports');
       if (fresh) {
         for (const ext of ['qcow2', 'vars.json', 'serial', 'png']) fs.rmSync(file(name, ext), { force: true });
@@ -253,7 +256,8 @@ export const tools = [
         '-netdev', 'user,id=n0', '-device', 'virtio-net-pci,netdev=n0',
         '-device', 'virtio-serial-pci', '-chardev', `socket,id=lab,path=${file(name, 'agent')},server=on,wait=off`,
         '-device', 'virtserialport,chardev=lab,name=org.amethystora.vmtest',
-        '-device', 'VGA,xres=1280,yres=800', '-device', 'qemu-xhci', '-device', 'usb-tablet', '-display', 'none',
+        '-device', 'VGA,id=vga1,xres=1280,yres=800', ...Array.from({ length: screens - 1 }, (_, i) => ['-device', `secondary-vga,id=vga${i + 2},xres=1280,yres=800`]).flat(),
+        '-device', 'qemu-xhci', '-device', 'usb-tablet', '-display', 'none',
         // The serial console, kept in NAME.serial, and typed into through NAME.console (serialWrite)
         '-chardev', `socket,id=con,path=${file(name, 'console')},server=on,wait=off,logfile=${file(name, 'serial')},logappend=off`,
         '-serial', 'chardev:con', '-qmp', `unix:${file(name, 'qmp')},server=on,wait=off`,
@@ -293,6 +297,7 @@ export const tools = [
       }
       fs.rmSync(file(name, 'serial'), { force: true });
       fs.rmSync(file(name, 'pid'), { force: true });
+      fs.writeFileSync(file(name, 'screens'), String(screens));
       // Detached, with what QEMU says kept in NAME.log: it outlives this server, which each session starts anew
       const log = fs.openSync(file(name, 'log'), 'w');
       const qemu = spawn('qemu-system-x86_64', args, { detached: true, stdio: ['ignore', log, log] });
@@ -377,11 +382,11 @@ export const tools = [
   {
     name: 'vm_screenshot',
     description: 'The VM\'s screen, as a PNG. Under nested virtualization GNOME draws in software, and the screen can show a click or keys a few seconds late.',
-    schema: { name: { type: 'string' } },
+    schema: { name: { type: 'string' }, screen: { type: 'integer', description: 'default 1' } },
     required: ['name'],
-    async call({ name }) {
+    async call({ name, screen = 1 }) {
       needRunning(name);
-      const png = await screendump(name);
+      const png = await screendump(name, screen);
       const { width, height } = pngSize(png);
       return { content: [{ type: 'image', data: png.toString('base64'), mimeType: 'image/png' }, { type: 'text', text: `${width}x${height}` }] };
     },
@@ -406,19 +411,25 @@ export const tools = [
   },
   {
     name: 'vm_mouse',
-    description: 'Move the pointer to x, y in screen pixels (as vm_screenshot shows them) and click, double-click or just move.',
+    description: 'Move the pointer to x, y in screen pixels (as vm_screenshot shows them) and click, double-click or just move; with press or release, hold or let go of the button there (a drag).',
     schema: {
-      name: { type: 'string' }, x: { type: 'integer' }, y: { type: 'integer' },
-      button: { type: 'string', enum: ['left', 'right', 'middle'] }, action: { type: 'string', enum: ['click', 'double', 'move'] },
+      name: { type: 'string' }, x: { type: 'integer' }, y: { type: 'integer' }, screen: { type: 'integer', description: 'default 1' },
+      button: { type: 'string', enum: ['left', 'right', 'middle'] }, action: { type: 'string', enum: ['click', 'double', 'move', 'press', 'release'] },
     },
     required: ['name', 'x', 'y'],
-    async call({ name, x, y, button = 'left', action = 'click' }) {
+    async call({ name, x, y, screen = 1, button = 'left', action = 'click' }) {
       needRunning(name);
       const { width, height } = pngSize(await screendump(name));
+      // The tablet spans every screen, which GNOME lays out side by side
+      const screens = fs.existsSync(file(name, 'screens')) ? Number(fs.readFileSync(file(name, 'screens'), 'utf8')) : 1;
       const scale = (value, size) => Math.max(0, Math.min(32767, Math.round((value * 32767) / Math.max(1, size - 1))));
       await qmp(name, 'input-send-event', { events: [
-        { type: 'abs', data: { axis: 'x', value: scale(x, width) } }, { type: 'abs', data: { axis: 'y', value: scale(y, height) } }] });
-      for (let i = 0; i < { click: 1, double: 2, move: 0 }[action]; i++) {
+        { type: 'abs', data: { axis: 'x', value: scale(x + (screen - 1) * width, width * screens) } },
+        { type: 'abs', data: { axis: 'y', value: scale(y, height) } }] });
+      if (action === 'press' || action === 'release') {
+        await qmp(name, 'input-send-event', { events: [{ type: 'btn', data: { down: action === 'press', button } }] });
+      }
+      for (let i = 0; i < ({ click: 1, double: 2 }[action] || 0); i++) {
         await qmp(name, 'input-send-event', { events: [{ type: 'btn', data: { down: true, button } }] });
         await sleep(60);
         await qmp(name, 'input-send-event', { events: [{ type: 'btn', data: { down: false, button } }] });

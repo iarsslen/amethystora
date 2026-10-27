@@ -4,8 +4,9 @@ a person does: GNOME takes it for real input, and gives the focus to what it ope
 keeps /dev/uinput root's). A STEP is a key or a chord of keys joined by + (super, ctrl+shift+c, alt+tab,
 return), text: to type, its letters, digits and spaces each pressed in turn, click:X,Y, the left button at
 X and Y, fractions of the screen's width and height (click:0.5,0.5 is its middle), middle:X,Y, the middle
-button there, or drag:X1,Y1,X2,Y2, the
-button held down from the first point to the second. Waits a moment after each.
+button there, move:X,Y, the pointer there with no button, or drag:X1,Y1,X2,Y2, the
+button held down from the first point to the second. Waits a moment after each. With several screens, the fractions
+are of all of them side by side.
 GNOME's overview, where a session starts, takes keys for its search, and leaves a window it did not open
 behind it: a click on its workspace (the middle of the screen) leaves it, as a person does.
 
@@ -111,6 +112,11 @@ def main(steps):
                 click(fd, *step[6:].split(","))
             elif step.startswith("middle:"):
                 click(fd, *step[7:].split(","), BTN_MIDDLE)
+            elif step.startswith("move:"):
+                x, y = step[5:].split(",")
+                emit(fd, EV_ABS, ABS_X, round(float(x) * ABS_MAX))
+                emit(fd, EV_ABS, ABS_Y, round(float(y) * ABS_MAX))
+                emit(fd, EV_SYN, 0, 0)
             elif step.startswith("drag:"):
                 drag(fd, *step[5:].split(","))
             elif step.startswith("text:"):

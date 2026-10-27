@@ -16,7 +16,8 @@
 // A suite is a bash script run as root in the guest, beside lib.sh: one "ok - ...", "not ok - ..." or
 // "skip - ..." line per check, and exit status 0 only when it passed. Exit status 100 asks for a reboot:
 // the suite runs again after it, with SUITE_PHASE one higher. A suite whose second line is
-// "# vmlab-vm: installer" runs on a machine of its own installed as the installer lays a disk out, encrypted.
+// "# vmlab-vm: installer" runs on a machine of its own installed as the installer lays a disk out, encrypted, and
+// "# vmlab-vm: screens" on the first machine's disk with four screens.
 // Exit status 101 runs the next phase in the same boot, for what takes longer than a phase may (30 minutes),
 // and with /var/lib/vmlab-tests/usb.json left (usb_next in lib.sh) USB devices plugged in or out first.
 // A phase that leaves /var/lib/vmlab-tests/next-boot.json gets a power cycle instead of a reboot, with what it
@@ -71,6 +72,8 @@ const MACHINES = {
     vm: `${NAME}-installer`, disk: `${NAME}-installer`, make: ['40G', `--installer=${PASSPHRASE}`], spares: [8, 8, 48, 48],
     credentials: { 'cryptsetup.passphrase': PASSPHRASE, 'cryptsetup.tpm2-pin': TPM_PIN, 'cryptsetup.luks2-pin': TPM_PIN },
   },
+  // The first one's disk again, on a machine with four screens side by side: a workspace on each (tiling/screens.js)
+  screens: { vm: `${NAME}-screens`, disk: NAME, make: [], spares: [], absent: [], credentials: {}, screens: 4 },
 };
 const MAX_PHASES = 16;
 const stage = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2] : 'all';
@@ -126,12 +129,16 @@ async function build() {
 // The machines whose suites are there to run
 const suitesOf = (machine) => fs.readdirSync(SUITES)
   .filter((f) => /^\d\d-.+\.sh$/.test(f) && (!ONLY || ONLY.includes(f.slice(0, 2)))).sort()
-  .filter((f) => (/^# vmlab-vm: installer$/m.test(fs.readFileSync(`${SUITES}/${f}`, 'utf8').split('\n').slice(0, 3).join('\n'))
-    ? 'installer' : 'default') === machine);
+  .filter((f) => (fs.readFileSync(`${SUITES}/${f}`, 'utf8').split('\n').slice(0, 3).join('\n')
+    .match(/^# vmlab-vm: (installer|screens)$/m)?.[1] ?? 'default') === machine);
 
 async function disk() {
+  const made = new Set();
   for (const [kind, m] of Object.entries(MACHINES)) {
-    if (suitesOf(kind).length && !(await step(`disk-${kind}`, 'bash', [`${HERE}/make-disk.sh`, IMAGE, m.disk, ...m.make]))) return false;
+    // A machine on another's disk has it made once
+    if (!suitesOf(kind).length || made.has(m.disk)) continue;
+    if (!(await step(`disk-${kind}`, 'bash', [`${HERE}/make-disk.sh`, IMAGE, m.disk, ...m.make]))) return false;
+    made.add(m.disk);
   }
   return true;
 }
@@ -173,7 +180,8 @@ async function start(machine, request = {}, fresh = false) {
   // A credential asked for as null is left out: {"cryptsetup.passphrase": null} has the TPM open the disk alone
   for (const [key, value] of Object.entries(credentials)) if (value === null) delete credentials[key];
   await call('vm_start', { name: m.vm, disk: m.disk, fresh, spares_gb: m.spares,
-    absent: request.absent || m.absent || [], system_absent: Boolean(request.system_absent), faulty: request.faulty || {}, credentials });
+    absent: request.absent || m.absent || [], system_absent: Boolean(request.system_absent), faulty: request.faulty || {}, credentials,
+    screens: m.screens || 1 });
   if (request.menu_last) await chooseLastEntry(m.vm);
   if (request.menu_edit) await editEntry(m.vm);
   if (request.type_passphrase) await typePassphrase(m.vm);

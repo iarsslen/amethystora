@@ -83,6 +83,11 @@ passphrase (`VMLAB_PASSPHRASE`) and a TPM PIN for suites to enrol (`VMLAB_TPM_PI
 credentials, so nothing has to be typed at boot. It has four spare disks, two of 8 GiB and two of 48 GiB,
 larger than its own 40 GiB.
 
+A suite whose second line is `# vmlab-vm: screens` runs on the first machine's disk with four screens of 1280×800
+side by side (`vm_start`'s `screens`, each after the first a `secondary-vga` of its own, which GNOME lays out left to
+right); `keys.py`'s fractions are then of all four, and `vm_screenshot` and `vm_mouse` take a `screen`. It signs its
+account in itself (`10-account.sh`).
+
 What asks a person something (gum, a typed `ERASE`, a check for a terminal) runs through `in_terminal`, which
 gives the command a terminal of its own (`term.py`), waits for each question and types its answer. The test VM
 has five blank SATA disks besides its own, serials `SPARE-1` to `SPARE-5` (four of 8 GiB, then 10 GiB), new for
@@ -105,6 +110,7 @@ reads what it says (`70-backups.sh` shows how).
 | `25-every-app.sh` | every other app in the app grid opens as the grid starts it and stays open, none crashes or is refused what its manifest asks for (Mission Center's gatherer runs), and neither opening them all nor a restart and a login makes the security watcher say anything |
 | `26-logo-menu.sh` | the logo menu at the left end of the top bar: on, leftmost, its eight entries in order each opening its app's window, a middle click showing and hiding the overview, Mission Center uninstalled hiding its entry (and nothing installing it), back after the screen lock, and turned on at the next login of an account whose list of extensions still names the Logo Menu |
 | `27-amethystora-ui.sh` | Amethystora UI as a session has it: the extension active with no module failing or throwing, none of the extensions it replaced installed, the tiling one switch (classic gives GNOME's Super+N back, tiling takes it again, its state file says so), the icon packs (Glass on the dark theme, Duotone on the light one, Neon by choice, candy-icons refused, GTK finds every launcher's icon in each), the window lights in the account's GTK stylesheets, and the dock at the bottom of the shell's accessibility tree; two Files windows are left open for the run's screenshot of the strip |
+| `29-screens.sh` | on four screens: the six fixed workspaces (also for an account that set dynamic ones), a workspace on each screen, a Files window taken from screen to screen with Super+Shift+Ctrl+arrows and dragged across a screen to the next, the search box open while the pointer crosses a screen with a window, glass on the windows of a screen without the keyboard, the top bar solid under a window of its screen's workspace, nothing thrown |
 | `30-detection.sh` | the thorough profile, after a restart, finds a secret read, the decoy read and a program run from Downloads; Falco's memory |
 | `40-setup.sh` | `ame setup` save, diff and apply against real GNOME settings, Flathub and Homebrew; the setup kept with a backup and read back by `ame restore-setup`; `ame system trust-image`, a switch to an unsigned image refused, `amethystora-image-check` |
 | `44-what-leaves.sh` | what the machine sends by itself: `ame security sends` and the report's group, Fedora's count, NetworkManager's connectivity check (also after GNOME's own switch), the firmware catalogue and the account's location each way as they work, then ten idle minutes with resolved's monitor: every name looked up is one the list names (`WHAT_LEAVES_IDLE` seconds) |
@@ -135,10 +141,11 @@ A new feature gets its check here with it, and a bug a run found gets the check 
 1. `disk_build` installs an image onto a disk with `bootc install to-disk` (btrfs, as the installer ISO
    makes it), about 10 minutes. `disk_list` says when it is ready.
 2. `vm_start` starts a VM on an overlay of that disk, with spare disks (`spares_gb`), some of them `absent` or
-   `faulty`, and `credentials` for systemd; `vm_wait` returns once the boot is over.
+   `faulty`, `credentials` for systemd, and up to four `screens`; `vm_wait` returns once the boot is over.
 3. `vm_exec` runs a command as root, as an account, or in that account's graphical session (`session`).
    `vm_write` and `vm_read` move files.
-4. `vm_screenshot`, `vm_keys` and `vm_mouse` see and use the desktop; `vm_serial` is the serial console.
+4. `vm_screenshot`, `vm_keys` and `vm_mouse` see and use the desktop (one `screen` at a time; `vm_mouse` also
+   presses and releases, for a drag); `vm_serial` is the serial console.
 5. `vm_snapshot` keeps checkpoints of a stopped VM; `vm_stop` and `vm_delete` end it.
 
 A new disk has no account and starts GNOME's first-run setup; `suites/10-account.sh` shows how to sign a test
