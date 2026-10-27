@@ -89,8 +89,9 @@ class WorkspaceLabel extends St.Label {
         });
         this.add_action(click);
 
+        // A second right click closes the menu again
         const menu = new Clutter.ClickGesture({required_button: Clutter.BUTTON_SECONDARY, recognize_on_press: true});
-        menu.connect('recognize', () => row.openMenu());
+        menu.connect('recognize', () => row.toggleMenu());
         this.add_action(menu);
 
         // A finger only: a mouse button held still is the start of a click or a drag
@@ -173,7 +174,7 @@ export class Workspaces {
             'notify::n-workspaces', queue,
             'workspace-added', queue,
             'workspace-removed', queue,
-            'workspaces-reordered', queue,
+            'workspaces-reordered', () => this._reordered(),
             'active-workspace-changed', queue, this);
         Shell.WindowTracker.get_default().connectObject('tracked-windows-changed', queue, this);
         this._prefs.connectObject(`changed::${NAMES}`, queue, this);
@@ -224,6 +225,7 @@ export class Workspaces {
         this._row?.destroy();
         this._row = null;
         this._labels = null;
+        this._order = null;
         this._prefs = null;
     }
 
@@ -267,6 +269,7 @@ export class Workspaces {
 
         const active = manager.get_active_workspace_index();
         const names = this._prefs.get_strv(NAMES);
+        this._order = this._workspaces();
         this._labels.forEach((label, index) => {
             const workspace = manager.get_workspace_by_index(index);
             let state = 'empty';
@@ -278,9 +281,7 @@ export class Workspaces {
         });
 
         // A window opened, closed or moved onto or off any workspace
-        const workspaces = new Set();
-        for (let index = 0; index < count; index++)
-            workspaces.add(manager.get_workspace_by_index(index));
+        const workspaces = new Set(this._order);
         for (const workspace of this._watched) {
             if (!workspaces.has(workspace))
                 workspace.disconnectObject(this);
@@ -295,11 +296,31 @@ export class Workspaces {
         this._watched = workspaces;
     }
 
+    _workspaces() {
+        const manager = global.workspace_manager;
+        const workspaces = [];
+        for (let index = 0; index < manager.n_workspaces; index++)
+            workspaces.push(manager.get_workspace_by_index(index));
+        return workspaces;
+    }
+
+    // A workspace that something else moved keeps its name as well: the names follow the workspaces from the order
+    // they were last seen in. A move of the row's own has written them already.
+    _reordered() {
+        const now = this._workspaces();
+        if (!this._moving && this._order) {
+            const names = this._namesFor(this._order.length);
+            this._writeNames(now.map(workspace => names[this._order.indexOf(workspace)] ?? ''));
+        }
+        this._order = now;
+        this._queue();
+    }
+
+    // Every click on the one you are on shows or hides the overview, even one that comes while it is still sliding
     clicked(index) {
         const manager = global.workspace_manager;
         if (index === manager.get_active_workspace_index()) {
-            if (Main.overview.shouldToggleByCornerOrButton())
-                Main.overview.toggle();
+            Main.overview.toggle();
             return;
         }
         const workspace = manager.get_workspace_by_index(index);
@@ -322,12 +343,10 @@ export class Workspaces {
             workspace.activate(time);
     }
 
-    // A notch of the wheel steps one workspace, up to the previous and down to the next, and stops at either end.
-    // A touchpad's smooth scrolling and sideways scrolling are left to whatever else wants them: the notches GNOME
-    // makes up from a touchpad's scrolling come marked as emulated.
+    // A notch of the wheel steps one workspace, up to the previous and down to the next, and stops at either end. Two
+    // fingers on a touchpad do the same: GNOME turns their smooth scrolling into steps too, which count as notches.
+    // The smooth events themselves and sideways scrolling are left to whatever else wants them.
     _scrolled(event) {
-        if (event.get_flags() & Clutter.EventFlags.FLAG_POINTER_EMULATED)
-            return Clutter.EVENT_PROPAGATE;
         let step;
         switch (event.get_scroll_direction()) {
         case Clutter.ScrollDirection.UP:
@@ -370,7 +389,9 @@ export class Workspaces {
         const names = this._namesFor(manager.n_workspaces);
         const [name] = names.splice(from, 1);
         names.splice(to, 0, name);
+        this._moving = true;
         manager.reorder_workspace(manager.get_workspace_by_index(from), to);
+        this._moving = false;
         this._writeNames(names);
     }
 
@@ -431,6 +452,13 @@ export class Workspaces {
 
     openMenu() {
         this._menu?.open(BoxPointer.PopupAnimation.FULL);
+    }
+
+    toggleMenu() {
+        if (this._menu?.isOpen)
+            this._menu.close(BoxPointer.PopupAnimation.FULL);
+        else
+            this.openMenu();
     }
 
     // However the menu closes, what the field then says is the name of the workspace it was opened on

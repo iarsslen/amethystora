@@ -1,14 +1,13 @@
 // The effect each glass surface carries: before the surface paints itself, the glass is drawn under it, cut from the
 // frosted picture of the screen at the very spot the surface shows on, so the frost stays still while the surface
 // moves over it. Being part of the surface's own paint, the glass follows it through every animation, fade and clip
-// with no work of its own, and costs nothing while the surface is not drawn.
+// with no work of its own, and costs nothing while the surface is not drawn. A surface fading in or out is clearer as
+// it is fainter, and one across two screens is cut from each screen's picture where it lies on that screen.
 
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import Graphene from 'gi://Graphene';
 import St from 'gi://St';
-
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 // What each material is made of: the picture it is cut from (frost.js), a brightness factor, a share of white, and
 // the lens. The lens pulls the picture inwards near the edge: `pull` pixels at the very edge, dying away as
@@ -33,15 +32,6 @@ export const MATERIALS = {
     },
 };
 
-// The screen a point of the stage is on, or the main one
-function monitorAt(x, y) {
-    for (const monitor of Main.layoutManager.monitors) {
-        if (x >= monitor.x && x < monitor.x + monitor.width && y >= monitor.y && y < monitor.y + monitor.height)
-            return monitor.index;
-    }
-    return Main.layoutManager.primaryIndex;
-}
-
 // A look is what a surface asks of its glass:
 //   material  one of MATERIALS
 //   radius    the corners, in the stylesheet's pixels, or null for the surface's own border-radius, as the desktop
@@ -62,8 +52,8 @@ class AmethystoraGlassEffect extends Clutter.Effect {
         super._init();
         this._glass = glass;
         this.look = look;
-        this._pipelines = [];
-        this._textures = [];
+        this._pipelines = new Map();
+        this._textures = new Map();
         this._pictures = new Set();
     }
 
@@ -78,8 +68,8 @@ class AmethystoraGlassEffect extends Clutter.Effect {
         for (const picture of this._pictures)
             picture.consumers.delete(this);
         this._pictures.clear();
-        this._pipelines = [];
-        this._textures = [];
+        this._pipelines = new Map();
+        this._textures = new Map();
     }
 
     _scale() {
@@ -140,68 +130,100 @@ class AmethystoraGlassEffect extends Clutter.Effect {
         const areas = look.areas?.(actor) ?? [[0, 0, width, height]];
         // The theme node's lengths are already in device pixels
         const radius = look.radius ?? (actor.get_theme_node?.()?.get_border_radius(St.Corner.TOPLEFT) ?? 0) / scale;
+        const frost = this._glass.frost;
         let drawn = false;
         areas.forEach(([x, y, w, h], i) => {
             if (w < 1 || h < 1)
                 return;
             const left = extents.origin.x + x * sx;
             const top = extents.origin.y + y * sy;
-            const picture = this._glass.frost.picture(monitorAt(left + w * sx / 2, top + h * sy / 2), material.picture);
-            if (!picture)
-                return;
-            // Drawn again whenever the picture changes, ready or not
-            picture.consumers.add(this);
-            this._pictures.add(picture);
-            if (!picture.ready || !picture.texture)
-                return;
             const fade = look.fade?.(top) ?? 1;
             if (fade <= 0)
                 return;
+            // The quad covers the surface and its shadow, here on the stage. Each screen it reaches draws its own part
+            // from its own picture, so that a pane across two screens shows on each the frost of that screen's
+            // wallpaper; the lens is worked out for the whole pane, so the parts meet without a seam.
+            const quad = [left - margin * sx, top - margin * sy, left + (w + margin) * sx, top + (h + margin) * sy];
+            for (const picture of frost.pictures(material.picture)) {
+                const monitor = picture.monitor;
+                const x1 = Math.max(quad[0], monitor.x);
+                const y1 = Math.max(quad[1], monitor.y);
+                const x2 = Math.min(quad[2], monitor.x + monitor.width);
+                const y2 = Math.min(quad[3], monitor.y + monitor.height);
+                if (x2 <= x1 || y2 <= y1)
+                    continue;
+                // Drawn again whenever the picture changes, ready or not
+                picture.consumers.add(this);
+                this._pictures.add(picture);
+                if (!picture.ready || !picture.texture)
+                    continue;
+                // As far as the surface is see-through while it fades, its frost is clear too
+                const clear = frost.picture(monitor.index, 'clear');
+                const sharp = clear?.ready && clear.texture ? clear.texture : null;
+                const pipeline = this._pipeline(paintContext, `${i}:${monitor.index}`, picture.texture, sharp);
 
-            const shader = this._glass.shader;
-            let pipeline = this._pipelines[i];
-            if (!pipeline) {
-                pipeline = shader.pipeline(paintContext.get_framebuffer().get_context());
-                shader.setInt(pipeline, 'u_picture', 0);
-                this._pipelines[i] = pipeline;
+                const shader = this._glass.shader;
+                const [ux, uy] = [1 / monitor.width, 1 / monitor.height];
+                shader.set(pipeline, 'u_origin', (left - monitor.x) * ux, (top - monitor.y) * uy);
+                shader.set(pipeline, 'u_pixel', ux, uy);
+                shader.set(pipeline, 'u_size', w * sx, h * sy);
+                // No rounder than half the shorter side, as St draws a pill
+                shader.set(pipeline, 'u_radius', Math.min(radius * scale * sx, w * sx / 2, h * sy / 2));
+                shader.set(pipeline, 'u_opacity', opacity * fade);
+                shader.set(pipeline, 'u_frost', sharp ? opacity * fade : 1);
+                shader.set(pipeline, 'u_dim', material.dim);
+                shader.set(pipeline, 'u_tint', material.tint);
+                shader.set(pipeline, 'u_pull', material.pull * scale * sx);
+                shader.set(pipeline, 'u_reach', material.reach * scale * sx);
+                shader.set(pipeline, 'u_steep', material.steep);
+                shader.set(pipeline, 'u_glint', material.glint);
+                shader.set(pipeline, 'u_shade', material.shade);
+                shader.set(pipeline, 'u_fringe', material.fringe);
+                const shadow = look.shadow;
+                shader.set(pipeline, 'u_shadow',
+                    shadow ? shadow.alpha : 0,
+                    shadow ? shadow.blur * scale * sy : 0,
+                    shadow ? shadow.offset * scale * sy : 0,
+                    look.ring ?? 0);
+
+                // The part in the actor's own pixels, and where it falls on its screen
+                const box = new Clutter.ActorBox({
+                    x1: x - margin + (x1 - quad[0]) / sx,
+                    y1: y - margin + (y1 - quad[1]) / sy,
+                    x2: x - margin + (x2 - quad[0]) / sx,
+                    y2: y - margin + (y2 - quad[1]) / sy,
+                });
+                const pipelineNode = new Clutter.PipelineNode(pipeline);
+                node.add_child(pipelineNode);
+                pipelineNode.add_texture_rectangle(box,
+                    (x1 - monitor.x) * ux, (y1 - monitor.y) * uy, (x2 - monitor.x) * ux, (y2 - monitor.y) * uy);
+                drawn = true;
             }
-            if (this._textures[i] !== picture.texture) {
-                pipeline.set_layer_texture(0, picture.texture);
-                this._textures[i] = picture.texture;
-            }
-
-            const monitor = picture.monitor;
-            const [ux, uy] = [1 / monitor.width, 1 / monitor.height];
-            shader.set(pipeline, 'u_origin', (left - monitor.x) * ux, (top - monitor.y) * uy);
-            shader.set(pipeline, 'u_pixel', ux, uy);
-            shader.set(pipeline, 'u_size', w * sx, h * sy);
-            // No rounder than half the shorter side, as St draws a pill
-            shader.set(pipeline, 'u_radius', Math.min(radius * scale * sx, w * sx / 2, h * sy / 2));
-            shader.set(pipeline, 'u_opacity', opacity * fade);
-            shader.set(pipeline, 'u_dim', material.dim);
-            shader.set(pipeline, 'u_tint', material.tint);
-            shader.set(pipeline, 'u_pull', material.pull * scale * sx);
-            shader.set(pipeline, 'u_reach', material.reach * scale * sx);
-            shader.set(pipeline, 'u_steep', material.steep);
-            shader.set(pipeline, 'u_glint', material.glint);
-            shader.set(pipeline, 'u_shade', material.shade);
-            shader.set(pipeline, 'u_fringe', material.fringe);
-            const shadow = look.shadow;
-            shader.set(pipeline, 'u_shadow',
-                shadow ? shadow.alpha : 0,
-                shadow ? shadow.blur * scale * sy : 0,
-                shadow ? shadow.offset * scale * sy : 0,
-                look.ring ?? 0);
-
-            // The quad covers the surface and its shadow; its texture coordinates are where that falls on the screen
-            const box = new Clutter.ActorBox({x1: x - margin, y1: y - margin, x2: x + w + margin, y2: y + h + margin});
-            const pipelineNode = new Clutter.PipelineNode(pipeline);
-            node.add_child(pipelineNode);
-            pipelineNode.add_texture_rectangle(box,
-                (left - margin * sx - monitor.x) * ux, (top - margin * sy - monitor.y) * uy,
-                (left + (w + margin) * sx - monitor.x) * ux, (top + (h + margin) * sy - monitor.y) * uy);
-            drawn = true;
         });
         return drawn;
+    }
+
+    // One pipeline for each area and screen, with that screen's pictures: the frosted one, and the sharp one when
+    // there is one (else the frosted one again, which the shader then never mixes in)
+    _pipeline(paintContext, key, texture, sharp) {
+        const shader = this._glass.shader;
+        let pipeline = this._pipelines.get(key);
+        if (!pipeline) {
+            pipeline = shader.pipeline(paintContext.get_framebuffer().get_context());
+            shader.setInt(pipeline, 'u_picture', 0);
+            shader.setInt(pipeline, 'u_clear', 1);
+            this._pipelines.set(key, pipeline);
+        }
+        // Only a changed picture makes a new pair: this runs on every paint
+        const clear = sharp ?? texture;
+        const held = this._textures.get(key);
+        if (held?.[0] !== texture || held?.[1] !== clear) {
+            if (held?.[0] !== texture)
+                pipeline.set_layer_texture(0, texture);
+            if (held?.[1] !== clear)
+                pipeline.set_layer_texture(1, clear);
+            this._textures.set(key, [texture, clear]);
+        }
+        return pipeline;
     }
 });

@@ -184,10 +184,6 @@ export class Session {
         return this._portal;
     }
 
-    get entryOpen() {
-        return this._entry !== null;
-    }
-
     setPortal(portal) {
         this._portal = portal;
         this._sync();
@@ -534,12 +530,16 @@ export class Session {
         this._redraw();
     }
 
-    // A one-line field at the click, in the chosen colour; the text becomes a mark when it is placed
+    // A one-line field at the click, in the chosen colour; the text becomes a mark when it is placed. The field's
+    // frame goes round the text, so that what is typed starts at the click and does not move when it is placed.
     _openEntry(x, y) {
-        this._entry = new St.Entry({style_class: 'amethystora-screenshot-text', x, y, can_focus: true});
+        this._entry = new St.Entry({style_class: 'amethystora-screenshot-text', can_focus: true});
         this._entryAt = [x, y];
         this._styleEntry();
         this._overlay.add_child(this._entry);
+        const node = this._entry.get_theme_node();
+        this._entry.set_position(x - node.get_padding(St.Side.LEFT) - node.get_border_width(St.Side.LEFT),
+            y - node.get_padding(St.Side.TOP) - node.get_border_width(St.Side.TOP));
         const text = this._entry.clutter_text;
         // Placed once the event that ends the field is over: focus also goes when the UI closes and unmaps the field,
         // and Clutter must not see it destroyed in the middle of that

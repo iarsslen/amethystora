@@ -13,6 +13,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 import {GRADIA, contentOf, gradiaInstalled} from './capture.js';
 
+// The picture's width; the border goes round it
 const WIDTH = 250;
 const MIN_HEIGHT = 150;
 const MAX_HEIGHT = 250;
@@ -22,6 +23,7 @@ const ROOM = 16;
 const BUTTON = 32;
 const INSET = 10;
 const BORDER = 3.5;
+const OUTER = WIDTH + 2 * BORDER;
 const LINGER = 3000;
 const SLIDE = 150;
 
@@ -31,12 +33,13 @@ export class Card {
         this._file = file;
         // Mirrored at the bottom left in a right-to-left language
         this._rtl = Clutter.get_default_text_direction() === Clutter.TextDirection.RTL;
-        const height = Math.round(Math.clamp(WIDTH * picture.height / Math.max(1, picture.width),
+        const pictureHeight = Math.round(Math.clamp(WIDTH * picture.height / Math.max(1, picture.width),
             MIN_HEIGHT, MAX_HEIGHT));
+        const height = pictureHeight + 2 * BORDER;
 
         this.actor = new St.Widget({
             style_class: 'amethystora-screenshot-card-box',
-            width: WIDTH + ROOM,
+            width: OUTER + ROOM,
             height: height + ROOM,
             reactive: true,
             track_hover: true,
@@ -45,16 +48,16 @@ export class Card {
 
         const frame = new St.Widget({
             style_class: 'amethystora-screenshot-card',
-            x: this._x(0, WIDTH),
+            x: this._x(0, OUTER),
             y: ROOM,
-            width: WIDTH,
+            width: OUTER,
             height,
             layout_manager: new Clutter.BinLayout(),
         });
         this.actor.add_child(frame);
 
         // Scaled to cover the card, centred, the rest cut off
-        const [paneWidth, paneHeight] = [WIDTH - 2 * BORDER, height - 2 * BORDER];
+        const [paneWidth, paneHeight] = [WIDTH, pictureHeight];
         const picturePane = new St.Widget({
             clip_to_allocation: true,
             x_expand: true,
@@ -88,13 +91,13 @@ export class Card {
             frame.add_child(badge);
         }
 
-        this._button('window-close-symbolic', _('Close'), WIDTH - BUTTON / 2, ROOM - BUTTON / 2, () => {});
+        this._button('window-close-symbolic', _('Close'), OUTER - BUTTON / 2, ROOM - BUTTON / 2, () => {});
         if (file) {
             if (gradiaInstalled()) {
                 this._button('document-edit-symbolic', _('Edit in Gradia'), INSET, ROOM + height - INSET - BUTTON,
                     () => this._openInGradia());
             }
-            this._button('folder-open-symbolic', _('Show in Files'), WIDTH - INSET - BUTTON,
+            this._button('folder-open-symbolic', _('Show in Files'), OUTER - INSET - BUTTON,
                 ROOM + height - INSET - BUTTON, () => this._showInFiles());
         }
 
@@ -107,7 +110,7 @@ export class Card {
         this.actor.connect('destroy', () => this._stopTimer());
 
         const monitor = Main.layoutManager.primaryMonitor;
-        this.actor.set_position(this._rtl ? monitor.x + EDGE : monitor.x + monitor.width - EDGE - WIDTH - ROOM,
+        this.actor.set_position(this._rtl ? monitor.x + EDGE : monitor.x + monitor.width - EDGE - OUTER - ROOM,
             monitor.y + monitor.height - EDGE - height - ROOM);
         this._slide = monitor.y + monitor.height - this.actor.y;
         Main.layoutManager.addTopChrome(this.actor, {trackFullscreen: true});
@@ -124,7 +127,7 @@ export class Card {
 
     // Where something laid out from the left sits, in this language's direction
     _x(x, width) {
-        return this._rtl ? WIDTH + ROOM - x - width : x;
+        return this._rtl ? OUTER + ROOM - x - width : x;
     }
 
     _button(iconName, name, x, y, action) {

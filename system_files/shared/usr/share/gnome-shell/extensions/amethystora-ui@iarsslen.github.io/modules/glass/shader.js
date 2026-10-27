@@ -6,10 +6,12 @@ import Cogl from 'gi://Cogl';
 
 export class Shader {
     // declarations: GLSL at the top level (uniforms, functions); code: the body run for each pixel, which sets
-    // cogl_color_out. Layer 0 is the texture the shader samples, with linear filtering and its edges held.
-    constructor(declarations, code) {
+    // cogl_color_out. Layers 0 to layers - 1 are the textures the shader samples, with linear filtering and their
+    // edges held; only layer 0 has the texture coordinates of what is drawn.
+    constructor(declarations, code, layers = 1) {
         this._declarations = declarations;
         this._code = code;
+        this._layers = layers;
         this._templates = new Map();
         this._locations = new Map();
     }
@@ -18,9 +20,11 @@ export class Shader {
         let template = this._templates.get(context);
         if (!template) {
             template = Cogl.Pipeline.new(context);
-            template.set_layer_null_texture(0);
-            template.set_layer_filters(0, Cogl.PipelineFilter.LINEAR, Cogl.PipelineFilter.LINEAR);
-            template.set_layer_wrap_mode(0, Cogl.PipelineWrapMode.CLAMP_TO_EDGE);
+            for (let layer = 0; layer < this._layers; layer++) {
+                template.set_layer_null_texture(layer);
+                template.set_layer_filters(layer, Cogl.PipelineFilter.LINEAR, Cogl.PipelineFilter.LINEAR);
+                template.set_layer_wrap_mode(layer, Cogl.PipelineWrapMode.CLAMP_TO_EDGE);
+            }
             template.add_snippet(Cogl.Snippet.new(Cogl.SnippetHook.FRAGMENT, this._declarations, this._code));
             this._templates.set(context, template);
         }

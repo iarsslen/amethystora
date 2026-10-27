@@ -27,30 +27,73 @@ Gio._promisify(Gio.Subprocess.prototype, 'wait_async');
 const BAZAAR = 'io.github.kolunmi.Bazaar';
 // What Flatpak accepts as an app's ID; anything else, a leading dash above all, is never handed to it
 const APP_ID = /^[A-Za-z_][A-Za-z0-9_-]*(\.[A-Za-z_][A-Za-z0-9_-]*)+$/;
-// The ring over an icon while its app is removed: one turn in 1.2 seconds
+// The ring over an icon while its app is removed: one turn in 1.2 seconds, whatever the shell's animation speed
 const TURN = 1224;
 // What GNOME's app menu has that this changes, given back as they were
 const WRAPPED = ['open', 'setApp', '_updateDetailsVisibility'];
 
-// The folders where Flatpak exports the launchers of the apps it installs, for the whole machine and for the account.
-// Any program of the account can write a launcher elsewhere in the account's own folders, with whatever X-Flatpak
-// line it likes, so only these are believed.
+// The installations an administrator added to Flatpak's own configuration, beside the machine's and the account's:
+// for each, its launchers' folder and the option that names it
+const INSTALLATIONS = '/etc/flatpak/installations.d';
+const INSTALLATION = /^Installation "([A-Za-z0-9_.-]+)"$/;
+
+function extraInstallations() {
+    const found = [];
+    let children;
+    try {
+        children = Gio.File.new_for_path(INSTALLATIONS).enumerate_children('standard::name',
+            Gio.FileQueryInfoFlags.NONE, null);
+    } catch {
+        return found;
+    }
+    for (const child of children) {
+        if (!child.get_name().endsWith('.conf'))
+            continue;
+        const keys = new GLib.KeyFile();
+        try {
+            keys.load_from_file(GLib.build_filenamev([INSTALLATIONS, child.get_name()]), GLib.KeyFileFlags.NONE);
+        } catch {
+            continue;
+        }
+        for (const group of keys.get_groups()[0]) {
+            const name = INSTALLATION.exec(group)?.[1];
+            let path = null;
+            try {
+                path = name ? keys.get_string(group, 'Path') : null;
+            } catch {}
+            if (path?.startsWith('/'))
+                found.push([GLib.build_filenamev([path, 'exports/share/applications/']), `--installation=${name}`]);
+        }
+    }
+    return found;
+}
+
+// The folders where Flatpak exports the launchers of the apps it installs, for the whole machine, for the account and
+// for the extra installations, each with the option that names its installation. Any program of the account can
+// write a launcher elsewhere in the account's own folders, with whatever X-Flatpak line it likes, so only these are
+// believed.
 function exportFolders() {
     return [
-        '/var/lib/flatpak/exports/share/applications/',
-        GLib.build_filenamev([GLib.get_user_data_dir(), 'flatpak/exports/share/applications/']),
+        ['/var/lib/flatpak/exports/share/applications/', '--system'],
+        [GLib.build_filenamev([GLib.get_user_data_dir(), 'flatpak/exports/share/applications/']), '--user'],
+        ...extraInstallations(),
     ];
 }
 
-// The app's Flatpak ID: what Flatpak wrote into its launcher, or, for a launcher without it, the launcher's name.
-// Null for an app whose launcher is not one Flatpak exported.
-function flatpakId(app) {
+// The app as Flatpak knows it: the ID Flatpak wrote into its launcher (or, for a launcher without it, the launcher's
+// name) and its installation's option. Null for an app whose launcher is not one Flatpak exported.
+function flatpakOf(app) {
     const info = app?.get_app_info();
     const file = info?.get_filename() ?? '';
-    if (!exportFolders().some(folder => file.startsWith(folder)))
+    const where = exportFolders().find(([folder]) => file.startsWith(folder));
+    if (!where)
         return null;
     const id = info.get_string('X-Flatpak')?.trim() || app.get_id().replace(/\.desktop$/, '');
-    return APP_ID.test(id) ? id : null;
+    return APP_ID.test(id) ? {id, installation: where[1]} : null;
+}
+
+function flatpakId(app) {
+    return flatpakOf(app)?.id ?? null;
 }
 
 function bazaarApp() {
@@ -98,13 +141,17 @@ class Spinner extends St.DrawingArea {
         cr.$dispose();
     }
 
+    // A timeline of its own rather than an easing, which the tweaks' speed-up would shorten; still while GNOME's
+    // animations are off
     spin() {
-        this.ease({
-            rotation_angle_z: 360,
-            duration: TURN,
-            mode: Clutter.AnimationMode.LINEAR,
-            repeatCount: -1,
+        if (!St.Settings.get().enable_animations)
+            return;
+        this._turning = new Clutter.Timeline({actor: this, duration: TURN, repeat_count: -1});
+        this._turning.connect('new-frame', timeline => {
+            this.rotation_angle_z = 360 * timeline.get_progress();
         });
+        this.connect('destroy', () => this._turning.stop());
+        this._turning.start();
     }
 });
 
@@ -282,14 +329,17 @@ export class Bazaar {
     }
 
     async _uninstall(app) {
-        const id = flatpakId(app);
-        if (!id)
+        const flatpak = flatpakOf(app);
+        if (!flatpak)
             return;
+        const {id, installation} = flatpak;
         const name = app.get_name() || id;
-        const [user, system] = await Promise.all([
-            runFlatpak(['info', '--user', id]),
-            runFlatpak(['info', '--system', id]),
-        ]);
+        // An extra installation's app is looked for there alone, as the machine's copy; any other in both the
+        // account's and the machine's
+        const extra = installation.startsWith('--installation=');
+        const [user, system] = extra
+            ? [false, await runFlatpak(['info', installation, id])]
+            : await Promise.all([runFlatpak(['info', '--user', id]), runFlatpak(['info', '--system', id])]);
         if (!this._menus)
             return;
         if (!user && !system) {
@@ -309,7 +359,7 @@ export class Bazaar {
 
         const job = this._grey(app);
         this._busy.add(job);
-        const argv = ['uninstall', user ? '--user' : '--system', '-y', id];
+        const argv = ['uninstall', user ? '--user' : (extra ? installation : '--system'), '-y', id];
         if (deleteData)
             argv.push('--delete-data');
         const done = await runFlatpak(argv);
@@ -321,10 +371,12 @@ export class Bazaar {
             job.hide();
         else
             job.forget();
-        if (done)
-            this._notify(_('%s is uninstalled').format(name), null);
-        else
+        if (done) {
+            this._notify(_('%s is uninstalled').format(name),
+                deleteData ? _('Its data was deleted too.') : _('Its data was kept.'));
+        } else {
             this._notify(_('%s could not be uninstalled').format(name), _('Try uninstalling it in Bazaar.'));
+        }
     }
 
     _track(dialog) {

@@ -4,6 +4,9 @@
 // time after, so that surfaces made later get their glass before their first frame. Over the glass each has a veil:
 // white with dark text in a light scheme, a faint dark grey with white text in a dark one (stylesheets/glass.css).
 
+import St from 'gi://St';
+
+import * as AltTab from 'resource:///org/gnome/shell/ui/altTab.js';
 import * as BoxPointer from 'resource:///org/gnome/shell/ui/boxpointer.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as ModalDialog from 'resource:///org/gnome/shell/ui/modalDialog.js';
@@ -50,12 +53,26 @@ export class Popups {
                 this._attach(osd._hbox, 'osd');
             return show.apply(osd, args);
         });
-        // The switcher's list is made as it is shown
+        // The switcher's list is made as it is shown, with its pictures of windows (Alt+Tab)
         glass.wrap(SwitcherPopup.SwitcherPopup.prototype, 'show', (show, popup, args) => {
             const shown = show.apply(popup, args);
-            if (popup._switcherList)
+            if (popup._switcherList) {
                 this._attach(popup._switcherList, 'osd');
+                glass.windows?.glassClones(popup._switcherList);
+            }
             return shown;
+        });
+        // The app switcher (Super+Tab) shows an app's windows below it later, each picture put into its place as the
+        // row is first laid out
+        glass.wrap(AltTab.AppSwitcherPopup.prototype, '_createThumbnails', (create, popup, args) => {
+            const created = create.apply(popup, args);
+            const thumbnails = popup._thumbnails;
+            if (thumbnails) {
+                glass.windows?.glassClones(thumbnails);
+                for (const bin of thumbnails._thumbnailBins ?? [])
+                    bin.connect('notify::child', () => bin.child && glass.windows?.glassClones(bin));
+            }
+            return created;
         });
         glass.wrap(ModalDialog.ModalDialog.prototype, 'open', (open, dialog, args) => {
             const box = dialog.dialogLayout?._dialog;
@@ -132,13 +149,13 @@ export class Popups {
             radius: null,
             shadow: glass.shadow,
             inClones: true,
-            // Clear while the banner is still under the top bar, full once it is out from under it
+            // Clear while the banner is still under the top bar, full once it is 5 pixels out from under it
             fade: top => {
                 const panel = Main.panel;
                 if (!panel.mapped)
                     return 1;
                 const [, barTop] = panel.get_transformed_position();
-                const barBottom = barTop + panel.height;
+                const barBottom = barTop + panel.height + 5 * St.ThemeContext.get_for_stage(global.stage).scale_factor;
                 return Math.min(Math.max((top - barTop) / Math.max(1, barBottom - barTop), 0), 1);
             },
         }, {classes: ['amethystora-glass-surface', 'amethystora-glass-banner'], scheme: true});

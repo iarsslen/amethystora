@@ -37,7 +37,7 @@ export class Glass {
 
         const file = this._ext.dir.get_child('modules').get_child('glass').get_child('lens.glsl');
         const [, bytes] = file.load_contents(null);
-        this.shader = new Shader(new TextDecoder().decode(bytes), 'cogl_color_out = glass_color();');
+        this.shader = new Shader(new TextDecoder().decode(bytes), 'cogl_color_out = glass_color();', 2);
         this.frost = new Frost();
 
         this.light = Main.getStyleVariant() === 'light';

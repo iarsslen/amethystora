@@ -2,10 +2,11 @@
 // running apps, sizes their icons to fit, shows their names, takes drops to pin and opens GNOME's app menu; this adds
 // what the dock does beyond the dash: running apps kept in the order they started, the drives and the trash, a dot
 // per window, the focused app lit, a wiggle for an app that wants attention, what apps say about themselves (a
-// count, a progress bar, their own menu entries), what a click does, and the app grid button opening the overview.
+// count and a progress bar, dock/badges.js), what a click does, and the app grid button opening the overview. Items
+// grow in and shrink away on the desktop as in the overview, but for the first fill and while the overview opens or
+// closes.
 
 import Clutter from 'gi://Clutter';
-import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Meta from 'gi://Meta';
@@ -13,13 +14,14 @@ import Mtk from 'gi://Mtk';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 
-import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as AppFavorites from 'resource:///org/gnome/shell/ui/appFavorites.js';
 import * as Dash from 'resource:///org/gnome/shell/ui/dash.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+import {Badges, IconBadge} from './badges.js';
 import {Clicks} from './clicks.js';
-import {PlaceButton, fillPlaceMenu, fillQuicklist} from './menus.js';
+import {PlaceButton, fillPlaceMenu} from './menus.js';
 
 // The largest icon. GNOME's next size up is 64, so a bound on the height between the two leaves 48 the largest.
 const LARGEST = 48;
@@ -31,18 +33,19 @@ const WIGGLE_ANGLE = 15;
 // Milliseconds the pointer rests on an item of a row too long for the screen before it is scrolled into view
 const HOVER_REVEAL = 100;
 const SCROLL_TIME = 100;
-// How large the count is beside a smaller icon: [icon size from, share of its size at 48 px]
-const SHRINK = [[48, 1], [32, 0.87], [24, 0.65]];
+// The room in a tile around its icon, on each side
+const TILE_PADDING = 6;
 
 // Most recently used first
 const byUse = windows => windows.sort((a, b) => b.get_user_time() - a.get_user_time());
 
 export const DockDash = GObject.registerClass(
 class AmethystoraDockDash extends Dash.Dash {
-    _init(places, launcher) {
+    _init(places, launcher, badges) {
         super._init();
         this._places = places;
         this._launcher = launcher;
+        this._badges = badges;
         this._clicks = new Clicks(this, places, launcher);
         this._items = new Map();
         this._placeItems = new Map();
@@ -92,8 +95,6 @@ class AmethystoraDockDash extends Dash.Dash {
         Main.overview.connectObject('hidden', () => (this._appsFromDesktop = false), this);
         this._showAppsIcon.label?.add_style_class_name('amethystora-dock-label');
 
-        this._banners = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
-        this._banners.connectObject('changed::show-banners', () => this._syncAll(), this);
         St.Settings.get().connectObject('notify::enable-animations', () => this._syncWiggle(), this);
         global.display.connectObject(
             'notify::focus-window', () => this._onFocus(),
@@ -104,14 +105,6 @@ class AmethystoraDockDash extends Dash.Dash {
             if (window.demands_attention || window.urgent)
                 this._watchAttention(window);
         }
-        Main.messageTray.connectObject(
-            'source-added', (tray, source) => this._watchSource(source),
-            'source-removed', (tray, source) => {
-                source.disconnectObject(this);
-                this._syncAll();
-            }, this);
-        for (const source of Main.messageTray.getSources())
-            this._watchSource(source);
         places.connectObject(
             'places-changed', () => this._syncPlaces(),
             'place-changed', (o, place) => {
@@ -124,7 +117,8 @@ class AmethystoraDockDash extends Dash.Dash {
                 this._syncAll();
                 this._queueGeometry();
             }, this);
-        launcher.connectObject('changed', () => this._syncAll(), this);
+        // A count, a bar or an update changed, or notifications were silenced or let through again
+        badges.connectObject('changed', () => this._syncAll(), this);
         this.connect('icon-size-changed', () => this._syncSizes());
         this.connect('notify::mapped', () => this._syncWiggle());
         this.connect('notify::allocation', () => this._queueGeometry());
@@ -201,7 +195,13 @@ class AmethystoraDockDash extends Dash.Dash {
     _redisplay() {
         this._separator?.destroy();
         this._separator = null;
-        super._redisplay();
+        // GNOME only lets items grow and shrink in the overview; on the desktop it is the dock's to do (_createAppItem)
+        this._onDesktop = this._shownInitially && !Main.overview.visible;
+        try {
+            super._redisplay();
+        } finally {
+            this._onDesktop = false;
+        }
 
         // The line also comes between the pinned apps and the places when no other app runs
         const children = this._box.get_children();
@@ -214,6 +214,12 @@ class AmethystoraDockDash extends Dash.Dash {
                 height: this.iconSize,
             });
             this._box.insert_child_at_index(this._separator, children.findLastIndex(pinned) + 1);
+        }
+        // The line shows what lies beyond the faded end too, as an item does
+        if (this._separator && !this._separator.reactive) {
+            const line = this._separator;
+            line.set({reactive: true, track_hover: true});
+            line.connect('notify::hover', () => this._onHover(line, line));
         }
         this._syncAll();
         this._queueGeometry();
@@ -242,11 +248,15 @@ class AmethystoraDockDash extends Dash.Dash {
         const item = super._createAppItem(app);
         const icon = item.child;
         icon.activate = button => this._clicks.act(this._clicks.appTarget(icon), button);
-        icon.popupMenu = () => {
-            const result = Dash.DashIcon.prototype.popupMenu.call(icon);
-            if (icon._menu)
-                fillQuicklist(icon._menu, this._launcher.quicklist(app.get_id()));
-            return result;
+        // The item grows in and shrinks away on the desktop too
+        item.show = animate => Dash.DashItemContainer.prototype.show.call(item, animate || this._onDesktop);
+        item.destroy = () => {
+            if (this._onDesktop && !item.animatingOut) {
+                delete item.destroy;
+                item.animateOutAndDestroy();
+            } else {
+                Dash.DashItemContainer.prototype.destroy.call(item);
+            }
         };
         // The icon being dragged stays behind, faint, rather than at full strength
         icon.scaleAndFade = () => (icon.opacity = 51);
@@ -266,7 +276,11 @@ class AmethystoraDockDash extends Dash.Dash {
             if (wanted.includes(place))
                 continue;
             this._placeItems.delete(place);
-            item.animateOutAndDestroy();
+            // As the apps' items do: never while the overview opens or closes
+            if (Main.overview.animationInProgress)
+                item.destroy();
+            else
+                item.animateOutAndDestroy();
         }
         for (const place of wanted) {
             if (this._placeItems.has(place))
@@ -286,7 +300,7 @@ class AmethystoraDockDash extends Dash.Dash {
             this._box.insert_child_at_index(item, index >= 0 ? index : this._box.get_n_children());
             this._placeItems.set(place, item);
             this._decorate(item, place);
-            item.show(this._shownInitially && Main.overview.visible);
+            item.show(this._shownInitially && !Main.overview.animationInProgress);
         }
         // The line after the pinned apps, and the icon size, with the places counted
         this._queueRedisplay();
@@ -295,11 +309,11 @@ class AmethystoraDockDash extends Dash.Dash {
     // The dots, the count, the progress bar and the urgency of one item, whether app or place
     _decorate(item, key) {
         const button = item.child;
+        const container = button._iconContainer;
         const state = {
             item,
             key,
             button,
-            count: 0,
             dots: new St.BoxLayout({
                 style_class: 'amethystora-dock-dots',
                 x_align: Clutter.ActorAlign.CENTER,
@@ -307,39 +321,13 @@ class AmethystoraDockDash extends Dash.Dash {
                 x_expand: true,
                 y_expand: true,
             }),
-            badge: new St.Label({
-                style_class: 'amethystora-dock-badge',
-                x_align: Clutter.ActorAlign.END,
-                y_align: Clutter.ActorAlign.START,
-                x_expand: true,
-                y_expand: true,
-                visible: false,
-            }),
-            progress: new St.Widget({
-                style_class: 'amethystora-dock-progress',
-                layout_manager: new Clutter.BinLayout(),
-                y_align: Clutter.ActorAlign.END,
-                x_expand: true,
-                y_expand: true,
-                visible: false,
-            }),
-            // From the start side, which Clutter turns round for right-to-left languages
-            fill: new St.Widget({
-                style_class: 'amethystora-dock-progress-fill',
-                x_align: Clutter.ActorAlign.START,
-                y_expand: true,
-            }),
+            marks: new IconBadge(container, button.icon, TILE_PADDING),
         };
-        state.progress.add_child(state.fill);
-        state.progress.connect('notify::width', () => this._syncFill(state));
-        const container = button._iconContainer;
-        container.add_child(state.progress);
-        container.add_child(state.dots);
-        container.add_child(state.badge);
+        container.insert_child_below(state.dots, state.marks.badge);
         item.label?.add_style_class_name('amethystora-dock-label');
 
         // A row too long for the screen shows an item the pointer rests on, or the keyboard reaches
-        button.connect('notify::hover', () => this._onHover(button));
+        button.connect('notify::hover', () => this._onHover(button, item));
         button.connect('key-focus-in', () => this._reveal(item));
         button.connect('clicked', () => this._reveal(item));
         button.connect('destroy', () => this._items.delete(button));
@@ -372,7 +360,8 @@ class AmethystoraDockDash extends Dash.Dash {
     _sync(state) {
         const {key, button} = state;
         const windows = this.windowsOf(key);
-        const entry = key instanceof Shell.App ? this._launcher.get(key.get_id()) : null;
+        const app = key instanceof Shell.App;
+        const entry = app ? this._launcher.get(key.get_id()) : null;
 
         const dots = Math.min(windows.length, MAX_DOTS);
         if (state.dots.get_n_children() !== dots) {
@@ -387,25 +376,9 @@ class AmethystoraDockDash extends Dash.Dash {
         else
             button.remove_style_class_name('amethystora-dock-focused');
 
-        const quiet = !this._banners.get_boolean('show-banners');
-        const count = quiet || !(key instanceof Shell.App) ? 0 : this._unread(key, entry);
-        state.badge.visible = count > 0;
-        state.badge.text = count > 0 ? this._shortCount(count) : '';
-        if (count !== state.count) {
-            state.count = count;
-            const name = key instanceof Shell.App ? key.get_name() : key.name;
-            button.accessible_name = count > 0
-                ? ngettext('%s, %d unread', '%s, %d unread', count).format(name, count) : name;
-        }
-
-        const progress = entry?.progressVisible ? Math.clamp(Number(entry.progress) || 0, 0, 1) : null;
-        state.progress.visible = progress !== null;
-        state.value = progress ?? 0;
-        this._syncFill(state);
-
-        const image = button.icon?.icon;
-        if (image)
-            image.opacity = entry?.updating ? 128 : 255;
+        const count = app ? this._badges.unread(key) : 0;
+        if (state.marks.sync(count, entry))
+            button.accessible_name = Badges.accessibleName(app ? key.get_name() : key.name, count);
 
         const urgent = Boolean(entry?.urgent) || windows.some(window => this._attention.has(window));
         if (urgent && !state.urgent)
@@ -422,52 +395,12 @@ class AmethystoraDockDash extends Dash.Dash {
     // The dots, the bar and the count scale with the icon
     _syncSize(state) {
         const size = this.iconSize;
-        const tile = size + 12;
+        const tile = size + 2 * TILE_PADDING;
         const dot = Math.max(2, Math.round(tile * 0.09));
         state.dots.set_style(`spacing: ${Math.max(1, Math.round(dot / 2))}px;`);
         for (const child of state.dots.get_children())
             child.set_style(`width: ${dot}px; height: ${dot}px; border-radius: ${dot}px;`);
-
-        // Inside the icon, a twentieth of it in from the sides and the bottom
-        const inset = 6 + Math.round(size * 0.05);
-        const height = Math.min(18, Math.round(size * 0.2));
-        state.progress.set_style(`margin: 0 ${inset}px ${inset}px ${inset}px; height: ${height}px;`);
-
-        // The count shrinks less than the icon does, and never below half
-        const shrink = SHRINK.find(([smallest]) => size >= smallest)?.[1] ?? 0.5;
-        state.badge.set_style(`font-size: ${(0.9 * shrink).toFixed(2)}em; margin-left: ${Math.round(3 * shrink)}px;`);
-    }
-
-    _syncFill(state) {
-        if (!state.progress.visible || !state.progress.has_allocation())
-            return;
-        const box = state.progress.get_theme_node().get_content_box(state.progress.get_allocation_box());
-        state.fill.width = Math.round((box.x2 - box.x1) * state.value);
-    }
-
-    // Notifications in the tray, but resident ones already seen; an app's own count above zero instead
-    _unread(app, entry) {
-        if (entry?.countVisible && Number(entry.count) > 0)
-            return Number(entry.count);
-        let count = 0;
-        for (const source of Main.messageTray.getSources()) {
-            if ((source.app ?? source._app) === app)
-                count += source.notifications.filter(n => !(n.resident && n.acknowledged)).length;
-        }
-        return count;
-    }
-
-    _shortCount(count) {
-        if (count <= 9999)
-            return count.toLocaleString(undefined, {useGrouping: false});
-        // Thousands, millions and billions, with a decimal while it says something
-        const fractions = Math.floor(Math.log10(count)) % 3 === 2 ? 0 : 1;
-        return new Intl.NumberFormat(undefined, {notation: 'compact', maximumFractionDigits: fractions}).format(count);
-    }
-
-    _watchSource(source) {
-        source.connectObject('notify::count', () => this._syncAll(), this);
-        this._syncAll();
+        state.marks.resize(size);
     }
 
     _watchAttention(window) {
@@ -491,8 +424,7 @@ class AmethystoraDockDash extends Dash.Dash {
     // notifications are silenced or while the dock is not on screen
     _syncWiggle() {
         const shaking = [...this._items.values()].some(state => state.urgent);
-        const run = shaking && this.mapped && St.Settings.get().enable_animations &&
-            this._banners.get_boolean('show-banners');
+        const run = shaking && this.mapped && St.Settings.get().enable_animations && !this._launcher.quiet;
         if (run && !this._wiggleId) {
             this._shake();
             this._wiggleId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, WIGGLE_EVERY, () => {
@@ -567,17 +499,16 @@ class AmethystoraDockDash extends Dash.Dash {
         return upper > page;
     }
 
-    _onHover(button) {
+    // actor is pointed at, or no longer; item is what is scrolled into view
+    _onHover(actor, item) {
         if (this._revealId)
             GLib.source_remove(this._revealId);
         this._revealId = 0;
-        if (!button.hover || !this._overflows())
+        if (!actor.hover || !this._overflows())
             return;
         this._revealId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, HOVER_REVEAL, () => {
             this._revealId = 0;
-            const state = this._items.get(button);
-            if (state)
-                this._reveal(state.item);
+            this._reveal(item);
             return GLib.SOURCE_REMOVE;
         });
     }

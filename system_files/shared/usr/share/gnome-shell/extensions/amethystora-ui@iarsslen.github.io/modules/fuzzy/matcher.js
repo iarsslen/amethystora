@@ -111,6 +111,19 @@ function swappedOnce(a, b) {
     return differ.length === 2 && differ[1] === differ[0] + 1 && a[differ[0]] === b[differ[1]] && a[differ[1]] === b[differ[0]];
 }
 
+// Two slips in a word of six or seven letters, one of them two neighbours swapped ("setigns", "fierfx"): with the
+// pair put back, one mistake is left
+function swapAndSlip(query, word) {
+    for (let i = 0; i < query.length - 1; i++) {
+        if (query[i] === query[i + 1])
+            continue;
+        const fixed = query.slice(0, i) + query[i + 1] + query[i] + query.slice(i + 2);
+        if (typoDistance(fixed, word) <= 1)
+            return true;
+    }
+    return false;
+}
+
 // The letters typed appear in the word in the same order, from its first letter on
 function inOrder(query, word) {
     let at = 0;
@@ -176,7 +189,8 @@ function evidence(query, word) {
     // A typo is looked for only from five letters on: below that, too many short words are one letter apart
     if (query.length >= 5 && (query[0] === word[0] || query.length >= 6)) {
         const mistakes = typoDistance(query, word);
-        if (mistakes <= (query.length >= 8 ? 2 : 1))
+        if (mistakes <= (query.length >= 8 ? 2 : 1) ||
+            (mistakes === 2 && query.length >= 6 && query[0] === word[0] && swapAndSlip(query, word)))
             best = Math.max(best, TYPO * (1 - mistakes / query.length));
     }
     // At four letters, only two neighbours swapped ("clac", "lgos"), as fingers do: few short words are that far apart

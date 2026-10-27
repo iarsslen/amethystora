@@ -1,7 +1,9 @@
 // What apps say about themselves on their dock icon, through the launcher protocol many of them speak
 // (com.canonical.Unity.LauncherEntry): a count of unread items, a progress bar, a call for attention, that an update
 // is under way, and a short menu of their own. An app only says it when somebody owns the protocol's bus name, so
-// the dock owns it while it runs. What an app said is forgotten when it leaves the bus.
+// the dock owns it while it runs. What an app said is forgotten when it leaves the bus. While notifications are
+// silenced (Do Not Disturb) none of it shows, anywhere: no count, no bar, no dimming for an update, no call for
+// attention and no menu of its own, as if the app had said nothing.
 
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -33,6 +35,9 @@ export class LauncherEntries extends EventEmitter {
         // By the launcher's ID, without the protocol's scheme
         this._entries = new Map();
         this._watches = new Map();
+        // Silencing notifications, or letting them through again, changes what every app shows (null: every app)
+        this._banners = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
+        this._banners.connectObject('changed::show-banners', () => this.emit('changed', null), this);
         this._owner = Gio.bus_own_name(Gio.BusType.SESSION, BUS_NAME,
             Gio.BusNameOwnerFlags.ALLOW_REPLACEMENT | Gio.BusNameOwnerFlags.REPLACE, null, null, null);
         this._subscription = Gio.DBus.session.signal_subscribe(null, INTERFACE, 'Update', null, null,
@@ -49,6 +54,8 @@ export class LauncherEntries extends EventEmitter {
 
     stop() {
         this._running = false;
+        this._banners?.disconnectObject(this);
+        this._banners = null;
         if (this._subscription)
             Gio.DBus.session.signal_unsubscribe(this._subscription);
         this._subscription = 0;
@@ -64,9 +71,14 @@ export class LauncherEntries extends EventEmitter {
         this._menus = null;
     }
 
+    // Whether notifications are silenced
+    get quiet() {
+        return this._banners ? !this._banners.get_boolean('show-banners') : false;
+    }
+
     // What the app with this launcher ID last said, or null
     get(id) {
-        return this._entries?.get(id) ?? null;
+        return this.quiet ? null : this._entries?.get(id) ?? null;
     }
 
     // The app's own menu entries as they are now: [{label, enabled, separator, activate()}]

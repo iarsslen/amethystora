@@ -236,10 +236,14 @@ export class ProcessList {
         });
         Main.uiGroup.add_child(this._tip);
         const [x, y] = actor.get_transformed_position();
+        const [nameWidth] = actor.get_transformed_size();
         // Its height once wrapped at the width it will have, not the height of a single line
         const [, width] = this._tip.get_preferred_width(-1);
         const [, height] = this._tip.get_preferred_height(width);
-        this._tip.set_position(Math.round(x), Math.round(y - height - 4 * scaleFactor()));
+        // Centred over the name, and kept on the name's screen
+        const monitor = Main.layoutManager.findMonitorForActor(actor) ?? Main.layoutManager.primaryMonitor;
+        const left = Math.min(Math.max(x + (nameWidth - width) / 2, monitor.x), monitor.x + monitor.width - width);
+        this._tip.set_position(Math.round(left), Math.round(y - height - 4 * scaleFactor()));
     }
 
     hideTip() {

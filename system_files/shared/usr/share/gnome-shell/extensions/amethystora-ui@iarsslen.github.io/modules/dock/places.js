@@ -130,15 +130,15 @@ export class Places extends EventEmitter {
             });
     }
 
-    // What the place's menu offers beside its windows: [{label, busy, run()}]
+    // What the place's menu offers beside its windows: [{label, run()}]
     actions(place) {
         if (place === this.trash)
-            return place.full ? [{label: _('Empty trash'), busy: false, run: () => this._emptyTrash()}] : [];
+            return place.full ? [{label: _('Empty trash'), run: () => this._emptyTrash()}] : [];
         const actions = [];
         if (place.mount.can_unmount())
-            actions.push({label: _('Unmount'), busy: Boolean(place.busy), run: () => this._unmount(place, false)});
+            actions.push({label: _('Unmount'), run: () => this._unmount(place, false)});
         if (place.mount.can_eject())
-            actions.push({label: _('Eject'), busy: Boolean(place.busy), run: () => this._unmount(place, true)});
+            actions.push({label: _('Eject'), run: () => this._unmount(place, true)});
         return actions;
     }
 
@@ -199,12 +199,13 @@ export class Places extends EventEmitter {
             });
     }
 
-    // A drive the person can take away: not a network share, not one hidden behind another, not the system's own. A
-    // phone or a camera on its cable (MTP, PTP, an iPhone's AFC) is one too, though GIO does not call it native.
+    // A drive the person can take away, as GIO's volumes list them: a stick, a disk, a phone or a camera on its cable
+    // (MTP, PTP, an iPhone's AFC), but not a network share, not one hidden behind another, and not the system's own,
+    // which has no volume
     _wanted(mount) {
-        const root = mount.get_root();
-        return !mount.is_shadowed() && (mount.can_unmount() || mount.can_eject()) &&
-            (root.is_native() || ['mtp', 'gphoto2', 'afc'].includes(root.get_uri_scheme()));
+        const volume = mount.get_volume();
+        return Boolean(volume) && !mount.is_shadowed() && (mount.can_unmount() || mount.can_eject()) &&
+            volume.get_identifier(Gio.VOLUME_IDENTIFIER_KIND_CLASS) !== 'network';
     }
 
     _addMount(mount) {
@@ -260,13 +261,17 @@ export class Places extends EventEmitter {
     // Never forced: a forced unmount skips the check for programs still using the drive, and with it GNOME's own
     // dialog that names them, so a copy under way would be cut off with the drive reported safe to pull
     _unmount(place, eject) {
-        if (place.busy)
+        if (place.busy) {
+            Main.osdWindowManager.showAll(Gio.ThemedIcon.new('media-eject-symbolic'), place.busy === 'eject'
+                ? _('%s is already being ejected').format(place.name)
+                : _('%s is already being unmounted').format(place.name));
             return;
-        place.busy = true;
+        }
+        place.busy = eject ? 'eject' : 'unmount';
         const {mount} = place;
         const operation = new ShellMountOperation.ShellMountOperation(mount);
         const done = (object, result) => {
-            place.busy = false;
+            place.busy = null;
             operation.close();
             try {
                 if (eject)

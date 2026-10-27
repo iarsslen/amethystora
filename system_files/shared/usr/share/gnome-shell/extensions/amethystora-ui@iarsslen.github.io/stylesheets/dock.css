@@ -31,10 +31,12 @@
     padding: 0;
 }
 
-/* A tile is clear until it is pointed at, reached with the keyboard, or its app has the focus */
+/* A tile is clear until it is pointed at, reached with the keyboard, or its app has the focus, and lights up over a
+   quarter of a second */
 #dash.amethystora-dock-dash .dash-item-container .overview-tile .overview-icon,
 #dash.amethystora-dock-dash .dash-item-container .show-apps .overview-icon {
     background-color: transparent;
+    transition-duration: 250ms;
 }
 
 #dash.amethystora-dock-dash .dash-item-container .overview-tile:hover .overview-icon,
@@ -64,6 +66,12 @@
     margin-bottom: 1px;
 }
 
+/* The name at the top of an item's menu */
+.amethystora-dock-menu-heading {
+    font-weight: bold;
+}
+
+/* An app's count and progress bar, on the dock and on its icons in the overview */
 .amethystora-dock-badge {
     background-color: #ff0000;
     color: #ffffff;

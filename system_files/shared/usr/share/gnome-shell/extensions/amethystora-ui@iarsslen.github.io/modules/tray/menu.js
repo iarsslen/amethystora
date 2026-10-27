@@ -37,11 +37,20 @@ function kindOf(props) {
     return props['children-display'] === 'submenu' ? 'submenu' : 'entry';
 }
 
-// The text of a label, by the dbusmenu rules: "__" shows one underscore, any other underscore (an access key's mark)
-// is not shown
+// The text of a label, by the dbusmenu rules: "__" shows one underscore, and the first other underscore before a
+// character marks the access key and is not shown. A label has one access key, so any later underscore is text.
 function labelText(label) {
-    return typeof label === 'string'
-        ? label.slice(0, LABEL_LENGTH).replace(/__|_/g, mark => mark === '__' ? '_' : '') : '';
+    if (typeof label !== 'string')
+        return '';
+    let marked = false;
+    return label.slice(0, LABEL_LENGTH).replace(/__|_(?=.)/gs, mark => {
+        if (mark === '__')
+            return '_';
+        if (marked)
+            return mark;
+        marked = true;
+        return '';
+    });
 }
 
 // A dictionary of properties as an object. A name the tray does not read, or a value of another type than the
@@ -304,9 +313,11 @@ export class RemoteMenu {
         if (entry.kind === 'separator') {
             entry.widget = new PopupMenu.PopupSeparatorMenuItem();
         } else if (entry.kind === 'submenu') {
-            entry.widget = new PopupMenu.PopupSubMenuMenuItem('', true);
+            // No picture on a submenu's row, and the empty column the plain entries keep, so that its label lines up
+            entry.widget = new PopupMenu.PopupSubMenuMenuItem('', false);
+            entry.widget.setOrnament(PopupMenu.Ornament.NONE);
             entry.label = entry.widget.label;
-            entry.icon = entry.widget.icon;
+            entry.icon = null;
             entry.widget.menu.connect('open-state-changed', (m, open) => this._openChanged(entry, open));
         } else {
             entry.widget = new PopupMenu.PopupBaseMenuItem();
@@ -351,11 +362,12 @@ export class RemoteMenu {
             return;
         widget.setSensitive(props.enabled ?? true);
         entry.label.text = labelText(props.label);
-        const gicon = entryIcon(entry);
-        entry.icon.gicon = gicon;
-        entry.icon.visible = gicon !== null;
-        if (entry.kind === 'entry')
+        if (entry.kind === 'entry') {
+            const gicon = entryIcon(entry);
+            entry.icon.gicon = gicon;
+            entry.icon.visible = gicon !== null;
             widget.setOrnament(ornamentOf(props));
+        }
     }
 
     _updateProps(params) {

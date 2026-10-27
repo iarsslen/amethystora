@@ -1,9 +1,14 @@
 // The glass, drawn under a surface from the frosted picture of its screen (modules/glass/frost.js). Every length is
 // in screen pixels, measured from the top left of the surface. Inside the surface's rounded outline the picture is
 // bent outwards near the edges, as through the rim of a thick lens, lit along the rim, made milky and shaded towards
-// the bottom; outside it, a soft drop shadow. Written for Amethystora (Apache-2.0).
+// the bottom; outside it, a soft drop shadow. While the surface fades in or out the frost condenses or clears with
+// it: the picture is mixed towards the screen's sharp one, and the darkening eased off, as far as it is see-through.
+// Written for Amethystora (Apache-2.0).
 
 uniform sampler2D u_picture;
+// The same spot unblurred, and how frosted the glass is: 1 as made, 0 clear
+uniform sampler2D u_clear;
+uniform float u_frost;
 // Where the surface's top left falls in the picture, and how much of the picture one pixel is
 uniform vec2 u_origin;
 uniform vec2 u_pixel;
@@ -47,7 +52,11 @@ vec2 glass_outwards(vec2 p, vec2 half_size, float radius)
 
 vec3 glass_sample(vec2 at)
 {
-    return texture2D(u_picture, u_origin + at * u_pixel).rgb;
+    vec2 spot = u_origin + at * u_pixel;
+    vec3 frosted = texture2D(u_picture, spot).rgb;
+    if (u_frost >= 1.0)
+        return frosted;
+    return mix(texture2D(u_clear, spot).rgb, frosted, u_frost);
 }
 
 vec4 glass_color()
@@ -73,7 +82,7 @@ vec4 glass_color()
             picture = glass_sample(p);
         }
 
-        picture *= u_dim;
+        picture *= mix(1.0, u_dim, u_frost);
         picture = mix(picture, vec3(1.0), u_tint);
 
         if (u_glint > 0.0) {

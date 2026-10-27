@@ -1,11 +1,11 @@
-// The search box. Super+Space opens GNOME's own search in a dark box in the middle of the main screen, over whatever
+// The search box. Super+Space opens GNOME's own search in a box in the middle of the main screen, over whatever
 // is open, without going to the overview. The box holds the overview's own search field and results, lent to it while
 // it is open and given back when it closes, so that every search provider (apps, files, settings, the calculator,
 // the software centre...) is there and the results look and work as they do in the overview. It starts as a single
 // line and grows to its full size at the first letter typed; Enter opens the first result. Escape, the same key
 // again, the field's clear button, a click anywhere else, opening a result, or a window going full screen or leaving
 // it closes the box, and the Super key brings the typing back to the field instead of opening the overview. Its
-// colours are fixed, dark with white text, whatever the theme (stylesheets/search.css).
+// colours are the theme's (shell-search.css).
 
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
@@ -33,10 +33,14 @@ const SMALL = 0.9;
 const OPENING_KEYS = [Clutter.KEY_Return, Clutter.KEY_KP_Enter, Clutter.KEY_ISO_Enter, Clutter.KEY_space,
     Clutter.KEY_KP_Space];
 const SUPER_KEYS = [Clutter.KEY_Super_L, Clutter.KEY_Super_R];
+// Moving between the results and opening one: St's focus manager and the results take these after the box has seen
+// them, so the box lets them through
+const RESULT_KEYS = [...OPENING_KEYS, Clutter.KEY_Up, Clutter.KEY_Down, Clutter.KEY_Left, Clutter.KEY_Right,
+    Clutter.KEY_Tab, Clutter.KEY_ISO_Left_Tab, Clutter.KEY_Page_Up, Clutter.KEY_Page_Down, Clutter.KEY_Home,
+    Clutter.KEY_End, Clutter.KEY_Menu];
 const KEY_EVENTS = [Clutter.EventType.KEY_PRESS, Clutter.EventType.KEY_RELEASE];
 const POINTER_EVENTS = [Clutter.EventType.BUTTON_PRESS, Clutter.EventType.BUTTON_RELEASE,
     Clutter.EventType.TOUCH_BEGIN, Clutter.EventType.TOUCH_END];
-const PRINTABLE = /[\p{L}\p{N}\p{P}\p{S}]/u;
 
 export class Search {
     constructor(ext) {
@@ -345,19 +349,13 @@ export class Search {
             return Clutter.EVENT_STOP;
         }
 
-        // Typing while a result has the focus goes back to the field
-        const modifiers = Clutter.ModifierType.CONTROL_MASK | Clutter.ModifierType.MOD1_MASK |
-            Clutter.ModifierType.SUPER_MASK;
-        if ((event.get_state() & modifiers) !== 0)
-            return Clutter.EVENT_PROPAGATE;
-        // The character comes as a string (none is an empty one)
-        const typing = symbol === Clutter.KEY_BackSpace || PRINTABLE.test(event.get_key_unicode() ?? '');
+        // Any other key that a result had no use for (a letter, a modifier, a shortcut) sends the keyboard back to the
+        // field, and goes no further
         const text = this._lent.entry.clutter_text;
-        if (typing && global.stage.get_key_focus() !== text) {
-            text.grab_key_focus();
-            return Clutter.EVENT_STOP;
-        }
-        return Clutter.EVENT_PROPAGATE;
+        if (global.stage.get_key_focus() === text || RESULT_KEYS.includes(symbol))
+            return Clutter.EVENT_PROPAGATE;
+        text.grab_key_focus();
+        return Clutter.EVENT_STOP;
     }
 
     // The keyboard went somewhere: looked at once the change has settled (a drag takes the keyboard before it says

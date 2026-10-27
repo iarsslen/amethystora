@@ -31,8 +31,11 @@ const STEPS = [
     [Infinity, 'terabyte', 1e12, 0],
 ];
 
-// Exact keeps one decimal in gigabytes and terabytes at any size, for the memory a computer has: 15.6 GB, not 16
-export function size(bytes, perSecond = false, exact = false) {
+// Whole gives the memory a computer has as it is sold, in whole binary gigabytes from one up: the kernel keeps a
+// little of it, so the total reads a bit under (15.6 of 16) and is rounded up
+export function size(bytes, perSecond = false, whole = false) {
+    if (whole && bytes >= 2 ** 30)
+        return unit('gigabyte', Math.ceil(bytes / 2 ** 30), 0);
     const name = base => perSecond ? `${base}-per-second` : base;
     if (!(bytes >= 1))
         return unit(name('kilobyte'), 0, 0);
@@ -41,7 +44,7 @@ export function size(bytes, perSecond = false, exact = false) {
         return _('< %s').format(unit(name('kilobyte'), 1, 0));
     }
     const [, base, scale, digits] = STEPS.find(([below]) => bytes < below);
-    return unit(name(base), bytes / scale, exact && scale >= 1e9 ? 1 : digits);
+    return unit(name(base), bytes / scale, digits);
 }
 
 export function percent(fraction) {

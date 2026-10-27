@@ -1,14 +1,16 @@
 // Application windows on glass. Every window but the one being used shows the frosted desktop faintly through it:
-// a pane of glass cut to its frame, with the window drawn over it at 84 %. The window with the keyboard focus, a
-// fullscreen window, and every window in the overview or a window switcher's previews are fully opaque, with nothing
-// drawn behind them. A maximized or tiled window's glass has square corners, so that it meets the screen's edges.
-// Docks, desktop icons and desktop widgets are left alone. This part also tells the top bar when windows move.
+// a pane of glass cut to its frame, with the window drawn over it at 84 %, and so do the window switchers' pictures
+// of it. The window with the keyboard focus, a fullscreen window, and every window in the overview are fully opaque,
+// with nothing drawn behind them. A maximized or tiled window's glass has square corners, so that it meets the
+// screen's edges. Docks, desktop icons and desktop widgets are left alone; a window that has not said what it is yet
+// has glass until it does. This part also tells the top bar when windows move.
 //
 // A window whose glass nobody can see does not carry it. The effect makes Mutter paint the window in full, and
 // everything under it as well, however much of that is covered: Mutter's culling skips an actor with an effect, and
 // takes no opaque pixels from it for what lies below. A window wholly behind another window with glass is one such.
 // Its glass goes once it has stayed covered for a moment, and comes back in the frame it is seen again.
 
+import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import St from 'gi://St';
@@ -27,14 +29,16 @@ const COVER_DELAY = 300;
 // What a window is doing while it comes in, goes out or is carried along: it hides nothing for sure meanwhile
 const ANIMATED = ['opacity', 'scale-x', 'scale-y', 'translation-x', 'translation-y'];
 
-// The glass under a window is its frame, inside the actor, which also holds the window's own shadow
+// The glass under a window is its frame, inside the actor, which also holds the window's own shadow. A copy of the
+// window may be drawn smaller than the window (a switcher's picture), and its frame with it.
 const frame = actor => {
     const window = actor.meta_window ?? actor.source?.meta_window;
     if (!window)
         return [];
     const f = window.get_frame_rect();
     const b = window.get_buffer_rect();
-    return [[f.x - b.x, f.y - b.y, f.width, f.height]];
+    const k = actor.source ? actor.width / Math.max(1, actor.source.width) : 1;
+    return [[(f.x - b.x) * k, (f.y - b.y) * k, f.width * k, f.height * k]];
 };
 const content = actor => Math.round(actor.get_paint_opacity() * OPACITY / 255);
 
@@ -42,9 +46,10 @@ const content = actor => Math.round(actor.get_paint_opacity() * OPACITY / 255);
 // the glass for sure
 const inset = radius => radius > 0 ? Math.ceil(radius * (1 - Math.SQRT1_2)) + 1 : 0;
 
+// A window whose class is not known yet is not one of them until it says so; one that says it has none is left alone
 export function leftAlone(window) {
-    const name = window.get_wm_class()?.toLowerCase();
-    return !name || LEFT_ALONE.has(name);
+    const name = window.get_wm_class();
+    return name === '' || LEFT_ALONE.has(name?.toLowerCase());
 }
 
 export class Windows {
@@ -116,6 +121,23 @@ export class Windows {
     cloneLook() {
         return {material: 'glass', radius: this._glass.windowRadius, areas: frame, content, inClones: false,
             stageOnly: true};
+    }
+
+    // The window switchers' pictures of windows under actor: one of a window that is on glass while it is not in use
+    // has glass too, with the corners as much smaller as the picture is
+    glassClones(actor) {
+        for (const child of actor.get_children()) {
+            const window = child instanceof Clutter.Clone ? child.source?.meta_window : null;
+            if (!window) {
+                this.glassClones(child);
+                continue;
+            }
+            if (!this._windows?.has(window) || !this._wantsGlass(window))
+                continue;
+            const square = window.maximized_horizontally || window.maximized_vertically;
+            const k = child.width / Math.max(1, child.source.width);
+            this._glass.attach(child, {...this.cloneLook(), radius: square ? 0 : this._glass.windowRadius * k});
+        }
     }
 
     _watch(window) {

@@ -152,7 +152,8 @@ export class Screenshot {
         const ctrl = (event.get_state() & Clutter.ModifierType.CONTROL_MASK) !== 0;
         const ui = this._ui;
         const recording = ui._castButton.checked;
-        if (ctrl && !session.entryOpen) {
+        // With the text field open too: the text is placed first, and goes into the picture
+        if (ctrl) {
             // Copying only; while recording, or for an app that asked for a screenshot, GNOME's own Ctrl+C takes it
             if ((symbol === Clutter.KEY_c || symbol === Clutter.KEY_C) && !recording && !session.portal) {
                 this._take('copy').catch(logError);
@@ -177,15 +178,38 @@ export class Screenshot {
     }
 
     // A capture: `normal` (the capture button, Enter, Space) to the clipboard, the folder and the card; `copy` to the
-    // clipboard and the card; `save-as` where the person says; `extract` to the folder and then Gradia
-    async _take(kind) {
+    // clipboard and the card; `save-as` where the person says; `extract` to the folder and then Gradia. Everything
+    // the picture needs is read from the UI at once, and the UI goes while the picture is finished behind it (GNOME
+    // closes it itself once a normal capture returns); only an app that asked for the screenshot keeps it until the
+    // file is there, since GNOME answers the app "cancelled" as soon as the UI has closed.
+    _take(kind) {
         const ui = this._ui;
         if (this._busy || !ui)
-            return;
-        this._busy = true;
+            return Promise.resolve();
+        let picturing;
         try {
-            const picture = await this._picture();
-            if (!picture)
+            picturing = this._picture();
+        } catch (e) {
+            picturing = Promise.reject(e);
+        }
+        // Nothing to take: the UI stays as it is
+        if (!picturing)
+            return Promise.resolve();
+        this._busy = true;
+        const done = this._finish(kind, ui, picturing);
+        if (kind === 'normal' && this._session?.portal)
+            return done;
+        if (kind !== 'normal')
+            ui.close();
+        return Promise.resolve();
+    }
+
+    async _finish(kind, ui, picturing) {
+        try {
+            const picture = await picturing;
+            // The picture is made: the next screenshot need not wait for this one's file chooser, which may stay open
+            this._busy = false;
+            if (!picture || this._ui !== ui)
                 return;
             switch (kind) {
             case 'normal': {
@@ -199,10 +223,8 @@ export class Screenshot {
             case 'copy':
                 copyToClipboard(picture);
                 this._showCard(picture, null, true);
-                ui.close();
                 break;
             case 'save-as': {
-                ui.close();
                 const file = await saveAs(picture, this._pending);
                 if (file && this._ui)
                     this._showCard(picture, file, false);
@@ -210,18 +232,15 @@ export class Screenshot {
             }
             case 'extract': {
                 const file = saveToFolder(picture);
-                if (file)
+                if (file) {
                     ui.emit('screenshot-taken', file);
-                ui.close();
-                if (file)
                     Util.spawn(['flatpak', 'run', GRADIA, `--ocr-file=${file.get_path()}`]);
+                }
                 break;
             }
             }
         } catch (e) {
             console.error(`Amethystora UI: the screenshot was not taken: ${e.message}\n${e.stack}`);
-            if (kind !== 'normal')
-                ui.close();
         } finally {
             this._busy = false;
         }
@@ -247,7 +266,8 @@ export class Screenshot {
         if (!ui._selectionButton.checked && !ui._screenButton.checked)
             return null;
         playShutter();
-        return captureFrame(ui, this._session?.marks ?? []);
+        // A copy: while an app's screenshot is finished the UI stays, and an undo or a new mark must not reach it
+        return captureFrame(ui, [...this._session?.marks ?? []]);
     }
 
     _showCard(picture, file, copied) {

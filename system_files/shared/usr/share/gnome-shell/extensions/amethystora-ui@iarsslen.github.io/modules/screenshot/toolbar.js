@@ -158,7 +158,7 @@ export const Toolbar = GObject.registerClass({
 
         for (const [action, iconName, name] of [
             ['undo', 'edit-undo-symbolic', _('Undo')],
-            ['clear', 'edit-clear-all-symbolic', _('Erase everything')],
+            ['clear', 'user-trash-symbolic', _('Erase everything')],
         ]) {
             const button = new ToolButton(null, name);
             button.child.icon_name = iconName;

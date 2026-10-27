@@ -56,12 +56,15 @@ class LegacyButton extends PanelMenu.Button {
         return Clutter.EVENT_STOP;
     }
 
+    // A key looks pressed as a button does
     vfunc_key_press_event(event) {
+        this.add_style_pseudo_class('active');
         this.trayIcon.click(event);
         return Clutter.EVENT_STOP;
     }
 
     vfunc_key_release_event(event) {
+        this.remove_style_pseudo_class('active');
         this.trayIcon.click(event);
         return Clutter.EVENT_STOP;
     }

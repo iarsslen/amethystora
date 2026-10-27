@@ -30,6 +30,9 @@ const FIRST_LOOK_MS = 1500;
 const MINUTES = Math.round(Widgets.SAMPLES * INTERVAL / 60);
 const SYSTEM_MONITOR = 'io.missioncenter.MissionCenter.desktop';
 const ROLES = ['amethystora-meters-processor', 'amethystora-meters-memory', 'amethystora-meters-network'];
+const NETWORK_MANAGER = 'org.freedesktop.NetworkManager';
+// NetworkManager's word for no connectivity at all
+const CONNECTIVITY_NONE = 1;
 
 function remember(list, value) {
     list.push(value);
@@ -188,7 +191,7 @@ class MemoryMeter {
     _setFree(actor, available, total) {
         // Translators: memory that is free, such as "7.3 GB available of 16 GB"
         const text = Format.fill(_('{available} available of {total}'),
-            {available: Format.size(available, false, true), total: Format.size(total, false, true)});
+            {available: Format.size(available), total: Format.size(total, false, true)});
         if (actor.text !== text)
             actor.text = text;
     }
@@ -220,11 +223,11 @@ class NetworkMeter {
         content.add_child(this._history.actor);
     }
 
-    // Null while the computer is offline: a dash, not a rate that means nothing
-    showBar(rates) {
-        const [sending, receiving] = rates
+    // A dash, not a rate that means nothing, while the computer is offline (narrowed) or before the first reading
+    showBar(rates, online = true) {
+        const [sending, receiving] = rates && online
             ? [Format.size(rates.sent, true), Format.size(rates.received, true)] : ['–', '–'];
-        if (rates)
+        if (online)
             this._rates.remove_style_class_name('amethystora-meters-offline');
         else
             this._rates.add_style_class_name('amethystora-meters-offline');
@@ -242,7 +245,7 @@ class NetworkMeter {
         const top = Widgets.networkScale(Math.max(0, ...sent, ...received));
         this._history.charts[0].plot(sent, top);
         this._history.charts[1].plot(received, top);
-        const scale = top > 0 ? Format.size(top, true) : '';
+        const scale = Format.size(top, true);
         this._history.setMarks([scale, Format.count(0), scale]);
     }
 }
@@ -265,14 +268,32 @@ export class Meters {
         this._meters = [this._processor, this._memory, this._network];
         this._meters.forEach((meter, i) => Main.panel.addToStatusArea(ROLES[i], meter.button, i, 'right'));
 
+        // Offline is what NetworkManager calls no connectivity at all. GLib's view (no route out) stands in until it
+        // answers, and without it.
         this._connectivity = Gio.NetworkMonitor.get_default();
         this._connectivity.connectObject('network-changed', () => this._connectivityChanged(), this);
         this._online = this._connectivity.network_available;
+        const cancellable = this._nmCancellable = new Gio.Cancellable();
+        Gio.DBusProxy.new_for_bus(Gio.BusType.SYSTEM, Gio.DBusProxyFlags.DO_NOT_AUTO_START, null,
+            NETWORK_MANAGER, '/org/freedesktop/NetworkManager', NETWORK_MANAGER, cancellable,
+            (object, result) => {
+                try {
+                    const proxy = Gio.DBusProxy.new_for_bus_finish(result);
+                    if (cancellable.is_cancelled())
+                        return;
+                    this._nm = proxy;
+                } catch {
+                    return;
+                }
+                this._nm.connectObject('g-properties-changed', () => this._connectivityChanged(), this);
+                this._connectivityChanged();
+            });
 
+        // The first rate comes with the first reading, five seconds in: a dash until then
         this._counters = this._interfaces.read();
         this._readAt = GLib.get_monotonic_time();
-        this._rates = {sent: 0, received: 0};
-        this._read();
+        this._rates = null;
+        this._read(true);
         this._timer = GLib.timeout_add_seconds(GLib.PRIORITY_LOW, INTERVAL, () => {
             this._read();
             return GLib.SOURCE_CONTINUE;
@@ -286,6 +307,10 @@ export class Meters {
         this._stopLooking();
         this._connectivity?.disconnectObject(this);
         this._connectivity = null;
+        this._nmCancellable?.cancel();
+        this._nmCancellable = null;
+        this._nm?.disconnectObject(this);
+        this._nm = null;
         for (const meter of this._meters ?? []) {
             meter.processes?.hideTip();
             meter.button.destroy();
@@ -297,7 +322,7 @@ export class Meters {
     }
 
     // The bar's reading, every few seconds
-    _read() {
+    _read(first = false) {
         const times = Sources.processorTimes();
         const loads = [...times.each].map(([cpu, now]) => Sources.load(this._times.each.get(cpu), now));
         this._load = Sources.load(this._times.all, times.all);
@@ -315,7 +340,7 @@ export class Meters {
         const now = GLib.get_monotonic_time();
         const counters = this._interfaces.read();
         const seconds = (now - this._readAt) / 1e6;
-        if (seconds > 0) {
+        if (!first && seconds > 0) {
             let sent = 0, received = 0;
             for (const [name, counter] of counters) {
                 const before = this._counters.get(name);
@@ -330,20 +355,22 @@ export class Meters {
             remember(this._history.sent, this._rates.sent);
             remember(this._history.received, this._rates.received);
         }
-        this._network.showBar(this._online ? this._rates : null);
+        this._network.showBar(this._rates, this._online);
 
         if (this._looking)
             this._showMenus();
     }
 
     _connectivityChanged() {
-        const online = this._connectivity.network_available;
+        const state = this._nm?.get_cached_property('Connectivity')?.unpack();
+        const online = state === undefined ? this._connectivity.network_available : state !== CONNECTIVITY_NONE;
         if (online === this._online)
             return;
         this._online = online;
         // Back online: nothing moved yet that the next reading will not tell
-        this._rates = {sent: 0, received: 0};
-        this._network.showBar(online ? this._rates : null);
+        if (this._rates)
+            this._rates = {sent: 0, received: 0};
+        this._network.showBar(this._rates, online);
     }
 
     _showMenus() {
@@ -439,7 +466,7 @@ export class Meters {
                 group.measured = true;
             }
         }
-        const title = group => group.count > 1 ? `${group.name} (${Format.count(group.count)})` : group.name;
+        const title = group => group.count > 1 ? `${group.name} (x${Format.count(group.count)})` : group.name;
         const all = [...groups.values()];
 
         const busiest = ticks > 0

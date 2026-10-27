@@ -4,13 +4,13 @@
 // middle button, or Ctrl, opens a new window. A double click is otherwise one click.
 
 import Clutter from 'gi://Clutter';
-import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 
-import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Dash from 'resource:///org/gnome/shell/ui/dash.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
+import {sayUpdating} from './badges.js';
 
 // Milliseconds a walk through an app's windows is remembered after the last click
 const WALK_MEMORY = 3000;
@@ -71,8 +71,7 @@ export class Clicks {
         this._lastClick = second ? null : {key: target.key, time};
 
         if (target.updating()) {
-            Main.osdWindowManager.showAll(Gio.ThemedIcon.new('action-unavailable-symbolic'),
-                _('%s is being updated. Try again later.').format(target.name));
+            sayUpdating(target.name);
             return;
         }
 

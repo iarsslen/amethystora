@@ -19,15 +19,15 @@ import St from 'gi://St';
 import * as Background from 'resource:///org/gnome/shell/ui/background.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
-// The strengths of frost: the blur's radius in pixels (times the screen's scale) and the brightness after it. The
-// glass is drawn from the first, the overview's backdrop from the second.
+// The strengths of frost: the blur's radius in pixels (times the screen's scale), the brightness after it, and how
+// many times smaller than the screen the texture is across. The glass is drawn from the first, the overview's
+// backdrop from the second; the third is the wallpaper itself, which a pane fading in or out is mixed towards. Blurred
+// this much, nothing is lost by a quarter of the screen; the sharp one is kept at half, and seen only faintly.
 export const RECIPES = {
-    glass: {radius: 48, brightness: 1.0},
-    frost: {radius: 64, brightness: 0.55},
+    glass: {radius: 48, brightness: 1.0, shrink: 4},
+    frost: {radius: 64, brightness: 0.55, shrink: 4},
+    clear: {radius: 0, brightness: 1.0, shrink: 2},
 };
-
-// The texture is a quarter of the screen across: blurred this much, nothing is lost by it
-const SHRINK = 4;
 
 // Renders the actor it is on, blurred by the effect after it, into the picture's texture whenever the actor has
 // changed, and draws nothing on the screen
@@ -59,14 +59,16 @@ class AmethystoraGlassCapture extends Clutter.Effect {
 });
 
 class Picture {
-    constructor(frost, holder, monitor, recipe) {
+    constructor(frost, holder, monitor, name) {
+        const recipe = RECIPES[name];
+        this.recipe = name;
         this._frost = frost;
         this.monitor = monitor;
         this.consumers = new Set();
         this.texture = null;
         this.ready = false;
-        this.width = Math.max(1, Math.ceil(monitor.width / SHRINK));
-        this.height = Math.max(1, Math.ceil(monitor.height / SHRINK));
+        this.width = Math.max(1, Math.ceil(monitor.width / recipe.shrink));
+        this.height = Math.max(1, Math.ceil(monitor.height / recipe.shrink));
 
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
         this._source = new Clutter.Actor({visible: false, width: monitor.width, height: monitor.height});
@@ -79,11 +81,13 @@ class Picture {
             controlPosition: false,
         });
         this._source.add_effect(new Capture(this));
-        this._source.add_effect(new Shell.BlurEffect({
-            mode: Shell.BlurMode.ACTOR,
-            radius: Math.round(recipe.radius * scale),
-            brightness: recipe.brightness,
-        }));
+        if (recipe.radius > 0) {
+            this._source.add_effect(new Shell.BlurEffect({
+                mode: Shell.BlurMode.ACTOR,
+                radius: Math.round(recipe.radius * scale),
+                brightness: recipe.brightness,
+            }));
+        }
         holder.add_child(this._source);
 
         this._driver = new Clutter.Clone({
@@ -164,9 +168,10 @@ export class Frost {
     // Every picture is made up front, so that none is made during a paint and the overview never opens on a
     // backdrop still to come
     _build() {
+        this._byRecipe = null;
         for (const monitor of Main.layoutManager.monitors) {
-            for (const [name, recipe] of Object.entries(RECIPES))
-                this._pictures.set(`${monitor.index}:${name}`, new Picture(this, this._holder, monitor, recipe));
+            for (const name of Object.keys(RECIPES))
+                this._pictures.set(`${monitor.index}:${name}`, new Picture(this, this._holder, monitor, name));
         }
     }
 
@@ -181,6 +186,7 @@ export class Frost {
         for (const picture of this._pictures.values())
             picture.destroy();
         this._pictures.clear();
+        this._byRecipe = null;
         this._holder.destroy();
         this._holder = null;
     }
@@ -188,6 +194,20 @@ export class Frost {
     // The picture of a screen (an index into Main.layoutManager.monitors) for a recipe
     picture(index, recipe) {
         return this._pictures.get(`${index}:${recipe}`) ?? null;
+    }
+
+    // The pictures of every screen for a recipe. Asked for on every paint of every pane, so the lists are made once
+    // with the pictures rather than each time.
+    pictures(recipe) {
+        if (!this._byRecipe) {
+            this._byRecipe = new Map();
+            for (const picture of this._pictures.values()) {
+                if (!this._byRecipe.has(picture.recipe))
+                    this._byRecipe.set(picture.recipe, []);
+                this._byRecipe.get(picture.recipe).push(picture);
+            }
+        }
+        return this._byRecipe.get(recipe) ?? [];
     }
 
     // Surfaces that drew from a picture are drawn again once it changes. Queued from inside a paint, so it is done
