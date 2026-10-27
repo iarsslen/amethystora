@@ -478,7 +478,7 @@ grep -q "^export const GRADIA = 'be.alexandervanhee.gradia';$" "${UI_EXTENSION}/
 test -s "${UI_EXTENSION}/icons/screenshot/extract-symbolic.svg"
 [[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.screenshot)" == "tool-settings" ]]
 # Uninstalling from an app's menu: Flatpak's own command, as the account, and Bazaar for the details
-grep -qF "['uninstall', user ? '--user' : '--system', '-y', id]" "${UI_EXTENSION}/modules/bazaar.js"
+grep -qF "['uninstall', user ? '--user' : (extra ? installation : '--system'), '-y', id]" "${UI_EXTENSION}/modules/bazaar.js"
 grep -qF 'appstream:' "${UI_EXTENSION}/modules/bazaar.js"
 # The tweaks: animations at 0.6 of their time through the shell's slow-down factor alone. GNOME's own switch for
 # animations is the person's (Settings, Accessibility), and nothing here may turn it back on.

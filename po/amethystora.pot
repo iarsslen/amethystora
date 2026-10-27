@@ -4973,10 +4973,12 @@ msgstr ""
 msgid "What it empties stays in the snapshots and the backup, where they are on."
 msgstr ""
 
+#. Translators: a choice in a menu: to put the artwork on the boot menu
 #: usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just
 msgid "Turn on"
 msgstr ""
 
+#. Translators: a choice in a menu: to take the artwork off the boot menu
 #: usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just
 msgid "Turn off"
 msgstr ""
