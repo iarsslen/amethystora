@@ -1349,7 +1349,11 @@ impl Security {
 
     fn groups_section(&self, report: &backend::Report, attention: bool) -> Option<gtk::Box> {
         let rows_of = |group: &str| report.checks.iter().filter(|c| c.group == group && !needs_attention(c)).cloned().collect::<Vec<Check>>();
-        let mut cards: Vec<gtk::Widget> = Vec::new();
+        // Each group across the page, its rows two by two: cards of a few rows and of many, side by side in a grid,
+        // left rows of gaps under the shorter ones
+        let columns = self.columns.get().clamp(1, 2) as usize;
+        let cards = ui::vbox(16, &["groups"]);
+        let mut any = false;
         for (group, title) in groups() {
             let rows = rows_of(group);
             if rows.is_empty() {
@@ -1367,12 +1371,19 @@ impl Security {
                 head.append(&pill(&t!("{count} on", count = on), "ok", true, false));
             }
             card.append(&head);
-            for check in &rows {
-                card.append(&self.check_row(check));
+            let grid = gtk::Grid::builder().column_homogeneous(true).build();
+            for (at, check) in rows.iter().enumerate() {
+                grid.attach(&self.check_row(check), (at % columns) as i32, (at / columns) as i32, 1, 1);
             }
-            cards.push(card.upcast());
+            // The last line of rows is drawn across the card even when it has one row only
+            if rows.len() % columns != 0 {
+                grid.attach(&ui::vbox(0, &["row"]), (columns - 1) as i32, (rows.len() / columns) as i32, 1, 1);
+            }
+            card.append(&grid);
+            cards.append(&card);
+            any = true;
         }
-        if cards.is_empty() {
+        if !any {
             return None;
         }
         // What the machine sends is information, on or off, so it does not count against "everything else is on"
@@ -1382,7 +1393,7 @@ impl Security {
         } else {
             t!("What is on")
         };
-        Some(section(&title, &self.grid(cards, "groups", false), None))
+        Some(section(&title, &cards, None))
     }
 
     fn optional_section(&self, report: &backend::Report) -> Option<gtk::Box> {
