@@ -23,7 +23,12 @@
 //! /etc/amethystora/security.conf (`amethystora-security-config --list --json`) and what the image
 //! enforces from the start (`amethystora-hardening status --json`), both read as the user. A change runs
 //! the switch's own `ame security` command in a terminal, which says what it changes and asks; the page
-//! hands over a key and one of the values this program read for it, and nothing else.
+//! hands over a key and one of the values this program read for it, and nothing else. Each switch names
+//! its category, and the page shows a category at a time.
+//!
+//! A duress finger or password is set up, tested and removed by `ame security duress` in a terminal, one of
+//! its own steps a button. Nothing is read for it: the window says no more than the report does, which is
+//! nothing about whether an account has one.
 //!
 //! A command offered to run in a terminal is looked up in the report this program read, never taken from
 //! what the page shows; an event is looked up again in events.json by its id, and its entry is the one
@@ -406,6 +411,8 @@ pub struct Hardening {
     pub state: String,
     pub title: String,
     pub text: String,
+    /// The Settings page's category, among the detection switches' own
+    pub group: String,
     /// It cannot change on this machine (a sealed one's kernel arguments)
     pub fixed: bool,
     /// on for what the image enforces, off for the stricter ones
@@ -466,6 +473,7 @@ pub fn parse_hardening(stdout: &str) -> Option<Vec<Hardening>> {
                 state: text(entry.get("state")),
                 title: text(entry.get("title")),
                 text: text(entry.get("text")),
+                group: text(entry.get("group")),
                 fixed: truthy(entry.get("fixed")),
                 default: text(entry.get("default")),
                 level: text(entry.get("level")),
@@ -554,6 +562,20 @@ pub fn change_command(switches: Option<&Switches>, kind: Kind, key: &str, value:
 
 pub fn change(switches: Option<&Switches>, kind: Kind, key: &str, value: &str, argument: &str) {
     if let Some(command) = change_command(switches, kind, key, value, argument) {
+        let args: Vec<&str> = command.iter().map(String::as_str).collect();
+        process::in_terminal(&args);
+    }
+}
+
+/// The steps of `ame security duress` a button starts, by the recipe's own names for them
+pub const DURESS_STEPS: [&str; 8] = ["setup", "test", "action-fingerprint", "remove", "setup-password", "action-password", "remove-password", "off"];
+
+pub fn duress_command(step: &str) -> Option<Vec<String>> {
+    DURESS_STEPS.contains(&step).then(|| [AME, "security", "duress", step].iter().map(|arg| arg.to_string()).collect())
+}
+
+pub fn duress(step: &str) {
+    if let Some(command) = duress_command(step) {
         let args: Vec<&str> = command.iter().map(String::as_str).collect();
         process::in_terminal(&args);
     }
@@ -1389,12 +1411,13 @@ mod tests {
         assert_eq!(settings[1].explain.as_deref(), Some("Each event goes"));
         assert!(settings[1].cost.is_none());
         let hardening = parse_hardening(
-            r#"[{"name":"kernel","state":"on","title":"Kernel settings","text":"t","command":"ame security kernel","fixed":false,"default":"on","level":"standard","levels":["off","standard","strict"],"arguments":null},
+            r#"[{"name":"kernel","state":"on","title":"Kernel settings","text":"t","group":"system","command":"ame security kernel","fixed":false,"default":"on","level":"standard","levels":["off","standard","strict"],"arguments":null},
             {"name":"kernel-args","state":"on","title":"K","text":"t","fixed":true,"default":"on","level":null,"levels":null,"arguments":[{"argument":"init_on_alloc=1","state":"on","default":"on"}]}]"#,
         )
         .unwrap();
         assert_eq!(hardening[0].levels.as_deref(), Some(&["off".to_string(), "standard".into(), "strict".into()][..]));
         assert_eq!(hardening[0].level, "standard");
+        assert_eq!(hardening[0].group, "system");
         assert!(hardening[1].fixed);
         assert_eq!(hardening[1].arguments.as_ref().unwrap()[0].argument, "init_on_alloc=1");
         assert!(parse_hardening("{}").is_none());
@@ -1428,6 +1451,9 @@ mod tests {
         assert_eq!(change_command(s, Kind::Profile, "balanced", "", "").unwrap().last().unwrap(), "balanced");
         assert_eq!(change_command(s, Kind::Profile, "custom", "", ""), None);
         assert_eq!(change_command(None, Kind::Setting, "VIRUS_SCAN", "off", ""), None);
+        assert_eq!(duress_command("setup-password"), Some(vec![AME.into(), "security".into(), "duress".into(), "setup-password".into()]));
+        assert_eq!(duress_command("forget"), None);
+        assert_eq!(duress_command(""), None);
     }
 
     #[test]

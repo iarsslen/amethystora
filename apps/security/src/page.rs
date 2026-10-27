@@ -18,7 +18,7 @@ use amethystora_ui::{adw, gdk, glib, gtk, process, t};
 use gtk::prelude::*;
 
 use crate::art::{self, ScanGem, Shield};
-use crate::backend::{self, Check, Container, Entry, Event, Found, Hardening, Kind, Label, Machine, Network, NetworkEvent, Setting, Signatures};
+use crate::backend::{self, Check, Container, Entry, Event, Found, Hardening, Kind, Label, Machine, Network, NetworkEvent, Setting, Signatures, Switches};
 use crate::icons;
 use crate::{Begun, PageState, Security, Shown};
 
@@ -778,17 +778,30 @@ fn value_words(value: &str) -> String {
     }
 }
 
-/// The groups amethystora-security-config gives its switches
-fn switch_groups() -> [(&'static str, String); 7] {
+/// The Settings page's categories, which amethystora-security-config and amethystora-hardening give their switches:
+/// the id, the icon, and what it holds
+fn categories() -> [(&'static str, &'static str, String, String); 11] {
     [
-        ("watching", t!("Watching")),
-        ("audit", t!("What the audit log records")),
-        ("detection", t!("Looking for new threats")),
-        ("scans", t!("Scans")),
-        ("network", t!("Network")),
-        ("notices", t!("What is said")),
-        ("away", t!("Sends something off this machine")),
+        ("watching", "activity", t!("The security watcher"), t!("What it reads every 15 minutes, or as it happens: the journal, the settings against the image's, programs open to the network, and what each session finds first.")),
+        ("audit", "history", t!("What the audit log records"), t!("The kernel's own record of changes to accounts, to who may become root, to what starts by itself and to the drivers, which the watcher reads.")),
+        ("detection", "shield-alert", t!("Looking for new threats"), t!("Programs, secrets, memory and snapshots watched for what an attacker does. Off as the image ships: a profile above turns them on in one step.")),
+        ("scans", "scan", t!("Virus scans"), t!("When ClamAV and the settings audit run, the YARA rules they scan with, and what is done with what they find.")),
+        ("network", "globe", t!("Network"), t!("The firewall, how this machine shows itself on a network, its clock, and network protection's look at the traffic.")),
+        ("logins", "key", t!("Logins"), t!("Wrong passwords, logins over SSH, and a screen left locked.")),
+        ("devices", "plug", t!("Devices"), t!("What Bluetooth, the webcam, FireWire, virtual keyboards and the drives you plug in may do.")),
+        ("apps", "apps", t!("Apps and updates"), t!("What Flatpak apps can reach, which apps, extensions and packages may be installed, and the signature every update must carry.")),
+        ("system", "chip", t!("Kernel and boot"), t!("The kernel's settings and arguments, the drivers that may not load, the boot menu's password, and what a crash leaves behind.")),
+        ("notices", "info", t!("What is said"), t!("Which findings become a notification.")),
+        ("away", "arrow-right", t!("What leaves this machine"), t!("What it sends by itself, and the features that send something to somebody else, each explained before it is turned on.")),
     ]
+}
+
+/// How many of a category's switches are on, of how many
+fn on_count(switches: &Switches, group: &str) -> (usize, usize) {
+    let settings: Vec<&Setting> = switches.settings.iter().filter(|e| e.group == group).collect();
+    let hardening: Vec<&Hardening> = switches.hardening.iter().filter(|e| e.group == group).collect();
+    let on = settings.iter().filter(|e| e.value != "off" && e.value != "none").count() + hardening.iter().filter(|e| e.state == "on").count();
+    (on, settings.len() + hardening.len())
 }
 
 /// What a switch costs while it is on, from systemd's accounting: memory now, or its last run
@@ -820,15 +833,18 @@ fn nav_of(page: &str) -> &'static str {
         "network" => "network",
         "apps" => "apps",
         "containers" => "containers",
-        "settings" => "settings",
         "events" => "events",
+        page if page == "settings" || page.starts_with("settings/") => "settings",
         _ => "overview",
     }
 }
 
 /// ...and the recipe that does in a terminal what it does
 fn recipe(page: &str) -> &'static str {
-    match page {
+    if page == "settings/duress" {
+        return "ame security duress";
+    }
+    match nav_of(page) {
         "scan" => "ame security scan",
         "network" => "ame security connections",
         "apps" => "ame security apps",
@@ -967,7 +983,7 @@ impl Security {
         let state = self.state.borrow();
         let history = self.history.borrow();
         let current = nav_of(&state.page);
-        self.frame.terminal.set_label(recipe(current));
+        self.frame.terminal.set_label(recipe(&state.page));
         let items = attention_items(&state, &history);
         let machine = state.scanner.as_ref().map(|s| &s.machine);
         let busy = state.running.is_some() || machine.is_some_and(|m| m.running);
@@ -1022,6 +1038,8 @@ impl Security {
             "apps" => self.apps_page(),
             "containers" => self.containers_page(),
             "settings" => self.settings_page(),
+            "settings/duress" => self.duress_page(),
+            page if page.starts_with("settings/") => self.category_page(&page["settings/".len()..]),
             "events" => self.events_page(),
             _ => self.overview_page(),
         }
@@ -2710,29 +2728,81 @@ impl Security {
         row
     }
 
+    /// A category's switches: what watches and records, which a profile sets, then what the image enforces, then the
+    /// stricter ones, each under its own heading when there are more kinds than one
+    fn category_sections(&self, switches: &Switches, group: &str) -> Vec<gtk::Widget> {
+        let watching: Vec<gtk::Widget> = switches.settings.iter().filter(|e| e.group == group).map(|e| self.switch_row(e).upcast()).collect();
+        let enforced: Vec<gtk::Widget> =
+            switches.hardening.iter().filter(|e| e.group == group && e.default != "off").map(|e| self.enforced_row(e).upcast()).collect();
+        let stricter: Vec<gtk::Widget> =
+            switches.hardening.iter().filter(|e| e.group == group && e.default == "off").map(|e| self.enforced_row(e).upcast()).collect();
+        let kinds = [&watching, &enforced, &stricter].iter().filter(|rows| !rows.is_empty()).count();
+        if kinds < 2 {
+            return vec![list_card(watching.into_iter().chain(enforced).chain(stricter).collect()).upcast()];
+        }
+        let mut sections: Vec<gtk::Widget> = Vec::new();
+        if !watching.is_empty() {
+            sections.push(section(&t!("What watches and records"), &list_card(watching), Some(&t!("A profile sets these"))).upcast());
+        }
+        if !enforced.is_empty() {
+            sections.push(section(&t!("What the image enforces"), &list_card(enforced), Some(&t!("No profile changes these"))).upcast());
+        }
+        if !stricter.is_empty() {
+            sections.push(section(&t!("Stricter, off unless you turn them on"), &list_card(stricter), Some(&t!("Each costs something a desktop may need"))).upcast());
+        }
+        sections
+    }
+
+    /// A tile on the Settings page that opens a page of its own
+    fn category_tile(&self, icon: &str, title: &str, text: &str, state: &str, page: String) -> gtk::Widget {
+        let tile = ui::vbox(12, &["tile", "card"]);
+        let square = tinted(&["tile-icon", "tone", "accent"], icons::icon(icon, 20));
+        square.set_halign(gtk::Align::Start);
+        tile.append(&square);
+        let words = ui::vbox(4, &["tile-text"]);
+        words.set_vexpand(true);
+        words.append(&wrapping(title, &["h3"]));
+        words.append(&wrapping(text, &["p"]));
+        tile.append(&words);
+        let foot = ui::hbox(8, &["tile-foot"]);
+        let state = wrapping(state, &["tile-state"]);
+        state.set_hexpand(true);
+        state.set_valign(gtk::Align::Center);
+        foot.append(&state);
+        let button = self.button(&t!("Open"), Opts { small: true, ..Default::default() }, move |this| this.show(&page, None));
+        button.update_property(&[gtk::accessible::Property::Label(&t!("Open {category}", category = title))]);
+        button.set_valign(gtk::Align::Center);
+        foot.append(&button);
+        tile.append(&foot);
+        tile.upcast()
+    }
+
     fn settings_page(&self) -> gtk::Widget {
         let switches = self.state.borrow().switches.clone();
         let mut sections: Vec<gtk::Widget> = Vec::new();
+        let mut tiles: Vec<gtk::Widget> = Vec::new();
         match &switches {
             None => sections.push(empty(&t!("Reading…")).upcast()),
             Some(switches) if switches.error.is_some() && switches.settings.is_empty() => sections.push(empty(switches.error.as_deref().unwrap_or("")).upcast()),
             Some(switches) => {
-                for (group, title) in switch_groups() {
-                    let rows: Vec<gtk::Widget> = switches.settings.iter().filter(|entry| entry.group == group).map(|entry| self.switch_row(entry).upcast()).collect();
-                    if !rows.is_empty() {
-                        sections.push(section(&title, &list_card(rows), None).upcast());
+                for (group, icon, title, text) in categories() {
+                    let (on, count) = on_count(switches, group);
+                    if count > 0 {
+                        let state = t!("{on} of {count} on", on = i18n::number(on as f64), count = i18n::number(count as f64));
+                        tiles.push(self.category_tile(icon, &title, &text, &state, format!("settings/{group}")));
                     }
-                }
-                let enforced: Vec<gtk::Widget> = switches.hardening.iter().filter(|entry| entry.default != "off").map(|entry| self.enforced_row(entry).upcast()).collect();
-                let stricter: Vec<gtk::Widget> = switches.hardening.iter().filter(|entry| entry.default == "off").map(|entry| self.enforced_row(entry).upcast()).collect();
-                if !enforced.is_empty() {
-                    sections.push(section(&t!("What the image enforces"), &list_card(enforced), Some(&t!("No profile changes these"))).upcast());
-                }
-                if !stricter.is_empty() {
-                    sections.push(section(&t!("Stricter, off unless you turn them on"), &list_card(stricter), Some(&t!("Each costs something a desktop may need"))).upcast());
                 }
             }
         }
+        // Says nothing of whether this account has one, as the report does not
+        tiles.push(self.category_tile(
+            "fingerprint",
+            &t!("Under duress"),
+            &t!("A finger or a password that unlocks this machine as usual when someone makes you, and runs an action you chose."),
+            "",
+            "settings/duress".into(),
+        ));
+        sections.push(section(&t!("By what it is about"), &self.grid(tiles, "tiles", true), None).upcast());
         let profile = switches.as_ref().map(|s| s.profile.clone()).filter(|p| !p.is_empty()).unwrap_or_else(|| "custom".into());
         let profiles: Vec<(String, String)> = vec![("light".into(), t!("Light")), ("balanced".into(), t!("Balanced")), ("thorough".into(), t!("Thorough"))];
         let choose = self.segmented(&t!("Profile"), &profiles, &profile, |this, name| {
@@ -2772,6 +2842,92 @@ impl Security {
         children.push(actions(vec![self.manual_link(&t!("Switches in the manual"), "security#switches").upcast()]).upcast());
         Self::page(children)
     }
+
+    fn settings_back(&self) -> gtk::Widget {
+        self.link_button(&t!("Settings"), Some("arrow-left"), true, false, |this| this.show("settings", None)).upcast()
+    }
+
+    /// One category's switches, a page of their own
+    fn category_page(&self, group: &str) -> gtk::Widget {
+        let Some((_, _, title, text)) = categories().into_iter().find(|(id, ..)| *id == group) else { return self.settings_page() };
+        let switches = self.state.borrow().switches.clone();
+        let mut children: Vec<gtk::Widget> = vec![self.settings_back(), page_head(&title, &text).upcast()];
+        match &switches {
+            None => children.push(empty(&t!("Reading…")).upcast()),
+            Some(switches) if switches.error.is_some() && switches.settings.is_empty() => children.push(empty(switches.error.as_deref().unwrap_or("")).upcast()),
+            Some(switches) => children.extend(self.category_sections(switches, group)),
+        }
+        children.push(actions(vec![self.manual_link(&t!("Switches in the manual"), "security#switches").upcast()]).upcast());
+        Self::page(children)
+    }
+
+    /// A step of `ame security duress`, in a terminal
+    fn duress_row(&self, title: &str, text: &str, label: &str, step: &'static str) -> gtk::Widget {
+        let row = ui::hbox(18, &["list-row", "switch-row"]);
+        let words = ui::vbox(3, &["grow"]);
+        words.set_hexpand(true);
+        words.append(&wrapping(title, &["strong"]));
+        words.append(&wrapping(text, &["small-text"]));
+        row.append(&words);
+        let button = self.button(label, Opts { icon: Some("terminal"), small: true, ..Default::default() }, move |_| backend::duress(step));
+        button.update_property(&[gtk::accessible::Property::Label(title)]);
+        button.set_valign(gtk::Align::Start);
+        row.append(&button);
+        row.upcast()
+    }
+
+    /// The duress finger and password: every step in a terminal, and nothing read, so that the page looks the same
+    /// whether this account has one or not
+    fn duress_page(&self) -> gtk::Widget {
+        let finger = list_card(vec![
+            self.duress_row(
+                &t!("Set up a duress finger"),
+                &t!("Enrols one more finger on the reader, checks with a touch of each that the reader tells it from your others, and asks for its action. It needs an ordinary finger enrolled first, and a reader that compares a touch with every finger at once."),
+                &t!("Set up…"),
+                "setup",
+            ),
+            self.duress_row(&t!("Test my duress finger"), &t!("Touch the reader once: it says whether that was the duress finger, and never runs the action."), &t!("Test…"), "test"),
+            self.duress_row(&t!("Change the duress finger's action"), &t!("Shows the new action in full before it is kept."), &t!("Change…"), "action-fingerprint"),
+            self.duress_row(&t!("Remove my duress finger"), &t!("It stops running the action, and you choose whether it stays on the reader as an ordinary finger."), &t!("Remove…"), "remove"),
+        ]);
+        let password = list_card(vec![
+            self.duress_row(
+                &t!("Set up a duress password"),
+                &t!("A second password, only yours, typed twice and kept only as a hash, then its action. It needs no fingerprint reader. Keep it different from your login password: the same one never runs the action."),
+                &t!("Set up…"),
+                "setup-password",
+            ),
+            self.duress_row(&t!("Change the duress password's action"), &t!("Shows the new action in full before it is kept."), &t!("Change…"), "action-password"),
+            self.duress_row(&t!("Remove my duress password"), &t!("Your login password is not touched."), &t!("Remove…"), "remove-password"),
+        ]);
+        let everyone = list_card(vec![self.duress_row(
+            &t!("Turn off for everyone"),
+            &t!("Forgets every account's duress finger, password and both actions. The fingers stay, as ordinary ones."),
+            &t!("Turn off…"),
+            "off",
+        )]);
+        let children: Vec<gtk::Widget> = vec![
+            self.settings_back(),
+            page_head(
+                &t!("Under duress"),
+                &t!("A duress finger or password unlocks this machine at the login screen and the lock screen like your own, so nothing looks different. At sudo, administrator prompts, a text console and over SSH it is refused, as one that did not match. Either way the action you chose runs as root, once until the next start, and nothing about it reaches the journal. Each step opens in a terminal and asks for an administrator's password; this page shows nothing about whether you have one."),
+            )
+            .upcast(),
+            callout(
+                "info",
+                &t!("What it cannot do"),
+                &t!("It cannot stop anyone asking for your password instead, nor help against a copy of the disk made before, and anyone with root on this machine can read how it is set up. In many places, destroying data while compelled by the authorities is an offence of its own. What the action does is yours to decide: none of the examples destroys anything."),
+                None,
+            )
+            .upcast(),
+            section(&t!("Duress finger"), &finger, None).upcast(),
+            section(&t!("Duress password"), &password, None).upcast(),
+            section(&t!("Every account"), &everyone, None).upcast(),
+            actions(vec![self.manual_link(&t!("Duress in the manual"), "security#a-duress-finger-or-password").upcast()]).upcast(),
+        ];
+        Self::page(children)
+    }
+
 }
 
 #[cfg(test)]

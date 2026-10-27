@@ -254,8 +254,11 @@ weekly scan and real-time scanning logged. While the virus scanner is off, the p
 
 ## Settings
 
-The **Settings** page of the Security app lists every switch, with what each does and, while it runs,
-what it costs, and every change there opens in a terminal that says what it changes. In a terminal:
+The **Settings** page of the Security app sorts every switch by what it is about: the security watcher,
+the audit log, looking for new threats, virus scans, the network, logins, devices, apps and updates, the
+kernel and boot, what is said, and what leaves this machine. Each category is a tile that says how many of
+its switches are on; **Open** shows them, with what each does and, while it runs, what it costs. Every change
+there opens in a terminal that says what it changes. In a terminal:
 
 ```bash
 ame security settings                        # every setting, its value and its name
@@ -593,7 +596,8 @@ A duress finger, or a duress password, is a second way to unlock the machine, fo
 unlock it in front of them. At the login screen and the lock screen it unlocks the machine like your
 usual finger or password, so nothing looks different. At `sudo`, administrator prompts, the text consoles
 and over SSH it is refused, as a finger or a password that did not match, so it never hands over
-administrator rights. Either way, an action you chose beforehand runs as root, once until the next start:
+administrator rights. Either way, an action you chose beforehand runs as root, once until the next start.
+Set it up in the Security app, **Settings**, **Under duress**, whose every step opens in a terminal, or:
 
 ```bash
 ame security duress

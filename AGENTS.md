@@ -613,7 +613,10 @@ cannot be fixed on the machine, and `ame security allow KEY ENTRY` quietens a pa
 keeps finding (`/usr/libexec/amethystora-security-allow`, which holds each feature's entry shape). Every
 finding has an id, and a fact `allow=` when it can be allowed: **Allow…** on the Events page sends the id
 only, and the program passes the entry the event holds. `test-security-switches.sh` checks all of it. A new
-feature gets its switch with it, off by default.
+feature gets its switch with it, off by default, and a category: the app's Settings page shows the switches by
+the `group` each helper gives them (`GROUP` in both), a category a page, whose ids and words are `categories()`
+in `apps/security/src/page.rs`. Its **Under duress** page only starts `ame security duress` steps in a terminal
+and reads nothing, so that it looks the same whether an account has a duress finger or not.
 
 **What looks for new threats** is the watcher's too, each part a key in group `detection` (or `network`,
 `scans`), off as the image ships: `PROCESSES` (/proc read in a few bounded passes, never a fork per

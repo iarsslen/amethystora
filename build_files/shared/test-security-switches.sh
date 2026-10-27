@@ -199,6 +199,9 @@ HARDENING=/usr/libexec/amethystora-hardening
 export AMETHYSTORA_HARDENING_ROOT="${T}/hardening"
 mkdir -p "${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora"
 "${HARDENING}" is-on firewall || fail "a prevention switch is off by default"
+# Every switch has its category on the Settings page
+"${HARDENING}" status --json | jq -e 'length > 20 and all(.[]; .group | IN("audit", "network", "logins", "devices",
+    "apps", "system", "away"))' >/dev/null || fail "a prevention switch with no category"
 [[ -z "$("${HARDENING}" managed)" ]] || fail "a switch that is on manages a file"
 printf 'kernel\nfirewall\nfirewire\nkernel-args init_on_alloc=1\nipv6-privacy\n' >"${AMETHYSTORA_HARDENING_ROOT}/etc/amethystora/hardening-off"
 "${HARDENING}" is-on firewall && fail "firewall is off"

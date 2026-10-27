@@ -51,6 +51,15 @@ declare -A SENDS=([countme]="Fedora" [connectivity-check]="Fedora" [firmware-met
 STRICTER=(time firewall-away network-daemons block-bluetooth block-webcam block-automount block-user-extensions
     block-xwayland flathub-verified flatpak-password noexec-temp no-coredumps package-cooldown brew-attestations
     boot-password locked-poweroff audit-locked vscodium-extensions)
+# The Settings page's category of each switch, beside the detection switches' own (amethystora-security-config)
+declare -A GROUP=([kernel]=system [blocked-modules]=system [firewire]=devices [kernel-args]=system [firewall]=network
+    [failed-logins]=logins [lockout]=logins [app-sandbox]=apps [virtual-input]=devices [ssh-settings]=logins
+    [signed-updates]=apps [ipv6-privacy]=network [bluetooth-privacy]=devices [countme]=away [connectivity-check]=away
+    [firmware-metadata]=away [time]=network [firewall-away]=network [network-daemons]=network [block-bluetooth]=devices
+    [block-webcam]=devices [block-automount]=devices [block-user-extensions]=apps [block-xwayland]=apps
+    [flathub-verified]=apps [flatpak-password]=apps [noexec-temp]=system [no-coredumps]=system [package-cooldown]=apps
+    [brew-attestations]=apps [boot-password]=system [locked-poweroff]=logins [audit-locked]=audit
+    [vscodium-extensions]=apps)
 # The switches with a level above on, and their levels
 declare -A LEVELS=([kernel]="off standard strict" [package-cooldown]="off on strict")
 # Kernel arguments a switch adds one by one, off until turned on, each with what it puts on the command line
@@ -1000,7 +1009,7 @@ status() {
             fixed=false
             { [[ "${name}" == kernel-args || "${name}" == boot-password || "${name}" == countme ]] && sealed; } && fixed=true
             jq -nc --arg name "${name}" --arg state "${state}" --arg title "${TITLE[${name}]}" \
-                --arg text "${TEXT[${name}]}" --argjson fixed "${fixed}" \
+                --arg text "${TEXT[${name}]}" --arg group "${GROUP[${name}]}" --argjson fixed "${fixed}" \
                 --arg default "$(stricter "${name}" && echo off || echo on)" \
                 --arg level "$([[ -n "${LEVELS[${name}]+set}" ]] && level "${name}")" \
                 --arg levels "${LEVELS[${name}]:-}" --arg sends "${SENDS[${name}]:-}" \
@@ -1011,7 +1020,7 @@ status() {
                             '{$argument, $state, $default}'
                     done | jq -sc .
                 else echo null; fi)" \
-                '{$name, $state, $title, $text, command: ("ame security " + $name), $fixed, $default,
+                '{$name, $state, $title, $text, $group, command: ("ame security " + $name), $fixed, $default,
                   sends: (if $sends == "" then null else $sends end),
                   level: (if $level == "" then null else $level end),
                   levels: (if $levels == "" then null else ($levels | split(" ")) end),
