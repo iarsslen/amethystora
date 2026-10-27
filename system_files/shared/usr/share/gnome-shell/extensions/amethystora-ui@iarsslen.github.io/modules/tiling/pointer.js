@@ -385,7 +385,7 @@ export class Pointer {
             }
         }
         const reach = BETWEEN + Layout.GAP / 2;
-        for (let c = 0; c <= geo.columns.length && !zone; c++) {
+        for (let c = 0; geo.columns.length && c <= geo.columns.length && !zone; c++) {
             const left = geo.area.x + geo.scroll + (c < geo.columns.length ? geo.columns[c].x
                 : geo.columns.at(-1).x + geo.columns.at(-1).width + Layout.GAP);
             const centre = left - Layout.GAP / 2;
@@ -425,9 +425,14 @@ export class Pointer {
                 }
             }
         }
-        // The last place shown stays the target until another one is reached
-        if (!zone || (drag.zone && drag.zone.strip === strip && zone.column === drag.zone.column &&
-            zone.row === drag.zone.row))
+        // The last place shown stays the target until another one is reached, on its own screen only: one shown on a
+        // screen the pointer passed through on its way further would take the window back there
+        if (!zone) {
+            if (drag.zone && drag.zone.strip !== strip)
+                this._clearZone();
+            return;
+        }
+        if (drag.zone && drag.zone.strip === strip && zone.column === drag.zone.column && zone.row === drag.zone.row)
             return;
         zone.strip = strip;
         drag.zone = zone;
@@ -452,6 +457,16 @@ export class Pointer {
         this._engine.boxHidden++;
         this._engine.updateBox(this._drag.zone.strip);
         this._engine.boxHidden--;
+    }
+
+    // No place is the target any more: the drop goes to the strip of the screen under the pointer
+    _clearZone() {
+        const old = this._zoneActor;
+        this._zoneActor = null;
+        old?.ease({scale_x: 0, scale_y: 0, opacity: 0, duration: config.animation, onStopped: () => old.destroy()});
+        const strip = this._drag.zone.strip;
+        this._drag.zone = null;
+        this._engine.updateBox(strip);
     }
 
     // Near a side of the screen the strip under a dragged window drifts that way; not at a side another screen is on,
