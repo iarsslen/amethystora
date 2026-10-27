@@ -212,7 +212,6 @@ choice duotone "$(gettext "Duotone")" "$(gettext "Each icon in a gradient, its d
 choice line "$(gettext "Line")" "$(gettext "One even outline, in colours that read on every theme")" false ame desktop icons line
 choice clay "$(gettext "Clay")" "$(gettext "Soft matte volumes, a highlight above and a shade below")" false ame desktop icons clay
 choice muted "$(gettext "Muted")" "$(gettext "Glass in quieter colours, for themes of low chroma")" false ame desktop icons muted
-choice pixel "$(gettext "Pixel")" "$(gettext "Duotone on a grid of 16 pixels")" false ame desktop icons pixel
 choice theme "$(gettext "Follow the theme")" "$(eval_gettext "The theme's own: \${own}")" false ame desktop icons theme
 USAGE="ame desktop icons PACK"
 item appearance icons choice "$(gettext "Icons")" \

@@ -1286,7 +1286,7 @@ grep -q "^DEFAULT_ICON_THEME=amethystora-glass$" /usr/lib/amethystora/theme/lib.
 # ...and past the one that moved the default from candy-icons to the Amethystora packs
 [[ "$(sed -n 's/^version-script theme user \([0-9]\+\).*/\1/p' \
     /usr/share/amethystora/user-setup.hooks.d/11-theme.sh)" -ge 8 ]]
-# The nine icon packs branding/icons.mjs draws: Glass is the default and Glass for light follows a light theme, each theme
+# The eight icon packs branding/icons.mjs draws: Glass is the default and Glass for light follows a light theme, each theme
 # names the one that suits its colours and style (icons.theme), and every one is chosen with `ame desktop icons`. They
 # draw the same names, no logo of anybody else's and no symbolic icons (the panel keeps Adwaita's), and every launcher
 # of this image finds its icon in each of them.
@@ -1297,8 +1297,8 @@ GLASS_ICONS="$(find /usr/share/icons/amethystora-glass -name '*.svg' | wc -l)"
 [[ -s /usr/share/icons/amethystora-glass/apps/scalable/org.kde.konsole.svg ]]
 [[ -z "$(find /usr/share/icons/amethystora-glass -name 'firefox.svg' -o -name 'org.mozilla.*')" ]]
 ICON_PACK_NAMES="$(source /usr/lib/amethystora/theme/lib.sh && echo "${ICON_PACKS[*]}")"
-[[ "$(wc -w <<<"${ICON_PACK_NAMES}")" == 9 ]]
-[[ "$(find /usr/share/icons -maxdepth 1 -name 'amethystora-*' | wc -l)" == 9 ]]
+[[ "$(wc -w <<<"${ICON_PACK_NAMES}")" == 8 ]]
+[[ "$(find /usr/share/icons -maxdepth 1 -name 'amethystora-*' | wc -l)" == 8 ]]
 for pack in ${ICON_PACK_NAMES}; do
     PACK_DIR="/usr/share/icons/amethystora-${pack}"
     grep -q "^Name=Amethystora " "${PACK_DIR}/index.theme"

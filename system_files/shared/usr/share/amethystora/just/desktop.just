@@ -56,7 +56,7 @@ transition STYLE="" DURATION="":
     echo "$(eval_gettext "Transition set to \${style}, taking \${length} ms.")"
     echo "$(gettext "Super+Ctrl+Space changes the wallpaper to show it.")"
 
-# Pick the icon pack (glass, glass-light, neon, neon-light, duotone, line, clay, muted or pixel), or theme to follow the theme's own
+# Pick the icon pack (glass, glass-light, neon, neon-light, duotone, line, clay or muted), or theme to follow the theme's own
 [positional-arguments]
 icons PACK="":
     #!/usr/bin/bash
@@ -79,7 +79,6 @@ icons PACK="":
         echo "line         $(gettext "One even outline, in colours that read on every theme")"
         echo "clay         $(gettext "Soft matte volumes, a highlight above and a shade below")"
         echo "muted        $(gettext "Glass in quieter colours, for themes of low chroma")"
-        echo "pixel        $(gettext "Duotone on a grid of 16 pixels")"
         echo "theme        $(gettext "Whatever the theme chooses")"
         pack="$(gum choose --header "$(eval_gettext "Icons (current: \${current})")" --selected "${current}" "${ICON_PACKS[@]}" theme)"
     fi

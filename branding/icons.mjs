@@ -1,4 +1,4 @@
-// The Amethystora icon packs: one set of glyphs (icons/glyphs.mjs), each icon in colours of its own, drawn nine ways.
+// The Amethystora icon packs: one set of glyphs (icons/glyphs.mjs), each icon in colours of its own, drawn eight ways.
 //
 //   Glass    the glyph filled with its gradient, its details lighter, a glass sheen inside and a shadow below
 //   Neon     the glyph's outline and its details lit in a three-colour prism, glowing
@@ -6,7 +6,6 @@
 //   Line     one even outline, in colours that read on every theme's ground
 //   Clay     soft matte volumes: a highlight above, a shade below, a soft shadow
 //   Muted    Glass in quieter colours with half the sheen, for the themes of low chroma
-//   Pixel    Duotone snapped to a grid of 16 pixels
 //   Glass for light, Neon for light   the same drawings with every colour deepened, to read on a light ground
 //
 // Each theme names the pack that suits its colours and style (themes/*/icons.theme); every pack's colours are held to
@@ -496,17 +495,6 @@ const PACKS = {
         ramp: ([fill, prism, contrast]) => [fill.map(hex => band(mute(hex, 0.42), 0.22, 0.75)), prism.map(hex => band(mute(hex, 0.42), 0.22, 0.75)),
             contrast.map(hex => mute(hex, 0.5, 0.02))],
         draw: drawGlass({white: 0.5, shade: '#0b0f14', opacity: 0.4, dy: 8, blur: 8, sheen: 0.25}),
-    },
-    pixel: {
-        name: 'Amethystora Pixel',
-        comment: 'Duotone snapped to a grid of 16 pixels',
-        // Each tile of the grid is one flat colour: the glyph's centre sampled by a one-pixel flood tiled over the
-        // canvas, and every sample grown to the tile
-        draw: (glyph, [fill, , contrast]) => svg(gradient('g', fill) + gradient('h', contrast) +
-            '<filter id="p" x="0" y="0" width="100%" height="100%" filterUnits="userSpaceOnUse">' +
-            '<feFlood x="8" y="8" width="1" height="1" flood-color="#000"/><feComposite width="16" height="16"/><feTile result="dots"/>' +
-            '<feComposite in="SourceGraphic" in2="dots" operator="in"/><feMorphology operator="dilate" radius="8"/></filter>',
-        `<g filter="url(#p)">${glyph({ink: 'url(#g)', soft: 'url(#h)'})}</g>`),
     },
 };
 const drawn = (id, glyph, ramp) => PACKS[id].draw(DRAW[glyph], (PACKS[id].ramp ?? (r => r))(RAMPS[ramp]));

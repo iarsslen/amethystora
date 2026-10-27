@@ -57,7 +57,7 @@ IMAGE_SETUP_DIR=/usr/share/amethystora/image-setup
 # other in 20-tests.sh.
 DEFAULT_ICON_THEME=amethystora-glass
 DEFAULT_LIGHT_ICON_THEME=amethystora-glass-light
-ICON_PACKS=(glass glass-light neon neon-light duotone line clay muted pixel)
+ICON_PACKS=(glass glass-light neon neon-light duotone line clay muted)
 
 # The desktop styles, each drawn by Amethystora UI (themed/shell-styles.css.tpl) and in the applications
 # (themed/style-<style>.gtk.css.tpl): the shape of the top bar, menus, notifications, dialogs, on-screen alerts,

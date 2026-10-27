@@ -13,7 +13,7 @@ these commands in the agent's own shell, as the user. Read before writing, chang
 - Accent colour: the theme's own (the apps' palette layer, `~/.config/gtk-4.0/gtk.css`, written by a theme switch);
   `gsettings set org.gnome.desktop.interface accent-color purple` only moves GNOME's nearest of nine, which the shell
   and the apps no longer take.
-- Icons: `ame desktop icons glass|glass-light|neon|neon-light|duotone|line|clay|muted|pixel|theme`, not
+- Icons: `ame desktop icons glass|glass-light|neon|neon-light|duotone|line|clay|muted|theme`, not
   `gsettings set ... icon-theme`, which the next theme switch writes over.
 - Font: `ame desktop font "<family>"|theme`, not `gsettings set ... font-name`, which the next theme switch writes over.
   The monospace font (terminal, code, Text Editor) is `ame desktop mono-font "<family>"|theme`, not

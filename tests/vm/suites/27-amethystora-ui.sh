@@ -4,7 +4,7 @@
 # own to walk (client windows give no positions on Wayland), so it asks what the image can say for sure:
 #   - the extension is active, no module said it did not start, none threw, and none of what it replaced is installed;
 #   - the tiling is one switch: classic gives GNOME's Super+N back, tiling takes it again, and the state file says so;
-#   - the icon packs, nine: Glass on a dark theme, Glass for light on a light one, any by choice, candy-icons refused, every launcher's
+#   - the icon packs, eight: Glass on a dark theme, Glass for light on a light one, any by choice, candy-icons refused, every launcher's
 #     icon and other makers' apps found in each pack by GTK itself, and Firefox keeping its own;
 #   - the window lights are in the account's GTK 4 and GTK 3 stylesheets;
 #   - the dock is on the bottom of the screen, in the shell's accessibility tree;
@@ -130,7 +130,7 @@ names |= {'folder', 'text-x-generic', 'application-pdf', 'user-trash', 'org.gnom
 names |= {'htop', 'nvtop', 'org.gnome.Shell.Extensions', 'org.kde.konsole', 'org.gnome.Geary', 'text-x-python',
           'application-zip', 'dialog-warning', 'network-wireless'}
 bad = 0
-for pack in ('glass', 'glass-light', 'neon', 'neon-light', 'duotone', 'line', 'clay', 'muted', 'pixel'):
+for pack in ('glass', 'glass-light', 'neon', 'neon-light', 'duotone', 'line', 'clay', 'muted'):
     theme = Gtk.IconTheme()
     theme.set_search_path(['/usr/share/icons'])
     theme.set_theme_name('amethystora-' + pack)
@@ -155,7 +155,7 @@ chmod -R a+rX "${OWN}"
 out="$(user_bus python3 "${OWN}/icons.py" 2>&1)"
 status=$?
 if [[ ${status} == 0 ]]; then
-    ok "GTK finds every launcher's icon, and the common ones, in each of the nine packs, and Firefox keeps its own"
+    ok "GTK finds every launcher's icon, and the common ones, in each of the eight packs, and Firefox keeps its own"
 else
     not_ok "GTK cannot find an icon in a pack" "${out}"
 fi

@@ -198,10 +198,9 @@ that reads on its ground and suits its style:
 | --- | --- | --- |
 | **Glass** | A gradient with a glass sheen | Amethystora |
 | **Glass for light** | The same, its colours deepened to read on a light ground | Amethystora Light |
-| **Duotone** | A gradient, its details in a contrasting one | Catppuccin Mocha |
+| **Duotone** | A gradient, its details in a contrasting one | Catppuccin Mocha, Gruvbox |
 | **Clay** | A soft matte volume, a highlight above and a shade below | Catppuccin Latte, Rosé Pine Dawn |
 | **Muted** | Glass in quieter colours with half the sheen | Everforest, Nord |
-| **Pixel** | Duotone on a grid of 16 pixels | Gruvbox |
 | **Line** | One even outline, in colours that read on every theme | Matte Black |
 | **Neon** | Outlines lit in colours of their own | Tokyo Night |
 | **Neon for light** | Neon, its colours deepened for a light ground | None: pick it on a light theme |
@@ -215,7 +214,7 @@ others like them show the icon their maker drew, exactly as it ships, with no ti
 a logo is a trademark, and how it looks is its owner's to decide. That is why the dock can mix the two.
 
 `ame desktop icons clay` (or the name of any pack: `glass`, `glass-light`, `neon`, `neon-light`, `duotone`,
-`line`, `clay`, `muted`, `pixel`) picks one whatever the theme, and
+`line`, `clay`, `muted`) picks one whatever the theme, and
 `ame desktop icons theme` goes back to what the theme chooses. Control has the same choice under
 Appearance.
 

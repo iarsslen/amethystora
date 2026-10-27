@@ -1178,13 +1178,13 @@ in `plans/amethystora-connect/` are the protocol, the plugins and the desktop si
 
 ### The icon packs
 
-`amethystora-glass`, `-glass-light`, `-neon`, `-neon-light`, `-duotone`, `-line`, `-clay`, `-muted` and `-pixel`
+`amethystora-glass`, `-glass-light`, `-neon`, `-neon-light`, `-duotone`, `-line`, `-clay` and `-muted`
 (`system_files/shared/usr/share/icons`, Apache-2.0) are drawn in code by `node branding/icons.mjs` from the glyphs in `branding/icons/glyphs.mjs`, each icon in colours of its own
-(the maintainer's choice of 2026-10-23, from the design canvas: Neon, Glass and Duotone; the other six are the choice of
-2026-10-25, from the theming board: packs that read on every ground a theme can have, and one for each style). Glass is
+(the maintainer's choice of 2026-10-23, from the design canvas: Neon, Glass and Duotone; the other five are the choice of
+2026-10-25, from the theming board: packs that read on every ground a theme can have, and one for each style; Pixel, drawn then, was dropped on 2026-10-27). Glass is
 the default (`DEFAULT_ICON_THEME` in `lib.sh`, and `icon-theme` in `zz1-amethystora-modifications`, which `20-tests.sh`
 compares), Glass for light follows a light theme, and each theme names the pack that suits its colours and style in its
-`icons.theme` (Catppuccin Mocha Duotone, Latte and Rosé Pine Dawn Clay, Everforest and Nord Muted, Gruvbox Pixel, Matte Black
+`icons.theme` (Catppuccin Mocha and Gruvbox Duotone, Latte and Rosé Pine Dawn Clay, Everforest and Nord Muted, Matte Black
 Line, Tokyo Night Neon). The "for light" packs deepen every colour of a ramp in OKLab lightness until it reads at 3:1 on a
 light ground, Line and Clay hold theirs in a band that reads on the grounds of all ten themes (`band()` in `icons.mjs`:
 measure a pack's ramps, never judge them by eye), and
@@ -1198,7 +1198,7 @@ Thunderbird, Steam, VSCodium, LibreOffice...) keeps the icon it ships, bare, on 
 app's glyph its own: another maker's backup or notes app gets a glyph of its own. To add an icon, draw a glyph (two inks:
 the body, and the details over it, never a hole cut into it; `line()` draws a straight line along an axis as a bar, since
 a box with no width takes no gradient), add a line to `SET` with its ramp and the names it answers to, and run the script;
-`20-tests.sh` holds the nine packs to the same number of icons, no symbolic icons and no links, and the icon of every `amethystora-*.desktop` launcher to a file in each; suite 27 asks GTK itself and counts only the pack's own file.
+`20-tests.sh` holds the eight packs to the same number of icons, no symbolic icons and no links, and the icon of every `amethystora-*.desktop` launcher to a file in each; suite 27 asks GTK itself and counts only the pack's own file.
 
 ### Colours in applications
 

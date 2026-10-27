@@ -34,6 +34,8 @@
 #  13  the palette layer in the GTK stylesheets (themed/palette-gtk*.css.tpl, in place of the Sweet import), each
 #      style's shape (themed/style-base.gtk.css.tpl), the themes' monospace fonts (mono.theme), the nine icon packs
 #      and the shell's search box, Bazaar and clipboard colours: all written only when the theme is applied again.
+#  14  the Pixel icon pack gone from the image: an account that chose it is put back on the theme's own pack, and
+#      Gruvbox, whose pack it was, now names Duotone.
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
@@ -42,9 +44,11 @@ source /usr/lib/amethystora/setup-services/libsetup.sh
 # chose in GNOME Settings included: the theme is applied again without picking a new one.
 PREVIOUS="$(jq -r '.version.user.theme // 0' "${SETUP_CHECKER_FILE}" 2>/dev/null || echo 0)"
 
-version-script theme user 13 || exit 0
+version-script theme user 14 || exit 0
 
 [[ "$(cat "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons" 2>/dev/null)" == candy-icons ]] &&
+    rm -f "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons"
+[[ "$(cat "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons" 2>/dev/null)" == amethystora-pixel ]] &&
     rm -f "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons"
 
 set -xeuo pipefail

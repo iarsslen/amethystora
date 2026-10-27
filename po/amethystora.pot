@@ -1849,14 +1849,6 @@ msgid "Glass in quieter colours, for themes of low chroma"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
-msgid "Pixel"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
-msgid "Duotone on a grid of 16 pixels"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
 msgid "Follow the theme"
 msgstr ""
 

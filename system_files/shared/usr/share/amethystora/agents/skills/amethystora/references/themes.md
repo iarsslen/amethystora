@@ -11,7 +11,7 @@ system, the first one is what the theme opens on), `backgrounds/`.
   differ; they are copied over the shipped ones. A directory that exists only there is a new theme.
 - Change how a config is rendered: copy the template from `/usr/share/amethystora/themed/` to
   `~/.config/amethystora/themed/` and edit the copy.
-- Icons: nine packs, `ame desktop icons glass|glass-light|neon|neon-light|duotone|line|clay|muted|pixel|theme`. The choice is
+- Icons: eight packs, `ame desktop icons glass|glass-light|neon|neon-light|duotone|line|clay|muted|theme`. The choice is
   kept in `~/.config/amethystora/icons`, which wins over the theme's own `icons.theme`; `theme` removes it. Without either,
   a dark theme gets Glass and a light one Glass for light.
 - Style, the shape of the whole desktop (top bar, menus, notifications, dialogs, OSDs, buttons, the applications'

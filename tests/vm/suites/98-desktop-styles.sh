@@ -260,7 +260,7 @@ list="$(user_bus systemd-run --user --pipe --wait --quiet --collect --setenv=LC_
 # is drawn in itself, and the four that make a look sit together, the theme first
 if jq -e '
     ([.items[] | select(.id == "style") | .choices[].value] | sort == (["capsule","floating","hairline","islands","neon","segments","terminal","theme"]))
-    and ([.items[] | select(.id == "icons") | .choices[].value] | sort == (["clay","duotone","glass","glass-light","line","muted","neon","neon-light","pixel","theme"]))
+    and ([.items[] | select(.id == "icons") | .choices[].value] | sort == (["clay","duotone","glass","glass-light","line","muted","neon","neon-light","theme"]))
     and ([.items[] | select(.id == "mono-font") | .choices[] | select(.value == "Fira Code") | [.command, .font]]
          == [[["ame","desktop","mono-font","Fira Code"], "Fira Code"]])
     and ([.items[] | select(.id == "mono-font") | .choices[] | select(.value == "theme") | .text] == ["The theme'"'"'s own: Fira Code"])
