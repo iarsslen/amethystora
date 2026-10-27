@@ -424,8 +424,6 @@ export const DRAW = {
     chess: ({ink, soft}) => `<circle cx="128" cy="76" r="30" fill="${ink}"/><rect x="90" y="108" width="76" height="18" rx="9" fill="${ink}"/>` +
         `<path d="M104 124h48l14 64H90z" fill="${ink}"/><rect x="62" y="184" width="132" height="30" rx="12" fill="${ink}"/><circle cx="118" cy="66" r="9" fill="${soft}"/>` +
         line('M84 199h88', soft, 6),
-    bottle: ({ink, soft}) => `<path d="M108 36h40v18h-4v34c24 10 38 30 38 56v56a20 20 0 0 1-20 20H94a20 20 0 0 1-20-20v-56c0-26 14-46 38-56V54h-4z" fill="${ink}" stroke="${ink}" stroke-width="4" stroke-linejoin="round"/>` +
-        `<rect x="88" y="140" width="80" height="50" rx="10" fill="${soft}"/>`,
     branch: ({ink, soft}) => line('M88 76v104M88 156c0-44 80-28 80-72', soft, 13) +
         `<circle cx="88" cy="64" r="24" fill="${ink}"/><circle cx="88" cy="192" r="24" fill="${ink}"/><circle cx="168" cy="76" r="24" fill="${ink}"/>`,
     notepad: ({ink, soft}) => `<rect x="56" y="56" width="144" height="160" rx="20" fill="${ink}"/>` +

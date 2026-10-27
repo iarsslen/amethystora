@@ -173,7 +173,6 @@ const SET = {
             'org.gnome.five-or-more', 'org.gnome.Four-in-a-row']],
         ['org.gnome.Aisleriot', 'cards', 'cherry', ['gnome-aisleriot', 'sol', 'org.gnome.Mahjongg', 'gnome-mahjongg', 'org.kde.kpat', 'kpat']],
         ['org.gnome.Chess', 'chess', 'dusk', ['gnome-chess', 'org.kde.knights']],
-        ['com.usebottles.bottles', 'bottle', 'magenta'],
         ['orca', 'access', 'ocean', ['org.gnome.Orca', 'preferences-desktop-accessibility']],
         ['ibus', 'keyboard', 'indigo', ['ibus-setup', 'org.freedesktop.IBus.Setup', 'org.gnome.Tecla', 'preferences-desktop-keyboard']],
         ['org.freedesktop.Piper', 'mouse', 'sky', ['piper', 'preferences-desktop-peripherals']],
@@ -216,7 +215,8 @@ const SET = {
         ['text-x-generic', 'text', 'blossom'],
         ['text-x-script', 'script', 'mint'],
         ['text-html', 'html', 'lagoon'],
-        ['application-x-executable', 'app', 'royal'],
+        // Windows programs too, in the purple of every program: four squares on Microsoft's blue would read as its logo
+        ['application-x-executable', 'app', 'royal', ['application-x-ms-dos-executable', 'application-x-msdownload', 'application-x-msi']],
         ['image-x-generic', 'image', 'sunset'],
         ['audio-x-generic', 'audio', 'orchid'],
         ['video-x-generic', 'video', 'grape'],
@@ -240,8 +240,7 @@ const SET = {
             'application-x-lzma', 'application-x-archive', 'application-x-cpio']],
         ['application-x-rpm', 'package', 'amber', ['application-vnd.debian.binary-package', 'application-vnd.flatpak', 'application-vnd.flatpak.ref',
             'application-vnd.flatpak.repo', 'application-x-java-archive']],
-        ['application-vnd.appimage', 'app', 'lagoon', ['application-x-ms-dos-executable', 'application-x-msdownload', 'application-x-msi',
-            'application-x-sharedlib', 'application-x-desktop']],
+        ['application-vnd.appimage', 'app', 'lagoon', ['application-x-sharedlib', 'application-x-desktop']],
         ['application-pgp-keys', 'key-file', 'gold', ['application-pgp-encrypted', 'application-pgp-signature', 'application-x-keepass2', 'application-x-pem-key']],
         ['application-x-x509-ca-cert', 'certificate', 'emerald', ['application-pkcs12', 'application-x-pkcs12', 'application-pkix-cert',
             'application-x-pkcs7-certificates']],
@@ -350,7 +349,7 @@ const SET = {
 // Apps whose icon is their maker's mark (a logo, a mascot, a letter of theirs) keep the one they ship: redrawn in the
 // packs' style it would be a changed trademark, and drawn as a pictogram it would no longer say whose app it is. The
 // packs refuse to draw any of these names
-const LOGOS = /^(firefox|org\.mozilla\..*|thunderbird|waydroid|io\.podman_desktop\..*|steam|com\.valvesoftware\..*|codium|vscodium|com\.vscodium\..*|code|com\.visualstudio\..*|google-chrome|com\.google\..*|chromium.*|org\.chromium\..*|brave.*|com\.brave\..*|com\.microsoft\..*|discord|com\.discordapp\..*|spotify.*|com\.spotify\..*|telegram.*|org\.telegram\..*|signal.*|org\.signal\..*|com\.slack\..*|us\.zoom\..*|libreoffice.*|org\.libreoffice\..*|vlc|org\.videolan\..*|obs|com\.obsproject\..*|blender|org\.blender\..*|gimp|org\.gimp\..*|inkscape|org\.inkscape\..*|krita|org\.kde\.krita|kdenlive|org\.kde\.kdenlive|kate|org\.kde\.kate|audacity|org\.audacityteam\..*|net\.lutris\..*|com\.heroicgameslauncher\..*|kitty|alacritty|org\.wezfurlong\..*|com\.mitchellh\..*|org\.qbittorrent\..*|org\.mozilla|com\.jetbrains\..*|jetbrains-.*|net\.opentabletdriver\..*|solaar|org\.fedoraproject\..*|fedora.*)$/i;
+const LOGOS = /^(firefox|org\.mozilla\..*|thunderbird|waydroid|io\.podman_desktop\..*|steam|com\.valvesoftware\..*|codium|vscodium|com\.vscodium\..*|code|com\.visualstudio\..*|google-chrome|com\.google\..*|chromium.*|org\.chromium\..*|brave.*|com\.brave\..*|com\.microsoft\..*|discord|com\.discordapp\..*|spotify.*|com\.spotify\..*|telegram.*|org\.telegram\..*|signal.*|org\.signal\..*|slack|com\.slack\..*|zoom|us\.zoom\..*|obsidian|md\.obsidian\..*|org\.flathub\..*|bottles|com\.usebottles\..*|libreoffice.*|org\.libreoffice\..*|vlc|org\.videolan\..*|obs|com\.obsproject\..*|blender|org\.blender\..*|gimp|org\.gimp\..*|inkscape|org\.inkscape\..*|krita|org\.kde\.krita|kdenlive|org\.kde\.kdenlive|kate|org\.kde\.kate|audacity|org\.audacityteam\..*|net\.lutris\..*|com\.heroicgameslauncher\..*|kitty|alacritty|org\.wezfurlong\..*|com\.mitchellh\..*|org\.qbittorrent\..*|org\.mozilla|com\.jetbrains\..*|jetbrains-.*|net\.opentabletdriver\..*|solaar|org\.fedoraproject\..*|fedora.*)$/i;
 
 const CONTEXTS = {apps: 'Applications', places: 'Places', mimetypes: 'MimeTypes', devices: 'Devices', status: 'Status', categories: 'Categories'};
 
