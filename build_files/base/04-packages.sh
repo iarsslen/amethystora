@@ -284,7 +284,9 @@ dnf -y install --enablerepo='tailscale-stable' tailscale
 # No driver is chosen at install: any other choice has its scriptlet load a test BPF program, which a build
 # cannot, and enable Falco's own units. amethystora-behaviour.service runs it, with the configuration in
 # /etc/falco/config.d/60-amethystora.yaml, and its rules follower, which would download rules, is masked
-# (17-cleanup.sh). Apache-2.0; its eBPF probe is MIT or GPL-2.0-only, at the user's choice.
+# (17-cleanup.sh). Apache-2.0; its eBPF probe is MIT or GPL-2.0-only, at the user's choice. The package leaves out
+# the licences of the libraries compiled into usr/bin/falco, which ship in usr/share/licenses/falco/bundled at the
+# versions Falco 0.45.1 and its libs 0.26.1 pin: look at them again when Falco moves.
 cat >/etc/yum.repos.d/falcosecurity.repo <<'EOF'
 [falcosecurity]
 name=falcosecurity

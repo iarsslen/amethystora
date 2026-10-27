@@ -2542,6 +2542,9 @@ done
 grep -A1 "^webserver:" /etc/falco/config.d/60-amethystora.yaml | grep -q "enabled: false"
 timeout 120 falco --dry-run >/dev/null
 test -s /usr/share/licenses/falco/LICENSE
+# ...with the probe's MIT licence and those of the libraries compiled into it, which its package leaves out (NOTICE)
+test -s /usr/share/licenses/falco/driver-MIT.txt
+[[ "$(find /usr/share/licenses/falco/bundled -type f -size +0 | wc -l)" == 16 ]]
 # YARA rules are fetched on the machine, as freshclam's account and never as root, and split and tested so that
 # ClamAV loads every one it is given
 grep -q "^User=clamupdate$" /usr/lib/systemd/system/amethystora-yara.service
@@ -2719,6 +2722,11 @@ compgen -G "/usr/lib/modules/${KERNEL_VERSION}/extra/xpadneo/hid-xpadneo.ko*" >/
 grep -qx "blacklist mt76x2u" <<<"${MODPROBE_CONFIG:-$(modprobe --showconfig)}" && false
 grep -qx "blacklist mt76x2u" /usr/share/amethystora/xone/xone.conf
 compgen -G "/usr/src/amethystora/xone-kmod-common-*" >/dev/null && false
+# Both drivers are GPL and built outside any repository, where source-manifest.sh only warns when it cannot fetch
+# a source package: theirs travel with them
+for kmod in kmod-xpadneo xpadneo-kmod-common kmod-xone; do
+    test -s "/usr/src/amethystora/$(rpm -q --queryformat '%{SOURCERPM}' "${kmod}")"
+done
 ame --show apps::xbox-adapter >/dev/null
 [[ "$(grep -cE '^[0-9a-f]{4} https://catalog\.s\.download\.windowsupdate\.com/[^ ]+\.cab [0-9a-f]{64} [A-Za-z0-9_.]+ [0-9a-f]{64}$' \
     /usr/share/amethystora/xone/firmware)" == 4 ]]

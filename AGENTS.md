@@ -1521,6 +1521,13 @@ terms. `NOTICE` is where each of those is named, and `20-tests.sh` checks what f
   Amethystora is built on Fedora, never that it is a Fedora desktop.
 - **Source travels with what asks for it.** A package from RPM Fusion, negativo17 or Copr under the
   GPL, LGPL, MPL, EPL or CDDL has its source package fetched into the image by `source-manifest.sh`.
+  The kernel modules built outside any repository (xpadneo, xone) only warn there, so `20-tests.sh`
+  requires their source packages.
+- **A package's own gaps are ours to fill.** Falco's leaves out the licences of the libraries
+  compiled into it: they ship in `usr/share/licenses/falco/bundled`, at the versions its release pins,
+  and NOTICE names them. Its probe is passed on under MIT (`driver-MIT.txt`).
+- **A file the ISOs change says so.** `iso/live/build.sh` marks each Anaconda file it edits, and NOTICE
+  names the changes, as it does for GNOME Tour, fprintd and Solaar.
 
 ## Configuration Files
 
