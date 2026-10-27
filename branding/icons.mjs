@@ -115,7 +115,6 @@ const SET = {
         ['org.gnome.Software', 'store', 'peach', ['gnome-software', 'io.github.kolunmi.Bazaar', 'org.kde.discover', 'plasmadiscover']],
         ['io.github.flattool.Warehouse', 'package', 'gold'],
         ['com.github.tchx84.Flatseal', 'toggles', 'emerald'],
-        ['io.github.flattool.Ignition', 'rocket', 'coral'],
         ['gparted', 'drive', 'indigo', ['org.gnome.GParted', 'org.kde.partitionmanager', 'partitionmanager']],
         ['org.gnome.DejaDup', 'drive', 'emerald', ['deja-dup', 'org.gnome.World.PikaBackup', 'timeshift', 'com.borgbase.Vorta']],
         ['io.gitlab.adhami3310.Impression', 'usb', 'gold'],
@@ -349,7 +348,7 @@ const SET = {
 // Apps whose icon is their maker's mark (a logo, a mascot, a letter of theirs) keep the one they ship: redrawn in the
 // packs' style it would be a changed trademark, and drawn as a pictogram it would no longer say whose app it is. The
 // packs refuse to draw any of these names
-const LOGOS = /^(firefox|org\.mozilla\..*|thunderbird|waydroid|io\.podman_desktop\..*|steam|com\.valvesoftware\..*|codium|vscodium|com\.vscodium\..*|code|com\.visualstudio\..*|google-chrome|com\.google\..*|chromium.*|org\.chromium\..*|brave.*|com\.brave\..*|com\.microsoft\..*|discord|com\.discordapp\..*|spotify.*|com\.spotify\..*|telegram.*|org\.telegram\..*|signal.*|org\.signal\..*|slack|com\.slack\..*|zoom|us\.zoom\..*|obsidian|md\.obsidian\..*|org\.flathub\..*|bottles|com\.usebottles\..*|libreoffice.*|org\.libreoffice\..*|vlc|org\.videolan\..*|obs|com\.obsproject\..*|blender|org\.blender\..*|gimp|org\.gimp\..*|inkscape|org\.inkscape\..*|krita|org\.kde\.krita|kdenlive|org\.kde\.kdenlive|kate|org\.kde\.kate|audacity|org\.audacityteam\..*|net\.lutris\..*|com\.heroicgameslauncher\..*|kitty|alacritty|org\.wezfurlong\..*|com\.mitchellh\..*|org\.qbittorrent\..*|org\.mozilla|com\.jetbrains\..*|jetbrains-.*|net\.opentabletdriver\..*|solaar|org\.fedoraproject\..*|fedora.*)$/i;
+const LOGOS = /^(firefox|org\.mozilla\..*|thunderbird|waydroid|io\.podman_desktop\..*|steam|com\.valvesoftware\..*|codium|vscodium|com\.vscodium\..*|code|com\.visualstudio\..*|google-chrome|com\.google\..*|chromium.*|org\.chromium\..*|brave.*|com\.brave\..*|com\.microsoft\..*|discord|com\.discordapp\..*|spotify.*|com\.spotify\..*|telegram.*|org\.telegram\..*|signal.*|org\.signal\..*|slack|com\.slack\..*|zoom|us\.zoom\..*|obsidian|md\.obsidian\..*|org\.flathub\..*|bottles|com\.usebottles\..*|io\.github\.flattool\.Ignition|libreoffice.*|org\.libreoffice\..*|vlc|org\.videolan\..*|obs|com\.obsproject\..*|blender|org\.blender\..*|gimp|org\.gimp\..*|inkscape|org\.inkscape\..*|krita|org\.kde\.krita|kdenlive|org\.kde\.kdenlive|kate|org\.kde\.kate|audacity|org\.audacityteam\..*|net\.lutris\..*|com\.heroicgameslauncher\..*|kitty|alacritty|org\.wezfurlong\..*|com\.mitchellh\..*|org\.qbittorrent\..*|org\.mozilla|com\.jetbrains\..*|jetbrains-.*|net\.opentabletdriver\..*|solaar|org\.fedoraproject\..*|fedora.*)$/i;
 
 const CONTEXTS = {apps: 'Applications', places: 'Places', mimetypes: 'MimeTypes', devices: 'Devices', status: 'Status', categories: 'Categories'};
 

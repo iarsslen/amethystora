@@ -385,9 +385,6 @@ export const DRAW = {
     store: ({ink, soft}) => line('M94 104V84a34 34 0 0 1 68 0v20', soft, 13) +
         `<path d="M58 96h140l-10 104a16 16 0 0 1-16 14H84a16 16 0 0 1-16-14z" fill="${ink}" stroke="${ink}" stroke-width="6" stroke-linejoin="round"/>` +
         `<circle cx="94" cy="128" r="9" fill="${soft}"/><circle cx="162" cy="128" r="9" fill="${soft}"/>`,
-    rocket: ({ink, soft}) => `<path d="M88 126l-30 38v30l34-20zM168 126l30 38v30l-34-20z" fill="${ink}" stroke="${ink}" stroke-width="6" stroke-linejoin="round"/>` +
-        `<path d="M108 168h40l-8 26-12 22-12-22z" fill="${soft}"/><path d="M128 36c36 26 48 68 40 132H88c-8-64 4-106 40-132z" fill="${ink}"/>` +
-        `<circle cx="128" cy="100" r="18" fill="${soft}"/>`,
     broom: ({ink, soft}) => `<g transform="rotate(28 128 128) translate(128 128) scale(0.9) translate(-128 -128)"><rect x="120" y="28" width="16" height="104" rx="8" fill="${ink}"/>` +
         `<path d="M92 128h72l22 92H70z" fill="${ink}" stroke="${ink}" stroke-width="8" stroke-linejoin="round"/>` +
         line('M86 152h84', soft, 8) + line('M102 178l-5 32M128 178v32M154 178l5 32', soft, 7) + '</g>',
