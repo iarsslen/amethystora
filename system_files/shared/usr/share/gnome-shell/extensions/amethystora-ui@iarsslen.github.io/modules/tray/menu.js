@@ -104,7 +104,8 @@ function ornamentOf(props) {
         return on ? PopupMenu.Ornament.CHECK : PopupMenu.Ornament.NONE;
     if (type === 'radio')
         return on ? PopupMenu.Ornament.DOT : PopupMenu.Ornament.NONE;
-    return PopupMenu.Ornament.HIDDEN;
+    // A plain entry keeps the column, empty, so that its label lines up with those of the entries that tick
+    return PopupMenu.Ornament.NONE;
 }
 
 export class RemoteMenu {

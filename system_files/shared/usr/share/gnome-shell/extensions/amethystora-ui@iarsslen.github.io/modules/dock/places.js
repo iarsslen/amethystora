@@ -199,9 +199,12 @@ export class Places extends EventEmitter {
             });
     }
 
-    // A drive the person can take away: not a network share, not one hidden behind another, not the system's own
+    // A drive the person can take away: not a network share, not one hidden behind another, not the system's own. A
+    // phone or a camera on its cable (MTP, PTP, an iPhone's AFC) is one too, though GIO does not call it native.
     _wanted(mount) {
-        return !mount.is_shadowed() && (mount.can_unmount() || mount.can_eject()) && mount.get_root().is_native();
+        const root = mount.get_root();
+        return !mount.is_shadowed() && (mount.can_unmount() || mount.can_eject()) &&
+            (root.is_native() || ['mtp', 'gphoto2', 'afc'].includes(root.get_uri_scheme()));
     }
 
     _addMount(mount) {

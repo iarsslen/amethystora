@@ -47,12 +47,12 @@ function hasWindows(workspace) {
 }
 
 // The window to focus on arriving: the one last used there, as Alt+Tab orders them, where a dialog fixed to its
-// window stands for that window and windows kept out of the taskbar are passed over
+// window stands for that window and windows kept out of the taskbar or on every workspace are passed over
 function recentWindow(workspace) {
     for (let window of global.display.get_tab_list(Meta.TabList.NORMAL_ALL, workspace)) {
         if (window.is_attached_dialog())
             window = window.get_transient_for() ?? window;
-        if (!window.skip_taskbar)
+        if (!window.skip_taskbar && !window.is_on_all_workspaces())
             return window;
     }
     return null;

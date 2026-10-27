@@ -14,6 +14,7 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import St from 'gi://St';
 
+import * as BoxPointer from 'resource:///org/gnome/shell/ui/boxpointer.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Overview from 'resource:///org/gnome/shell/ui/overview.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
@@ -40,6 +41,11 @@ const PRINTABLE = /[\p{L}\p{N}\p{P}\p{S}]/u;
 export class Search {
     constructor(ext) {
         this._ext = ext;
+    }
+
+    // For the tiling, which leaves the keyboard here while the pointer crosses the screens
+    get open() {
+        return !!this._open;
     }
 
     enable() {
@@ -83,7 +89,7 @@ export class Search {
 
         this._settings = this._ext.getSettings(SCHEMA);
         const action = Main.wm.addKeybinding('open', this._settings, Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
-            Shell.ActionMode.NORMAL, () => this._toggle());
+            Shell.ActionMode.NORMAL | Shell.ActionMode.POPUP, () => this._toggle());
         if (action === Meta.KeyBindingAction.NONE)
             console.warn('Amethystora UI: the search box key could not be set: another one has its name');
     }
@@ -116,6 +122,11 @@ export class Search {
     _show() {
         // The overview has its own search
         if (Main.overview.visible || Main.overview.animationInProgress)
+            return;
+        // A menu of the top bar open (the key works over one too): it gives way, with the keyboard it holds
+        Main.panel.menuManager.activeMenu?.close(BoxPointer.PopupAnimation.NONE);
+        // Any other grab (the screenshot tool, a dock's menu) would keep the keys from the box, which is not modal
+        if (Main.modalCount > 0)
             return;
         // Still fading from the last time
         this._giveBack();

@@ -103,6 +103,14 @@ function typoDistance(query, word) {
     return best;
 }
 
+// The two are the same but for one pair of neighbouring letters the other way round
+function swappedOnce(a, b) {
+    if (a.length !== b.length)
+        return false;
+    const differ = [...a].flatMap((letter, i) => letter === b[i] ? [] : [i]);
+    return differ.length === 2 && differ[1] === differ[0] + 1 && a[differ[0]] === b[differ[1]] && a[differ[1]] === b[differ[0]];
+}
+
 // The letters typed appear in the word in the same order, from its first letter on
 function inOrder(query, word) {
     let at = 0;
@@ -171,6 +179,9 @@ function evidence(query, word) {
         if (mistakes <= (query.length >= 8 ? 2 : 1))
             best = Math.max(best, TYPO * (1 - mistakes / query.length));
     }
+    // At four letters, only two neighbours swapped ("clac", "lgos"), as fingers do: few short words are that far apart
+    if (query.length === 4 && query[0] === word[0] && word.length >= 4 && swappedOnce(query, word.slice(0, 4)))
+        best = Math.max(best, TYPO * 0.75);
     if (query.length >= 4 && query[0] === word[0] && query.length <= word.length && inOrder(query, word))
         best = Math.max(best, IN_ORDER * Math.sqrt(query.length / word.length));
     return best;

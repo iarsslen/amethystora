@@ -215,6 +215,11 @@ class ItemButton extends PanelMenu.Button {
         const event = gesture.get_point_event(0);
         const time = event.get_time();
         const [x, y] = event.get_coords();
+        // A left click's menu, waiting to see whether a double click comes, gives way to any other press
+        if (event.type() === Clutter.EventType.TOUCH_BEGIN || gesture.get_button() !== Clutter.BUTTON_PRIMARY) {
+            this._cancelMenuTimer();
+            this._lastPress = null;
+        }
 
         if (event.type() === Clutter.EventType.TOUCH_BEGIN) {
             this._toggleMenu();

@@ -127,14 +127,16 @@ export function fillPlaceMenu(menu, place, places, windows) {
     }
 }
 
-// An app's own entries ([{label, enabled, separator, activate(time)}]) in their own group after GNOME's pin item,
-// where GNOME's lines on either side set them apart
+// An app's own entries ([{label, enabled, separator, activate(time)}]) after the app's actions (and GNOME's
+// discrete GPU item), right before GNOME's line over the pin item (else before the details item)
 export function fillQuicklist(menu, entries) {
     if (!menu._amethystoraQuicklist) {
         menu._amethystoraQuicklist = new PopupMenu.PopupMenuSection();
         const items = menu._getMenuItems();
+        const pin = items.indexOf(menu._toggleFavoriteItem);
         const details = items.indexOf(menu._detailsItem);
-        menu.addMenuItem(menu._amethystoraQuicklist, details >= 0 ? details : items.length);
+        const line = pin > 0 && items[pin - 1] instanceof PopupMenu.PopupSeparatorMenuItem ? pin - 1 : pin;
+        menu.addMenuItem(menu._amethystoraQuicklist, line >= 0 ? line : details >= 0 ? details : items.length);
     }
     const section = menu._amethystoraQuicklist;
     section.removeAll();
