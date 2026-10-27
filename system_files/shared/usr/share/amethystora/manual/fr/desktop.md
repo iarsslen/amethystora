@@ -174,27 +174,18 @@ Ces extensions de GNOME Shell sont fournies avec l’image :
 
 | Extension | Ce qu’elle fait |
 | --- | --- |
-| PaperWM | La [mosaïque](#tiling-windows) : les fenêtres côte à côte sur une bande qui défile |
-| Space Bar | Les espaces de travail dans la barre supérieure |
-| TopHat | Les indicateurs de processeur, de mémoire et de réseau |
-| Dash to Dock | Le dock |
-| Search Light | La recherche sur `Super+Space` |
-| Fuzzy App Search | Une recherche d’applications qui pardonne les fautes de frappe |
-| Clipboard Indicator | L’[historique du presse-papiers](#the-clipboard) sur `Super+Shift+V` |
-| Blur my Shell | Le verre dépoli derrière le panneau, la vue d’ensemble et les fenêtres |
-| Just Perfection | Des animations plus rapides, et pas de fenêtre surgissante quand vous changez d’espace de travail |
-| AppIndicator | Les icônes de la zone de notification pour les applications qui en utilisent |
-| Caffeine | Un interrupteur dans les réglages rapides qui garde l’écran allumé |
-| GSConnect | Votre téléphone Android : notifications, fichiers, presse-papiers, SMS |
-| Logo Menu | Le logo Amethystora en haut à gauche : des raccourcis vers les outils système |
-| Gradia | Annoter une capture d’écran juste après l’avoir prise |
-| Bazaar integration | Relie le shell à Bazaar, la logithèque |
+| Amethystora Clipboard | L’[historique du presse-papiers](#the-clipboard) sur `Super+Shift+V`, chiffré : une copie de Clipboard Indicator |
+| Amethystora UI | Le bureau d’Amethystora, écrit pour cette image : la [mosaïque](#tiling-windows), les fenêtres côte à côte sur une bande qui défile, le dock, le verre dépoli derrière le panneau, la vue d’ensemble, les menus et les notifications (les fenêtres que vous n’utilisez pas sont rendues légèrement transparentes), les espaces de travail, les indicateurs et les icônes de la zone de notification dans la barre supérieure, une icône de téléphone tant qu’un [téléphone associé](hardware.md#phones) est connecté, la recherche sur `Super+Space`, une recherche d’applications qui pardonne les fautes de frappe, le dessin sur une capture d’écran et la [copie de son texte](#copying-text-from-the-screen), la désinstallation d’une application depuis son menu, des animations plus rapides, pas de fenêtre surgissante quand vous changez d’espace de travail, et pas de bouton Activités |
+| Menu du logo | Le logo Amethystora en haut à gauche et [son menu](#the-top-bar) d’outils système |
+| Amethystora Transitions | L’animation qui dévoile un nouveau thème ou fond d’écran ([Transitions](themes.md#transitions)) |
+| Amethystora Widgets | Vos propres [widgets](widgets.md) dans la barre supérieure ; rien tant que vous n’en ajoutez pas |
 
-Désactivez n’importe laquelle, ou modifiez ses paramètres, dans le **Gestionnaire d’extensions**. Une
-chose à savoir : après chaque mise à jour de l’image, les extensions propres à l’image sont réactivées,
+Désactivez n’importe laquelle, ou modifiez ses paramètres, dans **Extensions** (le Gestionnaire
+d’extensions sert à en trouver de nouvelles sur extensions.gnome.org, qui n’a aucune de celles-ci). Une
+chose à savoir : après chaque mise à jour de l’image, les extensions propres à l’image sont réactivées,
 pour qu’une extension désactivée par accident, ou par un plantage, ne le reste pas définitivement. Une
-désactivation dure jusqu’à la mise à jour suivante. L’exception est PaperWM avec la
-[disposition classique](#classic-windows), qui reste désactivé.
+désactivation dure jusqu’à la mise à jour suivante. La [disposition classique](#classic-windows) n’est pas
+une extension désactivée : elle reste comme vous l’avez choisie.
 
 ## Fichiers
 

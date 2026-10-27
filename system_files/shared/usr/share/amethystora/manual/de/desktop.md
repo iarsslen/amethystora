@@ -175,27 +175,19 @@ Diese GNOME-Shell-Erweiterungen sind im Abbild enthalten:
 
 | Erweiterung | Was sie tut |
 | --- | --- |
-| PaperWM | [Kacheln](#tiling-windows): Fenster nebeneinander auf einem scrollenden Streifen |
-| Space Bar | Die Arbeitsflächen in der oberen Leiste |
-| TopHat | Die Anzeigen für Prozessor, Speicher und Netzwerk |
-| Dash to Dock | Das Dock |
-| Search Light | Die Suche auf `Super+Space` |
-| Fuzzy App Search | App-Suche, die Tippfehler verzeiht |
-| Clipboard Indicator | Der [Verlauf der Zwischenablage](#the-clipboard) auf `Super+Shift+V` |
-| Blur my Shell | Das Milchglas hinter der Leiste, der Übersicht und den Fenstern |
-| Just Perfection | Schnellere Animationen und keine Einblendung beim Wechsel der Arbeitsfläche |
-| AppIndicator | Statussymbole für Apps, die sie verwenden |
-| Caffeine | Ein Schalter in den Schnelleinstellungen, der den Bildschirm wach hält |
-| GSConnect | Ihr Android-Telefon: Benachrichtigungen, Dateien, Zwischenablage, SMS |
-| Logo Menu | Das Amethystora-Logo oben links: Verknüpfungen zu Systemwerkzeugen |
-| Gradia | Ein Bildschirmfoto direkt nach der Aufnahme beschriften |
-| Bazaar integration | Verbindet die Shell mit Bazaar, dem Software-Center |
+| Amethystora Clipboard | Der [Verlauf der Zwischenablage](#the-clipboard) auf `Super+Shift+V`, verschlüsselt: eine Kopie von Clipboard Indicator |
+| Amethystora UI | Amethystoras eigener Desktop, für dieses Abbild geschrieben: [Kacheln](#tiling-windows), Fenster nebeneinander auf einem scrollenden Streifen, das Dock, das Milchglas hinter der Leiste, der Übersicht, den Menüs und den Benachrichtigungen (Fenster, die Sie gerade nicht benutzen, werden leicht durchscheinend), die Arbeitsflächen, die Anzeigen und die Statussymbole in der oberen Leiste, ein Telefonsymbol, solange ein [gekoppeltes Telefon](hardware.md#phones) verbunden ist, die Suche auf `Super+Space`, eine App-Suche, die Tippfehler verzeiht, Zeichnen auf einem Bildschirmfoto und das [Kopieren seines Textes](#copying-text-from-the-screen), das Deinstallieren einer App aus ihrem Menü, schnellere Animationen, keine Einblendung beim Wechsel der Arbeitsfläche und keine Aktivitäten-Schaltfläche |
+| Logo-Menü | Das Amethystora-Logo oben links und [sein Menü](#the-top-bar) mit den Werkzeugen des Systems |
+| Amethystora Transitions | Die Animation, die ein neues Thema oder Hintergrundbild enthüllt ([Übergänge](themes.md#transitions)) |
+| Amethystora Widgets | Ihre eigenen [Widgets](widgets.md) in der oberen Leiste; nichts, bis Sie eines hinzufügen |
 
-Schalten Sie jede davon in der **Erweiterungsverwaltung** aus oder ändern Sie dort ihre Einstellungen.
-Eines sollten Sie wissen: Nach jeder Aktualisierung des Abbilds werden die eigenen Erweiterungen des
-Abbilds wieder eingeschaltet, damit eine, die versehentlich oder durch einen Absturz ausgeschaltet wurde,
-nicht für immer aus bleibt. Das Ausschalten einer Erweiterung hält bis zur nächsten Aktualisierung. Die
-Ausnahme ist PaperWM unter dem [klassischen Layout](#classic-windows), das ausgeschaltet bleibt.
+Schalten Sie jede davon in **Erweiterungen** aus oder ändern Sie dort ihre Einstellungen (die
+Erweiterungsverwaltung ist dafür da, neue auf extensions.gnome.org zu finden, wo es keine von diesen
+gibt). Eines sollten Sie wissen: Nach jeder Aktualisierung des Abbilds werden die eigenen Erweiterungen
+des Abbilds wieder eingeschaltet, damit eine, die versehentlich oder durch einen Absturz ausgeschaltet
+wurde, nicht für immer aus bleibt. Das Ausschalten einer Erweiterung hält bis zur nächsten
+Aktualisierung. Das [klassische Layout](#classic-windows) ist keine ausgeschaltete Erweiterung und
+bleibt daher so, wie Sie es eingestellt haben.
 
 ## Dateien
 
