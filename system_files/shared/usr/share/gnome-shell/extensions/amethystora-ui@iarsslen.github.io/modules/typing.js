@@ -98,6 +98,8 @@ export class Typing {
     disable() {
         this._settings?.disconnectObject(this);
         this._stop();
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
     }
 

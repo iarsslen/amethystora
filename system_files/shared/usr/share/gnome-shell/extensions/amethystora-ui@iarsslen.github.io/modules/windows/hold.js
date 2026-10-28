@@ -125,8 +125,11 @@ export class Hold {
         this._stopTip();
         this._keymap?.disconnectObject(this);
         this._keymap = null;
-        for (const [, settings] of this._sources ?? [])
+        // Disposed now rather than by the collector (dock.js says why)
+        for (const [, settings] of this._sources ?? []) {
             settings?.disconnectObject(this);
+            settings?.run_dispose();
+        }
         this._sources = [];
         this._module.settings.disconnectObject(this);
         this._cancel();
@@ -137,6 +140,7 @@ export class Hold {
         this._veil?.destroy();
         this._veil = null;
         this._module.surfacesChanged();
+        this._a11y?.run_dispose();
         this._a11y = null;
     }
 

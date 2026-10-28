@@ -48,7 +48,10 @@ export class Corners {
         for (const glow of this._glows.values())
             glow.destroy();
         this._glows.clear();
+        // Disposed now rather than by the collector (dock.js says why)
+        this._interface?.run_dispose();
         this._interface = null;
+        this._lockdown?.run_dispose();
         this._lockdown = null;
     }
 

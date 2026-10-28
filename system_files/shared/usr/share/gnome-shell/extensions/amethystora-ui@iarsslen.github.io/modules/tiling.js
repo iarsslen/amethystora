@@ -53,7 +53,10 @@ export class Tiling {
         this._gapsTimer = 0;
         // At a screen lock the tiling comes back as it was at unlock
         this._stop(Main.sessionMode.isLocked);
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
+        this._keySettings?.run_dispose();
         this._keySettings = null;
         this.state = null;
     }

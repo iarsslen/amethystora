@@ -13,7 +13,8 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Util from 'resource:///org/gnome/shell/misc/util.js';
 
 import {
-    GRADIA, captureFrame, captureWindow, copyToClipboard, gradiaInstalled, playShutter, saveAs, saveToFolder,
+    GRADIA, captureFrame, captureWindow, copyToClipboard, disposeSettings, gradiaInstalled, playShutter, saveAs,
+    saveToFolder,
 } from './screenshot/capture.js';
 import {Card} from './screenshot/card.js';
 import {DRAWING, MAX_WIDTH, MIN_WIDTH} from './screenshot/marks.js';
@@ -69,7 +70,10 @@ export class Screenshot {
         this._pending = null;
         this._card?.close(true);
         this._card = null;
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
+        disposeSettings();
         this._icons = null;
         this._ui = null;
     }

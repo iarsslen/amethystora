@@ -77,6 +77,8 @@ export class Emoji {
         this._bound = false;
         this.close();
         cancelPastes();
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
     }
 

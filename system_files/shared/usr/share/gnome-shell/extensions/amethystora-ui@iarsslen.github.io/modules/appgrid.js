@@ -51,6 +51,8 @@ export class AppGrid {
         this._unfolders();
         Main.layoutManager.overviewGroup.remove_style_class_name(GROUP_CLASS);
         this._appDisplay = null;
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
     }
 

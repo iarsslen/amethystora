@@ -85,6 +85,8 @@ export class Pointer {
         this._detector = null;
         this._stopDense();
         this._settings?.disconnectObject(this);
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
         this._tracker = null;
         this._seat = null;
@@ -491,6 +493,7 @@ export class Pointer {
         this._cancellable?.cancel();
         this._cancellable = null;
         this._interface?.disconnectObject(this);
+        this._interface?.run_dispose();
         this._interface = null;
         global.backend.get_monitor_manager().disconnectObject(this);
         this._state = null;

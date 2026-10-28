@@ -77,7 +77,13 @@ export function hoursMinutes(seconds) {
     return _('%d h %d min').format(h, m);
 }
 
+// One for the module's life, disposed by its disable() rather than by the collector (dock.js says why)
 let interfaceSettings = null;
+
+export function disposeSettings() {
+    interfaceSettings?.run_dispose();
+    interfaceSettings = null;
+}
 
 // The time of day as the person's clock shows it (12- or 24-hour)
 export function timeOfDay(date) {

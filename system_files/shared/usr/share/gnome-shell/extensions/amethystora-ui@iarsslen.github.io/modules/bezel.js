@@ -77,6 +77,8 @@ export class Bezel {
     disable() {
         this._stop();
         this._settings?.disconnectObject(this);
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
         this._corners = null;
     }

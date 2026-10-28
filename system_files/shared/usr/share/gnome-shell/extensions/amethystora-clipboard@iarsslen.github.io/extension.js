@@ -76,9 +76,10 @@ let SHOW_PREVIEW_BUTTON       = true;
 
 export default class ClipboardIndicatorExtension extends Extension {
     enable () {
+        this._settings = this.getSettings();
         this.clipboardIndicator = new ClipboardIndicator({
             clipboard: St.Clipboard.get_default(),
-            settings: this.getSettings(),
+            settings: this._settings,
             openSettings: this.openPreferences,
             uuid: this.uuid
         });
@@ -89,6 +90,10 @@ export default class ClipboardIndicatorExtension extends Extension {
     disable () {
         this.clipboardIndicator.destroy();
         this.clipboardIndicator = null;
+        // Disposed here, on the main thread, rather than left to the collector: GJS sweeping a settings object while
+        // dconf's worker dispatches a change to it deadlocks the shell (its toggle queue against the backend's lock)
+        this._settings?.run_dispose();
+        this._settings = null;
         EXCLUDED_APPS = [];
     }
 

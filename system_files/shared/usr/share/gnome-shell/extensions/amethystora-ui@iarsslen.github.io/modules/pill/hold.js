@@ -239,6 +239,8 @@ export class Hold {
         this._sun?.disconnectObject(this);
         this._sun = null;
         this._color?.disconnectObject(this);
+        // Disposed now rather than by the collector (dock.js says why)
+        this._color?.run_dispose();
         this._color = null;
     }
 

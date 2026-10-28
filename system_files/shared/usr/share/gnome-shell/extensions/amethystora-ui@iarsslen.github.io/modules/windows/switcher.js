@@ -102,7 +102,10 @@ export class Switcher {
                 continue;
             Main.wm.setCustomKeybindingHandler(name, Shell.ActionMode.NORMAL, Main.wm._startSwitcher.bind(Main.wm));
         }
+        // Disposed now rather than by the collector (dock.js says why)
+        this._appSettings?.run_dispose();
         this._appSettings = null;
+        this._windowSettings?.run_dispose();
         this._windowSettings = null;
     }
 

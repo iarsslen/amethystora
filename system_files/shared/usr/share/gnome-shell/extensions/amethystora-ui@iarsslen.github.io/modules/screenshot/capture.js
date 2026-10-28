@@ -212,8 +212,17 @@ export function copyToClipboard(picture) {
     St.Clipboard.get_default().set_content(St.ClipboardType.CLIPBOARD, 'image/png', picture.bytes);
 }
 
+// One for the module's life, disposed by its disable() rather than by the collector (dock.js says why)
+let lockdown = null;
+
 function savingAllowed() {
-    return !new Gio.Settings({schema_id: 'org.gnome.desktop.lockdown'}).get_boolean('disable-save-to-disk');
+    lockdown ??= new Gio.Settings({schema_id: 'org.gnome.desktop.lockdown'});
+    return !lockdown.get_boolean('disable-save-to-disk');
+}
+
+export function disposeSettings() {
+    lockdown?.run_dispose();
+    lockdown = null;
 }
 
 // The name GNOME gives a screenshot taken now, in the session's language as GNOME words it

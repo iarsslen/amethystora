@@ -241,6 +241,11 @@ export default class TransitionsExtension extends Extension {
         if (this._frozen || this._timeline)
             this._finish();
         this._effect.forget();
+        // Disposed here, on the main thread, rather than left to the collector: GJS sweeping a settings object while
+        // dconf's worker dispatches a change to it deadlocks the shell (its toggle queue against the backend's lock)
+        for (const settings of this._watched)
+            settings.run_dispose();
+        this._settings?.run_dispose();
 
         this._dbus = null;
         this._injections = null;

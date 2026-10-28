@@ -60,6 +60,8 @@ export class Gestures {
         if (this._seq?.state === 'spread')
             this._module.desktop.end(false);
         this._seq = null;
+        // Disposed now rather than by the collector (dock.js says why)
+        this._touchpad?.run_dispose();
         this._touchpad = null;
     }
 

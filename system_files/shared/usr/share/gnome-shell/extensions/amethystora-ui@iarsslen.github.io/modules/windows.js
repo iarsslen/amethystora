@@ -69,7 +69,10 @@ export class Windows {
         for (const name of ['dimmer', 'keep', 'places', 'gestures', 'corners', 'desktop', 'hold', 'switcher', 'snap'])
             this._stop(name, true);
         this._running = null;
+        // Disposed now rather than by the collector (dock.js says why)
+        this.settings?.run_dispose();
         this.settings = null;
+        this._tiling?.run_dispose();
         this._tiling = null;
     }
 

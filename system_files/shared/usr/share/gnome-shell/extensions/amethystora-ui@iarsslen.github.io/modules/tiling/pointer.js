@@ -105,6 +105,9 @@ export class Pointer {
         }
         this._swipe?.pile?.destroy();
         this._swipe = null;
+        // Disposed now rather than by the collector (dock.js says why)
+        this._touchpadSettings?.run_dispose();
+        this._touchpadSettings = null;
     }
 
     // ---- The edges of the screens ----

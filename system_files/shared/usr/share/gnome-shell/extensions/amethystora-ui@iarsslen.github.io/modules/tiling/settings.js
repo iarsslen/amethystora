@@ -39,6 +39,8 @@ export class GnomeSettings {
         // At a screen lock nothing is written: the tiling is back at unlock
         if (!suspend)
             GnomeSettings.giveBackLeftovers(this._state);
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
     }
 
@@ -81,12 +83,16 @@ export class GnomeSettings {
 
     static giveBackLeftovers(state) {
         for (const record of state.get('forced') ?? []) {
+            let settings = null;
             try {
-                const settings = new Gio.Settings({schema_id: record.schema});
+                settings = new Gio.Settings({schema_id: record.schema});
                 if (settings.get_boolean(record.key) === record.wrote)
                     settings.set_boolean(record.key, record.was);
             } catch (e) {
                 console.warn(`Amethystora UI: ${record.schema} ${record.key} was not put back: ${e.message}`);
+            } finally {
+                // Disposed now rather than by the collector (dock.js says why)
+                settings?.run_dispose();
             }
         }
         state.set('forced', undefined);

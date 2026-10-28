@@ -341,9 +341,12 @@ export class Workspaces {
         this._keys = false;
         this._settings?.disconnectObject(this);
         this._themeSettings?.disconnectObject(this);
+        // Disposed now rather than by the collector (dock.js says why)
+        this._themeSettings?.run_dispose();
         this._themeSettings = null;
         this._accentMenu?.destroy();
         this._accentMenu = null;
+        this._settings?.run_dispose();
         this._settings = null;
 
         Main.overview.disconnectObject(this);
@@ -382,6 +385,7 @@ export class Workspaces {
         this._row = null;
         this._labels = null;
         this._order = null;
+        this._prefs?.run_dispose();
         this._prefs = null;
     }
 

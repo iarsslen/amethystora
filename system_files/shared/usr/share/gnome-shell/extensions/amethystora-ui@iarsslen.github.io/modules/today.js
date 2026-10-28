@@ -52,6 +52,8 @@ export class Today {
             this._dateMenu.menu.box.remove_style_class_name(CLASS);
         }
         this._dateMenu = null;
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
     }
 

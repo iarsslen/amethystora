@@ -127,6 +127,8 @@ export class Glass {
         this._unlisten?.();
         this._unlisten = null;
         this._settings?.disconnectObject(this);
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
         if (this._freeId)
             GLib.source_remove(this._freeId);

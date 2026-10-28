@@ -305,7 +305,10 @@ function pairRow(settings, key, index, title, min, max, step, subtitle = null) {
 // GNOME's number of workspaces, at least six (the image has six)
 function workspaceCount() {
     const settings = new Gio.Settings({schema_id: 'org.gnome.desktop.wm.preferences'});
-    return Math.max(6, settings.get_int('num-workspaces'));
+    const count = settings.get_int('num-workspaces');
+    // Disposed now rather than by the collector (modules/dock.js says why)
+    settings.run_dispose();
+    return Math.max(6, count);
 }
 
 // One entry of a list kept by workspace number, '' for none

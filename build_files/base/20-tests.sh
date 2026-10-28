@@ -764,6 +764,10 @@ test -s "${UI_EXTENSION}/stylesheets/glass.css"
 test -s "${UI_EXTENSION}/stylesheets/dock.css"
 # No extension of the image, ours or another's, may draw with Shell.GLSLEffect: it fails to load on GNOME 51
 [[ -z "$(grep -rn --include='*.js' GLSLEffect /usr/share/gnome-shell/extensions | grep -v ':[0-9]*: *//')" ]]
+# Every Gio.Settings the shell code of our extensions makes is kept and run_dispose()d on the main thread at disable,
+# never left to the collector: GJS sweeping one while dconf's worker dispatches a change to it deadlocks the shell
+env LD_LIBRARY_PATH=/apps-stage/usr/lib64 /apps-stage/usr/bin/node /ctx/build_files/shared/test-settings-disposed.mjs \
+    /usr/share/gnome-shell/extensions/amethystora-*@iarsslen.github.io
 # The glass's two keys (ame desktop glass, ame desktop comfort reduce-transparency): Prism by default, the three
 # variants the schema offers each a table of materials.js
 GLASS=org.gnome.shell.extensions.amethystora-ui.glass

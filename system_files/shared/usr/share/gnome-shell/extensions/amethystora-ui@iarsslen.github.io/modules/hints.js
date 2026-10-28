@@ -60,6 +60,8 @@ export class Hints {
     disable() {
         this._settings?.disconnectObject(this);
         this._stop();
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
     }
 
@@ -102,6 +104,7 @@ export class Hints {
         this._monitor?.disconnectObject(this);
         this._monitor?.cancel();
         this._monitor = null;
+        this._banners?.run_dispose();
         this._banners = null;
         this._state = null;
     }

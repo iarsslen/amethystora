@@ -24,6 +24,7 @@ import {Osd} from './pill/osd.js';
 import {Phone} from './pill/phone.js';
 import {Privacy} from './pill/privacy.js';
 import {Stacks} from './pill/stacks.js';
+import {disposeSettings} from './pill/text.js';
 import {Timer, armOffRing, disarmOffRing} from './pill/timer.js';
 import {Update} from './pill/update.js';
 
@@ -108,7 +109,10 @@ export class Pill {
         this._activities = null;
         this._capture?.destroy();
         this._capture = null;
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
+        disposeSettings();
     }
 
     get _comfort() {

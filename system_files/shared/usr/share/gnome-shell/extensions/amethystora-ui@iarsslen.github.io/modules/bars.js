@@ -205,10 +205,14 @@ export class Bars {
 
     disable() {
         this._settings?.disconnectObject(this);
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
         this._mutter?.disconnectObject(this);
+        this._mutter?.run_dispose();
         this._mutter = null;
         this._tiling?.disconnectObject(this);
+        this._tiling?.run_dispose();
         this._tiling = null;
         Main.layoutManager.disconnectObject(this);
         global.display.disconnectObject(this);

@@ -109,10 +109,14 @@ export class Theme {
         global.workspace_manager.disconnectObject(this);
         this._workspaceHandler = false;
         this._settings?.disconnectObject(this);
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
         this._background?.disconnectObject(this);
+        this._background?.run_dispose();
         this._background = null;
         this._nightLight?.disconnectObject(this);
+        this._nightLight?.run_dispose();
         this._nightLight = null;
         if (this._prewarmId)
             GLib.source_remove(this._prewarmId);

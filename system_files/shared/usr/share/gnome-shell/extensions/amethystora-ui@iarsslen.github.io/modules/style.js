@@ -51,6 +51,8 @@ export class Style {
 
     disable() {
         this._settings?.disconnectObject(this);
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
         for (const box of this._watched ?? [])
             box.disconnectObject(this);

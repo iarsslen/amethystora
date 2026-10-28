@@ -81,6 +81,8 @@ export class Motion {
         this._unlisten?.();
         this._unlisten = null;
         this._settings?.disconnectObject(this);
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
         global.window_manager.disconnectObject(this);
         // A flight under way ends where it was going, so that the window manager hears the end of every effect

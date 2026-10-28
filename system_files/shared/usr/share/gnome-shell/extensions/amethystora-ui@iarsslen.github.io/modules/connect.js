@@ -97,6 +97,8 @@ export class Connect {
 
     disable() {
         this._settings?.disconnectObject(this);
+        // Disposed now rather than by the collector (dock.js says why)
+        this._settings?.run_dispose();
         this._settings = null;
         // The program says links itself again while the shell does not run this (the screen locked, the extension off)
         this._link?.takeLinks(false);

@@ -167,7 +167,11 @@ export class Keys {
             this._unwrap(name);
         if (!suspend)
             this._giveBackAll();
+        // Disposed now rather than by the collector (dock.js says why)
+        for (const settings of this._gnome?.values() ?? [])
+            settings.run_dispose();
         this._gnome = null;
+        this._memory?.run_dispose();
         this._memory = null;
         this._byAction = null;
         this._wrapped = null;
@@ -435,9 +439,10 @@ export function giveBackLeftovers(state) {
 
 // One record at a time, and the others whatever becomes of it: a key a later GNOME no longer has throws here
 function giveBackWithoutRunning(state, record) {
+    let settings = null;
     try {
         if (Gio.SettingsSchemaSource.get_default().lookup(record.schema, true)) {
-            const settings = new Gio.Settings({schema_id: record.schema});
+            settings = new Gio.Settings({schema_id: record.schema});
             const value = settings.get_strv(record.key);
             for (const {accelerator, index} of record.removed) {
                 if (!value.some(a => same(parse(a), parse(accelerator))))
@@ -447,6 +452,9 @@ function giveBackWithoutRunning(state, record) {
         }
     } catch (e) {
         console.warn(`Amethystora UI: ${record.schema} ${record.key} was not put back: ${e.message}`);
+    } finally {
+        // Disposed now rather than by the collector (dock.js says why)
+        settings?.run_dispose();
     }
     state.set('taken', (state.get('taken') ?? []).filter(r => r !== record &&
         (r.schema !== record.schema || r.key !== record.key)));
