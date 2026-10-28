@@ -1784,7 +1784,8 @@ msgstr ""
 msgid "The colours of the desktop, the terminal and the apps that follow it, with the theme's own wallpapers."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+#. Translators: the colours of folders in Files' Scripts menu, which sorts them by name
+#: usr/libexec/amethystora-control-list usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
 msgid "Amethyst"
 msgstr ""
 
@@ -1792,7 +1793,8 @@ msgstr ""
 msgid "Iris"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+#. Translators: the colours of folders in Files' Scripts menu, which sorts them by name
+#: usr/libexec/amethystora-control-list usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
 msgid "Sky"
 msgstr ""
 
@@ -1800,7 +1802,8 @@ msgstr ""
 msgid "Lagoon"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+#. Translators: the colours of folders in Files' Scripts menu, which sorts them by name
+#: usr/libexec/amethystora-control-list usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
 msgid "Jade"
 msgstr ""
 
@@ -1808,7 +1811,8 @@ msgstr ""
 msgid "Moss"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+#. Translators: the colours of folders in Files' Scripts menu, which sorts them by name
+#: usr/libexec/amethystora-control-list usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
 msgid "Amber"
 msgstr ""
 
@@ -1816,7 +1820,8 @@ msgstr ""
 msgid "Ember"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+#. Translators: the colours of folders in Files' Scripts menu, which sorts them by name
+#: usr/libexec/amethystora-control-list usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
 msgid "Coral"
 msgstr ""
 
@@ -1828,7 +1833,8 @@ msgstr ""
 msgid "Orchid"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+#. Translators: the colours of folders in Files' Scripts menu, which sorts them by name
+#: usr/libexec/amethystora-control-list usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
 msgid "Slate"
 msgstr ""
 
@@ -3217,6 +3223,22 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
 msgid "What a paired phone copies is put on this computer's clipboard, where any program can paste it."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Pictures/Phone"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Downloads"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Photos from the phone go to"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Pictures a paired phone sends."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list usr/share/amethystora/just/apps.just
@@ -5059,6 +5081,36 @@ msgstr ""
 msgid "Bottles asks which bottle to run it in."
 msgstr ""
 
+#: usr/libexec/amethystora-folder-colour
+msgid "Folder colour is for folders"
+msgstr ""
+
+#: usr/libexec/amethystora-folder-colour
+#, sh-format
+msgid "$count item was left as it was."
+msgid_plural "$count items were left as they were."
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-back-in-time
+msgid "Back in time covers your home folder."
+msgstr ""
+
+#. Translators: a submenu of Files' Scripts menu, holding the six colours a folder can be given and No colour
+#: usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh
+msgid "Folder colour"
+msgstr ""
+
+#. Translators: the colours of folders in Files' Scripts menu, which sorts them by name
+#: usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh
+msgid "No colour"
+msgstr ""
+
+#. Translators: an entry of Files' Scripts menu, which opens Backups on the folder picked as it was at other times
+#: usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh
+msgid "Back in time"
+msgstr ""
+
 #: usr/libexec/amethystora-scan-alert
 msgid "Virus scan found something"
 msgstr ""
@@ -6200,6 +6252,14 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 msgid "The clipboard is not shared that way"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Photos from the phone go to Pictures/Phone."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Photos from the phone go to Downloads, with the phone's other files."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
@@ -8702,6 +8762,30 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar.js
 msgid "Try uninstalling it in Bazaar."
+msgstr ""
+
+#. Translators: the phone's charge, said by a screen reader: "battery 54 per cent"
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/indicator.js
+msgid "battery %d per cent"
+msgid_plural "battery %d per cent"
+msgstr[0] ""
+msgstr[1] ""
+
+#. Translators: the phone's mobile signal, said by a screen reader: "signal 3 of 4 bars"
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/indicator.js
+msgid "signal %d of 4 bars"
+msgid_plural "signal %d of 4 bars"
+msgstr[0] ""
+msgstr[1] ""
+
+#. Translators: the phone in the top bar, said by a screen reader: its battery, then its signal
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/indicator.js
+msgid "Phone: %s, %s"
+msgstr ""
+
+#. Translators: the phone in the top bar, said by a screen reader: its battery or its signal
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/indicator.js
+msgid "Phone: %s"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/indicator.js

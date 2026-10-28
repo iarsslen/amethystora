@@ -712,6 +712,25 @@ accident, or by a crash, does not stay off for good. Turning one off lasts until
 `Super+Shift+F` opens a Files window and `Super+E` your home folder. Folders open on a grid, where
 the icon theme's folders show as the artwork they are.
 
+### Folder colours
+
+Select one or more folders in Files, right-click, and pick **Scripts › Folder colour ›** Amethyst, Sky, Jade, Amber,
+Coral or Slate (Files lists them in alphabetical order). The folder takes that colour at once in Files, and a stack
+of it in the dock takes it as you open the stack or bring the pointer to the dock. The colour is drawn by your icon
+pack, so it follows when you change the pack. **No colour** takes
+it away, and gives Documents, Music, Pictures and the other special folders their emblem back. A picture you set as a
+folder's icon yourself is left alone, and files in the selection are left as they are. Stars are Files' own: **Star**
+in the same menu.
+
+### Back in time
+
+Right-click a folder (or a file) in your home folder and pick **Scripts › Back in time**: [Backups](security.md#backups)
+opens on that folder's timeline, where you can see it as it was and put back what is gone. Files shows its Scripts menu
+only for something selected: for the folder you are in, right-click it in the folder above, or use **Open With ›
+Backups**. Folders outside your home folder are not in the snapshots or the backup, and the menu says so.
+
+The two are scripts in `~/.local/share/nautilus/scripts`, written once for each account: delete one and it stays gone.
+
 ## The trash
 
 The trash empties itself of what you deleted more than 30 days ago. GNOME checks it every hour while

@@ -51,7 +51,19 @@ const RAMPS = {
     indigo: [['#667eea', '#764ba2'], ['#a1c4fd', '#667eea', '#8e6bd8'], ['#f9f871', '#ffc371']],
     ice: [['#89f7fe', '#66a6ff'], ['#e0fcff', '#89f7fe', '#66a6ff'], ['#ff9a9e', '#fecfef']],
     gold: [['#f7b733', '#fc4a1a'], ['#fff3b0', '#f7b733', '#fc4a1a'], ['#89f7fe', '#66a6ff']],
+    // The folder colours of Files' scripts menu (board 35): the board's six swatches, light over dark, the prism from a
+    // near-white of the hue (Sky's a little bluer than the board's, which Neon would leave too near Slate), and a
+    // contrasting pair for Duotone's details
+    'folder-amethyst': [['#c9a2ff', '#9148f0'], ['#e4d0ff', '#c9a2ff', '#9148f0'], ['#ffd27a', '#e08a2c']],
+    'folder-sky': [['#a9cdff', '#3d68e6'], ['#cfe2ff', '#a9cdff', '#3d68e6'], ['#ffd27a', '#e08a2c']],
+    'folder-jade': [['#9be6c3', '#1f9e6e'], ['#d4f7e6', '#9be6c3', '#1f9e6e'], ['#ffb0c0', '#d63b5c']],
+    'folder-amber': [['#ffd27a', '#e08a2c'], ['#fff0c9', '#ffd27a', '#e08a2c'], ['#a9cdff', '#3d68e6']],
+    'folder-coral': [['#ffb0c0', '#d63b5c'], ['#ffe0e6', '#ffb0c0', '#d63b5c'], ['#9be6c3', '#1f9e6e']],
+    'folder-slate': [['#cdd3e0', '#5b6680'], ['#eef1f6', '#cdd3e0', '#5b6680'], ['#c9a2ff', '#9148f0']],
 };
+// The folder colours, which have to stay told apart in every pack
+const FOLDER_COLOURS = ['amethyst', 'sky', 'jade', 'amber', 'coral', 'slate'];
+const FOLDER_RAMPS = new Set(FOLDER_COLOURS.map(colour => RAMPS[`folder-${colour}`]));
 
 // Every icon: its name, the drawing, the ramp, and the other names it answers to. A file type is named as
 // shared-mime-info's generic icons are, so it covers every type that falls back on that name.
@@ -203,6 +215,9 @@ const SET = {
         ['folder-remote', 'folder-remote', 'sky', ['folder-network']],
         ['folder-saved-search', 'search', 'sky'],
         ['folder-locked', 'folder-locked', 'sky'],
+        // A folder given a colour in Files (metadata::custom-icon-name, /usr/libexec/amethystora-folder-colour): the
+        // plain folder in that colour's ramp
+        ...FOLDER_COLOURS.map(colour => [`folder-${colour}`, 'folder', `folder-${colour}`]),
         ['user-home', 'home', 'peach', ['folder-home']],
         ['user-trash', 'trash', 'ice'],
         ['user-trash-full', 'trash-full', 'ice'],
@@ -490,12 +505,33 @@ const PACKS = {
     muted: {
         name: 'Amethystora Muted',
         comment: 'Glass in quieter colours with half the sheen, for the themes of low chroma',
-        ramp: ([fill, prism, contrast]) => [fill.map(hex => band(mute(hex, 0.42), 0.22, 0.75)), prism.map(hex => band(mute(hex, 0.42), 0.22, 0.75)),
-            contrast.map(hex => mute(hex, 0.5, 0.02))],
+        // A folder colour keeps more of its chroma: telling folders apart is all it is for, and at the others' strength
+        // Sky, Slate and Amethyst run together
+        ramp: ramp => {
+            const [fill, prism, contrast] = ramp, k = FOLDER_RAMPS.has(ramp) ? 0.85 : 0.42;
+            return [fill.map(hex => band(mute(hex, k), 0.22, 0.75)), prism.map(hex => band(mute(hex, k), 0.22, 0.75)),
+                contrast.map(hex => mute(hex, 0.5, 0.02))];
+        },
         draw: drawGlass({white: 0.5, shade: '#0b0f14', opacity: 0.4, dy: 8, blur: 8, sheen: 0.25}),
     },
 };
 const drawn = (id, glyph, ramp) => PACKS[id].draw(DRAW[glyph], (PACKS[id].ramp ?? (r => r))(RAMPS[ramp]));
+
+// The folder colours must stay told apart in every pack: the middle of what each pack draws them in (the mean of the
+// fill's stops, of the prism's for Neon), in OKLab, at least 0.08 from every other
+for (const [id, pack] of Object.entries(PACKS)) {
+    const middle = colour => {
+        const [fill, prism] = (pack.ramp ?? (r => r))(RAMPS[`folder-${colour}`]);
+        const stops = (pack.draw === drawNeon ? prism : fill).map(toOklab);
+        return stops[0].map((_, i) => stops.reduce((sum, stop) => sum + stop[i], 0) / stops.length);
+    };
+    const points = FOLDER_COLOURS.map(middle);
+    FOLDER_COLOURS.forEach((one, i) => FOLDER_COLOURS.slice(i + 1).forEach((other, k) => {
+        const distance = Math.hypot(...points[i].map((v, j) => v - points[i + 1 + k][j]));
+        if (distance < 0.08)
+            throw new Error(`${id}: the folder colours ${one} and ${other} are ${distance.toFixed(3)} apart in OKLab, under 0.08`);
+    }));
+}
 
 function indexTheme(pack) {
     const dirs = Object.keys(SET).map(context => `${context}/scalable`);

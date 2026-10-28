@@ -90,6 +90,22 @@ pub fn receive_root(download: Option<PathBuf>, home: &Path) -> PathBuf {
     base.join("Phone")
 }
 
+/// Where pictures from phones go while the setting says Pictures: `Phone` in the Pictures folder, one folder for
+/// the pictures of every phone, with no folder per phone. If the account has none, or it is the home folder itself, `Pictures` in the home.
+pub fn photo_root(pictures: Option<PathBuf>, home: &Path) -> PathBuf {
+    let base = match pictures {
+        Some(p) if p != home => p,
+        _ => home.join("Pictures"),
+    };
+    base.join("Phone")
+}
+
+/// Whether a file is a picture, by the end of its name (already made safe): what a phone's gallery or camera shares
+pub fn is_picture(name: &str) -> bool {
+    const PICTURES: &[&str] = &["jpg", "jpeg", "png", "heic", "heif", "webp", "gif", "avif", "dng"];
+    name.rsplit_once('.').is_some_and(|(_, ext)| PICTURES.iter().any(|p| ext.eq_ignore_ascii_case(p)))
+}
+
 /// A phone's own folder under the root; created 0700
 pub fn device_folder(root: &Path, device_name: &str) -> io::Result<PathBuf> {
     let folder = root.join(text::folder_name(device_name));
@@ -265,6 +281,25 @@ mod tests {
         assert_eq!(receive_root(Some("/home/ada/Téléchargements".into()), home), Path::new("/home/ada/Téléchargements/Phone"));
         assert_eq!(receive_root(Some("/home/ada".into()), home), Path::new("/home/ada/Downloads/Phone"));
         assert_eq!(receive_root(None, home), Path::new("/home/ada/Downloads/Phone"));
+    }
+
+    #[test]
+    fn the_photo_folder() {
+        let home = Path::new("/home/ada");
+        assert_eq!(photo_root(Some("/home/ada/Pictures".into()), home), Path::new("/home/ada/Pictures/Phone"));
+        assert_eq!(photo_root(Some("/home/ada/Images".into()), home), Path::new("/home/ada/Images/Phone"));
+        assert_eq!(photo_root(Some("/home/ada".into()), home), Path::new("/home/ada/Pictures/Phone"));
+        assert_eq!(photo_root(None, home), Path::new("/home/ada/Pictures/Phone"));
+    }
+
+    #[test]
+    fn pictures_by_their_names() {
+        for name in ["IMG_0001.jpg", "a.JPEG", "b.png", "c.HEIC", "d.heif", "e.webp", "f.gif", "g.avif", "raw.DNG", "holiday photo (1).jpg"] {
+            assert!(is_picture(name), "{name}");
+        }
+        for name in ["clip.mp4", "notes.txt", "jpg", "photo.jpg.exe", "photo.jpgx", "archive.tar.gz", ""] {
+            assert!(!is_picture(name), "{name}");
+        }
     }
 
     #[test]

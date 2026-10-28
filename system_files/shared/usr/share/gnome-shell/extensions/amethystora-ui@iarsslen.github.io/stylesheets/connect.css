@@ -20,6 +20,27 @@
   icon-size: 12px;
 }
 
+/* One phone's battery and signal as a capsule (board 32, second card). Its tint is the theme's text colour at a tenth,
+   from themed/shell-connect.css.tpl; this white one stands in before a theme is applied. */
+.amethystora-connect-capsule {
+  padding: 2px 9px;
+  border-radius: 999px;
+  spacing: 6px;
+  background-color: rgba(255, 255, 255, 0.1);
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.amethystora-connect-battery-glyph {
+  width: 10px;
+  height: 16px;
+}
+
+.amethystora-connect-bars {
+  width: 16px;
+  height: 12px;
+}
+
 /* A phone's name and charge at the top of its part of the menu. The theme greys what cannot be clicked, which is
    right for a row that is out of use and wrong for a title: it is read in the colour of the rows. */
 .amethystora-connect-title {
@@ -35,6 +56,7 @@
   max-width: 18em;
 }
 
-.amethystora-connect-battery {
+.amethystora-connect-battery,
+.amethystora-connect-network {
   font-size: 0.9em;
 }

@@ -1,0 +1,53 @@
+#!/usr/bin/bash
+# Back in time, from Files' scripts menu (written by user-setup.hooks.d/24-files-menu.sh): Backups on the timeline of
+# the folder picked, or of the folder a file is in, which amethystora-backups FOLDER opens. With several picked, the
+# first folder among them, else the first file's folder. Only a folder in the home folder: that is what the snapshots
+# and the backups keep, and Backups takes nothing else.
+#
+#   amethystora-back-in-time -- PATH...
+#
+# The paths are Files' arguments, read from argv only (never the NAUTILUS_SCRIPT_* variables), each whole, never
+# given to a shell.
+
+set -uo pipefail
+
+export TEXTDOMAIN=amethystora
+# shellcheck source=/dev/null
+source gettext.sh
+
+[[ "${1:-}" == -- ]] && shift
+(($# > 0)) || exit 0
+
+# Command substitution takes the newlines a name ends with, so each answer is given in a variable, whole
+absolute() { # PATH: against the folder Files shows
+    if [[ "$1" == /* ]]; then REPLY="$1"; else REPLY="${PWD}/$1"; fi
+}
+
+resolve() { # PATH: as the kernel finds it, links resolved; false when it is not there
+    REPLY="$(realpath -e -- "$1" && printf x)" || return 1
+    REPLY=${REPLY%$'\n'x}
+}
+
+target=""
+for path in "$@"; do
+    absolute "${path}"
+    if [[ -d "${REPLY}" ]]; then
+        target="${REPLY}"
+        break
+    fi
+done
+if [[ -z "${target}" ]]; then
+    absolute "$1"
+    target="${REPLY%/*}"
+    [[ -n "${target}" ]] || target=/
+fi
+
+resolve "${target}" || exit 0
+resolved="${REPLY}"
+resolve "${HOME}" || exit 0
+home="${REPLY}"
+if [[ "${resolved}" != "${home}" && "${resolved}" != "${home}/"* ]]; then
+    notify-send --app-name=Backups --icon=amethystora-backups "$(gettext "Back in time covers your home folder.")" 2>/dev/null
+    exit 0
+fi
+exec /usr/bin/amethystora-backups "${resolved}"

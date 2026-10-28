@@ -173,8 +173,7 @@ impl Service {
                 service.spawn_task(async move { payload::refuse(ip, scope, pl.port, &cert, pin).await });
             }
         };
-        let root = self.receive_root();
-        let folder = match share::device_folder(&root, &dev.name()) {
+        let folder = match self.folder_for(dev, shown) {
             Ok(f) => f,
             Err(e) => {
                 refuse(self);

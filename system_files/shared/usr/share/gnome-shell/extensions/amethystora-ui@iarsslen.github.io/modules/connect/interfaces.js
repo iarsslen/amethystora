@@ -52,6 +52,8 @@ const DEVICE = `
     <property name="Connected" type="b" access="read"/>
     <property name="BatteryLevel" type="i" access="read"/>
     <property name="BatteryCharging" type="b" access="read"/>
+    <property name="SignalStrength" type="i" access="read"/>
+    <property name="NetworkType" type="s" access="read"/>
     <property name="Features" type="as" access="read"/>
     <method name="Ping"/>
     <method name="SendUrl">

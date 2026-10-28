@@ -80,6 +80,8 @@ pub struct ReplyState {
     pub text: String,
     pub error: Option<String>,
     sending: bool,
+    /// The text the phone was given, while the card says so before it goes
+    sent: Option<String>,
 }
 
 /// A layer over the window
@@ -124,7 +126,8 @@ impl Phone {
             Dialog::Text { device, text } => self.text_body(device, text),
         };
         body.update_property(&[gtk::accessible::Property::Modal(true)]);
-        let width = ui::limit_center(&body, 560);
+        // The reply is the board's card, 380 wide; the others are forms
+        let width = ui::limit_center(&body, if matches!(dialog, Dialog::Reply(_)) { 380 } else { 560 });
         width.add_css_class("dialog-width");
         // In the middle of the window
         let back = ui::vbox(0, &["dialog-back"]);
@@ -625,7 +628,7 @@ impl Phone {
     // --- Reply -----------------------------------------------------------------------------------------
 
     pub(crate) fn open_reply(self: &Rc<Self>, device: &str, notification: &str) {
-        let st = Rc::new(RefCell::new(ReplyState { device: device.to_string(), notification: notification.to_string(), found: Found::Looking, text: String::new(), error: None, sending: false }));
+        let st = Rc::new(RefCell::new(ReplyState { device: device.to_string(), notification: notification.to_string(), found: Found::Looking, text: String::new(), error: None, sending: false, sent: None }));
         self.set_dialog(Dialog::Reply(st.clone()));
         let (this, device, notification) = (self.clone(), device.to_string(), notification.to_string());
         glib::spawn_future_local(async move {
@@ -642,76 +645,126 @@ impl Phone {
     }
 
     fn reply_body(&self, st: &Rc<RefCell<ReplyState>>) -> (gtk::Box, Option<gtk::Widget>) {
-        let (device_id, found, text, error) = {
+        let (device_id, found, text, error, sent) = {
             let s = st.borrow();
-            (s.device.clone(), s.found.clone(), s.text.clone(), s.error.clone())
+            (s.device.clone(), s.found.clone(), s.text.clone(), s.error.clone(), s.sent.clone())
         };
         let device = self.link.device(&device_id);
         let phone = device.as_ref().map(|d| bdi(&d.title())).unwrap_or_else(|| t!("the phone"));
         let connected = device.as_ref().is_some_and(|d| d.paired && d.connected);
+        if let Found::There(notification) = &found {
+            return self.reply_card(st, notification, connected, &phone, &text, error, sent);
+        }
+        // Still looking, or the notification is gone: the card waits, or says so
         let body = Self::dialog_box();
-        let app = match &found {
-            Found::There(n) if !n.app.trim().is_empty() => bdi(&n.app),
-            _ => t!("a notification"),
+        body.append(&widgets::heading(&t!("Reply to {app}", app = t!("a notification")), "h2"));
+        body.append(&ui::label(&t!("From {phone}", phone = phone), &["faint", "small"]));
+        if let Found::Gone = &found {
+            body.append(&widgets::callout("check", &t!("That notification is gone"), &t!("It was answered or dismissed on the phone, or the phone is not connected. There is nothing to reply to.")));
+        } else {
+            let working = widgets::role_box(gtk::Orientation::Horizontal, 10, &["working"], gtk::AccessibleRole::Status);
+            let mark = icon("spinner", 18);
+            mark.set_spinning(true);
+            working.append(&mark);
+            working.append(&ui::label(&t!("Asking the phone…"), &[]));
+            body.append(&working);
+        }
+        body.append(&Self::dialog_actions(vec![self.button(&t!("Cancel"), Look::default(), |this| this.close_dialog())]));
+        (body, None)
+    }
+
+    /// The reply as a card (board 32, third card): who wrote and what, then a line to answer on and Send; once sent,
+    /// what the phone was given, and the card goes by itself. The protocol has no word back from the phone, so the
+    /// card says the phone is sending it, not that it was sent.
+    #[allow(clippy::too_many_arguments)]
+    fn reply_card(&self, st: &Rc<RefCell<ReplyState>>, notification: &Repliable, connected: bool, phone: &str, text: &str, error: Option<String>, sent: Option<String>) -> (gtk::Box, Option<gtk::Widget>) {
+        let body = Self::dialog_box();
+        body.add_css_class("reply-card");
+        body.set_spacing(10);
+        let sender = if notification.title.trim().is_empty() { notification.app.trim() } else { notification.title.trim() };
+        let sender = model::clean(sender, model::MOST_NAME).replace('\n', " ");
+        let top = ui::hbox(10, &[]);
+        // The app's icon from the phone, when the program kept one; the message glyph otherwise
+        let avatar = ui::hbox(0, &["reply-avatar"]);
+        match &notification.icon {
+            Some(path) => {
+                avatar.add_css_class("picture");
+                avatar.set_overflow(gtk::Overflow::Hidden);
+                let picture = gtk::Image::from_file(path);
+                picture.set_pixel_size(30);
+                avatar.append(&picture);
+            }
+            None => {
+                let mark = icon("message", 16);
+                mark.set_hexpand(true);
+                mark.set_valign(gtk::Align::Center);
+                avatar.append(&mark);
+            }
+        }
+        avatar.set_valign(gtk::Align::Start);
+        top.append(&avatar);
+        let words = ui::vbox(0, &[]);
+        words.set_hexpand(true);
+        // A notification that names neither who wrote nor its app is still the phone's
+        let (heading, hint) = if sender.trim().is_empty() {
+            (t!("A message from your phone"), t!("Write a reply"))
+        } else {
+            (t!("{name} · from your phone", name = bdi(&sender)), t!("Reply to {name}", name = bdi(&sender)))
         };
-        body.append(&widgets::heading(&t!("Reply to {app}", app = app), "h2"));
-        body.append(&ui::label(&t!("From {phone}", phone = phone.clone()), &["faint", "small"]));
-        match &found {
-            Found::Looking => {
-                let working = widgets::role_box(gtk::Orientation::Horizontal, 10, &["working"], gtk::AccessibleRole::Status);
-                let mark = icon("spinner", 18);
-                mark.set_spinning(true);
-                working.append(&mark);
-                working.append(&ui::label(&t!("Asking the phone…"), &[]));
-                body.append(&working);
-            }
-            Found::Gone => body.append(&widgets::callout("check", &t!("That notification is gone"), &t!("It was answered or dismissed on the phone, or the phone is not connected. There is nothing to reply to."))),
-            Found::There(notification) => {
-                let quote = ui::vbox(4, &["quote"]);
-                if !notification.title.trim().is_empty() {
-                    quote.append(&ui::label(&notification.title, &["strong"]));
-                }
-                if !notification.text.trim().is_empty() {
-                    quote.append(&self.linked_label(&notification.text));
-                }
-                body.append(&quote);
-            }
+        let title = ui::label(&heading, &["reply-title"]);
+        title.set_xalign(0.0);
+        words.append(&title);
+        if !notification.text.trim().is_empty() {
+            let message = self.linked_label(&notification.text);
+            message.add_css_class("reply-message");
+            words.append(&message);
         }
-        if !connected && found_is_there(&found) {
-            body.append(&widgets::callout("check", "", &t!("{phone} is not connected, so a reply cannot be sent now.", phone = phone)));
+        top.append(&words);
+        body.append(&top);
+        if let Some(said) = sent {
+            let done = widgets::role_box(gtk::Orientation::Horizontal, 8, &["reply-sent"], gtk::AccessibleRole::Status);
+            done.append(&amethystora_ui::icon::Icon::new(crate::icons::data("check"), 16, 3.0));
+            let words = ui::label(&t!("Your phone is sending it: “{text}”", text = said), &[]);
+            words.set_xalign(0.0);
+            words.set_hexpand(true);
+            done.append(&words);
+            body.append(&done);
+            return (body, None);
         }
-        let can_reply = found_is_there(&found) && connected;
-        let send = self.button(&t!("Send reply"), Look { primary: true, icon: Some("send"), disabled: !can_reply || text.trim().is_empty(), ..Default::default() }, {
+        let row = ui::hbox(8, &["reply-row"]);
+        let entry = gtk::Entry::builder().placeholder_text(&hint).text(text).hexpand(true).css_classes(["field-entry"]).build();
+        entry.update_property(&[gtk::accessible::Property::Label(&hint)]);
+        entry.set_sensitive(connected);
+        let send = self.button(&t!("Send"), Look { primary: true, disabled: !connected || text.trim().is_empty(), ..Default::default() }, {
             let st = st.clone();
             move |this| this.reply_now(&st)
         });
-        let mut focus: Option<gtk::Widget> = None;
-        if found_is_there(&found) {
+        send.add_css_class("reply-send");
+        {
             let (state, button, weak) = (st.clone(), send.clone(), self.weak());
-            let enter = {
-                let (state, weak) = (st.clone(), self.weak());
-                move || {
-                    if let Some(this) = weak.upgrade() {
-                        if !state.borrow().text.trim().is_empty() {
-                            this.reply_now(&state);
-                        }
-                    }
-                }
-            };
-            let field = widgets::field(&t!("Write a reply"), &text, move |text| {
-                state.borrow_mut().text = text.to_string();
+            entry.connect_changed(move |entry| {
+                let text = entry.text().to_string();
+                state.borrow_mut().text = text.clone();
                 let connected = weak.upgrade().and_then(|this| this.link.device(&state.borrow().device)).is_some_and(|d| d.paired && d.connected);
                 button.set_sensitive(connected && !text.trim().is_empty());
-            }, enter);
-            field.view.set_sensitive(connected);
-            body.append(&field.root);
-            focus = Some(field.view.upcast());
+            });
+            let (state, weak) = (st.clone(), self.weak());
+            entry.connect_activate(move |_| {
+                if let Some(this) = weak.upgrade().filter(|_| !state.borrow().text.trim().is_empty()) {
+                    this.reply_now(&state);
+                }
+            });
+        }
+        row.append(&entry);
+        row.append(&send);
+        body.append(&row);
+        if !connected {
+            body.append(&widgets::callout("check", "", &t!("{phone} is not connected, so a reply cannot be sent now.", phone = phone.to_string())));
         }
         if let Some(error) = error {
             body.append(&widgets::callout("failed", "", &error));
         }
-        body.append(&Self::dialog_actions(vec![self.button(&t!("Cancel"), Look::default(), |this| this.close_dialog()), send]));
-        (body, focus)
+        (body, Some(entry.upcast()))
     }
 
     fn reply_now(self: &Rc<Self>, st: &Rc<RefCell<ReplyState>>) {
@@ -730,9 +783,14 @@ impl Phone {
             st.borrow_mut().sending = false;
             match result {
                 Ok(()) => {
-                    let phone = this.link.device(&device).map(|d| bdi(&d.title())).unwrap_or_default();
-                    this.close_dialog();
-                    this.say(false, t!("Reply sent to {phone}.", phone = phone));
+                    st.borrow_mut().sent = Some(text);
+                    this.render_dialog();
+                    // The card says it for two seconds, then goes, unless the person closed it or opened another
+                    glib::timeout_future(std::time::Duration::from_secs(2)).await;
+                    let same = matches!(&this.state.borrow().dialog, Some(Dialog::Reply(open)) if Rc::ptr_eq(open, &st));
+                    if same {
+                        this.close_dialog();
+                    }
                 }
                 Err(failure) => {
                     st.borrow_mut().error = Some(failure_text(&failure));
@@ -802,10 +860,6 @@ impl Phone {
         });
         label
     }
-}
-
-fn found_is_there(found: &Found) -> bool {
-    matches!(found, Found::There(_))
 }
 
 /// A row of the progress list as the transfer says it is

@@ -199,7 +199,12 @@ class AmethystoraDockDash extends Dash.Dash {
             this._queueGeometry();
             this._placeCaption();
         });
-        this.connect('notify::hover', () => this._syncCaption());
+        this.connect('notify::hover', () => {
+            this._syncCaption();
+            // A folder coloured in Files since: the stacks' own icons are read again as the pointer comes to the dock
+            if (this.hover)
+                this._dock.stacks?.reread();
+        });
         this.connect('destroy', () => this._onDestroy());
 
         this.swell = new Swell(this, dock);

@@ -174,6 +174,8 @@ pub struct Entry {
     pub reply_id: Option<String>,
     pub clearable: bool,
     pub kind: Kind,
+    /// The phone's name for its icon (32 hexadecimal characters), which the program keeps as a PNG of its own
+    pub icon_hash: Option<String>,
     signature: String,
     seq: u64,
 }
@@ -232,6 +234,7 @@ impl Table {
                 reply_id: n.reply_id.clone(),
                 clearable: n.clearable,
                 kind: n.kind,
+                icon_hash: n.icon_hash.clone(),
                 signature: sig,
                 seq: self.next,
             },

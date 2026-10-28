@@ -1,0 +1,72 @@
+#!/usr/bin/bash
+# Folder colour, from Files' scripts menu (Scripts › Folder colour, written by user-setup.hooks.d/24-files-menu.sh):
+# gives each folder named the coloured folder of the icon pack, by name, in the metadata Files reads
+# (metadata::custom-icon-name), so that it follows a change of icon pack; or takes the colour away again.
+#
+#   amethystora-folder-colour amethyst|sky|jade|amber|coral|slate|none -- PATH...
+#
+# The paths are Files' arguments (relative to the folder it shows), read from argv only, each whole: never from the
+# NAUTILUS_SCRIPT_* variables, whose lists a name with a newline would split. A path is never given to a shell, and
+# always after `--`, so that a name that starts with a dash is a name. Only the metadata of the folders named and their
+# own modification time (set to the time it already has) change.
+
+set -uo pipefail
+
+export TEXTDOMAIN=amethystora
+# shellcheck source=/dev/null
+source gettext.sh
+
+COLOURS=(amethyst sky jade amber coral slate)
+OURS=" ${COLOURS[*]/#/folder-} "
+
+usage() {
+    echo "usage: amethystora-folder-colour amethyst|sky|jade|amber|coral|slate|none -- PATH..." >&2
+    exit 64
+}
+
+colour="${1:-}"
+case "${colour}" in
+    amethyst | sky | jade | amber | coral | slate | none) ;;
+    *) usage ;;
+esac
+shift
+[[ "${1:-}" == -- ]] || usage
+shift
+
+# The folder's own icon name, as the metadata holds it. The attributes come last in gio's answer, after the names, so
+# that the last such line is the attribute even if a name holds a line of the same look.
+icon_name() { # PATH
+    gio info -n -a metadata::custom-icon-name -- "$1" 2>/dev/null | sed -n 's/^  metadata::custom-icon-name: //p' | tail -n 1
+}
+
+skipped=0
+for path in "$@"; do
+    # Relative to the folder Files shows, and not resolved through a link: the metadata belongs to the entry Files shows
+    [[ "${path}" == /* ]] || path="${PWD}/${path}"
+    if [[ ! -d "${path}" ]]; then
+        skipped=$((skipped + 1))
+        continue
+    fi
+    if [[ "${colour}" == none ]]; then
+        # Only a colour of ours is taken away; a picture the person set (custom-icon) stays
+        [[ "${OURS}" == *" $(icon_name "${path}") "* ]] || continue
+        gio set -n -t unset -- "${path}" metadata::custom-icon-name
+    else
+        gio set -n -t string -- "${path}" metadata::custom-icon-name "folder-${colour}" || continue
+        # A picture would win over the colour
+        gio set -n -t unset -- "${path}" metadata::custom-icon 2>/dev/null
+    fi
+    # Files hears of a folder's change from the kernel, which says nothing of metadata: its modification time, set to
+    # the time it already has, is a change of attributes that Files listens for. One that is not the person's is left.
+    mtime="$(stat -c %.9Y -- "${path}" 2>/dev/null)" && touch -c -h -m -d "@${mtime}" -- "${path}" 2>/dev/null
+done
+
+if ((skipped > 0)); then
+    count="${skipped}"
+    export count
+    notify-send --app-name=Files --icon=folder \
+        "$(gettext "Folder colour is for folders")" \
+        "$(eval_ngettext "\$count item was left as it was." "\$count items were left as they were." "${skipped}")" \
+        2>/dev/null
+fi
+exit 0

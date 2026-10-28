@@ -25,7 +25,18 @@ const GRID_COLUMN = 8;
 const GAP = 12;
 const POP = {from: 16, scale: 0.94, open: 260, close: 160, openMode: EASE.quart, closeMode: EASE.quart};
 const ATTRIBUTES = 'standard::name,standard::display-name,standard::icon,standard::content-type,' +
-    'standard::is-hidden,standard::type,time::modified';
+    'standard::is-hidden,standard::type,time::modified,metadata::custom-icon-name';
+
+// The icon Files shows for a file: a folder given a colour (Files' Scripts › Folder colour) carries the icon's name in
+// metadata::custom-icon-name, looked up in the icon pack, with the file's own names behind it when they are names (the
+// St.Icon's fallback_icon_name does the rest); a name that is not an icon name is ignored
+function iconOf(info, fallback) {
+    const own = info.get_icon() ?? fallback;
+    const name = info.get_attribute_string('metadata::custom-icon-name');
+    if (!name || !/^[A-Za-z0-9_.-]{1,64}$/.test(name))
+        return own;
+    return Gio.ThemedIcon.new_from_names([name, ...own instanceof Gio.ThemedIcon ? own.get_names() : []]);
+}
 
 const XDG = {
     DESKTOP: GLib.UserDirectory.DIRECTORY_DESKTOP,
@@ -144,9 +155,15 @@ export class Stacks extends EventEmitter {
             this.refresh(place);
     }
 
+    // The pointer came to the dock: a colour given to a stacked folder in Files since shows on its tile. One query per
+    // stack, never a watch on a folder while its stack is shut
+    reread() {
+        this._icons();
+    }
+
     refresh(place) {
         const file = Gio.File.new_for_path(place.path);
-        file.query_info_async('standard::icon,standard::display-name,standard::type', Gio.FileQueryInfoFlags.NONE,
+        file.query_info_async('standard::icon,standard::display-name,standard::type,metadata::custom-icon-name', Gio.FileQueryInfoFlags.NONE,
             GLib.PRIORITY_LOW, this._cancellable, (object, result) => {
                 let info;
                 try {
@@ -160,8 +177,13 @@ export class Stacks extends EventEmitter {
                     this._say(`${place.value}: not a folder`);
                     return;
                 }
-                place.gicon = info.get_icon() ?? place.gicon;
-                place.name = info.get_display_name() || place.name;
+                const gicon = iconOf(info, place.gicon);
+                const name = info.get_display_name() || place.name;
+                // Read again as the pointer comes: the tile is drawn again only when something changed
+                if (place.gicon?.equal(gicon) && place.name === name)
+                    return;
+                place.gicon = gicon;
+                place.name = name;
                 this.emit('place-changed', place);
             });
     }
@@ -241,6 +263,7 @@ export class Stacks extends EventEmitter {
     show(dash, state) {
         const place = state.key;
         const cancellable = new Gio.Cancellable();
+        this.refresh(place);
         const popover = new Popover(this._dock, dash, state, {
             styleClass: 'amethystora-dock-stack',
             gap: GAP,
@@ -317,7 +340,7 @@ export class Stacks extends EventEmitter {
                 x_expand: true,
             });
             const box = new St.BoxLayout({orientation: Clutter.Orientation.VERTICAL, x_expand: true});
-            const gicon = entry.info.get_icon() ?? Gio.ThemedIcon.new('text-x-generic');
+            const gicon = iconOf(entry.info, Gio.ThemedIcon.new('text-x-generic'));
             box.add_child(new St.Icon({
                 gicon, icon_size: ICON, x_align: Clutter.ActorAlign.CENTER,
                 fallback_icon_name: 'text-x-generic',

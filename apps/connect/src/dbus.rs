@@ -224,12 +224,15 @@ pub fn transfer(service: &Service, dev: &Rc<Device>, id: &str, name: &str, incom
     emit(service, Some(dev), "Transfer", Some((id, name, incoming, done as i64, total as i64, state).to_variant()));
 }
 
-fn properties_changed(service: &Service, path: &str, interface: &str, changed: HashMap<String, glib::Variant>) {
+fn properties_changed(service: &Service, dev: Option<&Rc<Device>>, path: &str, interface: &str, changed: HashMap<String, glib::Variant>) {
     if changed.is_empty() {
         return;
     }
     let invalidated: Vec<String> = Vec::new();
     let args = (interface, changed, invalidated).to_variant();
+    if service.cfg.record_signals {
+        service.recorded.borrow_mut().push(Signal { device: dev.map(|d| d.id.clone()), name: "PropertiesChanged".to_string(), args: Some(args.clone()) });
+    }
     send_to_clients(service, path, "org.freedesktop.DBus.Properties", "PropertiesChanged", Some(&args));
 }
 
@@ -246,7 +249,7 @@ pub fn props_changed(service: &Service, dev: &Rc<Device>) {
             }
         }
     }
-    properties_changed(service, &dev.path, DEVICE_INTERFACE, changed);
+    properties_changed(service, Some(dev), &dev.path, DEVICE_INTERFACE, changed);
 }
 
 fn root_properties(service: &Service) -> Vec<(&'static str, glib::Variant)> {
@@ -255,6 +258,7 @@ fn root_properties(service: &Service) -> Vec<(&'static str, glib::Variant)> {
         ("ClipboardSend", service.clip_send.get().to_variant()),
         ("ClipboardReceive", service.clip_receive.get().to_variant()),
         ("ReceiveFolder", service.receive_root().to_string_lossy().to_string().to_variant()),
+        ("PhotoFolder", service.photo_folder_path().unwrap_or_else(|| service.receive_root()).to_string_lossy().to_string().to_variant()),
     ]
 }
 
@@ -269,7 +273,7 @@ pub fn root_props_changed(service: &Service) {
             }
         }
     }
-    properties_changed(service, ROOT_PATH, ROOT_INTERFACE, changed);
+    properties_changed(service, None, ROOT_PATH, ROOT_INTERFACE, changed);
 }
 
 // --- Registering -----------------------------------------------------------------------------------------

@@ -292,11 +292,38 @@ test ! -e /usr/share/dbus-1/services/org.amethystora.Connect.service
 grep -q '^\[Install\]' /usr/lib/systemd/user/amethystora-connect.service
 grep -q '^WantedBy=graphical-session.target' /usr/lib/systemd/user/amethystora-connect.service
 grep -qE '^(MemoryMax|TasksMax|LimitNOFILE)=' /usr/lib/systemd/user/amethystora-connect.service
-# ...whose only settings are the name phones see and the two ways the clipboard may be shared, both off
+# ...whose only settings are the name phones see, the two ways the clipboard may be shared, both off, and where
+# pictures from a phone go, Pictures/Phone (plans/beyond/spec-phone-files-first.md 2.3)
 [[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.amethystora.Connect | sort | paste -sd ' ')" == \
-    "clipboard-receive clipboard-send device-name" ]]
+    "clipboard-receive clipboard-send device-name photo-folder" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.amethystora.Connect clipboard-send)" == false ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.amethystora.Connect clipboard-receive)" == false ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.amethystora.Connect photo-folder)" == "'pictures'" ]]
+grep -q 'gsettings set org.amethystora.Connect photo-folder downloads' /usr/share/amethystora/just/desktop.just
+# The phone's signal in the top bar comes from the program's two device properties, which the module reads
+for property in SignalStrength NetworkType; do
+    grep -q "<property name=\"${property}\"" /usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/interfaces.js
+done
+# Files' scripts menu (spec 3): the two helpers and the hook that writes their entries once per account, as marked
+# wrappers that pass Files' arguments on after --; the helpers read argv only, never Files' variables of names, and
+# never give a name to a shell
+test -x /usr/libexec/amethystora-folder-colour
+test -x /usr/libexec/amethystora-back-in-time
+test -x /usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh
+grep -q "^version-script files-menu user " /usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh
+grep -q 'exec %s -- "$@"' /usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh
+grep -vh '^ *#' /usr/libexec/amethystora-folder-colour /usr/libexec/amethystora-back-in-time |
+    grep -qE 'NAUTILUS_SCRIPT_|eval |bash -c|sh -c' && false
+grep -q 'metadata::custom-icon-name "folder-${colour}"' /usr/libexec/amethystora-folder-colour
+bash -n /usr/libexec/amethystora-folder-colour
+bash -n /usr/libexec/amethystora-back-in-time
+[[ "$(/usr/libexec/amethystora-folder-colour purple -- /tmp >/dev/null 2>&1; echo $?)" == 64 ]]
+# ...and every icon pack draws the six colours (the packs' equal counts are held below)
+for pack in /usr/share/icons/amethystora-{glass,glass-light,neon,neon-light,duotone,line,clay,muted}; do
+    for colour in amethyst sky jade amber coral slate; do
+        test -s "${pack}/places/scalable/folder-${colour}.svg"
+    done
+done
 # ame desktop phone turns the service on and off, not an extension
 grep -q "amethystora-connect.service" /usr/share/amethystora/just/desktop.just
 grep -qi "gsconnect" /usr/share/amethystora/just/desktop.just && false

@@ -495,6 +495,7 @@ async fn over_the_bus(root: &Path) {
     let name = property(&client, &dest, ROOT, IFACE, "Name").await.unwrap();
     assert_eq!(name.str(), Some(""), "a stranger reads nothing");
     assert_eq!(property(&client, &dest, ROOT, IFACE, "ClipboardSend").await.unwrap().get::<bool>(), Some(false));
+    assert_eq!(property(&client, &dest, ROOT, IFACE, "PhotoFolder").await.unwrap().str(), Some(""), "nor where pictures go");
 
     // The app: everything
     let app = make_with(root, "App test", "laptop", false, false, |c| {
@@ -533,6 +534,10 @@ async fn over_the_bus(root: &Path) {
     assert!(call(&client, &dest, ROOT, IFACE, "TakeLinks", Some(("yes",).to_variant())).await.is_err());
     assert_eq!(property(&client, &dest, ROOT, IFACE, "Name").await.unwrap().str(), Some("Module test"));
     assert_eq!(property(&client, &dest, &path, DEVICE, "Name").await.unwrap().str(), Some("Sam phone"));
+    // The bar's capsule reads the phone's signal and where its pictures go
+    assert_eq!(property(&client, &dest, &path, DEVICE, "SignalStrength").await.unwrap().get::<i32>(), Some(-1));
+    assert_eq!(property(&client, &dest, &path, DEVICE, "NetworkType").await.unwrap().str(), Some(""));
+    assert_eq!(property(&client, &dest, ROOT, IFACE, "PhotoFolder").await.unwrap().str(), module.dir.join("pictures/Phone").to_str());
     // MuteRinger: the live pill's chip for a phone ringing
     for method in ["Ping", "SendUrl", "MuteRinger"] {
         let args = (method == "SendUrl").then(|| ("https://example.org/",).to_variant());

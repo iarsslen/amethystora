@@ -15,6 +15,7 @@ use glib::variant::ToVariant;
 use serde_json::json;
 
 use crate::battery::Alert;
+use crate::connectivity;
 use crate::device::Device;
 use crate::identity;
 use crate::limits;
@@ -67,6 +68,7 @@ impl Service {
             "kdeconnect.contacts.response_vcards" => self.on_contact_cards(dev, &packet),
             "kdeconnect.sms.messages" => self.on_sms(dev, &packet),
             "kdeconnect.telephony" => self.on_telephony(dev, &packet),
+            "kdeconnect.connectivity_report" => self.on_connectivity(dev, &packet),
             // The ones we only list so that the phone offers them: battery.request, notification.request
             _ => {}
         }
@@ -95,6 +97,8 @@ impl Service {
         let (entries, had_call) = {
             let mut st = dev.st.borrow_mut();
             st.battery.disconnected();
+            // Away, the bars simply go: a phone that comes back says its signal again when it changes
+            st.signal = None;
             st.contacts_queue.clear();
             (st.notifications.clear(), st.call.take().is_some())
         };
@@ -156,6 +160,17 @@ impl Service {
             Alert::Withdraw => self.notifier.close(&format!("battery:{}", dev.id)),
             Alert::None => {}
         }
+        dbus::props_changed(self, dev);
+    }
+
+    /// The phone's mobile signal. A body without the map says nothing; a map with nothing valid in it means the phone
+    /// has no signal to tell of. Only a phone that listed the report as one it sends is heard: the program never asks
+    /// for one (the request is deprecated, and phones ignore it).
+    fn on_connectivity(self: &Rc<Self>, dev: &Rc<Device>, p: &Packet) {
+        if !dev.sends("kdeconnect.connectivity_report") || !connectivity::is_report(&p.body) {
+            return;
+        }
+        dev.st.borrow_mut().signal = connectivity::parse(&p.body);
         dbus::props_changed(self, dev);
     }
 
@@ -326,6 +341,10 @@ impl Service {
                 m.insert("app".to_string(), e.app.to_variant());
                 m.insert("title".to_string(), e.title.to_variant());
                 m.insert("text".to_string(), e.text.to_variant());
+                // The app's icon as the program keeps it (a PNG it wrote itself from the phone's picture), when it came
+                if let Some(path) = e.icon_hash.as_ref().map(|hash| self.icons_dir(&dev.id).join(format!("{hash}.png"))).filter(|p| p.is_file()) {
+                    m.insert("icon".to_string(), path.to_string_lossy().into_owned().to_variant());
+                }
                 m
             })
             .collect())

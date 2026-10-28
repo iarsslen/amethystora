@@ -1,5 +1,6 @@
-// The phone in the top bar: its icon, with the battery of the phone beside it when there is one phone, and a menu with
-// each connected phone's name and charge and what can be done with it. The rows show only while the phone can take the
+// The phone in the top bar: with one phone, a capsule of its battery and its signal (board 32, second card), or its icon
+// when it has said neither; with several, the icon alone. A menu with each connected phone's name, charge, signal and
+// what can be done with it. The rows show only while the phone can take the
 // request, and do nothing themselves: they hand the choice to the module.
 
 import Clutter from 'gi://Clutter';
@@ -7,9 +8,11 @@ import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 import St from 'gi://St';
 
-import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+
+import {BatteryGlyph, SignalBars} from './glyphs.js';
 
 // The icons of the Adwaita theme, in the order they are tried: its newer name for a phone, then its older
 const BAR_ICON = ['smartphone-symbolic', 'phone-symbolic'];
@@ -30,6 +33,24 @@ let percentFormat = null;
 function percent(level) {
     percentFormat ??= new Intl.NumberFormat(undefined, {style: 'percent', maximumFractionDigits: 0});
     return percentFormat.format(level / 100);
+}
+
+// What a screen reader says of the capsule, leaving out what the phone has not said. The battery and the signal are
+// each a phrase of their own, so that each takes the plural form of its own number
+export function capsuleName(level, signal) {
+    // ngettext takes no number below 0, which is what the phone has not said
+    const battery = level >= 0
+        // Translators: the phone's charge, said by a screen reader: "battery 54 per cent"
+        ? ngettext('battery %d per cent', 'battery %d per cent', level).format(level) : '';
+    const bars = signal >= 0
+        // Translators: the phone's mobile signal, said by a screen reader: "signal 3 of 4 bars"
+        ? ngettext('signal %d of 4 bars', 'signal %d of 4 bars', signal).format(signal) : '';
+    if (level >= 0 && signal >= 0) {
+        // Translators: the phone in the top bar, said by a screen reader: its battery, then its signal
+        return _('Phone: %s, %s').format(battery, bars);
+    }
+    // Translators: the phone in the top bar, said by a screen reader: its battery or its signal
+    return _('Phone: %s').format(level >= 0 ? battery : bars);
 }
 
 // One phone's part of the menu: its title, then its rows, then a line under them. The line is the menu's own item and
@@ -53,7 +74,14 @@ class Section {
             opacity: QUIET,
         });
         this._charge = new St.Icon({gicon: bolt, style_class: 'popup-menu-icon amethystora-connect-bolt'});
-        for (const actor of [this._type, this._name, this._level, this._charge])
+        // The signal after the battery, its network in the battery's quiet style
+        this._bars = new SignalBars();
+        this._network = new St.Label({
+            style_class: 'amethystora-connect-network',
+            y_align: Clutter.ActorAlign.CENTER,
+            opacity: QUIET,
+        });
+        for (const actor of [this._type, this._name, this._level, this._charge, this._bars, this._network])
             title.add_child(actor);
         this.menu.addMenuItem(title);
 
@@ -78,6 +106,11 @@ class Section {
         this._level.visible = level >= 0;
         this._level.text = level >= 0 ? percent(level) : '';
         this._charge.visible = device.charging;
+        const signal = device.signal;
+        this._bars.visible = signal >= 0;
+        this._bars.level = Math.max(signal, 0);
+        this._network.visible = signal >= 0 && device.network !== '';
+        this._network.text = signal >= 0 ? device.network : '';
 
         const features = device.features;
         for (const {item, feature, app} of this._rows)
@@ -106,22 +139,31 @@ class PhoneIndicator extends PanelMenu.Button {
         this._sections = new Map();
 
         const box = new St.BoxLayout({style_class: 'amethystora-connect-box', y_align: Clutter.ActorAlign.CENTER});
-        box.add_child(new St.Icon({
+        this._icon = new St.Icon({
             gicon: Gio.ThemedIcon.new_from_names(BAR_ICON),
             style_class: 'system-status-icon',
-        }));
+        });
+        box.add_child(this._icon);
+        // One phone that has said its battery or its signal: the capsule, battery outline, percentage, charging mark
+        // and bars, each shown only while known
+        this._capsule = new St.BoxLayout({
+            style_class: 'amethystora-connect-capsule',
+            y_align: Clutter.ActorAlign.CENTER,
+            visible: false,
+        });
+        this._battery = new BatteryGlyph();
         this._level = new St.Label({
             style_class: 'amethystora-connect-level',
             y_align: Clutter.ActorAlign.CENTER,
-            visible: false,
         });
         this._charge = new St.Icon({
             gicon: bolt,
             style_class: 'system-status-icon amethystora-connect-bolt',
-            visible: false,
         });
-        box.add_child(this._level);
-        box.add_child(this._charge);
+        this._bars = new SignalBars();
+        for (const actor of [this._battery, this._level, this._charge, this._bars])
+            this._capsule.add_child(actor);
+        box.add_child(this._capsule);
         this.add_child(box);
 
         const phones = new PopupMenu.PopupMenuItem(_('Phones…'));
@@ -158,12 +200,19 @@ class PhoneIndicator extends PanelMenu.Button {
             section.update(device);
         });
 
-        // One phone is its battery, in the bar; several are in the menu
+        // One phone is its battery and signal, in the bar; several are in the menu
         const only = devices.length === 1 ? devices[0] : null;
         const level = only?.level ?? -1;
+        const signal = only?.signal ?? -1;
+        const capsule = level >= 0 || signal >= 0;
+        this._capsule.visible = capsule;
+        this._icon.visible = !capsule;
+        this._battery.visible = level >= 0;
         this._level.visible = level >= 0;
         this._level.text = level >= 0 ? percent(level) : '';
-        this._charge.visible = only?.charging ?? false;
-        this.accessible_name = only ? only.name : _('Phones');
+        this._charge.visible = level >= 0 && only.charging;
+        this._bars.visible = signal >= 0;
+        this._bars.level = Math.max(signal, 0);
+        this.accessible_name = capsule ? capsuleName(level, signal) : only?.name ?? _('Phones');
     }
 });

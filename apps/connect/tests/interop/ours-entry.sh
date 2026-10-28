@@ -14,8 +14,8 @@ export DBUS_SESSION_BUS_ADDRESS="$ADDRESS"
 python3 /interop/fake-notifications.py /tmp/notifications.jsonl > /tmp/fake-notifications.log 2>&1 &
 sleep 1
 start_daemon() {
-    # gdbus stands in for the app and the module: the bus lets only those call the service
-    /target/debug/amethystora-connect --verbose --home-interfaces eth0 --download-dir /tmp/ours/downloads --app-command /interop/fake-app.sh --no-launcher --show-ongoing --app-exe "$(readlink -f /usr/bin/gdbus)" >> /tmp/ours.log 2>&1 &
+    # gdbus stands in for the app, python (fake-module.py) for the module: the bus lets only those call the service
+    /target/debug/amethystora-connect --verbose --home-interfaces eth0 --download-dir /tmp/ours/downloads --pictures-dir "$HOME/Pictures" --app-command /interop/fake-app.sh --no-launcher --show-ongoing --app-exe "$(readlink -f /usr/bin/gdbus)" --module-exe "$(readlink -f /usr/bin/python3)" >> /tmp/ours.log 2>&1 &
     echo $! > /tmp/ours.pid
 }
 start_daemon

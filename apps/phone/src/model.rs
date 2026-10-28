@@ -712,6 +712,18 @@ pub fn still_pending(pending: Vec<Pending>, messages: &[Message]) -> Vec<Pending
     pending.into_iter().filter(|p| !p.settled(messages)).collect()
 }
 
+/// A notification's icon as the program gives it: shown only when it is a PNG the program wrote itself, in its own
+/// icons folder (`STATE/amethystora/connect/icons/DEVICE/HASH.png`), never a file named anywhere else
+pub fn kept_icon(said: &str, state: &std::path::Path) -> Option<std::path::PathBuf> {
+    let path = std::path::Path::new(said);
+    let device = path.parent()?;
+    let hash = path.file_name()?.to_str()?.strip_suffix(".png")?;
+    let device_id = device.file_name()?.to_str()?;
+    let hashed = hash.len() == 32 && hash.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b));
+    let named = !device_id.is_empty() && !device_id.starts_with('-') && device_id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-');
+    (hashed && named && device.parent()? == state.join("amethystora/connect/icons")).then(|| path.to_path_buf())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1052,5 +1064,25 @@ mod tests {
         assert_eq!(stamp(ms(5.0 * 60.0 + 1.0), now), "5 min");
         // Further back is a date, not minutes
         assert!(!stamp(ms(40.0 * 86400.0), now).contains("min"));
+    }
+
+    #[test]
+    fn a_notification_icon_only_from_the_programs_own_folder() {
+        let state = std::path::Path::new("/home/ada/.local/state");
+        let good = "/home/ada/.local/state/amethystora/connect/icons/4a8f2c7e91d34b5a8e6f0c1d2e3f4a5b/0123456789abcdef0123456789abcdef.png";
+        assert_eq!(kept_icon(good, state).as_deref(), Some(std::path::Path::new(good)));
+        for bad in [
+            "/home/ada/.ssh/id_ed25519",
+            "/home/ada/.local/state/amethystora/connect/icons/0123456789abcdef0123456789abcdef.png",
+            "/home/ada/.local/state/amethystora/connect/icons/dev/../../../../.ssh/0123456789abcdef0123456789abcdef.png",
+            "/home/ada/.local/state/amethystora/connect/icons/dev/0123456789ABCDEF0123456789abcdef.png",
+            "/home/ada/.local/state/amethystora/connect/icons/dev/0123456789abcdef0123456789abcdef.svg",
+            "/home/ada/.local/state/amethystora/connect/icons/-dev/0123456789abcdef0123456789abcdef.png",
+            "/tmp/amethystora/connect/icons/dev/0123456789abcdef0123456789abcdef.png",
+            "icons/dev/0123456789abcdef0123456789abcdef.png",
+            "",
+        ] {
+            assert_eq!(kept_icon(bad, state), None, "{bad}");
+        }
     }
 }

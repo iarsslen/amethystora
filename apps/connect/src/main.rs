@@ -4,7 +4,8 @@
 //! the person has the phone link on (`ame desktop phone on`). With no arguments it is that service. The
 //! arguments are for the tests and for a lab, and none of them is something a person needs:
 //!
-//!   --config-dir DIR --state-dir DIR --download-dir DIR   where it keeps things
+//!   --config-dir DIR --state-dir DIR --download-dir DIR --pictures-dir DIR
+//!                             where it keeps things
 //!   --home-interfaces A,B     announce on these interfaces without asking the firewall which are home
 //!   --allow-loopback          talk to 127.0.0.1 too (a test of two copies on one machine)
 //!   --app-command PROGRAM     what the notifications start (the app, by default)
@@ -22,7 +23,7 @@ use std::rc::Rc;
 
 use amethystora_connect::dbus::{self, BUS_NAME};
 use amethystora_connect::notify::Desktop;
-use amethystora_connect::service::{Config, Service, Settings};
+use amethystora_connect::service::{Config, PhotoFolder, Service, Settings};
 use gio::prelude::*;
 
 const SCHEMA: &str = "org.amethystora.Connect";
@@ -59,6 +60,7 @@ fn main() -> ExitCode {
             "--config-dir" => value("--config-dir").map(|v| cfg.config_dir = PathBuf::from(v)),
             "--state-dir" => value("--state-dir").map(|v| cfg.state_dir = PathBuf::from(v)),
             "--download-dir" => value("--download-dir").map(|v| cfg.download_dir = Some(PathBuf::from(v))),
+            "--pictures-dir" => value("--pictures-dir").map(|v| cfg.pictures_dir = Some(PathBuf::from(v))),
             "--home-interfaces" => value("--home-interfaces").map(|v| cfg.home_interfaces = Some(v.split(',').filter(|s| !s.is_empty()).map(str::to_string).collect())),
             "--app-command" => value("--app-command").map(|v| cfg.app_command = vec![v]),
             "--app-exe" => value("--app-exe").map(|v| cfg.app_exe = v),
@@ -100,7 +102,12 @@ fn main() -> ExitCode {
     };
     let settings_object = gio::SettingsSchemaSource::default().and_then(|source| source.lookup(SCHEMA, true)).map(|schema| gio::Settings::new_full(&schema, None::<&gio::SettingsBackend>, None));
     let settings = match &settings_object {
-        Some(s) => Settings { name: s.string("device-name").to_string(), clipboard_send: s.boolean("clipboard-send"), clipboard_receive: s.boolean("clipboard-receive") },
+        Some(s) => Settings {
+            name: s.string("device-name").to_string(),
+            clipboard_send: s.boolean("clipboard-send"),
+            clipboard_receive: s.boolean("clipboard-receive"),
+            photo_folder: PhotoFolder::from_key(&s.string("photo-folder")),
+        },
         None => Settings::default(),
     };
     let notifier = Desktop::new(bus.clone());
@@ -125,6 +132,7 @@ fn main() -> ExitCode {
             let s = s.clone();
             move |service: &Rc<Service>| {
                 service.set_clipboard_switches(s.boolean("clipboard-send"), s.boolean("clipboard-receive"));
+                service.set_photo_folder(PhotoFolder::from_key(&s.string("photo-folder")));
                 service.set_name(&s.string("device-name"), pretty_host().as_deref());
             }
         };

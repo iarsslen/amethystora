@@ -1,7 +1,7 @@
 //! Two copies of the program in one process, talking over real sockets and real TLS on the loopback: one is the
 //! computer, the other plays a phone (it announces the packet types a phone does). The transcript is the
 //! spec's: connect, pair with the key compared, ping, battery, a phone's notification and the reply to it, files
-//! each way, the clipboard, a call, texts, unpairing; then the negative cases, with a hostile peer made from the
+//! each way (pictures to Pictures/Phone), the phone's signal, the clipboard, a call, texts, unpairing; then the negative cases, with a hostile peer made from the
 //! crate's own parts. Everything is one test, because the main context of a thread has one owner.
 
 use std::path::Path;
@@ -91,7 +91,7 @@ async fn scenario(root: &Path) {
     until("the connect-time requests", || !phone.saw("kdeconnect.battery.request").is_empty() && !phone.saw("kdeconnect.sms.request_conversations").is_empty()).await;
     assert!(!phone.saw("kdeconnect.notification.request").is_empty());
     assert!(!phone.saw("kdeconnect.contacts.request_all_uids_timestamps").is_empty());
-    assert_eq!(prop::<Vec<String>>(&seen_by_computer, "Features"), ["ping", "battery", "notifications", "share", "clipboard", "sms", "telephony"]);
+    assert_eq!(prop::<Vec<String>>(&seen_by_computer, "Features"), ["ping", "battery", "notifications", "share", "clipboard", "sms", "telephony", "connectivity"]);
 
     // --- Ping ---------------------------------------------------------------------------------------------
     computer.service.ping(&pid).unwrap();
@@ -107,6 +107,9 @@ async fn scenario(root: &Path) {
     phone.service.send_to(&seen_by_phone, "kdeconnect.battery", json!({ "currentCharge": 14, "isCharging": false, "thresholdEvent": 1 }));
     until("the low battery alert", || computer.notices.last(&format!("battery:{pid}")).is_some()).await;
     assert!(computer.notices.last(&format!("battery:{pid}")).unwrap().body.contains("14"));
+
+    // --- The phone's signal (spec-phone-files-first.md 2.1, V-CR-1 to 9) -------------------------------------
+    connectivity(&computer, &phone, &pid).await;
 
     // --- A phone's notification, its reply, its buttons, its dismissal ------------------------------------
     let phone_id = "0|org.example.chat|55|null|10123";
@@ -127,6 +130,7 @@ async fn scenario(root: &Path) {
     assert_eq!(computer.notices.raised.borrow().len(), before, "the same notification again does not ring twice");
     let repliable = computer.service.repliable(&pid).unwrap();
     assert_eq!(repliable.len(), 1);
+    assert!(!repliable[0].contains_key("icon"), "no icon was sent");
     let our_id = repliable[0]["id"].get::<String>().unwrap();
     computer.service.reply_to_notification(&pid, &our_id, "On my way.").unwrap();
     until("the reply", || !phone.saw("kdeconnect.notification.reply").is_empty()).await;
@@ -157,6 +161,21 @@ async fn scenario(root: &Path) {
     phone.service.send_to(&seen_by_phone, "kdeconnect.notification", json!({ "id": text, "appName": "Messages", "title": "Sam", "text": "Running late", "isClearable": true }));
     until("the text message's notification", || computer.notices.last(&format!("n:{pid}:{text}")).is_some()).await;
     assert_eq!(computer.notices.last(&format!("n:{pid}:{text}")).unwrap().sound, Some("message-new-instant-phone"));
+    // A notification whose icon the program already keeps: the reply dialog is given the path of that PNG
+    {
+        let hash = "0123456789abcdef0123456789abcdef";
+        let kept = computer.service.icons_dir(&pid).join(format!("{hash}.png"));
+        std::fs::create_dir_all(kept.parent().unwrap()).unwrap();
+        std::fs::write(&kept, b"\x89PNG\r\n\x1a\n").unwrap();
+        phone.service.send_to(&seen_by_phone, "kdeconnect.notification", json!({ "id": "with-icon", "appName": "Chat", "title": "Lin", "text": "Hi",
+            "isClearable": true, "requestReplyId": "6b1c2f9e-3d44-4a0a-9c53-0a5d0f6a7e12", "payloadHash": hash }));
+        until("the notification with an icon", || computer.notices.last(&format!("n:{pid}:with-icon")).is_some()).await;
+        let listed = computer.service.repliable(&pid).unwrap();
+        let entry = listed.iter().find(|n| n["title"].get::<String>().as_deref() == Some("Lin")).expect("the notification");
+        assert_eq!(entry["icon"].get::<String>().as_deref(), kept.to_str());
+        phone.service.send_to(&seen_by_phone, "kdeconnect.notification", json!({ "id": "with-icon", "isCancel": true }));
+        until("the icon's notification to go", || computer.notices.closed.borrow().contains(&format!("n:{pid}:with-icon"))).await;
+    }
     // Silent catch-up notifications and ongoing ones are not shown
     phone.service.send_to(&seen_by_phone, "kdeconnect.notification", json!({ "id": "quiet", "appName": "Mail", "title": "Old", "text": "News", "silent": true }));
     phone.service.send_to(&seen_by_phone, "kdeconnect.notification", json!({ "id": "ongoing", "appName": "Player", "title": "Now playing", "isClearable": false }));
@@ -171,26 +190,30 @@ async fn scenario(root: &Path) {
     std::fs::write(source.join("notes.txt"), b"hello").unwrap();
     let ids = computer.service.send_files(&pid, &[file_uri(&source.join("holiday photo.jpg"))]).unwrap();
     until("the file to arrive", || state_of(&computer, "finished", &ids[0]) && !phone.notices.raised_with_prefix(&format!("got:{cid}")).is_empty()).await;
-    let landed = phone.downloads().join("Phone/Studio laptop/holiday photo.jpg");
+    // A picture goes to Pictures/Phone, with no folder of the sender's
+    let landed = phone.pictures().join("Phone/holiday photo.jpg");
     assert_eq!(std::fs::read(&landed).unwrap(), content);
     assert!(signals(&phone, "Transfer").iter().any(|a| a.child_value(5).str() == Some("finished") && a.child_value(2).get::<bool>() == Some(true)));
-    assert!(find_in(&phone.downloads().join("Phone/Studio laptop"), ".part-").is_empty(), "no partial file is left");
+    assert!(find_in(&phone.pictures().join("Phone"), ".part-").is_empty(), "no partial file is left");
     {
         use std::os::unix::fs::PermissionsExt;
         assert_eq!(std::fs::metadata(&landed).unwrap().permissions().mode() & 0o777, 0o600, "never executable");
+        assert_eq!(std::fs::metadata(phone.pictures().join("Phone")).unwrap().permissions().mode() & 0o777, 0o700);
     }
+    assert!(!phone.downloads().join("Phone/Studio laptop/holiday photo.jpg").exists());
     let got = phone.notices.raised_with_prefix(&format!("got:{cid}")).pop().unwrap();
     assert_eq!(got.actions.iter().map(|a| a.0.as_str()).collect::<Vec<_>>(), ["open", "show"]);
     // The same file again is a second file, not an overwrite
     let again = computer.service.send_files(&pid, &[file_uri(&source.join("holiday photo.jpg"))]).unwrap();
     until("the second copy", || state_of(&computer, "finished", &again[0])).await;
-    until("the second file", || phone.downloads().join("Phone/Studio laptop/holiday photo (1).jpg").exists()).await;
+    until("the second file", || phone.pictures().join("Phone/holiday photo (1).jpg").exists()).await;
     assert_eq!(std::fs::read(&landed).unwrap(), content);
     // Several files are one batch: the announcements come one after the other, in order
     let both = computer.service.send_files(&pid, &[file_uri(&source.join("notes.txt")), file_uri(&source.join("holiday photo.jpg"))]).unwrap();
     until("the batch", || both.iter().all(|id| state_of(&computer, "finished", id))).await;
     assert!(!phone.saw("kdeconnect.share.request.update").is_empty());
     until("the batch notice", || !phone.notices.raised_with_prefix(&format!("batch:{cid}")).is_empty()).await;
+    assert!(phone.downloads().join("Phone/Studio laptop/notes.txt").exists(), "what is not a picture goes where it went");
     // What cannot be sent is refused at once
     assert!(computer.service.send_files(&pid, &[file_uri(&source)]).is_err(), "a folder");
     assert!(computer.service.send_files(&pid, &["https://example.org/x".into()]).is_err());
@@ -209,8 +232,9 @@ async fn scenario(root: &Path) {
     let from_phone = pattern(1024 * 1024 + 7);
     std::fs::write(source.join("from phone.png"), &from_phone).unwrap();
     let pids = phone.service.send_files(&cid, &[file_uri(&source.join("from phone.png"))]).unwrap();
-    until("the file from the phone", || state_of(&phone, "finished", &pids[0]) && computer.downloads().join("Phone/Sam phone/from phone.png").exists()).await;
-    assert_eq!(std::fs::read(computer.downloads().join("Phone/Sam phone/from phone.png")).unwrap(), from_phone);
+    until("the file from the phone", || state_of(&phone, "finished", &pids[0]) && computer.pictures().join("Phone/from phone.png").exists()).await;
+    assert_eq!(std::fs::read(computer.pictures().join("Phone/from phone.png")).unwrap(), from_phone);
+    photo_folder(&computer, &phone, &cid, &source).await;
 
     // A hostile name stays in its folder: a phone that announces "..\..\.config/autostart/evil.sh"
     {
@@ -375,8 +399,10 @@ async fn scenario(root: &Path) {
     hostile(&computer, &pid).await;
 
     // --- Unpairing ------------------------------------------------------------------------------------------
+    assert!(computer.device(&pid).st.borrow().signal.is_some());
     computer.service.unpair(&pid).unwrap();
     until("the unpairing", || !seen_by_computer_exists(&computer, &pid) || !computer.device(&pid).paired()).await;
+    assert!(computer.service.device(&pid).is_none_or(|d| d.st.borrow().signal.is_none() && prop::<i32>(&d, "SignalStrength") == -1), "away, the bars go");
     until("the phone to know", || !seen_by_phone.paired()).await;
     assert!(!store_has(&computer, &pid) && !store_has(&phone, &cid));
     assert!(find_in(&computer.dir.join("state"), "contacts-").is_empty(), "everything kept for the phone goes");
@@ -394,6 +420,125 @@ async fn scenario(root: &Path) {
         until("the refusal to reach the phone", || phone.notices.raised_with_prefix(&format!("info:{cid}")).iter().any(|n| n.summary.contains("did not accept"))).await;
         assert!(!store_has(&computer, &pid) && !store_has(&phone, &cid));
     }
+}
+
+/// The phone's connectivity reports: each vector of the spec in turn, a property change only when a value changed,
+/// and nothing from a phone that did not list the report
+async fn connectivity(computer: &Peer, phone: &Peer, pid: &str) {
+    let cid = computer.id();
+    let seen_by_computer = computer.device(pid);
+    let seen_by_phone = phone.device(&cid);
+    assert_eq!(prop::<i32>(&seen_by_computer, "SignalStrength"), -1, "nothing before the first report");
+    assert_eq!(prop::<String>(&seen_by_computer, "NetworkType"), "");
+    let changes = || {
+        computer
+            .service
+            .recorded
+            .borrow()
+            .iter()
+            .filter(|s| s.name == "PropertiesChanged" && s.device.as_deref() == Some(pid))
+            .filter(|s| {
+                let changed = s.args.as_ref().unwrap().child_value(1).get::<std::collections::HashMap<String, glib::Variant>>().unwrap();
+                ["SignalStrength", "NetworkType"].iter().any(|k| changed.contains_key(*k))
+            })
+            .count()
+    };
+    let mut sent = computer.saw("kdeconnect.connectivity_report").len();
+    let mut twenty = serde_json::Map::new();
+    for i in 1..=20 {
+        twenty.insert(i.to_string(), json!({ "networkType": format!("N{i}"), "signalStrength": if i <= 8 { 1 } else { 4 } }));
+    }
+    let vectors: Vec<(&str, serde_json::Value, i32, &str, bool)> = vec![
+        ("V-CR-1", json!({"signalStrengths": {"6": {"networkType": "LTE", "signalStrength": 3}}}), 3, "LTE", true),
+        ("V-CR-1 again", json!({"signalStrengths": {"6": {"networkType": "LTE", "signalStrength": 3}}}), 3, "LTE", false),
+        ("V-CR-2", json!({"signalStrengths": {"1": {"networkType": "5G", "signalStrength": 2}, "2": {"networkType": "LTE", "signalStrength": 4}}}), 4, "LTE", true),
+        ("V-CR-3", json!({"signalStrengths": {}}), -1, "", true),
+        ("V-CR-4", json!({"signalStrengths": {"1": {"networkType": "LTE", "signalStrength": 7}}}), -1, "", false),
+        ("V-CR-5", json!({"signalStrengths": {"1": {"networkType": "LTE", "signalStrength": "3"}}}), -1, "", false),
+        ("V-CR-6", json!({"signalStrengths": {"1": {"networkType": "\u{202e}ETL\u{0007}", "signalStrength": 2}}}), 2, "Unknown", true),
+        ("V-CR-7", json!({"signalStrengths": {"1": {"networkType": "4G", "signalStrength": 2.0}}}), 2, "4G", true),
+        ("V-CR-8, no map", json!({}), 2, "4G", false),
+        ("V-CR-8, not an object", json!({"signalStrengths": ["LTE"]}), 2, "4G", false),
+        ("V-CR-9", json!({ "signalStrengths": twenty }), 1, "N1", true),
+    ];
+    for (name, body, strength, network, change) in vectors {
+        let before = changes();
+        phone.service.send_to(&seen_by_phone, "kdeconnect.connectivity_report", body);
+        sent += 1;
+        until(name, || computer.saw("kdeconnect.connectivity_report").len() == sent).await;
+        assert_eq!(prop::<i32>(&seen_by_computer, "SignalStrength"), strength, "{name}");
+        assert_eq!(prop::<String>(&seen_by_computer, "NetworkType"), network, "{name}");
+        assert_eq!(changes(), before + usize::from(change), "{name}: a PropertiesChanged only when a value changed");
+    }
+    assert!(prop::<Vec<String>>(&seen_by_computer, "Features").contains(&"connectivity".to_string()));
+    // A phone that did not list the report as one it sends: no feature, and a report it sends anyway is dropped
+    seen_by_computer.st.borrow_mut().outgoing.retain(|c| c != "kdeconnect.connectivity_report");
+    assert!(!prop::<Vec<String>>(&seen_by_computer, "Features").contains(&"connectivity".to_string()));
+    phone.service.send_to(&seen_by_phone, "kdeconnect.connectivity_report", json!({"signalStrengths": {"1": {"networkType": "LTE", "signalStrength": 4}}}));
+    sent += 1;
+    until("the unlisted report", || computer.saw("kdeconnect.connectivity_report").len() == sent).await;
+    assert_eq!(prop::<i32>(&seen_by_computer, "SignalStrength"), 1, "dropped");
+    seen_by_computer.st.borrow_mut().outgoing.push("kdeconnect.connectivity_report".into());
+}
+
+/// Where pictures go: the setting's two values, the property that says it, and a name that tries to leave the folder
+async fn photo_folder(computer: &Peer, phone: &Peer, cid: &str, source: &Path) {
+    use amethystora_connect::service::PhotoFolder;
+    use std::os::unix::fs::PermissionsExt;
+    let pictures = computer.pictures().join("Phone");
+    assert_eq!(computer.service.photo_folder_path().as_deref(), Some(pictures.as_path()));
+    assert_eq!(std::fs::metadata(&pictures).unwrap().permissions().mode() & 0o777, 0o700);
+    assert_eq!(std::fs::metadata(pictures.join("from phone.png")).unwrap().permissions().mode() & 0o777, 0o600);
+    let photo_folder_said = || -> Vec<String> {
+        computer
+            .service
+            .recorded
+            .borrow()
+            .iter()
+            .filter(|s| s.name == "PropertiesChanged" && s.device.is_none())
+            .filter_map(|s| s.args.as_ref().unwrap().child_value(1).get::<std::collections::HashMap<String, glib::Variant>>())
+            .filter_map(|changed| changed.get("PhotoFolder").and_then(|v| v.get::<String>()))
+            .collect()
+    };
+    // Downloads: pictures go with the phone's other files, in its own folder
+    computer.service.set_photo_folder(PhotoFolder::Downloads);
+    assert_eq!(photo_folder_said().last().map(String::as_str), computer.downloads().join("Phone").to_str());
+    std::fs::write(source.join("second.jpg"), b"jpeg").unwrap();
+    let ids = phone.service.send_files(cid, &[file_uri(&source.join("second.jpg"))]).unwrap();
+    until("the picture to land in Downloads", || state_of(phone, "finished", &ids[0]) && computer.downloads().join("Phone/Sam phone/second.jpg").exists()).await;
+    assert!(!pictures.join("second.jpg").exists());
+    computer.service.set_photo_folder(PhotoFolder::Pictures);
+    assert_eq!(photo_folder_said().last().map(String::as_str), pictures.to_str());
+    // A picture named to climb out lands in Pictures/Phone and nowhere else
+    let offer = payload::offer(&(0..=0)).unwrap();
+    let port = offer.port;
+    let link = phone.device(cid).link().unwrap();
+    let pin = phone.service.pin_of(cid).unwrap();
+    let cert = phone.service.me.tls.clone();
+    let task = glib::spawn_future_local(async move {
+        let mut given = false;
+        let _ = offer
+            .serve(
+                &cert,
+                pin,
+                4,
+                &mut |buf| {
+                    if given {
+                        return Ok(0);
+                    }
+                    given = true;
+                    buf[..4].copy_from_slice(b"evil");
+                    Ok(4)
+                },
+                &|_| {},
+            )
+            .await;
+    });
+    link.send(&Packet::new("kdeconnect.share.request", json!({ "filename": "../../evil.jpg" })).with_payload(4, port));
+    until("the climbing picture", || pictures.join("evil.jpg").exists()).await;
+    task.await.ok();
+    assert!(!computer.dir.join("evil.jpg").exists() && !computer.pictures().join("evil.jpg").exists());
+    assert_eq!(std::fs::metadata(pictures.join("evil.jpg")).unwrap().permissions().mode() & 0o777, 0o600);
 }
 
 fn seen_by_computer_exists(computer: &Peer, pid: &str) -> bool {

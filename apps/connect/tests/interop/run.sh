@@ -4,7 +4,8 @@
 #   ours   the amethystora-rust image with the program built by `cargo.sh connect build -p amethystora-connect`
 #   phone  amethystora-connect-phone (Containerfile.phone), kdeconnectd with Qt's offscreen platform
 # Pairing is accepted on both sides, then ping, files each way, the phone's notifications, the clipboard and
-# unpairing, and a restart of the program to see a paired phone come back by itself. See README.md.
+# unpairing, and a restart of the program to see a paired phone come back by itself; pictures in Pictures/Phone, and a link
+# taken by a stand-in for the shell's module (fake-module.py). See README.md. TARGET_VOLUME names another build's volume.
 #
 #   bash apps/connect/tests/interop/run.sh [--keep]
 #
@@ -67,7 +68,7 @@ $DOCKER rm -f ours phone >/dev/null 2>&1
 $DOCKER network rm "$NET" >/dev/null 2>&1
 $DOCKER network create "$NET" >/dev/null || exit 2
 
-$DOCKER run -d --name ours --hostname studio-laptop --network "$NET" -v amethystora-target-connect:/target:ro -v "$HOST_DIR:/interop:ro" -v "$SCHEMAS:/schemas-src:ro" \
+$DOCKER run -d --name ours --hostname studio-laptop --network "$NET" -v "${TARGET_VOLUME:-amethystora-target-connect}:/target:ro" -v "$HOST_DIR:/interop:ro" -v "$SCHEMAS:/schemas-src:ro" \
     --entrypoint bash amethystora-rust /interop/ours-entry.sh >/dev/null || exit 2
 $DOCKER run -d --name phone --hostname sam-phone --network "$NET" -v "$HOST_DIR:/interop:ro" \
     --entrypoint bash amethystora-connect-phone /interop/phone-entry.sh >/dev/null || exit 2
@@ -120,6 +121,11 @@ check "paired on the phone's side" wait_for 15 bash -c "$DOCKER exec phone bash 
 note "features  $(ours_prop "$PHONE_ID" Features)"
 check "the pin and the certificate are private (0600, 0700)" in_ours 'test "$(stat -c %a /tmp/ours/config/amethystora/connect)" = 700 && test "$(stat -c %a /tmp/ours/config/amethystora/connect/private-key.pem)" = 600 && test "$(stat -c %a /tmp/ours/config/amethystora/connect/devices.json)" = 600'
 
+# --- The phone's signal: the desktop peer sends no connectivity report (spec-phone-files-first.md 2.5, step 1) ----------------
+check "no connectivity feature for a peer that sends no report" bash -c "! echo '$(ours_prop "$PHONE_ID" Features)' | grep -q connectivity"
+check "SignalStrength is -1 and NetworkType empty" bash -c "[ '$(ours_prop "$PHONE_ID" SignalStrength)' = '-1' ] && [ \"$(ours_prop "$PHONE_ID" NetworkType)\" = '' ]"
+check "neither log has an error about it" bash -c "! $DOCKER exec ours grep -i 'connectivity' /tmp/ours.log | grep -qi 'error' && ! $DOCKER exec phone grep -i 'connectivity' /tmp/kdeconnectd.log | grep -qi 'error'"
+
 # --- Ping, both ways ------------------------------------------------------------------------------------------------
 phone_cli --ping-msg "hello from the phone" -d "$OURS_ID" >/dev/null 2>&1
 check "a ping from the phone raises a notification" wait_for 15 in_ours "grep -q 'hello from the phone' /tmp/notifications.jsonl"
@@ -139,6 +145,37 @@ phone_cli --share /tmp/from-phone.bin -d "$OURS_ID" >/dev/null 2>&1
 check "the same file again is a second file (name before the extension)" wait_for 30 in_ours 'ls /tmp/ours/downloads/Phone/*/"from-phone (1).bin"'
 check "a notification said it, with Open and Show in folder" in_ours "grep -q 'show' /tmp/notifications.jsonl"
 
+# --- Pictures from the phone land in Pictures/Phone (spec-phone-files-first.md 2.5, steps 2 to 6) -------------------------
+root_prop() { in_ours "gdbus call --session --dest org.amethystora.Connect --object-path /org/amethystora/Connect --method org.freedesktop.DBus.Properties.Get org.amethystora.Connect $1"; }
+PICTURES=/tmp/ours/home/Pictures/Phone
+photo_folder_is_pictures() { root_prop PhotoFolder | grep -q "'$PICTURES'"; }
+check "PhotoFolder is Pictures/Phone" photo_folder_is_pictures
+# A real JPEG, made with gdk-pixbuf where there is one, handed to the phone
+in_ours "python3 -c 'import gi; gi.require_version(\"GdkPixbuf\", \"2.0\"); from gi.repository import GdkPixbuf; p = GdkPixbuf.Pixbuf.new(GdkPixbuf.Colorspace.RGB, False, 8, 64, 48); p.fill(0x9148f0ff); p.savev(\"/tmp/holiday.jpg\", \"jpeg\", [], [])' 2>/dev/null"
+$DOCKER exec ours cat /tmp/holiday.jpg | $DOCKER exec -i phone bash -c 'cat > /tmp/holiday.jpg; cp /tmp/holiday.jpg "/tmp/..\\..\\evil.jpg"; echo notes > /tmp/notes.txt'
+SUM_JPEG=$(in_ours 'sha256sum /tmp/holiday.jpg | cut -d" " -f1')
+phone_cli --share /tmp/holiday.jpg -d "$OURS_ID" >/dev/null 2>&1
+check "a picture lands in Pictures/Phone" wait_for 30 in_ours "test -f $PICTURES/holiday.jpg"
+check "with the phone's checksum, 0600, in a folder of 0700" in_ours "[ \"\$(sha256sum $PICTURES/holiday.jpg | cut -d' ' -f1)\" = '$SUM_JPEG' ] && [ \"\$(stat -c %a $PICTURES/holiday.jpg)\" = 600 ] && [ \"\$(stat -c %a $PICTURES)\" = 700 ]"
+check "and not in Downloads" in_ours "! ls /tmp/ours/downloads/Phone/*/holiday.jpg"
+phone_cli --share /tmp/holiday.jpg -d "$OURS_ID" >/dev/null 2>&1
+check "a second share is holiday (1).jpg" wait_for 30 in_ours "test -f '$PICTURES/holiday (1).jpg'"
+phone_cli --share '/tmp/..\..\evil.jpg' -d "$OURS_ID" >/dev/null 2>&1
+check "a picture named ..\\..\\evil.jpg lands in Pictures/Phone as evil.jpg" wait_for 30 in_ours "test -f $PICTURES/evil.jpg"
+check "and nowhere else" in_ours "! find /tmp/ours -name '*evil*' ! -path '$PICTURES/evil.jpg' | grep -q ."
+phone_cli --share /tmp/notes.txt -d "$OURS_ID" >/dev/null 2>&1
+check "what is not a picture goes to Downloads/Phone/<the phone's name>" wait_for 30 in_ours "ls /tmp/ours/downloads/Phone/*/notes.txt"
+settings_photos() { in_ours "XDG_CONFIG_HOME=/tmp/ours/config HOME=/tmp/ours/home GSETTINGS_BACKEND=keyfile GSETTINGS_SCHEMA_DIR=/tmp/schemas gsettings $*"; }
+settings_photos set org.amethystora.Connect photo-folder downloads >/dev/null 2>&1
+photo_folder_is_downloads() { root_prop PhotoFolder | grep -q "'/tmp/ours/downloads/Phone'"; }
+check "photo-folder downloads reaches the program (PhotoFolder)" wait_for 10 photo_folder_is_downloads
+in_phone 'mkdir -p /tmp/again && cp /tmp/holiday.jpg /tmp/again/holiday.jpg'
+phone_cli --share /tmp/again/holiday.jpg -d "$OURS_ID" >/dev/null 2>&1
+check "the next picture lands in Downloads/Phone/<the phone's name>" wait_for 30 in_ours "ls /tmp/ours/downloads/Phone/*/holiday.jpg"
+check "and Pictures/Phone has no third copy" in_ours "! test -e '$PICTURES/holiday (2).jpg'"
+settings_photos reset org.amethystora.Connect photo-folder >/dev/null 2>&1
+check "and back to Pictures/Phone" wait_for 10 photo_folder_is_pictures
+
 # --- Files, the program to the phone --------------------------------------------------------------------------------------
 in_ours 'head -c 2000003 /dev/urandom > /tmp/to-phone.bin; sha256sum /tmp/to-phone.bin | cut -d" " -f1 > /tmp/to-phone.sha'
 ours_call "$PHONE_ID" SendFiles "\"['file:///tmp/to-phone.bin']\"" >/dev/null 2>&1
@@ -152,6 +189,22 @@ ours_call "$PHONE_ID" SendUrl "'https://example.org/interop'" >/dev/null 2>&1
 check "a link reaches the phone (kdeconnectd's share plugin logs it)" wait_for 15 bash -c "$DOCKER exec phone grep -q 'example.org/interop' /tmp/kdeconnectd.log"
 phone_cli --share-text "text from the phone" -d "$OURS_ID" >/dev/null 2>&1
 check "a text from the phone is a notification" wait_for 15 in_ours "grep -q 'text from the phone' /tmp/notifications.jsonl"
+
+# --- A link for the live pill (spec-phone-files-first.md 2.5, step 7): with the module's stand-in a client that took the links,
+# the link goes to it alone; without it, the program's own notification, as before
+$DOCKER exec -d ours bash -c 'export DBUS_SESSION_BUS_ADDRESS=$(cat /tmp/bus-address); exec python3 /interop/fake-module.py /tmp/module.log'
+check "the module's stand-in took the links" wait_for 15 in_ours "grep -q ready /tmp/module.log"
+APP_LINES=$(in_ours 'cat /tmp/app.log 2>/dev/null | wc -l')
+phone_cli --share https://example.org/for-the-pill -d "$OURS_ID" >/dev/null 2>&1
+check "the module is sent UrlReceived with the address" wait_for 15 in_ours "grep -q 'UrlReceived $PHONE_ID https://example.org/for-the-pill' /tmp/module.log"
+sleep 1
+check "and the program raises no notification of its own for it" in_ours "! grep -q 'for-the-pill' /tmp/notifications.jsonl"
+check "nor starts the app" in_ours "[ \"\$(cat /tmp/app.log 2>/dev/null | wc -l)\" = '$APP_LINES' ]"
+in_ours 'pkill -f fake-module.py'
+sleep 1
+phone_cli --share https://example.org/no-pill -d "$OURS_ID" >/dev/null 2>&1
+check "without the module the link is a notification, as before" wait_for 15 in_ours "grep -q 'example.org/no-pill' /tmp/notifications.jsonl"
+check "and the stand-in heard nothing of it" in_ours "! grep -q 'no-pill' /tmp/module.log"
 
 # --- The phone's notifications (kdeconnectd sends the desktop's own notifications to a peer) -------------------------------
 # kdeconnectd's plugin that sends the desktop's notifications is off until it is asked; it is a monitor of the notification

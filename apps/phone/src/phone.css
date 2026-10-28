@@ -1070,18 +1070,6 @@ button.send:disabled {
     border-top: none;
 }
 
-.quote {
-    padding: 12px 14px;
-    border-left: 3px solid color-mix(in oklab, var(--accent) 55%, transparent);
-    border-radius: 6px;
-    background: var(--control);
-}
-
-.quote:dir(rtl) {
-    border-left: none;
-    border-right: 3px solid color-mix(in oklab, var(--accent) 55%, transparent);
-}
-
 .quoted {
     padding: 10px 12px;
     border-radius: 10px;
@@ -1098,6 +1086,63 @@ button.send:disabled {
     border: 1px solid var(--line);
     border-radius: 12px;
     background: var(--code-bg);
+}
+
+/* The reply to a phone's message (board 32, third card): 380 wide, 20 round, rows 10 apart */
+.dialog.reply-card {
+    padding: 14px 16px;
+    border-radius: 20px;
+}
+
+.reply-avatar {
+    min-width: 30px;
+    min-height: 30px;
+    border-radius: 15px;
+    background: var(--tint);
+    color: var(--link);
+}
+
+/* The app's own icon fills the circle (cut round by the box, set_overflow in dialogs.rs) */
+.reply-avatar.picture {
+    background: none;
+}
+
+.reply-title {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.reply-message {
+    font-size: 13px;
+    color: color-mix(in oklab, var(--fg) 85%, transparent);
+}
+
+.reply-card entry.field-entry {
+    min-height: 38px;
+    padding: 0 12px;
+    border-color: color-mix(in oklab, var(--fg) 20%, transparent);
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--bg) 50%, transparent);
+    font-size: 13.5px;
+    font-weight: 600;
+}
+
+.reply-card entry.field-entry:focus-within {
+    border-color: var(--accent);
+}
+
+.reply-card button.btn.reply-send {
+    min-height: 40px;
+    padding: 0 16px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 700;
+}
+
+.reply-sent {
+    color: var(--ok);
+    font-size: 13px;
+    font-weight: 700;
 }
 
 tooltip {

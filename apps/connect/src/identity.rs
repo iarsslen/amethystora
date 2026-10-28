@@ -16,6 +16,7 @@ pub const INCOMING: &[&str] = &[
     "kdeconnect.battery.request",
     "kdeconnect.clipboard",
     "kdeconnect.clipboard.connect",
+    "kdeconnect.connectivity_report",
     "kdeconnect.contacts.response_uids_timestamps",
     "kdeconnect.contacts.response_vcards",
     "kdeconnect.notification",

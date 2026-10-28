@@ -31,6 +31,8 @@ pub struct Config {
     pub state_dir: PathBuf,
     /// Where the account keeps downloads; the XDG folder when `None`
     pub download_dir: Option<PathBuf>,
+    /// Where the account keeps pictures; the XDG folder when `None`
+    pub pictures_dir: Option<PathBuf>,
     pub discovery_port: u16,
     pub control_ports: RangeInclusive<u16>,
     pub payload_ports: RangeInclusive<u16>,
@@ -73,6 +75,7 @@ impl Config {
             config_dir: config.join("amethystora/connect"),
             state_dir: state.join("amethystora/connect"),
             download_dir: None,
+            pictures_dir: None,
             discovery_port: limits::DISCOVERY_PORT,
             control_ports: limits::CONTROL_PORTS,
             payload_ports: limits::PAYLOAD_PORTS,
@@ -103,6 +106,24 @@ pub struct Settings {
     pub name: String,
     pub clipboard_send: bool,
     pub clipboard_receive: bool,
+    pub photo_folder: PhotoFolder,
+}
+
+/// Where pictures from a phone go (the GSettings key photo-folder)
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum PhotoFolder {
+    /// Pictures/Phone, as the image ships
+    #[default]
+    Pictures,
+    /// With the phone's other files, in Downloads/Phone/NAME
+    Downloads,
+}
+
+impl PhotoFolder {
+    /// The key's value; anything but `downloads` is the default
+    pub fn from_key(value: &str) -> PhotoFolder {
+        if value == "downloads" { PhotoFolder::Downloads } else { PhotoFolder::Pictures }
+    }
 }
 
 /// What was sent on the bus, kept when the tests ask
@@ -147,6 +168,7 @@ pub struct Service {
     pub clip: RefCell<Clipboard>,
     pub clip_send: Cell<bool>,
     pub clip_receive: Cell<bool>,
+    pub photo_folder: Cell<PhotoFolder>,
     pub home: HomeZone,
     pub next: Cell<u64>,
     handshakes: Cell<usize>,
@@ -223,6 +245,7 @@ impl Service {
             clip: RefCell::default(),
             clip_send: Cell::new(settings.clipboard_send),
             clip_receive: Cell::new(settings.clipboard_receive),
+            photo_folder: Cell::new(settings.photo_folder),
             home,
             next: Cell::new(1),
             handshakes: Cell::new(0),
@@ -300,6 +323,31 @@ impl Service {
     pub fn receive_root(&self) -> PathBuf {
         let download = self.cfg.download_dir.clone().or_else(|| glib::user_special_dir(glib::UserDirectory::Downloads));
         crate::share::receive_root(download, &text::home())
+    }
+
+    pub fn photo_root(&self) -> PathBuf {
+        let pictures = self.cfg.pictures_dir.clone().or_else(|| glib::user_special_dir(glib::UserDirectory::Pictures));
+        crate::share::photo_root(pictures, &text::home())
+    }
+
+    /// The folder the setting gives pictures: Pictures/Phone, or `None` while they go with the phone's other files
+    pub fn photo_folder_path(&self) -> Option<PathBuf> {
+        (self.photo_folder.get() == PhotoFolder::Pictures).then(|| self.photo_root())
+    }
+
+    /// The folder a file from a phone is put in, made if missing (0700): a picture in Pictures/Phone while the setting
+    /// says so, anything else in the phone's own folder under the receive root
+    pub fn folder_for(&self, dev: &Device, name: &str) -> std::io::Result<PathBuf> {
+        match self.photo_folder_path() {
+            Some(folder) if crate::share::is_picture(name) => {
+                if let Some(parent) = folder.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                store::private_dir(&folder)?;
+                Ok(folder)
+            }
+            _ => crate::share::device_folder(&self.receive_root(), &dev.name()),
+        }
     }
 
     pub fn device(&self, id: &str) -> Option<Rc<Device>> {
@@ -1452,6 +1500,11 @@ impl Service {
     pub fn set_clipboard_switches(self: &Rc<Self>, send: bool, receive: bool) {
         self.clip_send.set(send);
         self.clip_receive.set(receive);
+        crate::dbus::root_props_changed(self);
+    }
+
+    pub fn set_photo_folder(self: &Rc<Self>, folder: PhotoFolder) {
+        self.photo_folder.set(folder);
         crate::dbus::root_props_changed(self);
     }
 

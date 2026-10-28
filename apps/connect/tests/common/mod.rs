@@ -40,6 +40,10 @@ impl Peer {
     pub fn downloads(&self) -> PathBuf {
         self.dir.join("downloads")
     }
+
+    pub fn pictures(&self) -> PathBuf {
+        self.dir.join("pictures")
+    }
 }
 
 pub fn phone_capabilities() -> (Vec<String>, Vec<String>) {
@@ -73,6 +77,7 @@ pub fn phone_capabilities() -> (Vec<String>, Vec<String>) {
             "kdeconnect.contacts.response_vcards",
             "kdeconnect.sms.messages",
             "kdeconnect.telephony",
+            "kdeconnect.connectivity_report",
         ]),
     )
 }
@@ -103,6 +108,7 @@ pub fn config_for(root: &Path, name: &str, kind: &str, phone: bool, udp: bool, t
     cfg.config_dir = dir.join("config");
     cfg.state_dir = dir.join("state");
     cfg.download_dir = Some(dir.join("downloads"));
+    cfg.pictures_dir = Some(dir.join("pictures"));
     cfg.discovery_port = 0;
     cfg.control_ports = 0..=0;
     cfg.payload_ports = 0..=0;

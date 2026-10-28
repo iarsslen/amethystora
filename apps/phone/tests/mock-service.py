@@ -148,9 +148,27 @@ def build(scenario):
     pixel.repliable = [
         {"id": "pixel8_ada|0|com.example.chat|42", "app": "Chat", "title": "Grace Hopper",
          "text": "Are you coming tonight? The menu is here: https://example.org/menu and it is <i>lovely</i>."},
-        {"id": "pixel8_ada|0|com.example.mail|7", "app": "Mail", "title": "Build finished", "text": "All 1,204 tests passed."},
+        {"id": "pixel8_ada|0|com.example.mail|7", "app": "Mail", "title": "Build finished", "text": "All 1,204 tests passed.",
+         "icon": kept_icon("pixel8_ada", "0123456789abcdef0123456789abcdef")},
     ]
     return phones
+
+
+def kept_icon(device, hash_):
+    """The app's icon where the program keeps the PNG it writes from a phone's picture: a 2x2 PNG of the mail app's
+    colours, drawn by hand (no image library needed)"""
+    state = os.environ.get("XDG_STATE_HOME") or os.path.join(os.path.expanduser("~"), ".local/state")
+    folder = os.path.join(state, "amethystora/connect/icons", device)
+    os.makedirs(folder, exist_ok=True)
+    path = os.path.join(folder, hash_ + ".png")
+
+    def chunk(kind, data):
+        return len(data).to_bytes(4, "big") + kind + data + zlib.crc32(kind + data).to_bytes(4, "big")
+    rows = b"".join(b"\x00" + bytes(colour) * 2 for colour in ((52, 168, 83), (66, 133, 244)))
+    with open(path, "wb") as out:
+        out.write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", (2).to_bytes(4, "big") * 2 + b"\x08\x02\x00\x00\x00")
+                  + chunk(b"IDAT", zlib.compress(rows)) + chunk(b"IEND", b""))
+    return path
 
 
 class Mock:
@@ -290,7 +308,7 @@ class Mock:
                 GLib.timeout_add(900, self.later, phone, "ConversationsChanged", None)
             GLib.timeout_add(1200, lambda: self.add_message(phone, thread, body, outgoing=True) and False)
         elif method == "GetRepliable":
-            invocation.return_value(GLib.Variant("(aa{sv})", ([self.vardict(n, {"id": "s", "app": "s", "title": "s", "text": "s"}) for n in phone.repliable],)))
+            invocation.return_value(GLib.Variant("(aa{sv})", ([self.vardict(n, {"id": "s", "app": "s", "title": "s", "text": "s", "icon": "s"}) for n in phone.repliable],)))
         else:
             invocation.return_value(None)
 

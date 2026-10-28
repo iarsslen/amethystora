@@ -1,8 +1,8 @@
 # The phone link
 
 The phone link ties an Android phone to this computer: the phone's notifications show up here, you
-read and write its texts in a window, files and links go both ways, and a phone icon in the top bar
-shows its battery. It speaks the protocol of the **KDE Connect** app, so that app, from the Play Store
+read and write its texts in a window, files and links go both ways, pictures land in Pictures, and the top
+bar shows its battery and signal. It speaks the protocol of the **KDE Connect** app, so that app, from the Play Store
 or F-Droid, is all the phone needs. The link is Amethystora's own program, and it takes the place of
 GSConnect. It is off until you turn it on, and it reaches your phone only on [networks you named
 home](security.md#on-from-the-start).
@@ -75,13 +75,34 @@ amethystora-phone send --device ID report.pdf photo.jpg
 amethystora-phone send https://example.org/menu
 ```
 
-**Receive:** a file from the phone goes to `~/Downloads/Phone/` in a folder named for the phone, and
-never overwrites one that is there: the second `report.pdf` is `report (1).pdf`. A notification offers
+**Receive:** a picture from the phone goes to [Pictures](#photos), and any other file to `~/Downloads/Phone/` in a
+folder named for the phone. Neither ever overwrites one that is there: the second `report.pdf` is `report (1).pdf`. A notification offers
 **Show in folder**, and **Open** for a picture, a text, a PDF, a sound or a video: any other kind of file is
 not opened from here. Nothing opens by itself. Text or a link the phone shares comes as a notification, too,
 whose **Show** opens a window with the words as text: select and copy them, and click a web address to open it
 in the browser. A web link the phone shares waits in the [live pill](desktop.md#the-live-pill) until you open or
 copy it; **Not now** leaves it in the notification list, with **Open** and **Copy**.
+
+## Photos
+
+A picture the phone shares with this computer, from its gallery or its camera, goes to `Phone` in your Pictures folder
+(`~/Pictures/Phone`), next to the others the phone sent; any phone's pictures go there, with no folder for each phone. A
+picture is a file whose name ends in `.jpg`, `.jpeg`, `.png`, `.heic`, `.heif`, `.webp`, `.gif`, `.avif` or `.dng`; a
+video goes with the other files. The name is the phone's, made safe, and a second `holiday.jpg` is `holiday (1).jpg`.
+The notification has **Open** and **Show in folder**, and nothing opens by itself. Like any picture you copy into
+Pictures, it is read by GNOME's search, which runs its picture reader in a sandbox of its own, so that it can be found
+by name in Files and in the search of the overview; pictures kept in Downloads (below) are not.
+
+To keep pictures with the phone's other files in Downloads instead:
+
+```bash
+ame desktop phone photos downloads   # or pictures, to put them back in Pictures/Phone
+```
+
+or **Photos from the phone go to** on [Control](control.md)'s **Desktop** page.
+
+There is no button to take a photo on the phone from here: the phone's app no longer offers it. Take the picture on
+the phone and share it with this computer.
 
 ## Texts
 
@@ -121,9 +142,21 @@ other copy.
 
 ## The top bar
 
-While a paired phone is connected, a phone icon with its charge appears in the top bar, with a bolt
-while it charges. Its menu has **Send files…**, **Send a link**, **Ping**, **Messages** (when the
+While a paired phone is connected, it appears in the top bar: its [battery and signal](#battery-and-signal), or a phone
+icon when it has said neither. Its menu has **Send files…**, **Send a link**, **Ping**, **Messages** (when the
 phone shares its texts) and **Phones…**, which opens this app.
+
+## Battery and signal
+
+With one phone connected, the top bar shows its battery and its mobile signal in a small capsule, after the
+[privacy dots](desktop.md#privacy-dots): the battery's outline and its charge, a bolt while it charges, and four
+bars, the faint ones above the signal there is. A screen reader reads it as, say, "Phone: battery 54 per cent, signal 3
+of 4 bars". With two or more phones connected, the bar shows the phone icon, and each phone's battery, signal and
+network ("LTE", "5G") are in its part of the menu.
+
+The signal shows only when the phone tells it: the KDE Connect app needs permission to read the phone's state for its
+connectivity report, and a phone without a SIM has none to tell. A phone that goes away takes its battery and signal
+with it; they come back when it connects and says them again.
 
 ## What it does not do
 
@@ -154,6 +187,7 @@ advertise them, so the app on the phone shows them as unavailable.
 | --- | --- |
 | `ame desktop phone [on\|off]` | Turns the link on or off |
 | `ame desktop phone clipboard send\|receive [on\|off]` | Shares the clipboard one way or the other |
+| `ame desktop phone photos [pictures\|downloads]` | Where pictures from the phone go |
 | `amethystora-phone` | Opens the app on the phones |
 | `amethystora-phone messages [ID]` | Opens it on a phone's texts |
 | `amethystora-phone send [--device ID] FILE_OR_LINK...` | Sends files, or one link |

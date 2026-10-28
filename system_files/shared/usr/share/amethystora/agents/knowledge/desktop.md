@@ -130,8 +130,22 @@ these commands in the agent's own shell, as the user. Read before writing, chang
   Never pair, accept or unpair for them.
 - The clipboard is shared only if chosen, one way at a time: `ame desktop phone clipboard send|receive on|off`.
   Leave these to the user: receiving lets a phone put text where any program can paste it.
-- Files from a phone arrive in `~/Downloads/Phone/NAME`. The phone icon in the top bar is Amethystora UI's
-  `connect` module, and shows only while a paired phone is connected.
+- Files from a phone arrive in `~/Downloads/Phone/NAME`, and pictures in `~/Pictures/Phone` (no folder per phone)
+  while the key `photo-folder` of `org.amethystora.Connect` is `pictures`, as shipped:
+  `ame desktop phone photos pictures|downloads`. The phone in the top bar is Amethystora UI's `connect` module, shown only while a paired phone
+  is connected: one phone's battery and signal bars (`SignalStrength`, `NetworkType` on the device's D-Bus object,
+  from the phone's connectivity report, which needs the phone app's permission to read the phone state).
+
+## Files' scripts menu
+
+- Files shows the executable files of `~/.local/share/nautilus/scripts` under Scripts, for a selection only. The
+  user-setup hook `24-files-menu.sh` writes, once per account, **Folder colour** (seven entries) and **Back in time**
+  there, each marked `# amethystora-files-menu` in its second line, and lists them in
+  `~/.local/state/amethystora/files-menu.json`; a deleted entry stays deleted.
+- A folder's colour is `metadata::custom-icon-name` = `folder-amethyst|sky|jade|amber|coral|slate`
+  (`gio info -a metadata::custom-icon-name DIR`), set by `/usr/libexec/amethystora-folder-colour COLOUR -- DIR...`;
+  each icon pack draws the six. **Back in time** is `/usr/libexec/amethystora-back-in-time -- PATH`, which opens
+  `amethystora-backups FOLDER` for a folder in the home only.
 
 ## Copying text out of a picture on the screen
 

@@ -12,6 +12,7 @@ use std::time::Instant;
 use glib::variant::ToVariant;
 
 use crate::battery::Battery;
+use crate::connectivity::Signal;
 use crate::contacts::Book;
 use crate::link::Link;
 use crate::notifications::Table;
@@ -48,6 +49,9 @@ pub fn features(incoming: &[String], outgoing: &[String]) -> Vec<&'static str> {
     if sends("kdeconnect.telephony") {
         out.push("telephony");
     }
+    if sends("kdeconnect.connectivity_report") {
+        out.push("connectivity");
+    }
     out
 }
 
@@ -75,6 +79,8 @@ pub struct State {
     pub pairing_key: String,
     pub address: Option<(IpAddr, u16)>,
     pub battery: Battery,
+    /// The mobile signal of its last connectivity report, forgotten when it goes
+    pub signal: Option<Signal>,
     pub notifications: Table,
     pub contacts: Book,
     pub contacts_queue: VecDeque<String>,
@@ -122,6 +128,7 @@ impl Device {
                 pairing_key: String::new(),
                 address: None,
                 battery: Battery::default(),
+                signal: None,
                 notifications: Table::with_policy(show_silent, show_ongoing),
                 contacts: Book::default(),
                 contacts_queue: VecDeque::new(),
@@ -190,6 +197,8 @@ impl Device {
             })
             .unwrap_or_default();
         let features: Vec<&str> = if st.paired && connected { features(&st.incoming, &st.outgoing) } else { Vec::new() };
+        // Like the features, the signal is the phone's only while it is here
+        let signal = st.signal.as_ref().filter(|_| st.paired && connected);
         vec![
             ("Id", self.id.to_variant()),
             ("Name", st.name.to_variant()),
@@ -202,6 +211,8 @@ impl Device {
             ("Address", address.to_variant()),
             ("BatteryLevel", st.battery.level.to_variant()),
             ("BatteryCharging", st.battery.charging.to_variant()),
+            ("SignalStrength", signal.map_or(-1, |s| s.strength).to_variant()),
+            ("NetworkType", signal.map(|s| s.network.clone()).unwrap_or_default().to_variant()),
             ("Features", features.to_variant()),
         ]
     }
@@ -233,8 +244,8 @@ mod tests {
             "kdeconnect.sms.request",
             "kdeconnect.telephony.request_mute",
         ]);
-        let outgoing = caps(&["kdeconnect.ping", "kdeconnect.battery", "kdeconnect.notification", "kdeconnect.share.request", "kdeconnect.clipboard", "kdeconnect.sms.messages", "kdeconnect.telephony"]);
-        assert_eq!(features(&incoming, &outgoing), vec!["ping", "battery", "notifications", "share", "clipboard", "sms", "telephony"]);
+        let outgoing = caps(&["kdeconnect.ping", "kdeconnect.battery", "kdeconnect.notification", "kdeconnect.share.request", "kdeconnect.clipboard", "kdeconnect.sms.messages", "kdeconnect.telephony", "kdeconnect.connectivity_report"]);
+        assert_eq!(features(&incoming, &outgoing), vec!["ping", "battery", "notifications", "share", "clipboard", "sms", "telephony", "connectivity"]);
     }
 
     #[test]
@@ -265,6 +276,12 @@ mod tests {
         assert_eq!(props["PairingDeadline"].get::<i64>(), Some(0));
         assert_eq!(props["BatteryLevel"].get::<i32>(), Some(-1));
         assert_eq!(props["Features"].get::<Vec<String>>(), Some(vec![]));
-        assert_eq!(props.len(), 12);
+        assert_eq!(props["SignalStrength"].get::<i32>(), Some(-1));
+        assert_eq!(props["NetworkType"].get::<String>().as_deref(), Some(""));
+        assert_eq!(props.len(), 14);
+        // A signal kept from before shows only while the phone is paired and here
+        d.st.borrow_mut().signal = Some(Signal { strength: 3, network: "LTE".into() });
+        let props: HashMap<_, _> = d.properties().into_iter().collect();
+        assert_eq!(props["SignalStrength"].get::<i32>(), Some(-1));
     }
 }

@@ -301,6 +301,8 @@ const SHELL = ['usr/libexec/amethystora-security-status', 'usr/libexec/amethysto
     'usr/libexec/amethystora-control-list', 'usr/libexec/amethystora-security-config', 'usr/libexec/amethystora-hardening',
     'usr/libexec/amethystora-phone-link-notice', 'usr/libexec/amethystora-deja-dup-notice',
     'usr/libexec/amethystora-agentic-off-notice', 'usr/libexec/amethystora-private-folder', 'usr/libexec/amethystora-windows-program',
+    // Files' scripts menu: its entries' names, and what the two scripts say
+    'usr/libexec/amethystora-folder-colour', 'usr/libexec/amethystora-back-in-time', 'usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh',
     // The callers of amethystora-notify-users --msgid, which mark their messages with N_
     'usr/libexec/amethystora-scan-alert', 'usr/libexec/amethystora-clamav-onaccess', 'usr/libexec/amethystora-lynis-audit',
     'usr/libexec/amethystora-driver-status', 'usr/libexec/amethystora-gpu-check', 'usr/libexec/amethystora-raid',

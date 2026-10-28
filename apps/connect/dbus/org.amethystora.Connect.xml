@@ -29,6 +29,9 @@
     <property name="ClipboardReceive" type="b" access="read"/>
     <!-- Where files from a phone are put: ~/Downloads/Phone, with a folder for each phone -->
     <property name="ReceiveFolder" type="s" access="read"/>
+    <!-- Where pictures from a phone are put: Pictures/Phone, or ReceiveFolder when the GSettings key photo-folder says
+         downloads (then in the phone's own folder there, as every other file) -->
+    <property name="PhotoFolder" type="s" access="read"/>
     <!-- Every device the program knows: the paired ones, and any that is asking to pair or that announced itself -->
     <method name="GetDevices">
       <arg name="devices" type="ao" direction="out"/>
@@ -94,8 +97,14 @@
     <!-- The charge in percent, or -1 when the phone has not said, and whether it is charging -->
     <property name="BatteryLevel" type="i" access="read"/>
     <property name="BatteryCharging" type="b" access="read"/>
+    <!-- The phone's mobile signal from its connectivity report: 0 to 4 bars of the strongest SIM, or -1 when it has not
+         said (no report yet, no SIM, no permission on the phone, not connected) -->
+    <property name="SignalStrength" type="i" access="read"/>
+    <!-- The network that signal is on, as the phone names it ("LTE", "5G", "UMTS", "Unknown"...), or empty when
+         SignalStrength is -1 -->
+    <property name="NetworkType" type="s" access="read"/>
     <!-- What can be done now with this phone, from what both sides advertised: any of "ping", "battery", "notifications",
-         "share", "clipboard", "sms", "telephony". Empty while it is not connected and paired -->
+         "share", "clipboard", "sms", "telephony", "connectivity". Empty while it is not connected and paired -->
     <property name="Features" type="as" access="read"/>
 
     <!-- Pairing. Pair asks the phone; AcceptPairing and RejectPairing answer a request of the phone's (the notification's
@@ -142,7 +151,8 @@
     <method name="DismissNotification">
       <arg name="notification_id" type="s" direction="in"/>
     </method>
-    <!-- The notifications of this phone that can be answered: "id", "app", "title", "text" (a{sv}), newest first -->
+    <!-- The notifications of this phone that can be answered: "id", "app", "title", "text" (a{sv}), newest first, and
+         "icon" (s) when the phone sent the app's icon: the path of the PNG the program wrote from it, in its own icons folder -->
     <method name="GetRepliable">
       <arg name="notifications" type="aa{sv}" direction="out"/>
     </method>

@@ -19,5 +19,14 @@
       <summary>Take the phones' clipboard</summary>
       <description>Text only. What a paired phone sends from its clipboard is put on this computer's clipboard. Off as the image ships, because a phone could then paste into any field you paste into.</description>
     </key>
+    <key name="photo-folder" type="s">
+      <choices>
+        <choice value="pictures"/>
+        <choice value="downloads"/>
+      </choices>
+      <default>'pictures'</default>
+      <summary>Where pictures from a phone are put</summary>
+      <description>pictures puts them in Pictures/Phone; downloads puts them with the phone's other files, in Downloads/Phone.</description>
+    </key>
   </schema>
 </schemalist>

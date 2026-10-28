@@ -973,7 +973,8 @@ greeting ACTION="":
 
 # Your Android phone through Amethystora Connect, which speaks KDE Connect's protocol: notifications, files, texts and
 # calls (ACTION: on or off; without it, it flips). Off until turned on: the program listens only while its user
-# service is enabled. `phone clipboard send|receive [on|off]` shares the clipboard one way or the other, both off
+# service is enabled. `phone clipboard send|receive [on|off]` shares the clipboard one way or the other, both off;
+# `phone photos [pictures|downloads]` says where pictures a phone sends go, Pictures/Phone as the image ships
 [positional-arguments]
 phone *ARGS:
     #!/usr/bin/bash
@@ -1007,6 +1008,28 @@ phone *ARGS:
                 ;;
             *)
                 echo "usage: ame desktop phone clipboard send|receive [on|off]"
+                exit 64
+                ;;
+        esac
+        exit 0
+    fi
+    if [[ "${1:-}" == photos ]]; then
+        # Without a value it flips between the two
+        where="${2:-}"
+        if [[ -z "${where}" ]]; then
+            [[ "$(gsettings get org.amethystora.Connect photo-folder)" == "'downloads'" ]] && where=pictures || where=downloads
+        fi
+        case "${where}" in
+            pictures)
+                gsettings set org.amethystora.Connect photo-folder pictures
+                echo "$(gettext "Photos from the phone go to Pictures/Phone.")"
+                ;;
+            downloads)
+                gsettings set org.amethystora.Connect photo-folder downloads
+                echo "$(gettext "Photos from the phone go to Downloads, with the phone's other files.")"
+                ;;
+            *)
+                echo "usage: ame desktop phone photos [pictures|downloads]"
                 exit 64
                 ;;
         esac

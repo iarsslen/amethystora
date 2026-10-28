@@ -174,6 +174,7 @@ read_in_background profile busctl --system get-property org.freedesktop.UPower.P
 read_in_background phone systemctl --user is-enabled amethystora-connect.service
 read_in_background clipboard-send gsettings get org.amethystora.Connect clipboard-send
 read_in_background clipboard-receive gsettings get org.amethystora.Connect clipboard-receive
+read_in_background phone-photos gsettings get org.amethystora.Connect photo-folder
 read_in_background waydroid-enabled systemctl is-enabled waydroid-container.service
 read_in_background waydroid-active systemctl is-active waydroid-container.service
 read_in_background uupd systemctl is-enabled uupd.timer
@@ -1037,6 +1038,14 @@ for way in send receive; do
             "$(gettext "What a paired phone copies is put on this computer's clipboard, where any program can paste it.")" "${SHARED}" hardware#phones
     fi
 done
+
+# Where pictures a phone sends go: Pictures/Phone as the image ships, or with the phone's other files
+if [[ "$(ended phone-photos)" == 0 && "$(said phone-photos)" == "'downloads'" ]]; then PHOTOS=downloads; else PHOTOS=pictures; fi
+choice pictures "$(gettext "Pictures/Phone")" "" false ame desktop phone photos pictures
+choice downloads "$(gettext "Downloads")" "" false ame desktop phone photos downloads
+USAGE="ame desktop phone photos pictures|downloads"
+item desktop phone-photos choice "$(gettext "Photos from the phone go to")" \
+    "$(gettext "Pictures a paired phone sends.")" "${PHOTOS}" phone#photos
 GROUP=""
 
 # --- Apps ------------------------------------------------------------------------------------------

@@ -68,6 +68,8 @@ pub struct Repliable {
     pub app: String,
     pub title: String,
     pub text: String,
+    /// The app's icon as the program kept it from the phone, when it did (model::kept_icon)
+    pub icon: Option<std::path::PathBuf>,
 }
 
 #[derive(Default)]
@@ -496,9 +498,13 @@ impl Link {
     pub async fn repliable(&self, id: &str) -> Result<Vec<Repliable>, Failure> {
         let reply = self.on_device(id, "GetRepliable", None).await?;
         let list = reply.child_value(0);
+        let state = std::env::var_os("XDG_STATE_HOME")
+            .map(std::path::PathBuf::from)
+            .filter(|p| p.is_absolute())
+            .unwrap_or_else(|| amethystora_ui::palette::home().join(".local/state"));
         Ok((0..list.n_children())
             .filter_map(|at| {
-                let mut found = Repliable { id: String::new(), app: String::new(), title: String::new(), text: String::new() };
+                let mut found = Repliable { id: String::new(), app: String::new(), title: String::new(), text: String::new(), icon: None };
                 for (key, value) in model::entries(&list.child_value(at)) {
                     let text = value.str().unwrap_or_default();
                     match key.as_str() {
@@ -506,6 +512,7 @@ impl Link {
                         "app" => found.app = model::clean(text, model::MOST_NAME).replace('\n', " "),
                         "title" => found.title = model::clean(text, 256),
                         "text" => found.text = model::clean(text, model::MOST_TEXT),
+                        "icon" => found.icon = model::kept_icon(text, &state).filter(|p| p.symlink_metadata().is_ok_and(|m| m.is_file())),
                         _ => {}
                     }
                 }

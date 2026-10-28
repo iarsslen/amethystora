@@ -108,6 +108,18 @@ export class Device {
         return this.proxy.BatteryCharging === true;
     }
 
+    // The mobile signal in bars, 0 to 4, or -1 when the phone has not said
+    get signal() {
+        const signal = this.proxy.SignalStrength;
+        return Number.isInteger(signal) && signal >= 0 && signal <= 4 ? signal : -1;
+    }
+
+    // The network that signal is on ("LTE", "5G"...), only as the short plain word the program passes on, else empty
+    get network() {
+        const network = this.proxy.NetworkType;
+        return this.signal >= 0 && typeof network === 'string' && /^[A-Za-z0-9 .-]{1,16}$/.test(network) ? network : '';
+    }
+
     ping() {
         return this.proxy.PingAsync();
     }
