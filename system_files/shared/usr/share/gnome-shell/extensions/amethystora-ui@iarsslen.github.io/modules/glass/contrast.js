@@ -50,13 +50,16 @@ export function extremes(samples, material) {
 
 // The veil to draw: text, ground and the picture's extremes as above, base the variant's own veil, allowance the
 // white light the text may count on. Light text is read against the brightest part, with the light over it; dark
-// text against the darkest, where white light would only help.
-export function veil({text, ground, hi, lo, base, allowance}) {
+// text against the darkest, where white light would only help. fill, [r, g, b, alpha], is what St draws over the
+// glass when the surface has a background of its own (a bar piece of the islands or neon style): the veil under it
+// is then only as thick as the fill leaves wanting.
+export function veil({text, ground, hi, lo, base, allowance, fill = null}) {
     const light = luminance(text) > luminance(ground);
     const behind = light ? hi : lo;
     const composite = a => {
         const veiled = mix(behind, ground, a);
-        return light ? mix(veiled, WHITE, allowance) : veiled;
+        const lit = light ? mix(veiled, WHITE, allowance) : veiled;
+        return fill ? mix(lit, fill, fill[3]) : lit;
     };
     const readable = a => contrast(text, composite(a)) >= READABLE;
     if (readable(base))

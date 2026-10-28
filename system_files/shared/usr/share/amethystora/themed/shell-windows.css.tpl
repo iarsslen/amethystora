@@ -74,8 +74,8 @@
   background-color: rgba({{ background_rgb }}, 0.7);
 }
 
-#uiGroup .amethystora-windows-switcher-thumb:selected {
-  box-shadow: 0 0 0 3px {{ accent }};
+#uiGroup .amethystora-windows-switcher-ring {
+  border-color: {{ accent }};
 }
 
 #uiGroup .amethystora-windows-switcher-key {

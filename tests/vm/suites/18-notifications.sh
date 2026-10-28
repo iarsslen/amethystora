@@ -18,15 +18,33 @@ PILL=org.gnome.shell.extensions.amethystora-ui.pill
 COLOR=org.gnome.settings-daemon.plugins.color
 HERE="$(dirname "$(readlink -f "$0")")"
 WORK=/run/vmlab-18
+# Eval's answer, decoded once: Eval gives JSON of the value, and gdbus prints that as a GVariant string. A string comes
+# back as it is, anything else as compact JSON; a throw prints ERROR and fails
 ev() {
     user_bus gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method org.gnome.Shell.Eval "$1" |
-        sed -E -e "s/^\(true, '(.*)'\)\$/\1/" -e 's/^"(.*)"$/\1/'
+        python3 -c '
+import ast, json, sys
+text = sys.stdin.read().strip()
+if not text.startswith("("):
+    print("ERROR")
+    sys.exit(1)
+ok, value = ast.literal_eval("(" + ("True" if text.startswith("(true") else "False") + text[text.index(","):])
+if not ok:
+    print("ERROR: " + value, file=sys.stderr)
+    print("ERROR")
+    sys.exit(1)
+try:
+    value = json.loads(value) if value else ""
+except ValueError:
+    pass
+print(value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, separators=(",", ":")))'
 }
 gs() { in_session "gsettings $*" 2>/dev/null; }
 same() { if [[ "$2" == "$3" ]]; then ok "$1"; else not_ok "$1" "expected: $3" "found: $2"; fi; }
 UI="Main.extensionManager.lookup('${UUID}').stateObj.modules"
 P="${UI}.get('pill')"
-st() { ev "JSON.stringify(${P}.state()$1)" | sed -E 's/\\"/"/g'; }
+# One field of the pill's state, as JSON ('"idle"', true, 5)
+st() { ev "JSON.stringify(${P}.state()$1)"; }
 keys() { python3 "${HERE}/keys.py" "$@" >/dev/null 2>&1; }
 shell_click() { user_bus python3 "${HERE}/atspi.py" gnome-shell click "$@" >/dev/null 2>&1; }
 notify() { in_session "notify-send $*"; }
@@ -80,7 +98,8 @@ if ! wait_for 240 has_session || ! wait_for 120 pill_ready; then
 fi
 sleep 8
 ev "Main.overview.hide(); 'hidden'" >/dev/null
-install -d -m 0755 "${WORK}"
+# The account's own units write their logs here
+install -d -m 0755 -o "${TEST_USER}" -g "${TEST_USER}" "${WORK}"
 cp "${HERE}/sharecast.py" "${WORK}/"
 clear_list
 
@@ -231,8 +250,8 @@ for t in (\"n1\", \"n2\", \"n3\"):
     c.call_sync(\"org.freedesktop.Notifications\", \"/org/freedesktop/Notifications\", \"org.freedesktop.Notifications\", \"Notify\",
         GLib.Variant(\"(susssasa{sv}i)\", (\"vmlab-stack\", 0, \"\", t, \"\", [], {}, -1)), None, 0, -1)
 '" >/dev/null 2>&1
+# The banner on screen is left alone: destroying it would take a notification out of the stack
 sleep 2
-ev "Main.messageTray._notification?.destroy(); 'gone'" >/dev/null
 ev "Main.panel.statusArea.dateMenu.menu.open(); 'open'" >/dev/null
 sleep 1.5
 COUNT="(() => { const v = Main.panel.statusArea.dateMenu._messageList._messageView; const found = []; const walk = a => { for (const c of a.get_children()) { if (c.name === 'amethystora-pill-stack-count' && c.visible) found.push(c.get_parent().get_children().map(x => x.text ?? '').join('')); walk(c); } }; walk(v); return found.join('|'); })()"

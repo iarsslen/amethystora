@@ -172,7 +172,10 @@ CONTRAST="(() => {
         const qs = await measure(find(global.stage, 'quick-settings'), find(global.stage, 'quick-settings'), grid);
         Main.panel.statusArea.quickSettings.menu.close();
         await wait(600);
-        const bar = await measure(Main.panel, Main.panel.statusArea.dateMenu, [0.1, 0.3, 0.5, 0.7, 0.9].map(a => [a, 0.5]));
+        // Behind the clock's own text: the bar's pane in the floating style, the clock's pill in the islands one
+        // (amethystora-light's), where the wallpaper between the pills carries no text
+        const date = Main.panel.statusArea.dateMenu;
+        const bar = await measure(date, date, [0.1, 0.3, 0.5, 0.7, 0.9].map(a => [a, 0.5]));
         globalThis.vmlabContrast = qs + ' ' + bar;
     })().catch(e => { globalThis.vmlabContrast = 'error ' + e; });
     return 'started';
@@ -195,9 +198,9 @@ readable() {
         sleep 1
         read -r qs bar <<<"$(contrast_of)"
         if awk -v a="${qs}" -v b="${bar}" 'BEGIN { exit !(a >= 4.5 && b >= 4.5) }'; then
-            ok "${label} ${v}: the quick settings ${qs}:1, the top bar ${bar}:1"
+            ok "${label} ${v}: the quick settings ${qs}:1, behind the clock ${bar}:1"
         else
-            not_ok "${label} ${v}: text under 4.5:1" "the quick settings ${qs}:1, the top bar ${bar}:1"
+            not_ok "${label} ${v}: text under 4.5:1" "the quick settings ${qs}:1, behind the clock ${bar}:1"
         fi
     done
 }
@@ -211,6 +214,61 @@ wallpaper matte-black/night-sea.png
 within 5 stats_after "${before}" || not_ok "8 the darkest wallpaper's picture was not measured within 5 s"
 readable "8 light theme over matte-black/night-sea.png,"
 in_session "AMETHYSTORA_THEME_QUIET=1 ame desktop theme amethystora" >/dev/null 2>&1
+
+# The styles whose bar pieces have a background of their own, or none (capsule's bare bar), in the dark theme over
+# the brightest wallpaper: the clock and the network meter's text, each against what is right behind it
+BAR="(() => {
+    const {Shell, GLib, St} = imports.gi;
+    const lin = v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    const Y = c => 0.2126 * lin(c[0] / 255) + 0.7152 * lin(c[1] / 255) + 0.0722 * lin(c[2] / 255);
+    const ratio = (a, b) => (Math.max(Y(a), Y(b)) + 0.05) / (Math.min(Y(a), Y(b)) + 0.05);
+    const wait = ms => new Promise(r => GLib.timeout_add(0, ms, () => { r(); return false; }));
+    const shot = new Shell.Screenshot();
+    const pick = (x, y) => new Promise(r => shot.pick_color(x, y, (o, res) => { const [, c] = shot.pick_color_finish(res); r([c.red, c.green, c.blue]); }));
+    const label = a => { if (a instanceof St.Label) return a; for (const c of a.get_children()) { const r = label(c); if (r) return r; } return null; };
+    const measure = async actor => {
+        const f = (label(actor) ?? actor).get_theme_node().get_foreground_color();
+        const kids = actor.get_children();
+        for (const k of kids) k.opacity = 0;
+        await wait(400);
+        const [x, y] = actor.get_transformed_position();
+        const [w, h] = actor.get_transformed_size();
+        let min = 99;
+        for (const a of [0.2, 0.35, 0.5, 0.65, 0.8])
+            min = Math.min(min, ratio([f.red, f.green, f.blue], await pick(Math.round(x + a * w), Math.round(y + h / 2))));
+        for (const k of kids) k.opacity = 255;
+        return min.toFixed(2);
+    };
+    globalThis.vmlabBar = null;
+    (async () => {
+        const s = Main.panel.statusArea;
+        const clock = await measure(s.dateMenu);
+        const meter = s['amethystora-meters-network'];
+        globalThis.vmlabBar = clock + ' ' + (meter ? await measure(meter) : 'none');
+    })().catch(e => { globalThis.vmlabBar = 'error ' + e; });
+    return 'started';
+})()"
+bar_done() { [[ "$(ev "globalThis.vmlabBar !== null")" == true ]]; }
+before="$(stats_version)"
+wallpaper amethystora-facets-l.png
+within 5 stats_after "${before}" || not_ok "8 the brightest wallpaper's picture was not measured again within 5 s"
+for style in islands capsule segments neon; do
+    in_session "AMETHYSTORA_THEME_QUIET=1 ame desktop style ${style}" >/dev/null 2>&1
+    for v in frost prism clear; do
+        in_session "ame desktop glass ${v}" >/dev/null 2>&1
+        sleep 3
+        ev "${BAR}" >/dev/null
+        wait_for 30 bar_done
+        read -r clock meter <<<"$(ev "globalThis.vmlabBar")"
+        if awk -v a="${clock}" -v b="${meter}" 'BEGIN { exit !(a >= 4.5 && (b == "none" || b >= 4.5)) }'; then
+            ok "8 dark theme over amethystora-facets-l.png, ${style} ${v}: the clock ${clock}:1, the network meter ${meter}:1"
+        else
+            not_ok "8 dark theme over amethystora-facets-l.png, ${style} ${v}: text under 4.5:1" \
+                "the clock ${clock}:1, the network meter ${meter}:1"
+        fi
+    done
+done
+in_session "AMETHYSTORA_THEME_QUIET=1 ame desktop style theme" >/dev/null 2>&1
 in_session "ame desktop glass prism" >/dev/null 2>&1
 before="$(stats_version)"
 wallpaper amethystora-d.png

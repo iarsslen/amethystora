@@ -25,26 +25,35 @@ export function frameCentre(window) {
 // The window's frame as its actor draws it now, translation aside: the actor's own place and size, less the margins
 // round the frame (its shadow). Mutter moves the actor and gives it a new picture a little after the window's
 // rectangles change; going by the actor keeps every frame of a flight on what is actually drawn.
-export function measure(actor) {
-    const window = actor.meta_window;
-    const f = window.get_frame_rect();
-    const b = window.get_buffer_rect();
-    const left = f.x - b.x;
-    const top = f.y - b.y;
-    const W = Math.max(1, actor.width - left - (b.x + b.width - f.x - f.width));
-    const H = Math.max(1, actor.height - top - (b.y + b.height - f.y - f.height));
+// The margins round the frame are read again only when the actor's size changes (cache: an object kept by the caller).
+export function measure(actor, cache = null) {
+    const [ax, ay] = actor.get_position();
+    const [aw, ah] = actor.get_size();
+    let margins = cache?.margins;
+    if (!margins || cache.aw !== aw || cache.ah !== ah) {
+        const window = actor.meta_window;
+        const f = window.get_frame_rect();
+        const b = window.get_buffer_rect();
+        margins = {left: f.x - b.x, top: f.y - b.y, right: b.x + b.width - f.x - f.width,
+            bottom: b.y + b.height - f.y - f.height};
+        if (cache)
+            Object.assign(cache, {aw, ah, margins, frame: null});
+    }
+    const {left, top} = margins;
+    const W = Math.max(1, aw - left - margins.right);
+    const H = Math.max(1, ah - top - margins.bottom);
     return {
-        W, H, left, top,
-        x: actor.x + left, y: actor.y + top,
-        centre: {x: actor.x + left + W / 2, y: actor.y + top + H / 2},
+        W, H, left, top, aw: Math.max(1, aw), ah: Math.max(1, ah),
+        x: ax + left, y: ay + top,
+        centre: {x: ax + left + W / 2, y: ay + top + H / 2},
     };
 }
 
 export class Flight {
     // kind: minimize, unminimize, open, fade-out or fade-in. options:
     //   geo       {W, H, R0, S, Ic}: the frame's size and corners, the icon's size and centre
-    //   rest      () => {x, y}, the translation the window rests at when it is itself: the one it had (a way out), or
-    //             where the tiling's strip draws it now (a way back), read every frame
+    //   rest      (m) => {x, y}, the translation the window rests at when it is itself: the one it had (a way out), or
+    //             where the tiling's strip draws it now (a way back), read every frame from the frame measured (m)
     //   from      where a flight that turned round left off (path.js turnRound), or null
     //   u0, scale the moment the flight starts at, and a share of its usual time
     //   shader, accent, ripple   the droplet's shader, the theme's accent, and what starts the ring (or null)
@@ -63,6 +72,9 @@ export class Flight {
         this.effect = null;
         this._copy = null;
         this.last = null;
+        // What measure() keeps between frames, and the pivot last set
+        this._measured = {};
+        this._pivot = null;
         // Set when the window's actor is destroyed: nothing may touch it after that
         this.gone = false;
         actor.connectObject('destroy', () => {
@@ -116,8 +128,8 @@ export class Flight {
     // The moment u of the flight, drawn
     step(u) {
         const actor = this.actor;
-        const rest = this._rest();
-        const m = measure(actor);
+        const m = measure(actor, this._measured);
+        const rest = this._rest(m);
         const fc = m.centre;
         const centre = {x: fc.x + rest.x, y: fc.y + rest.y};
         if (!this.droplet) {
@@ -131,14 +143,18 @@ export class Flight {
         // the size it has now. Scaled about the frame's centre.
         const geo = {...this._geo, W: m.W, H: m.H, Fc: centre};
         const state = this.kind === 'minimize' ? minimizeAt(u, geo, this._from) : unminimizeAt(u, geo, this._from);
-        actor.set_pivot_point((m.left + m.W / 2) / Math.max(1, actor.width), (m.top + m.H / 2) / Math.max(1, actor.height));
-        actor.scale_x = state.w / m.W;
-        actor.scale_y = state.h / m.H;
-        actor.translation_x = state.centre.x - fc.x;
-        actor.translation_y = state.centre.y - fc.y;
+        // Each write costs a call into Clutter and its notifications: only what changed is written
+        const px = (m.left + m.W / 2) / m.aw;
+        const py = (m.top + m.H / 2) / m.ah;
+        if (this._pivot?.[0] !== px || this._pivot?.[1] !== py) {
+            actor.set_pivot_point(px, py);
+            this._pivot = [px, py];
+        }
+        actor.set_scale(state.w / m.W, state.h / m.H);
+        actor.set_translation(state.centre.x - fc.x, state.centre.y - fc.y, 0);
         this.effect.state = state;
-        this.effect.frame = [m.left / Math.max(1, actor.width), m.top / Math.max(1, actor.height),
-            (m.left + m.W) / Math.max(1, actor.width), (m.top + m.H) / Math.max(1, actor.height)];
+        this._measured.frame ??= [m.left / m.aw, m.top / m.ah, (m.left + m.W) / m.aw, (m.top + m.H) / m.ah];
+        this.effect.frame = this._measured.frame;
         // A drop is drawn above the dock and the top bar, where it lands or leaves from; the window, at either end,
         // in its own layer. On the way back it goes down to its layer as soon as it is clear of them, before it opens
         // out over them.
@@ -185,9 +201,22 @@ export class Flight {
         if (!copy)
             return;
         // Where the window is drawn, there: the windows' layer and the top one both start at the stage's corner
-        copy.set_position(actor.x, actor.y);
-        copy.set_size(actor.width, actor.height);
-        copy.set_pivot_point(actor.pivot_point.x, actor.pivot_point.y);
+        const m = this._measured;
+        const [ax, ay] = actor.get_position();
+        if (copy._x !== ax || copy._y !== ay) {
+            copy.set_position(ax, ay);
+            copy._x = ax;
+            copy._y = ay;
+        }
+        if (copy._aw !== m.aw || copy._ah !== m.ah) {
+            copy.set_size(m.aw, m.ah);
+            copy._aw = m.aw;
+            copy._ah = m.ah;
+        }
+        if (this._pivot && copy._pivot !== this._pivot) {
+            copy.set_pivot_point(...this._pivot);
+            copy._pivot = this._pivot;
+        }
         copy.set_scale(actor.scale_x, actor.scale_y);
         copy.set_translation(actor.translation_x, actor.translation_y, 0);
     }
@@ -210,7 +239,7 @@ export class Flight {
 
     // The translation the window rests at, for the window manager's ending to leave it there
     restTranslation() {
-        return this._rest();
+        return this.gone ? {x: 0, y: 0} : this._rest(measure(this.actor, this._measured));
     }
 }
 

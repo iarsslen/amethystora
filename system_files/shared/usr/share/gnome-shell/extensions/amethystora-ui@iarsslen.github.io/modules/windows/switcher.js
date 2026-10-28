@@ -150,6 +150,10 @@ export class Switcher {
 
         this._grab = Main.pushModal(this._root, {actionMode: Shell.ActionMode.POPUP});
         this._root.grab_key_focus();
+        // While the grid has the keyboard, a typed letter is the query's, never another program's shortcut: the
+        // accelerators GNOME hands to its settings daemon (Super+L locks) are allowed in a popup, so they are held
+        // back here, after GNOME's own filter, until the grid closes. GNOME's built-in keys it filters itself.
+        global.window_manager.connectObject('filter-keybinding', (wm, binding) => !binding.is_builtin(), this);
         this._filter();
         this._select(backward ? this._shownTiles.length - 1 : Math.min(1, this._shownTiles.length - 1));
 
@@ -292,6 +296,12 @@ export class Switcher {
         const thumb = new St.Widget({style_class: 'amethystora-windows-switcher-thumb',
             width: THUMB[0] * s, height: THUMB[1] * s});
         holder.add_child(thumb);
+        // The selection's ring, drawn once and only shown or hidden: changing the thumbnail's style instead made the
+        // first step after opening restyle it, which took milliseconds on a machine drawing in software
+        // A 3 px border just outside the thumbnail, as the board's ring (a box shadow would fill the inside too)
+        const ring = new St.Widget({style_class: 'amethystora-windows-switcher-ring', opacity: 0,
+            x: -3 * s, y: -3 * s, width: (THUMB[0] + 6) * s, height: (THUMB[1] + 6) * s});
+        holder.add_child(ring);
         const windowActor = window.get_compositor_private();
         if (windowActor) {
             // Only the window's frame, scaled to fit inside the border, centred
@@ -327,7 +337,7 @@ export class Switcher {
         name.clutter_text.x_align = Clutter.ActorAlign.CENTER;
         actor.add_child(name);
 
-        const tile = {window, app, actor, thumb, name, text, title, appName,
+        const tile = {window, app, actor, thumb, ring, name, text, title, appName,
             appId: (app?.get_id() ?? '').replace(/\.desktop$/, '')};
         actor.connectObject('motion-event', () => {
             const index = this._shownTiles.indexOf(tile);
@@ -385,7 +395,7 @@ export class Switcher {
         this._empty.visible = shown.length === 0;
         this._scroll.visible = shown.length > 0;
         for (const tile of this._tiles)
-            tile.thumb.remove_style_pseudo_class('selected');
+            tile.ring.opacity = 0;
         this._selected = -1;
         if (shown.length)
             this._select(0);
@@ -465,15 +475,19 @@ export class Switcher {
         if (!tiles.length)
             return;
         index = (index + tiles.length) % tiles.length;
-        tiles[this._selected]?.thumb.remove_style_pseudo_class('selected');
+        if (tiles[this._selected])
+            tiles[this._selected].ring.opacity = 0;
         this._selected = index;
         const tile = tiles[index];
-        tile.thumb.add_style_pseudo_class('selected');
+        tile.ring.opacity = 255;
         this._scrollTo(tile.actor);
         this._module.note('switcherSelect', t0);
     }
 
     _scrollTo(actor) {
+        // A grid that fits has nothing to scroll, and asking where a row is would lay the grid out again
+        if (this._scroll.vscrollbar_policy === St.PolicyType.EXTERNAL)
+            return;
         const adjustment = this._scroll.vadjustment;
         const row = actor.get_parent();
         if (!row || !adjustment)
@@ -521,6 +535,7 @@ export class Switcher {
         this._grab = null;
         Main.layoutManager.disconnectObject(this);
         global.display.disconnectObject(this);
+        global.window_manager.disconnectObject(this);
         for (const tile of this._tiles ?? [])
             tile.window.disconnectObject(this);
         const root = this._root;

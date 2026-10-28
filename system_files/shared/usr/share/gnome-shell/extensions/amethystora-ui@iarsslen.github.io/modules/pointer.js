@@ -56,6 +56,8 @@ export class Pointer {
         this.denseSize = denseSize;
         this._tracker = global.backend.get_cursor_tracker();
         this._seat = global.stage.context.get_backend().get_default_seat();
+        // The stage's pointer, kept for the life of the stage
+        this._sprite0 = global.stage.context.get_backend().get_pointer_sprite(global.stage);
         this._last = 0;
         this._detector = null;
         this._flare = null;
@@ -82,6 +84,7 @@ export class Pointer {
         this._settings = null;
         this._tracker = null;
         this._seat = null;
+        this._sprite0 = null;
     }
 
     // ------------------------------------------------------------------ shake --
@@ -101,32 +104,45 @@ export class Pointer {
     }
 
     // Every pointer motion: the large copy follows each one while it is shown; the shake is looked at once every STEP
-    // ms at most, and never while a button is held
+    // ms at most, and never counts while a button is held
     _onMove() {
         try {
             if (this._flare)
-                this._follow(this._tracker.get_pointer()[0]);
+                this._follow(this._position());
             const now = GLib.get_monotonic_time();
             if (now - this._last < STEP * 1000)
                 return;
             this._last = now;
-            const [point, mods] = this._tracker.get_pointer();
-            if (mods & BUTTONS) {
-                this._detector.reset();
-                return;
-            }
             this.stats.samples++;
-            const shaken = this._detector.sample(point.x, now / 1000);
+            const shaken = this._look(now);
             // The cost of looking, which every move pays; starting a flare is paid once a shake
             const spent = GLib.get_monotonic_time() - now;
             this.stats.handlerUsMax = Math.max(this.stats.handlerUsMax, spent);
             this.stats.handlerUsSum += spent;
-            if (shaken)
+            if (!shaken)
+                return;
+            // The buttons are asked of the seat only now: a drag or a stroke of a drawing is never a shake
+            const [, mods] = this._tracker.get_pointer();
+            if (mods & BUTTONS)
+                this._detector.reset();
+            else
                 this._onShake();
         } catch (e) {
             console.error(`Amethystora UI: the pointer's shake: ${e.message}`);
             this._endFlare();
         }
+    }
+
+    // Where the pointer is, as the stage last saw it move. The seat's own answer (get_pointer) takes a lock the input
+    // thread also takes for every event it reads; the stage's pointer sprite holds the same position on this thread.
+    _position() {
+        return this._sprite0?.get_coords() ?? this._tracker.get_pointer()[0];
+    }
+
+    // One look at the pointer for the shake, at now (µs): true while the movement so far is a shake. Apart from the
+    // handler so that the lab can time it alone (suite 12, V14).
+    _look(now) {
+        return this._detector.sample(this._position().x, now / 1000);
     }
 
     _onShake() {
@@ -171,7 +187,7 @@ export class Pointer {
     // up and GNOME 51 draws the SVG at the scale itself; where it is laid out in the screens' own pixels (the view's
     // scale is 1), the texture is drawn as it is.
     _spriteScale() {
-        const [point] = this._tracker.get_pointer();
+        const point = this._position();
         const rect = new Mtk.Rectangle();
         const view = global.stage.peek_stage_views().find(v => {
             v.get_layout(rect);
@@ -212,8 +228,7 @@ export class Pointer {
             }
             this.stats.rings = this.stats.ringsMax = flare.rings.length;
         }
-        const [point] = this._tracker.get_pointer();
-        this._follow(point);
+        this._follow(this._position());
 
         // Everything is made: now the real pointer can go
         this._tracker.inhibit_cursor_visibility();
@@ -244,7 +259,7 @@ export class Pointer {
                 return;
             }
             this._setSprite(sprite);
-            const [point] = this._tracker.get_pointer();
+            const point = this._position();
             this._follow(point);
         } catch (e) {
             console.error(`Amethystora UI: the pointer's shake: ${e.message}`);

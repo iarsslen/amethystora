@@ -162,12 +162,15 @@ class AmethystoraGlassEffect extends Clutter.Effect {
             return this._colors;
         const light = this._glass.light;
         const colors = {
-            own: false, ownBackground: false, ownBorder: false,
+            own: false, ownBackground: false, ownBorder: false, fill: null,
             text: null, ground: GROUND[light ? 'light' : 'dark'], glow: null, edge: null,
         };
         const node = actor instanceof St.Widget ? actor.get_theme_node() : null;
         if (node) {
-            colors.ownBackground = node.get_background_color().alpha > 0;
+            const background = node.get_background_color();
+            colors.ownBackground = background.alpha > 0;
+            if (colors.ownBackground)
+                colors.fill = [...rgb(background), background.alpha / 255];
             for (const side of [St.Side.TOP, St.Side.RIGHT, St.Side.BOTTOM, St.Side.LEFT]) {
                 if (node.get_border_width(side) > 0 && node.get_border_color(side).alpha > 0)
                     colors.ownBorder = true;
@@ -190,18 +193,23 @@ class AmethystoraGlassEffect extends Clutter.Effect {
         return colors;
     }
 
-    // The veil over one screen's picture: the variant's own, thickened where the surface's text would not read
-    _veilFor(picture, material, colors) {
-        const base = material.veil[this._glass.light ? 1 : 0];
-        if (colors.ownBackground)
-            return 0;
-        if (material.guard === null || !colors.text || !picture.stats)
+    // The veil over one screen's picture: the variant's own, thickened where the surface's text would not read. Under
+    // a background St draws itself (a bar piece of a style) the glass has no veil of its own, but the guard still
+    // adds what that background leaves wanting; under an opaque one it has nothing to do. box is where the surface
+    // is on the screen, which a bare bar is judged by.
+    _veilFor(picture, material, colors, box) {
+        const fill = colors.ownBackground ? colors.fill : null;
+        const base = fill ? 0 : material.veil[this._glass.light ? 1 : 0];
+        if (material.guard === null || !colors.text || !picture.stats || (fill && fill[3] >= 0.99))
             return base;
-        const key = `${picture.stats.version}:${this._glass.variant}:${this.look.material}:${this._glass.light}`;
+        const where = material.bare ? box.map(Math.round).join(',') : '';
+        const key = `${picture.stats.version}:${this._glass.variant}:${this.look.material}:${this._glass.light}:${where}`;
         let value = this._veils.get(key);
         if (value === undefined) {
-            const {hi, lo} = picture.extremes(this._glass.variant, this.look.material, material);
-            value = hi ? veil({text: colors.text, ground: colors.ground, hi, lo, base, allowance: material.guard})
+            const {hi, lo} = material.bare
+                ? picture.extremesIn(this._glass.variant, this.look.material, material, box)
+                : picture.extremes(this._glass.variant, this.look.material, material);
+            value = hi ? veil({text: colors.text, ground: colors.ground, hi, lo, base, allowance: material.guard, fill})
                 : base;
             this._veils.set(key, value);
         }
@@ -276,7 +284,10 @@ class AmethystoraGlassEffect extends Clutter.Effect {
                 const sharp = ready && clear?.ready && clear.texture ? clear.texture : null;
                 const pipeline = this._pipeline(paintContext, `${i}:${monitor.index}`,
                     ready ? picture.texture : null, sharp);
-                const veilAlpha = ready ? this._veilFor(picture, material, colors) : 0;
+                const veilAlpha = ready ? this._veilFor(picture, material, colors, quad) : 0;
+                // A bare bar draws nothing at all while its text reads without help
+                if (material.bare && (!ready || veilAlpha < 0.005))
+                    continue;
                 this._set(pipeline, {
                     monitor, left, top, size, s, n, unit, opacity: opacity * fade, sharp, material, colors, shadow,
                     veilAlpha, solid: !ready,
@@ -319,7 +330,7 @@ class AmethystoraGlassEffect extends Clutter.Effect {
         shader.set(pipeline, 'u_corner', s, n);
         shader.set(pipeline, 'u_opacity', opacity);
         shader.set(pipeline, 'u_frost', sharp ? opacity : 1);
-        shader.set(pipeline, 'u_solid', solid ? 1 : 0);
+        shader.set(pipeline, 'u_solid', solid ? 0.92 : m.bare ? veilAlpha : 0);
         shader.set(pipeline, 'u_tone', m.sat, m.dim, m.tint, m.glint);
         shader.set(pipeline, 'u_rim', m.rim[0] * unit, Math.max(m.rim[1] * unit, 1e-3), m.rim[2], m.rim[3]);
         shader.set(pipeline, 'u_shade', m.shade);

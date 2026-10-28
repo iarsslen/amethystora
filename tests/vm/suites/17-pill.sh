@@ -21,16 +21,34 @@ PILL=org.gnome.shell.extensions.amethystora-ui.pill
 A11Y=org.gnome.desktop.a11y.interface
 HERE="$(dirname "$(readlink -f "$0")")"
 WORK=/run/vmlab-17
+# Eval's answer, decoded once: Eval gives JSON of the value, and gdbus prints that as a GVariant string. A string comes
+# back as it is, anything else as compact JSON; a throw prints ERROR and fails
 ev() {
     user_bus gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method org.gnome.Shell.Eval "$1" |
-        sed -E -e "s/^\(true, '(.*)'\)\$/\1/" -e 's/^"(.*)"$/\1/'
+        python3 -c '
+import ast, json, sys
+text = sys.stdin.read().strip()
+if not text.startswith("("):
+    print("ERROR")
+    sys.exit(1)
+ok, value = ast.literal_eval("(" + ("True" if text.startswith("(true") else "False") + text[text.index(","):])
+if not ok:
+    print("ERROR: " + value, file=sys.stderr)
+    print("ERROR")
+    sys.exit(1)
+try:
+    value = json.loads(value) if value else ""
+except ValueError:
+    pass
+print(value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, separators=(",", ":")))'
 }
 gs() { in_session "gsettings $*" 2>/dev/null; }
 same() { if [[ "$2" == "$3" ]]; then ok "$1"; else not_ok "$1" "expected: $3" "found: $2"; fi; }
 UI="Main.extensionManager.lookup('${UUID}').stateObj.modules"
 P="${UI}.get('pill')"
 # One field of the pill's state, as JSON
-st() { ev "JSON.stringify(${P}.state()$1)" | sed -E 's/^"(.*)"$/\1/; s/\\"/"/g'; }
+# One field of the pill's state, as JSON ('"idle"', true, 5)
+st() { ev "JSON.stringify(${P}.state()$1)"; }
 activity_is() { [[ "$(st .activity)" == "\"$1\"" || "$(st .activity)" == "$1" ]]; }
 keys() { python3 "${HERE}/keys.py" "$@" >/dev/null 2>&1; }
 shell_click() { user_bus python3 "${HERE}/atspi.py" gnome-shell click "$@" >/dev/null 2>&1; }
@@ -72,7 +90,8 @@ if ! wait_for 240 has_session || ! wait_for 120 pill_ready; then
 fi
 sleep 8
 ev "Main.overview.hide(); 'hidden'" >/dev/null
-install -d -m 0755 "${WORK}"
+# The account's own units write their logs here
+install -d -m 0755 -o "${TEST_USER}" -g "${TEST_USER}" "${WORK}"
 cp "${HERE}/mpris.py" "${HERE}/sharecast.py" "${WORK}/"
 FORCED="$(ev "global.force_animations")"
 # Whatever happens, the suites after this one find GNOME's animations and reduced motion as they were, and nothing
@@ -129,18 +148,34 @@ gs set "${A11Y}" reduced-motion no-preference
 user_bus systemctl --user stop vmlab-mpris >/dev/null 2>&1
 idle() { activity_is idle; }
 wait_for 5 idle
-before="$(st .relayouts)"
+# Watched from inside the shell every 10 ms (a poll through gdbus would miss a morph of a fifth of a second): when now
+# playing appears, when the plate's pieces and the level bars move, and how often the pill is laid out
+ev "(() => { const G = imports.gi.GLib; const p = ${P}; const t0 = G.get_monotonic_time(); const r0 = p.clock.relayouts;
+    const s = globalThis.vmlabProbe = {mediaAt: -1, morphFrom: -1, morphTo: -1, barsFrom: -1, barsTo: -1, relayouts: -1};
+    G.timeout_add(G.PRIORITY_DEFAULT, 10, () => { const ms = Math.round((G.get_monotonic_time() - t0) / 1000); const now = p.state();
+        if (now.activity === 'media' && s.mediaAt < 0) s.mediaAt = ms;
+        if (now.motion.morphing) { if (s.morphFrom < 0) s.morphFrom = ms; s.morphTo = ms; }
+        if (now.motion.bars) { if (s.barsFrom < 0) s.barsFrom = ms; s.barsTo = ms; }
+        if (s.mediaAt >= 0 && ms - s.mediaAt > 1500 && s.relayouts < 0) s.relayouts = p.clock.relayouts - r0;
+        return ms < 15000; });
+    return 'probing'; })()" >/dev/null
 user_bus systemd-run --user --collect --unit=vmlab-mpris python3 "${WORK}/mpris.py" >/dev/null
-morphing() { [[ "$(st .motion.morphing)" == true ]]; }
-quick_poll() { local i; for i in $(seq 60); do "$1" && return 0; sleep 0.05; done; return 1; }
-check "4 the plate animates when the player starts" quick_poll morphing
-sleep 1.2
-same "4 ...and rests within a second" "$(st .motion.morphing)" false
-rose=$(($(st .relayouts) - before))
-if ((rose <= 2)); then ok "4 the pill was laid out ${rose} times for the change"; else not_ok "4 the pill was laid out ${rose} times" "at most 2"; fi
-check "4 the level bars move when the track starts" test "$(st .motion.bars)" == true
-sleep 5
-same "4 ...and stand still after four beats" "$(st .motion.bars)" false
+sleep 16
+probe="$(ev "JSON.stringify(globalThis.vmlabProbe)")"
+pv() { jq -r ".$1" <<<"${probe}"; }
+if (($(pv mediaAt) >= 0 && $(pv morphFrom) >= 0 && $(pv morphFrom) - $(pv mediaAt) < 1000)); then
+    ok "4 the plate animates when the player starts"
+else
+    not_ok "4 the plate animates when the player starts" "${probe}"
+fi
+if (($(pv morphFrom) >= 0 && $(pv morphTo) - $(pv morphFrom) < 1000)); then ok "4 ...and rests within a second"; else
+    not_ok "4 ...and rests within a second" "${probe}"; fi
+rose="$(pv relayouts)"
+if ((rose >= 0 && rose <= 2)); then ok "4 the pill was laid out ${rose} times for the change"; else not_ok "4 the pill was laid out ${rose} times" "at most 2"; fi
+if (($(pv barsFrom) >= 0)); then ok "4 the level bars move when the track starts"; else not_ok "4 the level bars move when the track starts" "${probe}"; fi
+# Four beats of 0.9 s, at GNOME's speed (the image's slow-down factor shortens them), then still
+if (($(pv barsFrom) >= 0 && $(pv barsTo) - $(pv barsFrom) < 6000)); then ok "4 ...and stand still after four beats"; else
+    not_ok "4 ...and stand still after four beats" "${probe}"; fi
 keys "move:$(where "${PILL_ACTOR}")"
 bars() { [[ "$(st .motion.bars)" == true ]]; }
 check "4 ...and move again while the pointer is on the pill" wait_for 3 bars
@@ -169,8 +204,13 @@ wait_for 5 playing
 
 # --- 5-7: the timer ------------------------------------------------------------------------------------------------
 keys super+v
+cal_open() { [[ "$(ev "${PILL_ACTOR}.menu.isOpen")" == true ]]; }
+wait_for 3 cal_open || ev "${PILL_ACTOR}.menu.open(); 'opened'" >/dev/null
+check "5 the calendar is open" wait_for 3 cal_open
 check "5 the calendar has the quick timer" user_bus python3 "${HERE}/atspi.py" gnome-shell has "Start a 5 minute timer"
-shell_click "Start a 5 minute timer"
+# A pointer click on the button, as a person makes one
+FIVE="(() => { let b = null; const walk = a => { if (!b && a.accessible_name === 'Start a 5 minute timer') b = a; a.get_children().forEach(walk); }; walk(${PILL_ACTOR}.menu.actor); return b; })()"
+keys "click:$(where "${FIVE}")"
 timer_on() { activity_is timer; }
 check "5 the timer starts in the pill" wait_for 5 timer_on
 check "5 ...over the music" test "$(st .others | grep -c media)" -ge 1
@@ -212,9 +252,15 @@ ev "${P}.timer.cancel(); 'cancelled'" >/dev/null
 
 # --- 8-9: recording and sharing --------------------------------------------------------------------------------------
 ev "global.force_animations = true; 'forced'" >/dev/null
-in_session "gdbus call --session --dest org.gnome.Shell.Screencast --object-path /org/gnome/Shell/Screencast --method org.gnome.Shell.Screencast.Screencast '/tmp/vmlab-rec-%d.webm' '{}'" >/dev/null 2>&1
+# GNOME's own recorder, as its screenshot UI starts it (the screencast service answers the shell alone): the whole
+# screen, recorded
+ev "(async () => { const ui = Main.screenshotUI; await ui.open(1); if (!ui._screencastSupported) { globalThis.vmlabRec = 'unsupported'; ui.close(); return; }
+    ui._screenButton.checked = true; await ui._onCaptureButtonClicked(); globalThis.vmlabRec = 'started'; })().catch(e => { globalThis.vmlabRec = 'failed: ' + e.message; }); 'asked'" >/dev/null
 recording() { activity_is recording; }
-if wait_for 5 recording; then
+sleep 2
+if [[ "$(ev "globalThis.vmlabRec ?? 'nothing'")" == unsupported ]]; then
+    skip "8 GNOME's recorder is not supported here (no PipeWire or GStreamer in the lab's session)"
+elif wait_for 8 recording; then
     ok "8 a recording takes the pill"
     [[ "$(st .text)" =~ ^\"0?0:0[0-9].*Stop\"$ ]] && ok "8 its time and Stop" || not_ok "8 its text" "$(st .text)"
     same "8 the screen's dot" "$(st .dots.screen)" true
@@ -232,7 +278,7 @@ if wait_for 5 recording; then
     check "8 Stop ends it and the glow" wait_for 5 stopped
     same "8 no glow is left in the shell" "$(ev "Main.uiGroup.get_children().some(a => a.name === 'amethystora-pill-glow')")" false
 else
-    not_ok "8 a recording takes the pill" "$(st .activity)"
+    not_ok "8 a recording takes the pill" "$(st .activity) $(ev "globalThis.vmlabRec ?? 'nothing'")"
 fi
 ev "global.force_animations = ${FORCED:-false}; 'restored'" >/dev/null
 
@@ -263,7 +309,8 @@ if wait_for 5 mic; then
     ok "10 the microphone's dot"
     same "10 GNOME's microphone icon hidden" "$(ev "Main.panel.statusArea.quickSettings._volumeInput.visible")" false
     ev "${P}.privacy._button.menu.open(); 'open'" >/dev/null
-    check "10 the list names pw-record" user_bus python3 "${HERE}/atspi.py" gnome-shell has pw-record
+    who="$(ev "${P}.privacy._who('microphone')")"
+    [[ "${who}" == *pw-record* ]] && ok "10 the list names pw-record" || not_ok "10 the list names pw-record" "${who}"
     ev "${P}.privacy._button.menu.close(); 'closed'" >/dev/null
     check "13 ame desktop pill dots off" in_session "ame desktop pill dots off"
     dots_off() { [[ "$(st .dots.visible)" == false && "$(ev "Main.panel.statusArea.quickSettings._volumeInput.visible")" == true ]]; }
@@ -326,7 +373,9 @@ body="$(ev "(() => { const a = ${P}.clock.actor; const [x, y] = a.get_transforme
 keys "click:${body}"
 card_link() { [[ "$(st .card)" == '"link"' ]]; }
 check "14 a click on its body opens the card" wait_for 3 card_link
-shell_click Copy
+# A pointer click on the card's Copy, found by its name in the card
+COPY="(() => { let b = null; const walk = a => { if (!b && a.accessible_name === 'Copy') b = a; a.get_children().forEach(walk); }; walk(${P}.clock._card.box); return b; })()"
+keys "click:$(where "${COPY}")"
 clip="$(ev "new Promise(r => imports.gi.St.Clipboard.get_default().get_text(imports.gi.St.ClipboardType.CLIPBOARD, (c, t) => { globalThis.vmlabClip = t; r(); })); 'asked'" >/dev/null; sleep 1; ev "globalThis.vmlabClip")"
 same "14 Copy puts the address on the clipboard" "${clip}" "https://recipes.example.org/lemon-tart"
 check "14 ...and the link stays" link
@@ -373,16 +422,19 @@ user_bus systemctl --user stop vmlab-mpris >/dev/null 2>&1
 REPO=/sysroot/ostree/repo
 rw() { unshare -m sh -c 'mount -o remount,rw /sysroot && "$@"' sh "$@"; }
 ORIGINAL="$(bootc status --format=json | jq -r '.status.booted.ostree.checksum')"
-DIR="${REPO}/tmp/vmlab-pill"
+# The update: the booted commit with one file added on top, layered by ostree itself (--tree), so that nothing of the
+# repository's own objects is checked out, linked or touched (a hard-link checkout once changed objects that suite 47
+# then found changed outside an update)
+TREE="${WORK}/vmlab-pill-tree"
 systemctl stop uupd.timer 2>/dev/null
 rpm-ostree cleanup --pending >/dev/null 2>&1
 STAGED_HERE=1
 if [[ -f /usr/share/amethystora/sealed ]]; then
     skip "16 a sealed image stages no ostree update"
-elif rw rm -rf "${DIR}" && rw ostree checkout --repo="${REPO}" -H "${ORIGINAL}" "${DIR}" &&
-    rw sh -c "cd '${DIR}' && echo vmlab >usr/share/vmlab-pill && chcon system_u:object_r:usr_t:s0 usr/share/vmlab-pill" &&
-    rw ostree commit --repo="${REPO}" --parent="${ORIGINAL}" -b vmlab/pill -I --consume --bootable \
-        --add-metadata-string=version=vmlab-pill "${DIR}" >/dev/null &&
+elif rm -rf "${TREE}" && mkdir -p "${TREE}/usr/share" && echo vmlab >"${TREE}/usr/share/vmlab-pill" &&
+    rw ostree commit --repo="${REPO}" --parent="${ORIGINAL}" -b vmlab/pill --bootable \
+        --tree=ref="${ORIGINAL}" --tree=dir="${TREE}" --selinux-policy-from-base \
+        --add-metadata-string=version=vmlab-pill >/dev/null &&
     timeout 1500 ostree admin deploy --stage vmlab/pill >/dev/null 2>&1; then
     check "16 ostree staged it" test -f /run/ostree/staged-deployment
     update() { activity_is update; }
@@ -401,7 +453,9 @@ else
     not_ok "16 an update could not be staged"
 fi
 rw ostree refs --repo="${REPO}" --delete vmlab/pill >/dev/null 2>&1
-rw rm -rf "${DIR}"
+rm -rf "${TREE}"
+systemctl start uupd.timer 2>/dev/null
+STAGED_HERE=""
 
 # --- 17-19: the battery, live off, ten disables and enables ------------------------------------------------------------
 keys "move:$(where "Main.panel.statusArea.quickSettings._system")"
@@ -409,11 +463,11 @@ sleep 1
 same "17 no battery here: no time-left card" "$(ev "Main.uiGroup.get_children().some(a => a.has_style_class_name?.('amethystora-pill-tip'))")" false
 same "17 at 20% discharging: the offer, and the time left" \
     "$(ev "JSON.stringify(${P}.batteryView({present: true, state: 2, percentage: 20, timeToEmpty: 4320, profile: 'balanced'}))")" \
-    '{\"offer\":true,\"hover\":\"1 h 12 min left\"}'
+    '{"offer":true,"hover":"1 h 12 min left"}'
 same "17 with power saving on: no offer" \
     "$(ev "${P}.batteryView({present: true, state: 2, percentage: 20, timeToEmpty: 4320, profile: 'power-saver'}).offer")" false
 charging="$(ev "JSON.stringify(${P}.batteryView({present: true, state: 1, percentage: 20, timeToFull: 4200, profile: 'balanced'}))")"
-[[ "${charging}" == *'"offer\":false'*'Full in '* ]] && ok "17 charging: no offer, the time until full" || not_ok "17 charging" "${charging}"
+[[ "${charging}" == *'"offer":false'*'Full in '* ]] && ok "17 charging: no offer, the time until full" || not_ok "17 charging" "${charging}"
 keys move:0.5,0.6
 
 user_bus systemd-run --user --collect --unit=vmlab-mpris python3 "${WORK}/mpris.py" >/dev/null

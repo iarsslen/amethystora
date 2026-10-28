@@ -18,6 +18,8 @@
 //   sideGlow  {alpha, x, blur, grow}: white light up the left side
 //   sheen     [white at the top left, where it ends, where the accent's begins, accent at the bottom right]
 //   shadow    {dark, light}: the drop shadow {alpha, blur, offset} of the popups that cast one
+//   bare      the veil alone, under a bar a style leaves bare over the wallpaper (capsule, segments): nothing is drawn
+//             until the wallpaper right behind the bar is too bright (or dark) for its text, and then only the veil
 //   guard     the light the text may count on (the lift and sheen where the first line sits), or null: with a
 //             number, the veil is thickened over a bright (or, for dark text, a dark) wallpaper until text reads
 //             at 4.5:1 (contrast.js)
@@ -42,6 +44,8 @@ const CLEAR_LIGHTS = {
 
 // The overview and the workspace slide: the darker frost, the same in every variant
 const OVERVIEW = {...NONE, picture: 'frost'};
+// A bare bar: the veil its text needs over the wallpaper right behind it, and nothing else
+const BARE = {...NONE, picture: 'glass', bare: true, guard: 0};
 
 export const VARIANTS = {
     frost: {
@@ -56,6 +60,7 @@ export const VARIANTS = {
             'dock': {...NONE, picture: 'glass', tint: 0.16, ...FROST_DOCK_LENS},
             'menu-bar': {...NONE, picture: 'glass', dim: 0.85, guard: 0},
             'frost': OVERVIEW,
+            'bare': BARE,
         },
     },
     prism: {
@@ -75,6 +80,7 @@ export const VARIANTS = {
                 ...NONE, ...PRISM_LIGHTS, picture: 'glass', sat: 1.85, rim: [6, 3, 2, 0.024], edge: 0.08, guard: 0.20,
             },
             'frost': OVERVIEW,
+            'bare': BARE,
         },
     },
     clear: {
@@ -95,6 +101,7 @@ export const VARIANTS = {
                 guard: 0.14,
             },
             'frost': OVERVIEW,
+            'bare': BARE,
         },
     },
 };

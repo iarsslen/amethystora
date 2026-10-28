@@ -26,7 +26,7 @@ import * as WorkspaceAnimation from 'resource:///org/gnome/shell/ui/workspaceAni
 
 import {Depth} from './motion/depth.js';
 import {dropletShader} from './motion/droplet.js';
-import {Flight, frameCentre, measure, scaleFactor} from './motion/flight.js';
+import {Flight, frameCentre, scaleFactor} from './motion/flight.js';
 import {OUT, RIPPLE_IN_MS, RIPPLE_OUT_MS, turnRound} from './motion/path.js';
 
 const SCHEMA = 'org.gnome.shell.extensions.amethystora-ui.motion';
@@ -357,7 +357,7 @@ export class Motion {
 
         // Where the window rests: as it was, on the way out; on the way back, where the tiling's strip draws it now
         const t0 = {x: actor.translation_x, y: actor.translation_y};
-        const rest = out ? () => t0 : () => this._tilingRest(actor, t0);
+        const rest = out ? () => t0 : m => this._tilingRest(actor, m, t0);
 
         const probe = !reduced ? this._probe() : null;
         const accent = probe ? this._accent(probe) : ACCENT;
@@ -383,11 +383,11 @@ export class Motion {
     }
 
     // Where a window rests in the tiling's strip, as a translation, or `fallback` when it is in none
-    _tilingRest(actor, fallback) {
+    // m: the frame as measured this frame (flight.js measure())
+    _tilingRest(actor, m, fallback) {
         const info = this._ext.modules?.get('tiling')?.engine?.info?.(actor.meta_window);
         if (!info?.strip || !info.vis)
             return fallback;
-        const m = measure(actor);
         return {x: info.vis.x - m.x, y: info.vis.y - m.y};
     }
 

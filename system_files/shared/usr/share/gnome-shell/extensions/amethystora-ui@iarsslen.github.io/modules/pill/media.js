@@ -271,16 +271,17 @@ export class Media {
         this._state.icon_name = playing ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic';
         this.row = {icon: read(player, 'app', null)?.get_icon?.() ?? 'audio-x-generic-symbolic', text: _('Now playing · %s').format(this.title)};
         this.paused = !playing;
+        const first = this._activities.get('media') !== this;
+        this._activities.set('media', this);
+        if (!first)
+            this._activities.update('media');
+        // The meter moves once its content is in the pill: an actor not shown would end its beats at once
         if (moveBars && playing)
             this.moveBars();
         else if (!playing)
             this._restBars(BAR_LOW);
         else if (!this._barsMoving())
             this._restBars();
-        const first = this._activities.get('media') !== this;
-        this._activities.set('media', this);
-        if (!first)
-            this._activities.update('media');
         this._card?.update();
     }
 
@@ -290,7 +291,9 @@ export class Media {
         if (this._activities.get('media') === this)
             this._activities.set('media', null);
         retire(this._content);
+        // Its parts go with it: nothing may touch them once the pill has let them go
         this._content = null;
+        this._art = this._label = this._bars = this._state = null;
         this._cover = null;
     }
 

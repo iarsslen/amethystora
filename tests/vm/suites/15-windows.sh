@@ -26,9 +26,35 @@ STATE_DIR="${HOME_DIR}/.local/state/amethystora"
 SCHEMA=org.gnome.shell.extensions.amethystora-ui.windows
 keys() { python3 "$(dirname "$0")/keys.py" "$@"; }
 touchpad() { python3 "$(dirname "$0")/touchpad.py" "$@"; }
+# Eval's answer decoded once: gdbus prints a GVariant string holding JSON.stringify of the value, so a string comes
+# back as itself, a switch as true or false, a number as digits and anything else as compact JSON; a throw prints its
+# message and fails
 ev() {
     user_bus gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method org.gnome.Shell.Eval "$1" |
-        sed -E -e "s/^\(true, '(.*)'\)\$/\1/" -e 's/^"(.*)"$/\1/'
+        python3 -c '
+import ast, json, sys
+out = sys.stdin.read().strip()
+if not (out.startswith("(") and "," in out):
+    print(out)
+    sys.exit(1)
+text = ast.literal_eval(out[out.index(",") + 1:-1].strip())
+if not out.startswith("(true,"):
+    print(text)
+    sys.exit(1)
+try:
+    value = json.loads(text)
+except ValueError:
+    print(text)
+    sys.exit(0)
+if isinstance(value, bool):
+    print("true" if value else "false")
+elif value is None:
+    print("null")
+elif isinstance(value, (str, int, float)):
+    print(value)
+else:
+    print(json.dumps(value, separators=(",", ":"), ensure_ascii=False))
+'
 }
 UI="Main.extensionManager.lookup('${UUID}').stateObj.modules"
 W="${UI}.get('windows')"
@@ -101,12 +127,25 @@ same "the windows schema has the spec's sixteen keys and defaults" \
     "corner-bottom-left 'none';corner-bottom-right 'none';corner-top-left 'none';corner-top-right 'none';dim false;gesture-down true;gesture-pinch true;gesture-spread true;gesture-today true;hold-super true;hold-super-delay 1000;places true;show-desktop false;snap true;snap-chooser ['<Super>z'];switcher true"
 check "the windows module runs" is_true "${UI}.has('windows')"
 
+# A plain window with no size of its own to defend (Files will not shrink to a quarter of the lab's 1280 x 800), for
+# the snap layouts, the places and the pixels: an app of its own, any number of windows at once
+in_session "cat >/tmp/vmlab-plain.js <<'EOF'
+import Gtk from 'gi://Gtk?version=4.0';
+const app = new Gtk.Application({application_id: 'org.vmlab.Plain', flags: 4});
+app.connect('activate', () => { const w = new Gtk.ApplicationWindow({application: app, title: 'Plain', default_width: 640, default_height: 400}); w.present(); });
+app.run([]);
+EOF"
+open_plain() { user_bus systemd-run --user --collect --unit="vmlab-plain-$-${RANDOM}" gjs -m /tmp/vmlab-plain.js >/dev/null; }
+plain() { echo "${WIN}.filter(w => w.get_wm_class() === 'org.vmlab.Plain').sort((a, b) => a.get_stable_sequence() - b.get_stable_sequence())[0]"; }
+activate_plain() { ev "Main.activateWindow($(plain))" >/dev/null; sleep 1; }
+open_plain
+wait_for 60 at_least org.vmlab.Plain 1
 open_files
 wait_for 60 at_least org.gnome.Nautilus 1
 open_manual
 wait_for 60 at_least org.amethystora.Manual 1
 sleep 2
-activate_files
+activate_plain
 
 # --- 15.1 Snap layouts ----------------------------------------------------------------------------------------------
 chooser() { is_true "${W}.snap.chooserVisible"; }
@@ -118,7 +157,7 @@ check "Escape closes them" wait_for 4 no_chooser
 
 keys super+z right return
 sleep 1
-same "Super+Z, Right, Return puts Files on the right half, to the pixel" "$(rect_of "$(files)")" "$(cell_rect '1/2, 1, 0, 1')"
+same "Super+Z, Right, Return puts the window on the right half, to the pixel" "$(rect_of "$(plain)")" "$(cell_rect '1/2, 1, 0, 1')"
 
 # Every place by the keyboard: the chooser opens on the first; Right steps through the thirteen in reading order
 FRACTIONS=('0, 1/2, 0, 1' '1/2, 1, 0, 1' '0, 2/3, 0, 1' '2/3, 1, 0, 1' '0, 1/3, 0, 1' '1/3, 2/3, 0, 1' '2/3, 1, 0, 1'
@@ -128,50 +167,50 @@ for i in "${!FRACTIONS[@]}"; do
     for ((j = 0; j < i; j++)); do steps+=(right); done
     keys "${steps[@]}" return
     sleep 1
-    same "place $((i + 1)) of 13 by the keyboard is its cell, to the pixel" "$(rect_of "$(files)")" "$(cell_rect "${FRACTIONS[$i]}")"
+    same "place $((i + 1)) of 13 by the keyboard is its cell, to the pixel" "$(rect_of "$(plain)")" "$(cell_rect "${FRACTIONS[$i]}")"
 done
 steps=(super+z)
 for ((j = 0; j < 12; j++)); do steps+=(right); done
 keys "${steps[@]}" return
-check "place 13, the whole screen, maximises" wait_for 4 is_true "$(files).is_maximized()"
-ev "$(files).unmaximize(); $(files).move_resize_frame(true, 200, 200, 900, 600); 'placed'" >/dev/null
+check "place 13, the whole screen, maximises" wait_for 4 is_true "$(plain).is_maximized()"
+ev "$(plain).unmaximize(); $(plain).move_resize_frame(true, 200, 200, 900, 600); 'placed'" >/dev/null
 sleep 1
 
 # A drag by the title bar to the top shows them, and dropping on the middle third puts it there
-before="$(rect_of "$(files)")"
+before="$(rect_of "$(plain)")"
 title="$(frac 650 215)"
 top="$(frac "${AREA}.x + ${AREA}.width / 2" "${AREA}.y + 30")"
 middle="$(ev "(() => { const e = ${W}.snap._targets[5].actor.get_transformed_extents(); return ((e.origin.x + e.size.width / 2) / global.screen_width).toFixed(5) + ',' + ((e.origin.y + e.size.height / 2) / global.screen_height).toFixed(5); })()")"
 snapmoves="$(ev "${W}.counters.snapMove ?? 0")"
 keys "move:${title}" btn:down "glide:${title},${top},600" "glide:${top},${middle},400" btn:up
 sleep 1
-same "a drag to the top and onto the middle third puts it there, to the pixel" "$(rect_of "$(files)")" "$(cell_rect '1/3, 2/3, 0, 1')"
+same "a drag to the top and onto the middle third puts it there, to the pixel" "$(rect_of "$(plain)")" "$(cell_rect '1/3, 2/3, 0, 1')"
 check "the drag moved the chooser's pointer test" test "$(ev "${W}.counters.snapMove ?? 0")" -gt "${snapmoves}"
 check "the chooser is gone after the drop" no_chooser
 
 # Dragged away, it has its old size back
-snapped="$(rect_of "$(files)")"
+snapped="$(rect_of "$(plain)")"
 grab="$(frac "$(cut -d, -f1 <<<"${snapped}") + 200" "$(cut -d, -f2 <<<"${snapped}") + 15")"
 away="$(frac 900 500)"
 keys "move:${grab}" btn:down "glide:${grab},${away},500" btn:up
 sleep 1
-size_back() { [[ "$(rect_of "$(files)" | cut -d, -f3,4)" == "$(cut -d, -f3,4 <<<"${before}")" ]]; }
+size_back() { [[ "$(rect_of "$(plain)" | cut -d, -f3,4)" == "$(cut -d, -f3,4 <<<"${before}")" ]]; }
 check "dragged away, it has its size from before the snap again" wait_for 3 size_back
 
 # The very top, inside the bar, is GNOME's maximise
-here="$(frac "$(rect_of "$(files)" | cut -d, -f1) + 200" "$(rect_of "$(files)" | cut -d, -f2) + 15")"
+here="$(frac "$(rect_of "$(plain)" | cut -d, -f1) + 200" "$(rect_of "$(plain)" | cut -d, -f2) + 15")"
 very_top="$(frac 960 2)"
 keys "move:${here}" btn:down "glide:${here},${very_top},600" sleep:600 btn:up
-check "a drop at the very top still maximises, as GNOME does" wait_for 4 is_true "$(files).is_maximized()"
+check "a drop at the very top still maximises, as GNOME does" wait_for 4 is_true "$(plain).is_maximized()"
 check "and the chooser is hidden" no_chooser
-ev "$(files).unmaximize(); 'ok'" >/dev/null
+ev "$(plain).unmaximize(); 'ok'" >/dev/null
 
 tiling
 keys super+z
 sleep 1
 check "in the tiling layout Super+Z shows no snap layouts" no_chooser
 classic
-activate_files
+activate_plain
 keys super+z
 check "back in classic, Super+Z works again" wait_for 4 chooser
 keys esc
@@ -199,10 +238,10 @@ switcher_shut() { is_false "${W}.switcher.visible"; }
 keys down:super tab sleep:12000 up:super &
 held=$!
 check "Super+Tab shows the grid" wait_for 8 switcher_open
-same "it lists the three windows" "$(ev "${W}.switcher.titles().length")" 3
+same "it lists the four windows" "$(ev "${W}.switcher.titles().length")" 4
 keys text:fil
 same "typing fil keeps Files' tile only" "$(ev "${W}.switcher.titles().length + ' ' + ${W}.switcher.titles()[0].startsWith('Files')")" "1 true"
-same "and the count reads 1 of 3" "$(ev "${W}.switcher.countText")" "1 of 3"
+same "and the count reads 1 of 4" "$(ev "${W}.switcher.countText")" "1 of 4"
 wait "${held}"
 sleep 1
 check "letting go of Super after typing leaves the grid open" switcher_open
@@ -355,8 +394,10 @@ push=()
 for i in $(seq 10); do push+=("rel:-20,-20"); done
 keys move:0.01,0.01 "${push[@]}" sleep:800
 check "a push into the top left corner shows the desktop" wait_for 3 is_true "${W}.desktop.out"
-keys move:0.3,0.3 move:0.01,0.01 "${push[@]}" sleep:800
+fired="$(ev "${W}.counters.cornerFired ?? 0")"
+keys move:0.3,0.3 sleep:500 move:0.01,0.01 sleep:300 "${push[@]}" sleep:800
 check "the same push brings the windows back" wait_for 3 is_false "${W}.desktop.out"
+same "and the corner fired once more for it" "$(ev "${W}.counters.cornerFired ?? 0")" "$((fired + 1))"
 for where in top-left top-right bottom-left bottom-right; do ame_ desktop windows corner "${where}" none >/dev/null; done
 sleep 1
 same "every corner back at none, no barrier is left" "$(barriers)" 0
@@ -365,7 +406,10 @@ same "every corner back at none, no barrier is left" "$(barriers)" 0
 ame_ desktop windows show-desktop on >/dev/null
 sleep 1
 # A point of wallpaper no window covers, near a corner of the work area
-empty="$(ev "(() => { const a = ${AREA}; const pts = [[a.x + 20, a.y + a.height - 20], [a.x + a.width - 20, a.y + a.height - 20], [a.x + 20, a.y + 20], [a.x + a.width - 20, a.y + 20]]; const free = pts.find(([x, y]) => !global.get_window_actors().some(w => { const r = w.meta_window.get_frame_rect(); return !w.meta_window.minimized && x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height; })); return free ? (free[0] / global.screen_width).toFixed(5) + ',' + (free[1] / global.screen_height).toFixed(5) : 'none'; })()")"
+# Every window against the right edge first, so that the lab's small screen keeps some wallpaper free
+ev "global.get_window_actors().map(a => a.meta_window).filter(w => !w.minimized).forEach(w => { const a = ${AREA}; const f = w.get_frame_rect(); w.move_frame(true, a.x + a.width - f.width, a.y); }); 'moved'" >/dev/null
+sleep 1
+empty="$(ev "(() => { const a = ${AREA}; const pts = []; for (let y = a.y + 20; y < a.y + a.height - 10; y += 40) for (let x = a.x + 20; x < a.x + a.width - 10; x += 40) pts.push([x, y]); const free = pts.find(([x, y]) => !global.get_window_actors().some(w => { const r = w.meta_window.get_frame_rect(); return !w.meta_window.minimized && x >= r.x && x < r.x + r.width && y >= r.y && y < r.y + r.height; })); return free ? (free[0] / global.screen_width).toFixed(5) + ',' + (free[1] / global.screen_height).toFixed(5) : 'none'; })()")"
 out() { is_true "${W}.desktop.out"; }
 back() { is_false "${W}.desktop.out" && [[ "$(ev "${W}.desktop.layerCount")" == 0 ]]; }
 slivers() {
@@ -505,40 +549,52 @@ sleep 2
 # --- 15.7 Places ----------------------------------------------------------------------------------------------------
 PLACES="${STATE_DIR}/places.json"
 ame_ desktop windows places on >/dev/null
-ev "$(files).move_resize_frame(true, 100, 120, 900, 600); 'm'" >/dev/null
+ev "$(plain).move_resize_frame(true, 100, 120, 900, 600); 'm'" >/dev/null
 sleep 1
-ev "$(files).delete(0); 'closed'" >/dev/null
+ev "$(plain).delete(0); 'closed'" >/dev/null
 check "places.json is written within 3 s" wait_for 4 test -s "${PLACES}"
-place="$(jq -c '.arrangements | to_entries[0] | [.key, (.value.apps["org.gnome.Nautilus.desktop"].places[0] | [.x, .y, .w, .h])]' "${PLACES}" 2>/dev/null)"
+place="$(jq -c '.arrangements | to_entries[0] | [.key, (.value.apps["org.vmlab.Plain"].places[0] | [.x, .y, .w, .h])]' "${PLACES}" 2>/dev/null)"
 monitor_xy="$(ev "Main.layoutManager.primaryMonitor.x + ',' + Main.layoutManager.primaryMonitor.y")"
-same "it holds this arrangement and Files' place" "$(sed 's/"\([^:]*\):.*",/"\1",/' <<<"${place}")" \
+same "it holds this arrangement and the window's place" "$(sed 's/"\([^:]*\):.*",/"\1",/' <<<"${place}")" \
     "[\"$(ev "global.backend.get_monitor_manager().get_logical_monitors()[0].get_monitors()[0].get_connector()")\",[$((100 - ${monitor_xy%,*})),$((120 - ${monitor_xy#*,})),900,600]]"
 check "and its copy is the same" cmp -s "${PLACES}" "${PLACES}.bak"
-open_files
-wait_for 30 at_least org.gnome.Nautilus 1
+open_plain
+wait_for 30 at_least org.vmlab.Plain 1
 sleep 2
-same "Files opens at its place again, to the pixel" "$(rect_of "$(files)")" "100,120,900,600"
+same "The window opens at its place again, to the pixel" "$(rect_of "$(plain)")" "100,120,900,600"
 applied="$(ev "JSON.stringify(${W}.places.lastApplied)")"
-same "and was there in its first frame" "$(jq -r '.shown | join(",")' <<<"${applied}" 2>/dev/null)" "100,120,900,600"
+# Mutter takes the place given in configure, or (GNOME 51) only the size, and the module moves it as it shows
+first="$(jq -r '.shown | join(",")' <<<"${applied}" 2>/dev/null)"
+if [[ "${first}" == "100,120,900,600" ]]; then
+    ok "and was there in its first frame"
+else
+    same "shown elsewhere first (${first}), it was moved to its place as it showed" \
+        "$(jq -r '.moved // false' <<<"${applied}" 2>/dev/null)" true
+fi
 ok "the place was applied through $(jq -r .path <<<"${applied}" 2>/dev/null) (15.7.3)"
-# A second window gets the second place
-ev "$(files).move_resize_frame(true, 300, 200, 700, 500); 'm'" >/dev/null
-open_files
-wait_for 30 at_least org.gnome.Nautilus 2
-sleep 1
-ev "${WIN}.filter(w => w.get_wm_class() === 'org.gnome.Nautilus').sort((a, b) => b.get_stable_sequence() - a.get_stable_sequence())[0].move_resize_frame(true, 640, 260, 600, 450); 'm'" >/dev/null
+# Where Mutter put it before the move is nobody's choice, and is never kept as its place
 sleep 3
-ev "${WIN}.filter(w => w.get_wm_class() === 'org.gnome.Nautilus').sort((a, b) => b.get_stable_sequence() - a.get_stable_sequence())[0].delete(0); 'c'" >/dev/null
+same "the place kept is still the one it was given" \
+    "$(jq -c '.arrangements[].apps["org.vmlab.Plain"].places[0] | [.x, .y, .w, .h]' "${PLACES}" 2>/dev/null | head -1)" \
+    "[$((100 - ${monitor_xy%,*})),$((120 - ${monitor_xy#*,})),900,600]"
+# A second window gets the second place
+ev "$(plain).move_resize_frame(true, 300, 200, 700, 500); 'm'" >/dev/null
+open_plain
+wait_for 30 at_least org.vmlab.Plain 2
+sleep 1
+ev "${WIN}.filter(w => w.get_wm_class() === 'org.vmlab.Plain').sort((a, b) => b.get_stable_sequence() - a.get_stable_sequence())[0].move_resize_frame(true, 640, 260, 600, 450); 'm'" >/dev/null
+sleep 3
+ev "${WIN}.filter(w => w.get_wm_class() === 'org.vmlab.Plain').sort((a, b) => b.get_stable_sequence() - a.get_stable_sequence())[0].delete(0); 'c'" >/dev/null
 sleep 2
-open_files
-wait_for 30 at_least org.gnome.Nautilus 2
+open_plain
+wait_for 30 at_least org.vmlab.Plain 2
 sleep 2
-same "a second Files window opens at the second place" \
-    "$(ev "(() => { const w = ${WIN}.filter(w => w.get_wm_class() === 'org.gnome.Nautilus').sort((a, b) => b.get_stable_sequence() - a.get_stable_sequence())[0]; const r = w.get_frame_rect(); return [r.x, r.y, r.width, r.height].join(','); })()")" \
+same "a second window of the app opens at the second place" \
+    "$(ev "(() => { const w = ${WIN}.filter(w => w.get_wm_class() === 'org.vmlab.Plain').sort((a, b) => b.get_stable_sequence() - a.get_stable_sequence())[0]; const r = w.get_frame_rect(); return [r.x, r.y, r.width, r.height].join(','); })()")" \
     "640,260,600,450"
-ev "${WIN}.filter(w => w.get_wm_class() === 'org.gnome.Nautilus').slice(1).forEach(w => w.delete(0)); 'x'" >/dev/null
+ev "${WIN}.filter(w => w.get_wm_class() === 'org.vmlab.Plain').slice(1).forEach(w => w.delete(0)); 'x'" >/dev/null
 # 15.7.5 Another arrangement (the screen at another size, through DisplayConfig, temporarily): a window placed there
-# is remembered under it, and back at the first size Files returns to its place there
+# is remembered under it, and back at the first size the window returns to its place there
 display() {
     user_bus python3 - "$1" <<'PY'
 import sys
@@ -564,18 +620,18 @@ call("ApplyMonitorsConfig", GLib.Variant("(uua(iiduba(ssa{sv}))a{sv})",
 PY
 }
 first_mode="$(display current)"
-ev "${WIN}.filter(w => w.get_wm_class() === 'org.gnome.Nautilus').slice(1).forEach(w => w.delete(0)); $(files).move_resize_frame(true, 120, 140, 700, 450); 'm'" >/dev/null
+ev "${WIN}.filter(w => w.get_wm_class() === 'org.vmlab.Plain').slice(1).forEach(w => w.delete(0)); $(plain).move_resize_frame(true, 120, 140, 700, 450); 'm'" >/dev/null
 sleep 3
 display smaller
 sleep 3
-ev "$(files).move_resize_frame(true, 60, 70, 500, 350); 'm'" >/dev/null
+ev "$(plain).move_resize_frame(true, 60, 70, 500, 350); 'm'" >/dev/null
 sleep 3
 same "the new arrangement is remembered beside the first" "$(jq '.arrangements | length >= 2' "${PLACES}")" true
 display "${first_mode}"
-back_at_first() { [[ "$(rect_of "$(files)")" == "120,140,700,450" ]]; }
-check "back at the first size, Files returns to its place there within 2 s" wait_for 3 back_at_first
+back_at_first() { [[ "$(rect_of "$(plain)")" == "120,140,700,450" ]]; }
+check "back at the first size, the window returns to its place there within 2 s" wait_for 3 back_at_first
 display smaller
-again_second() { [[ "$(rect_of "$(files)")" == "60,70,500,350" ]]; }
+again_second() { [[ "$(rect_of "$(plain)")" == "60,70,500,350" ]]; }
 check "and at the second, to its place there" wait_for 3 again_second
 display "${first_mode}"
 sleep 3
@@ -589,7 +645,7 @@ ev "Main.extensionManager.disableExtension('${UUID}'); 'd'" >/dev/null
 sleep 2
 ev "Main.extensionManager.enableExtension('${UUID}'); 'e'" >/dev/null
 sleep 5
-ev "$(files).move_resize_frame(true, 110, 130, 900, 600); 'm'" >/dev/null
+ev "$(plain).move_resize_frame(true, 110, 130, 900, 600); 'm'" >/dev/null
 sleep 4
 same "after the next save there are 8 arrangements" "$(jq '.arrangements | length' "${PLACES}")" 8
 # A broken file: the copy stands in, and the file is written again
@@ -610,7 +666,7 @@ ev "Main.extensionManager.enableExtension('${UUID}'); 'e'" >/dev/null
 sleep 5
 check "with both broken the module still runs" is_true "${UI}.has('windows') && ${W}.running('places')"
 tiling
-ev "$(files).move_resize_frame(true, 150, 150, 800, 500); 'm'" >/dev/null 2>&1
+ev "$(plain).move_resize_frame(true, 150, 150, 800, 500); 'm'" >/dev/null 2>&1
 mtime="$(stat -c %Y "${PLACES}" 2>/dev/null || echo none)"
 sleep 4
 same "in the tiling layout nothing is saved" "$(stat -c %Y "${PLACES}" 2>/dev/null || echo none)" "${mtime}"
@@ -678,12 +734,17 @@ strength() { ev "($1).get_compositor_private().get_effect('amethystora-dim')?.st
 MANUAL="${WIN}.find(w => w.get_wm_class() === 'org.amethystora.Manual')"
 strength_is() { [[ "$(strength "$1")" == "$2" ]]; }
 check "Files, not in use, is dimmed" wait_for 3 strength_is "$(files)" 1
-same "the Manual, in use, is not" "$(strength "${MANUAL}")" 0
+check "the Manual, in use, is not" wait_for 3 strength_is "${MANUAL}" 0
 activate_files
 check "using Files swaps them" wait_for 3 strength_is "${MANUAL}" 1
 # Two thirds of the brightness, in pixels: one spot of the Manual's window, with dim off and on. pixel NAME POINT,
 # POINT a JavaScript expression giving [x, y] on the stage (the window's middle when left out)
-MIDDLE="(() => { const r = ${MANUAL}.get_frame_rect(); return [r.x + Math.round(r.width / 2), r.y + Math.round(r.height / 2)]; })()"
+# The plain window, whose middle is one colour: bottom left, clear of every other window, and not in use
+PLAIN="$(plain)"
+ev "(() => { const a = ${AREA}; global.get_window_actors().map(a => a.meta_window).filter(w => !w.minimized && w.get_wm_class() !== 'org.vmlab.Plain').forEach(w => { const f = w.get_frame_rect(); w.move_frame(true, a.x + a.width - f.width, a.y); }); ${PLAIN}.move_resize_frame(true, a.x, a.y + a.height - 200, 300, 200); return 'placed'; })()" >/dev/null
+activate_files
+check "the plain window, not in use, is dimmed" wait_for 3 strength_is "${PLAIN}" 1
+MIDDLE="(() => { const r = ${PLAIN}.get_frame_rect(); return [r.x + Math.round(r.width / 2), r.y + Math.round(r.height / 2) + 20]; })()"
 pixel() {
     local file="/tmp/vmlab-dim-$1.png" point="${2:-${MIDDLE}}"
     ev "(() => { const [x, y] = ${point}; const s = new imports.gi.Shell.Screenshot(); const f = imports.gi.Gio.File.new_for_path('${file}'); const o = f.replace(null, false, 0, null); s.screenshot_area(Math.round(x), Math.round(y), 4, 4, o, () => o.close(null)); return 'shot'; })()" >/dev/null
@@ -707,9 +768,13 @@ row = raw[1:1 + width * bpp] if raw[0] == 0 else None
 if row is None:
     stride = width * bpp
     line = bytearray(raw[1:1 + stride])
-    if raw[0] == 1:
-        for i in range(bpp, stride):
-            line[i] = (line[i] + line[i - bpp]) & 255
+    # The first row has no row above it: Up adds nothing, Average half the pixel to the left, Paeth that pixel
+    for i in range(stride):
+        left = line[i - bpp] if i >= bpp else 0
+        if raw[0] in (1, 4):
+            line[i] = (line[i] + left) & 255
+        elif raw[0] == 3:
+            line[i] = (line[i] + left // 2) & 255
     row = bytes(line)
 print(sum(row[:3]) / 3)
 PY
@@ -721,11 +786,11 @@ dark="$(pixel on)"
 check "a dimmed window's pixels are at 0.66 of their brightness (± 0.03)" python3 -c \
     "import sys; r = ${dark:-0} / max(${light:-1}, 1); sys.exit(0 if abs(r - 0.66) <= 0.03 else 1)"
 # In the overview, the Manual's picture (a clone of its window) is as bright with dim on as with dim off
-PREVIEW="(() => { const find = a => { if (a.metaWindow === ${MANUAL}) return a; for (const c of a.get_children()) { const f = find(c); if (f) return f; } return null; }; const p = find(Main.layoutManager.overviewGroup); const e = p.get_transformed_extents(); return [e.origin.x + e.size.width / 2, e.origin.y + e.size.height / 2]; })()"
+PREVIEW="(() => { const find = a => { if (a.metaWindow === ${PLAIN}) return a; for (const c of a.get_children()) { const f = find(c); if (f) return f; } return null; }; const p = find(Main.layoutManager.overviewGroup); const e = p.get_transformed_extents(); return [e.origin.x + e.size.width / 2, e.origin.y + e.size.height / 2]; })()"
 ev "Main.overview.show(); 'o'" >/dev/null
 sleep 3
 # The window itself is dimmed meanwhile, so that only its picture can be the undimmed one
-check "with the overview open, the Manual's window is still dimmed" strength_is "${MANUAL}" 1
+check "with the overview open, the plain window is still dimmed" strength_is "${PLAIN}" 1
 clone_dim="$(pixel clone-on "${PREVIEW}")"
 ev "Main.overview.hide(); 'h'" >/dev/null
 sleep 2
@@ -759,16 +824,21 @@ sleep 2
 left="$(ev "(() => { const walk = (a, acc) => { for (const c of a.get_children()) { const s = c.get_style_class_name?.() || ''; if (/amethystora-windows/.test(s) || /amethystoraWindows/.test(c.name || '')) acc.push(s || c.name); walk(c, acc); } return acc; }; return walk(Main.layoutManager.uiGroup, []).length + walk(global.window_group, []).length; })()")"
 same "ten disables leave no actor of the module behind" "${left}" 0
 check "Main.overview.toggle is GNOME's own" is_true "!Object.getOwnPropertyDescriptor(Main.overview, 'toggle')"
-check "the window menu is GNOME's own" is_true "!globalThis.vmlabWindowMenu.prototype._buildMenu.toString().includes('_addItem')"
+check "the window menu is GNOME's own" is_true "!globalThis.vmlabWindowMenu.prototype._buildMenu.toString().includes('_addItem') && !Object.hasOwn(Main.wm._windowMenuManager, 'showWindowMenuForWindow')"
 check "Super+Z is unbound while it is off" test "$(ev "Main.wm._allowedKeybindings['snap-chooser'] ?? 0")" == 0
 ev "Main.extensionManager.enableExtension('${UUID}'); 'e'" >/dev/null
 sleep 5
 ev "${W}.timings.maxFrameUs = 0; ${W}.desktop.toggle(); 'out'" >/dev/null
 sleep 1
-ev "${W}.desktop.toggle(); ${W}.switcher.open('switch-windows'); 'x'" >/dev/null
+ev "${W}.desktop.toggle(); 'back'" >/dev/null
+sleep 1
+desktop_us="$(ev "${W}.timings.maxFrameUs")"
+# The grid is built as it opens, which is no frame of motion: the selection is timed from then on
+ev "${W}.switcher.open('switch-windows'); ${W}.timings.maxFrameUs = 0; 'x'" >/dev/null
 keys right right left esc
-check "the show-desktop timeline and the switcher's selection stay under 1 ms a frame" \
-    test "$(ev "${W}.timings.maxFrameUs")" -lt 1000
+switcher_us="$(ev "${W}.timings.maxFrameUs")"
+check "the show-desktop timeline stays under 1 ms a frame (${desktop_us} µs)" test "${desktop_us:-99999}" -lt 1000
+check "the switcher's selection stays under 1 ms (${switcher_us} µs)" test "${switcher_us:-99999}" -lt 1000
 
 # Back as it was
 [[ "${was_tiling}" == true ]] && tiling

@@ -174,8 +174,16 @@ class AmethystoraPill extends St.Widget {
     }
 
     // The outline on screen now, which a new change of width starts from
+    _allocated() {
+        return this.has_allocation() ? this.get_allocation_box().get_width() : 0;
+    }
+
+    // The outline on screen now. A change of width not laid out yet has drawn nothing: what shows is still where that
+    // change started from (the pieces' translations are already the new width's)
     _outline() {
-        const width = this.has_allocation() ? this.get_allocation_box().get_width() : 0;
+        const width = this._allocated();
+        if (this._morphTo !== null && this._morphTo !== undefined && Math.abs(width - this._morphTo) >= 0.5)
+            return this._morphFrom;
         return width - 2 * this._start.translation_x;
     }
 
@@ -187,6 +195,7 @@ class AmethystoraPill extends St.Widget {
     show(actor, reduce) {
         const before = this._shown;
         const from = this._outline();
+        this._morphTo = null;
         this._shown = actor;
         if (actor !== before) {
             if (actor.get_parent() !== this)
@@ -204,8 +213,16 @@ class AmethystoraPill extends St.Widget {
     }
 
     // The width of what is shown may have changed: the plate follows
-    resize(reduce, from = this._outline()) {
+    resize(reduce, from = null) {
         const to = this._target();
+        // A change toward this width runs already, or waits for its layout: it goes on as it is (an activity says
+        // several things in a row as it starts, each of which asks again)
+        if (from === null && Math.abs(to - (this._morphTo ?? -1)) < 0.5 &&
+            (this.morphing || Math.abs(this._allocated() - to) >= 0.5))
+            return;
+        from ??= this._outline();
+        this._morphFrom = from;
+        this._morphTo = to;
         for (const piece of this.pieces) {
             piece.remove_transition('translation-x');
             piece.remove_transition('scale-x');

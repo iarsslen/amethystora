@@ -205,6 +205,13 @@ export class Windows {
     }
 
     // Who covers whom is worked out once before a frame at most, and only when something moved
+    // A window on its way into the dock or back moves every frame: what it covers is worked out once it lands (the
+    // motion queues the window again then)
+    _moved(actor) {
+        if (!this._glass._ext.modules?.get('motion')?.flying?.(actor))
+            this._recountSoon();
+    }
+
     _recountSoon() {
         this._recount = true;
         this._schedule();
@@ -344,8 +351,8 @@ export class Windows {
                 // What the actor shows lags behind what the window says (a client's new picture comes after), and
                 // the tiling moves it by translation: what covers what is worked out again when it arrives
                 'notify::allocation', () => this._recountSoon(),
-                'notify::translation-x', () => this._recountSoon(),
-                'notify::translation-y', () => this._recountSoon(),
+                'notify::translation-x', () => this._moved(actor),
+                'notify::translation-y', () => this._moved(actor),
                 'destroy', () => this._actors?.delete(actor),
                 this);
         }

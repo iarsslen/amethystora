@@ -7,6 +7,10 @@
 // gap of 8 pixels under the bar, tiled windows leave it clear. While the glass is solid the bar is never clear: it
 // shows the style's own background, as when a window touches it.
 // The other screens' bars (modules/bars.js) are each treated as the main one, with the windows of their own screen.
+// Where the style leaves the bar bare over the wallpaper with text straight on it (capsule), the bar has only the veil
+// its text needs over what lies right behind it, and nothing at all over a wallpaper dark enough. The glass keeps the
+// text readable where it can: on the bar's pane the clock's own colour (the neon style draws it in the accent), on a
+// pill the pill's own label, under whatever background the style gives the pill.
 
 import Meta from 'gi://Meta';
 import St from 'gi://St';
@@ -19,7 +23,22 @@ import {TYPES, leftAlone} from './windows.js';
 const NEAR = 5;
 const CLEAR = 'amethystora-glass-clear';
 // The clock is the text the bar's glass keeps readable
-const text = () => Main.panel.statusArea.dateMenu ?? Main.panel;
+const text = () => Main.panel.statusArea.dateMenu?._clockDisplay ?? Main.panel.statusArea.dateMenu ?? Main.panel;
+// The first label inside an actor, whose colour is the text a pill or a bare bar shows
+const firstLabel = actor => {
+    if (actor instanceof St.Label)
+        return actor;
+    for (const child of actor.get_children()) {
+        const found = firstLabel(child);
+        if (found)
+            return found;
+    }
+    return null;
+};
+const pillText = button => firstLabel(button) ?? button;
+const bareText = () => firstLabel(Main.panel._rightBox) ?? Main.panel;
+// The styles whose bare bar carries text straight over the wallpaper
+const BARE_TEXT = new Set(['capsule']);
 
 export class TopBar {
     constructor(glass) {
@@ -74,7 +93,9 @@ export class TopBar {
             return;
         const style = this._glass.style;
         const bar = style?.look.bar ?? 'pane';
-        const panels = bar === 'pane' ? this._panels() : [];
+        const bare = bar === 'bare' && BARE_TEXT.has(style?.name);
+        const panels = bar === 'pane' || bare ? this._panels() : [];
+        const material = bare ? 'bare' : 'menu-bar';
         const panes = new Set(panels.map(({panel}) => panel));
         for (const panel of [...this._bars]) {
             if (!panes.has(panel)) {
@@ -84,10 +105,11 @@ export class TopBar {
             }
         }
         for (const {panel, text: readable} of panels) {
-            if (this._bars.has(panel))
-                continue;
-            this._glass.attach(panel, {material: 'menu-bar', radius: null, inClones: true, text: readable},
-                {classes: ['amethystora-glass-bar']});
+            // A bare bar's veil, when it shows, is a capsule like the style's clock
+            const look = {material, radius: bare ? 999 : null, inClones: true,
+                text: bare ? (panel === Main.panel ? bareText : readable) : readable};
+            // A bar already on glass takes the new look; attach() only gives its classes to a new one
+            this._glass.attach(panel, look, {classes: ['amethystora-glass-bar']});
             this._bars.add(panel);
         }
         const wanted = new Set(bar === 'pills' && style ? style.buttons : []);
@@ -99,7 +121,7 @@ export class TopBar {
         }
         for (const button of wanted) {
             if (!this._pills.has(button)) {
-                this._glass.attach(button, {material: 'menu-bar', radius: null, inClones: true},
+                this._glass.attach(button, {material: 'menu-bar', radius: null, inClones: true, text: pillText},
                     {classes: ['amethystora-glass-pill']});
                 this._pills.add(button);
             }

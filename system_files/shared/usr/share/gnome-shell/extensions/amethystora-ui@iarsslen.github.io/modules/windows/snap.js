@@ -529,6 +529,8 @@ export class Snap {
         }
         const kept = this._before.get(window);
         this._before.set(window, {width: kept?.width ?? before.width, height: kept?.height ?? before.height, rect});
+        // Mutter takes nothing of a request below the window's smallest size, not even the place: the place first
+        window.move_frame(true, rect.x, rect.y);
         window.move_resize_frame(true, rect.x, rect.y, rect.width, rect.height);
         // Resized any other way, the window forgets the size it had (watched once, however often it is snapped)
         window.disconnectObject(this);

@@ -107,6 +107,8 @@ export class Places {
         this._pending = new Map();
         // The place each new window was given in configure, for its first show
         this._given = new WeakMap();
+        // The windows created and not yet shown, which are never recorded
+        this._unplaced = new WeakSet();
         this._watched = new Set();
         this._grabbed = null;
         this._quietUntil = 0;
@@ -204,7 +206,8 @@ export class Places {
         if (!this._data || !this._qualifies(window) || window.is_fullscreen() || window === this._grabbed)
             return;
         const time = GLib.get_monotonic_time();
-        if (time < this._quietUntil || time < (this._moved.get(window) ?? 0))
+        // A window not yet shown has not been placed: what Mutter gives it first is nobody's choice
+        if (this._unplaced.has(window) || time < this._quietUntil || time < (this._moved.get(window) ?? 0))
             return;
         const id = appOf(window);
         if (!id)
@@ -300,6 +303,7 @@ export class Places {
         if (!this._qualifies(window))
             return;
         this._watch(window);
+        this._unplaced.add(window);
         // Asked once, as Mutter is about to tell the app its first size and place; an X11 window is never configured
         // this way, and is placed when it shows
         const owner = {};
@@ -337,12 +341,21 @@ export class Places {
     }
 
     _shown(window) {
+        this._unplaced.delete(window);
         let place = this._given.get(window);
         this._given.delete(window);
         const f = window.get_frame_rect();
         if (place) {
             if (this.lastApplied)
                 this.lastApplied.shown = [f.x, f.y, f.width, f.height];
+            // Mutter may take the size given in configure and not the place (GNOME 51 puts such a window at 0,0):
+            // moved there now, when it is more than 2 px off
+            if (Math.abs(f.x - place.x) > 2 || Math.abs(f.y - place.y) > 2) {
+                this._moved.set(window, GLib.get_monotonic_time() + QUIET * 1000);
+                window.move_frame(false, place.x, place.y);
+                if (this.lastApplied)
+                    this.lastApplied.moved = true;
+            }
         } else {
             // Not placed in configure (an X11 window): moved now
             const rank = this._rank(window);
@@ -350,6 +363,8 @@ export class Places {
             if (!place)
                 return;
             this._moved.set(window, GLib.get_monotonic_time() + QUIET * 1000);
+            // The place first: a size below the window's smallest makes Mutter take nothing of the request
+            window.move_frame(false, place.x, place.y);
             window.move_resize_frame(false, place.x, place.y, place.width, place.height);
             this.lastApplied = {path: 'shown', app: appOf(window), rect: [place.x, place.y, place.width, place.height],
                 shown: [f.x, f.y, f.width, f.height]};
@@ -410,6 +425,8 @@ export class Places {
                 }
                 if (window.maximized_horizontally || window.maximized_vertically)
                     window.unmaximize();
+                // The place first: a size below the window's smallest makes Mutter take nothing of the request
+                window.move_frame(false, place.x, place.y);
                 window.move_resize_frame(false, place.x, place.y, place.width, place.height);
             });
         }

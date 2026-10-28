@@ -386,7 +386,9 @@ export class Privacy {
         case 'microphone': {
             const names = new Set();
             for (const output of this._recorders()) {
-                const name = appName(output.get_application_id()) || plain(output.get_name(), 40);
+                // The app by its launcher, else the name the program gives itself (its description), else its stream's
+                const name = appName(output.get_application_id()) || plain(output.get_description?.() ?? '', 40) ||
+                    plain(output.get_name(), 40);
                 if (name)
                     names.add(name);
             }

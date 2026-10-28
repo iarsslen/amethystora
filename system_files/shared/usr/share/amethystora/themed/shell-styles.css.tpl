@@ -409,6 +409,13 @@
   text-shadow: 0 0 8px rgba({{ accent_rgb }}, 0.9);
 }
 
+/* On the clear bar the bar's own glow shows through its half fill and tints it in the accent, against which the
+   accent's text no longer reads: there the clock glows white-hot in the accent, as a neon tube's core does */
+#uiGroup.amethystora-style-neon #panel.amethystora-glass-clear .panel-button.clock-display,
+#uiGroup.amethystora-style-neon #panel.amethystora-glass-clear .clock-display .clock {
+  color: {{ foreground }};
+}
+
 #uiGroup.amethystora-style-neon .amethystora-workspaces-label,
 #uiGroup.amethystora-style-neon .amethystora-workspaces-label.amethystora-workspaces-active {
   border-radius: 6px;

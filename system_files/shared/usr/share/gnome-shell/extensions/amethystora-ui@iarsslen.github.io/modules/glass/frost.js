@@ -241,6 +241,30 @@ class Picture {
         }
     }
 
+    // The same, of the part of the picture behind a box of the screen ([x1, y1, x2, y2] in its pixels), for a bare
+    // bar, which is judged by what lies right behind it
+    extremesIn(variant, name, material, box) {
+        if (!this.stats)
+            return {hi: null, lo: null};
+        const [w, h] = SAMPLES;
+        const m = this.monitor;
+        const cell = (v, size, count) => Math.min(count - 1, Math.max(0, Math.floor(v / size * count)));
+        const [c1, r1] = [cell(box[0] - m.x, m.width, w), cell(box[1] - m.y, m.height, h)];
+        const [c2, r2] = [cell(box[2] - m.x - 1, m.width, w), cell(box[3] - m.y - 1, m.height, h)];
+        const key = `${variant}:${name}:${c1},${r1},${c2},${r2}`;
+        let found = this._extremes.get(key);
+        if (!found) {
+            const part = [];
+            for (let r = r1; r <= r2; r++) {
+                for (let c = c1; c <= c2; c++)
+                    part.push(...this.stats.samples.subarray(3 * (r * w + c), 3 * (r * w + c) + 3));
+            }
+            found = extremes(part, material) ?? {hi: null, lo: null};
+            this._extremes.set(key, found);
+        }
+        return found;
+    }
+
     // The brightest and darkest parts of the picture as a material of a variant shows them, worked out once for each
     // picture read back
     extremes(variant, name, material) {

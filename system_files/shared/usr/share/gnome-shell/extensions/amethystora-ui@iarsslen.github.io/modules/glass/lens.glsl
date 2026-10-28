@@ -44,7 +44,8 @@ uniform vec4 u_glowshape;
 uniform vec4 u_sideglow;
 // The sheen: white at the top left, where it ends, where the accent's begins, accent at the bottom right
 uniform vec4 u_sheen;
-// 1 while there is no picture yet: the theme's background is drawn instead
+// Above 0, the theme's background is drawn at that strength instead of the picture: while there is no picture yet,
+// and for a bare bar, which only ever shows the veil its text needs
 uniform float u_solid;
 
 // Signed distance to the outline of a box of half size h centred on the origin, its corners starting s from each
@@ -122,8 +123,8 @@ vec4 glass_color()
     float cover = glass_cover(edge);
     vec4 color = vec4(0.0);
 
-    if (cover > 0.0 && u_solid > 0.5) {
-        color = vec4(u_veil.rgb, 1.0) * (0.92 * cover);
+    if (cover > 0.0 && u_solid > 0.0) {
+        color = vec4(u_veil.rgb, 1.0) * (u_solid * cover);
     } else if (cover > 0.0) {
         float depth = max(-edge, 0.0);
         vec3 col;
