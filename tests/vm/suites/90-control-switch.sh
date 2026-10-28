@@ -1,8 +1,9 @@
 #!/usr/bin/bash
+# vmlab-order: last
 # Control's two cards that change the whole machine, after 80-control.sh tried the rest, on the image without
 # developer tools: Developer mode switches to the published developer image, and Start over makes a new
 # installation beside the old one (bootc install reset), which leaves the machine without the test account, so
-# this is the last suite. Four starts:
+# this is the last suite, after 91 to 99 too (run.mjs runs it after every other suite of its machine). Four starts:
 #   1. The ESP's automount taken off /boot, as an installed machine has /boot in /etc/fstab: on the lab's disks
 #      systemd's gpt-auto mounts it there, and ostree cannot finish a staged deployment at shutdown.
 #   2. Developer mode turned on in a terminal: the developer image pulled, its signature checked, staged.

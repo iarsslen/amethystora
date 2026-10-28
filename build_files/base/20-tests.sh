@@ -1387,6 +1387,9 @@ grep -q "^command='amethystora-control'$" /etc/dconf/db/distro.d/06-amethystora-
 # is one the window draws, and every command is an `ame` command outside `ame security`. Every manual
 # link lands, and a pool of disks is only ever changed in a terminal.
 test -x /usr/libexec/amethystora-control-list
+# The list resolves its messages with bash 5.3's ${ cmd; } (no process per message), which bash 5.2 cannot parse
+[[ "$(bash -c 'echo $((BASH_VERSINFO[0] * 100 + BASH_VERSINFO[1]))')" -ge 503 ]]
+bash -n /usr/libexec/amethystora-control-list
 ame --show control >/dev/null
 CONTROL_LIST="$(GSETTINGS_BACKEND=memory /usr/libexec/amethystora-control-list --json)"
 jq -e '.items | length > 20' <<<"${CONTROL_LIST}" >/dev/null

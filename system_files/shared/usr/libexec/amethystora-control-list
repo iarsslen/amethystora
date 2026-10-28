@@ -31,6 +31,8 @@ source gettext.sh
 # Without a process for every message, which made up most of the list's time: bash looks a $"..." string up
 # in the same catalog itself. A message with a quote, a dollar, a backquote or a backslash in it, which that
 # would not keep as it is, goes to the gettext program. eval_gettext, from gettext.sh, uses this one too.
+# Its callers, and those of the other functions here that only print, take what it printed with bash 5.3's
+# ${ ...; }, which runs it in this shell: $(...) forked one for each of the seven hundred, which doubled the time.
 gettext() {
     if [[ "$1" == *[\"\$\`\\]* ]]; then
         command gettext -- "$1"
@@ -95,8 +97,8 @@ item() {
 }
 
 # The two choices of a switch: the command given, with on or off after it
-ON="$(gettext "On")"
-OFF="$(gettext "Off")"
+ON="${ gettext "On"; }"
+OFF="${ gettext "Off"; }"
 switch_choices() {
     local terminal="$1"
     shift
@@ -124,8 +126,28 @@ read_in_background() {
     shift
     { timeout 20 "$@" >"${WORK}/${name}" 2>/dev/null; echo "$?" >"${WORK}/${name}.code"; } &
 }
-said() { cat "${WORK}/$1" 2>/dev/null; }
-ended() { cat "${WORK}/$1.code" 2>/dev/null || echo 1; }
+# What each said and how it ended, read by bash itself rather than by cat
+said() {
+    local text=""
+    IFS= read -r -d '' text 2>/dev/null <"${WORK}/$1"
+    printf '%s' "${text}"
+}
+ended() {
+    local code=1
+    [[ -e "${WORK}/$1.code" ]] && IFS= read -r -d '' code <"${WORK}/$1.code"
+    printf '%s' "${code}"
+}
+# The value of key $2 in what gsettings list-recursively printed ($1), as the extended expression $3 after the
+# schema's name and the key takes it (its first group), on a line of its own for every line that matches: what
+# sed -n 's/^[^ ]* KEY .../\1/p' printed, without a process. The lines are split by the shell's word splitting (with
+# no globbing), which is quick where taking them off one by one is not, and only a line with the key in it is matched.
+value_of() {
+    local - IFS=$'\n' line expression="^[^ ]* $2 $3"
+    set -f
+    for line in $1; do
+        [[ "${line}" == *" $2 "* && "${line}" =~ ${expression} ]] && printf '%s\n' "${BASH_REMATCH[1]}"
+    done
+}
 # A Flatpak app installed for the machine or the account, as flatpak keeps it: what flatpak info answers,
 # without loading every installation, which took a third of a second with many apps
 installed() {
@@ -211,7 +233,7 @@ mapfile -t -O "${#CHOICES[@]}" CHOICES < <(
         if [[ -f "${SYSTEM_THEMES_DIR}/${slug}/light.mode" || -f "${USER_THEMES_DIR}/${slug}/light.mode" ]]; then
             light=true
         fi
-        printf '\x1e%s\x1e%s\x1e%s\n' "${slug}" "$(pretty "${slug}")" "${light}"
+        printf '\x1e%s\x1e%s\x1e%s\n' "${slug}" "${ pretty "${slug}"; }" "${light}"
         picture=""
         list="${SYSTEM_THEMES_DIR}/${slug}/backgrounds.list"
         [[ -f "${USER_THEMES_DIR}/${slug}/backgrounds.list" ]] && list="${USER_THEMES_DIR}/${slug}/backgrounds.list"
@@ -238,17 +260,17 @@ mapfile -t -O "${#CHOICES[@]}" CHOICES < <(
                     | if $accent != "" then .accent = $accent else . end)}'
 )
 USAGE="ame desktop theme NAME"
-item appearance theme themes "$(gettext "Theme")" \
-    "$(gettext "The colours of the desktop, the terminal and the apps that follow it, with the theme's own wallpapers.")" \
+item appearance theme themes "${ gettext "Theme"; }" \
+    "${ gettext "The colours of the desktop, the terminal and the apps that follow it, with the theme's own wallpapers."; }" \
     "${THEME}" themes#switching
 
 # The twelve accents, and the theme's own: each a colour the window draws as a dot. "Follow the theme" is the theme's own
 # accent, named after the nearest of the twelve.
 OWN_ACCENT="$(colors_get "$(theme_source_dir "${THEME:-${DEFAULT_THEME}}")" accent | tr '[:upper:]' '[:lower:]')"
 declare -A ACCENT_NAMES=(
-    [amethyst]="$(gettext "Amethyst")" [iris]="$(gettext "Iris")" [sky]="$(gettext "Sky")" [lagoon]="$(gettext "Lagoon")"
-    [jade]="$(gettext "Jade")" [moss]="$(gettext "Moss")" [amber]="$(gettext "Amber")" [ember]="$(gettext "Ember")"
-    [coral]="$(gettext "Coral")" [rose]="$(gettext "Rose")" [orchid]="$(gettext "Orchid")" [slate]="$(gettext "Slate")"
+    [amethyst]="${ gettext "Amethyst"; }" [iris]="${ gettext "Iris"; }" [sky]="${ gettext "Sky"; }" [lagoon]="${ gettext "Lagoon"; }"
+    [jade]="${ gettext "Jade"; }" [moss]="${ gettext "Moss"; }" [amber]="${ gettext "Amber"; }" [ember]="${ gettext "Ember"; }"
+    [coral]="${ gettext "Coral"; }" [rose]="${ gettext "Rose"; }" [orchid]="${ gettext "Orchid"; }" [slate]="${ gettext "Slate"; }"
 )
 # The nearest of the twelve, by the distance of their red, green and blue
 own="$(printf '%s\n' "${ACCENTS[@]}" | awk -v own="${OWN_ACCENT:-#9148f0}" '
@@ -259,7 +281,7 @@ own="${ACCENT_NAMES[${own}]:-${OWN_ACCENT}}"
 # Follow the theme first, then the twelve in two columns as the boards draw them
 mapfile -t -O "${#CHOICES[@]}" CHOICES < <(
     {
-        printf '%s\t%s\t%s\t%s\n' theme "$(gettext "Follow the theme")" "${OWN_ACCENT:-#9148f0}" "$(eval_gettext "The theme's own: \${own}")"
+        printf '%s\t%s\t%s\t%s\n' theme "${ gettext "Follow the theme"; }" "${OWN_ACCENT:-#9148f0}" "${ eval_gettext "The theme's own: \${own}"; }"
         for entry in "${ACCENTS[@]}"; do
             printf '%s\t%s\t%s\t\n' "${entry%% *}" "${ACCENT_NAMES[${entry%% *}]}" "${entry##* }"
         done
@@ -267,21 +289,21 @@ mapfile -t -O "${#CHOICES[@]}" CHOICES < <(
         terminal: false, command: ["ame", "desktop", "accent", .[0]]}'
 )
 USAGE="ame desktop accent ACCENT"
-item appearance accent choice "$(gettext "Accent")" \
-    "$(gettext "The colour of buttons, switches and selections, in any theme.")" "${ACCENT_SET:-theme}" themes#accents
+item appearance accent choice "${ gettext "Accent"; }" \
+    "${ gettext "The colour of buttons, switches and selections, in any theme."; }" "${ACCENT_SET:-theme}" themes#accents
 
 # Colours from the wallpaper: off, or one of three ways; a chosen accent stays over the wallpaper's
 COLOURS_SET="$(colours_way)"
 if [[ -n "${ACCENT_SET}" && -n "${COLOURS_SET}" && "${COLOURS_SET}" != mono ]]; then
-    DETAIL="$(gettext "Your accent is kept: choose Follow the theme under Accent to take the wallpaper's.")"
+    DETAIL="${ gettext "Your accent is kept: choose Follow the theme under Accent to take the wallpaper's."; }"
 fi
-choice off "$(gettext "Off")" "$(gettext "The theme's own colours")" false ame desktop colours off
-choice vivid "$(gettext "Vivid")" "$(gettext "The strongest hue leads")" false ame desktop colours vivid
-choice soft "$(gettext "Soft")" "$(gettext "The same hues, quieter")" false ame desktop colours soft
-choice mono "$(gettext "Mono")" "$(gettext "Tinted greys, colour on controls only")" false ame desktop colours mono
+choice off "${ gettext "Off"; }" "${ gettext "The theme's own colours"; }" false ame desktop colours off
+choice vivid "${ gettext "Vivid"; }" "${ gettext "The strongest hue leads"; }" false ame desktop colours vivid
+choice soft "${ gettext "Soft"; }" "${ gettext "The same hues, quieter"; }" false ame desktop colours soft
+choice mono "${ gettext "Mono"; }" "${ gettext "Tinted greys, colour on controls only"; }" false ame desktop colours mono
 USAGE="ame desktop colours vivid|soft|mono|off"
-item appearance colours choice "$(gettext "Colours from the wallpaper")" \
-    "$(gettext "The desktop's ground and accent taken from the wallpaper.")" "${COLOURS_SET:-off}" themes#colours-from-your-wallpaper
+item appearance colours choice "${ gettext "Colours from the wallpaper"; }" \
+    "${ gettext "The desktop's ground and accent taken from the wallpaper."; }" "${COLOURS_SET:-off}" themes#colours-from-your-wallpaper
 
 # The theme's own icons, style and font, which "Follow the theme" gives: each of the three is the account's to keep
 # whatever the theme, so that any theme, style, font and icons go together. Read from the current theme's files as
@@ -294,36 +316,36 @@ OWN_FONT="$(theme_file font.theme)"
 OWN_FONT="${OWN_FONT:-${DEFAULT_FONT}}"
 OWN_MONO="$(theme_file mono.theme)"
 OWN_MONO="${OWN_MONO:-${DEFAULT_MONO_FONT}}"
-own="$(pretty "${OWN_ICONS#amethystora-}")"
+own="${ pretty "${OWN_ICONS#amethystora-}"; }"
 ICONS_SET=theme
 [[ -r "${CONFIG_DIR}/icons" ]] && { ICONS_SET="$(<"${CONFIG_DIR}/icons")"; ICONS_SET="${ICONS_SET#amethystora-}"; }
-choice glass "$(gettext "Glass")" "$(gettext "Each icon in its own gradient, with a glass sheen")" false ame desktop icons glass
-choice glass-light "$(gettext "Glass for light")" "$(gettext "Glass with its colours deepened to read on a light desktop")" false ame desktop icons glass-light
-choice neon "$(gettext "Neon")" "$(gettext "Outlines lit in colours of their own, for a dark desktop")" false ame desktop icons neon
-choice neon-light "$(gettext "Neon for light")" "$(gettext "Neon with its colours deepened to read on a light desktop")" false ame desktop icons neon-light
-choice duotone "$(gettext "Duotone")" "$(gettext "Each icon in a gradient, its details in a contrasting one")" false ame desktop icons duotone
-choice line "$(gettext "Line")" "$(gettext "One even outline, in colours that read on every theme")" false ame desktop icons line
-choice clay "$(gettext "Clay")" "$(gettext "Soft matte volumes, a highlight above and a shade below")" false ame desktop icons clay
-choice muted "$(gettext "Muted")" "$(gettext "Glass in quieter colours, for themes of low chroma")" false ame desktop icons muted
-choice theme "$(gettext "Follow the theme")" "$(eval_gettext "The theme's own: \${own}")" false ame desktop icons theme
+choice glass "${ gettext "Glass"; }" "${ gettext "Each icon in its own gradient, with a glass sheen"; }" false ame desktop icons glass
+choice glass-light "${ gettext "Glass for light"; }" "${ gettext "Glass with its colours deepened to read on a light desktop"; }" false ame desktop icons glass-light
+choice neon "${ gettext "Neon"; }" "${ gettext "Outlines lit in colours of their own, for a dark desktop"; }" false ame desktop icons neon
+choice neon-light "${ gettext "Neon for light"; }" "${ gettext "Neon with its colours deepened to read on a light desktop"; }" false ame desktop icons neon-light
+choice duotone "${ gettext "Duotone"; }" "${ gettext "Each icon in a gradient, its details in a contrasting one"; }" false ame desktop icons duotone
+choice line "${ gettext "Line"; }" "${ gettext "One even outline, in colours that read on every theme"; }" false ame desktop icons line
+choice clay "${ gettext "Clay"; }" "${ gettext "Soft matte volumes, a highlight above and a shade below"; }" false ame desktop icons clay
+choice muted "${ gettext "Muted"; }" "${ gettext "Glass in quieter colours, for themes of low chroma"; }" false ame desktop icons muted
+choice theme "${ gettext "Follow the theme"; }" "${ eval_gettext "The theme's own: \${own}"; }" false ame desktop icons theme
 USAGE="ame desktop icons PACK"
-item appearance icons choice "$(gettext "Icons")" \
-    "$(gettext "The pack the apps, folders and files are drawn from. Another maker's app keeps its own icon.")" "${ICONS_SET}" themes#icons
+item appearance icons choice "${ gettext "Icons"; }" \
+    "${ gettext "The pack the apps, folders and files are drawn from. Another maker's app keeps its own icon."; }" "${ICONS_SET}" themes#icons
 
 STYLE_SET=theme
 [[ -r "${CONFIG_DIR}/style" ]] && STYLE_SET="$(head -n1 "${CONFIG_DIR}/style")"
-choice islands "$(gettext "Islands")" "$(gettext "A floating pill for each part of the top bar, soft corners everywhere")" false ame desktop style islands
-choice floating "$(gettext "Floating")" "$(gettext "One rounded top bar held off the edge of the screen")" false ame desktop style floating
-choice hairline "$(gettext "Hairline")" "$(gettext "A thin, solid top bar, crisp corners and fine lines")" false ame desktop style hairline
-choice capsule "$(gettext "Capsule")" "$(gettext "The clock in a dark capsule, and everything else a pill")" false ame desktop style capsule
-choice terminal "$(gettext "Terminal")" "$(gettext "Monospace, square and lined, like a terminal")" false ame desktop style terminal
-choice segments "$(gettext "Segments")" "$(gettext "The top bar in blocks of the theme's colours")" false ame desktop style segments
-choice neon "$(gettext "Neon")" "$(gettext "Dark glass outlined and glowing in the theme's accent")" false ame desktop style neon
-own="$(pretty "${OWN_STYLE}")"
-choice theme "$(gettext "Follow the theme")" "$(eval_gettext "The theme's own: \${own}")" false ame desktop style theme
+choice islands "${ gettext "Islands"; }" "${ gettext "A floating pill for each part of the top bar, soft corners everywhere"; }" false ame desktop style islands
+choice floating "${ gettext "Floating"; }" "${ gettext "One rounded top bar held off the edge of the screen"; }" false ame desktop style floating
+choice hairline "${ gettext "Hairline"; }" "${ gettext "A thin, solid top bar, crisp corners and fine lines"; }" false ame desktop style hairline
+choice capsule "${ gettext "Capsule"; }" "${ gettext "The clock in a dark capsule, and everything else a pill"; }" false ame desktop style capsule
+choice terminal "${ gettext "Terminal"; }" "${ gettext "Monospace, square and lined, like a terminal"; }" false ame desktop style terminal
+choice segments "${ gettext "Segments"; }" "${ gettext "The top bar in blocks of the theme's colours"; }" false ame desktop style segments
+choice neon "${ gettext "Neon"; }" "${ gettext "Dark glass outlined and glowing in the theme's accent"; }" false ame desktop style neon
+own="${ pretty "${OWN_STYLE}"; }"
+choice theme "${ gettext "Follow the theme"; }" "${ eval_gettext "The theme's own: \${own}"; }" false ame desktop style theme
 USAGE="ame desktop style STYLE"
-item appearance style choice "$(gettext "Style")" \
-    "$(gettext "The shape of the top bar, menus, notifications, dialogs, buttons and windows.")" "${STYLE_SET}" themes#styles
+item appearance style choice "${ gettext "Style"; }" \
+    "${ gettext "The shape of the top bar, menus, notifications, dialogs, buttons and windows."; }" "${STYLE_SET}" themes#styles
 
 # The glass, and Comfort: Reduce transparency is the glass's own key, Reduce motion and Increase contrast are GNOME's
 # accessibility keys, which the apps follow too, and the power saver is the profile power-profiles-daemon has on
@@ -332,40 +354,40 @@ SOLID="$(said glass | sed -n 's/^[^ ]* solid \(true\|false\)$/\1/p')"
 CONTRAST="$(said a11y | sed -n 's/^[^ ]* high-contrast \(true\|false\)$/\1/p')"
 MOTION="$(said a11y | sed -n "s/^[^ ]* reduced-motion '\(.*\)'$/\1/p")"
 SAVER=false
-[[ "$(said profile)" == 's "power-saver"' ]] && SAVER=true
-[[ "$(ended glass)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+[[ "${ said profile; }" == 's "power-saver"' ]] && SAVER=true
+[[ "${ ended glass; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
 if [[ "${SOLID}" == true ]]; then
-    DETAIL="$(gettext "The glass is drawn solid while Reduce transparency is on.")"
+    DETAIL="${ gettext "The glass is drawn solid while Reduce transparency is on."; }"
 elif [[ "${CONTRAST}" == true ]]; then
-    DETAIL="$(gettext "The glass is drawn solid while High Contrast is on.")"
+    DETAIL="${ gettext "The glass is drawn solid while High Contrast is on."; }"
 elif [[ "${SAVER}" == true ]]; then
-    DETAIL="$(gettext "The glass is drawn solid while the power saver is on.")"
+    DETAIL="${ gettext "The glass is drawn solid while the power saver is on."; }"
 fi
-choice frost "$(gettext "Frost")" "$(gettext "Thick, milky glass with an even tint")" false ame desktop glass frost
-choice prism "$(gettext "Prism")" "$(gettext "Less tint, more colour, a lit top edge and light along the bottom")" false ame desktop glass prism
-choice clear "$(gettext "Clear")" "$(gettext "The thinnest glass and the brightest rim; it darkens by itself where text needs it")" false ame desktop glass clear
+choice frost "${ gettext "Frost"; }" "${ gettext "Thick, milky glass with an even tint"; }" false ame desktop glass frost
+choice prism "${ gettext "Prism"; }" "${ gettext "Less tint, more colour, a lit top edge and light along the bottom"; }" false ame desktop glass prism
+choice clear "${ gettext "Clear"; }" "${ gettext "The thinnest glass and the brightest rim; it darkens by itself where text needs it"; }" false ame desktop glass clear
 USAGE="ame desktop glass frost|prism|clear"
-item appearance glass choice "$(gettext "Glass")" \
-    "$(gettext "What the top bar, the dock, menus and notifications show of the wallpaper behind them.")" "${GLASS}" themes#glass
+item appearance glass choice "${ gettext "Glass"; }" \
+    "${ gettext "What the top bar, the dock, menus and notifications show of the wallpaper behind them."; }" "${GLASS}" themes#glass
 
-GROUP="$(gettext "Comfort")"
-[[ "$(ended glass)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
-[[ "${SAVER}" == true ]] && DETAIL="$(gettext "The power saver makes the glass solid for as long as it is on.")"
+GROUP="${ gettext "Comfort"; }"
+[[ "${ ended glass; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
+[[ "${SAVER}" == true ]] && DETAIL="${ gettext "The power saver makes the glass solid for as long as it is on."; }"
 switch_choices false ame desktop comfort reduce-transparency
 USAGE="ame desktop comfort reduce-transparency on|off"
-item appearance reduce-transparency switch "$(gettext "Reduce transparency")" \
-    "$(gettext "The glass becomes the theme's solid surfaces. Nothing is blurred, which also saves power.")" \
+item appearance reduce-transparency switch "${ gettext "Reduce transparency"; }" \
+    "${ gettext "The glass becomes the theme's solid surfaces. Nothing is blurred, which also saves power."; }" \
     "$([[ "${SOLID}" == true ]] && echo on || echo off)" themes#comfort
-[[ "$(said animations)" == false ]] && DETAIL="$(gettext "Animations are off in Settings, under Accessibility, which is calmer still.")"
+[[ "${ said animations; }" == false ]] && DETAIL="${ gettext "Animations are off in Settings, under Accessibility, which is calmer still."; }"
 switch_choices false ame desktop comfort reduce-motion
 USAGE="ame desktop comfort reduce-motion on|off"
-item appearance reduce-motion switch "$(gettext "Reduce motion")" \
-    "$(gettext "Animations fade in place instead of travelling.")" \
+item appearance reduce-motion switch "${ gettext "Reduce motion"; }" \
+    "${ gettext "Animations fade in place instead of travelling."; }" \
     "$([[ "${MOTION}" == reduce ]] && echo on || echo off)" themes#comfort
 switch_choices false ame desktop comfort increase-contrast
 USAGE="ame desktop comfort increase-contrast on|off"
-item appearance increase-contrast switch "$(gettext "Increase contrast")" \
-    "$(gettext "GNOME's High Contrast: stronger outlines, plain text and outlined controls, in the apps as well.")" \
+item appearance increase-contrast switch "${ gettext "Increase contrast"; }" \
+    "${ gettext "GNOME's High Contrast: stronger outlines, plain text and outlined controls, in the apps as well."; }" \
     "$([[ "${CONTRAST}" == true ]] && echo on || echo off)" themes#comfort
 GROUP=""
 
@@ -376,10 +398,10 @@ mapfile -t -O "${#CHOICES[@]}" CHOICES < <(jq -nc '$ARGS.positional[]
     | {value: ., title: ., text: null, terminal: false, command: ["ame", "desktop", "font", .], font: .}' \
     --args "${UI_FONTS[@]}")
 own="${OWN_FONT}"
-choice theme "$(gettext "Follow the theme")" "$(eval_gettext "The theme's own: \${own}")" false ame desktop font theme
+choice theme "${ gettext "Follow the theme"; }" "${ eval_gettext "The theme's own: \${own}"; }" false ame desktop font theme
 USAGE="ame desktop font FAMILY"
-item appearance font choice "$(gettext "Font")" \
-    "$(gettext "The font of the desktop and the applications.")" "${FONT_SET}" themes#fonts
+item appearance font choice "${ gettext "Font"; }" \
+    "${ gettext "The font of the desktop and the applications."; }" "${FONT_SET}" themes#fonts
 
 MONO_SET=theme
 [[ -r "${CONFIG_DIR}/mono-font" ]] && MONO_SET="$(head -n1 "${CONFIG_DIR}/mono-font")"
@@ -387,129 +409,129 @@ mapfile -t -O "${#CHOICES[@]}" CHOICES < <(jq -nc '$ARGS.positional[]
     | {value: ., title: ., text: null, terminal: false, command: ["ame", "desktop", "mono-font", .], font: .}' \
     --args "${MONO_FONTS[@]}")
 own="${OWN_MONO}"
-choice theme "$(gettext "Follow the theme")" "$(eval_gettext "The theme's own: \${own}")" false ame desktop mono-font theme
+choice theme "${ gettext "Follow the theme"; }" "${ eval_gettext "The theme's own: \${own}"; }" false ame desktop mono-font theme
 USAGE="ame desktop mono-font FAMILY"
-item appearance mono-font choice "$(gettext "Monospace font")" \
-    "$(gettext "The font of the terminal, of code and of Text Editor.")" "${MONO_SET}" themes#fonts
+item appearance mono-font choice "${ gettext "Monospace font"; }" \
+    "${ gettext "The font of the terminal, of code and of Text Editor."; }" "${MONO_SET}" themes#fonts
 
 if [[ -z "${THEME}" ]]; then
-    REASON="$(gettext "Pick a theme first: each theme has wallpapers of its own.")"
+    REASON="${ gettext "Pick a theme first: each theme has wallpapers of its own."; }"
 fi
 CURRENT_PICTURE="$(readlink "${CURRENT_BACKGROUND}" 2>/dev/null || true)"
 OPENING="$(grep -m1 '^/' "${CURRENT_THEME_DIR}/backgrounds.list" 2>/dev/null || true)"
 while read -r picture; do
     [[ -n "${picture}" ]] || continue
     name="${picture##*/}"
-    if [[ "${picture}" == "${OPENING}" && "$(said daylight)" == on && -n "$(said daylight-now)" ]]; then
+    if [[ "${picture}" == "${OPENING}" && "${ said daylight; }" == on && -n "${ said daylight-now; }" ]]; then
         # The opening picture is Daylight's: its tile shows the picture of the hour, and says so
-        CHOICES+=("$(jq -nc --arg value "${picture}" --arg title "$(pretty "${name%.*}"). $(gettext "Changes with the time of day")" \
-            --arg thumbnail "$(said daylight-now)" \
+        CHOICES+=("$(jq -nc --arg value "${picture}" --arg title "${ pretty "${name%.*}"; }. ${ gettext "Changes with the time of day"; }" \
+            --arg thumbnail "${ said daylight-now; }" \
             '{value: $value, title: $title, text: null, terminal: false, command: ["ame", "desktop", "background", $value], thumbnail: $thumbnail}')")
         continue
     fi
-    choice "${picture}" "$(pretty "${name%.*}")" "" false ame desktop background "${picture}"
+    choice "${picture}" "${ pretty "${name%.*}"; }" "" false ame desktop background "${picture}"
 done < <(said backgrounds)
 USAGE="ame desktop background"
-item appearance wallpaper wallpapers "$(gettext "Wallpaper")" \
-    "$(gettext "The pictures of the current theme. Super+Ctrl+Space shows the next one.")" \
+item appearance wallpaper wallpapers "${ gettext "Wallpaper"; }" \
+    "${ gettext "The pictures of the current theme. Super+Ctrl+Space shows the next one."; }" \
     "${CURRENT_PICTURE}" themes#wallpapers
 
 # Daylight, the theme's first wallpaper by the time of day: on unless the account turned it off
-DAYLIGHT="$(said daylight)"
+DAYLIGHT="${ said daylight; }"
 if [[ "${DAYLIGHT}" == none ]]; then
-    REASON="$(gettext "This theme has no Daylight pictures.")"
+    REASON="${ gettext "This theme has no Daylight pictures."; }"
 fi
 switch_choices false ame desktop daylight
 USAGE="ame desktop daylight on|off"
-item appearance daylight switch "$(gettext "Daylight wallpapers")" \
-    "$(gettext "The theme's first wallpaper follows the time of day: dawn, day, dusk and night.")" \
+item appearance daylight switch "${ gettext "Daylight wallpapers"; }" \
+    "${ gettext "The theme's first wallpaper follows the time of day: dawn, day, dusk and night."; }" \
     "$([[ "${DAYLIGHT}" == off ]] && echo off || echo on)" themes#daylight
 
 # An accent for each workspace, in the shell and Amethystora's apps; each workspace's own is chosen in its menu
-[[ "$(ended look)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+[[ "${ ended look; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
 switch_choices false ame desktop accent-per-workspace
 USAGE="ame desktop accent-per-workspace on|off"
-item appearance accent-per-workspace switch "$(gettext "An accent per workspace")" \
-    "$(gettext "The shell and Amethystora's apps change accent with the workspace. Other apps keep the theme's.")" \
+item appearance accent-per-workspace switch "${ gettext "An accent per workspace"; }" \
+    "${ gettext "The shell and Amethystora's apps change accent with the workspace. Other apps keep the theme's."; }" \
     "$(said look | grep -q ' accent-per-workspace true$' && echo on || echo off)" themes#an-accent-per-workspace
 
-if [[ "$(ended transitions)" == 0 ]]; then
+if [[ "${ ended transitions; }" == 0 ]]; then
     STYLE="$(said transitions | sed -n "s/^[^ ]* style '\(.*\)'$/\1/p")"
     LENGTH="$(said transitions | sed -n 's/^[^ ]* duration \(uint32 \)\{0,1\}//p')"
-    if [[ "$(said animations)" == false ]]; then
-        DETAIL="$(gettext "Nothing is shown while animations are off in Settings, under Accessibility.")"
+    if [[ "${ said animations; }" == false ]]; then
+        DETAIL="${ gettext "Nothing is shown while animations are off in Settings, under Accessibility."; }"
     fi
 else
     STYLE="" LENGTH=""
-    REASON="$(gettext "The transitions extension is not installed.")"
+    REASON="${ gettext "The transitions extension is not installed."; }"
 fi
-choice grow "$(gettext "Grow")" "$(gettext "A circle opens from the pointer")" false ame desktop transition grow
-choice outer "$(gettext "Close in")" "$(gettext "A circle closes in on the pointer from the edges")" false ame desktop transition outer
-choice wipe "$(gettext "Wipe")" "$(gettext "A soft edge sweeps across at an angle")" false ame desktop transition wipe
-choice wave "$(gettext "Wave")" "$(gettext "A wavy edge sweeps across")" false ame desktop transition wave
-choice fade "$(gettext "Fade")" "$(gettext "The old picture fades into the new one")" false ame desktop transition fade
-choice random "$(gettext "Random")" "$(gettext "One of the first four, at a random angle")" false ame desktop transition random
-choice none "$(gettext "None")" "$(gettext "GNOME changes the picture by itself")" false ame desktop transition none
+choice grow "${ gettext "Grow"; }" "${ gettext "A circle opens from the pointer"; }" false ame desktop transition grow
+choice outer "${ gettext "Close in"; }" "${ gettext "A circle closes in on the pointer from the edges"; }" false ame desktop transition outer
+choice wipe "${ gettext "Wipe"; }" "${ gettext "A soft edge sweeps across at an angle"; }" false ame desktop transition wipe
+choice wave "${ gettext "Wave"; }" "${ gettext "A wavy edge sweeps across"; }" false ame desktop transition wave
+choice fade "${ gettext "Fade"; }" "${ gettext "The old picture fades into the new one"; }" false ame desktop transition fade
+choice random "${ gettext "Random"; }" "${ gettext "One of the first four, at a random angle"; }" false ame desktop transition random
+choice none "${ gettext "None"; }" "${ gettext "GNOME changes the picture by itself"; }" false ame desktop transition none
 USAGE="ame desktop transition STYLE"
-item appearance transition choice "$(gettext "Transition")" \
-    "$(gettext "How a new theme or wallpaper is revealed.")" "${STYLE}" themes#transitions
+item appearance transition choice "${ gettext "Transition"; }" \
+    "${ gettext "How a new theme or wallpaper is revealed."; }" "${STYLE}" themes#transitions
 
-[[ -n "${STYLE}" ]] || REASON="$(gettext "The transitions extension is not installed.")"
+[[ -n "${STYLE}" ]] || REASON="${ gettext "The transitions extension is not installed."; }"
 EXTRA="$(jq -nc --arg style "${STYLE:-grow}" \
     '{min: 200, max: 5000, step: 100, unit: "ms", terminal: false,
       command: ["ame", "desktop", "transition", $style, "{value}"]}')"
 USAGE="ame desktop transition STYLE DURATION"
-item appearance transition-length range "$(gettext "Transition length")" \
-    "$(gettext "How long a transition takes, in milliseconds.")" "${LENGTH}" themes#transitions
+item appearance transition-length range "${ gettext "Transition length"; }" \
+    "${ gettext "How long a transition takes, in milliseconds."; }" "${LENGTH}" themes#transitions
 
 # The reveal at login, a switch of the transitions extension
 if [[ "$(said transitions | sed -n 's/^[^ ]* reveal //p')" == false ]]; then REVEAL=off; else REVEAL=on; fi
-[[ -n "${STYLE}" ]] || REASON="$(gettext "The transitions extension is not installed.")"
+[[ -n "${STYLE}" ]] || REASON="${ gettext "The transitions extension is not installed."; }"
 switch_choices false ame desktop transition reveal
 USAGE="ame desktop transition reveal on|off"
-item appearance transition-reveal switch "$(gettext "Reveal at login")" \
-    "$(gettext "The splash's gem flies into the top bar as the desktop appears.")" "${REVEAL}" desktop#the-reveal-at-login
+item appearance transition-reveal switch "${ gettext "Reveal at login"; }" \
+    "${ gettext "The splash's gem flies into the top bar as the desktop appears."; }" "${REVEAL}" desktop#the-reveal-at-login
 
 # The bezel module's one key: a laptop's own screen with rounded corners
-if [[ "$(said bezel)" == true ]]; then CORNERS=on; else CORNERS=off; fi
-[[ "$(ended bezel)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+if [[ "${ said bezel; }" == true ]]; then CORNERS=on; else CORNERS=off; fi
+[[ "${ ended bezel; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
 switch_choices false ame desktop screen-corners
 USAGE="ame desktop screen-corners on|off"
-item appearance screen-corners switch "$(gettext "Rounded screen corners")" \
-    "$(gettext "Round the corners of a laptop's own square screen.")" "${CORNERS}" themes#rounded-screen-corners
+item appearance screen-corners switch "${ gettext "Rounded screen corners"; }" \
+    "${ gettext "Round the corners of a laptop's own square screen."; }" "${CORNERS}" themes#rounded-screen-corners
 
 # The pointer: its look (a file of the account's, as the icons), and the pointer module's two keys
-GROUP="$(gettext "Pointer")"
+GROUP="${ gettext "Pointer"; }"
 POINTER_SET=theme
 if [[ -r "${CONFIG_DIR}/pointer" ]]; then
     POINTER_SET="$(head -n1 "${CONFIG_DIR}/pointer")"
     POINTER_SET="${POINTER_SET#amethystora-pointer-}"
 fi
 OWN_POINTER="$(CONFIG_DIR=/nonexistent pointer_theme)"
-own="$(pretty "${OWN_POINTER#amethystora-pointer-}")"
-choice halo "$(gettext "Halo")" "$(gettext "White, with an amethyst rim: for dark themes")" false ame desktop pointer halo
-choice ink "$(gettext "Ink")" "$(gettext "Dark, with a white rim: for light themes")" false ame desktop pointer ink
-choice facet "$(gettext "Facet")" "$(gettext "Cut like the gem, in two faces of amethyst")" false ame desktop pointer facet
-choice theme "$(gettext "Follow the theme")" "$(eval_gettext "The theme's own: \${own}")" false ame desktop pointer theme
+own="${ pretty "${OWN_POINTER#amethystora-pointer-}"; }"
+choice halo "${ gettext "Halo"; }" "${ gettext "White, with an amethyst rim: for dark themes"; }" false ame desktop pointer halo
+choice ink "${ gettext "Ink"; }" "${ gettext "Dark, with a white rim: for light themes"; }" false ame desktop pointer ink
+choice facet "${ gettext "Facet"; }" "${ gettext "Cut like the gem, in two faces of amethyst"; }" false ame desktop pointer facet
+choice theme "${ gettext "Follow the theme"; }" "${ eval_gettext "The theme's own: \${own}"; }" false ame desktop pointer theme
 USAGE="ame desktop pointer SET"
-item appearance pointer choice "$(gettext "Pointer")" \
-    "$(gettext "The pointer's look. A size is chosen in Settings, under Accessibility.")" "${POINTER_SET}" themes#pointers
+item appearance pointer choice "${ gettext "Pointer"; }" \
+    "${ gettext "The pointer's look. A size is chosen in Settings, under Accessibility."; }" "${POINTER_SET}" themes#pointers
 
 SHAKE="$(said shake | tr -d "'")"
-[[ "$(ended shake)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
-choice grow "$(gettext "Grow")" "$(gettext "The pointer swells to three and a half times its size while you shake it")" false ame desktop pointer-shake grow
-choice beacon "$(gettext "Beacon")" "$(gettext "The pointer grows a little and sends rings out from where it is")" false ame desktop pointer-shake beacon
-choice off "$(gettext "Off")" "$(gettext "Shaking the mouse does nothing")" false ame desktop pointer-shake off
+[[ "${ ended shake; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
+choice grow "${ gettext "Grow"; }" "${ gettext "The pointer swells to three and a half times its size while you shake it"; }" false ame desktop pointer-shake grow
+choice beacon "${ gettext "Beacon"; }" "${ gettext "The pointer grows a little and sends rings out from where it is"; }" false ame desktop pointer-shake beacon
+choice off "${ gettext "Off"; }" "${ gettext "Shaking the mouse does nothing"; }" false ame desktop pointer-shake off
 USAGE="ame desktop pointer-shake MODE"
-item appearance pointer-shake choice "$(gettext "Shake to find")" \
-    "$(gettext "Shake the mouse from side to side to see where the pointer is.")" "${SHAKE}" themes#pointers
+item appearance pointer-shake choice "${ gettext "Shake to find"; }" \
+    "${ gettext "Shake the mouse from side to side to see where the pointer is."; }" "${SHAKE}" themes#pointers
 
-if [[ "$(said dense)" == true ]]; then DENSE=on; else DENSE=off; fi
-[[ "$(ended dense)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+if [[ "${ said dense; }" == true ]]; then DENSE=on; else DENSE=off; fi
+[[ "${ ended dense; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
 switch_choices false ame desktop pointer-dense
 USAGE="ame desktop pointer-dense on|off"
-item appearance pointer-dense switch "$(gettext "Larger on dense screens")" \
-    "$(gettext "One size larger on a screen with small pixels shown at 100%. A size chosen in Settings is kept.")" \
+item appearance pointer-dense switch "${ gettext "Larger on dense screens"; }" \
+    "${ gettext "One size larger on a screen with small pixels shown at 100%. A size chosen in Settings is kept."; }" \
     "${DENSE}" themes#pointers
 GROUP=""
 
@@ -517,23 +539,23 @@ GROUP=""
 # /boot/grub2 is root's alone, only root can tell whether the artwork is there.
 BOOT_MENU=""
 if [[ "${SEALED}" == true ]]; then
-    REASON="$(gettext "A sealed machine starts with systemd-boot, which shows no artwork.")"
+    REASON="${ gettext "A sealed machine starts with systemd-boot, which shows no artwork."; }"
 elif [[ ! -d /boot/grub2 ]]; then
-    REASON="$(gettext "This machine does not start with GRUB.")"
+    REASON="${ gettext "This machine does not start with GRUB."; }"
 elif [[ ! -r /boot/grub2 || ! -x /boot/grub2 ]]; then
-    DETAIL="$(gettext "Only an administrator can see whether it is on.")"
+    DETAIL="${ gettext "Only an administrator can see whether it is on."; }"
 else
-    case "$(said grub)" in
+    case "${ said grub; }" in
         on:*) BOOT_MENU=on ;;
         *) BOOT_MENU=off ;;
     esac
-    grep -q "does not boot with GRUB" <<<"$(said grub)" && REASON="$(gettext "This machine does not start with GRUB.")"
+    grep -q "does not boot with GRUB" <<<"${ said grub; }" && REASON="${ gettext "This machine does not start with GRUB."; }"
 fi
 switch_choices true ame desktop boot-menu
-GROUP="$(gettext "Starting up")"
+GROUP="${ gettext "Starting up"; }"
 USAGE="ame desktop boot-menu on|off"
-item appearance boot-menu switch "$(gettext "Boot menu artwork")" \
-    "$(gettext "The Amethystora artwork on the menu the machine shows as it starts.")" "${BOOT_MENU}" themes#the-boot-menu
+item appearance boot-menu switch "${ gettext "Boot menu artwork"; }" \
+    "${ gettext "The Amethystora artwork on the menu the machine shows as it starts."; }" "${BOOT_MENU}" themes#the-boot-menu
 GROUP=""
 
 # The desktop's own sounds: the Soft set while its theme is chosen and event sounds are on; another sound theme (one
@@ -544,369 +566,369 @@ if [[ "$(said sound | awk '$2 == "event-sounds" { print $3 }')" == false ]]; the
 elif [[ "$(said sound | awk '$2 == "theme-name" { print $3 }')" == "'amethystora'" ]]; then
     SOUNDS=soft
 fi
-[[ "$(ended sound)" == 0 ]] || REASON="$(gettext "GNOME's sound settings are not installed.")"
-choice soft "$(gettext "Soft")" "$(gettext "Lower and rounder, for a quiet room")" false ame desktop sounds soft
-choice off "$(gettext "Off")" "$(gettext "The desktop makes no sound of its own; apps still can")" false ame desktop sounds off
-GROUP="$(gettext "Sound")"
+[[ "${ ended sound; }" == 0 ]] || REASON="${ gettext "GNOME's sound settings are not installed."; }"
+choice soft "${ gettext "Soft"; }" "${ gettext "Lower and rounder, for a quiet room"; }" false ame desktop sounds soft
+choice off "${ gettext "Off"; }" "${ gettext "The desktop makes no sound of its own; apps still can"; }" false ame desktop sounds off
+GROUP="${ gettext "Sound"; }"
 USAGE="ame desktop sounds SET"
-item appearance sounds choice "$(gettext "Sounds")" \
-    "$(gettext "The desktop's own sounds: notifications, screenshots, volume and the rest.")" "${SOUNDS}" desktop#sounds
+item appearance sounds choice "${ gettext "Sounds"; }" \
+    "${ gettext "The desktop's own sounds: notifications, screenshots, volume and the rest."; }" "${SOUNDS}" desktop#sounds
 GROUP=""
 
 # --- Desktop ---------------------------------------------------------------------------------------
 
-if [[ "$(said tiling)" == false ]]; then LAYOUT=classic; else LAYOUT=tiling; fi
-choice tiling "$(gettext "Tiling")" \
-    "$(gettext "Windows open side by side on a strip that scrolls, arranged for you")" false ame desktop layout tiling
-choice classic "$(gettext "Classic")" \
-    "$(gettext "Windows float and overlap, and you move and size them, as on Windows and macOS")" false ame desktop layout classic
-GROUP="$(gettext "Windows")"
+if [[ "${ said tiling; }" == false ]]; then LAYOUT=classic; else LAYOUT=tiling; fi
+choice tiling "${ gettext "Tiling"; }" \
+    "${ gettext "Windows open side by side on a strip that scrolls, arranged for you"; }" false ame desktop layout tiling
+choice classic "${ gettext "Classic"; }" \
+    "${ gettext "Windows float and overlap, and you move and size them, as on Windows and macOS"; }" false ame desktop layout classic
+GROUP="${ gettext "Windows"; }"
 USAGE="ame desktop layout tiling|classic"
-item desktop layout choice "$(gettext "Window layout")" "$(gettext "How windows are arranged.")" "${LAYOUT}" \
+item desktop layout choice "${ gettext "Window layout"; }" "${ gettext "How windows are arranged."; }" "${LAYOUT}" \
     desktop#tiling-windows
 
 COMMAND=(ame desktop tiling-settings)
 TERMINAL=false
-BUTTON="$(gettext "Change…")"
+BUTTON="${ gettext "Change…"; }"
 USAGE="ame desktop tiling-settings"
-[[ "${LAYOUT}" == tiling ]] || DETAIL="$(gettext "They apply once the layout is tiling again.")"
-item desktop tiling-settings action "$(gettext "Tiling settings")" \
-    "$(gettext "The gaps, the sizes windows step through, how the strip moves, every shortcut and the window rules.")" "" \
+[[ "${LAYOUT}" == tiling ]] || DETAIL="${ gettext "They apply once the layout is tiling again."; }"
+item desktop tiling-settings action "${ gettext "Tiling settings"; }" \
+    "${ gettext "The gaps, the sizes windows step through, how the strip moves, every shortcut and the window rules."; }" "" \
     desktop#tiling-settings
 
-GROUP="$(gettext "Windows")"
+GROUP="${ gettext "Windows"; }"
 EXTRA='{"open": "manual"}'
-item desktop keybindings link "$(gettext "Keybindings")" \
-    "$(gettext "Every key the desktop answers to, in the manual.")" "" keybindings
+item desktop keybindings link "${ gettext "Keybindings"; }" \
+    "${ gettext "Every key the desktop answers to, in the manual."; }" "" keybindings
 
 # The windows module: snap layouts, the switcher, the Super card, show desktop, places and dimming, then the hot
 # corners and the touchpad gestures under headings of their own. The classic layout's own say when they apply.
-WINDOWS="$(said windows)"
+WINDOWS="${ said windows; }"
 # A key's value as the list printed it, the quotes of a string taken off
-win() { sed -n "s/^[^ ]* $1 '\{0,1\}\([^']*\)'\{0,1\}$/\1/p" <<<"${WINDOWS}"; }
-onoff() { [[ "$(win "$1")" == true ]] && echo on || echo off; }
+win() { value_of "${WINDOWS}" "$1" "'?([^']*)'?\$"; }
+onoff() { [[ "${ win "$1"; }" == true ]] && echo on || echo off; }
 win_item() {
     local id="$1" key="$2" title="$3" text="$4" manual="$5" classic="$6"
-    [[ "$(ended windows)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
-    [[ "${classic}" == true && "${LAYOUT}" == tiling ]] && DETAIL="$(gettext "They apply once the layout is classic again.")"
+    [[ "${ ended windows; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
+    [[ "${classic}" == true && "${LAYOUT}" == tiling ]] && DETAIL="${ gettext "They apply once the layout is classic again."; }"
     switch_choices false ame desktop windows "${key}"
     USAGE="ame desktop windows ${key} on|off"
-    item desktop "${id}" switch "${title}" "${text}" "$(onoff "${key}")" "${manual}"
+    item desktop "${id}" switch "${title}" "${text}" "${ onoff "${key}"; }" "${manual}"
 }
-GROUP="$(gettext "Windows")"
-win_item windows-snap snap "$(gettext "Snap layouts")" \
-    "$(gettext "Drag a window to the top of the screen, or press Super+Z, and drop it on a layout.")" \
+GROUP="${ gettext "Windows"; }"
+win_item windows-snap snap "${ gettext "Snap layouts"; }" \
+    "${ gettext "Drag a window to the top of the screen, or press Super+Z, and drop it on a layout."; }" \
     desktop#snap-layouts true
-win_item windows-switcher switcher "$(gettext "Window switcher you can type into")" \
-    "$(gettext "Super+Tab and Alt+Tab show every window in a grid; typing keeps the ones whose app or title matches.")" \
+win_item windows-switcher switcher "${ gettext "Window switcher you can type into"; }" \
+    "${ gettext "Super+Tab and Alt+Tab show every window in a grid; typing keeps the ones whose app or title matches."; }" \
     desktop#switching-windows true
-win_item windows-hold-super hold-super "$(gettext "Shortcuts while Super is held")" \
-    "$(gettext "Hold Super to see the main shortcuts and the dock's numbers.")" desktop#holding-super false
-[[ "$(ended windows)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+win_item windows-hold-super hold-super "${ gettext "Shortcuts while Super is held"; }" \
+    "${ gettext "Hold Super to see the main shortcuts and the dock's numbers."; }" desktop#holding-super false
+[[ "${ ended windows; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
 EXTRA='{"min": 500, "max": 3000, "step": 100, "unit": "ms", "terminal": false,
     "command": ["ame", "desktop", "windows", "hold-super", "{value}"]}'
 USAGE="ame desktop windows hold-super MS"
-item desktop windows-hold-super-delay range "$(gettext "How long to hold Super")" "$(gettext "In milliseconds.")" \
+item desktop windows-hold-super-delay range "${ gettext "How long to hold Super"; }" "${ gettext "In milliseconds."; }" \
     "$(win hold-super-delay | sed 's/^int32 //')" desktop#holding-super
-win_item windows-show-desktop show-desktop "$(gettext "Click the wallpaper to show the desktop")" \
-    "$(gettext "Windows slide to the edges of the screen; a click brings them back.")" desktop#show-desktop true
-win_item windows-places places "$(gettext "Windows remember their places")" \
-    "$(gettext "For each arrangement of screens, apps' windows open where they were.")" desktop#places true
+win_item windows-show-desktop show-desktop "${ gettext "Click the wallpaper to show the desktop"; }" \
+    "${ gettext "Windows slide to the edges of the screen; a click brings them back."; }" desktop#show-desktop true
+win_item windows-places places "${ gettext "Windows remember their places"; }" \
+    "${ gettext "For each arrangement of screens, apps' windows open where they were."; }" desktop#places true
 COMMAND=(ame desktop windows places forget)
 TERMINAL=false
-BUTTON="$(gettext "Forget")"
+BUTTON="${ gettext "Forget"; }"
 USAGE="ame desktop windows places forget"
-item desktop windows-places-forget action "$(gettext "Forget the places")" "" "" desktop#places
-win_item windows-dim dim "$(gettext "Dim the windows not in use")" \
-    "$(gettext "The windows behind the one you are using are drawn a little darker.")" desktop#dimming false
+item desktop windows-places-forget action "${ gettext "Forget the places"; }" "" "" desktop#places
+win_item windows-dim dim "${ gettext "Dim the windows not in use"; }" \
+    "${ gettext "The windows behind the one you are using are drawn a little darker."; }" desktop#dimming false
 
 # The quick note is offered once the Notes command takes it
 NOTE_CAPTURE=false
 notes="$(command -v amethystora-notes 2>/dev/null || true)"
 [[ -n "${notes}" ]] && grep -q capture "${notes}" 2>/dev/null && NOTE_CAPTURE=true
-GROUP="$(gettext "Hot corners")"
+GROUP="${ gettext "Hot corners"; }"
 for where in top-left top-right bottom-left bottom-right; do
     case "${where}" in
-        top-left) title="$(gettext "Top left corner")" ;;
-        top-right) title="$(gettext "Top right corner")" ;;
-        bottom-left) title="$(gettext "Bottom left corner")" ;;
-        bottom-right) title="$(gettext "Bottom right corner")" ;;
+        top-left) title="${ gettext "Top left corner"; }" ;;
+        top-right) title="${ gettext "Top right corner"; }" ;;
+        bottom-left) title="${ gettext "Bottom left corner"; }" ;;
+        bottom-right) title="${ gettext "Bottom right corner"; }" ;;
     esac
-    choice none "$(gettext "Nothing")" "" false ame desktop windows corner "${where}" none
-    choice overview "$(gettext "Overview")" "" false ame desktop windows corner "${where}" overview
-    choice desktop "$(gettext "Show desktop")" "" false ame desktop windows corner "${where}" desktop
-    choice lock "$(gettext "Lock screen")" "" false ame desktop windows corner "${where}" lock
-    [[ "${NOTE_CAPTURE}" == true ]] && choice note "$(gettext "Quick note")" "" false ame desktop windows corner "${where}" note
-    choice notifications "$(gettext "Notifications")" "" false ame desktop windows corner "${where}" notifications
-    [[ "$(ended windows)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+    choice none "${ gettext "Nothing"; }" "" false ame desktop windows corner "${where}" none
+    choice overview "${ gettext "Overview"; }" "" false ame desktop windows corner "${where}" overview
+    choice desktop "${ gettext "Show desktop"; }" "" false ame desktop windows corner "${where}" desktop
+    choice lock "${ gettext "Lock screen"; }" "" false ame desktop windows corner "${where}" lock
+    [[ "${NOTE_CAPTURE}" == true ]] && choice note "${ gettext "Quick note"; }" "" false ame desktop windows corner "${where}" note
+    choice notifications "${ gettext "Notifications"; }" "" false ame desktop windows corner "${where}" notifications
+    [[ "${ ended windows; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
     USAGE="ame desktop windows corner ${where} ACTION"
     item desktop "windows-corner-${where}" choice "${title}" \
-        "$(gettext "What pushing the pointer into this corner does.")" "$(win "corner-${where}")" desktop#hot-corners
+        "${ gettext "What pushing the pointer into this corner does."; }" "${ win "corner-${where}"; }" desktop#hot-corners
 done
 
-GROUP="$(gettext "Touchpad gestures")"
+GROUP="${ gettext "Touchpad gestures"; }"
 for name in pinch spread down today; do
     case "${name}" in
-        pinch) title="$(gettext "Pinch with three fingers for the app grid")" ;;
-        spread) title="$(gettext "Spread three fingers to show the desktop")" ;;
-        down) title="$(gettext "Three fingers down for the app's windows")" ;;
-        today) title="$(gettext "Four fingers left for Today")" ;;
+        pinch) title="${ gettext "Pinch with three fingers for the app grid"; }" ;;
+        spread) title="${ gettext "Spread three fingers to show the desktop"; }" ;;
+        down) title="${ gettext "Three fingers down for the app's windows"; }" ;;
+        today) title="${ gettext "Four fingers left for Today"; }" ;;
     esac
-    [[ "$(ended windows)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
-    [[ "${name}" == spread && "${LAYOUT}" == tiling ]] && DETAIL="$(gettext "They apply once the layout is classic again.")"
+    [[ "${ ended windows; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
+    [[ "${name}" == spread && "${LAYOUT}" == tiling ]] && DETAIL="${ gettext "They apply once the layout is classic again."; }"
     switch_choices false ame desktop windows gesture "${name}"
     USAGE="ame desktop windows gesture ${name} on|off"
-    item desktop "windows-gesture-${name}" switch "${title}" "" "$(onoff "gesture-${name}")" desktop#touchpad-gestures
+    item desktop "windows-gesture-${name}" switch "${title}" "" "${ onoff "gesture-${name}"; }" desktop#touchpad-gestures
 done
 GROUP=""
 
 # The dock (org.gnome.shell.extensions.amethystora-ui.dock): how it moves, what it holds and where it lives, each an
 # ame desktop dock command. Folders and stacks are made on the dock itself.
-DOCK="$(said dock)"
-dock_key() { sed -n "s/^[^ ]* $1 '\{0,1\}\([^']*\)'\{0,1\}$/\1/p" <<<"${DOCK}"; }
-dock_onoff() { [[ "$(dock_key "$1")" == true ]] && echo on || echo off; }
-dock_reason() { [[ "$(ended dock)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"; }
-GROUP="$(gettext "Dock")"
-choice swell "$(gettext "Swell")" "$(gettext "The icons grow in a wave under the pointer")" false ame desktop dock magnify swell
-choice lift "$(gettext "Lift")" "$(gettext "Only the icon under the pointer rises")" false ame desktop dock magnify lift
-choice off "$(gettext "Still")" "$(gettext "Nothing grows")" false ame desktop dock magnify off
+DOCK="${ said dock; }"
+dock_key() { value_of "${DOCK}" "$1" "'?([^']*)'?\$"; }
+dock_onoff() { [[ "${ dock_key "$1"; }" == true ]] && echo on || echo off; }
+dock_reason() { [[ "${ ended dock; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"; }
+GROUP="${ gettext "Dock"; }"
+choice swell "${ gettext "Swell"; }" "${ gettext "The icons grow in a wave under the pointer"; }" false ame desktop dock magnify swell
+choice lift "${ gettext "Lift"; }" "${ gettext "Only the icon under the pointer rises"; }" false ame desktop dock magnify lift
+choice off "${ gettext "Still"; }" "${ gettext "Nothing grows"; }" false ame desktop dock magnify off
 dock_reason
 USAGE="ame desktop dock magnify swell|lift|off"
-item desktop dock-magnify choice "$(gettext "Growing")" "$(gettext "How the icons grow under the pointer.")" \
-    "$(dock_key magnify)" desktop#how-the-dock-moves
+item desktop dock-magnify choice "${ gettext "Growing"; }" "${ gettext "How the icons grow under the pointer."; }" \
+    "${ dock_key magnify; }" desktop#how-the-dock-moves
 dock_reason
-[[ "$(dock_key magnify)" == swell ]] || DETAIL="$(gettext "Only Swell grows this far.")"
+[[ "${ dock_key magnify; }" == swell ]] || DETAIL="${ gettext "Only Swell grows this far."; }"
 EXTRA='{"min": 120, "max": 220, "step": 5, "unit": "%", "terminal": false,
     "command": ["ame", "desktop", "dock", "amount", "{value}"]}'
 USAGE="ame desktop dock amount 120..220"
-item desktop dock-amount range "$(gettext "How far Swell grows")" \
-    "$(gettext "How large the icon under the pointer becomes, in per cent.")" \
-    "$(awk -v a="$(dock_key magnify-amount)" 'BEGIN { if (a != "") printf "%.0f", a * 100 }')" desktop#how-the-dock-moves
-choice halo "$(gettext "Halo")" "$(gettext "A ring runs round the icon")" false ame desktop dock launch halo
-choice hop "$(gettext "Hop")" "$(gettext "The icon hops")" false ame desktop dock launch hop
-choice breathe "$(gettext "Breathe")" "$(gettext "The icon pulses, nothing moves")" false ame desktop dock launch breathe
-choice off "$(gettext "Nothing")" "$(gettext "No sign")" false ame desktop dock launch off
+item desktop dock-amount range "${ gettext "How far Swell grows"; }" \
+    "${ gettext "How large the icon under the pointer becomes, in per cent."; }" \
+    "$(awk -v a="${ dock_key magnify-amount; }" 'BEGIN { if (a != "") printf "%.0f", a * 100 }')" desktop#how-the-dock-moves
+choice halo "${ gettext "Halo"; }" "${ gettext "A ring runs round the icon"; }" false ame desktop dock launch halo
+choice hop "${ gettext "Hop"; }" "${ gettext "The icon hops"; }" false ame desktop dock launch hop
+choice breathe "${ gettext "Breathe"; }" "${ gettext "The icon pulses, nothing moves"; }" false ame desktop dock launch breathe
+choice off "${ gettext "Nothing"; }" "${ gettext "No sign"; }" false ame desktop dock launch off
 dock_reason
 USAGE="ame desktop dock launch halo|hop|breathe|off"
-item desktop dock-launch choice "$(gettext "Starting an app")" "$(gettext "What an app's icon does until its window opens.")" \
-    "$(dock_key launch)" desktop#how-the-dock-moves
-choice bar "$(gettext "Bar")" "$(gettext "Longer with two windows or more")" false ame desktop dock indicator bar
-choice dot "$(gettext "Dots")" "$(gettext "One for each window")" false ame desktop dock indicator dot
-choice glow "$(gettext "Glow")" "$(gettext "Light under the icon")" false ame desktop dock indicator glow
+item desktop dock-launch choice "${ gettext "Starting an app"; }" "${ gettext "What an app's icon does until its window opens."; }" \
+    "${ dock_key launch; }" desktop#how-the-dock-moves
+choice bar "${ gettext "Bar"; }" "${ gettext "Longer with two windows or more"; }" false ame desktop dock indicator bar
+choice dot "${ gettext "Dots"; }" "${ gettext "One for each window"; }" false ame desktop dock indicator dot
+choice glow "${ gettext "Glow"; }" "${ gettext "Light under the icon"; }" false ame desktop dock indicator glow
 dock_reason
 USAGE="ame desktop dock indicator bar|dot|glow"
-item desktop dock-indicator choice "$(gettext "Running apps")" "$(gettext "How an app with windows is marked.")" \
-    "$(dock_key indicator)" desktop#how-the-dock-moves
+item desktop dock-indicator choice "${ gettext "Running apps"; }" "${ gettext "How an app with windows is marked."; }" \
+    "${ dock_key indicator; }" desktop#how-the-dock-moves
 switch_choices false ame desktop dock recent
 dock_reason
 USAGE="ame desktop dock recent on|off"
-item desktop dock-recent switch "$(gettext "Recent apps")" \
-    "$(gettext "The last three apps you used that are not pinned, after a divider.")" "$(dock_onoff recent)" \
+item desktop dock-recent switch "${ gettext "Recent apps"; }" \
+    "${ gettext "The last three apps you used that are not pinned, after a divider."; }" "${ dock_onoff recent; }" \
     desktop#what-the-dock-holds
 switch_choices false ame desktop dock previews
 dock_reason
 USAGE="ame desktop dock previews on|off"
-item desktop dock-previews switch "$(gettext "Window previews")" \
-    "$(gettext "Rest the pointer on an app to see its windows.")" "$(dock_onoff previews)" desktop#what-the-dock-holds
-choice bottom "$(gettext "Bottom")" "" false ame desktop dock edge bottom
-choice left "$(gettext "Left")" "" false ame desktop dock edge left
-choice right "$(gettext "Right")" "" false ame desktop dock edge right
+item desktop dock-previews switch "${ gettext "Window previews"; }" \
+    "${ gettext "Rest the pointer on an app to see its windows."; }" "${ dock_onoff previews; }" desktop#what-the-dock-holds
+choice bottom "${ gettext "Bottom"; }" "" false ame desktop dock edge bottom
+choice left "${ gettext "Left"; }" "" false ame desktop dock edge left
+choice right "${ gettext "Right"; }" "" false ame desktop dock edge right
 dock_reason
 USAGE="ame desktop dock edge bottom|left|right"
-item desktop dock-edge choice "$(gettext "Edge")" "$(gettext "Where the dock is.")" "$(dock_key edge)" \
+item desktop dock-edge choice "${ gettext "Edge"; }" "${ gettext "Where the dock is."; }" "${ dock_key edge; }" \
     desktop#where-the-dock-lives
-choice every "$(gettext "Every screen")" "$(gettext "Each with the apps whose windows are on it")" false \
+choice every "${ gettext "Every screen"; }" "${ gettext "Each with the apps whose windows are on it"; }" false \
     ame desktop dock screens every
-choice primary "$(gettext "Main screen only")" "" false ame desktop dock screens primary
+choice primary "${ gettext "Main screen only"; }" "" false ame desktop dock screens primary
 dock_reason
 USAGE="ame desktop dock screens every|primary"
-item desktop dock-screens choice "$(gettext "Screens")" "$(gettext "Which screens have a dock.")" "$(dock_key screens)" \
+item desktop dock-screens choice "${ gettext "Screens"; }" "${ gettext "Which screens have a dock."; }" "${ dock_key screens; }" \
     desktop#where-the-dock-lives
-choice off "$(gettext "Always shown")" "$(gettext "Windows stop at the dock")" false ame desktop dock autohide off
-choice touch "$(gettext "Hide when a window touches it")" "$(gettext "Push the pointer against the edge to bring it back")" \
+choice off "${ gettext "Always shown"; }" "${ gettext "Windows stop at the dock"; }" false ame desktop dock autohide off
+choice touch "${ gettext "Hide when a window touches it"; }" "${ gettext "Push the pointer against the edge to bring it back"; }" \
     false ame desktop dock autohide touch
 dock_reason
 USAGE="ame desktop dock autohide off|touch"
-item desktop dock-autohide choice "$(gettext "Hiding")" "$(gettext "When the dock gets out of the way.")" \
-    "$(dock_key autohide)" desktop#where-the-dock-lives
+item desktop dock-autohide choice "${ gettext "Hiding"; }" "${ gettext "When the dock gets out of the way."; }" \
+    "${ dock_key autohide; }" desktop#where-the-dock-lives
 switch_choices false ame desktop dock workspace-apps
 dock_reason
 USAGE="ame desktop dock workspace-apps on|off"
-item desktop dock-workspace-apps switch "$(gettext "This workspace's apps only")" \
-    "$(gettext "Running apps of other workspaces leave the dock; pinned apps stay.")" "$(dock_onoff workspace-apps)" \
+item desktop dock-workspace-apps switch "${ gettext "This workspace's apps only"; }" \
+    "${ gettext "Running apps of other workspaces leave the dock; pinned apps stay."; }" "${ dock_onoff workspace-apps; }" \
     desktop#where-the-dock-lives
 GROUP=""
 
 # The app grid's row of the apps used most (appgrid module), and the tips (hints module)
-if [[ "$(said app-grid)" == false ]]; then RECENT=off; else RECENT=on; fi
-[[ "$(ended app-grid)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+if [[ "${ said app-grid; }" == false ]]; then RECENT=off; else RECENT=on; fi
+[[ "${ ended app-grid; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
 switch_choices false ame desktop app-grid recent
 USAGE="ame desktop app-grid recent on|off"
-item desktop app-grid-recent switch "$(gettext "Recently used apps")" \
-    "$(gettext "The apps you use most, in a row at the top of the app grid.")" "${RECENT}" desktop#the-app-grid
-if [[ "$(said hints)" == false ]]; then HINTS=off; else HINTS=on; fi
-[[ "$(ended hints)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+item desktop app-grid-recent switch "${ gettext "Recently used apps"; }" \
+    "${ gettext "The apps you use most, in a row at the top of the app grid."; }" "${RECENT}" desktop#the-app-grid
+if [[ "${ said hints; }" == false ]]; then HINTS=off; else HINTS=on; fi
+[[ "${ ended hints; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
 switch_choices false ame desktop hints
 USAGE="ame desktop hints on|off"
-item desktop hints switch "$(gettext "Tips")" \
-    "$(gettext "A tip the first time a feature can help, once each.")" "${HINTS}" desktop#tips
+item desktop hints switch "${ gettext "Tips"; }" \
+    "${ gettext "A tip the first time a feature can help, once each."; }" "${HINTS}" desktop#tips
 
 # Motion (org.gnome.shell.extensions.amethystora-ui.motion): how a window goes into the dock and comes back, and how
 # workspaces change. Reduce motion is Comfort's, on the Appearance page.
-MOTIONS="$(said motion)"
-motion_key() { sed -n "s/^[^ ]* $1 '\(.*\)'$/\1/p" <<<"${MOTIONS}"; }
+MOTIONS="${ said motion; }"
+motion_key() { value_of "${MOTIONS}" "$1" "'(.*)'\$"; }
 motion_note() {
     if [[ "${MOTION}" == reduce ]]; then
-        DETAIL="$(gettext "Reduce motion is on: windows and workspaces fade instead.")"
-    elif [[ "$(said animations)" == false ]]; then
-        DETAIL="$(gettext "Animations are off in Settings, so nothing moves.")"
+        DETAIL="${ gettext "Reduce motion is on: windows and workspaces fade instead."; }"
+    elif [[ "${ said animations; }" == false ]]; then
+        DETAIL="${ gettext "Animations are off in Settings, so nothing moves."; }"
     fi
-    [[ "$(ended motion)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+    [[ "${ ended motion; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
 }
-GROUP="$(gettext "Motion")"
-choice droplet "$(gettext "Droplet")" "$(gettext "The window gathers into a drop of glass and arcs into its icon")" false \
+GROUP="${ gettext "Motion"; }"
+choice droplet "${ gettext "Droplet"; }" "${ gettext "The window gathers into a drop of glass and arcs into its icon"; }" false \
     ame desktop minimize droplet
-choice shrink "$(gettext "Shrink")" "$(gettext "The window shrinks and fades into its icon")" false \
+choice shrink "${ gettext "Shrink"; }" "${ gettext "The window shrinks and fades into its icon"; }" false \
     ame desktop minimize shrink
 motion_note
 USAGE="ame desktop minimize droplet|shrink"
-item desktop minimize choice "$(gettext "Minimize")" "$(gettext "How a window goes into the dock and comes back.")" \
-    "$(motion_key minimize)" desktop#motion
-choice depth "$(gettext "Depth")" \
-    "$(gettext "The wallpaper slides a third as far as the windows, which step back a little on the way")" false \
+item desktop minimize choice "${ gettext "Minimize"; }" "${ gettext "How a window goes into the dock and comes back."; }" \
+    "${ motion_key minimize; }" desktop#motion
+choice depth "${ gettext "Depth"; }" \
+    "${ gettext "The wallpaper slides a third as far as the windows, which step back a little on the way"; }" false \
     ame desktop workspace-switch depth
-choice slide "$(gettext "Slide")" "$(gettext "Each workspace slides in whole, wallpaper and all")" false \
+choice slide "${ gettext "Slide"; }" "${ gettext "Each workspace slides in whole, wallpaper and all"; }" false \
     ame desktop workspace-switch slide
 motion_note
 USAGE="ame desktop workspace-switch depth|slide"
-item desktop workspace-switch choice "$(gettext "Changing workspace")" \
-    "$(gettext "How one workspace gives way to the next.")" "$(motion_key workspace-switch)" desktop#motion
-GROUP="$(gettext "Workspaces")"
+item desktop workspace-switch choice "${ gettext "Changing workspace"; }" \
+    "${ gettext "How one workspace gives way to the next."; }" "${ motion_key workspace-switch; }" desktop#motion
+GROUP="${ gettext "Workspaces"; }"
 switch_choices false ame desktop space-names
-[[ "$(ended space-names)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+[[ "${ ended space-names; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
 USAGE="ame desktop space-names on|off"
-item desktop space-names switch "$(gettext "Name workspaces after their apps")" \
-    "$(gettext "A workspace you have not named shows the name of the app with most windows on it.")" \
-    "$([[ "$(said space-names)" == true ]] && echo on || echo off)" desktop#workspaces
+item desktop space-names switch "${ gettext "Name workspaces after their apps"; }" \
+    "${ gettext "A workspace you have not named shows the name of the app with most windows on it."; }" \
+    "$([[ "${ said space-names; }" == true ]] && echo on || echo off)" desktop#workspaces
 switch_choices false ame desktop sets
-[[ "$(ended sets)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+[[ "${ ended sets; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
 USAGE="ame desktop sets on|off"
-item desktop sets switch "$(gettext "Saved sets")" \
-    "$(gettext "Save a workspace’s apps and their places from its menu, and open them again.")" \
-    "$([[ "$(said sets)" == true ]] && echo on || echo off)" desktop#saved-sets
+item desktop sets switch "${ gettext "Saved sets"; }" \
+    "${ gettext "Save a workspace’s apps and their places from its menu, and open them again."; }" \
+    "$([[ "${ said sets; }" == true ]] && echo on || echo off)" desktop#saved-sets
 GROUP=""
 
 # How long Amethystora Clipboard, the history on Super+Shift+V, keeps what was copied (keep-history)
 KEEP=""
-if [[ "$(ended clipboard)" == 0 ]]; then
+if [[ "${ ended clipboard; }" == 0 ]]; then
     KEEP="$(said clipboard | tr -d "'")"
 else
-    REASON="$(gettext "The clipboard history's extension is not installed.")"
+    REASON="${ gettext "The clipboard history's extension is not installed."; }"
 fi
-choice always "$(gettext "Always")" "$(gettext "Everything you copied, until you clear it")" false ame desktop clipboard always
-choice restart "$(gettext "Until a restart")" \
-    "$(gettext "Pinned items, and the rest until the computer restarts")" false ame desktop clipboard restart
-choice session "$(gettext "Until you log out")" \
-    "$(gettext "Pinned items, and the rest until you log out")" false ame desktop clipboard session
-GROUP="$(gettext "Clipboard")"
+choice always "${ gettext "Always"; }" "${ gettext "Everything you copied, until you clear it"; }" false ame desktop clipboard always
+choice restart "${ gettext "Until a restart"; }" \
+    "${ gettext "Pinned items, and the rest until the computer restarts"; }" false ame desktop clipboard restart
+choice session "${ gettext "Until you log out"; }" \
+    "${ gettext "Pinned items, and the rest until you log out"; }" false ame desktop clipboard session
+GROUP="${ gettext "Clipboard"; }"
 USAGE="ame desktop clipboard always|restart|session"
-item desktop clipboard choice "$(gettext "Clipboard history")" \
-    "$(gettext "How long what you copy is kept, sealed under a key in your login keyring. Super+Shift+V shows it.")" \
+item desktop clipboard choice "${ gettext "Clipboard history"; }" \
+    "${ gettext "How long what you copy is kept, sealed under a key in your login keyring. Super+Shift+V shows it."; }" \
     "${KEEP}" desktop#the-clipboard
 
 # What the search finds besides GNOME's own (org.gnome.shell.extensions.amethystora-ui.search), each a switch
-SEARCH="$(said search)"
+SEARCH="${ said search; }"
 search_item() {
     local key="$1" title="$2" text="$3"
-    [[ "$(ended search)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+    [[ "${ ended search; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
     switch_choices false ame desktop search "${key}"
-    GROUP="$(gettext "Search")"
+    GROUP="${ gettext "Search"; }"
     USAGE="ame desktop search ${key} on|off"
     item desktop "search-${key}" switch "${title}" "${text}" \
         "$([[ "${SEARCH}" == *" ${key} true"* ]] && echo on || echo off)" desktop#finding-things
 }
-search_item answers "$(gettext "Sums and units")" \
-    "$(gettext "Answers sums and conversions as you type, in your language's numbers.")"
-search_item settings "$(gettext "Settings from Control")" "$(gettext "Finds Control's settings, and changes one with Enter.")"
-search_item manual "$(gettext "The manual")" "$(gettext "Finds the pages of this manual that answer what you typed.")"
-search_item windows "$(gettext "Open windows")" "$(gettext "Finds an open window by its title, on any workspace.")"
-search_item clipboard "$(gettext "Clipboard history")" \
-    "$(gettext "Shows what you copied when you type clip: first, and only then.")"
-search_item agent "$(gettext "Ask the agent")" \
-    "$(gettext "The last row asks the AI agent, while the agentic features are on.")"
-search_item glance "$(gettext "Glance at files")" \
-    "$(gettext "Space shows a file found by the search without opening it.")"
+search_item answers "${ gettext "Sums and units"; }" \
+    "${ gettext "Answers sums and conversions as you type, in your language's numbers."; }"
+search_item settings "${ gettext "Settings from Control"; }" "${ gettext "Finds Control's settings, and changes one with Enter."; }"
+search_item manual "${ gettext "The manual"; }" "${ gettext "Finds the pages of this manual that answer what you typed."; }"
+search_item windows "${ gettext "Open windows"; }" "${ gettext "Finds an open window by its title, on any workspace."; }"
+search_item clipboard "${ gettext "Clipboard history"; }" \
+    "${ gettext "Shows what you copied when you type clip: first, and only then."; }"
+search_item agent "${ gettext "Ask the agent"; }" \
+    "${ gettext "The last row asks the AI agent, while the agentic features are on."; }"
+search_item glance "${ gettext "Glance at files"; }" \
+    "${ gettext "Space shows a file found by the search without opening it."; }"
 GROUP=""
 
 # The skin tone of the hands and people in the emoji picker (Super+.)
 TONE="$(said emoji | tr -d "'")"
-[[ "$(ended emoji)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
-choice none "$(gettext "No tone (yellow)")" "" false ame desktop emoji tone none
-choice light "$(gettext "Light")" "" false ame desktop emoji tone light
-choice medium-light "$(gettext "Medium light")" "" false ame desktop emoji tone medium-light
-choice medium "$(gettext "Medium")" "" false ame desktop emoji tone medium
-choice medium-dark "$(gettext "Medium dark")" "" false ame desktop emoji tone medium-dark
-choice dark "$(gettext "Dark")" "" false ame desktop emoji tone dark
-GROUP="$(gettext "Typing")"
+[[ "${ ended emoji; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
+choice none "${ gettext "No tone (yellow)"; }" "" false ame desktop emoji tone none
+choice light "${ gettext "Light"; }" "" false ame desktop emoji tone light
+choice medium-light "${ gettext "Medium light"; }" "" false ame desktop emoji tone medium-light
+choice medium "${ gettext "Medium"; }" "" false ame desktop emoji tone medium
+choice medium-dark "${ gettext "Medium dark"; }" "" false ame desktop emoji tone medium-dark
+choice dark "${ gettext "Dark"; }" "" false ame desktop emoji tone dark
+GROUP="${ gettext "Typing"; }"
 USAGE="ame desktop emoji tone none|light|medium-light|medium|medium-dark|dark"
-item desktop emoji-tone choice "$(gettext "Emoji skin tone")" \
-    "$(gettext "The tone of hands and people in the emoji picker, Super+..")" "${TONE}" desktop#emoji-and-symbols
+item desktop emoji-tone choice "${ gettext "Emoji skin tone"; }" \
+    "${ gettext "The tone of hands and people in the emoji picker, Super+.."; }" "${TONE}" desktop#emoji-and-symbols
 
 # Text shortcuts (org.gnome.shell.extensions.amethystora-ui.typing): the switch, then the list of them, which holds the
 # abbreviations and how many lines each text has, never a text: the window reads a text with show when Edit is pressed,
 # and hands a new one to add on its stdin, never as an argument other accounts could read in the process list
-[[ "$(ended typing)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+[[ "${ ended typing; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
 switch_choices false ame desktop text-shortcuts
 USAGE="ame desktop text-shortcuts on|off"
-item desktop text-shortcuts switch "$(gettext "Expand text shortcuts")" \
-    "$(gettext "As you type in apps, Amethystora watches the last few characters for your shortcuts. It keeps nothing it reads, never looks at password fields, and works in apps that use GNOME's input method.")" \
-    "$([[ "$(said typing)" == true ]] && echo on || echo off)" desktop#text-shortcuts
-if [[ "$(ended shortcuts)" == 0 ]] && jq -e 'type == "array"' <<<"$(said shortcuts)" >/dev/null 2>&1; then
-    SHORTCUTS="$(said shortcuts)"
+item desktop text-shortcuts switch "${ gettext "Expand text shortcuts"; }" \
+    "${ gettext "As you type in apps, Amethystora watches the last few characters for your shortcuts. It keeps nothing it reads, never looks at password fields, and works in apps that use GNOME's input method."; }" \
+    "$([[ "${ said typing; }" == true ]] && echo on || echo off)" desktop#text-shortcuts
+if [[ "${ ended shortcuts; }" == 0 ]] && jq -e 'type == "array"' <<<"${ said shortcuts; }" >/dev/null 2>&1; then
+    SHORTCUTS="${ said shortcuts; }"
 else
     SHORTCUTS='[]'
-    REASON="$(gettext "Your text shortcuts could not be read.")"
+    REASON="${ gettext "Your text shortcuts could not be read."; }"
 fi
 EXTRA="$(jq -nc --argjson list "${SHORTCUTS}" '{shortcuts: [$list[] | {abbr, lines}], commands: {
     add: {terminal: false, command: ["ame", "desktop", "text-shortcut", "add", "{abbr}"]},
     remove: {terminal: false, command: ["ame", "desktop", "text-shortcut", "remove", "{abbr}"]},
     show: {terminal: false, command: ["ame", "desktop", "text-shortcut", "show", "{abbr}"]}}}')"
 USAGE="ame desktop text-shortcut add ABBR"
-item desktop text-shortcut-list shortcuts "$(gettext "Your shortcuts")" "" "" desktop#text-shortcuts
+item desktop text-shortcut-list shortcuts "${ gettext "Your shortcuts"; }" "" "" desktop#text-shortcuts
 GROUP=""
 
 # How old what is in the trash gets before GNOME's housekeeping empties it (org.gnome.desktop.privacy)
 TRASH=""
-PRIVACY="$(said privacy)"
-if [[ "$(ended privacy)" != 0 ]]; then
-    REASON="$(gettext "GNOME's privacy settings could not be read.")"
+PRIVACY="${ said privacy; }"
+if [[ "${ ended privacy; }" != 0 ]]; then
+    REASON="${ gettext "GNOME's privacy settings could not be read."; }"
 elif [[ "${PRIVACY}" =~ remove-old-trash-files\ true ]]; then
     [[ "${PRIVACY}" =~ old-files-age\ (uint32\ )?([0-9]+) ]] && TRASH="${BASH_REMATCH[2]}"
 else
     TRASH=off
 fi
 # A message for each, which gettext() finds without a process of its own: a plural form took four
-choice 7 "$(gettext "After 7 days")" "" false ame desktop privacy trash 7
-choice 14 "$(gettext "After 14 days")" "" false ame desktop privacy trash 14
-choice 30 "$(gettext "After 30 days")" "" false ame desktop privacy trash 30
-choice 60 "$(gettext "After 60 days")" "" false ame desktop privacy trash 60
-choice off "$(gettext "Never")" "$(gettext "Only when you empty it")" false ame desktop privacy trash off
-GROUP="$(gettext "Privacy")"
+choice 7 "${ gettext "After 7 days"; }" "" false ame desktop privacy trash 7
+choice 14 "${ gettext "After 14 days"; }" "" false ame desktop privacy trash 14
+choice 30 "${ gettext "After 30 days"; }" "" false ame desktop privacy trash 30
+choice 60 "${ gettext "After 60 days"; }" "" false ame desktop privacy trash 60
+choice off "${ gettext "Never"; }" "${ gettext "Only when you empty it"; }" false ame desktop privacy trash off
+GROUP="${ gettext "Privacy"; }"
 USAGE="ame desktop privacy trash DAYS|off"
-item desktop trash choice "$(gettext "Empty the trash")" \
-    "$(gettext "What was deleted longer ago than this leaves the trash by itself, checked every hour while you are logged in. The snapshots and the backup still have it.")" \
+item desktop trash choice "${ gettext "Empty the trash"; }" \
+    "${ gettext "What was deleted longer ago than this leaves the trash by itself, checked every hour while you are logged in. The snapshots and the backup still have it."; }" \
     "${TRASH}" desktop#the-trash
 
 # The widgets, and the commands for each: the window puts a listed widget's id, or a new one it checked
 # against the rule amethystora-widgets has for ids, in the place of {id}
-if [[ "$(ended agent)" == 0 ]]; then AGENTIC=true; else AGENTIC=false; fi
-if [[ "$(ended widgets)" == 0 ]] && jq -e . <<<"$(said widgets)" >/dev/null 2>&1; then
-    WIDGETS="$(said widgets)"
+if [[ "${ ended agent; }" == 0 ]]; then AGENTIC=true; else AGENTIC=false; fi
+if [[ "${ ended widgets; }" == 0 ]] && jq -e . <<<"${ said widgets; }" >/dev/null 2>&1; then
+    WIDGETS="${ said widgets; }"
     [[ "$(jq -r .bar <<<"${WIDGETS}")" == true ]] ||
-        DETAIL="$(gettext "The bar is not showing widgets: the extension that shows them is off.")"
+        DETAIL="${ gettext "The bar is not showing widgets: the extension that shows them is off."; }"
 else
     WIDGETS='{"bar": true, "widgets": []}'
-    REASON="$(gettext "The widgets could not be listed.")"
+    REASON="${ gettext "The widgets could not be listed."; }"
 fi
 EXTRA="$(jq -nc --argjson list "${WIDGETS}" --argjson agentic "${AGENTIC}" \
     --argjson examples "$(find /usr/share/amethystora/widgets/examples -mindepth 1 -maxdepth 1 -type d \
@@ -919,167 +941,173 @@ EXTRA="$(jq -nc --argjson list "${WIDGETS}" --argjson agentic "${AGENTIC}" \
         restart: {terminal: false, command: ["ame", "desktop", "widgets", "restart"]},
         make: {terminal: true, command: ["ame", "desktop", "widgets", "make"]},
         fix: {terminal: true, command: ["ame", "desktop", "widgets", "fix", "{id}"]}}}')"
-GROUP="$(gettext "Top bar")"
+GROUP="${ gettext "Top bar"; }"
 USAGE="ame desktop widgets"
-item desktop widgets widgets "$(gettext "Top bar widgets")" \
-    "$(gettext "Small commands whose output the top bar shows. Each runs as you, with everything you have: keep only the ones you have read.")" \
+item desktop widgets widgets "${ gettext "Top bar widgets"; }" \
+    "${ gettext "Small commands whose output the top bar shows. Each runs as you, with everything you have: keep only the ones you have read."; }" \
     "" widgets
 
 # Quick settings as live tiles: the theme block, and every tile back (org.gnome.shell.extensions.amethystora-ui.quick)
-QUICK_HIDDEN="$(said quick)"
-if [[ "$(ended quick)" != 0 ]]; then
-    REASON="$(gettext "Amethystora UI is not installed.")"
+QUICK_HIDDEN="${ said quick; }"
+if [[ "${ ended quick; }" != 0 ]]; then
+    REASON="${ gettext "Amethystora UI is not installed."; }"
 fi
 if grep -q "'theme'" <<<"${QUICK_HIDDEN}"; then QUICK_THEME=off; else QUICK_THEME=on; fi
 switch_choices false ame desktop quick-settings theme
 USAGE="ame desktop quick-settings theme on|off"
-item desktop quick-theme switch "$(gettext "Theme in quick settings")" \
-    "$(gettext "Every theme as a swatch in quick settings, one tap to switch.")" "${QUICK_THEME}" desktop#quick-settings
-[[ "$(ended quick)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+item desktop quick-theme switch "${ gettext "Theme in quick settings"; }" \
+    "${ gettext "Every theme as a swatch in quick settings, one tap to switch."; }" "${QUICK_THEME}" desktop#quick-settings
+[[ "${ ended quick; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
 COMMAND=(ame desktop quick-settings reset)
 TERMINAL=false
-BUTTON="$(gettext "Put back")"
+BUTTON="${ gettext "Put back"; }"
 USAGE="ame desktop quick-settings reset"
-item desktop quick-tiles action "$(gettext "Quick settings tiles")" \
-    "$(gettext "Hold a tile in quick settings to move or hide it. This puts every tile back.")" "" desktop#quick-settings
+item desktop quick-tiles action "${ gettext "Quick settings tiles"; }" \
+    "${ gettext "Hold a tile in quick settings to move or hide it. This puts every tile back."; }" "" desktop#quick-settings
 
 # The live pill, the privacy dots, the glow, quiet and the digest (org.gnome.shell.extensions.amethystora-ui.pill)
-PILL="$(said pill)"
-pill_key() { sed -n "s/^[^ ]* $1 \(.*\)$/\1/p" <<<"${PILL}"; }
-pill_onoff() { [[ "$(pill_key "$1")" == true ]] && echo on || echo off; }
+PILL="${ said pill; }"
+pill_key() { value_of "${PILL}" "$1" "(.*)\$"; }
+pill_onoff() { [[ "${ pill_key "$1"; }" == true ]] && echo on || echo off; }
 pill_item() {
     local id="$1" title="$2" text="$3" manual="$4"
     shift 4
-    [[ "$(ended pill)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+    [[ "${ ended pill; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
     switch_choices false "$@"
     USAGE="$* on|off"
-    item desktop "${id}" switch "${title}" "${text}" "$(pill_onoff "${PILLKEY}")" "${manual}"
+    item desktop "${id}" switch "${title}" "${text}" "${ pill_onoff "${PILLKEY}"; }" "${manual}"
 }
-GROUP="$(gettext "Top bar")"
-PILLKEY=live pill_item pill "$(gettext "Live pill")" \
-    "$(gettext "The clock shows what is happening now: music, a timer, a call, a recording, a link from the phone, an update ready. Click it for its controls.")" \
+GROUP="${ gettext "Top bar"; }"
+PILLKEY=live pill_item pill "${ gettext "Live pill"; }" \
+    "${ gettext "The clock shows what is happening now: music, a timer, a call, a recording, a link from the phone, an update ready. Click it for its controls."; }" \
     desktop#the-live-pill ame desktop pill
-PILLKEY=privacy-dots pill_item privacy-dots "$(gettext "Privacy dots")" \
-    "$(gettext "A dot in the top bar while the microphone, the camera, the screen or your location is in use. Click it to see which.")" \
+PILLKEY=privacy-dots pill_item privacy-dots "${ gettext "Privacy dots"; }" \
+    "${ gettext "A dot in the top bar while the microphone, the camera, the screen or your location is in use. Click it to see which."; }" \
     desktop#privacy-dots ame desktop pill dots
-PILLKEY=glow pill_item glow "$(gettext "Recording glow")" \
-    "$(gettext "A thin red glow round the screen while it is recorded or shared. It shows in a recording of the whole screen.")" \
+PILLKEY=glow pill_item glow "${ gettext "Recording glow"; }" \
+    "${ gettext "A thin red glow round the screen while it is recorded or shared. It shows in a recording of the whole screen."; }" \
     desktop#privacy-dots ame desktop pill glow
 
 # A top bar on every screen, the bar over fullscreen, Today's tasks and the weather
 # (org.gnome.shell.extensions.amethystora-ui.bars and .today)
-key_of() { sed -n "s/^[^ ]* $2 \(.*\)$/\1/p" <<<"$1"; }
-onoff_of() { [[ "$(key_of "$1" "$2")" == true ]] && echo on || echo off; }
-BARS="$(said bars)"
-TODAY="$(said today)"
+key_of() { value_of "$1" "$2" "(.*)\$"; }
+onoff_of() { [[ "${ key_of "$1" "$2"; }" == true ]] && echo on || echo off; }
+BARS="${ said bars; }"
+TODAY="${ said today; }"
 ui_switch() {
     local source="$1" key="$2" id="$3" title="$4" text="$5" manual="$6" terminal="$7"
     shift 7
-    [[ "$(ended "${source}")" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+    [[ "${ ended "${source}"; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
     switch_choices "${terminal}" "$@"
     USAGE="$* on|off"
     local values="${BARS}"
     [[ "${source}" == today ]] && values="${TODAY}"
-    item desktop "${id}" switch "${title}" "${text}" "$(onoff_of "${values}" "${key}")" "${manual}"
+    item desktop "${id}" switch "${title}" "${text}" "${ onoff_of "${values}" "${key}"; }" "${manual}"
 }
-GROUP="$(gettext "Top bar")"
-ui_switch bars every-screen top-bar-screens "$(gettext "A top bar on every screen")" \
-    "$(gettext "Each screen's own bar shows the workspace on it and the time.")" \
+GROUP="${ gettext "Top bar"; }"
+ui_switch bars every-screen top-bar-screens "${ gettext "A top bar on every screen"; }" \
+    "${ gettext "Each screen's own bar shows the workspace on it and the time."; }" \
     desktop#several-monitors false ame desktop top-bar screens
-ui_switch bars peek top-bar-peek "$(gettext "The top bar over fullscreen")" \
-    "$(gettext "Push the pointer against the top edge of a fullscreen window to see the bar.")" \
+ui_switch bars peek top-bar-peek "${ gettext "The top bar over fullscreen"; }" \
+    "${ gettext "Push the pointer against the top edge of a fullscreen window to see the bar."; }" \
     desktop#the-top-bar false ame desktop top-bar peek
-ui_switch today tasks today-tasks "$(gettext "Today's tasks in the calendar")" \
-    "$(gettext "The tasks due today, from Notes while it is open and unlocked.")" \
+ui_switch today tasks today-tasks "${ gettext "Today's tasks in the calendar"; }" \
+    "${ gettext "The tasks due today, from Notes while it is open and unlocked."; }" \
     desktop#today false ame desktop today tasks
 # It says what it sends before it turns on: in a terminal
-ui_switch today weather weather "$(gettext "Weather beside the clock")" \
-    "$(gettext "Sends the place you chose in Weather to a weather service.")" \
+ui_switch today weather weather "${ gettext "Weather beside the clock"; }" \
+    "${ gettext "Sends the place you chose in Weather to a weather service."; }" \
     desktop#the-weather true ame desktop weather
 
 # GNOME's own rest reminders (org.gnome.desktop.break-reminders)
-case "$(said breaks)" in
+case "${ said breaks; }" in
     *eyesight*movement* | *movement*eyesight*) BREAKS=both ;;
     *eyesight*) BREAKS=eyesight ;;
     *movement*) BREAKS=movement ;;
     *) BREAKS=off ;;
 esac
-[[ "$(ended breaks)" == 0 ]] || REASON="$(gettext "This GNOME has no rest reminders.")"
-GROUP="$(gettext "Rest")"
-choice off "$(gettext "Off")" "" false ame desktop breaks off
-choice eyesight "$(gettext "Look away")" "" false ame desktop breaks eyesight
-choice movement "$(gettext "Stand up")" "" false ame desktop breaks movement
-choice both "$(gettext "Both")" "" false ame desktop breaks both
+[[ "${ ended breaks; }" == 0 ]] || REASON="${ gettext "This GNOME has no rest reminders."; }"
+GROUP="${ gettext "Rest"; }"
+choice off "${ gettext "Off"; }" "" false ame desktop breaks off
+choice eyesight "${ gettext "Look away"; }" "" false ame desktop breaks eyesight
+choice movement "${ gettext "Stand up"; }" "" false ame desktop breaks movement
+choice both "${ gettext "Both"; }" "" false ame desktop breaks both
 USAGE="ame desktop breaks on|eyesight|movement|both|off"
-item desktop breaks choice "$(gettext "Rest reminders")" \
-    "$(gettext "GNOME's reminders to look away or stand up. The times are in Settings, Wellbeing.")" "${BREAKS}" \
+item desktop breaks choice "${ gettext "Rest reminders"; }" \
+    "${ gettext "GNOME's reminders to look away or stand up. The times are in Settings, Wellbeing."; }" "${BREAKS}" \
     desktop#rest-reminders
 
-GROUP="$(gettext "Notifications")"
-PILLKEY=quiet pill_item quiet "$(gettext "Quiet while fullscreen or sharing")" \
-    "$(gettext "Banners wait while a window is fullscreen or the screen is shared or recorded. Calls, alarms and urgent ones still come through.")" \
+GROUP="${ gettext "Notifications"; }"
+PILLKEY=quiet pill_item quiet "${ gettext "Quiet while fullscreen or sharing"; }" \
+    "${ gettext "Banners wait while a window is fullscreen or the screen is shared or recorded. Calls, alarms and urgent ones still come through."; }" \
     desktop#quiet ame desktop quiet
 # Night Light's times, as HH:MM from its decimal hours
-NIGHT="$(said night-light)"
-night_key() { sed -n "s/^[^ ]* $1 \(.*\)$/\1/p" <<<"${NIGHT}"; }
-night_time() { awk -v h="$(night_key "$1")" 'BEGIN { m = int(h * 60 + 0.5) % 1440; printf "%02d:%02d", int(m / 60), m % 60 }'; }
-if [[ "$(night_key night-light-schedule-automatic)" == true ]]; then
-    DETAIL="$(gettext "From sunset to sunrise.")"
-elif [[ "$(ended night-light)" == 0 ]]; then
-    FROM="$(night_time night-light-schedule-from)"
-    TO="$(night_time night-light-schedule-to)"
-    DETAIL="$(eval_gettext "Now \${FROM} to \${TO}.")"
+NIGHT="${ said night-light; }"
+night_key() { value_of "${NIGHT}" "$1" "(.*)\$"; }
+night_time() { awk -v h="${ night_key "$1"; }" 'BEGIN { m = int(h * 60 + 0.5) % 1440; printf "%02d:%02d", int(m / 60), m % 60 }'; }
+if [[ "${ night_key night-light-schedule-automatic; }" == true ]]; then
+    DETAIL="${ gettext "From sunset to sunrise."; }"
+elif [[ "${ ended night-light; }" == 0 ]]; then
+    FROM="${ night_time night-light-schedule-from; }"
+    TO="${ night_time night-light-schedule-to; }"
+    DETAIL="${ eval_gettext "Now \${FROM} to \${TO}."; }"
 fi
-PILLKEY=quiet-night pill_item quiet-night "$(gettext "Quiet at night")" \
-    "$(gettext "Banners wait between Night Light's times.")" desktop#quiet ame desktop quiet night
-PILLKEY=digest pill_item digest "$(gettext "Digest")" \
-    "$(gettext "Banners that are not urgent wait and come together, as one card, at the times you choose.")" \
+PILLKEY=quiet-night pill_item quiet-night "${ gettext "Quiet at night"; }" \
+    "${ gettext "Banners wait between Night Light's times."; }" desktop#quiet ame desktop quiet night
+PILLKEY=digest pill_item digest "${ gettext "Digest"; }" \
+    "${ gettext "Banners that are not urgent wait and come together, as one card, at the times you choose."; }" \
     desktop#the-digest ame desktop digest
 # The digest's times: four sets, or any set from a terminal
 TIMES="$(pill_key digest-times | tr -d "[]' " | sed 's/^@as//')"
-choice 12:00,18:00 "$(gettext "12:00 and 18:00")" "" false ame desktop digest times 12:00 18:00
-choice 09:00,13:00,17:00 "$(gettext "09:00, 13:00 and 17:00")" "" false ame desktop digest times 09:00 13:00 17:00
-choice 08:00,12:00,16:00,20:00 "$(gettext "08:00, 12:00, 16:00 and 20:00")" "" false ame desktop digest times 08:00 12:00 16:00 20:00
-choice 18:00 "$(gettext "18:00")" "" false ame desktop digest times 18:00
+choice 12:00,18:00 "${ gettext "12:00 and 18:00"; }" "" false ame desktop digest times 12:00 18:00
+choice 09:00,13:00,17:00 "${ gettext "09:00, 13:00 and 17:00"; }" "" false ame desktop digest times 09:00 13:00 17:00
+choice 08:00,12:00,16:00,20:00 "${ gettext "08:00, 12:00, 16:00 and 20:00"; }" "" false ame desktop digest times 08:00 12:00 16:00 20:00
+choice 18:00 "${ gettext "18:00"; }" "" false ame desktop digest times 18:00
 case "${TIMES}" in
     12:00,18:00 | 09:00,13:00,17:00 | 08:00,12:00,16:00,20:00 | 18:00 | "") ;;
     *)
         SHOWN="${TIMES//,/, }"
-        DETAIL="$(eval_gettext "Set from a terminal: \${SHOWN}.")"
+        DETAIL="${ eval_gettext "Set from a terminal: \${SHOWN}."; }"
         ;;
 esac
-[[ "$(ended pill)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+[[ "${ ended pill; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
 USAGE="ame desktop digest times HH:MM [HH:MM]..."
-item desktop digest-times choice "$(gettext "Digest times")" "$(gettext "When the digest comes.")" "${TIMES}" \
+item desktop digest-times choice "${ gettext "Digest times"; }" "${ gettext "When the digest comes."; }" "${TIMES}" \
     desktop#the-digest
 GROUP=""
 
 # Focus profiles (org.gnome.shell.extensions.amethystora-ui.focus): the profile picked by hand, the two triggers, and
 # what each of Work, Games and Sleep does, every line of it editable
-FOCUS="$(said focus)"
-focus_key() { sed -n "s/^[^ ]* $1 \(.*\)$/\1/p" <<<"${FOCUS}" | sed "s/^'\(.*\)'$/\1/"; }
-focus_onoff() { [[ "$(focus_key "$1")" == true ]] && echo on || echo off; }
-focus_reason() { [[ "$(ended focus)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"; }
-GROUP="$(gettext "Focus")"
+FOCUS="${ said focus; }"
+focus_key() {
+    local value
+    while IFS= read -r value; do
+        [[ "${value}" =~ ^\'(.*)\'$ ]] && value="${BASH_REMATCH[1]}"
+        printf '%s\n' "${value}"
+    done <<<"${ value_of "${FOCUS}" "$1" "(.*)\$"; }"
+}
+focus_onoff() { [[ "${ focus_key "$1"; }" == true ]] && echo on || echo off; }
+focus_reason() { [[ "${ ended focus; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"; }
+GROUP="${ gettext "Focus"; }"
 focus_reason
-choice off "$(gettext "Off")" "" false ame desktop focus off
-choice work "$(gettext "Work")" "$(gettext "Banners from the apps you choose, no notification sounds")" false ame desktop focus work
-choice games "$(gettext "Games")" "$(gettext "Banners held, performance power, the dock out of the way")" false ame desktop focus games
-choice sleep "$(gettext "Sleep")" "$(gettext "Banners held, Night Light at its warmest, power saver")" false ame desktop focus sleep
+choice off "${ gettext "Off"; }" "" false ame desktop focus off
+choice work "${ gettext "Work"; }" "${ gettext "Banners from the apps you choose, no notification sounds"; }" false ame desktop focus work
+choice games "${ gettext "Games"; }" "${ gettext "Banners held, performance power, the dock out of the way"; }" false ame desktop focus games
+choice sleep "${ gettext "Sleep"; }" "${ gettext "Banners held, Night Light at its warmest, power saver"; }" false ame desktop focus sleep
 USAGE="ame desktop focus off|work|games|sleep [hour|tomorrow]"
-item desktop focus choice "$(gettext "Focus")" \
-    "$(gettext "A profile laid over your settings until you turn it off. Quick settings has it too, with an end after an hour or tomorrow.")" \
-    "$(focus_key profile)" desktop#focus
+item desktop focus choice "${ gettext "Focus"; }" \
+    "${ gettext "A profile laid over your settings until you turn it off. Quick settings has it too, with an end after an hour or tomorrow."; }" \
+    "${ focus_key profile; }" desktop#focus
 focus_reason
 switch_choices false ame desktop focus trigger games
 USAGE="ame desktop focus trigger games on|off"
-item desktop focus-trigger-games switch "$(gettext "Games while a game is in front")" \
-    "$(gettext "Games turns on when a game gets the keyboard and ends when it closes.")" "$(focus_onoff trigger-games)" desktop#focus
+item desktop focus-trigger-games switch "${ gettext "Games while a game is in front"; }" \
+    "${ gettext "Games turns on when a game gets the keyboard and ends when it closes."; }" "${ focus_onoff trigger-games; }" desktop#focus
 focus_reason
 switch_choices false ame desktop focus trigger sleep
 USAGE="ame desktop focus trigger sleep on|off"
-item desktop focus-trigger-sleep switch "$(gettext "Sleep at Night Light's times")" \
-    "$(gettext "Sleep turns on at Night Light's evening time and ends at its morning time.")" "$(focus_onoff trigger-sleep)" \
+item desktop focus-trigger-sleep switch "${ gettext "Sleep at Night Light's times"; }" \
+    "${ gettext "Sleep turns on at Night Light's evening time and ends at its morning time."; }" "${ focus_onoff trigger-sleep; }" \
     desktop#focus
 # The saved workspace sets a profile may open, by name, once there are any
 FOCUS_SETS=()
@@ -1091,51 +1119,51 @@ focus_profile() {
     local p="$1" heading="$2" value
     GROUP="${heading}"
     focus_reason
-    choice shown "$(gettext "As they come")" "" false ame desktop focus edit "${p}" banners shown
-    choice apps "$(gettext "Only the apps chosen")" "" false ame desktop focus edit "${p}" banners apps
-    choice held "$(gettext "Held")" "" false ame desktop focus edit "${p}" banners held
+    choice shown "${ gettext "As they come"; }" "" false ame desktop focus edit "${p}" banners shown
+    choice apps "${ gettext "Only the apps chosen"; }" "" false ame desktop focus edit "${p}" banners apps
+    choice held "${ gettext "Held"; }" "" false ame desktop focus edit "${p}" banners held
     USAGE="ame desktop focus edit ${p} banners shown|apps|held"
-    item desktop "focus-${p}-banners" choice "$(gettext "Banners")" \
-        "$(gettext "Calls, alarms and urgent ones always come through. Held banners wait in the list.")" \
-        "$(focus_key "${p}-banners")" desktop#focus
+    item desktop "focus-${p}-banners" choice "${ gettext "Banners"; }" \
+        "${ gettext "Calls, alarms and urgent ones always come through. Held banners wait in the list."; }" \
+        "${ focus_key "${p}-banners"; }" desktop#focus
     focus_reason
     DETAIL="$(focus_key "${p}-apps" | tr -d "[]'" | sed 's/^@as //')"
     COMMAND=(ame desktop focus edit "${p}" apps)
-    BUTTON="$(gettext "Choose")"
+    BUTTON="${ gettext "Choose"; }"
     USAGE="ame desktop focus edit ${p} apps [APP.desktop...]"
-    item desktop "focus-${p}-apps" action "$(gettext "Apps let through")" \
-        "$(gettext "Whose banners come through while banners are only from the apps chosen.")" "" desktop#focus
+    item desktop "focus-${p}-apps" action "${ gettext "Apps let through"; }" \
+        "${ gettext "Whose banners come through while banners are only from the apps chosen."; }" "" desktop#focus
     focus_reason
     switch_choices false ame desktop focus edit "${p}" sounds
     USAGE="ame desktop focus edit ${p} sounds on|off"
-    item desktop "focus-${p}-sounds" switch "$(gettext "Notification sounds")" "" "$(focus_onoff "${p}-sounds")" desktop#focus
+    item desktop "focus-${p}-sounds" switch "${ gettext "Notification sounds"; }" "" "${ focus_onoff "${p}-sounds"; }" desktop#focus
     focus_reason
-    choice as-set "$(gettext "As set")" "" false ame desktop focus edit "${p}" dock as-set
-    choice touch "$(gettext "Hides while a window touches it")" "" false ame desktop focus edit "${p}" dock touch
+    choice as-set "${ gettext "As set"; }" "" false ame desktop focus edit "${p}" dock as-set
+    choice touch "${ gettext "Hides while a window touches it"; }" "" false ame desktop focus edit "${p}" dock touch
     USAGE="ame desktop focus edit ${p} dock as-set|touch"
-    item desktop "focus-${p}-dock" choice "$(gettext "The dock")" "" "$(focus_key "${p}-dock")" desktop#focus
+    item desktop "focus-${p}-dock" choice "${ gettext "The dock"; }" "" "${ focus_key "${p}-dock"; }" desktop#focus
     focus_reason
     switch_choices false ame desktop focus edit "${p}" lighter
     USAGE="ame desktop focus edit ${p} lighter on|off"
-    item desktop "focus-${p}-lighter" switch "$(gettext "Solid glass and shorter motion")" \
-        "$(gettext "What power saver does to the desktop, for games played in a window.")" "$(focus_onoff "${p}-lighter")" \
+    item desktop "focus-${p}-lighter" switch "${ gettext "Solid glass and shorter motion"; }" \
+        "${ gettext "What power saver does to the desktop, for games played in a window."; }" "${ focus_onoff "${p}-lighter"; }" \
         desktop#focus
     focus_reason
-    choice as-set "$(gettext "As set")" "" false ame desktop focus edit "${p}" night-light as-set
-    choice paused "$(gettext "Paused")" "" false ame desktop focus edit "${p}" night-light paused
-    choice warmest "$(gettext "At its warmest")" "" false ame desktop focus edit "${p}" night-light warmest
+    choice as-set "${ gettext "As set"; }" "" false ame desktop focus edit "${p}" night-light as-set
+    choice paused "${ gettext "Paused"; }" "" false ame desktop focus edit "${p}" night-light paused
+    choice warmest "${ gettext "At its warmest"; }" "" false ame desktop focus edit "${p}" night-light warmest
     USAGE="ame desktop focus edit ${p} night-light as-set|paused|warmest"
-    item desktop "focus-${p}-night-light" choice "$(gettext "Night Light")" "" "$(focus_key "${p}-night-light")" desktop#focus
+    item desktop "focus-${p}-night-light" choice "${ gettext "Night Light"; }" "" "${ focus_key "${p}-night-light"; }" desktop#focus
     focus_reason
-    choice as-set "$(gettext "As set")" "" false ame desktop focus edit "${p}" power as-set
-    choice performance "$(gettext "Performance")" "" false ame desktop focus edit "${p}" power performance
-    choice power-saver "$(gettext "Power saver")" "" false ame desktop focus edit "${p}" power power-saver
+    choice as-set "${ gettext "As set"; }" "" false ame desktop focus edit "${p}" power as-set
+    choice performance "${ gettext "Performance"; }" "" false ame desktop focus edit "${p}" power performance
+    choice power-saver "${ gettext "Power saver"; }" "" false ame desktop focus edit "${p}" power power-saver
     USAGE="ame desktop focus edit ${p} power as-set|performance|power-saver"
-    item desktop "focus-${p}-power" choice "$(gettext "Power mode")" "" "$(focus_key "${p}-power")" desktop#focus
+    item desktop "focus-${p}-power" choice "${ gettext "Power mode"; }" "" "${ focus_key "${p}-power"; }" desktop#focus
     focus_reason
     mapfile -t -O "${#CHOICES[@]}" CHOICES < <(
         {
-            printf '%s\t%s\t%s\n' theme "$(gettext "The theme's")" "${OWN_ACCENT:-#9148f0}"
+            printf '%s\t%s\t%s\n' theme "${ gettext "The theme's"; }" "${OWN_ACCENT:-#9148f0}"
             for entry in "${ACCENTS[@]}"; do
                 printf '%s\t%s\t%s\n' "${entry%% *}" "${ACCENT_NAMES[${entry%% *}]}" "${entry##* }"
             done
@@ -1143,84 +1171,84 @@ focus_profile() {
             command: ["ame", "desktop", "focus", "edit", $p, "accent", .[0]]}'
     )
     USAGE="ame desktop focus edit ${p} accent theme|ACCENT"
-    item desktop "focus-${p}-accent" choice "$(gettext "Accent")" "" "$(focus_key "${p}-accent")" desktop#focus
+    item desktop "focus-${p}-accent" choice "${ gettext "Accent"; }" "" "${ focus_key "${p}-accent"; }" desktop#focus
     focus_reason
-    choice as-set "$(gettext "As set")" "" false ame desktop focus edit "${p}" wallpaper as-set
-    choice night "$(gettext "The night picture")" "$(gettext "Daylight's picture for the night, over yours")" false \
+    choice as-set "${ gettext "As set"; }" "" false ame desktop focus edit "${p}" wallpaper as-set
+    choice night "${ gettext "The night picture"; }" "${ gettext "Daylight's picture for the night, over yours"; }" false \
         ame desktop focus edit "${p}" wallpaper night
     USAGE="ame desktop focus edit ${p} wallpaper as-set|night"
-    item desktop "focus-${p}-wallpaper" choice "$(gettext "Wallpaper")" "" "$(focus_key "${p}-wallpaper")" desktop#focus
+    item desktop "focus-${p}-wallpaper" choice "${ gettext "Wallpaper"; }" "" "${ focus_key "${p}-wallpaper"; }" desktop#focus
     focus_reason
     switch_choices false ame desktop focus edit "${p}" grey
     USAGE="ame desktop focus edit ${p} grey on|off"
-    item desktop "focus-${p}-grey" switch "$(gettext "The screen in grey")" \
-        "$(gettext "One more pass over the whole screen for every frame while it is on.")" "$(focus_onoff "${p}-grey")" \
+    item desktop "focus-${p}-grey" switch "${ gettext "The screen in grey"; }" \
+        "${ gettext "One more pass over the whole screen for every frame while it is on."; }" "${ focus_onoff "${p}-grey"; }" \
         desktop#focus
     if ((${#FOCUS_SETS[@]} > 0)); then
         focus_reason
-        choice none "$(gettext "None")" "" false ame desktop focus edit "${p}" set none
+        choice none "${ gettext "None"; }" "" false ame desktop focus edit "${p}" set none
         for value in "${FOCUS_SETS[@]}"; do
             choice "${value}" "${value}" "" false ame desktop focus edit "${p}" set "${value}"
         done
         USAGE="ame desktop focus edit ${p} set NAME|none"
-        value="$(focus_key "${p}-set")"
-        item desktop "focus-${p}-set" choice "$(gettext "A saved set")" \
-            "$(gettext "Offered, after asking, when you pick the profile yourself.")" "${value:-none}" desktop#focus
+        value="${ focus_key "${p}-set"; }"
+        item desktop "focus-${p}-set" choice "${ gettext "A saved set"; }" \
+            "${ gettext "Offered, after asking, when you pick the profile yourself."; }" "${value:-none}" desktop#focus
     fi
 }
-focus_profile work "$(gettext "Focus: Work")"
-focus_profile games "$(gettext "Focus: Games")"
-focus_profile sleep "$(gettext "Focus: Sleep")"
+focus_profile work "${ gettext "Focus: Work"; }"
+focus_profile games "${ gettext "Focus: Games"; }"
+focus_profile sleep "${ gettext "Focus: Sleep"; }"
 GROUP=""
 
 if [[ -e "${CONFIG_DIR}/no-greeting" ]]; then GREETING=off; else GREETING=on; fi
 switch_choices false ame desktop greeting
-GROUP="$(gettext "Terminal")"
+GROUP="${ gettext "Terminal"; }"
 USAGE="ame desktop greeting on|off"
-item desktop greeting switch "$(gettext "Terminal greeting")" \
-    "$(gettext "The logo, a summary of the machine and a tip, in the first terminal of a session.")" "${GREETING}" terminal#the-greeting
+item desktop greeting switch "${ gettext "Terminal greeting"; }" \
+    "${ gettext "The logo, a summary of the machine and a tip, in the first terminal of a session."; }" "${GREETING}" terminal#the-greeting
 
-BLING="$(said bling)"
-if [[ "$(ended bling)" != 0 ]]; then
+BLING="${ said bling; }"
+if [[ "${ ended bling; }" != 0 ]]; then
     BLING=""
-    REASON="$(gettext "This works with bash, zsh and fish, and your shell is none of them.")"
+    REASON="${ gettext "This works with bash, zsh and fish, and your shell is none of them."; }"
 fi
 switch_choices false ame desktop bling
-GROUP="$(gettext "Terminal")"
+GROUP="${ gettext "Terminal"; }"
 USAGE="ame desktop bling on|off"
-item desktop bling switch "$(gettext "Terminal tools")" \
-    "$(gettext "Your shell uses eza for ls, bat for cat and ugrep for grep, with zoxide, direnv and mise, wherever they are installed.")" \
+item desktop bling switch "${ gettext "Terminal tools"; }" \
+    "${ gettext "Your shell uses eza for ls, bat for cat and ugrep for grep, with zoxide, direnv and mise, wherever they are installed."; }" \
     "${BLING}" terminal#command-line-tools
 
-if [[ "$(said phone)" == enabled ]]; then PHONE=on; else PHONE=off; fi
+if [[ "${ said phone; }" == enabled ]]; then PHONE=on; else PHONE=off; fi
 switch_choices false ame desktop phone
-GROUP="$(gettext "Phone")"
+GROUP="${ gettext "Phone"; }"
 USAGE="ame desktop phone on|off"
-item desktop phone switch "$(gettext "Phone pairing")" \
-    "$(gettext "Notifications, files, texts and calls shared with an Android phone through KDE Connect, on the networks named home.")" "${PHONE}" hardware#phones
+item desktop phone switch "${ gettext "Phone pairing"; }" \
+    "${ gettext "Notifications, files, texts and calls shared with an Android phone through KDE Connect, on the networks named home."; }" "${PHONE}" hardware#phones
 
 # The clipboard goes between this computer and a phone only when chosen, one way at a time: a phone that can paste
 # into a password field is a risk the person takes on knowingly
 for way in send receive; do
-    if [[ "$(ended clipboard-${way})" == 0 && "$(said clipboard-${way})" == true ]]; then SHARED=on; else SHARED=off; fi
+    if [[ "${ ended clipboard-${way}; }" == 0 && "${ said clipboard-${way}; }" == true ]]; then SHARED=on; else SHARED=off; fi
     switch_choices false ame desktop phone clipboard "${way}"
     USAGE="ame desktop phone clipboard ${way} on|off"
     if [[ "${way}" == send ]]; then
-        item desktop phone-clipboard-send switch "$(gettext "Send the clipboard to the phone")" \
-            "$(gettext "What you copy here can be pasted on a phone you paired.")" "${SHARED}" hardware#phones
+        item desktop phone-clipboard-send switch "${ gettext "Send the clipboard to the phone"; }" \
+            "${ gettext "What you copy here can be pasted on a phone you paired."; }" "${SHARED}" hardware#phones
     else
-        item desktop phone-clipboard-receive switch "$(gettext "Take the phone's clipboard")" \
-            "$(gettext "What a paired phone copies is put on this computer's clipboard, where any program can paste it.")" "${SHARED}" hardware#phones
+        item desktop phone-clipboard-receive switch "${ gettext "Take the phone's clipboard"; }" \
+            "${ gettext "What a paired phone copies is put on this computer's clipboard, where any program can paste it."; }" "${SHARED}" hardware#phones
     fi
 done
 
 # Where pictures a phone sends go: Pictures/Phone as the image ships, or with the phone's other files
-if [[ "$(ended phone-photos)" == 0 && "$(said phone-photos)" == "'downloads'" ]]; then PHOTOS=downloads; else PHOTOS=pictures; fi
-choice pictures "$(gettext "Pictures/Phone")" "" false ame desktop phone photos pictures
-choice downloads "$(gettext "Downloads")" "" false ame desktop phone photos downloads
+if [[ "${ ended phone-photos; }" == 0 && "${ said phone-photos; }" == "'downloads'" ]]; then PHOTOS=downloads; else PHOTOS=pictures; fi
+choice pictures "${ gettext "Pictures/Phone"; }" "" false ame desktop phone photos pictures
+choice downloads "${ gettext "Downloads"; }" "" false ame desktop phone photos downloads
 USAGE="ame desktop phone photos pictures|downloads"
-item desktop phone-photos choice "$(gettext "Photos from the phone go to")" \
-    "$(gettext "Pictures a paired phone sends.")" "${PHOTOS}" phone#photos
+item desktop phone-photos choice "${ gettext "Photos from the phone go to"; }" \
+    "${ gettext "Pictures a paired phone sends."; }" "${PHOTOS}" phone#photos
 GROUP=""
 
 # --- Apps ------------------------------------------------------------------------------------------
@@ -1228,126 +1256,126 @@ GROUP=""
 if installed com.valvesoftware.Steam; then GAMES=on; else GAMES=off; fi
 switch_choices true ame apps gaming
 USAGE="ame apps gaming on|off"
-item apps gaming switch "$(gettext "Games")" \
-    "$(gettext "Steam from Flathub, with ProtonPlus, the MangoHud overlay and gamescope. X11 is granted back to Steam alone.")" \
+item apps gaming switch "${ gettext "Games"; }" \
+    "${ gettext "Steam from Flathub, with ProtonPlus, the MangoHud overlay and gamescope. X11 is granted back to Steam alone."; }" \
     "${GAMES}" games#games
 
 if [[ "${GAMES}" == on ]]; then
     COMMAND=(ame apps gaming launchers)
-    BUTTON="$(gettext "Add a store…")"
+    BUTTON="${ gettext "Add a store…"; }"
     USAGE="ame apps gaming launchers"
-    item apps gaming-launchers action "$(gettext "Other game stores")" \
-        "$(gettext "Heroic, for Epic, GOG and Amazon, and Lutris, for games from anywhere else.")" "" games#games
+    item apps gaming-launchers action "${ gettext "Other game stores"; }" \
+        "${ gettext "Heroic, for Epic, GOG and Amazon, and Lutris, for games from anywhere else."; }" "" games#games
 fi
 
 # waydroid-container.service is enabled when Android is set up: the recipe's own test reads root's files
-if [[ "$(said waydroid-enabled)" == enabled ]]; then
+if [[ "${ said waydroid-enabled; }" == enabled ]]; then
     ANDROID=on
-    if [[ "$(said waydroid-active)" == active ]]; then
-        DETAIL="$(gettext "Its container is running.")"
+    if [[ "${ said waydroid-active; }" == active ]]; then
+        DETAIL="${ gettext "Its container is running."; }"
     else
-        DETAIL="$(gettext "Its container is stopped.")"
+        DETAIL="${ gettext "Its container is stopped."; }"
     fi
 else
     ANDROID=off
 fi
 switch_choices true ame apps android
 USAGE="ame apps android on|off"
-item apps android switch "$(gettext "Android apps")" \
-    "$(gettext "Waydroid runs Android, LineageOS without Google's apps, in a container beside your desktop.")" \
+item apps android switch "${ gettext "Android apps"; }" \
+    "${ gettext "Waydroid runs Android, LineageOS without Google's apps, in a container beside your desktop."; }" \
     "${ANDROID}" games#android-apps
 
 if [[ "${ANDROID}" == on ]]; then
-    if [[ "$(said waydroid-active)" == active ]]; then
+    if [[ "${ said waydroid-active; }" == active ]]; then
         COMMAND=(ame apps android stop)
-        BUTTON="$(gettext "Stop…")"
+        BUTTON="${ gettext "Stop…"; }"
         USAGE="ame apps android stop"
-        item apps android-run action "$(gettext "Stop Android")" \
-            "$(gettext "Stops its container until you start it again.")" "" games#android-apps
+        item apps android-run action "${ gettext "Stop Android"; }" \
+            "${ gettext "Stops its container until you start it again."; }" "" games#android-apps
     else
         COMMAND=(ame apps android start)
-        BUTTON="$(gettext "Start…")"
+        BUTTON="${ gettext "Start…"; }"
         USAGE="ame apps android start"
-        item apps android-run action "$(gettext "Start Android")" \
-            "$(gettext "Starts its container and opens Android's own screen.")" "" games#android-apps
+        item apps android-run action "${ gettext "Start Android"; }" \
+            "${ gettext "Starts its container and opens Android's own screen."; }" "" games#android-apps
     fi
 fi
 
 if installed net.opentabletdriver.OpenTabletDriver || [[ -e /etc/udev/rules.d/71-opentabletdriver.rules ]]; then TABLET=on; else TABLET=off; fi
 switch_choices true ame apps opentabletdriver
 USAGE="ame apps opentabletdriver on|off"
-item apps opentabletdriver switch "$(gettext "Drawing tablets")" \
-    "$(gettext "OpenTabletDriver from Flathub, for most drawing tablets: pressure, the pen's buttons, and the part of the screen the tablet covers.")" \
+item apps opentabletdriver switch "${ gettext "Drawing tablets"; }" \
+    "${ gettext "OpenTabletDriver from Flathub, for most drawing tablets: pressure, the pen's buttons, and the part of the screen the tablet covers."; }" \
     "${TABLET}" hardware#drawing-tablets
 
 if [[ -e "${CONFIG_DIR}/aur" ]]; then AUR=on; else AUR=off; fi
 # Turning it on shows what the AUR is first, which is the point of it: that one is in a terminal
-choice on "$(gettext "On")" "" true ame apps aur on
-choice off "$(gettext "Off")" "" false ame apps aur off
+choice on "${ gettext "On"; }" "" true ame apps aur on
+choice off "${ gettext "Off"; }" "" false ame apps aur off
 USAGE="ame apps aur on|off"
-item apps aur switch "$(gettext "The AUR")" \
-    "$(gettext "Packages built from the Arch User Repository, in containers. Anyone can upload to it, and nobody reviews it.")" \
+item apps aur switch "${ gettext "The AUR"; }" \
+    "${ gettext "Packages built from the Arch User Repository, in containers. Anyone can upload to it, and nobody reviews it."; }" \
     "${AUR}" software#the-aur
 
 # A web app is removed by its name as the list gives it, which the window puts in the place of {name}
-if [[ "$(ended webapps)" == 0 ]] && jq -e . <<<"$(said webapps)" >/dev/null 2>&1; then
-    WEBAPPS="$(said webapps)"
+if [[ "${ ended webapps; }" == 0 ]] && jq -e . <<<"${ said webapps; }" >/dev/null 2>&1; then
+    WEBAPPS="${ said webapps; }"
 else
     WEBAPPS='[]'
-    REASON="$(gettext "The web apps could not be listed.")"
+    REASON="${ gettext "The web apps could not be listed."; }"
 fi
 EXTRA="$(jq -nc --argjson list "${WEBAPPS}" '{webapps: $list, commands: {
     install: {terminal: true, command: ["ame", "apps", "webapps", "install"]},
     remove: {terminal: false, command: ["ame", "apps", "webapps", "remove", "{name}"]}}}')"
 USAGE="ame apps webapps install"
-item apps webapps webapps "$(gettext "Web apps")" \
-    "$(gettext "Sites in a window of their own, with a launcher in the app grid.")" "" web-apps
+item apps webapps webapps "${ gettext "Web apps"; }" \
+    "${ gettext "Sites in a window of their own, with a launcher in the app grid."; }" "" web-apps
 
-GROUP="$(gettext "Add-ons")"
+GROUP="${ gettext "Add-ons"; }"
 if [[ -x "${XDG_DATA_HOME:-${HOME}/.local/share}/jetbrains-toolbox/bin/jetbrains-toolbox" ]]; then
-    DETAIL="$(gettext "Installed in your home.")"
-    BUTTON="$(gettext "Install again…")"
+    DETAIL="${ gettext "Installed in your home."; }"
+    BUTTON="${ gettext "Install again…"; }"
     TOOLBOX=installed
 else
-    BUTTON="$(gettext "Install…")"
+    BUTTON="${ gettext "Install…"; }"
     TOOLBOX=""
 fi
 COMMAND=(ame apps jetbrains-toolbox)
 USAGE="ame apps jetbrains-toolbox"
-item apps jetbrains-toolbox action "$(gettext "JetBrains Toolbox")" \
-    "$(gettext "The app that installs JetBrains' IDEs and keeps them up to date, downloaded from JetBrains and checked against the checksum JetBrains publishes.")" \
+item apps jetbrains-toolbox action "${ gettext "JetBrains Toolbox"; }" \
+    "${ gettext "The app that installs JetBrains' IDEs and keeps them up to date, downloaded from JetBrains and checked against the checksum JetBrains publishes."; }" \
     "${TOOLBOX}" developer#other-editors
 
-GROUP="$(gettext "Add-ons")"
+GROUP="${ gettext "Add-ons"; }"
 COMMAND=(ame apps cli)
-BUTTON="$(gettext "Install…")"
+BUTTON="${ gettext "Install…"; }"
 USAGE="ame apps cli"
-item apps cli action "$(gettext "Command-line tools")" \
-    "$(gettext "eza, bat, ripgrep, zoxide, starship and more from Homebrew, with your shell set up to use them.")" \
+item apps cli action "${ gettext "Command-line tools"; }" \
+    "${ gettext "eza, bat, ripgrep, zoxide, starship and more from Homebrew, with your shell set up to use them."; }" \
     "" terminal#command-line-tools
 
-GROUP="$(gettext "Add-ons")"
+GROUP="${ gettext "Add-ons"; }"
 COMMAND=(ame apps bbrew)
-BUTTON="$(gettext "Choose…")"
+BUTTON="${ gettext "Choose…"; }"
 USAGE="ame apps bbrew"
-item apps bbrew action "$(gettext "Homebrew collections")" \
-    "$(gettext "Lists of apps and tools to pick from and install with Homebrew, through Bold Brew, a tool from a third-party tap.")" \
+item apps bbrew action "${ gettext "Homebrew collections"; }" \
+    "${ gettext "Lists of apps and tools to pick from and install with Homebrew, through Bold Brew, a tool from a third-party tap."; }" \
     "" software#command-line-tools-homebrew
 
-GROUP="$(gettext "Add-ons")"
+GROUP="${ gettext "Add-ons"; }"
 COMMAND=(ame apps cncf)
-BUTTON="$(gettext "Choose…")"
+BUTTON="${ gettext "Choose…"; }"
 USAGE="ame apps cncf"
-item apps cncf action "$(gettext "Cloud native tools")" \
-    "$(gettext "The CNCF's projects, Kubernetes and the tools around it, through Bold Brew.")" \
+item apps cncf action "${ gettext "Cloud native tools"; }" \
+    "${ gettext "The CNCF's projects, Kubernetes and the tools around it, through Bold Brew."; }" \
     "" developer#kubernetes-and-the-cloud
 
-GROUP="$(gettext "Add-ons")"
+GROUP="${ gettext "Add-ons"; }"
 COMMAND=(ame apps flatpaks)
-BUTTON="$(gettext "Install…")"
+BUTTON="${ gettext "Install…"; }"
 USAGE="ame apps flatpaks"
-item apps flatpaks action "$(gettext "The apps this image comes with")" \
-    "$(gettext "Installs them now, rather than waiting for the first start with a network.")" \
+item apps flatpaks action "${ gettext "The apps this image comes with"; }" \
+    "${ gettext "Installs them now, rather than waiting for the first start with a network."; }" \
     "" getting-started#3-install-your-apps
 GROUP=""
 
@@ -1357,26 +1385,26 @@ if [[ "${AGENTIC}" == true ]]; then AGENT_STATE=on; else AGENT_STATE=off; fi
 # The account's own level and what the administrator allows it (amethystora-agent policy, agent.conf's one reader),
 # in one read. The defaults are jq's, so that no field is empty for read to run two of them together.
 IFS=$'\t' read -r CEILING CHANGES_ON ROOT_MODE ALLOW < <(jq -r 'if type == "object" then . else {} end
-    | [.ceiling // "act", .tools // false, .root // "session", .allow // "act"] | @tsv' <<<"$(said policy)" 2>/dev/null)
+    | [.ceiling // "act", .tools // false, .root // "session", .allow // "act"] | @tsv' <<<"${ said policy; }" 2>/dev/null)
 [[ -n "${CEILING:-}" ]] || { CEILING=act CHANGES_ON=false ROOT_MODE=session ALLOW=act; }
-[[ "${CEILING}" != off ]] || REASON="$(gettext "An administrator turned the AI agent off for this account.")"
+[[ "${CEILING}" != off ]] || REASON="${ gettext "An administrator turned the AI agent off for this account."; }"
 switch_choices false ame agent toggle
 USAGE="ame agent toggle on|off"
-item agent agent switch "$(gettext "Agentic features")" \
-    "$(gettext "An AI agent that knows this system, off until you turn it on: Super+Ctrl+Shift+A, Ask the agent in Updates, Security and Logs, and the skills that tell it how Amethystora works.")" \
+item agent agent switch "${ gettext "Agentic features"; }" \
+    "${ gettext "An AI agent that knows this system, off until you turn it on: Super+Ctrl+Shift+A, Ask the agent in Updates, Security and Logs, and the skills that tell it how Amethystora works."; }" \
     "${AGENT_STATE}" ai-agent#turning-it-on-and-off
 
 # Level 2: the tools that change things, which need level 1 and an administrator allowing them
 if [[ "${CHANGES_ON}" == true ]]; then CHANGES=on; else CHANGES=off; fi
 if [[ "${AGENTIC}" != true ]]; then
-    REASON="$(gettext "Turn the agentic features on first.")"
+    REASON="${ gettext "Turn the agentic features on first."; }"
 elif [[ "${CEILING}" != act ]]; then
-    REASON="$(gettext "An administrator allows the agent only to know on this machine.")"
+    REASON="${ gettext "An administrator allows the agent only to know on this machine."; }"
 fi
 switch_choices false ame agent tools
 USAGE="ame agent tools on|off"
-item agent agent-tools switch "$(gettext "Let the agent make changes")" \
-    "$(gettext "Its tools set Amethystora's settings, install apps, and hand you commands to run, as root too, each asked for every time in the agent and recorded so that it can be undone.")" \
+item agent agent-tools switch "${ gettext "Let the agent make changes"; }" \
+    "${ gettext "Its tools set Amethystora's settings, install apps, and hand you commands to run, as root too, each asked for every time in the agent and recorded so that it can be undone."; }" \
     "${CHANGES}" ai-agent#what-it-can-do
 
 # "Agentic features: on (claude)", or "(cursor-agent, not installed yet)"
@@ -1386,54 +1414,54 @@ MISSING=""
 # Each agent amethystora-agent offers, as it finds them: "codex<TAB>installed|missing<TAB>Codex"
 while IFS=$'\t' read -r agent state title; do
     [[ -n "${agent}" ]] || continue
-    if [[ "${state}" == installed ]]; then words="$(gettext "Installed")"; else words="$(gettext "Not installed yet")"; fi
+    if [[ "${state}" == installed ]]; then words="${ gettext "Installed"; }"; else words="${ gettext "Not installed yet"; }"; fi
     choice "${agent}" "${title}" "${words}" false ame agent use "${agent}"
     [[ "${agent}" != "${CHOSEN}" || "${state}" == installed ]] || MISSING="${title}"
 done < <(said agents)
-[[ "${AGENTIC}" == true ]] || REASON="$(gettext "The agentic features are off.")"
+[[ "${AGENTIC}" == true ]] || REASON="${ gettext "The agentic features are off."; }"
 USAGE="ame agent use $(said agents | cut -f1 | paste -sd '|')"
-item agent agent-choice choice "$(gettext "Which agent")" \
-    "$(gettext "The agent that Super+Ctrl+Shift+A and Ask the agent open. Each installs the first time you open it, and is kept up to date.")" \
+item agent agent-choice choice "${ gettext "Which agent"; }" \
+    "${ gettext "The agent that Super+Ctrl+Shift+A and Ask the agent open. Each installs the first time you open it, and is kept up to date."; }" \
     "${CHOSEN}" ai-agent#installing-and-updating
 
 if [[ "${AGENTIC}" == true && -n "${MISSING}" ]]; then
     name="${MISSING}"
-    words="$(gettext "With its maker's installer, into your home, where it keeps itself up to date.")"
+    words="${ gettext "With its maker's installer, into your home, where it keeps itself up to date."; }"
     COMMAND=(ame agent install)
-    BUTTON="$(gettext "Install…")"
+    BUTTON="${ gettext "Install…"; }"
     USAGE="ame agent install"
-    item agent agent-install action "$(eval_gettext "Install \${name}")" "${words}" "" ai-agent#installing-and-updating
+    item agent agent-install action "${ eval_gettext "Install \${name}"; }" "${words}" "" ai-agent#installing-and-updating
 fi
 
 COMMAND=(ame agent history)
 TERMINAL=false
-BUTTON="$(gettext "Show")"
+BUTTON="${ gettext "Show"; }"
 USAGE="ame agent history"
-[[ "${AGENTIC}" == true ]] || REASON="$(gettext "The agentic features are off.")"
-item agent agent-history action "$(gettext "What the agent changed")" \
-    "$(gettext "Every change the agent's tools made, newest first, each with its id for undoing it.")" "" ai-agent#history-and-undo
+[[ "${AGENTIC}" == true ]] || REASON="${ gettext "The agentic features are off."; }"
+item agent agent-history action "${ gettext "What the agent changed"; }" \
+    "${ gettext "Every change the agent's tools made, newest first, each with its id for undoing it."; }" "" ai-agent#history-and-undo
 
 # What an administrator sets for every account (/etc/amethystora/agent.conf): how the agent's root commands are
 # allowed, and the lock. Here by the maintainer's choice of 2026-10-18, an exception to Security keeping every
 # security setting: these govern the agent, not a security feature, and each opens in a terminal for an
 # administrator's password.
-GROUP="$(gettext "For every account, set by an administrator")"
-choice session "$(gettext "Once per agent session")" \
-    "$(gettext "One password, then until the agent ends, the screen locks or an hour passes")" true ame agent root session
-choice minutes "$(gettext "For five minutes")" "$(gettext "One password, then five minutes for that agent alone")" true ame agent root minutes
-choice each "$(gettext "Every time")" "$(gettext "A password for every command")" true ame agent root each
-choice terminal "$(gettext "In a terminal")" \
-    "$(gettext "Each command opens in a terminal, where you read it and type your password for sudo")" true ame agent root terminal
+GROUP="${ gettext "For every account, set by an administrator"; }"
+choice session "${ gettext "Once per agent session"; }" \
+    "${ gettext "One password, then until the agent ends, the screen locks or an hour passes"; }" true ame agent root session
+choice minutes "${ gettext "For five minutes"; }" "${ gettext "One password, then five minutes for that agent alone"; }" true ame agent root minutes
+choice each "${ gettext "Every time"; }" "${ gettext "A password for every command"; }" true ame agent root each
+choice terminal "${ gettext "In a terminal"; }" \
+    "${ gettext "Each command opens in a terminal, where you read it and type your password for sudo"; }" true ame agent root terminal
 USAGE="ame agent root session|minutes|each|terminal"
-item agent agent-root choice "$(gettext "Root commands")" \
-    "$(gettext "How the agent may run a command as root, once you let it make changes. It asks you first every time, in the agent.")" \
+item agent agent-root choice "${ gettext "Root commands"; }" \
+    "${ gettext "How the agent may run a command as root, once you let it make changes. It asks you first every time, in the agent."; }" \
     "${ROOT_MODE}" ai-agent#root-commands
-choice act "$(gettext "Know and change")" "$(gettext "Both levels, as each account chooses")" true ame agent lock act
-choice know "$(gettext "Only know")" "$(gettext "The agent and its read-only tools, but no changes")" true ame agent lock know
-choice off "$(gettext "Off")" "$(gettext "No agent features for anyone")" true ame agent lock off
+choice act "${ gettext "Know and change"; }" "${ gettext "Both levels, as each account chooses"; }" true ame agent lock act
+choice know "${ gettext "Only know"; }" "${ gettext "The agent and its read-only tools, but no changes"; }" true ame agent lock know
+choice off "${ gettext "Off"; }" "${ gettext "No agent features for anyone"; }" true ame agent lock off
 USAGE="ame agent lock [ACCOUNT] act|know|off"
-item agent agent-lock choice "$(gettext "Lock for every account")" \
-    "$(gettext "The most any account may turn on; one account can be given its own with ame agent lock ACCOUNT LEVEL. For a child's account, Parental Controls' app filter is the stronger tool.")" \
+item agent agent-lock choice "${ gettext "Lock for every account"; }" \
+    "${ gettext "The most any account may turn on; one account can be given its own with ame agent lock ACCOUNT LEVEL. For a child's account, Parental Controls' app filter is the stronger tool."; }" \
     "${ALLOW}" ai-agent#the-lock
 GROUP=""
 
@@ -1441,60 +1469,60 @@ GROUP=""
 
 IMAGE_NAME="$(jq -r '."image-name" // ""' "${IMAGE_INFO}" 2>/dev/null)"
 IMAGE_TAG="$(jq -r '."image-tag" // ""' "${IMAGE_INFO}" 2>/dev/null)"
-CHOICES_JSON="$(said image)"
+CHOICES_JSON="${ said image; }"
 jq -e . <<<"${CHOICES_JSON}" >/dev/null 2>&1 || CHOICES_JSON='{"images": [], "streams": []}'
 
 # The image with the stream it follows now: the helper still asks, with these chosen, and confirms
 while read -r image; do
     [[ -n "${image}" ]] || continue
     case "${image}" in
-        amethystora) choice "${image}" "Amethystora" "$(gettext "The desktop")" true ame system rebase "${image}" "${IMAGE_TAG}" ;;
-        amethystora-dx) choice "${image}" "Amethystora DX" "$(gettext "With the developer tools")" true \
+        amethystora) choice "${image}" "Amethystora" "${ gettext "The desktop"; }" true ame system rebase "${image}" "${IMAGE_TAG}" ;;
+        amethystora-dx) choice "${image}" "Amethystora DX" "${ gettext "With the developer tools"; }" true \
             ame system rebase "${image}" "${IMAGE_TAG}" ;;
-        amethystora-nvidia-open) choice "${image}" "$(gettext "Amethystora with NVIDIA")" "$(gettext "With NVIDIA's open driver")" true \
+        amethystora-nvidia-open) choice "${image}" "${ gettext "Amethystora with NVIDIA"; }" "${ gettext "With NVIDIA's open driver"; }" true \
             ame system rebase "${image}" "${IMAGE_TAG}" ;;
-        amethystora-dx-nvidia-open) choice "${image}" "$(gettext "Amethystora DX with NVIDIA")" \
-            "$(gettext "The developer tools, and NVIDIA's open driver")" true ame system rebase "${image}" "${IMAGE_TAG}" ;;
-        amethystora-nvidia-lts) choice "${image}" "$(gettext "Amethystora with NVIDIA, older cards")" \
-            "$(gettext "With NVIDIA's driver for the GeForce 900 and 10 series")" true ame system rebase "${image}" "${IMAGE_TAG}" ;;
-        amethystora-dx-nvidia-lts) choice "${image}" "$(gettext "Amethystora DX with NVIDIA, older cards")" \
-            "$(gettext "The developer tools, and NVIDIA's driver for the GeForce 900 and 10 series")" true \
+        amethystora-dx-nvidia-open) choice "${image}" "${ gettext "Amethystora DX with NVIDIA"; }" \
+            "${ gettext "The developer tools, and NVIDIA's open driver"; }" true ame system rebase "${image}" "${IMAGE_TAG}" ;;
+        amethystora-nvidia-lts) choice "${image}" "${ gettext "Amethystora with NVIDIA, older cards"; }" \
+            "${ gettext "With NVIDIA's driver for the GeForce 900 and 10 series"; }" true ame system rebase "${image}" "${IMAGE_TAG}" ;;
+        amethystora-dx-nvidia-lts) choice "${image}" "${ gettext "Amethystora DX with NVIDIA, older cards"; }" \
+            "${ gettext "The developer tools, and NVIDIA's driver for the GeForce 900 and 10 series"; }" true \
             ame system rebase "${image}" "${IMAGE_TAG}" ;;
         *) choice "${image}" "${image}" "" true ame system rebase "${image}" "${IMAGE_TAG}" ;;
     esac
 done < <(jq -r '.images[]' <<<"${CHOICES_JSON}")
-GROUP="$(gettext "The system")"
+GROUP="${ gettext "The system"; }"
 USAGE="ame system rebase IMAGE STREAM"
-item system image choice "$(gettext "Image")" \
-    "$(gettext "The system this machine runs. Switching downloads it, checks its signature, and takes effect at the next restart.")" \
+item system image choice "${ gettext "Image"; }" \
+    "${ gettext "The system this machine runs. Switching downloads it, checks its signature, and takes effect at the next restart."; }" \
     "${IMAGE_NAME}" updates#switching-streams-and-images
 
 while read -r stream; do
     [[ -n "${stream}" ]] || continue
     case "${stream}" in
-        stable) choice stable "$(gettext "Stable")" "$(gettext "Built every week")" true ame system rebase "${IMAGE_NAME}" stable ;;
-        stable-daily) choice stable-daily "$(gettext "Stable, daily")" "$(gettext "The same, built every day")" true \
+        stable) choice stable "${ gettext "Stable"; }" "${ gettext "Built every week"; }" true ame system rebase "${IMAGE_NAME}" stable ;;
+        stable-daily) choice stable-daily "${ gettext "Stable, daily"; }" "${ gettext "The same, built every day"; }" true \
             ame system rebase "${IMAGE_NAME}" stable-daily ;;
-        latest) choice latest "$(gettext "Latest")" "$(gettext "The newest Fedora, for testers")" true \
+        latest) choice latest "${ gettext "Latest"; }" "${ gettext "The newest Fedora, for testers"; }" true \
             ame system rebase "${IMAGE_NAME}" latest ;;
-        stable-sealed) choice stable-sealed "$(gettext "Sealed")" "$(gettext "Stable, with every file checked as it is read")" true \
+        stable-sealed) choice stable-sealed "${ gettext "Sealed"; }" "${ gettext "Stable, with every file checked as it is read"; }" true \
             ame system rebase "${IMAGE_NAME}" stable-sealed ;;
         *) choice "${stream}" "${stream}" "" true ame system rebase "${IMAGE_NAME}" "${stream}" ;;
     esac
 done < <(jq -r '.streams[]' <<<"${CHOICES_JSON}")
-[[ "${SEALED}" == true ]] && REASON="$(gettext "This machine is sealed, so it follows the sealed stream only.")"
-GROUP="$(gettext "The system")"
+[[ "${SEALED}" == true ]] && REASON="${ gettext "This machine is sealed, so it follows the sealed stream only."; }"
+GROUP="${ gettext "The system"; }"
 USAGE="ame system rebase IMAGE STREAM"
-item system stream choice "$(gettext "Stream")" "$(gettext "How new the builds this machine follows are.")" \
+item system stream choice "${ gettext "Stream"; }" "${ gettext "How new the builds this machine follows are."; }" \
     "${IMAGE_TAG}" updates#streams
 
 # amethystora-dx and amethystora-dx-nvidia-open are the developer images
 if grep -qE -e "-dx(-|$)" <<<"${IMAGE_NAME}"; then DEVMODE=on; else DEVMODE=off; fi
 switch_choices true ame system devmode
-GROUP="$(gettext "The system")"
+GROUP="${ gettext "The system"; }"
 USAGE="ame system devmode on|off"
-item system devmode switch "$(gettext "Developer mode")" \
-    "$(gettext "The developer image: VSCodium, Docker and Podman, Incus and virtual machines, and tools for profiling and debugging. Switching takes effect at the next restart.")" \
+item system devmode switch "${ gettext "Developer mode"; }" \
+    "${ gettext "The developer image: VSCodium, Docker and Podman, Incus and virtual machines, and tools for profiling and debugging. Switching takes effect at the next restart."; }" \
     "${DEVMODE}" developer#turning-it-on
 
 # The groups are offered, never joined for anyone: three of them amount to root without a password. The
@@ -1508,26 +1536,26 @@ if [[ "${DEVMODE}" == on ]]; then
     done < <(grep -v '^#' /usr/share/amethystora/developer-groups | awk NF)
     if [[ ${#joined[@]} -gt 0 ]]; then
         GROUPS_JOINED="${joined[*]}"
-        DETAIL="$(eval_gettext "Your account is in: \${GROUPS_JOINED}")"
+        DETAIL="${ eval_gettext "Your account is in: \${GROUPS_JOINED}"; }"
     fi
     COMMAND=(ame system dx-group)
-    BUTTON="$(gettext "Choose…")"
-    GROUP="$(gettext "The system")"
+    BUTTON="${ gettext "Choose…"; }"
+    GROUP="${ gettext "The system"; }"
     USAGE="ame system dx-group [GROUP...]"
-    item system dx-group action "$(gettext "Developer groups")" \
-        "$(gettext "Docker, Incus and virtual machines without sudo, and serial devices. Docker, Incus and libvirt each let any program you run become root without your password.")" \
+    item system dx-group action "${ gettext "Developer groups"; }" \
+        "${ gettext "Docker, Incus and virtual machines without sudo, and serial devices. Docker, Incus and libvirt each let any program you run become root without your password."; }" \
         "" developer#groups
 fi
 
 # The repository and the key come from the window, which checks the one against the rule
 # amethystora-trust-image applies to it and takes the other from a file dialog of its own
 COMMAND=(ame system trust-image "{repository}" "{key}")
-BUTTON="$(gettext "Trust…")"
-[[ "${SEALED}" == true ]] && REASON="$(gettext "A sealed machine follows Amethystora's sealed images only.")"
-GROUP="$(gettext "The system")"
+BUTTON="${ gettext "Trust…"; }"
+[[ "${SEALED}" == true ]] && REASON="${ gettext "A sealed machine follows Amethystora's sealed images only."; }"
+GROUP="${ gettext "The system"; }"
 USAGE="ame system trust-image REPOSITORY KEY"
-item system trust-image trust-image "$(gettext "An image of your own")" \
-    "$(gettext "Takes images from your repository only when your key checks their signature. Do this before switching to an image built from the image template.")" \
+item system trust-image trust-image "${ gettext "An image of your own"; }" \
+    "${ gettext "Takes images from your repository only when your key checks their signature. Do this before switching to an image built from the image template."; }" \
     "" developer#an-image-of-your-own
 
 SCHEDULER=""
@@ -1541,54 +1569,54 @@ if [[ -d /sys/kernel/sched_ext ]]; then
         done
     fi
 else
-    REASON="$(gettext "This kernel cannot hand the scheduling to another program.")"
+    REASON="${ gettext "This kernel cannot hand the scheduling to another program."; }"
 fi
-choice kernel "$(gettext "The kernel's own")" "$(gettext "Suits nearly everything (the default)")" true ame system scheduler kernel
-choice lavd lavd "$(gettext "Keeps games smooth while other work runs")" true ame system scheduler lavd
-choice bpfland bpfland "$(gettext "Keeps the desktop responsive while something heavy builds or renders")" true ame system scheduler bpfland
-choice flash flash "$(gettext "Steady timing, for audio and music work")" true ame system scheduler flash
-GROUP="$(gettext "Hardware")"
+choice kernel "${ gettext "The kernel's own"; }" "${ gettext "Suits nearly everything (the default)"; }" true ame system scheduler kernel
+choice lavd lavd "${ gettext "Keeps games smooth while other work runs"; }" true ame system scheduler lavd
+choice bpfland bpfland "${ gettext "Keeps the desktop responsive while something heavy builds or renders"; }" true ame system scheduler bpfland
+choice flash flash "${ gettext "Steady timing, for audio and music work"; }" true ame system scheduler flash
+GROUP="${ gettext "Hardware"; }"
 USAGE="ame system scheduler NAME"
-item system scheduler choice "$(gettext "CPU scheduler")" "$(gettext "What decides which program runs on the CPU next.")" \
+item system scheduler choice "${ gettext "CPU scheduler"; }" "${ gettext "What decides which program runs on the CPU next."; }" \
     "${SCHEDULER}" games#a-faster-cpu-scheduler-for-games
 
 # What ame system zram chose, in the file it writes; the image's own otherwise
 ZRAM="$(sed -n 's/^# mode: //p' /etc/systemd/zram-generator.conf.d/90-amethystora-choice.conf 2>/dev/null)"
-choice default "$(gettext "Quick, then repacked")" \
-    "$(gettext "The most memory left and the quickest return, for a little work every hour on mains power (the default)")" \
+choice default "${ gettext "Quick, then repacked"; }" \
+    "${ gettext "The most memory left and the quickest return, for a little work every hour on mains power (the default)"; }" \
     true ame system zram default
-choice fast "$(gettext "Quick")" "$(gettext "Nothing runs in the background, but it takes more memory")" true ame system zram fast
-choice compact "$(gettext "Compact")" "$(gettext "Small from the start, but a program that was moved out comes back half as quickly")" \
+choice fast "${ gettext "Quick"; }" "${ gettext "Nothing runs in the background, but it takes more memory"; }" true ame system zram fast
+choice compact "${ gettext "Compact"; }" "${ gettext "Small from the start, but a program that was moved out comes back half as quickly"; }" \
     true ame system zram compact
-GROUP="$(gettext "Hardware")"
+GROUP="${ gettext "Hardware"; }"
 USAGE="ame system zram MODE"
-item system zram choice "$(gettext "Swapped-out memory")" \
-    "$(gettext "How what programs are not using is compressed when RAM runs short. From the next restart.")" \
+item system zram choice "${ gettext "Swapped-out memory"; }" \
+    "${ gettext "How what programs are not using is compressed when RAM runs short. From the next restart."; }" \
     "${ZRAM:-default}" hardware#memory
 
-[[ -d /sys/firmware/efi ]] || REASON="$(gettext "This machine does not start with UEFI.")"
+[[ -d /sys/firmware/efi ]] || REASON="${ gettext "This machine does not start with UEFI."; }"
 COMMAND=(ame system bios)
-BUTTON="$(gettext "Restart…")"
-GROUP="$(gettext "Hardware")"
+BUTTON="${ gettext "Restart…"; }"
+GROUP="${ gettext "Hardware"; }"
 USAGE="ame system bios"
-item system bios action "$(gettext "Restart into the firmware settings")" \
-    "$(gettext "Restarts the machine into its UEFI setup, where Secure Boot and the order of the disks are set. It asks first.")" \
+item system bios action "${ gettext "Restart into the firmware settings"; }" \
+    "${ gettext "Restarts the machine into its UEFI setup, where Secure Boot and the order of the disks are set. It asks first."; }" \
     "" hardware#secure-boot
 
 COMMAND=(ame system clean)
-BUTTON="$(gettext "Free space…")"
-GROUP="$(gettext "Hardware")"
+BUTTON="${ gettext "Free space…"; }"
+GROUP="${ gettext "Hardware"; }"
 USAGE="ame system clean"
-item system clean action "$(gettext "Free disk space")" \
-    "$(gettext "Removes container images and Flatpak runtimes nothing uses, cached update files, and Homebrew's cache, asking first.")" \
+item system clean action "${ gettext "Free disk space"; }" \
+    "${ gettext "Removes container images and Flatpak runtimes nothing uses, cached update files, and Homebrew's cache, asking first."; }" \
     "" troubleshooting#the-disk-is-filling-up
 
 # The pools of disks, as `amethystora-raid status --json` has them, and the system's disks when it spans
 # several: each with the actions that fit it, every command made here from the status, so that the page
 # never names a disk or a pool. Each asks which disk, asks for ERASE or needs a password, so all of them
 # open in a terminal. How a pool is doing is shown here and nowhere else: Security's report has none.
-RAID="$(said raid)"
-if [[ "$(ended raid)" == 0 ]] && jq -e '.version == 1' <<<"${RAID}" >/dev/null 2>&1; then
+RAID="${ said raid; }"
+if [[ "${ ended raid; }" == 0 ]] && jq -e '.version == 1' <<<"${RAID}" >/dev/null 2>&1; then
     # Sizes as disk makers give them: 1.0 TB is 10^12 bytes
     bytes() {
         awk -v b="${1:-0}" 'BEGIN { split("B kB MB GB TB PB", u, " "); i = 1
@@ -1605,93 +1633,93 @@ if [[ "$(ended raid)" == 0 ]] && jq -e '.version == 1' <<<"${RAID}" >/dev/null 2
     while IFS=$'\x1f' read -r name system managed mountpoint layout count encrypted size used mounted missing survives \
         problems busy scrubbed; do
         case "${layout}" in
-            raid1) words="$(gettext "Two copies")" ;;
-            raid1c3) words="$(gettext "Three copies")" ;;
-            raid1c4) words="$(gettext "Four copies")" ;;
-            raid10) words="$(gettext "Striped two copies")" ;;
-            raid5) words="$(gettext "Parity")" ;;
-            raid6) words="$(gettext "Double parity")" ;;
-            single) if [[ "${system}" == true ]]; then words="$(gettext "One copy")"; else words="$(gettext "Combined")"; fi ;;
+            raid1) words="${ gettext "Two copies"; }" ;;
+            raid1c3) words="${ gettext "Three copies"; }" ;;
+            raid1c4) words="${ gettext "Four copies"; }" ;;
+            raid10) words="${ gettext "Striped two copies"; }" ;;
+            raid5) words="${ gettext "Parity"; }" ;;
+            raid6) words="${ gettext "Double parity"; }" ;;
+            single) if [[ "${system}" == true ]]; then words="${ gettext "One copy"; }"; else words="${ gettext "Combined"; }"; fi ;;
             *) words="" ;;
         esac
         TEXT=()
         [[ -n "${words}" ]] && TEXT+=("$(eval_ngettext "\${words}, on \${count} disk." "\${words}, on \${count} disks." "${count}")")
-        [[ "${encrypted}" == true ]] && TEXT+=("$(gettext "Encrypted.")")
+        [[ "${encrypted}" == true ]] && TEXT+=("${ gettext "Encrypted."; }")
         if [[ -n "${size}" && -n "${used}" ]]; then
             used_words="$(bytes "${used}")" size_words="$(bytes "${size}")"
-            TEXT+=("$(eval_gettext "\${used_words} used of \${size_words}.")")
+            TEXT+=("${ eval_gettext "\${used_words} used of \${size_words}."; }")
         fi
         # How it is: the worst of what the status found
         if [[ -n "${busy}" ]]; then
             if [[ "${busy}" == *-replace-* ]]; then
-                TEXT+=("$(gettext "Replacing a disk now.")")
+                TEXT+=("${ gettext "Replacing a disk now."; }")
             elif [[ "${busy}" == *-scrub-* ]]; then
-                TEXT+=("$(gettext "Checking every copy now.")")
+                TEXT+=("${ gettext "Checking every copy now."; }")
             else
-                TEXT+=("$(gettext "Putting its copies where they belong now.")")
+                TEXT+=("${ gettext "Putting its copies where they belong now."; }")
             fi
         elif [[ ",${problems}," == *,mirror-failed,* ]]; then
-            TEXT+=("$(gettext "Mirroring it onto the new disk stopped before the restart from that disk worked. Every file is on both disks.")")
+            TEXT+=("${ gettext "Mirroring it onto the new disk stopped before the restart from that disk worked. Every file is on both disks."; }")
         elif [[ ",${problems}," == *,restart,* ]]; then
-            TEXT+=("$(gettext "Restart to finish: the machine starts once from the new disk, then the first disk joins it for good.")")
+            TEXT+=("${ gettext "Restart to finish: the machine starts once from the new disk, then the first disk joins it for good."; }")
         elif [[ "${mounted}" == false ]]; then
-            TEXT+=("$(gettext "Not open, perhaps because one of its disks is missing. Its files are still on its disks.")")
+            TEXT+=("${ gettext "Not open, perhaps because one of its disks is missing. Its files are still on its disks."; }")
         elif [[ ",${problems}," == *,missing,* ]] && ((missing <= survives)); then
-            TEXT+=("$(gettext "A disk is missing. Every file is still there, with one copy fewer until the disk is replaced.")")
+            TEXT+=("${ gettext "A disk is missing. Every file is still there, with one copy fewer until the disk is replaced."; }")
         elif [[ ",${problems}," == *,missing,* ]]; then
-            TEXT+=("$(gettext "A disk is missing, and the files that were on it cannot be read until it is back.")")
+            TEXT+=("${ gettext "A disk is missing, and the files that were on it cannot be read until it is back."; }")
         elif [[ ",${problems}," == *,failing,* ]]; then
-            TEXT+=("$(gettext "A disk says it is failing: replace it before it stops.")")
+            TEXT+=("${ gettext "A disk says it is failing: replace it before it stops."; }")
         elif [[ ",${problems}," == *,scrub,* ]]; then
-            TEXT+=("$(gettext "The last check found damage it could not repair.")")
+            TEXT+=("${ gettext "The last check found damage it could not repair."; }")
         elif [[ ",${problems}," == *,errors,* ]]; then
-            TEXT+=("$(gettext "A disk has counted read or write errors.")")
+            TEXT+=("${ gettext "A disk has counted read or write errors."; }")
         elif [[ ",${problems}," == *,returned,* ]]; then
-            TEXT+=("$(gettext "A disk that was missing is back, with old copies of what was written while it was away.")")
+            TEXT+=("${ gettext "A disk that was missing is back, with old copies of what was written while it was away."; }")
         elif [[ ",${problems}," == *,degraded,* ]]; then
-            TEXT+=("$(gettext "Part of it has one copy, written while a disk was missing.")")
+            TEXT+=("${ gettext "Part of it has one copy, written while a disk was missing."; }")
         elif [[ ",${problems}," == *,boot,* ]]; then
-            TEXT+=("$(gettext "Its boot files have one copy, so it starts from one of its disks only.")")
+            TEXT+=("${ gettext "Its boot files have one copy, so it starts from one of its disks only."; }")
         elif [[ ",${problems}," == *,unprotected,* ]]; then
-            TEXT+=("$(gettext "Either disk failing loses everything.")")
+            TEXT+=("${ gettext "Either disk failing loses everything."; }")
         else
-            TEXT+=("$(gettext "Fine.")")
+            TEXT+=("${ gettext "Fine."; }")
         fi
         if [[ -n "${layout}" && "${layout}" != single ]]; then
             if [[ -n "${scrubbed}" ]]; then
                 when="$(date -d "@${scrubbed}" +%x)"
-                TEXT+=("$(eval_gettext "Every copy last checked on \${when}.")")
+                TEXT+=("${ eval_gettext "Every copy last checked on \${when}."; }")
             else
-                TEXT+=("$(gettext "Every copy not checked yet.")")
+                TEXT+=("${ gettext "Every copy not checked yet."; }")
             fi
         fi
-        [[ "${layout}" == raid5 || "${layout}" == raid6 ]] && TEXT+=("$(gettext "After a power cut, check every copy.")")
+        [[ "${layout}" == raid5 || "${layout}" == raid6 ]] && TEXT+=("${ gettext "After a power cut, check every copy."; }")
         ACTIONS=()
         # The system keeps copies once mirrored, and is then mended as a pool is
         if [[ "${system}" == true && -n "${layout}" && "${layout}" != single ]]; then
             if [[ ",${problems}," == *,mirror-failed,* ]]; then
-                ACTIONS+=("$(pool_action mirror "$(gettext "Restart from the new disk…")" ame system raid mirror)")
+                ACTIONS+=("$(pool_action mirror "${ gettext "Restart from the new disk…"; }" ame system raid mirror)")
             elif [[ ",${problems}," == *,restart,* ]]; then
                 :
             elif [[ ",${problems}," =~ ,(missing|failing|errors), ]]; then
-                ACTIONS+=("$(pool_action replace "$(gettext "Replace a disk…")" ame system raid replace system)")
+                ACTIONS+=("$(pool_action replace "${ gettext "Replace a disk…"; }" ame system raid replace system)")
             elif [[ ",${problems}," =~ ,(degraded|returned|boot), ]]; then
-                ACTIONS+=("$(pool_action replace "$(gettext "Put the copies back…")" ame system raid replace system)")
+                ACTIONS+=("$(pool_action replace "${ gettext "Put the copies back…"; }" ame system raid replace system)")
             fi
         fi
         if [[ "${managed}" == true ]]; then
             if [[ ",${problems}," =~ ,(missing|failing|errors), ]]; then
-                ACTIONS+=("$(pool_action replace "$(gettext "Replace a disk…")" ame system raid replace "${name}")")
+                ACTIONS+=("$(pool_action replace "${ gettext "Replace a disk…"; }" ame system raid replace "${name}")")
             elif [[ ",${problems}," =~ ,(degraded|returned), ]]; then
-                ACTIONS+=("$(pool_action replace "$(gettext "Put the copies back…")" ame system raid replace "${name}")")
+                ACTIONS+=("$(pool_action replace "${ gettext "Put the copies back…"; }" ame system raid replace "${name}")")
             fi
             [[ "${mounted}" == false ]] &&
-                ACTIONS+=("$(pool_action mount "$(gettext "Open it with a disk missing…")" ame system raid mount "${name}")")
+                ACTIONS+=("$(pool_action mount "${ gettext "Open it with a disk missing…"; }" ame system raid mount "${name}")")
             [[ "${mounted}" == true && "${SPARE}" -gt 0 ]] &&
-                ACTIONS+=("$(pool_action add "$(gettext "Add a disk…")" ame system raid add "${name}")")
-            ACTIONS+=("$(pool_action forget "$(gettext "Forget…")" ame system raid forget "${name}")")
+                ACTIONS+=("$(pool_action add "${ gettext "Add a disk…"; }" ame system raid add "${name}")")
+            ACTIONS+=("$(pool_action forget "${ gettext "Forget…"; }" ame system raid forget "${name}")")
         fi
-        if [[ "${system}" == true ]]; then title="$(gettext "The system's disks")"; else title="$(eval_gettext "\${name}, at \${mountpoint}")"; fi
+        if [[ "${system}" == true ]]; then title="${ gettext "The system's disks"; }"; else title="${ eval_gettext "\${name}, at \${mountpoint}"; }"; fi
         STATE=ok
         [[ -n "${problems}" ]] && STATE=check
         ROWS+=("$(jq -nc --arg id "${name}" --arg title "${title}" --arg text "${TEXT[*]}" --arg state "${STATE}" \
@@ -1701,84 +1729,84 @@ if [[ "$(ended raid)" == 0 ]] && jq -e '.version == 1' <<<"${RAID}" >/dev/null 2
         ((.busy | join(",")) + (.operation // "")), (.scrub.time // "")] | map(tostring) | join("\u001f")' <<<"${RAID}")
     if [[ ${#ROWS[@]} -gt 0 ]]; then
         EXTRA="$(printf '%s\n' "${ROWS[@]}" | jq -sc '{disks: .}')"
-        GROUP="$(gettext "Disks")"
+        GROUP="${ gettext "Disks"; }"
         USAGE="ame system raid status"
-        item system disks disks "$(gettext "Pools of disks")" \
-            "$(gettext "Disks that keep copies of each other, so that one can fail without taking a file with it.")" \
+        item system disks disks "${ gettext "Pools of disks"; }" \
+            "${ gettext "Disks that keep copies of each other, so that one can fail without taking a file with it."; }" \
             "" hardware#pools-of-disks-raid
     fi
 
-    [[ "${SPARE}" -ge 2 ]] || REASON="$(gettext "Needs two disks besides the system's.")"
+    [[ "${SPARE}" -ge 2 ]] || REASON="${ gettext "Needs two disks besides the system's."; }"
     COMMAND=(ame system raid create)
-    BUTTON="$(gettext "Make a pool…")"
-    GROUP="$(gettext "Disks")"
+    BUTTON="${ gettext "Make a pool…"; }"
+    GROUP="${ gettext "Disks"; }"
     USAGE="ame system raid create"
-    item system raid-create action "$(gettext "Make a pool from spare disks")" \
-        "$(gettext "Two or more disks that keep copies of each other, or join into one, in a folder under /var/mnt. It asks which disks, how to lay them out and whether to encrypt them, and erases them only once you type ERASE.")" \
+    item system raid-create action "${ gettext "Make a pool from spare disks"; }" \
+        "${ gettext "Two or more disks that keep copies of each other, or join into one, in a folder under /var/mnt. It asks which disks, how to lay them out and whether to encrypt them, and erases them only once you type ERASE."; }" \
         "" hardware#pools-of-disks-raid
 
     # A system on one disk, laid out as the installer does it, copied onto a new disk at least as large (2b)
     ONTO="$(jq -r '.mirror_onto.reason // (if .mirror_onto.possible == true then "possible" else "" end)' <<<"${RAID}")"
     if [[ "${ONTO}" == possible || "${ONTO}" == no-disk ]]; then
-        [[ "${ONTO}" == no-disk ]] && REASON="$(gettext "Needs a spare disk at least as large as the system's.")"
+        [[ "${ONTO}" == no-disk ]] && REASON="${ gettext "Needs a spare disk at least as large as the system's."; }"
         COMMAND=(ame system raid mirror)
-        BUTTON="$(gettext "Mirror…")"
-        GROUP="$(gettext "Disks")"
+        BUTTON="${ gettext "Mirror…"; }"
+        GROUP="${ gettext "Disks"; }"
         USAGE="ame system raid mirror DISK"
-        item system raid-mirror-disk action "$(gettext "Mirror the system onto a new disk")" \
-            "$(gettext "Copies the system onto a spare disk at least as large as its own, its EFI partition and /boot included, so that the machine starts from either disk and goes on with one dead. It erases that disk once you type ERASE, then restarts once from it.")" \
+        item system raid-mirror-disk action "${ gettext "Mirror the system onto a new disk"; }" \
+            "${ gettext "Copies the system onto a spare disk at least as large as its own, its EFI partition and /boot included, so that the machine starts from either disk and goes on with one dead. It erases that disk once you type ERASE, then restarts once from it."; }" \
             "" hardware#the-systems-own-disks
     fi
 
     if [[ "$(jq -r .system_single <<<"${RAID}")" == true ]]; then
         COMMAND=(ame system raid mirror)
-        BUTTON="$(gettext "Protect…")"
-        GROUP="$(gettext "Disks")"
+        BUTTON="${ gettext "Protect…"; }"
+        GROUP="${ gettext "Disks"; }"
         USAGE="ame system raid mirror"
-        item system raid-mirror action "$(gettext "Protect the system's disks")" \
-            "$(gettext "The system is spread over several disks with one copy of each file, so either one failing loses everything. This keeps a copy on each, erasing nothing. The machine starts from its first disk, or with another disk dead from the boot menu's Start with a disk missing.")" \
+        item system raid-mirror action "${ gettext "Protect the system's disks"; }" \
+            "${ gettext "The system is spread over several disks with one copy of each file, so either one failing loses everything. This keeps a copy on each, erasing nothing. The machine starts from its first disk, or with another disk dead from the boot menu's Start with a disk missing."; }" \
             "" hardware#the-systems-own-disks
     fi
 
     if [[ "$(jq -r .raid <<<"${RAID}")" == true ]]; then
         if [[ "$(jq -r '.scrub_timer // ""' <<<"${RAID}")" == enabled ]]; then SCRUB=on; else SCRUB=off; fi
         switch_choices true ame system raid scrub
-        GROUP="$(gettext "Disks")"
+        GROUP="${ gettext "Disks"; }"
         USAGE="ame system raid scrub on|off"
-        item system raid-scrub switch "$(gettext "Monthly check of every copy")" \
-            "$(gettext "Reads everything on the pools once a month, on mains power, and repairs a damaged copy from a good one.")" \
+        item system raid-scrub switch "${ gettext "Monthly check of every copy"; }" \
+            "${ gettext "Reads everything on the pools once a month, on mains power, and repairs a damaged copy from a good one."; }" \
             "${SCRUB}" hardware#pools-of-disks-raid
 
-        [[ "$(jq -r .scrubbing <<<"${RAID}")" == true ]] && REASON="$(gettext "A check is running now.")"
+        [[ "$(jq -r .scrubbing <<<"${RAID}")" == true ]] && REASON="${ gettext "A check is running now."; }"
         COMMAND=(ame system raid scrub now)
-        BUTTON="$(gettext "Check now…")"
-        GROUP="$(gettext "Disks")"
+        BUTTON="${ gettext "Check now…"; }"
+        GROUP="${ gettext "Disks"; }"
         USAGE="ame system raid scrub now"
-        item system raid-scrub-now action "$(gettext "Check every copy now")" \
-            "$(gettext "The same check, now, in the background. After a power cut, do it for a pool with parity.")" \
+        item system raid-scrub-now action "${ gettext "Check every copy now"; }" \
+            "${ gettext "The same check, now, in the background. After a power cut, do it for a pool with parity."; }" \
             "" hardware#pools-of-disks-raid
     fi
 fi
 
 # Settings back as the image ships them, files and accounts kept: the step before starting over
 COMMAND=(ame system reset-settings)
-BUTTON="$(gettext "Reset settings…")"
-GROUP="$(gettext "Start over")"
+BUTTON="${ gettext "Reset settings…"; }"
+GROUP="${ gettext "Start over"; }"
 USAGE="ame system reset-settings"
-item system reset-settings action "$(gettext "Reset settings")" \
-    "$(gettext "Puts your account's desktop settings, the machine's settings in /etc, or both back as the image ships them. Your files, apps and accounts stay, and so do your language, networks and everything Security sets. Each is saved first, and the same button can undo it.")" \
+item system reset-settings action "${ gettext "Reset settings"; }" \
+    "${ gettext "Puts your account's desktop settings, the machine's settings in /etc, or both back as the image ships them. Your files, apps and accounts stay, and so do your language, networks and everything Security sets. Each is saved first, and the same button can undo it."; }" \
     "" troubleshooting#resetting-settings
 
 # A new installation beside this one: nothing is erased, and the old system can still be started. Not
 # on a sealed machine until it has been tried there.
-[[ "${SEALED}" == true ]] && REASON="$(gettext "Not on a sealed machine yet: it has not been tried on one.")"
+[[ "${SEALED}" == true ]] && REASON="${ gettext "Not on a sealed machine yet: it has not been tried on one."; }"
 COMMAND=(ame system powerwash)
-BUTTON="$(gettext "Start over…")"
+BUTTON="${ gettext "Start over…"; }"
 EXTRA='{"danger": true}'
-GROUP="$(gettext "Start over")"
+GROUP="${ gettext "Start over"; }"
 USAGE="ame system powerwash"
-item system powerwash action "$(gettext "Start over")" \
-    "$(gettext "Makes a new installation of this image beside this one, without your accounts, settings or files. Nothing is erased: the old system stays on the disk, and the boot menu can still start it. Experimental. It asks twice.")" \
+item system powerwash action "${ gettext "Start over"; }" \
+    "${ gettext "Makes a new installation of this image beside this one, without your accounts, settings or files. Nothing is erased: the old system stays on the disk, and the boot menu can still start it. Experimental. It asks twice."; }" \
     "" troubleshooting#starting-over
 GROUP=""
 
@@ -1792,16 +1820,16 @@ EXTRA="$(jq -nc --arg file "${SETUP}" --arg saved "${SAVED}" '{$file,
         save: {terminal: false, command: ["ame", "setup", "save"]},
         apply: {terminal: true, command: ["ame", "setup", "apply"]}}}')"
 USAGE="ame setup save|diff|apply"
-item setup setup-file setup "$(gettext "Your setup file")" \
-    "$(gettext "Your image, apps, containers, extensions, theme and the settings you changed, in one file to keep, compare and apply here or on another machine.")" \
+item setup setup-file setup "${ gettext "Your setup file"; }" \
+    "${ gettext "Your image, apps, containers, extensions, theme and the settings you changed, in one file to keep, compare and apply here or on another machine."; }" \
     "$([[ -n "${SAVED}" ]] && echo saved)" setup
 
 if [[ -r "${CONFIG_DIR}/backup.env" ]]; then
     COMMAND=(ame restore-setup)
-    BUTTON="$(gettext "Restore…")"
+    BUTTON="${ gettext "Restore…"; }"
     USAGE="ame restore-setup"
-    item setup restore-setup action "$(gettext "Make the setup again from a backup")" \
-        "$(gettext "On a new machine: the image, apps, containers and theme of your last backup, each step chosen first.")" \
+    item setup restore-setup action "${ gettext "Make the setup again from a backup"; }" \
+        "${ gettext "On a new machine: the image, apps, containers and theme of your last backup, each step chosen first."; }" \
         "" security#backups
 fi
 
@@ -1810,8 +1838,8 @@ fi
 # Automatic updates are the Updates window's to switch, and backups the Backups window's, where it is
 # installed: the window links to them, with the first one's state
 # uupd's timer where the image has it (is-enabled says nothing of a unit there is not), rpm-ostree's otherwise
-TIMER_STATE="$(said uupd)"
-[[ -n "${TIMER_STATE}" ]] || TIMER_STATE="$(said rpm-ostree)"
+TIMER_STATE="${ said uupd; }"
+[[ -n "${TIMER_STATE}" ]] || TIMER_STATE="${ said rpm-ostree; }"
 if [[ "${TIMER_STATE}" == enabled ]]; then UPDATES=on; else UPDATES=off; fi
 BACKUPS=false
 [[ -x /usr/bin/amethystora-backups ]] && BACKUPS=true
@@ -1843,12 +1871,12 @@ fi
 
 # For a terminal: each setting with what it is now, and the command that changes it
 declare -A HEADINGS=(
-    [appearance]="$(gettext "Appearance")"
-    [desktop]="$(gettext "Desktop")"
-    [apps]="$(gettext "Apps")"
-    [agent]="$(gettext "The AI agent")"
-    [system]="$(gettext "System")"
-    [setup]="$(gettext "Your setup")"
+    [appearance]="${ gettext "Appearance"; }"
+    [desktop]="${ gettext "Desktop"; }"
+    [apps]="${ gettext "Apps"; }"
+    [agent]="${ gettext "The AI agent"; }"
+    [system]="${ gettext "System"; }"
+    [setup]="${ gettext "Your setup"; }"
 )
 for page in appearance desktop apps agent system setup; do
     printf '\n  %s\n' "${HEADINGS[${page}]}"
@@ -1862,4 +1890,4 @@ for page in appearance desktop apps agent system setup; do
            (if .usage != null then "          \(.usage)" else empty end)' <<<"${ITEMS_JSON}"
 done
 echo
-echo "$(gettext "Security settings are in Amethystora Security: ame security status")"
+echo "${ gettext "Security settings are in Amethystora Security: ame security status"; }"

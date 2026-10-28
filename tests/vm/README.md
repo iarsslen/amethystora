@@ -88,6 +88,10 @@ side by side (`vm_start`'s `screens`, each after the first a `secondary-vga` of 
 right); `keys.py`'s fractions are then of all four, and `vm_screenshot` and `vm_mouse` take a `screen`. It signs its
 account in itself (`10-account.sh`).
 
+A machine's suites run in the order of their names, except one that says `# vmlab-order: last` in its first three
+lines: it leaves the machine of no use to the suites after it, and runs after all of them. `90-control-switch.sh`
+does, since it switches to the developer image and ends with Start over, which leaves no test account.
+
 What asks a person something (gum, a typed `ERASE`, a check for a terminal) runs through `in_terminal`, which
 gives the command a terminal of its own (`term.py`), waits for each question and types its answer. The test VM
 has five blank SATA disks besides its own, serials `SPARE-1` to `SPARE-5` (four of 8 GiB, then 10 GiB), new for

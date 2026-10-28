@@ -17,7 +17,9 @@
 // "skip - ..." line per check, and exit status 0 only when it passed. Exit status 100 asks for a reboot:
 // the suite runs again after it, with SUITE_PHASE one higher. A suite whose second line is
 // "# vmlab-vm: installer" runs on a machine of its own installed as the installer lays a disk out, encrypted, and
-// "# vmlab-vm: screens" on the first machine's disk with four screens.
+// "# vmlab-vm: screens" on the first machine's disk with four screens. A suite that leaves its machine of no use to
+// the suites after it (90 switches the image and starts over) says "# vmlab-order: last" in its first lines, and runs
+// after every other suite of that machine; the others run in the order of their names.
 // Exit status 101 runs the next phase in the same boot, for what takes longer than a phase may (30 minutes),
 // and with /var/lib/vmlab-tests/usb.json left (usb_next in lib.sh) USB devices plugged in or out first.
 // A phase that leaves /var/lib/vmlab-tests/next-boot.json gets a power cycle instead of a reboot, with what it
@@ -126,11 +128,15 @@ async function build() {
   return true;
 }
 
-// The machines whose suites are there to run
-const suitesOf = (machine) => fs.readdirSync(SUITES)
-  .filter((f) => /^\d\d-.+\.sh$/.test(f) && (!ONLY || ONLY.includes(f.slice(0, 2)))).sort()
-  .filter((f) => (fs.readFileSync(`${SUITES}/${f}`, 'utf8').split('\n').slice(0, 3).join('\n')
-    .match(/^# vmlab-vm: (installer|screens)$/m)?.[1] ?? 'default') === machine);
+// A machine's suites that are there to run, in the order they run: by name, those that come last after the rest
+const suiteHead = (f) => fs.readFileSync(`${SUITES}/${f}`, 'utf8').split('\n').slice(0, 3).join('\n');
+const comesLast = (f) => /^# vmlab-order: last$/m.test(suiteHead(f));
+const suitesOf = (machine) => {
+  const names = fs.readdirSync(SUITES)
+    .filter((f) => /^\d\d-.+\.sh$/.test(f) && (!ONLY || ONLY.includes(f.slice(0, 2)))).sort()
+    .filter((f) => (suiteHead(f).match(/^# vmlab-vm: (installer|screens)$/m)?.[1] ?? 'default') === machine);
+  return [...names.filter((f) => !comesLast(f)), ...names.filter(comesLast)];
+};
 
 async function disk() {
   const made = new Set();
