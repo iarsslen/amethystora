@@ -10,7 +10,10 @@ Secure Boot and a TPM in the VM lab (`tests/vm`), and runs the suites in `tests/
 an hour or more, so start one only when the user asks. The maintainer's rules for it (2026-10-11):
 
 - A run builds **committed HEAD**, never the working tree.
-- What fails is **fixed, committed and run again**, up to three rounds, then reported.
+- **As few build and test round trips as possible** (the maintainer's rule of 2026-10-29): after a run with
+  failures, keep a VM of the image that run built, fix every failure **live in that VM** and validate it there
+  by rerunning only its suite or step, then carry each fix back here and commit it, and finish with **one final
+  full run**. Every bug a run finds is fixed, not only reported. How: [live-fix.md](live-fix.md).
 - When a local build cannot run, a **GitHub** build on a test branch takes its place.
 
 How to read a failure, try a fix without a full rebuild, and tell the lab's problems from the image's:
@@ -59,13 +62,16 @@ Work through [diagnosing.md](diagnosing.md):
 1. Find the first real error: the build's failing script and command, or the suite's `not ok` with its
    indented reasons, its log, its screenshot and the guest's journal.
 2. Decide whether the lab or the image is wrong. A check that is itself wrong is fixed in the suite.
-3. Try the fix on its own (a container of the image, the running VM) before paying for a rebuild.
+3. Fix it live in the kept VM ([live-fix.md](live-fix.md)): put the changed file into the running guest,
+   reload what reads it, rerun that suite or step, and repeat until it passes there. Only what cannot be
+   changed in a running machine (the kernel, the initramfs, a package, `20-tests.sh` itself) waits for the
+   final run; check such a fix in a container of the image first.
 4. Fix it at its cause, in the fewest lines. Never weaken, skip or delete a check to get a pass.
 5. Commit it: `fix(scope): what was wrong`, a body saying what the run found, and the footer
    `Assisted-by: <model> via Claude Code` (no Co-Authored-By line). One commit per cause.
 6. Add the check that would have caught it, if nothing did: `20-tests.sh` for what is true of the image
    as built, `tests/vm/suites` for what has to happen on a running machine.
-7. Run again: `run.sh` when the image changed, `run.sh test` when only a suite did.
+7. When every failure is fixed and validated live, one final full run (`run.sh`) of the commits.
 
 **Code that is not yours.** Committed code from another session is part of HEAD, and fixing it is part of
 the run. But a file with uncommitted changes in `git status` is being edited right now: report the failure
@@ -75,7 +81,7 @@ instead of editing it.
 or anything the fix would take away from a user: stop on it, report it with the evidence, and go on with
 the rest.
 
-**When to stop.** Three rounds of fix and rerun, or three attempts at the same build error, then report.
+**When to stop.** Three final runs, or three attempts at the same build error, then report.
 If the build cannot run here at all, go to section 5.
 
 ## 4. Report
