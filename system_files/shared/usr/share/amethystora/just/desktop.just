@@ -28,6 +28,184 @@ background IMAGE="":
     fi
     exec amethystora-theme bg next
 
+# Pick the accent of buttons, switches and selections in any theme: one of twelve, or theme for the theme's own
+[positional-arguments]
+accent ACCENT="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    # shellcheck source=/dev/null
+    source /usr/lib/amethystora/theme/lib.sh
+    declare -A names=(
+        [amethyst]="$(gettext "Amethyst")" [iris]="$(gettext "Iris")" [sky]="$(gettext "Sky")" [lagoon]="$(gettext "Lagoon")"
+        [jade]="$(gettext "Jade")" [moss]="$(gettext "Moss")" [amber]="$(gettext "Amber")" [ember]="$(gettext "Ember")"
+        [coral]="$(gettext "Coral")" [rose]="$(gettext "Rose")" [orchid]="$(gettext "Orchid")" [slate]="$(gettext "Slate")"
+        [theme]="$(gettext "Follow the theme")"
+    )
+    accent="${1:-}"
+    if [[ -z "${accent}" ]]; then
+        current="$(account_accent)"
+        for entry in "${ACCENTS[@]}" "theme"; do
+            id="${entry%% *}"
+            printf '%-9s %s\n' "${id}" "${names[${id}]}"
+        done
+        accent="$(gum choose --header "$(gettext "Accent")" --selected "${current:-theme}" \
+            amethyst iris sky lagoon jade moss amber ember coral rose orchid slate theme)"
+    fi
+    if [[ "${accent}" == theme && ! -e "${IMAGE_SETUP_DIR}/accent" ]]; then
+        rm -f "${CONFIG_DIR}/accent"
+    elif [[ "${accent}" == theme ]] || is_accent "${accent}"; then
+        # theme is written down when the image has an accent of its own, which it would otherwise give back
+        mkdir -p "${CONFIG_DIR}"
+        echo "${accent}" >"${CONFIG_DIR}/accent"
+    else
+        echo "usage: ame desktop accent amethyst|iris|sky|lagoon|jade|moss|amber|ember|coral|rose|orchid|slate|theme"
+        exit 64
+    fi
+    # The theme again, with its transition, for the applications too; the wallpaper stays
+    AMETHYSTORA_THEME_QUIET=1 amethystora-theme reload >/dev/null
+    name="${names[${accent}]}"
+    echo "$(eval_gettext "Accent: \${name}. Applications that are open take it when they next start.")"
+
+# Turn Daylight on or off: the theme's first wallpaper by the time of day, dawn, day, dusk and night (without STATE, it flips)
+[positional-arguments]
+daylight STATE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    status="$(amethystora-theme daylight status 2>/dev/null || echo none)"
+    state="${1:-}"
+    if [[ -z "${state}" ]]; then
+        if [[ "${status}" == off ]]; then state=on; else state=off; fi
+    fi
+    case "${state}" in
+        on | off) ;;
+        *)
+            echo "usage: ame desktop daylight on|off"
+            exit 64
+            ;;
+    esac
+    if [[ "${status}" == none ]]; then
+        # Kept for the next theme that has the four pictures
+        if [[ "${state}" == off ]]; then
+            mkdir -p "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora"
+            echo off >"${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/daylight"
+        else
+            rm -f "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/daylight"
+        fi
+        echo "$(gettext "This theme has no Daylight pictures.")"
+        exit 0
+    fi
+    amethystora-theme daylight "${state}"
+    if [[ "${state}" == on ]]; then
+        echo "$(gettext "Daylight wallpapers: on.")"
+    else
+        echo "$(gettext "Daylight wallpapers: off.")"
+    fi
+
+# Take the desktop's colours from the wallpaper: vivid, soft (on), mono or off
+[positional-arguments]
+colours WAY="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    # shellcheck source=/dev/null
+    source /usr/lib/amethystora/theme/lib.sh
+    way="${1:-}"
+    if [[ -z "${way}" ]]; then
+        current="$(colours_way)"
+        echo "vivid  $(gettext "The strongest hue leads")"
+        echo "soft   $(gettext "The same hues, quieter")"
+        echo "mono   $(gettext "Tinted greys, colour on controls only")"
+        echo "off    $(gettext "The theme's own colours")"
+        way="$(gum choose --header "$(gettext "Colours from the wallpaper")" --selected "${current:-soft}" vivid soft mono off)"
+    fi
+    [[ "${way}" == on ]] && way=soft
+    if [[ "${way}" == off && ! -e "${IMAGE_SETUP_DIR}/colours" ]]; then
+        rm -f "${CONFIG_DIR}/colours"
+    elif [[ "${way}" == off ]] || is_colour_way "${way}"; then
+        # off is written down when the image takes colours from the wallpaper itself, which it would otherwise give back
+        mkdir -p "${CONFIG_DIR}"
+        echo "${way}" >"${CONFIG_DIR}/colours"
+    else
+        echo "usage: ame desktop colours vivid|soft|mono|on|off"
+        exit 64
+    fi
+    code=0
+    amethystora-theme colours refresh || code=$?
+    if [[ "${way}" == off ]]; then
+        echo "$(gettext "Colours from the wallpaper: off.")"
+    elif [[ "${code}" == 3 ]]; then
+        echo "$(gettext "Colours from the wallpaper need a picture: this wallpaper is not one.")"
+    else
+        echo "$(eval_gettext "Colours from the wallpaper: \${way}.")"
+    fi
+
+# An accent for each workspace, in the shell and Amethystora's apps (ACTION: on or off, or a workspace's number 1 to 6 and
+# its ACCENT; without ACTION, it flips)
+[positional-arguments]
+accent-per-workspace ACTION="" ACCENT="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    # shellcheck source=/dev/null
+    source /usr/lib/amethystora/theme/lib.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.theme
+    usage="usage: ame desktop accent-per-workspace on|off|1-6 amethyst|iris|sky|lagoon|jade|moss|amber|ember|coral|rose|orchid|slate|theme"
+    action="${1:-}"
+    if [[ -z "${action}" ]]; then
+        if [[ "$(gsettings get "${schema}" accent-per-workspace)" == true ]]; then action=off; else action=on; fi
+    fi
+    case "${action}" in
+        on)
+            # The accents' rules first, so that the shell never looks for a set that is not there
+            AMETHYSTORA_ACCENTS=on amethystora-theme accents
+            gsettings set "${schema}" accent-per-workspace true
+            echo "$(gettext "Accent per workspace: on.")"
+            ;;
+        off)
+            gsettings set "${schema}" accent-per-workspace false
+            amethystora-theme accents
+            rm -f "${XDG_STATE_HOME:-${HOME}/.local/state}/amethystora/workspace-accent"{,.bak}
+            echo "$(gettext "Accent per workspace: off.")"
+            ;;
+        [1-6])
+            accent="${2:-}"
+            if [[ "${accent}" != theme ]] && ! is_accent "${accent}"; then
+                echo "${usage}"
+                exit 64
+            fi
+            mapfile -t list < <(gsettings get "${schema}" workspace-accents | grep -oE "'[^']*'" | tr -d "'")
+            # Anything but an id in the list is the theme's own, as the shell reads it
+            for i in "${!list[@]}"; do
+                if [[ "${list[i]}" != theme ]] && ! is_accent "${list[i]}"; then list[i]=theme; fi
+            done
+            while ((${#list[@]} < action)); do
+                list+=(theme)
+            done
+            list[action - 1]="${accent}"
+            gsettings set "${schema}" workspace-accents "[$(printf "'%s', " "${list[@]}" | sed 's/, $//')]"
+            amethystora-theme accents
+            n="${action}"
+            declare -A names=(
+                [amethyst]="$(gettext "Amethyst")" [iris]="$(gettext "Iris")" [sky]="$(gettext "Sky")" [lagoon]="$(gettext "Lagoon")"
+                [jade]="$(gettext "Jade")" [moss]="$(gettext "Moss")" [amber]="$(gettext "Amber")" [ember]="$(gettext "Ember")"
+                [coral]="$(gettext "Coral")" [rose]="$(gettext "Rose")" [orchid]="$(gettext "Orchid")" [slate]="$(gettext "Slate")"
+                [theme]="$(gettext "Follow the theme")"
+            )
+            name="${names[${accent}]}"
+            echo "$(eval_gettext "Workspace \${n}: \${name}.")"
+            ;;
+        *)
+            echo "${usage}"
+            exit 64
+            ;;
+    esac
+
 # Pick how a new theme or wallpaper is revealed: grow, outer, wipe, wave, fade, random or none (DURATION: how long, 200 to 5000 milliseconds)
 [positional-arguments]
 transition STYLE="" DURATION="":

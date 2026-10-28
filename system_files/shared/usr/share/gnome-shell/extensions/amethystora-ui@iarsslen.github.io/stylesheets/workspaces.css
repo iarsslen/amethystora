@@ -92,3 +92,15 @@
 #panel:overview .amethystora-workspaces-label.amethystora-workspaces-hit {
   color: #ffffff;
 }
+
+/* The Accent submenu, while each workspace has an accent of its own: a dot of each accent before its name, and the
+   desktop's own as a ring */
+.amethystora-workspaces-accent-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 7px;
+}
+
+.amethystora-workspaces-accent-theme {
+  border: 2px solid rgba(128, 128, 128, 0.85);
+}

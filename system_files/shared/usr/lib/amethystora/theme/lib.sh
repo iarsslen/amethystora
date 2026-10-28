@@ -22,6 +22,8 @@
 #   vscode.theme  the VSCodium colour theme to select
 #   backgrounds.list  wallpapers elsewhere on the system, one path per line; the first is the one
 #                 the theme opens on. Every shipped theme lists its pictures here.
+#   daylight.list the opening picture at four times of day, exactly four lines `dawn PATH`, `day PATH`, `dusk PATH`
+#                 and `night PATH` in that order, which Daylight shows as a slideshow GNOME fades through by itself
 #   backgrounds/  wallpapers to cycle with Super+Ctrl+Space
 #
 # Themes ship read-only in /usr/share/amethystora/themes. A directory of the same name in
@@ -99,6 +101,36 @@ UI_FONTS=("Adwaita Sans" Comfortaa "DM Sans" Figtree "Fira Sans" Geist "IBM Plex
 DEFAULT_MONO_FONT="JetBrains Mono"
 MONO_FONT_SIZE=11
 MONO_FONTS=("Adwaita Mono" "DM Mono" "Fira Code" "Geist Mono" "IBM Plex Mono" "JetBrains Mono" "Space Mono" "Victor Mono")
+
+# The twelve accents any theme can take in place of its own (ame desktop accent, Control's Accent), in the order Control
+# shows them, each an id and the fill a button, a switch or a selection is drawn in. Every one carries a white label at
+# 4.5:1 (Sky, Lagoon and Amber are a little darker than the boards drew them for that), so palette.awk keeps the fill as
+# it is in every theme; test-theme-palette.sh measures each of them on every theme's surfaces, and 20-tests.sh holds the
+# list to Control's, the recipe's and the setup file's.
+ACCENTS=(
+    "amethyst #9148f0"
+    "iris #5b5cf0"
+    "sky #2172e2"
+    "lagoon #008194"
+    "jade #16865c"
+    "moss #5b7f1f"
+    "amber #a66800"
+    "ember #c6531c"
+    "coral #d63b5c"
+    "rose #c2338f"
+    "orchid #a43fc7"
+    "slate #5b6680"
+)
+# Colours from the wallpaper (ame desktop colours): the ways /usr/libexec/amethystora-wallpaper-colours works them out,
+# and the only keys of its output that are merged over a theme's colors.toml
+COLOUR_WAYS=(vivid soft mono)
+WALLPAPER_COLOUR_KEYS=(background foreground accent selection_background)
+WALLPAPER_COLOURS="${CONFIG_DIR}/wallpaper-colours.toml"
+# Daylight (ame desktop daylight): the four times of day in the order daylight.list holds them, the moment each
+# picture is fully shown (minutes after midnight), and how long the fade into each takes (minutes)
+DAYLIGHT_TIMES=(dawn day dusk night)
+DAYLIGHT_AT=(390 720 1125 1320)
+DAYLIGHT_FADE=(45 90 90 60)
 
 # GNOME's accent colours, with a representative sRGB value for each, used to pick the closest one
 # for a theme that does not name its own
@@ -289,6 +321,369 @@ colors_get() {
         "${dir}/colors.toml" 2>/dev/null | head -n1
 }
 
+# A line of colors.toml set to KEY = "VALUE", in place of the one it had or added at the end: the staged theme takes the
+# account's accent and the wallpaper's colours key by key, so that every other line (the terminal's colours, the cursor)
+# stays the theme's. Only a key and a colour of the expected shapes are ever written.
+colors_merge() {
+    local file="$1" key="$2" value="$3"
+    [[ ${key} =~ ^[a-z][a-z0-9_]*$ && ${value} =~ ^#[0-9a-f]{6}$ && -f ${file} ]] || return 1
+    awk -v key="${key}" -v line="${key} = \"${value}\"" '
+        { gsub(/\r$/, "") }
+        $0 ~ "^[[:space:]]*[\"'\'']?" key "[\"'\'']?[[:space:]]*=" { if (!done) print line; done = 1; next }
+        { print }
+        END { if (!done) print line }' "${file}" >"${file}.new" && mv "${file}.new" "${file}"
+}
+
+# --- Accents ----------------------------------------------------------------------------------
+
+is_accent() {
+    local entry
+    for entry in "${ACCENTS[@]}"; do
+        [[ $1 == "${entry%% *}" ]] && return 0
+    done
+    return 1
+}
+
+# The fill of one of the twelve accents, by its id
+accent_fill() {
+    local entry
+    for entry in "${ACCENTS[@]}"; do
+        if [[ $1 == "${entry%% *}" ]]; then
+            echo "${entry##* }"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# The accent the account chose (ame desktop accent), else its image's (amethystora-setup bake): an id, or nothing for the
+# theme's own. The account's "theme" is a choice too, which an image's accent does not override. Anything else in either
+# file counts as nothing, so that a stale or hand-edited file never stops a switch.
+account_accent() {
+    local name
+    for name in "$(head -n1 "${CONFIG_DIR}/accent" 2>/dev/null || true)" "$(head -n1 "${IMAGE_SETUP_DIR}/accent" 2>/dev/null || true)"; do
+        [[ ${name} == theme ]] && return 0
+        if is_accent "${name}"; then
+            echo "${name}"
+            return 0
+        fi
+    done
+    return 0
+}
+
+# The accents the workspaces name while each has its own (Amethystora UI's theme module, ame desktop
+# accent-per-workspace), each once and only the twelve's ids: nothing while the feature is off. Read with dconf, which
+# needs no schema; a list never written is the schema's default, WORKSPACE_ACCENTS.
+WORKSPACE_ACCENTS=(theme sky coral jade amber orchid)
+workspace_accent_ids() {
+    local path=/org/gnome/shell/extensions/amethystora-ui/theme list id
+    # AMETHYSTORA_ACCENTS=on: as if it were on, for the command that turns it on, which renders the sets first
+    [[ ${AMETHYSTORA_ACCENTS:-} == on || "$(dconf read "${path}/accent-per-workspace" 2>/dev/null)" == true ]] || return 0
+    list="$(dconf read "${path}/workspace-accents" 2>/dev/null || true)"
+    local -a ids
+    if [[ -n ${list} ]]; then
+        mapfile -t ids < <(grep -oE "'[a-z]+'" <<<"${list}" | tr -d "'")
+    else
+        ids=("${WORKSPACE_ACCENTS[@]}")
+    fi
+    for id in "${ids[@]}"; do
+        is_accent "${id}" && echo "${id}"
+    done | awk '!seen[$0]++'
+}
+
+# The rules of a shell stylesheet rendered with another accent that differ from the theme's own rendering of the same
+# template, each selector put under the class Amethystora UI gives the shell's top group (#uiGroup) while a workspace of
+# that accent is shown: `#uiGroup.amethystora-accent-ID` where the selector names the top group, `.amethystora-accent-ID `
+# before it where not. One class more than the theme's own rule, so it wins over that rule and keeps the order the
+# theme's rules have among themselves. The two files are renderings of one template, so their rules pair up in order.
+# Mind the load order: at login the overlays load before the modules' own stylesheets and after a theme switch after
+# them, and St gives a tie to the stylesheet loaded first. A module rule exactly one class more specific than a theme
+# rule that carries the accent would tie with the overlay and win or lose by that order: give such a rule a class more.
+css_accent_overlay() {
+    local base="$1" accent="$2" id="$3"
+    awk -v id="${id}" '
+        # The text with its comments taken out
+        function bare(t,   out, i, j) {
+            out = ""
+            while ((i = index(t, "/*")) > 0) {
+                j = index(substr(t, i + 2), "*/")
+                if (j == 0) { t = substr(t, 1, i - 1); break }
+                out = out substr(t, 1, i - 1)
+                t = substr(t, i + j + 3)
+            }
+            return out t
+        }
+        function blocks(t, list,   n) {
+            n = split(t, list, "}")
+            return n
+        }
+        function under(selectors,   n, part, k, s, out) {
+            n = split(selectors, part, ",")
+            out = ""
+            for (k = 1; k <= n; k++) {
+                s = part[k]
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", s)
+                if (s == "") continue
+                if (s ~ /^#uiGroup([.:[:space:]]|$)/) s = "#uiGroup.amethystora-accent-" id substr(s, 9)
+                else s = ".amethystora-accent-" id " " s
+                out = out (out == "" ? "" : ",\n") s
+            }
+            return out
+        }
+        FNR == 1 { file++ }
+        { text[file] = text[file] $0 "\n" }
+        END {
+            n = blocks(bare(text[1]), A)
+            m = blocks(bare(text[2]), B)
+            if (n != m) exit 1
+            for (k = 1; k < n; k++) {
+                if (A[k] == B[k]) continue
+                split(B[k], rule, "{")
+                selectors = rule[1]
+                sub(/^[^{]*\{/, "", B[k])
+                printf "%s {%s}\n", under(selectors), B[k]
+            }
+        }' "${base}" "${accent}"
+}
+
+# An accent per workspace (ame desktop accent-per-workspace): for each accent the workspaces name, the shell's
+# stylesheets and the Amethystora apps' palette rendered with it over the staged colours, into accents/<id>/ beside the
+# theme's: shell-accent.css, the shell's rules that the accent changes, under a class Amethystora UI's theme module gives
+# the shell's top group while a workspace of that accent is shown, and palette.toml, which the apps read in place of the
+# theme's then. Each is rendered from the theme's own folders, as stage_theme copies them, with the staged colours: a
+# file the theme ships itself (mono.theme, a hand-written stylesheet) is then the same for every accent and stays out of
+# the overlay. Nothing while the feature is off.
+render_accent_sets() {
+    local staging="$1" slug="$2" id dir file
+    rm -rf "${staging}/accents"
+    local -a ids
+    mapfile -t ids < <(workspace_accent_ids)
+    ((${#ids[@]} > 0)) || return 0
+    mkdir -p "${staging}/accents"
+    for id in "${ids[@]}"; do
+        dir="${staging}/accents/${id}"
+        mkdir -p "${dir}"
+        # The theme's own files only, the top of its folder, which is all render_templates reads: not its pictures
+        find "${SYSTEM_THEMES_DIR}/${slug}" "${USER_THEMES_DIR}/${slug}" -mindepth 1 -maxdepth 1 -type f \
+            -exec cp -f -t "${dir}" {} + 2>/dev/null || true
+        chmod -R u+w "${dir}"
+        cp "${staging}/colors.toml" "${dir}/colors.toml"
+        colors_merge "${dir}/colors.toml" accent "$(accent_fill "${id}")"
+        if ! RENDER_ONLY='^(shell-[a-z]+\.css|palette\.toml)\.tpl$' render_templates "${dir}" "theme_name=${slug}" 2>/dev/null; then
+            rm -rf "${dir}"
+            continue
+        fi
+        # The shell takes only the rules the accent changes (css_accent_overlay), so that a workspace switch changes a
+        # class rather than reloading stylesheets, which restyles the whole stage each time
+        for file in "${dir}"/shell-*.css; do
+            if [[ -f ${file} && -f "${staging}/${file##*/}" ]]; then
+                css_accent_overlay "${staging}/${file##*/}" "${file}" "${id}" || true
+            fi
+        done >"${dir}/.shell-accent.css"
+        # The apps' palette, where the accent changes it, and nothing else of the theme's
+        if cmp -s "${dir}/palette.toml" "${staging}/palette.toml"; then
+            rm -f "${dir}/palette.toml"
+        fi
+        find "${dir}" -mindepth 1 -maxdepth 1 ! -name palette.toml ! -name .shell-accent.css -exec rm -rf {} +
+        mv "${dir}/.shell-accent.css" "${dir}/shell-accent.css"
+    done
+}
+
+# One amethystora-theme at a time for the account: a theme switch, the wallpaper's colours, the accents' sets and Daylight
+# all write into current/, and the shell starts some of them by itself. Taken again by the same process, it is a no-op.
+# The lock is beside current/, not in it, so that taking current/ away never makes a second lock. Nothing waits for it
+# for ever: after two minutes the command gives up and says so. Children that may outlive the command (the theme's
+# hooks) are run with its descriptor closed (THEME_LOCK_FD), so that a daemon a hook starts never holds it.
+theme_lock() {
+    [[ -n ${AMETHYSTORA_THEME_LOCKED:-} ]] && return 0
+    mkdir -p "${CONFIG_DIR}"
+    exec {THEME_LOCK_FD}>"${CONFIG_DIR}/.theme.lock"
+    flock -w 120 "${THEME_LOCK_FD}" ||
+        die "another amethystora-theme has been working for two minutes and is still not done: try again once it is"
+    export AMETHYSTORA_THEME_LOCKED=1
+}
+
+# --- Colours from the wallpaper -----------------------------------------------------------------
+
+is_colour_way() {
+    local way
+    for way in "${COLOUR_WAYS[@]}"; do
+        [[ $1 == "${way}" ]] && return 0
+    done
+    return 1
+}
+
+# The way the account takes its colours from the wallpaper (ame desktop colours), else its image's, else nothing (off).
+# The account's "off" is a choice too, which an image's way does not override.
+colours_way() {
+    local name
+    for name in "$(head -n1 "${CONFIG_DIR}/colours" 2>/dev/null || true)" "$(head -n1 "${IMAGE_SETUP_DIR}/colours" 2>/dev/null || true)"; do
+        [[ ${name} == off ]] && return 0
+        if is_colour_way "${name}"; then
+            echo "${name}"
+            return 0
+        fi
+    done
+    return 0
+}
+
+# The folder a theme's own colors.toml is read from: the account's copy of the theme when it has one, else the image's
+theme_source_dir() {
+    if [[ -f "${USER_THEMES_DIR}/$1/colors.toml" ]]; then
+        echo "${USER_THEMES_DIR}/$1"
+    else
+        echo "${SYSTEM_THEMES_DIR}/$1"
+    fi
+}
+
+theme_source_is_light() {
+    [[ -f "${SYSTEM_THEMES_DIR}/$1/light.mode" || -f "${USER_THEMES_DIR}/$1/light.mode" ]]
+}
+
+# The wallpaper's colours over a staged theme (stage_theme): each of WALLPAPER_COLOUR_KEYS the helper wrote, when the
+# account takes colours from the wallpaper in the way they were worked out in, for this theme's mode, ground and text
+# (the stamp line says which). Anything else in the file is passed over.
+colours_apply() {
+    local staging="$1" slug="$2" way mode stamp key value
+    way="$(colours_way)"
+    [[ -n ${way} && -f ${WALLPAPER_COLOURS} ]] || return 0
+    if [[ -f "${staging}/light.mode" ]]; then mode=light; else mode=dark; fi
+    stamp="$(sed -n 's/^# stamp //p' "${WALLPAPER_COLOURS}" | head -n1)"
+    local -a fields
+    read -r -a fields <<<"${stamp}"
+    [[ ${#fields[@]} -ge 7 && ${fields[0]} == "${way}" && ${fields[1]} == "${mode}" ]] || return 0
+    # The ground and text it was worked from, the last two fields: a picture's path may hold spaces
+    local own
+    own="$(theme_source_dir "${slug}")"
+    [[ ${fields[-2]} == "$(colors_get "${own}" background | tr '[:upper:]' '[:lower:]')" &&
+        ${fields[-1]} == "$(colors_get "${own}" foreground | tr '[:upper:]' '[:lower:]')" ]] || return 0
+    while IFS='=' read -r key value; do
+        key="${key//[[:space:]]/}"
+        value="${value//[[:space:]\"\']/}"
+        [[ " ${WALLPAPER_COLOUR_KEYS[*]} " == *" ${key} "* && ${value} =~ ^#[0-9a-f]{6}$ ]] || continue
+        colors_merge "${staging}/colors.toml" "${key}" "${value}"
+    done < <(grep -v '^[[:space:]]*#' "${WALLPAPER_COLOURS}")
+}
+
+# --- Daylight -----------------------------------------------------------------------------------
+
+# Daylight is on unless the account turned it off (ame desktop daylight off writes "off")
+daylight_on() {
+    [[ "$(head -n1 "${CONFIG_DIR}/daylight" 2>/dev/null || true)" != off ]]
+}
+
+# The four pictures of a theme folder's daylight.list (the current theme's when none is given), one per line in the order
+# of DAYLIGHT_TIMES, when the list is exactly that: four lines, the four words in order, each an absolute path to a
+# picture that is a regular file. A list that is not is no Daylight for the theme, and says so.
+daylight_pictures() {
+    local dir="${1:-${CURRENT_THEME_DIR}}" list line word path i=0
+    list="${dir}/daylight.list"
+    [[ -f ${list} ]] || return 1
+    local -a pictures=()
+    while IFS= read -r line || [[ -n ${line} ]]; do
+        line="${line%$'\r'}"
+        word="${line%% *}"
+        path="${line#* }"
+        if ((i >= 4)) || [[ ${word} != "${DAYLIGHT_TIMES[i]}" || ${path} != /* || ! -f ${path} ||
+            ! ${path,,} =~ \.(jpg|jpeg|png|webp|svg)$ ]]; then
+            echo "${0##*/}: ${list} is not four pictures for dawn, day, dusk and night: no Daylight for this theme" >&2
+            return 1
+        fi
+        pictures+=("${path}")
+        i=$((i + 1))
+    done <"${list}"
+    if ((i != 4)); then
+        echo "${0##*/}: ${list} is not four pictures for dawn, day, dusk and night: no Daylight for this theme" >&2
+        return 1
+    fi
+    printf '%s\n' "${pictures[@]}"
+}
+
+# The minutes after midnight at which dawn, day, dusk and night are each fully shown: Night Light's hours when it is on
+# with hours of its own (its automatic schedule needs the location, which Daylight does not ask for), within bounds that
+# keep every picture at least a quarter of an hour, else DAYLIGHT_AT
+daylight_minutes() {
+    local schema=org.gnome.settings-daemon.plugins.color from to
+    if [[ "$(gsettings get "${schema}" night-light-enabled 2>/dev/null)" == true &&
+        "$(gsettings get "${schema}" night-light-schedule-automatic 2>/dev/null)" == false ]]; then
+        from="$(gsettings get "${schema}" night-light-schedule-from 2>/dev/null)"
+        to="$(gsettings get "${schema}" night-light-schedule-to 2>/dev/null)"
+        if [[ ${from} =~ ^[0-9]+(\.[0-9]+)?$ && ${to} =~ ^[0-9]+(\.[0-9]+)?$ ]] &&
+            awk -v from="${from}" -v to="${to}" 'BEGIN {
+                if (to < 3 || to > 10 || from < 16 || from > 22) exit 1
+                dawn = to * 60; dusk = from * 60
+                day = dawn + 330 < dusk - 150 ? dawn + 330 : dusk - 150
+                night = dusk + 195 < 1425 ? dusk + 195 : 1425
+                printf "%d %d %d %d\n", int(dawn + 0.5), int(day + 0.5), int(dusk + 0.5), int(night + 0.5)
+            }'; then
+            return 0
+        fi
+    fi
+    echo "${DAYLIGHT_AT[*]}"
+}
+
+# Daylight's day, as GNOME's slideshow takes it: from midnight, the night picture, the fade into dawn ending at dawn's
+# time, dawn, and so on round to the night again until midnight, nine slides of `static SECONDS N` or `fade SECONDS N M`
+# (N, M the pictures by their place in DAYLIGHT_TIMES), 86400 seconds in all
+daylight_slides() {
+    local -a at
+    read -r -a at <<<"$(daylight_minutes)"
+    awk -v a="${at[*]}" -v f="${DAYLIGHT_FADE[*]}" 'BEGIN {
+        split(a, at, " "); split(f, fade, " ")
+        from = 0; previous = 4
+        for (k = 1; k <= 4; k++) {
+            start = at[k] - fade[k]
+            if (start - from < 15) exit 1
+            printf "static %d %d\nfade %d %d %d\n", (start - from) * 60, previous, fade[k] * 60, previous, k
+            from = at[k]; previous = k
+        }
+        if (1440 - from < 15) exit 1
+        printf "static %d 4\n", (1440 - from) * 60
+    }'
+}
+
+# Text put into XML as text. The replacements are quoted: bash 5.2 reads an unquoted & in one as the text it matched.
+xml_text() {
+    local text="${1//&/'&amp;'}"
+    text="${text//</'&lt;'}"
+    printf '%s' "${text//>/'&gt;'}"
+}
+
+# The slideshow for a theme's four pictures (one per line on stdin, in the order of DAYLIGHT_TIMES), starting at local
+# midnight of the date given as YYYY MM DD
+daylight_xml() {
+    local year="$1" month="$2" day="$3" kind seconds a b
+    local -a pictures
+    mapfile -t pictures
+    ((${#pictures[@]} == 4)) || return 1
+    local slides
+    slides="$(daylight_slides)" || return 1
+    echo "<background>"
+    printf '  <starttime><year>%d</year><month>%d</month><day>%d</day><hour>0</hour><minute>0</minute><second>0</second></starttime>\n' \
+        "$((10#${year}))" "$((10#${month}))" "$((10#${day}))"
+    while read -r kind seconds a b; do
+        if [[ ${kind} == static ]]; then
+            printf '  <static><duration>%d</duration><file>%s</file></static>\n' "${seconds}" "$(xml_text "${pictures[a - 1]}")"
+        else
+            printf '  <transition type="overlay"><duration>%d</duration><from>%s</from><to>%s</to></transition>\n' \
+                "${seconds}" "$(xml_text "${pictures[a - 1]}")" "$(xml_text "${pictures[b - 1]}")"
+        fi
+    done <<<"${slides}"
+    echo "</background>"
+}
+
+# Which of the four pictures is shown at this minute of the day (the one a fade is more than half way to), as its place
+# in DAYLIGHT_TIMES counting from 0
+daylight_index_now() {
+    local now
+    now=$((10#$(date +%H) * 60 + 10#$(date +%M)))
+    daylight_slides | awk -v now="${now}" '
+        { end = start + $2 / 60 }
+        $1 == "static" && now < end { print $3 - 1; exit }
+        $1 == "fade" && now < end { print (now - start < (end - start) / 2 ? $3 : $4) - 1; exit }
+        { start = end }'
+}
+
 # The colours an interface needs beyond a palette's, as key=value lines: the surfaces, an accent and a label that can be
 # read on it, status colours, the line a control is drawn with and how much of the text a dimmed label keeps, each at
 # the ratio WCAG asks (palette.awk, which says which). A theme's folder holds colors.toml, and light.mode when it is light.
@@ -422,11 +817,14 @@ render_templates() {
     for template in "${USER_TEMPLATES_DIR}"/*.tpl "${SYSTEM_TEMPLATES_DIR}"/*.tpl; do
         # The shape every style is drawn in is a template of its own, filled once for each style below
         [[ ${template##*/} == style-base.gtk.css.tpl ]] && continue
+        # Only the templates asked for, when the caller asks for some (an accent's set: the shell's and the apps')
+        [[ -z ${RENDER_ONLY:-} || ${template##*/} =~ ${RENDER_ONLY} ]] || continue
         output="${dest}/$(basename "${template}" .tpl)"
         [[ -f ${output} ]] && continue
         fill_template values "${template}" >"${output}"
     done
     shopt -u nullglob
+    [[ -z ${RENDER_ONLY:-} ]] || return 0
 
     # Each style's file in the applications: the shape, filled with the style's radii, and then the style's own (lines,
     # glow and colours), which the loop above has rendered

@@ -1399,8 +1399,104 @@ done
 grep -q "sed -f" /usr/lib/amethystora/theme/lib.sh && false
 bash /ctx/build_files/shared/test-theme-render.sh
 # ...and every colour the interface takes from a theme (the palette layer, themed/palette-gtk*.css.tpl, the shell's
-# status colours and the segments of the top bar) reads at the contrast WCAG asks, on every surface it is drawn on
+# status colours and the segments of the top bar) reads at the contrast WCAG asks, on every surface it is drawn on, with
+# each of the twelve accents and with the colours of every shipped wallpaper in each of their three ways
 bash /ctx/build_files/shared/test-theme-palette.sh
+# The twelve accents are one list: the theme library's ACCENTS, which Control offers, the recipe's usage names, the setup
+# file takes, the shell's workspaces' menu and the apps' palette know
+ACCENT_IDS="$(bash -c 'source /usr/lib/amethystora/theme/lib.sh; for e in "${ACCENTS[@]}"; do echo "${e%% *}"; done')"
+[[ "$(wc -l <<<"${ACCENT_IDS}")" == 12 ]]
+[[ "$(bash -c 'source /usr/lib/amethystora/theme/lib.sh; printf "%s\n" "${ACCENTS[@]}"')" == "$(sed -nE "s/^ *\['([a-z]+)', '(#[0-9a-f]{6})'\],$/\1 \2/p" \
+    "${UI_EXTENSION}/modules/theme/accents.js")" ]]
+[[ "$(jq -r '.items[] | select(.id == "accent") | .choices[].value' <<<"${CONTROL_LIST}")" == theme$'\n'"${ACCENT_IDS}" ]]
+[[ -z "$(jq -c '.items[] | select(.id == "accent") | .choices[] | select((.color | test("^#[0-9a-f]{6}$") | not)
+    or .command != ["ame", "desktop", "accent", .value])' <<<"${CONTROL_LIST}")" ]]
+grep -qF "usage: ame desktop accent $(tr '\n' '|' <<<"${ACCENT_IDS}")theme\"" /usr/share/amethystora/just/desktop.just
+[[ "$(sed -n "s/^LOOK_ACCENTS='\(.*\)'$/\1/p" /usr/libexec/amethystora-setup | jq -r '.[]')" == "${ACCENT_IDS}"$'\n'theme ]]
+[[ "$(tr -d ' \n' <<<"$(sed -n '/^const ACCENTS: &\[&str\] =$/,/;$/p' /ctx/apps/common/src/palette.rs | tail -n +2)")" == \
+    "&[$(sed 's/.*/"&"/' <<<"${ACCENT_IDS}" | paste -sd,)];" ]]
+# Colours from the wallpaper, Daylight, the accent and an accent per workspace: each its recipe, and Control's entries
+for recipe in accent daylight colours accent-per-workspace; do
+    ame --summary | tr ' ' '\n' | grep -qx "desktop::${recipe}"
+    jq -e --arg id "${recipe}" 'any(.items[]; .id == $id)' <<<"${CONTROL_LIST}" >/dev/null
+done
+# ...the theme module's keys and their defaults (an accent per workspace off, and the six workspaces' accents)
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.theme accent-per-workspace)" == false ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.theme workspace-accents)" == \
+    "$(bash -c 'source /usr/lib/amethystora/theme/lib.sh; printf "%s\n" "${WORKSPACE_ACCENTS[@]}"' | sed "s/.*/'&'/" | paste -sd, | sed 's/,/, /g; s/^/[/; s/$/]/')" ]]
+# Daylight: every theme has its four pictures, dawn, day, dusk and night in that order, each a wallpaper drawn at the
+# size of the others and named in CREDITS.md, and the slideshow made of them is GNOME's format: nine slides of whole
+# seconds, a day in all, every file there
+for theme in /usr/share/amethystora/themes/*/; do
+    [[ "$(cut -d' ' -f1 "${theme}daylight.list" | paste -sd' ')" == "dawn day dusk night" ]]
+    while read -r _ picture; do
+        [[ "$(file -b "${picture}")" == "PNG image data, 3840 x 2160,"* ]]
+        grep -qF "\`${picture#/usr/share/backgrounds/amethystora/}\`" /usr/share/backgrounds/amethystora/CREDITS.md
+    done <"${theme}daylight.list"
+    DAYLIGHT_XML="$(mktemp)"
+    (
+        export GSETTINGS_BACKEND=memory
+        source /usr/lib/amethystora/theme/lib.sh
+        daylight_pictures "${theme}" | daylight_xml 2026 10 27
+    ) >"${DAYLIGHT_XML}"
+    xmllint --noout "${DAYLIGHT_XML}"
+    [[ "$(grep -c '<static>\|<transition ' "${DAYLIGHT_XML}")" == 9 ]]
+    [[ "$(grep -o '<duration>[0-9]*</duration>' "${DAYLIGHT_XML}" | tr -dc '0-9\n' | awk '{ s += $1 } END { print s }')" == 86400 ]]
+    grep -o '<\(file\|from\|to\)>[^<]*<' "${DAYLIGHT_XML}" | sed 's/^<[a-z]*>//; s/<$//' | xargs -r -n1 test -f
+    rm -f "${DAYLIGHT_XML}"
+done
+# ...a theme of the account's own that names a picture with & < > in its path gets them written as text, not markup
+DAYLIGHT_ODD="$(mktemp -d)"
+mkdir -p "${DAYLIGHT_ODD}/odd"
+for time in dawn day dusk night; do
+    cp /usr/share/backgrounds/amethystora/amethystora-facets-d.png "${DAYLIGHT_ODD}/a&b<${time}>.png"
+    echo "${time} ${DAYLIGHT_ODD}/a&b<${time}>.png" >>"${DAYLIGHT_ODD}/odd/daylight.list"
+done
+(
+    export GSETTINGS_BACKEND=memory
+    source /usr/lib/amethystora/theme/lib.sh
+    daylight_pictures "${DAYLIGHT_ODD}/odd" | daylight_xml 2026 10 27
+) >"${DAYLIGHT_ODD}/odd.xml"
+xmllint --noout "${DAYLIGHT_ODD}/odd.xml"
+[[ "$(xmllint --xpath 'string(/background/static[1]/file)' "${DAYLIGHT_ODD}/odd.xml")" == "${DAYLIGHT_ODD}/a&b<night>.png" ]]
+rm -rf "${DAYLIGHT_ODD}"
+# An accent per workspace: each accent's overlay holds only the rules the accent changes, never a font (a theme's own
+# monospace font is the same for every accent), every selector under the accent's class
+ACCENT_RENDER="$(mktemp -d)"
+for theme in amethystora catppuccin nord; do
+    (
+        export HOME="${ACCENT_RENDER}/home" XDG_CONFIG_HOME="${ACCENT_RENDER}/home/.config" AMETHYSTORA_ACCENTS=on
+        source /usr/lib/amethystora/theme/lib.sh
+        mkdir -p "${ACCENT_RENDER}/${theme}"
+        cp -r "/usr/share/amethystora/themes/${theme}/." "${ACCENT_RENDER}/${theme}/"
+        render_templates "${ACCENT_RENDER}/${theme}" "theme_name=${theme}" 2>/dev/null
+        render_accent_sets "${ACCENT_RENDER}/${theme}" "${theme}"
+    )
+    for overlay in "${ACCENT_RENDER}/${theme}"/accents/*/shell-accent.css; do
+        test -s "${overlay}"
+        grep -q 'font-family' "${overlay}" && { echo "${overlay} carries a font"; false; }
+        id="$(basename "$(dirname "${overlay}")")"
+        [[ -z "$(grep -E '\{$|,$' "${overlay}" | grep -vE "^(#uiGroup\.amethystora-accent-${id}|\.amethystora-accent-${id} )")" ]]
+    done
+done
+rm -rf "${ACCENT_RENDER}"
+# The helper that works colours out of a wallpaper reads a picture and refuses anything else, root included
+WALLPAPER_COLOURS_HOME="$(mktemp -d)"
+chown nobody "${WALLPAPER_COLOURS_HOME}"
+[[ "$(setpriv --reuid=nobody --regid=nobody --clear-groups env -i HOME="${WALLPAPER_COLOURS_HOME}" PATH=/usr/bin:/usr/sbin /usr/libexec/amethystora-wallpaper-colours \
+    --way soft --mode dark --background '#110c18' --foreground '#e8e0f2' --print \
+    /usr/share/backgrounds/amethystora/amethystora-facets-d.png 2>/dev/null | grep -cE '^(background|foreground|accent|selection_background) = "#[0-9a-f]{6}"$')" == 4 ]]
+echo "not a picture" >"${WALLPAPER_COLOURS_HOME}/x.png"
+chmod 0644 "${WALLPAPER_COLOURS_HOME}/x.png"
+code=0
+setpriv --reuid=nobody --regid=nobody --clear-groups env -i HOME="${WALLPAPER_COLOURS_HOME}" PATH=/usr/bin:/usr/sbin /usr/libexec/amethystora-wallpaper-colours \
+    --way soft --mode dark --background '#110c18' --foreground '#e8e0f2' --print "${WALLPAPER_COLOURS_HOME}/x.png" 2>/dev/null || code=$?
+[[ "${code}" == 3 ]]
+code=0
+/usr/libexec/amethystora-wallpaper-colours --way soft --mode dark --background '#110c18' --foreground '#e8e0f2' --print \
+    /usr/share/backgrounds/amethystora/amethystora-facets-d.png >/dev/null 2>&1 || code=$?
+[[ "${code}" == 2 ]]
+rm -rf "${WALLPAPER_COLOURS_HOME}"
 # ...and the hooks that write into other programs' settings (kdeglobals, VSCodium) keep the account's own, take only what a theme
 # may give, and are the same on a run again
 bash /ctx/build_files/shared/test-theme-hooks.sh

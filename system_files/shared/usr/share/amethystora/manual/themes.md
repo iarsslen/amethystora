@@ -96,6 +96,70 @@ cp ~/Pictures/mountains.jpg ~/.config/amethystora/backgrounds/amethystora/
 `ame desktop background <picture>` sets one of those directly; without a picture it shows the next, as
 `Super+Ctrl+Space` does.
 
+### Daylight
+
+A theme's first wallpaper follows the time of day: the same place at **dawn**, by **day**, at **dusk** and at
+**night**, each drawn from the theme's own colours. Dawn is fully shown at 06:30, day at 12:00, dusk at 18:45 and
+night at 22:00, and GNOME fades from one to the next by itself over the three quarters of an hour to an hour and a half
+before each. The lock screen shows the same picture. Only the wallpaper changes: the theme stays light or dark.
+
+When Night Light is on with hours of your own (Settings, Displays, Night Light, Manual Schedule), dawn comes when Night
+Light ends and dusk when it starts, and day and night follow from them. With Night Light's sunset schedule, which
+would need your location, the times above are kept. On the day the clocks change for summer or winter time, the
+pictures come an hour early or late until the next day.
+
+Daylight is on unless you turn it off, in Control (Appearance, **Daylight wallpapers**) or with
+`ame desktop daylight off`; the first wallpaper then stays as the theme was drawn. It only ever shows the theme's own
+first picture: a picture of your own, set in GNOME's Settings or with `ame desktop background`, is never replaced.
+`Super+Ctrl+Space` goes on to the theme's second picture as before, and round again to Daylight.
+
+## Accents
+
+Any theme can take one of twelve accents in place of its own: Amethyst, Iris, Sky, Lagoon, Jade, Moss, Amber, Ember,
+Coral, Rose, Orchid and Slate. The accent is the colour of a primary button, a switch that is on, a checked box, a
+selected row, the workspace you are on in the top bar, a slider and the focus ring, in the shell, the applications,
+the terminal's prompt and Amethystora's own apps. Every one of them is checked against every surface of every theme,
+light or dark, so that the label on it and the text drawn in it read at the contrast WCAG asks.
+
+Choose one in Control (Appearance, **Accent**), or in a terminal:
+
+```bash
+ame desktop accent jade
+```
+
+**Follow the theme** (`ame desktop accent theme`) puts the theme's own back. The accent is kept from theme to theme.
+Applications that are open take it the next time they start; the shell and Amethystora's apps change at once. A chosen
+accent wins over [colours from your wallpaper](#colours-from-your-wallpaper).
+
+## Colours from your wallpaper
+
+Off unless you choose it: the desktop's ground, the tint of its text, the selection and the accent worked out once from
+the wallpaper, in one of three ways:
+
+- **Vivid**: the strongest hue in the picture becomes the accent, and the ground is tinted with the hue that covers
+  most of it.
+- **Soft**: the same hues, quieter.
+- **Mono**: greys tinted with the picture's main hue; the accent stays the theme's.
+
+It works with every theme: a light theme stays light and a dark one dark, and the theme's fonts, style, icons, pointer
+and terminal colours stay as they are. The colours are worked out again when the wallpaper or the theme changes, from
+the picture of the theme's own time when [Daylight](#daylight) shows it, so they do not change through the day. A
+wallpaper that is not a picture (a plain colour) leaves the theme's own colours.
+
+Choose a way in Control (Appearance, **Colours from the wallpaper**), or with `ame desktop colours soft` (`vivid`,
+`mono`, or `off` for the theme's own).
+
+## An accent per workspace
+
+Off unless you turn it on: each workspace has an accent of its own, and moving to another workspace changes the
+accent of the shell and of Amethystora's apps once the workspace has slid into place. Other applications read the
+accent when they start, so they keep the theme's. The first workspace follows the theme, and the others are Sky,
+Coral, Jade, Amber and Orchid until you choose.
+
+Turn it on in Control (Appearance, **An accent per workspace**) or with `ame desktop accent-per-workspace on`. To
+choose the accent of the workspace you are on, right-click a workspace's label in the top bar and open **Accent**; for
+any workspace, type `ame desktop accent-per-workspace 3 coral`. Each change of workspace restyles the shell once, not while it slides.
+
 ## Transitions
 
 A new theme or wallpaper does not simply appear. The screen holds still for a moment while everything

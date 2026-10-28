@@ -143,6 +143,8 @@ pub struct Control {
     /// The colours of the themes' swatches, each a class in its own stylesheet
     colors: RefCell<BTreeSet<String>>,
     color_css: gtk::CssProvider,
+    /// The theme preview's colours, those of the theme pointed at
+    preview_css: gtk::CssProvider,
     /// The search field is being emptied by the page itself
     clearing: Cell<bool>,
 }
@@ -190,6 +192,13 @@ impl Control {
             &color_css,
             gtk::STYLE_PROVIDER_PRIORITY_USER + 4,
         );
+        // Over the page's own stylesheet, as the swatches' colours are
+        let preview_css = gtk::CssProvider::new();
+        gtk::style_context_add_provider_for_display(
+            &gtk::prelude::WidgetExt::display(&shell.window),
+            &preview_css,
+            gtk::STYLE_PROVIDER_PRIORITY_USER + 5,
+        );
         let this = Rc::new_cyclic(|me: &Weak<Control>| Control {
             me: me.clone(),
             shell: shell.clone(),
@@ -200,6 +209,7 @@ impl Control {
             thumbnails: RefCell::new(HashMap::new()),
             colors: RefCell::new(BTreeSet::new()),
             color_css,
+            preview_css,
             clearing: Cell::new(false),
         });
         shell.window.set_title(Some(&t!("Amethystora Control")));

@@ -29,6 +29,8 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
+import {ACCENTS, SCHEMA as THEME_SCHEMA, accentName, workspaceAccent} from './theme/accents.js';
+
 const ROLE = 'amethystora-workspaces';
 const SCHEMA = 'org.gnome.shell.extensions.amethystora-ui.workspaces';
 const KEYS = ['move-workspace-left', 'move-workspace-right'];
@@ -307,6 +309,10 @@ export class Workspaces {
 
         this._settings = this._ext.getSettings(SCHEMA);
         this._settings.connectObject('changed::auto-names', queue, this);
+        // While each workspace has an accent of its own, the menu chooses the one of the workspace it was opened on
+        this._themeSettings = this._ext.getSettings(THEME_SCHEMA);
+        this._themeSettings.connectObject('changed::accent-per-workspace', () => this._buildAccents(), this);
+        this._buildAccents();
         // A window dragged in the overview: the label under it lights up
         Main.overview.connectObject(
             'window-drag-begin', () => this._windowDragBegan(),
@@ -328,6 +334,10 @@ export class Workspaces {
         }
         this._keys = false;
         this._settings?.disconnectObject(this);
+        this._themeSettings?.disconnectObject(this);
+        this._themeSettings = null;
+        this._accentMenu?.destroy();
+        this._accentMenu = null;
         this._settings = null;
 
         Main.overview.disconnectObject(this);
@@ -633,6 +643,7 @@ export class Workspaces {
                 const app = this._settings?.get_boolean('auto-names') && workspace ? mainApp(workspace) : null;
                 this._entry.hint_text = app?.get_name() ?? '';
                 this._unname.visible = !!app && name !== '';
+                this._checkAccent(index);
                 global.stage.set_key_focus(this._entry.clutter_text);
                 this._entry.clutter_text.set_selection(0, -1);
             } else {
@@ -644,6 +655,58 @@ export class Workspaces {
 
     openMenu() {
         this._menu?.open(BoxPointer.PopupAnimation.FULL);
+    }
+
+    // The Accent submenu: the desktop's own and the twelve, each with its colour, built only while each workspace has an
+    // accent of its own
+    _buildAccents() {
+        this._accentMenu?.destroy();
+        this._accentMenu = null;
+        if (!this._menu || !this._themeSettings?.get_boolean('accent-per-workspace'))
+            return;
+        this._accentMenu = new PopupMenu.PopupSubMenuMenuItem(_('Accent'));
+        this._accentItems = new Map();
+        for (const [id, fill] of [['theme', null], ...ACCENTS]) {
+            const item = new PopupMenu.PopupBaseMenuItem({style_class: 'amethystora-workspaces-accent'});
+            const dot = new St.Widget({style_class: 'amethystora-workspaces-accent-dot', y_align: Clutter.ActorAlign.CENTER});
+            // The twelve fills are the image's own, never text from elsewhere
+            if (fill)
+                dot.set_style(`background-color: ${fill};`);
+            else
+                dot.add_style_class_name('amethystora-workspaces-accent-theme');
+            item.add_child(dot);
+            const label = new St.Label({text: id === 'theme' ? _('Follow the theme') : accentName(id),
+                y_align: Clutter.ActorAlign.CENTER});
+            item.add_child(label);
+            item.label_actor = label;
+            item.connect('activate', () => this._chooseAccent(id));
+            this._accentMenu.menu.addMenuItem(item);
+            this._accentItems.set(id, item);
+        }
+        this._menu.addMenuItem(this._accentMenu);
+        this._accentMenu.connect('destroy', () => {
+            this._accentMenu = null;
+            this._accentItems = null;
+        });
+    }
+
+    _checkAccent(index) {
+        if (!this._accentItems)
+            return;
+        const current = workspaceAccent(this._themeSettings, index) ?? 'theme';
+        for (const [id, item] of this._accentItems)
+            item.setOrnament(id === current ? PopupMenu.Ornament.CHECK : PopupMenu.Ornament.NO_DOT);
+    }
+
+    // The workspace the menu was opened on takes the accent; the list grows with the desktop's own up to it
+    _chooseAccent(id) {
+        const index = this._renaming?.index ?? global.workspace_manager.get_active_workspace_index();
+        const list = this._themeSettings.get_strv('workspace-accents');
+        while (list.length <= index)
+            list.push('theme');
+        list[index] = id;
+        this._themeSettings.set_strv('workspace-accents', list);
+        this._checkAccent(index);
     }
 
     toggleMenu() {

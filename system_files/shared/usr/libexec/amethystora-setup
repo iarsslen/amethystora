@@ -22,7 +22,7 @@
 #   extensions   the GNOME extensions turned on, of those installed here
 #   theme        the desktop theme
 #   settings     {layout, favorites, keybindings, tiling, pointer, glass, motion, workspaces, windows, dock, pill, quick,
-#                bars, today, breaks, search, emoji, bezel, sound}: the window layout, the dock's apps, the keys of
+#                bars, today, breaks, search, emoji, bezel, sound, look}: the window layout, the dock's apps, the keys of
 #                keybindings (the image's custom keybindings by their id, never a command), the tiling's
 #                settings by their key in its schema (TILING_KEYS: numbers, switches and lists, never its
 #                window rules, which hold patterns, or a picture's path), shake to find and the larger pointer on
@@ -35,7 +35,8 @@
 #                the weather, which sends the place chosen in Weather), GNOME's rest reminders (BREAKS_KEYS), what
 #                the search finds besides GNOME's own (SEARCH_KEYS), the emoji picker's skin tone (EMOJI_KEYS), rounded
 #                corners on a laptop's own screen (BEZEL_KEYS), whether the desktop makes its own sounds (SOUND_KEYS;
-#                never the sound theme's name, which Settings sets to a folder of the account's), and no
+#                never the sound theme's name, which Settings sets to a folder of the account's), the look: the
+#                accent, Daylight, colours from the wallpaper and an accent per workspace (LOOK_KEYS), and no
 #                other GNOME
 #                setting (Reduce motion and High Contrast are GNOME's accessibility keys, left out). A file
 #                from before the tiling replaced PaperWM may still hold its gaps under paperwm, which are read
@@ -172,6 +173,15 @@ BEZEL_KEYS='{"round-corners": ["b"]}'
 # theme it writes into the account's own folder for the alert sound, which another machine does not have.
 SOUND=org.gnome.desktop.sound
 SOUND_KEYS='{"event-sounds": ["b"]}'
+# The look: the accent, Daylight and colours from the wallpaper, which are the account's files that the theme reads (set
+# through their ame desktop commands), and an accent per workspace, the theme module's keys. Each value from its list, the
+# accents' ids the twelve of ACCENTS in /usr/lib/amethystora/theme/lib.sh (20-tests.sh holds the two together).
+THEME_UI=org.gnome.shell.extensions.amethystora-ui.theme
+LOOK_ACCENTS='["amethyst", "iris", "sky", "lagoon", "jade", "moss", "amber", "ember", "coral", "rose", "orchid", "slate", "theme"]'
+LOOK_KEYS='{
+    "accent": ["s", '"${LOOK_ACCENTS}"'], "daylight": ["s", ["on", "off"]], "colours": ["s", ["vivid", "soft", "mono", "off"]],
+    "accent-per-workspace": ["b"], "workspace-accents": ["as", "accents"]
+}'
 # What a value of each kind has to be, for the check and for reading an old file's gaps
 TILING_JQ="$(
     cat <<'EOF'
@@ -190,6 +200,8 @@ def valid($spec): $spec as [$t, $a, $b] |
         and all(.[]; type == "string" and test("^[a-z0-9-]{1,40}$"))
     elif $t == "as" and $a == "breaks" then type == "array" and (unique | length) == length
         and all(.[]; type == "string" and IN("eyesight", "movement"))
+    elif $t == "as" and $a == "accents" then type == "array" and length >= 1 and length <= 36
+        and all(.[]; type == "string" and test("^(amethyst|iris|sky|lagoon|jade|moss|amber|ember|coral|rose|orchid|slate|theme)$"))
     elif $t == "folders" then type == "object" and all(to_entries[];
         (.key | length >= 1 and length <= 40 and (test("[[:cntrl:]]") | not))
         and (.value | type == "array" and length >= 2 and all(.[]; type == "string" and test("^[A-Za-z0-9._+-]+[.]desktop$"))))
@@ -205,6 +217,7 @@ def wanted($spec): $spec as [$t, $a, $b] |
     elif $a == "times" then "a list of one to six different times, each HH:MM"
     elif $a == "ids" then "a list of different tiles' names, each lower-case letters, digits and hyphens"
     elif $a == "breaks" then "a list of eyesight and movement, each once"
+    elif $a == "accents" then "a list of one to 36 accents, each theme or one of the twelve accents' names"
     elif $t == "folders" then "folders by name (1 to 40 characters), each with two launcher IDs or more"
     elif $t == "ad" then "a list of numbers"
     else "a list of colours, each \"\" or one such as \"#314e6c\"" end;
@@ -292,7 +305,7 @@ if type != "object" then "it is not a JSON object" else
     at("extensions"; each("extensions"; name; "an extension's id")),
     at("theme"; if type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]*$") then empty else "theme is not a theme's name" end),
     at("settings"; only(["layout", "favorites", "keybindings", "tiling", "paperwm", "pointer", "glass", "motion", "workspaces",
-            "windows", "dock", "pill", "quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound"]; "settings."),
+            "windows", "dock", "pill", "quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "look"]; "settings."),
         (if type == "object" then
             at("layout"; if IN("tiling", "classic") then empty else "settings.layout is tiling or classic" end),
             at("favorites"; each("settings.favorites";
@@ -377,6 +390,10 @@ if type != "object" then "it is not a JSON object" else
             at("sound"; only($sound | keys; "settings.sound."),
                 (if type == "object" then to_entries[] | select(.key | IN($sound | keys[])) | $sound[.key] as $spec
                     | if .value | valid($spec) then empty else "settings.sound.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("look"; only($look | keys; "settings.look."),
+                (if type == "object" then to_entries[] | select(.key | IN($look | keys[])) | $look[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.look.\(.key) is \(wanted($spec))" end
                  else empty end))
         else empty end))
 end
@@ -393,6 +410,7 @@ check() {
         --argjson bars "${BARS_KEYS}" --argjson today "${TODAY_KEYS}" --argjson breaks "${BREAKS_KEYS}" \
         --argjson search "${SEARCH_KEYS}" --argjson emoji "${EMOJI_KEYS}" \
         --argjson bezel "${BEZEL_KEYS}" --argjson sound "${SOUND_KEYS}" \
+        --argjson look "${LOOK_KEYS}" \
         "${TILING_JQ} ${CHECK}" 2>&1)" ||
         die "$1 is not JSON."
     [[ -z "${problems}" ]] ||
@@ -550,10 +568,36 @@ current() {
                 jq -nc --arg a "${area}" --arg k "${key}" --argjson v "${value:-null}" '{($a): {($k): $v}}'
             done < <(jq -r --arg a "${area}" '.settings[$a] // {} | keys[]' <<<"$1")
         done
+        # The look: the account's files as the theme reads them (look_value), and the theme module's keys
+        while read -r key; do
+            value="$(look_value "${key}")"
+            jq -nc --arg k "${key}" --argjson v "${value:-null}" '{look: {($k): $v}}'
+        done < <(jq -r '.settings.look // {} | keys[]' <<<"$1")
     } | jq -sc 'reduce .[] as $x ({favorites: null, keybindings: {}, tiling: {}, pointer: {}, glass: {}, motion: {},
         workspaces: {}, windows: {}, dock: {}, pill: {}, quick: {}, bars: {}, today: {}, breaks: {}, search: {}, emoji: {},
-        bezel: {}, sound: {}};
+        bezel: {}, sound: {}, look: {}};
         . * $x)'
+}
+
+# A setting of the look as this machine has it, as JSON: the accent (theme for the theme's own), Daylight (on unless the
+# account turned it off), colours from the wallpaper (off unless chosen), and the theme module's two keys
+look_value() {
+    local config="${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora" value
+    case "$1" in
+        accent)
+            # What is in force, as the theme reads it: the account's choice, else its image's
+            value="$(source /usr/lib/amethystora/theme/lib.sh && account_accent)"
+            jq -nc --arg v "${value}" --argjson ids "${LOOK_ACCENTS}" 'if $v | IN($ids[]) then $v else "theme" end'
+            ;;
+        daylight)
+            if [[ "$(head -n1 "${config}/daylight" 2>/dev/null || true)" == off ]]; then echo '"off"'; else echo '"on"'; fi
+            ;;
+        colours)
+            value="$(source /usr/lib/amethystora/theme/lib.sh && colours_way)"
+            jq -nc --arg v "${value}" 'if $v | IN("vivid", "soft", "mono") then $v else "off" end'
+            ;;
+        accent-per-workspace | workspace-accents) gsettings get "${THEME_UI}" "$1" 2>/dev/null | as_json ;;
+    esac
 }
 
 # Where this machine can install from, and what it can turn on
@@ -670,7 +714,12 @@ def brew($x; $k): $x.brew[$k] // [];
         | select(.value != $v) | {area: $a, action: "set", key: $k, to: .value, from: $v}
         + if $v == null then {ok: false, why: "this machine has no such \({quick: "quick settings", bezel: "screen corners"}[$a] // $a) setting"} else {} end),
       ($hs[$a] // {} | to_entries[] | .key as $k | select($fs[$a] // {} | has($k) | not)
-        | {area: $a, action: "remove", key: $k, from: .value}))
+        | {area: $a, action: "remove", key: $k, from: .value})),
+    ($fs.look // {} | to_entries[] | .key as $k | $now.look[$k] as $v
+        | select(.value != $v) | {area: "look", action: "set", key: $k, to: .value, from: $v}
+        + if $v == null then {ok: false, why: "this machine has no such look setting"} else {} end),
+    ($hs.look // {} | to_entries[] | .key as $k | select($fs.look // {} | has($k) | not)
+        | {area: "look", action: "remove", key: $k, from: .value})
   ]
 | map({ok: true, why: null} + .)
 EOF
@@ -737,6 +786,9 @@ def text:
         {quick: "quick settings'", bars: "the top bar's", today: "the calendar's", breaks: "the rest reminders'",
             search: "the search's", emoji: "the emoji picker's", bezel: "the screen's", sound: "the desktop's"}[.area]
         + " \(.key)"
+        + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
+          else ", \(.from | tojson) here, back to the image's" end
+    elif .area == "look" then "the look's \(.key)"
         + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
           else ", \(.from | tojson) here, back to the image's" end
     else tojson end;
@@ -992,6 +1044,17 @@ add_all() {
             gsettings set "${schema}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("${label} ${name}")
         done
     done
+    # The look through its own commands, which apply the theme again; the workspaces' accents last, rendered once
+    mapfile -t changes < <(of "${todo}" look)
+    for change in "${changes[@]}"; do
+        name="$(jq -r .key <<<"${change}")"
+        case "${name}" in
+            accent | daylight | colours) ame desktop "${name}" "$(jq -r .to <<<"${change}")" >/dev/null ;;
+            accent-per-workspace) ame desktop accent-per-workspace "$(jq -r 'if .to then "on" else "off" end' <<<"${change}")" >/dev/null ;;
+            workspace-accents) gsettings set "${THEME_UI}" workspace-accents "$(jq -r "${GVARIANT}"' .to | gv' <<<"${change}")" &&
+                amethystora-theme accents ;;
+        esac || FAILED+=("the look's ${name}")
+    done
 
     # Last, since it downloads a whole system, which only takes over at the next restart
     mapfile -t changes < <(of "${todo}" image | jq -r '[.name, .stream] | @tsv')
@@ -1090,6 +1153,16 @@ remove_all() {
             gsettings reset "${schema}" "${name}" || FAILED+=("${label} ${name}")
         done
     done
+    mapfile -t names < <(of "${gone}" look | jq -r .key)
+    for name in "${names[@]}"; do
+        case "${name}" in
+            accent) ame desktop accent theme >/dev/null ;;
+            daylight) ame desktop daylight on >/dev/null ;;
+            colours) ame desktop colours off >/dev/null ;;
+            accent-per-workspace) ame desktop accent-per-workspace off >/dev/null ;;
+            workspace-accents) gsettings reset "${THEME_UI}" workspace-accents && amethystora-theme accents ;;
+        esac || FAILED+=("the look's ${name}")
+    done
 }
 
 # --- An image's defaults ---------------------------------------------------------------------------
@@ -1182,7 +1255,9 @@ bake() {
           section("org.gnome.shell.extensions.amethystora-ui.search"; ($s.search // {})),
           section("org.gnome.shell.extensions.amethystora-ui.emoji"; ($s.emoji // {})),
           section("org.gnome.shell.extensions.amethystora-ui.bezel"; ($s.bezel // {})),
-          section("org.gnome.desktop.sound"; ($s.sound // {}))' <<<"${setup}" \
+          section("org.gnome.desktop.sound"; ($s.sound // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.theme";
+            ($s.look // {} | with_entries(select(.key | IN("accent-per-workspace", "workspace-accents")))))' <<<"${setup}" \
         >"${schemas}/zz2-image-setup.gschema.override"
 
     # The image's custom keybindings are relocatable, so their keys are dconf's
@@ -1191,9 +1266,14 @@ bake() {
         <<<"${setup}" >"${root}/etc/dconf/db/distro.d/zz2-image-setup"
     [[ -s "${root}/etc/dconf/db/distro.d/zz2-image-setup" ]] || rm -f "${root}/etc/dconf/db/distro.d/zz2-image-setup"
 
-    rm -f "${out}/theme" "${out}/Brewfile"
+    rm -f "${out}/theme" "${out}/Brewfile" "${out}/accent" "${out}/colours"
     jq -r '.theme // empty' <<<"${setup}" | sed '/^$/d' >"${out}/theme"
     [[ -s "${out}/theme" ]] || rm -f "${out}/theme"
+    # The accent and colours from the wallpaper, which the theme reads after the account's own (theme/lib.sh)
+    jq -r '.settings.look.accent // empty | select(. != "theme")' <<<"${setup}" >"${out}/accent"
+    [[ -s "${out}/accent" ]] || rm -f "${out}/accent"
+    jq -r '.settings.look.colours // empty | select(. != "off")' <<<"${setup}" >"${out}/colours"
+    [[ -s "${out}/colours" ]] || rm -f "${out}/colours"
     # Names only, each in quotes the check keeps out of it: Homebrew reads a Brewfile as Ruby
     jq -r '.brew // {} | (.taps // [] | .[] | "tap \"\(.)\""), (.formulae // [] | .[] | "brew \"\(.)\""),
         (.casks // [] | .[] | "cask \"\(.)\"")' <<<"${setup}" >"${out}/Brewfile"
@@ -1221,7 +1301,8 @@ bake() {
         + "\(n(.brew // {} | (.taps // []) + (.formulae // []) + (.casks // []) | length; "name")) from Homebrew, "
         + "\(n(.extensions // [] | length; "extension")), the theme \(.theme // "of the image")",
         if (.containers // []) != [] then "  Left out: the containers, which each account makes (ame setup apply)" else empty end,
-        if .image then "  Left out: image, which is this build itself" else empty end' <<<"${setup}"
+        if .image then "  Left out: image, which is this build itself" else empty end,
+        if .settings.look.daylight then "  Left out: the look'"'"'s daylight, which each account turns off itself (ame desktop daylight)" else empty end' <<<"${setup}"
 }
 
 case "${1:-}" in

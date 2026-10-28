@@ -1784,6 +1784,111 @@ msgstr ""
 msgid "The colours of the desktop, the terminal and the apps that follow it, with the theme's own wallpapers."
 msgstr ""
 
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+msgid "Amethyst"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+msgid "Iris"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+msgid "Sky"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+msgid "Lagoon"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+msgid "Jade"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+msgid "Moss"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+msgid "Amber"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+msgid "Ember"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+msgid "Coral"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+msgid "Rose"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+msgid "Orchid"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/theme/accents.js
+msgid "Slate"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
+msgid "Follow the theme"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "The theme's own: ${own}"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
+msgid "Accent"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The colour of buttons, switches and selections, in any theme."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Your accent is kept: choose Follow the theme under Accent to take the wallpaper's."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The theme's own colours"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Vivid"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The strongest hue leads"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Soft"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The same hues, quieter"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Mono"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Tinted greys, colour on controls only"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Colours from the wallpaper"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The desktop's ground and accent taken from the wallpaper."
+msgstr ""
+
 #: usr/libexec/amethystora-control-list
 msgid "Glass"
 msgstr ""
@@ -1846,15 +1951,6 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
 msgid "Glass in quieter colours, for themes of low chroma"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Follow the theme"
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-#, sh-format
-msgid "The theme's own: ${own}"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -2026,11 +2122,35 @@ msgid "Pick a theme first: each theme has wallpapers of its own."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Changes with the time of day"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Wallpaper"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "The pictures of the current theme. Super+Ctrl+Space shows the next one."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "This theme has no Daylight pictures."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Daylight wallpapers"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The theme's first wallpaper follows the time of day: dawn, day, dusk and night."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "An accent per workspace"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The shell and Amethystora's apps change accent with the workspace. Other apps keep the theme's."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -2211,10 +2331,6 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "GNOME's sound settings are not installed."
-msgstr ""
-
-#: usr/libexec/amethystora-control-list
-msgid "Soft"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
@@ -5705,6 +5821,45 @@ msgstr ""
 #: usr/share/amethystora/just/desktop.just
 #, sh-format
 msgid "Theme (current: ${shown})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Accent: ${name}. Applications that are open take it when they next start."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Daylight wallpapers: on."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Daylight wallpapers: off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Colours from the wallpaper: off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Colours from the wallpaper need a picture: this wallpaper is not one."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Colours from the wallpaper: ${way}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Accent per workspace: on."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Accent per workspace: off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Workspace ${n}: ${name}."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just

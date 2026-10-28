@@ -225,6 +225,20 @@ for part in "SEARCH org.gnome.shell.extensions.amethystora-ui.search open" \
     [[ "${saved}" == "${listed}" ]] ||
         { echo "the manifest saves other ${name} keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
 done
+# The look: the theme module's keys are LOOK_KEYS' schema keys (the rest are the account's files), its accents are the
+# twelve of the theme library's ACCENTS and theme, and the manifest saves the module's same keys
+LOOK_TABLE="$(bash -c "$(sed -n '/^LOOK_ACCENTS=/p; /^LOOK_KEYS=/,/^}'"'"'$/p' "${SETUP}")"'; printf "%s" "${LOOK_KEYS}"')"
+jq -e '.accent and .daylight and .colours' <<<"${LOOK_TABLE}" >/dev/null || { echo "LOOK_KEYS cannot be read"; false; }
+listed="$(jq -r 'keys[] | select(. != "accent" and . != "daylight" and . != "colours")' <<<"${LOOK_TABLE}" | sort)"
+schema="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys org.gnome.shell.extensions.amethystora-ui.theme | sort)"
+[[ "${listed}" == "${schema}" ]] ||
+    { echo "LOOK_KEYS and the theme module's schema differ:"; diff <(echo "${listed}") <(echo "${schema}"); false; }
+ids="$(bash -c 'source /usr/lib/amethystora/theme/lib.sh; for e in "${ACCENTS[@]}"; do echo "${e%% *}"; done; echo theme')"
+[[ "$(jq -r '.accent[1][]' <<<"${LOOK_TABLE}")" == "${ids}" ]] ||
+    { echo "LOOK_KEYS' accents are not the theme library's"; false; }
+saved="$(sed -n 's/^THEME_UI_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort)"
+[[ "${saved}" == "${listed}" ]] ||
+    { echo "the manifest saves other theme module keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
 
 # A machine with two apps, three things from Homebrew, a container, an extension and a theme, whose
 # dock, close key, terminal key, tiling key, two tiling settings and window rules are not the image's. What
@@ -273,7 +287,9 @@ org.gnome.shell.extensions.amethystora-ui.dock magnify 'swell'
 org.gnome.shell.extensions.amethystora-ui.dock folders @a{sas} {}
 org.gnome.shell.extensions.amethystora-ui.dock stacks ['xdg:DOWNLOAD']
 org.gnome.shell.extensions.amethystora-ui.bezel round-corners false
-org.gnome.desktop.sound event-sounds true"
+org.gnome.desktop.sound event-sounds true
+org.gnome.shell.extensions.amethystora-ui.theme accent-per-workspace false
+org.gnome.shell.extensions.amethystora-ui.theme workspace-accents ['theme', 'sky', 'coral', 'jade', 'amber', 'orchid']"
         values="org.gnome.shell favorite-apps ['org.gnome.Nautilus.desktop', 'firefox.desktop']
 org.gnome.shell enabled-extensions ['clipboard-indicator@tudmotu.com']
 org.gnome.desktop.wm.keybindings close ['<Super>q']
@@ -513,12 +529,41 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"breaks": {"selected-breaks": ["sleep"]}}}' \
     '{"version": 1, "settings": {"breaks": {"selected-breaks": ["eyesight", "eyesight"]}}}' \
     '{"version": 1, "settings": {"breaks": {"selected-breaks": "eyesight"}}}' \
-    '{"version": 1, "settings": {"breaks": {"eyesight": {"interval-seconds": 60}}}}'; do
+    '{"version": 1, "settings": {"breaks": {"eyesight": {"interval-seconds": 60}}}}' \
+    '{"version": 1, "settings": {"look": {"accent": "teal"}}}' \
+    '{"version": 1, "settings": {"look": {"accent": "\"; rm -rf ~"}}}' \
+    '{"version": 1, "settings": {"look": {"colours": "loud"}}}' \
+    '{"version": 1, "settings": {"look": {"daylight": true}}}' \
+    '{"version": 1, "settings": {"look": {"accent-per-workspace": "on"}}}' \
+    '{"version": 1, "settings": {"look": {"workspace-accents": []}}}' \
+    '{"version": 1, "settings": {"look": {"workspace-accents": ["sky", "coral", "jade", "amber", "orchid", "../x"]}}}' \
+    '{"version": 1, "settings": {"look": {"no-such-setting": "on"}}}'; do
     printf '%s\n' "${bad}" >"${T}/bad.json"
     "${SETUP}" diff "${T}/bad.json" >/dev/null 2>&1 && { echo "accepted: ${bad}"; false; }
     "${SETUP}" apply --yes "${T}/bad.json" >/dev/null 2>&1 && { echo "applied: ${bad}"; false; }
 done
 [[ ! -s "${LOG}" ]]
+
+# The look: what is in force is saved (the account's files, as the theme reads them, and the theme module's keys), and
+# apply sets it through ame's own commands, the workspaces' accents (one past the sixth too) through the key
+LOOK_DIR="${XDG_CONFIG_HOME}/amethystora"
+mkdir -p "${LOOK_DIR}"
+echo jade >"${LOOK_DIR}/accent"
+echo off >"${LOOK_DIR}/daylight"
+echo soft >"${LOOK_DIR}/colours"
+[[ "$("${SETUP}" save - | jq -c .settings.look)" == '{"accent":"jade","daylight":"off","colours":"soft"}' ]]
+"${SETUP}" save - | jq '.settings.look["workspace-accents"] = ["theme", "moss", "sky", "jade", "amber", "orchid", "coral"]' \
+    >"${T}/look.json"
+rm -f "${LOOK_DIR}/accent" "${LOOK_DIR}/daylight" "${LOOK_DIR}/colours"
+"${SETUP}" apply --yes "${T}/look.json" >/dev/null
+grep -qx "ame desktop accent jade" "${LOG}"
+grep -qx "ame desktop daylight off" "${LOG}"
+grep -qx "ame desktop colours soft" "${LOG}"
+grep -qxF "gsettings set org.gnome.shell.extensions.amethystora-ui.theme workspace-accents ['theme', 'moss', 'sky', 'jade', 'amber', 'orchid', 'coral']" "${LOG}"
+grep -qx "amethystora-theme accents" "${LOG}"
+: >"${LOG}"
+# ...and nothing is saved for a look that is the image's own
+[[ "$("${SETUP}" save - | jq -c '.settings.look // {}')" == '{}' ]]
 
 # bake: the same file as an image's defaults, into a stand-in for the image made of its own schemas, extensions'
 # schemas and dconf files, with the real tools (no stand-ins on the PATH). What it writes is read back as GNOME
@@ -540,7 +585,9 @@ bake_root
 jq '.image = {"name": "amethystora", "stream": "stable"}
     | .flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .extensions = ["amethystora-clipboard@iarsslen.github.io"]
     | .settings.layout = "classic" | .brew.taps = ["someone/tools"] | .brew.formulae = ["fd", "someone/tools/lint"]
-    | .settings.motion = {"minimize": "shrink"} | .settings.workspaces = {"auto-names": false}' \
+    | .settings.motion = {"minimize": "shrink"} | .settings.workspaces = {"auto-names": false}
+    | .settings.look = {"accent": "jade", "colours": "soft", "accent-per-workspace": true,
+        "workspace-accents": ["theme", "moss", "sky", "jade", "amber", "orchid"]}' \
     "${FILE}" >"${T}/image.json"
 out="$(bake "${T}/image.json")"
 grep -qF "Left out: the containers" <<<"${out}"
@@ -571,6 +618,16 @@ printf 'file-db:%s\n' "${ROOT}/etc/dconf/db/distro" >"${T}/dconf-profile"
 # ...the image's command for it left as it was
 [[ -n "$(DCONF_PROFILE="${T}/dconf-profile" /usr/bin/dconf read /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom20/command)" ]]
 [[ "$(cat "${ROOT}/usr/share/amethystora/image-setup/theme")" == nord ]]
+# ...the look: the accent and colours where the theme reads them after the account's, the theme module's keys in zz2
+[[ "$(cat "${ROOT}/usr/share/amethystora/image-setup/accent")" == jade ]]
+[[ "$(cat "${ROOT}/usr/share/amethystora/image-setup/colours")" == soft ]]
+[[ "$(image org.gnome.shell.extensions.amethystora-ui.theme accent-per-workspace)" == true ]]
+[[ "$(GSETTINGS_SCHEMA_DIR="${ROOT}/${UI}/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get \
+    org.gnome.shell.extensions.amethystora-ui.theme workspace-accents)" == "['theme', 'moss', 'sky', 'jade', 'amber', 'orchid']" ]]
+grep -qF "Left out: the look's daylight" <<<"$(jq '.settings.look.daylight = "off"' "${T}/image.json" >"${T}/image-daylight.json" &&
+    bake_root && bake "${T}/image-daylight.json")"
+bake_root
+bake "${T}/image.json" >/dev/null
 diff <(printf '%s\n' 'tap "someone/tools"' 'brew "fd"' 'brew "someone/tools/lint"' 'cask "font-iosevka"') \
     "${ROOT}/usr/share/amethystora/image-setup/Brewfile"
 cmp -s "${T}/image.json" "${ROOT}/usr/share/amethystora/image-setup/setup.json"

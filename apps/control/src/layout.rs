@@ -357,6 +357,8 @@ mod aspect {
     #[derive(Default)]
     pub struct Aspect {
         pub ratio: Cell<f64>,
+        /// The most it grows to, in pixels, when it has a most (0: none)
+        pub max: Cell<i32>,
     }
 
     #[glib::object_subclass]
@@ -386,7 +388,10 @@ mod aspect {
                 return (min, nat, -1, -1);
             }
             let width = if for_size < 0 { child.measure(gtk::Orientation::Horizontal, -1).1 } else { for_size };
-            let height = (width as f64 * self.ratio.get()).round() as i32;
+            let mut height = (width as f64 * self.ratio.get()).round() as i32;
+            if self.max.get() > 0 {
+                height = height.min(self.max.get());
+            }
             let (min, _, _, _) = child.measure(orientation, width);
             (min.max(height), min.max(height), -1, -1)
         }
@@ -412,6 +417,12 @@ impl Aspect {
         aspect.imp().ratio.set(ratio);
         child.set_parent(&aspect);
         aspect
+    }
+
+    /// No taller than `max` pixels, however wide it is
+    pub fn with_max(self, max: i32) -> Aspect {
+        self.imp().max.set(max);
+        self
     }
 }
 

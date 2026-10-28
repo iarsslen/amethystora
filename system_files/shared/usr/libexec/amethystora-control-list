@@ -166,6 +166,9 @@ read_in_background breaks gsettings get org.gnome.desktop.break-reminders select
 read_in_background search gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.search
 read_in_background emoji gsettings get org.gnome.shell.extensions.amethystora-ui.emoji skin-tone
 read_in_background night-light gsettings list-recursively org.gnome.settings-daemon.plugins.color
+read_in_background look gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.theme
+read_in_background daylight amethystora-theme daylight status
+read_in_background daylight-now amethystora-theme daylight now
 read_in_background a11y gsettings list-recursively org.gnome.desktop.a11y.interface
 read_in_background profile busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile
 read_in_background phone systemctl --user is-enabled amethystora-connect.service
@@ -180,9 +183,18 @@ wait
 # --- Appearance ------------------------------------------------------------------------------------
 
 THEME="$(theme_current 2>/dev/null || true)"
-# With the palette the window draws each theme's swatch from. One jq for all the themes, each a line of its slug,
-# title and light or dark by the record separator and then its colours: a jq of its own for each was the biggest
-# part of the list's time
+# The accent the account chose (a file of its own, as the icons are), which the themes' previews are drawn with too
+ACCENT_SET="$(account_accent)"
+ACCENT_FILL=""
+[[ -n "${ACCENT_SET}" ]] && ACCENT_FILL="$(accent_fill "${ACCENT_SET}")"
+# Daylight's picture of this moment, for each theme that has its four (the preview shows a theme as it would open)
+DAYLIGHT_INDEX=""
+if daylight_on; then
+    DAYLIGHT_INDEX="$(daylight_index_now 2>/dev/null || true)"
+fi
+# With the palette the window draws each theme's swatch from, and the picture its preview stands on. One jq for all the
+# themes, each a line of its slug, title and light or dark by the record separator, then its picture and its colours: a
+# jq of its own for each was the biggest part of the list's time
 mapfile -t -O "${#CHOICES[@]}" CHOICES < <(
     while read -r slug; do
         [[ -n "${slug}" ]] || continue
@@ -193,21 +205,76 @@ mapfile -t -O "${#CHOICES[@]}" CHOICES < <(
             light=true
         fi
         printf '\x1e%s\x1e%s\x1e%s\n' "${slug}" "$(pretty "${slug}")" "${light}"
+        picture=""
+        list="${SYSTEM_THEMES_DIR}/${slug}/backgrounds.list"
+        [[ -f "${USER_THEMES_DIR}/${slug}/backgrounds.list" ]] && list="${USER_THEMES_DIR}/${slug}/backgrounds.list"
+        [[ -f "${list}" ]] && picture="$(grep -m1 '^/' "${list}" 2>/dev/null || true)"
+        if [[ -n "${DAYLIGHT_INDEX}" ]]; then
+            daylight_dir="${SYSTEM_THEMES_DIR}/${slug}"
+            [[ -f "${USER_THEMES_DIR}/${slug}/daylight.list" ]] && daylight_dir="${USER_THEMES_DIR}/${slug}"
+            mapfile -t times < <(daylight_pictures "${daylight_dir}" 2>/dev/null)
+            ((${#times[@]} == 4)) && picture="${times[DAYLIGHT_INDEX]}"
+        fi
+        [[ -n "${picture}" ]] && printf 'picture %s\n' "${picture}"
         sed -nE 's/^[[:space:]]*([a-z0-9_]+)[[:space:]]*=[[:space:]]*"(#[0-9a-fA-F]{6})".*/\1 \2/p' "${dir}/colors.toml" 2>/dev/null
     done < <(theme_list) |
-        jq -Rnc '[inputs] | reduce .[] as $line ([];
+        jq -Rnc --arg accent "${ACCENT_FILL}" '[inputs] | reduce .[] as $line ([];
                 if ($line | startswith("\u001e")) then
                     ($line[1:] | split("\u001e")) as $head
                     | . + [{value: $head[0], title: $head[1], light: ($head[2] == "true"), swatch: []}]
+                elif ($line | startswith("picture ")) then .[-1].picture = $line[8:]
                 else .[-1].swatch += [$line] end)
             | .[] | {value, title, text: null, terminal: false, command: ["ame", "desktop", "theme", .value], light,
+                picture: (.picture // null),
                 colors: (.swatch | map(split(" ") | {key: .[0], value: .[1]}) | from_entries
-                    | {background, foreground, accent, color1, color2, color3, color4, color5, color6})}'
+                    | {background, foreground, accent, color1, color2, color3, color4, color5, color6}
+                    | if $accent != "" then .accent = $accent else . end)}'
 )
 USAGE="ame desktop theme NAME"
 item appearance theme themes "$(gettext "Theme")" \
     "$(gettext "The colours of the desktop, the terminal and the apps that follow it, with the theme's own wallpapers.")" \
     "${THEME}" themes#switching
+
+# The twelve accents, and the theme's own: each a colour the window draws as a dot. "Follow the theme" is the theme's own
+# accent, named after the nearest of the twelve.
+OWN_ACCENT="$(colors_get "$(theme_source_dir "${THEME:-${DEFAULT_THEME}}")" accent | tr '[:upper:]' '[:lower:]')"
+declare -A ACCENT_NAMES=(
+    [amethyst]="$(gettext "Amethyst")" [iris]="$(gettext "Iris")" [sky]="$(gettext "Sky")" [lagoon]="$(gettext "Lagoon")"
+    [jade]="$(gettext "Jade")" [moss]="$(gettext "Moss")" [amber]="$(gettext "Amber")" [ember]="$(gettext "Ember")"
+    [coral]="$(gettext "Coral")" [rose]="$(gettext "Rose")" [orchid]="$(gettext "Orchid")" [slate]="$(gettext "Slate")"
+)
+# The nearest of the twelve, by the distance of their red, green and blue
+own="$(printf '%s\n' "${ACCENTS[@]}" | awk -v own="${OWN_ACCENT:-#9148f0}" '
+    function hex(s, i) { return index("0123456789abcdef", substr(s, i, 1)) * 16 + index("0123456789abcdef", substr(s, i + 1, 1)) - 17 }
+    { d = 0; for (i = 2; i <= 6; i += 2) d += (hex($2, i) - hex(own, i)) ^ 2; if (best == "" || d < bd) { best = $1; bd = d } }
+    END { print best }')"
+own="${ACCENT_NAMES[${own}]:-${OWN_ACCENT}}"
+# Follow the theme first, then the twelve in two columns as the boards draw them
+mapfile -t -O "${#CHOICES[@]}" CHOICES < <(
+    {
+        printf '%s\t%s\t%s\t%s\n' theme "$(gettext "Follow the theme")" "${OWN_ACCENT:-#9148f0}" "$(eval_gettext "The theme's own: \${own}")"
+        for entry in "${ACCENTS[@]}"; do
+            printf '%s\t%s\t%s\t\n' "${entry%% *}" "${ACCENT_NAMES[${entry%% *}]}" "${entry##* }"
+        done
+    } | jq -Rc 'split("\t") | {value: .[0], title: .[1], color: .[2], text: (if .[3] == "" then null else .[3] end),
+        terminal: false, command: ["ame", "desktop", "accent", .[0]]}'
+)
+USAGE="ame desktop accent ACCENT"
+item appearance accent choice "$(gettext "Accent")" \
+    "$(gettext "The colour of buttons, switches and selections, in any theme.")" "${ACCENT_SET:-theme}" themes#accents
+
+# Colours from the wallpaper: off, or one of three ways; a chosen accent stays over the wallpaper's
+COLOURS_SET="$(colours_way)"
+if [[ -n "${ACCENT_SET}" && -n "${COLOURS_SET}" && "${COLOURS_SET}" != mono ]]; then
+    DETAIL="$(gettext "Your accent is kept: choose Follow the theme under Accent to take the wallpaper's.")"
+fi
+choice off "$(gettext "Off")" "$(gettext "The theme's own colours")" false ame desktop colours off
+choice vivid "$(gettext "Vivid")" "$(gettext "The strongest hue leads")" false ame desktop colours vivid
+choice soft "$(gettext "Soft")" "$(gettext "The same hues, quieter")" false ame desktop colours soft
+choice mono "$(gettext "Mono")" "$(gettext "Tinted greys, colour on controls only")" false ame desktop colours mono
+USAGE="ame desktop colours vivid|soft|mono|off"
+item appearance colours choice "$(gettext "Colours from the wallpaper")" \
+    "$(gettext "The desktop's ground and accent taken from the wallpaper.")" "${COLOURS_SET:-off}" themes#colours-from-your-wallpaper
 
 # The theme's own icons, style and font, which "Follow the theme" gives: each of the three is the account's to keep
 # whatever the theme, so that any theme, style, font and icons go together. Read from the current theme's files as
@@ -322,15 +389,42 @@ if [[ -z "${THEME}" ]]; then
     REASON="$(gettext "Pick a theme first: each theme has wallpapers of its own.")"
 fi
 CURRENT_PICTURE="$(readlink "${CURRENT_BACKGROUND}" 2>/dev/null || true)"
+OPENING="$(grep -m1 '^/' "${CURRENT_THEME_DIR}/backgrounds.list" 2>/dev/null || true)"
 while read -r picture; do
     [[ -n "${picture}" ]] || continue
     name="${picture##*/}"
+    if [[ "${picture}" == "${OPENING}" && "$(said daylight)" == on && -n "$(said daylight-now)" ]]; then
+        # The opening picture is Daylight's: its tile shows the picture of the hour, and says so
+        CHOICES+=("$(jq -nc --arg value "${picture}" --arg title "$(pretty "${name%.*}"). $(gettext "Changes with the time of day")" \
+            --arg thumbnail "$(said daylight-now)" \
+            '{value: $value, title: $title, text: null, terminal: false, command: ["ame", "desktop", "background", $value], thumbnail: $thumbnail}')")
+        continue
+    fi
     choice "${picture}" "$(pretty "${name%.*}")" "" false ame desktop background "${picture}"
 done < <(said backgrounds)
 USAGE="ame desktop background"
 item appearance wallpaper wallpapers "$(gettext "Wallpaper")" \
     "$(gettext "The pictures of the current theme. Super+Ctrl+Space shows the next one.")" \
     "${CURRENT_PICTURE}" themes#wallpapers
+
+# Daylight, the theme's first wallpaper by the time of day: on unless the account turned it off
+DAYLIGHT="$(said daylight)"
+if [[ "${DAYLIGHT}" == none ]]; then
+    REASON="$(gettext "This theme has no Daylight pictures.")"
+fi
+switch_choices false ame desktop daylight
+USAGE="ame desktop daylight on|off"
+item appearance daylight switch "$(gettext "Daylight wallpapers")" \
+    "$(gettext "The theme's first wallpaper follows the time of day: dawn, day, dusk and night.")" \
+    "$([[ "${DAYLIGHT}" == off ]] && echo off || echo on)" themes#daylight
+
+# An accent for each workspace, in the shell and Amethystora's apps; each workspace's own is chosen in its menu
+[[ "$(ended look)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+switch_choices false ame desktop accent-per-workspace
+USAGE="ame desktop accent-per-workspace on|off"
+item appearance accent-per-workspace switch "$(gettext "An accent per workspace")" \
+    "$(gettext "The shell and Amethystora's apps change accent with the workspace. Other apps keep the theme's.")" \
+    "$(said look | grep -q ' accent-per-workspace true$' && echo on || echo off)" themes#an-accent-per-workspace
 
 if [[ "$(ended transitions)" == 0 ]]; then
     STYLE="$(said transitions | sed -n "s/^[^ ]* style '\(.*\)'$/\1/p")"

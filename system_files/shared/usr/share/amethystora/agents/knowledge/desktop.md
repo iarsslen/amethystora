@@ -10,9 +10,16 @@ these commands in the agent's own shell, as the user. Read before writing, chang
   Amethystora the theme decides it: `amethystora-theme toggle` switches to the theme's light or dark pair,
   which is better than setting the key alone.
 - Text size: `gsettings set org.gnome.desktop.interface text-scaling-factor 1.25`.
-- Accent colour: the theme's own (the apps' palette layer, `~/.config/gtk-4.0/gtk.css`, written by a theme switch);
-  `gsettings set org.gnome.desktop.interface accent-color purple` only moves GNOME's nearest of nine, which the shell
-  and the apps no longer take.
+- Accent colour: `ame desktop accent amethyst|iris|sky|lagoon|jade|moss|amber|ember|coral|rose|orchid|slate|theme`
+  (the account's `~/.config/amethystora/accent`, which every theme switch reads); `gsettings set
+  org.gnome.desktop.interface accent-color purple` only moves GNOME's nearest of nine, which the shell and the apps no
+  longer take.
+- The first wallpaper by the time of day: `ame desktop daylight on|off` (on unless turned off; the desktop's
+  `picture-uri` is then `~/.config/amethystora/current/backgrounds/<theme>-daylight.xml`, GNOME's own slideshow).
+- Colours from the wallpaper: `ame desktop colours vivid|soft|mono|off` (`~/.config/amethystora/wallpaper-colours.toml`,
+  written by `/usr/libexec/amethystora-wallpaper-colours`).
+- An accent per workspace: `ame desktop accent-per-workspace on|off`, and `ame desktop accent-per-workspace 3 coral`
+  for one workspace's.
 - Icons: `ame desktop icons glass|glass-light|neon|neon-light|duotone|line|clay|muted|theme`, not
   `gsettings set ... icon-theme`, which the next theme switch writes over.
 - Font: `ame desktop font "<family>"|theme`, not `gsettings set ... font-name`, which the next theme switch writes over.

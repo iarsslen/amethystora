@@ -10,6 +10,15 @@
 #   amethystora-theme reload               apply the current theme again, after an image update or a new
 #                                          style, font or icon pack
 #   amethystora-theme bg next|list|set     cycle, list or choose the theme's wallpaper
+#   amethystora-theme daylight on|off|refresh [--force]|adopt|now|status
+#                                          the theme's first wallpaper by the time of day: show it, take it
+#                                          away, write its slideshow again when its times or the clock's offset
+#                                          changed, show it to an account still on that picture, print the
+#                                          picture of this moment, or say whether it is on, off or none
+#   amethystora-theme colours refresh      work the colours out of the wallpaper again when it, its way or the
+#                                          theme changed (ame desktop colours), and apply them
+#   amethystora-theme accents              render the shell's colours for each workspace's accent (ame desktop
+#                                          accent-per-workspace), or take them away when that is off
 #
 # See /usr/lib/amethystora/theme/lib.sh for what a theme directory holds.
 
@@ -19,7 +28,7 @@ set -euo pipefail
 source /usr/lib/amethystora/theme/lib.sh
 
 usage() {
-    sed -n '3,14p' "$0" | sed 's/^# \?//'
+    sed -n '3,23p' "$0" | sed 's/^# \?//'
 }
 
 # --- Applying a theme -------------------------------------------------------------------------
@@ -43,9 +52,19 @@ stage_theme() {
 
     [[ -f "${staging}/colors.toml" ]] || die "theme '${slug}' has no colors.toml"
 
+    # The account's colours over the theme's, key by key, so that its mode, style, fonts and terminal colours stay the
+    # theme's: the wallpaper's (ame desktop colours), then a chosen accent, the more specific choice, over them
+    colours_apply "${staging}" "${slug}"
+    local accent
+    accent="$(account_accent)"
+    if [[ -n ${accent} ]]; then
+        colors_merge "${staging}/colors.toml" accent "$(accent_fill "${accent}")"
+    fi
+
     render_templates "${staging}" \
         "theme_name=${slug}" \
         "ptyxis_palette_name=Amethystora ${slug}"
+    render_accent_sets "${staging}" "${slug}"
 
     rm -rf "${CURRENT_THEME_DIR}"
     mv "${staging}" "${CURRENT_THEME_DIR}"
@@ -65,8 +84,13 @@ apply_gnome() {
     fi
     dconf_write_string /org/gnome/desktop/interface/gtk-theme "${gtk_theme}"
 
+    # GNOME's own accent, which the shell and libadwaita apps that do not read the palette layer follow: the theme's name
+    # for it, unless the account's accent or the wallpaper's replaced the theme's, and then the nearest of GNOME's nine
     accent="$(theme_file accent.theme)"
-    [[ -n ${accent} ]] || accent="$(closest_gnome_accent "$(colors_get "${CURRENT_THEME_DIR}" accent)")"
+    if [[ -n "$(account_accent)" || -z ${accent} ||
+        "$(colors_get "${CURRENT_THEME_DIR}" accent)" != "$(colors_get "$(theme_source_dir "$(theme_current)")" accent)" ]]; then
+        accent="$(closest_gnome_accent "$(colors_get "${CURRENT_THEME_DIR}" accent)")"
+    fi
     dconf_write_string /org/gnome/desktop/interface/accent-color "${accent}"
 
     # The icon theme is written on every switch, like the GTK theme above: were it only written by
@@ -174,13 +198,28 @@ transition() {
         --method "org.amethystora.Transitions.$1" >/dev/null 2>&1 || true
 }
 
+apply_all() {
+    apply_gnome
+    apply_ptyxis
+    apply_kitty
+    apply_btop
+    apply_starship
+}
+
 run_hooks() {
     local hook
     shopt -s nullglob
     for hook in "${SYSTEM_HOOKS_DIR}"/*.sh "${USER_HOOKS_DIR}"/*; do
         [[ -x ${hook} ]] || continue
-        AMETHYSTORA_THEME="$(theme_current)" AMETHYSTORA_THEME_DIR="${CURRENT_THEME_DIR}" \
-            "${hook}" || echo "amethystora-theme: hook ${hook} failed" >&2
+        # Without the lock's descriptor: a daemon the hook starts (a bar, a wallpaper program) must not hold the lock
+        # for as long as it lives. A hook that runs amethystora-theme itself still goes through, as part of this run.
+        if [[ -n ${THEME_LOCK_FD:-} ]]; then
+            AMETHYSTORA_THEME="$(theme_current)" AMETHYSTORA_THEME_DIR="${CURRENT_THEME_DIR}" \
+                "${hook}" {THEME_LOCK_FD}>&- || echo "amethystora-theme: hook ${hook} failed" >&2
+        else
+            AMETHYSTORA_THEME="$(theme_current)" AMETHYSTORA_THEME_DIR="${CURRENT_THEME_DIR}" \
+                "${hook}" || echo "amethystora-theme: hook ${hook} failed" >&2
+        fi
     done
     shopt -u nullglob
 }
@@ -193,14 +232,16 @@ theme_set() {
     stage_theme "${slug}"
     transition Hold
     trap 'transition Release' EXIT
-    apply_gnome
-    apply_ptyxis
-    apply_kitty
-    apply_btop
-    apply_starship
+    apply_all
     # A wallpaper that cannot be set is worth a warning, not a half-applied theme
     if [[ ${AMETHYSTORA_THEME_SKIP_BACKGROUND:-0} != 1 ]]; then
         background_next --first || echo "amethystora-theme: could not set the background" >&2
+    fi
+    # Colours from the wallpaper are worked out from the theme's ground and the picture now shown: when they come out
+    # new, the theme is staged and applied once more under the same transition
+    if colours_update; then
+        stage_theme "${slug}"
+        apply_all
     fi
     run_hooks
     transition Release
@@ -263,8 +304,16 @@ background_list() {
 }
 
 background_set() {
-    local image="$1" shown uri
+    local image="$1" shown uri opening xml
     [[ -f ${image} ]] || die "no such background: ${image}"
+    # The theme's opening picture, or one of its four times of day, is shown as Daylight's slideshow while Daylight is
+    # on; the link below still names the opening picture, so that the next wallpaper is the theme's second
+    opening="$(opening_picture)"
+    if [[ -n ${opening} ]] && daylight_on && daylight_shows "${image}" "${opening}" && xml="$(daylight_write)"; then
+        background_uri "file://${xml}"
+        ln -snf "${opening}" "${CURRENT_BACKGROUND}"
+        return 0
+    fi
     # current/theme is replaced on every switch, so a wallpaper inside it has the same path in every
     # theme and is gone for a moment mid-switch. GNOME caches pictures by path: shown from there, it
     # can keep the last theme's picture or drop to the plain fill colour. So it is shown from a copy
@@ -276,12 +325,252 @@ background_set() {
         cp -f "${image}" "${shown}"
     fi
     uri="file://${shown}"
-    dconf_write_string /org/gnome/desktop/background/picture-uri "${uri}"
-    dconf_write_string /org/gnome/desktop/background/picture-uri-dark "${uri}"
-    dconf_write_string /org/gnome/desktop/background/picture-options "zoom"
-    dconf_write_string /org/gnome/desktop/screensaver/picture-uri "${uri}"
-    mkdir -p "${CURRENT_DIR}"
+    background_uri "${uri}"
     ln -snf "${image}" "${CURRENT_BACKGROUND}"
+}
+
+# The desktop's and the lock screen's picture, a picture or Daylight's slideshow
+background_uri() {
+    dconf_write_string /org/gnome/desktop/background/picture-uri "$1"
+    dconf_write_string /org/gnome/desktop/background/picture-uri-dark "$1"
+    dconf_write_string /org/gnome/desktop/background/picture-options "zoom"
+    dconf_write_string /org/gnome/desktop/screensaver/picture-uri "$1"
+    mkdir -p "${CURRENT_DIR}"
+}
+
+# The picture GNOME is showing, as a path, or nothing when it shows no file
+shown_picture() {
+    local uri
+    uri="$(gsettings get org.gnome.desktop.background picture-uri 2>/dev/null || dconf read /org/gnome/desktop/background/picture-uri 2>/dev/null || true)"
+    # GSettings prints the string between single quotes, or double ones when it holds a single one (a picture named
+    # "Ann's"), with backslashes before what needs them; a URI writes a byte as %XX, as GNOME Settings does a space.
+    # Python reads both as they are written, and gives nothing for anything but a file:// URI.
+    python3 -I -c 'import ast, sys, urllib.parse
+try:
+    uri = ast.literal_eval(sys.argv[1])
+except (ValueError, SyntaxError):
+    sys.exit(0)
+if isinstance(uri, str) and uri.startswith("file://"):
+    print(urllib.parse.unquote(uri[len("file://"):]))' "${uri}" 2>/dev/null || true
+}
+
+# --- Daylight ---------------------------------------------------------------------------------
+
+# The picture the current theme opens on: the first of its backgrounds.list that is there
+opening_picture() {
+    local line
+    [[ -f "${CURRENT_THEME_DIR}/backgrounds.list" ]] || return 0
+    while IFS= read -r line; do
+        line="${line%$'\r'}"
+        [[ ${line} =~ ^[[:space:]]*(#|$) ]] && continue
+        if [[ -f ${line} ]]; then
+            printf '%s\n' "${line}"
+            return 0
+        fi
+    done <"${CURRENT_THEME_DIR}/backgrounds.list"
+}
+
+# Whether a picture about to be set is Daylight's: the opening picture or one of the four of its daylight.list
+daylight_shows() {
+    local image="$1" opening="$2" picture
+    [[ ${image} == "${opening}" ]] && daylight_pictures >/dev/null 2>&1 && return 0
+    while read -r picture; do
+        [[ ${image} == "${picture}" ]] && return 0
+    done < <(daylight_pictures 2>/dev/null)
+    return 1
+}
+
+daylight_file() {
+    echo "${CURRENT_DIR}/backgrounds/$(theme_current)-daylight.xml"
+}
+
+# Writes the current theme's slideshow, atomically, and prints its path: only when what it says would change (its
+# pictures, or the times Night Light gives), or when the clock's offset from UTC is no longer the one of the day it
+# starts on, since GNOME counts from that midnight (a change of summer time), or with --force; else it is left as it is.
+# On the day of the change itself, today's midnight still has the old offset, so the pictures are an hour off until the
+# next day (written again at the next login or unlock); GNOME's format has no wall-clock times to do better.
+daylight_write() {
+    local force="${1:-}" file text year month day start offset_then
+    local -a pictures
+    mapfile -t pictures < <(daylight_pictures) || return 1
+    ((${#pictures[@]} == 4)) || return 1
+    file="$(daylight_file)"
+    mkdir -p "${file%/*}"
+    if [[ ${force} != --force && -f ${file} ]]; then
+        start="$(sed -n 's:.*<year>\([0-9]*\)</year><month>\([0-9]*\)</month><day>\([0-9]*\)</day>.*:\1 \2 \3:p' "${file}" | head -n1)"
+        if [[ -n ${start} ]]; then
+            read -r year month day <<<"${start}"
+            text="$(printf '%s\n' "${pictures[@]}" | daylight_xml "${year}" "${month}" "${day}")" || return 1
+            offset_then="$(date -d "$(printf '%04d-%02d-%02d 00:00:00' "${year}" "${month}" "${day}")" +%z 2>/dev/null || true)"
+            if [[ ${text} == "$(<"${file}")" && ${offset_then} == "$(date +%z)" ]]; then
+                printf '%s\n' "${file}"
+                return 0
+            fi
+        fi
+    fi
+    read -r year month day <<<"$(date '+%Y %m %d')"
+    text="$(printf '%s\n' "${pictures[@]}" | daylight_xml "${year}" "${month}" "${day}")" || return 1
+    printf '%s\n' "${text}" >"${file}.new"
+    mv "${file}.new" "${file}"
+    printf '%s\n' "${file}"
+}
+
+# Whether GNOME is showing the current theme's slideshow
+daylight_shown() {
+    [[ "$(shown_picture)" == "$(daylight_file)" ]]
+}
+
+daylight_command() {
+    local opening pictures
+    opening="$(opening_picture)"
+    case "${1:-status}" in
+        on)
+            rm -f "${CONFIG_DIR}/daylight"
+            daylight_pictures >/dev/null || return 3
+            [[ -n ${opening} ]] && background_set "${opening}"
+            colours_refresh || true
+            ;;
+        off)
+            mkdir -p "${CONFIG_DIR}"
+            echo off >"${CONFIG_DIR}/daylight"
+            # The slideshow gives way to the opening picture, which is the theme's own time of day
+            if daylight_shown && [[ -n ${opening} ]]; then
+                background_set "${opening}"
+                colours_refresh || true
+            fi
+            ;;
+        refresh)
+            if daylight_on && daylight_shown; then
+                daylight_write "${2:-}" >/dev/null
+            fi
+            ;;
+        adopt)
+            # An account still on the theme's opening picture (or on none, which is the image's default, the
+            # Amethystora theme's) is shown it as Daylight; a picture of its own is kept
+            local shown
+            daylight_on && [[ -n ${opening} ]] || return 0
+            shown="$(dconf read /org/gnome/desktop/background/picture-uri 2>/dev/null || true)"
+            shown="${shown#\'}"
+            shown="${shown%\'}"
+            case "${shown}" in
+                "" | "file://${opening}" | "file://${CURRENT_DIR}/backgrounds/$(theme_current)-${opening##*/}")
+                    background_set "${opening}"
+                    ;;
+            esac
+            ;;
+        now)
+            # The picture of this moment, for Control's thumbnail
+            mapfile -t pictures < <(daylight_pictures 2>/dev/null)
+            ((${#pictures[@]} == 4)) || return 3
+            printf '%s\n' "${pictures[$(daylight_index_now)]}"
+            ;;
+        status)
+            if ! daylight_pictures >/dev/null 2>&1; then
+                echo none
+            elif daylight_on; then
+                echo on
+            else
+                echo off
+            fi
+            ;;
+        *) die "unknown daylight command: ${1}" ;;
+    esac
+}
+
+# --- Colours from the wallpaper -----------------------------------------------------------------
+
+# The picture the colours are taken from: the one GNOME shows; for Daylight's slideshow, its picture of the theme's own
+# time (night for a dark theme, day for a light one), so that they do not change through the day
+colours_picture() {
+    local picture
+    local -a pictures
+    picture="$(shown_picture)"
+    if [[ -n ${picture} && ${picture} == "$(daylight_file)" ]]; then
+        mapfile -t pictures < <(daylight_pictures 2>/dev/null)
+        ((${#pictures[@]} == 4)) || return 1
+        if theme_is_light; then picture="${pictures[1]}"; else picture="${pictures[3]}"; fi
+    fi
+    [[ -n ${picture} && -f ${picture} ]] || return 1
+    realpath -e -- "${picture}"
+}
+
+# Works the wallpaper's colours out again when the picture, the way, or the theme's ground, text or mode is not what they
+# were worked from (the stamp line), or takes them away when they are off or the wallpaper is no picture. Succeeds when
+# the file changed, so that the caller applies the theme again.
+COLOURS_REFUSED=0
+colours_update() {
+    local way slug own mode background foreground accent picture stamp old code=0
+    way="$(colours_way)"
+    if [[ -z ${way} ]]; then
+        [[ -f ${WALLPAPER_COLOURS} ]] || return 1
+        rm -f "${WALLPAPER_COLOURS}"
+        return 0
+    fi
+    slug="$(theme_current)" || return 1
+    own="$(theme_source_dir "${slug}")"
+    if theme_source_is_light "${slug}"; then mode=light; else mode=dark; fi
+    background="$(colors_get "${own}" background | tr '[:upper:]' '[:lower:]')"
+    foreground="$(colors_get "${own}" foreground | tr '[:upper:]' '[:lower:]')"
+    accent="$(colors_get "${own}" accent | tr '[:upper:]' '[:lower:]')"
+    if ! picture="$(colours_picture)"; then
+        COLOURS_REFUSED=1
+        [[ -f ${WALLPAPER_COLOURS} ]] || return 1
+        rm -f "${WALLPAPER_COLOURS}"
+        return 0
+    fi
+    stamp="${way} ${mode} ${picture} $(stat -c '%Y %s' -- "${picture}") ${background} ${foreground}"
+    old="$(sed -n 's/^# stamp //p' "${WALLPAPER_COLOURS}" 2>/dev/null | head -n1)"
+    [[ ${old} == "${stamp}" ]] && return 1
+    local -a args=(--way "${way}" --mode "${mode}" --background "${background}" --foreground "${foreground}")
+    [[ ${accent} =~ ^#[0-9a-f]{6}$ ]] && args+=(--accent "${accent}")
+    /usr/libexec/amethystora-wallpaper-colours "${args[@]}" "${picture}" || code=$?
+    case "${code}" in
+        0) return 0 ;;
+        1 | 2)
+            echo "amethystora-theme: the wallpaper's colours could not be worked out" >&2
+            return 1
+            ;;
+        *)
+            # Refused, or the decoder died on the picture: either way no colours from it, and none of the last
+            # picture's left in force
+            COLOURS_REFUSED=1
+            [[ -f ${WALLPAPER_COLOURS} ]] || return 1
+            rm -f "${WALLPAPER_COLOURS}"
+            return 0
+            ;;
+    esac
+}
+
+# After the wallpaper or the way changed: the colours worked out again, and the theme applied again if they are new
+colours_refresh() {
+    local current
+    current="$(theme_current 2>/dev/null)" || return 0
+    if colours_update; then
+        AMETHYSTORA_THEME_QUIET=1 AMETHYSTORA_THEME_SKIP_BACKGROUND=1 theme_set "${current}" >/dev/null
+    fi
+    if [[ ${COLOURS_REFUSED} == 1 ]]; then
+        return 3
+    fi
+    return 0
+}
+
+# --- An accent per workspace ------------------------------------------------------------------
+
+# The sets of the current theme rendered again for the workspaces' accents as the keys now say, in a folder of their own
+# moved into place whole, so that the shell never loads half of one
+accents_command() {
+    local slug staging
+    slug="$(theme_current)" || die "no theme is set yet"
+    # A folder of its own for each run: the shell may start one while a command does
+    staging="$(mktemp -d "${CURRENT_DIR}/.accents.XXXXXX")"
+    cp "${CURRENT_THEME_DIR}"/*.css "${CURRENT_THEME_DIR}/palette.toml" "${CURRENT_THEME_DIR}/colors.toml" "${staging}/" 2>/dev/null || true
+    [[ -f "${CURRENT_THEME_DIR}/light.mode" ]] && cp "${CURRENT_THEME_DIR}/light.mode" "${staging}/"
+    render_accent_sets "${staging}" "${slug}"
+    rm -rf "${CURRENT_THEME_DIR}/accents"
+    if [[ -d "${staging}/accents" ]]; then
+        mv -T "${staging}/accents" "${CURRENT_THEME_DIR}/accents"
+    fi
+    rm -rf "${staging}"
 }
 
 # --first picks the first background of a newly applied theme; without it the next one along
@@ -312,6 +601,12 @@ background_next() {
 
 # --- Entry point ------------------------------------------------------------------------------
 
+# Every command that writes takes the account's lock first (theme_lock)
+case "${1:-list} ${2:-}" in
+    "bg list" | "background list" | "daylight now" | "daylight status" | "daylight ") ;;
+    set\ * | toggle\ * | reload\ * | bg\ * | background\ * | daylight\ * | colours\ * | accents\ *) theme_lock ;;
+esac
+
 case "${1:-list}" in
     list)
         current="$(theme_current || true)"
@@ -328,12 +623,18 @@ case "${1:-list}" in
         ;;
     bg | background)
         case "${2:-next}" in
-            next) background_next ;;
+            next) background_next && { colours_refresh || true; } ;;
             list) background_list ;;
-            set) background_set "${3:?usage: amethystora-theme bg set <image>}" ;;
+            set) background_set "${3:?usage: amethystora-theme bg set <image>}" && { colours_refresh || true; } ;;
             *) die "unknown background command: ${2}" ;;
         esac
         ;;
+    daylight) shift; daylight_command "$@" ;;
+    colours)
+        [[ ${2:-refresh} == refresh ]] || die "unknown colours command: ${2}"
+        colours_refresh
+        ;;
+    accents) accents_command ;;
     -h | --help | help) usage ;;
     *) die "unknown command: ${1}. Run amethystora-theme --help" ;;
 esac

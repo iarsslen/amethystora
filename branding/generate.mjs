@@ -1296,10 +1296,16 @@ const ramp = (colors, t) => {
   return mix(colors[i], colors[i + 1], u - i);
 };
 
+// The facets' shades, darkest first: amethyst in the dark, lilac to white in the light
+const FACET_TONES = {
+  dark: ["#0e0419", "#1f0840", "#35106a", SHADES[3], SHADES[5], SHADES[6]],
+  light: [SHADES[7], "#c6a8f0", "#e2d2f8", "#f6f0fd", "#ffffff"],
+};
+
 // The cut face of a stone, filling the screen: a jittered grid of triangles, each a flat facet tilted by a
 // gentle swell under it and shaded by how it faces the light, brightest around the crystal field's glow.
-function facetsSvg(theme) {
-  const dark = theme === "dark";
+function facetsSvg(theme, tones = theme === "dark" ? FACET_TONES.dark : FACET_TONES.light) {
+  const dark = theme !== "light";
   const rnd = random(59);
   const [cols, rows] = [24, 14];
   const [cw, ch] = [WALL_W / (cols - 3), WALL_H / (rows - 3)];
@@ -1311,10 +1317,6 @@ function facetsSvg(theme) {
       const [x, y] = [(i - 1 + (rnd() - 0.5) * 0.64) * cw, (j - 1 + (rnd() - 0.5) * 0.64) * ch];
       return [x, y, swell(x, y)];
     }));
-  const tones = dark
-    ? ["#0e0419", "#1f0840", "#35106a", SHADES[3], SHADES[5], SHADES[6]]
-    : [SHADES[7], "#c6a8f0", "#e2d2f8", "#f6f0fd", "#ffffff"];
-
   const facets = [];
   for (let j = 0; j < rows - 1; j++) {
     for (let i = 0; i < cols - 1; i++) {
@@ -1579,8 +1581,12 @@ const glow = (id, [x, y], r, color, a) =>
 // In screen units, so that a straight line, whose box has no height, is blurred too
 const blur = (id, sd) =>
   `<filter id="${id}" filterUnits="userSpaceOnUse" x="-400" y="-400" width="${WALL_W + 800}" height="${WALL_H + 800}"><feGaussianBlur stdDeviation="${sd}"/></filter>`;
-const starfield = (rnd, count, color, bottom) => `<g fill="${color}">${Array.from({ length: count }, () =>
-  `<circle cx="${n1(rnd() * WALL_W)}" cy="${n1(rnd() ** 1.3 * bottom)}" r="${n1(1.2 + 3.4 * rnd() ** 4)}" fill-opacity="${(0.25 + 0.65 * rnd()).toFixed(2)}"/>`).join("")}</g>`;
+// Daylight keeps a share of them (keep), each as much fainter, and draws every one of them all the same so that the rest
+// of the scene takes the same random numbers and stands where it stands at night
+const starfield = (rnd, count, color, bottom, keep = 1) => `<g fill="${color}">${Array.from({ length: count }, (_, k) => {
+  const star = `<circle cx="${n1(rnd() * WALL_W)}" cy="${n1(rnd() ** 1.3 * bottom)}" r="${n1(1.2 + 3.4 * rnd() ** 4)}" fill-opacity="${((0.25 + 0.65 * rnd()) * keep).toFixed(2)}"/>`;
+  return k < Math.round(count * keep) ? star : "";
+}).join("")}</g>`;
 // Everything under a line that crosses the screen
 const belowPath = (pts) => polyPath([[pts[0][0], WALL_H + 10], ...pts, [pts[pts.length - 1][0], WALL_H + 10]]);
 const below = (pts, fill, extra = "") => `<path d="${belowPath(pts)}" fill="${fill}"${extra}/>`;
@@ -1649,8 +1655,12 @@ function peaksSvg(o) {
   const horizon = o.lake || WALL_H;
   const defs = [linear("sky", o.sky), linear("mist", [[o.mist, 0], [o.mist, 1]]), blur("soft", 14)];
   const sky = [fillAll("url(#sky)")];
-  if (o.stars) sky.push(starfield(rnd, o.stars, o.starColor, horizon * 0.8));
-  if (o.aurora) sky.push(aurora(rnd, o.aurora, defs));
+  const light = { ...DAYLIGHT_SCENE.night, ...o.daylight };
+  if (o.stars) sky.push(starfield(rnd, o.stars, o.starColor, horizon * 0.8, light.stars));
+  if (o.aurora) {
+    const curtains = aurora(rnd, o.aurora, defs);
+    if (light.aurora > 0) sky.push(light.aurora === 1 ? curtains : `<g opacity="${light.aurora}">${curtains}</g>`);
+  }
   if (o.sun) {
     const sun = orb("sunglow", o.sun);
     defs.push(sun.def);
@@ -1701,7 +1711,7 @@ function forestSvg(o) {
   const rnd = random(o.seed);
   const defs = [linear("sky", o.sky), linear("mist", [[o.mist, 0], [o.mist, 1]])];
   const body = [fillAll("url(#sky)")];
-  if (o.stars) body.push(starfield(rnd, o.stars, o.starColor, 1000));
+  if (o.stars) body.push(starfield(rnd, o.stars, o.starColor, 1000, { ...DAYLIGHT_SCENE.night, ...o.daylight }.stars));
   if (o.sun) {
     const sun = orb("sunglow", o.sun);
     defs.push(sun.def);
@@ -1753,7 +1763,7 @@ function retroSvg(o) {
     `<rect x="${sx - r - 10}" y="${n1(sy + r * (0.02 + 0.105 * k))}" width="${2 * r + 20}" height="${n1(4 + 4.2 * k)}" fill="#000000"/>`);
   defs.push(`<mask id="bars"><rect width="${WALL_W}" height="${WALL_H}" fill="#ffffff"/>${bars.join("")}</mask>`);
   const body = [fillAll("url(#sky)")];
-  if (o.stars) body.push(starfield(rnd, o.stars, o.starColor, h * 0.7));
+  if (o.stars) body.push(starfield(rnd, o.stars, o.starColor, h * 0.7, { ...DAYLIGHT_SCENE.night, ...o.daylight }.stars));
   body.push(fillAll("url(#sunglow)"), `<circle cx="${sx}" cy="${sy}" r="${r}" fill="url(#sun)" mask="url(#bars)"/>`);
   for (const [height, rough, color, rim] of o.ranges) {
     let pts;
@@ -1796,7 +1806,7 @@ function skylineSvg(o) {
   const defs = [linear("sky", o.sky), linear("mist", [[o.mist, 0], [o.mist, 1]]), blur("neon", 14)];
   const moon = orb("moonglow", o.moon, 5, 0.45);
   defs.push(moon.def);
-  const body = [fillAll("url(#sky)"), starfield(rnd, 260, o.starColor, 1100), moon.body];
+  const body = [fillAll("url(#sky)"), starfield(rnd, 260, o.starColor, 1100, { ...DAYLIGHT_SCENE.night, ...o.daylight }.stars), moon.body];
   o.rows.forEach(([tallest, color, lit], row) => {
     const [towers, windows, neon] = [[], o.windows.map(() => []), []];
     for (let x = -60 - rnd() * 100; x < WALL_W + 60; ) {
@@ -1910,7 +1920,8 @@ function planetSvg(o) {
   const defs = [linear("sky", o.sky), blur("nebula", 240)];
   const nebula = o.nebula.map((color) =>
     `<ellipse cx="${n1(rnd() * WALL_W)}" cy="${n1(rnd() * WALL_H)}" rx="${n1(600 + rnd() * 900)}" ry="${n1(300 + rnd() * 400)}" fill="${color}" fill-opacity="${o.nebulaOpacity}"/>`);
-  const body = [fillAll("url(#sky)"), `<g filter="url(#nebula)">${nebula.join("")}</g>`, starfield(rnd, 420, o.starColor, WALL_H)];
+  const body = [fillAll("url(#sky)"), `<g filter="url(#nebula)">${nebula.join("")}</g>`,
+    starfield(rnd, 420, o.starColor, WALL_H, { ...DAYLIGHT_SCENE.night, ...o.daylight }.stars)];
   if (o.corona) {
     defs.push(glow("corona", [px, py], pr * 3.4, o.corona[0], 0.95), glow("inner", [px, py], pr * 1.3, o.corona[1], 1), blur("flare", 12));
     const a = -0.9;
@@ -1985,8 +1996,8 @@ const THEME_WALLPAPERS = {
       }),
     };
   },
-  "tokyo-night": (c) => ({
-    "neon-city": () => skylineSvg({
+  "tokyo-night": (c, daylight) => ({
+    "neon-city": () => skylineSvg({ daylight,
       seed: 211, sky: [mix(c.background, "#000000", 0.4), c.background, mix(c.background, c.color5, 0.4)], moon: [2860, 560, 210, mix(c.color13, "#ffffff", 0.35)],
       starColor: c.cursor, mist: mix(c.background, c.color5, 0.5), haze: 0.35, water: 1760, waterColor: mix(c.background, "#000000", 0.3), ripple: c.color13,
       rows: [[980, mix(c.background, c.color5, 0.16), 0], [760, mix(c.background, c.color8, 0.45), 0.1], [560, mix(c.background, "#000000", 0.35), 0.2]],
@@ -2003,10 +2014,10 @@ const THEME_WALLPAPERS = {
       ribbons: [[c.color4, c.color13, 1080, 420, 1.3], [c.color14, c.color5, 1260, 260, 1.8]],
     }),
   }),
-  catppuccin: (c) => {
+  catppuccin: (c, daylight) => {
     const mauve = mix(c.color1, c.color4, 0.5);
     return {
-      "lakeside-peaks": () => peaksSvg({
+      "lakeside-peaks": () => peaksSvg({ daylight,
         seed: 307, sky: [mix(c.background, "#000000", 0.3), c.background, mix(c.background, mauve, 0.45), mix(c.color1, c.color3, 0.45)],
         stars: 260, starColor: c.cursor, sun: [2760, 600, 120, c.cursor], mist: mix(c.background, c.color1, 0.55), haze: 0.3,
         ranges: [[1480, 820, 0.55, mix(c.background, mauve, 0.5), mix(c.cursor, mauve, 0.25)], [1480, 580, 0.55, mix(c.background, mauve, 0.3)],
@@ -2025,11 +2036,11 @@ const THEME_WALLPAPERS = {
       }),
     };
   },
-  "catppuccin-latte": (c) => {
+  "catppuccin-latte": (c, daylight) => {
     const mauve = mix(c.color1, c.color4, 0.5);
     const pastel = (color, s = 0.6) => mix(color, c.background, s);
     return {
-      "morning-peaks": () => peaksSvg({
+      "morning-peaks": () => peaksSvg({ daylight,
         seed: 401, sky: [pastel(c.accent, 0.72), pastel(c.color5, 0.78), c.background], sun: [1180, 680, 160, mix(c.color3, "#ffffff", 0.45)],
         mist: c.background, haze: 0.45,
         ranges: [[1500, 820, 0.55, pastel(c.accent, 0.68), "#ffffff"], [1500, 560, 0.55, pastel(mauve, 0.58)], [1500, 360, 0.5, pastel(c.color5, 0.5)],
@@ -2047,8 +2058,8 @@ const THEME_WALLPAPERS = {
       }),
     };
   },
-  everforest: (c) => ({
-    "misty-pines": () => forestSvg({
+  everforest: (c, daylight) => ({
+    "misty-pines": () => forestSvg({ daylight,
       seed: 503, sky: [mix(c.background, "#000000", 0.2), mix(c.background, c.accent, 0.3), mix(c.foreground, c.color3, 0.35)],
       sun: [2600, 880, 150, mix(c.color3, "#ffffff", 0.3)], mist: mix(c.foreground, c.accent, 0.35), haze: 0.35,
       hills: [[1250, 440, 0.5, mix(c.background, c.accent, 0.5)]],
@@ -2067,10 +2078,10 @@ const THEME_WALLPAPERS = {
       ribbons: [[c.color2, c.accent, 1100, 420, 1.3], [c.color3, c.color6, 1260, 260, 1.8]],
     }),
   }),
-  gruvbox: (c) => {
+  gruvbox: (c, daylight) => {
     const orange = c.selection_background;
     return {
-      "desert-sun": () => retroSvg({
+      "desert-sun": () => retroSvg({ daylight,
         seed: 601, horizon: 1380, sun: [1920, 1060, 470], sunColors: [c.color3, orange, c.color1], stars: 120, starColor: c.foreground,
         sky: [mix(c.background, "#000000", 0.2), c.background, mix(c.background, orange, 0.35), mix(c.color3, orange, 0.45)],
         ranges: [[380, 0, mix(c.background, orange, 0.42)], [260, 0, mix(c.background, c.color1, 0.25)]], mesas: true,
@@ -2091,8 +2102,8 @@ const THEME_WALLPAPERS = {
       }),
     };
   },
-  "matte-black": (c) => ({
-    eclipse: () => planetSvg({
+  "matte-black": (c, daylight) => ({
+    eclipse: () => planetSvg({ daylight,
       seed: 701, sky: [mix(c.background, "#000000", 0.6), c.background], nebula: [c.accent, c.color3, c.accent], nebulaOpacity: 0.07, starColor: c.foreground,
       planet: [2360, 980, 400], corona: [c.accent, mix(c.color2, "#ffffff", 0.4)], disc: mix(c.background, "#000000", 0.5),
     }),
@@ -2108,8 +2119,8 @@ const THEME_WALLPAPERS = {
       foam: mix(c.background, "#ffffff", 0.45), swells: 26,
     }),
   }),
-  nord: (c) => ({
-    aurora: () => peaksSvg({
+  nord: (c, daylight) => ({
+    aurora: () => peaksSvg({ daylight,
       seed: 809, sky: [mix(c.background, "#000000", 0.4), c.background, mix(c.background, c.color8, 0.7)], stars: 300, starColor: c.color15,
       aurora: [c.color2, c.color14, c.color5], mist: c.color8, haze: 0.3,
       ranges: [[1540, 720, 0.58, mix(c.background, c.accent, 0.35), c.color7], [1540, 480, 0.55, mix(c.background, c.accent, 0.18), c.color15],
@@ -2127,8 +2138,8 @@ const THEME_WALLPAPERS = {
       bands: [[c.color15, c.color7], [c.color6, c.color14], [c.color7, c.color6], [c.accent, c.color6], [c.color8, c.accent], [c.color0, c.color8]],
     }),
   }),
-  "rose-pine-dawn": (c) => ({
-    "dawn-hills": () => peaksSvg({
+  "rose-pine-dawn": (c, daylight) => ({
+    "dawn-hills": () => peaksSvg({ daylight,
       seed: 907, sky: [mix(c.color5, c.background, 0.62), mix(c.color6, c.background, 0.55), c.background], sun: [2480, 740, 190, mix(c.color3, c.background, 0.3)],
       mist: c.background, haze: 0.45,
       ranges: [[1300, 520, 0.4, mix(c.color5, c.background, 0.6)], [1520, 460, 0.38, mix(c.color6, c.background, 0.45)],
@@ -2146,6 +2157,99 @@ const THEME_WALLPAPERS = {
     }),
   }),
 };
+
+// ------------------------------------------------------------- Daylight --
+
+// Daylight shows the picture each theme opens on at four times of day, and GNOME fades from one to the next by itself
+// (amethystora-theme writes the slideshow). The other three times are the same scene drawn from the theme's palette
+// graded to the time in OKLab: every colour's lightness raised toward day or lowered toward night, and its hue pulled warm
+// at dawn (toward peach) and dusk (toward rose), a little cooler by day and toward blue by night. The picture the theme
+// was drawn as is reused for its own time: night for a dark theme, day for a light one.
+const DAYLIGHT_GRADE = {
+  dark: {
+    dawn: [(L) => L + 0.14 * (1 - L), (a) => 0.85 * a + 0.035, (b) => 0.85 * b + 0.05],
+    day: [(L) => L + 0.62 * (1 - L), (a) => 0.85 * a - 0.01, (b) => 0.85 * b - 0.03],
+    dusk: [(L) => L + 0.08 * (1 - L), (a) => 0.85 * a + 0.06, (b) => 0.85 * b + 0.015],
+  },
+  light: {
+    dawn: [(L) => 0.8 * L, (a) => 0.85 * a + 0.035, (b) => 0.85 * b + 0.05],
+    dusk: [(L) => 0.62 * L, (a) => 0.85 * a + 0.06, (b) => 0.85 * b + 0.015],
+    night: [(L) => 0.28 * L + 0.02, (a) => 0.85 * a, (b) => 0.85 * b - 0.03],
+  },
+};
+// What only a night sky has, by the share of it each time keeps: the stars (how many, and how bright) and an aurora
+const DAYLIGHT_SCENE = {
+  night: { stars: 1, aurora: 1 },
+  dawn: { stars: 0.25, aurora: 0.3 },
+  day: { stars: 0, aurora: 0 },
+  dusk: { stars: 0.35, aurora: 0.4 },
+};
+
+const srgbToLinear = (v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+const linearToSrgb = (v) => (v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055);
+// OKLab, the colour and back (Bjorn Ottosson's matrices, public domain), as palette.awk has them
+function toOklab(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => srgbToLinear(parseInt(hex.slice(i, i + 2), 16) / 255));
+  const [l, m, s] = [
+    0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b,
+    0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b,
+    0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b,
+  ].map(Math.cbrt);
+  return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s];
+}
+function oklabLinear(L, a, b) {
+  const [l, m, s] = [L + 0.3963377774 * a + 0.2158037573 * b, L - 0.1055613458 * a - 0.0638541728 * b,
+    L - 0.0894841775 * a - 1.291485548 * b].map((x) => x ** 3);
+  return [4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s];
+}
+// A colour graded to a time of day; one out of the screen's colours keeps its lightness and hue and loses chroma until in
+function graded(hex, [fL, fa, fb]) {
+  const [L0, a0, b0] = toOklab(hex);
+  const L = Math.min(1, Math.max(0, fL(L0)));
+  let [a, b] = [fa(a0), fb(b0)];
+  let rgb = oklabLinear(L, a, b);
+  for (let k = 0; k < 200 && rgb.some((v) => v < 0 || v > 1); k++) {
+    [a, b] = [a * 0.97, b * 0.97];
+    rgb = oklabLinear(L, a, b);
+  }
+  return "#" + rgb.map((v) => Math.round(255 * Math.min(1, Math.max(0, linearToSrgb(v)))).toString(16).padStart(2, "0")).join("");
+}
+// Every colour of a palette graded to the time, from the theme's own mode
+const daylightPalette = (c, time, mode) =>
+  Object.fromEntries(Object.entries(c).map(([key, hex]) => [key, graded(hex, DAYLIGHT_GRADE[mode][time])]));
+
+const isLight = (theme) => existsSync(join(SHARED, "usr/share/amethystora/themes", theme, "light.mode"));
+const DAYLIGHT_DIR = "usr/share/backgrounds/amethystora";
+// Each theme's opening picture, as backgrounds.list names it, and its four times: the picture it is, and the three drawn
+const DAYLIGHT = Object.keys(THEME_WALLPAPERS).filter((theme) => !theme.startsWith("amethystora")).map((theme) => {
+  const opening = Object.keys(THEME_WALLPAPERS[theme](palette(theme)))[0];
+  const own = isLight(theme) ? "day" : "night";
+  const files = Object.fromEntries(["dawn", "day", "dusk", "night"].map((time) =>
+    [time, `${DAYLIGHT_DIR}/${theme}/${opening}${time === own ? "" : `-${time}`}.png`]));
+  return { theme, opening, own, files };
+});
+// The two Amethystora themes open on the cut stone's facets, dark and light, which are their night and their day; dawn
+// and dusk are the dark facets' shades graded, and both themes share the four
+const FACETS_DAYLIGHT = {
+  dawn: `${DAYLIGHT_DIR}/amethystora-facets-dawn.png`, day: `${DAYLIGHT_DIR}/amethystora-facets-l.png`,
+  dusk: `${DAYLIGHT_DIR}/amethystora-facets-dusk.png`, night: `${DAYLIGHT_DIR}/amethystora-facets-d.png`,
+};
+const DAYLIGHT_PNGS = [
+  ...["dawn", "dusk"].map((time) => ({
+    out: FACETS_DAYLIGHT[time], width: WALL_W, height: WALL_H, daylight: true,
+    html: () => svgPage(facetsSvg("dark", FACET_TONES.dark.map((hex) => graded(hex, DAYLIGHT_GRADE.dark[time]))), WALL_W, WALL_H),
+  })),
+  ...DAYLIGHT.flatMap(({ theme, opening, own, files }) => ["dawn", "day", "dusk", "night"].filter((time) => time !== own)
+    .map((time) => ({
+      out: files[time], width: WALL_W, height: WALL_H, daylight: true,
+      html: () => svgPage(THEME_WALLPAPERS[theme](daylightPalette(palette(theme), time, own === "day" ? "light" : "dark"),
+        DAYLIGHT_SCENE[time])[opening](), WALL_W, WALL_H),
+    }))),
+];
+const daylightList = (files) => ["dawn", "day", "dusk", "night"].map((time) => `${time} /${files[time]}
+`).join("");
 
 // ---------------------------------------------------------- login screen --
 
@@ -2478,6 +2582,7 @@ const PNGS = [
       out: `usr/share/backgrounds/amethystora/${theme}/${name}.png`, width: WALL_W, height: WALL_H, html: () => svgPage(drawn[name](), WALL_W, WALL_H),
     }));
   }),
+  ...DAYLIGHT_PNGS,
   ...GRUB_PNGS,
   ...INSTALLER_PNGS,
 ];
@@ -2498,7 +2603,7 @@ function findBrowser() {
   return found;
 }
 
-// ONLY=substring renders just the PNGs whose path contains it, for quick previews
+// ONLY=substring renders just the PNGs whose path contains it, for quick previews; ONLY=daylight renders Daylight's
 function renderPngs() {
   const browser = findBrowser();
   const work = join(tmpdir(), "amethystora-branding");
@@ -2506,7 +2611,8 @@ function renderPngs() {
   const clean = () => { try { rmSync(work, { recursive: true, force: true }); } catch {} };
   clean();
   mkdirSync(work, { recursive: true });
-  for (const png of PNGS.filter((p) => !process.env.ONLY || p.out.includes(process.env.ONLY))) {
+  const only = process.env.ONLY;
+  for (const png of PNGS.filter((p) => !only || (only === "daylight" ? p.daylight : p.out.includes(only)))) {
     const html = join(work, "page.html");
     writeFileSync(html, png.html());
     const out = join(png.root ?? SHARED, png.out);
@@ -2570,4 +2676,7 @@ write("usr/share/amethystora/tour/welcome.svg", tourSvg);
 write("usr/share/amethystora/themed/wallpaper-contours.svg.tpl", contoursTemplate());
 write("usr/share/amethystora/themed/wallpaper-ridges.svg.tpl", ridgesTemplate());
 write("usr/share/amethystora/themed/wallpaper-waves.svg.tpl", wavesTemplate());
+// Each theme's four pictures by the time of day, which amethystora-theme makes Daylight's slideshow of
+for (const theme of ["amethystora", "amethystora-light"]) write(`usr/share/amethystora/themes/${theme}/daylight.list`, daylightList(FACETS_DAYLIGHT));
+for (const { theme, files } of DAYLIGHT) write(`usr/share/amethystora/themes/${theme}/daylight.list`, daylightList(files));
 renderPngs();

@@ -65,7 +65,7 @@ pub struct Shell {
     tokens: gtk::CssProvider,
     base: gtk::CssProvider,
     own: gtk::CssProvider,
-    monitor: RefCell<Option<gio::FileMonitor>>,
+    monitors: RefCell<Vec<gio::FileMonitor>>,
 }
 
 impl Shell {
@@ -291,7 +291,7 @@ fn open_window<A: App>(app: &adw::Application, spec: Spec, build: &Rc<impl Fn(Rc
         tokens,
         base,
         own,
-        monitor: RefCell::new(None),
+        monitors: RefCell::new(Vec::new()),
     });
     shell.restyle();
     let own_app = build(shell.clone());
@@ -309,34 +309,46 @@ fn open_window<A: App>(app: &adw::Application, spec: Spec, build: &Rc<impl Fn(Rc
         }
     });
 
-    // A theme switch replaces current/theme and rewrites current/theme.name: the window follows it
-    let current = gio::File::for_path(palette::current());
-    if let Ok(monitor) = current.monitor_directory(gio::FileMonitorFlags::WATCH_MOVES, gio::Cancellable::NONE) {
-        let pending: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
-        let weak = Rc::downgrade(&shell);
-        let app_weak = Rc::downgrade(&own_app);
-        monitor.connect_changed(move |_, _, _, _| {
-            if let Some(source) = pending.borrow_mut().take() {
-                source.remove();
-            }
-            let weak = weak.clone();
-            let app_weak = app_weak.clone();
-            let done = pending.clone();
-            let source = glib::timeout_add_local_once(Duration::from_millis(300), move || {
-                done.borrow_mut().take();
-                if let (Some(shell), Some(own)) = (weak.upgrade(), app_weak.upgrade()) {
-                    let read = palette::read();
-                    if *shell.palette.borrow() != read {
-                        shell.palette.replace(read);
-                        shell.restyle();
-                        own.palette();
-                    }
+    // A theme switch replaces current/theme and rewrites current/theme.name, and a workspace with an accent of its own
+    // names it in a file of Amethystora UI's: the window follows both
+    let pending: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
+    let weak = Rc::downgrade(&shell);
+    let app_weak = Rc::downgrade(&own_app);
+    let changed = Rc::new(move || {
+        if let Some(source) = pending.borrow_mut().take() {
+            source.remove();
+        }
+        let weak = weak.clone();
+        let app_weak = app_weak.clone();
+        let done = pending.clone();
+        let source = glib::timeout_add_local_once(Duration::from_millis(300), move || {
+            done.borrow_mut().take();
+            if let (Some(shell), Some(own)) = (weak.upgrade(), app_weak.upgrade()) {
+                let read = palette::read();
+                if *shell.palette.borrow() != read {
+                    shell.palette.replace(read);
+                    shell.restyle();
+                    own.palette();
                 }
-            });
-            pending.replace(Some(source));
+            }
         });
-        shell.monitor.replace(Some(monitor));
+        pending.replace(Some(source));
+    });
+    let mut monitors = Vec::new();
+    // A file in a folder that is not there yet is watched by polling: the folder is made first, so that nothing polls
+    if let Some(folder) = palette::workspace_accent_file().parent() {
+        let _ = std::fs::create_dir_all(folder);
     }
+    let watched = [
+        gio::File::for_path(palette::current()).monitor_directory(gio::FileMonitorFlags::WATCH_MOVES, gio::Cancellable::NONE),
+        gio::File::for_path(palette::workspace_accent_file()).monitor_file(gio::FileMonitorFlags::WATCH_MOVES, gio::Cancellable::NONE),
+    ];
+    for monitor in watched.into_iter().flatten() {
+        let changed = changed.clone();
+        monitor.connect_changed(move |_, _, _, _| changed());
+        monitors.push(monitor);
+    }
+    shell.monitors.replace(monitors);
 
     // Back from elsewhere
     let app_weak = Rc::downgrade(&own_app);

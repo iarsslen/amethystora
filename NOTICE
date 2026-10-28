@@ -95,6 +95,11 @@ repository.
 The sounds in usr/share/sounds/amethystora are Amethystora's own, synthesised by
 branding/sounds.mjs, under the Apache License 2.0 like the rest of the repository.
 
+The wallpapers in usr/share/backgrounds/amethystora are Amethystora's own, drawn
+by branding/generate.mjs (CREDITS.md beside them lists each). The Daylight
+variants of each theme's first wallpaper are drawn by the same script from the
+theme's palette graded to the time of day.
+
 The packs draw Amethystora's own apps, GNOME's and the pictograms of a job, with folders, file
 types and devices. An application with a logo of its own shows the icon its maker gave it, as it
 ships, and nothing here redraws it. The names and logos of the applications in an image are

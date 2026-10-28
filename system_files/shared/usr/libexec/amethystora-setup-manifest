@@ -110,6 +110,9 @@ BEZEL=org.gnome.shell.extensions.amethystora-ui.bezel
 BEZEL_KEYS=(round-corners)
 SOUND=org.gnome.desktop.sound
 SOUND_KEYS=(event-sounds)
+# The theme module's keys amethystora-setup's LOOK_KEYS takes beside the account's look files: an accent per workspace
+THEME_UI=org.gnome.shell.extensions.amethystora-ui.theme
+THEME_UI_KEYS=(accent-per-workspace workspace-accents)
 
 # The tiling, while it runs, takes a combination out of four GNOME keys that it cannot wrap in memory, and
 # writes down what it took in its state file, to put back when it is turned off: the account's own value is the
@@ -245,6 +248,29 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
         | if length > 0 then {emoji: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $bezel)] | if length > 0 then {bezel: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $sound)] | if length > 0 then {sound: (map({(.key): .value}) | add)} else {} end)')"
+
+# The look, where the account changed it from the image's: its accent, Daylight turned off and colours from the wallpaper
+# (the account's files, each only as one of its values), and an accent per workspace (the theme module's keys)
+look() {
+    local config="${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora" accent colours image_accent image_colours schema key value
+    # What is in force (the account's choice, else its image's), saved where it is not the image's own
+    accent="$(source /usr/lib/amethystora/theme/lib.sh && account_accent)"
+    colours="$(source /usr/lib/amethystora/theme/lib.sh && colours_way)"
+    image_accent="$(head -n1 /usr/share/amethystora/image-setup/accent 2>/dev/null || true)"
+    image_colours="$(head -n1 /usr/share/amethystora/image-setup/colours 2>/dev/null || true)"
+    {
+        [[ "${accent:-theme}" != "${image_accent:-theme}" ]] && jq -nc --arg v "${accent:-theme}" '{accent: $v}'
+        [[ "$(head -n1 "${config}/daylight" 2>/dev/null || true)" == off ]] && jq -nc '{daylight: "off"}'
+        [[ "${colours:-off}" != "${image_colours:-off}" ]] && jq -nc --arg v "${colours:-off}" '{colours: $v}'
+        changed "${THEME_UI}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${THEME_UI_KEYS[@]}") - |
+            while read -r schema key value; do
+                value="$(as_json <<<"${value}")" && [[ -n "${value}" ]] || continue
+                jq -nc --arg k "${key}" --argjson v "${value}" '{($k): $v}'
+            done
+    } | jq -sc 'add // {}'
+}
+LOOK="$(look)"
+SETTINGS="$(jq -c --argjson look "${LOOK}" 'if $look == {} then . else . + {look: $look} end' <<<"${SETTINGS}")"
 
 # The image the machine runs, which is the one it follows, as rpm-ostree has it (amethystora-deployments
 # asks bootc on a sealed image)

@@ -38,6 +38,8 @@
 #      Gruvbox, whose pack it was, now names Duotone.
 #  15  Amethystora's own pointers (branding/cursors.mjs) in place of Breeze: Halo on a dark theme, Ink on a light one,
 #      and the shake-to-find ring's colour (themed/shell-pointer.css.tpl), written only when the theme is applied again.
+#  16  Daylight wallpapers and the twelve accents: the theme is applied again (the accent and Daylight are read by it)
+#      and, for an account still on the theme's first picture, Daylight shown (amethystora-theme daylight adopt).
 
 source /usr/lib/amethystora/setup-services/libsetup.sh
 
@@ -46,7 +48,7 @@ source /usr/lib/amethystora/setup-services/libsetup.sh
 # chose in GNOME Settings included: the theme is applied again without picking a new one.
 PREVIOUS="$(jq -r '.version.user.theme // 0' "${SETUP_CHECKER_FILE}" 2>/dev/null || echo 0)"
 
-version-script theme user 15 || exit 0
+version-script theme user 16 || exit 0
 
 [[ "$(cat "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons" 2>/dev/null)" == candy-icons ]] &&
     rm -f "${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/icons"
@@ -61,3 +63,8 @@ fi
 # A new account starts on the theme an image of one's own baked in (amethystora-setup bake), else Amethystora's
 AMETHYSTORA_THEME_QUIET=1 /usr/bin/amethystora-theme set "$(/usr/bin/amethystora-theme current 2>/dev/null ||
     head -n1 /usr/share/amethystora/image-setup/theme 2>/dev/null || echo amethystora)"
+# Below 7 the theme was given its first picture again just now, Daylight included; from 7 on, an account still on the
+# theme's first picture is shown it by the time of day, and a picture of its own is kept
+if [[ -n ${AMETHYSTORA_THEME_SKIP_BACKGROUND:-} ]]; then
+    /usr/bin/amethystora-theme daylight adopt || true
+fi

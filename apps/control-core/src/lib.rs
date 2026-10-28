@@ -46,6 +46,14 @@ pub struct Choice {
     pub colors: BTreeMap<String, String>,
     /// A font's family, which its name is drawn in
     pub font: Option<String>,
+    /// A colour the choice is (an accent), which its dot is drawn in
+    pub color: Option<String>,
+    /// Whether a theme is light, for its preview
+    pub light: bool,
+    /// A theme's opening picture, which its preview stands on
+    pub picture: Option<String>,
+    /// The picture a wallpaper's tile shows, when it is not the wallpaper itself (Daylight's picture of the hour)
+    pub thumbnail: Option<String>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -189,6 +197,10 @@ fn choice(value: &Value) -> Choice {
         command: words(value.get("command")),
         colors,
         font: text(value.get("font")),
+        color: text(value.get("color")),
+        light: truthy(value.get("light")),
+        picture: text(value.get("picture")),
+        thumbnail: text(value.get("thumbnail")),
     }
 }
 

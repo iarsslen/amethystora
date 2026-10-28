@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The keys of the theme module (modules/theme.js): an accent for each workspace. The accent of the whole desktop, Daylight
+     and colours from the wallpaper are the account's files in ~/.config/amethystora, which amethystora-theme reads
+     (ame desktop accent, daylight, colours). -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.theme" path="/org/gnome/shell/extensions/amethystora-ui/theme/">
+    <key name="accent-per-workspace" type="b">
+      <default>false</default>
+      <summary>An accent per workspace</summary>
+      <description>The shell and Amethystora's apps take the accent of the workspace shown. Other apps keep the theme's.</description>
+    </key>
+    <key name="workspace-accents" type="as">
+      <default>['theme', 'sky', 'coral', 'jade', 'amber', 'orchid']</default>
+      <summary>Each workspace's accent</summary>
+      <description>One of amethyst, iris, sky, lagoon, jade, moss, amber, ember, coral, rose, orchid and slate for each workspace in order, or theme for the desktop's own. A workspace past the list, and anything else in it, takes the desktop's own.</description>
+    </key>
+  </schema>
+</schemalist>

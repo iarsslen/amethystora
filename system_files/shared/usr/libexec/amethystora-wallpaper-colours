@@ -1,0 +1,439 @@
+#!/usr/bin/python3 -I
+# Colours from the wallpaper (ame desktop colours): the desktop's ground, text tint, selection and accent worked out once
+# from the picture on the desktop, in one of three ways, for amethystora-theme to merge over the theme's colors.toml.
+#
+#   amethystora-wallpaper-colours --way vivid|soft|mono --mode dark|light
+#       --background '#rrggbb' --foreground '#rrggbb' [--accent '#rrggbb'] [--print] PICTURE
+#   amethystora-wallpaper-colours --fixtures THEMES_DIR PICTURE...
+#
+# Vivid lets the strongest hue of the picture lead, Soft takes the same hues quieter, and Mono tints greys with the hue
+# that covers most of it and leaves the accent alone. Each keeps the theme's own lightness for its ground and its text, so
+# a light theme stays light and a dark one dark; palette.awk then works every surface and label out of the result at the
+# contrast WCAG asks, as it does for any theme. Everything is reckoned in OKLab (Bjorn Ottosson's, as palette.awk has it).
+#
+# It reads the one picture it is given (a regular file, at most 64 MiB, a picture by its name, never under /proc, /sys,
+# /dev or /run) and writes only ~/.config/amethystora/wallpaper-colours.toml, whole or not at all; with --print it writes
+# nothing. --fixtures prints the colours of each picture for every theme in THEMES_DIR and every way, for
+# build_files/shared/test-theme-palette.sh, and writes nothing. It runs as the account and never as root.
+#
+# Exit status: 0 done, 2 a wrong argument (or run as root), 3 the picture refused or unreadable, 1 the file not written.
+
+import math
+import os
+import stat
+import sys
+import tempfile
+
+SIZE = 64
+MAX_BYTES = 64 * 1024 * 1024
+MAX_SIDE = 16384
+MAX_MARKERS = 4096
+PICTURES = ('.jpg', '.jpeg', '.png', '.webp', '.svg')
+PSEUDO = ('/proc', '/sys', '/dev', '/run')
+WAYS = ('vivid', 'soft', 'mono')
+# A pixel of less chroma than this is grey; fewer than this share of coloured pixels makes the picture grey
+GREY_CHROMA = 0.02
+GREY_SHARE = 0.05
+# The pixels a strong hue is found among: some chroma, neither near black nor near white
+STRONG_CHROMA = 0.06
+STRONG_LIGHTNESS = (0.25, 0.92)
+BINS = 36
+# How far from a histogram's peak a pixel still counts toward its hue, in degrees
+NEAR = 15.0
+# The text keeps at least this contrast on the ground
+TEXT_RATIO = 7.0
+
+
+class Refused(Exception):
+    pass
+
+
+# --- Colour --------------------------------------------------------------------------------------
+
+def to_linear(v):
+    v /= 255.0
+    return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+
+
+def from_linear(v):
+    v = 12.92 * v if v <= 0.0031308 else 1.055 * v ** (1 / 2.4) - 0.055
+    return min(1.0, max(0.0, v))
+
+
+def oklab_from_linear(r, g, b):
+    l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b
+    m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b
+    s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b
+    l, m, s = (math.copysign(abs(x) ** (1 / 3), x) for x in (l, m, s))
+    return (0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+            1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+            0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s)
+
+
+def linear_from_oklab(L, a, b):
+    l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3
+    m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3
+    s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3
+    return (4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+            -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+            -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s)
+
+
+def hex_rgb(text):
+    return tuple(int(text[i:i + 2], 16) for i in (1, 3, 5))
+
+
+def oklab_hex(text):
+    return oklab_from_linear(*(to_linear(v) for v in hex_rgb(text)))
+
+
+def lch(text):
+    L, a, b = oklab_hex(text)
+    return L, math.hypot(a, b), math.degrees(math.atan2(b, a)) % 360
+
+
+def in_gamut(L, C, h):
+    a, b = C * math.cos(math.radians(h)), C * math.sin(math.radians(h))
+    return all(-1e-6 <= v <= 1 + 1e-6 for v in linear_from_oklab(L, a, b))
+
+
+def lch_hex(L, C, h):
+    # Out of the screen's colours, the chroma comes down until it is in
+    L = min(1.0, max(0.0, L))
+    C = max(0.0, C)
+    while C > 0 and not in_gamut(L, C, h):
+        C = max(0.0, C - 0.005)
+    a, b = C * math.cos(math.radians(h)), C * math.sin(math.radians(h))
+    return '#' + ''.join('%02x' % int(255 * from_linear(v) + 0.5) for v in linear_from_oklab(L, a, b))
+
+
+def luminance(text):
+    r, g, b = (to_linear(v) for v in hex_rgb(text))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def ratio(x, y):
+    p, q = sorted((luminance(x), luminance(y)), reverse=True)
+    return (p + 0.05) / (q + 0.05)
+
+
+def midpoint(x, y):
+    # Half way along the shorter way round
+    d = (y - x + 180) % 360 - 180
+    return (x + d / 2) % 360
+
+
+def clamp(v, low, high):
+    return min(high, max(low, v))
+
+
+# --- The picture ---------------------------------------------------------------------------------
+
+def checked(path):
+    if not os.path.isabs(path):
+        raise Refused('the picture has to be named by an absolute path')
+    # A name with a line break or another control character would break the stamp line it is written into
+    if any(ord(c) < 32 or ord(c) == 127 for c in path):
+        raise Refused('the picture has a control character in its name')
+    real = os.path.realpath(path)
+    if any(real == p or real.startswith(p + '/') for p in PSEUDO):
+        raise Refused('the picture is not a file of the machine')
+    try:
+        info = os.stat(real)
+    except OSError:
+        raise Refused('the picture cannot be read')
+    if not stat.S_ISREG(info.st_mode):
+        raise Refused('the picture is not a regular file')
+    if info.st_size > MAX_BYTES:
+        raise Refused('the picture is larger than 64 MiB')
+    if not real.lower().endswith(PICTURES):
+        raise Refused('the file is not named as a picture')
+    return real, info
+
+
+def header_size(path):
+    """A picture's width and height as its header gives them (PNG, JPEG, WebP); an SVG is drawn at 64x64 whatever its
+    size, so it has (1, 1); None when the header says nothing that can be read"""
+    if path.lower().endswith('.svg'):
+        return (1, 1)
+    with open(path, 'rb') as f:
+        head = f.read(64)
+        if head[:8] == b'\x89PNG\r\n\x1a\n' and head[12:16] == b'IHDR':
+            return int.from_bytes(head[16:20], 'big'), int.from_bytes(head[20:24], 'big')
+        if head[:4] == b'RIFF' and head[8:12] == b'WEBP':
+            kind = head[12:16]
+            if kind == b'VP8X':
+                return 1 + int.from_bytes(head[24:27], 'little'), 1 + int.from_bytes(head[27:30], 'little')
+            if kind == b'VP8L':
+                bits = int.from_bytes(head[21:25], 'little')
+                return 1 + (bits & 0x3fff), 1 + ((bits >> 14) & 0x3fff)
+            if kind == b'VP8 ':
+                return int.from_bytes(head[26:28], 'little') & 0x3fff, int.from_bytes(head[28:30], 'little') & 0x3fff
+            return None
+        if head[:2] == b'\xff\xd8':
+            # The frame's size is in the first SOF marker; every marker before it says how long it is. A real picture
+            # reaches it within a few dozen markers: past MAX_MARKERS the file is not one worth walking.
+            f.seek(2)
+            for _ in range(MAX_MARKERS):
+                if f.read(1) != b'\xff':
+                    return None
+                # Fill bytes (0xff) may stand before a marker's code
+                code = f.read(1)
+                while code == b'\xff':
+                    code = f.read(1)
+                if not code:
+                    return None
+                marker = b'\xff' + code
+                if marker[1] in (0xd8, 0x01) or 0xd0 <= marker[1] <= 0xd7:
+                    continue
+                length = int.from_bytes(f.read(2), 'big')
+                if 0xc0 <= marker[1] <= 0xcf and marker[1] not in (0xc4, 0xc8, 0xcc):
+                    data = f.read(5)
+                    return int.from_bytes(data[3:5], 'big'), int.from_bytes(data[1:3], 'big')
+                if length < 2:
+                    return None
+                f.seek(length - 2, 1)
+            return None
+    return None
+
+
+def pixels(path):
+    import gi
+    gi.require_version('GdkPixbuf', '2.0')
+    from gi.repository import GdkPixbuf, GLib
+    # A picture far larger than any screen (a small file that unpacks to gigabytes) is not decoded at all: the decoder
+    # would abort on it. Its size is read from its own header, before anything decodes it.
+    try:
+        size = header_size(path)
+    except OSError:
+        raise Refused('the picture cannot be read')
+    if size is None or not (0 < size[0] <= MAX_SIDE and 0 < size[1] <= MAX_SIDE):
+        raise Refused('the picture is larger than 16384 pixels a side, or says no size')
+    try:
+        # Every pixel counts by its area: the aspect is not kept
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(path, SIZE, SIZE, False)
+    except GLib.Error:
+        raise Refused('the picture cannot be read')
+    data = pixbuf.get_pixels()
+    channels, stride = pixbuf.get_n_channels(), pixbuf.get_rowstride()
+    alpha = pixbuf.get_has_alpha()
+    linear = [to_linear(v) for v in range(256)]
+    out = []
+    for y in range(pixbuf.get_height()):
+        row = y * stride
+        for x in range(pixbuf.get_width()):
+            i = row + x * channels
+            if alpha and data[i + 3] < 128:
+                continue
+            L, a, b = oklab_from_linear(linear[data[i]], linear[data[i + 1]], linear[data[i + 2]])
+            out.append((L, a, b, math.hypot(a, b), math.degrees(math.atan2(b, a)) % 360))
+    if not out:
+        raise Refused('the picture has nothing in it that is not transparent')
+    return out
+
+
+def peak(chosen, weight):
+    """The hue the histogram of these pixels peaks at, smoothed round the circle, and the pixels near it"""
+    bins = [0.0] * BINS
+    for p in chosen:
+        bins[int(p[4] // (360 / BINS)) % BINS] += weight(p)
+    smooth = [(bins[i - 1] + 2 * bins[i] + bins[(i + 1) % BINS]) / 4 for i in range(BINS)]
+    centre = (max(range(BINS), key=lambda i: smooth[i]) + 0.5) * 360 / BINS
+    near = [p for p in chosen if abs((p[4] - centre + 180) % 360 - 180) <= NEAR]
+    return near or chosen
+
+
+def mean_hue(chosen):
+    # Each pixel's hue weighted by its chroma, which is the sum of its a and b
+    return math.degrees(math.atan2(sum(p[2] for p in chosen), sum(p[1] for p in chosen))) % 360
+
+
+def analyse(picture):
+    """What the picture says, whatever the theme: its main hue, its strong hue and that hue's chroma"""
+    every = pixels(picture)
+    coloured = [p for p in every if p[3] >= GREY_CHROMA]
+    if len(coloured) < GREY_SHARE * len(every):
+        return {'grey': True}
+    area = mean_hue(peak(coloured, lambda p: 1.0))
+    strong = [p for p in every if p[3] >= STRONG_CHROMA and STRONG_LIGHTNESS[0] <= p[0] <= STRONG_LIGHTNESS[1]]
+    if not strong:
+        return {'grey': False, 'area': area, 'strong': area, 'chroma': 0.10}
+    near = peak(strong, lambda p: p[3] ** 2)
+    chromas = sorted(p[3] for p in near)
+    return {'grey': False, 'area': area, 'strong': mean_hue(near),
+            'chroma': chromas[min(len(chromas) - 1, int(0.75 * (len(chromas) - 1) + 0.5))]}
+
+
+def colours(seen, way, mode, background, foreground, accent=None):
+    dark = mode == 'dark'
+    Lb, _, hb = lch(background)
+    Lf = lch(foreground)[0]
+    ground = 1.0
+    if seen['grey']:
+        # A grey picture: the theme's own hues, and half the tint
+        hA, ground = hb, 0.5
+        if accent:
+            _, CS, hS = lch(accent)
+        else:
+            hS, CS = hA, 0.10
+    else:
+        hA, hS, CS = seen['area'], seen['strong'], seen['chroma']
+    out = {}
+    if way == 'vivid':
+        out['background'] = (Lb, (0.050 if dark else 0.020) * ground, hA)
+        out['foreground'] = (Lf, 0.018, hA)
+        out['accent'] = (0.74 if dark else 0.54, clamp(CS, 0.12, 0.20), hS)
+        out['selection_background'] = (0.38 if dark else 0.85, 0.08, hS)
+    elif way == 'soft':
+        hM = midpoint(hS, hA)
+        out['background'] = (Lb, (0.025 if dark else 0.010) * ground, hA)
+        out['foreground'] = (Lf, 0.014, hA)
+        out['accent'] = (0.78, clamp(0.5 * CS, 0.06, 0.09), hM) if dark else (0.53, clamp(0.75 * CS, 0.09, 0.14), hM)
+        out['selection_background'] = (0.36 if dark else 0.87, 0.04, hM)
+    else:
+        out['background'] = (Lb, (0.012 if dark else 0.005) * ground, hA)
+        out['foreground'] = (Lf, 0.008, hA)
+        out['selection_background'] = (0.34 if dark else 0.88, 0.02, hA)
+    result = {key: lch_hex(*value) for key, value in out.items()}
+    # The text reads at 7:1 on the ground, moved away from it in lightness if it has to be
+    L, C, h = out['foreground']
+    step = 0.01 if Lf >= Lb else -0.01
+    for _ in range(30):
+        if ratio(result['foreground'], result['background']) >= TEXT_RATIO:
+            break
+        L = min(1.0, max(0.0, L + step))
+        result['foreground'] = lch_hex(L, C, h)
+    return result
+
+
+# --- Running ---------------------------------------------------------------------------------------
+
+def usage(message):
+    print(f'amethystora-wallpaper-colours: {message}', file=sys.stderr)
+    sys.exit(2)
+
+
+def colour(text):
+    text = (text or '').lower()
+    if len(text) != 7 or text[0] != '#' or any(c not in '0123456789abcdef' for c in text[1:]):
+        usage('a colour is written #rrggbb')
+    return text
+
+
+def theme_colours(folder):
+    values = {}
+    try:
+        with open(os.path.join(folder, 'colors.toml'), encoding='utf-8') as f:
+            for line in f:
+                key, _, value = line.partition('=')
+                key, value = key.strip().strip('"\''), value.strip().strip('"\'')
+                if key in ('background', 'foreground', 'accent') and key not in values:
+                    values[key] = value.lower()
+    except OSError:
+        return None
+    if 'background' not in values or 'foreground' not in values:
+        return None
+    try:
+        for key in values:
+            colour(values[key])
+    except SystemExit:
+        return None
+    values['mode'] = 'light' if os.path.exists(os.path.join(folder, 'light.mode')) else 'dark'
+    return values
+
+
+def fixtures(themes_dir, pictures):
+    themes = []
+    for name in sorted(os.listdir(themes_dir)):
+        values = theme_colours(os.path.join(themes_dir, name))
+        if values:
+            themes.append((name, values))
+    for picture in pictures:
+        try:
+            seen = analyse(checked(picture)[0])
+        except Refused as e:
+            print(f'amethystora-wallpaper-colours: {picture}: {e}', file=sys.stderr)
+            sys.exit(3)
+        for name, values in themes:
+            for way in WAYS:
+                print(f'== {picture} {name} {way}')
+                for key, value in colours(seen, way, values['mode'], values['background'], values['foreground'],
+                                          values.get('accent')).items():
+                    print(f'{key}={value}')
+
+
+def write(text):
+    base = os.environ.get('XDG_CONFIG_HOME', '')
+    if not os.path.isabs(base):
+        base = os.path.join(os.path.expanduser('~'), '.config')
+    folder = os.path.join(base, 'amethystora')
+    try:
+        os.makedirs(folder, exist_ok=True)
+        fd, temporary = tempfile.mkstemp(prefix='.wallpaper-colours.', dir=folder)
+        try:
+            with os.fdopen(fd, 'w', encoding='utf-8') as f:
+                f.write(text)
+                f.flush()
+                os.fsync(f.fileno())
+            os.chmod(temporary, 0o644)
+            os.replace(temporary, os.path.join(folder, 'wallpaper-colours.toml'))
+        except BaseException:
+            os.unlink(temporary)
+            raise
+    except OSError as e:
+        print(f'amethystora-wallpaper-colours: the colours could not be written: {e.strerror}', file=sys.stderr)
+        sys.exit(1)
+
+
+def main(argv):
+    if os.geteuid() == 0:
+        usage('this is run as the account whose desktop it is, never as root')
+    options, rest, i = {}, [], 0
+    flags = ('--way', '--mode', '--background', '--foreground', '--accent', '--fixtures')
+    while i < len(argv):
+        arg = argv[i]
+        if arg in flags:
+            if i + 1 >= len(argv):
+                usage(f'{arg} needs a value')
+            options[arg] = argv[i + 1]
+            i += 2
+        elif arg == '--print':
+            options[arg] = True
+            i += 1
+        elif arg.startswith('-'):
+            usage(f'unknown option {arg}')
+        else:
+            rest.append(arg)
+            i += 1
+    if '--fixtures' in options:
+        if not rest or not os.path.isdir(options['--fixtures']):
+            usage('--fixtures takes a folder of themes and one picture or more')
+        fixtures(options['--fixtures'], rest)
+        return
+    if len(rest) != 1:
+        usage('one picture, please')
+    way, mode = options.get('--way'), options.get('--mode')
+    if way not in WAYS:
+        usage('--way is vivid, soft or mono')
+    if mode not in ('dark', 'light'):
+        usage('--mode is dark or light')
+    background, foreground = colour(options.get('--background')), colour(options.get('--foreground'))
+    accent = colour(options['--accent']) if '--accent' in options else None
+    try:
+        real, info = checked(rest[0])
+        seen = analyse(real)
+    except Refused as e:
+        print(f'amethystora-wallpaper-colours: {e}', file=sys.stderr)
+        sys.exit(3)
+    lines = ['# Colours from the wallpaper, written by amethystora-wallpaper-colours: colours only',
+             f'# stamp {way} {mode} {real} {int(info.st_mtime)} {info.st_size} {background} {foreground}']
+    lines += [f'{key} = "{value}"' for key, value in colours(seen, way, mode, background, foreground, accent).items()]
+    text = '\n'.join(lines) + '\n'
+    if options.get('--print'):
+        sys.stdout.write(text)
+    else:
+        write(text)
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

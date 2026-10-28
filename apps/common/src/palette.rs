@@ -8,6 +8,10 @@
 //! beyond its palette (palette.awk in /usr/lib/amethystora/theme: an accent a label reads on, status colours that
 //! read as text, each at the contrast WCAG asks), and replaces those ten where it has them. Until a theme has been
 //! applied the windows keep the Amethystora colours, light or dark as the system's colour scheme says.
+//!
+//! With an accent per workspace (Amethystora UI's theme module), the shown workspace's accent is named in
+//! `~/.local/state/amethystora/workspace-accent`, and that accent's `theme/accents/<id>/palette.toml` is read in place of
+//! the theme's, so that the windows change accent with the workspace as the shell does.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -79,6 +83,10 @@ const DERIVED: &[(&str, &str)] = &[
     ("error_text", "bad"),
 ];
 
+/// The twelve accents a workspace can take (ACCENTS in /usr/lib/amethystora/theme/lib.sh)
+const ACCENTS: &[&str] =
+    &["amethyst", "iris", "sky", "lagoon", "jade", "moss", "amber", "ember", "coral", "rose", "orchid", "slate"];
+
 /// A theme's colours, by the names colors.toml gives them, and whether it is a light theme
 #[derive(Debug, Clone, PartialEq)]
 pub struct Palette {
@@ -95,6 +103,31 @@ pub fn current() -> PathBuf {
         .map(PathBuf::from)
         .unwrap_or_else(|| home().join(".config"));
     config.join("amethystora").join("current")
+}
+
+/// The file Amethystora UI names the shown workspace's accent in, while each workspace has its own
+pub fn workspace_accent_file() -> PathBuf {
+    let state = std::env::var_os("XDG_STATE_HOME")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .unwrap_or_else(|| home().join(".local").join("state"));
+    state.join("amethystora").join("workspace-accent")
+}
+
+/// The palette.toml of the shown workspace's accent, when the file names one of the twelve and its set is rendered;
+/// anything else in the file is passed over
+fn workspace_palette(theme: &std::path::Path) -> Option<PathBuf> {
+    workspace_palette_named(theme, &std::fs::read_to_string(workspace_accent_file()).ok()?)
+}
+
+fn workspace_palette_named(theme: &std::path::Path, text: &str) -> Option<PathBuf> {
+    let id = text.lines().next()?.trim();
+    if !ACCENTS.contains(&id) {
+        return None;
+    }
+    let path = theme.join("accents").join(id).join("palette.toml");
+    path.is_file().then_some(path)
 }
 
 pub fn home() -> PathBuf {
@@ -143,7 +176,9 @@ pub fn read() -> Option<Palette> {
     let mut colors = BTreeMap::new();
     read_colors(&text, &mut colors);
     // The interface's own, which a theme applied before they were worked out lacks
-    if let Ok(text) = std::fs::read_to_string(theme.join("palette.toml")) {
+    // ...or those of the shown workspace's accent
+    let derived = workspace_palette(&theme).unwrap_or_else(|| theme.join("palette.toml"));
+    if let Ok(text) = std::fs::read_to_string(derived) {
         read_colors(&text, &mut colors);
     }
     Some(Palette { light: theme.join("light.mode").exists(), colors, shape: read_shape(&current) })
@@ -200,6 +235,22 @@ pub fn css(palette: Option<&Palette>, light: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_a_rendered_accent_of_the_twelve() {
+        let theme = std::env::temp_dir().join(format!("amethystora-palette-{}", std::process::id()));
+        std::fs::create_dir_all(theme.join("accents").join("sky")).unwrap();
+        std::fs::write(theme.join("accents").join("sky").join("palette.toml"), "accent_bg = \"#2172e2\"
+").unwrap();
+        assert_eq!(workspace_palette_named(&theme, "sky
+"), Some(theme.join("accents/sky/palette.toml")));
+        assert_eq!(workspace_palette_named(&theme, "coral
+"), None);
+        assert_eq!(workspace_palette_named(&theme, "../../etc
+"), None);
+        assert_eq!(workspace_palette_named(&theme, ""), None);
+        std::fs::remove_dir_all(&theme).unwrap();
+    }
 
     #[test]
     fn on_accent_follows_luminance() {

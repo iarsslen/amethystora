@@ -19,6 +19,54 @@ use crate::icons::icon;
 use crate::layout::{Aspect, AutoGrid, Flex, Grow, Pretty, SwatchBar};
 use crate::{Banner, Control, Diff};
 
+/// A colour of the list, when it is one: #rrggbb
+fn hex(color: Option<&String>) -> Option<(f64, f64, f64)> {
+    let color = color?;
+    let digits = color.strip_prefix('#').filter(|d| d.len() == 6 && d.chars().all(|c| c.is_ascii_hexdigit()))?;
+    let channel = |at: usize| u8::from_str_radix(&digits[at..at + 2], 16).map(f64::from).ok();
+    Some((channel(0)?, channel(2)?, channel(4)?))
+}
+
+fn css_color((r, g, b): (f64, f64, f64)) -> String {
+    format!("#{:02x}{:02x}{:02x}", r.round() as u8, g.round() as u8, b.round() as u8)
+}
+
+fn mix(a: (f64, f64, f64), b: (f64, f64, f64), t: f64) -> (f64, f64, f64) {
+    (a.0 + (b.0 - a.0) * t, a.1 + (b.1 - a.1) * t, a.2 + (b.2 - a.2) * t)
+}
+
+fn contrast(a: (f64, f64, f64), b: (f64, f64, f64)) -> f64 {
+    let luminance = |(r, g, b): (f64, f64, f64)| {
+        let channel = |c: f64| {
+            let c = c / 255.0;
+            if c <= 0.04045 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) }
+        };
+        0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+    };
+    let (x, y) = (luminance(a), luminance(b));
+    (x.max(y) + 0.05) / (x.min(y) + 0.05)
+}
+
+/// The preview's colours for a theme, as palette.awk works them out: the bar on the header bar's ground (the ground
+/// mixed 6% toward the text on a dark theme, 35% toward white on a light one) at 80%, the window on the ground at 90%,
+/// and the accent's label white, else the ground, else the text, the first that reads at 4.5:1
+fn preview_css(choice: &amethystora_control_core::Choice) -> String {
+    let get = |key: &str| hex(choice.colors.get(key));
+    let (Some(background), Some(foreground)) = (get("background"), get("foreground")) else { return String::new() };
+    let accent = get("accent").unwrap_or(foreground);
+    let white = (255.0, 255.0, 255.0);
+    let headerbar = if choice.light { mix(background, white, 0.35) } else { mix(background, foreground, 0.06) };
+    let label = [white, background, foreground].into_iter().find(|&c| contrast(c, accent) >= 4.5).unwrap_or(white);
+    let (bg, fg, accent, label, headerbar) =
+        (css_color(background), css_color(foreground), css_color(accent), css_color(label), css_color(headerbar));
+    format!(
+        ".theme-preview .pv-bar {{ background-color: alpha({headerbar}, 0.8); color: {fg}; }}\n\
+         .theme-preview .pv-pill, .theme-preview .pv-add {{ background-color: {accent}; color: {label}; }}\n\
+         .theme-preview .pv-check {{ background-color: {accent}; }}\n\
+         .theme-preview .pv-window {{ background-color: alpha({bg}, 0.9); color: {fg}; }}\n"
+    )
+}
+
 /// How a button looks, as the page's button() was told
 #[derive(Debug, Clone, Copy, Default)]
 struct Look {
@@ -557,6 +605,10 @@ impl Control {
     }
 
     fn choice_card(&self, item: &Item) -> gtk::Box {
+        // Colours are chosen from a grid of dots, as the boards draw the twelve accents
+        if !item.choices.is_empty() && item.choices.iter().all(|choice| choice.color.is_some()) {
+            return self.colors_card(item);
+        }
         let disabled = self.busy(&item.id) || !item.available;
         let options = AutoGrid::new(220, 8, &["options"]);
         options.update_property(&[gtk::accessible::Property::Label(&item.title)]);
@@ -605,6 +657,52 @@ impl Control {
             options.append(&option);
         }
         self.card_frame(item, None, vec![options.upcast()], false, Vec::new())
+    }
+
+    /// Choices that are colours: two columns of rows, each a dot of its colour and its name, the chosen one shaded
+    fn colors_card(&self, item: &Item) -> gtk::Box {
+        let disabled = self.busy(&item.id) || !item.available;
+        let grid = gtk::Grid::builder().row_spacing(4).column_spacing(12).column_homogeneous(true).build();
+        grid.add_css_class("colors");
+        grid.update_property(&[gtk::accessible::Property::Label(&item.title)]);
+        let mut added = false;
+        for (index, choice) in item.choices.iter().enumerate() {
+            let chosen = Some(&choice.value) == item.state.as_ref();
+            let content = ui::hbox(10, &[]);
+            let dot = ui::hbox(0, &["color-dot"]);
+            dot.set_valign(gtk::Align::Center);
+            if let Some(class) = self.color_class("bg", choice.color.as_ref(), &mut added) {
+                dot.add_css_class(&class);
+            }
+            content.append(&dot);
+            let name = ui::label(&choice.title, &["color-name"]);
+            name.set_hexpand(true);
+            name.set_xalign(0.0);
+            content.append(&name);
+            let row = Self::radio(&content, &["color-row"], chosen);
+            if let Some(text) = &choice.text {
+                row.set_tooltip_text(Some(text));
+            }
+            row.set_sensitive(!disabled);
+            let (me, id, value) = (self.me.clone(), item.id.clone(), choice.value.clone());
+            row.connect_clicked(move |_| {
+                if let (Some(this), false) = (me.upgrade(), chosen) {
+                    this.change(&id, &value);
+                }
+            });
+            // A choice of the theme's own ("Follow the theme") has the first row to itself, the colours two to a row under it
+            let first = item.choices.first().is_some_and(|choice| choice.value == "theme");
+            if first && index == 0 {
+                grid.attach(&row, 0, 0, 2, 1);
+            } else {
+                let at = index - usize::from(first);
+                grid.attach(&row, (at % 2) as i32, (at / 2 + usize::from(first)) as i32, 1, 1);
+            }
+        }
+        if added {
+            self.refresh_colors();
+        }
+        self.card_frame(item, None, vec![grid.upcast()], false, Vec::new())
     }
 
     fn range_card(&self, item: &Item) -> gtk::Box {
@@ -761,12 +859,147 @@ impl Control {
         if added {
             self.refresh_colors();
         }
-        self.card_frame(item, None, vec![swatches.upcast()], false, Vec::new())
+        let below: Vec<gtk::Widget> = match self.theme_preview(item, &swatches) {
+            Some(preview) => vec![preview, swatches.upcast()],
+            None => vec![swatches.upcast()],
+        };
+        self.card_frame(item, None, below, false, Vec::new())
+    }
+
+    /// A small desktop drawn from a theme's palette, above the swatches: the theme under the pointer or with the
+    /// keyboard's focus, else the one chosen. Nothing changes until a swatch is clicked.
+    fn theme_preview(&self, item: &Item, swatches: &AutoGrid) -> Option<gtk::Widget> {
+        let chosen = item.choices.iter().find(|choice| Some(&choice.value) == item.state.as_ref()).or(item.choices.first())?.clone();
+        let overlay = gtk::Overlay::new();
+        overlay.add_css_class("theme-preview");
+        overlay.set_overflow(gtk::Overflow::Hidden);
+        let picture = gtk::Picture::builder().content_fit(gtk::ContentFit::Cover).can_shrink(true).build();
+        overlay.set_child(Some(&picture));
+
+        let bar = gtk::CenterBox::new();
+        bar.add_css_class("pv-bar");
+        bar.set_start_widget(Some(&ui::label("1", &["pv-pill"])));
+        bar.set_center_widget(Some(&ui::label(&i18n::date(i18n::now(), DateStyle::Time), &["pv-clock"])));
+        overlay.add_overlay(&bar);
+
+        let window = ui::vbox(0, &["pv-window"]);
+        window.set_overflow(gtk::Overflow::Hidden);
+        let title = ui::hbox(5, &["pv-title"]);
+        let name = ui::label(&t!("Notes"), &[]);
+        name.set_hexpand(true);
+        name.set_xalign(0.0);
+        title.append(&name);
+        for color in ["yellow", "green", "red"] {
+            let dot = ui::hbox(0, &["pv-dot", color]);
+            dot.set_valign(gtk::Align::Center);
+            title.append(&dot);
+        }
+        window.append(&title);
+        let body = ui::vbox(8, &["pv-body"]);
+        let day = ui::label(&i18n::capital(&i18n::date(i18n::now(), DateStyle::Weekday)), &[]);
+        day.set_xalign(0.0);
+        body.append(&day);
+        let task = ui::hbox(8, &[]);
+        let check = ui::hbox(0, &["pv-check"]);
+        check.set_valign(gtk::Align::Center);
+        task.append(&check);
+        let words = ui::label(&t!("Water the plants"), &[]);
+        words.set_xalign(0.0);
+        task.append(&words);
+        body.append(&task);
+        let add = ui::label(&t!("Add a task"), &["pv-add"]);
+        add.set_halign(gtk::Align::Start);
+        body.append(&add);
+        window.append(&body);
+        overlay.add_overlay(&window);
+
+        // The bar 8 pixels in from each side and 6 from the top, 22 high; the window 18% in from the left, 14% from
+        // the right, 40 pixels from the top and 16 from the bottom
+        let (bar_widget, window_widget) = (bar.clone().upcast::<gtk::Widget>(), window.clone().upcast::<gtk::Widget>());
+        overlay.connect_get_child_position(move |overlay, child| {
+            let (width, height) = (overlay.width(), overlay.height());
+            if *child == bar_widget {
+                Some(gdk::Rectangle::new(8, 6, (width - 16).max(0), 22))
+            } else if *child == window_widget {
+                // From the start edge: mirrored for a language written right to left
+                let mut left = (width as f64 * 0.18).round() as i32;
+                let mut right = (width as f64 * 0.14).round() as i32;
+                if overlay.direction() == gtk::TextDirection::Rtl {
+                    std::mem::swap(&mut left, &mut right);
+                }
+                Some(gdk::Rectangle::new(left, 40, (width - left - right).max(0), (height - 56).max(0)))
+            } else {
+                None
+            }
+        });
+        overlay.set_can_target(false);
+
+        let show = {
+            let me = self.me.clone();
+            let picture = picture.downgrade();
+            Rc::new(move |choice: &amethystora_control_core::Choice| {
+                let (Some(this), Some(picture)) = (me.upgrade(), picture.upgrade()) else { return };
+                this.preview_css.load_from_string(&preview_css(choice));
+                match choice.picture.as_deref() {
+                    Some(path) => this.thumbnail(path, &picture),
+                    None => {
+                        picture.set_widget_name("");
+                        picture.set_paintable(gdk::Paintable::NONE)
+                    }
+                }
+            })
+        };
+        show(&chosen);
+        // Whether the pointer is over the grid: a swatch losing the keyboard's focus then leaves the preview to it
+        let pointed = Rc::new(std::cell::Cell::new(false));
+        let mut child = swatches.first_child();
+        let mut index = 0;
+        while let Some(swatch) = child {
+            if let Some(choice) = item.choices.get(index).cloned() {
+                let motion = gtk::EventControllerMotion::new();
+                let (show_in, choice_in, pointed_in) = (show.clone(), choice.clone(), pointed.clone());
+                motion.connect_enter(move |_, _, _| {
+                    pointed_in.set(true);
+                    show_in(&choice_in);
+                });
+                swatch.add_controller(motion);
+                let focus = gtk::EventControllerFocus::new();
+                let (show_in, choice_in) = (show.clone(), choice);
+                focus.connect_enter(move |_| show_in(&choice_in));
+                let (show_out, chosen_out, pointed_out) = (show.clone(), chosen.clone(), pointed.clone());
+                focus.connect_leave(move |_| {
+                    if !pointed_out.get() {
+                        show_out(&chosen_out);
+                    }
+                });
+                swatch.add_controller(focus);
+            }
+            index += 1;
+            child = swatch.next_sibling();
+        }
+        let leave = gtk::EventControllerMotion::new();
+        let grid = swatches.downgrade();
+        leave.connect_leave(move |_| {
+            pointed.set(false);
+            if grid.upgrade().is_none_or(|grid| grid.focus_child().is_none()) {
+                show(&chosen);
+            }
+        });
+        swatches.add_controller(leave);
+        // 16:10 in a narrow window; in a wide one no taller than this, so that the swatches stay in view
+        let frame = Aspect::new(&overlay, 10.0 / 16.0).with_max(300);
+        frame.add_css_class("theme-preview-frame");
+        // Only decoration: the swatches say which theme each is
+        frame.set_accessible_role(gtk::AccessibleRole::Presentation);
+        Some(frame.upcast())
     }
 
     /// A wallpaper of the current theme, only one the list named and only a picture, decoded once at about
     /// the size it is shown rather than whole
     fn thumbnail(&self, path: &str, picture: &gtk::Picture) {
+        // The picture it wants now, by name: a decode that ends after it was asked for another (the preview, pointed at one
+        // theme and then the next) is kept for later but not shown
+        picture.set_widget_name(path);
         if let Some(texture) = self.thumbnails.borrow().get(path) {
             picture.set_paintable(Some(texture));
             return;
@@ -781,9 +1014,9 @@ impl Control {
             let Ok(pixbuf) = gtk::gdk_pixbuf::Pixbuf::from_stream_at_scale_future(&stream, 512, 320, true).await else { return };
             let texture = gdk::Texture::for_pixbuf(&pixbuf);
             if let Some(this) = me.upgrade() {
-                this.thumbnails.borrow_mut().insert(path, texture.clone());
+                this.thumbnails.borrow_mut().insert(path.clone(), texture.clone());
             }
-            if let Some(picture) = picture.upgrade() {
+            if let Some(picture) = picture.upgrade().filter(|picture| picture.widget_name() == path.as_str()) {
                 picture.set_paintable(Some(&texture));
             }
         });
@@ -802,7 +1035,8 @@ impl Control {
                 let chosen = Some(&choice.value) == item.state.as_ref();
                 let image = gtk::Picture::builder().content_fit(gtk::ContentFit::Cover).can_shrink(true).build();
                 image.set_alternative_text(Some(&choice.title));
-                self.thumbnail(&choice.value, &image);
+                // Daylight's slideshow shows the picture of the hour on its tile
+                self.thumbnail(choice.thumbnail.as_deref().unwrap_or(&choice.value), &image);
                 let frame = Self::radio(&Aspect::new(&image, 10.0 / 16.0), &["picture"], chosen);
                 frame.set_overflow(gtk::Overflow::Hidden);
                 frame.set_tooltip_text(Some(&choice.title));

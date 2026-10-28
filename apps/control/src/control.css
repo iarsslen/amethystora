@@ -604,6 +604,114 @@ button.picture.checked {
     box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent);
 }
 
+/* The theme preview above the swatches: the theme's picture, a top bar and a window in its own colours (page.rs puts
+   the colours in a stylesheet of their own, between which they ease) */
+.theme-preview-frame {
+    min-height: 220px;
+    margin-bottom: 14px;
+}
+
+.theme-preview {
+    border-radius: 14px;
+}
+
+.theme-preview .pv-bar {
+    padding: 0 8px;
+    border-radius: 9px;
+    font-size: 10.5px;
+    font-weight: 700;
+    transition: background-color 350ms ease, color 350ms ease;
+}
+
+.theme-preview .pv-pill {
+    padding: 1px 7px;
+    border-radius: 999px;
+    transition: background-color 350ms ease, color 350ms ease;
+}
+
+.theme-preview .pv-window {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    transition: background-color 350ms ease, color 350ms ease;
+}
+
+.theme-preview .pv-title {
+    min-height: 26px;
+    padding: 0 10px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.theme-preview .pv-dot {
+    min-width: 8px;
+    min-height: 8px;
+    border-radius: 4px;
+}
+
+.theme-preview .pv-dot.yellow {
+    background-color: #f4b740;
+}
+
+.theme-preview .pv-dot.green {
+    background-color: #3fca7e;
+}
+
+.theme-preview .pv-dot.red {
+    background-color: #f2566a;
+}
+
+.theme-preview .pv-body {
+    padding: 4px 12px;
+    font-size: 11.5px;
+    font-weight: 600;
+}
+
+.theme-preview .pv-check {
+    min-width: 12px;
+    min-height: 12px;
+    border-radius: 4px;
+    transition: background-color 350ms ease;
+}
+
+.theme-preview .pv-add {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 700;
+    transition: background-color 350ms ease, color 350ms ease;
+}
+
+/* Colours to choose from, the twelve accents: two columns of rows, a dot of each colour and its name */
+button.color-row {
+    min-height: 44px;
+    padding: 0 10px;
+    border-radius: 12px;
+    color: var(--fg);
+}
+
+button.color-row:hover:not(:disabled) {
+    background-color: alpha(currentColor, 0.06);
+}
+
+button.color-row.checked {
+    background-color: alpha(currentColor, 0.1);
+}
+
+.color-row .color-dot {
+    min-width: 24px;
+    min-height: 24px;
+    border-radius: 12px;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+
+window.light .color-row .color-dot {
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+}
+
+.color-row .color-name {
+    font-size: 14px;
+    font-weight: 600;
+}
+
 /* The range input as Chromium draws it with accent-color: an 8-pixel track, filled in the accent up to a
    16-pixel thumb, inside the input's own 2-pixel margin. The track's colours are Chromium's, which it keeps
    on a dark page too. */
