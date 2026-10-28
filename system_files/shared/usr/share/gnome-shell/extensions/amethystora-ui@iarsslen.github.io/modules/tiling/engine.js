@@ -958,6 +958,16 @@ export class Engine {
     // With several screens a window that reaches past its own is cut at its edge, so that none of it shows on the
     // next screen; never while GNOME takes a screenshot, which takes windows whole
     _clip(actor, info, vis, monitor) {
+        // GNOME (or the motion's drop) draws the window meanwhile, away from where the strip has it: not cut while
+        // it flies; the next _show after it cuts it again
+        if (busy(actor)) {
+            if (info.clipped) {
+                actor.remove_clip();
+                actor.remove_effect_by_name(CUT);
+                info.clipped = false;
+            }
+            return;
+        }
         // A fullscreen window slid down reaches past the bottom
         const past = vis.x < monitor.x || vis.x + vis.width > monitor.x + monitor.width ||
             vis.y + vis.height > monitor.y + monitor.height;

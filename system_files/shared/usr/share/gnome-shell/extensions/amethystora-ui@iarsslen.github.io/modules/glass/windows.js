@@ -55,13 +55,14 @@ export function leftAlone(window) {
 export class Windows {
     constructor(glass) {
         this._glass = glass;
+        // Kept while the windows' glass rests (the glass solid), so that the top bar still hears when it is back
+        this._listeners = new Set();
     }
 
     enable() {
         this._windows = new Set();
         this._actors = new Set();
         this._queued = new Set();
-        this._listeners = new Set();
         // The windows whose glass is off because they are covered
         this._covered = new Set();
         this._recount = false;
@@ -94,7 +95,7 @@ export class Windows {
             actor.disconnectObject(this);
             this._glass.detach(actor);
         }
-        this._windows = this._actors = this._queued = this._listeners = this._covered = null;
+        this._windows = this._actors = this._queued = this._covered = null;
     }
 
     // The desktop style changed the windows' corners
@@ -119,7 +120,7 @@ export class Windows {
 
     // The look of a copy of a window that has glass, as the workspace switch slides it in
     cloneLook() {
-        return {material: 'glass', radius: this._glass.windowRadius, areas: frame, content, inClones: false,
+        return {material: 'pane', radius: this._glass.windowRadius, areas: frame, content, inClones: false,
             stageOnly: true};
     }
 
@@ -317,8 +318,10 @@ export class Windows {
         }
     }
 
+    // A window on its way into the dock or back is a drop of glass of its own (modules/motion.js), with no pane
     _wantsGlass(window) {
-        return this.glassWithoutFocus(window) && window !== global.display.focus_window;
+        return !this._glass.solid && this.glassWithoutFocus(window) && window !== global.display.focus_window &&
+            !this._glass._ext.modules?.get('motion')?.flying?.(window.get_compositor_private());
     }
 
     // Whether the window is on glass whenever it does not have the keyboard, as in the tiling's pictures of the
@@ -352,7 +355,7 @@ export class Windows {
         }
         const square = window.maximized_horizontally || window.maximized_vertically;
         this._glass.attach(actor, {
-            material: 'glass',
+            material: 'pane',
             radius: square ? 0 : this._glass.windowRadius,
             areas: frame,
             content,

@@ -224,6 +224,11 @@ impl Parts {
 }
 
 impl App for Phone {
+    /// The dock's drop on a phone (`send --now` with files) shows no window unless it needs the person
+    fn presents(&self, args: &[String]) -> bool {
+        !matches!(cli::parse(args, std::path::Path::new("/")), Ok(Command::Send { now: true, what: cli::Sending::Files(_), .. }))
+    }
+
     // A file on the command line is relative to where the launch was made from, a second launch's own folder included
     fn open_in(&self, args: &[String], cwd: Option<PathBuf>) {
         let cwd = cwd.or_else(|| std::env::current_dir().ok()).unwrap_or_else(amethystora_ui::palette::home);
@@ -433,9 +438,9 @@ impl Phone {
                 }
                 self.show(Page::Messages);
             }
-            Command::Send { device, what } => {
+            Command::Send { device, what, now } => {
                 self.show_if_first(Page::Phones);
-                self.open_send(device, what);
+                self.open_send(device, what, now);
             }
             Command::Reply { device, notification } => {
                 self.show_if_first(Page::Phones);

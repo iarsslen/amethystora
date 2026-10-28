@@ -11,8 +11,10 @@ the keys are in your fingers you will rarely reach for it.
   highlighted; click another to go there, or the one you are on to show or hide the overview. An empty
   one opens the overview, ready to start something. Scroll the mouse wheel, or two fingers on a
   touchpad, anywhere on the bar to go to the next or previous workspace. Drag a workspace along the row to move it, its windows with it, or
-  drop a window from the overview on one to send it there. Right-click a workspace to give it a name.
-- **In the middle**, the clock. Click it, or press `Super+V`, for notifications and the calendar.
+  drop a window from the overview on one to send it there. Right-click a workspace to give it a name
+  (until you do, it is named after its main app).
+- **In the middle**, the clock. Click it, or press `Super+V`, for notifications and the calendar. While
+  something is happening, the clock becomes the [live pill](#the-live-pill).
 - **On the right**, CPU, memory and network meters, the icons apps keep in the tray, then the system
   menu: Wi-Fi, sound, power and the rest of the quick settings. Right-click a tray icon for its app's
   menu, double-click it to open the app, and middle-click it for the app's second action. A Flatpak app
@@ -24,6 +26,88 @@ the keys are in your fingers you will rarely reach for it.
 
 The meters and the workspaces follow the colours of the current [theme](themes.md). The bar can
 also show [widgets](widgets.md) of your own, which the AI agent makes for you once you turn it on.
+
+## The live pill
+
+While something is happening, the clock in the middle of the top bar shows it, on a small round pill.
+When nothing is, it is the clock again, exactly as before. Only one thing shows at a time, the first of
+these that is happening: a call ringing on your phone, a recording of the screen, a link from your phone,
+the battery's question at 20%, a word that something just finished, a timer, what is playing, an update
+ready, and quiet. Click the pill for its card, with its buttons and, below them, whatever else is
+happening; the card's last row is the date and time, which opens the calendar. A right-click on the
+pill, or `Super+V`, always opens the calendar.
+
+- **A timer.** At the end of the calendar's column, under **Start a timer**, are 1, 5, 10 and 25 minutes.
+  The pill counts it down; its card adds a minute, pauses or cancels it. While one runs, the same
+  buttons add that many minutes. When it ends you hear it, a notification says so (it comes through
+  even when banners are quiet), and the pill says **Timer done**. A timer runs on while the screen is
+  locked, and rings as soon as you unlock it if it ended meanwhile.
+- **What is playing**, from any player that tells the desktop (as music and video apps do): the cover,
+  the title and the artist, and a click on the small pause button pauses it. The card has Back, Pause
+  and Next, and how far into the track you are. A player you paused stays for ten minutes.
+- **A call** on your [paired phone](phone.md): who is calling, and **Mute ringer**. The card also has
+  **Reply with a text**. You answer on the phone itself.
+- **A recording** of the screen: how long it has run, and **Stop**. GNOME's own recordings go to
+  Videos › Screencasts.
+- **A link from your phone**: the address, with **Open** and **Not now**. A link is shown, never opened
+  by itself: **Open in browser** opens it, **Copy** copies it, and **Not now** leaves it in the
+  notification list. A name in another alphabet is shown in its plain form (`xn--…`), so a look-alike
+  cannot pass for the site it imitates.
+- **An update ready**: **Ready · quick restart** when the update can finish without restarting the
+  computer, else **Ready · restart**. **Restart now** opens [System Updates](updates.md#updating-now),
+  which asks before it restarts anything; **Tonight** puts it out of sight until 8 in the evening.
+- **The battery.** Rest the pointer on the battery in the top bar for the time left, or the time until
+  it is full. At 20%, the pill turns amber and offers power saving, once: it never turns it on by itself.
+
+`ame desktop pill off` gives you GNOME's clock alone; `ame desktop pill on` brings the pill back.
+
+## Privacy dots
+
+While something uses the microphone, the camera, the screen or your location, a small pill in the top bar
+holds a dot for each, always in this order: amber for the microphone, green for the camera, red for the
+screen (recorded or shared), violet for the location. Click it for the list of all four, each with its
+own icon so that colour is never the only sign: the apps recording sound, the apps using the camera
+(PipeWire says which), the screen with a **Stop** button, and the location. GNOME does not say which app
+asks for your location, so the list only says that it is in use. While the dots are on, GNOME's own icons
+for the same four are hidden.
+
+**The recording glow.** While the screen is recorded or shared, a thin red glow runs round its edges, over
+everything, so nobody forgets. It shows in a recording of the whole screen: the desktop cannot leave it
+out.
+
+`ame desktop pill dots on|off` and `ame desktop pill glow on|off` turn each off and on again.
+
+## Notifications
+
+GNOME folds an app's notifications in the calendar's list into one stack; a folded stack shows how many it
+holds after the app's name.
+
+### Quiet
+
+While a window is fullscreen on the main screen, or the screen is shared or recorded, banners are quiet:
+a notification still arrives, waits in the list and counts on the clock's dot and on its app in the dock,
+but does not pop up or make a sound. Calls, alarms, timers and anything marked urgent still come through.
+When quiet ends, what came meanwhile is not shown one after another: the pill says **2 waiting in the
+list**, and a click on it opens the list. While the top bar shows, the pill says that it is quiet and how
+many are held.
+
+**Quiet at night** does the same between Night Light's times, whether or not Night Light itself is on:
+the times you set for it in Settings, or from sunset to sunrise. It is off until you turn it on.
+
+`ame desktop quiet on|off` and `ame desktop quiet night on|off`. Quiet never touches Do Not Disturb, which
+stays yours, in the calendar.
+
+### The digest
+
+With the digest on, banners that are not urgent wait all day and come together, as one card, at the
+digest times (12:00 and 18:00 to begin with): one row for each app, **Show all** (the list) and **Clear**.
+Nothing is lost when the card goes: everything is in the list. `ame desktop digest on|off`, and
+`ame desktop digest times 12:00 18:00` for other times (up to six). Control offers four sets.
+
+### Volume and brightness
+
+The volume, the brightness and the other signs GNOME shows for a key (Caps Lock, flight mode) appear as
+a slim pill just under the top bar, instead of a card low in the middle of the screen.
 
 ## Finding things
 
@@ -101,15 +185,65 @@ Good to know:
 
 ## The dock
 
-The dock at the bottom holds your pinned apps and the ones that are running. `Alt+1` to `Alt+9`
-switch to the app in that slot, and open it if it is not running. Right-click an app to pin or unpin
-it. Right-clicking one of Amethystora's own apps also offers its pages: **Hotkeys** in the Manual,
-**Tasks** in Notes, **Crashes** and **Apps and Services** in Logs, **Backup Status** in Backups,
-**Virus Scan** in Security, and **Appearance** and **System** in Control.
+The dock holds your pinned apps, the ones that are running, the last few you used, your folders and the trash.
+`Alt+1` to `Alt+9` switch to the pinned app in that place, and open it if it is not running; hold `Super` for a
+second to see the numbers on the dock. Right-click an app to pin or unpin it, or drag it off the dock: it dissolves,
+and stays in the app grid. Right-clicking one of Amethystora's own apps also offers its pages: **Hotkeys** in the
+Manual, **Tasks** in Notes, **Crashes** and **Apps and Services** in Logs, **Backup Status** in Backups, **Virus
+Scan** in Security, and **Appearance** and **System** in Control.
 
 An app's icon, on the dock and in the app grid alike, shows how many notifications it has waiting,
 a bar while it is busy with something long, and is greyed out while the app is being updated. Do
 Not Disturb hides all of that.
+
+### How the dock moves
+
+The icons swell in a wave under the pointer. Choose **Lift** to raise only the icon under the pointer, or **Still**,
+in [Control](control.md)'s **Dock** settings or in a terminal:
+
+    ame desktop dock magnify lift      # or swell, off
+    ame desktop dock amount 180        # how far Swell grows, 120 to 220 per cent
+
+While an app starts, a ring runs round its icon until its window opens (`ame desktop dock launch hop`, `breathe`
+or `off` for another sign or none). A bar under an icon marks a running app, twice as long when it has two windows
+or more (`ame desktop dock indicator dot` for a dot per window, `glow` for a light under it).
+
+### What the dock holds
+
+After the running apps come the last three apps you used that are not pinned (`ame desktop dock recent off` to
+leave them out). GNOME's own record of app use fills them at login, and again after the screen was locked, since
+the dock remembers the order you used them in nowhere but in memory; with **Usage history** off in Settings ›
+Privacy, there are none.
+
+Rest the pointer on a running app for a moment to see its windows above it, and click one to bring it forward
+(`ame desktop dock previews off` to see only names). Right-click it, or hold it, to fan all its windows out over
+its menu: scroll or press Left and Right to go through them, and click one or press Space.
+
+Drop one pinned app on another and wait until it lights up, to make a folder of them. Click the folder to open it,
+and click its name to rename it; **Take the folder apart** in its menu puts the apps back.
+
+Your Downloads folder is a stack: click it to see the twelve newest things in it, newest first, and **Open in Files**
+for the rest. Drag a folder from Files onto the dock to keep it there as a stack too, and drag a stack off the dock to
+take it away. Files dropped on a stack are moved into that folder, or copied while you hold `Ctrl`, by Files, which
+shows how far it got and can undo it. Files dropped on **Phone** go to your paired phone.
+
+    ame desktop dock stack add ~/Documents
+    ame desktop dock stack remove ~/Documents
+
+### Where the dock lives
+
+The dock is at the bottom of every screen, and each screen's dock shows the apps whose windows are on that screen
+beside the pinned ones. Put it on the left or right, or on the main screen only:
+
+    ame desktop dock edge left          # or right, bottom
+    ame desktop dock screens primary    # or every
+
+To have it out of the way, `ame desktop dock autohide touch`: windows then use the whole screen, and the dock slides
+away while one touches it. Push the pointer against that edge to bring it back. Where a screen continues on another
+past that edge, GNOME cannot keep a strip free there, so that screen's dock always hides that way.
+
+`ame desktop dock workspace-apps on` keeps only the apps of the workspace you are on, besides the pinned ones. A click
+on a pinned app whose windows are on another workspace takes you to them.
 
 ## The Amethystora menu
 
@@ -276,6 +410,82 @@ a window on that half of the screen, and `Super+Shift+Left` / `Super+Shift+Right
 monitor. `ame desktop layout tiling` brings the strip back. The first time you log in, a notification
 offers the same choice, and [Control](control.md)'s **Desktop** page has it any time.
 
+## Windows in the classic layout
+
+What follows is for the classic layout, unless it says otherwise. `ame desktop windows` lists each of these
+settings and how it is set now, and [Control](control.md)'s **Desktop** page has them under **Windows**,
+**Hot corners** and **Touchpad gestures**.
+
+### Snap layouts
+
+Drag a window by its title bar to the top of the screen, or press `Super+Z`, and six layouts appear:
+halves, two thirds and a third, thirds, quarters, the middle, and the whole screen. Move over a part of one
+and the screen shows where the window will go; let go, or click, and it goes there. With `Super+Z` the
+arrow keys move between the parts and `Enter` chooses. Dragging it away gives it its old size back. The top
+edge itself still maximises, and `Super` and the arrows still work. Off with `ame desktop windows snap off`.
+
+### Switching windows
+
+`Super+Tab` and `Alt+Tab` show every window in a grid, the windows themselves, live. Keep the key down and
+press `Tab` to move on, or start typing: only the windows whose app or title has those letters stay, and
+the grid stays open after you let go, until `Enter` switches or `Esc` leaves everything as it was. In the
+tiling layout the keys switch as GNOME does. `ame desktop windows switcher off` gives GNOME's switcher back.
+
+### Holding Super
+
+Hold `Super` for a second, without another key, and a card shows the main shortcuts, as they are set on
+this machine, with numbers on the dock: `Alt` and a number opens the app in that place. Let go and they
+fade. A quick press of `Super` still opens the overview. `ame desktop windows hold-super 1500` waits a
+second and a half; `off` turns it off. This works in both layouts.
+
+### Hot corners
+
+Each corner of the screen can do one thing when you push the pointer into it: the overview, show the
+desktop, lock the screen, a quick note, or the notifications. All four do nothing until you choose, in
+Control or with `ame desktop windows corner top-right overview`. A corner fires after a short push past
+the edge, so passing by never sets it off. Corners next to another screen have none, and GNOME's own hot
+corner, if you turn it on in Settings, keeps the top left. The corners work in both layouts; show the
+desktop only in the classic one.
+
+### Show desktop
+
+With `ame desktop windows show-desktop on`, clicking empty wallpaper slides every window to the edges,
+leaving a sliver of each. A click anywhere, or any key, brings them back; clicking a sliver also brings
+that window to the front.
+
+### Touchpad gestures
+
+| Fingers | Does |
+| --- | --- |
+| Three up | GNOME's overview; again for the app grid |
+| Three sideways | GNOME's next workspace |
+| Pinch with three | The app grid |
+| Spread three | Show the desktop; pinch to bring the windows back |
+| Three down | The windows of the app you are in, fanned out from the dock |
+| Four to the left | Today and the notifications; to the right closes them |
+
+Two fingers stay the app's own. Each is a switch: `ame desktop windows gesture pinch off`. The pinch and
+four fingers work in both layouts, unless the tiling's own gestures use four fingers.
+
+### Places
+
+Windows go back to their places for each arrangement of screens: plug a screen in and each app's windows go
+where they were the last time it was there; unplug it and they return to their laptop places. Apps cannot
+place themselves on Wayland, so Amethystora keeps the places, by the screens' connectors and sizes, in
+`~/.local/state/amethystora/places.json`. `ame desktop windows places forget` forgets them.
+
+### Keep a copy in view
+
+Choose **Keep a copy in view** in a window's menu (right-click its title bar, or `Alt+Space`): the window
+goes out of sight and a small live copy of it stays on top of every workspace, in a corner. Drag it to
+another corner; click it to bring the real window back. Some apps stop drawing while out of sight, and the
+copy then shows their last picture. This works in both layouts.
+
+### Dimming
+
+`ame desktop windows dim on` draws the windows behind the one you are using a little darker, so the eye goes
+to the right one. A video an app draws on its own may stay bright.
+
 ## Windows
 
 | Key | Does |
@@ -284,12 +494,33 @@ offers the same choice, and [Control](control.md)'s **Desktop** page has it any 
 | `Super+Backspace` | Resize with the arrow keys |
 | `Shift+F11` | Full screen, keeping the title bar |
 | `Super+H` | Minimise the window |
-| `Super+Tab` / `Alt+Tab` | Switch between apps / between windows |
+| `Super+Tab` / `Alt+Tab` | Switch between apps / between windows; type to filter (classic layout) |
+| `Super+Z` | Snap layouts for the focused window (classic layout) |
+| Hold `Super` | The main shortcuts, and numbers on the dock |
 | `` Super+` `` | Switch between the windows of the app you are in |
 
 The three lights on the right of every title bar minimise, maximise and close the window, amber, green and
 red in every theme, and grey while the window is not the one you are using. Move the pointer over them and
 each shows its sign.
+
+## Motion
+
+Minimize a window and it gathers into a drop of glass, which arcs down into the window's icon in the dock; a ring
+ripples out of the icon as it lands. Bring the window back, from the dock, `Alt+Tab` or anywhere else, and the drop
+rises from the icon and swells back into the window. An app you open from the dock grows out of its icon the same
+way. Changed your mind half-way? Click the icon again and the window turns round from where it is.
+
+Changing workspace has depth: the windows travel a whole screen, the wallpaper only a third of the way, and the
+windows step back a little as they go.
+
+```bash
+ame desktop minimize shrink          # GNOME's own: the window shrinks into its icon
+ame desktop minimize droplet         # back to the drop
+ame desktop workspace-switch slide   # each workspace slides in whole
+```
+
+With [Reduce motion](themes.md#comfort) on (`ame desktop comfort reduce-motion on`), windows fade in place instead
+and workspaces crossfade. With animations turned off in Settings, under Accessibility, nothing moves at all.
 
 ## Workspaces
 
@@ -300,6 +531,11 @@ on 1, a terminal on 2, chat on 6. `Super+Shift+3` takes the focused window to wo
 `Super+Ctrl+Alt+Left` / `Super+Ctrl+Alt+Right` swap the workspace you are on with the one beside it,
 windows and name included.
 
+A workspace shows its number, and after it the name of the app with most windows on it, in lighter type. Give it a
+name of your own with a right click on it; **Use the app's name** in that menu goes back to the automatic one, and
+`ame desktop space-names off` turns automatic names off. To move a window to another workspace, open the overview
+and drag the window onto the workspace in the top bar, or onto its picture at the top of the overview.
+
 ## Extensions
 
 These GNOME Shell extensions come with the image:
@@ -307,7 +543,7 @@ These GNOME Shell extensions come with the image:
 | Extension | What it does |
 | --- | --- |
 | Amethystora Clipboard | The [clipboard history](#the-clipboard) on `Super+Shift+V`, sealed: a copy of Clipboard Indicator |
-| Amethystora UI | Amethystora's own desktop, written for this image: [tiling windows](#tiling-windows) side by side on a scrolling strip, the dock, the frosted glass behind the panel, the overview, menus and notifications (windows you are not using are made slightly see-through), the workspaces, the meters and the tray icons in the top bar, a phone icon there while a [paired phone](hardware.md#phones) is connected, the search on `Super+Space` app search that forgives typos, drawing on a screenshot and [copying the text out of it](#copying-text-from-the-screen), and uninstalling an app from its menu, quicker animations, no popup when you change workspace, and no Activities button |
+| Amethystora UI | Amethystora's own desktop, written for this image: [tiling windows](#tiling-windows) side by side on a scrolling strip, the dock, the glass (Frost, Prism or Clear, see [Glass](themes.md#glass)) behind the panel, the overview, menus and notifications (windows you are not using are made slightly see-through), the workspaces, the meters and the tray icons in the top bar, a phone icon there while a [paired phone](hardware.md#phones) is connected, the search on `Super+Space` app search that forgives typos, drawing on a screenshot and [copying the text out of it](#copying-text-from-the-screen), and uninstalling an app from its menu, quicker animations, no popup when you change workspace, and no Activities button; the [live pill](#the-live-pill), [privacy dots](#privacy-dots), [quiet notifications](#quiet) and the volume pill |
 | Logo menu | The Amethystora logo at the top left and [its menu](#the-top-bar) of the system's tools |
 | Amethystora Transitions | The animation that reveals a new theme or wallpaper ([Transitions](themes.md#transitions)) |
 | Amethystora Widgets | Your own [widgets](widgets.md) in the top bar; nothing until you add one |

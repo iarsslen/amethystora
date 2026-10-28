@@ -263,6 +263,43 @@ async fn scenario(root: &Path) {
     assert!(computer.service.send_url(&pid, "javascript:\nalert(1)").is_err());
     computer.service.send_text(&pid, "some text").unwrap();
     until("the text", || phone.saw("kdeconnect.share.request").iter().any(|p| p.str("text") == Some("some text"))).await;
+    // A web link goes to the shell's module only while a connection of the module's that is a client has taken the
+    // links (TakeLinks): registered but not taking (the screen locked, the extension off), the program says it itself
+    use amethystora_connect::dbus::{self as bus, Role};
+    let module = ":1.9999".to_string();
+    let notices = |n: usize| computer.notices.raised_with_prefix(&format!("text:{pid}")).len() == n;
+    let said = computer.notices.raised_with_prefix(&format!("text:{pid}")).len();
+    computer.service.clients.borrow_mut().insert(module.clone(), Role::Module);
+    phone.service.send_to(&seen_by_phone, "kdeconnect.share.request", json!({ "url": "https://example.org/locked" }));
+    until("the program's own notice while the module takes nothing", || notices(said + 1)).await;
+    assert!(signals(&computer, "UrlReceived").is_empty(), "nothing is sent to a module that has not taken the links");
+    // Taking them, for its own connection only: an app's connection, or one that is not a client, takes nothing
+    bus::set_link_taker(&computer.service, Some(":1.42"), Role::App, true);
+    assert!(!bus::links_taken(&computer.service));
+    bus::set_link_taker(&computer.service, Some(&module), Role::Module, true);
+    assert!(bus::links_taken(&computer.service));
+    phone.service.send_to(&seen_by_phone, "kdeconnect.share.request", json!({ "url": "https://example.org/pill" }));
+    until("the link for the pill", || signals(&computer, "UrlReceived").len() == 1).await;
+    let link = signals(&computer, "UrlReceived").remove(0);
+    assert_eq!(link.child_value(0).str(), Some(pid.as_str()));
+    assert_eq!(link.child_value(1).str(), Some("https://example.org/pill"));
+    assert!(notices(said + 1), "no notice of the program's own for a link the pill shows");
+    // What the module would not take (no host, a space, not a web address), and text, are the program's to say
+    phone.service.send_to(&seen_by_phone, "kdeconnect.share.request", json!({ "url": "https://example.org/a b" }));
+    phone.service.send_to(&seen_by_phone, "kdeconnect.share.request", json!({ "url": "javascript:alert(1)" }));
+    phone.service.send_to(&seen_by_phone, "kdeconnect.share.request", json!({ "text": "still a notification" }));
+    until("three notices", || notices(said + 4)).await;
+    assert_eq!(signals(&computer, "UrlReceived").len(), 1, "only a link the module takes goes to the pill");
+    // The module lets go (it stops), or its connection goes: the program says links itself again
+    bus::set_link_taker(&computer.service, Some(&module), Role::Module, false);
+    assert!(!bus::links_taken(&computer.service));
+    bus::set_link_taker(&computer.service, Some(&module), Role::Module, true);
+    computer.service.clients.borrow_mut().remove(&module);
+    assert!(!bus::links_taken(&computer.service), "a connection that is no client takes nothing");
+    phone.service.send_to(&seen_by_phone, "kdeconnect.share.request", json!({ "url": "https://example.org/after" }));
+    until("the program's own notice again", || notices(said + 5)).await;
+    assert_eq!(signals(&computer, "UrlReceived").len(), 1);
+    computer.service.link_takers.borrow_mut().clear();
 
     // --- The clipboard: two switches, off as shipped --------------------------------------------------------
     computer.service.push_clipboard("not sent: the switch is off");
@@ -299,6 +336,8 @@ async fn scenario(root: &Path) {
     until("the call to end", || computer.notices.closed.borrow().contains(&format!("call:{pid}"))).await;
     let states: Vec<String> = signals(&computer, "Call").iter().map(|a| a.child_value(0).str().unwrap().to_string()).collect();
     assert_eq!(states, ["ringing", "ended"]);
+    // The live pill shows the ringing phone too: the module's connection is sent the same signal
+    assert!(amethystora_connect::dbus::audience(amethystora_connect::dbus::Role::Module, "Call", signals(&computer, "Call").first()));
 
     // --- Contacts and texts ---------------------------------------------------------------------------------
     phone.service.send_to(&seen_by_phone, "kdeconnect.contacts.response_uids_timestamps", json!({ "uids": ["205"], "205": 1761000000000i64 }));

@@ -1,11 +1,13 @@
-/* The glass (modules/glass.js): what GNOME draws on top of the panes. The panes are the frosted wallpaper; over them
-   every popup has a veil and the controls inside it are translucent too, with GNOME's accent colour kept for what
-   is on. The glass's own corners are given to each surface, so that GNOME's drawing of it matches.
+/* The glass (modules/glass.js): what GNOME draws on top of the panes. The panes are the frosted wallpaper, with
+   the surface's veil and hairline drawn by the glass itself (so that they follow its continuous corners): St draws
+   neither, and the surface only says which ground and accent the glass takes them from. The controls inside are
+   translucent, with GNOME's accent colour kept for what is on. The glass's own corners are given to each surface.
+   While the glass is solid (amethystora-glass-solid on the shell's top group) St draws every surface plainly.
 
    The colours follow the theme, in the theme's shell-glass.css (themed/shell-glass.css.tpl), whose selectors start
    from the shell's top group, one id more than any here, so that its rules always win; they are the same in the
-   light scheme (amethystora-glass-light), where the theme's palette is the light one. The surfaces' veil here
-   stands in until a theme has been applied. The overview and the app folders keep their own: the frost under them is
+   light scheme (amethystora-glass-light), where the theme's palette is the light one. The ground and accent
+   here stand in until a theme has been applied. The overview and the app folders keep their own: the frost under them is
    dark in either scheme, so their text is light in both. */
 
 /* The top bar: clear over its strip of glass until a window touches it, then GNOME's own background */
@@ -32,8 +34,8 @@
 .amethystora-glass-surface:hover,
 .amethystora-glass-surface:active,
 .amethystora-glass-surface:focus {
-  background-color: rgba(30, 30, 36, 0.22);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: transparent;
+  border: 1px solid transparent;
   box-shadow: none;
   color: #ffffff;
 }
@@ -42,18 +44,58 @@
 .amethystora-glass-surface.amethystora-glass-light:hover,
 .amethystora-glass-surface.amethystora-glass-light:active,
 .amethystora-glass-surface.amethystora-glass-light:focus {
-  background-color: rgba(255, 255, 255, 0.58);
-  border-color: rgba(0, 0, 0, 0.05);
+  background-color: transparent;
+  border-color: transparent;
   color: #1c1c21;
 }
 
 #keyboard.amethystora-glass-surface {
-  background-color: rgba(30, 30, 36, 0.22);
+  background-color: transparent;
   box-shadow: none;
 }
 
 #keyboard.amethystora-glass-surface.amethystora-glass-light {
-  background-color: rgba(255, 255, 255, 0.58);
+  background-color: transparent;
+}
+
+/* What the glass draws a surface's veil from, and the accent its light gathers in, until a theme gives its own */
+
+.amethystora-glass-pane {
+  -amethystora-glass-ground: #1e1e24;
+  -amethystora-glass-accent: #9148f0;
+}
+
+.amethystora-glass-solid .amethystora-glass-pane {
+  transition-duration: 300ms;
+}
+
+.amethystora-glass-pane.amethystora-glass-light {
+  -amethystora-glass-ground: #ffffff;
+}
+
+/* Solid: the surfaces plain, with the shadow the glass gave them */
+
+.amethystora-glass-solid .amethystora-glass-surface,
+.amethystora-glass-solid .amethystora-glass-surface:hover,
+.amethystora-glass-solid .amethystora-glass-surface:active,
+.amethystora-glass-solid .amethystora-glass-surface:focus {
+  background-color: #26212e;
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+.amethystora-glass-solid .amethystora-glass-surface.amethystora-glass-light,
+.amethystora-glass-solid .amethystora-glass-surface.amethystora-glass-light:hover,
+.amethystora-glass-solid .amethystora-glass-surface.amethystora-glass-light:active,
+.amethystora-glass-solid .amethystora-glass-surface.amethystora-glass-light:focus {
+  background-color: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
+}
+
+.amethystora-glass-solid .amethystora-glass-surface.amethystora-glass-inner,
+.amethystora-glass-solid #keyboard.amethystora-glass-surface {
+  box-shadow: none;
 }
 
 .amethystora-glass-surface.amethystora-glass-menu {

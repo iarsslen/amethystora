@@ -1,7 +1,10 @@
 // What a click on a dock item does. An app or place with no window opens; one whose window is not in front comes
 // to the front (a window that asks for attention first); one already in front goes on to its next window, click
 // after click. Shift minimizes a window, and the second click of a double click with Shift the rest of them; the
-// middle button, or Ctrl, opens a new window. A double click is otherwise one click.
+// middle button, or Ctrl, opens a new window. A double click is otherwise one click. With a dock on every screen, an
+// app with no window on this screen opens a new one if it can (GNOME puts it where the pointer is), else the window
+// it has on another screen comes forward. With only this workspace's apps on the dock, a click on a pinned app whose
+// windows are on another workspace goes to them there.
 
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
@@ -16,12 +19,13 @@ import {sayUpdating} from './badges.js';
 const WALK_MEMORY = 3000;
 
 export class Clicks {
-    // dash.windowsOf(key) gives an item's windows, most recently used first; dash.focusedKey() the app or place
-    // in front
-    constructor(dash, places, launcher) {
+    // dash.windowsOf(key) gives an item's windows on its screen, most recently used first; dash.focusedKey() the app
+    // or place in front
+    constructor(dash, dock) {
         this._dash = dash;
-        this._places = places;
-        this._launcher = launcher;
+        this._dock = dock;
+        this._places = dock.places;
+        this._launcher = dock.launcher;
     }
 
     destroy() {
@@ -29,21 +33,38 @@ export class Clicks {
     }
 
     appTarget(icon) {
-        const {app} = icon;
+        return {
+            ...this.appTargetFor(icon.app),
+            // GNOME's own click, which opens a new window with Ctrl or the middle button
+            gnome: button => Dash.DashIcon.prototype.activate.call(icon, button),
+        };
+    }
+
+    // An app that has no icon of its own on the dock (one in a folder)
+    appTargetFor(app) {
         return {
             key: app,
             name: app.get_name(),
             updating: () => Boolean(this._launcher.get(app.get_id())?.updating),
             launch: () => {
-                icon.animateLaunch();
+                this._dock.launch?.begin(app);
+                // The motion module grows the first window out of the icon
+                this._dock.ext.modules?.get('motion')?.launched?.(app);
                 // Files can be running with every window showing a place: it opens one of its own
                 if (app.state === Shell.AppState.RUNNING && app.can_open_new_window())
                     app.open_new_window(-1);
                 else
                     app.activate();
             },
-            // GNOME's own click, which opens a new window with Ctrl or the middle button
-            gnome: button => Dash.DashIcon.prototype.activate.call(icon, button),
+            gnome: () => {
+                if (app.state === Shell.AppState.RUNNING && app.can_open_new_window()) {
+                    this._dock.launch?.begin(app);
+                    app.open_new_window(-1);
+                } else {
+                    app.activate();
+                }
+                Main.overview.hide();
+            },
         };
     }
 
@@ -91,7 +112,18 @@ export class Clicks {
         } else if (Main.overview.visible && target.key instanceof Shell.App) {
             target.gnome(button);
         } else if (!windows.length) {
-            target.launch();
+            const elsewhere = this._dash.allWindowsOf(target.key);
+            // A window on this screen but another workspace (this workspace's apps only): to it, as GNOME goes
+            const here = elsewhere.filter(window => !this._dock.perScreen ||
+                window.get_monitor() === this._dash.monitorIndex);
+            if (here.length)
+                Main.activateWindow(here[0], time);
+            else if (elsewhere.length && target.key instanceof Shell.App && !target.key.can_open_new_window())
+                Main.activateWindow(elsewhere[0], time);
+            else if (elsewhere.length && target.key instanceof Shell.App)
+                target.gnome(Clutter.BUTTON_MIDDLE);
+            else
+                target.launch();
         } else {
             const urgent = windows.find(window => window.demands_attention || window.urgent);
             if (urgent || this._dash.focusedKey() !== target.key) {

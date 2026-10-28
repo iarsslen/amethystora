@@ -291,7 +291,7 @@ impl Phone {
             Situation::Ready => {
                 if device.has("share") {
                     let id = id.clone();
-                    buttons.push(self.button(&t!("Send…"), Look { icon: Some("upload"), primary: true, ..Default::default() }, move |this| this.open_send(Some(id.clone()), crate::cli::Sending::Nothing)).upcast());
+                    buttons.push(self.button(&t!("Send…"), Look { icon: Some("upload"), primary: true, ..Default::default() }, move |this| this.open_send(Some(id.clone()), crate::cli::Sending::Nothing, false)).upcast());
                 }
                 if device.has("sms") {
                     let id = id.clone();

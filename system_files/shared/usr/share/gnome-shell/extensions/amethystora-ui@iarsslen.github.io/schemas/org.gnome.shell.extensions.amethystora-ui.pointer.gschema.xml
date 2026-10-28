@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The keys of the pointer module (modules/pointer.js): what shaking the mouse does, and a larger pointer on a dense
+     screen. The pointer's look is GNOME's own key, cursor-theme in org.gnome.desktop.interface, which the theme
+     writes (ame desktop pointer). -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.pointer" path="/org/gnome/shell/extensions/amethystora-ui/pointer/">
+    <key name="shake" type="s">
+      <choices>
+        <choice value="grow"/>
+        <choice value="beacon"/>
+        <choice value="off"/>
+      </choices>
+      <default>'grow'</default>
+      <summary>What shaking the mouse does</summary>
+      <description>grow swells the pointer to three and a half times its size while you shake it, beacon grows it a little and sends rings out from where it is, and off does nothing.</description>
+    </key>
+    <key name="dense" type="b">
+      <default>true</default>
+      <summary>A larger pointer on dense screens</summary>
+      <description>On a screen with small pixels shown at 100%, the pointer is drawn one size larger (32 in place of 24). A size chosen in Settings is kept.</description>
+    </key>
+  </schema>
+</schemalist>

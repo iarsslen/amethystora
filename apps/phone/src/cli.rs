@@ -12,8 +12,10 @@
 //!
 //!   amethystora-phone                           the phones
 //!   amethystora-phone messages [--] [DEVICE]    the texts of a phone
-//!   amethystora-phone send [--device=ID] [--] FILE_OR_URI...
-//!                                               the send dialog, with these files, or one link
+//!   amethystora-phone send [--now] [--device=ID] [--] FILE_OR_URI...
+//!                                               the send dialog, with these files, or one link; with
+//!                                               --now, files to the phone named are sent at once without
+//!                                               the window when nothing needs the person (the dock's drop)
 //!   amethystora-phone reply [--] DEVICE NOTIFICATION
 //!                                               the reply to a notification of a phone
 //!   amethystora-phone pair [--] DEVICE          the pairing of a phone
@@ -32,7 +34,7 @@ const MOST: usize = 512;
 pub enum Command {
     Phones,
     Messages { device: Option<String> },
-    Send { device: Option<String>, what: Sending },
+    Send { device: Option<String>, what: Sending, now: bool },
     Reply { device: String, notification: String },
     Pair { device: String },
     Text { device: String, text: String },
@@ -159,6 +161,7 @@ pub fn parse(args: &[String], cwd: &Path) -> Result<Command, Problem> {
 
 fn send(rest: &[String], cwd: &Path) -> Result<Command, Problem> {
     let mut device = None;
+    let mut now = false;
     let mut words: Vec<&String> = Vec::new();
     let mut options = true;
     let mut at = 0;
@@ -167,6 +170,8 @@ fn send(rest: &[String], cwd: &Path) -> Result<Command, Problem> {
         at += 1;
         if options && word == "--" {
             options = false;
+        } else if options && word == "--now" {
+            now = true;
         } else if options && (word == "--device" || word == "-d") {
             let Some(id) = rest.get(at) else { return Err(Problem::Usage("send")) };
             at += 1;
@@ -200,7 +205,7 @@ fn send(rest: &[String], cwd: &Path) -> Result<Command, Problem> {
     } else {
         return Err(Problem::Mixed);
     };
-    Ok(Command::Send { device, what })
+    Ok(Command::Send { device, what, now })
 }
 
 #[cfg(test)]
@@ -260,7 +265,7 @@ mod tests {
 
     #[test]
     fn send_takes_files_from_where_the_launch_was_made() {
-        let Ok(Command::Send { device, what: Sending::Files(files) }) = parse(&words("send --device dev1 a.jpg /tmp/b.txt file:///tmp/c.txt a.jpg"), cwd()) else {
+        let Ok(Command::Send { device, what: Sending::Files(files), .. }) = parse(&words("send --device dev1 a.jpg /tmp/b.txt file:///tmp/c.txt a.jpg"), cwd()) else {
             panic!("files")
         };
         assert_eq!(device.as_deref(), Some("dev1"));
@@ -269,16 +274,35 @@ mod tests {
 
     #[test]
     fn send_without_words_asks_the_person() {
-        assert_eq!(parse(&words("send"), cwd()), Ok(Command::Send { device: None, what: Sending::Nothing }));
-        assert_eq!(parse(&words("send -d dev1"), cwd()), Ok(Command::Send { device: Some("dev1".into()), what: Sending::Nothing }));
-        assert_eq!(parse(&words("send --device=dev1"), cwd()), Ok(Command::Send { device: Some("dev1".into()), what: Sending::Nothing }));
+        assert_eq!(parse(&words("send"), cwd()), Ok(Command::Send { device: None, what: Sending::Nothing, now: false }));
+        assert_eq!(parse(&words("send -d dev1"), cwd()), Ok(Command::Send { device: Some("dev1".into()), what: Sending::Nothing, now: false }));
+        assert_eq!(parse(&words("send --device=dev1"), cwd()), Ok(Command::Send { device: Some("dev1".into()), what: Sending::Nothing, now: false }));
+    }
+
+    #[test]
+    fn send_now_is_an_option_before_the_files() {
+        // As the dock runs it, with the phone as --device=ID or --device ID, before or after it
+        let file = |line: &str| match parse(&words(line), cwd()) {
+            Ok(Command::Send { device, what: Sending::Files(files), now }) => (device, files, now),
+            other => panic!("{line}: {other:?}"),
+        };
+        let sent = (Some("dev1".to_string()), vec!["file:///tmp/a.txt".to_string()], true);
+        assert_eq!(file("send --now --device=dev1 -- /tmp/a.txt"), sent);
+        assert_eq!(file("send --now --device dev1 -- /tmp/a.txt"), sent);
+        assert_eq!(file("send --device=dev1 --now -- /tmp/a.txt"), sent);
+        assert_eq!(file("send --device dev1 --now /tmp/a.txt"), sent);
+        // After the dashes it is a file
+        assert_eq!(file("send --device=dev1 -- --now"), (Some("dev1".to_string()), vec!["file:///home/ada/Pictures/--now".to_string()], false));
+        // Without it, the dialog waits for the person as before
+        assert_eq!(file("send --device=dev1 -- /tmp/a.txt").2, false);
+        assert_eq!(parse(&words("send --now"), cwd()), Ok(Command::Send { device: None, what: Sending::Nothing, now: true }));
     }
 
     #[test]
     fn send_takes_one_link_or_files_never_both() {
         assert_eq!(
             parse(&words("send https://example.org/a?b=1"), cwd()),
-            Ok(Command::Send { device: None, what: Sending::Link("https://example.org/a?b=1".into()) })
+            Ok(Command::Send { device: None, what: Sending::Link("https://example.org/a?b=1".into()), now: false })
         );
         assert_eq!(parse(&words("send https://a.example https://b.example"), cwd()), Err(Problem::Mixed));
         assert_eq!(parse(&words("send a.jpg https://a.example"), cwd()), Err(Problem::Mixed));
@@ -323,7 +347,7 @@ mod tests {
             parse(&["reply".into(), dashed.into(), "-1|0|-pkg|-3".into()], cwd()),
             Ok(Command::Reply { device: dashed.into(), notification: "-1|0|-pkg|-3".into() })
         );
-        let Ok(Command::Send { device, what: Sending::Files(files) }) = parse(&["send".into(), format!("--device={dashed}"), "/tmp/a.txt".into()], cwd()) else {
+        let Ok(Command::Send { device, what: Sending::Files(files), .. }) = parse(&["send".into(), format!("--device={dashed}"), "/tmp/a.txt".into()], cwd()) else {
             panic!("files")
         };
         assert_eq!((device.as_deref(), files.as_slice()), (Some(dashed), ["file:///tmp/a.txt".to_string()].as_slice()));

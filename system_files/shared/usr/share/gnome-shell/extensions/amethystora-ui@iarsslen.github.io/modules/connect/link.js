@@ -115,6 +115,11 @@ export class Device {
     sendUrl(url) {
         return this.proxy.SendUrlAsync(url);
     }
+
+    // Silences the phone's ringer while a call rings (the live pill's Mute ringer)
+    muteRinger() {
+        return this.proxy.MuteRingerAsync();
+    }
 }
 
 export class Link {
@@ -123,6 +128,9 @@ export class Link {
      * @param {function(): void} handlers.devices - the phones, or something about one, changed
      * @param {function(boolean): void} handlers.trust - the program is there and is the image's own, or no longer
      * @param {function(string): void} handlers.received - a phone's clipboard text, to set once
+     * @param {function(Device, string, string, string): void} [handlers.call] - a phone's call: its state
+     *   ("ringing", "talking", "missed", "ended"), number and name
+     * @param {function(Device, string): void} [handlers.url] - a web link a ready phone shared
      * @param {string} [trustedExe] - the program that may be the phone link, for a test to change
      */
     constructor(handlers, trustedExe = TRUSTED_EXE) {
@@ -145,6 +153,14 @@ export class Link {
     pushClipboard(text) {
         this._root?.PushClipboardAsync(text).catch(e => {
             console.debug(`Amethystora UI: the phone link did not take a copy: ${Gio.DBusError.strip_remote_error(e)}`);
+        });
+    }
+
+    // Says to the program whether the shell shows the links phones share (the live pill): while it does, the program
+    // sends them here rather than notifying them itself. A program from before it knew of this refuses: it notifies.
+    takeLinks(take) {
+        this._root?.TakeLinksAsync(take).catch(e => {
+            console.debug(`Amethystora UI: the phone link did not take TakeLinks: ${Gio.DBusError.strip_remote_error(e)}`);
         });
     }
 
@@ -202,7 +218,7 @@ export class Link {
         this._owner = null;
         this._pending.clear();
         for (const device of this._devices.values())
-            device.proxy.disconnectObject(this);
+            this._drop(device);
         this._devices.clear();
         if (root) {
             for (const id of this._signals.splice(0))
@@ -231,6 +247,7 @@ export class Link {
                 root.connectSignal('DeviceAdded', (proxy, sender, [path]) => this._add(path)),
                 root.connectSignal('DeviceRemoved', (proxy, sender, [path]) => this._remove(path)),
                 root.connectSignal('ClipboardReceived', (proxy, sender, [, text]) => this._handlers.received(text)),
+                root.connectSignal('UrlReceived', (proxy, sender, [deviceId, url]) => this._url(deviceId, url)),
             ];
             this._handlers.trust(true);
             for (const path of paths)
@@ -261,7 +278,10 @@ export class Link {
             if (generation !== this._generation || !this._pending.has(path))
                 return;
             proxy.connectObject('g-properties-changed', () => this._handlers.devices(), this);
-            this._devices.set(path, new Device(proxy, path));
+            const device = new Device(proxy, path);
+            device.callSignal = proxy.connectSignal('Call', (p, sender, [state, number, name]) =>
+                this._handlers.call?.(device, state, number, name));
+            this._devices.set(path, device);
             this._handlers.devices();
         } catch (e) {
             if (!isCancelled(e))
@@ -277,8 +297,25 @@ export class Link {
         const device = this._devices.get(path);
         if (!device)
             return;
-        device.proxy.disconnectObject(this);
+        this._drop(device);
         this._devices.delete(path);
         this._handlers.devices();
+    }
+
+    _drop(device) {
+        device.proxy.disconnectObject(this);
+        if (device.callSignal)
+            device.proxy.disconnectSignal(device.callSignal);
+        device.callSignal = 0;
+    }
+
+    // A link a phone shared. A phone whose object is still being read (one paired a moment ago) is not known yet:
+    // the link is handed on all the same, with null for the phone, so that it is never lost on the way
+    _url(deviceId, url) {
+        if (typeof url !== 'string')
+            return;
+        const device = this.devices.find(d => d.id === deviceId && d.ready) ?? null;
+        this.lastLink = url;
+        this._handlers.url?.(device, url);
     }
 }

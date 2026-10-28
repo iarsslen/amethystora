@@ -10,6 +10,10 @@
 //    text on to the program when the person has turned sending on, and sets it when a phone's text comes and the
 //    person has turned receiving on (the settings org.amethystora.Connect, written by `ame desktop phone`).
 //
+// It also passes a call ringing and a link a phone shared to whoever listens (the live pill, modules/pill.js). A link
+// nobody takes is shown here, as a notification with Open and Copy, so that a link is never lost and never opened by
+// itself: the program raises none of its own for it while the shell is its client.
+//
 // While the program is not running this module only waits for its name on the bus, and it believes only the program
 // of this system (link.js). Windows, the lists of phones and everything else belong to the Phone app, which the menu
 // starts.
@@ -24,6 +28,7 @@ import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 import * as Util from 'resource:///org/gnome/shell/misc/util.js';
 
 import {Bridge, KEY_RECEIVE, KEY_SEND, openSettings} from './connect/clipboard.js';
+import {shownAddress} from './pill/text.js';
 import {Indicator} from './connect/indicator.js';
 import {Link} from './connect/link.js';
 
@@ -35,8 +40,8 @@ const SYSTEM_ROLES = ['screenRecording', 'screenSharing', 'dwellClick', 'a11y', 
 // The longest address sent from the clipboard, in characters
 const MAX_ADDRESS = 8192;
 
-// The clipboard's text if it is one web address and nothing else, otherwise null
-function address(text) {
+// The clipboard's text (or a link a phone shared) if it is one web address and nothing else, otherwise null
+export function address(text) {
     const candidate = typeof text === 'string' ? text.trim() : '';
     // GLib is lenient about a space in a host name, so a line with one is refused here
     if (candidate === '' || candidate.length > MAX_ADDRESS || /[\s\p{Cc}]/u.test(candidate))
@@ -66,6 +71,7 @@ export class Connect {
         };
         this._bridge = new Bridge(text => this._link?.pushClipboard(text));
         this._trusted = false;
+        this._listeners = new Set();
         this._settings = openSettings();
         this._settings?.connectObject(`changed::${KEY_SEND}`, () => this._switchesChanged(),
             `changed::${KEY_RECEIVE}`, () => this._switchesChanged(), this);
@@ -74,8 +80,16 @@ export class Connect {
             trust: trusted => {
                 this._trusted = trusted;
                 this._switchesChanged();
+                // The shell shows the links phones share from now on (in the live pill, or here when nobody listens)
+                if (trusted)
+                    this._link?.takeLinks(true);
+                // The program went: a phone that was ringing is no longer heard
+                if (!trusted)
+                    this._endCalls();
             },
             received: text => this._bridge?.receive(text),
+            call: (device, state, number, name) => this._tell('call', device, state, number, name),
+            url: (device, url) => this._url(device, url),
         });
         this._link.start();
     }
@@ -83,6 +97,8 @@ export class Connect {
     disable() {
         this._settings?.disconnectObject(this);
         this._settings = null;
+        // The program says links itself again while the shell does not run this (the screen locked, the extension off)
+        this._link?.takeLinks(false);
         // The link says, as it stops, that there are no phones and nothing to trust, which takes the rest down
         this._link?.stop();
         this._link = null;
@@ -92,6 +108,12 @@ export class Connect {
         this._indicator = null;
         this._source?.destroy();
         this._source = null;
+        // Links kept in the list stay there when the shell turns the module off (as it does while the screen is
+        // locked): their source is GNOME's to end once it is empty
+        this._linkSource = null;
+        this._listeners?.clear();
+        this._listeners = null;
+        this._ringing = null;
         this._actions = null;
         this._bolt = null;
     }
@@ -166,6 +188,121 @@ export class Connect {
             else
                 this._appFor(device, ['send', '--device', device.id]);
         });
+    }
+
+    // --- For the live pill ----------------------------------------------------------------------------------------
+
+    // listener: {call(device, state, number, name), url(device, url)}; url returns true when it took the link
+    addListener(listener) {
+        this._listeners?.add(listener);
+    }
+
+    removeListener(listener) {
+        this._listeners?.delete(listener);
+    }
+
+    // The Phone app's texts with this phone
+    messages(device) {
+        this._appFor(device, ['messages', device.id]);
+    }
+
+    // The address again, as the program sent it and as Open needs it: null when it is not one web address
+    checkAddress(url) {
+        return address(url);
+    }
+
+    _tell(kind, ...args) {
+        if (kind === 'call') {
+            const [device, state] = args;
+            this._ringing ??= new Set();
+            if (state === 'ringing')
+                this._ringing.add(device);
+            else
+                this._ringing.delete(device);
+        }
+        let taken = false;
+        for (const listener of [...this._listeners ?? []]) {
+            try {
+                taken = listener[kind]?.(...args) === true || taken;
+            } catch (e) {
+                console.error(`Amethystora UI: a listener of the phone link failed: ${e.message}`);
+            }
+        }
+        return taken;
+    }
+
+    _endCalls() {
+        for (const device of [...this._ringing ?? []])
+            this._tell('call', device, 'ended', '', '');
+        this._ringing?.clear();
+    }
+
+    // A link from a ready phone, checked again: to whoever listens, or else into the list
+    // A link a phone shared, which the program sent here rather than notify it: shown in the pill, or kept here; one
+    // that is not a web address the module shows (or from a phone not read yet) is still said, as text, never dropped
+    _url(device, url) {
+        if (!this._link)
+            return;
+        const known = device?.ready && this._ready().includes(device) ? device : null;
+        if (!address(url)) {
+            this._linkAsText(known, url);
+            return;
+        }
+        if (!known || !this._tell('url', known, url))
+            this.keepLink(known, url, false);
+    }
+
+    _linkSourceFor() {
+        if (!this._linkSource) {
+            this._linkSource = new MessageTray.Source({title: _('Phones'), iconName: 'smartphone-symbolic'});
+            this._linkSource.connect('destroy', () => (this._linkSource = null));
+            Main.messageTray.add(this._linkSource);
+        }
+        return this._linkSource;
+    }
+
+    // What a phone shared that is no web address to open: its words only, with no button that opens anything
+    _linkAsText(device, url) {
+        if (typeof url !== 'string' || !this._listeners)
+            return;
+        const source = this._linkSourceFor();
+        source.addNotification(new MessageTray.Notification({
+            source,
+            title: _('%s sent a link').format(device?.name || _('Your phone')),
+            body: [...url.replace(/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/gu, ' ')].slice(0, 300).join(''),
+            isTransient: false,
+        }));
+    }
+
+    // The link as a notification of its own, from Phones, with Open and Copy; quietly, it goes to the list without a
+    // banner. Open checks the address again; nothing opens it by itself.
+    keepLink(device, url, quietly) {
+        const checked = address(url);
+        if (!checked || !this._listeners)
+            return;
+        // A host the ASCII form cannot be made of is said as text, with nothing to open
+        const shown = shownAddress(checked, true);
+        if (!shown) {
+            this._linkAsText(device, url);
+            return;
+        }
+        const source = this._linkSourceFor();
+        // Shown as the pill shows it: the host in its ASCII form, nothing invisible, so a look-alike cannot pass for
+        // another site; what a click on it would open is that form, never the address as the phone wrote it
+        const notification = new MessageTray.Notification({
+            source,
+            title: _('%s sent a link').format(device?.name || _('Your phone')),
+            body: shown,
+            isTransient: false,
+            urgency: quietly ? MessageTray.Urgency.LOW : MessageTray.Urgency.NORMAL,
+        });
+        notification.addAction(_('Open'), () => {
+            const again = address(checked);
+            if (again)
+                Gio.AppInfo.launch_default_for_uri(again, global.create_app_launch_context(0, -1));
+        });
+        notification.addAction(_('Copy'), () => St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, checked));
+        source.addNotification(notification);
     }
 
     _failed(device, error) {

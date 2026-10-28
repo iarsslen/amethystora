@@ -1,0 +1,6 @@
+/* The beacon's rings around the pointer while it is shaken (modules/pointer.js). Their colour is the theme's
+   (/usr/share/amethystora/themed/shell-pointer.css.tpl); this one stands in before a theme is applied. */
+.amethystora-pointer-ring {
+    border-radius: 40px;
+    border: 2px solid #dcbcff;
+}

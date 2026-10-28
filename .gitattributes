@@ -14,5 +14,10 @@
 
 *.der binary
 
+# The pointers are Xcursor files (branding/cursors.mjs)
+system_files/shared/usr/share/icons/amethystora-pointer-*/cursors/* binary
+# ...and their alias table is read by the build line by line, which a carriage return would break
+system_files/shared/usr/share/icons/amethystora-pointer-*/aliases text eol=lf
+
 # Patches apply byte for byte, so git leaves their line endings alone
 packaging/**/*.patch -text

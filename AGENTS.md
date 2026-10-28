@@ -1250,9 +1250,16 @@ Dawn's) adds `success`, `warning` and `error` to its `colors.toml`. Where the va
 - **Fonts**: `font.theme` for the interface and documents (a size up), `mono.theme` for `monospace-font-name`, kitty
   (`font_family` in the rendered `kitty-theme.conf`) and the terminal style's top bar. Fira Code and Geist Mono are Fedora's
   packages (Fira Code's carries no licence file, so `09-fonts.sh` pins its OFL.txt), DM Mono and Victor Mono are pinned copies.
-- **The pointer**: `cursor.theme` names Breeze Light (white) on a dark theme and Breeze (dark) on a light one, Fedora's
-  `breeze-cursor-theme`; Flatpak binds the host's `/usr/share/icons` into every sandbox, so they follow there. `apply_gnome`
-  writes the pointer on every switch, Adwaita for a theme that names none.
+- **The pointer**: `cursor.theme` names Halo (`amethystora-pointer-halo`, white) on a dark theme and Ink
+  (`amethystora-pointer-ink`, dark) on a light one; Facet is the third set. `node branding/cursors.mjs` draws them and
+  packs the Xcursor files itself (byte for byte what `xcursorgen` writes), one file per drawing, and writes each drawing
+  as SVG in `cursors_scalable/<name>/` too, which is all GNOME Shell 51 reads for its own pointers (`st-cursor.c`; X11
+  and GTK 3 still read the Xcursor files); every other name is a line of the set's `aliases`, which `10-icons.sh` makes
+  into links in both (a layer would store copies in full). Flatpak binds
+  the host's `/usr/share/icons` into every sandbox, so they follow there. `apply_gnome` writes `pointer_theme` (the
+  account's `ame desktop pointer`, else the theme's) on every switch, over only a value an image wrote. Breeze stays
+  installed and named by no theme. Shake to find and the larger pointer on dense screens are Amethystora UI's
+  `pointer` module.
 - **Other programs**: `10-vscodium.sh` merges `themed/vscodium.json.tpl` into VSCodium's settings over Default Dark or Light
   Modern (a `vscode.theme` still selects a theme of its own; a theme extension copied into the extensions folder is not read
   by current VSCodium without an entry of its own, which is why the colours are settings); `30-qt-colors.sh` writes

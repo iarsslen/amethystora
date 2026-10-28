@@ -41,12 +41,12 @@ brew_names() { sed -nE "s/^$1 \"([^\"]+)\".*/\1/p" <<<"${BREWFILE}" | jq -R . | 
 
 # The settings `ame setup` keeps, where the account changed them from the image's own, so that what a
 # later image changes still reaches it: the dock's apps, the keybindings (their keys, never a command),
-# the window layout and the tiling's settings. GSETTINGS_BACKEND=memory reads no dconf at all, so it gives the
+# the window layout, and the tiling's and the pointer's settings. GSETTINGS_BACKEND=memory reads no dconf at all, so it gives the
 # image's value (15-extensions.sh reads it the same way); the image's custom keybindings are in its
 # dconf database, which `dconf read -d` reads.
 KEY_SCHEMAS=(org.gnome.desktop.wm.keybindings org.gnome.shell.keybindings org.gnome.mutter.keybindings
     org.gnome.mutter.wayland.keybindings org.gnome.settings-daemon.plugins.media-keys
-    org.gnome.shell.extensions.amethystora-ui.tiling.keybindings)
+    org.gnome.shell.extensions.amethystora-ui.tiling.keybindings org.gnome.shell.extensions.amethystora-ui.windows)
 CUSTOM=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings
 # The tiling's settings amethystora-setup's TILING_KEYS takes, which test-setup.sh holds this list to: never
 # `enabled`, which is the layout, nor the window rules or a picture, which hold patterns and paths
@@ -63,6 +63,29 @@ TILING_KEYS=(window-gap horizontal-margin vertical-margin vertical-margin-bottom
     topbar-mouse-scroll-enable window-switcher-preview-scale show-workspace-indicator show-window-position-bar
     only-scratch-in-overview disable-scratch-in-overview overview-ensure-viewport-animation use-default-background
     workspace-colors)
+# The pointer module's keys amethystora-setup's POINTER_KEYS takes (test-setup.sh holds the two to the schema)
+POINTER=org.gnome.shell.extensions.amethystora-ui.pointer
+POINTER_KEYS=(shake dense)
+# The glass's keys amethystora-setup's GLASS_KEYS takes: which glass, and Reduce transparency
+GLASS=org.gnome.shell.extensions.amethystora-ui.glass
+GLASS_KEYS=(material solid)
+# The motion's and the top bar's workspaces' keys amethystora-setup's MOTION_KEYS and WORKSPACES_KEYS take
+MOTION=org.gnome.shell.extensions.amethystora-ui.motion
+MOTION_KEYS=(minimize workspace-switch)
+WORKSPACES=org.gnome.shell.extensions.amethystora-ui.workspaces
+WORKSPACES_KEYS=(auto-names)
+# The windows module's keys amethystora-setup's WINDOWS_KEYS takes; its keybinding, snap-chooser, is kept with the
+# other keybindings (KEY_SCHEMAS lists its schema for that)
+WINDOWS=org.gnome.shell.extensions.amethystora-ui.windows
+WINDOWS_KEYS=(snap switcher hold-super hold-super-delay corner-top-left corner-top-right corner-bottom-left
+    corner-bottom-right show-desktop gesture-pinch gesture-spread gesture-down gesture-today places dim)
+# The dock's keys amethystora-setup's DOCK_KEYS takes; a stack outside the home folder names this machine and is
+# left out (test-setup.sh holds the list to the schema)
+DOCK=org.gnome.shell.extensions.amethystora-ui.dock
+DOCK_KEYS=(magnify magnify-amount launch indicator recent previews edge screens autohide workspace-apps folders stacks)
+# The live pill's keys amethystora-setup's PILL_KEYS takes (test-setup.sh holds the list to the schema)
+PILL=org.gnome.shell.extensions.amethystora-ui.pill
+PILL_KEYS=(live privacy-dots glow quiet quiet-night digest digest-times)
 
 # The tiling, while it runs, takes a combination out of four GNOME keys that it cannot wrap in memory, and
 # writes down what it took in its state file, to put back when it is turned off: the account's own value is the
@@ -81,9 +104,48 @@ changed() {
             <(printf '%s\n' "${TILING_KEPT}") - | sort) | awk -v schema="$1" '$1 == schema'
 }
 
-# A value as GSettings prints it, as JSON: the ones kept are lists of strings or numbers, strings, numbers
-# and switches. A number is written as JSON writes it, 0.15 where GSettings prints 0.14999999999999999.
-as_json() { sed -E "s/^@[a-z]+ //; s/'/\"/g" | jq -c 'walk(if type == "number" then . + 0 else . end)' 2>/dev/null; }
+# A value as GSettings prints it, as JSON: lists of strings or numbers, strings, numbers, switches and the dock's
+# folders. A string may hold either quote (GSettings then writes it in the other), so text with a quote in it is read
+# as GVariant text is written, by python, the types GVariant writes before a value left out. A number is written as
+# JSON writes it, 0.15 where GSettings prints 0.14999999999999999.
+as_json() {
+    local text
+    text="$(cat)"
+    if [[ "${text}" != *[\'\"]* ]]; then
+        sed -E "s/^@[^ ]+ //" <<<"${text}" | jq -c 'walk(if type == "number" then . + 0 else . end)' 2>/dev/null
+        return
+    fi
+    python3 -I -c '
+import ast, json, sys
+QUOTES, BACKSLASH = (chr(34), chr(39)), chr(92)
+TYPES = {"byte", "int16", "uint16", "int32", "uint32", "int64", "uint64", "handle", "double", "objectpath",
+         "signature", "string", "boolean"}
+WORDS = {"true": "True", "false": "False", "nothing": "None"}
+text, out, i = sys.stdin.read().strip(), [], 0
+while i < len(text):
+    c = text[i]
+    if c in QUOTES:
+        j = i + 1
+        while j < len(text) and text[j] != c:
+            j += 2 if text[j] == BACKSLASH else 1
+        out.append(text[i:j + 1])
+        i = j + 1
+    elif c == "@":
+        while i < len(text) and not text[i].isspace():
+            i += 1
+    elif c.isalpha():
+        j = i
+        while j < len(text) and (text[j].isalnum() or text[j] == "_"):
+            j += 1
+        word = text[i:j]
+        out.append("" if word in TYPES else WORDS.get(word, word))
+        i = j
+    else:
+        out.append(c)
+        i += 1
+print(json.dumps(ast.literal_eval("".join(out))))
+' <<<"${text}" 2>/dev/null | jq -c 'walk(if type == "number" then . + 0 else . end)' 2>/dev/null
+}
 
 settings() {
     local schema key value dir id
@@ -94,6 +156,13 @@ settings() {
             changed "${schema}" | awk '$2 != "custom-keybindings" && $3 ~ /^(\[|@as$)/'
         done
         changed "${TILING}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${TILING_KEYS[@]}") -
+        changed "${POINTER}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${POINTER_KEYS[@]}") -
+        changed "${GLASS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${GLASS_KEYS[@]}") -
+        changed "${MOTION}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${MOTION_KEYS[@]}") -
+        changed "${WORKSPACES}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${WORKSPACES_KEYS[@]}") -
+        changed "${WINDOWS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${WINDOWS_KEYS[@]}") -
+        changed "${DOCK}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${DOCK_KEYS[@]}") -
+        changed "${PILL}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${PILL_KEYS[@]}") -
     } | while read -r schema key value; do
         value="$(as_json <<<"${value}")" && [[ -n "${value}" ]] || continue
         jq -nc --arg s "${schema}" --arg k "${key}" --argjson v "${value}" '{schema: $s, key: $k, value: $v}'
@@ -111,13 +180,26 @@ settings() {
 
 LAYOUT=tiling
 [[ "$(gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled 2>/dev/null)" == false ]] && LAYOUT=classic
-SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" '
+SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" --arg pointer "${POINTER}" --arg glass "${GLASS}" \
+    --arg windows "${WINDOWS}" --arg dock "${DOCK}" --arg motion "${MOTION}" --arg workspaces "${WORKSPACES}" \
+    --arg pill "${PILL}" '
     map(if .schema == "custom" then .value |= (if . == "" then [] else [.] end) else . end) as $all
     | {layout: $layout}
     + ([$all[] | select(.schema == "org.gnome.shell")] | if length > 0 then {favorites: .[0].value} else {} end)
-    + {keybindings: (reduce ($all[] | select(.schema | IN("org.gnome.shell", $tiling) | not))
+    + {keybindings: (reduce ($all[] | select(if .schema == $windows then .key == "snap-chooser"
+            else .schema | IN("org.gnome.shell", $tiling, $pointer, $glass, $motion, $workspaces, $dock, $pill) | not end))
         as $e ({}; .[$e.schema][$e.key] = $e.value))}
-    + ([$all[] | select(.schema == $tiling)] | if length > 0 then {tiling: (map({(.key): .value}) | add)} else {} end)')"
+    + ([$all[] | select(.schema == $windows and .key != "snap-chooser")]
+        | if length > 0 then {windows: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $tiling)] | if length > 0 then {tiling: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $pointer)] | if length > 0 then {pointer: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $glass)] | if length > 0 then {glass: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $motion)] | if length > 0 then {motion: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $workspaces)]
+        | if length > 0 then {workspaces: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $dock)] | if length > 0 then {dock: (map({(.key): .value}) | add
+        | if has("stacks") then .stacks |= map(select(test("^(xdg:|~/)"))) else . end)} else {} end)
+    + ([$all[] | select(.schema == $pill)] | if length > 0 then {pill: (map({(.key): .value}) | add)} else {} end)')"
 
 # The image the machine runs, which is the one it follows, as rpm-ostree has it (amethystora-deployments
 # asks bootc on a sealed image)

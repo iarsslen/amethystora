@@ -27,6 +27,11 @@ pub trait App: 'static {
     fn open_in(&self, args: &[String], _cwd: Option<std::path::PathBuf>) {
         self.open(args);
     }
+    /// Whether a launch with these arguments shows the window; an app that answers no shows it itself when it
+    /// needs the person (the Phone app's `send --now`)
+    fn presents(&self, _args: &[String]) -> bool {
+        true
+    }
     /// The window has come to the front, from elsewhere
     fn focus(&self) {}
     /// The theme changed, or the system's colour scheme while no theme is applied
@@ -251,7 +256,9 @@ pub fn run<A: App>(spec: Spec, build: impl Fn(Rc<Shell>) -> Rc<A> + 'static) -> 
         }
         let (shell, own) = state.borrow().clone().expect("the window was just made");
         own.open_in(&args, command_line.cwd());
-        shell.window.present();
+        if own.presents(&args) {
+            shell.window.present();
+        }
         glib::ExitCode::SUCCESS
     });
 

@@ -488,6 +488,10 @@ async fn over_the_bus(root: &Path) {
     assert!(denied(&result), "{result:?}");
     let result = call(&client, &dest, ROOT, IFACE, "ConnectTo", Some(("192.168.1.2:1716",).to_variant())).await;
     assert!(denied(&result), "{result:?}");
+    // A stranger cannot take the links phones share away from the program's own notifications
+    let result = call(&client, &dest, ROOT, IFACE, "TakeLinks", Some((true,).to_variant())).await;
+    assert!(denied(&result), "{result:?}");
+    assert!(!dbus::links_taken(&stranger.service));
     let name = property(&client, &dest, ROOT, IFACE, "Name").await.unwrap();
     assert_eq!(name.str(), Some(""), "a stranger reads nothing");
     assert_eq!(property(&client, &dest, ROOT, IFACE, "ClipboardSend").await.unwrap().get::<bool>(), Some(false));
@@ -521,9 +525,16 @@ async fn over_the_bus(root: &Path) {
     let listed = call(&client, &dest, ROOT, IFACE, "GetDevices", None).await.unwrap();
     let path = listed.child_value(0).child_value(0).str().unwrap().to_string();
     assert!(call(&client, &dest, ROOT, IFACE, "PushClipboard", Some(("text",).to_variant())).await.is_ok());
+    // The module takes the links phones share, for its own connection, and lets go of them
+    assert!(call(&client, &dest, ROOT, IFACE, "TakeLinks", Some((true,).to_variant())).await.is_ok());
+    assert!(dbus::links_taken(&module.service), "the module's connection takes the links");
+    assert!(call(&client, &dest, ROOT, IFACE, "TakeLinks", Some((false,).to_variant())).await.is_ok());
+    assert!(!dbus::links_taken(&module.service), "and lets go of them");
+    assert!(call(&client, &dest, ROOT, IFACE, "TakeLinks", Some(("yes",).to_variant())).await.is_err());
     assert_eq!(property(&client, &dest, ROOT, IFACE, "Name").await.unwrap().str(), Some("Module test"));
     assert_eq!(property(&client, &dest, &path, DEVICE, "Name").await.unwrap().str(), Some("Sam phone"));
-    for method in ["Ping", "SendUrl"] {
+    // MuteRinger: the live pill's chip for a phone ringing
+    for method in ["Ping", "SendUrl", "MuteRinger"] {
         let args = (method == "SendUrl").then(|| ("https://example.org/",).to_variant());
         let result = call(&client, &dest, &path, DEVICE, method, args).await;
         assert!(result.is_err() && !denied(&result), "{method} is the module's, and fails here for want of a pairing: {result:?}");
@@ -542,7 +553,6 @@ async fn over_the_bus(root: &Path) {
         (path.as_str(), DEVICE, "ListConversations", Some((10i32,).to_variant())),
         (path.as_str(), DEVICE, "ListMessages", Some((1i64, 10i32).to_variant())),
         (path.as_str(), DEVICE, "SendMessage", Some((vec!["+1".to_string()], "hi", 0i64).to_variant())),
-        (path.as_str(), DEVICE, "MuteRinger", None),
     ] {
         let result = call(&client, &dest, path, interface, method, args).await;
         assert!(denied(&result), "{method} is the app's alone: {result:?}");
@@ -646,13 +656,47 @@ fn who_may_call_what() {
     for other in ["/usr/bin/gdbus", "/usr/bin/gnome-shell (deleted)", "/home/ada/.local/bin/amethystora-phone", "", "/usr/lib/amethystora-phone/amethystora-phone/../x"] {
         assert_eq!(role_of_exe(other, dbus::APP_EXE, dbus::MODULE_EXE), Role::Other, "{other:?}");
     }
-    for method in ["Pair", "AcceptPairing", "RejectPairing", "Unpair", "SendFiles", "SendText", "SendMessage", "ReplyToNotification", "GetRepliable", "ListMessages", "ListConversations", "Announce", "ConnectTo", "CancelTransfer", "MuteRinger"] {
+    for method in ["Pair", "AcceptPairing", "RejectPairing", "Unpair", "SendFiles", "SendText", "SendMessage", "ReplyToNotification", "GetRepliable", "ListMessages", "ListConversations", "Announce", "ConnectTo", "CancelTransfer"] {
         assert!(method_allowed(Role::App, method));
         assert!(!method_allowed(Role::Module, method), "{method}");
         assert!(!method_allowed(Role::Other, method));
     }
-    for method in ["GetDevices", "PushClipboard", "Ping", "SendUrl"] {
+    // MuteRinger: the live pill's chip for a phone ringing
+    // TakeLinks: the live pill says it shows the links phones share
+    for method in ["GetDevices", "PushClipboard", "Ping", "SendUrl", "MuteRinger", "TakeLinks"] {
         assert!(method_allowed(Role::App, method) && method_allowed(Role::Module, method));
         assert!(!method_allowed(Role::Other, method));
     }
+}
+
+#[test]
+fn the_module_hears_files_going_out_only() {
+    use dbus::{Role, audience};
+    let transfer = |incoming: bool| ("t1", "photo.jpg", incoming, 10i64, 100i64, "progress").to_variant();
+    // The dock shows how far a drop on the phone got; what a phone sends in stays the app's
+    assert!(audience(Role::Module, "Transfer", Some(&transfer(false))));
+    assert!(!audience(Role::Module, "Transfer", Some(&transfer(true))));
+    assert!(!audience(Role::Module, "Transfer", None));
+    assert!(audience(Role::App, "Transfer", Some(&transfer(true))) && audience(Role::App, "Transfer", Some(&transfer(false))));
+    assert!(!audience(Role::Other, "Transfer", Some(&transfer(false))));
+    for signal in ["DeviceAdded", "DeviceRemoved", "PropertiesChanged", "ClipboardReceived"] {
+        assert!(audience(Role::Module, signal, None), "{signal}");
+    }
+    for signal in ["PairingRequested", "NotificationPosted", "MessagesChanged"] {
+        assert!(!audience(Role::Module, signal, None), "{signal}");
+    }
+    assert!(!audience(Role::App, "ClipboardReceived", None));
+}
+
+#[test]
+fn the_live_pill_hears_calls_and_links() {
+    use dbus::{Role, audience};
+    let call = ("ringing", "+15550100", "Sam").to_variant();
+    let url = ("phone1", "https://example.org/").to_variant();
+    // A phone ringing is the app's and the module's; a shared link is the module's alone, and nobody else hears either
+    assert!(audience(Role::Module, "Call", Some(&call)) && audience(Role::App, "Call", Some(&call)));
+    assert!(!audience(Role::Other, "Call", Some(&call)));
+    assert!(audience(Role::Module, "UrlReceived", Some(&url)));
+    assert!(!audience(Role::App, "UrlReceived", Some(&url)));
+    assert!(!audience(Role::Other, "UrlReceived", Some(&url)));
 }

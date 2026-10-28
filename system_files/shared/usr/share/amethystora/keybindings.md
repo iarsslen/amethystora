@@ -54,8 +54,10 @@ the top bar on the left.
 | `Super+Ctrl+Alt+Left` / `Right` | Swap this workspace with the one beside it, windows and name included |
 | `` Super+Ctrl+` `` | Take the window to the workspace you were on before; each further press goes one more back, round again at the end |
 | `Alt+1` … `Alt+9` | Go to the pinned app in that dock slot |
-| `Super+Tab` / `Alt+Tab` | Switch application / window |
+| `Super+Tab` / `Alt+Tab` | Switch application / window; type to filter (classic layout) |
 | `` Super+` `` | Switch between the windows of the app you are in |
+| `Super+Z` | Snap layouts for the focused window (classic layout) |
+| Hold `Super` | The main shortcuts, and numbers on the dock |
 
 ## Launching
 

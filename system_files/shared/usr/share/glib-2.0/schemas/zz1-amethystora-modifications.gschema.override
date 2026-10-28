@@ -30,6 +30,9 @@ accent-color='purple'
 # account sees before it has applied a theme. An account that applied one before the pack existed holds
 # an explicit value that wins over this default, which is what the 11-theme.sh setup hook's versions are for.
 icon-theme='amethystora-glass'
+# Halo, the pointer of the dark themes (branding/cursors.mjs, DEFAULT_POINTER in the theme library): the login screen's
+# and an account's before its first theme
+cursor-theme='amethystora-pointer-halo'
 
 #-------------- FILES --------------#
 # The grid, at a size that shows what the icon packs draw: their folders are full-colour artwork, and

@@ -15,6 +15,7 @@ import * as AppDisplay from 'resource:///org/gnome/shell/ui/appDisplay.js';
 import * as Dash from 'resource:///org/gnome/shell/ui/dash.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+const PROGRESS_FADE = 300;
 // How large the count is beside a smaller icon: [icon size from, share of its size at 48 px]
 const SHRINK = [[48, 1], [32, 0.87], [24, 0.65], [22, 0.6]];
 
@@ -81,13 +82,35 @@ export class IconBadge {
         this.badge.visible = count > 0;
         this.badge.text = count > 0 ? shortCount(count) : '';
         const progress = entry?.progressVisible ? Math.clamp(Number(entry.progress) || 0, 0, 1) : null;
-        this.progress.visible = progress !== null;
-        this._value = progress ?? 0;
+        this._showProgress(progress !== null);
+        this._value = progress ?? this._value;
         this._syncFill();
         this.dim(Boolean(entry?.updating));
         const changed = count !== this.count;
         this.count = count;
         return changed;
+    }
+
+    // The bar fades in and out over 300 ms
+    _showProgress(on) {
+        if (on === this._progressOn)
+            return;
+        this._progressOn = on;
+        const bar = this.progress;
+        bar.remove_all_transitions();
+        if (on) {
+            bar.visible = true;
+            bar.opacity = 0;
+        }
+        bar.ease({
+            opacity: on ? 255 : 0,
+            duration: PROGRESS_FADE,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            onComplete: () => {
+                if (!this._progressOn)
+                    bar.visible = false;
+            },
+        });
     }
 
     // Half strength while the app is being updated. On the icon's holder, which keeps it when the icon is drawn
@@ -100,10 +123,12 @@ export class IconBadge {
 
     // The bar and the count scale with the icon
     resize(size) {
-        // Inside the icon, a twentieth of it in from the sides and the bottom
-        const inset = this._inset + Math.round(size * 0.05);
-        const height = Math.min(18, Math.round(size * 0.2));
-        this.progress.set_style(`margin: 0 ${inset}px ${inset}px ${inset}px; height: ${height}px;`);
+        // A thin bar inside the icon: 4 px in from its sides, 2 px above its bottom, 5 px tall at a 48 px icon
+        const f = size / 48;
+        const side = this._inset + Math.round(4 * f);
+        const bottom = this._inset + Math.round(2 * f);
+        const height = Math.max(3, Math.round(5 * f));
+        this.progress.set_style(`margin: 0 ${side}px ${bottom}px ${side}px; height: ${height}px;`);
         // The count shrinks less than the icon does, and never below half
         const shrink = SHRINK.find(([smallest]) => size >= smallest)?.[1] ?? 0.5;
         this.badge.set_style(`font-size: ${(0.9 * shrink).toFixed(2)}em; margin-left: ${Math.round(3 * shrink)}px;`);

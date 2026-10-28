@@ -1,0 +1,238 @@
+/* The windows module's measures, from the boards (Windows, Switcher, SuperHints, Corners, WinTricks): the snap
+   chooser, the window switcher, the Super card, the show-desktop hint, the corner glow and the copy kept in view. The
+   colours here are neutral stand-ins until a theme has been applied; the theme's are in
+   /usr/share/amethystora/themed/shell-windows.css.tpl. The panes stand on the glass, which draws behind them. */
+
+/* Snap layouts */
+.amethystora-windows-chooser {
+  padding: 10px;
+  spacing: 8px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.45);
+  background-color: rgba(26, 16, 42, 0.46);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.4);
+}
+
+.amethystora-windows-chooser-row {
+  spacing: 8px;
+}
+
+.amethystora-windows-layout {
+  width: 64px;
+  height: 42px;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.amethystora-windows-cell {
+  border-radius: 4px;
+  background-color: rgba(145, 72, 240, 0.35);
+}
+
+.amethystora-windows-cell:checked {
+  background-color: rgb(145, 72, 240);
+}
+
+/* The colour of the place shown first, which is drawn with Cairo */
+.amethystora-windows-preview {
+  color: rgb(145, 72, 240);
+}
+
+/* The window switcher */
+.amethystora-windows-veil {
+  background-color: rgba(10, 6, 18, 0.42);
+}
+
+.amethystora-windows-switcher {
+  padding: 14px;
+  spacing: 12px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.45);
+  background-color: rgba(26, 16, 42, 0.55);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+  color: #efe4ff;
+}
+
+.amethystora-windows-switcher-field {
+  height: 40px;
+  padding: 0 12px;
+  spacing: 10px;
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.amethystora-windows-switcher-search {
+  icon-size: 16px;
+  color: rgb(220, 188, 255);
+}
+
+.amethystora-windows-switcher-typed {
+  spacing: 0;
+}
+
+.amethystora-windows-switcher-query,
+.amethystora-windows-switcher-hint {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.amethystora-windows-switcher-hint {
+  color: rgba(239, 228, 255, 0.55);
+}
+
+.amethystora-windows-switcher-caret {
+  width: 2px;
+  height: 18px;
+  margin-left: 2px;
+  background-color: rgb(220, 188, 255);
+}
+
+.amethystora-windows-switcher-count {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(239, 228, 255, 0.75);
+}
+
+.amethystora-windows-switcher-grid,
+.amethystora-windows-switcher-row {
+  spacing: 12px;
+}
+
+.amethystora-windows-switcher-tile {
+  spacing: 8px;
+}
+
+.amethystora-windows-switcher-thumb {
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background-color: rgba(17, 12, 24, 0.7);
+}
+
+.amethystora-windows-switcher-thumb:selected {
+  box-shadow: 0 0 0 3px rgb(179, 125, 249);
+}
+
+.amethystora-windows-switcher-label {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.amethystora-windows-switcher-empty {
+  font-size: 14px;
+  color: rgba(239, 228, 255, 0.75);
+}
+
+.amethystora-windows-switcher-footer {
+  spacing: 0;
+}
+
+.amethystora-windows-switcher-footer-text {
+  font-size: 12.5px;
+  color: rgba(239, 228, 255, 0.75);
+}
+
+.amethystora-windows-switcher-key {
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Holding Super */
+.amethystora-windows-card-veil {
+  background-color: rgba(10, 6, 18, 0.38);
+}
+
+.amethystora-windows-card {
+  width: 600px;
+  padding: 18px 22px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.45);
+  background-color: rgba(26, 16, 42, 0.55);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+  color: #efe4ff;
+}
+
+.amethystora-windows-card-heading {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.78px;
+  margin-bottom: 6px;
+  color: rgba(239, 228, 255, 0.75);
+}
+
+.amethystora-windows-card-row {
+  height: 40px;
+  spacing: 12px;
+}
+
+.amethystora-windows-card-keys {
+  min-width: 150px;
+}
+
+.amethystora-windows-key-keys {
+  spacing: 4px;
+}
+
+.amethystora-windows-key {
+  height: 24px;
+  padding: 4px 8px 0;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  background-color: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+}
+
+.amethystora-windows-card-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.amethystora-windows-card-footer {
+  margin-top: 8px;
+  spacing: 4px;
+}
+
+.amethystora-windows-card-footer-text {
+  font-size: 12.5px;
+  color: rgba(239, 228, 255, 0.75);
+}
+
+/* Show desktop */
+.amethystora-windows-desktop-hint {
+  padding: 7px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.45);
+  background-color: rgba(26, 16, 42, 0.55);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.4);
+  color: #efe4ff;
+}
+
+/* A hot corner firing */
+.amethystora-windows-glow {
+  width: 180px;
+  height: 180px;
+  border-radius: 90px;
+  background-gradient-direction: radial;
+  background-gradient-start: rgba(179, 125, 249, 0.6);
+  background-gradient-end: rgba(145, 72, 240, 0);
+}
+
+/* The copy kept in view: its shadow, its ring, and the window's picture cut to its frame */
+.amethystora-windows-keep {
+  border-radius: 12px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5);
+}
+
+.amethystora-windows-keep-ring {
+  border-radius: 12px;
+  box-shadow: 0 0 0 2px rgb(179, 125, 249);
+}

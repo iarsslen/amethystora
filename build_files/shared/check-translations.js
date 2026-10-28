@@ -345,6 +345,8 @@ const CALL = new RegExp(String.raw`(?<![\w-])(eval_ngettext|eval_gettext|gettext
 // JavaScript's quotes take backslash escapes in either kind.
 const JS_QUOTED = String.raw`("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')`;
 const JS_CALL = new RegExp(String.raw`(?<![\w$.])(_|ngettext)\(\s*${JS_QUOTED}(?:\s*,\s*${JS_QUOTED})?`, 'g');
+// and C_('context', '...'), pgettext, for a word that means one thing in one place (a key's name on a key cap)
+const JS_CONTEXT_CALL = new RegExp(String.raw`(?<![\w$.])C_\(\s*${JS_QUOTED}\s*,\s*${JS_QUOTED}`, 'g');
 const JS_ESCAPES = { n: '\n', t: '\t', '\\': '\\', "'": "'", '"': '"' };
 const unquoteJs = (word) => word.slice(1, -1).replace(/\\(.)/g, (all, c) => JS_ESCAPES[c] ?? c);
 
@@ -369,6 +371,15 @@ function shellMessages() {
                 const plural = ['eval_ngettext', 'N_n', 'ngettext'].includes(call) && second ? unquote(second) : null;
                 const key = `${id}\u0000${plural || ''}`;
                 const entry = found.get(key) || { id, plural, files: new Set(), comment: '' };
+                entry.files.add(script);
+                entry.comment ||= comment;
+                found.set(key, entry);
+            }
+            for (const match of script.endsWith('.js') ? line.matchAll(JS_CONTEXT_CALL) : []) {
+                const context = unquoteJs(match[1]);
+                const id = unquoteJs(match[2]);
+                const key = `${context}\u0004${id}\u0000`;
+                const entry = found.get(key) || { context, id, plural: null, files: new Set(), comment: '' };
                 entry.files.add(script);
                 entry.comment ||= comment;
                 found.set(key, entry);
@@ -419,6 +430,9 @@ function template(entries) {
             out.push('#, sh-format');
         } else if (/\{[A-Za-z_][A-Za-z0-9_]*\}/.test(entry.id)) {
             out.push('#, python-brace-format');
+        }
+        if (entry.context) {
+            out.push(`msgctxt ${poString(entry.context)}`);
         }
         out.push(`msgid ${poString(entry.id)}`);
         if (entry.plural) {
@@ -517,7 +531,7 @@ if (poDir) {
     if (!fs.existsSync(potFile) || fs.readFileSync(potFile, 'utf8') !== pot) {
         problems.push(`${potFile} is not what the shell programs say: run node build_files/shared/check-translations.js --write --po po system_files/shared`);
     }
-    const known = new Map(entries.map((entry) => [entry.id, entry]));
+    const known = new Map(entries.map((entry) => [`${entry.context || ''}\u0004${entry.id}`, entry]));
     for (const file of fs.existsSync(poDir) ? fs.readdirSync(poDir).filter((name) => name.endsWith('.po')) : []) {
         let stale = 0;
         const catalog = readPo(fs.readFileSync(path.join(poDir, file), 'utf8'));
@@ -531,7 +545,7 @@ if (poDir) {
             if (entry.msgid === '' || entry.flags.includes('fuzzy')) {
                 continue;
             }
-            const source = known.get(entry.msgid);
+            const source = known.get(`${entry.msgctxt || ''}\u0004${entry.msgid}`);
             if (!source) {
                 stale += 1;
                 continue;

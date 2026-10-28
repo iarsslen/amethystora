@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The keys of the workspaces in the top bar (modules/workspaces.js). The workspaces themselves, their names and
+<!-- The keys of the workspaces in the top bar (modules/workspaces.js); ame desktop space-names and Control write
+     auto-names, the setup file carries it. The workspaces themselves, their names and
      the keys that switch them are GNOME's own (org.gnome.desktop.wm.preferences, org.gnome.desktop.wm.keybindings). -->
 <schemalist>
   <schema id="org.gnome.shell.extensions.amethystora-ui.workspaces" path="/org/gnome/shell/extensions/amethystora-ui/workspaces/">
@@ -12,6 +13,11 @@
       <default><![CDATA[['<Control><Alt><Super>Right']]]></default>
       <summary>Move the workspace you are on one place to the right</summary>
       <description>Its windows and its name go with it, and it stops at the last place.</description>
+    </key>
+    <key name="auto-names" type="b">
+      <default>true</default>
+      <summary>Name workspaces after their apps</summary>
+      <description>A workspace you have not named shows the name of the app with most windows on it, in a lighter type. A name you give it replaces that.</description>
     </key>
   </schema>
 </schemalist>

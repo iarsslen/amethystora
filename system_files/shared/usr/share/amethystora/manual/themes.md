@@ -3,8 +3,8 @@
 A theme is one palette, and everything is painted from it. Switch themes and the whole desktop
 changes together: GNOME's light or dark style and accent colour, the terminal, the shell prompt, the
 top bar, the dock, the wallpaper, VSCodium, and this manual. Each theme also has its own
-[style](#styles), [font](#fonts), [icons](#icons) and pointer, and you can keep the first three whatever the theme (a pointer you
-choose yourself in Settings stays too). A light theme gives the dock a faint dark
+[style](#styles), [font](#fonts), [icons](#icons) and [pointer](#pointers), and you can keep any of them whatever the theme (a
+pointer you choose yourself in Settings stays too). A light theme gives the dock a faint dark
 tint, so its icons still stand out on a pale wallpaper. The colours reach the applications too, at a contrast
 that reads: see [Colours in applications](#colours-in-applications).
 
@@ -67,8 +67,8 @@ The theme's colours reach every application, not only the ones that are Amethyst
 - **VSCodium**, on the developer image, takes the editor, sidebars, status bar, terminal and syntax colours,
   merged into your settings over its own Default Dark Modern or Default Light Modern. A colour of yours that
   the theme does not name stays.
-- **The terminal, the prompt, btop and the pointer** follow too: the white Breeze Light on a dark theme, the dark
-  Breeze on a light one.
+- **The terminal, the prompt, btop and the pointer** follow too: Halo on a dark theme, Ink on a light one (see
+  [Pointers](#pointers)).
 
 While High Contrast is on (Settings, Accessibility), libadwaita applications keep their own high-contrast
 colours and the palette steps aside, and comes back when it is switched off. An application that is open
@@ -154,6 +154,52 @@ Any style goes with any theme. `ame desktop style neon` keeps neon whatever the 
 or use the **Style** choice on Control's **Appearance** page. The desktop changes at once. An application
 that is already open takes the new shape the next time it starts.
 
+## Glass
+
+The top bar, the dock, menus, the quick settings, notifications, dialogs and the windows you are not using
+stand on glass: the wallpaper behind them, blurred once and shared, so the glass costs nothing while nothing
+changes. There are three kinds:
+
+| Glass | Looks like |
+| --- | --- |
+| `frost` | Thick, milky glass with an even tint, as the desktop has always had it |
+| `prism` | Less tint and more colour, a lit top edge, a soft glint at the top left and the theme's accent gathering along the bottom, as light does in thick glass. The one the desktop starts with |
+| `clear` | The thinnest glass and the brightest rim, with a glow up the left side |
+
+Whichever you pick, text on the glass stays readable on any wallpaper: over a bright picture the glass
+darkens just enough (on a light theme, lightens), and over the image's own dark wallpapers it barely changes.
+Near its edge the glass bends the picture inwards, as a rounded rim does.
+
+The corners of the shell's own surfaces are continuous: the curve starts further out and eases in, so a
+corner reads as one shape rather than a square with a circle cut out of it. Windows keep the corners GTK draws,
+a pill stays a pill, and a part a style outlines itself (the hairline and neon styles, the islands' pills)
+keeps round corners that match its outline.
+
+Run `ame desktop glass frost`, `ame desktop glass prism` or `ame desktop glass clear`, or
+`ame desktop glass` alone to pick from a list, or use the **Glass** choice on Control's **Appearance** page.
+The glass changes at once.
+
+## Comfort
+
+For a desktop that is calmer or clearer, Control's **Appearance** page has a **Comfort** group, and
+`ame desktop comfort` alone shows how each of these is set:
+
+- **Reduce transparency** draws every glass surface in the theme's solid colours. Nothing is blurred and the
+  glass's pictures are let go, so it also costs less: `ame desktop comfort reduce-transparency on`, and `off`
+  to go back.
+- **Reduce motion** makes Amethystora's own animations that travel, such as the dock's and a window going down to
+  the dock, fade in place instead: `ame desktop comfort reduce-motion on`. It is GNOME's own Reduced Motion
+  setting, which apps follow too. To stop every animation, turn **Animations** off in Settings, under
+  **Accessibility**; that counts as reduce motion as well. So does a computer whose screen is drawn without a
+  graphics card's help (some virtual machines) or that is being used through a remote desktop: GNOME turns its
+  animations off there by itself, whatever the switch shows.
+- **Increase contrast** is GNOME's High Contrast, also in Settings under **Accessibility**: the glass turns solid,
+  every surface gets a strong outline in the text colour, dimmed text is shown plain and controls are outlined.
+  libadwaita apps follow it too (see [Colours in applications](#colours-in-applications)):
+  `ame desktop comfort increase-contrast on`.
+- **The power saver**, the profile you pick in the quick settings' power menu, makes the glass solid and every
+  animation take half its time for as long as it is on. Nothing here turns the power saver on by itself.
+
 ## Fonts
 
 Each theme is written in a font of its own, used by the desktop and the applications:
@@ -218,6 +264,32 @@ a logo is a trademark, and how it looks is its owner's to decide. That is why th
 `ame desktop icons theme` goes back to what the theme chooses. Control has the same choice under
 Appearance.
 
+## Pointers
+
+Amethystora draws its own pointers, in three sets:
+
+| Pointer | Looks like | The themes it comes with |
+| --- | --- | --- |
+| **Halo** | White, with an amethyst rim | Every dark theme |
+| **Ink** | Dark, with a white rim | Amethystora Light, Catppuccin Latte, Rosé Pine Dawn |
+| **Facet** | Cut like the gem, in two faces of amethyst | None: pick it on any theme |
+
+`ame desktop pointer facet` (or `halo`, `ink`) keeps one whatever the theme, and `ame desktop pointer theme`
+goes back to the theme's. Any other pointer you choose in Tweaks is left alone by every theme; to keep Halo, Ink or
+Facet whatever the theme, choose it with `ame desktop pointer` rather than in Tweaks. The size is GNOME's, in
+Settings under Accessibility.
+
+**Shake to find.** Lost the pointer? Shake the mouse quickly from side to side and it swells to three and a half
+times its size, then settles a moment after you stop. `ame desktop pointer-shake beacon` sends rings out from it
+instead, and `ame desktop pointer-shake off` turns it off. Nothing runs while the mouse is still, a shake made with a
+button held (a drag, a drawing) never counts, and GNOME's own way, a press of Ctrl (Settings, Accessibility, Locate
+Pointer), works as before.
+
+**Larger on dense screens.** On a screen with small pixels shown at 100%, such as a 14-inch 2560×1600 laptop panel or
+a 27-inch 4K monitor, the pointer is drawn one size larger (32 in place of 24), so that it is as easy to find as the
+text is to read. A screen scaled to 200% already doubles it, and a size you chose in Settings is always kept.
+`ame desktop pointer-dense off` turns it off. Control has all three under Appearance.
+
 ## Change a theme, or make your own
 
 Themes ship read-only in `/usr/share/amethystora/themes`. A folder of the same name in
@@ -235,7 +307,7 @@ A folder with a name of its own is a new theme. Each file is small and optional,
 | `style.theme` | The style: `islands`, `floating`, `hairline`, `capsule`, `terminal`, `segments` or `neon`. Without it, floating |
 | `font.theme` | The font's name, instead of Adwaita Sans |
 | `mono.theme` | The monospace font's name, instead of JetBrains Mono |
-| `cursor.theme` | A cursor theme, instead of Adwaita |
+| `cursor.theme` | A cursor theme, instead of Halo (Ink for a light theme) |
 | `vscode.theme` | A VSCodium colour theme to switch to, instead of the palette's colours merged into its settings |
 | `shell-workspaces.css`, `shell-meters.css` | The top bar's colours for the workspaces and the meters, in GNOME Shell's CSS, instead of the ones drawn from the palette |
 | `backgrounds/` | Wallpapers |

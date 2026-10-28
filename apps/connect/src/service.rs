@@ -171,6 +171,9 @@ pub struct Service {
     /// The connections of the app and the module that have called: the signals of the service are sent to them, one
     /// by one, and to no other connection on the bus
     pub clients: RefCell<HashMap<String, crate::dbus::Role>>,
+    /// The module's connections that have said they show the links phones share (TakeLinks): while one of them is a
+    /// client, a web link goes to it as UrlReceived and the program raises no notification of its own for it
+    pub link_takers: RefCell<HashSet<String>>,
     /// The activation token of the button just pressed, for the program it starts
     activation: RefCell<Option<String>>,
     /// The sizes of the files being fetched, which the free space is not to be promised twice
@@ -238,6 +241,7 @@ impl Service {
             callers: RefCell::default(),
             activation: RefCell::default(),
             clients: RefCell::default(),
+            link_takers: RefCell::default(),
             reserved: Cell::new(0),
             udp: RefCell::default(),
             listener: RefCell::default(),

@@ -1,7 +1,8 @@
 // What stands behind whole screens. The overview, and the slide from one workspace to another, sit on the wallpaper
 // pushed far back behind a heavier, darker frost; in the screenshot UI's window mode the windows are laid out on a
 // pane of glass the size of the screen. An app folder opens over the app grid blurred live, the blur growing as the
-// folder zooms out of its icon and going as it zooms back, in place of GNOME's darkening.
+// folder zooms out of its icon and going as it zooms back, in place of GNOME's darkening. While the glass is solid all
+// of these are GNOME's own: this part then rests, its wrapped methods doing nothing more than GNOME's.
 
 import Clutter from 'gi://Clutter';
 import Cogl from 'gi://Cogl';
@@ -31,14 +32,9 @@ export class Backdrops {
     enable() {
         const glass = this._glass;
         this._folders = new Set();
+        this._on = true;
         glass.attach(Main.layoutManager.overviewGroup, {material: 'frost', radius: 0, areas: screens, inClones: true},
             {classes: ['amethystora-glass-overview']});
-
-        // The screenshot UI makes its window selectors once, and again whenever the screens change
-        glass.wrap(Screenshot.ScreenshotUI.prototype, '_rebuildMonitorBins', (rebuild, ui, args) => {
-            rebuild.apply(ui, args);
-            this._screenshot(ui);
-        });
         if (Main.screenshotUI)
             this._screenshot(Main.screenshotUI);
 
@@ -48,10 +44,22 @@ export class Backdrops {
                 this._slide(child);
         }, this);
 
+        // The methods are wrapped once for as long as the glass runs (it puts them back), and do their part only
+        // while this part is on
+        if (this._wrapped)
+            return;
+        this._wrapped = true;
+        // The screenshot UI makes its window selectors once, and again whenever the screens change
+        glass.wrap(Screenshot.ScreenshotUI.prototype, '_rebuildMonitorBins', (rebuild, ui, args) => {
+            rebuild.apply(ui, args);
+            if (this._on)
+                this._screenshot(ui);
+        });
         const proto = AppDisplay.AppFolderDialog.prototype;
         glass.wrap(proto, '_zoomAndFadeIn', (zoom, dialog, args) => {
             zoom.apply(dialog, args);
-            this._folderOpening(dialog);
+            if (this._on)
+                this._folderOpening(dialog);
         });
         glass.wrap(proto, '_zoomAndFadeOut', (zoom, dialog, args) => {
             zoom.apply(dialog, args);
@@ -65,16 +73,19 @@ export class Backdrops {
     }
 
     disable() {
+        this._on = false;
         Main.uiGroup.disconnectObject(this);
         for (const dialog of this._folders ?? [])
             this._folderDone(dialog);
         this._folders = null;
         this._glass.detach(Main.layoutManager.overviewGroup);
+        for (const selector of Main.screenshotUI?._windowSelectors ?? [])
+            this._glass.detach(selector);
     }
 
     _screenshot(ui) {
         for (const selector of ui._windowSelectors ?? []) {
-            this._glass.attach(selector, {material: 'glass', radius: 16, inClones: true},
+            this._glass.attach(selector, {material: 'pane', radius: 16, inClones: true},
                 {classes: ['amethystora-glass-backdrop']});
         }
     }
@@ -118,7 +129,7 @@ export class Backdrops {
     }
 
     _folderClosing(dialog) {
-        if (!this._folders.has(dialog))
+        if (!this._folders?.has(dialog))
             return;
         this._clearShade(dialog);
         if (!dialog.visible) {

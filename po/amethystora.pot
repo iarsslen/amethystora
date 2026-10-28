@@ -1897,7 +1897,7 @@ msgstr ""
 msgid "The clock in a dark capsule, and everything else a pill"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
 msgid "Terminal"
 msgstr ""
 
@@ -1923,6 +1923,86 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "The shape of the top bar, menus, notifications, dialogs, buttons and windows."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Amethystora UI is not installed."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The glass is drawn solid while Reduce transparency is on."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The glass is drawn solid while High Contrast is on."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The glass is drawn solid while the power saver is on."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Frost"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Thick, milky glass with an even tint"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Prism"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Less tint, more colour, a lit top edge and light along the bottom"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/digest.js
+msgid "Clear"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The thinnest glass and the brightest rim; it darkens by itself where text needs it"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "What the top bar, the dock, menus and notifications show of the wallpaper behind them."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Comfort"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The power saver makes the glass solid for as long as it is on."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Reduce transparency"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The glass becomes the theme's solid surfaces. Nothing is blurred, which also saves power."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Animations are off in Settings, under Accessibility, which is calmer still."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Reduce motion"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Animations fade in place instead of travelling."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Increase contrast"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "GNOME's High Contrast: stronger outlines, plain text and outlined controls, in the apps as well."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -2034,6 +2114,70 @@ msgid "How long a transition takes, in milliseconds."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Pointer"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Halo"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "White, with an amethyst rim: for dark themes"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Ink"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Dark, with a white rim: for light themes"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Facet"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Cut like the gem, in two faces of amethyst"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The pointer's look. A size is chosen in Settings, under Accessibility."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The pointer swells to three and a half times its size while you shake it"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Beacon"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The pointer grows a little and sends rings out from where it is"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Shaking the mouse does nothing"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Shake to find"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Shake the mouse from side to side to see where the pointer is."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Larger on dense screens"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "One size larger on a screen with small pixels shown at 100%. A size chosen in Settings is kept."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "A sealed machine starts with systemd-boot, which shows no artwork."
 msgstr ""
 
@@ -2110,6 +2254,414 @@ msgid "Every key the desktop answers to, in the manual."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "They apply once the layout is classic again."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Snap layouts"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Drag a window to the top of the screen, or press Super+Z, and drop it on a layout."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Window switcher you can type into"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Super+Tab and Alt+Tab show every window in a grid; typing keeps the ones whose app or title matches."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Shortcuts while Super is held"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Hold Super to see the main shortcuts and the dock's numbers."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "How long to hold Super"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "In milliseconds."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Click the wallpaper to show the desktop"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Windows slide to the edges of the screen; a click brings them back."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Windows remember their places"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "For each arrangement of screens, apps' windows open where they were."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Forget"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Forget the places"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Dim the windows not in use"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The windows behind the one you are using are drawn a little darker."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Hot corners"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Top left corner"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Top right corner"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Bottom left corner"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Bottom right corner"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Nothing"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Overview"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Show desktop"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Lock screen"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Quick note"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/libexec/amethystora-security-config
+msgid "Notifications"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "What pushing the pointer into this corner does."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Touchpad gestures"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Pinch with three fingers for the app grid"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Spread three fingers to show the desktop"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Three fingers down for the app's windows"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Four fingers left for Today"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/dash.js
+msgid "Dock"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Swell"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The icons grow in a wave under the pointer"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Lift"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Only the icon under the pointer rises"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Still"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Nothing grows"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Growing"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "How the icons grow under the pointer."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Only Swell grows this far."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "How far Swell grows"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "How large the icon under the pointer becomes, in per cent."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A ring runs round the icon"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Hop"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The icon hops"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Breathe"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The icon pulses, nothing moves"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "No sign"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Starting an app"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "What an app's icon does until its window opens."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Bar"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Longer with two windows or more"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Dots"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "One for each window"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Glow"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Light under the icon"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Running apps"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "How an app with windows is marked."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Recent apps"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The last three apps you used that are not pinned, after a divider."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Window previews"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Rest the pointer on an app to see its windows."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Bottom"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Left"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Right"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Edge"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Where the dock is."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Every screen"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Each with the apps whose windows are on it"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Main screen only"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Screens"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Which screens have a dock."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Always shown"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Windows stop at the dock"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Hide when a window touches it"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Push the pointer against the edge to bring it back"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Hiding"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "When the dock gets out of the way."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "This workspace's apps only"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Running apps of other workspaces leave the dock; pinned apps stay."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Reduce motion is on: windows and workspaces fade instead."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Animations are off in Settings, so nothing moves."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Motion"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Droplet"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The window gathers into a drop of glass and arcs into its icon"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Shrink"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The window shrinks and fades into its icon"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Minimize"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "How a window goes into the dock and comes back."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Depth"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The wallpaper slides a third as far as the windows, which step back a little on the way"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Slide"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Each workspace slides in whole, wallpaper and all"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Changing workspace"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "How one workspace gives way to the next."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Workspaces"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Name workspaces after their apps"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "A workspace you have not named shows the name of the app with most windows on it."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "The clipboard history's extension is not installed."
 msgstr ""
 
@@ -2137,7 +2689,7 @@ msgstr ""
 msgid "Pinned items, and the rest until you log out"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
 msgid "Clipboard"
 msgstr ""
 
@@ -2177,7 +2729,7 @@ msgstr ""
 msgid "Only when you empty it"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
 msgid "Privacy"
 msgstr ""
 
@@ -2207,6 +2759,92 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "Small commands whose output the top bar shows. Each runs as you, with everything you have: keep only the ones you have read."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Live pill"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The clock shows what is happening now: music, a timer, a call, a recording, a link from the phone, an update ready. Click it for its controls."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Privacy dots"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A dot in the top bar while the microphone, the camera, the screen or your location is in use. Click it to see which."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Recording glow"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A thin red glow round the screen while it is recorded or shared. It shows in a recording of the whole screen."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Quiet while fullscreen or sharing"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Banners wait while a window is fullscreen or the screen is shared or recorded. Calls, alarms and urgent ones still come through."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "From sunset to sunrise."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "Now ${FROM} to ${TO}."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Quiet at night"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Banners wait between Night Light's times."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Digest"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Banners that are not urgent wait and come together, as one card, at the times you choose."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "12:00 and 18:00"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "09:00, 13:00 and 17:00"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "08:00, 12:00, 16:00 and 20:00"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "18:00"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+#, sh-format
+msgid "Set from a terminal: ${SHOWN}."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Digest times"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "When the digest comes."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -3130,10 +3768,6 @@ msgid "Real-time scanning"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
-msgid "Notifications"
-msgstr ""
-
-#: usr/libexec/amethystora-security-config
 msgid "Report alerts"
 msgstr ""
 
@@ -3906,7 +4540,7 @@ msgid "I have the recovery key"
 msgstr ""
 
 #. Translators: choices of a menu that turns automatic updates on or off
-#: usr/libexec/amethystora-private-folder usr/libexec/amethystora-windows-program usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/amethystora/just/system.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar/dialog.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js apps/connect/src/service.rs apps/connect/src/transfers.rs
+#: usr/libexec/amethystora-private-folder usr/libexec/amethystora-windows-program usr/share/amethystora/just/apps.just usr/share/amethystora/just/backup.just usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/amethystora/just/system.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar/dialog.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js apps/connect/src/service.rs apps/connect/src/transfers.rs
 msgid "Cancel"
 msgstr ""
 
@@ -4454,7 +5088,7 @@ msgstr ""
 msgid "About this computer"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
 msgid "Manual"
 msgstr ""
 
@@ -4589,7 +5223,7 @@ msgid "Start"
 msgstr ""
 
 #. Translators: a choice in a menu: to stop Android
-#: usr/share/amethystora/just/apps.just
+#: usr/share/amethystora/just/apps.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/capture.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
 msgid "Stop"
 msgstr ""
 
@@ -4893,6 +5527,71 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 #, sh-format
+msgid "Glass (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Frost: thick, milky glass with an even tint."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Prism: less tint, more colour, and light along the edges."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Clear: the thinnest glass. It darkens by itself where text needs it."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The glass is drawn solid while Reduce transparency, High Contrast or the power saver is on."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Reduce transparency: ${state}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Reduce motion: ${state}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Increase contrast: ${state}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Power saver: ${state} (the glass is solid and animations are shorter while it is on)"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Reduce transparency is on: the glass is drawn in the theme's solid colours."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Reduce transparency is off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Reduce motion is on: animations fade in place instead of travelling."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Reduce motion is off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Increase contrast is on: GNOME's High Contrast, with stronger outlines and plain text, in the apps too."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Increase contrast is off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
 msgid "Font (current: ${current})"
 msgstr ""
 
@@ -4923,6 +5622,34 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 #, sh-format
+msgid "Pointer (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Pointer: ${set}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Shake to find (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Shake to find: ${mode}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The pointer is one size larger on a dense screen. A size chosen in Settings is kept."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The pointer keeps its size on every screen."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
 msgid "Layout (current: ${current})"
 msgstr ""
 
@@ -4932,6 +5659,103 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 msgid "Tiling: new windows open beside the one you are on, and Super+Left and Super+Right move between them. The keys are in the manual: amethystora-manual desktop#tiling-windows"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The window shrinks and fades into its icon, as GNOME does it"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Minimize (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Droplet: a window gathers into a drop of glass and arcs into its icon in the dock."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Shrink: a window shrinks and fades into its icon, as GNOME does it."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Changing workspace (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Depth: the wallpaper slides a third as far as the windows, which step back a little on the way."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Slide: each workspace slides in whole, wallpaper and all."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "A workspace you have not named shows its number only."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Snap layouts are on: drag a window to the top of the screen, or press Super+Z."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Snap layouts are off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Super+Tab and Alt+Tab show every window in a grid you can type into."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Super+Tab and Alt+Tab are GNOME's own switchers again."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "A click on empty wallpaper slides the windows to the edges; a click anywhere brings them back."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "A click on the wallpaper does nothing."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "No window is dimmed."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The places windows went back to are forgotten."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Windows go back to their places for each arrangement of screens."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Windows open where GNOME puts them."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Holding Super shows the main shortcuts and the dock's numbers."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Holding Super shows nothing."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The shortcuts show after Super has been held for ${ms} milliseconds."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The ${where} corner now does: ${action}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The ${name} gesture is ${state}."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
@@ -4974,7 +5798,7 @@ msgid "What it empties stays in the snapshots and the backup, where they are on.
 msgstr ""
 
 #. Translators: a choice in a menu: to put the artwork on the boot menu
-#: usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just
+#: usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
 msgid "Turn on"
 msgstr ""
 
@@ -5007,8 +5831,236 @@ msgstr ""
 msgid "Phone pairing is on: install KDE Connect on the phone, and pair them on a network you named home."
 msgstr ""
 
-#: usr/share/amethystora/just/desktop.just
+#: usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/drops.js
 msgid "Phone pairing is off"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "${what} (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The live pill is on: the clock shows what is happening now."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The live pill is off: the clock is GNOME's own."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The privacy dots are on: a dot in the top bar while the microphone, the camera, the screen or the location is in use."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The privacy dots are off: GNOME's own icons show what is in use."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The recording glow is on: a red glow round the screen while it is recorded or shared. It shows in a recording of the whole screen."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The recording glow is off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Quiet is on: banners wait in the list while a window is fullscreen or the screen is shared or recorded. Calls, alarms and urgent ones still come through."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Quiet while fullscreen or sharing is off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Quiet at night is on, from sunset to sunrise."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Quiet at night is on, between Night Light's times: ${from} to ${to}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Quiet at night is off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The digest comes at ${shown}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Digest (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The digest is on: banners that are not urgent wait and come together at ${shown}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The digest is off: banners show as they come."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "${setting} (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The dock swells under the pointer, up to ${amount}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The dock lifts the icon under the pointer."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The dock stays still."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Apps starting show a ring."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Apps starting hop."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Apps starting breathe."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Apps start without a sign."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "A running app is marked with a bar."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "A running app is marked with a dot for each window."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "A running app is marked with a glow."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Recent apps are shown after the running ones."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Recent apps are not shown."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Resting on an app shows its windows."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Resting on an app shows its name only."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "left"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "right"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "bottom"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The dock is at the ${edge} of the screen."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "There is a dock on every screen."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "There is a dock on the main screen only."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The dock hides while a window touches it; push the pointer against the edge to bring it back."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The dock is always shown."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The dock shows only the apps of the workspace you are on, and the pinned ones."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The dock shows every running app."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "How far Swell grows, 120 to 220 per cent"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "${path} is in the dock."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "${path} is no longer in the dock."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "${path} cannot be kept in the dock: its name is not text."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "${path} is not a folder."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The dock holds twelve stacks at most."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The folder ${name} holds ${apps}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The folder ${name} is taken apart."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "There is a folder called ${name} already."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "A folder's name is 1 to 40 characters, without control characters."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "A folder holds two pinned apps or more."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "${app} is not a pinned app."
 msgstr ""
 
 #: usr/share/amethystora/just/report.just
@@ -6159,7 +7211,7 @@ msgid "Make one"
 msgstr ""
 
 #. Translators: a choice about the private folder, which is closed: open it.
-#: usr/share/amethystora/just/security.just apps/connect/src/plugins.rs apps/connect/src/transfers.rs
+#: usr/share/amethystora/just/security.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js apps/connect/src/plugins.rs apps/connect/src/transfers.rs
 msgid "Open"
 msgstr ""
 
@@ -7136,6 +8188,18 @@ msgstr ""
 msgid "Phones…"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+msgid "%s sent a link"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+msgid "Your phone"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+msgid "Copy"
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js
 msgid "Could not reach the phone"
 msgstr ""
@@ -7150,8 +8214,88 @@ msgid_plural "%s, %d unread"
 msgstr[0] ""
 msgstr[1] ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/dash.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/stacks.js
+msgid "Open in Files"
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/dash.js
-msgid "Dock"
+msgid "Remove from the dock"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/dash.js
+msgid "Recent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/drops.js
+msgid "Copy to %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/drops.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
+msgid "Move to %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/drops.js
+msgid "Send to %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/drops.js
+msgid "Send to a phone"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/drops.js
+msgid "No phone is connected"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/drops.js
+msgid "Keep in the dock"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/drops.js
+msgid "The files could not be copied to %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/drops.js
+msgid "The files could not be moved to %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/drops.js
+msgid "Sending to %s"
+msgstr ""
+
+#. Translators: the phone's name and how far the files have gone, as in "Sending to Pixel · 64%"
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/drops.js
+msgid "Sending to %s · %s"
+msgstr ""
+
+#. Translators: the phone's name and how far the files have gone, as in "Sending to Pixel · 64%"
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/drops.js
+msgid "Not sent"
+msgstr ""
+
+#. Translators: the phone's name and how far the files have gone, as in "Sending to Pixel · 64%"
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/drops.js
+msgid "Sent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/folders.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Folder"
+msgstr ""
+
+#. Translators: a folder's name when a folder of that name is there already
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/folders.js
+msgid "Folder %d"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/folders.js
+msgid "Rename %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/folders.js
+msgid "Rename"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/folders.js
+msgid "Take the folder apart"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/menus.js
@@ -7186,7 +8330,7 @@ msgstr ""
 msgid "Trash"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/places.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/stacks.js
 msgid "%s could not be opened"
 msgstr ""
 
@@ -7222,6 +8366,18 @@ msgstr ""
 msgid "%s could not be unmounted"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/stacks.js
+msgid "Newest first"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/stacks.js
+msgid "This folder could not be read"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/stacks.js
+msgid "Nothing here yet"
+msgstr ""
+
 #. Translators: something smaller than the size or share shown, such as "< 1 kB"
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters/format.js
 msgid "< %s"
@@ -7236,7 +8392,7 @@ msgstr ""
 msgid "Processor"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
 msgid "In use"
 msgstr ""
 
@@ -7292,6 +8448,450 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
 msgid "Received in all"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+msgid "%s left"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+msgid "from the battery's own estimate"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+msgid "Full in %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+msgid "Working out the time left"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+msgid "Fully charged"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+msgid "Plugged in, not charging"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+msgid "Power saving?"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+msgid "Battery at %d percent: turn on power saving?"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+msgid "Battery at %d%%"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+msgid "Power saver on"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+msgid "The battery is at %d%%"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+msgid "Power saving makes the glass solid and animations shorter, and asks less of the processor. It stays on until you turn it off."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+msgid "Not now"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/capture.js
+msgid "Videos"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/capture.js
+msgid "Recording the screen, %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/capture.js
+msgid "Recording · %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/capture.js
+msgid "Saved to Screencasts"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/capture.js
+msgid "Recording the screen"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/capture.js
+msgid "Stop and save"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/capture.js
+msgid "%s so far. The video goes to %s when you stop."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/capture.js
+msgid "%s so far. The app that is recording keeps the video."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/clock.js
+msgid "Clock and calendar"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/clock.js
+msgid "Open the calendar"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/digest.js
+msgid "Your %s digest"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/digest.js
+msgid "%d notification"
+msgid_plural "%d notifications"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/digest.js
+msgid "Unknown app"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/digest.js
+msgid "and %d more app"
+msgid_plural "and %d more apps"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/digest.js
+msgid "Show all"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "%d waiting in the list"
+msgid_plural "%d waiting in the list"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "Quiet while fullscreen"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "Quiet while sharing"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "Quiet until %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "%s · %d held"
+msgid_plural "%s · %d held"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "%s, %d notification held"
+msgid_plural "%s, %d notifications held"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "Notifications are waiting"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "a window is fullscreen"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "the screen is shared"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "the screen is recorded"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "it is night"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "%d held while %s."
+msgid_plural "%d held while %s."
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "Banners wait while %s."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "Calls, alarms and urgent ones still come through."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "Show them"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/media.js
+msgid "Now playing: %s by %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/media.js
+msgid "Now playing: %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/media.js
+msgid "Now playing · %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/media.js
+msgid "Back"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/media.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "Pause"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/media.js
+msgid "Next"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/media.js
+msgid "Play"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/media.js
+msgid "Playing on %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+msgid "Opened in the browser"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+msgid "%s is calling"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+msgid "Your phone is ringing"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+msgid "%s is calling your phone"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+msgid "Mute ringer"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+msgid "From the paired phone. Answer on the phone; from here you can silence it or send a text back."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+msgid "Reply with a text"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+msgid "A link from %s: %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+msgid "Link · %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+msgid "Open in browser"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "Microphone"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "microphone"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "Camera"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "camera"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "Screen"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "screen"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "Location"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "location"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "%s and %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "%s in use"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "Stop sharing the screen"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "Not in use"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "%s · Muted"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "Screen recorder"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "Recording"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "Shared"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/text.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "%d minute"
+msgid_plural "%d minutes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/text.js
+msgid "%d second"
+msgid_plural "%d seconds"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/text.js
+msgid "%d min"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/text.js
+msgid "%d h %d min"
+msgstr ""
+
+#. Translators: the time of day on a 12-hour and on a 24-hour clock, as GLib.DateTime.format takes it
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/text.js
+msgid "%l:%M %p"
+msgstr ""
+
+#. Translators: the time of day on a 12-hour and on a 24-hour clock, as GLib.DateTime.format takes it
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/text.js
+msgid "%H:%M"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "%s, ended at %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "%s, started at %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "The timer is done"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "Timer"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "Timer done"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "Timer: %s left"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "Timer · %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "%d min"
+msgid_plural "%d min"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "Timer running: %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "Start a timer"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "Add %d minute"
+msgid_plural "Add %d minutes"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "Start a %d minute timer"
+msgid_plural "Start a %d minute timer"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "+1 min"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "of %s, rings at %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/timer.js
+msgid "Resume"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/update.js
+msgid "Ready · quick restart"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/update.js
+msgid "Ready · restart"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/update.js
+msgid "A new version is ready"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/update.js
+msgid "A quick restart: the system's programs restart, the computer does not. Save your work first."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/update.js
+msgid "The computer restarts to finish it. Save your work first."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/update.js
+msgid "Restart now"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/update.js
+msgid "Tonight"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/capture.js
@@ -7518,8 +9118,111 @@ msgstr ""
 msgid "The places a click goes through are chosen in the tiling settings"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
-msgid "Workspaces"
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/desktop.js
+msgid "Bring the windows back"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/desktop.js
+msgid "Click anywhere to bring the windows back"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
+msgid "Search"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
+msgid "Window layouts"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
+msgid "Screenshot"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
+msgid "Lock the screen"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
+msgid "Control"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
+msgid "With Super"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
+#, python-brace-format
+msgid "{first} to {last} opens the app with that number in the dock"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/keep.js
+msgid "Keep a copy in view"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/keep.js
+#, python-brace-format
+msgid "Copy of {title}"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/switcher.js
+msgid "Type to filter"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/switcher.js
+msgid "No window matches"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/switcher.js
+#, python-brace-format
+msgid "{enter} switches · {esc} leaves everything as it was"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/switcher.js
+msgctxt "key"
+msgid "Enter"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/switcher.js
+msgctxt "key"
+msgid "Esc"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/switcher.js
+#, python-brace-format
+msgid "{shown} of {total}"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/util.js
+msgctxt "key"
+msgid "Super"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/util.js
+msgctxt "key"
+msgid "Ctrl"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/util.js
+msgctxt "key"
+msgid "Shift"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/util.js
+msgctxt "key"
+msgid "Alt"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/util.js
+msgctxt "key"
+msgid "Space"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
+msgid "Use the app’s name"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js
+msgid "+%d"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
@@ -7672,10 +9375,6 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Off, a maximized window covers the whole screen until it is restored"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
-msgid "Motion"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
@@ -7863,10 +9562,6 @@ msgid "In percent of the screen’s height"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
-msgid "Overview"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Show only the floating windows"
 msgstr ""
 
@@ -7936,10 +9631,6 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "The picture of every workspace"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
-msgid "Folder"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
@@ -8232,10 +9923,6 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Go to the next workspace, from among all of them"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
-msgid "Screens"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js

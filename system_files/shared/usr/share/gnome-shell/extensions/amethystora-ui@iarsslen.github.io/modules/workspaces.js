@@ -3,7 +3,11 @@
 // go there: the one you are on shows or hides the overview instead, and an empty one opens the overview, ready to
 // search or start an app. Scrolling anywhere on the top bar steps to the previous or next workspace. Drag a label
 // along the row to move its workspace, windows and all, or drop a window from the overview on a label to send the
-// window there. A right click, or a finger held on a label, opens a field to rename the workspace you are on. Two keys
+// window there: while a window is dragged over a label, the label lights up and a note under the bar says where the
+// window would go, and a small count shows on the label once it has landed. A label shows its workspace's number and,
+// after it, the workspace's name: one you gave it, or else, in a lighter slanted type, the name of the app with most
+// windows on it, worked out each time and never stored (ame desktop space-names turns that off). A right click, or a
+// finger held on a label, opens a field to rename the workspace you are on. Two keys
 // move the workspace you are on one place to the left or right. There are always as many workspaces as GNOME is set
 // to keep (six), so that Super+1 to Super+6 reach every one: nothing here adds or removes one. The workspaces, their
 // names and the keys that switch them are GNOME's own.
@@ -18,6 +22,7 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
+import {adjustAnimationTime} from 'resource:///org/gnome/shell/misc/animationUtils.js';
 import * as BoxPointer from 'resource:///org/gnome/shell/ui/boxpointer.js';
 import * as DND from 'resource:///org/gnome/shell/ui/dnd.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -39,6 +44,41 @@ const SCROLL_PAUSE_MS = 200;
 // How long a gap in the row takes to open or close while a label is dragged along it
 const GAP_MS = 500;
 const STATES = ['active', 'busy', 'empty'];
+// A window dragged over a label: how much larger the label grows, and how long it takes, before the slow-down factor
+const HIT_SCALE = 1.12;
+const HIT_MS = 250;
+// The count on a label a window was dropped on: how long it stays, and how long it takes to fade
+const BADGE_MS = 1500;
+const BADGE_FADE_MS = 250;
+// How far below the top bar the note says where a window would go
+const HINT_GAP = 6;
+
+// The app a workspace is about: the one with most of its own windows there (minimized ones count), a tie going to the
+// app whose oldest window there is oldest, so that the name does not change as you click between two windows. Windows
+// on every workspace, kept out of the taskbar or fixed to another window, and apps known only by a window's title,
+// say nothing.
+function mainApp(workspace) {
+    const tracker = Shell.WindowTracker.get_default();
+    const counts = new Map();
+    for (const window of workspace.list_windows()) {
+        if (window.get_window_type() !== Meta.WindowType.NORMAL || window.skip_taskbar ||
+            window.is_on_all_workspaces() || window.is_attached_dialog())
+            continue;
+        const app = tracker.get_window_app(window);
+        if (!app || app.is_window_backed())
+            continue;
+        const count = counts.get(app) ?? {n: 0, oldest: Infinity};
+        count.n++;
+        count.oldest = Math.min(count.oldest, window.get_stable_sequence());
+        counts.set(app, count);
+    }
+    let best = null;
+    for (const [app, count] of counts) {
+        if (!best || count.n > best.n || (count.n === best.n && count.oldest < best.oldest))
+            best = {app, ...count};
+    }
+    return best?.app ?? null;
+}
 
 // A workspace counts as having windows when one of them lives on it alone: a window on every workspace (pinned, or
 // on another monitor while only the main one has workspaces) says nothing about this one
@@ -62,9 +102,9 @@ function isRtl(actor) {
     return actor.get_text_direction() === Clutter.TextDirection.RTL;
 }
 
-// One workspace's label. It is its own drag source, and takes a window dropped on it.
+// One workspace's label: its number and its name. It is its own drag source, and takes a window dropped on it.
 const WorkspaceLabel = GObject.registerClass(
-class WorkspaceLabel extends St.Label {
+class WorkspaceLabel extends St.BoxLayout {
     _init(row) {
         super._init({
             style_class: 'amethystora-workspaces-label',
@@ -72,8 +112,17 @@ class WorkspaceLabel extends St.Label {
             y_align: Clutter.ActorAlign.CENTER,
             accessible_role: Atk.Role.PUSH_BUTTON,
         });
+        // Names are text, whoever wrote them
+        this._number = new St.Label({style_class: 'amethystora-workspaces-number', y_align: Clutter.ActorAlign.CENTER});
+        this._name = new St.Label({style_class: 'amethystora-workspaces-name', y_align: Clutter.ActorAlign.CENTER});
+        this._number.clutter_text.use_markup = false;
+        this._name.clutter_text.use_markup = false;
+        this._name.hide();
+        this.add_child(this._number);
+        this.add_child(this._name);
         this._row = row;
         this._delegate = this;
+        this.badge = null;
         this.index = -1;
 
         // A click goes on the release, and only when it came soon after its press, so that a press that turns
@@ -106,10 +155,27 @@ class WorkspaceLabel extends St.Label {
         this._draggable.connect('drag-end', () => row.dragEnded(this));
     }
 
-    update(index, text, state) {
+    // What the label shows, as one line of text ("3 Files", or "3")
+    get labelText() {
+        const number = this._number.text;
+        return this._name.visible ? `${number} ${this._name.text}` : number;
+    }
+
+    // title: the workspace's name or the empty string; auto: whether it is its main app's rather than one given
+    update(index, title, auto, state) {
         this.index = index;
-        if (this.text !== text)
-            this.text = text;
+        const number = `${index + 1}`;
+        if (this._number.text !== number)
+            this._number.text = number;
+        if (this._name.text !== title)
+            this._name.text = title;
+        this._name.visible = title !== '';
+        if (auto && title !== '')
+            this._name.add_style_class_name('amethystora-workspaces-auto');
+        else
+            this._name.remove_style_class_name('amethystora-workspaces-auto');
+        if (this.accessible_description !== title)
+            this.accessible_description = title;
         for (const name of STATES) {
             if (name === state)
                 this.add_style_class_name(`amethystora-workspaces-${name}`);
@@ -130,6 +196,7 @@ class WorkspaceLabel extends St.Label {
         if (!source?.metaWindow)
             return false;
         source.metaWindow.change_workspace_by_index(this.index, false);
+        this._row.landed(this);
         return true;
     }
 });
@@ -183,6 +250,13 @@ export class Workspaces {
         Main.panel.connectObject('scroll-event', (actor, event) => this._scrolled(event), this);
 
         this._settings = this._ext.getSettings(SCHEMA);
+        this._settings.connectObject('changed::auto-names', queue, this);
+        // A window dragged in the overview: the label under it lights up
+        Main.overview.connectObject(
+            'window-drag-begin', () => this._windowDragBegan(),
+            'window-drag-end', () => this._windowDragEnded(),
+            'window-drag-cancelled', () => this._windowDragEnded(),
+            this);
         const modes = Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW;
         Main.wm.addKeybinding(KEYS[0], this._settings, Meta.KeyBindingFlags.NONE, modes, () => this._shift(-1));
         Main.wm.addKeybinding(KEYS[1], this._settings, Meta.KeyBindingFlags.NONE, modes, () => this._shift(1));
@@ -197,7 +271,13 @@ export class Workspaces {
                 Main.wm.removeKeybinding(key);
         }
         this._keys = false;
+        this._settings?.disconnectObject(this);
         this._settings = null;
+
+        Main.overview.disconnectObject(this);
+        this._windowDragEnded();
+        for (const label of this._labels ?? [])
+            this._dropBadge(label);
 
         Main.panel.disconnectObject(this);
         global.workspace_manager.disconnectObject(this);
@@ -257,6 +337,7 @@ export class Workspaces {
         while (this._labels.length < count) {
             const label = new WorkspaceLabel(this);
             label.connect('destroy', () => {
+                this._dropBadge(label);
                 const at = this._labels?.indexOf(label) ?? -1;
                 if (at >= 0)
                     this._labels.splice(at, 1);
@@ -269,6 +350,7 @@ export class Workspaces {
 
         const active = manager.get_active_workspace_index();
         const names = this._prefs.get_strv(NAMES);
+        const auto = this._settings?.get_boolean('auto-names') ?? false;
         this._order = this._workspaces();
         this._labels.forEach((label, index) => {
             const workspace = manager.get_workspace_by_index(index);
@@ -277,7 +359,9 @@ export class Workspaces {
                 state = 'active';
             else if (hasWindows(workspace))
                 state = 'busy';
-            label.update(index, names[index] || `${index + 1}`, state);
+            const own = names[index] ?? '';
+            const app = !own && auto ? mainApp(workspace) : null;
+            label.update(index, own || (app?.get_name() ?? ''), !own && !!app, state);
         });
 
         // A window opened, closed or moved onto or off any workspace
@@ -433,6 +517,11 @@ export class Workspaces {
         field.add_child(this._entry);
         this._menu.addMenuItem(field);
 
+        // Back to the name of the workspace's main app, shown only while it has a name of its own
+        this._unname = this._menu.addAction(_('Use the app’s name'), () => {
+            this._entry.text = '';
+        });
+
         // Connected after the top bar's own handler, which gives the menu the keyboard first
         this._menu.connect('open-state-changed', (menu, open) => {
             if (open) {
@@ -441,6 +530,10 @@ export class Workspaces {
                 const name = this._prefs.get_strv(NAMES)[index] ?? '';
                 this._renaming = {index, name};
                 this._entry.text = name;
+                const workspace = global.workspace_manager.get_workspace_by_index(index);
+                const app = this._settings?.get_boolean('auto-names') && workspace ? mainApp(workspace) : null;
+                this._entry.hint_text = app?.get_name() ?? '';
+                this._unname.visible = !!app && name !== '';
                 global.stage.set_key_focus(this._entry.clutter_text);
                 this._entry.clutter_text.set_selection(0, -1);
             } else {
@@ -472,6 +565,138 @@ export class Workspaces {
         const names = this._namesFor(renaming.index + 1);
         names[renaming.index] = this._entry.text;
         this._writeNames(names);
+    }
+
+    // ---- A window dragged onto a workspace ----
+
+    // The glass under the note that says where a dragged window would go
+    glassSurfaces() {
+        return this._hint ? [{actor: this._hint, material: 'glass', radius: null}] : [];
+    }
+
+    _reduced() {
+        return this._ext.modules?.get('comfort')?.reduceMotion ?? false;
+    }
+
+    // DND has no word for leaving a target: a monitor watches every move of the drag while it lasts
+    _windowDragBegan() {
+        if (this._monitor)
+            return;
+        this._monitor = {dragMotion: event => this._dragMotion(event)};
+        DND.addDragMonitor(this._monitor);
+    }
+
+    _windowDragEnded() {
+        if (this._monitor)
+            DND.removeDragMonitor(this._monitor);
+        this._monitor = null;
+        this._setHit(null);
+    }
+
+    _dragMotion(event) {
+        let label = null;
+        for (let actor = event.targetActor; actor; actor = actor.get_parent()) {
+            if (actor instanceof WorkspaceLabel) {
+                label = this._labels?.includes(actor) ? actor : null;
+                break;
+            }
+        }
+        this._setHit(label);
+        return DND.DragMotionResult.CONTINUE;
+    }
+
+    // The label a window is over lights up and grows a little, and the note under the bar names it
+    _setHit(label) {
+        if (label === this._hit)
+            return;
+        const previous = this._hit;
+        this._hit = label;
+        const grow = (actor, scale) => {
+            actor.set_pivot_point(0.5, 0.5);
+            if (this._reduced())
+                actor.set_scale(1, 1);
+            else
+                actor.ease({scale_x: scale, scale_y: scale, duration: HIT_MS, mode: Clutter.AnimationMode.EASE});
+        };
+        if (previous && this._labels?.includes(previous)) {
+            previous.remove_style_class_name('amethystora-workspaces-hit');
+            grow(previous, 1);
+        }
+        if (!label) {
+            if (this._hint) {
+                this._hint.destroy();
+                this._hint = null;
+                this._ext.modules?.get('glass')?.surfacesChanged?.();
+            }
+            return;
+        }
+        label.add_style_class_name('amethystora-workspaces-hit');
+        grow(label, HIT_SCALE);
+        const made = !this._hint;
+        if (made) {
+            this._hint = new St.Label({style_class: 'amethystora-workspaces-hint'});
+            this._hint.clutter_text.use_markup = false;
+            Main.layoutManager.uiGroup.add_child(this._hint);
+        }
+        this._hint.text = _('Move to %s').format(label.labelText);
+        this._placeHint(label);
+        if (made)
+            this._ext.modules?.get('glass')?.surfacesChanged?.();
+    }
+
+    // Centred under the label, a little below the top bar, and on the screen
+    _placeHint(label) {
+        const hint = this._hint;
+        const [x] = label.get_transformed_position();
+        const [width] = label.get_transformed_size();
+        const [, natural] = hint.get_preferred_width(-1);
+        const [panelX, panelY] = Main.panel.get_transformed_position();
+        const [panelWidth, panelHeight] = Main.panel.get_transformed_size();
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        const left = Math.min(Math.max(x + width / 2 - natural / 2, panelX), panelX + panelWidth - natural);
+        hint.set_position(Math.round(left), Math.round(panelY + panelHeight + HINT_GAP * scale));
+        Main.layoutManager.uiGroup.set_child_above_sibling(hint, null);
+    }
+
+    // A window landed on a label: a count of the windows dropped there in the last moment shows on its end. The
+    // workspace you are on stays on screen.
+    landed(label) {
+        const badge = label.badge;
+        const count = (badge?.count ?? 0) + 1;
+        if (badge) {
+            if (badge.timer)
+                GLib.source_remove(badge.timer);
+            badge.actor.remove_all_transitions();
+            badge.actor.opacity = 255;
+        } else {
+            const actor = new St.Label({style_class: 'amethystora-workspaces-badge', y_align: Clutter.ActorAlign.CENTER});
+            label.add_child(actor);
+            label.badge = {actor, count: 0, timer: 0};
+        }
+        label.badge.count = count;
+        label.badge.actor.text = _('+%d').format(count);
+        label.badge.timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT,
+            Math.max(1, Math.round(adjustAnimationTime(BADGE_MS, {animationRequired: true}))), () => {
+                const held = label.badge;
+                if (!held)
+                    return GLib.SOURCE_REMOVE;
+                held.timer = 0;
+                held.actor.ease({
+                    opacity: 0, duration: BADGE_FADE_MS, mode: Clutter.AnimationMode.EASE,
+                    onStopped: () => this._dropBadge(label),
+                });
+                return GLib.SOURCE_REMOVE;
+            });
+    }
+
+    _dropBadge(label) {
+        const badge = label.badge;
+        if (!badge)
+            return;
+        label.badge = null;
+        if (badge.timer)
+            GLib.source_remove(badge.timer);
+        badge.actor.destroy();
     }
 
     // A label taken out of the row leaves a gap the size of itself where it was, so that nothing moves until the

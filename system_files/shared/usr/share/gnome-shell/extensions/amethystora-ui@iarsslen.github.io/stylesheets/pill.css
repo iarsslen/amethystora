@@ -1,0 +1,333 @@
+/* The live pill and its parts (modules/pill.js): sizes, corners, spacing and type. The colours that follow the theme
+   are in /usr/share/amethystora/themed/shell-pill.css.tpl; the neutral ones here only stand in until a theme has been
+   applied. */
+
+/* The plate: two round ends and the middle, each with a hairline inside its outer edge */
+.amethystora-pill-piece {
+  background-color: rgba(10, 6, 18, 0.62);
+  border-color: rgba(255, 255, 255, 0.14);
+  transition-duration: 300ms;
+}
+.amethystora-pill-piece-start {
+  border-radius: 14px 0 0 14px;
+  border-top-width: 1px;
+  border-bottom-width: 1px;
+  border-left-width: 1px;
+  border-right-width: 0;
+}
+.amethystora-pill-piece-middle {
+  border-top-width: 1px;
+  border-bottom-width: 1px;
+  border-left-width: 0;
+  border-right-width: 0;
+}
+.amethystora-pill-piece-end {
+  border-radius: 0 14px 14px 0;
+  border-top-width: 1px;
+  border-bottom-width: 1px;
+  border-right-width: 1px;
+  border-left-width: 0;
+}
+
+/* What the pill shows */
+.amethystora-pill-content {
+  spacing: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #efe4ff;
+}
+.amethystora-pill-link { spacing: 8px; }
+.amethystora-pill-time { font-feature-settings: "tnum"; }
+.amethystora-pill-media-title { max-width: 180px; }
+.amethystora-pill-link-address { max-width: 220px; }
+.amethystora-pill-call-text { max-width: 180px; }
+
+.amethystora-pill-art {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background-size: cover;
+}
+.amethystora-pill-bars {
+  spacing: 2px;
+  height: 14px;
+}
+.amethystora-pill-bar {
+  width: 3px;
+  height: 14px;
+  border-radius: 1.5px;
+  background-color: #dcbcff;
+}
+.amethystora-pill-ring {
+  width: 18px;
+  height: 18px;
+  color: #dcbcff;
+}
+.amethystora-pill-rec-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 4.5px;
+  background-color: #f2566a;
+}
+
+/* Chips and small buttons in the pill: parts of it, which its own click finds */
+.amethystora-pill-chip {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background-color: rgba(255, 255, 255, 0.14);
+}
+.amethystora-pill-chip.amethystora-pill-small-button {
+  height: 24px;
+  border-width: 1px;
+  padding: 0 9px;
+}
+.amethystora-pill-chip.amethystora-pill-small-button-primary {
+  border-width: 0;
+  padding: 0 10px;
+}
+.amethystora-pill-chip.amethystora-pill-battery-button { height: 22px; }
+
+/* The card under the pill (a menu, which the glass draws), and the privacy dots' list */
+.amethystora-pill-pointer {
+  -arrow-rise: 0px;
+  -boxpointer-gap: 10px;
+}
+/* St's width is the box inside the padding and the menu's 1 px border: 380 in all */
+.popup-menu-content.amethystora-pill-card {
+  width: 342px;
+  padding: 18px;
+  spacing: 14px;
+  border-radius: 24px;
+}
+.amethystora-pill-card-body { spacing: 14px; }
+.amethystora-pill-card-buttons { spacing: 8px; }
+.amethystora-pill-button {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 700;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+.amethystora-pill-button:insensitive { color: rgba(239, 228, 255, 0.4); }
+.amethystora-pill-card-label {
+  font-size: 16px;
+  font-weight: 700;
+}
+.amethystora-pill-card-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+.amethystora-pill-card-text { font-size: 13.5px; }
+.amethystora-pill-card-small { font-size: 12px; font-feature-settings: "tnum"; }
+.amethystora-pill-card-line { height: 1px; }
+.amethystora-pill-card-row {
+  height: 36px;
+  border-radius: 12px;
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.amethystora-pill-card-row-box { spacing: 10px; }
+.amethystora-pill-card-clock {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.amethystora-pill-media-head { spacing: 14px; }
+.amethystora-pill-media-words { spacing: 4px; }
+.amethystora-pill-cover {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  background-size: cover;
+}
+.amethystora-pill-progress-box { spacing: 14px; }
+.amethystora-pill-progress {
+  height: 6px;
+  border-radius: 3px;
+}
+.amethystora-pill-progress-fill { border-radius: 3px; }
+
+.amethystora-pill-timer-head { spacing: 18px; }
+.amethystora-pill-timer-words { spacing: 2px; }
+.amethystora-pill-ring-large {
+  width: 86px;
+  height: 86px;
+}
+.amethystora-pill-timer-big {
+  font-size: 30px;
+  font-weight: 700;
+  font-feature-settings: "tnum";
+}
+.amethystora-pill-recording-head { spacing: 10px; }
+
+/* The quick timer at the end of the calendar's column */
+.amethystora-pill-timer-section {
+  spacing: 8px;
+  padding: 6px 0;
+}
+.amethystora-pill-timer-title {
+  font-size: 13px;
+  font-weight: 700;
+  font-feature-settings: "tnum";
+}
+.amethystora-pill-timer-buttons { spacing: 6px; }
+.amethystora-pill-timer-button {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* The privacy dots and their list */
+.amethystora-pill-dots {
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 999px;
+  spacing: 5px;
+  background-color: rgba(10, 6, 18, 0.45);
+}
+.amethystora-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+}
+.popup-menu-content.amethystora-pill-privacy-list {
+  width: 312px;
+  padding: 8px;
+  spacing: 0;
+  border-radius: 20px;
+}
+.amethystora-pill-privacy-row {
+  padding: 10px 12px;
+  border-radius: 12px;
+  spacing: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.amethystora-pill-privacy-who {
+  font-weight: 500;
+  text-align: right;
+}
+.amethystora-pill-mark {
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  border-width: 0;
+}
+/* Not in use: the same icon in a ring, which takes nothing from the row's width */
+.amethystora-pill-privacy-row-off .amethystora-pill-mark {
+  width: 16px;
+  height: 16px;
+  border-width: 2px;
+}
+.amethystora-pill-privacy-row-off .amethystora-pill-mark StIcon { icon-size: 12px; }
+.amethystora-pill-small-button {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* The battery's time left, under it */
+.amethystora-pill-tip {
+  border-radius: 14px;
+  padding: 9px 13px;
+  spacing: 2px;
+}
+.amethystora-pill-tip-first {
+  font-size: 13px;
+  font-weight: 700;
+}
+.amethystora-pill-tip-second {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* The digest card */
+.amethystora-pill-digest {
+  width: 376px;
+  border-radius: 22px;
+  padding: 16px;
+  spacing: 12px;
+}
+.amethystora-pill-digest-title {
+  font-size: 17px;
+  font-weight: 700;
+}
+.amethystora-pill-digest-count { font-size: 12.5px; }
+.amethystora-pill-digest-row { font-size: 13.5px; }
+.amethystora-pill-digest-icon { margin-right: 10px; }
+.amethystora-pill-digest-icon:rtl {
+  margin-right: 0;
+  margin-left: 10px;
+}
+.amethystora-pill-digest-app { font-weight: 700; }
+.amethystora-pill-digest-more { font-size: 13.5px; }
+.amethystora-pill-digest-buttons { spacing: 8px; }
+.amethystora-pill-digest-button {
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+/* Volume and brightness: a pill under the top bar, 36 high and 180 to 360 wide with its 1 px border (St's sizes are the
+   box inside the padding and the border). A desktop style that shapes the displays keeps its corners. */
+.osd-window.amethystora-pill-osd {
+  min-height: 34px;
+  min-width: 150px;
+  max-width: 330px;
+  padding: 0 14px;
+  spacing: 10px;
+  margin: 0;
+  border-radius: 999px;
+}
+.osd-window.amethystora-pill-osd StIcon { icon-size: 16px; }
+.osd-window.amethystora-pill-osd StLabel {
+  font-size: 13px;
+  font-weight: 700;
+  margin: 0;
+}
+.osd-window.amethystora-pill-osd .level {
+  min-width: 124px;
+  width: 124px;
+  -barlevel-height: 6px;
+  margin: 0;
+}
+
+/* The glow round the screen, until a theme has been applied */
+.amethystora-pill-glow-top {
+  border-top: 2px solid rgba(242, 86, 106, 0.95);
+  background-gradient-direction: vertical;
+  background-gradient-start: rgba(242, 86, 106, 0.45);
+  background-gradient-end: rgba(242, 86, 106, 0);
+}
+.amethystora-pill-glow-bottom {
+  border-bottom: 2px solid rgba(242, 86, 106, 0.95);
+  background-gradient-direction: vertical;
+  background-gradient-start: rgba(242, 86, 106, 0);
+  background-gradient-end: rgba(242, 86, 106, 0.45);
+}
+.amethystora-pill-glow-left {
+  border-left: 2px solid rgba(242, 86, 106, 0.95);
+  background-gradient-direction: horizontal;
+  background-gradient-start: rgba(242, 86, 106, 0.45);
+  background-gradient-end: rgba(242, 86, 106, 0);
+}
+.amethystora-pill-glow-right {
+  border-right: 2px solid rgba(242, 86, 106, 0.95);
+  background-gradient-direction: horizontal;
+  background-gradient-start: rgba(242, 86, 106, 0);
+  background-gradient-end: rgba(242, 86, 106, 0.45);
+}

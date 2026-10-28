@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The keys of the windows module (modules/windows.js): snap layouts, the window switcher, the Super card, hot corners,
+     show desktop, touchpad gestures, places, keep a copy in view and dimming. Written by ame desktop windows, Control
+     and the setup file; snap-chooser is a keybinding. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.windows" path="/org/gnome/shell/extensions/amethystora-ui/windows/">
+    <key name="snap" type="b">
+      <default>true</default>
+      <summary>Snap layouts</summary>
+      <description>In the classic layout, dragging a window to the top of the screen, or Super+Z, shows six layouts to drop it on.</description>
+    </key>
+    <key name="snap-chooser" type="as">
+      <default><![CDATA[['<Super>z']]]></default>
+      <summary>Show the snap layouts for the focused window</summary>
+      <description>Opens the snap layouts for the window in use, in the classic layout.</description>
+    </key>
+    <key name="switcher" type="b">
+      <default>true</default>
+      <summary>Window switcher you can type into</summary>
+      <description>In the classic layout, Super+Tab and Alt+Tab show every window in a grid; typing keeps the ones whose app or title matches.</description>
+    </key>
+    <key name="hold-super" type="b">
+      <default>true</default>
+      <summary>Shortcuts while Super is held</summary>
+      <description>Holding Super alone shows the main shortcuts and the dock's numbers.</description>
+    </key>
+    <key name="hold-super-delay" type="i">
+      <range min="500" max="3000"/>
+      <default>1000</default>
+      <summary>How long to hold Super</summary>
+      <description>In milliseconds, before the shortcuts show.</description>
+    </key>
+    <key name="corner-top-left" type="s">
+      <choices>
+        <choice value="none"/>
+        <choice value="overview"/>
+        <choice value="desktop"/>
+        <choice value="lock"/>
+        <choice value="note"/>
+        <choice value="notifications"/>
+      </choices>
+      <default>'none'</default>
+      <summary>The top left corner</summary>
+      <description>What pushing the pointer into this corner of the screen does: nothing, the overview, show the desktop, lock the screen, a quick note, or the notifications.</description>
+    </key>
+    <key name="corner-top-right" type="s">
+      <choices>
+        <choice value="none"/>
+        <choice value="overview"/>
+        <choice value="desktop"/>
+        <choice value="lock"/>
+        <choice value="note"/>
+        <choice value="notifications"/>
+      </choices>
+      <default>'none'</default>
+      <summary>The top right corner</summary>
+      <description>What pushing the pointer into this corner of the screen does: nothing, the overview, show the desktop, lock the screen, a quick note, or the notifications.</description>
+    </key>
+    <key name="corner-bottom-left" type="s">
+      <choices>
+        <choice value="none"/>
+        <choice value="overview"/>
+        <choice value="desktop"/>
+        <choice value="lock"/>
+        <choice value="note"/>
+        <choice value="notifications"/>
+      </choices>
+      <default>'none'</default>
+      <summary>The bottom left corner</summary>
+      <description>What pushing the pointer into this corner of the screen does: nothing, the overview, show the desktop, lock the screen, a quick note, or the notifications.</description>
+    </key>
+    <key name="corner-bottom-right" type="s">
+      <choices>
+        <choice value="none"/>
+        <choice value="overview"/>
+        <choice value="desktop"/>
+        <choice value="lock"/>
+        <choice value="note"/>
+        <choice value="notifications"/>
+      </choices>
+      <default>'none'</default>
+      <summary>The bottom right corner</summary>
+      <description>What pushing the pointer into this corner of the screen does: nothing, the overview, show the desktop, lock the screen, a quick note, or the notifications.</description>
+    </key>
+    <key name="show-desktop" type="b">
+      <default>false</default>
+      <summary>Click the wallpaper to show the desktop</summary>
+      <description>In the classic layout, windows slide to the edges of the screen; a click brings them back.</description>
+    </key>
+    <key name="gesture-pinch" type="b">
+      <default>true</default>
+      <summary>Pinch with three fingers for the app grid</summary>
+      <description>A three-finger pinch on the touchpad opens the app grid.</description>
+    </key>
+    <key name="gesture-spread" type="b">
+      <default>true</default>
+      <summary>Spread three fingers to show the desktop</summary>
+      <description>Three fingers spread on the touchpad show the desktop, in the classic layout.</description>
+    </key>
+    <key name="gesture-down" type="b">
+      <default>true</default>
+      <summary>Three fingers down for the app's windows</summary>
+      <description>Three fingers down on the touchpad fan the windows of the app in use out from the dock.</description>
+    </key>
+    <key name="gesture-today" type="b">
+      <default>true</default>
+      <summary>Four fingers left for Today</summary>
+      <description>Four fingers to the left on the touchpad open Today and the notifications; to the right close them.</description>
+    </key>
+    <key name="places" type="b">
+      <default>true</default>
+      <summary>Windows remember their places</summary>
+      <description>In the classic layout, for each arrangement of screens, apps' windows open where they were.</description>
+    </key>
+    <key name="dim" type="b">
+      <default>false</default>
+      <summary>Dim the windows not in use</summary>
+      <description>The windows behind the one in use are drawn a little darker.</description>
+    </key>
+  </schema>
+</schemalist>

@@ -35,7 +35,16 @@ pub enum Role {
 }
 
 /// What the module may call, besides reading properties
-const MODULE_METHODS: &[&str] = &["GetDevices", "PushClipboard", "Ping", "SendUrl"];
+const MODULE_METHODS: &[&str] = &[
+    "GetDevices",
+    "PushClipboard",
+    "Ping",
+    "SendUrl",
+    // The live pill's chip for a phone ringing: it only silences the phone's ringer
+    "MuteRinger",
+    // The module says whether it shows the links phones share, which the program then does not notify itself
+    "TakeLinks",
+];
 
 pub fn role_of_exe(exe: &str, app: &str, module: &str) -> Role {
     if exe == app {
@@ -105,12 +114,23 @@ fn note_client(service: &Service, sender: Option<&str>, role: Role) {
     }
 }
 
-/// Which signals each of the two is sent: the module follows the phones and the clipboard it carries; the app everything
-/// but the clipboard
-fn audience(role: Role, signal: &str) -> bool {
+/// Which signals each of the two is sent: the module follows the phones, the clipboard it carries and the files going
+/// out (the dock shows how far a drop on the phone got), a phone ringing and a shared link (the live pill); the app
+/// everything but the clipboard and the link. A file coming in is the
+/// app's alone: its name is the phone's to say, and the shell has no use for it. `args` are the signal's.
+pub fn audience(role: Role, signal: &str, args: Option<&glib::Variant>) -> bool {
     match role {
-        Role::App => signal != "ClipboardReceived",
-        Role::Module => matches!(signal, "DeviceAdded" | "DeviceRemoved" | "PropertiesChanged" | "ClipboardReceived"),
+        // The clipboard is the shell's to set, and a shared link the shell's to show (the live pill)
+        Role::App => !matches!(signal, "ClipboardReceived" | "UrlReceived"),
+        Role::Module => match signal {
+            "DeviceAdded" | "DeviceRemoved" | "PropertiesChanged" | "ClipboardReceived" => true,
+            // The live pill: a phone ringing, and a link shared from one
+            "Call" => true,
+            "UrlReceived" => true,
+            // (transfer_id, name, incoming, done, total, state)
+            "Transfer" => args.filter(|a| a.n_children() > 2).and_then(|a| a.child_value(2).get::<bool>()) == Some(false),
+            _ => false,
+        },
         Role::Other => false,
     }
 }
@@ -138,6 +158,7 @@ fn watch_callers(service: &Rc<Service>, bus: &gio::DBusConnection) {
             if let Some(service) = weak.upgrade() {
                 service.callers.borrow_mut().remove(&name);
                 service.clients.borrow_mut().remove(&name);
+                service.link_takers.borrow_mut().remove(&name);
             }
         }
     });
@@ -181,7 +202,7 @@ fn send_to_clients(service: &Service, path: &str, interface: &str, signal: &str,
     let Some(bus) = service.bus.borrow().clone() else { return };
     let clients: Vec<(String, Role)> = service.clients.borrow().iter().map(|(n, r)| (n.clone(), *r)).collect();
     for (name, role) in clients {
-        if !audience(role, signal) {
+        if !audience(role, signal, args) {
             continue;
         }
         if let Err(e) = bus.emit_signal(Some(&name), path, interface, signal, args) {
@@ -269,6 +290,10 @@ pub fn export(service: &Rc<Service>, bus: &gio::DBusConnection) -> Result<(), gl
                     return invocation.return_dbus_error(NOT_AVAILABLE, "caller not allowed");
                 }
                 note_client(&service, sender, role);
+                if method == "TakeLinks" {
+                    // Only a client of the module's role takes them, and only for its own connection
+                    return nothing(invocation, arg::<bool>(&params, 0).map(|on| set_link_taker(&service, sender, role, on)));
+                }
                 root_method(&service, method, &params, invocation)
             }
             None => invocation.return_dbus_error(NOT_AVAILABLE, "the program is stopping"),
@@ -329,6 +354,23 @@ pub fn unregister_device(service: &Rc<Service>, dev: &Rc<Device>) {
     if let (Some(bus), Some(id)) = (service.bus.borrow().clone(), registration) {
         let _ = bus.unregister_object(id);
     }
+}
+
+/// Whether a connection shows the links phones share (TakeLinks): only the module's, and only while it is a client
+pub fn set_link_taker(service: &Service, sender: Option<&str>, role: Role, on: bool) {
+    let Some(sender) = sender else { return };
+    if on && role == Role::Module {
+        service.link_takers.borrow_mut().insert(sender.to_string());
+    } else {
+        service.link_takers.borrow_mut().remove(sender);
+    }
+}
+
+/// Whether a web link goes to the shell's module now: a connection of the module's that is still a client has taken
+/// them, and has not let go
+pub fn links_taken(service: &Service) -> bool {
+    let clients = service.clients.borrow();
+    service.link_takers.borrow().iter().any(|name| clients.get(name) == Some(&Role::Module))
 }
 
 // --- Methods ---------------------------------------------------------------------------------------------

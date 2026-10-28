@@ -67,6 +67,19 @@ pub fn openable(link: &str) -> bool {
     (lower.starts_with("http://") || lower.starts_with("https://")) && !link.contains(char::is_control)
 }
 
+/// A link the shell's module takes as it is: one web address with a host and no white space anywhere, as the module
+/// itself checks it before it shows one (modules/connect.js `address`). Anything else stays the program's to say.
+pub fn for_the_shell(link: &str) -> bool {
+    if !openable(link) || link.chars().any(char::is_whitespace) {
+        return false;
+    }
+    let Some((_, rest)) = link.split_once("://") else { return false };
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    let host = authority.rsplit('@').next().unwrap_or("");
+    let host = if host.starts_with('[') { host.split(']').next().unwrap_or("").trim_start_matches('[') } else { host.split(':').next().unwrap_or("") };
+    !host.is_empty()
+}
+
 /// Where files from phones go: the Download folder, in a folder of its own for phones. If the account has none,
 /// or it is the home folder itself, `Downloads` in the home.
 pub fn receive_root(download: Option<PathBuf>, home: &Path) -> PathBuf {
@@ -233,6 +246,16 @@ mod tests {
         assert!(!openable("javascript:alert(1)"));
         assert!(!openable("smb://host/share"));
         assert!(!openable("https://example.org/\u{0}"));
+    }
+
+    #[test]
+    fn links_the_shell_takes() {
+        for good in ["https://example.org/a", "http://example.org", "https://user@example.org:8080/p?q#f", "https://[::1]/"] {
+            assert!(for_the_shell(good), "{good}");
+        }
+        for bad in ["https://example.org/a b", "https://", "https:///path", "https://:80/", "ftp://example.org/", "https://ex ample.org/"] {
+            assert!(!for_the_shell(bad), "{bad}");
+        }
     }
 
     #[test]

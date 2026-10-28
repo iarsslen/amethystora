@@ -74,6 +74,9 @@ the session, for a document not yet saved, still gets its say: the restart is th
 dialog, which names it. The disk stays unlocked through a soft reboot, as the kernel keeps running: to have it
 locked again, shut down.
 
+The [live pill](desktop.md#the-live-pill) says **Ready** when an update waits for the restart; its **Restart now**
+opens System Updates.
+
 ## Firmware
 
 The firmware of the machine and of its devices (the UEFI firmware, docks, SSDs, keyboards, the

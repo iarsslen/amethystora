@@ -17,6 +17,8 @@
 
 #uiGroup.amethystora-style-floating #panel.amethystora-glass-clear {
   background-color: transparent;
+  border-color: transparent;
+  -amethystora-glass-edge: rgba({{ accent_rgb }}, 0.35);
 }
 
 #uiGroup.amethystora-style-floating #panel:overview {

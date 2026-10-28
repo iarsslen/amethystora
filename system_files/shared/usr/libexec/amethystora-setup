@@ -21,10 +21,16 @@
 #                has (the built-in ones pinned by digest in the image), packages from its repositories
 #   extensions   the GNOME extensions turned on, of those installed here
 #   theme        the desktop theme
-#   settings     {layout, favorites, keybindings, tiling}: the window layout, the dock's apps, the keys of
-#                keybindings (the image's custom keybindings by their id, never a command), and the tiling's
+#   settings     {layout, favorites, keybindings, tiling, pointer, glass, motion, workspaces, windows, dock, pill}: the window layout, the dock's apps, the keys of
+#                keybindings (the image's custom keybindings by their id, never a command), the tiling's
 #                settings by their key in its schema (TILING_KEYS: numbers, switches and lists, never its
-#                window rules, which hold patterns, or a picture's path), and no other GNOME setting. A file
+#                window rules, which hold patterns, or a picture's path), shake to find and the larger pointer on
+#                dense screens (POINTER_KEYS), the glass and Reduce transparency (GLASS_KEYS), the minimize and
+#                the workspace switch (MOTION_KEYS), workspaces named after their apps (WORKSPACES_KEYS), the windows
+#                module's switches, corners and gestures (WINDOWS_KEYS), the dock's settings, folders and stacks
+#                under the home folder (DOCK_KEYS), the live pill, the privacy dots, the glow, quiet and the
+#                digest (PILL_KEYS), and no other GNOME
+#                setting (Reduce motion and High Contrast are GNOME's accessibility keys, left out). A file
 #                from before the tiling replaced PaperWM may still hold its gaps under paperwm, which are read
 #                as the tiling's when the file has no tiling of its own (a gap the tiling cannot take is left
 #                out), and its keybindings, which `diff` lists as keys this machine does not have.
@@ -57,7 +63,7 @@ CUSTOM=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings
 RELOCATABLE=org.gnome.settings-daemon.plugins.media-keys.custom-keybinding
 KEY_SCHEMAS='["org.gnome.desktop.wm.keybindings", "org.gnome.shell.keybindings", "org.gnome.mutter.keybindings",
     "org.gnome.mutter.wayland.keybindings", "org.gnome.settings-daemon.plugins.media-keys",
-    "org.gnome.shell.extensions.amethystora-ui.tiling.keybindings"]'
+    "org.gnome.shell.extensions.amethystora-ui.tiling.keybindings", "org.gnome.shell.extensions.amethystora-ui.windows"]'
 TILING=org.gnome.shell.extensions.amethystora-ui.tiling
 # The tiling's settings a file may hold, each with its type and, for a number, the range its schema gives it,
 # so that a file is checked before anything is set rather than half applied; test-setup.sh holds this to the
@@ -86,6 +92,48 @@ TILING_KEYS='{
     "disable-scratch-in-overview": ["b"], "overview-ensure-viewport-animation": ["i", 0, 2],
     "use-default-background": ["b"], "workspace-colors": ["as", "colours"]
 }'
+# The pointer module's keys, checked the same way (a string key with the choices its schema gives it)
+POINTER=org.gnome.shell.extensions.amethystora-ui.pointer
+POINTER_KEYS='{"shake": ["s", ["grow", "beacon", "off"]], "dense": ["b"]}'
+# The glass's keys: which glass, and Reduce transparency
+GLASS=org.gnome.shell.extensions.amethystora-ui.glass
+GLASS_KEYS='{"material": ["s", ["frost", "prism", "clear"]], "solid": ["b"]}'
+# The motion's keys: how a window goes into the dock, and how workspaces change
+MOTION=org.gnome.shell.extensions.amethystora-ui.motion
+MOTION_KEYS='{"minimize": ["s", ["droplet", "shrink"]], "workspace-switch": ["s", ["depth", "slide"]]}'
+# The top bar's workspaces: their names from their main app. Never its two keybindings, which the keybindings part
+# keeps.
+WORKSPACES=org.gnome.shell.extensions.amethystora-ui.workspaces
+WORKSPACES_KEYS='{"auto-names": ["b"]}'
+# The windows module's keys: snap layouts, the switcher, the Super card, the corners, show desktop, the gestures,
+# places and dimming. Never snap-chooser, a keybinding the keybindings part keeps, nor places.json, which is the
+# machine's own, made of its screens' connectors.
+WINDOWS=org.gnome.shell.extensions.amethystora-ui.windows
+WINDOWS_KEYS='{
+    "snap": ["b"], "switcher": ["b"], "hold-super": ["b"], "hold-super-delay": ["i", 500, 3000],
+    "corner-top-left": ["s", ["none", "overview", "desktop", "lock", "note", "notifications"]],
+    "corner-top-right": ["s", ["none", "overview", "desktop", "lock", "note", "notifications"]],
+    "corner-bottom-left": ["s", ["none", "overview", "desktop", "lock", "note", "notifications"]],
+    "corner-bottom-right": ["s", ["none", "overview", "desktop", "lock", "note", "notifications"]],
+    "show-desktop": ["b"], "gesture-pinch": ["b"], "gesture-spread": ["b"], "gesture-down": ["b"],
+    "gesture-today": ["b"], "places": ["b"], "dim": ["b"]
+}'
+# The dock's keys: how it moves, what it holds and where it lives. Its folders by name, each two launcher IDs or more,
+# and its stacks as special folders or folders under the home folder only: a folder elsewhere names this machine.
+DOCK=org.gnome.shell.extensions.amethystora-ui.dock
+DOCK_KEYS='{
+    "magnify": ["s", ["off", "swell", "lift"]], "magnify-amount": ["d", 1.2, 2.2],
+    "launch": ["s", ["halo", "hop", "breathe", "off"]], "indicator": ["s", ["bar", "dot", "glow"]],
+    "recent": ["b"], "previews": ["b"], "edge": ["s", ["bottom", "left", "right"]],
+    "screens": ["s", ["every", "primary"]], "autohide": ["s", ["off", "touch"]], "workspace-apps": ["b"],
+    "folders": ["folders"], "stacks": ["as", "stacks"]
+}'
+# The live pill's keys: the pill, the privacy dots, the glow, quiet, quiet at night, the digest and its times
+PILL=org.gnome.shell.extensions.amethystora-ui.pill
+PILL_KEYS='{
+    "live": ["b"], "privacy-dots": ["b"], "glow": ["b"], "quiet": ["b"], "quiet-night": ["b"],
+    "digest": ["b"], "digest-times": ["as", "times"]
+}'
 # What a value of each kind has to be, for the check and for reading an old file's gaps
 TILING_JQ="$(
     cat <<'EOF'
@@ -95,12 +143,25 @@ def valid($spec): $spec as [$t, $a, $b] |
     elif $t == "d" then type == "number" and . >= $a and . <= $b
     elif $t == "ad" then type == "array" and all(.[]; type == "number" and ($a != "steps" or . > 0))
     elif $t == "as" and $a == "colours" then type == "array" and all(.[]; type == "string" and test("^(#[0-9A-Fa-f]{6})?$"))
+    elif $t == "as" and $a == "stacks" then type == "array" and length <= 12 and all(.[]; type == "string" and
+        (test("^xdg:(DESKTOP|DOCUMENTS|DOWNLOAD|MUSIC|PICTURES|PUBLICSHARE|TEMPLATES|VIDEOS)$") or
+         (test("^~/[^'\\\\]+$") and (split("/") | index("..") | not))))
+    elif $t == "as" and $a == "times" then type == "array" and length >= 1 and length <= 6 and (unique | length) == length
+        and all(.[]; type == "string" and test("^([01][0-9]|2[0-3]):[0-5][0-9]$"))
+    elif $t == "folders" then type == "object" and all(to_entries[];
+        (.key | length >= 1 and length <= 40 and (test("[[:cntrl:]]") | not))
+        and (.value | type == "array" and length >= 2 and all(.[]; type == "string" and test("^[A-Za-z0-9._+-]+[.]desktop$"))))
+    elif $t == "s" then type == "string" and IN($a[])
     else false end;
 def wanted($spec): $spec as [$t, $a, $b] |
     if $t == "b" then "true or false"
+    elif $t == "s" then "one of \($a | join(", "))"
     elif $t == "i" then "a whole number from \($a) to \($b)"
     elif $t == "d" then "a number from \($a) to \($b)"
     elif $a == "steps" then "a list of numbers above 0"
+    elif $a == "stacks" then "a list of twelve folders at most, each xdg:NAME or ~/PATH"
+    elif $a == "times" then "a list of one to six different times, each HH:MM"
+    elif $t == "folders" then "folders by name (1 to 40 characters), each with two launcher IDs or more"
     elif $t == "ad" then "a list of numbers"
     else "a list of colours, each \"\" or one such as \"#314e6c\"" end;
 # A file from before the tiling replaced PaperWM: its gaps are the tiling's, unless the file has a tiling of its
@@ -186,7 +247,8 @@ if type != "object" then "it is not a JSON object" else
         end end),
     at("extensions"; each("extensions"; name; "an extension's id")),
     at("theme"; if type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]*$") then empty else "theme is not a theme's name" end),
-    at("settings"; only(["layout", "favorites", "keybindings", "tiling", "paperwm"]; "settings."),
+    at("settings"; only(["layout", "favorites", "keybindings", "tiling", "paperwm", "pointer", "glass", "motion", "workspaces",
+            "windows", "dock", "pill"]; "settings."),
         (if type == "object" then
             at("layout"; if IN("tiling", "classic") then empty else "settings.layout is tiling or classic" end),
             at("favorites"; each("settings.favorites";
@@ -200,12 +262,42 @@ if type != "object" then "it is not a JSON object" else
                         if (.key | test("^custom[0-9]+$")) and (.value | accels and length <= 1) then empty
                         else "settings.keybindings.custom.\(.key) is one of the image's custom keybindings, set to a list of one key or none" end
                     else to_entries[] |
-                        if (.key | test("^[a-z0-9][a-z0-9-]*$")) and .key != "custom-keybindings" and (.value | accels) then empty
+                        if (.key | test("^[a-z0-9][a-z0-9-]*$")) and .key != "custom-keybindings" and (.value | accels)
+                            # The windows module's schema holds one keybinding among its settings
+                            and ($s != "org.gnome.shell.extensions.amethystora-ui.windows" or .key == "snap-chooser") then empty
                         else "settings.keybindings.\($s).\(.key) is not a keybinding set to a list of keys" end
                     end else empty end)),
             at("tiling"; only($tiling | keys; "settings.tiling."),
                 (if type == "object" then to_entries[] | select(.key | IN($tiling | keys[])) | $tiling[.key] as $spec
                     | if .value | valid($spec) then empty else "settings.tiling.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("pointer"; only($pointer | keys; "settings.pointer."),
+                (if type == "object" then to_entries[] | select(.key | IN($pointer | keys[])) | $pointer[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.pointer.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("glass"; only($glass | keys; "settings.glass."),
+                (if type == "object" then to_entries[] | select(.key | IN($glass | keys[])) | $glass[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.glass.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("motion"; only($motion | keys; "settings.motion."),
+                (if type == "object" then to_entries[] | select(.key | IN($motion | keys[])) | $motion[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.motion.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("workspaces"; only($workspaces | keys; "settings.workspaces."),
+                (if type == "object" then to_entries[] | select(.key | IN($workspaces | keys[])) | $workspaces[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.workspaces.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("windows"; only($windows | keys; "settings.windows."),
+                (if type == "object" then to_entries[] | select(.key | IN($windows | keys[])) | $windows[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.windows.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("dock"; only($dock | keys; "settings.dock."),
+                (if type == "object" then to_entries[] | select(.key | IN($dock | keys[])) | $dock[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.dock.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("pill"; only($pill | keys; "settings.pill."),
+                (if type == "object" then to_entries[] | select(.key | IN($pill | keys[])) | $pill[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.pill.\(.key) is \(wanted($spec))" end
                  else empty end))
         else empty end))
 end
@@ -215,7 +307,10 @@ EOF
 # Exits, saying why, unless the JSON on stdin is a setup file
 check() {
     local problems
-    problems="$(jq -r --argjson schemas "${KEY_SCHEMAS}" --argjson tiling "${TILING_KEYS}" "${TILING_JQ} ${CHECK}" 2>&1)" ||
+    problems="$(jq -r --argjson schemas "${KEY_SCHEMAS}" --argjson tiling "${TILING_KEYS}" --argjson pointer "${POINTER_KEYS}" \
+        --argjson glass "${GLASS_KEYS}" --argjson windows "${WINDOWS_KEYS}" --argjson dock "${DOCK_KEYS}" \
+        --argjson motion "${MOTION_KEYS}" --argjson workspaces "${WORKSPACES_KEYS}" --argjson pill "${PILL_KEYS}" \
+        "${TILING_JQ} ${CHECK}" 2>&1)" ||
         die "$1 is not JSON."
     [[ -z "${problems}" ]] ||
         die "$1 is not a setup file this version of Amethystora reads:"$'\n'"$(sed 's/^/  /' <<<"${problems}")"
@@ -253,9 +348,48 @@ machine() {
 
 # --- What the machine has -----------------------------------------------------------------------
 
-# A value as GSettings prints it, as JSON: lists of strings or numbers, strings, numbers and switches. A
-# number is written as JSON writes it, 0.15 where GSettings prints 0.14999999999999999.
-as_json() { sed -E "s/^@[a-z]+ //; s/'/\"/g" | jq -c 'walk(if type == "number" then . + 0 else . end)' 2>/dev/null; }
+# A value as GSettings prints it, as JSON: lists of strings or numbers, strings, numbers, switches and the dock's
+# folders. A string may hold either quote (GSettings then writes it in the other), so text with a quote in it is read
+# as GVariant text is written, by python, the types GVariant writes before a value left out. A number is written as
+# JSON writes it, 0.15 where GSettings prints 0.14999999999999999.
+as_json() {
+    local text
+    text="$(cat)"
+    if [[ "${text}" != *[\'\"]* ]]; then
+        sed -E "s/^@[^ ]+ //" <<<"${text}" | jq -c 'walk(if type == "number" then . + 0 else . end)' 2>/dev/null
+        return
+    fi
+    python3 -I -c '
+import ast, json, sys
+QUOTES, BACKSLASH = (chr(34), chr(39)), chr(92)
+TYPES = {"byte", "int16", "uint16", "int32", "uint32", "int64", "uint64", "handle", "double", "objectpath",
+         "signature", "string", "boolean"}
+WORDS = {"true": "True", "false": "False", "nothing": "None"}
+text, out, i = sys.stdin.read().strip(), [], 0
+while i < len(text):
+    c = text[i]
+    if c in QUOTES:
+        j = i + 1
+        while j < len(text) and text[j] != c:
+            j += 2 if text[j] == BACKSLASH else 1
+        out.append(text[i:j + 1])
+        i = j + 1
+    elif c == "@":
+        while i < len(text) and not text[i].isspace():
+            i += 1
+    elif c.isalpha():
+        j = i
+        while j < len(text) and (text[j].isalnum() or text[j] == "_"):
+            j += 1
+        word = text[i:j]
+        out.append("" if word in TYPES else WORDS.get(word, word))
+        i = j
+    else:
+        out.append(c)
+        i += 1
+print(json.dumps(ast.literal_eval("".join(out))))
+' <<<"${text}" 2>/dev/null | jq -c 'walk(if type == "number" then . + 0 else . end)' 2>/dev/null
+}
 
 # A list of names as GSettings takes it: the format keeps quotes out of every one, so @sh quotes each
 # the way GVariant does
@@ -287,7 +421,39 @@ current() {
             value="$(gsettings get "${TILING}" "${key}" 2>/dev/null | as_json)"
             jq -nc --arg k "${key}" --argjson v "${value:-null}" '{tiling: {($k): $v}}'
         done < <(jq -r '.settings.tiling // {} | keys[]' <<<"$1")
-    } | jq -sc 'reduce .[] as $x ({favorites: null, keybindings: {}, tiling: {}}; . * $x)'
+        while read -r key; do
+            value="$(gsettings get "${POINTER}" "${key}" 2>/dev/null | as_json)"
+            jq -nc --arg k "${key}" --argjson v "${value:-null}" '{pointer: {($k): $v}}'
+        done < <(jq -r '.settings.pointer // {} | keys[]' <<<"$1")
+        while read -r key; do
+            value="$(gsettings get "${GLASS}" "${key}" 2>/dev/null | as_json)"
+            jq -nc --arg k "${key}" --argjson v "${value:-null}" '{glass: {($k): $v}}'
+        done < <(jq -r '.settings.glass // {} | keys[]' <<<"$1")
+        while read -r key; do
+            value="$(gsettings get "${MOTION}" "${key}" 2>/dev/null | as_json)"
+            jq -nc --arg k "${key}" --argjson v "${value:-null}" '{motion: {($k): $v}}'
+        done < <(jq -r '.settings.motion // {} | keys[]' <<<"$1")
+        while read -r key; do
+            value="$(gsettings get "${WORKSPACES}" "${key}" 2>/dev/null | as_json)"
+            jq -nc --arg k "${key}" --argjson v "${value:-null}" '{workspaces: {($k): $v}}'
+        done < <(jq -r '.settings.workspaces // {} | keys[]' <<<"$1")
+        while read -r key; do
+            value="$(gsettings get "${WINDOWS}" "${key}" 2>/dev/null | as_json)"
+            jq -nc --arg k "${key}" --argjson v "${value:-null}" '{windows: {($k): $v}}'
+        done < <(jq -r '.settings.windows // {} | keys[]' <<<"$1")
+        while read -r key; do
+            value="$(gsettings get "${DOCK}" "${key}" 2>/dev/null | as_json)"
+            # A stack outside the home folder names this machine: a file never holds one, and never takes it away
+            [[ "${key}" == stacks && -n "${value}" ]] && value="$(jq -c 'map(select(test("^(xdg:|~/)")))' <<<"${value}")"
+            jq -nc --arg k "${key}" --argjson v "${value:-null}" '{dock: {($k): $v}}'
+        done < <(jq -r '.settings.dock // {} | keys[]' <<<"$1")
+        while read -r key; do
+            value="$(gsettings get "${PILL}" "${key}" 2>/dev/null | as_json)"
+            jq -nc --arg k "${key}" --argjson v "${value:-null}" '{pill: {($k): $v}}'
+        done < <(jq -r '.settings.pill // {} | keys[]' <<<"$1")
+    } | jq -sc 'reduce .[] as $x ({favorites: null, keybindings: {}, tiling: {}, pointer: {}, glass: {}, motion: {},
+        workspaces: {}, windows: {}, dock: {}, pill: {}};
+        . * $x)'
 }
 
 # Where this machine can install from, and what it can turn on
@@ -363,7 +529,42 @@ def brew($x; $k): $x.brew[$k] // [];
         | select(.value != $v) | {area: "tiling", action: "set", key: $k, to: .value, from: $v}
         + if $v == null then {ok: false, why: "this machine's tiling has no such setting"} else {} end),
     ($hs.tiling // {} | to_entries[] | .key as $k | select($fs.tiling // {} | has($k) | not)
-        | {area: "tiling", action: "remove", key: $k, from: .value})
+        | {area: "tiling", action: "remove", key: $k, from: .value}),
+    ($fs.pointer // {} | to_entries[] | .key as $k | $now.pointer[$k] as $v
+        | select(.value != $v) | {area: "pointer", action: "set", key: $k, to: .value, from: $v}
+        + if $v == null then {ok: false, why: "this machine has no such pointer setting"} else {} end),
+    ($hs.pointer // {} | to_entries[] | .key as $k | select($fs.pointer // {} | has($k) | not)
+        | {area: "pointer", action: "remove", key: $k, from: .value}),
+    ($fs.glass // {} | to_entries[] | .key as $k | $now.glass[$k] as $v
+        | select(.value != $v) | {area: "glass", action: "set", key: $k, to: .value, from: $v}
+        + if $v == null then {ok: false, why: "this machine has no such glass setting"} else {} end),
+    ($hs.glass // {} | to_entries[] | .key as $k | select($fs.glass // {} | has($k) | not)
+        | {area: "glass", action: "remove", key: $k, from: .value}),
+    ($fs.motion // {} | to_entries[] | .key as $k | $now.motion[$k] as $v
+        | select(.value != $v) | {area: "motion", action: "set", key: $k, to: .value, from: $v}
+        + if $v == null then {ok: false, why: "this machine has no such motion setting"} else {} end),
+    ($hs.motion // {} | to_entries[] | .key as $k | select($fs.motion // {} | has($k) | not)
+        | {area: "motion", action: "remove", key: $k, from: .value}),
+    ($fs.workspaces // {} | to_entries[] | .key as $k | $now.workspaces[$k] as $v
+        | select(.value != $v) | {area: "workspaces", action: "set", key: $k, to: .value, from: $v}
+        + if $v == null then {ok: false, why: "this machine has no such workspaces setting"} else {} end),
+    ($hs.workspaces // {} | to_entries[] | .key as $k | select($fs.workspaces // {} | has($k) | not)
+        | {area: "workspaces", action: "remove", key: $k, from: .value}),
+    ($fs.windows // {} | to_entries[] | .key as $k | $now.windows[$k] as $v
+        | select(.value != $v) | {area: "windows", action: "set", key: $k, to: .value, from: $v}
+        + if $v == null then {ok: false, why: "this machine has no such windows setting"} else {} end),
+    ($hs.windows // {} | to_entries[] | .key as $k | select($fs.windows // {} | has($k) | not)
+        | {area: "windows", action: "remove", key: $k, from: .value}),
+    ($fs.dock // {} | to_entries[] | .key as $k | $now.dock[$k] as $v
+        | select(.value != $v) | {area: "dock", action: "set", key: $k, to: .value, from: $v}
+        + if $v == null then {ok: false, why: "this machine has no such dock setting"} else {} end),
+    ($hs.dock // {} | to_entries[] | .key as $k | select($fs.dock // {} | has($k) | not)
+        | {area: "dock", action: "remove", key: $k, from: .value}),
+    ($fs.pill // {} | to_entries[] | .key as $k | $now.pill[$k] as $v
+        | select(.value != $v) | {area: "pill", action: "set", key: $k, to: .value, from: $v}
+        + if $v == null then {ok: false, why: "this machine has no such pill setting"} else {} end),
+    ($hs.pill // {} | to_entries[] | .key as $k | select($fs.pill // {} | has($k) | not)
+        | {area: "pill", action: "remove", key: $k, from: .value})
   ]
 | map({ok: true, why: null} + .)
 EOF
@@ -402,6 +603,27 @@ def text:
         + if .action == "set" then ": \(.to | accels)" + if .from == null then "" else ", in place of \(.from | accels)" end
           else ", \(.from | accels) here, back to the image's" end
     elif .area == "tiling" then "the tiling's \(.key)"
+        + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
+          else ", \(.from | tojson) here, back to the image's" end
+    elif .area == "pointer" then "the pointer's \(.key)"
+        + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
+          else ", \(.from | tojson) here, back to the image's" end
+    elif .area == "glass" then "the glass's \(.key)"
+        + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
+          else ", \(.from | tojson) here, back to the image's" end
+    elif .area == "motion" then "the motion's \(.key)"
+        + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
+          else ", \(.from | tojson) here, back to the image's" end
+    elif .area == "workspaces" then "the workspaces' \(.key)"
+        + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
+          else ", \(.from | tojson) here, back to the image's" end
+    elif .area == "windows" then "the windows' \(.key)"
+        + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
+          else ", \(.from | tojson) here, back to the image's" end
+    elif .area == "dock" then "the dock's \(.key)"
+        + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
+          else ", \(.from | tojson) here, back to the image's" end
+    elif .area == "pill" then "the live pill's \(.key)"
         + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
           else ", \(.from | tojson) here, back to the image's" end
     else tojson end;
@@ -599,6 +821,47 @@ add_all() {
         name="$(jq -r .key <<<"${change}")"
         gsettings set "${TILING}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the tiling's ${name}")
     done
+    # A switch, or one of the choices the check let through, which GSettings reads in JSON's double quotes
+    mapfile -t changes < <(of "${todo}" pointer)
+    for change in "${changes[@]}"; do
+        name="$(jq -r .key <<<"${change}")"
+        gsettings set "${POINTER}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the pointer's ${name}")
+    done
+    mapfile -t changes < <(of "${todo}" glass)
+    for change in "${changes[@]}"; do
+        name="$(jq -r .key <<<"${change}")"
+        gsettings set "${GLASS}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the glass's ${name}")
+    done
+    mapfile -t changes < <(of "${todo}" motion)
+    for change in "${changes[@]}"; do
+        name="$(jq -r .key <<<"${change}")"
+        gsettings set "${MOTION}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the motion's ${name}")
+    done
+    mapfile -t changes < <(of "${todo}" workspaces)
+    for change in "${changes[@]}"; do
+        name="$(jq -r .key <<<"${change}")"
+        gsettings set "${WORKSPACES}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the workspaces' ${name}")
+    done
+    mapfile -t changes < <(of "${todo}" windows)
+    for change in "${changes[@]}"; do
+        name="$(jq -r .key <<<"${change}")"
+        gsettings set "${WINDOWS}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the windows' ${name}")
+    done
+    mapfile -t changes < <(of "${todo}" dock)
+    for change in "${changes[@]}"; do
+        name="$(jq -r .key <<<"${change}")"
+        value="$(jq -c .to <<<"${change}")"
+        # The machine's own stacks outside the home folder stay, after the file's
+        if [[ "${name}" == stacks ]]; then
+            value="$(jq -c --argjson here "$(gsettings get "${DOCK}" stacks 2>/dev/null | as_json || echo '[]')"                 '. + ($here // [] | map(select(test("^(xdg:|~/)") | not)))' <<<"${value}")"
+        fi
+        gsettings set "${DOCK}" "${name}" "${value}" || FAILED+=("the dock's ${name}")
+    done
+    mapfile -t changes < <(of "${todo}" pill)
+    for change in "${changes[@]}"; do
+        name="$(jq -r .key <<<"${change}")"
+        gsettings set "${PILL}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the live pill's ${name}")
+    done
 
     # Last, since it downloads a whole system, which only takes over at the next restart
     mapfile -t changes < <(of "${todo}" image | jq -r '[.name, .stream] | @tsv')
@@ -652,6 +915,34 @@ remove_all() {
     mapfile -t names < <(of "${gone}" tiling | jq -r .key)
     for name in "${names[@]}"; do
         gsettings reset "${TILING}" "${name}" || FAILED+=("the tiling's ${name}")
+    done
+    mapfile -t names < <(of "${gone}" pointer | jq -r .key)
+    for name in "${names[@]}"; do
+        gsettings reset "${POINTER}" "${name}" || FAILED+=("the pointer's ${name}")
+    done
+    mapfile -t names < <(of "${gone}" glass | jq -r .key)
+    for name in "${names[@]}"; do
+        gsettings reset "${GLASS}" "${name}" || FAILED+=("the glass's ${name}")
+    done
+    mapfile -t names < <(of "${gone}" motion | jq -r .key)
+    for name in "${names[@]}"; do
+        gsettings reset "${MOTION}" "${name}" || FAILED+=("the motion's ${name}")
+    done
+    mapfile -t names < <(of "${gone}" workspaces | jq -r .key)
+    for name in "${names[@]}"; do
+        gsettings reset "${WORKSPACES}" "${name}" || FAILED+=("the workspaces' ${name}")
+    done
+    mapfile -t names < <(of "${gone}" windows | jq -r .key)
+    for name in "${names[@]}"; do
+        gsettings reset "${WINDOWS}" "${name}" || FAILED+=("the windows' ${name}")
+    done
+    mapfile -t names < <(of "${gone}" dock | jq -r .key)
+    for name in "${names[@]}"; do
+        gsettings reset "${DOCK}" "${name}" || FAILED+=("the dock's ${name}")
+    done
+    mapfile -t names < <(of "${gone}" pill | jq -r .key)
+    for name in "${names[@]}"; do
+        gsettings reset "${PILL}" "${name}" || FAILED+=("the live pill's ${name}")
     done
 }
 
@@ -730,7 +1021,14 @@ bake() {
             + if $s | has("favorites") then {"favorite-apps": $s.favorites} else {} end),
           ($s.keybindings // {} | to_entries[] | select(.key != "custom") | section(.key; .value)),
           section("org.gnome.shell.extensions.amethystora-ui.tiling"; ($s.tiling // {})
-            + if $s.layout == null then {} else {enabled: ($s.layout == "tiling")} end)' <<<"${setup}" \
+            + if $s.layout == null then {} else {enabled: ($s.layout == "tiling")} end),
+          section("org.gnome.shell.extensions.amethystora-ui.pointer"; ($s.pointer // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.glass"; ($s.glass // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.motion"; ($s.motion // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.workspaces"; ($s.workspaces // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.windows"; ($s.windows // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.dock"; ($s.dock // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.pill"; ($s.pill // {}))' <<<"${setup}" \
         >"${schemas}/zz2-image-setup.gschema.override"
 
     # The image's custom keybindings are relocatable, so their keys are dconf's

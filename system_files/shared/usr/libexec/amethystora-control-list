@@ -149,6 +149,17 @@ read_in_background privacy gsettings list-recursively org.gnome.desktop.privacy
 read_in_background animations gsettings get org.gnome.desktop.interface enable-animations
 # The layout switch, which was read here one process late in the list and took the list over a second with many apps
 read_in_background tiling gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled
+read_in_background windows gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.windows
+read_in_background dock gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.dock
+read_in_background shake gsettings get org.gnome.shell.extensions.amethystora-ui.pointer shake
+read_in_background dense gsettings get org.gnome.shell.extensions.amethystora-ui.pointer dense
+read_in_background glass gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.glass
+read_in_background motion gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.motion
+read_in_background space-names gsettings get org.gnome.shell.extensions.amethystora-ui.workspaces auto-names
+read_in_background pill gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.pill
+read_in_background night-light gsettings list-recursively org.gnome.settings-daemon.plugins.color
+read_in_background a11y gsettings list-recursively org.gnome.desktop.a11y.interface
+read_in_background profile busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile
 read_in_background phone systemctl --user is-enabled amethystora-connect.service
 read_in_background clipboard-send gsettings get org.amethystora.Connect clipboard-send
 read_in_background clipboard-receive gsettings get org.amethystora.Connect clipboard-receive
@@ -232,6 +243,50 @@ USAGE="ame desktop style STYLE"
 item appearance style choice "$(gettext "Style")" \
     "$(gettext "The shape of the top bar, menus, notifications, dialogs, buttons and windows.")" "${STYLE_SET}" themes#styles
 
+# The glass, and Comfort: Reduce transparency is the glass's own key, Reduce motion and Increase contrast are GNOME's
+# accessibility keys, which the apps follow too, and the power saver is the profile power-profiles-daemon has on
+GLASS="$(said glass | sed -n "s/^[^ ]* material '\(.*\)'$/\1/p")"
+SOLID="$(said glass | sed -n 's/^[^ ]* solid \(true\|false\)$/\1/p')"
+CONTRAST="$(said a11y | sed -n 's/^[^ ]* high-contrast \(true\|false\)$/\1/p')"
+MOTION="$(said a11y | sed -n "s/^[^ ]* reduced-motion '\(.*\)'$/\1/p")"
+SAVER=false
+[[ "$(said profile)" == 's "power-saver"' ]] && SAVER=true
+[[ "$(ended glass)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+if [[ "${SOLID}" == true ]]; then
+    DETAIL="$(gettext "The glass is drawn solid while Reduce transparency is on.")"
+elif [[ "${CONTRAST}" == true ]]; then
+    DETAIL="$(gettext "The glass is drawn solid while High Contrast is on.")"
+elif [[ "${SAVER}" == true ]]; then
+    DETAIL="$(gettext "The glass is drawn solid while the power saver is on.")"
+fi
+choice frost "$(gettext "Frost")" "$(gettext "Thick, milky glass with an even tint")" false ame desktop glass frost
+choice prism "$(gettext "Prism")" "$(gettext "Less tint, more colour, a lit top edge and light along the bottom")" false ame desktop glass prism
+choice clear "$(gettext "Clear")" "$(gettext "The thinnest glass and the brightest rim; it darkens by itself where text needs it")" false ame desktop glass clear
+USAGE="ame desktop glass frost|prism|clear"
+item appearance glass choice "$(gettext "Glass")" \
+    "$(gettext "What the top bar, the dock, menus and notifications show of the wallpaper behind them.")" "${GLASS}" themes#glass
+
+GROUP="$(gettext "Comfort")"
+[[ "$(ended glass)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+[[ "${SAVER}" == true ]] && DETAIL="$(gettext "The power saver makes the glass solid for as long as it is on.")"
+switch_choices false ame desktop comfort reduce-transparency
+USAGE="ame desktop comfort reduce-transparency on|off"
+item appearance reduce-transparency switch "$(gettext "Reduce transparency")" \
+    "$(gettext "The glass becomes the theme's solid surfaces. Nothing is blurred, which also saves power.")" \
+    "$([[ "${SOLID}" == true ]] && echo on || echo off)" themes#comfort
+[[ "$(said animations)" == false ]] && DETAIL="$(gettext "Animations are off in Settings, under Accessibility, which is calmer still.")"
+switch_choices false ame desktop comfort reduce-motion
+USAGE="ame desktop comfort reduce-motion on|off"
+item appearance reduce-motion switch "$(gettext "Reduce motion")" \
+    "$(gettext "Animations fade in place instead of travelling.")" \
+    "$([[ "${MOTION}" == reduce ]] && echo on || echo off)" themes#comfort
+switch_choices false ame desktop comfort increase-contrast
+USAGE="ame desktop comfort increase-contrast on|off"
+item appearance increase-contrast switch "$(gettext "Increase contrast")" \
+    "$(gettext "GNOME's High Contrast: stronger outlines, plain text and outlined controls, in the apps as well.")" \
+    "$([[ "${CONTRAST}" == true ]] && echo on || echo off)" themes#comfort
+GROUP=""
+
 FONT_SET=theme
 [[ -r "${CONFIG_DIR}/font" ]] && FONT_SET="$(head -n1 "${CONFIG_DIR}/font")"
 # A family's name is the same in every language, and the window draws it in that font: one jq for them all
@@ -298,6 +353,41 @@ USAGE="ame desktop transition STYLE DURATION"
 item appearance transition-length range "$(gettext "Transition length")" \
     "$(gettext "How long a transition takes, in milliseconds.")" "${LENGTH}" themes#transitions
 
+# The pointer: its look (a file of the account's, as the icons), and the pointer module's two keys
+GROUP="$(gettext "Pointer")"
+POINTER_SET=theme
+if [[ -r "${CONFIG_DIR}/pointer" ]]; then
+    POINTER_SET="$(head -n1 "${CONFIG_DIR}/pointer")"
+    POINTER_SET="${POINTER_SET#amethystora-pointer-}"
+fi
+OWN_POINTER="$(CONFIG_DIR=/nonexistent pointer_theme)"
+own="$(pretty "${OWN_POINTER#amethystora-pointer-}")"
+choice halo "$(gettext "Halo")" "$(gettext "White, with an amethyst rim: for dark themes")" false ame desktop pointer halo
+choice ink "$(gettext "Ink")" "$(gettext "Dark, with a white rim: for light themes")" false ame desktop pointer ink
+choice facet "$(gettext "Facet")" "$(gettext "Cut like the gem, in two faces of amethyst")" false ame desktop pointer facet
+choice theme "$(gettext "Follow the theme")" "$(eval_gettext "The theme's own: \${own}")" false ame desktop pointer theme
+USAGE="ame desktop pointer SET"
+item appearance pointer choice "$(gettext "Pointer")" \
+    "$(gettext "The pointer's look. A size is chosen in Settings, under Accessibility.")" "${POINTER_SET}" themes#pointers
+
+SHAKE="$(said shake | tr -d "'")"
+[[ "$(ended shake)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+choice grow "$(gettext "Grow")" "$(gettext "The pointer swells to three and a half times its size while you shake it")" false ame desktop pointer-shake grow
+choice beacon "$(gettext "Beacon")" "$(gettext "The pointer grows a little and sends rings out from where it is")" false ame desktop pointer-shake beacon
+choice off "$(gettext "Off")" "$(gettext "Shaking the mouse does nothing")" false ame desktop pointer-shake off
+USAGE="ame desktop pointer-shake MODE"
+item appearance pointer-shake choice "$(gettext "Shake to find")" \
+    "$(gettext "Shake the mouse from side to side to see where the pointer is.")" "${SHAKE}" themes#pointers
+
+if [[ "$(said dense)" == true ]]; then DENSE=on; else DENSE=off; fi
+[[ "$(ended dense)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+switch_choices false ame desktop pointer-dense
+USAGE="ame desktop pointer-dense on|off"
+item appearance pointer-dense switch "$(gettext "Larger on dense screens")" \
+    "$(gettext "One size larger on a screen with small pixels shown at 100%. A size chosen in Settings is kept.")" \
+    "${DENSE}" themes#pointers
+GROUP=""
+
 # GRUB keeps its menu in /boot, which a sealed machine, starting with systemd-boot, does not use. Where
 # /boot/grub2 is root's alone, only root can tell whether the artwork is there.
 BOOT_MENU=""
@@ -346,6 +436,203 @@ GROUP="$(gettext "Windows")"
 EXTRA='{"open": "manual"}'
 item desktop keybindings link "$(gettext "Keybindings")" \
     "$(gettext "Every key the desktop answers to, in the manual.")" "" keybindings
+
+# The windows module: snap layouts, the switcher, the Super card, show desktop, places and dimming, then the hot
+# corners and the touchpad gestures under headings of their own. The classic layout's own say when they apply.
+WINDOWS="$(said windows)"
+# A key's value as the list printed it, the quotes of a string taken off
+win() { sed -n "s/^[^ ]* $1 '\{0,1\}\([^']*\)'\{0,1\}$/\1/p" <<<"${WINDOWS}"; }
+onoff() { [[ "$(win "$1")" == true ]] && echo on || echo off; }
+win_item() {
+    local id="$1" key="$2" title="$3" text="$4" manual="$5" classic="$6"
+    [[ "$(ended windows)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+    [[ "${classic}" == true && "${LAYOUT}" == tiling ]] && DETAIL="$(gettext "They apply once the layout is classic again.")"
+    switch_choices false ame desktop windows "${key}"
+    USAGE="ame desktop windows ${key} on|off"
+    item desktop "${id}" switch "${title}" "${text}" "$(onoff "${key}")" "${manual}"
+}
+GROUP="$(gettext "Windows")"
+win_item windows-snap snap "$(gettext "Snap layouts")" \
+    "$(gettext "Drag a window to the top of the screen, or press Super+Z, and drop it on a layout.")" \
+    desktop#snap-layouts true
+win_item windows-switcher switcher "$(gettext "Window switcher you can type into")" \
+    "$(gettext "Super+Tab and Alt+Tab show every window in a grid; typing keeps the ones whose app or title matches.")" \
+    desktop#switching-windows true
+win_item windows-hold-super hold-super "$(gettext "Shortcuts while Super is held")" \
+    "$(gettext "Hold Super to see the main shortcuts and the dock's numbers.")" desktop#holding-super false
+[[ "$(ended windows)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+EXTRA='{"min": 500, "max": 3000, "step": 100, "unit": "ms", "terminal": false,
+    "command": ["ame", "desktop", "windows", "hold-super", "{value}"]}'
+USAGE="ame desktop windows hold-super MS"
+item desktop windows-hold-super-delay range "$(gettext "How long to hold Super")" "$(gettext "In milliseconds.")" \
+    "$(win hold-super-delay | sed 's/^int32 //')" desktop#holding-super
+win_item windows-show-desktop show-desktop "$(gettext "Click the wallpaper to show the desktop")" \
+    "$(gettext "Windows slide to the edges of the screen; a click brings them back.")" desktop#show-desktop true
+win_item windows-places places "$(gettext "Windows remember their places")" \
+    "$(gettext "For each arrangement of screens, apps' windows open where they were.")" desktop#places true
+COMMAND=(ame desktop windows places forget)
+TERMINAL=false
+BUTTON="$(gettext "Forget")"
+USAGE="ame desktop windows places forget"
+item desktop windows-places-forget action "$(gettext "Forget the places")" "" "" desktop#places
+win_item windows-dim dim "$(gettext "Dim the windows not in use")" \
+    "$(gettext "The windows behind the one you are using are drawn a little darker.")" desktop#dimming false
+
+# The quick note is offered once the Notes command takes it
+NOTE_CAPTURE=false
+notes="$(command -v amethystora-notes 2>/dev/null || true)"
+[[ -n "${notes}" ]] && grep -q capture "${notes}" 2>/dev/null && NOTE_CAPTURE=true
+GROUP="$(gettext "Hot corners")"
+for where in top-left top-right bottom-left bottom-right; do
+    case "${where}" in
+        top-left) title="$(gettext "Top left corner")" ;;
+        top-right) title="$(gettext "Top right corner")" ;;
+        bottom-left) title="$(gettext "Bottom left corner")" ;;
+        bottom-right) title="$(gettext "Bottom right corner")" ;;
+    esac
+    choice none "$(gettext "Nothing")" "" false ame desktop windows corner "${where}" none
+    choice overview "$(gettext "Overview")" "" false ame desktop windows corner "${where}" overview
+    choice desktop "$(gettext "Show desktop")" "" false ame desktop windows corner "${where}" desktop
+    choice lock "$(gettext "Lock screen")" "" false ame desktop windows corner "${where}" lock
+    [[ "${NOTE_CAPTURE}" == true ]] && choice note "$(gettext "Quick note")" "" false ame desktop windows corner "${where}" note
+    choice notifications "$(gettext "Notifications")" "" false ame desktop windows corner "${where}" notifications
+    [[ "$(ended windows)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+    USAGE="ame desktop windows corner ${where} ACTION"
+    item desktop "windows-corner-${where}" choice "${title}" \
+        "$(gettext "What pushing the pointer into this corner does.")" "$(win "corner-${where}")" desktop#hot-corners
+done
+
+GROUP="$(gettext "Touchpad gestures")"
+for name in pinch spread down today; do
+    case "${name}" in
+        pinch) title="$(gettext "Pinch with three fingers for the app grid")" ;;
+        spread) title="$(gettext "Spread three fingers to show the desktop")" ;;
+        down) title="$(gettext "Three fingers down for the app's windows")" ;;
+        today) title="$(gettext "Four fingers left for Today")" ;;
+    esac
+    [[ "$(ended windows)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+    [[ "${name}" == spread && "${LAYOUT}" == tiling ]] && DETAIL="$(gettext "They apply once the layout is classic again.")"
+    switch_choices false ame desktop windows gesture "${name}"
+    USAGE="ame desktop windows gesture ${name} on|off"
+    item desktop "windows-gesture-${name}" switch "${title}" "" "$(onoff "gesture-${name}")" desktop#touchpad-gestures
+done
+GROUP=""
+
+# The dock (org.gnome.shell.extensions.amethystora-ui.dock): how it moves, what it holds and where it lives, each an
+# ame desktop dock command. Folders and stacks are made on the dock itself.
+DOCK="$(said dock)"
+dock_key() { sed -n "s/^[^ ]* $1 '\{0,1\}\([^']*\)'\{0,1\}$/\1/p" <<<"${DOCK}"; }
+dock_onoff() { [[ "$(dock_key "$1")" == true ]] && echo on || echo off; }
+dock_reason() { [[ "$(ended dock)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"; }
+GROUP="$(gettext "Dock")"
+choice swell "$(gettext "Swell")" "$(gettext "The icons grow in a wave under the pointer")" false ame desktop dock magnify swell
+choice lift "$(gettext "Lift")" "$(gettext "Only the icon under the pointer rises")" false ame desktop dock magnify lift
+choice off "$(gettext "Still")" "$(gettext "Nothing grows")" false ame desktop dock magnify off
+dock_reason
+USAGE="ame desktop dock magnify swell|lift|off"
+item desktop dock-magnify choice "$(gettext "Growing")" "$(gettext "How the icons grow under the pointer.")" \
+    "$(dock_key magnify)" desktop#how-the-dock-moves
+dock_reason
+[[ "$(dock_key magnify)" == swell ]] || DETAIL="$(gettext "Only Swell grows this far.")"
+EXTRA='{"min": 120, "max": 220, "step": 5, "unit": "%", "terminal": false,
+    "command": ["ame", "desktop", "dock", "amount", "{value}"]}'
+USAGE="ame desktop dock amount 120..220"
+item desktop dock-amount range "$(gettext "How far Swell grows")" \
+    "$(gettext "How large the icon under the pointer becomes, in per cent.")" \
+    "$(awk -v a="$(dock_key magnify-amount)" 'BEGIN { if (a != "") printf "%.0f", a * 100 }')" desktop#how-the-dock-moves
+choice halo "$(gettext "Halo")" "$(gettext "A ring runs round the icon")" false ame desktop dock launch halo
+choice hop "$(gettext "Hop")" "$(gettext "The icon hops")" false ame desktop dock launch hop
+choice breathe "$(gettext "Breathe")" "$(gettext "The icon pulses, nothing moves")" false ame desktop dock launch breathe
+choice off "$(gettext "Nothing")" "$(gettext "No sign")" false ame desktop dock launch off
+dock_reason
+USAGE="ame desktop dock launch halo|hop|breathe|off"
+item desktop dock-launch choice "$(gettext "Starting an app")" "$(gettext "What an app's icon does until its window opens.")" \
+    "$(dock_key launch)" desktop#how-the-dock-moves
+choice bar "$(gettext "Bar")" "$(gettext "Longer with two windows or more")" false ame desktop dock indicator bar
+choice dot "$(gettext "Dots")" "$(gettext "One for each window")" false ame desktop dock indicator dot
+choice glow "$(gettext "Glow")" "$(gettext "Light under the icon")" false ame desktop dock indicator glow
+dock_reason
+USAGE="ame desktop dock indicator bar|dot|glow"
+item desktop dock-indicator choice "$(gettext "Running apps")" "$(gettext "How an app with windows is marked.")" \
+    "$(dock_key indicator)" desktop#how-the-dock-moves
+switch_choices false ame desktop dock recent
+dock_reason
+USAGE="ame desktop dock recent on|off"
+item desktop dock-recent switch "$(gettext "Recent apps")" \
+    "$(gettext "The last three apps you used that are not pinned, after a divider.")" "$(dock_onoff recent)" \
+    desktop#what-the-dock-holds
+switch_choices false ame desktop dock previews
+dock_reason
+USAGE="ame desktop dock previews on|off"
+item desktop dock-previews switch "$(gettext "Window previews")" \
+    "$(gettext "Rest the pointer on an app to see its windows.")" "$(dock_onoff previews)" desktop#what-the-dock-holds
+choice bottom "$(gettext "Bottom")" "" false ame desktop dock edge bottom
+choice left "$(gettext "Left")" "" false ame desktop dock edge left
+choice right "$(gettext "Right")" "" false ame desktop dock edge right
+dock_reason
+USAGE="ame desktop dock edge bottom|left|right"
+item desktop dock-edge choice "$(gettext "Edge")" "$(gettext "Where the dock is.")" "$(dock_key edge)" \
+    desktop#where-the-dock-lives
+choice every "$(gettext "Every screen")" "$(gettext "Each with the apps whose windows are on it")" false \
+    ame desktop dock screens every
+choice primary "$(gettext "Main screen only")" "" false ame desktop dock screens primary
+dock_reason
+USAGE="ame desktop dock screens every|primary"
+item desktop dock-screens choice "$(gettext "Screens")" "$(gettext "Which screens have a dock.")" "$(dock_key screens)" \
+    desktop#where-the-dock-lives
+choice off "$(gettext "Always shown")" "$(gettext "Windows stop at the dock")" false ame desktop dock autohide off
+choice touch "$(gettext "Hide when a window touches it")" "$(gettext "Push the pointer against the edge to bring it back")" \
+    false ame desktop dock autohide touch
+dock_reason
+USAGE="ame desktop dock autohide off|touch"
+item desktop dock-autohide choice "$(gettext "Hiding")" "$(gettext "When the dock gets out of the way.")" \
+    "$(dock_key autohide)" desktop#where-the-dock-lives
+switch_choices false ame desktop dock workspace-apps
+dock_reason
+USAGE="ame desktop dock workspace-apps on|off"
+item desktop dock-workspace-apps switch "$(gettext "This workspace's apps only")" \
+    "$(gettext "Running apps of other workspaces leave the dock; pinned apps stay.")" "$(dock_onoff workspace-apps)" \
+    desktop#where-the-dock-lives
+GROUP=""
+
+# Motion (org.gnome.shell.extensions.amethystora-ui.motion): how a window goes into the dock and comes back, and how
+# workspaces change. Reduce motion is Comfort's, on the Appearance page.
+MOTIONS="$(said motion)"
+motion_key() { sed -n "s/^[^ ]* $1 '\(.*\)'$/\1/p" <<<"${MOTIONS}"; }
+motion_note() {
+    if [[ "${MOTION}" == reduce ]]; then
+        DETAIL="$(gettext "Reduce motion is on: windows and workspaces fade instead.")"
+    elif [[ "$(said animations)" == false ]]; then
+        DETAIL="$(gettext "Animations are off in Settings, so nothing moves.")"
+    fi
+    [[ "$(ended motion)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+}
+GROUP="$(gettext "Motion")"
+choice droplet "$(gettext "Droplet")" "$(gettext "The window gathers into a drop of glass and arcs into its icon")" false \
+    ame desktop minimize droplet
+choice shrink "$(gettext "Shrink")" "$(gettext "The window shrinks and fades into its icon")" false \
+    ame desktop minimize shrink
+motion_note
+USAGE="ame desktop minimize droplet|shrink"
+item desktop minimize choice "$(gettext "Minimize")" "$(gettext "How a window goes into the dock and comes back.")" \
+    "$(motion_key minimize)" desktop#motion
+choice depth "$(gettext "Depth")" \
+    "$(gettext "The wallpaper slides a third as far as the windows, which step back a little on the way")" false \
+    ame desktop workspace-switch depth
+choice slide "$(gettext "Slide")" "$(gettext "Each workspace slides in whole, wallpaper and all")" false \
+    ame desktop workspace-switch slide
+motion_note
+USAGE="ame desktop workspace-switch depth|slide"
+item desktop workspace-switch choice "$(gettext "Changing workspace")" \
+    "$(gettext "How one workspace gives way to the next.")" "$(motion_key workspace-switch)" desktop#motion
+GROUP="$(gettext "Workspaces")"
+switch_choices false ame desktop space-names
+[[ "$(ended space-names)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+USAGE="ame desktop space-names on|off"
+item desktop space-names switch "$(gettext "Name workspaces after their apps")" \
+    "$(gettext "A workspace you have not named shows the name of the app with most windows on it.")" \
+    "$([[ "$(said space-names)" == true ]] && echo on || echo off)" desktop#workspaces
+GROUP=""
 
 # How long Amethystora Clipboard, the history on Super+Shift+V, keeps what was copied (keep-history)
 KEEP=""
@@ -414,6 +701,67 @@ USAGE="ame desktop widgets"
 item desktop widgets widgets "$(gettext "Top bar widgets")" \
     "$(gettext "Small commands whose output the top bar shows. Each runs as you, with everything you have: keep only the ones you have read.")" \
     "" widgets
+
+# The live pill, the privacy dots, the glow, quiet and the digest (org.gnome.shell.extensions.amethystora-ui.pill)
+PILL="$(said pill)"
+pill_key() { sed -n "s/^[^ ]* $1 \(.*\)$/\1/p" <<<"${PILL}"; }
+pill_onoff() { [[ "$(pill_key "$1")" == true ]] && echo on || echo off; }
+pill_item() {
+    local id="$1" title="$2" text="$3" manual="$4"
+    shift 4
+    [[ "$(ended pill)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+    switch_choices false "$@"
+    USAGE="$* on|off"
+    item desktop "${id}" switch "${title}" "${text}" "$(pill_onoff "${PILLKEY}")" "${manual}"
+}
+GROUP="$(gettext "Top bar")"
+PILLKEY=live pill_item pill "$(gettext "Live pill")" \
+    "$(gettext "The clock shows what is happening now: music, a timer, a call, a recording, a link from the phone, an update ready. Click it for its controls.")" \
+    desktop#the-live-pill ame desktop pill
+PILLKEY=privacy-dots pill_item privacy-dots "$(gettext "Privacy dots")" \
+    "$(gettext "A dot in the top bar while the microphone, the camera, the screen or your location is in use. Click it to see which.")" \
+    desktop#privacy-dots ame desktop pill dots
+PILLKEY=glow pill_item glow "$(gettext "Recording glow")" \
+    "$(gettext "A thin red glow round the screen while it is recorded or shared. It shows in a recording of the whole screen.")" \
+    desktop#privacy-dots ame desktop pill glow
+GROUP="$(gettext "Notifications")"
+PILLKEY=quiet pill_item quiet "$(gettext "Quiet while fullscreen or sharing")" \
+    "$(gettext "Banners wait while a window is fullscreen or the screen is shared or recorded. Calls, alarms and urgent ones still come through.")" \
+    desktop#quiet ame desktop quiet
+# Night Light's times, as HH:MM from its decimal hours
+NIGHT="$(said night-light)"
+night_key() { sed -n "s/^[^ ]* $1 \(.*\)$/\1/p" <<<"${NIGHT}"; }
+night_time() { awk -v h="$(night_key "$1")" 'BEGIN { m = int(h * 60 + 0.5) % 1440; printf "%02d:%02d", int(m / 60), m % 60 }'; }
+if [[ "$(night_key night-light-schedule-automatic)" == true ]]; then
+    DETAIL="$(gettext "From sunset to sunrise.")"
+elif [[ "$(ended night-light)" == 0 ]]; then
+    FROM="$(night_time night-light-schedule-from)"
+    TO="$(night_time night-light-schedule-to)"
+    DETAIL="$(eval_gettext "Now \${FROM} to \${TO}.")"
+fi
+PILLKEY=quiet-night pill_item quiet-night "$(gettext "Quiet at night")" \
+    "$(gettext "Banners wait between Night Light's times.")" desktop#quiet ame desktop quiet night
+PILLKEY=digest pill_item digest "$(gettext "Digest")" \
+    "$(gettext "Banners that are not urgent wait and come together, as one card, at the times you choose.")" \
+    desktop#the-digest ame desktop digest
+# The digest's times: four sets, or any set from a terminal
+TIMES="$(pill_key digest-times | tr -d "[]' " | sed 's/^@as//')"
+choice 12:00,18:00 "$(gettext "12:00 and 18:00")" "" false ame desktop digest times 12:00 18:00
+choice 09:00,13:00,17:00 "$(gettext "09:00, 13:00 and 17:00")" "" false ame desktop digest times 09:00 13:00 17:00
+choice 08:00,12:00,16:00,20:00 "$(gettext "08:00, 12:00, 16:00 and 20:00")" "" false ame desktop digest times 08:00 12:00 16:00 20:00
+choice 18:00 "$(gettext "18:00")" "" false ame desktop digest times 18:00
+case "${TIMES}" in
+    12:00,18:00 | 09:00,13:00,17:00 | 08:00,12:00,16:00,20:00 | 18:00 | "") ;;
+    *)
+        SHOWN="${TIMES//,/, }"
+        DETAIL="$(eval_gettext "Set from a terminal: \${SHOWN}.")"
+        ;;
+esac
+[[ "$(ended pill)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+USAGE="ame desktop digest times HH:MM [HH:MM]..."
+item desktop digest-times choice "$(gettext "Digest times")" "$(gettext "When the digest comes.")" "${TIMES}" \
+    desktop#the-digest
+GROUP=""
 
 if [[ -e "${CONFIG_DIR}/no-greeting" ]]; then GREETING=off; else GREETING=on; fi
 switch_choices false ame desktop greeting

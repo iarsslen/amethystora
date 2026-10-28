@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The live pill and what goes with it (modules/pill.js): the clock that shows what is happening now, the privacy dots,
+     the glow while the screen is recorded or shared, quiet and the digest. Written by `ame desktop pill|quiet|digest`
+     and Control; read live, so a change applies at once. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.pill" path="/org/gnome/shell/extensions/amethystora-ui/pill/">
+    <key name="live" type="b">
+      <default>true</default>
+      <summary>The live pill</summary>
+      <description>The clock shows what is happening now: music, a timer, a call, a recording, a link from the phone, an update ready. Off, the clock is GNOME's own.</description>
+    </key>
+    <key name="privacy-dots" type="b">
+      <default>true</default>
+      <summary>Privacy dots</summary>
+      <description>A dot in the top bar while the microphone, the camera, the screen or the location is in use, with a list of which.</description>
+    </key>
+    <key name="glow" type="b">
+      <default>true</default>
+      <summary>The recording glow</summary>
+      <description>A thin red glow round every screen while it is recorded or shared. It shows in a recording of the whole screen.</description>
+    </key>
+    <key name="quiet" type="b">
+      <default>true</default>
+      <summary>Quiet while fullscreen or sharing</summary>
+      <description>Banners wait in the list while a window is fullscreen on the main screen or the screen is recorded or shared. Urgent ones, calls and alarms still come through.</description>
+    </key>
+    <key name="quiet-night" type="b">
+      <default>false</default>
+      <summary>Quiet at night</summary>
+      <description>Banners wait in the list between Night Light's times.</description>
+    </key>
+    <key name="digest" type="b">
+      <default>false</default>
+      <summary>The digest</summary>
+      <description>Banners that are not urgent wait and come together, as one card, at the digest times.</description>
+    </key>
+    <key name="digest-times" type="as">
+      <default><![CDATA[['12:00', '18:00']]]></default>
+      <summary>Digest times</summary>
+      <description>When the digest comes, as HH:MM on the 24-hour clock, one to six of them. Anything else is ignored.</description>
+    </key>
+  </schema>
+</schemalist>

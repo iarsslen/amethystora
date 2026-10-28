@@ -1,0 +1,9 @@
+/* The ring that ripples out of a dock icon as a window lands in it. Its colour and the accent the drop is lit with
+   follow the theme, in the theme's shell-motion.css; these stand in before a theme has been applied. */
+
+.amethystora-motion-ripple {
+  border-width: 2px;
+  border-style: solid;
+  border-color: #dcbcff;
+  -amethystora-accent: #9148f0;
+}

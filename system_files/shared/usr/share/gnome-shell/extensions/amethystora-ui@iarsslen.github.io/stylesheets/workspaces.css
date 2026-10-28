@@ -3,6 +3,7 @@
    fewer so that the theme's always win. */
 
 .amethystora-workspaces-label {
+  spacing: 4px;
   margin: 0 4px;
   padding: 3px 8px;
   border-radius: 4px;
@@ -42,4 +43,52 @@
 
 .amethystora-workspaces-entry {
   min-width: 12em;
+}
+
+/* A label's number and name; a name worked out from the workspace's main app is lighter and slanted */
+.amethystora-workspaces-name {
+  max-width: 140px;
+}
+
+.amethystora-workspaces-auto {
+  font-weight: 500;
+  font-style: italic;
+}
+
+/* A window dragged from the overview over a label: the label lights up, and a note under the top bar says where the
+   window would go */
+.amethystora-workspaces-hit {
+  background-color: rgba(220, 188, 255, 0.35);
+  color: #ffffff;
+}
+
+.amethystora-workspaces-hint {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+/* The count of windows that just landed on a label */
+.amethystora-workspaces-badge {
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: bold;
+  text-align: center;
+  background-color: #3fca7e;
+  color: #0d2a1b;
+}
+
+/* The one you are on keeps its fill under a window, and in the overview, over its dark backdrop, the label a window
+   is over is white */
+.amethystora-workspaces-active.amethystora-workspaces-hit {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+#panel:overview .amethystora-workspaces-label.amethystora-workspaces-hit {
+  color: #ffffff;
 }

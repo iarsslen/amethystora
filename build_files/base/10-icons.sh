@@ -17,4 +17,26 @@ if command -v gtk-update-icon-cache >/dev/null; then
     done
 fi
 
+# The pointers (POINTER_SETS) are cursor themes, with no cache. branding/cursors.mjs writes one file per drawing and
+# the set's `aliases` table, "name file" a line, of every other name a toolkit asks for: each becomes a link here,
+# relative and in the same folder as cursor themes ship them, since a container layer would store a copy in full: in
+# cursors/ (Xcursor files, for X11 and GTK 3) and in cursors_scalable/ (a folder of SVG frames, GNOME Shell 51's own).
+# Some 560 links: not traced line by line, a count for each set instead, and a line for any that cannot be made.
+set +x
+for set in $(source /usr/lib/amethystora/theme/lib.sh && echo "${POINTER_SETS[*]}"); do
+    set_dir="/usr/share/icons/amethystora-pointer-${set}"
+    links=0
+    while read -r alias target; do
+        [[ -z "${alias}" || "${alias}" == \#* ]] && continue
+        [[ -f "${set_dir}/cursors/${target}" && ! -L "${set_dir}/cursors/${target}" &&
+            -f "${set_dir}/cursors_scalable/${target}/metadata.json" ]] ||
+            { echo "${set_dir}/aliases: ${alias} names ${target}, which is not a drawing of the set"; exit 1; }
+        ln -sfn "${target}" "${set_dir}/cursors/${alias}"
+        ln -sfn "${target}" "${set_dir}/cursors_scalable/${alias}"
+        links=$((links + 1))
+    done <"${set_dir}/aliases"
+    echo "amethystora-pointer-${set}: ${links} other names linked in cursors/ and cursors_scalable/"
+done
+set -x
+
 echo "::endgroup::"

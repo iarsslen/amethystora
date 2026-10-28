@@ -6,9 +6,14 @@
 // that, an effect that renders the result into the texture. A one-pixel clone of that actor in the corner of its
 // screen is what gets it painted: Clutter redraws a clone whenever the actor it copies changes, so the wallpaper
 // changing (or fading into another) is all it takes, and the clone itself draws nothing.
+//
+// Half a second after the glass's picture of a screen has stopped changing, it is read back once, small, and kept
+// as samples from which each surface works out how thick its veil must be for its text (effect.js, contrast.js).
 
 import Clutter from 'gi://Clutter';
 import Cogl from 'gi://Cogl';
+import GdkPixbuf from 'gi://GdkPixbuf';
+import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Graphene from 'gi://Graphene';
@@ -19,15 +24,24 @@ import St from 'gi://St';
 import * as Background from 'resource:///org/gnome/shell/ui/background.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+import {extremes} from './contrast.js';
+
 // The strengths of frost: the blur's radius in pixels (times the screen's scale), the brightness after it, and how
-// many times smaller than the screen the texture is across. The glass is drawn from the first, the overview's
-// backdrop from the second; the third is the wallpaper itself, which a pane fading in or out is mixed towards. Blurred
-// this much, nothing is lost by a quarter of the screen; the sharp one is kept at half, and seen only faintly.
+// many times smaller than the screen the texture is across. The glass is drawn from the first, whose recipe is the
+// chosen variant's (materials.js; frost's is the one here), the overview's backdrop from the second; the third is the
+// wallpaper itself, which a pane fading in or out is mixed towards. Blurred this much, nothing is lost by a quarter of
+// the screen; the sharp one is kept at half, and seen only faintly.
 export const RECIPES = {
     glass: {radius: 48, brightness: 1.0, shrink: 4},
     frost: {radius: 64, brightness: 0.55, shrink: 4},
     clear: {radius: 0, brightness: 1.0, shrink: 2},
 };
+
+// How long a picture has to stay unchanged before it is read back, in milliseconds, and the size it is read at
+const SETTLE = 500;
+const CONFIRM = 3000;
+const SAMPLES = [64, 36];
+let statsVersion = 0;
 
 // Renders the actor it is on, blurred by the effect after it, into the picture's texture whenever the actor has
 // changed, and draws nothing on the screen
@@ -40,7 +54,7 @@ class AmethystoraGlassCapture extends Clutter.Effect {
 
     vfunc_paint_node(node, paintContext, flags) {
         const picture = this._picture;
-        if (picture.ready && !(flags & Clutter.EffectPaintFlags.ACTOR_DIRTY))
+        if (picture.ready && !picture.dirty && !(flags & Clutter.EffectPaintFlags.ACTOR_DIRTY))
             return;
         const framebuffer = picture.framebuffer(paintContext.get_framebuffer().get_context());
         if (!framebuffer)
@@ -59,16 +73,20 @@ class AmethystoraGlassCapture extends Clutter.Effect {
 });
 
 class Picture {
-    constructor(frost, holder, monitor, name) {
-        const recipe = RECIPES[name];
+    constructor(frost, holder, monitor, name, recipe) {
         this.recipe = name;
         this._frost = frost;
         this.monitor = monitor;
         this.consumers = new Set();
         this.texture = null;
         this.ready = false;
-        this.width = Math.max(1, Math.ceil(monitor.width / recipe.shrink));
-        this.height = Math.max(1, Math.ceil(monitor.height / recipe.shrink));
+        this.dirty = false;
+        this.stats = null;
+        this._extremes = new Map();
+        this._settleId = 0;
+        this._confirmId = 0;
+        this._confirmed = false;
+        this._sizeFor(recipe);
 
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
         this._source = new Clutter.Actor({visible: false, width: monitor.width, height: monitor.height});
@@ -81,12 +99,14 @@ class Picture {
             controlPosition: false,
         });
         this._source.add_effect(new Capture(this));
+        this._blur = null;
         if (recipe.radius > 0) {
-            this._source.add_effect(new Shell.BlurEffect({
+            this._blur = new Shell.BlurEffect({
                 mode: Shell.BlurMode.ACTOR,
                 radius: Math.round(recipe.radius * scale),
                 brightness: recipe.brightness,
-            }));
+            });
+            this._source.add_effect(this._blur);
         }
         holder.add_child(this._source);
 
@@ -100,11 +120,34 @@ class Picture {
         holder.add_child(this._driver);
     }
 
-    // The texture and the render target over it, made on the first paint, when the GPU is at hand. Should the GPU
-    // refuse them, that screen goes without glass rather than asking again on every frame.
+    _sizeFor(recipe) {
+        this.radius = recipe.radius;
+        this.brightness = recipe.brightness;
+        this.shrink = recipe.shrink;
+        this.width = Math.max(1, Math.ceil(this.monitor.width / recipe.shrink));
+        this.height = Math.max(1, Math.ceil(this.monitor.height / recipe.shrink));
+    }
+
+    // Another recipe (another variant of glass): blurred again on the next frame, into a texture of the new size,
+    // with the old picture shown until then, so that nothing flashes
+    setRecipe(recipe) {
+        if (!this._blur || recipe.radius <= 0)
+            return;
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        this._sizeFor(recipe);
+        this._blur.radius = Math.round(recipe.radius * scale);
+        this._blur.brightness = recipe.brightness;
+        this.dirty = true;
+        this._source.queue_redraw();
+    }
+
+    // The texture and the render target over it, made on the first paint, when the GPU is at hand, and again at a
+    // new size. Should the GPU refuse them, that screen goes without glass rather than asking again on every frame.
     framebuffer(context) {
-        if (this._framebuffer || this._refused)
-            return this._framebuffer ?? null;
+        if (this._refused)
+            return null;
+        if (this._framebuffer && this.texture.get_width() === this.width && this.texture.get_height() === this.height)
+            return this._framebuffer;
         try {
             const texture = Cogl.Texture2D.new_with_size(context, this.width, this.height);
             texture.set_premultiplied(true);
@@ -122,10 +165,94 @@ class Picture {
         return this._framebuffer;
     }
 
-    // Called from the paint that drew a new picture: the surfaces showing it are drawn again before the next frame
+    // Called from the paint that drew a new picture: the surfaces showing it are drawn again before the next frame,
+    // and the glass's own picture is read back once it has settled
     rendered() {
         this.ready = true;
+        this.dirty = false;
         this._frost.redrawSoon(this);
+        if (this.recipe !== 'glass')
+            return;
+        if (this._settleId)
+            GLib.source_remove(this._settleId);
+        this._settleId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, SETTLE, () => {
+            this._settleId = 0;
+            this._readBack();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    // GNOME's screenshot helper is the one way to read a texture from here: it hands the picture back as a pixbuf
+    // (and writes a PNG of it in a thread, which is thrown away)
+    _readBack() {
+        const texture = this.texture;
+        if (!texture || this._destroyed)
+            return;
+        try {
+            Shell.Screenshot.composite_to_stream(texture, 0, 0, -1, -1, 1, null, 0, 0, 1,
+                Gio.MemoryOutputStream.new_resizable(), (source, result) => {
+                    let pixbuf = null;
+                    try {
+                        pixbuf = Shell.Screenshot.composite_to_stream_finish(result);
+                    } catch (e) {
+                        console.error(`Amethystora UI: the glass could not read its picture: ${e.message}`);
+                    }
+                    if (pixbuf && !this._destroyed && texture === this.texture)
+                        this._measure(pixbuf);
+                });
+        } catch (e) {
+            console.error(`Amethystora UI: the glass could not read its picture: ${e.message}`);
+        }
+    }
+
+    _measure(pixbuf) {
+        const [w, h] = SAMPLES;
+        const small = pixbuf.scale_simple(w, h, GdkPixbuf.InterpType.TILES);
+        const pixels = small.read_pixel_bytes().get_data();
+        const stride = small.get_rowstride();
+        const channels = small.get_n_channels();
+        const samples = new Float32Array(w * h * 3);
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                const at = y * stride + x * channels;
+                const to = 3 * (y * w + x);
+                samples[to] = pixels[at] / 255;
+                samples[to + 1] = pixels[at + 1] / 255;
+                samples[to + 2] = pixels[at + 2] / 255;
+            }
+        }
+        this._extremes.clear();
+        this.stats = {samples, version: ++statsVersion, hi: null, lo: null};
+        // The brightest and darkest as the variant's glass shows them, for whoever reads the stats
+        const glass = this._frost.glassMaterial?.();
+        if (glass)
+            Object.assign(this.stats, this.extremes(glass.variant, 'glass', glass.material));
+        for (const consumer of this.consumers)
+            consumer.repicture?.();
+        // The first picture of a session can be read while the wallpaper is still being loaded (seen once in the
+        // harness, on a cold start): it is read once more, a little later, the only time this picture is
+        if (!this._confirmed) {
+            this._confirmed = true;
+            this._confirmId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, CONFIRM, () => {
+                this._confirmId = 0;
+                this._readBack();
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+    }
+
+    // The brightest and darkest parts of the picture as a material of a variant shows them, worked out once for each
+    // picture read back
+    extremes(variant, name, material) {
+        if (!this.stats)
+            return {hi: null, lo: null};
+        const key = `${variant}:${name}`;
+        let found = this._extremes.get(key);
+        if (!found) {
+            found = extremes(this.stats.samples, material) ?? {hi: null, lo: null};
+            this._extremes.set(key, found);
+        }
+        return found;
     }
 
     // Drawn again from scratch, as after the GPU lost its memory
@@ -135,6 +262,16 @@ class Picture {
     }
 
     destroy() {
+        this._destroyed = true;
+        if (this._settleId)
+            GLib.source_remove(this._settleId);
+        this._settleId = 0;
+        if (this._confirmId)
+            GLib.source_remove(this._confirmId);
+        this._confirmId = 0;
+        this._extremes.clear();
+        this.stats = null;
+        this._blur = null;
         this._driver.destroy();
         this._backgrounds.destroy();
         this._source.destroy();
@@ -146,7 +283,14 @@ class Picture {
 }
 
 export class Frost {
-    constructor() {
+    // glass: the recipe of the glass's own pictures, the chosen variant's; glassMaterial: () => {variant, material},
+    // what the variant's glass is made of, for the brightest and darkest parts of a picture read back; seed: what
+    // the last pictures of each screen measured (stats()), which stand until these are measured, so that the glass
+    // coming back from solid does not show its thinnest veil for that half second
+    constructor(glass = RECIPES.glass, glassMaterial = null, seed = null) {
+        this._glassRecipe = glass;
+        this.glassMaterial = glassMaterial;
+        this._seed = seed;
         this._pictures = new Map();
         this._queued = new Set();
         this._laterId = 0;
@@ -170,8 +314,13 @@ export class Frost {
     _build() {
         this._byRecipe = null;
         for (const monitor of Main.layoutManager.monitors) {
-            for (const name of Object.keys(RECIPES))
-                this._pictures.set(`${monitor.index}:${name}`, new Picture(this, this._holder, monitor, name));
+            for (const name of Object.keys(RECIPES)) {
+                const recipe = name === 'glass' ? this._glassRecipe : RECIPES[name];
+                const picture = new Picture(this, this._holder, monitor, name, recipe);
+                if (name === 'glass')
+                    picture.stats = this._seed?.get(monitor.index) ?? null;
+                this._pictures.set(`${monitor.index}:${name}`, picture);
+            }
         }
     }
 
@@ -189,6 +338,20 @@ export class Frost {
         this._byRecipe = null;
         this._holder.destroy();
         this._holder = null;
+    }
+
+    // What each screen's glass picture measured, by the screen's index
+    stats() {
+        return new Map(this.pictures('glass').filter(p => p.stats).map(p => [p.monitor.index, p.stats]));
+    }
+
+    // A new recipe for the glass's pictures of every screen (the frost and the sharp pictures never change)
+    setRecipe(name, recipe) {
+        if (name !== 'glass')
+            return;
+        this._glassRecipe = recipe;
+        for (const picture of this.pictures('glass'))
+            picture.setRecipe(recipe);
     }
 
     // The picture of a screen (an index into Main.layoutManager.monitors) for a recipe

@@ -80,7 +80,8 @@ never overwrites one that is there: the second `report.pdf` is `report (1).pdf`.
 **Show in folder**, and **Open** for a picture, a text, a PDF, a sound or a video: any other kind of file is
 not opened from here. Nothing opens by itself. Text or a link the phone shares comes as a notification, too,
 whose **Show** opens a window with the words as text: select and copy them, and click a web address to open it
-in the browser. A link the phone sends has **Open** on its notification as well, for a web address.
+in the browser. A web link the phone shares waits in the [live pill](desktop.md#the-live-pill) until you open or
+copy it; **Not now** leaves it in the notification list, with **Open** and **Copy**.
 
 ## Texts
 
@@ -99,7 +100,8 @@ deletes them.
 ## Calls
 
 While the phone rings, a notification says who is calling, with **Mute**, which silences the ringer on
-the phone. A missed call arrives as a notification of the phone's. The link does not change the sound on
+the phone. The [live pill](desktop.md#the-live-pill) shows who is calling too, with **Mute ringer**. A missed
+call arrives as a notification of the phone's. The link does not change the sound on
 this computer, and makes no calls.
 
 ## The clipboard

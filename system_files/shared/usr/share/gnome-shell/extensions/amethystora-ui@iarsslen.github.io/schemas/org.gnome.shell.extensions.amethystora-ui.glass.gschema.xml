@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The glass (modules/glass.js). ame desktop glass and Control write the material, ame desktop comfort and Control
+     the solid surfaces; the setup file carries both. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.glass" path="/org/gnome/shell/extensions/amethystora-ui/glass/">
+    <key name="material" type="s">
+      <choices>
+        <choice value="frost"/>
+        <choice value="prism"/>
+        <choice value="clear"/>
+      </choices>
+      <default>'prism'</default>
+      <summary>The glass</summary>
+      <description>What the top bar, the dock, menus and notifications stand on: frost is thick, milky glass with an even tint; prism has less tint, more colour and light along its edges; clear is the thinnest glass, which darkens by itself where text needs it.</description>
+    </key>
+    <key name="solid" type="b">
+      <default>false</default>
+      <summary>Reduce transparency</summary>
+      <description>Draw every glass surface in the theme's solid colours. Nothing is blurred, which also saves power.</description>
+    </key>
+  </schema>
+</schemalist>

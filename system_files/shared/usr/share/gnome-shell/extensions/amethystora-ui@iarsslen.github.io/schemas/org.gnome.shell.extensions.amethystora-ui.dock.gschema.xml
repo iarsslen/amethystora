@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The dock (modules/dock.js): how it moves, what it holds and where it lives. Written by ame desktop dock, Control's
+     Dock settings and the setup file; folders and stacks also by the dock itself, when one is made there. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.dock" path="/org/gnome/shell/extensions/amethystora-ui/dock/">
+    <key name="magnify" type="s">
+      <choices>
+        <choice value="off"/>
+        <choice value="swell"/>
+        <choice value="lift"/>
+      </choices>
+      <default>'swell'</default>
+      <summary>How the icons grow under the pointer</summary>
+      <description>swell: the icons grow in a wave under the pointer; lift: only the icon under the pointer rises; off: nothing grows.</description>
+    </key>
+    <key name="magnify-amount" type="d">
+      <range min="1.2" max="2.2"/>
+      <default>1.6</default>
+      <summary>How far Swell grows</summary>
+      <description>The size of the icon under the pointer with Swell, as a multiple of its size at rest.</description>
+    </key>
+    <key name="launch" type="s">
+      <choices>
+        <choice value="halo"/>
+        <choice value="hop"/>
+        <choice value="breathe"/>
+        <choice value="off"/>
+      </choices>
+      <default>'halo'</default>
+      <summary>What an app's icon does while the app starts</summary>
+      <description>halo: a ring runs round the icon; hop: the icon hops; breathe: the icon pulses; off: no sign. Until its first window opens.</description>
+    </key>
+    <key name="indicator" type="s">
+      <choices>
+        <choice value="bar"/>
+        <choice value="dot"/>
+        <choice value="glow"/>
+      </choices>
+      <default>'bar'</default>
+      <summary>How a running app is marked</summary>
+      <description>bar: a bar, longer with two windows or more; dot: a dot for each window; glow: a light under the icon.</description>
+    </key>
+    <key name="recent" type="b">
+      <default>true</default>
+      <summary>Recent apps</summary>
+      <description>The last three apps used that are neither pinned nor running, after a divider.</description>
+    </key>
+    <key name="previews" type="b">
+      <default>true</default>
+      <summary>Window previews</summary>
+      <description>Resting the pointer on an app shows its windows above it.</description>
+    </key>
+    <key name="folders" type="a{sas}">
+      <default>{}</default>
+      <summary>Folders of pinned apps</summary>
+      <description>Each folder's name and its apps (launcher IDs, two or more, all pinned), the first standing where the folder is.</description>
+    </key>
+    <key name="stacks" type="as">
+      <default>['xdg:DOWNLOAD']</default>
+      <summary>Folders kept in the dock</summary>
+      <description>xdg:NAME for a special folder (DESKTOP, DOCUMENTS, DOWNLOAD, MUSIC, PICTURES, PUBLICSHARE, TEMPLATES, VIDEOS), ~/PATH under the home folder, or an absolute path. Twelve at most.</description>
+    </key>
+    <key name="edge" type="s">
+      <choices>
+        <choice value="bottom"/>
+        <choice value="left"/>
+        <choice value="right"/>
+      </choices>
+      <default>'bottom'</default>
+      <summary>The edge of the screen the dock is on</summary>
+      <description>The physical edge, in every language.</description>
+    </key>
+    <key name="screens" type="s">
+      <choices>
+        <choice value="every"/>
+        <choice value="primary"/>
+      </choices>
+      <default>'every'</default>
+      <summary>Which screens have a dock</summary>
+      <description>every: each screen, with the apps whose windows are on it; primary: the main screen only.</description>
+    </key>
+    <key name="autohide" type="s">
+      <choices>
+        <choice value="off"/>
+        <choice value="touch"/>
+      </choices>
+      <default>'off'</default>
+      <summary>When the dock gets out of the way</summary>
+      <description>off: always shown, windows stop at it; touch: it hides while a window touches it, and comes back when the pointer is pushed against the edge.</description>
+    </key>
+    <key name="workspace-apps" type="b">
+      <default>false</default>
+      <summary>This workspace's apps only</summary>
+      <description>Running apps with no window on the workspace a screen shows leave that screen's dock; pinned apps stay.</description>
+    </key>
+  </schema>
+</schemalist>

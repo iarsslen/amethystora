@@ -10,6 +10,7 @@ import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {Theme} from './modules/theme.js';
 import {Style} from './modules/style.js';
+import {Comfort} from './modules/comfort.js';
 import {Tweaks} from './modules/tweaks.js';
 import {Workspaces} from './modules/workspaces.js';
 import {Meters} from './modules/meters.js';
@@ -19,9 +20,13 @@ import {Fuzzy} from './modules/fuzzy.js';
 import {Screenshot} from './modules/screenshot.js';
 import {Bazaar} from './modules/bazaar.js';
 import {Connect} from './modules/connect.js';
+import {Pill} from './modules/pill.js';
 import {Dock} from './modules/dock.js';
 import {Glass} from './modules/glass.js';
+import {Pointer} from './modules/pointer.js';
 import {Tiling} from './modules/tiling.js';
+import {Windows} from './modules/windows.js';
+import {Motion} from './modules/motion.js';
 
 // In the order they start, by the name of their stylesheet; they stop in the opposite order. The desktop style comes
 // first after the theme, since the glass asks it; the glass comes after the dock and the panel's modules, whose actors
@@ -29,6 +34,7 @@ import {Tiling} from './modules/tiling.js';
 const MODULES = [
     ['theme', Theme],
     ['style', Style],
+    ['comfort', Comfort],
     ['tweaks', Tweaks],
     ['workspaces', Workspaces],
     ['meters', Meters],
@@ -38,9 +44,13 @@ const MODULES = [
     ['screenshot', Screenshot],
     ['bazaar', Bazaar],
     ['connect', Connect],
+    ['pill', Pill],
     ['dock', Dock],
     ['glass', Glass],
+    ['pointer', Pointer],
     ['tiling', Tiling],
+    ['windows', Windows],
+    ['motion', Motion],
 ];
 
 export default class AmethystoraUI extends Extension {

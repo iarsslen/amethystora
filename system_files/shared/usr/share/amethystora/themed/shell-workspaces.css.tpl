@@ -19,3 +19,27 @@
 .amethystora-workspaces-dragged.amethystora-workspaces-empty {
   background-color: {{ background }};
 }
+
+/* A window dragged from the overview over a label, the note that says where it would go, and the count of windows
+   that just landed there */
+.amethystora-workspaces-label.amethystora-workspaces-hit {
+  background-color: rgba({{ accent_rgb }}, 0.35);
+  color: {{ foreground }};
+}
+
+.amethystora-workspaces-hint.amethystora-workspaces-hint {
+  color: {{ foreground }};
+}
+
+.amethystora-workspaces-badge.amethystora-workspaces-badge {
+  background-color: {{ success_bg }};
+  color: {{ success_fg }};
+}
+
+/* The one you are on, with a window over it: its fill and a label that reads on it (4.5:1 in every shipped theme),
+   in the overview too, where the other labels' text is white */
+.amethystora-workspaces-label.amethystora-workspaces-active.amethystora-workspaces-hit,
+#panel:overview .amethystora-workspaces-label.amethystora-workspaces-active.amethystora-workspaces-hit {
+  background-color: {{ accent_bg }};
+  color: {{ accent_fg }};
+}

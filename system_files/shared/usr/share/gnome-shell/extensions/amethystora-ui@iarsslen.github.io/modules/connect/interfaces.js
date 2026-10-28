@@ -22,6 +22,9 @@ const ROOT = `
     <method name="PushClipboard">
       <arg name="text" type="s" direction="in"/>
     </method>
+    <method name="TakeLinks">
+      <arg name="take" type="b" direction="in"/>
+    </method>
     <signal name="DeviceAdded">
       <arg name="device" type="o"/>
     </signal>
@@ -31,6 +34,10 @@ const ROOT = `
     <signal name="ClipboardReceived">
       <arg name="device_id" type="s"/>
       <arg name="text" type="s"/>
+    </signal>
+    <signal name="UrlReceived">
+      <arg name="device_id" type="s"/>
+      <arg name="url" type="s"/>
     </signal>
   </interface>
 </node>`;
@@ -50,6 +57,12 @@ const DEVICE = `
     <method name="SendUrl">
       <arg name="url" type="s" direction="in"/>
     </method>
+    <method name="MuteRinger"/>
+    <signal name="Call">
+      <arg name="state" type="s"/>
+      <arg name="number" type="s"/>
+      <arg name="name" type="s"/>
+    </signal>
   </interface>
 </node>`;
 

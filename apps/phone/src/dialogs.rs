@@ -203,8 +203,10 @@ impl Phone {
 
     // --- Send ------------------------------------------------------------------------------------------
 
-    /// The send dialog, over the page, with what the command line gave it
-    pub(crate) fn open_send(self: &Rc<Self>, device: Option<String>, what: Sending) {
+    /// The send dialog, over the page, with what the command line gave it. With `now` (the dock's drop), files for
+    /// the phone named are sent at once, as the Send button would, and the window is shown only when something needs
+    /// the person: no such phone, a file left out, a folder, a link.
+    pub(crate) fn open_send(self: &Rc<Self>, device: Option<String>, what: Sending, now: bool) {
         let sendable = model::sendable(&self.link.devices());
         let named = device.filter(|id| sendable.iter().any(|d| &d.id == id));
         let chosen = named.clone().or_else(|| (sendable.len() == 1).then(|| sendable[0].id.clone()));
@@ -227,11 +229,41 @@ impl Phone {
             }
             Sending::Files(uris) => {
                 let (this, st, uris) = (self.clone(), st.clone(), uris.clone());
-                glib::spawn_future_local(async move { this.add_files(&st, &uris).await });
+                let at_once = now && named.is_some();
+                glib::spawn_future_local(async move {
+                    this.add_files(&st, &uris).await;
+                    let whole = {
+                        let s = st.borrow();
+                        s.note.is_none() && !s.files.is_empty() && s.files.len() == uris.len()
+                    };
+                    if at_once && whole {
+                        this.send_at_once(&st);
+                    } else if now {
+                        this.shell.window.present();
+                    }
+                });
             }
             Sending::Nothing => {}
         }
+        if now && !matches!(what, Sending::Files(_)) {
+            self.shell.window.present();
+        }
         self.set_dialog(Dialog::Send(st));
+    }
+
+    /// The dock's drop: sent as the Send button sends, without the window; it is shown if the sending fails. A window
+    /// that was never shown has done its work once the program has the files, and closes.
+    fn send_at_once(self: &Rc<Self>, st: &Rc<RefCell<SendState>>) {
+        let (this, st) = (self.clone(), st.clone());
+        glib::spawn_future_local(async move {
+            this.send(&st).await;
+            let sent = matches!(st.borrow().phase, Phase::Sending(_));
+            if !sent {
+                this.shell.window.present();
+            } else if !this.shell.window.is_visible() {
+                this.shell.app.quit();
+            }
+        });
     }
 
     /// Reads what each file is, and keeps those that can be sent: regular files this account can read
@@ -470,6 +502,12 @@ impl Phone {
 
     /// Sends what was chosen: the transfers begin, or the program says why not
     fn send_now(self: &Rc<Self>, st: &Rc<RefCell<SendState>>) {
+        let (this, st) = (self.clone(), st.clone());
+        glib::spawn_future_local(async move { this.send(&st).await });
+    }
+
+    /// What the Send button does, done
+    async fn send(self: &Rc<Self>, st: &Rc<RefCell<SendState>>) {
         {
             let mut state = st.borrow_mut();
             if state.sending || state.device.is_none() {
@@ -478,8 +516,8 @@ impl Phone {
             state.sending = true;
             state.error = None;
         }
-        let (this, st) = (self.clone(), st.clone());
-        glib::spawn_future_local(async move {
+        let this = self;
+        {
             let (device, tab, files, link) = {
                 let s = st.borrow();
                 (s.device.clone().unwrap_or_default(), s.tab, s.files.clone(), s.link.clone())
@@ -503,8 +541,8 @@ impl Phone {
                     Err(failure) => state.error = Some(failure_text(&failure)),
                 }
             }
-            this.redraw_send(&st);
-        });
+            this.redraw_send(st);
+        }
     }
 
     fn send_progress(&self, st: &Rc<RefCell<SendState>>, ids: &[String]) -> (gtk::Box, Option<gtk::Widget>) {

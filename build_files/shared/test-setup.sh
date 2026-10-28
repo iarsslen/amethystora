@@ -45,6 +45,115 @@ while read -r key; do
         | $type == $t and if $min == "" then ($a | type) != "number" else [($a, $b) + 0] == [($min, $max) | tonumber + 0] end' \
         <<<"${TABLE}" >/dev/null || { echo "TILING_KEYS has ${key} as $(jq -c --arg k "${key}" '.[$k]' <<<"${TABLE}"), the schema as ${type} ${min:-} ${max:-}"; false; }
 done <<<"${listed}"
+# The pointer's two keys likewise: shake with the schema's three choices, dense a switch, and the manifest saves both
+POINTER=org.gnome.shell.extensions.amethystora-ui.pointer
+POINTER_TABLE="$(sed -n "s/^POINTER_KEYS='\(.*\)'\$/\1/p" "${SETUP}")"
+[[ "$(jq -r 'keys | join(" ")' <<<"${POINTER_TABLE}")" == "$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${POINTER}" | sort | xargs)" ]]
+[[ "$(jq -c .shake <<<"${POINTER_TABLE}")" == "[\"s\",$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${POINTER}" shake |
+    sed -n "2,\$p" | tr "'" '"' | jq -sc .)]" ]]
+[[ "$(jq -c .dense <<<"${POINTER_TABLE}")" == '["b"]' && "$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${POINTER}" dense)" == "type b" ]]
+saved="$(sed -n 's/^POINTER_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort | xargs)"
+[[ "${saved}" == "$(jq -r 'keys | join(" ")' <<<"${POINTER_TABLE}")" ]]
+# The glass's two likewise: material with the schema's three choices, solid a switch, and the manifest saves both
+GLASS=org.gnome.shell.extensions.amethystora-ui.glass
+GLASS_TABLE="$(sed -n "s/^GLASS_KEYS='\(.*\)'\$/\1/p" "${SETUP}")"
+[[ "$(jq -r 'keys | join(" ")' <<<"${GLASS_TABLE}")" == "$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${GLASS}" | sort | xargs)" ]] ||
+    { echo "GLASS_KEYS and the glass's schema differ"; false; }
+[[ "$(jq -c .material <<<"${GLASS_TABLE}")" == "[\"s\",$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${GLASS}" material |
+    sed -n "2,\$p" | tr "'" '"' | jq -sc .)]" ]] || { echo "GLASS_KEYS' material has other choices than the schema"; false; }
+[[ "$(jq -c .solid <<<"${GLASS_TABLE}")" == '["b"]' && "$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${GLASS}" solid)" == "type b" ]]
+saved="$(sed -n 's/^GLASS_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort | xargs)"
+[[ "${saved}" == "$(jq -r 'keys | join(" ")' <<<"${GLASS_TABLE}")" ]] || { echo "the manifest saves other glass keys"; false; }
+# The motion's two likewise, each with the schema's choices, and the manifest saves both
+MOTION=org.gnome.shell.extensions.amethystora-ui.motion
+MOTION_TABLE="$(sed -n "s/^MOTION_KEYS='\(.*\)'\$/\1/p" "${SETUP}")"
+[[ "$(jq -r 'keys | join(" ")' <<<"${MOTION_TABLE}")" == "$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${MOTION}" | sort | xargs)" ]] ||
+    { echo "MOTION_KEYS and the motion's schema differ"; false; }
+for key in minimize workspace-switch; do
+    [[ "$(jq -c --arg k "${key}" '.[$k]' <<<"${MOTION_TABLE}")" == "[\"s\",$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${MOTION}" "${key}" |
+        sed -n "2,\$p" | tr "'" '"' | jq -sc .)]" ]] || { echo "MOTION_KEYS' ${key} has other choices than the schema"; false; }
+done
+saved="$(sed -n 's/^MOTION_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort | xargs)"
+[[ "${saved}" == "$(jq -r 'keys | join(" ")' <<<"${MOTION_TABLE}")" ]] || { echo "the manifest saves other motion keys"; false; }
+# The top bar's workspaces: auto-names, a switch, and none of its two keybindings
+WORKSPACES=org.gnome.shell.extensions.amethystora-ui.workspaces
+WORKSPACES_TABLE="$(sed -n "s/^WORKSPACES_KEYS='\(.*\)'\$/\1/p" "${SETUP}")"
+[[ "$(jq -r 'keys | join(" ")' <<<"${WORKSPACES_TABLE}")" == "$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${WORKSPACES}" |
+    grep -vx 'move-workspace-left\|move-workspace-right' | sort | xargs)" ]] || { echo "WORKSPACES_KEYS and the schema differ"; false; }
+[[ "$(jq -c '."auto-names"' <<<"${WORKSPACES_TABLE}")" == '["b"]' &&
+    "$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${WORKSPACES}" auto-names)" == "type b" ]]
+saved="$(sed -n 's/^WORKSPACES_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort | xargs)"
+[[ "${saved}" == "$(jq -r 'keys | join(" ")' <<<"${WORKSPACES_TABLE}")" ]] || { echo "the manifest saves other workspaces keys"; false; }
+# The windows module's keys likewise, every one but its keybinding: each with the schema's type, range and choices,
+# and the manifest saves the same keys
+WINDOWS=org.gnome.shell.extensions.amethystora-ui.windows
+WINDOWS_TABLE="$(sed -n "/^WINDOWS_KEYS='{\$/,/^}'\$/{s/^WINDOWS_KEYS='//; s/^}'\$/}/; p}" "${SETUP}")"
+listed="$(jq -r 'keys[]' <<<"${WINDOWS_TABLE}" | sort)"
+schema="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${WINDOWS}" | grep -vx snap-chooser | sort)"
+[[ -n "${listed}" && "${listed}" == "${schema}" ]] ||
+    { echo "WINDOWS_KEYS and the windows module's schema differ:"; diff <(echo "${listed}") <(echo "${schema}"); false; }
+while read -r key; do
+    range="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${WINDOWS}" "${key}" | xargs)"
+    case "${range}" in
+        "type b") want='["b"]' ;;
+        "range i "*) want="$(awk '{print "[\"i\"," $3 "," $4 "]"}' <<<"${range}")" ;;
+        enum*) want="[\"s\",$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${WINDOWS}" "${key}" |
+            sed -n "2,\$p" | tr "'" '"' | jq -sc .)]" ;;
+        *) want="? ${range}" ;;
+    esac
+    [[ "$(jq -c --arg k "${key}" '.[$k]' <<<"${WINDOWS_TABLE}")" == "${want}" ]] ||
+        { echo "WINDOWS_KEYS has ${key} as $(jq -c --arg k "${key}" '.[$k]' <<<"${WINDOWS_TABLE}"), the schema as ${want}"; false; }
+done <<<"${listed}"
+saved="$(sed -n '/^WINDOWS_KEYS=(/,/)$/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" |
+    sed 's/^WINDOWS_KEYS=(//; s/)$//' | tr -s ' ' '\n' | sed '/^$/d' | sort)"
+[[ "${saved}" == "${listed}" ]] ||
+    { echo "the manifest saves other windows keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
+# The dock's keys likewise, all of them: a switch, a choice with the schema's choices, the amount with its range, the
+# folders and the stacks with checks of their own; and the manifest saves the same keys
+DOCK=org.gnome.shell.extensions.amethystora-ui.dock
+DOCK_TABLE="$(sed -n "/^DOCK_KEYS='{\$/,/^}'\$/{s/^DOCK_KEYS='//; s/^}'\$/}/; p}" "${SETUP}")"
+listed="$(jq -r 'keys[]' <<<"${DOCK_TABLE}" | sort)"
+schema="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${DOCK}" | sort)"
+[[ -n "${listed}" && "${listed}" == "${schema}" ]] ||
+    { echo "DOCK_KEYS and the dock's schema differ:"; diff <(echo "${listed}") <(echo "${schema}"); false; }
+while read -r key; do
+    range="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${DOCK}" "${key}" | xargs)"
+    case "${key}:${range}" in
+        *":type b") want='["b"]' ;;
+        *":range d "*) want="$(awk '{print "[\"d\"," $3 + 0 "," $4 + 0 "]"}' <<<"${range}")" ;;
+        *":enum"*) want="[\"s\",$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${DOCK}" "${key}" |
+            sed -n "2,\$p" | tr "'" '"' | jq -sc .)]" ;;
+        "folders:type a{sas}") want='["folders"]' ;;
+        "stacks:type as") want='["as","stacks"]' ;;
+        *) want="? ${range}" ;;
+    esac
+    [[ "$(jq -c --arg k "${key}" '.[$k]' <<<"${DOCK_TABLE}")" == "${want}" ]] ||
+        { echo "DOCK_KEYS has ${key} as $(jq -c --arg k "${key}" '.[$k]' <<<"${DOCK_TABLE}"), the schema as ${want}"; false; }
+done <<<"${listed}"
+saved="$(sed -n 's/^DOCK_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort)"
+[[ "${saved}" == "${listed}" ]] ||
+    { echo "the manifest saves other dock keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
+# The live pill's keys likewise, all of them: switches, and the digest's times with a check of their own; and the
+# manifest saves the same keys
+PILL=org.gnome.shell.extensions.amethystora-ui.pill
+PILL_TABLE="$(sed -n "/^PILL_KEYS='{\$/,/^}'\$/{s/^PILL_KEYS='//; s/^}'\$/}/; p}" "${SETUP}")"
+listed="$(jq -r 'keys[]' <<<"${PILL_TABLE}" | sort)"
+schema="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${PILL}" | sort)"
+[[ -n "${listed}" && "${listed}" == "${schema}" ]] ||
+    { echo "PILL_KEYS and the pill's schema differ:"; diff <(echo "${listed}") <(echo "${schema}"); false; }
+while read -r key; do
+    range="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${PILL}" "${key}" | xargs)"
+    case "${key}:${range}" in
+        *":type b") want='["b"]' ;;
+        "digest-times:type as") want='["as","times"]' ;;
+        *) want="? ${range}" ;;
+    esac
+    [[ "$(jq -c --arg k "${key}" '.[$k]' <<<"${PILL_TABLE}")" == "${want}" ]] ||
+        { echo "PILL_KEYS has ${key} as $(jq -c --arg k "${key}" '.[$k]' <<<"${PILL_TABLE}"), the schema as ${want}"; false; }
+done <<<"${listed}"
+saved="$(sed -n 's/^PILL_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort)"
+[[ "${saved}" == "${listed}" ]] ||
+    { echo "the manifest saves other pill keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
 
 # A machine with two apps, three things from Homebrew, a container, an extension and a theme, whose
 # dock, close key, terminal key, tiling key, two tiling settings and window rules are not the image's. What
@@ -80,7 +189,18 @@ org.gnome.shell.extensions.amethystora-ui.tiling enabled true
 org.gnome.shell.extensions.amethystora-ui.tiling window-gap 8
 org.gnome.shell.extensions.amethystora-ui.tiling animation-time 0.25
 org.gnome.shell.extensions.amethystora-ui.tiling cycle-width-steps [0.38195000000000001, 0.5, 0.61804000000000003]
-org.gnome.shell.extensions.amethystora-ui.tiling winprops @as []"
+org.gnome.shell.extensions.amethystora-ui.tiling winprops @as []
+org.gnome.shell.extensions.amethystora-ui.pointer shake 'grow'
+org.gnome.shell.extensions.amethystora-ui.pointer dense true
+org.gnome.shell.extensions.amethystora-ui.glass material 'prism'
+org.gnome.shell.extensions.amethystora-ui.glass solid false
+org.gnome.shell.extensions.amethystora-ui.windows snap-chooser ['<Super>z']
+org.gnome.shell.extensions.amethystora-ui.windows corner-top-right 'none'
+org.gnome.shell.extensions.amethystora-ui.windows hold-super-delay 1000
+org.gnome.shell.extensions.amethystora-ui.windows dim false
+org.gnome.shell.extensions.amethystora-ui.dock magnify 'swell'
+org.gnome.shell.extensions.amethystora-ui.dock folders @a{sas} {}
+org.gnome.shell.extensions.amethystora-ui.dock stacks ['xdg:DOWNLOAD']"
         values="org.gnome.shell favorite-apps ['org.gnome.Nautilus.desktop', 'firefox.desktop']
 org.gnome.shell enabled-extensions ['clipboard-indicator@tudmotu.com']
 org.gnome.desktop.wm.keybindings close ['<Super>q']
@@ -88,7 +208,13 @@ org.gnome.shell.keybindings focus-active-notification @as []
 org.gnome.shell.extensions.amethystora-ui.tiling.keybindings cycle-width ['<Super>e']
 org.gnome.shell.extensions.amethystora-ui.tiling window-gap 12
 org.gnome.shell.extensions.amethystora-ui.tiling cycle-width-steps [0.29999999999999999, 0.5]
-org.gnome.shell.extensions.amethystora-ui.tiling winprops ['{\"wm_class\": \"Firefox\", \"scratch_layer\": true}']"
+org.gnome.shell.extensions.amethystora-ui.tiling winprops ['{\"wm_class\": \"Firefox\", \"scratch_layer\": true}']
+org.gnome.shell.extensions.amethystora-ui.pointer shake 'beacon'
+org.gnome.shell.extensions.amethystora-ui.glass material 'clear'
+org.gnome.shell.extensions.amethystora-ui.windows dim true
+org.gnome.shell.extensions.amethystora-ui.dock magnify 'lift'
+org.gnome.shell.extensions.amethystora-ui.dock stacks ['xdg:DOWNLOAD', '~/Projects', '/srv/share']
+org.gnome.shell.extensions.amethystora-ui.dock folders {\"Jeux d'enfants\": ['org.gnome.Nautilus.desktop', 'firefox.desktop']}"
         [[ "${GSETTINGS_BACKEND:-}" == memory ]] && values=""
         value() { grep "^$1 $2 " <<<"${values}" || grep "^$1 $2 " <<<"${defaults}"; }
         case "$1" in
@@ -143,7 +269,10 @@ jq -e '.version == 1 and .theme == "nord" and .flatpaks.user == [{"app": "org.gi
     and .settings == {"layout": "tiling", "favorites": ["org.gnome.Nautilus.desktop", "firefox.desktop"],
         "keybindings": {"org.gnome.desktop.wm.keybindings": {"close": ["<Super>q"]}, "custom": {"custom20": ["<Super>t"]},
             "org.gnome.shell.extensions.amethystora-ui.tiling.keybindings": {"cycle-width": ["<Super>e"]}},
-        "tiling": {"window-gap": 12, "cycle-width-steps": [0.3, 0.5]}}
+        "tiling": {"window-gap": 12, "cycle-width-steps": [0.3, 0.5]}, "pointer": {"shake": "beacon"},
+        "glass": {"material": "clear"}, "windows": {"dim": true},
+        "dock": {"magnify": "lift", "stacks": ["xdg:DOWNLOAD", "~/Projects"],
+            "folders": {"Jeux d'"'"'enfants": ["org.gnome.Nautilus.desktop", "firefox.desktop"]}}}
     and (keys - ["version", "image", "flatpaks", "brew", "containers", "extensions", "theme", "settings"] == [])' \
     "${FILE}" >/dev/null
 # ...the tiling's settings as JSON writes them, and not its window rules, which the file never holds
@@ -174,15 +303,33 @@ jq '.settings.keybindings["org.gnome.shell.extensions.paperwm.keybindings"] = {"
 
 # Against a file that names nothing, diff lists everything here, as what apply --remove would take away
 echo '{"version": 1}' >"${T}/empty.json"
-"${SETUP}" diff --json "${T}/empty.json" | jq -e 'length == 13 and all(.action == "remove")
-    and ([.[] | select(.area == "tiling") | .key] | sort == ["cycle-width-steps", "window-gap"])' >/dev/null
+"${SETUP}" diff --json "${T}/empty.json" | jq -e 'length == 19 and all(.action == "remove")
+    and ([.[] | select(.area == "dock") | .key] | sort == ["folders", "magnify", "stacks"])
+    and ([.[] | select(.area == "tiling") | .key] | sort == ["cycle-width-steps", "window-gap"])
+    and ([.[] | select(.area == "pointer") | .key] == ["shake"])
+    and ([.[] | select(.area == "glass") | .key] == ["material"])
+    and ([.[] | select(.area == "windows") | .key] == ["dim"])' >/dev/null
 
 # apply installs what is missing, and without --remove takes nothing away. A tiling setting this machine does
 # not have is listed and left out.
 jq '.flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .brew.formulae = ["fd", "someone/tools/lint"]
     | .settings.keybindings["org.gnome.desktop.wm.keybindings"].close = ["<Super>c"]
-    | .settings.tiling += {"window-gap": 20, "animation-time": 0.5, "workspace-colors": ["", "#314e6c"]}' "${FILE}" >"${T}/more.json"
+    | .settings.tiling += {"window-gap": 20, "animation-time": 0.5, "workspace-colors": ["", "#314e6c"]}
+    | .settings.pointer = {"shake": "off", "dense": false}
+    | .settings.glass = {"material": "frost", "solid": true}
+    | .settings.windows = {"dim": false, "corner-top-right": "overview", "hold-super-delay": 1500}
+    | .settings.dock += {"magnify": "off", "folders": {"Writing": ["org.gnome.Nautilus.desktop", "firefox.desktop"]}}' \
+    "${FILE}" >"${T}/more.json"
 out="$("${SETUP}" diff "${T}/more.json")"
+grep -qxF "  ~ the windows' dim: false, in place of true" <<<"${out}"
+grep -qxF '  ~ the windows'"'"' corner-top-right: "overview", in place of "none"' <<<"${out}"
+grep -qxF "  ~ the windows' hold-super-delay: 1500, in place of 1000" <<<"${out}"
+grep -qxF '  ~ the dock'"'"'s magnify: "off", in place of "lift"' <<<"${out}"
+grep -qxF '  ~ the dock'"'"'s folders: {"Writing":["org.gnome.Nautilus.desktop","firefox.desktop"]}, in place of {"Jeux d'"'"'enfants":["org.gnome.Nautilus.desktop","firefox.desktop"]}' <<<"${out}"
+grep -qxF '  ~ the pointer'"'"'s shake: "off", in place of "beacon"' <<<"${out}"
+grep -qxF "  ~ the pointer's dense: false, in place of true" <<<"${out}"
+grep -qxF '  ~ the glass'"'"'s material: "frost", in place of "clear"' <<<"${out}"
+grep -qxF "  ~ the glass's solid: true, in place of false" <<<"${out}"
 grep -qxF "  ~ the tiling's window-gap: 20, in place of 12" <<<"${out}"
 grep -qxF "  ~ the tiling's animation-time: 0.5, in place of 0.25" <<<"${out}"
 grep -qxF "  ! the tiling's workspace-colors: [\"\",\"#314e6c\"]: this machine's tiling has no such setting" <<<"${out}"
@@ -192,6 +339,16 @@ grep -qx "brew install --formula fd someone/tools/lint" "${LOG}"
 grep -qx "gsettings set org.gnome.desktop.wm.keybindings close \['<Super>c'\]" "${LOG}"
 grep -qx "gsettings set ${TILING} window-gap 20" "${LOG}"
 grep -qx "gsettings set ${TILING} animation-time 0.5" "${LOG}"
+grep -qxF "gsettings set ${POINTER} shake \"off\"" "${LOG}"
+grep -qx "gsettings set ${POINTER} dense false" "${LOG}"
+grep -qxF "gsettings set ${GLASS} material \"frost\"" "${LOG}"
+grep -qx "gsettings set ${GLASS} solid true" "${LOG}"
+grep -qx "gsettings set ${WINDOWS} dim false" "${LOG}"
+grep -qxF "gsettings set ${WINDOWS} corner-top-right \"overview\"" "${LOG}"
+grep -qx "gsettings set ${WINDOWS} hold-super-delay 1500" "${LOG}"
+grep -qxF "gsettings set ${DOCK} magnify \"off\"" "${LOG}"
+grep -qxF "gsettings set ${DOCK} folders {\"Writing\":[\"org.gnome.Nautilus.desktop\",\"firefox.desktop\"]}" "${LOG}"
+grep -q "${DOCK} stacks" "${LOG}" && false
 grep -qE "workspace-colors|cycle-width-steps" "${LOG}" && false
 grep -qE "uninstall|untap|reset|rm " "${LOG}" && false
 # --remove asks first, which takes a terminal: without one, nothing is taken away
@@ -226,7 +383,36 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"tiling": {"maximize-width-percent": 0.4}}}' \
     '{"version": 1, "settings": {"tiling": {"cycle-width-steps": [0.5, 0]}}}' \
     '{"version": 1, "settings": {"tiling": {"swipe-friction": ["0.3"]}}}' \
-    '{"version": 1, "settings": {"tiling": {"workspace-colors": ["red"]}}}'; do
+    '{"version": 1, "settings": {"tiling": {"workspace-colors": ["red"]}}}' \
+    '{"version": 1, "settings": {"pointer": {"shake": "spin"}}}' \
+    '{"version": 1, "settings": {"motion": {"minimize": "bounce"}}}' \
+    '{"version": 1, "settings": {"motion": {"reduce-motion": true}}}' \
+    '{"version": 1, "settings": {"workspaces": {"auto-names": "yes"}}}' \
+    '{"version": 1, "settings": {"workspaces": {"move-workspace-left": ["<Super>a"]}}}' \
+    '{"version": 1, "settings": {"pointer": {"dense": "yes"}}}' \
+    '{"version": 1, "settings": {"pointer": {"cursor-size": 48}}}' \
+    '{"version": 1, "settings": {"pointer": ["grow"]}}'     '{"version": 1, "settings": {"glass": {"material": "liquid"}}}'     '{"version": 1, "settings": {"glass": {"solid": "on"}}}'     '{"version": 1, "settings": {"glass": {"corners": "round"}}}'     '{"version": 1, "settings": {"comfort": {"reduce-motion": true}}}' \
+    '{"version": 1, "settings": {"windows": {"corner-top-left": "rm -rf ~"}}}' \
+    '{"version": 1, "settings": {"windows": {"hold-super-delay": 100}}}' \
+    '{"version": 1, "settings": {"windows": {"hold-super-delay": 1000.5}}}' \
+    '{"version": 1, "settings": {"windows": {"dim": "on"}}}' \
+    '{"version": 1, "settings": {"windows": {"snap-chooser": ["<Super>z"]}}}' \
+    '{"version": 1, "settings": {"windows": {"places.json": {}}}}' \
+    '{"version": 1, "settings": {"keybindings": {"org.gnome.shell.extensions.amethystora-ui.windows": {"snap": ["<Super>a"]}}}}' \
+    '{"version": 1, "settings": {"dock": {"no-such-setting": true}}}' \
+    '{"version": 1, "settings": {"dock": {"magnify": "wobble"}}}' \
+    '{"version": 1, "settings": {"dock": {"magnify-amount": 3}}}' \
+    '{"version": 1, "settings": {"dock": {"folders": {"Lonely": ["firefox.desktop"]}}}}' \
+    '{"version": 1, "settings": {"dock": {"folders": {"Bad": ["rm -rf ~", "firefox.desktop"]}}}}' \
+    '{"version": 1, "settings": {"dock": {"stacks": ["~/../x"]}}}' \
+    '{"version": 1, "settings": {"dock": {"stacks": ["/etc"]}}}' \
+    '{"version": 1, "settings": {"pill": {"no-such-setting": true}}}' \
+    '{"version": 1, "settings": {"pill": {"quiet": "on"}}}' \
+    '{"version": 1, "settings": {"pill": {"digest-times": []}}}' \
+    '{"version": 1, "settings": {"pill": {"digest-times": ["25:00"]}}}' \
+    '{"version": 1, "settings": {"pill": {"digest-times": ["12:00", "12:00"]}}}' \
+    '{"version": 1, "settings": {"pill": {"digest-times": ["01:00", "02:00", "03:00", "04:00", "05:00", "06:00", "07:00"]}}}' \
+    '{"version": 1, "settings": {"pill": {"show-banners": false}}}'; do
     printf '%s\n' "${bad}" >"${T}/bad.json"
     "${SETUP}" diff "${T}/bad.json" >/dev/null 2>&1 && { echo "accepted: ${bad}"; false; }
     "${SETUP}" apply --yes "${T}/bad.json" >/dev/null 2>&1 && { echo "applied: ${bad}"; false; }
@@ -252,7 +438,8 @@ image() { GSETTINGS_SCHEMA_DIR="${ROOT}/usr/share/glib-2.0/schemas" GSETTINGS_BA
 bake_root
 jq '.image = {"name": "amethystora", "stream": "stable"}
     | .flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .extensions = ["amethystora-clipboard@iarsslen.github.io"]
-    | .settings.layout = "classic" | .brew.taps = ["someone/tools"] | .brew.formulae = ["fd", "someone/tools/lint"]' \
+    | .settings.layout = "classic" | .brew.taps = ["someone/tools"] | .brew.formulae = ["fd", "someone/tools/lint"]
+    | .settings.motion = {"minimize": "shrink"} | .settings.workspaces = {"auto-names": false}' \
     "${FILE}" >"${T}/image.json"
 out="$(bake "${T}/image.json")"
 grep -qF "Left out: the containers" <<<"${out}"
@@ -270,6 +457,14 @@ grep -qF "'amethystora-clipboard@iarsslen.github.io'" <<<"${extensions}"
 [[ "$(image "${TILING}" enabled)" == false && "$(image "${TILING}" window-gap)" == 12 ]]
 [[ "$(GSETTINGS_SCHEMA_DIR="${ROOT}/${UI}/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get "${TILING}" window-gap)" == 12 ]]
 [[ "$(GSETTINGS_SCHEMA_DIR="${ROOT}/${UI}/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get "${TILING}" enabled)" == false ]]
+[[ "$(image "${POINTER}" shake)" == "'beacon'" && "$(image "${POINTER}" dense)" == true ]]
+[[ "$(GSETTINGS_SCHEMA_DIR="${ROOT}/${UI}/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get "${POINTER}" shake)" == "'beacon'" ]]
+[[ "$(image "${GLASS}" material)" == "'clear'" && "$(image "${GLASS}" solid)" == false ]]
+[[ "$(GSETTINGS_SCHEMA_DIR="${ROOT}/${UI}/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get "${GLASS}" material)" == "'clear'" ]]
+[[ "$(image "${MOTION}" minimize)" == "'shrink'" && "$(image "${MOTION}" workspace-switch)" == "'depth'" ]]
+[[ "$(GSETTINGS_SCHEMA_DIR="${ROOT}/${UI}/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get "${WORKSPACES}" auto-names)" == false ]]
+[[ "$(image "${WINDOWS}" dim)" == true && "$(image "${WINDOWS}" snap)" == true ]]
+[[ "$(GSETTINGS_SCHEMA_DIR="${ROOT}/${UI}/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get "${WINDOWS}" dim)" == true ]]
 printf 'file-db:%s\n' "${ROOT}/etc/dconf/db/distro" >"${T}/dconf-profile"
 [[ "$(DCONF_PROFILE="${T}/dconf-profile" /usr/bin/dconf read /org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom20/binding)" == "'<Super>t'" ]]
 # ...the image's command for it left as it was

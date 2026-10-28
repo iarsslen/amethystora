@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The keys of the motion (modules/motion.js): how windows go into the dock and come back, and how one workspace
+     gives way to the next. Reduce motion is the comfort module's, GNOME's own reduced-motion key. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.motion" path="/org/gnome/shell/extensions/amethystora-ui/motion/">
+    <key name="minimize" type="s">
+      <choices>
+        <choice value="droplet"/>
+        <choice value="shrink"/>
+      </choices>
+      <default>'droplet'</default>
+      <summary>How a window goes into the dock and comes back</summary>
+      <description>droplet: it gathers into a drop of glass and arcs into its icon. shrink: GNOME's own, it shrinks and fades into its icon. With Reduce motion on, a window fades in place either way.</description>
+    </key>
+    <key name="workspace-switch" type="s">
+      <choices>
+        <choice value="depth"/>
+        <choice value="slide"/>
+      </choices>
+      <default>'depth'</default>
+      <summary>How workspaces change</summary>
+      <description>depth: the wallpaper slides a third as far as the windows, which step back a little on the way. slide: GNOME's own.</description>
+    </key>
+  </schema>
+</schemalist>

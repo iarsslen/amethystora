@@ -1,8 +1,8 @@
-// The dock's items that are not apps (a drive, the trash) and their menus, laid out as GNOME's app menu is: the
-// place's name, its windows, a new window, what can be done with the place, and closing its windows. GNOME's app
-// menu, wherever it opens, pins to the dock and says how many windows Quit closes; on the dock it also has the app's
-// name at its top and the app's own entries, which it gives through the launcher protocol. While an app is being
-// updated its menu says so at the top and leaves out everything that would start it.
+// The dock's items that are not apps (a drive, the trash, a stack, a folder) and their menus, laid out as GNOME's
+// app menu is: the place's name, its windows, a new window, what can be done with the place, and closing its windows.
+// GNOME's app menu, wherever it opens, pins to the dock and says how many windows Quit closes; on the dock it also has
+// the app's name at its top and the app's own entries, which it gives through the launcher protocol. While an app is
+// being updated its menu says so at the top and leaves out everything that would start it.
 
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
@@ -49,9 +49,10 @@ export const PlaceButton = GObject.registerClass({
         this.icon = new IconGrid.BaseIcon(place.name, {
             setSizeManually: true,
             showLabel: false,
-            createIcon: size => new St.Icon({
+            // A folder of apps draws its own picture
+            createIcon: size => this.place.createIcon?.(size) ?? new St.Icon({
                 gicon: this.place.gicon,
-                fallback_icon_name: this.place.fallback,
+                fallback_icon_name: this.place.fallback ?? 'folder',
                 icon_size: size,
             }),
         });
@@ -77,10 +78,10 @@ export const PlaceButton = GObject.registerClass({
         this._activate(button);
     }
 
-    // The place's icon changed (the trash filled or emptied, a drive was renamed)
+    // The place's icon changed (the trash filled or emptied, a drive was renamed, a folder's colour)
     sync() {
         if (this.icon.icon)
-            this.icon.icon.gicon = this.place.gicon;
+            this.icon._createIconTexture(this.icon.iconSize);
     }
 
     popupMenu() {

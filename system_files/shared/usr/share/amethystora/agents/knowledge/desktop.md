@@ -22,6 +22,9 @@ these commands in the agent's own shell, as the user. Read before writing, chang
   islands|floating|hairline|capsule|terminal|segments|neon|theme`.
 - Animations: `gsettings set org.gnome.desktop.interface enable-animations false`; the theme transitions stop
   with them.
+- The glass behind the top bar, dock, menus and notifications: `ame desktop glass frost|prism|clear`. Comfort:
+  `ame desktop comfort reduce-transparency|reduce-motion|increase-contrast on|off` (the glass solid; GNOME's
+  Reduced Motion; GNOME's High Contrast), and `ame desktop comfort` alone shows all of them and the power saver.
 
 ## Night light and the screen
 
@@ -37,7 +40,12 @@ these commands in the agent's own shell, as the user. Read before writing, chang
 
 ## Power
 
-- Power profile: `powerprofilesctl list`, `powerprofilesctl set power-saver|balanced|performance`.
+- Power profile: the image has no `powerprofilesctl` (tuned-ppd answers power-profiles-daemon's interface).
+  Read it with `busctl --system get-property org.freedesktop.UPower.PowerProfiles
+  /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile`, set it with
+  `busctl --system set-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles
+  org.freedesktop.UPower.PowerProfiles ActiveProfile s power-saver` (or `balanced`, `performance`), or in the
+  quick settings' power menu. While it is `power-saver` the glass is solid and animations take half their time.
 - Suspend when idle on mains power: `gsettings set org.gnome.settings-daemon.plugins.power
   sleep-inactive-ac-type nothing` (or `suspend`).
 

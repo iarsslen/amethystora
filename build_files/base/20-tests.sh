@@ -467,6 +467,32 @@ rm -rf "${UI_RENDER}"
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.keybindings switch-input-source)" == "['<Shift><Super>space']" ]]
 # App search keeps Parental Controls' filter, as GNOME's own does
 grep -q "shouldShowApp" "${UI_EXTENSION}/modules/fuzzy.js"
+# The live pill (plans/beyond/spec-pill.md): its seven keys with their defaults, its files, its place among the modules
+# (after the phone link, whose calls and links it hears, and before the dock and the glass), pw-dump for the camera's
+# apps, its three recipes, and quiet holding banners in memory only: nothing of it writes GNOME's show-banners
+PILL=org.gnome.shell.extensions.amethystora-ui.pill
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${PILL}" | sort | paste -sd ' ')" == \
+    "digest digest-times glow live privacy-dots quiet quiet-night" ]]
+for key in live privacy-dots glow quiet; do
+    [[ "$(GSETTINGS_BACKEND=memory gsettings get "${PILL}" "${key}")" == true ]]
+done
+for key in quiet-night digest; do
+    [[ "$(GSETTINGS_BACKEND=memory gsettings get "${PILL}" "${key}")" == false ]]
+done
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${PILL}" digest-times)" == "['12:00', '18:00']" ]]
+test -s "${UI_EXTENSION}/modules/pill.js"
+test -s "${UI_EXTENSION}/stylesheets/pill.css"
+test -s /usr/share/amethystora/themed/shell-pill.css.tpl
+[[ "$(grep -oE "^    \['(connect|pill|dock)'," "${UI_EXTENSION}/extension.js" | paste -sd ' ')" == \
+    "    ['connect',     ['pill',     ['dock'," ]]
+test -x /usr/bin/pw-dump
+for recipe in pill quiet digest; do
+    grep -q "^${recipe} \*ARGS:" /usr/share/amethystora/just/desktop.just
+done
+if grep -rn "show-banners" "${UI_EXTENSION}/modules/pill.js" "${UI_EXTENSION}/modules/pill"; then
+    echo "the pill writes GNOME's Do Not Disturb"
+    exit 1
+fi
 test -s "${UI_EXTENSION}/modules/fuzzy/matcher.js"
 # Copying text out of a screenshot is Gradia's, reached through the screenshot module's Extract Text button
 # and Ctrl+E in GNOME's screenshot UI (manual: desktop.md#copying-text-from-the-screen): a change that drops
@@ -532,6 +558,7 @@ KEPT_COMBOS="$(
         GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.keybindings toggle-message-tray
         GSETTINGS_BACKEND=memory gsettings get org.gnome.mutter.wayland.keybindings restore-shortcuts
         GSETTINGS_BACKEND=memory gsettings get org.gnome.mutter.keybindings cancel-input-capture
+        GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.windows snap-chooser
     } | keycombos
 )"
 grep -qx "<super>return" <<<"${KEPT_COMBOS}"
@@ -545,7 +572,92 @@ test -s "${UI_EXTENSION}/stylesheets/glass.css"
 test -s "${UI_EXTENSION}/stylesheets/dock.css"
 # No extension of the image, ours or another's, may draw with Shell.GLSLEffect: it fails to load on GNOME 51
 [[ -z "$(grep -rn --include='*.js' GLSLEffect /usr/share/gnome-shell/extensions | grep -v ':[0-9]*: *//')" ]]
+# The glass's two keys (ame desktop glass, ame desktop comfort reduce-transparency): Prism by default, the three
+# variants the schema offers each a table of materials.js
+GLASS=org.gnome.shell.extensions.amethystora-ui.glass
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${GLASS}" | sort | paste -sd ' ')" == "material solid" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${GLASS}" material)" == "'prism'" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${GLASS}" solid)" == false ]]
+[[ "$(sed -n 's/.*<choice value="\([a-z]*\)"\/>.*/\1/p' "${UI_EXTENSION}/schemas/${GLASS}.gschema.xml" | paste -sd ' ')" == \
+    "frost prism clear" ]]
+[[ "$(grep -c '^    \(frost\|prism\|clear\): {$' "${UI_EXTENSION}/modules/glass/materials.js")" == 3 ]]
+# The shader declares what the effect sets, in what a Cogl snippet takes on every GPU (GLSL ES 1.0 too): no version
+# or precision line, no explicit level of detail, no loops
+for uniform in u_corner u_tone u_rim u_veil u_edge u_lift u_light u_ring u_glow u_glowshape u_sideglow u_sheen u_solid; do
+    grep -qE "^uniform (float|vec[234]) ${uniform};" "${UI_EXTENSION}/modules/glass/lens.glsl"
+done
+[[ -z "$(grep -E '#version|precision|texture2DLod|textureLod|for \(|while \(' "${UI_EXTENSION}/modules/glass/lens.glsl")" ]]
+# Comfort follows GNOME's own Reduced Motion and High Contrast and power-profiles-daemon's profile, on signals
+# alone, and starts before every module that moves something
+grep -q 'org.freedesktop.UPower.PowerProfiles' "${UI_EXTENSION}/modules/comfort.js"
+[[ -z "$(grep -E 'timeout_add|setInterval|setTimeout' "${UI_EXTENSION}/modules/comfort.js")" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings range org.gnome.desktop.a11y.interface reduced-motion | xargs)" == \
+    "enum no-preference reduce" ]]
+MODULE_ORDER="$(sed -n "s/^    \['\([a-z]*\)', [A-Za-z]*\],$/\1/p" "${UI_EXTENSION}/extension.js" | paste -sd ' ')"
+for module in tweaks workspaces dock glass motion windows; do
+    [[ " ${MODULE_ORDER} " != *" ${module} "* || " ${MODULE_ORDER%%" ${module}"*} " == *" comfort "* ]] ||
+        { echo "comfort does not start before ${module}"; exit 1; }
+done
+[[ " ${MODULE_ORDER} " == *" style comfort "* ]]
+# Solid and High Contrast in the glass's colours, from keys every theme's palette has (the render loop above)
+for word in amethystora-glass-solid amethystora-glass-contrast -amethystora-glass-ground -amethystora-glass-accent \
+    '{{ popover_bg }}'; do
+    grep -qF -- "${word}" /usr/share/amethystora/themed/shell-glass.css.tpl
+done
 test ! -e /etc/dconf/db/distro.d/05-blur-my-shell-extension
+# The windows module (snap layouts, the switcher, the Super card, hot corners, show desktop, gestures, places, a copy
+# kept in view, dimming): its sixteen keys and their defaults, after the tiling, whose layout it reads, and
+# ame desktop windows, which refuses what it does not know. Super+Z is in KEPT_COMBOS above.
+WINDOWS=org.gnome.shell.extensions.amethystora-ui.windows
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-recursively "${WINDOWS}" | cut -d' ' -f2- | LC_ALL=C sort | paste -sd ';')" == \
+    "corner-bottom-left 'none';corner-bottom-right 'none';corner-top-left 'none';corner-top-right 'none';dim false;gesture-down true;gesture-pinch true;gesture-spread true;gesture-today true;hold-super true;hold-super-delay 1000;places true;show-desktop false;snap true;snap-chooser ['<Super>z'];switcher true" ]] ||
+    { echo "the windows module's keys or defaults are not the spec's"; exit 1; }
+[[ " ${MODULE_ORDER} " == *" tiling windows "* ]] || { echo "the windows module does not start right after the tiling"; exit 1; }
+test -s "${UI_EXTENSION}/stylesheets/windows.css"
+test -s /usr/share/amethystora/themed/shell-windows.css.tpl
+GSETTINGS_BACKEND=memory ame desktop windows >/dev/null
+for wrong in "snap maybe" "hold-super 100" "corner middle overview" "corner top-left explode" "gesture swipe on" "places keep"; do
+    # shellcheck disable=SC2086
+    GSETTINGS_BACKEND=memory ame desktop windows ${wrong} >/dev/null 2>&1 && { echo "ame desktop windows ${wrong} was taken"; exit 1; }
+done
+# A window's title is never markup in it, and it runs nothing through a shell
+[[ -z "$(grep -rnE 'use_markup = true|spawn_command_line|GLib\.spawn_async' "${UI_EXTENSION}/modules/windows.js" \
+    "${UI_EXTENSION}/modules/windows")" ]]
+# The dock (plans/beyond/spec-dock.md): its twelve keys and their defaults; the choices of each that the schema,
+# ame desktop dock and Control give alike; ame desktop dock refusing what it does not know; and what it may never do:
+# take a name for markup, send files to a phone itself (only the Phone app may), or carry another maker's names
+DOCK=org.gnome.shell.extensions.amethystora-ui.dock
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-recursively "${DOCK}" | cut -d' ' -f2- | LC_ALL=C sort | paste -sd ';')" == \
+    "autohide 'off';edge 'bottom';folders @a{sas} {};indicator 'bar';launch 'halo';magnify 'swell';magnify-amount 1.6000000000000001;previews true;recent true;screens 'every';stacks ['xdg:DOWNLOAD'];workspace-apps false" ]] ||
+    { echo "the dock's keys or defaults are not the spec's"; exit 1; }
+for key in magnify launch indicator edge screens autohide; do
+    schema="$(GSETTINGS_BACKEND=memory gsettings range "${DOCK}" "${key}" | sed -n '2,$p' | tr -d "'" | LC_ALL=C sort | xargs)"
+    recipe="$(sed -n "s/^ *${key}) values=(\(.*\)) ;;\$/\1/p" /usr/share/amethystora/just/desktop.just | tr ' ' '\n' |
+        LC_ALL=C sort | xargs)"
+    control="$(grep -o "ame desktop dock ${key} [a-z]*" /usr/libexec/amethystora-control-list | awk '{print $5}' |
+        LC_ALL=C sort -u | xargs)"
+    [[ -n "${schema}" && "${schema}" == "${recipe}" && "${schema}" == "${control}" ]] ||
+        { echo "the dock's ${key}: the schema offers ${schema}, ame desktop dock ${recipe}, Control ${control}"; exit 1; }
+done
+[[ "$(GSETTINGS_BACKEND=memory ame desktop dock | wc -l)" == 12 ]]
+for wrong in "magnify wobble" "amount 300" "edge top" "recent maybe" "stack add /nonexistent" "folder" "sideways"; do
+    # shellcheck disable=SC2086
+    GSETTINGS_BACKEND=memory ame desktop dock ${wrong} >/dev/null 2>&1 && { echo "ame desktop dock ${wrong} was taken"; exit 1; }
+done
+test -s "${UI_EXTENSION}/schemas/${DOCK}.gschema.xml"
+for class in amethystora-dock-bar amethystora-dock-glow amethystora-dock-halo amethystora-dock-number; do
+    grep -q "\.${class}\b" /usr/share/amethystora/themed/shell-dock.css.tpl
+done
+[[ -z "$(grep -rnE 'use_markup = true|use_markup: true|set_markup\(' "${UI_EXTENSION}/modules/dock.js" \
+    "${UI_EXTENSION}/modules/dock")" ]] || { echo "the dock takes text for markup"; exit 1; }
+[[ -z "$(grep -rn SendFiles "${UI_EXTENSION}/modules/dock.js" "${UI_EXTENSION}/modules/dock" \
+    "${UI_EXTENSION}/modules/connect.js" "${UI_EXTENSION}/modules/connect")" ]] || { echo "the shell sends files itself"; exit 1; }
+[[ -z "$(grep -rniE 'macos|mac os|tahoe|genie|mission control|spotlight|launchpad|quick look|stage manager|exposé' \
+    "${UI_EXTENSION}/modules/dock.js" "${UI_EXTENSION}/modules/dock" "${UI_EXTENSION}/stylesheets/dock.css" \
+    /usr/share/amethystora/themed/shell-dock.css.tpl "${UI_EXTENSION}/schemas/${DOCK}.gschema.xml")" ]] ||
+    { echo "the dock names another maker's desktop"; exit 1; }
+# The Phone app sends a drop at once with --now, which its own tests cover in the apps stage
+grep -qa -- '--now' /usr/lib/amethystora-phone/amethystora-phone
 # An account that holds a list of its own never sees the default list of extensions, so the user-setup hook
 # puts it back after every update; the default it reads has to be the one the image compiled
 test -x /usr/share/amethystora/user-setup.hooks.d/15-extensions.sh
@@ -1299,7 +1411,8 @@ GLASS_ICONS="$(find /usr/share/icons/amethystora-glass -name '*.svg' | wc -l)"
 [[ -z "$(find /usr/share/icons/amethystora-glass -name 'firefox.svg' -o -name 'org.mozilla.*')" ]]
 ICON_PACK_NAMES="$(source /usr/lib/amethystora/theme/lib.sh && echo "${ICON_PACKS[*]}")"
 [[ "$(wc -w <<<"${ICON_PACK_NAMES}")" == 8 ]]
-[[ "$(find /usr/share/icons -maxdepth 1 -name 'amethystora-*' | wc -l)" == 8 ]]
+# Icon packs are the folders with Directories=; the pointers (amethystora-pointer-*) have none
+[[ "$(grep -l '^Directories=' /usr/share/icons/amethystora-*/index.theme | wc -l)" == 8 ]]
 for pack in ${ICON_PACK_NAMES}; do
     PACK_DIR="/usr/share/icons/amethystora-${pack}"
     grep -q "^Name=Amethystora " "${PACK_DIR}/index.theme"
@@ -1338,6 +1451,161 @@ done
     [[ "$(icon_theme)" == amethystora-neon ]]
     rm -rf "${HOME}"
 )
+
+# The pointers branding/cursors.mjs draws (plans/beyond/spec-pointer.md): three sets, one Xcursor file per drawing, each
+# of five square sizes and the animated ones of 20 frames, and every other name a toolkit asks for a link 10-icons.sh
+# made from the set's aliases table, to a drawing's file in the same folder; Halo the default here and in the library
+POINTER_SET_NAMES="$(source /usr/lib/amethystora/theme/lib.sh && echo "${POINTER_SETS[*]}")"
+[[ "${POINTER_SET_NAMES}" == "halo ink facet" ]]
+grep -q "^DEFAULT_POINTER=amethystora-pointer-halo$" /usr/lib/amethystora/theme/lib.sh
+grep -q "^DEFAULT_LIGHT_POINTER=amethystora-pointer-ink$" /usr/lib/amethystora/theme/lib.sh
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.interface cursor-theme)" == "'amethystora-pointer-halo'" ]]
+for set in ${POINTER_SET_NAMES}; do
+    dir="/usr/share/icons/amethystora-pointer-${set}"
+    grep -qx "Name=Amethystora ${set^}" "${dir}/index.theme"
+    grep -qx "Inherits=Adwaita" "${dir}/index.theme"
+    grep -q '^Directories=' "${dir}/index.theme" && false
+    [[ "$(find "${dir}/cursors" -type f | wc -l)" == 22 ]]
+    # Every alias a link, relative, to its drawing's own file and folder, every link one the table names, and the table
+    # whole: 94 other names, 116 in all
+    [[ "$(grep -cv '^#' "${dir}/aliases")" == 94 ]]
+    while read -r alias target; do
+        [[ -z "${alias}" || "${alias}" == \#* ]] && continue
+        [[ -L "${dir}/cursors/${alias}" && "$(readlink "${dir}/cursors/${alias}")" == "${target}" ]] ||
+            { echo "${dir}/cursors/${alias} is not a link to ${target}"; false; }
+        [[ -f "${dir}/cursors/${target}" && ! -L "${dir}/cursors/${target}" ]]
+        [[ -L "${dir}/cursors_scalable/${alias}" && "$(readlink "${dir}/cursors_scalable/${alias}")" == "${target}" ]] ||
+            { echo "${dir}/cursors_scalable/${alias} is not a link to ${target}"; false; }
+    done <"${dir}/aliases"
+    [[ "$(find "${dir}/cursors" -type l | wc -l)" == "$(grep -cv '^#' "${dir}/aliases")" ]]
+    [[ "$(find "${dir}/cursors_scalable" -mindepth 1 -maxdepth 1 -type l | wc -l)" == "$(grep -cv '^#' "${dir}/aliases")" ]]
+    [[ -z "$(find -L "${dir}/cursors" -type l)" ]]
+    for name in default context-menu help pointer progress wait cell crosshair text vertical-text alias copy move \
+        no-drop not-allowed grab grabbing e-resize n-resize ne-resize nw-resize s-resize se-resize sw-resize w-resize \
+        ew-resize ns-resize nesw-resize nwse-resize col-resize row-resize all-scroll zoom-in zoom-out dnd-ask all-resize \
+        left_ptr hand2 xterm watch left_ptr_watch crossed_circle fleur sb_h_double_arrow sb_v_double_arrow size_fdiag \
+        size_bdiag openhand closedhand e29285e634086352946a0e7090d73106; do
+        [[ -f "${dir}/cursors/${name}" ]] || { echo "${dir} has no ${name}"; false; }
+    done
+    [[ "$(readlink -f "${dir}/cursors/left_ptr")" == "${dir}/cursors/default" ]]
+    [[ "$(readlink -f "${dir}/cursors/hand2")" == "${dir}/cursors/pointer" ]]
+    [[ "$(readlink -f "${dir}/cursors/grab")" == "${dir}/cursors/move" ]]
+    [[ "$(readlink -f "${dir}/cursors/watch")" == "${dir}/cursors/wait" ]]
+    # GNOME Shell 51 reads its own pointers as SVG, cursors_scalable/<name>/metadata.json: every name it asks for (its
+    # ClutterCursorType names) is there, through the same links, and lists frames that are there
+    [[ "$(find "${dir}/cursors_scalable" -mindepth 1 -maxdepth 1 -type d | wc -l)" == 22 ]]
+    [[ -z "$(find -L "${dir}/cursors_scalable" -type l)" ]]
+    for name in default context-menu help pointer progress wait cell crosshair text vertical-text alias copy move \
+        no-drop not-allowed grab grabbing e-resize n-resize ne-resize nw-resize s-resize se-resize sw-resize w-resize \
+        ew-resize ns-resize nesw-resize nwse-resize col-resize row-resize all-scroll zoom-in zoom-out dnd-ask all-resize; do
+        meta="${dir}/cursors_scalable/${name}/metadata.json"
+        jq -e 'type == "array" and length > 0 and all(.[]; .nominal_size == 24 and (.filename | test("^[a-z-]+(-[0-9]{2})?[.]svg$")))' \
+            "${meta}" >/dev/null || { echo "${meta} is not a list of frames"; false; }
+        for frame in $(jq -r '.[].filename' "${meta}"); do
+            grep -q '<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30"' "$(dirname "${meta}")/${frame}"
+        done
+    done
+    [[ "$(jq length "${dir}/cursors_scalable/wait/metadata.json")" == 20 ]]
+    python3 - "${dir}/cursors" <<'PY'
+import os, struct, sys
+d = sys.argv[1]
+seen = set()
+total = 0
+for name in sorted(os.listdir(d)):
+    path = os.path.join(d, name)
+    if os.path.islink(path):
+        continue
+    b = open(path, 'rb').read()
+    magic, header, version, ntoc = struct.unpack_from('<4sIII', b, 0)
+    assert magic == b'Xcur' and header == 16 and version == 0x10000, name
+    frames = {}
+    for i in range(ntoc):
+        kind, size, pos = struct.unpack_from('<III', b, 16 + 12 * i)
+        assert kind == 0xfffd0002, name
+        h, k2, sub, ver, w, ht, xh, yh, delay = struct.unpack_from('<IIIIIIIII', b, pos)
+        assert (h, k2, sub, ver) == (36, 0xfffd0002, size, 1), name
+        assert w == ht == size * 30 // 24 and xh < w and yh < ht and delay == 50, name
+        assert pos + 36 + 4 * w * ht <= len(b), name
+        frames[size] = frames.get(size, 0) + 1
+    assert sorted(frames) == [24, 32, 48, 64, 96], name
+    assert set(frames.values()) == ({20} if name in ('wait', 'progress') else {1}), name
+    seen.add(b)
+    total += len(b)
+assert len(seen) == 22, len(seen)
+assert total < 8_000_000, total
+PY
+done
+# Which pointer is written: the account's own choice, else the theme's, else Halo or, for a light theme, Ink; a name
+# that is not installed is passed over
+(
+    unset XDG_CONFIG_HOME XDG_DATA_HOME
+    HOME="$(mktemp -d)"
+    # shellcheck source=/dev/null
+    source /usr/lib/amethystora/theme/lib.sh
+    mkdir -p "${CURRENT_THEME_DIR}"
+    [[ "$(pointer_theme)" == amethystora-pointer-halo ]]
+    touch "${CURRENT_THEME_DIR}/light.mode"
+    [[ "$(pointer_theme)" == amethystora-pointer-ink ]]
+    echo nonexistent-cursors >"${CURRENT_THEME_DIR}/cursor.theme"
+    [[ "$(pointer_theme)" == amethystora-pointer-ink ]]
+    echo amethystora-pointer-facet >"${CONFIG_DIR}/pointer"
+    [[ "$(pointer_theme)" == amethystora-pointer-facet ]]
+    rm -rf "${HOME}"
+)
+# The theme writes over only a pointer it or an earlier image wrote
+for name in Breeze_Light breeze_cursors amethystora-pointer-halo amethystora-pointer-ink amethystora-pointer-facet; do
+    grep -q "${name}" /usr/bin/amethystora-theme
+done
+# The pointer module: its schema, its defaults, started by the extension, and the pointer handed back however it ends
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.pointer | sort | tr '\n' ' ')" == "dense shake " ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.pointer shake)" == "'grow'" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.pointer dense)" == "true" ]]
+grep -q "\['pointer', Pointer\]" "${UI_EXTENSION}/extension.js"
+grep -q "uninhibit_cursor_visibility" "${UI_EXTENSION}/modules/pointer.js"
+grep -q "uninhibit_unfocus" "${UI_EXTENSION}/modules/pointer.js"
+grep -q "set_pointer_visible" "${UI_EXTENSION}/modules/pointer.js" && false
+grep -qE "gi://" "${UI_EXTENSION}/modules/pointer/shake.js" "${UI_EXTENSION}/modules/pointer/dense.js" && false
+for recipe in pointer pointer-shake pointer-dense; do
+    grep -q "^${recipe} [A-Z]*=\"\":" /usr/share/amethystora/just/desktop.just
+done
+grep -q "amethystora-pointer-halo" /usr/share/licenses/amethystora/NOTICE
+
+# The motion (manual: desktop.md#motion): the droplet and the workspace switch, two keys with their defaults, started
+# after the tiling; GNOME's own handlers blocked and its methods called, never replaced; no timer; the droplet drawn
+# through a Cogl pipeline of the window's own texture; and workspaces named after their apps, a key of the workspaces
+MOTION=org.gnome.shell.extensions.amethystora-ui.motion
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${MOTION}" | sort | paste -sd ' ')" == "minimize workspace-switch" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${MOTION}" minimize)" == "'droplet'" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${MOTION}" workspace-switch)" == "'depth'" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.workspaces auto-names)" == true ]]
+[[ " $(sed -n "s/^    \['\([a-z]*\)', [A-Za-z]*\],$/\1/p" "${UI_EXTENSION}/extension.js" | paste -sd ' ') " == *" tiling "*" motion "* ]]
+grep -q "signal_handler_block" "${UI_EXTENSION}/modules/motion.js"
+grep -q "Clutter.PipelineNode" "${UI_EXTENSION}/modules/motion/droplet.js"
+[[ -z "$(grep -E 'timeout_add|setInterval|setTimeout' "${UI_EXTENSION}"/modules/motion.js "${UI_EXTENSION}"/modules/motion/*.js)" ]]
+[[ -z "$(grep -E 'Main\.wm\._[A-Za-z]+ *=[^=]|WindowManager\.prototype' "${UI_EXTENSION}"/modules/motion.js \
+    "${UI_EXTENSION}"/modules/motion/*.js)" ]]
+grep -qE "gi://|resource://" "${UI_EXTENSION}/modules/motion/path.js" && false
+for recipe in minimize workspace-switch space-names; do
+    grep -q "^${recipe} [A-Z]*=\"\":" /usr/share/amethystora/just/desktop.just
+done
+test -s /usr/share/amethystora/themed/shell-motion.css.tpl
+# The droplet's frames are the design board's at twice its size (plans/beyond/spec-motion.md, H1): path.js has no
+# GNOME in it, so node works them out
+MOTION_PATH="$(mktemp --suffix=.mjs)"
+cp "${UI_EXTENSION}/modules/motion/path.js" "${MOTION_PATH}"
+"${NODE[@]}" --input-type=module -e "
+import * as P from '${MOTION_PATH}';
+const geo = {W: 440, H: 300, R0: 24, S: 72, Fc: {x: 0, y: 0}, Ic: {x: 0, y: 586}};
+const near = (a, b) => Math.abs(a - b) <= 2;
+const at = (b, x, y, w, h = w) => near(b.centre.x, x) && near(b.centre.y, y) && near(b.w, w) && near(b.h, h);
+const ok = at(P.minimizeAt(P.OUT.circle, geo), 0, 0, 216) && at(P.minimizeAt(P.OUT.small, geo), 0, 0, 140.4) &&
+    at(P.minimizeAt(P.OUT.middle, geo), -128, 320, 85.4) && at(P.minimizeAt(P.OUT.landed, geo), 0, 586, 51.8) &&
+    at(P.unminimizeAt(P.IN.shown, geo), 0, 586, 51.8) && at(P.unminimizeAt(P.IN.middle, geo), -96, 260, 153.9) &&
+    at(P.unminimizeAt(P.IN.over, geo), 0, 0, 457.6, 312) && at(P.unminimizeAt(P.IN.under, geo), 0, 0, 435.6, 297) &&
+    at(P.unminimizeAt(1, geo), 0, 0, 440, 300) && P.minimizeAt(1, geo).o === 0 && P.minimizeAt(0, geo).plain === 1;
+if (!ok) process.exit(1);
+"
+rm -f "${MOTION_PATH}"
 
 # The desktop styles (manual: themes.md#styles). The seven are the same in the theme library, the schema, the style
 # module, the shell's stylesheet and the applications' files; floating is the default before a theme is applied
@@ -1392,14 +1660,14 @@ grep -q '^radio,$' /usr/share/amethystora/themed/style-terminal.gtk.css.tpl
         if [[ -f "${theme}icons.theme" ]]; then
             is_icon_pack "$(sed -e 's/^amethystora-//' "${theme}icons.theme")" || { echo "${theme}icons.theme names no pack"; exit 1; }
         fi
-        # Every theme names its pointer, an installed cursor theme: the white Breeze Light for a dark theme, the dark
-        # Breeze for a light one, so that the pointer is seen on its ground
+        # Every theme names its pointer, one of the image's: Halo for a dark theme, Ink for a light one, so that the
+        # pointer is drawn by its body on its ground
         cursor="$(head -n1 "${theme}cursor.theme")"
-        [[ -d "/usr/share/icons/${cursor}/cursors" ]] || { echo "${theme}cursor.theme names ${cursor}, which is not installed"; exit 1; }
+        cursor_theme_installed "${cursor}" || { echo "${theme}cursor.theme names ${cursor}, which is not installed"; exit 1; }
         if [[ -f "${theme}light.mode" ]]; then
-            [[ "${cursor}" == breeze_cursors ]] || { echo "${theme} is light and has a ${cursor} pointer"; exit 1; }
+            [[ "${cursor}" == amethystora-pointer-ink ]] || { echo "${theme} is light and has a ${cursor} pointer"; exit 1; }
         else
-            [[ "${cursor}" == Breeze_Light ]] || { echo "${theme} is dark and has a ${cursor} pointer"; exit 1; }
+            [[ "${cursor}" == amethystora-pointer-halo ]] || { echo "${theme} is dark and has a ${cursor} pointer"; exit 1; }
         fi
     done
     for family in "${UI_FONTS[@]}"; do

@@ -1,6 +1,7 @@
-// Three changes to GNOME Shell itself, the ones the image has always made: its animations take 0.6 of their time,
-// switching workspaces shows no popup in the middle of the screen (the workspaces in the top bar say where you are),
-// and the Activities button is gone from the top bar (the logo menu and the workspaces stand there). GNOME's own
+// Three changes to GNOME Shell itself, the ones the image has always made: its animations take 0.6 of their time
+// (half that while the power saver is on), switching workspaces shows no popup in the middle of the screen (the
+// workspaces in the top bar say where you are), and the Activities button is gone from the top bar (the logo menu
+// and the workspaces stand there). GNOME's own
 // switch for animations is the person's, in Settings, and is never touched: with it off, every animation is already
 // instant.
 
@@ -9,14 +10,21 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as WorkspaceSwitcherPopup from 'resource:///org/gnome/shell/ui/workspaceSwitcherPopup.js';
 
-// The share of its usual time an animation takes
+// The share of its usual time an animation takes, and the share of that it takes while the power saver is on (the
+// comfort module watches the profile). This module is the only one that sets the factor.
 const SPEED = 0.6;
+const POWER_SAVER = 0.5;
 
 export class Tweaks {
+    constructor(ext) {
+        this._ext = ext;
+    }
+
     enable() {
         const settings = St.Settings.get();
         this._factor = settings.slow_down_factor;
-        settings.slow_down_factor = SPEED;
+        this._unlisten = this._ext.modules.get('comfort')?.listen(() => this._speed()) ?? null;
+        this._speed();
 
         // The popup is made hidden and only shown by display(), so it goes before it is ever drawn. Destroying it
         // is also what gives the window manager back the workspace updates it held for it.
@@ -38,6 +46,8 @@ export class Tweaks {
     }
 
     disable() {
+        this._unlisten?.();
+        this._unlisten = null;
         if (this._factor !== undefined)
             St.Settings.get().slow_down_factor = this._factor;
         this._factor = undefined;
@@ -53,5 +63,10 @@ export class Tweaks {
                 this._activities.show();
         }
         this._activities = null;
+    }
+
+    _speed() {
+        const saver = this._ext.modules.get('comfort')?.powerSaver ?? false;
+        St.Settings.get().slow_down_factor = saver ? SPEED * POWER_SAVER : SPEED;
     }
 }

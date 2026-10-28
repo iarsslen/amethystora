@@ -91,3 +91,334 @@
     background-color: #ffffff;
     border-radius: 999px;
 }
+
+/* ---- Beyond: the dock's edges, marks, cards and motion (plans/beyond/spec-dock.md) ---- */
+
+/* A side dock: the tiles 3 px inside the pill, the pill 4 px from the screen's edge, the lines across */
+#dash.amethystora-dock-dash.amethystora-dock-edge-left .dash-background {
+    padding: 0 2px;
+    margin: 0 1px 0 4px;
+}
+
+#dash.amethystora-dock-dash.amethystora-dock-edge-right .dash-background {
+    padding: 0 2px;
+    margin: 0 4px 0 1px;
+}
+
+#dash.amethystora-dock-dash.amethystora-dock-edge-left .amethystora-dock-row {
+    margin: 1px 4px 1px 7px;
+}
+
+#dash.amethystora-dock-dash.amethystora-dock-edge-right .amethystora-dock-row {
+    margin: 1px 7px 1px 4px;
+}
+
+#dash.amethystora-dock-dash.amethystora-dock-edge-left .dash-item-container .overview-tile,
+#dash.amethystora-dock-dash.amethystora-dock-edge-left .dash-item-container .show-apps,
+#dash.amethystora-dock-dash.amethystora-dock-edge-right .dash-item-container .overview-tile,
+#dash.amethystora-dock-dash.amethystora-dock-edge-right .dash-item-container .show-apps {
+    margin: 2px 0;
+}
+
+#dash.amethystora-dock-dash.amethystora-dock-edge-left .dash-separator,
+#dash.amethystora-dock-dash.amethystora-dock-edge-right .dash-separator {
+    width: auto;
+    height: 1px;
+    margin: 1px 0;
+}
+
+.amethystora-dock-scroll {
+    -st-vfade-offset: 24px;
+}
+
+/* What marks a running app: a bar 9 px long, 18 with two windows or more, 4 px thick */
+.amethystora-dock-bar {
+    width: 9px;
+    height: 4px;
+    border-radius: 2px;
+}
+
+.amethystora-dock-bar.amethystora-dock-bar-wide {
+    width: 18px;
+}
+
+.amethystora-dock-edge-left .amethystora-dock-bar,
+.amethystora-dock-edge-right .amethystora-dock-bar {
+    width: 4px;
+    height: 9px;
+}
+
+.amethystora-dock-edge-left .amethystora-dock-bar.amethystora-dock-bar-wide,
+.amethystora-dock-edge-right .amethystora-dock-bar.amethystora-dock-bar-wide {
+    height: 18px;
+}
+
+/* A light under the icon: an ellipse 40 x 13 px, bright at the centre, clear at the rim */
+.amethystora-dock-glow {
+    width: 40px;
+    height: 13px;
+    background-gradient-direction: radial;
+}
+
+.amethystora-dock-edge-left .amethystora-dock-glow,
+.amethystora-dock-edge-right .amethystora-dock-glow {
+    width: 13px;
+    height: 40px;
+}
+
+/* The number Alt+N opens, while Super is held */
+.amethystora-dock-number {
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: bold;
+    text-align: center;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* The name of an item, and the caption over the recent apps */
+.amethystora-dock-recent-caption {
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.66px;
+}
+
+/* An app's progress: a thin bar inside its icon */
+.amethystora-dock-progress {
+    border: 0;
+    border-radius: 3px;
+}
+
+.amethystora-dock-progress-fill {
+    border-radius: 3px;
+    background-gradient-direction: horizontal;
+}
+
+/* Previews of an app's windows */
+.amethystora-dock-previews {
+    padding: 10px;
+    spacing: 10px;
+    border-radius: 16px;
+}
+
+/* 150 x 96 px with the border */
+.amethystora-dock-preview {
+    width: 148px;
+    height: 94px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    padding: 0;
+}
+
+.amethystora-dock-preview-title {
+    height: 20px;
+    padding: 0 8px;
+    border-radius: 8px 8px 0 0;
+}
+
+.amethystora-dock-preview-name {
+    font-size: 11px;
+    font-weight: bold;
+}
+
+.amethystora-dock-preview-more {
+    font-size: 20px;
+    font-weight: bold;
+}
+
+/* The fan: the windows over the menu, the one in front ringed */
+.amethystora-dock-fan-tile {
+    border-radius: 14px;
+    width: 178px;
+    height: 128px;
+    border: 1px solid transparent;
+    padding: 0;
+}
+
+.amethystora-dock-fan-title {
+    height: 24px;
+    padding: 0 10px;
+    border-radius: 13px 13px 0 0;
+}
+
+.amethystora-dock-fan-name {
+    font-size: 12.5px;
+    font-weight: bold;
+}
+
+/* A folder of apps: its picture, the item lit as it is about to take another, its card */
+.amethystora-dock-folder-icon {
+    border-radius: 12px;
+}
+
+.amethystora-dock-folder-target .overview-icon {
+    border-radius: 12px;
+}
+
+.amethystora-dock-folder {
+    padding: 14px 18px;
+    spacing: 16px;
+    border-radius: 18px;
+}
+
+.amethystora-dock-folder-row {
+    spacing: 16px;
+}
+
+.amethystora-dock-folder-member {
+    padding: 4px;
+    border-radius: 12px;
+}
+
+.amethystora-dock-folder-member > StBoxLayout {
+    spacing: 6px;
+}
+
+.amethystora-dock-folder-member-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    max-width: 96px;
+}
+
+.amethystora-dock-folder-name {
+    font-size: 13px;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+
+.amethystora-dock-folder-entry {
+    font-size: 13px;
+    font-weight: bold;
+    min-width: 160px;
+}
+
+/* A stack opened as a grid of its twelve newest */
+.amethystora-dock-stack {
+    width: 352px;
+    padding: 14px;
+    spacing: 12px;
+    border-radius: 22px;
+}
+
+.amethystora-dock-stack-name {
+    font-size: 15px;
+    font-weight: bold;
+}
+
+.amethystora-dock-stack-chip {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+}
+
+.amethystora-dock-stack-entry {
+    padding: 4px 2px;
+    border-radius: 12px;
+}
+
+.amethystora-dock-stack-entry > StBoxLayout {
+    spacing: 6px;
+}
+
+.amethystora-dock-stack-entry-name {
+    font-size: 12px;
+    font-weight: 600;
+    max-width: 108px;
+}
+
+.amethystora-dock-stack-open {
+    font-size: 13px;
+    font-weight: bold;
+    padding: 8px 16px;
+    border-radius: 999px;
+}
+
+.amethystora-dock-stack-empty {
+    font-size: 13px;
+    padding: 18px 0;
+}
+
+/* Files dropped on a stack: how many, for two seconds */
+.amethystora-dock-drop-badge {
+    height: 22px;
+    min-width: 22px;
+    padding: 0 5px;
+    border-radius: 11px;
+    font-size: 11.5px;
+    font-weight: bold;
+    text-align: center;
+}
+
+/* How far a drop on the phone got */
+.amethystora-dock-phone-card {
+    width: 172px;
+    padding: 10px 14px;
+    spacing: 8px;
+    border-radius: 16px;
+}
+
+.amethystora-dock-phone-text {
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.amethystora-dock-phone-track,
+.amethystora-dock-phone-fill {
+    height: 6px;
+    border-radius: 3px;
+}
+
+.amethystora-dock-phone-fill {
+    background-gradient-direction: horizontal;
+}
+
+/* The hidden dock's bar at the edge */
+.amethystora-dock-hint {
+    border-radius: 2px;
+}
+
+/* Stand-ins for the colours of the parts above until a theme has been applied: the theme's shell-dock.css, one id
+   higher, always wins over these */
+.amethystora-dock-bar { background-color: #c4a7ff; }
+.amethystora-dock-glow {
+    background-gradient-start: rgba(196, 167, 255, 0.95);
+    background-gradient-end: rgba(196, 167, 255, 0);
+}
+.amethystora-dock-number { background-color: #eeeeee; color: #222222; }
+.amethystora-dock-halo { color: #c4a7ff; }
+.amethystora-dock-halo-tip { color: #ffffff; }
+.amethystora-dock-recent-caption { color: rgba(238, 238, 238, 0.7); }
+.amethystora-dock-progress { background-color: rgba(0, 0, 0, 0.75); }
+.amethystora-dock-progress-fill {
+    background-gradient-start: #9a6cf0;
+    background-gradient-end: #c4a7ff;
+}
+.amethystora-dock-preview, .amethystora-dock-fan-tile {
+    background-color: rgba(30, 30, 30, 0.75);
+    border-color: rgba(238, 238, 238, 0.14);
+    color: #eeeeee;
+}
+.amethystora-dock-preview-title, .amethystora-dock-fan-title { background-color: rgba(238, 238, 238, 0.06); }
+.amethystora-dock-fan-tile.amethystora-dock-fan-ringed { box-shadow: 0 0 0 2px #c4a7ff; }
+.amethystora-dock-veil { background-color: rgba(30, 30, 30, 0.35); }
+.amethystora-dock-folder-icon { background-color: rgba(238, 238, 238, 0.14); }
+.amethystora-dock-folder-target .overview-icon { box-shadow: 0 0 0 2px #9a6cf0; }
+.amethystora-dock-folder, .amethystora-dock-stack, .amethystora-dock-phone-card { color: #eeeeee; }
+.amethystora-dock-folder-name { color: #c4a7ff; }
+.amethystora-dock-stack-chip, .amethystora-dock-stack-open { background-color: rgba(238, 238, 238, 0.10); }
+.amethystora-dock-stack-chip, .amethystora-dock-stack-empty { color: rgba(238, 238, 238, 0.7); }
+.amethystora-dock-drop-badge { background-color: #2e7d4f; color: #ffffff; }
+.amethystora-dock-phone-track { background-color: rgba(238, 238, 238, 0.12); }
+.amethystora-dock-phone-fill {
+    background-gradient-start: #9a6cf0;
+    background-gradient-end: #c4a7ff;
+}
+.amethystora-dock-speck {
+    background-gradient-direction: radial;
+    background-gradient-start: #ffffff;
+    background-gradient-end: #c4a7ff;
+    box-shadow: 0 0 8px rgba(196, 167, 255, 0.7);
+}
+.amethystora-dock-hint { background-color: rgba(196, 167, 255, 0.55); }

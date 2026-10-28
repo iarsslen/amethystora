@@ -3,10 +3,18 @@
 a person does: GNOME takes it for real input, and gives the focus to what it opens. Run as root (the image
 keeps /dev/uinput root's). A STEP is a key or a chord of keys joined by + (super, ctrl+shift+c, alt+tab,
 return), text: to type, its letters, digits and spaces each pressed in turn, click:X,Y, the left button at
-X and Y, fractions of the screen's width and height (click:0.5,0.5 is its middle), middle:X,Y, the middle
-button there, move:X,Y, the pointer there with no button, or drag:X1,Y1,X2,Y2, the
-button held down from the first point to the second. Waits a moment after each. With several screens, the fractions
+X and Y, fractions of the screen's width and height (click:0.5,0.5 is its middle), middle:X,Y and right:X,Y, the
+middle and the right button there, move:X,Y, the pointer there with no button, or drag:X1,Y1,X2,Y2, the
+button held down from the first point to the second; glide:X1,Y1,X2,Y2,MS, the pointer from the first point to the
+second in MS milliseconds with no button, and shake:X,Y,DX,STROKES,MS[,held], from X-DX to X+DX and back, STROKES
+strokes of MS milliseconds each (with held, the left button down throughout), both moving every 8 ms. Waits a
+moment after each. With several screens, the fractions
 are of all of them side by side.
+For timing a hold: down:KEY and up:KEY press or let go of one key (down:super, then sleep:1300, then up:super) and
+sleep:MS waits that long; rel:DX,DY moves a second, relative pointer by DX and DY pixels (the absolute one stops at the
+screen's edge, so only this one pushes past it, into a hot corner); btn:down and btn:up press or let go of the left
+button, for a drag along glides; tap:X,Y clicks there at once (two taps with a short sleep between are a double
+click). These wait nothing more after themselves.
 GNOME's overview, where a session starts, takes keys for its search, and leaves a window it did not open
 behind it: a click on its workspace (the middle of the screen) leaves it, as a person does.
 
@@ -21,6 +29,7 @@ import time
 KEYS = {
     "esc": 1, "tab": 15, "return": 28, "enter": 28, "ctrl": 29, "shift": 42, "alt": 56, "space": 57,
     "super": 125, "print": 99, "backspace": 14, "up": 103, "down": 108, "left": 105, "right": 106, "f4": 62, "w": 17,
+    "volumeup": 115, "volumedown": 114,
 }
 for i, c in enumerate("1234567890"):
     KEYS[c] = 2 + i
@@ -28,10 +37,12 @@ for row, start in (("qwertyuiop", 16), ("asdfghjkl", 30), ("zxcvbnm", 44)):
     for i, c in enumerate(row):
         KEYS[c] = start + i
 
-UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_ABSBIT = 0x40045564, 0x40045565, 0x40045567
+UI_SET_EVBIT, UI_SET_KEYBIT, UI_SET_ABSBIT, UI_SET_RELBIT = 0x40045564, 0x40045565, 0x40045567, 0x40045566
 UI_DEV_CREATE, UI_DEV_DESTROY = 0x5501, 0x5502
-EV_SYN, EV_KEY, EV_ABS = 0, 1, 3
+EV_SYN, EV_KEY, EV_REL, EV_ABS = 0, 1, 2, 3
+REL_X, REL_Y = 0, 1
 ABS_X, ABS_Y, BTN_LEFT, BTN_MIDDLE = 0, 1, 0x110, 0x112
+BTN_RIGHT = 0x111
 # An absolute pointer, as QEMU's tablet is: a relative one's moves are accelerated, so where it lands is a guess
 ABS_MAX = 32767
 
@@ -80,9 +91,69 @@ def drag(fd, x1, y1, x2, y2):
     emit(fd, EV_SYN, 0, 0)
 
 
+def to(fd, x, y):
+    emit(fd, EV_ABS, ABS_X, round(min(1, max(0, x)) * ABS_MAX))
+    emit(fd, EV_ABS, ABS_Y, round(min(1, max(0, y)) * ABS_MAX))
+    emit(fd, EV_SYN, 0, 0)
+
+
+def path(fd, points):
+    """The pointer through (x, y, ms from the start) points, each sent at its time: a late one is sent at once,
+    so that a slow machine shortens no stroke"""
+    start = time.monotonic()
+    for x, y, ms in points:
+        wait = start + ms / 1000 - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        to(fd, x, y)
+
+
+def glide(fd, x1, y1, x2, y2, ms):
+    x1, y1, x2, y2, ms = float(x1), float(y1), float(x2), float(y2), float(ms)
+    steps = max(1, int(ms // 8))
+    path(fd, [(x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps, i * 8) for i in range(steps + 1)])
+
+
+def shake(fd, x, y, dx, strokes, ms, held=""):
+    x, y, dx, strokes, ms = float(x), float(y), float(dx), int(strokes), float(ms)
+    to(fd, x - dx, y)
+    time.sleep(0.3)
+    if held:
+        emit(fd, EV_KEY, BTN_LEFT, 1)
+        emit(fd, EV_SYN, 0, 0)
+        time.sleep(0.1)
+    steps = max(1, int(ms // 8))
+    points = []
+    for s in range(strokes):
+        a, b = (x - dx, x + dx) if s % 2 == 0 else (x + dx, x - dx)
+        points += [(a + (b - a) * i / steps, y, (s * steps + i) * 8) for i in range(1, steps + 1)]
+    try:
+        path(fd, points)
+    finally:
+        if held:
+            time.sleep(0.1)
+            emit(fd, EV_KEY, BTN_LEFT, 0)
+            emit(fd, EV_SYN, 0, 0)
+
+
+def relative_mouse():
+    """A mouse of its own that moves by steps, made the first time rel: needs it"""
+    fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
+    fcntl.ioctl(fd, UI_SET_EVBIT, EV_KEY)
+    fcntl.ioctl(fd, UI_SET_KEYBIT, BTN_LEFT)
+    fcntl.ioctl(fd, UI_SET_EVBIT, EV_REL)
+    fcntl.ioctl(fd, UI_SET_RELBIT, REL_X)
+    fcntl.ioctl(fd, UI_SET_RELBIT, REL_Y)
+    os.write(fd, struct.pack("80sHHHHi", b"vmlab mouse", 3, 0x1234, 0x5679, 1, 0) + bytes(4 * 64 * 4))
+    fcntl.ioctl(fd, UI_DEV_CREATE)
+    time.sleep(2)
+    return fd
+
+
 def main(steps):
     if not steps:
         sys.exit(__doc__)
+    mouse = None
     fd = os.open("/dev/uinput", os.O_WRONLY | os.O_NONBLOCK)
     fcntl.ioctl(fd, UI_SET_EVBIT, EV_KEY)
     # Every key a keyboard has: udev calls a device a keyboard (ID_INPUT_KEYBOARD), which is what the
@@ -92,6 +163,7 @@ def main(steps):
     # And a pointer's buttons and axes, for click
     fcntl.ioctl(fd, UI_SET_KEYBIT, BTN_LEFT)
     fcntl.ioctl(fd, UI_SET_KEYBIT, BTN_MIDDLE)
+    fcntl.ioctl(fd, UI_SET_KEYBIT, BTN_RIGHT)
     fcntl.ioctl(fd, UI_SET_EVBIT, EV_ABS)
     fcntl.ioctl(fd, UI_SET_ABSBIT, ABS_X)
     fcntl.ioctl(fd, UI_SET_ABSBIT, ABS_Y)
@@ -112,6 +184,8 @@ def main(steps):
                 click(fd, *step[6:].split(","))
             elif step.startswith("middle:"):
                 click(fd, *step[7:].split(","), BTN_MIDDLE)
+            elif step.startswith("right:"):
+                click(fd, *step[6:].split(","), BTN_RIGHT)
             elif step.startswith("move:"):
                 x, y = step[5:].split(",")
                 emit(fd, EV_ABS, ABS_X, round(float(x) * ABS_MAX))
@@ -119,15 +193,56 @@ def main(steps):
                 emit(fd, EV_SYN, 0, 0)
             elif step.startswith("drag:"):
                 drag(fd, *step[5:].split(","))
+            elif step.startswith("glide:"):
+                glide(fd, *step[6:].split(","))
+            elif step.startswith("shake:"):
+                shake(fd, *step[6:].split(","))
             elif step.startswith("text:"):
                 for c in step[5:].lower():
                     press(fd, [KEYS["space" if c == " " else c]])
+            elif step.startswith(("down:", "up:")):
+                kind, key = step.split(":", 1)
+                emit(fd, EV_KEY, KEYS[key.lower()], 1 if kind == "down" else 0)
+                emit(fd, EV_SYN, 0, 0)
+                time.sleep(0.03)
+                continue
+            elif step.startswith("sleep:"):
+                time.sleep(float(step[6:]) / 1000)
+                continue
+            elif step.startswith("tap:"):
+                # A click at once, with no wait before or after: two of them make a double click
+                x, y = step[4:].split(",")
+                to(fd, float(x), float(y))
+                emit(fd, EV_KEY, BTN_LEFT, 1)
+                emit(fd, EV_SYN, 0, 0)
+                time.sleep(0.03)
+                emit(fd, EV_KEY, BTN_LEFT, 0)
+                emit(fd, EV_SYN, 0, 0)
+                continue
+            elif step in ("btn:down", "btn:up"):
+                # The left button held across the steps between, for a drag along a path of glides
+                emit(fd, EV_KEY, BTN_LEFT, 1 if step == "btn:down" else 0)
+                emit(fd, EV_SYN, 0, 0)
+                time.sleep(0.2)
+                continue
+            elif step.startswith("rel:"):
+                if mouse is None:
+                    mouse = relative_mouse()
+                dx, dy = (int(v) for v in step[4:].split(","))
+                emit(mouse, EV_REL, REL_X, dx)
+                emit(mouse, EV_REL, REL_Y, dy)
+                emit(mouse, EV_SYN, 0, 0)
+                time.sleep(0.03)
+                continue
             else:
                 press(fd, [KEYS[k] for k in step.lower().split("+")])
             time.sleep(1.5)
     finally:
         fcntl.ioctl(fd, UI_DEV_DESTROY)
         os.close(fd)
+        if mouse is not None:
+            fcntl.ioctl(mouse, UI_DEV_DESTROY)
+            os.close(mouse)
 
 
 main(sys.argv[1:])

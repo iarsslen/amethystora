@@ -1,17 +1,18 @@
-/* The glass in the colours of {{ theme_name }}: every surface's veil in the theme's background (faint in the dark
-   scheme, milky in the light one), its text and the washes of the controls on it in the theme's text colour, which is
-   light on a dark theme and dark on a light one, the reds of an on-screen display's overdrive and of a recording in
-   the palette's, and GNOME's accent colour for what is on. Every selector starts from the shell's top group, one id
-   more than the glass's own stylesheet has for the surfaces, which only stands in until a theme has been applied. */
+/* The glass in the colours of {{ theme_name }}: every surface's veil in the theme's background (the glass draws it,
+   faint in the dark scheme, milky in the light one, thicker where a bright wallpaper asks for it), its text and the
+   washes of the controls on it in the theme's text colour, which is light on a dark theme and dark on a light one,
+   the reds of an on-screen display's overdrive and of a recording in the palette's, and GNOME's accent colour for what
+   is on. Every selector starts from the shell's top group, one id more than the glass's own stylesheet has for the
+   surfaces, which only stands in until a theme has been applied. */
 
-/* The surfaces, with their corners */
+/* The surfaces, with their corners. The glass draws their veil and hairline, St neither. */
 
 #uiGroup .amethystora-glass-surface,
 #uiGroup .amethystora-glass-surface:hover,
 #uiGroup .amethystora-glass-surface:active,
 #uiGroup .amethystora-glass-surface:focus {
-  background-color: rgba({{ background_rgb }}, 0.22);
-  border-color: rgba({{ foreground_rgb }}, 0.05);
+  background-color: transparent;
+  border-color: transparent;
   color: {{ foreground }};
 }
 
@@ -19,17 +20,126 @@
 #uiGroup .amethystora-glass-surface.amethystora-glass-light:hover,
 #uiGroup .amethystora-glass-surface.amethystora-glass-light:active,
 #uiGroup .amethystora-glass-surface.amethystora-glass-light:focus {
-  background-color: rgba({{ background_rgb }}, 0.58);
-  border-color: rgba({{ foreground_rgb }}, 0.05);
+  background-color: transparent;
+  border-color: transparent;
   color: {{ foreground }};
 }
 
-#uiGroup #keyboard.amethystora-glass-surface {
-  background-color: rgba({{ background_rgb }}, 0.22);
+#uiGroup #keyboard.amethystora-glass-surface,
+#uiGroup #keyboard.amethystora-glass-surface.amethystora-glass-light {
+  background-color: transparent;
 }
 
-#uiGroup #keyboard.amethystora-glass-surface.amethystora-glass-light {
-  background-color: rgba({{ background_rgb }}, 0.58);
+/* What the glass draws a surface's veil from, and the accent its light gathers in */
+
+#uiGroup .amethystora-glass-pane {
+  -amethystora-glass-ground: {{ background }};
+  -amethystora-glass-accent: {{ accent }};
+}
+
+/* Going solid, the theme's surfaces fade in over the glass, which stays under them until they are in
+   (modules/glass.js); the glass and every other change of a surface come at once */
+
+#uiGroup.amethystora-glass-solid .amethystora-glass-pane {
+  transition-duration: 300ms;
+}
+
+/* Solid (Reduce transparency, High Contrast, the power saver): the theme's own surfaces, plain, with the shadow the
+   glass gave them; St draws them, with circular corners */
+
+#uiGroup.amethystora-glass-solid .amethystora-glass-surface,
+#uiGroup.amethystora-glass-solid .amethystora-glass-surface:hover,
+#uiGroup.amethystora-glass-solid .amethystora-glass-surface:active,
+#uiGroup.amethystora-glass-solid .amethystora-glass-surface:focus {
+  background-color: {{ popover_bg }};
+  border-color: rgba({{ foreground_rgb }}, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+#uiGroup.amethystora-glass-solid .amethystora-glass-surface.amethystora-glass-light,
+#uiGroup.amethystora-glass-solid .amethystora-glass-surface.amethystora-glass-light:hover,
+#uiGroup.amethystora-glass-solid .amethystora-glass-surface.amethystora-glass-light:active,
+#uiGroup.amethystora-glass-solid .amethystora-glass-surface.amethystora-glass-light:focus {
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
+}
+
+#uiGroup.amethystora-glass-solid .amethystora-glass-surface.amethystora-glass-dialog,
+#uiGroup.amethystora-glass-solid .amethystora-glass-surface.amethystora-glass-dialog:hover,
+#uiGroup.amethystora-glass-solid .amethystora-glass-surface.amethystora-glass-dialog:active,
+#uiGroup.amethystora-glass-solid .amethystora-glass-surface.amethystora-glass-dialog:focus {
+  background-color: {{ dialog_bg }};
+}
+
+#uiGroup.amethystora-glass-solid .amethystora-glass-surface.amethystora-glass-inner,
+#uiGroup.amethystora-glass-solid #keyboard.amethystora-glass-surface {
+  box-shadow: none;
+}
+
+#uiGroup.amethystora-glass-solid #keyboard.amethystora-glass-surface,
+#uiGroup.amethystora-glass-solid #keyboard.amethystora-glass-surface.amethystora-glass-light {
+  background-color: {{ popover_bg }};
+}
+
+#uiGroup.amethystora-glass-solid #panel .panel-button.amethystora-glass-pill,
+#uiGroup.amethystora-glass-solid #dash.amethystora-dock-dash .dash-background {
+  background-color: {{ popover_bg }};
+  border-color: rgba({{ foreground_rgb }}, 0.08);
+}
+
+/* Increase contrast (GNOME's High Contrast, whose own stylesheet is underneath): solid as above, every surface
+   outlined in the text colour, dimmed text shown plain and the controls outlined */
+
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface:hover,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface:active,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface:focus,
+#uiGroup.amethystora-glass-contrast #keyboard.amethystora-glass-surface,
+#uiGroup.amethystora-glass-contrast #panel .panel-button.amethystora-glass-pill,
+#uiGroup.amethystora-glass-contrast #dash.amethystora-dock-dash .dash-background {
+  border: 2px solid {{ foreground }};
+  color: {{ foreground }};
+}
+
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .popup-menu-item:insensitive,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .button:insensitive,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .icon-button:insensitive,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .modal-dialog-button-box .modal-dialog-button:insensitive,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .message .message-header,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .message-notification-group .message-group-header,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-banner .message-header,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .calendar .calendar-month-header .calendar-month-label,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .calendar .calendar-day-heading,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .calendar .calendar-day.calendar-other-month,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .calendar .calendar-day.calendar-other-month.calendar-weekend,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .events-section-title,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .event-time,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .world-clocks-header,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .weather-header,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .message-secondary-bin {
+  color: {{ foreground }};
+}
+
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .quick-toggle,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .quick-toggle-has-menu .quick-toggle-menu-button,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .quick-toggle:hover,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .quick-toggle-has-menu .quick-toggle-menu-button:hover {
+  background-color: transparent;
+  border: 2px solid {{ foreground }};
+  color: {{ foreground }};
+}
+
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .quick-toggle:checked,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .quick-toggle:checked:hover,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .quick-toggle-has-menu:checked .quick-toggle,
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .quick-toggle-has-menu .quick-toggle-menu-button:checked {
+  background-color: {{ accent_bg }};
+  border: 2px solid {{ accent_fg }};
+  color: {{ accent_fg }};
+}
+
+#uiGroup.amethystora-glass-contrast .amethystora-glass-surface .quick-slider {
+  background-color: transparent;
+  border: 2px solid {{ foreground }};
 }
 
 /* Menu items */

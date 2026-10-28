@@ -1,8 +1,9 @@
 // GNOME's popups on glass: every menu, the quick settings and their toggle menus, the calendar and notification
 // drawer, notification banners, the on-screen displays, the window switcher, dialogs, the on-screen keyboard, the
 // screenshot UI's panel and the resize popup. Each is found as GNOME is about to show it, the first time and every
-// time after, so that surfaces made later get their glass before their first frame. Over the glass each has a veil:
-// white with dark text in a light scheme, a faint dark grey with white text in a dark one (stylesheets/glass.css).
+// time after, so that surfaces made later get their glass before their first frame. The glass draws a veil of the
+// theme's background over the picture (glass/effect.js), milky in a light scheme with dark text, faint in a dark one
+// with light text, and thicker where the wallpaper behind is too bright or dark for the text.
 
 import St from 'gi://St';
 

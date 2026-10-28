@@ -555,6 +555,14 @@ impl Service {
         let n = self.next_id();
         let rest = n.to_string();
         let openable = is_link && share::openable(&content) && content.len() <= limits::SHARED_LINK;
+        // While the shell's module has said it shows them (TakeLinks), a web link it can take goes to the live pill,
+        // which shows it with a button to open it and keeps it in the notification list itself when it is put off: no
+        // notification of the program's own. Anything else, and any time the module has not said so (the screen
+        // locked, the extension off), is the program's notification as before
+        if openable && share::for_the_shell(&content) && dbus::links_taken(self) {
+            dbus::emit(self, None, "UrlReceived", Some((dev.id.as_str(), content.as_str()).to_variant()));
+            return;
+        }
         let mut actions = Vec::new();
         if openable {
             actions.push(("open".to_string(), tr("Open")));

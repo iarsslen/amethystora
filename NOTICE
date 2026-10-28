@@ -123,9 +123,13 @@ Sans, Karla, Lexend, Manrope, Outfit, Plus Jakarta Sans, Quicksand, Sora, Space
 Grotesk, Space Mono and Victor Mono. Their names are their authors' Reserved Font Names
 where they have one.
 
-The themes' pointers are the Breeze cursor themes of the KDE Visual Design Group,
-Fedora's breeze-cursor-theme, under the licences its package names (the source of
-every package is listed in usr/share/licenses/amethystora/SOURCES).
+The pointers in usr/share/icons/amethystora-pointer-halo, amethystora-pointer-ink and
+amethystora-pointer-facet are Amethystora's own, drawn in code by branding/cursors.mjs,
+and are under the Apache License 2.0 like the rest of the repository.
+
+The Breeze cursor themes of the KDE Visual Design Group are also in the image, as Fedora's
+breeze-cursor-theme, under the licences its package names (the source of every package is
+listed in usr/share/licenses/amethystora/SOURCES); no theme names them any more.
 
 The file-watch sensor in usr/libexec/amethystora-sensor (apps/sensor/) is one
 more program of the same build, which watches the files the audit rules watch

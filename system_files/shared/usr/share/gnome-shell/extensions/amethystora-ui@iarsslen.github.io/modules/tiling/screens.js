@@ -222,6 +222,8 @@ export class Screens {
         this._engine.backgrounds?.sync();
         this._engine.tiling.topBar?.sync();
         this._engine.tiling.topBar?.applyTopBar();
+        // The docks show the apps of the workspace each screen shows
+        this._engine.tiling._ext.modules.get('dock')?.screensChanged?.();
     }
 
     // The tiling's own way to a workspace: shown on `monitor`, and GNOME's, without GNOME's slide

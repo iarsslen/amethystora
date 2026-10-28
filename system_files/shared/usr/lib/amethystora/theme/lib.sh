@@ -17,7 +17,8 @@
 #                 dialogs, buttons and windows (floating when the theme names none)
 #   font.theme    the interface font's family, when the desktop's own (Adwaita Sans) is not wanted
 #   mono.theme    the monospace font's family (terminals, code, Text Editor), when JetBrains Mono is not wanted
-#   cursor.theme  a cursor theme name, when the desktop's own is not wanted
+#   cursor.theme  the pointer: Halo for a dark theme, Ink for a light one (the image's own; any installed cursor
+#                 theme's name works)
 #   vscode.theme  the VSCodium colour theme to select
 #   backgrounds.list  wallpapers elsewhere on the system, one path per line; the first is the one
 #                 the theme opens on. Every shipped theme lists its pictures here.
@@ -58,6 +59,12 @@ IMAGE_SETUP_DIR=/usr/share/amethystora/image-setup
 DEFAULT_ICON_THEME=amethystora-glass
 DEFAULT_LIGHT_ICON_THEME=amethystora-glass-light
 ICON_PACKS=(glass glass-light neon neon-light duotone line clay muted)
+# The image's pointers, drawn by branding/cursors.mjs, each /usr/share/icons/amethystora-pointer-<set>: Halo for a dark
+# theme and Ink for a light one (each theme's cursor.theme names its own), Facet for whoever chooses it. Halo is also
+# the default in zz1-amethystora-modifications, for the login screen and an account before its first theme.
+DEFAULT_POINTER=amethystora-pointer-halo
+DEFAULT_LIGHT_POINTER=amethystora-pointer-ink
+POINTER_SETS=(halo ink facet)
 
 # The desktop styles, each drawn by Amethystora UI (themed/shell-styles.css.tpl) and in the applications
 # (themed/style-<style>.gtk.css.tpl): the shape of the top bar, menus, notifications, dialogs, on-screen alerts,
@@ -183,6 +190,38 @@ is_icon_pack() {
         [[ $1 == "${pack}" ]] && return 0
     done
     return 1
+}
+
+# Whether a cursor theme of that name is installed, for the machine or for the account
+cursor_theme_installed() {
+    local dir
+    for dir in /usr/share/icons "${XDG_DATA_HOME:-${HOME}/.local/share}/icons" "${HOME}/.icons"; do
+        [[ -f "${dir}/$1/cursors/default" || -f "${dir}/$1/cursors/left_ptr" ]] && return 0
+    done
+    return 1
+}
+
+is_pointer_set() {
+    local set
+    for set in "${POINTER_SETS[@]}"; do
+        [[ $1 == "${set}" ]] && return 0
+    done
+    return 1
+}
+
+# The pointer to write: the account's own choice (ame desktop pointer), else the one the theme names, else the image's,
+# by whether the theme is dark or light. A name that is not installed is passed over, whoever wrote it; Adwaita when
+# nothing is left (an image without the sets).
+pointer_theme() {
+    local name
+    for name in "$(head -n1 "${CONFIG_DIR}/pointer" 2>/dev/null || true)" "$(theme_file cursor.theme)"; do
+        if [[ -n ${name} ]] && cursor_theme_installed "${name}"; then
+            echo "${name}"
+            return 0
+        fi
+    done
+    if theme_is_light; then name="${DEFAULT_LIGHT_POINTER}"; else name="${DEFAULT_POINTER}"; fi
+    if cursor_theme_installed "${name}"; then echo "${name}"; else echo Adwaita; fi
 }
 
 is_style() {
