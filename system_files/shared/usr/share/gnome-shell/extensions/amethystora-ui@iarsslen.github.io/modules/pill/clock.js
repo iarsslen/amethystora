@@ -33,7 +33,7 @@ const REDUCED = 150;
 // The plate's curve: a quick start and a slight overshoot before it rests
 const CURVE = [new Graphene.Point({x: 0.2, y: 0.8}), new Graphene.Point({x: 0.2, y: 1.08})];
 
-const PLATES = ['link', 'battery', 'saver', 'quiet'];
+const PLATES = ['link', 'battery', 'saver', 'quiet', 'focus'];
 // The padding inside the plate at its start and its end (logical px): the link's and the battery's buttons sit close
 // to the end
 const PADDING = {link: [8, 6], battery: [12, 6]};
@@ -96,7 +96,7 @@ class AmethystoraPill extends St.Widget {
             this._shown = box;
     }
 
-    // The plate's own look: the dark tint, or the link's, the battery's, power saver's or quiet's
+    // The plate's own look: the dark tint, or the link's, the battery's, power saver's, quiet's or a focus profile's
     setPlate(kind) {
         this._padding = PADDING[kind] ?? [PAD, PAD];
         for (const name of PLATES) {

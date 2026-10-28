@@ -6,7 +6,9 @@
 // With an accent per workspace (ame desktop accent-per-workspace), amethystora-theme also renders, into accents/<id>/
 // beside them, the rules each accent changes, under a class of the shell's top group; these are loaded with the theme's,
 // and once a workspace switch has slid into place the shown workspace's class is put on the top group, and its accent
-// written to ~/.local/state/amethystora/workspace-accent, which the Amethystora apps follow. It also keeps the wallpaper's two other links to the theme up to date by asking
+// written to ~/.local/state/amethystora/workspace-accent, which the Amethystora apps follow. A focus profile's accent
+// (modules/focus.js, setFocusAccent) is put on the same way, over every workspace's, its rules rendered with the
+// workspaces' (AMETHYSTORA_FOCUS_ACCENT). It also keeps the wallpaper's two other links to the theme up to date by asking
 // amethystora-theme: colours from the wallpaper when the picture changes (in GNOME Settings, say), and Daylight's
 // slideshow when Night Light's hours change or a session starts after the clocks changed.
 
@@ -53,6 +55,8 @@ export class Theme {
         // What is loaded, by a stylesheet's name: the file in use, the theme's or an accent's
         this._loaded = new Map();
         this._accent = null;
+        this._focusAccent = null;
+        this._focusAsked = false;
         this._timeouts = new Map();
         this._runs = new Map();
         // The keys first, so that the first load already carries the accents' rules: one rebuild of the shell's theme
@@ -62,8 +66,13 @@ export class Theme {
             this._monitor = Gio.File.new_for_path(CURRENT).monitor_directory(Gio.FileMonitorFlags.WATCH_MOVES, null);
             // A move names both of its ends (the folder it was built in, then the one it became)
             this._monitor.connect('changed', (monitor, file, other) => {
-                if ([file, other].some(each => SWITCH.includes(each?.get_basename())))
-                    this._later('switch', SETTLE, () => this._load());
+                if ([file, other].some(each => SWITCH.includes(each?.get_basename()))) {
+                    this._later('switch', SETTLE, () => {
+                        // A new theme: a focus profile's accent is rendered for it once more
+                        this._focusAsked = false;
+                        this._load();
+                    });
+                }
             });
         } catch (e) {
             // Before the first theme there is no folder to watch: the next login loads what the theme set
@@ -129,6 +138,33 @@ export class Theme {
         this._unload();
         this._loaded = null;
         this._accent = null;
+        this._focusAccent = null;
+    }
+
+    // A focus profile's accent (one of the twelve), or null: put on the top group over a workspace's, in memory, its
+    // rules asked of amethystora-theme first when they are not rendered yet
+    setFocusAccent(id) {
+        id = IDS.includes(id) ? id : null;
+        if (!this._loaded || id === this._focusAccent)
+            return;
+        this._focusAccent = id;
+        this._focusAsked = false;
+        if (id && !this._loaded.has(`accent-${id}`)) {
+            const file = Gio.File.new_for_path(GLib.build_filenamev([ACCENTS_DIR, id, 'shell-accent.css']));
+            if (file.query_exists(null)) {
+                this._load();
+            } else {
+                this._focusAsked = true;
+                this._run('accents', ['accents'], () => this._load());
+            }
+            return;
+        }
+        // Ending, the accents' rules stay loaded until the theme's are next loaded: a class swap, not a restyle
+        this._apply();
+    }
+
+    get focusAccent() {
+        return this._focusAccent ?? null;
     }
 
     // The workspace accent loaded now, or null for the theme's own (the workspaces' menu and the lab ask)
@@ -188,8 +224,13 @@ export class Theme {
         const run = {cancellable: new Gio.Cancellable(), again: false, then};
         let process;
         try {
-            process = Gio.Subprocess.new([THEME_COMMAND, ...args],
-                Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE);
+            const launcher = new Gio.SubprocessLauncher({
+                flags: Gio.SubprocessFlags.STDOUT_SILENCE | Gio.SubprocessFlags.STDERR_SILENCE,
+            });
+            // While a focus profile has an accent, every rendering of the accents' rules carries it too
+            if (this._focusAccent)
+                launcher.setenv('AMETHYSTORA_FOCUS_ACCENT', this._focusAccent, true);
+            process = launcher.spawnv([THEME_COMMAND, ...args]);
         } catch (e) {
             console.warn(`Amethystora UI: amethystora-theme ${args.join(' ')} did not start: ${e.message}`);
             return;
@@ -270,7 +311,7 @@ export class Theme {
         }
         for (const name of names.filter(n => STYLESHEET.test(n)).sort())
             wanted.set(name, Gio.File.new_for_path(GLib.build_filenamev([THEME_DIR, name])));
-        if (this._on()) {
+        if (this._on() || this._focusAccent) {
             for (const id of IDS) {
                 const file = Gio.File.new_for_path(GLib.build_filenamev([ACCENTS_DIR, id, 'shell-accent.css']));
                 if (file.query_exists(null))
@@ -289,6 +330,12 @@ export class Theme {
         this._apply();
         this._writeState(this._accent);
         this._prewarm();
+        // A focus profile's accent not rendered for this theme yet is asked for once
+        const focus = this._focusAccent;
+        if (focus && !this._loaded.has(`accent-${focus}`) && !this._focusAsked) {
+            this._focusAsked = true;
+            this._run('accents', ['accents'], () => this._load());
+        }
     }
 
     // The first time a class is put on the top group, the shell works out the style of everything under it, which takes
@@ -327,6 +374,9 @@ export class Theme {
 
     // The shown workspace's accent, while each workspace has its own and its rules are loaded
     _shownAccent() {
+        // A focus profile's accent is over every workspace's
+        if (this._focusAccent && this._loaded.has(`accent-${this._focusAccent}`))
+            return this._focusAccent;
         if (!this._on())
             return null;
         const id = workspaceAccent(this._settings, global.workspace_manager.get_active_workspace_index());
@@ -347,7 +397,7 @@ export class Theme {
         }
         // The accents' rules are loaded or taken away with the theme's, in one go
         const loaded = [...this._loaded.keys()].some(name => name.startsWith('accent-'));
-        if (loaded !== this._on())
+        if (loaded !== (this._on() || !!this._focusAccent))
             this._load();
         this._accentsChanged();
     }

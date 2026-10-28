@@ -165,6 +165,7 @@ read_in_background pill gsettings list-recursively org.gnome.shell.extensions.am
 read_in_background quick gsettings get org.gnome.shell.extensions.amethystora-ui.quick tile-hidden
 read_in_background bars gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.bars
 read_in_background today gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.today
+read_in_background focus gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.focus
 read_in_background breaks gsettings get org.gnome.desktop.break-reminders selected-breaks
 read_in_background search gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.search
 read_in_background emoji gsettings get org.gnome.shell.extensions.amethystora-ui.emoji skin-tone
@@ -1051,6 +1052,125 @@ esac
 USAGE="ame desktop digest times HH:MM [HH:MM]..."
 item desktop digest-times choice "$(gettext "Digest times")" "$(gettext "When the digest comes.")" "${TIMES}" \
     desktop#the-digest
+GROUP=""
+
+# Focus profiles (org.gnome.shell.extensions.amethystora-ui.focus): the profile picked by hand, the two triggers, and
+# what each of Work, Games and Sleep does, every line of it editable
+FOCUS="$(said focus)"
+focus_key() { sed -n "s/^[^ ]* $1 \(.*\)$/\1/p" <<<"${FOCUS}" | sed "s/^'\(.*\)'$/\1/"; }
+focus_onoff() { [[ "$(focus_key "$1")" == true ]] && echo on || echo off; }
+focus_reason() { [[ "$(ended focus)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"; }
+GROUP="$(gettext "Focus")"
+focus_reason
+choice off "$(gettext "Off")" "" false ame desktop focus off
+choice work "$(gettext "Work")" "$(gettext "Banners from the apps you choose, no notification sounds")" false ame desktop focus work
+choice games "$(gettext "Games")" "$(gettext "Banners held, performance power, the dock out of the way")" false ame desktop focus games
+choice sleep "$(gettext "Sleep")" "$(gettext "Banners held, Night Light at its warmest, power saver")" false ame desktop focus sleep
+USAGE="ame desktop focus off|work|games|sleep [hour|tomorrow]"
+item desktop focus choice "$(gettext "Focus")" \
+    "$(gettext "A profile laid over your settings until you turn it off. Quick settings has it too, with an end after an hour or tomorrow.")" \
+    "$(focus_key profile)" desktop#focus
+focus_reason
+switch_choices false ame desktop focus trigger games
+USAGE="ame desktop focus trigger games on|off"
+item desktop focus-trigger-games switch "$(gettext "Games while a game is in front")" \
+    "$(gettext "Games turns on when a game gets the keyboard and ends when it closes.")" "$(focus_onoff trigger-games)" desktop#focus
+focus_reason
+switch_choices false ame desktop focus trigger sleep
+USAGE="ame desktop focus trigger sleep on|off"
+item desktop focus-trigger-sleep switch "$(gettext "Sleep at Night Light's times")" \
+    "$(gettext "Sleep turns on at Night Light's evening time and ends at its morning time.")" "$(focus_onoff trigger-sleep)" \
+    desktop#focus
+# The saved workspace sets a profile may open, by name, once there are any
+FOCUS_SETS=()
+if [[ -f "${HOME}/.local/state/amethystora/sets.json" ]]; then
+    mapfile -t FOCUS_SETS < <(jq -r '.sets[]?.name | select(type == "string" and length > 0 and length <= 24)' \
+        "${HOME}/.local/state/amethystora/sets.json" 2>/dev/null | grep -v '[[:cntrl:]]' | head -n 12)
+fi
+focus_profile() {
+    local p="$1" heading="$2" value
+    GROUP="${heading}"
+    focus_reason
+    choice shown "$(gettext "As they come")" "" false ame desktop focus edit "${p}" banners shown
+    choice apps "$(gettext "Only the apps chosen")" "" false ame desktop focus edit "${p}" banners apps
+    choice held "$(gettext "Held")" "" false ame desktop focus edit "${p}" banners held
+    USAGE="ame desktop focus edit ${p} banners shown|apps|held"
+    item desktop "focus-${p}-banners" choice "$(gettext "Banners")" \
+        "$(gettext "Calls, alarms and urgent ones always come through. Held banners wait in the list.")" \
+        "$(focus_key "${p}-banners")" desktop#focus
+    focus_reason
+    DETAIL="$(focus_key "${p}-apps" | tr -d "[]'" | sed 's/^@as //')"
+    COMMAND=(ame desktop focus edit "${p}" apps)
+    BUTTON="$(gettext "Choose")"
+    USAGE="ame desktop focus edit ${p} apps [APP.desktop...]"
+    item desktop "focus-${p}-apps" action "$(gettext "Apps let through")" \
+        "$(gettext "Whose banners come through while banners are only from the apps chosen.")" "" desktop#focus
+    focus_reason
+    switch_choices false ame desktop focus edit "${p}" sounds
+    USAGE="ame desktop focus edit ${p} sounds on|off"
+    item desktop "focus-${p}-sounds" switch "$(gettext "Notification sounds")" "" "$(focus_onoff "${p}-sounds")" desktop#focus
+    focus_reason
+    choice as-set "$(gettext "As set")" "" false ame desktop focus edit "${p}" dock as-set
+    choice touch "$(gettext "Hides while a window touches it")" "" false ame desktop focus edit "${p}" dock touch
+    USAGE="ame desktop focus edit ${p} dock as-set|touch"
+    item desktop "focus-${p}-dock" choice "$(gettext "The dock")" "" "$(focus_key "${p}-dock")" desktop#focus
+    focus_reason
+    switch_choices false ame desktop focus edit "${p}" lighter
+    USAGE="ame desktop focus edit ${p} lighter on|off"
+    item desktop "focus-${p}-lighter" switch "$(gettext "Solid glass and shorter motion")" \
+        "$(gettext "What power saver does to the desktop, for games played in a window.")" "$(focus_onoff "${p}-lighter")" \
+        desktop#focus
+    focus_reason
+    choice as-set "$(gettext "As set")" "" false ame desktop focus edit "${p}" night-light as-set
+    choice paused "$(gettext "Paused")" "" false ame desktop focus edit "${p}" night-light paused
+    choice warmest "$(gettext "At its warmest")" "" false ame desktop focus edit "${p}" night-light warmest
+    USAGE="ame desktop focus edit ${p} night-light as-set|paused|warmest"
+    item desktop "focus-${p}-night-light" choice "$(gettext "Night Light")" "" "$(focus_key "${p}-night-light")" desktop#focus
+    focus_reason
+    choice as-set "$(gettext "As set")" "" false ame desktop focus edit "${p}" power as-set
+    choice performance "$(gettext "Performance")" "" false ame desktop focus edit "${p}" power performance
+    choice power-saver "$(gettext "Power saver")" "" false ame desktop focus edit "${p}" power power-saver
+    USAGE="ame desktop focus edit ${p} power as-set|performance|power-saver"
+    item desktop "focus-${p}-power" choice "$(gettext "Power mode")" "" "$(focus_key "${p}-power")" desktop#focus
+    focus_reason
+    mapfile -t -O "${#CHOICES[@]}" CHOICES < <(
+        {
+            printf '%s\t%s\t%s\n' theme "$(gettext "The theme's")" "${OWN_ACCENT:-#9148f0}"
+            for entry in "${ACCENTS[@]}"; do
+                printf '%s\t%s\t%s\n' "${entry%% *}" "${ACCENT_NAMES[${entry%% *}]}" "${entry##* }"
+            done
+        } | jq -Rc --arg p "${p}" 'split("\t") | {value: .[0], title: .[1], color: .[2], text: null, terminal: false,
+            command: ["ame", "desktop", "focus", "edit", $p, "accent", .[0]]}'
+    )
+    USAGE="ame desktop focus edit ${p} accent theme|ACCENT"
+    item desktop "focus-${p}-accent" choice "$(gettext "Accent")" "" "$(focus_key "${p}-accent")" desktop#focus
+    focus_reason
+    choice as-set "$(gettext "As set")" "" false ame desktop focus edit "${p}" wallpaper as-set
+    choice night "$(gettext "The night picture")" "$(gettext "Daylight's picture for the night, over yours")" false \
+        ame desktop focus edit "${p}" wallpaper night
+    USAGE="ame desktop focus edit ${p} wallpaper as-set|night"
+    item desktop "focus-${p}-wallpaper" choice "$(gettext "Wallpaper")" "" "$(focus_key "${p}-wallpaper")" desktop#focus
+    focus_reason
+    switch_choices false ame desktop focus edit "${p}" grey
+    USAGE="ame desktop focus edit ${p} grey on|off"
+    item desktop "focus-${p}-grey" switch "$(gettext "The screen in grey")" \
+        "$(gettext "One more pass over the whole screen for every frame while it is on.")" "$(focus_onoff "${p}-grey")" \
+        desktop#focus
+    if ((${#FOCUS_SETS[@]} > 0)); then
+        focus_reason
+        choice none "$(gettext "None")" "" false ame desktop focus edit "${p}" set none
+        for value in "${FOCUS_SETS[@]}"; do
+            choice "${value}" "${value}" "" false ame desktop focus edit "${p}" set "${value}"
+        done
+        USAGE="ame desktop focus edit ${p} set NAME|none"
+        value="$(focus_key "${p}-set")"
+        item desktop "focus-${p}-set" choice "$(gettext "A saved set")" \
+            "$(gettext "Offered, after asking, when you pick the profile yourself.")" "${value:-none}" desktop#focus
+    fi
+}
+focus_profile work "$(gettext "Focus: Work")"
+focus_profile games "$(gettext "Focus: Games")"
+focus_profile sleep "$(gettext "Focus: Sleep")"
 GROUP=""
 
 if [[ -e "${CONFIG_DIR}/no-greeting" ]]; then GREETING=off; else GREETING=on; fi

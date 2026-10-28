@@ -172,6 +172,53 @@ Nothing is lost when the card goes: everything is in the list. `ame desktop dige
 The volume, the brightness and the other signs GNOME shows for a key (Caps Lock, flight mode) appear as
 a slim pill just under the top bar, instead of a card low in the middle of the screen.
 
+## Focus
+
+A focus profile lays itself over your settings while it is on, and when it ends everything is as you left
+it. There are three: **Work**, **Games** and **Sleep**. Pick one in the **Focus** tile of the quick settings
+(the four chips, Off, Work, Games and Sleep), in Control or with `ame desktop focus work` (or `games`,
+`sleep`). The tile says what the profile does and when it ends: when you turn it off, after **1 hour** or
+**tomorrow** (at six in the morning); `ame desktop focus work hour` and `ame desktop focus work tomorrow` do
+the same. While a profile is on, the live pill shows its mark and the time, and a click on it has **Turn
+off**. `ame desktop focus off` ends it, and `ame desktop focus` says what is on.
+
+As the image ships them:
+
+- **Work**: banners only from Calendar, Clocks and calls, without a sound; the rest waits in the list.
+- **Games**: banners held, the dock hides while a window touches it, the performance power mode, and
+  Night Light paused.
+- **Sleep**: banners held, Night Light on at its warmest, Daylight's night picture over your wallpaper,
+  power saver and an amber accent.
+
+Calls, alarms and anything urgent always come through. Banners a profile held wait in the list, count on
+the clock's dot, and when it ends the pill says how many are waiting (with the [digest](#the-digest) on,
+they wait for the digest). Do Not Disturb is never touched. Nearly everything a profile does is held in
+memory only: the dock's, the accent's, the wallpaper's and the banners' settings are never written, and
+the power mode is a hold the power daemon lets go of when the profile ends, or if the desktop stops. The
+one exception is Sleep's Night Light: it turns Night Light on and makes it as warm as it goes, and puts
+both back as they were when Sleep ends, at the next log-in if the desktop stopped first. A setting you
+changed yourself meanwhile stays as you set it. Night Light's times are never changed, so outside them
+Sleep's warmth begins when they do. Work leaves the power mode as you set it: the power daemon can hold
+only performance or power saver. The lock screen runs none of this, so while the screen is locked the
+profile's power mode is let go, and taken again when you unlock; Night Light stays as the profile set it.
+
+Each line of each profile can be changed in Control, in the groups **Focus: Work**, **Focus: Games** and
+**Focus: Sleep**: which banners come through and from which apps, notification sounds, the dock, solid
+glass and shorter motion (what power saver does, for games played in a window), Night Light, the power
+mode, the accent, the wallpaper and the screen in grey (one more pass over the whole screen for every
+frame, so it costs some battery). Once you have [saved sets](#workspaces) of windows, a profile can offer
+to open one when you pick it yourself; it always asks first. From a terminal:
+`ame desktop focus edit work power performance`, `ame desktop focus edit work apps` to choose the apps,
+and `ame desktop focus edit work reset` for the image's own.
+
+Two triggers turn a profile on by themselves, both off until you turn them on in Control or with
+`ame desktop focus trigger games on` and `ame desktop focus trigger sleep on`: **Games while a game is in
+front** starts Games when a game gets the keyboard and ends it when that game closes (Steam, Lutris and
+the other launchers are not games themselves; a game Steam starts is), and **Sleep at
+Night Light's times** starts Sleep at Night Light's evening time and ends it at its morning time. A
+profile you pick wins over both. Turning Focus off while a trigger has it on keeps it off until that
+trigger's next start: the next evening, or the next game.
+
 ## Sounds
 
 The desktop's own sounds are Amethystora's **Soft** set: lower and rounder, for a quiet room. You hear them for a

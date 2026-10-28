@@ -5,6 +5,10 @@
 // list and the pill says how many are waiting, rather than showing them one after another; with the digest on, they
 // wait for the next digest instead.
 //
+// A focus profile (modules/focus.js) is one more reason, with its own rule: every banner held, or only the apps it
+// names let through, and their sounds off. Its held banners are said once when it ends, as quiet's are; it has no
+// activity of its own here (the profile's mark is).
+//
 // Everything is held in memory: GNOME's Do Not Disturb setting is never written, so a crash, a lock or turning this
 // off leaves notifications exactly as the person set them.
 
@@ -75,11 +79,13 @@ export class Hold {
         this._glass = glass;
         this.id = 'quiet';
         this.plate = 'quiet';
+        this._focus = null;
     }
 
     enable() {
         this._quietHeld = new Set();
         this._digestHeld = new Set();
+        this._focusHeld = new Set();
         this._reason = null;
         this._digestDue = false;
         this._held = new Map();
@@ -94,13 +100,14 @@ export class Hold {
             if (!hold._holding())
                 return original.apply(this, args);
             const queue = this._notificationQueue;
-            const index = Array.isArray(queue) ? queue.findIndex(n => passes(n)) : 0;
+            const index = Array.isArray(queue) ? queue.findIndex(n => hold._lets(n)) : 0;
             if (index < 0)
                 return undefined;
             if (index > 0)
                 queue.unshift(...queue.splice(index, 1));
             return original.apply(this, args);
         };
+        this._syncSound();
 
         this._settings.connectObject(
             'changed::quiet', () => this._configure(),
@@ -116,6 +123,7 @@ export class Hold {
         if (this._original)
             MessageTray.MessageTray.prototype._showNotification = this._original;
         this._original = null;
+        this._unwrapSound();
         this._unwatchQuiet();
         this._unwatchClock();
         this._unwatchNight();
@@ -127,6 +135,7 @@ export class Hold {
         this._held?.clear();
         this._quietHeld?.clear();
         this._digestHeld?.clear();
+        this._focusHeld?.clear();
         this._closeDigest();
         this._end();
     }
@@ -296,7 +305,93 @@ export class Hold {
     }
 
     _holding() {
-        return this._reason !== null || this._digest;
+        return this._reason !== null || this._digest || this._focusHolding();
+    }
+
+    // --- A focus profile --------------------------------------------------------------------------------------------
+
+    // The profile's rule ({banners: shown|apps|held, apps, sounds}), or null when none is on
+    setFocus(rule) {
+        if (JSON.stringify(rule) === JSON.stringify(this._focus))
+            return;
+        const was = this._focusHolding();
+        this._focus = rule;
+        // Not started yet: the rule waits for enable()
+        if (!this._quietHeld)
+            return;
+        if (was && !this._focusHolding())
+            this._focusReleased();
+        this._syncSound();
+        this._update();
+    }
+
+    // A profile with its sounds off: what it lets through shows without a sound, but calls, alarms and urgent ones.
+    // GNOME's method is wrapped only while such a profile is on.
+    _syncSound() {
+        const wanted = this._focus?.sounds === false;
+        const proto = MessageTray.Notification.prototype;
+        if (wanted && !this._originalSound) {
+            const hold = this;
+            const original = proto.playSound;
+            this._originalSound = original;
+            proto.playSound = function (...args) {
+                if (hold._silenced(this))
+                    return undefined;
+                return original.apply(this, args);
+            };
+        } else if (!wanted) {
+            this._unwrapSound();
+        }
+    }
+
+    _unwrapSound() {
+        if (this._originalSound)
+            MessageTray.Notification.prototype.playSound = this._originalSound;
+        this._originalSound = null;
+    }
+
+    _focusHolding() {
+        return !!this._focus && this._focus.banners !== 'shown';
+    }
+
+    // Whether a banner may show now: what always passes, and what the profile lets through while nothing else holds
+    _lets(notification) {
+        if (passes(notification))
+            return true;
+        if (this._reason !== null || this._digest)
+            return false;
+        if (!this._focusHolding())
+            return true;
+        if (this._focus.banners !== 'apps')
+            return false;
+        const source = notification.source;
+        const ids = [source?._appId, source?.app?.get_id?.()].filter(Boolean)
+            .map(id => (id.endsWith('.desktop') ? id : `${id}.desktop`));
+        return ids.some(id => this._focus.apps.includes(id));
+    }
+
+    _silenced(notification) {
+        return !!this._focus && this._focus.sounds === false && !passes(notification);
+    }
+
+    // The profile ended or lets everything through: what it held stays in the list, said once; with the digest on it
+    // waits for the digest, and what quiet still holds stays quiet's
+    _focusReleased() {
+        const held = [...this._focusHeld].filter(n => !this._quietHeld.has(n));
+        this._focusHeld.clear();
+        if (this._digest)
+            return;
+        const waiting = held.filter(n => this._held.has(n));
+        for (const notification of waiting)
+            this._forget(notification);
+        if (waiting.length > 0) {
+            this._notice(ngettext('%d waiting in the list', '%d waiting in the list', waiting.length).format(waiting.length),
+                'weather-clear-night-symbolic', WAITING, '', () => Main.panel.statusArea.dateMenu?.menu.open());
+        }
+    }
+
+    get focusHeld() {
+        return this._focusHeld?.size ?? 0;
     }
 
     _update() {
@@ -325,7 +420,8 @@ export class Hold {
             }
             return;
         }
-        const waiting = held.filter(n => this._held.has(n));
+        // What a focus profile still holds stays held until it ends
+        const waiting = held.filter(n => this._held.has(n) && !this._focusHeld.has(n));
         for (const notification of waiting)
             this._forget(notification);
         if (waiting.length > 0) {
@@ -362,7 +458,7 @@ export class Hold {
     // queue and counted
     _requested(notification) {
         // The banner on screen being updated is not held: it is shown already
-        if (!this._holding() || passes(notification) || !wouldPopUp(notification) ||
+        if (!this._holding() || this._lets(notification) || !wouldPopUp(notification) ||
             Main.messageTray._notification === notification)
             return;
         this._takeOffQueue([notification]);
@@ -374,6 +470,8 @@ export class Hold {
             this._quietHeld.add(notification);
         if (this._digest)
             this._digestHeld.add(notification);
+        if (this._focusHolding())
+            this._focusHeld.add(notification);
         this._show();
     }
 
@@ -382,6 +480,7 @@ export class Hold {
         this._held.delete(notification);
         this._quietHeld.delete(notification);
         this._digestHeld.delete(notification);
+        this._focusHeld.delete(notification);
         this._show();
     }
 

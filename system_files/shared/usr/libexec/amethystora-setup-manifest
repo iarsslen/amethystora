@@ -121,6 +121,10 @@ HINTS=org.gnome.shell.extensions.amethystora-ui.hints
 HINTS_KEYS=(enabled)
 APPGRID=org.gnome.shell.extensions.amethystora-ui.appgrid
 APPGRID_KEYS=(recent)
+# Focus profiles: the triggers and what each profile does, which amethystora-setup's FOCUS_KEYS takes; never the profile on
+# now, when it ends, or a saved set a profile names
+FOCUS=org.gnome.shell.extensions.amethystora-ui.focus
+FOCUS_KEYS=(trigger-games trigger-sleep work-banners work-apps work-sounds work-dock work-lighter work-night-light work-power work-accent work-wallpaper work-grey games-banners games-apps games-sounds games-dock games-lighter games-night-light games-power games-accent games-wallpaper games-grey sleep-banners sleep-apps sleep-sounds sleep-dock sleep-lighter sleep-night-light sleep-power sleep-accent sleep-wallpaper sleep-grey)
 
 # The tiling, while it runs, takes a combination out of four GNOME keys that it cannot wrap in memory, and
 # writes down what it took in its state file, to put back when it is turned off: the account's own value is the
@@ -209,6 +213,7 @@ settings() {
         changed "${TRANSITIONS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${TRANSITIONS_KEYS[@]}") -
         changed "${HINTS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${HINTS_KEYS[@]}") -
         changed "${APPGRID}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${APPGRID_KEYS[@]}") -
+        changed "${FOCUS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${FOCUS_KEYS[@]}") -
     } | while read -r schema key value; do
         value="$(as_json <<<"${value}")" && [[ -n "${value}" ]] || continue
         jq -nc --arg s "${schema}" --arg k "${key}" --argjson v "${value}" '{schema: $s, key: $k, value: $v}'
@@ -230,14 +235,15 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
     --arg windows "${WINDOWS}" --arg dock "${DOCK}" --arg motion "${MOTION}" --arg workspaces "${WORKSPACES}" \
     --arg pill "${PILL}" --arg quick "${QUICK}" --arg bars "${BARS}" --arg today "${TODAY}" --arg breaks "${BREAKS}" \
     --arg search "${SEARCH}" --arg emoji "${EMOJI}" --arg bezel "${BEZEL}" --arg sound "${SOUND}" \
-    --arg transitions "${TRANSITIONS}" --arg hints "${HINTS}" --arg appgrid "${APPGRID}" '
+    --arg transitions "${TRANSITIONS}" --arg hints "${HINTS}" --arg appgrid "${APPGRID}" \
+    --arg focus "${FOCUS}" '
     map(if .schema == "custom" then .value |= (if . == "" then [] else [.] end) else . end) as $all
     | {layout: $layout}
     + ([$all[] | select(.schema == "org.gnome.shell")] | if length > 0 then {favorites: .[0].value} else {} end)
     + {keybindings: (reduce ($all[] | select(if .schema == $windows then .key == "snap-chooser"
             elif .schema == $search then .key == "open" elif .schema == $emoji then .key == "emoji-picker"
             else .schema | IN("org.gnome.shell", $tiling, $pointer, $glass, $motion, $workspaces, $dock, $pill, $quick, $bars,
-                $today, $breaks, $bezel, $sound, $transitions, $hints, $appgrid) | not end))
+                $today, $breaks, $bezel, $sound, $transitions, $hints, $appgrid, $focus) | not end))
         as $e ({}; .[$e.schema][$e.key] = $e.value))}
     + ([$all[] | select(.schema == $windows and .key != "snap-chooser")]
         | if length > 0 then {windows: (map({(.key): .value}) | add)} else {} end)
@@ -262,7 +268,8 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
     + ([$all[] | select(.schema == $sound)] | if length > 0 then {sound: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $transitions)] | if length > 0 then {transitions: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $hints)] | if length > 0 then {hints: (map({(.key): .value}) | add)} else {} end)
-    + ([$all[] | select(.schema == $appgrid)] | if length > 0 then {appgrid: (map({(.key): .value}) | add)} else {} end)')"
+    + ([$all[] | select(.schema == $appgrid)] | if length > 0 then {appgrid: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $focus)] | if length > 0 then {focus: (map({(.key): .value}) | add)} else {} end)')"
 
 # The look, where the account changed it from the image's: its accent, Daylight turned off and colours from the wallpaper
 # (the account's files, each only as one of its values), and an accent per workspace (the theme module's keys)

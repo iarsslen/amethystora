@@ -19,6 +19,11 @@ set -eoux pipefail
 # sensor links Fedora's libbpf, which the image itself carries, so nothing of libbpf is vendored.
 dnf5 -y install --repo=fedora --repo=updates --setopt=install_weak_deps=False \
     rust cargo gcc gtk4-devel libadwaita-devel jq nodejs clang llvm bpftool libbpf-devel kernel-devel
+# Node's whole ICU data, for 20-tests.sh's checks of numbers and dates in other languages (Fedora's node has only
+# English without it); the package is named after the node version, so ask the one that came with nodejs.
+# 20-tests.sh points NODE_ICU_DATA at /apps-stage/usr/share/node-*/icudata, since it runs this node from there.
+dnf5 -y install --repo=fedora --repo=updates --setopt=install_weak_deps=False \
+    "$(rpm -qf --qf '%{NAME}' "$(command -v node)" | sed 's/-bin$//')-full-i18n"
 
 # The workspace is copied out of the read-only context, and built outside it
 cp -a /ctx/apps /tmp/apps

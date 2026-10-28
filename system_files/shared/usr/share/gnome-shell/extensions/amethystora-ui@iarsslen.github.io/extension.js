@@ -36,10 +36,11 @@ import {Windows} from './modules/windows.js';
 import {Motion} from './modules/motion.js';
 import {Sounds} from './modules/sounds.js';
 import {Bezel} from './modules/bezel.js';
+import {Focus} from './modules/focus.js';
 
 // In the order they start, by the name of their stylesheet; they stop in the opposite order. The desktop style comes
 // first after the theme, since the glass asks it; the glass comes after the dock and the panel's modules, whose actors
-// it draws behind.
+// it draws behind. Focus profiles come last: a profile lays itself over what the others do, and stops first.
 const MODULES = [
     ['theme', Theme],
     ['style', Style],
@@ -69,6 +70,7 @@ const MODULES = [
     ['motion', Motion],
     ['sounds', Sounds],
     ['bezel', Bezel],
+    ['focus', Focus],
 ];
 
 export default class AmethystoraUI extends Extension {

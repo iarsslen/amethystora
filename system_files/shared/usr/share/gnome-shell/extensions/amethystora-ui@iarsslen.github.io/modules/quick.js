@@ -157,6 +157,9 @@ export class Quick {
         this._hiddenRow = null;
         this._themeStandIn?.destroy();
         this._themeStandIn = null;
+        if (this._focusBlock?.get_parent() === this.grid)
+            this.grid.remove_child(this._focusBlock);
+        this._focusBlock = null;
         this._releaseSystem();
         this._restoreOrder();
         this.menu?.box.remove_style_class_name('amethystora-quick');
@@ -355,11 +358,12 @@ export class Quick {
             const fixed = [BRIGHTNESS, OUTPUT, INPUT, SYSTEM, BACKGROUND].map(name => this._byClass(name));
             const [brightness, output, input, system, background] = fixed;
             const placed = new Set([...tiles, ...fixed, this._placeholder, this._hiddenRow, this._theme.block,
-                this._volume.block, this._hint]);
+                this._volume.block, this._hint, this._focusBlock]);
             const others = grid.get_children().filter(actor => !placed.has(actor));
             const sequence = [
                 ...tiles,
                 this._hiddenRow,
+                this._focusBlock,
                 ...others,
                 brightness,
                 output,
@@ -379,6 +383,20 @@ export class Quick {
             this._laying = false;
         }
         this._arrange?.refresh();
+    }
+
+    // The Focus tile (modules/focus/tile.js), or null: a block across both columns after the tiles, while the focus
+    // module runs. It is not one of the tiles arrange mode moves or puts away.
+    setFocusBlock(actor) {
+        if (this._focusBlock === actor)
+            return;
+        if (this.grid && this._focusBlock?.get_parent() === this.grid)
+            this.grid.remove_child(this._focusBlock);
+        this._focusBlock = actor;
+        if (actor && this.grid) {
+            this._insert(actor, 2);
+            this._layout();
+        }
     }
 
     // Where a tile goes by default: the battery first, the phone after Bluetooth, the rest in GNOME's order

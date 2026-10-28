@@ -197,7 +197,7 @@ export class Dock {
         if (!Main.layoutManager.primaryMonitor)
             return;
         const edge = this.settings.get_string('edge');
-        const autohide = this.settings.get_string('autohide');
+        const autohide = this.autohide;
         const indices = this.perScreen ? monitors.map((m, i) => i) : [Main.layoutManager.primaryIndex];
         for (const index of indices) {
             const site = new DockSite(this, index, edge, autohide);
@@ -216,6 +216,19 @@ export class Dock {
         for (const site of this._sites)
             site.destroy();
         this._sites = [];
+    }
+
+    // When the dock gets out of the way: the key, or what a focus profile lays over it while it is on
+    get autohide() {
+        return this._autohideOverride ?? this.settings?.get_string('autohide') ?? 'off';
+    }
+
+    // A focus profile's autohide ('touch'), or null for the key's: in memory, the key is never written
+    setAutohideOverride(value) {
+        const before = this.autohide;
+        this._autohideOverride = value === 'touch' ? 'touch' : null;
+        if (this.settings && this.autohide !== before)
+            this._rebuild();
     }
 
     // A screen added, taken away or rearranged, or another edge: the docks are made again

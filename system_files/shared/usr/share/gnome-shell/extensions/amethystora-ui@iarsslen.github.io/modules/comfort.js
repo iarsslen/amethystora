@@ -18,8 +18,11 @@
 //                           150 ms
 //   comfort?.highContrast   true while GNOME's High Contrast is on
 //   comfort?.powerSaver     true while the power-saver profile is active
+//   comfort?.lighter        true while the power saver is on or a focus profile asks for what it does (solid glass,
+//                           shorter motion): what the glass and the animations' speed follow
+//   comfort?.setLighter(b)  the focus module's ask, in memory
 //   const unlisten = comfort?.listen(c => ...);
-//                           the callback runs once for each change of any of the three, with this object; the
+//                           the callback runs once for each change of any of these, with this object; the
 //                           function returned takes it away again. Call it in your disable(). Calling it after
 //                           comfort itself has stopped is harmless.
 //
@@ -90,6 +93,7 @@ export class Comfort {
         this._listeners?.clear();
         this._listeners = null;
         this._powerSaver = false;
+        this._lighter = false;
         this._state = null;
     }
 
@@ -104,6 +108,17 @@ export class Comfort {
 
     get powerSaver() {
         return this._powerSaver;
+    }
+
+    get lighter() {
+        return this._powerSaver || !!this._lighter;
+    }
+
+    setLighter(on) {
+        if (!!on === !!this._lighter)
+            return;
+        this._lighter = !!on;
+        this._changed();
     }
 
     listen(callback) {
@@ -124,7 +139,7 @@ export class Comfort {
     }
 
     _now() {
-        return [this.reduceMotion, this.highContrast, this.powerSaver].join();
+        return [this.reduceMotion, this.highContrast, this.powerSaver, this.lighter].join();
     }
 
     // Each listener hears once per change, however many signals brought it

@@ -242,6 +242,29 @@ ids="$(bash -c 'source /usr/lib/amethystora/theme/lib.sh; for e in "${ACCENTS[@]
 saved="$(sed -n 's/^THEME_UI_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort)"
 [[ "${saved}" == "${listed}" ]] ||
     { echo "the manifest saves other theme module keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
+# Focus profiles: every key of the schema but what is on now (profile, ends, off-at) and a profile's saved set, each of
+# the schema's type and, for a choice, the schema's choices; the apps are launchers; and the manifest saves the same keys
+FOCUS_ID=org.gnome.shell.extensions.amethystora-ui.focus
+FOCUS_TABLE="$(bash -c "$(sed -n '/^LOOK_ACCENTS=/p; /^FOCUS_KEYS=/,/^}'"'"'$/p' "${SETUP}")"'; printf "%s" "${FOCUS_KEYS}"')"
+listed="$(jq -r 'keys[]' <<<"${FOCUS_TABLE}" | sort)"
+schema="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${FOCUS_ID}" | grep -vxE 'profile|ends|off-at|.*-set' | sort)"
+[[ -n "${listed}" && "${listed}" == "${schema}" ]] ||
+    { echo "FOCUS_KEYS and ${FOCUS_ID} differ:"; diff <(echo "${listed}") <(echo "${schema}"); false; }
+while read -r key; do
+    range="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${FOCUS_ID}" "${key}" | tr '\n' ' ' | xargs)"
+    case "${range}" in
+        "type b") want='["b"]' ;;
+        "type as") want='["as","launchers"]' ;;
+        enum*) want="$(jq -cn --arg r "${range#enum }" '["s", ($r | split(" "))]')" ;;
+        *) want="? ${range}" ;;
+    esac
+    got="$(jq -c --arg k "${key}" '.[$k] | if .[0] == "s" then [.[0], (.[1] | sort)] else . end' <<<"${FOCUS_TABLE}")"
+    want="$(jq -c 'if .[0] == "s" then [.[0], (.[1] | sort)] else . end' <<<"${want}" 2>/dev/null || echo "${want}")"
+    [[ "${got}" == "${want}" ]] || { echo "FOCUS_KEYS has ${key} as ${got}, the schema as ${want}"; false; }
+done <<<"${listed}"
+saved="$(sed -n 's/^FOCUS_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort)"
+[[ "${saved}" == "${listed}" ]] ||
+    { echo "the manifest saves other focus keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
 
 # A machine with two apps, three things from Homebrew, a container, an extension and a theme, whose
 # dock, close key, terminal key, tiling key, two tiling settings and window rules are not the image's. What
@@ -307,6 +330,9 @@ org.gnome.shell.extensions.amethystora-ui.tiling winprops ['{\"wm_class\": \"Fir
 org.gnome.shell.extensions.amethystora-ui.pointer shake 'beacon'
 org.gnome.shell.extensions.amethystora-ui.glass material 'clear'
 org.gnome.shell.extensions.amethystora-ui.windows dim true
+org.gnome.shell.extensions.amethystora-ui.focus games-power 'performance'
+org.gnome.shell.extensions.amethystora-ui.focus trigger-sleep false
+org.gnome.shell.extensions.amethystora-ui.focus work-apps ['org.gnome.Calendar.desktop']
 org.gnome.shell.extensions.amethystora-ui.dock magnify 'lift'
 org.gnome.shell.extensions.amethystora-ui.dock stacks ['xdg:DOWNLOAD', '~/Projects', '/srv/share']
 org.gnome.shell.extensions.amethystora-ui.dock folders {\"Jeux d'enfants\": ['org.gnome.Nautilus.desktop', 'firefox.desktop']}"
@@ -415,7 +441,8 @@ jq '.flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .brew
     | .settings.windows = {"dim": false, "corner-top-right": "overview", "hold-super-delay": 1500}
     | .settings.dock += {"magnify": "off", "folders": {"Writing": ["org.gnome.Nautilus.desktop", "firefox.desktop"]}}
     | .settings.bezel = {"round-corners": true} | .settings.sound = {"event-sounds": false}
-    | .settings.transitions = {"reveal": false} | .settings.hints = {"enabled": false} | .settings.appgrid = {"recent": false}' \
+    | .settings.transitions = {"reveal": false} | .settings.hints = {"enabled": false} | .settings.appgrid = {"recent": false}
+    | .settings.focus = {"games-power": "as-set", "trigger-sleep": true, "work-apps": ["org.gnome.Nautilus.desktop"]}' \
     "${FILE}" >"${T}/more.json"
 out="$("${SETUP}" diff "${T}/more.json")"
 grep -qxF "  ~ the windows' dim: false, in place of true" <<<"${out}"
@@ -435,7 +462,12 @@ grep -qxF "  ~ the desktop's event-sounds: false, in place of true" <<<"${out}"
 grep -qxF "  ~ the transitions' reveal: false, in place of true" <<<"${out}"
 grep -qxF "  ~ the tips' enabled: false, in place of true" <<<"${out}"
 grep -qxF "  ~ the app grid's recent: false, in place of true" <<<"${out}"
+grep -qxF '  ~ focus profiles'"'"' games-power: "as-set", in place of "performance"' <<<"${out}"
+grep -qxF "  ~ focus profiles' trigger-sleep: true, in place of false" <<<"${out}"
 "${SETUP}" apply --yes "${T}/more.json" >/dev/null
+grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.focus games-power "as-set"' "${LOG}"
+grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.focus trigger-sleep true" "${LOG}"
+grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.focus work-apps ["org.gnome.Nautilus.desktop"]' "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.bezel round-corners true" "${LOG}"
 grep -qx "gsettings set org.gnome.desktop.sound event-sounds false" "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-transitions reveal false" "${LOG}"
@@ -553,7 +585,15 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"look": {"accent-per-workspace": "on"}}}' \
     '{"version": 1, "settings": {"look": {"workspace-accents": []}}}' \
     '{"version": 1, "settings": {"look": {"workspace-accents": ["sky", "coral", "jade", "amber", "orchid", "../x"]}}}' \
-    '{"version": 1, "settings": {"look": {"no-such-setting": "on"}}}'; do
+    '{"version": 1, "settings": {"look": {"no-such-setting": "on"}}}' \
+    '{"version": 1, "settings": {"focus": {"profile": "work"}}}' \
+    '{"version": 1, "settings": {"focus": {"ends": 0}}}' \
+    '{"version": 1, "settings": {"focus": {"work-set": "Writing"}}}' \
+    '{"version": 1, "settings": {"focus": {"games-power": "turbo"}}}' \
+    '{"version": 1, "settings": {"focus": {"sleep-accent": "teal"}}}' \
+    '{"version": 1, "settings": {"focus": {"work-apps": ["rm -rf ~"]}}}' \
+    '{"version": 1, "settings": {"focus": {"work-apps": ["a.desktop", "a.desktop"]}}}' \
+    '{"version": 1, "settings": {"focus": {"trigger-games": "on"}}}'; do
     printf '%s\n' "${bad}" >"${T}/bad.json"
     "${SETUP}" diff "${T}/bad.json" >/dev/null 2>&1 && { echo "accepted: ${bad}"; false; }
     "${SETUP}" apply --yes "${T}/bad.json" >/dev/null 2>&1 && { echo "applied: ${bad}"; false; }

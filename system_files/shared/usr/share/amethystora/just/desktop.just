@@ -1298,6 +1298,230 @@ digest *ARGS:
             ;;
     esac
 
+# Focus profiles: Work, Games or Sleep laid over your settings until it ends (ame desktop focus work|games|sleep
+# [hour|tomorrow]; ame desktop focus off), the two triggers (ame desktop focus trigger games|sleep on|off) and what each
+# profile does (ame desktop focus edit PROFILE SETTING VALUE..., or reset). Without anything it says what is on
+[positional-arguments]
+focus *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    SCHEMA=org.gnome.shell.extensions.amethystora-ui.focus
+    usage() {
+        {
+            echo "usage: ame desktop focus [off|work|games|sleep [hour|tomorrow]]"
+            echo "       ame desktop focus trigger games|sleep on|off"
+            echo "       ame desktop focus edit work|games|sleep banners shown|apps|held"
+            echo "       ame desktop focus edit work|games|sleep apps [APP.desktop...]"
+            echo "       ame desktop focus edit work|games|sleep sounds|lighter|grey on|off"
+            echo "       ame desktop focus edit work|games|sleep dock as-set|touch"
+            echo "       ame desktop focus edit work|games|sleep night-light as-set|paused|warmest"
+            echo "       ame desktop focus edit work|games|sleep power as-set|performance|power-saver"
+            echo "       ame desktop focus edit work|games|sleep accent theme|ACCENT"
+            echo "       ame desktop focus edit work|games|sleep wallpaper as-set|night"
+            echo "       ame desktop focus edit work|games|sleep set NAME|none"
+            echo "       ame desktop focus edit work|games|sleep reset"
+        } >&2
+        exit 64
+    }
+    get() { gsettings get "${SCHEMA}" "$1" | sed "s/^'\(.*\)'$/\1/; s/^int64 //"; }
+    now() { date +%s; }
+    # The next 06:00, as the Focus tile's "tomorrow"
+    morning() {
+        local t
+        t="$(date -d 'today 06:00' +%s)"
+        ((t > $(now))) || t="$(date -d 'tomorrow 06:00' +%s)"
+        echo "${t}"
+    }
+    name() {
+        case "$1" in
+            work) gettext "Work" ;;
+            games) gettext "Games" ;;
+            sleep) gettext "Sleep" ;;
+        esac
+    }
+    ACCENTS=(amethyst iris sky lagoon jade moss amber ember coral rose orchid slate)
+    # Launchers as GNOME finds them, the account's first
+    LAUNCHER_DIRS=("${XDG_DATA_HOME:-${HOME}/.local/share}/applications" "${HOME}/.local/share/flatpak/exports/share/applications"
+        /var/lib/flatpak/exports/share/applications /usr/local/share/applications /usr/share/applications)
+    launcher_file() {
+        local dir
+        for dir in "${LAUNCHER_DIRS[@]}"; do
+            if [[ -f "${dir}/$1" ]]; then echo "${dir}/$1"; return 0; fi
+        done
+        return 1
+    }
+    one_of() {
+        local value="$1"
+        shift
+        [[ -n "${value}" && "${value}" != *'|'* ]] || return 1
+        local IFS='|'
+        [[ "|$*|" == *"|${value}|"* ]]
+    }
+    case "${1:-}" in
+        "")
+            profile="$(get profile)"
+            if [[ "${profile}" == off ]]; then
+                echo "$(gettext "No profile is picked; a trigger may turn one on (the Focus tile in quick settings says).")"
+            else
+                shown="$(name "${profile}")"
+                ends="$(get ends)"
+                if [[ "${ends}" == 0 ]]; then
+                    echo "$(eval_gettext "Focus: \${shown}, until you turn it off.")"
+                else
+                    when="$(date -d "@${ends}" '+%a %H:%M')"
+                    echo "$(eval_gettext "Focus: \${shown}, until \${when}.")"
+                fi
+            fi
+            for trigger in games sleep; do
+                if [[ "$(get "trigger-${trigger}")" == true ]]; then state=on; else state=off; fi
+                case "${trigger}" in
+                    games) echo "$(eval_gettext "Games while a game is in front: \${state}")" ;;
+                    sleep) echo "$(eval_gettext "Sleep at Night Light's times: \${state}")" ;;
+                esac
+            done
+            ;;
+        off)
+            [[ $# -eq 1 ]] || usage
+            # Off first, so that a trigger on now waits for its next start
+            gsettings set "${SCHEMA}" off-at "$(now)"
+            gsettings set "${SCHEMA}" ends 0
+            gsettings set "${SCHEMA}" profile off
+            echo "$(gettext "Focus is off: notifications, sounds and the desktop are as you set them.")"
+            ;;
+        work | games | sleep)
+            [[ $# -le 2 ]] || usage
+            case "${2:-}" in
+                "") ends=0 ;;
+                hour) ends=$(($(now) + 3600)) ;;
+                tomorrow) ends="$(morning)" ;;
+                *) usage ;;
+            esac
+            gsettings set "${SCHEMA}" ends "${ends}"
+            gsettings set "${SCHEMA}" profile "$1"
+            shown="$(name "$1")"
+            if [[ "${ends}" == 0 ]]; then
+                echo "$(eval_gettext "\${shown} is on until you turn it off (ame desktop focus off).")"
+            else
+                when="$(date -d "@${ends}" '+%a %H:%M')"
+                echo "$(eval_gettext "\${shown} is on until \${when}.")"
+            fi
+            ;;
+        trigger)
+            [[ $# -eq 3 ]] && one_of "$2" games sleep && one_of "$3" on off || usage
+            if [[ "$3" == on ]]; then gsettings set "${SCHEMA}" "trigger-$2" true; else gsettings set "${SCHEMA}" "trigger-$2" false; fi
+            case "$2:$3" in
+                games:on) echo "$(gettext "Games turns on when a game gets the keyboard, and ends when that game closes.")" ;;
+                sleep:on) echo "$(gettext "Sleep turns on at Night Light's evening time and ends at its morning time.")" ;;
+                games:off) echo "$(gettext "Games turns on only when you pick it.")" ;;
+                sleep:off) echo "$(gettext "Sleep turns on only when you pick it.")" ;;
+            esac
+            ;;
+        edit)
+            [[ $# -ge 3 ]] && one_of "$2" work games sleep || usage
+            profile="$2" field="$3"
+            shift 3
+            key="${profile}-${field}"
+            case "${field}" in
+                reset)
+                    [[ $# -eq 0 ]] || usage
+                    for each in banners apps sounds dock lighter night-light power accent wallpaper grey set; do
+                        gsettings reset "${SCHEMA}" "${profile}-${each}"
+                    done
+                    shown="$(name "${profile}")"
+                    echo "$(eval_gettext "\${shown} is as the image ships it again.")"
+                    exit 0
+                    ;;
+                banners) [[ $# -eq 1 ]] && one_of "$1" shown apps held || usage ;;
+                dock) [[ $# -eq 1 ]] && one_of "$1" as-set touch || usage ;;
+                night-light) [[ $# -eq 1 ]] && one_of "$1" as-set paused warmest || usage ;;
+                power) [[ $# -eq 1 ]] && one_of "$1" as-set performance power-saver || usage ;;
+                accent) [[ $# -eq 1 ]] && one_of "$1" theme "${ACCENTS[@]}" || usage ;;
+                wallpaper) [[ $# -eq 1 ]] && one_of "$1" as-set night || usage ;;
+                sounds | lighter | grey)
+                    [[ $# -eq 1 ]] && one_of "$1" on off || usage
+                    value="$1"
+                    if [[ "${value}" == on ]]; then gsettings set "${SCHEMA}" "${key}" true; else gsettings set "${SCHEMA}" "${key}" false; fi
+                    echo "$(eval_gettext "\${profile} \${field}: \${value}")"
+                    exit 0
+                    ;;
+                set)
+                    [[ $# -eq 1 ]] || usage
+                    value="$1"
+                    [[ "${value}" == none ]] && value=""
+                    # A saved set's name: some text, at most 24 characters, no control character
+                    if ((${#value} > 24)) || [[ "${value}" =~ [[:cntrl:]] ]]; then usage; fi
+                    quoted="${value//\\/\\\\}"
+                    quoted="${quoted//\'/\\\'}"
+                    gsettings set "${SCHEMA}" "${key}" "'${quoted}'"
+                    echo "$(eval_gettext "\${profile} set: \${value}")"
+                    exit 0
+                    ;;
+                apps)
+                    apps=("$@")
+                    if ((${#apps[@]} == 0)); then
+                        # In a terminal: pick from the launchers a person sees
+                        [[ -t 0 ]] || usage
+                        declare -A seen=()
+                        labels=() ids=()
+                        for dir in "${LAUNCHER_DIRS[@]}"; do
+                            for file in "${dir}"/*.desktop; do
+                                [[ -f "${file}" ]] || continue
+                                id="${file##*/}"
+                                [[ -z "${seen[${id}]:-}" ]] || continue
+                                seen[${id}]=1
+                                grep -qx 'NoDisplay=true' "${file}" && continue
+                                label="$(sed -n 's/^Name=//p' "${file}" | head -n1)"
+                                [[ -n "${label}" ]] || continue
+                                labels+=("${label} (${id})")
+                                ids+=("${id}")
+                            done
+                        done
+                        current="$(gsettings get "${SCHEMA}" "${key}")"
+                        selected=()
+                        for i in "${!ids[@]}"; do
+                            [[ "${current}" == *"'${ids[i]}'"* ]] && selected+=("${labels[i]}")
+                        done
+                        # Escape or Ctrl+C changes nothing; Enter with nothing picked is a real "none"
+                        if ! chosen="$(printf '%s\n' "${labels[@]}" | sort | gum choose --no-limit \
+                            --header "$(gettext "Whose banners come through? (space to pick, enter when done)")" \
+                            --selected "$(IFS=,; echo "${selected[*]}")")"; then
+                            echo "$(gettext "Nothing changed.")"
+                            exit 0
+                        fi
+                        picked=()
+                        [[ -z "${chosen}" ]] || mapfile -t picked <<<"${chosen}"
+                        for label in "${picked[@]}"; do
+                            id="${label##*(}"
+                            apps+=("${id%)}")
+                        done
+                        # The calendar's reminders have no launcher of their own to pick: they stay
+                        [[ "${current}" == *"'org.gnome.Evolution-alarm-notify.desktop'"* ]] && apps+=(org.gnome.Evolution-alarm-notify.desktop)
+                    fi
+                    list=""
+                    for app in "${apps[@]}"; do
+                        [[ "${app}" =~ ^[A-Za-z0-9._+-]+\.desktop$ ]] || usage
+                        if ! launcher_file "${app}" >/dev/null && [[ "${app}" != org.gnome.Evolution-alarm-notify.desktop ]]; then
+                            echo "$(eval_gettext "No launcher \${app} is installed.")" >&2
+                            exit 1
+                        fi
+                        [[ "${list}" == *"'${app}'"* ]] || list+="${list:+, }'${app}'"
+                    done
+                    gsettings set "${SCHEMA}" "${key}" "@as [${list}]"
+                    shown="$(name "${profile}")"
+                    echo "$(eval_gettext "\${shown} lets through banners from: \${list}")"
+                    exit 0
+                    ;;
+                *) usage ;;
+            esac
+            value="$1"
+            gsettings set "${SCHEMA}" "${key}" "${value}"
+            echo "$(eval_gettext "\${profile} \${field}: \${value}")"
+            ;;
+        *) usage ;;
+    esac
+
 # The top bar on every screen (ame desktop top-bar screens [on|off]), and over a fullscreen window when you push the
 # pointer against the top edge (ame desktop top-bar peek [on|off]). Without on or off, it asks
 [positional-arguments]

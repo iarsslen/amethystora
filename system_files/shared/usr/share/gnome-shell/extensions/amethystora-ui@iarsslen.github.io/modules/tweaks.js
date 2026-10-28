@@ -66,7 +66,9 @@ export class Tweaks {
     }
 
     _speed() {
-        const saver = this._ext.modules.get('comfort')?.powerSaver ?? false;
+        // The power saver, or a focus profile asking for what it does
+        const comfort = this._ext.modules.get('comfort');
+        const saver = comfort?.lighter ?? comfort?.powerSaver ?? false;
         St.Settings.get().slow_down_factor = saver ? SPEED * POWER_SAVER : SPEED;
     }
 }

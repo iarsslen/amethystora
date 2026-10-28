@@ -1772,7 +1772,7 @@ msgstr ""
 msgid "On"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js
 msgid "Off"
 msgstr ""
 
@@ -3225,6 +3225,174 @@ msgstr ""
 msgid "When the digest comes."
 msgstr ""
 
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/tile.js
+msgid "Focus"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "Work"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Banners from the apps you choose, no notification sounds"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/apps.just usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "Games"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Banners held, performance power, the dock out of the way"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "Sleep"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Banners held, Night Light at its warmest, power saver"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A profile laid over your settings until you turn it off. Quick settings has it too, with an end after an hour or tomorrow."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Games while a game is in front"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Games turns on when a game gets the keyboard and ends when it closes."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Sleep at Night Light's times"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Sleep turns on at Night Light's evening time and ends at its morning time."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "As they come"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Only the apps chosen"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Held"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Banners"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Calls, alarms and urgent ones always come through. Held banners wait in the list."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Choose"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Apps let through"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Whose banners come through while banners are only from the apps chosen."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Notification sounds"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "As set"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Hides while a window touches it"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The dock"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Solid glass and shorter motion"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "What power saver does to the desktop, for games played in a window."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Paused"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "At its warmest"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Night Light"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Performance"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Power saver"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Power mode"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The theme's"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The night picture"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Daylight's picture for the night, over yours"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The screen in grey"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "One more pass over the whole screen for every frame while it is on."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A saved set"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Offered, after asking, when you pick the profile yourself."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Focus: Work"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Focus: Games"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Focus: Sleep"
+msgstr ""
+
 #: usr/libexec/amethystora-control-list
 msgid "Terminal greeting"
 msgstr ""
@@ -3287,10 +3455,6 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "Pictures a paired phone sends."
-msgstr ""
-
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/apps.just
-msgid "Games"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -6326,7 +6490,7 @@ msgid "Turn on"
 msgstr ""
 
 #. Translators: a choice in a menu: to take the artwork off the boot menu
-#: usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just
+#: usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/mark.js
 msgid "Turn off"
 msgstr ""
 
@@ -6459,6 +6623,89 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 msgid "The digest is off: banners show as they come."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "No profile is picked; a trigger may turn one on (the Focus tile in quick settings says)."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Focus: ${shown}, until you turn it off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Focus: ${shown}, until ${when}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Games while a game is in front: ${state}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Sleep at Night Light's times: ${state}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Focus is off: notifications, sounds and the desktop are as you set them."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "${shown} is on until you turn it off (ame desktop focus off)."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "${shown} is on until ${when}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Games turns on when a game gets the keyboard, and ends when that game closes."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Games turns on only when you pick it."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Sleep turns on only when you pick it."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "${shown} is as the image ships it again."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "${profile} ${field}: ${value}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "${profile} set: ${value}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Whose banners come through? (space to pick, enter when done)"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Nothing changed."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "No launcher ${app} is installed."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "${shown} lets through banners from: ${list}"
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
@@ -7957,7 +8204,7 @@ msgid "Make one"
 msgstr ""
 
 #. Translators: a choice about the private folder, which is closed: open it.
-#: usr/share/amethystora/just/security.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js apps/connect/src/plugins.rs apps/connect/src/transfers.rs
+#: usr/share/amethystora/just/security.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js apps/connect/src/plugins.rs apps/connect/src/transfers.rs
 msgid "Open"
 msgstr ""
 
@@ -9232,6 +9479,174 @@ msgstr ""
 msgid "Flags"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/mark.js
+msgid "Focus: %s, %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/mark.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js
+msgid "Focus: %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/mark.js
+msgid "%d held while %s is on."
+msgid_plural "%d held while %s is on."
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/mark.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/tile.js
+msgid "Edit in Control"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "an amethyst accent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "an iris accent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "a sky accent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "a lagoon accent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "a jade accent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "a moss accent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "an amber accent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "an ember accent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "a coral accent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "a rose accent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "an orchid accent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "a slate accent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "Clocks"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "Banners only from %s and calls"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "Banners held; calls and alarms come through"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "Notification sounds off"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "The rest waits in the list"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "The dock hides while a window touches it"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "Night Light paused"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "Night Light at its warmest"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "the night wallpaper"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "the screen in grey"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "performance power"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "power saver"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "solid glass and shorter motion"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js
+msgid "Notifications, sounds and the desktop as you set them"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/tile.js
+msgid "Ends:"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/tile.js
+msgid "when you turn it off"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/tile.js
+msgid "1 hour"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/tile.js
+msgid "tomorrow"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/tile.js
+msgid "Ends %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js
+msgid "On while a game is in front"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js
+msgid "On until you turn it off"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js
+msgid "On until %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js
+msgid "On until tomorrow"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js
+msgid "Open %s’s %d app?"
+msgid_plural "Open %s’s %d apps?"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
+msgid "Not now"
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/hints.js
 msgid "Got it"
 msgstr ""
@@ -9370,10 +9785,6 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
 msgid "Power saving makes the glass solid and animations shorter, and asks less of the processor. It stays on until you turn it off."
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
-msgid "Not now"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/capture.js

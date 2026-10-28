@@ -1,0 +1,103 @@
+/* Focus profiles (modules/focus.js): the Focus tile in quick settings and the profile's mark in the live pill, at the
+   board's sizes, which never change with the theme. The colours are the theme's, in
+   /usr/share/amethystora/themed/shell-focus.css.tpl; the stand-ins here serve until a theme is applied. */
+
+/* The tile: a block across both columns, its ring drawn as a border inside its edge */
+
+.quick-settings.amethystora-quick .amethystora-quick-block.amethystora-focus-tile {
+  padding: 11px;
+  border-width: 1px;
+  border-style: solid;
+  border-color: rgba(220, 188, 255, 0.35);
+  border-radius: 20px;
+  spacing: 10px;
+}
+
+.amethystora-focus-title {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.amethystora-focus-state {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.amethystora-focus-chips {
+  spacing: 6px;
+}
+
+.amethystora-focus-chip {
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border-width: 0;
+}
+
+.amethystora-focus-chip:focus {
+  box-shadow: 0 0 0 2px rgba(220, 188, 255, 1);
+}
+
+.amethystora-focus-lines {
+  spacing: 5px;
+}
+
+.amethystora-focus-line {
+  spacing: 8px;
+}
+
+.amethystora-focus-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 3px;
+  margin-bottom: 2px;
+}
+
+.amethystora-focus-line-text {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.amethystora-focus-ends {
+  spacing: 8px;
+}
+
+.amethystora-focus-end-choices {
+  spacing: 4px;
+}
+
+.amethystora-focus-ends-label,
+.amethystora-focus-ends-dot,
+.amethystora-focus-end {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.amethystora-focus-end,
+.amethystora-focus-edit {
+  padding: 0;
+  border-radius: 4px;
+  border-width: 0;
+  background-color: transparent;
+}
+
+.amethystora-focus-end:checked {
+  font-weight: 700;
+}
+
+.amethystora-focus-edit {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* The mark in the live pill: the profile's icon, then its name and the time */
+
+.amethystora-focus-mark {
+  spacing: 6px;
+}
+
+.amethystora-focus-mark-icon {
+  width: 13px;
+  height: 13px;
+}

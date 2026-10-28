@@ -9,10 +9,12 @@
 //   accessible    the pill in words, for a screen reader
 //   row           {icon, text}: its row among the others in a card
 //   card(api)     a new actor with its part of the card; api.close() closes the card
-//   plate         '' or the plate's own look: 'link', 'battery', 'saver', 'quiet'
+//   plate         '' or the plate's own look: 'link', 'battery', 'saver', 'quiet', 'focus'
 //   activate()    optional: what a click on the pill's body does instead of opening the card
+//
+// A focus profile's mark (modules/focus/mark.js) comes last: it says what the desktop is set to, not what happens.
 
-export const ORDER = ['call', 'recording', 'link', 'battery', 'waiting', 'timer', 'media', 'update', 'quiet'];
+export const ORDER = ['call', 'recording', 'link', 'battery', 'waiting', 'timer', 'media', 'update', 'quiet', 'focus'];
 
 // At most this many others are listed in a card
 const OTHERS = 3;

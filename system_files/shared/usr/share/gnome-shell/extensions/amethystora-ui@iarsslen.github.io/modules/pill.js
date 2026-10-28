@@ -5,7 +5,9 @@
 // digest, the count on a stack of notifications, and volume and brightness as a pill under the top bar.
 //
 // Each part is a key of org.gnome.shell.extensions.amethystora-ui.pill (ame desktop pill|quiet|digest, Control), read
-// live; a part that is off has nothing connected and nothing made. Nothing here polls: every source is a signal.
+// live; a part that is off has nothing connected and nothing made. Nothing here polls: every source is a signal. A
+// focus profile (modules/focus.js) tells the pill its banners and sounds (setFocus) and gives it its mark
+// (setFocusMark), the last of the activities.
 
 import GLib from 'gi://GLib';
 import St from 'gi://St';
@@ -113,6 +115,8 @@ export class Pill {
         this._settings?.run_dispose();
         this._settings = null;
         disposeSettings();
+        // The focus module tells the rule again when it starts
+        this._focusRule = null;
     }
 
     get _comfort() {
@@ -147,12 +151,42 @@ export class Pill {
         }
         this._toggle('_privacy', on('privacy-dots'), () => new Privacy(this._capture));
         this._toggle('_glow', on('glow'), () => new Glow(this._capture, () => this._reduce()));
-        this._toggle('_hold', on('quiet') || on('quiet-night') || on('digest'),
+        this._toggle('_hold', on('quiet') || on('quiet-night') || on('digest') || this._focusWants(),
             () => new Hold(this._settings, this._capture, this._activities, (...a) => this.notice(...a), () => this._glass()));
+        this._hold?.setFocus(this._focusRule ?? null);
         if (on('live') || on('privacy-dots'))
             this._hideGnomeCapture();
         else
             this._showGnomeCapture();
+    }
+
+    // ---- A focus profile (modules/focus.js) ----
+
+    // Whether the profile on needs the hold: banners held, or their sounds off
+    _focusWants() {
+        const rule = this._focusRule;
+        return !!rule && (rule.banners !== 'shown' || rule.sounds === false);
+    }
+
+    // The profile's banners and sounds ({banners, apps, sounds}), or null: in memory, as quiet's are. The hold is told
+    // first, so that what it held is said once before it stops.
+    setFocus(rule) {
+        if (JSON.stringify(rule ?? null) === JSON.stringify(this._focusRule ?? null))
+            return;
+        this._focusRule = rule ?? null;
+        this._hold?.setFocus(this._focusRule);
+        if (this._settings)
+            this._sync();
+    }
+
+    // The profile's mark, the pill's last activity, or null (the mark fades out of the pill as any activity does)
+    setFocusMark(mark) {
+        if (this._activities && this._activities.get('focus') !== mark)
+            this._activities.set('focus', mark);
+    }
+
+    focusMarkChanged() {
+        this._activities?.update('focus');
     }
 
     _toggle(name, wanted, make) {

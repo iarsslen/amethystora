@@ -520,7 +520,7 @@ if grep -rnE '\beval\(|new Function|(^|[^.a-zA-Z_])Function\(|\bimport\(' "${UI_
     exit 1
 fi
 # The sums and conversions, on the apps stage's Node (gjs runs the same file)
-env LD_LIBRARY_PATH=/apps-stage/usr/lib64 /apps-stage/usr/bin/node /ctx/build_files/shared/test-search-calc.mjs
+env LD_LIBRARY_PATH=/apps-stage/usr/lib64 NODE_ICU_DATA="$(echo /apps-stage/usr/share/node-*/icudata)" /apps-stage/usr/bin/node /ctx/build_files/shared/test-search-calc.mjs
 # Text shortcuts (plans/beyond/spec-phase7.md, part B): off as the image ships, since they look at what is typed, the
 # module after the emoji picker, the helper the only writer of the file, its rules and the shell's one list of cases (the
 # installed helper, on the apps stage's Node), its two commands, and neither the switch nor a text in the setup file
@@ -537,7 +537,7 @@ if /usr/libexec/amethystora-text-shortcuts check /ctx/build_files/shared/fixture
     echo "amethystora-text-shortcuts takes a text with an escape sequence in it"
     exit 1
 fi
-env LD_LIBRARY_PATH=/apps-stage/usr/lib64 /apps-stage/usr/bin/node /ctx/build_files/shared/test-text-shortcuts.mjs \
+env LD_LIBRARY_PATH=/apps-stage/usr/lib64 NODE_ICU_DATA="$(echo /apps-stage/usr/share/node-*/icudata)" /apps-stage/usr/bin/node /ctx/build_files/shared/test-text-shortcuts.mjs \
     /usr/libexec/amethystora-text-shortcuts
 grep -q '^text-shortcuts STATE="":' /usr/share/amethystora/just/desktop.just
 grep -q '^text-shortcut \*ARGS:' /usr/share/amethystora/just/desktop.just
@@ -671,6 +671,50 @@ for recipe in top-bar today weather breaks; do
 done
 [[ -z "$(grep -rnE 'use_markup = true|use_markup: true|set_markup\(' "${UI_EXTENSION}/modules/bars.js" \
     "${UI_EXTENSION}/modules/today.js" "${UI_EXTENSION}/modules/today")" ]]
+# Focus profiles (plans/beyond/spec-focus.md): the schema's 38 keys, nothing on and both triggers off for a new account,
+# the three profiles as the board ships them, the module last among the modules (it lays itself over the others and stops
+# first), its files and recipe. It never writes GNOME's Do Not Disturb, shows nothing as markup and starts nothing but
+# Control; Sleep's Night Light is GNOME Settings' warmest; and the power daemon the image has keeps holds
+FOCUS=org.gnome.shell.extensions.amethystora-ui.focus
+FOCUS_LISTED="ends off-at profile trigger-games trigger-sleep"
+for profile in games sleep work; do
+    for field in accent apps banners dock grey lighter night-light power set sounds wallpaper; do
+        FOCUS_LISTED+=" ${profile}-${field}"
+    done
+done
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${FOCUS}" | sort | paste -sd ' ')" == \
+    "$(tr ' ' '\n' <<<"${FOCUS_LISTED}" | sort | paste -sd ' ')" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${FOCUS}" profile)" == "'off'" ]]
+for key in trigger-games trigger-sleep work-sounds games-sounds sleep-sounds work-grey games-grey sleep-grey \
+    work-lighter games-lighter sleep-lighter; do
+    [[ "$(GSETTINGS_BACKEND=memory gsettings get "${FOCUS}" "${key}")" == false ]]
+done
+for pair in work-banners:apps games-banners:held sleep-banners:held games-dock:touch games-night-light:paused \
+    sleep-night-light:warmest work-power:as-set games-power:performance sleep-power:power-saver sleep-accent:amber \
+    sleep-wallpaper:night; do
+    [[ "$(GSETTINGS_BACKEND=memory gsettings get "${FOCUS}" "${pair%%:*}")" == "'${pair#*:}'" ]]
+done
+[[ "$(grep -oE "^    \['[a-z]+'," "${UI_EXTENSION}/extension.js" | tail -n1)" == "    ['focus'," ]]
+for file in modules/focus.js modules/focus/icons.js modules/focus/mark.js modules/focus/night.js \
+    modules/focus/picture.js modules/focus/power.js modules/focus/profiles.js modules/focus/state.js \
+    modules/focus/tile.js modules/focus/triggers.js stylesheets/focus.css; do
+    test -s "${UI_EXTENSION}/${file}"
+done
+test -s /usr/share/amethystora/themed/shell-focus.css.tpl
+grep -q '^focus \*ARGS:' /usr/share/amethystora/just/desktop.just
+if grep -rn "show-banners\|do-not-disturb" "${UI_EXTENSION}/modules/focus.js" "${UI_EXTENSION}/modules/focus"; then
+    echo "focus profiles write GNOME's Do Not Disturb"
+    exit 1
+fi
+[[ -z "$(grep -rnE 'use_markup = true|use_markup: true|set_markup\(' "${UI_EXTENSION}/modules/focus.js" \
+    "${UI_EXTENSION}/modules/focus")" ]]
+[[ "$(grep -rnE "Subprocess|Util\.spawn|spawn_command_line|GLib\.spawn" "${UI_EXTENSION}/modules/focus.js" \
+    "${UI_EXTENSION}/modules/focus" | grep -c .)" == 2 ]]
+[[ "$(grep -rcE "Util\.spawn\(\[CONTROL, 'desktop'\]\)|Util\.spawn\(\['amethystora-control', 'desktop'\]\)" \
+    "${UI_EXTENSION}/modules/focus" | awk -F: '{ n += $2 } END { print n }')" == 2 ]]
+grep -q "^export const WARMEST = 1700;" "${UI_EXTENSION}/modules/focus/night.js"
+GSETTINGS_BACKEND=memory gsettings range org.gnome.settings-daemon.plugins.color night-light-temperature | grep -qx 'type u'
+grep -q "def HoldProfile" "$(rpm -ql tuned | grep '/tuned/ppd/controller\.py$')"
 # GNOME's own rest reminders are what ame desktop breaks writes: the key and its two kinds of break are there
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.break-reminders selected-breaks)" == "@as []" ]]
 GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.desktop.break-reminders.eyesight | grep -qx interval-seconds
@@ -766,7 +810,7 @@ test -s "${UI_EXTENSION}/stylesheets/dock.css"
 [[ -z "$(grep -rn --include='*.js' GLSLEffect /usr/share/gnome-shell/extensions | grep -v ':[0-9]*: *//')" ]]
 # Every Gio.Settings the shell code of our extensions makes is kept and run_dispose()d on the main thread at disable,
 # never left to the collector: GJS sweeping one while dconf's worker dispatches a change to it deadlocks the shell
-env LD_LIBRARY_PATH=/apps-stage/usr/lib64 /apps-stage/usr/bin/node /ctx/build_files/shared/test-settings-disposed.mjs \
+env LD_LIBRARY_PATH=/apps-stage/usr/lib64 NODE_ICU_DATA="$(echo /apps-stage/usr/share/node-*/icudata)" /apps-stage/usr/bin/node /ctx/build_files/shared/test-settings-disposed.mjs \
     /usr/share/gnome-shell/extensions/amethystora-*@iarsslen.github.io
 # The glass's two keys (ame desktop glass, ame desktop comfort reduce-transparency): Prism by default, the three
 # variants the schema offers each a table of materials.js
@@ -1205,7 +1249,7 @@ systemd-analyze verify --man=no --recursive-errors=no /usr/lib/systemd/system/am
 bash /ctx/build_files/shared/test-sensor-records.sh
 # The checks written in JavaScript run on the apps stage's Node, mounted at /apps-stage with its libraries,
 # so that the image carries no Node of its own
-NODE=(env LD_LIBRARY_PATH=/apps-stage/usr/lib64 /apps-stage/usr/bin/node)
+NODE=(env LD_LIBRARY_PATH=/apps-stage/usr/lib64 NODE_ICU_DATA="$(echo /apps-stage/usr/share/node-*/icudata)" /apps-stage/usr/bin/node)
 
 # The manual: every page in pages.json exists and every link between pages lands on a page and a heading
 # that exist, as the pages are in the image and as they were written, before 07-debrand.sh renamed

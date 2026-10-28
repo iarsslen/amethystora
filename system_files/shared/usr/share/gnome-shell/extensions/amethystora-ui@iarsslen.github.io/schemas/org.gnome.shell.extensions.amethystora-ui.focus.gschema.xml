@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Focus profiles (modules/focus.js): Work, Games and Sleep, each laid over the person's settings while it is on and
+     taken away when it ends. The profile picked by hand, when it ends, the two triggers and what each profile does.
+     Written by `ame desktop focus`, Control and the Focus tile in quick settings; read live. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.focus" path="/org/gnome/shell/extensions/amethystora-ui/focus/">
+    <key name="profile" type="s">
+      <choices>
+        <choice value="off"/>
+        <choice value="work"/>
+        <choice value="games"/>
+        <choice value="sleep"/>
+      </choices>
+      <default>'off'</default>
+      <summary>The profile picked by hand</summary>
+      <description>off, work, games or sleep: the profile picked by hand from the Focus tile, ame desktop focus or Control. While it is not off it wins over the triggers.</description>
+    </key>
+    <key name="ends" type="x">
+      <default>0</default>
+      <summary>When the profile picked by hand ends</summary>
+      <description>Seconds since the epoch; 0 keeps it on until it is turned off.</description>
+    </key>
+    <key name="off-at" type="x">
+      <default>0</default>
+      <summary>When Off was last picked by hand</summary>
+      <description>Seconds since the epoch. A trigger that is on at that moment waits for its next start.</description>
+    </key>
+    <key name="trigger-games" type="b">
+      <default>false</default>
+      <summary>Games while a game is in front</summary>
+      <description>Games turns on when a game gets the keyboard and ends when that game closes.</description>
+    </key>
+    <key name="trigger-sleep" type="b">
+      <default>false</default>
+      <summary>Sleep at Night Light's times</summary>
+      <description>Sleep turns on at Night Light's evening time and ends at its morning time, whether or not Night Light itself is on.</description>
+    </key>
+    <key name="work-banners" type="s">
+      <choices>
+        <choice value="shown"/>
+        <choice value="apps"/>
+        <choice value="held"/>
+      </choices>
+      <default>'apps'</default>
+      <summary>Work: banners</summary>
+      <description>shown: as GNOME shows them; apps: only the apps in the list (and calls, alarms and urgent ones); held: none but calls, alarms and urgent ones. Held banners wait in the list.</description>
+    </key>
+    <key name="work-apps" type="as">
+      <default>['org.gnome.Calendar.desktop', 'org.gnome.Evolution-alarm-notify.desktop']</default>
+      <summary>Work: apps let through</summary>
+      <description>Launcher IDs (APP.desktop) whose banners come through while banners is apps.</description>
+    </key>
+    <key name="work-sounds" type="b">
+      <default>false</default>
+      <summary>Work: notification sounds</summary>
+      <description>Off: notifications make no sound, but calls, alarms and urgent ones.</description>
+    </key>
+    <key name="work-dock" type="s">
+      <choices>
+        <choice value="as-set"/>
+        <choice value="touch"/>
+      </choices>
+      <default>'as-set'</default>
+      <summary>Work: the dock</summary>
+      <description>as-set: as the dock's own setting says; touch: it hides while a window touches it. The dock's setting is not written.</description>
+    </key>
+    <key name="work-lighter" type="b">
+      <default>false</default>
+      <summary>Work: solid glass and shorter motion</summary>
+      <description>The glass solid and animations at half their time, as power saver makes them.</description>
+    </key>
+    <key name="work-night-light" type="s">
+      <choices>
+        <choice value="as-set"/>
+        <choice value="paused"/>
+        <choice value="warmest"/>
+      </choices>
+      <default>'as-set'</default>
+      <summary>Work: Night Light</summary>
+      <description>as-set: as you set it; paused: paused until the profile ends; warmest: on, at its warmest (written, and put back when the profile ends).</description>
+    </key>
+    <key name="work-power" type="s">
+      <choices>
+        <choice value="as-set"/>
+        <choice value="performance"/>
+        <choice value="power-saver"/>
+      </choices>
+      <default>'as-set'</default>
+      <summary>Work: power mode</summary>
+      <description>as-set, performance or power-saver, held with the power daemon while the profile is on.</description>
+    </key>
+    <key name="work-accent" type="s">
+      <choices>
+        <choice value="theme"/>
+        <choice value="amethyst"/>
+        <choice value="iris"/>
+        <choice value="sky"/>
+        <choice value="lagoon"/>
+        <choice value="jade"/>
+        <choice value="moss"/>
+        <choice value="amber"/>
+        <choice value="ember"/>
+        <choice value="coral"/>
+        <choice value="rose"/>
+        <choice value="orchid"/>
+        <choice value="slate"/>
+      </choices>
+      <default>'theme'</default>
+      <summary>Work: accent</summary>
+      <description>theme, or one of the twelve accents, laid over the theme's while the profile is on.</description>
+    </key>
+    <key name="work-wallpaper" type="s">
+      <choices>
+        <choice value="as-set"/>
+        <choice value="night"/>
+      </choices>
+      <default>'as-set'</default>
+      <summary>Work: wallpaper</summary>
+      <description>as-set, or night: the theme's Daylight night picture over your wallpaper while the profile is on.</description>
+    </key>
+    <key name="work-grey" type="b">
+      <default>false</default>
+      <summary>Work: the screen in grey</summary>
+      <description>The whole screen without colour while the profile is on. One more full-screen pass for every frame.</description>
+    </key>
+    <key name="work-set" type="s">
+      <default>''</default>
+      <summary>Work: a saved workspace set</summary>
+      <description>The name of a saved set offered when the profile is picked by hand, after asking; empty for none.</description>
+    </key>
+    <key name="games-banners" type="s">
+      <choices>
+        <choice value="shown"/>
+        <choice value="apps"/>
+        <choice value="held"/>
+      </choices>
+      <default>'held'</default>
+      <summary>Games: banners</summary>
+      <description>shown: as GNOME shows them; apps: only the apps in the list (and calls, alarms and urgent ones); held: none but calls, alarms and urgent ones. Held banners wait in the list.</description>
+    </key>
+    <key name="games-apps" type="as">
+      <default>@as []</default>
+      <summary>Games: apps let through</summary>
+      <description>Launcher IDs (APP.desktop) whose banners come through while banners is apps.</description>
+    </key>
+    <key name="games-sounds" type="b">
+      <default>false</default>
+      <summary>Games: notification sounds</summary>
+      <description>Off: notifications make no sound, but calls, alarms and urgent ones.</description>
+    </key>
+    <key name="games-dock" type="s">
+      <choices>
+        <choice value="as-set"/>
+        <choice value="touch"/>
+      </choices>
+      <default>'touch'</default>
+      <summary>Games: the dock</summary>
+      <description>as-set: as the dock's own setting says; touch: it hides while a window touches it. The dock's setting is not written.</description>
+    </key>
+    <key name="games-lighter" type="b">
+      <default>false</default>
+      <summary>Games: solid glass and shorter motion</summary>
+      <description>The glass solid and animations at half their time, as power saver makes them.</description>
+    </key>
+    <key name="games-night-light" type="s">
+      <choices>
+        <choice value="as-set"/>
+        <choice value="paused"/>
+        <choice value="warmest"/>
+      </choices>
+      <default>'paused'</default>
+      <summary>Games: Night Light</summary>
+      <description>as-set: as you set it; paused: paused until the profile ends; warmest: on, at its warmest (written, and put back when the profile ends).</description>
+    </key>
+    <key name="games-power" type="s">
+      <choices>
+        <choice value="as-set"/>
+        <choice value="performance"/>
+        <choice value="power-saver"/>
+      </choices>
+      <default>'performance'</default>
+      <summary>Games: power mode</summary>
+      <description>as-set, performance or power-saver, held with the power daemon while the profile is on.</description>
+    </key>
+    <key name="games-accent" type="s">
+      <choices>
+        <choice value="theme"/>
+        <choice value="amethyst"/>
+        <choice value="iris"/>
+        <choice value="sky"/>
+        <choice value="lagoon"/>
+        <choice value="jade"/>
+        <choice value="moss"/>
+        <choice value="amber"/>
+        <choice value="ember"/>
+        <choice value="coral"/>
+        <choice value="rose"/>
+        <choice value="orchid"/>
+        <choice value="slate"/>
+      </choices>
+      <default>'theme'</default>
+      <summary>Games: accent</summary>
+      <description>theme, or one of the twelve accents, laid over the theme's while the profile is on.</description>
+    </key>
+    <key name="games-wallpaper" type="s">
+      <choices>
+        <choice value="as-set"/>
+        <choice value="night"/>
+      </choices>
+      <default>'as-set'</default>
+      <summary>Games: wallpaper</summary>
+      <description>as-set, or night: the theme's Daylight night picture over your wallpaper while the profile is on.</description>
+    </key>
+    <key name="games-grey" type="b">
+      <default>false</default>
+      <summary>Games: the screen in grey</summary>
+      <description>The whole screen without colour while the profile is on. One more full-screen pass for every frame.</description>
+    </key>
+    <key name="games-set" type="s">
+      <default>''</default>
+      <summary>Games: a saved workspace set</summary>
+      <description>The name of a saved set offered when the profile is picked by hand, after asking; empty for none.</description>
+    </key>
+    <key name="sleep-banners" type="s">
+      <choices>
+        <choice value="shown"/>
+        <choice value="apps"/>
+        <choice value="held"/>
+      </choices>
+      <default>'held'</default>
+      <summary>Sleep: banners</summary>
+      <description>shown: as GNOME shows them; apps: only the apps in the list (and calls, alarms and urgent ones); held: none but calls, alarms and urgent ones. Held banners wait in the list.</description>
+    </key>
+    <key name="sleep-apps" type="as">
+      <default>@as []</default>
+      <summary>Sleep: apps let through</summary>
+      <description>Launcher IDs (APP.desktop) whose banners come through while banners is apps.</description>
+    </key>
+    <key name="sleep-sounds" type="b">
+      <default>false</default>
+      <summary>Sleep: notification sounds</summary>
+      <description>Off: notifications make no sound, but calls, alarms and urgent ones.</description>
+    </key>
+    <key name="sleep-dock" type="s">
+      <choices>
+        <choice value="as-set"/>
+        <choice value="touch"/>
+      </choices>
+      <default>'as-set'</default>
+      <summary>Sleep: the dock</summary>
+      <description>as-set: as the dock's own setting says; touch: it hides while a window touches it. The dock's setting is not written.</description>
+    </key>
+    <key name="sleep-lighter" type="b">
+      <default>false</default>
+      <summary>Sleep: solid glass and shorter motion</summary>
+      <description>The glass solid and animations at half their time, as power saver makes them.</description>
+    </key>
+    <key name="sleep-night-light" type="s">
+      <choices>
+        <choice value="as-set"/>
+        <choice value="paused"/>
+        <choice value="warmest"/>
+      </choices>
+      <default>'warmest'</default>
+      <summary>Sleep: Night Light</summary>
+      <description>as-set: as you set it; paused: paused until the profile ends; warmest: on, at its warmest (written, and put back when the profile ends).</description>
+    </key>
+    <key name="sleep-power" type="s">
+      <choices>
+        <choice value="as-set"/>
+        <choice value="performance"/>
+        <choice value="power-saver"/>
+      </choices>
+      <default>'power-saver'</default>
+      <summary>Sleep: power mode</summary>
+      <description>as-set, performance or power-saver, held with the power daemon while the profile is on.</description>
+    </key>
+    <key name="sleep-accent" type="s">
+      <choices>
+        <choice value="theme"/>
+        <choice value="amethyst"/>
+        <choice value="iris"/>
+        <choice value="sky"/>
+        <choice value="lagoon"/>
+        <choice value="jade"/>
+        <choice value="moss"/>
+        <choice value="amber"/>
+        <choice value="ember"/>
+        <choice value="coral"/>
+        <choice value="rose"/>
+        <choice value="orchid"/>
+        <choice value="slate"/>
+      </choices>
+      <default>'amber'</default>
+      <summary>Sleep: accent</summary>
+      <description>theme, or one of the twelve accents, laid over the theme's while the profile is on.</description>
+    </key>
+    <key name="sleep-wallpaper" type="s">
+      <choices>
+        <choice value="as-set"/>
+        <choice value="night"/>
+      </choices>
+      <default>'night'</default>
+      <summary>Sleep: wallpaper</summary>
+      <description>as-set, or night: the theme's Daylight night picture over your wallpaper while the profile is on.</description>
+    </key>
+    <key name="sleep-grey" type="b">
+      <default>false</default>
+      <summary>Sleep: the screen in grey</summary>
+      <description>The whole screen without colour while the profile is on. One more full-screen pass for every frame.</description>
+    </key>
+    <key name="sleep-set" type="s">
+      <default>''</default>
+      <summary>Sleep: a saved workspace set</summary>
+      <description>The name of a saved set offered when the profile is picked by hand, after asking; empty for none.</description>
+    </key>
+  </schema>
+</schemalist>

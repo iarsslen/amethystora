@@ -373,19 +373,23 @@ account_accent() {
 
 # The accents the workspaces name while each has its own (Amethystora UI's theme module, ame desktop
 # accent-per-workspace), each once and only the twelve's ids: nothing while the feature is off. Read with dconf, which
-# needs no schema; a list never written is the schema's default, WORKSPACE_ACCENTS.
+# needs no schema; a list never written is the schema's default, WORKSPACE_ACCENTS. A focus profile's accent while one
+# is on comes too, whatever the workspaces say: the shell names it in AMETHYSTORA_FOCUS_ACCENT when it asks.
 WORKSPACE_ACCENTS=(theme sky coral jade amber orchid)
 workspace_accent_ids() {
     local path=/org/gnome/shell/extensions/amethystora-ui/theme list id
+    local -a ids=()
     # AMETHYSTORA_ACCENTS=on: as if it were on, for the command that turns it on, which renders the sets first
-    [[ ${AMETHYSTORA_ACCENTS:-} == on || "$(dconf read "${path}/accent-per-workspace" 2>/dev/null)" == true ]] || return 0
-    list="$(dconf read "${path}/workspace-accents" 2>/dev/null || true)"
-    local -a ids
-    if [[ -n ${list} ]]; then
-        mapfile -t ids < <(grep -oE "'[a-z]+'" <<<"${list}" | tr -d "'")
-    else
-        ids=("${WORKSPACE_ACCENTS[@]}")
+    if [[ ${AMETHYSTORA_ACCENTS:-} == on || "$(dconf read "${path}/accent-per-workspace" 2>/dev/null)" == true ]]; then
+        list="$(dconf read "${path}/workspace-accents" 2>/dev/null || true)"
+        if [[ -n ${list} ]]; then
+            mapfile -t ids < <(grep -oE "'[a-z]+'" <<<"${list}" | tr -d "'")
+        else
+            ids=("${WORKSPACE_ACCENTS[@]}")
+        fi
     fi
+    [[ -n ${AMETHYSTORA_FOCUS_ACCENT:-} ]] && ids+=("${AMETHYSTORA_FOCUS_ACCENT}")
+    ((${#ids[@]} > 0)) || return 0
     for id in "${ids[@]}"; do
         is_accent "${id}" && echo "${id}"
     done | awk '!seen[$0]++'

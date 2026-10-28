@@ -297,7 +297,9 @@ export class Glass {
 
     _wantsSolid() {
         const comfort = this.comfort;
-        return !!this._settings?.get_boolean('solid') || !!comfort?.highContrast || !!comfort?.powerSaver;
+        // The power saver, or a focus profile asking for what it does (comfort's lighter)
+        return !!this._settings?.get_boolean('solid') || !!comfort?.highContrast ||
+            !!(comfort?.lighter ?? comfort?.powerSaver);
     }
 
     _paused(part) {
