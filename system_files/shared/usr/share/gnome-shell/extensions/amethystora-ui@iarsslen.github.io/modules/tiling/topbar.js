@@ -439,14 +439,16 @@ export class TopBar {
             this._screens.set(index, shown);
             const workspace = this._tiling.engine.screens?.shownOn(index) ?? global.workspace_manager.get_active_workspace();
             const visible = !Main.overview.visible;
+            // A screen with a top bar of its own (modules/bars.js) shows its workspaces there rather than the name
+            const bar = this._tiling._ext.modules.get('bars')?.barOn?.(index) ?? null;
             // The name, on the screens the top bar is not on
-            const named = config.indicator && index !== layout.primaryIndex && visible;
+            const named = config.indicator && index !== layout.primaryIndex && visible && !bar;
             this._chrome(shown, 'name', named, () => new St.Label({style_class: 'amethystora-tiling-screen-name'}));
             if (shown.name) {
                 shown.name.text = nameOf(workspace);
                 shown.name.set_position(monitor.x + 12 * scale, monitor.y + 6 * scale);
             }
-            this._drawPosition(shown, index, monitor, workspace, visible, scale);
+            this._drawPosition(shown, index, monitor, workspace, visible, scale, bar);
         });
         for (const [index, shown] of this._screens) {
             if (index >= layout.monitors.length || !Object.keys(shown).length) {
@@ -458,7 +460,7 @@ export class TopBar {
 
     // The line across the screen, and on it the mark of the focused window's column, as wide as the column is of the
     // whole strip
-    _drawPosition(shown, index, monitor, workspace, visible, scale) {
+    _drawPosition(shown, index, monitor, workspace, visible, scale, bar = null) {
         const strip = this._tiling.engine.activeStrip(index);
         const at = strip.selected ? strip.find(strip.selected) : null;
         const wanted = config.positionBar && visible && !!at && !this._turned.position.has(workspace);
@@ -472,7 +474,13 @@ export class TopBar {
         const panel = Main.layoutManager.panelBox;
         const height = POSITION_HEIGHT * scale;
         const onBar = index === Main.layoutManager.primaryIndex && panel.visible;
-        shown.line.set_position(monitor.x, onBar ? panel.y + panel.height - height : monitor.y);
+        // Along the bottom of the main bar, or of the screen's own bar, else at the top of the screen
+        let y = monitor.y;
+        if (onBar)
+            y = panel.y + panel.height - height;
+        else if (bar?.visible)
+            y = bar.y + bar.height - height;
+        shown.line.set_position(monitor.x, y);
         shown.line.set_size(monitor.width, height);
         const geo = this._tiling.engine.geometry(strip);
         const column = geo.columns[at[0]];

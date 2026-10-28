@@ -4,6 +4,7 @@
 
 pub mod app;
 pub mod brand;
+pub mod caller;
 pub mod frame;
 pub mod gem;
 pub mod glow;

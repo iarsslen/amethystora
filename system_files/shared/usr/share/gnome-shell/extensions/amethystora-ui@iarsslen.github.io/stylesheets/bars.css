@@ -1,0 +1,7 @@
+/* The other screens' top bars (modules/bars.js). They are built with GNOME's names (#panel, #panelLeft...), so the
+   main bar's rules, the desktop style's and the glass's, give them its height, margins, corners and colours: nothing
+   here repeats those. */
+
+.amethystora-bars-box {
+  background-color: transparent;
+}

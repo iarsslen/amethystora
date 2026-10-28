@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The keys of the today module (modules/today.js): the date menu's tasks from Notes, and the weather. Written by
+     ame desktop today|weather and Control, and weather by the date menu's own "Turn on"; read live. The weather is
+     not in the setup file: it sends the place chosen in Weather to a weather service. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.today" path="/org/gnome/shell/extensions/amethystora-ui/today/">
+    <key name="tasks" type="b">
+      <default>true</default>
+      <summary>Today's tasks in the calendar</summary>
+      <description>The calendar menu lists the tasks due today and the overdue ones, from Notes while it is open and unlocked.</description>
+    </key>
+    <key name="weather" type="b">
+      <default>false</default>
+      <summary>The weather</summary>
+      <description>The weather beside the clock and in the calendar menu, for the place chosen in Weather. It sends that place to the weather services GNOME uses.</description>
+    </key>
+  </schema>
+</schemalist>

@@ -75,6 +75,13 @@ The **Add a task** field understands a little plain language. It takes these out
 Completing a repeating task moves it to its next date. The words are English whatever the language of
 the window.
 
+**A quick note**: `Super+Alt+N` opens a small window over anything; `Enter` saves what you typed as a
+task in the inbox, with the dates and the rest the task box understands (its first line is the task, the
+lines after it its notes), `Shift+Enter` starts a new line and `Esc` closes without saving. When the notes
+are locked, it asks for the passphrase (or a passkey) first, and locks them again after unless Notes'
+window is open. The text is never written anywhere until you save it. `amethystora-notes capture` does the
+same.
+
 ### Reminders
 
 A task with a time can remind you, from **At the time** to **1 day before**. Reminders appear as
@@ -182,3 +189,4 @@ Once everything is across, you can remove the old apps in Bazaar, or with
 | **Ctrl+L** | Lock, while the notes are encrypted |
 | **Esc** | Close a menu, or the open task |
 | **Ctrl+,** | Settings |
+| **Super+Alt+N** | A quick note into the inbox, from anywhere |

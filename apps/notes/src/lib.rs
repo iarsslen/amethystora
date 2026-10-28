@@ -8,12 +8,15 @@
 //! passkeys.rs are the rest of main.js, session.rs its notifications and powerMonitor. page/ is notes.js.
 
 pub mod backend;
+pub mod capture;
 pub mod data;
 pub mod dates;
 pub mod export;
 pub mod import;
 pub mod passkeys;
+pub mod quick;
 pub mod sync;
+pub mod today;
 pub mod vault;
 
 mod glyphs;

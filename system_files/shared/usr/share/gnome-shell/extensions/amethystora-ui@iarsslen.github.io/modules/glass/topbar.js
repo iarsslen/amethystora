@@ -6,6 +6,7 @@
 // clear, and the panes are gone from the moment the overview starts to open until it has closed. With the tiling's
 // gap of 8 pixels under the bar, tiled windows leave it clear. While the glass is solid the bar is never clear: it
 // shows the style's own background, as when a window touches it.
+// The other screens' bars (modules/bars.js) are each treated as the main one, with the windows of their own screen.
 
 import Meta from 'gi://Meta';
 import St from 'gi://St';
@@ -27,7 +28,8 @@ export class TopBar {
 
     enable() {
         this._laterId = 0;
-        this._bar = false;
+        // The bars with a pane: the main one, and the other screens' (modules/bars.js)
+        this._bars = new Set();
         this._pills = new Set();
         this._inOverview = Main.overview.visible;
         Main.overview.connectObject(
@@ -50,27 +52,43 @@ export class TopBar {
         if (this._laterId)
             global.compositor.get_laters().remove(this._laterId);
         this._laterId = 0;
-        Main.panel.remove_style_class_name(CLEAR);
-        this._glass.detach(Main.panel);
-        this._bar = false;
+        for (const {panel} of this._panels())
+            panel.remove_style_class_name(CLEAR);
+        for (const panel of this._bars)
+            this._glass.detach(panel);
+        this._bars = null;
         for (const button of this._pills)
             this._glass.detach(button);
         this._pills = null;
     }
 
-    // The panes the style wants: one behind the bar, one behind each button, or none
+    // The main bar and the other screens' bars, each with its screen and the text its glass keeps readable
+    _panels() {
+        const others = this._glass._ext.modules?.get('bars')?.panels?.() ?? [];
+        return [{panel: Main.panel, monitor: Main.layoutManager.primaryIndex, text}, ...others];
+    }
+
+    // The panes the style wants: one behind each bar, one behind each button, or none
     restyle() {
         if (!this._pills)
             return;
         const style = this._glass.style;
         const bar = style?.look.bar ?? 'pane';
-        if (bar === 'pane') {
-            this._glass.attach(Main.panel, {material: 'menu-bar', radius: null, inClones: true, text},
+        const panels = bar === 'pane' ? this._panels() : [];
+        const panes = new Set(panels.map(({panel}) => panel));
+        for (const panel of [...this._bars]) {
+            if (!panes.has(panel)) {
+                this._glass.detach(panel);
+                panel.remove_style_class_name(CLEAR);
+                this._bars.delete(panel);
+            }
+        }
+        for (const {panel, text: readable} of panels) {
+            if (this._bars.has(panel))
+                continue;
+            this._glass.attach(panel, {material: 'menu-bar', radius: null, inClones: true, text: readable},
                 {classes: ['amethystora-glass-bar']});
-            this._bar = true;
-        } else if (this._bar) {
-            this._glass.detach(Main.panel);
-            this._bar = false;
+            this._bars.add(panel);
         }
         const wanted = new Set(bar === 'pills' && style ? style.buttons : []);
         for (const button of [...this._pills]) {
@@ -104,26 +122,27 @@ export class TopBar {
         if (!this._pills)
             return;
         // The effects are made again when the glass stops being solid: they are asked for each time
-        for (const actor of this._bar ? [Main.panel, ...this._pills] : this._pills) {
+        for (const actor of [...this._bars, ...this._pills]) {
             const effect = this._glass.effectOf(actor);
             if (effect)
                 effect.enabled = !this._inOverview;
         }
-        if (this._glass.solid)
-            Main.panel.remove_style_class_name(CLEAR);
-        else if (this._inOverview || !Main.sessionMode.hasWindows || !this._touched())
-            Main.panel.add_style_class_name(CLEAR);
-        else
-            Main.panel.remove_style_class_name(CLEAR);
+        // Each bar is clear until a window of its own screen comes near it
+        for (const {panel, monitor} of this._panels()) {
+            if (this._glass.solid)
+                panel.remove_style_class_name(CLEAR);
+            else if (this._inOverview || !Main.sessionMode.hasWindows || !this._touched(panel, monitor))
+                panel.add_style_class_name(CLEAR);
+            else
+                panel.remove_style_class_name(CLEAR);
+        }
     }
 
-    _touched() {
-        const panel = Main.panel;
+    _touched(panel, monitor) {
         if (!panel.mapped)
             return false;
         const [, top] = panel.get_transformed_position();
         const limit = top + panel.height + NEAR * St.ThemeContext.get_for_stage(global.stage).scale_factor;
-        const monitor = Main.layoutManager.primaryIndex;
         const active = global.workspace_manager.get_active_workspace();
         // With the tiling on several screens the bar's screen may show a workspace GNOME does not have, whose windows
         // are drawn as pictures (tiling/screens.js) while their own actors are hidden

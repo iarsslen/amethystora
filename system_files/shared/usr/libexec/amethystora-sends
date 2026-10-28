@@ -69,6 +69,19 @@ if [[ "${LOCATION}" == true || "${LOCATION}" == false ]]; then
         "$(gettext "Without it, those apps guess or ask you.")"
 fi
 
+# --- The weather beside the clock (Amethystora UI's today module, off until chosen) --------------------------
+
+WEATHER="$(gsettings get org.gnome.shell.extensions.amethystora-ui.today weather 2>/dev/null || true)"
+if [[ "${WEATHER}" == true || "${WEATHER}" == false ]]; then
+    # GNOME's client asks three services (libgweather's METAR, MET_NO and OWM providers). Fedora's libgweather has no
+    # OpenWeatherMap key, so that service refuses the request, but the place has gone to it. While the switch is off
+    # the client is held still, except as the session starts and while the screen is locked, when no extension runs.
+    row weather "$([[ "${WEATHER}" == true ]] && echo on || echo off)" "$(gettext "Weather")" \
+        "$(gettext "The place you chose in Weather goes to api.met.no (MET Norway) and api.openweathermap.org, and the code of the nearest airport to aviationweather.gov (NOAA), each time the weather is shown.")" \
+        "ame desktop weather" \
+        "$(gettext "Whether this is on or off, GNOME Shell asks them once as you log in, and when Weather's place changes while the screen is locked, if Weather has a place.")"
+fi
+
 # --- The features of security.conf that fetch or send, once they are on --------------------------------------
 
 CONFIG=/usr/libexec/amethystora-security-config

@@ -519,6 +519,36 @@ grep -q "Util.spawn(\[PHONE_APP\])" "${UI_EXTENSION}/modules/quick/tiles.js"
 grep -q "Gio.Subprocess.new(\[AME, 'desktop', 'theme', slug\]," "${UI_EXTENSION}/modules/quick/theme.js"
 [[ -z "$(grep -rn "charge_control\|/sys/" "${UI_EXTENSION}/modules/quick.js" "${UI_EXTENSION}/modules/quick")" ]]
 grep -q "'EnableChargeThreshold'" "${UI_EXTENSION}/modules/quick/battery.js"
+# A top bar on every screen and over fullscreen, and Today in the calendar menu (plans/beyond/spec-quick.md): their
+# keys with their defaults (the weather off: it sends the place), their files, their place among the modules, their
+# recipes, and nothing of theirs drawn as markup, since what they show is the person's text (task titles) or GNOME's
+BARS=org.gnome.shell.extensions.amethystora-ui.bars
+TODAY=org.gnome.shell.extensions.amethystora-ui.today
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${BARS}" | sort | paste -sd ' ')" == "every-screen peek" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${BARS}" every-screen)" == true ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${BARS}" peek)" == true ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${TODAY}" | sort | paste -sd ' ')" == "tasks weather" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${TODAY}" tasks)" == true ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${TODAY}" weather)" == false ]]
+for file in modules/bars.js modules/today.js modules/today/tasks.js modules/today/weather.js stylesheets/bars.css \
+    stylesheets/today.css; do
+    test -s "${UI_EXTENSION}/${file}"
+done
+test -s /usr/share/amethystora/themed/shell-today.css.tpl
+[[ "$(grep -oE "^    \['(pill|bars|today|dock)'," "${UI_EXTENSION}/extension.js" | paste -sd ' ')" == \
+    "    ['pill',     ['bars',     ['today',     ['dock'," ]]
+for recipe in top-bar today weather breaks; do
+    grep -q "^${recipe} \*ARGS:" /usr/share/amethystora/just/desktop.just
+done
+[[ -z "$(grep -rnE 'use_markup = true|use_markup: true|set_markup\(' "${UI_EXTENSION}/modules/bars.js" \
+    "${UI_EXTENSION}/modules/today.js" "${UI_EXTENSION}/modules/today")" ]]
+# GNOME's own rest reminders are what ame desktop breaks writes: the key and its two kinds of break are there
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.break-reminders selected-breaks)" == "@as []" ]]
+GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.desktop.break-reminders.eyesight | grep -qx interval-seconds
+GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.desktop.break-reminders.movement | grep -qx interval-seconds
+# Notes' quick note: its launcher's action, and the help that names it
+grep -qx "Exec=amethystora-notes capture" /usr/share/applications/amethystora-notes.desktop
+grep -q "amethystora-notes capture" /usr/bin/amethystora-notes
 test -s "${UI_EXTENSION}/modules/fuzzy/matcher.js"
 # Copying text out of a screenshot is Gradia's, reached through the screenshot module's Extract Text button
 # and Ctrl+E in GNOME's screenshot UI (manual: desktop.md#copying-text-from-the-screen): a change that drops
@@ -588,6 +618,8 @@ KEPT_COMBOS="$(
     } | keycombos
 )"
 grep -qx "<super>return" <<<"${KEPT_COMBOS}"
+# The quick note's Super+Alt+N (custom30) is the image's: no tiling key takes it
+grep -qx "<alt><super>n" <<<"${KEPT_COMBOS}"
 [[ -z "$(LC_ALL=C comm -12 <(echo "${TILING_COMBOS}") <(echo "${KEPT_COMBOS}"))" ]]
 
 # The glass and the dock are Amethystora UI's own modules, in place of Blur my Shell and Dash to Dock. The glass
@@ -705,11 +737,15 @@ fi
 # Amethystora ones in 06-amethystora-keybindings included
 CUSTOM_KEYBINDINGS="$(GSETTINGS_BACKEND=memory gsettings get org.gnome.settings-daemon.plugins.media-keys custom-keybindings)"
 grep -q "custom0/'" <<<"${CUSTOM_KEYBINDINGS}"
-for index in 20 21 22 23 24 25 26 27 28 29; do
+for index in 20 21 22 23 24 25 26 27 28 29 30; do
     grep -q "custom${index}/'" <<<"${CUSTOM_KEYBINDINGS}"
     grep -q "^\[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom${index}\]$" \
         /etc/dconf/db/distro.d/06-amethystora-keybindings
 done
+# Super+Alt+N is the quick note's
+grep -A2 -x "\[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom30\]" \
+    /etc/dconf/db/distro.d/06-amethystora-keybindings | paste -sd ' ' |
+    grep -qF "binding='<Super><Alt>n' command='amethystora-notes capture'"
 
 # Theme switching: the CLI, its library, the templates every theme renders, and the themes themselves
 test -x /usr/bin/amethystora-theme
@@ -1039,6 +1075,8 @@ NODE=(env LD_LIBRARY_PATH=/apps-stage/usr/lib64 /apps-stage/usr/bin/node)
 # opens it.
 "${NODE[@]}" /ctx/build_files/shared/check-manual.js
 "${NODE[@]}" /ctx/build_files/shared/check-manual.js /ctx/system_files/shared/usr/share/amethystora/manual
+# The top bar's peek leaves the way up to a screen above open
+"${NODE[@]}" /ctx/build_files/shared/test-bars-edge.mjs
 test ! -e /usr/share/applications/documentation.desktop
 grep -q "^command='amethystora-manual'$" /etc/dconf/db/distro.d/06-amethystora-keybindings
 
@@ -1971,6 +2009,8 @@ grep -q "^location " /usr/share/amethystora/just/security.just
 test -x /usr/libexec/amethystora-sends
 /usr/libexec/amethystora-sends --json | jq -e 'length >= 6 and all(.[]; (.id | startswith("sends-")) and (.state | IN("on", "off")) and
     (.title | length > 0) and (.text | length > 0) and (.details | type == "array"))' >/dev/null
+# The weather beside the clock is listed, and off as the image ships
+/usr/libexec/amethystora-sends --json | jq -e 'any(.[]; .id == "sends-weather" and .state == "off")' >/dev/null
 # No passwordless root for users who are not at the machine, and no user-writable directory in root's
 # sudo PATH, and no world-writable USB devices
 grep -q "<allow_any>no</allow_any>" /usr/share/polkit-1/actions/*privileged.user.setup.policy

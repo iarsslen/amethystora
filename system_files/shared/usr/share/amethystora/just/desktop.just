@@ -1047,6 +1047,165 @@ digest *ARGS:
             ;;
     esac
 
+# The top bar on every screen (ame desktop top-bar screens [on|off]), and over a fullscreen window when you push the
+# pointer against the top edge (ame desktop top-bar peek [on|off]). Without on or off, it asks
+[positional-arguments]
+top-bar *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.bars
+    usage() {
+        echo "usage: ame desktop top-bar screens|peek [on|off]"
+        exit 64
+    }
+    [[ $# -ge 1 && $# -le 2 ]] || usage
+    case "$1" in
+        screens) key=every-screen ;;
+        peek) key=peek ;;
+        *) usage ;;
+    esac
+    state="${2:-}"
+    if [[ -z "${state}" ]]; then
+        if [[ "$(gsettings get "${schema}" "${key}")" == true ]]; then current=on; else current=off; fi
+        what="$1"
+        state="$(gum choose --header "$(eval_gettext "Top bar \${what} (current: \${current})")" --selected "${current}" on off)"
+    fi
+    case "$1:${state}" in
+        screens:on) echo "$(gettext "Every screen has a top bar with the workspace it shows.")" ;;
+        screens:off) echo "$(gettext "Only the main screen has a top bar.")" ;;
+        peek:on) echo "$(gettext "Push the pointer against the top edge to see the top bar over a fullscreen window.")" ;;
+        peek:off) echo "$(gettext "A fullscreen window keeps the whole screen.")" ;;
+        *) usage ;;
+    esac
+    if [[ "${state}" == on ]]; then gsettings set "${schema}" "${key}" true; else gsettings set "${schema}" "${key}" false; fi
+
+# Today's tasks from Notes in the calendar menu, while Notes is open and unlocked (ame desktop today tasks [on|off]).
+# Without on or off, it asks
+[positional-arguments]
+today *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.today
+    usage() {
+        echo "usage: ame desktop today tasks [on|off]"
+        exit 64
+    }
+    [[ $# -ge 1 && $# -le 2 && "$1" == tasks ]] || usage
+    state="${2:-}"
+    if [[ -z "${state}" ]]; then
+        if [[ "$(gsettings get "${schema}" tasks)" == true ]]; then current=on; else current=off; fi
+        state="$(gum choose --header "$(eval_gettext "Today's tasks (current: \${current})")" --selected "${current}" on off)"
+    fi
+    case "${state}" in
+        on) echo "$(gettext "The calendar menu lists today's tasks while Notes is open and unlocked.")" ;;
+        off) echo "$(gettext "The calendar menu shows no tasks.")" ;;
+        *) usage ;;
+    esac
+    if [[ "${state}" == on ]]; then gsettings set "${schema}" tasks true; else gsettings set "${schema}" tasks false; fi
+
+# The weather beside the clock and in the calendar menu, for the place you chose in Weather. It sends that place to a
+# weather service, so it is off until you turn it on (ame desktop weather [on|off]). Without on or off, it asks
+[positional-arguments]
+weather *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.today
+    usage() {
+        echo "usage: ame desktop weather [on|off]"
+        exit 64
+    }
+    [[ $# -le 1 ]] || usage
+    state="${1:-}"
+    # What it sends, said once before it can be turned on: before the question, or before turning it on straight away
+    if [[ -z "${state}" || "${state}" == on ]]; then
+        echo "$(gettext "The place you chose in Weather goes to the weather services GNOME uses, each time the weather is shown.")"
+    fi
+    if [[ -z "${state}" ]]; then
+        if [[ "$(gsettings get "${schema}" weather)" == true ]]; then current=on; else current=off; fi
+        state="$(gum choose --header "$(eval_gettext "Weather (current: \${current})")" --selected "${current}" on off)"
+    fi
+    case "${state}" in
+        on)
+            gsettings set "${schema}" weather true
+            echo "$(gettext "The weather is on.")"
+            if [[ "$(gsettings get org.gnome.shell.weather locations 2>/dev/null)" == "@av []" ]]; then
+                echo "$(gettext "Choose a place in Weather: it opens with gnome-weather.")"
+            fi
+            ;;
+        off)
+            gsettings set "${schema}" weather false
+            echo "$(gettext "The weather is off: nothing is sent for it.")"
+            ;;
+        *) usage ;;
+    esac
+
+# Rest reminders, GNOME's own: look away (on or eyesight), stand up (movement), both, or off. The times are in
+# Settings, Wellbeing (ame desktop breaks [on|eyesight|movement|both|off]). Without a value, it asks
+[positional-arguments]
+breaks *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.desktop.break-reminders
+    usage() {
+        echo "usage: ame desktop breaks on|eyesight|movement|both|off"
+        exit 64
+    }
+    [[ $# -le 1 ]] || usage
+    state="${1:-}"
+    if [[ -z "${state}" ]]; then
+        case "$(gsettings get "${schema}" selected-breaks)" in
+            *eyesight*movement* | *movement*eyesight*) current=both ;;
+            *eyesight*) current=eyesight ;;
+            *movement*) current=movement ;;
+            *) current=off ;;
+        esac
+        state="$(gum choose --header "$(eval_gettext "Rest reminders (current: \${current})")" --selected "${current}" eyesight movement both off)"
+    fi
+    # GNOME's times for one kind of break, as the account has them, in seconds: between breaks, and a break's length
+    seconds_of() { gsettings get "${schema}.$1" "$2" | awk '{print $NF}'; }
+    # How long a break lasts, in whole minutes where it is some, else in seconds: a sentence of its own
+    lasts() {
+        local seconds="$1" minutes=$(($1 / 60))
+        if ((seconds >= 60 && seconds % 60 == 0)); then
+            echo "$(eval_ngettext "Each break lasts \${minutes} minute." "Each break lasts \${minutes} minutes." "${minutes}")"
+        else
+            echo "$(eval_ngettext "Each break lasts \${seconds} second." "Each break lasts \${seconds} seconds." "${seconds}")"
+        fi
+    }
+    case "${state}" in
+        on | eyesight)
+            gsettings set "${schema}" selected-breaks "['eyesight']"
+            minutes=$(($(seconds_of eyesight interval-seconds) / 60))
+            echo "$(eval_ngettext "A reminder to look away from the screen comes every \${minutes} minute." "A reminder to look away from the screen comes every \${minutes} minutes." "${minutes}")"
+            lasts "$(seconds_of eyesight duration-seconds)"
+            echo "$(gettext "Change the times in Settings, Wellbeing.")"
+            ;;
+        movement)
+            gsettings set "${schema}" selected-breaks "['movement']"
+            minutes=$(($(seconds_of movement interval-seconds) / 60))
+            echo "$(eval_ngettext "A reminder to stand up and move comes every \${minutes} minute." "A reminder to stand up and move comes every \${minutes} minutes." "${minutes}")"
+            lasts "$(seconds_of movement duration-seconds)"
+            echo "$(gettext "Change the times in Settings, Wellbeing.")"
+            ;;
+        both)
+            gsettings set "${schema}" selected-breaks "['eyesight', 'movement']"
+            echo "$(gettext "Both reminders are on. Change the times in Settings, Wellbeing.")"
+            ;;
+        off)
+            gsettings set "${schema}" selected-breaks "[]"
+            echo "$(gettext "Rest reminders are off.")"
+            ;;
+        *) usage ;;
+    esac
+
 # The dock: how it grows and starts apps, what marks a running app, what it holds and where it lives
 # (ame desktop dock SETTING VALUE; without a value it asks; without anything it shows them all)
 [positional-arguments]

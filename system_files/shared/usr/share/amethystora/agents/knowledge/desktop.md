@@ -41,6 +41,19 @@ these commands in the agent's own shell, as the user. Read before writing, chang
 ## Notifications and Do Not Disturb
 
 - Do Not Disturb: `gsettings set org.gnome.desktop.notifications show-banners false` (true to end it).
+- Rest reminders are GNOME's own (`org.gnome.desktop.break-reminders`): `ame desktop breaks
+  on|eyesight|movement|both|off`; their times are in Settings, Wellbeing.
+
+## The top bar and the calendar
+
+- With two screens or more every other screen has a top bar with its workspaces and the clock:
+  `ame desktop top-bar screens on|off`. Pushing the pointer against the top edge over a fullscreen window brings
+  the bar down: `ame desktop top-bar peek on|off`.
+- The calendar menu lists today's and overdue tasks from Notes while Notes is open and unlocked:
+  `ame desktop today tasks on|off`. Notes says them on the session bus (`org.amethystora.Notes`,
+  `/org/amethystora/Notes/Today`) to GNOME Shell alone.
+- The weather beside the clock sends the place chosen in Weather to a weather service and is off until chosen:
+  `ame desktop weather on|off`. Never turn it on without the user's word.
 
 ## Power
 

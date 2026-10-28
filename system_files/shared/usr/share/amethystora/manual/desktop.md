@@ -13,8 +13,9 @@ the keys are in your fingers you will rarely reach for it.
   touchpad, anywhere on the bar to go to the next or previous workspace. Drag a workspace along the row to move it, its windows with it, or
   drop a window from the overview on one to send it there. Right-click a workspace to give it a name
   (until you do, it is named after its main app).
-- **In the middle**, the clock. Click it, or press `Super+V`, for notifications and the calendar. While
-  something is happening, the clock becomes the [live pill](#the-live-pill).
+- **In the middle**, the clock, with [the weather](#the-weather) beside it once you turn it on. Click it,
+  or press `Super+V`, for notifications, the calendar and [Today](#today). While something is happening,
+  the clock becomes the [live pill](#the-live-pill).
 - **On the right**, CPU, memory and network meters, the icons apps keep in the tray, then the system
   menu: Wi-Fi, sound, power and the rest of the [quick settings](#quick-settings). Right-click a tray icon for its app's
   menu, double-click it to open the app, and middle-click it for the app's second action. A Flatpak app
@@ -26,6 +27,10 @@ the keys are in your fingers you will rarely reach for it.
 
 The meters and the workspaces follow the colours of the current [theme](themes.md). The bar can
 also show [widgets](widgets.md) of your own, which the AI agent makes for you once you turn it on.
+
+A fullscreen video or game keeps the whole screen; push the pointer against the top edge and the bar
+comes down over it, and goes when you move away. `ame desktop top-bar peek off` turns that off. With
+two monitors or more, each one has a top bar of its own: see [Several monitors](#several-monitors).
 
 ## Quick settings
 
@@ -52,6 +57,38 @@ theme, and Screenshot, Lock, Settings and Power.
   Amethystora's apps change at once, other apps the next time they start.
   `ame desktop quick-settings theme off` hides the swatches, and `on` brings them back; you can also
   hide them as you hide a tile.
+
+## Today
+
+The calendar menu, under the calendar, holds the day: the events from your calendars, the tasks due
+today and the overdue ones from [Notes](notes.md#tasks), your world clocks and the weather. The tasks
+are there while Notes is open and unlocked, or not encrypted, and only on today's page of the calendar;
+click them to open Notes' tasks. Nothing is asked of Notes until you open the menu, and Notes tells the
+calendar nothing but the titles of those tasks, and nothing at all when the menu is closed. Notes answers
+GNOME Shell alone: an app in a sandbox cannot ask, but a program you run yourself outside one could, as it
+could read anything else of yours while your notes are open. `ame desktop today tasks off` leaves them out.
+
+## The weather
+
+The weather is off until you choose it, because it sends your place to weather services: the place you
+chose in Weather goes to MET Norway (api.met.no) and OpenWeatherMap (api.openweathermap.org, which
+refuses it, since Fedora's weather library has no key for it), and the code of the nearest airport to
+NOAA's aviation reports (aviationweather.gov), each time the weather is shown. Its place in the calendar
+menu says so, with **Turn on…**, which asks once more before it turns it on; `ame desktop weather on`
+says what it sends and turns it on. Once it is on, the temperature and the sky show beside the clock and
+in the calendar menu, refreshed when you open the menu, when the computer wakes and once an hour. If
+Weather has no place yet, the menu offers to open it. `ame desktop weather off` stops it, and **What this
+machine sends** in Security lists it. Whether it is on or off, GNOME Shell itself asks for the weather
+once as you log in, and when Weather's place changes while the screen is locked, if you set a place in
+Weather.
+
+## Rest reminders
+
+GNOME can remind you to look away from the screen now and then, and to stand up and move. Both are off
+until you turn them on: `ame desktop breaks on` (look away for 20 seconds every 20 minutes),
+`movement` (stand up for 5 minutes every 30 minutes), `both`, or `off`, or Control's **Rest reminders**.
+The reminders are GNOME's own notifications, with **Delay**, **Skip** and **Take**, and the screen fades
+gently when a break begins. The times are in Settings, under **Wellbeing**.
 
 ## The live pill
 
@@ -346,6 +383,14 @@ stay dynamic: a workspace a monitor shows is kept even when it is empty, and the
 more than you have monitors. When you unplug the monitor you are working on, the most recent workspace
 of the other monitors becomes the current one, and a monitor plugged back in shows the workspace it had,
 if it is still there.
+
+Every monitor but the main one has a top bar of its own, as tall and as round as the main one, with the
+workspaces (the one that monitor shows lit) and the clock. Click a workspace there to show it on that
+monitor; one another monitor shows swaps places with it. Drop a window from the overview on a workspace
+to send it there. The tray, quick settings and the menus stay on the main monitor's bar, and a bar you
+hide with `Super+Ctrl+B` hides on the monitor showing that workspace. In the classic layout, where the
+other monitors keep their windows on every workspace, their bars show the clock alone.
+`ame desktop top-bar screens off` leaves the other monitors without a bar.
 
 ### Arranging
 

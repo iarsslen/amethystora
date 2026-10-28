@@ -1,0 +1,166 @@
+/* Today in the calendar menu (modules/today.js): sizes, radii and spacing. The colours follow the theme, in the theme's
+   shell-today.css; the ones here stand in before a theme has been applied, and are written with one class fewer so
+   that the theme's always win. Every rule starts from amethystora-today, which the module puts on the menu's box. */
+
+.amethystora-today .datemenu-displays-box {
+  spacing: 14px;
+}
+
+/* GNOME's Today button: the date as the heading, the weekday on its end side */
+.amethystora-today .datemenu-today-button .amethystora-today-date {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.amethystora-today .datemenu-today-button .amethystora-today-weekday {
+  font-size: 13px;
+  font-weight: normal;
+  padding-top: 6px;
+}
+
+/* GNOME's calendar: the weekday letters, the days (a day with events keeps GNOME's mark) */
+.amethystora-today .calendar .calendar-day-heading {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.amethystora-today .calendar .calendar-day {
+  height: 34px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+
+/* GNOME's events, world clocks and weather headings, and the sections of our own: small capitals, set apart */
+.amethystora-today .events-title,
+.amethystora-today .world-clocks-header,
+.amethystora-today .weather-header,
+.amethystora-today-heading {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
+}
+
+.amethystora-today .event-summary {
+  font-size: 13.5px;
+}
+
+.amethystora-today .event-time {
+  font-size: 12px;
+}
+
+.amethystora-today .world-clocks-city {
+  font-size: 12.5px;
+}
+
+.amethystora-today .world-clocks-time {
+  font-size: 18px;
+  font-weight: 700;
+  font-feature-settings: "tnum";
+}
+
+.amethystora-today .world-clocks-timezone {
+  font-size: 12.5px;
+}
+
+/* Due today, from Notes: one row per task, a square mark before each title */
+.amethystora-today-tasks {
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.amethystora-today-heading {
+  padding-bottom: 8px;
+}
+
+.amethystora-today-list {
+  spacing: 8px;
+}
+
+.amethystora-today-task {
+  spacing: 10px;
+}
+
+.amethystora-today-mark {
+  width: 12px;
+  height: 12px;
+  border-radius: 5px;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+}
+
+.amethystora-today-title {
+  font-size: 13.5px;
+}
+
+.amethystora-today-more {
+  font-size: 13.5px;
+  padding-top: 8px;
+}
+
+/* The weather while it is off: a card that says so and offers to turn it on */
+.amethystora-today-weather-off {
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1.5px solid rgba(255, 255, 255, 0.28);
+}
+
+.amethystora-today-weather-icon {
+  icon-size: 26px;
+}
+
+.amethystora-today-weather-first {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.amethystora-today-weather-rest {
+  font-size: 13px;
+}
+
+.amethystora-today-weather-buttons {
+  spacing: 8px;
+}
+
+.amethystora-today-weather-button {
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+/* The weather beside the clock */
+.amethystora-today-weather-pill {
+  padding: 2px 9px;
+  border-radius: 999px;
+  spacing: 5px;
+  margin-left: 8px;
+}
+
+.amethystora-today-weather-pill:rtl {
+  margin-left: 0;
+  margin-right: 8px;
+}
+
+.amethystora-today-weather-pill-icon {
+  icon-size: 16px;
+}
+
+.amethystora-today-weather-pill-text {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.amethystora-today-weather-off {
+  spacing: 10px;
+}
+
+.amethystora-today-weather-row {
+  spacing: 12px;
+}
+
+.amethystora-today-weather-first.amethystora-today-weather-plain {
+  font-weight: normal;
+}

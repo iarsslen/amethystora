@@ -10,8 +10,12 @@ Categories=Office;ProjectManagement;
 Keywords=notes;notebook;markdown;todo;to-do;tasks;planner;reminders;checklist;journal;joplin;planify;
 StartupNotify=true
 StartupWMClass=org.amethystora.Notes
-Actions=tasks;
+Actions=tasks;capture;
 
 [Desktop Action tasks]
 Name=Tasks
 Exec=amethystora-notes tasks
+
+[Desktop Action capture]
+Name=Quick note
+Exec=amethystora-notes capture

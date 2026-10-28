@@ -28,6 +28,10 @@ const table = () => Object.create(null);
 const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 const isObject = v => !!v && typeof v === 'object' && !Array.isArray(v);
 const now = () => Math.floor(Date.now() / 1000);
+// Notes' quick note (amethystora-notes capture) opens in the middle of the screen, as GNOME places it, not where
+// Notes' own window was: it is Notes' one window that is not its application window, which GTK alone gives an object
+// path. Known by the time the window is first configured.
+const quickNote = w => w?.get_wm_class() === 'org.amethystora.Notes' && !w.get_gtk_window_object_path();
 
 const checkPlace = p => isObject(p) && isText(p.m) && isInt(p.x, -32768, 32768) && isInt(p.y, -32768, 32768) &&
     isInt(p.w, 50, 16384) && isInt(p.h, 50, 16384) && typeof p.max === 'boolean';
@@ -169,6 +173,8 @@ export class Places {
     // --- remembering ----------------------------------------------------------------------------------------------
 
     _qualifies(window) {
+        if (quickNote(window))
+            return false;
         return window && window.get_window_type() === Meta.WindowType.NORMAL && !window.get_transient_for() &&
             !window.skip_taskbar && !this._module.isKept(window);
     }
@@ -317,6 +323,8 @@ export class Places {
     }
 
     _configure(window, config) {
+        if (quickNote(window))
+            return;
         const rank = this._rank(window);
         const place = rank >= 0 ? this._placeFor(window, rank) : null;
         if (!place)

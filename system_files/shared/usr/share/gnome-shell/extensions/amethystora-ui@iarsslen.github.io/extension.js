@@ -22,6 +22,8 @@ import {Bazaar} from './modules/bazaar.js';
 import {Connect} from './modules/connect.js';
 import {Pill} from './modules/pill.js';
 import {Quick} from './modules/quick.js';
+import {Bars} from './modules/bars.js';
+import {Today} from './modules/today.js';
 import {Dock} from './modules/dock.js';
 import {Glass} from './modules/glass.js';
 import {Pointer} from './modules/pointer.js';
@@ -47,6 +49,8 @@ const MODULES = [
     ['connect', Connect],
     ['pill', Pill],
     ['quick', Quick],
+    ['bars', Bars],
+    ['today', Today],
     ['dock', Dock],
     ['glass', Glass],
     ['pointer', Pointer],

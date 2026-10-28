@@ -102,10 +102,11 @@ function isRtl(actor) {
     return actor.get_text_direction() === Clutter.TextDirection.RTL;
 }
 
-// One workspace's label: its number and its name. It is its own drag source, and takes a window dropped on it.
+// One workspace's label: its number and its name. It is its own drag source, and takes a window dropped on it. A
+// plain one (another screen's bar) only takes a click and a window: no drag, no menu.
 const WorkspaceLabel = GObject.registerClass(
 class WorkspaceLabel extends St.BoxLayout {
-    _init(row) {
+    _init(row, plain = false) {
         super._init({
             style_class: 'amethystora-workspaces-label',
             reactive: true,
@@ -137,6 +138,8 @@ class WorkspaceLabel extends St.BoxLayout {
                 row.clicked(this.index);
         });
         this.add_action(click);
+        if (plain)
+            return;
 
         // A second right click closes the menu again
         const menu = new Clutter.ClickGesture({required_button: Clutter.BUTTON_SECONDARY, recognize_on_press: true});
@@ -219,6 +222,58 @@ class WorkspaceRow extends PanelMenu.Button {
     }
 });
 
+// The workspaces in another screen's top bar (modules/bars.js): the same labels, lit for the workspace that screen
+// shows. A click shows the workspace there; a window dropped on a label moves to that workspace. Labels here start no
+// drag and open no menu, and the wheel does nothing: the main bar keeps those.
+class OtherRow {
+    constructor(module, monitor) {
+        this._module = module;
+        this.monitor = monitor;
+        this.actor = new St.BoxLayout({style_class: 'amethystora-workspaces-row', y_align: Clutter.ActorAlign.CENTER});
+        this._labels = [];
+        this._active = -1;
+    }
+
+    activeIndex() {
+        return this._active;
+    }
+
+    clicked(index) {
+        this._module.showOn(index, this.monitor);
+    }
+
+    landed(label) {
+        this._module.landed(label);
+    }
+
+    // Brought up to date with what the main row worked out, `active` being the workspace this screen shows
+    fill(described, active) {
+        this._active = active;
+        while (this._labels.length < described.length) {
+            const label = new WorkspaceLabel(this, true);
+            label.connect('destroy', () => {
+                this._module._dropBadge(label);
+                const at = this._labels.indexOf(label);
+                if (at >= 0)
+                    this._labels.splice(at, 1);
+            });
+            this._labels.push(label);
+            this.actor.add_child(label);
+        }
+        while (this._labels.length > described.length)
+            this._labels.at(-1).destroy();
+        this._labels.forEach((label, index) => {
+            const {title, auto, busy} = described[index];
+            label.update(index, title, auto, index === active ? 'active' : busy ? 'busy' : 'empty');
+        });
+    }
+
+    destroy() {
+        this._module.forgetRow(this);
+        this.actor.destroy();
+    }
+}
+
 export class Workspaces {
     constructor(ext) {
         this._ext = ext;
@@ -226,6 +281,7 @@ export class Workspaces {
 
     enable() {
         this._labels = [];
+        this._others = new Set();
         this._watched = new Set();
         this._prefs = new Gio.Settings({schema_id: PREFS});
 
@@ -302,6 +358,9 @@ export class Workspaces {
 
         this._menu?.destroy();
         this._menu = null;
+        for (const row of [...this._others ?? []])
+            row.destroy();
+        this._others = null;
         this._row?.destroy();
         this._row = null;
         this._labels = null;
@@ -352,17 +411,18 @@ export class Workspaces {
         const names = this._prefs.get_strv(NAMES);
         const auto = this._settings?.get_boolean('auto-names') ?? false;
         this._order = this._workspaces();
-        this._labels.forEach((label, index) => {
-            const workspace = manager.get_workspace_by_index(index);
-            let state = 'empty';
-            if (index === active)
-                state = 'active';
-            else if (hasWindows(workspace))
-                state = 'busy';
+        // What each label says, worked out once for this row and the other screens' rows
+        const described = this._order.map((workspace, index) => {
             const own = names[index] ?? '';
             const app = !own && auto ? mainApp(workspace) : null;
-            label.update(index, own || (app?.get_name() ?? ''), !own && !!app, state);
+            return {title: own || (app?.get_name() ?? ''), auto: !own && !!app, busy: hasWindows(workspace)};
         });
+        this._labels.forEach((label, index) => {
+            const {title, auto: named, busy} = described[index];
+            label.update(index, title, named, index === active ? 'active' : busy ? 'busy' : 'empty');
+        });
+        for (const row of this._others)
+            row.fill(described, this._shownOn(row.monitor)?.index() ?? active);
 
         // A window opened, closed or moved onto or off any workspace
         const workspaces = new Set(this._order);
@@ -416,6 +476,45 @@ export class Workspaces {
             return;
         }
         this._goTo(workspace);
+    }
+
+    // ---- The rows of the other screens' bars (modules/bars.js) ----
+
+    // A row of labels for the bar of screen `monitor`: {actor, monitor, activeIndex(), destroy()}
+    rowFor(monitor) {
+        const row = new OtherRow(this, monitor);
+        this._others?.add(row);
+        this._queue();
+        return row;
+    }
+
+    forgetRow(row) {
+        this._others?.delete(row);
+    }
+
+    // The screens changed what they show
+    refreshRows() {
+        if (this._others?.size)
+            this._queue();
+    }
+
+    // The workspace a screen shows: its own with the tiling on several screens, else GNOME's
+    _shownOn(monitor) {
+        const screens = this._ext.modules?.get('tiling')?.engine?.screens;
+        return screens?.separate ? screens.shownOn(monitor) : null;
+    }
+
+    // A click on another screen's label: the workspace is shown on that screen, swapping with the screen that showed it;
+    // with GNOME's workspaces spanning every screen, every screen goes there
+    showOn(index, monitor) {
+        const workspace = global.workspace_manager.get_workspace_by_index(index);
+        if (!workspace)
+            return;
+        const screens = this._ext.modules?.get('tiling')?.engine?.screens;
+        if (screens?.separate)
+            screens.bring(workspace, monitor);
+        else
+            this._goTo(workspace);
     }
 
     _goTo(workspace) {

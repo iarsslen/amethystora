@@ -79,6 +79,8 @@ impl Paths {
 pub struct Hooks {
     pub problem: Option<Rc<dyn Fn(String)>>,
     pub locked: Option<Rc<dyn Fn()>>,
+    /// The notes are open (at start when not encrypted, or unlocked)
+    pub opened: Option<Rc<dyn Fn()>>,
     /// The page hands over what it has not sent yet (requestFlush)
     pub flush_page: Option<Rc<dyn Fn()>>,
 }
@@ -526,6 +528,10 @@ fn opened(this: &Shared) {
     if dirty {
         let this = this.clone();
         glib::spawn_future_local(async move { flush(&this).await });
+    }
+    let hook = this.borrow().hooks.opened.clone();
+    if let Some(hook) = hook {
+        hook();
     }
 }
 

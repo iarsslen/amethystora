@@ -167,6 +167,8 @@ export class Glass {
     surfacesChanged() {
         if (!this._running)
             return;
+        // The other screens' top bars (modules/bars.js) are panes of the top bar's kind
+        this._topBar?.restyle();
         const listed = new Set();
         for (const module of this._ext.modules.values()) {
             for (const {actor, material, radius} of module.glassSurfaces?.() ?? []) {

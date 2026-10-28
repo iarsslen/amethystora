@@ -44,20 +44,17 @@ export class Style {
         this._marked = new Set();
         this._settings = this._ext.getSettings(SCHEMA);
         this._settings.connectObject('changed::style', () => this._sync(), this);
-        for (const box of this._boxes()) {
-            box.connectObject(
-                'child-added', () => this._mark(),
-                'child-removed', () => this._mark(),
-                this);
-        }
+        this._watched = new Set();
+        this._watchBoxes();
         this._sync();
     }
 
     disable() {
         this._settings?.disconnectObject(this);
         this._settings = null;
-        for (const box of this._boxes())
+        for (const box of this._watched ?? [])
             box.disconnectObject(this);
+        this._watched = null;
         if (this._markLater)
             global.compositor.get_laters().remove(this._markLater);
         this._markLater = 0;
@@ -86,9 +83,37 @@ export class Style {
         this._listeners.add(listener);
     }
 
+    // The main bar's three boxes and those of the other screens' bars (modules/bars.js)
     _boxes() {
         const panel = Main.panel;
-        return [panel._leftBox, panel._centerBox, panel._rightBox].filter(Boolean);
+        const others = this._ext.modules?.get('bars')?.boxes?.() ?? [];
+        return [panel._leftBox, panel._centerBox, panel._rightBox, ...others].filter(Boolean);
+    }
+
+    // The bars changed (another screen's bar came or went): their buttons are marked again
+    refresh() {
+        if (!this._settings)
+            return;
+        this._watchBoxes();
+        this._mark();
+    }
+
+    _watchBoxes() {
+        const boxes = new Set(this._boxes());
+        for (const box of this._watched) {
+            if (!boxes.has(box))
+                box.disconnectObject(this);
+        }
+        for (const box of boxes) {
+            if (this._watched.has(box))
+                continue;
+            box.connectObject(
+                'child-added', () => this._mark(),
+                'child-removed', () => this._mark(),
+                'destroy', () => this._watched?.delete(box),
+                this);
+        }
+        this._watched = boxes;
     }
 
     _sync() {

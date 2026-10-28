@@ -14,6 +14,7 @@ import Meta from 'gi://Meta';
 
 import {gettext as _, ngettext} from 'resource:///org/gnome/shell/extensions/extension.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {EventEmitter} from 'resource:///org/gnome/shell/misc/signals.js';
 
 // What survives the tiling being stopped and started in the same session (a screen lock): which workspace each
 // screen showed, by its connector
@@ -25,8 +26,10 @@ const GONE_KEPT_MS = 15000;
 // What GNOME's tracker sees as a workspace kept alive while it checks (any true value: it only tests it)
 const KEPT = -1;
 
-export class Screens {
+// Emits 'changed' whenever a screen shows another workspace (the other screens' top bars follow it)
+export class Screens extends EventEmitter {
     constructor(engine) {
+        super();
         this._engine = engine;
     }
 
@@ -224,6 +227,7 @@ export class Screens {
         this._engine.tiling.topBar?.applyTopBar();
         // The docks show the apps of the workspace each screen shows
         this._engine.tiling._ext.modules.get('dock')?.screensChanged?.();
+        this.emit('changed');
     }
 
     // The tiling's own way to a workspace: shown on `monitor`, and GNOME's, without GNOME's slide

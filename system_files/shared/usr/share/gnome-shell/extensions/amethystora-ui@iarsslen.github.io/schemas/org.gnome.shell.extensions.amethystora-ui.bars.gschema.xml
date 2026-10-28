@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The keys of the bars module (modules/bars.js): a top bar on every screen, and the top bar over a fullscreen window.
+     Written by ame desktop top-bar, Control and the setup file; read live. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.bars" path="/org/gnome/shell/extensions/amethystora-ui/bars/">
+    <key name="every-screen" type="b">
+      <default>true</default>
+      <summary>A top bar on every screen</summary>
+      <description>With two screens or more, each screen has a top bar with the workspace it shows and the time.</description>
+    </key>
+    <key name="peek" type="b">
+      <default>true</default>
+      <summary>The top bar over fullscreen</summary>
+      <description>Pushing the pointer against the top edge of a screen with a fullscreen window brings the top bar down over it.</description>
+    </key>
+  </schema>
+</schemalist>

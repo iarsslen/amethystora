@@ -2649,7 +2649,7 @@ msgstr ""
 msgid "How one workspace gives way to the next."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bars.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Workspaces"
 msgstr ""
 
@@ -2803,6 +2803,66 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "A thin red glow round the screen while it is recorded or shared. It shows in a recording of the whole screen."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A top bar on every screen"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Each screen's own bar shows the workspace on it and the time."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The top bar over fullscreen"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Push the pointer against the top edge of a fullscreen window to see the bar."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Today's tasks in the calendar"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The tasks due today, from Notes while it is open and unlocked."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Weather beside the clock"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Sends the place you chose in Weather to a weather service."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "This GNOME has no rest reminders."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Rest"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Look away"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Stand up"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Both"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Rest reminders"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "GNOME's reminders to look away or stand up. The times are in Settings, Wellbeing."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -5000,6 +5060,18 @@ msgid "Without it, those apps guess or ask you."
 msgstr ""
 
 #: usr/libexec/amethystora-sends
+msgid "Weather"
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "The place you chose in Weather goes to api.met.no (MET Norway) and api.openweathermap.org, and the code of the nearest airport to aviationweather.gov (NOAA), each time the weather is shown."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
+msgid "Whether this is on or off, GNOME Shell asks them once as you log in, and when Weather's place changes while the screen is locked, if Weather has a place."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
 msgid "Fetches its signatures, rules or lists from the internet. Nothing about this machine is sent."
 msgstr ""
 
@@ -5818,7 +5890,7 @@ msgid "What it empties stays in the snapshots and the backup, where they are on.
 msgstr ""
 
 #. Translators: a choice in a menu: to put the artwork on the boot menu
-#: usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+#: usr/share/amethystora/just/desktop.just usr/share/amethystora/just/security.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
 msgid "Turn on"
 msgstr ""
 
@@ -5948,6 +6020,106 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 msgid "The digest is off: banners show as they come."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Top bar ${what} (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Every screen has a top bar with the workspace it shows."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Only the main screen has a top bar."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Push the pointer against the top edge to see the top bar over a fullscreen window."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "A fullscreen window keeps the whole screen."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Today's tasks (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The calendar menu lists today's tasks while Notes is open and unlocked."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The calendar menu shows no tasks."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
+msgid "The place you chose in Weather goes to the weather services GNOME uses, each time the weather is shown."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Weather (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The weather is on."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Choose a place in Weather: it opens with gnome-weather."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The weather is off: nothing is sent for it."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Rest reminders (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Each break lasts ${minutes} minute."
+msgid_plural "Each break lasts ${minutes} minutes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Each break lasts ${seconds} second."
+msgid_plural "Each break lasts ${seconds} seconds."
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "A reminder to look away from the screen comes every ${minutes} minute."
+msgid_plural "A reminder to look away from the screen comes every ${minutes} minutes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Change the times in Settings, Wellbeing."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "A reminder to stand up and move comes every ${minutes} minute."
+msgid_plural "A reminder to stand up and move comes every ${minutes} minutes."
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Both reminders are on. Change the times in Settings, Wellbeing."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Rest reminders are off."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
@@ -8142,6 +8314,10 @@ msgstr ""
 msgid "automatic updates are currently running, use `journalctl -fexu ${SERVICE}` to see logs"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bars.js
+msgid "Clock"
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar/dialog.js
 msgid "Uninstall %s?"
 msgstr ""
@@ -8544,7 +8720,7 @@ msgstr ""
 msgid "Power saving makes the glass solid and animations shorter, and asks less of the processor. It stays on until you turn it off."
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
 msgid "Not now"
 msgstr ""
 
@@ -9320,6 +9496,40 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/topbar.js
 msgid "The places a click goes through are chosen in the tiling settings"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/tasks.js
+msgid "Due today, from Notes"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/tasks.js
+msgid "%d more"
+msgid_plural "%d more"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
+msgid "Weather is off until chosen."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
+msgid "It sends your place to a weather service."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
+msgid "Turn on…"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
+msgid "Choose a place in Weather"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
+msgid "Open Weather"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
+msgid "%d°"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/desktop.js

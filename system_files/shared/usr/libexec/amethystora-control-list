@@ -158,6 +158,9 @@ read_in_background motion gsettings list-recursively org.gnome.shell.extensions.
 read_in_background space-names gsettings get org.gnome.shell.extensions.amethystora-ui.workspaces auto-names
 read_in_background pill gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.pill
 read_in_background quick gsettings get org.gnome.shell.extensions.amethystora-ui.quick tile-hidden
+read_in_background bars gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.bars
+read_in_background today gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.today
+read_in_background breaks gsettings get org.gnome.desktop.break-reminders selected-breaks
 read_in_background night-light gsettings list-recursively org.gnome.settings-daemon.plugins.color
 read_in_background a11y gsettings list-recursively org.gnome.desktop.a11y.interface
 read_in_background profile busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile
@@ -743,6 +746,56 @@ PILLKEY=privacy-dots pill_item privacy-dots "$(gettext "Privacy dots")" \
 PILLKEY=glow pill_item glow "$(gettext "Recording glow")" \
     "$(gettext "A thin red glow round the screen while it is recorded or shared. It shows in a recording of the whole screen.")" \
     desktop#privacy-dots ame desktop pill glow
+
+# A top bar on every screen, the bar over fullscreen, Today's tasks and the weather
+# (org.gnome.shell.extensions.amethystora-ui.bars and .today)
+key_of() { sed -n "s/^[^ ]* $2 \(.*\)$/\1/p" <<<"$1"; }
+onoff_of() { [[ "$(key_of "$1" "$2")" == true ]] && echo on || echo off; }
+BARS="$(said bars)"
+TODAY="$(said today)"
+ui_switch() {
+    local source="$1" key="$2" id="$3" title="$4" text="$5" manual="$6" terminal="$7"
+    shift 7
+    [[ "$(ended "${source}")" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+    switch_choices "${terminal}" "$@"
+    USAGE="$* on|off"
+    local values="${BARS}"
+    [[ "${source}" == today ]] && values="${TODAY}"
+    item desktop "${id}" switch "${title}" "${text}" "$(onoff_of "${values}" "${key}")" "${manual}"
+}
+GROUP="$(gettext "Top bar")"
+ui_switch bars every-screen top-bar-screens "$(gettext "A top bar on every screen")" \
+    "$(gettext "Each screen's own bar shows the workspace on it and the time.")" \
+    desktop#several-monitors false ame desktop top-bar screens
+ui_switch bars peek top-bar-peek "$(gettext "The top bar over fullscreen")" \
+    "$(gettext "Push the pointer against the top edge of a fullscreen window to see the bar.")" \
+    desktop#the-top-bar false ame desktop top-bar peek
+ui_switch today tasks today-tasks "$(gettext "Today's tasks in the calendar")" \
+    "$(gettext "The tasks due today, from Notes while it is open and unlocked.")" \
+    desktop#today false ame desktop today tasks
+# It says what it sends before it turns on: in a terminal
+ui_switch today weather weather "$(gettext "Weather beside the clock")" \
+    "$(gettext "Sends the place you chose in Weather to a weather service.")" \
+    desktop#the-weather true ame desktop weather
+
+# GNOME's own rest reminders (org.gnome.desktop.break-reminders)
+case "$(said breaks)" in
+    *eyesight*movement* | *movement*eyesight*) BREAKS=both ;;
+    *eyesight*) BREAKS=eyesight ;;
+    *movement*) BREAKS=movement ;;
+    *) BREAKS=off ;;
+esac
+[[ "$(ended breaks)" == 0 ]] || REASON="$(gettext "This GNOME has no rest reminders.")"
+GROUP="$(gettext "Rest")"
+choice off "$(gettext "Off")" "" false ame desktop breaks off
+choice eyesight "$(gettext "Look away")" "" false ame desktop breaks eyesight
+choice movement "$(gettext "Stand up")" "" false ame desktop breaks movement
+choice both "$(gettext "Both")" "" false ame desktop breaks both
+USAGE="ame desktop breaks on|eyesight|movement|both|off"
+item desktop breaks choice "$(gettext "Rest reminders")" \
+    "$(gettext "GNOME's reminders to look away or stand up. The times are in Settings, Wellbeing.")" "${BREAKS}" \
+    desktop#rest-reminders
+
 GROUP="$(gettext "Notifications")"
 PILLKEY=quiet pill_item quiet "$(gettext "Quiet while fullscreen or sharing")" \
     "$(gettext "Banners wait while a window is fullscreen or the screen is shared or recorded. Calls, alarms and urgent ones still come through.")" \

@@ -294,6 +294,7 @@ export class Engine {
             forget(entry, this.tiling.settings);
             if (rule.scratch_layer) {
                 this.float(window, {glide: false});
+                this._centreFloated(window, info, drawn);
                 if (drawn)
                     activate(window);
                 return;
@@ -403,8 +404,50 @@ export class Engine {
         });
     }
 
+    // A window a rule floats as it opens floats as in classic GNOME, which centres new windows (center-new-windows):
+    // in the middle of its own monitor's work area, once it is first drawn, after Mutter's own placement. Mutter then
+    // answers its first commits with the place it asked for before it was placed (the top left corner, seen with GTK 4
+    // windows): a move away in the first half second is undone, once, unless the person has taken the window.
+    _centreFloated(window, info, drawn) {
+        const centre = () => {
+            this._dropCentre(window, info);
+            if (this._info?.get(window) !== info)
+                return;
+            const area = this.area(window.get_monitor());
+            const frame = window.get_frame_rect();
+            const x = area.x + Math.max(0, Math.round((area.width - frame.width) / 2));
+            const y = area.y + Math.max(0, Math.round((area.height - frame.height) / 2));
+            window.move_frame(true, x, y);
+            const until = GLib.get_monotonic_time() + 500000;
+            info.centreHold = window.connect('position-changed', () => {
+                this._dropCentre(window, info);
+                const now = window.get_frame_rect();
+                if (GLib.get_monotonic_time() < until && (now.x !== x || now.y !== y))
+                    window.move_frame(true, x, y);
+            });
+        };
+        const actor = window.get_compositor_private();
+        if (drawn || !actor) {
+            centre();
+            return;
+        }
+        info.centreActor = actor;
+        info.centreFrame = actor.connect('first-frame', centre);
+    }
+
+    _dropCentre(window, info) {
+        if (info.centreFrame)
+            info.centreActor?.disconnect(info.centreFrame);
+        if (info.centreHold)
+            window.disconnect(info.centreHold);
+        info.centreFrame = info.centreHold = 0;
+        info.centreActor = null;
+    }
+
     _untrack(window) {
         const info = this._info.get(window);
+        if (info)
+            this._dropCentre(window, info);
         if (info?.sizeCheck)
             GLib.source_remove(info.sizeCheck);
         for (const id of info?.timers ?? [])
@@ -1095,6 +1138,10 @@ export class Engine {
 
     // A tiled window being resized by its edge, or dragged by its title bar
     _grabBegan(window, op) {
+        // The person moves or sizes a window that has just been centred: where they take it is theirs
+        const held = this._info.get(window);
+        if (held?.centreHold)
+            this._dropCentre(window, held);
         if (!this.isTiled(window))
             return;
         if (isResize(op))

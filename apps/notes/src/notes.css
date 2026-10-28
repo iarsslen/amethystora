@@ -1871,3 +1871,75 @@ button.history-item.current {
     margin-left: 0;
     margin-right: 6px;
 }
+
+/* The quick note (page/capture.rs): a small card over anything, as the board draws it. Its corners follow the
+   desktop style with the rest of the window's (shape.rs scales them). */
+window.capture {
+    background: var(--raised);
+    border-radius: 22px;
+}
+
+.capture-card {
+    padding: 16px;
+}
+
+.capture-title {
+    font-family: Quicksand, Inter, sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.keycap {
+    padding: 2px 7px;
+    border-radius: 6px;
+    background: color-mix(in oklab, var(--fg) 14%, transparent);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 18px;
+}
+
+.capture-frame {
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--fg) 7%, transparent);
+}
+
+.capture-frame textview.capture-text,
+.capture-frame textview.capture-text > text {
+    background: transparent;
+    font-size: 15px;
+    line-height: 1.45;
+}
+
+.capture-frame textview.capture-text {
+    padding: 12px;
+}
+
+.capture-footer,
+.capture-dim {
+    font-size: 12.5px;
+    color: var(--soft);
+}
+
+.capture-lock {
+    color: var(--accent-text);
+}
+
+.capture-locked .capture-dim {
+    font-size: 13px;
+}
+
+entry.capture-entry {
+    min-height: 0;
+    padding: 11px 12px;
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--fg) 7%, transparent);
+    font-size: 15px;
+}
+
+button.btn.primary.capture-unlock {
+    min-height: 0;
+    padding: 9px 16px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 700;
+}

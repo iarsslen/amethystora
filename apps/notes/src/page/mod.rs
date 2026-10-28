@@ -3,6 +3,7 @@
 //! as it is made, as notes.js sent it to main.js. Everything shown is built as widgets with text in them,
 //! except a note's Markdown, which markdown.rs renders with any HTML in it shown as text rather than run.
 
+mod capture;
 mod gate;
 mod notes;
 mod settings;
@@ -25,7 +26,10 @@ use crate::backend::{self, Backend, Passkey, Shared};
 use crate::data::{self, Fields, Kind, Store};
 use crate::layout::Exact;
 use crate::session::{LockWatch, Notifier};
+use crate::today::{self, Today};
 use widgets::toast;
+
+pub use tasks::task_order;
 
 pub const COLORS: [&str; 9] = ["violet", "blue", "teal", "green", "yellow", "orange", "red", "pink", "slate"];
 /// A version of a note is kept when it is changed after this long untouched
@@ -152,6 +156,10 @@ pub struct Notes {
     notifier: Notifier,
     _lock_watch: RefCell<Option<LockWatch>>,
     first_open: Cell<bool>,
+    /// Today's tasks on the session bus for the shell, while the notes are open (today.rs)
+    today: RefCell<Option<Rc<Today>>>,
+    /// The quick note's window while it is open (capture.rs)
+    pub capture: RefCell<Option<capture::Capture>>,
 }
 
 /// `amethystora-notes tasks` opens the tasks
@@ -163,8 +171,26 @@ fn page_argument(args: &[String]) -> Option<Mode> {
     }
 }
 
+/// `amethystora-notes capture` opens the quick note, and only that
+fn is_capture(args: &[String]) -> bool {
+    args.iter().find(|arg| !arg.starts_with('-')).map(String::as_str) == Some("capture")
+}
+
 impl App for Notes {
+    fn presents(&self, args: &[String]) -> bool {
+        !is_capture(args)
+    }
+
     fn open(&self, args: &[String]) {
+        if is_capture(args) {
+            // At start, the window is made but not shown, as in the background
+            if self.first_open.replace(false) {
+                self.hidden.set(true);
+                self.render();
+            }
+            self.open_capture();
+            return;
+        }
         let page = page_argument(args);
         if self.first_open.replace(false) {
             if let Some(page) = page {
@@ -257,6 +283,8 @@ impl Notes {
             notifier: Notifier::new(),
             _lock_watch: RefCell::new(None),
             first_open: Cell::new(true),
+            today: RefCell::new(None),
+            capture: RefCell::new(None),
         });
         shell.window.set_title(Some(&t!("Notes")));
         shell.narrow(1100.0, "narrow");
@@ -293,7 +321,49 @@ impl Notes {
             return this;
         }
         this.apply_state(None);
+        this.start_today();
         this
+    }
+
+    // --- Today's tasks for the shell ---------------------------------------------------------------------
+
+    fn start_today(&self) {
+        let Some(connection) = self.shell.app.dbus_connection() else { return };
+        let weak = self.me.clone();
+        let answer: today::Answer = Rc::new(move || {
+            let this = weak.upgrade()?;
+            let day = crate::dates::today();
+            let backend = this.backend.borrow();
+            let (total, titles) = today::today_titles(backend.store.as_ref()?, &day);
+            Some((day, total, titles))
+        });
+        self.today.replace(Some(Today::new(connection, today::SHELL_EXE, Some(today::SHELL_NAME), answer)));
+        self.sync_today();
+        // Off the bus before Notes leaves it
+        let weak = self.me.clone();
+        self.shell.app.connect_shutdown(move |_| {
+            if let Some(this) = weak.upgrade() {
+                if let Some(today) = this.today.borrow().as_ref() {
+                    today.unregister();
+                }
+            }
+        });
+    }
+
+    /// On the bus while the notes are open, off it while they are locked
+    pub fn sync_today(&self) {
+        let open = self.backend.borrow().store.is_some();
+        let today = self.today.borrow().clone();
+        if let Some(today) = today {
+            today.set_open(open);
+        }
+    }
+
+    fn today_changed(&self) {
+        let today = self.today.borrow().clone();
+        if let Some(today) = today {
+            today.changed();
+        }
     }
 
     pub fn rc(&self) -> Rc<Notes> {
@@ -361,6 +431,12 @@ impl Notes {
         backend.hooks.locked = Some(Rc::new(move || {
             if let Some(this) = weak.upgrade() {
                 this.on_locked();
+            }
+        }));
+        let weak = self.me.clone();
+        backend.hooks.opened = Some(Rc::new(move || {
+            if let Some(this) = weak.upgrade() {
+                this.sync_today();
             }
         }));
         let weak = self.me.clone();
@@ -476,7 +552,7 @@ impl Notes {
                 let backend = this.backend.borrow();
                 (backend.upcoming(), backend.locking)
             };
-            if this.hidden.get() && !upcoming && !locking {
+            if this.hidden.get() && !upcoming && !locking && this.capture.borrow().is_none() {
                 this.quit();
             }
             glib::ControlFlow::Continue
@@ -488,6 +564,7 @@ impl Notes {
             let today = crate::dates::today();
             if *this.shown_day.borrow() != today {
                 this.shown_day.replace(today);
+                this.today_changed();
                 let showing = { let ui = this.ui.borrow(); ui.status == "open" && ui.mode == Mode::Tasks };
                 if showing {
                     this.render_nav();
@@ -576,6 +653,9 @@ impl Notes {
 
     /// An item changed in the store: handed over in 350 ms, or at once
     pub fn save(&self, kind: Kind, id: &str, now: bool) {
+        if kind == Kind::Tasks {
+            self.today_changed();
+        }
         {
             let mut pending = self.pending.borrow_mut();
             if !pending.iter().any(|(k, i)| *k == kind && i == id) {
@@ -598,6 +678,9 @@ impl Notes {
     pub fn remove(&self, kind: Kind, ids: &[String]) {
         if ids.is_empty() {
             return;
+        }
+        if kind == Kind::Tasks {
+            self.today_changed();
         }
         if let Some(store) = self.backend.borrow_mut().store.as_mut() {
             for id in ids {
@@ -886,6 +969,9 @@ impl Notes {
         widgets::clear_toasts();
         self.clear_query();
         self.render();
+        // Off the bus, and the quick note asks for the passphrase
+        self.sync_today();
+        self.capture_state();
     }
 
     /// The Markdown drawn again, for the colours its code and attachments are drawn in

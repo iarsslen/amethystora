@@ -9,7 +9,6 @@ use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Duration;
 
-use regex::Regex;
 use serde_json::{json, Map, Value};
 
 use amethystora_ui::{gdk, glib, gtk, i18n, t, ui};
@@ -111,38 +110,6 @@ fn context_key(context: &Map<String, Value>) -> String {
     Value::Object(context.clone()).to_string()
 }
 
-/// The words of the quick add taken out of the title, as a ` text ` with every match replaced by a space
-struct Taking {
-    title: String,
-}
-
-impl Taking {
-    /// The first match of `pattern` (which starts with \s) followed by white space, given to `use_it`; when
-    /// it answers false the match stays, as String.replace did with the match given back
-    fn take(&mut self, pattern: &Regex, global: bool, mut use_it: impl FnMut(&regex::Captures) -> bool) {
-        let mut at = 0;
-        loop {
-            let Some(found) = pattern.captures_at(&self.title, at) else { return };
-            let whole = found.get(0).expect("a match");
-            // (?=\s): what follows the match has to be white space
-            if !self.title[whole.end()..].starts_with(char::is_whitespace) {
-                // Not here: try again from the next character
-                at = whole.start() + self.title[whole.start()..].chars().next().map(char::len_utf8).unwrap_or(1);
-                continue;
-            }
-            let (start, end) = (whole.start(), whole.end());
-            if use_it(&found) {
-                self.title.replace_range(start..end, " ");
-                at = start + 1;
-            } else {
-                at = end;
-            }
-            if !global {
-                return;
-            }
-        }
-    }
-}
 
 impl Notes {
     // --- What is shown -----------------------------------------------------------------------------------
@@ -298,7 +265,7 @@ impl Notes {
 
     // --- Changing tasks ----------------------------------------------------------------------------------
 
-    fn new_task(&self, fields: Map<String, Value>) -> String {
+    pub(super) fn new_task(&self, fields: Map<String, Value>) -> String {
         let now = data::ms(data::now_ms());
         let mut task = json!({
             "id": data::new_id(), "title": "", "notes": "", "project": null, "section": null, "parent": null, "due": null, "time": null,
@@ -310,114 +277,13 @@ impl Notes {
         id
     }
 
-    /// "Call Sam tomorrow 5pm p1 @phone #Work every week": the words it knows are taken out of the title.
-    /// They are English whatever the window's language is.
+    /// "Call Sam tomorrow 5pm p1 @phone #Work every week": the words it knows are taken out of the title
+    /// (quick.rs), with this store's projects and labels
     pub fn parse_quick(&self, text: &str) -> Map<String, Value> {
-        thread_local! {
-            static PATTERNS: [Regex; 7] = [
-                Regex::new(r"\s[pP]([1-4])").expect("a pattern"),
-                Regex::new(r"\s(?:(?:[eE][vV][eE][rR][yY])\s+([0-9]+\s+)?((?:[dD][aA][yY])|(?:[wW][eE][eE][kK])|(?:[mM][oO][nN][tT][hH])|(?:[yY][eE][aA][rR]))[sS]?|((?:[dD][aA][iI][lL][yY])|(?:[wW][eE][eE][kK][lL][yY])|(?:[mM][oO][nN][tT][hH][lL][yY])|(?:[yY][eE][aA][rR][lL][yY])))").expect("a pattern"),
-                Regex::new(r"\s#([\w-]+)").expect("a pattern"),
-                Regex::new(r"\s@([\w-]+)").expect("a pattern"),
-                Regex::new(r"\s((?i-u:today|tod|tonight|tomorrow|tmr|next week)|(?i-u:(?:on\s+)?(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*)|[0-9]{4}-[0-9]{2}-[0-9]{2})").expect("a pattern"),
-                Regex::new(r"\s(?:(?i-u:at)\s+)?([0-9]{1,2})(?::([0-9]{2}))?\s*((?i-u:am|pm))").expect("a pattern"),
-                Regex::new(r"\s(?:at\s+)?([01]?[0-9]|2[0-3]):([0-5][0-9])").expect("a pattern"),
-            ];
-        }
-        let mut taking = Taking { title: format!(" {text} ") };
-        let mut found = Map::new();
-        let now = dates::today();
-        PATTERNS.with(|p| {
-            taking.take(&p[0], false, |m| {
-                found.insert("priority".into(), Value::from(m[1].parse::<i64>().unwrap_or(4)));
-                true
-            });
-            taking.take(&p[1], false, |m| {
-                let every = m.get(1).and_then(|c| c.as_str().trim().parse::<i64>().ok()).filter(|n| *n != 0).unwrap_or(1);
-                let unit = match (m.get(2), m.get(3)) {
-                    (Some(unit), _) => unit.as_str().to_lowercase(),
-                    (None, Some(adverb)) => match adverb.as_str().to_lowercase().as_str() {
-                        "daily" => "day".into(),
-                        "weekly" => "week".into(),
-                        "monthly" => "month".into(),
-                        _ => "year".into(),
-                    },
-                    _ => "day".into(),
-                };
-                found.insert("repeat".into(), json!({ "every": every, "unit": unit }));
-                true
-            });
-            taking.take(&p[2], false, |m| {
-                let key = m[1].to_lowercase();
-                let project = self.db(|store| store.values(Kind::Projects).find(|p| p.title().split_whitespace().collect::<String>().to_lowercase() == key).map(|p| p.id().to_string())).flatten();
-                match project {
-                    Some(project) => {
-                        found.insert("project".into(), Value::from(project));
-                        found.insert("section".into(), Value::Null);
-                        true
-                    }
-                    None => false,
-                }
-            });
-            let mut labels: Vec<Value> = Vec::new();
-            taking.take(&p[3], true, |m| {
-                labels.push(Value::from(self.label_for(&m[1])));
-                true
-            });
-            if !labels.is_empty() {
-                found.insert("labels".into(), Value::Array(labels));
-            }
-            let weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-            taking.take(&p[4], false, |m| {
-                let lower = m[1].to_lowercase();
-                let lower = match lower.strip_prefix("on") {
-                    Some(rest) if rest.starts_with(char::is_whitespace) => rest.trim_start().to_string(),
-                    _ => lower,
-                };
-                let due = if dates::is_iso(&lower) {
-                    lower.clone()
-                } else if ["today", "tod", "tonight"].contains(&lower.as_str()) {
-                    now.clone()
-                } else if ["tomorrow", "tmr"].contains(&lower.as_str()) {
-                    dates::add_days(&now, 1)
-                } else if lower == "next week" {
-                    dates::add_days(&now, 7 - ((dates::weekday_now() + 6) % 7))
-                } else {
-                    let three: String = lower.chars().take(3).collect();
-                    let Some(day) = weekdays.iter().position(|name| name.starts_with(&three)) else { return false };
-                    if lower.len() > 3 && !weekdays[day].starts_with(&lower) {
-                        return false;
-                    }
-                    let ahead = (day as i64 - dates::weekday_now() + 7) % 7;
-                    dates::add_days(&now, if ahead == 0 { 7 } else { ahead })
-                };
-                found.insert("due".into(), Value::from(due));
-                true
-            });
-            taking.take(&p[5], false, |m| {
-                let hours = m[1].parse::<i64>().unwrap_or(0);
-                let hour = hours % 12 + if m[3].to_lowercase() == "pm" { 12 } else { 0 };
-                let minutes = m.get(2).map(|c| c.as_str().to_string()).unwrap_or_else(|| "00".into());
-                found.insert("time".into(), Value::from(format!("{hour:02}:{minutes}")));
-                true
-            });
-            taking.take(&p[6], false, |m| {
-                let hours = m[1].parse::<i64>().unwrap_or(0);
-                found.insert("time".into(), Value::from(format!("{hours:02}:{}", &m[2])));
-                true
-            });
-        });
-        if (found.contains_key("time") || found.contains_key("repeat")) && !found.contains_key("due") {
-            let late = found.get("time").and_then(Value::as_str).is_some_and(|time| time < dates::time_now().as_str());
-            let due = if late && !found.contains_key("repeat") { dates::add_days(&dates::today(), 1) } else { dates::today() };
-            found.insert("due".into(), Value::from(due));
-        }
-        if found.contains_key("time") {
-            found.insert("reminder".into(), Value::from(0));
-        }
-        let title = taking.title.split_whitespace().collect::<Vec<_>>().join(" ");
-        found.insert("title".into(), Value::from(if title.is_empty() { text.trim().to_string() } else { title }));
-        found
+        let project = |key: &str| {
+            self.db(|store| store.values(Kind::Projects).find(|p| p.title().split_whitespace().collect::<String>().to_lowercase() == key).map(|p| p.id().to_string())).flatten()
+        };
+        crate::quick::parse(text, &crate::quick::Now::current(), project, |name| self.label_for(name))
     }
 
     /// The label of this name, made when there is none, in the next of the colours

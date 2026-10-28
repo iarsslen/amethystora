@@ -51,3 +51,8 @@ name='Amethystora Manual'
 binding='<Super><Control><Shift>c'
 command='amethystora-control'
 name='Amethystora Control'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom30]
+binding='<Super><Alt>n'
+command='amethystora-notes capture'
+name='Quick note'

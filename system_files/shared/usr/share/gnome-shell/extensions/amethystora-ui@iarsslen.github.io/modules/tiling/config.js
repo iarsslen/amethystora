@@ -159,10 +159,13 @@ function rules(texts) {
     return out.sort((a, b) => (a.title ? 0 : 1) - (b.title ? 0 : 1) || a.index - b.index);
 }
 
-// GNOME's extension preferences and its screenshot tool float, and take the keyboard when they open
+// GNOME's extension preferences and its screenshot tool float, and take the keyboard when they open; so does Notes'
+// quick note (amethystora-notes capture), which is Notes' one window that is not its application window: GTK gives only
+// an application window an object path (`plain`)
 const BUILT_IN = [
     {wmClass: matcher('Gnome-shell-extension-prefs'), title: null, rule: {scratch_layer: true, focus: true}},
     {wmClass: matcher('/gnome-screenshot/i'), title: null, rule: {scratch_layer: true, focus: true}},
+    {wmClass: matcher('org.amethystora.Notes'), title: null, plain: true, rule: {scratch_layer: true, focus: true}},
 ];
 
 // The rule a window opens under: the settings' first, then the built-in ones
@@ -175,6 +178,8 @@ export function ruleFor(window) {
         if (entry.wmClass && !entry.wmClass.test(wmClass))
             continue;
         if (entry.title && !entry.title.test(title))
+            continue;
+        if (entry.plain && window.get_gtk_window_object_path?.())
             continue;
         return entry;
     }

@@ -383,6 +383,14 @@ fn open_window<A: App>(app: &adw::Application, spec: Spec, build: &Rc<impl Fn(Rc
 mod tests {
     use super::*;
 
+    struct Plain;
+    impl App for Plain {}
+
+    #[test]
+    fn a_launch_shows_the_window_unless_the_app_says_otherwise() {
+        assert!(Plain.presents(&["capture".to_string()]));
+    }
+
     #[test]
     fn scales_pixels_only() {
         assert_eq!(scale_css("a { margin: 10px 0.5px; color: #112px; width: 2em; }", 2.0), "a { margin: 20px 1px; color: #112px; width: 2em; }");

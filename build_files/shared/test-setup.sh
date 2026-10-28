@@ -169,6 +169,30 @@ done <<<"${listed}"
 saved="$(sed -n 's/^QUICK_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort)"
 [[ "${saved}" == "${listed}" ]] ||
     { echo "the manifest saves other quick settings keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
+# A top bar on every screen, today's tasks and GNOME's rest reminders likewise: every key of their schemas but the
+# weather, which sends the place chosen in Weather and is never in a file; and the manifest saves the same keys
+for table in BARS:org.gnome.shell.extensions.amethystora-ui.bars TODAY:org.gnome.shell.extensions.amethystora-ui.today \
+    BREAKS:org.gnome.desktop.break-reminders; do
+    name="${table%%:*}" id="${table#*:}"
+    TABLE="$(sed -n "s/^${name}_KEYS='\(.*\)'\$/\1/p" "${SETUP}")"
+    listed="$(jq -r 'keys[]' <<<"${TABLE}" | sort)"
+    schema="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${id}" | grep -vx weather | sort)"
+    [[ -n "${listed}" && "${listed}" == "${schema}" ]] ||
+        { echo "${name}_KEYS and ${id} differ:"; diff <(echo "${listed}") <(echo "${schema}"); false; }
+    while read -r key; do
+        range="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${id}" "${key}" | xargs)"
+        case "${key}:${range}" in
+            *":type b") want='["b"]' ;;
+            "selected-breaks:type as") want='["as","breaks"]' ;;
+            *) want="? ${range}" ;;
+        esac
+        [[ "$(jq -c --arg k "${key}" '.[$k]' <<<"${TABLE}")" == "${want}" ]] ||
+            { echo "${name}_KEYS has ${key} as $(jq -c --arg k "${key}" '.[$k]' <<<"${TABLE}"), the schema as ${want}"; false; }
+    done <<<"${listed}"
+    saved="$(sed -n "s/^${name}_KEYS=(\(.*\))\$/\1/p" "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort)"
+    [[ "${saved}" == "${listed}" ]] ||
+        { echo "the manifest saves other ${name} keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
+done
 
 # A machine with two apps, three things from Homebrew, a container, an extension and a theme, whose
 # dock, close key, terminal key, tiling key, two tiling settings and window rules are not the image's. What
@@ -432,7 +456,15 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"quick": {"tile-order": ["Wifi"]}}}' \
     '{"version": 1, "settings": {"quick": {"tile-hidden": ["../dnd"]}}}' \
     '{"version": 1, "settings": {"quick": {"tile-hidden": ["dnd", "dnd"]}}}' \
-    '{"version": 1, "settings": {"quick": {"tile-order": "wifi"}}}'; do
+    '{"version": 1, "settings": {"quick": {"tile-order": "wifi"}}}' \
+    '{"version": 1, "settings": {"bars": {"every-screen": "on"}}}' \
+    '{"version": 1, "settings": {"bars": {"no-such-setting": true}}}' \
+    '{"version": 1, "settings": {"today": {"weather": true}}}' \
+    '{"version": 1, "settings": {"today": {"tasks": 1}}}' \
+    '{"version": 1, "settings": {"breaks": {"selected-breaks": ["sleep"]}}}' \
+    '{"version": 1, "settings": {"breaks": {"selected-breaks": ["eyesight", "eyesight"]}}}' \
+    '{"version": 1, "settings": {"breaks": {"selected-breaks": "eyesight"}}}' \
+    '{"version": 1, "settings": {"breaks": {"eyesight": {"interval-seconds": 60}}}}'; do
     printf '%s\n' "${bad}" >"${T}/bad.json"
     "${SETUP}" diff "${T}/bad.json" >/dev/null 2>&1 && { echo "accepted: ${bad}"; false; }
     "${SETUP}" apply --yes "${T}/bad.json" >/dev/null 2>&1 && { echo "applied: ${bad}"; false; }
