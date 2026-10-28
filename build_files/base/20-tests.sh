@@ -463,8 +463,79 @@ done
 rm -rf "${UI_RENDER}"
 # The search box is on Super+Space alone, which GNOME's input-source switch must not take (zz0 moves it to
 # Shift+Super+Space): on a base without that line the box never opened
-[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.search)" == "open" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.search | sort | paste -sd ' ')" == \
+    "agent answers clipboard glance manual open settings windows" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.search open)" == "['<Super>space']" ]]
+# Search that answers (plans/beyond/spec-search.md): each part on, the emoji picker on Super+. in the yellow tone
+for key in answers settings manual windows clipboard agent glance; do
+    [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.search "${key}")" == true ]]
+done
+EMOJI=org.gnome.shell.extensions.amethystora-ui.emoji
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${EMOJI}" | sort | paste -sd ' ')" == "emoji-picker skin-tone" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${EMOJI}" emoji-picker)" == "['<Super>period']" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${EMOJI}" skin-tone)" == "'none'" ]]
+for file in modules/search.js modules/search/calc.js modules/search/providers.js modules/search/glance.js \
+    modules/emoji.js modules/emoji/picker.js modules/emoji/paste.js stylesheets/search.css stylesheets/emoji.css \
+    icons/amethystora-search-agent-symbolic.svg; do
+    test -s "${UI_EXTENSION}/${file}"
+done
+test -s /usr/share/amethystora/themed/shell-search.css.tpl
+test -s /usr/share/amethystora/themed/shell-emoji.css.tpl
+# The emoji picker before the glass, which reads its surfaces
+[[ "$(grep -oE "^    \['(emoji|glass)'," "${UI_EXTENSION}/extension.js" | paste -sd ' ')" == "    ['emoji',     ['glass'," ]]
+for recipe in "search WHAT" "emoji ACTION"; do
+    grep -q "^${recipe}=\"\" " /usr/share/amethystora/just/desktop.just
+done
+# Nothing the search reads is ever run as code
+if grep -rnE '\beval\(|new Function|(^|[^.a-zA-Z_])Function\(|\bimport\(' "${UI_EXTENSION}/modules/search" \
+    "${UI_EXTENSION}/modules/emoji" "${UI_EXTENSION}/modules/search.js" "${UI_EXTENSION}/modules/emoji.js"; then
+    echo "the search or the emoji picker runs text as code"
+    exit 1
+fi
+# The sums and conversions, on the apps stage's Node (gjs runs the same file)
+env LD_LIBRARY_PATH=/apps-stage/usr/lib64 /apps-stage/usr/bin/node /ctx/build_files/shared/test-search-calc.mjs
+# The emoji data, made by 09-emoji.sh from Unicode's pinned files: every tab, every character named in English, the sizes
+# the picker reads in one go when it opens, and the licence
+python3 -I - <<'PYEOF'
+import json, os
+d = "/usr/share/amethystora/emoji"
+core = json.load(open(f"{d}/emoji.json", encoding="utf-8"))
+names = json.load(open(f"{d}/names-en.json", encoding="utf-8"))
+tabs = ["smileys", "people", "nature", "food", "places", "activities", "objects", "symbols", "flags",
+        "arrows", "maths", "money", "punctuation"]
+assert all(core["tabs"].get(tab) for tab in tabs), "an emoji tab is empty"
+emoji = sum(len(core["tabs"][tab]) for tab in tabs[:9])
+assert emoji >= 1800, f"only {emoji} emoji"
+missing = [c for tab in tabs for c in core["tabs"][tab] if c not in names]
+assert not missing, f"no English name for {missing[:10]}"
+assert os.path.getsize(f"{d}/emoji.json") <= 64 * 1024, "emoji.json is over 64 KB"
+for language in ["en", "fr", "de", "es", "ar"]:
+    json.load(open(f"{d}/names-{language}.json", encoding="utf-8"))
+    assert os.path.getsize(f"{d}/names-{language}.json") <= 256 * 1024, f"names-{language}.json is over 256 KB"
+PYEOF
+test -s /usr/share/licenses/unicode/LICENSE
+grep -q "emoji-test.txt" /usr/share/licenses/amethystora/NOTICE
+grep -q "CLDR" /usr/share/licenses/amethystora/NOTICE
+# The manual search answers without the agentic features (as nobody's account), from the manual alone
+MANUAL_HITS="$(/usr/libexec/amethystora-agent-tools manual-search -- rolling back)"
+jq -e 'length > 0 and all(.[]; .id | startswith("manual/")) and any(.[]; .id == "manual/updates#rolling-back")' \
+    <<<"${MANUAL_HITS}" >/dev/null
+[[ "$(/usr/libexec/amethystora-agent-tools manual-search -- )" == "[]" ]]
+# The clipboard extension gives the search its read-only view, and says so in its first comment
+CLIPBOARD_JS=/usr/share/gnome-shell/extensions/amethystora-clipboard@iarsslen.github.io/extension.js
+grep -q "^    history () {" "${CLIPBOARD_JS}"
+grep -q "^    content (id) {" "${CLIPBOARD_JS}"
+head -3 "${CLIPBOARD_JS}" | grep -q "search"
+# Super+. is the picker's alone: Smile keeps Ctrl+Alt+Space, and its old second key is gone
+if grep -rqi "<Super>period" /etc/dconf/db/distro.d/; then
+    echo "a system keybinding still takes Super+., the emoji picker's"
+    exit 1
+fi
+grep -A1 -h "custom-keybindings/custom5\]" /etc/dconf/db/distro.d/02-amethystora-keybindings | grep -qx "binding='<Control><Alt>space'"
+test -s /usr/share/amethystora/user-setup.hooks.d/23-emoji-key.sh
+# Ask the agent hands the question as one argument after --, and refuses one that reads as an option
+grep -q 'exec xdg-terminal-exec "$0" ask -- "$@"' /usr/bin/amethystora-agent
+grep -q 'a question cannot be empty or start with' /usr/bin/amethystora-agent
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.wm.keybindings switch-input-source)" == "['<Shift><Super>space']" ]]
 # App search keeps Parental Controls' filter, as GNOME's own does
 grep -q "shouldShowApp" "${UI_EXTENSION}/modules/fuzzy.js"
@@ -621,6 +692,11 @@ grep -qx "<super>return" <<<"${KEPT_COMBOS}"
 # The quick note's Super+Alt+N (custom30) is the image's: no tiling key takes it
 grep -qx "<alt><super>n" <<<"${KEPT_COMBOS}"
 [[ -z "$(LC_ALL=C comm -12 <(echo "${TILING_COMBOS}") <(echo "${KEPT_COMBOS}"))" ]]
+# Super+. is the emoji picker's: neither the tiling nor a kept binding has it
+if grep -qx "<super>period" <<<"${TILING_COMBOS}"$'\n'"${KEPT_COMBOS}"; then
+    echo "Super+. is bound by the tiling or a kept binding, and is the emoji picker's"
+    exit 1
+fi
 
 # The glass and the dock are Amethystora UI's own modules, in place of Blur my Shell and Dash to Dock. The glass
 # is a stylesheet and a shader (modules/glass/lens.glsl) with no setting of its own, and no Shell.GLSLEffect,

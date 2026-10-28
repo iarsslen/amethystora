@@ -1,11 +1,48 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The key of the search box (modules/search.js). What it searches, and how, is GNOME's own search. -->
+<!-- The search box (modules/search.js) and what Amethystora adds to GNOME's search, in the box and in the overview
+     alike (modules/search/providers.js). Each part is switched by `ame desktop search WHAT on|off`, Control, or the
+     setup file, and applies at once. -->
 <schemalist>
   <schema id="org.gnome.shell.extensions.amethystora-ui.search" path="/org/gnome/shell/extensions/amethystora-ui/search/">
     <key name="open" type="as">
       <default><![CDATA[['<Super>space']]]></default>
       <summary>Open or close the search box</summary>
-      <description>Search apps, files, settings and everything else GNOME searches, from a box in the middle of the screen, without going to the overview.</description>
+      <description>Search apps, files, settings and everything else GNOME searches, from a box near the top of the screen, without going to the overview.</description>
+    </key>
+    <key name="answers" type="b">
+      <default>true</default>
+      <summary>Sums and units</summary>
+      <description>Answers sums and conversions as they are typed, in the numbers of the session's language.</description>
+    </key>
+    <key name="settings" type="b">
+      <default>true</default>
+      <summary>Settings from Control</summary>
+      <description>Finds Control's settings, and changes one with Enter.</description>
+    </key>
+    <key name="manual" type="b">
+      <default>true</default>
+      <summary>The manual</summary>
+      <description>Finds the pages of the manual that answer what was typed.</description>
+    </key>
+    <key name="windows" type="b">
+      <default>true</default>
+      <summary>Open windows</summary>
+      <description>Finds an open window by its title, on any workspace.</description>
+    </key>
+    <key name="clipboard" type="b">
+      <default>true</default>
+      <summary>Clipboard history</summary>
+      <description>Shows what was copied when clip: is typed first, and only then.</description>
+    </key>
+    <key name="agent" type="b">
+      <default>true</default>
+      <summary>Ask the agent</summary>
+      <description>The last row asks the AI agent, while the agentic features are on.</description>
+    </key>
+    <key name="glance" type="b">
+      <default>true</default>
+      <summary>Glance at files</summary>
+      <description>Space shows a file found by the search without opening it.</description>
     </key>
   </schema>
 </schemalist>

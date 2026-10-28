@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The emoji and symbols picker (modules/emoji.js): its key, and the skin tone of the hands and people it shows.
+     `ame desktop emoji tone TONE`, Control and the picker itself write skin-tone; the setup file keeps both. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.emoji" path="/org/gnome/shell/extensions/amethystora-ui/emoji/">
+    <key name="emoji-picker" type="as">
+      <default><![CDATA[['<Super>period']]]></default>
+      <summary>Open or close the emoji and symbols picker</summary>
+      <description>Emoji and symbols over the window being typed in; the one picked is typed where the text cursor is. An empty list turns the picker off.</description>
+    </key>
+    <key name="skin-tone" type="s">
+      <choices>
+        <choice value="none"/>
+        <choice value="light"/>
+        <choice value="medium-light"/>
+        <choice value="medium"/>
+        <choice value="medium-dark"/>
+        <choice value="dark"/>
+      </choices>
+      <default>'none'</default>
+      <summary>Skin tone</summary>
+      <description>The tone of the hands and people the picker shows: none (the yellow), light, medium-light, medium, medium-dark or dark.</description>
+    </key>
+  </schema>
+</schemalist>

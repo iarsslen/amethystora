@@ -24,6 +24,9 @@ export PATH="/tmp/scripts/helpers:$PATH"
 # The themes' interface fonts that Fedora does not package
 /ctx/build_files/base/09-fonts.sh
 
+# The emoji picker's lists and names, from Unicode's files
+/ctx/build_files/base/09-emoji.sh
+
 # The Amethystora icon packs' caches
 /ctx/build_files/base/10-icons.sh
 

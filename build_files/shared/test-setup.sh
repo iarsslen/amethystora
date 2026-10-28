@@ -193,6 +193,32 @@ for table in BARS:org.gnome.shell.extensions.amethystora-ui.bars TODAY:org.gnome
     [[ "${saved}" == "${listed}" ]] ||
         { echo "the manifest saves other ${name} keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
 done
+# The search's switches and the emoji picker's skin tone likewise, each schema less its keybinding (open,
+# emoji-picker), which the keybindings part keeps; and the manifest saves the same keys
+for part in "SEARCH org.gnome.shell.extensions.amethystora-ui.search open" \
+    "EMOJI org.gnome.shell.extensions.amethystora-ui.emoji emoji-picker"; do
+    read -r name schema_id binding <<<"${part}"
+    table="$(sed -n "/^${name}_KEYS='{\$/,/^}'\$/{s/^${name}_KEYS='//; s/^}'\$/}/; p}" "${SETUP}")"
+    [[ -n "${table}" ]] || table="$(sed -n "s/^${name}_KEYS='\(.*\)'\$/\1/p" "${SETUP}")"
+    listed="$(jq -r 'keys[]' <<<"${table}" | sort)"
+    schema="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${schema_id}" | grep -vx "${binding}" | sort)"
+    [[ -n "${listed}" && "${listed}" == "${schema}" ]] ||
+        { echo "${name}_KEYS and ${schema_id} differ:"; diff <(echo "${listed}") <(echo "${schema}"); false; }
+    while read -r key; do
+        range="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${schema_id}" "${key}" | xargs)"
+        case "${range}" in
+            "type b") want='["b"]' ;;
+            enum*) want="[\"s\",$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${schema_id}" "${key}" |
+                sed -n "2,\$p" | tr "'" '"' | jq -sc .)]" ;;
+            *) want="? ${range}" ;;
+        esac
+        [[ "$(jq -c --arg k "${key}" '.[$k]' <<<"${table}")" == "${want}" ]] ||
+            { echo "${name}_KEYS has ${key} as $(jq -c --arg k "${key}" '.[$k]' <<<"${table}"), the schema as ${want}"; false; }
+    done <<<"${listed}"
+    saved="$(sed -n "s/^${name}_KEYS=(\(.*\))\$/\1/p" "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort)"
+    [[ "${saved}" == "${listed}" ]] ||
+        { echo "the manifest saves other ${name} keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
+done
 
 # A machine with two apps, three things from Homebrew, a container, an extension and a theme, whose
 # dock, close key, terminal key, tiling key, two tiling settings and window rules are not the image's. What
@@ -447,6 +473,12 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"dock": {"stacks": ["/etc"]}}}' \
     '{"version": 1, "settings": {"pill": {"no-such-setting": true}}}' \
     '{"version": 1, "settings": {"pill": {"quiet": "on"}}}' \
+    '{"version": 1, "settings": {"search": {"answers": "on"}}}' \
+    '{"version": 1, "settings": {"search": {"open": ["<Super>space"]}}}' \
+    '{"version": 1, "settings": {"search": {"currency": true}}}' \
+    '{"version": 1, "settings": {"emoji": {"skin-tone": "purple"}}}' \
+    '{"version": 1, "settings": {"emoji": {"emoji-picker": ["<Super>period"]}}}' \
+    '{"version": 1, "settings": {"keybindings": {"org.gnome.shell.extensions.amethystora-ui.search": {"answers": ["<Super>a"]}}}}' \
     '{"version": 1, "settings": {"pill": {"digest-times": []}}}' \
     '{"version": 1, "settings": {"pill": {"digest-times": ["25:00"]}}}' \
     '{"version": 1, "settings": {"pill": {"digest-times": ["12:00", "12:00"]}}}' \

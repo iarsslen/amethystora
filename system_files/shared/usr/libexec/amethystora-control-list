@@ -161,6 +161,8 @@ read_in_background quick gsettings get org.gnome.shell.extensions.amethystora-ui
 read_in_background bars gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.bars
 read_in_background today gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.today
 read_in_background breaks gsettings get org.gnome.desktop.break-reminders selected-breaks
+read_in_background search gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.search
+read_in_background emoji gsettings get org.gnome.shell.extensions.amethystora-ui.emoji skin-tone
 read_in_background night-light gsettings list-recursively org.gnome.settings-daemon.plugins.color
 read_in_background a11y gsettings list-recursively org.gnome.desktop.a11y.interface
 read_in_background profile busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile
@@ -655,6 +657,45 @@ USAGE="ame desktop clipboard always|restart|session"
 item desktop clipboard choice "$(gettext "Clipboard history")" \
     "$(gettext "How long what you copy is kept, sealed under a key in your login keyring. Super+Shift+V shows it.")" \
     "${KEEP}" desktop#the-clipboard
+
+# What the search finds besides GNOME's own (org.gnome.shell.extensions.amethystora-ui.search), each a switch
+SEARCH="$(said search)"
+search_item() {
+    local key="$1" title="$2" text="$3"
+    [[ "$(ended search)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+    switch_choices false ame desktop search "${key}"
+    GROUP="$(gettext "Search")"
+    USAGE="ame desktop search ${key} on|off"
+    item desktop "search-${key}" switch "${title}" "${text}" \
+        "$([[ "${SEARCH}" == *" ${key} true"* ]] && echo on || echo off)" desktop#finding-things
+}
+search_item answers "$(gettext "Sums and units")" \
+    "$(gettext "Answers sums and conversions as you type, in your language's numbers.")"
+search_item settings "$(gettext "Settings from Control")" "$(gettext "Finds Control's settings, and changes one with Enter.")"
+search_item manual "$(gettext "The manual")" "$(gettext "Finds the pages of this manual that answer what you typed.")"
+search_item windows "$(gettext "Open windows")" "$(gettext "Finds an open window by its title, on any workspace.")"
+search_item clipboard "$(gettext "Clipboard history")" \
+    "$(gettext "Shows what you copied when you type clip: first, and only then.")"
+search_item agent "$(gettext "Ask the agent")" \
+    "$(gettext "The last row asks the AI agent, while the agentic features are on.")"
+search_item glance "$(gettext "Glance at files")" \
+    "$(gettext "Space shows a file found by the search without opening it.")"
+GROUP=""
+
+# The skin tone of the hands and people in the emoji picker (Super+.)
+TONE="$(said emoji | tr -d "'")"
+[[ "$(ended emoji)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+choice none "$(gettext "No tone (yellow)")" "" false ame desktop emoji tone none
+choice light "$(gettext "Light")" "" false ame desktop emoji tone light
+choice medium-light "$(gettext "Medium light")" "" false ame desktop emoji tone medium-light
+choice medium "$(gettext "Medium")" "" false ame desktop emoji tone medium
+choice medium-dark "$(gettext "Medium dark")" "" false ame desktop emoji tone medium-dark
+choice dark "$(gettext "Dark")" "" false ame desktop emoji tone dark
+GROUP="$(gettext "Typing")"
+USAGE="ame desktop emoji tone none|light|medium-light|medium|medium-dark|dark"
+item desktop emoji-tone choice "$(gettext "Emoji skin tone")" \
+    "$(gettext "The tone of hands and people in the emoji picker, Super+..")" "${TONE}" desktop#emoji-and-symbols
+GROUP=""
 
 # How old what is in the trash gets before GNOME's housekeeping empties it (org.gnome.desktop.privacy)
 TRASH=""

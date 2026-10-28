@@ -1,9 +1,11 @@
 // Modified for Amethystora: Amethystora Clipboard is Clipboard Indicator v71 with its history sealed
 // (registry.js, store.js, keyring.js) instead of written to ~/.cache in plain text, kept as keep-history
-// says, and with nothing recorded that a password manager marks secret.
+// says, and with nothing recorded that a password manager marks secret, and gives Amethystora UI's search a
+// read-only view of the history (history(), content()).
 
 import Clutter from 'gi://Clutter';
 import Cogl from 'gi://Cogl';
+import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
@@ -89,6 +91,72 @@ export default class ClipboardIndicatorExtension extends Extension {
         this.clipboardIndicator = null;
         EXCLUDED_APPS = [];
     }
+
+    // What the menu lists, newest first, for Amethystora UI's search (clip:), which asks only when the person
+    // typed clip: and reads nothing else of the extension. Plain values, frozen; nothing while private mode is
+    // on, while the history is held back by a locked keyring, or before the indicator is built. Nothing is written
+    // and nothing is kept here but the numbers the entries are known by while the shell runs.
+    history () {
+        const indicator = this.clipboardIndicator;
+        if (!indicator || indicator._destroyed || PRIVATEMODE || indicator.registry?.state === 'locked')
+            return [];
+        return [...indicator.clipItemsRadioGroup].reverse().map(item => {
+            const entry = item.entry;
+            const about = aboutEntry(entry);
+            const image = entry.isImage();
+            if (image && about.width === undefined)
+                [about.width, about.height] = pngSize(entry);
+            return Object.freeze({
+                id: about.id,
+                kind: image ? 'image' : 'text',
+                text: image ? '' : entry.getStringValue(),
+                mimetype: entry.mimetype(),
+                size: about.size ??= entry.asBytes().get_size(),
+                width: image ? about.width : null,
+                height: image ? about.height : null,
+                pinned: entry.isFavorite(),
+                current: !!item.currentlySelected,
+                copiedAt: about.copiedAt ?? null,
+            });
+        });
+    }
+
+    // One entry's contents, by the id history() gave it, for the search to put back on the clipboard when the
+    // person picks it; null for an id it does not know or in private mode
+    content (id) {
+        const indicator = this.clipboardIndicator;
+        if (!indicator || indicator._destroyed || PRIVATEMODE || indicator.registry?.state === 'locked')
+            return null;
+        const item = indicator.clipItemsRadioGroup.find(other => ENTRY_IDS.get(other.entry)?.id === id);
+        return item ? { mimetype: item.entry.mimetype(), bytes: item.entry.asBytes() } : null;
+    }
+}
+
+// The numbers the search knows the entries by, and when each was seen copied in this session: in memory only
+const ENTRY_IDS = new WeakMap();
+let lastEntryId = 0;
+
+function aboutEntry (entry) {
+    let about = ENTRY_IDS.get(entry);
+    if (!about) {
+        about = { id: ++lastEntryId };
+        ENTRY_IDS.set(entry, about);
+    }
+    return about;
+}
+
+// A PNG's width and height, from its header (IHDR, bytes 16 to 23), or nulls for any other picture
+function pngSize (entry) {
+    if (entry.mimetype() !== 'image/png')
+        return [null, null];
+    const bytes = entry.asBytes();
+    if (bytes.get_size() < 24)
+        return [null, null];
+    const head = bytes.new_from_bytes(0, 24).get_data();
+    if (String.fromCharCode(...head.slice(12, 16)) !== 'IHDR')
+        return [null, null];
+    const word = at => ((head[at] << 24) | (head[at + 1] << 16) | (head[at + 2] << 8) | head[at + 3]) >>> 0;
+    return [word(16) || null, word(20) || null];
 }
 
 // A type name of its own, so that Clipboard Indicator installed beside it does not clash
@@ -1129,6 +1197,7 @@ const ClipboardIndicator = GObject.registerClass({
             if (result) {
                 for (let menuItem of this.clipItemsRadioGroup) {
                     if (menuItem.entry.equals(result)) {
+                        aboutEntry(menuItem.entry).copiedAt = GLib.DateTime.new_now_local();
                         this._selectMenuItem(menuItem, false);
 
                         if (!menuItem.entry.isFavorite() && MOVE_ITEM_FIRST) {
@@ -1140,6 +1209,7 @@ const ClipboardIndicator = GObject.registerClass({
                 }
 
                 this.#addToCache(result);
+                aboutEntry(result).copiedAt = GLib.DateTime.new_now_local();
                 this._addEntry(result, true, false);
                 this._removeOldestEntries();
                 if (NOTIFY_ON_COPY) {

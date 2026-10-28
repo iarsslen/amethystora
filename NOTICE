@@ -111,6 +111,15 @@ windows draw the wordmark in Quicksand, under the SIL Open Font License, version
   - ICU4X      https://github.com/unicode-org/icu4x
   - Quicksand  https://github.com/andrew-paglinawan/QuicksandFamily
 
+The emoji and symbol lists and their names in usr/share/amethystora/emoji are made
+at build time from Unicode's emoji-test.txt (Emoji 16.0), the Unicode Character
+Database's UnicodeData.txt (16.0.0) and the Unicode CLDR's annotations (release
+47), Copyright (c) Unicode, Inc., under the Unicode License v3, which ships in
+usr/share/licenses/unicode/LICENSE.
+
+  - Unicode emoji  https://www.unicode.org/Public/emoji/16.0/
+  - Unicode CLDR   https://github.com/unicode-org/cldr
+
 The themes write the desktop in fonts of their own, each under the SIL Open Font
 License, version 1.1. Those Fedora packages come with their packages: Comfortaa,
 Fira Code, Geist and Geist Mono, IBM Plex Mono and Sans, Inter, JetBrains Mono,
@@ -179,7 +188,8 @@ usr/share/gnome-shell/extensions/amethystora-clipboard@iarsslen.github.io, is a
 modified copy of Clipboard Indicator version 71 (commit
 c880c7fb88dc7232a61a5864d125989a4f375daa), Copyright (c) 2014 Yotam Bar-On, under
 the MIT License, which ships in the extension's folder as LICENSE.rst.
-Amethystora's changes seal its history instead of writing it in plain text;
+Amethystora's changes seal its history instead of writing it in plain text, and let
+the desktop's search read it;
 the files it changed say so at their top. Its translations, in
 usr/share/locale/*/LC_MESSAGES/amethystora-clipboard.mo, are Clipboard
 Indicator's translators', under the same licence.

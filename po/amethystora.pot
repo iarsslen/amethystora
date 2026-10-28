@@ -17,7 +17,7 @@ msgstr ""
 msgid "Watching"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/settings.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search.js
 msgid "Apps"
 msgstr ""
 
@@ -1768,11 +1768,11 @@ msgstr ""
 msgid "New windows open next to each other, arranged for you, and Super+Left and Super+Right move between them. If you would rather have windows that float and overlap, as on Windows and macOS, use classic windows. ame desktop layout changes it any time."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
 msgid "On"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
 msgid "Off"
 msgstr ""
 
@@ -2693,12 +2693,104 @@ msgstr ""
 msgid "Clipboard"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/providers.js
 msgid "Clipboard history"
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "How long what you copy is kept, sealed under a key in your login keyring. Super+Shift+V shows it."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
+msgid "Search"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Sums and units"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Answers sums and conversions as you type, in your language's numbers."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Settings from Control"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Finds Control's settings, and changes one with Enter."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The manual"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Finds the pages of this manual that answer what you typed."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/menus.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/providers.js
+msgid "Open windows"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Finds an open window by its title, on any workspace."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Shows what you copied when you type clip: first, and only then."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Ask the agent"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The last row asks the AI agent, while the agentic features are on."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Glance at files"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Space shows a file found by the search without opening it."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "No tone (yellow)"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Light"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Medium light"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Medium"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Medium dark"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Dark"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Typing"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Emoji skin tone"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The tone of hands and people in the emoji picker, Super+.."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -3779,23 +3871,23 @@ msgstr ""
 msgid "On a new machine: the image, apps, containers and theme of your last backup, each step chosen first."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/settings.js
 msgid "Appearance"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/settings.js
 msgid "Desktop"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/settings.js
 msgid "The AI agent"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/settings.js
 msgid "System"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/settings.js
 msgid "Your setup"
 msgstr ""
 
@@ -5180,7 +5272,7 @@ msgstr ""
 msgid "About this computer"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/providers.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
 msgid "Manual"
 msgstr ""
 
@@ -6279,6 +6371,21 @@ msgstr ""
 #: usr/share/amethystora/just/desktop.just
 #, sh-format
 msgid "${app} is not a pinned app."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Skin tone: ${tone}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Key: ${keys}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The emoji picker shows hands and people in the ${tone} skin tone."
 msgstr ""
 
 #: usr/share/amethystora/just/report.just
@@ -8444,7 +8551,7 @@ msgstr ""
 msgid "Remove from the dock"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/dash.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/dash.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
 msgid "Recent"
 msgstr ""
 
@@ -8521,10 +8628,6 @@ msgid "Take the folder apart"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/menus.js
-msgid "Open windows"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/menus.js
 msgid "New window"
 msgstr ""
 
@@ -8598,6 +8701,78 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/stacks.js
 msgid "Nothing here yet"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "Search: arrow, euro, smile…"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/agent.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/manual.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/settings.js
+msgid "Enter"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "pastes"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "Esc"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "closes"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "Smileys"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "Arrows"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "Maths"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "Money"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "Punctuation"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "People"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "Nature"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "Food"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "Places"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "Activities"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "Objects"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "Symbols"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
+msgid "Flags"
 msgstr ""
 
 #. Translators: something smaller than the size or share shown, such as "< 1 kB"
@@ -9394,6 +9569,78 @@ msgstr ""
 msgid "Frame the area"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/agent.js
+msgid "Ask the agent: %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/answers.js
+msgid "in|to"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/answers.js
+msgid "Enter copies it"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/clipboard.js
+msgid "Picture, %d × %d"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/clipboard.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+msgid "Picture"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/clipboard.js
+msgid "Enter pastes"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/glance.js
+msgid "next result"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/glance.js
+msgid "Space"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/glance.js
+msgid "closes, the search stays"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/providers.js
+msgid "The history Amethystora Clipboard already keeps, in memory. Search stores nothing new."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/providers.js
+msgid "Do it"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/providers.js
+msgid "The agent"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/providers.js
+msgid "Only while it is on"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/section.js
+msgid "Ctrl %d"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/settings.js
+msgid "Control › %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/settings.js
+msgid "Enter opens a terminal"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search/windows.js
+msgid "Enter switches"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search.js
+msgid "Space previews"
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/backgrounds.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Workspace %d"
 msgstr ""
@@ -9538,10 +9785,6 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/desktop.js
 msgid "Click anywhere to bring the windows back"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
-msgid "Search"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
@@ -10033,10 +10276,6 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Name"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
-msgid "Picture"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js

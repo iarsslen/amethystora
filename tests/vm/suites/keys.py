@@ -30,6 +30,7 @@ KEYS = {
     "esc": 1, "tab": 15, "return": 28, "enter": 28, "ctrl": 29, "shift": 42, "alt": 56, "space": 57,
     "super": 125, "print": 99, "backspace": 14, "up": 103, "down": 108, "left": 105, "right": 106, "f4": 62, "w": 17,
     "volumeup": 115, "volumedown": 114,
+    "semicolon": 39, "period": 52, "comma": 51, "pagedown": 109, "pageup": 104, "insert": 110, "menu": 127,
 }
 for i, c in enumerate("1234567890"):
     KEYS[c] = 2 + i

@@ -1515,6 +1515,90 @@ dock *ARGS:
             ;;
     esac
 
+# What the search (Super+Space, and the overview's) finds besides GNOME's own: sums and units, Control's settings, the
+# manual, open windows, the clipboard after clip:, the agent row, and Glance on a file (WHAT: answers, settings,
+# manual, windows, clipboard, agent or glance; STATE: on or off). Without STATE it says what WHAT is; without WHAT,
+# all seven
+[positional-arguments]
+search WHAT="" STATE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.search
+    parts=(answers settings manual windows clipboard agent glance)
+    usage() {
+        echo "usage: ame desktop search [answers|settings|manual|windows|clipboard|agent|glance] [on|off]"
+        exit 2
+    }
+    state_of() {
+        if [[ "$(gsettings get "${schema}" "$1")" == true ]]; then echo on; else echo off; fi
+    }
+    what="${1:-}"
+    state="${2:-}"
+    if [[ -z "${what}" ]]; then
+        for part in "${parts[@]}"; do
+            printf '%-10s %s\n' "${part}" "$(state_of "${part}")"
+        done
+        exit 0
+    fi
+    # Each part by the name Control gives it
+    case "${what}" in
+        answers) title="$(gettext "Sums and units")" ;;
+        settings) title="$(gettext "Settings from Control")" ;;
+        manual) title="$(gettext "The manual")" ;;
+        windows) title="$(gettext "Open windows")" ;;
+        clipboard) title="$(gettext "Clipboard history")" ;;
+        agent) title="$(gettext "Ask the agent")" ;;
+        glance) title="$(gettext "Glance at files")" ;;
+        *) usage ;;
+    esac
+    case "${state}" in
+        "") state_of "${what}" ;;
+        on)
+            gsettings set "${schema}" "${what}" true
+            echo "${title}: $(gettext "On")"
+            ;;
+        off)
+            gsettings set "${schema}" "${what}" false
+            echo "${title}: $(gettext "Off")"
+            ;;
+        *) usage ;;
+    esac
+
+# The emoji and symbols picker (Super+.): the skin tone of the hands and people it shows (ame desktop emoji tone
+# none|light|medium-light|medium|medium-dark|dark). Without anything, the tone and the key
+[positional-arguments]
+emoji ACTION="" VALUE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.emoji
+    usage() {
+        echo "usage: ame desktop emoji [tone none|light|medium-light|medium|medium-dark|dark]"
+        exit 2
+    }
+    case "${1:-}" in
+        "")
+            tone="$(gsettings get "${schema}" skin-tone | tr -d "'")"
+            keys="$(gsettings get "${schema}" emoji-picker)"
+            echo "$(eval_gettext "Skin tone: \${tone}")"
+            echo "$(eval_gettext "Key: \${keys}")"
+            ;;
+        tone)
+            tone="${2:-}"
+            case "${tone}" in
+                none | light | medium-light | medium | medium-dark | dark)
+                    gsettings set "${schema}" skin-tone "${tone}"
+                    echo "$(eval_gettext "The emoji picker shows hands and people in the \${tone} skin tone.")"
+                    ;;
+                *) usage ;;
+            esac
+            ;;
+        *) usage ;;
+    esac
+
 # The terminal's own tools in place of the usual ones: eza for ls, bat for cat, ugrep for grep, with zoxide, direnv and mise (ACTION: on or off)
 [positional-arguments]
 bling ACTION="":

@@ -101,6 +101,20 @@ impl Index {
         Ok(Index::new(passages, aliases, vectors, dims, dir.join("model")))
     }
 
+    /// The passages in `dir` that `keep` takes, ranked by words alone: neither the vectors nor the model are read, so
+    /// that a question answers in milliseconds (the desktop's search asks one per pause in typing)
+    pub fn load_words(dir: &Path, keep: impl Fn(&Passage) -> bool) -> Result<Index, String> {
+        let text = std::fs::read_to_string(dir.join("index.jsonl")).map_err(|error| format!("{}: {error}", dir.join("index.jsonl").display()))?;
+        let passages: Vec<Passage> = text
+            .lines()
+            .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+            .filter_map(|value| Passage::from_json(&value))
+            .filter(|passage| keep(passage))
+            .collect();
+        let aliases = Aliases::parse(&std::fs::read_to_string(dir.join("aliases.tsv")).unwrap_or_default());
+        Ok(Index::new(passages, aliases, None, 0, dir.join("model")))
+    }
+
     pub fn new(passages: Vec<Passage>, aliases: Aliases, vectors: Option<Vec<f32>>, dims: usize, model_dir: PathBuf) -> Index {
         let bm25 = Bm25::new(passages.iter().map(|p| [p.title.clone(), words::code_of(&p.text), p.text.clone()]));
         Index { passages, bm25, aliases, vectors, model_dir, model: std::sync::OnceLock::new(), dims }
@@ -198,6 +212,33 @@ impl Index {
     }
 }
 
+/// The manual's own pages and sections that answer `words`, for the desktop's search: ranked by words (BM25F, with the
+/// knowledge's aliases), only passages of the manual kept, a section cut in several parts given once, the first `k`.
+/// Each is `{"id", "page", "anchor", "title"}`, where `page#anchor` is what the Manual opens (`anchor` empty for a
+/// page's top). The manual is everyone's to read, so this asks nothing of the agent's switches.
+pub fn manual_search(index: &Index, words: &str, k: usize) -> Vec<Value> {
+    let plain = |part: &str| part.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+    let mut found: Vec<Value> = Vec::new();
+    for at in index.ranked(words, Ranking::Words) {
+        let passage = &index.passages[at];
+        if passage.kind != "manual" {
+            continue;
+        }
+        // `manual/updates#rolling-back~2` is the second part of the section `manual/updates#rolling-back`
+        let id = passage.id.split('~').next().unwrap_or("");
+        let Some(rest) = id.strip_prefix("manual/") else { continue };
+        let (page, anchor) = rest.split_once('#').unwrap_or((rest, ""));
+        if page.is_empty() || !plain(page) || !plain(anchor) || found.iter().any(|seen| seen["id"] == id) {
+            continue;
+        }
+        found.push(json!({"id": id, "page": page, "anchor": anchor, "title": passage.title}));
+        if found.len() == k {
+            break;
+        }
+    }
+    found
+}
+
 /// The first sentence or two of a passage, for a search hit: about 200 characters, cut at a word
 pub fn snippet(text: &str) -> String {
     let flat: String = text
@@ -254,6 +295,36 @@ mod tests {
         assert_eq!(index.read("updates#rolling-back").unwrap().0.id, "manual/updates#rolling-back");
         assert!(index.read("nothing").is_none());
         assert!(!index.has_meaning());
+    }
+
+    #[test]
+    fn manual_search_gives_the_manual_only() {
+        let mut playbook = passage("playbook/rolling-back", "Rolling back", "Rolling back an update when it broke the machine.");
+        playbook.kind = "playbook".into();
+        let index = Index::new(
+            vec![
+                playbook,
+                passage("manual/updates", "Updates", "Updates arrive by themselves. Rolling back is one command."),
+                passage("manual/updates#rolling-back", "Updates › Rolling back", "Rolling back to the version before."),
+                passage("manual/updates#rolling-back~2", "Updates › Rolling back", "More on rolling back an update."),
+                passage("manual/sound", "Sound", "No sound? Check the output device with wpctl."),
+            ],
+            Aliases::parse(""),
+            None,
+            0,
+            PathBuf::from("/nonexistent"),
+        );
+        let found = manual_search(&index, "rolling back", 3);
+        assert_eq!(
+            found[0],
+            json!({"id": "manual/updates#rolling-back", "page": "updates", "anchor": "rolling-back", "title": "Updates › Rolling back"})
+        );
+        // The section once, though it is in two parts, and never the playbook
+        assert_eq!(found.iter().filter(|hit| hit["id"] == "manual/updates#rolling-back").count(), 1);
+        assert!(found.iter().all(|hit| hit["id"].as_str().unwrap().starts_with("manual/")));
+        assert_eq!(found.iter().find(|hit| hit["id"] == "manual/updates").map(|hit| hit["anchor"].clone()), Some(json!("")));
+        assert_eq!(manual_search(&index, "rolling back", 1).len(), 1);
+        assert!(manual_search(&index, "zzzz", 3).is_empty());
     }
 
     #[test]

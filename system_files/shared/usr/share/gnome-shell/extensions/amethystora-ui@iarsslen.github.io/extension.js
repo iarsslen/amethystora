@@ -16,6 +16,7 @@ import {Workspaces} from './modules/workspaces.js';
 import {Meters} from './modules/meters.js';
 import {Tray} from './modules/tray.js';
 import {Search} from './modules/search.js';
+import {Emoji} from './modules/emoji.js';
 import {Fuzzy} from './modules/fuzzy.js';
 import {Screenshot} from './modules/screenshot.js';
 import {Bazaar} from './modules/bazaar.js';
@@ -52,6 +53,7 @@ const MODULES = [
     ['bars', Bars],
     ['today', Today],
     ['dock', Dock],
+    ['emoji', Emoji],
     ['glass', Glass],
     ['pointer', Pointer],
     ['tiling', Tiling],

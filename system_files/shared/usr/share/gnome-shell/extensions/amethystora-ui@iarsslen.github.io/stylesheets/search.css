@@ -1,86 +1,299 @@
-/* The search box (modules/search.js). Its colours are fixed, dark with white text, in every theme, so they are here
-   rather than in a themed template. The field and the results are the overview's own while they are lent to the
-   box: every rule below is inside the box, and the overview keeps its own look. */
+/* The search box, the Card (modules/search.js), and the sections of Amethystora's own providers (modules/search/):
+   sizes, spacing and corners. Their colours follow the theme (shell-search.css, from shell-search.css.tpl); the ones
+   here are dark stand-ins, with white text, until a theme has been applied. The overview's field and results are the
+   overview's own while they are lent to the box: every rule about them is inside the box, and the overview keeps its
+   look. */
 
 .amethystora-search-box {
-  background-color: rgba(0, 0, 0, 0.92);
-  border: 1px solid rgb(58, 58, 58);
-  border-radius: 16px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  padding: 2px;
+  border-radius: 24px;
+  padding: 10px;
+  background-color: rgba(30, 30, 36, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
   color: #ffffff;
 }
 
-/* The field: the box's whole width, no frame of its own, large text */
+/* With the glass behind it, the glass draws its veil and its hairline */
+.amethystora-search-box.amethystora-glass-pane {
+  background-color: transparent;
+  border-color: transparent;
+  -amethystora-glass-edge: rgba(255, 255, 255, 0.16);
+}
+
+/* The field: one line 54 px high, the search icon 20 px, a rule under it */
 .amethystora-search-box .search-entry,
 .amethystora-search-box .search-entry:hover,
 .amethystora-search-box .search-entry:focus,
 .amethystora-search-box .search-entry:focus:hover,
 .amethystora-search-box .search-entry:insensitive {
   width: auto;
-  background-color: transparent;
-  border: none;
-  box-shadow: none;
-  border-radius: 8px;
-  padding: 18px;
+  height: 54px;
   margin: 0;
+  padding: 0 12px;
+  border-radius: 0;
+  border-width: 0 0 1px 0;
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.10);
+  background-color: transparent;
+  box-shadow: none;
   color: #ffffff;
-  font-size: 16pt;
+  font-size: 20px;
+  font-weight: 600;
+  caret-color: #dcbcff;
 }
 
 .amethystora-search-box .search-entry .search-entry-icon {
-  color: #ffffff;
+  icon-size: 20px;
+  margin: 0;
+  padding: 0 6px 0 0;
+  color: #dcbcff;
+}
+
+.amethystora-search-box .search-entry .search-entry-icon:rtl {
+  padding: 0 0 0 6px;
 }
 
 .amethystora-search-box .search-entry StLabel.hint-text {
   color: rgba(255, 255, 255, 0.7);
 }
 
-/* The results: 20 px below the field, 12 px from the sides */
+/* The results: straight under the field, no cards of their own */
 .amethystora-search-box #searchController {
-  padding: 20px 12px 12px 12px;
+  padding: 0;
 }
 
 .amethystora-search-box #searchResults {
   margin: 0;
 }
 
-/* Each list of results (files, settings, the calculator...) on a rounded card */
-.amethystora-search-box .search-section-content {
-  background-color: rgba(100, 100, 100, 0.2);
-  border-radius: 16px;
-  color: #ffffff;
+.amethystora-search-box #searchResultsContent {
+  spacing: 0;
 }
 
-/* App tiles and list rows: clear, lighter where the pointer or the keyboard is, lighter still when selected */
-.amethystora-search-box .overview-tile,
-.amethystora-search-box .grid-search-result,
-.amethystora-search-box .list-search-result,
-.amethystora-search-box .search-provider-icon {
+.amethystora-search-box .search-section {
+  spacing: 0;
+}
+
+.amethystora-search-box .search-section .search-section-separator {
+  height: 0;
+}
+
+.amethystora-search-box .search-section-content {
+  background-color: transparent;
+  border-radius: 0;
+  border-width: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.amethystora-search-box .search-statusbox {
+  padding: 16px 0 8px;
+  spacing: 8px;
+}
+
+.amethystora-search-box .search-statustext {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* A section's title: small capitals over its rows */
+.amethystora-search-section-header {
+  spacing: 8px;
+}
+
+.amethystora-search-section-title {
+  padding: 8px 12px 2px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.69px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.amethystora-search-section-header .amethystora-search-section-tag {
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.44px;
+  background-color: rgba(141, 219, 164, 0.18);
+  color: #a7e8ba;
+}
+
+.amethystora-search-section-note {
+  padding: 8px 12px 4px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.amethystora-search-rows {
+  spacing: 0;
+}
+
+/* A row: 46 px high, a 28 px picture, the title, a note after it, the hint at its end */
+.amethystora-search-row,
+.amethystora-search-box .list-search-result {
+  min-height: 46px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
   background-color: transparent;
   box-shadow: none;
   color: #ffffff;
+  transition-duration: 0ms;
 }
 
-.amethystora-search-box .overview-tile:hover,
-.amethystora-search-box .overview-tile:focus,
-.amethystora-search-box .overview-tile:active,
-.amethystora-search-box .grid-search-result:hover,
-.amethystora-search-box .grid-search-result:focus,
-.amethystora-search-box .grid-search-result:active,
-.amethystora-search-box .list-search-result:hover,
-.amethystora-search-box .list-search-result:focus,
-.amethystora-search-box .list-search-result:active,
+.amethystora-search-row-content,
+.amethystora-search-box .list-search-result-content,
+.amethystora-search-box .list-search-result-title {
+  spacing: 12px;
+}
+
+.amethystora-search-row:hover,
+.amethystora-search-box .list-search-result:hover {
+  background-color: rgba(255, 255, 255, 0.09);
+}
+
+.amethystora-search-row:selected,
+.amethystora-search-row:focus,
+.amethystora-search-box .list-search-result:selected,
+.amethystora-search-box .list-search-result:focus {
+  background-color: rgba(145, 72, 240, 0.45);
+  color: #ffffff;
+}
+
+.amethystora-search-pic {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background-color: rgba(255, 255, 255, 0.10);
+}
+
+.amethystora-search-pic-icon {
+  color: #ffffff;
+}
+
+.amethystora-search-pic-letters {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.amethystora-search-pic.amethystora-search-pic-agent {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+
+.amethystora-search-pic-agent .amethystora-search-pic-icon {
+  color: #ffffff;
+}
+
+.amethystora-search-row-meta,
+.amethystora-search-box .list-search-result-description {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.amethystora-search-row-pin {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.amethystora-search-row-hint {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* The answer to a sum, in place of a row */
+.amethystora-search-answer {
+  margin: 4px 4px 8px;
+  padding: 16px;
+  border-radius: 14px;
+  background-color: rgba(145, 72, 240, 0.32);
+  color: #ffffff;
+}
+
+.amethystora-search-answer:selected,
+.amethystora-search-answer:focus {
+  box-shadow: inset 0 0 0 2px #dcbcff;
+}
+
+.amethystora-search-answer-content {
+  spacing: 12px;
+}
+
+.amethystora-search-answer-value {
+  font-size: 34px;
+  font-weight: 700;
+}
+
+.amethystora-search-answer-hint {
+  font-size: 13px;
+  margin-bottom: 6px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* GNOME's own sections in the box: the provider's name a title over its results, its icon put away */
+.amethystora-search-box .search-provider-icon,
 .amethystora-search-box .search-provider-icon:hover,
 .amethystora-search-box .search-provider-icon:focus,
 .amethystora-search-box .search-provider-icon:active {
-  background-color: rgba(100, 100, 100, 0.2);
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background-color: transparent;
   box-shadow: none;
 }
 
-.amethystora-search-box .overview-tile:selected,
-.amethystora-search-box .grid-search-result:selected,
-.amethystora-search-box .list-search-result:selected,
-.amethystora-search-box .search-provider-icon:selected {
-  background-color: rgba(100, 100, 100, 0.4);
+.amethystora-search-box .list-search-provider-content {
+  spacing: 0;
+}
+
+.amethystora-search-box .list-search-provider-details {
+  width: auto;
+}
+
+.amethystora-search-box .list-search-results {
+  spacing: 0;
+}
+
+.amethystora-search-box .amethystora-search-more {
+  padding: 0 12px 2px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.amethystora-search-box .grid-search-results {
+  padding: 4px 0;
+}
+
+/* Glance: the hint under the previewer */
+.amethystora-search-glance-hint {
+  border-radius: 14px;
+  padding: 6px 12px;
+  spacing: 6px;
+  font-size: 12px;
+  background-color: rgba(30, 30, 36, 0.92);
+  color: #ffffff;
+}
+
+.amethystora-search-glance-hint.amethystora-glass-pane {
+  background-color: transparent;
+}
+
+.amethystora-search-glance-gap {
+  width: 10px;
+}
+
+.amethystora-search-key {
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.amethystora-search-glance-words {
+  color: rgba(255, 255, 255, 0.85);
 }

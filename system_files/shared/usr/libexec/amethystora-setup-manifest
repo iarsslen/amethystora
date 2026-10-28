@@ -46,7 +46,8 @@ brew_names() { sed -nE "s/^$1 \"([^\"]+)\".*/\1/p" <<<"${BREWFILE}" | jq -R . | 
 # dconf database, which `dconf read -d` reads.
 KEY_SCHEMAS=(org.gnome.desktop.wm.keybindings org.gnome.shell.keybindings org.gnome.mutter.keybindings
     org.gnome.mutter.wayland.keybindings org.gnome.settings-daemon.plugins.media-keys
-    org.gnome.shell.extensions.amethystora-ui.tiling.keybindings org.gnome.shell.extensions.amethystora-ui.windows)
+    org.gnome.shell.extensions.amethystora-ui.tiling.keybindings org.gnome.shell.extensions.amethystora-ui.windows
+    org.gnome.shell.extensions.amethystora-ui.search org.gnome.shell.extensions.amethystora-ui.emoji)
 CUSTOM=/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings
 # The tiling's settings amethystora-setup's TILING_KEYS takes, which test-setup.sh holds this list to: never
 # `enabled`, which is the layout, nor the window rules or a picture, which hold patterns and paths
@@ -97,6 +98,12 @@ TODAY=org.gnome.shell.extensions.amethystora-ui.today
 TODAY_KEYS=(tasks)
 BREAKS=org.gnome.desktop.break-reminders
 BREAKS_KEYS=(selected-breaks)
+# The search's switches and the emoji picker's skin tone, which amethystora-setup's SEARCH_KEYS and EMOJI_KEYS take;
+# their keybindings (open, emoji-picker) are kept with the other keybindings
+SEARCH=org.gnome.shell.extensions.amethystora-ui.search
+SEARCH_KEYS=(answers settings manual windows clipboard agent glance)
+EMOJI=org.gnome.shell.extensions.amethystora-ui.emoji
+EMOJI_KEYS=(skin-tone)
 
 # The tiling, while it runs, takes a combination out of four GNOME keys that it cannot wrap in memory, and
 # writes down what it took in its state file, to put back when it is turned off: the account's own value is the
@@ -178,6 +185,8 @@ settings() {
         changed "${BARS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${BARS_KEYS[@]}") -
         changed "${TODAY}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${TODAY_KEYS[@]}") -
         changed "${BREAKS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${BREAKS_KEYS[@]}") -
+        changed "${SEARCH}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${SEARCH_KEYS[@]}") -
+        changed "${EMOJI}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${EMOJI_KEYS[@]}") -
     } | while read -r schema key value; do
         value="$(as_json <<<"${value}")" && [[ -n "${value}" ]] || continue
         jq -nc --arg s "${schema}" --arg k "${key}" --argjson v "${value}" '{schema: $s, key: $k, value: $v}'
@@ -197,11 +206,13 @@ LAYOUT=tiling
 [[ "$(gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled 2>/dev/null)" == false ]] && LAYOUT=classic
 SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" --arg pointer "${POINTER}" --arg glass "${GLASS}" \
     --arg windows "${WINDOWS}" --arg dock "${DOCK}" --arg motion "${MOTION}" --arg workspaces "${WORKSPACES}" \
-    --arg pill "${PILL}" --arg quick "${QUICK}" --arg bars "${BARS}" --arg today "${TODAY}" --arg breaks "${BREAKS}" '
+    --arg pill "${PILL}" --arg quick "${QUICK}" --arg bars "${BARS}" --arg today "${TODAY}" --arg breaks "${BREAKS}" \
+    --arg search "${SEARCH}" --arg emoji "${EMOJI}" '
     map(if .schema == "custom" then .value |= (if . == "" then [] else [.] end) else . end) as $all
     | {layout: $layout}
     + ([$all[] | select(.schema == "org.gnome.shell")] | if length > 0 then {favorites: .[0].value} else {} end)
     + {keybindings: (reduce ($all[] | select(if .schema == $windows then .key == "snap-chooser"
+            elif .schema == $search then .key == "open" elif .schema == $emoji then .key == "emoji-picker"
             else .schema | IN("org.gnome.shell", $tiling, $pointer, $glass, $motion, $workspaces, $dock, $pill, $quick, $bars,
                 $today, $breaks) | not end))
         as $e ({}; .[$e.schema][$e.key] = $e.value))}
@@ -219,7 +230,11 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
     + ([$all[] | select(.schema == $quick)] | if length > 0 then {quick: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $bars)] | if length > 0 then {bars: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $today)] | if length > 0 then {today: (map({(.key): .value}) | add)} else {} end)
-    + ([$all[] | select(.schema == $breaks)] | if length > 0 then {breaks: (map({(.key): .value}) | add)} else {} end)')"
+    + ([$all[] | select(.schema == $breaks)] | if length > 0 then {breaks: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $search and .key != "open")]
+        | if length > 0 then {search: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $emoji and .key != "emoji-picker")]
+        | if length > 0 then {emoji: (map({(.key): .value}) | add)} else {} end)')"
 
 # The image the machine runs, which is the one it follows, as rpm-ostree has it (amethystora-deployments
 # asks bootc on a sealed image)

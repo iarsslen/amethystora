@@ -5,7 +5,8 @@
 # told about Amethystora. An agent already installed stays installed either way.
 #
 #   amethystora-agent                  open the agent in a terminal (Super+Ctrl+Shift+A)
-#   amethystora-agent ask "<prompt>"   open it with a first prompt
+#   amethystora-agent ask [--] "<prompt>"
+#                                      open it with a first prompt (never one that starts with "-")
 #   amethystora-agent diagnose [<pid>|<unit>|"<what went wrong>"]
 #                                      find out why something broke, without changing anything
 #   amethystora-agent triage <event>   explain a security watcher's finding (the Security app's Events)
@@ -164,8 +165,10 @@ launch() {
         die "agentic features are off. Turn them on in Control, AI agent, or with: ame agent toggle on"
     fi
     # Opened from a keybinding there is no terminal attached, so it reopens itself in one
+    # (with --, so that a question is never read as an option on the way)
     if [[ ! -t 0 ]]; then
-        exec xdg-terminal-exec "$0" ask "$@"
+        [[ $# -gt 0 ]] || exec xdg-terminal-exec "$0"
+        exec xdg-terminal-exec "$0" ask -- "$@"
     fi
     sync_skills
     name="$(agent)"
@@ -393,7 +396,15 @@ Use the amethystora-diagnose skill to look into it, reading only. Explain what i
 
 case "${1:-}" in
     "") launch ;;
-    ask) shift; launch "$@" ;;
+    ask)
+        shift
+        [[ ${1:-} != -- ]] || shift
+        # Every agent would take a question that starts with "-" for one of its options, blanks before it or not
+        question="$*"
+        question="${question#"${question%%[![:space:]]*}"}"
+        [[ -n ${question} && ${question} != -* ]] || die "a question cannot be empty or start with \"-\""
+        launch "$@"
+        ;;
     diagnose) shift; diagnose "$@" ;;
     triage) shift; triage "$@" ;;
     use)

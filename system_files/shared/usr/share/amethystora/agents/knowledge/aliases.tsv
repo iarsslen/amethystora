@@ -86,6 +86,9 @@ ssh	sshd firewall login
 vpn	network wireguard tailscale
 dark mode	dark style theme color-scheme
 dark theme	dark style theme
+yellow	night light warmer colour
+warm screen	night light
+blue light	night light
 wallpaper	background theme
 theme	themes colours amethystora-theme
 font	text size fonts

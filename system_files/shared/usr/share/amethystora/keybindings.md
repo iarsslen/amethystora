@@ -64,6 +64,7 @@ the top bar on the left.
 | Key | Action |
 | --- | --- |
 | `Super+Space` | Search and launch |
+| `Ctrl+1` … `Ctrl+9`, `Space` | In the search: open the result with that number; `Space` on a file shows it without opening it |
 | `Super` | The overview: every open window, and search |
 | `Super+A` | Every installed app |
 | `Alt+F2` | Run one command |
@@ -73,7 +74,8 @@ the top bar on the left.
 | `Super+Shift+F` | Files |
 | `Super+E` | Home folder |
 | `Ctrl+Shift+Esc` | Mission Center, to see and stop what is running |
-| `Ctrl+Alt+Space` or `Super+.` | Emoji picker |
+| `Super+.` | Emoji and symbols over the window you are typing in |
+| `Ctrl+Alt+Space` | Smile, the emoji app |
 | `Super+Ctrl+Shift+A` | An AI agent that knows this system, once you turn it on (`ame agent toggle on`) |
 | `Super+Ctrl+Shift+C` | Control: the theme, windows, games, the agent, the image and Amethystora's other settings |
 | `Super+F1` | This manual |

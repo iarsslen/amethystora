@@ -5,6 +5,9 @@
 //!   amethystora-agent-tools read ID                  without MCP (amethystora-agent search|read|state)
 //!   amethystora-agent-tools state TOPIC [FILTER]
 //!   amethystora-agent-tools history [ID]
+//!   amethystora-agent-tools manual-search [-k N] -- WORDS...
+//!                                                    the manual's pages that answer WORDS, as JSON, for the
+//!                                                    desktop's search: no policy asked, nothing recorded
 //!   amethystora-agent-tools policy [--json|--level|--ceiling]
 //!                                                    what this account may use, and the administrator's settings
 //!   amethystora-agent-tools conf allow act|know|off|default [ACCOUNT] | conf root MODE
@@ -27,6 +30,7 @@ use serde_json::{Value, json};
 
 fn usage() -> ExitCode {
     eprintln!("usage: amethystora-agent-tools mcp | search QUERY... | read ID | state TOPIC [FILTER] | history [ID] | policy [--json]");
+    eprintln!("       amethystora-agent-tools manual-search [-k N] -- WORDS...");
     eprintln!("       amethystora-agent-tools index --write DIR [--root ROOT] [--sources-only] [--model DIR] | eval GOLDEN [--dir DIR] [--min R]");
     ExitCode::from(64)
 }
@@ -76,6 +80,31 @@ fn main() -> ExitCode {
                 at += 1;
             }
             say(Server::default().call("search", &json!({"query": words.join(" "), "k": k})))
+        }
+        // The desktop's search: the manual alone, for everyone, whatever the agent's switches say; nothing but the
+        // manual's passages of the index read, by words alone (no vectors, no model), nothing written down
+        "manual-search" => {
+            let mut k = 3;
+            let mut at = 0;
+            while at < rest.len() && rest[at] != "--" {
+                if rest[at] == "-k" {
+                    k = rest.get(at + 1).and_then(|n| n.parse::<usize>().ok()).unwrap_or(3);
+                    at += 2;
+                } else {
+                    return usage();
+                }
+            }
+            let words = rest.get(at + 1..).unwrap_or_default().join(" ");
+            let found = if words.trim().is_empty() {
+                Vec::new()
+            } else {
+                match Index::load_words(std::path::Path::new(index::DIR), |passage| passage.kind == "manual") {
+                    Ok(index) => index::manual_search(&index, &words, k.clamp(1, 5)),
+                    Err(_) => Vec::new(),
+                }
+            };
+            println!("{}", Value::Array(found));
+            ExitCode::SUCCESS
         }
         "read" if rest.len() == 1 => say(Server::default().call("read", &json!({"id": rest[0]}))),
         "state" if !rest.is_empty() => {

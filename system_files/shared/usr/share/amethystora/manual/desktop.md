@@ -172,11 +172,19 @@ Nothing is lost when the card goes: everything is in the list. `ame desktop dige
 The volume, the brightness and the other signs GNOME shows for a key (Caps Lock, flight mode) appear as
 a slim pill just under the top bar, instead of a card low in the middle of the screen.
 
+## Night Light and the screen's colour
+
+Night Light makes the screen's colours warmer, more yellow, from sunset to sunrise or between the times you
+choose, which is easier on the eyes at night. If the screen turns yellow in the evening, that is Night Light.
+Turn it on or off in the quick settings at the top right, and set its times and how warm it is in
+**Settings**, **Displays**, **Night Light**. [Quiet at night](#quiet) follows the same times.
+
 ## Finding things
 
-- `Super+Space` opens a search box over your windows: type, and `Enter` opens the first result.
-  `Escape`, the same keys again or a click elsewhere closes it. Right-click a result for its menu, or
-  drag an app onto the dock to pin it.
+- `Super+Space` opens a search box near the top of the screen, over your windows: type, and `Enter`
+  opens the first result; `Ctrl+1` to `Ctrl+9` open the result with that number, which each of
+  Amethystora's rows shows at its end. `Escape`, the same keys again or a click elsewhere closes it.
+  Right-click a result for its menu, or drag an app onto the dock to pin it.
 - `Super` alone opens the overview: every open window at once, with search at the top.
 - `Super+A` shows every installed app. Some are gathered in folders: **Utilities** (Flatseal, Warehouse,
   Extension Manager, Firmware, Ignition, Impression, Refine and the like), **Productivity**,
@@ -184,6 +192,35 @@ a slim pill just under the top bar, instead of a card low in the middle of the s
 
 Both searches forgive typos, missing letters and initials in app names: `calxu` still finds
 Calculator, and `mc` finds Mission Center. They find Power Off, Restart and the other actions too.
+
+Besides apps, files and GNOME's settings, both searches answer from this machine, and nothing is sent
+anywhere:
+
+- **Sums and conversions**, as you type, in your language's numbers: `1284 * 0.18` gives 231.12,
+  `200 + 10%` gives 220, `3.5 km in miles` gives 2.1748 mi and `21 °C in °F` gives 69.8 °F. `Enter`
+  copies the answer. It converts lengths (mm, cm, m, km, in, ft, yd, mi, nautical miles), weights (mg, g,
+  kg, t, oz, lb, stone), temperatures (°C, °F, K), data (bits and bytes, kB to PB, KiB to PiB) and time
+  (ms to weeks). No currencies: their rates would have to come from the internet.
+- **Do it**: [Control](control.md)'s settings, found by their words. `Enter` on a row such as
+  *Phone pairing: On* changes the setting at once; one that asks something or needs a password opens a
+  terminal. *Control › …* opens it in Control.
+- **Open windows**, by title or app, on any workspace: `Enter` switches to it.
+- **The manual**: the pages of this manual that answer what you typed, by meaning as well as by words.
+- **Clipboard history**, only when you type `clip:` first, and words after it to narrow it down:
+  `clip: ssh`. `Enter` pastes the item where you were typing. It is the history
+  [the clipboard](#the-clipboard) already keeps; the search stores nothing new.
+- **The agent**, only while the [agentic features](ai-agent.md) are on: the last row, *Ask the agent:
+  …*, opens your agent in a terminal with what you typed as its first question. Nothing starts before
+  `Enter`, and the agent asks before it changes anything, as always.
+- **Glance**: with the keyboard on a file Files found (`↓` to it), `Space` shows it without opening
+  it. `↑` and `↓` go to the other files found; `Space` again closes it, and the search is still there.
+
+Each can be turned off, in Control's **Search** group or in a terminal:
+
+```bash
+ame desktop search                     # each, and whether it is on
+ame desktop search answers off         # answers, settings, manual, windows, clipboard, agent or glance
+```
 
 ## The clipboard
 
@@ -214,6 +251,30 @@ After logging in with a fingerprint or a security key, your keyring stays locked
 what you copy from then on, under **Unlock to see earlier items**. Click it and type your password to
 see the rest. The history is sealed under this machine's keyring: on another machine, or after an
 administrator resets your password, it does not open, and it is kept aside as `history.unreadable`.
+
+## Emoji and symbols
+
+`Super+.` opens emoji and symbols over the window you are typing in, under the text cursor. Type to
+search, in your language or in English (`euro`, `arrow`, `smile`), or pick a tab: **Recent**,
+**Smileys**, **Arrows**, **Maths**, **Money**, **Punctuation**, and the rest of Unicode's emoji. `Enter`
+or a click puts the one picked where you were typing; `Escape` closes it without typing anything. The
+arrow keys move in the grid, `Tab` goes between the search, the tabs and the grid, and
+`Ctrl+Page Down` and `Ctrl+Page Up` change tab.
+
+What you pick is typed straight in where the app allows it. Otherwise it goes through the clipboard and
+is pasted with `Shift+Insert`, or `Ctrl+Shift+V` in a terminal, and then it stays on the clipboard.
+
+Hands and people come in the skin tone you choose: right-click one, hold it, or press the `Menu` key on
+it for the six tones, and the one you pick becomes the tone for the rest. It is also in Control's
+**Typing** group, or:
+
+```bash
+ame desktop emoji tone medium    # none, light, medium-light, medium, medium-dark or dark
+```
+
+Your recent picks are kept on this computer only, in `~/.local/state/amethystora/emoji.json`. The lists
+and the names come from Unicode's emoji list (Emoji 16.0) and the Unicode CLDR, under the Unicode
+License. Smile, the emoji app, is still on `Ctrl+Alt+Space`.
 
 ## Screenshots
 
