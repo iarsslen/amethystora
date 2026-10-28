@@ -355,8 +355,8 @@ or more (`ame desktop dock indicator dot` for a dot per window, `glow` for a lig
 
 ### What the dock holds
 
-After the running apps come the last three apps you used that are not pinned (`ame desktop dock recent off` to
-leave them out). GNOME's own record of app use fills them at login, and again after the screen was locked, since
+After the running apps come the last three apps you used that are neither pinned nor running (`ame desktop dock
+recent off` to leave them out). GNOME's own record of app use fills them at login, and again after the screen was locked, since
 the dock remembers the order you used them in nowhere but in memory; with **Usage history** off in Settings ›
 Privacy, there are none.
 

@@ -55,6 +55,8 @@ export class LauncherEntries extends EventEmitter {
     stop() {
         this._running = false;
         this._banners?.disconnectObject(this);
+        // Disposed now rather than by the collector (dock.js says why)
+        this._banners?.run_dispose();
         this._banners = null;
         if (this._subscription)
             Gio.DBus.session.signal_unsubscribe(this._subscription);

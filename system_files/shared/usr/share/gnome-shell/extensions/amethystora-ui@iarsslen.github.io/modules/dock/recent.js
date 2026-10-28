@@ -1,6 +1,7 @@
 // The apps used lately (spec 1.5): the order in which apps had the focus in this session, newest first, kept in
 // memory and written nowhere. Before any app has had the focus, GNOME's own record of app use fills it. With GNOME's
-// usage history off there is none. Each dock shows the first three that are neither pinned nor running there.
+// usage history off there is none. Each dock shows the first three that are neither pinned nor running, wherever their
+// windows are (on another screen or, with this workspace's apps only, another workspace).
 
 import Gio from 'gi://Gio';
 import Shell from 'gi://Shell';
@@ -29,6 +30,8 @@ export class Recent extends EventEmitter {
 
     stop() {
         this._privacy?.disconnectObject(this);
+        // Disposed now rather than by the collector (dock.js says why)
+        this._privacy?.run_dispose();
         this._privacy = null;
         Shell.WindowTracker.get_default().disconnectObject(this);
         this._ids = [];
@@ -62,7 +65,8 @@ export class Recent extends EventEmitter {
         this.emit('changed');
     }
 
-    // The apps a dock shows: installed, shown in menus, allowed by Parental Controls, neither pinned nor running there
+    // The apps a dock shows: installed, shown in menus, allowed by Parental Controls, neither pinned nor running
+    // (running: the dock's own running group, which also holds an app still starting)
     shownFor(running) {
         const system = Shell.AppSystem.get_default();
         const favorites = AppFavorites.getAppFavorites();
@@ -74,7 +78,7 @@ export class Recent extends EventEmitter {
             const app = system.lookup_app(id);
             const info = app?.get_app_info();
             if (!app || !info || app.is_window_backed() || !info.should_show() || favorites.isFavorite(id) ||
-                running.includes(app) || !parental.shouldShowApp(info))
+                running.includes(app) || app.state === Shell.AppState.RUNNING || !parental.shouldShowApp(info))
                 continue;
             apps.push(app);
         }

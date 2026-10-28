@@ -14,9 +14,25 @@ source "$(dirname "$0")/lib.sh"
 UUID=amethystora-ui@iarsslen.github.io
 HOME_DIR="/var/home/${TEST_USER}"
 DOCK_SCHEMA=org.gnome.shell.extensions.amethystora-ui.dock
+# Eval's answer is JSON.stringify of the value, which gdbus prints as a GVariant string: decoded once here, a string
+# printed as itself and anything else as compact JSON. A throw prints nothing, says why on stderr and fails.
+EV_DECODE='
+import ast, json, re, sys
+text = sys.stdin.read().strip()
+answer = re.fullmatch(r"\((true|false), (.*)\)", text, re.S)
+if not answer:
+    sys.exit("Eval answered: " + text)
+value = ast.literal_eval(answer.group(2))
+if answer.group(1) == "false":
+    sys.exit("the shell threw: " + value)
+try:
+    value = json.loads(value)
+except ValueError:
+    pass
+print(value if isinstance(value, str) else json.dumps(value, separators=(",", ":"), ensure_ascii=False))'
 ev() {
     user_bus gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method org.gnome.Shell.Eval "$1" |
-        sed -E -e "s/^\(true, '(.*)'\)\$/\1/" -e 's/^"(.*)"$/\1/'
+        python3 -I -c "${EV_DECODE}"
 }
 ev_is() { [[ "$(ev "$1")" == "$2" ]]; }
 UI="Main.extensionManager.lookup('${UUID}').stateObj.modules"

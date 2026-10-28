@@ -154,6 +154,9 @@ export class Dock {
         this.launcher = null;
         this.places?.stop();
         this.places = null;
+        // Disposed here, on the main thread, rather than left to the collector: GJS sweeping a settings object
+        // while dconf's worker dispatches a change deadlocks the shell (its toggle queue against the backend's lock)
+        this.settings?.run_dispose();
         this.settings = null;
         this._ext.modules?.get('glass')?.surfacesChanged?.();
     }

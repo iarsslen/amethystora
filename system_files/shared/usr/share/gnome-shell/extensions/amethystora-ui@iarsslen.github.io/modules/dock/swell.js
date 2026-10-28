@@ -35,6 +35,11 @@ export class Swell {
         this._pointer = null;
         this._running = false;
         this._mode = 'off';
+        // The row is watched in every mode, Still too, so that its geometry at rest is never one read while it was
+        // changing; only the pointer is not listened to while nothing grows
+        this._row = {};
+        dash._box.connectObject('notify::allocation', () => (this._stale = true),
+            'child-added', () => (this._stale = true), 'child-removed', () => (this._stale = true), this._row);
     }
 
     // off, swell or lift; with the amount Swell grows to
@@ -58,6 +63,7 @@ export class Swell {
     // The values at rest at once, and nothing listened to (the dock goes, or is rebuilt)
     destroy() {
         this._disconnect();
+        this._dash._box?.disconnectObject(this._row);
         this._timeline?.stop();
         this._timeline = null;
         for (const item of this._items)
@@ -104,8 +110,6 @@ export class Swell {
                     this._retarget();
                 }
             }, this);
-        this._dash._box.connectObject('notify::allocation', () => (this._stale = true),
-            'child-added', () => (this._stale = true), 'child-removed', () => (this._stale = true), this);
     }
 
     _disconnect() {
@@ -113,7 +117,6 @@ export class Swell {
             return;
         this._connected = false;
         this._dash.disconnectObject(this);
-        this._dash._box?.disconnectObject(this);
     }
 
     _onEvent(event) {
@@ -139,8 +142,12 @@ export class Swell {
             containers.push(dash._showAppsIcon);
         const items = [];
         for (const container of containers) {
-            if (!container.has_allocation())
+            // An item not laid out yet (GNOME has just added it): read again next time, since the row's own
+            // allocation need not change when it is
+            if (!container.has_allocation()) {
+                this._stale = true;
                 continue;
+            }
             // An item growing in or shrinking away (GNOME eases its container): read again next time
             if (container.scale_x !== 1 || container.scale_y !== 1)
                 this._stale = true;
@@ -161,8 +168,10 @@ export class Swell {
                 start = long === 'x' ? extents.origin.x + box.x1 * ratio : extents.origin.y + box.y1 * ratio;
                 len = (long === 'x' ? box.get_width() : box.get_height()) * ratio;
             }
-            if (len <= 0)
+            if (len <= 0) {
+                this._stale = true;
                 continue;
+            }
             const old = this._items.find(item => item.actor === actor);
             items.push({
                 container, actor, separator,
