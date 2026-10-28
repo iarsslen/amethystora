@@ -494,6 +494,31 @@ if grep -rn "show-banners" "${UI_EXTENSION}/modules/pill.js" "${UI_EXTENSION}/mo
     echo "the pill writes GNOME's Do Not Disturb"
     exit 1
 fi
+# Quick settings as live tiles (plans/beyond/spec-quick.md): its two keys, empty, its files, its place among the
+# modules (after the phone link, whose phones its tile shows, and before the glass, which draws behind its tiles), its
+# recipe and Control's two entries. Nothing in it reads text as markup, the theme block runs `ame desktop theme` and
+# nothing else, and the battery's limit is UPower's own method, never a file of the kernel's.
+QUICK=org.gnome.shell.extensions.amethystora-ui.quick
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${QUICK}" | sort | paste -sd ' ')" == "tile-hidden tile-order" ]]
+for key in tile-order tile-hidden; do
+    [[ "$(GSETTINGS_BACKEND=memory gsettings get "${QUICK}" "${key}")" == "@as []" ]]
+done
+for file in quick.js quick/tiles.js quick/battery.js quick/theme.js quick/volume.js quick/arrange.js; do
+    test -s "${UI_EXTENSION}/modules/${file}"
+done
+test -s "${UI_EXTENSION}/stylesheets/quick.css"
+test -s /usr/share/amethystora/themed/shell-quick.css.tpl
+[[ "$(grep -oE "^    \['(connect|quick|glass)'," "${UI_EXTENSION}/extension.js" | paste -sd ' ')" == \
+    "    ['connect',     ['quick',     ['glass'," ]]
+grep -q '^quick-settings ACTION="" VALUE="":$' /usr/share/amethystora/just/desktop.just
+[[ -z "$(grep -rnE 'use_markup = true|use_markup: true|set_markup\(' "${UI_EXTENSION}/modules/quick.js" \
+    "${UI_EXTENSION}/modules/quick")" ]]
+[[ "$(grep -rnE "Subprocess\.new|Util\.spawn|spawn_command_line|GLib\.spawn" "${UI_EXTENSION}/modules/quick.js" \
+    "${UI_EXTENSION}/modules/quick" | grep -c .)" == 2 ]]
+grep -q "Util.spawn(\[PHONE_APP\])" "${UI_EXTENSION}/modules/quick/tiles.js"
+grep -q "Gio.Subprocess.new(\[AME, 'desktop', 'theme', slug\]," "${UI_EXTENSION}/modules/quick/theme.js"
+[[ -z "$(grep -rn "charge_control\|/sys/" "${UI_EXTENSION}/modules/quick.js" "${UI_EXTENSION}/modules/quick")" ]]
+grep -q "'EnableChargeThreshold'" "${UI_EXTENSION}/modules/quick/battery.js"
 test -s "${UI_EXTENSION}/modules/fuzzy/matcher.js"
 # Copying text out of a screenshot is Gradia's, reached through the screenshot module's Extract Text button
 # and Ctrl+E in GNOME's screenshot UI (manual: desktop.md#copying-text-from-the-screen): a change that drops
@@ -1145,6 +1170,10 @@ test -x /usr/libexec/amethystora-control-list
 ame --show control >/dev/null
 CONTROL_LIST="$(GSETTINGS_BACKEND=memory /usr/libexec/amethystora-control-list --json)"
 jq -e '.items | length > 20' <<<"${CONTROL_LIST}" >/dev/null
+# Quick settings' two entries, each an `ame desktop quick-settings` command that needs no terminal
+jq -e '[.items[] | select(.id == "quick-theme" or .id == "quick-tiles")] | length == 2' <<<"${CONTROL_LIST}" >/dev/null
+[[ -z "$(jq -c '.items[] | select(.id == "quick-theme" or .id == "quick-tiles") | (.command // empty),
+    (.choices // [] | .[].command) | select(.[0:3] != ["ame", "desktop", "quick-settings"])' <<<"${CONTROL_LIST}")" ]]
 [[ -z "$(jq -r '.items[].id' <<<"${CONTROL_LIST}" | sort | uniq -d)" ]]
 [[ -z "$(jq -r '.items[].kind' <<<"${CONTROL_LIST}" |
     grep -vxE 'switch|choice|range|action|link|themes|wallpapers|widgets|webapps|trust-image|setup|disks')" ]]

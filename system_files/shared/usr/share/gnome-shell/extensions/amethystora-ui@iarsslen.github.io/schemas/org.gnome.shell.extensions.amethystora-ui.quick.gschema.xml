@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Quick settings as live tiles (modules/quick.js): which tiles come first and which are put away. Written by holding a
+     tile in quick settings (arrange mode), by `ame desktop quick-settings` and by the setup file; read live. A tile is
+     named by a short id: GNOME's own (wifi, wired, bluetooth, power-mode, night-light, dark-style, dnd...), Amethystora's
+     (battery, phone), another extension's as x- and its class's name, and theme for the theme block. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.quick" path="/org/gnome/shell/extensions/amethystora-ui/quick/">
+    <key name="tile-order" type="as">
+      <default>[]</default>
+      <summary>Tiles first, in this order</summary>
+      <description>The ids of the tiles that come first in quick settings, in this order; every other tile follows in its usual place. An id of a tile that is not there now keeps its place for when it comes back.</description>
+    </key>
+    <key name="tile-hidden" type="as">
+      <default>[]</default>
+      <summary>Tiles put away</summary>
+      <description>The ids of the tiles taken out of quick settings; theme puts away the theme block.</description>
+    </key>
+  </schema>
+</schemalist>

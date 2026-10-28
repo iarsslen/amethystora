@@ -25,6 +25,10 @@ these commands in the agent's own shell, as the user. Read before writing, chang
 - The glass behind the top bar, dock, menus and notifications: `ame desktop glass frost|prism|clear`. Comfort:
   `ame desktop comfort reduce-transparency|reduce-motion|increase-contrast on|off` (the glass solid; GNOME's
   Reduced Motion; GNOME's High Contrast), and `ame desktop comfort` alone shows all of them and the power saver.
+- Quick settings' tiles are moved and hidden by holding one (arrange mode), kept in
+  `org.gnome.shell.extensions.amethystora-ui.quick` `tile-order` and `tile-hidden` (ids such as `wifi`, `dnd`,
+  `battery`, `theme`): `ame desktop quick-settings reset` puts every tile back, `ame desktop quick-settings theme
+  on|off` shows or hides the theme swatches. The battery's 80% switch is UPower's charge limit, nothing else.
 
 ## Night light and the screen
 

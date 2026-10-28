@@ -157,6 +157,7 @@ read_in_background glass gsettings list-recursively org.gnome.shell.extensions.a
 read_in_background motion gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.motion
 read_in_background space-names gsettings get org.gnome.shell.extensions.amethystora-ui.workspaces auto-names
 read_in_background pill gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.pill
+read_in_background quick gsettings get org.gnome.shell.extensions.amethystora-ui.quick tile-hidden
 read_in_background night-light gsettings list-recursively org.gnome.settings-daemon.plugins.color
 read_in_background a11y gsettings list-recursively org.gnome.desktop.a11y.interface
 read_in_background profile busctl --system get-property org.freedesktop.UPower.PowerProfiles /org/freedesktop/UPower/PowerProfiles org.freedesktop.UPower.PowerProfiles ActiveProfile
@@ -701,6 +702,24 @@ USAGE="ame desktop widgets"
 item desktop widgets widgets "$(gettext "Top bar widgets")" \
     "$(gettext "Small commands whose output the top bar shows. Each runs as you, with everything you have: keep only the ones you have read.")" \
     "" widgets
+
+# Quick settings as live tiles: the theme block, and every tile back (org.gnome.shell.extensions.amethystora-ui.quick)
+QUICK_HIDDEN="$(said quick)"
+if [[ "$(ended quick)" != 0 ]]; then
+    REASON="$(gettext "Amethystora UI is not installed.")"
+fi
+if grep -q "'theme'" <<<"${QUICK_HIDDEN}"; then QUICK_THEME=off; else QUICK_THEME=on; fi
+switch_choices false ame desktop quick-settings theme
+USAGE="ame desktop quick-settings theme on|off"
+item desktop quick-theme switch "$(gettext "Theme in quick settings")" \
+    "$(gettext "Every theme as a swatch in quick settings, one tap to switch.")" "${QUICK_THEME}" desktop#quick-settings
+[[ "$(ended quick)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+COMMAND=(ame desktop quick-settings reset)
+TERMINAL=false
+BUTTON="$(gettext "Put back")"
+USAGE="ame desktop quick-settings reset"
+item desktop quick-tiles action "$(gettext "Quick settings tiles")" \
+    "$(gettext "Hold a tile in quick settings to move or hide it. This puts every tile back.")" "" desktop#quick-settings
 
 # The live pill, the privacy dots, the glow, quiet and the digest (org.gnome.shell.extensions.amethystora-ui.pill)
 PILL="$(said pill)"

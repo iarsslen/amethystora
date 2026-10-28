@@ -72,6 +72,7 @@ export class Connect {
         this._bridge = new Bridge(text => this._link?.pushClipboard(text));
         this._trusted = false;
         this._listeners = new Set();
+        this._phoneListeners = new Set();
         this._settings = openSettings();
         this._settings?.connectObject(`changed::${KEY_SEND}`, () => this._switchesChanged(),
             `changed::${KEY_RECEIVE}`, () => this._switchesChanged(), this);
@@ -113,6 +114,8 @@ export class Connect {
         this._linkSource = null;
         this._listeners?.clear();
         this._listeners = null;
+        this._phoneListeners?.clear();
+        this._phoneListeners = null;
         this._ringing = null;
         this._actions = null;
         this._bolt = null;
@@ -134,6 +137,13 @@ export class Connect {
         if (!this._link)
             return;
         const ready = this._ready();
+        for (const listener of [...this._phoneListeners ?? []]) {
+            try {
+                listener();
+            } catch (e) {
+                console.error(`Amethystora UI: a listener of the phones failed: ${e.message}`);
+            }
+        }
         if (ready.length === 0) {
             this._indicator?.destroy();
             return;
@@ -188,6 +198,21 @@ export class Connect {
             else
                 this._appFor(device, ['send', '--device', device.id]);
         });
+    }
+
+    // --- For the phone's tile in quick settings ---------------------------------------------------------------------
+
+    // The phones that are paired and connected, by name: what the tile says of each
+    phones() {
+        if (!this._link)
+            return [];
+        return this._ready().map(device => ({name: device.name, level: device.level, charging: device.charging}));
+    }
+
+    // Calls back whenever the phones, or something about one, changed; returns what stops it
+    onPhonesChanged(callback) {
+        this._phoneListeners?.add(callback);
+        return () => this._phoneListeners?.delete(callback);
     }
 
     // --- For the live pill ----------------------------------------------------------------------------------------

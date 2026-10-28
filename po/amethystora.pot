@@ -1776,7 +1776,7 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/theme.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick.js
 msgid "Theme"
 msgstr ""
 
@@ -2762,6 +2762,26 @@ msgid "Small commands whose output the top bar shows. Each runs as you, with eve
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Theme in quick settings"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Every theme as a swatch in quick settings, one tap to switch."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Put back"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Quick settings tiles"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Hold a tile in quick settings to move or hide it. This puts every tile back."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Live pill"
 msgstr ""
 
@@ -2867,7 +2887,7 @@ msgstr ""
 msgid "Your shell uses eza for ls, bat for cat and ugrep for grep, with zoxide, direnv and mise, wherever they are installed."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list apps/connect/src/notify.rs apps/connect/src/text.rs
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/tiles.js apps/connect/src/notify.rs apps/connect/src/text.rs
 msgid "Phone"
 msgstr ""
 
@@ -5092,7 +5112,7 @@ msgstr ""
 msgid "Manual"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js
+#: usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick.js
 msgid "Settings"
 msgstr ""
 
@@ -5862,6 +5882,32 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 msgid "The recording glow is off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Every tile back in its first order, and every tile shown"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Show or hide the theme block (now ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Quick settings have every tile again, in their first order."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The theme block (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The theme block is in quick settings."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The theme block is hidden from quick settings."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
@@ -8180,7 +8226,7 @@ msgstr ""
 msgid "Messages"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/indicator.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/indicator.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/tiles.js
 msgid "Phones"
 msgstr ""
 
@@ -8894,6 +8940,164 @@ msgstr ""
 msgid "Tonight"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/arrange.js
+msgid "Show %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/arrange.js
+msgid "Hide %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/battery.js
+msgid "Battery"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/battery.js
+msgid "The charge limit could not be changed."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/battery.js
+msgid "Power Settings"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/battery.js
+msgid "%s · charging stops early"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/battery.js
+msgid "%s · stops at %s when plugged in"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/battery.js
+msgid "%s · until %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/battery.js
+msgid "%s · full at %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/battery.js
+msgid "%s · charged"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/battery.js
+msgid "Keep the battery from charging fully"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/battery.js
+msgid "Charging stops early, as the laptop decides, so the battery lasts more years"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/battery.js
+msgid "Keep the battery at %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/battery.js
+msgid "Charging stops at %s, so the battery lasts more years"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/theme.js
+msgid "The theme could not be applied."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/theme.js
+msgid "Theme %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/tiles.js
+msgid "strong"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/tiles.js
+msgid "good"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/tiles.js
+msgid "fair"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/tiles.js
+msgid "weak"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/tiles.js
+msgid "%d connected"
+msgid_plural "%d connected"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/tiles.js
+msgid "Charging"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/tiles.js
+msgid "Connected"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/tiles.js
+msgid "Charging · %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/tiles.js
+msgid "Connected · %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/volume.js
+msgid "Playing now"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/volume.js
+msgid "%d more in Sound Settings"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/volume.js
+msgid "Playing through %s."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/volume.js
+msgid "Volume of %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/volume.js
+msgid "Unmute %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/volume.js
+msgid "Mute %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/volume.js
+msgid "More…"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
+msgid "Screenshot"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick.js
+msgid "Lock"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick.js
+msgid "Power"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick.js
+msgid "Arrange: hold a tile and drag it"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick.js
+msgid "Done"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick.js
+msgid "Hidden"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick.js
+msgid "Drag a tile to move it"
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/capture.js
 msgid "A screenshot was taken"
 msgstr ""
@@ -9132,10 +9336,6 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
 msgid "Window layouts"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
-msgid "Screenshot"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js

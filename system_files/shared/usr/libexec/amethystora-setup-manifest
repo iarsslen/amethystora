@@ -86,6 +86,9 @@ DOCK_KEYS=(magnify magnify-amount launch indicator recent previews edge screens 
 # The live pill's keys amethystora-setup's PILL_KEYS takes (test-setup.sh holds the list to the schema)
 PILL=org.gnome.shell.extensions.amethystora-ui.pill
 PILL_KEYS=(live privacy-dots glow quiet quiet-night digest digest-times)
+# Quick settings' keys amethystora-setup's QUICK_KEYS takes: the tiles' order and the ones put away
+QUICK=org.gnome.shell.extensions.amethystora-ui.quick
+QUICK_KEYS=(tile-order tile-hidden)
 
 # The tiling, while it runs, takes a combination out of four GNOME keys that it cannot wrap in memory, and
 # writes down what it took in its state file, to put back when it is turned off: the account's own value is the
@@ -163,6 +166,7 @@ settings() {
         changed "${WINDOWS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${WINDOWS_KEYS[@]}") -
         changed "${DOCK}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${DOCK_KEYS[@]}") -
         changed "${PILL}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${PILL_KEYS[@]}") -
+        changed "${QUICK}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${QUICK_KEYS[@]}") -
     } | while read -r schema key value; do
         value="$(as_json <<<"${value}")" && [[ -n "${value}" ]] || continue
         jq -nc --arg s "${schema}" --arg k "${key}" --argjson v "${value}" '{schema: $s, key: $k, value: $v}'
@@ -182,12 +186,12 @@ LAYOUT=tiling
 [[ "$(gsettings get org.gnome.shell.extensions.amethystora-ui.tiling enabled 2>/dev/null)" == false ]] && LAYOUT=classic
 SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" --arg pointer "${POINTER}" --arg glass "${GLASS}" \
     --arg windows "${WINDOWS}" --arg dock "${DOCK}" --arg motion "${MOTION}" --arg workspaces "${WORKSPACES}" \
-    --arg pill "${PILL}" '
+    --arg pill "${PILL}" --arg quick "${QUICK}" '
     map(if .schema == "custom" then .value |= (if . == "" then [] else [.] end) else . end) as $all
     | {layout: $layout}
     + ([$all[] | select(.schema == "org.gnome.shell")] | if length > 0 then {favorites: .[0].value} else {} end)
     + {keybindings: (reduce ($all[] | select(if .schema == $windows then .key == "snap-chooser"
-            else .schema | IN("org.gnome.shell", $tiling, $pointer, $glass, $motion, $workspaces, $dock, $pill) | not end))
+            else .schema | IN("org.gnome.shell", $tiling, $pointer, $glass, $motion, $workspaces, $dock, $pill, $quick) | not end))
         as $e ({}; .[$e.schema][$e.key] = $e.value))}
     + ([$all[] | select(.schema == $windows and .key != "snap-chooser")]
         | if length > 0 then {windows: (map({(.key): .value}) | add)} else {} end)
@@ -199,7 +203,8 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
         | if length > 0 then {workspaces: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $dock)] | if length > 0 then {dock: (map({(.key): .value}) | add
         | if has("stacks") then .stacks |= map(select(test("^(xdg:|~/)"))) else . end)} else {} end)
-    + ([$all[] | select(.schema == $pill)] | if length > 0 then {pill: (map({(.key): .value}) | add)} else {} end)')"
+    + ([$all[] | select(.schema == $pill)] | if length > 0 then {pill: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $quick)] | if length > 0 then {quick: (map({(.key): .value}) | add)} else {} end)')"
 
 # The image the machine runs, which is the one it follows, as rpm-ostree has it (amethystora-deployments
 # asks bootc on a sealed image)

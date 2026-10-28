@@ -889,6 +889,63 @@ pill *ARGS:
     esac
     if [[ "${state}" == on ]]; then gsettings set "${schema}" "${what}" true; else gsettings set "${schema}" "${what}" false; fi
 
+# Quick settings: put every tile back where it was and show them all (reset), or show or hide the theme block (theme on|off)
+[positional-arguments]
+quick-settings ACTION="" VALUE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.quick
+    usage() {
+        echo "usage: ame desktop quick-settings reset|theme [on|off]"
+        exit 64
+    }
+    # The tiles put away, one id a line (an id is lower-case letters, digits and hyphens)
+    hidden() {
+        gsettings get "${schema}" tile-hidden | sed -e 's/^@as //' -e "s/[][',]/ /g" | tr ' ' '\n' |
+            grep -E '^[a-z0-9-]{1,40}$' || true
+    }
+    theme_state() { if hidden | grep -qx theme; then echo off; else echo on; fi; }
+    action="${1:-}"
+    if [[ -z "${action}" ]]; then
+        [[ -t 0 && -t 1 ]] || usage
+        current="$(theme_state)"
+        echo "reset  $(gettext "Every tile back in its first order, and every tile shown")"
+        echo "theme  $(eval_gettext "Show or hide the theme block (now \${current})")"
+        action="$(gum choose reset theme)"
+    fi
+    case "${action}" in
+        reset)
+            [[ -z "${2:-}" ]] || usage
+            gsettings reset "${schema}" tile-order
+            gsettings reset "${schema}" tile-hidden
+            echo "$(gettext "Quick settings have every tile again, in their first order.")"
+            ;;
+        theme)
+            value="${2:-}"
+            if [[ -z "${value}" ]]; then
+                [[ -t 0 && -t 1 ]] || usage
+                current="$(theme_state)"
+                value="$(gum choose --header "$(eval_gettext "The theme block (current: \${current})")" --selected "${current}" on off)"
+            fi
+            # The other tiles put away stay so
+            others="$(hidden | grep -vx theme || true)"
+            case "${value}" in
+                on) list="${others}" ;;
+                off) list="${others}"$'\n'theme ;;
+                *) usage ;;
+            esac
+            gsettings set "${schema}" tile-hidden "[$(grep -v '^$' <<<"${list}" | sed "s/.*/'&'/" | paste -sd, -)]"
+            if [[ "${value}" == on ]]; then
+                echo "$(gettext "The theme block is in quick settings.")"
+            else
+                echo "$(gettext "The theme block is hidden from quick settings.")"
+            fi
+            ;;
+        *) usage ;;
+    esac
+
 # Quiet: banners wait in the list while a window is fullscreen or the screen is shared or recorded (ame desktop quiet
 # [on|off]), and between Night Light's times (ame desktop quiet night [on|off]). Without on or off, it asks
 [positional-arguments]

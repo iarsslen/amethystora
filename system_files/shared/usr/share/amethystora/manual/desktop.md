@@ -16,7 +16,7 @@ the keys are in your fingers you will rarely reach for it.
 - **In the middle**, the clock. Click it, or press `Super+V`, for notifications and the calendar. While
   something is happening, the clock becomes the [live pill](#the-live-pill).
 - **On the right**, CPU, memory and network meters, the icons apps keep in the tray, then the system
-  menu: Wi-Fi, sound, power and the rest of the quick settings. Right-click a tray icon for its app's
+  menu: Wi-Fi, sound, power and the rest of the [quick settings](#quick-settings). Right-click a tray icon for its app's
   menu, double-click it to open the app, and middle-click it for the app's second action. A Flatpak app
   shows its icon only when it may talk to the tray (`org.kde.StatusNotifierWatcher`), and an old X11
   one only while X11 apps are allowed. Click a meter for the details: each processor, the memory and the
@@ -26,6 +26,32 @@ the keys are in your fingers you will rarely reach for it.
 
 The meters and the workspaces follow the colours of the current [theme](themes.md). The bar can
 also show [widgets](widgets.md) of your own, which the AI agent makes for you once you turn it on.
+
+## Quick settings
+
+The menu at the right end of the top bar opens on tiles, two to a row, each saying what it knows: the
+Wi-Fi network and how strong it is, the earbuds and their battery, the power mode, and, while a paired
+phone is connected, the phone and its battery (click it for the Phone app). Click a tile to switch it, and
+its arrow for its menu. Under the tiles are the sliders, then the apps playing sound, a swatch for every
+theme, and Screenshot, Lock, Settings and Power.
+
+- **Moving and hiding tiles.** Hold a tile for half a second (or press `Menu` on it): the tiles shrink a
+  little and each gets a round button at its corner. Drag a tile to its new place; the button puts it
+  away, into a Hidden row, where the same button brings it back. With the keyboard, `Ctrl` and an arrow
+  moves the tile you are on, `Delete` hides it and `Enter` brings a hidden one back. Done, `Esc` or
+  closing the menu ends it. `ame desktop quick-settings reset` puts every tile back in its first place
+  and shows them all, and so does **Quick settings tiles** in [Control](control.md).
+- **The battery.** On a laptop the first tile is the battery: how full it is and when it runs out or is
+  full. Click it for **Keep the battery at 80%**, where the laptop can stop charging early so the battery
+  lasts more years; the switch is GNOME's own charge limit, which UPower keeps across restarts. A laptop
+  that cannot stop charging early has no such switch.
+- **Each app's volume.** While apps play sound, each has its own slider and mute button under the
+  volume slider, and the buttons beside "Playing now" send the sound to another output, as the arrow of
+  the volume slider does.
+- **The theme.** A tap on a swatch switches to that theme, as `ame desktop theme` does: the desktop and
+  Amethystora's apps change at once, other apps the next time they start.
+  `ame desktop quick-settings theme off` hides the swatches, and `on` brings them back; you can also
+  hide them as you hide a tile.
 
 ## The live pill
 

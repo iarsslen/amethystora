@@ -1,0 +1,360 @@
+/* Quick settings as live tiles (modules/quick.js): the sizes, radii and spacing of the floating style, which never
+   change with the theme. The colours are the theme's, in /usr/share/amethystora/themed/shell-quick.css.tpl. The other
+   desktop styles give the tiles and buttons their own corners in shell-styles.css, with rules from the shell's top
+   group that win over these. */
+
+.quick-settings.amethystora-quick {
+  padding: 14px;
+  border-radius: 26px;
+}
+
+.quick-settings.amethystora-quick .quick-settings-grid {
+  spacing-rows: 10px;
+  spacing-columns: 10px;
+}
+
+/* The tiles: two to a row, each 184 wide, rounded, never a pill */
+
+.quick-settings.amethystora-quick .quick-toggle,
+.quick-settings.amethystora-quick .quick-toggle-has-menu {
+  min-width: 184px;
+  max-width: 184px;
+  min-height: 56px;
+  border-radius: 20px;
+}
+
+/* No hairline round a tile (the glass gives GNOME's one); Increase contrast draws its own outline */
+.quick-settings.amethystora-quick .quick-toggle,
+.quick-settings.amethystora-quick .quick-toggle-has-menu .quick-toggle-menu-button {
+  border-width: 0;
+}
+
+.quick-settings.amethystora-quick .quick-toggle > StBoxLayout {
+  padding: 12px;
+  spacing: 9px;
+}
+
+.quick-settings.amethystora-quick .quick-toggle-has-menu .quick-toggle {
+  min-width: auto;
+  max-width: auto;
+}
+
+.quick-settings.amethystora-quick .quick-toggle-has-menu .quick-toggle:ltr {
+  border-radius: 20px 0 0 20px;
+}
+
+.quick-settings.amethystora-quick .quick-toggle-has-menu .quick-toggle:rtl {
+  border-radius: 0 20px 20px 0;
+}
+
+.quick-settings.amethystora-quick .quick-toggle-has-menu .quick-toggle:ltr > StBoxLayout {
+  padding-right: 8px;
+}
+
+.quick-settings.amethystora-quick .quick-toggle-has-menu .quick-toggle:rtl > StBoxLayout {
+  padding-left: 8px;
+}
+
+.quick-settings.amethystora-quick .quick-toggle-has-menu .quick-toggle:ltr:last-child,
+.quick-settings.amethystora-quick .quick-toggle-has-menu .quick-toggle:rtl:last-child {
+  border-radius: 20px;
+}
+
+.quick-settings.amethystora-quick .quick-toggle-has-menu .quick-toggle-menu-button {
+  width: 36px;
+  padding: 0;
+}
+
+.quick-settings.amethystora-quick .quick-toggle-has-menu .quick-toggle-menu-button:ltr {
+  border-radius: 0 20px 20px 0;
+}
+
+.quick-settings.amethystora-quick .quick-toggle-has-menu .quick-toggle-menu-button:rtl {
+  border-radius: 20px 0 0 20px;
+}
+
+.quick-settings.amethystora-quick .quick-toggle .quick-toggle-icon {
+  icon-size: 16px;
+}
+
+.quick-settings.amethystora-quick .quick-toggle .quick-toggle-title {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.quick-settings.amethystora-quick .quick-toggle .quick-toggle-subtitle {
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+/* The sliders: a pill 36 high, the bar 26 high inside it, filled to a round end by the handle */
+
+.quick-settings.amethystora-quick .quick-slider {
+  min-height: 36px;
+  padding: 0 5px;
+  border-radius: 999px;
+}
+
+.quick-settings.amethystora-quick .quick-slider > StBoxLayout {
+  spacing: 6px;
+}
+
+.quick-settings.amethystora-quick .quick-slider .slider-bin {
+  padding: 5px 0;
+}
+
+.quick-settings.amethystora-quick .quick-slider .slider {
+  -barlevel-height: 26px;
+  -slider-handle-radius: 13px;
+}
+
+.quick-settings.amethystora-quick .quick-slider .icon-button {
+  padding: 5px;
+}
+
+/* A block of two columns: the theme */
+
+.quick-settings.amethystora-quick .amethystora-quick-block {
+  padding: 12px 14px;
+  border-radius: 22px;
+  spacing: 8px;
+}
+
+.amethystora-quick-block-title {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.amethystora-quick-swatch {
+  width: 62px;
+  padding: 0;
+  border-radius: 14px;
+}
+
+.amethystora-quick-swatch > StBoxLayout {
+  spacing: 4px;
+}
+
+.amethystora-quick-swatch-outer {
+  padding: 2px;
+  border-radius: 18px;
+}
+
+.amethystora-quick-swatch-inner {
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 13px;
+}
+
+.amethystora-quick-swatch:checked .amethystora-quick-swatch-outer {
+  padding: 0;
+  border-width: 2px;
+  border-style: solid;
+}
+
+.amethystora-quick-swatch:checked .amethystora-quick-swatch-inner {
+  border-width: 2px;
+  border-radius: 14px;
+}
+
+.amethystora-quick-swatch-square {
+  width: 40px;
+  height: 40px;
+}
+
+.amethystora-quick-swatch-stripe {
+  width: 13px;
+}
+
+.amethystora-quick-swatch-stripe-0 {
+  border-radius: 12px 0 0 12px;
+}
+
+.amethystora-quick-swatch-stripe-1 {
+  width: 14px;
+}
+
+.amethystora-quick-swatch-stripe-2 {
+  border-radius: 0 12px 12px 0;
+}
+
+.amethystora-quick-swatch-name {
+  max-width: 62px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* Each app's own volume */
+
+.amethystora-quick-apps {
+  spacing: 12px;
+}
+
+.amethystora-quick-divider {
+  height: 1px;
+}
+
+.amethystora-quick-apps-header {
+  spacing: 12px;
+}
+
+.amethystora-quick-heading {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.72px;
+}
+
+.amethystora-quick-outputs {
+  padding: 4px;
+  spacing: 4px;
+  border-radius: 999px;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.amethystora-quick-output {
+  height: 34px;
+  max-width: 148px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.amethystora-quick-app {
+  spacing: 12px;
+}
+
+.amethystora-quick-app-named {
+  spacing: 10px;
+}
+
+.amethystora-quick-app-icon,
+.amethystora-quick-app-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+}
+
+.amethystora-quick-app-mark {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.amethystora-quick-app-name {
+  width: 84px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.amethystora-quick-app-slider {
+  height: 28px;
+  -barlevel-height: 20px;
+  -slider-handle-radius: 10px;
+}
+
+.amethystora-quick-mute {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 12px;
+}
+
+.amethystora-quick-footer {
+  font-size: 12.5px;
+}
+
+.amethystora-quick-more {
+  padding: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+/* Screenshot, Lock, Settings and Power */
+
+.quick-settings.amethystora-quick .amethystora-quick-actions > StBoxLayout {
+  spacing: 8px;
+}
+
+.quick-settings.amethystora-quick .amethystora-quick-action {
+  height: 40px;
+  padding: 0 8px;
+  border-radius: 14px;
+}
+
+.amethystora-quick-action-box {
+  spacing: 6px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.amethystora-quick-action-box StIcon {
+  icon-size: 16px;
+}
+
+/* The hint, and Done while arranging */
+
+.amethystora-quick-hint {
+  min-height: 16px;
+  padding-bottom: 2px;
+}
+
+.amethystora-quick-hint-label {
+  font-size: 12px;
+  text-align: center;
+}
+
+.amethystora-quick-hint:active .amethystora-quick-hint-label {
+  text-align: left;
+}
+
+.amethystora-quick-hint:active .amethystora-quick-hint-label:rtl {
+  text-align: right;
+}
+
+.amethystora-quick-done {
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* Arrange mode: the corner buttons over the tiles, and the Hidden row */
+
+.amethystora-quick-handle {
+  border-radius: 24px;
+}
+
+.amethystora-quick-corner {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 11px;
+}
+
+.amethystora-quick-hidden {
+  spacing: 8px;
+}
+
+/* The battery's charge limit, in the battery's menu */
+
+.amethystora-quick-limit {
+  padding: 10px 12px;
+  spacing: 12px;
+  border-radius: 14px;
+}
+
+.amethystora-quick-limit-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.amethystora-quick-limit-text {
+  font-size: 12px;
+}
+
+.amethystora-quick-error {
+  font-size: 12px;
+}

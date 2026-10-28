@@ -154,6 +154,21 @@ done <<<"${listed}"
 saved="$(sed -n 's/^PILL_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort)"
 [[ "${saved}" == "${listed}" ]] ||
     { echo "the manifest saves other pill keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
+# Quick settings' keys likewise: both lists of tiles' names, with a check of their own; and the manifest saves them
+QUICK=org.gnome.shell.extensions.amethystora-ui.quick
+QUICK_TABLE="$(sed -n "s/^QUICK_KEYS='\(.*\)'\$/\1/p" "${SETUP}")"
+listed="$(jq -r 'keys[]' <<<"${QUICK_TABLE}" | sort)"
+schema="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${QUICK}" | sort)"
+[[ -n "${listed}" && "${listed}" == "${schema}" ]] ||
+    { echo "QUICK_KEYS and quick settings' schema differ:"; diff <(echo "${listed}") <(echo "${schema}"); false; }
+while read -r key; do
+    range="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${QUICK}" "${key}" | xargs)"
+    [[ "${range}" == "type as" && "$(jq -c --arg k "${key}" '.[$k]' <<<"${QUICK_TABLE}")" == '["as","ids"]' ]] ||
+        { echo "QUICK_KEYS has ${key} as $(jq -c --arg k "${key}" '.[$k]' <<<"${QUICK_TABLE}"), the schema as ${range}"; false; }
+done <<<"${listed}"
+saved="$(sed -n 's/^QUICK_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort)"
+[[ "${saved}" == "${listed}" ]] ||
+    { echo "the manifest saves other quick settings keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
 
 # A machine with two apps, three things from Homebrew, a container, an extension and a theme, whose
 # dock, close key, terminal key, tiling key, two tiling settings and window rules are not the image's. What
@@ -412,7 +427,12 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"pill": {"digest-times": ["25:00"]}}}' \
     '{"version": 1, "settings": {"pill": {"digest-times": ["12:00", "12:00"]}}}' \
     '{"version": 1, "settings": {"pill": {"digest-times": ["01:00", "02:00", "03:00", "04:00", "05:00", "06:00", "07:00"]}}}' \
-    '{"version": 1, "settings": {"pill": {"show-banners": false}}}'; do
+    '{"version": 1, "settings": {"pill": {"show-banners": false}}}' \
+    '{"version": 1, "settings": {"quick": {"no-such-setting": []}}}' \
+    '{"version": 1, "settings": {"quick": {"tile-order": ["Wifi"]}}}' \
+    '{"version": 1, "settings": {"quick": {"tile-hidden": ["../dnd"]}}}' \
+    '{"version": 1, "settings": {"quick": {"tile-hidden": ["dnd", "dnd"]}}}' \
+    '{"version": 1, "settings": {"quick": {"tile-order": "wifi"}}}'; do
     printf '%s\n' "${bad}" >"${T}/bad.json"
     "${SETUP}" diff "${T}/bad.json" >/dev/null 2>&1 && { echo "accepted: ${bad}"; false; }
     "${SETUP}" apply --yes "${T}/bad.json" >/dev/null 2>&1 && { echo "applied: ${bad}"; false; }

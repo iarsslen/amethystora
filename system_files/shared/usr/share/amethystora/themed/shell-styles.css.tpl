@@ -461,3 +461,47 @@
   border-color: rgba({{ accent_rgb }}, 0.75);
   box-shadow: 0 0 18px rgba({{ accent_rgb }}, 0.35);
 }
+
+/* Quick settings (modules/quick.js): the blocks and buttons it adds take the corners each style gives GNOME's tiles */
+
+
+#uiGroup.amethystora-style-hairline .quick-settings.amethystora-quick .quick-slider,
+#uiGroup.amethystora-style-hairline .quick-settings.amethystora-quick .amethystora-quick-block,
+#uiGroup.amethystora-style-hairline .quick-settings.amethystora-quick .amethystora-quick-action,
+#uiGroup.amethystora-style-hairline .quick-settings.amethystora-quick .amethystora-quick-mute,
+#uiGroup.amethystora-style-hairline .quick-settings.amethystora-quick .amethystora-quick-outputs,
+#uiGroup.amethystora-style-hairline .quick-settings.amethystora-quick .amethystora-quick-output,
+#uiGroup.amethystora-style-hairline .quick-settings.amethystora-quick .amethystora-quick-done,
+#uiGroup.amethystora-style-hairline .amethystora-quick-limit {
+  border-radius: 4px;
+}
+
+#uiGroup.amethystora-style-terminal .quick-settings.amethystora-quick .quick-slider,
+#uiGroup.amethystora-style-terminal .quick-settings.amethystora-quick .amethystora-quick-block,
+#uiGroup.amethystora-style-terminal .quick-settings.amethystora-quick .amethystora-quick-action,
+#uiGroup.amethystora-style-terminal .quick-settings.amethystora-quick .amethystora-quick-mute,
+#uiGroup.amethystora-style-terminal .quick-settings.amethystora-quick .amethystora-quick-outputs,
+#uiGroup.amethystora-style-terminal .quick-settings.amethystora-quick .amethystora-quick-output,
+#uiGroup.amethystora-style-terminal .quick-settings.amethystora-quick .amethystora-quick-done,
+#uiGroup.amethystora-style-terminal .amethystora-quick-limit {
+  border-radius: 0;
+}
+
+#uiGroup.amethystora-style-segments .quick-settings.amethystora-quick .quick-slider,
+#uiGroup.amethystora-style-segments .quick-settings.amethystora-quick .amethystora-quick-block,
+#uiGroup.amethystora-style-segments .quick-settings.amethystora-quick .amethystora-quick-action,
+#uiGroup.amethystora-style-segments .quick-settings.amethystora-quick .amethystora-quick-mute,
+#uiGroup.amethystora-style-segments .quick-settings.amethystora-quick .amethystora-quick-outputs,
+#uiGroup.amethystora-style-segments .quick-settings.amethystora-quick .amethystora-quick-output,
+#uiGroup.amethystora-style-segments .quick-settings.amethystora-quick .amethystora-quick-done,
+#uiGroup.amethystora-style-segments .amethystora-quick-limit,
+#uiGroup.amethystora-style-neon .quick-settings.amethystora-quick .quick-slider,
+#uiGroup.amethystora-style-neon .quick-settings.amethystora-quick .amethystora-quick-block,
+#uiGroup.amethystora-style-neon .quick-settings.amethystora-quick .amethystora-quick-action,
+#uiGroup.amethystora-style-neon .quick-settings.amethystora-quick .amethystora-quick-mute,
+#uiGroup.amethystora-style-neon .quick-settings.amethystora-quick .amethystora-quick-outputs,
+#uiGroup.amethystora-style-neon .quick-settings.amethystora-quick .amethystora-quick-output,
+#uiGroup.amethystora-style-neon .quick-settings.amethystora-quick .amethystora-quick-done,
+#uiGroup.amethystora-style-neon .amethystora-quick-limit {
+  border-radius: 8px;
+}

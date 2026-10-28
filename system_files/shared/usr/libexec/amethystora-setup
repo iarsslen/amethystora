@@ -21,7 +21,7 @@
 #                has (the built-in ones pinned by digest in the image), packages from its repositories
 #   extensions   the GNOME extensions turned on, of those installed here
 #   theme        the desktop theme
-#   settings     {layout, favorites, keybindings, tiling, pointer, glass, motion, workspaces, windows, dock, pill}: the window layout, the dock's apps, the keys of
+#   settings     {layout, favorites, keybindings, tiling, pointer, glass, motion, workspaces, windows, dock, pill, quick}: the window layout, the dock's apps, the keys of
 #                keybindings (the image's custom keybindings by their id, never a command), the tiling's
 #                settings by their key in its schema (TILING_KEYS: numbers, switches and lists, never its
 #                window rules, which hold patterns, or a picture's path), shake to find and the larger pointer on
@@ -29,7 +29,7 @@
 #                the workspace switch (MOTION_KEYS), workspaces named after their apps (WORKSPACES_KEYS), the windows
 #                module's switches, corners and gestures (WINDOWS_KEYS), the dock's settings, folders and stacks
 #                under the home folder (DOCK_KEYS), the live pill, the privacy dots, the glow, quiet and the
-#                digest (PILL_KEYS), and no other GNOME
+#                digest (PILL_KEYS), the order of quick settings' tiles and the ones put away (QUICK_KEYS), and no other GNOME
 #                setting (Reduce motion and High Contrast are GNOME's accessibility keys, left out). A file
 #                from before the tiling replaced PaperWM may still hold its gaps under paperwm, which are read
 #                as the tiling's when the file has no tiling of its own (a gap the tiling cannot take is left
@@ -134,6 +134,9 @@ PILL_KEYS='{
     "live": ["b"], "privacy-dots": ["b"], "glow": ["b"], "quiet": ["b"], "quiet-night": ["b"],
     "digest": ["b"], "digest-times": ["as", "times"]
 }'
+# Quick settings' tiles: the order they come first in and the ones put away, each a tile's short name
+QUICK=org.gnome.shell.extensions.amethystora-ui.quick
+QUICK_KEYS='{"tile-order": ["as", "ids"], "tile-hidden": ["as", "ids"]}'
 # What a value of each kind has to be, for the check and for reading an old file's gaps
 TILING_JQ="$(
     cat <<'EOF'
@@ -148,6 +151,8 @@ def valid($spec): $spec as [$t, $a, $b] |
          (test("^~/[^'\\\\]+$") and (split("/") | index("..") | not))))
     elif $t == "as" and $a == "times" then type == "array" and length >= 1 and length <= 6 and (unique | length) == length
         and all(.[]; type == "string" and test("^([01][0-9]|2[0-3]):[0-5][0-9]$"))
+    elif $t == "as" and $a == "ids" then type == "array" and length <= 64 and (unique | length) == length
+        and all(.[]; type == "string" and test("^[a-z0-9-]{1,40}$"))
     elif $t == "folders" then type == "object" and all(to_entries[];
         (.key | length >= 1 and length <= 40 and (test("[[:cntrl:]]") | not))
         and (.value | type == "array" and length >= 2 and all(.[]; type == "string" and test("^[A-Za-z0-9._+-]+[.]desktop$"))))
@@ -161,6 +166,7 @@ def wanted($spec): $spec as [$t, $a, $b] |
     elif $a == "steps" then "a list of numbers above 0"
     elif $a == "stacks" then "a list of twelve folders at most, each xdg:NAME or ~/PATH"
     elif $a == "times" then "a list of one to six different times, each HH:MM"
+    elif $a == "ids" then "a list of different tiles' names, each lower-case letters, digits and hyphens"
     elif $t == "folders" then "folders by name (1 to 40 characters), each with two launcher IDs or more"
     elif $t == "ad" then "a list of numbers"
     else "a list of colours, each \"\" or one such as \"#314e6c\"" end;
@@ -248,7 +254,7 @@ if type != "object" then "it is not a JSON object" else
     at("extensions"; each("extensions"; name; "an extension's id")),
     at("theme"; if type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]*$") then empty else "theme is not a theme's name" end),
     at("settings"; only(["layout", "favorites", "keybindings", "tiling", "paperwm", "pointer", "glass", "motion", "workspaces",
-            "windows", "dock", "pill"]; "settings."),
+            "windows", "dock", "pill", "quick"]; "settings."),
         (if type == "object" then
             at("layout"; if IN("tiling", "classic") then empty else "settings.layout is tiling or classic" end),
             at("favorites"; each("settings.favorites";
@@ -298,6 +304,10 @@ if type != "object" then "it is not a JSON object" else
             at("pill"; only($pill | keys; "settings.pill."),
                 (if type == "object" then to_entries[] | select(.key | IN($pill | keys[])) | $pill[.key] as $spec
                     | if .value | valid($spec) then empty else "settings.pill.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("quick"; only($quick | keys; "settings.quick."),
+                (if type == "object" then to_entries[] | select(.key | IN($quick | keys[])) | $quick[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.quick.\(.key) is \(wanted($spec))" end
                  else empty end))
         else empty end))
 end
@@ -310,6 +320,7 @@ check() {
     problems="$(jq -r --argjson schemas "${KEY_SCHEMAS}" --argjson tiling "${TILING_KEYS}" --argjson pointer "${POINTER_KEYS}" \
         --argjson glass "${GLASS_KEYS}" --argjson windows "${WINDOWS_KEYS}" --argjson dock "${DOCK_KEYS}" \
         --argjson motion "${MOTION_KEYS}" --argjson workspaces "${WORKSPACES_KEYS}" --argjson pill "${PILL_KEYS}" \
+        --argjson quick "${QUICK_KEYS}" \
         "${TILING_JQ} ${CHECK}" 2>&1)" ||
         die "$1 is not JSON."
     [[ -z "${problems}" ]] ||
@@ -451,8 +462,12 @@ current() {
             value="$(gsettings get "${PILL}" "${key}" 2>/dev/null | as_json)"
             jq -nc --arg k "${key}" --argjson v "${value:-null}" '{pill: {($k): $v}}'
         done < <(jq -r '.settings.pill // {} | keys[]' <<<"$1")
+        while read -r key; do
+            value="$(gsettings get "${QUICK}" "${key}" 2>/dev/null | as_json)"
+            jq -nc --arg k "${key}" --argjson v "${value:-null}" '{quick: {($k): $v}}'
+        done < <(jq -r '.settings.quick // {} | keys[]' <<<"$1")
     } | jq -sc 'reduce .[] as $x ({favorites: null, keybindings: {}, tiling: {}, pointer: {}, glass: {}, motion: {},
-        workspaces: {}, windows: {}, dock: {}, pill: {}};
+        workspaces: {}, windows: {}, dock: {}, pill: {}, quick: {}};
         . * $x)'
 }
 
@@ -564,7 +579,12 @@ def brew($x; $k): $x.brew[$k] // [];
         | select(.value != $v) | {area: "pill", action: "set", key: $k, to: .value, from: $v}
         + if $v == null then {ok: false, why: "this machine has no such pill setting"} else {} end),
     ($hs.pill // {} | to_entries[] | .key as $k | select($fs.pill // {} | has($k) | not)
-        | {area: "pill", action: "remove", key: $k, from: .value})
+        | {area: "pill", action: "remove", key: $k, from: .value}),
+    ($fs.quick // {} | to_entries[] | .key as $k | $now.quick[$k] as $v
+        | select(.value != $v) | {area: "quick", action: "set", key: $k, to: .value, from: $v}
+        + if $v == null then {ok: false, why: "this machine has no such quick settings setting"} else {} end),
+    ($hs.quick // {} | to_entries[] | .key as $k | select($fs.quick // {} | has($k) | not)
+        | {area: "quick", action: "remove", key: $k, from: .value})
   ]
 | map({ok: true, why: null} + .)
 EOF
@@ -624,6 +644,9 @@ def text:
         + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
           else ", \(.from | tojson) here, back to the image's" end
     elif .area == "pill" then "the live pill's \(.key)"
+        + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
+          else ", \(.from | tojson) here, back to the image's" end
+    elif .area == "quick" then "quick settings' \(.key)"
         + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
           else ", \(.from | tojson) here, back to the image's" end
     else tojson end;
@@ -862,6 +885,11 @@ add_all() {
         name="$(jq -r .key <<<"${change}")"
         gsettings set "${PILL}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the live pill's ${name}")
     done
+    mapfile -t changes < <(of "${todo}" quick)
+    for change in "${changes[@]}"; do
+        name="$(jq -r .key <<<"${change}")"
+        gsettings set "${QUICK}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("quick settings' ${name}")
+    done
 
     # Last, since it downloads a whole system, which only takes over at the next restart
     mapfile -t changes < <(of "${todo}" image | jq -r '[.name, .stream] | @tsv')
@@ -943,6 +971,10 @@ remove_all() {
     mapfile -t names < <(of "${gone}" pill | jq -r .key)
     for name in "${names[@]}"; do
         gsettings reset "${PILL}" "${name}" || FAILED+=("the live pill's ${name}")
+    done
+    mapfile -t names < <(of "${gone}" quick | jq -r .key)
+    for name in "${names[@]}"; do
+        gsettings reset "${QUICK}" "${name}" || FAILED+=("quick settings' ${name}")
     done
 }
 
@@ -1028,7 +1060,8 @@ bake() {
           section("org.gnome.shell.extensions.amethystora-ui.workspaces"; ($s.workspaces // {})),
           section("org.gnome.shell.extensions.amethystora-ui.windows"; ($s.windows // {})),
           section("org.gnome.shell.extensions.amethystora-ui.dock"; ($s.dock // {})),
-          section("org.gnome.shell.extensions.amethystora-ui.pill"; ($s.pill // {}))' <<<"${setup}" \
+          section("org.gnome.shell.extensions.amethystora-ui.pill"; ($s.pill // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.quick"; ($s.quick // {}))' <<<"${setup}" \
         >"${schemas}/zz2-image-setup.gschema.override"
 
     # The image's custom keybindings are relocatable, so their keys are dconf's
