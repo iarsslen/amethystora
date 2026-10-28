@@ -2984,6 +2984,22 @@ msgid "The tone of hands and people in the emoji picker, Super+.."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Expand text shortcuts"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "As you type in apps, Amethystora watches the last few characters for your shortcuts. It keeps nothing it reads, never looks at password fields, and works in apps that use GNOME's input method."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Your text shortcuts could not be read."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Your shortcuts"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "GNOME's privacy settings could not be read."
 msgstr ""
 
@@ -5496,6 +5512,38 @@ msgstr ""
 msgid "Firefox has its own settings for what it sends, under Privacy & Security in its settings."
 msgstr ""
 
+#: usr/libexec/amethystora-text-shortcuts
+msgid "A shortcut is 2 to 32 characters, with no spaces."
+msgstr ""
+
+#: usr/libexec/amethystora-text-shortcuts
+msgid "The text is 1 to 2000 characters."
+msgstr ""
+
+#: usr/libexec/amethystora-text-shortcuts
+msgid "The text has a character that cannot be typed."
+msgstr ""
+
+#: usr/libexec/amethystora-text-shortcuts
+msgid "There are 200 shortcuts already."
+msgstr ""
+
+#: usr/libexec/amethystora-text-shortcuts
+msgid "Your shortcuts are 256 KiB already: shorten or remove one first."
+msgstr ""
+
+#: usr/libexec/amethystora-text-shortcuts
+msgid "There is no shortcut %s."
+msgstr ""
+
+#: usr/libexec/amethystora-text-shortcuts
+msgid "That is not a file of text shortcuts."
+msgstr ""
+
+#: usr/libexec/amethystora-text-shortcuts
+msgid "Type the text, then press Ctrl+D on a line of its own."
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js
 msgid "Fix it with the AI agent"
 msgstr ""
@@ -6685,6 +6733,28 @@ msgstr ""
 #: usr/share/amethystora/just/desktop.just
 #, sh-format
 msgid "The emoji picker shows hands and people in the ${tone} skin tone."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Text shortcuts: on. Type a shortcut, then a space, in an app that uses GNOME's input method."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Text shortcuts: off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The shortcut ${abbr} is saved."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The shortcut ${abbr} is removed."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "No text shortcuts yet. Add one with ame desktop text-shortcut add ';addr', then type its text."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just

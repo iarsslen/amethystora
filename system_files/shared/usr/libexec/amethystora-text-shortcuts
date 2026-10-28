@@ -1,0 +1,337 @@
+#!/usr/bin/python3 -I
+"""amethystora-text-shortcuts: the account's text shortcuts, ~/.config/amethystora/text-shortcuts.json, which only this
+program writes (GNOME Shell's text shortcuts read it; `ame desktop text-shortcut` and Control run this).
+
+    amethystora-text-shortcuts list [--json]   the abbreviations, one a line; --json: [{"abbr", "lines"}], never a text
+    amethystora-text-shortcuts show ABBR       a shortcut's text, as it is
+    amethystora-text-shortcuts add ABBR        a new shortcut, or a new text for one there is, the text read from stdin
+    amethystora-text-shortcuts add ABBR TEXT   ...the text given here, which every account sees in the process list
+    amethystora-text-shortcuts remove ABBR
+    amethystora-text-shortcuts check FILE      whether FILE is a shortcuts file this program would write
+
+Runs as the account. The text reaches it on stdin (Control writes it there), so that it is never on a command line that
+other accounts can read in /proc; a person at a terminal may still give it as an argument. The file is 0600 in a 0700
+folder, written to a file beside it, synced and moved into place, then copied the same way to text-shortcuts.json.bak.
+list and show only read: a file that cannot be read is read from that copy, as GNOME Shell does; the next add or remove
+puts the file back from it (or keeps the unreadable file aside once as text-shortcuts.json.unreadable).
+
+The rules (Amethystora UI's modules/typing/match.js has the same, and build_files/shared/test-text-shortcuts.mjs holds
+both to one list): a shortcut is 2 to 32 characters, no white space and no control or format character but the zero
+width joiner; its text 1 to 2000 characters, no control or format character but a line break, a tab, the zero width
+joiner and non-joiner and the marks that set the direction of a text; 200 shortcuts at most and 256 KiB. Exit 0, or 2
+with one line on stderr in the session's language.
+"""
+
+import errno
+import fcntl
+import gettext
+import json
+import os
+import stat
+import sys
+import unicodedata
+
+_ = gettext.translation("amethystora", fallback=True).gettext
+
+COUNT = 200
+ABBR_MIN, ABBR_MAX = 2, 32
+TEXT_MAX = 2000
+FILE_MAX = 256 * 1024
+ABBR_ALLOWED = {"\u200d"}
+TEXT_ALLOWED = {"\n", "\t", "\u200c", "\u200d", "\u200e", "\u200f", "\u061c"}
+
+CONFIG = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
+DIR = os.path.join(CONFIG, "amethystora")
+FILE = os.path.join(DIR, "text-shortcuts.json")
+COPY = FILE + ".bak"
+UNREADABLE = FILE + ".unreadable"
+
+
+class Refused(Exception):
+    pass
+
+
+def is_space(ch):
+    return unicodedata.category(ch) in ("Zs", "Zl", "Zp") or ch in "\t\n\v\f\r"
+
+
+def hidden(ch):
+    return unicodedata.category(ch) in ("Cc", "Cf", "Cs")
+
+
+def valid_abbr(abbr):
+    return (isinstance(abbr, str) and ABBR_MIN <= len(abbr) <= ABBR_MAX and
+            all(not is_space(ch) and (not hidden(ch) or ch in ABBR_ALLOWED) for ch in abbr))
+
+
+def text_problem(text):
+    if not isinstance(text, str) or not 1 <= len(text) <= TEXT_MAX:
+        return "length"
+    return None if all(not hidden(ch) or ch in TEXT_ALLOWED for ch in text) else "character"
+
+
+def refuse_abbr():
+    return Refused(_("A shortcut is 2 to 32 characters, with no spaces."))
+
+
+def refuse_text(problem):
+    if problem == "length":
+        return Refused(_("The text is 1 to 2000 characters."))
+    return Refused(_("The text has a character that cannot be typed."))
+
+
+def refuse_count():
+    return Refused(_("There are 200 shortcuts already."))
+
+
+def refuse_size():
+    return Refused(_("Your shortcuts are 256 KiB already: shorten or remove one first."))
+
+
+def refuse_missing(abbr):
+    # replace, not %: a translation that leaves the placeholder out still says something
+    return Refused(_("There is no shortcut %s.").replace("%s", abbr))
+
+
+def refuse_file():
+    return Refused(_("That is not a file of text shortcuts."))
+
+
+def read_bytes(path):
+    """A plain file's bytes, never through a link, or None when there is none; too big or not a plain file: Refused"""
+    try:
+        fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK | os.O_CLOEXEC)
+    except FileNotFoundError:
+        return None
+    except OSError as e:
+        if e.errno == errno.ELOOP:
+            raise refuse_file()
+        raise
+    with os.fdopen(fd, "rb") as f:
+        info = os.fstat(f.fileno())
+        if not stat.S_ISREG(info.st_mode) or info.st_size > FILE_MAX:
+            raise refuse_file()
+        data = f.read(FILE_MAX + 1)
+    if len(data) > FILE_MAX:
+        raise refuse_file()
+    return data
+
+
+def parse(data):
+    """The shortcuts of a file's bytes, [(abbr, text)], each that fits the rules and the first of an abbreviation twice,
+    as GNOME Shell takes them; Refused when they are not a shortcuts file at all"""
+    try:
+        value = json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError, RecursionError):
+        raise refuse_file()
+    if not isinstance(value, dict) or not isinstance(value.get("shortcuts"), list):
+        raise refuse_file()
+    kept, seen = [], set()
+    for entry in value["shortcuts"]:
+        if not isinstance(entry, dict):
+            continue
+        abbr, text = entry.get("abbr"), entry.get("text")
+        if len(kept) >= COUNT or not valid_abbr(abbr) or text_problem(text) or abbr in seen:
+            continue
+        seen.add(abbr)
+        kept.append((abbr, text))
+    return kept
+
+
+def check(data):
+    """Strictly: every entry fits, no abbreviation twice, 200 at most"""
+    try:
+        value = json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError, RecursionError):
+        raise refuse_file()
+    if (not isinstance(value, dict) or value.get("version") != 1 or not isinstance(value.get("shortcuts"), list) or
+            set(value) - {"version", "shortcuts"}):
+        raise refuse_file()
+    if len(value["shortcuts"]) > COUNT:
+        raise refuse_count()
+    seen = set()
+    for entry in value["shortcuts"]:
+        if not isinstance(entry, dict) or set(entry) != {"abbr", "text"}:
+            raise refuse_file()
+        if not valid_abbr(entry["abbr"]) or entry["abbr"] in seen:
+            raise refuse_abbr()
+        problem = text_problem(entry["text"])
+        if problem:
+            raise refuse_text(problem)
+        seen.add(entry["abbr"])
+
+
+def write(path, data):
+    """data into path atomically: a file of its own beside it, 0600, synced, then moved into place"""
+    temporary = path + ".tmp"
+    try:
+        os.unlink(temporary)
+    except FileNotFoundError:
+        pass
+    fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600)
+    try:
+        os.fchmod(fd, 0o600)
+        view = memoryview(data)
+        while view:
+            view = view[os.write(fd, view):]
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+    os.replace(temporary, path)
+
+
+def save(shortcuts):
+    data = (json.dumps({"version": 1, "shortcuts": [{"abbr": a, "text": t} for a, t in shortcuts]},
+                       ensure_ascii=False, indent=1) + "\n").encode("utf-8")
+    if len(data) > FILE_MAX:
+        raise refuse_size()
+    write(FILE, data)
+    write(COPY, data)
+    dirfd = os.open(DIR, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+    try:
+        os.fsync(dirfd)
+    finally:
+        os.close(dirfd)
+
+
+def readable(path):
+    """The shortcuts of path, or None when it is missing or cannot be read"""
+    try:
+        data = read_bytes(path)
+        return parse(data) if data is not None else None
+    except Refused:
+        return None
+
+
+def peek():
+    """The shortcuts there are, for list and show, changing nothing: the file's, else its copy's, else none"""
+    for path in (FILE, COPY):
+        shortcuts = readable(path)
+        if shortcuts is not None:
+            return shortcuts
+    return []
+
+
+def load():
+    """For a change: the file's shortcuts, or its copy's when the file cannot be read (and the file put back from it),
+    or none, the unreadable file kept aside once"""
+    if not os.path.lexists(FILE):
+        return []
+    shortcuts = readable(FILE)
+    if shortcuts is not None:
+        return shortcuts
+    shortcuts = readable(COPY)
+    if shortcuts is not None:
+        write(FILE, read_bytes(COPY))
+        return shortcuts
+    if not os.path.lexists(UNREADABLE):
+        os.rename(FILE, UNREADABLE)
+    return []
+
+
+def lock():
+    """The folder, made 0700 when missing and taken back to 0700, locked for a change"""
+    os.makedirs(DIR, mode=0o700, exist_ok=True)
+    info = os.lstat(DIR)
+    if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid():
+        raise refuse_file()
+    if stat.S_IMODE(info.st_mode) & 0o077:
+        os.chmod(DIR, stat.S_IMODE(info.st_mode) & 0o700)
+    fd = os.open(DIR, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
+    fcntl.flock(fd, fcntl.LOCK_EX)
+    return fd
+
+
+def read_text():
+    """The text from stdin: as it is from a program, or typed at a terminal up to Ctrl+D, less the last line break"""
+    if sys.stdin.isatty():
+        print(_("Type the text, then press Ctrl+D on a line of its own."), file=sys.stderr)
+    # Enough for 2000 characters of four bytes each, every line ending in \r\n; more is too long whatever it holds
+    limit = TEXT_MAX * 8 + 2
+    data = sys.stdin.buffer.read(limit + 1)
+    if len(data) > limit:
+        raise refuse_text("length")
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise refuse_text("character")
+    if sys.stdin.isatty() and text.endswith("\n"):
+        text = text[:-1]
+    return text
+
+
+def usage():
+    print("usage: amethystora-text-shortcuts list [--json] | show ABBR | add ABBR [TEXT] | remove ABBR | check FILE",
+          file=sys.stderr)
+    return 2
+
+
+def main(args):
+    if not args:
+        return usage()
+    command, rest = args[0], args[1:]
+    # An abbreviation to look up is one that could be there, so that what is said back never carries anything else
+    if command in ("show", "remove") and len(rest) == 1 and not valid_abbr(rest[0]):
+        raise refuse_abbr()
+    if command == "check" and len(rest) == 1:
+        data = read_bytes(rest[0])
+        if data is None:
+            raise refuse_file()
+        check(data)
+        return 0
+    if command == "list" and rest in ([], ["--json"]):
+        shortcuts = sorted(peek())
+        if rest:
+            print(json.dumps([{"abbr": a, "lines": t.count("\n") + 1} for a, t in shortcuts], ensure_ascii=False))
+        else:
+            for abbr, _text in shortcuts:
+                print(abbr)
+        return 0
+    if command == "show" and len(rest) == 1:
+        shortcuts = dict(peek())
+        if rest[0] not in shortcuts:
+            raise refuse_missing(rest[0])
+        sys.stdout.write(shortcuts[rest[0]])
+        return 0
+    if command == "add" and len(rest) in (1, 2):
+        abbr = rest[0]
+        if not valid_abbr(abbr):
+            raise refuse_abbr()
+        text = (rest[1] if len(rest) == 2 else read_text()).replace("\r\n", "\n")
+        problem = text_problem(text)
+        if problem:
+            raise refuse_text(problem)
+        fd = lock()
+        try:
+            shortcuts = load()
+            known = [a for a, _t in shortcuts]
+            if abbr in known:
+                shortcuts[known.index(abbr)] = (abbr, text)
+            elif len(shortcuts) >= COUNT:
+                raise refuse_count()
+            else:
+                shortcuts.append((abbr, text))
+            save(shortcuts)
+        finally:
+            os.close(fd)
+        return 0
+    if command == "remove" and len(rest) == 1:
+        fd = lock()
+        try:
+            shortcuts = load()
+            kept = [(a, t) for a, t in shortcuts if a != rest[0]]
+            if len(kept) == len(shortcuts):
+                raise refuse_missing(rest[0])
+            save(kept)
+        finally:
+            os.close(fd)
+        return 0
+    return usage()
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except Refused as refusal:
+        print(refusal, file=sys.stderr)
+        sys.exit(2)

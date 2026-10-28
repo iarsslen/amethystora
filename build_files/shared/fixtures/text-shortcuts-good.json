@@ -1,0 +1,29 @@
+{
+ "version": 1,
+ "shortcuts": [
+  {
+   "abbr": ";sig",
+   "text": "Best wishes,\nSam"
+  },
+  {
+   "abbr": ";addr",
+   "text": "4 Amethyst Lane, Riverton"
+  },
+  {
+   "abbr": ":shrug",
+   "text": "¯\\_(ツ)_/¯"
+  },
+  {
+   "abbr": ";d",
+   "text": "Date: {date}"
+  },
+  {
+   "abbr": ";ar",
+   "text": "‏مرحبا\tبكم"
+  },
+  {
+   "abbr": ";👨‍👩",
+   "text": "family"
+  }
+ ]
+}

@@ -31,7 +31,7 @@ const INTERPRETERS: &[&str] = &["python", "python3", "perl", "ruby", "node", "lu
 /// feature's files, and the notes
 const PATHS: &[&str] = &[
     "/etc/sudoers", "/etc/polkit-1", "/usr/share/polkit-1", "/etc/amethystora/agent.conf", "/etc/pam.d", "/etc/authselect",
-    "/etc/security", "amethystora-notes", "/etc/shadow", "/etc/gshadow",
+    "/etc/security", "amethystora-notes", "/etc/shadow", "/etc/gshadow", "text-shortcuts.json",
 ];
 
 fn base(path: &str) -> &str {
@@ -47,6 +47,11 @@ pub fn refusal(argv: &[String]) -> Option<String> {
     let lower: Vec<String> = argv.iter().map(|arg| arg.to_lowercase()).collect();
     if lower.iter().any(|arg| arg.contains("duress")) {
         return Some("it is about the duress feature, which is the user's alone".into());
+    }
+    // Text shortcuts look at what the person types: their switch (gsettings, dconf), and their helper by its own name,
+    // are the user's, however the command spells them
+    if lower.iter().any(|arg| TYPING.iter().any(|name| arg.contains(name))) {
+        return Some("text shortcuts look at what is typed, and their texts are the user's own writing: the user changes them".into());
     }
     if let Some(path) = PATHS.iter().find(|path| argv.iter().any(|arg| arg.contains(*path))) {
         return Some(format!("it names {path}, which the agent may never change"));
@@ -75,13 +80,72 @@ pub fn refusal(argv: &[String]) -> Option<String> {
     if program == "amethystora-raid" && argv.get(1).map(String::as_str) != Some("status") {
         return Some("pools of disks are made, changed and erased only by the user, in a terminal".into());
     }
-    if matches!(program, "ame" | "ujust") {
-        return ame_refusal(&argv[1..]);
+    if matches!(program, "ame" | "ujust" | "just") {
+        return match recipe_words(&argv[1..]) {
+            Ok(words) => ame_refusal(&words),
+            Err(why) => Some(why),
+        };
+    }
+    if program == "dconf" && dconf_reaches_typing(&argv[1..]) {
+        return Some("text shortcuts look at what is typed: the user turns them on, in Control".into());
     }
     if program.starts_with("amethystora-security") || program == "amethystora-hardening" {
         return Some("security switches are changed only through ame security, and only to turn protection on".into());
     }
     None
+}
+
+/// What names the text shortcuts' switch or helper in any spelling: the GSettings schema, its dconf path, the helper
+const TYPING: &[&str] = &["amethystora-ui.typing", "amethystora-ui/typing", "amethystora-text-shortcuts"];
+
+/// Whether a dconf command writes, loads or resets the text shortcuts' keys: by their own path (the names above), or by
+/// a folder above it, whose load or reset reaches them too
+fn dconf_reaches_typing(args: &[String]) -> bool {
+    const KEYS: &str = "/org/gnome/shell/extensions/amethystora-ui/typing/";
+    matches!(args.first().map(String::as_str), Some("write" | "load" | "reset" | "compile" | "update"))
+        && args[1..].iter().any(|arg| arg.starts_with('/') && arg.ends_with('/') && KEYS.starts_with(arg.as_str()))
+}
+
+/// Options of just (and of ame and ujust, which run it) that take a value, and how many
+const JUST_VALUES: &[(&str, usize)] = &[
+    ("--justfile", 1), ("-f", 1), ("--working-directory", 1), ("-d", 1), ("--color", 1), ("--chooser", 1),
+    ("--list-heading", 1), ("--list-prefix", 1), ("--dotenv-filename", 1), ("--dotenv-path", 1), ("-E", 1),
+    ("--timestamp-format", 1), ("--tempdir", 1),
+];
+/// ...and those that change what a recipe runs, or run something else entirely: refused, whatever follows
+const JUST_RUNNERS: &[&str] = &["--command", "-c", "--shell", "--shell-arg", "--shell-command", "--set", "--evaluate",
+    "--edit", "-e", "--choose", "--script"];
+
+/// The words of the recipe a just command line names, as ame's recipes are matched: its options and their values left
+/// out (`ame -q security`, `just --justfile FILE security`), `--` passed over, and a module path `a::b` as the two
+/// words `a b`, each in lower case. An option that makes just run something other than a recipe is refused
+fn recipe_words(args: &[String]) -> Result<Vec<String>, String> {
+    let mut words = Vec::new();
+    let mut options = true;
+    let mut i = 0;
+    while i < args.len() {
+        let arg = args[i].as_str();
+        i += 1;
+        if options && arg == "--" {
+            options = false;
+            continue;
+        }
+        if options && arg.starts_with('-') && arg.len() > 1 {
+            let name = arg.split('=').next().unwrap_or(arg);
+            if JUST_RUNNERS.contains(&name) || (name.starts_with("-c") && !name.starts_with("--") && name.len() > 2) {
+                return Err(format!("{name} makes just run something other than a recipe; run the recipe as it is"));
+            }
+            if !arg.contains('=') {
+                if let Some((_, count)) = JUST_VALUES.iter().find(|(option, _)| *option == name) {
+                    i += count;
+                }
+            }
+            continue;
+        }
+        options = false;
+        words.extend(arg.split("::").filter(|part| !part.is_empty()).map(str::to_lowercase));
+    }
+    Ok(words)
 }
 
 fn ame_refusal(args: &[String]) -> Option<String> {
@@ -90,6 +154,14 @@ fn ame_refusal(args: &[String]) -> Option<String> {
         ["agent", "lock" | "root", ..] => Some("the agent may not change its own lock or root mode".into()),
         ["agent", "tools" | "toggle", "on", ..] => Some("only the user turns the agent's levels on".into()),
         ["apps", "aur", ..] => Some("turning the AUR on is the user's choice alone".into()),
+        // Text shortcuts look at what the person types: turning them on (or flipping them, which may turn them on) is
+        // theirs alone, and the shortcuts are their own writing, which the agent neither reads nor changes
+        ["desktop", "text-shortcuts"] | ["desktop", "text-shortcuts", "on", ..] => {
+            Some("turning text shortcuts on lets the desktop look at what is typed: the user turns it on".into())
+        }
+        ["desktop", "text-shortcut", rest @ ..] if rest.first() != Some(&"list") => {
+            Some("the text shortcuts are the user's own writing: the user adds, changes and reads them".into())
+        }
         ["system", "raid", rest @ ..] if rest.first() != Some(&"status") => {
             Some("pools of disks are made, changed and erased only by the user, in a terminal".into())
         }
@@ -139,6 +211,49 @@ mod tests {
             "ame agent root each",
             "ame agent tools on",
             "ame apps aur on",
+            "ame desktop text-shortcuts on",
+            "ame desktop text-shortcuts",
+            "ame desktop text-shortcut add ;x",
+            "ame desktop text-shortcut show ;sig",
+            "ame desktop text-shortcut remove ;sig",
+            "cat /var/home/a/.config/amethystora/text-shortcuts.json",
+            // The same, however it is spelled
+            "gsettings set org.gnome.shell.extensions.amethystora-ui.typing expand true",
+            "gsettings reset org.gnome.shell.extensions.amethystora-ui.typing expand",
+            "dconf write /org/gnome/shell/extensions/amethystora-ui/typing/expand true",
+            "dconf load /org/gnome/shell/extensions/amethystora-ui/",
+            "dconf load /org/gnome/shell/extensions/",
+            "dconf load /",
+            "dconf reset -f /org/gnome/shell/extensions/amethystora-ui/",
+            "/usr/libexec/amethystora-text-shortcuts show ;sig",
+            "/usr/libexec/amethystora-text-shortcuts add ;x y",
+            "amethystora-text-shortcuts remove ;sig",
+            "ame desktop::text-shortcuts on",
+            "ame -q desktop text-shortcuts on",
+            "ame -- desktop text-shortcuts on",
+            "ame --quiet -- desktop::text-shortcut show ;sig",
+            "ame Desktop Text-Shortcuts on",
+            "just --justfile /usr/share/amethystora/just/00-entry.just desktop text-shortcuts on",
+            "just -f /usr/share/amethystora/just/00-entry.just desktop::text-shortcuts on",
+            "just --justfile=/usr/share/amethystora/just/00-entry.just desktop text-shortcuts on",
+            "just -d / -f /usr/share/amethystora/just/00-entry.just desktop text-shortcuts on",
+            "/usr/bin/ujust desktop text-shortcuts on",
+            // ...and the rules that were there before, spelled the same ways
+            "ame -q security firewall off",
+            "ame -- agent root each",
+            "ame agent::root each",
+            "ame security::firewall off",
+            "ame -q apps::aur on",
+            "just --justfile /usr/share/amethystora/just/00-entry.just security firewall off",
+            "just --justfile /usr/share/amethystora/just/00-entry.just agent lock act",
+            "ujust --working-directory /tmp system raid create",
+            "ame --justfile x.just -- agent tools on",
+            // just made to run something other than a recipe
+            "ame --command id",
+            "just -c id",
+            "ame --shell /tmp/x desktop greeting on",
+            "ame --set x y desktop greeting on",
+            "just --evaluate",
             "ame security firewall off",
             "ame security countme on",
             "ame security connectivity-check on",
@@ -185,6 +300,21 @@ mod tests {
             "ame security kernel-args init_on_free=1 on",
             "ame security dns quad9",
             "ame system raid status",
+            "ame desktop text-shortcuts off",
+            "ame desktop text-shortcut list",
+            "ame -q desktop::text-shortcuts off",
+            "ame -- security status",
+            "ame security::status",
+            "just --justfile /usr/share/amethystora/just/00-entry.just security scan now",
+            "ame -q system raid status",
+            "ame desktop greeting on",
+            "ame update",
+            "ame",
+            "just build amethystora latest main",
+            "just --list",
+            "gsettings set org.gnome.shell.extensions.amethystora-ui.emoji skin-tone medium",
+            "dconf write /org/gnome/shell/extensions/amethystora-ui/emoji/skin-tone \"'none'\"",
+            "dconf load /org/gnome/shell/extensions/amethystora-ui/emoji/",
             "ame system rebase amethystora stable",
             "python3 /home/a/fix.py",
             "bootc rollback",

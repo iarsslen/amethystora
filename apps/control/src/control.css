@@ -887,6 +887,86 @@ dropdown.field > button {
     color: var(--bad);
 }
 
+/* --- Text shortcuts (board 31): the rows, the form and the field to try them in ------------------------ */
+
+.shortcut-row {
+    padding: 9px 12px;
+    border-radius: 12px;
+    background: color-mix(in oklab, var(--fg) 5%, transparent);
+}
+
+.shortcut-abbr {
+    color: var(--accent-text);
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+    font-weight: 600;
+    font-size: 14px;
+    line-height: 21px;
+}
+
+.shortcut-lines {
+    color: var(--soft);
+    font-size: 14px;
+    line-height: 21px;
+}
+
+button.btn.flat {
+    border-color: transparent;
+    background: none;
+}
+
+button.btn.flat:hover {
+    background: var(--hover);
+    filter: none;
+}
+
+entry.field.shortcut-field {
+    min-height: 38px;
+    font-family: "JetBrains Mono", "Adwaita Mono", monospace;
+}
+
+textview.shortcut-text {
+    min-height: 84px;
+    padding: 8px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--control);
+    color: var(--fg);
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
+textview.shortcut-text > text {
+    background: none;
+}
+
+textview.shortcut-text:focus-within {
+    border-color: color-mix(in oklab, var(--accent) 70%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+button.btn.pill {
+    border-radius: 999px;
+}
+
+.shortcut-try-title {
+    font-size: 14px;
+    line-height: 21px;
+    font-weight: 700;
+}
+
+entry.field.shortcut-try {
+    min-height: 48px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.shortcut-try-said {
+    color: var(--soft);
+    font-size: 13.5px;
+    line-height: 20.25px;
+}
+
 .command {
     padding: 5px 5px 5px 12px;
     border: 1px solid var(--line);

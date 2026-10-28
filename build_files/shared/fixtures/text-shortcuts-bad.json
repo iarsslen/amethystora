@@ -1,0 +1,13 @@
+{
+ "version": 1,
+ "shortcuts": [
+  {
+   "abbr": ";ok",
+   "text": "fine"
+  },
+  {
+   "abbr": ";esc",
+   "text": "\u001b[31mred"
+  }
+ ]
+}

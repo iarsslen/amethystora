@@ -325,6 +325,49 @@ Your recent picks are kept on this computer only, in `~/.local/state/amethystora
 and the names come from Unicode's emoji list (Emoji 16.0) and the Unicode CLDR, under the Unicode
 License. Smile, the emoji app, is still on `Ctrl+Alt+Space`.
 
+## Text shortcuts
+
+A text shortcut turns a few characters into a longer text as you type: `;addr` and a space becomes your
+address, `;sig` your signature, `:shrug` becomes ¯\\\_(ツ)\_/¯. Add them in Control's **Typing** group,
+which also has a field to try them in, and turn on **Expand text shortcuts** there, or in a terminal:
+
+```bash
+ame desktop text-shortcut add ';addr'    # then type the text, and Ctrl+D on a line of its own
+ame desktop text-shortcuts on
+```
+
+`ame desktop text-shortcut list` lists your shortcuts, `ame desktop text-shortcut remove ';addr'` takes
+one away, and adding a shortcut you have already gives it the new text (Control asks first). You can
+also give the text after the shortcut, `ame desktop text-shortcut add ';addr' '4 Amethyst Lane'`, but then
+every account on the computer can see it in the list of running programs while the command runs; typed
+or piped in, and from Control, it never is.
+
+Type the shortcut where a word starts, then a space. Start shortcuts with a character you seldom type
+before a word, like `;` or `:`, so that they never expand by accident. Write `{date}` in a text for
+today's date. Your app's Undo takes an expansion back. A shortcut is 2 to 32 characters with no spaces,
+a text up to 2000 characters, and you can have 200.
+
+It is off until you turn it on. While it is on, the desktop looks at what you type in apps for your
+shortcuts: it keeps only the last few characters, as many as your longest shortcut, in memory, and
+never writes them anywhere. It forgets them when you switch windows, when a field of another kind (a
+password field, say) or one of the desktop's own takes the keyboard, and at every key that is not text,
+such as an arrow key, Enter or Tab. It cannot tell when you click into another field of the same window,
+so it keeps them then until one of those happens. Outside terminals it only replaces a shortcut it can see
+the app holds, so what you typed in one field is never replaced in another. It never looks at password or PIN
+fields, at fields for numbers, phone numbers or dates, at the desktop's own fields, or at what an input
+method like Pinyin or Mozc is composing. A key you press while a shortcut is being replaced stops the
+replacing. Your input sources and input methods stay as they are.
+
+It works in apps that use GNOME's input method and tell it the text they hold: GNOME's apps,
+Amethystora's, Firefox and most others. In terminals, which do not tell it, a shortcut is replaced with
+BackSpace keys, and only one whose text has a single line, since a new line would run the command; if you
+paste into a shortcut halfway, or finish one in another pane of the same terminal window, what you pasted
+or typed there can be taken for part of it. Other apps that do not tell
+it their text get no expansion, since there a click could have moved the cursor unseen. It does not work
+in apps that run through X11 (older apps, games, Wine) or that talk to IBus themselves.
+The shortcuts are in `~/.config/amethystora/text-shortcuts.json`, and only you can read it. They are not
+part of your setup file, since they are your own writing.
+
 ## Screenshots
 
 `Print` opens GNOME's screenshot bar. Above it, for an area or the whole screen, are tools to draw on the

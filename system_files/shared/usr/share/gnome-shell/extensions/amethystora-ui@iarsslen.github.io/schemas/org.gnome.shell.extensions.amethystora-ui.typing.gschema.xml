@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Text shortcuts (modules/typing.js): whether they expand. Off by default, since it looks at what is typed; written by
+     `ame desktop text-shortcuts on|off` and Control's Typing group, and never by the setup file. The shortcuts
+     themselves are ~/.config/amethystora/text-shortcuts.json, written by /usr/libexec/amethystora-text-shortcuts. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.typing" path="/org/gnome/shell/extensions/amethystora-ui/typing/">
+    <key name="expand" type="b">
+      <default>false</default>
+      <summary>Expand text shortcuts</summary>
+      <description>Replace an abbreviation you type, followed by a space, with its text, in apps that use GNOME's input method. Off by default.</description>
+    </key>
+  </schema>
+</schemalist>

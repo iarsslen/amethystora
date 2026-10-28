@@ -242,6 +242,31 @@ fn change_order(kind: &str) -> u8 {
     }
 }
 
+/// The field to try text shortcuts in: each change of its text, against the one before, says when an abbreviation and
+/// its space were taken away and a text put in their place. Only the line under it is drawn again, so that the field
+/// keeps the keyboard; what it holds is the window's memory only
+fn try_field_watch(field: &gtk::Entry, me: std::rc::Weak<Control>, abbrs: Vec<String>, line: glib::WeakRef<gtk::Label>) {
+    field.connect_changed(move |field| {
+        let Some(this) = me.upgrade() else { return };
+        let now = field.text().to_string();
+        let mut state = this.state.borrow_mut();
+        let waiting = state.try_waiting.take();
+        let seen = backend::tried(&state.try_text, &now, waiting.as_ref().map(|(abbr, left)| (abbr.as_str(), left.as_str())), &abbrs);
+        state.try_text = now;
+        match seen {
+            backend::Tried::Waiting { abbr, left } => state.try_waiting = Some((abbr, left)),
+            backend::Tried::Expanded { abbr, text } => {
+                let text = backend::first_line(&text);
+                if let Some(line) = line.upgrade() {
+                    line.set_text(&t!("Expanded: {abbr} became “{text}”.", abbr = &abbr, text = &text));
+                }
+                state.try_said = Some((abbr, text));
+            }
+            backend::Tried::Nothing => {}
+        }
+    });
+}
+
 impl Control {
     // --- Building blocks ----------------------------------------------------------------------------------
 
@@ -450,6 +475,49 @@ impl Control {
         let this = self.clone();
         let (action, name) = (action.to_string(), name.to_string());
         self.perform(card, async move { backend::perform(backend::webapp(this.known().as_deref(), &action, &name)).await });
+    }
+
+    /// A text shortcut added or removed. Saved under another abbreviation than the one being edited, the old one is
+    /// removed once the new one is in. The form is emptied only once the helper took it
+    fn shortcut(self: &Rc<Self>, card: &str, action: &str, abbr: &str, text: &str) {
+        let this = self.clone();
+        let (action, abbr, text) = (action.to_string(), abbr.to_string(), text.to_string());
+        let editing = self.state.borrow().shortcut_editing.clone().filter(|old| *old != abbr && action == "add");
+        self.perform(card, async move {
+            let outcome = backend::perform(backend::shortcut(this.known().as_deref(), &action, &abbr, &text)).await;
+            let took = matches!(outcome, Outcome::Ran { ok: true, .. });
+            if took && action == "add" {
+                let mut state = this.state.borrow_mut();
+                state.shortcut_abbr.clear();
+                state.shortcut_text.clear();
+                state.shortcut_editing = None;
+            }
+            match editing {
+                Some(old) if took => backend::perform(backend::shortcut(this.known().as_deref(), "remove", &old, "")).await,
+                _ => outcome,
+            }
+        });
+    }
+
+    /// Edit: the shortcut's text, read now and only now, into the form
+    fn edit_shortcut(self: &Rc<Self>, card: &str, abbr: &str) {
+        let this = self.clone();
+        let (card, abbr) = (card.to_string(), abbr.to_string());
+        glib::spawn_future_local(async move {
+            match backend::shortcut_text(this.known(), &abbr).await {
+                Ok(text) => {
+                    let mut state = this.state.borrow_mut();
+                    state.shortcut_abbr = abbr.clone();
+                    state.shortcut_text = text;
+                    state.shortcut_editing = Some(abbr);
+                    state.said.remove(&card);
+                }
+                Err(error) => {
+                    this.state.borrow_mut().said.insert(card, crate::Said { ok: false, output: error });
+                }
+            }
+            this.render();
+        });
     }
 
     fn pool(self: &Rc<Self>, card: &str, action: &str, disk: &str) {
@@ -1251,6 +1319,167 @@ impl Control {
         self.card_frame(item, Some(control.upcast()), below, false, tags)
     }
 
+    /// The text shortcuts (board 31): one row for each, its abbreviation and how many lines its text has (the list
+    /// never carries a text; Edit reads it), the form to add one or change its text, and a field to try them in
+    fn shortcuts_card(&self, item: &Item) -> gtk::Box {
+        if !item.available {
+            return self.card_frame(item, None, Vec::new(), false, Vec::new());
+        }
+        let busy = self.busy(&item.id);
+        let mut shortcuts = item.shortcuts.clone();
+        shortcuts.sort_by(|a, b| a.abbr.cmp(&b.abbr));
+        let rows: gtk::Widget = if shortcuts.is_empty() {
+            ui::label(&t!("No shortcuts yet. Add one below: for example ;addr for your address."), &["row-empty"]).upcast()
+        } else {
+            let list = ui::vbox(6, &["shortcut-rows"]);
+            for shortcut in &shortcuts {
+                let row = ui::hbox(12, &["shortcut-row"]);
+                let abbr = ltr(ui::line(&shortcut.abbr, &["shortcut-abbr"]));
+                // The board's first column, 120 pixels; a longer abbreviation is cut short with an ellipsis
+                abbr.set_ellipsize(gtk::pango::EllipsizeMode::End);
+                abbr.set_size_request(120, -1);
+                row.append(&abbr);
+                let lines = ui::label(&t!("{count, plural, one {One line} other {# lines}}", count = shortcut.lines as usize), &["shortcut-lines"]);
+                lines.set_hexpand(true);
+                lines.set_valign(gtk::Align::Center);
+                row.append(&lines);
+                let (card, name) = (item.id.clone(), shortcut.abbr.clone());
+                let edit = self.button(&t!("Edit"), Look { small: true, disabled: busy, ..Default::default() }, move |this| this.edit_shortcut(&card, &name));
+                edit.add_css_class("flat");
+                edit.update_property(&[gtk::accessible::Property::Label(&t!("Edit the shortcut {abbr}", abbr = &shortcut.abbr))]);
+                row.append(&edit);
+                let (card, name) = (item.id.clone(), shortcut.abbr.clone());
+                let remove = self.button(&t!("Remove"), Look { small: true, disabled: busy, ..Default::default() }, move |this| this.shortcut(&card, "remove", &name, ""));
+                remove.add_css_class("flat");
+                remove.update_property(&[gtk::accessible::Property::Label(&t!("Remove the shortcut {abbr}", abbr = &shortcut.abbr))]);
+                row.append(&remove);
+                list.append(&row);
+            }
+            list.upcast()
+        };
+
+        // The form: the abbreviation (one line, 32 at most), the text (Enter makes a new line), Add, or Save while
+        // a shortcut's text is being changed. What would not be taken is said under it in the helper's own words
+        let (abbr_now, text_now, editing) = {
+            let state = self.state.borrow();
+            (state.shortcut_abbr.clone(), state.shortcut_text.clone(), state.shortcut_editing.clone())
+        };
+        let field = gtk::Entry::builder().text(&abbr_now).max_length(32).placeholder_text(";addr").css_classes(["field", "shortcut-field"]).build();
+        field.set_direction(gtk::TextDirection::Ltr);
+        field.update_property(&[gtk::accessible::Property::Label(&t!("Shortcut"))]);
+        let buffer = gtk::TextBuffer::new(None);
+        buffer.set_text(&text_now);
+        let text = gtk::TextView::builder().buffer(&buffer).wrap_mode(gtk::WrapMode::WordChar).accepts_tab(false).css_classes(["shortcut-text"]).build();
+        text.update_property(&[gtk::accessible::Property::Label(&t!("Text"))]);
+        let note = ui::label("", &["form-note", "bad"]);
+        note.set_visible(false);
+        let card = item.id.clone();
+        let (field_weak, buffer_weak, note_weak) = (field.downgrade(), buffer.downgrade(), note.downgrade());
+        let listed: Vec<String> = shortcuts.iter().map(|shortcut| shortcut.abbr.clone()).collect();
+        // The abbreviation of another shortcut whose text the person was told a second press replaces
+        let confirmed: Rc<std::cell::RefCell<Option<String>>> = Rc::default();
+        let save = self.button(
+            &if editing.is_some() { t!("Save") } else { t!("Add") },
+            Look { primary: true, icon: if editing.is_some() { None } else { Some("plus") }, disabled: busy, ..Default::default() },
+            {
+                let (confirmed, editing) = (confirmed.clone(), editing.clone());
+                move |this| {
+                    let (Some(field), Some(buffer), Some(note)) = (field_weak.upgrade(), buffer_weak.upgrade(), note_weak.upgrade()) else { return };
+                    let abbr = field.text().to_string();
+                    let text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).replace("\r\n", "\n");
+                    if let Some(problem) = backend::shortcut_problem(&abbr, &text) {
+                        note.set_text(&problem);
+                        note.set_visible(true);
+                        return;
+                    }
+                    // Another shortcut's text is replaced only on a second press, once the person has been told
+                    let replaces = listed.contains(&abbr) && editing.as_deref() != Some(abbr.as_str());
+                    if replaces && confirmed.borrow().as_deref() != Some(abbr.as_str()) {
+                        note.set_text(&t!("You have a shortcut {abbr} already: press it again to replace its text.", abbr = &abbr));
+                        note.set_visible(true);
+                        confirmed.replace(Some(abbr));
+                        return;
+                    }
+                    this.shortcut(&card, "add", &abbr, &text);
+                }
+            },
+        );
+        save.add_css_class("pill");
+        save.update_property(&[gtk::accessible::Property::Label(&if editing.is_some() { t!("Save the shortcut") } else { t!("Add the shortcut") })]);
+        // What is typed is kept between drawings of the page, never written anywhere
+        {
+            let me = self.me.clone();
+            field.connect_changed(move |field| {
+                // Another abbreviation typed: the second press is asked for again
+                confirmed.replace(None);
+                if let Some(this) = me.upgrade() {
+                    this.state.borrow_mut().shortcut_abbr = field.text().to_string();
+                }
+            });
+            let me = self.me.clone();
+            buffer.connect_changed(move |buffer| {
+                if let Some(this) = me.upgrade() {
+                    this.state.borrow_mut().shortcut_text = buffer.text(&buffer.start_iter(), &buffer.end_iter(), false).to_string();
+                }
+            });
+        }
+        let form = ui::vbox(8, &["shortcut-form"]);
+        form.append(&ui::label(&t!("Shortcut"), &["form-note"]));
+        form.append(&field);
+        form.append(&ui::label(&t!("Text"), &["form-note"]));
+        form.append(&text);
+        let buttons = ui::hbox(8, &[]);
+        buttons.append(&save);
+        if editing.is_some() {
+            buttons.append(&self.button(&t!("Cancel"), Look { small: true, ..Default::default() }, |this| {
+                {
+                    let mut state = this.state.borrow_mut();
+                    state.shortcut_abbr.clear();
+                    state.shortcut_text.clear();
+                    state.shortcut_editing = None;
+                }
+                this.render();
+            }));
+        }
+        form.append(&buttons);
+        form.append(&ui::label(&t!("Write {date} for today's date."), &["form-note"]));
+        form.append(&note);
+
+        // Try it here: a field of the window's own, which knows an expansion only by what it sees happen to its text
+        let expanding = self.known().and_then(|list| list.find("text-shortcuts").and_then(|item| item.state.clone())).as_deref() == Some("on");
+        let try_label = ui::label(&t!("Try it here"), &["shortcut-try-title"]);
+        let (try_now, said) = {
+            let state = self.state.borrow();
+            (state.try_text.clone(), state.try_said.clone())
+        };
+        let first = shortcuts.first().map(|shortcut| shortcut.abbr.clone());
+        let try_field = gtk::Entry::builder()
+            .text(&try_now)
+            .css_classes(["field", "shortcut-try"])
+            .placeholder_text(&match &first {
+                Some(abbr) => t!("Type {abbr} and a space", abbr = abbr),
+                None => t!("Type a shortcut and a space"),
+            })
+            .sensitive(expanding)
+            .build();
+        try_field.update_property(&[gtk::accessible::Property::Label(&t!("Try it here"))]);
+        let under_words = match &said {
+            _ if !expanding => t!("Turn on Expand text shortcuts to try it."),
+            Some((abbr, text)) => t!("Expanded: {abbr} became “{text}”.", abbr = abbr, text = text),
+            None => t!("Nothing expanded yet."),
+        };
+        let under = role_box(gtk::Orientation::Vertical, 0, &[], gtk::AccessibleRole::Status);
+        let under_line = ui::label(&under_words, &["shortcut-try-said"]);
+        under.append(&under_line);
+        try_field_watch(&try_field, self.me.clone(), shortcuts.iter().map(|shortcut| shortcut.abbr.clone()).collect(), under_line.downgrade());
+        let try_box = ui::vbox(8, &["shortcut-try-box"]);
+        try_box.append(&try_label);
+        try_box.append(&try_field);
+        try_box.append(&under);
+
+        self.card_frame(item, None, vec![rows, form.upcast(), try_box.upcast()], false, Vec::new())
+    }
+
     fn trust_card(&self, item: &Item) -> gtk::Box {
         let busy = self.busy(&item.id);
         let (repository, key, trusted) = {
@@ -1482,6 +1711,7 @@ impl Control {
             "wallpapers" => self.wallpapers_card(item),
             "widgets" => self.widgets_card(item),
             "webapps" => self.webapps_card(item),
+            "shortcuts" => self.shortcuts_card(item),
             "trust-image" => self.trust_card(item),
             "setup" => self.setup_card(item),
             "disks" => self.disks_card(item),

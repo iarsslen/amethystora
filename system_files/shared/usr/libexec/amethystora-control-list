@@ -16,7 +16,7 @@
 #   {page, id, kind, group, title, text, state, detail, available, reason, manual, usage, choices, ...}
 #
 # where kind is switch (its choices are on and off), choice, range, action, link, themes, wallpapers,
-# widgets, webapps, trust-image or setup, each of which the window knows how to draw. A choice is
+# widgets, webapps, shortcuts, trust-image or setup, each of which the window knows how to draw. A choice is
 # {value, title, text, terminal, command}, made by choice(). A command is an argument vector, which the
 # window runs as it is: the page only ever sends back an entry's id and one of the values listed for it.
 
@@ -168,6 +168,8 @@ read_in_background today gsettings list-recursively org.gnome.shell.extensions.a
 read_in_background breaks gsettings get org.gnome.desktop.break-reminders selected-breaks
 read_in_background search gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.search
 read_in_background emoji gsettings get org.gnome.shell.extensions.amethystora-ui.emoji skin-tone
+read_in_background typing gsettings get org.gnome.shell.extensions.amethystora-ui.typing expand
+read_in_background shortcuts /usr/libexec/amethystora-text-shortcuts list --json
 read_in_background night-light gsettings list-recursively org.gnome.settings-daemon.plugins.color
 read_in_background look gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.theme
 read_in_background daylight amethystora-theme daylight status
@@ -848,6 +850,28 @@ GROUP="$(gettext "Typing")"
 USAGE="ame desktop emoji tone none|light|medium-light|medium|medium-dark|dark"
 item desktop emoji-tone choice "$(gettext "Emoji skin tone")" \
     "$(gettext "The tone of hands and people in the emoji picker, Super+..")" "${TONE}" desktop#emoji-and-symbols
+
+# Text shortcuts (org.gnome.shell.extensions.amethystora-ui.typing): the switch, then the list of them, which holds the
+# abbreviations and how many lines each text has, never a text: the window reads a text with show when Edit is pressed,
+# and hands a new one to add on its stdin, never as an argument other accounts could read in the process list
+[[ "$(ended typing)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+switch_choices false ame desktop text-shortcuts
+USAGE="ame desktop text-shortcuts on|off"
+item desktop text-shortcuts switch "$(gettext "Expand text shortcuts")" \
+    "$(gettext "As you type in apps, Amethystora watches the last few characters for your shortcuts. It keeps nothing it reads, never looks at password fields, and works in apps that use GNOME's input method.")" \
+    "$([[ "$(said typing)" == true ]] && echo on || echo off)" desktop#text-shortcuts
+if [[ "$(ended shortcuts)" == 0 ]] && jq -e 'type == "array"' <<<"$(said shortcuts)" >/dev/null 2>&1; then
+    SHORTCUTS="$(said shortcuts)"
+else
+    SHORTCUTS='[]'
+    REASON="$(gettext "Your text shortcuts could not be read.")"
+fi
+EXTRA="$(jq -nc --argjson list "${SHORTCUTS}" '{shortcuts: [$list[] | {abbr, lines}], commands: {
+    add: {terminal: false, command: ["ame", "desktop", "text-shortcut", "add", "{abbr}"]},
+    remove: {terminal: false, command: ["ame", "desktop", "text-shortcut", "remove", "{abbr}"]},
+    show: {terminal: false, command: ["ame", "desktop", "text-shortcut", "show", "{abbr}"]}}}')"
+USAGE="ame desktop text-shortcut add ABBR"
+item desktop text-shortcut-list shortcuts "$(gettext "Your shortcuts")" "" "" desktop#text-shortcuts
 GROUP=""
 
 # How old what is in the trash gets before GNOME's housekeeping empties it (org.gnome.desktop.privacy)

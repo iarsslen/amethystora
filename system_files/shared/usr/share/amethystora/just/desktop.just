@@ -1850,6 +1850,72 @@ emoji ACTION="" VALUE="":
         *) usage ;;
     esac
 
+# Text shortcuts: a shortcut you type, then a space, becomes its text in apps that use GNOME's input method (STATE: on or
+# off; without it, it flips). Off until you turn it on, since it looks at what you type
+[positional-arguments]
+text-shortcuts STATE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.typing
+    state="${1:-}"
+    if [[ -z "${state}" ]]; then
+        if [[ "$(gsettings get "${schema}" expand)" == true ]]; then state=off; else state=on; fi
+    fi
+    case "${state}" in
+        on)
+            gsettings set "${schema}" expand true
+            echo "$(gettext "Text shortcuts: on. Type a shortcut, then a space, in an app that uses GNOME's input method.")"
+            ;;
+        off)
+            gsettings set "${schema}" expand false
+            echo "$(gettext "Text shortcuts: off.")"
+            ;;
+        *)
+            echo "usage: ame desktop text-shortcuts on|off"
+            exit 64
+            ;;
+    esac
+
+# Your text shortcuts: add ABBR (a new one, or a new text for one you have, the text typed or piped in after it; add ABBR
+# TEXT works too, but other accounts can see TEXT in the process list while it runs), remove ABBR, list, show ABBR. Each
+# value is handed on as it is, never through a shell; the shortcuts are ~/.config/amethystora/text-shortcuts.json
+[positional-arguments]
+text-shortcut *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    helper=/usr/libexec/amethystora-text-shortcuts
+    usage() {
+        echo "usage: ame desktop text-shortcut add ABBR [TEXT] | remove ABBR | list | show ABBR"
+        exit 64
+    }
+    case "${1:-}:$#" in
+        add:2 | add:3)
+            # Without TEXT the helper reads it from this recipe's stdin, which is ame's
+            "${helper}" add "${@:2}"
+            abbr="$2"
+            echo "$(eval_gettext "The shortcut \${abbr} is saved.")"
+            ;;
+        remove:2)
+            "${helper}" remove "$2"
+            abbr="$2"
+            echo "$(eval_gettext "The shortcut \${abbr} is removed.")"
+            ;;
+        show:2) "${helper}" show "$2" ;;
+        list:1)
+            list="$("${helper}" list)"
+            if [[ -n "${list}" ]]; then
+                printf '%s\n' "${list}"
+            else
+                echo "$(gettext "No text shortcuts yet. Add one with ame desktop text-shortcut add ';addr', then type its text.")"
+            fi
+            ;;
+        *) usage ;;
+    esac
+
 # The terminal's own tools in place of the usual ones: eza for ls, bat for cat, ugrep for grep, with zoxide, direnv and mise (ACTION: on or off)
 [positional-arguments]
 bling ACTION="":

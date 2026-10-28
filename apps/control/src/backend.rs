@@ -16,6 +16,7 @@
 //! Security's settings are not here: they are Amethystora Security's, which this window only opens.
 
 use std::path::Path;
+use std::rc::Rc;
 use std::sync::OnceLock;
 use std::time::Duration;
 
@@ -63,6 +64,10 @@ fn words(refusal: Refusal) -> String {
         Refusal::Repository => t!("That is not a repository such as ghcr.io/you/your-image: lower case, and no tag."),
         Refusal::OwnRepository => t!("Amethystora's own images are checked against Amethystora's key, and that stays as it is."),
         Refusal::NoKey => t!("Choose the key first: the cosign.pub of your repository."),
+        // amethystora-text-shortcuts says the same when it refuses
+        Refusal::ShortcutAbbr => t!("A shortcut is 2 to 32 characters, with no spaces."),
+        Refusal::ShortcutLength => t!("The text is 1 to 2000 characters."),
+        Refusal::ShortcutCharacter => t!("The text has a character that cannot be typed."),
     }
 }
 
@@ -113,7 +118,9 @@ pub async fn perform(plan: Result<Run, String>) -> Outcome {
         return Outcome::Terminal;
     }
     let args: Vec<&str> = run.argv[1..].iter().map(String::as_str).collect();
-    let result = process::run_with(&run.argv[0], &args, Options { timeout: Duration::from_secs(300), ..Default::default() }).await;
+    // What it reads on stdin (a text shortcut's text) is written there, never put among its arguments
+    let options = Options { timeout: Duration::from_secs(300), stdin: run.stdin.clone(), ..Default::default() };
+    let result = process::run_with(&run.argv[0], &args, options).await;
     Outcome::Ran { ok: result.code == 0, output: said(&result) }
 }
 
@@ -149,6 +156,62 @@ pub fn webapp(list: Option<&List>, action: &str, name: &str) -> Result<Run, Stri
 /// One of the actions the list gave a pool of disks
 pub fn pool(list: Option<&List>, action: &str, id: &str) -> Result<Run, String> {
     core::pool(list, action, id).map_err(words)
+}
+
+// --- Text shortcuts ---------------------------------------------------------------------------------------
+
+/// A text shortcut added (or its text changed) or removed: an abbreviation the list named, or one with its text
+/// checked here as amethystora-text-shortcuts checks them, each one argument
+pub fn shortcut(list: Option<&List>, action: &str, abbr: &str, text: &str) -> Result<Run, String> {
+    core::shortcut(list, action, abbr, text).map_err(words)
+}
+
+/// Why a new shortcut would not be taken, in the words the helper uses, or None
+pub fn shortcut_problem(abbr: &str, text: &str) -> Option<String> {
+    if !core::valid_shortcut_abbr(abbr) {
+        return Some(words(Refusal::ShortcutAbbr));
+    }
+    core::shortcut_text_problem(text).map(words)
+}
+
+/// A shortcut's text, read only when Edit is pressed, so that the list itself never holds one
+pub async fn shortcut_text(list: Option<Rc<List>>, abbr: &str) -> Result<String, String> {
+    let run = shortcut(list.as_deref(), "show", abbr, "")?;
+    let args: Vec<&str> = run.argv[1..].iter().map(String::as_str).collect();
+    let result = process::run_with(&run.argv[0], &args, Options { timeout: Duration::from_secs(30), ..Default::default() }).await;
+    if result.code == 0 { Ok(result.stdout) } else { Err(said(&result)) }
+}
+
+/// What the field to try shortcuts in shows happened, change by change: the text before ended with a listed
+/// abbreviation and a space and the change took exactly those away (the shortcut's deletion), then the next change
+/// added a text and a space after what was left (its expansion)
+#[derive(Debug, Clone, PartialEq)]
+pub enum Tried {
+    Nothing,
+    Waiting { abbr: String, left: String },
+    Expanded { abbr: String, text: String },
+}
+
+pub fn tried(before: &str, now: &str, waiting: Option<(&str, &str)>, abbrs: &[String]) -> Tried {
+    if let Some((abbr, left)) = waiting {
+        if let Some(added) = now.strip_prefix(left).and_then(|rest| rest.strip_suffix(' ')) {
+            if !added.is_empty() {
+                return Tried::Expanded { abbr: abbr.to_string(), text: added.to_string() };
+            }
+        }
+    }
+    for abbr in abbrs {
+        if before.strip_suffix(&format!("{abbr} ")).is_some_and(|left| left == now) {
+            return Tried::Waiting { abbr: abbr.clone(), left: now.to_string() };
+        }
+    }
+    Tried::Nothing
+}
+
+/// The first line of an expansion, 60 characters at most, for the line under the field
+pub fn first_line(text: &str) -> String {
+    let line = text.split('\n').next().unwrap_or_default();
+    if line.chars().count() > 60 { format!("{}…", line.chars().take(60).collect::<String>()) } else { line.to_string() }
 }
 
 // --- An image of one's own --------------------------------------------------------------------------------
@@ -283,5 +346,26 @@ mod tests {
         assert_eq!(link_program("backups", Some(&list)), Some("amethystora-backups"));
         assert_eq!(link_program("backups", None), None);
         assert_eq!(link_program("manual", Some(&list)), None);
+    }
+
+    #[test]
+    fn sees_an_expansion_in_its_own_field() {
+        let abbrs = vec![";sig".to_string(), ";sig2".to_string()];
+        // The shortcut and its space taken away, then the text and a space put in their place
+        let waiting = tried("Hi ;sig2 ", "Hi ", None, &abbrs);
+        assert_eq!(waiting, Tried::Waiting { abbr: ";sig2".into(), left: "Hi ".into() });
+        assert_eq!(tried("Hi ", "Hi Second ", Some((";sig2", "Hi ")), &abbrs), Tried::Expanded { abbr: ";sig2".into(), text: "Second".into() });
+        // Typing on, or deleting by hand, is no expansion
+        assert_eq!(tried("Hi ;sig", "Hi ;sig ", None, &abbrs), Tried::Nothing);
+        assert_eq!(tried("Hi ;sig ", "Hi ;sig", None, &abbrs), Tried::Nothing);
+        assert_eq!(tried("Hi ", "Hi x", Some((";sig", "Hi ")), &abbrs), Tried::Nothing);
+        assert_eq!(tried("Hi ", "Hi  ", Some((";sig", "Hi ")), &abbrs), Tried::Nothing);
+        assert_eq!(first_line("Best wishes,\nSam"), "Best wishes,");
+        assert_eq!(first_line(&"é".repeat(61)), format!("{}…", "é".repeat(60)));
+        assert_eq!(first_line(&"é".repeat(60)), "é".repeat(60));
+        assert_eq!(shortcut_problem("a b", "x"), Some(words(Refusal::ShortcutAbbr)));
+        assert_eq!(shortcut_problem(";x", ""), Some(words(Refusal::ShortcutLength)));
+        assert_eq!(shortcut_problem(";x", "\u{1b}[2J"), Some(words(Refusal::ShortcutCharacter)));
+        assert_eq!(shortcut_problem(";x", "fine"), None);
     }
 }

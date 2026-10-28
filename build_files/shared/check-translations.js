@@ -297,6 +297,7 @@ for (const app of APPS) {
 // it for each account. A comment that starts "# Translators:" goes to the translators with every message up to
 // the next empty line.
 
+const PYTHON = ['usr/libexec/amethystora-text-shortcuts'];
 const SHELL = ['usr/libexec/amethystora-security-status', 'usr/libexec/amethystora-app-permissions', 'usr/libexec/amethystora-layout-offer',
     'usr/libexec/amethystora-control-list', 'usr/libexec/amethystora-security-config', 'usr/libexec/amethystora-hardening',
     'usr/libexec/amethystora-phone-link-notice', 'usr/libexec/amethystora-deja-dup-notice',
@@ -307,6 +308,8 @@ const SHELL = ['usr/libexec/amethystora-security-status', 'usr/libexec/amethysto
     'usr/libexec/amethystora-scan-alert', 'usr/libexec/amethystora-clamav-onaccess', 'usr/libexec/amethystora-lynis-audit',
     'usr/libexec/amethystora-driver-status', 'usr/libexec/amethystora-gpu-check', 'usr/libexec/amethystora-raid',
     'usr/libexec/amethystora-security-watch', 'usr/libexec/amethystora-sends',
+    // The text shortcuts' helper, in Python, whose _("...") is read as an extension's is
+    ...PYTHON,
     'usr/share/gnome-shell/extensions/amethystora-widgets@iarsslen.github.io/extension.js',
     'usr/share/gnome-shell/extensions/amethystora-logo-menu@iarsslen.github.io/extension.js',
     ...['agent', 'apps', 'backup', 'changelog', 'desktop', 'report', 'security', 'system', 'update'].map((group) => `usr/share/amethystora/just/${group}.just`),
@@ -366,9 +369,10 @@ function shellMessages() {
             if (!line.trim()) {
                 comment = '';
             }
-            for (const match of line.matchAll(script.endsWith('.js') ? JS_CALL : CALL)) {
+            const quoted = script.endsWith('.js') || PYTHON.includes(script);
+            for (const match of line.matchAll(quoted ? JS_CALL : CALL)) {
                 const [, call, first, second] = match;
-                const unquote = script.endsWith('.js') ? unquoteJs : unshell;
+                const unquote = quoted ? unquoteJs : unshell;
                 const id = unquote(first);
                 const plural = ['eval_ngettext', 'N_n', 'ngettext'].includes(call) && second ? unquote(second) : null;
                 const key = `${id}\u0000${plural || ''}`;

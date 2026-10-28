@@ -4,8 +4,8 @@
 //! What runs is only ever the argument vector the list has for an entry's id and one of the values it gave
 //! for it, never through a shell. The few things a caller types are checked here first: a slider's number
 //! against the list's range, a new widget's name against the rule amethystora-widgets keeps for names, and
-//! a repository to trust against the rule amethystora-trust-image keeps. A refusal says which of these it
-//! was, and the caller puts it in its own words.
+//! a repository to trust against the rule amethystora-trust-image keeps, and a text shortcut against the rules
+//! of amethystora-text-shortcuts. A refusal says which of these it was, and the caller puts it in its own words.
 
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
@@ -70,6 +70,13 @@ pub struct Webapp {
     pub address: String,
 }
 
+/// A text shortcut as the list names it: its abbreviation and how many lines its text has, never the text
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct Shortcut {
+    pub abbr: String,
+    pub lines: u32,
+}
+
 /// One of the actions the list gives a pool of disks
 #[derive(Debug, Clone, Default)]
 pub struct PoolAction {
@@ -124,6 +131,8 @@ pub struct Item {
     pub saved: Option<f64>,
     // The pools of disks
     pub disks: Vec<Disk>,
+    // The text shortcuts
+    pub shortcuts: Vec<Shortcut>,
 }
 
 /// The list as the script gave it: {version, sealed, elsewhere, items}, of which the page uses the last two
@@ -268,6 +277,14 @@ fn item(value: &Value) -> Item {
                     .collect(),
             })
             .collect(),
+        shortcuts: array(field("shortcuts"))
+            .iter()
+            .map(|shortcut| Shortcut {
+                abbr: string(shortcut.get("abbr")),
+                lines: number(shortcut.get("lines")).filter(|n| *n >= 1.0 && *n <= 2000.0).map_or(1, |n| n as u32),
+            })
+            .filter(|shortcut| !shortcut.abbr.is_empty())
+            .collect(),
     }
 }
 
@@ -307,6 +324,11 @@ pub enum Refusal {
     OwnRepository,
     /// No key, or one that is not there
     NoKey,
+    /// A text shortcut's abbreviation amethystora-text-shortcuts would not take
+    ShortcutAbbr,
+    /// A text shortcut's text that is empty or too long, or that has a character that cannot be typed
+    ShortcutLength,
+    ShortcutCharacter,
 }
 
 /// A command of the list with values checked here in the place of its placeholders, {value} and the like,
@@ -323,18 +345,20 @@ fn fill(command: &[String], values: &[(&str, &str)]) -> Vec<String> {
 pub struct Run {
     pub argv: Vec<String>,
     pub terminal: bool,
+    /// What it reads on stdin: a text shortcut's text, which never goes on a command line other accounts can read
+    pub stdin: Option<String>,
 }
 
 /// Only a command that is a list of words, at least one, is ever run
 fn runnable(command: Option<&Vec<String>>, terminal: bool) -> Result<Run, Refusal> {
     match command {
-        Some(argv) if !argv.is_empty() => Ok(Run { argv: argv.clone(), terminal }),
+        Some(argv) if !argv.is_empty() => Ok(Run { argv: argv.clone(), terminal, stdin: None }),
         _ => Err(Refusal::Refused),
     }
 }
 
 fn filled(command: Option<&Vec<String>>, terminal: bool, values: &[(&str, &str)]) -> Result<Run, Refusal> {
-    runnable(command, terminal).map(|run| Run { argv: fill(&run.argv, values), terminal })
+    runnable(command, terminal).map(|run| Run { argv: fill(&run.argv, values), terminal, stdin: None })
 }
 
 /// A slider's number as the page sends it: one to nine digits, inside the list's range
@@ -428,6 +452,81 @@ pub fn pool(list: Option<&List>, action: &str, id: &str) -> Result<Run, Refusal>
     }
 }
 
+// --- Text shortcuts ---------------------------------------------------------------------------------------
+//
+// The rules of /usr/libexec/amethystora-text-shortcuts, which checks them again and is the one that writes the file:
+// an abbreviation is 2 to 32 characters, none a white space or a control or format character but the zero width
+// joiner; a text 1 to 2000 characters, none a control or format character but a line break, a tab, the zero width
+// joiner and non-joiner and the marks that set a text's direction. The regex crate here has no general categories,
+// so white space (Zs, Zl, Zp) and the format characters (Cf) are Unicode 16's, as lists.
+
+const SPACES: &[(u32, u32)] = &[
+    (0x09, 0x0d), (0x20, 0x20), (0xa0, 0xa0), (0x1680, 0x1680), (0x2000, 0x200a), (0x2028, 0x2029), (0x202f, 0x202f),
+    (0x205f, 0x205f), (0x3000, 0x3000),
+];
+const FORMAT: &[(u32, u32)] = &[
+    (0xad, 0xad), (0x600, 0x605), (0x61c, 0x61c), (0x6dd, 0x6dd), (0x70f, 0x70f), (0x890, 0x891), (0x8e2, 0x8e2),
+    (0x180e, 0x180e), (0x200b, 0x200f), (0x202a, 0x202e), (0x2060, 0x2064), (0x2066, 0x206f), (0xfeff, 0xfeff),
+    (0xfff9, 0xfffb), (0x110bd, 0x110bd), (0x110cd, 0x110cd), (0x13430, 0x1343f), (0x1bca0, 0x1bca3),
+    (0x1d173, 0x1d17a), (0xe0001, 0xe0001), (0xe0020, 0xe007f),
+];
+const ABBR_ALLOWED: &[char] = &['\u{200d}'];
+const TEXT_ALLOWED: &[char] = &['\n', '\t', '\u{200c}', '\u{200d}', '\u{200e}', '\u{200f}', '\u{61c}'];
+
+fn within(c: char, ranges: &[(u32, u32)]) -> bool {
+    ranges.iter().any(|&(low, high)| (low..=high).contains(&(c as u32)))
+}
+
+fn hidden(c: char) -> bool {
+    c.is_control() || within(c, FORMAT)
+}
+
+/// An abbreviation amethystora-text-shortcuts takes
+pub fn valid_shortcut_abbr(abbr: &str) -> bool {
+    let count = abbr.chars().count();
+    (2..=32).contains(&count) && abbr.chars().all(|c| !within(c, SPACES) && (!hidden(c) || ABBR_ALLOWED.contains(&c)))
+}
+
+/// Why amethystora-text-shortcuts would not take a text, or None when it would
+pub fn shortcut_text_problem(text: &str) -> Option<Refusal> {
+    let count = text.chars().count();
+    if !(1..=2000).contains(&count) {
+        return Some(Refusal::ShortcutLength);
+    }
+    text.chars().any(|c| hidden(c) && !TEXT_ALLOWED.contains(&c)).then_some(Refusal::ShortcutCharacter)
+}
+
+/// A text shortcut added (or its text changed), removed, or its text read for editing. The abbreviation of remove
+/// and show is one the list named; add's, and its text, are checked against the helper's rules. The abbreviation is
+/// one argument; the text goes on stdin, never on the command line, where every account could read it in /proc
+pub fn shortcut(list: Option<&List>, action: &str, abbr: &str, text: &str) -> Result<Run, Refusal> {
+    let item = list.and_then(|list| list.first_of_kind("shortcuts")).filter(|item| item.available).ok_or(Refusal::Refused)?;
+    let command = item.commands.get(action).ok_or(Refusal::Refused)?;
+    // A list that would put anything but the abbreviation in the arguments is not followed
+    if command.command.as_ref().is_some_and(|words| words.iter().any(|word| word.contains('{') && word != "{abbr}")) {
+        return Err(Refusal::Refused);
+    }
+    match action {
+        "add" => {
+            if !valid_shortcut_abbr(abbr) {
+                return Err(Refusal::ShortcutAbbr);
+            }
+            if let Some(problem) = shortcut_text_problem(text) {
+                return Err(problem);
+            }
+            let run = filled(command.command.as_ref(), command.terminal, &[("{abbr}", abbr)])?;
+            if run.terminal {
+                return Err(Refusal::Refused);
+            }
+            Ok(Run { stdin: Some(text.to_string()), ..run })
+        }
+        "remove" | "show" if item.shortcuts.iter().any(|shortcut| shortcut.abbr == abbr) => {
+            filled(command.command.as_ref(), command.terminal, &[("{abbr}", abbr)])
+        }
+        _ => Err(Refusal::Refused),
+    }
+}
+
 // --- An image of one's own --------------------------------------------------------------------------------
 
 /// The rule amethystora-trust-image has for a repository
@@ -503,7 +602,12 @@ mod tests {
                     "actions": [{"id": "forget", "title": "Forget…", "terminal": true, "command": ["ame", "system", "raid", "forget", "media"]}]}]},
         {"page": "setup", "id": "setup-file", "kind": "setup", "title": "Your setup file", "available": true, "file": "/home/a/.config/amethystora/setup.json",
          "saved": 1760000000, "state": "saved",
-         "commands": {"save": {"terminal": false, "command": ["ame", "setup", "save"]}, "apply": {"terminal": true, "command": ["ame", "setup", "apply"]}}}
+         "commands": {"save": {"terminal": false, "command": ["ame", "setup", "save"]}, "apply": {"terminal": true, "command": ["ame", "setup", "apply"]}}},
+        {"page": "desktop", "id": "text-shortcut-list", "kind": "shortcuts", "title": "Your shortcuts", "available": true,
+         "shortcuts": [{"abbr": ";sig", "lines": 2}, {"abbr": ";addr", "lines": 1}, {"abbr": "", "lines": 1}],
+         "commands": {"add": {"terminal": false, "command": ["ame", "desktop", "text-shortcut", "add", "{abbr}"]},
+                      "remove": {"terminal": false, "command": ["ame", "desktop", "text-shortcut", "remove", "{abbr}"]},
+                      "show": {"terminal": false, "command": ["ame", "desktop", "text-shortcut", "show", "{abbr}"]}}}
     ]}"#;
 
     fn list() -> List {
@@ -519,7 +623,7 @@ mod tests {
         let list = list();
         assert_eq!(list.automatic_updates.as_deref(), Some("on"));
         assert!(list.backups);
-        assert_eq!(list.items.len(), 10);
+        assert_eq!(list.items.len(), 11);
         let greeting = list.find("greeting").unwrap();
         assert_eq!(greeting.choices[1].terminal, true);
         assert_eq!(greeting.group, None);
@@ -590,6 +694,49 @@ mod tests {
         assert_eq!(argv(setup(Some(&list), "save")), ["ame", "setup", "save"]);
         assert!(setup(Some(&list), "apply").unwrap().terminal);
         assert!(setup(Some(&list), "remove").is_err());
+    }
+
+    #[test]
+    fn text_shortcuts_by_the_helpers_rules() {
+        let list = list();
+        let item = list.find("text-shortcut-list").unwrap();
+        // An entry without an abbreviation is left out; none of them carries a text
+        assert_eq!(item.shortcuts, [Shortcut { abbr: ";sig".into(), lines: 2 }, Shortcut { abbr: ";addr".into(), lines: 1 }]);
+        // The text goes on stdin, never on the command line; one that looks like a placeholder or an option too
+        for text in ["Date: {date}", "{abbr}", "--yes; rm -rf ~"] {
+            let run = shortcut(Some(&list), "add", ";d", text).unwrap();
+            assert_eq!(run.argv, ["ame", "desktop", "text-shortcut", "add", ";d"]);
+            assert_eq!(run.stdin.as_deref(), Some(text));
+            assert!(!run.terminal);
+        }
+        assert_eq!(shortcut(Some(&list), "remove", ";sig", "").unwrap().stdin, None);
+        // A list that puts the text, or anything else, among the arguments is not followed
+        let leaky = parse_list(&LIST_JSON.replace(r#""add", "{abbr}"]"#, r#""add", "{abbr}", "{text}"]"#)).unwrap();
+        assert_eq!(shortcut(Some(&leaky), "add", ";d", "x"), Err(Refusal::Refused));
+        assert_eq!(argv(shortcut(Some(&list), "remove", ";sig", "")), ["ame", "desktop", "text-shortcut", "remove", ";sig"]);
+        assert_eq!(argv(shortcut(Some(&list), "show", ";addr", "")), ["ame", "desktop", "text-shortcut", "show", ";addr"]);
+        assert_eq!(shortcut(Some(&list), "remove", ";nope", ""), Err(Refusal::Refused));
+        assert_eq!(shortcut(Some(&list), "show", "", ""), Err(Refusal::Refused));
+        assert_eq!(shortcut(Some(&list), "list", "", ""), Err(Refusal::Refused));
+        assert_eq!(shortcut(None, "add", ";x", "x"), Err(Refusal::Refused));
+        for bad in [";", "a b", ";x\u{a0}", ";x\u{3000}", ";x\u{1b}", ";x\u{200b}", ";x\u{202e}", ";x\u{200c}", &";".repeat(33)] {
+            assert_eq!(shortcut(Some(&list), "add", bad, "x"), Err(Refusal::ShortcutAbbr), "{bad:?}");
+        }
+        for good in [";sig", "ab", ":shrug", ";👨\u{200d}👩", &"é".repeat(32)] {
+            assert!(valid_shortcut_abbr(good), "{good:?}");
+        }
+        assert_eq!(shortcut(Some(&list), "add", ";x", ""), Err(Refusal::ShortcutLength));
+        assert_eq!(shortcut(Some(&list), "add", ";x", &"x".repeat(2001)), Err(Refusal::ShortcutLength));
+        assert!(shortcut(Some(&list), "add", ";x", &"😀".repeat(2000)).is_ok());
+        for bad in ["\u{1b}[31m", "a\rb", "a\u{0}", "a\u{ad}b", "a\u{2066}b", "a\u{feff}"] {
+            assert_eq!(shortcut(Some(&list), "add", ";x", bad), Err(Refusal::ShortcutCharacter), "{bad:?}");
+        }
+        for good in ["Best wishes,\nSam", "a\tb", "\u{200f}مرحبا", "a\u{200c}b"] {
+            assert_eq!(shortcut_text_problem(good), None, "{good:?}");
+        }
+        // Not a setting with values: what changes a setting (the agent's change) never reaches it
+        assert_eq!(change(Some(&list), "text-shortcut-list", "on"), Err(Refusal::Refused));
+        assert_eq!(act(Some(&list), "text-shortcut-list"), Err(Refusal::Refused));
     }
 
     #[test]

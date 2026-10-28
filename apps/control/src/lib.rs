@@ -86,6 +86,15 @@ struct PageState {
     /// The new widget's fields
     widget_name: String,
     widget_example: String,
+    /// The text shortcuts' form (the abbreviation and text typed, and the shortcut whose text it is editing), and the
+    /// field to try them in: its text, an abbreviation it saw taken away and what was left, and what it last saw
+    /// expanded. Nothing of it is written anywhere
+    shortcut_abbr: String,
+    shortcut_text: String,
+    shortcut_editing: Option<String>,
+    try_text: String,
+    try_waiting: Option<(String, String)>,
+    try_said: Option<(String, String)>,
     /// When the list was last read, and whether it is being read now
     read: f64,
     reading: bool,
@@ -111,6 +120,12 @@ impl Default for PageState {
             trusted: String::new(),
             widget_name: String::new(),
             widget_example: String::new(),
+            shortcut_abbr: String::new(),
+            shortcut_text: String::new(),
+            shortcut_editing: None,
+            try_text: String::new(),
+            try_waiting: None,
+            try_said: None,
             read: 0.0,
             reading: false,
             started: false,

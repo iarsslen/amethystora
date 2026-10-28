@@ -521,6 +521,37 @@ if grep -rnE '\beval\(|new Function|(^|[^.a-zA-Z_])Function\(|\bimport\(' "${UI_
 fi
 # The sums and conversions, on the apps stage's Node (gjs runs the same file)
 env LD_LIBRARY_PATH=/apps-stage/usr/lib64 /apps-stage/usr/bin/node /ctx/build_files/shared/test-search-calc.mjs
+# Text shortcuts (plans/beyond/spec-phase7.md, part B): off as the image ships, since they look at what is typed, the
+# module after the emoji picker, the helper the only writer of the file, its rules and the shell's one list of cases (the
+# installed helper, on the apps stage's Node), its two commands, and neither the switch nor a text in the setup file
+TYPING=org.gnome.shell.extensions.amethystora-ui.typing
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${TYPING}")" == expand ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${TYPING}" expand)" == false ]]
+for file in modules/typing.js modules/typing/match.js modules/typing/expand.js; do
+    test -s "${UI_EXTENSION}/${file}"
+done
+[[ "$(grep -oE "^    \['(emoji|typing)'," "${UI_EXTENSION}/extension.js" | paste -sd ' ')" == "    ['emoji',     ['typing'," ]]
+test -x /usr/libexec/amethystora-text-shortcuts
+/usr/libexec/amethystora-text-shortcuts check /ctx/build_files/shared/fixtures/text-shortcuts-good.json
+if /usr/libexec/amethystora-text-shortcuts check /ctx/build_files/shared/fixtures/text-shortcuts-bad.json 2>/dev/null; then
+    echo "amethystora-text-shortcuts takes a text with an escape sequence in it"
+    exit 1
+fi
+env LD_LIBRARY_PATH=/apps-stage/usr/lib64 /apps-stage/usr/bin/node /ctx/build_files/shared/test-text-shortcuts.mjs \
+    /usr/libexec/amethystora-text-shortcuts
+grep -q '^text-shortcuts STATE="":' /usr/share/amethystora/just/desktop.just
+grep -q '^text-shortcut \*ARGS:' /usr/share/amethystora/just/desktop.just
+if grep -q "amethystora-ui.typing\|text-shortcuts" /usr/libexec/amethystora-setup; then
+    echo "the setup file carries the text shortcuts, which are the account's own writing"
+    exit 1
+fi
+# The module wraps GNOME's input method on its one object, never its class, writes nothing but the folder it reads,
+# and never puts what was typed in the log
+if grep -nE 'prototype\.notify_key_event|InputMethod\.prototype|eval\(|new Function|file_set_contents|replace_contents|console\.[a-z]+\([^)]*\$\{[^}]*(buffer|text|abbr|shortcut|ch)\b' \
+    "${UI_EXTENSION}/modules/typing.js" "${UI_EXTENSION}/modules/typing"/*.js; then
+    echo "the text shortcuts module touches GNOME's input method class, writes a file or logs what was typed"
+    exit 1
+fi
 # The emoji data, made by 09-emoji.sh from Unicode's pinned files: every tab, every character named in English, the sizes
 # the picker reads in one go when it opens, and the licence
 python3 -I - <<'PYEOF'
@@ -1317,9 +1348,15 @@ jq -e '[.items[] | select(.id == "quick-theme" or .id == "quick-tiles")] | lengt
     (.choices // [] | .[].command) | select(.[0:3] != ["ame", "desktop", "quick-settings"])' <<<"${CONTROL_LIST}")" ]]
 [[ -z "$(jq -r '.items[].id' <<<"${CONTROL_LIST}" | sort | uniq -d)" ]]
 [[ -z "$(jq -r '.items[].kind' <<<"${CONTROL_LIST}" |
-    grep -vxE 'switch|choice|range|action|link|themes|wallpapers|widgets|webapps|trust-image|setup|disks')" ]]
+    grep -vxE 'switch|choice|range|action|link|themes|wallpapers|widgets|webapps|shortcuts|trust-image|setup|disks')" ]]
 [[ -z "$(jq -c '.items[] | (.command // empty), (.choices // [] | .[].command), (.commands // {} | .[].command),
     (.disks // [] | .[].actions[].command) | select(.[0] != "ame" or .[1] == "security")' <<<"${CONTROL_LIST}")" ]]
+# The text shortcuts' entries: the switch, and the list, which names abbreviations and line counts and never a text,
+# and whose commands take the abbreviation alone as an argument (a text goes on stdin, out of the process list)
+jq -e '[.items[] | select(.id == "text-shortcuts" and .kind == "switch")] | length == 1' <<<"${CONTROL_LIST}" >/dev/null
+jq -e '.items[] | select(.id == "text-shortcut-list") | .kind == "shortcuts" and
+    all(.shortcuts[]; keys == ["abbr", "lines"]) and (.commands | keys == ["add", "remove", "show"]) and
+    all(.commands[]; .command[-1] == "{abbr}" and (.command | map(select(test("[{]"))) | length) == 1)' <<<"${CONTROL_LIST}" >/dev/null
 [[ -z "$(jq -c '.items[] | select(.kind == "disks") | .disks[].actions[]
     | select(.command[0:3] != ["ame", "system", "raid"] or .terminal != true)' <<<"${CONTROL_LIST}")" ]]
 # The same for the Disks group's other cards, of which making a pool is always there
