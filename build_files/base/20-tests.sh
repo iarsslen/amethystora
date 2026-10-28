@@ -416,9 +416,10 @@ for retired in just-perfection-desktop@just-perfection space-bar@luchrioh tophat
     grep -q "'${retired}'" /usr/share/glib-2.0/schemas/zz0-amethystora-modifications.gschema.override && false
 done
 # A module's keys are only the ones this plan names, each schema system-wide for gsettings and ame. The workspace
-# row's two are the keys that swap a workspace with its neighbour, which collide with nothing GNOME binds.
+# row's keys swap a workspace with its neighbour, which collide with nothing GNOME binds, and name a space after its
+# main app (auto-names, the motion plan's).
 [[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.workspaces | sort | paste -sd ' ')" == \
-    "move-workspace-left move-workspace-right" ]]
+    "auto-names move-workspace-left move-workspace-right" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.workspaces move-workspace-left)" == \
     "['<Control><Alt><Super>Left']" ]]
 # The tiling: a switch (the classic layout is it off) and the settings its preferences window changes, under the
