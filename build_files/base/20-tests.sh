@@ -1714,6 +1714,77 @@ for recipe in pointer pointer-shake pointer-dense; do
 done
 grep -q "amethystora-pointer-halo" /usr/share/licenses/amethystora/NOTICE
 
+# The Soft sounds (manual: desktop.md#sounds): Amethystora's sound theme, chosen by the image, falling through to the
+# freedesktop theme for every other name; nine files of 48 kHz 16-bit mono PCM, none longer than two seconds or louder
+# than -1 dBFS, the error bell the same bytes as the error; the login and power-plug sounds played by the sounds module,
+# which has no setting and no timer that repeats; ame desktop sounds soft|off
+SOUNDS=/usr/share/sounds/amethystora
+grep -qx "Inherits=freedesktop" "${SOUNDS}/index.theme"
+grep -qx "Directories=stereo" "${SOUNDS}/index.theme"
+test -d /usr/share/sounds/freedesktop/stereo
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.sound theme-name)" == "'amethystora'" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.sound event-sounds)" == true ]]
+[[ "$(find "${SOUNDS}/stereo" -type f -name '*.wav' | wc -l)" == 9 ]]
+cmp "${SOUNDS}/stereo/bell-window-system.wav" "${SOUNDS}/stereo/dialog-error.wav"
+python3 -I - "${SOUNDS}/stereo" <<'EOF'
+import array, os, sys, wave
+for name in ("message-new-instant", "message-new-instant-phone", "power-plug", "screen-capture", "trash-empty",
+             "audio-volume-change", "dialog-error", "bell-window-system", "desktop-login"):
+    with wave.open(os.path.join(sys.argv[1], f"{name}.wav")) as w:
+        shape = (w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getcomptype())
+        assert shape == (1, 2, 48000, "NONE"), f"{name}: {shape}"
+        frames = w.getnframes()
+        assert 0 < frames <= 2 * 48000, f"{name}: {frames} frames"
+        samples = array.array("h", w.readframes(frames))
+        if sys.byteorder == "big":
+            samples.byteswap()
+        assert max(abs(s) for s in samples) <= 29200, f"{name} is louder than -1 dBFS"
+EOF
+grep -q "\['sounds', Sounds\]" "${UI_EXTENSION}/extension.js"
+grep -q "'desktop-login'" "${UI_EXTENSION}/modules/sounds.js"
+grep -q "'power-plug'" "${UI_EXTENSION}/modules/sounds.js"
+[[ -z "$(grep -E 'setInterval|setTimeout|Subprocess|spawn' "${UI_EXTENSION}/modules/sounds.js")" ]]
+# ...and only by it: libcanberra's own login sound would play the chord a second time (17-cleanup.sh)
+grep -qx "Hidden=true" /etc/xdg/autostart/libcanberra-login-sound.desktop
+test ! -e /usr/share/gnome/autostart/libcanberra-login-sound.desktop
+[[ -z "$(grep -rlsx 'Exec=.*canberra-gtk-play.*desktop-login.*' /usr/share/gnome/autostart /etc/xdg/autostart)" ]]
+grep -q "branding/sounds.mjs" /usr/share/licenses/amethystora/NOTICE
+# Rounded screen corners (manual: themes.md#rounded-screen-corners): the bezel module's one key, off, its corners
+# taking no clicks; ame desktop screen-corners on|off
+BEZEL=org.gnome.shell.extensions.amethystora-ui.bezel
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${BEZEL}" | paste -sd ' ')" == "round-corners" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${BEZEL}" round-corners)" == false ]]
+grep -q "\['bezel', Bezel\]" "${UI_EXTENSION}/extension.js"
+grep -q "reactive: false" "${UI_EXTENSION}/modules/bezel.js"
+grep -q "is_builtin()" "${UI_EXTENSION}/modules/bezel.js"
+[[ -z "$(grep -E 'timeout_add|setInterval|setTimeout' "${UI_EXTENSION}/modules/bezel.js")" ]]
+for recipe in sounds screen-corners; do
+    grep -q "^${recipe} [A-Z]*=\"\":" /usr/share/amethystora/just/desktop.just
+    grep -qx "desktop::${recipe}" <<<"$(ame --summary | tr ' ' '\n')"
+done
+GSETTINGS_BACKEND=memory ame desktop sounds loud >/dev/null 2>&1 && false
+GSETTINGS_BACKEND=memory ame desktop screen-corners maybe >/dev/null 2>&1 && false
+GSETTINGS_BACKEND=memory ame desktop sounds off >/dev/null
+GSETTINGS_BACKEND=memory ame desktop screen-corners on >/dev/null
+# The lock screen's clock and cards (manual: desktop.md#the-lock-screen), in GNOME Shell's own stylesheets: read with
+# GIO, since gresource went with glib2-devel. Once each, the clock in Quicksand at its size, which is installed.
+python3 -I - <<'EOF'
+import gi
+gi.require_version("Gio", "2.0")
+from gi.repository import Gio
+bundle = Gio.Resource.load("/usr/share/gnome-shell/gnome-shell-theme.gresource")
+marker = "Amethystora: the lock screen clock and its cards"
+for variant in ("dark", "light"):
+    css = bundle.lookup_data(f"/org/gnome/shell/theme/gnome-shell-{variant}.css", 0).get_data().decode()
+    assert css.count(marker) == 1, f"{variant}: the clock's block is there {css.count(marker)} times"
+    clock = css[css.index(marker):]
+    clock = clock[clock.index(".unlock-dialog-clock .unlock-dialog-clock-time {"):]
+    clock = clock[:clock.index("}")]
+    for line in ('font-family: "Quicksand";', "font-size: 116px;", "font-weight: 600;"):
+        assert line in clock, f"{variant}: the clock has no {line}"
+EOF
+test -s /usr/share/fonts/amethystora/quicksand/QuicksandVariable.ttf
+
 # The motion (manual: desktop.md#motion): the droplet and the workspace switch, two keys with their defaults, started
 # after the tiling; GNOME's own handlers blocked and its methods called, never replaced; no timer; the droplet drawn
 # through a Cogl pipeline of the window's own texture; and workspaces named after their apps, a key of the workspaces

@@ -28,6 +28,8 @@ pub struct Notice {
     pub urgent: bool,
     /// Milliseconds, 0 for never, -1 for the server's choice
     pub timeout_ms: i32,
+    /// A name in the desktop's sound theme for the server to play with it, which only the program chooses
+    pub sound: Option<&'static str>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -172,6 +174,9 @@ impl Desktop {
         hints.insert("urgency".into(), (if notice.urgent { 2u8 } else { 1u8 }).to_variant());
         if let Some(icon) = notice.icon.as_deref().filter(|i| i.starts_with('/')) {
             hints.insert("image-path".into(), icon.to_variant());
+        }
+        if let Some(sound) = notice.sound {
+            hints.insert("sound-name".into(), sound.to_variant());
         }
         let actions: Vec<String> = notice.actions.iter().flat_map(|(id, label)| [id.clone(), label.clone()]).collect();
         let icon = notice.icon.clone().filter(|i| !i.starts_with('/')).unwrap_or_default();

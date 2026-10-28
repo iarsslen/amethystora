@@ -1603,3 +1603,76 @@ emoji ACTION="" VALUE="":
 [positional-arguments]
 bling ACTION="":
     @amethystora-bling ${1:+"$1"}
+
+# The desktop's own sounds: soft, Amethystora's lower and rounder set, or off (apps still make their own; SET: soft or
+# off; without it, it asks)
+[positional-arguments]
+sounds SET="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.desktop.sound
+    current=""
+    if [[ "$(gsettings get "${schema}" event-sounds)" == false ]]; then
+        current=off
+    elif [[ "$(gsettings get "${schema}" theme-name)" == "'amethystora'" ]]; then
+        current=soft
+    fi
+    choice="${1:-}"
+    if [[ -z "${choice}" ]]; then
+        echo "soft  $(gettext "Lower and rounder, for a quiet room")"
+        echo "off   $(gettext "The desktop makes no sound of its own; apps still can")"
+        selected=()
+        [[ -n "${current}" ]] && selected=(--selected "${current}")
+        choice="$(gum choose --header "$(gettext "Sounds")" "${selected[@]}" soft off)" || exit 0
+    fi
+    case "${choice}" in
+        soft)
+            gsettings set "${schema}" theme-name amethystora
+            gsettings set "${schema}" event-sounds true
+            echo "$(gettext "Sounds: soft.")"
+            ;;
+        off)
+            gsettings set "${schema}" event-sounds false
+            echo "$(gettext "Sounds: off. Apps can still make sounds of their own.")"
+            ;;
+        *)
+            echo "usage: ame desktop sounds soft|off"
+            exit 64
+            ;;
+    esac
+
+# Rounded corners on a laptop's own square screen, a small black curve in each (STATE: on or off; without it, it flips)
+[positional-arguments]
+screen-corners STATE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.bezel
+    state="${1:-}"
+    if [[ -z "${state}" ]]; then
+        if [[ "$(gsettings get "${schema}" round-corners)" == true ]]; then state=off; else state=on; fi
+    fi
+    case "${state}" in
+        on)
+            gsettings set "${schema}" round-corners true
+            echo "$(gettext "Rounded screen corners: on.")"
+            # Only a screen built into the computer is rounded: Mutter says which ones are
+            screens="$(gdbus call --session --dest org.gnome.Mutter.DisplayConfig \
+                --object-path /org/gnome/Mutter/DisplayConfig \
+                --method org.gnome.Mutter.DisplayConfig.GetCurrentState 2>/dev/null || true)"
+            if [[ "${screens}" != *"'is-builtin': <true>"* ]]; then
+                echo "$(gettext "This computer has no screen of its own.")"
+            fi
+            ;;
+        off)
+            gsettings set "${schema}" round-corners false
+            echo "$(gettext "Rounded screen corners: off.")"
+            ;;
+        *)
+            echo "usage: ame desktop screen-corners on|off"
+            exit 64
+            ;;
+    esac

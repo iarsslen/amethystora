@@ -52,7 +52,9 @@ impl Server {
                         next.set(next.get() + 1);
                         next.get()
                     };
-                    log.borrow_mut().push((id, replaces, params.child_value(3).get::<String>().unwrap_or_default() + "|" + &params.child_value(4).get::<String>().unwrap_or_default()));
+                    // Summary, body and the sound asked for, if any
+                    let sound = glib::VariantDict::new(Some(&params.child_value(6))).lookup_value("sound-name", None).and_then(|v| v.get::<String>()).unwrap_or_default();
+                    log.borrow_mut().push((id, replaces, params.child_value(3).get::<String>().unwrap_or_default() + "|" + &params.child_value(4).get::<String>().unwrap_or_default() + "|" + &sound));
                     let answer = move || invocation.return_value(Some(&(id,).to_variant()));
                     if wait.get() == 0 {
                         answer();
@@ -231,4 +233,11 @@ async fn reply_finds_its_notification(daemon: &Daemon, server: &Server, root: &P
     let second = server.notified.borrow().iter().find(|(_, _, t)| t.starts_with("Example Mail")).unwrap().0;
     server.signal("NotificationClosed", (second, 2u32).to_variant());
     until("the dismissal to reach the phone", || phone.saw("kdeconnect.notification.request").iter().any(|p| p.str("cancel") == Some(other))).await;
+    assert!(server.notified.borrow().iter().filter(|(_, _, t)| !t.is_empty()).all(|(_, _, t)| t.ends_with('|')), "no sound is asked for but a text message's");
+
+    // A text message asks the server for the phone's own sound in the desktop's sound theme
+    let text = "0|com.google.android.apps.messaging|3|null|10123";
+    phone.service.send_to(&phone.device(&cid), "kdeconnect.notification", json!({ "id": text, "appName": "Messages", "title": "Sam", "text": "Running late", "isClearable": true }));
+    until("the text message on the desktop", || server.notified.borrow().iter().any(|(_, _, t)| t.contains("Running late"))).await;
+    assert!(server.notified.borrow().iter().find(|(_, _, t)| t.contains("Running late")).unwrap().2.ends_with("|message-new-instant-phone"));
 }

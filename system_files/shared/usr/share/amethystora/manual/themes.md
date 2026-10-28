@@ -290,6 +290,18 @@ a 27-inch 4K monitor, the pointer is drawn one size larger (32 in place of 24), 
 text is to read. A screen scaled to 200% already doubles it, and a size you chose in Settings is always kept.
 `ame desktop pointer-dense off` turns it off. Control has all three under Appearance.
 
+## Rounded screen corners
+
+Most laptop screens are square at the corners. With rounded corners on, the desktop draws a small black curve in
+each corner of the laptop's own screen, over everything, so that the whole screen reads as one rounded piece of
+glass. A monitor on a cable, and a desktop computer's screen, stay square. It is off until you turn it on:
+`ame desktop screen-corners on` (and `off`), or **Rounded screen corners** in Control, under Appearance.
+
+The corners are four tiny shapes, drawn once, and cost nothing while you work. One thing to know: something drawn
+over a fullscreen window keeps GNOME from handing that window to the screen directly, so a fullscreen game or video
+takes a little more work to show while the corners are on. Screenshots of the whole screen include them, since they
+are what the screen shows.
+
 ## Change a theme, or make your own
 
 Themes ship read-only in `/usr/share/amethystora/themes`. A folder of the same name in

@@ -155,6 +155,8 @@ read_in_background shake gsettings get org.gnome.shell.extensions.amethystora-ui
 read_in_background dense gsettings get org.gnome.shell.extensions.amethystora-ui.pointer dense
 read_in_background glass gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.glass
 read_in_background motion gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.motion
+read_in_background bezel gsettings get org.gnome.shell.extensions.amethystora-ui.bezel round-corners
+read_in_background sound gsettings list-recursively org.gnome.desktop.sound
 read_in_background space-names gsettings get org.gnome.shell.extensions.amethystora-ui.workspaces auto-names
 read_in_background pill gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.pill
 read_in_background quick gsettings get org.gnome.shell.extensions.amethystora-ui.quick tile-hidden
@@ -359,6 +361,14 @@ USAGE="ame desktop transition STYLE DURATION"
 item appearance transition-length range "$(gettext "Transition length")" \
     "$(gettext "How long a transition takes, in milliseconds.")" "${LENGTH}" themes#transitions
 
+# The bezel module's one key: a laptop's own screen with rounded corners
+if [[ "$(said bezel)" == true ]]; then CORNERS=on; else CORNERS=off; fi
+[[ "$(ended bezel)" == 0 ]] || REASON="$(gettext "Amethystora UI is not installed.")"
+switch_choices false ame desktop screen-corners
+USAGE="ame desktop screen-corners on|off"
+item appearance screen-corners switch "$(gettext "Rounded screen corners")" \
+    "$(gettext "Round the corners of a laptop's own square screen.")" "${CORNERS}" themes#rounded-screen-corners
+
 # The pointer: its look (a file of the account's, as the icons), and the pointer module's two keys
 GROUP="$(gettext "Pointer")"
 POINTER_SET=theme
@@ -415,6 +425,23 @@ GROUP="$(gettext "Starting up")"
 USAGE="ame desktop boot-menu on|off"
 item appearance boot-menu switch "$(gettext "Boot menu artwork")" \
     "$(gettext "The Amethystora artwork on the menu the machine shows as it starts.")" "${BOOT_MENU}" themes#the-boot-menu
+GROUP=""
+
+# The desktop's own sounds: the Soft set while its theme is chosen and event sounds are on; another sound theme (one
+# Settings made for its alert sound) is neither choice
+SOUNDS=""
+if [[ "$(said sound | awk '$2 == "event-sounds" { print $3 }')" == false ]]; then
+    SOUNDS=off
+elif [[ "$(said sound | awk '$2 == "theme-name" { print $3 }')" == "'amethystora'" ]]; then
+    SOUNDS=soft
+fi
+[[ "$(ended sound)" == 0 ]] || REASON="$(gettext "GNOME's sound settings are not installed.")"
+choice soft "$(gettext "Soft")" "$(gettext "Lower and rounder, for a quiet room")" false ame desktop sounds soft
+choice off "$(gettext "Off")" "$(gettext "The desktop makes no sound of its own; apps still can")" false ame desktop sounds off
+GROUP="$(gettext "Sound")"
+USAGE="ame desktop sounds SET"
+item appearance sounds choice "$(gettext "Sounds")" \
+    "$(gettext "The desktop's own sounds: notifications, screenshots, volume and the rest.")" "${SOUNDS}" desktop#sounds
 GROUP=""
 
 # --- Desktop ---------------------------------------------------------------------------------------

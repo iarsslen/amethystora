@@ -1,0 +1,7 @@
+# Amethystora: the login chord is played by Amethystora UI's sounds module, once a session and only while the
+# desktop's sounds are on (ame desktop sounds). libcanberra's own login sound would play it a second time, so its entry
+# is hidden here, and 17-cleanup.sh takes away the copy in /usr/share/gnome/autostart, which gnome-session reads first.
+[Desktop Entry]
+Type=Application
+Name=GNOME Login Sound
+Hidden=true

@@ -14,12 +14,17 @@
 #
 # Run again on a bundle that already has a picture, it puts the new one in its place under the same name,
 # and the rule that names it stays the one rule.
+#
+# The same stylesheet carries the lock screen's look, which no extension can reach (GNOME runs none while the
+# screen is locked): the large clock and date in Quicksand, and what is playing and the notifications as cards of
+# glass. Its colours are Amethystora's own, like the login screen's, not the theme's. It is appended once too.
 
 set -euo pipefail
 
 BACKGROUND="${1:?usage: amethystora-login-background PICTURE}"
 GRESOURCE=/usr/share/gnome-shell/gnome-shell-theme.gresource
 PREFIX=/org/gnome/shell/theme
+CLOCK_MARKER="Amethystora: the lock screen clock and its cards (/usr/libexec/amethystora-login-background)"
 WORK="$(mktemp -d)"
 trap 'rm -rf "${WORK}"' EXIT
 
@@ -61,13 +66,70 @@ for stylesheet in "${WORK}/gnome-shell-dark.css" "${WORK}/gnome-shell-light.css"
     test -s "${stylesheet}"
     # If the selector has gone, the rule below would be styling nothing at all
     grep -q "lockDialogGroup" "${stylesheet}"
-    grep -qF 'background-image: url("amethystora-login.png")' "${stylesheet}" && continue
-    cat >>"${stylesheet}" <<'EOF'
+    if ! grep -qF 'background-image: url("amethystora-login.png")' "${stylesheet}"; then
+        cat >>"${stylesheet}" <<'EOF'
 
 /* Amethystora: the login screen background (/usr/libexec/amethystora-login-background) */
 #lockDialogGroup {
   background-image: url("amethystora-login.png");
   background-size: cover;
+}
+EOF
+    fi
+    # The lock screen's own classes, as GNOME Shell's unlockDialog.js names them: if they have gone, the block
+    # below would style nothing
+    grep -q "unlock-dialog-clock-time" "${stylesheet}"
+    grep -q "unlock-dialog-notifications-container" "${stylesheet}"
+    grep -qF "${CLOCK_MARKER}" "${stylesheet}" && continue
+    # GNOME's own rules for the clock are nested under .unlock-dialog-clock, so these are as well: a rule of the same
+    # weight that comes later wins, a lighter one would not. St cuts a text shadow off at the label's edges, where a
+    # wider blur than this one shows as a box around the time.
+    cat >>"${stylesheet}" <<EOF
+
+/* ${CLOCK_MARKER} */
+.unlock-dialog-clock {
+  spacing: 4px;
+}
+.unlock-dialog-clock .unlock-dialog-clock-time {
+  font-family: "Quicksand";
+  font-size: 116px;
+  font-weight: 600;
+  letter-spacing: -2px;
+  color: #f3ecfb;
+  text-shadow: 0 6px 12px rgba(0, 0, 0, 0.35);
+}
+.unlock-dialog-clock .unlock-dialog-clock-date {
+  font-family: "Quicksand";
+  font-size: 20px;
+  font-weight: 600;
+  color: #e3d6f5;
+}
+.unlock-dialog-notifications-container {
+  width: 360px;
+  spacing: 10px;
+}
+.unlock-dialog-notifications-container .message,
+.unlock-dialog-notifications-container .unlock-dialog-notification-source {
+  background-color: rgba(26, 16, 42, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 22px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  padding: 12px;
+  color: #efe4ff;
+}
+.unlock-dialog-notifications-container .unlock-dialog-notification-source {
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.unlock-dialog-notifications-container .message.critical,
+.unlock-dialog-notifications-container .unlock-dialog-notification-source.critical {
+  background-color: rgba(58, 26, 74, 0.62);
+}
+.unlock-dialog-notifications-container .message:active,
+.unlock-dialog-notifications-container .unlock-dialog-notification-source:active {
+  background-color: rgba(26, 16, 42, 0.58);
 }
 EOF
 done
@@ -95,8 +157,14 @@ for resource in "${RESOURCES[@]}"; do
     gresource list "${GRESOURCE}" | grep -x "${resource}" >/dev/null
 done
 for variant in dark light; do
-    [[ "$(gresource extract "${GRESOURCE}" "${PREFIX}/gnome-shell-${variant}.css" |
-        grep -c 'background-image: url("amethystora-login.png")')" == 1 ]]
+    gresource extract "${GRESOURCE}" "${PREFIX}/gnome-shell-${variant}.css" >"${WORK}/check.css"
+    [[ "$(grep -c 'background-image: url("amethystora-login.png")' "${WORK}/check.css")" == 1 ]]
+    # The clock's block once, and the clock in it in Quicksand at its size
+    [[ "$(grep -cF "${CLOCK_MARKER}" "${WORK}/check.css")" == 1 ]]
+    awk -v marker="${CLOCK_MARKER}" 'index($0, marker) { on = 1 } on && /\.unlock-dialog-clock-time \{/ { block = 1 }
+        block { print } block && /\}/ { exit }' "${WORK}/check.css" >"${WORK}/clock.css"
+    grep -qF 'font-family: "Quicksand";' "${WORK}/clock.css"
+    grep -qF 'font-size: 116px;' "${WORK}/clock.css"
 done
 cmp -s "${BACKGROUND}" <(gresource extract "${GRESOURCE}" "${PREFIX}/amethystora-login.png")
 

@@ -120,6 +120,7 @@ async fn scenario(root: &Path) {
     assert_eq!(shown.body, "Sam <b>: Are you coming tonight? Code 123456.", "the notification is text; the server's markup is its escaping to do");
     let ids: Vec<&str> = shown.actions.iter().map(|a| a.0.as_str()).collect();
     assert_eq!(ids, ["default", "reply", "action:0", "dismiss"]);
+    assert_eq!(shown.sound, None, "a chat app's notification has the server's own sound");
     let before = computer.notices.raised.borrow().len();
     phone.service.send_to(&seen_by_phone, "kdeconnect.notification", body.clone());
     pause(150).await;
@@ -150,6 +151,12 @@ async fn scenario(root: &Path) {
     until("the second notification", || computer.notices.last(&format!("n:{pid}:other")).is_some()).await;
     phone.service.send_to(&seen_by_phone, "kdeconnect.notification", json!({ "id": "other", "isCancel": true }));
     until("the phone's cancel", || computer.notices.closed.borrow().contains(&format!("n:{pid}:other"))).await;
+    assert_eq!(computer.notices.last(&format!("n:{pid}:other")).unwrap().sound, None);
+    // A text message rings with the phone's own sound in the desktop's sound theme
+    let text = "0|com.google.android.apps.messaging|3|null|10123";
+    phone.service.send_to(&seen_by_phone, "kdeconnect.notification", json!({ "id": text, "appName": "Messages", "title": "Sam", "text": "Running late", "isClearable": true }));
+    until("the text message's notification", || computer.notices.last(&format!("n:{pid}:{text}")).is_some()).await;
+    assert_eq!(computer.notices.last(&format!("n:{pid}:{text}")).unwrap().sound, Some("message-new-instant-phone"));
     // Silent catch-up notifications and ongoing ones are not shown
     phone.service.send_to(&seen_by_phone, "kdeconnect.notification", json!({ "id": "quiet", "appName": "Mail", "title": "Old", "text": "News", "silent": true }));
     phone.service.send_to(&seen_by_phone, "kdeconnect.notification", json!({ "id": "ongoing", "appName": "Player", "title": "Now playing", "isClearable": false }));

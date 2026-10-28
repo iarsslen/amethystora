@@ -25,6 +25,13 @@ these commands in the agent's own shell, as the user. Read before writing, chang
 - The glass behind the top bar, dock, menus and notifications: `ame desktop glass frost|prism|clear`. Comfort:
   `ame desktop comfort reduce-transparency|reduce-motion|increase-contrast on|off` (the glass solid; GNOME's
   Reduced Motion; GNOME's High Contrast), and `ame desktop comfort` alone shows all of them and the power saver.
+- The desktop's own sounds are the sound theme `amethystora` (`/usr/share/sounds/amethystora`, the Soft set):
+  `ame desktop sounds soft|off` (off is GNOME's `event-sounds` false; apps still make their own). The login chord
+  and the power-plug sound are played by Amethystora UI's `sounds` module.
+- Rounded corners on a laptop's own screen (not an external monitor): `ame desktop screen-corners on|off`, the key
+  `org.gnome.shell.extensions.amethystora-ui.bezel` `round-corners`.
+- The lock screen's large clock and cards are GNOME Shell's own stylesheet, rebuilt when the image is built
+  (`/usr/libexec/amethystora-login-background`): nothing on the machine changes them.
 - Quick settings' tiles are moved and hidden by holding one (arrange mode), kept in
   `org.gnome.shell.extensions.amethystora-ui.quick` `tile-order` and `tile-hidden` (ids such as `wifi`, `dnd`,
   `battery`, `theme`): `ame desktop quick-settings reset` puts every tile back, `ame desktop quick-settings theme

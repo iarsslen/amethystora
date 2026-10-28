@@ -257,7 +257,9 @@ impl Service {
             Kind::Sms | Kind::Chat => "chat-message-new-symbolic",
             Kind::Plain => "smartphone-symbolic",
         };
-        Notice { key: nkey(&dev.id, id), summary: words.heading, body: words.body, icon: Some(icon.unwrap_or_else(|| fallback.into())), actions, ..Notice::default() }
+        // A text message has a sound of its own in the desktop's sound theme (the Soft set's three quick notes)
+        let sound = (n.kind == Kind::Sms).then_some("message-new-instant-phone");
+        Notice { key: nkey(&dev.id, id), summary: words.heading, body: words.body, icon: Some(icon.unwrap_or_else(|| fallback.into())), actions, sound, ..Notice::default() }
     }
 
     /// The person did something with the desktop notification of a phone's (`rest` is its id, `None` is closing it)

@@ -104,6 +104,12 @@ SEARCH=org.gnome.shell.extensions.amethystora-ui.search
 SEARCH_KEYS=(answers settings manual windows clipboard agent glance)
 EMOJI=org.gnome.shell.extensions.amethystora-ui.emoji
 EMOJI_KEYS=(skin-tone)
+# Rounded screen corners, and whether the desktop makes its own sounds (never the sound theme's name, which Settings
+# points at a folder of the account's), which amethystora-setup's BEZEL_KEYS and SOUND_KEYS take
+BEZEL=org.gnome.shell.extensions.amethystora-ui.bezel
+BEZEL_KEYS=(round-corners)
+SOUND=org.gnome.desktop.sound
+SOUND_KEYS=(event-sounds)
 
 # The tiling, while it runs, takes a combination out of four GNOME keys that it cannot wrap in memory, and
 # writes down what it took in its state file, to put back when it is turned off: the account's own value is the
@@ -187,6 +193,8 @@ settings() {
         changed "${BREAKS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${BREAKS_KEYS[@]}") -
         changed "${SEARCH}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${SEARCH_KEYS[@]}") -
         changed "${EMOJI}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${EMOJI_KEYS[@]}") -
+        changed "${BEZEL}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${BEZEL_KEYS[@]}") -
+        changed "${SOUND}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${SOUND_KEYS[@]}") -
     } | while read -r schema key value; do
         value="$(as_json <<<"${value}")" && [[ -n "${value}" ]] || continue
         jq -nc --arg s "${schema}" --arg k "${key}" --argjson v "${value}" '{schema: $s, key: $k, value: $v}'
@@ -207,14 +215,14 @@ LAYOUT=tiling
 SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" --arg pointer "${POINTER}" --arg glass "${GLASS}" \
     --arg windows "${WINDOWS}" --arg dock "${DOCK}" --arg motion "${MOTION}" --arg workspaces "${WORKSPACES}" \
     --arg pill "${PILL}" --arg quick "${QUICK}" --arg bars "${BARS}" --arg today "${TODAY}" --arg breaks "${BREAKS}" \
-    --arg search "${SEARCH}" --arg emoji "${EMOJI}" '
+    --arg search "${SEARCH}" --arg emoji "${EMOJI}" --arg bezel "${BEZEL}" --arg sound "${SOUND}" '
     map(if .schema == "custom" then .value |= (if . == "" then [] else [.] end) else . end) as $all
     | {layout: $layout}
     + ([$all[] | select(.schema == "org.gnome.shell")] | if length > 0 then {favorites: .[0].value} else {} end)
     + {keybindings: (reduce ($all[] | select(if .schema == $windows then .key == "snap-chooser"
             elif .schema == $search then .key == "open" elif .schema == $emoji then .key == "emoji-picker"
             else .schema | IN("org.gnome.shell", $tiling, $pointer, $glass, $motion, $workspaces, $dock, $pill, $quick, $bars,
-                $today, $breaks) | not end))
+                $today, $breaks, $bezel, $sound) | not end))
         as $e ({}; .[$e.schema][$e.key] = $e.value))}
     + ([$all[] | select(.schema == $windows and .key != "snap-chooser")]
         | if length > 0 then {windows: (map({(.key): .value}) | add)} else {} end)
@@ -234,7 +242,9 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
     + ([$all[] | select(.schema == $search and .key != "open")]
         | if length > 0 then {search: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $emoji and .key != "emoji-picker")]
-        | if length > 0 then {emoji: (map({(.key): .value}) | add)} else {} end)')"
+        | if length > 0 then {emoji: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $bezel)] | if length > 0 then {bezel: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $sound)] | if length > 0 then {sound: (map({(.key): .value}) | add)} else {} end)')"
 
 # The image the machine runs, which is the one it follows, as rpm-ostree has it (amethystora-deployments
 # asks bootc on a sealed image)

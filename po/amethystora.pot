@@ -2114,6 +2114,14 @@ msgid "How long a transition takes, in milliseconds."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Rounded screen corners"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Round the corners of a laptop's own square screen."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Pointer"
 msgstr ""
 
@@ -2199,6 +2207,34 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "The Amethystora artwork on the menu the machine shows as it starts."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "GNOME's sound settings are not installed."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Soft"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Lower and rounder, for a quiet room"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "The desktop makes no sound of its own; apps still can"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Sound"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+msgid "Sounds"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The desktop's own sounds: notifications, screenshots, volume and the rest."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
@@ -6388,6 +6424,26 @@ msgstr ""
 msgid "The emoji picker shows hands and people in the ${tone} skin tone."
 msgstr ""
 
+#: usr/share/amethystora/just/desktop.just
+msgid "Sounds: soft."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Sounds: off. Apps can still make sounds of their own."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Rounded screen corners: on."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "This computer has no screen of its own."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Rounded screen corners: off."
+msgstr ""
+
 #: usr/share/amethystora/just/report.just
 msgid "Gathering what a bug report needs. It stays on this machine until you choose otherwise."
 msgstr ""
@@ -9639,6 +9695,14 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/search.js
 msgid "Space previews"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/sounds.js
+msgid "Login sound"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/sounds.js
+msgid "Power connected sound"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/backgrounds.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js

@@ -169,10 +169,11 @@ done <<<"${listed}"
 saved="$(sed -n 's/^QUICK_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort)"
 [[ "${saved}" == "${listed}" ]] ||
     { echo "the manifest saves other quick settings keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
-# A top bar on every screen, today's tasks and GNOME's rest reminders likewise: every key of their schemas but the
-# weather, which sends the place chosen in Weather and is never in a file; and the manifest saves the same keys
+# A top bar on every screen, today's tasks, GNOME's rest reminders and the rounded screen corners likewise: every key of
+# their schemas but the weather, which sends the place chosen in Weather and is never in a file; and the manifest saves
+# the same keys
 for table in BARS:org.gnome.shell.extensions.amethystora-ui.bars TODAY:org.gnome.shell.extensions.amethystora-ui.today \
-    BREAKS:org.gnome.desktop.break-reminders; do
+    BREAKS:org.gnome.desktop.break-reminders BEZEL:org.gnome.shell.extensions.amethystora-ui.bezel; do
     name="${table%%:*}" id="${table#*:}"
     TABLE="$(sed -n "s/^${name}_KEYS='\(.*\)'\$/\1/p" "${SETUP}")"
     listed="$(jq -r 'keys[]' <<<"${TABLE}" | sort)"
@@ -193,6 +194,11 @@ for table in BARS:org.gnome.shell.extensions.amethystora-ui.bars TODAY:org.gnome
     [[ "${saved}" == "${listed}" ]] ||
         { echo "the manifest saves other ${name} keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
 done
+# The desktop's sounds: GNOME's switch for them alone, never the sound theme's name (Settings points it at a folder of
+# the account's), and the manifest saves the same key
+[[ "$(sed -n "s/^SOUND_KEYS='\(.*\)'\$/\1/p" "${SETUP}" | jq -c .)" == '{"event-sounds":["b"]}' ]]
+[[ "$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range org.gnome.desktop.sound event-sounds | xargs)" == "type b" ]]
+[[ "$(sed -n 's/^SOUND_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest")" == "event-sounds" ]]
 # The search's switches and the emoji picker's skin tone likewise, each schema less its keybinding (open,
 # emoji-picker), which the keybindings part keeps; and the manifest saves the same keys
 for part in "SEARCH org.gnome.shell.extensions.amethystora-ui.search open" \
@@ -265,7 +271,9 @@ org.gnome.shell.extensions.amethystora-ui.windows hold-super-delay 1000
 org.gnome.shell.extensions.amethystora-ui.windows dim false
 org.gnome.shell.extensions.amethystora-ui.dock magnify 'swell'
 org.gnome.shell.extensions.amethystora-ui.dock folders @a{sas} {}
-org.gnome.shell.extensions.amethystora-ui.dock stacks ['xdg:DOWNLOAD']"
+org.gnome.shell.extensions.amethystora-ui.dock stacks ['xdg:DOWNLOAD']
+org.gnome.shell.extensions.amethystora-ui.bezel round-corners false
+org.gnome.desktop.sound event-sounds true"
         values="org.gnome.shell favorite-apps ['org.gnome.Nautilus.desktop', 'firefox.desktop']
 org.gnome.shell enabled-extensions ['clipboard-indicator@tudmotu.com']
 org.gnome.desktop.wm.keybindings close ['<Super>q']
@@ -383,7 +391,8 @@ jq '.flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .brew
     | .settings.pointer = {"shake": "off", "dense": false}
     | .settings.glass = {"material": "frost", "solid": true}
     | .settings.windows = {"dim": false, "corner-top-right": "overview", "hold-super-delay": 1500}
-    | .settings.dock += {"magnify": "off", "folders": {"Writing": ["org.gnome.Nautilus.desktop", "firefox.desktop"]}}' \
+    | .settings.dock += {"magnify": "off", "folders": {"Writing": ["org.gnome.Nautilus.desktop", "firefox.desktop"]}}
+    | .settings.bezel = {"round-corners": true} | .settings.sound = {"event-sounds": false}' \
     "${FILE}" >"${T}/more.json"
 out="$("${SETUP}" diff "${T}/more.json")"
 grep -qxF "  ~ the windows' dim: false, in place of true" <<<"${out}"
@@ -398,7 +407,11 @@ grep -qxF "  ~ the glass's solid: true, in place of false" <<<"${out}"
 grep -qxF "  ~ the tiling's window-gap: 20, in place of 12" <<<"${out}"
 grep -qxF "  ~ the tiling's animation-time: 0.5, in place of 0.25" <<<"${out}"
 grep -qxF "  ! the tiling's workspace-colors: [\"\",\"#314e6c\"]: this machine's tiling has no such setting" <<<"${out}"
+grep -qxF "  ~ the screen's round-corners: true, in place of false" <<<"${out}"
+grep -qxF "  ~ the desktop's event-sounds: false, in place of true" <<<"${out}"
 "${SETUP}" apply --yes "${T}/more.json" >/dev/null
+grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.bezel round-corners true" "${LOG}"
+grep -qx "gsettings set org.gnome.desktop.sound event-sounds false" "${LOG}"
 grep -qx "flatpak install --system --noninteractive flathub org.gnome.Maps" "${LOG}"
 grep -qx "brew install --formula fd someone/tools/lint" "${LOG}"
 grep -qx "gsettings set org.gnome.desktop.wm.keybindings close \['<Super>c'\]" "${LOG}"
@@ -478,6 +491,10 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"search": {"currency": true}}}' \
     '{"version": 1, "settings": {"emoji": {"skin-tone": "purple"}}}' \
     '{"version": 1, "settings": {"emoji": {"emoji-picker": ["<Super>period"]}}}' \
+    '{"version": 1, "settings": {"bezel": {"round-corners": "on"}}}' \
+    '{"version": 1, "settings": {"bezel": {"radius": 20}}}' \
+    '{"version": 1, "settings": {"sound": {"theme-name": "__custom"}}}' \
+    '{"version": 1, "settings": {"sound": {"event-sounds": 0}}}' \
     '{"version": 1, "settings": {"keybindings": {"org.gnome.shell.extensions.amethystora-ui.search": {"answers": ["<Super>a"]}}}}' \
     '{"version": 1, "settings": {"pill": {"digest-times": []}}}' \
     '{"version": 1, "settings": {"pill": {"digest-times": ["25:00"]}}}' \

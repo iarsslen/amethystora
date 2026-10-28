@@ -172,6 +172,27 @@ Nothing is lost when the card goes: everything is in the list. `ame desktop dige
 The volume, the brightness and the other signs GNOME shows for a key (Caps Lock, flight mode) appear as
 a slim pill just under the top bar, instead of a card low in the middle of the screen.
 
+## Sounds
+
+The desktop's own sounds are Amethystora's **Soft** set: lower and rounder, for a quiet room. You hear them for a
+message from a chat app that asks for one (GNOME plays no sound for an ordinary notification), a text message from
+your [phone](hardware.md#phones), plugging in the power, a screenshot, each step of the volume, an error and the
+bell, and a slow chord once the desktop has started. Any other event an app asks for comes from the standard sound
+theme.
+
+`ame desktop sounds off` makes the desktop silent: it makes no sound of its own, and apps can still make theirs (a
+call, music, a game). `ame desktop sounds soft` brings them back. Control has the same choice under Appearance, in
+the **Sound** group. Choosing an alert sound in **Settings**, **Sound**, gives the bell that sound; Control then
+shows neither choice as chosen, and `ame desktop sounds soft` goes back to the whole Soft set.
+
+## The lock screen
+
+The lock screen shows a large clock and the date, what is playing with its controls, and your notifications as one
+row for each app, with how many it has: never what they say. To hide even those rows, turn off **Lock Screen
+Notifications** in **Settings**, **Notifications**. The lock screen runs no extension, so it keeps Amethystora's own
+colours whatever the theme. With **High Contrast** on (Settings, Accessibility), it is GNOME's own high-contrast lock
+screen instead, with GNOME's clock and plain cards, which are easier to read.
+
 ## Night Light and the screen's colour
 
 Night Light makes the screen's colours warmer, more yellow, from sunset to sunrise or between the times you

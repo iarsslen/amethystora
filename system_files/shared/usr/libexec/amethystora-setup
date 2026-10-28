@@ -22,7 +22,7 @@
 #   extensions   the GNOME extensions turned on, of those installed here
 #   theme        the desktop theme
 #   settings     {layout, favorites, keybindings, tiling, pointer, glass, motion, workspaces, windows, dock, pill, quick,
-#                bars, today, breaks, search, emoji}: the window layout, the dock's apps, the keys of
+#                bars, today, breaks, search, emoji, bezel, sound}: the window layout, the dock's apps, the keys of
 #                keybindings (the image's custom keybindings by their id, never a command), the tiling's
 #                settings by their key in its schema (TILING_KEYS: numbers, switches and lists, never its
 #                window rules, which hold patterns, or a picture's path), shake to find and the larger pointer on
@@ -33,7 +33,9 @@
 #                digest (PILL_KEYS), the order of quick settings' tiles and the ones put away (QUICK_KEYS), a top bar
 #                on every screen and over fullscreen (BARS_KEYS), today's tasks in the calendar (TODAY_KEYS; never
 #                the weather, which sends the place chosen in Weather), GNOME's rest reminders (BREAKS_KEYS), what
-#                the search finds besides GNOME's own (SEARCH_KEYS), the emoji picker's skin tone (EMOJI_KEYS), and no
+#                the search finds besides GNOME's own (SEARCH_KEYS), the emoji picker's skin tone (EMOJI_KEYS), rounded
+#                corners on a laptop's own screen (BEZEL_KEYS), whether the desktop makes its own sounds (SOUND_KEYS;
+#                never the sound theme's name, which Settings sets to a folder of the account's), and no
 #                other GNOME
 #                setting (Reduce motion and High Contrast are GNOME's accessibility keys, left out). A file
 #                from before the tiling replaced PaperWM may still hold its gaps under paperwm, which are read
@@ -163,6 +165,13 @@ SEARCH_KEYS='{
 # The emoji picker's skin tone. Never emoji-picker, its key, which the keybindings part keeps.
 EMOJI=org.gnome.shell.extensions.amethystora-ui.emoji
 EMOJI_KEYS='{"skin-tone": ["s", ["none", "light", "medium-light", "medium", "medium-dark", "dark"]]}'
+# Rounded corners on a laptop's own screen
+BEZEL=org.gnome.shell.extensions.amethystora-ui.bezel
+BEZEL_KEYS='{"round-corners": ["b"]}'
+# Whether the desktop makes its own sounds (ame desktop sounds soft|off). Never theme-name: Settings points it at a
+# theme it writes into the account's own folder for the alert sound, which another machine does not have.
+SOUND=org.gnome.desktop.sound
+SOUND_KEYS='{"event-sounds": ["b"]}'
 # What a value of each kind has to be, for the check and for reading an old file's gaps
 TILING_JQ="$(
     cat <<'EOF'
@@ -283,7 +292,7 @@ if type != "object" then "it is not a JSON object" else
     at("extensions"; each("extensions"; name; "an extension's id")),
     at("theme"; if type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]*$") then empty else "theme is not a theme's name" end),
     at("settings"; only(["layout", "favorites", "keybindings", "tiling", "paperwm", "pointer", "glass", "motion", "workspaces",
-            "windows", "dock", "pill", "quick", "bars", "today", "breaks", "search", "emoji"]; "settings."),
+            "windows", "dock", "pill", "quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound"]; "settings."),
         (if type == "object" then
             at("layout"; if IN("tiling", "classic") then empty else "settings.layout is tiling or classic" end),
             at("favorites"; each("settings.favorites";
@@ -360,6 +369,14 @@ if type != "object" then "it is not a JSON object" else
             at("emoji"; only($emoji | keys; "settings.emoji."),
                 (if type == "object" then to_entries[] | select(.key | IN($emoji | keys[])) | $emoji[.key] as $spec
                     | if .value | valid($spec) then empty else "settings.emoji.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("bezel"; only($bezel | keys; "settings.bezel."),
+                (if type == "object" then to_entries[] | select(.key | IN($bezel | keys[])) | $bezel[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.bezel.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("sound"; only($sound | keys; "settings.sound."),
+                (if type == "object" then to_entries[] | select(.key | IN($sound | keys[])) | $sound[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.sound.\(.key) is \(wanted($spec))" end
                  else empty end))
         else empty end))
 end
@@ -375,6 +392,7 @@ check() {
         --argjson quick "${QUICK_KEYS}" \
         --argjson bars "${BARS_KEYS}" --argjson today "${TODAY_KEYS}" --argjson breaks "${BREAKS_KEYS}" \
         --argjson search "${SEARCH_KEYS}" --argjson emoji "${EMOJI_KEYS}" \
+        --argjson bezel "${BEZEL_KEYS}" --argjson sound "${SOUND_KEYS}" \
         "${TILING_JQ} ${CHECK}" 2>&1)" ||
         die "$1 is not JSON."
     [[ -z "${problems}" ]] ||
@@ -516,7 +534,7 @@ current() {
             value="$(gsettings get "${PILL}" "${key}" 2>/dev/null | as_json)"
             jq -nc --arg k "${key}" --argjson v "${value:-null}" '{pill: {($k): $v}}'
         done < <(jq -r '.settings.pill // {} | keys[]' <<<"$1")
-        for area in quick bars today breaks search emoji; do
+        for area in quick bars today breaks search emoji bezel sound; do
             case "${area}" in
                 quick) schema="${QUICK}" ;;
                 bars) schema="${BARS}" ;;
@@ -524,6 +542,8 @@ current() {
                 breaks) schema="${BREAKS}" ;;
                 search) schema="${SEARCH}" ;;
                 emoji) schema="${EMOJI}" ;;
+                bezel) schema="${BEZEL}" ;;
+                sound) schema="${SOUND}" ;;
             esac
             while read -r key; do
                 value="$(gsettings get "${schema}" "${key}" 2>/dev/null | as_json)"
@@ -531,7 +551,8 @@ current() {
             done < <(jq -r --arg a "${area}" '.settings[$a] // {} | keys[]' <<<"$1")
         done
     } | jq -sc 'reduce .[] as $x ({favorites: null, keybindings: {}, tiling: {}, pointer: {}, glass: {}, motion: {},
-        workspaces: {}, windows: {}, dock: {}, pill: {}, quick: {}, bars: {}, today: {}, breaks: {}, search: {}, emoji: {}};
+        workspaces: {}, windows: {}, dock: {}, pill: {}, quick: {}, bars: {}, today: {}, breaks: {}, search: {}, emoji: {},
+        bezel: {}, sound: {}};
         . * $x)'
 }
 
@@ -644,10 +665,10 @@ def brew($x; $k): $x.brew[$k] // [];
         + if $v == null then {ok: false, why: "this machine has no such pill setting"} else {} end),
     ($hs.pill // {} | to_entries[] | .key as $k | select($fs.pill // {} | has($k) | not)
         | {area: "pill", action: "remove", key: $k, from: .value}),
-    (("quick", "bars", "today", "breaks", "search", "emoji") as $a
+    (("quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound") as $a
     | ($fs[$a] // {} | to_entries[] | .key as $k | $now[$a][$k] as $v
         | select(.value != $v) | {area: $a, action: "set", key: $k, to: .value, from: $v}
-        + if $v == null then {ok: false, why: "this machine has no such \({quick: "quick settings"}[$a] // $a) setting"} else {} end),
+        + if $v == null then {ok: false, why: "this machine has no such \({quick: "quick settings", bezel: "screen corners"}[$a] // $a) setting"} else {} end),
       ($hs[$a] // {} | to_entries[] | .key as $k | select($fs[$a] // {} | has($k) | not)
         | {area: $a, action: "remove", key: $k, from: .value}))
   ]
@@ -712,9 +733,10 @@ def text:
         + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
           else ", \(.from | tojson) here, back to the image's" end
     elif .area == "quick" or .area == "bars" or .area == "today" or .area == "breaks"
-        or .area == "search" or .area == "emoji" then
+        or .area == "search" or .area == "emoji" or .area == "bezel" or .area == "sound" then
         {quick: "quick settings'", bars: "the top bar's", today: "the calendar's", breaks: "the rest reminders'",
-            search: "the search's", emoji: "the emoji picker's"}[.area] + " \(.key)"
+            search: "the search's", emoji: "the emoji picker's", bezel: "the screen's", sound: "the desktop's"}[.area]
+        + " \(.key)"
         + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
           else ", \(.from | tojson) here, back to the image's" end
     else tojson end;
@@ -953,7 +975,7 @@ add_all() {
         name="$(jq -r .key <<<"${change}")"
         gsettings set "${PILL}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the live pill's ${name}")
     done
-    for area in quick bars today breaks search emoji; do
+    for area in quick bars today breaks search emoji bezel sound; do
         case "${area}" in
             quick) schema="${QUICK}" label="quick settings'" ;;
             bars) schema="${BARS}" label="the bars setting" ;;
@@ -961,6 +983,8 @@ add_all() {
             breaks) schema="${BREAKS}" label="the breaks setting" ;;
             search) schema="${SEARCH}" label="the search's" ;;
             emoji) schema="${EMOJI}" label="the emoji picker's" ;;
+            bezel) schema="${BEZEL}" label="the screen's" ;;
+            sound) schema="${SOUND}" label="the desktop's" ;;
         esac
         mapfile -t changes < <(of "${todo}" "${area}")
         for change in "${changes[@]}"; do
@@ -1050,7 +1074,7 @@ remove_all() {
     for name in "${names[@]}"; do
         gsettings reset "${PILL}" "${name}" || FAILED+=("the live pill's ${name}")
     done
-    for area in quick bars today breaks search emoji; do
+    for area in quick bars today breaks search emoji bezel sound; do
         case "${area}" in
             quick) schema="${QUICK}" label="quick settings'" ;;
             bars) schema="${BARS}" label="the bars setting" ;;
@@ -1058,6 +1082,8 @@ remove_all() {
             breaks) schema="${BREAKS}" label="the breaks setting" ;;
             search) schema="${SEARCH}" label="the search's" ;;
             emoji) schema="${EMOJI}" label="the emoji picker's" ;;
+            bezel) schema="${BEZEL}" label="the screen's" ;;
+            sound) schema="${SOUND}" label="the desktop's" ;;
         esac
         mapfile -t names < <(of "${gone}" "${area}" | jq -r .key)
         for name in "${names[@]}"; do
@@ -1154,7 +1180,9 @@ bake() {
           section("org.gnome.shell.extensions.amethystora-ui.today"; ($s.today // {})),
           section("org.gnome.desktop.break-reminders"; ($s.breaks // {})),
           section("org.gnome.shell.extensions.amethystora-ui.search"; ($s.search // {})),
-          section("org.gnome.shell.extensions.amethystora-ui.emoji"; ($s.emoji // {}))' <<<"${setup}" \
+          section("org.gnome.shell.extensions.amethystora-ui.emoji"; ($s.emoji // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.bezel"; ($s.bezel // {})),
+          section("org.gnome.desktop.sound"; ($s.sound // {}))' <<<"${setup}" \
         >"${schemas}/zz2-image-setup.gschema.override"
 
     # The image's custom keybindings are relocatable, so their keys are dconf's

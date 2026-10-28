@@ -2,9 +2,11 @@
 # A stand-in for UPower on the system bus, for the quick settings suite (19-quick-settings.sh): one laptop battery that
 # can keep its charge at 80%, and the display device GNOME reads. EnableChargeThreshold is written to
 # /run/upower-standin.log and changes the property, as UPower does. A lab file: it never goes into the image.
+# SIGUSR1 plugs the power in (the battery charging) and SIGUSR2 takes it out again, for the sound suite (23).
 #
 #   upower-standin.py [--unsupported] [--refuse]
 #       --unsupported: the battery has no charge limit; --refuse: it has one, and setting it fails
+import signal
 import sys
 
 from gi.repository import Gio, GLib
@@ -103,6 +105,22 @@ def acquired(connection, name):
                                    lambda c, s, p, i, prop: devices[p][prop], None)
 
 
+def plug(state):
+    """1 charging (plugged in), 2 discharging (on the battery), as UPower says it"""
+    for each in (BATTERY, DISPLAY):
+        devices[each]['State'] = GLib.Variant('u', state)
+        devices[each]['Online'] = GLib.Variant('b', state == 1)
+        if bus:
+            changed(each, {'State': GLib.Variant('u', state)})
+    manager['OnBattery'] = GLib.Variant('b', state != 1)
+    if bus:
+        bus.emit_signal(None, '/org/freedesktop/UPower', 'org.freedesktop.DBus.Properties', 'PropertiesChanged',
+                        GLib.Variant('(sa{sv}as)', ('org.freedesktop.UPower', {'OnBattery': manager['OnBattery']}, [])))
+    return GLib.SOURCE_CONTINUE
+
+
+GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR1, lambda: plug(1))
+GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, signal.SIGUSR2, lambda: plug(2))
 Gio.bus_own_name(Gio.BusType.SYSTEM, 'org.freedesktop.UPower', Gio.BusNameOwnerFlags.REPLACE, acquired, None,
                  lambda c, n: sys.exit(1))
 GLib.MainLoop().run()

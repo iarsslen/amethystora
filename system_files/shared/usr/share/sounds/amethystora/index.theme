@@ -1,0 +1,8 @@
+[Sound Theme]
+Name=Amethystora
+Comment=Amethystora's Soft sounds, synthesised by branding/sounds.mjs
+Inherits=freedesktop
+Directories=stereo
+
+[stereo]
+OutputProfile=stereo

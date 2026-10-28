@@ -10,6 +10,14 @@ set -eoux pipefail
 test -x /etc/xdg/Xwayland-session.d/10-ibus-x11
 rm -f /etc/xdg/autostart/ibus-mozc-launch-xwayland.desktop
 
+# The login chord is Amethystora UI's sounds module's, once a session. libcanberra-gtk3 also plays desktop-login from an
+# autostart entry, which the freedesktop theme never had a sound for, and which the Soft set has: it would play the chord
+# a second time. gnome-session 50 reads /usr/share/gnome/autostart before /etc/xdg/autostart and keeps the first entry of
+# a name, so the hidden copy in /etc/xdg/autostart alone cannot stand in for this one: it goes, and the copy stays for
+# whatever reads only the XDG folders (systemd's autostart generator).
+test -s /etc/xdg/autostart/libcanberra-login-sound.desktop
+rm -f /usr/share/gnome/autostart/libcanberra-login-sound.desktop
+
 # Setup Systemd
 # systemctl --global enable bazaar.service
 systemctl --global enable podman-auto-update.timer

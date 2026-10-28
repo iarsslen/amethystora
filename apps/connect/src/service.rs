@@ -1354,6 +1354,7 @@ impl Service {
             // flood of requests would want. The Phones page of the app shows the request as well.
             urgent: false,
             timeout_ms: wait,
+            sound: None,
         });
     }
 

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The key of the bezel module (modules/bezel.js): rounded corners on a laptop's own screen. Written by ame desktop
+     screen-corners, Control and the setup file. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.bezel" path="/org/gnome/shell/extensions/amethystora-ui/bezel/">
+    <key name="round-corners" type="b">
+      <default>false</default>
+      <summary>Rounded screen corners</summary>
+      <description>Rounds the four corners of a laptop's own screen with a small black curve over everything. Other screens are left square.</description>
+    </key>
+  </schema>
+</schemalist>

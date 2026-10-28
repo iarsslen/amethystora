@@ -23,7 +23,7 @@ enabled=['io.github.kolunmi.Bazaar.desktop', 'org.gnome.Calculator.desktop']
 
 [org.gnome.desktop.sound]
 allow-volume-above-100-percent=false
-theme-name="freedesktop"
+theme-name="amethystora"
 
 [org.gnome.desktop.wm.preferences]
 button-layout=":minimize,maximize,close"
