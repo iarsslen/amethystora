@@ -193,6 +193,14 @@ Notifications** in **Settings**, **Notifications**. The lock screen runs no exte
 colours whatever the theme. With **High Contrast** on (Settings, Accessibility), it is GNOME's own high-contrast lock
 screen instead, with GNOME's clock and plain cards, which are easier to read.
 
+## The reveal at login
+
+When a session starts, the screen begins where the boot splash ended: its dark sky, and the gem in the middle. The gem
+swells a little and flies into the top bar, where it becomes the Amethystora logo, while the desktop shows through the
+sky and the top bar settles into place, all in about a second. It happens each time you log in, not when you unlock
+the screen, and not at all with animations off (Settings, Accessibility). Turn it off on [Control](control.md)'s
+**Appearance** page, or with `ame desktop transition reveal off`.
+
 ## Night Light and the screen's colour
 
 Night Light makes the screen's colours warmer, more yellow, from sunset to sunrise or between the times you
@@ -202,14 +210,15 @@ Turn it on or off in the quick settings at the top right, and set its times and 
 
 ## Finding things
 
+![Search anything](media/super-space.webm)
+
 - `Super+Space` opens a search box near the top of the screen, over your windows: type, and `Enter`
   opens the first result; `Ctrl+1` to `Ctrl+9` open the result with that number, which each of
   Amethystora's rows shows at its end. `Escape`, the same keys again or a click elsewhere closes it.
   Right-click a result for its menu, or drag an app onto the dock to pin it.
 - `Super` alone opens the overview: every open window at once, with search at the top.
-- `Super+A` shows every installed app. Some are gathered in folders: **Utilities** (Flatseal, Warehouse,
-  Extension Manager, Firmware, Ignition, Impression, Refine and the like), **Productivity**,
-  **Development**, **Containers**, **Games**, **Gaming Utilities** and **Wine**.
+- `Super+A` shows every installed app: the ones you use most in a row at the top, and the rest gathered in
+  [folders](#the-app-grid).
 
 Both searches forgive typos, missing letters and initials in app names: `calxu` still finds
 Calculator, and `mc` finds Mission Center. They find Power Off, Restart and the other actions too.
@@ -241,6 +250,25 @@ Each can be turned off, in Control's **Search** group or in a terminal:
 ```bash
 ame desktop search                     # each, and whether it is on
 ame desktop search answers off         # answers, settings, manual, windows, clipboard, agent or glance
+```
+
+## The app grid
+
+`Super+A`, the app grid button on the dock, or a pinch with three fingers on the touchpad opens it. The apps you use
+most sit in a row at the top, under **Recently used**, most used first and as many as fit in a row (eight at most). At
+the very first login it holds only the apps that opened by themselves, the Manual and Control, until you use others;
+an account that has never opened an app has no such row. Under **All apps** come the folders and the apps that stay
+loose.
+
+The folders fill themselves from what each app says it is: **Office**, **Graphics**, **Games**, **System**,
+**Development** and **Utilities**, named in your language. An app that is two of these is in both folders. Security,
+Updates, Control, Backups, the Manual and Phone stay loose, and so do Steam and Lutris. The folders are GNOME's own:
+rename one, take an app out or move the icons, and that is kept for you. If you had changed your folders before, yours
+stay as they were.
+
+```bash
+ame desktop app-grid recent off        # no row of recent apps; on brings it back
+ame desktop app-grid folders reset     # the folders as the image has them, forgetting your changes
 ```
 
 ## The clipboard
@@ -327,6 +355,28 @@ Good to know:
   preferences to add another language.
 - Gradia is one of the apps every machine comes with; if you removed it, install it again from Bazaar
   and the button comes back.
+
+## Gestures and keys
+
+Each card moves the way the gesture or the keys do. Click one, or press `Space` on it, to pause it; with animations
+off they stay still.
+
+![Shake to find](media/shake-to-find.webm) ![Pinch for the apps](media/pinch-apps.webm) ![Search anything](media/super-space.webm) ![Hold Super](media/hold-super.webm)
+![Switch windows](media/super-tab.webm) ![Snap layouts](media/snap-layouts.webm) ![Spread for the desktop](media/spread-desktop.webm) ![Four fingers for Today](media/four-left-today.webm)
+
+## Tips
+
+The first time a feature can help, a small card next to it says how, with **Got it**: shaking the mouse to find the
+pointer, holding `Super`, `Super+Space`, snap layouts, the Scripts menu of Files, sending a file to your phone, and
+the pinch on the touchpad. Each tip comes once, ever. None comes in the first hour after you start using Amethystora,
+never two at once, and at least half an hour apart; none while a window is fullscreen, while the screen is shared or
+recorded, while notifications are silenced, or over the overview or a dialog. A tip never takes your keyboard or your
+clicks, and closes by itself after twelve seconds.
+
+```bash
+ame desktop hints off      # no tips; on brings them back
+ame desktop hints reset    # the tips you have seen can come again
+```
 
 ## The dock
 
@@ -571,6 +621,8 @@ settings and how it is set now, and [Control](control.md)'s **Desktop** page has
 
 ### Snap layouts
 
+![Snap layouts](media/snap-layouts.webm)
+
 Drag a window by its title bar to the top of the screen, or press `Super+Z`, and six layouts appear:
 halves, two thirds and a third, thirds, quarters, the middle, and the whole screen. Move over a part of one
 and the screen shows where the window will go; let go, or click, and it goes there. With `Super+Z` the
@@ -579,12 +631,16 @@ edge itself still maximises, and `Super` and the arrows still work. Off with `am
 
 ### Switching windows
 
+![Switch windows](media/super-tab.webm)
+
 `Super+Tab` and `Alt+Tab` show every window in a grid, the windows themselves, live. Keep the key down and
 press `Tab` to move on, or start typing: only the windows whose app or title has those letters stay, and
 the grid stays open after you let go, until `Enter` switches or `Esc` leaves everything as it was. In the
 tiling layout the keys switch as GNOME does. `ame desktop windows switcher off` gives GNOME's switcher back.
 
 ### Holding Super
+
+![Hold Super](media/hold-super.webm)
 
 Hold `Super` for a second, without another key, and a card shows the main shortcuts, as they are set on
 this machine, with numbers on the dock: `Alt` and a number opens the app in that place. Let go and they
@@ -607,6 +663,8 @@ leaving a sliver of each. A click anywhere, or any key, brings them back; clicki
 that window to the front.
 
 ### Touchpad gestures
+
+![Pinch for the apps](media/pinch-apps.webm) ![Spread for the desktop](media/spread-desktop.webm) ![Four fingers for Today](media/four-left-today.webm)
 
 | Fingers | Does |
 | --- | --- |
@@ -688,6 +746,22 @@ A workspace shows its number, and after it the name of the app with most windows
 name of your own with a right click on it; **Use the app's name** in that menu goes back to the automatic one, and
 `ame desktop space-names off` turns automatic names off. To move a window to another workspace, open the overview
 and drag the window onto the workspace in the top bar, or onto its picture at the top of the overview.
+
+### Saved sets
+
+Right-click a workspace in the top bar and choose **Save this workspace**: its apps and where their windows are become a
+set, named after the workspace. The set is in the same menu under **Sets**; click it to open it again. Its apps start and
+each window goes back to its place as it appears, on the workspace you are on if it is empty, or else on the next empty
+one. Windows of those apps already there are put in place rather than started twice, and nothing is closed. An app that
+can have only one window brings that window over from wherever it is.
+
+A set keeps the apps and their places, not what was open in them: apps that reopen their own documents (most browsers
+and editors do) open them again; others start empty, and a browser that brings back its own windows may open one more
+than the set had. While a set opens, a window you open on another workspace stays where you opened it: only the windows
+that appear on the set's workspace, or while you are on it, are put in place. With the tiling on, the windows come back
+in the same order and widths. A set keeps at most sixteen windows, the ones you used last. Up to twelve sets are kept,
+in `~/.local/state/amethystora/sets.json`; the cross on a set forgets it. `ame desktop sets off` takes Sets out of the
+menu and keeps what was saved.
 
 ## Extensions
 

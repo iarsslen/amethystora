@@ -31,6 +31,8 @@ pub const SETUP: &str = "/usr/libexec/amethystora-setup";
 pub const IMAGE_INFO: &str = "/usr/share/amethystora/image-info.json";
 /// The pages of the sidebar, in its order
 pub const PAGES: [&str; 6] = ["appearance", "desktop", "apps", "agent", "system", "setup"];
+/// Pick a look, the page a new account sees once (`amethystora-control welcome`), which is not in the sidebar
+pub const WELCOME: &str = "welcome";
 /// The pictures a wallpaper can be, by their extension
 pub const PICTURES: [&str; 5] = ["jpg", "jpeg", "png", "webp", "svg"];
 /// Terminal colour codes some commands write into what they say
@@ -44,7 +46,7 @@ fn ansi() -> &'static Regex {
 /// The page to open: `amethystora-control system` opens on the system's settings
 pub fn page_argument(args: &[String]) -> Option<&'static str> {
     let page = args.iter().find(|arg| !arg.starts_with('-'))?;
-    PAGES.iter().find(|known| *known == page).copied()
+    PAGES.iter().chain([WELCOME].iter()).find(|known| *known == page).copied()
 }
 
 // --- The list ---------------------------------------------------------------------------------------------
@@ -275,6 +277,7 @@ mod tests {
         assert!(parse_diff(&output("oops")).is_none());
         assert_eq!(page_argument(&["--gapplication-service".into(), "system".into()]), Some("system"));
         assert_eq!(page_argument(&["security".into()]), None);
+        assert_eq!(page_argument(&["welcome".into()]), Some("welcome"));
         assert_eq!(page_argument(&[]), None);
         let list = list();
         assert_eq!(link_program("backups", Some(&list)), Some("amethystora-backups"));

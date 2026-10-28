@@ -26,6 +26,8 @@ const MODIFIERS = Clutter.ModifierType.SHIFT_MASK | Clutter.ModifierType.CONTROL
 const SWALLOW = 300;
 const CUSTOM = '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/';
 const CLIPBOARD = 'amethystora-clipboard@iarsslen.github.io';
+// The tip about holding Super is offered after Super alone has opened the overview this many times in a session
+const TIP_AFTER = 3;
 
 // Settings of a schema that may be missing (an extension not installed): null then
 function settingsFor(id, path = null, uuid = null) {
@@ -79,6 +81,35 @@ export class Hold {
         for (const [, settings] of this._sources)
             settings?.connectObject('changed', () => this._stale(), this);
         this._module.settings.connectObject('changed::snap-chooser', () => this._stale(), this);
+        // The tip (the hints module): GNOME says when Super alone was let go, which is all that is counted
+        if (!this._ext.modules?.get('hints')?.wasShown?.('hold-super')) {
+            this._tipOwner = {};
+            global.display.connectObject('overlay-key', () => this._tapped(), this._tipOwner);
+        }
+    }
+
+    // GNOME's handler has run: the overview is opening, unless this was a hold, whose release is still swallowed now.
+    // The tip waits for the overview to close, since none shows over it.
+    _tapped() {
+        if (this._swallowed || !Main.overview.visible)
+            return;
+        this._module.superTaps = (this._module.superTaps ?? 0) + 1;
+        const hints = this._ext.modules?.get('hints');
+        if (hints?.wasShown('hold-super')) {
+            this._stopTip();
+            return;
+        }
+        if (this._module.superTaps >= TIP_AFTER) {
+            const text = _('Tip: hold Super for a second to see the dock\'s numbers and the shortcuts.');
+            hints?.offerWhenClosed('hold-super', {text});
+        }
+    }
+
+    _stopTip() {
+        if (!this._tipOwner)
+            return;
+        global.display.disconnectObject(this._tipOwner);
+        this._tipOwner = null;
     }
 
     // A schema of this extension, which lives in its own folder
@@ -91,6 +122,7 @@ export class Hold {
     }
 
     disable() {
+        this._stopTip();
         this._keymap?.disconnectObject(this);
         this._keymap = null;
         for (const [, settings] of this._sources ?? [])

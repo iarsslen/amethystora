@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The app grid of Amethystora UI's appgrid module. The folders are GNOME's own (org.gnome.desktop.app-folders). -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.appgrid" path="/org/gnome/shell/extensions/amethystora-ui/appgrid/">
+    <key name="recent" type="b">
+      <default>true</default>
+      <summary>Recently used apps</summary>
+      <description>The apps used most, in a row at the top of the app grid, under "Recently used", with "All apps" over the grid.</description>
+    </key>
+  </schema>
+</schemalist>

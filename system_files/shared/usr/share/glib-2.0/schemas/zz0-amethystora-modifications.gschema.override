@@ -72,7 +72,7 @@ flatpak='off'
 
 # Folder names & .desktop shortcut content is recognized as a relocatable schema
 [org.gnome.desktop.app-folders]
-folder-children=['Games', 'GamingUtilities', 'Utilities', 'Containers', 'Wine', 'Development', 'Productivity']
+folder-children=['Office', 'Graphics', 'Games', 'System', 'Development', 'Utilities']
 
 # Modifying shortcut actions for custom0, custom1, custom2, etc. are recognized as relocatable schemas
 [org.gnome.settings-daemon.plugins.media-keys]

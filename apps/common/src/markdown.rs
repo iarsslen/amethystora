@@ -61,6 +61,9 @@ pub struct Options {
     pub code_radius: f32,
     /// The widget for a picture, by its address and its text, or None to show the text instead
     pub image: Option<Rc<dyn Fn(&str, &str) -> Option<gtk::Widget>>>,
+    /// Pictures that follow one another in a paragraph, with nothing but white space between them, share a row of
+    /// their own (a flow box of class `cards`, which wraps), as the Manual's moving cards do; otherwise each is a block
+    pub image_rows: bool,
     /// A task list's box was clicked: its index among the page's boxes. Without it the boxes only show.
     pub task: Option<Rc<dyn Fn(usize)>>,
     /// Whether a link (its routed href) is an attachment, drawn as a chip with `clip` at its start
@@ -88,6 +91,7 @@ impl Options {
             code_pad: 1,
             code_radius: 6.0,
             image: None,
+            image_rows: false,
             task: None,
             attachment: None,
             clip: None,
@@ -387,6 +391,8 @@ struct Render<'a> {
     frames: Vec<Frame>,
     inline: Option<Inline>,
     tasks: Rc<Cell<usize>>,
+    /// The row the paragraph's last pictures went into, while nothing but white space has come after them
+    cards: Option<gtk::FlowBox>,
 }
 
 impl Render<'_> {
@@ -427,7 +433,13 @@ impl Render<'_> {
 }
 
 pub fn render(markdown: &str, options: &Options) -> Rendered {
-    let mut render = Render { options, frames: vec![Frame::Blocks(Stack::new(ui::vbox(0, &["blocks"]), false))], inline: None, tasks: Rc::new(Cell::new(0)) };
+    let mut render = Render {
+        options,
+        frames: vec![Frame::Blocks(Stack::new(ui::vbox(0, &["blocks"]), false))],
+        inline: None,
+        tasks: Rc::new(Cell::new(0)),
+        cards: None,
+    };
     let mut code: Option<String> = None;
     let mut headings: Vec<(String, gtk::Widget)> = Vec::new();
     let mut next_id = 0;
@@ -439,6 +451,7 @@ pub fn render(markdown: &str, options: &Options) -> Rendered {
         match event {
             Event::Start(Tag::Paragraph) => render.inline = Some(Inline::default()),
             Event::End(TagEnd::Paragraph) => {
+                render.cards = None;
                 if let Some(text) = render.inline.take() {
                     // .page h1 + p: the paragraph straight after the title
                     let lead = seen_title && !lead_done && render.frames.len() == 1;
@@ -687,6 +700,32 @@ pub fn render(markdown: &str, options: &Options) -> Rendered {
                 let Some((url, alt)) = render.inline().image.take() else { continue };
                 let href = (options.route)(&url);
                 match options.image.as_ref().and_then(|image| image(&href, &alt)) {
+                    // Beside the pictures just before it, with nothing but white space between them
+                    Some(picture) if options.image_rows && render.cards.is_some() && render.inline.as_ref().is_none_or(Inline::is_empty) => {
+                        if let Some(cards) = render.cards.as_ref() {
+                            cards.append(&picture);
+                            // The card itself takes the focus, not the row's slot round it
+                            if let Some(slot) = picture.parent() { slot.set_focusable(false); }
+                        }
+                        render.inline = Some(Inline::default());
+                    }
+                    Some(picture) if options.image_rows => {
+                        render.flush_paragraph("p");
+                        let cards = gtk::FlowBox::builder()
+                            .css_classes(["cards"])
+                            .homogeneous(true)
+                            .column_spacing(12)
+                            .row_spacing(12)
+                            .selection_mode(gtk::SelectionMode::None)
+                            .max_children_per_line(16)
+                            .halign(gtk::Align::Start)
+                            .build();
+                        cards.append(&picture);
+                        if let Some(slot) = picture.parent() { slot.set_focusable(false); }
+                        render.push_block(cards.clone().upcast(), margins(Block::Image));
+                        render.cards = Some(cards);
+                        render.inline = Some(Inline::default());
+                    }
                     // A picture is a block of its own, between what the paragraph said before and after it
                     Some(picture) => {
                         render.flush_paragraph("p");
@@ -807,5 +846,39 @@ mod tests {
         assert_eq!(sections[2].title, "Sub");
         assert!(sections[2].text.contains("Deep"));
         assert_eq!(heading_texts(md), vec!["First part", "Sub", "Deep"]);
+    }
+    #[test]
+    fn pictures_in_one_paragraph_share_a_row() {
+        // Widgets need GTK, which a build without a display does not have: there, this is left to the lab
+        if gtk::init().is_err() {
+            return;
+        }
+        let route: Box<dyn Fn(&str) -> String> = Box::new(|href| href.to_string());
+        let mut options = Options::new(route, Rc::new(|_| {}), |_| (0, 0));
+        options.image = Some(Rc::new(|_, alt| Some(gtk::Label::new(Some(alt)).upcast())));
+        options.image_rows = true;
+        let rows = |options: &Options, markdown: &str| {
+            let root = render(markdown, options).root;
+            let mut kinds = Vec::new();
+            let mut child = root.first_child();
+            while let Some(widget) = child {
+                kinds.push(widget.downcast_ref::<gtk::FlowBox>().map(|row| {
+                    let mut count = 0;
+                    let mut slot = row.first_child();
+                    while let Some(next) = slot {
+                        count += 1;
+                        slot = next.next_sibling();
+                    }
+                    count
+                }));
+                child = widget.next_sibling();
+            }
+            kinds
+        };
+        assert_eq!(rows(&options, "![a](a.webm) ![b](b.webm)\n![c](c.webm)\n"), vec![Some(3)]);
+        assert_eq!(rows(&options, "![a](a.webm)\n\n![b](b.webm)\n"), vec![Some(1), Some(1)]);
+        assert_eq!(rows(&options, "![a](a.webm) and ![b](b.webm)\n"), vec![Some(1), None, Some(1)]);
+        options.image_rows = false;
+        assert_eq!(rows(&options, "![a](a.webm) ![b](b.webm)\n"), vec![None, None]);
     }
 }

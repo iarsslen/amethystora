@@ -206,7 +206,7 @@ accent-per-workspace ACTION="" ACCENT="":
             ;;
     esac
 
-# Pick how a new theme or wallpaper is revealed: grow, outer, wipe, wave, fade, random or none (DURATION: how long, 200 to 5000 milliseconds)
+# Pick how a new theme or wallpaper is revealed: grow, outer, wipe, wave, fade, random or none (DURATION: how long, 200 to 5000 milliseconds); or reveal on|off, the splash's gem flying into the top bar at login (without on or off, it flips)
 [positional-arguments]
 transition STYLE="" DURATION="":
     #!/usr/bin/bash
@@ -216,6 +216,28 @@ transition STYLE="" DURATION="":
     schema=org.gnome.shell.extensions.amethystora-transitions
     style="${1:-}"
     duration="${2:-}"
+    # The reveal at login is a switch of its own, not a style
+    if [[ "${style}" == reveal ]]; then
+        state="${duration}"
+        if [[ -z "${state}" ]]; then
+            if [[ "$(gsettings get "${schema}" reveal)" == true ]]; then state=off; else state=on; fi
+        fi
+        case "${state}" in
+            on)
+                gsettings set "${schema}" reveal true
+                echo "$(gettext "The desktop is revealed at login.")"
+                ;;
+            off)
+                gsettings set "${schema}" reveal false
+                echo "$(gettext "No reveal at login.")"
+                ;;
+            *)
+                echo "usage: ame desktop transition reveal on|off"
+                exit 64
+                ;;
+        esac
+        exit 0
+    fi
     if [[ -n "${duration}" && ! "${duration}" =~ ^[0-9]+$ ]]; then
         echo "usage: ame desktop transition STYLE [DURATION in milliseconds]"
         exit 64
@@ -691,6 +713,34 @@ space-names VALUE="":
             ;;
         *)
             echo "usage: ame desktop space-names on|off"
+            exit 64
+            ;;
+    esac
+
+# Saved sets in the workspace menu: save a workspace's apps and their places, and open them again (VALUE: on or off;
+# without it, it flips). Turned off, the saved sets are kept.
+[positional-arguments]
+sets VALUE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.workspaces
+    value="${1:-}"
+    if [[ -z "${value}" ]]; then
+        if [[ "$(gsettings get "${schema}" sets)" == true ]]; then value=off; else value=on; fi
+    fi
+    case "${value}" in
+        on)
+            gsettings set "${schema}" sets true
+            echo "$(gettext "The workspace menu saves a workspace's apps and their places as a set, and opens a set again.")"
+            ;;
+        off)
+            gsettings set "${schema}" sets false
+            echo "$(gettext "The workspace menu has no sets. The sets you saved are kept for when they are on again.")"
+            ;;
+        *)
+            echo "usage: ame desktop sets on|off"
             exit 64
             ;;
     esac
@@ -1874,6 +1924,92 @@ screen-corners STATE="":
             ;;
         *)
             echo "usage: ame desktop screen-corners on|off"
+            exit 64
+            ;;
+    esac
+
+# Tips (the hints module): one the first time a feature can help, once each (ACTION: on, off, or reset to bring back the tips seen)
+[positional-arguments]
+hints ACTION="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.hints
+    action="${1:-}"
+    if [[ -z "${action}" ]]; then
+        if [[ "$(gsettings get "${schema}" enabled)" == true ]]; then action=off; else action=on; fi
+    fi
+    case "${action}" in
+        on)
+            gsettings set "${schema}" enabled true
+            echo "$(gettext "Tips: on.")"
+            ;;
+        off)
+            gsettings set "${schema}" enabled false
+            echo "$(gettext "Tips: off.")"
+            ;;
+        reset)
+            # What was shown is forgotten, the first day kept; each file written whole and moved into place, which the
+            # running desktop notices
+            file="${XDG_STATE_HOME:-${HOME}/.local/state}/amethystora/hints.json"
+            for path in "${file}" "${file}.bak"; do
+                [[ -f "${path}" ]] || continue
+                next="$(mktemp "${path}.XXXXXX")"
+                if jq -c '(if type == "object" then . else {} end) | .shown = {}' "${path}" >"${next}" 2>/dev/null; then
+                    mv -f -- "${next}" "${path}"
+                else
+                    rm -f -- "${next}"
+                    jq -nc '{version: 1, since: 0, last: 0, shown: {}}' >"${path}"
+                fi
+            done
+            echo "$(gettext "Tips you have seen can come back.")"
+            ;;
+        *)
+            echo "usage: ame desktop hints on|off|reset"
+            exit 64
+            ;;
+    esac
+
+# The app grid: recent [on|off], the row of the apps used most at its top (without on or off, it flips); or folders reset, its folders as the image has them
+[positional-arguments]
+app-grid WHAT="" VALUE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.appgrid
+    case "${1:-}/${2:-}" in
+        recent/*)
+            state="${2:-}"
+            if [[ -z "${state}" ]]; then
+                if [[ "$(gsettings get "${schema}" recent)" == true ]]; then state=off; else state=on; fi
+            fi
+            case "${state}" in
+                on)
+                    gsettings set "${schema}" recent true
+                    echo "$(gettext "Recently used apps: on.")"
+                    ;;
+                off)
+                    gsettings set "${schema}" recent false
+                    echo "$(gettext "Recently used apps: off.")"
+                    ;;
+                *)
+                    echo "usage: ame desktop app-grid recent on|off"
+                    exit 64
+                    ;;
+            esac
+            ;;
+        folders/reset)
+            echo "$(gettext "The app grid's folders go back to the image's: Office, Graphics, Games, System, Development and Utilities, filled from the apps' own categories. Folders you made or renamed, and where you put the icons, are forgotten.")"
+            gum confirm "$(gettext "Reset the folders?")" || exit 0
+            gsettings reset org.gnome.desktop.app-folders folder-children
+            dconf reset -f /org/gnome/desktop/app-folders/folders/
+            gsettings reset org.gnome.shell app-picker-layout
+            echo "$(gettext "The app grid's folders are the image's again.")"
+            ;;
+        *)
+            echo "usage: ame desktop app-grid recent [on|off] | folders reset"
             exit 64
             ;;
     esac

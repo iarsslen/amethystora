@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="card.css">
+<style>
+/* Search anything: Super, then Space, and the search box slides in with its caret blinking */
+.art { --loop: 2.8s; }
+@keyframes k1 { 0%, 10% { transform: translateY(0); background: rgba(255, 255, 255, 0.14); } 18%, 60% { transform: translateY(2px); background: #b37df9; } 70%, 100% { transform: translateY(0); background: rgba(255, 255, 255, 0.14); } }
+@keyframes k2 { 0%, 22% { transform: translateY(0); background: rgba(255, 255, 255, 0.14); } 30%, 60% { transform: translateY(2px); background: #b37df9; } 70%, 100% { transform: translateY(0); background: rgba(255, 255, 255, 0.14); } }
+@keyframes box { 0%, 32% { opacity: 0; transform: translateY(6px); } 42%, 88% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(0); } }
+@keyframes caret { 0%, 45% { opacity: 0; } 46%, 58% { opacity: 1; } 59%, 70% { opacity: 0; } 71%, 83% { opacity: 1; } 84%, 100% { opacity: 0; } }
+.k1 { left: 32px; top: 66px; animation-name: k1; }
+.k2 { left: 83px; top: 66px; animation-name: k2; }
+.search { left: 18px; top: 22px; width: 114px; height: 26px; animation-name: box; }
+.glass { position: absolute; left: 8px; top: 7px; width: 9px; height: 9px; border: 2px solid #dcbcff; border-radius: 50%; box-sizing: border-box; }
+.glass::after { content: ""; position: absolute; left: 7px; top: 7px; width: 4px; height: 2px; background: #dcbcff; border-radius: 1px; transform: rotate(45deg); transform-origin: 0 0; }
+.caret { position: absolute; left: 26px; top: 7px; width: 1.5px; height: 11px; background: #efe4ff; animation-name: caret; animation-timing-function: linear; }
+</style>
+</head>
+<body>
+<div class="art">
+  <div class="pane search"><span class="glass"></span><span class="caret"></span></div>
+  <span class="cap k1">Super</span><span class="cap k2">Space</span>
+</div>
+</body>
+</html>

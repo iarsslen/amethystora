@@ -11,6 +11,7 @@
 //! A page is addressed by its file name: `updates`, or `updates/rolling-back` for a section, which is what
 //! `amethystora-manual updates#rolling-back` opens.
 
+mod cards;
 mod columns;
 
 use std::cell::{Cell, RefCell};
@@ -540,6 +541,9 @@ impl Manual {
         // code: padding 2px 6px, border-radius 6px
         options.code_pad = 2;
         options.code_radius = 6.0;
+        // The moving cards: the manual's own clips only, side by side when a paragraph holds several
+        options.image_rows = true;
+        options.image = Some(Rc::new(cards::card));
         let rendered = markdown::render(&page.markdown, &options);
         self.article.append(&rendered.root);
         self.headings.replace(rendered.headings);

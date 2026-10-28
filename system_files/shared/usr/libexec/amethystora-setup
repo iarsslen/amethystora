@@ -22,12 +22,14 @@
 #   extensions   the GNOME extensions turned on, of those installed here
 #   theme        the desktop theme
 #   settings     {layout, favorites, keybindings, tiling, pointer, glass, motion, workspaces, windows, dock, pill, quick,
-#                bars, today, breaks, search, emoji, bezel, sound, look}: the window layout, the dock's apps, the keys of
+#                bars, today, breaks, search, emoji, bezel, sound, look, transitions, hints, appgrid}: the window layout,
+#                the dock's apps, the keys of
 #                keybindings (the image's custom keybindings by their id, never a command), the tiling's
 #                settings by their key in its schema (TILING_KEYS: numbers, switches and lists, never its
 #                window rules, which hold patterns, or a picture's path), shake to find and the larger pointer on
 #                dense screens (POINTER_KEYS), the glass and Reduce transparency (GLASS_KEYS), the minimize and
-#                the workspace switch (MOTION_KEYS), workspaces named after their apps (WORKSPACES_KEYS), the windows
+#                the workspace switch (MOTION_KEYS), workspaces named after their apps and their saved sets' menu
+#                (WORKSPACES_KEYS; never the sets themselves, which are the machine's state), the windows
 #                module's switches, corners and gestures (WINDOWS_KEYS), the dock's settings, folders and stacks
 #                under the home folder (DOCK_KEYS), the live pill, the privacy dots, the glow, quiet and the
 #                digest (PILL_KEYS), the order of quick settings' tiles and the ones put away (QUICK_KEYS), a top bar
@@ -36,7 +38,8 @@
 #                the search finds besides GNOME's own (SEARCH_KEYS), the emoji picker's skin tone (EMOJI_KEYS), rounded
 #                corners on a laptop's own screen (BEZEL_KEYS), whether the desktop makes its own sounds (SOUND_KEYS;
 #                never the sound theme's name, which Settings sets to a folder of the account's), the look: the
-#                accent, Daylight, colours from the wallpaper and an accent per workspace (LOOK_KEYS), and no
+#                accent, Daylight, colours from the wallpaper and an accent per workspace (LOOK_KEYS), the reveal at
+#                login, the tips and the app grid's row of recent apps (TRANSITIONS_KEYS, HINTS_KEYS, APPGRID_KEYS), and no
 #                other GNOME
 #                setting (Reduce motion and High Contrast are GNOME's accessibility keys, left out). A file
 #                from before the tiling replaced PaperWM may still hold its gaps under paperwm, which are read
@@ -110,10 +113,10 @@ GLASS_KEYS='{"material": ["s", ["frost", "prism", "clear"]], "solid": ["b"]}'
 # The motion's keys: how a window goes into the dock, and how workspaces change
 MOTION=org.gnome.shell.extensions.amethystora-ui.motion
 MOTION_KEYS='{"minimize": ["s", ["droplet", "shrink"]], "workspace-switch": ["s", ["depth", "slide"]]}'
-# The top bar's workspaces: their names from their main app. Never its two keybindings, which the keybindings part
-# keeps.
+# The top bar's workspaces: their names from their main app, and the saved sets in their menu. Never its two
+# keybindings, which the keybindings part keeps, nor sets.json, which names this machine's screens.
 WORKSPACES=org.gnome.shell.extensions.amethystora-ui.workspaces
-WORKSPACES_KEYS='{"auto-names": ["b"]}'
+WORKSPACES_KEYS='{"auto-names": ["b"], "sets": ["b"]}'
 # The windows module's keys: snap layouts, the switcher, the Super card, the corners, show desktop, the gestures,
 # places and dimming. Never snap-chooser, a keybinding the keybindings part keeps, nor places.json, which is the
 # machine's own, made of its screens' connectors.
@@ -182,6 +185,14 @@ LOOK_KEYS='{
     "accent": ["s", '"${LOOK_ACCENTS}"'], "daylight": ["s", ["on", "off"]], "colours": ["s", ["vivid", "soft", "mono", "off"]],
     "accent-per-workspace": ["b"], "workspace-accents": ["as", "accents"]
 }'
+# The first start's three switches: the reveal at login, the tips, and the app grid's row of the apps used most. Never
+# the tips' state file or the app grid's folders, which are GNOME's and may name another machine's apps.
+TRANSITIONS=org.gnome.shell.extensions.amethystora-transitions
+TRANSITIONS_KEYS='{"reveal": ["b"]}'
+HINTS=org.gnome.shell.extensions.amethystora-ui.hints
+HINTS_KEYS='{"enabled": ["b"]}'
+APPGRID=org.gnome.shell.extensions.amethystora-ui.appgrid
+APPGRID_KEYS='{"recent": ["b"]}'
 # What a value of each kind has to be, for the check and for reading an old file's gaps
 TILING_JQ="$(
     cat <<'EOF'
@@ -305,7 +316,8 @@ if type != "object" then "it is not a JSON object" else
     at("extensions"; each("extensions"; name; "an extension's id")),
     at("theme"; if type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]*$") then empty else "theme is not a theme's name" end),
     at("settings"; only(["layout", "favorites", "keybindings", "tiling", "paperwm", "pointer", "glass", "motion", "workspaces",
-            "windows", "dock", "pill", "quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "look"]; "settings."),
+            "windows", "dock", "pill", "quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "look", "transitions",
+            "hints", "appgrid"]; "settings."),
         (if type == "object" then
             at("layout"; if IN("tiling", "classic") then empty else "settings.layout is tiling or classic" end),
             at("favorites"; each("settings.favorites";
@@ -394,6 +406,18 @@ if type != "object" then "it is not a JSON object" else
             at("look"; only($look | keys; "settings.look."),
                 (if type == "object" then to_entries[] | select(.key | IN($look | keys[])) | $look[.key] as $spec
                     | if .value | valid($spec) then empty else "settings.look.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("transitions"; only($transitions | keys; "settings.transitions."),
+                (if type == "object" then to_entries[] | select(.key | IN($transitions | keys[])) | $transitions[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.transitions.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("hints"; only($hints | keys; "settings.hints."),
+                (if type == "object" then to_entries[] | select(.key | IN($hints | keys[])) | $hints[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.hints.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("appgrid"; only($appgrid | keys; "settings.appgrid."),
+                (if type == "object" then to_entries[] | select(.key | IN($appgrid | keys[])) | $appgrid[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.appgrid.\(.key) is \(wanted($spec))" end
                  else empty end))
         else empty end))
 end
@@ -411,6 +435,7 @@ check() {
         --argjson search "${SEARCH_KEYS}" --argjson emoji "${EMOJI_KEYS}" \
         --argjson bezel "${BEZEL_KEYS}" --argjson sound "${SOUND_KEYS}" \
         --argjson look "${LOOK_KEYS}" \
+        --argjson transitions "${TRANSITIONS_KEYS}" --argjson hints "${HINTS_KEYS}" --argjson appgrid "${APPGRID_KEYS}" \
         "${TILING_JQ} ${CHECK}" 2>&1)" ||
         die "$1 is not JSON."
     [[ -z "${problems}" ]] ||
@@ -552,7 +577,7 @@ current() {
             value="$(gsettings get "${PILL}" "${key}" 2>/dev/null | as_json)"
             jq -nc --arg k "${key}" --argjson v "${value:-null}" '{pill: {($k): $v}}'
         done < <(jq -r '.settings.pill // {} | keys[]' <<<"$1")
-        for area in quick bars today breaks search emoji bezel sound; do
+        for area in quick bars today breaks search emoji bezel sound transitions hints appgrid; do
             case "${area}" in
                 quick) schema="${QUICK}" ;;
                 bars) schema="${BARS}" ;;
@@ -562,6 +587,9 @@ current() {
                 emoji) schema="${EMOJI}" ;;
                 bezel) schema="${BEZEL}" ;;
                 sound) schema="${SOUND}" ;;
+                transitions) schema="${TRANSITIONS}" ;;
+                hints) schema="${HINTS}" ;;
+                appgrid) schema="${APPGRID}" ;;
             esac
             while read -r key; do
                 value="$(gsettings get "${schema}" "${key}" 2>/dev/null | as_json)"
@@ -575,7 +603,7 @@ current() {
         done < <(jq -r '.settings.look // {} | keys[]' <<<"$1")
     } | jq -sc 'reduce .[] as $x ({favorites: null, keybindings: {}, tiling: {}, pointer: {}, glass: {}, motion: {},
         workspaces: {}, windows: {}, dock: {}, pill: {}, quick: {}, bars: {}, today: {}, breaks: {}, search: {}, emoji: {},
-        bezel: {}, sound: {}, look: {}};
+        bezel: {}, sound: {}, look: {}, transitions: {}, hints: {}, appgrid: {}};
         . * $x)'
 }
 
@@ -709,7 +737,7 @@ def brew($x; $k): $x.brew[$k] // [];
         + if $v == null then {ok: false, why: "this machine has no such pill setting"} else {} end),
     ($hs.pill // {} | to_entries[] | .key as $k | select($fs.pill // {} | has($k) | not)
         | {area: "pill", action: "remove", key: $k, from: .value}),
-    (("quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound") as $a
+    (("quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "transitions", "hints", "appgrid") as $a
     | ($fs[$a] // {} | to_entries[] | .key as $k | $now[$a][$k] as $v
         | select(.value != $v) | {area: $a, action: "set", key: $k, to: .value, from: $v}
         + if $v == null then {ok: false, why: "this machine has no such \({quick: "quick settings", bezel: "screen corners"}[$a] // $a) setting"} else {} end),
@@ -782,9 +810,11 @@ def text:
         + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
           else ", \(.from | tojson) here, back to the image's" end
     elif .area == "quick" or .area == "bars" or .area == "today" or .area == "breaks"
-        or .area == "search" or .area == "emoji" or .area == "bezel" or .area == "sound" then
+        or .area == "search" or .area == "emoji" or .area == "bezel" or .area == "sound"
+        or .area == "transitions" or .area == "hints" or .area == "appgrid" then
         {quick: "quick settings'", bars: "the top bar's", today: "the calendar's", breaks: "the rest reminders'",
-            search: "the search's", emoji: "the emoji picker's", bezel: "the screen's", sound: "the desktop's"}[.area]
+            search: "the search's", emoji: "the emoji picker's", bezel: "the screen's", sound: "the desktop's",
+            transitions: "the transitions'", hints: "the tips'", appgrid: "the app grid's"}[.area]
         + " \(.key)"
         + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
           else ", \(.from | tojson) here, back to the image's" end
@@ -1027,7 +1057,7 @@ add_all() {
         name="$(jq -r .key <<<"${change}")"
         gsettings set "${PILL}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the live pill's ${name}")
     done
-    for area in quick bars today breaks search emoji bezel sound; do
+    for area in quick bars today breaks search emoji bezel sound transitions hints appgrid; do
         case "${area}" in
             quick) schema="${QUICK}" label="quick settings'" ;;
             bars) schema="${BARS}" label="the bars setting" ;;
@@ -1037,6 +1067,9 @@ add_all() {
             emoji) schema="${EMOJI}" label="the emoji picker's" ;;
             bezel) schema="${BEZEL}" label="the screen's" ;;
             sound) schema="${SOUND}" label="the desktop's" ;;
+            transitions) schema="${TRANSITIONS}" label="the transitions'" ;;
+            hints) schema="${HINTS}" label="the tips'" ;;
+            appgrid) schema="${APPGRID}" label="the app grid's" ;;
         esac
         mapfile -t changes < <(of "${todo}" "${area}")
         for change in "${changes[@]}"; do
@@ -1137,7 +1170,7 @@ remove_all() {
     for name in "${names[@]}"; do
         gsettings reset "${PILL}" "${name}" || FAILED+=("the live pill's ${name}")
     done
-    for area in quick bars today breaks search emoji bezel sound; do
+    for area in quick bars today breaks search emoji bezel sound transitions hints appgrid; do
         case "${area}" in
             quick) schema="${QUICK}" label="quick settings'" ;;
             bars) schema="${BARS}" label="the bars setting" ;;
@@ -1147,6 +1180,9 @@ remove_all() {
             emoji) schema="${EMOJI}" label="the emoji picker's" ;;
             bezel) schema="${BEZEL}" label="the screen's" ;;
             sound) schema="${SOUND}" label="the desktop's" ;;
+            transitions) schema="${TRANSITIONS}" label="the transitions'" ;;
+            hints) schema="${HINTS}" label="the tips'" ;;
+            appgrid) schema="${APPGRID}" label="the app grid's" ;;
         esac
         mapfile -t names < <(of "${gone}" "${area}" | jq -r .key)
         for name in "${names[@]}"; do
@@ -1257,7 +1293,10 @@ bake() {
           section("org.gnome.shell.extensions.amethystora-ui.bezel"; ($s.bezel // {})),
           section("org.gnome.desktop.sound"; ($s.sound // {})),
           section("org.gnome.shell.extensions.amethystora-ui.theme";
-            ($s.look // {} | with_entries(select(.key | IN("accent-per-workspace", "workspace-accents")))))' <<<"${setup}" \
+            ($s.look // {} | with_entries(select(.key | IN("accent-per-workspace", "workspace-accents"))))),
+          section("org.gnome.shell.extensions.amethystora-transitions"; ($s.transitions // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.hints"; ($s.hints // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.appgrid"; ($s.appgrid // {}))' <<<"${setup}" \
         >"${schemas}/zz2-image-setup.gschema.override"
 
     # The image's custom keybindings are relocatable, so their keys are dconf's

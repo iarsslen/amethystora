@@ -51,6 +51,16 @@ function checkLinks(file, text) {
         if (/^(https?|mailto):/.test(href)) {
             continue;
         }
+        // A moving card (apps/manual/src/cards.rs): one of the manual's own clips, with its poster beside it
+        if (href.startsWith('media/')) {
+            const card = /^media\/([a-z0-9-]+)\.webm$/.exec(href);
+            if (!card) {
+                problems.push(`${file}: shows ${href}, which is not a moving card of the manual (media/NAME.webm)`);
+            } else if (!['webm', 'png'].every((kind) => fs.existsSync(path.join(manual, 'media', `${card[1]}.${kind}`)))) {
+                problems.push(`${file}: shows ${href}, but media/ has no ${card[1]}.webm and ${card[1]}.png`);
+            }
+            continue;
+        }
         const [, target, anchor] = href.match(/^(?:(?:.*\/)?([\w-]+)\.md)?(?:#(.+))?$/) || [];
         const page = pages.get(target || path.basename(file, '.md'));
         if (!page) {

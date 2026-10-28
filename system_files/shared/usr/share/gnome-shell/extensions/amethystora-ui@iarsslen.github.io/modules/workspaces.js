@@ -10,7 +10,8 @@
 // finger held on a label, opens a field to rename the workspace you are on. Two keys
 // move the workspace you are on one place to the left or right. There are always as many workspaces as GNOME is set
 // to keep (six), so that Super+1 to Super+6 reach every one: nothing here adds or removes one. The workspaces, their
-// names and the keys that switch them are GNOME's own.
+// names and the keys that switch them are GNOME's own. The same menu saves the workspace's apps and their places as
+// a set, and opens a saved set again (workspaces/sets.js, ame desktop sets).
 
 import Atk from 'gi://Atk';
 import Clutter from 'gi://Clutter';
@@ -30,6 +31,8 @@ import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 
 import {ACCENTS, SCHEMA as THEME_SCHEMA, accentName, workspaceAccent} from './theme/accents.js';
+import {Sets} from './workspaces/sets.js';
+import {SetsMenu} from './workspaces/setsmenu.js';
 
 const ROLE = 'amethystora-workspaces';
 const SCHEMA = 'org.gnome.shell.extensions.amethystora-ui.workspaces';
@@ -151,7 +154,7 @@ class WorkspaceLabel extends St.BoxLayout {
         // A finger only: a mouse button held still is the start of a click or a drag
         const hold = new Clutter.LongPressGesture({long_press_duration_ms: LONG_PRESS_MS});
         hold.connect('should-handle-sequence', (gesture, event) => event.type() === Clutter.EventType.TOUCH_BEGIN);
-        hold.connect('recognize', () => row.openMenu());
+        hold.connect('recognize', () => row.openMenu(true));
         this.add_action(hold);
 
         this._draggable = DND.makeDraggable(this);
@@ -313,6 +316,9 @@ export class Workspaces {
         this._themeSettings = this._ext.getSettings(THEME_SCHEMA);
         this._themeSettings.connectObject('changed::accent-per-workspace', () => this._buildAccents(), this);
         this._buildAccents();
+        // Saved sets, while they are on
+        this._settings.connectObject('changed::sets', () => this._syncSets(), this);
+        this._syncSets();
         // A window dragged in the overview: the label under it lights up
         Main.overview.connectObject(
             'window-drag-begin', () => this._windowDragBegan(),
@@ -366,6 +372,7 @@ export class Workspaces {
         this._dropped = null;
         dragged?.destroy();
 
+        this._stopSets();
         this._menu?.destroy();
         this._menu = null;
         for (const row of [...this._others ?? []])
@@ -644,6 +651,8 @@ export class Workspaces {
                 this._entry.hint_text = app?.get_name() ?? '';
                 this._unname.visible = !!app && name !== '';
                 this._checkAccent(index);
+                this._setsMenu?.opened(workspace, this._byTouch);
+                this._byTouch = false;
                 global.stage.set_key_focus(this._entry.clutter_text);
                 this._entry.clutter_text.set_selection(0, -1);
             } else {
@@ -653,8 +662,82 @@ export class Workspaces {
         });
     }
 
-    openMenu() {
+    // touch: a finger opened it
+    openMenu(touch = false) {
+        this._byTouch = touch;
         this._menu?.open(BoxPointer.PopupAnimation.FULL);
+    }
+
+    // ---- Saved sets (workspaces/sets.js, workspaces/setsmenu.js) ----
+
+    _syncSets() {
+        const on = this._settings?.get_boolean('sets') ?? false;
+        if (on && !this.sets && this._menu) {
+            this.sets = new Sets(this);
+            try {
+                this.sets.enable();
+                this._setsMenu = new SetsMenu(this, this._menu);
+            } catch (e) {
+                console.error(`Amethystora UI: the saved sets did not start: ${e.message}`);
+                this._stopSets();
+            }
+        } else if (!on) {
+            this._stopSets();
+        }
+    }
+
+    _stopSets() {
+        this._setsMenu?.destroy();
+        this._setsMenu = null;
+        this.sets?.disable();
+        this.sets = null;
+    }
+
+    // What the top bar calls a workspace: its own name, else its main app's while names come from apps, else ''
+    titleOf(index, workspace) {
+        const own = this._prefs?.get_strv(NAMES)[index] ?? '';
+        if (own)
+            return own;
+        const app = this._settings?.get_boolean('auto-names') ? mainApp(workspace) : null;
+        return app?.get_name() ?? '';
+    }
+
+    // A set opening on a workspace with no name of its own gives it the set's
+    nameIfUnnamed(index, name) {
+        if (!this._prefs || index < 0)
+            return;
+        const names = this._namesFor(index + 1);
+        if (names[index])
+            return;
+        names[index] = name;
+        this._writeNames(names);
+    }
+
+    // A name typed in the field counts at once when the workspace is saved, not only when the menu closes
+    nameNow() {
+        const renaming = this._renaming;
+        if (!renaming || !this._entry || this._entry.text === renaming.name)
+            return;
+        this._rename();
+        this._renaming = {index: renaming.index, name: this._entry.text};
+    }
+
+    openSet(name) {
+        this._menu?.close(BoxPointer.PopupAnimation.FULL);
+        this.sets?.open(name);
+    }
+
+    // For the tiling, places and the motion: a new window a set is opening
+    claim(window) {
+        return this.sets?.claim(window) ?? null;
+    }
+
+    claimed(window) {
+        return this.sets?.claimed(window) ?? false;
+    }
+
+    arriving(window) {
+        return this.sets?.arriving(window) ?? false;
     }
 
     // The Accent submenu: the desktop's own and the twelve, each with its colour, built only while each workspace has an
@@ -683,7 +766,9 @@ export class Workspaces {
             this._accentMenu.menu.addMenuItem(item);
             this._accentItems.set(id, item);
         }
-        this._menu.addMenuItem(this._accentMenu);
+        // Before the saved sets, which come last
+        const before = this._setsMenu?.position ?? -1;
+        this._menu.addMenuItem(this._accentMenu, before >= 0 ? before : undefined);
         this._accentMenu.connect('destroy', () => {
             this._accentMenu = null;
             this._accentItems = null;

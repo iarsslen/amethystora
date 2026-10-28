@@ -6,6 +6,24 @@ source "$(dirname "$0")/lib.sh"
 if ! getent passwd "${TEST_USER}" >/dev/null; then
     useradd -m -G wheel -c "Test account" "${TEST_USER}"
     echo "${TEST_USER}:${TEST_USER}" | chpasswd
+    # The lab's account is new, but the suites after this one need neither Pick a look over their windows nor a tip
+    # under the pointer: the first-look hook is marked as run, as for an account that existed before it, and every tip
+    # is recorded as shown, in the tips' own state file (modules/hints/state.js), so none is offered while the setting
+    # stays the image's (28-first-start.sh has an account of its own for both)
+    install -d -o "${TEST_USER}" -g "${TEST_USER}" "/var/home/${TEST_USER}/.local" "/var/home/${TEST_USER}/.local/share" \
+        "/var/home/${TEST_USER}/.local/share/amethystora" "/var/home/${TEST_USER}/.local/state"
+    install -d -m 0700 -o "${TEST_USER}" -g "${TEST_USER}" "/var/home/${TEST_USER}/.local/state/amethystora"
+    echo '{"version": {"user": {"first-look": "1"}}}' >"/var/home/${TEST_USER}/.local/share/amethystora/setup_versioning.json"
+    chown "${TEST_USER}:" "/var/home/${TEST_USER}/.local/share/amethystora/setup_versioning.json"
+    seen="$(date +%s)"
+    ids="$(sed -n "s/^export const KNOWN = \[\(.*\)\];\$/\1/p" \
+        /usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/hints.js | tr -d "' ")"
+    hints="$(jq -nc --argjson t "${seen}" --arg ids "${ids}" '{version: 1, since: $t, last: $t,
+        shown: ($ids | split(",") | map(select(. != "") | {(.): $t}) | add // {})}')"
+    for file in hints.json hints.json.bak; do
+        printf '%s' "${hints}" >"/var/home/${TEST_USER}/.local/state/amethystora/${file}"
+        chown "${TEST_USER}:" "/var/home/${TEST_USER}/.local/state/amethystora/${file}"
+    done
 fi
 printf '[daemon]\nAutomaticLoginEnable=True\nAutomaticLogin=%s\n' "${TEST_USER}" >/etc/gdm/custom.conf
 install -d -o "${TEST_USER}" -g "${TEST_USER}" "/var/home/${TEST_USER}/.config"

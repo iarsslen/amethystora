@@ -444,9 +444,9 @@ for retired in just-perfection-desktop@just-perfection space-bar@luchrioh tophat
 done
 # A module's keys are only the ones this plan names, each schema system-wide for gsettings and ame. The workspace
 # row's keys swap a workspace with its neighbour, which collide with nothing GNOME binds, and name a space after its
-# main app (auto-names, the motion plan's).
+# main app (auto-names, the motion plan's), and saved sets in its menu (sets, phase 7's).
 [[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.workspaces | sort | paste -sd ' ')" == \
-    "auto-names move-workspace-left move-workspace-right" ]]
+    "auto-names move-workspace-left move-workspace-right sets" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.workspaces move-workspace-left)" == \
     "['<Control><Alt><Super>Left']" ]]
 # The tiling: a switch (the classic layout is it off) and the settings its preferences window changes, under the
@@ -1889,6 +1889,69 @@ GSETTINGS_BACKEND=memory ame desktop sounds loud >/dev/null 2>&1 && false
 GSETTINGS_BACKEND=memory ame desktop screen-corners maybe >/dev/null 2>&1 && false
 GSETTINGS_BACKEND=memory ame desktop sounds off >/dev/null
 GSETTINGS_BACKEND=memory ame desktop screen-corners on >/dev/null
+# First start (manual: desktop.md#the-reveal-at-login, #tips, #the-app-grid, #gestures-and-keys). The reveal at login, a
+# key of the transitions extension, its own file, imported; ame desktop transition reveal on|off
+TRANSITIONS_EXTENSION=/usr/share/gnome-shell/extensions/amethystora-transitions@iarsslen.github.io
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-transitions reveal)" == true ]]
+test -s "${TRANSITIONS_EXTENSION}/reveal.js"
+grep -q "^import {Reveal} from './reveal.js';" "${TRANSITIONS_EXTENSION}/extension.js"
+grep -q "reactive: false" "${TRANSITIONS_EXTENSION}/reveal.js"
+GSETTINGS_BACKEND=memory ame desktop transition reveal maybe >/dev/null 2>&1 && false
+GSETTINGS_BACKEND=memory ame desktop transition reveal off >/dev/null
+# Tips (the hints module) and the app grid's recent row (the appgrid module): one key each, on; the hints after the
+# glass, whose contract they use, and the app grid after the dock; the tips' rule table and its seven owners
+HINTS=org.gnome.shell.extensions.amethystora-ui.hints
+APPGRID=org.gnome.shell.extensions.amethystora-ui.appgrid
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${HINTS}" | paste -sd ' ')" == enabled ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${HINTS}" enabled)" == true ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${APPGRID}" | paste -sd ' ')" == recent ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${APPGRID}" recent)" == true ]]
+[[ " $(sed -n "s/^    \['\([a-z]*\)', [A-Za-z]*\],$/\1/p" "${UI_EXTENSION}/extension.js" | paste -sd ' ') " == *" dock appgrid "*" glass hints "* ]]
+grep -q "^export const KNOWN = \['shake', 'hold-super', 'search', 'snap', 'folder-colour', 'phone-drop', 'pinch'\];" \
+    "${UI_EXTENSION}/modules/hints.js"
+for owner in pointer.js:shake windows/hold.js:hold-super hints.js:search windows/snap.js:snap hints.js:folder-colour \
+    connect.js:phone-drop windows/gestures.js:pinch; do
+    grep -qE "offer(WhenClosed)?\('${owner#*:}'" "${UI_EXTENSION}/modules/${owner%%:*}"
+done
+test -s "${UI_EXTENSION}/icons/hints/amethystora-hint-symbolic.svg"
+grep -q "Shell.AppUsage.get_default().get_most_used()" "${UI_EXTENSION}/modules/appgrid.js"
+[[ -z "$(grep -E 'timeout_add|setInterval|setTimeout' "${UI_EXTENSION}/modules/appgrid.js")" ]]
+for recipe in hints app-grid; do
+    grep -q "^${recipe} [A-Z]*=\"\"\( [A-Z]*=\"\"\)\{0,1\}:" /usr/share/amethystora/just/desktop.just
+    grep -qx "desktop::${recipe}" <<<"$(ame --summary | tr ' ' '\n')"
+done
+GSETTINGS_BACKEND=memory ame desktop hints maybe >/dev/null 2>&1 && false
+GSETTINGS_BACKEND=memory ame desktop app-grid recent maybe >/dev/null 2>&1 && false
+GSETTINGS_BACKEND=memory ame desktop hints off >/dev/null
+GSETTINGS_BACKEND=memory ame desktop app-grid recent off >/dev/null
+# The app grid's six folders, the image's default list, each filled from the apps' categories under a name GNOME
+# translates from a menu directory file the image has; the folders the list used to name stay defined
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.app-folders folder-children)" == \
+    "['Office', 'Graphics', 'Games', 'System', 'Development', 'Utilities']" ]]
+for folder in Office Graphics Games System Development Utilities GamingUtilities Containers Wine Productivity; do
+    grep -qx "\[org/gnome/desktop/app-folders/folders/${folder}\]" /etc/dconf/db/distro.d/01-amethystora-folders
+done
+while read -r directory; do
+    test -s "/usr/share/desktop-directories/${directory}"
+done < <(sed -n "s/^name='\(.*\.directory\)'$/\1/p" /etc/dconf/db/distro.d/01-amethystora-folders)
+grep -A4 -x "\[org/gnome/desktop/app-folders/folders/System\]" /etc/dconf/db/distro.d/01-amethystora-folders |
+    grep -q "^excluded-apps=.*'amethystora-security.desktop', 'amethystora-update.desktop', 'amethystora-control.desktop'"
+# Pick a look, once, for a new account (user-setup.hooks.d/25-first-look.sh), on top of the Manual's welcome page,
+# which the offer of classic windows then gives way to
+test -x /usr/share/amethystora/user-setup.hooks.d/25-first-look.sh
+grep -q "^version-script first-look user " /usr/share/amethystora/user-setup.hooks.d/25-first-look.sh
+grep -q "/usr/bin/amethystora-control welcome$" /usr/share/amethystora/user-setup.hooks.d/25-first-look.sh
+grep -q "amethystora/first-look.json" /usr/libexec/amethystora-layout-offer
+grep -qF 'pub const WELCOME: &str = "welcome";' /ctx/apps/control/src/backend.rs
+# The Manual's moving cards: each clip a page shows is a WebM of at most 300 KB with its PNG poster of at most 40 KB,
+# both ours (branding/cards.mjs)
+MEDIA=/usr/share/amethystora/manual/media
+while read -r card; do
+    test -s "${MEDIA}/${card}.webm" && test -s "${MEDIA}/${card}.png"
+    [[ "$(head -c 4 "${MEDIA}/${card}.webm" | od -An -tx1 | tr -d ' \n')" == 1a45dfa3 ]]
+    (($(stat -c %s "${MEDIA}/${card}.webm") <= 300 * 1024 && $(stat -c %s "${MEDIA}/${card}.png") <= 40 * 1024))
+done < <(grep -rhoE '\]\(media/[a-z0-9-]+\.webm\)' /usr/share/amethystora/manual | sed 's/^](media\///; s/\.webm)$//' | sort -u)
+[[ "$(grep -rhoE '\]\(media/[a-z0-9-]+\.webm\)' /usr/share/amethystora/manual/desktop.md | sort -u | wc -l)" -eq 8 ]]
 # The lock screen's clock and cards (manual: desktop.md#the-lock-screen), in GNOME Shell's own stylesheets: read with
 # GIO, since gresource went with glib2-devel. Once each, the clock in Quicksand at its size, which is installed.
 python3 -I - <<'EOF'
@@ -1923,9 +1986,21 @@ grep -q "Clutter.PipelineNode" "${UI_EXTENSION}/modules/motion/droplet.js"
 [[ -z "$(grep -E 'Main\.wm\._[A-Za-z]+ *=[^=]|WindowManager\.prototype' "${UI_EXTENSION}"/modules/motion.js \
     "${UI_EXTENSION}"/modules/motion/*.js)" ]]
 grep -qE "gi://|resource://" "${UI_EXTENSION}/modules/motion/path.js" && false
-for recipe in minimize workspace-switch space-names; do
+for recipe in minimize workspace-switch space-names sets; do
     grep -q "^${recipe} [A-Z]*=\"\":" /usr/share/amethystora/just/desktop.just
 done
+# Saved sets (manual: desktop.md#saved-sets): a switch of the workspaces', on by default. The file's shape and the
+# strip's arithmetic have no GNOME in them, so node checks them against tampered files (test-sets.mjs); a set starts
+# apps only through GNOME's list of apps, never a command, and shows names as text; the tiling, places and the motion
+# ask the workspaces about a set's windows rather than placing them themselves.
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.workspaces sets)" == true ]]
+grep -qE "gi://|resource://" "${UI_EXTENSION}/modules/workspaces/setsdata.js" && false
+[[ -z "$(grep -E 'Util\.spawn|GLib\.spawn|Subprocess|spawn_command_line|use_markup *= *true' \
+    "${UI_EXTENSION}"/modules/workspaces/*.js)" ]]
+grep -qF "get('workspaces')?.claim?.(window)" "${UI_EXTENSION}/modules/tiling/engine.js"
+grep -qF "get('workspaces')?.claimed?.(window)" "${UI_EXTENSION}/modules/windows/places.js"
+grep -qF "get('workspaces')?.arriving?.(window)" "${UI_EXTENSION}/modules/motion.js"
+"${NODE[@]}" /ctx/build_files/shared/test-sets.mjs
 test -s /usr/share/amethystora/themed/shell-motion.css.tpl
 # The droplet's frames are the design board's at twice its size (plans/beyond/spec-motion.md, H1): path.js has no
 # GNOME in it, so node works them out

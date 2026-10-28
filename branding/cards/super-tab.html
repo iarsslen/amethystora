@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="card.css">
+<style>
+/* Switch windows: Super and Tab, a grid of windows, and typing narrows it to the one wanted */
+.art { --loop: 2.8s; }
+@keyframes k1 { 0%, 6% { transform: translateY(0); background: rgba(255, 255, 255, 0.14); } 12%, 84% { transform: translateY(2px); background: #b37df9; } 90%, 100% { transform: translateY(0); background: rgba(255, 255, 255, 0.14); } }
+@keyframes k2 { 0%, 14% { transform: translateY(0); background: rgba(255, 255, 255, 0.14); } 20%, 30% { transform: translateY(2px); background: #b37df9; } 36%, 100% { transform: translateY(0); background: rgba(255, 255, 255, 0.14); } }
+@keyframes grid { 0%, 18% { opacity: 0; transform: scale(0.9); } 28%, 86% { opacity: 1; transform: scale(1); } 94%, 100% { opacity: 0; transform: scale(1); } }
+@keyframes away { 0%, 48% { opacity: 1; } 60%, 100% { opacity: 0.18; } }
+@keyframes pick { 0%, 56% { box-shadow: 0 0 0 0 #b37df9; } 64%, 100% { box-shadow: 0 0 0 2px #b37df9; } }
+@keyframes typed { 0%, 40% { width: 0; } 52%, 86% { width: 24px; } 94%, 100% { width: 0; } }
+.k1 { left: 33px; top: 82px; animation-name: k1; }
+.k2 { left: 86px; top: 82px; animation-name: k2; }
+.grid { position: absolute; left: 14px; top: 20px; width: 122px; display: grid; grid-template-columns: repeat(3, 36px); gap: 7px; animation-name: grid; }
+.grid .win { position: relative; height: 24px; }
+.fade { animation-name: away; }
+.chosen { animation-name: pick; }
+.field { position: absolute; left: 63px; top: 7px; height: 6px; border-radius: 3px; background: #efe4ff; animation-name: typed; }
+</style>
+</head>
+<body>
+<div class="art">
+  <span class="field"></span>
+  <div class="grid">
+    <i class="win fade"></i><i class="win chosen"></i><i class="win fade"></i>
+    <i class="win fade"></i><i class="win fade"></i><i class="win fade"></i>
+  </div>
+  <span class="cap k1">Super</span><span class="cap k2">Tab</span>
+</div>
+</body>
+</html>

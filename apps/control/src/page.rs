@@ -119,7 +119,7 @@ fn role_box(orientation: gtk::Orientation, spacing: i32, classes: &[&str], role:
 }
 
 /// A heading, which wraps as ui::label's text does; its role can only be given as it is made
-fn heading(text: &str, class: &str) -> gtk::Label {
+pub(crate) fn heading(text: &str, class: &str) -> gtk::Label {
     gtk::Label::builder()
         .label(text)
         .accessible_role(gtk::AccessibleRole::Heading)
@@ -428,7 +428,7 @@ impl Control {
 
     // --- Running what the list says ---------------------------------------------------------------------
 
-    fn change(self: &Rc<Self>, id: &str, value: &str) {
+    pub(crate) fn change(self: &Rc<Self>, id: &str, value: &str) {
         let this = self.clone();
         let (key, value) = (id.to_string(), value.to_string());
         self.perform(id, async move { backend::perform(backend::change(this.known().as_deref(), &key, &value)).await });
@@ -466,7 +466,7 @@ impl Control {
 
     // --- One entry --------------------------------------------------------------------------------------
 
-    fn busy(&self, id: &str) -> bool {
+    pub(crate) fn busy(&self, id: &str) -> bool {
         self.state.borrow().busy.contains(id)
     }
 
@@ -480,7 +480,7 @@ impl Control {
     }
 
     /// What the last command run from this card said
-    fn said_box(&self, item: &Item) -> Option<gtk::Widget> {
+    pub(crate) fn said_box(&self, item: &Item) -> Option<gtk::Widget> {
         let said = self.state.borrow().said.get(&item.id).cloned()?;
         let classes: &[&str] = if said.ok { &["said"] } else { &["said", "failed"] };
         let role = if said.ok { gtk::AccessibleRole::Status } else { gtk::AccessibleRole::Alert };
@@ -1647,6 +1647,10 @@ impl Control {
 
     fn render_nav(&self) {
         let state = self.state.borrow();
+        // Pick a look goes without the sidebar and the search; any other page has them back
+        let welcome = state.page == backend::WELCOME;
+        self.parts.sidebar.set_visible(!welcome);
+        self.parts.search_field.set_visible(!welcome);
         for (page, button) in &self.parts.pages {
             button.set_current(state.search.is_empty() && *page == state.page);
         }
@@ -1688,8 +1692,11 @@ impl Control {
             let state = self.state.borrow();
             (state.list.is_some(), !state.error.is_empty(), !state.search.is_empty())
         };
+        let welcome = self.state.borrow().page == backend::WELCOME;
         let content = if !has_list {
             if has_error { self.error_view() } else { self.loading_view() }
+        } else if welcome {
+            self.welcome_view()
         } else if searching {
             self.search_view()
         } else {

@@ -8,6 +8,7 @@ mod backend;
 mod icons;
 mod layout;
 mod page;
+mod welcome;
 
 use std::cell::{Cell, RefCell};
 use std::collections::{BTreeSet, HashMap, HashSet};
@@ -90,6 +91,8 @@ struct PageState {
     reading: bool,
     /// Whether the window has been opened on its first page yet
     started: bool,
+    /// What was picked on the welcome page, by entry, until the list says so too
+    picked: HashMap<String, String>,
 }
 
 impl Default for PageState {
@@ -111,6 +114,7 @@ impl Default for PageState {
             read: 0.0,
             reading: false,
             started: false,
+            picked: HashMap::new(),
         }
     }
 }
@@ -118,6 +122,9 @@ impl Default for PageState {
 /// The parts of the window drawn once, around the page
 struct Parts {
     root: gtk::Widget,
+    /// The sidebar and the search, which the welcome page goes without
+    sidebar: gtk::Widget,
+    search_field: gtk::Widget,
     view: gtk::Box,
     scroller: gtk::ScrolledWindow,
     banner: gtk::Box,
@@ -147,10 +154,16 @@ pub struct Control {
     preview_css: gtk::CssProvider,
     /// The search field is being emptied by the page itself
     clearing: Cell<bool>,
+    /// The welcome page's preview, kept from one drawing of the page to the next
+    welcome_preview: RefCell<Option<Rc<welcome::Preview>>>,
+    /// The window was closed while a command ran: it goes once the last one has finished
+    closing: Cell<bool>,
 }
 
 impl App for Control {
     fn open(&self, args: &[String]) {
+        // Opened again while a closed window waited for its last command: it is presented again and stays open
+        self.closing.set(false);
         let page = backend::page_argument(args);
         let this = self.rc();
         let first = !self.state.borrow().started;
@@ -211,11 +224,25 @@ impl Control {
             color_css,
             preview_css,
             clearing: Cell::new(false),
+            welcome_preview: RefCell::new(None),
+            closing: Cell::new(false),
         });
         shell.window.set_title(Some(&t!("Amethystora Control")));
         shell.window.set_content(Some(&this.parts.root));
         shell.narrow(900.0, "narrow");
         this.keys();
+        // Closed while a command still runs here (a theme being applied after Pick a look's Done): the window goes,
+        // the program stays until the command has finished, so that it is never cut off half done
+        let me = this.me.clone();
+        shell.window.connect_close_request(move |window| {
+            let Some(this) = me.upgrade() else { return glib::Propagation::Proceed };
+            if this.state.borrow().busy.is_empty() {
+                return glib::Propagation::Proceed;
+            }
+            this.closing.set(true);
+            window.set_visible(false);
+            glib::Propagation::Stop
+        });
         this
     }
 
@@ -356,7 +383,18 @@ impl Control {
             .build();
         let column = Tight::new(&column);
         let root = frame::with_sidebar(&column, &main, -1, false);
-        Parts { root, view, scroller, banner, search, pages, updates_state, backups: backups.button }
+        Parts {
+            root,
+            sidebar: column.upcast(),
+            search_field: field.upcast(),
+            view,
+            scroller,
+            banner,
+            search,
+            pages,
+            updates_state,
+            backups: backups.button,
+        }
     }
 
     /// Ctrl+F or / searches, Escape leaves the search; Ctrl+R, F5 and the zoom are the window's
@@ -475,7 +513,7 @@ impl Control {
     }
 
     fn show(self: &Rc<Self>, page: &'static str) {
-        if !backend::PAGES.contains(&page) {
+        if !backend::PAGES.contains(&page) && page != backend::WELCOME {
             return;
         }
         {
@@ -536,7 +574,12 @@ impl Control {
                     }
                 }
             };
-            if ran {
+            if this.closing.get() {
+                // Closed meanwhile: gone once the last command has finished
+                if this.state.borrow().busy.is_empty() {
+                    this.shell.window.close();
+                }
+            } else if ran {
                 this.load_list(true).await;
             } else {
                 this.render();

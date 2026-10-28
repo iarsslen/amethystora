@@ -27,6 +27,8 @@ import {Bars} from './modules/bars.js';
 import {Today} from './modules/today.js';
 import {Dock} from './modules/dock.js';
 import {Glass} from './modules/glass.js';
+import {Hints} from './modules/hints.js';
+import {AppGrid} from './modules/appgrid.js';
 import {Pointer} from './modules/pointer.js';
 import {Tiling} from './modules/tiling.js';
 import {Windows} from './modules/windows.js';
@@ -55,8 +57,10 @@ const MODULES = [
     ['bars', Bars],
     ['today', Today],
     ['dock', Dock],
+    ['appgrid', AppGrid],
     ['emoji', Emoji],
     ['glass', Glass],
+    ['hints', Hints],
     ['pointer', Pointer],
     ['tiling', Tiling],
     ['windows', Windows],

@@ -8,6 +8,7 @@ import Gio from 'gi://Gio';
 import Shell from 'gi://Shell';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 // GNOME's own distance before a swipe has a direction
 const THRESHOLD = 16;
@@ -42,9 +43,15 @@ export class Gestures {
         global.stage.connectObject('captured-event::touchpad', (stage, event) => this._event(event), this);
         this.connected = true;
         this._seq = null;
+        // The tip (the hints module): the app grid opened with the pointer on a machine with a touchpad
+        if (!this._ext.modules?.get('hints')?.wasShown?.('pinch')) {
+            this._tipOwner = {};
+            Main.overview.dash.showAppsButton.connectObject('notify::checked', () => this._gridOpened(), this._tipOwner);
+        }
     }
 
     disable() {
+        this._stopTip();
         global.stage.disconnectObject(this);
         this.connected = false;
         // A pinch under way leaves the overview where it was going back to
@@ -58,6 +65,31 @@ export class Gestures {
 
     _key(name) {
         return this._module.settings.get_boolean(`gesture-${name}`);
+    }
+
+    // The button was clicked (not a key, not a gesture), the pinch is on and a touchpad is there: the tip comes once
+    // the overview has closed, since none shows over it
+    _gridOpened() {
+        const button = Main.overview.dash.showAppsButton;
+        const event = Clutter.get_current_event();
+        const clicked = [Clutter.EventType.BUTTON_PRESS, Clutter.EventType.BUTTON_RELEASE].includes(event?.type());
+        if (!button.checked || !clicked || !this._key('pinch'))
+            return;
+        const hints = this._ext.modules?.get('hints');
+        if (hints?.wasShown('pinch')) {
+            this._stopTip();
+            return;
+        }
+        const seat = global.stage.context.get_backend().get_default_seat();
+        if (seat.list_devices().some(device => device.get_device_type() === Clutter.InputDeviceType.TOUCHPAD_DEVICE))
+            hints?.offerWhenClosed('pinch', {text: _('Tip: pinch with three fingers on the touchpad to see your apps.')});
+    }
+
+    _stopTip() {
+        if (!this._tipOwner)
+            return;
+        Main.overview.dash.showAppsButton.disconnectObject(this._tipOwner);
+        this._tipOwner = null;
     }
 
     _event(event) {

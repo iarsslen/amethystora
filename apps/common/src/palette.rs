@@ -168,6 +168,14 @@ fn read_shape(current: &std::path::Path) -> Option<Shape> {
     Some(Shape { card: value("card")?, window: value("window")? })
 }
 
+/// A theme's own colours, from its folder (`/usr/share/amethystora/themes/<id>`), as colors.toml has them
+pub fn read_theme(dir: &std::path::Path) -> Option<Palette> {
+    let text = std::fs::read_to_string(dir.join("colors.toml")).ok()?;
+    let mut colors = BTreeMap::new();
+    read_colors(&text, &mut colors);
+    Some(Palette { light: dir.join("light.mode").exists(), colors, shape: None })
+}
+
 /// The current theme's colours, or None before one has been applied
 pub fn read() -> Option<Palette> {
     let current = current();

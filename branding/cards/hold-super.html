@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="card.css">
+<style>
+/* Hold Super: Super held down, the dock numbers its apps and a card of shortcuts appears; let go, they go */
+.art { --loop: 3s; }
+@keyframes key { 0%, 8% { transform: translateY(0); background: rgba(255, 255, 255, 0.14); } 14%, 80% { transform: translateY(2px); background: #b37df9; } 88%, 100% { transform: translateY(0); background: rgba(255, 255, 255, 0.14); } }
+@keyframes show { 0%, 36% { opacity: 0; transform: translateY(4px); } 44%, 80% { opacity: 1; transform: translateY(0); } 88%, 100% { opacity: 0; transform: translateY(0); } }
+.key { left: 8px; top: 8px; animation-name: key; }
+.card { left: 56px; top: 8px; width: 86px; height: 50px; animation-name: show; }
+.row { position: absolute; left: 7px; display: flex; gap: 5px; align-items: center; }
+.mini { width: 14px; height: 9px; border-radius: 3px; background: rgba(255, 255, 255, 0.22); }
+.row .line { position: static; width: 44px; }
+.dock { left: 33px; top: 82px; width: 84px; height: 24px; border-radius: 9px; display: flex; gap: 5px; align-items: center; justify-content: center; }
+.n { position: absolute; top: -9px; width: 10px; height: 10px; border-radius: 50%; background: #efe4ff; animation-name: show; }
+</style>
+</head>
+<body>
+<div class="art">
+  <span class="cap key">Super</span>
+  <div class="pane card">
+    <div class="row" style="top: 8px"><i class="mini"></i><i class="line"></i></div>
+    <div class="row" style="top: 21px"><i class="mini"></i><i class="line" style="width: 34px"></i></div>
+    <div class="row" style="top: 34px"><i class="mini"></i><i class="line" style="width: 50px"></i></div>
+  </div>
+  <div class="pane dock">
+    <i class="sq" style="background: #9148f0"></i><i class="sq" style="background: #6fd3e0"></i><i class="sq" style="background: #e8c06a"></i><i class="sq" style="background: #8ddba4"></i>
+  </div>
+  <i class="n" style="left: 46px; top: 76px"></i><i class="n" style="left: 65px; top: 76px"></i><i class="n" style="left: 84px; top: 76px"></i><i class="n" style="left: 103px; top: 76px"></i>
+</div>
+</body>
+</html>

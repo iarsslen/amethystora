@@ -31,7 +31,7 @@ const now = () => Math.floor(Date.now() / 1000);
 // Notes' quick note (amethystora-notes capture) opens in the middle of the screen, as GNOME places it, not where
 // Notes' own window was: it is Notes' one window that is not its application window, which GTK alone gives an object
 // path. Known by the time the window is first configured.
-const quickNote = w => w?.get_wm_class() === 'org.amethystora.Notes' && !w.get_gtk_window_object_path();
+export const quickNote = w => w?.get_wm_class() === 'org.amethystora.Notes' && !w.get_gtk_window_object_path();
 
 const checkPlace = p => isObject(p) && isText(p.m) && isInt(p.x, -32768, 32768) && isInt(p.y, -32768, 32768) &&
     isInt(p.w, 50, 16384) && isInt(p.h, 50, 16384) && typeof p.max === 'boolean';
@@ -80,6 +80,36 @@ function read(path) {
     } catch {
         return null;
     }
+}
+
+// Every screen by its connector and its number now
+export function screens() {
+    const list = [];
+    for (const logical of global.backend.get_monitor_manager().get_logical_monitors()) {
+        const connector = logical.get_monitors()[0]?.get_connector();
+        if (connector)
+            list.push({connector, number: logical.get_number()});
+    }
+    return list;
+}
+
+// A place, moved and if need be shrunk into its screen's work area now; null when too little of it is left. With
+// `fallback`, a screen that is not there any more is the main one, at the same offsets.
+export function clampPlace(place, monitors, fallback = false) {
+    let monitor = monitors.find(m => m.connector === place.m);
+    if (!monitor && fallback)
+        monitor = {number: Main.layoutManager.primaryIndex};
+    if (!monitor || !Main.layoutManager.monitors[monitor.number])
+        return null;
+    const area = Main.layoutManager.getWorkAreaForMonitor(monitor.number);
+    const geometry = Main.layoutManager.monitors[monitor.number];
+    const w = Math.min(place.w, area.width);
+    const h = Math.min(place.h, area.height);
+    if (w * h < place.w * place.h / 2)
+        return null;
+    const x = Math.max(area.x, Math.min(geometry.x + place.x, area.x + area.width - w));
+    const y = Math.max(area.y, Math.min(geometry.y + place.y, area.y + area.height - h));
+    return {x, y, width: w, height: h, max: place.max};
 }
 
 // The app a window belongs to, by the most lasting name it has; null for a window that has none
@@ -274,29 +304,13 @@ export class Places {
 
     // --- putting back ---------------------------------------------------------------------------------------------
 
-    // A place, moved and if need be shrunk into its screen's work area now; null when too little of it is left
-    _clamped(place, monitors) {
-        const monitor = monitors.find(m => m.connector === place.m);
-        if (!monitor)
-            return null;
-        const area = Main.layoutManager.getWorkAreaForMonitor(monitor.number);
-        const geometry = Main.layoutManager.monitors[monitor.number];
-        const w = Math.min(place.w, area.width);
-        const h = Math.min(place.h, area.height);
-        if (w * h < place.w * place.h / 2)
-            return null;
-        const x = Math.max(area.x, Math.min(geometry.x + place.x, area.x + area.width - w));
-        const y = Math.max(area.y, Math.min(geometry.y + place.y, area.y + area.height - h));
-        return {x, y, width: w, height: h, max: place.max};
-    }
-
     _placeFor(window, rank) {
         const id = appOf(window);
         if (!id)
             return null;
         const {key, monitors} = this._arrangement();
         const place = this._data?.arrangements[key]?.apps[id]?.places[rank];
-        return place ? this._clamped(place, monitors) : null;
+        return place ? clampPlace(place, monitors) : null;
     }
 
     _created(window) {
@@ -326,8 +340,13 @@ export class Places {
         return id ? this._siblings(window, id).filter(w => w !== window).length : -1;
     }
 
+    // A window a saved set is opening goes where the set says (workspaces/sets.js), not where its app's was
+    _claimed(window) {
+        return this._ext.modules?.get('workspaces')?.claimed?.(window) ?? false;
+    }
+
     _configure(window, config) {
-        if (quickNote(window))
+        if (quickNote(window) || this._claimed(window))
             return;
         const rank = this._rank(window);
         const place = rank >= 0 ? this._placeFor(window, rank) : null;
@@ -342,6 +361,8 @@ export class Places {
 
     _shown(window) {
         this._unplaced.delete(window);
+        if (this._claimed(window))
+            return;
         let place = this._given.get(window);
         this._given.delete(window);
         const f = window.get_frame_rect();

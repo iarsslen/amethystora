@@ -343,6 +343,8 @@ goes back to the theme's. Any other pointer you choose in Tweaks is left alone b
 Facet whatever the theme, choose it with `ame desktop pointer` rather than in Tweaks. The size is GNOME's, in
 Settings under Accessibility.
 
+![Shake to find](media/shake-to-find.webm)
+
 **Shake to find.** Lost the pointer? Shake the mouse quickly from side to side and it swells to three and a half
 times its size, then settles a moment after you stop. `ame desktop pointer-shake beacon` sends rings out from it
 instead, and `ame desktop pointer-shake off` turns it off. Nothing runs while the mouse is still, a shake made with a

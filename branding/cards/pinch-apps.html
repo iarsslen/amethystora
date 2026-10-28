@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="card.css">
+<style>
+/* Pinch for the apps: three fingers on a touchpad come together, and a grid of apps fades in */
+.art { --loop: 2.6s; }
+@keyframes f1 { 0%, 10% { transform: translate(-22px, -14px); opacity: 1; } 50% { transform: translate(-4px, -2px); opacity: 1; } 60%, 92% { transform: translate(-4px, -2px); opacity: 0; } 100% { transform: translate(-22px, -14px); opacity: 1; } }
+@keyframes f2 { 0%, 10% { transform: translate(22px, -10px); opacity: 1; } 50% { transform: translate(4px, -2px); opacity: 1; } 60%, 92% { transform: translate(4px, -2px); opacity: 0; } 100% { transform: translate(22px, -10px); opacity: 1; } }
+@keyframes f3 { 0%, 10% { transform: translate(0, 16px); opacity: 1; } 50% { transform: translate(0, 3px); opacity: 1; } 60%, 92% { transform: translate(0, 3px); opacity: 0; } 100% { transform: translate(0, 16px); opacity: 1; } }
+@keyframes grid { 0%, 50% { opacity: 0; transform: scale(0.8); } 65%, 88% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1); } }
+.pad { position: absolute; left: 25px; top: 18px; width: 100px; height: 72px; border-radius: 10px; border: 1.5px solid rgba(220, 188, 255, 0.5); box-sizing: border-box; }
+.dot { left: 69px; top: 48px; }
+.d1 { animation-name: f1; }
+.d2 { animation-name: f2; }
+.d3 { animation-name: f3; }
+.apps { position: absolute; left: 47px; top: 32px; display: grid; grid-template-columns: repeat(3, 14px); gap: 5px; animation-name: grid; }
+</style>
+</head>
+<body>
+<div class="art">
+  <div class="pad"></div>
+  <div class="apps">
+    <i class="sq" style="background: #9148f0"></i><i class="sq" style="background: #6fd3e0"></i><i class="sq" style="background: #e8c06a"></i>
+    <i class="sq" style="background: #8ddba4"></i><i class="sq" style="background: #ef6b7d"></i><i class="sq" style="background: #b37df9"></i>
+  </div>
+  <span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span>
+</div>
+</body>
+</html>

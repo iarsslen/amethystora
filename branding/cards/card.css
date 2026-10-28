@@ -1,0 +1,98 @@
+/* The moving cards' common ground (branding/cards.mjs): a 150 x 112 picture over the Manual's dark card colour, drawn
+   with plain shapes in Amethystora's own palette. The only words are key caps with the keys' own names. Each page sets
+   --loop, and every animation runs once per loop so that the last frame meets the first. */
+
+@font-face {
+  font-family: Quicksand;
+  src: url("../fonts/QuicksandVariable.ttf");
+  font-weight: 300 700;
+}
+
+html, body {
+  margin: 0;
+  width: 150px;
+  height: 112px;
+  overflow: hidden;
+  background: #1a1226;
+  font-family: Quicksand, sans-serif;
+}
+
+.art {
+  position: relative;
+  width: 150px;
+  height: 112px;
+  overflow: hidden;
+}
+
+.art * {
+  animation-duration: var(--loop);
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: both;
+}
+
+.cap {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.14);
+  font-size: 11px;
+  font-weight: 700;
+  color: #efe4ff;
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.pane {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.win {
+  position: absolute;
+  box-sizing: border-box;
+  border-radius: 6px;
+  background: #2b2140;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.win::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 7px;
+  border-radius: 5px 5px 0 0;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dot {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #dcbcff;
+}
+
+.sq {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+}
+
+.line {
+  position: absolute;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(239, 228, 255, 0.35);
+}

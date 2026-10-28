@@ -19,5 +19,7 @@
   "The desktop": "The desktop",
   "The system": "The system",
   "help;docs;documentation;manual;guide;hotkeys;shortcuts;keybindings;": "help;docs;documentation;manual;guide;hotkeys;shortcuts;keybindings;",
+  "{caption}, paused": "{caption}, paused",
+  "{caption}, playing": "{caption}, playing",
   "{page} · Amethystora Manual": "{page} · Amethystora Manual"
 }

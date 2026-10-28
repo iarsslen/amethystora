@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="card.css">
+<style>
+/* Shake to find: the Halo pointer shaken from side to side four times, growing to 2.3 times its size and back */
+.art { --loop: 3s; }
+@keyframes shake {
+  0% { transform: translateX(0) scale(1); }
+  8% { transform: translateX(-16px) scale(1); }
+  16% { transform: translateX(16px) scale(1); }
+  24% { transform: translateX(-16px) scale(1); }
+  32% { transform: translateX(16px) scale(1); }
+  42% { transform: translateX(0) scale(2.3); }
+  78% { transform: translateX(0) scale(2.3); }
+  100% { transform: translateX(0) scale(1); }
+}
+.pointer { position: absolute; left: 63px; top: 40px; width: 22px; height: 27px; transform-origin: 4px 3px; animation-name: shake; }
+</style>
+</head>
+<body>
+<div class="art">
+  <svg class="pointer" viewBox="0 0 24 30"><path d="M4 3L20 16 12.6 17.3 8.7 24Z" fill="#ffffff" stroke="#9148f0" stroke-width="1.5" stroke-linejoin="round"/></svg>
+</div>
+</body>
+</html>

@@ -28,6 +28,7 @@ import {Depth} from './motion/depth.js';
 import {dropletShader} from './motion/droplet.js';
 import {Flight, frameCentre, scaleFactor} from './motion/flight.js';
 import {OUT, RIPPLE_IN_MS, RIPPLE_OUT_MS, turnRound} from './motion/path.js';
+import {Rise} from './motion/rise.js';
 
 const SCHEMA = 'org.gnome.shell.extensions.amethystora-ui.motion';
 // GNOME's handlers this module stands in for
@@ -50,6 +51,9 @@ export class Motion {
 
     enable() {
         this._flights = new Map();
+        // The windows of a saved set rising into their places (workspaces/sets.js), and how many have
+        this._risings = new Map();
+        this.risen = 0;
         this._resume = new Map();
         this._resumeLater = 0;
         this._blocked = new Map();
@@ -88,6 +92,14 @@ export class Motion {
             }
         }
         this._flights = null;
+        for (const rise of [...this._risings?.values() ?? []]) {
+            try {
+                this._endRise(rise);
+            } catch (e) {
+                console.error(`Amethystora UI: motion: a rise did not end cleanly: ${e.message}`);
+            }
+        }
+        this._risings = null;
         this._resume = null;
         if (this._resumeLater)
             global.compositor.get_laters().remove(this._resumeLater);
@@ -119,7 +131,7 @@ export class Motion {
     // ---- For the other modules and the tests ----
 
     flying(actor) {
-        return !!actor && !!this._flights?.has(actor);
+        return !!actor && (!!this._flights?.has(actor) || !!this._risings?.has(actor));
     }
 
     // The flight on a window's actor, for the tests to pause and step
@@ -209,6 +221,12 @@ export class Motion {
         if (!this._blocked?.has('map'))
             return;
         const window = actor.meta_window;
+        // A window a saved set opened rises into its place instead (asked once per window)
+        if (this._ext.modules?.get('workspaces')?.arriving?.(window) && St.Settings.get().enable_animations &&
+            Main.wm._getAnimationWindowType(actor) === Meta.WindowType.NORMAL) {
+            this._rise(shellwm, actor);
+            return;
+        }
         const app = St.Settings.get().enable_animations &&
             Main.wm._getAnimationWindowType(actor) === Meta.WindowType.NORMAL ? this._takeLaunch(window) : null;
         if (!app) {
@@ -262,6 +280,9 @@ export class Motion {
     // ended a minimize or an open already; an unminimize is ours to end. The flight's last state is kept for the new
     // effect, which Mutter starts before the next frame, to turn round from.
     _kill(shellwm, actor) {
+        const rise = this._risings?.get(actor);
+        if (rise)
+            this._endRise(rise);
         const flight = this._flights?.get(actor);
         if (!flight)
             return;
@@ -380,6 +401,50 @@ export class Motion {
         this._flights.set(actor, flight);
         this._glassChanged(flight);
         flight.start();
+    }
+
+    // GNOME's map runs as for the dock's windows, told to skip its effect, and the rise takes the window from there;
+    // it ends with GNOME's own ending, as the flights do
+    _rise(shellwm, actor) {
+        const ok = Main.wm._shouldAnimateActor(actor, [Meta.WindowType.NORMAL]);
+        Main.wm.skipNextEffect(actor);
+        if (!ok) {
+            Main.wm._mapWindow(shellwm, actor);
+            return;
+        }
+        Main.wm._mapWindow({completed_map() {}}, actor);
+        Main.wm._mapping.add(actor);
+        const t0 = {x: actor.translation_x, y: actor.translation_y};
+        const rise = new Rise(actor, {
+            reduced: this._reduced,
+            rest: () => this._tilingRest(actor, t0),
+            onEnd: r => this._endRise(r),
+        });
+        this._risings.set(actor, rise);
+        this.risen++;
+        try {
+            rise.start();
+        } catch (e) {
+            console.error(`Amethystora UI: motion: a window of a set did not rise: ${e.message}`);
+            this._endRise(rise);
+            return;
+        }
+        this._ext.modules?.get('glass')?.windows?._queue?.(actor.meta_window);
+    }
+
+    _endRise(rise) {
+        const actor = rise.actor;
+        if (this._risings?.get(actor) !== rise)
+            return;
+        this._risings.delete(actor);
+        const rest = rise.restTranslation();
+        rise.stop();
+        actor.show();
+        Main.wm._mapWindowDone(global.window_manager, actor);
+        actor.set_translation(rest.x, rest.y, 0);
+        const window = actor.meta_window;
+        if (window)
+            this._ext.modules?.get('glass')?.windows?._queue?.(window);
     }
 
     // Where a window rests in the tiling's strip, as a translation, or `fallback` when it is in none

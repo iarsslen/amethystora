@@ -437,3 +437,31 @@ button.pager-link:hover {
 .pager-title {
     font-weight: 600;
 }
+
+/* Moving cards (cards.rs): a clip over its caption, the cards of one paragraph in a row */
+
+.cards {
+    margin: 4px 0;
+}
+
+.mcard {
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--fg) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--fg) 10%, transparent);
+}
+
+.mcard:focus-visible {
+    outline: 2px solid var(--link);
+    outline-offset: 2px;
+}
+
+.mcard-art {
+    background: color-mix(in oklab, var(--fg) 6%, var(--bg));
+}
+
+.mcard-cap {
+    padding: 7px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--fg);
+}

@@ -11,6 +11,9 @@ export TEXTDOMAIN=amethystora
 # shellcheck source=/dev/null
 source gettext.sh
 
+# Pick a look (user-setup.hooks.d/25-first-look.sh) already asked, in its Windows row
+[[ -s "${XDG_STATE_HOME:-${HOME}/.local/state}/amethystora/first-look.json" ]] && exit 0
+
 answer="$(notify-send --app-name=Amethystora --icon=preferences-system-windows --wait \
     --action=classic="$(gettext "Use classic windows")" --action=keep="$(gettext "Keep tiling")" \
     "$(gettext "Windows here tile side by side")" \

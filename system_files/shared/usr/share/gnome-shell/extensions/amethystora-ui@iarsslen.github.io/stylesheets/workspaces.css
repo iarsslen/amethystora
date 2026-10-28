@@ -104,3 +104,83 @@
 .amethystora-workspaces-accent-theme {
   border: 2px solid rgba(128, 128, 128, 0.85);
 }
+
+/* Saved sets, under the name in the workspace menu: Save this workspace as a pill, then the sets, each a row with the
+   icons of its first apps, its name and its apps, and a cross that forgets it. The sizes are the design board's. */
+.amethystora-workspaces-save {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.amethystora-workspaces-save-label {
+  font-size: 13.5px;
+  font-weight: bold;
+}
+
+.amethystora-workspaces-save:checked {
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.amethystora-workspaces-save:insensitive {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.amethystora-workspaces-sets {
+  spacing: 8px;
+  min-width: 280px;
+  max-width: 388px;
+}
+
+.amethystora-workspaces-sets-heading {
+  font-size: 12px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.amethystora-workspaces-sets-rows {
+  spacing: 8px;
+}
+
+.amethystora-workspaces-set {
+  border-radius: 12px;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.amethystora-workspaces-set-open {
+  padding: 8px 0 8px 10px;
+  border-radius: 12px;
+}
+
+.amethystora-workspaces-set-open:rtl {
+  padding: 8px 10px 8px 0;
+}
+
+.amethystora-workspaces-set-inside {
+  spacing: 10px;
+}
+
+.amethystora-workspaces-set-icons {
+  spacing: 3px;
+}
+
+.amethystora-workspaces-set-name {
+  font-size: 13.5px;
+  font-weight: bold;
+}
+
+.amethystora-workspaces-set-apps {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.amethystora-workspaces-set-forget {
+  margin: 0 10px;
+  padding: 3px;
+  border-radius: 999px;
+}

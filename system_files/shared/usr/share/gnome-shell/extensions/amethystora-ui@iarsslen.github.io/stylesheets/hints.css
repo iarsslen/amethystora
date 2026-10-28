@@ -1,0 +1,60 @@
+/* A tip, once: the card and the pill that says it was recorded. Sizes only, with the Amethystora colours standing in
+   until a theme is applied (/usr/share/amethystora/themed/shell-hints.css.tpl). The glass is drawn behind both. */
+
+.amethystora-hints-card {
+  width: 300px;
+  padding: 14px 16px;
+  spacing: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.45);
+  background-color: rgba(26, 16, 42, 0.5);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+  color: #efe4ff;
+}
+
+.amethystora-hints-row { spacing: 10px; }
+
+.amethystora-hints-bulb {
+  width: 28px;
+  height: 28px;
+  border-radius: 14px;
+  background-color: rgba(145, 72, 240, 0.35);
+}
+
+.amethystora-hints-bulb-icon {
+  icon-size: 14px;
+  color: #efe4ff;
+}
+
+.amethystora-hints-text {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.amethystora-hints-button {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  font-size: 13.5px;
+  font-weight: 700;
+  background-color: #9148f0;
+  color: #ffffff;
+}
+
+.amethystora-hints-button:focus {
+  box-shadow: 0 0 0 2px #dcbcff;
+}
+
+.amethystora-hints-pill {
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.45);
+  background-color: rgba(26, 16, 42, 0.5);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+  color: #efe4ff;
+}

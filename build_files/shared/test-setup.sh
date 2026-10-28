@@ -75,13 +75,15 @@ for key in minimize workspace-switch; do
 done
 saved="$(sed -n 's/^MOTION_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort | xargs)"
 [[ "${saved}" == "$(jq -r 'keys | join(" ")' <<<"${MOTION_TABLE}")" ]] || { echo "the manifest saves other motion keys"; false; }
-# The top bar's workspaces: auto-names, a switch, and none of its two keybindings
+# The top bar's workspaces: auto-names and sets, two switches, and none of its two keybindings
 WORKSPACES=org.gnome.shell.extensions.amethystora-ui.workspaces
 WORKSPACES_TABLE="$(sed -n "s/^WORKSPACES_KEYS='\(.*\)'\$/\1/p" "${SETUP}")"
 [[ "$(jq -r 'keys | join(" ")' <<<"${WORKSPACES_TABLE}")" == "$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${WORKSPACES}" |
     grep -vx 'move-workspace-left\|move-workspace-right' | sort | xargs)" ]] || { echo "WORKSPACES_KEYS and the schema differ"; false; }
-[[ "$(jq -c '."auto-names"' <<<"${WORKSPACES_TABLE}")" == '["b"]' &&
-    "$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${WORKSPACES}" auto-names)" == "type b" ]]
+for key in auto-names sets; do
+    [[ "$(jq -c --arg k "${key}" '.[$k]' <<<"${WORKSPACES_TABLE}")" == '["b"]' &&
+        "$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${WORKSPACES}" "${key}")" == "type b" ]]
+done
 saved="$(sed -n 's/^WORKSPACES_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort | xargs)"
 [[ "${saved}" == "$(jq -r 'keys | join(" ")' <<<"${WORKSPACES_TABLE}")" ]] || { echo "the manifest saves other workspaces keys"; false; }
 # The windows module's keys likewise, every one but its keybinding: each with the schema's type, range and choices,
@@ -173,7 +175,8 @@ saved="$(sed -n 's/^QUICK_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystor
 # their schemas but the weather, which sends the place chosen in Weather and is never in a file; and the manifest saves
 # the same keys
 for table in BARS:org.gnome.shell.extensions.amethystora-ui.bars TODAY:org.gnome.shell.extensions.amethystora-ui.today \
-    BREAKS:org.gnome.desktop.break-reminders BEZEL:org.gnome.shell.extensions.amethystora-ui.bezel; do
+    BREAKS:org.gnome.desktop.break-reminders BEZEL:org.gnome.shell.extensions.amethystora-ui.bezel \
+    HINTS:org.gnome.shell.extensions.amethystora-ui.hints APPGRID:org.gnome.shell.extensions.amethystora-ui.appgrid; do
     name="${table%%:*}" id="${table#*:}"
     TABLE="$(sed -n "s/^${name}_KEYS='\(.*\)'\$/\1/p" "${SETUP}")"
     listed="$(jq -r 'keys[]' <<<"${TABLE}" | sort)"
@@ -289,7 +292,10 @@ org.gnome.shell.extensions.amethystora-ui.dock stacks ['xdg:DOWNLOAD']
 org.gnome.shell.extensions.amethystora-ui.bezel round-corners false
 org.gnome.desktop.sound event-sounds true
 org.gnome.shell.extensions.amethystora-ui.theme accent-per-workspace false
-org.gnome.shell.extensions.amethystora-ui.theme workspace-accents ['theme', 'sky', 'coral', 'jade', 'amber', 'orchid']"
+org.gnome.shell.extensions.amethystora-ui.theme workspace-accents ['theme', 'sky', 'coral', 'jade', 'amber', 'orchid']
+org.gnome.shell.extensions.amethystora-transitions reveal true
+org.gnome.shell.extensions.amethystora-ui.hints enabled true
+org.gnome.shell.extensions.amethystora-ui.appgrid recent true"
         values="org.gnome.shell favorite-apps ['org.gnome.Nautilus.desktop', 'firefox.desktop']
 org.gnome.shell enabled-extensions ['clipboard-indicator@tudmotu.com']
 org.gnome.desktop.wm.keybindings close ['<Super>q']
@@ -408,7 +414,8 @@ jq '.flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .brew
     | .settings.glass = {"material": "frost", "solid": true}
     | .settings.windows = {"dim": false, "corner-top-right": "overview", "hold-super-delay": 1500}
     | .settings.dock += {"magnify": "off", "folders": {"Writing": ["org.gnome.Nautilus.desktop", "firefox.desktop"]}}
-    | .settings.bezel = {"round-corners": true} | .settings.sound = {"event-sounds": false}' \
+    | .settings.bezel = {"round-corners": true} | .settings.sound = {"event-sounds": false}
+    | .settings.transitions = {"reveal": false} | .settings.hints = {"enabled": false} | .settings.appgrid = {"recent": false}' \
     "${FILE}" >"${T}/more.json"
 out="$("${SETUP}" diff "${T}/more.json")"
 grep -qxF "  ~ the windows' dim: false, in place of true" <<<"${out}"
@@ -425,9 +432,15 @@ grep -qxF "  ~ the tiling's animation-time: 0.5, in place of 0.25" <<<"${out}"
 grep -qxF "  ! the tiling's workspace-colors: [\"\",\"#314e6c\"]: this machine's tiling has no such setting" <<<"${out}"
 grep -qxF "  ~ the screen's round-corners: true, in place of false" <<<"${out}"
 grep -qxF "  ~ the desktop's event-sounds: false, in place of true" <<<"${out}"
+grep -qxF "  ~ the transitions' reveal: false, in place of true" <<<"${out}"
+grep -qxF "  ~ the tips' enabled: false, in place of true" <<<"${out}"
+grep -qxF "  ~ the app grid's recent: false, in place of true" <<<"${out}"
 "${SETUP}" apply --yes "${T}/more.json" >/dev/null
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.bezel round-corners true" "${LOG}"
 grep -qx "gsettings set org.gnome.desktop.sound event-sounds false" "${LOG}"
+grep -qx "gsettings set org.gnome.shell.extensions.amethystora-transitions reveal false" "${LOG}"
+grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.hints enabled false" "${LOG}"
+grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.appgrid recent false" "${LOG}"
 grep -qx "flatpak install --system --noninteractive flathub org.gnome.Maps" "${LOG}"
 grep -qx "brew install --formula fd someone/tools/lint" "${LOG}"
 grep -qx "gsettings set org.gnome.desktop.wm.keybindings close \['<Super>c'\]" "${LOG}"
@@ -511,6 +524,9 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"bezel": {"radius": 20}}}' \
     '{"version": 1, "settings": {"sound": {"theme-name": "__custom"}}}' \
     '{"version": 1, "settings": {"sound": {"event-sounds": 0}}}' \
+    '{"version": 1, "settings": {"transitions": {"style": "wave"}}}' \
+    '{"version": 1, "settings": {"hints": {"enabled": "on"}}}' \
+    '{"version": 1, "settings": {"appgrid": {"folders": []}}}' \
     '{"version": 1, "settings": {"keybindings": {"org.gnome.shell.extensions.amethystora-ui.search": {"answers": ["<Super>a"]}}}}' \
     '{"version": 1, "settings": {"pill": {"digest-times": []}}}' \
     '{"version": 1, "settings": {"pill": {"digest-times": ["25:00"]}}}' \
@@ -585,7 +601,7 @@ bake_root
 jq '.image = {"name": "amethystora", "stream": "stable"}
     | .flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .extensions = ["amethystora-clipboard@iarsslen.github.io"]
     | .settings.layout = "classic" | .brew.taps = ["someone/tools"] | .brew.formulae = ["fd", "someone/tools/lint"]
-    | .settings.motion = {"minimize": "shrink"} | .settings.workspaces = {"auto-names": false}
+    | .settings.motion = {"minimize": "shrink"} | .settings.workspaces = {"auto-names": false, "sets": false}
     | .settings.look = {"accent": "jade", "colours": "soft", "accent-per-workspace": true,
         "workspace-accents": ["theme", "moss", "sky", "jade", "amber", "orchid"]}' \
     "${FILE}" >"${T}/image.json"
@@ -611,6 +627,7 @@ grep -qF "'amethystora-clipboard@iarsslen.github.io'" <<<"${extensions}"
 [[ "$(GSETTINGS_SCHEMA_DIR="${ROOT}/${UI}/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get "${GLASS}" material)" == "'clear'" ]]
 [[ "$(image "${MOTION}" minimize)" == "'shrink'" && "$(image "${MOTION}" workspace-switch)" == "'depth'" ]]
 [[ "$(GSETTINGS_SCHEMA_DIR="${ROOT}/${UI}/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get "${WORKSPACES}" auto-names)" == false ]]
+[[ "$(GSETTINGS_SCHEMA_DIR="${ROOT}/${UI}/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get "${WORKSPACES}" sets)" == false ]]
 [[ "$(image "${WINDOWS}" dim)" == true && "$(image "${WINDOWS}" snap)" == true ]]
 [[ "$(GSETTINGS_SCHEMA_DIR="${ROOT}/${UI}/schemas" GSETTINGS_BACKEND=memory /usr/bin/gsettings get "${WINDOWS}" dim)" == true ]]
 printf 'file-db:%s\n' "${ROOT}/etc/dconf/db/distro" >"${T}/dconf-profile"

@@ -43,3 +43,45 @@
   background-color: {{ accent_bg }};
   color: {{ accent_fg }};
 }
+
+/* Saved sets in the workspace menu: Save this workspace in the board's light outline, filled with the text colour once
+   saved; the sets on a faint fill of the text colour, their apps and heading dimmed as the palette dims labels */
+.amethystora-workspaces-save.amethystora-workspaces-save {
+  background-color: rgba({{ foreground_rgb }}, 0.08);
+  border-color: rgba({{ foreground_rgb }}, 0.14);
+  color: {{ foreground }};
+}
+
+.amethystora-workspaces-save.amethystora-workspaces-save:checked {
+  background-color: {{ foreground }};
+  border-color: {{ foreground }};
+  color: {{ background }};
+}
+
+.amethystora-workspaces-save.amethystora-workspaces-save:insensitive {
+  color: rgba({{ foreground_rgb }}, {{ dim_alpha }});
+}
+
+.amethystora-workspaces-save.amethystora-workspaces-save:focus,
+.amethystora-workspaces-set.amethystora-workspaces-set-focused {
+  box-shadow: inset 0 0 0 2px {{ accent }};
+}
+
+.amethystora-workspaces-sets-heading.amethystora-workspaces-sets-heading,
+.amethystora-workspaces-set-apps.amethystora-workspaces-set-apps {
+  color: rgba({{ foreground_rgb }}, {{ dim_alpha }});
+}
+
+.amethystora-workspaces-set.amethystora-workspaces-set {
+  background-color: rgba({{ foreground_rgb }}, 0.06);
+  color: {{ foreground }};
+}
+
+.amethystora-workspaces-set.amethystora-workspaces-set:hover {
+  background-color: rgba({{ foreground_rgb }}, 0.1);
+}
+
+.amethystora-workspaces-set-forget.amethystora-workspaces-set-forget:hover,
+.amethystora-workspaces-set-forget.amethystora-workspaces-set-forget:focus {
+  background-color: rgba({{ foreground_rgb }}, 0.12);
+}

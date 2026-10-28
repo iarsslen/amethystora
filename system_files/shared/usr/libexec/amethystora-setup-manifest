@@ -74,7 +74,7 @@ GLASS_KEYS=(material solid)
 MOTION=org.gnome.shell.extensions.amethystora-ui.motion
 MOTION_KEYS=(minimize workspace-switch)
 WORKSPACES=org.gnome.shell.extensions.amethystora-ui.workspaces
-WORKSPACES_KEYS=(auto-names)
+WORKSPACES_KEYS=(auto-names sets)
 # The windows module's keys amethystora-setup's WINDOWS_KEYS takes; its keybinding, snap-chooser, is kept with the
 # other keybindings (KEY_SCHEMAS lists its schema for that)
 WINDOWS=org.gnome.shell.extensions.amethystora-ui.windows
@@ -113,6 +113,14 @@ SOUND_KEYS=(event-sounds)
 # The theme module's keys amethystora-setup's LOOK_KEYS takes beside the account's look files: an accent per workspace
 THEME_UI=org.gnome.shell.extensions.amethystora-ui.theme
 THEME_UI_KEYS=(accent-per-workspace workspace-accents)
+# The reveal at login, the tips and the app grid's recent row, which amethystora-setup's TRANSITIONS_KEYS, HINTS_KEYS
+# and APPGRID_KEYS take
+TRANSITIONS=org.gnome.shell.extensions.amethystora-transitions
+TRANSITIONS_KEYS=(reveal)
+HINTS=org.gnome.shell.extensions.amethystora-ui.hints
+HINTS_KEYS=(enabled)
+APPGRID=org.gnome.shell.extensions.amethystora-ui.appgrid
+APPGRID_KEYS=(recent)
 
 # The tiling, while it runs, takes a combination out of four GNOME keys that it cannot wrap in memory, and
 # writes down what it took in its state file, to put back when it is turned off: the account's own value is the
@@ -198,6 +206,9 @@ settings() {
         changed "${EMOJI}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${EMOJI_KEYS[@]}") -
         changed "${BEZEL}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${BEZEL_KEYS[@]}") -
         changed "${SOUND}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${SOUND_KEYS[@]}") -
+        changed "${TRANSITIONS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${TRANSITIONS_KEYS[@]}") -
+        changed "${HINTS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${HINTS_KEYS[@]}") -
+        changed "${APPGRID}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${APPGRID_KEYS[@]}") -
     } | while read -r schema key value; do
         value="$(as_json <<<"${value}")" && [[ -n "${value}" ]] || continue
         jq -nc --arg s "${schema}" --arg k "${key}" --argjson v "${value}" '{schema: $s, key: $k, value: $v}'
@@ -218,14 +229,15 @@ LAYOUT=tiling
 SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" --arg pointer "${POINTER}" --arg glass "${GLASS}" \
     --arg windows "${WINDOWS}" --arg dock "${DOCK}" --arg motion "${MOTION}" --arg workspaces "${WORKSPACES}" \
     --arg pill "${PILL}" --arg quick "${QUICK}" --arg bars "${BARS}" --arg today "${TODAY}" --arg breaks "${BREAKS}" \
-    --arg search "${SEARCH}" --arg emoji "${EMOJI}" --arg bezel "${BEZEL}" --arg sound "${SOUND}" '
+    --arg search "${SEARCH}" --arg emoji "${EMOJI}" --arg bezel "${BEZEL}" --arg sound "${SOUND}" \
+    --arg transitions "${TRANSITIONS}" --arg hints "${HINTS}" --arg appgrid "${APPGRID}" '
     map(if .schema == "custom" then .value |= (if . == "" then [] else [.] end) else . end) as $all
     | {layout: $layout}
     + ([$all[] | select(.schema == "org.gnome.shell")] | if length > 0 then {favorites: .[0].value} else {} end)
     + {keybindings: (reduce ($all[] | select(if .schema == $windows then .key == "snap-chooser"
             elif .schema == $search then .key == "open" elif .schema == $emoji then .key == "emoji-picker"
             else .schema | IN("org.gnome.shell", $tiling, $pointer, $glass, $motion, $workspaces, $dock, $pill, $quick, $bars,
-                $today, $breaks, $bezel, $sound) | not end))
+                $today, $breaks, $bezel, $sound, $transitions, $hints, $appgrid) | not end))
         as $e ({}; .[$e.schema][$e.key] = $e.value))}
     + ([$all[] | select(.schema == $windows and .key != "snap-chooser")]
         | if length > 0 then {windows: (map({(.key): .value}) | add)} else {} end)
@@ -247,7 +259,10 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
     + ([$all[] | select(.schema == $emoji and .key != "emoji-picker")]
         | if length > 0 then {emoji: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $bezel)] | if length > 0 then {bezel: (map({(.key): .value}) | add)} else {} end)
-    + ([$all[] | select(.schema == $sound)] | if length > 0 then {sound: (map({(.key): .value}) | add)} else {} end)')"
+    + ([$all[] | select(.schema == $sound)] | if length > 0 then {sound: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $transitions)] | if length > 0 then {transitions: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $hints)] | if length > 0 then {hints: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $appgrid)] | if length > 0 then {appgrid: (map({(.key): .value}) | add)} else {} end)')"
 
 # The look, where the account changed it from the image's: its accent, Daylight turned off and colours from the wallpaper
 # (the account's files, each only as one of its values), and an accent per workspace (the theme module's keys)

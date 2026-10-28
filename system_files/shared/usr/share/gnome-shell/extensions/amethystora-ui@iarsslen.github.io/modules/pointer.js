@@ -16,6 +16,7 @@ import St from 'gi://St';
 
 import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {ShakeDetector, STEP} from './pointer/shake.js';
 import {denseSize} from './pointer/dense.js';
@@ -34,6 +35,8 @@ const RING_FROM = 0.3;
 const RING_TO = 2.6;
 const RING_OPACITY = 230;
 const DBUS_TIMEOUT = 5000;
+// The tip about shaking comes the first time the pointer moves after this long without input
+const TIP_IDLE_MS = 10 * 60 * 1000;
 // GNOME Shell 51 draws its pointers from the theme's SVG (cursors_scalable), 50 from its Xcursor files
 const SVG_CURSORS = parseInt(Config.PACKAGE_VERSION) >= 51;
 
@@ -77,6 +80,7 @@ export class Pointer {
     disable() {
         // The pointer back first, whatever else fails
         this._endFlare();
+        this.disarmTip();
         this._tracker?.disconnectObject(this);
         this._detector = null;
         this._stopDense();
@@ -96,11 +100,39 @@ export class Pointer {
             this._detector = new ShakeDetector();
             this._tracker.connectObject('position-invalidated', () => this._onMove(), this);
             this.stats.connected = true;
+            this.armTip();
         } else if (!on && this.stats.connected) {
             this._tracker.disconnectObject(this);
             this._detector = null;
             this.stats.connected = false;
+            this.disarmTip();
         }
+    }
+
+    // The tip (the hints module): Mutter's own idle monitor says when ten minutes passed without input, and then when
+    // input comes back; nothing is counted here. Armed only while tips are on (the hints module arms and disarms it
+    // as they are turned on and off) and the shake is, and never once the tip has been shown.
+    armTip() {
+        const hints = this._ext.modules?.get('hints');
+        if (this._tipWatch || !this.stats?.connected || !hints?.enabled || hints.wasShown('shake'))
+            return;
+        const monitor = global.backend.get_core_idle_monitor();
+        this._tipWatch = monitor.add_idle_watch(TIP_IDLE_MS, (_monitor, id) => {
+            // An idle watch fires each time; this one is wanted once
+            monitor.remove_watch(id);
+            this._tipWatch = monitor.add_user_active_watch(() => {
+                this._tipWatch = 0;
+                const text = _('Tip: shake the mouse to find the pointer.');
+                if (!hints?.offer('shake', {text, anchor: 'pointer'}))
+                    this.armTip();
+            });
+        });
+    }
+
+    disarmTip() {
+        if (this._tipWatch)
+            global.backend.get_core_idle_monitor().remove_watch(this._tipWatch);
+        this._tipWatch = 0;
     }
 
     // Every pointer motion: the large copy follows each one while it is shown; the shake is looked at once every STEP

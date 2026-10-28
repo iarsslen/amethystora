@@ -20,7 +20,7 @@ if wait_for 180 setup_user; then
     SETUP_USER="$(setup_user)"
     sleep 60
     check "no Amethystora setup ran for the first-run account" \
-        sh -c '! pgrep -u "$1" -f "amethystora-manual|amethystora-layout-offer"' sh "${SETUP_USER}"
+        sh -c '! pgrep -u "$1" -f "amethystora-manual|amethystora-layout-offer|amethystora-control welcome"' sh "${SETUP_USER}"
 else
     not_ok "GNOME's first-run setup did not start" "$(loginctl list-sessions --no-legend)"
 fi

@@ -1,5 +1,28 @@
 # Relocatable schemas are located here in dconf
 # Some Gnome extensions don't ship gschema XML, so their settings also need to go in dconf
+#
+# The app grid's folders. The six the image lists by default (zz0's folder-children: Office, Graphics, Games, System,
+# Development, Utilities) fill themselves from the apps' own categories, under names GNOME translates from the
+# menus' directory files; the system's own windows of Amethystora (Security, Updates, Control) and Backups, the Manual
+# and Phone stay loose. GamingUtilities, Containers, Wine and Productivity are no longer in the default list and stay
+# here for the accounts whose own list still names them.
+
+[org/gnome/desktop/app-folders/folders/Office]
+categories=['Office']
+name='Office.directory'
+translate=true
+
+[org/gnome/desktop/app-folders/folders/Graphics]
+categories=['Graphics']
+name='Graphics.directory'
+translate=true
+
+[org/gnome/desktop/app-folders/folders/System]
+apps=['com.github.tchx84.Flatseal.desktop', 'io.github.flattool.Warehouse.desktop', 'com.mattjakeman.ExtensionManager.desktop', 'org.gnome.Extensions.desktop', 'org.gnome.tweaks.desktop', 'firewall-config.desktop', 'ca.desrt.dconf-editor.desktop', 'org.gnome.Firmware.desktop', 'solaar.desktop', 'org.fedoraproject.MediaWriter.desktop', 'input-remapper-gtk.desktop', 'org.gnome.Sysprof.desktop', 'io.github.flattool.Ignition.desktop', 'io.gitlab.adhami3310.Impression.desktop', 'page.tesk.Refine.desktop']
+excluded-apps=['amethystora-security.desktop', 'amethystora-update.desktop', 'amethystora-control.desktop']
+categories=['System', 'Monitor']
+name='X-GNOME-Shell-System.directory'
+translate=true
 
 [org/gnome/desktop/app-folders/folders/GamingUtilities]
 apps=['protontricks.desktop', 'discover_overlay_configure.desktop', 'com.vysp3r.ProtonPlus.desktop', 'io.github.benjamimgois.goverlay.desktop', 'com.gerbilsoft.rom-properties.rp-config.desktop', 'steamos-nested-desktop.desktop']
@@ -7,16 +30,18 @@ name='Gaming Utilities'
 translate=false
 
 [org/gnome/desktop/app-folders/folders/Utilities]
-apps=['com.github.tchx84.Flatseal.desktop', 'io.github.flattool.Warehouse.desktop', 'com.mattjakeman.ExtensionManager.desktop', 'org.gnome.Extensions.desktop', 'org.gnome.tweaks.desktop', 'firewall-config.desktop', 'ca.desrt.dconf-editor.desktop', 'org.gnome.Firmware', 'org.gnome.World.PikaBackup.desktop', 'input-leap.desktop', 'solaar.desktop', 'org.fedoraproject.MediaWriter.desktop', 'input-remapper-gtk.desktop', 'org.gnome.Sysprof.desktop', 'remote-viewer.desktop', 'io.github.flattool.Ignition.desktop', 'io.gitlab.adhami3310.Impression.desktop', 'page.tesk.Refine.desktop']
-categories=['X-GNOME-Utilities']
+apps=['org.gnome.World.PikaBackup.desktop', 'input-leap.desktop', 'remote-viewer.desktop']
+excluded-apps=['amethystora-backups.desktop', 'amethystora-manual.desktop', 'amethystora-phone.desktop']
+categories=['Utility', 'X-GNOME-Utilities']
 name='X-GNOME-Utilities.directory'
 translate=true
 
 [org/gnome/desktop/app-folders/folders/Games]
-excluded-apps=['steam.desktop', 'net.lutris.Lutris.desktop', 'io.github.benjamimgois.goverlay.desktop', 'com.vysp3r.ProtonPlus.desktop', 'io.github.fastrizwaan.WineZGUI.desktop' ]
+apps=['com.vysp3r.ProtonPlus.desktop', 'protontricks.desktop', 'discover_overlay_configure.desktop', 'io.github.benjamimgois.goverlay.desktop']
+excluded-apps=['steam.desktop', 'com.valvesoftware.Steam.desktop', 'net.lutris.Lutris.desktop']
 categories=['Game']
-name='Games'
-translate=false
+name='Game.directory'
+translate=true
 
 [org/gnome/desktop/app-folders/folders/Containers]
 apps=['io.github.dvlv.boxbuddyrs.desktop', 'com.github.marhkb.Pods.desktop']
@@ -34,8 +59,8 @@ translate=false
 apps=['dev-pod.desktop', 'codium.desktop', 'virt-manager.desktop', 'io.podman_desktop.PodmanDesktop.desktop']
 excluded-apps=['org.gnome.Sysprof.desktop']
 categories=['Development', 'IDE']
-name='Development'
-translate=false
+name='Development.directory'
+translate=true
 
 [org/gnome/desktop/app-folders/folders/Productivity]
 apps=['simple-scan.desktop', 'org.gnome.Papers.desktop', 'org.gnome.Connections.desktop']

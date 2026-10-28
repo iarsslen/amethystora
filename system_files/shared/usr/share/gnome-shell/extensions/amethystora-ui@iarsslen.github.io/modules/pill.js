@@ -290,6 +290,11 @@ export class Pill {
         return this._capture;
     }
 
+    // Whether the screen is recorded or shared now, for the tips, which never show then
+    sharing() {
+        return !!this._capture?.active;
+    }
+
     get hold() {
         return this._hold;
     }

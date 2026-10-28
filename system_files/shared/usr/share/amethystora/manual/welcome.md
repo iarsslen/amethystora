@@ -14,9 +14,12 @@ On top of that foundation sits a desktop made to be driven from the keyboard, as
 fast: windows that tile side by side on a strip that scrolls, six workspaces that are always where you left them, a theme
 switch that repaints everything at once, and an AI agent that knows how this system works, for when you turn it on.
 
-Two choices are worth making on the first day. If you would rather have windows that float and
-overlap, as on Windows and macOS, a notification offers them shortly after your first login, and
-`ame desktop layout classic` switches at any time ([Classic windows](desktop.md#classic-windows)).
+Two choices are worth making on the first day. **Pick a look**, which opens once on top of this page at your
+first login, sets the theme, the style, how the dock grows, the pointer and whether windows tile or float, with a
+preview of each as you pick; `amethystora-control welcome` opens it again, and Control has every one of them
+later. If you would rather have windows that float and overlap, as on Windows and macOS, choose **Classic** there,
+or `ame desktop layout classic` at any time ([Classic windows](desktop.md#classic-windows)); an account that did
+not see Pick a look is offered them in a notification shortly after its first login.
 If the computer is for a child, [parental controls](security.md#parental-controls) keep their account
 to the apps and the hours you choose.
 

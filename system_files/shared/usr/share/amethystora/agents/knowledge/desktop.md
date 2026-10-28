@@ -160,3 +160,18 @@ these commands in the agent's own shell, as the user. Read before writing, chang
   image and no `ame` command for this; do not install one for the user.
 - Button missing: `flatpak info be.alexandervanhee.gradia` and `gnome-extensions info
   amethystora-ui@iarsslen.github.io` (Extension Manager turns it back on; an image update does too).
+
+## First start: the reveal, Pick a look, tips and the app grid
+
+- The reveal at login (the boot splash's gem flying into the top bar) is `reveal` in
+  `org.gnome.shell.extensions.amethystora-transitions`: `ame desktop transition reveal on|off`. It runs only while
+  GNOME is starting, with animations on; nothing of it is left after the first second.
+- Pick a look is a page of Control, `amethystora-control welcome`, opened once for a new account by
+  `/usr/share/amethystora/user-setup.hooks.d/25-first-look.sh`; it writes `~/.local/state/amethystora/first-look.json`,
+  and while that file exists the offer of classic windows (`/usr/libexec/amethystora-layout-offer`) is not made.
+- Tips are Amethystora UI's hints module: `enabled` in `org.gnome.shell.extensions.amethystora-ui.hints`
+  (`ame desktop hints on|off`); what was shown is in `~/.local/state/amethystora/hints.json` (with a `.bak`), and
+  `ame desktop hints reset` lets them come again. None in the first hour, one per feature ever, half an hour apart.
+- The app grid's row of recent apps is `recent` in `org.gnome.shell.extensions.amethystora-ui.appgrid`
+  (`ame desktop app-grid recent on|off`). The folders are GNOME's own (`org.gnome.desktop.app-folders`), the
+  image's six by default; `ame desktop app-grid folders reset` puts them back, in a terminal, after asking.

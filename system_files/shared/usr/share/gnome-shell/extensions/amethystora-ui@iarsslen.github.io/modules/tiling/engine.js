@@ -289,6 +289,12 @@ export class Engine {
             // A dialog says whose it is after it is made: it floats, as GNOME has it
             if (!this.tileable(window))
                 return;
+            // A window a saved set is opening goes to the set's workspace and its place there (workspaces/sets.js)
+            const claim = this.tiling._ext.modules?.get('workspaces')?.claim?.(window);
+            if (claim && this.placeClaimed(window, claim, {drawn})) {
+                info.rule = {};
+                return;
+            }
             const entry = ruleFor(window);
             const rule = info.rule = entry?.rule ?? {};
             forget(entry, this.tiling.settings);
@@ -340,6 +346,34 @@ export class Engine {
             settle();
         else
             window.connectObject('size-changed', settle, this);
+    }
+
+    // A window of a saved set, new or already open: on the set's workspace, in the set's order among the set's
+    // windows already in that workspace's strip, at its saved width as far as the screen allows. A new one gets the
+    // keyboard once drawn, unless the person went to another workspace meanwhile. False, and nothing done, when the
+    // set's workspace is gone (dynamic workspaces).
+    placeClaimed(window, claim, {drawn = false, appear = true} = {}) {
+        const manager = global.workspace_manager;
+        const target = claim.workspace;
+        if (![...Array(manager.n_workspaces).keys()].some(i => manager.get_workspace_by_index(i) === target))
+            return false;
+        const info = this._track(window);
+        const active = manager.get_active_workspace();
+        info.elsewhere = target !== active;
+        const monitor = this.screens?.separate ? this.screens.placeOf(target, this.focusMonitor()) : this.focusMonitor();
+        const strip = this.strip(target, monitor);
+        info.width = Math.min(claim.tile.width, Layout.available(this.area(strip.monitor)));
+        this.insert(window, strip, {appear, place: claim.slotIn(strip, window)});
+        // A window that opens fullscreen takes it again from its place in the strip, as any new window does
+        if (appear && window.is_fullscreen()) {
+            if (drawn)
+                this._refullscreen(window, info);
+            else
+                info.refullscreen = true;
+        }
+        if (appear && drawn && !info.elsewhere)
+            activate(window);
+        return true;
     }
 
     _track(window) {

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="card.css">
+<style>
+/* Snap layouts: a window dragged to the top, the layouts appear, and the window snaps into the left half */
+.art { --loop: 3s; }
+@keyframes drag {
+  0%, 8% { transform: translate(0, 0); width: 58px; height: 42px; left: 54px; top: 58px; }
+  40% { left: 54px; top: 26px; width: 58px; height: 42px; }
+  52% { left: 54px; top: 26px; width: 58px; height: 42px; opacity: 1; }
+  60%, 88% { left: 6px; top: 6px; width: 67px; height: 100px; opacity: 1; }
+  96%, 100% { left: 54px; top: 58px; width: 58px; height: 42px; opacity: 1; }
+}
+@keyframes picker { 0%, 26% { opacity: 0; transform: translateY(-6px); } 34%, 54% { opacity: 1; transform: translateY(0); } 60%, 100% { opacity: 0; transform: translateY(0); } }
+@keyframes hover { 0%, 40% { background: rgba(255, 255, 255, 0.2); } 44%, 54% { background: #b37df9; } 60%, 100% { background: rgba(255, 255, 255, 0.2); } }
+@keyframes hand {
+  0%, 8% { left: 80px; top: 62px; opacity: 1; }
+  40%, 52% { left: 80px; top: 30px; opacity: 1; }
+  60%, 88% { left: 80px; top: 30px; opacity: 0; }
+  96%, 100% { left: 80px; top: 62px; opacity: 1; }
+}
+.moving { position: absolute; animation-name: drag; }
+.picker { left: 44px; top: 6px; width: 62px; height: 18px; border-radius: 6px; display: flex; gap: 3px; padding: 3px; animation-name: picker; }
+.layout { flex: 1; display: flex; gap: 1px; }
+.layout i { flex: 1; border-radius: 2px; background: rgba(255, 255, 255, 0.2); }
+.layout i.on { animation-name: hover; }
+.pointer { position: absolute; width: 16px; height: 20px; animation-name: hand; }
+</style>
+</head>
+<body>
+<div class="art">
+  <div class="pane picker">
+    <span class="layout"><i class="on"></i><i></i></span><span class="layout"><i></i><i></i><i></i></span><span class="layout"><i style="flex: 2"></i><i></i></span>
+  </div>
+  <i class="win moving"></i>
+  <svg class="pointer" viewBox="0 0 24 30"><path d="M4 3L20 16 12.6 17.3 8.7 24Z" fill="#ffffff" stroke="#9148f0" stroke-width="2" stroke-linejoin="round"/></svg>
+</div>
+</body>
+</html>

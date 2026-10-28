@@ -23,5 +23,10 @@
       <default>1200</default>
       <summary>How long the transition takes, in milliseconds</summary>
     </key>
+    <key name="reveal" type="b">
+      <default>true</default>
+      <summary>Reveal the desktop at login</summary>
+      <description>As a session starts, the boot splash's gem flies into the top bar while the desktop appears. Skipped with animations off.</description>
+    </key>
   </schema>
 </schemalist>

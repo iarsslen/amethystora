@@ -12,6 +12,7 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {gettext as _} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {ease} from './util.js';
 
@@ -39,6 +40,8 @@ const TILE_PADDING = 3;
 const CELL_GAP = 3;
 // How near the top of the work area the pointer brings the chooser out, and how far below it it takes it away
 const REACH = 48;
+// The tip about snap layouts is offered after this many windows dragged in a session
+const TIP_AFTER = 3;
 // The chooser's distance from the top of the work area
 const TOP = 22;
 // The place shown first: this far inside the window's place, with these corners
@@ -337,6 +340,17 @@ export class Snap {
         this._module.note('snapMove', t0);
     }
 
+    _tip() {
+        const hints = this._ext.modules?.get('hints');
+        if (!hints || hints.wasShown('snap'))
+            return;
+        this._module.drags = (this._module.drags ?? 0) + 1;
+        if (this._module.drags >= TIP_AFTER) {
+            const text = _('Tip: drag a window to the top of the screen to pick a layout, or press Super+Z.');
+            hints.offer('snap', {text, anchor: 'pointer'});
+        }
+    }
+
     _paneBottom() {
         const extents = this._pane.get_transformed_extents();
         return [extents.origin.y, extents.origin.y + extents.size.height];
@@ -356,6 +370,9 @@ export class Snap {
         const monitor = this._monitor;
         const dragged = this._dragged;
         this._stopDrag();
+        // The tip (the hints module), after the third window dragged in a session without a layout picked
+        if (!target)
+            this._tip();
         if (!target || window !== dragged)
             return;
         // After Mutter has finished the drag itself

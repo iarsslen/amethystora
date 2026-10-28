@@ -14,6 +14,8 @@
 //   - a wallpaper or appearance key changes from anywhere else: Settings, gsettings, Super+Ctrl+Space
 //   - the Dark Style toggle in the quick settings, through screenTransition.run()
 // Whatever happens, the screen is never held for more than MAX_HOLD_MS.
+//
+// At login, reveal.js plays the boot splash's gem into the top bar as the desktop first appears.
 
 import Clutter from 'gi://Clutter';
 import Cogl from 'gi://Cogl';
@@ -27,6 +29,8 @@ import St from 'gi://St';
 import * as Config from 'resource:///org/gnome/shell/misc/config.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension, InjectionManager} from 'resource:///org/gnome/shell/extensions/extension.js';
+
+import {Reveal} from './reveal.js';
 
 const GNOME_MAJOR = parseInt(Config.PACKAGE_VERSION, 10);
 
@@ -220,9 +224,16 @@ export default class TransitionsExtension extends Extension {
             Release: () => this._release(),
         });
         this._dbus.export(Gio.DBus.session, '/org/amethystora/Transitions');
+
+        // The reveal at login, which only happens while GNOME is starting
+        this._reveal = new Reveal(this._settings);
+        this._reveal.start();
     }
 
     disable() {
+        // The top bar is never left hidden or out of place
+        this._reveal?.stop();
+        this._reveal = null;
         this._dbus.unexport();
         this._injections.clear();
         for (const settings of this._watched)

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The tips of Amethystora UI's hints module: one the first time a feature can help, once each. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.hints" path="/org/gnome/shell/extensions/amethystora-ui/hints/">
+    <key name="enabled" type="b">
+      <default>true</default>
+      <summary>Tips</summary>
+      <description>A tip the first time a feature can help, never in the first hour, never two at once and each only once. ame desktop hints reset brings back the ones seen.</description>
+    </key>
+  </schema>
+</schemalist>

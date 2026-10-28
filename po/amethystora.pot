@@ -2240,6 +2240,14 @@ msgid "How long a transition takes, in milliseconds."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Reveal at login"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The splash's gem flies into the top bar as the desktop appears."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Rounded screen corners"
 msgstr ""
 
@@ -2748,6 +2756,22 @@ msgid "Running apps of other workspaces leave the dock; pinned apps stay."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Recently used apps"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The apps you use most, in a row at the top of the app grid."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Tips"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A tip the first time a feature can help, once each."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Reduce motion is on: windows and workspaces fade instead."
 msgstr ""
 
@@ -2817,6 +2841,14 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
 msgid "A workspace you have not named shows the name of the app with most windows on it."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Saved sets"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Save a workspace’s apps and their places from its menu, and open them again."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -5915,6 +5947,14 @@ msgid "Workspace ${n}: ${name}."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
+msgid "The desktop is revealed at login."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "No reveal at login."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
 #, sh-format
 msgid "Transition (current: ${current})"
 msgstr ""
@@ -6120,6 +6160,14 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 msgid "A workspace you have not named shows its number only."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The workspace menu saves a workspace's apps and their places as a set, and opens a set again."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The workspace menu has no sets. The sets you saved are kept for when they are on again."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
@@ -6657,6 +6705,38 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 msgid "Rounded screen corners: off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Tips: on."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Tips: off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Tips you have seen can come back."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Recently used apps: on."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Recently used apps: off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The app grid's folders go back to the image's: Office, Graphics, Games, System, Development and Utilities, filled from the apps' own categories. Folders you made or renamed, and where you put the icons, are forgotten."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Reset the folders?"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The app grid's folders are the image's again."
 msgstr ""
 
 #: usr/share/amethystora/just/report.just
@@ -8692,6 +8772,14 @@ msgstr ""
 msgid "automatic updates are currently running, use `journalctl -fexu ${SERVICE}` to see logs"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/appgrid.js
+msgid "Recently used"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/appgrid.js
+msgid "All apps"
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bars.js
 msgid "Clock"
 msgstr ""
@@ -8810,6 +8898,10 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/indicator.js
 msgid "Phones…"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js
+msgid "Tip: drop a file on Phone in the dock to send it to your phone."
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js
@@ -9068,6 +9160,26 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/emoji/picker.js
 msgid "Flags"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/hints.js
+msgid "Got it"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/hints.js
+msgid "Got it, do not show this tip again"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/hints.js
+msgid "Recorded: this tip will not come back."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/hints.js
+msgid "Tip: Super+Space searches apps, files and settings."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/hints.js
+msgid "Tip: right-click a folder, then Scripts, to give it a colour or go back in time."
 msgstr ""
 
 #. Translators: something smaller than the size or share shown, such as "< 1 kB"
@@ -9586,6 +9698,10 @@ msgstr ""
 msgid "Tonight"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pointer.js
+msgid "Tip: shake the mouse to find the pointer."
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/arrange.js
 msgid "Show %s"
 msgstr ""
@@ -9944,7 +10060,7 @@ msgstr ""
 msgid "Power connected sound"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/backgrounds.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/tiling/backgrounds.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces/sets.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/prefs.js
 msgid "Workspace %d"
 msgstr ""
 
@@ -10090,6 +10206,14 @@ msgstr ""
 msgid "Click anywhere to bring the windows back"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/gestures.js
+msgid "Tip: pinch with three fingers on the touchpad to see your apps."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
+msgid "Tip: hold Super for a second to see the dock's numbers and the shortcuts."
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
 msgid "Window layouts"
 msgstr ""
@@ -10118,6 +10242,10 @@ msgstr ""
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/keep.js
 #, python-brace-format
 msgid "Copy of {title}"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/snap.js
+msgid "Tip: drag a window to the top of the screen to pick a layout, or press Super+Z."
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/switcher.js
@@ -10171,6 +10299,44 @@ msgstr ""
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/util.js
 msgctxt "key"
 msgid "Space"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces/sets.js
+msgid "%s could not be started"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces/sets.js
+msgid "The set %s opened without it."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces/setsmenu.js
+msgid "Sets"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces/setsmenu.js
+msgid "Save this workspace"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces/setsmenu.js
+msgid "Nothing to save here"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces/setsmenu.js
+msgid "Saved as %s (%d window)"
+msgid_plural "Saved as %s (%d windows)"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces/setsmenu.js
+msgid "Saved as %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces/setsmenu.js
+msgid "Open the set %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces/setsmenu.js
+msgid "Forget the set %s"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/workspaces.js

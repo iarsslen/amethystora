@@ -157,6 +157,9 @@ export class Connect {
                     this._indicator = null;
             });
             Main.panel.addToStatusArea(ROLE, this._indicator, this._position(), 'right');
+            // The tip (the hints module), as a paired phone connects: the rules make it the first time only
+            const text = _('Tip: drop a file on Phone in the dock to send it to your phone.');
+            this._ext.modules?.get('hints')?.offer('phone-drop', {text, anchor: this._indicator});
         }
         this._indicator.update(ready);
     }
