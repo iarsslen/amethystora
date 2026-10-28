@@ -164,7 +164,8 @@ icon_theme_installed() {
 # candy-icons, which an earlier image had, would leave every icon to the fallback.
 icon_theme() {
     local icons="" name
-    for name in "$(head -n1 "${CONFIG_DIR}/icons" 2>/dev/null || true)" "$(head -n1 "${IMAGE_SETUP_DIR}/icons" 2>/dev/null || true)" \n        "$(theme_file icons.theme)"; do
+    for name in "$(head -n1 "${CONFIG_DIR}/icons" 2>/dev/null || true)" "$(head -n1 "${IMAGE_SETUP_DIR}/icons" 2>/dev/null || true)" \
+        "$(theme_file icons.theme)"; do
         if [[ -n ${name} ]] && icon_theme_installed "${name}"; then
             icons="${name}"
             break
@@ -197,7 +198,8 @@ is_style() {
 # A name that is no style, whoever wrote it, is passed over.
 desktop_style() {
     local name
-    for name in "$(head -n1 "${CONFIG_DIR}/style" 2>/dev/null || true)" "$(head -n1 "${IMAGE_SETUP_DIR}/style" 2>/dev/null || true)" \n        "$(theme_file style.theme)"; do
+    for name in "$(head -n1 "${CONFIG_DIR}/style" 2>/dev/null || true)" "$(head -n1 "${IMAGE_SETUP_DIR}/style" 2>/dev/null || true)" \
+        "$(theme_file style.theme)"; do
         if [[ -n ${name} ]] && is_style "${name}"; then
             echo "${name}"
             return 0
@@ -217,7 +219,8 @@ font_installed() {
 # A family that is not installed is passed over, as an icon theme is.
 ui_font() {
     local name
-    for name in "$(head -n1 "${CONFIG_DIR}/font" 2>/dev/null || true)" "$(head -n1 "${IMAGE_SETUP_DIR}/font" 2>/dev/null || true)" \n        "$(theme_file font.theme)"; do
+    for name in "$(head -n1 "${CONFIG_DIR}/font" 2>/dev/null || true)" "$(head -n1 "${IMAGE_SETUP_DIR}/font" 2>/dev/null || true)" \
+        "$(theme_file font.theme)"; do
         if font_installed "${name}"; then
             echo "${name}"
             return 0
@@ -230,7 +233,8 @@ ui_font() {
 # folder given, the current theme's when none is), else JetBrains Mono. A family that is not installed is passed over.
 mono_font() {
     local dir="${1:-${CURRENT_THEME_DIR}}" name
-    for name in "$(head -n1 "${CONFIG_DIR}/mono-font" 2>/dev/null || true)" "$(head -n1 "${IMAGE_SETUP_DIR}/mono-font" 2>/dev/null || true)" \n        "$(head -n1 "${dir}/mono.theme" 2>/dev/null || true)"; do
+    for name in "$(head -n1 "${CONFIG_DIR}/mono-font" 2>/dev/null || true)" "$(head -n1 "${IMAGE_SETUP_DIR}/mono-font" 2>/dev/null || true)" \
+        "$(head -n1 "${dir}/mono.theme" 2>/dev/null || true)"; do
         if font_installed "${name}"; then
             echo "${name}"
             return 0
@@ -252,7 +256,7 @@ colors_get() {
 derive_palette() {
     local dir="$1" key
     {
-        for key in background foreground accent color1 color2 color3 color5 color6 success warning error; do
+        for key in background foreground accent color1 color2 color3 color4 color5 color6 success warning error; do
             echo "${key}=$(colors_get "${dir}" "${key}")"
         done
         if [[ -f "${dir}/light.mode" ]]; then
