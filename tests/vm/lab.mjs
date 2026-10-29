@@ -45,6 +45,48 @@ const needRunning = (name) => {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const clip = (text) => (text.length > TEXT_LIMIT ? `${text.slice(0, TEXT_LIMIT / 2)}\n[... ${text.length - TEXT_LIMIT} characters cut ...]\n${text.slice(-TEXT_LIMIT / 2)}` : text);
 
+// The lab shares one Linux VM (WSL 2's on Windows) with every other container, and it hung when a build and a VM
+// ran beside other containers and its memory ran out (2026-10-29): the whole of Docker stopped answering. So a VM
+// starts only while no image is being built here, and only when the memory it will take is free: what the kernel
+// calls available, less what the VMs running already have yet to take (QEMU takes a guest's memory as it touches
+// it), less a margin for the lab itself.
+export const MARGIN_MB = 1536;
+const procs = () => fs.readdirSync('/proc').filter((p) => /^\d+$/.test(p) && Number(p) !== process.pid).map((pid) => {
+  try {
+    return { pid, argv: fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0') };
+  } catch {
+    return null;
+  }
+}).filter(Boolean);
+// What builds an image here, if anything: buildah, or podman building
+export function building() {
+  const p = procs().find(({ argv }) => /(^|\/)buildah$/.test(argv[0]) || (/(^|\/)podman$/.test(argv[0]) && argv.includes('build')));
+  return p ? `${p.argv.slice(0, 3).join(' ')} (process ${p.pid})` : '';
+}
+// MB free for one more VM
+export function headroom() {
+  const available = Number(fs.readFileSync('/proc/meminfo', 'utf8').match(/^MemAvailable:\s+(\d+)/m)[1]) / 1024;
+  let owed = 0;
+  for (const { pid, argv } of procs().filter(({ argv }) => /qemu-system/.test(argv[0]))) {
+    const size = Number(argv[argv.indexOf('-m') + 1]) || 4096;
+    let rss = 0;
+    try {
+      rss = Number(fs.readFileSync(`/proc/${pid}/status`, 'utf8').match(/^VmRSS:\s+(\d+)/m)?.[1] || 0) / 1024;
+    } catch {
+      // Gone since
+    }
+    owed += Math.max(0, size - rss);
+  }
+  return Math.floor(available - owed - MARGIN_MB);
+}
+// Why a VM of SIZE MB may not start now, or nothing
+export function refusal(size) {
+  const build = building();
+  if (build) return `an image is being built in the lab (${build}): no VM starts beside a build`;
+  const free = headroom();
+  return free < size ? `not enough memory: ${size} MB wanted, ${Math.max(free, 0)} MB free beyond a ${MARGIN_MB} MB margin` : '';
+}
+
 // One request at a time on each socket: QEMU's socket chardevs take one client
 const queues = new Map();
 function serial(key, task) {
@@ -230,6 +272,8 @@ export const tools = [
       absent = [], system_absent = false, faulty = {}, credentials: extra = {}, screens = 1, from }) {
       checkName(name);
       if (running(name)) throw new Error(`VM ${name} is running already`);
+      const refused = refusal(memory_mb);
+      if (refused) throw new Error(`${name} not started: ${refused}`);
       // A clone of another VM: its overlay is this one's backing file, nothing of it copied but its few KB of state
       if (from !== undefined) {
         checkName(from, 'from');

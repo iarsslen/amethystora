@@ -74,6 +74,13 @@ VM ran each suite and how long each lane took. `--memory MB` gives every VM but 
 Each suite starts on a machine where only the prep suites ran before it, not every suite before it in name order:
 a suite that needs another's leftovers says so and does the work itself.
 
+The lab shares one Linux VM with every other container (WSL 2's, 13.3 GB here), and when a build and a VM ran
+beside other containers it ran out of memory and Docker stopped answering (2026-10-29). So `vm_start` refuses while
+an image is being built in the lab, and when the VM's memory is not free: the kernel's `MemAvailable`, less what
+the running VMs have yet to take (their `-m` less their resident memory), less 1.5 GB. A run waits up to 15
+minutes for the memory, one start at a time, and `--parallel N` refuses at once, saying how many VMs fit, when N do
+not.
+
 ### Suites
 
 A suite is `suites/NN-name.sh`, run as root in the VM beside `lib.sh`, which it sources. It says one line per

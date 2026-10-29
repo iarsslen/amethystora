@@ -42,7 +42,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { agent, call, decode, qmp, screendump, serialWrite } from './lab.mjs';
+import { MARGIN_MB, agent, building, call, decode, headroom, qmp, refusal, screendump, serialWrite } from './lab.mjs';
 
 // A path on Windows too, where plan runs as well (with VMLAB_DIR somewhere writable)
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -205,53 +205,17 @@ async function session(vm, seconds) {
   return false;
 }
 
-// --- Memory -----------------------------------------------------------------------------------------------------
-// The lab shares one Linux VM (WSL 2's on Windows) with every other container, and it hung when a build and a VM
-// ran beside other containers and its memory ran out (2026-10-29): the whole of Docker stopped answering. So a VM
-// starts only while no image is being built here, and only when the memory it will take is free: what the kernel
-// calls available, less what the VMs running already have yet to take (QEMU takes a guest's memory as it touches
-// it), less a margin for the lab itself.
-const MARGIN_MB = 1536;
+// START once a VM of SIZE MB may start (lab.mjs's refusal: no build in the lab, its memory free), waiting up to WAIT
+// ms for the memory, else an error. One start at a time, the check and the start together, so that the VM one start
+// made counts in the next one's sum
 const DEFAULT_MB = 4096;
-const procs = () => fs.readdirSync('/proc').filter((p) => /^\d+$/.test(p) && Number(p) !== process.pid).map((pid) => {
-  try {
-    return { pid, argv: fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0') };
-  } catch {
-    return null;
-  }
-}).filter(Boolean);
-// What builds an image here, if anything: buildah, or podman building
-function building() {
-  const p = procs().find(({ argv }) => /(^|\/)buildah$/.test(argv[0]) || (/(^|\/)podman$/.test(argv[0]) && argv.includes('build')));
-  return p ? `${p.argv.slice(0, 3).join(' ')} (process ${p.pid})` : '';
-}
-// MB free for one more VM
-function headroom() {
-  const available = Number(fs.readFileSync('/proc/meminfo', 'utf8').match(/^MemAvailable:\s+(\d+)/m)[1]) / 1024;
-  let owed = 0;
-  for (const { pid, argv } of procs().filter(({ argv }) => /qemu-system/.test(argv[0]))) {
-    const size = Number(argv[argv.indexOf('-m') + 1]) || DEFAULT_MB;
-    let rss = 0;
-    try {
-      rss = Number(fs.readFileSync(`/proc/${pid}/status`, 'utf8').match(/^VmRSS:\s+(\d+)/m)?.[1] || 0) / 1024;
-    } catch {
-      // Gone since
-    }
-    owed += Math.max(0, size - rss);
-  }
-  return Math.floor(available - owed - MARGIN_MB);
-}
-// START once a VM of SIZE MB fits, waiting up to WAIT ms for it, else an error. One start at a time, the check and
-// the start together, so that the VM one start made counts in the next one's sum
 let starting = Promise.resolve();
 function admitted(vm, size, startVm, wait = 900000) {
   const turn = starting.then(async () => {
     for (const until = Date.now() + wait; ; await sleep(20000)) {
-      const build = building();
-      if (build) throw new Error(`an image is being built in the lab (${build}): no VM starts beside a build`);
-      const free = headroom();
-      if (free >= size) return startVm();
-      if (Date.now() > until) throw new Error(`not enough memory for ${vm}: ${size} MB wanted, ${Math.max(free, 0)} MB free beyond a ${MARGIN_MB} MB margin`);
+      const why = refusal(size);
+      if (!why) return startVm();
+      if (building() || Date.now() > until) throw new Error(`${vm} not started: ${why}`);
     }
   });
   starting = turn.catch(() => {});
