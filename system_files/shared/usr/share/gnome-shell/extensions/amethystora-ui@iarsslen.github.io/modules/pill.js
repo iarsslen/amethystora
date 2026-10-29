@@ -226,6 +226,8 @@ export class Pill {
 
     readingChanged() {
         this._activities?.update('reading');
+    }
+
     // ---- The agent's changes (modules/agent.js) ----
 
     // The agent's activity (what its tools change while it runs), or null
