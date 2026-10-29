@@ -130,7 +130,10 @@ x="$(ev "((Main.layoutManager.monitors[2].x + Main.layoutManager.monitors[2].wid
 main_before="$(ev "Main.layoutManager.panelBox.visible")"
 animations true
 peek_record "${bar2}" "${bar2}.get_first_child()"
-keys "move:${x},0.05" rel:0,-30 rel:0,-30 rel:0,-30 rel:0,-30 rel:0,-30 rel:0,-30
+# GNOME's pressure barrier counts at most 15 px a hit against 100: twelve hits, so that the push adds up
+push=("move:${x},0.05")
+for _ in $(seq 12); do push+=("rel:0,-30"); done
+keys "${push[@]}"
 wait_for 5 ev_is "${B}.peeking(2)" true
 check "pushing against the top of screen 2 brings its bar down" ev_is "${B}.peeking(2) && ${bar2}.visible" true
 check "...and leaves the main bar as it was" ev_is "Main.layoutManager.panelBox.visible" "${main_before}"
