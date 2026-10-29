@@ -5,7 +5,7 @@
 # whose link the firewall counts as home, paired with the program by its pin.
 #
 # 1 and 2 (the crate's tests and the interop run against Fedora's kdeconnectd) are the build's and apps/connect/tests'.
-# vmlab-paths: @ui/*connect* apps/connect/* apps/phone/* @sf/*themed/shell-connect* @sf/*just/desktop.just
+# vmlab-paths: @ui/*connect* apps/connect/* apps/phone/* @sf/*themed/shell-connect* @sf/*just/desktop.just @sf/*systemd/user/amethystora-connect.service
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io
@@ -97,6 +97,8 @@ trap cleanup EXIT
 
 # --- The pairing, by pin: the program's own certificate first (a new one voids every pin), then the phone's pin --------
 CONNECT_DIR="${HOME_DIR}/.config/amethystora/connect"
+# The unit as it is now, after a live push of it too
+user_systemctl daemon-reload
 in_session "ame desktop phone on" >/dev/null 2>&1
 wait_for 30 test -s "${CONNECT_DIR}/certificate.pem" || not_ok "the program made no certificate"
 in_session "ame desktop phone off" >/dev/null 2>&1
@@ -114,17 +116,22 @@ listening() { ss -Hltn "sport = :1716" | grep -q .; }
 wait_for 30 listening || not_ok "the program does not listen" "$(journalctl -b _SYSTEMD_USER_UNIT=${UNIT} --no-pager -o cat | tail -n 20)"
 
 DEVICE="/org/amethystora/Connect/Device/${PHONE_ID}"
-prop() { # What the program says of the phone, read as the shell's module reads it, by its properties
-    user_bus gdbus call --session --dest org.amethystora.Connect --object-path "${DEVICE}" \
-        --method org.freedesktop.DBus.Properties.Get org.amethystora.Connect.Device "$1" 2>/dev/null |
-        sed -E "s/^\(<(.*)>,\)\$/\1/; s/^'(.*)'\$/\1/"
+# The program tells a caller that is neither its app nor GNOME Shell (this suite's gdbus) nothing: its properties read
+# empty. So they are read from inside GNOME Shell, as the connect module reads them, through Eval; the answer is the
+# value as JSON, a string bare
+connect_prop() { # PATH INTERFACE NAME
+    ev "(() => { const {Gio, GLib} = imports.gi;
+        return Gio.DBus.session.call_sync('org.amethystora.Connect', '$1', 'org.freedesktop.DBus.Properties', 'Get',
+            new GLib.Variant('(ss)', ['$2', '$3']), null, Gio.DBusCallFlags.NONE, 3000, null).recursiveUnpack()[0]; })()" 2>/dev/null
 }
+prop() { connect_prop "${DEVICE}" org.amethystora.Connect.Device "$1"; } # What the program says of the phone
 send() { printf '%s\n' "$*" >>"${PEER}/commands"; }
 ip netns exec "${NS}" python3 "${WORK}/phonepeer.py" run "${PEER}" "${HOST_IP}" >"${WORK}/peer.out" 2>&1 &
 PEER_PID=$!
 connected() { [[ "$(prop Connected)" == true && "$(prop Paired)" == true ]]; }
 if ! wait_for 30 connected; then
     not_ok "the stand-in phone did not connect as a paired phone" "$(cat "${PEER}/log" "${WORK}/peer.out" 2>&1)" \
+        "the shell reads Connected '$(prop Connected)', Paired '$(prop Paired)'" \
         "$(journalctl -b _SYSTEMD_USER_UNIT=${UNIT} --no-pager -o cat | tail -n 20)"
     finish
 fi
@@ -167,8 +174,7 @@ if wait_for 20 landed; then
 else
     not_ok "5 no picture in ${PICTURES}/Phone" "$(ls -la "${PICTURES}" "${HOME_DIR}/Downloads/Phone" 2>&1)"
 fi
-same "5 PhotoFolder says so" "$(user_bus gdbus call --session --dest org.amethystora.Connect --object-path /org/amethystora/Connect \
-    --method org.freedesktop.DBus.Properties.Get org.amethystora.Connect PhotoFolder 2>/dev/null)" "(<'${PICTURES}/Phone'>,)"
+same "5 PhotoFolder says so" "$(connect_prop /org/amethystora/Connect org.amethystora.Connect PhotoFolder)" "${PICTURES}/Phone"
 in_session "ame desktop phone photos downloads" >/dev/null 2>&1
 same "6 ame desktop phone photos downloads" "$(gs get org.amethystora.Connect photo-folder)" "'downloads'"
 same "6 Control's entry says downloads" \

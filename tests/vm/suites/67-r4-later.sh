@@ -10,7 +10,7 @@
 # /var/tmp/vmlab-captions.zip, when the lab keeps one in /vm/cache, else from alphacephei.com; with neither, B3 and what
 # needs the model are skipped with one reason), a sentence spoken by espeak-ng and played into a null sink, its words in the box,
 # the program paused while nothing plays, nothing written or sent, off, remove, and ten disable/enable cycles.
-# vmlab-paths: @ui/extension.js @ui/*captions* @ui/*connect* @ui/*quick* apps/connect/* apps/phone/* @sf/usr/libexec/amethystora-captions @sf/*user-setup.hooks.d/26-phone-computers.sh @sf/*Connect.gschema.xml @sf/usr/libexec/amethystora-control-list @sf/*just/desktop.just
+# vmlab-paths: @ui/extension.js @ui/*captions* @ui/*connect* @ui/*quick* apps/connect/* apps/phone/* @sf/usr/libexec/amethystora-captions @sf/*user-setup.hooks.d/26-phone-computers.sh @sf/*Connect.gschema.xml @sf/usr/libexec/amethystora-control-list @sf/*just/desktop.just @sf/*systemd/user/amethystora-connect.service
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io
@@ -23,14 +23,23 @@ NS=vmlaptop
 HOST_IP=10.78.0.1
 CAPTIONS=/usr/libexec/amethystora-captions
 MODEL_DIR="${HOME_DIR}/.local/share/amethystora/captions/model"
+# Eval's answer is JSON inside a GVariant, which gdbus quotes with ' or " as the text needs: parsed as both, as
+# 36-r4-access.sh does; a string printed bare, anything else as JSON
 ev() {
     user_bus gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell --method org.gnome.Shell.Eval "$1" |
-        sed -E -e "s/^\(true, '(.*)'\)\$/\1/" -e 's/^"(.*)"$/\1/'
+        python3 -c 'import json, sys
+from gi.repository import GLib
+v = GLib.Variant.parse(None, sys.stdin.read().strip(), None, None)
+try:
+    x = json.loads(v[1])
+except ValueError:
+    x = v[1]
+print(x if isinstance(x, str) else json.dumps(x))'
 }
 same() { if [[ "$2" == "$3" ]]; then ok "$1"; else not_ok "$1" "expected: $3" "found: $2"; fi; }
 gs() { in_session "gsettings $*" 2>/dev/null; }
 MODULE="Main.extensionManager.lookup('${UUID}').stateObj.modules"
-state() { ev "JSON.stringify(${MODULE}.get('captions').state())" | sed 's/\\"/"/g'; }
+state() { ev "JSON.stringify(${MODULE}.get('captions').state())"; }
 field() { state | jq -r ".$1"; }
 
 if ! has_session; then
@@ -62,12 +71,17 @@ if ! wait_for 240 has_session || ! wait_for 120 ready; then
     finish
 fi
 ev "Main.overview.hide(); 'hidden'" >/dev/null
+# Nobody types in the lab: GNOME would lock the screen after its idle delay, part way through, and the lock screen stops
+# Amethystora UI. Never idle while the suite runs, as it was after
+IDLE_BEFORE="$(gs get org.gnome.desktop.session idle-delay)"
+gs set org.gnome.desktop.session idle-delay 0
 install -d -m 0755 "${WORK}"
 restore_animations() {
     ev "global.force_animations = false; if (global._vmlabForced) imports.gi.St.Settings.get().inhibit_animations(); global._vmlabForced = false; 1" >/dev/null 2>&1
 }
 cleanup() {
     restore_animations
+    [[ -n "${IDLE_BEFORE:-}" ]] && gs set org.gnome.desktop.session idle-delay "${IDLE_BEFORE#uint32 }"
     [[ -n "${PEER_PID:-}" ]] && kill "${PEER_PID}" 2>/dev/null
     [[ -n "${PEER2_PID:-}" ]] && kill "${PEER2_PID}" 2>/dev/null
     [[ -n "${SILENT_PID:-}" ]] && kill "${SILENT_PID}" 2>/dev/null
@@ -110,6 +124,8 @@ ip -n "${NS}" link set vmlaptop1 up
 ip -n "${NS}" link set lo up
 firewall-cmd --zone=amethystora-home --add-interface=vmlaptop0 >/dev/null
 CONNECT_DIR="${HOME_DIR}/.config/amethystora/connect"
+# The unit as it is now, after a live push of it too
+user_systemctl daemon-reload
 in_session "ame desktop phone on" >/dev/null 2>&1
 wait_for 30 test -s "${CONNECT_DIR}/certificate.pem" || not_ok "the program made no certificate"
 in_session "ame desktop phone off" >/dev/null 2>&1
@@ -126,19 +142,17 @@ in_session "ame desktop phone on" >/dev/null 2>&1
 listening() { ss -Hltn "sport = :1716" | grep -q .; }
 wait_for 30 listening || not_ok "the program does not listen" "$(journalctl -b _SYSTEMD_USER_UNIT=${UNIT} --no-pager -o cat | tail -n 20)"
 DEVICE="/org/amethystora/Connect/Device/${LAPTOP_ID}"
-prop() {
-    user_bus gdbus call --session --dest org.amethystora.Connect --object-path "${DEVICE}" \
-        --method org.freedesktop.DBus.Properties.Get org.amethystora.Connect.Device "$1" 2>/dev/null |
-        sed -E "s/^\(<(.*)>,\)\$/\1/; s/^'(.*)'\$/\1/"
+# The program tells a caller that is neither its app nor GNOME Shell (this suite's gdbus) nothing: its properties read
+# empty and its methods are refused. So it is asked from inside GNOME Shell, as the connect module asks, through Eval;
+# the answer is the reply's value as JSON, a string bare
+connect_bus() { # PATH INTERFACE METHOD [SIGNATURE ARGS-AS-JS]
+    ev "(() => { const {Gio, GLib} = imports.gi; const args = '${4:-}' ? new GLib.Variant('${4:-()}', ${5:-[]}) : null;
+        const v = Gio.DBus.session.call_sync('org.amethystora.Connect', '$1', '$2', '$3', args, null, Gio.DBusCallFlags.NONE, 3000, null).recursiveUnpack();
+        return v.length === 1 ? v[0] : v; })()" 2>/dev/null
 }
-listed() {
-    user_bus gdbus call --session --dest org.amethystora.Connect --object-path /org/amethystora/Connect \
-        --method org.amethystora.Connect.GetDevices 2>/dev/null | grep -q "Device/${LAPTOP_ID}"
-}
-root_prop() {
-    user_bus gdbus call --session --dest org.amethystora.Connect --object-path /org/amethystora/Connect \
-        --method org.freedesktop.DBus.Properties.Get org.amethystora.Connect "$1" 2>/dev/null
-}
+prop() { connect_bus "${DEVICE}" org.freedesktop.DBus.Properties Get '(ss)' "['org.amethystora.Connect.Device', '$1']"; }
+listed() { connect_bus /org/amethystora/Connect org.amethystora.Connect GetDevices | grep -q "Device/${LAPTOP_ID}"; }
+root_prop() { connect_bus /org/amethystora/Connect org.freedesktop.DBus.Properties Get '(ss)' "['org.amethystora.Connect', '$1']"; }
 # peer [TYPE]: the paired laptop's stand-in, as a laptop or as another kind it claims to be
 peer() {
     rm -f "${PEER}/commands" "${PEER}/log"
@@ -146,7 +160,7 @@ peer() {
         >"${WORK}/peer.out" 2>&1 &
     PEER_PID=$!
 }
-same "A1 the program says Computers false" "$(root_prop Computers)" "(<false>,)"
+same "A1 the program says Computers false" "$(root_prop Computers)" false
 
 # A2: off, the paired laptop is neither listed nor let in
 if listed; then not_ok "A2 a paired computer is listed while computers are off"; else ok "A2 a paired computer is not listed while off"; fi
@@ -158,7 +172,9 @@ kill "${PEER_PID}" 2>/dev/null
 
 # A3-A5: on, it is back, a laptop, paired; a file from it lands in its folder; the top bar draws a computer
 in_session "ame desktop phone computers on" >/dev/null 2>&1
-same "A3 Computers true on the bus" "$(root_prop Computers)" "(<true>,)"
+# The program hears the setting from dconf a moment after gsettings has written it
+computers_on() { [[ "$(root_prop Computers)" == true ]]; }
+if wait_for 5 computers_on; then ok "A3 Computers true on the bus"; else not_ok "A3 Computers true on the bus" "found: $(root_prop Computers)"; fi
 check "A3 the paired laptop is listed again" wait_for 10 listed
 peer
 connected() { [[ "$(prop Connected)" == true && "$(prop Paired)" == true ]]; }
@@ -186,12 +202,12 @@ in_session "ame desktop phone clipboard send on" >/dev/null 2>&1
 sleep 2
 printf '%s\n' 'packet kdeconnect.clipboard {"content": "copied on the lab laptop"}' >>"${PEER}/commands"
 pasted() {
-    ev "St.Clipboard.get_default().get_text(St.ClipboardType.CLIPBOARD, (c, t) => { global._vm67clip = t; }); 1" >/dev/null
+    ev "imports.gi.St.Clipboard.get_default().get_text(imports.gi.St.ClipboardType.CLIPBOARD, (c, t) => { global._vm67clip = t; }); 1" >/dev/null
     sleep 0.3
     [[ "$(ev "global._vm67clip")" == "copied on the lab laptop" ]]
 }
 check "A6 what the laptop copies is on this computer's clipboard" wait_for 10 pasted
-ev "St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, 'copied on the desk'); 1" >/dev/null
+ev "imports.gi.St.Clipboard.get_default().set_text(imports.gi.St.ClipboardType.CLIPBOARD, 'copied on the desk'); 1" >/dev/null
 sent() { [[ "$(grep -c 'got kdeconnect.clipboard' "${PEER}/log" 2>/dev/null)" -ge 1 ]]; }
 check "A6 what this computer copies reaches the laptop" wait_for 10 sent
 in_session "ame desktop phone clipboard send off" >/dev/null 2>&1
@@ -205,9 +221,8 @@ PEER_TYPE=laptop PEER_NAME="Lab laptop two" ip netns exec "${NS}" python3 "${WOR
     >"${WORK}/peer2.out" 2>&1 &
 PEER2_PID=$!
 prop2() {
-    user_bus gdbus call --session --dest org.amethystora.Connect --object-path "/org/amethystora/Connect/Device/${LAPTOP2_ID}" \
-        --method org.freedesktop.DBus.Properties.Get org.amethystora.Connect.Device "$1" 2>/dev/null |
-        sed -E "s/^\(<(.*)>,\)\$/\1/; s/^'(.*)'\$/\1/"
+    connect_bus "/org/amethystora/Connect/Device/${LAPTOP2_ID}" org.freedesktop.DBus.Properties Get '(ss)' \
+        "['org.amethystora.Connect.Device', '$1']"
 }
 here2() { [[ "$(prop2 Connected)" == true ]]; }
 check "A4 an unpaired laptop is listed, connected" wait_for 20 here2
@@ -252,6 +267,10 @@ in_session "ame desktop phone computers off" >/dev/null 2>&1
 in_session "ame desktop phone off" >/dev/null 2>&1
 
 # === B. Live captions ==================================================================================================
+
+# Amethystora UI running: a screen locked before the idle delay was set to never would have stopped it
+loginctl unlock-sessions
+wait_for 60 ready || not_ok "B Amethystora UI is not running at the start of B" "$(ev "typeof ${MODULE}?.get('captions')")"
 
 # The lab renders in software, where GNOME turns animations off: the fades are checked with them forced on, and put
 # back however the suite ends (cleanup)
@@ -304,11 +323,14 @@ helper_pid() { field helper; }
 running() { [[ "$(helper_pid)" =~ ^[0-9]+$ ]]; }
 check "B5 the program runs" wait_for 10 running
 PID="$(helper_pid)"
-cpu() { awk '{ print $14 + $15 }' "/proc/$1/stat" 2>/dev/null; }
+cpu() { [[ "$1" =~ ^[0-9]+$ ]] && awk '{ print $14 + $15 }' "/proc/$1/stat" 2>/dev/null; }
 sleep 5
 before="$(cpu "${PID}")"
 sleep 30
-same "B5 ...paused while nothing plays: no CPU time over 30 s" "$(cpu "${PID}")" "${before}"
+# A paused pipeline still wakes for a bus message now and then: a few ticks (10 ms each) in 30 s, never a stream
+now="$(cpu "${PID}")"
+paused=$((${now:-999999} - before))
+if ((paused >= 0 && paused <= 3)); then ok "B5 ...paused while nothing plays: ${paused} ticks of CPU in 30 s"; else not_ok "B5 ...paused while nothing plays costs ${paused} ticks of CPU in 30 s"; fi
 same "B5 ...and no box" "$(field visible)" false
 
 # M2 of the review: a stream that is open and silent (a paused player keeps one) costs next to nothing
@@ -342,11 +364,12 @@ geometry="$(state | jq -r '.geometry | join(" ")')"
 read -r gx gy gw gh <<<"${geometry}"
 area="$(ev "(() => { const a = Main.layoutManager.getWorkAreaForMonitor(Main.layoutManager.primaryIndex); return [a.x, a.y, a.width, a.height].join(' '); })()")"
 read -r ax ay aw ah <<<"${area}"
-scale="$(ev "St.ThemeContext.get_for_stage(global.stage).scale_factor")"
+scale="$(ev "imports.gi.St.ThemeContext.get_for_stage(global.stage).scale_factor")"
 same "B6 the box is centred" "$((gx + gw / 2 - (ax + aw / 2)))" 0
 same "B6 ...its bottom 48 px above the work area's" "$((ay + ah - (gy + gh)))" "$((48 * scale))"
 style="$(ev "(() => { const b = ${MODULE}.get('captions')._box; const n = b.get_theme_node(); const c = n.get_background_color(); return [c.red, c.green, c.blue, c.alpha, n.get_border_radius(0)].join(' '); })()")"
-same "B6 ...black at 75 %, radius 12" "${style}" "0 0 0 191 $((12 * scale))"
+# 0.75 of 255 is 191.25, which St rounds up
+if [[ "${style}" == "0 0 0 19"[12]" $((12 * scale))" ]]; then ok "B6 ...black at 75 %, radius 12"; else not_ok "B6 ...black at 75 %, radius 12" "expected: 0 0 0 191 or 192 $((12 * scale))" "found: ${style}"; fi
 wait
 hidden() { [[ "$(field visible)" == false ]]; }
 check "B7 the box fades away a few seconds after the sound ends" wait_for 10 hidden
