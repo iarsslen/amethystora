@@ -298,7 +298,13 @@ export class Desktop {
                 this._clicked(x, y);
             });
             layer.add_action(click);
-            layer.connect('key-press-event', () => {
+            layer.connect('key-press-event', (actor, event) => {
+                // A modifier alone (Shift, Ctrl, Alt, Super, the level shifts) is not yet a key pressed: the windows
+                // stay out until the key it goes with
+                const symbol = event.get_key_symbol();
+                if ((symbol >= Clutter.KEY_Shift_L && symbol <= Clutter.KEY_Hyper_R) ||
+                    (symbol >= Clutter.KEY_ISO_Lock && symbol <= Clutter.KEY_ISO_Level5_Lock))
+                    return Clutter.EVENT_PROPAGATE;
                 back();
                 return Clutter.EVENT_STOP;
             });
