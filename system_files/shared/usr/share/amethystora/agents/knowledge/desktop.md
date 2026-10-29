@@ -173,6 +173,9 @@ these commands in the agent's own shell, as the user. Read before writing, chang
 - Pick a look is a page of Control, `amethystora-control welcome`, opened once for a new account by
   `/usr/share/amethystora/user-setup.hooks.d/25-first-look.sh`; it writes `~/.local/state/amethystora/first-look.json`,
   and while that file exists the offer of classic windows (`/usr/libexec/amethystora-layout-offer`) is not made.
+  Started from a unit, it has no activation token: Amethystora UI's firstlook module gives it the focus once GNOME's
+  welcome dialog has closed, leaving the overview a first login starts in, unless the Tour was started or the person
+  has moved to another window meanwhile.
 - Tips are Amethystora UI's hints module: `enabled` in `org.gnome.shell.extensions.amethystora-ui.hints`
   (`ame desktop hints on|off`); what was shown is in `~/.local/state/amethystora/hints.json` (with a `.bak`), and
   `ame desktop hints reset` lets them come again. None in the first hour, one per feature ever, half an hour apart.

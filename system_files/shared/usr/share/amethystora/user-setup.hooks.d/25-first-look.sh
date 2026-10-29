@@ -3,7 +3,9 @@
 # Pick a look, once, for a new account: Control's welcome page (theme, style, dock, pointer, windows), a few seconds
 # after the Manual's welcome page (17-welcome.sh) so that it opens on top of it. An account that existed before this
 # hook came is left alone: its look is already its own. The page writes first-look.json when it shows, and the offer
-# of classic windows 17-welcome.sh makes steps aside for it, since the page's Windows row asks the same.
+# of classic windows 17-welcome.sh makes steps aside for it, since the page's Windows row asks the same. Started here,
+# Control has no activation token: Amethystora UI's firstlook module brings it to the front once GNOME's welcome
+# dialog has closed (modules/firstlook.js), and knows it by this command line.
 #
 # Once.
 

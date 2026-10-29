@@ -2442,6 +2442,11 @@ grep -q "^version-script first-look user " /usr/share/amethystora/user-setup.hoo
 grep -q "/usr/bin/amethystora-control welcome$" /usr/share/amethystora/user-setup.hooks.d/25-first-look.sh
 grep -q "amethystora/first-look.json" /usr/libexec/amethystora-layout-offer
 grep -qF 'pub const WELCOME: &str = "welcome";' /ctx/apps/control/src/backend.rs
+# ...brought to the front by Amethystora UI's firstlook module, which knows it by the hook's command line: started
+# from a unit, it has no activation token, and a first login starts in the overview under GNOME's welcome dialog
+grep -qx "const PAGE = 'welcome';" "${UI_EXTENSION}/modules/firstlook.js"
+grep -qx "const CONTROL = 'org.amethystora.Control';" "${UI_EXTENSION}/modules/firstlook.js"
+grep -qx "    \['firstlook', FirstLook\]," "${UI_EXTENSION}/extension.js"
 # The Manual's moving cards: each clip a page shows is a WebM of at most 300 KB with its PNG poster of at most 40 KB,
 # both ours (branding/cards.mjs)
 MEDIA=/usr/share/amethystora/manual/media

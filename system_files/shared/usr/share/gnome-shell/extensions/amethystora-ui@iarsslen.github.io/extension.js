@@ -30,6 +30,7 @@ import {Power} from './modules/power.js';
 import {Dock} from './modules/dock.js';
 import {Glass} from './modules/glass.js';
 import {Hints} from './modules/hints.js';
+import {FirstLook} from './modules/firstlook.js';
 import {AppGrid} from './modules/appgrid.js';
 import {Pointer} from './modules/pointer.js';
 import {Tiling} from './modules/tiling.js';
@@ -78,6 +79,7 @@ const MODULES = [
     ['typing', Typing],
     ['glass', Glass],
     ['hints', Hints],
+    ['firstlook', FirstLook],
     ['pointer', Pointer],
     ['tiling', Tiling],
     ['windows', Windows],
