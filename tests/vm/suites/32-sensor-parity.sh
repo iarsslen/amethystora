@@ -56,6 +56,10 @@ bash -c ': >>/etc/passwd'
 touch /etc/sudoers.d/amethystora-sensor-test && rm -f /etc/sudoers.d/amethystora-sensor-test
 touch /etc/systemd/system/amethystora-sensor-test.service && rm -f /etc/systemd/system/amethystora-sensor-test.service
 touch /etc/amethystora/amethystora-sensor-test && rm -f /etc/amethystora/amethystora-sensor-test
+# A folder made and removed, and a link made and removed: the system calls whose kernel functions took one more
+# argument in 6.19 (struct delegated_inode), which a stale signature read as the result and the new name
+mkdir /etc/systemd/system/amethystora-sensor-test.d && rmdir /etc/systemd/system/amethystora-sensor-test.d
+ln -s /dev/null /etc/systemd/system/amethystora-sensor-link.service && rm -f /etc/systemd/system/amethystora-sensor-link.service
 # A later write, so ausearch releases the ones above (it holds an event until a newer one), then settle
 sleep 4
 : >>/etc/passwd
@@ -75,6 +79,13 @@ expect "a write to an account file (identity)" '.key == "identity" and (.text | 
 expect "a change to the sudoers folder (privilege)" '.key == "privilege" and (.text | contains("amethystora-sensor-test"))'
 expect "a change to what starts by itself (persistence)" '.key == "persistence" and (.text | contains("amethystora-sensor-test.service"))'
 expect "a change to a security setting (hardening)" '.key == "hardening" and (.text | contains("amethystora-sensor-test"))'
+expect "a folder made, by its own name, as done" \
+    '.key == "persistence" and (.text | contains(" successfully created-directory /etc/systemd/system/amethystora-sensor-test.d using "))'
+# ausearch's sentence names a symlink by its folder alone
+expect "a link made, as done" \
+    '.key == "persistence" and (.text | contains(" successfully symlinked to /etc/systemd/system/ using /usr/bin/ln"))'
+expect "a folder removed, as done" \
+    '.key == "persistence" and (.text | contains(" successfully deleted /etc/systemd/system/amethystora-sensor-test.d using "))'
 
 # How much the sensor's maps and ring buffer cost, for the record
 rss="$(systemctl show -p MemoryCurrent --value amethystora-sensor.service 2>/dev/null)"
@@ -83,11 +94,13 @@ rss="$(systemctl show -p MemoryCurrent --value amethystora-sensor.service 2>/dev
 # What is done to the sensor is said: a signal it lives through, which it records itself, and a kill, which
 # systemd undoes within a second and the watcher says by the restart. Last, since it restarts the sensor.
 before="$(wc -l <"${HISTORY}" 2>/dev/null || echo 0)"
+# Counted from here: the sensor may have been restarted already this boot (a live push of a new sensor kills it)
+restarts="$(systemctl show -p NRestarts --value amethystora-sensor.service)"
 kill -CONT "${sensor_pid}"
 sleep 2
 kill -KILL "${sensor_pid}"
 check "systemd started the sensor again after a kill" wait_for 60 sh -c \
-    '[ "$(systemctl show -p NRestarts --value amethystora-sensor.service)" -ge 1 ] && systemctl is-active --quiet amethystora-sensor.service'
+    "[ \"\$(systemctl show -p NRestarts --value amethystora-sensor.service)\" -gt ${restarts} ] && systemctl is-active --quiet amethystora-sensor.service"
 check "the security watcher runs after the kill" systemctl start amethystora-security-watch.service
 found="$(tail -n +"$((before + 1))" "${HISTORY}" 2>/dev/null)"
 expect "a signal sent to it" '.key == "hardening" and .level == "critical" and (.text | contains("reached for the file-watch sensor itself"))'
