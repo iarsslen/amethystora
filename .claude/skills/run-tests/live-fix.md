@@ -19,12 +19,16 @@ tester before they are relied on.
    - A `/usr/libexec` helper or an `ame` recipe: nothing, the next call reads it.
    - A systemd unit: `systemctl daemon-reload`, then restart the unit.
    - An Amethystora app: rebuild the one program in the `amethystora-rust` container and copy the binary in.
-5. **Rerun only what failed.** Run that suite, or that step, against the VM, and read its log and screenshot.
-6. **Repeat** until it passes there, then carry the same change into the checkout and commit it (one commit
-   per cause).
+5. **Rerun only what failed.** Run that suite, or that step, against the VM, and read its log and screenshot:
+   the issue is fixed when it is gone from both, not when the count is.
+6. **Repeat** until it passes there, then **rerun it once more** to be sure it is stable, and run the other
+   suites of the current work the same change touches. Carry the change into the checkout and commit it (one
+   commit per cause).
 7. **Reset** the VM to the run's clean disk before validating the next, unrelated fix, if the last one
    changed state the next would see.
-8. **One final full run** of the commits when every failure is fixed.
+8. **One final build** with every live fix. On it, the **full suite only if the changes are risky**
+   (packages, the build, boot, security, PAM, the kernel, the image's units, or a shared library many suites
+   use), else a final test of the current work's suites. While iterating, never run every suite.
 
 ## What cannot be fixed live
 

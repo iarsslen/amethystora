@@ -10,10 +10,15 @@ Secure Boot and a TPM in the VM lab (`tests/vm`), and runs the suites in `tests/
 an hour or more, so start one only when the user asks. The maintainer's rules for it (2026-10-11):
 
 - A run builds **committed HEAD**, never the working tree.
-- **As few build and test round trips as possible** (the maintainer's rule of 2026-10-29): after a run with
-  failures, keep a VM of the image that run built, fix every failure **live in that VM** and validate it there
-  by rerunning only its suite or step, then carry each fix back here and commit it, and finish with **one final
-  full run**. Every bug a run finds is fixed, not only reported. How: [live-fix.md](live-fix.md).
+- **As few build and test round trips as possible** (the maintainer's rule of 2026-10-29). While iterating, run
+  only **the suites of the current work** (its own suites and those of the areas it changed: `run.sh test --keep
+  --suites NN,NN`), never all of them. Fix every failure **live in the kept VM**, without rebuilding it, until
+  the issue is really gone (read the log and the screenshot, not only the count); rerun the suite once more to
+  be sure it is stable. Then carry the fixes back here, commit them, and make **one final build** with all of
+  them. On that build, run **the full suite only when the changes are risky** (packages, the build, boot,
+  security, PAM, the kernel, the image's units, or a shared library many suites use); otherwise a final test of
+  the current work's suites only. Every bug a run finds is fixed, not only reported. How:
+  [live-fix.md](live-fix.md).
 - When a local build cannot run, a **GitHub** build on a test branch takes its place.
 
 How to read a failure, try a fix without a full rebuild, and tell the lab's problems from the image's:
@@ -71,7 +76,8 @@ Work through [diagnosing.md](diagnosing.md):
    `Assisted-by: <model> via Claude Code` (no Co-Authored-By line). One commit per cause.
 6. Add the check that would have caught it, if nothing did: `20-tests.sh` for what is true of the image
    as built, `tests/vm/suites` for what has to happen on a running machine.
-7. When every failure is fixed and validated live, one final full run (`run.sh`) of the commits.
+7. When every failure is fixed, validated live and stable on a second pass, one final build of the commits,
+   then the full suite if the changes are risky (see the rule above), else the current work's suites only.
 
 **Code that is not yours.** Committed code from another session is part of HEAD, and fixing it is part of
 the run. But a file with uncommitted changes in `git status` is being edited right now: report the failure
