@@ -314,8 +314,8 @@ export class Sets {
         const order = tileOrder(set);
         const since = Math.max(0, ...global.display.list_all_windows().map(w => w.get_stable_sequence()));
         const opening = {
-            name: set.name, target, since, claims: [], byWindow: new Map(), apps: new Map(),
-            owners: new Map(), connected: false, timer: 0, later: 0,
+            name: set.name, target, since, began: GLib.get_monotonic_time(), claims: [], byWindow: new Map(),
+            apps: new Map(), owners: new Map(), connected: false, timer: 0, later: 0,
         };
         set.windows.forEach((saved, index) => {
             // An app that is not installed any more is left out
@@ -625,9 +625,12 @@ export class Sets {
             global.compositor.get_laters().remove(opening.later);
         opening.later = 0;
         this._unwatch(opening);
-        // Apps still on their way may yet open their windows there
-        if (opening.claims.some(c => !c.window && !c.done) && alive(opening.target))
-            this._recent = {target: opening.target, until: GLib.get_monotonic_time() + GIVE_UP * GLib.USEC_PER_SEC};
+        // Apps still on their way may yet open their windows there, until the opening's 30 s are up: one that gave up
+        // leaves nothing to keep clear
+        const until = opening.began + GIVE_UP * GLib.USEC_PER_SEC;
+        if (opening.claims.some(c => !c.window && !c.done) && alive(opening.target) &&
+            GLib.get_monotonic_time() < until)
+            this._recent = {target: opening.target, until};
         else if (this._recent?.target === opening.target)
             this._recent = null;
         if (opening.timer)
