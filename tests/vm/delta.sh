@@ -46,7 +46,11 @@ podman run --name "${name}" "${mounts[@]}" --entrypoint /usr/bin/bash "${BASE}" 
     dnf5 clean all >/dev/null 2>&1 || true
     rm -rf /tmp/* /var/tmp/* /var/cache/* /var/log/* /var/lib/dnf
 ' delta "${steps[@]}"
-podman commit -q "${name}" "localhost/amethystora-delta:${TAG}" >/dev/null
+# The base's own command and entrypoint, not the bash this ran with
+cmd="$(podman image inspect -f '{{json .Config.Cmd}}' "${BASE}")"
+entrypoint="$(podman image inspect -f '{{json .Config.Entrypoint}}' "${BASE}")"
+podman commit -q --change "CMD ${cmd/#null/[]}" --change "ENTRYPOINT ${entrypoint/#null/[]}" "${name}" \
+    "localhost/amethystora-delta:${TAG}" >/dev/null
 podman rm -f "${name}" >/dev/null
 # The lab's registry, which the guests reach at 10.0.2.2:5000 (QEMU's user network)
 if ! podman container exists live-registry; then
