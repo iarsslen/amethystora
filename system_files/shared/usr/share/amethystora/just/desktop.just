@@ -3125,3 +3125,174 @@ desktop-widgets STATE="":
             exit 64
             ;;
     esac
+
+# The share guard (the privacy module): while the whole screen is shared, the windows of chosen apps are covered,
+# blurred or with a solid card (ame desktop share-guard blur|card|off), the apps by their launcher's ID
+# (ame desktop share-guard apps [APP.desktop...], or reset), and Files windows in the Private folder (private on|off).
+# Without anything it says how it stands
+[positional-arguments]
+share-guard *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    SCHEMA=org.gnome.shell.extensions.amethystora-ui.privacy
+    usage() {
+        {
+            echo "usage: ame desktop share-guard [blur|card|off]"
+            echo "       ame desktop share-guard apps [APP.desktop...] | apps reset"
+            echo "       ame desktop share-guard private on|off"
+        } >&2
+        exit 64
+    }
+    LAUNCHER_DIRS=("${XDG_DATA_HOME:-${HOME}/.local/share}/applications" "${HOME}/.local/share/flatpak/exports/share/applications"
+        /var/lib/flatpak/exports/share/applications /usr/local/share/applications /usr/share/applications)
+    case "${1:-}" in
+        "")
+            look="$(gsettings get "${SCHEMA}" share-guard | tr -d "'")"
+            apps="$(gsettings get "${SCHEMA}" share-guard-apps | tr -d "[]'" | sed 's/^@as //')"
+            echo "$(eval_gettext "Share guard: \${look}")"
+            echo "$(eval_gettext "Covered while the screen is shared: \${apps}")"
+            if [[ "$(gsettings get "${SCHEMA}" share-guard-private)" == true ]]; then
+                echo "$(gettext "Files windows in the Private folder are covered too.")"
+            fi
+            ;;
+        blur | card | off)
+            [[ $# -eq 1 ]] || usage
+            gsettings set "${SCHEMA}" share-guard "$1"
+            case "$1" in
+                blur) echo "$(gettext "Share guard: chosen apps are blurred while the screen is shared.")" ;;
+                card) echo "$(gettext "Share guard: chosen apps are covered with a card while the screen is shared.")" ;;
+                off) echo "$(gettext "Share guard: off. A shared screen shows every window.")" ;;
+            esac
+            ;;
+        private)
+            [[ $# -eq 2 ]] || usage
+            state="$2"
+            case "${state}" in
+                on) gsettings set "${SCHEMA}" share-guard-private true ;;
+                off) gsettings set "${SCHEMA}" share-guard-private false ;;
+                *) usage ;;
+            esac
+            echo "$(eval_gettext "Files windows in the Private folder covered while sharing: \${state}")"
+            ;;
+        apps)
+            shift
+            if [[ "${1:-}" == reset ]]; then
+                [[ $# -eq 1 ]] || usage
+                gsettings reset "${SCHEMA}" share-guard-apps
+                echo "$(gettext "The apps covered while sharing are the image's again.")"
+                exit 0
+            fi
+            apps=("$@")
+            if ((${#apps[@]} == 0)); then
+                # In a terminal: pick from the launchers a person sees, the ones covered now ticked
+                [[ -t 0 ]] || usage
+                declare -A seen=()
+                labels=() ids=()
+                for dir in "${LAUNCHER_DIRS[@]}"; do
+                    for file in "${dir}"/*.desktop; do
+                        [[ -f "${file}" ]] || continue
+                        id="${file##*/}"
+                        [[ -z "${seen[${id}]:-}" ]] || continue
+                        seen[${id}]=1
+                        grep -qx 'NoDisplay=true' "${file}" && continue
+                        label="$(sed -n 's/^Name=//p' "${file}" | head -n1)"
+                        [[ -n "${label}" ]] || continue
+                        # gum's --selected is a list apart by commas: a name with one would tick the wrong app
+                        labels+=("${label//,/ } (${id})")
+                        ids+=("${id}")
+                    done
+                done
+                current="$(gsettings get "${SCHEMA}" share-guard-apps)"
+                selected=()
+                for i in "${!ids[@]}"; do
+                    [[ "${current}" == *"'${ids[i]}'"* ]] && selected+=("${labels[i]}")
+                done
+                # Escape or Ctrl+C changes nothing; Enter with nothing picked is a real "none"
+                if ! chosen="$(printf '%s\n' "${labels[@]}" | sort | gum choose --no-limit \
+                    --header "$(gettext "Which apps are covered while the screen is shared? (space to pick, enter when done)")" \
+                    --selected "$(IFS=,; echo "${selected[*]}")")"; then
+                    echo "$(gettext "Nothing changed.")"
+                    exit 0
+                fi
+                picked=()
+                [[ -z "${chosen}" ]] || mapfile -t picked <<<"${chosen}"
+                for label in "${picked[@]}"; do
+                    id="${label##*(}"
+                    apps+=("${id%)}")
+                done
+                # The image's apps that are not installed here stay on the list, ready for when they are
+                while IFS= read -r id; do
+                    [[ -n "${id}" && -z "${seen[${id}]:-}" ]] && apps+=("${id}")
+                done < <(tr -d "[]' " <<<"${current#@as }" | tr ',' '\n')
+            fi
+            ((${#apps[@]} <= 32)) || usage
+            list=""
+            for app in "${apps[@]}"; do
+                [[ "${app}" =~ ^[A-Za-z0-9._+-]+\.desktop$ ]] || usage
+                [[ "${list}" == *"'${app}'"* ]] || list+="${list:+, }'${app}'"
+            done
+            gsettings set "${SCHEMA}" share-guard-apps "@as [${list}]"
+            echo "$(eval_gettext "Covered while the screen is shared: \${list}")"
+            ;;
+        *) usage ;;
+    esac
+
+# The shield (the privacy module): how the machine's protection stands, as a tile in quick settings, a mark in the top
+# bar, the mark only when something needs a look, or nothing (STATE: tile, mark, attention or off). It switches nothing;
+# every line opens Security. Without STATE it says which
+[positional-arguments]
+shield STATE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.privacy
+    case "${1:-}" in
+        "")
+            state="$(gsettings get "${schema}" shield | tr -d "'")"
+            echo "$(eval_gettext "The shield: \${state}")"
+            ;;
+        tile | mark | attention | off)
+            gsettings set "${schema}" shield "$1"
+            case "$1" in
+                tile) echo "$(gettext "The shield is a tile in quick settings.")" ;;
+                mark) echo "$(gettext "The shield is a mark in the top bar.")" ;;
+                attention) echo "$(gettext "The shield shows in the top bar only when something needs a look.")" ;;
+                off) echo "$(gettext "The shield is off. Security still says everything.")" ;;
+            esac
+            ;;
+        *)
+            echo "usage: ame desktop shield tile|mark|attention|off"
+            exit 64
+            ;;
+    esac
+
+# Network by app (the privacy module): the network meter's menu lists which apps are talking to the network and to
+# where, only while it is open; nothing is sent anywhere (STATE: on or off; without it, it flips)
+[positional-arguments]
+network-apps STATE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.privacy
+    state="${1:-}"
+    if [[ -z "${state}" ]]; then
+        if [[ "$(gsettings get "${schema}" network-apps)" == true ]]; then state=off; else state=on; fi
+    fi
+    case "${state}" in
+        on)
+            gsettings set "${schema}" network-apps true
+            echo "$(gettext "Network by app: on. The network meter's menu lists the apps talking to the network while it is open.")"
+            ;;
+        off)
+            gsettings set "${schema}" network-apps false
+            echo "$(gettext "Network by app: off.")"
+            ;;
+        *)
+            echo "usage: ame desktop network-apps on|off"
+            exit 64
+            ;;
+    esac

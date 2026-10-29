@@ -46,6 +46,7 @@ import {Shelf} from './modules/shelf.js';
 import {Desks} from './modules/desks.js';
 import {Agent} from './modules/agent.js';
 import {Quit} from './modules/quit.js';
+import {Privacy} from './modules/privacy.js';
 import {Focus} from './modules/focus.js';
 
 // In the order they start, by the name of their stylesheet; they stop in the opposite order. The desktop style comes
@@ -92,6 +93,7 @@ const MODULES = [
     ['desks', Desks],
     ['agent', Agent],
     ['quit', Quit],
+    ['privacy', Privacy],
     ['focus', Focus],
 ];
 

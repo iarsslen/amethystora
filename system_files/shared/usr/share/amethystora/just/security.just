@@ -1207,6 +1207,12 @@ audit-locked ACTION="":
 vscodium-extensions ACTION="":
     @/usr/libexec/amethystora-hardening ask vscodium-extensions "${1:-}"
 
+# The screen locked when the paired phone has left for a minute and nobody has touched the computer for a minute
+# (WALK_AWAY in security.conf, off as the image ships): it never unlocks anything
+[positional-arguments]
+walk-away ACTION="":
+    @ame security settings walk-away "${1:-}"
+
 # What the security watcher noticed: accounts, what starts by itself, settings, keyboard readers
 [positional-arguments]
 events ACTION="":

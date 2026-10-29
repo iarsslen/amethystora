@@ -320,6 +320,8 @@ export class Meters {
         this._processor = this._memory = this._network = null;
         this._interfaces = this._processes = null;
         this._history = null;
+        this._networkSection = null;
+        this._networkOpen = false;
     }
 
     // The bar's reading, every few seconds
@@ -363,6 +365,24 @@ export class Meters {
 
         if (this._looking)
             this._showMenus();
+        if (this._networkOpen)
+            this._networkSection?.tick();
+    }
+
+    // Network by app (modules/privacy/connections.js), the privacy module's: a section at the end of the network menu,
+    // told as that menu opens and closes and at each reading while it is open. Null takes it away.
+    setNetworkSection(section) {
+        if (this._networkSection === section)
+            return;
+        const old = this._networkSection;
+        if (old?.actor?.get_parent())
+            old.actor.get_parent().remove_child(old.actor);
+        this._networkSection = section;
+        if (section && this._network) {
+            this._network.button.body.add_child(section.actor);
+            if (this._networkOpen)
+                section.shown(true, this._network.button.menu);
+        }
     }
 
     _connectivityChanged() {
@@ -404,6 +424,11 @@ export class Meters {
     // The processes are looked at only while one of the menus is open: once as it opens, again shortly after, so that
     // the processor's share is measured over a short time, and then with every reading
     menuToggled() {
+        const networkOpen = this._network?.button.menu.isOpen ?? false;
+        if (networkOpen !== !!this._networkOpen) {
+            this._networkOpen = networkOpen;
+            this._networkSection?.shown(networkOpen, this._network?.button.menu ?? null);
+        }
         const open = this._meters?.some(meter => meter.button.menu.isOpen) ?? false;
         if (open && !this._looking) {
             this._looking = true;

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The keys of the privacy module (modules/privacy.js, plans/beyond/spec-r4-privacy.md): the share guard, the shield
+     and network by app. Written by ame desktop share-guard, shield and network-apps, Control and the setup file.
+     Walk-away lock is a security switch (WALK_AWAY in /etc/amethystora/security.conf), not a key here. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.privacy" path="/org/gnome/shell/extensions/amethystora-ui/privacy/">
+    <key name="share-guard" type="s">
+      <choices>
+        <choice value="blur"/>
+        <choice value="card"/>
+        <choice value="off"/>
+      </choices>
+      <default>'blur'</default>
+      <summary>Share guard</summary>
+      <description>While the whole screen is shared, the windows of the apps in share-guard-apps (and Files windows in the Private folder) are covered: blurred, or with a solid card. Covered as soon as a share starts; uncovered once every stream is known to be a single window.</description>
+    </key>
+    <key name="share-guard-apps" type="as">
+      <default>['amethystora-notes.desktop', 'amethystora-security.desktop', 'amethystora-backups.desktop', 'org.keepassxc.KeePassXC.desktop', 'com.bitwarden.desktop.desktop', 'org.gnome.World.Secrets.desktop', 'org.gnome.seahorse.Application.desktop', 'me.proton.Pass.desktop', '1password.desktop', 'com.belmoussaoui.Authenticator.desktop']</default>
+      <summary>Apps covered while the screen is shared</summary>
+      <description>Launchers by their ID.</description>
+    </key>
+    <key name="share-guard-private" type="b">
+      <default>true</default>
+      <summary>Cover the Private folder's windows</summary>
+      <description>Files windows showing a place inside ~/Private are covered while the screen is shared.</description>
+    </key>
+    <key name="shield" type="s">
+      <choices>
+        <choice value="tile"/>
+        <choice value="mark"/>
+        <choice value="attention"/>
+        <choice value="off"/>
+      </choices>
+      <default>'tile'</default>
+      <summary>The shield</summary>
+      <description>What the protection state looks like: a tile in quick settings, a mark in the top bar, the mark only when something needs a look, or nothing. It only shows; every line opens Security.</description>
+    </key>
+    <key name="network-apps" type="b">
+      <default>false</default>
+      <summary>Network by app</summary>
+      <description>The network meter's menu lists the apps with open connections and where to, only while it is open.</description>
+    </key>
+  </schema>
+</schemalist>

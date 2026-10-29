@@ -2960,6 +2960,19 @@ mod tests {
     }
 
     #[test]
+    fn opens_every_category_but_duress() {
+        let ids: Vec<&str> = categories().iter().map(|(id, ..)| *id).collect();
+        assert_eq!(ids, backend::CATEGORIES.to_vec());
+        for id in ids {
+            assert!(backend::openable(&format!("settings/{id}")));
+        }
+        assert!(backend::openable("settings"));
+        assert!(!backend::openable("settings/duress"));
+        assert!(!backend::openable("settings/"));
+        assert!(!backend::openable("result"));
+    }
+
+    #[test]
     fn finds_open_findings() {
         let entry = |id: &str, status: &str, place: &str| Entry { id: id.into(), status: status.into(), targets: vec![place.into()], ..Default::default() };
         // A later clean scan of the same place clears an older finding; the list is newest first

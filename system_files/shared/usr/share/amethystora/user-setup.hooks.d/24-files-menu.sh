@@ -1,8 +1,9 @@
 #!/usr/bin/bash
 #
-# Files' scripts menu: Folder colour (the six colours and No colour) and Back in time, in the account's language,
-# as tiny scripts in ~/.local/share/nautilus/scripts that hand Files' arguments to /usr/libexec/amethystora-folder-colour
-# and /usr/libexec/amethystora-back-in-time. Files shows them under Scripts in the menu of a selection.
+# Files' scripts menu: Folder colour (the six colours and No colour), Back in time and Copy without hidden data, in the
+# account's language, as tiny scripts in ~/.local/share/nautilus/scripts that hand Files' arguments to
+# /usr/libexec/amethystora-folder-colour, /usr/libexec/amethystora-back-in-time and /usr/libexec/amethystora-clean-copy.
+# Files shows them under Scripts in the menu of a selection.
 #
 # Each file carries a marker in its second line, and only such a file is ever written over: a script of the person's
 # own under the same name stays, and that entry is not written. What was written is listed in
@@ -13,7 +14,7 @@ source /usr/lib/amethystora/setup-services/libsetup.sh
 
 command -v jq >/dev/null || exit 0
 
-version-script files-menu user 1 || exit 0
+version-script files-menu user 2 || exit 0
 
 set -uo pipefail
 
@@ -42,6 +43,18 @@ entry_name() { # TRANSLATED ENGLISH
 
 written=()
 
+# What an earlier run wrote: an entry the person has deleted since stays gone when a later version runs this again (and
+# stays in the list, so that it stays known)
+mapfile -t before < <(jq -r '.paths[]? // empty' "${STATE}" 2>/dev/null)
+gone() { # PATH
+    local known
+    [[ -e "$1" || -L "$1" ]] && return 1
+    for known in "${before[@]}"; do
+        [[ "${known}" == "$1" ]] && return 0
+    done
+    return 1
+}
+
 # A file this hook wrote: a plain file whose second line is the marker
 marked() { # PATH
     [[ -f "$1" && ! -L "$1" && "$(sed -n 2p "$1")" == "# amethystora-files-menu "* ]]
@@ -55,6 +68,10 @@ entry() { # PATH COMMAND...
     for done in "${written[@]}"; do
         [[ "${done}" == "${path}" ]] && return 0
     done
+    if gone "${path}"; then
+        written+=("${path}")
+        return 0
+    fi
     if [[ -e "${path}" || -L "${path}" ]]; then
         marked "${path}" || return 0
     fi
@@ -76,7 +93,9 @@ done
 # Translators: a submenu of Files' Scripts menu, holding the six colours a folder can be given and No colour
 FOLDER="${SCRIPTS}/$(entry_name "$(gettext "Folder colour")" "Folder colour")"
 ours=false
-if [[ ! -e "${FOLDER}" && ! -L "${FOLDER}" ]]; then
+if gone "${FOLDER}"; then
+    written+=("${FOLDER}")
+elif [[ ! -e "${FOLDER}" && ! -L "${FOLDER}" ]]; then
     mkdir -m 0700 -- "${FOLDER}" && written+=("${FOLDER}") && ours=true
 elif [[ -d "${FOLDER}" && ! -L "${FOLDER}" ]]; then
     # A folder of that name is this hook's only when it holds an entry the hook wrote; one the person made is left
@@ -96,6 +115,9 @@ if ${ours}; then
 fi
 # Translators: an entry of Files' Scripts menu, which opens Backups on the folder picked as it was at other times
 entry "${SCRIPTS}/$(entry_name "$(gettext "Back in time")" "Back in time")" /usr/libexec/amethystora-back-in-time
+# Translators: an entry of Files' Scripts menu, which makes a copy of each file picked without its location, camera,
+# author and edit history
+entry "${SCRIPTS}/$(entry_name "$(gettext "Copy without hidden data")" "Copy without hidden data")" /usr/libexec/amethystora-clean-copy
 
 # The list, written whole beside a copy, so that a file cut short never loses it
 mkdir -p -- "${STATE%/*}"

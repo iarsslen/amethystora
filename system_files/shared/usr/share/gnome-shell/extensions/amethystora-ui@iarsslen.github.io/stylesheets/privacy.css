@@ -1,0 +1,185 @@
+/* The privacy module (modules/privacy.js): sizes, spacing and radii from the boards Sharing.dc.html (the share
+   guard's cover) and Shield.dc.html (the shield's menu, network by app), at scale 1. The colours are in
+   /usr/share/amethystora/themed/shell-privacy.css.tpl; the plain ones here stand in until a theme is applied. */
+
+/* --- The share guard's cover ------------------------------------------------------------------------------------- */
+
+.amethystora-privacy-cover {
+  border-radius: 12px;
+}
+
+/* A tint over the blurred window, once the blur is drawn */
+.amethystora-privacy-cover.amethystora-privacy-cover-blur {
+  background-color: rgba(26, 16, 42, 0.35);
+}
+
+/* The card, and every cover until its blur is drawn: nothing of the window shows through. After the tint, so that it
+   wins while both are on */
+.amethystora-privacy-cover.amethystora-privacy-cover-card,
+.amethystora-privacy-cover.amethystora-privacy-cover-opaque {
+  background-color: #2a1a40;
+  background-gradient-direction: vertical;
+  background-gradient-start: #33224d;
+  background-gradient-end: #2a1a40;
+}
+
+.amethystora-privacy-cover-column {
+  spacing: 6px;
+}
+
+.amethystora-privacy-cover-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #efe4ff;
+}
+
+.amethystora-privacy-cover-line {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: rgba(239, 228, 255, 0.8);
+}
+
+/* --- The shield ---------------------------------------------------------------------------------------------------- */
+
+.amethystora-privacy-shield {
+  spacing: 10px;
+}
+
+.amethystora-privacy-shield .popup-menu-item {
+  padding: 2px 4px;
+  spacing: 10px;
+}
+
+.amethystora-privacy-row {
+  min-height: 30px;
+}
+
+.amethystora-privacy-header {
+  spacing: 12px;
+}
+
+.amethystora-privacy-header-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.amethystora-privacy-header-detail {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.amethystora-privacy-row-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background-color: rgba(239, 228, 255, 0.08);
+}
+
+.amethystora-privacy-row-title {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.amethystora-privacy-row-detail {
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.amethystora-privacy-chip {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background-color: rgba(239, 228, 255, 0.08);
+}
+
+.amethystora-privacy-footer-note {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.amethystora-privacy-link {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.amethystora-privacy-tile {
+  border: 1px solid transparent;
+}
+
+.amethystora-privacy-mark {
+  icon-size: 15px;
+}
+
+/* --- Network by app --------------------------------------------------------------------------------------------- */
+
+.amethystora-privacy-apps {
+  spacing: 8px;
+  padding-top: 10px;
+  min-width: 260px;
+}
+
+.amethystora-privacy-apps-heading {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.amethystora-privacy-apps-now {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.amethystora-privacy-apps-list {
+  spacing: 8px;
+}
+
+.amethystora-privacy-app {
+  padding: 9px 11px;
+  border-radius: 14px;
+  spacing: 4px;
+  background-color: rgba(239, 228, 255, 0.06);
+}
+
+.amethystora-privacy-app-top {
+  spacing: 8px;
+}
+
+.amethystora-privacy-app-name {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.amethystora-privacy-app-count,
+.amethystora-privacy-app-hosts,
+.amethystora-privacy-apps-empty {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.amethystora-privacy-app-count {
+  font-weight: 700;
+}
+
+.amethystora-privacy-apps-link {
+  padding: 2px 0;
+}
+
+/* --- Walk-away lock's card ------------------------------------------------------------------------------------ */
+
+.amethystora-privacy-away {
+  padding: 12px 16px;
+  spacing: 4px;
+  border-radius: 12px;
+  background-color: rgba(26, 16, 42, 0.85);
+  color: #efe4ff;
+}
+
+.amethystora-privacy-away-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.amethystora-privacy-away-line {
+  font-size: 11.5px;
+  font-weight: 600;
+}

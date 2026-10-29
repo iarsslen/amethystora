@@ -198,6 +198,7 @@ read_in_background shelf gsettings get org.gnome.shell.extensions.amethystora-ui
 read_in_background desks gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.desks
 read_in_background agent-ui gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.agent
 read_in_background quit gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.quit
+read_in_background privacy gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.privacy
 read_in_background breaks gsettings get org.gnome.desktop.break-reminders selected-breaks
 read_in_background search gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.search
 read_in_background emoji gsettings get org.gnome.shell.extensions.amethystora-ui.emoji skin-tone
@@ -1505,6 +1506,55 @@ if [[ "${ desks_onoff desks; }" == on ]]; then
             "${DESKS_FILE}" 2>/dev/null | head -n 24)
     fi
 fi
+# Privacy (org.gnome.shell.extensions.amethystora-ui.privacy): the share guard, the shield and network by app. Walk-away
+# lock is a security switch, in Security.
+PRIVACY="${ said privacy; }"
+privacy_key() {
+    local value
+    value="${ value_of "${PRIVACY}" "$1" "(.*)\$"; }"
+    [[ "${value}" =~ ^\'(.*)\'$ ]] && value="${BASH_REMATCH[1]}"
+    printf '%s\n' "${value}"
+}
+privacy_reason() { [[ "${ ended privacy; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"; }
+GROUP="${ gettext "Privacy"; }"
+privacy_reason
+choice blur "${ gettext "Blur"; }" "${ gettext "The window blurred, its words unreadable"; }" false ame desktop share-guard blur
+choice card "${ gettext "Card"; }" "${ gettext "A solid card over the window"; }" false ame desktop share-guard card
+choice off "${ gettext "Off"; }" "${ gettext "A shared screen shows every window"; }" false ame desktop share-guard off
+USAGE="ame desktop share-guard blur|card|off"
+item desktop share-guard choice "${ gettext "Share guard"; }" \
+    "${ gettext "While the whole screen is shared, the windows of the apps chosen are covered, for everyone and on your screen too. A window shared on its own is uncovered as soon as that is known."; }" \
+    "${ privacy_key share-guard; }" desktop#share-guard
+privacy_reason
+DETAIL="$(privacy_key share-guard-apps | tr -d "[]'" | sed 's/^@as //')"
+COMMAND=(ame desktop share-guard apps)
+BUTTON="${ gettext "Choose"; }"
+USAGE="ame desktop share-guard apps [APP.desktop...]"
+item desktop share-guard-apps action "${ gettext "Apps covered while sharing"; }" \
+    "${ gettext "Notes, Security, Backups and the password managers, as the image ships."; }" "" desktop#share-guard
+privacy_reason
+switch_choices false ame desktop share-guard private
+USAGE="ame desktop share-guard private on|off"
+if [[ "${ privacy_key share-guard-private; }" == true ]]; then value=on; else value=off; fi
+item desktop share-guard-private switch "${ gettext "The Private folder's windows"; }" \
+    "${ gettext "Files windows showing the Private folder are covered while sharing."; }" "${value}" desktop#share-guard
+privacy_reason
+choice tile "${ gettext "Tile"; }" "${ gettext "In quick settings"; }" false ame desktop shield tile
+choice mark "${ gettext "Mark in the bar"; }" "${ gettext "A shield beside the system's icons"; }" false ame desktop shield mark
+choice attention "${ gettext "Only when needed"; }" "${ gettext "The mark, only when something needs a look"; }" false \
+    ame desktop shield attention
+choice off "${ gettext "Off"; }" "" false ame desktop shield off
+USAGE="ame desktop shield tile|mark|attention|off"
+item desktop shield choice "${ gettext "The shield"; }" \
+    "${ gettext "How the machine's protection stands, in one look. It changes nothing: every line opens Security."; }" \
+    "${ privacy_key shield; }" desktop#the-shield
+privacy_reason
+switch_choices false ame desktop network-apps
+USAGE="ame desktop network-apps on|off"
+if [[ "${ privacy_key network-apps; }" == true ]]; then value=on; else value=off; fi
+item desktop network-apps switch "${ gettext "Network by app"; }" \
+    "${ gettext "The network meter's menu lists which apps are talking to the network, and to where, while it is open. Nothing is sent anywhere."; }" \
+    "${value}" desktop#network-by-app
 GROUP=""
 
 if [[ -e "${CONFIG_DIR}/no-greeting" ]]; then GREETING=off; else GREETING=on; fi

@@ -1689,7 +1689,10 @@ read_report() {
             | [.id, .state, .title] | @tsv' <<<"${tiles:-[]}")
     fi
     before="$(cat "${STATE}/report.json" 2>/dev/null)"
-    printf '%s\n' "${now}" >"${STATE}/report.json"
+    # The administrators' shield in the top bar reads it: root's run of the report, whose details name what only root
+    # can see (other accounts' files among them), so wheel alone may read it, as it may events.json and with sudo anyway
+    printf '%s\n' "${now}" >"${STATE}/report.json.new" && chgrp wheel "${STATE}/report.json.new" 2>/dev/null
+    chmod 0640 "${STATE}/report.json.new" && mv -f "${STATE}/report.json.new" "${STATE}/report.json"
     [[ -n "${before}" ]] || return
     while IFS=$'\t' read -r state text details; do
         [[ "${state}" == off ]] && level=critical || level=normal

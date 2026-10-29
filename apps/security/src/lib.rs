@@ -144,9 +144,9 @@ impl App for Security {
     /// `amethystora-security scan` opens the virus scanner, `amethystora-security network` network protection,
     /// `amethystora-security apps` what each app can reach, `amethystora-security containers` what is installed
     /// outside Flatpak, `amethystora-security events` what the watcher found, `amethystora-security settings`
-    /// every switch
+    /// every switch, and `amethystora-security settings/CATEGORY` one category of them
     fn open(&self, args: &[String]) {
-        let page = args.iter().find(|arg| !arg.starts_with('-')).filter(|page| backend::PAGES.contains(&page.as_str())).cloned();
+        let page = args.iter().find(|arg| !arg.starts_with('-')).filter(|page| backend::openable(page)).cloned();
         if !self.opened.replace(true) {
             self.state.borrow_mut().page = page.unwrap_or_else(|| "overview".into());
             self.render();

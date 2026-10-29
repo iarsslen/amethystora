@@ -24,7 +24,7 @@
 #   settings     {layout, favorites, keybindings, tiling, pointer, glass, motion, workspaces, windows, dock, pill, quick,
 #                bars, today, breaks, search, emoji, bezel, sound, look, transitions, hints, appgrid, focus, power,
 #                access, touch, present, screenshot, deskwidgets, shelf, desks,
-#                quit}: the window
+#                quit, privacy}: the window
 #                layout, the dock's apps, the keys of
 #                keybindings (the image's custom keybindings by their id, never a command), the tiling's
 #                settings by their key in its schema (TILING_KEYS: numbers, switches and lists, never its
@@ -52,7 +52,8 @@
 #                it holds), whether desks are on and learn (DESKS_KEYS; never the desks, which name this machine's
 #                screens by serial number), the not-responding question's look (QUIT_KEYS; force quit's key and the
 #                agent's selection key are keybindings; never the agent's pill, which shows what the agent changes
-#                and is the person's own to turn off), and no other GNOME
+#                and is the person's own to turn off), the share guard, the shield and network by app (PRIVACY_KEYS; walk-away lock is a
+#                security switch, never in the file), and no other GNOME
 #                setting (Reduce motion and High Contrast are GNOME's accessibility keys, left out). A file
 #                from before the tiling replaced PaperWM may still hold its gaps under paperwm, which are read
 #                as the tiling's when the file has no tiling of its own (a gap the tiling cannot take is left
@@ -257,6 +258,13 @@ SCREENSHOT_KEYS='{"capture-thumbnail": ["b"], "capture-pin": ["b"]}'
 # Widgets on the desktop: the switch only; the widgets themselves are commands, which a setup file never carries
 DESKWIDGETS=org.gnome.shell.extensions.amethystora-ui.deskwidgets
 DESKWIDGETS_KEYS='{"enabled": ["b"]}'
+# The privacy module: the share guard's look, the apps it covers (launchers by their ID) and the Private folder's windows,
+# the shield's place, and network by app
+PRIVACY=org.gnome.shell.extensions.amethystora-ui.privacy
+PRIVACY_KEYS='{
+    "share-guard": ["s", ["blur", "card", "off"]], "share-guard-apps": ["as", "launchers"], "share-guard-private": ["b"],
+    "shield": ["s", ["tile", "mark", "attention", "off"]], "network-apps": ["b"]
+}'
 # What a value of each kind has to be, for the check and for reading an old file's gaps
 TILING_JQ="$(
     cat <<'EOF'
@@ -388,7 +396,7 @@ if type != "object" then "it is not a JSON object" else
     at("settings"; only(["layout", "favorites", "keybindings", "tiling", "paperwm", "pointer", "glass", "motion", "workspaces",
             "windows", "dock", "pill", "quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "look", "transitions",
             "hints", "appgrid", "focus", "power", "access", "touch", "present",
-            "screenshot", "deskwidgets", "shelf", "desks", "quit"]; "settings."),
+            "screenshot", "deskwidgets", "shelf", "desks", "quit", "privacy"]; "settings."),
         (if type == "object" then
             at("layout"; if IN("tiling", "classic") then empty else "settings.layout is tiling or classic" end),
             at("favorites"; each("settings.favorites";
@@ -531,6 +539,10 @@ if type != "object" then "it is not a JSON object" else
             at("quit"; only($quit | keys; "settings.quit."),
                 (if type == "object" then to_entries[] | select(.key | IN($quit | keys[])) | $quit[.key] as $spec
                     | if .value | valid($spec) then empty else "settings.quit.\(.key) is \(wanted($spec))" end
+                 else empty end)),
+            at("privacy"; only($privacy | keys; "settings.privacy."),
+                (if type == "object" then to_entries[] | select(.key | IN($privacy | keys[])) | $privacy[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.privacy.\(.key) is \(wanted($spec))" end
                  else empty end))
         else empty end))
 end
@@ -555,6 +567,7 @@ check() {
         --argjson deskwidgets "${DESKWIDGETS_KEYS}" \
         --argjson shelf "${SHELF_KEYS}" --argjson desks "${DESKS_KEYS}" \
         --argjson quit "${QUIT_KEYS}" \
+        --argjson privacy "${PRIVACY_KEYS}" \
         "${TILING_JQ} ${CHECK}" 2>&1)" ||
         die "$1 is not JSON."
     [[ -z "${problems}" ]] ||
@@ -697,7 +710,7 @@ current() {
             jq -nc --arg k "${key}" --argjson v "${value:-null}" '{pill: {($k): $v}}'
         done < <(jq -r '.settings.pill // {} | keys[]' <<<"$1")
         for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch \
-            present screenshot deskwidgets shelf desks quit; do
+            present screenshot deskwidgets shelf desks quit privacy; do
             case "${area}" in
                 quick) schema="${QUICK}" ;;
                 bars) schema="${BARS}" ;;
@@ -720,6 +733,7 @@ current() {
                 shelf) schema="${SHELF}" ;;
                 desks) schema="${DESKS}" ;;
                 quit) schema="${QUIT}" ;;
+                privacy) schema="${PRIVACY}" ;;
             esac
             while read -r key; do
                 value="$(gsettings get "${schema}" "${key}" 2>/dev/null | as_json)"
@@ -736,7 +750,7 @@ current() {
         bezel: {}, sound: {}, look: {}, transitions: {}, hints: {}, appgrid: {}, focus: {}, power: {}, access: {},
         touch: {}, present: {},
         screenshot: {}, deskwidgets: {}, shelf: {}, desks: {},
-        quit: {}};
+        quit: {}, privacy: {}};
         . * $x)'
 }
 
@@ -872,7 +886,7 @@ def brew($x; $k): $x.brew[$k] // [];
         | {area: "pill", action: "remove", key: $k, from: .value}),
     (("quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "transitions", "hints", "appgrid", "focus", "power",
         "access", "touch", "present",
-        "screenshot", "deskwidgets", "shelf", "desks", "quit") as $a
+        "screenshot", "deskwidgets", "shelf", "desks", "quit", "privacy") as $a
     | ($fs[$a] // {} | to_entries[] | .key as $k | $now[$a][$k] as $v
         | select(.value != $v) | {area: $a, action: "set", key: $k, to: .value, from: $v}
         + if $v == null then {ok: false, why: "this machine has no such \({quick: "quick settings", bezel: "screen corners",
@@ -950,14 +964,15 @@ def text:
         or .area == "transitions" or .area == "hints" or .area == "appgrid" or .area == "focus" or .area == "power"
         or .area == "access" or .area == "touch"
         or .area == "present" or .area == "screenshot" or .area == "deskwidgets"
-        or .area == "shelf" or .area == "desks" or .area == "quit" then
+        or .area == "shelf" or .area == "desks" or .area == "quit" or .area == "privacy" then
         {quick: "quick settings'", bars: "the top bar's", today: "the calendar's", breaks: "the rest reminders'",
             search: "the search's", emoji: "the emoji picker's", bezel: "the screen's", sound: "the desktop's",
             transitions: "the transitions'", hints: "the tips'", appgrid: "the app grid's",
             focus: "focus profiles'", power: "the power module's",
             access: "seeing and reading's", touch: "touch and pen's",
             present: "Present mode's", screenshot: "the screenshot's", deskwidgets: "the desktop widgets'",
-            shelf: "the shelf's", desks: "the desks'", quit: "force quit's"}[.area]
+            shelf: "the shelf's", desks: "the desks'", quit: "force quit's",
+            privacy: "the privacy settings'"}[.area]
         + " \(.key)"
         + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
           else ", \(.from | tojson) here, back to the image's" end
@@ -1201,7 +1216,7 @@ add_all() {
         gsettings set "${PILL}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the live pill's ${name}")
     done
     for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch \
-        present screenshot deskwidgets shelf desks quit; do
+        present screenshot deskwidgets shelf desks quit privacy; do
         case "${area}" in
             quick) schema="${QUICK}" label="quick settings'" ;;
             bars) schema="${BARS}" label="the bars setting" ;;
@@ -1224,6 +1239,7 @@ add_all() {
             shelf) schema="${SHELF}" label="the shelf's" ;;
             desks) schema="${DESKS}" label="the desks'" ;;
             quit) schema="${QUIT}" label="force quit's" ;;
+            privacy) schema="${PRIVACY}" label="the privacy settings'" ;;
         esac
         mapfile -t changes < <(of "${todo}" "${area}")
         for change in "${changes[@]}"; do
@@ -1325,7 +1341,7 @@ remove_all() {
         gsettings reset "${PILL}" "${name}" || FAILED+=("the live pill's ${name}")
     done
     for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power access touch \
-        present screenshot deskwidgets shelf desks quit; do
+        present screenshot deskwidgets shelf desks quit privacy; do
         case "${area}" in
             quick) schema="${QUICK}" label="quick settings'" ;;
             bars) schema="${BARS}" label="the bars setting" ;;
@@ -1348,6 +1364,7 @@ remove_all() {
             shelf) schema="${SHELF}" label="the shelf's" ;;
             desks) schema="${DESKS}" label="the desks'" ;;
             quit) schema="${QUIT}" label="force quit's" ;;
+            privacy) schema="${PRIVACY}" label="the privacy settings'" ;;
         esac
         mapfile -t names < <(of "${gone}" "${area}" | jq -r .key)
         for name in "${names[@]}"; do
@@ -1463,6 +1480,7 @@ bake() {
           section("org.gnome.shell.extensions.amethystora-ui.deskwidgets"; ($s.deskwidgets // {})),
           section("org.gnome.shell.extensions.amethystora-ui.shelf"; ($s.shelf // {})),
           section("org.gnome.shell.extensions.amethystora-ui.desks"; ($s.desks // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.privacy"; ($s.privacy // {})),
           section("org.gnome.shell.extensions.amethystora-ui.theme";
             ($s.look // {} | with_entries(select(.key | IN("accent-per-workspace", "workspace-accents"))))),
           section("org.gnome.shell.extensions.amethystora-transitions"; ($s.transitions // {})),

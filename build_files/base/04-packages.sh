@@ -120,6 +120,10 @@ FEDORA_PACKAGES=(
     make
     # Parental Controls' allowed hours at the text consoles and over SSH (08-hardening.sh)
     malcontent-pam
+    # Copy without hidden data, in Files' scripts menu (amethystora-clean-copy): a photo's, PDF's or office file's
+    # location, camera, author and history taken out of a copy, with ExifTool, through which mat2 reads a picture's
+    # metadata (only its weak dependency, so named here)
+    mat2
     mesa-libGLU
     mozc
     # The VPNs people are given at work: L2TP/IPsec, IPsec (IKEv2), Microsoft's SSTP and, up to Fedora 44,
@@ -139,6 +143,7 @@ FEDORA_PACKAGES=(
     osslsigncode
     pam-u2f
     pamu2fcfg
+    perl-Image-ExifTool
     plymouth-plugin-label
     plymouth-plugin-script
     powerstat

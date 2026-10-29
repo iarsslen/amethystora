@@ -142,6 +142,9 @@ SCREENSHOT=org.gnome.shell.extensions.amethystora-ui.screenshot
 SCREENSHOT_KEYS=(capture-thumbnail capture-pin)
 DESKWIDGETS=org.gnome.shell.extensions.amethystora-ui.deskwidgets
 DESKWIDGETS_KEYS=(enabled)
+# The privacy module's keys, which amethystora-setup's PRIVACY_KEYS takes: the share guard, the shield, network by app
+PRIVACY=org.gnome.shell.extensions.amethystora-ui.privacy
+PRIVACY_KEYS=(share-guard share-guard-apps share-guard-private shield network-apps)
 FOCUS_KEYS=(trigger-games trigger-sleep work-banners work-apps work-sounds work-dock work-lighter work-night-light work-power work-accent work-wallpaper work-grey games-banners games-apps games-sounds games-dock games-lighter games-night-light games-power games-accent games-wallpaper games-grey sleep-banners sleep-apps sleep-sounds sleep-dock sleep-lighter sleep-night-light sleep-power sleep-accent sleep-wallpaper sleep-grey)
 # Seeing and reading, and touch and pen, which amethystora-setup's ACCESS_KEYS and TOUCH_KEYS take; never whether a
 # filter or the ruler is drawn this moment, or the shortcuts
@@ -253,6 +256,7 @@ settings() {
         changed "${SHELF}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${SHELF_KEYS[@]}") -
         changed "${DESKS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${DESKS_KEYS[@]}") -
         changed "${QUIT}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${QUIT_KEYS[@]}") -
+        changed "${PRIVACY}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${PRIVACY_KEYS[@]}") -
     } | while read -r schema key value; do
         value="$(as_json <<<"${value}")" && [[ -n "${value}" ]] || continue
         jq -nc --arg s "${schema}" --arg k "${key}" --argjson v "${value}" '{schema: $s, key: $k, value: $v}'
@@ -277,7 +281,7 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
     --arg transitions "${TRANSITIONS}" --arg hints "${HINTS}" --arg appgrid "${APPGRID}" \
     --arg focus "${FOCUS}" --arg power "${POWER}" --arg access "${ACCESS}" --arg touch "${TOUCH}" \
     --arg present "${PRESENT}" --arg screenshot "${SCREENSHOT}" --arg deskwidgets "${DESKWIDGETS}" \
-    --arg shelf "${SHELF}" --arg desks "${DESKS}" --arg quit "${QUIT}" '
+    --arg shelf "${SHELF}" --arg desks "${DESKS}" --arg quit "${QUIT}" --arg privacy "${PRIVACY}" '
     map(if .schema == "custom" then .value |= (if . == "" then [] else [.] end) else . end) as $all
     | {layout: $layout}
     + ([$all[] | select(.schema == "org.gnome.shell")] | if length > 0 then {favorites: .[0].value} else {} end)
@@ -287,7 +291,7 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
             else .schema | IN("org.gnome.shell", $tiling, $pointer, $glass, $motion, $workspaces, $dock, $pill, $quick, $bars,
                 $today, $breaks, $bezel, $sound, $transitions, $hints, $appgrid, $focus, $power,
                 $access, $touch, $present, $screenshot,
-                $deskwidgets, $shelf, $desks) | not end))
+                $deskwidgets, $shelf, $desks, $privacy) | not end))
         as $e ({}; .[$e.schema][$e.key] = $e.value))}
     + ([$all[] | select(.schema == $windows and .key != "snap-chooser")]
         | if length > 0 then {windows: (map({(.key): .value}) | add)} else {} end)
@@ -324,7 +328,8 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
     + ([$all[] | select(.schema == $shelf)] | if length > 0 then {shelf: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $desks)] | if length > 0 then {desks: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $quit and .key != "force-quit")]
-        | if length > 0 then {quit: (map({(.key): .value}) | add)} else {} end)')"
+        | if length > 0 then {quit: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $privacy)] | if length > 0 then {privacy: (map({(.key): .value}) | add)} else {} end)')"
 
 # The look, where the account changed it from the image's: its accent, Daylight turned off and colours from the wallpaper
 # (the account's files, each only as one of its values), and an accent per workspace (the theme module's keys)

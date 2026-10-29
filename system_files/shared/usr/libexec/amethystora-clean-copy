@@ -1,0 +1,178 @@
+#!/usr/bin/bash
+# Copy without hidden data, from Files' scripts menu (Scripts › Copy without hidden data, written by
+# user-setup.hooks.d/24-files-menu.sh): beside each file named, a copy without what the file carries besides its content
+# (where a photo was taken, the camera, the times, the author, the program, the edit history), made by mat2. The
+# original is never touched: mat2 works on a copy in a private folder, and the cleaned file is moved beside the
+# original under a name nothing has, NAME (clean).EXT, then NAME (clean 2).EXT and so on.
+#
+#   amethystora-clean-copy -- PATH...
+#
+# The paths are Files' arguments (relative to the folder it shows), read from argv only, each whole: never from the
+# NAUTILUS_SCRIPT_* variables. A path is never given to a shell, and always after `--`. A PDF is cleaned in mat2's light
+# mode, which keeps its text and links (the thorough one turns every page into a picture). What mat2 cannot clean, or
+# refuses (an office file with a part it does not know), is left as it was and said so.
+
+set -uo pipefail
+
+export TEXTDOMAIN=amethystora
+# shellcheck source=/dev/null
+source gettext.sh
+
+usage() {
+    echo "usage: amethystora-clean-copy -- PATH..." >&2
+    exit 64
+}
+
+[[ "${1:-}" == -- ]] || usage
+shift
+(($# > 0)) || usage
+command -v mat2 >/dev/null || {
+    notify-send --app-name=Files --icon=edit-clear "$(gettext "Copy without hidden data")" \
+        "$(gettext "mat2, which makes the copy, is not installed.")" 2>/dev/null
+    exit 1
+}
+
+
+# The kinds of hidden data a list of mat2's field names holds, by the words a person knows them by
+declare -A FOUND=()
+kinds() { # mat2 -s output on stdin
+    local key
+    while IFS= read -r key; do
+        case "${key,,}" in
+            gps* | *location* | *latitude* | *longitude* | *altitude* | city | country* | sub-location | *geotag*)
+                FOUND[place]=1 ;;
+            make | model | lens* | serialnumber | *cameraserial* | *bodyserial* | ownername | *exposure* | fnumber | iso | \
+                focallength* | flash | whitebalance | meteringmode)
+                FOUND[camera]=1 ;;
+            *date* | *time* | *modified* | *created*)
+                FOUND[time]=1 ;;
+            author | artist | dc:creator | *lastmodifiedby | *initial-creator | copyright | owner | by-line | \
+                xpauthor | company | manager)
+                FOUND[author]=1 ;;
+            *revision* | *history* | *editing* | documentid | instanceid | *derivedfrom* | totaltime | xmpmm:*)
+                FOUND[history]=1 ;;
+            software | producer | creator | *generator | application | creatortool | *application*)
+                FOUND[program]=1 ;;
+            # How the picture or the file itself is stored, which says nothing about anyone
+            exifversion | exifbyteorder | colorspace | ycbcr* | componentsconfiguration | *resolution* | format | palette | \
+                redx | redy | greenx | greeny | bluex | bluey | whitepointx | whitepointy | gamma | srgb* | orientation | \
+                flashpix* | interop* | *pixel*dimension | bitspersample | compression | photometric* | samplesperpixel | \
+                planarconfiguration | thumbnail*)
+                ;;
+            *) FOUND[other]=1 ;;
+        esac
+    done
+}
+
+# Each file is worked on in a private folder beside it (0700, removed whatever happens): on the same filesystem, so
+# that a large video never fills memory or the session's runtime folder, and the copy's last move is a rename
+WORK=""
+trap 'rm -rf -- "${WORK}"' EXIT
+
+made=0 skipped=0 failed=0 slow=0 unwritable=0 last=""
+for path in "$@"; do
+    # Relative to the folder Files shows; a link is followed to the file it names, which is the one shown
+    [[ "${path}" == /* ]] || path="${PWD}/${path}"
+    if [[ ! -f "${path}" || ! -r "${path}" ]]; then
+        skipped=$((skipped + 1))
+        continue
+    fi
+    name="${path##*/}" dir="${path%/*}"
+    stem="${name%.*}" ext=""
+    [[ "${name}" == *.* && "${stem}" != "" ]] && ext="${name##*.}"
+    # mat2 goes by the extension; one that is not plain letters and digits is no type it knows
+    safe="$(tr 'A-Z' 'a-z' <<<"${ext}")"
+    if [[ ! "${safe}" =~ ^[a-z0-9]{1,10}$ ]] || ! mat2 -l | grep -q "[(, ]\.${safe}[,)]"; then
+        skipped=$((skipped + 1))
+        continue
+    fi
+    rm -rf -- "${WORK}"
+    if ! WORK="$(mktemp -d "${dir}/.clean-copy.XXXXXX" 2>/dev/null)" || ! cp -- "${path}" "${WORK}/file.${safe}"; then
+        unwritable=$((unwritable + 1))
+        continue
+    fi
+    light=()
+    [[ "${safe}" == pdf ]] && light=(-L)
+    # What it holds, by field name (the values are never read here), then the clean copy
+    fields="$(timeout 120 mat2 -s -- "${WORK}/file.${safe}" 2>/dev/null | sed -n 's/^ *\([^ :][^:]*\): .*/\1/p')"
+    timeout 120 mat2 "${light[@]}" -- "${WORK}/file.${safe}" >/dev/null 2>&1
+    case "$?" in
+        0) ;;
+        124) slow=$((slow + 1)); continue ;;
+        *) failed=$((failed + 1)); continue ;;
+    esac
+    [[ -f "${WORK}/file.cleaned.${safe}" ]] || { failed=$((failed + 1)); continue; }
+    # The first name nothing has: NAME (clean).EXT, NAME (clean 2).EXT...
+    suffix="${ext:+.${ext}}"
+    # Translators: added to a file's name for its copy without hidden data, "beach (clean).jpg"
+    target="${dir}/${stem} ($(gettext "clean"))${suffix}"
+    n=2
+    while [[ -e "${target}" || -L "${target}" ]]; do
+        target="${dir}/${stem} ($(gettext "clean") ${n})${suffix}"
+        n=$((n + 1))
+    done
+    if ! mv -n -- "${WORK}/file.cleaned.${safe}" "${target}" || [[ -e "${WORK}/file.cleaned.${safe}" ]]; then
+        unwritable=$((unwritable + 1))
+        continue
+    fi
+    # Only what is gone from a copy that was made is said
+    kinds <<<"${fields}"
+    made=$((made + 1))
+    last="${target##*/}"
+done
+
+# What was taken out, as a list in the person's words
+words=()
+[[ -n "${FOUND[place]:-}" ]] && words+=("$(gettext "place")")
+[[ -n "${FOUND[camera]:-}" ]] && words+=("$(gettext "camera")")
+[[ -n "${FOUND[time]:-}" ]] && words+=("$(gettext "time")")
+[[ -n "${FOUND[author]:-}" ]] && words+=("$(gettext "author")")
+[[ -n "${FOUND[history]:-}" ]] && words+=("$(gettext "edit history")")
+[[ -n "${FOUND[program]:-}" ]] && words+=("$(gettext "program")")
+[[ -n "${FOUND[other]:-}" ]] && words+=("$(gettext "other details")")
+# Translators: what comes between two items of the list of what was taken out of a file, "place, camera, time"
+separator="$(gettext ", ")"
+removed=""
+for word in "${words[@]}"; do
+    removed+="${removed:+${separator}}${word}"
+done
+
+if ((made == 1)); then
+    # A file's name, which its author chose: shown as text, without what could disguise it
+    title="$(/usr/libexec/amethystora-security-text --max 120 -- "${last}")"
+elif ((made > 1)); then
+    count="${made}"
+    title="$(eval_ngettext "\$count copy without hidden data" "\$count copies without hidden data" "${made}")"
+else
+    title="$(gettext "No copy was made")"
+fi
+body=""
+if ((made > 0)); then
+    if [[ -n "${removed}" ]]; then
+        body="$(eval_gettext "Removed: \${removed}.")"
+    else
+        body="$(gettext "Nothing hidden was found in it.")"
+    fi
+fi
+if ((skipped > 0)); then
+    count="${skipped}"
+    body+="${body:+ }$(eval_ngettext "\$count file was left as it was: not a kind it can clean." \
+        "\$count files were left as they were: not a kind it can clean." "${skipped}")"
+fi
+if ((failed > 0)); then
+    count="${failed}"
+    body+="${body:+ }$(eval_ngettext "\$count file could not be cleaned, so no copy was made of it." \
+        "\$count files could not be cleaned, so no copy was made of them." "${failed}")"
+fi
+if ((slow > 0)); then
+    count="${slow}"
+    body+="${body:+ }$(eval_ngettext "\$count file took more than two minutes and was left as it was." \
+        "\$count files took more than two minutes and were left as they were." "${slow}")"
+fi
+if ((unwritable > 0)); then
+    count="${unwritable}"
+    body+="${body:+ }$(eval_ngettext "\$count copy could not be saved in its folder." \
+        "\$count copies could not be saved in their folders." "${unwritable}")"
+fi
+notify-send --app-name=Files --icon=edit-clear -- "${title}" "${body}" 2>/dev/null
+((made > 0))

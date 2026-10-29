@@ -303,6 +303,29 @@ for table in 'ACCESS:org.gnome.shell.extensions.amethystora-ui.access:filter-on|
     [[ "${saved}" == "${listed}" ]] ||
         { echo "the manifest saves other ${name} keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
 done
+# The privacy module: every key of the schema (walk-away lock is a security switch, not one of them), each of the
+# schema's type and choices, the covered apps launchers; and the manifest saves the same keys
+PRIVACY_ID=org.gnome.shell.extensions.amethystora-ui.privacy
+PRIVACY_TABLE="$(bash -c "$(sed -n '/^PRIVACY_KEYS=/,/^}'"'"'$/p' "${SETUP}")"'; printf "%s" "${PRIVACY_KEYS}"')"
+listed="$(jq -r 'keys[]' <<<"${PRIVACY_TABLE}" | sort)"
+schema="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings list-keys "${PRIVACY_ID}" | sort)"
+[[ -n "${listed}" && "${listed}" == "${schema}" ]] ||
+    { echo "PRIVACY_KEYS and ${PRIVACY_ID} differ:"; diff <(echo "${listed}") <(echo "${schema}"); false; }
+while read -r key; do
+    range="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${PRIVACY_ID}" "${key}" | tr '\n' ' ' | xargs)"
+    case "${range}" in
+        "type b") want='["b"]' ;;
+        "type as") want='["as","launchers"]' ;;
+        enum*) want="$(jq -cn --arg r "${range#enum }" '["s", ($r | split(" "))]')" ;;
+        *) want="? ${range}" ;;
+    esac
+    got="$(jq -c --arg k "${key}" '.[$k] | if .[0] == "s" then [.[0], (.[1] | sort)] else . end' <<<"${PRIVACY_TABLE}")"
+    want="$(jq -c 'if .[0] == "s" then [.[0], (.[1] | sort)] else . end' <<<"${want}" 2>/dev/null || echo "${want}")"
+    [[ "${got}" == "${want}" ]] || { echo "PRIVACY_KEYS has ${key} as ${got}, the schema as ${want}"; false; }
+done <<<"${listed}"
+saved="$(sed -n 's/^PRIVACY_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystora-setup-manifest" | tr ' ' '\n' | sort)"
+[[ "${saved}" == "${listed}" ]] ||
+    { echo "the manifest saves other privacy keys than amethystora-setup reads:"; diff <(echo "${saved}") <(echo "${listed}"); false; }
 
 # A machine with two apps, three things from Homebrew, a container, an extension and a theme, whose
 # dock, close key, terminal key, tiling key, two tiling settings and window rules are not the image's. What
@@ -369,7 +392,9 @@ org.gnome.shell.extensions.amethystora-ui.present ask-on-screen true
 org.gnome.shell.extensions.amethystora-ui.screenshot capture-thumbnail true
 org.gnome.shell.extensions.amethystora-ui.screenshot capture-pin true
 org.gnome.shell.extensions.amethystora-ui.deskwidgets enabled false
-org.gnome.shell.extensions.amethystora-ui.quit frozen-dialog true"
+org.gnome.shell.extensions.amethystora-ui.quit frozen-dialog true
+org.gnome.shell.extensions.amethystora-ui.privacy shield 'tile'
+org.gnome.shell.extensions.amethystora-ui.privacy network-apps false"
         values="org.gnome.shell favorite-apps ['org.gnome.Nautilus.desktop', 'firefox.desktop']
 org.gnome.shell enabled-extensions ['clipboard-indicator@tudmotu.com']
 org.gnome.desktop.wm.keybindings close ['<Super>q']
@@ -502,7 +527,8 @@ jq '.flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .brew
     | .settings.present = {"enabled": true, "pointer-mark": "torch"} | .settings.screenshot = {"capture-pin": false}
     | .settings.deskwidgets = {"enabled": true}
     | .settings.shelf = {"shelf": "edge"} | .settings.desks = {"desks": true}
-    | .settings.quit = {"frozen-dialog": false}' \
+    | .settings.quit = {"frozen-dialog": false}
+    | .settings.privacy = {"shield": "attention", "network-apps": true}' \
     "${FILE}" >"${T}/more.json"
 out="$("${SETUP}" diff "${T}/more.json")"
 grep -qxF "  ~ the windows' dim: false, in place of true" <<<"${out}"
@@ -535,6 +561,8 @@ grep -qxF "  ~ the desktop widgets' enabled: true, in place of false" <<<"${out}
 grep -qxF '  ~ the shelf'"'"'s shelf: "edge", in place of "off"' <<<"${out}"
 grep -qxF "  ~ the desks' desks: true, in place of false" <<<"${out}"
 grep -qxF "  ~ force quit's frozen-dialog: false, in place of true" <<<"${out}"
+grep -qxF '  ~ the privacy settings'"'"' shield: "attention", in place of "tile"' <<<"${out}"
+grep -qxF "  ~ the privacy settings' network-apps: true, in place of false" <<<"${out}"
 "${SETUP}" apply --yes "${T}/more.json" >/dev/null
 grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.focus games-power "as-set"' "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.focus trigger-sleep true" "${LOG}"
@@ -555,6 +583,8 @@ grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.present point
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.screenshot capture-pin false" "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.deskwidgets enabled true" "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.quit frozen-dialog false" "${LOG}"
+grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.privacy shield "attention"' "${LOG}"
+grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.privacy network-apps true" "${LOG}"
 grep -qx "flatpak install --system --noninteractive flathub org.gnome.Maps" "${LOG}"
 grep -qx "brew install --formula fd someone/tools/lint" "${LOG}"
 grep -qx "gsettings set org.gnome.desktop.wm.keybindings close \['<Super>c'\]" "${LOG}"
@@ -702,7 +732,11 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"present": {"enabled": "on"}}}' \
     '{"version": 1, "settings": {"screenshot": {"tool-settings": {}}}}' \
     '{"version": 1, "settings": {"screenshot": {"capture-pin": 1}}}' \
-    '{"version": 1, "settings": {"deskwidgets": {"widgets": ["clock"]}}}'; do
+    '{"version": 1, "settings": {"deskwidgets": {"widgets": ["clock"]}}}' \
+    '{"version": 1, "settings": {"privacy": {"shield": "loud"}}}' \
+    '{"version": 1, "settings": {"privacy": {"share-guard-apps": ["rm -rf ~"]}}}' \
+    '{"version": 1, "settings": {"privacy": {"walk-away": "on"}}}' \
+    '{"version": 1, "settings": {"privacy": {"network-apps": "on"}}}'; do
     printf '%s\n' "${bad}" >"${T}/bad.json"
     "${SETUP}" diff "${T}/bad.json" >/dev/null 2>&1 && { echo "accepted: ${bad}"; false; }
     "${SETUP}" apply --yes "${T}/bad.json" >/dev/null 2>&1 && { echo "applied: ${bad}"; false; }

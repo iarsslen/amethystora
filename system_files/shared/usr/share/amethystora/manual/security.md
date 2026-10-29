@@ -17,7 +17,8 @@ attention comes first, with the command that fixes it and a button that runs it 
 the protections below that are off until you want them are each one button away. For a deeper look,
 `ame security audit` runs Lynis through a few hundred checks and explains each finding. **Check again**
 reads the report anew, and `amethystora-security` followed by `scan`, `network`, `apps`, `containers`,
-`events` or `settings` opens the app on that page.
+`events` or `settings` opens the app on that page (`settings/logins`, `settings/devices` and the like on one
+category of the settings).
 
 The app's **Apps** page lists what each Flatpak app can reach beyond its sandbox, and which of it was
 granted on this machine ([App permissions](#app-permissions)).
@@ -228,8 +229,14 @@ account's own (`flatpak override --user --unshare=network`): it cannot then send
 ## Sharing files without what they say about you
 
 Photos, documents and recordings carry more than what they show: where a photo was taken and with
-which phone, who wrote a document and when. **Metadata Cleaner** shows what a file says about you and
-saves a copy without it. Open it from the app grid and add the files before you send or publish them.
+which phone, who wrote a document and when. In Files, **Scripts › Copy without hidden data** makes a
+copy of each file picked without it ([what it takes out](desktop.md#copy-without-hidden-data)).
+**Metadata Cleaner** shows what a file says about you and saves a copy without it. Open it from the
+app grid and add the files before you send or publish them.
+
+While your screen is shared, the [share guard](desktop.md#share-guard) covers the windows of Notes,
+Security, Backups and the password managers, and the [shield](desktop.md#the-shield) in quick settings
+says how all of this stands and opens this app.
 
 ## Scanning for viruses
 
@@ -877,6 +884,22 @@ What it does not cover:
   Putting it back needs the password or the recovery key.
 - **While it is open,** a program running as you can read it, or encrypt it like any other folder;
   the snapshots keep the copy from before.
+
+### Walk-away lock
+
+```bash
+ame security walk-away on
+```
+
+The screen locks when your paired phone has left for a minute (it left the home network, or the
+computer did) and nobody has touched the computer for a minute: a short card says *Your phone left ·
+locking*, then GNOME's own lock comes down. It never unlocks anything, and it locks once each time the
+phone leaves: after you unlock, it waits for the phone to come back and leave again. It needs the
+[phone link](phone.md) on and the phone paired; turning the phone link off is not the phone leaving.
+
+It does not lock while something keeps the screen awake (a video playing, a presentation), and a phone
+that puts its Wi-Fi to sleep only makes it lock a little sooner. Off as the image ships, in **Security ›
+Settings › Logins**, and in no profile: `ame security walk-away off` turns it off.
 
 ### Browser protection
 

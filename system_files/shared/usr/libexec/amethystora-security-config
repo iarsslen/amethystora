@@ -39,7 +39,9 @@ KEYS=(WATCHER ON_BATTERY REALTIME_WATCH AUDIT_LOG IDENTITY PRIVILEGE PERSISTENCE
     VIRUS_SCAN REALTIME_SCAN YARA_ELASTIC YARA_SIGNATURE_BASE YARA_FORGE ON_DETECTION SETTINGS_AUDIT
     NETWORK NETWORK_FEEDS NETWORK_HUNTING DNS_NAMES NOTIFY REPORT_ALERTS
     # What sends something to somebody else, each chosen on its own
-    OSPREY TRIAGE REPUTATION)
+    OSPREY TRIAGE REPUTATION
+    # A lock of the person's own choosing, which no detection profile changes
+    WALK_AWAY)
 
 declare -A DEFAULTS=(
     [ON_DETECTION]=report [REALTIME]=off [NETWORK]=off
@@ -73,6 +75,7 @@ declare -A DEFAULTS=(
     [TRIAGE]=off
     [REPUTATION]=off
     [BEHAVIOUR]=off
+    [WALK_AWAY]=off
 )
 declare -A ALLOWED=(
     [ON_DETECTION]="report quarantine delete" [REALTIME]="off on" [NETWORK]="off watch block"
@@ -106,6 +109,7 @@ declare -A ALLOWED=(
     [TRIAGE]="off on"
     [REPUTATION]="off on"
     [BEHAVIOUR]="off record on"
+    [WALK_AWAY]="off on"
 )
 # How a change is applied: restart:UNIT (each checks its key as it starts), run (the watcher reads it at its
 # next run), reboot (the kernel's audit rules, which -e 2 locks, and auditd), or now (read when used)
@@ -145,6 +149,8 @@ declare -A APPLIES=(
     [TRIAGE]="now"
     [REPUTATION]="run"
     [BEHAVIOUR]="restart:amethystora-behaviour.service run"
+    # The shell's privacy module asks it each time the paired phone leaves
+    [WALK_AWAY]="now"
 )
 declare -A GROUP=(
     [WATCHER]=watching [ON_BATTERY]=watching [REALTIME_WATCH]=watching [AUDIT_LOG]=watching [IDENTITY]=audit [PRIVILEGE]=audit
@@ -175,6 +181,7 @@ declare -A GROUP=(
     [TRIAGE]=away
     [REPUTATION]=away
     [BEHAVIOUR]=detection
+    [WALK_AWAY]=logins
 )
 # What leaves the machine: none, or downloads (signatures and rules, fetched on the machine)
 declare -A SENDS=([VIRUS_SCAN]=downloads [NETWORK]=downloads [NETWORK_FEEDS]=downloads [YARA_ELASTIC]=downloads
@@ -265,8 +272,9 @@ declare -A PROFILE_THOROUGH=([PROCESSES]=on [SELINUX_DENIALS]=on [SNAPSHOT_WATCH
     [YARA_FORGE]=on [BEHAVIOUR]=record [APP_INTEGRITY]=on [INJECTION]=on)
 PROFILES="off default light balanced thorough"
 
-# Whether KEY sends something to somebody else, which no profile but off and default touches
-away() { [[ -n "${SENDS[$1]:-}" && "${SENDS[$1]}" != downloads ]]; }
+# Whether KEY sends something to somebody else, or is a lock of the person's own (walk-away lock): no profile but
+# off and default touches either
+away() { [[ -n "${SENDS[$1]:-}" && "${SENDS[$1]}" != downloads ]] || [[ "$1" == WALK_AWAY ]]; }
 
 # What profile NAME sets KEY to, empty for its default; light, balanced and thorough leave what sends away be
 profile_value() {
@@ -407,6 +415,7 @@ list() {
         [TRIAGE]="$(gettext "Ask the agent about events")"
         [REPUTATION]="$(gettext "Hash reputation")"
         [BEHAVIOUR]="$(gettext "Behaviour sensor")"
+        [WALK_AWAY]="$(gettext "Walk-away lock")"
     )
     declare -A DESCRIBE=(
         [WATCHER]="$(gettext "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on.")"
@@ -456,6 +465,7 @@ list() {
         [TRIAGE]="$(gettext "Ask the agent on an event of the Events page has your AI agent explain what it most likely is, in a terminal, reading only and changing nothing.")"
         [REPUTATION]="$(gettext "Looks up each program odd processes or the download folders' watch saw run for the first time with MalwareBazaar, by its hash, with your own free abuse.ch key: known malware recognised sooner than a signature. It catches nothing new.")"
         [BEHAVIOUR]="$(gettext "Falco watches what every process does as the kernel sees it, each command, file opened and connection, through an eBPF probe, and the watcher reads what its rules notice. It runs all the time: a little CPU and a few hundred megabytes.")"
+        [WALK_AWAY]="$(gettext "Locks the screen when your paired phone has left for a minute and nobody has touched the computer for a minute. It never unlocks anything: a phone that sleeps its Wi-Fi only locks the screen sooner. Needs the phone link.")"
     )
     # What a switch that sends something to somebody else sends, and to whom, said before it is turned on
     declare -A EXPLAIN=(

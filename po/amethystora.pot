@@ -814,7 +814,7 @@ msgid_plural "It blocked ${BLOCKED} connections in the last 7 days. See them wit
 msgstr[0] ""
 msgstr[1] ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
 msgid "Encrypted DNS"
 msgstr ""
 
@@ -1578,11 +1578,11 @@ msgstr ""
 msgid "Blocks new USB devices while the screen is locked; a plain keyboard or mouse still works, so that you can unlock"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
 msgid "USB protection"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status usr/share/amethystora/just/security.just
+#: usr/libexec/amethystora-security-status usr/share/amethystora/just/security.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
 msgid "Private folder"
 msgstr ""
 
@@ -1768,11 +1768,11 @@ msgstr ""
 msgid "New windows open next to each other, arranged for you, and Super+Left and Super+Right move between them. If you would rather have windows that float and overlap, as on Windows and macOS, use classic windows. ame desktop layout changes it any time."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
 msgid "On"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/desks.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js
+#: usr/libexec/amethystora-control-list usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/access/filter.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/desks.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/profiles.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
 msgid "Off"
 msgstr ""
 
@@ -3816,6 +3816,90 @@ msgid "Offered, after asking, when the computer arrives at this desk."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "Blur"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The window blurred, its words unreadable"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Card"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A solid card over the window"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A shared screen shows every window"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Share guard"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "While the whole screen is shared, the windows of the apps chosen are covered, for everyone and on your screen too. A window shared on its own is uncovered as soon as that is known."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Apps covered while sharing"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Notes, Security, Backups and the password managers, as the image ships."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The Private folder's windows"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Files windows showing the Private folder are covered while sharing."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Tile"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "In quick settings"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Mark in the bar"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A shield beside the system's icons"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Only when needed"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The mark, only when something needs a look"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The shield"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "How the machine's protection stands, in one look. It changes nothing: every line opens Security."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Network by app"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The network meter's menu lists which apps are talking to the network, and to where, while it is open. Nothing is sent anywhere."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Terminal greeting"
 msgstr ""
 
@@ -4868,6 +4952,10 @@ msgid "Behaviour sensor"
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
+msgid "Walk-away lock"
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
 msgid "Every 15 minutes, reads the audit log and the journal, compares the settings with the image's, and says what changed. Every switch below that it reads acts only while it is on."
 msgstr ""
 
@@ -5053,6 +5141,10 @@ msgstr ""
 
 #: usr/libexec/amethystora-security-config
 msgid "Falco watches what every process does as the kernel sees it, each command, file opened and connection, through an eBPF probe, and the watcher reads what its rules notice. It runs all the time: a little CPU and a few hundred megabytes."
+msgstr ""
+
+#: usr/libexec/amethystora-security-config
+msgid "Locks the screen when your paired phone has left for a minute and nobody has touched the computer for a minute. It never unlocks anything: a phone that sleeps its Wi-Fi only locks the screen sooner. Needs the phone link."
 msgstr ""
 
 #: usr/libexec/amethystora-security-config
@@ -5767,6 +5859,93 @@ msgstr ""
 #. Translators: an entry of Files' Scripts menu, which opens Backups on the folder picked as it was at other times
 #: usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh
 msgid "Back in time"
+msgstr ""
+
+#. Translators: an entry of Files' Scripts menu, which makes a copy of each file picked without its location, camera,
+#: usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh usr/libexec/amethystora-clean-copy
+msgid "Copy without hidden data"
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy
+msgid "mat2, which makes the copy, is not installed."
+msgstr ""
+
+#. Translators: added to a file's name for its copy without hidden data, "beach (clean).jpg"
+#: usr/libexec/amethystora-clean-copy
+msgid "clean"
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy
+msgid "place"
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
+msgid "camera"
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy
+msgid "time"
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy
+msgid "author"
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy
+msgid "edit history"
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy
+msgid "program"
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy
+msgid "other details"
+msgstr ""
+
+#. Translators: what comes between two items of the list of what was taken out of a file, "place, camera, time"
+#: usr/libexec/amethystora-clean-copy
+msgid ", "
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy
+#, sh-format
+msgid "$count copy without hidden data"
+msgid_plural "$count copies without hidden data"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/libexec/amethystora-clean-copy
+msgid "No copy was made"
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy
+#, sh-format
+msgid "Removed: ${removed}."
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy
+msgid "Nothing hidden was found in it."
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy
+#, sh-format
+msgid "$count file was left as it was: not a kind it can clean."
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy
+#, sh-format
+msgid "$count file could not be cleaned, so no copy was made of it."
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy
+#, sh-format
+msgid "$count file took more than two minutes and was left as it was."
+msgstr ""
+
+#: usr/libexec/amethystora-clean-copy
+#, sh-format
+msgid "$count copy could not be saved in its folder."
 msgstr ""
 
 #: usr/libexec/amethystora-scan-alert
@@ -7977,6 +8156,79 @@ msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
 msgid "Widgets on the desktop: off. Their commands do not run."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Share guard: ${look}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Covered while the screen is shared: ${apps}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Files windows in the Private folder are covered too."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Share guard: chosen apps are blurred while the screen is shared."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Share guard: chosen apps are covered with a card while the screen is shared."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Share guard: off. A shared screen shows every window."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Files windows in the Private folder covered while sharing: ${state}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The apps covered while sharing are the image's again."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Which apps are covered while the screen is shared? (space to pick, enter when done)"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Covered while the screen is shared: ${list}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "The shield: ${state}"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The shield is a tile in quick settings."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The shield is a mark in the top bar."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The shield shows in the top bar only when something needs a look."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The shield is off. Security still says everything."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Network by app: on. The network meter's menu lists the apps talking to the network while it is open."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Network by app: off."
 msgstr ""
 
 #: usr/share/amethystora/just/report.just
@@ -10987,7 +11239,7 @@ msgstr ""
 msgid "{available} available of {total}"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/meters.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
 msgid "Network"
 msgstr ""
 
@@ -11351,10 +11603,6 @@ msgid "Camera"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
-msgid "camera"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/privacy.js
 msgid "Screen"
 msgstr ""
 
@@ -11423,12 +11671,12 @@ msgid "%d h %d min"
 msgstr ""
 
 #. Translators: the time of day on a 12-hour and on a 24-hour clock, as GLib.DateTime.format takes it
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/text.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/text.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
 msgid "%l:%M %p"
 msgstr ""
 
 #. Translators: the time of day on a 12-hour and on a 24-hour clock, as GLib.DateTime.format takes it
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/text.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/text.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
 msgid "%H:%M"
 msgstr ""
 
@@ -11745,6 +11993,213 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/present.js
 msgid "The screen stays awake, banners wait, and the pointer is easy to follow."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/away.js
+msgid "Your phone left · locking"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/away.js
+msgid "Unlock is always yours to do"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/connections.js
+msgid "Phone link"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/connections.js
+msgid "Talking to the network"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/connections.js
+msgid "now"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/connections.js
+msgid "No app is talking to the network now."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/connections.js
+msgid "Network per app, in Security"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/connections.js
+msgid "A program"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/connections.js
+msgid "%s on this network"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/connections.js
+msgid "%d connection"
+msgid_plural "%d connections"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/connections.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/tasks.js
+msgid "%d more"
+msgid_plural "%d more"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/guard.js
+msgid "Hidden while you share"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/guard.js
+msgid "Only you can uncover it"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/guard.js
+msgid "another app"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/guard.js
+msgid "the Private folder"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/guard.js
+msgid "Covered while you share: %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "Security"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Every switch lives in Security"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Open Security"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Open Security to see the report"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Protected"
+msgstr ""
+
+#. Translators: the time of day on a 12-hour and on a 24-hour clock, as GLib.DateTime.format takes it
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Checked %s · %d check fine"
+msgid_plural "Checked %s · %d checks fine"
+msgstr[0] ""
+msgstr[1] ""
+
+#. Translators: the time of day on a 12-hour and on a 24-hour clock, as GLib.DateTime.format takes it
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "One thing needs a look"
+msgid_plural "%d things need a look"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Offline"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Phone pairing open here"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Answers nothing that asks"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Given the default zone"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Home"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Away"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Default"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "%s, over TLS"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Over TLS"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Opportunistic"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "New devices wait for you"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "New devices wait while the screen is locked"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Locked"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Open · closes when the screen locks"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Closed"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Camera for apps"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Apps that ask through the portal"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Blocked"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Allowed"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Microphone for apps"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "Shield"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgid "%d needs a look"
+msgid_plural "%d need a look"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgctxt "shield"
+msgid "home"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgctxt "shield"
+msgid "away"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/privacy/shield.js
+msgctxt "shield"
+msgid "default zone"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/arrange.js
@@ -12302,10 +12757,6 @@ msgid "Stops a stolen laptop opening"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
-msgid "Security"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
 msgid "Pair your phone"
 msgstr ""
 
@@ -12338,12 +12789,6 @@ msgstr[1] ""
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/tasks.js
 msgid "Due today, from Notes"
 msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/tasks.js
-msgid "%d more"
-msgid_plural "%d more"
-msgstr[0] ""
-msgstr[1] ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
 msgid "Weather is off until chosen."

@@ -172,6 +172,57 @@ out.
 
 `ame desktop pill dots on|off` and `ame desktop pill glow on|off` turn each off and on again.
 
+## Privacy
+
+### Share guard
+
+While your whole screen is shared, in a video call or a remote desktop, the windows of Notes, Security,
+Backups and the password managers (KeePassXC, Bitwarden, Secrets, Passwords and Keys, Proton Pass, 1Password,
+Authenticator), and Files windows showing your [private folder](security.md#a-private-folder-that-locks-with-the-screen),
+are covered: blurred so that no word can be read, and labelled **Hidden while you share**. A window that opens
+during the share is covered before it is first drawn, and the live pill says once what is covered.
+
+The desktop cannot leave a window out of a picture of the whole screen, so the cover is on your screen
+too. To show one window for the rest of the share, hold a click on its cover for a moment: it stays
+uncovered, with its menus and dialogs, until the share ends. While someone else controls your computer
+through the share (a remote desktop), holding does nothing, since the hold could be theirs. The covers
+come at once when a share starts and go as soon as the desktop knows you share single windows only;
+nothing is covered while you only record the screen yourself.
+
+- `ame desktop share-guard blur|card|off`: blurred (the default), a solid card, or nothing covered.
+- `ame desktop share-guard apps` picks the apps covered, in a terminal; `ame desktop share-guard apps
+  APP.desktop...` names them by their launcher, and `apps reset` puts back the list above.
+- `ame desktop share-guard private on|off`: the private folder's windows, covered or not.
+
+A cover keeps a window's contents from being shown by accident; it is not a lock. A notification, the
+window's title in the top bar and the dock, and any app the list does not name are shown as ever. An app
+that hides passwords by itself is safer still.
+
+### The shield
+
+A tile in quick settings, **Shield**, says how the machine's protection stands: *Protected*, or how many
+things need a look, and whether the network you are on is home or away. Its menu has the security report's
+result (for administrators, who may read the report the security watcher writes; others see the rest of
+the menu), the network and its [firewall zone](security.md#on-from-the-start), [encrypted
+DNS](security.md#encrypted-dns), [USB protection](security.md#block-usb-devices-you-did-not-plug-in), the
+private folder, open or closed, and whether apps may ask for the camera and the microphone. It changes
+nothing: every line opens [Security](security.md) on its page, where every switch is.
+
+`ame desktop shield tile|mark|attention|off` puts it elsewhere: a shield in the top bar beside the
+system's icons, green, amber when something needs a look; the same shield only while something needs a
+look; or nothing. It reads what it shows when you open it, and costs nothing otherwise.
+
+### Network by app
+
+Off until you turn it on (`ame desktop network-apps on`, or Control): the network meter's menu then ends
+with the apps that have a connection open, how many, and to where. A place shows as a name only when the
+machine has a name for its address already (your hosts file, your own network's names, a reverse name it
+looked up before); most places on the internet therefore show as addresses. Nothing is asked anywhere to
+find a name, and nothing leaves the machine. Only your own programs are
+listed, and only while the menu is open. How much each app sends would need an administrator's rights, so
+the list counts connections, not bytes. **Network per app, in Security** opens the Apps page, where an
+app's network can be taken away.
+
 ## Notifications
 
 GNOME folds an app's notifications in the calendar's list into one stack; a folded stack shows how many it
@@ -1134,7 +1185,27 @@ opens on that folder's timeline, where you can see it as it was and put back wha
 only for something selected: for the folder you are in, right-click it in the folder above, or use **Open With ›
 Backups**. Folders outside your home folder are not in the snapshots or the backup, and the menu says so.
 
-The two are scripts in `~/.local/share/nautilus/scripts`, written once for each account: delete one and it stays gone.
+### Copy without hidden data
+
+Select one or more files and pick **Scripts › Copy without hidden data**: beside each, a copy named
+`NAME (clean).EXT` without what the file carries besides its content, and a notification says what was
+taken out (*Removed: place, camera, time*). The original is never changed. It is made by mat2:
+
+- **Photos and pictures** (JPEG, PNG, TIFF, WebP, HEIC, GIF, SVG): where they were taken, the camera and
+  lens, the times, the author, the program and comments. The picture is saved anew.
+- **PDF**: the author, title, subject, keywords, the programs that made it, its dates and its XMP data. Its
+  text stays selectable and its links work; comments, form fields and files attached inside may stay.
+- **Office documents** (LibreOffice's and Microsoft's, and EPUB): the author, who saved it last, how many
+  times and for how long it was edited, the program and the dates. A document with a part mat2 does not
+  know is not cleaned at all, rather than half.
+- **Music and sound** (MP3, FLAC, Ogg, WAV, AIFF): tags, comments and embedded pictures. **Video** (MP4,
+  AVI, WMV): its metadata.
+- **Archives** (zip, tar): their own details and each file's inside.
+
+What the content itself shows or says stays: a face, a street sign, words in a picture, a name typed in a
+document, and the file's own name. A file of another kind is left as it was, and the notification says so.
+
+The three are scripts in `~/.local/share/nautilus/scripts`, written once for each account: delete one and it stays gone.
 
 ## The trash
 

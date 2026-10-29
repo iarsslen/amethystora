@@ -321,6 +321,18 @@ grep -q 'metadata::custom-icon-name "folder-${colour}"' /usr/libexec/amethystora
 bash -n /usr/libexec/amethystora-folder-colour
 bash -n /usr/libexec/amethystora-back-in-time
 [[ "$(/usr/libexec/amethystora-folder-colour purple -- /tmp >/dev/null 2>&1; echo $?)" == 64 ]]
+# Copy without hidden data (plans/beyond/spec-r4-privacy.md, R4-18): the third entry, its helper, which reads argv only,
+# never runs mat2 on the original (a copy in a private folder) and never writes over a file, and mat2 with what reads a
+# picture's metadata for it
+test -x /usr/libexec/amethystora-clean-copy
+bash -n /usr/libexec/amethystora-clean-copy
+grep -q "^version-script files-menu user 2 " /usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh
+grep -q '"Copy without hidden data")" /usr/libexec/amethystora-clean-copy$' /usr/share/amethystora/user-setup.hooks.d/24-files-menu.sh
+grep -vh '^ *#' /usr/libexec/amethystora-clean-copy | grep -qE 'NAUTILUS_SCRIPT_|eval |bash -c|sh -c|--inplace' && false
+grep -q 'mv -n -- ' /usr/libexec/amethystora-clean-copy
+[[ "$(/usr/libexec/amethystora-clean-copy /tmp/x >/dev/null 2>&1; echo $?)" == 64 ]]
+rpm -q mat2 perl-Image-ExifTool >/dev/null
+mat2 -l | grep -q 'image/jpeg'
 # ...and every icon pack draws the six colours (the packs' equal counts are held below)
 for pack in /usr/share/icons/amethystora-{glass,glass-light,neon,neon-light,duotone,line,clay,muted}; do
     for colour in amethyst sky jade amber coral slate; do
@@ -893,6 +905,49 @@ grep -q -- '--agent "agent=$(N_ '"'"'Ask the agent'"'"')"' /usr/libexec/amethyst
 grep -q '/usr/bin/amethystora-agent status' /usr/libexec/amethystora-notify-users
 # What reaches the agent from others stays data: a frozen app's fields, a selection, a finding, with every kind of line break
 bash /ctx/build_files/shared/test-agent-text.sh
+# Round 4's privacy module (plans/beyond/spec-r4-privacy.md): its five keys, the share guard and the shield on, network
+# by app off; the module after connect, pill, quick and meters, which it reads, and before focus; its files and recipes; no
+# markup; it starts nothing but Security and asks the security settings' one reader. Walk-away lock is a security
+# switch, off, in Security's logins, never in the setup file; the agent may turn it on and never off
+PRIVACY=org.gnome.shell.extensions.amethystora-ui.privacy
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${PRIVACY}" | sort | paste -sd ' ')" == \
+    "network-apps share-guard share-guard-apps share-guard-private shield" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${PRIVACY}" share-guard)" == "'blur'" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${PRIVACY}" shield)" == "'tile'" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${PRIVACY}" share-guard-private)" == true ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${PRIVACY}" network-apps)" == false ]]
+for app in amethystora-notes amethystora-security amethystora-backups; do
+    GSETTINGS_BACKEND=memory gsettings get "${PRIVACY}" share-guard-apps | grep -qF "'${app}.desktop'"
+    test -f "/usr/share/applications/${app}.desktop"
+done
+# Its place by relative order only: after the modules it reads, before focus, which is last
+MODULE_ORDER="$(grep -oE "^    \['[a-z]+'," "${UI_EXTENSION}/extension.js" | tr -d " [',")"
+module_at() { grep -nx "$1" <<<"${MODULE_ORDER}" | cut -d: -f1; }
+for before in connect pill quick meters; do
+    (($(module_at "${before}") < $(module_at privacy)))
+done
+(($(module_at privacy) < $(module_at focus)))
+[[ "$(tail -n1 <<<"${MODULE_ORDER}")" == focus ]]
+# The shield never says anything of the duress feature: report.json's duress checks are left out where it reads them
+grep -q "^const HIDDEN = /^duress-/;" "${UI_EXTENSION}/modules/privacy/readings.js"
+[[ -z "$(grep -rniE 'duress' "${UI_EXTENSION}/modules/privacy" | grep -v 'HIDDEN\|duress feature\|duress rule')" ]]
+for file in modules/privacy.js modules/privacy/away.js modules/privacy/connections.js modules/privacy/guard.js \
+    modules/privacy/readings.js modules/privacy/shield.js modules/privacy/streams.js stylesheets/privacy.css; do
+    test -s "${UI_EXTENSION}/${file}"
+done
+test -s /usr/share/amethystora/themed/shell-privacy.css.tpl
+grep -q '^share-guard \*ARGS:' /usr/share/amethystora/just/desktop.just
+grep -q '^shield STATE="":' /usr/share/amethystora/just/desktop.just
+grep -q '^network-apps STATE="":' /usr/share/amethystora/just/desktop.just
+grep -q '^walk-away ACTION="":' /usr/share/amethystora/just/security.just
+[[ -z "$(grep -rnE 'use_markup = true|use_markup: true|set_markup\(' "${UI_EXTENSION}/modules/privacy.js" \
+    "${UI_EXTENSION}/modules/privacy")" ]]
+[[ "$(grep -rhoE "Util\.spawn\([^)]*\)|Subprocess\.new\(\[[A-Z_]+" "${UI_EXTENSION}/modules/privacy" | LC_ALL=C sort -u | paste -sd ' ')" == \
+    "Subprocess.new([CONFIG Util.spawn([SECURITY, 'apps']) Util.spawn(page ? [SECURITY, page] : [SECURITY])" ]]
+grep -q "^const SECURITY = '/usr/bin/amethystora-security';" "${UI_EXTENSION}/modules/privacy/shield.js"
+grep -q "^const CONFIG = '/usr/libexec/amethystora-security-config';" "${UI_EXTENSION}/modules/privacy/away.js"
+[[ "$(/usr/libexec/amethystora-security-config WALK_AWAY)" == off ]]
+[[ "$(/usr/libexec/amethystora-security-config --list --json | jq -r '.settings[] | select(.key == "WALK_AWAY") | .group')" == logins ]]
 # GNOME's own rest reminders are what ame desktop breaks writes: the key and its two kinds of break are there
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.break-reminders selected-breaks)" == "@as []" ]]
 GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.desktop.break-reminders.eyesight | grep -qx interval-seconds

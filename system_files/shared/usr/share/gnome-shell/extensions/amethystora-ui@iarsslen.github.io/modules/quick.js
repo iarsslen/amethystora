@@ -280,8 +280,8 @@ export class Quick {
             if (child === this._placeholder || this._known.has(child) || !isTile(this.grid, child))
                 continue;
             this._known.add(child);
-            // A tile another module takes away while this one runs (the live captions' toggle) is forgotten whole, so
-            // that putting GNOME's order back does not touch it
+            // A tile another module takes away while this one runs (the live captions' toggle, the privacy
+            // module's shield) is forgotten whole, so that putting GNOME's order back does not touch it
             child.connectObject('destroy', () => this._forget(child), this);
             this._hold(child);
         }

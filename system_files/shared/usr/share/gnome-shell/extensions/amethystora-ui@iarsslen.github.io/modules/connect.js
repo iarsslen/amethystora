@@ -214,6 +214,12 @@ export class Connect {
         return this._ready().map(device => ({name: device.name, level: device.level, charging: device.charging}));
     }
 
+    // Whether the phone link program is there and is the image's own. Walk-away lock (modules/privacy/away.js) tells a
+    // phone that left from the program that stopped: the link says the program went before it lets the phones go.
+    get linked() {
+        return this._trusted === true;
+    }
+
     // Calls back whenever the phones, or something about one, changed; returns what stops it
     onPhonesChanged(callback) {
         this._phoneListeners?.add(callback);

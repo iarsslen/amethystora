@@ -84,6 +84,15 @@ pub const FINDINGS_KEPT: usize = 500;
 
 /// The pages `amethystora-security PAGE` opens, besides the overview
 pub const PAGES: [&str; 6] = ["scan", "network", "apps", "containers", "events", "settings"];
+/// The Settings page's categories, which `amethystora-security settings/CATEGORY` opens (the shield in the top bar opens
+/// the one a line is about). Never the Under duress page, whose page must look the same whatever an account has.
+pub const CATEGORIES: [&str; 11] =
+    ["watching", "audit", "detection", "scans", "network", "logins", "devices", "apps", "system", "notices", "away"];
+
+/// A page the command line may open: one of PAGES, or settings/ and one of CATEGORIES
+pub fn openable(page: &str) -> bool {
+    PAGES.contains(&page) || page.strip_prefix("settings/").is_some_and(|category| CATEGORIES.contains(&category))
+}
 
 // --- Where things are ---------------------------------------------------------------------------------------
 

@@ -14,7 +14,7 @@ const SECURITY_ON: &[&str] = &[
     "block-xwayland", "blocked-modules", "bluetooth-privacy", "brew-attestations", "browser", "failed-logins", "firewall",
     "firewall-away", "firewire", "flathub-verified", "flatpak-password", "ipv6-privacy", "locked-poweroff", "lockout", "mac",
     "network-daemons", "no-coredumps", "noexec-temp", "package-cooldown", "ransomware", "signed-updates", "ssh-settings",
-    "time", "usb", "virtual-input", "vscodium-extensions",
+    "time", "usb", "virtual-input", "vscodium-extensions", "walk-away",
 ];
 
 /// Programs that run other code the list cannot see
@@ -293,6 +293,8 @@ mod tests {
             "ame security lockdown off",
             "ame security dns pause",
             "ame security dns off",
+            "ame security walk-away off",
+            "ame security settings walk-away on",
             "ame system raid create",
             "amethystora-raid create",
             "restic -r x forget --prune",
@@ -343,6 +345,7 @@ mod tests {
             "rpm-ostree install htop",
             "systemctl restart NetworkManager.service",
             "ame security firewall on",
+            "ame security walk-away on",
             "ame security status",
             "ame security sends",
             "ame security scan now",
