@@ -296,6 +296,37 @@ under the ink take no clicks or keys until you finish. `Ctrl+Z` takes the last s
 pick a colour, `P` and `H` the pen and the highlighter, and `Esc` (or **Clear**) wipes the ink and gives you the
 windows back. Nothing is ever saved; to keep it, press `Print` while you draw and take a screenshot with the ink.
 
+## Desks
+
+A laptop lives at several desks. GNOME already remembers how the screens were arranged at each; a desk remembers the
+rest: the sound output, where the dock is, a [Focus](#focus) profile and the power mode. Desks are off until you turn
+them on in Control (**Desks**, on the Desktop page) or with `ame desktop desks on`.
+
+A desk is known by its screens: their maker, model and serial number, as the screens report them. Two identical
+screens without serial numbers are told apart by the socket they are plugged into, and two desks with the same
+screens by their Thunderbolt docks; a Thunderbolt drive plugged in at a desk leaves it the same desk. The computer's
+own screen does not count, so a desk is the same with the lid open or shut, and unlocking the screen at the same desk
+is no arrival.
+
+The first time the computer is at a set of screens, a card at the top right asks: it shows how the four things are
+set now, and **Set up** remembers them for that desk (Focus only if a profile is on). **Not now** is remembered: that
+desk does not ask again until `ame desktop desks ask`. Left unanswered, the card asks at the next arrival. After that, arriving at the
+desk sets what differs at once, and a toast at the bottom says what it set, with **Undo**. When you unplug, whatever
+the desk set and is still as it set it goes back to how it was before. Something you changed yourself meanwhile stays
+as you changed it.
+
+With **Learn from what I change here** on (it is, with Desks), picking another sound output or moving the dock at a
+desk asks whether the desk should remember it, once for each change (a sound output that just appeared, like
+headphones connecting, is not asked about). A desk's power mode is set only while no Focus profile or game holds
+one, and a held mode is never taken for the desk's own. A desk can also offer one of your [saved sets](#saved-sets) of
+windows: choose it in Control, or `ame desktop desks saved ID NAME`; arriving then asks before opening it. A desk
+never changes a security setting and never starts an app by itself.
+
+`ame desktop desks list` lists the desks with what each sets, `ame desktop desks rename ID Office desk` names one
+(until then a desk is named after what it has, like "2 screens"), and `ame desktop desks forget ID` forgets it. The
+desks are kept in `~/.config/amethystora/desks.json`, which only your account can read. The screens' serial numbers
+stay there: they are never in [your setup file](setup.md), which carries only whether Desks are on.
+
 ## Sounds
 
 The desktop's own sounds are Amethystora's **Soft** set: lower and rounder, for a quiet room. You hear them for a
@@ -424,6 +455,34 @@ After logging in with a fingerprint or a security key, your keyring stays locked
 what you copy from then on, under **Unlock to see earlier items**. Click it and type your password to
 see the rest. The history is sealed under this machine's keyring: on another machine, or after an
 administrator resets your password, it does not open, and it is kept aside as `history.unreadable`.
+
+## The shelf
+
+The shelf is for moving things between two apps that are never on screen together: put them down, go where they
+belong, pick them up. It is off until you turn it on in Control (**The shelf**, on the Desktop page) or with
+`ame desktop shelf edge`.
+
+Start dragging a file, some text or a picture, and a glow appears at the right edge of the screen. Let go on it,
+and the shelf opens there: a narrow column that stays above your windows, on every workspace, until it is empty.
+Drop more onto it whenever you like. Then drag an item out into any app; it leaves the shelf once the app has taken
+it. Hold **Ctrl** while you drag to keep it on the shelf as well. **Clear** empties the shelf, and the shelf closes
+when the last item goes.
+
+If you would rather not aim for the edge, `ame desktop shelf shake` opens it wherever you are: shake the pointer from
+side to side while dragging, and let go on the card that appears.
+
+The shelf is a window, so Alt+Tab reaches it. **Delete** takes the item in focus away, **Ctrl+Delete** clears the
+shelf, and a right click (or the Menu key) on an item has **Remove**, **Show in Files** for a file, and **Clear the
+shelf**.
+
+A file stays where it is: the shelf holds a reference to it, and dragging it out gives the app a copy, never a move,
+even onto a folder in the [dock](#what-the-dock-holds). If the file is moved or deleted meanwhile, its item turns
+grey. Text and pictures are kept in memory only, by the shelf and, while the first drop is handed over, for a moment
+by the desktop: neither saves them anywhere, and they never reach the [clipboard history](#the-clipboard). The
+shelf lets go of them when they leave it, when it is cleared, or when you log out. If the shelf or the desktop
+crashed meanwhile, its crash report could hold them; `ame security no-coredumps` keeps crash reports from being
+written. The shelf takes a drop of up to 1 MB of text or of a list of files, or a PNG picture of up to 32 MB and 64
+million pixels, and holds 32 items; it says so when it cannot take something.
 
 ## Emoji and symbols
 

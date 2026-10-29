@@ -1,0 +1,30 @@
+/* The shelf (modules/shelf.js): the glow at the screen's edge where a drag is put down, and the card a shake opens, at
+   the board's sizes (plans/beyond/boards/round4/Shelf.dc.html). The colours are the theme's, in
+   /usr/share/amethystora/themed/shell-shelf.css.tpl; the stand-ins here serve until a theme is applied. */
+
+/* The glow: 26 px wide (the module sizes it), rounded on the side toward the screen, the accent from nothing to 0.7
+   across it, glowing 24 px into the screen */
+.amethystora-shelf-glow {
+  border-radius: 14px 0 0 14px;
+  background-gradient-direction: horizontal;
+  background-gradient-start: rgba(145, 72, 240, 0);
+  background-gradient-end: rgba(145, 72, 240, 0.7);
+  box-shadow: -6px 0 24px rgba(145, 72, 240, 0.6);
+}
+
+/* In a right-to-left language it is at the left edge, mirrored */
+.amethystora-shelf-glow.amethystora-shelf-glow-start {
+  border-radius: 0 14px 14px 0;
+  background-gradient-start: rgba(145, 72, 240, 0.7);
+  background-gradient-end: rgba(145, 72, 240, 0);
+  box-shadow: 6px 0 24px rgba(145, 72, 240, 0.6);
+}
+
+/* The card a shake opens: on the glass, rounded 16 px */
+.amethystora-shelf-card {
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #efe4ff;
+}

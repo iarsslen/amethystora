@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The keys of the desks module (modules/desks.js, plans/beyond/spec-r4-shelf.md): whether a set of screens brings back
+     the sound output, the dock's place, a Focus profile and the power mode. The desks themselves are in
+     ~/.config/amethystora/desks.json. Written by ame desktop desks, Control and the setup file. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.desks" path="/org/gnome/shell/extensions/amethystora-ui/desks/">
+    <key name="desks" type="b">
+      <default>false</default>
+      <summary>Desks</summary>
+      <description>At a set of screens seen before, the sound output, the dock's place, a Focus profile and the power mode come back, with a toast to undo it; the first time, a card asks. Leaving puts back what was before.</description>
+    </key>
+    <key name="desks-learn" type="b">
+      <default>true</default>
+      <summary>Learn from what I change at a desk</summary>
+      <description>Picking another sound output or moving the dock at a desk asks whether the desk should remember it.</description>
+    </key>
+  </schema>
+</schemalist>

@@ -177,7 +177,8 @@ saved="$(sed -n 's/^QUICK_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystor
 for table in BARS:org.gnome.shell.extensions.amethystora-ui.bars TODAY:org.gnome.shell.extensions.amethystora-ui.today \
     BREAKS:org.gnome.desktop.break-reminders BEZEL:org.gnome.shell.extensions.amethystora-ui.bezel \
     HINTS:org.gnome.shell.extensions.amethystora-ui.hints APPGRID:org.gnome.shell.extensions.amethystora-ui.appgrid \
-    POWER:org.gnome.shell.extensions.amethystora-ui.power; do
+    POWER:org.gnome.shell.extensions.amethystora-ui.power \
+    SHELF:org.gnome.shell.extensions.amethystora-ui.shelf DESKS:org.gnome.shell.extensions.amethystora-ui.desks; do
     name="${table%%:*}" id="${table#*:}"
     TABLE="$(sed -n "s/^${name}_KEYS='\(.*\)'\$/\1/p" "${SETUP}")"
     listed="$(jq -r 'keys[]' <<<"${TABLE}" | sort)"
@@ -189,6 +190,7 @@ for table in BARS:org.gnome.shell.extensions.amethystora-ui.bars TODAY:org.gnome
         case "${key}:${range}" in
             *":type b") want='["b"]' ;;
             "selected-breaks:type as") want='["as","breaks"]' ;;
+            *":enum "*) want="$(jq -cn --arg r "${range#enum }" '["s", ($r | split(" "))]')" ;;
             *) want="? ${range}" ;;
         esac
         [[ "$(jq -c --arg k "${key}" '.[$k]' <<<"${TABLE}")" == "${want}" ]] ||
@@ -380,6 +382,8 @@ org.gnome.shell.extensions.amethystora-ui.windows dim true
 org.gnome.shell.extensions.amethystora-ui.focus games-power 'performance'
 org.gnome.shell.extensions.amethystora-ui.focus trigger-sleep false
 org.gnome.shell.extensions.amethystora-ui.focus work-apps ['org.gnome.Calendar.desktop']
+org.gnome.shell.extensions.amethystora-ui.shelf shelf 'off'
+org.gnome.shell.extensions.amethystora-ui.desks desks false
 org.gnome.shell.extensions.amethystora-ui.dock magnify 'lift'
 org.gnome.shell.extensions.amethystora-ui.dock stacks ['xdg:DOWNLOAD', '~/Projects', '/srv/share']
 org.gnome.shell.extensions.amethystora-ui.dock folders {\"Jeux d'enfants\": ['org.gnome.Nautilus.desktop', 'firefox.desktop']}"
@@ -494,7 +498,8 @@ jq '.flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .brew
     | .settings.access = {"filter": "deutan", "filter-strength": 75}
     | .settings.touch = {"touch-mode": "follow", "pen-ring-tools": ["area", "back"]}
     | .settings.present = {"enabled": true, "pointer-mark": "torch"} | .settings.screenshot = {"capture-pin": false}
-    | .settings.deskwidgets = {"enabled": true}' \
+    | .settings.deskwidgets = {"enabled": true}
+    | .settings.shelf = {"shelf": "edge"} | .settings.desks = {"desks": true}' \
     "${FILE}" >"${T}/more.json"
 out="$("${SETUP}" diff "${T}/more.json")"
 grep -qxF "  ~ the windows' dim: false, in place of true" <<<"${out}"
@@ -524,11 +529,15 @@ grep -qxF "  ~ Present mode's enabled: true, in place of false" <<<"${out}"
 grep -qxF '  ~ Present mode'"'"'s pointer-mark: "torch", in place of "halo"' <<<"${out}"
 grep -qxF "  ~ the screenshot's capture-pin: false, in place of true" <<<"${out}"
 grep -qxF "  ~ the desktop widgets' enabled: true, in place of false" <<<"${out}"
+grep -qxF '  ~ the shelf'"'"'s shelf: "edge", in place of "off"' <<<"${out}"
+grep -qxF "  ~ the desks' desks: true, in place of false" <<<"${out}"
 "${SETUP}" apply --yes "${T}/more.json" >/dev/null
 grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.focus games-power "as-set"' "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.focus trigger-sleep true" "${LOG}"
 grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.focus work-apps ["org.gnome.Nautilus.desktop"]' "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.bezel round-corners true" "${LOG}"
+grep -qxF 'gsettings set org.gnome.shell.extensions.amethystora-ui.shelf shelf "edge"' "${LOG}"
+grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.desks desks true" "${LOG}"
 grep -qx "gsettings set org.gnome.desktop.sound event-sounds false" "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-transitions reveal false" "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.hints enabled false" "${LOG}"
@@ -622,6 +631,10 @@ for bad in '{"version": 1, "token": "x"}' '{"version": 2}' \
     '{"version": 1, "settings": {"emoji": {"emoji-picker": ["<Super>period"]}}}' \
     '{"version": 1, "settings": {"bezel": {"round-corners": "on"}}}' \
     '{"version": 1, "settings": {"bezel": {"radius": 20}}}' \
+    '{"version": 1, "settings": {"shelf": {"shelf": "dock"}}}' \
+    '{"version": 1, "settings": {"shelf": {"items": []}}}' \
+    '{"version": 1, "settings": {"desks": {"desks": "on"}}}' \
+    '{"version": 1, "settings": {"desks": {"list": [{"serial": "ABC"}]}}}' \
     '{"version": 1, "settings": {"sound": {"theme-name": "__custom"}}}' \
     '{"version": 1, "settings": {"sound": {"event-sounds": 0}}}' \
     '{"version": 1, "settings": {"transitions": {"style": "wave"}}}' \

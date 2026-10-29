@@ -1,0 +1,14 @@
+# Amethystora Shelf: a place at the edge of the screen to put things down while moving between apps (round 4, R4-08,
+# plans/beyond/spec-r4-shelf.md). Files are held by reference, text and pictures only in the program's memory. The
+# shell's module shows where to drop, hands over the first drop and places the window; the window is GTK's own, since
+# the shell cannot be the source of a drag into a Wayland app.
+[package]
+name = "amethystora-shelf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+amethystora-ui.workspace = true
+serde_json.workspace = true

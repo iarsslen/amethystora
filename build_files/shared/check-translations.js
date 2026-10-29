@@ -32,7 +32,7 @@ const appsDir = appsAt >= 0 ? args[appsAt + 1] : path.join(__dirname, '..', '..'
 const root = args.find((arg, at) => !arg.startsWith('--') && (poAt < 0 || at !== poAt + 1) && (appsAt < 0 || at !== appsAt + 1)) || '/';
 
 const APPS = ['amethystora-manual', 'amethystora-security', 'amethystora-update', 'amethystora-logs', 'amethystora-notes', 'amethystora-control',
-    'amethystora-backups', 'amethystora-phone'];
+    'amethystora-backups', 'amethystora-phone', 'amethystora-shelf'];
 
 // --- Messages, as common/src/i18n.rs reads them ------------------------------------------------------
 //
@@ -154,6 +154,7 @@ const DATA = {
     'amethystora-backups': () => launcher('amethystora-backups'),
     // ...and the launcher of sending files to it from Files, which has no app of its own
     'amethystora-phone': () => [...launcher('amethystora-phone'), ...launcher('amethystora-phone-send')],
+    'amethystora-shelf': () => launcher('amethystora-shelf'),
 };
 
 const problems = [];

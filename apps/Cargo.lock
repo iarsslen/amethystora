@@ -75,6 +75,7 @@ dependencies = [
  "amethystora-notes",
  "amethystora-phone",
  "amethystora-security",
+ "amethystora-shelf",
  "amethystora-ui",
  "amethystora-update",
 ]
@@ -206,6 +207,14 @@ dependencies = [
  "libbpf-sys",
  "libc",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "amethystora-shelf"
+version = "1.0.0"
+dependencies = [
+ "amethystora-ui",
  "serde_json",
 ]
 

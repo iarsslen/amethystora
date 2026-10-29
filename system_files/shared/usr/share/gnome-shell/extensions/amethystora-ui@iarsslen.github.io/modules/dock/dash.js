@@ -434,8 +434,11 @@ class AmethystoraDockDash extends Dash.Dash {
         return this._started;
     }
 
+    // ...less the shelf's window, which is a place to drop things rather than an app (modules/shelf.js)
     _windowsOfApp(app) {
-        return app.get_windows().filter(window => !window.skip_taskbar && !this._places.owner(window));
+        const shelf = this._dock.ext.modules?.get('shelf');
+        return app.get_windows().filter(window => !window.skip_taskbar && !this._places.owner(window) &&
+            !shelf?.owns?.(window));
     }
 
     // An app's icon is GNOME's; what the dock does with it is given to that one icon

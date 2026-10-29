@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Shelf
+GenericName=Drag and Drop Shelf
+Comment=Hold files, text and pictures at the edge of the screen while you move between apps
+Exec=amethystora-shelf
+Icon=user-bookmarks
+Terminal=false
+NoDisplay=true
+Categories=Utility;
+Keywords=shelf;drag;drop;hold;files;
+StartupNotify=false
+StartupWMClass=org.amethystora.Shelf

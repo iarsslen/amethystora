@@ -143,6 +143,12 @@ ACCESS=org.gnome.shell.extensions.amethystora-ui.access
 ACCESS_KEYS=(filter filter-strength ruler read-aloud read-aloud-speed)
 TOUCH=org.gnome.shell.extensions.amethystora-ui.touch
 TOUCH_KEYS=(touch-mode pen-ring pen-ring-tools)
+# How the shelf opens, and whether desks are on and learn, which amethystora-setup's SHELF_KEYS and DESKS_KEYS take; never
+# what the shelf holds, or the desks (~/.config/amethystora/desks.json names the screens by serial number)
+SHELF=org.gnome.shell.extensions.amethystora-ui.shelf
+SHELF_KEYS=(shelf)
+DESKS=org.gnome.shell.extensions.amethystora-ui.desks
+DESKS_KEYS=(desks desks-learn)
 
 # The tiling, while it runs, takes a combination out of four GNOME keys that it cannot wrap in memory, and
 # writes down what it took in its state file, to put back when it is turned off: the account's own value is the
@@ -238,6 +244,8 @@ settings() {
         changed "${PRESENT}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${PRESENT_KEYS[@]}") -
         changed "${SCREENSHOT}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${SCREENSHOT_KEYS[@]}") -
         changed "${DESKWIDGETS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${DESKWIDGETS_KEYS[@]}") -
+        changed "${SHELF}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${SHELF_KEYS[@]}") -
+        changed "${DESKS}" | awk 'NR == FNR { kept[$1]; next } $2 in kept' <(printf '%s\n' "${DESKS_KEYS[@]}") -
     } | while read -r schema key value; do
         value="$(as_json <<<"${value}")" && [[ -n "${value}" ]] || continue
         jq -nc --arg s "${schema}" --arg k "${key}" --argjson v "${value}" '{schema: $s, key: $k, value: $v}'
@@ -261,7 +269,8 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
     --arg search "${SEARCH}" --arg emoji "${EMOJI}" --arg bezel "${BEZEL}" --arg sound "${SOUND}" \
     --arg transitions "${TRANSITIONS}" --arg hints "${HINTS}" --arg appgrid "${APPGRID}" \
     --arg focus "${FOCUS}" --arg power "${POWER}" --arg access "${ACCESS}" --arg touch "${TOUCH}" \
-    --arg present "${PRESENT}" --arg screenshot "${SCREENSHOT}" --arg deskwidgets "${DESKWIDGETS}" '
+    --arg present "${PRESENT}" --arg screenshot "${SCREENSHOT}" --arg deskwidgets "${DESKWIDGETS}" \
+    --arg shelf "${SHELF}" --arg desks "${DESKS}" '
     map(if .schema == "custom" then .value |= (if . == "" then [] else [.] end) else . end) as $all
     | {layout: $layout}
     + ([$all[] | select(.schema == "org.gnome.shell")] | if length > 0 then {favorites: .[0].value} else {} end)
@@ -270,7 +279,7 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
             else .schema | IN("org.gnome.shell", $tiling, $pointer, $glass, $motion, $workspaces, $dock, $pill, $quick, $bars,
                 $today, $breaks, $bezel, $sound, $transitions, $hints, $appgrid, $focus, $power,
                 $access, $touch, $present, $screenshot,
-                $deskwidgets) | not end))
+                $deskwidgets, $shelf, $desks) | not end))
         as $e ({}; .[$e.schema][$e.key] = $e.value))}
     + ([$all[] | select(.schema == $windows and .key != "snap-chooser")]
         | if length > 0 then {windows: (map({(.key): .value}) | add)} else {} end)
@@ -303,7 +312,9 @@ SETTINGS="$(settings | jq -sc --arg layout "${LAYOUT}" --arg tiling "${TILING}" 
     + ([$all[] | select(.schema == $present)] | if length > 0 then {present: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $screenshot)] | if length > 0 then {screenshot: (map({(.key): .value}) | add)} else {} end)
     + ([$all[] | select(.schema == $deskwidgets)]
-        | if length > 0 then {deskwidgets: (map({(.key): .value}) | add)} else {} end)')"
+        | if length > 0 then {deskwidgets: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $shelf)] | if length > 0 then {shelf: (map({(.key): .value}) | add)} else {} end)
+    + ([$all[] | select(.schema == $desks)] | if length > 0 then {desks: (map({(.key): .value}) | add)} else {} end)')"
 
 # The look, where the account changed it from the image's: its accent, Daylight turned off and colours from the wallpaper
 # (the account's files, each only as one of its values), and an accent per workspace (the theme module's keys)

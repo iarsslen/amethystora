@@ -1,0 +1,18 @@
+#!/usr/bin/bash
+#
+# Amethystora Shelf: a place at the edge of the screen to put files, text or pictures down while you move between
+# apps, then drag them out where they belong (turn it on with `ame desktop shelf edge`).
+#
+#   amethystora-shelf                   open the shelf, empty: it closes after a while if nothing is dropped on it
+#   amethystora-shelf take column|row   what the desktop runs: the drop on the standard input, the shelf as a column
+#                                       at the screen's edge or as a row where a shake opened it
+#
+# Files are held by reference and dragged out as copies; text and pictures stay in the program's memory only. The
+# window is a GTK program, one with the other Amethystora apps (apps/, build_files/base/13-apps.sh).
+
+set -euo pipefail
+
+case "${1:-}" in
+    -h | --help | help) sed -n '3,11p' "$0" | sed 's/^# \?//' ;;
+    *) exec /usr/lib/amethystora-shelf/amethystora-shelf "$@" ;;
+esac

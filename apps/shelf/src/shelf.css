@@ -1,0 +1,89 @@
+/* Amethystora Shelf, at the board's sizes (plans/beyond/boards/round4/Shelf.dc.html): a column 84 px wide rounded
+   20 px, its items 62 px wide with a 44 px square rounded 10 px and a 32 px icon, the names 10.5 px bold, Clear in the
+   accent's text colour. The colours are the theme's ten (palette.rs) mixed here; the glass behind the window is the
+   shell's, which draws every window that does not have the keyboard over the frosted desktop. */
+
+window.shelf-window {
+    background: none;
+    box-shadow: none;
+}
+
+.shelf {
+    min-width: 84px;
+    padding: 10px 0;
+    border-radius: 20px;
+    background-color: color-mix(in oklab, var(--bg) 86%, transparent);
+    background-image: linear-gradient(180deg, color-mix(in oklab, var(--fg) 10%, transparent),
+        color-mix(in oklab, var(--fg) 2%, transparent));
+    border: 1px solid color-mix(in oklab, var(--fg) 16%, transparent);
+    box-shadow: inset 0 1px 0 color-mix(in oklab, var(--fg) 40%, transparent);
+    color: var(--fg);
+}
+
+.shelf.row {
+    min-width: 0;
+    padding: 10px 12px;
+}
+
+.shelf:drop(active) {
+    box-shadow: inset 0 1px 0 color-mix(in oklab, var(--fg) 40%, transparent), inset 0 0 0 2px var(--accent-text);
+}
+
+button.item {
+    min-width: 62px;
+    min-height: 0;
+    padding: 0;
+    border: none;
+    border-radius: 12px;
+    background: none;
+    box-shadow: none;
+    color: var(--fg);
+}
+
+button.item:hover .thumb {
+    background-color: color-mix(in oklab, var(--fg) 16%, transparent);
+}
+
+button.item:focus-visible {
+    outline: 2px solid var(--accent-text);
+    outline-offset: 2px;
+}
+
+button.item.missing {
+    opacity: 0.45;
+}
+
+.thumb {
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 10px;
+    background-color: color-mix(in oklab, var(--fg) 10%, transparent);
+}
+
+.item .name {
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 13px;
+}
+
+button.clear {
+    min-height: 0;
+    padding: 0 4px;
+    border: none;
+    background: none;
+    box-shadow: none;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--accent-text);
+}
+
+button.clear:hover {
+    color: var(--fg);
+}
+
+.note {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: color-mix(in oklab, var(--fg) 80%, transparent);
+    margin: 0 6px;
+}

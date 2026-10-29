@@ -194,6 +194,8 @@ read_in_background focus gsettings list-recursively org.gnome.shell.extensions.a
 read_in_background present gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.present
 read_in_background screenshot gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.screenshot
 read_in_background deskwidgets gsettings get org.gnome.shell.extensions.amethystora-ui.deskwidgets enabled
+read_in_background shelf gsettings get org.gnome.shell.extensions.amethystora-ui.shelf shelf
+read_in_background desks gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.desks
 read_in_background breaks gsettings get org.gnome.desktop.break-reminders selected-breaks
 read_in_background search gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.search
 read_in_background emoji gsettings get org.gnome.shell.extensions.amethystora-ui.emoji skin-tone
@@ -1388,6 +1390,102 @@ USAGE="ame desktop screenshot pin on|off"
 item desktop screenshot-pin switch "${ gettext "Pin pictures on top"; }" \
     "${ gettext "Keep a screenshot above every window while you work below it."; }" \
     "${ onoff_of "${SCREENSHOT}" capture-pin; }" desktop#pinned-pictures
+# The shelf (shelf module): where things are put down while moving between apps, offered and off
+SHELF="${ said shelf; }"
+SHELF="${SHELF//\'/}"
+[[ "${ ended shelf; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
+GROUP="${ gettext "The shelf"; }"
+choice off "${ gettext "Off"; }" "" false ame desktop shelf off
+choice edge "${ gettext "At the edge"; }" "${ gettext "Drag toward the right edge to put something down"; }" false ame desktop shelf edge
+choice shake "${ gettext "Shake while dragging"; }" "${ gettext "Shake the pointer while dragging to open it"; }" false \
+    ame desktop shelf shake
+USAGE="ame desktop shelf off|edge|shake"
+item desktop shelf choice "${ gettext "The shelf"; }" \
+    "${ gettext "Hold files, text or pictures at the edge of the screen while you move between apps, then drag them out."; }" \
+    "${SHELF:-off}" desktop#the-shelf
+
+# Desks (desks module): a set of screens brings back the sound output, the dock's place, Focus and the power mode
+DESKS="${ said desks; }"
+desks_onoff() { [[ "${ value_of "${DESKS}" "$1" "(.*)\$"; }" == true ]] && echo on || echo off; }
+desks_reason() { [[ "${ ended desks; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"; }
+GROUP="${ gettext "Desks"; }"
+desks_reason
+switch_choices false ame desktop desks
+USAGE="ame desktop desks on|off"
+item desktop desks switch "${ gettext "Desks"; }" \
+    "${ gettext "At a set of screens you know, the sound output, the dock, Focus and the power mode come back, with a toast to undo it. The first time, a card asks."; }" \
+    "${ desks_onoff desks; }" desktop#desks
+if [[ "${ desks_onoff desks; }" == on ]]; then
+    desks_reason
+    switch_choices false ame desktop desks learn
+    USAGE="ame desktop desks learn on|off"
+    item desktop desks-learn switch "${ gettext "Learn from what I change here"; }" \
+        "${ gettext "Picking another sound output or moving the dock at a desk asks whether the desk should remember it."; }" \
+        "${ desks_onoff desks-learn; }" desktop#desks
+    # Each desk set up, by its name and what it sets; never its screens' serial numbers
+    # (its copy while the file itself cannot be read, as the shell and the recipe read it)
+    DESKS_FILE="${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora/desks.json"
+    jq -e 'type == "object"' "${DESKS_FILE}" >/dev/null 2>&1 || DESKS_FILE+=.bak
+    if [[ -s "${DESKS_FILE}" ]]; then
+        # Apart by the unit separator, which is no white space: an empty field stays a field
+        while IFS=$'\x1f' read -r desk_id desk_name desk_screens desk_first desk_sound desk_edge desk_where desk_focus \
+            desk_power desk_saved; do
+            [[ "${desk_id}" =~ ^[0-9a-f]{12}$ ]] || continue
+            if [[ -z "${desk_name}" ]]; then
+                case "${desk_screens}" in
+                    0) desk_name="${ gettext "The laptop alone"; }" ;;
+                    1) desk_name="${desk_first}" ;;
+                    *) desk_name="${ eval_ngettext "\${desk_screens} screen" "\${desk_screens} screens" "${desk_screens}"; }" ;;
+                esac
+            fi
+            desk_sets=()
+            [[ -n "${desk_sound}" ]] && desk_sets+=("${desk_sound}")
+            case "${desk_edge}:${desk_where}" in
+                bottom:primary) desk_sets+=("${ gettext "the dock at the bottom of the main screen"; }") ;;
+                bottom:*) desk_sets+=("${ gettext "the dock at the bottom"; }") ;;
+                left:primary) desk_sets+=("${ gettext "the dock on the left of the main screen"; }") ;;
+                left:*) desk_sets+=("${ gettext "the dock on the left"; }") ;;
+                right:primary) desk_sets+=("${ gettext "the dock on the right of the main screen"; }") ;;
+                right:*) desk_sets+=("${ gettext "the dock on the right"; }") ;;
+            esac
+            case "${desk_focus}" in
+                work) desk_sets+=("${ gettext "Work"; }") ;;
+                games) desk_sets+=("${ gettext "Games"; }") ;;
+                sleep) desk_sets+=("${ gettext "Sleep"; }") ;;
+            esac
+            case "${desk_power}" in
+                balanced) desk_sets+=("${ gettext "Balanced"; }") ;;
+                performance) desk_sets+=("${ gettext "Performance"; }") ;;
+                power-saver) desk_sets+=("${ gettext "Power saver"; }") ;;
+            esac
+            [[ -n "${desk_saved}" ]] && desk_sets+=("${ eval_gettext "asks: \${desk_saved}"; }")
+            desks_reason
+            DETAIL=""
+            for value in "${desk_sets[@]}"; do
+                DETAIL+="${DETAIL:+ · }${value}"
+            done
+            COMMAND=(ame desktop desks forget "${desk_id}")
+            TERMINAL=false
+            BUTTON="${ gettext "Forget"; }"
+            USAGE="ame desktop desks forget ${desk_id}"
+            item desktop "desk-${desk_id}" action "${desk_name}" \
+                "${ gettext "Forgetting a desk leaves what it set as it is."; }" "" desktop#desks
+            if ((${#FOCUS_SETS[@]} > 0)); then
+                desks_reason
+                choice none "${ gettext "None"; }" "" false ame desktop desks saved "${desk_id}" none
+                for value in "${FOCUS_SETS[@]}"; do
+                    choice "${value}" "${value}" "" false ame desktop desks saved "${desk_id}" "${value}"
+                done
+                USAGE="ame desktop desks saved ${desk_id} NAME|none"
+                item desktop "desk-${desk_id}-saved" choice "${ gettext "A saved set"; }" \
+                    "${ gettext "Offered, after asking, when the computer arrives at this desk."; }" "${desk_saved:-none}" desktop#desks
+            fi
+        done < <(jq -r '.desks[]? | [.id, (.name // ""), (.screens | length), (.screens[0].name // ""),
+            (.set.sound.label // ""), (.set.dock.edge // ""), (.set.dock.screens // ""), (.set.focus // ""),
+            (.set.power // ""), (.set.saved // "")] | map(tostring | gsub("[\\t\\n\\r\u001e\u001f]"; " ")) | join("\u001f")' \
+            "${DESKS_FILE}" 2>/dev/null | head -n 24)
+    fi
+fi
 GROUP=""
 
 if [[ -e "${CONFIG_DIR}/no-greeting" ]]; then GREETING=off; else GREETING=on; fi

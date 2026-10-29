@@ -1363,7 +1363,7 @@ grep -q "paperwm@paperwm.github.com" /usr/share/amethystora/user-setup.hooks.d/1
 # wordmarks, which the program carries, is the logo's own, cropped the way branding/generate.mjs crops it.
 APPS_PROGRAM=/usr/lib/amethystora-apps/amethystora-apps
 test -x "${APPS_PROGRAM}"
-for app in manual security update notes logs backups phone control; do
+for app in manual security update notes logs backups phone control shelf; do
     test -x "/usr/bin/amethystora-${app}"
     [[ "/usr/lib/amethystora-${app}/amethystora-${app}" -ef "${APPS_PROGRAM}" ]]
     [[ "$(env -u DISPLAY -u WAYLAND_DISPLAY "/usr/lib/amethystora-${app}/amethystora-${app}" --version)" == "amethystora-${app} "* ]]
@@ -2207,6 +2207,59 @@ GSETTINGS_BACKEND=memory ame desktop touch mode tablet >/dev/null 2>&1 && false
 GSETTINGS_BACKEND=memory ame desktop touch pen-tools area area >/dev/null 2>&1 && false
 GSETTINGS_BACKEND=memory ame desktop access filter deutan >/dev/null
 GSETTINGS_BACKEND=memory ame desktop touch pen-tools area back >/dev/null
+# The shelf (plans/beyond/spec-r4-shelf.md, R4-08; manual: desktop.md#the-shelf): one key, off for a new account, the
+# module beside the Shelf app (the apps' loop above); the shell starts nothing but the app, with the drop on its standard
+# input and never on its command line, and shows nothing as markup; the app offers what is dragged out as a copy only
+SHELF=org.gnome.shell.extensions.amethystora-ui.shelf
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${SHELF}" | paste -sd ' ')" == "shelf" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${SHELF}" shelf)" == "'off'" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings range "${SHELF}" shelf | xargs)" == "enum off edge shake" ]]
+grep -q "\['shelf', Shelf\]" "${UI_EXTENSION}/extension.js"
+for file in modules/shelf.js modules/shelf/drop.js stylesheets/shelf.css; do
+    test -s "${UI_EXTENSION}/${file}"
+done
+test -s /usr/share/amethystora/themed/shell-shelf.css.tpl
+[[ "$(grep -rnE "Subprocess|Util\.spawn|spawn_command_line|GLib\.spawn" "${UI_EXTENSION}/modules/shelf.js" \
+    "${UI_EXTENSION}/modules/shelf" | grep -c .)" == 2 ]]
+grep -q "Gio.Subprocess.new(\[PROGRAM, 'take', " "${UI_EXTENSION}/modules/shelf/drop.js"
+grep -q "Gio.SubprocessFlags.STDIN_PIPE" "${UI_EXTENSION}/modules/shelf/drop.js"
+grep -q "^export const PROGRAM = '/usr/bin/amethystora-shelf';" "${UI_EXTENSION}/modules/shelf/drop.js"
+# ...within the same limits as the program's own, and a window is the shelf's only if it runs the shelf's program
+for limit in MOST_TEXT MOST_PICTURE; do
+    shell_limit="$(sed -n "s/^export const ${limit} = \(.*\);$/\1/p" "${UI_EXTENSION}/modules/shelf/drop.js")"
+    [[ -n "${shell_limit}" && "${shell_limit}" == "$(sed -n "s/^pub const ${limit}: usize = \(.*\);$/\1/p" /ctx/apps/shelf/src/model.rs)" ]]
+done
+grep -q "get_sandboxed_app_id" "${UI_EXTENSION}/modules/shelf.js"
+grep -q "'/usr/lib/amethystora-shelf/amethystora-shelf'" "${UI_EXTENSION}/modules/shelf.js"
+[[ -z "$(grep -rnE 'use_markup = true|use_markup: true|set_markup\(' "${UI_EXTENSION}/modules/shelf.js" \
+    "${UI_EXTENSION}/modules/shelf")" ]]
+grep -q "^NoDisplay=true" /usr/share/applications/amethystora-shelf.desktop
+grep -q '^shelf STATE="":' /usr/share/amethystora/just/desktop.just
+GSETTINGS_BACKEND=memory ame desktop shelf dock >/dev/null 2>&1 && false
+GSETTINGS_BACKEND=memory ame desktop shelf edge >/dev/null
+# Desks (R4-09; manual: desktop.md#desks): off for a new account and learning once on; the module, its files and recipe;
+# it starts nothing, shows nothing as markup, and keeps its desks in the account's own folder
+DESKS=org.gnome.shell.extensions.amethystora-ui.desks
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${DESKS}" | sort | paste -sd ' ')" == "desks desks-learn" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${DESKS}" desks)" == false ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${DESKS}" desks-learn)" == true ]]
+grep -q "\['desks', Desks\]" "${UI_EXTENSION}/extension.js"
+for file in modules/desks.js modules/desks/apply.js modules/desks/card.js modules/desks/identity.js \
+    modules/desks/state.js stylesheets/desks.css; do
+    test -s "${UI_EXTENSION}/${file}"
+done
+test -s /usr/share/amethystora/themed/shell-desks.css.tpl
+[[ -z "$(grep -rnE "Subprocess|Util\.spawn|spawn_command_line|GLib\.spawn|use_markup = true|use_markup: true|set_markup\(" \
+    "${UI_EXTENSION}/modules/desks.js" "${UI_EXTENSION}/modules/desks")" ]]
+grep -q "GLib.get_user_config_dir(), 'amethystora'" "${UI_EXTENSION}/modules/desks/state.js"
+grep -q '^desks \*ARGS:' /usr/share/amethystora/just/desktop.just
+(
+    export HOME="$(mktemp -d)" XDG_CONFIG_HOME=
+    GSETTINGS_BACKEND=memory ame desktop desks list | grep -q .
+    ame desktop desks forget 000000000000 >/dev/null 2>&1 && false
+    ame desktop desks rename 000000000000 Office >/dev/null 2>&1 && false
+    rm -rf "${HOME}"
+)
 # First start (manual: desktop.md#the-reveal-at-login, #tips, #the-app-grid, #gestures-and-keys). The reveal at login, a
 # key of the transitions extension, its own file, imported; ame desktop transition reveal on|off
 TRANSITIONS_EXTENSION=/usr/share/gnome-shell/extensions/amethystora-transitions@iarsslen.github.io

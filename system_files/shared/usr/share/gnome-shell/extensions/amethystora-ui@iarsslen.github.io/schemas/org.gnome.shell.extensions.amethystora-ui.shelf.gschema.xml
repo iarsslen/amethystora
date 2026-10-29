@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The key of the shelf module (modules/shelf.js, plans/beyond/spec-r4-shelf.md): how the shelf opens while a drag
+     is on its way. Written by ame desktop shelf, Control and the setup file. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.shelf" path="/org/gnome/shell/extensions/amethystora-ui/shelf/">
+    <key name="shelf" type="s">
+      <choices>
+        <choice value="off"/>
+        <choice value="edge"/>
+        <choice value="shake"/>
+      </choices>
+      <default>'off'</default>
+      <summary>The shelf</summary>
+      <description>off: no shelf; edge: drag something toward the right edge of the screen to put it down on the shelf; shake: shake the pointer while dragging to open it under the pointer.</description>
+    </key>
+  </schema>
+</schemalist>

@@ -27,6 +27,9 @@ pub trait App: 'static {
     fn open_in(&self, args: &[String], _cwd: Option<std::path::PathBuf>) {
         self.open(args);
     }
+    /// The launch itself, before `open_in`, for an app that reads what the launch was given on its standard input
+    /// (the Shelf's drop): GLib passes a second launch's standard input to the window that is open
+    fn command_line(&self, _line: &gio::ApplicationCommandLine) {}
     /// Whether a launch with these arguments shows the window; an app that answers no shows it itself when it
     /// needs the person (the Phone app's `send --now`)
     fn presents(&self, _args: &[String]) -> bool {
@@ -255,6 +258,7 @@ pub fn run<A: App>(spec: Spec, build: impl Fn(Rc<Shell>) -> Rc<A> + 'static) -> 
             state.replace(Some((shell, own)));
         }
         let (shell, own) = state.borrow().clone().expect("the window was just made");
+        own.command_line(command_line);
         own.open_in(&args, command_line.cwd());
         if own.presents(&args) {
             shell.window.present();

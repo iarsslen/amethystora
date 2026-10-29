@@ -150,8 +150,10 @@ export class Drops {
         return drag.read;
     }
 
-    _copying() {
-        return (global.get_pointer()[2] & Clutter.ModifierType.CONTROL_MASK) !== 0;
+    // Ctrl copies; so does a drag from the shelf, which only ever offers a copy (modules/shelf.js)
+    _copying(buttons = global.get_pointer()[2]) {
+        return (buttons & Clutter.ModifierType.CONTROL_MASK) !== 0 ||
+            !!this._dock.ext.modules?.get('shelf')?.fromShelf?.();
     }
 
     // ---- The targets ----
@@ -347,7 +349,7 @@ export class Drops {
         const drag = this._drag;
         const target = drag?.target;
         const buttons = global.get_pointer()[2];
-        const copy = (buttons & Clutter.ModifierType.CONTROL_MASK) !== 0;
+        const copy = this._copying(buttons);
         const released = (buttons & Clutter.ModifierType.BUTTON1_MASK) === 0;
         if (this._monitor)
             DND.removeDragMonitor(this._monitor);

@@ -42,6 +42,8 @@ import {Access} from './modules/access.js';
 import {Touch} from './modules/touch.js';
 import {Present} from './modules/present.js';
 import {DeskWidgets} from './modules/deskwidgets.js';
+import {Shelf} from './modules/shelf.js';
+import {Desks} from './modules/desks.js';
 import {Focus} from './modules/focus.js';
 
 // In the order they start, by the name of their stylesheet; they stop in the opposite order. The desktop style comes
@@ -83,6 +85,8 @@ const MODULES = [
     ['touch', Touch],
     ['present', Present],
     ['deskwidgets', DeskWidgets],
+    ['shelf', Shelf],
+    ['desks', Desks],
     ['focus', Focus],
 ];
 

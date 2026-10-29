@@ -1536,6 +1536,210 @@ power *ARGS:
         busy-app:off) echo "$(gettext "No chip names a busy app.")" ;;
     esac
 
+# The shelf: put files, text or a picture down while moving between apps, then drag them out (STATE: off, edge for the
+# screen's right edge, shake for a shake of the pointer while dragging; without it, it says which)
+[positional-arguments]
+shelf STATE="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.shelf
+    case "${1:-}" in
+        "")
+            case "$(gsettings get "${schema}" shelf)" in
+                "'edge'") echo "$(gettext "The shelf opens at the edge: drag something toward the right edge of the screen to put it down.")" ;;
+                "'shake'") echo "$(gettext "The shelf opens where you shake the pointer while dragging.")" ;;
+                *) echo "$(gettext "The shelf is off.")" ;;
+            esac
+            ;;
+        off)
+            gsettings set "${schema}" shelf off
+            echo "$(gettext "The shelf: off. What it holds now stays until you drag it out or clear it.")"
+            ;;
+        edge)
+            gsettings set "${schema}" shelf edge
+            echo "$(gettext "The shelf: at the edge. Drag something toward the right edge of the screen and let go on the glow.")"
+            ;;
+        shake)
+            gsettings set "${schema}" shelf shake
+            echo "$(gettext "The shelf: shake the pointer while dragging, and let go on the card that opens.")"
+            ;;
+        *)
+            echo "usage: ame desktop shelf off|edge|shake"
+            exit 64
+            ;;
+    esac
+
+# Desks: a set of screens brings back the sound output, the dock's place, a Focus profile and the power mode (ame
+# desktop desks on|off, learn on|off, list, rename ID NAME..., saved ID NAME|none, forget ID, ask). Without anything it
+# says whether they are on and lists them. The desks are in ~/.config/amethystora/desks.json, which the shell keeps.
+[positional-arguments]
+desks *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.desks
+    folder="${XDG_CONFIG_HOME:-${HOME}/.config}/amethystora"
+    file="${folder}/desks.json"
+    usage() {
+        {
+            echo "usage: ame desktop desks [on|off|list]"
+            echo "       ame desktop desks learn on|off"
+            echo "       ame desktop desks rename ID NAME..."
+            echo "       ame desktop desks saved ID NAME|none"
+            echo "       ame desktop desks forget ID"
+            echo "       ame desktop desks ask"
+        } >&2
+        exit 64
+    }
+    # Text a desk's name or a saved set's may be: 1 to MOST characters, no control or format characters (a right-to-left
+    # override would show it reversed), not only spaces
+    plain() {
+        [[ ${#1} -ge 1 && ${#1} -le $2 && -n "${1// /}" ]] && ! grep -qP '[\p{Cc}\p{Cf}]' <<<"$1"
+    }
+    # The file as the shell writes it: whole, through a file beside it, then the same text as the copy; one writer of
+    # this recipe at a time (the shell reads the file again before it changes it)
+    write() {
+        local text="$1" tmp
+        tmp="$(mktemp "${folder}/.desks.XXXXXX")"
+        printf '%s' "${text}" >"${tmp}"
+        chmod 600 "${tmp}"
+        cp -p "${tmp}" "${tmp}.bak"
+        mv -f "${tmp}" "${file}"
+        mv -f "${tmp}.bak" "${file}.bak"
+    }
+    current() {
+        if [[ -s "${file}" ]] && jq -e 'type == "object"' "${file}" >/dev/null 2>&1; then
+            cat "${file}"
+        elif [[ -s "${file}.bak" ]] && jq -e 'type == "object"' "${file}.bak" >/dev/null 2>&1; then
+            cat "${file}.bak"
+        else
+            echo '{"version": 1, "desks": []}'
+        fi
+    }
+    known() {
+        [[ "$1" =~ ^[0-9a-f]{12}$ ]] && current | jq -e --arg id "$1" '[.desks[]? | select(.id == $id)] | length == 1' >/dev/null
+    }
+    list() {
+        local count=0 id name screens first sound edge where focus power saved line
+        # Apart by the unit separator, which is no white space: an empty field stays a field
+        while IFS=$'\x1f' read -r id name screens first sound edge where focus power saved; do
+            count=$((count + 1))
+            if [[ -z "${name}" ]]; then
+                case "${screens}" in
+                    0) name="$(gettext "The laptop alone")" ;;
+                    1) name="${first}" ;;
+                    *) name="$(eval_ngettext "\${screens} screen" "\${screens} screens" "${screens}")" ;;
+                esac
+            fi
+            line=()
+            [[ -n "${sound}" ]] && line+=("$(eval_gettext "sound: \${sound}")")
+            case "${edge}:${where}" in
+                left:primary) line+=("$(gettext "the dock: on the left, on the main screen")") ;;
+                left:*) line+=("$(gettext "the dock: on the left, on every screen")") ;;
+                right:primary) line+=("$(gettext "the dock: on the right, on the main screen")") ;;
+                right:*) line+=("$(gettext "the dock: on the right, on every screen")") ;;
+                bottom:primary) line+=("$(gettext "the dock: at the bottom, on the main screen")") ;;
+                bottom:*) line+=("$(gettext "the dock: at the bottom, on every screen")") ;;
+            esac
+            case "${focus}" in
+                work) line+=("$(gettext "Focus: Work")") ;;
+                games) line+=("$(gettext "Focus: Games")") ;;
+                sleep) line+=("$(gettext "Focus: Sleep")") ;;
+                off) line+=("$(gettext "Focus: off")") ;;
+            esac
+            case "${power}" in
+                balanced) line+=("$(gettext "power: Balanced")") ;;
+                performance) line+=("$(gettext "power: Performance")") ;;
+                power-saver) line+=("$(gettext "power: Power saver")") ;;
+            esac
+            [[ -n "${saved}" ]] && line+=("$(eval_gettext "asks to open: \${saved}")")
+            printf '%s  %s\n' "${id}" "${name}"
+            if ((${#line[@]})); then
+                printf '              %s\n' "$(IFS=';'; echo "${line[*]}" | sed 's/;/; /g')"
+            fi
+        done < <(current | jq -r '.desks[]? | [.id, (.name // ""), (.screens | length), (.screens[0].name // ""),
+            (.set.sound.label // ""), (.set.dock.edge // ""), (.set.dock.screens // ""), (.set.focus // ""),
+            (.set.power // ""), (.set.saved // "")] | map(tostring | gsub("[\\t\\n\\r\u001f]"; " ")) | join("\u001f")')
+        ((count > 0)) || echo "$(gettext "No desk is set up yet: the first time the computer is at one, a card asks.")"
+    }
+    case "${1:-}" in
+        rename | saved | forget | ask)
+            mkdir -p "${folder}"
+            chmod 700 "${folder}"
+            exec 9>"${folder}/.desks.lock"
+            flock 9
+            ;;
+    esac
+    case "${1:-}" in
+        "")
+            if [[ "$(gsettings get "${schema}" desks)" == true ]]; then
+                echo "$(gettext "Desks are on.")"
+            else
+                echo "$(gettext "Desks are off. ame desktop desks on turns them on.")"
+            fi
+            list
+            ;;
+        list)
+            list
+            ;;
+        on)
+            gsettings set "${schema}" desks true
+            echo "$(gettext "Desks: on. The first time the computer is at a set of screens, a card asks whether to remember how things are set there.")"
+            ;;
+        off)
+            gsettings set "${schema}" desks false
+            echo "$(gettext "Desks: off. What a desk set stays as it is, and the desks are kept.")"
+            ;;
+        learn)
+            case "${2:-}" in
+                on) gsettings set "${schema}" desks-learn true
+                    echo "$(gettext "At a desk, choosing another sound output or moving the dock asks whether the desk should remember it.")" ;;
+                off) gsettings set "${schema}" desks-learn false
+                    echo "$(gettext "Desks no longer ask to remember what you change.")" ;;
+                *) usage ;;
+            esac
+            ;;
+        rename)
+            id="${2:-}"
+            shift 2 2>/dev/null || usage
+            name="$*"
+            known "${id}" && plain "${name}" 40 || usage
+            write "$(current | jq -c --arg id "${id}" --arg name "${name}" '(.desks[] | select(.id == $id) | .name) = $name')"
+            echo "$(eval_gettext "The desk is called \${name} now.")"
+            ;;
+        saved)
+            id="${2:-}"
+            saved="${3:-}"
+            known "${id}" && [[ $# -eq 3 ]] || usage
+            if [[ "${saved}" == none ]]; then
+                write "$(current | jq -c --arg id "${id}" '(.desks[] | select(.id == $id) | .set) |= del(.saved)')"
+                echo "$(gettext "The desk offers no saved set.")"
+            elif plain "${saved}" 24; then
+                write "$(current | jq -c --arg id "${id}" --arg saved "${saved}" '(.desks[] | select(.id == $id) | .set.saved) = $saved')"
+                echo "$(eval_gettext "Arriving at the desk asks whether to open the saved set \${saved}.")"
+            else
+                usage
+            fi
+            ;;
+        forget)
+            id="${2:-}"
+            known "${id}" && [[ $# -eq 2 ]] || usage
+            write "$(current | jq -c --arg id "${id}" 'del(.desks[] | select(.id == $id)) | if .current.desk == $id then del(.current) else . end')"
+            echo "$(gettext "The desk is forgotten. What it set stays as it is.")"
+            ;;
+        ask)
+            [[ $# -eq 1 ]] || usage
+            write "$(current | jq -c 'del(.declined)')"
+            echo "$(gettext "Desks you said Not now to will ask again the next time the computer is at them.")"
+            ;;
+        *)
+            usage
+            ;;
+    esac
+
 # Focus profiles: Work, Games or Sleep laid over your settings until it ends (ame desktop focus work|games|sleep
 # [hour|tomorrow]; ame desktop focus off), the two triggers (ame desktop focus trigger games|sleep on|off) and what each
 # profile does (ame desktop focus edit PROFILE SETTING VALUE..., or reset). Without anything it says what is on
