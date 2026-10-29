@@ -104,7 +104,10 @@ const running = () => {
 async function stopVm(force) {
   if (!running()) return;
   if (!force) {
-    await agent(vm, { op: 'exec', command: '(sleep 1; systemctl poweroff) >/dev/null 2>&1 &' }, 30);
+    // The agent answers one client at a time: while a suite runs it cannot hear this, and QEMU's power button does
+    // (good enough to stop; ready, which keeps the state, runs with nothing else on the VM)
+    const asked = await agent(vm, { op: 'exec', command: '(sleep 1; systemctl poweroff) >/dev/null 2>&1 &' }, 5).then(() => true, () => false);
+    if (!asked) await qmp(vm, 'system_powerdown', {}).catch(() => {});
     for (let i = 0; i < 120 && running(); i++) await sleep(1000);
   }
   if (running()) await call('vm_stop', { name: vm, force: true });
