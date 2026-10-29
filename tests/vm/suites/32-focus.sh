@@ -150,8 +150,12 @@ same "2 off: no timer, trigger, power connection, picture or grey" \
 ev "Main.panel.statusArea.quickSettings.menu.open(); 'open'" >/dev/null
 sleep 1
 tile="$(ev "JSON.stringify(${F}.tile.snapshot())")"
-same "3 the tile: Off chosen, its state, one line" "$(python3 -c 'import json,sys; t=json.loads(sys.argv[1]); print(t["chosen"], t["state"], len(t["lines"]), t["width"])' "${tile}")" \
-    "off Off 1 378"
+same "3 the tile: Off chosen, its state, one line" "$(python3 -c 'import json,sys; t=json.loads(sys.argv[1]); print(t["chosen"], t["state"], len(t["lines"]))' "${tile}")" \
+    "off Off 1"
+# Two tiles and the gap (378 px with GNOME's own quick settings at scale 1), whatever width the menu has
+same "3 the tile is two tiles and the gap wide" \
+    "$(ev "(() => { const g = Main.panel.statusArea.quickSettings.menu._grid; const t = g.get_children().find(a => a.constructor.name === 'NightLightToggle' || a.constructor.name === 'DarkModeToggle'); return Math.abs(${F}.tile.block.width - (2 * t.width + g.layout_manager.column_spacing)) < 1 ? 'yes' : ${F}.tile.block.width + ' vs ' + t.width + ' + ' + g.layout_manager.column_spacing; })()")" \
+    yes
 same "3 the tile comes after the tiles and before the brightness slider" \
     "$(ev "(() => { const g = Main.panel.statusArea.quickSettings.menu._grid; const c = g.get_children(); const i = c.indexOf(${F}.tile.block); const b = c.findIndex(a => a.constructor.name === 'BrightnessItem'); const t = c.findIndex(a => a.constructor.name === 'NightLightToggle' || a.constructor.name === 'DarkModeToggle'); return (i > t) + ' ' + (b < 0 || i < b); })()")" \
     "true true"
@@ -164,6 +168,10 @@ same "4 three lines, as the board's" "$(ev "${F}.tile.snapshot().lines.length")"
 same "4 the pill shows the mark" "$(pill_activity)" focus
 check "4 the mark reads Work · the time" like "$(ev "${UI}.get('pill').state().text")" 'Work · [0-9]*'
 ev "Main.panel.statusArea.quickSettings.menu.close(); 'closed'" >/dev/null
+# What the session showed before (GNOME's "System was put in unsafe mode", for the lab's Eval) is let go: with nobody
+# at the keyboard GNOME never takes a banner away, so it would stand in front of every one below
+ev "Main.messageTray.getSources().forEach(s => [...s.notifications].forEach(n => n.destroy())); 'cleared'" >/dev/null
+sleep 1
 in_session "notify-send 'vmlab focus held'" >/dev/null
 sleep 1
 same "5 an ordinary banner is held under Work" "$(ev "${UI}.get('pill').hold.focusHeld")" 1
@@ -174,13 +182,16 @@ in_session "ame desktop focus edit work apps org.vmlab.Chat.desktop" >/dev/null
 sleep 1
 in_session "notify-send --hint=string:desktop-entry:org.vmlab.Chat 'vmlab focus chat'" >/dev/null
 check "5 a banner from an app Work lets through shows" wait_for 5 banner_is "vmlab focus chat"
+# Nobody at the keyboard: GNOME would hold the chat's banner up for ever, so it is closed by hand
+ev "Main.messageTray._notification?.destroy(); 'closed'" >/dev/null
+sleep 1
 in_session "notify-send -u critical 'vmlab focus urgent'" >/dev/null
 check "5 an urgent one comes through" wait_for 15 banner_is "vmlab focus urgent"
 ev "Main.messageTray._notification?.destroy(); 'closed'" >/dev/null
 gs reset "${FOCUS}" work-apps
 sleep 1
 same "5 a listed app passes, others wait, urgent ones keep their sound" \
-    "$(ev "(() => { const h = ${UI}.get('pill').hold; const n = (app, urgency = 1) => ({urgency, forFeedback: false, source: {app: {get_id: () => app}}}); return [h._lets(n('org.gnome.Calendar.desktop')), h._lets(n('org.vmlab.Other.desktop')), h._silenced(n('org.gnome.Calendar.desktop')), h._silenced(n('x', 2))].join(' '); })()")" \
+    "$(ev "(() => { const h = ${UI}.get('pill').hold; const n = (app, urgency = 1) => ({urgency, forFeedback: false, source: {app: {get_id: () => app}}}); return [h._lets(n('org.gnome.Calendar.desktop')), h._lets(n('org.vmlab.Other.desktop')), h._silenced(n('org.gnome.Calendar.desktop')), h._silenced(n('x', 3))].join(' '); })()")" \
     "true false true false"
 ev "${F}.pick('off'); 'picked'" >/dev/null
 sleep 0.5
@@ -276,10 +287,10 @@ in_session "ame desktop focus off" >/dev/null
 check "11 Off by hand ends it" wait_for 3 profile_is off
 sleep 2
 same "11 and it waits for its next start" "$(st .profile)" '"off"'
-gs set "${COLOR}" night-light-schedule-to "${hour}.0"
-sleep 1
-gs set "${COLOR}" night-light-schedule-to "$(((hour + 2) % 24)).0"
-check "11 at its next start it is on again" wait_for 3 profile_is sleep
+# Its next start, after the Off: the span starts again at the next minute, by the trigger's own timeout
+read -r next_h next_m <<<"$(date -d '+1 minute' '+%H %M')"
+gs set "${COLOR}" night-light-schedule-from "$(awk -v h="$((10#${next_h}))" -v m="$((10#${next_m}))" 'BEGIN { printf "%.6f", h + m / 60 }')"
+check "11 at its next start it is on again" wait_for 70 profile_is sleep
 in_session "ame desktop focus work" >/dev/null
 check "13 a profile picked by hand wins" wait_for 3 profile_is work
 in_session "ame desktop focus off" >/dev/null
@@ -288,13 +299,15 @@ check "11 trigger off: nothing on" wait_for 3 profile_is off
 
 # --- 12: Games while a game is in front ------------------------------------------------------------------------------
 in_session "ame desktop focus trigger games on" >/dev/null
+# The tool alone first: the game's window, once open, has the keyboard and starts Games before any click
 user_bus systemd-run --user --collect --unit=vmlab-tool gjs -m "${HOME_DIR}/.local/share/vmlab-focus/win.js" org.vmlab.Tool >/dev/null
-user_bus systemd-run --user --collect --unit=vmlab-game gjs -m "${HOME_DIR}/.local/share/vmlab-focus/win.js" org.vmlab.Game >/dev/null
-win_ready() { [[ "$(ev "global.get_window_actors().filter(a => a.meta_window.get_wm_class()?.startsWith('org.vmlab')).length")" == 2 ]]; }
-wait_for 30 win_ready
+win_ready() { [[ "$(ev "global.get_window_actors().filter(a => a.meta_window.get_wm_class()?.startsWith('org.vmlab')).length")" == "$1" ]]; }
+wait_for 30 win_ready 1
 activate() { ev "global.get_window_actors().map(a => a.meta_window).find(w => w.get_wm_class() === '$1').activate(global.get_current_time()); 'ok'" >/dev/null; sleep 1; }
 activate org.vmlab.Tool
 same "12 a tool in front starts nothing" "$(st .profile)" '"off"'
+user_bus systemd-run --user --collect --unit=vmlab-game gjs -m "${HOME_DIR}/.local/share/vmlab-focus/win.js" org.vmlab.Game >/dev/null
+wait_for 30 win_ready 2
 activate org.vmlab.Game
 same "12 a game in front starts Games" "$(st .profile) $(st .origin)" '"games" "game"'
 activate org.vmlab.Tool
@@ -441,7 +454,7 @@ in_session "ame desktop theme ${theme:-amethystora}" >/dev/null 2>&1
 pick off
 
 # --- 16-17: Control and the setup file ---------------------------------------------------------------------------------
-control="$(in_session "amethystora-control-list --json" 2>/dev/null)"
+control="$(in_session "/usr/libexec/amethystora-control-list --json" 2>/dev/null)"
 same "16 Control has the Focus groups" \
     "$(jq -r '[.items[] | select(.id | startswith("focus")) | .group] | unique | join(",")' <<<"${control}")" \
     "Focus,Focus: Games,Focus: Sleep,Focus: Work"
