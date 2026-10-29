@@ -123,8 +123,12 @@ export class Emoji {
         this._place(caret);
         this.glassChanged();
 
-        // The keyboard leaving the picker (a click elsewhere) closes it; a screen change too
-        global.stage.connectObject('notify::key-focus', () => this._queueFocusCheck(), this);
+        // The keyboard leaving the picker (a click in another window) closes it, and so does a press anywhere else that
+        // leaves the keyboard where it is (the desktop, the bar, the window being typed in); a screen change too
+        global.stage.connectObject(
+            'notify::key-focus', () => this._queueFocusCheck(),
+            'captured-event', (stage, event) => this._onCaptured(event),
+            this);
         Main.layoutManager.connectObject('monitors-changed', () => this.close(), this);
         global.display.connectObject('in-fullscreen-changed', () => this.close(), this);
 
@@ -157,6 +161,8 @@ export class Emoji {
         const [, height] = actor.get_preferred_height(width);
         let monitor = Main.layoutManager.primaryIndex;
         let x, y, pivotY = 0;
+        // What it was placed by, for the tests
+        this._placedBy = caret ? 'caret' : this._window ? 'window' : 'screen';
         if (caret) {
             monitor = global.display.get_monitor_index_for_rect(new Mtk.Rectangle({
                 x: Math.round(caret.x), y: Math.round(caret.y), width: 1, height: 1,
@@ -246,6 +252,16 @@ export class Emoji {
         });
     }
 
+    _onCaptured(event) {
+        const type = event.type();
+        if (!this._picker || (type !== Clutter.EventType.BUTTON_PRESS && type !== Clutter.EventType.TOUCH_BEGIN))
+            return Clutter.EVENT_PROPAGATE;
+        const target = global.stage.get_event_actor(event);
+        if (!target || !this._picker.contains(target))
+            this.close();
+        return Clutter.EVENT_PROPAGATE;
+    }
+
     _removeFocusCheck() {
         if (this._focusLater)
             global.compositor.get_laters().remove(this._focusLater);
@@ -295,6 +311,7 @@ export class Emoji {
                 picker.tab === 'recent' ? 'none' : this._tone()) ?? character) : [],
             focus: focused,
             timeouts: this._focusLater ? 1 : 0,
+            placed: picker ? this._placedBy : '',
         });
     }
 }
