@@ -226,6 +226,15 @@ async function reload(files) {
   }
   if (any(/^\/(usr\/lib|etc)\/systemd\/system\//)) steps.push('systemctl daemon-reload && echo "systemd reloaded: restart the unit"');
   if (any(/^\/(usr\/lib|etc)\/systemd\/user\//)) steps.push('echo "user units: read at the next login (live.sh relogin)"');
+  // The file-watch sensor refuses a manual stop (RefuseManualStop): its process ended, systemd starts the new one
+  if (any(/^\/usr\/libexec\/amethystora-sensor$/)) {
+    steps.push(`old="$(systemctl show -P MainPID amethystora-sensor.service)"
+      if [ "$old" != 0 ]; then kill "$old"
+        for i in $(seq 30); do n="$(systemctl show -P MainPID amethystora-sensor.service)"; [ "$n" != 0 ] && [ "$n" != "$old" ] &&
+          systemctl is-active -q amethystora-sensor.service && break; sleep 1; done
+        echo "sensor restarted: $(systemctl is-active amethystora-sensor.service), pid $old -> $n"
+      fi`);
+  }
   if (steps.length) say((await root(steps.join('\n'), 600)).trim());
   const signedIn = await hasAccount();
   if (signedIn && any(/^\/usr\/(share\/amethystora\/(themed|themes)\/|lib\/amethystora\/theme\/|bin\/amethystora-theme$)/)) {
@@ -274,38 +283,25 @@ async function suite(name) {
       throw new Error(`${file} asked for a power cycle (next_boot) before phase ${phase + 1}: run it with run.sh test --suites`);
     }
     say(`${file}: restarting for phase ${phase + 1}`);
-    // A QEMU that took its state from a restore (-incoming) dies in its uefi-vars device (signal 11 in
-    // hw-uefi-vars.so) when the firmware runs again on a reset, and on a power-off from inside: there, the guest's
-    // disks synced, QEMU quit (which writes its own out) and started anew, as a power cut after a sync
-    if (restored()) {
-      await sh('sync', 120);
-      await stopVm(true);
-      // Its memory may take a while to be given back, or another VM to leave room: up to 20 minutes
-      for (let i = 0; ; i++) {
-        try {
-          await startVm(false);
-          break;
-        } catch (error) {
-          if (i >= 20 || !/not enough memory/.test(error.message)) throw error;
-          say(`${error.message}: trying again in a minute`);
-          await sleep(60000);
-        }
-      }
-      await install();
-      continue;
-    }
-    const id = decode((await agent(vm, { op: 'read', path: '/proc/sys/kernel/random/boot_id' })).data).trim();
-    await agent(vm, { op: 'exec', command: '(sleep 2; systemctl reboot) >/dev/null 2>&1 &' }, 30);
-    for (;;) {
-      await sleep(5000);
-      if (!running()) throw new Error(`QEMU ended while ${vm} restarted: ${fs.readFileSync(`/vm/vms/${vm}.log`, 'utf8')}`);
+    // QEMU's uefi-vars device does not live through the firmware running again on a reset: a QEMU that took its state
+    // from a restore (-incoming) dies in it (signal 11 in hw-uefi-vars.so), on a power-off from inside too, and a
+    // fresh one of 3 GB stopped in the firmware (#GP in VirtMmCommunication) as it restarted. So every restart is QEMU
+    // quitting (which writes the variables out) and starting anew: a fresh one powered off from inside, which runs the
+    // shutdown a restart runs, a restored one after a sync, as a power cut
+    const restore = restored();
+    if (restore) await sh('sync', 120);
+    await stopVm(restore);
+    // Its memory may take a while to be given back, or another VM to leave room: up to 20 minutes
+    for (let i = 0; ; i++) {
       try {
-        if (decode((await agent(vm, { op: 'read', path: '/proc/sys/kernel/random/boot_id' }, 5)).data).trim() !== id) break;
-      } catch {
-        // Still restarting
+        await startVm(false);
+        break;
+      } catch (error) {
+        if (i >= 20 || !/not enough memory/.test(error.message)) throw error;
+        say(`${error.message}: trying again in a minute`);
+        await sleep(60000);
       }
     }
-    await boot();
     await install();
   }
   fs.writeFileSync(`${DIR}/runs/${file}.png`, await screendump(vm));
