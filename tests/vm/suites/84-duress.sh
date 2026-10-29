@@ -351,12 +351,17 @@ if [[ ${rc} -ne 0 && "$(ran)" == "password ${TEST_USER}" ]]; then
 else
     not_ok "the duress password at sudo (${rc}): ran '$(ran)'" "$(tail -n 8 <<<"${out}")"
 fi
-# polkit, as an administrator's prompt in a terminal. pkexec registers its textual agent for its parent process: in a
-# terminal that is the shell, so the shell stays its parent here (`bash -c "pkexec true"` execs pkexec, whose parent
-# is then the account's user manager, which Fedora 45's polkit may answer with GNOME Shell's dialog instead)
+# polkit, as an administrator's prompt in a terminal. pkexec asks polkit with user interaction allowed from the
+# start, so in a session with an agent (GNOME Shell's) polkit hands the question to GNOME's dialog and pkexec never
+# starts its own textual agent. pkttyagent registered for the shell, pkexec's parent, comes first (polkit prefers an
+# agent of the process to the session's), so the password is typed in the terminal, through the same
+# polkit-agent-helper-1 and PAM service (polkit-1) as GNOME's dialog. `$$` is systemd-run's escape for `$`. The finger
+# is not skipped with Ctrl-C, which would end the agent's helper with the rest of the terminal's process group:
+# pam_fprintd gives up after its 30 seconds and the password is asked
 new_boot
 lt="$(date +%s)"
-out="$(session_terminal 90 'Swipe your' $'\x03' 'Password' "${DURESS_PASSWORD}"$'\r' -- 'pkexec true; exit $?')"
+out="$(session_terminal 120 'Password' "${DURESS_PASSWORD}"$'\r' -- \
+    'pkttyagent --process $$$$ & sleep 1; pkexec true; s=$$?; kill %1; exit $$s')"
 rc=$?
 sleep 2
 if [[ ${rc} -ne 0 && "$(ran)" == "password ${TEST_USER}" ]]; then
