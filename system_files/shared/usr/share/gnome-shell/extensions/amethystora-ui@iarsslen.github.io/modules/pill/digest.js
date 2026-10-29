@@ -21,7 +21,8 @@ const STAYS = 12;
 const GAP = 8;
 
 export class DigestCard {
-    constructor(notifications, time, closed) {
+    // title: the card's own heading (a mute's held ones), else the digest's
+    constructor(notifications, time, closed, title = null) {
         this._notifications = notifications;
         this._closed = closed;
 
@@ -40,7 +41,7 @@ export class DigestCard {
         const head = new St.BoxLayout({style_class: 'amethystora-pill-digest-head'});
         head.add_child(new St.Label({
             style_class: 'amethystora-pill-digest-title',
-            text: _('Your %s digest').format(timeOfDay(at)),
+            text: title ?? _('Your %s digest').format(timeOfDay(at)),
             x_expand: true,
         }));
         const count = notifications.length;

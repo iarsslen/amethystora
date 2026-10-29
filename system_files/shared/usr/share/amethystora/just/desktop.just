@@ -1386,6 +1386,156 @@ digest *ARGS:
             ;;
     esac
 
+# Later and mute on banners: Later brings a notification back in an hour, this evening, tomorrow morning or at the next
+# unlock, and Mute holds an app's banners for an hour (ame desktop notifications later [on|off]); this evening's and
+# tomorrow morning's times (ame desktop notifications later-times EVENING MORNING). Without on or off, it asks
+[positional-arguments]
+notifications *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.pill
+    usage() {
+        echo "usage: ame desktop notifications later [on|off] | later-times HH:MM HH:MM"
+        exit 64
+    }
+    case "${1:-}" in
+        later-times)
+            [[ $# -eq 3 ]] || usage
+            for t in "$2" "$3"; do
+                [[ "${t}" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]] || usage
+            done
+            [[ "$2" != "$3" ]] || usage
+            gsettings set "${schema}" later-times "['$2', '$3']"
+            evening="$2" morning="$3"
+            echo "$(eval_gettext "Later brings a notification back this evening at \${evening}, and tomorrow morning at \${morning}.")"
+            ;;
+        later)
+            [[ $# -le 2 ]] || usage
+            state="${2:-}"
+            if [[ -z "${state}" ]]; then
+                if [[ "$(gsettings get "${schema}" later)" == true ]]; then current=on; else current=off; fi
+                state="$(gum choose --header "$(eval_gettext "Later and mute (current: \${current})")" --selected "${current}" on off)"
+            fi
+            case "${state}" in
+                on)
+                    gsettings set "${schema}" later true
+                    echo "$(gettext "Later and mute are on: a banner's Later brings it back when you choose, and Mute holds an app's banners for an hour. Nothing of them is written to disk.")"
+                    ;;
+                off)
+                    gsettings set "${schema}" later false
+                    echo "$(gettext "Later and mute are off: what waited is in the list.")"
+                    ;;
+                *) usage ;;
+            esac
+            ;;
+        *) usage ;;
+    esac
+
+# What's new: the first session after an update, the pill says Updated and shows what the update brought (ame desktop
+# whats-new [on|off]). Without on or off, it asks
+[positional-arguments]
+whats-new *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.pill
+    [[ $# -le 1 ]] || { echo "usage: ame desktop whats-new [on|off]"; exit 64; }
+    state="${1:-}"
+    if [[ -z "${state}" ]]; then
+        if [[ "$(gsettings get "${schema}" whats-new)" == true ]]; then current=on; else current=off; fi
+        state="$(gum choose --header "$(eval_gettext "What's new (current: \${current})")" --selected "${current}" on off)"
+    fi
+    case "${state}" in
+        on)
+            gsettings set "${schema}" whats-new true
+            echo "$(gettext "After an update, the pill says Updated once and shows what it brought. The Manual's What's new page has it all.")"
+            ;;
+        off)
+            gsettings set "${schema}" whats-new false
+            echo "$(gettext "The pill says nothing after an update. The Manual's What's new page still has it.")"
+            ;;
+        *)
+            echo "usage: ame desktop whats-new [on|off]"
+            exit 64
+            ;;
+    esac
+
+# Getting set: for an account's first four weeks, the calendar menu lists the steps that protect the machine and make it
+# yours, each ticked by what the machine says (ame desktop getting-set [on|off]; Hide in the menu is off). Without on or
+# off, it asks
+[positional-arguments]
+getting-set *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.today
+    [[ $# -le 1 ]] || { echo "usage: ame desktop getting-set [on|off]"; exit 64; }
+    state="${1:-}"
+    if [[ -z "${state}" ]]; then
+        if [[ "$(gsettings get "${schema}" getting-set)" == true ]]; then current=on; else current=off; fi
+        state="$(gum choose --header "$(eval_gettext "Getting set (current: \${current})")" --selected "${current}" on off)"
+    fi
+    case "${state}" in
+        on)
+            gsettings set "${schema}" getting-set true
+            echo "$(gettext "Getting set is in the calendar menu for an account's first four weeks, while something on it is left to do.")"
+            ;;
+        off)
+            gsettings set "${schema}" getting-set false
+            echo "$(gettext "Getting set is hidden.")"
+            ;;
+        *)
+            echo "usage: ame desktop getting-set [on|off]"
+            exit 64
+            ;;
+    esac
+
+# Power you can see: the battery's menu says when it runs out, the watts, what used the most and its health (ame desktop
+# power battery [on|off]); a chip names an app that keeps the processor busy for two minutes (ame desktop power busy
+# [on|off]). Without on or off, it asks
+[positional-arguments]
+power *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.power
+    usage() {
+        echo "usage: ame desktop power battery|busy [on|off]"
+        exit 64
+    }
+    [[ $# -ge 1 && $# -le 2 ]] || usage
+    case "$1" in
+        battery) key=battery-details ;;
+        busy) key=busy-app ;;
+        *) usage ;;
+    esac
+    state="${2:-}"
+    if [[ -z "${state}" ]]; then
+        if [[ "$(gsettings get "${schema}" "${key}")" == true ]]; then current=on; else current=off; fi
+        if [[ "${key}" == battery-details ]]; then
+            header="$(eval_gettext "Battery details (current: \${current})")"
+        else
+            header="$(eval_gettext "Say when an app is busy (current: \${current})")"
+        fi
+        state="$(gum choose --header "${header}" --selected "${current}" on off)"
+    fi
+    case "${state}" in
+        on) gsettings set "${schema}" "${key}" true ;;
+        off) gsettings set "${schema}" "${key}" false ;;
+        *) usage ;;
+    esac
+    case "${key}:${state}" in
+        battery-details:on) echo "$(gettext "The battery's menu says when it runs out or is full, the watts, the apps that used the most (an estimate from processor time) and its health.")" ;;
+        battery-details:off) echo "$(gettext "The battery's menu no longer explains the battery.")" ;;
+        busy-app:on) echo "$(gettext "When the processor has been busy for two minutes, a chip beside the meters names the app, once an hour at most.")" ;;
+        busy-app:off) echo "$(gettext "No chip names a busy app.")" ;;
+    esac
+
 # Focus profiles: Work, Games or Sleep laid over your settings until it ends (ame desktop focus work|games|sleep
 # [hour|tomorrow]; ame desktop focus off), the two triggers (ame desktop focus trigger games|sleep on|off) and what each
 # profile does (ame desktop focus edit PROFILE SETTING VALUE..., or reset). Without anything it says what is on

@@ -131,7 +131,7 @@ msgstr ""
 msgid "Fix it with this, then restart:"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
 msgid "Updates"
 msgstr ""
 
@@ -203,7 +203,7 @@ msgstr ""
 msgid "Update now with:"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status usr/libexec/amethystora-sends
+#: usr/libexec/amethystora-security-status usr/libexec/amethystora-sends usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
 msgid "Automatic updates"
 msgstr ""
 
@@ -943,7 +943,7 @@ msgstr ""
 msgid "The home folders are snapshotted every hour. The latest is from ${AT}"
 msgstr ""
 
-#: usr/libexec/amethystora-security-status
+#: usr/libexec/amethystora-security-status usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
 msgid "Backups"
 msgstr ""
 
@@ -1951,7 +1951,8 @@ msgstr ""
 msgid "Soft matte volumes, a highlight above and a shade below"
 msgstr ""
 
-#: usr/libexec/amethystora-control-list
+#. Translators: the heading of the notifications that wait, with how many
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
 msgid "Muted"
 msgstr ""
 
@@ -3147,6 +3148,14 @@ msgstr ""
 msgid "Sends the place you chose in Weather to a weather service."
 msgstr ""
 
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "Getting set"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "For your first four weeks, the calendar menu lists the steps that protect the machine and make it yours."
+msgstr ""
+
 #: usr/libexec/amethystora-control-list
 msgid "This GNOME has no rest reminders."
 msgstr ""
@@ -3235,6 +3244,62 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "When the digest comes."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Later and mute"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Later on any banner brings it back in an hour, this evening, tomorrow or when you next unlock; Mute holds an app's banners for an hour."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "18:00 and 09:00"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "19:00 and 08:00"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "17:00 and 08:30"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "This evening and tomorrow morning"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "When Later's This evening and Tomorrow morning bring a banner back."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "What's new after an update"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The first session after an update, the pill says Updated once and shows what it brought."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick.js
+msgid "Power"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Battery details"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "The battery's menu says when it runs out, the watts, the apps that used the most and its health."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Say when an app is busy"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "A chip beside the meters names an app that has kept the processor busy for two minutes."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus/tile.js
@@ -3425,7 +3490,7 @@ msgstr ""
 msgid "Your shell uses eza for ls, bat for cat and ugrep for grep, with zoxide, direnv and mise, wherever they are installed."
 msgstr ""
 
-#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/tiles.js apps/connect/src/notify.rs apps/connect/src/text.rs
+#: usr/libexec/amethystora-control-list usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/tiles.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js apps/connect/src/notify.rs apps/connect/src/text.rs
 msgid "Phone"
 msgstr ""
 
@@ -6706,6 +6771,76 @@ msgid "The digest is off: banners show as they come."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Later brings a notification back this evening at ${evening}, and tomorrow morning at ${morning}."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Later and mute (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Later and mute are on: a banner's Later brings it back when you choose, and Mute holds an app's banners for an hour. Nothing of them is written to disk."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Later and mute are off: what waited is in the list."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "What's new (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "After an update, the pill says Updated once and shows what it brought. The Manual's What's new page has it all."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The pill says nothing after an update. The Manual's What's new page still has it."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Getting set (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Getting set is in the calendar menu for an account's first four weeks, while something on it is left to do."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Getting set is hidden."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Battery details (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+#, sh-format
+msgid "Say when an app is busy (current: ${current})"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The battery's menu says when it runs out or is full, the watts, the apps that used the most (an estimate from processor time) and its health."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The battery's menu no longer explains the battery."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "When the processor has been busy for two minutes, a chip beside the meters names the app, once an hour at most."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "No chip names a busy app."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
 msgid "No profile is picked; a trigger may turn one on (the Focus tile in quick settings says)."
 msgstr ""
 
@@ -9739,7 +9874,8 @@ msgid_plural "Open %s’s %d apps?"
 msgstr[0] ""
 msgstr[1] ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
+#. Translators: the version updated to, and the one before it
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/focus.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/phone.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/busy.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/weather.js
 msgid "Not now"
 msgstr ""
 
@@ -9835,7 +9971,7 @@ msgstr ""
 msgid "Received in all"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
 msgid "%s left"
 msgstr ""
 
@@ -9851,7 +9987,7 @@ msgstr ""
 msgid "Working out the time left"
 msgstr ""
 
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/battery.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
 msgid "Fully charged"
 msgstr ""
 
@@ -9948,6 +10084,10 @@ msgid "Show all"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
+msgid "Held while %s was muted"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
 msgid "%d waiting in the list"
 msgid_plural "%d waiting in the list"
 msgstr[0] ""
@@ -10013,6 +10153,77 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/hold.js
 msgid "Show them"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "In an hour"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "This evening"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "Tomorrow morning"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "When I next unlock"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "Back when you next unlock"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "Back at %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "Back tomorrow at %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
+msgid "Undo"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "%s muted until %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "Later"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "Mute %s for an hour"
+msgstr ""
+
+#. Translators: the heading of the notifications that wait, with how many
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "Later · %d"
+msgstr ""
+
+#. Translators: the heading of the notifications that wait, with how many
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "Now"
+msgstr ""
+
+#. Translators: the heading of the notifications that wait, with how many
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "Muted until %s · %d held"
+msgid_plural "Muted until %s · %d held"
+msgstr[0] ""
+msgstr[1] ""
+
+#. Translators: the heading of the notifications that wait, with how many
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "Muted until %s"
+msgstr ""
+
+#. Translators: the heading of the notifications that wait, with how many
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/later.js
+msgid "Unmute"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/media.js
@@ -10275,8 +10486,173 @@ msgstr ""
 msgid "Tonight"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "On the desktop"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "In Security"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "In Control"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "In the apps"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "In Updates"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "Across the system"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "Updated · what’s new"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "Updated: what’s new"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "Updated"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "Updated this morning"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "Updated this afternoon"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "Updated this evening"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "Updated tonight"
+msgstr ""
+
+#. Translators: the version updated to, and the one before it
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "%s · from %s"
+msgstr ""
+
+#. Translators: the version updated to, and the one before it
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "Read it all"
+msgstr ""
+
+#. Translators: the version updated to, and the one before it
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pill/whatsnew.js
+msgid "Said once per update"
+msgstr ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/pointer.js
 msgid "Tip: shake the mouse to find the pointer."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "Full at %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "Using %s W now · unplugged at %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "Using %s W now"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "Charging at %s W · stops at %d%%"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "Charging at %s W"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "%d%% of new · %d cycle"
+msgid_plural "%d%% of new · %d cycles"
+msgstr[0] ""
+msgstr[1] ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "%d%% of new"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "Battery health"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "Used the most since you logged in at %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "Used the most since it was plugged in at %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "Used the most since %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "Measuring…"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "Measured from the next time you open this"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "Everything else"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/battery.js
+msgid "Worked out from processor time; the screen is not counted."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/busy.js
+msgid "Busy app"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/busy.js
+msgid "%s is busy"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/busy.js
+msgid "%s has kept the processor busy for 2 minutes"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/busy.js
+msgid "It may be working, or stuck."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/busy.js
+msgid "Mostly “%s”, running in it. It may be working, or stuck."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/busy.js
+msgid "Mostly “%s”. It may be working, or stuck."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/busy.js
+msgid "Show it"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/busy.js
+msgid "Quit %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/power/busy.js
+msgid "Said once per app per hour. Never for a game in front."
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick/arrange.js
@@ -10418,10 +10794,6 @@ msgid "Lock"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick.js
-msgid "Power"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/quick.js
 msgid "Arrange: hold a tile and drag it"
 msgstr ""
 
@@ -10539,10 +10911,6 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
 msgid "Line width"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
-msgid "Undo"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/screenshot/toolbar.js
@@ -10741,6 +11109,72 @@ msgstr ""
 msgid "The places a click goes through are chosen in the tiling settings"
 msgstr ""
 
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "Pick a look"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "Theme, style and dock"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
+msgid "Control"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "On as the image ships"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "Back up your home folder"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "A disk or a server, daily"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "A PIN to unlock the disk"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "Stops a stolen laptop opening"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "Security"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "Pair your phone"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "Files, texts, a ring when it is lost"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "Hide"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "Hide Getting set for good"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "%s, done. Opens %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "%s, to do. Opens %s"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/getting.js
+msgid "%d of %d done"
+msgid_plural "%d of %d done"
+msgstr[0] ""
+msgstr[1] ""
+
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/today/tasks.js
 msgid "Due today, from Notes"
 msgstr ""
@@ -10797,10 +11231,6 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
 msgid "Lock the screen"
-msgstr ""
-
-#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js
-msgid "Control"
 msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/windows/hold.js

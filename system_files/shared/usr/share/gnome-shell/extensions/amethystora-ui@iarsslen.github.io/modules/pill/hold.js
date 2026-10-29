@@ -9,6 +9,9 @@
 // names let through, and their sounds off. Its held banners are said once when it ends, as quiet's are; it has no
 // activity of its own here (the profile's mark is).
 //
+// Later and mute (later.js) sit on the same wrap: a banner gets Later after its app's buttons, and a muted app's banners
+// are held as quiet holds them, for the hour of the mute.
+//
 // Everything is held in memory: GNOME's Do Not Disturb setting is never written, so a crash, a lock or turning this
 // off leaves notifications exactly as the person set them.
 
@@ -23,6 +26,7 @@ import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 
 import {buttonRow, cardButton, retire} from './clock.js';
 import {DigestCard} from './digest.js';
+import {Later} from './later.js';
 import {timeOfDay} from './text.js';
 
 const COLOR_SCHEMA = 'org.gnome.settings-daemon.plugins.color';
@@ -97,15 +101,22 @@ export class Hold {
         const hold = this;
         const original = this._original;
         proto._showNotification = function (...args) {
-            if (!hold._holding())
-                return original.apply(this, args);
-            const queue = this._notificationQueue;
-            const index = Array.isArray(queue) ? queue.findIndex(n => hold._lets(n)) : 0;
-            if (index < 0)
-                return undefined;
-            if (index > 0)
-                queue.unshift(...queue.splice(index, 1));
-            return original.apply(this, args);
+            if (hold._holding()) {
+                const queue = this._notificationQueue;
+                const index = Array.isArray(queue) ? queue.findIndex(n => hold._lets(n)) : 0;
+                if (index < 0)
+                    return undefined;
+                if (index > 0)
+                    queue.unshift(...queue.splice(index, 1));
+            }
+            const result = original.apply(this, args);
+            // Later and mute, after the app's own buttons
+            try {
+                hold._later?.decorate(this._banner);
+            } catch (e) {
+                console.error(`Amethystora UI: Later could not be added to a banner: ${e.message}`);
+            }
+            return result;
         };
         this._syncSound();
 
@@ -114,12 +125,15 @@ export class Hold {
             'changed::quiet-night', () => this._configure(),
             'changed::digest', () => this._configure(),
             'changed::digest-times', () => this._configure(),
+            'changed::later', () => this._configure(),
             this);
         this._configure();
     }
 
     disable() {
         this._settings.disconnectObject(this);
+        // The lock keeps what waits (later.js); anything else forgets it
+        this._stopLater(false);
         if (this._original)
             MessageTray.MessageTray.prototype._showNotification = this._original;
         this._original = null;
@@ -159,6 +173,10 @@ export class Hold {
     }
 
     _configure() {
+        if (this._settings.get_boolean('later'))
+            this._startLater();
+        else
+            this._stopLater(true);
         if (this._quiet) {
             if (!this._quietWatched) {
                 this._quietWatched = true;
@@ -305,7 +323,74 @@ export class Hold {
     }
 
     _holding() {
-        return this._reason !== null || this._digest || this._focusHolding();
+        return this._reason !== null || this._digest || this._focusHolding() || !!this._later?.muting;
+    }
+
+    // --- Later and mute (later.js) --------------------------------------------------------------------------------
+
+    _startLater() {
+        if (this._later)
+            return;
+        const later = new Later(this._settings, this._notice, {
+            changed: () => this._update(),
+            ended: (entry, byHand) => this._muteEnded(entry, byHand),
+        });
+        this._later = later;
+        try {
+            later.enable();
+        } catch (e) {
+            console.error(`Amethystora UI: Later did not start: ${e.message}\n${e.stack}`);
+            this._stopLater(true);
+        }
+    }
+
+    // forget: the key was turned off (nothing waits any more); else the lock may keep what waits
+    _stopLater(forget) {
+        const later = this._later;
+        this._later = null;
+        try {
+            later?.disable(forget);
+        } catch (e) {
+            console.error(`Amethystora UI: Later did not stop cleanly: ${e.message}`);
+        }
+        if (!later || !forget || !this._quietHeld)
+            return;
+        // What only a mute held stays in the list, followed no more
+        for (const notification of [...this._held.keys()]) {
+            if (!this._quietHeld.has(notification) && !this._digestHeld.has(notification) &&
+                !this._focusHeld.has(notification))
+                this._forget(notification);
+        }
+        this._update();
+    }
+
+    // A mute ended. By hand (Unmute), what it held is shown as one card; at the end of its hour the pill says how many
+    // wait, as quiet does. What quiet or a profile still holds stays theirs.
+    _muteEnded(entry, byHand) {
+        if (!this._quietHeld)
+            return;
+        // A mute kept across the lock holds notifications this hold never followed: they count all the same
+        const held = [...entry.held].filter(n => !this._quietHeld.has(n) && !this._focusHeld.has(n) &&
+            !this._digestHeld.has(n));
+        for (const notification of held) {
+            if (this._held.has(notification))
+                this._forget(notification);
+        }
+        if (held.length === 0)
+            return;
+        if (byHand) {
+            this._closeDigest();
+            this._digestCard = new DigestCard(held, GLib.DateTime.new_now_local().format('%H:%M'),
+                () => this._closeDigest(), _('Held while %s was muted').format(entry.name));
+            this._glass?.()?.surfacesChanged?.();
+        } else {
+            this._notice(ngettext('%d waiting in the list', '%d waiting in the list', held.length).format(held.length),
+                'weather-clear-night-symbolic', WAITING, '', () => Main.panel.statusArea.dateMenu?.menu.open());
+        }
+    }
+
+    get later() {
+        return this._later;
     }
 
     // --- A focus profile --------------------------------------------------------------------------------------------
@@ -358,7 +443,7 @@ export class Hold {
     _lets(notification) {
         if (passes(notification))
             return true;
-        if (this._reason !== null || this._digest)
+        if (this._reason !== null || this._digest || this._later?.muteOf(notification))
             return false;
         if (!this._focusHolding())
             return true;
@@ -399,10 +484,12 @@ export class Hold {
             return;
         const before = this._reason;
         this._reason = this._currentReason();
-        if (this._holding())
+        if (this._holding()) {
             this._watchBanners();
-        else
+            this._holdQueued();
+        } else {
             this._unwatchBanners();
+        }
         if (before !== null && this._reason === null)
             this._released();
         this._show();
@@ -456,10 +543,24 @@ export class Hold {
 
     // GNOME has just queued (or, its queue being full, dropped) a banner: one that does not pass is taken off the
     // queue and counted
-    _requested(notification) {
+    // What GNOME queued before a reason to hold came (a mute pressed, the extension back after the lock, quiet
+    // beginning), and a muted app's banner already on screen, are held as a banner asked for now would be
+    _holdQueued() {
+        const tray = Main.messageTray;
+        for (const notification of [...tray._notificationQueue ?? []])
+            this._requested(notification);
+        const shown = tray._notification;
+        if (shown && this._later?.muteOf(shown) && !passes(shown)) {
+            this._requested(shown, true);
+            tray._expireNotification?.();
+        }
+    }
+
+    // onScreen: the banner showing now, which a mute takes away
+    _requested(notification, onScreen = false) {
         // The banner on screen being updated is not held: it is shown already
-        if (!this._holding() || this._lets(notification) || !wouldPopUp(notification) ||
-            Main.messageTray._notification === notification)
+        if (!this._holding() || this._lets(notification) ||
+            (!onScreen && (!wouldPopUp(notification) || Main.messageTray._notification === notification)))
             return;
         this._takeOffQueue([notification]);
         if (!this._held.has(notification)) {
@@ -472,11 +573,13 @@ export class Hold {
             this._digestHeld.add(notification);
         if (this._focusHolding())
             this._focusHeld.add(notification);
+        this._later?.held(notification);
         this._show();
     }
 
     _forget(notification) {
         notification.disconnectObject(this);
+        this._later?.forget(notification);
         this._held.delete(notification);
         this._quietHeld.delete(notification);
         this._digestHeld.delete(notification);

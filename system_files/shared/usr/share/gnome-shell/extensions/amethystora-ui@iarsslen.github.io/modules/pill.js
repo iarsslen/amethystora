@@ -1,10 +1,12 @@
 // The live pill and what goes with it. The clock in the middle of the top bar becomes whatever is happening now (a
-// call, a recording, a link from the phone, the battery's question, a timer, music, an update ready, quiet), and a
-// click opens its card; with nothing happening it is GNOME's clock, exactly. Beside it: the privacy dots, the glow
-// round the screen while it is recorded or shared, quiet (banners held while fullscreen, sharing or at night), the
-// digest, the count on a stack of notifications, and volume and brightness as a pill under the top bar.
+// call, a recording, a link from the phone, the battery's question, a timer, what an update brought, music, an update
+// ready, quiet), and a click opens its card; with nothing happening it is GNOME's clock, exactly. Beside it: the
+// privacy dots, the glow round the screen while it is recorded or shared, quiet (banners held while fullscreen, sharing
+// or at night), the digest, Later and mute on banners, the count on a stack of notifications, and volume and
+// brightness as a pill under the top bar.
 //
-// Each part is a key of org.gnome.shell.extensions.amethystora-ui.pill (ame desktop pill|quiet|digest, Control), read
+// Each part is a key of org.gnome.shell.extensions.amethystora-ui.pill (ame desktop pill|quiet|digest|notifications|
+// whats-new, Control), read
 // live; a part that is off has nothing connected and nothing made. Nothing here polls: every source is a signal. A
 // focus profile (modules/focus.js) tells the pill its banners and sounds (setFocus) and gives it its mark
 // (setFocusMark), the last of the activities.
@@ -18,7 +20,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Activities} from './pill/activities.js';
 import {Battery, batteryView} from './pill/battery.js';
 import {Capture, Recording} from './pill/capture.js';
-import {Clock, retire} from './pill/clock.js';
+import {Clock, chip, retire} from './pill/clock.js';
 import {Glow} from './pill/glow.js';
 import {Hold} from './pill/hold.js';
 import {Media} from './pill/media.js';
@@ -29,20 +31,23 @@ import {Stacks} from './pill/stacks.js';
 import {disposeSettings} from './pill/text.js';
 import {Timer, armOffRing, disarmOffRing} from './pill/timer.js';
 import {Update} from './pill/update.js';
+import {News, writeSeen} from './pill/whatsnew.js';
 
 const SCHEMA = 'org.gnome.shell.extensions.amethystora-ui.pill';
 // GNOME's own recording and sharing buttons in the bar: the pill and the dots carry their Stop
 const GNOME_CAPTURE_ROLES = ['screenRecording', 'screenSharing'];
 
-// A word in the pill for a few seconds: "Timer done", "2 waiting in the list", "Opened in the browser"
+// A word in the pill for a few seconds: "Timer done", "2 waiting in the list", "Opened in the browser"; with an
+// action ({label, run}), a chip for it beside the words ("Back at 18:00" and Undo)
 class Notice {
-    constructor(text, icon, plate, activate) {
+    constructor(text, icon, plate, activate, action = null) {
         this.id = 'waiting';
         this.text = text;
-        this.accessible = text;
+        this.accessible = action ? `${text}. ${action.label}` : text;
         this.plate = plate;
         this.row = {icon, text};
         this._icon = icon;
+        this._action = action;
         if (activate)
             this.activate = activate;
     }
@@ -52,6 +57,8 @@ class Notice {
             this._content = new St.BoxLayout({style_class: 'amethystora-pill-content amethystora-pill-notice'});
             this._content.add_child(new St.Icon({icon_name: this._icon, icon_size: 12, y_align: Clutter.ActorAlign.CENTER}));
             this._content.add_child(new St.Label({text: this.text, y_align: Clutter.ActorAlign.CENTER}));
+            if (this._action)
+                this._content.add_child(chip(this._action.label, this._action.run));
         }
         return this._content;
     }
@@ -87,6 +94,7 @@ export class Pill {
             'changed::quiet', () => this._sync(),
             'changed::quiet-night', () => this._sync(),
             'changed::digest', () => this._sync(),
+            'changed::later', () => this._sync(),
             this);
         this._sync();
     }
@@ -151,7 +159,7 @@ export class Pill {
         }
         this._toggle('_privacy', on('privacy-dots'), () => new Privacy(this._capture));
         this._toggle('_glow', on('glow'), () => new Glow(this._capture, () => this._reduce()));
-        this._toggle('_hold', on('quiet') || on('quiet-night') || on('digest') || this._focusWants(),
+        this._toggle('_hold', on('quiet') || on('quiet-night') || on('digest') || on('later') || this._focusWants(),
             () => new Hold(this._settings, this._capture, this._activities, (...a) => this.notice(...a), () => this._glass()));
         this._hold?.setFocus(this._focusRule ?? null);
         if (on('live') || on('privacy-dots'))
@@ -233,6 +241,7 @@ export class Pill {
             ['_timer', () => new Timer(this._activities, notice)],
             ['_recording', () => new Recording(this._activities, notice, this._capture, reduce)],
             ['_update', () => new Update(this._activities)],
+            ['_news', () => new News(this._activities, this._settings)],
             ['_battery', () => new Battery(this._activities, notice, this._comfort, () => this._glass())],
         ];
         const connect = this._ext.modules?.get('connect');
@@ -281,14 +290,21 @@ export class Pill {
             Main.panel.statusArea[role]?.container?.show();
     }
 
-    // A word in the pill for `seconds`, in the "waiting" place; plate is '' or one of the plate's looks
-    notice(text, icon, seconds, plate = '', activate = null) {
+    // A word in the pill for `seconds`, in the "waiting" place; plate is '' or one of the plate's looks; action
+    // ({label, run}) adds a chip that runs it and ends the word
+    notice(text, icon, seconds, plate = '', activate = null, action = null) {
         if (!this._activities)
             return;
         this._endNotice();
         const notice = new Notice(text, icon, plate, activate ? () => {
             this._endNotice();
             activate();
+        } : null, action ? {
+            label: action.label,
+            run: () => {
+                this._endNotice();
+                action.run();
+            },
         } : null);
         this._notice = notice;
         this._activities.set('waiting', notice);
@@ -341,6 +357,21 @@ export class Pill {
         return this._clock;
     }
 
+    get news() {
+        return this._news;
+    }
+
+    // For the suites and the harness: what's new as after an update from `seen` to `info` ({version, releases: [{version,
+    // items}]}, the image's file), as the live pill's start would find it; seen undefined: a new account
+    newsForTest(info, seen) {
+        if (!this._live)
+            return false;
+        writeSeen(seen);
+        this._stopPart('_news');
+        this._toggle('_news', true, () => new News(this._activities, this._settings, info));
+        return this._news?.shown ?? false;
+    }
+
     get phone() {
         return this._phone;
     }
@@ -364,6 +395,8 @@ export class Pill {
             glow: this._glow?.monitors ?? 0,
             quiet: {on: !!this._hold?.reason, reason: this._hold?.reason ?? null, held: this._hold?.quietHeld ?? 0},
             digest: {held: this._hold?.digestHeld ?? 0, shown: this._hold?.digestShown ?? false},
+            later: this._hold?.later?.state() ?? null,
+            news: this._news?.shown ? this._news.news : null,
             osd: this._osd?.state ?? null,
             timer: {running: this._timer?.running ?? false, paused: this._timer?.paused ?? false, left: Math.round(this._timer?.left ?? 0)},
             paused: this._media?.paused === true,

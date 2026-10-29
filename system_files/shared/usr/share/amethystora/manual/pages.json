@@ -13,7 +13,7 @@
   },
   {
     "section": "The system",
-    "pages": ["updates.md", "security.md", "hardware.md"]
+    "pages": ["updates.md", "whats-new.md", "security.md", "hardware.md"]
   },
   {
     "section": "Help",

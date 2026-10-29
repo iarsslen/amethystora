@@ -58,6 +58,25 @@ theme, and Screenshot, Lock, Settings and Power.
   `ame desktop quick-settings theme off` hides the swatches, and `on` brings them back; you can also
   hide them as you hide a tile.
 
+## Power you can see
+
+Why is the fan loud, and why did the battery go so fast? The battery tile's menu, on a laptop, opens on
+the answer: how full the battery is and when it will be empty or full, the watts it gives or takes now
+and when it was unplugged, the apps that used the most since it was last plugged in or out, and the
+battery's health (how much it holds against when it was new, and how many times it has been charged,
+when the battery says). The apps are worked out from the processor time each one used, so they are an
+estimate, and the menu says so: the screen and the graphics are not counted, nor an app that came and
+went in between. Nothing is measured while the menu is closed but one look when you log in and each time
+you plug in or unplug.
+
+**A busy app.** When the processor has been at 70% or more for two minutes, a chip beside the meters in
+the top bar names the app that kept it busy, such as **Firefox is busy**. Click it for **Show it**,
+**Not now** and **Quit Firefox**, which asks the app to quit as its own menu would. It is said once per
+app per hour, never while a window is fullscreen in front (a game), and the chip goes when the
+processor calms down. It rides the meters' own reading, so without the meters there is no chip.
+
+`ame desktop power battery on|off` and `ame desktop power busy on|off`, also in [Control](control.md).
+
 ## Today
 
 The calendar menu, under the calendar, holds the day: the events from your calendars, the tasks due
@@ -67,6 +86,17 @@ click them to open Notes' tasks. Nothing is asked of Notes until you open the me
 calendar nothing but the titles of those tasks, and nothing at all when the menu is closed. Notes answers
 GNOME Shell alone: an app in a sandbox cannot ask, but a program you run yourself outside one could, as it
 could read anything else of yours while your notes are open. `ame desktop today tasks off` leaves them out.
+
+### Getting set
+
+For your first four weeks, the calendar menu starts with **Getting set**: the few steps that protect
+the machine and make it yours. Pick a look, automatic updates, a backup of your home folder, a PIN to
+unlock the disk, and pairing your phone. Each is ticked by what the machine already says (a backup
+ran, a phone is paired, the security report says the disk asks for its PIN), never by clicking it; a
+click opens the place that does it, and the security line only opens [Security](security.md). A step
+the machine has nothing to do about (a disk that is not encrypted, say) is left out. Nothing is read
+until you open the menu. **Hide** puts it away for good, as does `ame desktop getting-set off`; once
+every step is done it goes by itself.
 
 ## The weather
 
@@ -119,6 +149,8 @@ pill, or `Super+V`, always opens the calendar.
 - **An update ready**: **Ready · quick restart** when the update can finish without restarting the
   computer, else **Ready · restart**. **Restart now** opens [System Updates](updates.md#updating-now),
   which asks before it restarts anything; **Tonight** puts it out of sight until 8 in the evening.
+- **Updated**, once, the first time you log in after an update: what it brought, and
+  [What's new](updates.md#whats-new) in the Manual.
 - **The battery.** Rest the pointer on the battery in the top bar for the time left, or the time until
   it is full. At 20%, the pill turns amber and offers power saving, once: it never turns it on by itself.
 
@@ -166,6 +198,25 @@ With the digest on, banners that are not urgent wait all day and come together, 
 digest times (12:00 and 18:00 to begin with): one row for each app, **Show all** (the list) and **Clear**.
 Nothing is lost when the card goes: everything is in the list. `ame desktop digest on|off`, and
 `ame desktop digest times 12:00 18:00` for other times (up to six). Control offers four sets.
+
+### Later and mute
+
+A reminder you cannot act on now can come back when you can. Rest the pointer on a banner (or reach it
+with the keyboard) and, after the app's own buttons, there is **Later**: it offers **In an hour**,
+**This evening** (until 18:00), **Tomorrow morning** (09:00) and **When I next unlock**. The banner goes,
+the pill says when it comes back with an **Undo**, and at that time it comes back as it was, with its own
+buttons, and rings once. With a banner focused, `L` is Later in an hour. **Mute Notes for an hour** (with
+the app's own name) holds that app's banners for an hour, as quiet does: they still arrive in the list.
+Calls, alarms and urgent ones are never muted, only snoozed by your own hand.
+
+Nothing waits out of sight: at the top of the calendar's list, **Later** says when each comes back, with
+**Now**, and **Muted** says until when and how many it holds, with **Unmute**, which shows the held ones
+together. A snoozed notification also stays in the list itself, so its buttons work from there at any
+time. What waits is kept in memory only, never written to disk: it lasts through the lock screen, and
+logging out forgets it, as GNOME forgets the notifications themselves.
+
+`ame desktop notifications later on|off`, and `ame desktop notifications later-times 19:00 08:00` for
+other evening and morning times; Control offers three pairs.
 
 ### Volume and brightness
 

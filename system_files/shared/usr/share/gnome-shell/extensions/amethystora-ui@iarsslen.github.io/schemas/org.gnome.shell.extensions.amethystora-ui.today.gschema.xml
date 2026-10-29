@@ -14,5 +14,10 @@
       <summary>The weather</summary>
       <description>The weather beside the clock and in the calendar menu, for the place chosen in Weather. It sends that place to the weather services GNOME uses.</description>
     </key>
+    <key name="getting-set" type="b">
+      <default>true</default>
+      <summary>Getting set</summary>
+      <description>For an account's first four weeks, the calendar menu lists a few steps that protect the machine and make it yours, each ticked by what the machine already says. Hide turns this off.</description>
+    </key>
   </schema>
 </schemalist>

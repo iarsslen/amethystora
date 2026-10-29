@@ -2,7 +2,8 @@
 # A stand-in for UPower on the system bus, for the quick settings suite (19-quick-settings.sh): one laptop battery that
 # can keep its charge at 80%, and the display device GNOME reads. EnableChargeThreshold is written to
 # /run/upower-standin.log and changes the property, as UPower does. A lab file: it never goes into the image.
-# SIGUSR1 plugs the power in (the battery charging) and SIGUSR2 takes it out again, for the sound suite (23).
+# SIGUSR1 plugs the power in (the battery charging) and SIGUSR2 takes it out again, for the sound suite (23) and the
+# battery explained (54).
 #
 #   upower-standin.py [--unsupported] [--refuse]
 #       --unsupported: the battery has no charge limit; --refuse: it has one, and setting it fails
@@ -44,6 +45,11 @@ XML = '''<node>
     <property name="ChargeEndThreshold" type="u" access="read"/>
     <property name="ChargeThresholdEnabled" type="b" access="read"/>
     <property name="ChargeThresholdSettingsSupported" type="u" access="read"/>
+    <property name="EnergyRate" type="d" access="read"/>
+    <property name="EnergyFull" type="d" access="read"/>
+    <property name="EnergyFullDesign" type="d" access="read"/>
+    <property name="Capacity" type="d" access="read"/>
+    <property name="ChargeCycles" type="i" access="read"/>
   </interface>
 </node>'''
 NODE = Gio.DBusNodeInfo.new_for_xml(XML)
@@ -59,6 +65,9 @@ battery = {
     'BatteryLevel': GLib.Variant('u', 1), 'ChargeThresholdSupported': GLib.Variant('b', supported),
     'ChargeStartThreshold': GLib.Variant('u', 75), 'ChargeEndThreshold': GLib.Variant('u', 80),
     'ChargeThresholdEnabled': GLib.Variant('b', False), 'ChargeThresholdSettingsSupported': GLib.Variant('u', 3),
+    # The battery explained (54-r4-notify.sh): its watts now, and its health
+    'EnergyRate': GLib.Variant('d', 9.8), 'EnergyFull': GLib.Variant('d', 44.0),
+    'EnergyFullDesign': GLib.Variant('d', 50.0), 'Capacity': GLib.Variant('d', 88.0), 'ChargeCycles': GLib.Variant('i', 412),
 }
 display = dict(battery, NativePath=GLib.Variant('s', ''), Type=GLib.Variant('u', 2))
 manager = {'DaemonVersion': GLib.Variant('s', '1.91.5'), 'OnBattery': GLib.Variant('b', True),

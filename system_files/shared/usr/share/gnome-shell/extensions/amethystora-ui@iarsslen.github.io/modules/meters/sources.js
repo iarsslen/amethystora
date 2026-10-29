@@ -187,13 +187,14 @@ function displayName(commandLine, short) {
 }
 
 // Every process the account can see, walked while a menu is open: its CPU ticks so far and, when it can be read, its
-// proportional share of memory. A process's name is worked out once.
+// proportional share of memory. A process's name is worked out once. ticksOnly (the power module's looks) reads the
+// stat file alone: no memory, which walks each process's page tables, and the kernel's short name.
 export class Processes {
     constructor() {
         this._names = new Map();
     }
 
-    async walk(cancellable) {
+    async walk(cancellable, ticksOnly = false) {
         const pids = [];
         try {
             const dir = GLib.Dir.open('/proc', 0);
@@ -212,7 +213,7 @@ export class Processes {
             if (cancellable.is_cancelled())
                 break;
             // eslint-disable-next-line no-await-in-loop
-            const batch = await Promise.all(pids.slice(i, i + 16).map(pid => this._read(pid, cancellable)));
+            const batch = await Promise.all(pids.slice(i, i + 16).map(pid => this._read(pid, cancellable, ticksOnly)));
             for (const process of batch) {
                 if (process)
                     found.set(process.key, process);
@@ -225,7 +226,7 @@ export class Processes {
         return found;
     }
 
-    async _read(pid, cancellable) {
+    async _read(pid, cancellable, ticksOnly = false) {
         const stat = await readLater(`/proc/${pid}/stat`, cancellable);
         const close = stat?.lastIndexOf(')') ?? -1;
         if (close < 0)
@@ -235,6 +236,8 @@ export class Processes {
         // The process's start time tells a new process apart from an old one that had the same number
         const key = `${pid}:${fields[19]}`;
         const ticks = (Number(fields[11]) || 0) + (Number(fields[12]) || 0);
+        if (ticksOnly)
+            return {key, name: short, ticks, pss: null};
 
         const [rollup, commandLine] = await Promise.all([
             readLater(`/proc/${pid}/smaps_rollup`, cancellable),

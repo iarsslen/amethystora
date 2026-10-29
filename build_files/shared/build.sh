@@ -68,6 +68,10 @@ if [ "${IMAGE_FLAVOR}" == "dx" ] ; then
   /ctx/build_files/shared/build-dx.sh
 fi
 
+# What's new: the Manual's page and the live pill's card, from the notes of this build and the stream's last few
+# releases (whats-new.json, which `just build` writes with release-commits.sh; without it, no notes)
+/usr/bin/python3 /ctx/build_files/shared/build-whats-new.py image /ctx/build_files/whats-new.json /
+
 # The AI agent's index, of the image as it now is
 /ctx/build_files/shared/build-agent-index.sh
 

@@ -158,3 +158,39 @@
   background-gradient-start: rgba({{ error_bg_rgb }}, 0);
   background-gradient-end: rgba({{ error_bg_rgb }}, 0.45);
 }
+
+/* Later and mute: the banner's buttons as the board's, Later held open filled, and the groups in the calendar's list */
+#uiGroup .notification-button.amethystora-pill-later-button {
+  background-color: rgba({{ foreground_rgb }}, 0.08);
+  border: 1px solid rgba({{ foreground_rgb }}, 0.14);
+  color: {{ foreground }};
+}
+#uiGroup .notification-button.amethystora-pill-later-button:hover,
+#uiGroup .notification-button.amethystora-pill-later-button:focus { background-color: rgba({{ foreground_rgb }}, 0.14); }
+#uiGroup .notification-button.amethystora-pill-later-button:checked {
+  background-color: {{ foreground }};
+  border-color: {{ foreground }};
+  color: {{ background }};
+}
+#uiGroup .amethystora-pill-later-heading { color: {{ accent_text }}; }
+#uiGroup .amethystora-pill-later-row {
+  background-color: rgba({{ foreground_rgb }}, 0.06);
+  color: {{ foreground }};
+}
+#uiGroup .amethystora-pill-later-text { color: rgba({{ foreground_rgb }}, 0.8); }
+#uiGroup .amethystora-pill-later-link { color: {{ accent_text }}; }
+#uiGroup .amethystora-pill-later-link:hover,
+#uiGroup .amethystora-pill-later-link:focus { background-color: rgba({{ foreground_rgb }}, 0.08); }
+
+/* What's new: the plate in the accent, as the board's, and the card's rows */
+#uiGroup .amethystora-pill-plate-news .amethystora-pill-piece { background-color: rgba({{ accent_bg_rgb }}, 0.6); }
+#uiGroup .amethystora-pill-card .amethystora-pill-news-title,
+#uiGroup .amethystora-pill-card .amethystora-pill-news-item { color: {{ foreground }}; }
+#uiGroup .amethystora-pill-card .amethystora-pill-news-versions,
+#uiGroup .amethystora-pill-card .amethystora-pill-news-once { color: rgba({{ foreground_rgb }}, 0.8); }
+#uiGroup .amethystora-pill-card .amethystora-pill-news-area { color: rgba({{ foreground_rgb }}, 0.85); }
+#uiGroup .amethystora-pill-card .amethystora-pill-news-row { background-color: rgba({{ foreground_rgb }}, 0.06); }
+#uiGroup .amethystora-pill-card .amethystora-pill-news-icon {
+  background-color: rgba({{ accent_bg_rgb }}, 0.45);
+  color: {{ accent_fg }};
+}

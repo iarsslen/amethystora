@@ -22,7 +22,7 @@
 #   extensions   the GNOME extensions turned on, of those installed here
 #   theme        the desktop theme
 #   settings     {layout, favorites, keybindings, tiling, pointer, glass, motion, workspaces, windows, dock, pill, quick,
-#                bars, today, breaks, search, emoji, bezel, sound, look, transitions, hints, appgrid, focus}: the window
+#                bars, today, breaks, search, emoji, bezel, sound, look, transitions, hints, appgrid, focus, power}: the window
 #                layout, the dock's apps, the keys of
 #                keybindings (the image's custom keybindings by their id, never a command), the tiling's
 #                settings by their key in its schema (TILING_KEYS: numbers, switches and lists, never its
@@ -145,7 +145,7 @@ DOCK_KEYS='{
 PILL=org.gnome.shell.extensions.amethystora-ui.pill
 PILL_KEYS='{
     "live": ["b"], "privacy-dots": ["b"], "glow": ["b"], "quiet": ["b"], "quiet-night": ["b"],
-    "digest": ["b"], "digest-times": ["as", "times"]
+    "digest": ["b"], "digest-times": ["as", "times"], "later": ["b"], "later-times": ["as", "times"], "whats-new": ["b"]
 }'
 # Quick settings' tiles: the order they come first in and the ones put away, each a tile's short name
 QUICK=org.gnome.shell.extensions.amethystora-ui.quick
@@ -156,7 +156,7 @@ BARS_KEYS='{"every-screen": ["b"], "peek": ["b"]}'
 # Today's tasks in the calendar menu. Never the weather, which sends the place chosen in Weather: a file someone
 # shares must not turn that on.
 TODAY=org.gnome.shell.extensions.amethystora-ui.today
-TODAY_KEYS='{"tasks": ["b"]}'
+TODAY_KEYS='{"tasks": ["b"], "getting-set": ["b"]}'
 # GNOME's own rest reminders: which of its two kinds of break are on
 BREAKS=org.gnome.desktop.break-reminders
 BREAKS_KEYS='{"selected-breaks": ["as", "breaks"]}'
@@ -194,6 +194,9 @@ HINTS=org.gnome.shell.extensions.amethystora-ui.hints
 HINTS_KEYS='{"enabled": ["b"]}'
 APPGRID=org.gnome.shell.extensions.amethystora-ui.appgrid
 APPGRID_KEYS='{"recent": ["b"]}'
+# The battery explained and the busy app's chip (Power you can see)
+POWER=org.gnome.shell.extensions.amethystora-ui.power
+POWER_KEYS='{"battery-details": ["b"], "busy-app": ["b"]}'
 # Focus profiles: the two triggers and what each of Work, Games and Sleep does. Never profile, ends and off-at (what is on
 # now) or a profile's set (a saved set is this machine's state). The apps let through are launchers by their ID.
 FOCUS=org.gnome.shell.extensions.amethystora-ui.focus
@@ -339,7 +342,7 @@ if type != "object" then "it is not a JSON object" else
     at("theme"; if type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]*$") then empty else "theme is not a theme's name" end),
     at("settings"; only(["layout", "favorites", "keybindings", "tiling", "paperwm", "pointer", "glass", "motion", "workspaces",
             "windows", "dock", "pill", "quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "look", "transitions",
-            "hints", "appgrid", "focus"]; "settings."),
+            "hints", "appgrid", "focus", "power"]; "settings."),
         (if type == "object" then
             at("layout"; if IN("tiling", "classic") then empty else "settings.layout is tiling or classic" end),
             at("favorites"; each("settings.favorites";
@@ -441,6 +444,10 @@ if type != "object" then "it is not a JSON object" else
                 (if type == "object" then to_entries[] | select(.key | IN($appgrid | keys[])) | $appgrid[.key] as $spec
                     | if .value | valid($spec) then empty else "settings.appgrid.\(.key) is \(wanted($spec))" end
                  else empty end)),
+            at("power"; only($power | keys; "settings.power."),
+                (if type == "object" then to_entries[] | select(.key | IN($power | keys[])) | $power[.key] as $spec
+                    | if .value | valid($spec) then empty else "settings.power.\(.key) is \(wanted($spec))" end
+                 else empty end)),
             at("focus"; only($focus | keys; "settings.focus."),
                 (if type == "object" then to_entries[] | select(.key | IN($focus | keys[])) | $focus[.key] as $spec
                     | if .value | valid($spec) then empty else "settings.focus.\(.key) is \(wanted($spec))" end
@@ -462,7 +469,7 @@ check() {
         --argjson bezel "${BEZEL_KEYS}" --argjson sound "${SOUND_KEYS}" \
         --argjson look "${LOOK_KEYS}" \
         --argjson transitions "${TRANSITIONS_KEYS}" --argjson hints "${HINTS_KEYS}" --argjson appgrid "${APPGRID_KEYS}" \
-        --argjson focus "${FOCUS_KEYS}" \
+        --argjson focus "${FOCUS_KEYS}" --argjson power "${POWER_KEYS}" \
         "${TILING_JQ} ${CHECK}" 2>&1)" ||
         die "$1 is not JSON."
     [[ -z "${problems}" ]] ||
@@ -604,7 +611,7 @@ current() {
             value="$(gsettings get "${PILL}" "${key}" 2>/dev/null | as_json)"
             jq -nc --arg k "${key}" --argjson v "${value:-null}" '{pill: {($k): $v}}'
         done < <(jq -r '.settings.pill // {} | keys[]' <<<"$1")
-        for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus; do
+        for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power; do
             case "${area}" in
                 quick) schema="${QUICK}" ;;
                 bars) schema="${BARS}" ;;
@@ -617,6 +624,7 @@ current() {
                 transitions) schema="${TRANSITIONS}" ;;
                 hints) schema="${HINTS}" ;;
                 appgrid) schema="${APPGRID}" ;;
+                power) schema="${POWER}" ;;
                 focus) schema="${FOCUS}" ;;
             esac
             while read -r key; do
@@ -631,7 +639,7 @@ current() {
         done < <(jq -r '.settings.look // {} | keys[]' <<<"$1")
     } | jq -sc 'reduce .[] as $x ({favorites: null, keybindings: {}, tiling: {}, pointer: {}, glass: {}, motion: {},
         workspaces: {}, windows: {}, dock: {}, pill: {}, quick: {}, bars: {}, today: {}, breaks: {}, search: {}, emoji: {},
-        bezel: {}, sound: {}, look: {}, transitions: {}, hints: {}, appgrid: {}, focus: {}};
+        bezel: {}, sound: {}, look: {}, transitions: {}, hints: {}, appgrid: {}, focus: {}, power: {}};
         . * $x)'
 }
 
@@ -765,7 +773,7 @@ def brew($x; $k): $x.brew[$k] // [];
         + if $v == null then {ok: false, why: "this machine has no such pill setting"} else {} end),
     ($hs.pill // {} | to_entries[] | .key as $k | select($fs.pill // {} | has($k) | not)
         | {area: "pill", action: "remove", key: $k, from: .value}),
-    (("quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "transitions", "hints", "appgrid", "focus") as $a
+    (("quick", "bars", "today", "breaks", "search", "emoji", "bezel", "sound", "transitions", "hints", "appgrid", "focus", "power") as $a
     | ($fs[$a] // {} | to_entries[] | .key as $k | $now[$a][$k] as $v
         | select(.value != $v) | {area: $a, action: "set", key: $k, to: .value, from: $v}
         + if $v == null then {ok: false, why: "this machine has no such \({quick: "quick settings", bezel: "screen corners"}[$a] // $a) setting"} else {} end),
@@ -839,11 +847,11 @@ def text:
           else ", \(.from | tojson) here, back to the image's" end
     elif .area == "quick" or .area == "bars" or .area == "today" or .area == "breaks"
         or .area == "search" or .area == "emoji" or .area == "bezel" or .area == "sound"
-        or .area == "transitions" or .area == "hints" or .area == "appgrid" or .area == "focus" then
+        or .area == "transitions" or .area == "hints" or .area == "appgrid" or .area == "focus" or .area == "power" then
         {quick: "quick settings'", bars: "the top bar's", today: "the calendar's", breaks: "the rest reminders'",
             search: "the search's", emoji: "the emoji picker's", bezel: "the screen's", sound: "the desktop's",
             transitions: "the transitions'", hints: "the tips'", appgrid: "the app grid's",
-            focus: "focus profiles'"}[.area]
+            focus: "focus profiles'", power: "the power module's"}[.area]
         + " \(.key)"
         + if .action == "set" then ": \(.to | tojson)" + if .from == null then "" else ", in place of \(.from | tojson)" end
           else ", \(.from | tojson) here, back to the image's" end
@@ -1086,7 +1094,7 @@ add_all() {
         name="$(jq -r .key <<<"${change}")"
         gsettings set "${PILL}" "${name}" "$(jq -c .to <<<"${change}")" || FAILED+=("the live pill's ${name}")
     done
-    for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus; do
+    for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power; do
         case "${area}" in
             quick) schema="${QUICK}" label="quick settings'" ;;
             bars) schema="${BARS}" label="the bars setting" ;;
@@ -1099,6 +1107,7 @@ add_all() {
             transitions) schema="${TRANSITIONS}" label="the transitions'" ;;
             hints) schema="${HINTS}" label="the tips'" ;;
             appgrid) schema="${APPGRID}" label="the app grid's" ;;
+            power) schema="${POWER}" label="the power module's" ;;
             focus) schema="${FOCUS}" label="focus profiles'" ;;
         esac
         mapfile -t changes < <(of "${todo}" "${area}")
@@ -1200,7 +1209,7 @@ remove_all() {
     for name in "${names[@]}"; do
         gsettings reset "${PILL}" "${name}" || FAILED+=("the live pill's ${name}")
     done
-    for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus; do
+    for area in quick bars today breaks search emoji bezel sound transitions hints appgrid focus power; do
         case "${area}" in
             quick) schema="${QUICK}" label="quick settings'" ;;
             bars) schema="${BARS}" label="the bars setting" ;;
@@ -1213,6 +1222,7 @@ remove_all() {
             transitions) schema="${TRANSITIONS}" label="the transitions'" ;;
             hints) schema="${HINTS}" label="the tips'" ;;
             appgrid) schema="${APPGRID}" label="the app grid's" ;;
+            power) schema="${POWER}" label="the power module's" ;;
             focus) schema="${FOCUS}" label="focus profiles'" ;;
         esac
         mapfile -t names < <(of "${gone}" "${area}" | jq -r .key)
@@ -1328,7 +1338,8 @@ bake() {
             ($s.look // {} | with_entries(select(.key | IN("accent-per-workspace", "workspace-accents"))))),
           section("org.gnome.shell.extensions.amethystora-transitions"; ($s.transitions // {})),
           section("org.gnome.shell.extensions.amethystora-ui.hints"; ($s.hints // {})),
-          section("org.gnome.shell.extensions.amethystora-ui.appgrid"; ($s.appgrid // {}))' <<<"${setup}" \
+          section("org.gnome.shell.extensions.amethystora-ui.appgrid"; ($s.appgrid // {})),
+          section("org.gnome.shell.extensions.amethystora-ui.power"; ($s.power // {}))' <<<"${setup}" \
         >"${schemas}/zz2-image-setup.gschema.override"
 
     # The image's custom keybindings are relocatable, so their keys are dconf's

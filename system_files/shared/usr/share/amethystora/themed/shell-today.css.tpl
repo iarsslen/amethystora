@@ -66,3 +66,26 @@
 #panel .amethystora-today-weather-pill.amethystora-today-weather-pill {
   background-color: rgba({{ foreground_rgb }}, 0.10);
 }
+
+/* Getting set: the card's tint, the ring in the accent's text colour, a line's circle filled in the accent when done */
+.amethystora-today .amethystora-today-getting { background-color: rgba({{ foreground_rgb }}, 0.05); }
+.amethystora-today .amethystora-today-getting-title,
+.amethystora-today .amethystora-today-getting-row { color: {{ foreground }}; }
+.amethystora-today .amethystora-today-getting-progress,
+.amethystora-today .amethystora-today-getting-why { color: rgba({{ foreground_rgb }}, 0.8); }
+.amethystora-today .amethystora-today-getting-ring {
+  color: {{ accent_text }};
+  -amethystora-today-track: rgba({{ foreground_rgb }}, 0.14);
+}
+.amethystora-today .amethystora-today-getting-hide,
+.amethystora-today .amethystora-today-getting-where { color: {{ accent_text }}; }
+.amethystora-today .amethystora-today-getting-hide:hover,
+.amethystora-today .amethystora-today-getting-hide:focus { background-color: rgba({{ foreground_rgb }}, 0.08); }
+.amethystora-today .amethystora-today-getting-row { background-color: rgba({{ foreground_rgb }}, 0.06); }
+.amethystora-today .amethystora-today-getting-row:hover,
+.amethystora-today .amethystora-today-getting-row:focus { background-color: rgba({{ foreground_rgb }}, 0.1); }
+.amethystora-today .amethystora-today-getting-box { border-color: rgba({{ accent_text_rgb }}, 0.6); }
+.amethystora-today .amethystora-today-getting-box:checked {
+  background-color: {{ accent_bg }};
+  color: {{ accent_fg }};
+}

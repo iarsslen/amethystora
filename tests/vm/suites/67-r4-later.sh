@@ -10,6 +10,7 @@
 # /var/tmp/vmlab-captions.zip, when the lab keeps one in /vm/cache, else from alphacephei.com; with neither, B3 and what
 # needs the model are skipped with one reason), a sentence spoken by espeak-ng and played into a null sink, its words in the box,
 # the program paused while nothing plays, nothing written or sent, off, remove, and ten disable/enable cycles.
+# vmlab-paths: @ui/extension.js @ui/*captions* @ui/*connect* @ui/*quick* apps/connect/* apps/phone/* @sf/usr/libexec/amethystora-captions @sf/*user-setup.hooks.d/26-phone-computers.sh @sf/*Connect.gschema.xml @sf/usr/libexec/amethystora-control-list @sf/*just/desktop.just
 source "$(dirname "$0")/lib.sh"
 
 UUID=amethystora-ui@iarsslen.github.io

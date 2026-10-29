@@ -1,0 +1,88 @@
+/* Power you can see (modules/power.js): sizes, radii and spacing, as the board draws them. The colours follow the
+   theme, in the theme's shell-power.css; the ones here stand in before a theme has been applied. */
+
+/* The battery's menu (quick settings) */
+.amethystora-power-battery-item { padding: 4px 8px 8px; }
+.amethystora-power-battery { spacing: 10px; }
+.amethystora-power-battery-top { spacing: 10px; }
+.amethystora-power-battery-percent {
+  font-size: 30px;
+  font-weight: 700;
+  font-feature-settings: "tnum";
+}
+.amethystora-power-battery-when {
+  font-size: 13px;
+  font-weight: 700;
+  padding-bottom: 5px;
+}
+.amethystora-power-battery-how {
+  font-size: 12px;
+  font-weight: 600;
+}
+/* The board draws the watts 6 px closer under the charge than the card's 10 px */
+.amethystora-power-battery-head { spacing: 4px; }
+.amethystora-power-line {
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+.amethystora-power-head {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+}
+.amethystora-power-use {
+  spacing: 5px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.amethystora-power-use-share { font-feature-settings: "tnum"; }
+.amethystora-power-bar {
+  height: 8px;
+  color: #b37df9;
+  -amethystora-power-from: #7429e0;
+  -amethystora-power-track: rgba(255, 255, 255, 0.08);
+}
+.amethystora-power-note {
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.amethystora-power-kv {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.amethystora-power-kv-value { font-feature-settings: "tnum"; }
+
+/* The busy chip beside the meters, and its card */
+.amethystora-power-busy-button { padding: 0 2px; }
+.amethystora-power-chip {
+  height: 24px;
+  padding: 0 10px;
+  spacing: 6px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  background-color: rgba(255, 190, 80, 0.35);
+}
+.amethystora-power-busy-item { padding: 6px 8px; }
+.amethystora-power-busy-card {
+  width: 300px;
+  spacing: 10px;
+}
+.amethystora-power-busy-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+.amethystora-power-busy-text { font-size: 12.5px; }
+.amethystora-power-busy-buttons { spacing: 8px; }
+.amethystora-power-busy-button-action {
+  min-height: 32px;
+  padding: 0 13px;
+  border-radius: 999px;
+  border-width: 1px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.amethystora-power-busy-foot {
+  font-size: 11.5px;
+  font-weight: 600;
+}

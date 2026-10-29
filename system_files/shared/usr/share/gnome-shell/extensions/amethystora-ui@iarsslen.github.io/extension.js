@@ -26,6 +26,7 @@ import {Pill} from './modules/pill.js';
 import {Quick} from './modules/quick.js';
 import {Bars} from './modules/bars.js';
 import {Today} from './modules/today.js';
+import {Power} from './modules/power.js';
 import {Dock} from './modules/dock.js';
 import {Glass} from './modules/glass.js';
 import {Hints} from './modules/hints.js';
@@ -59,6 +60,7 @@ const MODULES = [
     ['quick', Quick],
     ['bars', Bars],
     ['today', Today],
+    ['power', Power],
     ['dock', Dock],
     ['appgrid', AppGrid],
     ['emoji', Emoji],

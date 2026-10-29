@@ -20,3 +20,5 @@ __pycache__/
 
 cosign.key
 akmods-private.priv
+# What's new: the notes just build writes for the image (release-commits.sh)
+build_files/whats-new.json

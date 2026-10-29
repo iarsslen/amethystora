@@ -187,6 +187,7 @@ read_in_background pill gsettings list-recursively org.gnome.shell.extensions.am
 read_in_background quick gsettings get org.gnome.shell.extensions.amethystora-ui.quick tile-hidden
 read_in_background bars gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.bars
 read_in_background today gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.today
+read_in_background power gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.power
 read_in_background focus gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.focus
 read_in_background breaks gsettings get org.gnome.desktop.break-reminders selected-breaks
 read_in_background search gsettings list-recursively org.gnome.shell.extensions.amethystora-ui.search
@@ -1030,6 +1031,10 @@ ui_switch today tasks today-tasks "${ gettext "Today's tasks in the calendar"; }
 ui_switch today weather weather "${ gettext "Weather beside the clock"; }" \
     "${ gettext "Sends the place you chose in Weather to a weather service."; }" \
     desktop#the-weather true ame desktop weather
+# Getting set in the calendar menu, for an account's first four weeks
+ui_switch today getting-set getting-set "${ gettext "Getting set"; }" \
+    "${ gettext "For your first four weeks, the calendar menu lists the steps that protect the machine and make it yours."; }" \
+    desktop#getting-set false ame desktop getting-set
 
 # GNOME's own rest reminders (org.gnome.desktop.break-reminders)
 case "${ said breaks; }" in
@@ -1086,6 +1091,50 @@ esac
 USAGE="ame desktop digest times HH:MM [HH:MM]..."
 item desktop digest-times choice "${ gettext "Digest times"; }" "${ gettext "When the digest comes."; }" "${TIMES}" \
     desktop#the-digest
+# Later and mute on banners (in memory only), their two times, and What's new after an update
+PILLKEY=later pill_item later "${ gettext "Later and mute"; }" \
+    "${ gettext "Later on any banner brings it back in an hour, this evening, tomorrow or when you next unlock; Mute holds an app's banners for an hour."; }" \
+    desktop#later-and-mute ame desktop notifications later
+LATER_TIMES="$(pill_key later-times | tr -d "[]' " | sed 's/^@as//')"
+choice 18:00,09:00 "${ gettext "18:00 and 09:00"; }" "" false ame desktop notifications later-times 18:00 09:00
+choice 19:00,08:00 "${ gettext "19:00 and 08:00"; }" "" false ame desktop notifications later-times 19:00 08:00
+choice 17:00,08:30 "${ gettext "17:00 and 08:30"; }" "" false ame desktop notifications later-times 17:00 08:30
+case "${LATER_TIMES}" in
+    18:00,09:00 | 19:00,08:00 | 17:00,08:30 | "") ;;
+    *)
+        SHOWN="${LATER_TIMES//,/ and }"
+        DETAIL="${ eval_gettext "Set from a terminal: \${SHOWN}."; }"
+        ;;
+esac
+[[ "${ ended pill; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
+USAGE="ame desktop notifications later-times HH:MM HH:MM"
+item desktop later-times choice "${ gettext "This evening and tomorrow morning"; }" \
+    "${ gettext "When Later's This evening and Tomorrow morning bring a banner back."; }" "${LATER_TIMES}" \
+    desktop#later-and-mute
+PILLKEY=whats-new pill_item whats-new "${ gettext "What's new after an update"; }" \
+    "${ gettext "The first session after an update, the pill says Updated once and shows what it brought."; }" \
+    updates#whats-new ame desktop whats-new
+GROUP=""
+
+
+# Power you can see (org.gnome.shell.extensions.amethystora-ui.power): the battery explained, and the busy app
+POWER="${ said power; }"
+power_onoff() { [[ "${ value_of "${POWER}" "$1" "(.*)\$"; }" == true ]] && echo on || echo off; }
+power_item() {
+    local id="$1" key="$2" title="$3" text="$4"
+    shift 4
+    [[ "${ ended power; }" == 0 ]] || REASON="${ gettext "Amethystora UI is not installed."; }"
+    switch_choices false "$@"
+    USAGE="$* on|off"
+    item desktop "${id}" switch "${title}" "${text}" "${ power_onoff "${key}"; }" desktop#power-you-can-see
+}
+GROUP="${ gettext "Power"; }"
+power_item battery-details battery-details "${ gettext "Battery details"; }" \
+    "${ gettext "The battery's menu says when it runs out, the watts, the apps that used the most and its health."; }" \
+    ame desktop power battery
+power_item busy-app busy-app "${ gettext "Say when an app is busy"; }" \
+    "${ gettext "A chip beside the meters names an app that has kept the processor busy for two minutes."; }" \
+    ame desktop power busy
 GROUP=""
 
 # Focus profiles (org.gnome.shell.extensions.amethystora-ui.focus): the profile picked by hand, the two triggers, and

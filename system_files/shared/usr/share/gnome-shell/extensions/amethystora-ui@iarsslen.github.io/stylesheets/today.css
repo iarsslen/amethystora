@@ -164,3 +164,55 @@
 .amethystora-today-weather-first.amethystora-today-weather-plain {
   font-weight: normal;
 }
+
+/* Getting set (modules/today/getting.js): the board's card, first in the column */
+.amethystora-today-getting {
+  spacing: 8px;
+  padding: 16px;
+  border-radius: 26px;
+}
+.amethystora-today-getting-head {
+  spacing: 14px;
+  padding-bottom: 4px;
+}
+.amethystora-today-getting-ring {
+  width: 44px;
+  height: 44px;
+}
+.amethystora-today-getting-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+.amethystora-today-getting-progress {
+  font-size: 12px;
+  font-weight: 600;
+}
+.amethystora-today-getting-hide {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 6px;
+  border-radius: 8px;
+}
+.amethystora-today-getting-row {
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.amethystora-today-getting-row-box { spacing: 12px; }
+.amethystora-today-getting-box {
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  border-width: 2px;
+}
+.amethystora-today-getting-box:checked { border-width: 0; }
+.amethystora-today-getting-name { font-weight: 700; }
+.amethystora-today-getting-why {
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.amethystora-today-getting-where {
+  font-size: 12px;
+  font-weight: 700;
+}

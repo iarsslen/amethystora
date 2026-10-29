@@ -2,11 +2,12 @@
 // while Notes is open and unlocked (or not encrypted), and then GNOME's world clocks and the weather. The weather is
 // off until the person chooses it, since it sends the place chosen in Weather to a weather service: until then its
 // place in the menu says so and offers to turn it on, and nothing is fetched for it. Turned on, the weather also shows
-// beside the clock in the top bar.
+// beside the clock in the top bar. For an account's first four weeks, Getting set comes first in the column
+// (modules/today/getting.js).
 //
-// Two keys of org.gnome.shell.extensions.amethystora-ui.today (ame desktop today|weather, Control), read live. Nothing
-// runs until the menu opens: Notes is asked then, and listened to while the menu is open. The only timer is the
-// weather's hourly refresh, which exists while the weather is on.
+// Three keys of org.gnome.shell.extensions.amethystora-ui.today (ame desktop today|weather|getting-set, Control), read
+// live. Nothing runs until the menu opens: Notes is asked then, and listened to while the menu is open, and Getting
+// set's lines are read then. The only timer is the weather's hourly refresh, which exists while the weather is on.
 //
 // For the tests only (tests/vm/suites/19-today.sh): taskTitles() is what the tasks section shows, refresh() asks Notes
 // again.
@@ -15,6 +16,7 @@ import Clutter from 'gi://Clutter';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
+import {GettingSet} from './today/getting.js';
 import {Tasks} from './today/tasks.js';
 import {Weather} from './today/weather.js';
 
@@ -40,9 +42,14 @@ export class Today {
         this._tasks.enable();
         this._weather = new Weather(dateMenu, this._settings);
         this._weather.enable();
+        // Getting set, first in the column (modules/today/getting.js)
+        this._getting = new GettingSet(dateMenu, this._settings);
+        this._getting.enable();
     }
 
     disable() {
+        this._getting?.disable();
+        this._getting = null;
         this._weather?.disable();
         this._weather = null;
         this._tasks?.disable();
@@ -97,5 +104,9 @@ export class Today {
 
     weatherPill() {
         return this._weather?.pillShown() ?? false;
+    }
+
+    get getting() {
+        return this._getting;
     }
 }

@@ -199,6 +199,13 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
         ver="${ver}.${POINT}"
     fi
 
+    # What's new: this build's notes and the stream's last few releases', which the build makes into the Manual's
+    # page and the pill's card and which go into a label for the next build (release-commits.sh). Without git, the
+    # registry or the tools, or offline, there are no notes and the build goes on; the file is gitignored
+    REPO_ORGANIZATION={{ repo_organization }} bash build_files/shared/release-commits.sh "${image_name}" "${tag}" "${ver}" \
+        > build_files/whats-new.json 2>/dev/null || true
+    whats_new="$(jq -c '.releases // []' build_files/whats-new.json 2>/dev/null || echo '[]')"
+
     # Build Arguments
     BUILD_ARGS=()
     # dx is built by build.sh inside the one stage, from this argument -- there is no separate
@@ -232,6 +239,12 @@ build $image="amethystora" $tag="latest" $flavor="main" rechunk="0" ghcr="0" pip
     LABELS=()
     LABELS+=("--label" "org.opencontainers.image.title=${image_name}")
     LABELS+=("--label" "org.opencontainers.image.version=${ver}")
+    # The commit it was built from, which the next build's What's new counts from, and the notes it carries forward
+    # (release-commits.sh)
+    if head_sha="$(git rev-parse --verify -q HEAD 2>/dev/null)" && [[ -z "$(git status -s 2>/dev/null)" ]]; then
+        LABELS+=("--label" "org.opencontainers.image.revision=${head_sha}")
+    fi
+    LABELS+=("--label" "org.amethystora.whats-new=${whats_new:-[]}")
     LABELS+=("--label" "ostree.linux=${kernel_release}")
     # When the base image was built, for security-rebuild.yml to tell which fixes a rebuild brings in
     LABELS+=("--label" "org.amethystora.base-created=${base_created}")

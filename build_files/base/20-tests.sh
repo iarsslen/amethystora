@@ -608,8 +608,8 @@ grep -q "shouldShowApp" "${UI_EXTENSION}/modules/fuzzy.js"
 # apps, its three recipes, and quiet holding banners in memory only: nothing of it writes GNOME's show-banners
 PILL=org.gnome.shell.extensions.amethystora-ui.pill
 [[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${PILL}" | sort | paste -sd ' ')" == \
-    "digest digest-times glow live privacy-dots quiet quiet-night" ]]
-for key in live privacy-dots glow quiet; do
+    "digest digest-times glow later later-times live privacy-dots quiet quiet-night whats-new" ]]
+for key in live privacy-dots glow quiet later whats-new; do
     [[ "$(GSETTINGS_BACKEND=memory gsettings get "${PILL}" "${key}")" == true ]]
 done
 for key in quiet-night digest; do
@@ -629,6 +629,53 @@ if grep -rn "show-banners" "${UI_EXTENSION}/modules/pill.js" "${UI_EXTENSION}/mo
     echo "the pill writes GNOME's Do Not Disturb"
     exit 1
 fi
+# Later and mute, and What's new (plans/beyond/spec-r4-notify.md): the times' default, the recipes, nothing that waits
+# ever written (a notification's text stays in memory), and nothing of either shown as markup. What's new's page is
+# in the Manual and its card's file is the build's, with no item when the build brought nothing
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${PILL}" later-times)" == "['18:00', '09:00']" ]]
+for recipe in notifications whats-new; do
+    grep -q "^${recipe} \*ARGS:" /usr/share/amethystora/just/desktop.just
+done
+if grep -nE "file_set_contents|replace_contents|create_readwrite|\.write\(" "${UI_EXTENSION}/modules/pill/later.js"; then
+    echo "Later writes what waits somewhere"
+    exit 1
+fi
+[[ -z "$(grep -nE 'use_markup = true|use_markup: true|set_markup\(' "${UI_EXTENSION}/modules/pill/later.js" \
+    "${UI_EXTENSION}/modules/pill/whatsnew.js")" ]]
+jq -e '(.version | type == "string") and (.releases | type == "array" and length <= 6)
+    and all(.releases[]; (.items | length <= 12) and all(.items[]; (.title | type == "string")
+        and (.area | IN("desktop", "security", "control", "apps", "updates", "system"))))' \
+    /usr/share/amethystora/whats-new.json >/dev/null
+[[ "$(jq -r .version /usr/share/amethystora/whats-new.json)" == "$(. /usr/lib/os-release && echo "${IMAGE_VERSION}")" ]]
+jq -e '[.[].pages[]] | index("whats-new.md")' /usr/share/amethystora/manual/pages.json >/dev/null
+grep -q "^# What's new$" /usr/share/amethystora/manual/whats-new.md
+# Its notes never keep a subject the image's own checks refuse (a command, a path, an upstream name), so that no commit
+# can stop a stream from building
+bash /ctx/build_files/shared/test-whats-new.sh
+# The page is made by each build: a translation of it would stand in for it, for ever saying what one build brought
+if compgen -G "/usr/share/amethystora/manual/*/whats-new.md" >/dev/null; then
+    echo "whats-new.md is made by the build and must not be translated"
+    exit 1
+fi
+# Power you can see: two switches, both on, the module between today's and the dock, its recipe; it quits an app only
+# by asking it (request_quit), and runs nothing
+POWER=org.gnome.shell.extensions.amethystora-ui.power
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${POWER}" | sort | paste -sd ' ')" == "battery-details busy-app" ]]
+for key in battery-details busy-app; do
+    [[ "$(GSETTINGS_BACKEND=memory gsettings get "${POWER}" "${key}")" == true ]]
+done
+for file in modules/power.js modules/power/apps.js modules/power/battery.js modules/power/busy.js stylesheets/power.css; do
+    test -s "${UI_EXTENSION}/${file}"
+done
+test -s /usr/share/amethystora/themed/shell-power.css.tpl
+[[ "$(grep -oE "^    \['(today|power|dock)'," "${UI_EXTENSION}/extension.js" | paste -sd ' ')" == \
+    "    ['today',     ['power',     ['dock'," ]]
+grep -q '^power \*ARGS:' /usr/share/amethystora/just/desktop.just
+[[ -z "$(grep -rnE 'Subprocess|Util\.spawn|spawn_command_line|GLib\.spawn|kill\(|SIGKILL|force_exit' \
+    "${UI_EXTENSION}/modules/power.js" "${UI_EXTENSION}/modules/power")" ]]
+grep -q "request_quit()" "${UI_EXTENSION}/modules/power/busy.js"
+[[ -z "$(grep -rnE 'use_markup = true|use_markup: true|set_markup\(' "${UI_EXTENSION}/modules/power.js" \
+    "${UI_EXTENSION}/modules/power")" ]]
 # Quick settings as live tiles (plans/beyond/spec-quick.md): its two keys, empty, its files, its place among the
 # modules (after the phone link, whose phones its tile shows, and before the glass, which draws behind its tiles), its
 # recipe and Control's two entries. Nothing in it reads text as markup, the theme block runs `ame desktop theme` and
@@ -662,8 +709,22 @@ TODAY=org.gnome.shell.extensions.amethystora-ui.today
 [[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${BARS}" | sort | paste -sd ' ')" == "every-screen peek" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get "${BARS}" every-screen)" == true ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get "${BARS}" peek)" == true ]]
-[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${TODAY}" | sort | paste -sd ' ')" == "tasks weather" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys "${TODAY}" | sort | paste -sd ' ')" == "getting-set tasks weather" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get "${TODAY}" tasks)" == true ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get "${TODAY}" getting-set)" == true ]]
+# Getting set runs two of the image's helpers, as the account, and nothing else; the lines it opens are the image's apps
+test -s "${UI_EXTENSION}/modules/today/getting.js"
+grep -q '^getting-set \*ARGS:' /usr/share/amethystora/just/desktop.just
+[[ "$(grep -cE "Subprocess\.new|Util\.spawn" "${UI_EXTENSION}/modules/today/getting.js")" == 2 ]]
+grep -q "^const RESTORE = '/usr/libexec/amethystora-restore';$" "${UI_EXTENSION}/modules/today/getting.js"
+grep -q "^const REPORT = '/usr/libexec/amethystora-security-status';$" "${UI_EXTENSION}/modules/today/getting.js"
+for program in amethystora-control amethystora-update amethystora-backups amethystora-security amethystora-phone; do
+    test -x "/usr/bin/${program}"
+done
+if grep -niE "duress" "${UI_EXTENSION}/modules/today/getting.js"; then
+    echo "Getting set names the duress feature"
+    exit 1
+fi
 [[ "$(GSETTINGS_BACKEND=memory gsettings get "${TODAY}" weather)" == false ]]
 for file in modules/bars.js modules/today.js modules/today/tasks.js modules/today/weather.js stylesheets/bars.css \
     stylesheets/today.css; do

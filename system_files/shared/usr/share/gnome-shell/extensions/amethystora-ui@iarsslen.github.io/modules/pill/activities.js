@@ -14,7 +14,8 @@
 //
 // A focus profile's mark (modules/focus/mark.js) comes last: it says what the desktop is set to, not what happens.
 
-export const ORDER = ['call', 'recording', 'link', 'battery', 'waiting', 'timer', 'media', 'update', 'quiet', 'focus'];
+export const ORDER = ['call', 'recording', 'link', 'battery', 'waiting', 'timer', 'news', 'media', 'update', 'quiet',
+    'focus'];
 
 // At most this many others are listed in a card
 const OTHERS = 3;

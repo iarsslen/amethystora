@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The power module (modules/power.js): the battery's menu that explains it, and the chip that names a busy app.
+     Written by `ame desktop power battery|busy` and Control; read live, so a change applies at once. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.power" path="/org/gnome/shell/extensions/amethystora-ui/power/">
+    <key name="battery-details" type="b">
+      <default>true</default>
+      <summary>The battery, explained</summary>
+      <description>The battery's menu in quick settings says when it will be empty or full, how many watts it takes, which apps used the most since it was last plugged in or out (an estimate from processor time), and the battery's health.</description>
+    </key>
+    <key name="busy-app" type="b">
+      <default>true</default>
+      <summary>Say when an app is busy</summary>
+      <description>When the processor has been at 70% or more for two minutes, a chip beside the meters names the app that used the most, once an hour at most, never for a fullscreen window in front. It needs the meters.</description>
+    </key>
+  </schema>
+</schemalist>

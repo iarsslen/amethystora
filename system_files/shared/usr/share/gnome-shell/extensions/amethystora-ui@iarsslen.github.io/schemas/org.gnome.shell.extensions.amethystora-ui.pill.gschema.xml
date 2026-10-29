@@ -39,5 +39,20 @@
       <summary>Digest times</summary>
       <description>When the digest comes, as HH:MM on the 24-hour clock, one to six of them. Anything else is ignored.</description>
     </key>
+    <key name="later" type="b">
+      <default>true</default>
+      <summary>Later and mute</summary>
+      <description>Later on a banner brings it back in an hour, this evening, tomorrow morning or when the screen is next unlocked; Mute holds an app's banners for an hour. Both are kept in memory only, and listed in the calendar's notifications.</description>
+    </key>
+    <key name="later-times" type="as">
+      <default><![CDATA[['18:00', '09:00']]]></default>
+      <summary>This evening and tomorrow morning</summary>
+      <description>When Later's "This evening" and "Tomorrow morning" come back, as HH:MM on the 24-hour clock, in that order. A missing or bad one takes its default.</description>
+    </key>
+    <key name="whats-new" type="b">
+      <default>true</default>
+      <summary>What's new after an update</summary>
+      <description>The first session after an update, the pill says "Updated" for a minute, and a click shows what the update brought and opens the Manual's page for it.</description>
+    </key>
   </schema>
 </schemalist>

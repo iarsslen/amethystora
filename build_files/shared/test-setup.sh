@@ -147,7 +147,7 @@ while read -r key; do
     range="$(GSETTINGS_BACKEND=memory /usr/bin/gsettings range "${PILL}" "${key}" | xargs)"
     case "${key}:${range}" in
         *":type b") want='["b"]' ;;
-        "digest-times:type as") want='["as","times"]' ;;
+        "digest-times:type as" | "later-times:type as") want='["as","times"]' ;;
         *) want="? ${range}" ;;
     esac
     [[ "$(jq -c --arg k "${key}" '.[$k]' <<<"${PILL_TABLE}")" == "${want}" ]] ||
@@ -176,7 +176,8 @@ saved="$(sed -n 's/^QUICK_KEYS=(\(.*\))$/\1/p' "$(dirname "${SETUP}")/amethystor
 # the same keys
 for table in BARS:org.gnome.shell.extensions.amethystora-ui.bars TODAY:org.gnome.shell.extensions.amethystora-ui.today \
     BREAKS:org.gnome.desktop.break-reminders BEZEL:org.gnome.shell.extensions.amethystora-ui.bezel \
-    HINTS:org.gnome.shell.extensions.amethystora-ui.hints APPGRID:org.gnome.shell.extensions.amethystora-ui.appgrid; do
+    HINTS:org.gnome.shell.extensions.amethystora-ui.hints APPGRID:org.gnome.shell.extensions.amethystora-ui.appgrid \
+    POWER:org.gnome.shell.extensions.amethystora-ui.power; do
     name="${table%%:*}" id="${table#*:}"
     TABLE="$(sed -n "s/^${name}_KEYS='\(.*\)'\$/\1/p" "${SETUP}")"
     listed="$(jq -r 'keys[]' <<<"${TABLE}" | sort)"
@@ -318,7 +319,8 @@ org.gnome.shell.extensions.amethystora-ui.theme accent-per-workspace false
 org.gnome.shell.extensions.amethystora-ui.theme workspace-accents ['theme', 'sky', 'coral', 'jade', 'amber', 'orchid']
 org.gnome.shell.extensions.amethystora-transitions reveal true
 org.gnome.shell.extensions.amethystora-ui.hints enabled true
-org.gnome.shell.extensions.amethystora-ui.appgrid recent true"
+org.gnome.shell.extensions.amethystora-ui.appgrid recent true
+org.gnome.shell.extensions.amethystora-ui.power busy-app true"
         values="org.gnome.shell favorite-apps ['org.gnome.Nautilus.desktop', 'firefox.desktop']
 org.gnome.shell enabled-extensions ['clipboard-indicator@tudmotu.com']
 org.gnome.desktop.wm.keybindings close ['<Super>q']
@@ -442,6 +444,7 @@ jq '.flatpaks.system += [{"app": "org.gnome.Maps", "origin": "flathub"}] | .brew
     | .settings.dock += {"magnify": "off", "folders": {"Writing": ["org.gnome.Nautilus.desktop", "firefox.desktop"]}}
     | .settings.bezel = {"round-corners": true} | .settings.sound = {"event-sounds": false}
     | .settings.transitions = {"reveal": false} | .settings.hints = {"enabled": false} | .settings.appgrid = {"recent": false}
+    | .settings.power = {"busy-app": false}
     | .settings.focus = {"games-power": "as-set", "trigger-sleep": true, "work-apps": ["org.gnome.Nautilus.desktop"]}' \
     "${FILE}" >"${T}/more.json"
 out="$("${SETUP}" diff "${T}/more.json")"
@@ -462,6 +465,7 @@ grep -qxF "  ~ the desktop's event-sounds: false, in place of true" <<<"${out}"
 grep -qxF "  ~ the transitions' reveal: false, in place of true" <<<"${out}"
 grep -qxF "  ~ the tips' enabled: false, in place of true" <<<"${out}"
 grep -qxF "  ~ the app grid's recent: false, in place of true" <<<"${out}"
+grep -qxF "  ~ the power module's busy-app: false, in place of true" <<<"${out}"
 grep -qxF '  ~ focus profiles'"'"' games-power: "as-set", in place of "performance"' <<<"${out}"
 grep -qxF "  ~ focus profiles' trigger-sleep: true, in place of false" <<<"${out}"
 "${SETUP}" apply --yes "${T}/more.json" >/dev/null
@@ -473,6 +477,7 @@ grep -qx "gsettings set org.gnome.desktop.sound event-sounds false" "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-transitions reveal false" "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.hints enabled false" "${LOG}"
 grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.appgrid recent false" "${LOG}"
+grep -qx "gsettings set org.gnome.shell.extensions.amethystora-ui.power busy-app false" "${LOG}"
 grep -qx "flatpak install --system --noninteractive flathub org.gnome.Maps" "${LOG}"
 grep -qx "brew install --formula fd someone/tools/lint" "${LOG}"
 grep -qx "gsettings set org.gnome.desktop.wm.keybindings close \['<Super>c'\]" "${LOG}"

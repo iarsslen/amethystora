@@ -25,6 +25,8 @@ What there is to translate, and how each is to be set up on Weblate:
 
 A few things to keep in mind when translating:
 
+- The manual's `whats-new.md` is written by each build from its changes and is never translated: leave it out of
+  Weblate (the build fails on a `manual/<language>/whats-new.md`).
 - The apps' messages are ICU MessageFormat: keep `{name}` as it is, and give a plural every form your
   language has (`{count, plural, one {...} few {...} other {...}}`).
 - The report's messages, the `ame` commands' and the notifications' are shell text: keep `${NAME}` as it is. A notification is translated for each account, in the language its owner chose, whichever service sent it. The states `ok`, `check` and `off` sit

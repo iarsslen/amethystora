@@ -680,6 +680,11 @@ export class Quick {
         return this._battery.limitRow();
     }
 
+    // The battery tile's menu, which the power module adds its explanation to (modules/power/battery.js)
+    batteryMenu() {
+        return this._battery?.tile.menu ?? null;
+    }
+
     batterySubtitle() {
         return this._battery.tile.subtitle ?? '';
     }

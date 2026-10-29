@@ -107,6 +107,18 @@ Two things in it ask for something to be done:
 - **Platform key:** the machine's maker shipped a test key whose private half is published (PKfail),
   so anyone can sign what Secure Boot starts. Only the maker can replace it, with a firmware update.
 
+## What's new
+
+The first time you log in after an update, the clock in the top bar says **Updated · what's new** for a
+minute. Click it for the first three things the updates since your last version brought, even when you
+skipped a few, and **Read it all**, which opens [What's new](whats-new.md) in this Manual. It is said
+once per update, and an update with nothing new for you to notice says nothing. A new account is not told
+about the version it started on, nor is a machine started on an older version (after a rollback).
+
+The page is written when the image is built, from the new features of the stream's last few builds, so it
+is always about the version you are running; it is in English only. `ame desktop
+whats-new off` keeps the pill quiet after updates; the page stays in the Manual.
+
 ## Rolling back
 
 The previous system is always kept. If an update brings a problem:

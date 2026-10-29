@@ -304,6 +304,7 @@ export class Meters {
         if (this._timer)
             GLib.source_remove(this._timer);
         this._timer = 0;
+        this._listeners = null;
         this._stopLooking();
         this._connectivity?.disconnectObject(this);
         this._connectivity = null;
@@ -329,6 +330,9 @@ export class Meters {
         this._times = times;
         remember(this._history.load, this._load);
         this._processor.showBar(loads.sort((a, b) => b - a));
+        // Whoever rides this reading (the power module's busy app): the whole processor's load, nothing read for it
+        for (const listener of [...this._listeners ?? []])
+            listener({load: this._load});
 
         this._memoryNow = Sources.memory();
         const {total, available} = this._memoryNow;
@@ -383,6 +387,18 @@ export class Meters {
         }
         this._network.showMenu(this._online ? this._rates : null, {sent, received},
             this._history.sent, this._history.received);
+    }
+
+    // A function called after each reading with {load}; returns what stops it. Nothing more is read for it.
+    listen(listener) {
+        this._listeners ??= new Set();
+        this._listeners.add(listener);
+        return () => this._listeners?.delete(listener);
+    }
+
+    // The processor's button in the top bar, which a chip of the power module stands before
+    get processorButton() {
+        return this._processor?.button ?? null;
     }
 
     // The processes are looked at only while one of the menus is open: once as it opens, again shortly after, so that
