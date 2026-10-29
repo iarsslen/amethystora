@@ -233,10 +233,15 @@ pick sleep
 gs set "${FOCUS}" ends "$(($(date +%s) + 5))"
 # and the state file is broken: its copy stands in
 printf '{' >"${STATE}/focus.json"
+# A shell that dies within a minute of starting has GNOME turn every user extension off (its flag file and
+# org.gnome.Shell-disable-extensions.service), which would leave every later suite without Amethystora UI: this step
+# is about Focus after a crash, not GNOME's safe mode, so the flag goes first and the key is put back after
+rm -f "/run/user/$(id -u "${TEST_USER}")/gnome-shell-disable-extensions"
 pkill -9 -u "${TEST_USER}" -x gnome-shell
 sleep 8
 loginctl unlock-sessions
 systemctl restart gdm
+wait_for 240 has_session && user_bus gsettings set org.gnome.shell disable-user-extensions false
 if wait_for 240 has_session && wait_for 120 focus_ready; then
     sleep 5
     same "9 after the crash: the profile is over" "$(gs get "${FOCUS}" profile)" "'off'"
