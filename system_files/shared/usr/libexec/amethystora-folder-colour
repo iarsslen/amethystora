@@ -8,7 +8,7 @@
 # The paths are Files' arguments (relative to the folder it shows), read from argv only, each whole: never from the
 # NAUTILUS_SCRIPT_* variables, whose lists a name with a newline would split. A path is never given to a shell, and
 # always after `--`, so that a name that starts with a dash is a name. Only the metadata of the folders named and their
-# own modification time (set to the time it already has) change.
+# own access and modification times (set to the times they already have) change.
 
 set -uo pipefail
 
@@ -56,9 +56,10 @@ for path in "$@"; do
         # A picture would win over the colour
         gio set -n -t unset -- "${path}" metadata::custom-icon 2>/dev/null
     fi
-    # Files hears of a folder's change from the kernel, which says nothing of metadata: its modification time, set to
-    # the time it already has, is a change of attributes that Files listens for. One that is not the person's is left.
-    mtime="$(stat -c %.9Y -- "${path}" 2>/dev/null)" && touch -c -h -m -d "@${mtime}" -- "${path}" 2>/dev/null
+    # Files hears of a folder's change from the kernel, which says nothing of metadata: both of its times, set to the
+    # times they already have, are a change of attributes that Files reads again at once (the modification time alone
+    # is reported as a write, which Files only takes up two seconds later). Only the change time moves.
+    touch -c -h -r "${path}" -- "${path}" 2>/dev/null
 done
 
 if ((skipped > 0)); then
