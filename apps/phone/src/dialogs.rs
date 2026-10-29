@@ -851,6 +851,7 @@ impl Phone {
             .build();
         label.set_markup(&model::linkify_markup(text));
         ui::no_hyphens(&label);
+        ui::link_accessibles(&label);
         let window = self.shell.gtk_window();
         label.connect_activate_link(move |_, uri| {
             if model::openable(uri) {

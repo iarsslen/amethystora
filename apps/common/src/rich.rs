@@ -209,6 +209,7 @@ impl Rich {
             .build();
         label.set_markup(markup);
         crate::ui::no_hyphens(&label);
+        crate::ui::link_accessibles(&label);
         for class in classes {
             label.add_css_class(class);
         }

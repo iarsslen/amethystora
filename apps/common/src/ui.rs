@@ -37,6 +37,23 @@ pub fn no_hyphens(label: &gtk::Label) {
     label.set_attributes(Some(&attributes));
 }
 
+/// Makes the accessible objects of a label's links as soon as the label is in a window, for a label whose markup
+/// has links. GTK 4.22 otherwise makes them when a screen reader first reaches the label, from inside the label's
+/// own registration with the accessibility bus, which registers the label a second time under a second path: the
+/// first outlives the label, and the next screen reader to ask for the window's objects (GetItems) aborts the app
+/// once the label has gone, as a page that is left goes. Made first, they are only looked up then. Not before the
+/// label is in a window: GTK expects no accessible of a widget outside one. Call it once the markup is set.
+pub fn link_accessibles(label: &gtk::Label) {
+    if !label.uses_markup() || !label.label().contains("<a ") {
+        return;
+    }
+    label.connect_root_notify(|label| {
+        if label.root().is_some() {
+            let _ = label.first_accessible_child();
+        }
+    });
+}
+
 /// Text on one line that never wraps, for a button or a state
 pub fn line(text: &str, classes: &[&str]) -> gtk::Label {
     let label = gtk::Label::builder().label(text).xalign(0.0).build();
@@ -50,6 +67,7 @@ pub fn line(text: &str, classes: &[&str]) -> gtk::Label {
 pub fn markup(markup: &str, classes: &[&str]) -> gtk::Label {
     let label = self::label("", classes);
     label.set_markup(markup);
+    link_accessibles(&label);
     label
 }
 
