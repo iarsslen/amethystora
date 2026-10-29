@@ -42,8 +42,8 @@ done
 same "24 Folder colour holds its seven entries, each executable and marked" "${entries}" 7
 check "24 Back in time is there, executable and marked" \
     bash -c "[[ -x '${SCRIPTS}/Back in time' && \"\$(sed -n 2p '${SCRIPTS}/Back in time')\" == '# amethystora-files-menu 1.'* ]]"
-same "24 files-menu.json lists the eight entries and the folder" \
-    "$(jq -r '.version, (.paths | length)' "${HOME_DIR}/.local/state/amethystora/files-menu.json" 2>&1 | paste -sd ' ')" "1 9"
+same "24 files-menu.json lists the nine entries (Copy without hidden data among them) and the folder" \
+    "$(jq -r '.version, (.paths | length)' "${HOME_DIR}/.local/state/amethystora/files-menu.json" 2>&1 | paste -sd ' ')" "1 10"
 same "24 an entry passes Files' arguments after --" "$(sed -n 3p "${FOLDER}/Jade")" \
     'exec /usr/libexec/amethystora-folder-colour jade -- "$@"'
 
@@ -88,7 +88,8 @@ same "26 ...and nothing else in the folder changes" \
 runuser -u "${TEST_USER}" -- mkdir "${TEST}/Mixed"
 runuser -u "${TEST_USER}" -- touch "${TEST}/one.txt" "${TEST}/two.txt"
 MONITOR="${WORK}/notify.log"
-user_bus timeout 15 dbus-monitor --session "type='method_call',interface='org.freedesktop.Notifications',member='Notify'" >"${MONITOR}" 2>&1 &
+# The call to the notification server only: GNOME's own service passes each one on to the shell as a second Notify
+user_bus timeout 15 dbus-monitor --session "type='method_call',destination='org.freedesktop.Notifications',interface='org.freedesktop.Notifications',member='Notify'" >"${MONITOR}" 2>&1 &
 sleep 2
 run_as_files "${FOLDER}/Coral" Mixed one.txt two.txt
 sleep 2
@@ -132,6 +133,8 @@ runuser -u "${TEST_USER}" -- mkdir -p "${VIEW}/Projects"
 user_bus systemd-run --user --collect --unit="vmlab-files31-$$" nautilus --new-window "${VIEW}" >/dev/null
 files_window() { [[ "$(ev "global.get_window_actors().some(a => a.meta_window.get_wm_class() === 'org.gnome.Nautilus' && a.meta_window.get_title().includes('view'))")" == true ]]; }
 if wait_for 20 files_window; then
+    # A session GNOME just started opens on the overview, where the window's place on the screen shows something else
+    ev "Main.overview.hide(); 'hidden'" >/dev/null
     sleep 3
     ev "global.get_window_actors().find(a => a.meta_window.get_wm_class() === 'org.gnome.Nautilus' && a.meta_window.get_title().includes('view')).meta_window.activate(global.get_current_time()); 'up'" >/dev/null
     sleep 2
