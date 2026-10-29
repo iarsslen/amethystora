@@ -180,7 +180,9 @@ same "5 and is not shown" "$(ev "Main.messageTray._notification?.title ?? 'none'
 banner_is() { [[ "$(ev "Main.messageTray._notification?.title ?? 'none'")" == "$1" ]]; }
 in_session "ame desktop focus edit work apps org.vmlab.Chat.desktop" >/dev/null
 sleep 1
-in_session "notify-send --hint=string:desktop-entry:org.vmlab.Chat 'vmlab focus chat'" >/dev/null
+# Kept on the bus until its banner is closed: GNOME destroys an app's source, banner and all, as soon as its sender
+# leaves the bus, which a bare notify-send does at once (only a source without an app is spared)
+in_session "timeout 30 notify-send --wait --hint=string:desktop-entry:org.vmlab.Chat 'vmlab focus chat'" >/dev/null 2>&1 &
 check "5 a banner from an app Work lets through shows" wait_for 5 banner_is "vmlab focus chat"
 # Nobody at the keyboard: GNOME would hold the chat's banner up for ever, so it is closed by hand
 ev "Main.messageTray._notification?.destroy(); 'closed'" >/dev/null

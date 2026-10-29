@@ -88,14 +88,16 @@ same "26 ...and nothing else in the folder changes" \
 runuser -u "${TEST_USER}" -- mkdir "${TEST}/Mixed"
 runuser -u "${TEST_USER}" -- touch "${TEST}/one.txt" "${TEST}/two.txt"
 MONITOR="${WORK}/notify.log"
-# The call to the notification server only: GNOME's own service passes each one on to the shell as a second Notify
-user_bus timeout 15 dbus-monitor --session "type='method_call',destination='org.freedesktop.Notifications',interface='org.freedesktop.Notifications',member='Notify'" >"${MONITOR}" 2>&1 &
+# GNOME's notification service owns org.freedesktop.Notifications and passes each Notify on to the shell with
+# x-shell-sender added; dbus-broker addresses both by unique name, so a destination match keeps both: the second counts
+user_bus timeout 15 dbus-monitor --session "type='method_call',interface='org.freedesktop.Notifications',member='Notify'" >"${MONITOR}" 2>&1 &
 sleep 2
 run_as_files "${FOLDER}/Coral" Mixed one.txt two.txt
 sleep 2
 same "27 the folder is coloured" "$(icon_of "${TEST}/Mixed")" folder-coral
 same "27 the files are not" "$(icon_of "${TEST}/one.txt")$(icon_of "${TEST}/two.txt")" ""
-said="$(grep -c '2 items were left as they were' "${MONITOR}")"
+said="$(awk '/^method call/ { n += body && shell; body = shell = 0 } /2 items were left as they were/ { body = 1 }
+    /string "x-shell-sender"/ { shell = 1 } END { print n + (body && shell) }' "${MONITOR}")"
 same "27 one notification says 2 items were left as they were" "${said}" 1
 if grep -q 'one.txt\|two.txt' "${MONITOR}"; then not_ok "27 the notification names a file"; else ok "27 ...and names no file"; fi
 
@@ -128,8 +130,14 @@ if [[ ${enabled} != *vmlab-eval@lab* ]]; then
     wait_for 240 has_session
     sleep 10
 fi
+# A session that locked meanwhile (GNOME's idle lock, an earlier suite) shows the lock screen where the window is
+loginctl unlock-sessions
+unlocked() { [[ "$(ev "Main.screenShield?.locked ?? false")" == false ]]; }
+wait_for 10 unlocked || not_ok "29 the session stays locked"
 VIEW="${TEST}/view"
 runuser -u "${TEST_USER}" -- mkdir -p "${VIEW}/Projects"
+# Plain to start with: an earlier run left the colour it gave (the folder and its metadata stay in the home)
+user_bus gio set -t unset -- "${VIEW}/Projects" metadata::custom-icon-name 2>/dev/null || true
 user_bus systemd-run --user --collect --unit="vmlab-files31-$$" nautilus --new-window "${VIEW}" >/dev/null
 files_window() { [[ "$(ev "global.get_window_actors().some(a => a.meta_window.get_wm_class() === 'org.gnome.Nautilus' && a.meta_window.get_title().includes('view'))")" == true ]]; }
 if wait_for 20 files_window; then

@@ -391,13 +391,25 @@ where() {
         return ((r.x + x + w / 2) / global.stage.width).toFixed(4) + ',' + ((r.y + y + h / 2) / global.stage.height).toFixed(4); })()"
 }
 if user_bus python3 "${OWN}/atspi.py" amethystora-control wait 60 "Nord" >/dev/null 2>&1; then
-    # The pointer over Nord's swatch, through the shell's own virtual pointer
-    where="$(where "Nord")"
-    ev "(() => { const [x, y] = '${where}'.split(','); const C = imports.gi.Clutter;
-        const seat = global.stage.context.get_backend().get_default_seat();
-        globalThis.vmlabPointer ??= seat.create_virtual_device(C.InputDeviceType.POINTER_DEVICE);
-        vmlabPointer.notify_absolute_motion(global.get_current_time() * 1000, x * global.stage.width, y * global.stage.height);
-        return 1; })()" >/dev/null
+    # The pointer through the shell's own virtual pointer, to X,Y fractions of the screen
+    point() {
+        ev "(() => { const [x, y] = '$1'.split(','); const C = imports.gi.Clutter;
+            const seat = global.stage.context.get_backend().get_default_seat();
+            globalThis.vmlabPointer ??= seat.create_virtual_device(C.InputDeviceType.POINTER_DEVICE);
+            vmlabPointer.notify_absolute_motion(global.get_current_time() * 1000, x * global.stage.width, y * global.stage.height);
+            return 1; })()" >/dev/null
+    }
+    # Nord's swatch is in a later row of the grid, which the preview above it pushes down to the bottom of the screen,
+    # past the window or under the dock: the page is scrolled a step at a time, with the pointer over the grid, until
+    # it is in view
+    for _ in 1 2 3 4 5 6 7 8; do
+        where="$(where "Nord")"
+        [[ -n ${where} ]] && awk -v y="${where#*,}" 'BEGIN { exit !(y < 0.82) }' && break
+        point "$(where "Amethystora Light")"
+        ev "vmlabPointer.notify_discrete_scroll(global.get_current_time() * 1000, imports.gi.Clutter.ScrollDirection.DOWN, imports.gi.Clutter.ScrollSource.WHEEL); 1" >/dev/null
+        sleep 0.5
+    done
+    point "${where}"
     sleep 1
     shot() {
         user_bus gdbus call --session --dest org.gnome.Shell.Screenshot --object-path /org/gnome/Shell/Screenshot \
@@ -432,7 +444,7 @@ print(count)' "$1" "${first}" "$2"
     if [[ -n ${first} ]] && ((nord > 40)); then
         ok "23 pointing at Nord draws the preview in Nord's accent (${nord} pixels)"
     else
-        not_ok "23 pointing at Nord did not draw its accent in the preview" "${nord} pixels, swatch at ${first}"
+        not_ok "23 pointing at Nord did not draw its accent in the preview" "${nord} pixels, Nord at ${where}, Amethystora Light at ${first}"
     fi
     if ((back_own > 40 && back_nord < nord / 4)); then
         ok "23 off the grid, the chosen theme's accent is back within 0.5 s (${back_own} pixels, Nord's ${back_nord})"
