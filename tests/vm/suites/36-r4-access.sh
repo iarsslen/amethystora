@@ -65,11 +65,14 @@ SWIPE="(async () => { const C = imports.gi.Clutter, G = imports.gi.GLib;
     d.notify_touch_down(G.get_monotonic_time(), 0, m.x + m.width - 1, y); await w(30);
     for (let i = 1; i <= 12; i++) { d.notify_touch_motion(G.get_monotonic_time(), 0, m.x + m.width - 1 - i * 25, y); await w(16); }
     d.notify_touch_up(G.get_monotonic_time(), 0); await w(200); d.run_dispose(); globalThis.vmlabSwiped = true; })(); 'swiping'"
-# GNOME's direct scanout held off, counted: the compositor's two calls wrapped for the suite, and taken back at its end
+# GNOME's direct scanout held off, counted: the compositor's two calls wrapped for the suite, and taken back at its end.
+# Only Amethystora UI's own calls count: GNOME 50's message tray, menus, modal grabs and magnifier make them too, and
+# one of theirs that began before the count ends below zero
 UNREDIRECT="globalThis.vmlabUnredirect ??= (() => { const c = global.compositor, st = {held: 0};
     st.d = c.disable_unredirect; st.e = c.enable_unredirect;
-    c.disable_unredirect = function () { st.held++; return st.d.call(this); };
-    c.enable_unredirect = function () { st.held--; return st.e.call(this); };
+    const ours = () => (new Error().stack.split(String.fromCharCode(10))[2] ?? '').includes('/amethystora-ui@');
+    c.disable_unredirect = function () { if (ours()) st.held++; return st.d.call(this); };
+    c.enable_unredirect = function () { if (ours()) st.held--; return st.e.call(this); };
     return st; })(); 'counting'"
 held() { ev "globalThis.vmlabUnredirect.held"; }
 # The colour at a point: as a screenshot reads it (no screen's paint), or as the screen shows it (seen: the filter
@@ -238,7 +241,7 @@ same "1 shipped off" "$(gs get "${ACCESS}" filter) $(gs get "${ACCESS}" ruler) $
     "'none' 'off' false 'off' 'off'"
 same "2 nothing made while off" "$(ast '') $(tst '')" \
     '{"filter":{"effect":false,"applied":false,"tile":false,"unredirectHeld":false,"bytes":0,"failedScreens":0,"hdrScreens":0,"extras":[]},"ruler":null,"speech":{"reading":false,"left":0,"process":false,"speed":"1"},"keys":[]} {"mode":{"value":"off","active":false,"forced":null,"following":false,"tile":false,"handle":false,"gesture":false,"hint":false},"ring":{"open":false,"virtual":false},"key":false}'
-same "2 no shortcut bound" "$(ev "['ruler-key', 'read-aloud-key', 'pen-ring-key'].filter(k => k in Main.wm._allowedKeybindings).length")" 0
+same "2 no shortcut bound" "$(ev "['ruler-key', 'read-aloud-key', 'pen-ring-key'].filter(k => Main.wm._allowedKeybindings[k]).length")" 0
 same "2 nothing holds direct scanout off" "$(held)" 0
 
 # --- 3a-3c: what the screen really shows: red over green, deutan, a blue square drawn and moved -----------------------
@@ -431,8 +434,11 @@ ev "${MOVE} move(${fx} + 50, ${fy} + 120); 'moved'" >/dev/null
 check "8 as tall as larger text" wait_for 10 is "${A}.state().ruler.pieces[0].height === 38"
 gs reset org.gnome.desktop.interface text-scaling-factor
 in_session "ame desktop access ruler dim" >/dev/null
+# The window's frame again: the larger text and back can move it by a few pixels (it moved 8 down in the lab)
+read -r fx fy fw fh <<<"$(ev "(() => { const r = global.get_window_actors().find(a => a.meta_window.get_title() === 'org.vmlab.Text')
+    .meta_window.get_frame_rect(); return [r.x, r.y, r.width, r.height].join(' '); })()")"
 ev "${MOVE} move(${fx} + 50, ${fy} + 100); 'moved'" >/dev/null
-wait_for 10 is "${A}.state().ruler?.style === 'dim'"
+wait_for 10 is "${A}.state().ruler?.style === 'dim' && ${A}.state().ruler.pieces[1]?.y === ${fy} + 115"
 dim="$(ast .ruler.pieces)"
 check "8 dim: two veils of the window, the line between them clear ($dim)" python3 -c 'import json, sys
 p = json.loads(sys.argv[1]); fx, fy, fw, fh = map(int, sys.argv[2:6])
@@ -455,7 +461,7 @@ same "8 off: not bound" "$(ast .keys)" '[]'
 
 # --- 9: reading aloud --------------------------------------------------------------------------------------------------
 in_session "ame desktop access read-aloud on" >/dev/null
-wait_for 10 is "'read-aloud-key' in Main.wm._allowedKeybindings"
+wait_for 10 is "!!Main.wm._allowedKeybindings['read-aloud-key']"
 ev "imports.gi.St.Clipboard.get_default().set_text(imports.gi.St.ClipboardType.PRIMARY, '-r Most people who read slowly are not slow thinkers. Listening helps them keep their place.'); 'selected'" >/dev/null
 keys super+ctrl+s
 check "9 Super+Ctrl+S: the pill reads" wait_for 10 is "${UI}.get('pill').state().activity === 'reading'"
@@ -513,14 +519,16 @@ keys super+ctrl+p
 check "13 Super+Ctrl+P opens the ring" wait_for 10 is "${T}.state().ring.open"
 same "13 the ring holds scanout off" "$(held)" 1
 ring="$(tst .ring)"
+# Scribble only where a module offers it: round 4's present mode does, as the image ships
+scribble="$(ev "[...${UI}.values()].some(m => typeof m?.toggleScribble === 'function')")"
 check "13 the ring at the pen, its tools 58 px, 70 px out, the slots with nothing to run left empty ($ring)" python3 -c 'import json, math, sys
 r = json.loads(sys.argv[1]); cx, cy = r["centre"]
 ids = [t["id"] for t in r["tools"]]
-ok = r["open"] and r["variant"] == "ring" and (cx, cy) == (900, 600) and "scribble" not in ids
+ok = r["open"] and r["variant"] == "ring" and (cx, cy) == (900, 600) and ("scribble" in ids) == (sys.argv[2] == "true")
 ok = ok and {"area", "right-click", "back"} <= set(ids)
 for t in r["tools"]:
     ok = ok and t["width"] == 58 and abs(math.hypot(t["x"] + 29 - cx, t["y"] + 29 - cy) - 70) <= 1
-sys.exit(0 if ok else 1)' "${ring}"
+sys.exit(0 if ok else 1)' "${ring}" "${scribble}"
 ev "${MOVE} move(960, 590); 'toward area'" >/dev/null
 check "13 moving toward Area lights it" wait_for 10 is "${T}.state().ring.lit === 'area'"
 keys esc
@@ -582,9 +590,10 @@ CYCLE="(async () => { const uuid = '${UUID}';
     for (let i = 0; i < 10; i++) { Main.extensionManager.enableExtension(uuid); await w(600);
         Main.extensionManager.lookup(uuid).stateObj.modules?.get('touch')?.openRing(); await w(100);
         Main.extensionManager.disableExtension(uuid); await w(500); }
-    const left = [count() - before, Main.layoutManager.uiGroup.get_effects().length + global.stage.get_effects().length,
+    /* Fewer than before is no leak: an actor from before the cycles (a closing card) may go during them */
+    const left = [Math.max(0, count() - before), Main.layoutManager.uiGroup.get_effects().length + global.stage.get_effects().length,
         Main.layoutManager.uiGroup.has_style_class_name('amethystora-touch'), global.stage.get_actions().length - actions,
-        ['ruler-key', 'read-aloud-key', 'pen-ring-key'].filter(k => k in Main.wm._allowedKeybindings).length,
+        ['ruler-key', 'read-aloud-key', 'pen-ring-key'].filter(k => Main.wm._allowedKeybindings[k]).length,
         globalThis.vmlabUnredirect.held];
     Main.extensionManager.enableExtension(uuid);
     globalThis.vmlabAccessCycle = left.join(' '); })(); 'started'"
@@ -596,7 +605,7 @@ check "16 on again after them" wait_for 30 is "${A}.state().filter.applied && ${
 check "16 no JS ERROR" test -z "$(journalctl --since "-10min" -q -o cat _UID="$(id -u "${TEST_USER}")" | grep -E 'JS ERROR|Gjs-CRITICAL' | grep -iE 'access|touch|quick' | head -5)"
 
 # --- 17: Control and the setup file -------------------------------------------------------------------------------------
-control="$(in_session "amethystora-control-list --json" | jq -c '[.items[] | select(.id | IN("colour-filter", "colour-filter-strength", "reading-ruler", "read-aloud", "touch-mode", "pen-ring", "pen-button")) | .id] | length')"
+control="$(in_session "/usr/libexec/amethystora-control-list --json" | jq -c '[.items[] | select(.id | IN("colour-filter", "colour-filter-strength", "reading-ruler", "read-aloud", "touch-mode", "pen-ring", "pen-button")) | .id] | length')"
 same "17 Control has the seven entries" "${control}" 7
 saved="$(in_session "ame setup save - 2>/dev/null" | jq -c '[.settings.access, .settings.touch]')"
 check "17 the setup file carries them, never filter-on or ruler-shown ($saved)" python3 -c 'import json, sys
