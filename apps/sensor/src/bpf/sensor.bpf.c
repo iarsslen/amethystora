@@ -757,14 +757,15 @@ int BPF_PROG(vfs_unlink_exit, struct mnt_idmap *idmap, struct inode *dir, struct
 }
 
 SEC("fexit/vfs_rmdir")
-int BPF_PROG(vfs_rmdir_exit, struct mnt_idmap *idmap, struct inode *dir, struct dentry *dentry, int ret)
+int BPF_PROG(vfs_rmdir_exit, struct mnt_idmap *idmap, struct inode *dir, struct dentry *dentry,
+	     struct delegated_inode *delegated, int ret)
 {
 	return named_op(SOP_RMDIR, dir, dentry, ret, NULL);
 }
 
 SEC("fexit/vfs_mkdir")
 int BPF_PROG(vfs_mkdir_exit, struct mnt_idmap *idmap, struct inode *dir, struct dentry *dentry, umode_t mode,
-	     struct dentry *ret)
+	     struct delegated_inode *delegated, struct dentry *ret)
 {
 	long result = IS_ERR_VALUE(ret) ? (long)ret : 0;
 
@@ -773,14 +774,14 @@ int BPF_PROG(vfs_mkdir_exit, struct mnt_idmap *idmap, struct inode *dir, struct 
 
 SEC("fexit/vfs_mknod")
 int BPF_PROG(vfs_mknod_exit, struct mnt_idmap *idmap, struct inode *dir, struct dentry *dentry, umode_t mode,
-	     dev_t dev, int ret)
+	     dev_t dev, struct delegated_inode *delegated, int ret)
 {
 	return named_op(SOP_MKNOD, dir, dentry, ret, NULL);
 }
 
 SEC("fexit/vfs_symlink")
 int BPF_PROG(vfs_symlink_exit, struct mnt_idmap *idmap, struct inode *dir, struct dentry *dentry,
-	     const char *target, int ret)
+	     const char *target, struct delegated_inode *delegated, int ret)
 {
 	return named_op(SOP_SYMLINK, dir, dentry, ret, target);
 }

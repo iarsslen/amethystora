@@ -19,6 +19,8 @@ ESC=$'\e'
 
 out="$("${TEXT}" "a${ESC}]0;title${ESC}\\b"$'\n'"c"$'\r'"d"$'\xc2\x9b'"e")"
 [[ "${out}" == "a]0;title\\b cde" ]] || fail "control characters, a newline or a C1 character got through: $(printf '%q' "${out}")"
+out="$("${TEXT}" $'X\x8a\x9bS\xff\x01')"
+[[ "${out}" == $'X\xef\xbf\xbd\xef\xbf\xbdS\xef\xbf\xbd' ]] || fail "bytes that are not UTF-8 got through: $(printf '%q' "${out}")"
 out="$("${TEXT}" --lines $'one\ntwo')"
 [[ "${out}" == $'one\ntwo' ]] || fail "--lines did not keep the lines"
 out="$("${TEXT}" --markup '<a href="x">&')"

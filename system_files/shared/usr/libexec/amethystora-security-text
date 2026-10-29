@@ -28,8 +28,10 @@ done
 clean() {
     local text line out=""
     # Bytes, so that C1 characters and stray bytes are found whatever the session's language is. The other line breaks
-    # (NEL, U+2028, U+2029) are newlines, so that no line can hide a second one; the marks that turn text around go
-    text="$(LC_ALL=C sed -e 's/\xe2\x80[\xa8\xa9]/\n/g; s/\xc2\x85/\n/g' -e 's/\xe2\x80[\x8e\x8f\xaa-\xae]//g; s/\xe2\x81[\xa6-\xa9]//g; s/\xd8\x9c//g' \
+    # (NEL, U+2028, U+2029) are newlines, so that no line can hide a second one; the marks that turn text around go.
+    # First, bytes that are not UTF-8 (a file name can hold any) become U+FFFD, as jq reads them: a lone byte of C1
+    # stays no control, and notify-send, D-Bus and JSON get text they take whole.
+    text="$(jq -Rsj . | LC_ALL=C sed -e 's/\xe2\x80[\xa8\xa9]/\n/g; s/\xc2\x85/\n/g' -e 's/\xe2\x80[\x8e\x8f\xaa-\xae]//g; s/\xe2\x81[\xa6-\xa9]//g; s/\xd8\x9c//g' \
         -e 's/\xc2[\x80-\x9f]//g' | LC_ALL=C tr -d '\000-\010\013-\037\177' | tr '\t' ' ')"
     [[ "${LINES}" == true ]] || text="${text//$'\n'/ }"
     while IFS= read -r line || [[ -n "${line}" ]]; do
