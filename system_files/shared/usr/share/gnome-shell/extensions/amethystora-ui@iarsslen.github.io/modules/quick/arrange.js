@@ -295,7 +295,12 @@ export class Arrange {
             slots: tiles.map(t => this._box(t)),
             insert: tiles.indexOf(actor),
             pan,
+            gone: new Set(),
         };
+        // A tile destroyed under the drag (its module stopped before this one) is never touched again
+        const drag = this._drag;
+        for (const tile of tiles)
+            tile.connectObject('destroy', () => drag.gone.add(tile), drag);
         // The corner buttons stay where the tiles were: they go while the tiles make room
         for (const entry of this._handles.values())
             entry.corner.hide();
@@ -373,7 +378,7 @@ export class Arrange {
         const drag = this._drag;
         const order = this._order(drag);
         for (const tile of drag.tiles) {
-            if (tile === drag.actor)
+            if (tile === drag.actor || drag.gone.has(tile))
                 continue;
             const at = order.indexOf(tile);
             if (tile._amethystoraQuickTo === at)
@@ -410,15 +415,19 @@ export class Arrange {
         this._drag = null;
         for (const entry of this._handles.values())
             entry.corner.show();
+        const live = drag.tiles.filter(tile => !drag.gone.has(tile));
+        for (const tile of live)
+            tile.disconnectObject(drag);
         const order = this._order(drag);
-        const moved = dropped && order.some((tile, i) => tile !== drag.tiles[i]);
+        const moved = dropped && drag.gone.size === 0 && order.some((tile, i) => tile !== drag.tiles[i]);
         drag.clone.destroy();
-        drag.actor.opacity = 255;
+        if (!drag.gone.has(drag.actor))
+            drag.actor.opacity = 255;
         if (moved) {
             // The grid takes its new order at once; the translations made room for exactly that
             this._quick.commitOrder(order);
         }
-        for (const tile of drag.tiles) {
+        for (const tile of live) {
             delete tile._amethystoraQuickTo;
             for (const [property] of SLIDES)
                 tile.remove_transition(`amethystora-quick-${property}`);
