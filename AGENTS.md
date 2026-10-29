@@ -429,6 +429,25 @@ itself, never words shown in its window. Updates passes the failed updater unit 
 check's id looked up in the report it read (and passes that check's title and sentence), Logs a crash's
 process number or the `.service` an entry came from, both checked for their shape.
 
+**On the desktop** (`modules/agent.js`, `modules/quit.js`, `plans/beyond/spec-r4-agent.md`), only while the features are on:
+`Super+Shift+A` hands the primary selection (read through Mutter, 16 KiB at most) to `amethystora-agent ask --quoted
+[--question Q] -- TEXT`, which keeps 4000 characters and bars every line as data (NEL, U+2028 and U+2029 count as line
+ends; `build_files/shared/test-agent-text.sh`). While level 2 is on, the live pill's `agent` activity lists what the tools
+record (`actions.jsonl`, and the running tool servers each named in `$XDG_RUNTIME_DIR/amethystora/agent-sessions/PID`, which
+`amethystora-agent-tools mcp` writes and takes away at its end and on SIGTERM, SIGHUP or SIGINT), each change with Undo
+(`amethystora-agent undo ID`, the tools' own undo, which refuses a record whose way back is not the inverse of what it says
+it did) and Stop (`amethystora-agent stop`: SIGTERM to the account's tool servers, not a hard stop). Force quit
+(`Super+Ctrl+Shift+Escape`) ends an app only with Mutter's `window.kill()`, as GNOME does; GNOME's not-responding question
+gains Ask the agent why (`diagnose --frozen PID`). The image's failure notices offer Ask the agent only to an account whose
+features are on: `amethystora-notify-users --agent-unit UNIT` (the scan alert) raises the notice in that account's session
+through `amethystora-agent-notice`, so that the root unit never waits; `--agent KEY=LABEL` (the driver check). Control's AI
+agent page has both desktop switches (`ame agent selection`, `ame agent pill`). The never list refuses any spelling of the
+agent's desktop keys, `ame agent pill [off]`, `ame desktop pill [off]` and `gnome-extensions` on Amethystora UI. Before it
+matches, `never.rs` reads an `ame`, `ujust` or `just` command as the recipe's words: options and their values left out,
+every `--` passed over, `a::b` as two words, an option that runs something other than a recipe (`--command`, `--set`,
+`--evaluate`...) refused, and a group's own justfile named with `-f` or `--justfile` (`just -f .../agent.just pill off`)
+matched both as given and with the group in front.
+
 ### The Amethystora apps
 
 The Manual, Security, Updates, Notes, Logs, Backups and Control are one program, written in Rust with
@@ -446,6 +465,9 @@ the look when you change one.
   icons, Markdown (`markdown.rs`, raw HTML shown as text), translations and running programs
   (`process.rs`), always as an argument vector, never through a shell. Each app's stylesheet is beside
   its code; the desktop's own `gtk.css` is kept out of the windows.
+- The same program is the Phone (`apps/phone`, see The phone link) and the Shelf (`apps/shelf`, `/usr/bin/amethystora-shelf`,
+  see Amethystora UI's `shelf`), which `13-apps.sh` installs like the rest. An app may read what its launch hands it on
+  standard input (`App::command_line`), which the shelf's first drop uses: a drop never travels on a command line.
 - A window's app id is `org.amethystora.<App>`, which its launcher's `StartupWMClass` names, so that GNOME
   finds the launcher's name and icon for it.
 - An app keeps how it was left in `~/.local/state/amethystora/<app>.json`.
@@ -484,6 +506,11 @@ it describes, and add to it when you add something a user would look for there.
   the same order, so `updates.md#rolling-back` lands in every language; `check-manual.js` checks the
   translations' links against the English headings and warns when a translation has a different number
   of headings.
+- `whats-new.md` is the build's, not written by hand: `just build` runs `build_files/shared/release-commits.sh` on the host,
+  which reads the published image's `org.amethystora.whats-new` label and the `feat` subjects since its commit into
+  `build_files/whats-new.json` (gitignored; nothing when offline, and the build goes on), and `build-whats-new.py` writes the
+  page and the pill's `/usr/share/amethystora/whats-new.json`. It keeps a title only in plain words (no command, path,
+  Markdown or upstream name; `test-whats-new.sh`), and the page is never translated (`20-tests.sh`).
 
 ### Translations
 
@@ -617,6 +644,16 @@ feature gets its switch with it, off by default, and a category: the app's Setti
 the `group` each helper gives them (`GROUP` in both), a category a page, whose ids and words are `categories()`
 in `apps/security/src/page.rs`. Its **Under duress** page only starts `ame security duress` steps in a terminal
 and reads nothing, so that it looks the same whether an account has a duress finger or not.
+
+**What the desktop shows of it** (`plans/beyond/spec-r4-privacy.md`). Amethystora UI's shield reads
+`/var/lib/amethystora/security/report.json`, which the watcher writes `root:wheel 0640` for it, and the settings through
+`amethystora-security-config`. It switches nothing: each line opens `amethystora-security settings/<category>`
+(`backend::CATEGORIES`, the Settings page's eleven, never the Under duress page) or the overview, and its reader drops every
+`duress-` check (`HIDDEN` in `privacy/readings.js`, which `20-tests.sh` holds). **Walk-away lock** (`WALK_AWAY`, group
+`logins`, off; `ame security walk-away`) is a security switch the shell carries out (`privacy/away.js`): the screen locks
+once every paired phone that was connected has been gone a minute and the computer left alone a minute. It never unlocks,
+and the phone link stopping is not a phone leaving. No profile but `off` and `default` touches it (`away()` in the config
+helper), it is never in the setup file, and the agent may turn it on and never off.
 
 **What looks for new threats** is the watcher's too, each part a key in group `detection` (or `network`,
 `scans`), off as the image ships: `PROCESSES` (/proc read in a few bounded passes, never a fork per
@@ -897,6 +934,9 @@ it for `--json`, so a setting added or changed there reaches both. Never write a
   only things typed in the window, a slider's number, a new widget's name and a repository to trust, are
   checked there first; the repository against `amethystora-trust-image`'s own expression, which
   `20-tests.sh` compares. The key is picked in a file dialog.
+- **The list answers `--json` in under a second** (suite 80's budget): its command substitutions are bash 5.3's
+  `${ cmd; }`, which fork nothing (`20-tests.sh` requires bash 5.3), and a slow reader runs once, in the background,
+  with `read_in_background`.
 - **Security stays in Security,** by the maintainer's rule: nothing in the script or the window runs
   `ame security`. The sidebar opens Security, Updates (whose switch automatic updates keep) and Backups
   (whose controls the backup keeps). The one exception, by the maintainer's choice of 2026-10-18, is the AI
@@ -1039,7 +1079,10 @@ run` is, imports both, so what the check passes is what the bar shows. Keep it t
 `amethystora-widgets` skill documents the format for agents and `widgets.md` for users: change them with
 `protocol.js`. `amethystora-widgets make` and `fix` hand the work to `amethystora-agent`, and the
 examples in `/usr/share/amethystora/widgets/examples` pass the check in `20-tests.sh`. Nothing here may
-run as root or ship a widget that is on by default.
+run as root or ship a widget that is on by default. A widget whose `widget.json` says `"place": "desktop"` is a card in
+its corner on the wallpaper, drawn by Amethystora UI's `deskwidgets` module with this extension's own `runner.js` and
+`protocol.js` (imported by file, so that a missing widgets extension stops nothing), and only while `ame desktop
+desktop-widgets` is on; the bar leaves it alone.
 
 ### The logo menu
 
@@ -1071,7 +1114,39 @@ and never paste a GNOME Shell function's body into it (wrap the original instead
 `plans/amethystora-ui/IMPLEMENTERS.md` is the brief, and `plans/amethystora-ui/similarity-check.mjs` compares the code
 with the upstreams' (it prints numbers only). Each extension a module replaces is added to
 `user-setup.hooks.d/22-retire-extensions.sh`, with its version raised: accounts drop it from their extension lists and
-lose its settings (and a cache folder it left), unless they installed it themselves. The modules, and what each replaced:
+lose its settings (and a cache folder it left), unless they installed it themselves.
+
+**The modules after `connect`** come from the desktop plan in `plans/beyond/`: the maintainer's picks in `PICKS.md`
+(2026-10-28, and round 4's on 2026-10-29), a spec per group (`spec-*.md`, `spec-r4-*.md`) and the brief
+(`IMPLEMENTERS.md`). The ideas came from a third-party theme the brief says never to open, and no string, key, file, class,
+command or page names another maker's product (`20-tests.sh` greps the dock's and present's files for such names). The
+brief's rules hold for every one: idle costs nothing (signals and monitors only, connected only while a key asks), every
+choice is a key of the module's schema read live, and every key has an `ame desktop` recipe with positional arguments
+only, a Control entry, a manual section and, for one a person sets, a line in the setup file's tables (`amethystora-setup`,
+`test-setup.sh`). Round 4's VM suites are `*-r4-*.sh` (34, 36, 43, 52, 53, 54, 67).
+
+`MODULES` in `extension.js` is the start order, and the stop order reversed: `theme`, `style`, then `comfort` before
+every module that moves something, the glass after the dock and the panel's modules it draws behind, `focus` last.
+`20-tests.sh` checks it with greps of the lines `    ['name', Class],` (four spaces, one line each: write a new one
+exactly so), each holding only which of a few modules comes first, so a module goes anywhere its own checks allow. Round
+4's sit between `bezel` and `focus` in the order `captions`, `access`, `touch`, `present`, `deskwidgets`, `shelf`,
+`desks`, `agent`, `quit`, `privacy`, and `power` between `today` and `dock`.
+
+**What keeps the shell up.** A screen lock disables the extension and the unlock enables it again: what must outlive a
+lock (Later's and Mute's notifications, pinned captures, walk-away lock's count) is kept at module scope, outside the
+class. Every `Gio.Settings` a module makes is kept and `run_dispose()`d on the main thread when it stops: one left to the
+collector deadlocked GNOME Shell for good (GJS sweeping it while dconf's worker dispatched a change), and
+`build_files/shared/test-settings-disposed.mjs`, run by `20-tests.sh`, refuses one a file makes and never disposes.
+`20-tests.sh` also runs `node --check` on every file of our extensions, since one syntax error stops every module. A layer
+put in the window group is lowered by Mutter's restack: put it back on `restacked`. A whole-screen effect is a plain
+`Clutter.Effect` that copies each screen as it paints, as the colour filter is: an `OffscreenEffect` keeps its texture
+between paints and shows a stale one after a partial redraw (Focus's desaturate fallback still does). Never read a paint
+context's redraw-clip region from GJS (`get_extents()`, `get_rectangle()`: the shell dies on signal 11); testing it for null
+is safe. `Clutter.Event.add_filter` never sees a press on a Wayland window: Mutter's filter takes it first. A new
+`themed/shell-<module>.css.tpl` reaches an existing account only when its theme is applied again: raise `11-theme.sh`'s
+version (17 for round 4).
+
+The modules, and what each replaced:
 
 - `theme`: the theme's `shell-*.css`, loaded again on every theme switch (what `amethystora-theme` wrote into the
   extensions' own settings before).
@@ -1150,6 +1225,54 @@ lose its settings (and a cache folder it left), unless they installed it themsel
 - `connect`, GSConnect's top bar part: one icon, with the battery, while a paired phone is connected, and a menu to send
   files, send a link, ping and open the texts; the clipboard bridge. It only watches for the program's bus name, so it
   costs nothing while the phone link is off (see The phone link). Caffeine, never switched on, was dropped.
+- `power` (on): the battery's health, cycles and heaviest apps in its quick-settings menu (`battery-details`), and a chip
+  naming an app that kept the processor at 70 % for two minutes (`busy-app`), at most once an hour, on the meters' own 5 s
+  reading; a terminal is never offered Quit.
+- The pill's **Later and Mute** (`pill/later.js`, on; `later`, `later-times`): a snoozed notification stays in GNOME's
+  list, marked seen, and comes back as GNOME's own; a mute holds an app's banners as quiet does. Everything held is in
+  memory, GNOME's Do Not Disturb is never written, and calls, alarms and urgent banners always pass. **What's new**
+  (`pill/whatsnew.js`, `whats-new`, see The manual) says an update once, from the version an account saw in
+  `~/.local/state/amethystora/whats-new.json`; a new account or a rollback says nothing. **Getting set** (`today/getting.js`,
+  `getting-set`) ticks a young account's first steps by what the machine says, never by a click.
+- `captions` (off): live captions of what apps play, made on the machine by `/usr/libexec/amethystora-captions` (Fedora's
+  `gst-vosk`; nothing in its pipeline writes or sends the sound, which `20-tests.sh` greps for). `ame desktop captions on`
+  asks, then downloads Vosk's small English model once, pinned by SHA-256, into `~/.local/share/amethystora/captions`
+  (`amethystora-sends` names it from then on). It listens only while an app's stream plays, never while the screen is locked,
+  and a valve stops recognition after 2 s of silence; while words show, a full-screen window is composited. The model is
+  English only: Dictation (`plans/PLAN-dictation.md`) is not built.
+- `access` and `touch` (each part off): colour filters (`filter`, `filter-on`, `filter-strength`), the reading ruler
+  (`Super+Ctrl+R`) and read aloud (`Super+Ctrl+S`); touch mode and the pen's ring of tools (`Super+Ctrl+P`, or the pen's
+  button once `ame desktop touch pen-button on` set GNOME's stylus action). The board's `Super+Alt+R` and `Super+Alt+S` were
+  taken (the tiling's, GNOME's screen reader), and `20-tests.sh` fails if anything else binds the three. The filter is one
+  effect on `global.stage`, so that Zoom and every screen go through it, a 3x3 matrix in linear light (Machado, Oliveira and
+  Fernandes, 2009) in one pass per screen; another module lays a matrix over it with `access.setExtraMatrix(id, matrix |
+  null)`, which Focus's grey uses, so the two multiply rather than fight. An HDR screen, or one the GPU cannot copy, is left
+  unfiltered and the person told once; screenshots keep the apps' colours. Read aloud gives each sentence to `spd-say` on
+  its standard input, never its command line.
+- `present` (offered, off) and the screenshot's **thumbnail** and **pins** (`capture-thumbnail`, `capture-pin`, on):
+  presenting keeps the screen awake through gnome-session's idle inhibitor and holds banners through the pill's hold;
+  Scribble is `Super+Alt+D`. Up to six captures pinned above the windows, in memory only, blurred while the screen is
+  shared or recorded.
+- `deskwidgets` (off): see Widgets.
+- `shelf` and `desks` (off): the shelf (`ame desktop shelf off|edge|shake`) is the Shelf app's window, which the module
+  places, keeps above and on every workspace, and recognizes only by the shelf's own program; the first drop is read by the
+  shell and handed to `amethystora-shelf take` on standard input, within limits `20-tests.sh` holds to `model.rs`, items
+  stay in memory, and dragging one out offers a copy. A desk (`ame desktop desks`) is a set of screens known by maker,
+  model and serial (and Thunderbolt devices): the sound output, the dock's place, a Focus profile (through Focus's own
+  `pick()`) and the power mode (power-profiles-daemon's `ActiveProfile`, left alone while a hold is on) come back there,
+  with a card the first time and Undo after. `~/.config/amethystora/desks.json` (0600, with `.bak`) never reaches the setup
+  file, which carries only the two switches.
+- `agent` and `quit` (on): see Agentic features.
+- `privacy`, after the modules it reads (`connect`, `pill`, `quick`, `meters`): the **share guard** (`share-guard`, `blur`
+  by default, or `card`) covers the windows of `share-guard-apps` (Notes, Security, Backups, the password managers) and Files
+  in the Private folder while the whole screen is shared, from Mutter's first handle, and uncovers only once Mutter's
+  screen cast service says every stream is a window's; the **shield** (`shield`, a tile by default) is described under
+  The Security app; **network by app** (`network-apps`, off) lists in the network meter's menu, only while it is open, the
+  account's own connections by app, naming an address only from what systemd-resolved already knows (`NO_NETWORK`).
+  Walk-away lock is a security switch (The Security app). Beside it, Files' scripts menu has **Copy without hidden data**
+  (`24-files-menu.sh` version 2): `/usr/libexec/amethystora-clean-copy -- PATH...` has `mat2` clean a copy in a private
+  folder and moves it beside the original as `NAME (clean).EXT` with `mv -n`; paths come from argv only, never
+  `NAUTILUS_SCRIPT_*`, and a PDF is cleaned in mat2's light mode, which keeps its text (`mat2`, `perl-Image-ExifTool`).
 
 ### The phone link
 
@@ -1183,6 +1306,10 @@ in `plans/amethystora-connect/` are the protocol, the plugins and the desktop si
   desktop phone clipboard send|receive on|off`, two Control entries): a phone pasting into a password field is a risk the
   person takes on knowingly. Not in the first version: the phone's storage, remote input, media control, run command,
   sending this computer's notifications, and `tel:`/`sms:` handlers.
+- **Other computers pair only once chosen** (`org.amethystora.Connect` `computers`, off; `ame desktop phone computers
+  on|off`, Control's **Pair with other computers**), for files and the clipboard: off, a device that says it is a computer
+  is neither shown nor let in, and its transfers are cancelled (`apps/connect/tests/computers.rs`).
+  `user-setup.hooks.d/26-phone-computers.sh` turns it on once for an account that had already paired one.
 - **Interop** is tested against Fedora's `kdeconnectd` as the phone (`apps/connect/tests/`), and a real phone last; what a
   real phone does differently goes back into the specs.
 
@@ -1759,7 +1886,7 @@ the latter silently returns nothing.
 
 ## Other Rules that are Important to the Maintainers
 
-- Ensure that [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/#specification) are used and enforced for every commit and pull request title.
+- Ensure that [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/#specification) are used and enforced for every commit and pull request title. A `feat` subject is shown to users as a line of What's new (see The manual): write it in plain words, or it is left out.
 - Always be surgical with the least amount of code, the project strives to be easy to maintain.
 - This project is published at iarsslen/amethystora
 - The desktop layer is maintained here, in `system_files/shared`; it is not pulled from upstream
