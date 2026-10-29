@@ -143,7 +143,8 @@ check "13 Classic sets the tiling off" wait_for 6 classic
 atspi amethystora-control click "Tokyo Night" >/dev/null 2>&1
 tokyo() { [[ "$(cat "${HOME_NEW}/.config/amethystora/current/theme.name" 2>/dev/null)" == tokyo-night ]]; }
 check "13 a theme picked is applied" wait_for 60 tokyo
-atspi amethystora-control click Done >/dev/null 2>&1
+# By its role: each pick that ran says "Done" beside its row as well, a label found before the button
+atspi amethystora-control click Done button >/dev/null 2>&1
 check "13 Done closes the window" wait_for 10 sh -c "! pgrep -u ${NEW} -f 'amethystora-control welcome'"
 
 # --- 17: the Manual's moving cards -----------------------------------------------------------------------------------
