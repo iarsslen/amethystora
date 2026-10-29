@@ -70,4 +70,7 @@ fi
 check "the Manual's welcome page opened once" wait_for 120 pgrep -u "${TEST_USER}" -f "amethystora-manual welcome"
 failed="$(user_systemctl --failed --no-legend --plain | awk '{print $1}')"
 if [[ -z "${failed}" ]]; then ok "no user unit failed"; else not_ok "user units failed: $(paste -sd ' ' <<<"${failed}")"; fi
+# The suites drive the session through Eval and atspi, which GNOME does not count as use: after five idle minutes it
+# would lock the screen in the middle of one (which turns the extensions off). A suite that wants the lock locks it.
+user_bus gsettings set org.gnome.desktop.session idle-delay 0
 finish
