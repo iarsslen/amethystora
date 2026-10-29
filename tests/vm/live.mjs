@@ -79,8 +79,10 @@ async function boot() {
   await unlock();
   if (await hasAccount()) await session();
   if (fs.existsSync(`${DIR}/push.list`)) {
+    // Only what the restart threw away: /etc is on the disk and keeps what was pushed, and what a suite changed since
+    // (security.conf put back over a profile a suite turned on before its restart)
     say('putting back the files pushed before the restart');
-    await apply(readList(`${DIR}/push.list`));
+    await apply(readList(`${DIR}/push.list`), { usrOnly: true });
   }
 }
 // The signed-in state `ready` kept: a stopped VM of its own, VM-ready, which a fresh start of VM is cloned from
@@ -94,6 +96,14 @@ async function startVm(fresh = false) {
   say((await call('vm_start', { name: vm, disk, fresh, ...(memory ? { memory_mb: memory } : {}), ...(fresh && hasReady() ? { from: READY } : {}) })).content[0].text);
   await boot();
 }
+// QEMU started by restore, waiting for its state: -incoming on its command line
+const restored = () => {
+  try {
+    return fs.readFileSync(`/proc/${Number(fs.readFileSync(`/vm/vms/${vm}.pid`, 'utf8'))}/cmdline`, 'latin1').split('\0').includes('-incoming');
+  } catch {
+    return false;
+  }
+};
 const running = () => {
   try {
     return fs.existsSync(`/proc/${Number(fs.readFileSync(`/vm/vms/${vm}.pid`, 'utf8'))}`);
@@ -167,12 +177,12 @@ async function send(files) {
 }
 
 // What live.sh sent, into the guest, then what reads it reloaded
-async function apply(entries) {
+async function apply(entries, { usrOnly = false } = {}) {
   await unlock();
   const files = [];
   const removed = [];
   for (const { mode, file } of entries) {
-    for (const target of targets(file)) {
+    for (const target of targets(file).filter((t) => !usrOnly || !t.startsWith('/etc/'))) {
       if (mode === '-') removed.push(target);
       else files.push({ target, data: lf(fs.readFileSync(`${DIR}/files/${file}`)), mode });
     }
@@ -264,10 +274,31 @@ async function suite(name) {
       throw new Error(`${file} asked for a power cycle (next_boot) before phase ${phase + 1}: run it with run.sh test --suites`);
     }
     say(`${file}: restarting for phase ${phase + 1}`);
+    // A QEMU that took its state from a restore (-incoming) dies in its uefi-vars device (signal 11 in
+    // hw-uefi-vars.so) when the firmware runs again on a reset, and on a power-off from inside: there, the guest's
+    // disks synced, QEMU quit (which writes its own out) and started anew, as a power cut after a sync
+    if (restored()) {
+      await sh('sync', 120);
+      await stopVm(true);
+      // Its memory may take a while to be given back, or another VM to leave room: up to 20 minutes
+      for (let i = 0; ; i++) {
+        try {
+          await startVm(false);
+          break;
+        } catch (error) {
+          if (i >= 20 || !/not enough memory/.test(error.message)) throw error;
+          say(`${error.message}: trying again in a minute`);
+          await sleep(60000);
+        }
+      }
+      await install();
+      continue;
+    }
     const id = decode((await agent(vm, { op: 'read', path: '/proc/sys/kernel/random/boot_id' })).data).trim();
     await agent(vm, { op: 'exec', command: '(sleep 2; systemctl reboot) >/dev/null 2>&1 &' }, 30);
     for (;;) {
       await sleep(5000);
+      if (!running()) throw new Error(`QEMU ended while ${vm} restarted: ${fs.readFileSync(`/vm/vms/${vm}.log`, 'utf8')}`);
       try {
         if (decode((await agent(vm, { op: 'read', path: '/proc/sys/kernel/random/boot_id' }, 5)).data).trim() !== id) break;
       } catch {
@@ -455,7 +486,8 @@ switch (command) {
     // 13-apps.sh does; written beside it first, since a running program's file cannot be written over
     await write('/usr/lib/amethystora-apps/amethystora-apps.live', fs.readFileSync(`${DIR}/amethystora-apps`), '0755');
     await root(`mv -f /usr/lib/amethystora-apps/amethystora-apps.live /usr/lib/amethystora-apps/amethystora-apps
-      for app in manual security update notes logs backups control phone; do
+      for app in manual security update notes logs backups control phone shelf; do
+        mkdir -p /usr/lib/amethystora-$app
         ln -f /usr/lib/amethystora-apps/amethystora-apps /usr/lib/amethystora-$app/amethystora-$app; done
       restorecon -F /usr/lib/amethystora-apps/amethystora-apps`);
     say('the apps program replaced: windows opened from now on run it');
