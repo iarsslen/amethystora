@@ -493,7 +493,8 @@ export class Dock {
         });
         for (const tile of this.fan?.surfaces ?? [])
             surfaces.push({actor: tile, material: 'glass', radius: null});
-        if (this._card?.card && !this._card.card.is_finalized?.())
+        // Only while open: a card closing at once (animations off) is destroyed before the dock lets go of it
+        if (this._card?.isOpen)
             surfaces.push({actor: this._card.card, material: 'glass', radius: null});
         if (this.drops?.card)
             surfaces.push({actor: this.drops.card, material: 'glass', radius: null});
