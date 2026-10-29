@@ -76,7 +76,9 @@ export class Desks {
 
     _start() {
         this._on = true;
-        this._token = 0;
+        // Counted on, never from 0 again: a read still under way from before a stop would match a new start's token
+        // and put up a second card over the first, which nothing then takes away
+        this._token = (this._token ?? 0) + 1;
         this._quietUntil = 0;
         this._state = new DesksState();
         this._applier = new Applier(this._ext);
@@ -220,6 +222,7 @@ export class Desks {
         const desk = {id: here.id, base: here.base, name: null, seen: now(), builtin: here.builtin, screens: here.screens,
             thunderbolt: here.thunderbolt, set: values, lidShut: here.lidShut};
         const sets = this._ext.modules?.get('workspaces')?.sets?.list ?? [];
+        this._closeCard();
         this._card = makeCard({
             title: defaultName(desk),
             // With its name already the number of screens, the line beside it names them
@@ -425,15 +428,21 @@ export class Desks {
         const value = kind === 'sound' ? this._applier.sound() : this._applier.dock();
         if (!value)
             return;
+        // A question about this kind asked for a value it no longer has goes: back to what the desk keeps, or to a
+        // value Not now was said to
+        const withdraw = () => {
+            if (this._learnKind === kind)
+                this._learnQuestion?.destroy();
+        };
         const known = desk.set[kind];
         if (kind === 'sound' && known?.sink === value.sink && known?.port === value.port)
-            return;
+            return withdraw();
         if (kind === 'dock' && known?.edge === value.edge && known?.screens === value.screens)
-            return;
+            return withdraw();
         // Asked once: Not now to this change at this desk is kept while GNOME Shell runs
         const asked = `${desk.id}|${kind}|${JSON.stringify(value)}`;
         if (notRemembered.has(asked))
-            return;
+            return withdraw();
         this._learnQuestion?.destroy();
         const source = MessageTray.getSystemSource();
         const notification = new MessageTray.Notification({
@@ -455,6 +464,7 @@ export class Desks {
                 this._learnQuestion = null;
         });
         this._learnQuestion = notification;
+        this._learnKind = kind;
         source.addNotification(notification);
     }
 
