@@ -258,7 +258,8 @@ fi
 list="$(user_bus systemd-run --user --pipe --wait --quiet --collect --setenv=LC_ALL=C.UTF-8 --setenv=LANGUAGE= \
     -- /usr/libexec/amethystora-control-list --json </dev/null 2>/dev/null)"
 # On Catppuccin (set above) with no choice of the account's: "Follow the theme" says what the theme gives, each font
-# is drawn in itself, and the four that make a look sit together, the theme first
+# is drawn in itself, and the theme comes first, then icons, style and font in that order (spec-look 3.2 puts Accent
+# and Colours from the wallpaper right after Theme, and the comfort entries sit between style and font)
 if jq -e '
     ([.items[] | select(.id == "style") | .choices[].value] | sort == (["capsule","floating","hairline","islands","neon","segments","terminal","theme"]))
     and ([.items[] | select(.id == "icons") | .choices[].value] | sort == (["clay","duotone","glass","glass-light","line","muted","neon","neon-light","theme"]))
@@ -270,8 +271,9 @@ if jq -e '
     and ([.items[] | select(.id == "font") | .state] == ["theme"])
     and ([.items[] | select(.id == "font") | .choices[] | select(.value == "theme") | .text] == ["The theme'"'"'s own: Nunito"])
     and ([.items[] | select(.id == "style") | .choices[] | select(.value == "theme") | .text] == ["The theme'"'"'s own: Segments"])
-    and ([.items[] | select(.page == "appearance") | .id][0:4] == ["theme","icons","style","font"])' <<<"${list}" >/dev/null 2>&1; then
-    ok "Control lists the theme, icons, style and font together, says what the theme gives, and draws each font in itself"
+    and ([.items[] | select(.page == "appearance") | .id] as $a | ($a[0] == "theme")
+         and ((["icons", "style", "font"] | map(. as $k | $a | index([$k]))) as $at | ($at | all(. != null)) and $at == ($at | sort)))' <<<"${list}" >/dev/null 2>&1; then
+    ok "Control lists the theme first, then icons, style and font, says what the theme gives, and draws each font in itself"
 else
     not_ok "Control's style or font entry is wrong" "$(jq -c '.items[] | select(.id == "style" or .id == "font")' <<<"${list}" 2>&1 | head -c 800)"
 fi
