@@ -435,15 +435,22 @@ fi
 ev "${P}.phone.notNow(${P}.phone._link); 'kept'" >/dev/null
 
 ev "globalThis.vmlabMuted = false; 'reset'" >/dev/null
+# The card opened in 14 is still open: Not now ended the link and the card went on to the next activity (the music).
+# While it is open, its menu holds the pointer, and a click on the pill (the card's source) only closes it, as GNOME's
+# menus do: closed first, with Escape as a person would
+card_closed() { [[ "$(st .card)" == null ]]; }
+card_closed || keys esc
+wait_for 3 card_closed || ev "${P}.clock._closeCard(); 'closed'" >/dev/null
 listeners "l.call(globalThis.vmlabDev = ${DEV}, 'ringing', '+15550100', 'Sam')" >/dev/null
 calling() { activity_is call; }
 check "15 a call takes the pill, above everything" wait_for 3 calling
 same "15 its text" "$(st .text)" '"Sam is calling"'
 chip="$(chip_point)"
+card_before="$(st .card)"
 keys "click:${chip}"
 muted() { [[ "$(ev "globalThis.vmlabMuted")" == true ]]; }
 if wait_for 3 muted; then ok "15 Mute ringer reaches the phone"; else
-    not_ok "15 Mute ringer reaches the phone" "clicked at ${chip}" \
+    not_ok "15 Mute ringer reaches the phone" "clicked at ${chip}, the card before: ${card_before}" \
         "$(ev "JSON.stringify({chips: [...${P}.clock.actor.shown].filter(a => a._pillAction).map(a => a.text), card: !!${P}.clock._card, top: ${P}.state().activity})")"
 fi
 listeners "l.call(globalThis.vmlabDev, 'ended', '', '')" >/dev/null

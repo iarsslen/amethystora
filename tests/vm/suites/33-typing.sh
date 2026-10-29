@@ -143,6 +143,10 @@ same "1 the skin tone" "$(gs get "${EMOJI}" skin-tone)" "'none'"
 check "1 Smile keeps Ctrl+Alt+Space" grep -q "binding='<Control><Alt>space'" /etc/dconf/db/distro.d/02-amethystora-keybindings
 
 # --- 2-4: a document, the picker under its cursor, a pick typed in --------------------------------------------------
+# GNOME's input method keeps the text cursor only while IBus is connected to it, which comes a few seconds after the
+# session starts: the editor opens after that, so that the cursor its text input reports is kept
+ibus_up() { [[ "$(ev "String(!!Main.inputMethod._context)")" == true ]]; }
+wait_for 60 ibus_up || not_ok "2 IBus did not connect to the shell within 60 s"
 user_bus systemd-run --user --collect --unit=vmlab-33-editor flatpak run org.gnome.TextEditor --new-window >/dev/null
 editor_up() { user_bus python3 "${HERE}/atspi.py" gnome-text-editor has "New Document" >/dev/null 2>&1; }
 editor_focused() { [[ "$(ev "global.display.focus_window?.get_wm_class()")" == *TextEditor* ]]; }
@@ -157,8 +161,14 @@ smile() { pgrep -f it.mijorus.smile >/dev/null; }
 if soon 3 smile; then not_ok "15 Super+. started Smile"; else ok "15 Super+. starts no Smile"; fi
 scale="$(ev "imports.gi.St.ThemeContext.get_for_stage(global.stage).scale_factor")"
 same "2 its width" "$(q .width)" "$((400 * scale))"
-placed="$(ev "(() => { const r = Main.inputMethod._cursorRect; const p = ${E}._picker.actor; const f = global.display.focus_window?.get_frame_rect(); if (r && p.y >= r.y + r.height) return 'below the cursor'; if (r && p.y + p.height <= r.y) return 'above the cursor'; return f && Math.abs(p.y - (f.y + f.height / 3)) < 40 ? 'a third down the window' : 'elsewhere ' + p.y; })()")"
-if [[ "${placed}" != elsewhere* ]]; then ok "2 placed ${placed}"; else not_ok "2 placed ${placed}"; fi
+# What the picker was placed by, as the module says: read after it opened, the input method's cursor is the picker's
+# own field's
+placed="$(q .placed)"
+if [[ ${placed} == caret ]]; then
+    ok "2 placed under the text cursor"
+else
+    not_ok "2 placed under the text cursor" "found: placed by the ${placed:-nothing} (y $(q .y))" "IBus connected: $(ev "String(!!Main.inputMethod._context)")"
+fi
 same "3 it opens on Smileys" "$(q .tab)" smileys
 same "3 ...with 😀 first" "$(q '.cells[0]')" "😀"
 keys text:grinning
@@ -208,7 +218,7 @@ else
 fi
 user_bus systemctl --user stop vmlab-33-kitty >/dev/null 2>&1
 rm -f "/tmp/vmlab-33-${RUN}"
-ev "global.display.get_tab_list(0, null).find(w => w.get_title()?.includes('New Document'))?.activate(global.get_current_time()); 'back'" >/dev/null
+ev "global.display.get_tab_list(0, null).find(w => /TextEditor/.test(w.get_wm_class() ?? ''))?.activate(global.get_current_time()); 'back'" >/dev/null
 soon 5 editor_focused
 
 # --- 8: the skin tone -----------------------------------------------------------------------------------------------
@@ -242,7 +252,7 @@ same "9 nothing was typed" "$(editor_text | md5sum)" "${before}"
 printf '{"version":1,"recent":' >"${STATE}"
 chown "${TEST_USER}:" "${STATE}"
 rm -f "${STATE}.bak"
-ev "global.display.get_tab_list(0, null).find(w => w.get_title()?.includes('New Document'))?.activate(global.get_current_time()); 'back'" >/dev/null
+ev "global.display.get_tab_list(0, null).find(w => /TextEditor/.test(w.get_wm_class() ?? ''))?.activate(global.get_current_time()); 'back'" >/dev/null
 soon 5 editor_focused
 open_picker
 same "10 a broken file: it opens on Smileys" "$(q .tab)" smileys
@@ -368,7 +378,7 @@ same "T0 a text from stdin is kept as it came" "$(ame_as desktop text-shortcut s
 # A document of its own, read through AT-SPI as one line (its lines joined by |)
 user_bus systemd-run --user --collect --unit=vmlab-33-sc-editor flatpak run org.gnome.TextEditor --new-window >/dev/null
 editor_here() {
-    ev "global.display.get_tab_list(0, null).find(w => w.get_title()?.includes('New Document'))?.activate(global.get_current_time()); 'back'" >/dev/null
+    ev "global.display.get_tab_list(0, null).find(w => /TextEditor/.test(w.get_wm_class() ?? ''))?.activate(global.get_current_time()); 'back'" >/dev/null
     editor_focused
 }
 doc() { editor_text | paste -sd '|'; }
@@ -404,7 +414,7 @@ check "T3 the longest wins: ;sig2" wait_for 4 has_doc "|Second "
 keys return semicolon text:d space
 today="$(LC_ALL=C date +'%B %-d, %Y')"
 check "T3 {date} is today, ${today}" wait_for 4 has_doc "Date: ${today} "
-keys return text:t5 space semicolon text:adx backspace text:r space
+keys return text:t5 space semicolon text:adx backspace text:dr space
 check "T5 a BackSpace in the abbreviation still expands" wait_for 4 has_doc "t5 4 Amethyst Lane, Riverton "
 ev "globalThis.vmlabClip = undefined; imports.gi.St.Clipboard.get_default().get_text(imports.gi.St.ClipboardType.CLIPBOARD, (c, t) => (globalThis.vmlabClip = String(t))); 'asked'" >/dev/null
 soon 3 clip_known
@@ -452,7 +462,12 @@ const focus = Gio.File.new_for_path(`${here}/focus.txt`);
 const monitor = focus.monitor_file(Gio.FileMonitorFlags.NONE, null);
 monitor.connect('changed', () => {
     try {
-        fields[new TextDecoder().decode(focus.load_contents(null)[1]).trim()]?.grab_focus();
+        // Without selecting: GtkEntry.grab_focus() selects its text, which the next key would replace
+        const field = fields[new TextDecoder().decode(focus.load_contents(null)[1]).trim()];
+        if (field?.grab_focus_without_selecting)
+            field.grab_focus_without_selecting();
+        else
+            field?.grab_focus();
     } catch {}
 });
 win.connect('close-request', () => loop.quit());
@@ -526,7 +541,7 @@ if wait_for 20 kitty_sc; then
     # text goes nowhere, not into the window that has the keyboard now
     in_doc_before="$(doc | grep -o '4 Amethyst Lane' | wc -l)"
     X="${TY}._expander"
-    same "T10b an expansion waits in the terminal" "$(ev "(() => { ${X}._expand(';addr'); const waiting = ${X}._expanding !== null; global.display.get_tab_list(0, null).find(w => w.get_title()?.includes('New Document'))?.activate(global.get_current_time()); return String(waiting); })()")" true
+    same "T10b an expansion waits in the terminal, and the editor takes the keyboard" "$(ev "(() => { ${X}._expand(';addr'); const waiting = ${X}._expanding !== null; global.display.get_tab_list(0, null).find(w => /TextEditor/.test(w.get_wm_class() ?? ''))?.activate(global.get_current_time()); return waiting + ' ' + (global.display.focus_window?.get_title() !== 'vmlab-33-sc'); })()")" "true true"
     sleep 1
     same "T10b ...and nothing reached the window that took the keyboard" "$(doc | grep -o '4 Amethyst Lane' | wc -l)" "${in_doc_before}"
     ev "global.display.get_tab_list(0, null).find(w => w.get_title() === 'vmlab-33-sc')?.activate(global.get_current_time()); 'back'" >/dev/null
@@ -722,9 +737,13 @@ same "T16 ame control carries no text" "$(ame_as control 2>/dev/null | grep -c '
 
 # --- T18: the cost per key ------------------------------------------------------------------------------------------
 soon 5 editor_here
+timed0="$(tq .timed)"
+total0="$(tq .totalUs)"
 keys return text:"$(printf 'the quick brown fox jumps over %.0s' 1 2 3 4 5 6)"
 sleep 2
-mean_us="$(tq .meanUs)"
+# The sentence's own keys: what the session typed before (the fields, kitty, Control) is left out
+timed1="$(tq .timed)"
+mean_us=$(((timed1 > timed0) ? ($(tq .totalUs) - total0) / (timed1 - timed0) : 0))
 max_us="$(tq .maxUs)"
 if ((mean_us < 50)); then ok "T18 a key costs ${mean_us} µs on average (the longest ${max_us} µs)"; else not_ok "T18 a key costs ${mean_us} µs on average" "the longest ${max_us} µs"; fi
 # The longest, generously: the lab draws in software and a garbage collection can fall in a key, but no key's own work
@@ -750,9 +769,12 @@ soon 5 wrapped_now
 same "T19 the object's own wrapper, over GNOME's" "$(ev "String(Main.inputMethod.notify_key_event !== Object.getPrototypeOf(Main.inputMethod).notify_key_event)")" true
 soon 5 editor_here
 before_key="$(tq .observed)"
-keys x
+# keys.py presses Shift first, which the observer sees too (press and release) unless the new device lost it: three
+# x seen once each are 6 or 8, seen twice (a second observer) 12 or 16
+keys x x x
 sleep 1
-same "T19 one key is seen once (press and release)" "$(($(tq .observed) - before_key))" 2
+seen=$(($(tq .observed) - before_key))
+if ((seen == 6 || seen == 8)); then ok "T19 one key is seen once (press and release)"; else not_ok "T19 one key is seen once (press and release)" "three x and Shift: expected 6 or 8" "found: ${seen}"; fi
 if journalctl --since "${cycle_since}" -o cat _UID="$(id -u "${TEST_USER}")" | grep -q "JS ERROR\|Gjs-CRITICAL"; then
     not_ok "T19 JS ERROR in the cycles" "$(journalctl --since "${cycle_since}" -o cat _UID="$(id -u "${TEST_USER}")" | grep -A3 "JS ERROR\|Gjs-CRITICAL" | head -12)"
 else
