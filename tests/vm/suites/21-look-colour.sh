@@ -324,7 +324,8 @@ ame_ desktop colours mono >/dev/null
 read -r _ mono_c <<<"$(oklab "$(key "${TOML}" background)")"
 check "17 mono writes no accent" bash -c "! grep -q '^accent' '${TOML}'"
 same "17 mono keeps the theme's accent" "$(key "${CUR}/theme/colors.toml" accent)" "#89b4fa"
-awk -v m="${mono_c}" -v s="${soft_c}" -v v="${vivid_c}" 'BEGIN { exit !(m <= 0.013 && s <= 0.026 && v <= 0.051) }' &&
+# The targets (0.012, 0.025, 0.050) and what writing them as #rrggbb adds: up to 0.003 on a dark ground
+awk -v m="${mono_c}" -v s="${soft_c}" -v v="${vivid_c}" 'BEGIN { exit !(m <= 0.015 && s <= 0.028 && v <= 0.053) }' &&
     ok "17 the ground's chroma: mono ${mono_c}, soft ${soft_c}, vivid ${vivid_c}" ||
     not_ok "17 the ground's chroma" "mono ${mono_c} soft ${soft_c} vivid ${vivid_c}"
 ame_ desktop theme rose-pine-dawn >/dev/null
@@ -379,9 +380,19 @@ same "22 the toml is untouched by all three" "$(cat "${TOML}" 2>/dev/null)" "${t
 ame_ desktop theme amethystora >/dev/null
 in_session "systemd-run --user --collect /usr/bin/amethystora-control appearance" >/dev/null 2>&1
 atspi() { user_bus python3 "${OWN}/atspi.py" amethystora-control "$@"; }
+# The middle of a widget of Control's as X,Y fractions of the screen: AT-SPI gives a GTK 4 window's widgets from the
+# window's top left corner (atspi.py's where is for GNOME Shell's own), and the shell knows where the window is
+where() {
+    local box
+    box="$(atspi box "$1" 2>/dev/null)" || return 0
+    ev "(() => { const [x, y, w, h] = '${box}'.split(',').map(Number);
+        const win = global.get_window_actors().map(a => a.meta_window).find(m => m.get_wm_class() === 'org.amethystora.Control');
+        const r = win.get_frame_rect();
+        return ((r.x + x + w / 2) / global.stage.width).toFixed(4) + ',' + ((r.y + y + h / 2) / global.stage.height).toFixed(4); })()"
+}
 if user_bus python3 "${OWN}/atspi.py" amethystora-control wait 60 "Nord" >/dev/null 2>&1; then
     # The pointer over Nord's swatch, through the shell's own virtual pointer
-    where="$(atspi where "Nord" 2>/dev/null)"
+    where="$(where "Nord")"
     ev "(() => { const [x, y] = '${where}'.split(','); const C = imports.gi.Clutter;
         const seat = global.stage.context.get_backend().get_default_seat();
         globalThis.vmlabPointer ??= seat.create_virtual_device(C.InputDeviceType.POINTER_DEVICE);
@@ -393,7 +404,7 @@ if user_bus python3 "${OWN}/atspi.py" amethystora-control wait 60 "Nord" >/dev/n
             --method org.gnome.Shell.Screenshot.Screenshot false false "$1" >/dev/null 2>&1
     }
     # Pixels within 12 of a colour in the band of the window above the first swatch, where the preview is
-    first="$(atspi where "Amethystora Light" 2>/dev/null)"
+    first="$(where "Amethystora Light")"
     near() {
         python3 -I -c 'import sys
 import gi
@@ -491,11 +502,15 @@ in_session "pkill -f amethystora-notes" >/dev/null 2>&1
 ev "global.workspace_manager.get_workspace_by_index(0).activate(global.get_current_time()); 1" >/dev/null
 theme_state_now() { [[ ! -e "${STATE}" ]]; }
 check "24 back on workspace 1 first" wait_for 4 theme_state_now
+# Slowed down too: the first frame of a slide drawn in software holds the shell's loop for longer than the module's
+# wait at the image's speed (0.6 of 300 ms), which would let the accent through mid-slide in the lab only
 ev "global._vmlabForced = !imports.gi.St.Settings.get().enable_animations; global.force_animations = true;
-    if (global._vmlabForced) imports.gi.St.Settings.get().uninhibit_animations(); 1" >/dev/null
+    if (global._vmlabForced) imports.gi.St.Settings.get().uninhibit_animations();
+    global._vmlabSlow ??= imports.gi.St.Settings.get().slow_down_factor; imports.gi.St.Settings.get().slow_down_factor = 4; 1" >/dev/null
 unforce() {
     ev "global.force_animations = false; if (global._vmlabForced) imports.gi.St.Settings.get().inhibit_animations();
-        global._vmlabForced = false; 1" >/dev/null 2>&1
+        global._vmlabForced = false; if (global._vmlabSlow !== undefined) imports.gi.St.Settings.get().slow_down_factor = global._vmlabSlow;
+        delete global._vmlabSlow; 1" >/dev/null 2>&1
 }
 trap unforce EXIT
 slide="$(ev "Math.round(300 * imports.gi.St.Settings.get().slow_down_factor)")"

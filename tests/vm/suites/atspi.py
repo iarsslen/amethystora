@@ -9,6 +9,8 @@ this does for them.
                                            it with the pointer when it has no action (GNOME Shell's own)
     atspi.py APP where TEXT [ROLE]         prints the middle of the widget named TEXT as X,Y, fractions of the
                                            screen, for keys.py's click:X,Y (GNOME Shell's)
+    atspi.py APP box TEXT [ROLE]           prints the widget named TEXT as X,Y,WIDTH,HEIGHT in pixels from the top
+                                           left corner of its window (a GTK 4 window's, which the shell places)
     atspi.py APP type TEXT [ENTRY]         puts TEXT in the first entry (or the one named ENTRY)
     atspi.py APP check TEXT [on|off]       sets the check box or switch named TEXT
     atspi.py APP text                      prints everything the window says, one line each
@@ -195,6 +197,13 @@ def main(argv):
                      key=lambda box: box.width * box.height if box.width > 0 and box.height > 0 else 0)
         box = Atspi.Component.get_extents(node, Atspi.CoordType.SCREEN)
         print(f"{(box.x + box.width / 2 - screen.x) / screen.width:.4f},{(box.y + box.height / 2 - screen.y) / screen.height:.4f}")
+        return
+    if command == "box":
+        node = find(app, rest[0], rest[1] if len(rest) > 1 else None)
+        if node is None:
+            fail(f"nothing named {rest[0]!r}")
+        box = Atspi.Component.get_extents(node, Atspi.CoordType.WINDOW)
+        print(f"{box.x},{box.y},{box.width},{box.height}")
         return
     if command == "type":
         node = find(app, rest[1], "text") if len(rest) > 1 else next((n for n, _ in walk(app) if n.get_role_name() in ("text", "entry", "password text")), None)
