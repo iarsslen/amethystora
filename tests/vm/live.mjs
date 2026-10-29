@@ -396,6 +396,9 @@ switch (command) {
     }
     for (let i = 0; i < 5; i++) await call('vm_snapshot', { name: vm, action: 'delete', tag: 'ram' }).catch(() => (i = 5));
     await call('vm_snapshot', { name: vm, action: 'save', tag: 'ram' });
+    // What was pushed by then is in the saved state: restore takes the list back with it
+    fs.rmSync(`${DIR}/ram.push.list`, { force: true });
+    if (fs.existsSync(`${DIR}/push.list`)) fs.copyFileSync(`${DIR}/push.list`, `${DIR}/ram.push.list`);
     say(`saved: memory ${(fs.statSync(`${DIR}/ram.mig`).size / 2 ** 30).toFixed(1)} GiB, ${((Date.now() - t) / 1000).toFixed(1)} s`);
     break;
   }
@@ -404,7 +407,8 @@ switch (command) {
     await stopVm(true);
     const no = refusal(4096);
     if (no) throw new Error(`${vm} not restored: ${no}`);
-    forget();
+    for (const f of ['push.list', 'push.new']) fs.rmSync(`${DIR}/${f}`, { force: true });
+    if (fs.existsSync(`${DIR}/ram.push.list`)) fs.copyFileSync(`${DIR}/ram.push.list`, `${DIR}/push.list`);
     await call('vm_snapshot', { name: vm, action: 'load', tag: 'ram' });
     const argv = JSON.parse(fs.readFileSync(`${DIR}/qemu.args`, 'utf8'));
     // Its TPM as the VM started it, then QEMU waiting for the state, which carries the TPM's too
