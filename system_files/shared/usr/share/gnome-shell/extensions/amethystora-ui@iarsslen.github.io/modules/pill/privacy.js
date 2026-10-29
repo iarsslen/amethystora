@@ -159,6 +159,10 @@ export class Privacy {
         this._giveGnomeIcons();
         this._button?.destroy();
         this._button = null;
+        // Nothing that comes late (pw-dump's answer, a test's _set) reaches the rows the button took with it
+        this._inUse = null;
+        this._listRows = null;
+        this._dots = null;
     }
 
     get state() {
@@ -179,7 +183,7 @@ export class Privacy {
     }
 
     _used(kind) {
-        return this._forced[kind] ?? this._inUse[kind];
+        return this._forced?.[kind] ?? this._inUse?.[kind] ?? false;
     }
 
     // --- The sources ----------------------------------------------------------------------------------------------
@@ -299,9 +303,13 @@ export class Privacy {
             if (open)
                 this._fillList(true);
         });
+        // Destroyed by another hand too (a second button under the same role): its rows and dots go with it
         button.connect('destroy', () => {
-            if (this._button === button)
-                this._button = null;
+            if (this._button !== button)
+                return;
+            this._button = null;
+            this._listRows = null;
+            this._dots = null;
         });
         this._button = button;
         Main.panel.addToStatusArea(ROLE, button, this._position(), 'right');
