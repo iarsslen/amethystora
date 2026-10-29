@@ -262,7 +262,7 @@ export class Battery {
             this._tipSecond = new St.Label({style_class: 'amethystora-pill-tip-second'});
             this._tip.add_child(this._tipFirst);
             this._tip.add_child(this._tipSecond);
-            Main.layoutManager.addTopChrome(this._tip, {affectsInputRegion: false});
+            Main.layoutManager.addTopChrome(this._tip);
             this._tip.connect('notify::width', () => this._placeTip());
             this._glass?.()?.surfacesChanged?.();
         }

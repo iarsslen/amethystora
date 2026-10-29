@@ -495,7 +495,7 @@ export class TopBar {
     _chrome(shown, part, wanted, make) {
         if (wanted && !shown[part]) {
             shown[part] = make();
-            Main.layoutManager.addChrome(shown[part], {affectsInputRegion: false, trackFullscreen: true});
+            Main.layoutManager.addChrome(shown[part], {trackFullscreen: true});
         } else if (!wanted && shown[part]) {
             shown[part].destroy();
             delete shown[part];
