@@ -148,7 +148,7 @@ atspi amethystora-control click Done button >/dev/null 2>&1
 check "13 Done closes the window" wait_for 10 sh -c "! pgrep -u ${NEW} -f 'amethystora-control welcome'"
 
 # --- 17: the Manual's moving cards -----------------------------------------------------------------------------------
-in_session "nohup amethystora-manual desktop#gestures-and-keys >/dev/null 2>&1 &"
+user_bus systemd-run --user --collect --quiet amethystora-manual "desktop#gestures-and-keys" >/dev/null
 cards_named() { atspi amethystora-manual tree 2>/dev/null | grep -cE "$1"; }
 if atspi amethystora-manual wait 20 "Four fingers for Today" >/dev/null 2>&1; then
     same "17 eight cards" "$(cards_named 'button.*(Shake to find|Pinch for the apps|Search anything|Hold Super|Switch windows|Snap layouts|Spread for the desktop|Four fingers for Today), (playing|paused)')" 8
@@ -165,7 +165,7 @@ fi
 pkill -u "${NEW}" -f amethystora-manual
 gs set org.gnome.desktop.interface enable-animations false
 sleep 1
-in_session "nohup amethystora-manual desktop#gestures-and-keys >/dev/null 2>&1 &"
+user_bus systemd-run --user --collect --quiet amethystora-manual "desktop#gestures-and-keys" >/dev/null
 if atspi amethystora-manual wait 20 "Four fingers for Today" >/dev/null 2>&1; then
     ev "global.display.list_all_windows().find(w => w.get_wm_class() === 'org.amethystora.Manual')?.activate(global.get_current_time()); true" >/dev/null
     sleep 3
@@ -237,7 +237,8 @@ app.run([])
 EOF
 chmod 0644 /run/vmlab-28-clicker.py
 CLICKS="${HOME_NEW}/vmlab-28-clicks"
-in_session "nohup python3 /run/vmlab-28-clicker.py ${CLICKS} >/dev/null 2>&1 &"
+# A unit of its own: what in_session leaves running in the background goes with its unit when the command ends
+user_bus systemd-run --user --collect --quiet --unit="vmlab-28-clicker-$$" python3 /run/vmlab-28-clicker.py "${CLICKS}" >/dev/null
 CLICKER=1
 clicker_up() { [[ "$(ev "global.display.focus_window?.get_title() ?? ''")" == "vmlab clicker" ]]; }
 wait_for 20 clicker_up
