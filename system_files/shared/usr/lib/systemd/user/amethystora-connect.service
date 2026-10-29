@@ -19,22 +19,15 @@ RestartSec=5
 TasksMax=128
 MemoryMax=512M
 LimitNOFILE=1024
-# The files and the Download folder are the home's, wherever the language puts them; the runtime folder is the
-# session's own (dconf and the image loaders write in it). Nothing else is written to, and /tmp is the session's: a
-# file the person sends from there is the same file here
-ProtectSystem=strict
-ReadWritePaths=%h %t
+# No setting that needs a namespace (ProtectSystem=, ReadWritePaths=, ProtectKernel*=, ProtectControlGroups=,
+# ProtectClock=, ProtectHostname=, Private*=): a user's manager can only have those in a user namespace of the
+# program's own, and from inside one /proc/PID/exe of every other process is unreadable, so the program could no
+# longer tell the Phone app and GNOME Shell from a stranger (dbus.rs) and would refuse both. As the account, without
+# capabilities, those settings kept little; CapabilityBoundingSet= goes with them (only a namespace can drop it).
 NoNewPrivileges=yes
-ProtectKernelTunables=yes
-ProtectKernelModules=yes
-ProtectKernelLogs=yes
-ProtectControlGroups=yes
-ProtectClock=yes
-ProtectHostname=yes
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
 RestrictRealtime=yes
 LockPersonality=yes
-CapabilityBoundingSet=
 SystemCallArchitectures=native
 UMask=0077
 # No system call filter and no restriction on namespaces: the image libraries that decode a phone's pictures run

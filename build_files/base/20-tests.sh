@@ -292,6 +292,9 @@ test ! -e /usr/share/dbus-1/services/org.amethystora.Connect.service
 grep -q '^\[Install\]' /usr/lib/systemd/user/amethystora-connect.service
 grep -q '^WantedBy=graphical-session.target' /usr/lib/systemd/user/amethystora-connect.service
 grep -qE '^(MemoryMax|TasksMax|LimitNOFILE)=' /usr/lib/systemd/user/amethystora-connect.service
+# ...and no setting that puts it in a user namespace of its own, from which it cannot read the Phone app's or GNOME
+# Shell's /proc/PID/exe and so refuses both (dbus.rs)
+[[ -z "$(grep -E '^(Protect(System|Home|Kernel[A-Za-z]*|ControlGroups|Clock|Hostname)|ReadWritePaths|ReadOnlyPaths|InaccessiblePaths|Private[A-Za-z]*|CapabilityBoundingSet)=' /usr/lib/systemd/user/amethystora-connect.service)" ]]
 # ...whose only settings are the name phones see, the two ways the clipboard may be shared, both off, and where
 # pictures from a phone go, Pictures/Phone (plans/beyond/spec-phone-files-first.md 2.3), and whether other computers
 # pair too, off (plans/beyond/spec-r4-later.md A.2)
