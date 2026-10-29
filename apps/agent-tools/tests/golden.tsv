@@ -68,7 +68,7 @@ reset my settings but keep my files	manual/troubleshooting#resetting-settings|co
 notes encryption passphrase	manual/notes#encryption
 kde connect does not find my phone	knowledge/by-design#phone-pairing-is-open-only-at-home|manual/hardware#phones
 the drawing tablet pen does nothing	manual/hardware#drawing-tablets|knowledge/by-design#dev-uinput-is-roots
-my server is not reachable from another computer	knowledge/by-design#the-firewall-answers-only-what-a-desktop-needs
+my server is not reachable from another computer	knowledge/by-design#the-firewall-answers-only-what-a-desktop-needs|manual/security#on-from-the-start
 rebase refused because the image is not signed	knowledge/by-design#only-signed-images-are-installed|manual/updates#signed-updates|manual/developer#an-image-of-your-own
 where are the deployments and how do updates run	knowledge/architecture#how-updates-run|knowledge/architecture#deployments-and-rolling-back|manual/updates
 turn on do not disturb	knowledge/desktop#notifications-and-do-not-disturb
