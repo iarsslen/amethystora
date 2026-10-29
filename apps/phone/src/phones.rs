@@ -63,8 +63,13 @@ impl Phone {
 
         let view = ui::vbox(0, &["page"]);
         let head = ui::vbox(6, &["page-head"]);
-        head.append(&widgets::heading(&t!("Phones"), "h1"));
+        // With the switch for other computers on, the page lists them too, and says how they pair
+        let computers = self.link.computers();
+        head.append(&widgets::heading(&if computers { t!("Phones and computers") } else { t!("Phones") }, "h1"));
         head.append(&ui::label(&t!("Pair a phone that has the KDE Connect app to see its notifications, read its texts and send files and links back and forth."), &["lead"]));
+        if computers {
+            head.append(&ui::label(&t!("Another computer pairs the same way once Pair with other computers is on on both."), &["lead"]));
+        }
         view.append(&head);
 
         if devices.is_empty() {
@@ -83,6 +88,7 @@ impl Phone {
                     }
                     // The paired phones are titled when requests come before them, the others always
                     let title = match group {
+                        1 if asking && computers => Some(t!("Your phones and computers")),
                         1 if asking => Some(t!("Your phones")),
                         2 => Some(t!("Nearby, not paired")),
                         _ => None,
@@ -149,7 +155,12 @@ impl Phone {
         let foot = ui::vbox(8, &["page-foot"]);
         let name = self.link.name();
         if !name.is_empty() {
-            foot.append(&ui::label(&t!("Phones see this computer as {name}.", name = bdi(&name)), &["faint", "small"]));
+            let seen = if self.link.computers() {
+                t!("Phones and other computers see this computer as {name}.", name = bdi(&name))
+            } else {
+                t!("Phones see this computer as {name}.", name = bdi(&name))
+            };
+            foot.append(&ui::label(&seen, &["faint", "small"]));
         }
         let folder = self.link.receive_folder();
         if !folder.is_empty() {
@@ -237,10 +248,11 @@ impl Phone {
         key.set_selectable(true);
         boxed.append(&key);
         boxed.append(&ui::label(
-            &if asked {
-                t!("{phone} asks to pair. Pair only if the phone in your hand shows this same key.", phone = bdi(&device.title()))
-            } else {
-                t!("Waiting for {phone}. Its screen should show this same key, and ask you to accept there.", phone = bdi(&device.title()))
+            &match (asked, device.is_computer()) {
+                (true, false) => t!("{phone} asks to pair. Pair only if the phone in your hand shows this same key.", phone = bdi(&device.title())),
+                (false, false) => t!("Waiting for {phone}. Its screen should show this same key, and ask you to accept there.", phone = bdi(&device.title())),
+                (true, true) => t!("{phone} asks to pair. Pair only if the other computer's screen shows this same key.", phone = bdi(&device.title())),
+                (false, true) => t!("Waiting for {phone}. The other computer's screen should show this same key, and ask you to accept there.", phone = bdi(&device.title())),
             },
             &["soft"],
         ));
@@ -435,6 +447,7 @@ fn group_of(situation: Situation) -> u8 {
 fn state_word(device: &Device) -> String {
     match device.situation() {
         Situation::Asked => t!("Asks to pair"),
+        Situation::Asking if device.is_computer() => t!("Waiting for the other computer"),
         Situation::Asking => t!("Waiting for the phone"),
         Situation::Ready => t!("Connected"),
         Situation::Away => t!("Out of reach"),

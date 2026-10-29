@@ -73,6 +73,10 @@ FEDORA_PACKAGES=(
     gamemode
     gcc
     gcc-c++
+    # Live captions' speech recognizer: GStreamer's vosk element with Vosk (Apache-2.0, libvosk from vosk-api-devel,
+    # with openfst and rnnoise), about 64 MiB; /usr/libexec/amethystora-captions runs it, and only once the account
+    # turned captions on and fetched the model (plans/beyond/spec-r4-later.md, part B)
+    gst-vosk
     # gettext and gettext.sh, through which the security report and the app permissions speak the
     # session's language (po/amethystora)
     gettext-runtime

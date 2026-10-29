@@ -36,6 +36,7 @@ import {Windows} from './modules/windows.js';
 import {Motion} from './modules/motion.js';
 import {Sounds} from './modules/sounds.js';
 import {Bezel} from './modules/bezel.js';
+import {Captions} from './modules/captions.js';
 import {Focus} from './modules/focus.js';
 
 // In the order they start, by the name of their stylesheet; they stop in the opposite order. The desktop style comes
@@ -70,6 +71,7 @@ const MODULES = [
     ['motion', Motion],
     ['sounds', Sounds],
     ['bezel', Bezel],
+    ['captions', Captions],
     ['focus', Focus],
 ];
 

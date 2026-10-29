@@ -44,8 +44,10 @@ def device_id(directory):
 
 
 def identity(directory):
+    # PEER_TYPE and PEER_NAME play another kind of peer: a laptop for the computers' suite (67)
     return packet("kdeconnect.identity", {
-        "deviceId": device_id(directory), "deviceName": "Lab phone", "deviceType": "phone", "protocolVersion": 8,
+        "deviceId": device_id(directory), "deviceName": os.environ.get("PEER_NAME", "Lab phone"),
+        "deviceType": os.environ.get("PEER_TYPE", "phone"), "protocolVersion": 8,
         "incomingCapabilities": PHONE_IN, "outgoingCapabilities": PHONE_OUT, "tcpPort": 1716})
 
 

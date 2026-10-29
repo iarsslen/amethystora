@@ -238,6 +238,12 @@ pub fn kind_of_chassis(chassis: Option<u32>) -> &'static str {
     }
 }
 
+/// Whether a device of this kind is another computer, which the phone link talks to only while the switch
+/// `computers` is on. A type the protocol does not know was already read as a desktop, so it is one too.
+pub fn is_computer(kind: &str) -> bool {
+    !matches!(kind, "phone" | "tablet" | "tv")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -366,5 +372,7 @@ mod tests {
         assert_eq!(kind_of_chassis(Some(32)), "tablet");
         assert_eq!(kind_of_chassis(Some(3)), "desktop");
         assert_eq!(kind_of_chassis(None), "desktop");
+        assert!(is_computer("laptop") && is_computer("desktop"));
+        assert!(!is_computer("phone") && !is_computer("tablet") && !is_computer("tv"));
     }
 }

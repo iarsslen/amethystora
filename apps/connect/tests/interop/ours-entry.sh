@@ -8,6 +8,9 @@ chmod 700 "$XDG_RUNTIME_DIR"
 # The image's schema, compiled here; the settings are a key file, which the program and gsettings share
 mkdir -p /tmp/schemas && cp /schemas-src/org.amethystora.Connect.gschema.xml /tmp/schemas/ && glib-compile-schemas /tmp/schemas
 export GSETTINGS_SCHEMA_DIR=/tmp/schemas GSETTINGS_BACKEND=keyfile
+# Fedora's KDE Connect in the other container is a desktop: another computer, which the program talks to only while
+# the switch `computers` is on (plans/beyond/spec-r4-later.md, part A); run.sh turns it off and on again once
+gsettings set org.amethystora.Connect computers true
 ADDRESS=$(dbus-daemon --session --fork --print-address)
 echo "$ADDRESS" > /tmp/bus-address
 export DBUS_SESSION_BUS_ADDRESS="$ADDRESS"

@@ -257,6 +257,7 @@ fn root_properties(service: &Service) -> Vec<(&'static str, glib::Variant)> {
         ("Name", service.name().to_variant()),
         ("ClipboardSend", service.clip_send.get().to_variant()),
         ("ClipboardReceive", service.clip_receive.get().to_variant()),
+        ("Computers", service.computers.get().to_variant()),
         ("ReceiveFolder", service.receive_root().to_string_lossy().to_string().to_variant()),
         ("PhotoFolder", service.photo_folder_path().unwrap_or_else(|| service.receive_root()).to_string_lossy().to_string().to_variant()),
     ]

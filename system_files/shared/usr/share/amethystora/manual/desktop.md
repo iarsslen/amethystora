@@ -446,6 +446,36 @@ Good to know:
 - Gradia is one of the apps every machine comes with; if you removed it, install it again from Bazaar
   and the button comes back.
 
+## Live captions
+
+Live captions put the words of whatever is being said in a video, a call or a podcast in a dark box near the bottom
+of the screen, as they are spoken. They are made on this computer from the sound it plays, by the Vosk speech
+recognizer, and they are **off**: turn them on with
+
+```bash
+ame desktop captions on
+```
+
+or **Live captions** on [Control](control.md)'s **Appearance** page. The first time, it says what it downloads and
+asks: a speech model of 39 MiB (68 MiB once unpacked), fetched once from alphacephei.com, the makers of Vosk, and
+checked against the copy the image knows. After that, **Live captions** in [quick settings](#quick-settings) turns
+them on and off.
+
+Good to know:
+
+- Captions are **English only** for now, whatever language the computer is in.
+- The sound is listened to only while captions are on and an app plays something, and only in memory: it is never
+  recorded, written down or sent anywhere, and neither are the words. They are gone a few seconds after they are
+  shown.
+- Your microphone is never used. The **Live captions** toggle in quick settings, checked, is what shows they are on.
+- The box is drawn over every window, a video in full screen too, and clicks go through it. It is part of the
+  screen, so a screenshot taken or a screen shared while words show has them in it.
+- They cost a part of one processor core while speech plays and hold about 230 MB of memory while they are on.
+  Silence, and an app that is paused, cost next to nothing.
+- Recognition is good for clear speech and makes mistakes with music, accents and several voices at once.
+- `ame desktop captions off` turns them off; `ame desktop captions remove` turns them off and deletes the model;
+  `ame desktop captions status` says how things stand.
+
 ## Gestures and keys
 
 Each card moves the way the gesture or the keys do. Click one, or press `Space` on it, to pause it; with animations

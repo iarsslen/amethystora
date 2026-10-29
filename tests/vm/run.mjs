@@ -396,12 +396,30 @@ async function install(vm) {
   }
 }
 
+// The live captions' speech model (suite 67), when the lab keeps a copy: handed to the guest once, in pieces the agent
+// takes, so that a run neither downloads 39 MiB each time nor fails offline
+const CAPTIONS_ZIP = '/vm/cache/vosk-model-small-en-us-0.15.zip';
+const captionsGiven = new Set();
+async function giveCaptionsModel(vm) {
+  if (captionsGiven.has(vm) || !fs.existsSync(CAPTIONS_ZIP)) return;
+  const data = fs.readFileSync(CAPTIONS_ZIP);
+  const piece = 3 << 20;
+  for (let at = 0, n = 0; at < data.length; at += piece, n++) {
+    const path = `/var/tmp/vmlab-captions.zip.${String(n).padStart(3, '0')}`;
+    const answer = await agent(vm, { op: 'write', path, data: data.subarray(at, at + piece).toString('base64'), mode: '0644' });
+    if (answer.rc !== 0) throw new Error(`could not write ${path} into the VM: ${answer.error}`);
+  }
+  await agent(vm, { op: 'exec', command: 'cat /var/tmp/vmlab-captions.zip.* >/var/tmp/vmlab-captions.zip && rm -f /var/tmp/vmlab-captions.zip.*' });
+  captionsGiven.add(vm);
+}
+
 async function suite(machine, name) {
   const m = machineOf(machine);
   const { vm } = m;
   const began = Date.now();
   let output = '';
   let rc = 0;
+  if (name.startsWith('67-')) await giveCaptionsModel(vm);
   for (let phase = 1; ; phase++) {
     await install(vm);
     const env = `SUITE_PHASE=${phase} VMLAB_PASSPHRASE=${PASSPHRASE} VMLAB_TPM_PIN=${TPM_PIN} VMLAB_PROMPTS=${prompts.get(vm) ?? ''}` +

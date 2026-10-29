@@ -143,6 +143,7 @@ class PhoneIndicator extends PanelMenu.Button {
             gicon: Gio.ThemedIcon.new_from_names(BAR_ICON),
             style_class: 'system-status-icon',
         });
+        this._kind = 'phone';
         box.add_child(this._icon);
         // One phone that has said its battery or its signal: the capsule, battery outline, percentage, charging mark
         // and bars, each shown only while known
@@ -207,6 +208,14 @@ class PhoneIndicator extends PanelMenu.Button {
         const capsule = level >= 0 || signal >= 0;
         this._capsule.visible = capsule;
         this._icon.visible = !capsule;
+        // Another computer (spec-r4-later.md A.5) is drawn as one: the only device's own kind, or a computer when every
+        // device connected is one
+        const computer = devices.length > 0 && devices.every(device => ['desktop', 'laptop'].includes(device.type));
+        const kind = TYPE_ICONS[only?.type] ? only.type : computer ? 'desktop' : 'phone';
+        if (this._kind !== kind) {
+            this._kind = kind;
+            this._icon.gicon = Gio.ThemedIcon.new_from_names(TYPE_ICONS[kind]);
+        }
         this._battery.visible = level >= 0;
         this._level.visible = level >= 0;
         this._level.text = level >= 0 ? percent(level) : '';

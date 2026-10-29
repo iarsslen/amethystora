@@ -84,6 +84,8 @@ struct Inner {
     /// This computer's name as phones see it, and where files from them go
     name: String,
     receive_folder: String,
+    /// Whether other computers pair too (the program's switch `computers`)
+    computers: bool,
     devices: Vec<Device>,
     /// Paths being read, and those that changed while they were
     fetching: HashSet<String>,
@@ -164,6 +166,11 @@ impl Link {
         self.inner.borrow().receive_folder.clone()
     }
 
+    /// Whether other computers pair with this one too
+    pub fn computers(&self) -> bool {
+        self.inner.borrow().computers
+    }
+
     /// The transfers of a phone still going, and those that ended a moment ago
     pub fn transfers(&self, device: &str) -> Vec<Transfer> {
         self.inner.borrow().transfers.iter().filter(|t| t.device == device).cloned().collect()
@@ -238,6 +245,7 @@ impl Link {
             inner.dirty.clear();
             inner.transfers.clear();
             inner.name.clear();
+            inner.computers = false;
         }
         self.fire(Event::Presence);
     }
@@ -264,6 +272,7 @@ impl Link {
                     match name.as_str() {
                         "Name" => inner.name = value.str().map(|n| model::clean(n, model::MOST_NAME)).unwrap_or_default(),
                         "ReceiveFolder" => inner.receive_folder = value.str().map(str::to_string).unwrap_or_default(),
+                        "Computers" => inner.computers = value.get::<bool>().unwrap_or(false),
                         _ => {}
                     }
                 }
@@ -374,14 +383,19 @@ impl Link {
                         self.fire(Event::Devices);
                     }
                 } else if which.str() == Some(MANAGER) {
-                    let mut inner = self.inner.borrow_mut();
-                    for (name, value) in model::entries(&changed) {
-                        match name.as_str() {
-                            "Name" => inner.name = value.str().map(|n| model::clean(n, model::MOST_NAME)).unwrap_or_default(),
-                            "ReceiveFolder" => inner.receive_folder = value.str().map(str::to_string).unwrap_or_default(),
-                            _ => {}
+                    {
+                        let mut inner = self.inner.borrow_mut();
+                        for (name, value) in model::entries(&changed) {
+                            match name.as_str() {
+                                "Name" => inner.name = value.str().map(|n| model::clean(n, model::MOST_NAME)).unwrap_or_default(),
+                                "ReceiveFolder" => inner.receive_folder = value.str().map(str::to_string).unwrap_or_default(),
+                                "Computers" => inner.computers = value.get::<bool>().unwrap_or(false),
+                                _ => {}
+                            }
                         }
                     }
+                    // The page's heading and words follow the program's own properties too
+                    self.fire(Event::Devices);
                 }
             }
             (DEVICE, "Transfer") => {

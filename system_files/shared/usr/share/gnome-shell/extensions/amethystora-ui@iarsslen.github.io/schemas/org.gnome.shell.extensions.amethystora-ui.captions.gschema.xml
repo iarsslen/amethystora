@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Live captions (plans/beyond/spec-r4-later.md, part B). `ame desktop captions`, Control and the quick settings toggle
+     write the key; the captions module reads it. -->
+<schemalist>
+  <schema id="org.gnome.shell.extensions.amethystora-ui.captions" path="/org/gnome/shell/extensions/amethystora-ui/captions/">
+    <key name="enabled" type="b">
+      <default>false</default>
+      <summary>Show live captions</summary>
+      <description>Captions under the speech this computer plays, made on this computer from the sound output while an app plays. They need the speech model `ame desktop captions on` fetches; without it the key does nothing. Off as the image ships.</description>
+    </key>
+  </schema>
+</schemalist>

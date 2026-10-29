@@ -107,6 +107,7 @@ fn main() -> ExitCode {
             clipboard_send: s.boolean("clipboard-send"),
             clipboard_receive: s.boolean("clipboard-receive"),
             photo_folder: PhotoFolder::from_key(&s.string("photo-folder")),
+            computers: s.boolean("computers"),
         },
         None => Settings::default(),
     };
@@ -133,6 +134,7 @@ fn main() -> ExitCode {
             move |service: &Rc<Service>| {
                 service.set_clipboard_switches(s.boolean("clipboard-send"), s.boolean("clipboard-receive"));
                 service.set_photo_folder(PhotoFolder::from_key(&s.string("photo-folder")));
+                service.set_computers(s.boolean("computers"));
                 service.set_name(&s.string("device-name"), pretty_host().as_deref());
             }
         };

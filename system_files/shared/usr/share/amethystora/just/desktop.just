@@ -1024,7 +1024,8 @@ greeting ACTION="":
 # Your Android phone through Amethystora Connect, which speaks KDE Connect's protocol: notifications, files, texts and
 # calls (ACTION: on or off; without it, it flips). Off until turned on: the program listens only while its user
 # service is enabled. `phone clipboard send|receive [on|off]` shares the clipboard one way or the other, both off;
-# `phone photos [pictures|downloads]` says where pictures a phone sends go, Pictures/Phone as the image ships
+# `phone photos [pictures|downloads]` says where pictures a phone sends go, Pictures/Phone as the image ships;
+# `phone computers [on|off]` lets other computers with the phone link pair too, for files and the clipboard, off
 [positional-arguments]
 phone *ARGS:
     #!/usr/bin/bash
@@ -1085,6 +1086,23 @@ phone *ARGS:
         esac
         exit 0
     fi
+    if [[ "${1:-}" == computers ]]; then
+        case "$(flip "${2:-}" "$(gsettings get org.amethystora.Connect computers)")" in
+            on)
+                gsettings set org.amethystora.Connect computers true
+                echo "$(gettext "Other computers with the phone link on can now pair with this one, on the networks named home. Turn this on on both.")"
+                ;;
+            off)
+                gsettings set org.amethystora.Connect computers false
+                echo "$(gettext "Only phones and tablets pair with this computer now. Paired computers are kept, and connect again once this is on.")"
+                ;;
+            *)
+                echo "usage: ame desktop phone computers [on|off]"
+                exit 64
+                ;;
+        esac
+        exit 0
+    fi
     case "$(flip "${1:-}" "$(on && echo true)")" in
         on)
             if ! systemctl --user enable --now "${UNIT}" 2>/dev/null; then
@@ -1103,6 +1121,76 @@ phone *ARGS:
             echo "usage: ame desktop phone [on|off]"
             exit 64
             ;;
+    esac
+
+# Live captions: words under the speech this computer plays, made on this computer by the Vosk recognizer
+# (ACTION: on, off, remove or status; without it, it flips). `on` fetches the speech model once, after saying what it
+# downloads and asking; `remove` turns captions off and deletes the model
+[positional-arguments]
+captions *ARGS:
+    #!/usr/bin/bash
+    set -euo pipefail
+    # shellcheck source=/dev/null
+    source gettext.sh
+    schema=org.gnome.shell.extensions.amethystora-ui.captions
+    helper=/usr/libexec/amethystora-captions
+    usage() {
+        echo "usage: ame desktop captions [on|off|remove|status]"
+        exit 64
+    }
+    [[ $# -le 1 ]] || usage
+    action="${1:-}"
+    if [[ -z "${action}" ]]; then
+        if [[ "$(gsettings get "${schema}" enabled)" == true ]]; then action=off; else action=on; fi
+    fi
+    case "${action}" in
+        on)
+            case "$("${helper}" status)" in
+                no-engine)
+                    echo "$(gettext "The speech recognizer is not installed in this image.")"
+                    exit 1
+                    ;;
+                no-model)
+                    echo "$(gettext "Live captions need a speech model of 39 MiB (68 MiB once unpacked), downloaded once from alphacephei.com, the makers of the Vosk recognizer. After that, captions are made on this computer: the sound is never recorded or sent. English only for now.")"
+                    echo "$(gettext "While they are on, they hold about 230 MB of memory, and use part of a processor core while speech plays.")"
+                    gum confirm "$(gettext "Download it now?")" || exit 0
+                    if ! "${helper}" fetch; then
+                        echo "$(gettext "The download failed, and nothing was kept.")"
+                        exit 1
+                    fi
+                    ;;
+            esac
+            gsettings set "${schema}" enabled true
+            echo "$(gettext "Live captions are on: they show under speech the computer plays. Quick settings turns them off.")"
+            ;;
+        off)
+            gsettings set "${schema}" enabled false
+            echo "$(gettext "Live captions are off.")"
+            ;;
+        remove)
+            # The model goes first: the shell's watch of its folder takes the toggle away, and the key then says off
+            had="$("${helper}" status)"
+            "${helper}" remove
+            gsettings set "${schema}" enabled false
+            if [[ "${had}" == ready ]]; then
+                echo "$(gettext "The speech model is removed: 68 MiB freed.")"
+            else
+                echo "$(gettext "Live captions are off, and no speech model is left.")"
+            fi
+            ;;
+        status)
+            if [[ "$(gsettings get "${schema}" enabled)" == true ]]; then
+                echo "$(gettext "Live captions are on.")"
+            else
+                echo "$(gettext "Live captions are off.")"
+            fi
+            case "$("${helper}" status)" in
+                ready) echo "$(gettext "The speech model is on this computer.")" ;;
+                no-model) echo "$(gettext "The speech model is not downloaded.")" ;;
+                *) echo "$(gettext "The speech recognizer is not installed in this image.")" ;;
+            esac
+            ;;
+        *) usage ;;
     esac
 
 # The live pill: the clock shows what is happening now (ame desktop pill [on|off]); the privacy dots and the

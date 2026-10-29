@@ -90,7 +90,9 @@ pub fn make(root: &Path, name: &str, kind: &str, phone: bool, udp: bool) -> Peer
 pub fn make_with(root: &Path, name: &str, kind: &str, phone: bool, udp: bool, tweak: impl FnOnce(&mut Config)) -> Peer {
     let (cfg, dir) = config_for(root, name, kind, phone, udp, tweak);
     let notices = Rc::new(Recorder::default());
-    let service = Service::new(cfg, Box::new(notices.clone()), Settings { name: name.into(), ..Settings::default() }, None).unwrap();
+    // A copy playing a phone talks to computers, as a phone's app does; a computer talks to computers only while
+    // its switch is on, off here as the image ships
+    let service = Service::new(cfg, Box::new(notices.clone()), Settings { name: name.into(), computers: phone, ..Settings::default() }, None).unwrap();
     started(service, notices, dir)
 }
 

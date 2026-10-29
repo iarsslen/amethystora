@@ -107,6 +107,8 @@ pub struct Settings {
     pub clipboard_send: bool,
     pub clipboard_receive: bool,
     pub photo_folder: PhotoFolder,
+    /// Other computers pair too (the GSettings key computers), off as the image ships
+    pub computers: bool,
 }
 
 /// Where pictures from a phone go (the GSettings key photo-folder)
@@ -169,6 +171,8 @@ pub struct Service {
     pub clip_send: Cell<bool>,
     pub clip_receive: Cell<bool>,
     pub photo_folder: Cell<PhotoFolder>,
+    /// Whether other computers are talked to (identity::is_computer); phones and tablets always are
+    pub computers: Cell<bool>,
     pub home: HomeZone,
     pub next: Cell<u64>,
     handshakes: Cell<usize>,
@@ -246,6 +250,7 @@ impl Service {
             clip_send: Cell::new(settings.clipboard_send),
             clip_receive: Cell::new(settings.clipboard_receive),
             photo_folder: Cell::new(settings.photo_folder),
+            computers: Cell::new(settings.computers),
             home,
             next: Cell::new(1),
             handshakes: Cell::new(0),
@@ -279,18 +284,7 @@ impl Service {
             cfg,
         });
         // The phones paired before are known from the start, disconnected
-        let paired: Vec<(String, Paired)> = service.store.borrow().paired.iter().map(|(id, p)| (id.clone(), p.clone())).collect();
-        for (id, p) in paired {
-            let dev = service.make_device(&id, &p.name, &p.kind, p.protocol);
-            {
-                let mut st = dev.st.borrow_mut();
-                st.paired = true;
-                st.incoming = p.incoming.clone();
-                st.outgoing = p.outgoing.clone();
-                st.address = p.address;
-                st.contacts = crate::contacts::Book::load(&service.contacts_path(&id));
-            }
-        }
+        service.restore_paired();
         let weak = Rc::downgrade(&service);
         service.notifier.set_handler(Rc::new(move |event| {
             if let Some(service) = weak.upgrade() {
@@ -385,6 +379,72 @@ impl Service {
     fn remove_device(&self, dev: &Rc<Device>) {
         crate::dbus::unregister_device(&self.weak.upgrade().expect("the service is alive"), dev);
         self.devices.borrow_mut().remove(&dev.id);
+    }
+
+    /// Whether a device of this kind is talked to now: a phone or a tablet always, another computer only while the
+    /// switch is on
+    pub fn talks_to(&self, kind: &str) -> bool {
+        self.computers.get() || !identity::is_computer(kind)
+    }
+
+    /// The paired devices of the store that are not in the registry yet, and are talked to now, made known,
+    /// disconnected; returns those it made
+    fn restore_paired(&self) -> Vec<Rc<Device>> {
+        let paired: Vec<(String, Paired)> = self.store.borrow().paired.iter().map(|(id, p)| (id.clone(), p.clone())).collect();
+        let mut made = Vec::new();
+        for (id, p) in paired {
+            if self.device(&id).is_some() || !self.talks_to(&p.kind) {
+                continue;
+            }
+            let dev = self.make_device(&id, &p.name, &p.kind, p.protocol);
+            {
+                let mut st = dev.st.borrow_mut();
+                st.paired = true;
+                st.incoming = p.incoming.clone();
+                st.outgoing = p.outgoing.clone();
+                st.address = p.address;
+                st.contacts = crate::contacts::Book::load(&self.contacts_path(&id));
+            }
+            made.push(dev);
+        }
+        made
+    }
+
+    /// The switch `computers`. Off, every other computer is let go: its connections closed and its object taken off
+    /// the bus, a pairing kept in the store (Unpair alone forgets one). On, the paired ones are known again and this
+    /// computer announces itself, so that the others find it at once.
+    pub fn set_computers(self: &Rc<Self>, on: bool) {
+        if self.computers.replace(on) == on {
+            return;
+        }
+        if on {
+            for dev in self.restore_paired() {
+                crate::dbus::device_added(self, &dev);
+            }
+            self.announce_burst();
+        } else {
+            let gone: Vec<Rc<Device>> = self.devices.borrow().values().filter(|d| identity::is_computer(&d.st.borrow().kind)).cloned().collect();
+            for dev in gone {
+                let (links, waiting) = {
+                    let mut st = dev.st.borrow_mut();
+                    (std::mem::take(&mut st.links), st.pairing_link.take())
+                };
+                if let Some(link) = waiting {
+                    self.notifier.close(&pair_key(&dev.id, link));
+                }
+                // A file on its way either way stops too, while the device is still on the bus to say so
+                let running: Vec<String> = self.transfers.borrow().iter().filter(|(_, t)| t.device == dev.id).map(|(id, _)| id.clone()).collect();
+                for id in running {
+                    self.cancel_transfer_by_id(&id);
+                }
+                self.remove_device(&dev);
+                crate::dbus::device_removed(self, &dev);
+                for link in links {
+                    link.close();
+                }
+            }
+        }
+        crate::dbus::root_props_changed(self);
     }
 
     // --- Starting and stopping ---------------------------------------------------------------------------
@@ -725,6 +785,10 @@ impl Service {
     }
 
     fn datagram_found(self: &Rc<Self>, found: Identity, ip: IpAddr, port: u16, scope: u32) {
+        // Another computer is not called while the switch is off (link_up decides again on the identity that counts)
+        if found.kind.as_deref().is_some_and(|kind| !self.talks_to(kind)) {
+            return;
+        }
         let known = self.device(&found.device_id);
         if known.is_none() && self.unpaired_count() >= limits::UNPAIRED_DEVICES {
             return;
@@ -899,7 +963,15 @@ impl Service {
         let protocol = identity.protocol.unwrap_or(8);
         let name = identity.name.clone().unwrap_or_else(|| tr("Unknown device"));
         let kind = identity.kind.clone().unwrap_or_else(|| "phone".into());
-        let paired = self.store.borrow().paired.contains_key(&id);
+        let stored_kind = self.store.borrow().paired.get(&id).map(|p| p.kind.clone());
+        let paired = stored_kind.is_some();
+        // Another computer, by what it says now or by what it was paired as, is let go while the switch is off: a
+        // paired computer that calls itself a phone stays a computer
+        if !self.talks_to(&kind) || stored_kind.is_some_and(|k| !self.talks_to(&k)) {
+            self.log(&format!("{id} is another computer, and computers are off; let go"));
+            opened.close();
+            return;
+        }
 
         let (dev, is_new) = match self.device(&id) {
             Some(dev) => (dev, false),
@@ -1051,15 +1123,22 @@ impl Service {
                 self.raise_pairing_prompt_again(dev);
             }
         }
+        // A computer the switch let go is off the bus already, and its id may be a new object's by now
+        let registered = self.device(&dev.id).is_some_and(|d| Rc::ptr_eq(&d, dev));
         if gone {
             self.on_disconnected(dev);
+            if !registered {
+                return;
+            }
             if !paired && !self.stopping.get() {
                 self.remove_device(dev);
                 crate::dbus::device_removed(self, dev);
                 return;
             }
         }
-        crate::dbus::props_changed(self, dev);
+        if registered {
+            crate::dbus::props_changed(self, dev);
+        }
     }
 
     // --- Pairing -----------------------------------------------------------------------------------------
@@ -1376,10 +1455,12 @@ impl Service {
         let name = dev.name();
         let shown = format!("{} {}", &key[..4], &key[4..]);
         let older = dev.st.borrow().protocol < 8;
-        let mut body = if outgoing {
-            trf("Key {key}. Compare it with the key on the phone, and cancel if they differ.", &[("key", &shown)])
-        } else {
-            trf("Key {key}. Compare it with the key on the phone, and accept only if they are the same.", &[("key", &shown)])
+        let computer = identity::is_computer(&dev.st.borrow().kind);
+        let mut body = match (outgoing, computer) {
+            (true, false) => trf("Key {key}. Compare it with the key on the phone, and cancel if they differ.", &[("key", &shown)]),
+            (false, false) => trf("Key {key}. Compare it with the key on the phone, and accept only if they are the same.", &[("key", &shown)]),
+            (true, true) => trf("Key {key}. Compare it with the key on the other computer, and cancel if they differ.", &[("key", &shown)]),
+            (false, true) => trf("Key {key}. Compare it with the key on the other computer, and accept only if they are the same.", &[("key", &shown)]),
         };
         if older {
             body.push('\n');

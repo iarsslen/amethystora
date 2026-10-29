@@ -162,6 +162,8 @@ export class Quick {
         this._focusBlock = null;
         this._releaseSystem();
         this._restoreOrder();
+        for (const actor of this._late ?? [])
+            actor.disconnectObject(this);
         this.menu?.box.remove_style_class_name('amethystora-quick');
         this.menu = null;
         this.grid = null;
@@ -225,6 +227,11 @@ export class Quick {
             if (children.indexOf(child) < children.indexOf(this._placeholder))
                 this._gnome.add(child);
             this._late.push(child);
+            // Taken away again while this runs (the live captions' toggle when its model goes): forgotten
+            child.connectObject('destroy', () => {
+                this._rank?.delete(child);
+                this._late = this._late?.filter(actor => actor !== child) ?? null;
+            }, this);
         }
         // A tile that came later is put in its place once, before the next frame
         if (!this._later) {
@@ -271,6 +278,10 @@ export class Quick {
             child.connectObject('destroy', () => {
                 this._known?.delete(child);
                 this._held?.delete(child);
+                // A tile another module takes away while this one runs (the live captions' toggle) is forgotten
+                // whole, so that putting GNOME's order back does not touch it
+                this._rank?.delete(child);
+                this._late = this._late?.filter(actor => actor !== child) ?? null;
             }, this);
             this._hold(child);
         }

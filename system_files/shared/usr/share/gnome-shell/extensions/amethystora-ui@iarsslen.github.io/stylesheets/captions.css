@@ -1,0 +1,14 @@
+/* Live captions (plans/beyond/spec-r4-later.md B.2): the board's dark box, black at 75 % with a 12 px radius, and white
+   words in 24 px at weight 700. White on black in every theme, as the board draws it: captions are read over any
+   picture. The padding is the module's PADDING_X on the sides. */
+.amethystora-captions-box {
+    background-color: rgba(0, 0, 0, 0.75);
+    border-radius: 12px;
+    padding: 10px 18px;
+}
+
+.amethystora-captions-text {
+    color: #ffffff;
+    font-size: 24px;
+    font-weight: 700;
+}

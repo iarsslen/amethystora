@@ -161,6 +161,13 @@ if [[ -d "${XDG_STATE_HOME:-${HOME:-/nonexistent}/.local/state}/amethystora/pkg/
         "$(gettext "Every day, each container asks its distribution's mirrors for its package list.")" ""
 fi
 
+# Only once live captions were set up: their speech model came from the internet once, and nothing goes out since
+if [[ -f "${XDG_DATA_HOME:-${HOME:-/nonexistent}/.local/share}/amethystora/captions/model/conf/model.conf" ]]; then
+    row captions off "$(gettext "Live captions")" \
+        "$(gettext "The speech model was downloaded once from alphacephei.com when captions were set up. Captions are made on this computer and nothing is sent.")" \
+        "ame desktop captions"
+fi
+
 if command -v firefox >/dev/null; then
     row firefox on "$(gettext "Firefox")" \
         "$(gettext "Firefox has its own settings for what it sends, under Privacy & Security in its settings.")" \

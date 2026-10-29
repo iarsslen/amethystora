@@ -2108,6 +2108,18 @@ msgid "GNOME's High Contrast: stronger outlines, plain text and outlined control
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
+msgid "The speech recognizer is not in this image."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list usr/libexec/amethystora-sends usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/captions.js
+msgid "Live captions"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Captions under speech the computer plays, made on this computer. The first time downloads an English speech model of 39 MiB; while on, they hold about 230 MB of memory."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
 msgid "Font"
 msgstr ""
 
@@ -3423,6 +3435,14 @@ msgstr ""
 
 #: usr/libexec/amethystora-control-list
 msgid "Notifications, files, texts and calls shared with an Android phone through KDE Connect, on the networks named home."
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Pair with other computers"
+msgstr ""
+
+#: usr/libexec/amethystora-control-list
+msgid "Send files and share the clipboard with another computer that has the phone link on, on the networks named home."
 msgstr ""
 
 #: usr/libexec/amethystora-control-list
@@ -5669,6 +5689,10 @@ msgid "Every day, each container asks its distribution's mirrors for its package
 msgstr ""
 
 #: usr/libexec/amethystora-sends
+msgid "The speech model was downloaded once from alphacephei.com when captions were set up. Captions are made on this computer and nothing is sent."
+msgstr ""
+
+#: usr/libexec/amethystora-sends
 msgid "Firefox"
 msgstr ""
 
@@ -6523,11 +6547,67 @@ msgid "Photos from the phone go to Downloads, with the phone's other files."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
+msgid "Other computers with the phone link on can now pair with this one, on the networks named home. Turn this on on both."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Only phones and tablets pair with this computer now. Paired computers are kept, and connect again once this is on."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
 msgid "Phone pairing is on: install KDE Connect on the phone, and pair them on a network you named home."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/dock/drops.js
 msgid "Phone pairing is off"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The speech recognizer is not installed in this image."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Live captions need a speech model of 39 MiB (68 MiB once unpacked), downloaded once from alphacephei.com, the makers of the Vosk recognizer. After that, captions are made on this computer: the sound is never recorded or sent. English only for now."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "While they are on, they hold about 230 MB of memory, and use part of a processor core while speech plays."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Download it now?"
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The download failed, and nothing was kept."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Live captions are on: they show under speech the computer plays. Quick settings turns them off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Live captions are off."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The speech model is removed: 68 MiB freed."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Live captions are off, and no speech model is left."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "Live captions are on."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The speech model is on this computer."
+msgstr ""
+
+#: usr/share/amethystora/just/desktop.just
+msgid "The speech model is not downloaded."
 msgstr ""
 
 #: usr/share/amethystora/just/desktop.just
@@ -9167,6 +9247,22 @@ msgstr ""
 
 #: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/bazaar.js
 msgid "Try uninstalling it in Bazaar."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/captions.js
+msgid "Live captions stopped"
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/captions.js
+msgid "The speech model is missing or damaged. Turn captions on again: ame desktop captions on."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/captions.js
+msgid "No sound could be taken from the output."
+msgstr ""
+
+#: usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/captions.js
+msgid "The speech recognizer stopped."
 msgstr ""
 
 #. Translators: the phone's charge, said by a screen reader: "battery 54 per cent"
@@ -11853,6 +11949,16 @@ msgstr ""
 #: apps/connect/src/service.rs
 #, python-brace-format
 msgid "Key {key}. Compare it with the key on the phone, and accept only if they are the same."
+msgstr ""
+
+#: apps/connect/src/service.rs
+#, python-brace-format
+msgid "Key {key}. Compare it with the key on the other computer, and cancel if they differ."
+msgstr ""
+
+#: apps/connect/src/service.rs
+#, python-brace-format
+msgid "Key {key}. Compare it with the key on the other computer, and accept only if they are the same."
 msgstr ""
 
 #: apps/connect/src/service.rs

@@ -203,6 +203,8 @@ read_in_background phone systemctl --user is-enabled amethystora-connect.service
 read_in_background clipboard-send gsettings get org.amethystora.Connect clipboard-send
 read_in_background clipboard-receive gsettings get org.amethystora.Connect clipboard-receive
 read_in_background phone-photos gsettings get org.amethystora.Connect photo-folder
+read_in_background phone-computers gsettings get org.amethystora.Connect computers
+read_in_background captions gsettings get org.gnome.shell.extensions.amethystora-ui.captions enabled
 read_in_background waydroid-enabled systemctl is-enabled waydroid-container.service
 read_in_background waydroid-active systemctl is-active waydroid-container.service
 read_in_background uupd systemctl is-enabled uupd.timer
@@ -389,6 +391,16 @@ USAGE="ame desktop comfort increase-contrast on|off"
 item appearance increase-contrast switch "${ gettext "Increase contrast"; }" \
     "${ gettext "GNOME's High Contrast: stronger outlines, plain text and outlined controls, in the apps as well."; }" \
     "$([[ "${CONTRAST}" == true ]] && echo on || echo off)" themes#comfort
+# Live captions: on opens a terminal, since the first time it says what it downloads and asks; off never asks
+if [[ "${ ended captions; }" == 0 && "${ said captions; }" == true ]]; then CAPTIONS=on; else CAPTIONS=off; fi
+# The recognizer is GStreamer's vosk element: its file says it is there, with no Python and no GStreamer started
+[[ -e /usr/lib64/gstreamer-1.0/libgstvosk.so ]] || REASON="${ gettext "The speech recognizer is not in this image."; }"
+choice on "${ON}" "" true ame desktop captions on
+choice off "${OFF}" "" false ame desktop captions off
+USAGE="ame desktop captions on|off"
+item appearance captions switch "${ gettext "Live captions"; }" \
+    "${ gettext "Captions under speech the computer plays, made on this computer. The first time downloads an English speech model of 39 MiB; while on, they hold about 230 MB of memory."; }" \
+    "${CAPTIONS}" desktop#live-captions
 GROUP=""
 
 FONT_SET=theme
@@ -1226,6 +1238,13 @@ GROUP="${ gettext "Phone"; }"
 USAGE="ame desktop phone on|off"
 item desktop phone switch "${ gettext "Phone pairing"; }" \
     "${ gettext "Notifications, files, texts and calls shared with an Android phone through KDE Connect, on the networks named home."; }" "${PHONE}" hardware#phones
+
+# Other computers with the phone link pair too, for files and the clipboard, only once chosen on both (off as shipped)
+if [[ "${ ended phone-computers; }" == 0 && "${ said phone-computers; }" == true ]]; then COMPUTERS=on; else COMPUTERS=off; fi
+switch_choices false ame desktop phone computers
+USAGE="ame desktop phone computers on|off"
+item desktop phone-computers switch "${ gettext "Pair with other computers"; }" \
+    "${ gettext "Send files and share the clipboard with another computer that has the phone link on, on the networks named home."; }" "${COMPUTERS}" phone#computers
 
 # The clipboard goes between this computer and a phone only when chosen, one way at a time: a phone that can paste
 # into a password field is a risk the person takes on knowingly

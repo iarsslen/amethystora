@@ -27,6 +27,9 @@
          call PushClipboard, and whether ClipboardReceived will come -->
     <property name="ClipboardSend" type="b" access="read"/>
     <property name="ClipboardReceive" type="b" access="read"/>
+    <!-- The GSettings key computers, off as the image ships: other computers (a device of Type "desktop" or "laptop") are
+         listed, paired and talked to only while it is true. Off, a paired computer is kept but not listed -->
+    <property name="Computers" type="b" access="read"/>
     <!-- Where files from a phone are put: ~/Downloads/Phone, with a folder for each phone -->
     <property name="ReceiveFolder" type="s" access="read"/>
     <!-- Where pictures from a phone are put: Pictures/Phone, or ReceiveFolder when the GSettings key photo-folder says

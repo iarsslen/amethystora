@@ -237,6 +237,18 @@ settings set org.amethystora.Connect device-name "'Studio Laptop'" >/dev/null 2>
 check "the name written by gsettings reaches the program" wait_for 10 root_says Name "Studio Laptop"
 settings reset org.amethystora.Connect device-name >/dev/null 2>&1
 settings reset org.amethystora.Connect clipboard-send >/dev/null 2>&1
+# Computer to computer (plans/beyond/spec-r4-later.md, part A): the peer is a desktop, let go while the switch is off and
+# back, still paired, once it is on
+listed() { in_ours "gdbus call --session --dest org.amethystora.Connect --object-path /org/amethystora/Connect --method org.amethystora.Connect.GetDevices" | grep -q "Device/$PHONE_ID_SANITIZED"; }
+not_listed() { ! listed; }
+back() { ours_prop "$PHONE_ID" Connected | grep -q true && ours_prop "$PHONE_ID" Paired | grep -q true; }
+check "the switch for other computers is on here (Computers)" root_says Computers true
+settings set org.amethystora.Connect computers false >/dev/null 2>&1
+check "off, the desktop leaves the program's list" wait_for 10 not_listed
+check "its pairing is kept" in_ours "grep -q $PHONE_ID /tmp/ours/config/amethystora/connect/devices.json"
+settings set org.amethystora.Connect computers true >/dev/null 2>&1
+in_ours "gdbus call --session --dest org.amethystora.Connect --object-path /org/amethystora/Connect --method org.amethystora.Connect.Announce" >/dev/null 2>&1
+check "on again, it is back, paired and connected" wait_for 30 back
 
 # --- Unpairing from the phone -----------------------------------------------------------------------------------------------
 phone_cli --unpair -d "$OURS_ID" >/dev/null 2>&1

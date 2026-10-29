@@ -293,13 +293,16 @@ grep -q '^\[Install\]' /usr/lib/systemd/user/amethystora-connect.service
 grep -q '^WantedBy=graphical-session.target' /usr/lib/systemd/user/amethystora-connect.service
 grep -qE '^(MemoryMax|TasksMax|LimitNOFILE)=' /usr/lib/systemd/user/amethystora-connect.service
 # ...whose only settings are the name phones see, the two ways the clipboard may be shared, both off, and where
-# pictures from a phone go, Pictures/Phone (plans/beyond/spec-phone-files-first.md 2.3)
+# pictures from a phone go, Pictures/Phone (plans/beyond/spec-phone-files-first.md 2.3), and whether other computers
+# pair too, off (plans/beyond/spec-r4-later.md A.2)
 [[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.amethystora.Connect | sort | paste -sd ' ')" == \
-    "clipboard-receive clipboard-send device-name photo-folder" ]]
+    "clipboard-receive clipboard-send computers device-name photo-folder" ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.amethystora.Connect clipboard-send)" == false ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.amethystora.Connect clipboard-receive)" == false ]]
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.amethystora.Connect photo-folder)" == "'pictures'" ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.amethystora.Connect computers)" == false ]]
 grep -q 'gsettings set org.amethystora.Connect photo-folder downloads' /usr/share/amethystora/just/desktop.just
+grep -q 'gsettings set org.amethystora.Connect computers true' /usr/share/amethystora/just/desktop.just
 # The phone's signal in the top bar comes from the program's two device properties, which the module reads
 for property in SignalStrength NetworkType; do
     grep -q "<property name=\"${property}\"" /usr/share/gnome-shell/extensions/amethystora-ui@iarsslen.github.io/modules/connect/interfaces.js
@@ -328,6 +331,9 @@ done
 grep -q "amethystora-connect.service" /usr/share/amethystora/just/desktop.just
 grep -qi "gsconnect" /usr/share/amethystora/just/desktop.just && false
 test -x /usr/share/amethystora/user-setup.hooks.d/21-phone-link.sh
+# ...and an account that had paired a computer keeps it, the switch for computers turned on once for it
+test -x /usr/share/amethystora/user-setup.hooks.d/26-phone-computers.sh
+grep -q '^version-script phone-computers user ' /usr/share/amethystora/user-setup.hooks.d/26-phone-computers.sh
 test -x /usr/libexec/amethystora-phone-link-notice
 test ! -e /usr/share/amethystora/user-setup.hooks.d/18-home-networks.sh
 
@@ -715,6 +721,27 @@ fi
 grep -q "^export const WARMEST = 1700;" "${UI_EXTENSION}/modules/focus/night.js"
 GSETTINGS_BACKEND=memory gsettings range org.gnome.settings-daemon.plugins.color night-light-temperature | grep -qx 'type u'
 grep -q "def HoldProfile" "$(rpm -ql tuned | grep '/tuned/ppd/controller\.py$')"
+# Live captions (plans/beyond/spec-r4-later.md, part B): off, one key; the recognizer is in the image (GStreamer's
+# vosk element) and its helper downloads only the pinned model, never writes or sends the sound, and is the only
+# program the module starts; nothing it hears is markup. The helper's own test runs without the network
+[[ "$(GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.shell.extensions.amethystora-ui.captions)" == enabled ]]
+[[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.shell.extensions.amethystora-ui.captions enabled)" == false ]]
+rpm -q gst-vosk >/dev/null
+gst-inspect-1.0 vosk >/dev/null
+test -x /usr/libexec/amethystora-captions
+grep -q "^MODEL_URL = 'https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip'$" /usr/libexec/amethystora-captions
+grep -q "^MODEL_SHA256 = '30f26242c4eb449f948e42cb302dd7a686cb29a3423a8367f99ff41780942498'$" /usr/libexec/amethystora-captions
+grep -q "'--proto-redir', protocols" /usr/libexec/amethystora-captions
+# While words show, a full-screen window is composited, as GNOME's banners and OSDs have it, and given back after
+[[ "$(grep -cE "global\.compositor\.(disable|enable)_unredirect\(\)" "${UI_EXTENSION}/modules/captions.js")" == 2 ]]
+[[ -z "$(grep -nE "filesink|wavenc|tcpclientsink|udpsink|souphttp" /usr/libexec/amethystora-captions)" ]]
+test -s "${UI_EXTENSION}/modules/captions.js"
+test -s "${UI_EXTENSION}/stylesheets/captions.css"
+[[ "$(grep -cE "Subprocess\.new|Util\.spawn|spawn_command_line|GLib\.spawn|Shell\.App" "${UI_EXTENSION}/modules/captions.js")" == 1 ]]
+grep -q "Gio.Subprocess.new(\[HELPER, 'listen'\]," "${UI_EXTENSION}/modules/captions.js"
+[[ -z "$(grep -nE 'use_markup = true|use_markup: true|set_markup\(' "${UI_EXTENSION}/modules/captions.js")" ]]
+grep -q '^captions \*ARGS:' /usr/share/amethystora/just/desktop.just
+bash /ctx/build_files/shared/test-captions.sh
 # GNOME's own rest reminders are what ame desktop breaks writes: the key and its two kinds of break are there
 [[ "$(GSETTINGS_BACKEND=memory gsettings get org.gnome.desktop.break-reminders selected-breaks)" == "@as []" ]]
 GSETTINGS_BACKEND=memory gsettings list-keys org.gnome.desktop.break-reminders.eyesight | grep -qx interval-seconds

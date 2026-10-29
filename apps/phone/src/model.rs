@@ -310,6 +310,13 @@ impl Device {
         if self.name.trim().is_empty() { kind_word(&self.kind) } else { self.name.clone() }
     }
 
+    /// Another computer, as the program counts one (a desktop, a laptop, or a type it did not know): the words of a
+    /// pairing speak of its screen, not of a phone in the hand. The same rule as `identity::is_computer` of
+    /// amethystora-connect, which decides what the program talks to: change both together
+    pub fn is_computer(&self) -> bool {
+        !matches!(self.kind.as_str(), "phone" | "tablet" | "tv")
+    }
+
     /// Seconds left before a request lapses, never negative
     pub fn seconds_left(&self, now: f64) -> i64 {
         (self.pairing_deadline as f64 - now).ceil().max(0.0) as i64

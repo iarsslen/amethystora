@@ -158,6 +158,29 @@ The signal shows only when the phone tells it: the KDE Connect app needs permiss
 connectivity report, and a phone without a SIM has none to tell. A phone that goes away takes its battery and signal
 with it; they come back when it connects and says them again.
 
+## Computers
+
+The same link pairs two computers: your laptop with your desktop, say, to send files and share the clipboard. It is
+**off**, which keeps other computers' phone link from showing up here and asking to pair. A device says itself what
+kind it is, so this is a tidy list rather than a lock: pairing anything still needs you, and the key on both screens.
+Turn it on on **both** computers, each with the phone link on:
+
+```bash
+ame desktop phone computers on
+```
+
+or **Pair with other computers** on [Control](control.md)'s **Desktop** page. The Phone app's page is then called
+**Phones and computers** and lists the other computer. Pairing works as with a phone: both screens show the same key,
+and you accept only if they match. Once paired, **Send…** sends files and links (dropping files on Phone in the dock
+too), **Ping** shows a notification on it, and the [clipboard](#the-clipboard)'s two switches, still off until you choose, share what you
+copy. Files land where a phone's do. As with phones, it works only on networks you named home, and another computer
+gets nothing you did not send it: no notifications and no texts.
+
+`ame desktop phone computers off` lets the other computers go: they leave the list, and a computer you paired is kept,
+connecting again once this is on. Unpair removes it for good; to unpair a computer you no longer want, turn this on
+first, since a computer let go is not in the list. A computer you had paired before this switch existed (a KDE desktop,
+say) keeps it on for you. Folders kept the same on both computers are not part of this.
+
 ## What it does not do
 
 The link is deliberately small. It does not let a phone run commands here, type on this computer,
