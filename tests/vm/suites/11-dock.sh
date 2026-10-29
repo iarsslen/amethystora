@@ -147,9 +147,11 @@ FAVORITES="$(user_bus gsettings get org.gnome.shell favorite-apps)"
 # --- Keys, ame desktop dock ------------------------------------------------------------------------------------------
 # What a run stopped part way left behind is put back first: a reset gives what the image ships, overrides included
 in_session "gsettings list-keys ${DOCK_SCHEMA} | while read -r key; do gsettings reset ${DOCK_SCHEMA} \"\${key}\"; done"
-sleep 1
-defaults="$(in_session "gsettings list-recursively ${DOCK_SCHEMA}" | cut -d' ' -f2- | LC_ALL=C sort | paste -sd ';')"
-check "the dock's keys have the spec's defaults" test "${defaults}" == \
+# Read again until they settle: the shell may still be writing a key it follows when the reset reaches it
+dock_defaults() {
+    [[ "$(in_session "gsettings list-recursively ${DOCK_SCHEMA}" | cut -d' ' -f2- | LC_ALL=C sort | paste -sd ';')" == "$1" ]]
+}
+check "the dock's keys have the spec's defaults" wait_for 10 dock_defaults \
     "autohide 'off';edge 'bottom';folders @a{sas} {};indicator 'bar';launch 'halo';magnify 'swell';magnify-amount 1.6000000000000001;previews true;recent true;screens 'every';stacks ['xdg:DOWNLOAD'];workspace-apps false"
 bad=""
 while read -r setting value key want shown; do
@@ -438,7 +440,8 @@ sleep 0.8
 check "a click opens the folder's card" test "$(ev "${S}.folderCard.open")" == true
 vp "const n = ${DOCK}._card.card.get_last_child().child; const [x, y] = n.get_transformed_position(); click(x + n.width / 2, y + n.height / 2); 1" >/dev/null
 sleep 0.5
-keys ctrl+a text:Writing return >/dev/null
+# keys.py's text: types lower case only: the capital is a chord of its own
+keys ctrl+a shift+w text:riting return >/dev/null
 sleep 1
 check "its name is changed by typing on it" test "$(dget folders)" == "{'Writing': ['amethystora-manual.desktop', 'amethystora-notes.desktop']}"
 keys esc >/dev/null
@@ -594,9 +597,11 @@ user_bus gsettings set org.gnome.shell favorite-apps "${FAVORITES}"
 # --- Teardown and cost -----------------------------------------------------------------------------------------------
 in_session "ame desktop dock autohide touch" >/dev/null
 sleep 1
+# GNOME's own dash, hidden while the dock is on, redraws only once it is shown (deferred work): it is brought up to date
+# before each count, so that its items for the favourites of an earlier step are not taken for the dock's leftovers.
 # GNOME 50 turns an extension on and off through its settings, a moment later: each step waits for the state it asked
 # for (1 on, 2 or 6 off), and a step that never comes, or a throw, is the answer instead of a hang
-ev "global._vmlabCycle = 'running'; (async () => { try { const E = Main.extensionManager; const U = '${UUID}'; const wait = ms => new Promise(r => imports.gi.GLib.timeout_add(0, ms, () => { r(); return false; })); const until = async on => { for (let n = 0; n < 300; n++) { const s = E.lookup(U).state; if (on ? s === 1 : s === 2 || s === 6) return; await wait(100); } throw new Error('the extension did not turn ' + (on ? 'on' : 'off')); }; const count = () => [Main.layoutManager.uiGroup.get_n_children(), Main.layoutManager._trackedActors.length, Main.overview.dash.visible, Main.modalCount].join(' '); const st = () => { const s = E.lookup(U).stateObj?.modules?.get('dock')?.state(); return s ? JSON.stringify([s.docks.map(d => [d.edge, d.touch, d.items.map(i => i.kind + i.id).join()]), s.folders, s.stacks, s.magnify]) : 'none'; }; const before = st(); E.disableExtension(U); await until(false); await wait(500); const off0 = count(); for (let i = 0; i < 10; i++) { E.enableExtension(U); await until(true); await wait(300); E.disableExtension(U); await until(false); await wait(300); } await wait(500); const off10 = count(); E.enableExtension(U); await until(true); for (let n = 0; n < 50 && st() !== before; n++) await wait(100); global._vmlabCycle = [off0 === off10, st() === before, off0, off10].join(';'); } catch (e) { global._vmlabCycle = 'failed: ' + e.message; } })(); 1" >/dev/null
+ev "global._vmlabCycle = 'running'; (async () => { try { const E = Main.extensionManager; const U = '${UUID}'; const wait = ms => new Promise(r => imports.gi.GLib.timeout_add(0, ms, () => { r(); return false; })); const until = async on => { for (let n = 0; n < 300; n++) { const s = E.lookup(U).state; if (on ? s === 1 : s === 2 || s === 6) return; await wait(100); } throw new Error('the extension did not turn ' + (on ? 'on' : 'off')); }; const count = () => { Main.overview.dash._redisplay(); return countNow(); }; const countNow = () => [Main.layoutManager.uiGroup.get_n_children(), Main.layoutManager._trackedActors.length, Main.overview.dash.visible, Main.modalCount].join(' '); const st = () => { const s = E.lookup(U).stateObj?.modules?.get('dock')?.state(); return s ? JSON.stringify([s.docks.map(d => [d.edge, d.touch, d.items.map(i => i.kind + i.id).join()]), s.folders, s.stacks, s.magnify]) : 'none'; }; const before = st(); E.disableExtension(U); await until(false); await wait(500); const off0 = count(); const names = () => [...Main.layoutManager.uiGroup.get_children(), ...Main.layoutManager._trackedActors.map(t => t.actor)].map(a => a.constructor.name + (a.name ? '#' + a.name : '') + (a.get_style_class_name?.() ? '.' + a.get_style_class_name() : '') + (a instanceof imports.gi.St.Label ? '[' + a.text + ']' + (a.visible ? '+' : '-') : '')); const n0 = names(); const run = () => imports.gi.Shell.AppSystem.get_default().get_running().map(x => x.get_id()).sort().join(','); const r0 = run(); const g0 = Main.overview.dash._box.get_children().map(c => c.child?.app?.get_id?.() ?? c.child?.constructor?.name).join(','); await wait(3000); const n0b = names(); for (let i = 0; i < 10; i++) { E.enableExtension(U); await until(true); await wait(300); E.disableExtension(U); await until(false); await wait(300); } await wait(500); const off10 = count(); const n10 = names(); const r10 = run(); const g10 = Main.overview.dash._box.get_children().map(c => c.child?.app?.get_id?.() ?? c.child?.constructor?.name).join(','); const late = n0.filter((v, i) => n0.indexOf(v) === i && n0.filter(x => x === v).length !== n0b.filter(x => x === v).length); const left = n0.filter((v, i) => n0.indexOf(v) === i && n0.filter(x => x === v).length !== n10.filter(x => x === v).length); E.enableExtension(U); await until(true); for (let n = 0; n < 50 && st() !== before; n++) await wait(100); global._vmlabCycle = [off0 === off10, st() === before, off0, off10, left.join(' ') + (late.length ? ' (3 s later already gone: ' + late.join(' ') + ')' : ''), (r0 === r10 ? '' : 'running ' + r0 + ' -> ' + r10) + (g0 === g10 ? '' : ' overview dash ' + g0 + ' -> ' + g10), st() === before ? '' : before + ' -> ' + st()].join(';'); } catch (e) { global._vmlabCycle = 'failed: ' + e.message; } })(); 1" >/dev/null
 wait_for 300 ev_is "global._vmlabCycle === 'running'" false
 cycle="$(ev "global._vmlabCycle")"
 check "disabled and enabled ten times: nothing left behind (${cycle})" test "$(cut -d';' -f1 <<<"${cycle}")" == true
