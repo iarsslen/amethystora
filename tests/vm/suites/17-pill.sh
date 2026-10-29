@@ -50,6 +50,18 @@ P="${UI}.get('pill')"
 # One field of the pill's state, as JSON
 # One field of the pill's state, as JSON ('"idle"', true, 5)
 st() { ev "JSON.stringify(${P}.state()$1)"; }
+# The middle of the chip the pill shows, as fractions of the screen, once it has stopped moving into its place: read
+# while the plate still slides, or before it is laid out, the point is off the chip (or NaN)
+chip_point() {
+    local last="" now tries=30
+    while ((tries-- > 0)); do
+        now="$(ev "(() => { const c = [...${P}.clock.actor.shown].find(a => a._pillAction); if (!c) return ''; const [x, y] = c.get_transformed_position(); const [w, h] = c.get_transformed_size(); return ((x + w / 2) / global.stage.width).toFixed(4) + ',' + ((y + h / 2) / global.stage.height).toFixed(4); })()")"
+        [[ "${now}" =~ ^[0-9.]+,[0-9.]+$ && "${now}" == "${last}" ]] && break
+        last="${now}"
+        sleep 0.2
+    done
+    echo "${now}"
+}
 activity_is() { [[ "$(st .activity)" == "\"$1\"" || "$(st .activity)" == "$1" ]]; }
 keys() { python3 "${HERE}/keys.py" "$@" >/dev/null 2>&1; }
 shell_click() { user_bus python3 "${HERE}/atspi.py" gnome-shell click "$@" >/dev/null 2>&1; }
@@ -285,7 +297,7 @@ elif wait_for 8 recording; then
     same "8 the dot and the glow pulse at first" "${pulse}" true
     sleep 8
     same "8 ...and are still after their beats" "$(st .motion.pulsing)" false
-    chip="$(ev "(() => { const c = [...${P}.clock.actor.shown].find(a => a._pillAction); const [x, y] = c.get_transformed_position(); const [w, h] = c.get_transformed_size(); return ((x + w / 2) / global.stage.width).toFixed(4) + ',' + ((y + h / 2) / global.stage.height).toFixed(4); })()")"
+    chip="$(chip_point)"
     keys "click:${chip}"
     stopped() { ! activity_is recording && [[ "$(st .glow)" == 0 ]]; }
     check "8 Stop ends it and the glow" wait_for 5 stopped
@@ -427,9 +439,13 @@ listeners "l.call(globalThis.vmlabDev = ${DEV}, 'ringing', '+15550100', 'Sam')" 
 calling() { activity_is call; }
 check "15 a call takes the pill, above everything" wait_for 3 calling
 same "15 its text" "$(st .text)" '"Sam is calling"'
-chip="$(ev "(() => { const c = [...${P}.clock.actor.shown].find(a => a._pillAction); const [x, y] = c.get_transformed_position(); const [w, h] = c.get_transformed_size(); return ((x + w / 2) / global.stage.width).toFixed(4) + ',' + ((y + h / 2) / global.stage.height).toFixed(4); })()")"
+chip="$(chip_point)"
 keys "click:${chip}"
-check "15 Mute ringer reaches the phone" test "$(ev "globalThis.vmlabMuted")" == true
+muted() { [[ "$(ev "globalThis.vmlabMuted")" == true ]]; }
+if wait_for 3 muted; then ok "15 Mute ringer reaches the phone"; else
+    not_ok "15 Mute ringer reaches the phone" "clicked at ${chip}" \
+        "$(ev "JSON.stringify({chips: [...${P}.clock.actor.shown].filter(a => a._pillAction).map(a => a.text), card: !!${P}.clock._card, top: ${P}.state().activity})")"
+fi
 listeners "l.call(globalThis.vmlabDev, 'ended', '', '')" >/dev/null
 not_calling() { ! activity_is call; }
 check "15 the call ends" wait_for 3 not_calling
